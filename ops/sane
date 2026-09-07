@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# IS THE STATE SANE. One command, one line per check, distinct exit codes, never mutates anything.
+#
+#   ops/sane            repo-only checks (2)
+#   ops/sane --prod     + deployed version vs this checkout (3), backend health (7), legal URLs (9)
+#
+# Exit codes (the FIRST failing check in this order decides; all checks still run and print):
+#   2  repo not sane: untracked .swift inside a buildable/package folder, CRLF in tracked files, autocrlf=true,
+#      .gitattributes without eol=lf
+#   3  deployed Worker != this checkout: live git_sha is not in HEAD's history, or services/api changed since it
+#   7  backend down: /__health unreachable or not ok
+#   9  legal URLs (Terms, Privacy) not returning 200
+#   4/5/6/8 reserved: corpus/graph bounds, golden routes, quota/kill switch, R2 manifests - added with T-0008/T-0014.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+CR=$(printf '\r')
+prod=0; [[ "${1:-}" == "--prod" ]] && prod=1
+rc=0
+say()  { printf '%-9s %-6s %s\n' "$1" "$2" "$3"; }
+fail() { say "$1" "FAIL" "$2"; [[ $rc -eq 0 ]] && rc=$3; }
+ok()   { say "$1" "ok" "$2"; }
+skip() { say "$1" "skip" "$2"; }
+
+# ---- 2. repo ----------------------------------------------------------------------------------------
+stray="$(git status --porcelain --untracked-files=all -- Sources Tests apps/ios 2>/dev/null | grep -E '^\?\? .*\.swift$' | head -3 | tr '\n' ' ')"
+if [[ -n "$stray" ]]; then fail "repo" "untracked .swift is IN the build (buildable folders): $stray" 2; else ok "repo" "no stray .swift"; fi
+crlf="$(git ls-files -z | xargs -0 grep -lI "$CR" -- 2>/dev/null | head -3 | tr '\n' ' ')"
+if [[ -n "$crlf" ]]; then fail "crlf" "tracked files with CRLF: $crlf" 2; else ok "crlf" "none"; fi
+if [[ "$(git config --get core.autocrlf || echo false)" == "true" ]]; then fail "autocrlf" "true" 2; else ok "autocrlf" "$(git config --get core.autocrlf || echo unset)"; fi
+if grep -qE '^\* text=auto eol=lf' .gitattributes 2>/dev/null; then ok "gitattrs" "eol=lf"; else fail "gitattrs" "missing eol=lf" 2; fi
+
+# ---- 3 / 7 / 9. production --------------------------------------------------------------------------
+if [[ $prod -eq 1 ]]; then
+  url="${API_URL:-$(cat ops/api-url 2>/dev/null || true)}"
+  if [[ -z "$url" ]]; then
+    fail "backend" "no API URL (ops/api-url missing)" 7
+  else
+    health="$(curl -fsS --max-time 10 -A scenic-ops-sane/1 "$url/__health" 2>/dev/null || true)"
+    if [[ -z "$health" ]] || ! printf '%s' "$health" | grep -q '"ok":true'; then
+      fail "backend" "$url/__health -> ${health:-unreachable}" 7
+    else
+      ok "backend" "$url up, db up"
+      live="$(curl -fsS --max-time 10 -A scenic-ops-sane/1 "$url/__version" 2>/dev/null | "$PY" -c 'import json,sys; print(json.load(sys.stdin).get("git_sha",""))' 2>/dev/null || true)"
+      head="$(git rev-parse HEAD)"
+      if [[ -z "$live" || "$live" == "dev" ]]; then
+        fail "version" "live git_sha is '${live:-empty}' (not a real deploy)" 3
+      elif ! git cat-file -e "$live^{commit}" 2>/dev/null; then
+        fail "version" "live $live is not a commit this checkout knows (fetch, or a foreign deploy)" 3
+      elif ! git merge-base --is-ancestor "$live" "$head"; then
+        fail "version" "live $(git rev-parse --short "$live") is not in HEAD's history (deployed from an unmerged branch?)" 3
+      elif ! git diff --quiet "$live" "$head" -- services/api ops/deploy; then
+        fail "version" "services/api changed since live $(git rev-parse --short "$live") -> deploy pending: $(git diff --name-only "$live" "$head" -- services/api ops/deploy | head -3 | tr '\n' ' ')" 3
+      else
+        ok "version" "live $(git rev-parse --short "$live") == Worker code at HEAD $(git rev-parse --short "$head")"
+      fi
+    fi
+  fi
+  if [[ -f ops/legal-urls ]]; then
+    while IFS= read -r u; do
+      [[ -z "$u" || "$u" == \#* ]] && continue
+      code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -A scenic-ops-sane/1 "$u" || echo 000)"
+      if [[ "$code" == "200" ]]; then ok "legal" "$u"; else fail "legal" "$u -> $code" 9; fi
+    done < ops/legal-urls
+  else
+    skip "legal" "no ops/legal-urls yet (Terms + Privacy pages land with M6)"
+  fi
+  skip "corpus" "T-0008 (graph hash, counts, gate parity)"
+  skip "goldens" "T-0008 (live routing goldens)"
+  skip "quota" "T-0014 (kill switch, projected calls)"
+fi
+
+if [[ $rc -eq 0 ]]; then echo "SANE OK"; else echo "SANE FAIL exit=$rc"; fi
+exit $rc
