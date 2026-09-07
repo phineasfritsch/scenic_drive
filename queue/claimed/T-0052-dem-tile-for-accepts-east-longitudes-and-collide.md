@@ -1,13 +1,13 @@
 ---
 id: T-0052
 title: dem.tile_for accepts east longitudes and collides with a Bay Area tile, plus two smaller T-0026 findings
-state: ready
-owner: null
+state: claimed
+owner: agent/unknown
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T20:46:52Z
+lease_expires_at: 2026-09-07T22:46:52Z
 worktree: null
-branch: null
+branch: task/T-0052
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
@@ -50,3 +50,4 @@ write down when each is correct. Any is defensible; silence is not, because the 
 implicit the smoothing simply was not applied.
 
 ## Log
+- 2026-09-07T20:46:52Z claimed by agent/unknown; lease until 2026-09-07T22:46:52Z
