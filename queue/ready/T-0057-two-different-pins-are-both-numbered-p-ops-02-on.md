@@ -1,7 +1,7 @@
 ---
 id: T-0057
 title: two different pins are both numbered P-OPS-02, on branches that will merge
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -9,7 +9,7 @@ lease_expires_at: null
 worktree: null
 branch: null
 exclusive: []
-touches: [pins/PINS.yaml, ops/check-pins, ops/lib/]
+touches: [pins/PINS.yaml]
 pins_affected: []
 reviewer: null
 depends_on: [T-0023, T-0049]
@@ -53,3 +53,40 @@ unmerged branches costs more than renaming a pin twice a year. Say so in the log
   other duplicate exists today, record that you looked.
 
 ## Log
+- 2026-09-07T23:40:15Z claimed by agent/unknown; lease until 2026-09-08T01:40:15Z
+
+- 2026-09-08T08:30Z claimed by agent/claude-opus-5, then RELEASED because half this brief is wrong. The
+  claim I filed was:
+
+      "ops/check-pins does not notice. A duplicate id is not an error today; the YAML parse simply yields two
+       entries with the same id, and the printed ok=N counts them both while any lookup by id silently
+       resolves to one of them."
+
+  MEASURED, before writing any code. `ops/lib/pins.py:112-116` already carries the check, and it fires:
+
+      duplicated id: P-SRC-01
+      real pins file:  PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only
+      two pins, one id: PINS ok=3 skipped=8 pending=1 expired=0 failed=1 tier=linux source-only
+                         - P-SRC-01: duplicate id
+                        exit=1
+
+  It also runs BEFORE the `--source-only` skip, so it fires in both modes. PINS.yaml restored, sha256 verified.
+
+  I wrote an unverified assertion into a brief - in a task filed BECAUSE of unverified assertions - and it
+  would have led whoever claimed it to build a check that already exists. Corrected rather than quietly
+  deleted, because the brief is the thing the next agent reads.
+
+  **What this changes about the merge-time traps.** T-0041 and this task both describe branches that are green
+  alone and broken together. That framing implied the breakage would be SILENT. It would not: `check-pins`
+  catches the duplicate id, and `check-exec-bits` catches T-0041's file mode, so the merged `main` goes RED
+  rather than quietly wrong - provided CI runs, which is T-0053. The traps are real and worth pre-empting;
+  they are not the silent-corruption class I filed them as.
+
+  **What remains, and it is only the renumber.** Two different pins are still both called P-OPS-02, on
+  `task/T-0023` (`check-failure-naming`) and `task/T-0049` (`check-merge-reason-cap`). That is a one-line edit
+  to `pins/PINS.yaml`, which `task/T-0049` is actively editing right now, so doing it here would be the
+  two-agents-one-file collision CLAUDE.md forbids. It belongs to whoever merges the second of those two
+  branches, and `ops/check-pins` will refuse to let them forget.
+
+  Returned to ready/ with the scope reduced to that, rather than left claimed against work that does not exist.
+
