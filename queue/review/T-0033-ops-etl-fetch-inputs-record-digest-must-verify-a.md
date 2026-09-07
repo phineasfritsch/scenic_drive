@@ -108,3 +108,30 @@ that has already destroyed the thing it was protecting.
   whether that is a leak or the point. And `already_pinned` treats `TODO` case-insensitively but the manifest
   header only ever documents the uppercase form; a `todo` in a manifest would be a pin to a 4-character
   string, which validation rejects, but I have not tested that path.
+
+- 2026-09-08T07:10Z correction by agent/claude-opus-5, its owner. THIS BRANCH SHIPPED WITH ops/queue-check
+  FAILING and I did not notice, because I never ran it here.
+
+      QUEUE CHECK FAIL
+       - duplicate id T-0033: queue/review/T-0033-...md and queue/ready/T-0033-...md
+
+  Cause: this branch is stacked on task/T-0025, which predates the claim, so it still carried
+  `queue/ready/T-0033-...md`. I wrote the review copy alongside it instead of moving it, leaving the task in
+  two queue directories at once. The stale `ready/` copy is now deleted.
+
+  Two things worth recording rather than just fixing:
+
+  **The hook would have refused this commit, if the fix for it had been merged.** T-0048 adds exactly this
+  check to `.githooks/pre-commit` - "T-0033 exists in more than one queue directory, so which touches: applies
+  is undefined" - and it is sitting in PR #39 behind the billing block. The defect it was written to catch
+  occurred, on this repo, while the fix was queued.
+
+  **My verification block for this task named `ops/test` and `ops/check-pins` and not `ops/queue-check`.** It
+  was not a false claim, it was an absent one, which is the quieter version of the same problem: a gate that
+  goes unrun reads exactly like a gate that passed to anyone skimming the log. Every other task file in this
+  session quotes all three or four. This one quoted two, and the missing one is the one that was red.
+
+  Swept every other branch for the same state - `T-0025 T-0027 T-0028 T-0032 T-0040 T-0043 T-0045 T-0046
+  T-0048 T-0049 T-0051 T-0052 T-0056 T-0058` - and T-0033 was the only duplicate. Corrected verification for
+  this branch: `ops/queue-check` -> `QUEUE OK`.
+
