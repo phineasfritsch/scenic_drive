@@ -29,20 +29,29 @@ if [[ "$n" -lt "$MIN_FILES" ]]; then
   exit 1
 fi
 
-# Coverage guard. A Package.swift is itself a .swift file, so if a package's directory contributes NOTHING to
-# the examined set, the set has been narrowed and a whole package has dropped out of the cap. That is exactly
-# how the Apple package was exempt, and this is what makes narrowing it again loud instead of silent.
+# Coverage guard. A manifest is itself a .swift file, so if a package's directory contributes NOTHING to the
+# examined set, the set has been narrowed and a whole package has dropped out of the cap. That is exactly how
+# the Apple package was exempt, and this is what makes narrowing it again loud instead of silent.
+#
+# BOTH manifest spellings. SwiftPM also accepts version-specific manifests named `Package@swift-<version>.swift`,
+# and `*Package.swift` cannot match one - the name ends in `swift-6.0.swift`, not `Package.swift`
+# (agent/reviewer-21, while reviewing T-0037). No file dodged the CAP because of that, since the cap runs over
+# every tracked .swift file regardless; what was missed is narrower and is the whole job of this block. A
+# package carrying ONLY a versioned manifest was never enumerated here, so if it later fell out of the checked
+# set this guard would have stayed silent about it - the one thing it exists to be loud about.
+#
+# Packages are collected as DIRECTORIES and de-duplicated, because a package that ships both spellings is one
+# package and would otherwise be reported twice.
 missed=()
-while IFS= read -r manifest; do
-  [[ -z "$manifest" ]] && continue
-  dir="$(dirname "$manifest")"
+while IFS= read -r dir; do
+  [[ -z "$dir" ]] && continue
   prefix=""; [[ "$dir" != "." ]] && prefix="$dir/"
   covered=0
   for f in "${files[@]}"; do
     [[ "$f" == "$prefix"* ]] && { covered=1; break; }
   done
   [[ $covered -eq 0 ]] && missed+=("$dir")
-done < <(git ls-files '*Package.swift')
+done < <(git ls-files '*Package.swift' '*Package@swift-*.swift' | while IFS= read -r m; do dirname "$m"; done | sort -u)
 
 if [[ ${#missed[@]} -gt 0 ]]; then
   echo "P-SRC-02: Swift package(s) contribute no file to the checked set - the 300-line cap does not reach them:"
