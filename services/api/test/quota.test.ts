@@ -90,6 +90,54 @@ describe("global beats local", () => {
   });
 });
 
+describe("fails closed on values it cannot compare", () => {
+  // Every finding in this block is reviewer-14's. Each one turned a ceiling into a suggestion, and none of
+  // them threw: the code returned a cheerful `ok: true`, which is the exact failure mode the spend controls
+  // exist to prevent. NaN is the worst of them, because every comparison against NaN is false.
+  it("an unreadable monthly counter TRIPS the kill switch instead of disabling it", () => {
+    expect(killSwitchTripped(NaN)).toBe(true);
+    expect(killSwitchTripped(Infinity)).toBe(true);
+    expect(killSwitchTripped(-1)).toBe(true);
+    expect(killSwitchTripped(1.5)).toBe(true);
+    expect(killSwitchTripped("250000" as unknown as number)).toBe(true);
+  });
+
+  it("a NaN counter reaching checkQuota pauses upstream rather than admitting the plan", () => {
+    const v = checkQuota({ tier: "paid", plansUsedToday: 0, monthlyUpstreamCalls: NaN, now: NOW });
+    expect(v).toMatchObject({ ok: false, reason: "upstream_paused" });
+  });
+
+  it("an unrecognised tier is refused, not given an undefined limit", () => {
+    // `tier` comes from a D1 row, not from the compiler. DAILY_PLAN_QUOTA["premum"] is undefined,
+    // `plansUsedToday >= undefined` is false, and the caller got an unlimited plan with remaining: NaN.
+    const v = checkQuota({
+      tier: "premum" as unknown as "paid",
+      plansUsedToday: 10_000,
+      monthlyUpstreamCalls: 0,
+      now: NOW,
+    });
+    expect(v).toMatchObject({ ok: false, reason: "invalid_state" });
+  });
+
+  it("does not inherit a limit from Object.prototype", () => {
+    const v = checkQuota({
+      tier: "constructor" as unknown as "paid",
+      plansUsedToday: 0,
+      monthlyUpstreamCalls: 0,
+      now: NOW,
+    });
+    expect(v).toMatchObject({ ok: false, reason: "invalid_state" });
+  });
+
+  it("a negative or fractional usage count is refused, not treated as spare allowance", () => {
+    // -5 previously reported remaining: 14 on a 10-plan tier; 9.5 reported { ok: true, remaining: -0.5 }.
+    for (const plansUsedToday of [-5, 9.5, NaN, Infinity]) {
+      const v = checkQuota({ tier: "free", plansUsedToday, monthlyUpstreamCalls: 0, now: NOW });
+      expect(v).toMatchObject({ ok: false, reason: "invalid_state" });
+    }
+  });
+});
+
 describe("time keys", () => {
   it("day and month keys are UTC, so the quota has no timezone seam", () => {
     expect(dayKey(new Date("2026-09-07T23:59:59Z"))).toBe("2026-09-07");

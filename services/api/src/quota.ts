@@ -26,7 +26,20 @@ export type Tier = keyof typeof DAILY_PLAN_QUOTA;
 export type QuotaVerdict =
   | { ok: true; tier: Tier; remaining: number }
   | { ok: false; reason: "quota_exhausted"; tier: Tier; resetsAt: string }
-  | { ok: false; reason: "upstream_paused"; monthlyCalls: number };
+  | { ok: false; reason: "upstream_paused"; monthlyCalls: number }
+  // Counter or tier that is not a number/tier we recognise. Its own reason, because "we could not tell" is
+  // not the same answer as "you are over your limit" and the caller may want to page someone about it.
+  | { ok: false; reason: "invalid_state"; detail: string };
+
+/** A count that a limit can be compared against: finite, integral, not negative. NaN is none of these, and
+ *  every comparison against NaN is false - which is how a NaN counter silently disables a ceiling. */
+function isCount(n: unknown): n is number {
+  return typeof n === "number" && Number.isFinite(n) && Number.isInteger(n) && n >= 0;
+}
+
+export function isTier(t: unknown): t is Tier {
+  return typeof t === "string" && Object.prototype.hasOwnProperty.call(DAILY_PLAN_QUOTA, t);
+}
 
 /** UTC day key. UTC, not local: a quota that resets at a different hour depending on where the user is
  *  is a quota with a seam, and seams get found. */
@@ -45,7 +58,13 @@ export function nextReset(now: Date): string {
   return d.toISOString();
 }
 
+/**
+ * Fails CLOSED on a counter it cannot read. `NaN >= anything` is false, so a NaN arriving from a KV miss, a
+ * bad parseInt or a half-written Durable Object row would have returned "not tripped" and disabled the global
+ * ceiling silently - the one failure this function exists to prevent. An unreadable counter trips the switch.
+ */
 export function killSwitchTripped(monthlyCalls: number): boolean {
+  if (!isCount(monthlyCalls)) return true;
   return monthlyCalls >= MAX_MONTHLY_UPSTREAM_CALLS * KILL_SWITCH_THRESHOLD;
 }
 
@@ -60,6 +79,18 @@ export function checkQuota(args: {
   now: Date;
 }): QuotaVerdict {
   const { tier, plansUsedToday, monthlyUpstreamCalls, now } = args;
+
+  // `tier` is typed, but it arrives from a D1 row, not from the compiler. An unrecognised value indexed
+  // straight into DAILY_PLAN_QUOTA yielded `undefined`, `plansUsedToday >= undefined` is false, and the
+  // caller got `{ ok: true, remaining: NaN }` - an unlimited plan for anyone whose tier column is misspelled.
+  if (!isTier(tier)) {
+    return { ok: false, reason: "invalid_state", detail: `unknown tier ${JSON.stringify(tier)}` };
+  }
+  // Same reasoning for the usage counter: -5 produced `remaining: 14` on a 10-plan tier, and 9.5 produced
+  // `{ ok: true, remaining: -0.5 }`. Refuse what cannot be compared rather than admitting it.
+  if (!isCount(plansUsedToday)) {
+    return { ok: false, reason: "invalid_state", detail: `plansUsedToday is not a count: ${plansUsedToday}` };
+  }
 
   // Global before per-user: when the kill switch is tripped nobody proceeds, including a paid user with
   // quota to spare. The bill is global; the allowance is not.
