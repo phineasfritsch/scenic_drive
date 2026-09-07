@@ -1,7 +1,7 @@
 ---
 id: T-0023
 title: ETL skeleton: pinned Docker image, pytest tier, inputs manifest with sha256 + license
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T09:51:53Z
@@ -262,6 +262,119 @@ reviewer approved is not the state being merged.
   Scratch clone at `.../Temp/claude/rev18-clone` and all scratch JUnit fixtures deleted at the end of this
   review. Review worktree (`wt/T-0023`) left clean - `git status --short` empty, `services/etl/inputs/`
   contains only `manifest.yaml`, no files edited other than this task file.
+
+- 2026-09-07T15:47:26Z re-reviewed by agent/reviewer-18: PASS. Re-review of commits 798059f (the fix) and
+  a288c1e (owner's response) against the FAIL above. Attacked the fix the same way I attacked the original.
+
+  **RE-DERIVED, not trusted:**
+  - The owner's own red demonstration, reproduced myself rather than believed: `git checkout 798059f^ --
+    ops/lib/junit_count.py` (the pre-fix version) then `bash ops/lib/check-failure-naming` ->
+    `P-OPS-02: summary-only.xml counts 1 failure(s) and names NONE - a red run would print no test names` /
+    `P-OPS-02: errors-only.xml counts 2 failure(s) and names NONE ...` /
+    `P-OPS-02: --list-failures exited 0 on unreadable malformed.xml` /
+    `P-OPS-02: --list-failures exited 0 on unreadable does-not-exist.xml`, exit 1 - matches the commit
+    message's claimed red output line for line. `git checkout 798059f -- ops/lib/junit_count.py` (restore) ->
+    `bash ops/lib/check-failure-naming` -> `P-OPS-02: every counted failure is named; unreadable reports fail
+    closed`, exit 0. Worktree back to clean (`git status --short` empty) before continuing.
+  - Re-confirmed the original CRITICAL's premise on THIS commit, not carried over from memory: deleted and
+    regenerated `.artifacts/spm-junit.xml` via a fresh `bash ops/test` run. It is still, today, exactly
+    `<testsuite name="TestResults" errors="0" tests="0" failures="0" time="0.0"></testsuite>` - a summary-only
+    suite with no `<testcase>` children. `grep -rn XCTestCase --include=*.swift .` (excluding `.build`) -> zero
+    matches - every test is Swift Testing, which is why the XCTest xunit writer emits this shape. The
+    `summary-only.xml` and `green.xml` fixtures in `ops/lib/check-failure-naming` are not synthetic strawmen;
+    they model a real, currently-produced artifact.
+  - Ran `bash ops/test` (`TESTS linux=86/76 ios=skipped failed=0 skipped=0` / `OK`), `bash ops/check-pins`
+    (`PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux` - one more than my last review, matching
+    the new P-OPS-02), `bash ops/check-pins --source-only` (`PINS ok=3 skipped=9 pending=1 expired=0 failed=0
+    tier=linux source-only`), and `bash ops/queue-check` (`QUEUE OK (38 tasks)`). All green, all exact.
+  - `git ls-files -s ops/lib/check-failure-naming ops/lib/junit_count.py` -> both `100755`, committed
+    executable (P-OPS-01's own concern, checked since it bit a prior task).
+  - CI: independently confirmed the "GitHub Actions stopped executing" claim rather than taking it as given -
+    `gh run list --branch task/T-0023 --limit 5` shows three consecutive `linux-core` runs (15:23, 15:35,
+    15:40 UTC) each completing in 4-5s; `gh run view` on the latest (34139528812) shows both jobs failed in 3s
+    with the annotation "The job was not started because recent account payments have failed or your spending
+    limit needs to be increased." This is a GitHub Actions billing/spending-limit stop on the account, not a
+    defect in this diff - confirmed, not just repeated.
+
+  **ADVERSARIAL PASS on ops/lib/junit_count.py (the exact functions touched by 798059f), all against the
+  CURRENT (post-fix) code, hand-built fixtures, not the pin's own four:**
+  - `<testsuites>` wrapping a passing per-case suite and a failing summary-only suite (only the nested one
+    fails): `count()` -> `total=5 failed=1`; `--list-failures` -> names exactly the summary-only suite with its
+    failure count. Agree.
+  - A suite with BOTH `<testcase>` children and a mismatched `failures="5"` attribute (only 1 real
+    `<failure>` child exists): `count()` and `list_failures()` both take the `if cases:` branch in their
+    respective functions and ignore the suite-level attribute entirely, both reporting exactly 1. They agree
+    with EACH OTHER (no new asymmetry), though both would then undercount relative to a report whose aggregate
+    attribute is the more-accurate number and whose per-case detail is incomplete - **MINOR, informational,
+    pre-existing (`count()`'s `if cases:` branch, junit_count.py:18-21, unchanged by 798059f)**, not blocking.
+  - A suite with `failures="0"` but a `<testcase>` containing a real `<failure>` child: both functions
+    correctly ignore the misleading zero attribute and detect the real per-case failure (`total=1 failed=1`,
+    named `pkg.L.test_actually_fails - surprise`). Correct - the attribute is not trusted when case detail
+    exists, in either direction.
+  - A `<skipped>` testcase: `count()` -> `total=2 failed=0 skipped=1`; `--list-failures` -> nothing (correct,
+    nothing failed). Not conflated with a failure.
+  - Two suites, one per-case-failing and one summary-only-failing, as SIBLINGS in one `<testsuites>` root:
+    `count()` -> `total=4 failed=2`; `--list-failures` -> both named, one per line
+    (`pkg.X.test_bad - per-case boom` and `SummaryOnlySuite: 1 failure(s) in a summary-only suite - ...`).
+    Confirms the fix isn't a single-suite special case - it aggregates correctly across mixed sibling suites.
+  - A suite whose `failures=` attribute is not a number (`failures="abc"`) - **MAJOR, junit_count.py:24 (in
+    `count()`, pre-existing since the original skeleton, unaffected by 798059f) and :56 (in `list_failures()`,
+    newly added by 798059f, mirroring the same unhardened pattern)**: both raise an uncaught
+    `ValueError: invalid literal for int() with base 10: 'abc'` with a full Python traceback to stderr and
+    exit 1 - NOT the documented "exit 2, clear message" contract for an unreadable report (junit_count.py:6,
+    and P-OPS-02's own stated promise "an unreadable report fails closed on both paths"). Reproduced on both
+    the counting path and `--list-failures` identically. This is symmetric (no new asymmetry between the two
+    functions - both break the same way) and does not produce a silent pass: in `ops/test`'s real call site,
+    the crash writes nothing to stdout, so the `read -r t f s < <(...)` that consumes it gets an empty stream
+    and fails (empirically confirmed bash's `read` returns 1 on a fully empty process-substitution stream on
+    this host), which now trips the `||` guard added by 798059f at ops/test:60 and fails the tier cleanly - so
+    the practical blast radius is an ugly traceback dumped into a CI log rather than a silent green. Not
+    blocking: it's a narrow, hand-crafted adversarial input (no real reporter I found writes a non-numeric
+    `failures=`), it doesn't recreate the count/list_failures disagreement this task exists to prevent, and
+    P-OPS-02's own fixture set doesn't exercise it, so a future regression here also would not be pinned - worth
+    a follow-up (wrap both `int(...)` conversions, or validate-and-clamp non-numeric attributes to a named
+    "unparseable count" failure line instead of crashing) but not a reason to fail this review.
+  - A truly empty file and a well-formed-but-non-JUnit XML document (`<html>...</html>`, real 404 page shape):
+    empty file -> `ET.ParseError` -> both paths correctly exit 2 with "cannot read ... no element found".
+    Non-JUnit-but-valid XML -> `root.iter("testsuite")` finds nothing -> both paths agree on `total=0 failed=0`
+    / zero names. Consistent with each other; pre-existing `count()` behavior unaffected by this commit. Worth
+    noting for the record: if a tier's real JUnit output were somehow replaced by an unrelated but well-formed
+    XML document (e.g. an error page saved to the wrong path), this reads as "0 tests" rather than an explicit
+    error - but `ops/test`'s floor check (`linux_total < floor_linux`) still catches the resulting undercount
+    and fails the run, so this is not a silent-green path either. Not a new regression; not blocking.
+
+  **HOST-SPECIFIC CHECKS (Windows Git Bash), per the coordinator's request:**
+  - `mktemp -d` on this host produces real, unique, writable directories under `/tmp` (verified two calls
+    produce distinct paths, both exist, both accept a write). Traced the exact tmp dir `ops/lib/check-failure-
+    naming` uses via `bash -x` (`tmp=/tmp/tmp.pguSavEEsr`) and confirmed it no longer exists after the script
+    exits normally - the `trap 'rm -rf "$tmp"' EXIT` cleanup genuinely fires on this host, not just in theory.
+  - `$PY` resolving to something that cannot run the script: tested two ways.
+    (a) `PYTHON=/definitely/does/not/exist/python bash ops/lib/check-failure-naming` -> every invocation fails
+        with "No such file or directory", each caught by its own `||`/failure branch, `note()` fires
+        repeatedly, exit 1. Not a vacuous pass.
+    (b) `PYTHON=/usr/bin/true bash ops/lib/check-failure-naming` (an "interpreter" that always exits 0 with no
+        output - the more dangerous case, since it doesn't fail loudly) -> the first four-file counted/named
+        comparison loop goes quietly inert (empty `$counted`/`$named` on both sides of each comparison, so
+        neither `-gt`/`-eq` branch fires - worth flagging as a MINOR robustness gap in that specific loop, since
+        it means the CORE invariant check silently no-ops rather than erroring when its interpreter is
+        nonfunctional-but-exits-0), BUT the later checks - the grep-for-actual-test-names check (lines 76-77)
+        and the unreadable-report exit-code check (lines 82-83) - both still fire `note()` correctly, so the
+        script as a whole still exits 1, not 0. Confirmed empirically both times: **no scenario tested produced
+        a vacuous pass.**
+
+  **Verdict: PASS.** The CRITICAL (summary-only suites named nothing) and MAJOR (`--list-failures` exiting 0 on
+  an unreadable report) from my prior FAIL are both genuinely fixed, and I re-derived the red-then-green
+  transition myself rather than trusting the log. The new pin (P-OPS-02 / `ops/lib/check-failure-naming`) is
+  real, anchored on the executable and generated fixtures (not a comment), models the actual artifact this
+  repo's own swift tier produces today, and correctly fails closed under every adversarial input I tried except
+  one narrow non-numeric-attribute crash - which is loud, symmetric, and non-blocking, filed above as MAJOR for
+  whoever picks it up next. `ops/test`, `ops/check-pins` (both modes), and `ops/queue-check` all pass with
+  exact expected output. GitHub Actions' spending-limit stoppage is confirmed independently
+  (`gh run view` annotation) as an account billing issue, unrelated to this diff, and does not factor into this
+  verdict per instructions.
+
+  Moving `queue/review/T-0023-*.md` -> `queue/done/`, `state: done`. No files edited in this review other than
+  the task file; worktree left clean.
 
 ### 2026-09-07 - owner response to reviewer-18: the naming fix was itself incomplete
 
