@@ -94,7 +94,7 @@
   why_no_test_catches_it: Swapping or "simplifying" the solar math shifts every golden-hour card and the after-dark hazard flag; no functional test notices, and a fixture regenerated from our own code would bless the error. sunrise-sunset.org was tried first and rejected as an oracle - it disagreed with USNO by 84-343 s on rise/set.
   anchor: source
   runs_on: [linux, mac]
-  assertion: "grep -q 'Naval Observatory' Tests/Fixtures/solar/oracle.json && test $(grep -c 'SolarFixture(name:' Tests/ScenicKitTests/SolarFixtures.swift) -ge 20 && swift test --filter SolarFixtureTests 2>&1 | grep -qE 'Test run with [0-9]+ tests? in [0-9]+ suites? passed'"
+  assertion: "grep -q 'Naval Observatory' Tests/Fixtures/solar/oracle.json && test $(grep -c 'SolarFixture(name:' Tests/ScenicKitTests/SolarFixtures.swift) -ge 20 && swift test --filter SolarFixtureTests 2>&1 | grep -qE 'Test run with [1-9][0-9]* tests?( in [0-9]+ suites?)? passed'"
   owner: agent/claude-opus-5
   added: 2026-09-07
 
