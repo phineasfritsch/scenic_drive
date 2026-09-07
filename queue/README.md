@@ -28,7 +28,12 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
 6. **Review**: open a PR, set `reviewer:` to someone who is not you, `git mv` the file to `review/`. The reviewer
    has no write access to `Sources/`; they run `verify:`, read the artifact (not just the diff), and either move the
    task to `done/` or back to `claimed/` with a `## Log` line saying what is wrong.
-7. **Crash recovery**: `ops/queue-sweep` returns tasks whose `lease_expires_at` has passed to `ready/` and releases
+7. **Demos that need a commit** (hook red/green, floor guard) run in a SEPARATE worktree:
+   `git worktree add ../wt/demo-<task> -b tmp/demo-<task>` ... `git worktree remove --force ../wt/demo-<task>`.
+   Never on the main checkout, never `git commit -a`, never `git stash`/`git restore`/`git clean` there. On 2026-09-07 a
+   throwaway-branch `commit -a` in the main checkout swept a modified `.gitattributes` into the demo commit and the
+   checkout back to main silently reverted it.
+8. **Crash recovery**: `ops/queue-sweep` returns tasks whose `lease_expires_at` has passed to `ready/` and releases
    their locks. Run it first thing every session and on a cron.
 
 ## Exclusive resources (declare in `exclusive:` before touching)
