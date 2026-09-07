@@ -1,17 +1,17 @@
 ---
 id: T-0038
 title: services/etl/Dockerfile was never created - T-0023 shipped without the pinned ETL image
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T15:50:28Z
+lease_expires_at: 2026-09-07T18:50:28Z
+worktree: ../wt/T-0038
+branch: task/T-0038
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-22
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -32,3 +32,4 @@ agent runs a different toolchain and blames the data when the output differs.
 - Demonstrate red: delete the digest from `FROM`, show the test fail, restore, show it pass.
 
 ## Log
+- 2026-09-07T15:50:28Z claimed by agent/claude-opus-5; lease until 2026-09-07T18:50:28Z
