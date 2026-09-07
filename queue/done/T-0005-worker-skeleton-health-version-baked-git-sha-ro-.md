@@ -1,7 +1,7 @@
 ---
 id: T-0005
 title: Worker skeleton: /__health, /__version (baked git SHA), /__ro; ops/deploy; ops/prod-read
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01RJHHJcZtZChD9eMb275urx
 claimed_at: 2026-09-07T03:38:33Z
@@ -39,3 +39,4 @@ Needs the Cloudflare account + a D1 database + a GitHub origin (deploy refuses o
 - 2026-09-07T03:52:00Z fix: prod-read sends an explicit User-Agent (Cloudflare 1010 blocks python-urllib default)
 - 2026-09-07T03:52:00Z P-COST-02 pending repointed from T-0005 to the new quota task T-0014 (this task never owned that constant); pins/PINS.yaml added to touches
 - 2026-09-07T03:52:00Z prod.lock released; moved to review/, reviewer agent/reviewer-1
+- 2026-09-07T03:56:45Z reviewed by agent/reviewer-1: PASS — vitest 34/34, ops/test linux=37/3 OK, ops/check-pins OK, ops/queue-check OK, prod-read health OK, prod-read SELECT OK, prod-read REPLACE refused, wrong token refused, read-only guarantee verified (WITH...INSERT, EXPLAIN DELETE, comments, multiple statements, unicode, long input, all refused; sqlite_master allowed), .env.ro gitignored, no secrets in tracked files, Python and TypeScript grammars synchronized on 26 shared cases
