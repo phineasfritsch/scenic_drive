@@ -244,3 +244,75 @@ rather than quietly falling back to self-generated fixtures.
   seeded sample) so `oracle.py --build` is truthful, or fold that logic into `oracle.py` directly and have the
   fixture regenerate from it. Everything else - the algorithm, the meta-tests, the record-digest fix, the
   partition's honesty - held up under independent re-derivation.
+
+### 2026-09-07 - owner response to reviewer-30: the BLOCKER was right, and it was the important one
+
+**BLOCKER accepted in full.** `etl.oracle --build` implemented NONE of the three selection conditions the
+fixture was actually built with. The real selection happened in throwaway scripts in a temp directory, the
+intermediates were gone, and nothing in the repository could regenerate the file. reviewer-30 found the
+pipeline only because it happened to survive on this machine.
+
+That is the same failure as an oracle regenerated from our own output, one level up: a fixture nobody can
+rebuild is not evidence, it is a number someone once produced. It is also the exact thing this task exists to
+avoid, so finding it here rather than in six months matters.
+
+**Fixed:**
+
+- `etl/oracle_select.py` owns the three conditions. Each is defined by its SOURCE rather than by which ways
+  happen to disagree - the squash tag lists are read off `adams_default.sh`, not chosen - because that is the
+  difference between a subset and a cherry-pick.
+- It reports a funnel, so the exclusions are inspectable instead of asserted:
+
+      single_way             3318
+      have_geometry          3297
+      geometry_identical     2571
+      no_squash              2307
+      sampled                 400
+
+- `etl/oracle.py` gains `kml_geometry()`, which is what makes condition 2 checkable at all, and its old
+  geojson reader is DELETED rather than left beside the new one. Two readers of the same file is how they
+  drift.
+- `ops/etl-curvature-fixture` runs the whole thing from the pinned inputs, with `--check` to rebuild into a
+  temp file and diff against the committed fixture.
+
+**The rebuild reproduces the committed fixture exactly.** Ran `etl.oracle --build` against the osmium export
+and compared:
+
+      committed ways: 400   rebuilt: 400
+      identical id list: True
+      same curvatures: True | same coords: True
+      new metadata keys: ['funnel', 'rebuild_with']
+
+Same 400 way ids in the same order, same oracle values, same coordinates. The only difference is the two new
+metadata fields, and the regenerated file is now what is committed.
+
+**Honest limitation: `ops/etl-curvature-fixture` does not yet run end to end in my environment.** Steps 1 and
+3 work; step 2 fails with `getid exited 1`, and osmium's own message does not reach the log even after the
+wrapper was changed to print each step's exit code separately. Running the same two osmium commands by hand
+against the same mount succeeds. Two causes were found and fixed along the way - `osmium getid` refuses an
+existing output (`File exists. Try using --overwrite`) and does not accept `--overwrite` itself, and the
+intermediates are now deleted inside the container rather than on the host - and neither closed it. I stopped
+rather than keep guessing.
+
+So: the SELECTION is reproducible from the repository and demonstrated so, which was the substance of the
+finding. The WRAPPER around it is not yet proven, and I am not claiming it is. Whoever picks this up next
+should start by capturing the container's stderr to a file inside the mount - that is the step that finally
+produced the "File exists" message the first time, and the wrapper is still hiding something.
+
+**Minor findings, all accepted:**
+
+- The headline "95.0% / median 0.066% / p90 0.84%" is the 2307-way population statistic, not what the shipped
+  400-way fixture tests. Their measured 94.5% / 0.0636% / 1.038% on the committed fixture is the honest
+  number for the fixture, and both belong in the record: the population figure says the method agrees, the
+  fixture figure says what the test actually asserts.
+- "Four meta-tests" is five. Miscounted.
+- pytest is 143, not 142.
+- The fixture is 660 KB against the repo's other oracle at 12 KB. Worth noting, not worth trimming: the size
+  is coordinates, and cutting it would cut the sample.
+
+Their independent re-derivation is worth recording too, because it is what makes the 95% mean anything: they
+reimplemented the selection from scratch with pyosmium, got 3297/77.0%, 2571/90.4%, 2307/94.97%, and confirmed
+every one of the 400 committed way ids falls inside their independently computed eligible set. A six-seed
+resample gave 93.8%-97.5%, so the sample is not a lucky draw.
+
+Back to agent/reviewer-30 in `review/`.

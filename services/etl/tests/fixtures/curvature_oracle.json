@@ -1,13 +1,20 @@
 {
  "source": "https://kml.roadcurvature.com/north_america/us/vermont.c_300.kmz",
  "source_sha256": "3bdf4d140a6dcef0501223357d993df1b960934adf1a5cebdcdf2340b7039046",
- "osm_source": "https://download.geofabrik.de/north-america/us/vermont-latest.osm.pbf, retrieved 2026-09-07",
+ "osm_source": "https://download.geofabrik.de/north-america/us/vermont-latest.osm.pbf",
+ "rebuild_with": "ops/etl-curvature-fixture",
  "selection": [
   "single-way collections only: Curvature's deflection filter runs across a whole collection",
-  "geometry identical to the KML's own <coordinates>: OSM has moved since the KMZ was generated",
-  "no squash post-processor in adams_default.sh can reach it: no junction/oneway/traffic_calming/parking:lane tag on the way, and no tagged node within 30 m",
-  "deterministic sample of 400 from 400 eligible, seed 20260907"
+  "geometry identical to the KML's own <coordinates> within 1 m: OSM has moved since the KMZ",
+  "no squash post-processor in adams_default.sh can reach it: no junction/oneway/traffic_calming/parking:lane tag, and no tagged node within 30 m",
+  "deterministic sample of 400 from 2307 eligible, seed 20260907"
  ],
+ "funnel": {
+  "single_way": 3318,
+  "have_geometry": 3297,
+  "geometry_identical": 2571,
+  "no_squash": 2307
+ },
  "ways": [
   {
    "way_id": 18832559,
