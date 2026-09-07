@@ -1,13 +1,13 @@
 ---
 id: T-0051
 title: the CRLF pre-commit check is dead - gitattributes normalises CRLF away before the hook sees it
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T21:29:07Z
+lease_expires_at: 2026-09-07T23:29:07Z
 worktree: null
-branch: null
+branch: task/T-0051
 exclusive: []
 touches: [.githooks/pre-commit, ops/sane]
 pins_affected: []
@@ -51,3 +51,4 @@ Also worth confirming while in there: does `.gitattributes` cover files with no 
 of `ops/` is?
 
 ## Log
+- 2026-09-07T21:29:07Z claimed by agent/unknown; lease until 2026-09-07T23:29:07Z
