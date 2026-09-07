@@ -99,12 +99,11 @@
   value: 250000
 
 - id: P-SAFE-05
-  statement: Sunset for 20 fixed (lat, lon, date) triples matches NOAA within 90 seconds
-  why_no_test_catches_it: Swapping solar libraries shifts every golden-hour card and no functional test notices
+  statement: Sunrise, sunset and civil twilight for 35 site-days (21N to 65N) match the US Naval Observatory within 90 s, and the fixtures come from USNO rather than from our own output
+  why_no_test_catches_it: Swapping or "simplifying" the solar math shifts every golden-hour card and the after-dark hazard flag; no functional test notices, and a fixture regenerated from our own code would bless the error. sunrise-sunset.org was tried first and rejected as an oracle - it disagreed with USNO by 84-343 s on rise/set.
   anchor: source
   runs_on: [linux, mac]
-  assertion: TODO
-  pending: T-0011
+  assertion: "grep -q 'Naval Observatory' Tests/Fixtures/solar/oracle.json && test $(grep -c 'SolarFixture(name:' Tests/ScenicKitTests/SolarFixtures.swift) -ge 20 && swift test --filter SolarFixtureTests 2>&1 | grep -qE 'Test run with [1-9][0-9]* tests?( in [0-9]+ suites?)? passed'"
   owner: agent/claude-opus-5
   added: 2026-09-07
 
