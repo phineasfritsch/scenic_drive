@@ -26,6 +26,38 @@ RED: a known-flat fixture (Alviso/Bay margin) must score near 0 gain; a known-st
 ## Log
 
 ## Log
+- 2026-09-07T18:20Z First sample against the REAL tiles, and it found a flaw in my fixture method
+  rather than in the arithmetic. Three hand-typed polylines, sampled through the pinned image:
+
+      alviso         length 522.7 m   gain 2.9 m    gain/km   5.64   relief 4.4 m    max grade  3.81%
+      old_la_honda   length 5269.1 m  gain 584.9 m  gain/km 111.01   relief 213.9 m  max grade 44.14%
+      skyline        length 4663.0 m  gain 529.0 m  gain/km 113.45   relief 174.7 m  max grade 58.98%
+
+  The steep ones read as steep and the flat one is nearly flat, so the arithmetic is doing something sane.
+  Two things are wrong anyway, and both are mine:
+
+  1. MAX GRADE 44% AND 59% ARE IMPOSSIBLE. No drivable road is that steep - Old La Honda averages about 8%
+     and tops out near 12%. The cause is the fixture, not the sampler: I typed seven points for a 5.3 km
+     mountain road, so the resampler interpolates in straight lines that cut across canyons the road actually
+     contours around. The elevations are real; they are just not elevations of the road. `sanity_problems`
+     already flags anything over 60%, which is why Skyline at 58.98% is sitting one point under a guard that
+     would have caught it - the guard is right and the input is wrong.
+
+  2. ALVISO SCORES 5.64 m/km, JUST OVER the 5.0 threshold `is_flat` uses. 2.9 m of gain over 523 m of bay
+     margin is still noise, not climb. Whether the answer is a slightly higher threshold, a larger noise
+     floor, or better geometry cannot be decided while the geometry is wrong - tuning the threshold now would
+     be fitting the constant to a bad fixture, which is exactly how a scoring system gets quietly wrong.
+
+  So the fixtures must come from REAL OSM way geometry rather than hand-typed points. The Bay Area extract
+  from T-0024 already has it, with nodes every 20-50 m on a winding road, which is the whole point: the road
+  follows the contour and a straight line between two points 800 m apart does not.
+
+  NEXT STEP, deliberately not done blind: pull the actual ways for Old La Honda Road, a flat Alviso street
+  and a Skyline segment out of the extract by name, commit them as a geometry fixture the way T-0025 commits
+  its oracle ways, and only then decide whether the flat threshold or the noise floor needs to move. The
+  arithmetic and the sampler are already tested against mutation (5 and 6 mutations respectively); what is
+  missing is a fixture that is a road.
+
 - 2026-09-07T17:50Z CORRECTION, before any of the above is relied on: the tile list is HALF the region.
 
   The earlier note says "The Bay Area needs FOUR 1-degree 3DEP tiles" and lists n38w123, n38w122, n37w122,
