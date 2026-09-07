@@ -18,13 +18,18 @@ else
 fi
 
 if [[ -n "${STUB_FLIP:-}" ]]; then
-  # The counter advances on the mergeStateStatus call ONLY. ops/merge asks for mergeStateStatus first and
-  # statusCheckRollup second within one loop iteration; incrementing on both made the two calls disagree, so
-  # the rollup had already "flipped" to healthy while the state was still UNKNOWN - meaning total=0 was never
-  # actually exercised and only the UNKNOWN branch was tested. reviewer-11 caught that.
+  # ops/merge asks for mergeStateStatus FIRST and statusCheckRollup SECOND within one loop iteration, and both
+  # must describe the SAME moment. So the counter advances on the SECOND call - the rollup - which means both
+  # reads in iteration 1 see the pre-increment value and agree that the PR is fresh: total=0 AND UNKNOWN.
+  #
+  # Two wrong versions preceded this one. Incrementing on both calls (reviewer-11) and then incrementing on the
+  # first call (reviewer-15) both left the two reads disagreeing, so the rollup had already "flipped" healthy
+  # while the state was still UNKNOWN - and the total==0 branch was never actually exercised, while the demo
+  # looked like it passed. A test double that silently tests something narrower than it claims is worse than
+  # no double at all.
   counter="${STUB_COUNT:-/tmp/gh-stub-count}"
   n=$(( $(cat "$counter" 2>/dev/null || echo 0) ))
-  case "$*" in *mergeStateStatus*) echo $((n + 1)) > "$counter";; esac
+  case "$*" in *statusCheckRollup*) echo $((n + 1)) > "$counter";; esac
   if [[ $n -lt 1 ]]; then state="UNKNOWN"; rollup="[]"; fi
 fi
 
