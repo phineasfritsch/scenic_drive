@@ -16,19 +16,19 @@
 
 - id: P-SRC-02
   statement: No Swift source file exceeds 300 lines
-  why_no_test_catches_it: A 900-line file is a merge grenade for parallel agents; nothing functional breaks
+  why_no_test_catches_it: A 900-line file is a merge grenade for parallel agents; nothing functional breaks. The old `find`-based assertion also passed vacuously over a deleted, renamed or emptied Sources/Tests tree (reviewer-10, same class as P-OPS-01).
   anchor: source
   runs_on: [linux, mac]
-  assertion: "test -z \"$(find Sources Tests -name '*.swift' -exec awk 'NR>300{print FILENAME; exit}' {} \\;)\""
+  assertion: "bash ops/lib/check-line-cap"
   owner: agent/claude-opus-5
   added: 2026-09-07
 
 - id: P-OPS-01
   statement: Every script in ops/ and .githooks/ is committed with the executable bit (git mode 100755); data files are not
-  why_no_test_catches_it: core.filemode is false on the Windows checkout this repo is driven from, so a new script is committed 100644 and nothing complains. CI invokes them as `bash ops/x` and stays green, but queue/README.md and Xcode Cloud both invoke them directly, where a missing +x is a hard failure. The exec bit is invisible to every other check.
+  why_no_test_catches_it: core.filemode is false on the Windows checkout this repo is driven from, so a new script is committed 100644 and nothing complains. CI invokes them as `bash ops/x` and stays green, but queue/README.md and Xcode Cloud both invoke them directly, where a missing +x is a hard failure. The exec bit is invisible to every other check. The assertion also refuses to pass on an empty or truncated file set, which the original one-liner did (reviewer-5).
   anchor: artifact
   runs_on: [linux, mac]
-  assertion: "test -z \"$(git ls-files -s ops .githooks | awk '$4 ~ /\.(json|txt|md)$/ || $4 == \"ops/api-url\" {if ($1 != \"100644\") print $4; next} $1 != \"100755\" {print $4}')\""
+  assertion: "bash ops/lib/check-exec-bits"
   owner: agent/claude-opus-5
   added: 2026-09-07
 
