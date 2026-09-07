@@ -50,13 +50,17 @@ echo "     $(wc -l < "$WORK/ids.txt" | tr -d '[:space:]') ways"
 
 echo "2/3  osmium getid + export, in $IMAGE"
 mount="$(cd "$ETL" && pwd)"
+# Every osmium invocation reports its own exit code. The first version wrapped both in `set -e` and
+# printed only "osmium failed" on error, which hid WHICH step broke and swallowed osmium's own message -
+# and osmium's message was the answer both times it went wrong.
 docker run --rm -v "$mount:/w" -w /w "$IMAGE" bash -c '
-set -e
-osmium getid --no-progress -r -o work/curvature-oracle/subset.osm.pbf \
-  inputs/vermont-osm.pbf --id-file work/curvature-oracle/ids.txt
-osmium export --no-progress --overwrite -f geojsonseq --add-unique-id=type_id \
-  -o work/curvature-oracle/subset.geojsonseq work/curvature-oracle/subset.osm.pbf
-' || { echo "osmium failed"; exit 2; }
+rc=0
+osmium getid --no-progress -r -o work/curvature-oracle/subset.osm.pbf inputs/vermont-osm.pbf --id-file work/curvature-oracle/ids.txt || { echo "getid exited $?"; rc=1; }
+if [ $rc -eq 0 ]; then
+  osmium export --no-progress --overwrite -f geojsonseq --add-unique-id=type_id -o work/curvature-oracle/subset.geojsonseq work/curvature-oracle/subset.osm.pbf || { echo "export exited $?"; rc=1; }
+fi
+exit $rc
+' || { echo "osmium failed - its own message is above"; exit 2; }
 
 echo "3/3  select and write"
 out="$FIXTURE"
