@@ -11,7 +11,13 @@ Why that matters, from this task's own log: the first attempt used hand-typed po
 5.3 km mountain road. Straight lines between points that far apart cut across canyons the road contours
 around, and Old La Honda scored a 44% maximum grade while Skyline scored 59%. No drivable road is remotely
 that steep. The elevations were real; they were not elevations of the road. With the mappers' geometry the
-same roads score 14.6% and 8.3%, which is what those roads are.
+same roads score 13.65% and 10.47%, which is what those roads are.
+
+(That pair read 14.6% and 8.3% until commit e0166e7 re-recorded the fixture with 3x3 smoothing, and this
+docstring went on quoting the old numbers - caught by agent/reviewer-31. They are prose and nothing asserts
+on them, which is precisely how they drifted; what holds the real values is
+`TestTheRecordedSummariesStillHold`, which recomputes rather than reads. A comment stating numbers the file
+no longer produces is the beginning of a comment nobody trusts.)
 """
 from __future__ import annotations
 

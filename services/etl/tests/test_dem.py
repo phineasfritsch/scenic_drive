@@ -57,6 +57,31 @@ class TestTileForAPoint:
         assert len(dem.TILES) == 8
         assert "n37w124" not in dem.TILES
 
+    def test_an_east_longitude_does_not_collide_with_a_bay_area_tile(self):
+        """122.5 degrees EAST is in China. Built from abs(lon) it named `n38w123` - the peninsula's own
+        tile - so the sampler returned real elevation for the wrong continent: a plausible number from the
+        wrong place, which is the hardest kind of wrong to notice."""
+        assert dem.tile_for(38.0, 122.5) is None
+        assert dem.tile_for(37.5, 122.5) is None
+        assert dem.tile_for(37.5, 121.5) is None
+
+    def test_a_southern_latitude_is_refused_rather_than_named_with_an_n(self):
+        """The `n` in nXXwYYY is a claim about the hemisphere, not a prefix. Chile's coast sits at the same
+        longitudes as California's."""
+        assert dem.tile_for(-37.5, -122.5) is None
+        assert dem.tile_for(-38.5, -123.2) is None
+
+    def test_the_equator_and_the_prime_meridian_are_outside_this_scheme(self):
+        assert dem.tile_for(0.0, -122.5) is None
+        assert dem.tile_for(37.5, 0.0) is None
+
+    def test_the_hemisphere_guard_does_not_lean_on_the_tile_set(self, monkeypatch):
+        """Why this is worth fixing while it is unreachable. Today TILES membership is what actually stops
+        the collision; the moment a second region is added it stops stopping it, and nothing says so."""
+        monkeypatch.setattr(dem, "TILES", frozenset(dem.TILES | {"n38w121", "n38w120"}))
+        assert dem.tile_for(38.0, 120.5) is None      # 120.5 E, now that its name is in TILES
+        assert dem.tile_for(37.5, -120.5) == "n38w121"
+
 
 class TestGrouping:
     def test_points_are_grouped_by_tile_with_their_indices(self):
