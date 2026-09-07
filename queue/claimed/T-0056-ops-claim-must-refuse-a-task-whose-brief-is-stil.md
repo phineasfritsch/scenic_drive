@@ -1,13 +1,13 @@
 ---
 id: T-0056
 title: ops/claim must refuse a task whose brief is still the placeholder
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T21:56:22Z
+lease_expires_at: 2026-09-07T23:56:22Z
 worktree: null
-branch: null
+branch: task/T-0056
 exclusive: []
 touches: [ops/lib/queue.py, ops/claim]
 pins_affected: []
@@ -57,3 +57,4 @@ forward-looking only. File it separately if it is worth reconstructing; the argu
 records what was built and reviewed, and inventing a brief after the fact would be fiction.
 
 ## Log
+- 2026-09-07T21:56:22Z claimed by agent/unknown; lease until 2026-09-07T23:56:22Z
