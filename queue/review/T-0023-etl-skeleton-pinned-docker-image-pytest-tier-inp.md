@@ -131,3 +131,134 @@ complaint).
 
 `touches:` widened to `ops/lib/junit_count.py` and `.gitignore`; `reviewer:` cleared, because the state a
 reviewer approved is not the state being merged.
+
+- 2026-09-07T15:33:38Z reviewed by agent/reviewer-18: FAIL. Adversarial re-review of commit bf5d3c8 on PR #14.
+  Everything the log claims about the manifest fix and the CI-artifact fix is TRUE and independently re-derived;
+  the failure-naming code has a real, reproducible gap in the exact guarantee this task exists to deliver.
+
+  **RE-DERIVED MYSELF (not taken on trust):**
+  - Manifest tracking: `git ls-files --error-unmatch services/etl/inputs/manifest.yaml` -> tracked.
+    `git check-ignore -v` on it -> exit 1 (not ignored). `git check-ignore -v` on
+    `services/etl/inputs/california-latest.osm.pbf` -> matched by `.gitignore:30:*.osm.pbf` (exit 0, still
+    ignored), and on a non-.pbf payload `services/etl/inputs/random-payload.bin` -> matched by
+    `.gitignore:26:services/etl/inputs/*` (exit 0, still ignored) - the payload carve-out was not loosened.
+  - FRESH CLONE, not the worktree: `git clone -b task/T-0023` into a scratch dir
+    (`.../Temp/claude/rev18-clone`, deleted after this review). `git log --oneline -1` -> bf5d3c8.
+    `git ls-files --error-unmatch services/etl/inputs/manifest.yaml` -> tracked, file present on disk with
+    content. `python -m pytest -q` in `services/etl` there -> 36 passed. This is the real regression test for
+    the bug that reopened the task (file existed on the author's disk, absent from every clone) and it now
+    passes from a clone that never touched the author's disk.
+  - Attacked the new guard test (`services/etl/tests/test_manifest.py::TestRealManifest::test_the_manifest_is_actually_tracked_by_git`,
+    file lines 30-40) by re-deriving its own red state IN THE SCRATCH CLONE: edited `.gitignore` back to the
+    original buggy `services/etl/inputs/` rule, `git rm --cached services/etl/inputs/manifest.yaml` (file kept
+    on disk, exactly reproducing "exists on disk, absent from git"). Result: `pytest tests/test_manifest.py -q`
+    -> `..F...............` - ONLY `test_the_manifest_is_actually_tracked_by_git` fails (with
+    `AssertionError: services/etl/inputs/manifest.yaml is not tracked by git: ... did not match any file(s)
+    known to git`); the other three `TestRealManifest` tests that read the same file off disk still pass,
+    proving this guard is the only thing that would have caught the actual reopening bug - a check that reads
+    the working tree agrees with a broken checkout would not have.
+  - Checked for vacuous passes: with `git` removed from `PATH` (kept only a python-only dir on PATH), the test
+    does NOT pass - it errors loudly with `FileNotFoundError: [WinError 2] The system cannot find the file
+    specified` inside `subprocess.run`, i.e. an unmistakable ERROR, not a silent green.
+  - `Path(__file__).resolve().parents[3]` (test_manifest.py:35): computed all `.resolve().parents[i]` for the
+    real test file path and confirmed `parents[3]` is the repo root both in a plain clone and inside this
+    worktree checkout (worktrees have their own `.git` file, not a `.git` dir, and `git -C <root>` still
+    resolves correctly against it - verified both ways). Also ran the guard test directly inside this worktree
+    (not just the scratch clone) - passes.
+  - CI workflow: parsed `.github/workflows/linux-core.yml` with PyYAML (`pip install pyyaml` succeeded, then
+    `yaml.safe_load`) - valid YAML, `jobs.core.steps[upload-artifact].with` ==
+    `{'include-hidden-files': True, 'if-no-files-found': 'warn', ...}`. Fetched the real
+    `actions/upload-artifact@v4` `action.yml` from GitHub: `include-hidden-files` is a real input, default
+    `'false'`, "If true, hidden files will be included in the artifact. If false, hidden files will be excluded
+    from the artifact." - the stated root cause and the fix are both accurate, not just plausible-sounding.
+  - Ran the three requested commands verbatim in the review worktree: `bash ops/test` ->
+    `TESTS linux=86/76 ios=skipped failed=0 skipped=0` / `OK` (exact match to the required string).
+    `bash ops/check-pins` -> `PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux` (exit 0).
+    `bash ops/queue-check` -> `QUEUE OK (38 tasks)` (exit 0). Independently confirmed the 86 arithmetic:
+    `python -m pytest -q` in `services/etl` -> 36 dots; swift-testing suite reports 16; vitest presumably 34
+    (not independently recounted, taken from the log's prior arithmetic, which reviewer-9 already re-derived
+    from raw artifacts on an earlier pass) -> 16+34+36=86, matches.
+  - Dockerfile split (item 7): `grep -rEn "osmium|osm2pgsql|gdal|ogr2ogr" services/etl/` -> no matches;
+    `git ls-files services/etl | grep -i docker` -> no matches (file genuinely doesn't exist, not just
+    gitignored); `queue/ready/T-0038-...md` exists with a concrete Dockerfile+digest-check red/green plan.
+    ACCEPT the split: nothing committed in this task invokes the toolchain a Dockerfile would pin, the omission
+    is disclosed in the log rather than silently dropped, and this matches CLAUDE.md's "a smaller honest result
+    beats a larger claimed one."
+
+  **FINDINGS:**
+
+  - `ops/lib/junit_count.py:12-26` (`count`) vs `:29-48` (`list_failures`) - **CRITICAL**: `count()` has an
+    explicit "summary-only suite" branch (line 22-25) that reads `failures`/`errors` off `<testsuite>`
+    attributes when there are no `<testcase>` children. `list_failures()` has no equivalent - it only walks
+    `root.iter("testcase")` (line 41) and finds nothing in a summary-only suite, silently returning `[]`. This
+    is not a hypothetical shape: `.artifacts/spm-junit.xml`, produced RIGHT NOW by this repo's own
+    `swift test --xunit-output` (there are zero `XCTestCase` tests left in the codebase - confirmed via
+    `grep -r XCTestCase`, no matches - everything is Swift Testing), is exactly this shape today:
+    `<testsuite tests="0" failures="0"></testsuite>`, no testcase children. It only fails to bite today
+    because `failures="0"`. End-to-end repro (byte for byte, using ops/test's own tail-block commands against a
+    hand-built file in that exact real shape with `failures="1"` instead of `"0"`):
+    `python ops/lib/junit_count.py realistic_swift_summary_failure.xml` -> `total=1 failed=1 skipped=0`;
+    `python ops/lib/junit_count.py --list-failures realistic_swift_summary_failure.xml` -> **zero lines of
+    output**. Running ops/test's actual tail block (`echo "FAIL: 1 failing test(s):"` then the
+    `--list-failures | sed "s/^/  - /"` pipeline) against this file prints:
+    ```
+    FAIL: 1 failing test(s):
+    ```
+    with NOTHING under it - the exact "failed=3 and no test names" pattern this task exists to close, just
+    with the count now shown and the names still missing. Also worth noting: the fix's own log demonstrates the
+    naming path red-then-green for exactly two of the three live reporters (pytest and vitest) - there is no
+    swift demonstration in the log, and swift/XCTest's own output format is precisely the one this gap lives
+    in. Concrete failure scenario: any future XCTestCase-based test (or a swift test runner crash that leaves
+    only aggregate xunit counts, which does happen with some CI test-runner crashes) that fails would make
+    `ops/test` correctly print `TESTS linux=X/76 ... failed=1` and exit 1 (so this is not a false-green), but
+    the promised "FAIL: N failing test(s): - <name>" list would come up empty, and whoever is debugging is back
+    to exactly the "which one broke?" problem PR #14 was reopened over.
+
+  - `ops/lib/junit_count.py:39-40` vs `:64-66` - **MAJOR**: `--list-failures` and the counting path disagree on
+    what a broken report means. `count()` (via `main()`, line 64-66) treats an unparsable or missing file as a
+    hard error: prints to stderr and returns exit 2 - "a missing report must never count as zero tests" (the
+    module's own docstring, line 6). `list_failures()` (line 39-40) catches the identical `(OSError,
+    ET.ParseError)` and returns `[]`, and `main()`'s `--list-failures` branch (line 55-59) always returns 0
+    regardless. Reproduced directly: malformed XML, an empty file, and a nonexistent path all give
+    `--list-failures` exit 0 with zero lines of output, while the plain counting invocation on the identical
+    paths gives exit 2 with a clear stderr message every time. Task instructions asked me to decide if this is
+    worth reporting: yes - a broken report handed to `--list-failures` alone (e.g. by a human running it by
+    hand, matching how the brief itself suggests using it) reads exactly as "no failures," which is the one
+    thing this tool exists to never do. Inside `ops/test`'s own current call pattern this is largely inert
+    today (see next finding for the one path where it is not), because by the time `--list-failures` runs, the
+    same files already passed the earlier counting call for two of the three tiers - but the tool's public
+    contract is inconsistent on its face and that inconsistency is user-visible outside `ops/test`.
+
+  - `ops/test:60` (pre-existing, NOT introduced by bf5d3c8 - present since the original skeleton commit
+    0da5f3a) - **MINOR, non-blocking, filed for the record**: the pytest tier's count line
+    (`read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" ...)`) has no `||` failure guard,
+    unlike the swift tier's equivalent line 30 (`|| { echo "FAIL: could not parse swift JUnit"; exit 1; }`).
+    Reproduced: fed a malformed file through the identical `read -r t f s < <(...)` pipeline used at line 60 -
+    `junit_count.py` exits 2 with nothing on stdout, `read` fails, and under this shell's `set -uo pipefail`
+    (no `-e`) the script does NOT crash - `t`/`f`/`s` are silently treated as 0 in the arithmetic expansion at
+    line 61, so a malformed `pytest-junit.xml` contributes 0/0/0. Traced the consequence through the rest of
+    the script: this does not produce a false green - `linux_total` then falls below `floor_linux` (76) and
+    `ops/test` still exits 1 via the existing floor check - but with a misleading diagnostic ("linux test count
+    X is below floor 76 - tests were deleted or a reporter broke") instead of the swift tier's clear "could not
+    parse ... JUnit". Not blocking: it still fails closed, and it predates this commit.
+
+  - No persistent automated coverage for `ops/lib/junit_count.py` itself - **MINOR**: the log describes
+    demonstrating the naming path red then green with temporary tests that were written and then deleted
+    ("Both temporary tests removed; `git diff` on those files is empty"). That satisfies CLAUDE.md's "demonstrated
+    red, then green, in the task log" bar procedurally, but leaves nothing in the suite to catch a future
+    regression in `count()`/`list_failures()` (including the CRITICAL gap above) - `junit_count.py` isn't
+    exercised by any of the three tiers `ops/test` itself runs.
+
+  **Verdict: FAIL.** The manifest-tracking fix and the CI-artifact fix are both real, correctly targeted, and
+  independently re-verified from a fresh clone - nothing wrong with either. But the failure-naming mechanism,
+  which is this task's entire reason for being reopened, has a reproducible hole in the exact promise it makes
+  ("no failing test can go unnamed"), using a report shape this repo's own swift tier produces today. Sending
+  back to the owner: fix the `count()`/`list_failures()` asymmetry for summary-only suites (line 22-25 vs
+  29-48), decide on the `--list-failures` exit-code/silent-empty-output inconsistency for broken reports, and
+  add a real swift-shaped demonstration (not just pytest and vitest) before this goes green again. The
+  `ops/test:60` guard gap and the missing persistent test coverage for `junit_count.py` are filed here as
+  non-blocking notes for whoever picks this back up, not required for this specific FAIL to be resolved.
+
+  Scratch clone at `.../Temp/claude/rev18-clone` and all scratch JUnit fixtures deleted at the end of this
+  review. Review worktree (`wt/T-0023`) left clean - `git status --short` empty, `services/etl/inputs/`
+  contains only `manifest.yaml`, no files edited other than this task file.
