@@ -53,9 +53,20 @@ while :; do
   total="$("$PY" -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$rollup")"
   echo "checks   total=$total pending=$pending failed=[${failed:-none}] mergeState=$state"
   [[ -n "$failed" ]] && { echo "MERGE REFUSED: failing checks: $failed"; exit 1; }
-  if [[ "$pending" -gt 0 ]]; then
+  # Three transient states, not one. Right after a push GitHub has not registered the check runs yet
+  # (total=0) and has not computed mergeability (mergeStateStatus=UNKNOWN); polling only on pending>0 meant
+  # --wait fell straight through to a refusal seconds after a push. Observed on this gate's own PR #10.
+  # A PR that genuinely never runs CI still refuses once the cap is reached - waiting must not become merging.
+  if [[ "$pending" -gt 0 || "$total" -eq 0 || "$state" == "UNKNOWN" ]]; then
     if [[ $wait -eq 1 && $attempt -lt 40 ]]; then sleep 30; continue; fi
-    echo "MERGE REFUSED: $pending check(s) still running (use --wait to poll)"; exit 1
+    if [[ "$pending" -gt 0 ]]; then
+      echo "MERGE REFUSED: $pending check(s) still running (use --wait to poll)"; exit 1
+    elif [[ "$total" -eq 0 ]]; then
+      waited=""; [[ $wait -eq 1 ]] && waited=" (waited $((attempt * 30))s)"
+      echo "MERGE REFUSED: no checks reported at all - CI did not run for this PR${waited}"; exit 1
+    else
+      echo "MERGE REFUSED: GitHub has not computed mergeability yet (mergeStateStatus=UNKNOWN)"; exit 1
+    fi
   fi
   break
 done
