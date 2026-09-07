@@ -262,3 +262,67 @@ reviewer approved is not the state being merged.
   Scratch clone at `.../Temp/claude/rev18-clone` and all scratch JUnit fixtures deleted at the end of this
   review. Review worktree (`wt/T-0023`) left clean - `git status --short` empty, `services/etl/inputs/`
   contains only `manifest.yaml`, no files edited other than this task file.
+
+### 2026-09-07 - owner response to reviewer-18: the naming fix was itself incomplete
+
+reviewer-18 returned FAIL on a CRITICAL that is correct and that I should have caught, because my own brief
+for this fix says the runner must name what broke.
+
+**CRITICAL - `--list-failures` named nothing for a summary-only suite.** `count()` has two branches: per
+`<testcase>` children, and a summary-only `<testsuite tests= failures= errors=>` with no children. My
+`list_failures()` had only the first, so it walked `<testcase>` elements, found none, and returned `[]`. That
+is not a hypothetical shape: `swift test --xunit-output` writes exactly it into `.artifacts/spm-junit.xml`
+today, because every XCTest case has migrated to Swift Testing. A failing XCTest tier would have printed
+`FAIL: 1 failing test(s):` with nothing underneath - the same defect this task was reopened to fix, one layer
+down. Fixed: `list_failures()` now mirrors `count()`'s branches and emits, for a summary-only suite, the suite
+name and how many failures it claims, saying explicitly that the report carries no per-test detail.
+
+**MAJOR - `--list-failures` exited 0 on an unreadable report while the counting path exited 2.** "Cannot read
+the report" printed as silence, which is indistinguishable from "nothing failed". Fixed: the parse error now
+propagates and both paths exit 2.
+
+**MINOR - the pytest tier's parse had no failure guard** (the swift tier has one). Fixed.
+
+**MINOR - `junit_count.py` had no test coverage of its own.** This is the finding that mattered most, because
+it is why the CRITICAL existed: I demonstrated the naming path red for pytest and for vitest, never for swift,
+and nothing mechanical noticed the gap. Fixed with a pin rather than a test, because the property is about the
+runner the whole fleet trusts:
+
+    P-OPS-02  A failing test run names the tests that failed - every failure the counter counts,
+              --list-failures names, and an unreadable report fails closed on both paths.
+              assertion: bash ops/lib/check-failure-naming        runs_on: [linux, mac]   anchor: artifact
+
+`ops/lib/check-failure-naming` generates four report shapes (summary-only, per-testcase with both `<failure>`
+and `<error>`, errors-only, and green) plus a malformed and a missing file, then asserts the invariant across
+all of them: counted > 0 implies named > 0, counted == 0 implies named == 0, the per-case report names the
+actual test ids, and an unreadable report is non-zero on both paths.
+
+**Demonstrated red against the exact code reviewer-18 reviewed** (`git checkout HEAD -- ops/lib/junit_count.py`,
+i.e. the first incomplete fix, then run the check):
+
+    P-OPS-02: summary-only.xml counts 1 failure(s) and names NONE - a red run would print no test names
+    P-OPS-02: errors-only.xml counts 2 failure(s) and names NONE - a red run would print no test names
+    P-OPS-02: --list-failures exited 0 on unreadable malformed.xml
+    P-OPS-02: --list-failures exited 0 on unreadable does-not-exist.xml
+    rc=1
+
+and green with the fix restored:
+
+    P-OPS-02: every counted failure is named; unreadable reports fail closed
+    rc=0
+
+The red run names both of reviewer-18's findings, which is the point: this check would have caught them
+mechanically instead of costing a review round.
+
+**Green after:** `TESTS linux=86/76 ios=skipped failed=0 skipped=0` / `OK`;
+`PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`; `QUEUE OK (38 tasks)`;
+`P-OPS-01: 25 files, 15 required present, all modes correct` (the new script is committed 100755 via
+`git update-index --chmod=+x`, per CLAUDE.md).
+
+`touches:` widened to `ops/lib/` and `pins/PINS.yaml`. Still in `review/` for agent/reviewer-18.
+
+**Note on CI:** GitHub Actions stopped executing at about 15:11 UTC. Every run since, on every branch
+including `main`, completes in 4-6 seconds with zero steps executed and no downloadable log - consistent with
+Actions minutes or a spending limit being exhausted on a private free-plan repo, and not with anything in this
+diff. All verification above is local. This task cannot go green in CI until that is cleared, and `ops/merge`
+will correctly refuse to merge it until it does.
