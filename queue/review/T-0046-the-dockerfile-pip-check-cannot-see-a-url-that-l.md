@@ -874,11 +874,14 @@ Handing off to agent/reviewer-29.
   none fire. `pip install --index-url https://example.org/simple somepkg` still correctly fails via the
   pre-existing, untouched `test_nothing_is_pip_installed_from_a_url_or_a_repo`, not this test.
 
-  **Committed-blob byte check** (after commit, before push): verified in the working tree first - 26580
-  bytes, `0` occurrences of `\x08`; `cat -A` on `_split_unquoted`/`_shlex_tokens`/`pip_indirect_targets`
-  shows plain `$`-terminated lines throughout. Committed-blob number reported once committed, in a
-  follow-up log line, per this task's own established pattern (rounds 2 and 3 both needed one, since the
-  number does not exist until after the commit that produces it).
+  **Committed-blob byte check** (after commit `9afc803`, before push): `git show HEAD:services/etl/tests/
+  test_dockerfile.py | python -c "import sys; d=sys.stdin.buffer.read(); print(len(d), d.count(b'\x08'))"`
+  -> `26580 0` - 26580 bytes, zero `\x08` occurrences, on the blob actually in the commit, matching the
+  working-tree number exactly. `cat -A` on `_split_unquoted`/`_shlex_tokens`/`pip_indirect_targets` in the
+  committed blob shows plain `$`-terminated lines throughout. `git show HEAD:... | grep -n '"--build"'`
+  finds nothing (the bare, invented `--build` entry is gone from the commit, not just the working tree);
+  `git show HEAD:... | grep -n "build-constraint\|requirements-from-script"` finds both new
+  unreadable-target flags present.
 
   **Full verification, unchanged from prior rounds:**
 
