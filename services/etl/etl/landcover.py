@@ -157,3 +157,46 @@ def summarise(coords: list[tuple[float, float]], codes_per_point: list[list[int 
         if key in summary:
             summary[key] = round(summary[key], 4)
     return summary
+
+
+# ---- sampling ---------------------------------------------------------------------------------------
+# Same shape as etl.dem: one gdallocationinfo process per tile, injectable so the tests need no raster.
+from pathlib import Path  # noqa: E402
+import subprocess  # noqa: E402
+
+INPUTS = Path(__file__).resolve().parents[1] / "inputs"
+
+
+def tile_path(name: str) -> Path:
+    return INPUTS / f"worldcover-{name.lower()}.tif"
+
+
+def sample_codes(points: list[tuple[float, float]], runner=None) -> list[int | None]:
+    """WorldCover class code per point, in the order given. Points with no tile come back as None."""
+    groups: dict[str, list[int]] = {}
+    for i, (lat, lon) in enumerate(points):
+        groups.setdefault(tile_for(lat, lon), []).append(i)
+    out: list[int | None] = [None] * len(points)
+    for name, indices in groups.items():
+        path = tile_path(name) if name else None
+        if not path or not path.is_file():
+            continue
+        stdin = "".join(f"{points[i][1]} {points[i][0]}\n" for i in indices)
+        argv = ["gdallocationinfo", "-valonly", "-wgs84", str(path)]
+        run = runner or (lambda a, s: subprocess.run(a, input=s, capture_output=True, text=True, check=False))
+        proc = run(argv, stdin)
+        if getattr(proc, "returncode", 1) != 0:
+            raise RuntimeError(f"gdallocationinfo failed on {name}: {(proc.stderr or '').strip()[:200]}")
+        lines = proc.stdout.splitlines()
+        if len(lines) != len(indices):
+            raise ValueError(f"gdallocationinfo returned {len(lines)} values for {len(indices)} points")
+        for i, line in zip(indices, lines):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                code = int(float(line))
+            except ValueError:
+                continue
+            out[i] = None if code == 0 else code
+    return out
