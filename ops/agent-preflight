@@ -23,6 +23,8 @@ if [[ "$crlf" == "true" ]]; then say "autocrlf" "true - run: git config core.aut
 bad="$(git ls-files -z 2>/dev/null | xargs -0 grep -lI "$CR" -- 2>/dev/null | head -3 | tr '\n' ' ')"
 if [[ -n "$bad" ]]; then say "crlf-files" "FOUND: $bad"; fail=1; else say "crlf-files" "none"; fi
 
+if grep -qE "^\* text=auto eol=lf" .gitattributes 2>/dev/null; then say "gitattrs" "eol=lf"; else say "gitattrs" "MISSING eol=lf - .gitattributes was clobbered"; fail=1; fi
+
 if [[ -f Package.resolved ]]; then say "resolved" "$(sha256sum Package.resolved | cut -c1-12)"; else say "resolved" "none yet"; fi
 say "queue"    "$(ls queue/claimed 2>/dev/null | wc -l | tr -d ' ') claimed, $(ls queue/ready 2>/dev/null | wc -l | tr -d ' ') ready"
 

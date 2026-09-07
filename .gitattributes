@@ -1,2 +1,10 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# LF everywhere. The repo is operated from Windows, WSL2 and Linux CI; CRLF breaks every ops/* script.
+* text=auto eol=lf
+*.sh text eol=lf
+ops/** text eol=lf
+.githooks/** text eol=lf
+*.png binary
+*.jpg binary
+*.sqlite binary
+*.pmtiles binary
+*.pbf binary
