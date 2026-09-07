@@ -1,0 +1,188 @@
+# Every external file the ETL consumes. Nothing is fetched without a verification mode and a licence.
+# See etl/manifest.py for the rules. Entries are added by the TASK THAT CONSUMES THEM, not in advance -
+# an entry sitting here unverified is exactly the "pending" state this design exists to forbid.
+#
+# verify: sha256        static file, digest pinned below. Get it with `--record-digest NAME`, then commit it.
+# verify: upstream-md5  publisher refreshes on a schedule and publishes a checksum sidecar.
+
+- name: california-osm.pbf
+  url: https://download.geofabrik.de/north-america/us/california-latest.osm.pbf
+  verify: upstream-md5
+  checksum_url: https://download.geofabrik.de/north-america/us/california-latest.osm.pbf.md5
+  license: ODbL-1.0
+  purpose: base road network and POIs for the Bay Area extract
+  bytes: 1288490188
+  retrieved: 2026-09-07
+  consumed_by: T-0024
+  notes: Geofabrik rebuilds this DAILY, so a pinned sha256 would break the fetcher every day and teach everyone to bypass it. The publisher's .md5 sidecar is the verification.
+
+- name: vermont-osm.pbf
+  url: https://download.geofabrik.de/north-america/us/vermont-latest.osm.pbf
+  verify: upstream-md5
+  checksum_url: https://download.geofabrik.de/north-america/us/vermont-latest.osm.pbf.md5
+  license: ODbL-1.0
+  purpose: the ways the Curvature project's published Vermont output was computed over, so our curvature can be compared against an oracle we did not produce
+  bytes: 45880330
+  retrieved: 2026-09-07
+  consumed_by: T-0025
+  notes: Vermont rather than the Bay Area because Vermont is what Curvature publishes. Geofabrik rebuilds daily, so the md5 sidecar is the verification, same as california-osm.pbf.
+
+- name: vermont-curvature.kmz
+  url: https://kml.roadcurvature.com/north_america/us/vermont.c_300.kmz
+  verify: sha256
+  sha256: 3bdf4d140a6dcef0501223357d993df1b960934adf1a5cebdcdf2340b7039046
+  license: ODbL-1.0
+  purpose: THE ORACLE for T-0025 - the Curvature project's own per-way curvature values for Vermont, keyed by OSM way id, which an agent cannot fabricate
+  bytes: 2557952
+  retrieved: 2026-09-07
+  consumed_by: T-0025
+  notes: Pinned by sha256 ON PURPOSE, unlike the Geofabrik extracts. An oracle that silently follows upstream is not an oracle - if roadcurvature.com regenerates this file the fetch must FAIL and a human must re-pin it deliberately, having looked at what changed. c_300 rather than c_1000 for wider coverage - the threshold selects which collections are published, so a higher one leaves fewer ways to compare. Data is derived from OSM, hence ODbL.
+
+# USGS 3DEP 1/3 arc-second (about 10 m) bare-earth elevation, the eight tiles the sfbay bbox needs.
+# A tile nXXwYYY covers latitude [XX-1, XX] and longitude [-YYY, -YYY+1]. n37w124 is NOT here: it is
+# entirely ocean and USGS returns 404 for it, which the sampler must treat as "no elevation", never as 0 m -
+# zero is sea level, a real elevation, and would flatten every coastal way's relief.
+# Static files (Last-Modified 2025-08-27 for most), so each is pinned by sha256 rather than a sidecar.
+
+- name: 3dep-n38w123.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n38w123/USGS_13_n38w123.tif
+  verify: sha256
+  sha256: 73c9935d3b750c01f19b292760547b8c2db0a1c8beb3ee0aaea375425b713538
+  license: US-PD-17USC105
+  purpose: "elevation for lat 37-38, lon -123..-122: the peninsula, Santa Cruz mountains, inner coast"
+  bytes: 222936410
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n38w122.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n38w122/USGS_13_n38w122.tif
+  verify: sha256
+  sha256: d6dd52bd01ef81d8af06a336d881ca73083e15139f22c2e84262e77aa138ffb4
+  license: US-PD-17USC105
+  purpose: "elevation for lat 37-38, lon -122..-121: east bay, Diablo range, the Altamont"
+  bytes: 499782172
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n37w122.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n37w122/USGS_13_n37w122.tif
+  verify: sha256
+  sha256: 786ad73dc03e5c7cde26b285631ef04198e386ac83d3e91ac8c1e577e7fdcd80
+  license: US-PD-17USC105
+  purpose: "elevation for lat 36-37, lon -122..-121: south bay approaches, Santa Cruz, Pacheco"
+  bytes: 415276131
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n37w123.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n37w123/USGS_13_n37w123.tif
+  verify: sha256
+  sha256: 3f36dd93848c01c97322ea52a3df0344daa5efe466c57aae139b08c9a490aee6
+  license: US-PD-17USC105
+  purpose: "elevation for lat 36-37, lon -123..-122: almost entirely ocean, small on purpose"
+  bytes: 5494012
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n39w123.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n39w123/USGS_13_n39w123.tif
+  verify: sha256
+  sha256: 68e1bdf99704c5bb7ab8136354f39a3401bc5bdd8889b086336a4b5e259c65f9
+  license: US-PD-17USC105
+  purpose: "elevation for lat 38-39, lon -123..-122: Sonoma, Napa, the north bay ranges"
+  bytes: 488805186
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n39w122.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n39w122/USGS_13_n39w122.tif
+  verify: sha256
+  sha256: 76da1d095839553bfda3cf8dc464695b45b907bd0755b379ab2215cfa1bb416b
+  license: US-PD-17USC105
+  purpose: "elevation for lat 38-39, lon -122..-121: Solano and the north Delta"
+  bytes: 490935937
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n38w124.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n38w124/USGS_13_n38w124.tif
+  verify: sha256
+  sha256: 57b05122de1c4df2b8c74e4ae64923b3a1fb3d95a2d9f782c98d78ae91e37b2b
+  license: US-PD-17USC105
+  purpose: "elevation for lat 37-38, lon -124..-123: the outer coast, mostly ocean"
+  bytes: 1656024
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n39w124.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n39w124/USGS_13_n39w124.tif
+  verify: sha256
+  sha256: ea12b027e83a667bb97b3b4db2574f93787602b62cd5d4360798fb8fe802dadf
+  license: US-PD-17USC105
+  purpose: "elevation for lat 38-39, lon -124..-123: the Sonoma coast"
+  bytes: 153554813
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+# ESA WorldCover 2021 v200, 10 m land cover. Replaces the USFS Tree Canopy Cover and NLCD impervious layers
+# the plan originally named: MRLC's S3 now refuses all anonymous access (403, Requester Pays), their landing
+# pages carry no download link, and retrieval needs the interactive viewer or an authenticated order. There
+# is no guessable public URL - checked, not assumed.
+#
+# WorldCover is 10 m against NLCD's 30 m, and its classes give both terms directly: Tree cover (10) and
+# Shrubland (20) feed `canopy`, Built-up (50) feeds `impervious`. The score needs FRACTIONS in a 150 m
+# buffer rather than an absolute canopy percent, so class fractions are the right shape anyway. What is lost
+# is TCC's continuous 0-100 canopy percent and NLCD's calibrated impervious fraction; if T-0029's rank-order
+# fixtures show the redwood-versus-strip-mall discrimination is weak, revisit with a one-time manual MRLC
+# clip hosted in our own R2 and pinned by sha256.
+#
+# Tiles are 3x3 degrees named by their SOUTH-WEST corner, so N36W123 covers lat 36-39, lon -123..-120.
+
+- name: worldcover-n36w123.tif
+  url: https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_N36W123_Map.tif
+  verify: sha256
+  sha256: cd255268fb81c7073bf10e5325e1d11c601dde5dc5ccd9c1f0b40a8bcb8a9b29
+  license: CC-BY-4.0
+  purpose: "land cover for lat 36-39, lon -123..-120: everything east of the -123 meridian, which is most of the region"
+  bytes: 87597650
+  retrieved: 2026-09-07
+  consumed_by: T-0027
+
+- name: worldcover-n36w126.tif
+  url: https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_N36W126_Map.tif
+  verify: sha256
+  sha256: 2a1968b0678ca09d193a63d9b1c0c3b716e60272eb583271496abfd210056288
+  license: CC-BY-4.0
+  purpose: "land cover for lat 36-39, lon -126..-123: the western strip from -123.62 to -123. Mostly ocean, which is why it is 4 MB, but it holds the outer coast the region reaches to"
+  bytes: 4056438
+  retrieved: 2026-09-07
+  consumed_by: T-0027
+
+# Designated scenic byways - the score's second external oracle, after Curvature. Both are ArcGIS /query
+# pulls rather than published files, so their stability was MEASURED rather than assumed: two consecutive
+# full pulls of each returned byte-identical bodies, same sha256 and same length. They are pinned by sha256
+# for the same reason vermont-curvature.kmz is - an oracle that silently follows upstream is not an oracle.
+# If Caltrans designates a route or FHWA edits layer 107, this fetch must FAIL and a human must re-pin it
+# having looked at what moved, rather than the overlay changing under a run nobody was watching.
+
+- name: byways-caltrans.geojson
+  url: https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/CA_Scenic_Hwys/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson
+  verify: sha256
+  sha256: b8ec29e302533edc19eb21d598eb19ea2e147224f8cc67a46421c85f71a524f7
+  license: CA-OpenData
+  purpose: THE ORACLE for T-0028 - California's own Eligible and Officially Designated scenic highways, a judgement about which roads are scenic that we did not make and an agent cannot fabricate
+  bytes: 8764515
+  retrieved: 2026-09-07
+  consumed_by: T-0028
+  notes: 273 features, Status {E 207, OD 66}, and that field has NO coded-value domain in the service (domain null, checked live) - etl/byways.py records what the two values mean and which Caltrans document each claim comes from. Licence posture is the portal item's own licenseInfo (Caltrans as-is disclaimer) with accessInformation "California Department of Transportation" and access public; the service's copyrightText is empty. MILES is 0 or null on 247 of the 273 rows, so every length derived from this file is computed from geometry, never read from that field.
+
+- name: byways-fhwa.geojson
+  url: https://geo.dot.gov/server/rest/services/US_Scenic_Byways/MapServer/107/query?where=1%3D1&outFields=*&f=geojson
+  verify: sha256
+  sha256: 1feaf38b3f7f7b6a75b720cadc629afa13c7bdb06e1ed086a304f265823b8942
+  license: US-PD-17USC105
+  purpose: national scenic byway designations outside California, and the evidence for which Caltrans rows FHWA has merely re-published
+  bytes: 29545684
+  retrieved: 2026-09-07
+  consumed_by: T-0028
+  notes: Layer 107 (National_Scenic_Byways) of the US_Scenic_Byways MapServer, 648 features, fields FID/Admin_Org/Type/Trail_Name only. THE LICENCE IS INFERRED, NOT STATED - the layer and its service carry no copyrightText, no serviceDescription and no terms page, so US-PD-17USC105 is deduced from this being a federal work and should be re-checked before any redistribution. Type is 'National Scenic Byway' on all 648 rows and does NOT separate All-American Roads whatever its name suggests. Only the 127 rows whose Admin_Org names NSB are FHWA's own designations; the rest, including all 12 that touch the sfbay bbox, are states' byways re-published federally - see etl/byway_source.py.

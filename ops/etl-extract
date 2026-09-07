@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Cut the region out of the state extract, filter it, and report the per-class counts.
+#
+#   ops/etl-extract                      sfbay, checked against the counts in region.json (exit 4 if out)
+#   ops/etl-extract --record-counts      ... write the counts into region.json instead of checking
+#   ops/etl-extract --no-docker          use a local osmium instead of services/etl/Dockerfile's pinned image
+#
+# See services/etl/etl/extract.py. Exit 4 matches ops/sane's reserved code for corpus/graph bounds.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)/services/etl"
+exec "${PYTHON:-$(command -v python3 || command -v python)}" -m etl.extract "$@"
