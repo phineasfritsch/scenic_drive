@@ -19,9 +19,10 @@ import sys
 from pathlib import Path
 
 from . import curvature as cv
+from . import oracle
 
 FIXTURE = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "curvature_oracle.json"
-TOLERANCE = 0.02
+TOLERANCE = oracle.ORACLE_TOLERANCE   # one definition, in oracle.py - see the note there
 
 
 def this_platform() -> str:

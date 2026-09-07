@@ -25,6 +25,7 @@ what it cost.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 from pathlib import Path
@@ -59,6 +60,14 @@ WAY_TAG_PREFIXES = ("parking:lane",)   # broader than the source's value-restric
 SQUASH_RADIUS_M = 30.0        # every one of those steps uses --distance 30
 GEOMETRY_TOL_M = 1.0          # a node that moved less than a metre is the same node re-rounded
 CELL_DEG = 0.0005             # ~55 m of latitude; a grid, so the proximity test is not O(ways x nodes)
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
 
 
 def load_export(path: Path) -> tuple[dict[int, list[tuple[float, float]]], dict[int, dict], list[tuple[float, float]]]:
@@ -161,6 +170,27 @@ def eligible(export: Path, kmz: Path = oracle.KMZ):
 
 
 def build(fixture: Path, export: Path, kmz: Path = oracle.KMZ, cap: int = 400, seed: int = 20260907):
+    # REFUSE a KMZ that is not the pinned one, before reading a single collection out of it.
+    #
+    # Without this, a truncated KMZ produced a green run that REPLACED the committed fixture with a subset of
+    # itself: 900 of 3318 collections, exit 0, 400 ways still written, the whole suite green at 163 tests, and
+    # the report printing a plausible 94.500%. The funnel cross-check in ops/etl-curvature-fixture could not
+    # see it, because it divides two numbers read from the same file - a short KMZ shrinks both and the ratio
+    # stays 1.0 (agent/reviewer-34, round 5). A guard that derives both sides of its comparison from the thing
+    # it is checking is not a guard.
+    #
+    # This is the manifest's pin, which T-0025 recorded as deliberate: "an oracle that silently follows
+    # upstream is not an oracle. If they regenerate it the fetch fails and a human re-pins it having looked at
+    # what changed."
+    digest = _sha256(kmz)
+    want = oracle.pinned_digest(kmz.name)
+    if want and digest != want:
+        raise SystemExit(
+            f"{kmz.name} is not the pinned oracle.\n"
+            f"  pinned : {want}\n"
+            f"  on disk: {digest}\n"
+            "Refusing to build a fixture from it. Re-fetch with ops/etl-fetch-inputs, or - if upstream really "
+            "did regenerate it - re-pin deliberately after looking at what changed.")
     kept, stages = eligible(export, kmz)
     sampled = list(kept)
     random.Random(seed).shuffle(sampled)
@@ -168,7 +198,10 @@ def build(fixture: Path, export: Path, kmz: Path = oracle.KMZ, cap: int = 400, s
     fixture.parent.mkdir(parents=True, exist_ok=True)
     fixture.write_text(json.dumps({
         "source": "https://kml.roadcurvature.com/north_america/us/vermont.c_300.kmz",
-        "source_sha256": "3bdf4d140a6dcef0501223357d993df1b960934adf1a5cebdcdf2340b7039046",
+        # The digest of the file this build actually read. It used to be a literal, which meant the
+        # fixture asserted its own provenance and a rebuild from a different KMZ still claimed the pinned
+        # digest. `test_the_fixture_was_built_from_the_pinned_oracle` ties this to the manifest.
+        "source_sha256": digest,
         "osm_source": "https://download.geofabrik.de/north-america/us/vermont-latest.osm.pbf",
         "rebuild_with": "ops/etl-curvature-fixture",
         "selection": [

@@ -25,6 +25,7 @@ import math
 import pytest
 
 from etl import curvature as cv
+from etl import oracle
 
 
 class TestTheUpstreamConstantsArePinnedByValue:
@@ -35,6 +36,11 @@ class TestTheUpstreamConstantsArePinnedByValue:
         # and `test_the_earth_radius_is_NOT_detectable_at_this_tolerance` records that the oracle cannot
         # tell the difference. That is exactly why it needs a literal here.
         assert cv.RAD_EARTH_M == 6373000
+
+    def test_the_oracle_tolerance(self):
+        # The brief's 2%. Pinned by literal because everything else derives from it: test_curvature.py's
+        # TOLERANCE, oracle_report's, and every agreement figure quoted anywhere in this task.
+        assert oracle.ORACLE_TOLERANCE == 0.02
 
     def test_the_radius_caps(self):
         # add_segment_length_and_radius.py: MAX_RADIUS = 10000

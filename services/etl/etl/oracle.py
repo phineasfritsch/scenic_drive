@@ -29,6 +29,34 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 KMZ = ROOT / "inputs" / "vermont-curvature.kmz"
 
+# The brief's 2%. Defined ONCE, here, because it was defined twice: `oracle_report.py` carried its own copy
+# and no test imported that module, so sweeping it to 0.5 printed `fixture 400/400 = 100.000%` with the whole
+# suite green (agent/reviewer-34, round 5). A second copy of a threshold is a second answer to the question
+# the threshold exists to settle.
+ORACLE_TOLERANCE = 0.02
+
+
+def pinned_digest(name: str, manifest: Path | None = None) -> str | None:
+    """The sha256 `inputs/manifest.yaml` pins for one input, or None if it names no digest.
+
+    Read from the manifest rather than repeated in code. `oracle_select.build` used to write a hardcoded
+    literal into the fixture's `source_sha256`, so the fixture asserted its own provenance and a rebuild from
+    a DIFFERENT kmz still claimed the pinned digest - which is exactly the claim the field exists to make
+    checkable.
+    """
+    path = manifest or (ROOT / "inputs" / "manifest.yaml")
+    if not path.is_file():
+        return None
+    current, want = None, None
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.startswith("- name:"):
+            current = line.split(":", 1)[1].strip()
+        elif line.startswith("sha256:") and current == name:
+            want = line.split(":", 1)[1].strip()
+            break
+    return want or None
+
 PLACEMARK = re.compile(r"<Placemark>(.*?)</Placemark>", re.S)
 DESCRIPTION = re.compile(r"<description>\s*(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?\s*</description>", re.S)
 NAME = re.compile(r"<name>(.*?)</name>", re.S)

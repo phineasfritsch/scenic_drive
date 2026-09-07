@@ -15,9 +15,14 @@ from pathlib import Path
 import pytest
 
 from etl import curvature as cv
+from etl import oracle
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "curvature_oracle.json"
-TOLERANCE = 0.02          # the brief's 2%
+# The brief's 2%, taken from the module rather than restated. It was restated in three places -
+# here, oracle_report.py and the fixture builder - and reviewer-34 found the report's copy could be
+# swept to 0.5, printing 100% with this suite green. The literal is pinned in
+# test_curvature_constants.py, which is what makes a sweep of it fail.
+TOLERANCE = oracle.ORACLE_TOLERANCE
 
 # THE PASS RATE IS PLATFORM-DEPENDENT. Same committed fixture, same code, different libm:
 #
