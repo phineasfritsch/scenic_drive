@@ -1,12 +1,12 @@
 ---
 id: T-0004
 title: pins/PINS.yaml + ops/check-pins with runs_on, last_verified and expiry
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01RJHHJcZtZChD9eMb275urx
+claimed_at: 2026-09-07T03:31:44Z
+lease_expires_at: 2026-09-07T07:31:44Z
+worktree: ../wt/T-0004
 branch: task/T-0004
 exclusive: []
 touches: [pins/PINS.yaml, ops/check-pins, ops/lib/pins.py]
@@ -36,3 +36,4 @@ TODO assertions are not. --source-only runs only pins with anchor=source (used i
 - 2026-09-07T03:12:47Z sweep: lease held by agent/x expired at 2026-09-07T03:12:27Z; returned to ready/, locks released
 - 2026-09-07T03:30:20Z claimed by agent/x; lease until 2026-09-07T03:30:20Z
 - 2026-09-07T03:30:30Z sweep: lease held by agent/x expired at 2026-09-07T03:30:20Z; returned to ready/, locks released
+- 2026-09-07T03:31:44Z claimed by agent/claude-opus-5; lease until 2026-09-07T07:31:44Z
