@@ -27,6 +27,9 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
 - Never anchor a pin, a test, or a guard on a comment. Comments get stripped. Anchor on identifiers, built
   artifacts, config files, API fields or DB constraints.
 - No secrets in the tree: no `sk.`-style tokens, `.p8`, `.p12`, `.netrc`, `.env`. The hook greps for them.
+- New scripts under `ops/` or `.githooks/` must be committed executable: `git update-index --chmod=+x <path>`.
+  `core.filemode` is false on the Windows checkout, so git will not notice on its own and CI (`bash ops/x`) stays
+  green while direct invocation breaks. Pin P-OPS-01 enforces it; data files there stay 100644.
 - Every `xcodebuild` passes `-derivedDataPath` under the worktree. Every `swift build/test` on a shared box
   uses its own `--scratch-path`.
 
