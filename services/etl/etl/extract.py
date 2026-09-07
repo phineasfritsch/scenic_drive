@@ -61,25 +61,40 @@ class Osmium:
         return p.stdout if capture else ""
 
 
+KIND = {"n": "nodes", "w": "ways", "r": "relations"}
+
+
 def count_class(osmium: Osmium, src: Path, cls: str, scratch: Path) -> int:
-    """Objects of one reporting class in `src`, via filter-then-fileinfo.
+    """Objects of one reporting class in `src`: one filter per object type, reading only that type's tally.
 
     Counting by filtering is slower than a single pass, but it uses the SAME expressions the keep-pass uses.
     A count computed a different way than the filter is a count that can agree with itself while both are
     wrong about the file.
+
+    Two wrong versions preceded this one, and both produced a number rather than an error:
+
+      1. Filtering `nw/natural=beach` and totalling all three types. `osmium tags-filter` keeps the nodes a
+         matching way refers to - correctly, the output has to stay a usable OSM file - so the node tally was
+         tagged nodes PLUS way geometry. `motorway` came out as 140,717, which is roughly 7k ways and their
+         nodes, and reads exactly like a fact.
+      2. Adding `--omit-referenced` to strip them. That leaves ways whose nodes are gone, and
+         `osmium fileinfo --extended` computes a bounding box from node locations: "Geometry error: Invalid
+         location. Usually this means a node was missing from the input data."
+
+    One type at a time, reading only that type's count, needs neither: a node filter references nothing, and
+    a way filter's referenced nodes do not appear in the `ways` tally.
     """
     out = scratch / f"count-{cls}.osm.pbf"
-    if out.exists():
-        out.unlink()
-    # --omit-referenced is the whole difference between a count and a number. Without it the filtered file
-    # also carries every node a matching way refers to, so "motorway" came out as 140,717 - roughly 7k ways
-    # plus their geometry - which reads like a fact and is not one. With it, the file contains exactly the
-    # objects that matched, so ways are ways and nodes are the tagged nodes.
-    osmium.run(["tags-filter", "--no-progress", "--overwrite", "--omit-referenced",
-                "-o", osmium.rel(out), osmium.rel(src), tf.class_expression(cls)])
-    info = osmium.run(["fileinfo", "--extended", "--json", osmium.rel(out)], capture=True)
+    found = 0
+    for obj_type in tf.class_types(cls):
+        if out.exists():
+            out.unlink()
+        osmium.run(["tags-filter", "--no-progress", "--overwrite",
+                    "-o", osmium.rel(out), osmium.rel(src), tf.typed_expression(cls, obj_type)])
+        info = osmium.run(["fileinfo", "--extended", "--json", osmium.rel(out)], capture=True)
+        found += ct.parse_fileinfo(info)[KIND[obj_type]]
     out.unlink(missing_ok=True)
-    return ct.total(ct.parse_fileinfo(info))
+    return found
 
 
 def extract(region_id: str, use_docker: bool, source: Path, work: Path) -> tuple[rg.Region, dict[str, int]]:

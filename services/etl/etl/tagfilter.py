@@ -64,6 +64,35 @@ def class_expression(cls: str) -> str:
     raise KeyError(f"unknown feature class: {cls!r}")
 
 
+def class_spec(cls: str) -> tuple[str, str, tuple[str, ...]]:
+    """(object types, key, values) for any class. Way classes are `w/highway=...` in the same shape."""
+    if cls in WAY_CLASSES:
+        return "w", "highway", WAY_CLASSES[cls]
+    if cls in POI_CLASSES:
+        return POI_CLASSES[cls]
+    raise KeyError(f"unknown feature class: {cls!r}")
+
+
+def class_types(cls: str) -> tuple[str, ...]:
+    """The osmium object types a class can match, one character each."""
+    return tuple(class_spec(cls)[0])
+
+
+def typed_expression(cls: str, obj_type: str) -> str:
+    """One class restricted to ONE object type, e.g. `w/natural=beach`.
+
+    Counting needs this. `osmium tags-filter` keeps the nodes a matching way refers to - correctly, since the
+    output has to stay a usable OSM file - so the node count of an `nw/...` filter is tagged nodes PLUS way
+    geometry, which is not a count of anything. Filtering one type at a time and reading only that type's
+    tally gives the real number, and `--omit-referenced` is not the way to get it: it strips the locations
+    `osmium fileinfo --extended` needs, which fails with "Geometry error: Invalid location".
+    """
+    types, key, values = class_spec(cls)
+    if obj_type not in types:
+        raise KeyError(f"{cls} does not match object type {obj_type!r} (only {types!r})")
+    return f"{obj_type}/{key}=" + ",".join(values)
+
+
 def all_classes() -> tuple[str, ...]:
     return tuple(WAY_CLASSES) + tuple(POI_CLASSES)
 

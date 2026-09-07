@@ -58,6 +58,27 @@ class TestExpressionShape:
         assert tf.poi_expression("viewpoint") == "n/tourism=viewpoint"
         assert tf.poi_expression("park") == "wr/leisure=park"
 
+    def test_a_way_class_matches_only_ways(self):
+        assert tf.class_types("motorway") == ("w",)
+
+    def test_a_mixed_poi_class_reports_both_of_its_types(self):
+        assert tf.class_types("beach") == ("n", "w")
+
+    def test_a_typed_expression_restricts_to_one_object_type(self):
+        # Counting reads one type at a time: an nw/ filter keeps the nodes a matching way refers to, so its
+        # node tally is tagged nodes plus geometry, which is not a count of anything.
+        assert tf.typed_expression("beach", "n") == "n/natural=beach"
+        assert tf.typed_expression("beach", "w") == "w/natural=beach"
+        assert tf.typed_expression("motorway", "w") == "w/highway=motorway,motorway_link"
+
+    def test_asking_for_a_type_a_class_cannot_match_raises(self):
+        with pytest.raises(KeyError):
+            tf.typed_expression("motorway", "n")
+
+    def test_every_class_types_entry_is_a_real_osmium_type(self):
+        for cls in tf.all_classes():
+            assert set(tf.class_types(cls)) <= set("nwr"), cls
+
     def test_the_keep_pass_covers_every_class_in_one_run(self):
         assert len(tf.keep_expressions()) == len(tf.all_classes())
 
