@@ -1,13 +1,13 @@
 ---
 id: T-0017
 title: ops/claim must create the LOCKS files for every exclusive: resource, and refuse if one is held
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T07:15:18Z
+lease_expires_at: 2026-09-07T10:15:18Z
+worktree: ../wt/T-0017
+branch: task/T-0017
 exclusive: []
 touches: [ops/lib/queue.py, queue/]
 pins_affected: []
@@ -35,3 +35,4 @@ task declaring the same resource must be refused. RED for 2: create a task on tw
 and show the ids differ.
 
 ## Log
+- 2026-09-07T07:15:18Z claimed by agent/claude-opus-5; lease until 2026-09-07T10:15:18Z
