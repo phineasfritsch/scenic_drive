@@ -1,0 +1,69 @@
+# Linux CI — the per-push loop. Never needs a Mac or a secret.
+#
+#   pins-source-only : ~20 s. The import ban and the 300-line cap, on plain ubuntu. A PR that adds `import SwiftUI`
+#                      to Sources/ScenicKit fails here before anything compiles.
+#   core             : the full Linux tier — ops/test (root swift package + Worker vitest when present),
+#                      ops/check-pins, ops/queue-check, ops/agent-preflight — inside the pinned swift image.
+name: linux-core
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: linux-core-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pins-source-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: check-pins --source-only
+        run: bash ops/check-pins --source-only
+
+  core:
+    runs-on: ubuntu-latest
+    # Pin by digest: a moving tag is a silent toolchain change. Bump deliberately, in its own task.
+    container:
+      image: swift:6.1-noble@sha256:98ee3a8469ce2a9c2f543ef2577939ab44e2dfc9b5ed710732a59e5dd64f9c4a
+    steps:
+      - name: toolchain (git, sqlite headers for GRDB, python for ops/*)
+        run: |
+          apt-get update -q
+          apt-get install -y -q --no-install-recommends git ca-certificates curl python3 libsqlite3-dev sqlite3 >/dev/null
+          git --version && python3 --version && swift --version | head -1
+      - uses: actions/checkout@v4
+      - name: git safety + hooks
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config core.hooksPath .githooks
+      - uses: actions/setup-node@v4
+        if: hashFiles('services/api/package.json') != ''
+        with:
+          node-version: 22
+      - name: worker deps
+        if: hashFiles('services/api/package.json') != ''
+        run: cd services/api && npm ci --no-audit --no-fund 2>&1 | tail -3
+      - name: agent-preflight
+        run: bash ops/agent-preflight
+      - name: ops/test
+        run: bash ops/test
+      - name: check-pins
+        run: bash ops/check-pins
+      - name: queue-check
+        run: bash ops/queue-check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            .artifacts/*.xml
+            .artifacts/*.json
+            .artifacts/*.log
+          if-no-files-found: ignore
+          retention-days: 7
