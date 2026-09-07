@@ -13,3 +13,5 @@ ops/check-pins    # load-bearing properties
 
 Data: OpenStreetMap (ODbL), USGS 3DEP, USFS Tree Canopy, NLCD, FHWA/Caltrans scenic byways, Foursquare OS Places
 (Apache-2.0), Overture Places (CDLA-Permissive-2.0). See `LICENSE-DATA` and `NOTICE`.
+
+# probe: exercise ops/merge check gate
