@@ -105,7 +105,7 @@ def log(path, msg):
     if "## Log" not in body:
         body = body.rstrip("\n") + "\n\n## Log\n"
     body = body.rstrip("\n") + f"\n- {iso(now())} {msg}\n"
-    path.write_text(dump(fm, body), encoding="utf-8")
+    path.write_text(dump(fm, body), encoding="utf-8", newline="\n")
 
 
 # ----------------------------------------------------------------------------- commands
@@ -124,7 +124,7 @@ def cmd_new(argv):
     }
     body = "## Brief\n\n(what, why, and the exact demonstration that proves it — including the red run)\n\n## Log\n"
     p = Q / state / f"{tid}-{slug}.md"
-    p.write_text(dump(fm, body), encoding="utf-8")
+    p.write_text(dump(fm, body), encoding="utf-8", newline="\n")
     print(p.relative_to(ROOT).as_posix())
 
 
@@ -193,7 +193,7 @@ def cmd_sweep(_argv):
             owner = fm.get("owner")
             fm.update(state="ready", owner=None, owner_session=None, claimed_at=None, lease_expires_at=None, worktree=None)
             dest = Q / "ready" / p.name
-            dest.write_text(dump(fm, parse(p.read_text(encoding="utf-8"))[1]), encoding="utf-8")
+            dest.write_text(dump(fm, parse(p.read_text(encoding="utf-8"))[1]), encoding="utf-8", newline="\n")
             p.unlink()
             log(dest, f"sweep: lease held by {owner} expired at {iso(exp)}; returned to ready/, locks released")
             print(f"swept {fm['id']} -> ready/")
@@ -239,9 +239,9 @@ def cmd_claim(argv):
                   worktree=opts.get("worktree"), branch=f"task/{tid}")
         LOCKS.mkdir(exist_ok=True)
         for res in fm.get("exclusive") or []:
-            (LOCKS / f"{res}.lock").write_text(f"{tid} {owner} {iso(t)}\n", encoding="utf-8")
+            (LOCKS / f"{res}.lock").write_text(f"{tid} {owner} {iso(t)}\n", encoding="utf-8", newline="\n")
         dest = Q / "claimed" / p.name
-        dest.write_text(dump(fm, body), encoding="utf-8")
+        dest.write_text(dump(fm, body), encoding="utf-8", newline="\n")
         p.unlink()
         log(dest, f"claimed by {owner}; lease until {fm['lease_expires_at']}")
         print(f"claimed {tid} -> {dest.relative_to(ROOT).as_posix()}  (now: git add queue/ && git commit && git push - a rejected push means someone else claimed it)")
