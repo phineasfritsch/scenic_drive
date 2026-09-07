@@ -1,17 +1,17 @@
 ---
 id: T-0025
 title: Scenic score: curvature, verified against the Curvature project's published values
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T16:59:08Z
+lease_expires_at: 2026-09-07T20:59:08Z
+worktree: ../wt/T-0025
+branch: task/T-0025
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-30
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -29,3 +29,4 @@ in T-0011. If the published data is not machine-readable, say so in the log and 
 rather than quietly falling back to self-generated fixtures.
 
 ## Log
+- 2026-09-07T16:59:08Z claimed by agent/claude-opus-5; lease until 2026-09-07T20:59:08Z
