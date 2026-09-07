@@ -71,7 +71,7 @@ def count_class(osmium: Osmium, src: Path, cls: str, scratch: Path) -> int:
     out = scratch / f"count-{cls}.osm.pbf"
     if out.exists():
         out.unlink()
-    osmium.run(["tags-filter", "-q", "--overwrite", "-o", osmium.rel(out), osmium.rel(src),
+    osmium.run(["tags-filter", "--no-progress", "--overwrite", "-o", osmium.rel(out), osmium.rel(src),
                 tf.class_expression(cls)])
     info = osmium.run(["fileinfo", "--extended", "--json", osmium.rel(out)], capture=True)
     out.unlink(missing_ok=True)
@@ -92,13 +92,13 @@ def extract(region_id: str, use_docker: bool, source: Path, work: Path) -> tuple
 
     t0 = time.time()
     print(f"extract   {source.name} -> {regional.name}  bbox {region.bbox.as_osmium()}", flush=True)
-    osmium.run(["extract", "-q", "--overwrite", "--bbox", region.bbox.as_osmium(),
+    osmium.run(["extract", "--no-progress", "--overwrite", "--bbox", region.bbox.as_osmium(),
                 "-o", osmium.rel(regional), osmium.rel(source)])
     print(f"          {regional.stat().st_size / 1e6:.0f} MB in {time.time() - t0:.0f}s", flush=True)
 
     t1 = time.time()
     print(f"filter    {regional.name} -> {filtered.name}  {len(tf.keep_expressions())} expressions", flush=True)
-    osmium.run(["tags-filter", "-q", "--overwrite", "-o", osmium.rel(filtered), osmium.rel(regional),
+    osmium.run(["tags-filter", "--no-progress", "--overwrite", "-o", osmium.rel(filtered), osmium.rel(regional),
                 *tf.keep_expressions()])
     print(f"          {filtered.stat().st_size / 1e6:.0f} MB in {time.time() - t1:.0f}s", flush=True)
 
