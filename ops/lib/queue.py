@@ -106,24 +106,42 @@ def _ids_in_refs():
     instant can still collide - the push is the compare-and-swap that settles that, exactly as for claims.
     """
     ids = set()
+
+    def warn(what, detail):
+        # Never silent: a degraded scan means collision protection is off, and the caller must know.
+        # This is the difference between "offline, as expected" and "the network hiccupped and you now
+        # have a duplicate id you will not notice until two branches merge".
+        print(f"WARNING: next_id could not {what} ({detail}); id allocation is falling back to this "
+              f"worktree only, so a duplicate id is possible. Verify with ops/queue-check after pushing.",
+              file=sys.stderr)
+
     try:
-        subprocess.run(["git", "fetch", "--quiet", "--all"], cwd=ROOT, capture_output=True, timeout=30)
-    except Exception:
-        pass  # offline is fine; we still scan whatever refs we already have
+        r = subprocess.run(["git", "fetch", "--quiet", "--all"], cwd=ROOT, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            warn("fetch remotes", (r.stderr or "").strip().splitlines()[-1] if r.stderr.strip() else f"exit {r.returncode}")
+    except Exception as e:
+        warn("fetch remotes", type(e).__name__)
+
     try:
         refs = subprocess.run(["git", "for-each-ref", "--format=%(refname)", "refs/remotes"],
                               cwd=ROOT, capture_output=True, text=True, timeout=30)
+        if refs.returncode != 0:
+            warn("list remote refs", f"exit {refs.returncode}")
+            return ids
         for ref in refs.stdout.split():
             if ref.endswith("/HEAD"):
                 continue
             out = subprocess.run(["git", "ls-tree", "-r", "--name-only", ref, "queue/"],
                                  cwd=ROOT, capture_output=True, text=True, timeout=30)
+            if out.returncode != 0:
+                warn(f"read queue/ on {ref}", f"exit {out.returncode}")
+                continue
             for name in out.stdout.splitlines():
                 m = re.search(r"/(T-(\d+))-", name)
                 if m:
                     ids.add(int(m.group(2)))
-    except Exception:
-        pass
+    except Exception as e:
+        warn("scan remote refs", type(e).__name__)
     return ids
 
 
