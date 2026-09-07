@@ -12,6 +12,7 @@ whatever it got into a number that looks like provenance.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import hashlib
 import os
 import sys
@@ -103,6 +104,24 @@ def main(argv: list[str]) -> int:
 
     inputs = mf.parse(Path(args.manifest).read_text(encoding="utf-8"))
     problems = mf.validate_all(inputs)
+    # A new sha256 entry has no digest yet - that is the whole reason to run --record-digest - so the one
+    # problem this command exists to solve must not be the one that blocks it. The manifest header documents
+    # "Get it with `--record-digest NAME`, then commit it", and until now that was impossible: the entry was
+    # invalid, validation ran first, and the tool refused. Found while adding the Curvature oracle in T-0025.
+    #
+    # Narrow on purpose: only the named entry, only a placeholder digest. Every other problem, and every other
+    # entry's problems, still stop the run - a manifest that is broken elsewhere is not a manifest you should
+    # be pinning new digests into.
+    if args.record_digest:
+        target = next((i for i in inputs if i.name == args.record_digest), None)
+        if target is not None and (not target.sha256 or target.sha256 == "TODO"):
+            # Re-validate with a stand-in digest rather than string-matching the complaint. A missing digest
+            # and a placeholder produce DIFFERENT messages ("needs a pinned sha256" vs "must be 64 lowercase
+            # hex chars"), and matching text would have excused one and not the other - which is how the first
+            # version of this fix passed its own test for `TODO` and failed for a genuinely absent digest.
+            # Every other problem, on this entry and every other, survives untouched.
+            stand_in = [dataclasses.replace(i, sha256="a" * 64) if i is target else i for i in inputs]
+            problems = mf.validate_all(stand_in)
     if problems:
         print("MANIFEST INVALID", file=sys.stderr)
         for p in problems:

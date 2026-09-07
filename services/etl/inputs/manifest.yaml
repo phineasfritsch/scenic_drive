@@ -15,3 +15,25 @@
   retrieved: 2026-09-07
   consumed_by: T-0024
   notes: Geofabrik rebuilds this DAILY, so a pinned sha256 would break the fetcher every day and teach everyone to bypass it. The publisher's .md5 sidecar is the verification.
+
+- name: vermont-osm.pbf
+  url: https://download.geofabrik.de/north-america/us/vermont-latest.osm.pbf
+  verify: upstream-md5
+  checksum_url: https://download.geofabrik.de/north-america/us/vermont-latest.osm.pbf.md5
+  license: ODbL-1.0
+  purpose: the ways the Curvature project's published Vermont output was computed over, so our curvature can be compared against an oracle we did not produce
+  bytes: 45880330
+  retrieved: 2026-09-07
+  consumed_by: T-0025
+  notes: Vermont rather than the Bay Area because Vermont is what Curvature publishes. Geofabrik rebuilds daily, so the md5 sidecar is the verification, same as california-osm.pbf.
+
+- name: vermont-curvature.kmz
+  url: https://kml.roadcurvature.com/north_america/us/vermont.c_300.kmz
+  verify: sha256
+  sha256: 3bdf4d140a6dcef0501223357d993df1b960934adf1a5cebdcdf2340b7039046
+  license: ODbL-1.0
+  purpose: THE ORACLE for T-0025 - the Curvature project's own per-way curvature values for Vermont, keyed by OSM way id, which an agent cannot fabricate
+  bytes: 2557952
+  retrieved: 2026-09-07
+  consumed_by: T-0025
+  notes: Pinned by sha256 ON PURPOSE, unlike the Geofabrik extracts. An oracle that silently follows upstream is not an oracle - if roadcurvature.com regenerates this file the fetch must FAIL and a human must re-pin it deliberately, having looked at what changed. c_300 rather than c_1000 for wider coverage - the threshold selects which collections are published, so a higher one leaves fewer ways to compare. Data is derived from OSM, hence ODbL.
