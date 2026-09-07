@@ -1,7 +1,8 @@
 """Build the curvature oracle fixture from the Curvature project's own published Vermont output.
 
   python -m etl.oracle --list-ways          way ids of every SINGLE-WAY collection, one per line
-  python -m etl.oracle --build FIXTURE.json --geojson SUBSET.geojson
+  python -m etl.oracle --build FIXTURE.json --export SUBSET.geojsonseq
+  ops/etl-curvature-fixture                 the whole thing end to end, from the pinned inputs
 
 The oracle is `inputs/vermont-curvature.kmz`, pinned by sha256 in the manifest. Every Placemark description
 carries a table of the collection's constituent ways, each row holding the OSM way id, surface, that way's
@@ -38,6 +39,7 @@ WAY_ROW = re.compile(
     r"\s*<td>([^<]*)</td>\s*<td>\s*([0-9.]+)\s*</td>",
     re.S,
 )
+PLACEMARK_COORDS = re.compile(r"<coordinates>(.*?)</coordinates>", re.S)
 COLLECTION_CURVATURE = re.compile(r"Curvature:\s*([0-9.]+)")
 
 
@@ -72,55 +74,46 @@ def single_way_collections(kmz: Path = KMZ) -> dict[int, dict]:
     return out
 
 
-def load_geojson_ways(path: Path) -> dict[int, list[list[float]]]:
-    """way_id -> [[lat, lon], ...] from `osmium export --add-unique-id=type_id` output.
+def kml_geometry(kmz: Path = KMZ) -> dict[int, list[tuple[float, float]]]:
+    """The geometry Curvature actually computed over, per single-way collection, as (lat, lon).
 
-    osmium writes GeoJSON coordinates as [lon, lat]; everything here is (lat, lon), because that is the order
-    the Curvature code uses and mixing them silently halves every distance at this latitude.
+    This is what makes condition 2 checkable at all: OSM moves, and the Placemark carries the coordinates as
+    they were when the KMZ was generated. KML writes lon,lat[,alt] - the order is reversed here, because
+    mixing them silently halves every distance at this latitude.
     """
-    ways: dict[int, list[list[float]]] = {}
-    text = path.read_text(encoding="utf-8")
-    for line in text.splitlines():
-        line = line.strip().rstrip(",")
-        if not line.startswith("{"):
+    with zipfile.ZipFile(kmz) as z:
+        doc = next(n for n in z.namelist() if n.endswith(".kml"))
+        kml = z.read(doc).decode("utf-8", "replace")
+    out: dict[int, list[tuple[float, float]]] = {}
+    for block in PLACEMARK.findall(kml):
+        m = DESCRIPTION.search(block)
+        if not m:
             continue
-        try:
-            feature = json.loads(line)
-        except json.JSONDecodeError:
+        rows = WAY_ROW.findall(html.unescape(m.group(1)))
+        if len(rows) != 1:
             continue
-        ident = str(feature.get("id") or feature.get("properties", {}).get("@id") or "")
-        geom = feature.get("geometry") or {}
-        if not ident.startswith("w") or geom.get("type") != "LineString":
+        cm = PLACEMARK_COORDS.search(block)
+        if not cm:
             continue
-        ways[int(ident[1:])] = [[lat, lon] for lon, lat in geom["coordinates"]]
-    return ways
+        pts = []
+        for token in cm.group(1).split():
+            parts = token.split(",")
+            if len(parts) >= 2:
+                pts.append((float(parts[1]), float(parts[0])))
+        out[int(rows[0][0])] = pts
+    return out
 
 
-def build(fixture: Path, geojson: Path, kmz: Path = KMZ, limit: int | None = None) -> int:
-    published = single_way_collections(kmz)
-    ways = load_geojson_ways(geojson)
-    records = []
-    for way_id, meta in sorted(published.items()):
-        coords = ways.get(way_id)
-        if not coords or len(coords) < 3:
-            continue
-        records.append({
-            "way_id": way_id,
-            "name": meta["name"],
-            "surface": meta["surface"],
-            "oracle_curvature": meta["curvature"],
-            "coords": [[round(lat, 7), round(lon, 7)] for lat, lon in coords],
-        })
-        if limit and len(records) >= limit:
-            break
-    fixture.parent.mkdir(parents=True, exist_ok=True)
-    fixture.write_text(json.dumps({
-        "source": "https://kml.roadcurvature.com/north_america/us/vermont.c_300.kmz",
-        "note": "Single-way collections only: Curvature's deflection filter runs across a whole collection, "
-                "so a way with collection-mates is not comparable to a per-way computation.",
-        "ways": records,
-    }, indent=1) + "\n", encoding="utf-8", newline="\n")
-    return len(records)
+def build(fixture: Path, export: Path, kmz: Path = KMZ, cap: int = 400, seed: int = 20260907):
+    """Delegates to oracle_select, which owns the three selection conditions and the deterministic sample.
+
+    Kept as a one-liner here so `python -m etl.oracle --build` still works, but the selection deliberately
+    lives in one place. The previous version of this function implemented NONE of the conditions the fixture
+    was actually built with - the real selection happened in throwaway scripts, and the fixture could not be
+    regenerated from the repository at all. agent/reviewer-30 caught it.
+    """
+    from . import oracle_select
+    return oracle_select.build(fixture, export, kmz, cap=cap, seed=seed)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -128,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--kmz", type=Path, default=KMZ)
     ap.add_argument("--list-ways", action="store_true")
     ap.add_argument("--build", type=Path)
-    ap.add_argument("--geojson", type=Path)
+    ap.add_argument("--export", type=Path, help="osmium export -f geojsonseq of the oracle ways")
     ap.add_argument("--limit", type=int, default=None)
     args = ap.parse_args(argv)
 
@@ -142,10 +135,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.build:
-        if not args.geojson or not args.geojson.is_file():
-            print("oracle: --build needs --geojson pointing at an osmium export of those ways", file=sys.stderr)
+        if not args.export or not args.export.is_file():
+            print("oracle: --build needs --export pointing at an osmium export of those ways; "
+                  "ops/etl-curvature-fixture produces one", file=sys.stderr)
             return 2
-        n = build(args.build, args.geojson, args.kmz, args.limit)
+        n, stages = build(args.build, args.export, args.kmz, cap=args.limit or 400)
+        for stage, count in stages.items():
+            print(f"  {stage:20s} {count:6d}")
         print(f"oracle: wrote {n} way(s) to {args.build}")
         return 0 if n else 2
 

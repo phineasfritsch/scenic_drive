@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-07T20:59:08Z
 worktree: ../wt/T-0025
 branch: task/T-0025
 exclusive: []
-touches: [services/etl/]
+touches: [services/etl/, ops/etl-curvature-fixture]
 pins_affected: []
 reviewer: agent/reviewer-30
 depends_on: []
