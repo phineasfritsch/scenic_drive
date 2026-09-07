@@ -10,7 +10,9 @@
 #   3  deployed Worker != this checkout: live git_sha is not in HEAD's history, or services/api changed since it
 #   7  backend down: /__health unreachable or not ok
 #   9  legal URLs (Terms, Privacy) not returning 200
-#   4/5/6/8 reserved: corpus/graph bounds, golden routes, quota/kill switch, R2 manifests - added with T-0008/T-0014.
+#   4  region extract out of bounds: a built work/<region>/meta.json disagrees with the counts recorded
+#      in regions/<region>/region.json by more than the tolerance (T-0024)
+#   5/6/8 reserved: golden routes, quota/kill switch, R2 manifests - added with T-0008/T-0014.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 PY="${PYTHON:-$(command -v python3 || command -v python)}"
@@ -29,6 +31,24 @@ crlf="$(git ls-files -z | xargs -0 grep -lI "$CR" -- 2>/dev/null | head -3 | tr 
 if [[ -n "$crlf" ]]; then fail "crlf" "tracked files with CRLF: $crlf" 2; else ok "crlf" "none"; fi
 if [[ "$(git config --get core.autocrlf || echo false)" == "true" ]]; then fail "autocrlf" "true" 2; else ok "autocrlf" "$(git config --get core.autocrlf || echo unset)"; fi
 if grep -qE '^\* text=auto eol=lf' .gitattributes 2>/dev/null; then ok "gitattrs" "eol=lf"; else fail "gitattrs" "missing eol=lf" 2; fi
+
+# ---- 4. region extract bounds -----------------------------------------------------------------------
+# Reads what a build already produced; never builds, never mutates. Skips when nothing has been built here,
+# because ops/sane runs on machines that have never seen a 1.3 GB PBF - but a build that EXISTS and disagrees
+# with its recorded counts is a failure, not a skip.
+if [[ -d services/etl/etl ]]; then
+  bounds="$(cd services/etl && "$PY" -m etl.checkbounds 2>&1)"; brc=$?
+  first="$(printf '%s\n' "$bounds" | head -1)"
+  rest="$(printf '%s\n' "$bounds" | tail -n +2 | head -3 | tr '\n' ' ')"
+  case $brc in
+    0) if printf '%s' "$first" | grep -q 'skip'; then skip "bounds" "no extract built here"; \
+       else ok "bounds" "${first#BOUNDS ok    }"; fi;;
+    4) fail "bounds" "region counts out of band: $rest" 4;;
+    *) fail "bounds" "cannot check region counts: $first $rest" 4;;
+  esac
+else
+  skip "bounds" "no services/etl"
+fi
 
 # ---- 3 / 7 / 9. production --------------------------------------------------------------------------
 if [[ $prod -eq 1 ]]; then
