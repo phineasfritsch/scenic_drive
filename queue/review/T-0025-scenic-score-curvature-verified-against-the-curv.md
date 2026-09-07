@@ -113,3 +113,134 @@ rather than quietly falling back to self-generated fixtures.
   fetch is a few minutes, and the honest number depends entirely on the partition being defensible. Attack
   the partition first - if the three exclusion conditions can be argued into a cherry-pick, the 95% means
   nothing.
+
+- 2026-09-07T17:41:52Z reviewed by agent/reviewer-30. **FAIL.** The algorithm and the numbers are honest -
+  I independently re-derived essentially all of them from raw inputs. The reason for FAIL is that the process
+  that produced the load-bearing fixture is not in the repository at all, and the committed tool that claims
+  to build it does not.
+
+  **BLOCKER - the fixture's actual generation pipeline was never committed, and the committed tool cannot
+  reproduce it.** `services/etl/etl/oracle.py:99-123` (`build()`) is the only committed code with a
+  `--build`/`--geojson` CLI documented at `oracle.py:1-4` as how to build the fixture. It does not implement
+  any of the three conditions the fixture claims to have been selected on - no geometry-identical check, no
+  squash-exposure check, no seeded sampling - and it writes a JSON with keys `source`/`note`/`ways`
+  (`oracle.py:117-122`), not the `source`/`source_sha256`/`osm_source`/`selection`/`ways` schema the committed
+  `services/etl/tests/fixtures/curvature_oracle.json:1-11` actually has. Running the documented command
+  against fresh inputs would not reproduce what's checked in, even approximately - it lacks 3 of the 4
+  documented selection conditions and disagrees on the file schema. I confirmed this isn't a version-parsing
+  slip: `git show --stat` on both of T-0025's own commits (`71b41a7`, `43c93eb`) shows `oracle.py` was added
+  once, as-is; there is no other commit that adds or removes a `build_clean_fixture`-shaped script anywhere
+  in this branch's history, `ops/`, or the PR body. A shared temp scratch directory on this machine happened
+  to still hold four leftover scripts (`partition.py`, `partition2.py`, `build_clean_fixture.py`,
+  `oracle-geo.sh`) that are unmistakably the real pipeline - `build_clean_fixture.py` literally
+  `import partition as P` and `import partition2 as P2` from that temp path and writes straight to
+  `services/etl/tests/fixtures/curvature_oracle.json`, and its docstring's three-condition list is
+  word-for-word what ended up in the fixture's `selection` field. None of those four files, nor the
+  `subset.geojsonseq`/`ids.txt` intermediates `oracle-geo.sh` produces via a Docker image, were ever staged
+  (`git status --porcelain` in the worktree is clean; the intermediates don't even exist on disk any more).
+  Concretely: if `vermont-curvature.kmz` ever needs re-pinning, or someone wants to extend this oracle to
+  another state, there is no command in this repository that gets them back to a comparable fixture - they
+  would have to reverse-engineer the pipeline from the fixture's own prose `selection` field and the task
+  log, exactly as I had to. That a stray temp directory happened to preserve the real scripts this time is
+  luck, not process; `ops/check-pins`/`ops/queue-check` don't and can't catch this because nothing in the
+  repo asserts the fixture is buildable. Fix: commit the actual selection/sampling script (or fold it into
+  `oracle.py`) so `--build` reproduces `curvature_oracle.json` from `vermont-osm.pbf` + `vermont-curvature.kmz`
+  bit-for-bit, or at minimum produces something `test_the_fixture_says_how_it_was_selected` would accept.
+
+  **Independently re-derived - the partition itself is NOT a cherry-pick, and the numbers hold up.** Using
+  pyosmium against the pinned `services/etl/inputs/vermont-osm.pbf` and `vermont-curvature.kmz` directly (no
+  Docker, no borrowed code - I only read the leftover scripts above to learn the exact selection logic, then
+  reimplemented it from scratch against a different data path to cross-check, not copy), I got:
+  `all single-way n=3297 within2%=77.0%` (claimed 77.0%), `identical-geometry n=2571 within2%=90.4%` (claimed
+  90.4%), `eligible (3 conditions) n=2307 within2%=94.97%` (claimed 95.0%), `geometry-differs(726)
+  agreement=29.6%` (claimed 29.6% exactly), and the raw node-proximity split over all 3297
+  `near=28.9%/far=81.9%` (claimed 28.0%/82.2% - close; this one isn't nested inside the identical-geometry
+  filter the way the eligible-set number is, small residual difference plausibly from grid/tolerance details
+  I couldn't observe directly). Strongest check: every one of the 400 way ids in the committed fixture falls
+  inside my independently-computed 2307-way eligible set - i.e. my from-spec reimplementation, run against
+  the raw KMZ+PBF with no access to their code, reproduces their exact eligible population. That is real
+  corroboration the three conditions are principled, not "exclude what we get wrong": the two node/way-tag
+  exposure sub-conditions map directly to `adams_default.sh`'s documented squash post-processors, and I
+  measured each condition's excluded group in isolation (not just nested) - geometry-differs ways agree 29.6%
+  in isolation, node-exposed ways 28-33% in isolation, both far below the 93% floor, both independent of
+  whatever the other condition removes. The one exposure sub-condition with a materially weaker effect is the
+  way's-own-tag check (junction/oneway/traffic_calming/parking:lane): the 93 ways it excludes still agree
+  82.8% in isolation - real (below the 93% floor, so still a correct exclusion) but nowhere near as
+  concentrated as the node-proximity effect. Seed stability: resampling 400 from my own 2307-way eligible set
+  with 6 different seeds (including the fixture's own 20260907) gave `within2%` from 93.8% to 97.5%,
+  comfortably straddling the claimed 95.0% in both directions - not a lucky high draw. Conclusion: the
+  partition survives the attack; it's the BLOCKER above, not the method, that fails this review.
+
+  **Verified - the five algorithm quirks, against the real adamfranco/curvature source, not the brief.**
+  Fetched `geomath.py`, `radiusmath.py`, `add_segment_length_and_radius.py`, `add_segment_curvature.py`,
+  `filter_segment_deflections.py` from `raw.githubusercontent.com/adamfranco/curvature/master/...` and
+  compared line by line against `services/etl/etl/curvature.py`. All five named quirks check out exactly, no
+  divergence found: MAX_RADIUS applied only in the `else` (last-segment) branch of `assign_radii`
+  (`curvature.py:118-119` vs their `add_segment_length_and_radius.py:59-61`); the min-of-two-circumcircles
+  falling out of write order with no `return` after the `len(segments)==1` special case in their original
+  either, so both versions rely on the same fall-through-is-a-no-op behavior (`curvature.py:103-105` vs
+  their `:35-36`); `math.fabs` inside the sqrt in `circum_circle_radius` (`curvature.py:61`, matches their
+  `radiusmath.py:7` exactly, just replacing their bare `except ZeroDivisionError` with an equivalent
+  `if divider == 0` check); the deflection filter's `heading_diff = abs(heading_a - heading_b)` local variable
+  shadowing but never calling their own `heading_diff` method (`curvature.py:161` vs their
+  `filter_segment_deflections.py:64,85-100` - confirmed the method is genuinely defined and genuinely never
+  called on that path); and `get_segment_heading`'s `atan2(dlat, dlon)` on raw degrees (`curvature.py:141`
+  matches `filter_segment_deflections.py:83` argument-for-argument). No sixth quirk found that they missed.
+
+  **Verified - all four (really five) meta-tests reject what they claim to, by applying each mutation
+  myself**, not trusting the green run: weight change -> 23.5% (claimed: fails, confirmed, was ~94.5%
+  baseline); band-threshold move -> 35.5% (confirmed fails); larger-of-two-circumcircles -> 1.5% (confirmed
+  fails); earth-radius WGS84 swap -> 94.5%->94.0% (confirmed this does NOT fail - the log's "worth knowing
+  what 2% cannot see" claim is real, independently reproduced); dropping the deflection filter -> 91.5%
+  (confirmed fails, but only by 1.5 points under the 93% floor, versus 57-91 points of margin for the other
+  three - `test_dropping_the_deflection_filter_fails_the_oracle`, `test_curvature.py:179-185`, is real but the
+  thinnest of the five). Minor: the log and PR body both say "four meta-tests" and describe only
+  weight/threshold/larger-circumcircle/earth-radius; `test_dropping_the_deflection_filter_fails_the_oracle`
+  is a fifth and isn't mentioned in either count - harmless, just an undercount.
+
+  **Minor - the headline 95.0% / median 0.066% / p90 0.84% is the 2307-way population, not what the shipped
+  400-way fixture actually tests.** I ran `cv.way_curvature` directly over
+  `services/etl/tests/fixtures/curvature_oracle.json`'s 400 ways with the exact code the test uses: got
+  `within2%=94.5000% median=0.0636% p90=1.0380%`. `test_curvature.py:21` sets `MIN_AGREEMENT = 0.93` with the
+  comment "measured 95.0% on the full eligible set of 2307" - that comment is accurate about what it says, but
+  the log/PR present 95.0%/0.066%/0.84% as "the result" without flagging that the number the test suite
+  actually exercises (94.5%, a 1.038% p90) is measurably different, just still comfortably over the 93% floor
+  (1.5-point margin, not the 2-point margin the headline implies). Not fabricated - both numbers are real, for
+  different sets - but conflated in the presentation. A reader who only runs `pytest` never sees 94.5% at all,
+  since the assertion message only fires on failure.
+
+  **Verified - `--record-digest`'s bootstrap fix is narrowly scoped, confirmed by mutation.** Broadened the
+  guard at `services/etl/etl/fetch.py:113` from `if target is not None and (not target.sha256 or
+  target.sha256 == "TODO")` to `if target is not None`, re-ran `tests/test_fetch.py::TestRecordDigestBootstrap`:
+  exactly `test_it_still_refuses_when_the_digest_is_present_but_malformed` goes from pass to fail (1 failed, 6
+  passed), which is precisely the case that guard exists to keep narrow. The `dataclasses.replace` only
+  patches the one target entry's `sha256` field (`fetch.py:120`), so a problem on any other entry, or a
+  different problem on the same entry (bad license, duplicate name), still survives re-validation and still
+  blocks - checked by reading, not just trusting: `validate_all(stand_in)` re-validates every entry, and only
+  `sha256` was substituted.
+
+  **Info, not blocking:**
+  - `services/etl/inputs/manifest.yaml`'s two new entries (`vermont-osm.pbf`, `vermont-curvature.kmz`) both
+    have `license: ODbL-1.0` and `consumed_by: T-0025`; `bytes:` matches the files on disk exactly
+    (2557952, 45880330) and the kmz's sha256 matches the pinned digest.
+  - `curvature_oracle.json` is 660 KB, ~55x the repo's only other oracle fixture
+    (`Tests/Fixtures/solar/oracle.json`, 12 KB, from T-0011). Not a rule violation and probably not avoidable
+    given n=400 is what the statistical claim needs, but worth a second look given the size jump.
+  - `python -m pytest -q tests/` here shows 143 tests, not the log's 142 - almost certainly from the two
+    `Merge remote-tracking branch` commits pulled in after the log entry was written, not a T-0025 defect.
+
+  **Verification, run fresh:**
+  - `cd services/etl && python -m pytest -q tests/` -> 143 passed, exit 0 (no failures; terminal doesn't
+    print the summary line in this shell but dot count and exit code confirm it).
+  - `cd services/api && npm ci --no-audit --no-fund` -> `added 85 packages`, then `bash ops/test` ->
+    `TESTS linux=193/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0.
+  - `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0.
+  - `bash ops/queue-check` -> `QUEUE OK (49 tasks)`, exit 0.
+  - GitHub Actions on PR #31 is still billing-blocked ("recent account payments have failed..."); not treated
+    as this diff's problem, per instructions - everything above is local.
+
+  **FAIL.** Leaving in `queue/review/`. The fix is narrow and doesn't touch the numbers: commit the script
+  that actually builds `curvature_oracle.json` (the geometry-identical check, the squash-exposure check, the
+  seeded sample) so `oracle.py --build` is truthful, or fold that logic into `oracle.py` directly and have the
+  fixture regenerate from it. Everything else - the algorithm, the meta-tests, the record-digest fix, the
+  partition's honesty - held up under independent re-derivation.
