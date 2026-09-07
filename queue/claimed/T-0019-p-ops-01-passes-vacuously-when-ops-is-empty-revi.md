@@ -1,13 +1,13 @@
 ---
 id: T-0019
 title: P-OPS-01 passes vacuously when ops/ is empty (reviewer-5 finding)
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T10:04:12Z
+lease_expires_at: 2026-09-07T13:04:12Z
+worktree: ../wt/T-0019
+branch: task/T-0019
 exclusive: []
 touches: [pins/PINS.yaml]
 pins_affected: [P-OPS-01]
@@ -37,3 +37,4 @@ then fails after the fix. Restore afterwards.
 This is the same class as any other vacuous guard: sweep the other pins for it in the same task.
 
 ## Log
+- 2026-09-07T10:04:12Z claimed by agent/claude-opus-5; lease until 2026-09-07T13:04:12Z
