@@ -567,3 +567,168 @@ Handing off to agent/reviewer-29.
 
   Only `services/etl/tests/test_dockerfile.py` is touched; `git diff --stat services/etl/Dockerfile` is
   empty. `git status --porcelain` shows a single ` M`. Handing back to agent/reviewer-29.
+
+- 2026-09-07 agent/reviewer-29: **FAIL, third round.** Fresh pass on a structural rewrite (whitelist, not a
+  patch). Item 1's three prior bypasses are genuinely dead. Item 2's false-positive hunt surfaced two real
+  gaps in the "must stay green" direction. Item 3's flag-list audit against real pip (both pip 23.0.1 and
+  pip 26.1.1, both present on this box - `where python python3 py`) found the headline finding: one entry
+  in the safe whitelist is not a real flag on current pip at all, and resolves via pip's own long-option
+  abbreviation matching to a genuinely dangerous flag - a live, silent bypass of the exact shape this task
+  exists to close, hiding in the whitelist itself, not a hole around it.
+
+  **Re-derived rather than trusted (all confirmed independently, real Dockerfile + pytest harness, not the
+  regex/whitelist read in isolation):**
+  - Committed blob (`git show HEAD:services/etl/tests/test_dockerfile.py`, HEAD=`2e518f3`): 20005 bytes, 0
+    occurrences of `\x08`, matching the owner's number exactly. `cat -A` on `_dequote`/`pip_indirect_targets`
+    (test_dockerfile.py:84-181 in the working tree) shows plain `$`-terminated lines, no control-byte
+    artifacts. `grep -n "letters\[-1\]"` and `grep -n "PIP_INDIRECT_TARGET\b"` both return nothing against
+    the committed blob - the round-2 bug and the old regex name are genuinely gone, not shadowed. File is
+    337 lines, matching the claim.
+  - Item 1, all five prior bypasses closed, each demonstrated red-then-restored through the real Dockerfile
+    + `python -m pytest -q tests/test_dockerfile.py`, Dockerfile restored and `git diff --stat` /
+    `git status --porcelain` confirmed empty after every single probe in this review, not just at the end:
+    - `COPY requirements.txt .` + `RUN pip install --break-system-packages -r requirements.txt` (round 1,
+      reviewer-22's original construction) -> 9 passed, 1 failed, offender `('-r', 'an unreadable target
+      flag')`.
+    - `RUN pip install -qr requirements.txt` (round 1 bundling bypass) -> 9 passed, 1 failed.
+    - `RUN pip install ./localpkg` (round 1 bare-path bypass) -> 9 passed, 1 failed.
+    - `RUN pip install -tf -r requirements.txt` (round 2 first-vs-last-letter bundling bypass) -> 9 passed,
+      1 failed, offenders `[('-tf', 'a bundled short flag...'), ('-r', 'an unreadable target flag')]`.
+    - `RUN pip install "./localpkg"` and `RUN pip install './localpkg'` (round 2 quoting bypasses) -> 9
+      passed, 1 failed each, offending token correctly shown with its quotes
+      (`"./localpkg"` / `'./localpkg'`). Note: my first pass at the single-quoted case used a malformed
+      shell invocation on my end (`$"..."` instead of `$'...'`, which does not expand `\n`) and produced a
+      false "10 passed" reading; re-run with the append done via two explicit `printf` args, confirmed the
+      correct 9/1 result and that the Dockerfile content actually written was byte-correct
+      (`cat -A` showed `RUN pip install './localpkg'$` as a real, single, separate line). Recording this so
+      the false lead does not get treated as a live finding - it was a harness mistake on my side, not the
+      check's.
+  - Item 2's explicit "must stay green" probe list, plus the acknowledged `-qt` regression, all re-run
+    through the real Dockerfile + pytest harness: `--no-cache-dir`, `--upgrade --user`, `-U`,
+    `'requests>=2,<3'`, `requests[security]`, `--no-deps --no-binary :all:`, `--root-user-action=ignore`,
+    `--disable-pip-version-check`, `--target /opt/vendor requests==2.31.0`, `--target=/opt/vendor
+    requests==2.31.0`, `--prefix /usr/local requests` - all 10/10 green, confirmed. `pip install -qt /opt`
+    -> 9/1, confirmed the owner's acknowledged behavior change actually ships as described.
+  - Item 5, P-SRC-02 scope: read `ops/lib/check-line-cap` directly (not the owner's characterization of it).
+    Current version: `mapfile -t files < <(git ls-files 'Sources/**/*.swift' 'Tests/**/*.swift')` - a `.py`
+    file under `services/etl/tests/` is out of scope, confirmed. Also checked the owner's claim about
+    T-0037: that task is not yet merged into `main` as seen from this branch (`queue/claimed/T-0037-...` is
+    still present here), but its content is inspectable at `939a30a` (`T-0037: the 300-line cap did not
+    reach the Apple package`, now on `main` per `git log --all`, PASS-reviewed at `baf2a6a`). Its diff
+    widens the glob to `git ls-files '*.swift'` - every tracked file at any depth, but still filtered
+    strictly to the `.swift` extension. `test_dockerfile.py` is a `.py` file, so the owner's claim holds
+    under both the current check and T-0037's widened one - re-derived from the actual diff, not taken on
+    the owner's word.
+  - Full verification suite reproduced with the shipped Dockerfile untouched: `cd services/etl && python -m
+    pytest -q tests/` -> 46 passed (dots, exit 0; this shell's `-q` swallows the summary line, same
+    pre-existing quirk noted in round 2's review); `cd services/api && npm ci --no-audit --no-fund` -> added
+    85 packages; `bash ops/test` -> `TESTS linux=96/76 ios=skipped failed=0 skipped=0` / `OK`; `bash
+    ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`; `bash ops/queue-check`
+    -> `QUEUE OK (46 tasks)`. All match the owner's numbers exactly. `git status --porcelain` / `git diff
+    --stat` empty throughout and at the end.
+
+  **New finding - MAJOR (false positive) - `--quiet`/`--verbose` (long forms of already-whitelisted `-q`/
+  `-v`) are missing from `PIP_BOOLEAN_FLAGS_LONG` (`services/etl/tests/test_dockerfile.py:54-61`), while the
+  short letters they spell out ARE whitelisted at `:68` (`PIP_BOOLEAN_LETTERS = set("qvUIh")  # -q quiet /
+  -v verbose / ...`):**
+
+  `RUN pip install --quiet requests` and `RUN pip install --verbose requests` both fail closed (`1 failed`,
+  "a long flag this check does not recognize"), confirmed through the real Dockerfile + pytest harness. This
+  is not a case the design's own stated philosophy accepts as a deliberate cost (unlike `-qt` bundling or
+  `$REQS`, which the log reasons about explicitly) - the short-letter list already treats `q`/`v` as safe,
+  unambiguous, boolean; the long-form spellings of the exact same flags were simply never mirrored into the
+  long list. `--isolated` (a genuine, common pip global boolean flag with no short form at all - confirmed
+  in `pip install --help` on both pip 23.0.1 and pip 26.1.1 on this box) is also missing and also fails
+  closed. All three are exactly the shape the coordinator's brief warned about: "a check that refuses a
+  legitimate Dockerfile gets deleted by the next person" - `pip install --quiet --no-cache-dir requests` is
+  ordinary, common Dockerfile style, not an edge case.
+
+  **New finding - MAJOR (false positive) - a standard PEP 508 environment-marker install breaks, via the
+  pre-existing quote-blind top-level splitter interacting with the new hard-fail-on-unresolvable-quoting
+  rule (`pip_install_arglists` at `test_dockerfile.py:71-81`, specifically the `;`-split at line 78; the
+  fail-closed consumer is `_dequote`/`pip_indirect_targets` at :84-181):**
+
+  `RUN pip install "requests; python_version>='3.8'"` - real, standard PEP 508 marker syntax pip documents
+  and real projects use for platform-conditional installs - fails closed. Root cause, confirmed through the
+  harness: `pip_install_arglists` splits the RUN line on a bare `re.split(r"&&|\||;", run_line)` *before*
+  any quote-awareness exists, so the `;` inside the quoted marker string tears the line in two, producing a
+  malformed leading token (`"requests`, an opening quote with no matching close). `_dequote` correctly (by
+  its own logic) reports that token unresolvable, and the new whitelist correctly (by its own logic) fails
+  closed on it - the bug is upstream of the round-3 rewrite, in the tokenizer's blindness to quoting when
+  splitting on command separators, but round 3's stricter "unresolvable quoting is itself the failure" rule
+  is what turns that old blind spot into a red test for a legitimate line, where the round-2 blacklist would
+  not necessarily have fired on it.
+
+  **New finding - BLOCKER - `PIP_DESTINATION_VALUE_FLAGS_LONG` whitelists `"--build"` (:45) as a safe,
+  skip-its-value destination flag; on pip actually installed on this box (26.1.1, via `py`/`python3` -
+  confirmed with `where python python3 py` and `py -0p`), `--build` is not a real flag at all and resolves
+  through pip's own long-option prefix-abbreviation matching to `--build-constraint <file>`, a genuine
+  unreadable/indirect install-source flag pip added after the old `--build <dir>` flag (which this entry was
+  clearly modeled on) was removed. This is a live, silent bypass, not a theoretical one:**
+
+  Proof, most direct evidence first:
+  - `python3 -m pip install --build /tmp/nonexistent_probe_xyz.txt --dry-run requests` and
+    `python3 -m pip install --build-constraint /tmp/nonexistent_probe_xyz.txt --dry-run requests` produce
+    **byte-identical** error text: `ERROR: Could not open requirements file: [Errno 2] No such file or
+    directory: '.../nonexistent_probe_xyz.txt'`. `--build` is not merely "similar to" `--build-constraint`,
+    it *is* `--build-constraint` on this pip, resolved via unambiguous-prefix matching (confirmed the
+    mechanism generally: `--targ` silently resolves to `--target`, and `--requ` is rejected with `ambiguous
+    option: --require-hashes, --require-venv, --require-virtualenv, --requirement,
+    --requirements-from-script?` - proving pip really does this kind of resolution, and only refuses when
+    more than one flag shares the prefix).
+  - Confirmed via the real, full Dockerfile + pytest harness, not just direct pip invocation:
+    `COPY constraints.txt .` / `RUN pip install --build constraints.txt requests` -> **10 passed, 0
+    failed** (should be 9/1 - identical threat model to reviewer-22's original T-0038 finding this whole
+    task exists to fix: an install source this parser cannot see into, hiding behind a flag name). Dockerfile
+    restored immediately after; `git diff --stat` / `git status --porcelain` confirmed empty.
+  - Cross-checked pip 23.0.1 (`python -m pip`, also present on this box) for version sensitivity, in the
+    interest of full disclosure rather than only reporting the version that helps my case: on 23.0.1,
+    `--build-constraint` does not exist yet and `--build` is flatly rejected (`no such option: --build`), so
+    the bypass does not reproduce there - a Dockerfile using this flag would simply fail to build on that
+    pip, not silently succeed. The bypass is real and reproducible on pip 26.1.1, which is not a contrived
+    or ancient version - it is the current pip on this machine right now, and pip's own abbreviation
+    matching means any future pip release that adds a new flag starting with `build` (or `target`, `root`,
+    `prefix`, etc. - I did not exhaustively check every entry against every hypothetical future pip, only
+    against the two real ones installed here) can silently re-open the same class of hole for any list entry
+    that is not itself an exact, currently-real flag name.
+  - Systematically re-checked every entry in both long lists against `pip install --help` on pip 26.1.1 for
+    exact (non-abbreviation) existence, specifically hunting for more of this same class:
+    `PIP_DESTINATION_VALUE_FLAGS_LONG` (:44-50): `--build` (:45) is the only entry that is not a real,
+    exact flag name on pip 26.1.1 and that resolves via abbreviation to something dangerous.
+    `PIP_BOOLEAN_FLAGS_LONG` (:54-61): `--use-pep517` and `--no-python-version-warning` are both absent from
+    `pip install --help` on 26.1.1 but confirmed still silently accepted *without consuming the next token*
+    (`pip install --use-pep517 --dry-run requests` and `pip install --no-python-version-warning --dry-run
+    requests` both correctly proceed to install `requests`, proving these remain harmless boolean no-ops on
+    this pip, not abbreviations of anything else) - not dangerous, noted for completeness.
+  - Also checked the short-letter side (item 3's other list): `PIP_DESTINATION_VALUE_LETTERS = set("tifb")`
+    (:67) carries the comment `-b build`, the same stale assumption as the long-form bug. Unlike `--build`,
+    bare `-b` is flatly rejected by both pip 23.0.1 and pip 26.1.1 (`no such option: -b` on both - pip does
+    not do prefix-abbreviation for single-dash short options, confirmed by the mechanism test above), and
+    `PIP_DESTINATION_VALUE_FLAGS_LONG`'s separate stale entry `--global-option` (:48) is likewise flatly
+    rejected on pip 26.1.1 (`no such option: --global-option`, fully removed, not redirected to anything).
+    Both are dead/wrong entries written from the same "plausibility, not real pip" habit as `--build`, but
+    are not independently exploitable since real pip refuses them outright rather than silently redirecting
+    - noted rather than counted twice toward the verdict; `--build` is the one that matters.
+
+  **Verdict: FAIL.** The `--build` finding alone is blocking: it is a real, silent, reproducible bypass of
+  exactly the threat this task exists to close, on the pip actually present in this repo's own dev
+  environment, hiding inside the whitelist's own "confidently understood" list rather than in a gap around
+  it - the precise failure mode item 3 named ("a boolean flag wrongly listed as value-taking would swallow
+  the next token and let an indirect target through" - here a phantom-but-abbreviation-live flag plays the
+  same role). The `--quiet`/`--verbose`/`--isolated` and PEP-508-marker false positives compound it: this
+  whitelist is simultaneously too loose (an unverified flag name resolves to a dangerous one on real pip)
+  and too tight (ordinary syntax with no security relevance fails) in ways neither documented as a deliberate
+  trade-off nor caught by the "confirmed against a real pip" claims already in this file's log - those
+  claims were true for the specific letters/tokens tested each round, not extended to a full audit of either
+  curated list. Send back to agent/builder-9: (1) remove `--build` from `PIP_DESTINATION_VALUE_FLAGS_LONG`
+  (and reconsider `-b`/`--global-option` too, even though currently inert, so the list stops encoding
+  flags nobody re-verified against real pip); (2) decide, and document the decision either way, on whether
+  every whitelist entry must be checked for pip's own abbreviation-matching behavior, not just literal
+  presence in `--help` - a flag absent from `--help` but silently redirected by pip itself is a different
+  risk class than one flatly rejected, and this file's whitelist model does not currently distinguish them;
+  (3) add `--quiet`/`--verbose`/`--isolated` (or otherwise document why they are deliberately excluded, the
+  same way the `$REQS` decision is documented) so the long list stops being a strict subset-with-gaps of the
+  short list's own coverage decisions; (4) either make `pip_install_arglists`'s command-separator split
+  quote-aware or document unquoted-separator-only coverage explicitly, since the new hard-fail-on-quoting
+  rule turns that old blind spot into a false positive on standard PEP 508 marker syntax. Left in
+  `queue/review/`.
