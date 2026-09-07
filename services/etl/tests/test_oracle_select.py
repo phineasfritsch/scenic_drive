@@ -17,6 +17,25 @@ import math
 from etl import oracle_select as sel
 
 
+def test_the_selection_constants_are_pinned_against_literals():
+    """Same defect as MAX_RADIUS and RAD_EARTH_M, in this module: every other assertion about these derives
+    its expected value from the constant itself, so sweeping one moves both sides and fails nothing.
+    agent/reviewer-34 swept them - `SQUASH_RADIUS_M` changes 6 ways and `CELL_DEG` changes 0, neither enough
+    to move the 2% agreement rate off its floor. Literals, therefore, and only literals.
+
+    30 m is `--distance 30`, which every squash step in adams_default.sh uses. 1 m is "a node that moved less
+    than a metre is the same node re-rounded". CELL_DEG is a grid cell of about 55 m of latitude, chosen so
+    the proximity test is not O(ways x nodes) - it is an optimisation, and an optimisation that changes the
+    answer is a bug, which is what `test_the_proximity_grid_finds_a_node_across_a_cell_boundary` guards.
+    """
+    assert sel.SQUASH_RADIUS_M == 30.0
+    assert sel.GEOMETRY_TOL_M == 1.0
+    assert sel.CELL_DEG == 0.0005
+    # The grid cell must stay comfortably larger than the radius it accelerates, or the 3x3 neighbourhood
+    # search stops covering the circle and starts missing tagged nodes.
+    assert sel.CELL_DEG * 111320 > sel.SQUASH_RADIUS_M
+
+
 def test_oneway_does_not_mark_a_way_as_squash_exposed():
     """The regression guard for the defect this file was written for.
 

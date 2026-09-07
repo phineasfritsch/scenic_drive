@@ -99,8 +99,12 @@ if [[ "$got" -lt "$floor" ]]; then
 fi
 
 echo "3/3  select and write"
-out="$FIXTURE"
-[[ $check -eq 1 ]] && out="$WORK/rebuilt.json"
+# ALWAYS build to a staging file, never onto the committed fixture, and move it into place only after every
+# check below has passed. The previous version built straight to $FIXTURE in rebuild mode, so the guards ran
+# AFTER the real fixture had already been overwritten - a run that correctly refused a 226-way build still
+# left that 226-way file on disk. Found by running the demonstration for the guard rather than reasoning
+# about it, which is the second time in this task that a check has fired too late to protect anything.
+out="$WORK/rebuilt.json"
 # Delete the target first. Without this, `--check` diffs against whatever rebuilt.json a PREVIOUS run left
 # behind, which is how it managed to print "FIXTURE OK" for a build that had failed.
 rm -f "$out"
@@ -113,6 +117,27 @@ if ! (cd "$ETL" && "$PY" -m etl.oracle --build "../../$out" --export "work/curva
 fi
 [[ -s "$out" ]] || { echo "BUILD PRODUCED NOTHING: $out is missing or empty"; exit 2; }
 
+# The way-count floor above compares what came BACK against what was ASKED FOR, so it is blind to step 1
+# asking for too little. agent/reviewer-34 made `--list-ways` emit 300 of the 3318 ids: 298 came back, the
+# floor passed at 99%, the run built a 226-way fixture, the whole committed suite went green in the pinned
+# image, and `ops/etl-oracle-report` printed a perfectly plausible 94.248%. A guard that normalises by a
+# number the same broken step produced is not a guard.
+#
+# So cross-check against the funnel the BUILD wrote, which counts the KMZ's single-way collections directly
+# rather than counting the lines of ids.txt. If step 1 truncated, these disagree.
+declared="$(grep -o '"single_way": *[0-9]*' "$out" | head -1 | grep -o '[0-9]*' || true)"
+if [[ -n "$declared" && "$declared" -gt 0 ]]; then
+  id_floor=$(( declared * 95 / 100 ))
+  echo "     step 1 asked for $requested ids; the KMZ holds $declared single-way collections"
+  if [[ "$requested" -lt "$id_floor" ]]; then
+    echo "TOO FEW IDS REQUESTED: $requested of $declared single-way collections (floor $id_floor)."
+    echo "Step 1 produced a short ids.txt, so every count downstream of it is consistent and wrong."
+    exit 2
+  fi
+else
+  echo "COULD NOT READ THE FUNNEL from $out - refusing rather than skipping the cross-check"; exit 2
+fi
+
 if [[ $check -eq 1 ]]; then
   if diff -q "$FIXTURE" "$out" >/dev/null; then
     echo "FIXTURE OK: rebuilt output is identical to the committed file"
@@ -122,4 +147,7 @@ if [[ $check -eq 1 ]]; then
   diff "$FIXTURE" "$out" | head -20
   exit 1
 fi
+
+# Every check passed. Only now does the committed fixture change.
+mv -f "$out" "$FIXTURE" || { echo "could not move $out into place"; exit 2; }
 echo "wrote $FIXTURE - review the diff before committing it"

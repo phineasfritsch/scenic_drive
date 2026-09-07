@@ -96,6 +96,14 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         reports.append(population_report(args.export))
 
+    # An empty population is not a 0% agreement rate, it is the absence of a measurement, and printing
+    # `0/0 = 0.000%` and exiting 0 hands somebody a number to quote. Refuse instead.
+    for r in reports:
+        if r["n"] == 0:
+            print(f"REFUSING TO REPORT: {r['what']} has no ways in it at all. "
+                  f"Rebuild with ops/etl-curvature-fixture.", file=sys.stderr)
+            return 2
+
     if args.json:
         print(json.dumps(reports, indent=1))
         return 0

@@ -39,7 +39,10 @@ command -v docker >/dev/null 2>&1 || { echo "docker is not on PATH; the pinned i
 
 args=()
 if [[ $with_population -eq 1 ]]; then
-  if [[ -f "$ETL/$EXPORT_REL" ]]; then
+  # -s, not -f. A zero-byte export is exactly what the failure modes here leave behind, and with -f the
+  # report happily printed `population 0/0 = 0.000%` and exited 0 - a number that looks like a measurement
+  # and is the absence of one (agent/reviewer-34, who found the tree in that state after a demo).
+  if [[ -s "$ETL/$EXPORT_REL" ]]; then
     args+=(--export "$EXPORT_REL")
   else
     echo "note: $ETL/$EXPORT_REL is absent (it is gitignored); run ops/etl-curvature-fixture to rebuild it."

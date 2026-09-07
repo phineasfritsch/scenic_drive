@@ -80,7 +80,14 @@ def circle(radius_m: float, n: int = 24, lat0: float = 44.0, lon0: float = -72.8
 
 class TestGeometryPrimitives:
     def test_distance_matches_a_known_separation(self):
-        # One degree of latitude on their sphere: rad_earth_m * pi/180.
+        """The FORMULA, not the constant.
+
+        `expected` reads cv.RAD_EARTH_M, so both sides scale together and this says nothing about its value -
+        it passes at RAD_EARTH_M = 1. That is fine for what it checks, and was NOT fine when I cited it as
+        the thing pinning the constant, in the very class written to fix exactly this defect for MAX_RADIUS
+        (agent/reviewer-34, round 4). The literal lives in tests/test_curvature_constants.py, where it can
+        actually fail.
+        """
         expected = cv.RAD_EARTH_M * math.pi / 180
         assert cv.distance_on_earth(44.0, -72.8, 45.0, -72.8) == pytest.approx(expected, rel=1e-9)
 
@@ -106,39 +113,6 @@ class TestGeometryPrimitives:
     def test_collinear_points_do_not_raise(self):
         """math.fabs inside their sqrt is what stops a triangle-inequality violation being a domain error."""
         assert cv.circum_circle_radius(1.0, 1.0, 2.0) >= cv.DEGENERATE_RADIUS
-
-
-class TestTheUpstreamConstantsArePinnedByValue:
-    """Every OTHER assertion about these compares `cv.MAX_RADIUS` against `cv.MAX_RADIUS`.
-
-    Both sides move together, so sweeping the constant changes nothing and no test fails - agent/reviewer-34
-    took MAX_RADIUS from 175 to 100000 and DEGENERATE_RADIUS from 0 to infinity without moving fixture
-    agreement off 94.750%. That is the same hole `test_the_earth_radius_is_NOT_detectable_at_this_tolerance`
-    records for RAD_EARTH_M: the 2% oracle verifies the ALGORITHM and cannot see a constant. So the constants
-    are pinned here, against the literals in the upstream source, exactly as RAD_EARTH_M is pinned by
-    `test_distance_matches_a_known_separation`.
-
-    A test that compares a value with itself is not a weak test, it is not a test.
-    """
-
-    def test_the_radius_caps(self):
-        # add_segment_length_and_radius.py: MAX_RADIUS = 10000
-        assert cv.MAX_RADIUS == 10000.0
-        # radiusmath.py returns this for a zero-area or zero-length triangle. Equal to MAX_RADIUS today and
-        # separately named because they are separate decisions upstream, in different files.
-        assert cv.DEGENERATE_RADIUS == 10000.0
-
-    def test_the_curvature_bands(self):
-        # add_segment_curvature.py, in the order it tests them, with strict `<`.
-        assert cv.LEVELS == ((30.0, 4, 2.0), (60.0, 3, 1.6), (100.0, 2, 1.3), (175.0, 1, 1.0))
-
-    def test_the_deflection_filter_constants(self):
-        # filter_segment_deflections.py: min_variance = gap_distance / level_1_max_radius, look-aheads 3..7.
-        assert cv.LEVEL_1_MAX_RADIUS == 175.0
-        assert cv.LOOK_AHEADS == (3, 4, 5, 6, 7)
-        # The band edge and the filter's divisor are the SAME upstream number. If someone tunes the band
-        # without tuning the filter, they have silently changed two behaviours and matched neither.
-        assert cv.LEVELS[-1][0] == cv.LEVEL_1_MAX_RADIUS
 
 
 class TestRadiiOnKnownGeometry:
@@ -250,7 +224,8 @@ class TestAgainstTheCurvatureProject:
         would make. It scales every length by 0.08%, which a 2% tolerance cannot notice - agreement moves by
         a quarter of a point (94.75 -> 94.50 on Linux, 93.75 -> 93.75 on Windows: not at all). So this oracle
         verifies the ALGORITHM, not the constant. The constant is held by
-        `test_distance_matches_a_known_separation` instead, which compares against an exact value.
+        `tests/test_curvature_constants.py` instead, which compares against a LITERAL. It is not held by
+        `test_distance_matches_a_known_separation`, which scales on both sides - see that test's docstring.
         """
         monkeypatch.setattr(cv, "RAD_EARTH_M", 6378137)
         assert self._agreement() >= MIN_AGREEMENT

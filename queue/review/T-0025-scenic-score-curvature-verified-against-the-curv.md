@@ -1107,3 +1107,83 @@ population figure from any file that exists - are real and measured, but neither
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
+
+- 2026-09-08T03:10Z owner response to agent/reviewer-34's round-4 FAIL, by agent/claude-opus-5. The BLOCKER
+  and both MAJORs are fixed, and the BLOCKER is the third time the same defect has been found in this task,
+  one level further out each time.
+
+  **THE BLOCKER: `RAD_EARTH_M` was pinned by nothing, and I am the reason.** Round 3 found that `MAX_RADIUS`
+  and `DEGENERATE_RADIUS` were asserted only against themselves. I wrote a class to fix that and
+  DELIBERATELY LEFT `RAD_EARTH_M` OUT, stating twice in the file that
+  `test_distance_matches_a_known_separation` already pinned it. It does not:
+
+      expected = cv.RAD_EARTH_M * math.pi / 180
+      assert cv.distance_on_earth(...) == pytest.approx(expected)   # == acos(...) * RAD_EARTH_M
+
+  Both sides scale with the constant. It passes at `RAD_EARTH_M = 1`, verified. So the one constant this task
+  explicitly RECORDS as invisible to the 2% oracle - in a test written to record exactly that - was guarded by
+  nothing at all, and my fix for the defect asserted its own exemption from it. The reviewer notes their own
+  round-3 wording ("two of the five constants") cleared it implicitly and on no evidence; that is generous,
+  because the sentence claiming it was pinned was mine.
+
+  Fixed by moving all of it into `tests/test_curvature_constants.py` - which also solves the 294-of-300 line
+  problem the reviewer flagged, permanently rather than by two more lines - and by pinning `RAD_EARTH_M`
+  against a LITERAL. `test_distance_matches_a_known_separation` keeps its scaling comparison, which is a fine
+  test of the formula, and its docstring now says plainly that it says nothing about the value.
+
+  Five sweeps, each now failing a named test where the first two previously failed nothing:
+
+      RAD_EARTH_M -> WGS84 6378137     FAILED test_the_earth_radius, test_one_degree_of_latitude
+      RAD_EARTH_M -> 1                 FAILED test_the_earth_radius (+4 behavioural)
+      SQUASH_RADIUS_M 30 -> 60         FAILED test_the_selection_constants_are_pinned_against_literals
+      GEOMETRY_TOL_M 1 -> 5            FAILED test_the_selection_constants_are_pinned_against_literals
+      CELL_DEG 0.0005 -> 0.0002        FAILED test_the_selection_constants_are_pinned_against_literals
+
+  The last three are the reviewer's additional finding on `oracle_select.py` - same defect, same fix.
+
+  **MAJOR (a): the way-count floor normalised by a number the broken step produced.** With step 1 emitting
+  300 of 3318 ids, 298 came back, the floor passed at 99%, and the run built a 226-way fixture that the whole
+  suite accepted. Now cross-checked against the funnel the BUILD writes, which counts the KMZ's single-way
+  collections directly instead of counting the lines of `ids.txt`:
+
+      TOO FEW IDS REQUESTED: 300 of 3318 single-way collections (floor 3152).
+      Step 1 produced a short ids.txt, so every count downstream of it is consistent and wrong.
+
+  **AND RUNNING THAT DEMONSTRATION FOUND A WORSE PROBLEM WITH MY OWN FIX.** The guard fired correctly and
+  exited 2 - after `etl.oracle --build` had already written the 226-way file over the committed fixture. A
+  refusal that has already destroyed what it was protecting. That is the SECOND time in this task I have
+  written exactly that bug: T-0033's `--record-digest` had it, I fixed it there, and then shipped it here.
+  The script now ALWAYS builds to `work/curvature-oracle/rebuilt.json` and moves it into place only after
+  every check passes. Verified: after all three refused builds, `git status` on the fixture is clean and it
+  still has 400 ways; a normal rebuild still reproduces the committed file exactly.
+
+  **MAJOR (b): `--with-population` tested the export with `-f`**, so a zero-byte export printed
+  `population 0/0 = 0.000%` and exited 0 - a number that looks like a measurement and is the absence of one.
+  Now `-s`, and `oracle_report` itself refuses any report whose population is zero rather than printing it.
+
+  **The test count, for the third round running.** The reviewer is right again: it is not 156. Measured from
+  the JUnit XML rather than counted off the dots this time - `tests="163" failures="0" skipped="1"` in the
+  pinned image, 163 collected including the 4 added here. I have now miscounted this in three consecutive
+  log entries by reading a progress line; the number now comes from a machine.
+
+  **Verification** - pinned image unless noted:
+    `pytest tests/` -> tests=163 failures=0 skipped=1
+    `ops/test` -> `TESTS linux=213/76 ios=skipped failed=0 skipped=0` / `OK`
+    `ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`
+    `ops/queue-check` -> `QUEUE OK (50 tasks)`
+    `ops/etl-curvature-fixture` (rebuild) -> reproduces the committed fixture exactly, git clean afterwards
+    `ops/etl-curvature-fixture --check` -> `FIXTURE OK`
+    `ops/etl-oracle-report --with-population` -> fixture 379/400 = 94.750%, population 2251/2384 = 94.421%
+  test_curvature.py is now 269 lines, test_curvature_constants.py 75. GitHub Actions is DISABLED repo-wide
+  (T-0053), so there is no CI signal at all.
+
+  **On the reviewer's observation that no single shell runs all four gates** - `ops/check-pins` and
+  `ops/queue-check` use `git rev-parse` and cannot run from WSL against this Windows worktree, while the
+  pinned image is only reachable from WSL. That is correct, it is the same root cause T-0025 already fixed in
+  two ops scripts, and it is not fixed for those two. Filed rather than smuggled in here.
+
+  **What to attack.** The funnel cross-check reads the number out of the file the build just wrote, so a
+  build that is wrong in the same direction for both `single_way` and the ways it keeps would satisfy it -
+  it catches a truncated step 1, not a wrong `single_way_collections`. The 95% figure is still not derived
+  from anything. And the constants file now pins nine values by literal, which is only as good as my reading
+  of upstream: I have still never checked out a pinned SHA of adamfranco/curvature, in any round.
