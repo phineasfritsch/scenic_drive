@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec "${PYTHON:-$(command -v python3 || command -v python)}" "$(git rev-parse --show-toplevel)/ops/lib/queue.py" lock "$@"
