@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-07T13:51:53Z
 worktree: ../wt/T-0023
 branch: task/T-0023
 exclusive: [floors]
-touches: [services/etl/, ops/etl-fetch-inputs, ops/test, ops/lib/junit_count.py, .gitignore, pins/floor_linux.txt, .github/workflows/linux-core.yml]
+touches: [services/etl/, ops/etl-fetch-inputs, ops/test, ops/lib/, .gitignore, pins/PINS.yaml, pins/floor_linux.txt, .github/workflows/linux-core.yml]
 pins_affected: []
 reviewer: agent/reviewer-18
 depends_on: []

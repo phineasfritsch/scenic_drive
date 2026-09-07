@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# P-OPS-02: a red test run must NAME the tests that failed.
+#
+# The property, stated as an invariant over the one tool that decides it:
+#
+#     for every JUnit report R:  junit_count.py R says failed>0  =>  junit_count.py --list-failures R prints
+#                                                                    at least one line
+#     for every unreadable R:    both paths exit 2, neither prints an empty answer that reads like good news
+#
+# Why a pin and not just a test: the fleet's whole premise is that agents report success on broken work, and
+# the runner is what contradicts them. A runner that prints `failed=3` and no names sends the reader off to
+# re-run every tier by hand in a container - which is exactly what happened on PR #14 before this existed.
+# The first fix for that was itself incomplete: --list-failures walked only <testcase> elements, so a
+# summary-only <testsuite failures="1"> - the shape `swift test --xunit-output` writes into
+# .artifacts/spm-junit.xml right now - counted as a failure and named nothing. reviewer-18 caught it. This
+# check is the guard that would have caught it mechanically.
+#
+# Anchored on the executable and on generated report fixtures, never on a comment.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+JC="ops/lib/junit_count.py"
+[[ -f "$JC" ]] || { echo "P-OPS-02: $JC is missing"; exit 1; }
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+fail=0
+
+note() { echo "P-OPS-02: $*"; fail=1; }
+
+# --- the reports a real run produces ---------------------------------------------------------------------
+# 1. summary-only suite: attributes only, no <testcase> children. swift test writes this for the XCTest tier.
+cat > "$tmp/summary-only.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites><testsuite name="ScenicKitPackageTests.xctest" tests="4" failures="1" errors="0"></testsuite></testsuites>
+XML
+# 2. per-testcase failures, the pytest/vitest shape.
+cat > "$tmp/per-case.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites><testsuite name="pytest" tests="2" failures="1" errors="1">
+  <testcase classname="tests.test_manifest" name="test_licence_is_required"><failure message="AssertionError: boom"/></testcase>
+  <testcase name="test_without_a_classname"><error message="TypeError: nope"/></testcase>
+</testsuite></testsuites>
+XML
+# 3. a suite that carries an <error> count only, no failures attribute.
+cat > "$tmp/errors-only.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="collection" tests="0" errors="2"></testsuite>
+XML
+# 4. green: nothing failed, so nothing may be named.
+cat > "$tmp/green.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites><testsuite name="green" tests="3" failures="0" errors="0"></testsuite></testsuites>
+XML
+# 5. unreadable.
+printf '<testsuite tests="1"' > "$tmp/malformed.xml"
+
+# --- the invariant ---------------------------------------------------------------------------------------
+for f in summary-only per-case errors-only green; do
+  counted="$("$PY" "$JC" "$tmp/$f.xml" 2>&1)" || { note "counting path failed on $f.xml: $counted"; continue; }
+  n="$(printf '%s' "$counted" | sed -E 's/.*failed=([0-9]+).*/\1/')"
+  named="$("$PY" "$JC" --list-failures "$tmp/$f.xml" 2>&1)"
+  rc=$?
+  [[ $rc -eq 0 ]] || { note "--list-failures exited $rc on $f.xml: $named"; continue; }
+  lines=0; [[ -n "$named" ]] && lines="$(printf '%s\n' "$named" | wc -l | tr -d '[:space:]')"
+  if [[ "$n" -gt 0 && "$lines" -eq 0 ]]; then
+    note "$f.xml counts $n failure(s) and names NONE - a red run would print no test names"
+  fi
+  if [[ "$n" -eq 0 && "$lines" -gt 0 ]]; then
+    note "$f.xml counts 0 failures but names $lines - a green run would print phantom failures"
+  fi
+done
+
+# The per-case report must name the actual tests, not just say "something failed".
+named="$("$PY" "$JC" --list-failures "$tmp/per-case.xml" 2>&1)"
+printf '%s' "$named" | grep -q 'test_licence_is_required' || note "a <failure> testcase was not named: $named"
+printf '%s' "$named" | grep -q 'test_without_a_classname' || note "an <error> testcase with no classname was not named: $named"
+
+# An unreadable report must exit non-zero on BOTH paths. Returning 0 with no output would make "cannot read
+# the report" indistinguishable from "nothing failed" - the failure this whole check exists to forbid.
+for path in "$tmp/malformed.xml" "$tmp/does-not-exist.xml"; do
+  "$PY" "$JC" "$path" >/dev/null 2>&1 && note "counting path exited 0 on unreadable $(basename "$path")"
+  "$PY" "$JC" --list-failures "$path" >/dev/null 2>&1 && note "--list-failures exited 0 on unreadable $(basename "$path")"
+done
+
+[[ $fail -eq 0 ]] && echo "P-OPS-02: every counted failure is named; unreadable reports fail closed"
+exit $fail

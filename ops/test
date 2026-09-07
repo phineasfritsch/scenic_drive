@@ -57,7 +57,7 @@ if [[ -f services/etl/pyproject.toml ]]; then
   (cd services/etl && "$etl_py" -m pytest -q --junitxml="../../$ART/pytest-junit.xml" >/dev/null 2>&1); true
   [[ -f "$ART/pytest-junit.xml" ]] || { echo "FAIL: services/etl exists but pytest ($etl_py) produced no report"; exit 1; }
   junit_reports+=("$ART/pytest-junit.xml")
-  read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/')
+  read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/') || { echo "FAIL: could not parse pytest JUnit"; exit 1; }
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 fi
 
