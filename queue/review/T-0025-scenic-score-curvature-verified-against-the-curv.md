@@ -604,3 +604,221 @@ Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
   its own, so the fixture's rate is a noisier estimate than the population's; the fixture exists so CI does
   not need the 45 MB extract, and whether that trade is right is worth an opinion. Third: I did not check out
   a pinned upstream SHA of adamfranco/curvature either, same limitation as both prior rounds.
+
+### 2026-09-07 - third review, by agent/reviewer-34 (not agent/reviewer-30). FAIL, new BLOCKER.
+
+The two prior BLOCKERs are genuinely gone and I confirmed both by running code, not by reading the log. Every
+headline figure re-derives exactly. The floor change is better justified than the log claims, and I could not
+break it. The reason for FAIL is that the paragraph explaining WHY the floor moved - the one the owner asked
+me to attack hardest - was measured against a fixture that no longer exists in the tree, and it is presented
+in `test_curvature.py` as a fact about the fixture that does.
+
+**BLOCKER - every mechanism number in `MIN_AGREEMENT`'s comment (and in the PR body) was measured on the
+SUPERSEDED fixture, not the committed one.** `test_curvature.py:33-38` states "Same committed fixture, same
+code, different libm" and then: 13135 segments, 5526 radii differing, 1260 by >1%, 202 by >10%, up to 93%, 77
+segments in a different band, 43 ways affected, 20 moving >1%, 12 crossing the 2% tolerance - "the entire
+93.75-to-94.75 gap"; and at `:42` "8 of 14 flips sat in the best-conditioned half". I ran the whole comparison
+myself, per segment, on both platforms, against both fixtures:
+
+                                       committed fixture   old fixture (git show 6c0980a)   comment claims
+      total segments                             13359              13135                        13135
+      segment radii differing                     5559               5526                         5526
+        ... by more than 1%                       1191               1260                         1260
+        ... by more than 10%                       148                202                          202
+        ... max relative difference               92.8%              92.8%                         93%
+      segments in a different band                  64                 77                           77
+      ways with any band difference                 38                 43                           43
+      ways moving more than 1%                      18                 20                           20
+      ways crossing the 2% tolerance                 8                 14                        12 (!)
+      flips in the best-conditioned half           4/8               8/14                         8/14
+      agreement, Linux / Windows          94.75 / 93.75      93.50 / 94.50                 94.75 / 93.75
+
+Nine of the ten reproduce EXACTLY against the old fixture and none against the committed one. The total
+segment count settles it beyond any floating-point argument: it is `sum(len(coords)-1)` over the fixture's
+ways, platform-independent and libm-independent, 13135 for the old file and 13359 for the committed one. Only
+68 of the 400 way ids are shared between the two files - fixing `oneway` changed the population 2307 -> 2384
+and `random.Random(20260907).shuffle()` over a longer list reshuffled almost the entire sample, exactly as
+agent/reviewer-30 predicted it would. The headline rates in the same comment WERE re-measured after that
+regeneration; the mechanism paragraph underneath them was not, and it is stitched to them by
+"the entire 93.75-to-94.75 gap" - a gap that belongs to the new file, explained by counts that belong to the
+old one. The old file's own gap is 93.50-to-94.50, which is the pair agent/reviewer-30 reported last round.
+
+The "12" is worse than stale: it matches neither file (old 14, new 8) while the same comment says "8 of 14"
+four lines later, so the block contradicts itself on its own numbers.
+
+Why this is a BLOCKER and not a documentation nit. This comment is the entire written justification for
+moving a load-bearing floor, and it is what the next engineer reads when the suite goes red for a reason that
+is not the algorithm - which the owner says is the reason it exists. It is also the third instance in this
+task of the same failure: round 1 was a fixture built by a process not in the repo, round 2 was figures
+computed on a platform the repo does not pin, and this is figures computed on an artifact the repo no longer
+contains. The task's own premise is that a number is only worth what the thing it was measured on is worth.
+Narrow fix, no effect on any assertion: re-run the segment-level comparison against the committed fixture and
+write those numbers, or say plainly which fixture the numbers are from and why they were kept.
+
+The two REJECTED explanations survive, and I checked the important one directly rather than trusting it:
+  - **The deflection filter really is innocent.** I recorded, per way, the set of segment indices the filter
+    zeroes (curvature_level non-zero before `filter_deflections`, zero after) on the pinned image and on
+    Windows. Identical on all 400 ways of the committed fixture - 0 mismatches, on the 10 ways where it fires
+    at all - and identical on all 400 of the old fixture too (13 firing). The claim holds on both files.
+  - **Conditioning still does not predict flips.** On the committed fixture 4 of 8 flips sit in the
+    best-conditioned half by min-over-triples circumradius. Same 50% conclusion as the claimed 8 of 14, so the
+    dead idea stays dead - but the evidence quoted for it is the old file's.
+
+**MAJOR - `ops/etl-curvature-fixture --check` is fail-open: it prints `FIXTURE OK` when the rebuild never
+happened.** `--check` writes step 3's output to `$WORK/rebuilt.json` and diffs it, but never deletes that file
+first, and step 3's exit code is never inspected - the script runs `set -uo pipefail` without `-e` and line 87
+carries no `||`. Demonstrated: with a `PYTHON` shim that passes `--list-ways` through to the real interpreter
+and exits 2 on `--build`, `ops/etl-curvature-fixture --check` printed steps 1 and 2 normally, printed no
+funnel (step 3 never ran), then printed `FIXTURE OK: rebuilt output is identical to the committed file` and
+exited 0 - diffing the committed file against a stale `rebuilt.json` left by my previous run. This is the only
+guard anywhere on the fixture's reproducibility (nothing under `ops/`, `pins/`, `.github/` or `tests/`
+references either new script; I grepped), it is run by hand, and it can go green without doing the work. Fix
+is one line: `rm -f "$out"` before step 3, and check step 3's status.
+
+**MAJOR - the getid wrapper still swallows a total getid failure.** The comment at
+`ops/etl-curvature-fixture:72` says "getid is judged by whether it produced a usable file", but the only test
+is `[ ! -s ... ]`, and non-empty is not usable. Fed an id file in which 100% of the ids are absent from the
+extract - the shape of "the KMZ got re-pinned to a different region", the exact scenario the pinning exists
+for - osmium getid exits 1, writes a 204-byte header-only PBF, the wrapper's `-s` test passes, `osmium export`
+succeeds on it and writes a 1-byte geojsonseq, and the wrapper exits 0. `etl.oracle --build` against that
+export then reports `single_way 3318 / have_geometry 0 / geometry_identical 0 / no_squash 0`, writes a 0-way
+fixture and returns 2 - which the wrapper also ignores, so in rebuild mode it would overwrite the committed
+fixture with an empty one and print "wrote ... - review the diff before committing it", exit 0. The 21/3318
+case the wrapper was written for is correctly tolerated; there is simply no line between 21 missing and 3318
+missing. The CRLF case IS caught, and I verified that too: with a CRLF id file osmium prints `illegal id:` and
+exits 2 having written nothing, and the wrapper aborts with "getid wrote no output at all".
+
+**Attacked the floor, and could not break it - this is stronger than the log claims.** I swept ~60 mutations
+on both platforms looking for one that a 0.90 floor fails to reject where 0.93 did: every look-ahead subset
+of (3,4,5,6,7), the deflection divisor from 60 to 350, MAX_RADIUS from 100 to 100000, DEGENERATE_RADIUS from 0
+to inf, three `assign_radii` write-order variants, band edges, weights, `<` to `<=`, haversine, a systematic
+length scale from 0.90x to 1.10x, dropping `math.fabs`, and an epsilon guard before the sqrt. Everything
+landing in [90%, 93%) on either platform is caught by the rewritten deflection meta-test, not by the floor:
+filter off entirely 92.75/92.00 (0 touched ways), `LOOK_AHEADS=(3,)` 92.75/92.00 (1 touched), filter divisor
+60 92.00/90.75 (ratio 0.3x/0.6x), all lengths x0.99 91.00/90.50 (ratio 7.6x). No mutation slipped through.
+Worth saying explicitly: the floor is no longer the guard for that band - the deflection meta-test is - and
+that is a better arrangement than the one it replaced.
+
+**The rewritten deflection meta-test is load-bearing, and its vacuity guard is the part that fires.** Mutated
+the source, not a monkeypatch: put `return` at the top of `filter_deflections`. Exactly one test goes red -
+`test_dropping_the_deflection_filter_fails_the_oracle`, on `the filter changed only 0 of 400 ways` - while
+`test_agreement_with_the_published_values` stays GREEN at 92.75%, which is precisely the hole the owner
+described and closed. Second red demonstration, a partial weakening rather than a removal: `LOOK_AHEADS =
+(3,)` in source, same single test red on `the filter changed only 1 of 400 ways`. So `len(on_errs) >= 5` is
+not decoration; it is the assertion doing the work. `etl/curvature.py` verified sha256-identical afterwards.
+
+**The 13 new selection tests DO fail on the original defect - I put the defect back to check.** Restored the
+exact pre-fix code from `git show 6c0980a` - `WAY_TAGS = {"junction", "traffic_calming", "oneway"}` as a bare
+set plus `way_is_squash_tagged` as `any(k in props for k in WAY_TAGS) or any(k.startswith(...))` - and ran the
+suite in the pinned image. Two tests go red: `test_oneway_does_not_mark_a_way_as_squash_exposed` and
+`test_junction_is_matched_on_its_values_not_on_the_bare_key`. Nothing else moves, including the end-to-end
+agreement assertion, which is the point the owner makes about why this file had to exist.
+`etl/oracle_select.py` verified sha256-identical afterwards.
+
+**Re-derived - all four headline figures, in the pinned image and on Windows, with my own script.** Wrote the
+comparison from scratch against the committed fixture and the committed `etl.curvature`; did not call
+`etl.oracle_report` (whose output is the claim under test) and did not use anything the owner left in
+`services/etl/work/`:
+
+      fixture (400)      Linux/glibc 379/400 = 94.7500%  median 0.06340%  p90 0.8182%
+                         Windows/CRT 375/400 = 93.7500%  median 0.06752%  p90 1.1563%
+      population (2384)  Linux/glibc 2251/2384 = 94.4211%  median 0.06608%  p90 0.8923%
+                         Windows/CRT 2261/2384 = 94.8406%  median 0.06620%  p90 0.8776%
+
+All four match the claim to the stated precision, and **the platforms do swap places**: Linux ahead by 1.00
+point on the fixture, Windows ahead by 0.42 on the population. `ops/etl-oracle-report` prints the same numbers
+to the digit. On the claim's meaning: the swap shows the SIGN of the gap is not stable across two samples of
+the same two libms. It does not bound a third libm, and the owner says so. I agree with the conclusion and
+with the caveat.
+
+**Re-derived - the floor's justification, on the committed fixture, both platforms.** The three mutations
+`test_curvature.py` actually monkeypatches: weight 16.750% Linux / 16.000% Windows, band threshold 38.750% /
+39.500%, larger circumcircle 0.500% / 0.500%. Earth-radius swap 94.750 -> 94.500 on Linux and 93.750 ->
+93.750 on Windows, exactly as the docstring at `:200` says. Deflection filter: 10 touched ways on both
+platforms, median error 0.0654% on / 8.8508% off (Linux, 135.3x) and 0.1137% / 8.8502% (Windows, 77.8x)
+against a 50x guard, 1 of 10 still agreeing against a "<= 3" guard. Every load-bearing number checks out.
+Minor: the three figures the comment quotes (16.0 / 39.5 / 0.5) and the "80x" are the WINDOWS values, in a
+comment whose closing line is "Quote this number from the pinned image, never from whatever interpreter is on
+the box." Harmless to the argument, but it is the comment's own discipline.
+
+**Re-derived - the fixture rebuilds bit-for-bit, end to end, from a wiped work directory.** `rm -rf
+services/etl/work/curvature-oracle` then `ops/etl-curvature-fixture --check` from WSL: `3318 ways`, osmium
+getid naming 21 missing ids, funnel `single_way 3318 / have_geometry 3297 / geometry_identical 2571 /
+no_squash 2384`, `FIXTURE OK`, exit 0. All three steps now run - the `getid exited 1` abort the owner could
+not close last round is genuinely closed, and the recorded explanation is correct: I counted the ids osmium
+names and there are exactly 21. The 2384 population and the 2307 -> 2384 move are confirmed from my own clean
+rebuild, not from the log.
+
+**Re-derived - the `oneway` and `junction` reasoning, against the real upstream.** Fetched
+`processing_chains/adams_default.sh` and `post_processors/squash_curvature_near_way_tag_change.py` from
+`raw.githubusercontent.com/adamfranco/curvature/master`. The chain has nine squash invocations. `oneway`
+appears in exactly one, `squash_curvature_near_way_tag_change --tag oneway --ignored-values no --distance 30`,
+whose `process_collection` seeds `current_value` from `collection['ways'][0]` and then compares every way
+including the first against it - so on a one-way collection it compares the way with itself and can never
+fire. Removing it is right. `junction` appears twice: `squash_curvature_for_tagged_ways --tag junction
+--values 'roundabout,circular'`, which does reach a single-way collection and is what `WAY_TAGS` now encodes,
+and a second `squash_curvature_near_way_tag_change --tag junction --only-values ...` which structurally
+cannot. `traffic_calming` with no `--values` justifies the `None`; the two `parking:lane:(both|left|right)`
+regex processors are narrower than the committed prefix match, so the prefix can only over-exclude, as the
+code says. `NODE_TAGS` matches invocations 7-9 exactly. No tag is missing from either list.
+
+**Checked - the two ops scripts' root derivation, including the cases the owner did not name.**
+`ops/etl-oracle-report`: docker absent -> `docker is not on PATH; the pinned image is the point`, exit 2, with
+and without `--with-population`. Export absent with `--with-population` -> the note naming the file as
+gitignored, then the fixture report only, exit 0. Unknown flag -> exit 2. Invoked by absolute path from `/` ->
+works. `ops/etl-curvature-fixture`: docker absent -> exit 2; a pinned input moved aside -> `missing
+services/etl/inputs/vermont-curvature.kmz - run ops/etl-fetch-inputs`, exit 2. **Invoked through a symlink,
+both scripts exit 2** - `${BASH_SOURCE[0]}` is the symlink's own path, so the derived root is the symlink's
+parent and the marker check rejects it. That is the correct failure (loud, not silent, which was the whole
+point of dropping `git rev-parse`), but it does mean neither script can be installed on `PATH` by symlink;
+worth a line in the header rather than a fix.
+
+**Info, not blocking:**
+- `MAX_RADIUS` and `DEGENERATE_RADIUS` are pinned by nothing. Their unit tests compare the value against
+  itself - `assert segments[0].radius == cv.MAX_RADIUS` (`test_curvature.py:111`) and
+  `assert cv.circum_circle_radius(*sides) == cv.DEGENERATE_RADIUS` (`:86`) - so they cannot fail whatever the
+  constant is, and the oracle cannot see them either: I swept MAX_RADIUS over 175, 300, 500, 1000, 2000, 5000,
+  10000, 20000, 100000 and DEGENERATE_RADIUS over 0, 100, 174, 176, 1000, 10000, 1e9 and inf, and fixture
+  agreement stayed at 94.750% for every single value. Two of the five constants the log says were "checked
+  against their source" have no guard at all. Pre-existing, not introduced this round.
+- pytest is 155 passed + 1 skipped, 156 collected. The log and the PR both say "156 passed, 1 skipped", which
+  is 157. Third round with an off-by-one on the test count; harmless, but it is the count the PR quotes.
+- The PR body carries the same stale mechanism paragraph as the source comment, word for word.
+- The `reviewer:` field still names agent/reviewer-30. This round was reviewed by agent/reviewer-34.
+
+**Verification, run fresh, this round - all four gates:**
+- etl suite in the pinned `scenic-etl` image (`docker run --rm -v "$PWD:/w" -w /w scenic-etl python3 -m
+  pytest -q tests/`) -> `{'errors': '0', 'failures': '0', 'skipped': '1', 'tests': '156'}`, exit 0. The image's
+  pytest 7.4.4 prints no summary line in this shell, so the counts are read from `--junitxml`.
+- `bash ops/test` -> `TESTS linux=206/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0.
+- `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0.
+- `bash ops/queue-check` -> `QUEUE OK (50 tasks)`, exit 0.
+- `bash ops/etl-oracle-report --with-population` -> `ORACLE Linux/x86_64 python 3.12.3`, fixture `379/400 =
+  94.750%`, population `2251/2384 = 94.421%`. `git ls-files -s` shows `100755` on both new ops scripts, so
+  P-OPS-01 is satisfied for them.
+- Working tree left clean; `curvature.py`, `oracle_select.py`, `test_curvature.py` and the fixture all verified
+  sha256-identical to their committed contents after every mutation demonstration.
+- GitHub Actions on PR #31 still billing-blocked; not treated as this diff's problem, per instructions.
+
+**What I re-derived by running code:** all four headline agreement figures on both platforms with my own
+script; the platform swap; the full segment-level mechanism comparison against BOTH fixtures, which is what
+found the BLOCKER; the deflection filter zeroing an identical segment set on both platforms; the conditioning
+split; the three mutation percentages, the earth-radius negative result and the deflection medians; the
+bit-for-bit rebuild from a wiped work directory and the 21 missing ids; the `--check` fail-open and the
+getid total-failure hole, both by constructing the failure; two source-level red demonstrations of the
+deflection meta-test and one of the restored `oneway` defect; the ~60-mutation floor sweep on both platforms;
+the MAX_RADIUS / DEGENERATE_RADIUS sweeps; and every docker-absent, missing-input, unknown-flag, foreign-cwd
+and symlink invocation path of both ops scripts. **What I took on trust:** that
+`raw.githubusercontent.com/adamfranco/curvature/master` today is what generated the pinned KMZ - I fetched
+`master`, not a pinned SHA, the same limitation both prior rounds recorded; and I did not re-verify the
+`same_geometry` 1 m and `near_tagged_node` 30 m thresholds against upstream, only that the tag lists match.
+
+**FAIL.** Leaving in `queue/review/`. To be clear about what is and is not wrong: the algorithm, the selection,
+the fixture's reproducibility, the floor and every mutation guard all held up under attack, and the floor is
+better defended than the log claims it is. What fails is the record. The comment that explains the floor
+describes a fixture that was replaced before it shipped, and the command that proves the fixture is
+reproducible can say so without having rebuilt anything. Both fixes are small and neither touches a number
+that matters.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
