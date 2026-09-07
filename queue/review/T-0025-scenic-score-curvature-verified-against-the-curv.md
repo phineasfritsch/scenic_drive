@@ -897,3 +897,213 @@ Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
   belongs. The 95% way-count floor is a number I chose against one observed shortfall (0.63%); it is not
   derived from anything. And `test_curvature.py` is at 294 of 300 lines, so the next addition to it has to go
   somewhere else - that is a constraint on the next reviewer's suggestions, not just on mine.
+
+### 2026-09-07 - fourth review, by agent/reviewer-34. FAIL, new BLOCKER.
+
+All four of my round-3 findings are genuinely fixed and I confirmed each by running code, not by reading the
+log: every one of the fourteen re-measured mechanism numbers reproduces exactly on the committed fixture, and
+I forced both guards to fail rather than trusting the demonstrations. The corrected causal story is right,
+including the part that is easiest to get wrong. The reason for FAIL is the INFO finding, which was about a
+CLASS of defect and was closed for two of its three instances - and the third instance is the one the new
+test class points at as the example of a constant that is properly pinned.
+
+**Re-derived - the mechanism paragraph now describes the committed fixture.** Wrote my own dumper against
+the committed blob (sha256 `7427820486e605ba...`, verified equal on both platforms) and the committed
+`etl.curvature`; did not call `etl.oracle_report` and used nothing the owner left in `services/etl/work/`.
+Every claim in `test_curvature.py:36-59`:
+
+      total segments                                  13359   claim 13359   the dispositive one
+      sin(phi) disagreements, per call site        1511/1383   claim ~1500 / ~1390   max ULP gap 1
+      cos(theta1-theta2) disagreements                     0   claim zero
+      acos: bit-identical args -> identical result 10543 of 10543   claim "not a source"
+      segment lengths differing            2816 = 21.1%       claim 2816 = 21.1%
+      worst length pair                    0.4029 / 0.4139 m  claim 0.4029 / 0.4139, 2.67%
+      radii differing                                   5559   claim 5559
+        ... by more than 1% / 10%                   1192 / 158   claim 1192 / 158
+        ... worst                          369.2%, 75.5 / 354.1 m   claim 369%, 75.5 / 354.1
+      segments changing band / ways                 64 / 38    claim 64 / 38
+      ways moving >1% / flips                        18 / 8    claim 18 / 8
+      ways with no band change: largest move     5.82e-05      claim 5.8e-5
+      deflection filter: differing zeroed sets            0    claim identical, 31 segments each side
+      flips in the better-conditioned half              4/8    claim 4/8
+      agreement Linux / Windows              94.750 / 93.750   claim 94.75 / 93.75
+
+Two of those needed the author's own convention before they matched, and both conventions are defensible.
+The radius counts reproduce under "relative to the LINUX value" (1192 / 158 / 369.2%); under `max(a,b)` they
+are 1191 / 148 / 92.8%. The conditioning split is 4/8 under the metric the round-2 log states - min over
+triples of `4*area/abc` - and 3/8 under max over triples, which is what I reached for first. Neither changes
+a conclusion. Worst-case pair located exactly: way 19684812 segment 43, 75.4640 m against 354.0559 m.
+
+**The corrected CAUSE is right, and it is the part of this round I attacked hardest.** `math.acos` really is
+innocent: of the 13359 segments, 10543 had a bit-identical argument on both platforms, and all 10543 returned
+a bit-identical result. The other 2816 are exactly the segments whose lengths differ, so the arithmetic
+closes - `13359 - 2816 = 10543`. `sin` and `cos` differ by exactly one ULP and never more (max gap measured
+at 1, over 53436 sin and 53436 cos evaluations), and `cos(theta1-theta2)` never differs at all. The worst
+case is `0x1.fffffffffffedp-1` against `0x1.fffffffffffeep-1` - one ULP - becoming 0.4029 m against 0.4139 m.
+The "ways with no band change barely move" claim holds with room to spare: 362 ways have no band change and
+the largest relative move among them is 5.82e-05, while all 18 ways moving more than 1% and all 8 flips have
+one. And the interpreter is genuinely ruled out, which I checked a way the owner did not: Windows 3.10.11
+against Windows 3.14.5 differ on **only** the `total` field, on 208 of 400 ways, never on a length, a radius,
+a band or a zeroed set - which is precisely the shape of 3.12+'s compensated `sum()` - and the pass rate is
+375/400 on both. Running Linux-3.12 against Windows-3.14 reproduces every number above identically to
+Linux-3.12 against Windows-3.10. Minor: "which the condition number predicts to two figures" is generous -
+the condition number at that x gives 2.78% against a measured 2.67%, which is one figure.
+
+**Forced both guards myself rather than trusting the demonstrations. Both hold.**
+  - `--check` fail-open: I ran it with a stale `rebuilt.json` that was BYTE-IDENTICAL to the committed
+    fixture - the strongest possible false positive - and a `PYTHON` shim that passes `--list-ways` through
+    and exits 1 on `--build`. Steps 1 and 2 ran normally, then `BUILD FAILED: etl.oracle --build exited
+    non-zero`, exit 2, with `rebuilt.json` deleted before the build rather than left to be diffed.
+  - getid total failure: with all 3318 requested ids absent from the extract, `0 of 3318 requested ways came
+    back` / `TOO FEW WAYS: 0 of 3318 (floor 3152)`, exit 2. The 21-missing case still passes, and the
+    end-to-end run from a wiped `work/curvature-oracle` still gives `FIXTURE OK`, funnel
+    `3318 / 3297 / 2571 / 2384`, with osmium naming exactly 21 ids.
+
+**MAJOR - I got past the way-count floor completely, and the result ships green.** The floor is
+`requested * 95 / 100` where `requested` is `wc -l` of the ids file step 1 just wrote - so it measures the
+loss between what was ASKED for and what came back, and is blind to any loss that happens BEFORE the request.
+That is the same shape as the bugs this task has been fixing for four rounds: a number checked against
+another number from the same pipeline. Demonstrated, with step 1 emitting 300 of the 3318 ids:
+
+      1/3  300 ways
+      2/3  298 of 300 requested ways came back        <- 99.3%, floor 285, guard satisfied
+      3/3  funnel single_way 3318 / have_geometry 298 / geometry_identical 242 / no_squash 226
+           oracle: wrote 226 way(s)
+
+The committed suite then passes **in full** in the pinned image against that fixture - zero failures, not one
+red test - and `ops/etl-oracle-report` prints `fixture 213/226 = 94.248%   median 0.06911%   p90 1.1575%`,
+which reads like a perfectly ordinary result. `test_the_fixture_is_not_trivially_small` asks for 200 and gets
+226. So an oracle built from 9% of the published data is indistinguishable from the real one by every gate in
+the repository. A shortfall AFTER the request is permitted too: asking for 3153 of 3318 passes the floor and
+moves the population 2384 -> 2244. The only thing anywhere that catches either is `--check`'s diff - which,
+as the owner says, is invoked by no gate. That makes the "works and never runs" residual the load-bearing
+one, not a tidy-up. For completeness the empty case IS caught: 0 ids gives a 0-way fixture, `--build` returns
+2, and the new exit-code check stops it - and if it somehow got through, 8 tests go red on a 0-way fixture.
+
+**MAJOR - `ops/etl-oracle-report --with-population` still has the exact defect just fixed in its sibling.**
+It tests the export with `-f` only, and "exists" is the wrong question there too. Run in the state the
+owner's own last demonstration left the tree in - a 1-byte `subset.geojsonseq` from the all-ids-absent run -
+it printed, exit 0, no warning:
+
+      population (subset.geojsonseq)         0/0     =   0.000%   median  0.00000%   p90  0.0000%
+        funnel: {'single_way': 3318, 'have_geometry': 0, ...}
+
+This is the script whose whole purpose is to be the one place the number may be quoted from. A 0/0 is
+obvious; the dangerous version is the one above, where a truncated export yields a plausible 94.248%.
+
+**BLOCKER - `TestTheUpstreamConstantsArePinnedByValue` does not pin the constant it cites as its own model,
+and says in two places that something else does.** The class is new this round and closes the two instances I
+named. The class it belongs to is not closed, and the reason is written into the tree as a fact:
+
+  - `test_curvature.py:118` - "the constants are pinned here ... exactly as RAD_EARTH_M is pinned by
+    `test_distance_matches_a_known_separation`."
+  - `test_curvature.py:252-253` - "The constant is held by `test_distance_matches_a_known_separation`
+    instead, which compares against an exact value."
+
+It does not compare against an exact value. It is
+`expected = cv.RAD_EARTH_M * math.pi / 180` against `cv.distance_on_earth(44,-72.8,45,-72.8)`, which is
+`acos(...) * RAD_EARTH_M`. Both sides are proportional to the constant, so it is the same self-comparison as
+the two that were just fixed. Measured, with the module attribute set rather than the file edited:
+
+      RAD_EARTH_M     distance(44,45)   expected          passes?
+          6373000     111229.833230     111229.833230     PASS
+          6378137     111319.490793     111319.490793     PASS   <- the WGS84 swap the docstring warns about
+                1          0.017453          0.017453     PASS
+       1000000000   17453292.519942   17453292.519943     PASS
+
+And swept in the SOURCE, whole suite in the pinned image: `RAD_EARTH_M 6373000 -> 6378137` is **caught by
+nothing**. Nothing else in the tree pins it either - the only other `6373000` literals are in
+`test_oracle_select.py`, where they PLACE test points, so a 0.08% change moves the 25 m node to 25.020 m and
+the 45 m node to 45.036 m and both tests stay green (checked, not assumed).
+
+Why this blocks rather than being a second INFO. It is not that a pre-existing test is weak; it is that the
+new code closing this defect states, twice, that this instance is already closed - and that statement is the
+reason RAD_EARTH_M is absent from a class named `TestTheUpstreamConstantsArePinnedByValue`. The constant left
+unpinned is the one `curvature.py:21` singles out as the tidy-up an agent would make, and the one the log has
+claimed since round 1 is "held by an exact-value unit test instead". A false sentence in the place designed
+to stop the next person checking is worse than the silence it replaced. I will say plainly that my own
+round-3 wording helped cause this - I wrote "two of the five constants ... have no guard at all", which
+cleared RAD_EARTH_M implicitly and on no evidence. That is my error and it does not change the fact. The fix
+is one or two lines and the file has room: 294 of 300.
+
+**The rest of the sweep, and two more constants with no pin.** All five of the owner's demonstrations
+reproduce, each failing exactly the named test - `MAX_RADIUS 10000->100000` and `DEGENERATE_RADIUS 10000->0`
+to `test_the_radius_caps`, `LEVEL_1_MAX_RADIUS 175->200` and `LOOK_AHEADS 3..7->3..6` to
+`test_the_deflection_filter_constants`, a band weight `1.3->1.4` to `test_the_curvature_bands` plus 6
+behavioural. Sweeping the rest of `etl/`:
+
+      GEOMETRY_TOL_M 1 -> 5          caught by test_geometry_differing_by_more_than_a_metre_is_a_different_road
+      SQUASH_RADIUS_M 30 -> 45       CAUGHT BY NOTHING
+      CELL_DEG 0.0005 -> 0.0002      CAUGHT BY NOTHING
+
+`SQUASH_RADIUS_M` is a selection constant: it decides the population the headline is computed over. The one
+test that could pin it, `test_a_tagged_node_beyond_thirty_metres_does_not`, places its node at 45.000032 m -
+exactly the value I swept to - so `<= 45.0` is False by 32 microns and it stays green. Measured effect is
+small and I will say so: population 2384 -> 2378 at 45 m, -> 2387 at 15 m. `CELL_DEG` at 0.0002 changes the
+funnel by nothing at all today, though at that value a cell is ~22 m against a 30 m radius and a one-cell
+neighbourhood no longer guarantees the search. Both are MINOR next to the earth radius; both are the same
+shape. `etl/curvature.py` and `etl/oracle_select.py` verified sha256-identical after every mutation.
+
+**The test count is wrong for the fourth round running, and this time it predates its own commit.** The
+pinned image reports `tests="159" failures="0" errors="0" skipped="1"` - 158 passed. The log says "155
+passed, 1 skipped (156 collected)". 159 - 156 = 3, which is exactly the three tests in
+`TestTheUpstreamConstantsArePinnedByValue` that this commit adds: the verification line was measured before
+the change it is verifying. The same block's own `ops/test linux=209` proves it internally - 209 minus the 50
+non-pytest tests is 159, not 156.
+
+**Info, not blocking:**
+- `ops/check-pins` and `ops/queue-check` still use `cd "$(git rev-parse --show-toplevel)"`, so from WSL
+  against this Windows worktree both die with `fatal: not a git repository:
+  /mnt/c/.../wt/T-0025/C:/Users/.../worktrees/T-0025` and exit 2. That is the same defect the owner fixed in
+  the two new scripts; it is pre-existing and outside this task's `touches:`, but it means no single shell
+  can run all four gates - the etl suite and `--check` need WSL, those two need git-bash.
+- With every id absent, the wrapper's `grep ... | head -3` prints all 3318 missing ids on one ~40 KB line.
+- The owner left `work/curvature-oracle/` holding the 204-byte pbf and 1-byte export from their own MAJOR-2
+  demonstration. Gitignored, so not a tree problem - but it is the state that made the `0/0 = 0.000%` report
+  above reachable by simply running the next command. I have left it holding a good rebuild.
+- The `reviewer:` field still names agent/reviewer-30. Rounds 3 and 4 were agent/reviewer-34.
+
+**On the three residual weaknesses the owner names: I agree with all three, and one is worse than stated.**
+`--check` being fail-closed but invoked nowhere is not a placement question - my 226-way demonstration shows
+its diff is the ONLY check in the repository that can catch a silently shrunken oracle, so it is the guard
+the whole rebuild story rests on. The 95% floor being underived is right, and I got past it. 294 of 300 lines
+is right, confirmed, and the fix for the blocker above fits inside it.
+
+**Verification, run fresh, this round - all four gates:**
+- etl suite in the pinned `scenic-etl` image -> junit `tests="159" errors="0" failures="0" skipped="1"`,
+  exit 0.
+- `bash ops/test` -> `TESTS linux=209/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0 (git-bash; it cannot
+  run from WSL).
+- `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0.
+- `bash ops/queue-check` -> `QUEUE OK (50 tasks)`, exit 0.
+- `ops/etl-curvature-fixture --check` from a wiped work dir -> `FIXTURE OK`, exit 0.
+- `git ls-files -s` shows `100755` on both new ops scripts. Working tree clean; the fixture, `curvature.py`,
+  `oracle_select.py` and `test_curvature.py` all sha256-identical to their committed contents afterwards.
+- **There is no CI signal of any kind.** GitHub Actions is disabled repo-wide (T-0053, spending limit
+  exhausted). That is deliberate and is not this diff's fault, but it means every statement above, and every
+  statement in the owner's log, rests on one machine with one glibc and one ucrt.
+
+**What I re-derived by running code:** all fourteen mechanism numbers on the committed fixture with my own
+dumper on three interpreters (Linux 3.12.3, Windows 3.10.11, Windows 3.14.5); the acos/sin/cos ULP analysis
+including the 13359 = 10543 + 2816 arithmetic; the worst-case pair and its condition number; the 3.10-vs-3.14
+field-by-field difference that rules out compensated `sum()`; both forced guard failures; the 226-way
+under-built fixture passing the whole suite; the 5% post-request shortfall; the nine-constant source sweep
+with sha256 verification; the RAD_EARTH_M self-comparison at four values; the population effect of
+SQUASH_RADIUS_M and CELL_DEG; the bit-for-bit rebuild and its 21 missing ids; and all four gates.
+**What I took on trust:** the upstream `adamfranco/curvature` source - I did not re-fetch it this round at
+all, relying on rounds 1-3's line-by-line comparisons, which themselves used `master` rather than a pinned
+SHA; that the `same_geometry` 1 m and `near_tagged_node` 30 m thresholds are the right ones (I measured what
+they do, not that they are correct against the source); the KMZ's published values, which are the oracle; and
+a third libm, which nobody here has.
+
+**FAIL.** Leaving in `queue/review/`. Everything the last round asked for was done, and done carefully -
+the mechanism numbers are now measured on the artifact that shipped, both guards close the holes they were
+written for, and I could not find a wrong number anywhere in the diff. What fails is that the fix for the
+class of defect declares the remaining instance already fixed, in the file whose job is to be believed. Fix:
+pin `RAD_EARTH_M == 6373000` in `TestTheUpstreamConstantsArePinnedByValue`, correct the two docstrings that
+say `test_distance_matches_a_known_separation` holds it, and decide whether `SQUASH_RADIUS_M` belongs there
+too. The two MAJORs - a floor that cannot see a pre-request shortfall, and a report that will print a
+population figure from any file that exists - are real and measured, but neither is what blocks this.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
