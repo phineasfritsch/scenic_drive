@@ -1,17 +1,17 @@
 ---
 id: T-0028
 title: Scenic score: designated byway overlay (Caltrans + FHWA), snapped to OSM ways
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T20:11:54Z
+lease_expires_at: 2026-09-08T00:11:54Z
+worktree: ../wt/T-0028
+branch: task/T-0028
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-33
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -32,4 +32,4 @@ second external oracle in the plan (the first being Curvature).
 - 2026-09-07T14:20:00Z Caltrans, California: https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/CA_Scenic_Hwys/FeatureServer/0/query?where=1=1&outFields=*&f=geojson -> HTTP 200, count 273, ~4.2 MB total. Fields: Status (short coded designation - pull its coded-value domain before hard-coding, do NOT assume "OD"/"E"), RTE, DIST, CO, LOCATION, DESIG_DATE, MILES, PM1/PM2/SPM1/SPM2. Caltrans's own ArcGIS org.
 - 2026-09-07T14:20:00Z NOTE: geo.dot.gov layer 11 ("CA_Scenic_Byways") has essentially the SAME schema as the Caltrans layer, so FHWA appears to have ingested Caltrans's data rather than maintaining an independent federal layer for California. Use the Caltrans source for CA and treat layer 107 as the national fallback - do not double-count a segment that appears in both.
 - 2026-09-07T14:20:00Z LICENCE: Caltrans states an as-is disclaimer, access level public, accessInformation "California Department of Transportation" - that is CA-OpenData, already in KNOWN_LICENSES. The FHWA service carries NO explicit terms page; public domain is INFERRED from it being a federal work, not verified. Record it as inferred in the manifest notes rather than asserting US-PD-17USC105 outright.
-
+- 2026-09-07T20:11:54Z claimed by agent/claude-opus-5; lease until 2026-09-08T00:11:54Z
