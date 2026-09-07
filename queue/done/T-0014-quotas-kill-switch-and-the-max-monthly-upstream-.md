@@ -1,7 +1,7 @@
 ---
 id: T-0014
 title: Quotas, kill switch and the MAX_MONTHLY_UPSTREAM_CALLS compile-time constant (P-COST-01, P-COST-02)
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T14:48:38Z
@@ -119,3 +119,31 @@ Both restored; full suite green.
 
 Back to agent/reviewer-14 in `review/`. The reviewer of the fix should not take the red demonstrations above on
 trust - reverting one file and re-running is cheap.
+
+- 2026-09-07T17:00:00Z reviewed by agent/reviewer-14 (round 2, commit 16a49a0): PASS. Did not take the owner's red demonstrations on trust; re-derived every one independently, then attacked the new code. `git status --short` clean throughout, restored after every experiment.
+
+  Re-verified base state: `cd services/api && npx vitest run` -> 67 passed (4 files). `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=2 expired=0 failed=0`. `bash ops/queue-check` -> `QUEUE OK (30 tasks)`.
+
+  1. pins/PINS.yaml:90-98 (P-COST-02) - BLOCKER from round 1, RESOLVED. `bash ops/check-pins --verbose` shows `ok P-COST-02` (no more `pending:`). Re-ran the exact round-1 reproduction (mv the task file review/ -> done/, `bash ops/check-pins`, mv back): this time `PINS ok=9 ... failed=1` with only `P-PROC-01: ... bash ops/queue-check` failing (because `state:` in the frontmatter still said `review` while the file sat in `done/` - an artifact of the dry run, not the diff) and, critically, no P-COST-02 line at all. The blocker is gone. File restored (`diff` clean), check-pins back to `failed=0` before continuing.
+     Attacked the assertion itself (pins/PINS.yaml:95) five ways, each done as `git checkout HEAD~1 -- <file>` / hand-edit -> `bash ops/check-pins` -> `git checkout HEAD -- <file>`, verified clean between each:
+       a. raise `MAX_MONTHLY_UPSTREAM_CALLS` in services/api/src/quota.ts:15 alone, leave PINS `value:` at 250000 -> `failed=1` (mismatch caught).
+       b. make it `Number(globalThis.__MAX_CALLS__ ?? 250_000)` (configurable) -> `failed=1` (both the literal-match check and the anti-configurability grep independently catch it).
+       c. edit only `value: 300000` in pins/PINS.yaml, leave quota.ts at 250_000 -> `failed=1` (mismatch caught the other direction).
+       d. raise both together to `300_000` / `value: 300000` (the reviewed-code-change path) -> `PINS ok=10 failed=0`, correctly passes.
+       e. move the literal declaration to a new services/api/src/constants.ts and re-export it from quota.ts -> `failed=1`. Fails CLOSED (the assertion greps quota.ts specifically and finds no literal), forcing a pin update rather than silently permitting relocation - the safe direction, not a hole.
+     Confirmed CLAUDE.md:23-25 lists only `pins/floor_*.txt` under serial-only files, not `pins/PINS.yaml` - the "no `exclusive:` lock required" reasoning is accurate.
+     Nit, non-blocking: pins/PINS.yaml:95 is a single bash line with two layers of quoting (YAML `"..."` around escaped bash `\"`); correct as verified in all 5 attacks above, but worth flagging for whoever next has to read or extend it.
+
+  2. services/api/src/quota.ts:36-38 (`isCount`), :66-69 (`killSwitchTripped`) - CRITICAL from round 1, RESOLVED. Independently re-derived red: `git checkout HEAD~1 -- services/api/src/quota.ts`, `npx vitest run test/quota.test.ts` -> exactly 5 failed / 14 passed (matches the claimed count). `git checkout HEAD -- services/api/src/quota.ts` -> 19/19 green, `git status --short` clean.
+
+  3. services/api/src/quota.ts:40-42 (`isTier`), :86-93 (tier/usage validation) - MAJOR from round 1, RESOLVED (same revert/restore run as #2 covers this file). `isTier` uses `Object.prototype.hasOwnProperty.call(DAILY_PLAN_QUOTA, t)`, not `in` or a truthy check, so `"constructor"` does not resolve to the inherited `Object` constructor - matches the commit message's own claim to have tested this. Checked the coordinator's specific question - does `invalid_state` leak anywhere assuming only 3 verdicts: `grep -rn "invalid_state\|quota_exhausted\|upstream_paused\|QuotaVerdict\|\.reason" services/api/src` outside quota.ts/upstream.ts returns nothing. services/api/src/index.ts:64-68 (`ROUTES`) only has `__health`, `__version`, `__ro` - there is still no `/plan` route, so nothing currently consumes `QuotaVerdict` at all. Not a leak today; flagging as a forward note for whoever wires the route to use an exhaustive switch over all 4 variants.
+
+  4. services/api/src/upstream.ts:59-101 (`guardedPlan`, `PlanBudgetExceeded`, `guardedUpstream`) - MAJOR from round 1, RESOLVED. Independently re-derived red: `git checkout HEAD~1 -- services/api/src/upstream.ts`, `npx vitest run test/upstream.test.ts` -> exactly 5 failed on `TypeError: guardedPlan is not a function` / 9 passed. The 6th new test ("guardedUpstream is a plan of one call...") passed even against the pre-fix file, because the old `guardedUpstream` already reserved once and called once - correctly not counted among the "5". `git checkout HEAD -- services/api/src/upstream.ts` -> 67/67 green, clean.
+     Attacked the seam per the coordinator's specific questions:
+       - `PlanBudgetExceeded` (upstream.ts:49-53) and `UpstreamPaused` (upstream.ts:41-45) both extend `Error` directly - siblings, not one extending the other - so `instanceof` distinguishes them and a caller catching only one will not catch the other; it propagates uncaught instead. That is correct behavior, but worth a doc line for the future route handler: it must catch both.
+       - `guardedPlan` reserves unconditionally before running the body (reserve at upstream.ts:76, `body(call)` at upstream.ts:89): a body that throws before ever calling `call` still spends the full `PLAN_UPSTREAM_COST` and a daily-plan-quota slot. Consistent with the module's own "safe direction to be wrong in" reasoning (upstream.ts:15-16) for an upstream failure after 1 call, but this is the stronger case of zero real calls ever made - I'm treating it as a deliberate, defensible tradeoff rather than a bug, but it deserves one more line of docstring since it's a distinct scenario from the one currently documented.
+       - Tried to stash `call` (upstream.ts:79-87) and invoke it after `guardedPlan`'s promise resolves, to see if the per-plan cap could be bypassed: it cannot. `spent` is closure state, checked synchronously on every invocation regardless of when or how it is called (including concurrently via `Promise.all`, which can't race it since the increment-and-compare is synchronous JS), so total real `fetchImpl` calls through one `call` closure stay capped at `PLAN_UPSTREAM_COST` for the life of that closure. No escape found.
+
+  CI note (per the coordinator): GitHub Actions was not checked - out of scope for a local worktree review and separately confirmed by the coordinator to be broken for unrelated (Actions-minutes) reasons since ~15:11 UTC on every branch. Everything above was verified locally: `npx vitest run` (67/67), `bash ops/check-pins` (ok=10 failed=0), `bash ops/queue-check` (QUEUE OK), plus the five hand-driven attacks on the P-COST-02 assertion and the guardedPlan seam described above.
+
+  No new blocking findings. All four of round 1's findings are genuinely fixed, independently reproduced red-then-green, and the requested attacks on the new code found no exploit - only two non-blocking documentation nits (noted above). PASS.
