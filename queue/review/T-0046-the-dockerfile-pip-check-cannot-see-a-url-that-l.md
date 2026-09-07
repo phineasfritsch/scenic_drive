@@ -440,3 +440,128 @@ Handing off to agent/reviewer-29.
   minimum strip a leading `"`/`'` before the `./`/`../`/`/` prefix check) or document unquoted-only
   coverage explicitly and accept the narrower claim - given this file's history, the docstring must say
   exactly which one was chosen. Left in `queue/review/`.
+
+- 2026-09-07 agent/builder-9: **round 3 - stopped trying to model pip's grammar and failed closed
+  instead**, per the coordinator's steer and reviewer-29's own framing. Did not attempt to fix bundling by
+  getting the first-vs-last letter right; instead removed the assumption that any bundle can be resolved
+  at all.
+
+  **Why not another round of "fix the specific shape":** two rounds, two new genuine bypasses, both real
+  insights about a grammar this file does not own and that pip itself has changed across versions
+  (`-C`/`--config-settings` did not always exist; flag sets differ between pip releases). That is the exact
+  signature CLAUDE.md's premise section names - "agents report success on broken work" - applied to a test
+  file, not application code: each fix *was* correct for the shapes it was shown, and still left a new one,
+  because the actual failure mode was never "wrong regex," it was "modeling a moving target." The file
+  already has two working examples of the honest alternative -
+  `test_the_parser_is_not_silently_blind_to_a_heredoc_run` and this test's own prior "fail closed on the
+  flag, not on what it points to" framing - so this round extends that same idea one level further: fail
+  closed on the *shape of the invocation*, not just on the flags this check happens to recognize.
+
+  **What changed** (`services/etl/tests/test_dockerfile.py`):
+  - `pip_indirect_targets(args)` is now a whitelist, not a blacklist. A token is safe only if positively
+    recognized as one of: a small curated list of long boolean flags (`PIP_BOOLEAN_FLAGS_LONG` - `--user`,
+    `--upgrade`, `--no-cache-dir`, `--break-system-packages`, ~20 others, all stable/unambiguous), a small
+    curated list of long/short destination-value flags (`PIP_DESTINATION_VALUE_FLAGS_LONG` /
+    `PIP_DESTINATION_VALUE_LETTERS` - unchanged in spirit from round 2, `--target`/`-t`, `--prefix`,
+    `--index-url`, etc.), or a bare word that is not a flag, not quoted, not a `$` substitution, and does
+    not look like a local path. Everything else - including a flag this check has simply never heard of -
+    is now itself the failure, with a reason string naming why.
+  - **Bundling is no longer modeled at all.** Any short-flag token with more than one letter after the `-`
+    (`-tf`, `-qr`, `-qt`, anything) fails closed unconditionally, regardless of which letters are in it.
+    This closes reviewer-29's `-tf -r requirements.txt` finding directly - `-tf` fails on its own, before
+    the parser ever has to reason about what it does to the following `-r` - and it also closes the whole
+    *class* (any two-letter-or-more bundle) rather than the one construction demonstrated. Only single,
+    unbundled short letters are still individually classified.
+  - **Quoting**: added `_dequote(tok)`, which strips one matched pair of leading/trailing shell quotes
+    (Docker's shell form does exactly this before pip ever sees the argument) and reports `resolvable=False`
+    - itself now a failure - when a quote character is present but does not form a clean matched pair
+    around the whole token (almost always meaning the true argument had an internal space and was torn into
+    several fake tokens by this file's plain `.split()`, which this check will not try to reassemble).
+    Closes both `"./localpkg"` and `'./localpkg'` directly, and closes the broader class of "any quoting
+    this tokenizer cannot cleanly undo," not just the two demonstrated forms.
+  - **`$` substitution**: any token containing `$` now fails closed, reversing round 2's decision to leave
+    `pip install $REQS` (no flag at all) open. Reasoning for the reversal, since the log is supposed to
+    carry it either way: a bare variable in target position is indistinguishable from `-r $REQS` with the
+    flag stripped by a careless edit, and the false-positive concern that justified leaving it open -
+    `pip install "requests==${PIN}"`, an ARG-substituted version pin - genuinely does now fail too, and
+    that is accepted as the cost of the strategy, not an oversight: `--target $DIR` / `--prefix $DIR` (a
+    `$` inside a value already skipped as a known destination, never even inspected) still pass, so the
+    strictness lands on install *sources*, specifically, not on every dollar sign in the invocation.
+  - Rewrote both docstrings (`pip_indirect_targets` and the test) to describe the whitelist model, name
+    round 1 and round 2's specific failures and why each was a grammar-modeling problem rather than a typo,
+    and state plainly that this file no longer tries to keep up with pip's CLI surface.
+
+  **Deliberate behavior change, not required by either round's probe list, worth recording anyway:**
+  `pip install -qt /opt` - confirmed clean by reviewer-29 in round 2 under the old (bundling-modeled)
+  design - now fails closed too, since it is a bundle, full stop. This is intentional: the whole point of
+  refusing to parse bundles is that this check no longer tries to tell a harmless one from a dangerous one.
+
+  **RED before fix, all three round-3 findings, real Dockerfile + pytest harness** (test file pinned to
+  `91e7d7f`, the commit reviewer-29's round-2 review left the task in, swapped into
+  `tests/test_dockerfile.py`, run against the Dockerfile with the relevant `COPY` and the bypass line
+  appended):
+
+      RUN pip install -tf -r requirements.txt   (after COPY requirements.txt .)        -> 10 passed
+      RUN pip install "./localpkg"              (after COPY localpkg/ ./localpkg/)     -> 10 passed
+      RUN pip install './localpkg'              (after COPY localpkg/ ./localpkg/)     -> 10 passed
+
+  All three reproduce reviewer-29's round-2 findings live, independently, not on their say-so.
+
+  **GREEN after fix, same three constructions, same harness** (live, round-3 test file restored):
+
+      RUN pip install -tf -r requirements.txt
+      -> 1 failed: [('-tf', 'a bundled short flag - bundling order is not modeled'),
+                    ('-r', 'an unreadable target flag')]
+
+      RUN pip install "./localpkg"
+      -> 1 failed: [('"./localpkg"', 'a local path')]
+
+      RUN pip install './localpkg'
+      -> 1 failed: [("'./localpkg'", 'a local path')]
+
+  Dockerfile restored after each run; `git diff --stat Dockerfile` / `git status --porcelain Dockerfile`
+  empty at every checkpoint.
+
+  **Full false-positive list re-run through the real Dockerfile + pytest harness, including the two new
+  required probes:**
+
+  Stay green (`10 passed`): `pip install requests`, `pip install 'requests==2.31.0'`,
+  `pip download -r x.txt`, `apt-get install -y python3-yaml`, `grep -r foo /etc`, `rm -r /tmp/foo`,
+  `cp -r /a /b`, `pip install --target /opt/vendor requests==2.31.0`,
+  **`pip install --prefix /usr/local requests`** (the probe reviewer-29 named explicitly),
+  `pip install -t /opt/vendor requests`, `pip install --no-color requests`,
+  `pip install --upgrade requests` - confirmed, none fire.
+
+  Go red (`1 failed` on the new test): `pip install -qr requirements.txt`, `pip install ./localpkg`
+  (round-1 bypasses, still caught), `pip install -tf -r requirements.txt`,
+  `pip install "./localpkg"`, `pip install './localpkg'` (round-2 bypasses, now caught),
+  `pip install $REQS` (reversed decision - now caught), `pip install -r $REQS`,
+  `pip install --requirement=req.txt`, `python -m pip install -r req.txt`, `pip3 install -e .`,
+  `pip install -c constraints.txt`, `/usr/bin/pip3 install -r req.txt` - confirmed, all fire with a
+  message naming the offending token and why.
+
+  `pip install --index-url https://example.org/simple somepkg` still correctly fails via the pre-existing,
+  untouched `test_nothing_is_pip_installed_from_a_url_or_a_repo` (`PIP_FROM_NETWORK`), not this test -
+  unaffected by this round's changes, as expected.
+
+  **Committed-blob byte check** (after commit, before push): `git show HEAD:services/etl/tests/
+  test_dockerfile.py | python -c "import sys; d=sys.stdin.buffer.read(); print(len(d), d.count(b'\x08'))"`
+  -> reported once committed, below; verified in the working tree first: 20005 bytes, `0` occurrences of
+  `\x08`. `cat -A` on the new `_dequote`/`pip_indirect_targets` code shows plain `$`-terminated lines
+  throughout, no control-character artifacts.
+
+  **File length**: `services/etl/tests/test_dockerfile.py` is now 337 lines. CLAUDE.md's 300-line cap
+  (pin P-SRC-02, `bash ops/lib/check-line-cap`) only scans `Sources`/`Tests` `*.swift` files under the iOS
+  package - confirmed by reading the pin's assertion and `ops/lib/check-line-cap` directly - so this Python
+  test file is not in scope for that cap, and `bash ops/check-pins` stays green with this file at its
+  current length. Noted rather than silently exceeded.
+
+  **Full verification, unchanged from prior rounds:**
+
+      cd services/etl && python -m pytest -q tests/        -> 46 passed
+      bash ops/test                                          -> TESTS linux=96/76 ios=skipped failed=0 skipped=0 / OK
+      bash ops/check-pins                                    -> PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+      bash ops/queue-check                                   -> QUEUE OK (46 tasks)
+
+  Only `services/etl/tests/test_dockerfile.py` is touched; `git diff --stat services/etl/Dockerfile` is
+  empty. `git status --porcelain` shows a single ` M`. Handing back to agent/reviewer-29.

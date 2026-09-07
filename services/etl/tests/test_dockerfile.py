@@ -36,11 +36,12 @@ PIP_FROM_NETWORK = re.compile(
 # name, and this parser has no way to read it too.
 PIP_UNREADABLE_TARGET_FLAGS_LONG = ("--requirement", "--editable", "--constraint")
 
-# Long flags that also take a value, but the value is not an install source - a destination directory, an
-# index host, a timeout, ... Their value must be skipped when looking for a bare local-path target, or a
-# perfectly ordinary `pip install --target /opt/vendor requests` would be misread as installing from
-# "/opt/vendor".
-PIP_VALUE_FLAGS_LONG = PIP_UNREADABLE_TARGET_FLAGS_LONG + (
+# Long flags confidently known to take a value that is NOT an install source - a destination directory, an
+# index host, a timeout, ... Their value is skipped rather than examined, so a perfectly ordinary
+# `pip install --target /opt/vendor requests` is never misread as installing from "/opt/vendor". This is
+# a whitelist, not a blacklist: a long flag that is not on this list, the unreadable-target list, or the
+# boolean list below is treated as unrecognized (see `pip_indirect_targets`), not assumed safe.
+PIP_DESTINATION_VALUE_FLAGS_LONG = (
     "--target", "--root", "--prefix", "--src", "--build", "--cache-dir", "--log", "--python",
     "--platform", "--python-version", "--implementation", "--abi", "--proxy", "--retries", "--timeout",
     "--progress-bar", "--report", "--index-url", "--extra-index-url", "--find-links", "--trusted-host",
@@ -48,15 +49,23 @@ PIP_VALUE_FLAGS_LONG = PIP_UNREADABLE_TARGET_FLAGS_LONG + (
     "--no-binary", "--only-binary", "--exists-action", "--root-user-action",
 )
 
-# Single letters pip's `install` recognizes as short options, split the same way: which spell an
-# unreadable target, and which (that or any other) consume a value. Short options bundle - `pip install
-# -qr requirements.txt` really does parse as `-q` (boolean) then `-r requirements.txt`, confirmed against
-# a real pip: `pip install -qr /tmp/nonexistent_req.txt` fails with "Could not open requirements file".
-# Bundling order does not matter for *whether* -r/-c/-e fired (either letter still triggers it whether it
-# lands mid-bundle, taking the rest of that token as its value, or last, taking the next token) - only for
-# which token holds the value, which is what PIP_SHORT_VALUE_LETTERS is for.
-PIP_SHORT_UNREADABLE_LETTERS = set("rce")  # -r requirement / -c constraint / -e editable
-PIP_SHORT_VALUE_LETTERS = set("rcetibf")  # + -t target / -i index-url / -b build / -f find-links
+# Long flags confidently known to take no value at all - stable, common, unambiguous. Also a whitelist:
+# absence from this list is not evidence of danger, it is just not something this check will vouch for.
+PIP_BOOLEAN_FLAGS_LONG = (
+    "--user", "--upgrade", "--no-deps", "--no-cache-dir", "--no-compile", "--compile",
+    "--no-build-isolation", "--use-pep517", "--check-build-dependencies", "--break-system-packages",
+    "--force-reinstall", "--ignore-requires-python", "--no-warn-script-location", "--no-warn-conflicts",
+    "--prefer-binary", "--no-clean", "--require-hashes", "--no-python-version-warning", "--no-input",
+    "--no-index", "--pre", "--disable-pip-version-check", "--no-color", "--dry-run", "--ignore-installed",
+    "--help",
+)
+
+# Single letters pip's `install` recognizes as short options, UNBUNDLED (see `pip_indirect_targets` for
+# why a bundle of two or more is never resolved at all): which spell an unreadable target, which take a
+# value that is a destination rather than a source, and which take no value.
+PIP_UNREADABLE_TARGET_LETTERS = set("rce")  # -r requirement / -c constraint / -e editable
+PIP_DESTINATION_VALUE_LETTERS = set("tifb")  # -t target / -i index-url / -b build / -f find-links
+PIP_BOOLEAN_LETTERS = set("qvUIh")  # -q quiet / -v verbose / -U upgrade / -I ignore-installed / -h help
 
 
 def pip_install_arglists(run_line):
@@ -72,41 +81,103 @@ def pip_install_arglists(run_line):
     return out
 
 
-def pip_indirect_targets(args):
-    """Everything in one `pip install` invocation's argument list that this parser cannot read the
-    contents of: a `-r`/`-c`/`-e` flag in long form, short form, or bundled with other short flags in
-    either order (`-qr`, `-rq`, ...); or a bare positional path - `.`, `..`, or anything starting with
-    `./`, `../` or `/` - naming a local project with no flag in front of it at all (pip installs a local
-    directory as a plain positional argument; `-e` makes it editable, it does not make it readable).
+def _dequote(tok):
+    """Strip one matched pair of leading/trailing shell quotes - Docker's shell form removes exactly
+    this much before pip ever sees the argument, so `"./localpkg"` and `./localpkg` are the same install.
+    Returns `(content, resolvable)`. `resolvable` is False when a quote character is present but does not
+    form a clean matched pair around the whole token - almost always because the true, space-containing
+    argument was torn into several fake tokens by this file's plain `.split()` tokenizer, which does not
+    understand quoting well enough to reassemble it. That case is reported as unresolvable, not guessed at.
+    """
+    if len(tok) >= 2 and tok[0] == tok[-1] and tok[0] in ("'", '"'):
+        return tok[1:-1], True
+    if "'" in tok or '"' in tok:
+        return tok, False
+    return tok, True
 
-    Flag values that are not themselves install sources (`--target DIR`, `--index-url URL`, ...) are
-    skipped so they can never be mistaken for one - this is what keeps `pip install --target /opt/vendor
-    requests` green.
+
+def pip_indirect_targets(args):
+    """Everything in one `pip install` invocation's argument list that this parser cannot confidently
+    read, resolve, or vouch for.
+
+    This is a whitelist, not a blacklist: a token is only ever treated as safe when it is positively
+    recognized as one of a small number of confidently-understood shapes (a known boolean flag, a known
+    destination-value flag, or a bare word that is not a flag, not quoted, not a `$` substitution, and
+    does not look like a local path). Everything else fails closed, including:
+
+    - `-r`/`-c`/`-e`, long or short, unbundled - the actual unreadable-target flags this check exists for.
+    - **any bundled short flag at all** (two or more letters after a single `-`), regardless of which
+      letters. reviewer-29 proved short-option bundling resolves via the FIRST value-taking letter
+      consuming the rest of that same token, not - as an earlier version of this function assumed - the
+      LAST letter consuming the next token: `pip install -tf -r requirements.txt` resolves as `--target f`
+      then a fully separate `-r requirements.txt`, confirmed against a real pip. Modeling that correctly
+      for every letter pip might ever add is exactly the game of catch-up this file's docstrings already
+      record losing three times (the curl-into-bash test, the upgrade test, and this test's own first two
+      versions). Refusing to parse a bundle at all closes the whole class at once, at the cost of also
+      failing on harmless bundles like `-qt` - a trade this file takes deliberately; see the task log.
+    - a bare positional path (`.`, `..`, or anything starting `./`, `../` or `/`) after quote-stripping -
+      pip installs a local directory as a plain positional argument with no flag required at all.
+    - a token whose quoting cannot be confidently resolved by stripping one matched pair (see `_dequote`).
+    - a token containing `$` - a shell/build-time substitution (`ARG`/`ENV`) this parser cannot resolve;
+      it could name a URL, a `git+` ref, or a `-r` file just as easily as a version pin.
+    - a long or short flag that is not on one of the three small, explicitly-curated lists above - an
+      "unrecognized flag" is a flag this check does not know it can vouch for, not a flag assumed safe.
+
+    None of this reads what a target *contains* - only whether the argument list names one this parser
+    cannot see into, or contains something it cannot confidently classify at all.
     """
     offenders = []
     skip_next = False
-    for tok in args:
+    for raw_tok in args:
         if skip_next:
             skip_next = False
             continue
-        head = tok.split("=", 1)[0]
-        if head in PIP_UNREADABLE_TARGET_FLAGS_LONG:
-            offenders.append(tok)
-            skip_next = "=" not in tok
+
+        tok, resolvable = _dequote(raw_tok)
+        if not resolvable:
+            offenders.append((raw_tok, "a quoted argument this check cannot confidently resolve"))
             continue
-        if head in PIP_VALUE_FLAGS_LONG:
-            skip_next = "=" not in tok
+        if "$" in tok:
+            offenders.append((raw_tok, "a shell/build-arg substitution this parser cannot resolve"))
             continue
+
         if tok.startswith("--"):
+            head = tok.split("=", 1)[0]
+            if head in PIP_UNREADABLE_TARGET_FLAGS_LONG:
+                offenders.append((raw_tok, "an unreadable target flag"))
+                skip_next = "=" not in tok
+                continue
+            if head in PIP_DESTINATION_VALUE_FLAGS_LONG:
+                skip_next = "=" not in tok
+                continue
+            if head in PIP_BOOLEAN_FLAGS_LONG:
+                continue
+            offenders.append((raw_tok, "a long flag this check does not recognize"))
             continue
+
         if tok.startswith("-") and len(tok) > 1:
             letters = tok[1:]
-            if any(c in PIP_SHORT_UNREADABLE_LETTERS for c in letters):
-                offenders.append(tok)
-            skip_next = bool(letters) and letters[-1] in PIP_SHORT_VALUE_LETTERS
+            if len(letters) > 1:
+                offenders.append((raw_tok, "a bundled short flag - bundling order is not modeled"))
+                continue
+            letter = letters
+            if letter in PIP_UNREADABLE_TARGET_LETTERS:
+                offenders.append((raw_tok, "an unreadable target flag"))
+                skip_next = True
+                continue
+            if letter in PIP_DESTINATION_VALUE_LETTERS:
+                skip_next = True
+                continue
+            if letter in PIP_BOOLEAN_LETTERS:
+                continue
+            offenders.append((raw_tok, "a short flag this check does not recognize"))
             continue
+
         if tok in (".", "..") or tok.startswith(("./", "../", "/")):
-            offenders.append(tok)
+            offenders.append((raw_tok, "a local path"))
+            continue
+        # else: an ordinary requirement specifier - a package name, optionally pinned or extras'd - and
+        # therefore safe as far as this check goes.
     return offenders
 
 
@@ -208,33 +279,48 @@ class TestTheImageIsPinned:
         text, and `-r requirements.txt` does not put a URL there - it puts a filename there, and the URL
         lives one COPY away, someplace this parser never opens.
 
-        First version of this test only matched `-r`, `-e` and `-c` as the literal first two characters
-        after a word boundary, and a bare `.` as an isolated token. reviewer-29 got two ordinary
-        constructions past it, both 10/10 green: `pip install -qr requirements.txt` (pip bundles short
-        options - `-qr` really is `-q` then `-r requirements.txt`, confirmed against a real pip) and
-        `pip install ./localpkg` (pip installs a local project directory as a bare positional argument;
-        `-e` makes it editable, it is not required to make it a local, unreadable target at all - the
-        docstring claiming "editable/local path" coverage for `-e` alone was itself a decorative-check
-        defect, describing coverage the code did not have).
+        This test has been wrong twice trying to model pip's own argument grammar closely enough to tell
+        a safe `pip install` from an unsafe one: version 1 matched `-r`/`-e`/`-c` as literal first-two
+        characters and missed `pip install -qr requirements.txt` (short-flag bundling) and
+        `pip install ./localpkg` (a local directory needs no `-e` at all). Version 2 added bundling and a
+        bare-path check, and was wrong about the bundling itself - it assumed the LAST letter of a bundle
+        draws its value from the next token, when pip actually resolves the FIRST value-taking letter
+        against the REST OF THE SAME token; reviewer-29 proved `pip install -tf -r requirements.txt`
+        resolves as `--target f` then a fully separate, ordinary `-r requirements.txt`, and it also missed
+        `pip install "./localpkg"` / `'./localpkg'`, since a leading quote character defeats a
+        `.startswith(("./", ...))` check. Two rounds, two new gaps, both genuine insights about a grammar
+        this file does not control and that changes between pip versions - the same shape of loss already
+        recorded in this file's docstrings for the curl-into-bash test and the upgrade test.
 
-        This version tokenizes each `pip install` invocation's argument list (`pip_install_arglists`) and
-        walks it (`pip_indirect_targets`) rather than pattern-matching the raw text, so it can tell a flag
-        from its value and a bundled short option from an unrelated one - see those two docstrings for
-        exactly what is and is not covered. It still fails closed on the flag or the bare path, not on
-        what either points to, so adding a genuine indirect target stays a conversation (the check grows
-        to read the file, deliberately) rather than becoming a silent hole again. Fails closed today only
+        Version 3 stops trying to keep up and fails closed instead, the same way
+        `test_the_parser_is_not_silently_blind_to_a_heredoc_run` already does: `pip_indirect_targets` is a
+        whitelist of small, confidently-understood shapes (a short list of known boolean flags, a short
+        list of known destination-value flags, and a bare word that is not a flag/quote/`$`/path), and
+        *anything else in a `pip install` invocation is itself the failure* - a bundled short flag
+        (regardless of which letters - see that function's docstring for why bundling is not modeled at
+        all anymore), an unresolvably-quoted argument, a `$` substitution, or a flag this check does not
+        recognize. The Dockerfile does not use pip at all today, so the cost of this strictness is zero;
+        the cost of being clever about pip's CLI grammar has now been paid three times. Adding a real pip
+        install - bundled flags and all - means widening one of the three whitelists here, deliberately,
+        in the same commit; that is the conversation this test exists to force. Fails closed today only
         because no RUN in this Dockerfile installs from pip.
 
-        Known, deliberately out of scope: `pip install $SOME_VAR` with no `-r`/`-e`/`-c` flag at all - a
-        bare shell variable that could resolve to anything - is not caught. Resolving `ARG`/`ENV`
-        substitution is a different, much larger parser than "read the RUN text"; see the task log for why
-        that was left unfixed here rather than papered over with a broader match.
+        `pip install $SOME_VAR` with no flag at all is now caught too (previously left open, on the
+        reasoning that a broader `$` match would false-positive on an `ARG`-substituted version pin like
+        `pip install "requests==${PIN}"` - a real, legitimate pattern; that reasoning has not changed, a
+        version pin like that would indeed now fail closed here). The decision changed because a bare
+        variable in target position is indistinguishable, by this parser, from `-r $REQS` with the flag
+        stripped off by a careless edit - and `--target $DIR`/`--prefix $DIR` (a `$` in a value this check
+        already skips as a known destination, not examined at all) still pass, so the strictness lands
+        specifically on install *sources*, not on every `$` anywhere in the invocation. See the task log
+        for the full reasoning behind reversing course on this from the previous round.
         """
         offenders = pip_indirect_target_offenders()
         assert not offenders, (
-            "this parser cannot read the contents of a pip install target named this way - "
-            "-r/--requirement, -e/--editable, -c/--constraint (long, short, or bundled with other short "
-            "flags), or a bare local path ('.', '..', './x', '../x', '/x'): " + repr(offenders)
+            "this pip install invocation contains something this check cannot confidently resolve or "
+            "vouch for - an unreadable target flag (-r/-c/-e), a bundled short flag, an unresolvably "
+            "quoted argument, a $ substitution, an unrecognized flag, or a bare local path: "
+            + repr(offenders)
         )
 
     def test_the_parser_is_not_silently_blind_to_a_heredoc_run(self):
