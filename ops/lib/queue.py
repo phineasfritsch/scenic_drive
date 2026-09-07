@@ -150,6 +150,34 @@ def next_id():
     return f"T-{(max(ids) + 1 if ids else 1):04d}"
 
 
+BRIEF_SECTION = re.compile(r"^##[ \t]+Brief[ \t]*$(.*?)(?=^##[ \t]|\Z)", re.M | re.S)
+
+
+def brief_is_unwritten(body: str) -> bool:
+    """True when the `## Brief` section carries no prose of its own.
+
+    Matched on SHAPE, never on `cmd_new`'s placeholder wording. A check anchored on that literal sentence
+    would stop firing the moment somebody rephrases it, and would report every task as fine - which is the
+    failure class this repo keeps finding (the CRLF check in T-0051 could not fire at all; four decorative
+    tests before it asserted things that could not fail). The property that matters is "somebody wrote
+    something here", and a lone parenthetical instruction is not that.
+
+    A missing section counts as unwritten: a task with no Brief heading has even less to be claimed against
+    than one with an empty heading.
+    """
+    m = BRIEF_SECTION.search(body)
+    if m is None:
+        return True
+    for raw in m.group(1).splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("(") and line.endswith(")"):
+            continue          # an instruction to the author, not a brief
+        return False
+    return True
+
+
 def log(path, msg):
     fm, body = parse(path.read_text(encoding="utf-8"))
     if "## Log" not in body:
@@ -274,6 +302,21 @@ def cmd_claim(argv):
             continue
         if state != "ready":
             print(f"{tid} is in {state}/, not ready/")
+            return 1
+        # Refuse a task nobody has written a brief for. Ten task files in this tree still carried cmd_new's
+        # placeholder verbatim when this was added, and one of them - T-0011 - was in queue/done/: signed off
+        # by a reviewer against acceptance criteria that were never written down. An unwritten brief cannot
+        # be argued with, so the work cannot be wrong, which is the same thing as it not being checked.
+        #
+        # Enforced HERE rather than in cmd_check on purpose: eight of those ten are stale copies on main
+        # whose real briefs live on unmerged branches, so a queue-check rule would fail the gate for everyone
+        # until an unrelated billing block clears (T-0053). Claim time is the last moment the failure can
+        # still be prevented, and it cannot be tripped by somebody else's in-flight work.
+        if brief_is_unwritten(body):
+            print(f"{tid} has no brief - the ## Brief section is empty or still the placeholder.")
+            print("Write it, commit it, then claim. What the change is, why, and the exact demonstration")
+            print("that proves it, including the red run. A task nobody wrote a brief for is a task whose")
+            print("acceptance nobody can argue with.")
             return 1
         held = []
         for res in fm.get("exclusive") or []:
