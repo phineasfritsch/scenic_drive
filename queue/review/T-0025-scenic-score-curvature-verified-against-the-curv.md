@@ -316,3 +316,178 @@ every one of the 400 committed way ids falls inside their independently computed
 resample gave 93.8%-97.5%, so the sample is not a lucky draw.
 
 Back to agent/reviewer-30 in `review/`.
+
+### 2026-09-07 - re-reviewed by agent/reviewer-30. FAIL, new BLOCKER.
+
+**The prior BLOCKER is fixed, and I re-derived that myself rather than trusting the log.** Built `scenic-etl`
+fresh from `services/etl/Dockerfile` in a clean WSL clone (`~/sd`, fast-forwarded to this branch's HEAD),
+deleted `services/etl/work` entirely, ran `python -m etl.oracle --list-ways`, then the real `osmium getid` /
+`osmium export` against the pinned `inputs/vermont-osm.pbf` + `inputs/vermont-curvature.kmz`, then
+`python -m etl.oracle --build` against that fresh export. `diff` against the committed
+`services/etl/tests/fixtures/curvature_oracle.json` is empty - bit-for-bit identical, ways/curvatures/coords
+and all. The funnel my fresh run printed (`single_way 3318 -> have_geometry 3297 -> geometry_identical 2571 ->
+no_squash 2307 -> 400`) matches both the committed fixture's `funnel` field and my own from-scratch
+independent re-derivation in the FIRST review round exactly. `oracle_select.py` is a real, working,
+committed pipeline; the previous BLOCKER does not recur.
+
+**`ops/etl-curvature-fixture`'s failure - root cause found, not fixed, per instructions.**
+`ops/etl-curvature-fixture:62` runs `osmium getid --no-progress -r -o ... --id-file ids.txt` with neither
+`-v` nor `--verbose-ids`. Reproduced the exact reported symptom (`getid exited 1`) from a clean state
+(`rm -rf services/etl/work`, no leftover intermediates) in a fresh docker build. Captured stdout+stderr to a
+file inside the mount as the owner suggested: **both are completely empty** even so - osmium's default mode
+prints nothing for this failure. Re-ran with `--verbose-ids` and it revealed the real message:
+`Did not find 21 object(s). Missing way IDs: 9249268 19683289 19702759 ... (21 total)`. 21 of the 3318 way ids
+Curvature's KMZ lists as single-way collections do not exist in the pinned `vermont-osm.pbf` - consistent
+with the "OSM moved" phenomenon already documented for geometry drift, just manifesting as full deletion for
+these 21. `osmium getid -r` exits 1 whenever *any* requested id is missing, **but still writes a complete,
+valid output file** - I confirmed this directly: `subset.osm.pbf` from the failing run is a well-formed 979 KB
+PBF (`osmium fileinfo` succeeds on it), `osmium export` against it succeeds cleanly, and
+`etl.oracle --build` against that export reproduces the committed fixture bit-for-bit (see above). The
+wrapper's `rc=1 -> abort` handling at `ops/etl-curvature-fixture:62-67` - added specifically to surface which
+step fails, per its own comment - is what actually blocks step 3 from ever running; the data was never the
+problem. **Not fixing this** (not my role), but the fix is narrow: add `--verbose-ids` (or `-v`) to the
+`getid` invocation so the real message reaches the log, and/or don't treat getid's exit code as fatal when
+the output file was written successfully.
+
+**Re-attacked the partition. Real, quantified divergence found in condition 3 (no_squash).**
+`oracle_select.py:32-40` derives `NODE_TAGS` and `WAY_TAGS` from `adams_default.sh`. I fetched the actual
+squash post-processor sources from `raw.githubusercontent.com/adamfranco/curvature/master/curvature/
+post_processors/*.py` (not the brief, not the log - the real upstream code) and compared line by line:
+
+- `NODE_TAGS` (`oracle_select.py:33-37`) matches `squash_curvature_near_tagged_nodes.py` exactly for all
+  three invocations in `adams_default.sh` (highway=stop/give_way/.../barrier node values, `traffic_calming`
+  and `barrier` any-value). No divergence.
+- `WAY_TAGS = {"junction", "traffic_calming", "oneway"}` (`oracle_select.py:39`, used by
+  `way_is_squash_tagged` at `:100-102`) is **wrong for `oneway`, and imprecise for `junction`.**
+  `adams_default.sh` uses `oneway` in exactly one processor: `squash_curvature_near_way_tag_change --tag
+  oneway --ignored-values no --distance 30`. Its `process_collection` (fetched from
+  `curvature/post_processors/squash_curvature_near_way_tag_change.py`) sets
+  `current_value = get_value_from_way(collection['ways'][0])`, then for each way (including the first)
+  compares `new_value != current_value` - on a single-way collection this is way 0 compared against itself,
+  always equal, so **the condition can never fire.** Every way in this fixture's universe is, by construction
+  of condition 1, the sole way of a single-way collection - so `oneway` cannot legitimately exclude *any*
+  way here, ever. Measured the actual damage against my fresh export: of the 2571 geometry-identical ways,
+  93 carry an `oneway` tag (any value); 77 of those are excluded *solely* because of it (no other squash-tag,
+  not near a tagged node) - 77 of the 264 ways condition 3 removes (29%). I computed `cv.way_curvature` for
+  those 77 directly: 70/77 = 90.9% agree within 2%, below the reported population average (94.97%/94.54%,
+  see below) but comfortably above the 93% floor. So this bug is not a disagreement-driven cherry-pick, but
+  it does modestly **inflate** the headline: correcting it would grow the eligible population from 2307 to
+  2384 and pull the population agreement rate down, not up (worked example under the platform finding below).
+  `junction` has the analogous defect - `squash_curvature_for_tagged_ways --tag junction --values
+  roundabout,circular` is value-restricted, `WAY_TAGS` is not - but it has **zero measured impact**: 0 of the
+  2571 geometry-identical ways carry a `junction` tag at all in this dataset. `parking:lane` similarly checked
+  (prefix-only match vs. the source's value-restricted regex) with zero measured impact here. The module's own
+  stated design principle - "defined by the SOURCE of the squashes rather than by which ways happen to
+  disagree" (`oracle_select.py:20-21`) - is not actually true for the `oneway` sub-condition: it isn't derived
+  from a real squash mechanism that can apply here, it's a mistaken generalization from "this tag name appears
+  somewhere in adams_default.sh" to "this tag name marks a way as squash-exposed." Rating this MAJOR, not a
+  second BLOCKER on its own: it doesn't flip any test result and the effect is small, but it's a real,
+  concrete divergence with an exact failure count, which is what the task asked me to find.
+
+**NEW BLOCKER - the headline agreement figures are not reproducible on the pinned Linux toolchain, and the
+real margin over the 93% floor is a fifth of what was reported.** Computed `TestAgainstTheCurvatureProject`'s
+exact comparison (`tests/test_curvature.py:120-133`, `cv.way_curvature` against `oracle_curvature`, tolerance
+2%) against the committed 400-way fixture on four separate interpreters:
+
+    Windows Python 3.14.5 (git-bash, this task's own dev box):  378/400 = 94.5000%
+    Windows Python 3.10.11 (a second, independent Windows interpreter):  378/400 = 94.5000%
+    WSL Ubuntu, host Python 3.12.3:                              374/400 = 93.5000%
+    services/etl/Dockerfile's own `scenic-etl` image, Python 3.12.3 (THE pinned toolchain): 374/400 = 93.5000%
+
+The two Linux runs (host and the pinned container) agree with each other bit-for-bit (empty diff over all 400
+per-way errors). The two Windows runs agree with each other exactly too. But Linux and Windows disagree on
+**14 of 400 ways**, and not by rounding noise - by up to an order of magnitude in relative error (way
+19726080: Windows err=1.586% PASS, Linux err=12.919% FAIL; way 19730998: Windows err=0.097% PASS, Linux
+err=4.693% FAIL; way 19687109: Windows err=8.890% FAIL, Linux err=0.155% PASS). Same for the 2307-way
+population (not just the 400-way sample): Windows 2191/2307 = **94.9718%** (matches the claimed "95.0%"/
+"94.97%" exactly - confirming every number in this task's log and PR was computed on Windows); Linux/Docker
+2181/2307 = **94.5384%**.
+
+Root cause, traced to code: `circum_circle_radius()` at `curvature.py:60-65` computes
+`divider = math.sqrt(math.fabs((a+b+c)*(b+c-a)*(c+a-b)*(a+b-c)))` then `radius = (a*b*c)/divider` - Heron's
+formula, inverted. For near-collinear node triples (any straight-ish stretch of road - common), that product
+approaches zero, so `divider` is a tiny value built from small differences of nearly-equal quantities, each
+of which is itself `distance_on_earth()`'s `math.acos(...)` at `curvature.py:48`. `acos`/`sin`/`cos` are
+transcendental functions whose last-bit rounding is implementation-defined and genuinely differs between
+Windows' CRT math library and Linux's glibc - well-documented, longstanding cross-platform libm
+non-portability. A last-bit difference in the inputs gets amplified catastrophically by the near-zero
+`divider`, so the same coordinates produce a materially different radius - sometimes crossing a curvature-band
+threshold (30/60/100/175 m) outright - on different operating systems. This is the code's own acknowledged
+quirk (`curvature.py:52-58`: "`math.fabs` inside the sqrt... yields a real number instead of a domain error
+... Both are load-bearing for matching") faithfully reproduced from upstream - so the ALGORITHM still matches
+Curvature's own implementation on both platforms - but neither the code's docstring, the log, nor the PR
+recognized that this exact quirk also makes the *pass rate* non-portable.
+
+No currently-committed test is red on either platform: 93.5% and 94.5% both clear
+`tests/test_curvature.py:21`'s `MIN_AGREEMENT = 0.93`. This is the finding, not a mechanical test failure -
+but it is load-bearing. `MIN_AGREEMENT`'s own comment says "measured 95.0% ... floor set below it, not at it,"
+and the log/PR repeat "95.0%"/"94.5%" throughout as if the margin over the floor were 1.5-2 points. On the
+pinned toolchain - `services/etl/Dockerfile`'s own stated reason for existing: "when two runs disagree the
+first suspect must never be 'which osm2pgsql was that'" - the real margin on the shipped 400-way fixture is
+**0.5 points**, not 1.5-2. Concrete failure scenario: any future change that shifts even a handful of
+near-degenerate-triangle ways - a glibc point release, a different CPU/compiler ABI, or simply fixing the
+`oneway` bug above (which changes the population from 2307 to 2384 and reshuffles which 400 get sampled,
+since `random.Random(seed).shuffle()` over a changed-length list is not merely additive) - could push the
+pinned-toolchain number under 93% and fail the suite, and whoever hits that will have no reason to suspect
+"the fixture is fine, it's platform-dependent floating point" without this log entry. Neither the fixture
+build (uses only `same_geometry`'s 1 m and `near_tagged_node`'s 30 m thresholds - both many orders of
+magnitude coarser than the platform noise) nor `oracle_select.eligible`'s partition is affected; I confirmed
+the fixture itself rebuilds bit-identically cross-platform. This is isolated to `cv.way_curvature`, i.e. to
+the number the test suite actually asserts on.
+
+**Verified - minor findings from the first FAIL are genuinely corrected in this log.** The owner's
+"owner response" section above states both fixture (94.5%) and population (95.0%/94.97%) figures together
+rather than conflating them, states "'Four meta-tests' is five. Miscounted," and states "pytest is 143, not
+142" - all three match what I independently re-derived. `python -m pytest -q tests/` here: 143 passed
+(counted the dot characters and confirmed exit 0, since this shell doesn't print the summary line either).
+`tests/test_curvature.py` has exactly 5 tests named `test_*_fails_the_oracle`/`test_the_earth_radius_is_NOT_
+detectable*` under `TestAgainstTheCurvatureProject`, confirmed by `grep`. One residual: the **PR #31 body on
+GitHub still says "Four meta-tests" and "142 pytest tests pass"** - the queue log's corrections were never
+propagated there. Not blocking (the task scoped this check to "in the log," and the log is right), but worth
+fixing before merge since the PR body is what most reviewers actually read.
+
+**Checked - deleted geojson reader, file discipline.** `git diff bf8f3a3 HEAD -- services/etl/etl/oracle.py`
+shows `load_geojson_ways` and the `--geojson` CLI flag removed cleanly in the same commit that added
+`kml_geometry`/`--export`; grepped the whole tree for `geojson_geometry|load_geojson|--geojson` and found
+nothing else referencing the old name. `oracle.py` is 155 lines, `oracle_select.py` is 163 - both comfortably
+under the 300-line cap, and both are function-grouped modules in the same style as the rest of `etl/`
+(`curvature.py` 186, `fetch.py` 188, `extract.py` 200 - none of them one-class-per-file either, so this is
+consistent with the existing codebase, not a new violation). No dedicated test file exercises
+`oracle_select.py`'s selection logic in isolation (`way_is_squash_tagged`, `near_tagged_node`,
+`same_geometry`) - the only coverage is the end-to-end 2%-agreement assertion, which is why the `oneway` bug
+above has no test that would catch it either way.
+
+**Verification, run fresh, this round:**
+- `cd services/etl && python -m pytest -q tests/` -> 143 passed (dot count), exit 0.
+- `cd services/api && npm ci --no-audit --no-fund` -> `added 85 packages`; `bash ops/test` ->
+  `TESTS linux=193/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0.
+- `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0.
+- `bash ops/queue-check` -> `QUEUE OK (50 tasks)`, exit 0.
+- All of the above pass on both Windows and the pinned `scenic-etl` Docker image; only the specific 2%-
+  agreement *percentage* (not pass/fail) differs, as detailed above.
+- GitHub Actions on PR #31 still billing-blocked; not treated as this diff's problem, per instructions.
+
+**What I re-derived versus took on trust:** re-derived by actually running code: the fixture's bit-for-bit
+reproducibility (fresh docker build, fresh osmium run, fresh `--build`), the funnel numbers, the `getid`
+root cause (captured real osmium output with `--verbose-ids`), the `oneway` bug and its exact 77/264/90.9%
+impact (ran `way_is_squash_tagged`/`near_tagged_node` myself against a fresh export), and the cross-platform
+agreement figures (four independent interpreters, two OSes). Took on trust: the upstream
+`adamfranco/curvature` source I fetched from GitHub is in fact what `adams_default.sh` invokes at the pinned
+`master` ref - I did not check out a specific commit SHA, only `master` at the time of this review, same
+limitation the first review round had for the five core algorithm files.
+
+**FAIL.** Leaving in `queue/review/`. The prior BLOCKER (fixture not reproducible) is genuinely fixed - good,
+careful work, independently confirmed. This round's BLOCKER is different in kind: the numbers this whole task
+is built on were only ever checked on Windows, and the pinned Linux toolchain this repo explicitly trusts
+gives a measurably different, much-closer-to-the-floor result, for a root cause (libm non-portability hitting
+an intentionally-reproduced ill-conditioned formula) that is understood and named here, not guessed at. Fix
+suggestions, not mine to apply: report/verify the oracle percentage from `scenic-etl` (the pinned image) going
+forward rather than whatever interpreter happens to be on the box; and either build real numerical margin into
+`MIN_AGREEMENT` now that 93.5% (not 94.5-95%) is the honest floor-relative number, or make `circum_circle_radius`
+less catastrophically ill-conditioned for near-collinear inputs (a small epsilon guard before the sqrt) if that
+can be done without breaking the "reproduce their quirk exactly" contract. The `oneway` selection bug (MAJOR)
+and the `getid` silent-failure root cause (informational) are both real and separately worth fixing, but
+neither is what's blocking this review.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
