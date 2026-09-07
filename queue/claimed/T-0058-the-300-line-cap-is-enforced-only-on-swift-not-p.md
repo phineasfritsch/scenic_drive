@@ -1,13 +1,13 @@
 ---
 id: T-0058
 title: the 300-line cap is enforced only on Swift, not Python or TypeScript
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T22:34:40Z
+lease_expires_at: 2026-09-08T00:34:40Z
 worktree: null
-branch: null
+branch: task/T-0058
 exclusive: []
 touches: [ops/lib/check-line-cap, pins/PINS.yaml]
 pins_affected: []
@@ -48,3 +48,4 @@ Related and already filed: T-0043 (the coverage guard does not recognise `Packag
 the same script. Whichever lands first, the other rebases.
 
 ## Log
+- 2026-09-07T22:34:40Z claimed by agent/unknown; lease until 2026-09-08T00:34:40Z
