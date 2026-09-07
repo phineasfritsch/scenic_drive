@@ -1,7 +1,7 @@
 ---
 id: T-0056
 title: ops/claim must refuse a task whose brief is still the placeholder
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
