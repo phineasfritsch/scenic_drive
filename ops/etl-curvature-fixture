@@ -35,7 +35,6 @@ mkdir -p "$WORK"
 # message at all when the output file already exists - not "file exists", not a usage error, just a silent
 # failure - so a rerun looks like the tool broke. `osmium extract` and `osmium export` honour the flag; getid
 # does not. That cost a debugging round.
-rm -f "$WORK/subset.osm.pbf" "$WORK/subset.geojsonseq"
 echo "1/3  way ids of every single-way collection"
 "$PY" -m etl.oracle --list-ways > "$WORK/ids.txt" 2>/dev/null || {
   # `python -m` needs the package root on the path; run it from there instead of guessing sys.path.
@@ -55,6 +54,11 @@ mount="$(cd "$ETL" && pwd)"
 # and osmium's message was the answer both times it went wrong.
 docker run --rm -v "$mount:/w" -w /w "$IMAGE" bash -c '
 rc=0
+# Delete the intermediates HERE, inside the container, rather than on the host. osmium getid
+# refuses an existing output with "File exists. Try using --overwrite" and does not accept
+# --overwrite itself, and a host-side rm left the question of which directory the script was in
+# open long enough to cost several rounds. The process that writes them deletes them.
+rm -f work/curvature-oracle/subset.osm.pbf work/curvature-oracle/subset.geojsonseq
 osmium getid --no-progress -r -o work/curvature-oracle/subset.osm.pbf inputs/vermont-osm.pbf --id-file work/curvature-oracle/ids.txt || { echo "getid exited $?"; rc=1; }
 if [ $rc -eq 0 ]; then
   osmium export --no-progress --overwrite -f geojsonseq --add-unique-id=type_id -o work/curvature-oracle/subset.geojsonseq work/curvature-oracle/subset.osm.pbf || { echo "export exited $?"; rc=1; }
