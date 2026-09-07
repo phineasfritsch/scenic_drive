@@ -1,7 +1,7 @@
 ---
 id: T-0047
 title: pre-commit should refuse a commit whose staged content is stale relative to the working tree
-state: review
+state: done
 owner: agent/builder-8
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T16:57:35Z
@@ -585,3 +585,100 @@ touched here.
 
 All three green with the symlink fix applied. GitHub Actions remains billing-blocked; verified locally per
 the above, as before.
+
+- 2026-09-07T18:25:00Z agent/reviewer-28: **PASS (re-review of `41f59ee`).** The HIGH finding from my first
+  pass is genuinely fixed - re-derived independently on a fresh WSL2/ext4 clone (not trusted from the
+  owner's log). Found one new, much narrower LOW-severity gap in the same mechanism, worth recording but
+  not blocking.
+
+### Re-derived (fresh WSL2 clone of `task/T-0047` at `41f59ee`, deleted after use)
+
+- **Untouched symlink, previously-refused case**: staged a fresh symlink, left it completely untouched,
+  committed. `create mode 120000`, `EXIT=0`. `git show HEAD:<path>` printed the LINK TEXT
+  (`T-6001-target-a.md`), not the target file's content (`target file A`) - confirms the fix actually
+  changed what gets compared, not just the outcome.
+- **Repointed symlink still refuses**: staged pointing at B, repointed to a third (nonexistent) target
+  before commit -> refused with the standard stale-content message. `git add`-and-recommit landed the new
+  (repointed) target text correctly.
+- **Broken symlink** (target does not exist anywhere), untouched: PASS, `create mode 120000`, committed
+  blob is the (unresolvable) target text - `-e "$f"` correctly stays out of this via the pre-existing
+  `-L "$f"` clause in the missing-file check (`.githooks/pre-commit:84`), so a broken link was never
+  misrouted into "missing."
+- **Symlink to a directory**, untouched: PASS, identical treatment to a symlink to a file - git doesn't
+  distinguish, and neither does this check.
+- **Symlink target containing a space**: PASS, untouched.
+- **Symlink target containing an embedded (non-trailing) newline**: PASS - `$(readlink -- "$f")` only
+  strips *trailing* newlines, so an embedded one survives the capture and hashes correctly.
+- **Type change, symlink -> regular file** after `git add`: refused (staged=120000 link-text-oid,
+  working=100644 content-oid, correctly never equal); re-add lands the regular file, `100644`.
+- **Type change, regular file -> symlink** after `git add`: same in the other direction - refused, re-add
+  lands the symlink, `120000`.
+- **Symlink staged then deleted from the working tree**: correctly falls into the pre-existing "staged but
+  missing" branch (`.githooks/pre-commit:84`, the `! -e && ! -L` test), same distinct message as a deleted
+  regular file - the new symlink branch at line 88 is never reached for this case, as it shouldn't be.
+- **Regression re-check**: CRLF-on-disk/LF-staged and binary-file-with-a-space-in-its-name, both re-run
+  against `41f59ee` specifically (not just trusted from my first pass against the pre-fix hook) - both still
+  PASS untouched, confirming the symlink branch didn't disturb the regular-file path.
+- **Windows worktree**: still cannot create a real symlink here. `New-Item -ItemType SymbolicLink` in
+  PowerShell fails outright ("Administrator privilege required for this operation"). `ln -s` in Git Bash
+  exits 0 but silently falls back to writing a *plain file containing a copy of the target file's own
+  content* (not the target's path text, which is what the owner's log assumed) - confirmed by using a target
+  whose content differs from its filename and observing the fallback file's bytes match the content, not the
+  name. Either way, `-L "$f"` never sees a real symlink on this checkout - the new branch is structurally
+  unreachable here regardless of which fallback shape MSYS produces, which is exactly why WSL2 has to be the
+  place this gets verified.
+- Mode: `.githooks/pre-commit` still `100755` (`git ls-files -s`). `git diff HEAD~1 --stat` touches only
+  `.githooks/pre-commit` and this task file.
+- `bash ops/check-pins`, `bash ops/queue-check`, `bash ops/test` (after `npm ci` in `services/api`, already
+  present from my first pass) all re-run green against `41f59ee`: `PINS ok=9 ... failed=0`, `QUEUE OK (43
+  tasks)`, `TESTS linux=50/50 ios=skipped failed=0 skipped=0`.
+
+### FINDING 2 - LOW - a symlink target that itself ends in a literal trailing newline is still a false positive
+
+`.githooks/pre-commit:89`: `working_oid="$(printf '%s' "$(readlink -- "$f")" | git hash-object --stdin ...)"`.
+`readlink` (the coreutils command, not the syscall) appends its own trailing newline to its stdout for
+display. When the actual stored symlink target does NOT itself end in a newline, `$(...)`'s trailing-newline
+stripping removes exactly that one added-for-display newline and nothing else, leaving the correct raw
+target - this is the common case, and it's why every other symlink test above passes. But if the *stored
+target text itself* ends in one or more literal `\n` bytes, `$(...)` strips those too (command substitution
+strips *all* trailing newlines, not just one), so `printf '%s' "$(readlink -- "$f")"` silently drops
+newline(s) that are genuinely part of the target and part of git's staged blob.
+
+Repro (WSL2/ext4, `task/T-0047` at `41f59ee`):
+
+    $ ln -s $'trailing-newline-target.md\n' queue/review/T-6006-trailingnl-link.md
+    $ readlink queue/review/T-6006-trailingnl-link.md | xxd | tail -1
+    00000010: 2d74 6172 6765 742e 6d64 0a0a            -target.md..     # target's own \n + readlink's display \n
+    $ git add queue/review/T-6006-trailingnl-link.md
+    $ git cat-file -p :queue/review/T-6006-trailingnl-link.md | xxd | tail -1
+    00000010: 2d74 6172 6765 742e 6d64 0a               -target.md.     # staged: exactly ONE trailing \n (correct)
+    $ printf '%s' "$(readlink -- queue/review/T-6006-trailingnl-link.md)" | git hash-object --stdin
+    7ca95c14ae295266901eff1285058e7fe19f109b   # differs from staged oid 3eafeb68741e1737918c83b1e7d628fc120328c5
+    $ git commit -m "untouched symlink, should pass"
+    pre-commit: staged content in queue/review/T-6006-trailingnl-link.md is stale - the working tree changed
+    after 'git add'. ...
+    pre-commit: refusing commit
+
+**Why LOW, not a blocker**: this requires deliberately constructing a symlink whose target string ends in a
+raw newline byte (`ln -s $'foo\n' link`) - not something any normal file operation, `git mv`, or `ops/*`
+script in this repo could produce by accident, and this repo currently tracks zero symlinks. Contrast with
+the original HIGH finding, which struck *every* symlink unconditionally regardless of content. Recording
+this precisely rather than waving it off, per the task's own "weigh precision as heavily as coverage" - but
+not withholding PASS over it. A fix, if anyone wants one: avoid `$(...)`'s newline-stripping entirely, e.g.
+compare `readlink -- "$f" | git hash-object --stdin` (which *adds* readlink's own display newline to the
+hash - wrong in the other direction) is not a drop-in fix either; the robust fix needs something like `perl
+-e 'print readlink(shift)' -- "$f" | git hash-object --stdin` or GNU `readlink -z` piped through `head -c
+-1` twice, which is enough of a wrinkle that a follow-up task rather than a same-day patch seems right if
+this is ever judged worth closing.
+
+### Cleanup, this round
+
+WSL2 clone at `~/t0047-re-review` deleted after use (`rm -rf`). No files were left staged/untouched in the
+Windows worktree - `New-Item`/`ln -s` scratch files were removed immediately after each privilege check;
+`git status --short` confirmed clean before moving on.
+
+### Irony check
+
+Per the review protocol: after `git mv`-ing this file to `queue/done/`, I appended this very paragraph
+*without* re-staging, then tried to commit directly - exactly the six-agents mistake this whole task exists
+to prevent. Result below.
