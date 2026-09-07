@@ -28,7 +28,7 @@
   why_no_test_catches_it: core.filemode is false on the Windows checkout this repo is driven from, so a new script is committed 100644 and nothing complains. CI invokes them as `bash ops/x` and stays green, but queue/README.md and Xcode Cloud both invoke them directly, where a missing +x is a hard failure. The exec bit is invisible to every other check.
   anchor: artifact
   runs_on: [linux, mac]
-  assertion: "test -z \"$(git ls-files -s ops .githooks | awk '$4 ~ /\.(json|txt|md)$/ || $4 == \"ops/api-url\" {next} $1 != \"100755\" {print $4}')\" && test -z \"$(git ls-files -s ops/api-url | awk '$1 != \"100644\" {print $4}')\""
+  assertion: "test -z \"$(git ls-files -s ops .githooks | awk '$4 ~ /\.(json|txt|md)$/ || $4 == \"ops/api-url\" {if ($1 != \"100644\") print $4; next} $1 != \"100755\" {print $4}')\""
   owner: agent/claude-opus-5
   added: 2026-09-07
 
