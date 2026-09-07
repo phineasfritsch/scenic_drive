@@ -1187,3 +1187,205 @@ Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
   it catches a truncated step 1, not a wrong `single_way_collections`. The 95% figure is still not derived
   from anything. And the constants file now pins nine values by literal, which is only as good as my reading
   of upstream: I have still never checked out a pinned SHA of adamfranco/curvature, in any round.
+
+### 2026-09-07 - fifth review, by agent/reviewer-34. FAIL, new BLOCKER.
+
+Everything round 4 asked for is done and I confirmed each by running code. The staging fix is the real thing
+and it is better than the log claims. The reason for FAIL is the question this round was convened to answer -
+*is the CLASS closed, not the instances* - and the answer is no: I found it twice more, both times in the
+deliverable rather than in a test, and one of those lets a green `ops/etl-curvature-fixture` run replace the
+committed oracle with a fixture built from something that is not the oracle, which then certifies the pinned
+digest of a file it was never built from.
+
+**Re-derived - the constant pins. Swept EVERY module-level constant in `services/etl/etl/`, in the pinned
+image, by editing the SOURCE and running the whole committed suite, restoring and re-checking sha256 after
+each.** `curvature.py` and `oracle_select.py` are now completely closed - all eleven sweeps fail a named test
+where two of them previously failed nothing:
+
+      curvature.RAD_EARTH_M 6373000->WGS84    test_the_earth_radius, test_one_degree_of_latitude
+      curvature.RAD_EARTH_M -> 1              test_the_earth_radius + 5 behavioural
+      curvature.MAX_RADIUS -> 100000          test_the_radius_caps
+      curvature.DEGENERATE_RADIUS -> 0        test_the_radius_caps
+      curvature.LEVELS weight 1.3 -> 1.4      test_the_curvature_bands + 5 behavioural
+      curvature.LEVELS edge 30 -> 25          test_the_curvature_bands + 5 behavioural
+      curvature.LEVEL_1_MAX_RADIUS -> 200     test_the_deflection_filter_constants
+      curvature.LOOK_AHEADS drop 7            test_the_deflection_filter_constants
+      oracle_select.SQUASH_RADIUS_M -> 45     test_the_selection_constants_are_pinned_against_literals
+      oracle_select.GEOMETRY_TOL_M -> 5       ...same, plus test_geometry_differing_by_more_than_a_metre...
+      oracle_select.CELL_DEG -> 0.0002        ...same
+      oracle_select.WAY_TAG_PREFIXES -> ()    test_parking_lane_matches_on_the_prefix
+
+**MAJOR - and then the same defect, one module further out, on the number this task exists to produce.**
+`etl/oracle_report.py` has its own `TOLERANCE = 0.02`, a second copy of the brief's 2% that is completely
+independent of `test_curvature.py:20`'s. Nothing imports `oracle_report` from any test - there is no
+`tests/test_oracle_report.py` at all - so the constant is pinned by nothing, and neither is the refusal the
+owner added this round. Swept in the source, in the pinned image, nothing else changed:
+
+      TOLERANCE = 0.5    ->  ORACLE Linux/x86_64 python 3.12.3
+                             fixture (curvature_oracle.json)   400/400   = 100.000%  median 0.06340%
+                             ...and the committed suite: 163 tests, 0 failures.
+      TOLERANCE = 0.0    ->  CAUGHT BY NOTHING (suite still green)
+
+This is the module `ops/etl-oracle-report`'s own header calls "the only place they should be quoted from".
+The gate is safe - `test_agreement_with_the_published_values` uses the test file's own literal 0.02 against
+`MIN_AGREEMENT = 0.90` - so a wrong implementation still goes red. What is unguarded is the FIGURE, and in a
+repository whose stated premise is that agents report success on broken work, a reporting tolerance that can
+be widened to 50% without one test noticing is the same defect as the last three rounds, in the one file
+where nobody would look for it. Fix: one literal assertion, and better, make the two `0.02`s one constant.
+
+**BLOCKER - the fixture certifies a provenance nothing in the pipeline ever checks, and a wrong oracle
+overwrites the committed one on a run that reports success.** The owner named the abstract version of this
+("a build wrong in the same direction for both `single_way` and the ways it keeps would satisfy the
+cross-check"). It is not abstract, it needs no code change to reach, and the artifact it produces makes a
+false statement about itself. Three facts compose:
+
+  1. `ops/etl-curvature-fixture` checks only `[[ -f ... ]]` on `inputs/vermont-curvature.kmz`. It never
+     verifies the sha256 that `inputs/manifest.yaml` pins ON PURPOSE - the log's own words, round 1, and the
+     reason the KMZ is the one input pinned by digest rather than by an upstream sidecar. The file is
+     gitignored, so it is not in the tree and no gate ever looks at it again after `ops/etl-fetch-inputs`.
+  2. `--list-ways` and the build's `funnel.single_way` are both computed from that same file. The new
+     cross-check divides one by the other, so a short KMZ shrinks both by the same factor and the ratio
+     stays exactly 1.0. There is no shortfall it can see.
+  3. `oracle_select.build` writes `"source_sha256": "3bdf4d140a6dcef0..."` into the fixture as a HARDCODED
+     LITERAL, and `test_the_fixture_says_how_it_was_selected` asserts only `assert doc["source_sha256"]`.
+     The value is produced by the code under test and checked for truthiness, so that assertion cannot fail
+     for any build, ever. It is the same shape as `MAX_RADIUS == cv.MAX_RADIUS`, in the one assertion whose
+     job is to make this file an oracle rather than something we generated.
+
+Demonstrated end to end. I replaced the KMZ with one holding its first 900 single-way collections (27% of
+the real 3318), ran `ops/etl-curvature-fixture` with no arguments, and restored both files afterwards:
+
+      1/3  900 ways
+      2/3  895 of 900 requested ways came back          <- floor 855, satisfied
+      3/3  single_way 900 / have_geometry 895 / geometry_identical 635 / no_squash 596
+           step 1 asked for 900 ids; the KMZ holds 900 single-way collections   <- ratio 1.0, satisfied
+           wrote services/etl/tests/fixtures/curvature_oracle.json - review the diff before committing it
+           exit=0
+      FIXTURE sha 7427820486e605ba -> d23043729c7fb9fa,  ways 400
+
+The staging fix protects the fixture from builds that are REFUSED; this one is accepted. The result still
+has 400 ways, so `test_the_fixture_is_not_trivially_small` is satisfied, and **the whole committed suite
+passes against it: 163 tests, 0 failures, in the pinned image.** `ops/etl-oracle-report --with-population`
+then prints, exit 0:
+
+      fixture (curvature_oracle.json)   378/400  =  94.500%   median 0.04438%   p90 0.9504%
+      population (subset.geojsonseq)    558/596  =  93.624%   median 0.04524%   p90 1.3322%
+
+And the file it wrote records the pinned digest of a file it was not built from. Built directly from the
+truncated KMZ so the two can be printed side by side:
+
+      source_sha256   3bdf4d140a6dcef0501223357d993df1b960934adf1a5cebdcdf2340b7039046   (what it claims)
+      actual sha256   e891ba1100a6f0e7c2cc2527e61aa112f1305948b05e20bcc63e468047e58d92   (what it read)
+      funnel          {'single_way': 900, ...}
+      selection[3]    deterministic sample of 400 from 596 eligible, seed 20260907
+
+The printed funnel is a real mitigation - a human who knows the number is 3318 would see 900 - but nothing
+asserts it, and the fixture's own provenance line actively points the other way. This blocks because the
+deliverable is an oracle, and an oracle that can be swapped for a subset of itself by a bad copy of a
+gitignored file, while every gate stays green and the artifact keeps claiming the pinned digest, is not one.
+The fix is small and the machinery is already in this package: verify the KMZ against the manifest before
+step 1 (`fetch.verify` / `python -m etl.fetch --only vermont-curvature.kmz` already does exactly this), and
+have `build()` write the digest of the KMZ it actually read, with the test comparing it to the manifest.
+That also retires the "wrong `single_way_collections`" residual completely rather than narrowing it, because
+the KMZ is the only thing that can make `single_way` wrong.
+
+**The staging fix is correct, and I forced all three refusal paths rather than trusting them.** Fixture
+sha256 and way count taken before and after each; every one left `7427820486e605ba`, 400 ways, and
+`git status` clean (checked from git-bash - `git status` from WSL cannot see this worktree at all):
+
+      --build forced to exit 1     BUILD FAILED: etl.oracle --build exited non-zero          exit 2
+      all 3318 ids absent          TOO FEW WAYS: 5 of 3318 (floor 3152)                      exit 2
+      step 1 emitting 300 ids      build wrote 226 ways to work/curvature-oracle/rebuilt.json
+                                   TOO FEW IDS REQUESTED: 300 of 3318 (floor 3152)           exit 2
+
+The third is the one that matters: the 226-way file was written, and it landed in `rebuilt.json` instead of
+on the fixture. Under the previous commit that file was the fixture. The control - `--check` from a wiped
+work dir - gives `FIXTURE OK`, exit 0, funnel `3318 / 3297 / 2571 / 2384`, osmium naming exactly 21 missing
+ids. Round 4's MAJOR (a) is genuinely fixed for the case it describes.
+
+**The zero-population refusal works, and is narrower than "plausible-but-empty".** Both a zero-byte export
+and a three-line one give `REFUSING TO REPORT: population (...) has no ways in it at all.`, exit 2. But the
+only floor is `n > 0`: the 596-way population above printed a headline with no complaint, and there is no
+minimum population, no comparison against the 2384 the funnel records, and no test exercising the refusal.
+By CLAUDE.md's own rule a check that has never been seen red is untested; this one has now been seen red by
+me, in this log, and by nothing in the repository.
+
+**Retired a residual the owner listed as open: upstream IS now checked at a pinned SHA.** GitHub is
+reachable from this box, so I fetched `adamfranco/curvature` at `140907ba2bb17f85950408baea948ba658bed5c6`
+(HEAD of master today) and read the five files line by line against `etl/curvature.py`. Every one of the
+nine pinned literals is right - `rad_earth_m = 6373000`; `MAX_RADIUS = 10000` applied ONLY in the
+last-segment `else` branch; `circum_circle_radius`'s two 10000 returns and its `math.fabs` inside the sqrt;
+bands `< 30 -> 2`, `< 60 -> 1.6`, `< 100 -> 1.3`, `< 175 -> 1`, else 0, tested in that order with strict
+`<`; `level_1_max_radius = 175`; look-aheads 3,4,5,6,7; `min_variance = gap_distance / level_1_max_radius`.
+So are all five reproduced quirks: the min-of-two-circumcircles falling out of the write order
+(`if i == 0 ... elif segment['radius'] > radius ... next_segment['radius'] = radius`), the plain
+`abs(heading_a - heading_b)` where the same class defines a wrap-aware `heading_diff` and never calls it
+here, `get_segment_heading`'s `180 + atan2(dlat, dlon) * 180/pi` on unprojected degrees, the `cos > 1`
+early-out, and the single-segment special case. Two harmless deviations, both no-ops: our
+`if divider == 0: return DEGENERATE_RADIUS` in place of their `except ZeroDivisionError`, and an early
+`return` in the one-segment case where they fall through a loop that cannot change the value. **Someone
+should write that SHA into `curvature.py`'s header**, because the file currently says "at master" and master
+moves.
+
+**The rest of the sweep, and what is out of this task's blast radius.** Also caught by nothing:
+`counts.SMALL_CLASS 20 -> 2000` and `fetch.CHUNK -> 3` (other tasks' modules, pre-existing, INFO only), and
+`oracle_select.build`'s own `cap: int = 400` / `seed: int = 20260907` defaults - those are only reachable at
+rebuild time and `--check`'s diff would catch them, so MINOR. Everything in `region.py`, `manifest.py`,
+`tagfilter.py` and `counts.DEFAULT_TOLERANCE` fails a named test.
+
+**Info, not blocking:**
+- T-0025 has `pins_affected: []`. The solar oracle from T-0011 got `P-SAFE-05`, whose `why_no_test_catches_it`
+  is literally "a fixture regenerated from our own code would bless the error". The curvature oracle is the
+  same shape and has no pin; `ops/check-pins` would not notice any of the above.
+- `ops/check-pins` and `ops/queue-check` still need git-bash while the pinned image needs WSL. Filed as
+  T-0055; no single shell runs all four gates.
+- The `reviewer:` field still names agent/reviewer-30. Rounds 3, 4 and 5 were agent/reviewer-34.
+- `services/etl/work/` carries about sixty scratch files from earlier rounds. Gitignored, so not a tree
+  problem. I removed everything this review wrote and left the work dir holding an honest rebuild.
+
+**Verification, run fresh this round - all four gates:**
+- etl suite in the pinned `scenic-etl` image -> junit `tests="163" errors="0" failures="0" skipped="1"`,
+  exit 0. The owner's count is right for the first time in four rounds.
+- `bash ops/test` -> `TESTS linux=213/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0 (git-bash).
+- `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0.
+- `bash ops/queue-check` -> `QUEUE OK (50 tasks)`, exit 0.
+- `ops/etl-curvature-fixture --check` from a wiped work dir -> `FIXTURE OK`, exit 0.
+- `ops/etl-oracle-report --with-population` -> `fixture 379/400 = 94.750%   median 0.06340%   p90 0.8182%`
+  and `population 2251/2384 = 94.421%   median 0.06608%   p90 0.8923%`, exit 0.
+- Afterwards: `git status --porcelain` empty; the KMZ back at `3bdf4d140a6dcef0...` matching the manifest;
+  `curvature.py`, `oracle_select.py`, `oracle_report.py` and the fixture all sha256-identical to their
+  committed contents (`7427820486e605ba...` for the fixture).
+- **There is no CI signal of any kind.** GitHub Actions is disabled repo-wide (T-0053, spending limit
+  exhausted). Every number above is one machine, one glibc, one image.
+
+**On whether this task is done.** It has failed four rounds and every fix has been correct, which is an
+argument for landing it, and I took that argument seriously. Two of the three residuals the owner listed I
+would have accepted: the 95% floor is still underived but it is now backed by a second, independent count,
+and the upstream-SHA worry I retired myself above. The third is not a residual, it is a live defect with a
+demonstrated consequence - the committed oracle can be replaced, in place, by a subset of itself, on a run
+that exits 0 with every gate green, producing an artifact that states a provenance it never verified. For a
+task whose deliverable is *an external oracle an agent cannot fabricate*, that is the one thing that cannot
+be left recorded and shipped. Both fixes are small, local, and use machinery already in this package.
+
+**What I re-derived by running code:** the full module-level constant sweep of `services/etl/etl/` in the
+pinned image with sha256 restore-verification after every mutation, twenty-two sweeps in all; the
+`oracle_report.TOLERANCE` sweep at 0.5 and 0.0 with the report's own output and a green suite; all three
+forced refusal paths of `ops/etl-curvature-fixture` with the fixture's digest and way count before and
+after; the truncated-KMZ rebuild end to end, its overwrite of the committed fixture, its green 163-test
+suite, its report, and its false `source_sha256`; the zero-byte and three-line export refusals; the JUnit
+count; the upstream comparison at SHA `140907ba2bb17f85950408baea948ba658bed5c6`; the honest `--check` and
+`--with-population`; and all four gates. **What I took on trust:** the KMZ's published values, which are the
+oracle itself; that `140907ba` is a reasonable SHA to compare against (it is today's master, not the commit
+that generated the published KMZ, which nobody here knows); the round-2/3/4 platform and mechanism analysis,
+which I re-derived in round 4 and did not repeat; and a third libm.
+
+**FAIL.** Leaving in `queue/review/`. To fix: (1) verify `inputs/vermont-curvature.kmz` against the
+manifest's pinned sha256 before step 1 of `ops/etl-curvature-fixture`, and have `oracle_select.build` write
+the digest of the KMZ it actually read rather than a literal, with `test_the_fixture_says_how_it_was_selected`
+comparing it against the manifest instead of asserting it is truthy; (2) pin `oracle_report.TOLERANCE`
+against a literal - or better, give `oracle_report` and `test_curvature` one shared constant - and add the
+red-then-green demonstration of the zero-population refusal that does not exist yet. While you are there,
+put `140907ba2bb17f85950408baea948ba658bed5c6` in `curvature.py`'s header in place of "at master".
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
