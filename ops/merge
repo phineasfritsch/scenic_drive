@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# MERGE A PR ONLY IF ITS CHECKS ARE ACTUALLY GREEN.
+#
+#   ops/merge 9              merge PR 9 if every check succeeded and the queue task is in done/
+#   ops/merge 9 --wait       poll until checks finish (up to ~20 min), then merge or refuse
+#   ops/merge 9 --dry-run    run every gate and report the verdict; never merges
+#
+# Why this exists: on 2026-09-07 main was broken by merging a PR while `gh` reported mergeStateStatus=UNSTABLE.
+# GitHub-side branch protection would prevent that, but it is 403 on a private repo on the free plan
+# ("Upgrade to GitHub Pro or make this repository public"), so the gate lives here instead.
+#
+# HONEST LIMITATION: this is a client-side gate. Nothing stops someone typing `gh pr merge` directly. It makes the
+# safe path the easy path; it does not make the unsafe path impossible. For that, buy GitHub Pro (~$4/mo) and
+# enable branch protection requiring the linux-core checks, or make the repo public.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+
+pr="${1:-}"
+[[ -n "$pr" ]] || { echo "usage: ops/merge <pr-number> [--wait]"; exit 2; }
+wait=0; dry=0
+for arg in "${@:2}"; do
+  case "$arg" in
+    --wait) wait=1;;
+    --dry-run) dry=1;;
+    *) echo "unknown option: $arg"; exit 2;;
+  esac
+done
+repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+
+# --- 1. the PR's queue task must be in done/, i.e. a reviewer signed it off ---------------------------
+head_ref="$(gh pr view "$pr" --json headRefName -q .headRefName 2>/dev/null)"
+[[ -n "$head_ref" ]] || { echo "MERGE REFUSED: PR $pr does not exist or is not readable"; exit 1; }
+task="$(printf '%s' "$head_ref" | grep -oE 'T-[0-9]{4}' || true)"
+if [[ -n "$task" ]]; then
+  if ! gh api "repos/$repo/contents/queue/done?ref=$head_ref" --jq '.[].name' 2>/dev/null | grep -q "^$task-"; then
+    echo "MERGE REFUSED: $task is not in queue/done/ on $head_ref - a reviewer has not signed it off"
+    exit 1
+  fi
+  echo "task     $task is in queue/done/ on $head_ref"
+else
+  echo "task     (branch $head_ref names no task; skipping the review gate)"
+fi
+
+# --- 2. every check run must have succeeded -----------------------------------------------------------
+attempt=0
+while :; do
+  attempt=$((attempt + 1))
+  state="$(gh pr view "$pr" --json mergeStateStatus -q .mergeStateStatus)"
+  rollup="$(gh pr view "$pr" --json statusCheckRollup -q '[.statusCheckRollup[]? | {name: (.name // .context), c: (.conclusion // .state // "PENDING")}]')"
+  pending="$("$PY" -c 'import json,sys; d=json.loads(sys.argv[1]); print(sum(1 for x in d if x["c"] in ("PENDING","IN_PROGRESS","QUEUED","")))' "$rollup")"
+  failed="$("$PY" -c 'import json,sys; d=json.loads(sys.argv[1]); print(",".join(x["name"] for x in d if x["c"] in ("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED","ERROR")))' "$rollup")"
+  total="$("$PY" -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$rollup")"
+  echo "checks   total=$total pending=$pending failed=[${failed:-none}] mergeState=$state"
+  [[ -n "$failed" ]] && { echo "MERGE REFUSED: failing checks: $failed"; exit 1; }
+  if [[ "$pending" -gt 0 ]]; then
+    if [[ $wait -eq 1 && $attempt -lt 40 ]]; then sleep 30; continue; fi
+    echo "MERGE REFUSED: $pending check(s) still running (use --wait to poll)"; exit 1
+  fi
+  break
+done
+[[ "$total" -gt 0 ]] || { echo "MERGE REFUSED: no checks reported at all - CI did not run for this PR"; exit 1; }
+case "$state" in
+  CLEAN|HAS_HOOKS) ;;
+  *) echo "MERGE REFUSED: mergeStateStatus=$state (want CLEAN)"; exit 1;;
+esac
+
+# --- 3. merge -----------------------------------------------------------------------------------------
+if [[ $dry -eq 1 ]]; then
+  echo "DRY RUN: every gate passed; would merge pr=$pr task=${task:-none} head=$head_ref"
+  exit 0
+fi
+gh pr merge "$pr" --merge --delete-branch 2>&1 | tail -2
+merged="$(gh pr view "$pr" --json state -q .state)"
+[[ "$merged" == "MERGED" ]] || { echo "MERGE FAILED: PR is $merged"; exit 1; }
+echo "MERGED pr=$pr task=${task:-none} head=$head_ref"
