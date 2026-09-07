@@ -16,10 +16,10 @@
 
 - id: P-SRC-02
   statement: No Swift source file exceeds 300 lines
-  why_no_test_catches_it: A 900-line file is a merge grenade for parallel agents; nothing functional breaks
+  why_no_test_catches_it: A 900-line file is a merge grenade for parallel agents; nothing functional breaks. The old `find`-based assertion also passed vacuously over a deleted, renamed or emptied Sources/Tests tree (reviewer-10, same class as P-OPS-01).
   anchor: source
   runs_on: [linux, mac]
-  assertion: "test -z \"$(find Sources Tests -name '*.swift' -exec awk 'NR>300{print FILENAME; exit}' {} \\;)\""
+  assertion: "bash ops/lib/check-line-cap"
   owner: agent/claude-opus-5
   added: 2026-09-07
 
