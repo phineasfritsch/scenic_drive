@@ -1,16 +1,16 @@
 ---
 id: T-0049
 title: ops/merge caps the no-task reason by bytes, not characters, and can split a UTF-8 sequence
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T21:35:40Z
+lease_expires_at: 2026-09-07T23:35:40Z
+worktree: ../wt/T-0049
+branch: task/T-0049
 exclusive: []
-touches: [ops/merge]
-pins_affected: []
+touches: [ops/merge, ops/lib/check-merge-reason-cap, pins/PINS.yaml]
+pins_affected: [P-OPS-02]
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
@@ -36,3 +36,8 @@ audit trail is the one thing on that code path that has to be trustworthy.
   `>>>`/`<<<` delimiters.
 
 ## Log
+- 2026-09-07T21:35:40Z claimed by agent/claude-opus-5 (session 01SS4jAGs2oyr4Z4Wd8yK82t); lease until 2026-09-07T23:35:40Z.
+  Branching from task/T-0044, not main: ops/merge's --no-task-reason handling exists only there (T-0021/T-0022/T-0044
+  all have open PRs against ops/merge; `git log --oneline task/T-0021 task/T-0022 task/T-0044 -- ops/merge` puts
+  9a18891 on task/T-0044 newest). touches: extended past the seeded [ops/merge] because the fix is being anchored
+  on a new pin assertion (P-OPS-02) rather than on a comment - see the decision entry below.

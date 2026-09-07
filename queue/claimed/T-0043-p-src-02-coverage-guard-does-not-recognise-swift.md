@@ -1,13 +1,13 @@
 ---
 id: T-0043
 title: P-SRC-02 coverage guard does not recognise Swift versioned manifests (Package@swift-6.0.swift)
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T22:28:15Z
+lease_expires_at: 2026-09-08T00:28:15Z
 worktree: null
-branch: null
+branch: task/T-0043
 exclusive: []
 touches: [ops/lib/check-line-cap]
 pins_affected: []
@@ -40,3 +40,4 @@ offer one either, so today's behaviour is faithful to the rule. Whoever first ve
 need to decide that deliberately rather than discover it.
 
 ## Log
+- 2026-09-07T22:28:15Z claimed by agent/unknown; lease until 2026-09-08T00:28:15Z
