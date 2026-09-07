@@ -71,8 +71,12 @@ def count_class(osmium: Osmium, src: Path, cls: str, scratch: Path) -> int:
     out = scratch / f"count-{cls}.osm.pbf"
     if out.exists():
         out.unlink()
-    osmium.run(["tags-filter", "--no-progress", "--overwrite", "-o", osmium.rel(out), osmium.rel(src),
-                tf.class_expression(cls)])
+    # --omit-referenced is the whole difference between a count and a number. Without it the filtered file
+    # also carries every node a matching way refers to, so "motorway" came out as 140,717 - roughly 7k ways
+    # plus their geometry - which reads like a fact and is not one. With it, the file contains exactly the
+    # objects that matched, so ways are ways and nodes are the tagged nodes.
+    osmium.run(["tags-filter", "--no-progress", "--overwrite", "--omit-referenced",
+                "-o", osmium.rel(out), osmium.rel(src), tf.class_expression(cls)])
     info = osmium.run(["fileinfo", "--extended", "--json", osmium.rel(out)], capture=True)
     out.unlink(missing_ok=True)
     return ct.total(ct.parse_fileinfo(info))
