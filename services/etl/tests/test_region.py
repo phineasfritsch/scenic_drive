@@ -39,8 +39,28 @@ class TestTheCommittedRegion:
             ("Santa Cruz", -122.031, 36.974),
             ("Napa", -122.286, 38.297),
             ("Point Reyes lighthouse", -123.022, 37.996),
+            ("Altamont Pass", -121.658, 37.732),
         ]:
             assert b.min_lon <= lon <= b.max_lon and b.min_lat <= lat <= b.max_lat, f"{name} is outside"
+
+    def test_the_bbox_does_not_reach_into_the_central_valley(self):
+        """The regression guard for the bug agent/reviewer-23 measured.
+
+        max_lon was -121.20, about 40 km east of Altamont Pass, while the file's own comment said the edge
+        was the Altamont. That pulled Tracy and Stockton into the extract and made 23.8% of every way - and
+        28.6% of residential - Central Valley sprawl, so the counts ops/sane gates against described a
+        different region than the one named. Nothing failed: the pipeline ran, the PBF was valid, the numbers
+        looked plausible. Only counting what was inside the box found it.
+        """
+        b = rg.load("sfbay").bbox
+        for name, lon, lat in [
+            ("Tracy", -121.425, 37.740),
+            ("Stockton", -121.290, 37.958),
+            ("Modesto", -120.997, 37.639),
+            ("Sacramento", -121.494, 38.582),
+        ]:
+            inside = b.min_lon <= lon <= b.max_lon and b.min_lat <= lat <= b.max_lat
+            assert not inside, f"{name} is inside the Bay Area bbox"
 
 
 class TestBBoxRefusesNonsense:

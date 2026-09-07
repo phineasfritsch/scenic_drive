@@ -16,10 +16,10 @@
   "bbox": {
     "min_lon": -123.62,
     "min_lat": 36.85,
-    "max_lon": -121.2,
+    "max_lon": -121.55,
     "max_lat": 38.92
   },
-  "_comment_bbox": "Wider than the county polygons on purpose: a route may legitimately leave the region and come back, and an edge clipped mid-way is worse than a few extra square kilometres of graph. West to the Farallones, south past Santa Cruz's approach roads, north over the Sonoma/Napa county line, east to the Altamont.",
+  "_comment_bbox": "Wider than the county polygons on purpose: a route may legitimately leave the region and come back, and an edge clipped mid-way is worse than a few extra square kilometres of graph. West to the Farallones, south past Santa Cruz's approach roads, north over the Sonoma/Napa county line, east to just past Altamont Pass, which sits at -121.658. The eastern edge was -121.20 until agent/reviewer-23 measured what that actually pulled in: Tracy and Stockton, neither in the nine counties, and 23.8% of every way in the extract - 28.6% of residential, 26.3% of service, 22.4% of motorway. A bbox whose own comment said Altamont while reaching 40 km past it made the recorded counts a quarter Central Valley, so the baseline ops/sane gates against was measuring the wrong region.",
   "_comment_counts": "Recorded from a real extract, not invented. ops/sane asserts each class stays inside its bounds; a filter change that silently drops a class fails there instead of surfacing as a bad route weeks later. Regenerate deliberately with ops/etl-extract --record-counts.",
   "counts": {
     "attraction": 576,
