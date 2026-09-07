@@ -8,7 +8,7 @@ claimed_at: 2026-09-07T03:38:33Z
 lease_expires_at: 2026-09-07T07:38:33Z
 worktree: ../wt/T-0005
 branch: task/T-0005
-exclusive: []
+exclusive: [prod]
 touches: [services/api/, ops/deploy, ops/prod-read, ops/lib/ro_grammar.py, ops/lib/ro_cases.json, ops/test, ops/api-url]
 pins_affected: [P-COST-02]
 reviewer: null
@@ -29,3 +29,4 @@ Needs the Cloudflare account + a D1 database + a GitHub origin (deploy refuses o
 ## Log
 - 2026-09-07T03:38:33Z claimed by agent/claude-opus-5; lease until 2026-09-07T07:38:33Z
 - 2026-09-07T04:50:00Z scope note: touches widened - ops/lib/ro_grammar.py + ro_cases.json are the Python mirror of the Worker grammar (shared case list); ops/test gained the vitest tier CR fix (Python on Windows emits CRLF into the count line); ops/api-url is written by ops/deploy.
+- 2026-09-07T03:50:38Z took exclusive [prod] for the first deploy; queue/LOCKS/prod.lock created
