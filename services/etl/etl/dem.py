@@ -113,3 +113,41 @@ def sample(points: list[tuple[float, float]], runner=None) -> list[float | None]
         for i, v in zip(indices, values):
             out[i] = v
     return out
+
+# One 1/3 arc-second cell is 1/10800 of a degree: about 10.3 m north-south, and 10.3/cos(lat) east-west.
+CELL_DEG = 1.0 / 10800.0
+
+
+def neighbourhood(lat: float, lon: float) -> list[tuple[float, float]]:
+    """The nine sample positions of a 3x3 cell neighbourhood centred on a point.
+
+    The east-west offset is divided by cos(latitude) so the box is square on the ground rather than square in
+    degrees. At 38N a degree of longitude is 79% of a degree of latitude, so skipping that makes the
+    neighbourhood a rectangle stretched north-south and the smoothing directional - it would blur ridges
+    running one way more than the other, which is precisely the feature relief is meant to measure.
+    """
+    dlon = CELL_DEG / max(math.cos(math.radians(lat)), 1e-6)
+    return [(lat + dy * CELL_DEG, lon + dx * dlon)
+            for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
+
+
+def sample_smoothed(points: list[tuple[float, float]], runner=None) -> list[float | None]:
+    """Elevation with the 3x3 smoothing the brief asks for, applied at sample time.
+
+    `terrain.smooth3x3` smooths a GRID; this is the same operation for scattered points, which is what a road
+    profile is. Sampling the raw cell instead leaves ~1 m of DEM noise in every value, and summing positive
+    deltas over 25 m steps turns that into climb on ground that is flat - the Alviso failure.
+
+    Nine positions per point, all sent to gdallocationinfo in ONE stream per tile, so this is the same number
+    of processes as the unsmoothed version and nine times the rows. A point whose whole neighbourhood is
+    nodata stays None: absence, not sea level.
+    """
+    expanded: list[tuple[float, float]] = []
+    for lat, lon in points:
+        expanded.extend(neighbourhood(lat, lon))
+    values = sample(expanded, runner=runner)
+    out: list[float | None] = []
+    for i in range(len(points)):
+        window = [v for v in values[i * 9:(i + 1) * 9] if v is not None]
+        out.append(sum(window) / len(window) if window else None)
+    return out

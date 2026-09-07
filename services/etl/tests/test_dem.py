@@ -151,3 +151,82 @@ class TestSampling:
 
     def test_an_empty_request_is_an_empty_answer(self):
         assert dem.sample([]) == []
+
+
+class TestTheSmoothingNeighbourhood:
+    def test_it_is_nine_positions(self):
+        assert len(dem.neighbourhood(38.0, -122.0)) == 9
+
+    def test_the_centre_is_the_point_itself(self):
+        assert dem.neighbourhood(38.0, -122.0)[4] == (38.0, -122.0)
+
+    def test_the_box_is_square_on_the_ground_not_square_in_degrees(self):
+        """At 38N a degree of longitude is 79% of a degree of latitude. Without the cos(lat) correction the
+        neighbourhood is a rectangle stretched north-south, so the smoothing blurs ridges running one way
+        more than the other - directional smoothing of exactly the feature relief is meant to measure.
+        """
+        from etl.curvature import distance_on_earth
+        lat, lon = 38.0, -122.0
+        cells = dem.neighbourhood(lat, lon)
+        north = distance_on_earth(lat, lon, cells[7][0], lon)
+        east = distance_on_earth(lat, lon, lat, cells[5][1])
+        assert north == pytest.approx(east, rel=0.02), (north, east)
+
+    def test_one_cell_is_about_ten_metres(self):
+        from etl.curvature import distance_on_earth
+        lat, lon = 38.0, -122.0
+        north = distance_on_earth(lat, lon, dem.neighbourhood(lat, lon)[7][0], lon)
+        assert 9.0 < north < 12.0, north
+
+
+class TestSmoothedSampling:
+    def _runner(self, values):
+        """Returns the given values in order, one per requested point."""
+        state = {"i": 0}
+
+        def run(argv, stdin):
+            n = len(stdin.strip().splitlines())
+            out = values[state["i"]:state["i"] + n]
+            state["i"] += n
+            return types.SimpleNamespace(stdout="\n".join(str(v) for v in out) + "\n",
+                                         stderr="", returncode=0)
+        return run
+
+    def test_it_averages_the_nine_cells(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(dem, "INPUTS", tmp_path)
+        (tmp_path / "3dep-n38w123.tif").write_bytes(b"x")
+        # Eight cells at 100 m and one spike at 190 m: the mean is 110, not 190.
+        runner = self._runner([100] * 4 + [190] + [100] * 4)
+        assert dem.sample_smoothed([(37.5, -122.5)], runner=runner) == [pytest.approx(110.0)]
+
+    def test_a_spike_survives_unsmoothed_sampling(self, monkeypatch, tmp_path):
+        """The contrast that makes the smoothing worth its nine reads."""
+        monkeypatch.setattr(dem, "INPUTS", tmp_path)
+        (tmp_path / "3dep-n38w123.tif").write_bytes(b"x")
+        assert dem.sample([(37.5, -122.5)], runner=self._runner([190])) == [190.0]
+
+    def test_nodata_neighbours_are_skipped_not_counted_as_zero(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(dem, "INPUTS", tmp_path)
+        (tmp_path / "3dep-n38w123.tif").write_bytes(b"x")
+        runner = self._runner([100, 100, -999999, -999999, 100, -999999, -999999, -999999, -999999])
+        assert dem.sample_smoothed([(37.5, -122.5)], runner=runner) == [pytest.approx(100.0)]
+
+    def test_an_entirely_nodata_neighbourhood_is_absence(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(dem, "INPUTS", tmp_path)
+        (tmp_path / "3dep-n38w123.tif").write_bytes(b"x")
+        assert dem.sample_smoothed([(37.5, -122.5)], runner=self._runner([-999999] * 9)) == [None]
+
+    def test_it_asks_for_nine_positions_per_point(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(dem, "INPUTS", tmp_path)
+        (tmp_path / "3dep-n38w123.tif").write_bytes(b"x")
+        runner = fake_runner("\n".join(["100"] * 18) + "\n")
+        dem.sample_smoothed([(37.5, -122.5), (37.6, -122.6)], runner=runner)
+        assert len(runner.calls[0][1].strip().splitlines()) == 18
+
+    def test_it_is_still_one_process_per_tile(self, monkeypatch, tmp_path):
+        """Nine times the rows, not nine times the processes."""
+        monkeypatch.setattr(dem, "INPUTS", tmp_path)
+        (tmp_path / "3dep-n38w123.tif").write_bytes(b"x")
+        runner = fake_runner("\n".join(["100"] * 27) + "\n")
+        dem.sample_smoothed([(37.5, -122.5), (37.51, -122.51), (37.52, -122.52)], runner=runner)
+        assert len(runner.calls) == 1
