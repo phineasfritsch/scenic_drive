@@ -1,13 +1,13 @@
 ---
 id: T-0030
 title: Emit corpus.sqlite: segments + R*Tree, places, curated, meta, schema_version
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T23:19:29Z
+lease_expires_at: 2026-09-08T01:19:29Z
 worktree: null
-branch: null
+branch: task/T-0030
 exclusive: []
 touches: [services/etl/, Sources/PlaceStore/]
 pins_affected: []
@@ -29,3 +29,4 @@ RED: rebuild twice from the same extract -> identical checksum (P-DATA-01 idempo
 simulated way split -> >=98% of previous ids still resolve.
 
 ## Log
+- 2026-09-07T23:19:29Z claimed by agent/unknown; lease until 2026-09-08T01:19:29Z
