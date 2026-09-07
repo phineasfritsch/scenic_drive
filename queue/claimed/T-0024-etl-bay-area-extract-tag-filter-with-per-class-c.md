@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-07T20:07:44Z
 worktree: ../wt/T-0024
 branch: task/T-0024
 exclusive: [scenic-index]
-touches: [services/etl/, ops/sane]
+touches: [services/etl/, ops/sane, ops/etl-extract]
 pins_affected: []
 reviewer: agent/reviewer-23
 depends_on: []

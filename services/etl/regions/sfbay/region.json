@@ -1,0 +1,25 @@
+{
+  "id": "sfbay",
+  "name": "San Francisco Bay Area",
+  "_comment_counties": "The nine ABAG counties. Named so the bbox can be argued with rather than trusted.",
+  "counties": [
+    "Alameda",
+    "Contra Costa",
+    "Marin",
+    "Napa",
+    "San Francisco",
+    "San Mateo",
+    "Santa Clara",
+    "Solano",
+    "Sonoma"
+  ],
+  "bbox": {
+    "min_lon": -123.62,
+    "min_lat": 36.85,
+    "max_lon": -121.20,
+    "max_lat": 38.92
+  },
+  "_comment_bbox": "Wider than the county polygons on purpose: a route may legitimately leave the region and come back, and an edge clipped mid-way is worse than a few extra square kilometres of graph. West to the Farallones, south past Santa Cruz's approach roads, north over the Sonoma/Napa county line, east to the Altamont.",
+  "_comment_counts": "Recorded from a real extract, not invented. ops/sane asserts each class stays inside its bounds; a filter change that silently drops a class fails there instead of surfacing as a bad route weeks later. Regenerate deliberately with ops/etl-extract --record-counts.",
+  "counts": {}
+}
