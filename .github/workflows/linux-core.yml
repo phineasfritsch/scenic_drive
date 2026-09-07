@@ -13,10 +13,17 @@ on:
 
 concurrency:
   group: linux-core-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded PR runs only; every main commit keeps its own check (reviewer-2 finding).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
+
+# `shell: bash` makes every run: step `bash -e -o pipefail`. GitHub's unspecified-shell default is `bash -e`
+# WITHOUT pipefail, so `cmd | tail -3` would report success when cmd fails (reviewer-2 finding).
+defaults:
+  run:
+    shell: bash
 
 jobs:
   pins-source-only:
