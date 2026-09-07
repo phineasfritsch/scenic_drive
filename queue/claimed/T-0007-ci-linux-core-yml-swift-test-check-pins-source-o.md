@@ -1,13 +1,13 @@
 ---
 id: T-0007
 title: CI: linux-core.yml (swift test + check-pins --source-only), Xcode Cloud nightly + device/* TestFlight, ci_scripts
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01RJHHJcZtZChD9eMb275urx
+claimed_at: 2026-09-07T03:53:05Z
+lease_expires_at: 2026-09-07T07:53:05Z
+worktree: ../wt/T-0007
+branch: task/T-0007
 exclusive: []
 touches: [.github/workflows/, apps/ios/ci_scripts/]
 pins_affected: []
@@ -24,3 +24,4 @@ acceptance:
 Pin the swift image by digest. Linux job must never need a Mac or any secret.
 
 ## Log
+- 2026-09-07T03:53:05Z claimed by agent/claude-opus-5; lease until 2026-09-07T07:53:05Z
