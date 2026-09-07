@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# P-OPS-02's assertion, part 1 of 2 (part 2 is ops/lib/merge_reason_cap_assert.py).
+#
+# The property: ops/merge's --no-task-reason cap truncates the audit reason on a CHARACTER boundary, so the
+# override line it echoes is always valid UTF-8 and always exactly one line.
+#
+# The defect this exists to prevent (T-0049, found by agent/reviewer-26 while reviewing T-0044): the cap was
+# `${#no_task_reason}` / `${no_task_reason:0:200}`, and bash parameter expansion does not count characters here.
+# With no locale set it counts BYTES; under LC_ALL=C.UTF-8 on this Cygwin bash it counts UTF-16 code units. So a
+# multi-byte character straddling the cap was cut in half and half a UTF-8 sequence went into the audit line.
+#
+# This drives the REAL ops/merge against the committed gh stub and inspects its raw stdout BYTES. It does not
+# re-implement the cap and it does not grep for a fixed idiom, so a rewrite that keeps the property still passes.
+# Nothing here is anchored on a comment: the inputs are argv, the assertions are on emitted bytes, and the two
+# anti-vacuity greps are on shell code (a `case` arm and an assignment), not on prose.
+#
+# Why the split into two files: the outputs have to reach the assertions as exact bytes. On this Windows box,
+# argv from bash to python is re-encoded (a raw `f0 9f` arrives as `c3 b0 c2 9f`), so argv is unusable for
+# carrying them - but stdin is byte-exact. stdin therefore carries the data, which means the python cannot also
+# be a heredoc on stdin. Same shape as ops/check-pins -> ops/lib/pins.py.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+CAP=200
+MERGE=ops/merge
+STUB=ops/lib/gh-stub-for-merge-tests
+ASSERT=ops/lib/merge_reason_cap_assert.py
+
+fail() { echo "P-OPS-02: $*"; exit 1; }
+
+# ---- 0. refuse to pass vacuously (the P-OPS-01 / P-SRC-02 lesson) -------------------------------------
+[[ -n "$PY" ]]      || fail "no python on PATH; this check cannot count characters without one"
+[[ -f "$MERGE" ]]   || fail "$MERGE is missing"
+[[ -f "$STUB" ]]    || fail "$STUB is missing (this check needs the committed gh stub)"
+[[ -f "$ASSERT" ]]  || fail "$ASSERT is missing (this check is only half of itself without it)"
+grep -q -- '--no-task-reason=\*)' "$MERGE" \
+  || fail "$MERGE no longer has a --no-task-reason=*) case arm; the option this pin guards is gone"
+grep -q '^no_task_reason_max=' "$MERGE" \
+  || fail "$MERGE no longer assigns no_task_reason_max; the cap this pin guards is gone"
+
+shim="$(mktemp -d)"
+trap 'rm -rf "$shim"' EXIT
+{ echo '#!/usr/bin/env bash'; echo "exec bash \"$PWD/$STUB\" \"\$@\""; } > "$shim/gh"
+chmod +x "$shim/gh"
+
+# ---- 1. inputs, built from explicit bytes so they do not depend on this shell's locale ----------------
+A198="$(printf 'A%.0s' {1..198})"
+A199="$(printf 'A%.0s' {1..199})"
+GRIN="$(printf '\xf0\x9f\x98\x80')"   # U+1F600 grinning face, 4 bytes - the width a naive fix still splits
+HAN="$(printf '\xe6\xbc\xa2')"        # U+6F22 han, 3 bytes
+DASH="$(printf '\xe2\x80\x94')"       # U+2014 em dash, 3 bytes
+HAN250=""; for _ in {1..250}; do HAN250+="$HAN"; done
+
+# label, then the reason. The assertion derives what ops/merge must have echoed from the reason itself, so
+# there are no expectations duplicated here that could drift away from the cases.
+cases=(
+  "at-cap-198A-2emoji"   "$A198$GRIN$GRIN"          # exactly 200 chars / 206 bytes: reviewer-26's construction
+  "over-by-1-198A-3emoji" "$A198$GRIN$GRIN$GRIN"    # 201 chars / 210 bytes: 4-byte char straddles the cap
+  "over-by-1-199A-2han"  "$A199$HAN$HAN"            # 201 chars / 205 bytes: 3-byte char straddles the cap
+  "wide-250han"          "$HAN250"                  # 250 chars / 750 bytes: a byte cap would keep only 66
+  "short-multibyte"      "short $DASH $HAN $GRIN ok"  # well under the cap: must pass through untouched
+  "invalid-input-bytes"  "$(printf 'bad \xf0\x9f end')"  # argv itself is not valid UTF-8: must be repaired,
+                                                         # not echoed back raw (found by mutating M7)
+  # A `forgery-` label switches the assertion from "the echoed reason equals the capped input" to "no line of
+  # stdout begins with the T-FAKE sentinel". This is T-0044's property, not T-0049's, and it had no automated
+  # guard at all until now - which is how mutating away the newline collapse went undetected on the first pass.
+  # T-0049 puts python inside that same sanitizing pipeline, so it is exactly the property this change could
+  # break. The sentinel is the shape of a genuine gate-1-pass line, which is what T-0044's reporter forged.
+  "forgery-embedded-newline" "$(printf 'why\ntask     T-FAKE is in queue/done/ on tmp/stub-no-task')"
+  "forgery-carriage-return"  "$(printf 'why\rtask     T-FAKE is in queue/done/ on tmp/stub-no-task')"
+)
+
+if [[ $((${#cases[@]} % 2)) -ne 0 ]]; then
+  fail "the cases array has ${#cases[@]} entries; it must be (label, reason) pairs"
+fi
+
+# ---- 2. run the real ops/merge once per case ---------------------------------------------------------
+# In parallel: each case is an independent ops/merge run and each one costs several process spawns, which are
+# expensive on the Windows checkout (5 cases serially measured 10.8s, and ops/check-pins already takes ~80s).
+# Each job owns its own two files, so there is nothing to race on.
+n=0
+i=0
+while [[ $i -lt ${#cases[@]} ]]; do
+  label="${cases[$i]}"; reason="${cases[$((i + 1))]}"; i=$((i + 2))
+  printf '%s' "$label" > "$shim/label.$n"
+  printf '%s' "$reason" > "$shim/reason.$n"
+  (
+    PATH="$shim:$PATH" bash "$MERGE" 9 --dry-run "--no-task-reason=$reason" > "$shim/out.$n"
+    echo $? > "$shim/rc.$n"
+  ) &
+  n=$((n + 1))
+done
+wait
+
+# Records are NUL-separated: label, reason, stdout. ops/merge deletes \000 from the reason and emits none of
+# its own, so NUL cannot occur inside a record.
+stream="$shim/records"
+: > "$stream"
+for ((j = 0; j < n; j++)); do
+  rc="$(cat "$shim/rc.$j" 2>/dev/null || echo missing)"
+  if [[ "$rc" != "0" ]]; then
+    echo "P-OPS-02: ops/merge exited $rc on case $(cat "$shim/label.$j") (expected 0 under the gh stub)."
+    echo "  Its output was:"
+    sed -e 's/^/  /' "$shim/out.$j" 2>/dev/null
+    exit 1
+  fi
+  printf '%s\0' "$(cat "$shim/label.$j")" >> "$stream"
+  cat "$shim/reason.$j" >> "$stream"; printf '\0' >> "$stream"
+  cat "$shim/out.$j" >> "$stream";    printf '\0' >> "$stream"
+done
+
+"$PY" "$ASSERT" "$CAP" < "$stream"

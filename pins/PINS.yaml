@@ -32,6 +32,15 @@
   owner: agent/claude-opus-5
   added: 2026-09-07
 
+- id: P-OPS-02
+  statement: ops/merge's --no-task-reason override line is always valid UTF-8 and always exactly one line; its 200 cap counts characters, not bytes
+  why_no_test_catches_it: ops/ has no test tier - ops/test runs swift, vitest and pytest and nothing else - so ops/merge's behaviour is only ever exercised by hand, at merge time, against a live PR. A truncation that splits a UTF-8 sequence is invisible there because the terminal renders the orphaned bytes as one replacement glyph and nothing exits non-zero; the audit trail is the only artefact that records why a review gate was overridden, and it was silently storing invalid bytes (T-0049, found by reviewer-26 while reviewing T-0044). The cap also cannot be checked in the language of the bug: bash's ${#s} counts bytes with no locale set and UTF-16 code units under LC_ALL=C.UTF-8 on the Cygwin bash this repo is driven from. The assertion refuses to pass unless a case actually straddles the cap and a case actually attempts a gate-line forgery, so it cannot go quietly decorative.
+  anchor: artifact
+  runs_on: [linux, mac]
+  assertion: "bash ops/lib/check-merge-reason-cap"
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
 - id: P-GIT-01
   statement: .gitattributes normalizes every text file to LF
   why_no_test_catches_it: Lost on 2026-09-07 to a sweep-everything demo commit; every ops/* script would then break under WSL2 with no test failing
