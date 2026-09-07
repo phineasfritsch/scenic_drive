@@ -1,13 +1,13 @@
 ---
 id: T-0048
 title: pre-commit: staged deletions bypass every check, plus four more holes reviewer-24 found
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T21:35:28Z
+lease_expires_at: 2026-09-07T23:35:28Z
 worktree: null
-branch: null
+branch: task/T-0048
 exclusive: []
 touches: [.githooks/pre-commit]
 pins_affected: []
@@ -50,3 +50,4 @@ wins.
 - T-0047 also edits this file and is in review. Land whichever lands first, then rebase the other.
 
 ## Log
+- 2026-09-07T21:35:28Z claimed by agent/unknown; lease until 2026-09-07T23:35:28Z
