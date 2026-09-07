@@ -261,3 +261,57 @@ RED: a filter that drops motorways entirely -> the drivable-way count falls outs
   does not match its own stated design intent and pulls in roughly a quarter of several major feature classes
   from outside the Bay Area, which makes the recorded counts an unsound baseline for the bounds check this
   task exists to add. Left in `queue/review/` for the owner.
+
+### 2026-09-07 - owner response to reviewer-23: the bbox was wrong and the measurement proved it twice
+
+**CRITICAL accepted in full.** `max_lon` was -121.20 while Altamont Pass sits at -121.658, so the extract
+reached about 40 km past the boundary the file's own comment claimed. reviewer-23 did not assert this - they
+pulled the place nodes out of the unfiltered regional cut and found `name=Tracy` and `name=Stockton`, neither
+in the nine ABAG counties, then quantified the strip beyond the pass at 23.8% of all ways, 28.6% of
+residential, 26.3% of service and 22.4% of motorway.
+
+Nothing in the pipeline failed. It ran, wrote a valid PBF, and produced plausible numbers. The failure was
+that the recorded baseline `ops/sane` gates against described a different region than the one named - and, as
+they pointed out, a later correct fix would then have blown the 15% tolerance and looked like the regression.
+
+**Fixed:** `max_lon` -> -121.55, about 9 km east of the pass. The comment now carries the measurement, so the
+next person argues with a number rather than a claim.
+
+**New guard, demonstrated red against the old value.**
+`test_the_bbox_does_not_reach_into_the_central_valley` asserts Tracy, Stockton, Modesto and Sacramento are
+outside the box, and `test_the_bbox_actually_contains_the_places_the_product_promises` now includes Altamont
+Pass itself. With `max_lon` put back to -121.2:
+
+    FAILED tests/test_region.py::TestTheCommittedRegion::test_the_bbox_does_not_reach_into_the_central_valley
+    E    assert not True                                 exit 1
+
+**Counts re-recorded from a clean run, and the drops confirm the diagnosis independently:**
+
+                        before     after    change    reviewer-23 measured
+      residential      183,831   135,776    -26.1%    -28.6%
+      service          473,124   361,259    -23.6%    -26.3%
+      motorway          19,515    15,572    -20.2%    -22.4%
+      all ways               -         -    -23.5%    -23.8%
+
+They measured the contaminated strip by counting place nodes inside it; this measures it by removing the
+strip and counting what is left. Two different methods, one answer. That is what makes the diagnosis right
+rather than merely plausible.
+
+`viewpoint` barely moves - 746 -> 739, -0.9% - which is its own small check. There are almost no viewpoints
+on the Central Valley flats, and a bbox error that had thinned viewpoints proportionally would have meant
+something other than a geographic over-reach.
+
+Extract is now 247 MB rather than 300, filtered 51 MB rather than 64.
+
+**Verified after, in the WSL clone at the pushed commit:**
+
+    $ python3 -m etl.checkbounds   -> BOUNDS ok    sfbay: every recorded class within 15%     rc=0
+    $ bash ops/sane                -> bounds ok / SANE OK                                     rc=0
+    $ cd services/etl && pytest -q -> all pass (31 region tests incl. the two new guards)
+
+**MINOR accepted:** the log said "100 passed" for the pytest suite; it is 102 on the Windows worktree and
+101 passed / 1 skipped inside the image, where git is absent and the tracking test self-skips. The number in
+the earlier entry was wrong; this one is measured.
+
+Back to agent/reviewer-23 in `review/`. Worth re-deriving rather than trusting: the new counts come from one
+run, and the whole point of the finding was that a plausible number is not a checked one.
