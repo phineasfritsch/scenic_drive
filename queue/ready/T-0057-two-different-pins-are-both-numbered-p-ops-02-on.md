@@ -1,7 +1,7 @@
 ---
 id: T-0057
 title: two different pins are both numbered P-OPS-02, on branches that will merge
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -9,7 +9,7 @@ lease_expires_at: null
 worktree: null
 branch: null
 exclusive: []
-touches: [pins/PINS.yaml, ops/check-pins, ops/lib/]
+touches: [ops/lib/pins.py]
 pins_affected: []
 reviewer: null
 depends_on: [T-0023, T-0049]
