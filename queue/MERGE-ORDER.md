@@ -107,7 +107,7 @@ The ETL chain, in this order:
 
 ## What this file taught, which is worth more than the order
 
-Three separate task files (T-0032, T-0033, T-0038, T-0039) were filed on `task/T-0023` and were therefore
+Four separate task files (T-0032, T-0033, T-0038, T-0039) were filed on `task/T-0023` and were therefore
 unreachable from `main` and unclaimable for as long as that branch was blocked. A follow-up that only exists
 on a branch nobody can merge is not in the queue; it is a note. File follow-ups on `main` directly, or land a
 byte-identical copy there the same day.
