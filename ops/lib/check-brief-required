@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# A task may not be claimed until somebody has written its brief.
+#
+# The property, stated as an invariant over the one tool that decides it:
+#
+#     for every task file T in ready/:  the ## Brief section has prose  <=>  `queue.py claim` accepts T
+#     and when it refuses, T is still in ready/ and no lock was taken
+#
+# Why this exists: ops/new-task writes a placeholder brief and nothing ever required it to be replaced. Ten
+# task files in this tree carried it verbatim, and T-0011 reached queue/done/ still carrying it - a task a
+# reviewer signed off against acceptance criteria nobody had written. An unwritten brief cannot be argued
+# with, which is indistinguishable from the work not having been checked.
+#
+# Anchored on the executable and on generated task fixtures, never on a comment, and never on the
+# placeholder's WORDING - a check that matched that literal sentence would stop firing the moment somebody
+# rephrased it, which is the same defect as the CRLF check T-0051 found could not fire at all.
+set -uo pipefail
+# Not `git rev-parse --show-toplevel`: from WSL against a Windows worktree that prints an unusable path and,
+# without set -e, silently leaves the script in whatever directory it started in (see T-0055).
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -f ops/lib/queue.py ]] || { echo "$(pwd) is not the repo root (no ops/lib/queue.py)"; exit 2; }
+
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+fail=0
+
+mkdir -p "$TMP/ops/lib" "$TMP/queue"/{backlog,ready,claimed,review,blocked,done,LOCKS}
+cp ops/lib/queue.py "$TMP/ops/lib/queue.py"
+
+# $1 = id, $2 = the body of the ## Brief section (may be empty or multi-line)
+make_task() {
+  { printf -- '---\nid: %s\ntitle: demo\nstate: ready\nowner: null\nowner_session: null\n' "$1"
+    printf -- 'claimed_at: null\nlease_expires_at: null\nworktree: null\nbranch: null\n'
+    printf -- 'exclusive: []\ntouches: [ops/]\npins_affected: []\nreviewer: null\ndepends_on: []\n'
+    printf -- 'verify: [ops/test]\nacceptance: []\n---\n## Brief\n\n%s\n\n## Log\n' "$2"
+  } > "$TMP/queue/ready/$1-demo.md"
+}
+
+# $1 = id, $2 = "accept" or "refuse", $3 = description
+expect() {
+  local id="$1" want="$2" what="$3" out rc
+  out="$("$PY" "$TMP/ops/lib/queue.py" claim "$id" 2>&1)"; rc=$?
+  local got="accept"; [[ $rc -ne 0 ]] && got="refuse"
+  if [[ "$got" != "$want" ]]; then
+    echo "FAIL: $what -> $got (wanted $want)"
+    printf '      %s\n' "$out" | head -3
+    fail=1
+    return
+  fi
+  if [[ "$want" == "refuse" ]]; then
+    # A refusal must not half-claim: the task stays in ready/ and nothing moved.
+    if [[ ! -f "$TMP/queue/ready/$id-demo.md" ]]; then
+      echo "FAIL: $what refused but the task left ready/"; fail=1; return
+    fi
+    if [[ -f "$TMP/queue/claimed/$id-demo.md" ]]; then
+      echo "FAIL: $what refused but the task also appeared in claimed/"; fail=1; return
+    fi
+    if ! grep -q "no brief" <<<"$out"; then
+      echo "FAIL: $what refused without saying why: $out"; fail=1; return
+    fi
+  fi
+  echo "ok: $what -> $got"
+}
+
+# The placeholder ops/new-task actually writes today.
+make_task T-9001 '(what, why, and the exact demonstration that proves it — including the red run)'
+expect T-9001 refuse "the current placeholder"
+
+# The same SHAPE with different words: this is the case a text match would miss.
+make_task T-9002 '(fill this in before claiming)'
+expect T-9002 refuse "a reworded placeholder"
+
+make_task T-9003 ''
+expect T-9003 refuse "an empty Brief section"
+
+# No ## Brief heading at all.
+{ printf -- '---\nid: T-9004\ntitle: demo\nstate: ready\nowner: null\nowner_session: null\n'
+  printf -- 'claimed_at: null\nlease_expires_at: null\nworktree: null\nbranch: null\n'
+  printf -- 'exclusive: []\ntouches: [ops/]\npins_affected: []\nreviewer: null\ndepends_on: []\n'
+  printf -- 'verify: [ops/test]\nacceptance: []\n---\n## Log\n'
+} > "$TMP/queue/ready/T-9004-demo.md"
+expect T-9004 refuse "no Brief heading at all"
+
+# The other side of the invariant. A check that only ever refuses is not a check - it is an outage.
+make_task T-9005 'Make ops/foo exit 2 when its input is unreadable. Demonstrate red with a chmod 000 file.'
+expect T-9005 accept "one real sentence"
+
+make_task T-9006 'Some prose.
+
+(and a parenthetical after it, which must not make the brief look unwritten)'
+expect T-9006 accept "prose followed by a parenthetical"
+
+if [[ $fail -ne 0 ]]; then
+  echo "BRIEF CHECK FAIL"
+  exit 1
+fi
+echo "BRIEF CHECK OK"
