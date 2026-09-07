@@ -324,3 +324,109 @@ diff and pin extension claim to restore - does not hold for the `tests=`/`skippe
 `list_failures()`, and the extended pin fixtures do not catch it. Leaving in `queue/review/` for
 agent/builder-6 to fix `list_failures()` to validate `tests=`/`skipped=` via `_count_attr` (or explain why it
 should not) and add a fixture that isolates a bad `tests=`/`skipped=` from valid `failures=`/`errors=`.
+
+- 2026-09-07T18:10:00Z builder-6: fixed reviewer-25's finding. Correction to my own log: `ops/lib/junit_count.py`
+  is 100755, not 100644 - my earlier log entry repeated a wrong assumption from the brief; the mode was
+  already correct (P-OPS-01) and this task's commits never touched it.
+
+### The bug, confirmed
+
+  `list_failures()` (the old line 89) ran `_count_attr` on `failures=`/`errors=` only; `count()` (lines 53-55)
+  ran it on all four (`tests`, `failures`, `errors`, `skipped`). The inline comment directly above line 89
+  claimed the two "fail identically" - false for `tests=`/`skipped=`. Reproduced exactly as reviewer-25
+  described, against the code as shipped in commit b4a6e1a:
+
+  ```
+  $ python ops/lib/junit_count.py testsbad.xml          # <testsuite tests="abc" failures="0" errors="0">
+  junit_count: cannot read testsbad.xml: tests='abc' is not an integer
+  exit=2
+  $ python ops/lib/junit_count.py --list-failures testsbad.xml
+  (no output)
+  exit=0
+  ```
+
+### Fix: one shared validation path, not two that can drift
+
+  Added `_suite_counts(s)` - the single place a summary-only `<testsuite>`'s `tests=`/`failures=`/`errors=`/
+  `skipped=` are read and validated via `_count_attr`. `count()` now calls it for `(total, failed, skipped)`;
+  `list_failures()` now calls it too and discards `tests`/`skipped`, keeping only the failed count - it still
+  needs the validation side-effect even though it has no use for those two values. This makes "validate a
+  different subset" structurally impossible rather than a discipline to remember next time. Rewrote the false
+  comment above the `list_failures()` call site to state what the shared path actually guarantees.
+
+  ```
+  $ python ops/lib/junit_count.py testsbad.xml
+  junit_count: cannot read .../testsbad.xml: tests='abc' is not an integer
+  exit=2
+  $ python ops/lib/junit_count.py --list-failures testsbad.xml
+  junit_count: cannot read .../testsbad.xml: tests='abc' is not an integer
+  exit=2
+  ```
+  Same check with a bad `skipped=` (`tests="1" failures="0" errors="0" skipped="xyz"`) - identical result on
+  both paths, both times `skipped='xyz' is not an integer`, exit 2.
+
+### `ops/lib/check-failure-naming`: fixtures 8 and 9 isolate the gap
+
+  Added `attr-bad-tests.xml` (`tests="abc" failures="0" errors="0"` - bad `tests=`, perfectly valid
+  `failures=`/`errors=`, reviewer-25's exact shape) and `attr-bad-skipped.xml` (same idea via `skipped=`),
+  folded into the existing "exit exactly 2, clean message" loop.
+
+  RED, run against the previously-shipped (pre-this-fix) `ops/lib/junit_count.py` - `git show
+  HEAD:ops/lib/junit_count.py` (commit b4a6e1a, the gapped version) copied in temporarily, the tracked file
+  restored immediately after, nothing gapped ever re-committed:
+
+  ```
+  P-OPS-02: --list-failures exited 0 (want 2) on unreadable attr-bad-tests.xml:
+  P-OPS-02: --list-failures did not print the clean cannot-read message on attr-bad-tests.xml:
+  P-OPS-02: --list-failures exited 0 (want 2) on unreadable attr-bad-skipped.xml:
+  P-OPS-02: --list-failures did not print the clean cannot-read message on attr-bad-skipped.xml:
+  exit=1
+  ```
+  This is the pin passing over the gap the first time, reproduced on demand: `count()`'s half of the loop
+  never complained (it already validated all four attributes), only `--list-failures`'s half did, exactly
+  the asymmetry under review.
+
+  GREEN, same run, fixed `junit_count.py` restored:
+
+  ```
+  P-OPS-02: every counted failure is named; unreadable reports fail closed
+  exit=0
+  ```
+
+### The two non-blocking notes - decided, not shrugged
+
+  - **Whitespace- and `+`-padded numerics** (`" 3 "`, `"+3"`): left accepted, unchanged from before this
+    fix. `int("  3  ")` and `int("+3")` are unambiguously the value 3 under Python's own integer grammar -
+    there is no corruption story for them the way there is for `"abc"` (not a number at all), `""` (present
+    but empty), or a negative value (a count that cannot exist). Rejecting them would invent a stricter
+    format than JUnit's schema requires or any real writer has been observed to violate, purely to reject
+    inputs that are not actually wrong. Verified: `<testsuite tests=" 3 " failures="+1" errors="0"
+    skipped="0">` -> `total=3 failed=1 skipped=0`, exit 0.
+  - **No upper bound / bash arithmetic overflow**: fixed, not left as a note. Added `_MAX_COUNT =
+    1_000_000_000` in `_count_attr` - comfortably below both 32- and 64-bit signed integer ranges (so it can
+    never overflow `ops/test`'s `linux_total=$((linux_total + t))` accumulation) and far beyond any real
+    report's test count. A count attribute above it now raises `UnreadableReport` ("implausibly large"),
+    exit 2, same as negative. Verified: `<testsuite tests="1" failures="123456789012345678901234567"
+    errors="0" skipped="0">` (27 digits) -> `junit_count: cannot read ...: failures='123456789012345678901234567'
+    is implausibly large (> 1000000000)`, exit 2, both paths. This was the one of the two worth more than a
+    shrug: it turned a garbage report into a silently negative failure count reaching `ops/test`'s shell
+    arithmetic, not merely a differently-formatted valid one.
+
+### Final verification, fixed code (fresh worktree; `services/api && npm ci --no-audit --no-fund` already run)
+
+  ```
+  $ bash ops/test
+  ...
+  TESTS linux=86/76 ios=skipped failed=0 skipped=0
+  OK
+  exit=0
+
+  $ bash ops/check-pins
+  PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+  exit=0
+  (python ops/lib/pins.py --verbose | grep OPS-02  ->  "ok      P-OPS-02")
+
+  $ bash ops/queue-check
+  QUEUE OK (44 tasks)
+  exit=0
+  ```
