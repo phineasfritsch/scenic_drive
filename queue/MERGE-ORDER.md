@@ -96,3 +96,18 @@ The ETL chain, in this order:
   actually reports there, and that it was raised rather than lowered.
 - Re-check the follow-up tasks that were blocked on these merges: T-0041 (REQUIRED list), T-0046 (the pip
   check's scope boundary).
+- **Close T-0034, which is about to come back from the dead.** Commit `69139c1` is titled "close T-0034 as
+  superseded by T-0021" and its diff touches exactly one file: T-0035's. The close never happened. T-0034 is
+  still in `queue/ready/` on `task/T-0023`, so merging that branch ADDS it back to `main` — a task the fleet
+  was told is dead, returned to the ready pool. After step 8, delete it and say why in the commit.
+- **The PR count is larger than this list.** These twelve were open when the order was derived; T-0045, T-0046,
+  T-0047, T-0024, T-0025 and others have opened since. Before merging anything, re-run the two commands at the
+  top of this file against the CURRENT branch set rather than trusting the table — the same instruction this
+  file gives about the stub conflict, for the same reason.
+
+## What this file taught, which is worth more than the order
+
+Three separate task files (T-0032, T-0033, T-0038, T-0039) were filed on `task/T-0023` and were therefore
+unreachable from `main` and unclaimable for as long as that branch was blocked. A follow-up that only exists
+on a branch nobody can merge is not in the queue; it is a note. File follow-ups on `main` directly, or land a
+byte-identical copy there the same day.
