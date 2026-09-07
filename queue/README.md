@@ -23,6 +23,10 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
    `git reset --hard origin/main` and pick another.** Push-to-claim is the compare-and-swap; git is the lock.
 4. **Work** in `git worktree add ../wt/T-0007 -b task/T-0007`, touching only the paths in `touches:`
    (`.githooks/pre-commit` enforces this). Stage explicit paths. Never `git add -A`.
+   If you add a resource to `exclusive:` **after** claiming, `claim` never saw it and no lock exists — run
+   `ops/lock T-0007 --owner agent/<you>` to acquire it. It refuses if another task holds the lock, and
+   `ops/queue-check` fails until it is held. (The T-0011 case: the lock is what prevents a concurrent write, so
+   acquiring it late beats never, but declaring it before you claim beats both.)
 5. **Verify** with every command in `verify:`; paste the output into `## Log`, including the **red** run that proves
    the new check can fail. Green that has never been red is untested.
 6. **Review**: open a PR, set `reviewer:` to someone who is not you, `git mv` the file to `review/`. The reviewer

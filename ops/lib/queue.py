@@ -6,12 +6,14 @@
   queue.py sweep              move expired claimed/ tasks back to ready/, release their LOCKS, append to ## Log
   queue.py next               print the next unblocked ready/ task id
   queue.py claim T-0007 --owner agent/x --session <id> [--worktree ../wt/T-0007] [--hours 2]
+  queue.py lock T-0007 [--owner agent/x]   acquire locks a claimed task declares but does not hold
 
 No PyYAML: front matter is parsed by a deliberately small reader (scalars, [flow, lists], and `- ` block lists).
 """
 import datetime as dt
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -95,8 +97,56 @@ def tasks():
             yield state, p, fm, body
 
 
+def _ids_in_refs():
+    """Task ids visible on every remote-tracking branch, not just this worktree.
+
+    Without this, two branches allocate the same id: T-0015 was created on task/T-0007 and again on
+    task/T-0011 because the first was pushed but unmerged, and `queue-check` only notices once both land.
+    Scanning remote refs catches every id that has been pushed. Two agents allocating offline at the same
+    instant can still collide - the push is the compare-and-swap that settles that, exactly as for claims.
+    """
+    ids = set()
+
+    def warn(what, detail):
+        # Never silent: a degraded scan means collision protection is off, and the caller must know.
+        # This is the difference between "offline, as expected" and "the network hiccupped and you now
+        # have a duplicate id you will not notice until two branches merge".
+        print(f"WARNING: next_id could not {what} ({detail}); id allocation is falling back to this "
+              f"worktree only, so a duplicate id is possible. Verify with ops/queue-check after pushing.",
+              file=sys.stderr)
+
+    try:
+        r = subprocess.run(["git", "fetch", "--quiet", "--all"], cwd=ROOT, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            warn("fetch remotes", (r.stderr or "").strip().splitlines()[-1] if r.stderr.strip() else f"exit {r.returncode}")
+    except Exception as e:
+        warn("fetch remotes", type(e).__name__)
+
+    try:
+        refs = subprocess.run(["git", "for-each-ref", "--format=%(refname)", "refs/remotes"],
+                              cwd=ROOT, capture_output=True, text=True, timeout=30)
+        if refs.returncode != 0:
+            warn("list remote refs", f"exit {refs.returncode}")
+            return ids
+        for ref in refs.stdout.split():
+            if ref.endswith("/HEAD"):
+                continue
+            out = subprocess.run(["git", "ls-tree", "-r", "--name-only", ref, "queue/"],
+                                 cwd=ROOT, capture_output=True, text=True, timeout=30)
+            if out.returncode != 0:
+                warn(f"read queue/ on {ref}", f"exit {out.returncode}")
+                continue
+            for name in out.stdout.splitlines():
+                m = re.search(r"/(T-(\d+))-", name)
+                if m:
+                    ids.add(int(m.group(2)))
+    except Exception as e:
+        warn("scan remote refs", type(e).__name__)
+    return ids
+
+
 def next_id():
-    ids = [int(fm["id"].split("-")[1]) for _, _, fm, _ in tasks()]
+    ids = {int(fm["id"].split("-")[1]) for _, _, fm, _ in tasks()} | _ids_in_refs()
     return f"T-{(max(ids) + 1 if ids else 1):04d}"
 
 
@@ -250,6 +300,51 @@ def cmd_claim(argv):
     return 1
 
 
+def cmd_lock(argv):
+    """Acquire the locks a CLAIMED task declares but does not hold.
+
+    `claim` creates every declared lock, but a task whose `exclusive:` list is edited AFTER it was claimed
+    has no lock and no way to get one. That happened on T-0011 (exclusive: [floors] added post-claim);
+    queue-check caught it, but only after the window in which a concurrent write could have been lost.
+    """
+    tid = argv[0]
+    opts = _opts(argv[1:])
+    for state, p, fm, _ in tasks():
+        if fm["id"] != tid:
+            continue
+        if state != "claimed":
+            print(f"{tid} is in {state}/, not claimed/ - only a claimed task holds locks")
+            return 1
+        owner = opts.get("owner") or fm.get("owner") or "agent/unknown"
+        if fm.get("owner") and owner != fm.get("owner"):
+            print(f"{tid} is owned by {fm['owner']}, not {owner}")
+            return 1
+        wanted = fm.get("exclusive") or []
+        if not wanted:
+            print(f"{tid} declares no exclusive resources")
+            return 0
+        LOCKS.mkdir(exist_ok=True)
+        taken, already = [], []
+        for res in wanted:
+            lock = LOCKS / f"{res}.lock"
+            if lock.exists():
+                holder = lock.read_text(encoding="utf-8").strip()
+                if not holder.startswith(tid):
+                    print(f"cannot lock {res}: held by {holder}")
+                    return 1
+                already.append(res)
+            else:
+                taken.append(res)
+        for res in taken:
+            (LOCKS / f"{res}.lock").write_text(f"{tid} {owner} {iso(now())}\n", encoding="utf-8", newline="\n")
+        if taken:
+            log(p, f"acquired lock(s) {', '.join(taken)} for {owner}")
+        print(f"{tid}: acquired [{', '.join(taken) or 'none'}]" + (f", already held [{', '.join(already)}]" if already else ""))
+        return 0
+    print(f"{tid} not found")
+    return 1
+
+
 def _opts(argv):
     out = {}
     i = 0
@@ -267,7 +362,7 @@ def _list(v):
 
 
 def main(argv):
-    if len(argv) < 2 or argv[1] not in ("new", "check", "sweep", "next", "claim"):
+    if len(argv) < 2 or argv[1] not in ("new", "check", "sweep", "next", "claim", "lock"):
         print(__doc__)
         return 2
     return globals()[f"cmd_{argv[1]}"](argv[2:]) or 0
