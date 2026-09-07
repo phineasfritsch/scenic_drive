@@ -1,7 +1,7 @@
 ---
 id: T-0042
 title: junit_count.py crashes with ValueError on a non-numeric failures= or errors= attribute
-state: review
+state: done
 owner: agent/builder-6
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T16:38:26Z
@@ -430,3 +430,100 @@ should not) and add a fixture that isolates a bad `tests=`/`skipped=` from valid
   QUEUE OK (44 tasks)
   exit=0
   ```
+
+## Re-review — agent/reviewer-25 — commit 4bd5bbb — VERDICT: PASS
+
+Re-derived rather than trusted: swapped `ops/lib/junit_count.py` for `git show b4a6e1a:ops/lib/junit_count.py`
+(the exact code I originally FAILed) into this worktree, ran `bash ops/lib/check-failure-naming` myself, then
+restored and re-ran. Also independently re-ran `bash ops/test`, `bash ops/check-pins`, `bash ops/queue-check`,
+`git ls-files -s`, and wrote fresh attack fixtures of my own (not reused from the owner's) to probe the new
+shared path, the `_MAX_COUNT` boundaries, and the multi-suite case. Took on trust: none of the load-bearing
+claims - everything below was executed, not read.
+
+**RED, re-derived (`ops/lib/junit_count.py` = `b4a6e1a`, `ops/lib/check-failure-naming` = current):**
+  ```
+  P-OPS-02: --list-failures exited 0 (want 2) on unreadable attr-bad-tests.xml:
+  P-OPS-02: --list-failures did not print the clean cannot-read message on attr-bad-tests.xml:
+  P-OPS-02: --list-failures exited 0 (want 2) on unreadable attr-bad-skipped.xml:
+  P-OPS-02: --list-failures did not print the clean cannot-read message on attr-bad-skipped.xml:
+  exit=1
+  ```
+  Matches the owner's transcript exactly: `count()`'s half of the loop raises no complaint (it already
+  validated all four attributes pre-fixup) - only the `--list-failures` half fails, isolating exactly the gap
+  I reported. File restored immediately after (`diff` against the pre-swap copy came back empty,
+  `git status --porcelain` clean).
+
+**GREEN, re-derived (file restored to `HEAD`):**
+  ```
+  P-OPS-02: every counted failure is named; unreadable reports fail closed
+  exit=0
+  ```
+
+**Attacking the shared path (`_suite_counts`, `ops/lib/junit_count.py:56-69`):**
+- *When is it called?* Identically gated in both functions: `count()` line 82-86 and `list_failures()` line
+  116-120 both call it only inside `else:` (i.e. `cases = list(s.iter("testcase"))` is empty - summary-only
+  suites). Built `<testsuite tests="abc" failures="1"><testcase name="a"><failure .../></testcase></testsuite>`
+  (bad `tests=` AND a real `<testcase>` child): neither `count()` nor `--list-failures` validates `tests=`
+  here - both silently take the per-testcase branch (`total=1 failed=1`, `a - x` / exit 0 on both). Symmetric:
+  the drift did not move, this shape was already out of scope pre-fixup too (per-testcase evidence takes
+  priority over the summary attribute in both paths, unchanged by this diff).
+- *End-to-end invariant with a bad attribute AND genuine per-testcase failures in the same report:* built a
+  two-`<testsuite>` file - one with a real `<failure>` on a `<testcase>`, the other summary-only with
+  `skipped="xyz"`. Both `count()` and `--list-failures` exit 2 with `skipped='xyz' is not an integer` on the
+  whole file - no partial credit, the one bad suite makes the entire report unreadable on both paths, exactly
+  as the invariant requires (counted>0-implies-named>0 doesn't even get a chance to disagree, because both
+  paths refuse to answer at all).
+- *Do valid-report numbers still match?* `bash ops/test` -> `TESTS linux=86/76 ios=skipped failed=0
+  skipped=0` / `OK` - identical to the pre-fixup run, no regression in the counting arithmetic itself.
+
+**`_MAX_COUNT` boundaries (`ops/lib/junit_count.py:28,51-52`), re-derived with my own fixtures:**
+  ```
+  tests="1000000000"  -> total=1000000000 failed=0 skipped=0 / exit=0   (at the ceiling: accepted)
+  tests="1000000001"  -> cannot read ...: tests='1000000001' is implausibly large (> 1000000000) / exit=2
+  tests="50000"        -> total=50000 failed=1 skipped=0 / exit=0        (plausible large suite)
+  tests="1000000"      -> total=1000000 failed=1 skipped=0 / exit=0      (very large but real-shaped)
+  ```
+  Stating explicitly, as asked: 1e9 will not reject any real report. The largest known real-world single
+  JUnit-style test suites run to the low hundreds of thousands / low millions of cases at the outside
+  (verified 1,000,000 passes clean above); 1,000,000,000 is at least three orders of magnitude beyond that,
+  with no realistic report shape anywhere near the ceiling. It is also comfortably inside bash's signed
+  64-bit range even summed across many suites/files, so `ops/test`'s `$(( ))` accumulation cannot wrap from
+  any combination of reports this cap allows through. No plausible-report-rejection risk.
+- Also re-verified the owner's whitespace/`+`-sign claim directly: `tests=" 3 " failures="+1" errors="0"
+  skipped="0"` -> `total=3 failed=1 skipped=0`, exit 0 - unchanged, still an unambiguous non-negative integer
+  under Python's own grammar, no corruption story. Agree with leaving this accepted.
+- Re-verified the owner's 27-digit overflow-fix claim directly: `failures="123456789012345678901234567"` ->
+  `cannot read ...: failures='123456789012345678901234567' is implausibly large (> 1000000000)`, exit 2 on
+  both paths. This closes the minor/informational bash-arithmetic-overflow note from my first review; no
+  follow-up task needed.
+
+**File modes (unchanged by this fixup too):** `git ls-files -s` -> `ops/lib/check-failure-naming` 100755,
+`ops/lib/junit_count.py` 100755. Confirmed correct per P-OPS-01, `bash ops/lib/check-exec-bits` -> `P-OPS-01:
+25 files, 15 required present, all modes correct`.
+
+**Verification, exact output, this run:**
+  ```
+  $ bash ops/test
+  ...
+  TESTS linux=86/76 ios=skipped failed=0 skipped=0
+  OK
+  exit=0
+
+  $ bash ops/check-pins
+  PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+  exit=0
+
+  $ bash ops/queue-check
+  QUEUE OK (44 tasks)
+  exit=0
+  ```
+  `python ops/lib/pins.py --verbose` confirms `ok P-OPS-01` and `ok P-OPS-02` individually. `python -m
+  py_compile ops/lib/junit_count.py` compiles clean.
+
+The MAJOR finding from my first review (`list_failures()` not validating `tests=`/`skipped=`) is fixed via a
+single shared `_suite_counts()` validation path that both functions call under identical gating, closing the
+class of bug rather than just the two attributes I happened to demonstrate. The pin now isolates it with
+dedicated fixtures (`attr-bad-tests.xml`, `attr-bad-skipped.xml`) that I independently reproduced red-then-
+green. The two non-blocking notes from my first review were each explicitly decided: the overflow risk was
+fixed with a well-justified, non-rejecting-any-real-report ceiling; the whitespace/`+` permissiveness was
+kept with a documented rationale I agree with. No new asymmetry found in the consolidated path. PASS.
