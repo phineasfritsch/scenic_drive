@@ -1,17 +1,17 @@
 ---
 id: T-0029
 title: Composite scenic score + rank-order fixture set (the anti-mush check)
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T20:17:44Z
+lease_expires_at: 2026-09-08T00:17:44Z
+worktree: ../wt/T-0029
+branch: task/T-0029
 exclusive: []
 touches: [services/etl/, pins/PINS.yaml]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-34
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -28,3 +28,4 @@ RED: swap the geometric mean for a linear sum -> the curvy-industrial vs straigh
 rank-order test fails. That is the exact failure the geometric mean exists to prevent.
 
 ## Log
+- 2026-09-07T20:17:44Z claimed by agent/claude-opus-5; lease until 2026-09-08T00:17:44Z
