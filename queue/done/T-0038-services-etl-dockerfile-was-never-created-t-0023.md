@@ -1,7 +1,7 @@
 ---
 id: T-0038
 title: services/etl/Dockerfile was never created - T-0023 shipped without the pinned ETL image
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T15:50:28Z
@@ -288,3 +288,87 @@ a container has to solve the worktree mount, not the git binary.
     $ bash ops/queue-check -> QUEUE OK (39 tasks)                                     exit 0
 
 linux goes 93 -> 95: the two new tests. Back to agent/reviewer-22 in `review/`.
+
+- 2026-09-07 re-reviewed by agent/reviewer-22. **PASS** - `git mv` to `queue/done/`.
+
+  **What I re-derived vs. took on trust.** Rebuilt the image fresh from this commit's `Dockerfile` (unchanged
+  in this diff) in a WSL-native temp dir; confirmed no bytes changed by diffing against the digest verified
+  last round. Checked the regex source for control bytes myself rather than trusting the fix description:
+
+      $ python -c "import pathlib; print(pathlib.Path('services/etl/tests/test_dockerfile.py').read_bytes().count(b'\x08'))"
+      0
+      $ cat -A services/etl/tests/test_dockerfile.py | sed -n '17,33p'   # no ^H, no stray control chars, plain $ line endings
+
+    `UPGRADES` and `PIP_FROM_NETWORK` (`services/etl/tests/test_dockerfile.py:24-33`) are what they appear to
+    be - not re-trusting the "found and fixed a backspace-byte regex" claim, verified it directly.
+
+  - **Re-derived both of my original BLOCKER bypasses: both now RED.**
+    `RUN apt-get update -q && apt upgrade -y -q && ...` ->
+    `AssertionError: the image upgrades packages past its pin: [...'apt upgrade -y -q'...]`.
+    `RUN ... && apt-get install --only-upgrade -y libc6` -> same assertion, `--only-upgrade` branch. Both
+    reproduced live against a rebuilt image, not re-read from the log.
+
+  - **Attacked the new `UPGRADES` pattern (`test_dockerfile.py:24-28`) with four more shapes; all four RED,
+    none slip through:**
+      - `RUN apt-get -o APT::Get::AllowUnauthenticated=true upgrade -y` - red (option string between the verb
+        and "upgrade" contains no `&|;`, so `[^&|;]*` still spans it).
+      - `RUN apt-get update -q ; apt-get upgrade -y -q` (semicolon instead of `&&`) - red (the regex retries
+        from every start position; the second `apt-get` sits directly before `upgrade`).
+      - `RUN ["apt-get", "upgrade", "-y"]` (JSON exec form) - red (`\b` matches across the quote characters
+        fine).
+      - `RUN sh -c "apt-get update && apt-get upgrade -y"` - red (the whole line, quotes included, is still
+        scanned as one RUN instruction).
+
+  - **Attacked the new `PIP_FROM_NETWORK` pattern (`test_dockerfile.py:31-33`) with three shapes from the
+    coordinator's list:**
+      - `pip install --break-system-packages -f https://example.org/wheels somepkg` (`-f` short flag) - red,
+        because any URL that would actually function as a `--find-links` target still contains a literal
+        `https?://` that the pattern already matches. Also tried `-f10.0.0.5:8080/wheels` (short flag,
+        attached, no scheme) - this one is GREEN (evades the regex), but I don't score it as a working bypass:
+        `urlparse` requires a scheme starting with a letter, so a token starting with a digit is not parsed as
+        a URL by pip's find-links handling and is treated as a (non-existent) local path, not a network fetch.
+        On paper it evades the pattern; in practice it doesn't reach the network either. Noting it, not
+        blocking on it.
+      - **`COPY requirements.txt /tmp/requirements.txt` + `RUN pip install -r /tmp/requirements.txt`, with
+        the URL/`git+` pin living inside `requirements.txt` rather than the `RUN` line - GREEN. This is a real,
+        functioning bypass**, not a paper one: none of the 9 Dockerfile tests read any file other than the
+        Dockerfile itself (confirmed by source: `DOCKERFILE = Path(__file__).resolve().parents[1] /
+        "Dockerfile"` is the only file any test opens), so an unpinned dependency moved one file sideways is
+        completely invisible to this suite regardless of how it's spelled. Reproduced live, 9/9 green with the
+        Dockerfile containing a `COPY` + `-r requirements.txt` and no direct URL/`git+` text anywhere in it.
+
+  **Severity call on the requirements.txt finding: MAJOR, not BLOCKER, filed rather than blocking this PASS.**
+  Difference from the three prior "decorative" bugs (curl|bash literal string, `apt-get`-only literal, the
+  backspace-byte regex): those checks were each internally broken - they matched nothing like what their name
+  promised, on the exact shape the Dockerfile actually uses. This one does exactly what it says (catches a
+  URL/`git+`/index literal in the RUN text) - the gap is that the whole test file's design is "read the
+  Dockerfile's instructions," and a requirements file is not the Dockerfile. Same category as "the digest-pin
+  test checks shape, not registry truth" from last round: a real, worth-logging scope boundary, not a broken
+  promise. It also doesn't touch the load-bearing invariant (toolchain version pinning via the digest + the
+  upgrade guard) - `pip`/`COPY requirements.txt` do not appear anywhere in the current `Dockerfile`, so this is
+  prospective, not live. Recommend whoever picks this up make `test_nothing_is_pip_installed_from_a_url_or_a_repo`
+  fail closed on `pip install (-r|-e|\.)\S` the same way `test_the_parser_is_not_silently_blind_to_a_heredoc_run`
+  fails closed on `<<` - "I cannot see into this" is the honest answer, not silence.
+
+  **Verification, this worktree, fresh (`npm ci` re-run in `services/api`):**
+
+      $ bash ops/test
+      TESTS linux=95/76 ios=skipped failed=0 skipped=0
+      OK                                                  exit 0
+
+      $ bash ops/check-pins
+      PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux    exit 0
+
+      $ bash ops/queue-check
+      QUEUE OK (39 tasks)                                              exit 0
+
+  All three match the owner's claimed numbers exactly.
+
+  **Verdict: PASS.** The BLOCKER is genuinely fixed and does not merely move - re-derived against a freshly
+  built image, not trusted from the log. Four additional adversarial shapes against the upgrade guard all go
+  red; the regex fix generalizes rather than patching my two specific examples. The claimed backspace-byte
+  regex bug is verified absent by inspecting the committed bytes directly. The worktree-mount finding from
+  last round is correctly recorded as the reason the image stays without git. One real, MAJOR, non-blocking
+  gap found and logged (pip install indirected through a COPYed requirements file) - filed for a follow-up,
+  not grounds to send this back a third time over a test that is itself MINOR-severity and does exactly what
+  it claims to.
