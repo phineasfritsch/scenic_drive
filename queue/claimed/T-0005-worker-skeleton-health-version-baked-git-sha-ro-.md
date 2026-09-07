@@ -1,12 +1,12 @@
 ---
 id: T-0005
 title: Worker skeleton: /__health, /__version (baked git SHA), /__ro; ops/deploy; ops/prod-read
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01RJHHJcZtZChD9eMb275urx
+claimed_at: 2026-09-07T03:38:33Z
+lease_expires_at: 2026-09-07T07:38:33Z
+worktree: ../wt/T-0005
 branch: task/T-0005
 exclusive: []
 touches: [services/api/, ops/deploy, ops/prod-read]
@@ -27,5 +27,4 @@ Cloudflare Worker (TypeScript, wrangler, vitest + @cloudflare/vitest-pool-worker
 Needs the Cloudflare account + a D1 database + a GitHub origin (deploy refuses otherwise - that is the red).
 
 ## Log
-- 2026-09-07T03:35:47Z claimed by agent/demo; lease until 2026-09-07T03:35:47Z
-- 2026-09-07T03:35:48Z sweep: lease held by agent/demo expired at 2026-09-07T03:35:47Z; returned to ready/, locks released
+- 2026-09-07T03:38:33Z claimed by agent/claude-opus-5; lease until 2026-09-07T07:38:33Z
