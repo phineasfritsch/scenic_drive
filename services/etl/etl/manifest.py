@@ -33,6 +33,34 @@ KNOWN_LICENSES = (
     "CC-BY-4.0",             # ESA WorldCover. Attribution required; carried in LICENSE-DATA.
 )
 
+# Licences that require attribution wherever the derived work goes, and the spellings LICENSE-DATA is
+# allowed to use for each. `license:` in this manifest is a promise about a file we ship data derived from;
+# T-0027 added CC-BY-4.0 above and shipped without writing the attribution down anywhere, which is the gap
+# agent/reviewer-32 found. Keys are checked against the real LICENSE-DATA so the promise cannot lapse again.
+# US-PD-17USC105 and CC0-1.0 are deliberately absent: neither requires attribution.
+ATTRIBUTION_LICENSES = {
+    "ODbL-1.0": ("ODbL",),
+    "CC-BY-4.0": ("CC BY 4.0", "CC-BY-4.0"),
+    "CDLA-Permissive-2.0": ("CDLA-Permissive-2.0",),
+    "Apache-2.0": ("Apache License 2.0", "Apache-2.0"),
+    "CA-OpenData": ("State of California",),
+}
+
+
+def unattributed(inputs: list["Input"], license_text: str) -> list[str]:
+    """Licences used by the manifest that require attribution and get none in `license_text`.
+
+    Data whose licence says "credit us" and whose credit exists nowhere in the tree is not a style problem:
+    it is shipping data we are not licensed to ship. The check is on the licence identifier rather than on a
+    sentence, because sentences get reworded and identifiers do not.
+    """
+    out = []
+    for lic in sorted({i.license for i in inputs if i.license}):
+        spellings = ATTRIBUTION_LICENSES.get(lic)
+        if spellings and not any(s in license_text for s in spellings):
+            out.append(lic)
+    return out
+
 
 def _url_ok(url: str) -> bool:
     """https everywhere, with one narrow exception: loopback over plain http, so the fetcher's own tests can

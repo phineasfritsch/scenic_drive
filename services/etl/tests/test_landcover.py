@@ -162,6 +162,92 @@ class TestTheNamedProperties:
         assert built["impervious"] - wooded["impervious"] > 0.5
 
 
+class TestTheVerdictIsOneVerdict:
+    """`is_wooded` and `is_built_up` are not two independent facts about a road, they are one answer to
+    one question: does this read as a redwood road or as a strip-mall arterial? Two independent cutoffs on
+    two fractions that are not required to be complementary can say both, and on real San Ramon streets
+    they did. Whichever term dominates decides, and it has to dominate by enough to be a verdict.
+    """
+
+    def test_no_pair_of_fractions_can_satisfy_both(self):
+        """Exhaustive over the whole simplex, not over four curated roads. The counts stop a rule that
+        simply never fires from passing this."""
+        wooded = built = 0
+        for c in range(101):
+            for i in range(101 - c):
+                s = {"canopy": c / 100.0, "impervious": i / 100.0}
+                w, b = lc.is_wooded(s), lc.is_built_up(s)
+                assert not (w and b), (c, i)
+                wooded += w
+                built += b
+        assert wooded > 100, wooded
+        assert built > 100, built
+
+    def test_an_even_split_is_neither(self):
+        """Half tree canopy and half buildings is a leafy suburb. Both halves are real; neither is the
+        answer to which kind of road this is."""
+        s = lc.fractions([10] * 50 + [50] * 50)
+        assert not lc.is_wooded(s)
+        assert not lc.is_built_up(s)
+
+    def test_trees_have_to_beat_buildings_to_count_as_wooded(self):
+        assert lc.is_wooded(lc.fractions([10] * 60 + [50] * 10 + [30] * 30))
+        assert not lc.is_wooded(lc.fractions([10] * 60 + [50] * 40))
+
+    def test_buildings_have_to_beat_trees_to_count_as_built_up(self):
+        assert lc.is_built_up(lc.fractions([50] * 60 + [10] * 10 + [30] * 30))
+        assert not lc.is_built_up(lc.fractions([50] * 55 + [10] * 45))
+
+    def test_a_quarter_built_is_not_yet_a_strip_mall(self):
+        """With the dominance rule in place, a road with no trees at all clears `impervious >= ratio *
+        canopy` at any impervious above zero - so the 0.4 is the only thing between `some development` and
+        `strip-mall arterial`, and nothing else in the suite pins it. Mines Road pins the canopy cutoff
+        from below with real data; there is no equivalent real road for this one."""
+        s = lc.fractions([50] * 25 + [30] * 75)
+        assert s["impervious"] == pytest.approx(0.25)
+        assert not lc.is_built_up(s)
+        assert lc.is_built_up(lc.fractions([50] * 45 + [30] * 55))
+
+    def test_not_quite_half_trees_is_not_yet_wooded(self):
+        """`wooded` means canopy is the majority of what you can see, and 0.5 is what majority means. That
+        is a definition, not a fit - the fitting question, which of two real terms wins, is the ratio's."""
+        assert not lc.is_wooded(lc.fractions([10] * 45 + [30] * 55))
+        assert lc.is_wooded(lc.fractions([10] * 55 + [30] * 45))
+
+    def test_a_tie_is_not_a_verdict(self):
+        """A ratio of exactly 1 still lets both fire on an exact tie, and exact ties happen: a 29-sample
+        buffer that lands 15/14 is one rounding away from 50/50."""
+        s = {"canopy": 0.5, "impervious": 0.5}
+        assert not (lc.is_wooded(s) and lc.is_built_up(s))
+
+
+class TestOpenLand:
+    def test_the_four_terms_partition_every_class(self):
+        """A class in no term is a class the score cannot see, and a class in two is counted twice.
+        cropland sat in neither for the whole of this task's first pass."""
+        groups = [lc.CANOPY_CLASSES, lc.IMPERVIOUS_CLASSES, lc.WATER_CLASSES, lc.OPEN_CLASSES]
+        assert set().union(*groups) == set(lc.CLASSES)
+        for a in range(len(groups)):
+            for b in range(a + 1, len(groups)):
+                assert not groups[a] & groups[b], (groups[a], groups[b])
+
+    def test_grassland_and_cropland_are_open_land(self):
+        assert lc.fractions([30] * 10)["open_land"] == 1.0
+        assert lc.fractions([40] * 10)["open_land"] == 1.0
+
+    def test_open_land_is_not_canopy_and_not_impervious(self):
+        f = lc.fractions([30] * 5 + [40] * 5)
+        assert f["canopy"] == 0.0
+        assert f["impervious"] == 0.0
+
+    def test_the_four_fractions_sum_to_one_on_any_mix(self):
+        f = lc.fractions([10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100])
+        assert f["canopy"] + f["impervious"] + f["water"] + f["open_land"] == pytest.approx(1.0)
+
+    def test_an_empty_buffer_has_no_open_land_either(self):
+        assert "open_land" not in lc.fractions([None, None])
+
+
 class TestSummarise:
     def test_samples_are_pooled_not_averaged_per_point(self):
         """A long way through forest must not be outvoted by a short built-up stretch that happened to get

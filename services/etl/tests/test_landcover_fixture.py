@@ -35,6 +35,10 @@ class TestTheFixtureItself:
         assert "CC-BY-4.0" in doc["licence"], "an attribution licence with no attribution recorded"
         assert doc["buffer_m"] == lc.BUFFER_M
 
+    def test_it_was_recorded_at_the_sampling_step_the_code_uses(self):
+        """Recorded codes and a different step are two different measurements wearing one name."""
+        assert load()["buffer_step_m"] == lc.BUFFER_STEP_M
+
     def test_every_way_has_real_samples(self):
         for way in load()["ways"]:
             assert len(way["codes"]) >= 50, way["key"]
@@ -77,6 +81,9 @@ class TestTheNamedProperties:
         assert built["impervious"] - wooded["impervious"] > 0.5
 
     def test_no_road_is_both(self):
+        """These four cannot be both because they were chosen to sit far apart, which is worth almost
+        nothing on its own - test_landcover_boundary.py is where the claim is actually tested, against
+        roads nobody picked, and test_landcover.py proves it over the whole simplex."""
         for way in load()["ways"]:
             s = lc.fractions(way["codes"])
             assert not (lc.is_wooded(s) and lc.is_built_up(s)), way["key"]
@@ -95,15 +102,17 @@ class TestAgreementWithTheTerrainFixture:
         terrain = json.loads((FIXTURE.parent / "terrain_fixture.json").read_text(encoding="utf-8"))
         assert {w["way_id"] for w in terrain["ways"]} == {w["way_id"] for w in load()["ways"]}
 
-    def test_the_wooded_roads_are_the_steep_ones_and_the_built_up_ones_are_flat(self):
-        """Not a law of nature - it is true of the Bay Area, where the forest is on the hills and the
-        industry is on the bay margin. If it stops being true the fixtures have drifted apart."""
+    def test_the_two_fixtures_sampled_the_same_geometry(self):
+        """The drift this class exists to catch: one fixture rebuilt against a different extract, so the
+        score combines two different roads under one id. Comparing the node coordinates catches that,
+        where the removed `wooded roads are the steep ones` test caught it only by coincidence - and
+        would have gone red for a flat redwood grove, which is a real road, not a regression."""
         terrain = {w["key"]: w for w in json.loads(
             (FIXTURE.parent / "terrain_fixture.json").read_text(encoding="utf-8"))["ways"]}
         for key, way in by_key().items():
-            wooded = lc.is_wooded(lc.fractions(way["codes"]))
-            steep = terrain[key]["recorded_summary"]["gain_per_km"] >= 25.0
-            assert wooded == steep, (key, wooded, steep)
+            coords = [tuple(c) for c in terrain[key]["coords"]]
+            expected = [[round(a, 7), round(b, 7)] for a, b in (coords[::8] or [coords[0]])]
+            assert way["sampled_at"] == expected, key
 
 
 class TestTheRecordedSummariesStillHold:

@@ -58,12 +58,50 @@ class TestRealManifest:
                                  capture_output=True, text=True)
         assert ignored.returncode != 0, f"{rel} is tracked but ALSO matched by a .gitignore rule"
 
+    def test_every_attribution_licence_it_uses_is_actually_attributed(self):
+        """T-0027 added CC-BY-4.0 to KNOWN_LICENSES, downloaded ESA WorldCover under it, derived the score's
+        land-cover terms from it, and wrote the attribution nowhere - LICENSE-DATA still credited the USFS
+        and MRLC layers the task had abandoned. Found by agent/reviewer-32, not by anything here, because
+        nothing here looked. The repo root is asked of git for the same reason as the test above."""
+        try:
+            top = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                                 cwd=Path(__file__).resolve().parent, capture_output=True, text=True)
+        except FileNotFoundError as e:
+            pytest.skip(f"git is not installed here, cannot find the repo root: {e}")
+        if top.returncode != 0:
+            pytest.skip(f"not inside a git work tree: {top.stderr.strip() or 'no git'}")
+        path = Path(top.stdout.strip()) / "LICENSE-DATA"
+        assert path.is_file(), "LICENSE-DATA does not exist"
+        missing = mf.unattributed(mf.parse(REAL.read_text(encoding="utf-8")),
+                                  path.read_text(encoding="utf-8"))
+        assert missing == [], f"LICENSE-DATA does not attribute: {missing}"
+
     def test_osm_is_odbl_and_not_pinned_by_sha256(self):
         """Geofabrik rebuilds daily; a pinned digest would rot within 24h."""
         osm = next(i for i in mf.parse(REAL.read_text(encoding="utf-8")) if "osm" in i.name)
         assert osm.license == "ODbL-1.0"
         assert osm.verify == "upstream-md5"
         assert osm.checksum_url
+
+
+class TestAttribution:
+    def test_an_attribution_licence_with_no_credit_is_reported(self):
+        assert mf.unattributed([entry(license="CC-BY-4.0")], "nothing here") == ["CC-BY-4.0"]
+
+    def test_the_credit_can_be_spelled_either_way(self):
+        for text in ("... under CC BY 4.0 ...", "... CC-BY-4.0 ..."):
+            assert mf.unattributed([entry(license="CC-BY-4.0")], text) == []
+
+    def test_a_public_domain_licence_needs_no_credit(self):
+        assert mf.unattributed([entry(license="US-PD-17USC105")], "") == []
+
+    def test_every_licence_that_needs_credit_is_one_we_have_reasoned_about(self):
+        """A spelling table entry for a licence not in KNOWN_LICENSES is a rule that can never fire."""
+        assert set(mf.ATTRIBUTION_LICENSES) <= set(mf.KNOWN_LICENSES)
+
+    def test_it_reports_every_missing_licence_not_just_the_first(self):
+        missing = mf.unattributed([entry(license="CC-BY-4.0"), entry(license="ODbL-1.0")], "")
+        assert missing == ["CC-BY-4.0", "ODbL-1.0"]
 
 
 class TestValidation:

@@ -16,9 +16,18 @@ Built from OpenStreetMap with Protomaps (https://protomaps.com), attributed as "
 - Foursquare OS Places — Apache License 2.0. https://opensource.foursquare.com/os-places/
 - Overture Maps Foundation Places — CDLA-Permissive-2.0 (OSM-derived rows ODbL). https://overturemaps.org
 
+## ESA WorldCover 2021 v200 — CC BY 4.0
+© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover
+consortium. Licensed under CC BY 4.0, https://creativecommons.org/licenses/by/4.0/.
+Used for the scenic index's land-cover terms — canopy, impervious, water and open land, as fractions of a 150 m
+buffer around each way. Those per-way fractions are a modified work and carry this attribution with them.
+This layer replaced the USFS Tree Canopy Cover and MRLC NLCD fractional impervious surface the plan named:
+MRLC's S3 bucket refuses all anonymous access (HTTP 403, Requester Pays) and their landing pages carry no
+download link, so there is no unauthenticated retrieval path. Nothing in this tree is derived from USFS or MRLC
+data, and neither is listed below any more.
+
 ## United States government data — public domain (17 U.S.C. § 105)
 - USGS 3D Elevation Program (3DEP) 1/3 arc-second DEM
-- USFS / MRLC Tree Canopy Cover; MRLC Annual NLCD fractional impervious surface
 - FHWA America's Byways (HEPGIS Scenic_Byways)
 - FCC Broadband Data Collection mobile coverage
 - NPS API, Recreation.gov RIDB
