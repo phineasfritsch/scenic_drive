@@ -521,3 +521,265 @@ second external oracle in the plan (the first being Curvature).
     from the repo. If that bothers you, say so and I will carry a checksum of the unclipped source instead.
   - `overlap_fraction` is now O(way_length / 25 m x byway_vertices) with no spatial index. Correct and slow;
     fine at 1658 entries against a test fixture, possibly not fine at corpus scale in T-0030.
+
+- 2026-09-08T01:40Z REVIEW ROUND 2 by agent/reviewer-33. VERDICT: FAIL, left in queue/review. NO CI SIGNAL:
+  GitHub Actions is disabled repo-wide (T-0053, billing), and `gh pr view 36` returns
+  `"statusCheckRollup":[]` - not one check ran on this PR. Everything below is local, in the pinned
+  `scenic-etl` image or from `bash ops/...`. Scripts under `services/etl/work/` (gitignored); the worktree is
+  clean afterwards (`git status --porcelain` empty).
+
+  Five of the owner's six defences hold and I say so plainly, including the one where I was wrong. The route
+  key does not, and it is the mechanism everything else now rests on.
+
+  **BLOCKER - THE ROUTE KEY SILENTLY DROPS A REAL BAY AREA BYWAY, AND NOTHING REPORTS IT.**
+  The owner named the weakness exactly right - three corridors is not the state - and asked for a Caltrans row
+  where the refs go bad. The failure is worse than the shape they predicted: it is not OSM that tags the ref
+  badly, it is CALTRANS, and no name fallback would fix it.
+
+  Caltrans FID 181: `CO=SCR RTE=221 Status=E DYNSEGPM="SCR 221 0.00 / SCR 221 17.70"`, LOCATION
+  `'SR 9 Nr Bldr Ck to SR 9 NE of Big Basin SP (All)'`, geometry lat 37.1249..37.2116 lon -122.2225..-122.1223,
+  1139 vertices over 28.5 km in two parts. That is **State Route 236, Big Basin Way**, Santa Cruz County -
+  Boulder Creek, through Big Basin Redwoods State Park, back to SR 9 at Waterman Gap. Six independent
+  confirmations: the postmile range 0.00-17.70 is SR 236's; the LOCATION endpoints are SR 236's two ends; SR
+  221 is a 2.7-mile freeway in NAPA and the layer's OTHER 221 row (FID 180) is exactly that, PM 0-2.7, in Napa;
+  the two RTE=221 rows span lat 37.18..38.26 across counties `['RIV','SCR']`, which is the anomaly signature
+  itself; **there is no RTE=236 row anywhere in the 273** though FIDs 20/23/24 all name "SR 236" in their own
+  LOCATION text; and Overpass says the road under the line is `ref=CA 236`.
+
+  Measured against real OSM (Overpass, `way[highway](around:80, <1139-point corridor>)`, my own script, the
+  repo's own `bw.overlap_fraction` / `bw.route_matches`):
+
+      FID  181 SCR  RTE=221  E   key=['221']   104 ways near, matched    0.00 km, REJECTED  30.89 km (55 ways)
+              -   6402 m  ref='CA 236'  name='Big Basin Way'   tertiary  w/264538576  frac=0.947
+              -   5512 m  ref='CA 236'  name='Big Basin Way'   tertiary  w/10555789   frac=1.0
+              -   3117 m  ref='CA 236'  name='Big Basin Way'   tertiary  w/125828269  frac=1.0
+              ... 11 CA 236 ways in all
+        rejected metres by (way ref, way name): CA 236 / Big Basin Way  26944 m
+                                                None   / Saint Francis Drive  399 m
+
+  **matched 0.00 km.** 26.9 km of genuine, correctly-tagged byway is rejected by the key, and 0.4 km of
+  residential frontage is rejected with it. Every one of the 55 ways clears the 30% gate on geometry; the key
+  throws the corridor away entire. Big Basin Way is a rural two-lane road through old-growth redwoods - the
+  exact corridor the E weight was argued into existence to preserve ("having no local government to file
+  correlates with being rural, which is what this product is for", `byways.py:44-46`).
+
+  **`problems()` cannot see it.** `bw.problems` reports a Caltrans entry with NO route key; FID 181 HAS one,
+  it is the wrong one. On the real parsed set: `byway_source.load("inputs")` -> 1658 entries,
+  `byways.problems(entries)` -> `[]`, `byway_source.source_problems(entries)` -> `[]`, and
+  `sum(1 for e in cal if not e["routes"])` -> **0**. So the only guard on the key never fires on this data at
+  all, and the failure mode that does occur is undetectable by construction. That is the thing this repo
+  exists to prevent: a check that is green because it is looking somewhere else.
+
+  **It is not a one-off.** The RTE field is measurably unreliable in the pinned bytes. Cross-checking each
+  row's `RTE`/`CO` columns against its own `DYNSEGPM` string (`"<CO> <RTE> <PM> / ..."`):
+    5 of 273 rows disagree on RTE - FID 14 (`5` vs `7`), 19 (`10` vs `5`), 44 (`29` vs `28`), 52 (`36` vs
+      `35`), **265 (`680` vs `580`, an OD Bay Area row)**.
+    6 of 273 disagree on CO - FID 92, 178, **180 (`RIV` vs `NAP`)**, 197, **200 (`SJ` vs `ALA`)**, 226.
+  FID 181 is not in either list: both of its fields agree on the same wrong number, so the layer's own
+  internal cross-reference cannot find it either. ~2% detectable corruption is the floor, not the rate.
+
+  I am NOT saying drop the key. The key is right and the owner's argument for it is right: I re-derived
+  `test_a_frontage_road_is_no_further_off_than_a_second_carriageway`'s premise myself and distance genuinely
+  cannot separate the two bands. The problem is that the key is a HARD REJECT with no failure mode. Something
+  has to make "this Caltrans row's number matches nothing in its own corridor" loud - the same shape as the
+  keyless check that already exists, applied to the case that actually happens.
+
+  **(1) THE PRIMARY SOURCES - the owner went past my correction and then past the evidence. PARTLY RIGHT.**
+  I did not take either of our paraphrases: S&H 263 from leginfo (the official site) and the 2012 Caltrans
+  Scenic Highway Guidelines PDF, plus the legislative committee analyses.
+
+  The owner is RIGHT, verbatim and better sourced than my round-1 note, on: 263's "either eligible for
+  designation as state scenic highways or have been so designated"; that 260-263.8 contain NO pre-listing
+  criteria (261 sets standards for OFFICIAL scenic highways, 262 turns on the corridor protection program,
+  263.1-263.8 are bare route lists); "Legislative action establishes and amends this list" and "Additions and
+  deletions can only be made through legislative action"; and that the Guidelines' Section III orders it
+  `Obtaining Eligibility -> Eligible Scenic Highways -> STEP 1: Visual Assessment`, with "The local governing
+  body must prepare and submit a brief and concise visual assessment" and the one-quarter visual-intrusion
+  rule inside Step 1, after eligibility. My round-1 claim that the bill "is prompted by a city/county
+  nomination that DOES cite the landscape criteria" is WRONG - there is no local nomination requirement for
+  eligibility at all. I withdraw it.
+
+  The owner is WRONG on the one absolute sentence, which is `byways.py:18-19`: "An eligible-only route has
+  never had one done." The eligible list traces to the 1963 Master Plan, which Caltrans built by SELECTING
+  routes against explicit scenic factors. Assembly Transportation Committee analysis of AB 998
+  (Aguiar-Curry), 4/1/2019: "The highways deemed eligible are currently in statute and **were selected by
+  Caltrans based upon five factors:** (1) intrinsic scenic value and experiences that the route would
+  provide; (2) the diversity of experience...; (3) the degree to which the route would link specific scenic,
+  historical, and recreational points...; (4) the relationship of these routes to urban areas...; and (5) the
+  opportunities for bypassing... major trans-state or inter-regional routes." The Senate analysis of SB 169
+  (2013) carries the same account. The Guidelines themselves also advise consulting "the Caltrans District
+  Scenic Highway Coordinator to determine suitability for scenic designation **before seeking legislative
+  action**."
+
+  The defensible sentence is: an eligible-only route has never had the MODERN, FORMAL, PER-SEGMENT visual
+  assessment. What it does have is a coarse, route-level, decades-old Caltrans scenic selection that is never
+  revisited. That is materially different from "never assessed", and it is the sentence the ceiling argument
+  is built on (`byways.py:47-48`). This is the SECOND round in which this file's central factual claim
+  overstates what the sources support - round 1 it oversold E, round 2 it undersells it - and both times the
+  overstatement was written as fact with sources named inline, which is what makes it durable.
+
+  Also from 263.3, and load-bearing for the product rather than for this task: the eligible list includes
+  INTERSTATE segments (Routes 5, 8, 10, 15, 40, 57, 80). Confirmed in the pinned data - the Bay Area rows
+  include I-580, I-680, I-280 and I-80 at both E and OD. `apply_to_e` has no motorway gate and its docstring
+  does not mention one, so the composition site in T-0029 can hand +0.15 to a way the plan's own invariant
+  says must score 0. Flagging now so T-0029 does not inherit it silently.
+
+  **(2) THE MEASURED BASE RATE - RE-DERIVED INDEPENDENTLY, AND IT REPRODUCES EXACTLY.** I deliberately did
+  not use `etl.curvature.distance_on_earth` (spherical law of cosines, the owner's path) - my own haversine
+  at R=6371008.8 over the pinned bytes:
+
+      sha256 b8ec29e3...a524f7 (matches the manifest)   273 features   Status {E: 207, OD: 66}
+      E   n=207  len=10364.6 km   MILES unusable 206/207   DESIG_DATE blank 206/207
+      OD  n= 66  len= 2511.7 km   MILES unusable  41/66    DESIG_DATE set   66/66
+      TOTAL 12876.3 km   OD/TOTAL = 19.51 %      owner: 2512.5 / 12880.4 = 19.51 %
+
+  Identical to two decimal places; the 4 km difference is the earth model. MILES unusable on 247 of 273
+  (206+41) - exactly as claimed. So the number the weight's floor rests on is real and independently
+  reproduced. It is also NOT the 28% I cited: cahighways.org's "only 28 percent of the roadways that have
+  been listed as eligible have ended up becoming Scenic Highways" does not say whether it counts mileage or
+  routes, and by FEATURE COUNT this layer gives 24.2% and by distinct (CO,RTE) pair 51/242 = 21.1%. The
+  owner's 19.5% is the mileage figure and is the right one to use. The convergence on 0.06 is genuine: their
+  floor (0.029) is LOWER than mine would have been, so agreeing on the point from a lower floor is not
+  deference. Two smaller corroborations also check out: DESIG_DATE parses 1965..2007 on all 66 OD rows, and
+  Caltrans inter-vertex spacing is median 29.5 m / p99 409.9 m / max 5641.7 m against the claimed
+  29.5 / 410 / 5643.
+
+  Two numeric slips, neither load-bearing: `byways.py:35` says "only 7 fall after 1990" - I count **9** (>1990,
+  from the 4-digit year in DESIG_DATE). And the DOCSTRING'S BRACKET DISAGREES WITH THE TEST. `byways.py:47`
+  states "CEILING 0.15, i.e. E == OD"; the log and `test_the_eligible_weight_sits_in_the_bracket` both use
+  `0.5 * DESIGNATED_BONUS` = 0.075. Demonstrated, not argued: my mutation R06 sets `ELIGIBLE_BONUS = 0.14` -
+  legal under the docstring's stated bracket - and the test goes RED. The module records a bracket twice as
+  wide as the one it enforces, in the paragraph rewritten this round to fix the last recording error.
+
+  **(3) THE FRONTAGE ROAD - THE OWNER IS RIGHT AND I WAS WRONG. Said plainly.** My round-1 0.92 was measured
+  against the OSM US-101 motorway mainline standing in for a byway line, which was not a Caltrans byway at
+  all. Re-measured against the real thing:
+
+      Caltrans MRN RTE=101: 4 parts, lat 37.8255..37.8790 (PM 0-4.1) and 38.0818..38.1018 (PM 19.1-20.9)
+      OSM ways in the Marin bbox with 'Frontage' in the name: 39   (the owner's count, exactly)
+      max overlap_fraction of ANY of them against the real MRN-101 line: 0.0000
+      clearing the 0.30 gate against ANY Caltrans part reaching Marin: 0
+      not vacuous: of 484 US-101 mainline ways in the same window, 51 clear the gate and 36 score 1.000
+
+  San Rafael's frontage roads sit in the postmile gap between the two Caltrans parts. The finding does not
+  reproduce, the owner's correction is correct, and their own replacement finding (Junipero Serra Boulevard
+  at 0.555/0.793 and Skyline at 1.000 against the real SM-280 line) is the real version of it.
+
+  **(4) `match()` IS STATUS-FIRST - VERIFIED ON MY OWN GEOMETRY, and the test is not vacuous.** I did not
+  reuse the owner's case. A 4365 m east-west way near Sonoma, 21 nodes; an ELIGIBLE corridor 20 m north
+  covering 0.7333 of it, a DESIGNATED corridor 45 m south covering 0.5889 - both inside the tolerance, both
+  past the gate, neither geometry shared with the other:
+
+      match() picks 'OD corridor' status=OD overlap=0.5889;  bonus_for -> 0.15
+      list order reversed -> still OD
+      equal-status tiebreak still works: two E corridors -> the higher-overlap one
+      same case under the pre-review `key = (frac, status_bonus(...))` -> picks E.   The bug was real.
+
+  Non-vacuity: the owner's test asserts `e_frac > d_frac >= MIN_OVERLAP_FRACTION` BEFORE the behavioural
+  assertion, so it fails rather than passes if the geometry ever stops exercising the case; and my mutation
+  R18 (ordering back to overlap-first) is CAUGHT by it. Fixed properly.
+
+  **(5) `SAMPLE_STEP_M` - VERIFIED, and the quantity is right.** Rebuilding the round-1 chord from scratch
+  (2 nodes, endpoints 529.6 m either side of the byway, midpoint on it, total 1059.1 m):
+
+      overlap_fraction 0.11628 -> credited 123.2 m       (midpoint-only, step=1e9: 1059.1 m, i.e. 1.0)
+      ideal, way within 60 m for +-60 m of the crossing:  120 m
+      claimed bound tolerance + step/2 = 72.5 m;  worst credited offset here 61.6 m  - holds
+
+  The owner's "~123 m rather than 1.0" is exact. One note on the pair of tests: at step=50 or 100 the chord
+  credits 96.3 m, still inside the test's `approx(120, abs=30.0)` band - so `test_a_long_chord` alone would
+  NOT catch a step loosened to 50. It is `test_the_sampling_step_is_fine_enough_for_the_bound_to_mean_anything`
+  (`SAMPLE_STEP_M <= SNAP_TOLERANCE_M / 2`) that catches it, and my mutation R11 (step=60) confirms that. The
+  pair is load-bearing together; neither is alone. That is fine, but it is worth knowing which one does the
+  work.
+
+  **(6) THE FETCH - digests re-verified live, and the FHWA filter is sound in-region.** Two consecutive fresh
+  pulls of each URL, in the container, compared against the manifest:
+
+      byways-caltrans.geojson  pinned b8ec29e3...a524f7  pull 1 MATCH  pull 2 MATCH  8764515 B both
+      byways-fhwa.geojson      pinned 1feaf38b...23b8942  pull 1 MATCH  pull 2 MATCH  29545684 B both
+
+  Byte-stable across four independent fetches on a different day from the owner's. Pinning an ArcGIS /query
+  by sha256 was the thing I most expected to be optimistic and it is not.
+
+  The NSB filter: `Type` IS the literal string 'National Scenic Byway' on all 648 rows (the owner's correction
+  to the 14:20 research note is right). 22 distinct `Admin_Org` values, 127 naming NSB. It keeps exactly the
+  real FHWA designations in California - Big Sur Coast Highway, San Luis Obispo North Coast, Arroyo Seco
+  Historic Parkway, Death Valley, Ebbetts Pass, Historic Route 66, Tioga Road/Big Oak Flat, Volcanic Legacy,
+  Lake Tahoe Eastshore - and drops the Caltrans re-publications ('Route 280--Father Junipero Serra Freeway',
+  'Route 35--Skyline Boulevard', ...). Not one genuine FHWA National Scenic Byway or All-American Road is
+  lost. Two caveats:
+    - the filter also drops 44 USFS and 39 BLM rows (Rim of the World, Angeles Crest, Feather River, Lassen,
+      Modoc Volcanic, Yuba-Donner, Kings Canyon, the Back Country Byways...). Those ARE federal designations,
+      just not FHWA's programme. The docstring's two stated reasons both concern STATE rows and neither
+      defends dropping these. Zero of them touch sfbay so no score moves today, but the national build will
+      have to decide, and right now the module reads as if the question were settled.
+    - counts drift slightly from the log: I make it **12** FHWA rows touching the sfbay bbox, not 13 (all
+      Admin_Org=STATE, so the substantive claim holds), and **229** parsed entries touching sfbay, not 248
+      (all Caltrans, 0 FHWA, so that claim holds too). `load()` -> 1658 (865 + 793) is exact, as is "87 rows
+      touch California".
+
+  **(7) MUTATIONS - MINE, 29 constructed, 26 caught.** Applied one at a time to `etl/byways.py` or
+  `etl/byway_source.py`, three test files run each time, file restored in a `finally`, `git status --porcelain`
+  empty afterwards and the suite green again at the end. Baseline 70 passed.
+
+      R01 keyed entry accepts a way with no ref     CAUGHT   R16 match ignores status entirely      CAUGHT
+      R02 ref parser searches, not anchors          CAUGHT   R17 match drops the overlap tiebreak   SURVIVED
+      R03 E and OD bonuses swapped                  CAUGHT   R18 ordering back to overlap-first     CAUGHT
+      R04 E back to the pre-review 0.10             CAUGHT   R19 route key disabled in match        CAUGHT
+      R05 E raised to 0.075 (top of the bracket)    SURVIVED R20 unknown status scores as eligible  CAUGHT
+      R06 E raised to 0.14 (docstring's bracket)    CAUGHT   R21 unknown_statuses reports nothing   CAUGHT
+      R07 cap on the bonus term, not the total      CAUGHT   R22 problems() drops the keyless check CAUGHT
+      R08 apply_to_e uses max not min               CAUGHT   R23 FHWA NSB filter removed            CAUGHT
+      R09 overlap counted per node not per metre    CAUGHT   R24 Admin_Org string-matched           CAUGHT
+      R10 back to one midpoint per OSM segment      CAUGHT   R25 MultiLineString parts concatenated CAUGHT
+      R11 sampling step equal to the tolerance      CAUGHT   R26 coordinates left as lon,lat        CAUGHT
+      R12 sampling step exactly at the boundary     SURVIVED R27 RTE key accepts a suffixed route   CAUGHT
+      R13 min-overlap gate reduced to a touch       CAUGHT   R28 an FHWA row given a route key      CAUGHT
+      R14 snap tolerance loosened to 150/200 m      CAUGHT   R29 source_problems drops the FHWA chk CAUGHT
+      R15 cos(latitude) dropped from the distance   CAUGHT
+
+  Two survivors are CORRECT and I would not change them: R05 (0.075 is the top of the bracket the evidence
+  fixes - the test anchors the bracket, not the point, exactly as the owner said it should) and R12
+  (step=30.0 satisfies the asserted bound). The third is a real gap: **R17** replaces
+  `key = (status_bonus(...), frac)` with `key = (status_bonus(...),)`, dropping the overlap tiebreak the
+  docstring promises ("Best by STATUS, then by overlap"), and all 70 tests still pass -
+  `test_the_stronger_designation_wins_a_tie` gives both entries the SAME `BYWAY` geometry, so equal-status
+  ordering is never exercised. Severity LOW - with equal status the bonus is identical and only the reported
+  `name`/`overlap` change - but it is the same species as the round-1 bug, one level down, and it is a
+  documented property with no test.
+
+  **(8) THE FIXTURE'S CLIP - the owner said this was not re-checkable from the repo. It is, and it holds.**
+  The generator is not committed, so I re-derived both halves from the pinned bytes:
+    every one of the 7 fixture byway lines is an EXACT clip of a real `parse_caltrans` part - sm_280 lines
+      0-4 -> parts 0,1,2,3,4 and sm_35 lines 0-1 -> parts 0,1 - with the fixture's status matching the real
+      row's status in all 7 cases. Nothing was typed by hand.
+    clipped vs unclipped `overlap_fraction` over all 16 (fixture way, byway group) pairs:
+      worst |clipped - unclipped| = **0.000e+00**. Bit-identical, as claimed.
+  No checksum of the unclipped source is needed; the pinned file IS the unclipped source and the check runs
+  against it. Consider moving this into a test rather than leaving it as a paragraph.
+
+  **VERIFICATION, exact output.**
+  - `docker run ... scenic-etl python3 -m pytest --tb=no tests/` -> `347 passed, 1 skipped in 11.98s`
+  - `bash ops/test` -> `TESTS linux=398/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0
+  - `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0
+  - `bash ops/queue-check` -> `QUEUE OK (51 tasks)`, exit 0
+  - `bash ops/sane` -> `SANE OK`, exit 0 (`bounds skip - no extract built here`)
+  - `gh pr view 36` -> `"statusCheckRollup":[]`. **No CI ran. Every green above is local only.**
+  - line caps: byways.py 296, byway_source.py 142, test_byways.py 282, test_byways_fixture.py 155,
+    test_byway_source.py 122. Note that NOTHING enforces the 300-line cap on Python - `ops/lib/check-line-cap`
+    globs `Sources/**/*.swift` and `Tests/**/*.swift` only. byways.py at 296 is four lines from an
+    unenforced limit. Pre-existing, not this diff's fault, but this is the file that will hit it first.
+
+  **WHAT WOULD MAKE THIS PASS.** Only the first is blocking.
+  1. The route key needs a detectable failure mode. A Caltrans entry whose key matches nothing along its own
+     corridor is currently indistinguishable from one that legitimately matches nothing, and FID 181 loses
+     26.9 km of real byway to it in silence. Whether the answer is a `problems()` check, a fall-back to
+     geometry-only when the number is unclaimed anywhere near the line, or a pinned exception for FID 181, I
+     do not mind - but "the key rejected 0 km of true positives" cannot be the recorded finding while a
+     28.5 km eligible corridor scores zero.
+  2. `byways.py:18-19` and 47-48: eligibility is not "never assessed". It is a 1963 Caltrans Master Plan
+     selection on five named factors, never revisited. Two rounds of this file asserting more than the
+     sources carry is a pattern worth breaking rather than re-correcting.
+  3. `byways.py:47` says the ceiling is 0.15; the test enforces 0.075. Pick one.
+  4. Small, not blocking: "only 7 fall after 1990" is 9; 13 sfbay FHWA rows is 12; 248 sfbay entries is 229.
