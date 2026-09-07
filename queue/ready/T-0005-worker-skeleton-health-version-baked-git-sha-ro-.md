@@ -7,7 +7,7 @@ owner_session: null
 claimed_at: null
 lease_expires_at: null
 worktree: null
-branch: null
+branch: task/T-0005
 exclusive: []
 touches: [services/api/, ops/deploy, ops/prod-read]
 pins_affected: [P-COST-02]
@@ -27,3 +27,5 @@ Cloudflare Worker (TypeScript, wrangler, vitest + @cloudflare/vitest-pool-worker
 Needs the Cloudflare account + a D1 database + a GitHub origin (deploy refuses otherwise - that is the red).
 
 ## Log
+- 2026-09-07T03:35:47Z claimed by agent/demo; lease until 2026-09-07T03:35:47Z
+- 2026-09-07T03:35:48Z sweep: lease held by agent/demo expired at 2026-09-07T03:35:47Z; returned to ready/, locks released

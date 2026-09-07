@@ -1,0 +1,111 @@
+# Load-bearing properties. ops/check-pins runs every assertion; see ops/lib/pins.py for the rules.
+#
+# Fields: id, statement, why_no_test_catches_it, anchor (source|config|artifact|api|db|process|human),
+#         runs_on [linux|mac|device|human], assertion (bash, run from repo root, exit 0 = holds),
+#         owner, added, last_verified, verifier (must differ from owner), expires_days, pending (task id).
+# Never anchor a pin on a comment. Red pins are allowed; TODO assertions are not.
+
+- id: P-SRC-01
+  statement: Root-package targets import Foundation only - never CoreLocation, MapKit, UIKit, SwiftUI, MapLibre, Ferrostar
+  why_no_test_catches_it: The code compiles and tests pass on the Mac; only Linux CI notices, ten minutes after an agent reported success
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "! grep -rEn '^\\s*(@testable\\s+)?import\\s+(CoreLocation|MapKit|UIKit|SwiftUI|MapLibre|Ferrostar)' Sources/"
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
+- id: P-SRC-02
+  statement: No Swift source file exceeds 300 lines
+  why_no_test_catches_it: A 900-line file is a merge grenade for parallel agents; nothing functional breaks
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "test -z \"$(find Sources Tests -name '*.swift' -exec awk 'NR>300{print FILENAME; exit}' {} \\;)\""
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
+- id: P-GIT-01
+  statement: .gitattributes normalizes every text file to LF
+  why_no_test_catches_it: Lost on 2026-09-07 to a sweep-everything demo commit; every ops/* script would then break under WSL2 with no test failing
+  anchor: config
+  runs_on: [linux, mac]
+  assertion: "grep -qE '^\\* text=auto eol=lf' .gitattributes"
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
+- id: P-DATA-02
+  statement: Root package declares iOS 18.4 as the platform floor (unified maps.apple.com waypoint URLs need it)
+  why_no_test_catches_it: Bumping the target for a nicer API is a routine agent change with a silent revenue consequence
+  anchor: config
+  runs_on: [linux, mac]
+  assertion: "grep -q 'iOS(\"18.4\")' Package.swift"
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
+- id: P-TEST-01
+  statement: Test-count floors exist, are integers, and the Linux floor is at least 3
+  why_no_test_catches_it: ops/test enforces the floor, but an agent can delete the floor file and ops/test would fail to read it in a way that looks like a tooling error
+  anchor: config
+  runs_on: [linux, mac]
+  assertion: "grep -qE '^[0-9]+$' pins/floor_linux.txt && grep -qE '^[0-9]+$' pins/floor_ios.txt && test \"$(cat pins/floor_linux.txt)\" -ge 3"
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
+- id: P-PROC-01
+  statement: No task reaches done/ without a reviewer who is not its owner
+  why_no_test_catches_it: The one rule that pays for itself; nothing in the product breaks when it is skipped
+  anchor: process
+  runs_on: [linux, mac]
+  assertion: "bash ops/queue-check >/dev/null"
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
+- id: P-ATTR-02
+  statement: LICENSE-DATA exists and credits OpenStreetMap contributors under ODbL
+  why_no_test_catches_it: Attribution is a license obligation, not a feature; nothing fails when it is deleted
+  anchor: artifact
+  runs_on: [linux, mac]
+  assertion: "test -f LICENSE-DATA && grep -q 'OpenStreetMap contributors' LICENSE-DATA && grep -qi 'ODbL' LICENSE-DATA"
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
+- id: P-PROD-01
+  statement: Motorway/trunk/private/unpaved ways score exactly 0.0 in the ETL, the router profile and ScenicKit.Gates (one fixture set through all three)
+  why_no_test_catches_it: A shorter-routes optimization deletes the gate and every functional test stays green
+  anchor: artifact
+  runs_on: [linux]
+  assertion: TODO
+  pending: T-0012
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
+- id: P-COST-02
+  statement: MAX_MONTHLY_UPSTREAM_CALLS is a compile-time constant in the Worker equal to the value pinned here
+  why_no_test_catches_it: An agent will make it configurable, and a config value is a value an agent can raise
+  anchor: source
+  runs_on: [linux]
+  assertion: TODO
+  pending: T-0005
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+  value: 250000
+
+- id: P-SAFE-05
+  statement: Sunset for 20 fixed (lat, lon, date) triples matches NOAA within 90 seconds
+  why_no_test_catches_it: Swapping solar libraries shifts every golden-hour card and no functional test notices
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: TODO
+  pending: T-0011
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
+- id: P-HUMAN-01
+  statement: Human gate 1 - the developer drives 5 of their own commute routes; at least 4 beat the freeway and none is a rat-run
+  why_no_test_catches_it: Cannot be automated; it is the one gate agents will most confidently claim to have passed
+  anchor: human
+  runs_on: [human]
+  assertion: "test -f pins/evidence/P-HUMAN-01.md"
+  expires_days: 30
+  pending: T-0013
+  owner: agent/claude-opus-5
+  added: 2026-09-07
