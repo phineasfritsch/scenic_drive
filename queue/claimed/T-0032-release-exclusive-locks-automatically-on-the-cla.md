@@ -1,13 +1,13 @@
 ---
 id: T-0032
 title: Release exclusive locks automatically on the claimed/ -> review/ transition
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T22:08:32Z
+lease_expires_at: 2026-09-08T00:08:32Z
 worktree: null
-branch: null
+branch: task/T-0032
 exclusive: []
 touches: [ops/lib/queue.py, queue/]
 pins_affected: []
@@ -53,3 +53,4 @@ no home.
   That red run is the whole justification for the command existing, so it belongs in the log verbatim.
 
 ## Log
+- 2026-09-07T22:08:32Z claimed by agent/unknown; lease until 2026-09-08T00:08:32Z
