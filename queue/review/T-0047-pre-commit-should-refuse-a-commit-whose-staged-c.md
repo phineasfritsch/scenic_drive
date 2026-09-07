@@ -306,3 +306,136 @@ and `git branch --list 'scratch/*' 'task/T-9993'` both confirm nothing remains.
     (no output - committed content == working tree content)
 
 The one check this whole task exists to teach the hook to make - I ran it on myself.
+
+- 2026-09-07T18:05:00Z agent/reviewer-28: **FAIL.** Re-derived the RED/GREEN claims, the false-positive
+  hunt, the `-z` regression check, and the `ALLOW_PARTIAL_STAGE` hardening independently (all confirmed
+  as claimed). Found one new, reproducible false positive on the one case the owner flagged as untested:
+  symlinks on a real symlink-capable filesystem. Full account below.
+
+### What I re-derived vs. took on trust
+
+Re-derived independently, on my own scratch branches/files (all deleted after):
+- RED: swapped in `HEAD~2:.githooks/pre-commit` (old hook, via `-c core.hooksPath` unnecessary since
+  `core.hooksPath=.githooks` is already repo-wide), reproduced `git mv` + edit + no-re-add, got a clean
+  0-insertion rename commit with the OLD `state:`/log content landing and the new content silently lost.
+  Confirmed with the NEW hook the identical sequence refuses with the documented message and fix.
+- False-positive hunt (all against the real, committed `.githooks/pre-commit` on this branch): CRLF-on-disk
+  vs. LF-normalized-staged-blob (PASS, oids equal, confirmed via `git rev-parse`/`git hash-object` compared
+  directly plus a full commit), no-trailing-newline (PASS), binary file with a space in the name - both
+  unmodified (PASS) and modified-after-add (correctly REFUSED) (space preserved verbatim in the message),
+  non-ASCII filename `café-tëst.md` - both unmodified (PASS) and modified-after-add (correctly REFUSED,
+  path printed unquoted and readable), staged deletion via `git rm` (PASS, `--diff-filter=ACMR` excludes
+  `D` as claimed), staged-add-then-deleted-from-disk (correctly REFUSED with the distinct "staged but
+  missing" message, not conflated with the stale-content message), staged-then-chmod-444/read-only with
+  unmodified content (PASS - the check is content-hash based, not mtime/permission based), and a pure
+  `git mv` with zero content edit (PASS, 0 insertions is not itself flagged). No `.gitattributes` filter=
+  clauses exist in this repo to test (only `text=auto eol=lf` and `binary`), and there are no submodules
+  (`.gitmodules` absent) - both confirmed absent rather than assumed.
+- `-z` regression check on the other three checks: staged three files in one commit (a clean file, a file
+  with real `\r\n` content, and `"queue/review/T-8880 has secret.md"` with a space in the name) - the
+  secret check fired and named the space-file correctly. Separately confirmed the `touches:` check (T-0039)
+  fires on the correct out-of-scope path even when a space-named path is staged alongside an in-scope one,
+  under the new `-z`/array enumeration.
+  - **Caveat surfaced, not a T-0047 regression**: the CRLF check did not fire on the `\r\n` file in that
+    test. Traced this to `.gitattributes`' `* text=auto eol=lf`, which normalizes CRLF to LF **at `git add`
+    time**, before the hook ever runs - the staged blob for that file has zero `0x0d` bytes (verified via
+    `git show :<path> | xxd`), so `grep -qI "$CR"` on the staged blob has nothing to find regardless of the
+    grep-pipe quirk the builder's log separately describes. Confirmed this is pre-existing and NOT caused by
+    the `-z` switch or this task by swapping in the OLD hook and running the identical scenario: same result,
+    CRLF check silent. Net effect (not new, but worth flagging since nobody had stated it this plainly): the
+    CRLF check (`.githooks/pre-commit`, the `grep -qI "$CR"` line under `# 1. CRLF`) can in practice only
+    ever fire on a `binary`-attributed path containing a lone `\r` not immediately followed by `\n` - it is
+    effectively dead code for the CRLF-line-ending case it appears to guard against, because
+    `.gitattributes` already scrubs that case before staging. Out of scope for T-0047 (logic unchanged), not
+    a blocker, but worth its own task if the CRLF check's real purpose matters.
+  - `ALLOW_PARTIAL_STAGE` escape hatch: confirmed exact-path matching, not prefix/glob - `ALLOW_PARTIAL_STAGE=.`,
+    `=` (empty), `=queue/review` (directory prefix, no wildcard), and a wrong sibling path all still refuse
+    the real stale file; only the exact path waives it. Confirmed quoting the variable inside `[[ "$f" == "$a" ]]`
+    (`.githooks/pre-commit` line ~96/101) suppresses glob interpretation in bash, so `ALLOW_PARTIAL_STAGE='*'`
+    would not wildcard-match every path either (checked with a standalone bash snippet, not just read). Confirmed
+    a path named in the allow-list that is NOT actually stale is a silent no-op (no message, normal commit).
+    Confirmed a multi-file commit with only one of two stale files named in the scoped list waives exactly
+    that one and still refuses on the other. Confirmed the waived commit lands the *older, staged* content, as
+    intended for a deliberate partial stage.
+- `git diff HEAD~1 --stat` / `HEAD~2..HEAD --stat`: touches only `.githooks/pre-commit` and the task file
+  (state moved review->review with the red/green log, per `6e374e1`). `git ls-files -s .githooks/pre-commit`:
+  mode `100755`, confirmed (not just trusted from the commit message).
+
+Took on trust: nothing load-bearing. I did not re-verify the builder's `read -d ''` trailing-comma fix
+line-by-line (re-derived its *behavior* instead, above, which is the part that matters).
+
+### FINDING 1 - HIGH - symlinks: confirmed false positive, contradicts the builder's own untested claim
+
+`.githooks/pre-commit:77` (`working_oid="$(git hash-object -- "$f" ...)"`) compared against the staged oid
+at line 71 (`git rev-parse ":$f"`). The builder's log (case 10) reasoned that `git hash-object` on a symlink
+path uses "the same lstat-based content hashing `git add`/`update-index` use for staging symlinks... it does
+not follow the link and hash the referent's content" and flagged this as untested on Windows, asking a
+WSL2/Linux agent to verify for real. I did, via `wsl.exe`, on a fresh clone of `task/T-0047`
+(`core.hooksPath` set explicitly since it's a separate clone; `core.symlinks` unset/true, real symlink
+support confirmed via `ls -la`).
+
+**The claim is backwards.** `git hash-object -- <path>` does *not* lstat/readlink the path - it opens it
+through the normal filesystem path, which follows the symlink and hashes the **target file's content**.
+`git add` / the staged blob, by contrast, holds the symlink's own text (the link-target string, mode
+`120000`). These two are different objects for any symlink, by construction - not just when the symlink
+"changes."
+
+Repro (target file `queue/review/T-7002-target-a.md` containing `target file A\n`; symlink
+`queue/review/T-7002-link.md` -> `T-7002-target-a.md`, `git add`ed and then **left completely untouched**):
+
+    $ staged=$(git rev-parse :queue/review/T-7002-link.md)     # afc2f4f...  (the symlink's own text)
+    $ working=$(git hash-object -- queue/review/T-7002-link.md) # 2950110...  (the TARGET FILE's content)
+    $ [ "$staged" = "$working" ] && echo MATCH || echo MISMATCH
+    MISMATCH -> FALSE POSITIVE CONFIRMED
+
+    $ git commit -m "scratch(wsl): symlink committed unmodified, expect PASS"
+    pre-commit: staged content in queue/review/T-7002-link.md is stale - the working tree changed after
+    'git add'. Fix: git add -- "queue/review/T-7002-link.md" (or re-stage before committing). ...
+    pre-commit: refusing commit
+
+**Concrete failure scenario**: any agent (this repo is explicitly operated from Windows, WSL2, and Linux CI
+per `.gitattributes`' own header comment - WSL2/Linux is not a hypothetical environment here) that stages
+a symlink and commits it - even with zero edits since `git add`, even on a second, later, completely
+unrelated commit that merely re-touches the same tree - gets refused every single time, forever, with a
+message telling them to `git add -- <path>` (which does nothing: re-adding restages the same symlink text,
+`git hash-object` still dereferences and still mismatches) or fall back to `ALLOW_PARTIAL_STAGE`, which per
+the check's own design is supposed to be reserved for genuinely deliberate partial stages, not routine
+symlink commits. This isn't an edge case that requires a coincidence to trigger; it fires unconditionally
+for every symlink on any real symlink-capable filesystem. `-e "$f"`/`-L "$f"` at line 73 correctly avoids
+misclassifying a symlink as "missing," so the missing-file branch is fine - the bug is specifically the
+`hash-object`-dereferences-vs-`rev-parse`-stores-link-text mismatch at lines 71/77.
+
+Currently latent: `git ls-tree -r HEAD | awk '$1==120000'` returns zero rows (no symlinks tracked today),
+and no `ops/*` script creates one. So this does not "stop the whole fleet" today the way a CRLF false
+positive would have. But it is a real, always-reproducible defect in the shipped check, on an environment
+the repo explicitly supports, on the exact point the owner flagged as unverified - which is why I'm calling
+it a FAIL rather than a follow-up task. A fix needs to compare the symlink's own text (e.g. `readlink -- "$f"`
+against `git cat-file -p "$staged_oid"`) rather than `git hash-object -- "$f"` for any path where `-L "$f"`
+is true.
+
+### Verification output (fresh worktree, `services/api` deps not yet installed until I ran the T-0040 gap step)
+
+    $ bash ops/check-pins
+    PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+    EXIT=0
+
+    $ bash ops/queue-check
+    QUEUE OK (43 tasks)
+    EXIT=0
+
+    $ cd services/api && npm ci --no-audit --no-fund
+    added 85 packages in 12s
+
+    $ bash ops/test
+    ...
+    TESTS linux=50/50 ios=skipped failed=0 skipped=0
+    OK
+    EXIT=0
+
+All three green. The FAIL verdict is solely on Finding 1 (symlink false positive), not on these.
+
+### Cleanup
+
+Scratch branches `scratch/reviewer28-red` (Windows worktree) and the WSL clone at `~/t0047-symlink-test`
+were both deleted after use; `git branch --list 'scratch/*'` and `git status --short` on `task/T-0047`
+confirm nothing remains. No `task/T-8879` scratch branch remains either (deleted).
