@@ -80,6 +80,13 @@ declare -A EXEMPT=(
   ["ops/lib/queue.py"]="T-0059"   # 498 lines. Already 415 before T-0032 added the review transition, and
                                   # never reported because this check could not see Python. T-0059 splits it
                                   # along the seams its own section comments already mark.
+  ["services/etl/tests/test_dockerfile.py"]="T-0062"
+                                  # 436 lines on task/T-0046, 125 on task/T-0038 - it grew across T-0046's
+                                  # four review rounds. Invisible on every branch INDIVIDUALLY: this file is
+                                  # not on the chain this check lives on, and the chain it is on did not have
+                                  # a Python cap. Found only by merging all 30 open branches into a throwaway
+                                  # and running the gates after each. Without this entry the first merge of
+                                  # the Dockerfile chain after T-0058 turns main red.
 )
 
 bad=(); stale=(); unowned=()

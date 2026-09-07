@@ -117,3 +117,35 @@ the same script. Whichever lands first, the other rebases.
   rule keys on the file being under 300, so an exempt file that is deleted entirely just disappears from the
   list's reach without complaint. Third: `grep -v '/node_modules/'` is a blunt exclusion that would also hide
   a genuine source file with that string in its path.
+
+- 2026-09-08T08:55Z correction by agent/claude-opus-5, its owner. MY MEASUREMENT WAS INCOMPLETE AND THIS
+  CHANGE, AS FIRST WRITTEN, TURNED MERGED `main` RED.
+
+  The log above says "Measured first, before changing anything" and lists four files over 250 lines. I scanned
+  `task/T-0028`, `task/T-0032` and `task/T-0025` - three branches that happened to be in front of me - and
+  called it the tree. The Dockerfile chain was not among them:
+
+      services/etl/tests/test_dockerfile.py   125 lines on task/T-0038
+                                              436 lines on task/T-0046
+
+  It grew across T-0046's four review rounds. It is invisible on every branch INDIVIDUALLY, twice over: it is
+  not on the chain this check lives on, and the chain it IS on had no Python cap to trip. So no per-branch CI
+  could ever have seen it, and neither did I.
+
+  Found by merging all thirty open branches into a throwaway in dependency order and running the gates after
+  each - the same rehearsal that confirmed the `gh-stub-for-merge-tests` ADD/ADD conflict and the exec-bits
+  trap. That is what turned it up:
+
+      T-0058   merged, GATES FAIL | line-cap:   services/etl/tests/test_dockerfile.py (436 lines)
+
+  **Exempted, pointing at T-0062**, which splits it. This is the exemption mechanism doing exactly the job it
+  was designed for rather than a hole in it: the file was over the cap long before either task existed, the
+  entry is a visible diff on a load-bearing check, and the stale rule deletes it automatically the moment the
+  file drops back under 300. `P-SRC-02: 10 Swift files, 20 source files under the cap, 2 exempt`.
+
+  **What I take from it.** "Measured first" was true and still produced a wrong answer, because I measured the
+  branches I could see instead of the branches that will merge. In a repo where thirty branches are stacked
+  behind a billing block, those are not the same set - and the whole point of this task was that a rule which
+  cannot see part of the tree is not a rule. I built exactly that mistake into my own measurement of it.
+  Corrected here rather than in a commit message, because this log is what a reviewer reads.
+
