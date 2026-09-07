@@ -25,14 +25,14 @@ spm_files=()
 [[ -f "$ART/spm-junit.xml" ]] && spm_files+=("$ART/spm-junit.xml")
 [[ -f "$ART/spm-junit-swift-testing.xml" ]] && spm_files+=("$ART/spm-junit-swift-testing.xml")
 if [[ ${#spm_files[@]} -eq 0 ]]; then echo "FAIL: swift test produced no JUnit report (expected $ART/spm-junit*.xml)"; exit 1; fi
-read -r t f s < <("$PY" ops/lib/junit_count.py "${spm_files[@]}" | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/') || { echo "FAIL: could not parse swift JUnit"; exit 1; }
+read -r t f s < <("$PY" ops/lib/junit_count.py "${spm_files[@]}" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/') || { echo "FAIL: could not parse swift JUnit"; exit 1; }
 linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 
 # ---- Tier 1b: Worker (vitest) — expected iff services/api/package.json exists --------------------
 if [[ -f services/api/package.json ]]; then
   (cd services/api && npx vitest run --reporter=json --outputFile="../../$ART/vitest.json" >/dev/null 2>&1); true
   [[ -f "$ART/vitest.json" ]] || { echo "FAIL: services/api exists but vitest produced no report"; exit 1; }
-  read -r t f s < <("$PY" - "$ART/vitest.json" <<'PYEOF'
+  read -r t f s < <("$PY" - "$ART/vitest.json" <<'PYEOF' | tr -d '\r'
 import json,sys; d=json.load(open(sys.argv[1])); print(d.get("numTotalTests",0), d.get("numFailedTests",0), d.get("numPendingTests",0))
 PYEOF
 )
@@ -43,7 +43,7 @@ fi
 if [[ -f services/etl/pyproject.toml ]]; then
   (cd services/etl && "$PY" -m pytest -q --junitxml="../../$ART/pytest-junit.xml" >/dev/null 2>&1); true
   [[ -f "$ART/pytest-junit.xml" ]] || { echo "FAIL: services/etl exists but pytest produced no report"; exit 1; }
-  read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/')
+  read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/')
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 fi
 

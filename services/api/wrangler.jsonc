@@ -1,0 +1,14 @@
+{
+  // Scenic Drive API — Cloudflare Worker. Non-secret config only; secrets via `wrangler secret put`.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "scenic-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // GIT_SHA / BUILT_AT are overridden at deploy time by ops/deploy (--var). "dev" means "not a real deploy".
+  "vars": { "GIT_SHA": "dev", "BUILT_AT": "dev" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "scenic", "database_id": "5f475f94-9fd3-4902-9f6e-022c6db30544" }
+  ]
+}
