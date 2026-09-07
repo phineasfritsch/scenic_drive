@@ -20,9 +20,41 @@ staged_files=()
 while IFS= read -r -d '' f; do staged_files+=("$f"); done < <(git diff --cached --name-only -z --diff-filter=ACMR)
 [[ ${#staged_files[@]} -eq 0 ]] && exit 0
 
-# 1. CRLF
+# 1. CRLF in the WORKING TREE, for the files where a CR actually breaks something.
+#
+# This used to read the STAGED blob - `git show ":$f" | grep -qI "$CR"` - which cannot fire. `.gitattributes`
+# says `* text=auto eol=lf`, so git strips the CRs at `git add` time and the staged blob never has one by the
+# time a hook can look at it. It was named for a failure it was structurally incapable of catching, and it
+# had never been red because it could not be (agent/reviewer-28, while reviewing T-0047; confirmed identical
+# on the pre-T-0047 hook, so it is pre-existing).
+#
+# KEPT rather than deleted, because there is a real failure underneath it. `.gitattributes` protects the
+# COMMITTED bytes, and `ops/sane` refuses a tracked file containing CR - but neither protects the file on
+# disk right now, and `bash ops/whatever` reads the file on disk. A CRLF script fails as
+# `$'\r': command not found`, or silently, with a trailing CR swallowed into a variable - and it reads as a
+# logic bug, which is how it costs an afternoon rather than a minute. The whole reason `.gitattributes`
+# carries `ops/** eol=lf` is that this has already happened here.
+#
+# NARROWED, because everywhere else the normalisation genuinely is the answer and a second check would be
+# noise: only the files that get EXECUTED as shell.
 for f in "${staged_files[@]}"; do
-  if git show ":$f" | grep -qI "$CR"; then echo "pre-commit: CRLF in $f (repo is LF-only, see .gitattributes)"; fail=1; fi
+  case "$f" in
+    ops/*|.githooks/*|*.sh|*.bash) ;;
+    *) continue;;
+  esac
+  # The working tree, not the index. Skip a path that is staged but absent from disk (a `git mv` whose
+  # destination has since been removed) rather than reporting it as clean.
+  [[ -f "$f" ]] || continue
+  # -U is load-bearing on Windows and a no-op elsewhere: without it, git-bash's grep opens the file in TEXT
+  # mode and strips the CRs before matching, so this check silently found nothing. The first version of this
+  # fix omitted it and was as decorative as the check it replaced - caught only because the demonstration was
+  # actually run rather than assumed. -I keeps a genuinely binary file from being reported as CRLF.
+  if LC_ALL=C grep -qIU "$CR" "$f"; then
+    echo "pre-commit: CRLF in the working tree: $f"
+    echo "            bash executes this file as it is on disk, where a CR is \$'\\r': command not found."
+    echo "            Fix it: sed -i 's/\\r\$//' \"$f\"   (git would normalise the commit and hide it)"
+    fail=1
+  fi
 done
 
 # 2. Secrets
