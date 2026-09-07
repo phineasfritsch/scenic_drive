@@ -99,11 +99,11 @@ def parse(text: str) -> list[Input]:
         if m:
             cur = {}
             items.append(cur)  # type: ignore[arg-type]
-            cur[m.group(1)] = _scalar(m.group(2))
+            cur[m.group(1)] = _scalar(m.group(2), m.group(1))
             continue
         m = re.match(r"^\s+([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", line)
         if m and cur is not None:
-            cur[m.group(1)] = _scalar(m.group(2))
+            cur[m.group(1)] = _scalar(m.group(2), m.group(1))
             continue
         raise ValueError(f"manifest: cannot parse line: {raw!r}")
     out = []
@@ -116,13 +116,19 @@ def parse(text: str) -> list[Input]:
     return out
 
 
-def _scalar(v: str):
+# Only these fields are numbers. Coercing every all-digit string to int turned a sha256 of 64 zeros into
+# int 0, which is falsy, so validation reported "needs a pinned sha256" instead of "that digest is malformed" -
+# a type confusion that hides the real problem behind a misleading message.
+NUMERIC_FIELDS = ("bytes",)
+
+
+def _scalar(v: str, field: str = ""):
     v = v.strip()
     if v in ("", "null", "~"):
         return None
     if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
         return v[1:-1]
-    if re.fullmatch(r"\d+", v):
+    if field in NUMERIC_FIELDS and re.fullmatch(r"\d+", v):
         return int(v)
     return v
 

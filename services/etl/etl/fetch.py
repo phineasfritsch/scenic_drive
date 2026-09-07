@@ -73,15 +73,24 @@ def upstream_md5(url: str) -> str:
 
 
 def verify(entry: mf.Input, path: Path) -> str | None:
-    """Return None if the file on disk is what the manifest says it should be, else a reason."""
-    if entry.verify == "sha256":
-        got = sha256_file(path)
-        return None if got == entry.sha256 else f"sha256 mismatch: expected {entry.sha256}, got {got}"
-    if entry.verify == "upstream-md5":
-        want = upstream_md5(entry.checksum_url or "")
-        got = md5_file(path)
-        return None if got == want else f"md5 mismatch against {entry.checksum_url}: expected {want}, got {got}"
-    return f"unknown verify mode {entry.verify!r}"
+    """Return None if the file on disk is what the manifest says it should be, else a reason.
+
+    NEVER raises. `upstream-md5` fetches the publisher's sidecar over the network at verification time, and an
+    exception escaping here would skip the caller's delete-on-failure branch - leaving a fully downloaded,
+    UNVERIFIED file on disk. For the Geofabrik entry that means a hiccup on a 60-byte sidecar stranding a 1.2 GB
+    .pbf that later stages would happily read. Unverifiable is a failure, not an exception.
+    """
+    try:
+        if entry.verify == "sha256":
+            got = sha256_file(path)
+            return None if got == entry.sha256 else f"sha256 mismatch: expected {entry.sha256}, got {got}"
+        if entry.verify == "upstream-md5":
+            want = upstream_md5(entry.checksum_url or "")
+            got = md5_file(path)
+            return None if got == want else f"md5 mismatch against {entry.checksum_url}: expected {want}, got {got}"
+        return f"unknown verify mode {entry.verify!r}"
+    except Exception as e:
+        return f"could not verify ({type(e).__name__}: {e})"
 
 
 def main(argv: list[str]) -> int:
