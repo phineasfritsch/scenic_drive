@@ -1,7 +1,7 @@
 ---
 id: T-0026
 title: Scenic score: terrain from 3DEP (elevation gain, relief) with a smoothing pass
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T17:41:07Z
@@ -104,3 +104,61 @@ RED: a known-flat fixture (Alviso/Bay margin) must score near 0 gain; a known-st
   invent elevation gain on flat ground - hence the 3x3 smoothing pass before computing gain or relief. The flat
   fixture (Alviso / bay margin) is the check that the smoothing is actually applied.
 - 2026-09-07T17:41:07Z claimed by agent/claude-opus-5; lease until 2026-09-07T21:41:07Z
+
+- 2026-09-07T18:40Z Handing to agent/reviewer-31; state -> review. What is here:
+
+  **The eight tiles**, pinned by sha256 in the manifest, 2,278,440,685 bytes, each downloaded and hashed.
+  The brief listed four; the four were real but had been verified against their URLs and never against the
+  bbox, so Sonoma, Napa, Solano and the outer coast were missing. n37w124 is deliberately absent - entirely
+  ocean, USGS returns 404 - and a point with no tile reads as "no elevation", never 0 m, which is sea level.
+
+  **etl/terrain.py**: 3x3 smoothing, resampling to a fixed 25 m step, gain, gain/km, relief over a 1 km
+  window, steepest sustained grade, coverage, and a sanity check for physical impossibilities. 37 tests, then
+  five mutations to prove they fire. One of them - relief over the whole way instead of a window - caught
+  NOTHING, because my two test profiles climbed 599.6 m and 600 m and the assertion held either way. Fixed so
+  they climb exactly the same 600 m, with an explicit assertion that the totals match.
+
+  **etl/dem.py**: tile arithmetic, nodata handling and the gdallocationinfo call, split so the impure part is
+  one subprocess per tile and injectable. 41 tests, then six mutations; floor-instead-of-ceil fails 12 of
+  them, which is the one that matters - an off-by-one tile name returns a REAL elevation from the wrong
+  square, so a whole region gets plausible terrain belonging somewhere else.
+
+  **The brief's RED, on real roads and real elevation:**
+
+      old_la_honda  way 8940690    259 nodes  5110 m  418 m gain  81.8 m/km  max grade 13.65%  STEEP
+      skyline       way 239028846  428 nodes  7014 m  362 m gain  51.6 m/km  max grade 10.47%  STEEP
+      alviso_flat   way 92357845    13 nodes   221 m    0 m gain   0.0 m/km  max grade  0.19%  FLAT
+      alviso_flat2  way 8929268     11 nodes   264 m  0.6 m gain   2.1 m/km  max grade  1.02%  FLAT
+
+  Two things went wrong on the way here and both are worth the reviewer's attention:
+
+  1. The first fixtures were hand-typed polylines - seven points for a 5.3 km mountain road - and scored Old
+     La Honda at a 44% maximum grade and Skyline at 59%. No drivable road is close. Straight lines between
+     points 800 m apart cut across canyons the road contours around; the elevations were real, they were not
+     elevations OF THE ROAD. The fixtures now use the mappers' own nodes, and a test asserts node spacing
+     under 120 m so nobody can quietly substitute a typed line again.
+  2. Alviso scored 5.64 m/km against the 5.0 `is_flat` threshold on the bad geometry. I did not move the
+     threshold. With real geometry it scores 0.0, so the constant would have been fitted to a road that does
+     not exist.
+
+  And one thing I had simply not done: `terrain.smooth3x3` was written and tested and then never used - the
+  sampling path read raw cells and the noise floor was doing the whole job. `dem.sample_smoothed` now applies
+  it, nine positions per point in one stream per tile, with the east-west offset divided by cos(latitude) so
+  the neighbourhood is square on the ground rather than in degrees.
+
+  **What the reviewer should attack first**, in the order I would:
+
+  - The tile arithmetic. `tile_for` is the single point where a plausible wrong answer is possible. Check the
+    boundary cases against the actual tile extents rather than against my tests, which I wrote.
+  - The fixture's provenance. Both the geometry and the profile are committed. Confirm the profile really
+    came from the pinned tiles by resampling a way yourself in the image, and confirm the recorded summary is
+    what the recorded profile produces (there is a test, but it failed on first run over a tenth of a metre
+    because the summary was computed before the profile was rounded - the class of thing worth re-checking).
+  - Whether 0.5 m is the right noise floor and 5.0 m/km the right flat threshold. Both are judgement, both
+    are now measured against real roads, and neither has been argued by anyone but me.
+  - `sample_smoothed` sends 9x the rows. Check that a way of a few thousand points does not exceed any
+    argument or stdin limit, because the failure mode there would be a truncated read - and `parse_values`
+    raises on a count mismatch, so confirm that guard actually catches it rather than assuming.
+
+  Not done, deliberately: nothing writes these numbers into the corpus yet. That is T-0030's job, and the
+  scoring composition is T-0029's.
