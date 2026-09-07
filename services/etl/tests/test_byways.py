@@ -1,18 +1,15 @@
-"""Byway snapping, the Eligible-versus-Designated decision, and the route key.
+"""What a Caltrans designation is worth, which match wins, and which roads are refused the bonus.
 
-The failure worth guarding is not a crash. It is a frontage road inheriting the freeway's designation, or a
-cross street inheriting a byway's because it touches one at a junction - both produce a road that scores as
-scenic because of a road next to it. Real-geometry versions of those two live in test_byways_fixture.py;
-these are the constructed cases that pin the arithmetic.
+The failure worth guarding is not a crash. It is a road scoring as scenic because of a road next to it, or
+because a weight drifted away from the evidence recorded for it. The snapping arithmetic underneath lives in
+test_snap.py, the route key in test_byway_route_key.py, and the real-geometry versions of the frontage-road
+and cross-street cases in test_byways_fixture.py; these are the constructed cases that pin the decisions.
 """
 from __future__ import annotations
-
-import math
 
 import pytest
 
 from etl import byways as bw
-from etl.curvature import distance_on_earth
 
 # A north-south line near Skyline, and a way running along it.
 BYWAY = [(37.50, -122.35), (37.49, -122.35), (37.48, -122.35), (37.47, -122.35)]
@@ -22,35 +19,41 @@ def along(offset_deg=0.0, n=4, start=37.50, lon=-122.35):
     return [(start - i * 0.01, lon + offset_deg) for i in range(n)]
 
 
-def length_m(way):
-    return sum(distance_on_earth(a[0], a[1], b[0], b[1]) for a, b in zip(way, way[1:]))
-
-
 class TestStatusMeaning:
     def test_officially_designated_scores_the_full_bonus(self):
         assert bw.status_bonus("OD") == bw.DESIGNATED_BONUS
 
     def test_eligible_scores_too_but_less(self):
-        """Eligible is a STATUTORY LISTING - the Legislature added the route to S&H 263.1-263.8. The scenic
-        criteria are applied by the nominating local government at DESIGNATION time, so an eligible-only
-        route has never had them applied. It still scores, because the reason most eligible routes are never
-        designated is that no local government filed a Corridor Protection Program, and having no local
-        government to file correlates with being rural rather than with being unscenic."""
+        """Eligible is a STATUTORY LISTING - the Legislature added the route to S&H 263.1-263.8 - whose
+        content descends from the 1963 Caltrans Master Plan, selected on five named scenic factors (AB 998
+        Assembly Transportation analysis, 4/1/2019). So E has been screened for scenery once, at route
+        level, and never since; what it has never had is the per-segment visual assessment, which is step 1
+        of the nomination a local government prepares AFTER the route is eligible. It scores less than OD
+        and more than nothing, and both halves of that are the point."""
         assert 0 < bw.status_bonus("E") < bw.status_bonus("OD")
 
     def test_the_eligible_weight_sits_in_the_bracket_the_evidence_fixes(self):
         """Measured from the pinned pull: officially designated routes are 2512.5 km of the layer's
-        12880.4 km, so 19.5% of the eligible system has ever been designated. That base rate times the
-        designated weight is the FLOOR - what E is worth if it is worth only its chance of clearing the
-        second gate. Half of OD is the ceiling this file will defend, because the criteria were never
-        applied to an eligible-only route at all. Where E sits between them is a judgement; that it sits
+        12880.4 km, so OD_SHARE_OF_SYSTEM of the eligible system has ever been designated. That base rate
+        times the designated weight is ELIGIBLE_FLOOR - what E is worth if it is worth only its chance of
+        clearing the second gate. ELIGIBLE_CEILING is half of OD, because the per-segment assessment was
+        never applied to an eligible-only route. Where E sits between them is a judgement; that it sits
         BETWEEN them is not.
 
         The pre-review value 0.10 was above this bracket, and it was derived from the false claim that
         eligibility is itself a scenic assessment."""
-        floor = 0.195 * bw.DESIGNATED_BONUS
-        ceiling = 0.5 * bw.DESIGNATED_BONUS
-        assert floor <= bw.ELIGIBLE_BONUS <= ceiling, (floor, bw.ELIGIBLE_BONUS, ceiling)
+        assert bw.ELIGIBLE_FLOOR <= bw.ELIGIBLE_BONUS <= bw.ELIGIBLE_CEILING, (
+            bw.ELIGIBLE_FLOOR, bw.ELIGIBLE_BONUS, bw.ELIGIBLE_CEILING)
+
+    def test_the_bracket_is_half_of_od_and_the_measured_base_rate_not_something_wider(self):
+        """The bracket used to live twice: as two literals in this test and as a sentence in the module
+        docstring that said the ceiling was 0.15, i.e. E == OD. A weight of 0.14 was legal under the
+        paragraph and red under the test. Now there is one pair of constants and both the paragraph and
+        this assertion name them, so the two cannot drift apart again."""
+        assert bw.ELIGIBLE_CEILING == pytest.approx(0.5 * bw.DESIGNATED_BONUS)
+        assert bw.ELIGIBLE_CEILING < bw.DESIGNATED_BONUS
+        assert bw.ELIGIBLE_FLOOR == pytest.approx(bw.OD_SHARE_OF_SYSTEM * bw.DESIGNATED_BONUS)
+        assert 0.19 <= bw.OD_SHARE_OF_SYSTEM <= 0.20, bw.OD_SHARE_OF_SYSTEM
 
     def test_an_unknown_status_scores_nothing_rather_than_guessing(self):
         assert bw.status_bonus("XYZ") == 0.0
@@ -83,110 +86,6 @@ class TestTheCap:
         assert bw.apply_to_e(0.42, 0.0) == pytest.approx(0.42)
 
 
-class TestRouteKey:
-    def test_a_ref_gives_up_its_route_numbers(self):
-        assert bw.route_numbers("I 280;CA 35") == {"280", "35"}
-        assert bw.route_numbers("I-280") == {"280"}
-        assert bw.route_numbers("US 101") == {"101"}
-
-    def test_a_business_route_is_not_the_mainline(self):
-        """'US 101 Business' runs beside US 101 and is explicitly not it. Reading the digits out of the
-        middle of a suffixed ref would hand it the mainline's designation."""
-        assert bw.route_numbers("US 101 Business") == set()
-
-    def test_an_absent_ref_claims_no_route(self):
-        assert bw.route_numbers(None) == set()
-        assert bw.route_numbers("") == set()
-
-    def test_an_entry_with_no_route_key_falls_back_to_geometry(self):
-        """The FHWA layer carries a trail name and no route number, so its entries cannot use this test."""
-        assert bw.route_matches(set(), None) is True
-        assert bw.route_matches(None, "CA 35") is True
-
-    def test_an_entry_with_a_route_key_needs_the_way_to_name_it(self):
-        assert bw.route_matches({"280"}, "I 280") is True
-        assert bw.route_matches({"280"}, "CA 35") is False
-        assert bw.route_matches({"280"}, None) is False
-
-    def test_a_concurrency_names_both_routes(self):
-        assert bw.route_matches({"35"}, "I 280;CA 35") is True
-
-
-class TestDistance:
-    def test_a_point_on_the_line_is_at_zero(self):
-        assert bw.distance_to_line_m((37.49, -122.35), BYWAY) < 1.0
-
-    def test_distance_is_not_directional(self):
-        """Without the cos(latitude) factor an east-west offset reads ~26% further than it is at this
-        latitude, and the snap tolerance silently becomes an ellipse.
-
-        The offsets are chosen so the two distances are EQUAL when the correction is applied, and the
-        tolerance is tight. An earlier version used a round 0.0056 deg and `rel=0.15`, which passed with the
-        correction and passed without it - a mutation removing cos(lat) changed nothing, so the test was
-        decorative for the exact thing it is named after.
-        """
-        lat, lon = 37.49, -122.35
-        north_deg = 0.005
-        # The east offset that is the same distance on the ground as `north_deg` of latitude.
-        east_deg = north_deg * 110540.0 / (111320.0 * math.cos(math.radians(lat)))
-        north = bw.distance_to_line_m((37.50 + north_deg, lon), BYWAY)
-        east = bw.distance_to_line_m((lat, lon + east_deg), BYWAY)
-        assert north == pytest.approx(east, rel=0.02), (north, east)
-
-    def test_a_single_point_line_still_measures(self):
-        assert bw.distance_to_line_m((37.49, -122.35), [(37.50, -122.35)]) > 0
-
-
-class TestOverlap:
-    def test_a_way_along_the_byway_overlaps_fully(self):
-        assert bw.overlap_fraction(along(), BYWAY) == pytest.approx(1.0)
-
-    def test_a_way_far_away_does_not_overlap(self):
-        assert bw.overlap_fraction(along(offset_deg=0.02), BYWAY) == 0.0
-
-    def test_a_frontage_road_just_outside_the_tolerance_does_not_overlap(self):
-        """~100 m east. Note that this is the EASY case: real frontage roads sit 20-45 m out, inside the
-        tolerance, which is why the route key and not the tolerance is what excludes them."""
-        assert bw.overlap_fraction(along(offset_deg=0.00115), BYWAY) == 0.0
-
-    def test_a_second_carriageway_just_inside_the_tolerance_does(self):
-        """~30 m: the two halves of a divided highway are the same road."""
-        assert bw.overlap_fraction(along(offset_deg=0.00034), BYWAY) > 0.9
-
-    def test_overlap_is_measured_by_length_not_by_node_count(self):
-        """OSM node density varies enormously - a curve is drawn with many nodes, a straight with two. By
-        node count a short curly section would outvote a long straight one and the answer would depend on how
-        the road was mapped."""
-        curly = [(37.50 - i * 0.0002, -122.35) for i in range(11)]      # 10 short segments, on the byway
-        straight_away = [(37.498, -122.35), (37.498, -122.30)]          # one long segment, far off it
-        way = curly + straight_away[1:]
-        assert bw.overlap_fraction(way, BYWAY) < 0.2
-
-    def test_a_long_chord_is_credited_only_where_it_is_actually_near(self):
-        """A single 2-node segment crossing the byway: both endpoints ~530 m off it, the midpoint on it.
-        Judging one midpoint per OSM segment credited the WHOLE 1060 m as near and scored 1.0. Real OSM
-        segments reach this length - 2.33% of inter-node segments in the measured corridors exceed 200 m and
-        the longest is 858 m - so this is not synthetic paranoia.
-
-        The near length must now be about 2x the tolerance - the band the way spends inside it. The 30 m
-        slack is a LITERAL, not `bw.SAMPLE_STEP_M`: written against the constant, loosening the step to 500 m
-        loosened the assertion with it and the mutation survived. A test whose tolerance comes from the thing
-        it is testing measures nothing."""
-        chord = [(37.49, -122.356), (37.49, -122.344)]
-        total = length_m(chord)
-        assert total > 1000, total
-        near = bw.overlap_fraction(chord, BYWAY) * total
-        assert near == pytest.approx(2 * bw.SNAP_TOLERANCE_M, abs=30.0), near
-
-    def test_the_sampling_step_is_fine_enough_for_the_bound_to_mean_anything(self):
-        """The guarantee is 'nothing further than tolerance + step/2 is credited as near'. At a step near or
-        above the tolerance that sentence is true and worthless."""
-        assert bw.SAMPLE_STEP_M <= bw.SNAP_TOLERANCE_M / 2, (bw.SAMPLE_STEP_M, bw.SNAP_TOLERANCE_M)
-
-    def test_a_degenerate_way_overlaps_nothing(self):
-        assert bw.overlap_fraction([(37.5, -122.35)], BYWAY) == 0.0
-
-
 class TestMatching:
     def _entries(self):
         return [
@@ -200,6 +99,26 @@ class TestMatching:
 
     def test_the_stronger_designation_wins_a_tie(self):
         assert bw.match(along(), self._entries())["status"] == "OD"
+
+    def test_between_two_equal_designations_the_one_that_covers_more_is_the_one_reported(self):
+        """`match` documents "best by STATUS, then by overlap" and nothing tested the second half:
+        `test_the_stronger_designation_wins_a_tie` gives both entries the SAME geometry, so the overlap
+        tiebreak never runs and deleting it entirely passed all 70 tests. With equal status the BONUS is
+        identical either way - what changes is the `name` and `overlap` recorded against the way, which is
+        the corridor's provenance, so a corpus built on the loser records the wrong road.
+
+        The reversed-order assertion is the one that matters: without it, 'first entry wins' would pass."""
+        way = [(37.50, -122.35), (37.49, -122.35), (37.48, -122.35), (37.47, -122.35), (37.46, -122.35)]
+        more = [(37.501, -122.35), (37.472, -122.35)]     # covers ~70% of the way
+        less = [(37.501, -122.35), (37.476, -122.35)]     # covers ~60%
+        more_frac = bw.overlap_fraction(way, more)
+        less_frac = bw.overlap_fraction(way, less)
+        assert more_frac > less_frac >= bw.MIN_OVERLAP_FRACTION, (more_frac, less_frac)
+        entries = [{"name": "less of it", "status": "OD", "geometry": less},
+                   {"name": "more of it", "status": "OD", "geometry": more}]
+        assert bw.match(way, entries)["name"] == "more of it"
+        assert bw.match(way, list(reversed(entries)))["name"] == "more of it"
+        assert bw.match(way, entries)["overlap"] == pytest.approx(more_frac)
 
     def test_the_stronger_designation_wins_even_when_the_weaker_one_overlaps_more(self):
         """The gate is where 'is this the same road' is decided. Past it, overlap fraction measures how much
@@ -215,7 +134,7 @@ class TestMatching:
         entries = [{"name": "eligible one", "status": "E", "geometry": eligible_line},
                    {"name": "designated one", "status": "OD", "geometry": designated_line}]
         assert bw.match(way, entries)["status"] == "OD"
-        assert bw.bonus_for(way, entries) == bw.DESIGNATED_BONUS
+        assert bw.bonus_for(way, entries, way_class="secondary") == bw.DESIGNATED_BONUS
 
     def test_a_cross_street_touching_at_a_junction_does_not_match(self):
         """It shares a node with the byway and nothing else. Without a minimum overlap it would inherit the
@@ -243,15 +162,48 @@ class TestMatching:
 class TestBonus:
     def test_a_designated_way_earns_the_full_bonus(self):
         entries = [{"name": "Skyline", "status": "OD", "geometry": BYWAY}]
-        assert bw.bonus_for(along(), entries) == bw.DESIGNATED_BONUS
+        assert bw.bonus_for(along(), entries, way_class="secondary") == bw.DESIGNATED_BONUS
 
     def test_an_eligible_way_earns_less(self):
         entries = [{"name": "Somewhere", "status": "E", "geometry": BYWAY}]
-        assert 0 < bw.bonus_for(along(), entries) < bw.DESIGNATED_BONUS
+        assert 0 < bw.bonus_for(along(), entries, way_class="tertiary") < bw.DESIGNATED_BONUS
 
     def test_an_unmatched_way_earns_nothing(self):
         entries = [{"name": "Skyline", "status": "OD", "geometry": BYWAY}]
-        assert bw.bonus_for(along(offset_deg=0.05), entries) == 0.0
+        assert bw.bonus_for(along(offset_deg=0.05), entries, way_class="secondary") == 0.0
+
+
+class TestTheMotorwayGate:
+    """S&H 263.3 lists Interstates as eligible and the pinned pull has I-80/280/580/680 rows at both
+    statuses, while the plan's invariant is that motorway and trunk score 0 on scenery. Without a gate the
+    composition site in T-0029 would put scenery back on exactly those roads."""
+
+    ENTRIES = [{"name": "CA SM route 280", "status": "OD", "source": "caltrans", "geometry": BYWAY}]
+
+    def test_a_motorway_on_a_designated_corridor_earns_nothing(self):
+        assert bw.match(along(), self.ENTRIES) is not None
+        assert bw.bonus_for(along(), self.ENTRIES, way_class="motorway") == 0.0
+
+    def test_every_scenic_zero_class_is_gated_not_just_motorway(self):
+        for cls in sorted(bw.SCENIC_ZERO_CLASSES):
+            assert bw.bonus_for(along(), self.ENTRIES, way_class=cls) == 0.0, cls
+        assert bw.SCENIC_ZERO_CLASSES >= {"motorway", "trunk"}
+
+    def test_an_ordinary_road_on_the_same_corridor_still_earns_it(self):
+        """Otherwise 'the gate works' would be satisfied by a gate that rejects everything."""
+        assert bw.bonus_for(along(), self.ENTRIES, way_class="tertiary") == bw.DESIGNATED_BONUS
+
+    def test_the_match_itself_is_not_gated_only_the_score(self):
+        """The designation is a fact about the corridor and stays visible in the data; what is withheld is
+        the bonus. A gate inside `match` would erase the provenance too."""
+        m = bw.match(along(), self.ENTRIES, way_ref=None)
+        assert m is not None and m["status"] == bw.DESIGNATED
+
+    def test_the_class_has_to_be_stated_it_cannot_be_omitted(self):
+        """`way_class` is keyword-only with no default on purpose: a caller that does not know what kind of
+        road it is holding must find out rather than collect a bonus by omission."""
+        with pytest.raises(TypeError):
+            bw.bonus_for(along(), self.ENTRIES)
 
 
 class TestProblems:
@@ -280,3 +232,26 @@ class TestProblems:
         problems = bw.problems([{"status": "OD", "source": "caltrans", "routes": {"35"}, "geometry": BYWAY},
                                 {"status": "E", "source": "caltrans", "routes": set(), "geometry": BYWAY}])
         assert any("no route key" in p for p in problems)
+
+    def test_a_keyed_entry_nobody_ever_checked_is_reported(self):
+        """The hole this closes. Caltrans FID 181 is keyed RTE=221 over State Route 236, so it HAS a key,
+        the keyless check above never fires, and the entry silently rejects its own 28 km corridor. An
+        entry that has never been through `byway_route_key.reconcile` is not known to be sound, and 'no
+        problems' must not be reachable by never looking - which is exactly how this set stayed green."""
+        entry = {"status": "OD", "source": "caltrans", "routes": {"221"}, "geometry": BYWAY}
+        assert any("never checked against the ways" in p for p in bw.problems([entry]))
+        checked = dict(entry, **{bw.KEY_VERDICT: bw.KEY_CORROBORATED})
+        assert bw.problems([checked]) == []
+
+    def test_a_re_keyed_entry_is_reported_with_the_number_the_source_got_wrong(self):
+        entry = {"status": "E", "source": "caltrans", "routes": {"236"}, "key_was": ["221"],
+                 bw.KEY_VERDICT: bw.KEY_REKEYED, "geometry": BYWAY}
+        problems = bw.problems([dict(entry, status="OD"), entry])
+        assert any("re-keyed" in p and "221" in p for p in problems), problems
+
+    def test_an_entry_whose_key_nothing_along_it_claims_is_reported(self):
+        """The verdict for a corridor with no consensus to re-key onto. It keeps its key and scores zero -
+        guessing would be worse - so the only acceptable outcome is that somebody is told."""
+        entry = {"status": "OD", "source": "caltrans", "routes": {"221"},
+                 bw.KEY_VERDICT: bw.KEY_UNCLAIMED, "geometry": BYWAY}
+        assert any("match no way at all" in p for p in bw.problems([entry]))

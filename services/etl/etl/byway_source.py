@@ -10,7 +10,10 @@ would snap to a corridor it is nowhere near. Inter-vertex spacing on the Caltran
 p99 410 m, max 5643 m - coarser than OSM, which is why the snap tolerance cannot be tight.
 
 Each Caltrans row is a postmiled segment of a numbered state route, so `RTE` becomes the entry's route key.
-That key is what tells a byway apart from the frontage road beside it; see `byways.route_matches`.
+That key is what tells a byway apart from the frontage road beside it; see `byways.route_matches`. `RTE` is
+also WRONG on real rows - FID 181 is 27.9 km of State Route 236 filed as RTE=221 - and a wrong key rejects
+its whole corridor in silence, so an entry is not trustworthy until `byway_route_key.reconcile` has checked
+it against the ways that lie along it. This module does not do that: it has no way corpus. It parses.
 
 FHWA `byways-fhwa.geojson` - layer 107, 648 features, fields FID/Admin_Org/Type/Trail_Name only.
 
@@ -18,17 +21,34 @@ FHWA `byways-fhwa.geojson` - layer 107, 648 features, fields FID/Admin_Org/Type/
   field name suggests, so nothing here reads it.
 
   `Admin_Org` names the designating authority and IS load-bearing. It has 22 distinct values, each a
-  comma-separated set of tokens - STATE 363, 'NSB, STATE' 62, 'USFS, STATE' 52, USFS 44, BLM 39, NSB 23,
-  'USFS, NSB, STATE' 20 and fourteen more - so it is read as a token SET, not string-matched. 127 of the 648
-  rows name NSB. Only those are ones FHWA itself designated; the rest are a state's or a land agency's own
-  byway republished federally. We keep only the NSB rows, for two reasons that are the same reason:
-    - 87 rows touch California and all 13 that touch the sfbay region are Admin_Org=STATE, with names like
-      'Route 35--Skyline Boulevard' and 'Route 280--Father Junipero Serra Freeway'. Those ARE the Caltrans
-      rows, re-published. Taking them would double-count every Bay Area designation.
-    - a STATE row outside California is some other state's programme, whose meaning we have not read and
-      whose licence we have not checked. Scoring it would be asserting we understand it.
+  comma-separated set of tokens, so it is read as a token SET and never string-matched. By token: STATE 525,
+  USFS 130, NSB 127, BLM 54, NPS 9, OTHER 7. 127 of the 648 rows name NSB and only those were designated by
+  FHWA itself; the other 521 are somebody else's byway republished federally. We keep only the NSB rows.
+
+  What that drops, and why each kind. The five bullets PARTITION the 521 dropped rows - 364 + 96 + 53 + 2
+  + 6 - so the arithmetic is checkable rather than impressionistic; an earlier version said "15 more
+  carrying STATE", which is no reading of the data at all.
+    - 364 rows whose only token is STATE. (65 more carry STATE beside USFS, BLM or OTHER and are counted
+      in the bullets below, not here.) 87 rows touch California and all 12 that touch the
+      sfbay region are Admin_Org=STATE, with names like 'Route 35--Skyline Boulevard' and 'Route 280--
+      Father Junipero Serra Freeway'. Those ARE the Caltrans rows, re-published, so taking them would
+      double-count every Bay Area designation. Outside California a STATE row is another state's programme,
+      whose criteria we have not read and whose licence we have not checked; scoring it would assert we
+      understand it. Neither of those is an argument about quality - it is an argument about provenance.
+    - 96 dropped rows carry USFS (44 USFS-only) and 53 carry BLM (42 BLM-only): Forest Service Scenic Byways
+      and BLM Back Country Byways. These are REAL federal designations and dropping them is a real loss of
+      national coverage - Angeles Crest, Feather River, Lassen, Yuba-Donner, Kings Canyon. They go for the
+      same provenance reason and no other: they are separate programmes with their own criteria, awarded by
+      land-management agencies rather than by FHWA, and we have read neither set of criteria. Mapping them
+      onto OD's weight would be a guess about comparability dressed as a fact, and mapping them onto E's
+      would be worse. ZERO of them touch the sfbay region, so nothing in M2 moves either way - which is
+      exactly why this is recorded as an unresolved question rather than settled: the national build has to
+      answer it, and until then the module is not pretending the answer is "they do not count".
+      (The layer holds 130 rows carrying USFS and 54 carrying BLM; the other 34 and 1 name NSB as well and
+      are kept, which is why the drop counts are smaller than the token counts.)
+    - 2 NPS-only and 6 rows carrying OTHER, same reason.
   Measured consequence for M2: the 127 NSB rows explode to 793 entries and NOT ONE of them touches the
-  sfbay region, against 248 Caltrans entries that do. The FHWA layer is pinned because the task's charter is
+  sfbay region, against 229 Caltrans entries that do. The FHWA layer is pinned because the task's charter is
   Caltrans + FHWA and because the national build needs it, not because it changes a Bay Area score today.
 
   An NSB row carries no route number, so its entries have no route key and can only be matched on geometry -
@@ -52,6 +72,10 @@ FHWA_SOURCE = "fhwa"
 
 # The Admin_Org token that means FHWA designated this one, as opposed to republishing someone else's.
 FHWA_OWN_DESIGNATION = "NSB"
+# Designating authorities whose rows this filter therefore drops. Real federal designations under separate
+# programmes with their own criteria, which we have not read - dropped for provenance, not for quality, and
+# none of them reaches sfbay. Named so the decision is an identifier a test can pin rather than a paragraph.
+OTHER_FEDERAL_PROGRAMMES = frozenset({"USFS", "BLM", "NPS"})
 
 _RTE = re.compile(r"^\s*0*(\d{1,3})\s*$")
 

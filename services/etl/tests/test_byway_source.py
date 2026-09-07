@@ -96,6 +96,24 @@ class TestFhwa:
     def test_a_kept_row_carries_the_designated_status(self):
         assert bs.parse_fhwa(self._doc())[0]["status"] == bw.DESIGNATED
 
+    def test_a_row_from_another_federal_programme_is_dropped_and_that_is_a_decision(self):
+        """USFS Scenic Byways and BLM Back Country Byways are real federal designations, and dropping them
+        is a real loss of national coverage - Angeles Crest, Feather River, Lassen, Kings Canyon. They go
+        for provenance: separate programmes with their own criteria, which we have not read, awarded by
+        land-management agencies rather than by FHWA. None of them touches sfbay so no M2 score moves,
+        which is why this is pinned as a decision rather than left looking like an accident of the filter.
+        The pinned pull holds 130 rows carrying USFS and 54 carrying BLM; 96 and 53 of those are dropped,
+        the rest name NSB as well and are kept by the test below."""
+        for org in sorted(bs.OTHER_FEDERAL_PROGRAMMES):
+            assert bs.parse_fhwa({"features": [feature(LINE, Admin_Org=org, Trail_Name=org)]}) == [], org
+        assert bs.FHWA_OWN_DESIGNATION not in bs.OTHER_FEDERAL_PROGRAMMES
+
+    def test_such_a_row_is_kept_when_fhwa_designated_it_too(self):
+        """'USFS, NSB, STATE' is 20 rows in the pull. The drop is on the ABSENCE of NSB, not on the presence
+        of USFS, so a jointly-designated byway is not lost along with them."""
+        doc = {"features": [feature(LINE, Admin_Org="USFS, NSB, STATE", Trail_Name="Volcanic Legacy")]}
+        assert [e["name"] for e in bs.parse_fhwa(doc)] == ["Volcanic Legacy"]
+
     def test_a_kept_row_has_no_route_key(self):
         """Layer 107 has four fields and none is a route number, so an FHWA entry can only be matched on
         geometry. That is the weaker mode and it must not be mistaken for the strong one."""
@@ -117,6 +135,6 @@ class TestSourceProblems:
 
     def test_a_parse_with_no_caltrans_entries_at_all_is_reported(self):
         """California's designations come from Caltrans. An FHWA-only result means the Caltrans pull failed
-        and the overlay is now silently missing 248 Bay Area entries."""
+        and the overlay is now silently missing 229 Bay Area entries."""
         entries = bs.parse_fhwa({"features": [feature(LINE, Admin_Org="NSB", Trail_Name="x")]})
         assert any("no Caltrans entries" in p for p in bs.source_problems(entries))

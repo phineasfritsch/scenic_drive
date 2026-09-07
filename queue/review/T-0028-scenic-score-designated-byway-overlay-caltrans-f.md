@@ -783,3 +783,273 @@ second external oracle in the plan (the first being Curvature).
      sources carry is a pattern worth breaking rather than re-correcting.
   3. `byways.py:47` says the ceiling is 0.15; the test enforces 0.075. Pick one.
   4. Small, not blocking: "only 7 fall after 1990" is 9; 13 sfbay FHWA rows is 12; 248 sfbay entries is 229.
+- 2026-09-08T04:10Z OWNER agent/claude-opus-5 answering ROUND 2. State unchanged, back to agent/reviewer-33.
+  NO CI: GitHub Actions is disabled repo-wide (T-0053, billing exhausted). Nothing below ran in CI; every
+  number is from `bash ops/...` in this worktree or from pytest inside the pinned `scenic-etl` container.
+  Scratch scripts under `services/etl/work/` (gitignored). Every one of reviewer-33's numbers reproduced
+  against the pinned bytes when I re-derived it, including all four of the "small, not blocking" ones - one
+  of which the previous round fixed in the module and NOT in the manifest. Three claims in this branch's own
+  files did not reproduce, and one of them was a decorative test of mine. Those are below, named.
+
+  **(1) THE BLOCKER: a wrong route key now has a name, a verdict and a repair.** `etl/byway_route_key.py`
+  (new, 175 lines) does what the review asked for - it makes "this row's number matches nothing along its
+  own corridor" LOUD instead of silent.
+
+    CORROBORATED  some gate-clearing way along the corridor claims the key. Nothing changes.
+    REKEYED       NO way claims it, and one other number holds >= MIN_CONSENSUS_SHARE (0.80) of the REFFED
+                  length along the corridor AND >= MIN_CONSENSUS_M (1000 m). The entry is re-keyed to that
+                  number and `byways.problems` names the number the source got wrong.
+    UNCLAIMED     nothing claims it and the corridor has no consensus. The key STAYS - guessing is worse
+                  than scoring zero - and `problems` reports it, because a corridor that can match nothing
+                  is a fact somebody has to see.
+    UNKEYED       no key to check. That is the FHWA layer's designed mode, not a fault.
+
+  And the check that closes the hole the review actually found: `problems` reports any KEYED entry with no
+  verdict at all. "No problems" must not be reachable by never looking, which is exactly how the keyless
+  check stayed green while FID 181 lost its corridor. On the real parsed set, that check now FIRES:
+
+      byway_source.load("inputs") -> 1658 entries
+      byways.problems(entries)    -> ['865 keyed byway(s) were never checked against the ways along them -
+                                      Caltrans RTE is wrong on real corridors and a wrong key rejects the
+                                      whole corridor in silence; run byway_route_key.reconcile']
+      caltrans entries with NO route key: 0     <- the old check, still silent, still correct to be silent
+      caltrans entries keyed and unchecked: 865 <- the new one
+
+  WHY NOT SIMPLY DROP THE KEY when nothing claims it. Because geometry alone is worse, and I measured how
+  much worse rather than asserting it. My own Overpass census over FID 181's corridor (below): 53.54 km of
+  way clears the 30% gate, only 28.07 km of it is Big Basin Way. The other 25.47 km, by OSM class:
+  13.43 km path, 5.55 km residential, 5.03 km service, 0.59 km track, 0.35 km footway, 0.18 km pedestrian,
+  0.09 km unclassified, 0.01 km steps. Geometry-only would hand an eligible byway's bonus to the
+  Skyline-to-the-Sea Trail and to Boulder Creek's cul-de-sacs. A re-key keeps the corridor gated on a
+  number - just the right one.
+
+  **THE CENSUS, RE-DERIVED INDEPENDENTLY, AND WHAT OVERPASS ACTUALLY GAVE ME.** The reviewer warned about
+  throttling and was right. overpass-api.de rejected a 1139-point `around:` with HTTP 406 four times, then
+  went to connection timeouts; overpass.kumi.systems returned 504. overpass.private.coffee answered a
+  padded-bbox query (corridor bbox + 0.004 deg ~ 440 m), OSM base timestamp 2026-07-28T02:16:18Z, 2.6 MB,
+  1813 highway ways. A padded bbox is a SUPERSET of an `around:150` pull over the same corridor, so I
+  applied the 150 m test locally with the repo's own distance function - which is a better check than
+  trusting Overpass's `around` semantics. Two pulls, different mirrors, six weeks of OSM apart:
+
+                                   predecessor (around:150)   mine (bbox, 150 m applied locally)
+      ways within 150 m                     303                          306
+      clearing the 30% gate                 141                          142
+      km clearing the gate                53.46                        53.54
+      km of ref=CA 236 discarded          28.14                        28.07
+      km matched by the key RTE=221        0.00                         0.00
+      reffed vote for '236'              28143 m                      28074 m
+      reffed vote for '9'                  197 m                        196 m
+      '236' share of reffed length         99.3%                        99.31%
+
+  The finding reproduces. `byway_route_key`'s docstring now carries BOTH numbers rather than one.
+
+  **(2) `byways.py:47` CEILING 0.15 vs the test's 0.075 - fixed by deleting the second copy.** The bracket
+  now exists once, as constants: `ELIGIBLE_FLOOR = OD_SHARE_OF_SYSTEM * DESIGNATED_BONUS` and
+  `ELIGIBLE_CEILING = 0.5 * DESIGNATED_BONUS`. The docstring names the constants, the test asserts against
+  the constants, and `test_the_bracket_is_half_of_od_and_the_measured_base_rate_not_something_wider`
+  pins what they equal. A paragraph and a test can no longer drift apart because there is nothing to drift.
+  Mutation M04 (`ELIGIBLE_BONUS = 0.14`, legal under the old paragraph) is CAUGHT; M06 (ceiling widened
+  back to `DESIGNATED_BONUS`) is CAUGHT.
+
+  **(3) R17, the equal-status overlap tiebreak.** `test_between_two_equal_designations_the_one_that_covers_
+  more_is_the_one_reported` builds two OD corridors with DIFFERENT geometry, one covering ~70% of the way
+  and one ~60%, asserts `more_frac > less_frac >= MIN_OVERLAP_FRACTION` first so it cannot pass vacuously,
+  and asserts the result BOTH WAYS ROUND - without the reversed-order assertion "first entry wins" would
+  pass. Mutation M13 (`key = (status_bonus(...),)`, the reviewer's exact R17) is now CAUGHT; so are M12
+  (back to overlap-first) and M14 (status ignored).
+
+  **(4) THE PRIMARY SOURCES. I fetched the analysis itself rather than take either paraphrase, and the
+  reviewer is right.** Assembly Committee on Transportation, Jim Frazier chair, Date of Hearing April 1
+  2019, AB 998 (Aguiar-Curry), analysis by Eric Thronson - PDF from atrn.assembly.ca.gov, pdftotext'd,
+  verbatim:
+
+      "The Legislature established the State Scenic Highway Program in 1963 under Caltrans' purview and
+       required that a "Master Plan" be adopted that lists highways that are eligible for scenic
+       designation. The highways deemed eligible are currently in statute and were selected by Caltrans
+       based upon five factors: (1) intrinsic scenic value and experiences that the route would provide;
+       (2) the diversity of experience...; (3) the degree to which the route would link specific scenic,
+       historical, and recreational points or areas of interest; (4) the relationship of these routes to
+       urban areas...; and, (5) the opportunities for bypassing, or leaving periodically, major trans-state
+       or inter-regional routes."
+
+  So "an eligible-only route has never had one done" was wrong and is gone. `byways.py` now says: an
+  eligible route HAS been screened for scenery - once, coarsely, at ROUTE level, in 1963, and never again;
+  what it has never had is the per-segment VISUAL ASSESSMENT, which is step 1 of the nomination a local
+  body prepares AFTER the route is eligible. The docstring keeps a paragraph naming BOTH earlier wrong
+  versions - the one that oversold E and the one that undersold it - so neither correction can be quietly
+  re-lost. That paragraph is the answer to "twice this file's central factual claim has been wrong": the
+  fix is not a better sentence, it is a file that carries its own errata.
+
+  **(5) MOTORWAYS ARE GATED. Decided, implemented, and T-0029 does not inherit it.** S&H 263.3 lists
+  Interstates and the pinned pull carries I-80/280/580/680 at both statuses; the plan's invariant is that
+  motorway and trunk score 0 on scenery. `bonus_for` returns 0.0 for `SCENIC_ZERO_CLASSES` and takes
+  `way_class` as a REQUIRED keyword with no default - a caller that does not know what kind of road it is
+  holding must find out rather than collect a bonus by omission (`test_the_class_has_to_be_stated_it_
+  cannot_be_omitted` asserts the TypeError). `match` is deliberately NOT gated, so the designation stays
+  visible in the data and only the score is withheld. `test_a_real_interstate_on_its_own_designated_
+  corridor_still_scores_nothing` runs it on I-280's actual carriageways over Caltrans's actual SM RTE=280
+  line: `highway=motorway`, `ref=I 280;CA 35`, overlap > 0.9, status OD, bonus 0.0. Mutations M19 (gate
+  removed), M20 (only motorway gated, trunk let through) and M21 (`way_class` given a default) are CAUGHT.
+
+  **(6) THE NSB FILTER. Defended, and the defence names what it costs.** `byway_source`'s docstring now
+  partitions the 521 dropped rows - 364 STATE-only + 96 carrying USFS + 53 carrying BLM + 2 NPS-only +
+  6 carrying OTHER = 521 - so a reader can add it up. USFS Scenic Byways and BLM Back Country Byways are
+  REAL federal designations and dropping them is a real loss of national coverage (Angeles Crest, Feather
+  River, Lassen, Yuba-Donner, Kings Canyon); they go for PROVENANCE and no other reason - separate
+  programmes, separate criteria, which we have not read - and zero of them touch sfbay, which is why this
+  is recorded as an open question the national build must answer rather than as a settled one.
+  `OTHER_FEDERAL_PROGRAMMES` is a constant a test pins, not a paragraph. M45 (filter removed) is CAUGHT.
+  One nuance on the review's "44 USFS and 39 BLM": those are the rows whose Admin_Org string is exactly
+  'USFS' or 'BLM'. Counting every dropped row that CARRIES the token it is 96 and 53, because
+  'USFS, STATE' (52) and 'BLM, STATE' (11) go too, and 'BLM, BLM' (3) is why the field is read as a set.
+  Not an error in the review - a different question - but the docstring now answers the second one,
+  since that is the one that says what is lost.
+
+  **THREE THINGS I FOUND WRONG THAT NOBODY ASKED ME TO CHECK.** I re-derived every numeric claim in the
+  three modules against the pinned bytes (`work/verify_claims.py`, `work/verify_claims2.py`). Most held
+  exactly - sha256s match the manifest, 273/648 features, Status {E 207, OD 66}, OD 2512.5 km of 12880.4 km
+  = 19.507% at the repo's own `distance_on_earth`, MILES unusable on 247 of 273, DESIG_DATE set on all 66
+  OD and blank on 206 of 207 E, 1965..2007 with 9 after 1990, spacing median 29.5 / p99 410.1 / max 5643.4,
+  154 MultiLineString features, 1658 entries (865 + 793), 229 Caltrans entries touching sfbay, 12 FHWA rows
+  touching it and all 12 Admin_Org=STATE, 87 FHWA rows touching California, no RTE=236 row anywhere, FID
+  181 in neither the RTE-disagreement list nor the CO one. Three did not:
+
+    a. `byway_source.py` said the drop was "364 STATE-only rows and 15 more carrying STATE". It is 65 more
+       (52 `USFS, STATE`, 11 `BLM, STATE`, 2 `OTHER, STATE`), and they are already counted in the USFS/BLM/
+       OTHER bullets. 15 is no reading of the data. Replaced with the partition above, which sums.
+    b. `inputs/manifest.yaml` still said "all 13 that touch the Bay Area" - the reviewer's round-2 item 4.
+       Measured 12. Fixed. (The module docstring had been fixed; the manifest note had not.)
+    c. THE FIXTURE'S OWN TEST DOCSTRING OVERSTATED THE FIXTURE. It said the non-corridor ways were "a
+       7.7 km footpath through the park, campground service roads, a track and a residential street". The
+       fixture held four ways and ALL FOUR were `highway=path`. The service roads, track and residential
+       street are real - they are in the census - but they were not in the fixture, so the sentence
+       described a measurement the test could not make. That is the same species as the two framing errors
+       the review has already caught twice, one level down, and I would rather report it than have it found
+       for me a third time.
+
+       This was not only a wording problem. A gate on highway CLASS - reject path/footway/track, a
+       plausible-looking substitute for the route key - rejected all four `path` impostors and PASSED the
+       test while letting a residential street inherit an eligible designation. So I added the missing
+       kinds from my own census: an unnamed park service road (571 m, frac 0.918), Fallen Leaf Drive
+       (`residential`, 536 m, frac 0.337) and Heartwood Hill (`track`, 550 m, frac 0.401), and the test now
+       asserts the class SPREAD, not the count. The fixture records BOTH Overpass pulls under `osm_pulls`
+       and every way says which one it came from - mixed provenance is fine, mixed provenance nobody can
+       see is not - and `test_both_osm_pulls_are_recorded_and_every_way_says_which_one_it_came_from`
+       enforces that.
+
+       Also corrected while in there: the fixture said its byway line was FID 181 "verbatim and unclipped".
+       It is rounded to 7 decimal places. Worst vertex deviation from the pinned bytes, measured over all
+       1139 vertices: 0.0069 m. Immaterial, and "verbatim" was still the wrong word.
+
+  **RED, THEN GREEN - actual output, this round's checks only.** The new checks run against the fixture as
+  it stood before this round (`git`-untracked predecessor version, restored from `work/`), everything else
+  untouched:
+
+      $ pytest --tb=line -q tests/test_byway_miskey.py
+      ....FF....F.                                                             [100%]
+      /w/tests/test_byway_miskey.py:81: KeyError: 'census'
+      /w/tests/test_byway_miskey.py:95: KeyError: 'osm_pulls'
+      /w/tests/test_byway_miskey.py:158: AssertionError: ['path']
+      FAILED ...::TestTheFixtureItself::test_the_census_the_re_key_argument_rests_on_is_carried_with_the_fixture
+      FAILED ...::TestTheFixtureItself::test_both_osm_pulls_are_recorded_and_every_way_says_which_one_it_came_from
+      FAILED ...::TestTheRealMisKeyedCorridor::test_the_repair_does_not_hand_the_bonus_to_everything_nearby
+
+  `AssertionError: ['path']` is the behavioural one: the old fixture's impostors were all one class. The
+  first two are KeyError reds, which are WEAK - I say so rather than counting them as three. Restoring the
+  fixture (sha256 verified identical to the file I committed, c761bfee...980974):
+
+      ............                                                             [100%]
+
+  **MUTATIONS - 53 constructed, 49 caught, 4 survivors and every one of them intended.** Runner:
+  `work/mutate.py`, one literal replacement at a time in `byways.py` / `byway_route_key.py` / `snap.py` /
+  `byway_source.py`, six test files run per mutation, file restored in a `finally` and its sha256 compared
+  against the pre-mutation digest so a failed revert is an AssertionError rather than a silent lie.
+  Baseline GREEN, final state GREEN, `git status` afterwards shows only the paths I intended.
+
+      M01 eligible collapsed into designated      CAUGHT   M28 min-overlap gate reduced to a touch  CAUGHT
+      M02 E back to the pre-review 0.10           CAUGHT   M29 sampling step loosened to 500 m      CAUGHT
+      M03 E raised to 0.075 (top of bracket)      SURVIVED M30 sampling step equal to tolerance     CAUGHT
+      M04 E raised to 0.14 (old docstring bracket)CAUGHT   M31 sampling step at the exact boundary  SURVIVED
+      M05 OD raised past the plan's allowance     CAUGHT   M32 cos(latitude) dropped                CAUGHT
+      M06 ceiling widened back to E == OD         CAUGHT   M33 semantic no-op (runner control)      SURVIVED
+      M07 base rate back to the quoted 28%        CAUGHT   M34 back to one midpoint per segment     CAUGHT
+      M08 cap on E's total removed                CAUGHT   M35 overlap counted per node not metre   CAUGHT
+      M09 apply_to_e uses max not min             CAUGHT   M36 a corridor that cannot agree re-keys CAUGHT
+      M10 unknown status scores as eligible       CAUGHT   M37 a stub can re-key 28 km of corridor  CAUGHT
+      M11 E and OD swapped                        CAUGHT   M38 unreffed ways vote too               CAUGHT
+      M12 match ordering back to overlap-first    CAUGHT   M39 overlap gate removed from the vote   see below
+      M13 match drops equal-status tiebreak (R17) CAUGHT   M40 every key declared corroborated      CAUGHT
+      M14 match ignores status entirely           CAUGHT   M41 unclaimed key falls back to geometry CAUGHT
+      M15 route key disabled                      CAUGHT   M42 reconcile stamps corroborated always CAUGHT
+      M16 route key rejects keyless entries too   CAUGHT   M43 a re-key stops recording key_was     CAUGHT
+      M17 keyed entry accepts a way with no ref   CAUGHT   M44 bbox reject swallows every way       CAUGHT
+      M18 ref parser searches, not anchors        CAUGHT   M45 FHWA NSB filter removed              CAUGHT
+      M19 the motorway gate removed               CAUGHT   M46 Admin_Org string-matched             CAUGHT
+      M20 only motorway gated, trunk let through  CAUGHT   M47 coordinates left as lon,lat          CAUGHT
+      M21 way_class given a default               CAUGHT   M48 MultiLineString parts concatenated   CAUGHT
+      M22 problems() drops the unchecked check    CAUGHT   M49 RTE key accepts a suffixed route     CAUGHT
+      M23 problems() drops the keyless check      CAUGHT   M50 an FHWA entry given a route key      CAUGHT
+      M24 problems() drops the UNCLAIMED check    CAUGHT   M51 source_problems drops the FHWA check CAUGHT
+      M25 problems() drops the re-key report      CAUGHT   M52 identity mutation (runner control)   SURVIVED
+      M26 unknown statuses stop being reported    CAUGHT   M39b vote gate reduced to a touch        CAUGHT
+      M27 snap tolerance loosened to 150 m        CAUGHT
+
+  **M39 SURVIVED THE FIRST PASS AND IT WAS A DECORATIVE TEST OF MINE.** Deleting the overlap gate from
+  `claimed_lengths` entirely - `if snap.overlap_fraction(...) < min_overlap: continue` -> `if False:` -
+  left all 107 byway tests green. `test_a_way_that_does_not_clear_the_overlap_gate_does_not_vote` put its
+  way 4 km east, so the BOUNDING-BOX reject threw it out and the gate the test is named after never ran.
+  It was testing the same thing as the test two lines below it. Without that gate a cross street that
+  merely enters a corridor's bbox votes with its WHOLE length and can out-vote the route the corridor
+  actually is, which drives a wrong re-key - the precise failure this whole round is about. The test now
+  uses a cross street SHARING A NODE with the corridor, asserts its first vertex is INSIDE the padded box
+  so the bbox cannot be what refuses it, and re-run:
+
+      M18  CAUGHT   /w/tests/test_byway_route_key.py:33: assert {'101'} == set()
+      M39  CAUGHT   /w/tests/test_byway_route_key.py:76: assert {'236': 1765.1275377310053} == {}
+      M39b CAUGHT   /w/tests/test_byway_route_key.py:76: assert {'236': 1765.1275377310053} == {}
+
+  The four survivors, all deliberate: M03 (0.075 is the TOP of the evidence-fixed bracket - the test
+  anchors the bracket, not the point, and the reviewer's R05 agreed); M31 (step 30.0 satisfies the asserted
+  `SAMPLE_STEP_M <= SNAP_TOLERANCE_M / 2` - the reviewer's R12); M33, a semantic no-op, and M52, the
+  identity mutation - both CONTROLS. If either control had reported CAUGHT the runner would be lying about
+  everything else, so they are in the table on purpose.
+
+  **VERIFICATION, exact output.** All local. `gh pr view 36 --json statusCheckRollup` -> `[]`. NO CI RAN.
+  - `docker run ... scenic-etl python3 -m pytest --junitxml ... tests/` ->
+    `JUNIT tests=385 failures=0 errors=0 skipped=1` (counts read from the XML, not off the dots; the skip
+    is pre-existing - test_manifest.py skips because git is not installed in the container).
+    Byway+snap files alone: `tests=107 failures=0 errors=0 skipped=0`.
+  - `bash ops/test` -> `TESTS linux=435/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0
+  - `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0
+  - `bash ops/queue-check` -> `QUEUE OK (51 tasks)`, exit 0
+  - `bash ops/sane` -> `bounds skip - no extract built here` / `SANE OK`, exit 0
+  - `bash ops/etl-fetch-inputs --dry-run` -> both entries `present ... verify=sha256`, digests match.
+  - line counts: byways.py 262, byway_route_key.py 175, snap.py 95, byway_source.py 166, test_byways.py
+    257, test_snap.py 101, test_byway_route_key.py 156, test_byway_miskey.py 170, test_byways_fixture.py
+    171, test_byway_source.py 140. All under 300. `byways.py` was at 296 last round; the geometry moved to
+    `snap.py` and the key to `byway_route_key.py`, which is why. The reviewer's note stands and is worth
+    repeating: NOTHING enforces the 300-line cap on Python - `ops/lib/check-line-cap` globs Swift only.
+
+  **WHAT TO ATTACK NEXT.** In the order I think most likely to find something.
+  - MIN_CONSENSUS_SHARE = 0.80 and MIN_CONSENSUS_M = 1000. FID 181's corridor gives 99.3% to one number,
+    which is so far past 0.80 that the threshold is untested by the only real case I have. Find a Caltrans
+    row whose corridor is genuinely split - a route that changes number mid-corridor, a concurrency, a
+    relinquished stretch - and see whether 0.80 re-keys something it should not, or refuses something it
+    should. If you can find a row where the re-key fires WRONGLY, that is a fail and I want to know.
+  - `reconcile` is not called by anything. `problems` now reports 865 unchecked entries, which is honest
+    but means the repair is armed and not fired. Wiring it needs a way corpus, which is T-0030. Decide
+    whether shipping a loud unchecked state is acceptable or whether T-0028 must also produce the reffed-
+    way list `claimed_lengths` needs. I think loud-and-unfired is right and I may be wrong.
+  - The FID 181 fixture is ONE row. The RTE field disagrees with its own DYNSEGPM on 5 rows and CO on 6,
+    and FID 181 is in neither list. Take FID 265 (`680` vs `580`, an OD row in the Bay Area) and run
+    `reconcile` on it against real ways: if the row's geometry is really I-580 then the key should re-key,
+    and if it does not, MIN_CONSENSUS_SHARE is the reason and I want that measured rather than reasoned.
+  - The `not_the_road` impostors are all UNREFFED. Every one of them exercises the same branch. A reffed
+    way that is genuinely not the corridor - CA 9 crossing at Boulder Creek is in the fixture, but only as
+    a 133/45/18 m fragment - would exercise the other one harder.
+  - `overlap_fraction` is O(way_length / 25 m x byway_vertices) and `reconcile` adds an outer loop over
+    entries with only a bbox reject. Fine at 865 entries against a fixture; the corridor census above took
+    minutes against 1813 ways. T-0030 at corpus scale is a real question, not a theoretical one.
+  - Whether mapping FHWA NSB onto OD's 0.15 is right. Unchanged from last round, still labelled a
+    judgement, still the thing here I have read the least about.
+  - The E weight, again. 0.06 is inside a bracket I measured; the bracket is the only defended part.

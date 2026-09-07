@@ -119,7 +119,8 @@ class TestTheCasesTheDocstringClaims:
         for w in ways("frontage_road"):
             assert not w["ref"], w["way_id"]
             assert bw.match(geom(w), entries(SM280), way_ref=w["ref"]) is None, w["way_id"]
-            assert bw.bonus_for(geom(w), entries(SM280), way_ref=w["ref"]) == 0.0, w["way_id"]
+            assert bw.bonus_for(geom(w), entries(SM280), way_ref=w["ref"],
+                                way_class=w["highway"]) == 0.0, w["way_id"]
 
     def test_a_road_on_another_route_does_not_inherit_this_one(self):
         """Skyline Boulevard where it runs alongside I-280: overlap 1.0 against the SM-280 corridor, and it
@@ -134,7 +135,22 @@ class TestTheCasesTheDocstringClaims:
         for w in ways("byway_itself"):
             m = bw.match(geom(w), entries(SM35), way_ref=w["ref"])
             assert m is not None and m["status"] == bw.DESIGNATED, (w["way_id"], m)
-            assert bw.bonus_for(geom(w), entries(SM35), way_ref=w["ref"]) == bw.DESIGNATED_BONUS
+            assert w["highway"] not in bw.SCENIC_ZERO_CLASSES, w["way_id"]
+            assert bw.bonus_for(geom(w), entries(SM35), way_ref=w["ref"],
+                                way_class=w["highway"]) == bw.DESIGNATED_BONUS
+
+    def test_a_real_interstate_on_its_own_designated_corridor_still_scores_nothing(self):
+        """The gate the plan's invariant requires, against real data rather than a constructed way. These
+        are I-280's actual carriageways on Caltrans's actual SM RTE=280 corridor: `highway=motorway`,
+        `ref=I 280;CA 35`, overlap > 0.9, status OD. S&H 263.3 lists Interstates as eligible and the pinned
+        pull carries I-80/280/580/680 rows, so this is the normal case and not an edge one."""
+        got = ways("divided_carriageway")
+        assert got
+        for w in got:
+            assert w["highway"] in bw.SCENIC_ZERO_CLASSES, (w["way_id"], w["highway"])
+            assert bw.match(geom(w), entries(SM280), way_ref=w["ref"])["status"] == bw.DESIGNATED
+            assert bw.bonus_for(geom(w), entries(SM280), way_ref=w["ref"],
+                                way_class=w["highway"]) == 0.0, w["way_id"]
 
     def test_a_cross_street_at_a_shared_node_does_not_match(self):
         """Kings Mountain Road meets Skyline at one node and goes elsewhere. 7 km of way against 0.034 of
