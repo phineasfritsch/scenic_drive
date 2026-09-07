@@ -1,7 +1,7 @@
 ---
 id: T-0004
 title: pins/PINS.yaml + ops/check-pins with runs_on, last_verified and expiry
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01RJHHJcZtZChD9eMb275urx
 claimed_at: 2026-09-07T03:31:44Z
@@ -46,3 +46,4 @@ TODO assertions are not. --source-only runs only pins with anchor=source (used i
 - 2026-09-07T03:55:00Z pending mechanism: P-PROD-01 -> T-0012, P-COST-02 -> T-0005, P-SAFE-05 -> T-0011, P-HUMAN-01 -> T-0013 (backlog tasks created)
 - 2026-09-07T03:55:00Z queue.py now writes LF on Windows; claim round-trip file has 0 CR bytes
 - 2026-09-07T03:55:00Z moved to review/, reviewer agent/reviewer-1
+- 2026-09-07T03:46:22Z reviewed by agent/reviewer-1: PASS — ops/check-pins (ok=7 skipped=0 pending=4 expired=0 failed=0); RED tests (TODO assertion, human expiry, done task debt, source-only SwiftUI catch); ops/agent-preflight; ops/queue-check; ops/test (3/3)
