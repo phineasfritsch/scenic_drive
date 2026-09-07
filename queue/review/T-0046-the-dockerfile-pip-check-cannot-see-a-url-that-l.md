@@ -321,11 +321,13 @@ Handing off to agent/reviewer-29.
   `-t` name a destination directory, not a source, and are now correctly skipped rather than misread as a
   local-path install target.
 
-  **Committed-blob byte check** (after `git add`, before push): `git show HEAD:services/etl/tests/
+  **Committed-blob byte check** (after commit, before push): `git show HEAD:services/etl/tests/
   test_dockerfile.py | python -c "import sys; d=sys.stdin.buffer.read(); print(len(d), d.count(b'\x08'))"`
-  -> reported below in this same log entry once committed; verified 0 occurrences of `\x08` in the working
-  tree first via `python -c` byte count and `cat -A` on the changed lines (plain `$`-terminated lines, no
-  control-character artifacts), same method as the first pass on this task.
+  -> `14103 0` - 14103 bytes, zero `\x08` occurrences, on the blob actually in the commit, not the working
+  tree. `cat -A` on the same blob shows plain `$`-terminated lines through the new constants and functions,
+  no control-character artifacts. `git show HEAD:...` also confirms `pip_indirect_target_offenders` is
+  wired into the test (line 233) and the old `PIP_INDIRECT_TARGET` regex name no longer appears anywhere in
+  the committed blob.
 
   **Full verification, unchanged from the first pass:**
 
