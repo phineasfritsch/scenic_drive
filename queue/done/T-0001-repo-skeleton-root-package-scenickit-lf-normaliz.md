@@ -1,7 +1,7 @@
 ---
 id: T-0001
 title: Repo skeleton: root package, ScenicKit, LF normalization, preflight, pre-commit hook
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01RJHHJcZtZChD9eMb275urx
 claimed_at: null
@@ -11,7 +11,7 @@ branch: null
 exclusive: []
 touches: [Package.swift, Sources/, Tests/, CLAUDE.md, README.md, .gitattributes, .gitignore, ops/agent-preflight, .githooks/pre-commit]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-1
 depends_on: []
 verify: [ops/test, ops/check-pins, ops/queue-check]
 acceptance:
@@ -32,3 +32,4 @@ Do NOT add Apple-only targets to the root package - they go in apps/ios/Packages
 - 2026-09-07 awaiting reviewer != owner
 - 2026-09-07T03:14:00Z reviewed by agent/reviewer-1: FAIL — work files (Package.swift, Sources/, Tests/, ops/agent-preflight, .githooks/pre-commit, etc.) exist in working directory as untracked files but are not committed to git; git ls-files shows only .gitattributes. The skeleton repository state does not exist in git history.
 - 2026-09-07T03:14:00Z reviewed by agent/reviewer-1: FAIL — work files (Package.swift, Sources/, Tests/, ops/agent-preflight, .githooks/pre-commit, etc.) exist in working directory as untracked files but are not committed to git; git ls-files shows only .gitattributes. The skeleton repository state does not exist in git history.
+- 2026-09-07T03:30:00Z reviewed by agent/reviewer-1: PASS — swift test 3/3 passed; ops/agent-preflight OK with eol=lf check; pre-commit secret detection RED demo confirmed.

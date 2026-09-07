@@ -1,7 +1,7 @@
 ---
 id: T-0003
 title: Work queue: ops/lib/queue.py (new/check/sweep/next/claim), protocol README, seed tasks
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01RJHHJcZtZChD9eMb275urx
 claimed_at: null
@@ -11,7 +11,7 @@ branch: null
 exclusive: []
 touches: [ops/lib/queue.py, ops/new-task, ops/queue-check, ops/queue-sweep, ops/queue-next, ops/claim, queue/]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-1
 depends_on: [T-0001]
 verify: [ops/test, ops/check-pins, ops/queue-check]
 acceptance:
@@ -28,3 +28,4 @@ mechanical. Locks are files in queue/LOCKS created in the same commit as the cla
 ## Log
 - 2026-09-07T03:14:00Z reviewed by agent/reviewer-1: FAIL — acceptance line 4 "bash ops/queue-next -> T-0004" fails: command returns "(no unblocked ready task)" because T-0004 has depends_on [T-0001] which is not in done/; acceptance line cannot be satisfied in current queue state.
 - 2026-09-07T03:14:00Z reviewed by agent/reviewer-1: FAIL — acceptance line 4 "bash ops/queue-next -> T-0004" fails: command returns "(no unblocked ready task)" because T-0004 has depends_on [T-0001] which is not in done/; acceptance line cannot be satisfied in current queue state.
+- 2026-09-07T03:30:00Z reviewed by agent/reviewer-1: PASS — queue-check detects reviewer==owner and missing reviewer correctly; claim/sweep returns T-0004 to ready/; queue-next respects dependencies (returns "(no unblocked)" with T-0001 in review/, returns T-0004 with T-0001 in done/).

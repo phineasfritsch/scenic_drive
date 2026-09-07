@@ -34,3 +34,5 @@ TODO assertions are not. --source-only runs only pins with anchor=source (used i
 - 2026-09-07T03:10:36Z sweep: lease held by agent/demo expired at 2026-09-07T03:10:35Z; returned to ready/, locks released
 - 2026-09-07T03:12:27Z claimed by agent/x; lease until 2026-09-07T03:12:27Z
 - 2026-09-07T03:12:47Z sweep: lease held by agent/x expired at 2026-09-07T03:12:27Z; returned to ready/, locks released
+- 2026-09-07T03:30:20Z claimed by agent/x; lease until 2026-09-07T03:30:20Z
+- 2026-09-07T03:30:30Z sweep: lease held by agent/x expired at 2026-09-07T03:30:20Z; returned to ready/, locks released

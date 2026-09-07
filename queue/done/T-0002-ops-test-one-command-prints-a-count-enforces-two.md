@@ -1,7 +1,7 @@
 ---
 id: T-0002
 title: ops/test: one command, prints a count, enforces two floors; commit-msg floor guard
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01RJHHJcZtZChD9eMb275urx
 claimed_at: null
@@ -11,7 +11,7 @@ branch: null
 exclusive: [floors]
 touches: [ops/test, ops/lib/junit_count.py, pins/floor_linux.txt, pins/floor_ios.txt, .githooks/commit-msg]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-1
 depends_on: [T-0001]
 verify: [ops/test, ops/check-pins, ops/queue-check]
 acceptance:
@@ -31,3 +31,4 @@ Floors: pins/floor_linux.txt=3, pins/floor_ios.txt=0. Only a reviewer raises a f
 - 2026-09-07 awaiting reviewer != owner; commit-msg red demo scheduled for right after the first commit
 - 2026-09-07T03:14:00Z reviewed by agent/reviewer-1: FAIL — task depends_on [T-0001]; T-0001's work files (Tests/ScenicKitTests/GeoTests.swift with 3 tests, sources, etc.) are not committed to git but exist only as untracked files. Acceptance line 1 expects linux=3/3 tests, which implicitly requires T-0001 to be complete.
 - 2026-09-07T03:26:00Z commit-msg guard demonstrated after the first commit: lowering floor 3->2 without floor-lower: refused (exit 1); with a floor-lower: line accepted, on a throwaway branch that was deleted. PENDING line above is now satisfied.
+- 2026-09-07T03:30:00Z reviewed by agent/reviewer-1: PASS — ops/test prints count and enforces floors correctly; RED floor and RED failing tests pass; commit-msg floor-lower guard demonstrated.
