@@ -230,3 +230,109 @@ Handing off to agent/reviewer-29.
   bare non-flag token that starts with `./`, `../`, or `/` — or more simply, any pip `install` argument that
   is not a flag and is not a bare package-name-shaped token — as indirect, alongside the existing bare-`.`
   case). Left in `queue/review/`.
+
+- 2026-09-07 agent/builder-9: addressed reviewer-29's FAIL. Both bypasses were real; `PIP_INDIRECT_TARGET`
+  was a text-substring regex, which cannot express "a flag whose letters may be bundled with other letters
+  in either order" or "a positional argument that is not a flag." Rewrote the check as two small functions
+  instead of widening the regex further, and rewrote the docstring to describe what the code actually does
+  rather than what it was meant to do.
+
+  **What changed** (`services/etl/tests/test_dockerfile.py`):
+  - `pip_install_arglists(run_line)` - locates every `pip`/`pip3` `install` invocation in a RUN line
+    (matches `pip3? ... install`, so `python -m pip install`, `/usr/bin/pip3 install`, and `pip install`
+    inside `sh -c "..."` all match, same as before) and returns its argument tokens, split at the same
+    `&&`/`|`/`;` boundaries the rest of the file already uses as command separators.
+  - `pip_indirect_targets(args)` - walks that token list. A token is an offender if: (a) it is
+    `-r`/`-c`/`-e`, long (`--requirement`, `--editable`, `--constraint`, `=`-form or space-form) or short,
+    **including short flags bundled with other short flags in either order** (`-qr`, `-rq`, `-Uqr`, ...) -
+    confirmed against a real pip that `-qr` really does parse as `-q` then `-r`, not a no-op:
+    `pip install -qr /tmp/nonexistent_req.txt` -> "Could not open requirements file"; or (b) it is a bare
+    positional argument - not preceded by a flag, not itself a flag - that names a local path: `.`, `..`,
+    or anything starting `./`, `../`, or `/`. Flag values that are themselves not install sources
+    (`--target DIR`, `--index-url URL`, `--cache-dir DIR`, ~25 others enumerated in
+    `PIP_VALUE_FLAGS_LONG`, plus the short forms `-t`/`-i`/`-b`/`-f`) are skipped before this
+    classification runs, specifically so a destination directory is never mistaken for a source - a plain
+    `pip install --target /opt/vendor requests==2.31.0` was not in the reviewer's probe list but would have
+    been a new false positive if I had not tracked which flags consume the next token.
+  - `pip_indirect_target_offenders()` - `(RUN line, offending tokens)` pairs across every RUN, used by the
+    test.
+  - Rewrote the test's docstring: it now names the exact prior gap (regex matched `-r` as the literal first
+    two characters after a boundary, and only an isolated `.` token - not `-qr` or `./localpkg`), says the
+    check tokenizes and walks the argument list rather than pattern-matching raw text, and states the
+    `$VAR`-with-no-flag gap explicitly as known and deliberately out of scope (decision below) instead of
+    implying coverage it does not have - the exact defect class reviewer-29 called out.
+
+  **Decision on the non-blocking item — a bare `pip install $REQS` with no `-r`/`-e`/`-c` flag at all:**
+  left uncaught, deliberately, not fixed. Reasoning: (1) the coordinator's brief for this round explicitly
+  said not to close it by widening the regex further; (2) resolving what a Dockerfile `ARG`/`ENV`
+  substitution might contain is a fundamentally different, much larger parser than "read the RUN text" -
+  it is the same class of problem as the heredoc gap two tests down, not a small extension of this one;
+  (3) the narrower, tempting fix - flag *any* token containing `$` as suspect - would false-positive on
+  ordinary, harmless patterns this file must stay green on, e.g. `pip install "requests==${PIN}"` pinning a
+  version via a build `ARG`, which is not an indirect *target* at all. Recorded here, in the test's own
+  docstring, and left for whoever next needs to teach this parser about build-time substitution -
+  same spirit as the heredoc test's own scope boundary.
+
+  **RED before fix, both bypasses, real Dockerfile + pytest harness** (test file pinned to the commit
+  reviewer-29 reviewed, `2ce083d`, via `git show 2ce083d:services/etl/tests/test_dockerfile.py`, swapped
+  into `tests/test_dockerfile.py`, run against the Dockerfile with `COPY requirements.txt .` and the
+  bypass line appended):
+
+      RUN pip install -qr requirements.txt        -> ..........  [100%]   10 passed  (should have failed)
+      RUN pip install ./localpkg                   -> ..........  [100%]   10 passed  (should have failed)
+
+  Confirms reviewer-29's exact finding, independently reproduced, not trusted.
+
+  **GREEN after fix, same two constructions, same harness** (live, fixed test file restored):
+
+      RUN pip install -qr requirements.txt
+      E   AssertionError: this parser cannot read the contents of a pip install target named this way -
+          -r/--requirement, -e/--editable, -c/--constraint (long, short, or bundled with other short
+          flags), or a bare local path ('.', '..', './x', '../x', '/x'):
+          [('RUN pip install -qr requirements.txt', ['-qr'])]
+      1 failed, 9 deselected
+
+      RUN pip install ./localpkg
+      E   AssertionError: ... [('RUN pip install ./localpkg', ['./localpkg'])]
+      1 failed, 9 deselected
+
+  Dockerfile restored after each run; `git diff --stat Dockerfile` / `git status --porcelain Dockerfile`
+  empty at every checkpoint.
+
+  **Reviewer's full probe list, re-run through the real Dockerfile + pytest harness (not the regex in
+  isolation):**
+
+  Must stay green (all `10 passed`): `pip install requests`, `pip install 'requests==2.31.0'`,
+  `pip download -r x.txt`, `apt-get install -y python3-yaml`, `grep -r foo /etc`, `rm -r /tmp/foo`,
+  `cp -r /a /b` - confirmed, none fire.
+
+  Must go red (all `1 failed` on the new test, with the offending token named): `--requirement=req.txt`,
+  `--requirement req.txt`, `python -m pip install -r req.txt`, `pip3 install -e .`, `pip install -c
+  constraints.txt`, `pip install -e git+https://...` (fails *two* tests - this one and the pre-existing
+  `test_nothing_is_pip_installed_from_a_url_or_a_repo`, correctly, since it is both), `/usr/bin/pip3 install
+  -r req.txt`, `pip install` inside `sh -c "..."`, `pip install -r $REQS` (flag literal is present, so this
+  one *is* caught even though the bare-variable-no-flag case is not), `pip install -rq requirements.txt`
+  (bundle in the other order), `pip install ../sibling_pkg`, `pip install /abs/path/pkg`,
+  `pip install --editable ./localpkg` - confirmed, all fire with the new message.
+
+  Additional false-positive check beyond the reviewer's list, specifically for the flag/value-skipping
+  logic added to fix bypass 1 without breaking legitimate Dockerfiles: `pip install --target /opt/vendor
+  requests==2.31.0` and `pip install -t /opt/vendor requests` both stay green (`10 passed`) - `--target`/
+  `-t` name a destination directory, not a source, and are now correctly skipped rather than misread as a
+  local-path install target.
+
+  **Committed-blob byte check** (after `git add`, before push): `git show HEAD:services/etl/tests/
+  test_dockerfile.py | python -c "import sys; d=sys.stdin.buffer.read(); print(len(d), d.count(b'\x08'))"`
+  -> reported below in this same log entry once committed; verified 0 occurrences of `\x08` in the working
+  tree first via `python -c` byte count and `cat -A` on the changed lines (plain `$`-terminated lines, no
+  control-character artifacts), same method as the first pass on this task.
+
+  **Full verification, unchanged from the first pass:**
+
+      cd services/etl && python -m pytest -q tests/        -> 46 passed
+      bash ops/test                                          -> TESTS linux=96/76 ios=skipped failed=0 skipped=0 / OK
+      bash ops/check-pins                                    -> PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+      bash ops/queue-check                                   -> QUEUE OK (46 tasks)
+
+  Only `services/etl/tests/test_dockerfile.py` is touched; `git diff --stat services/etl/Dockerfile` is
+  empty. `git status --porcelain` shows a single ` M`. Handing back to agent/reviewer-29.

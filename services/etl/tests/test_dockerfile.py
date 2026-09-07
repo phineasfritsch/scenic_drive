@@ -32,15 +32,82 @@ PIP_FROM_NETWORK = re.compile(
     r"\bpip3?\b[^&|;]*\binstall\b[^&|;]*(https?://|git\+|--index-url|--extra-index-url|--find-links)"
 )
 
-# pip pointed at a target this parser cannot read: a requirements file, an editable/local path, a
-# constraints file, or the current directory. PIP_FROM_NETWORK only sees a URL or a `git+` ref written
-# directly in the RUN text; none of these forms write one there; the address lives one file away, in
-# whatever COPY put next to the Dockerfile. Matching the flag itself - not what follows it - is the same
-# fail-closed shape PIP_FROM_NETWORK already uses for --index-url and --find-links.
-PIP_INDIRECT_TARGET = re.compile(
-    r"\bpip3?\b[^&|;]*\binstall\b[^&|;]*"
-    r"(-r\b|--requirement\b|-e\b|--editable\b|-c\b|--constraint\b|(?<!\S)\.(?!\S))"
+# The long `pip install` flags whose value IS the unreadable target: pip reads the file or path they
+# name, and this parser has no way to read it too.
+PIP_UNREADABLE_TARGET_FLAGS_LONG = ("--requirement", "--editable", "--constraint")
+
+# Long flags that also take a value, but the value is not an install source - a destination directory, an
+# index host, a timeout, ... Their value must be skipped when looking for a bare local-path target, or a
+# perfectly ordinary `pip install --target /opt/vendor requests` would be misread as installing from
+# "/opt/vendor".
+PIP_VALUE_FLAGS_LONG = PIP_UNREADABLE_TARGET_FLAGS_LONG + (
+    "--target", "--root", "--prefix", "--src", "--build", "--cache-dir", "--log", "--python",
+    "--platform", "--python-version", "--implementation", "--abi", "--proxy", "--retries", "--timeout",
+    "--progress-bar", "--report", "--index-url", "--extra-index-url", "--find-links", "--trusted-host",
+    "--cert", "--client-cert", "--upgrade-strategy", "--global-option", "--config-settings",
+    "--no-binary", "--only-binary", "--exists-action", "--root-user-action",
 )
+
+# Single letters pip's `install` recognizes as short options, split the same way: which spell an
+# unreadable target, and which (that or any other) consume a value. Short options bundle - `pip install
+# -qr requirements.txt` really does parse as `-q` (boolean) then `-r requirements.txt`, confirmed against
+# a real pip: `pip install -qr /tmp/nonexistent_req.txt` fails with "Could not open requirements file".
+# Bundling order does not matter for *whether* -r/-c/-e fired (either letter still triggers it whether it
+# lands mid-bundle, taking the rest of that token as its value, or last, taking the next token) - only for
+# which token holds the value, which is what PIP_SHORT_VALUE_LETTERS is for.
+PIP_SHORT_UNREADABLE_LETTERS = set("rce")  # -r requirement / -c constraint / -e editable
+PIP_SHORT_VALUE_LETTERS = set("rcetibf")  # + -t target / -i index-url / -b build / -f find-links
+
+
+def pip_install_arglists(run_line):
+    """The argument tokens following every `pip install` invocation in one RUN instruction (`pip`,
+    `pip3`, or `python -m pip`/`python3 -m pip` all match, and so does a `pip` wrapped in `sh -c "..."` or
+    given by its full path) - one token list per invocation, split at the &&/|/; boundaries the rest of
+    this file already treats as command separators, so one command's flags can never leak into another's.
+    """
+    out = []
+    for segment in re.split(r"&&|\||;", run_line):
+        for m in re.finditer(r"\bpip3?\b[^&|;]*?\binstall\b", segment):
+            out.append(segment[m.end():].split())
+    return out
+
+
+def pip_indirect_targets(args):
+    """Everything in one `pip install` invocation's argument list that this parser cannot read the
+    contents of: a `-r`/`-c`/`-e` flag in long form, short form, or bundled with other short flags in
+    either order (`-qr`, `-rq`, ...); or a bare positional path - `.`, `..`, or anything starting with
+    `./`, `../` or `/` - naming a local project with no flag in front of it at all (pip installs a local
+    directory as a plain positional argument; `-e` makes it editable, it does not make it readable).
+
+    Flag values that are not themselves install sources (`--target DIR`, `--index-url URL`, ...) are
+    skipped so they can never be mistaken for one - this is what keeps `pip install --target /opt/vendor
+    requests` green.
+    """
+    offenders = []
+    skip_next = False
+    for tok in args:
+        if skip_next:
+            skip_next = False
+            continue
+        head = tok.split("=", 1)[0]
+        if head in PIP_UNREADABLE_TARGET_FLAGS_LONG:
+            offenders.append(tok)
+            skip_next = "=" not in tok
+            continue
+        if head in PIP_VALUE_FLAGS_LONG:
+            skip_next = "=" not in tok
+            continue
+        if tok.startswith("--"):
+            continue
+        if tok.startswith("-") and len(tok) > 1:
+            letters = tok[1:]
+            if any(c in PIP_SHORT_UNREADABLE_LETTERS for c in letters):
+                offenders.append(tok)
+            skip_next = bool(letters) and letters[-1] in PIP_SHORT_VALUE_LETTERS
+            continue
+        if tok in (".", "..") or tok.startswith(("./", "../", "/")):
+            offenders.append(tok)
+    return offenders
 
 
 def instructions():
@@ -62,6 +129,19 @@ def instructions():
 
 def directive(name):
     return [i for i in instructions() if i.upper().startswith(name.upper() + " ")]
+
+
+def pip_indirect_target_offenders():
+    """`(RUN line, offending tokens)` for every RUN instruction with at least one pip install target this
+    parser cannot read into - see `pip_indirect_targets`.
+    """
+    hits = []
+    for line in directive("RUN"):
+        for args in pip_install_arglists(line):
+            offenders = pip_indirect_targets(args)
+            if offenders:
+                hits.append((line, offenders))
+    return hits
 
 
 class TestTheImageIsPinned:
@@ -128,16 +208,33 @@ class TestTheImageIsPinned:
         text, and `-r requirements.txt` does not put a URL there - it puts a filename there, and the URL
         lives one COPY away, someplace this parser never opens.
 
-        Same shape as the heredoc gap below: this parser cannot see inside a requirements file, an
-        editable/local path (`-e`), a constraints file (`-c`), or a bare `.` install of the current
-        directory's own pyproject/setup.py. Failing closed on the flag itself - not on what it points to -
-        means adding one of these is a conversation (the test grows to read the file, deliberately) rather
-        than a silent hole. Fails closed today only because no RUN in this Dockerfile installs from pip.
+        First version of this test only matched `-r`, `-e` and `-c` as the literal first two characters
+        after a word boundary, and a bare `.` as an isolated token. reviewer-29 got two ordinary
+        constructions past it, both 10/10 green: `pip install -qr requirements.txt` (pip bundles short
+        options - `-qr` really is `-q` then `-r requirements.txt`, confirmed against a real pip) and
+        `pip install ./localpkg` (pip installs a local project directory as a bare positional argument;
+        `-e` makes it editable, it is not required to make it a local, unreadable target at all - the
+        docstring claiming "editable/local path" coverage for `-e` alone was itself a decorative-check
+        defect, describing coverage the code did not have).
+
+        This version tokenizes each `pip install` invocation's argument list (`pip_install_arglists`) and
+        walks it (`pip_indirect_targets`) rather than pattern-matching the raw text, so it can tell a flag
+        from its value and a bundled short option from an unrelated one - see those two docstrings for
+        exactly what is and is not covered. It still fails closed on the flag or the bare path, not on
+        what either points to, so adding a genuine indirect target stays a conversation (the check grows
+        to read the file, deliberately) rather than becoming a silent hole again. Fails closed today only
+        because no RUN in this Dockerfile installs from pip.
+
+        Known, deliberately out of scope: `pip install $SOME_VAR` with no `-r`/`-e`/`-c` flag at all - a
+        bare shell variable that could resolve to anything - is not caught. Resolving `ARG`/`ENV`
+        substitution is a different, much larger parser than "read the RUN text"; see the task log for why
+        that was left unfixed here rather than papered over with a broader match.
         """
-        offenders = [i for i in directive("RUN") if PIP_INDIRECT_TARGET.search(i)]
+        offenders = pip_indirect_target_offenders()
         assert not offenders, (
-            "this parser cannot see inside a pip install target it does not read directly "
-            "(-r/--requirement, -e/--editable, -c/--constraint, or a bare '.'): " + repr(offenders)
+            "this parser cannot read the contents of a pip install target named this way - "
+            "-r/--requirement, -e/--editable, -c/--constraint (long, short, or bundled with other short "
+            "flags), or a bare local path ('.', '..', './x', '../x', '/x'): " + repr(offenders)
         )
 
     def test_the_parser_is_not_silently_blind_to_a_heredoc_run(self):
