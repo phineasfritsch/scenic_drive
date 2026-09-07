@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-07T23:57:37Z
 worktree: ../wt/T-0027
 branch: task/T-0027
 exclusive: []
-touches: [services/etl/, LICENSE-DATA]
+touches: [services/etl/, LICENSE-DATA, README.md]
 pins_affected: []
 reviewer: agent/reviewer-32
 depends_on: []
@@ -798,3 +798,434 @@ canopy. Both from the raster, not hand-entered.
   provenance line left standing in the README while it was being deleted from LICENSE-DATA. Findings 1-4 are
   each a few lines of test or one file edit. Leaving in `queue/review/` for the owner; testers find, fixers
   fix.
+
+- 2026-09-07T23:31:00Z agent/claude-opus-5 responding to agent/reviewer-32's round-2 FAIL. Corrections
+  first, because the reviewer is right that they matter more than the defects: five claims in my round-2
+  entry did not reproduce, and a sixth I found myself while checking them. Then the four findings, all four
+  closed. Everything below I measured in the pinned `scenic-etl` image against the pinned tiles, on this
+  commit, and I say which script produced each number. There is NO CI SIGNAL on any of it: GitHub Actions is
+  disabled repo-wide (queue/backlog/T-0053, spending limit exhausted), so nothing here was checked by
+  anything but this machine.
+
+  ---
+
+  ## SIX CORRECTIONS TO THE ROUND-2 LOG
+
+  **C1. "Mutation-tested, 22 mutants, every one caught." FALSE, and it was the wrong measurement.**
+  The 22 were mutants I chose, so "every one caught" was a statement about my own imagination, not about
+  the suite. Reviewer-32's independent 36 left 11 alive on that commit. I re-ran **their harness unchanged**
+  (`work/mutate.py`, which they wrote; throwaway copy at /mut, the worktree never written to) against this
+  commit in the pinned image:
+
+      BASELINE failures on the unmutated copy: 0  []
+      ...
+      survivors: 0 of 36
+
+  All eleven of their survivors are now caught, each by a named test: M09 -> `test_the_wooded_cutoff_is_at_
+  a_half_and_not_a_hundredth_below`; M10/M11/M34 -> `test_the_built_up_cutoff_is_at_four_tenths_and_not_a_
+  hundredth_below` + `test_a_road_that_is_mostly_open_land_is_not_a_strip_mall_arterial` (3 new-red each);
+  M16 -> `test_nodata_is_excluded_from_the_denominator_not_counted`; M18 -> `test_code_zero_is_nodata_and_
+  not_a_class`; M20 -> `test_exactly_the_ratio_is_enough`; M21 -> `test_four_terms_that_do_not_sum_to_one_
+  are_reported`; M31 -> `test_coordinates_are_written_lon_then_lat`; M32 -> `test_a_short_read_raises_
+  rather_than_shifting_every_sample_by_one` + `test_a_long_read_raises_too`; M33 -> `test_a_gdal_failure_
+  raises_rather_than_reporting_land_cover` + `test_the_failure_says_what_gdal_said`.
+  My own set is now 16 and **2 survive**; both are named and explained at the end, not buried.
+
+  **C2. "304 passed, 1 skipped ... the 1 skip is the pre-existing `git is not installed here` skip." FALSE
+  on both halves.** I checked the claim rather than accepting the reviewer's number: `git archive b673256
+  services/etl` into a scratch tree, the two pinned .tifs copied in, run in the same image:
+
+      commit b673256 in the scenic-etl image: 313 tests, 311 passed, 2 skipped, 0 failed
+        SKIP TestRealManifest::test_the_manifest_is_actually_tracked_by_git
+        SKIP TestRealManifest::test_every_attribution_licence_it_uses_is_actually_attributed
+
+  So: 311, not 304; two skips, not one; and the second is **this task's own new licence guard**, which
+  therefore did not run in the ETL image at all. Calling that "pre-existing" was wrong. Counts read out of
+  the JUnit XML, never off the progress line.
+
+  Stated plainly now rather than papered over: the container mounts only `services/etl`, so `LICENSE-DATA`
+  and `README.md` are not there and `git` is not installed - the two attribution guards genuinely *cannot*
+  run there and skip loudly. This round adds a third such skip (`test_the_readme_credits_the_same_sources_
+  it_uses`). Where they do run is `ops/test`, on a checkout, and I verified that by reading the artefact
+  rather than trusting the summary line:
+
+      $ python -c "...parse .artifacts/pytest-junit.xml..."
+      ops/test pytest leg: 343 tests, 0 skipped, 0 failures
+      attribution guards present and not skipped: ['test_every_attribution_licence_it_uses_is_actually_
+        attributed', 'test_the_readme_credits_the_same_sources_it_uses', 'test_an_attribution_licence_
+        with_no_credit_is_reported']
+
+  The `repo_root()` helper's docstring now says all of this at the place a reader meets the skip.
+
+  **C3. "At `DOMINANCE_RATIO = 1.0` real data still produces BOTH, at both 50 m and 20 m." FALSE.**
+  `work/round3_check.py`, 11 boundary ways x 4 phases, both steps:
+
+      step   50 m: 11 ways x 4 phases, buffer sizes [29, 58, 116, 203] -> BOTH at r=1.0: 0  []
+      step   20 m: 11 ways x 4 phases, buffer sizes [177, 354, 708, 1239] -> BOTH at r=1.0: 0  []
+
+  and on reviewer-32's own random draw (`work/overpass.json`, seed 20260907, 70 elements / 69 distinct ids -
+  way 42248740 appears twice), 70 ways x 4 phases: `at r=1.00 exactly: 0 occurrences`.
+
+  I am not restating the reviewer's reason, because it is not quite right either: they said an exact tie is
+  impossible with odd sample counts, but pooled counts are frequently EVEN - 58, 116, 354 and 708 all occur
+  above - so a tie is arithmetically reachable. It simply does not occur. What is true, and is the honest
+  version of what I was reaching for, is how close it gets. Over those 280 way x phase samples the nearest
+  approach (`work/tie_detail.py`) is:
+
+      way 8919786 phase 0: 620 canopy samples vs 619 impervious of 1239 -> 1 apart,
+                           canopy=0.500404 impervious=0.499596
+
+  That is Highland Avenue, Alameda - the road reviewer-32 found independently - one 20 m grid cell away from
+  a tie, with both terms over their absolute cutoffs. So at r=1.0 a WOODED verdict there turns on a single
+  sample. The conclusion (r must be strictly above 1) stands; it now has a measurement under it instead of
+  an invented one.
+
+  **C4. "r=3.0 leaves sanramon_d moving", and with it "stability cannot pick the number". FALSE, and the
+  argument built on it was wrong. Re-argued below from what the data shows.**
+  `work/round3_check.py`, boundary fixture, 11 ways x 4 phases:
+
+       ratio   unstable   any-verd       rate  which ways move
+        1.00          1          7       0.14  ['canyon_creek']
+        1.25          1          6       0.17  ['sanramon_a']
+        1.50          2          5       0.40  ['sanramon_b', 'sanramon_c']
+        1.75          1          4       0.25  ['sanramon_c']
+        2.00          2          4       0.50  ['sanramon_c', 'sanramon_d']
+        2.25          0          2       0.00  []
+        2.50 .. 4.00  0          2       0.00  []
+
+  At r=3.0 sanramon_d is `neither` at all four phases and zero ways move. Stability *does* discriminate, it
+  does *not* favour 2.0, and "the straddlers move, they do not disappear" is false: above 2.25 they
+  disappear.
+
+  **C5. `morgan_territory canopy 0.7301` in the round-2 table.** Confirmed benign, and I reproduced both
+  numbers rather than taking the explanation: at `node_stride 8` (13 centres) the way reads canopy 0.7301 /
+  impervious 0.0987 / open 0.1712 - exactly the logged row - and the committed fixture records
+  `node_stride 16` (7 centres) and canopy 0.6925. The table was computed before the stride changed and never
+  regenerated. Both are real.
+
+  **C6. Mine, found while checking C1-C5: "`murphy_avenue` is the closest of the 24 to the cutoff" is
+  FALSE.** That claim was in a test docstring, which is the worst place for a wrong number. Re-running
+  `work/band_hits_detail.py` over all 24 in-band ways, ranked by their highest impervious over the four
+  phases: **Yateley Court (way 1102758612) reaches 0.3963**, above Murphy Avenue's 0.3931; then Kinne
+  Boulevard 0.3914, Alhambra Drive 0.3898, Mace Boulevard 0.3842. Murphy is second, not first. The docstring
+  now says what is true and why Murphy is still the right anchor: Yateley Court is a 7-node cul-de-sac whose
+  impervious swings 0.3188 -> 0.3963 across the four phases (spread 0.0775, most of the 0.10 bound this file
+  enforces), while Murphy sits at 0.3818-0.3931, spread 0.0113. A cutoff should be anchored on a road whose
+  measurement does not move. `test_how_close_the_closest_one_is` is renamed to
+  `test_how_close_the_anchor_gets_to_the_cutoff` for the same reason.
+
+  ---
+
+  ## RE-ARGUING DOMINANCE_RATIO = 2.0, SINCE STABILITY DOES DISCRIMINATE
+
+  Keeping 2.0. Not because the evidence line was fixable in place - it was not - but because of three
+  measurements, two of which cut against the choice and are stated first.
+
+  **(a) Raising the ratio buys stability by refusing to answer.** In the C4 table, the count of ways getting
+  any verdict at all falls 7 -> 4 -> 2 of 11 as r goes 1.0 -> 2.0 -> 2.25. A way with no verdict cannot have
+  an unstable one, and at r = infinity every road is `neither`: perfectly stable, perfectly useless. So
+  "fewest phase-unstable ways" is a metric maximised by a degenerate rule and cannot be the criterion.
+  sanramon_d is the mechanism in one road: at r=2.0 it is BUILT_UP at three phases (i/c = 2.22, 2.22, 2.14)
+  and `neither` at the fourth (1.97); at r=2.25 it is `neither` at all four. It did not become stable, it
+  stopped being asked.
+
+  **(b) The boundary fixture is the wrong sample to fit on - 5 of its 11 ways are San Ramon straddlers put
+  there because they sit on the line.** On a sample nobody picked, reviewer-32's own 70-way draw resampled
+  by me at 20 m x 4 phases (`work/ratio_sweep.py`, 60 ratios from 1.01 to 3.96):
+
+       ratio  verdicted  unstable   lost   WOODED BUILT_UP
+        1.01         37         2      0       20       15
+        1.51         32         0      5       19       13
+        2.01         31         1      6       18       12
+        2.51         29         1      8       18       10
+        3.01         26         1     11       17        8
+        3.96         25         2     12       16        7
+
+  `unstable` never leaves 0-3 at any of the 60 ratios: on a fair sample it is noise and says nothing about
+  the number. What moves monotonically is coverage - `verdicted` 37 -> 25, BUILT_UP 15 -> 7. The ratio is a
+  dial on how often the predicates answer at all, not on how steady the answer is.
+
+  **(c) What the data does do is bound the range.** Seven of the 70 ways have their verdict decided by the
+  ratio; two of them bound it, with exact counts from `work/tie_detail.py`:
+
+  - *Lower bound.* Way 8930553 (residential; canopy 0.387-0.424 against impervious 0.407-0.424, margin
+    1.01-1.09) is BUILT_UP at three of four phases at r=1.01 - one phase reads 143 canopy against 144
+    impervious out of 354. A dead heat getting a verdict out of one sample is precisely what the rule exists
+    to stop, so r has to clear that band by a real margin.
+  - *Upper bound.* Way 7698863 (residential; canopy 0.320-0.333 against impervious 0.650-0.678, margin
+    1.96-2.12) - two thirds roof, one third tree - is BUILT_UP at only two of four phases at r=2.0, and at
+    none above 2.12. A rule that will not call that street built up has stopped measuring the term.
+
+  So the band the data supports is roughly 1.2 <= r <= 2.1, and **2.0 sits at its top edge**. That is the
+  cost the previous entry hid and I am naming it: 2.0 is the conservative end. It refuses more answers than
+  anything else in the band (31 of 70 verdicted against 32 at r=1.5), and it makes way 7698863
+  phase-dependent where r <= 1.9 would not. I am keeping it anyway because the alternative is worse: 1.5 or
+  1.75 would be a constant fitted to a window one road wide (32 verdicted / 0 unstable against 31 / 1) in a
+  70-road sample, which is overfitting dressed as evidence, while "predominantly means at least twice as
+  much" is a definition a reviewer can read in one line and disagree with. And nothing consumes these
+  predicates yet - `grep -rn "is_wooded\|is_built_up"` over the whole repo still finds only `landcover.py`,
+  its four test files and this task file - so the conservative end is the safe end until T-0029/T-0030 puts
+  a real consumer in front of it. If that consumer wants coverage, this is the number to move and the table
+  above is the evidence to move it with.
+
+  ---
+
+  ## THE FOUR FINDINGS
+
+  **1. `sample_codes` has no test at all (HIGH). Closed.** New file `tests/test_landcover_sampling.py`
+  (151 lines, 17 tests) driving the `runner=` injection point that was already there and unused, so no
+  raster is needed. It covers all four of the surviving mutants plus what `test_dem.py` covers for the
+  sibling module: tile filename anchored on the pinned manifest entries rather than on a string repeated in
+  two files, a missing tile file being a miss rather than a crash, one process per tile, point order across
+  the real N36W123/N36W126 seam, float-formatted values, blank and non-numeric lines as misses, and both
+  raise paths. RED, each defect applied to a throwaway copy (`work/red_demo.py`), real assertion text:
+
+      1a. sample_codes writes 'lat lon' instead of 'lon lat'   (M31)
+         /mut/tests/test_landcover_sampling.py:81: AssertionError: assert '37.5 -122.5\n' == '-122.5 37.5\n'
+         FAILED tests/test_landcover_sampling.py::TestWhatItSendsToGdal::test_coordinates_are_written_lon_then_lat
+
+      1b. sample_codes drops the value-count guard             (M32)
+         /mut/tests/test_landcover_sampling.py:134: Failed: DID NOT RAISE <class 'ValueError'>
+         /mut/tests/test_landcover_sampling.py:138: Failed: DID NOT RAISE <class 'ValueError'>
+         FAILED ...::test_a_short_read_raises_rather_than_shifting_every_sample_by_one
+         FAILED ...::test_a_long_read_raises_too
+
+      1c. sample_codes ignores a non-zero gdallocationinfo exit (M33)
+         /mut/tests/test_landcover_sampling.py:144: Failed: DID NOT RAISE <class 'RuntimeError'>
+         /mut/etl/landcover.py:242: ValueError: gdallocationinfo returned 0 values for 1 points
+         FAILED ...::test_a_gdal_failure_raises_rather_than_reporting_land_cover
+         FAILED ...::test_the_failure_says_what_gdal_said
+
+      1d. sample_codes keeps code 0 instead of NODATA           (M18)
+         /mut/tests/test_landcover_sampling.py:116: assert [0] == [None]
+         FAILED ...::test_code_zero_is_nodata_and_not_a_class
+
+  **2. The built-up 0.4 is unpinned down to 0.26 (MEDIUM). Closed, and the real-data anchor exists.**
+  Two halves, kept distinct on purpose. The definitional half: `test_the_built_up_cutoff_is_at_four_tenths_
+  and_not_a_hundredth_below` uses counts that are exact in binary64 (39/100 == 0.39), so it pins the cutoff
+  itself rather than an approximation of it - and the same for the canopy side at 0.49.
+  The real-data half is the one the reviewer asked for, and finding it needed a different search. Neither
+  reviewer-32's 69 random ways nor my own draw contained a road in the band, so instead of sampling roads
+  and hoping, I searched the raster for the land-cover mix and then asked OSM what road was there
+  (`work/band_scan.py`, `work/fetch_band_ways.py`): a 0.003-degree lattice over the sfbay bbox,
+  **691 x 691 = 477,481 points**, one WorldCover code each from the pinned tiles; 5x5 windows that are
+  moderately built, nearly treeless and mostly open land gave **2,226 candidate cells**; Overpass at nine of
+  those centres returned **155 ways**; **24** of them sit in `0.26 <= impervious < 0.40` with the dominance
+  ratio already satisfied at all four phases. Two went into the fixture:
+
+      murphy_avenue  way 8970219  Murphy Avenue, San Martin   imperv 0.3818 0.3931 0.3842 0.3858
+                                  residential, 58 nodes        canopy 0.0977 0.0847 0.0807 0.0847
+                                                               open   0.5206 0.5222 0.5351 0.5295
+      san_martin     way 8939244  East San Martin Avenue      imperv 0.3164 0.2970 0.3115 0.3019
+                                  secondary, 7 nodes           canopy 0.0710 0.0734 0.0662 0.0646
+                                                               open   0.6126 0.6295 0.6223 0.6336
+
+  Both ways re-fetched live from `api.openstreetmap.org/api/0.6/way/<id>/full.json` this round
+  (`work/refetch_anchor.py`): node id lists and every coordinate MATCH what the fixture records. RED, from
+  `work/red_demo.py`:
+
+      2a. is_built_up threshold 0.4 -> 0.26  (M34)
+         /mut/tests/test_landcover_verdict.py:96: AssertionError: assert not True
+         /mut/tests/test_landcover_boundary.py:170: AssertionError: murphy_avenue
+         /mut/tests/test_landcover_boundary.py:203: AssertionError: ('murphy_avenue', 0, 0.3817594834543987, 0.09765940274414851)
+         FAILED tests/test_landcover_verdict.py::...::test_the_built_up_cutoff_is_at_four_tenths_and_not_a_hundredth_below
+         FAILED tests/test_landcover_boundary.py::...::test_the_verdicts_recorded_for_every_phase_still_recompute
+         FAILED tests/test_landcover_boundary.py::...::test_a_road_that_is_mostly_open_land_is_not_a_strip_mall_arterial
+
+      2b. is_built_up threshold 0.4 -> 0.39  (M10, the hundredth the anchor has to reach)
+         /mut/tests/test_landcover_boundary.py:203: AssertionError: ('murphy_avenue', 1, 0.3930589184826473, 0.0847457627118644)
+         ...same three tests red...
+
+  Note what 2b shows: the anchor is doing the work, not the synthetic pin - phase 1 of Murphy Avenue, at
+  0.39306, is what makes `0.39` illegal.
+
+  **3. `problems()`'s four-terms-sum arm has no test and no RED (MEDIUM, a CLAUDE.md rule). Closed.**
+  `test_four_terms_that_do_not_sum_to_one_are_reported` in `TestProblems`, and it asserts the OTHER arm does
+  not fire, so the new arm cannot be credited with a catch the class-fraction check made. RED:
+
+      3. problems() drops the four-terms-sum arm  (M21)
+         /mut/tests/test_landcover.py:162: assert False
+         FAILED tests/test_landcover.py::TestProblems::test_four_terms_that_do_not_sum_to_one_are_reported
+
+  and my own N11, widening the tolerance to `0.0 <= total <= 2.0` instead of removing the arm, is also
+  caught by it (1 new-red).
+
+  **4. README.md:14 still makes the false provenance statement (MEDIUM). Closed, and this task's, not
+  T-0054's.** `touches:` amended to `[services/etl/, LICENSE-DATA, README.md]` (line 12) BEFORE staging, and
+  said here as instructed. README line 14-15 now reads `ESA WorldCover (CC BY 4.0)` where it said
+  `USFS Tree Canopy, NLCD`. The reviewer is right that `unattributed()` structurally could not see this -
+  the fix is that it now does: `test_the_readme_credits_the_same_sources_it_uses` points the same function
+  at README.md, plus an explicit assertion that `USFS`, `NLCD` and `MRLC` appear nowhere in it. Both arms
+  demonstrated red on the host (the guard needs the repo root, so this one cannot run in the container):
+
+      $ git checkout -- README.md      # back to the committed, false line
+      $ cd services/etl && python -m pytest -q --tb=short tests/test_manifest.py
+      tests\test_manifest.py:90: in test_the_readme_credits_the_same_sources_it_uses
+          assert missing == [], f"README.md does not credit: {missing}"
+      E   AssertionError: README.md does not credit: ['CC-BY-4.0']
+      E   assert ['CC-BY-4.0'] == []
+      FAILED tests/test_manifest.py::TestRealManifest::test_the_readme_credits_the_same_sources_it_uses
+
+      $ # second arm: credit WorldCover but leave USFS/NLCD standing
+      tests\test_manifest.py:92: in test_the_readme_credits_the_same_sources_it_uses
+          assert gone not in text, (
+      E   AssertionError: README.md still claims USFS data; MRLC's S3 refuses anonymous access and nothing
+          in the tree is derived from it
+      E   assert 'USFS' not in '# Scenic Dr... `NOTICE`.\n'
+
+  **README.md was restored and verified byte-identical after each red run**, not just visually:
+  sha256 `859aa21acb8cda058b1080773a4a0e096365a86bf46d5e75bcecac57e64a0102` before and after both, and
+  `python -m pytest -q tests/test_manifest.py` green again (27 passed). No source file in the worktree was
+  mutated at any point - every other RED above ran on a throwaway copy at /mut.
+
+  ---
+
+  ## THE FOUR NON-BLOCKING ITEMS
+
+  **5. `unattributed()` bypassed by KNOWN_LICENSES-without-ATTRIBUTION_LICENSES. Fixed.** `manifest.py`
+  gains `NO_ATTRIBUTION_REQUIRED = {"US-PD-17USC105", "CC0-1.0"}` and `unattributed()` now **fails closed**:
+  a licence in neither classification is reported as needing credit. `test_every_known_licence_is_
+  classified_one_way_or_the_other` asserts the useful direction the old test did not
+  (`KNOWN == ATTRIBUTION | NO_ATTRIBUTION`, and the two disjoint). RED (`work/red_demo2.py`):
+
+      5a. a licence in KNOWN_LICENSES and in neither classification set
+         /mut/tests/test_manifest.py:125: AssertionError: assert {'Apache-2.0'...DbL-1.0', ...} == {'Apache-2.0'...-PD-17USC105'}
+         FAILED tests/test_manifest.py::TestAttribution::test_every_known_licence_is_classified_one_way_or_the_other
+
+      5b. unattributed() fails OPEN again on an unclassified licence
+         /mut/tests/test_manifest.py:130: AssertionError: assert [] == ['CC-BY-SA-4.0']
+         FAILED tests/test_manifest.py::TestAttribution::test_a_licence_nobody_classified_is_assumed_to_need_credit
+
+  **NOT fixed, deliberately: the substring match still accepts "We deliberately do NOT use any CC BY 4.0
+  data".** Telling credit from a mention needs to parse English, and a check that tries and gets it wrong is
+  worse than one whose limit is written down. The limit is now written down, in the function's own docstring:
+  "it catches a lapse, not a lie."
+
+  **6. The coastal NODATA rationale describes a case that does not occur. Fixed, and the machinery is now
+  exercised.** `fractions`'s docstring and `test_nodata_is_excluded_from_the_denominator_not_counted`'s both
+  said a coastal way has half its buffer in the ocean as NODATA. It does not: WorldCover codes the open
+  Pacific as class 80, so the ocean IS counted, as water, and a coastal way's canopy IS diluted by it - the
+  right answer, and one T-0029 has to weight. Both docstrings now say what NODATA actually is (a sample with
+  no tile, plus the raster's 0 fill) and the test additionally asserts the CLASS fractions use the same
+  denominator as the four terms, which is what makes `M16 fractions divides by len(codes)` go red (it was a
+  survivor; 1 new-red now).
+
+  **7. `is_wooded`'s ratio boundary unpinned. Fixed.** `test_exactly_the_ratio_is_enough` sits exactly on
+  `canopy == ratio * impervious` for both predicates. Catches M20, M06/M07/M08 (ratio 1.9 / 2.1 / 1.5) and
+  my own N09 (`>=` -> `>` on the built-up side).
+
+  **8. The boundary fixture's geometry provenance unpinned. Fixed, twice, because the first fix was not
+  enough - my own mutation caught that.** First: `node_count` recorded beside `node_stride`, and
+  `test_the_stride_and_the_node_count_account_for_every_centre`. Then my mutant **N15 doubled BOTH
+  (58 -> 116, 9 -> 18) and survived**, because two integers cannot check each other -
+  `len(range(0, 116, 18)) == len(range(0, 58, 9)) == 7`. So the fixture now records each way's **OSM node id
+  list**, from the live fetches, and `test_the_node_count_is_a_list_of_real_node_ids_and_not_a_number`
+  requires `len(node_ids) == node_count`. Faking `node_count` now means inventing 58 node ids that anybody
+  can check against OSM, which is the standard `sampled_at` is already held to. RED:
+
+      4. boundary fixture: node_count and node_stride doubled together  (N15)
+         /mut/tests/test_landcover_boundary.py:103: AssertionError: ('murphy_avenue', 58, 116)
+         FAILED tests/test_landcover_boundary.py::TestTheFixtureItself::test_the_node_count_is_a_list_of_real_node_ids_and_not_a_number
+
+  ---
+
+  ## RE-DERIVED, NOT TAKEN ON TRUST
+
+  Both fixtures rebuilt from the pinned tiles by `work/round3_check.py`, which reconstructs the phase grid
+  itself rather than importing the recorder, so a bug in `record_anchor.py` would show as a mismatch:
+
+      archetype old_la_honda     way=8940690    n=5841  MATCH
+      archetype skyline          way=239028846  n=9558  MATCH
+      archetype alviso_flat      way=92357845   n=354   MATCH
+      archetype alviso_flat2     way=8929268    n=354   MATCH
+      boundary  44 of 44 phase arrays MATCH
+      VERDICT: ALL ELEMENT-FOR-ELEMENT MATCHES
+
+  and all eleven ways' `sampled_at` re-checked against the live-OSM node lists at their declared stride
+  (`work/verify_geom.py`): eleven of eleven `nodes:MATCH coords:MATCH`, with the two new ones re-fetched
+  from `api.openstreetmap.org` today rather than read from a cache.
+
+  ---
+
+  ## WHAT MY MUTATIONS LEFT ALIVE
+
+  `work/mutate_own.py`, 16 mutants, baseline 0 failures, **2 survive**. Both are reported because both are
+  real information, and neither is a hole I can close by writing a test:
+
+      SURVIVED N05 sample_codes treats a blank line as class 0
+      SURVIVED N16 boundary fixture: murphy_avenue's node_ids fabricated (right length, invented ids)
+
+  **N05 is an equivalent mutant, and I proved it rather than asserting it.** The mutation replaces
+  `if not line: continue` with `line = line or '0'`; `int(float('0')) == 0` and the very next line maps 0 to
+  NODATA, so both forms end at `out[i] = None`. Demonstrated in the image:
+
+      mutated   sample_codes([(37.5,-122.5)]) -> [None]
+
+  No test can kill it because it does not change behaviour. Left in the harness so the next person does not
+  re-derive it.
+
+  **N16 is a real limit of the node_ids anchor and I am recording it rather than pretending otherwise.**
+  Replacing a way's node ids with plausible integers of the right length keeps every local assertion happy.
+  No local test can tell a real OSM node id from a fabricated one without a network call, and a test that
+  makes network calls is not a test. What the anchor does is move the fabrication cost from "edit one
+  integer" to "invent 58 ids that anyone can check against `api.openstreetmap.org`" - which is exactly the
+  check reviewer-32 ran on nine ways in round 2 and I ran on all eleven this round. The consequence if it
+  ever were faked is bounded: `node_ids` and `node_count` are self-description only, no class code, fraction
+  or verdict is computed from them.
+
+  ---
+
+  ## VERIFICATION, EXACT OUTPUT. NO CI SIGNAL - ACTIONS IS DISABLED REPO-WIDE (T-0053).
+
+      $ docker run --rm -v "$PWD:/w" -w /w scenic-etl python3 -m pytest -q --junitxml=... tests/
+      container: 343 tests, 340 passed, 3 skipped, 0 failed, 0 errors
+      (the 3 skips are the git-gated repo-root guards; see C2 - they run under ops/test, not here)
+
+      $ docker run --rm -v "$PWD:/w" -w /w scenic-etl python3 work/mutate.py      # reviewer-32's 36
+      survivors: 0 of 36
+
+      $ docker run --rm -v "$PWD:/w" -w /w scenic-etl python3 work/mutate_own.py  # mine, 16
+      survivors: 2 of 16
+
+      $ bash ops/test
+      TESTS linux=393/76 ios=skipped failed=0 skipped=0
+      OK
+
+      $ bash ops/check-pins
+      PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+
+      $ bash ops/queue-check
+      QUEUE OK (51 tasks)
+
+      $ bash ops/sane
+      SANE OK
+
+  Test count 363 -> 393 (`ops/test`); the ETL suite 313 -> 343. Every file under the 300-line cap:
+  landcover.py 252, manifest.py 189, test_landcover.py 204, test_landcover_verdict.py 116,
+  test_landcover_sampling.py 151, test_landcover_boundary.py 250, test_landcover_fixture.py 122,
+  test_manifest.py 196. `TestTheNamedProperties` and `TestTheVerdictIsOneVerdict` moved from
+  test_landcover.py to the new test_landcover_verdict.py - bodies unchanged, three edge pins added there -
+  because test_landcover.py had reached 281 of its 300 lines and these are one subject.
+
+  ---
+
+  ## WHAT I WANT ATTACKED NEXT
+
+  - **The fixture's two new ways.** `murphy_avenue` and `san_martin` are the only real-data anchor under the
+    built-up cutoff, and they were found by searching the raster for a mix and then asking OSM what road was
+    there - a method that could select for the answer if the window criteria were tuned. They were not
+    (`work/band_scan.py` fixes the window before any road is fetched), but that is my word for it. The check
+    that does not need my word: re-run the 24 in-band ways and see whether any of them contradicts the
+    cutoff rather than supporting it.
+  - **DOMINANCE_RATIO = 2.0 sitting at the top of its band.** The argument above is that 1.5-1.75 would be
+    overfitting a one-road window. Attack that: draw a bigger sample than 70 and see whether the
+    verdicted/unstable difference between 1.5 and 2.0 is still one road. If it is not, the number should
+    move and I will have been wrong to keep it.
+  - **`test_the_readme_credits_the_same_sources_it_uses` and its sibling skip in the container.** Three of
+    343 tests do not run in the image the pipeline uses. I think that is correct (the files are not mounted)
+    and loud (the skip says why), but if you think a licence guard that can be skipped is not a guard, say
+    so - the alternative is a pin, and pins_affected is empty on this task.
+  - **N16, above.** If you can see a local way to distinguish a real OSM node id from an invented one, it is
+    worth having.
+  - **`open_land` as a home for snow_ice (70).** Unchanged from round 2 and still zero everywhere in this
+    region, so still measured by nothing.

@@ -4,8 +4,9 @@ The four ways in `landcover_fixture.json` are archetypes chosen to sit far apart
 was right that they therefore say nothing about the general case: sampled against the same pinned tiles
 with the same shipped code, an ordinary San Ramon cul-de-sac satisfied `is_wooded` and `is_built_up` at
 the same time. This fixture is that counterexample and its neighbours, plus an oak-savanna road, an
-oak-woodland road half a mile from it, a Delta cropland road, and the one archetype whose verdict moved
-when only the sample grid moved.
+oak-woodland road half a mile from it, a Delta cropland road, the one archetype whose verdict moved
+when only the sample grid moved, and two rural roads that sit just under the built-up cutoff - the
+anchor that round 2 showed the 0.4 did not have.
 
 Every way is recorded at four grid phases half a step apart. The land underneath is identical at every
 phase, so anything that moves between them is a sampling artefact and nothing else - which makes this
@@ -67,6 +68,43 @@ class TestTheFixtureItself:
         for way in load()["ways"]:
             for codes in way["codes_by_phase"]:
                 assert lc.unknown_codes(codes) == set(), way["key"]
+
+    def test_the_recorded_codes_are_as_many_as_the_recorded_geometry_asks_for(self):
+        """`sampled_at` and `node_stride` were read by nothing, so the file could have been re-recorded
+        off different nodes and stayed green. This does not prove the coordinates are the way's real OSM
+        nodes - all eleven were checked against live `api.openstreetmap.org` geometry at their declared
+        stride, by agent/reviewer-32 for the first nine and by me for all eleven - but it does tie the
+        three recorded things to each other: change the number of centres, the buffer or the step, and the
+        file stops describing itself."""
+        for way in load()["ways"]:
+            expected = sum(len(lc.buffer_points(lat, lon)) for lat, lon in way["sampled_at"])
+            assert expected > 0, way["key"]
+            for i, codes in enumerate(way["codes_by_phase"]):
+                assert len(codes) == expected, (way["key"], i, len(codes), expected)
+
+    def test_the_stride_and_the_node_count_account_for_every_centre(self):
+        """`node_stride` was pure decoration until this: my own mutant N10 doubled murphy_avenue's stride
+        from 9 to 18 and nothing went red, because a list of coordinates does not know how it was strided.
+        With the way's OSM node count recorded beside it, `sampled_at` has to be exactly as long as
+        striding that many nodes produces, so neither number can be edited on its own."""
+        for way in load()["ways"]:
+            wanted = len(range(0, way["node_count"], way["node_stride"])) or 1
+            assert len(way["sampled_at"]) == wanted, (
+                way["key"], way["node_count"], way["node_stride"], len(way["sampled_at"]))
+
+    def test_the_node_count_is_a_list_of_real_node_ids_and_not_a_number(self):
+        """Two integers cannot check each other, which my own mutant N15 proved: editing `node_count`
+        58 -> 116 and `node_stride` 9 -> 18 together keeps the centre count at 7, so the test above stayed
+        green on a fixture that had stopped describing a real way. `node_ids` is the anchor - OSM node ids
+        are data somebody else published, so faking `node_count` now means inventing 58 ids that anyone
+        can check against api.openstreetmap.org, which is the standard `sampled_at` is already held to."""
+        for way in load()["ways"]:
+            ids = way["node_ids"]
+            assert len(ids) == way["node_count"], (way["key"], len(ids), way["node_count"])
+            assert len(set(ids)) >= 2, way["key"]
+            assert all(isinstance(i, int) and i > 0 for i in ids), way["key"]
+            assert len(way["sampled_at"]) == len(ids[::way["node_stride"]]), (
+                way["key"], len(way["sampled_at"]), way["node_stride"], len(ids))
 
     def test_these_are_not_the_archetypes_again(self):
         """The point of this file is roads that were not curated. If it ends up holding the same ways as
@@ -130,6 +168,50 @@ class TestGridPhaseDoesNotDecideTheAnswer:
         for way in load()["ways"]:
             got = [verdict(lc.fractions(c)) for c in way["codes_by_phase"]]
             assert got == way["verdicts_by_phase"], way["key"]
+
+
+class TestWhatKeepsARuralRoadOutOfBuiltUp:
+    """The real-data anchor under the 0.4 built-up cutoff. There was none, and the three mutants
+    `0.4 -> 0.39 / 0.35 / 0.26` all lived through a green suite because of it.
+
+    How these two ways were found, because it matters that they were not picked for their answer: neither
+    reviewer-32's 69 random sfbay ways nor my own draw contained a road in the band, so the search ran the
+    other way round. A 691x691 lattice over the region bbox (477,481 points, one WorldCover code each)
+    found 2,226 cells that are moderately built, nearly treeless and mostly open land; OSM had 155 roads
+    at nine of those centres; 24 of the 155 sit in `0.26 <= impervious < 0.40` with the dominance ratio
+    already satisfied at all four phases. `murphy_avenue` is the closest of the 24 whose reading does not
+    move with the sample grid (0.3818-0.3931, spread 0.0113); Yateley Court, way 1102758612, gets nearer
+    at one phase (0.3963) but swings 0.0775 across the four, which is most of the 0.10 bound this file
+    enforces elsewhere and makes it a worse thing to hang a cutoff on. `san_martin` has room to spare
+    (0.2970-0.3164), so the anchor does not rest on one thin margin.
+    """
+
+    KEYS = ("murphy_avenue", "san_martin")
+
+    def test_the_ratio_does_not_disqualify_them_so_only_the_cutoff_can(self):
+        """If the dominance rule already kept these roads out of BUILT_UP they would pin nothing."""
+        for key in self.KEYS:
+            for i, codes in enumerate(by_key()[key]["codes_by_phase"]):
+                s = lc.fractions(codes)
+                assert s["impervious"] >= lc.DOMINANCE_RATIO * s["canopy"], (key, i, s)
+
+    def test_a_road_that_is_mostly_open_land_is_not_a_strip_mall_arterial(self):
+        """Murphy Avenue runs through San Martin and East San Martin Avenue past the fields beside it:
+        about a third of each buffer is built, more than half of it is open land, and the trees are
+        incidental. Calling either a strip-mall arterial is what `0.4 -> 0.26` does."""
+        for key in self.KEYS:
+            for i, codes in enumerate(by_key()[key]["codes_by_phase"]):
+                s = lc.fractions(codes)
+                assert s["open_land"] > s["impervious"], (key, i, s)
+                assert not lc.is_built_up(s), (key, i, s["impervious"], s["canopy"])
+
+    def test_how_close_the_anchor_gets_to_the_cutoff(self):
+        """0.3931 against a cutoff of 0.4. Recorded rather than implied: this margin is the honest measure
+        of how much judgement is in the number, and a road at 0.41 would be called built up on the
+        strength of one percentage point of roof. It is also what makes `0.4 -> 0.39` go red - which is
+        the whole reason a real road had to be found instead of another synthetic count."""
+        imps = [lc.fractions(c)["impervious"] for c in by_key()["murphy_avenue"]["codes_by_phase"]]
+        assert 0.39 <= max(imps) < 0.40, imps
 
 
 class TestTheClassMapping:

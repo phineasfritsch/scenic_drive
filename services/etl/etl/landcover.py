@@ -113,9 +113,17 @@ def buffer_points(lat: float, lon: float, radius_m: float = BUFFER_M,
 def fractions(codes: list[int | None]) -> dict[str, float]:
     """Fraction of valid samples in each named class. NODATA is excluded from the denominator.
 
-    Excluded, not counted as anything: a way at the coast has half its buffer in the ocean, and dividing by
-    the full sample count would halve its canopy fraction purely for being near water. The caller gets
-    `coverage` to decide whether there were enough samples to trust.
+    NODATA is not the ocean. WorldCover codes the open Pacific as class 80, continuously to 3 km offshore
+    and beyond - agent/reviewer-32 marched west from the San Mateo coast and measured `coverage` 1.0000 on
+    every shoreline buffer - so a coastal way's water IS counted, as water, and its canopy IS diluted by it.
+    That is the right answer and T-0029 has to weight it; the rationale recorded here before said the
+    opposite and described a case that does not occur.
+
+    What NODATA actually is: a sample with no tile (a buffer reaching past the tiles we hold, or a point
+    outside the region) and the raster's own 0 fill. Those must not dilute the classes we did read, so they
+    leave the denominator, and the caller gets `coverage` to decide whether there were enough samples to
+    trust. Every class fraction uses the same denominator as the four terms, or a partly unreadable buffer
+    would report half its real canopy.
     """
     valid = [c for c in codes if c is not None]
     if not valid:

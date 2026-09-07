@@ -46,6 +46,13 @@ ATTRIBUTION_LICENSES = {
     "CA-OpenData": ("State of California",),
 }
 
+# The other half of the classification, so that adding a licence to KNOWN_LICENSES and stopping there is
+# not a way past the check. agent/reviewer-32 demonstrated the hole: CC-BY-SA-4.0 (attribution AND
+# share-alike) added in one line reported clean from both `validate()` and `unattributed()`. Every entry in
+# KNOWN_LICENSES now has to be in exactly one of these two, and an unrecognised licence is treated as
+# needing credit rather than as needing nothing.
+NO_ATTRIBUTION_REQUIRED = frozenset({"US-PD-17USC105", "CC0-1.0"})
+
 
 def unattributed(inputs: list["Input"], license_text: str) -> list[str]:
     """Licences used by the manifest that require attribution and get none in `license_text`.
@@ -53,11 +60,18 @@ def unattributed(inputs: list["Input"], license_text: str) -> list[str]:
     Data whose licence says "credit us" and whose credit exists nowhere in the tree is not a style problem:
     it is shipping data we are not licensed to ship. The check is on the licence identifier rather than on a
     sentence, because sentences get reworded and identifiers do not.
+
+    It fails CLOSED: a licence nobody has classified is reported, because the alternative is that the one
+    line it takes to widen KNOWN_LICENSES also silently widens what may ship uncredited. What it cannot do
+    is tell credit from a mention - `"we deliberately do not use any CC BY 4.0 data"` satisfies the
+    substring - so it catches a lapse, not a lie.
     """
     out = []
     for lic in sorted({i.license for i in inputs if i.license}):
+        if lic in NO_ATTRIBUTION_REQUIRED:
+            continue
         spellings = ATTRIBUTION_LICENSES.get(lic)
-        if spellings and not any(s in license_text for s in spellings):
+        if spellings is None or not any(s in license_text for s in spellings):
             out.append(lic)
     return out
 

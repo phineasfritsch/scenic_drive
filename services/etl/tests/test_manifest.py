@@ -11,6 +11,28 @@ from etl import manifest as mf
 REAL = Path(__file__).resolve().parents[1] / "inputs" / "manifest.yaml"
 
 
+def repo_root() -> Path:
+    """The repo root, asked of git rather than computed as `parents[3]`.
+
+    That arithmetic is right in a checkout and wrong everywhere else: run inside the ETL image, where only
+    services/etl is mounted, it raised `IndexError: 3` from pathlib rather than saying anything about the
+    manifest. Skips LOUDLY where the question cannot be answered - the container has no git binary and no
+    work tree, so the two attribution guards below DO NOT RUN THERE. `ops/test` runs them in a checkout,
+    where the suite reports skipped=0; agent/reviewer-32 found the earlier log calling that skip
+    pre-existing when one of the two was this task's own new guard.
+    """
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                             cwd=Path(__file__).resolve().parent, capture_output=True, text=True)
+    except FileNotFoundError as e:
+        # Raised as FileNotFoundError, not a non-zero return code, so it needs its own arm; without it
+        # the suite died with a traceback inside the image.
+        pytest.skip(f"git is not installed here, cannot find the repo root: {e}")
+    if top.returncode != 0:
+        pytest.skip(f"not inside a git work tree: {top.stderr.strip() or 'no git'}")
+    return Path(top.stdout.strip())
+
+
 def entry(**kw):
     base = dict(name="thing.tif", url="https://example.org/thing.tif", verify="sha256",
                 license="US-PD-17USC105", purpose="testing", sha256="a" * 64)
@@ -32,25 +54,11 @@ class TestRealManifest:
         the manifest existed on the author's disk and in no clone. A file the suite reads must be IN the repo -
         an ignore rule that swallows it turns every reader into a local-only pass.
 
-        The repo root is asked of git, not computed as `parents[3]`. That arithmetic is right in a checkout
-        and wrong everywhere else: run inside the ETL image, where only services/etl is mounted, it raised
-        `IndexError: 3` from pathlib rather than saying anything about the manifest. Found by T-0038 running
-        this suite in the container the pipeline actually uses.
+        The repo root is asked of git, not computed as `parents[3]`; see `repo_root`. Found by T-0038
+        running this suite in the container the pipeline actually uses.
         """
         rel = "services/etl/inputs/manifest.yaml"
-        try:
-            top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=Path(__file__).resolve().parent,
-                                 capture_output=True, text=True)
-        except FileNotFoundError as e:
-            # No git binary at all - the ETL image does not ship one. Raised as FileNotFoundError, not a
-            # non-zero return code, so it needs its own arm; without it the suite died with a traceback.
-            pytest.skip(f"git is not installed here, cannot check tracking: {e}")
-        if top.returncode != 0:
-            # No work tree here, so "is it committed?" is not a question this process can answer. Skip
-            # LOUDLY rather than inventing a verdict - and note that ops/test always runs in a checkout, so
-            # this branch is never the one CI takes.
-            pytest.skip(f"not inside a git work tree, cannot check tracking: {top.stderr.strip() or 'no git'}")
-        root = top.stdout.strip()
+        root = str(repo_root())
         tracked = subprocess.run(["git", "-C", root, "ls-files", "--error-unmatch", rel],
                                  capture_output=True, text=True)
         assert tracked.returncode == 0, f"{rel} is not tracked by git: {tracked.stderr.strip()}"
@@ -62,19 +70,28 @@ class TestRealManifest:
         """T-0027 added CC-BY-4.0 to KNOWN_LICENSES, downloaded ESA WorldCover under it, derived the score's
         land-cover terms from it, and wrote the attribution nowhere - LICENSE-DATA still credited the USFS
         and MRLC layers the task had abandoned. Found by agent/reviewer-32, not by anything here, because
-        nothing here looked. The repo root is asked of git for the same reason as the test above."""
-        try:
-            top = subprocess.run(["git", "rev-parse", "--show-toplevel"],
-                                 cwd=Path(__file__).resolve().parent, capture_output=True, text=True)
-        except FileNotFoundError as e:
-            pytest.skip(f"git is not installed here, cannot find the repo root: {e}")
-        if top.returncode != 0:
-            pytest.skip(f"not inside a git work tree: {top.stderr.strip() or 'no git'}")
-        path = Path(top.stdout.strip()) / "LICENSE-DATA"
+        nothing here looked."""
+        path = repo_root() / "LICENSE-DATA"
         assert path.is_file(), "LICENSE-DATA does not exist"
         missing = mf.unattributed(mf.parse(REAL.read_text(encoding="utf-8")),
                                   path.read_text(encoding="utf-8"))
         assert missing == [], f"LICENSE-DATA does not attribute: {missing}"
+
+    def test_the_readme_credits_the_same_sources_it_uses(self):
+        """LICENSE-DATA was fixed and README.md kept the false statement, in the more visible file: it still
+        credited "USFS Tree Canopy, NLCD", layers nothing in this tree is derived from, and named ESA
+        WorldCover nowhere. `unattributed()` reads whatever text it is given, so pointing it at the README
+        is the whole fix - the reason it did not catch this is that nobody pointed it there. A reader who
+        opens one file opens this one."""
+        path = repo_root() / "README.md"
+        assert path.is_file(), "README.md does not exist"
+        text = path.read_text(encoding="utf-8")
+        missing = mf.unattributed(mf.parse(REAL.read_text(encoding="utf-8")), text)
+        assert missing == [], f"README.md does not credit: {missing}"
+        for gone in ("USFS", "NLCD", "MRLC"):
+            assert gone not in text, (
+                f"README.md still claims {gone} data; MRLC's S3 refuses anonymous access and nothing in "
+                f"the tree is derived from it")
 
     def test_osm_is_odbl_and_not_pinned_by_sha256(self):
         """Geofabrik rebuilds daily; a pinned digest would rot within 24h."""
@@ -98,6 +115,20 @@ class TestAttribution:
     def test_every_licence_that_needs_credit_is_one_we_have_reasoned_about(self):
         """A spelling table entry for a licence not in KNOWN_LICENSES is a rule that can never fire."""
         assert set(mf.ATTRIBUTION_LICENSES) <= set(mf.KNOWN_LICENSES)
+
+    def test_every_known_licence_is_classified_one_way_or_the_other(self):
+        """The useful direction, which the assertion above is not. agent/reviewer-32's bypass: adding
+        CC-BY-SA-4.0 to KNOWN_LICENSES is one line - the same deliberate act that added CC-BY-4.0 - and
+        without a second line in the spelling table, share-alike-plus-attribution data reported CLEAN from
+        both validate() and unattributed(). Now every known licence has to be in exactly one of the two
+        sets, so the second line cannot be forgotten."""
+        assert set(mf.KNOWN_LICENSES) == set(mf.ATTRIBUTION_LICENSES) | set(mf.NO_ATTRIBUTION_REQUIRED)
+        assert not set(mf.ATTRIBUTION_LICENSES) & set(mf.NO_ATTRIBUTION_REQUIRED)
+
+    def test_a_licence_nobody_classified_is_assumed_to_need_credit(self):
+        """Failing closed, so the check does not depend on the table being complete to be safe."""
+        assert mf.unattributed([entry(license="CC-BY-SA-4.0")], "no credit here") == ["CC-BY-SA-4.0"]
+        assert mf.unattributed([entry(license="CC-BY-SA-4.0")], "CC-BY-SA-4.0") == ["CC-BY-SA-4.0"]
 
     def test_it_reports_every_missing_licence_not_just_the_first(self):
         missing = mf.unattributed([entry(license="CC-BY-4.0"), entry(license="ODbL-1.0")], "")

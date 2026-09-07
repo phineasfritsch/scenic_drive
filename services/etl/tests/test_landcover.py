@@ -87,11 +87,20 @@ class TestFractions:
         assert f["impervious"] == pytest.approx(0.25)
 
     def test_nodata_is_excluded_from_the_denominator_not_counted(self):
-        """A coastal way has half its buffer in the ocean. Dividing by the full sample count would halve its
-        canopy fraction purely for being near water."""
+        """NODATA is a sample we could not read - a buffer reaching past the edge of the tiles we hold, or
+        the raster's own fill value - not water. agent/reviewer-32 marched west from the San Mateo coast and
+        WorldCover codes the open Pacific as class 80 all the way out, so a coastal way's ocean IS counted,
+        as water; the docstring that said otherwise described a case that does not occur. What NODATA must
+        not do is dilute the classes we did read, so it leaves the denominator and `coverage` records it.
+
+        The class fractions have to leave it out too, not just the four terms: dividing `tree_cover` by the
+        full count while dividing `canopy` by the valid count makes the two disagree, which is how a partly
+        unreadable buffer reads as half its real canopy."""
         f = lc.fractions([10, 10, None, None])
         assert f["canopy"] == 1.0
+        assert f["tree_cover"] == 1.0
         assert f["coverage"] == pytest.approx(0.5)
+        assert sum(f[name] for name in lc.CLASSES.values()) == pytest.approx(1.0)
 
     def test_an_entirely_empty_buffer_reports_no_coverage_rather_than_zero_canopy(self):
         f = lc.fractions([None, None])
@@ -143,82 +152,16 @@ class TestProblems:
         del s["canopy"]
         assert any("canopy is missing" in p for p in lc.problems(s))
 
-
-class TestTheNamedProperties:
-    def test_a_redwood_road_reads_as_wooded_and_not_built_up(self):
-        s = lc.fractions([10] * 45 + [30] * 5)
-        assert lc.is_wooded(s)
-        assert not lc.is_built_up(s)
-
-    def test_a_strip_mall_arterial_reads_as_built_up_and_not_wooded(self):
-        s = lc.fractions([50] * 40 + [30] * 10)
-        assert lc.is_built_up(s)
-        assert not lc.is_wooded(s)
-
-    def test_the_two_are_distinguishable_not_marginal(self):
-        wooded = lc.fractions([10] * 45 + [30] * 5)
-        built = lc.fractions([50] * 40 + [30] * 10)
-        assert wooded["canopy"] - built["canopy"] > 0.5
-        assert built["impervious"] - wooded["impervious"] > 0.5
-
-
-class TestTheVerdictIsOneVerdict:
-    """`is_wooded` and `is_built_up` are not two independent facts about a road, they are one answer to
-    one question: does this read as a redwood road or as a strip-mall arterial? Two independent cutoffs on
-    two fractions that are not required to be complementary can say both, and on real San Ramon streets
-    they did. Whichever term dominates decides, and it has to dominate by enough to be a verdict.
-    """
-
-    def test_no_pair_of_fractions_can_satisfy_both(self):
-        """Exhaustive over the whole simplex, not over four curated roads. The counts stop a rule that
-        simply never fires from passing this."""
-        wooded = built = 0
-        for c in range(101):
-            for i in range(101 - c):
-                s = {"canopy": c / 100.0, "impervious": i / 100.0}
-                w, b = lc.is_wooded(s), lc.is_built_up(s)
-                assert not (w and b), (c, i)
-                wooded += w
-                built += b
-        assert wooded > 100, wooded
-        assert built > 100, built
-
-    def test_an_even_split_is_neither(self):
-        """Half tree canopy and half buildings is a leafy suburb. Both halves are real; neither is the
-        answer to which kind of road this is."""
-        s = lc.fractions([10] * 50 + [50] * 50)
-        assert not lc.is_wooded(s)
-        assert not lc.is_built_up(s)
-
-    def test_trees_have_to_beat_buildings_to_count_as_wooded(self):
-        assert lc.is_wooded(lc.fractions([10] * 60 + [50] * 10 + [30] * 30))
-        assert not lc.is_wooded(lc.fractions([10] * 60 + [50] * 40))
-
-    def test_buildings_have_to_beat_trees_to_count_as_built_up(self):
-        assert lc.is_built_up(lc.fractions([50] * 60 + [10] * 10 + [30] * 30))
-        assert not lc.is_built_up(lc.fractions([50] * 55 + [10] * 45))
-
-    def test_a_quarter_built_is_not_yet_a_strip_mall(self):
-        """With the dominance rule in place, a road with no trees at all clears `impervious >= ratio *
-        canopy` at any impervious above zero - so the 0.4 is the only thing between `some development` and
-        `strip-mall arterial`, and nothing else in the suite pins it. Mines Road pins the canopy cutoff
-        from below with real data; there is no equivalent real road for this one."""
-        s = lc.fractions([50] * 25 + [30] * 75)
-        assert s["impervious"] == pytest.approx(0.25)
-        assert not lc.is_built_up(s)
-        assert lc.is_built_up(lc.fractions([50] * 45 + [30] * 55))
-
-    def test_not_quite_half_trees_is_not_yet_wooded(self):
-        """`wooded` means canopy is the majority of what you can see, and 0.5 is what majority means. That
-        is a definition, not a fit - the fitting question, which of two real terms wins, is the ratio's."""
-        assert not lc.is_wooded(lc.fractions([10] * 45 + [30] * 55))
-        assert lc.is_wooded(lc.fractions([10] * 55 + [30] * 45))
-
-    def test_a_tie_is_not_a_verdict(self):
-        """A ratio of exactly 1 still lets both fire on an exact tie, and exact ties happen: a 29-sample
-        buffer that lands 15/14 is one rounding away from 50/50."""
-        s = {"canopy": 0.5, "impervious": 0.5}
-        assert not (lc.is_wooded(s) and lc.is_built_up(s))
+    def test_four_terms_that_do_not_sum_to_one_are_reported(self):
+        """The runtime half of the partition. `test_the_four_terms_partition_every_class` checks the class
+        sets as sets; this checks the SUMMARY, which is what T-0030 will hand the scorer - a class counted
+        into two terms, or into none, makes the four terms sum to something other than 1 while every
+        individual fraction stays in range and the class fractions still sum to 1."""
+        s = self._summary()
+        s["open_land"] = 0.5
+        assert any("the four terms sum to" in p for p in lc.problems(s))
+        assert not any("class fractions sum to" in p for p in lc.problems(s)), \
+            "the class-fraction arm must not be what catches this, or the new arm proves nothing"
 
 
 class TestOpenLand:
