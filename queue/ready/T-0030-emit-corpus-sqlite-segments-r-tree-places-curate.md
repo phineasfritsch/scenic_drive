@@ -1,7 +1,7 @@
 ---
 id: T-0030
 title: Emit corpus.sqlite: segments + R*Tree, places, curated, meta, schema_version
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
