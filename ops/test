@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# ONE COMMAND. PRINTS A COUNT. ENFORCES A FLOOR.
+#
+#   ops/test              run every tier that exists on this host
+#   SKIP_IOS=1 ops/test   skip the simulator tier even on macOS
+#
+# Prints:  TESTS linux=<total>/<floor> ios=<total>/<floor> failed=<n> skipped=<n>
+# Exit 1 on any failing test, any tier below its floor, or any expected report file missing.
+# A missing report never counts as zero: that is how agents make a suite "green" by breaking the reporter.
+#
+# Floors live in pins/floor_linux.txt and pins/floor_ios.txt. They are ratcheted UP by a reviewer only;
+# .githooks/commit-msg refuses to lower one without a `floor-lower: <reason>` line in the commit body.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+ART=".artifacts"; mkdir -p "$ART"
+rm -f "$ART"/spm-junit*.xml "$ART"/vitest.json "$ART"/pytest-junit.xml
+linux_total=0; linux_failed=0; linux_skipped=0; ios_total=0; ios_failed=0; ios_skipped=0
+rc=0
+
+# ---- Tier 1a: root Swift package (Linux-safe) ----------------------------------------------------
+swift test --parallel --xunit-output "$ART/spm-junit.xml" 2>&1 | tee "$ART/swift-test.log" | grep -E '^(√|✘|◇|◊|Test Suite|Executed|error:|warning: unable)' | tail -8
+# swift test writes XCTest results to spm-junit.xml and Swift Testing results to spm-junit-swift-testing.xml.
+spm_files=()
+[[ -f "$ART/spm-junit.xml" ]] && spm_files+=("$ART/spm-junit.xml")
+[[ -f "$ART/spm-junit-swift-testing.xml" ]] && spm_files+=("$ART/spm-junit-swift-testing.xml")
+if [[ ${#spm_files[@]} -eq 0 ]]; then echo "FAIL: swift test produced no JUnit report (expected $ART/spm-junit*.xml)"; exit 1; fi
+read -r t f s < <("$PY" ops/lib/junit_count.py "${spm_files[@]}" | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/') || { echo "FAIL: could not parse swift JUnit"; exit 1; }
+linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
+
+# ---- Tier 1b: Worker (vitest) — expected iff services/api/package.json exists --------------------
+if [[ -f services/api/package.json ]]; then
+  (cd services/api && npx vitest run --reporter=json --outputFile="../../$ART/vitest.json" >/dev/null 2>&1); true
+  [[ -f "$ART/vitest.json" ]] || { echo "FAIL: services/api exists but vitest produced no report"; exit 1; }
+  read -r t f s < <("$PY" - "$ART/vitest.json" <<'PYEOF'
+import json,sys; d=json.load(open(sys.argv[1])); print(d.get("numTotalTests",0), d.get("numFailedTests",0), d.get("numPendingTests",0))
+PYEOF
+)
+  linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
+fi
+
+# ---- Tier 1c: ETL (pytest) — expected iff services/etl/pyproject.toml exists ---------------------
+if [[ -f services/etl/pyproject.toml ]]; then
+  (cd services/etl && "$PY" -m pytest -q --junitxml="../../$ART/pytest-junit.xml" >/dev/null 2>&1); true
+  [[ -f "$ART/pytest-junit.xml" ]] || { echo "FAIL: services/etl exists but pytest produced no report"; exit 1; }
+  read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/')
+  linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
+fi
+
+# ---- Tier 2: iOS simulator — macOS only, expected iff the xcodeproj exists ----------------------
+ios_ran=0
+if [[ "$(uname)" == "Darwin" && "${SKIP_IOS:-0}" != "1" && -d apps/ios/ScenicDrive.xcodeproj ]]; then
+  ios_ran=1
+  rm -rf "$ART/ScenicDrive.xcresult"
+  xcodebuild test \
+    -project apps/ios/ScenicDrive.xcodeproj -scheme ScenicDrive \
+    -destination "${IOS_DESTINATION:-platform=iOS Simulator,name=iPhone 17}" \
+    -derivedDataPath "$ART/dd" -resultBundlePath "$ART/ScenicDrive.xcresult" \
+    -parallel-testing-enabled YES 2>&1 | tee "$ART/xcodebuild.log" | tail -5
+  [[ -d "$ART/ScenicDrive.xcresult" ]] || { echo "FAIL: xcodebuild produced no xcresult"; exit 1; }
+  summary="$(xcrun xcresulttool get test-results summary --path "$ART/ScenicDrive.xcresult" --format json --compact)"
+  read -r ios_total ios_failed ios_skipped < <("$PY" - "$summary" <<'PYEOF'
+import json,sys; d=json.loads(sys.argv[1]); print(d.get("totalTestCount",0), d.get("failedTests",0), d.get("skippedTests",0))
+PYEOF
+)
+fi
+
+# ---- Floors --------------------------------------------------------------------------------------
+floor_linux="$(tr -d '[:space:]' < pins/floor_linux.txt)"
+floor_ios="$(tr -d '[:space:]' < pins/floor_ios.txt)"
+failed=$((linux_failed + ios_failed)); skipped=$((linux_skipped + ios_skipped))
+if [[ $ios_ran -eq 1 ]]; then ios_str="$ios_total/$floor_ios"; else ios_str="skipped"; fi
+echo "TESTS linux=$linux_total/$floor_linux ios=$ios_str failed=$failed skipped=$skipped"
+[[ $failed -gt 0 ]] && { echo "FAIL: $failed failing test(s)"; rc=1; }
+[[ $linux_total -lt $floor_linux ]] && { echo "FAIL: linux test count $linux_total is below floor $floor_linux - tests were deleted or a reporter broke"; rc=1; }
+[[ $ios_ran -eq 1 && $ios_total -lt $floor_ios ]] && { echo "FAIL: ios test count $ios_total is below floor $floor_ios"; rc=1; }
+[[ $rc -eq 0 ]] && echo "OK"
+exit $rc

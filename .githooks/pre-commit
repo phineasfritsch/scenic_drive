@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Rejects commits that would corrupt the repo for the agent fleet.
+#  1. CRLF in any staged text file.
+#  2. Secret-looking content or files (sk. tokens, private keys, .p8/.p12/.netrc/.env).
+#  3. Staged paths outside the current task's `touches:` list (active once a queue task file exists for the branch).
+# Floor-lowering protection lives in .githooks/commit-msg (T-0002).
+set -uo pipefail
+fail=0
+CR=$(printf '\r')
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+[[ -z "$staged" ]] && exit 0
+
+# 1. CRLF
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  if git show ":$f" | grep -qI "$CR"; then echo "pre-commit: CRLF in $f (repo is LF-only, see .gitattributes)"; fail=1; fi
+done <<< "$staged"
+
+# 2. Secrets
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  case "$f" in
+    *.p8|*.p12|*.netrc|.netrc|.env|.env.*) echo "pre-commit: secret file staged: $f"; fail=1;;
+  esac
+  if git show ":$f" | grep -qE '(sk\.[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC )?PRIVATE KEY|AKIA[0-9A-Z]{16})'; then
+    echo "pre-commit: secret-looking content in $f"; fail=1
+  fi
+done <<< "$staged"
+
+# 3. touches: enforcement
+branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+if [[ "$branch" =~ ^task/(T-[0-9]+) ]]; then
+  task="${BASH_REMATCH[1]}"
+  taskfile="$(ls queue/claimed/"$task"*.md queue/review/"$task"*.md 2>/dev/null | head -1 || true)"
+  if [[ -n "$taskfile" ]]; then
+    # touches: [a, b, c]  (single line, YAML flow list)
+    allowed="$(grep -E '^touches:' "$taskfile" | head -1 | sed -E 's/^touches:[[:space:]]*\[(.*)\][[:space:]]*$/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//' | grep -v '^$')"
+    if [[ -n "$allowed" ]]; then
+      while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        ok=0
+        [[ "$f" == queue/* ]] && ok=1   # a task may always update its own queue file
+        while IFS= read -r a; do [[ -z "$a" ]] && continue; [[ "$f" == "$a"* ]] && ok=1; done <<< "$allowed"
+        if [[ $ok -eq 0 ]]; then echo "pre-commit: $f is outside $task touches: [$(echo "$allowed" | tr '\n' ' ')]"; fail=1; fi
+      done <<< "$staged"
+    fi
+  fi
+fi
+
+if [[ $fail -ne 0 ]]; then echo "pre-commit: refusing commit"; exit 1; fi

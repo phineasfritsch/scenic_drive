@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Refuses a commit that LOWERS pins/floor_linux.txt or pins/floor_ios.txt unless the commit message body
+# carries a `floor-lower: <reason>` line. Raising a floor is always allowed (that is the reviewer's ratchet).
+set -uo pipefail
+msgfile="$1"
+for f in pins/floor_linux.txt pins/floor_ios.txt; do
+  git diff --cached --quiet -- "$f" 2>/dev/null && continue        # not staged
+  old="$(git show "HEAD:$f" 2>/dev/null | tr -d '[:space:]' || echo 0)"; [[ -z "$old" ]] && old=0
+  new="$(git show ":$f" 2>/dev/null | tr -d '[:space:]' || echo 0)"; [[ -z "$new" ]] && new=0
+  if [[ "$new" -lt "$old" ]]; then
+    if ! grep -qE '^floor-lower:[[:space:]]*[^[:space:]]' "$msgfile"; then
+      echo "commit-msg: $f lowered $old -> $new without a 'floor-lower: <reason>' line in the commit body"
+      exit 1
+    fi
+    echo "commit-msg: $f lowered $old -> $new (justified: $(grep -E '^floor-lower:' "$msgfile" | head -1))"
+  fi
+done
+exit 0

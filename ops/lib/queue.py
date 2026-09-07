@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""Repo work queue. State IS the directory; every transition is a git commit (and a push, for claims).
+
+  queue.py new "<title>" [--touches a,b] [--exclusive x,y] [--depends T-0001,...] [--state backlog|ready]
+  queue.py check              exit 1 on any protocol violation (reviewer == owner, review/ without reviewer, ...)
+  queue.py sweep              move expired claimed/ tasks back to ready/, release their LOCKS, append to ## Log
+  queue.py next               print the next unblocked ready/ task id
+  queue.py claim T-0007 --owner agent/x --session <id> [--worktree ../wt/T-0007] [--hours 2]
+
+No PyYAML: front matter is parsed by a deliberately small reader (scalars, [flow, lists], and `- ` block lists).
+"""
+import datetime as dt
+import os
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+Q = ROOT / "queue"
+STATES = ["backlog", "ready", "claimed", "review", "blocked", "done"]
+LOCKS = Q / "LOCKS"
+
+
+# ----------------------------------------------------------------------------- front matter
+def parse(text):
+    m = re.match(r"^---\n(.*?)\n---\n(.*)$", text, re.S)
+    if not m:
+        raise ValueError("no front matter")
+    fm, body = {}, m.group(2)
+    key = None
+    for line in m.group(1).splitlines():
+        if re.match(r"^\s+-\s", line) and key:
+            fm.setdefault(key, [])
+            if not isinstance(fm[key], list):
+                fm[key] = []
+            fm[key].append(_scalar(line.split("-", 1)[1]))
+            continue
+        km = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", line)
+        if not km:
+            continue
+        key, val = km.group(1), km.group(2).strip()
+        if val.startswith("[") and val.endswith("]"):
+            inner = val[1:-1].strip()
+            fm[key] = [_scalar(v) for v in inner.split(",")] if inner else []
+        elif val == "":
+            fm[key] = None  # may be filled by a block list
+        else:
+            fm[key] = _scalar(val)
+    return fm, body
+
+
+def _scalar(v):
+    v = v.strip()
+    if v in ("null", "~", ""):
+        return None
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        return v[1:-1]
+    return v
+
+
+def dump(fm, body):
+    lines = ["---"]
+    for k, v in fm.items():
+        if isinstance(v, list):
+            if k == "acceptance" and v:
+                lines.append(f"{k}:")
+                lines += [f"  - \"{x}\"" for x in v]
+            else:
+                lines.append(f"{k}: [{', '.join(str(x) for x in v)}]")
+        elif v is None:
+            lines.append(f"{k}: null")
+        else:
+            lines.append(f"{k}: {v}")
+    lines.append("---")
+    return "\n".join(lines) + "\n" + body.lstrip("\n")
+
+
+# ----------------------------------------------------------------------------- helpers
+def now():
+    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+
+
+def iso(t):
+    return t.isoformat().replace("+00:00", "Z")
+
+
+def tasks():
+    """yield (state, path, fm, body) for every task file."""
+    for state in STATES:
+        d = Q / state
+        if not d.is_dir():
+            continue
+        for p in sorted(d.rglob("T-*.md")):
+            fm, body = parse(p.read_text(encoding="utf-8"))
+            yield state, p, fm, body
+
+
+def next_id():
+    ids = [int(fm["id"].split("-")[1]) for _, _, fm, _ in tasks()]
+    return f"T-{(max(ids) + 1 if ids else 1):04d}"
+
+
+def log(path, msg):
+    fm, body = parse(path.read_text(encoding="utf-8"))
+    if "## Log" not in body:
+        body = body.rstrip("\n") + "\n\n## Log\n"
+    body = body.rstrip("\n") + f"\n- {iso(now())} {msg}\n"
+    path.write_text(dump(fm, body), encoding="utf-8")
+
+
+# ----------------------------------------------------------------------------- commands
+def cmd_new(argv):
+    title = argv[0]
+    opts = _opts(argv[1:])
+    tid = next_id()
+    state = opts.get("state", "backlog")
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:48]
+    fm = {
+        "id": tid, "title": title, "state": state, "owner": None, "owner_session": None,
+        "claimed_at": None, "lease_expires_at": None, "worktree": None, "branch": None,
+        "exclusive": _list(opts.get("exclusive")), "touches": _list(opts.get("touches")),
+        "pins_affected": _list(opts.get("pins")), "reviewer": None, "depends_on": _list(opts.get("depends")),
+        "verify": ["ops/test", "ops/check-pins"], "acceptance": [],
+    }
+    body = "## Brief\n\n(what, why, and the exact demonstration that proves it — including the red run)\n\n## Log\n"
+    p = Q / state / f"{tid}-{slug}.md"
+    p.write_text(dump(fm, body), encoding="utf-8")
+    print(p.relative_to(ROOT).as_posix())
+
+
+def cmd_check(_argv):
+    problems = []
+    seen = {}
+    for state, p, fm, _ in tasks():
+        rel = p.relative_to(ROOT).as_posix()
+        tid = fm.get("id")
+        if tid in seen:
+            problems.append(f"duplicate id {tid}: {rel} and {seen[tid]}")
+        seen[tid] = rel
+        if fm.get("state") != state:
+            problems.append(f"{rel}: state field '{fm.get('state')}' != directory '{state}'")
+        if state in ("review", "done"):
+            if not fm.get("reviewer"):
+                problems.append(f"{rel}: in {state}/ without a reviewer")
+            elif fm.get("reviewer") == fm.get("owner"):
+                problems.append(f"{rel}: reviewer == owner ({fm.get('owner')}) - a worker may not grade its own work")
+        if state == "claimed":
+            for k in ("owner", "claimed_at", "lease_expires_at"):
+                if not fm.get(k):
+                    problems.append(f"{rel}: claimed without {k}")
+            for res in fm.get("exclusive") or []:
+                lock = LOCKS / f"{res}.lock"
+                if not lock.exists():
+                    problems.append(f"{rel}: declares exclusive [{res}] but {lock.relative_to(ROOT).as_posix()} is not held")
+                elif tid not in lock.read_text(encoding="utf-8"):
+                    problems.append(f"{rel}: {res}.lock is held by someone else")
+        if state == "done":
+            for dep in fm.get("depends_on") or []:
+                pass  # done tasks may reference anything
+    # locks held by non-claimed tasks
+    if LOCKS.is_dir():
+        claimed_ids = {fm["id"] for s, _, fm, _ in tasks() if s == "claimed"}
+        for lock in LOCKS.glob("*.lock"):
+            holder = lock.read_text(encoding="utf-8").strip().split()[0] if lock.read_text(encoding="utf-8").strip() else "?"
+            if holder not in claimed_ids:
+                problems.append(f"{lock.relative_to(ROOT).as_posix()} held by {holder}, which is not in claimed/")
+    # dependencies of ready tasks must exist
+    ids = set(seen)
+    for state, p, fm, _ in tasks():
+        for dep in fm.get("depends_on") or []:
+            if dep not in ids:
+                problems.append(f"{p.relative_to(ROOT).as_posix()}: depends_on {dep} which does not exist")
+    if problems:
+        print("QUEUE CHECK FAIL")
+        for pr in problems:
+            print(" -", pr)
+        return 1
+    print(f"QUEUE OK ({len(seen)} tasks)")
+    return 0
+
+
+def cmd_sweep(_argv):
+    moved = 0
+    for state, p, fm, _ in list(tasks()):
+        if state != "claimed" or not fm.get("lease_expires_at"):
+            continue
+        exp = dt.datetime.fromisoformat(fm["lease_expires_at"].replace("Z", "+00:00"))
+        if exp < now():
+            for res in fm.get("exclusive") or []:
+                lock = LOCKS / f"{res}.lock"
+                if lock.exists() and fm["id"] in lock.read_text(encoding="utf-8"):
+                    lock.unlink()
+            owner = fm.get("owner")
+            fm.update(state="ready", owner=None, owner_session=None, claimed_at=None, lease_expires_at=None, worktree=None)
+            dest = Q / "ready" / p.name
+            dest.write_text(dump(fm, parse(p.read_text(encoding="utf-8"))[1]), encoding="utf-8")
+            p.unlink()
+            log(dest, f"sweep: lease held by {owner} expired at {iso(exp)}; returned to ready/, locks released")
+            print(f"swept {fm['id']} -> ready/")
+            moved += 1
+    print(f"SWEEP done ({moved} moved)")
+    return 0
+
+
+def cmd_next(_argv):
+    done = {fm["id"] for s, _, fm, _ in tasks() if s == "done"}
+    for state, p, fm, _ in tasks():
+        if state != "ready":
+            continue
+        if all(d in done for d in (fm.get("depends_on") or [])):
+            print(fm["id"], "-", fm["title"])
+            return 0
+    print("(no unblocked ready task)")
+    return 0
+
+
+def cmd_claim(argv):
+    tid = argv[0]
+    opts = _opts(argv[1:])
+    owner = opts.get("owner") or "agent/unknown"
+    hours = float(opts.get("hours", "2"))
+    for state, p, fm, body in tasks():
+        if fm["id"] != tid:
+            continue
+        if state != "ready":
+            print(f"{tid} is in {state}/, not ready/")
+            return 1
+        held = []
+        for res in fm.get("exclusive") or []:
+            lock = LOCKS / f"{res}.lock"
+            if lock.exists():
+                held.append(f"{res} (held: {lock.read_text(encoding='utf-8').strip()})")
+        if held:
+            print("cannot claim, locks held:", "; ".join(held))
+            return 1
+        t = now()
+        fm.update(state="claimed", owner=owner, owner_session=opts.get("session"), claimed_at=iso(t),
+                  lease_expires_at=iso(t + dt.timedelta(hours=hours)),
+                  worktree=opts.get("worktree"), branch=f"task/{tid}")
+        LOCKS.mkdir(exist_ok=True)
+        for res in fm.get("exclusive") or []:
+            (LOCKS / f"{res}.lock").write_text(f"{tid} {owner} {iso(t)}\n", encoding="utf-8")
+        dest = Q / "claimed" / p.name
+        dest.write_text(dump(fm, body), encoding="utf-8")
+        p.unlink()
+        log(dest, f"claimed by {owner}; lease until {fm['lease_expires_at']}")
+        print(f"claimed {tid} -> {dest.relative_to(ROOT).as_posix()}  (now: git add queue/ && git commit && git push - a rejected push means someone else claimed it)")
+        return 0
+    print(f"{tid} not found")
+    return 1
+
+
+def _opts(argv):
+    out = {}
+    i = 0
+    while i < len(argv):
+        if argv[i].startswith("--"):
+            out[argv[i][2:]] = argv[i + 1] if i + 1 < len(argv) else "true"
+            i += 2
+        else:
+            i += 1
+    return out
+
+
+def _list(v):
+    return [x.strip() for x in v.split(",") if x.strip()] if v else []
+
+
+def main(argv):
+    if len(argv) < 2 or argv[1] not in ("new", "check", "sweep", "next", "claim"):
+        print(__doc__)
+        return 2
+    return globals()[f"cmd_{argv[1]}"](argv[2:]) or 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

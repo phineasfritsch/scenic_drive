@@ -1,0 +1,35 @@
+# Swift / SPM
+.build/
+.swiftpm/
+*.xcuserstate
+xcuserdata/
+DerivedData/
+.artifacts/
+
+# Apple package + app
+apps/ios/Packages/ScenicApp/.build/
+apps/ios/Packages/ScenicApp/.swiftpm/
+
+# Node
+node_modules/
+.wrangler/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Data artifacts — published to R2, never committed
+services/etl/inputs/
+services/etl/work/
+services/routing/graph-cache/
+*.osm.pbf
+*.pmtiles
+corpus*.sqlite
+
+# Secrets — never in the repo, see CLAUDE.md
+.env
+.env.*
+*.p8
+*.p12
+.netrc
