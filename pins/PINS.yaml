@@ -84,7 +84,7 @@
   anchor: source
   runs_on: [linux]
   assertion: TODO
-  pending: T-0005
+  pending: T-0014
   owner: agent/claude-opus-5
   added: 2026-09-07
   value: 250000

@@ -36,7 +36,8 @@ printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git config user.email ||
 import json, os, sys, urllib.request
 url, sql = sys.argv[1] + "/__ro", sys.argv[2]
 req = urllib.request.Request(url, data=json.dumps({"sql": sql}).encode(), method="POST",
-                             headers={"content-type": "application/json", "authorization": "Bearer " + os.environ["SCENIC_RO_TOKEN"]})
+                             headers={"content-type": "application/json", "user-agent": "scenic-ops-prod-read/1",
+                                      "authorization": "Bearer " + os.environ["SCENIC_RO_TOKEN"]})
 try:
     with urllib.request.urlopen(req, timeout=15) as r:
         body = json.load(r)
