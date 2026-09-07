@@ -1,0 +1,33 @@
+{
+  "_": "Shared read-only SQL grammar cases. services/api/test/ro.test.ts and ops/lib/ro_grammar.py both run every case; if the two implementations ever disagree, one of those suites goes red.",
+  "accept": [
+    "SELECT 1",
+    "select count(*) from users",
+    "  SELECT * FROM segments WHERE name = 'DROP TABLE x' LIMIT 5;",
+    "WITH t AS (SELECT 1 AS n) SELECT n FROM t",
+    "EXPLAIN SELECT 1",
+    "EXPLAIN QUERY PLAN SELECT id FROM poi WHERE kind = 'viewpoint'",
+    "SELECT \"insert\" FROM t",
+    "SELECT * FROM meta WHERE note = 'it''s an update; not really'"
+  ],
+  "reject": [
+    "",
+    "   ",
+    "INSERT INTO users VALUES (1)",
+    "REPLACE INTO ledger VALUES (1)",
+    "PRAGMA foreign_keys = OFF",
+    "SELECT 1; DELETE FROM users",
+    "SELECT 1; SELECT 2",
+    "WITH t AS (SELECT 1) INSERT INTO users SELECT * FROM t",
+    "DELETE FROM users",
+    "UPDATE users SET name = 'x'",
+    "DROP TABLE users",
+    "ALTER TABLE users ADD COLUMN x",
+    "CREATE TABLE x (a)",
+    "ATTACH DATABASE 'x' AS y",
+    "VACUUM",
+    "SELECT 1 -- INSERT later",
+    "SELECT /* DELETE */ 1",
+    "explain delete from users"
+  ]
+}
