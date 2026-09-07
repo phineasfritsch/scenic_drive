@@ -16,9 +16,22 @@ CR=$(printf '\r')
 
 # NUL-delimited: git C-quotes paths with spaces/non-ASCII in plain --name-only output, which would break
 # every `git show ":$f"` / `git rev-parse ":$f"` below. -z disables that quoting.
+#
+# TWO lists, because the checks below ask two different questions.
+#   staged_files (ACMR)  paths with CONTENT in the index. The CRLF and secret checks read bytes, and a
+#                        deleted path has none - `git show ":$f"` on one is an error, not a finding.
+#   staged_paths (ACMRD) every path this commit TOUCHES, deletions included. Ownership is a question about
+#                        the path, not about its contents.
+# There used to be one list, ACMR, and the `touches:` check used it - so a staged DELETION was invisible to
+# every check in this file. `git rm --cached` a file owned by another task, on a branch whose own task has a
+# narrow `touches:`, and the hook exited 0 (agent/reviewer-24, reproduced). Deleting a file another agent's
+# task owns is precisely the "two agents, one file, last write wins" failure CLAUDE.md is built around, and
+# it was the one edit the hook waved through.
 staged_files=()
+staged_paths=()
 while IFS= read -r -d '' f; do staged_files+=("$f"); done < <(git diff --cached --name-only -z --diff-filter=ACMR)
-[[ ${#staged_files[@]} -eq 0 ]] && exit 0
+while IFS= read -r -d '' f; do staged_paths+=("$f"); done < <(git diff --cached --name-only -z --diff-filter=ACMRD)
+[[ ${#staged_paths[@]} -eq 0 ]] && exit 0
 
 # 1. CRLF in the WORKING TREE, for the files where a CR actually breaks something.
 #
@@ -71,15 +84,54 @@ done
 branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 if [[ "$branch" =~ ^task/(T-[0-9]+) ]]; then
   task="${BASH_REMATCH[1]}"
-  taskfile="$(ls queue/claimed/"$task"*.md queue/review/"$task"*.md queue/done/"$task"*.md 2>/dev/null | head -1 || true)"
-  if [[ -n "$taskfile" ]]; then
+  # EVERY queue directory a live branch's task can sit in. `blocked/` and `backlog/` were missing, which is
+  # the same bug class T-0039 fixed for `done/`: ops/lib/queue.py shows `blocked` is reachable from `claimed`
+  # with the branch and worktree still live, so a task moved there silently lost all path enforcement.
+  #
+  # Matched as `<id>-<slug>.md` or bare `<id>.md`, never `<id>*`. That hyphen is load-bearing: with a bare
+  # prefix, T-9203 would also match T-92030-something.md, and since this now REFUSES on multiple matches, a
+  # bare prefix would turn two unrelated coexisting tasks into a spurious duplicate error. reviewer-24 ruled
+  # the prefix case safe under the old `ls | head -1` sort; it is only safe here because of this hyphen.
+  taskfiles=()
+  while IFS= read -r -d '' t; do taskfiles+=("$t"); done < <(
+    find queue/claimed queue/review queue/done queue/blocked queue/backlog \
+      -maxdepth 1 \( -name "$task-*.md" -o -name "$task.md" \) -print0 2>/dev/null)
+
+  if [[ ${#taskfiles[@]} -gt 1 ]]; then
+    # Do not guess. This used to be `ls a b c | head -1`, which picks ALPHABETICALLY - so with the same id in
+    # two directories, `claimed` < `done` < `review` decided which copy governed, and the stale or wider one
+    # usually won. ops/queue-check calls this state a duplicate, but the hook runs first and would have let
+    # the commit through on the wrong rules.
+    echo "pre-commit: $task exists in more than one queue directory, so which touches: applies is undefined:"
+    printf '            %s\n' "${taskfiles[@]}"
+    echo "            Resolve the duplicate (ops/queue-check reports it) before committing."
+    fail=1
+  elif [[ ${#taskfiles[@]} -eq 1 ]]; then
+    taskfile="${taskfiles[0]}"
     # touches: [a, b, c]  (single line, YAML flow list)
-    allowed="$(grep -E '^touches:' "$taskfile" | head -1 | sed -E 's/^touches:[[:space:]]*\[(.*)\][[:space:]]*$/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//' | grep -v '^$')"
-    if [[ -n "$allowed" ]]; then
-      for f in "${staged_files[@]}"; do
+    touches_line="$(grep -E '^touches:' "$taskfile" | head -1 || true)"
+    allowed="$(printf '%s' "$touches_line" | sed -E 's/^touches:[[:space:]]*\[(.*)\][[:space:]]*$/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//' | grep -v '^$')"
+
+    # FAIL CLOSED on a missing key. This used to be `if [[ -n "$allowed" ]]`, so a task file with no
+    # `touches:` at all - or with `touches: []` - allowed every path in the repo. A task that forgot to
+    # declare what it touches got LESS enforcement than one that declared it, which is exactly backwards.
+    # `touches: []` is now a real declaration meaning "nothing outside queue/", which is right for a
+    # queue-only task and costs it nothing.
+    if [[ -z "$touches_line" ]]; then
+      echo "pre-commit: $taskfile has no touches: key, so nothing can be checked against it."
+      echo "            Add one (touches: [] is valid and means queue/ only)."
+      fail=1
+    else
+      for f in "${staged_paths[@]}"; do
         ok=0
         [[ "$f" == queue/* ]] && ok=1   # a task may always update its own queue file
-        while IFS= read -r a; do [[ -z "$a" ]] && continue; [[ "$f" == "$a"* ]] && ok=1; done <<< "$allowed"
+        while IFS= read -r a; do
+          [[ -z "$a" ]] && continue
+          # Exact path, or anything genuinely UNDER it. A bare prefix match (`"$f" == "$a"*`) let
+          # `touches: [ops/test]` allow `ops/testing-decoy.md` - reproduced by agent/reviewer-24. The
+          # `${a%/}/` form normalises `services/etl` and `services/etl/` to the same rule.
+          if [[ "$f" == "$a" || "$f" == "${a%/}/"* ]]; then ok=1; fi
+        done <<< "$allowed"
         if [[ $ok -eq 0 ]]; then echo "pre-commit: $f is outside $task touches: [$(echo "$allowed" | tr '\n' ' ')]"; fail=1; fi
       done
     fi
