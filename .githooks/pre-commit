@@ -5,29 +5,35 @@
 #  3. Staged paths outside the current task's `touches:` list (active once a queue task file exists for the
 #     branch, in claimed/, review/ OR done/ - a signed-off task still commits nothing that wasn't already
 #     allowed; review does not widen what a path may touch).
+#  4. Staged content that is stale relative to the working tree, e.g. `git mv` stages a rename against the
+#     PRE-edit blob and the edit that follows is never re-staged: the commit would record something other
+#     than what the author is looking at. A deliberate partial stage (`git add -p`) opts out per-path or
+#     entirely via ALLOW_PARTIAL_STAGE (see below).
 # Floor-lowering protection lives in .githooks/commit-msg (T-0002).
 set -uo pipefail
 fail=0
 CR=$(printf '\r')
-staged="$(git diff --cached --name-only --diff-filter=ACMR)"
-[[ -z "$staged" ]] && exit 0
+
+# NUL-delimited: git C-quotes paths with spaces/non-ASCII in plain --name-only output, which would break
+# every `git show ":$f"` / `git rev-parse ":$f"` below. -z disables that quoting.
+staged_files=()
+while IFS= read -r -d '' f; do staged_files+=("$f"); done < <(git diff --cached --name-only -z --diff-filter=ACMR)
+[[ ${#staged_files[@]} -eq 0 ]] && exit 0
 
 # 1. CRLF
-while IFS= read -r f; do
-  [[ -z "$f" ]] && continue
+for f in "${staged_files[@]}"; do
   if git show ":$f" | grep -qI "$CR"; then echo "pre-commit: CRLF in $f (repo is LF-only, see .gitattributes)"; fail=1; fi
-done <<< "$staged"
+done
 
 # 2. Secrets
-while IFS= read -r f; do
-  [[ -z "$f" ]] && continue
+for f in "${staged_files[@]}"; do
   case "$f" in
     *.p8|*.p12|*.netrc|.netrc|.env|.env.*) echo "pre-commit: secret file staged: $f"; fail=1;;
   esac
   if git show ":$f" | grep -qE '(sk\.[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC )?PRIVATE KEY|AKIA[0-9A-Z]{16})'; then
     echo "pre-commit: secret-looking content in $f"; fail=1
   fi
-done <<< "$staged"
+done
 
 # 3. touches: enforcement
 branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
@@ -38,15 +44,78 @@ if [[ "$branch" =~ ^task/(T-[0-9]+) ]]; then
     # touches: [a, b, c]  (single line, YAML flow list)
     allowed="$(grep -E '^touches:' "$taskfile" | head -1 | sed -E 's/^touches:[[:space:]]*\[(.*)\][[:space:]]*$/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//' | grep -v '^$')"
     if [[ -n "$allowed" ]]; then
-      while IFS= read -r f; do
-        [[ -z "$f" ]] && continue
+      for f in "${staged_files[@]}"; do
         ok=0
         [[ "$f" == queue/* ]] && ok=1   # a task may always update its own queue file
         while IFS= read -r a; do [[ -z "$a" ]] && continue; [[ "$f" == "$a"* ]] && ok=1; done <<< "$allowed"
         if [[ $ok -eq 0 ]]; then echo "pre-commit: $f is outside $task touches: [$(echo "$allowed" | tr '\n' ' ')]"; fail=1; fi
-      done <<< "$staged"
+      done
     fi
   fi
+fi
+
+# 4. Staged content vs. working tree.
+#    Compare object ids, not raw bytes: `git hash-object` applies the same clean filters (.gitattributes
+#    text=auto eol=lf normalization, symlink target hashing) that `git add` would have applied, so a file
+#    that is CRLF on disk but was staged/normalized to LF hashes equal here and is correctly left alone.
+#    A staged deletion never reaches this loop (diff-filter=ACMR excludes 'D'), so that legitimate case is
+#    already out of scope by construction.
+#
+#    ALLOW_PARTIAL_STAGE opts a deliberate partial stage (git add -p) out of the refusal below:
+#      ALLOW_PARTIAL_STAGE=1                  waives every path this check would otherwise flag
+#      ALLOW_PARTIAL_STAGE=path/one,path/two  waives only the named paths (comma- or colon-separated);
+#                                              any other stale/missing path still refuses the commit
+stale=()
+missing=()
+for f in "${staged_files[@]}"; do
+  staged_oid="$(git rev-parse ":$f" 2>/dev/null || true)"
+  [[ -z "$staged_oid" ]] && continue
+  if [[ ! -e "$f" && ! -L "$f" ]]; then
+    missing+=("$f")
+    continue
+  fi
+  working_oid="$(git hash-object -- "$f" 2>/dev/null || true)"
+  if [[ -z "$working_oid" || "$working_oid" != "$staged_oid" ]]; then
+    stale+=("$f")
+  fi
+done
+if [[ ${#stale[@]} -gt 0 || ${#missing[@]} -gt 0 ]]; then
+  allow="${ALLOW_PARTIAL_STAGE:-}"
+  waived=()
+  unwaived_stale=()
+  unwaived_missing=()
+  if [[ "$allow" == "1" ]]; then
+    waived=("${stale[@]}" "${missing[@]}")
+  elif [[ -n "$allow" ]]; then
+    allow_list=()
+    # trailing "," guarantees a delimiter after the last entry too - `read -d ''` silently drops an
+    # unterminated final record, which would otherwise lose a single-path (no comma/colon) value.
+    while IFS= read -r -d '' a; do allow_list+=("$a"); done < <(printf '%s,' "$allow" | tr ',:' '\0\0')
+    for f in "${stale[@]}"; do
+      hit=0
+      for a in "${allow_list[@]}"; do [[ "$f" == "$a" ]] && hit=1; done
+      if [[ $hit -eq 1 ]]; then waived+=("$f"); else unwaived_stale+=("$f"); fi
+    done
+    for f in "${missing[@]}"; do
+      hit=0
+      for a in "${allow_list[@]}"; do [[ "$f" == "$a" ]] && hit=1; done
+      if [[ $hit -eq 1 ]]; then waived+=("$f"); else unwaived_missing+=("$f"); fi
+    done
+  else
+    unwaived_stale=("${stale[@]}")
+    unwaived_missing=("${missing[@]}")
+  fi
+  if [[ ${#waived[@]} -gt 0 ]]; then
+    echo "pre-commit: ALLOW_PARTIAL_STAGE waives the stale-content check for: ${waived[*]}"
+  fi
+  for f in "${unwaived_stale[@]}"; do
+    echo "pre-commit: staged content in $f is stale - the working tree changed after 'git add'. Fix: git add -- \"$f\" (or re-stage before committing). For a deliberate partial stage, set ALLOW_PARTIAL_STAGE=1 or ALLOW_PARTIAL_STAGE=\"$f\"."
+    fail=1
+  done
+  for f in "${unwaived_missing[@]}"; do
+    echo "pre-commit: $f is staged but missing from the working tree (deleted after 'git add'). Fix: git add -- \"$f\" to stage the deletion, or restore the file. For a deliberate partial stage, set ALLOW_PARTIAL_STAGE=1 or ALLOW_PARTIAL_STAGE=\"$f\"."
+    fail=1
+  done
 fi
 
 if [[ $fail -ne 0 ]]; then echo "pre-commit: refusing commit"; exit 1; fi
