@@ -16,10 +16,30 @@
   "bbox": {
     "min_lon": -123.62,
     "min_lat": 36.85,
-    "max_lon": -121.20,
+    "max_lon": -121.2,
     "max_lat": 38.92
   },
   "_comment_bbox": "Wider than the county polygons on purpose: a route may legitimately leave the region and come back, and an edge clipped mid-way is worse than a few extra square kilometres of graph. West to the Farallones, south past Santa Cruz's approach roads, north over the Sonoma/Napa county line, east to the Altamont.",
   "_comment_counts": "Recorded from a real extract, not invented. ops/sane asserts each class stays inside its bounds; a filter change that silently drops a class fails there instead of surfacing as a bad route weeks later. Regenerate deliberately with ops/etl-extract --record-counts.",
-  "counts": {}
+  "counts": {
+    "attraction": 576,
+    "beach": 398,
+    "living_street": 323,
+    "motorway": 19515,
+    "nature_reserve": 611,
+    "park": 5670,
+    "peak": 1470,
+    "picnic_site": 1860,
+    "primary": 26578,
+    "residential": 183831,
+    "road": 5,
+    "secondary": 51556,
+    "service": 473124,
+    "tertiary": 38111,
+    "track": 32236,
+    "trunk": 5009,
+    "unclassified": 8319,
+    "viewpoint": 746,
+    "waterfall": 91
+  }
 }
