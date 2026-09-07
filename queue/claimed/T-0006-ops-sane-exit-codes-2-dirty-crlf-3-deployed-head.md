@@ -1,13 +1,13 @@
 ---
 id: T-0006
 title: ops/sane: exit codes 2 (dirty/CRLF), 3 (deployed != HEAD), 7 (backend down), 9 (legal URLs)
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: 01RJHHJcZtZChD9eMb275urx
+claimed_at: 2026-09-07T03:58:22Z
+lease_expires_at: 2026-09-07T07:58:22Z
+worktree: ../wt/T-0006
+branch: task/T-0006
 exclusive: []
 touches: [ops/sane]
 pins_affected: []
@@ -25,3 +25,4 @@ acceptance:
 Never mutates. Checks 4/5/8 (corpus, goldens, manifests) are added by the ETL tasks in M2.
 
 ## Log
+- 2026-09-07T03:58:22Z claimed by agent/claude-opus-5; lease until 2026-09-07T07:58:22Z
