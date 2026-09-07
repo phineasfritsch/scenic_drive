@@ -14,11 +14,14 @@ The conditions, and why each excludes what it does:
      actually computed over; OSM has moved since. 726 of 3297 ways differ, and those agree 29.6% of the time
      against 90.4% for unchanged geometry - so comparing them compares two different roads.
   3. NO SQUASH EXPOSURE. processing_chains/adams_default.sh runs six squash post-processors after the five
-     steps this repo implements. A way carrying junction/oneway/traffic_calming/parking:lane tags, or within
-     30 m of a tagged node, has had its published value modified by a step we do not implement.
+     steps this repo implements. A way carrying a junction=roundabout/circular, traffic_calming or
+     parking:lane tag, or within 30 m of a tagged node, has had its published value modified by a step we do
+     not implement.
 
 Excluding on 3 is the one that could be argued into a cherry-pick, so it is defined by the SOURCE of the
-squashes rather than by which ways happen to disagree: the tag list here is read off adams_default.sh.
+squashes rather than by which ways happen to disagree: the tag list here is read off adams_default.sh. That
+principle is only worth anything if it is applied strictly - see WAY_TAGS for the one place it was not, and
+what it cost.
 """
 from __future__ import annotations
 
@@ -35,9 +38,23 @@ NODE_TAGS: dict[str, set[str] | None] = {
     "traffic_calming": None,   # any value
     "barrier": None,
 }
-# From squash_curvature_for_tagged_ways, squash_curvature_for_ways and squash_curvature_near_way_tag_change.
-WAY_TAGS = {"junction", "traffic_calming", "oneway"}
-WAY_TAG_PREFIXES = ("parking:lane",)
+# From squash_curvature_for_tagged_ways and squash_curvature_for_ways: tag -> the values that trigger a
+# squash, or None for "any value". Value-restricted because the SOURCE is value-restricted; matching the bare
+# presence of the key excludes ways the published pipeline never touched.
+WAY_TAGS: dict[str, set[str] | None] = {
+    "junction": {"roundabout", "circular"},   # --tag junction --values roundabout,circular
+    "traffic_calming": None,
+}
+# `oneway` is deliberately absent, and its absence is the correction of a real defect. The only processor in
+# adams_default.sh that reads it is `squash_curvature_near_way_tag_change`, which squashes where the tag
+# CHANGES BETWEEN ADJACENT WAYS IN A COLLECTION. Condition 1 admits only single-way collections, so there is
+# no adjacent way and that processor structurally cannot fire on anything in this fixture's universe.
+# Excluding on it dropped 77 of 264 no-squash exclusions for a mechanism that cannot reach them
+# (agent/reviewer-30, who counted it). The module's stated principle - exclusions defined by the SOURCE of
+# the squashes - was not actually true here: `oneway` was generalised from "this tag name appears somewhere
+# in adams_default.sh" to "this tag marks a way as squash-exposed", which is a different and weaker claim.
+# A tag belongs here only if a processor that can reach a SINGLE-WAY collection reads it.
+WAY_TAG_PREFIXES = ("parking:lane",)   # broader than the source's value-restricted regex; 0 ways affected
 
 SQUASH_RADIUS_M = 30.0        # every one of those steps uses --distance 30
 GEOMETRY_TOL_M = 1.0          # a node that moved less than a metre is the same node re-rounded
@@ -98,8 +115,12 @@ def near_tagged_node(coords, grid) -> bool:
 
 
 def way_is_squash_tagged(props: dict) -> bool:
-    return any(k in props for k in WAY_TAGS) or any(
-        k.startswith(WAY_TAG_PREFIXES) for k in props)
+    for key, values in WAY_TAGS.items():
+        if key not in props:
+            continue
+        if values is None or str(props[key]).strip().lower() in values:
+            return True
+    return any(k.startswith(WAY_TAG_PREFIXES) for k in props)
 
 
 def same_geometry(ours, theirs, tol_m: float = GEOMETRY_TOL_M) -> bool:
@@ -153,8 +174,8 @@ def build(fixture: Path, export: Path, kmz: Path = oracle.KMZ, cap: int = 400, s
         "selection": [
             "single-way collections only: Curvature's deflection filter runs across a whole collection",
             "geometry identical to the KML's own <coordinates> within 1 m: OSM has moved since the KMZ",
-            "no squash post-processor in adams_default.sh can reach it: no junction/oneway/traffic_calming/"
-            "parking:lane tag, and no tagged node within 30 m",
+            "no squash post-processor in adams_default.sh can reach it: no junction=roundabout/circular, "
+            "traffic_calming or parking:lane tag, and no tagged node within 30 m",
             f"deterministic sample of {cap} from {len(kept)} eligible, seed {seed}",
         ],
         "funnel": stages,

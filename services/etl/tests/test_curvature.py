@@ -18,7 +18,34 @@ from etl import curvature as cv
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "curvature_oracle.json"
 TOLERANCE = 0.02          # the brief's 2%
-MIN_AGREEMENT = 0.93      # measured 95.0% on the full eligible set of 2307; floor set below it, not at it
+
+# THE PASS RATE IS PLATFORM-DEPENDENT. Same committed fixture, same code, different libm:
+#
+#     fixture (400 ways)       Linux/glibc (services/etl/Dockerfile)  94.75%    Windows/CRT  93.75%
+#     population (2384 ways)   Linux/glibc                            94.42%    Windows/CRT  94.84%
+#
+# The platforms swap places between those two rows, so this is noise, not a bias - neither one is "right".
+# The chain, measured segment by segment rather than assumed:
+#
+#   1. `distance_on_earth` ends in `math.acos`, whose last-bit rounding is implementation-defined and does
+#      differ between glibc and the Windows CRT.
+#   2. `circum_circle_radius` inverts Heron's formula, so for a near-collinear triple its divider is a tiny
+#      difference of nearly-equal such lengths. 5526 of 13135 segment radii differ across the two platforms,
+#      1260 by more than 1% and 202 by more than 10%, up to 93%. That is amplification, not rounding.
+#   3. `assign_curvature` is a STEP function of radius. 77 segments land in a different band, and each moves
+#      its way's total by that segment's length times the weight difference, all at once.
+#   4. 43 ways are affected, 20 move by more than 1%, 12 cross the 2% tolerance - the entire 93.75-to-94.75
+#      gap.
+#
+# Two explanations that sound right were tested and REJECTED, recorded so nobody re-derives them: the
+# deflection filter zeroes an identical set of segments on both platforms across all 400 ways, and per-way
+# near-collinearity does not predict which ways flip (8 of 14 flips sat in the best-conditioned half).
+#
+# So the floor must clear the WORST platform, not the one the author happened to be sitting at. Worst
+# measured true value 93.75%; the mutations this oracle exists to reject sit at 16.0%, 39.5% and 0.5%. 0.90
+# leaves 3.75 points against a measured platform spread of 1.0 point and still rejects every mutation by more
+# than fifty. Quote this number from the pinned image, never from whatever interpreter is on the box.
+MIN_AGREEMENT = 0.90
 
 
 def load():
@@ -169,17 +196,46 @@ class TestAgainstTheCurvatureProject:
         """Recorded because it is worth knowing what 2% cannot see.
 
         `rad_earth_m = 6373000` is not WGS84's 6378137, and swapping it is exactly the tidy-up an agent
-        would make. It scales every length by 0.08%, which a 2% tolerance cannot notice - agreement moves
-        from ~95% to ~94%. So this oracle verifies the ALGORITHM, not the constant. The constant is held by
+        would make. It scales every length by 0.08%, which a 2% tolerance cannot notice - agreement moves by
+        a quarter of a point (94.75 -> 94.50 on Linux, 93.75 -> 93.75 on Windows: not at all). So this oracle
+        verifies the ALGORITHM, not the constant. The constant is held by
         `test_distance_matches_a_known_separation` instead, which compares against an exact value.
         """
         monkeypatch.setattr(cv, "RAD_EARTH_M", 6378137)
-        assert self._agreement() > 0.90
+        assert self._agreement() >= MIN_AGREEMENT
 
     def test_dropping_the_deflection_filter_fails_the_oracle(self):
-        """Same argument for the filter: if removing it changes nothing, it was never being tested."""
+        """Same argument for the filter: if removing it changes nothing, it was never being tested.
+
+        Asserted on THE WAYS THE FILTER ACTUALLY TOUCHES, not on the whole fixture. The filter changes 10 of
+        these 400 ways, so switching it off moves the whole-fixture pass rate by under two points - which is
+        less than the gap between two operating systems (see MIN_AGREEMENT). The earlier version of this test
+        asserted exactly that, and passed by 0.75 points on Windows: a meta-test whose margin is smaller than
+        the noise it sits in is not testing anything, and it would have gone quietly green the moment the
+        floor moved. On the ten ways it does touch the filter is worth 80x in median error, and that number
+        is stable to three significant figures across both platforms.
+        """
         doc = load()
-        errors = [abs(cv.way_curvature([tuple(c) for c in w["coords"]], w["way_id"], deflection_filter=False)
-                      - w["oracle_curvature"]) / w["oracle_curvature"] for w in doc["ways"]]
-        share = sum(1 for e in errors if e <= TOLERANCE) / len(errors)
-        assert share < MIN_AGREEMENT, f"the deflection filter is not load-bearing here ({share:.1%})"
+        on_errs, off_errs = [], []
+        for w in doc["ways"]:
+            coords = [tuple(c) for c in w["coords"]]
+            on = cv.way_curvature(coords, w["way_id"])
+            off = cv.way_curvature(coords, w["way_id"], deflection_filter=False)
+            if on == off:
+                continue                      # the filter never fired here; it can say nothing about it
+            want = w["oracle_curvature"]
+            on_errs.append(abs(on - want) / want)
+            off_errs.append(abs(off - want) / want)
+
+        assert len(on_errs) >= 5, (
+            f"the filter changed only {len(on_errs)} of {len(doc['ways'])} ways - too few to conclude "
+            "anything from, so this test has stopped being evidence rather than started passing")
+        med_on = sorted(on_errs)[len(on_errs) // 2]
+        med_off = sorted(off_errs)[len(off_errs) // 2]
+        # Measured: 0.065% on / 8.85% off (Linux), 0.114% / 8.85% (Windows). 50x is a floor under 80x.
+        assert med_off > 50 * med_on, (
+            f"the deflection filter is not load-bearing on the {len(on_errs)} ways it changes: "
+            f"median error {med_on:.4%} with it, {med_off:.4%} without")
+        off_ok = sum(1 for e in off_errs if e <= TOLERANCE)
+        assert off_ok <= 0.3 * len(off_errs), (
+            f"{off_ok} of {len(off_errs)} filter-touched ways still agree within {TOLERANCE:.0%} without it")
