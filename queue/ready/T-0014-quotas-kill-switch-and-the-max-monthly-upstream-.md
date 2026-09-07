@@ -1,7 +1,7 @@
 ---
 id: T-0014
 title: Quotas, kill switch and the MAX_MONTHLY_UPSTREAM_CALLS compile-time constant (P-COST-01, P-COST-02)
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -21,3 +21,4 @@ acceptance: []
 (what, why, and the exact demonstration that proves it — including the red run)
 
 ## Log
+- 2026-09-07T14:50:00Z promoted backlog -> ready: its dependency (the Worker skeleton, T-0005) is merged, so quotas/kill switch is unblocked. Also the only remaining task whose files (services/api/) are not held by an open PR, which makes it the one thing that can proceed in parallel without two branches editing one file.
