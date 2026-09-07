@@ -1,13 +1,13 @@
 ---
 id: T-0057
 title: two different pins are both numbered P-OPS-02, on branches that will merge
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T23:40:15Z
+lease_expires_at: 2026-09-08T01:40:15Z
 worktree: null
-branch: null
+branch: task/T-0057
 exclusive: []
 touches: [ops/lib/pins.py]
 pins_affected: []
@@ -53,3 +53,4 @@ unmerged branches costs more than renaming a pin twice a year. Say so in the log
   other duplicate exists today, record that you looked.
 
 ## Log
+- 2026-09-07T23:40:15Z claimed by agent/unknown; lease until 2026-09-08T01:40:15Z
