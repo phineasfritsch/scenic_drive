@@ -439,3 +439,149 @@ All three green. The FAIL verdict is solely on Finding 1 (symlink false positive
 Scratch branches `scratch/reviewer28-red` (Windows worktree) and the WSL clone at `~/t0047-symlink-test`
 were both deleted after use; `git branch --list 'scratch/*'` and `git status --short` on `task/T-0047`
 confirm nothing remains. No `task/T-8879` scratch branch remains either (deleted).
+
+- 2026-09-07T18:20:00Z agent/builder-8: **addressed FINDING 1.** Confirmed in WSL2 first, then fixed.
+
+### Confirming the finding before fixing it
+
+Cloned `task/T-0047` fresh into WSL2's own ext4 filesystem (`~/t0047-wsl`, never `/mnt/c` - a Windows-drive
+clone under WSL doesn't get real symlink semantics from the 9P/Plan-9 filesystem driver, so it has to be a
+native Linux filesystem to mean anything). Reproduced the reviewer's exact repro independently, on the
+already-pushed (pre-fix) hook at `a4e6eb3`:
+
+    $ ln -s T-7002-target-a.md queue/review/T-7002-link.md
+    $ git add queue/review/T-7002-link.md
+    $ staged=$(git rev-parse :queue/review/T-7002-link.md)
+    $ working=$(git hash-object -- queue/review/T-7002-link.md)
+    $ echo "staged=$staged working=$working"
+    staged=afc2f4fbfdfae73e94c5b550b280c3f5eecef2bb working=29501108a2341ea3e57c7f851a69c97763c46cf8
+    $ [ "$staged" = "$working" ] && echo MATCH || echo MISMATCH
+    MISMATCH
+
+    $ git commit -m "scratch(wsl): symlink committed unmodified, expect PASS"
+    pre-commit: staged content in queue/review/T-7002-link.md is stale - the working tree changed after
+    'git add'. ...
+    pre-commit: refusing commit
+
+Confirmed the reviewer's diagnosis directly rather than trusting the write-up:
+
+    $ printf "target file A\n" | git hash-object --stdin
+    29501108a2341ea3e57c7f851a69c97763c46cf8              # == "working" above: hash-object hashed the
+                                                            # DEREFERENCED TARGET FILE's content
+    $ printf "%s" "$(readlink queue/review/T-7002-link.md)" | git hash-object --stdin
+    afc2f4fbfdfae73e94c5b550b280c3f5eecef2bb               # == "staged" above: the link's own text
+
+My original case-10 reasoning (`git hash-object` uses "the same lstat-based content hashing `git add`/
+`update-index` use for staging symlinks") was simply wrong, and I'd flagged it as reasoned-not-tested for
+exactly this reason. `git hash-object -- <path>` opens the path through the normal filesystem call, which
+follows a symlink; it does not lstat/readlink it. `git add` staging a symlink and `git hash-object` reading
+one are two different code paths in git with different symlink semantics, not the same one as I assumed.
+
+### Fix
+
+`.githooks/pre-commit`, the working-tree side of check 4: branch on whether the CURRENT working-tree entry
+is a symlink (`-L "$f"`, lstat-based - doesn't follow the link, so a broken symlink still tests true). If
+so, compute `working_oid` by hashing the raw `readlink` target text via `git hash-object --stdin` (which
+does not read a path at all, so there's nothing for it to dereference) instead of `git hash-object -- "$f"`.
+This reproduces exactly what `git add` would store for a symlink - a mode-120000 blob whose content is the
+literal link-target string - so an untouched symlink now compares equal, and a symlink whose *target text*
+changed after `git add` still compares unequal (a real, meaningful divergence, not a false positive).
+
+Chose "compare like-with-like" over "skip mode-120000 entries entirely" (the task brief's other offered
+option): the check exists specifically to catch staged content silently diverging from the working tree,
+and a symlink is not exempt from that risk just because it's small - a `git mv` of a symlink followed by an
+edit that repoints it is exactly the same shape of mistake as a `git mv` of a text file followed by an
+edit. Skipping mode-120000 would blind the hook to that shape of error for every symlink, forever, in
+exchange for avoiding a fix that turned out to be one `-L` branch and a `readlink | hash-object --stdin`
+pipe - not proportionate. The branch is on the *working-tree* entry's current type (not the staged mode),
+so a type change in either direction (symlink replaced by a regular file on disk, or vice versa) still
+gets compared against reality and flagged if it doesn't match, rather than silently exempted.
+
+### RED/GREEN, both in WSL2 on the same ext4 clone (deleted after)
+
+**1. Symlink staged, left completely untouched since `git add` - must PASS.** Fresh path
+`queue/review/T-7002-link.md` -> `T-7002-target-a.md`, target file pre-existing and committed:
+
+    $ git add queue/review/T-7002-link.md
+    $ git commit -m "scratch(wsl): symlink committed unmodified, expect PASS"
+    [task/T-0047 02f2440] scratch(wsl): symlink committed unmodified, expect PASS
+     1 file changed, 1 insertion(+)
+     create mode 120000 queue/review/T-7002-link.md
+    EXIT=0
+    $ git ls-tree HEAD -- queue/review/T-7002-link.md
+    120000 blob afc2f4fbfdfae73e94c5b550b280c3f5eecef2bb    queue/review/T-7002-link.md
+
+PASS - mode 120000 preserved, correct blob, no refusal.
+
+**2. Symlink's target changed after `git add` - decided this should REFUSE (a real, meaningful content
+change), and it does.** Fresh path `queue/review/T-7002-link2.md`, staged pointing at target A:
+
+    $ ln -s T-7002-target-a.md queue/review/T-7002-link2.md
+    $ git add queue/review/T-7002-link2.md
+    $ staged=$(git rev-parse :queue/review/T-7002-link2.md)     # afc2f4f... (points at A)
+
+    # repoint at B on disk, without re-staging:
+    $ rm queue/review/T-7002-link2.md
+    $ ln -s T-7002-target-b.md queue/review/T-7002-link2.md
+
+    $ git commit -m "scratch(wsl): symlink retargeted after add, expect REFUSE"
+    pre-commit: staged content in queue/review/T-7002-link2.md is stale - the working tree changed after
+    'git add'. Fix: git add -- "queue/review/T-7002-link2.md" (or re-stage before committing). For a
+    deliberate partial stage, set ALLOW_PARTIAL_STAGE=1 or ALLOW_PARTIAL_STAGE="queue/review/T-7002-link2.md".
+    pre-commit: refusing commit
+    EXIT=1
+
+Applying the stated fix resolves it and lands the new target:
+
+    $ git add queue/review/T-7002-link2.md
+    $ git commit -m "scratch(wsl): symlink properly re-staged after retarget"
+    [task/T-0047 be8b498] ... create mode 120000 queue/review/T-7002-link2.md
+    EXIT=0
+    $ git ls-tree HEAD -- queue/review/T-7002-link2.md
+    120000 blob 1681b758e914a32f6e892f5527c97947778233bf    queue/review/T-7002-link2.md   # == B's hash
+
+**3. Regression - a regular (non-symlink) file's staleness check, same WSL2 clone, post-fix**: staged
+`one\n`, edited to `one\ntwo\n` without re-adding, committed - refused with the standard stale-content
+message (`EXIT=1`); `git add` + recommit - passed (`EXIT=0`, `2 insertions(+)`). The `else` branch of the
+new `if [[ -L "$f" ]]` split is byte-identical to the prior working code, and behaves identically.
+
+Full false-positive suite (CRLF-on-Windows-disk, non-ASCII/space paths, staged deletion, staged-then-
+missing, `ALLOW_PARTIAL_STAGE` both forms, pure `git mv`) was not re-run a third time in WSL2 for this
+finding specifically: the fix touches only the symlink branch inside the check-4 loop, the reviewer already
+independently re-derived all of those cases against the pre-fix hook and found them correct, and none of
+them exercise the `-L "$f"` branch at all (no symlinks were involved in any of them) - so there is no
+plausible path by which this change could have affected them. `bash -n` confirmed syntax on both the WSL2
+copy and the Windows worktree copy, and the two files were diffed byte-for-byte identical before commit.
+
+### Cleanup (this round)
+
+`~/t0047-wsl` (the WSL2 clone, all scratch commits/files in it) deleted with `rm -rf` after the fix was
+verified there and reapplied fresh on the Windows worktree's `task/T-0047` checkout. No branches were
+created for this round (all testing was in a disposable clone, not a new branch).
+
+### Out of scope, not fixed here
+
+Per the coordinator: the CRLF check being effectively dead for real `\r\n` content (because `.gitattributes`'
+`text=auto eol=lf` normalizes it away at `git add` time, before the hook ever sees a `\r\n`-containing
+blob) is real, pre-existing (confirmed identical on the old, pre-T-0047 hook), and out of scope for this
+task. Already filed as its own task (seen in the queue as T-0051 while re-syncing this branch in WSL) - not
+touched here.
+
+### Verification, this round
+
+    $ bash ops/check-pins
+    PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+
+    $ bash ops/queue-check
+    QUEUE OK (43 tasks)
+
+    $ cd services/api && npm ci --no-audit --no-fund
+    added 85 packages in 11s
+
+    $ bash ops/test
+    ...
+    TESTS linux=50/50 ios=skipped failed=0 skipped=0
+    OK
+
+All three green with the symlink fix applied. GitHub Actions remains billing-blocked; verified locally per
+the above, as before.

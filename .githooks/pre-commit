@@ -56,8 +56,19 @@ fi
 
 # 4. Staged content vs. working tree.
 #    Compare object ids, not raw bytes: `git hash-object` applies the same clean filters (.gitattributes
-#    text=auto eol=lf normalization, symlink target hashing) that `git add` would have applied, so a file
-#    that is CRLF on disk but was staged/normalized to LF hashes equal here and is correctly left alone.
+#    text=auto eol=lf normalization) that `git add` would have applied for a REGULAR file, so a file that
+#    is CRLF on disk but was staged/normalized to LF hashes equal here and is correctly left alone.
+#    Symlinks are handled separately below: `git hash-object -- "$f"` DEREFERENCES a symlink and hashes the
+#    TARGET FILE's content - it does not lstat/readlink the link itself, unlike `git add`, which always
+#    stores the link's own target text (mode 120000). Comparing hash-object's dereferenced result against
+#    the staged link-text oid would refuse every symlink commit unconditionally, even one untouched since
+#    `git add` (confirmed empirically on WSL2/ext4 - see the task log). So: when the working-tree entry is
+#    currently a symlink (`-L "$f"`, lstat-based, doesn't follow the link), reproduce what `git add` would
+#    actually store - a blob whose content is the raw `readlink` target text, never dereferenced - instead
+#    of hash-object's dereferencing default. This is branched on the CURRENT working-tree entry type, not
+#    the staged mode, so a type change in either direction (symlink swapped for a regular file, or vice
+#    versa) still correctly compares against what's actually on disk and is flagged when it doesn't match.
+#
 #    A staged deletion never reaches this loop (diff-filter=ACMR excludes 'D'), so that legitimate case is
 #    already out of scope by construction.
 #
@@ -74,7 +85,11 @@ for f in "${staged_files[@]}"; do
     missing+=("$f")
     continue
   fi
-  working_oid="$(git hash-object -- "$f" 2>/dev/null || true)"
+  if [[ -L "$f" ]]; then
+    working_oid="$(printf '%s' "$(readlink -- "$f")" | git hash-object --stdin 2>/dev/null || true)"
+  else
+    working_oid="$(git hash-object -- "$f" 2>/dev/null || true)"
+  fi
   if [[ -z "$working_oid" || "$working_oid" != "$staged_oid" ]]; then
     stale+=("$f")
   fi
