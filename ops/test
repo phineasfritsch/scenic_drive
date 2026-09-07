@@ -41,8 +41,19 @@ fi
 
 # ---- Tier 1c: ETL (pytest) — expected iff services/etl/pyproject.toml exists ---------------------
 if [[ -f services/etl/pyproject.toml ]]; then
-  (cd services/etl && "$PY" -m pytest -q --junitxml="../../$ART/pytest-junit.xml" >/dev/null 2>&1); true
-  [[ -f "$ART/pytest-junit.xml" ]] || { echo "FAIL: services/etl exists but pytest produced no report"; exit 1; }
+  # $PY is not necessarily the interpreter that HAS pytest. On the Windows dev box `command -v python3`
+  # resolves to the App Execution Alias stub (a bare 3.14 with no site-packages) while `python` is the real
+  # install; on Linux CI python3 is correct. Pick the first candidate that can actually import pytest, and
+  # fail loudly naming what was tried rather than skipping the tier.
+  etl_py=""
+  for cand in "${PYTHON:-}" python3 python py; do
+    [[ -z "$cand" ]] && continue
+    command -v "$cand" >/dev/null 2>&1 || continue
+    "$cand" -c "import pytest" >/dev/null 2>&1 && { etl_py="$cand"; break; }
+  done
+  [[ -n "$etl_py" ]] || { echo "FAIL: services/etl exists but no interpreter has pytest (tried: \$PYTHON python3 python py). Install it: python -m pip install pytest"; exit 1; }
+  (cd services/etl && "$etl_py" -m pytest -q --junitxml="../../$ART/pytest-junit.xml" >/dev/null 2>&1); true
+  [[ -f "$ART/pytest-junit.xml" ]] || { echo "FAIL: services/etl exists but pytest ($etl_py) produced no report"; exit 1; }
   read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/')
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 fi
