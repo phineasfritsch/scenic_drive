@@ -1,7 +1,7 @@
 ---
 id: T-0058
 title: the 300-line cap is enforced only on Swift, not Python or TypeScript
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
