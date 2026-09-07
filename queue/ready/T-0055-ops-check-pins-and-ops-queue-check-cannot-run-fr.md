@@ -1,7 +1,7 @@
 ---
 id: T-0055
 title: ops/check-pins and ops/queue-check cannot run from WSL, so no single shell runs all four gates
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -9,7 +9,7 @@ lease_expires_at: null
 worktree: null
 branch: null
 exclusive: []
-touches: [ops/check-pins, ops/queue-check, ops/lib/]
+touches: [ops/check-pins, ops/queue-check, ops/claim, ops/lock, ops/new-task, ops/queue-next, ops/queue-sweep, ops/agent-preflight]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -51,3 +51,31 @@ the script carried on in whatever directory it started in, which happened to be 
 
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from agent/reviewer-34's T-0025 round-4 review.
+
+### 2026-09-08 - measured before claiming, and it corrects this brief
+
+The brief above speculated that some scripts would "succeed by accident from the right directory". They do
+not. Measured from WSL against a Windows worktree:
+
+    bash ops/queue-check  -> exit 2
+    bash ops/check-pins   -> exit 2
+    bash ops/test         -> exit 1
+
+All FAIL CLOSED, loudly, with git's own "fatal: not a git repository" on stderr. So this is not a correctness
+hole and no gate has ever reported success without running - which is the thing that would have made it
+urgent. It is an ergonomics defect, and its real cost is the one the brief already names: every Verification
+block in this repo is stitched together from two shells, and that seam is where a number gets copied from the
+wrong run.
+
+Downgraded accordingly. Still worth fixing, because the fix is three lines per script and the seam is real.
+
+THIRTEEN scripts use the pattern, not two: agent-preflight, check-pins, claim, deploy, lock, merge, new-task,
+prod-read, queue-check, queue-next, queue-sweep, sane, test. `ops/merge` and `ops/deploy` are owned by
+unmerged branches (T-0021/T-0022/T-0044/T-0049 and the deploy chain), so this task takes the eight that are
+free on main and names the rest for whoever merges them.
+
+Also measured and NOT a defect: `ops/queue-check` failed once with
+`/c/.../WindowsApps/python3: Permission denied`, which looked like a Windows App Execution Alias problem. It
+does not reproduce - three consecutive runs pass, and the resolved path execs fine directly. Recorded as a
+transient rather than filed, because a bug nobody can reproduce is not a finding.
+
