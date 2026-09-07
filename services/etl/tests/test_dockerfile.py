@@ -17,6 +17,21 @@ REQUIRED_PACKAGES = ("osmium-tool", "osm2pgsql", "gdal-bin", "python3", "sqlite3
 # A download piped straight into a shell, in any of the shapes it is actually written.
 PIPE_TO_SHELL = re.compile(r"\b(curl|wget)\b[^|]*\|\s*(sudo\s+)?(ba|z|k|da)?sh\b")
 
+# Anything that moves packages off the versions the pinned base image froze. `apt` and `apt-get` are the same
+# binary; `--only-upgrade` upgrades without ever saying the word as a verb; aptitude and unattended-upgrade
+# are the same act under other names.
+
+UPGRADES = re.compile(
+    r"\b(apt|apt-get|aptitude)\b[^&|;]*\b(dist-upgrade|full-upgrade|safe-upgrade|upgrade)\b"
+    r"|--only-upgrade\b"
+    r"|\bunattended-upgrades?\b"
+)
+
+# pip reaching the network for something the digest does not cover: a URL, a VCS ref, or another index.
+PIP_FROM_NETWORK = re.compile(
+    r"\bpip3?\b[^&|;]*\binstall\b[^&|;]*(https?://|git\+|--index-url|--extra-index-url|--find-links)"
+)
+
 
 def instructions():
     """Dockerfile lines with comments and blank lines removed, continuations joined."""
@@ -64,10 +79,17 @@ class TestTheImageIsPinned:
         assert not missing, f"the image does not install: {missing}"
 
     def test_the_package_list_is_not_upgraded_out_from_under_the_pin(self):
-        # `apt-get upgrade`/`dist-upgrade` pulls whatever is newest at build time, which reintroduces exactly
-        # the drift the digest pin removes.
-        body = " ".join(directive("RUN"))
-        assert not re.search(r"apt-get\s+(-\w+\s+)*(dist-)?upgrade", body), body
+        """Upgrading at build time pulls whatever is newest then, which reintroduces exactly the drift the
+        digest pin removes.
+
+        The first version matched only a literal `apt-get ... upgrade`. reviewer-22 got two upgrades past it
+        with all seven tests green: `apt upgrade -y` (apt and apt-get are the same binary, and `apt` is
+        Ubuntu's own documented spelling) and `apt-get install --only-upgrade libc6`, which never uses
+        "upgrade" as a verb at all. Second decorative test of the same species in this one file - the lesson
+        is that a check written as "does the bad string appear" is a check written against one spelling.
+        """
+        offenders = [i for i in directive("RUN") if UPGRADES.search(i)]
+        assert not offenders, f"the image upgrades packages past its pin: {offenders}"
 
     def test_nothing_is_installed_by_piping_the_internet_into_a_shell(self):
         """`curl ... | bash` is an unpinned install: the digest pins the base image and this walks straight
@@ -80,3 +102,24 @@ class TestTheImageIsPinned:
         """
         offenders = [i for i in directive("RUN") if PIPE_TO_SHELL.search(i)]
         assert not offenders, f"unpinned install path in the image: {offenders}"
+
+    def test_nothing_is_pip_installed_from_a_url_or_a_repo(self):
+        """Same hole as curl-into-bash, wearing a python hat: `pip install <url>` or `pip install git+...`
+        fetches whatever that address serves at build time, straight past the digest. reviewer-22, MINOR.
+        Debian's python3 is externally-managed anyway, which is why the image takes python3-yaml from apt.
+        """
+        offenders = [i for i in directive("RUN") if PIP_FROM_NETWORK.search(i)]
+        assert not offenders, f"unpinned pip install in the image: {offenders}"
+
+    def test_the_parser_is_not_silently_blind_to_a_heredoc_run(self):
+        """BuildKit lets a RUN body live in a heredoc. This parser joins backslash continuations and knows
+        nothing about heredocs, so every check above would read such a body as empty and pass.
+
+        Failing closed is the honest answer while that is true: a Dockerfile written that way must be a
+        red test asking someone to teach the parser, not seven green ones that read none of it.
+        reviewer-22 found this; it fails closed today only because nothing here uses a heredoc.
+        """
+        offenders = [i for i in instructions() if "<<" in i]
+        assert not offenders, (
+            "this parser does not read heredoc RUN bodies, so it would check nothing in: " + repr(offenders)
+        )
