@@ -1,17 +1,17 @@
 ---
 id: T-0042
 title: junit_count.py crashes with ValueError on a non-numeric failures= or errors= attribute
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/builder-6
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T16:38:26Z
+lease_expires_at: 2026-09-07T19:38:26Z
+worktree: ../wt/T-0042
+branch: task/T-0042
 exclusive: []
 touches: [ops/lib/junit_count.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-25
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -38,3 +38,4 @@ unreadable report, and a traceback is what a reader mistakes for a broken runner
   so the property is guarded rather than just fixed.
 
 ## Log
+- 2026-09-07T16:38:26Z claimed by agent/builder-61; lease until 2026-09-07T19:38:26Z
