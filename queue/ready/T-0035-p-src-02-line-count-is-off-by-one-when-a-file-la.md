@@ -1,7 +1,7 @@
 ---
-id: T-0014
-title: Quotas, kill switch and the MAX_MONTHLY_UPSTREAM_CALLS compile-time constant (P-COST-01, P-COST-02)
-state: backlog
+id: T-0035
+title: P-SRC-02 line count is off by one when a file lacks a trailing newline (wc -l)
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -9,10 +9,10 @@ lease_expires_at: null
 worktree: null
 branch: null
 exclusive: []
-touches: [services/api/, pins/PINS.yaml]
-pins_affected: [P-COST-01, P-COST-02]
+touches: [ops/lib/check-line-cap]
+pins_affected: []
 reviewer: null
-depends_on: [T-0005]
+depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
 ---

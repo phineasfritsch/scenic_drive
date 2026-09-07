@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# P-SRC-02's assertion. Same class of bug as P-OPS-01 (see ops/lib/check-exec-bits): the old one-liner was
+#
+#   test -z "$(find Sources Tests -name '*.swift' -exec awk 'NR>300{print FILENAME; exit}' {} \;)"
+#
+# Over a deleted, renamed or emptied Sources/Tests tree, `find` prints nothing, `test -z ""` is true, and the
+# pin reports OK on an empty artefact. Two checks instead:
+#
+#   1. the tracked .swift file set is non-empty and plausibly complete
+#   2. no tracked .swift file exceeds 300 lines
+#
+# `git ls-files` is used instead of `find` so untracked build junk is never counted and the check matches what
+# is actually committed.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+MIN_FILES=5
+
+mapfile -t files < <(git ls-files 'Sources/**/*.swift' 'Tests/**/*.swift')
+n="${#files[@]}"
+
+if [[ "$n" -lt "$MIN_FILES" ]]; then
+  echo "P-SRC-02: only $n tracked .swift file(s) under Sources/ and Tests/ (expected >= $MIN_FILES)."
+  echo "  An empty or truncated set must never read as 'no file exceeds 300 lines'."
+  exit 1
+fi
+
+bad=()
+for f in "${files[@]}"; do
+  lines="$(wc -l < "$f" | tr -d '[:space:]')"
+  if [[ "$lines" -gt 300 ]]; then
+    bad+=("$f ($lines lines)")
+  fi
+done
+
+if [[ ${#bad[@]} -gt 0 ]]; then
+  echo "P-SRC-02: file(s) over the 300-line cap:"
+  printf '  %s\n' "${bad[@]}"
+  exit 1
+fi
+
+echo "P-SRC-02: $n Swift files tracked, none over 300 lines"
