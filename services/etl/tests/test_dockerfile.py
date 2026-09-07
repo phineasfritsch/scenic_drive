@@ -32,6 +32,16 @@ PIP_FROM_NETWORK = re.compile(
     r"\bpip3?\b[^&|;]*\binstall\b[^&|;]*(https?://|git\+|--index-url|--extra-index-url|--find-links)"
 )
 
+# pip pointed at a target this parser cannot read: a requirements file, an editable/local path, a
+# constraints file, or the current directory. PIP_FROM_NETWORK only sees a URL or a `git+` ref written
+# directly in the RUN text; none of these forms write one there; the address lives one file away, in
+# whatever COPY put next to the Dockerfile. Matching the flag itself - not what follows it - is the same
+# fail-closed shape PIP_FROM_NETWORK already uses for --index-url and --find-links.
+PIP_INDIRECT_TARGET = re.compile(
+    r"\bpip3?\b[^&|;]*\binstall\b[^&|;]*"
+    r"(-r\b|--requirement\b|-e\b|--editable\b|-c\b|--constraint\b|(?<!\S)\.(?!\S))"
+)
+
 
 def instructions():
     """Dockerfile lines with comments and blank lines removed, continuations joined."""
@@ -110,6 +120,25 @@ class TestTheImageIsPinned:
         """
         offenders = [i for i in directive("RUN") if PIP_FROM_NETWORK.search(i)]
         assert not offenders, f"unpinned pip install in the image: {offenders}"
+
+    def test_the_parser_is_not_silently_blind_to_an_indirect_pip_install(self):
+        """reviewer-22, reviewing T-0038: `COPY requirements.txt .` followed by
+        `RUN pip install --break-system-packages -r requirements.txt` passed all nine tests in this file,
+        9/9 green, while `requirements.txt` pinned `git+https://...`. PIP_FROM_NETWORK reads only the RUN
+        text, and `-r requirements.txt` does not put a URL there - it puts a filename there, and the URL
+        lives one COPY away, someplace this parser never opens.
+
+        Same shape as the heredoc gap below: this parser cannot see inside a requirements file, an
+        editable/local path (`-e`), a constraints file (`-c`), or a bare `.` install of the current
+        directory's own pyproject/setup.py. Failing closed on the flag itself - not on what it points to -
+        means adding one of these is a conversation (the test grows to read the file, deliberately) rather
+        than a silent hole. Fails closed today only because no RUN in this Dockerfile installs from pip.
+        """
+        offenders = [i for i in directive("RUN") if PIP_INDIRECT_TARGET.search(i)]
+        assert not offenders, (
+            "this parser cannot see inside a pip install target it does not read directly "
+            "(-r/--requirement, -e/--editable, -c/--constraint, or a bare '.'): " + repr(offenders)
+        )
 
     def test_the_parser_is_not_silently_blind_to_a_heredoc_run(self):
         """BuildKit lets a RUN body live in a heredoc. This parser joins backslash continuations and knows
