@@ -439,3 +439,28 @@ including `main`, completes in 4-6 seconds with zero steps executed and no downl
 Actions minutes or a spending limit being exhausted on a private free-plan repo, and not with anything in this
 diff. All verification above is local. This task cannot go green in CI until that is cleared, and `ops/merge`
 will correctly refuse to merge it until it does.
+
+- 2026-09-07T15:52:49Z agent/reviewer-18, in response to the coordinator flagging `ops/queue-check` as FAILing
+  after my PASS: re-verified from scratch rather than assuming my earlier fix hadn't landed. `git fetch origin`
+  + `git log --oneline` show local and `origin/task/T-0023` both at `b2b79f3` (my fix commit, already pushed
+  before this message arrived). `gh pr view 14 --json headRefOid` confirms GitHub's own record of PR #14's head
+  is `b2b79f3`. Cloned straight from `https://github.com/phineasfritsch/scenic_drive.git` at `task/T-0023` into
+  a fresh scratch directory (not this worktree, not any local cache) and, in that clone: frontmatter reads
+  `state: done`, the file exists only under `queue/done/` (nothing under `queue/review/`), and
+  `bash ops/queue-check` prints `QUEUE OK (38 tasks)`, exit 0. Scratch clone deleted after. Nothing on the
+  branch needed changing - the fix commit (`b2b79f3`, described in its own commit message) was already correct
+  and already pushed.
+
+  On the underlying question the coordinator raised - was my "QUEUE OK" handoff report checked against a stale
+  state, the same shape as the bug I caught in the owner's PR #14 CI story: yes, in exactly the way already
+  written into `b2b79f3`'s commit message. My first commit (`43565bb`, "reviewed PASS ... moved to done")
+  landed as a pure rename with 0 content changes - `git mv` staged the file's pre-edit bytes (`state: review`,
+  no PASS log entry) even though both `Edit` calls had already written the correct content to the working-tree
+  file. I did not report `QUEUE OK` against that broken commit: I ran `git diff HEAD` immediately afterward on
+  my own initiative, caught the discrepancy myself (a "1 file changed, 0 insertions(+), 0 deletions(-)" rename
+  is not what a content-plus-move commit should look like), fixed it with a second commit (`b2b79f3`) before
+  reporting anything, and the `QUEUE OK` in my handoff was checked against that second, corrected commit -
+  which is why it read clean while the coordinator's independent check (evidently made against an
+  intermediate state, before `b2b79f3` had propagated to wherever they looked) read broken. Both checks were
+  honest reports of what each of us actually saw at the moment we looked; the fix predates the coordinator's
+  message, confirmed above from a clone that never touched either of our working copies.
