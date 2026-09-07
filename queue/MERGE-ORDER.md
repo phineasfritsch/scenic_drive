@@ -111,3 +111,87 @@ Four separate task files (T-0032, T-0033, T-0038, T-0039) were filed on `task/T-
 unreachable from `main` and unclaimable for as long as that branch was blocked. A follow-up that only exists
 on a branch nobody can merge is not in the queue; it is a note. File follow-ups on `main` directly, or land a
 byte-identical copy there the same day.
+
+---
+
+# Revision, 2026-09-08: rehearsed rather than reasoned
+
+Everything above was derived from file overlaps. It covered twelve PRs. There are now **twenty-nine**, and
+the order has been checked by actually doing it: all thirty branches merged into a throwaway in dependency
+order, with `queue-check`, `check-exec-bits`, `check-line-cap` and a duplicate-pin-id scan run after each
+merge. Result: **27 merged, 3 conflicts, 25 gate failures.**
+
+That rehearsal is the only thing that can see this class of problem. Every branch passes its own gates; the
+failures exist only in the merged tree, so no per-branch CI could ever report them.
+
+## 1. The conflict that is still real
+
+    ops/lib/gh-stub-for-merge-tests    ADD/ADD across task/T-0022, task/T-0044, task/T-0049
+
+Predicted by agent/reviewer-20 and confirmed. The three branches each add the same path with different
+content. Whoever merges the second of them resolves it by hand, and must check that the resolved stub still
+satisfies BOTH callers - `ops/lib/check-merge-reason-cap` (T-0049's pin) and T-0022's merge-gate
+demonstrations - rather than whichever one they happened to be looking at.
+
+## 2. The duplicate every branch had, and none could see
+
+`main` said `queue/claimed/<id>`; each branch said `queue/review/<id>` or `queue/done/<id>`. On merge both
+survived and `queue-check` failed on the merged result while passing on the branch and on main separately.
+**All thirty branches had it.**
+
+Structural, not carelessness: `ops/claim` moves `ready -> claimed` on MAIN, but worktrees here are created
+from other task branches in order to stack them, and those bases predate the claim - so the branch never
+contains `claimed/<id>` and has nothing to delete. Add-then-remove in one commit does not help either,
+because git compares trees against the merge base and the base never had the file.
+
+Fixed on twenty-five branches by merging `origin/main` into each - which brings the file in - and then
+deleting it, so the deletion is recorded against a base that has it. Two refinements the first pass missed:
+
+- A **stacked** branch carries its ancestors' task files too, so it duplicates all of them, not just its own.
+  `task/T-0032` failed on T-0056, `task/T-0040` on T-0039, `task/T-0048` on T-0051.
+- Where the task file was moved with `git mv`, rename detection resolves the merge correctly and there is
+  nothing to fix. Only the copies created by writing a new file are affected.
+
+**Still outstanding** - the five worktrees that had agents writing in them when this ran, and which must get
+the same treatment before their PRs merge:
+
+    task/T-0025   task/T-0027   task/T-0028   task/T-0030   task/T-0049
+
+`ops/review` should make this impossible to forget; filed as **T-0063**.
+
+## 3. Two tasks that exist on no branch but their own
+
+    T-0034  ops/merge is fail-open on unknown check conclusions   - on 13 branches, absent from main
+    T-0054  README points at a NOTICE file that does not exist    - on task/T-0027 only
+
+Neither is lost - they arrive when their branches merge. But T-0034 was **nearly** dropped: merging main into
+`task/T-0033` produced a rename/delete conflict, because git paired a deleted `T-0033` task file with the
+`T-0034` one by content similarity and reported T-0034 as "deleted in origin/main". Main never had it. Taking
+git's suggested resolution would have silently removed a filed task.
+
+**So: after every conflicted merge in this window, run**
+
+    git ls-tree -r --name-only HEAD | grep -oE 'T-[0-9]+' | sort -u
+
+and confirm no id present before the merge is missing after it. A dropped task file is invisible to
+`queue-check`, which only ever complains about ids it can see.
+
+## 4. Traps that fire on specific merges
+
+| When | What happens | Fix |
+|---|---|---|
+| `task/T-0036` lands | `check-exec-bits` fails: `ops/lib/classify-checks.py` is 100755 on T-0021 while T-0036 reclassifies `ops/lib/*.py` as 100644 data | `git update-index --chmod=-x`, per **T-0041** |
+| the Dockerfile chain meets `task/T-0058` | `check-line-cap` fails: `services/etl/tests/test_dockerfile.py` is 436 lines | already exempted in T-0058, pointing at **T-0062** which splits it |
+| the second of `task/T-0023` / `task/T-0049` lands | two different pins both numbered `P-OPS-02` | renumber T-0049's to P-OPS-03; `check-pins` catches it, so it cannot be forgotten - see **T-0057** |
+
+None of these is silent. `check-pins` and `check-exec-bits` both refuse, so the merged `main` goes red rather
+than quietly wrong - **provided CI runs**, which is T-0053. That correction matters: two of these were
+originally filed as silent-corruption risks and they are not.
+
+## 5. Signoff state, which gates the order more than dependencies do
+
+`ops/merge` requires the task in `queue/done/` on the PR head. As of this revision **14 branches are signed
+off** - T-0014, T-0021, T-0022, T-0023, T-0024, T-0026, T-0035, T-0036, T-0037, T-0038, T-0039, T-0042,
+T-0044, T-0047 - and the rest are still in review. Merge the signed-off set first, in the dependency order
+above; the others cannot merge yet regardless of what this file says.
+
