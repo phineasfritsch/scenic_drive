@@ -4,6 +4,7 @@
   queue.py new "<title>" [--touches a,b] [--exclusive x,y] [--depends T-0001,...] [--state backlog|ready]
   queue.py check              exit 1 on any protocol violation (reviewer == owner, review/ without reviewer, ...)
   queue.py sweep              move expired claimed/ tasks back to ready/, release their LOCKS, append to ## Log
+  queue.py review ID --reviewer NAME   claimed/ -> review/, assign the reviewer, release its LOCKS
   queue.py next               print the next unblocked ready/ task id
   queue.py claim T-0007 --owner agent/x --session <id> [--worktree ../wt/T-0007] [--hours 2]
   queue.py lock T-0007 [--owner agent/x]   acquire locks a claimed task declares but does not hold
@@ -343,6 +344,77 @@ def cmd_claim(argv):
     return 1
 
 
+def cmd_review(argv):
+    """Move a CLAIMED task to review/, assign its reviewer, and release the locks it holds.
+
+    The transition existed only as a habit: every agent did `git mv` plus a hand edit of `state:` and
+    `reviewer:`. Because there was no code path at the moment the work stops, nothing ever released the
+    `exclusive:` locks `claim` had taken - and `cmd_check` treats an orphaned lock as an error, so the first
+    task to carry a lock into review/ would have started failing `ops/queue-check` for every agent in every
+    worktree, not just its own owner. One lock exists today: scenic-index, held by T-0024, still claimed.
+
+    Releasing at review rather than at done is the judgement here. A task sitting in review is not editing
+    the resource it locked, and review takes hours or days, so holding `scenic-index` or `prod` that long
+    starves everyone. The objection is that a FAIL sends it back to the owner - and the answer is `ops/lock`,
+    which already exists to acquire the locks a claimed task declares. The round trip is supported, so this
+    is not a one-way door.
+    """
+    tid = argv[0]
+    opts = _opts(argv[1:])
+    for state, p, fm, body in tasks():
+        if fm["id"] != tid:
+            continue
+        if state != "claimed":
+            print(f"{tid} is in {state}/, not claimed/")
+            return 1
+        reviewer = opts.get("reviewer") or fm.get("reviewer")
+        if not reviewer:
+            print(f"{tid} needs a reviewer: ops/review {tid} --reviewer agent/<name>")
+            return 1
+        # Refused here as well as in cmd_check, on the same argument as T-0056's brief guard: after the fact
+        # is a report, at the transition is a prevention.
+        if reviewer == fm.get("owner"):
+            print(f"reviewer {reviewer} is also the owner of {tid} - a worker may not grade its own work")
+            return 1
+
+        # Inspect every lock BEFORE unlinking any of them, so a foreign lock cannot leave the task half
+        # released - the same reason ops/claim checks all resources before taking the first.
+        mine, foreign = [], []
+        for res in fm.get("exclusive") or []:
+            lock = LOCKS / f"{res}.lock"
+            if not lock.exists():
+                continue
+            holder = lock.read_text(encoding="utf-8").strip()
+            # Only ever release OUR OWN lock. One naming a different task is somebody else's, and taking it
+            # over silently is the exact collision these locks exist to prevent.
+            if holder.split()[:1] == [tid]:
+                mine.append((res, lock))
+            else:
+                foreign.append(f"{res} (held by {holder})")
+        if foreign:
+            print(f"{tid} declares exclusive resources locked by someone else: {'; '.join(foreign)}")
+            print("Nothing was released and the task did not move. ops/queue-check reports this state.")
+            return 1
+        for _, lock in mine:
+            lock.unlink()
+        released = [res for res, _ in mine]
+
+        fm.update(state="review", reviewer=reviewer)
+        dest = Q / "review" / p.name
+        dest.write_text(dump(fm, body), encoding="utf-8", newline="\n")
+        p.unlink()
+        note = f"handed to {reviewer}; state -> review"
+        if released:
+            note += f"; released lock(s) {', '.join(released)}"
+        log(dest, note)
+        print(f"{tid} -> {dest.relative_to(ROOT).as_posix()}  reviewer={reviewer}  "
+              f"released=[{', '.join(released) or 'none'}]")
+        print("(now: git add queue/ && git commit && git push)")
+        return 0
+    print(f"{tid} not found")
+    return 1
+
+
 def cmd_lock(argv):
     """Acquire the locks a CLAIMED task declares but does not hold.
 
@@ -404,9 +476,20 @@ def _list(v):
     return [x.strip() for x in v.split(",") if x.strip()] if v else []
 
 
+COMMANDS = ("new", "check", "sweep", "next", "claim", "lock", "review")
+NEEDS_ARG = ("new", "claim", "lock", "review")
+
+
 def main(argv):
-    if len(argv) < 2 or argv[1] not in ("new", "check", "sweep", "next", "claim", "lock"):
+    if len(argv) < 2 or argv[1] not in COMMANDS:
         print(__doc__)
+        return 2
+    # These four read argv[0] directly, so calling one with no argument raised IndexError and printed a
+    # traceback instead of usage. Found while adding `review`; `claim`, `lock` and `new` have had it since
+    # they were written. A tool that answers a typo with a stack trace teaches people to stop reading its
+    # output, which is expensive in a repo whose whole premise is that output gets read.
+    if argv[1] in NEEDS_ARG and len(argv) < 3:
+        print(f"usage: queue.py {argv[1]} <id> [options]")
         return 2
     return globals()[f"cmd_{argv[1]}"](argv[2:]) or 0
 
