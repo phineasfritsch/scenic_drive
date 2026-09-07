@@ -1,13 +1,13 @@
 ---
 id: T-0055
 title: ops/check-pins and ops/queue-check cannot run from WSL, so no single shell runs all four gates
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T23:06:34Z
+lease_expires_at: 2026-09-08T01:06:34Z
 worktree: null
-branch: null
+branch: task/T-0055
 exclusive: []
 touches: [ops/check-pins, ops/queue-check, ops/claim, ops/lock, ops/new-task, ops/queue-next, ops/queue-sweep, ops/agent-preflight]
 pins_affected: []
@@ -78,4 +78,4 @@ Also measured and NOT a defect: `ops/queue-check` failed once with
 `/c/.../WindowsApps/python3: Permission denied`, which looked like a Windows App Execution Alias problem. It
 does not reproduce - three consecutive runs pass, and the resolved path execs fine directly. Recorded as a
 transient rather than filed, because a bug nobody can reproduce is not a finding.
-
+- 2026-09-07T23:06:34Z claimed by agent/unknown; lease until 2026-09-08T01:06:34Z
