@@ -18,9 +18,13 @@ else
 fi
 
 if [[ -n "${STUB_FLIP:-}" ]]; then
+  # The counter advances on the mergeStateStatus call ONLY. ops/merge asks for mergeStateStatus first and
+  # statusCheckRollup second within one loop iteration; incrementing on both made the two calls disagree, so
+  # the rollup had already "flipped" to healthy while the state was still UNKNOWN - meaning total=0 was never
+  # actually exercised and only the UNKNOWN branch was tested. reviewer-11 caught that.
   counter="${STUB_COUNT:-/tmp/gh-stub-count}"
   n=$(( $(cat "$counter" 2>/dev/null || echo 0) ))
-  case "$*" in *statusCheckRollup*|*mergeStateStatus*) echo $((n + 1)) > "$counter";; esac
+  case "$*" in *mergeStateStatus*) echo $((n + 1)) > "$counter";; esac
   if [[ $n -lt 1 ]]; then state="UNKNOWN"; rollup="[]"; fi
 fi
 

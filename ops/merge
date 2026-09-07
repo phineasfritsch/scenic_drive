@@ -48,9 +48,15 @@ while :; do
   attempt=$((attempt + 1))
   state="$(gh pr view "$pr" --json mergeStateStatus -q .mergeStateStatus)"
   rollup="$(gh pr view "$pr" --json statusCheckRollup -q '[.statusCheckRollup[]? | {name: (.name // .context), c: (.conclusion // .state // "PENDING")}]')"
-  pending="$("$PY" -c 'import json,sys; d=json.loads(sys.argv[1]); print(sum(1 for x in d if x["c"] in ("PENDING","IN_PROGRESS","QUEUED","")))' "$rollup")"
-  failed="$("$PY" -c 'import json,sys; d=json.loads(sys.argv[1]); print(",".join(x["name"] for x in d if x["c"] in ("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED","ERROR")))' "$rollup")"
-  total="$("$PY" -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$rollup")"
+  # Classification is fail-CLOSED and lives in one place: SUCCESS is the only passing conclusion, anything
+  # unrecognised is failed, and a parse error exits non-zero rather than printing an empty answer that reads
+  # like good news. The previous inline one-liners were fail-OPEN and crashed on a nameless check.
+  if ! classified="$("$PY" ops/lib/classify-checks.py "$rollup" 2>&1)"; then
+    echo "MERGE REFUSED: could not classify checks: $classified"; exit 1
+  fi
+  total="$(printf '%s\n' "$classified" | sed -n 's/^total=//p')"
+  pending="$(printf '%s\n' "$classified" | sed -n 's/^pending=//p')"
+  failed="$(printf '%s\n' "$classified" | sed -n 's/^failed=//p')"
   echo "checks   total=$total pending=$pending failed=[${failed:-none}] mergeState=$state"
   [[ -n "$failed" ]] && { echo "MERGE REFUSED: failing checks: $failed"; exit 1; }
   # Three transient states, not one. Right after a push GitHub has not registered the check runs yet
