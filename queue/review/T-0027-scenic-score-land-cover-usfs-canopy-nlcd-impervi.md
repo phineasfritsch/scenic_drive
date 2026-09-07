@@ -530,3 +530,271 @@ canopy. Both from the raster, not hand-entered.
   - **`manifest.unattributed`'s spelling table.** It matches licence identifiers against LICENSE-DATA text.
     `Apache-2.0` is listed with the spelling "Apache License 2.0" because that is what LICENSE-DATA says, but
     no manifest entry uses Apache-2.0 yet, so that arm has never run against the real file.
+
+- 2026-09-07T23:40:00Z agent/reviewer-32 round 2: **FAIL** - narrower than round 1, and for different
+  reasons. Both round-1 blockers are genuinely fixed and I re-derived both myself. Every quantitative claim
+  the owner asked me to check reproduces, several of them exactly. What does not hold is the safety net: my
+  own mutation run leaves **11 of 36 mutants alive**, four of them because `sample_codes` - the only code in
+  this task that touches a raster - has no test at all; and the "USFS Tree Canopy, NLCD" provenance
+  statement this task deleted from LICENSE-DATA as false is still sitting in README.md.
+
+  **What I re-derived by running code vs took on trust.** Re-derived: both re-recorded fixtures
+  element-for-element against the pinned .tifs (16,107 archetype codes + 9 ways x 4 phases = 4,956 boundary
+  codes, all identical); every recorded summary, verdict and phase spread; the whole cost/spread table at 50
+  / 25 / 20 / 10 m; the 3-of-5-at-50 m claim; Canyon Creek under the old rule at 20 m; the class partition;
+  the grassland reductio; the corpus size behind the runtime estimate; all nine boundary ways' `sampled_at`
+  against live `api.openstreetmap.org` geometry at their declared `node_stride`; 69 independent real ways
+  drawn at random from the sfbay bbox via Overpass (seed 20260907, no way picked by hand); 36 mutants;
+  four attacks on `manifest.unattributed`; and all four gates. Took on trust: the MRLC-403 claim (same
+  reasoning as round 1) and the sha256 pins (re-verified in round 1, tiles unchanged).
+
+  ---
+
+  **RESOLVED from round 1, verified independently.**
+
+  1. *Thresholds.* The dominance rule is right and the proof is right. I swept `DOMINANCE_RATIO` from 1.0 to
+     4.0 over 69 random real ways x 4 phases plus the 9 fixture ways x 4 phases: `BOTH` is unreachable at
+     every ratio above 1. More usefully, a **fresh random draw found another one**: way 8919786, "Highland
+     Avenue", Alameda, `canopy 0.5141 / impervious 0.4859` - `BOTH` under the old independent cutoffs, 1 of
+     69 (1.4%). Canyon Creek was not a freak.
+
+  2. *LICENSE-DATA.* Present, correct, and the guard works (mutating `unattributed()` or dropping CC-BY-4.0
+     from `ATTRIBUTION_LICENSES` both go red). See finding 5 for how to get past it anyway.
+
+  3. *The re-recorded snapshots - my call under CLAUDE.md:42, and they are clean.* Re-derived from the
+     pinned tiles with `lc.buffer_points`/`lc.sample_codes`, not read from the diff:
+
+          old_la_honda   way=8940690: MATCH n=5841      canopy 0.9553  impervious 0.0118
+          skyline        way=239028846: MATCH n=9558    canopy 0.8492  impervious 0.0193
+          alviso_flat    way=92357845: MATCH n=354      canopy 0.0706  impervious 0.6864
+          alviso_flat2   way=8929268: MATCH n=354       canopy 0.0141  impervious 0.4520
+          ... 36 of 36 boundary phase arrays MATCH ...
+          ALL ELEMENT-FOR-ELEMENT MATCHES
+
+     And every `sampled_at` in the boundary fixture reproduces from live OSM at its declared stride -
+     including `morgan_territory`, which declares `node_stride: 16` on a 100-node way and matches
+     `nodes[::16]` exactly. Nothing is hand-entered. **Re-recording approved.**
+
+  4. *Findings 1 and 4 are independent defects - confirmed, and the 20 m half is worse than the owner
+     wrote.* At 20 m under the OLD independent cutoffs, canyon_creek reads `BOTH` at **two of four** phases,
+     not one (`0.5085/0.4915` and `0.5254/0.4746`). At 50 m, exactly the three ways the owner named:
+
+          ways reading BOTH under the OLD rule at 50 m, some phase: ['canyon_creek', 'sanramon_a', 'sanramon_c'] (3 of 5)
+          ways reading BOTH under the OLD rule at 20 m, some phase: ['canyon_creek'] (1 of 5)
+
+     The step change alone does not cure it; the ratio alone does, at any step. Two fixes were correct.
+
+  5. *The cost table reproduces to the digit*, and the corpus figure behind it checks out
+     (region.json counts, motorway..living_street excluding service/track = 333,247):
+
+          step  50.0 m  n/centre=  29   9-phase worst canopy=0.2069   4-phase worst 0.2759
+          step  25.0 m  n/centre= 113   9-phase worst canopy=0.0973
+          step  20.0 m  n/centre= 177   9-phase worst canopy=0.0791   4-phase worst 0.0847
+          step  10.0 m  n/centre= 709   9-phase worst canopy=0.0240        (709/29 = 24.4x)
+
+  6. *The partition is exact.* Union of the four term sets == `CLASSES` (11 codes), sizes sum to 11, every
+     pairwise intersection empty. And the reductio is **stronger** than claimed: fold class 30 into canopy
+     and Mines Road (0.9915) does not merely pass Skyline (0.9807), it becomes the highest-canopy road in
+     the whole 12-way set, above Old La Honda (0.9882) - a redwood road. `CANOPY_CLASSES = {10, 20}` is
+     right.
+
+  7. *The 0.10 phase bound survives my attack.* All three cases the owner named, plus 69 random ways:
+
+     - **307 individual buffer centres** at 20 m (a 1-centre stub gets no pooling): worst canopy spread
+       0.0847, p99 0.0791, **0 of 307 over 0.10**. Per-way, 0 of 69 over 0.10 (worst 0.0678).
+     - **Tile seam.** Six ways whose buffers draw from both N36W123 and N36W126 (`coverage 1.0000`, tiles
+       `['N36W123', 'N36W126']`): worst spread 0.0056. `sample_codes`'s per-tile grouping is correct across
+       the seam.
+     - **Coast / NODATA.** Worst 0.0226 - but see finding 6: WorldCover codes the open Pacific as class 80,
+       not NODATA, so this case does not exist the way the code says it does.
+     - **Short ways.** 2-node ways, worst 0.0452.
+
+     The bound holds. `MAX_PHASE_SPREAD = 0.10` is thin but earned.
+
+  8. *The terrain tripwire's replacement does catch the drift.* Mutant M27, moving one `sampled_at`
+     coordinate by ~55 m, turns `test_the_two_fixtures_sampled_the_same_geometry` red. Confirmed.
+
+  ---
+
+  **BLOCKING.**
+
+  **1. `sample_codes` has no test at all. Four mutants survive in it, including the one its sibling module
+  has a dedicated test for. HIGH.** `etl/landcover.py:216-244` is the only code in this task that reads a
+  raster, and it is what will run over 333k ways in T-0030. It even carries `runner=None` - the injection
+  point that exists so it can be tested - and nothing in `tests/` mentions `sample_codes`, `runner`,
+  `tile_path` or `gdallocationinfo`. Compare `etl/dem.py`, whose identical shape is covered by
+  `tests/test_dem.py:116-232`. Surviving mutants, from my own run (baseline 0 failures):
+
+          SURVIVED M31 sample_codes writes 'lat lon' instead of 'lon lat'       0 new-red
+          SURVIVED M32 sample_codes drops the value-count guard                 0 new-red
+          SURVIVED M33 sample_codes ignores a non-zero gdallocationinfo exit    0 new-red
+          SURVIVED M18 sample_codes keeps code 0 instead of NODATA              0 new-red
+
+     M31 is the exact bug `test_dem.py:116` exists for - "Swapping them samples the wrong hemisphere and
+     the wrong ocean" - and here it would either return `None` for the whole corpus or read the wrong
+     place, with the suite green. M32 removes the guard that stops a short read silently shifting every
+     sample by one. The shipped code is CORRECT - I exercised it over ~450k real points today - but nothing
+     in the repo would notice if it stopped being.
+
+  **2. The built-up threshold is still not pinned, after a test was written to pin it. MEDIUM.**
+  `test_a_quarter_built_is_not_yet_a_strip_mall` was added specifically because `0.4 -> 0.2` survived the
+  owner's first pass. It pins the cutoff at 0.25 and nowhere above:
+
+          SURVIVED M10 is_built_up threshold 0.4 -> 0.39
+          SURVIVED M11 is_built_up threshold 0.4 -> 0.35
+          SURVIVED M34 is_built_up threshold 0.4 -> 0.26 (just above the 0.25 the new test pins)
+          CAUGHT   M35 is_wooded threshold 0.5 -> 0.46    2 new-red  (Mines Road becomes woodland)
+
+     The asymmetry is the point: the canopy cutoff has a REAL-DATA anchor (Mines Road at 0.4859 makes 0.46
+     go red), the impervious one has none, and `test_a_quarter_built_is_not_yet_a_strip_mall`'s own docstring
+     admits it ("there is no equivalent real road for this one"). So the log's claim that the two new tests
+     "now pin both edges of both" is not true for the built-up side. Either find the real road, or move the
+     synthetic pin to 0.39/0.41 so the number means something.
+
+  **3. `problems()`'s new four-terms-sum arm has no test. MEDIUM - and it is a CLAUDE.md rule.**
+  `landcover.py:155-159` was added by this task as the runtime guard that a class is not in two terms or in
+  none. `SURVIVED M21 problems() drops the four-terms-sum check  0 new-red`. Its sibling arm is covered
+  (`M36 problems() drops the fraction-range check` -> 1 red, `test_a_fraction_out_of_range_is_reported`), so
+  this is an omission, not a design choice. CLAUDE.md:40: "A check that has never been seen red is
+  untested." It is also absent from the 15-item RED list in the log above, which is the other half of the
+  same rule.
+
+  **4. README.md:14 still makes the false provenance statement this task deleted from LICENSE-DATA.
+  MEDIUM.** The log above says, correctly, that leaving USFS/MRLC listed "was itself a false statement about
+  provenance". It is still there, in the more visible file:
+
+          $ grep -n "USFS\|WorldCover" README.md
+          14:Data: OpenStreetMap (ODbL), USGS 3DEP, USFS Tree Canopy, NLCD, FHWA/Caltrans scenic byways, ...
+          (no WorldCover match)
+
+     ESA WorldCover appears nowhere in README.md, and `manifest.unattributed()` only reads LICENSE-DATA, so
+     it structurally cannot see this. This is round 1's finding 7 recurring in a different file: an
+     attribution licence whose credit is absent from the document a reader is most likely to open. No queued
+     task covers it - T-0054 touches README.md but its brief is only the dangling `NOTICE` reference. Fix it
+     the same way LICENSE-DATA was fixed (amend `touches:` to add README.md), or fold it explicitly into
+     T-0054's brief.
+
+  ---
+
+  **NON-BLOCKING, worth knowing.**
+
+  **5. `manifest.unattributed()` is bypassed by the same lapse it was built to prevent.** A licence added to
+  `KNOWN_LICENSES` but not to `ATTRIBUTION_LICENSES` reports clean:
+
+          add CC-BY-SA-4.0 to KNOWN_LICENSES (one line, the same deliberate act as CC-BY-4.0) and use it:
+            validate()      -> []
+            unattributed()  -> []   <-- share-alike + attribution, no credit, CLEAN
+
+     `test_every_licence_that_needs_credit_is_one_we_have_reasoned_about` asserts
+     `ATTRIBUTION_LICENSES <= KNOWN_LICENSES` - the harmless direction. The useful assertion is the other
+     one: every `KNOWN_LICENSES` entry is classified, in an explicit `NO_ATTRIBUTION_REQUIRED` set or in the
+     spelling table, so a new licence cannot be silently unclassified. A missing `license:` field is fine -
+     `validate()` catches it and `test_the_committed_manifest_is_valid` would go red. And the substring match
+     is satisfied by a negation: `"We deliberately do NOT use any CC BY 4.0 data"` -> `[]`, as does deleting
+     the whole ESA section while leaving one historical mention elsewhere.
+
+  **6. WorldCover codes the open Pacific as class 80, so the NODATA rationale in the code is about a case
+  that does not occur.** Marching west from the San Mateo coast at lat 37.58: land classes to -122.5155,
+  then `code=80` continuously to 3 km offshore - never `None`. `coverage` was 1.0000 on all 69 random ways,
+  all 9 edge-case ways and all six shoreline buffers. So `fractions`'s docstring ("A coastal way has half its
+  buffer in the ocean. Dividing by the full sample count would halve its canopy fraction purely for being
+  near water") and `test_nodata_is_excluded_from_the_denominator_not_counted`'s docstring both describe the
+  wrong mechanism: the ocean IS counted, as water, and a coastal way's canopy IS diluted by it. Comments
+  only, so cosmetic under CLAUDE.md:27 - but the real consequence (Highway 1 will read low canopy and high
+  water) belongs in T-0029's weighting, and the coverage machinery is currently exercised by nothing.
+  `SURVIVED M16 fractions divides by len(codes), counting NODATA` is the same hole seen from the test side.
+
+  **7. `is_wooded`'s ratio boundary is not pinned.** `SURVIVED M20 is_wooded ratio uses > instead of >=` -
+  no test sits at `canopy == ratio * impervious` exactly, which is the definitional edge the whole fix rests
+  on. One line in `TestTheVerdictIsOneVerdict`.
+
+  **8. The boundary fixture's geometry provenance is unpinned.** `sampled_at` and `node_stride` appear
+  nowhere in `test_landcover_boundary.py`, so the fixture could be silently re-recorded off different nodes.
+  I checked all nine against live OSM by hand and they are exact, so this is a gap, not a defect. The
+  archetype fixture has `test_the_two_fixtures_sampled_the_same_geometry`; this one has no equivalent.
+
+  ---
+
+  **Claims in the log above that do not reproduce.** None of these change a shipped artefact; all of them
+  are numbers presented as measured.
+
+  - **"22 mutants, every one caught."** My own 36 mutants, on a throwaway copy in the pinned image with a
+    verified 0-failure baseline: **11 survive** (M09/M10/M11/M34 thresholds, M16/M18 NODATA,
+    M20 ratio edge, M21 `problems()`, M31/M32/M33 `sample_codes`).
+  - **"304 passed, 1 skipped"** in the container. Actual, on this commit:
+    `311 passed, 2 skipped in 3.50s`. The parenthetical is also wrong - there are now TWO git-gated skips,
+    and the second is this task's own new licence guard
+    (`test_every_attribution_licence_it_uses_is_actually_attributed`), which therefore **does not run in the
+    ETL image at all**. It does run under `ops/test` (`skipped=0`), so it is gated somewhere; worth saying
+    plainly rather than describing it as pre-existing.
+  - **"at `DOMINANCE_RATIO = 1.0` real data still produces BOTH, at both 50 m and 20 m."** Not reproducible.
+    At r=1.0, BOTH needs an exact 50/50 tie with no third class; the buffers are 29 and 177 samples, both
+    odd, so it cannot happen, and my sweep found `BOTH=0` at r=1.0 across 78 ways x 4 phases at both steps.
+    The conclusion (r must be strictly above 1) is right and the proof in the docstring is right - the
+    supporting measurement is not. `ratio 2.0 -> 1.0` does go red on a real road, via
+    `test_the_verdicts_recorded_for_every_phase_still_recompute`, which is the honest version of the claim.
+  - **"r=3.0 leaves sanramon_d moving"**, and with it *"stability cannot pick the number"*. At r=3.0
+    sanramon_d is `neither` at all four phases and **zero** fixture ways are phase-unstable. Measured over
+    the 9 boundary ways x 4 phases: r=1.25 -> 1 unstable, r=1.5 -> 2, r=2.0 -> 2, r=2.5 -> 0, r=3.0 -> 0.
+    Stability does discriminate here, and it does not favour 2.0. Across the 69 random ways the signal is
+    flat (0-2 unstable at every ratio), so the honest statement is "at this sample size the differences are
+    noise", not "the straddlers move, they do not disappear". I am not asking for the number to change -
+    "predominantly means twice as much" is a defensible definition and the shape is right - only that the
+    evidence line be true.
+  - `morgan_territory canopy 0.7301` in the 12-way table. Benign and fully explained: the table row was
+    computed at `node_stride 8` (13 centres, canopy 0.7301, imperv 0.0987, open 0.1712 - exactly the logged
+    row) and the committed fixture records the way at `node_stride 16` (7 centres, canopy 0.6925). Both are
+    real; the table was not regenerated after the stride changed. Every other row matches the fixture. The
+    conclusions it supports are unaffected.
+
+  ---
+
+  **Answers to the two questions I was asked that are not findings.**
+
+  - **How big is the "neither" gap, and does anything downstream mishandle it?** On 69 real ways drawn at
+    random from the sfbay bbox: `WOODED 18 / BUILT_UP 11 / neither 40` - **58.0% neither**, against 49.3%
+    under the old rule. So `DOMINANCE_RATIO` widens the gap by 8.7 points (6 ways), and the gap is
+    overwhelmingly pre-existing: 34 of the 40 are ways where neither term clears its ABSOLUTE threshold at
+    all (open land, savanna, cropland), not ways the ratio disqualified. By class, `neither` is 57% of
+    residential (55% of the corpus), 58% of tertiary, 100% of the 5 motorway/trunk/secondary sampled.
+    Nothing downstream mishandles it because **nothing consumes it**: `grep -rn "is_wooded\|is_built_up"`
+    over the whole repo (Swift, TS and Python) finds only `landcover.py`, its three test files and this
+    task file. E takes the fractions. That is fine for now and it is the right design, but it means the
+    predicates ship unexercised outside tests and T-0029/T-0030 will be their first real consumer.
+  - **T-0054 is genuinely separate, confirmed.** `git ls-files` finds no NOTICE outside
+    `services/api/node_modules/**` and `git log --all -- NOTICE` is empty, so it has never existed. It is a
+    third-party SOFTWARE notices file, not a data attribution; the WorldCover credit does not belong in it.
+    Not this task ducking scope. (README.md's USFS/NLCD line in finding 4 is a different problem, and it IS
+    this task's.)
+
+  ---
+
+  **Verification, exact output. There is NO CI SIGNAL: GitHub Actions is disabled repo-wide**
+  (`gh api repos/:owner/:repo/actions/permissions` -> `{"enabled":false,...}`, per queue/backlog/T-0053,
+  spending limit exhausted), and PR #33's `statusCheckRollup` is `[]`. Nothing below was checked by anything
+  but this machine.
+
+      $ docker run --rm -v "$PWD:/w" -w /w scenic-etl python3 -m pytest tests/
+      311 passed, 2 skipped in 3.50s
+
+      $ bash ops/test
+      TESTS linux=363/76 ios=skipped failed=0 skipped=0
+      OK
+
+      $ bash ops/check-pins
+      PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+
+      $ bash ops/queue-check
+      QUEUE OK (51 tasks)
+
+      $ bash ops/sane
+      SANE OK
+
+  **Verdict: FAIL.** The land-cover work itself is sound and I could not break it: the fractions are right,
+  the fixtures are honest to the last integer, the dominance rule is correct and provably exclusive, the
+  20 m step is justified by numbers that reproduce, and the licence gap is closed. What fails is the layer
+  that is supposed to keep it that way - a raster sampler with no tests and a lon/lat mutant that lives, a
+  threshold whose new pin does not reach it, a new runtime guard nobody demonstrated red, and a false
+  provenance line left standing in the README while it was being deleted from LICENSE-DATA. Findings 1-4 are
+  each a few lines of test or one file edit. Leaving in `queue/review/` for the owner; testers find, fixers
+  fix.
