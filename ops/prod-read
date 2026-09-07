@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# THE ONE SAFE READ-ONLY WAY TO READ PRODUCTION.
+#   ops/prod-read --health            /__health and /__version
+#   ops/prod-read "SELECT count(*) FROM users"
+# Three layers: (1) the read-only grammar is checked HERE before anything leaves the machine,
+# (2) the Worker checks it again on arrival, (3) the token only unlocks /__ro.
+# Every query is appended to .artifacts/prod-read.log. This script never sends anything but a SELECT.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+mkdir -p .artifacts
+
+# Grammar first, before anything else: a refused statement must never even need a URL or a token.
+if [[ "${1:-}" != "--health" ]]; then
+  sql="${1:-}"
+  if ! "$PY" ops/lib/ro_grammar.py "$sql" >/dev/null; then
+    echo "prod-read is read-only: $("$PY" ops/lib/ro_grammar.py "$sql" || true)"; exit 1
+  fi
+fi
+
+url="${API_URL:-$(cat ops/api-url 2>/dev/null || true)}"
+[[ -n "$url" ]] || { echo "prod-read: no API URL (deploy first, or set API_URL)"; exit 2; }
+
+if [[ "${1:-}" == "--health" ]]; then
+  echo "url      $url"
+  echo "health   $(curl -fsS --max-time 10 "$url/__health" || echo unreachable)"
+  echo "version  $(curl -fsS --max-time 10 "$url/__version" || echo unreachable)"
+  echo "head     $(git rev-parse HEAD)"
+  exit 0
+fi
+
+[[ -n "${SCENIC_RO_TOKEN:-}" ]] || SCENIC_RO_TOKEN="$(cat services/api/.env.ro 2>/dev/null || true)"; export SCENIC_RO_TOKEN
+[[ -n "${SCENIC_RO_TOKEN:-}" ]] || { echo "prod-read: SCENIC_RO_TOKEN not set (it lives in your password manager, never in the repo)"; exit 2; }
+printf '%s %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git config user.email || echo '?')" "$sql" >> .artifacts/prod-read.log
+"$PY" - "$url" "$sql" <<'PYEOF'
+import json, os, sys, urllib.request
+url, sql = sys.argv[1] + "/__ro", sys.argv[2]
+req = urllib.request.Request(url, data=json.dumps({"sql": sql}).encode(), method="POST",
+                             headers={"content-type": "application/json", "user-agent": "scenic-ops-prod-read/1",
+                                      "authorization": "Bearer " + os.environ["SCENIC_RO_TOKEN"]})
+try:
+    with urllib.request.urlopen(req, timeout=15) as r:
+        body = json.load(r)
+except urllib.error.HTTPError as e:
+    print(f"HTTP {e.code}: {e.read().decode()[:300]}"); sys.exit(1)
+rows = body.get("rows", [])
+if not rows:
+    print("(0 rows)"); sys.exit(0)
+cols = list(rows[0].keys())
+print("\t".join(cols))
+for row in rows:
+    print("\t".join(str(row.get(c)) for c in cols))
+if body.get("truncated"):
+    print("(truncated at 200 rows)")
+PYEOF
