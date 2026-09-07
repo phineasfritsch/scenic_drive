@@ -1,7 +1,7 @@
 ---
 id: T-0025
 title: Scenic score: curvature, verified against the Curvature project's published values
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T16:59:08Z
@@ -11,7 +11,7 @@ branch: task/T-0025
 exclusive: []
 touches: [services/etl/, ops/etl-curvature-fixture, ops/etl-oracle-report]
 pins_affected: []
-reviewer: agent/reviewer-30
+reviewer: agent/reviewer-34
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -1461,3 +1461,255 @@ Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
   test would then only assert the fixture's digest is truthy again. That is the same failure as the one just
   fixed, one level out, which given the pattern above is where I would look first. Second: nothing verifies
   `vermont-osm.pbf` against its pin, only the KMZ; the geometry side of the comparison is still unchecked.
+
+### 2026-09-07 - sixth review, by agent/reviewer-34. PASS, with residuals recorded below.
+
+Both round-5 findings are fixed and I confirmed each by running code, not by reading the diff. The round the
+owner asked for was the CLASS sweep, and I ran it two ways - by mutation in the pinned image, and by reading
+every assertion in the six test files and both ops scripts. **I did not find another instance of the class.**
+The method is below, because "I looked and found nothing" is worth nothing without it.
+
+**1. THE BLOCKER IS CLOSED, and I attacked the new guard rather than trusting it.**
+
+The round-5 scenario re-run end to end - a KMZ holding the first 900 of the pinned file's 4422 Placemarks,
+swapped in under the pinned NAME, `ops/etl-curvature-fixture` in rebuild mode:
+
+      1/3  496 ways
+      2/3  493 of 496 requested ways came back
+      3/3  select and write
+           vermont-curvature.kmz is not the pinned oracle.
+             pinned : 3bdf4d140a6dcef0501223357d993df1b960934adf1a5cebdcdf2340b7039046
+             on disk: 03b86f0e5c2b5b32be47371b9cbf4d257d5286775d35a6935801da3984f2c788
+           BUILD FAILED: etl.oracle --build exited non-zero
+           exit=2
+      fixture sha before 7427820486e605ba..  after 7427820486e605ba..   ways 400 -> 400
+
+Refused, and the committed oracle is untouched. Round 5's run left a 400-way forgery in its place.
+
+Then the guard itself. `pinned_digest` parses the manifest BY HAND while `etl/manifest.py` - the parser
+`etl/fetch.py` actually uses - already parses the same file. Two parsers for one file is the round-5 MAJOR's
+shape applied to a parser instead of a constant, so I fed seven manifest shapes to both and printed the
+answers side by side:
+
+      variant                                          manifest.parse   pinned_digest   validator
+      0. the committed shape (control)                   3bdf4d14..      3bdf4d14..     clean
+      1. keys reordered - sha256 is the list head        3bdf4d14..            None     clean   <<< DISAGREE
+      2. keys reordered - url is the list head           3bdf4d14..            None     clean   <<< DISAGREE
+      3. the name is quoted                              3bdf4d14..            None     clean   <<< DISAGREE
+      4. the digest is quoted                            3bdf4d14..     "3bdf4d1..      clean   <<< DISAGREE
+      5. target loses its pin, next entry leads
+         with a non-name key                                   None      aaaa1111..     (flagged)
+      6. two entries with the same name                  3bdf4d14..      3bdf4d14..     (duplicate)
+
+So yes: three manifests that this repo's own validator calls **clean** make `pinned_digest` return None, and
+one makes it return **another entry's digest**. And `build()`'s guard is `if want and digest != want`, which
+with `want = None` is no guard at all - as is `--kmz somethingelse.kmz`, because the lookup is keyed on the
+FILENAME.
+
+**Every one of those routes is caught red by the committed suite, which is the answer that matters.** I built
+the two reachable-without-editing-source ones and ran the whole suite on the result:
+
+      A. 306-way fixture built from the short KMZ under a NON-PINNED NAME (build did not refuse)
+         it records source_sha256 = 03b86f0e5c2b5b32..
+         suite: tests=171 failures=5 -> RED: test_the_fixture_was_built_from_the_pinned_oracle
+      B. manifest with `url:` before `name:` - manifest.parse reads sha256=3bdf4d14.., problems=NONE,
+         pinned_digest returns None, build() accepts any KMZ
+         suite: tests=171 failures=5 -> RED: test_the_fixture_was_built_from_the_pinned_oracle
+
+(baseline in the /tmp copy is 4 failures - `regions/` is not copied - so 5 means exactly one new.)
+
+The owner's claim that `test_oracle_report.py` is the real fix and the wrapper check is the fast failure is
+**correct, and it holds on both bypass routes I could construct.** It compares two independently committed
+files, so neither side comes from the thing under test. That is the first check in this task built the right
+way round on the first try.
+
+**2. THE MAJOR IS CLOSED.** One `oracle.ORACLE_TOLERANCE`, and all three of the owner's claimed sweeps
+reproduce exactly, in the pinned image, on a full copy of the package:
+
+      ORACLE_TOLERANCE -> 0.5    4 red: test_the_oracle_tolerance + 3 behavioural
+      ORACLE_TOLERANCE -> 0.03   1 red: test_the_oracle_tolerance
+      report gets its own copy   2 red: test_the_tolerance_is_not_a_second_copy,
+                                        test_the_report_agrees_with_the_suite_on_the_committed_fixture
+
+I also checked whether `is` is doing real work or is decoration: a second copy that happens to AGREE today
+(`TOLERANCE = 0.02`, a literal, equal but not identical) is still caught by
+`test_the_tolerance_is_not_a_second_copy`. It is doing real work.
+
+**No other threshold in `services/etl/etl/` is duplicated across modules.** Swept every module-level constant
+in all eleven files. `oracle_report.TOLERANCE` and `test_curvature.TOLERANCE` are both aliases of the one
+definition; `MIN_AGREEMENT` exists once. What is still duplicated is policy, not thresholds, and all of it is
+minor: `cap=400` appears three times (`oracle.build`, `oracle_select.build`, `oracle.main`'s `args.limit or
+400`) and `seed=20260907` twice; `ops/etl-curvature-fixture` writes `* 95 / 100` twice for two different
+floors; the manifest path is spelled out in `fetch.py`, `oracle.pinned_digest`'s default and
+`test_oracle_report.py`. Drift in any of those is caught by `--check`, so: INFO.
+
+**3. THE CLASS SWEEP - the point of this round.**
+
+The owner's claim is that they have been patching instances of "a check whose expected value comes from the
+thing under test" rather than generalising. I tested that claim two ways.
+
+*Structurally*, I read every assertion in `test_curvature.py`, `test_curvature_constants.py`,
+`test_oracle_select.py`, `test_oracle_report.py`, `test_fetch.py` and `test_manifest.py`, and both ops
+scripts, asking of each: where does the expected side come from? Two look like the class and are not:
+
+  - `test_the_manifest_reader_finds_the_right_entry` compares `pinned_digest` against `pinned_digest`. Both
+    sides come from the function under test. But dropping the name match entirely (`elif
+    line.startswith("sha256:")`) makes both sides equal and it goes red, so it is not vacuous. It IS weaker
+    than its docstring claims: `vermont-osm.pbf` carries no digest, so the assertion reduces to
+    `None != "3bdf.."` and the "returns some OTHER entry's digest" case it names is not actually exercised -
+    there is only one sha256 in the manifest to return. Noted as a residual, not a finding.
+  - `test_the_report_agrees_with_the_suite_on_the_committed_fixture` recomputes `errs` with the same
+    `cv.way_curvature` the module calls. But its expected side reads `r["agree"]` and `r["n"]`, which a
+    mutation of `share` does not touch, so halving the reported rate and hardcoding it to 0.945 both go red.
+    Non-vacuous.
+
+*Empirically*, because reading for this is what has failed five times, I ran a mutation sweep: 25 mutations
+across `curvature.py`, `oracle.py`, `oracle_select.py` and `oracle_report.py` (one repeated between the two
+batches, so 24 distinct), each applied to a complete copy of the package inside the pinned image, each judged
+by the JUnit red-set minus the baseline. A mutant that survives is either uncovered or covered only by a
+self-referential check - which is the class, made falsifiable. **14 caught by a named committed test, 10
+survived.** The host tree was never written to; `git status` is clean and all twelve source files, the
+fixture and the manifest are sha256-identical to HEAD, verified after the fact.
+
+**None of the ten survivors is an instance of the class.** Every one is uncovered code, not a check looking
+at itself. That is a different defect and a less serious one, and I am saying so rather than dressing it up
+as a sixth instance:
+
+      digest-guard-deleted            `if want and digest != want:` -> `if False:`      SURVIVED
+      digest-recorded-as-the-pin      `"source_sha256": digest` -> `want or digest`     SURVIVED
+      geometry-check-disabled         condition 2 stops excluding anything              SURVIVED
+      squash-check-disabled           condition 3 stops excluding anything              SURVIVED
+      funnel-single-way-inflated/     `len(published)` -> `* 10` / `// 10`              SURVIVED
+        -deflated
+      median-is-the-best-case         reported median is really the minimum             SURVIVED
+      p90-is-the-median               reported p90 is really the median                 SURVIVED
+      platform-is-a-fiction           `this_platform()` hardcoded to the pinned image   SURVIVED
+      zero-population-refusal-deleted `0/0 = 0.000%` prints and exits 0 again           SURVIVED
+
+The first two are the two lines of THIS ROUND'S FIX, and reverting both together restores the round-5 blocker
+verbatim. I did it: a KMZ truncated to 900 of 4422 Placemarks, built with those two lines reverted, dropped
+in as the fixture -
+
+      build() exit: OK, 305 ways written, funnel {'single_way': 496, ...}
+      the rebuilt fixture claims source_sha256 = 3bdf4d140a6d..   (the pin)
+      the file it was ACTUALLY built from       = 9779e34f244c..
+      SUITE ON THE FORGED FIXTURE: tests=171 failures=4 (= baseline) - NOTHING NEW WENT RED
+
+So the fix is correct and its correctness is held by nothing but the diff. That is not the class, and it does
+not reopen the blocker - reaching it needs a source edit, where round 5's needed only a bad copy of a
+gitignored file - but it is the honest limit of what was built this round, and the reason `oracle_select.build`
+should get a unit test that hands it a two-Placemark KMZ and asserts SystemExit.
+
+Two of the survivors are worth naming individually. `platform-is-a-fiction` is the round-5 assertion shape
+reappearing in the file written to fix it: `test_the_report_names_the_platform_it_ran_on` asserts
+`p and any(ch.isdigit() for ch in p)`, which the literal `"Linux/x86_64 python 3.12.3"` satisfies - so the
+guard on the string that exists BECAUSE of the round-3 blocker (a number quoted without its platform) cannot
+fail for any hardcoded value, including under `--compare-host`, whose whole job is to label the host run as
+the host. And `zero-population-refusal-deleted` survives because round 5 asked for "the red-then-green
+demonstration of the zero-population refusal that does not exist yet" and the response did not mention it;
+`test_a_report_over_no_ways_is_not_a_zero_percent_agreement` exercises `agreement([])`, not `main`'s refusal.
+
+**4. vermont-osm.pbf, and how far the geometry side can be pushed. CONFIRMED unverified - and there is no
+pin to verify it against.** The manifest gives it `verify: upstream-md5` and no `sha256:` field at all, for a
+documented reason ("Geofabrik rebuilds daily"). I measured what that buys, because "unverified" is not a
+consequence. Condition 2 keeps only ways whose export geometry matches the KML's own `<coordinates>` within
+1 m, so nudging a way's nodes drops it silently. I computed which of the 2384 eligible ways disagree, nudged
+exactly those 133 by 2 m north in the export, and rebuilt with the REAL pinned KMZ:
+
+      honest population: 2384 ways, funnel {'single_way': 3318, 'have_geometry': 3297,
+                                            'geometry_identical': 2571, 'no_squash': 2384}
+      doctored export: 133 ways nudged 2 m north (way COUNT unchanged, so the step-2 floor cannot see it)
+      build(): 400 ways, funnel {..., 'geometry_identical': 2438, 'no_squash': 2251}
+        recorded source_sha256 = 3bdf4d140a6dcef0..  - correct, and truthfully so
+      SUITE: tests=171 failures=4 (= baseline) - NOTHING NEW WENT RED
+      REPORT: fixture     400/400  = 100.000%   median 0.06623%   p90 0.3175%
+              population 2251/2251 = 100.000%   median 0.06212%   p90 0.2926%
+
+**I judge that it does not block, and here is the reasoning rather than the verdict alone.** It is not the
+round-5 defect wearing a different hat, for three reasons. (a) It cannot fabricate a truth value - the oracle
+curvatures still come from the pinned KMZ, and condition 2 pins the geometry to the KML's own coordinates, so
+this channel can only REMOVE ways from the comparison, never add one with an invented answer. (b) The
+accidental version is caught: a short, stale or wrong-region PBF fails `ops/etl-curvature-fixture`'s step-2
+floor at 95% of the 3318 requested ids. What survives is deliberate, surgical editing by someone who has
+already computed our answers to know which ways to nudge - and no test suite defends against an author
+forging its inputs; the reviewed diff does, and this one moves the funnel by 5% inside a 58k-line file. (c)
+There is no pin to demand. Asking T-0025 to sha256-pin a daily-rebuilt Geofabrik extract contradicts a
+documented decision that belongs to the manifest design, not to this task.
+
+What it does justify is three small follow-ups, and I would rather they were filed than looped here: record
+the PBF's sha256 in the fixture beside `source_sha256` (honest provenance without pinning anything); assert
+the committed funnel in a test, which catches this attack outright and also catches
+`funnel-single-way-inflated/deflated`; and give the curvature oracle a pin, the way T-0011's solar oracle got
+`P-SAFE-05`, whose `why_no_test_catches_it` is literally "a fixture regenerated from our own code would bless
+the error". `pins_affected` is still `[]` and `ops/check-pins` would not notice any of the above.
+
+**5. Done, or not yet. Done.** I want to be explicit about why this is a PASS and not a sixth FAIL, because
+five rounds of correct fixes is exactly the situation where a reviewer drifts in either direction.
+
+The test I applied is the one rounds 3, 4 and 5 applied: is there a route to a WRONG DELIVERABLE with EVERY
+GATE GREEN that does not require editing source? Round 5 had one and it needed only a bad copy of a gitignored
+file. This round I looked for one and found none: both fail-open routes into the new guard go red in the
+suite, and the remaining ten mutation survivors all require a source edit. The class the owner named is
+closed in the deliverable's checks, and I checked that by mutation rather than by reading, which is the part
+they asked for. The residuals below are real, they are small, and every one of them is a missing regression
+guard on a behaviour that has actually been demonstrated to work - which is a different and much weaker
+statement than any of the five findings that came before. Another round to add three tests, after five
+correct fixes, would be drift.
+
+**RESIDUALS, recorded rather than fixed (testers find, they do not fix):**
+- `oracle_select.build`'s two guard lines have no test. Reverting both restores the round-5 blocker with a
+  green suite. Fix: a unit test handing `build()` a two-Placemark KMZ and asserting `SystemExit`.
+- `if want and digest != want` is fail-open, and the lookup is keyed on `kmz.name`, so `--kmz other.kmz`
+  skips the check. Loud in the suite, silent at build time.
+- `oracle.pinned_digest` is a second parser for a file `etl/manifest.py` already parses correctly. Three
+  validator-clean manifest shapes defeat it. Fix: call `manifest.parse`.
+- `test_the_report_names_the_platform_it_ran_on` cannot fail for a hardcoded platform string.
+- `oracle_report`'s median and p90 - the figures quoted throughout this log - are asserted by nothing.
+- `main`'s zero-population refusal is asserted by nothing; round 5 asked for this and it was not done.
+- The fixture's `funnel` is asserted by nothing. A fixture recording `single_way: 496` passes the whole suite.
+- `eligible()`'s wiring is untested: `same_geometry` and `way_is_squash_tagged` are tested in isolation, but
+  disabling either call inside `eligible` is caught by nothing.
+- `curvature.py`'s header still says "at master"; the SHA is `140907ba2bb17f85950408baea948ba658bed5c6`.
+- `ops/etl-curvature-fixture` verifies the KMZ only at step 3, after ~2 minutes of osmium.
+  `python -m etl.fetch --only vermont-curvature.kmz` would fail in seconds.
+- Nothing automated runs `ops/etl-curvature-fixture --check` or `ops/etl-oracle-report` - not `ops/test`,
+  not `ops/check-pins`, not a hook. I grepped.
+- `ops/check-pins` and `ops/queue-check` need git-bash while the pinned image needs WSL (T-0055).
+
+**Verification, all run fresh this round:**
+- etl suite in the pinned `scenic-etl` image, count from JUnit XML, run twice (before and after all
+  experiments): `<testsuite name="pytest" errors="0" failures="0" skipped="1" tests="171" ...>`, exit 0.
+- `bash ops/test` -> `TESTS linux=221/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0 (git-bash).
+- `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0.
+- `bash ops/queue-check` -> `QUEUE OK (50 tasks)`, exit 0.
+- `ops/etl-curvature-fixture --check` from a wiped work dir -> `FIXTURE OK: rebuilt output is identical to
+  the committed file`, exit 0, funnel `3318 / 3297 / 2571 / 2384`, osmium naming exactly 21 missing ids.
+- `ops/etl-oracle-report --with-population` ->
+      fixture (curvature_oracle.json)      379/400   =  94.750%   median  0.06340%   p90  0.8182%
+      population (subset.geojsonseq)      2251/2384  =  94.421%   median  0.06608%   p90  0.8923%
+  exit 0. Identical to round 5's figures.
+- Independently of `etl.oracle`, with a regex parser of my own: the KMZ on disk, the manifest's pin and the
+  fixture's recorded `source_sha256` are all `3bdf4d140a6dcef0501223357d993df1b960934adf1a5cebdcdf2340b7039046`.
+  `vermont-osm.pbf` is `a0f17e2c947f6c9e..` and the manifest pins nothing for it.
+- Afterwards: `git status --porcelain` empty; KMZ back at its pin; `oracle.py`, `oracle_select.py`,
+  `oracle_report.py`, `curvature.py`, all four test files, the fixture, the manifest and both ops scripts
+  sha256-identical to HEAD. I removed every truncated KMZ and forged fixture this review and its
+  rate-limited predecessor left in `services/etl/work/`, and left the work dir holding an honest rebuild.
+- **There is no CI signal of any kind.** GitHub Actions is disabled repo-wide (T-0053, spending limit
+  exhausted). Every number above is one machine, one glibc, one image.
+
+**What I re-derived by running code:** the 25-mutation sweep in the pinned image with a per-mutant package
+copy and JUnit red-sets; the truncated-KMZ attack end to end through `ops/etl-curvature-fixture` with the
+fixture's digest and way count before and after; the renamed-KMZ bypass and the reordered-manifest bypass,
+each with the full suite run on the resulting fixture; the seven-variant `pinned_digest` vs `manifest.parse`
+comparison; the composite that reverts both fix lines and restores the round-5 forgery green; the 133-way
+geometry cherry-pick to 100.000%; the independent digest cross-check; and all six gates. **What I took on
+trust:** the KMZ's published values, which are the oracle itself; the round-2/3/4 platform and libm analysis,
+which reviewer-34 re-derived in round 4 and I did not repeat; round 5's upstream comparison at
+`140907ba2bb17f85950408baea948ba658bed5c6`, which I did not re-fetch; that a doctored `vermont-osm.pbf`
+behaves like the doctored export I built from it (I attacked the export, not the PBF); and a third libm.
+
+**PASS.** Moved to `queue/done/`, `state: done`. Also corrected `reviewer:` from agent/reviewer-30 to
+agent/reviewer-34, who reviewed rounds 3 through 6.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
