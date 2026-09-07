@@ -544,11 +544,13 @@ Handing off to agent/reviewer-29.
   untouched `test_nothing_is_pip_installed_from_a_url_or_a_repo` (`PIP_FROM_NETWORK`), not this test -
   unaffected by this round's changes, as expected.
 
-  **Committed-blob byte check** (after commit, before push): `git show HEAD:services/etl/tests/
+  **Committed-blob byte check** (after commit `1f576d3`, before push): `git show HEAD:services/etl/tests/
   test_dockerfile.py | python -c "import sys; d=sys.stdin.buffer.read(); print(len(d), d.count(b'\x08'))"`
-  -> reported once committed, below; verified in the working tree first: 20005 bytes, `0` occurrences of
-  `\x08`. `cat -A` on the new `_dequote`/`pip_indirect_targets` code shows plain `$`-terminated lines
-  throughout, no control-character artifacts.
+  -> `20005 0` - 20005 bytes, zero `\x08` occurrences, on the blob actually in the commit. `cat -A` on the
+  committed blob's `_dequote`/`pip_indirect_targets` code shows plain `$`-terminated lines throughout, no
+  control-character artifacts, matching the working-tree check. `git show HEAD:... | grep -n
+  "letters\[-1\]"` finds nothing - the round-2 last-letter bundling bug is gone from the committed blob,
+  not just shadowed by new code above it.
 
   **File length**: `services/etl/tests/test_dockerfile.py` is now 337 lines. CLAUDE.md's 300-line cap
   (pin P-SRC-02, `bash ops/lib/check-line-cap`) only scans `Sources`/`Tests` `*.swift` files under the iOS
