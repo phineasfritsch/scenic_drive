@@ -43,4 +43,34 @@ Related: `ops/lib/ro_grammar.py:5-6`'s docstring documents `ro_grammar.py --self
 prefix - a bare invocation that no longer works now the file is 100644 (reviewer-19, MINOR). Fix the docstring
 in the same pass.
 
+### 2026-09-07 - a second, worse symptom of the same merge, found by rehearsing it
+
+The original finding was that three load-bearing files will be missing from `REQUIRED` once T-0021 and
+T-0023 land. Merging the whole backlog locally, in `queue/MERGE-ORDER.md`'s order, turned up something
+sharper on the same file:
+
+    P-OPS-01: wrong git file mode:
+      ops/lib/classify-checks.py (data, should be 100644, is 100755)
+
+`ops/lib/classify-checks.py` is committed 100755 on `task/T-0021`. T-0036 reclassified `ops/lib/*.py` into
+the 100644 data bucket - correctly, they are only ever invoked as `"$PY" ops/lib/x.py` - and flipped the four
+that existed on `main` at the time. `classify-checks.py` was not one of them, because it does not exist on
+`main`; it only exists on T-0021.
+
+So: **neither branch is wrong on its own, both pass their own gates, and the merged result fails P-OPS-01.**
+`main` would have gone red on the first merge after both landed, with a failure that points at a file neither
+task touched together.
+
+That makes this a MERGE-TIME fix, not a follow-up: flipping the mode has to happen in the same window as
+adding the three names to `REQUIRED`, and `queue/MERGE-ORDER.md` now names it as a step. Do both here:
+
+    git update-index --chmod=-x ops/lib/classify-checks.py
+
+and check the same trap for the other two files this task adds - `ops/lib/gh-stub-for-merge-tests` and
+`ops/lib/check-failure-naming` are bash scripts, so 100755 is correct for them, but verify rather than assume:
+the rehearsal only caught the `.py` because P-OPS-01 happens to encode the rule.
+
+Demonstrate red by reproducing the rehearsal rather than by reasoning: merge `origin/task/T-0021` and
+`origin/task/T-0036` into a scratch branch off `main` and run `bash ops/lib/check-exec-bits`.
+
 ## Log
