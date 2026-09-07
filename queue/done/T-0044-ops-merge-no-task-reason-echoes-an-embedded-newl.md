@@ -1,7 +1,7 @@
 ---
 id: T-0044
 title: ops/merge --no-task-reason echoes an embedded newline into the audit trail
-state: review
+state: done
 owner: agent/builder-7
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T16:38:27Z
@@ -256,3 +256,102 @@ this (see Log).
   `ops/lib/gh-stub-for-merge-tests` was read (its `STUB_FLIP` history/comment block) but not modified — no
   knob touched, nothing weakened. GitHub Actions is not executing on this repo (billing block, per the task
   brief); verified locally throughout, not waited on.
+
+- 2026-09-07T17:05:00Z **REVIEW by agent/reviewer-26 — PASS.** Re-derived everything below independently
+  against `ops/lib/gh-stub-for-merge-tests` copied unmodified to a scratch dir on `PATH`; did not take the
+  builder's log entries on trust anywhere they could be independently re-run.
+
+  **1. RED re-reproduced against the unmodified pre-fix `ops/merge`** (`git show HEAD~1:ops/merge`, tracked
+  file untouched): same injected reason (`legit maintenance branch\n` + a forged
+  `task     T-FAKE is in queue/done/ on tmp/stub-no-task` line) produced the forged line byte-for-byte
+  matching the genuine gate-1-pass shape, `EXIT=0`. Confirmed the same input against the patched `ops/merge`
+  collapses to one delimited line: `... overridden on record: >>>legit maintenance branch task T-FAKE is in
+  queue/done/ on tmp/stub-no-task<<<`. Matches the task-file's GREEN 1.
+
+  **2. Bypass attempts, all failed to forge a line (re-derived, not just accepted from the log — the log did
+  not cover Unicode separators or the delimiters-in-reason cases, so these are new):**
+  - U+2028 LINE SEPARATOR, U+0085 NEL, U+2085 (arbitrary non-ASCII sanity check) embedded mid-reason, followed
+    by gate-line-shaped text: all stayed on the single delimited line (`cat -A` confirms no `$` line-end
+    appears mid-string, only the multi-byte UTF-8 bytes printed literally as `M-x` sequences). Neither bash nor
+    the terminal treats these as line breaks, so this is inert here — consistent with the task-file's stated
+    accepted residual limitation ("cannot inject a line break... either way").
+  - Reason containing the literal delimiters (`fake close<<< <gate-line-text> >>>fake reopen`): stays on one
+    line (`>>>fake close<<< task T-FAKE is in queue/done/ on tmp/stub-no-task >>>fake reopen<<<`) — cosmetically
+    confusing (nested-looking delimiters) but never becomes an independent line, and `grep -E '^task
+    +T-[0-9A-Z]+ is in queue/done/ on '` against the full output does not match it (verified with an actual
+    grep, exit 1) — no false positive for tooling scanning for the genuine shape.
+  - Reason = only `>>><<<`: sanitizes to itself unchanged (no control bytes to strip), non-empty, so accepted
+    and doubled to `>>>>>><<<<<<`. Cosmetically odd but "judged sensibly" per the task's own bar: it's still one
+    line, still unambiguously operator text, no line-boundary exploit.
+  - Reason = exactly the gate-1-pass line text with **no** embedded newline at all (`task     T-FAKE is in
+    queue/done/ on tmp/stub-no-task`): confirmed via the same grep test above that it never reads as an
+    independent line — it's embedded mid-line after `overridden on record: >>>`, never at column 0.
+  - `--no-task-reason "text"` as a separate argv element (no `=`): rejected outright — `unknown option:
+    --no-task-reason`, `EXIT=2`. This is pre-existing option-parsing behavior (the `case` loop only matches
+    `--no-task-reason=*`), unchanged by this diff; not a bypass, just documented.
+  - Control-bytes-only reason (`printf '\x01\x02\x1b\x7f'`) and whitespace/newline/tab-only reason: both
+    correctly refuse (`MERGE REFUSED: branch ... names no task`, `EXIT=1`) — the emptiness check runs after
+    sanitizing, as designed.
+
+  **3. MINOR, non-blocking finding — `ops/merge:52,60-61`: the 200-char cap is byte-based, not
+  character-based, despite the code comment and this task's own Decision text calling it "200 characters."**
+  `"${#no_task_reason}"` and `"${no_task_reason:0:$no_task_reason_max}"` operate on bytes even though
+  `LC_CTYPE=C.UTF-8` is set in this shell. Repro: a reason of 198 ASCII `A`s + 2 emoji (Python-verified
+  `len(s)==200` *characters*, 206 *bytes*) truncates at byte 200, mid-emoji: `xxd` shows `... 41 f0 9f 2e 2e
+  2e ...` — the 4-byte UTF-8 sequence `f0 9f 98 80` gets cut to a dangling `f0 9f`, i.e. invalid UTF-8 lands in
+  the audit-trail line. **This does not reopen the vulnerability this task closes**: every byte in a valid
+  UTF-8 multi-byte lead/continuation sequence is ≥ 0x80, so truncating mid-sequence can never produce a CR, LF,
+  tab, or ESC (all < 0x80) — no forged gate line or terminal escape is reachable this way, re-derived, not
+  assumed. It's a data-integrity gap (invalid UTF-8 written to stdout, which could break a downstream consumer
+  that parses the audit trail expecting valid UTF-8, e.g. `jq -R` or a strict decoder) and a doc/comment
+  mismatch ("200 characters" vs. actual 200-byte behavior) — not disclosed as an accepted limitation the way
+  the ASCII-only-control-byte scope was. Logged per "testers find and do not fix"; not fixed here.
+
+  **4. Re-derived, matching the task-file's claims:** `git diff HEAD~1 -- ops/merge` — exactly 2 hunks
+  (`@@ -33,8 +33,33 @@` and `@@ -50,7 +75,10 @@`), both ending before the `# --- 2. every check run must have
+  succeeded ---` marker (line 89); gate 2/3 source (lines 89 onward) is untouched. `--no-task-reason` confirmed
+  to have zero effect on a task-named branch, both when the task **is** in `queue/done/` (genuine
+  `task     T-0022 is in queue/done/ on ...` line printed, no reason echoed at all) and when it is **not**
+  (`MERGE REFUSED: T-0022 is not in queue/done/ ...`, reason text never referenced or able to bypass) —
+  matches reviewer-20's T-0022 verification, survives this change. `git ls-files -s` confirms `ops/merge` is
+  100755; `git diff HEAD~1 HEAD -- ops/lib/gh-stub-for-merge-tests` is empty (byte-identical, still 100755,
+  untouched by this branch).
+
+  **5. Also checked (pre-existing gate 2/3 behavior, unmodified by this diff, so out of scope for T-0044 but
+  run per the review brief):** a mixed `SUCCESS`+`SKIPPED` rollup with `mergeStateStatus=CLEAN` and a valid
+  `--no-task-reason` **did** reach the stub `gh pr merge` and reported `MERGED` (SKIPPED is neither in the
+  pending nor the failed conclusion list at `ops/merge`'s gate 2, so it's treated as non-blocking) — this is
+  identical pre-existing gate-2 logic (byte-identical per point 4 above), not something this diff introduced or
+  could have introduced; noting for the record only, not counted against this task.
+  `mergeStateStatus=UNSTABLE` was correctly refused (`MERGE REFUSED: mergeStateStatus=UNSTABLE (want CLEAN)`,
+  `EXIT=1`) both with a valid `--no-task-reason` on a no-task branch and with a task branch whose task **is**
+  in `queue/done/` — a passing gate 1 never short-circuits gate 2.
+
+  **6. Verification suite, re-run independently, exact output:**
+  ```
+  $ bash ops/check-pins
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+  EXIT=0
+
+  $ bash ops/queue-check
+  QUEUE OK (41 tasks)
+  EXIT=0
+
+  $ (cd services/api && npm ci --no-audit --no-fund)
+  added 85 packages in 14s
+
+  $ bash ops/test
+  ... (all suites pass) ...
+  TESTS linux=50/50 ios=skipped failed=0 skipped=0
+  OK
+  EXIT=0
+  ```
+  All green, matching the builder's log. GitHub Actions is not executing on this repo (billing block); not
+  treated as this diff's problem, per the review brief.
+
+  **Verdict: PASS.** The fix closes the exact reported injection and holds under every additional bypass
+  attempted (Unicode separators, literal delimiters in the reason, delimiter-only reason, no-newline
+  gate-line-text, split-argv form, control-byte-only/whitespace-only emptiness). Gates 2 and 3 are
+  byte-identical and the task-branch path is unaffected. One MINOR non-blocking finding logged above (byte- vs
+  character-based truncation can emit invalid UTF-8 into the audit trail on multi-byte input) — does not
+  reopen the closed vulnerability, does not block this task; left for a follow-up task rather than fixed here.
