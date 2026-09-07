@@ -1,7 +1,7 @@
 ---
 id: T-0026
 title: Scenic score: terrain from 3DEP (elevation gain, relief) with a smoothing pass
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T17:41:07Z
@@ -162,3 +162,136 @@ RED: a known-flat fixture (Alviso/Bay margin) must score near 0 gain; a known-st
 
   Not done, deliberately: nothing writes these numbers into the corpus yet. That is T-0030's job, and the
   scoring composition is T-0029's.
+
+- 2026-09-07T20:15Z agent/reviewer-31, PASS. Attacked the priority list in order, re-deriving against
+  primary sources rather than the owner's own tests wherever that was possible. What was re-derived vs.
+  taken on trust, item by item:
+
+  **1. `dem.tile_for` (services/etl/etl/dem.py:38-48).** RE-DERIVED, not trusted. Ran
+  `gdalinfo` inside the pinned `scenic-etl` image on all 8 pinned tiles (n37/n38/n39 x w122/w123/w124).
+  Every tile's Upper-Left corner is (ceil(lat), -ceil(|lon|)) to within a 2" seam buffer, e.g. n38w123's
+  actual extent is lat [36.9994, 38.0006] lon [-123.0006, -121.9994] - confirming ceil-of-lat /
+  ceil-of-abs-lon against the real files, not the owner's assertions about them. Then swept boundary
+  cases programmatically (`tests/fixtures` not involved): exactly on a whole degree, epsilon inside/
+  outside, region edges, the n37w124 ocean gap, NaN, negative latitude, positive longitude, and both
+  sides of the antimeridian. All correct for the region this pipeline actually serves, with one finding:
+
+  MEDIUM, not blocking - `dem.tile_for` builds its name as `f"n{ceil(lat)}w{ceil(abs(lon))}"` with no
+  check on the SIGN of lat/lon, only on magnitude. `dem.tile_for(38.0, 122.5)` (122.5°E, e.g. coastal
+  China) returns `'n38w123'` - the Bay Area's own peninsula tile - instead of `None`. That is exactly the
+  "plausible wrong answer" failure class item 1 warns about, just triggered by hemisphere confusion
+  instead of an index off-by-one: a positive longitude would silently draw a real elevation out of the
+  wrong hemisphere's tile rather than failing safe. It is not reachable today - `california-latest.osm.pbf`
+  extracted to the sfbay bbox (`services/etl/regions/sfbay/region.json`, lon -123.62..-121.55) can never
+  hand `tile_for` a positive longitude, and `TILES` (dem.py:25-29) only contains 8 "n..w.." names so no
+  other coincidental collision is possible - so this does not block the task. It is untested (no case in
+  `TestTileForAPoint` exercises sign), and worth a line in a future region-expansion task. Negative
+  latitude fails safe today too, but by accident (`f"n{-37:02d}"` produces a name absent from `TILES`),
+  not by validation.
+
+  **2. Fixture provenance (`tests/fixtures/terrain_fixture.json`).** RE-DERIVED for all 4 ways, not 1.
+  Pulled every way (8940690, 239028846, 92357845, 8929268) live from `api.openstreetmap.org/api/0.6/way/
+  <id>/full` (network available in this environment) and diffed the ordered node coordinate list against
+  the committed `coords` array: EXACT match, all 4 ways, node-for-node. Then, independently of the
+  owner's own build path, resampled each way's committed geometry with `terrain.resample` and re-sampled
+  elevation through `dem.sample_smoothed` against the real pinned tiles inside the `scenic-etl` container
+  (not a mock runner): the reproduced profile matched the committed `profile` array exactly (post-rounding)
+  for all 4 ways, and feeding that reproduced profile through `terrain.summarise` reproduced the committed
+  `recorded_summary` exactly for all 4. This independently confirms both halves of item 2 - the profile
+  really came from the pinned tiles, and the recorded summary really is what the recorded profile
+  produces - without relying on `TestTheRecordedSummariesStillHold` (tests/test_terrain_fixture.py:88-93),
+  which I also ran and which also passes. Also independently confirmed the USGS `n37w124` URL is a live
+  404 (curl'd it directly), and that the 8 tiles' sha256 in `services/etl/inputs/manifest.yaml` match
+  `sha256sum` on the local 2.28 GB files byte for byte.
+
+  **3a. Real mapper geometry (not typed lines).** RE-DERIVED via the same live-OSM fetch above - not just
+  the node-spacing test. Node ids exist in OSM, node order and coordinates match exactly.
+
+  **3b. `is_flat` threshold never tuned.** RE-DERIVED via `git log --oneline -- services/etl/etl/
+  terrain.py`: exactly one commit (c9d0db6) has ever touched that file, and it is the commit that
+  introduced `gain_per_km_threshold: float = 5.0` (terrain.py:177). No later commit touches the file, so
+  the constant cannot have been moved after the Alviso-at-5.64 scare the log describes. Confirmed true.
+
+  **4. `sample_smoothed` row volume.** RE-DERIVED, not assumed. Built a synthetic 4000-point way (all
+  inside one tile) and ran it through the real `dem.sample()` and `dem.sample_smoothed()` (36,000 stdin
+  lines for the smoothed call) inside the container: both returned in under a second with exactly the
+  expected count, no truncation - `subprocess.run(input=...)` uses `communicate()` internally so this
+  never hits an ARG_MAX-style ceiling, only ordinary pipe throughput. Then constructed an actual truncated
+  read (a runner that halves `gdallocationinfo`'s stdout before returning it) and confirmed
+  `parse_values`'s count-mismatch guard (dem.py:86-87) really raises `ValueError` on it, rather than
+  assuming the guard fires because the code looks like it should.
+
+  **5. Constants.** `SAMPLE_STEP_M=25.0` and `RELIEF_WINDOW_M=1000.0` are not the
+  owner's judgment at all - they are lifted straight from the brief's own spec, not fitted to anything.
+  `NOISE_FLOOR_M=0.5` and `is_flat`'s `5.0` m/km both predate the mapper-geometry fixture fix (single
+  commit, confirmed in 3b) and were never adjusted afterward, so neither is fitted post-hoc to make the
+  fixture pass - and with real geometry the two fixture classes land 16-40x apart (`gain_per_km`
+  2.08/81.81/51.61 vs. the 5.0 boundary), comfortable margin rather than a threshold balanced on the
+  fixture. The one I would argue with is `NOISE_FLOOR_M`: dem.py's own docstring cites "~1 m RMSE in open
+  terrain" for raw 3DEP noise, and 0.5 m is exactly half of that with no stated justification tying it to
+  the *smoothed* (3x3-averaged) noise floor specifically, which is what it is actually applied to via
+  `elevation_gain`'s default. It happens to work on both real fixtures here, but the number's derivation
+  is asserted, not shown. `sanity_problems`' 60% grade ceiling (terrain.py:200) is a domain constant with
+  real headroom above both drivable-road reality and the fixtures (13.65%/10.47%), not fixture-fitted.
+
+  **6. Smoothing coverage.** Confirmed `dem.sample_smoothed` is what actually built the committed fixture
+  (re-derivation in item 2 used it, not the owner's word). Additionally constructed a point whose 3x3
+  neighbourhood straddles the n38w123/n39w123 boundary (`dem.neighbourhood` + `dem.tile_for` on a synthetic
+  point at lat=38.00002) and confirmed `sample_smoothed` correctly drew from both real tile files and
+  returned a sane blended value (175.5 m smoothed vs. 176.1 m raw) rather than silently using only one
+  tile or crashing - the item-1/item-6 interaction is exercised, not just each in isolation. One
+  observation, not a defect in what's shipped: `terrain.smooth3x3` (terrain.py:33-56) has zero callers
+  outside its own tests anywhere in the tree (`grep -rn smooth3x3` outside tests/ only finds it defined
+  and mentioned in `dem.sample_smoothed`'s docstring) - `dem.sample_smoothed` reimplements equivalent
+  averaging for scattered points rather than calling it, which the docstring explains is because a grid
+  op and a point-cloud op are genuinely different code. Also: `dem.sample()` (unsmoothed) remains public
+  with the same signature as `sample_smoothed`, and nothing structurally stops a future integration
+  (T-0030, not yet written) from calling the wrong one and reintroducing the exact Alviso phantom-gain bug
+  this task already found and fixed once (commit e0166e7). Worth a note for T-0030's own review, not a
+  reason to fail this one - there is no caller of either function outside tests yet (`grep` confirms), so
+  nothing in this diff currently exercises the gap.
+
+  **Also found, unprompted:** `tests/test_terrain_fixture.py:14`'s module docstring still reads "the same
+  roads score 14.6% and 8.3%" - those are the PRE-smoothing numbers from commit 68c193d. Commit e0166e7
+  ("actually apply the 3x3 smoothing") re-recorded the fixture to 13.65%/10.47% (confirmed live in the
+  committed JSON and reproduced independently above) but never touched the docstring 8 lines above the
+  import. LOW - nothing asserts the stale string, but it actively misleads a reader about what the
+  committed fixture demonstrates.
+
+  **Verification commands, exact output** (fresh `npm ci` in this worktree's `services/api/` first):
+
+      $ cd services/etl && python -m pytest -q tests/
+      (ran via `docker run --rm -v "$PWD:/w" -w /w/services/etl scenic-etl python3 -m pytest tests/`
+       since this box's own python3 has no pytest installed)
+      232 passed, 1 skipped in 4.11s
+      (the 1 skip is tests/test_manifest.py:47, "git is not installed here" inside the container -
+       environmental, unrelated to this diff, pre-existing)
+
+      $ bash ops/test
+      TESTS linux=283/76 ios=skipped failed=0 skipped=0
+      OK
+
+      $ bash ops/check-pins
+      PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+
+      $ bash ops/check-pins --source-only
+      PINS ok=3 skipped=9 pending=1 expired=0 failed=0 tier=linux source-only
+
+      $ bash ops/queue-check
+      QUEUE OK (50 tasks)
+
+      $ bash ops/sane
+      SANE OK
+
+  All green, exit 0 on every command. GitHub Actions on PR #32 is red only because of the account's
+  billing block ("recent account payments have failed"), not this diff - not treated as this diff's
+  problem, per instruction.
+
+  **Verdict: PASS.** The tile arithmetic is correct for every case this pipeline can actually produce,
+  verified against real tile files rather than the owner's tests. The fixture's provenance is genuine on
+  both axes (OSM geometry and 3DEP elevation), independently reproduced end to end for all 4 ways, not
+  spot-checked on one. Both claimed corrections check out against git history. The 9x row volume has no
+  practical ceiling and its truncation guard actually fires. No constant looks filed down to fit these
+  fixtures. Findings above (hemisphere-blind `tile_for`, stale docstring, no structural guard against a
+  future unsmoothed call) are real but none touch code this task's own claims depend on, and none are
+  reachable by anything this diff wires up today.
