@@ -1,17 +1,17 @@
 ---
 id: T-0046
 title: the Dockerfile pip check cannot see a URL that lives in a COPYed requirements file
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/builder-9
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T16:57:36Z
+lease_expires_at: 2026-09-07T19:57:36Z
+worktree: ../wt/T-0046
+branch: task/T-0046
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-29
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -46,3 +46,4 @@ contains `https?://`), and a schemeless `-f10.0.0.5:8080/...` evades the regex o
 functioning pip network fetch, since pip will not treat a digit-leading token as a scheme.
 
 ## Log
+- 2026-09-07T16:57:36Z claimed by agent/builder-9; lease until 2026-09-07T19:57:36Z

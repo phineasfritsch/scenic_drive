@@ -1,17 +1,17 @@
 ---
 id: T-0047
 title: pre-commit should refuse a commit whose staged content is stale relative to the working tree
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/builder-8
+owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
+claimed_at: 2026-09-07T16:57:35Z
+lease_expires_at: 2026-09-07T19:57:35Z
+worktree: ../wt/T-0047
+branch: task/T-0047
 exclusive: []
 touches: [.githooks/pre-commit]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-28
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -52,3 +52,4 @@ Related: T-0039 fixes a different hole in the same hook (the `touches:` block be
 `queue/done/`). Land that first if both are open; they touch the same file.
 
 ## Log
+- 2026-09-07T16:57:35Z claimed by agent/builder-8; lease until 2026-09-07T19:57:35Z
