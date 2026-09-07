@@ -338,3 +338,105 @@ Handing off to agent/reviewer-29.
 
   Only `services/etl/tests/test_dockerfile.py` is touched; `git diff --stat services/etl/Dockerfile` is
   empty. `git status --porcelain` shows a single ` M`. Handing back to agent/reviewer-29.
+
+- 2026-09-07 agent/reviewer-29: **FAIL, second round.** Both of my original bypasses are genuinely closed
+  (re-derived, not trusted - see below). Found two new ones while attacking the tokenizer per the
+  coordinator's round-two brief; one of them is worse than either original finding, because it hides a
+  completely ordinary, unmodified `-r requirements.txt` behind a legitimate, single-purpose flag.
+
+  **Re-derived rather than trusted:**
+  - Committed blob (`git show HEAD:services/etl/tests/test_dockerfile.py`, not the working tree): 14103
+    bytes, `0` occurrences of `\x08`, matching the owner's number exactly. `cat -A` on
+    `pip_install_arglists`/`pip_indirect_targets` (:62-110) shows plain `$`-terminated lines, no control
+    bytes. `PIP_INDIRECT_TARGET` no longer appears anywhere in the blob - the old name is actually gone,
+    not just shadowed.
+  - Reproduced both original bypasses closing: swapped `2ce083d`'s test file back in, ran it against
+    `COPY requirements.txt .` + `RUN pip install -qr requirements.txt` -> `10 passed` (silent, the original
+    hole, live); ran HEAD's test file against the same construction -> `1 failed`, correct token named
+    (`['-qr']`). Same pattern for `RUN pip install ./localpkg` (`COPY localpkg/ ./localpkg/` first) -> `10
+    passed` on the old test, `1 failed` naming `['./localpkg']` on HEAD's. Both genuinely fixed.
+  - Full verification suite reproduced with the shipped Dockerfile untouched: `cd services/etl && python -m
+    pytest -q tests/` -> 46 passed (`-rA`: 46 `PASSED`, 0 `FAILED`, exit 0); `bash ops/test` ->
+    `TESTS linux=96/76 ios=skipped failed=0 skipped=0` / `OK`; `bash ops/check-pins` ->
+    `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`; `bash ops/queue-check` ->
+    `QUEUE OK (46 tasks)`. `git diff --stat` / `git status --short` empty throughout and at the end.
+
+  **New finding — MAJOR — `skip_next` models short-flag bundling backwards
+  (`services/etl/tests/test_dockerfile.py:106`):**
+
+  `skip_next = bool(letters) and letters[-1] in PIP_SHORT_VALUE_LETTERS` assumes a value-taking letter only
+  ever draws its value from the *next token*, and only checks whether the *last* letter of the bundle is
+  one. Real short-option bundling (confirmed against the pip actually installed on this box, pip 26.1.1)
+  works the other way: the *first* value-taking letter encountered in a bundle consumes the *rest of that
+  same token* as its value and stops - a later token is a fresh, independent argument. Proven directly:
+
+      $ python3 -m pip install --dry-run -tf -r /tmp/nonexistent_requirements_xyz.txt
+      ERROR: Could not open requirements file: [Errno 2] No such file or directory: '.../nonexistent_requirements_xyz.txt'
+
+  `-tf` resolved to `--target f` entirely on its own; `-r` then fired as a completely separate, ordinary
+  flag and read the file. `RUN pip install -tf -r requirements.txt` (after `COPY requirements.txt .`) is
+  therefore a fully real, working indirect pip install - and it passes all 10 tests. Confirmed through the
+  actual harness, not just the tokenizer in isolation:
+
+      tail -3 Dockerfile:  COPY requirements.txt .
+                            RUN pip install -tf -r requirements.txt
+      python -m pytest -q tests/test_dockerfile.py -rA  -> 10 passed, 0 failed (should be 9/1)
+
+  Root cause: when the tokenizer processes `-tf`, neither letter is in `PIP_SHORT_UNREADABLE_LETTERS`
+  (`{r,c,e}`), so the token itself is never flagged - correct so far - but `skip_next` is still set `True`
+  because the *last* letter `f` is a value letter, so the very next token (the real `-r`) is silently
+  skipped and never examined at all. Any bundle of two letters from `{t,i,b,f}` (12 ordered pairs, e.g.
+  `-it`, `-bi`, `-fb`, ...) immediately followed by a genuine `-r`/`-e`/`-c`/local-path argument reproduces
+  this; also confirmed `-it -r req.txt` slips (`offenders=[]`) via the raw tokenizer. Where the swallowed
+  token would itself independently trigger detection through a later argument (e.g. `-bi -e ./pkg` - `-e`
+  is skipped, but `./pkg` two tokens later still starts with `./` and gets caught anyway) the bug is
+  invisible; it is only fatal, as here, when the argument right after the bundle is a bare filename with no
+  distinguishing prefix (`requirements.txt`, not `./requirements.txt`) - which is the normal, unremarkable
+  way anyone actually writes `-r requirements.txt`.
+
+  **New finding — MAJOR — the tokenizer does not understand shell quoting
+  (`services/etl/tests/test_dockerfile.py:69-72` builds tokens with a bare `.split()`; the bare-path check
+  is at `:108`):**
+
+  `RUN pip install "./localpkg"` and `RUN pip install './localpkg'` both pass all 10 tests. Docker's shell
+  form runs RUN lines through `/bin/sh -c`, which strips the quotes before pip ever sees the argument -
+  `pip install "./localpkg"` and `pip install ./localpkg` are the same install at build time. But
+  `.split()` treats the leading quote character as part of the token (`'"./localpkg"'`), so
+  `tok.startswith(("./", "../", "/"))` at :108 never matches. Confirmed through the full harness (`COPY
+  localpkg/ ./localpkg/` + `RUN pip install "./localpkg"` -> `10 passed`, should be `9/1`). A quoted path
+  containing a space compounds this: `pip install "./local pkg"` (one real, quoted argument at build time)
+  is torn by `.split()` into two fake tokens (`'"./local'`, `"pkg\"'`) and slips for two independent
+  reasons at once. By contrast, a *backslash-escaped* space (`./local\ pkg`, no quotes) happens to still be
+  caught - the first fake token keeps its literal `./` prefix - so this is specifically a quoting gap, not
+  a general space-in-path gap.
+
+  **Noted, low severity, not blocking:** a Windows-style path (`pip install .\localpkg`) is not recognized
+  as a local path either, but the base image is `ubuntu:24.04` (`FROM` line, `services/etl/Dockerfile:13`)
+  - backslash is not a path separator to `/bin/sh` or to pip on Linux, so this specific construction is not
+  a functioning install on *this* Dockerfile, only a theoretical parser gap. Recording it, not counting it
+  toward the verdict.
+
+  **Re-confirmed clean (item 3, false-positive side, full list including the two new probes) - re-derived,
+  not trusted:** `pip install requests`, `pip install 'requests==2.31.0'`, `pip download -r x.txt`,
+  `apt-get install -y python3-yaml`, `grep -r foo /etc`, `rm -r /tmp/foo`, `cp -r /a /b`,
+  `pip install --target /opt/vendor requests==2.31.0`, `pip install --prefix /usr/local requests`,
+  `pip install --upgrade requests`, `pip install -qt /opt` - none flagged, matches the design intent, no
+  false positives from the widened flag-value tracking.
+
+  **Re-confirmed clean (other item-2 probes) - re-derived, not trusted:** quoted `-r "my reqs.txt"` / `-r
+  'my reqs.txt'` (still caught - the `-r` flag itself is a separate token regardless of what follows it in
+  quotes); `--` as an end-of-options marker before a bare path (still caught, `--` itself is inert to this
+  tokenizer and does not suppress the path check after it); `--requirement=x` and `--requirement x`; a
+  flag bundle ending in a destination flag (`-qt /opt`, correctly *not* flagged, matching the design
+  intent); `pip install --upgrade requests` (correctly not flagged); `pip install -U -r req.txt` (caught);
+  two `pip install` calls chained with `&&` where only the second is indirect (caught, second segment
+  flagged); `pip install` inside `sh -c "..."` (caught, `-r` still a distinct token inside the string).
+
+  **Verdict:** FAIL. Send back to agent/builder-9. Two fixes needed: (1) `skip_next` must track *whether a
+  value-taking letter has already fired within this same token* and stop scanning/skip based on the first
+  such letter, not `letters[-1]` - modeling real short-option bundling requires walking the bundle
+  left-to-right and stopping at the first value-consuming letter, not inspecting only the last character;
+  (2) either strip matching leading/trailing quote characters (and split on shell-aware boundaries, or at
+  minimum strip a leading `"`/`'` before the `./`/`../`/`/` prefix check) or document unquoted-only
+  coverage explicitly and accept the narrower claim - given this file's history, the docstring must say
+  exactly which one was chosen. Left in `queue/review/`.
