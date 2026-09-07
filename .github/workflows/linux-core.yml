@@ -42,8 +42,11 @@ jobs:
       - name: toolchain (git, sqlite headers for GRDB, python for ops/*)
         run: |
           apt-get update -q
-          apt-get install -y -q --no-install-recommends git ca-certificates curl python3 libsqlite3-dev sqlite3 >/dev/null
-          git --version && python3 --version && swift --version | head -1
+          # python3-pytest from apt, not pip: Debian's python3 is externally-managed, so `pip install` would
+          # need --break-system-packages, which is a worse habit than taking the distro package. ops/test
+          # refuses loudly when no interpreter can import pytest, which is how this gap was found.
+          apt-get install -y -q --no-install-recommends git ca-certificates curl python3 python3-pytest libsqlite3-dev sqlite3 >/dev/null
+          git --version && python3 --version && python3 -m pytest --version && swift --version | head -1
       - uses: actions/checkout@v4
       - name: git safety + hooks
         run: |
