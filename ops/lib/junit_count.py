@@ -26,10 +26,37 @@ def count(path):
     return total, failed, skipped
 
 
+def list_failures(path):
+    """Names of the failing testcases, so a red run says WHICH test broke.
+
+    ops/test sent each tier's output to /dev/null and printed only a count. A CI log reading
+    `TESTS linux=85/76 failed=3` with no names is the runner hiding the one fact you need; working around it
+    cost a debugging round of re-running every tier by hand in containers.
+    """
+    out = []
+    try:
+        root = ET.parse(path).getroot()
+    except (OSError, ET.ParseError):
+        return out
+    for case in root.iter("testcase"):
+        for child in case:
+            if child.tag in ("failure", "error"):
+                label = ".".join(x for x in (case.get("classname"), case.get("name")) if x) or "?"
+                first = (child.get("message") or "").splitlines()
+                out.append(label + (f" - {first[0][:160]}" if first else ""))
+                break
+    return out
+
+
 def main(argv):
     if len(argv) < 2:
         print(__doc__, file=sys.stderr)
         return 2
+    if argv[1] == "--list-failures":
+        for path in argv[2:]:
+            for line in list_failures(path):
+                print(line)
+        return 0
     total = failed = skipped = 0
     for path in argv[1:]:
         try:

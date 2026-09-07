@@ -1,7 +1,7 @@
 ---
 id: T-0023
 title: ETL skeleton: pinned Docker image, pytest tier, inputs manifest with sha256 + license
-state: done
+state: review
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T09:51:53Z
@@ -9,9 +9,9 @@ lease_expires_at: 2026-09-07T13:51:53Z
 worktree: ../wt/T-0023
 branch: task/T-0023
 exclusive: [floors]
-touches: [services/etl/, ops/etl-fetch-inputs, ops/test, pins/floor_linux.txt, .github/workflows/linux-core.yml]
+touches: [services/etl/, ops/etl-fetch-inputs, ops/test, ops/lib/junit_count.py, .gitignore, pins/floor_linux.txt, .github/workflows/linux-core.yml]
 pins_affected: []
-reviewer: agent/reviewer-12
+reviewer: agent/reviewer-18
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -77,3 +77,57 @@ GREEN: `ops/test` shows a pytest count; `ops/etl-fetch-inputs --dry-run` lists w
 - 2026-09-07T15:20:00Z FIX: linux-core.yml installs python3-pytest from apt (not pip: Debian's python3 is externally-managed, so pip would need --break-system-packages, a worse habit than the distro package) and now echoes `python3 -m pytest --version` in the toolchain step so a future absence is visible in the log rather than inferred from a failure.
 - 2026-09-07T15:20:00Z touches widened to .github/workflows/linux-core.yml, declared rather than bypassed - the same call as when the pre-commit hook caught check-line-cap on T-0019.
 - 2026-09-07T15:20:00Z reviewer-12's two NON-BLOCKING findings filed rather than silently dropped: --record-digest never verifies and never compares against an already-pinned sha256 (so re-running it on a changed upstream file silently prints a new digest - the laundering the module's own docstring warns about), and download() leaves a .part orphan if the read loop raises. Both are pre-existing, neither blocks, both are real.
+
+### 2026-09-07 - reopened from done/: the merge was blocked by three failures this task caused
+
+PR #14 was red with `TESTS linux=85/76 ios=skipped failed=3` and no test names. reviewer-12 signed the task
+off; the failures were only ever visible in CI, and CI could not say which they were.
+
+**The failures.** `.gitignore` line 23 was `services/etl/inputs/`, which ignores `manifest.yaml` - the one file
+in that directory that must be committed, since it is the record of every URL, checksum and licence, and three
+tests read it. It existed on my disk and in no clone, so every local run was green and every fresh checkout
+failed:
+
+    tests.test_manifest.TestRealManifest.test_the_committed_manifest_is_valid
+    tests.test_manifest.TestRealManifest.test_every_entry_names_the_task_that_consumes_it
+    tests.test_manifest.TestRealManifest.test_osm_is_odbl_and_not_pinned_by_sha256
+    FileNotFoundError: services/etl/inputs/manifest.yaml
+
+Reproduced by cloning this branch fresh into WSL ext4 and running pytest inside the digest-pinned CI image.
+
+**Why it took a container to find out.** Two separate defects hid the names.
+
+1. `ops/test` sends every tier's output to `/dev/null` and prints only a count, so a red run said `failed=3`
+   and stopped there.
+2. `.artifacts/` is a HIDDEN directory, and `actions/upload-artifact@v4` excludes hidden paths unless told
+   otherwise. The run log says it plainly - `include-hidden-files: false` then `No files were found with the
+   provided path: .artifacts/*.xml ... No artifacts will be uploaded` - and `if-no-files-found: ignore` kept it
+   quiet. That step has uploaded nothing since it was written; `gh run download` answers `no valid artifacts
+   found to download` for every run of this workflow.
+
+**Fixes, each demonstrated red then green.**
+
+- `.gitignore`: ignore the payloads (`services/etl/inputs/*`), keep `manifest.yaml` tracked; manifest committed.
+- `services/etl/tests/test_manifest.py::test_the_manifest_is_actually_tracked_by_git` - asserts the manifest is
+  in `git ls-files` AND not matched by `git check-ignore`. RED before staging the file
+  (`is not tracked by git: pathspec ... did not match any file(s) known to git`), GREEN after. This is the
+  guard for the class of bug, not just the instance: a load-bearing file that git cannot see.
+- `ops/lib/junit_count.py --list-failures` + `ops/test` now names every failing test. Demonstrated red twice,
+  once per reporter branch:
+    - pytest: `FAIL: 1 failing test(s):` /
+      `- tests.test_manifest.test_deliberately_red_for_the_naming_demo - AssertionError: this failure must appear BY NAME`
+    - vitest: `- deliberately red vitest case for the naming demo - AssertionError: expected 1 to be 2`
+  Both temporary tests removed; `git diff` on those files is empty.
+- `.github/workflows/linux-core.yml`: `include-hidden-files: true`, and `if-no-files-found: warn` rather than
+  `ignore` - a silently empty upload is the failure mode this step just had.
+
+**Green after:** `TESTS linux=86/76 ios=skipped failed=0 skipped=0` / `OK`; `PINS ok=9 pending=3 failed=0`;
+`QUEUE OK`. The floor stays at 76 - raising it is a reviewer's call, not the owner's.
+
+**Not fixed here, filed instead:** T-0038 (`services/etl/Dockerfile` was in this brief and was never written -
+this is scope I did not deliver, not something I am claiming), T-0039 (the pre-commit `touches:` check is dead
+for tasks in `queue/done/`, which is why the two paths added to `touches:` above were accepted without
+complaint).
+
+`touches:` widened to `ops/lib/junit_count.py` and `.gitignore`; `reviewer:` cleared, because the state a
+reviewer approved is not the state being merged.

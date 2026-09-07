@@ -1,6 +1,7 @@
 """The manifest validator is the gate that stops an unverifiable or unlicensed input entering the pipeline.
 These tests exist to make it fail on the ways an agent would plausibly get it wrong.
 """
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,19 @@ class TestRealManifest:
     def test_every_entry_names_the_task_that_consumes_it(self):
         for i in mf.parse(REAL.read_text(encoding="utf-8")):
             assert i.consumed_by, f"{i.name} has no consumed_by"
+
+    def test_the_manifest_is_actually_tracked_by_git(self):
+        """The three tests above passed locally and failed in CI: .gitignore had `services/etl/inputs/`, so
+        the manifest existed on the author's disk and in no clone. A file the suite reads must be IN the repo -
+        an ignore rule that swallows it turns every reader into a local-only pass."""
+        rel = "services/etl/inputs/manifest.yaml"
+        root = Path(__file__).resolve().parents[3]
+        tracked = subprocess.run(["git", "-C", str(root), "ls-files", "--error-unmatch", rel],
+                                 capture_output=True, text=True)
+        assert tracked.returncode == 0, f"{rel} is not tracked by git: {tracked.stderr.strip()}"
+        ignored = subprocess.run(["git", "-C", str(root), "check-ignore", "-q", rel],
+                                 capture_output=True, text=True)
+        assert ignored.returncode != 0, f"{rel} is tracked but ALSO matched by a .gitignore rule"
 
     def test_osm_is_odbl_and_not_pinned_by_sha256(self):
         """Geofabrik rebuilds daily; a pinned digest would rot within 24h."""

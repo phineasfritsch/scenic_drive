@@ -75,5 +75,10 @@ jobs:
             .artifacts/*.xml
             .artifacts/*.json
             .artifacts/*.log
-          if-no-files-found: ignore
+          # .artifacts/ is a HIDDEN directory and upload-artifact@v4 excludes hidden paths by default, so this
+          # step logged "No files were found" and uploaded nothing on every run since it was written. A red CI
+          # run therefore had no reports to download - which is how `failed=3` stayed anonymous.
+          include-hidden-files: true
+          # warn, not ignore: a silently empty upload is the failure mode this step just had.
+          if-no-files-found: warn
           retention-days: 7

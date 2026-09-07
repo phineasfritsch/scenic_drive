@@ -16,6 +16,7 @@ PY="${PYTHON:-$(command -v python3 || command -v python)}"
 ART=".artifacts"; mkdir -p "$ART"
 rm -f "$ART"/spm-junit*.xml "$ART"/vitest.json "$ART"/pytest-junit.xml
 linux_total=0; linux_failed=0; linux_skipped=0; ios_total=0; ios_failed=0; ios_skipped=0
+junit_reports=()   # every JUnit file produced, so a red run can NAME the tests that broke
 rc=0
 
 # ---- Tier 1a: root Swift package (Linux-safe) ----------------------------------------------------
@@ -25,6 +26,7 @@ spm_files=()
 [[ -f "$ART/spm-junit.xml" ]] && spm_files+=("$ART/spm-junit.xml")
 [[ -f "$ART/spm-junit-swift-testing.xml" ]] && spm_files+=("$ART/spm-junit-swift-testing.xml")
 if [[ ${#spm_files[@]} -eq 0 ]]; then echo "FAIL: swift test produced no JUnit report (expected $ART/spm-junit*.xml)"; exit 1; fi
+junit_reports+=("${spm_files[@]}")
 read -r t f s < <("$PY" ops/lib/junit_count.py "${spm_files[@]}" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/') || { echo "FAIL: could not parse swift JUnit"; exit 1; }
 linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 
@@ -54,6 +56,7 @@ if [[ -f services/etl/pyproject.toml ]]; then
   [[ -n "$etl_py" ]] || { echo "FAIL: services/etl exists but no interpreter has pytest (tried: \$PYTHON python3 python py). Install it: python -m pip install pytest"; exit 1; }
   (cd services/etl && "$etl_py" -m pytest -q --junitxml="../../$ART/pytest-junit.xml" >/dev/null 2>&1); true
   [[ -f "$ART/pytest-junit.xml" ]] || { echo "FAIL: services/etl exists but pytest ($etl_py) produced no report"; exit 1; }
+  junit_reports+=("$ART/pytest-junit.xml")
   read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/')
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 fi
@@ -82,7 +85,25 @@ floor_ios="$(tr -d '[:space:]' < pins/floor_ios.txt)"
 failed=$((linux_failed + ios_failed)); skipped=$((linux_skipped + ios_skipped))
 if [[ $ios_ran -eq 1 ]]; then ios_str="$ios_total/$floor_ios"; else ios_str="skipped"; fi
 echo "TESTS linux=$linux_total/$floor_linux ios=$ios_str failed=$failed skipped=$skipped"
-[[ $failed -gt 0 ]] && { echo "FAIL: $failed failing test(s)"; rc=1; }
+if [[ $failed -gt 0 ]]; then
+  # NAME them. Every tier's output goes to /dev/null so the count stays readable, which meant a red CI run
+  # printed `failed=3` and nothing else - and the .artifacts upload that would have said which was silently
+  # dropped too. Diagnosing three failures then cost a full round of re-running each tier by hand.
+  echo "FAIL: $failed failing test(s):"
+  [[ ${#junit_reports[@]} -gt 0 ]] && "$PY" ops/lib/junit_count.py --list-failures "${junit_reports[@]}" | sed "s/^/  - /"
+  if [[ -f "$ART/vitest.json" ]]; then
+    "$PY" - "$ART/vitest.json" <<'VITEOF' | sed "s/^/  - /"
+import json, sys
+d = json.load(open(sys.argv[1]))
+for r in d.get("testResults", []):
+    for a in r.get("assertionResults", []):
+        if a.get("status") == "failed":
+            m = (a.get("failureMessages") or [""])[0].splitlines()
+            print((a.get("fullName") or a.get("title") or "?") + (f" - {m[0][:160]}" if m else ""))
+VITEOF
+  fi
+  rc=1
+fi
 [[ $linux_total -lt $floor_linux ]] && { echo "FAIL: linux test count $linux_total is below floor $floor_linux - tests were deleted or a reporter broke"; rc=1; }
 [[ $ios_ran -eq 1 && $ios_total -lt $floor_ios ]] && { echo "FAIL: ios test count $ios_total is below floor $floor_ios"; rc=1; }
 [[ $rc -eq 0 ]] && echo "OK"
