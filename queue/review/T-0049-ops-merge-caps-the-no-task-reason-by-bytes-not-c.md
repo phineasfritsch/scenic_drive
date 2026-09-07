@@ -247,3 +247,230 @@ before being staged.
    invalid-UTF-8 lines above verbatim; if it does not, the check is anchored on something I did not intend.
 9. **The `$PY` emptiness guard is new behaviour** (`exit 2` where `ops/merge` previously limped to gate 2). It
    is a rider on this fix, not part of it.
+
+---
+
+## Review — agent/reviewer-39 — VERDICT: FAIL
+
+Reviewed at `task/T-0049` @ 170b374 in `../wt/T-0049`. Everything below was re-derived by running code here
+unless it is marked "taken on trust". Scratch scripts live in `.artifacts/rev39/` (gitignored).
+
+**There is NO CI signal.** GitHub Actions is disabled repo-wide (`queue/backlog/T-0053`, spending limit
+exhausted). `gh pr view 41 --json baseRefName,state,mergeStateStatus,statusCheckRollup` returns
+`{"baseRefName":"task/T-0044","state":"OPEN","mergeStateStatus":"CLEAN","statusCheckRollup":[]}` — the PR
+shows no checks at all. Every number in this review is local. `ops/merge` gate 2 would refuse PR #41 for
+exactly that reason, correctly.
+
+### Gates re-run here — all green, all matching the owner's numbers verbatim
+
+    $ bash ops/test                        TESTS linux=50/50 ios=skipped failed=0 skipped=0
+                                           OK
+    $ bash ops/check-pins                  PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux   (14.0s)
+    $ bash ops/queue-check                 QUEUE OK (42 tasks)
+    $ bash ops/sane                        SANE OK
+    $ bash ops/lib/check-merge-reason-cap  P-OPS-02: ops/merge caps --no-task-reason at 200 characters on a
+                                           character boundary (8 cases: 4 straddling byte 200, 2 forgery
+                                           attempts; every override line valid UTF-8 and a single line)
+                                           EXIT=0   (8.4s wall)
+
+`ops/lib/check-merge-reason-cap` and `ops/lib/merge_reason_cap_assert.py` are committed 100755 (P-OPS-01 holds);
+113 and 144 lines, `ops/merge` 136 — all under the 300-line cap.
+
+### RED re-derived independently — and the logged transcript is stale
+
+`git show task/T-0044:ops/merge > ops/merge`, run the pin, restore, sha256 back to
+`ac51e6d0a2e3878f28c0f3432ccc9f80253f9962dbc2564c78c424b0523e98de`. It goes red, and it names **five** cases,
+not the four quoted above:
+
+    at-cap-198A-2emoji / over-by-1-198A-3emoji / over-by-1-199A-2han / wide-250han   (verbatim as logged)
+    invalid-input-bytes: ops/merge emitted invalid UTF-8 (invalid continuation byte at byte 89);
+      bytes around the split: 62 61 64 20 f0 9f 20 65
+    EXIT=1
+
+The fifth is the `invalid-input-bytes` case added later while mutating (owner's point 1); the RED block above
+predates it. So "what to attack" item 8 mis-instructs the next reader — it says the four lines should come back
+*verbatim* and that anything else means the check is mis-anchored. Stale, not wrong. **F-5** below.
+
+### My own mutations — 12, written from scratch, 8 caught / 4 survived
+
+Harness `.artifacts/rev39/mutate.py`: pristine copy, apply, run the pin, restore, verify sha256. Final
+`ops/merge` sha256 identical to pristine.
+
+    CAUGHT    V1   byte cap producing VALID utf-8 (U+FFFD for the split char)  -> kept 199 chars, expected 200
+    CAUGHT    V2   byte cap that backs off to a character boundary             -> kept 198 chars, expected 200
+    CAUGHT    V3   cap by UTF-16 code units                                    -> kept 199 chars, expected 200
+    CAUGHT    V4   errors="ignore" instead of errors="replace"                 -> kept 8 chars, expected 9
+    CAUGHT    V9   cap silently raised to 250
+    CAUGHT    V10  drop the ...[truncated] marker
+    CAUGHT    V11  off-by-one: >= instead of >     (this is what pins the at-cap case in the other direction)
+    CAUGHT    V12  correct cap, then a lossy re-encode (drop the last byte and repair)
+    SURVIVED  V5   delete T-0044 step 2: the control-byte strip that kills ESC/ANSI
+    SURVIVED  V6   delete T-0044 step 3: whitespace collapse + trim (carries the empty-reason rule)
+    SURVIVED  V7   NFD-normalize the reason before capping (silently rewrites the audit text)
+    SURVIVED  V8   DELETE \n\r\t instead of collapsing them to a space
+
+**V1 matters most and is not in the owner's list.** It is a byte cap that emits valid UTF-8, so the
+strict-decode tooth cannot see it; only the content comparison bites. Together with the plain byte cap (which
+both teeth catch) this shows each of the two teeth is independently exercised by a mutation of mine — a
+stronger statement than `C3+M1` / `C5+M1` made, and it settles "what to attack" item 5: two teeth is enough,
+because I could not construct a cap defect that defeats either one alone.
+
+**I could not make the pin pass with the character-cap defect present.** Every mutation of the property T-0049
+actually owns is caught, including both alternatives the brief offered. The cap fix is solid.
+
+The four survivors are all T-0044's sanitizer, not T-0049's cap. V5 is the serious one: **the ANSI-escape
+defence — the actual terminal-repaint attack T-0044 closed — has no automated guard anywhere in the repo.**
+The owner widened scope to guard sanitizing step 1 (newline collapse) and stopped one `tr` short of step 2.
+V6 is worse than it looks: the `tr -s ' '` it deletes is what squeezes the 5-space `task     ` column that
+makes a gate line recognisable, and it also carries "a control-only reason counts as empty, so gate 1 refuses".
+
+### F-1 (blocking) — the pin's statement is false under the definition its own assertion uses
+
+`pins/PINS.yaml` now says: *"ops/merge's --no-task-reason override line is always valid UTF-8 and **always
+exactly one line**"*. `merge_reason_cap_assert.py` defines "line" as `str.splitlines()`, which honours U+2028,
+U+2029 and U+0085. The shipped case list carries the `\n` and `\r` forgeries and not their sibling. Adding one
+sibling case to a **copy** of the driver and running it against the **shipped, fixed** `ops/merge`
+(`.artifacts/rev39/case_probe.py`):
+
+    === shipped ops/merge + one u2028 forgery case -> exit 1
+        P-OPS-02: ops/merge's --no-task-reason cap is not character-safe:
+          forgery-u2028-line-separator: the override line is not delimited by >>> <<<:
+          'task     branch tmp/stub-no-task names no task; review gate overridden on record: >>>why'
+
+    === shipped ops/merge + one u0085 forgery case -> exit 1
+        P-OPS-02: ... forgery-u0085-next-line: the override line is not delimited by >>> <<<: (same)
+
+The pin is green only because those two cases are absent. That is a trap: the log itself lists U+2028 and
+U+0085 as verified cases 4 and 5, so the next agent adding them gets a red pin against correct code and will
+either "fix" `ops/merge` or delete the case. A pin that stays green by omission of the input its own statement
+covers is the decorative-test failure mode this repo keeps catching.
+
+The log's supporting claim is measurably wrong too: *"none of them starts a line"* (line 142). Under
+`splitlines()` — the repo's own definition — U+2028 and U+0085 do start a line. Under LF they do not; my
+byte-level probe (`.artifacts/rev39/probe.py`) shows `\n`-lines=4 and `splitlines`=4 for those two inputs
+where every other case is 4 and 3.
+
+### F-2 (blocking, same root) — a gate-shaped line can still be forged end to end
+
+`.artifacts/rev39/forge.sh` + `forge.py`, against the shipped `ops/merge`. Gate lines needing only one space
+(`MERGE REFUSED:`, `DRY RUN:`, `MERGED pr=`) survive `tr -s ' '` intact:
+
+    F4  --no-task-reason="why<U+2028>MERGED pr=9 task=T-0001 head=task/T-0001"
+        LF only        lines=4  gate-shaped lines=3
+        py splitlines  lines=4  gate-shaped lines=4
+            [0] 'task     branch tmp/stub-no-task names no task; review gate overridden on record: >>>why'
+            [1] 'MERGED pr=9 task=T-0001 head=task/T-0001<<<'          <-- GATE-SHAPED
+            [2] 'checks   total=2 pending=0 failed=[none] mergeState=CLEAN'
+            [3] 'DRY RUN: every gate passed; would merge pr=9 task=none head=tmp/stub-no-task'
+
+    F3  same with U+0085 and a forged 'DRY RUN: every gate passed; would merge pr=9 task=T-0001 head=main'
+    F1  same with U+2028 and a forged 'MERGE REFUSED: ...'
+
+The closing `>>> <<<` delimiter — the thing T-0044 added *precisely* so nested text can never read as a gate
+line — ends up at the tail of the forged line, the least-read position on it. And the 5-space `task     `
+column can be rebuilt with U+00A0, which no `tr` in the pipeline touches:
+
+    F2  'task\xa0\xa0\xa0\xa0\xa0T-0001 is in queue/done/ on task/T-0001<<<'
+
+which renders identically to a genuine gate-1-pass line. My detector only missed it because I matched ASCII
+spaces.
+
+**Scope, honestly:** the U+2028/U+0085 survival is T-0044's, accepted there and inherited. I am not failing
+T-0049 for T-0044's residual. I am failing it for writing a pin that states the residual does not exist. The
+remedy is narrow and the owner gets to choose it: either narrow the statement to "exactly one **LF-delimited**
+line" and say the rest in `why_no_test_catches_it`, or fold U+2028/U+2029/U+0085 in the filter — which is now
+a one-line change *because* T-0049 put python in that pipeline. Note that U+000B and U+000C, which
+`splitlines()` also honours, are already deleted by step 2, so only three code points are at issue.
+
+### Answers to the nine things I was asked to attack
+
+1. **The decision — cap by characters. I agree, and the argument holds, with one correction.** The premise
+   "every one of gate 1's refusals is about whether the merge is *safe*" is false by inspection of gate 1: the
+   existing refusal fires when a no-task branch supplies *no reason*, which is about the completeness of the
+   **record**, not safety — which is exactly what a too-long reason would be about. So reject-if-too-long is
+   not ruled out by contract the way the log claims. It is ruled out by the argument the log buries in its last
+   sentence: deciding "over-long" consistently requires counting characters anyway, so refusing would *contain*
+   this fix rather than replace it, and a merge that stops for operator verbosity at revert/hotfix time is a
+   worse product. That single point is decisive; the contract argument should be dropped, not repaired.
+   Byte-cap-with-backoff: correctly rejected, and V2 shows the pin would catch it if someone tried it later.
+2. **reviewer-26's 200-character construction is no longer truncated — correct, not a missed case.** 200 <= 200
+   is at the cap, not over it. Verified on bytes: `exact200` gives body chars=200 bytes=206, marker absent,
+   valid UTF-8, one line. The case still earns its place: V11 (`>=` for `>`) is caught by it and nothing else,
+   so the boundary is pinned in both directions.
+3. **Is 200 code points of emoji acceptable on one line? Yes, but the log's number is optimistic.** Measured:
+   `emoji200` gives body 200 chars / **800 bytes**, and the whole override line is 885 bytes — the log's
+   "~814 bytes" omits the 85-byte prefix. Emoji are double-width, so that is ~485 display columns: ~5 wrapped
+   rows at 120 and ~7 at 80, not "about 4". Total stdout is still 4 lines and the two gate lines after it are
+   not buried. Conclusion stands; the arithmetic was not measured on a narrow terminal, as the owner said.
+4. **`errors="replace"` is in scope, not creep.** Once the cap moves into python the decode must name *some*
+   policy and every alternative is worse: `strict` turns a stray operator byte into a crashed filter and a
+   refused merge; `ignore` silently deletes (V4, caught); `surrogateescape` round-trips the bad bytes back out
+   and reproduces the original defect. `replace` is the only policy that satisfies the pin's "always valid
+   UTF-8" half, and U+FFFD is not a control character so it cannot inject. Keep it.
+5. **Grapheme clusters — accepted residual is the right line, and I tested it.** Confirmed splittable:
+   `zwj_flag` (197A + two rainbow flags) ends `...\U0001f3f3️‍...[truncated]`, i.e. a rainbow flag
+   truncated to a plain white flag with a dangling ZWJ; `zwj_family` ends `\U0001f468‍...[truncated]`, a
+   family reduced to one man. Sharper still, `negate` (199A + `=` + U+0338) drops the combining solidus and
+   emits `...A=...[truncated]` — a rendered **"≠" becomes "="**, a meaning inversion in the *kept* text rather
+   than the cut text. Why it is nevertheless acceptable, and this is the part the log did not say: truncation
+   *always* carries `...[truncated]`, so no mangled line can pose as a complete one; and the operator authors
+   the reason, so this can only distort their own annotation — it cannot forge a gate line. A dangling ZWJ
+   before the ASCII marker is inert (ZWJ joins emoji, not `.`).
+6. **The stacking risk is acceptable, and the owner over-stated their own exposure.** `git ls-tree` shows
+   `ops/lib/gh-stub-for-merge-tests` absent on `main` but present on `task/T-0021`, `task/T-0022` and
+   `task/T-0044`, so T-0044 is not the sole path. More to the point, `9a18891` (T-0044's commit) is an
+   *ancestor* of `task/T-0049` — `git diff task/T-0044...HEAD` is only T-0049's own five files — so retargeting
+   PR #41 at main would carry T-0044's changes with it; P-OPS-02 cannot arrive on a main that lacks the stub.
+   And if it somehow did, the driver fails closed and legibly (`$STUB is missing (this check needs the
+   committed gh stub)`), with the two anti-vacuity greps firing first. The real exposure the log does *not*
+   name is attribution: #41's diff-to-main silently contains T-0044's work. That is fine here only because
+   `940cc08` records T-0044 as review PASS.
+7. **The forgery cases are not over-reach — they are the best thing in this task**, and F-1/F-2 are the
+   argument for going further, not for going back. Adding them found that T-0044's newline collapse had no
+   guard anywhere. Stopping at two of the five surviving line-break code points is what I am failing on.
+8. **RED re-derived** — see above; five lines, not four.
+9. **The `$PY` emptiness guard.** Fail-closed behaviour verified: with `PYTHON` pointed at a binary that always
+   exits 3, the filter dies, the reason comes out empty, and gate 1 refuses —
+   `MERGE REFUSED: branch tmp/stub-no-task names no task ... exit=1`. Exactly as claimed. The guard line itself
+   I could **not** execute: `${PYTHON:-...}` treats an empty `PYTHON` as unset, so it only fires on a PATH with
+   no python at all, and I could not build one on this Windows box without breaking `bash` itself
+   (`error while loading shared libraries`). Read, not run — it is two tokens and obviously reachable.
+
+### The P-OPS-02 id collision — real, and correctly deferred
+
+Confirmed by reading the other branch, not by taking it on trust:
+
+    $ git show task/T-0023:pins/PINS.yaml
+    - id: P-OPS-02
+      statement: A failing test run names the tests that failed - ...
+      assertion: "bash ops/lib/check-failure-naming"
+
+Two different pins, same id, on two unmerged branches; `main`'s `pins/PINS.yaml` stops at P-OPS-01, so neither
+author could have seen the other. `queue/backlog/T-0057` (on main, `depends_on: [T-0023, T-0049]`) already
+files it and proposes T-0049's become P-OPS-03. **It does not block this task** and deferring is right: the
+renumber depends on merge order, which is not yet decided, and neither branch can observe the clash from where
+it stands. One thing to carry forward that the log does not mention: `ops/check-pins` does not detect duplicate
+ids at all (T-0057's second point), so whichever merges second lands a silent duplicate and `ok=N` counts both.
+That is the hazard, not the name.
+
+### Findings summary
+
+    F-1  BLOCKING   pin statement "always exactly one line" is false under the assertion's own splitlines()
+                    definition; proven red against the shipped ops/merge by adding one U+2028 or U+0085 case
+    F-2  BLOCKING   gate-shaped lines (MERGED pr=, DRY RUN:, MERGE REFUSED:) forgeable end to end via
+                    U+2028/U+0085; U+00A0 rebuilds the 5-space `task     ` column. T-0044's residual, but
+                    F-1's statement denies it. Log line 142 "none of them starts a line" is wrong.
+    F-3  major      V5: the ESC/ANSI control-byte strip has no automated guard anywhere in the repo
+    F-4  minor      V6/V7/V8: whitespace collapse + trim, NFD rewriting, and delete-vs-collapse all survive
+    F-5  minor      the RED transcript in this log is stale (4 lines, the check now emits 5); item 8's
+                    "verbatim" instruction misleads the next reader
+    F-6  note       ops/check-pins cannot see duplicate pin ids (already T-0057)
+
+### What passes and must not be redone
+
+The character-cap decision and its (mostly) sound argument; the fix itself; `errors="replace"`; the two-file
+driver/assert split; the anti-vacuity guards; the exec bits; the 8-case parallel harness. The cap property is
+pinned hard — 8 of my 12 mutations caught, every cap mutation caught, both teeth independently exercised. The
+blocking work is a pin statement and a log sentence, plus a decision about three code points.
+
+State stays `review`; the task file is not moved. Only this file is committed.
