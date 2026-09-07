@@ -25,10 +25,10 @@
 
 - id: P-OPS-01
   statement: Every script in ops/ and .githooks/ is committed with the executable bit (git mode 100755); data files are not
-  why_no_test_catches_it: core.filemode is false on the Windows checkout this repo is driven from, so a new script is committed 100644 and nothing complains. CI invokes them as `bash ops/x` and stays green, but queue/README.md and Xcode Cloud both invoke them directly, where a missing +x is a hard failure. The exec bit is invisible to every other check.
+  why_no_test_catches_it: core.filemode is false on the Windows checkout this repo is driven from, so a new script is committed 100644 and nothing complains. CI invokes them as `bash ops/x` and stays green, but queue/README.md and Xcode Cloud both invoke them directly, where a missing +x is a hard failure. The exec bit is invisible to every other check. The assertion also refuses to pass on an empty or truncated file set, which the original one-liner did (reviewer-5).
   anchor: artifact
   runs_on: [linux, mac]
-  assertion: "test -z \"$(git ls-files -s ops .githooks | awk '$4 ~ /\.(json|txt|md)$/ || $4 == \"ops/api-url\" {if ($1 != \"100644\") print $4; next} $1 != \"100755\" {print $4}')\""
+  assertion: "bash ops/lib/check-exec-bits"
   owner: agent/claude-opus-5
   added: 2026-09-07
 

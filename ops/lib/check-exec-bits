@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# P-OPS-01's assertion. Three checks, because the obvious one passes on an empty artefact.
+#
+#   1. the set is non-empty and plausibly complete   <- reviewer-5's finding: `test -z "$(...)"` over an empty
+#      2. the load-bearing scripts are actually tracked      file list is trivially true, so a deleted ops/ or a
+#   3. every script is 100755, every data file 100644    renamed directory would have reported OK forever
+#
+# core.filemode is false on the Windows checkout this repo is driven from, so git does not notice a mode change
+# on its own and CI (`bash ops/x`) stays green while direct invocation (`./ops/x`, queue/README.md step 1,
+# Xcode Cloud's ci_scripts) breaks.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+MIN_FILES=17
+REQUIRED=(ops/test ops/sane ops/check-pins ops/queue-check ops/queue-sweep ops/claim ops/lock ops/merge
+          ops/deploy ops/prod-read ops/agent-preflight ops/new-task .githooks/pre-commit .githooks/commit-msg)
+
+n="$(git ls-files ops .githooks | wc -l | tr -d '[:space:]')"
+if [[ "$n" -lt "$MIN_FILES" ]]; then
+  echo "P-OPS-01: only $n files tracked under ops/ and .githooks/ (expected >= $MIN_FILES)."
+  echo "  An empty or truncated set must never read as 'all modes correct'."
+  exit 1
+fi
+
+missing=()
+for f in "${REQUIRED[@]}"; do
+  git ls-files --error-unmatch "$f" >/dev/null 2>&1 || missing+=("$f")
+done
+if [[ ${#missing[@]} -gt 0 ]]; then
+  echo "P-OPS-01: load-bearing script(s) not tracked: ${missing[*]}"
+  exit 1
+fi
+
+# Data files stay 100644; everything else under ops/ and .githooks/ is a script and stays 100755.
+bad="$(git ls-files -s ops .githooks | awk '
+  $4 ~ /\.(json|txt|md)$/ || $4 == "ops/api-url" { if ($1 != "100644") print $4 " (data, should be 100644, is " $1 ")"; next }
+  $1 != "100755" { print $4 " (script, should be 100755, is " $1 ")" }
+')"
+if [[ -n "$bad" ]]; then
+  echo "P-OPS-01: wrong git file mode:"
+  printf '  %s\n' "$bad"
+  echo "  Fix with: git update-index --chmod=+x <path>   (or --chmod=-x for data files)"
+  exit 1
+fi
+
+echo "P-OPS-01: $n files, ${#REQUIRED[@]} required present, all modes correct"
