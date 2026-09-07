@@ -33,8 +33,33 @@ for arg in "${@:2}"; do
     *) echo "unknown option: $arg"; exit 2;;
   esac
 done
-# Whitespace-only counts as no reason, not a reason ("--no-task-reason=  " must refuse, not sneak through).
-no_task_reason="$(printf '%s' "$no_task_reason" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+# The override reason is operator-supplied text that ops/merge echoes into its own output, i.e. into the audit
+# trail. It must never be able to (a) fabricate a line shaped like one of ops/merge's own gate lines, (b) repaint
+# or otherwise control the terminal, or (c) be long enough to scroll real gate output out of view. So, in order:
+#   1. CR/LF/tab collapse to a single space (this is what actually closes the injection: a reason can no longer
+#      contain a line break, so it can never start a new line - and every gate line below is only ever emitted
+#      as its own `echo`, right after a real newline this script produced itself).
+#   2. Every other ASCII control byte is deleted outright - this is what kills ANSI escapes (ESC is 0x1B, a
+#      control byte) before they ever reach a terminal.
+#   3. Runs of whitespace collapse to one space, then leading/trailing whitespace is trimmed. This subsumes the
+#      original "whitespace-only counts as no reason, not a reason" rule; it now runs after sanitizing rather
+#      than before, so a reason of pure control bytes/newlines is correctly treated as empty too.
+#   4. The result is capped at $no_task_reason_max chars - a giant reason is a milder version of the same attack
+#      (burying real output instead of forging it) and gets the same treatment.
+# Residual, accepted limitation: this strips bytes, not code points, so a non-ASCII Unicode format character
+# (e.g. a bidi override) would survive. It cannot inject a line break or an escape sequence either way, which is
+# the actual exploit this closes; full Unicode sanitizing is out of scope for a one-line audit annotation.
+no_task_reason_max=200
+no_task_reason="$(
+  printf '%s' "$no_task_reason" \
+    | tr '\n\r\t' '   ' \
+    | tr -d '\000-\010\013\014\016-\037\177' \
+    | tr -s ' ' \
+    | sed -e 's/^ *//' -e 's/ *$//'
+)"
+if [[ "${#no_task_reason}" -gt $no_task_reason_max ]]; then
+  no_task_reason="${no_task_reason:0:$no_task_reason_max}...[truncated]"
+fi
 repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 
 # --- 1. the PR's queue task must be in done/, i.e. a reviewer signed it off ---------------------------
@@ -50,7 +75,10 @@ if [[ -n "$task" ]]; then
 elif [[ -n "$no_task_reason" ]]; then
   # Opt-in, per-invocation, and requires a reason: a no-task merge always leaves one on the record instead of a
   # bare flag someone could alias into a new silent default. Covers queue-only branches, reverts, hotfixes.
-  echo "task     branch $head_ref names no task; review gate overridden on record: $no_task_reason"
+  # The reason is wrapped in >>> <<< so it stays visibly free-form operator text even if sanitizing above ever
+  # has a gap: nothing inside the delimiters, on its own, reads as a gate line - a gate line is always a whole
+  # echo of its own, never text nested inside another line's delimiters.
+  echo "task     branch $head_ref names no task; review gate overridden on record: >>>$no_task_reason<<<"
 else
   echo "MERGE REFUSED: branch $head_ref names no task (no T-nnnn), so the review gate can't check queue/done/ for it"
   echo "  If this is really a no-task branch (queue-only maintenance, a revert, a hotfix), rerun with"
