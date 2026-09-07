@@ -1,13 +1,13 @@
 ---
 id: T-0050
 title: decide whether the scenic index adopts Curvature's six squash post-processors
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T23:15:12Z
+lease_expires_at: 2026-09-08T01:15:12Z
 worktree: null
-branch: null
+branch: task/T-0050
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
@@ -53,3 +53,4 @@ we do not implement them, so adopting them should move it from excluded to passi
 demonstration that the adoption is faithful rather than approximate.
 
 ## Log
+- 2026-09-07T23:15:12Z claimed by agent/unknown; lease until 2026-09-08T01:15:12Z
