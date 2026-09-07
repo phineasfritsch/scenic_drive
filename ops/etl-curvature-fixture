@@ -69,7 +69,12 @@ mount="$(cd "$ETL" && pwd)"
 # agent/reviewer-30 root-caused this by capturing real osmium output after two earlier guesses (including the
 # one that used to be written at the top of this file) were wrong.
 #
-# So getid is judged by whether it produced a usable file. export is judged by its exit code, normally.
+# So getid is judged by WHAT IT PRODUCED, not by its exit code. "Produced something" is not enough: with
+# every requested id absent, getid still exits 1 and still writes a valid 204-byte header-only PBF, which
+# `-s` happily accepts; export then succeeds on it and the whole run reports success while building a fixture
+# of ZERO ways (agent/reviewer-34, who reproduced it). The only honest test is how many ways came back, so
+# that is what is checked, against the number asked for.
+requested="$(wc -l < "$WORK/ids.txt" | tr -d '[:space:]')"
 docker run --rm -v "$mount:/w" -w /w "$IMAGE" bash -c '
 rc=0
 rm -f work/curvature-oracle/subset.osm.pbf work/curvature-oracle/subset.geojsonseq
@@ -81,10 +86,32 @@ fi
 exit $rc
 ' || { echo "osmium failed - its own message is above"; exit 2; }
 
+# A handful of ids are legitimately absent - 21 of 3318, the KMZ predates the extract - so this cannot demand
+# all of them. It can demand that the shortfall stay small: anything worse is a broken input or a broken
+# osmium, not upstream drift, and it must stop the run rather than quietly shrink the oracle's population.
+got="$(grep -c '"id":"w' "$WORK/subset.geojsonseq" || true)"
+floor=$(( requested * 95 / 100 ))
+echo "     $got of $requested requested ways came back"
+if [[ "$got" -lt "$floor" ]]; then
+  echo "TOO FEW WAYS: $got of $requested (floor $floor). A fixture built from this would be silently small."
+  echo "Check that ids.txt matches inputs/vermont-osm.pbf; osmium reports missing ids above."
+  exit 2
+fi
+
 echo "3/3  select and write"
 out="$FIXTURE"
 [[ $check -eq 1 ]] && out="$WORK/rebuilt.json"
-(cd "$ETL" && "$PY" -m etl.oracle --build "../../$out" --export "work/curvature-oracle/subset.geojsonseq")
+# Delete the target first. Without this, `--check` diffs against whatever rebuilt.json a PREVIOUS run left
+# behind, which is how it managed to print "FIXTURE OK" for a build that had failed.
+rm -f "$out"
+# And check the exit code. This script runs under `set -uo pipefail` with no `-e`, so the build's failure was
+# simply not noticed: it fell through to the diff below and the only guard on fixture reproducibility in the
+# repo reported success, exit 0 (agent/reviewer-34, who forced step 3 to fail and watched it pass).
+if ! (cd "$ETL" && "$PY" -m etl.oracle --build "../../$out" --export "work/curvature-oracle/subset.geojsonseq"); then
+  echo "BUILD FAILED: etl.oracle --build exited non-zero; its message is above"
+  exit 2
+fi
+[[ -s "$out" ]] || { echo "BUILD PRODUCED NOTHING: $out is missing or empty"; exit 2; }
 
 if [[ $check -eq 1 ]]; then
   if diff -q "$FIXTURE" "$out" >/dev/null; then

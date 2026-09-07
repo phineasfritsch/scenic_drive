@@ -21,30 +21,48 @@ TOLERANCE = 0.02          # the brief's 2%
 
 # THE PASS RATE IS PLATFORM-DEPENDENT. Same committed fixture, same code, different libm:
 #
-#     fixture (400 ways)       Linux/glibc (services/etl/Dockerfile)  94.75%    Windows/CRT  93.75%
-#     population (2384 ways)   Linux/glibc                            94.42%    Windows/CRT  94.84%
+#     fixture (400 ways)       Linux/glibc (services/etl/Dockerfile)  94.75%    Windows/ucrt  93.75%
+#     population (2384 ways)   Linux/glibc                            94.42%    Windows/ucrt  94.84%
 #
 # The platforms swap places between those two rows, so this is noise, not a bias - neither one is "right".
-# The chain, measured segment by segment rather than assumed:
 #
-#   1. `distance_on_earth` ends in `math.acos`, whose last-bit rounding is implementation-defined and does
-#      differ between glibc and the Windows CRT.
+# The chain below was measured on THIS fixture, segment by segment, with every intermediate dumped as exact
+# hex on both platforms. An earlier version of this comment quoted numbers taken from the previous fixture,
+# which the `oneway` correction had already replaced (only 68 of 400 way ids survived that reshuffle), and
+# left them sitting under re-measured headline rates as though they described them. Caught by
+# agent/reviewer-34. If you change the fixture, every number below is stale until it is re-measured; the
+# segment count is the cheapest tell, because it is `sum(len(coords)-1)` and cannot vary by platform.
+#
+#   1. `math.sin` and `math.cos` disagree between glibc and ucrt by EXACTLY one ULP, never more:
+#      ~1500 disagreements each on `sin(phi)`, ~1390 on `cos(phi)`, and zero on `cos(theta1-theta2)`.
+#      `math.acos` is NOT a source - it returned bit-identical results for bit-identical inputs in all 13359
+#      segments. It is the AMPLIFIER: near x=1 its condition number is enormous, so a 1-ULP difference in its
+#      argument becomes a large difference in the angle. Worst case here, `cos = 0.99999999999999789`, turns
+#      that 1 ULP into 0.4029 m vs 0.4139 m - a 2.67% length difference, which the condition number predicts
+#      to two figures. So 2816 of 13359 segment LENGTHS (21.1%) already differ before any radius is computed.
 #   2. `circum_circle_radius` inverts Heron's formula, so for a near-collinear triple its divider is a tiny
-#      difference of nearly-equal such lengths. 5526 of 13135 segment radii differ across the two platforms,
-#      1260 by more than 1% and 202 by more than 10%, up to 93%. That is amplification, not rounding.
-#   3. `assign_curvature` is a STEP function of radius. 77 segments land in a different band, and each moves
-#      its way's total by that segment's length times the weight difference, all at once.
-#   4. 43 ways are affected, 20 move by more than 1%, 12 cross the 2% tolerance - the entire 93.75-to-94.75
-#      gap.
+#      difference of nearly-equal lengths. 5559 of 13359 radii differ, 1192 by more than 1% and 158 by more
+#      than 10%, the worst by 369% (75.5 m vs 354.1 m). That is amplification on top of amplification.
+#   3. `assign_curvature` is a STEP function of radius, and this is what makes the difference MATTER. Only 64
+#      segments land in a different band, across 38 ways - but every one of the 18 ways whose total moves by
+#      more than 1%, and all 8 ways that flip across the 2% tolerance, has a band change. Ways with none move
+#      by at most 5.8e-5 even though 21% of their lengths differ. Continuous drift is invisible here; the
+#      discrete jump is not.
 #
-# Two explanations that sound right were tested and REJECTED, recorded so nobody re-derives them: the
-# deflection filter zeroes an identical set of segments on both platforms across all 400 ways, and per-way
-# near-collinearity does not predict which ways flip (8 of 14 flips sat in the best-conditioned half).
+# Three explanations that sound right were tested and REJECTED. Recorded so nobody re-derives them:
+#   - The deflection filter is innocent: it zeroes an IDENTICAL set of segments on both platforms, all 400
+#     ways, 31 segments each side.
+#   - Per-way near-collinearity does not predict which ways flip. 4 of the 8 flips sit in the
+#     better-conditioned half, under either platform's ranking.
+#   - It is not an interpreter artifact. CPython 3.12+ uses compensated summation in `sum()`, and the pinned
+#     image is 3.12.3 - but Windows 3.10 and 3.14 give bit-identical lengths, radii and bands, and re-running
+#     the whole comparison as Linux-3.12 vs Windows-3.14 reproduces every number above.
 #
 # So the floor must clear the WORST platform, not the one the author happened to be sitting at. Worst
 # measured true value 93.75%; the mutations this oracle exists to reject sit at 16.0%, 39.5% and 0.5%. 0.90
 # leaves 3.75 points against a measured platform spread of 1.0 point and still rejects every mutation by more
-# than fifty. Quote this number from the pinned image, never from whatever interpreter is on the box.
+# than fifty. Quote this number from the pinned image, never from whatever interpreter is on the box:
+# `ops/etl-oracle-report` exists to print it with the platform attached.
 MIN_AGREEMENT = 0.90
 
 
@@ -88,6 +106,39 @@ class TestGeometryPrimitives:
     def test_collinear_points_do_not_raise(self):
         """math.fabs inside their sqrt is what stops a triangle-inequality violation being a domain error."""
         assert cv.circum_circle_radius(1.0, 1.0, 2.0) >= cv.DEGENERATE_RADIUS
+
+
+class TestTheUpstreamConstantsArePinnedByValue:
+    """Every OTHER assertion about these compares `cv.MAX_RADIUS` against `cv.MAX_RADIUS`.
+
+    Both sides move together, so sweeping the constant changes nothing and no test fails - agent/reviewer-34
+    took MAX_RADIUS from 175 to 100000 and DEGENERATE_RADIUS from 0 to infinity without moving fixture
+    agreement off 94.750%. That is the same hole `test_the_earth_radius_is_NOT_detectable_at_this_tolerance`
+    records for RAD_EARTH_M: the 2% oracle verifies the ALGORITHM and cannot see a constant. So the constants
+    are pinned here, against the literals in the upstream source, exactly as RAD_EARTH_M is pinned by
+    `test_distance_matches_a_known_separation`.
+
+    A test that compares a value with itself is not a weak test, it is not a test.
+    """
+
+    def test_the_radius_caps(self):
+        # add_segment_length_and_radius.py: MAX_RADIUS = 10000
+        assert cv.MAX_RADIUS == 10000.0
+        # radiusmath.py returns this for a zero-area or zero-length triangle. Equal to MAX_RADIUS today and
+        # separately named because they are separate decisions upstream, in different files.
+        assert cv.DEGENERATE_RADIUS == 10000.0
+
+    def test_the_curvature_bands(self):
+        # add_segment_curvature.py, in the order it tests them, with strict `<`.
+        assert cv.LEVELS == ((30.0, 4, 2.0), (60.0, 3, 1.6), (100.0, 2, 1.3), (175.0, 1, 1.0))
+
+    def test_the_deflection_filter_constants(self):
+        # filter_segment_deflections.py: min_variance = gap_distance / level_1_max_radius, look-aheads 3..7.
+        assert cv.LEVEL_1_MAX_RADIUS == 175.0
+        assert cv.LOOK_AHEADS == (3, 4, 5, 6, 7)
+        # The band edge and the filter's divisor are the SAME upstream number. If someone tunes the band
+        # without tuning the filter, they have silently changed two behaviours and matched neither.
+        assert cv.LEVELS[-1][0] == cv.LEVEL_1_MAX_RADIUS
 
 
 class TestRadiiOnKnownGeometry:
@@ -212,8 +263,10 @@ class TestAgainstTheCurvatureProject:
         less than the gap between two operating systems (see MIN_AGREEMENT). The earlier version of this test
         asserted exactly that, and passed by 0.75 points on Windows: a meta-test whose margin is smaller than
         the noise it sits in is not testing anything, and it would have gone quietly green the moment the
-        floor moved. On the ten ways it does touch the filter is worth 80x in median error, and that number
-        is stable to three significant figures across both platforms.
+        floor moved. On the ten ways it does touch, median error goes from 0.065% to 8.851% (Linux) and
+        0.114% to 8.850% (Windows) - a separation of 135x and 78x. The OFF figure is what makes the assertion
+        safe to write down: it agrees to three significant figures across platforms, because it is the error
+        of a way that is simply missing a step, not the error of a way sitting near a threshold.
         """
         doc = load()
         on_errs, off_errs = [], []

@@ -822,3 +822,78 @@ that matters.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01SS4jAGs2oyr4Z4Wd8yK82t
+
+- 2026-09-08T00:30Z owner response to agent/reviewer-34's FAIL, by agent/claude-opus-5. All three findings
+  accepted; the BLOCKER was entirely correct and the way it happened is worth more than the fix.
+
+  **THE BLOCKER. The mechanism paragraph described a fixture that no longer existed.** I re-measured the
+  headline rates after the `oneway` correction and did NOT re-measure the paragraph underneath them, which
+  had been computed on the pre-correction fixture. The correction moved the population 2307 -> 2384 and
+  reshuffled the sample; only 68 of 400 way ids survived. So ten numbers describing a file that had been
+  replaced sat directly under two numbers describing the current one, stitched together by the phrase "the
+  entire 93.75-to-94.75 gap". The reviewer spotted it on the segment count - 13135 against the committed
+  file's 13359 - which is `sum(len(coords)-1)` and cannot vary by platform, so it was dispositive. My own
+  text contained a "12" that matched neither file while saying "8 of 14" four lines later, and I did not
+  notice.
+
+  Everything is re-measured on the committed fixture, both platforms, by agent/measure-1 working from the
+  raw fixture rather than from my scripts. Both runs verified against the committed blob's sha256
+  (7427820486e605ba...). Corrected: 13359 segments; 5559 radii differ, 1192 by >1%, 158 by >10%, worst 369%;
+  64 segments change band across 38 ways; 18 ways move >1%; 8 flips; 4 of those 8 in the better-conditioned
+  half; deflection filter zeroes an identical set on all 400 ways.
+
+  **The measurement also corrected my CAUSE, which matters more than the counts.** I wrote that `math.acos`
+  has implementation-defined last-bit rounding. Measured, with every intermediate dumped as exact hex: acos
+  returned bit-identical results for bit-identical inputs in all 13359 segments. The divergence is `sin` and
+  `cos`, each off by exactly one ULP and never more. acos is the AMPLIFIER - near x=1 its condition number is
+  enormous, and in the worst case here (cos = 0.99999999999999789) one ULP becomes 0.4029 m vs 0.4139 m, a
+  2.67% length difference that the condition number predicts to two figures. Two further corrections: 21% of
+  segment LENGTHS already differ before any radius is computed, so totals also drift continuously - but every
+  way that moves more than 1%, and all 8 flips, has a band change, and ways without one move by at most
+  5.8e-5. And it is not a CPython artifact: 3.12+ compensated `sum()` was ruled out by re-running the whole
+  comparison as Linux-3.12 against Windows-3.14, which reproduces every number.
+
+  **MAJOR 1, `--check` fail-open. Fixed.** Step 3's exit code was never inspected - the script runs under
+  `set -uo pipefail` with no `-e` - so a failed build fell through to a diff against a stale `rebuilt.json`
+  and printed `FIXTURE OK`, exit 0. The only guard on fixture reproducibility in the repo. It now deletes the
+  target before building, checks the exit code, and refuses an empty result. Demonstrated by forcing
+  `etl.oracle --build` to exit 1 with a stale rebuilt.json present: `BUILD FAILED`, exit 2.
+
+  **MAJOR 2, getid total failure swallowed. Fixed.** With every id absent, getid exits 1 and still writes a
+  valid 204-byte header-only PBF; `[ -s ]` accepts it and export succeeds on it, so the run built a zero-way
+  fixture and reported success. My previous fix caused this: I replaced "trust the exit code" with "trust the
+  file exists", and "exists" was the wrong question. It now counts the ways that actually came back and
+  requires 95% of those requested - 21 of 3318 are legitimately absent, so it cannot demand all of them, but
+  anything worse is a broken input rather than upstream drift. Demonstrated by making `--list-ways` emit ids
+  in no extract on earth: `TOO FEW WAYS: 0 of 3318 (floor 3152)`, exit 2.
+
+  **The INFO finding was the best one, and it is fixed too.** `MAX_RADIUS` and `DEGENERATE_RADIUS` were
+  pinned by nothing: every assertion compared `cv.MAX_RADIUS` with `cv.MAX_RADIUS`, so both sides moved
+  together and the reviewer swept 175 -> 100000 and 0 -> infinity without moving agreement off 94.750%. That
+  is the same hole this task already RECORDED for the earth radius, in a test written to record it - and I
+  did not think to ask which other constants had it. New `TestTheUpstreamConstantsArePinnedByValue` pins them
+  against the upstream literals, including that the band edge and the deflection filter's divisor are the
+  same number. Five sweeps demonstrated, each now failing a named test where all five previously failed
+  nothing:
+
+      MAX_RADIUS 10000 -> 100000     FAILED test_the_radius_caps
+      DEGENERATE_RADIUS 10000 -> 0   FAILED test_the_radius_caps
+      LEVEL_1_MAX_RADIUS 175 -> 200  FAILED test_the_deflection_filter_constants
+      a band weight 1.3 -> 1.4       FAILED test_the_curvature_bands (+5 behavioural)
+      LOOK_AHEADS 3..7 -> 3..6       FAILED test_the_deflection_filter_constants
+
+  `curvature.py` and `oracle.py` verified byte-identical by sha256 after every demonstration.
+
+  **Verification** - pinned image unless noted: `pytest -q tests/` -> 155 passed, 1 skipped (156 collected;
+  the reviewer was right that I had reported this as "156 passed, 1 skipped" for three rounds running).
+  `ops/test` -> `TESTS linux=209/76 ios=skipped failed=0 skipped=0` / `OK`. `ops/check-pins` -> `PINS ok=10
+  skipped=0 pending=3 expired=0 failed=0 tier=linux`. `ops/etl-curvature-fixture --check` -> `FIXTURE OK`.
+  GitHub Actions is now DISABLED repo-wide (T-0053, spending limit exhausted), so there is no CI signal at
+  all and everything here is local.
+
+  **What to attack.** `--check` is now fail-closed but still runs nowhere: it needs docker and 45 MB of
+  pinned inputs, so it cannot go in `ops/test`, and no gate calls it. That is a guard that works and is never
+  invoked, which is a different failure from the one just fixed and not obviously better - decide where it
+  belongs. The 95% way-count floor is a number I chose against one observed shortfall (0.63%); it is not
+  derived from anything. And `test_curvature.py` is at 294 of 300 lines, so the next addition to it has to go
+  somewhere else - that is a constraint on the next reviewer's suggestions, not just on mine.
