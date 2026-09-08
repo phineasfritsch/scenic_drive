@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # A deterministic stand-in for `gh`, used to exercise ops/merge's transient-state branches without racing
-# GitHub. ops/merge only ever calls `gh repo view`, `gh pr view` and `gh pr merge`, so those are all it fakes.
+# GitHub. ops/merge calls `gh repo view`, `gh pr view`, `gh api .../contents/queue/done` (only when the branch
+# names a task) and `gh pr merge`, so those are what it fakes.
 #
-#   STUB_STATE    what mergeStateStatus returns (default CLEAN)
-#   STUB_ROLLUP   the statusCheckRollup JSON array (default two successful checks)
-#   STUB_FLIP     if set, the FIRST call returns total=0/UNKNOWN and later calls return STUB_STATE/STUB_ROLLUP,
-#                 which is what a real PR looks like in the seconds after a push
-#   STUB_COUNT    path to a counter file used by STUB_FLIP
+#   STUB_STATE      what mergeStateStatus returns (default CLEAN)
+#   STUB_ROLLUP     the statusCheckRollup JSON array (default two successful checks)
+#   STUB_FLIP       if set, the FIRST call returns total=0/UNKNOWN and later calls return STUB_STATE/STUB_ROLLUP,
+#                   which is what a real PR looks like in the seconds after a push
+#   STUB_COUNT      path to a counter file used by STUB_FLIP
+#   STUB_HEAD_REF   what headRefName returns (default tmp/stub-no-task, i.e. the no-task case)
+#   STUB_DONE_NAMES filenames (newline-separated) that `contents/queue/done` reports present, i.e. what a
+#                   reviewer has signed off (default empty: no task is in queue/done/). Only consulted when
+#                   ops/merge's gate 1 finds a T-nnnn in STUB_HEAD_REF and asks the contents API about it.
 set -uo pipefail
 state="${STUB_STATE:-CLEAN}"
 # NOT `${STUB_ROLLUP:-[{...}]}`: bash brace-expands `{a,b}` inside the default, which silently shreds the JSON
@@ -34,11 +39,12 @@ if [[ -n "${STUB_FLIP:-}" ]]; then
 fi
 
 case "$*" in
-  *"repo view"*)            echo "phineasfritsch/scenic_drive" ;;
-  *"pr view"*headRefName*)  echo "tmp/stub-no-task" ;;
-  *"pr view"*mergeStateStatus*) echo "$state" ;;
+  *"repo view"*)                 echo "phineasfritsch/scenic_drive" ;;
+  *"pr view"*headRefName*)       echo "${STUB_HEAD_REF:-tmp/stub-no-task}" ;;
+  *"contents/queue/done"*)       printf '%s\n' "${STUB_DONE_NAMES:-}" ;;
+  *"pr view"*mergeStateStatus*)  echo "$state" ;;
   *"pr view"*statusCheckRollup*) echo "$rollup" ;;
-  *"pr view"*state*)        echo "MERGED" ;;
-  *"pr merge"*)             echo "stub: would merge" ;;
+  *"pr view"*state*)             echo "MERGED" ;;
+  *"pr merge"*)                  echo "stub: would merge" ;;
   *) echo "gh-stub: unhandled: $*" >&2; exit 2 ;;
 esac
