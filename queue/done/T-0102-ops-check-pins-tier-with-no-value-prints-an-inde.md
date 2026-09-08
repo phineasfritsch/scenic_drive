@@ -1,7 +1,7 @@
 ---
 id: T-0102
 title: ops/check-pins --tier with no value prints an IndexError traceback, the same shape T-0087 fixed in queue.py
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T08:53:47Z
@@ -11,7 +11,7 @@ branch: task/T-0102
 exclusive: []
 touches: [ops/lib/pins.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-pr64
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -117,3 +117,57 @@ claimed. Filed rather than fixed so the finding is not lost and T-0066's owner i
 
   Every exit code above was read with the pipe removed. `... | head -1; echo $?` reports the status of
   `head`, and this file's own brief was written from a `$?` that had been through a pipe.
+
+- 2026-09-08 — **reviewed by agent/reviewer-pr64 (not the owner). PASS. Every claim in the GREEN, RED and
+  control tables above was re-executed on this branch at `2b20533`, not read.** Exit codes were taken with
+  `<cmd> >/dev/null 2>&1; echo $?` — no pipe on the measured command — because `... | head -1; echo $?`
+  reports `head`'s status, which is how this task's own brief came to be written from a wrong `1`.
+
+  **Verify commands.** `bash ops/test` → exit **0**, `TESTS linux=50/50 ios=skipped failed=0 skipped=0`.
+  `bash ops/check-pins` → exit **0**, `PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux`.
+  `acceptance:` is `[]` — that is the `ops/new-task` default (`ops/lib/queue.py:266`), not an omission, so
+  `verify:` was run as the acceptance set.
+
+  **Two environment traps had to be cleared first, and both would have produced a false FAIL.** The worktrees
+  moved from `GitHub/wt/<id>` to `GitHub/scenic_drive/.worktrees/<id>`, so `.build`'s Swift ModuleCache still
+  carried the old absolute path and `swift test` died with `could not build module 'vcruntime'` — P-SAFE-05
+  failed and `check-pins` exited 1 on the *unmodified* control. Deleting
+  `.build/x86_64-unknown-windows-msvc/debug/ModuleCache` fixed it. Separately `services/api/node_modules` was
+  never installed here, so `ops/test` exited 1 on `FAIL: services/api exists but vitest produced no report`;
+  `npm ci` fixed it. Neither is attributable to this change — it touches `ops/lib/pins.py` only — but both
+  are worth recording, because a reviewer who stopped at the first non-zero would have failed a good task.
+
+  **RED, reproduced by the reviewer** by checking out `2b20533^:ops/lib/pins.py` over the working file and
+  re-running the matrix, then restoring:
+
+        --tier          IndexError at pins.py:103, verbatim as filed        real exit 1
+        --tier bogus    PINS ok=0 skipped=9 pending=3 failed=0 tier=bogus   real exit 0
+        --tier device   PINS ok=0 skipped=9 pending=3 failed=0 tier=device  real exit 0
+        --tier human    PINS ok=0 skipped=9 pending=3 failed=0 tier=human   real exit 0
+        --nosuchflag    ignored entirely, ok=9                              real exit 0
+        extra-word      ignored entirely, ok=9                              real exit 0
+        --tier=linux    ignored entirely (old code matched only bare --tier) real exit 0
+
+  `--tier bogus` exiting **0** over nine skipped pins and zero assertions is the finding, and it is real. The
+  check is not vacuous: its subject was broken and it went from 2 to 0 on exactly the inputs claimed.
+
+  **GREEN and control, re-measured:** `--tier` / `--tier bogus` / `--tier device` / `--nosuchflag` /
+  `extra-word` / `--tier=` all exit **2** with the quoted messages; `--tier human` exits **1** with the
+  `no assertion ran` line; and the four real invocations are untouched — `(no args)` ok=9 exit 0,
+  `--source-only` ok=3 skipped=8 pending=1 exit 0, `--tier linux` ok=9 exit 0, `--tier mac` ok=9 exit 0.
+  Both CI steps in `.github/workflows/linux-core.yml` are `check-pins` and `check-pins --source-only`, so
+  neither regresses. The `{linux: 11, mac: 9, human: 1}` tally reproduces from `pins/PINS.yaml`.
+
+  **The "derived from the pins, never a literal" claim was tested, not taken on faith.** Adding `device` to
+  one pin's `runs_on` flipped `--tier device` from exit 2 to exit **0** with `ok=1 tier=device`; PINS.yaml was
+  then restored. A hard-coded list could not have done that, so the decision recorded above is the one the
+  code actually implements.
+
+  **Two nits, neither blocking, both filed here rather than fixed — a reviewer finds and does not fix.**
+  (1) Repeated `--tier` is silent last-wins: `--tier bogus --tier linux` exits **0** and swallows the typo,
+  while `--tier linux --tier bogus` exits 2. That is [[T-0084]]'s "repeated scalar flags should be an error,
+  not a silent last-wins" reappearing in brand-new code. (2) `pins/PINS.yaml:4` is a schema comment reading
+  `runs_on [linux|mac|device|human]`, and `--tier device` is now refused — the comment advertises a tier the
+  tool rejects. The implementation is right to ignore it (CLAUDE.md: never anchor on a comment), but the
+  comment is now stale. Also noted: nothing automated will catch a revert of `_argv` — there is no pin or
+  test over check-pins' own argument handling, exactly as [[T-0087]] left `queue.py`.
