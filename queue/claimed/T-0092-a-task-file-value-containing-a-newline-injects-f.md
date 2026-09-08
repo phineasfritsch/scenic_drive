@@ -63,3 +63,57 @@ and this session alone has pasted multi-line command output into task fields mor
 - 2026-09-08 filed by agent/claude-opus-5. Found by the adversarial verifier of T-0087 while attacking a
   different route, and confirmed here independently.
 - 2026-09-08T08:12:49Z claimed by agent/claude-opus-5; lease until 2026-09-08T11:12:49Z
+
+- 2026-09-08 — **closed twice over: refuse a line break at write time, refuse a duplicate key at read time.**
+
+  Quoting is not one of the two, and it is worth saying why it was rejected:
+  `reviewer: "agent/x\nowner: agent/y"` still occupies two physical lines and the second is still parsed as
+  a key. The value has no representation in this format, so **writing it is the bug** — `dump()` raises.
+
+  The parse-side rule is the one that holds when this module is not the writer. The amplifier is not the
+  newline, it is **last-wins**: a second `owner:` line beats the real one above it however it got there —
+  hand edit, merge, injection. Measured before enforcing: **0** of the task files in this tree carry a
+  duplicate key, so nothing legitimate is refused.
+
+  **RED** (`.artifacts/demo-injection.py`, run against this worktree's module):
+
+        CASE 1 - reviewer carries a newline that declares an owner
+           5: owner: agent/claude-opus-5
+           6: reviewer: agent/claude-opus-5
+           7: owner: agent/nobody          <-- injected
+          parse() reads back: owner='agent/nobody'  reviewer='agent/claude-opus-5'
+          reviewer == owner ? False   -> queue-check's rule PASSES
+
+  That is the dangerous payload, and it is not the one the brief used. A payload naming the *same* agent in
+  both fields makes `owner == reviewer` and trips the rule anyway. Naming a **third** agent displaces the
+  real owner entirely: the worker reviews its own work, and P-PROC-01 reports that the reviewer is not the
+  owner — satisfied by a value written into a different field. [[T-0068]] hardened the presence of those
+  operands and [[T-0073]] hardened the comparison; this walks past both without touching either.
+
+        CASE 2 - the same shape through a LIST element (exclusive:)
+          dump() WROTE it; parse() reads owner='agent/x]'
+        CASE 3 - a hand-written file with two owner: lines, no dump() involved
+          parse() accepted it: owner='agent/x' (the SECOND line won)
+        CONTROL - an ordinary task round-trips: True
+
+  **GREEN:**
+
+        CASE 1  dump() REFUSED: front-matter field 'reviewer' contains a line break, which cannot be
+                written: every line after the first would parse as another key and overwrite it (last-wins).
+        CASE 2  dump() REFUSED: front-matter field 'exclusive' contains a line break, ...
+        CASE 3  parse() REFUSED: front matter defines 'owner' twice; the parser is last-wins, so the later
+                line silently replaces the earlier one.
+        CONTROL round-trip identical: True
+
+        $ ops/queue-check          QUEUE OK (95 tasks)                     exit 0
+        $ ops/check-pins --source-only   PINS ok=3 skipped=8 pending=1 expired=0 failed=0   exit 0
+
+  **A defect this task found in something else while proving itself.** Running `queue-check` on this branch
+  (which is `task/T-0087` + `main`) reported `duplicate id T-0088` — a real collision between
+  `task/T-0081`'s T-0088 and `task/T-0087`'s. It passes on `main` alone and on `task/T-0087` alone; only the
+  merge shows it, and no rehearsal had ever merged `task/T-0087` because it has no open PR. Renumbered to
+  `T-0102`; the race is [[T-0101]] and the enumeration blindness is [[T-0099]].
+
+  **And one of my own, worth recording because CLAUDE.md warns about it by name:** I wrote
+  `ops/queue-check 2>&1 | tail -3 && echo "exit=$?"` and read `exit=0` for a run that exits 1 — `$?` after a
+  pipeline is the LAST command's status. The failure above was nearly missed for that reason.
