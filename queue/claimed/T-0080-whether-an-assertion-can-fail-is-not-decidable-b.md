@@ -1,13 +1,13 @@
 ---
 id: T-0080
 title: whether an assertion can fail is not decidable by reading it; only mutation can answer it
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/pins-mutation
+owner_session: d217767a
+claimed_at: 2026-09-08T07:12:16Z
+lease_expires_at: 2026-09-08T11:12:16Z
 worktree: null
-branch: null
+branch: task/T-0080
 exclusive: []
 touches: [ops/lib/pins.py]
 pins_affected: []
@@ -55,3 +55,4 @@ half-attempting it, and that judgement was right.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the round-two adversarial verification of T-0072, which
   executed all 32 shapes through the module rather than reasoning about them.
+- 2026-09-08T07:12:16Z claimed by agent/pins-mutation; lease until 2026-09-08T11:12:16Z

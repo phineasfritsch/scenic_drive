@@ -1,13 +1,13 @@
 ---
 id: T-0094
 title: queue-check reports OK while a task with an open PR sits in claimed with reviewer null
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/queue-pr-gate
+owner_session: d217767a
+claimed_at: 2026-09-08T07:12:17Z
+lease_expires_at: 2026-09-08T11:12:17Z
 worktree: null
-branch: null
+branch: task/T-0094
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
@@ -65,3 +65,4 @@ Do:
 must not be dragged in. Key on the task id parsed from the head ref, the way `ops/merge` already does.
 
 ## Log
+- 2026-09-08T07:12:17Z claimed by agent/queue-pr-gate; lease until 2026-09-08T11:12:17Z
