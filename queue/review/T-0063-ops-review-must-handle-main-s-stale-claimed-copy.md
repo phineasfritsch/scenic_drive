@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T09:35:43Z
 worktree: wt/T-0063
 branch: task/T-0063
 exclusive: []
-touches: [ops/lib/queue.py, queue/README.md]
+touches: [ops/lib/queue.py, ops/lib/check-review-remedy, queue/README.md]
 pins_affected: []
 reviewer: agent/reviewer-pr52
 depends_on: [T-0032]
@@ -249,3 +249,157 @@ point of it.
   Every `critical`, `high` and `medium` above is fixed on this branch, each with its own red-then-green
   transcript in the entries above this one. The `low` items are recorded rather than silently dropped;
   where one was substantive it was fixed and says so.
+
+- 2026-09-08 agent/claude-opus-5 — **a second independent reviewer of PR #52 returned FAIL on two `[high]`
+  findings. I reproduced both on the branch they were measured on before changing anything, and both are
+  fixed here. Two `[low]` figures in the PR body were wrong; both are re-measured below.**
+
+  **HIGH 1 — the printed remedy still destroyed the task file.** The previous round replaced `git rm` with
+  `elsewhere = [m for m in dup if not (ROOT / m).exists()]`: does the branch hold main's path *right now*.
+  That question is asked one merge too early. `git rm` runs AFTER the `git merge origin/main` printed on the
+  line above it, and when main reached its path by a RENAME — what `ops/claim`, `ops/queue-sweep` and every
+  hand `git mv` produce — the merge resolves the rename and the two paths collapse onto ONE file.
+
+  Reproduced on `origin/task/T-0029`, the only branch in this repo where the guard actually fires, in a
+  throwaway worktree under `.artifacts/`, with this branch's `queue.py` copied in:
+
+        $ python ops/lib/queue.py review T-0029 --reviewer agent/reviewer-34
+        T-0029: main holds this task where this branch cannot delete it:
+            queue/blocked/T-0029-composite-scenic-score-rank-order-fixture-set-th.md
+            git merge origin/main
+            git rm queue/blocked/T-0029-composite-scenic-score-rank-order-fixture-set-th.md
+        exit 1
+
+        $ git merge origin/main                     MERGE_EXIT=0   (no conflict)
+        $ git ls-files queue/ | grep T-0029
+        queue/blocked/T-0029-...md                  <- the claimed/ copy is GONE; it is the same file
+        $ git rm queue/blocked/T-0029-...md         RM_EXIT=0
+        $ git ls-files queue/ | grep -c T-0029      0
+        $ python ops/lib/queue.py review T-0029 --reviewer agent/reviewer-34
+        T-0029 not found                            exit 1
+
+  **HIGH 2 — and dropping the destructive line was not enough: the remedy was a dead end for its only live
+  case.** Same worktree, merge only, nothing removed:
+
+        $ git merge origin/main                     exit 0
+        $ python ops/lib/queue.py review T-0029 --reviewer agent/reviewer-34
+        T-0029 is in blocked/, not claimed/         exit 1
+        $ bash ops/queue-check                      QUEUE OK (104 tasks)
+
+  Main had re-stated T-0029 as `blocked/` (79dd0ff, blocked on T-0030) and main's content wins the merge, so
+  no sequence of the printed commands reaches `review/`.
+
+  **THE FIX: the remedy is now derived from a REHEARSED merge, never from the pre-merge working tree.**
+  `_paths_after_merge` runs `git merge-tree --write-tree HEAD <main ref>` — which writes the merge result to
+  the object store and touches neither the index nor the working tree, so the guard stays read-only — and
+  lists the paths under `queue/` that carry the id in the tree the merge would ACTUALLY produce. Three
+  shapes, three different truths, and only the merged tree separates them:
+
+        merged tree holds 1 path, in claimed/   -> nothing to remove; merge and run this again
+        merged tree holds 1 path, elsewhere     -> main re-stated the task. Say so. Print NO command:
+                                                   ops/review takes claimed/ only, ops/claim takes ready/
+                                                   only, and inventing a sequence that edits main's stated
+                                                   state is the silent repair this guard refuses to make.
+        merged tree holds 2+ paths              -> a genuine second copy survives; `git rm` the ones that
+                                                   are not this branch's own path
+
+  On `origin/task/T-0029` today, unchanged worktree, patched `queue.py`:
+
+        exit 1, and the whole remedy is now:
+            git merge origin/main        # resolve the task file, keeping YOUR copy
+        The merge collapses both paths onto ONE file, queue/blocked/T-0029-...md,
+        so there is nothing to `git rm` here - deleting it would delete your only copy.
+        But main has re-stated T-0029 as blocked/, and that is a disagreement about the
+        work, not about the merge: ... Settle it on main first ...
+
+  No `git rm`. The rehearsal's prediction was checked against the real thing: `git merge-tree --write-tree`
+  named `queue/blocked/T-0029-...md` and one path, which is exactly what `git merge origin/main` then
+  produced.
+
+  **THE FLOOR, on the population the rehearsal actually examines.** An empty result from the rehearsal is
+  not "nothing to clean up" — this branch holds a copy (`cmd_review` is standing on it) and `dup` says main
+  holds another, so the merged tree MUST carry at least one path for the id. Zero means the rehearsal
+  examined nothing, and advice derived from an empty population is advice derived from nothing, which is
+  how the destructive `git rm` came to be printed in the first place. Empty refuses and prints no command.
+
+  **`git merge origin/main` was also hard-coded** while `_main_ref()` falls back to `refs/heads/main`, so in
+  a checkout without an `origin` the first line of the remedy simply failed. It now names the ref it read.
+
+  **NEW CHECK: `ops/lib/check-review-remedy`** — it RUNS every `git` line the refusal prints, verbatim and
+  in order, and fails if the task file does not survive them. Nothing did that before, which is exactly why
+  a remedy that deleted a task file passed two rounds of review. Four cases: `1/rename` (T-0029's shape),
+  `2/stacked` (the control: refuse, follow the remedy, review succeeds, the merge leaves one copy),
+  `3/second-copy` (a real duplicate, where `git rm` is right and must be printed), `4/empty` + `4/unreadable`
+  (the floor). Fixtures are real git repos with a self-pointing `origin` remote, because a fixture where the
+  printed remedy cannot RUN cannot show that running it destroys anything.
+
+  **RED — the check against this branch's previous `queue.py` (93f1deb), `QUEUE_PY=` pointed at it:**
+
+        FAIL: 1/rename: the printed remedy DESTROYED the task file (1 copy -> 0)
+            ran:     git merge origin/main
+            ran:     git rm queue/blocked/T-9201-rename-shape.md
+        FAIL: 1/rename: the refusal did not name main's state; second run said: T-9201 not found
+        ok: 2/stacked - refused, the remedy works, and the merge leaves exactly one copy
+        ok: 3/second-copy - git rm printed for main's path only, and the remedy works
+        FAIL: 4/empty: a git rm was printed from an empty rehearsal - guessed, not measured
+        FAIL: 4/unreadable: a git rm was printed from an empty rehearsal - guessed, not measured
+        REVIEW REMEDY FAIL                                                        exit 1
+
+  **GREEN — the same check against the fixed `queue.py`:**
+
+        ok: 1/rename - refused, no git rm printed, and the file survives the printed remedy (1 copy)
+        ok: 1/rename - the refusal names main's blocked/ instead of printing a sequence that cannot work
+        ok: 2/stacked - refused, the remedy works, and the merge leaves exactly one copy
+        ok: 3/second-copy - git rm printed for main's path only, and the remedy works
+        ok: 4/empty - an empty rehearsal refuses and prints no deletion
+        ok: 4/unreadable - an empty rehearsal refuses and prints no deletion
+        REVIEW REMEDY OK (4 cases)                                                exit 0
+
+  **THE FLOOR SEEN RED ON ITS OWN.** One character of the fix removed — `if not after:` weakened to
+  `if after is None:`, so it still handles "could not ask" but no longer handles "asked and got nothing",
+  which is the vacuity bug in its pure form. Only the empty case fails, and it fails with visible nonsense:
+
+        ok: 1/rename ...  ok: 2/stacked ...  ok: 3/second-copy ...
+        FAIL: 4/empty: the refusal did not say the rehearsal came back empty:
+              Then stop and look: after the merge T-9201 lives at , none of them the
+        ok: 4/unreadable - an empty rehearsal refuses and prints no deletion
+        REVIEW REMEDY FAIL                                                        exit 1
+
+  Restored: `REVIEW REMEDY OK (4 cases)`, exit 0.
+
+  **`touches:` WIDENED, deliberately, and said out loud.** `ops/lib/check-review-remedy` is a new path and
+  the pre-commit hook would have rejected it, so `touches:` now reads
+  `[ops/lib/queue.py, ops/lib/check-review-remedy, queue/README.md]`. The alternative was to ship a fix for a
+  destructive remedy with no check that executes it, and that is what let this defect through twice.
+  Committed executable (`git update-index --chmod=+x`) per CLAUDE.md; `check-exec-bits` covers it.
+
+  **`queue/README.md`** now says path equality before a merge is not file identity after it, that
+  `ops/review` rehearses the merge, and that main may have re-stated your task while you worked.
+
+  **The two `[low]` figures, re-measured.**
+
+        ops/lib/queue.py    fde9726 (base) 711    93f1deb 822    this commit 898
+        the PR body said "711 -> 788"; 788 was true when that Log entry was written, not now.
+
+        origin/task/* branches today: 80.  28 reach the guard at all (the other 52 return earlier, at
+        `state != "claimed"`).  27 allowed, 1 refused: T-0029 - still the single live case, still the
+        rename case.  The PR body's "60 branches ... allows 58, refuses 1" is stale.
+
+  **`verify:` as run on this branch, after `rm -rf .build` (the previous reviewer showed a stale
+  ModuleCache):**
+
+        bash ops/check-pins        exit 0   PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+        bash ops/test              exit 1   Swift: "Test run with 16 tests in 3 suites passed", then
+                                            "FAIL: services/api exists but vitest produced no report"
+        bash ops/queue-check       exit 0   QUEUE OK (76 tasks)
+        bash ops/lib/check-review-remedy   exit 0   REVIEW REMEDY OK (4 cases)
+        bash ops/lib/check-exec-bits / check-line-cap / check-brief-required   exit 0
+
+  **`ops/test` is red and I ran the counterfactual rather than calling it environmental.** From the MAIN
+  checkout, not this worktree: `services/api/node_modules` is absent there too, and the identical step
+
+        $ cd services/api && npx vitest run --reporter=json --outputFile=<elsewhere>/vitest-on-main.json
+        npx exit=1 ; no report file written
+
+  fails the same way. It is not attributable to this diff, which touches no TypeScript — but it is red, and
+  it stays named here rather than being written off.

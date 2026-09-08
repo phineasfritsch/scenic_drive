@@ -41,8 +41,17 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
      then fails on the merged tree while passing on your branch *and* on `main`. Eleven branches were repaired
      by hand for exactly this. Fix it by merging `origin/main` into your branch first, then running `ops/review`
      — after the merge your branch contains `main`'s commit, so the rename is a rename.
-     Do **not** `git rm` the path `main` holds when your branch holds the same path: that deletes your only
-     copy and your work log. `ops/review` prints a `git rm` line only for a path your branch does not have.
+     Do **not** `git rm` the path `main` holds because it differs from yours *before* the merge. Path
+     equality before a merge is not file identity after it: when `main` reached its path by a **rename**
+     (`ops/claim`, `ops/queue-sweep` and every hand `git mv` produce one) the merge collapses both paths onto
+     one file, and that `git rm` deletes your only copy and your work log. `ops/review` now rehearses the
+     merge (`git merge-tree --write-tree`) and prints a `git rm` line only for a path the **merged** tree
+     still holds as a second copy. `ops/lib/check-review-remedy` runs the commands it prints and fails if the
+     task file does not survive them.
+   - **`main` may have re-stated your task while you worked.** If the merge leaves one copy but in some other
+     state directory — `blocked/`, say — that is a disagreement about the work, not about the merge, and no
+     command gets you to `review/`: `ops/review` moves `claimed/` only and `ops/claim` takes `ready/` only.
+     Settle it on `main` first. `ops/review` says so instead of printing a sequence that cannot work.
    - The `review/ -> done/` transition is still a hand `git mv` — there is no `ops/done`. That half of T-0063's
      brief was not delivered and is filed as its own task rather than left implied.
 7. **Merge with `ops/merge <pr>`**, never `gh pr merge`. It refuses unless the task is in `done/` on the PR head,

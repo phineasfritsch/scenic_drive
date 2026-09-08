@@ -1,0 +1,245 @@
+#!/usr/bin/env bash
+# The remedy `ops/review` PRINTS must be runnable and must never destroy the task file.
+#
+# The property, stated so that it can only pass by being executed:
+#
+#     run every `git ...` line the refusal prints, verbatim, in the order printed
+#       =>  the branch still holds at least one copy of the task file          (never zero)
+#       =>  `ops/review` then either succeeds, or refuses for a reason that is TRUE
+#       =>  merging the branch afterwards leaves EXACTLY ONE copy of the id
+#
+# Why this exists: the guard in `cmd_review` derived its remedy from the pre-merge working tree - "is main's
+# path one this branch also holds, right now?" - and printed `git rm <main's path>` when the two differed.
+# On origin/task/T-0029, the only branch in this repo where the guard actually fires, main had RENAMED
+# claimed/ -> blocked/. The paths differ before the merge and are the SAME FILE after it, so following the
+# two printed commands left zero copies of T-0029, `ops/review` printed "T-0029 not found", and
+# `ops/queue-check` printed QUEUE OK on the result. Path equality before a merge is not file identity after
+# it. Reported twice by two independent reviewers of PR #52; the first fix compared paths and missed it
+# again, because nothing here executed the commands the tool told people to run. Now something does.
+#
+# Case 4 is the floor on the rehearsal's own population: a rehearsed merge that lists NO copy of the id has
+# not examined the task file at all - the branch holds one and main holds one, so at least one path must
+# survive - and advice derived from an empty population is advice derived from nothing. That is how the
+# destructive `git rm` got printed in the first place, so the empty case must refuse, not read as all-clear.
+#
+# Anchored on the executable and on generated git fixtures, never on a comment.
+#
+#   QUEUE_PY=<path>  check a different queue.py (used to demonstrate this check red against the old one)
+set -uo pipefail
+# Not `git rev-parse --show-toplevel`: from WSL against a Windows worktree it prints an unusable path and,
+# without set -e, leaves the script running in whatever directory it started in (T-0055).
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -f ops/lib/queue.py ]] || { echo "$(pwd) is not the repo root (no ops/lib/queue.py)"; exit 2; }
+
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+QUEUE_PY="$(cd "$(dirname "${QUEUE_PY:-ops/lib/queue.py}")" && pwd)/$(basename "${QUEUE_PY:-ops/lib/queue.py}")"
+[[ -f "$QUEUE_PY" ]] || { echo "no queue.py at $QUEUE_PY"; exit 2; }
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+fail=0
+cases=0
+say() { printf '%s\n' "$1"; }
+bad() { echo "FAIL: $1"; fail=1; }
+
+G="git -c user.name=fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false -c core.autocrlf=false"
+export GIT_MERGE_AUTOEDIT=no GIT_EDITOR=true GIT_TERMINAL_PROMPT=0
+
+# $1 = repo dir, $2 = id, $3 = slug, $4 = state dir
+task_file() {
+  local repo="$1" id="$2" slug="$3" dir="$4"
+  mkdir -p "$repo/queue/$dir"
+  { printf -- '---\nid: %s\ntitle: %s\nstate: %s\nowner: agent/alice\nowner_session: null\n' "$id" "$slug" "$dir"
+    printf -- 'claimed_at: 2026-01-01T00:00:00Z\nlease_expires_at: 2026-01-02T00:00:00Z\n'
+    printf -- 'worktree: null\nbranch: null\nexclusive: []\ntouches: [ops/]\npins_affected: []\n'
+    printf -- 'reviewer: null\ndepends_on: []\nverify: [ops/test]\nacceptance: []\n---\n'
+    printf -- '## Brief\n\nA real sentence, so nothing refuses on an unwritten brief.\n\n## Log\n'
+  } > "$repo/queue/$dir/$id-$slug.md"
+}
+
+# $1 = repo dir. Fresh git repo with the queue skeleton and the queue.py under test.
+new_repo() {
+  local repo="$1"
+  rm -rf "$repo"
+  mkdir -p "$repo/ops/lib" "$repo/queue"/{backlog,ready,claimed,review,blocked,done,LOCKS}
+  cp "$QUEUE_PY" "$repo/ops/lib/queue.py"
+  for d in backlog ready claimed review blocked done; do : > "$repo/queue/$d/.gitkeep"; done
+  # A real `origin` remote, self-pointing: the guard prefers refs/remotes/origin/main and the remedy it
+  # prints names the ref it read. Without one the printed `git merge origin/main` would simply fail here,
+  # and a fixture where the remedy cannot RUN cannot show that running it destroys anything.
+  ( cd "$repo" && $G init -q -b main && $G add -A && $G commit -qm base && $G remote add origin "$repo" )
+}
+
+# Publish main to refs/remotes/origin/main. Call after main is built and before the branch is reviewed.
+snap_origin() { ( cd "$1" && $G fetch -q origin ); }
+
+# Runs, verbatim and in order, every `git ...` line the refusal printed. $1 = repo, $2 = output file.
+run_printed() {
+  local repo="$1" out="$2" line cmd
+  while IFS= read -r line; do
+    cmd="$(printf '%s' "$line" | sed 's/^[[:space:]]*//; s/[[:space:]]*#.*$//')"
+    [[ -z "$cmd" ]] && continue
+    ( cd "$repo" && eval "${cmd/#git /$G }" ) >/dev/null 2>&1
+  done < <(grep -E '^[[:space:]]+git (merge|rm) ' "$out")
+}
+
+copies() { ( cd "$1" && git ls-files queue/ | grep -c -- "/$2-" ) 2>/dev/null || true; }
+
+# ------------------------------------------------------------------ 1. main RENAMED the task file
+# The origin/task/T-0029 shape, and the one that lost a file. Base has claimed/; main moves it to blocked/;
+# the branch never touches it. The two paths differ before the merge and are ONE file after it.
+build_rename_fixture() {
+  local R="$1"
+  new_repo "$R"
+  task_file "$R" T-9201 rename-shape claimed
+  ( cd "$R" && $G add -A && $G commit -qm "claim T-9201" && $G branch work )
+  ( cd "$R" && $G mv queue/claimed/T-9201-rename-shape.md queue/blocked/T-9201-rename-shape.md \
+    && sed -i 's/^state: claimed$/state: blocked/' queue/blocked/T-9201-rename-shape.md \
+    && $G add -A && $G commit -qm "T-9201 is blocked" )
+  snap_origin "$R"
+  ( cd "$R" && $G checkout -q work && printf 'work\n' > ops/lib/note.txt && $G add -A && $G commit -qm work )
+}
+cases=$((cases + 1))
+R="$TMP/r1"
+build_rename_fixture "$R" >/dev/null 2>&1
+out="$TMP/o1"
+( cd "$R" && "$PY" ops/lib/queue.py review T-9201 --reviewer agent/bob ) > "$out" 2>&1; rc=$?
+before="$(copies "$R" T-9201)"
+run_printed "$R" "$out"
+after="$(copies "$R" T-9201)"
+if [[ $rc -eq 0 ]]; then
+  bad "1/rename: the transition was allowed; it duplicates on merge"
+elif [[ "$before" -lt 1 ]]; then
+  bad "1/rename: fixture wrong - the branch did not hold T-9201 before the remedy"
+elif [[ "$after" -lt 1 ]]; then
+  bad "1/rename: the printed remedy DESTROYED the task file ($before copy -> $after)"
+  grep -E '^[[:space:]]+git ' "$out" | sed 's/^/    ran: /'
+elif grep -qE '^[[:space:]]+git rm ' "$out"; then
+  bad "1/rename: a git rm was printed for a path that is the branch's own file after the merge"
+else
+  say "ok: 1/rename - refused, no git rm printed, and the file survives the printed remedy ($after copy)"
+fi
+# The refusal must also be honest about what is left: main re-stated the task, so review cannot proceed.
+out2="$TMP/o1b"
+( cd "$R" && "$PY" ops/lib/queue.py review T-9201 --reviewer agent/bob ) > "$out2" 2>&1; rc2=$?
+if [[ $rc2 -eq 0 ]]; then
+  bad "1/rename: review succeeded after the merge although main says blocked/"
+elif grep -q "blocked" "$out" && grep -q "not claimed/" "$out2"; then
+  say "ok: 1/rename - the refusal names main's blocked/ instead of printing a sequence that cannot work"
+else
+  bad "1/rename: the refusal did not name main's state; second run said: $(head -1 "$out2")"
+fi
+
+# ------------------------------------------------------------------ 2. the stacked-branch shape (control)
+# Base has ready/; main claims it; the branch, cut before the claim, writes claimed/ itself. The merge
+# collapses both onto one claimed/ path, so the remedy is a merge and nothing else - and then it must WORK.
+cases=$((cases + 1))
+R="$TMP/r2"
+new_repo "$R"
+task_file "$R" T-9202 stacked ready
+( cd "$R" && $G add -A && $G commit -qm "file T-9202" && $G branch work )
+( cd "$R" && $G mv queue/ready/T-9202-stacked.md queue/claimed/T-9202-stacked.md \
+  && sed -i 's/^state: ready$/state: claimed/' queue/claimed/T-9202-stacked.md \
+  && $G add -A && $G commit -qm "claim T-9202 on main" )
+snap_origin "$R"
+( cd "$R" && $G checkout -q work && $G rm -q queue/ready/T-9202-stacked.md )
+task_file "$R" T-9202 stacked claimed
+( cd "$R" && $G add -A && $G commit -qm "claim T-9202 on the branch" )
+out="$TMP/o2"
+( cd "$R" && "$PY" ops/lib/queue.py review T-9202 --reviewer agent/bob ) > "$out" 2>&1; rc=$?
+run_printed "$R" "$out"
+n="$(copies "$R" T-9202)"
+( cd "$R" && "$PY" ops/lib/queue.py review T-9202 --reviewer agent/bob ) > "$TMP/o2b" 2>&1; rc2=$?
+( cd "$R" && $G add -A >/dev/null 2>&1 && $G commit -qm review >/dev/null 2>&1 \
+  && $G checkout -q main && $G merge -q --no-edit work ) >/dev/null 2>&1
+merged="$(copies "$R" T-9202)"
+if [[ $rc -eq 0 ]]; then
+  bad "2/stacked: the transition was allowed; it duplicates on merge"
+elif [[ "$n" -ne 1 ]]; then
+  bad "2/stacked: after the printed remedy the branch holds $n copies, expected 1"
+elif [[ $rc2 -ne 0 ]]; then
+  bad "2/stacked: review still refused after following the remedy: $(head -1 "$TMP/o2b")"
+elif [[ "$merged" -ne 1 ]]; then
+  bad "2/stacked: merging the repaired branch left $merged copies of T-9202, expected 1"
+else
+  say "ok: 2/stacked - refused, the remedy works, and the merge leaves exactly one copy"
+fi
+
+# ------------------------------------------------------------------ 3. a SECOND copy really does survive
+# Main files the task in backlog/; the branch, whose base predates that, writes claimed/ itself. Two
+# independent adds at two paths: both survive the merge, so here `git rm` is right and must be printed.
+cases=$((cases + 1))
+R="$TMP/r3"
+new_repo "$R"
+( cd "$R" && $G branch work )
+task_file "$R" T-9203 second-copy backlog
+( cd "$R" && $G add -A && $G commit -qm "file T-9203 on main" )
+snap_origin "$R"
+( cd "$R" && $G checkout -q work )
+task_file "$R" T-9203 second-copy claimed
+( cd "$R" && $G add -A && $G commit -qm "claim T-9203 on the branch" )
+out="$TMP/o3"
+( cd "$R" && "$PY" ops/lib/queue.py review T-9203 --reviewer agent/bob ) > "$out" 2>&1; rc=$?
+run_printed "$R" "$out"
+n="$(copies "$R" T-9203)"
+mine=0; [[ -f "$R/queue/claimed/T-9203-second-copy.md" ]] && mine=1
+# Only AFTER the location is recorded: this run moves claimed/ -> review/ and would erase the evidence.
+( cd "$R" && "$PY" ops/lib/queue.py review T-9203 --reviewer agent/bob ) > "$TMP/o3b" 2>&1; rc2=$?
+if [[ $rc -eq 0 ]]; then
+  bad "3/second-copy: the transition was allowed; it duplicates on merge"
+elif ! grep -qE '^[[:space:]]+git rm queue/backlog/T-9203-second-copy\.md' "$out"; then
+  bad "3/second-copy: no git rm printed for main's surviving copy - the merge leaves two"
+elif [[ "$n" -ne 1 ]]; then
+  bad "3/second-copy: after the printed remedy the branch holds $n copies, expected 1"
+elif [[ "$mine" -ne 1 ]]; then
+  bad "3/second-copy: the surviving copy is not the branch's own"
+elif [[ $rc2 -ne 0 ]]; then
+  bad "3/second-copy: review still refused after following the remedy: $(head -1 "$TMP/o3b")"
+else
+  say "ok: 3/second-copy - git rm printed for main's path only, and the remedy works"
+fi
+
+# ------------------------------------------------------------------ 4. THE FLOOR on the rehearsal
+# A rehearsed merge that lists no copy of the id examined nothing: the branch holds one and main holds one.
+# Stub it empty (and unreadable) and the guard must refuse and print NO command - an empty population must
+# never read as "nothing to clean up", which is precisely how the destructive git rm came to be printed.
+cases=$((cases + 1))
+cat > "$TMP/stub.py" <<'PYEOF'
+import runpy, sys
+mod = runpy.run_path("ops/lib/queue.py", run_name="queue_under_test")
+g = mod["cmd_review"].__globals__
+g["_paths_after_merge"] = (lambda tid: []) if sys.argv[1] == "empty" else (lambda tid: None)
+sys.exit(mod["cmd_review"](sys.argv[2:]))
+PYEOF
+for mode in empty unreadable; do
+  # A FRESH fixture, not a copy of r1: case 1 already ran the merge in that one, and a task sitting in
+  # blocked/ never reaches the guard at all - the check would then pass on a code path it never entered.
+  R="$TMP/r4-$mode"
+  build_rename_fixture "$R" >/dev/null 2>&1
+  cp "$TMP/stub.py" "$R/stub.py"
+  out="$TMP/o4-$mode"
+  ( cd "$R" && "$PY" stub.py "$mode" T-9201 --reviewer agent/bob ) > "$out" 2>&1; rc=$?
+  run_printed "$R" "$out"
+  n="$(copies "$R" T-9201)"
+  if [[ $rc -eq 0 ]]; then
+    bad "4/$mode: the transition was allowed on a rehearsal that examined nothing"
+  elif grep -qE '^[[:space:]]+git rm ' "$out"; then
+    bad "4/$mode: a git rm was printed from an empty rehearsal - guessed, not measured"
+  elif [[ "$n" -lt 1 ]]; then
+    bad "4/$mode: the printed remedy destroyed the task file"
+  elif ! grep -qiE 'rehears' "$out"; then
+    bad "4/$mode: the refusal did not say the rehearsal came back empty: $(tail -3 "$out" | head -1)"
+  else
+    say "ok: 4/$mode - an empty rehearsal refuses and prints no deletion"
+  fi
+done
+
+# The floor on this check's own population, for the same reason case 4 exists: four cases must have run.
+if [[ $cases -ne 4 ]]; then
+  bad "only $cases case(s) executed, expected 4 - a check that ran nothing still prints OK"
+fi
+
+if [[ $fail -ne 0 ]]; then
+  echo "REVIEW REMEDY FAIL"
+  exit 1
+fi
+echo "REVIEW REMEDY OK ($cases cases)"

@@ -612,6 +612,36 @@ def _would_duplicate_on_merge(tid):
     return bad
 
 
+def _paths_after_merge(tid):
+    """Paths holding `tid` under queue/ in the tree `git merge <main>` would ACTUALLY produce. None on error.
+
+    The remedy printed below used to be derived from the PRE-merge working tree - "is main's path one this
+    branch also holds, right now?" - and the reviewer of PR #52 measured what that costs on the one branch in
+    this repo where the guard really fires, origin/task/T-0029. Main had RENAMED claimed/ -> blocked/. Before
+    the merge the two paths differ, so the old test emitted `git rm queue/blocked/<file>`; the merge then
+    resolved the rename and collapsed both paths onto ONE file; the `git rm` deleted the branch's only copy of
+    its task file and its work log. Zero copies left, `ops/review` printed "T-0029 not found" (exit 1), and
+    `ops/queue-check` printed QUEUE OK on the result. Path equality before the merge is not file identity
+    after it, and only the merged tree can tell them apart.
+
+    So rehearse it. `merge-tree --write-tree` writes the merge result into the object store and touches
+    neither the index nor the working tree, so this stays a read-only guard. It exits 1 on a CONFLICTED merge
+    and still writes the tree, with the oid on the first line - the exit code is not the thing to read here,
+    the oid is, and a conflicted add/add still tells us how many paths carry the id.
+    """
+    ref = _main_ref()
+    if ref is None:
+        return None
+    _, out = _git("merge-tree", "--write-tree", "HEAD", ref)
+    oid = (out.splitlines() or [""])[0].strip()
+    if not re.fullmatch(r"[0-9a-f]{40,64}", oid):
+        return None
+    ok, listing = _git("ls-tree", "-r", "--name-only", oid, "--", "queue/")
+    if not ok:
+        return None
+    return [line.strip() for line in listing.splitlines() if f"/{tid}-" in line]
+
+
 def cmd_review(argv):
     """Move a CLAIMED task to review/, assign its reviewer, and release the locks it holds.
 
@@ -686,17 +716,63 @@ def cmd_review(argv):
             print("record. Merging leaves BOTH that copy and queue/review/ - ops/queue-check then fails on the")
             print("merged tree while passing here and on main, which is why no per-branch CI ever caught it.")
             print()
-            print("    git merge origin/main        # resolve the add/add on the task file, keeping YOUR copy")
-            # NEVER print `git rm <main's path>` for a path this branch also holds: they are the same file,
-            # so it deletes the branch's only copy and its work log, and the re-run then says "not found".
-            # That was the printed remedy until the reviewer of PR #52 actually followed it. After the merge
-            # the branch CONTAINS main's commit, so ops/review's own `git mv` records a proper rename and
-            # nothing needs removing.
-            elsewhere = [m for m in dup if not (ROOT / m).exists()]
-            for m in elsewhere:
-                print(f"    git rm {m}    # main holds it here; this branch does not, so the merge re-adds it")
-            print()
-            print("then run this again. (T-0063; this repair was applied by hand to eleven branches.)")
+            # The ref this guard actually READ, not a hard-coded "origin/main": _main_ref falls back to
+            # refs/heads/main, and printing `git merge origin/main` in a checkout that has no `origin`
+            # hands the operator a command that simply fails. A remedy nobody can run is not a remedy.
+            main_name = re.sub(r"^refs/(remotes|heads)/", "", _main_ref() or "origin/main")
+            print(f"    git merge {main_name}        # resolve the task file, keeping YOUR copy")
+            # EVERY line below this one is derived from a REHEARSED merge, never from the pre-merge working
+            # tree. `git rm` is printed only for a path the rehearsed tree still holds as a SECOND copy, and
+            # never for the single file two paths collapse into. See _paths_after_merge for the measurement
+            # that made this necessary: the old test deleted origin/task/T-0029's only copy of its task file.
+            after = _paths_after_merge(tid)
+            # THE FLOOR ON THE REHEARSAL'S OWN POPULATION. This branch holds a copy of `tid` (cmd_review is
+            # standing on it) and `dup` is non-empty, so main holds at least one more: the merged tree MUST
+            # carry at least one path for this id. An empty list is therefore not "nothing to clean up", it is
+            # "the rehearsal examined nothing" - and advice derived from an empty population is advice derived
+            # from nothing, which is exactly how the destructive `git rm` came to be printed. Say so and print
+            # no command, rather than let a vacuous rehearsal read as an all-clear.
+            if not after:
+                print()
+                why = ("git could not rehearse that merge" if after is None else
+                       f"the rehearsed merge lists NO copy of {tid}, which cannot be true when this branch "
+                       "and main both hold one")
+                print(f"Then stop and look, because {why},")
+                print("so nothing here knows whether main's path and yours are the same file afterwards.")
+                print(f"Run `git ls-files queue/ | grep {tid}` on the merged tree and judge it by eye. No")
+                print("`git rm` is printed: a guessed one deletes a task file, and that is this guard's own")
+                print("history, not a hypothetical.")
+                return 1
+            here = p.relative_to(ROOT).as_posix()
+            extra = [m for m in after if m != here]
+            if len(after) == 1:
+                only = after[0]
+                state_after = only.split("/")[1] if only.count("/") > 1 else ""
+                print()
+                print(f"The merge collapses both paths onto ONE file, {only},")
+                print("so there is nothing to `git rm` here - deleting it would delete your only copy.")
+                if state_after == "claimed":
+                    print("Then run this again. (T-0063; this repair was applied by hand to eleven branches.)")
+                else:
+                    # The honest end of the T-0029 shape. `ops/review` moves claimed/ only and `ops/claim`
+                    # accepts ready/ only, so no sequence of commands this tool can print gets the task into
+                    # review/ - and inventing one that edits main's stated state would be the silent repair
+                    # this guard exists to refuse. Name the disagreement instead of pretending it is a merge.
+                    print(f"But main has re-stated {tid} as {state_after}/, and that is a disagreement about the")
+                    print(f"work, not about the merge: ops/review moves claimed/ tasks only and ops/claim takes")
+                    print(f"ready/ only, so this tool cannot hand {tid} over while main says {state_after}. Settle it")
+                    print(f"on main first - either main's {state_after}/ is stale and the task goes back to ready/")
+                    print("there, or it is current and this branch should not be transitioning at all.")
+            elif here in after:
+                for m in extra:
+                    print(f"    git rm {m}    # a SECOND copy survives the merge; yours stays at {here}")
+                print()
+                print("then run this again. (T-0063; this repair was applied by hand to eleven branches.)")
+            else:
+                print()
+                print(f"Then stop and look: after the merge {tid} lives at {', '.join(after)}, none of them the")
+                print(f"path this branch holds it at ({here}). Which copy is yours cannot be decided from here,")
+                print("and a `git rm` guessed wrong deletes the work log. Judge it by eye on the merged tree.")
             return 1
 
         # Inspect every lock BEFORE unlinking any of them, so a foreign lock cannot leave the task half
