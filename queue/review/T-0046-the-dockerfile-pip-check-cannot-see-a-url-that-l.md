@@ -1025,3 +1025,238 @@ The version belongs next to the lists, machine-checkably, or the same failure re
 **Verdict: FAIL.** Stays in `queue/review/`. Blocker 1 is three concrete fail-open holes in a guard whose
 whole thesis is failing closed; blocker 2 is why they were invisible. Fixing blocker 2 first would surface
 blocker 1 without another review round.
+
+- 2026-09-08 agent/builder-9: **round 5 fixes - both blockers, plus two more holes of the same class found
+  while fixing them, plus the NOTE.** Pushed `9c48aa3`. Every finding below was reproduced here before it
+  was fixed; every check added was demonstrated red by a mutation and green on restore. Exit codes come
+  from `subprocess.returncode`, never from grepping output for failure words.
+
+### Verdict on each round-5 finding
+
+| finding | verdict | where |
+|---|---|---|
+| BLOCKER 1(a) unquoted `#` truncates the arglist, returned `ok=True` | **CONFIRMED** | RED 1 below |
+| BLOCKER 1(b) `~/` defeats the local-path gate | **CONFIRMED** | RED 1 below |
+| BLOCKER 1(c) `file://` matches neither guard | **CONFIRMED** | RED 1 below |
+| BLOCKER 2 the guard has zero automated coverage; the new test is vacuous | **CONFIRMED** | RED 2 below |
+| NOTE the whitelist's provenance is not pinned anywhere | **CONFIRMED** - and I cannot reproduce "pip 26.1.1" either | fix 4 below |
+| not-held: 436 lines over the 300 cap (T-0062) | accepted, and **now worse: 529**. See "left undone" | |
+| not-held: `check-pins failed=1` (P-SAFE-05) | reproduced, pre-existing | gates below |
+| not-held: `ops/test` not green here | reproduced, different stage than the reviewer saw | gates below |
+
+Nothing in round 5 is refuted. The reviewer ran the commands and every one of them reproduces.
+
+### RED 1 - the three bypasses, against the unmodified parser (`.artifacts/probe_r5.py`)
+
+`shlex` default commenters = `'#'`, and:
+
+    GREEN | RUN pip install --break-system-packages pkg#egg=z -r requirements.txt
+            tokens=[['--break-system-packages', 'pkg']]                     offenders=[] unparsable=False
+    GREEN | RUN pip install --break-system-packages pkg#egg=z ./localpkg
+            tokens=[['--break-system-packages', 'pkg']]                     offenders=[] unparsable=False
+    GREEN | RUN pip install --break-system-packages ~/localpkg              offenders=[]
+    GREEN | RUN pip install --break-system-packages ~localpkg               offenders=[]
+    GREEN | RUN pip install --break-system-packages file:///w/wheels/evil.whl   offenders=[]
+    GREEN | RUN pip install --break-system-packages svn+ssh://example.org/pkg   offenders=[]
+    RED   | RUN pip install --break-system-packages -r requirements.txt     (control, still caught)
+    RED   | RUN pip install --break-system-packages ./localpkg              (control, still caught)
+
+`PIP_FROM_NETWORK` covers `hg+https://` and nothing else in that family - confirmed directly:
+
+    no match | RUN pip install file:///w/wheels/evil.whl
+    MATCH    | RUN pip install hg+https://example.org/pkg
+    no match | RUN pip install svn+ssh://example.org/pkg
+    no match | RUN pip install ftp://example.org/pkg.tar.gz
+
+### RED 2 - the coverage claim, reproduced exactly (`.artifacts/probe_vacuity.py`, `.artifacts/mutate.py`)
+
+    RUN count = 1 | pip install invocation count = 0 | pip_indirect_target_offenders() = []
+
+    baseline                          -> 46 passed, PYTEST EXIT=0
+    pip_indirect_targets -> []        -> 46 passed, PYTEST EXIT=0
+
+Byte-identical outcome with the entire whitelist engine neutered, as reported.
+
+### Two more holes of the same class, found while fixing the first three
+
+Not in the review; found by asking what else the positional branch cannot see. Both were GREEN before:
+
+    GREEN | RUN pip install --break-system-packages `cat req.txt`
+            tokens=[['--break-system-packages', '`cat', 'req.txt`']] offenders=[]
+
+  Backtick command substitution. `$(...)` was caught only because the token contains a literal `$`;
+  backticks are not `$`, so the same construct in the older spelling walked through.
+
+    GREEN | RUN pip install --break-system-packages requests>=2.31.0
+            tokens=[['--break-system-packages', 'requests', '>', '=2.31.0']] offenders=[]
+
+  Not a bypass - a false positive waiting to happen, and the reason the positional whitelist below could
+  not be written until it was fixed. `shlex(..., punctuation_chars=True)` split the single most common
+  argument pip ever receives into three fragments. It was harmless only while every fragment fell through
+  a permissive "not a flag, therefore fine" default. The command separators `punctuation_chars` was
+  presumably enabled for are already handled by `_split_unquoted`, quote-aware, before `shlex` is called.
+
+### The fix, and why it is shaped this way
+
+The brief for this round was: a fix that keeps being re-broken is anchored on the wrong thing. It was.
+Round 3 turned the *flag* half of `pip_indirect_targets` into a whitelist - a flag not positively
+recognized is an offender - and that half has held. The *positional* half stayed a blacklist of remembered
+bad prefixes (`.`, `..`, `./`, `../`, `/`), and every round since has found one more character nobody had
+thought of: `./localpkg` (r1), `"./localpkg"` (r2), then `~/`, `file://` and backticks (r5). Adding `~`
+and `://` to the tuple, which is what the review suggests as a minimum, would have been the fifth patch of
+that shape.
+
+1. **Positionals are now a whitelist too** (`PIP_REQUIREMENT_SPECIFIER`). A positional is safe only if it
+   positively matches a PEP 508 dependency specification - PEP 503 name, optional extras, optional version
+   specifiers, optional environment marker - and is not a distribution-archive filename. `@` (PEP 508
+   direct URL references), `:`, `/`, `~`, `#`, backticks, `$` and the empty string are all outside that
+   grammar, so they fail closed without this file needing to have heard of them. This closes 1(b), 1(c),
+   backticks, `-` (stdin), `""`, `dist/x.whl` and `\\host\share` in one rule.
+2. **The archive-suffix rule** is the one place the name rule is not enough: PEP 503 permits `.` in a name,
+   so `mypkg-1.0.tar.gz` and `evil.whl` satisfy it while naming a local archive. The suffix set is fixed by
+   the packaging specs, not by pip's CLI, so unlike the flag lists it does not drift with pip releases.
+3. **`lexer.commenters = ""`** closes 1(a). Cleared outright rather than taught shell's word-start rule -
+   over-refusing a genuine trailing `# comment` inside a RUN is a cost this file takes knowingly, and it is
+   zero today. `punctuation_chars=False` for the reason above.
+4. **Provenance** (the NOTE). `PIP_WHITELIST_VALIDATED_AGAINST = "26.1.1"` now sits next to the lists.
+   I cannot reproduce round 4's validation either - the only pip reachable here is 23.0.1, and I confirm
+   the reviewer's count exactly: 8 entries absent from it (`--build-constraint`,
+   `--requirements-from-script`, `--group`, `--all-releases`, `--only-final`, `--uploaded-prior-to`,
+   `--keyring-provider`, `--resume-retries`). I am not calling them invented; I have no pip 26.1.1. Two
+   checks now stand where prose stood:
+   - `test_no_whitelisted_flag_abbreviates_an_unreadable_target_flag` - the round-4 bug as a pure string
+     invariant needing no pip at all. `--build` was dangerous because pip resolves unambiguous
+     abbreviations and `--build` abbreviates `--build-constraint`. Any safe-list entry that is a proper
+     prefix of an unreadable-target entry rebuilds that hole. Verified it fires: putting `--build` back
+     turns it red (M8).
+   - `test_whitelisted_flag_arity_matches_the_reachable_pip` - cross-checks against whatever pip is
+     importable. Deliberately **not** an existence check: "absent from this pip" is ambiguous between
+     invented and added-later, and asserting on it would fail every box without exactly 26.1.1. Arity is
+     unambiguous, and getting it wrong is fail-OPEN in the direction that matters - a boolean listed as
+     value-taking makes `skip_next` swallow the next token, so `pip install --dry-run ./localpkg` would
+     skip the local path. **63 of 71 entries verified against pip 23.0.1, 0 mismatches.**
+
+### The coverage that was missing - `services/etl/tests/test_dockerfile_pip_parser.py` (new, 251 lines)
+
+BLOCKER 2 is the one that made the others invisible, so it is the one that got the most work. 34
+blind-spot cases and 14 ordinary-install cases, each a real construction from a real review round and
+labelled with the round that found it, all run through the **same** `pip_offenders_in` the Dockerfile check
+calls - `pip_indirect_target_offenders` was refactored onto it so the tests cannot drift onto a parallel
+implementation. The parser is a pure function over strings, so none of this needs Docker. That matters
+here: **Docker is reachable only through WSL on this box, so the pinned image was not built or run for any
+claim in this entry** - and the image contains no pip at all (apt `python3` + `python3-pytest`), so there
+was never a pip in it to test against.
+
+Three guards keep the tables from going hollow the way the old test did:
+
+- `test_every_case_reaches_the_parser` - **vacuity guard.** Every case in both tables must yield at least
+  one extracted `pip install`. Without it, a broken extractor would let the 14 ordinary cases pass on an
+  empty set and report the guard as working.
+- `test_the_case_tables_are_populated` - **vacuity guard.** A parametrized test over an empty table passes
+  without running once. M6 below is what that looks like.
+- `test_every_offender_reason_is_demonstrated_by_a_case` - **anti-decay.** The set of reasons the engine
+  can emit is declared as `PIP_OFFENDER_REASONS`; a new refusal reason must arrive with a case that shows
+  it red. This is the check that would have made round 4's uncovered landing impossible.
+
+### RED/GREEN - ten mutations (`.artifacts/demo_redgreen.py`, full transcript `.artifacts/redgreen.txt`)
+
+Each mutation reverts exactly one part of this change or breaks one precondition, runs the full ETL suite,
+and is restored from a file backup (no git). `EXIT` is the pytest process's own exit code.
+
+    GREEN BASELINE (fix applied, no mutation)                    EXIT=0   102 passed
+
+    M1  commenters='#' restored (undo 1a)                        EXIT=1   2 failed, 100 passed
+        red: blind_spot[r5a: shlex commenters dropped everything after '#' ...]
+             blind_spot[r5a: '#' also hid an otherwise-caught local path]
+    M2  punctuation_chars=True restored                          EXIT=1   2 failed, 100 passed
+        red: ordinary[r5: punctuation_chars split this into ['requests', '>', '=2.31.0']]
+             ordinary[extras plus a version range]
+    M3  round 4's ./ ../ / blacklist restored (undo 1b/1c)       EXIT=1   13 failed, 87 passed
+        red: blind_spot[r5b: ~ ...] [r5b: ~user form] [r5c: file://] [r5c: svn+ssh] [r5c: hg+https]
+             [r5: backtick substitution] [r5: bare wheel filename] [r5: same, sdist]
+             [r5: relative path with no ./ prefix] [r5: '-' is stdin] [r5: the empty argument]
+             [r5a: '#' ...] and test_the_direct_url_check_still_owns_plain_url_installs
+    M4  pip_indirect_targets -> []  (the reviewer's mutation)    EXIT=1   35 failed, 65 passed
+        the mutation that was invisible at 46 passed now takes 35 tests with it
+    M5  pip_install_arglists -> []  (vacuity precondition)       EXIT=1   37 failed, 63 passed
+        red: includes test_every_case_reaches_the_parser
+    M6  case table emptied            (vacuity precondition)     EXIT=1   2 failed, 64 passed, 1 skipped
+        red: test_the_case_tables_are_populated (+ the reason guard). Note the shape: 34 parametrized
+        tests SILENTLY VANISH and the suite still reports 64 passed. Only the vacuity guard says so.
+    M7  a new refusal reason with no case demonstrating it       EXIT=1   1 failed, 99 passed
+        red: test_every_offender_reason_is_demonstrated_by_a_case
+    M8  '--build' put back on the safe whitelist                 EXIT=1   2 failed, 100 passed
+        red: test_no_whitelisted_flag_abbreviates_an_unreadable_target_flag, and blind_spot[r4: --build]
+        i.e. round 4's blocker is now caught at commit time, with no pip and no review round
+    M9  '--dry-run' also listed as value-taking                  EXIT=1   1 failed, 101 passed
+        red: test_whitelisted_flag_arity_matches_the_reachable_pip
+    M10 pip's option table comes back empty (vacuity)            EXIT=1   1 failed, 101 passed
+        red: test_whitelisted_flag_arity_matches_the_reachable_pip - it fails rather than comparing nothing
+
+    GREEN AFTER RESTORE                                          EXIT=0   102 passed
+
+Every one of the ten preconditions actually reproduced - each mutation's anchor was asserted unique before
+it was applied, and each red names the specific cases it should, not just a non-zero exit.
+
+### After the fix, the round-5 constructions and every earlier round's (`.artifacts/probe_r5.py`)
+
+    RED | pkg#egg=z -r requirements.txt      offenders=[('pkg#egg=z', not a PEP 508 requirement...), ('-r', ...)]
+    RED | pkg#egg=z ./localpkg               both tokens named
+    RED | ~/localpkg          RED | ~localpkg
+    RED | file:///w/wheels/evil.whl          RED | svn+ssh://example.org/pkg    RED | hg+https://...
+    RED | -r requirements.txt   RED | ./localpkg   RED | $REQS        (controls, unchanged)
+    GREEN | requests           GREEN | "requests; python_version>='3.8'"
+    GREEN | --target /opt/vendor requests    GREEN | apt-get update && apt-get install -y python3
+
+### Gates
+
+    cd services/etl && python -m pytest -q      -> 102 passed, EXIT=0   (was 46)
+    bash ops/sane                               -> SANE OK, EXIT=0
+    bash ops/queue-check                        -> QUEUE OK (67 tasks), EXIT=0
+    bash ops/lib/check-line-cap                 -> P-SRC-02: 9 Swift files, none over 300, EXIT=0
+    bash ops/check-pins                         -> PINS ok=9 pending=3 failed=1, EXIT=1
+    bash ops/test                               -> EXIT=1
+
+`check-pins` fails on **P-SAFE-05** (solar fixtures, ScenicKit) exactly as the reviewer reported, and this
+branch's own commits touch nothing under `Sources/` or `Tests/` - `git diff --stat 03cfdd0..HEAD` is the
+two Python test files and nothing else. Pre-existing and unrelated.
+
+`ops/test` fails earlier than the reviewer saw it fail, in the Swift build, with a compiler crash and no
+file or line attached:
+
+    error: emit-module command failed with exit code 1 (use -v to see invocation)
+    error: fatalError
+    FAIL: swift test produced no JUnit report (expected .artifacts/spm-junit*.xml)
+
+A Swift 6.3.3 toolchain crash cannot be caused by two Python test files. I did **not** verify it on the
+base branch, because doing so needs a second worktree and this session is confined to `.worktrees/T-0046`;
+I am reporting what it does here rather than asserting it is pre-existing.
+
+`services/etl/Dockerfile` is untouched: `git diff --stat 03cfdd0..HEAD -- services/etl/Dockerfile` is empty.
+
+### Left undone, recorded rather than dropped
+
+1. **`test_dockerfile.py` is now 529 lines, up from 436** against the 300-line cap - I made an accepted
+   debt 21% worse. T-0062 already owns the split and depends on this task. I did not do it here for a
+   specific reason, not to avoid the work: T-0062's own brief requires deleting the exemption entry from
+   `ops/lib/check-line-cap` once the file is under the cap, and that path is outside this task's
+   `touches: [services/etl/]`. Splitting here would land the seam and leave the exemption stale, which
+   T-0062 says is itself a reported failure. The natural seam is now obvious and is noted in T-0062:
+   the whole pip parser (`PIP_*` constants, `_split_unquoted`, `_shlex_tokens`, `pip_install_arglists`,
+   `pip_indirect_targets`, `pip_offenders_in`) moves to a helper module, which also removes this round's
+   one real smell - a test module importing a parser from another test module. T-0062's line count has
+   been corrected from 436 to 529 in its brief.
+2. **`PIP_FROM_NETWORK` is still a substring match** and still owns only `https?://`, `git+`,
+   `--index-url`, `--extra-index-url`, `--find-links`. It is not widened here: the indirect guard now
+   fails closed on every URL scheme as a non-specifier, so the two together are closed, and
+   `test_the_direct_url_check_still_owns_plain_url_installs` pins that division of labour so neither test
+   is silently assumed to cover the other's cases.
+3. **The pinned image was never built or run** - Docker is WSL-only here. Nothing in this entry depends on
+   it: the parser is pure string handling, and the image has no pip. The one thing I cannot show is that
+   the suite passes under the image's Python 3.12 / pytest 7.4; it was run on Python 3.10 / pytest 9.1.1,
+   and the new file uses no syntax or API newer than 3.10.
+4. **`PIP_WHITELIST_VALIDATED_AGAINST = "26.1.1"` is still a claim inherited from round 4**, now at least
+   written where a check can read it. The arity cross-check verifies 63 of 71 entries against pip 23.0.1;
+   the 8 that only a pip 26.x could confirm remain unconfirmed by anyone on this branch. Someone with a
+   pip 26.1.1 should run `test_whitelisted_flag_arity_matches_the_reachable_pip` there - it will then
+   cover all 71 and the "NOT the recorded version" wording will drop out of the failure message.
