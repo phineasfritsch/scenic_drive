@@ -646,6 +646,69 @@ def cmd_sweep(_operand, _opts_):
     return 0
 
 
+def cmd_ids(_operand, _opts_):
+    """Report every task id that names DIFFERENT work on different refs.
+
+    `cmd_check`'s duplicate-id rule compares ids inside ONE tree, so a pair split across two branches passes
+    on both and fails only after the merge - on a branch neither author is watching. Three ids were issued
+    twice on 2026-09-08 (T-0076, T-0088, T-0099) and a human found all three: one because an unrelated task
+    happened to branch from the offending one, two because I read two agents' output side by side. None of
+    that is a mechanism.
+
+    THE DISCRIMINATOR IS THE SLUG. The same task file appears on dozens of branches - that is the normal,
+    healthy case and reporting it would produce sixty false pairs and get this ignored within a day. Only
+    the same id carrying two different slugs is a collision.
+
+    Deliberately NOT part of `queue-check`: that command runs in CI, in the pre-commit hook and inside
+    `merge-rehearse`'s gates, and a check that reaches the network is one people stop running.
+    """
+    # `_git` collapses "could not run" and "ran and failed" into ok=False on this branch, and that is
+    # fine here only because BOTH answers lead to the same action: refuse. A scan that cannot see
+    # the other branches must never report "no duplicates".
+    ok, refs = _git("for-each-ref", "--format=%(refname)", "refs/remotes")
+    if not ok:
+        print("IDS REFUSED: could not list remote refs, so this can only report on the branch it is run")
+        print("  from - and a scan that cannot see the other branches reporting 'no duplicates' is the")
+        print("  same failure that issued T-0076 (see T-0101).")
+        return 2
+    seen = {}          # id -> {slug -> [refs]}
+    scanned = 0
+    for ref in refs.split():
+        if ref.endswith("/HEAD"):
+            continue
+        ok, out = _git("ls-tree", "-r", "--name-only", ref, "queue/")
+        if not ok:
+            print(f"IDS REFUSED: could not read queue/ on {ref}. A partial scan that reports no duplicates")
+            print("  is worse than no scan, because it looks like an answer.")
+            return 2
+        scanned += 1
+        for name in out.splitlines():
+            m = re.search(r"/(T-\d{4})-(.+)\.md$", name)
+            if m:
+                seen.setdefault(m.group(1), {}).setdefault(m.group(2), []).append(ref)
+
+    # VACUITY FLOOR. A scan that inspected nothing must not read as "no duplicates" - that is the shape this
+    # whole repository exists to refuse, and it is exactly how the degraded id scan behaved.
+    if scanned < 2:
+        print(f"IDS REFUSED: only {scanned} ref(s) scanned. Cross-branch means at least two.")
+        return 2
+
+    bad = {i: s for i, s in seen.items() if len(s) > 1}
+    if not bad:
+        print(f"IDS OK ({len(seen)} ids across {scanned} refs; no id names two different tasks)")
+        return 0
+    print(f"IDS FAIL: {len(bad)} id(s) name different work on different refs")
+    for tid in sorted(bad):
+        print(f"  {tid}")
+        for slug, where in sorted(bad[tid].items()):
+            short = [r.replace("refs/remotes/origin/", "") for r in where]
+            head = ", ".join(short[:3]) + (f" (+{len(short) - 3} more)" if len(short) > 3 else "")
+            print(f"    {slug[:58]:<58} {head}")
+    print("  Same id, different slug: two pieces of work were given one name. Renumber the LATER one and")
+    print("  record why in its log - the id is referenced from other task files by [[T-nnnn]].")
+    return 1
+
+
 def cmd_next(_operand, _opts_):
     done = {fm.get("id") for s, _, fm, _ in tasks() if s == "done"}
     for state, p, fm, _ in tasks():
@@ -1022,6 +1085,7 @@ LIST_OPTS = frozenset({"touches", "exclusive", "pins", "depends"})
 OPTS = {
     "new": frozenset({"state", "touches", "exclusive", "pins", "depends", "reserve"}),
     "check": frozenset(),
+    "ids": frozenset(),
     "sweep": frozenset(),
     "next": frozenset(),
     "claim": frozenset({"owner", "session", "worktree", "hours"}),
