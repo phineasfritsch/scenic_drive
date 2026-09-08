@@ -1,13 +1,13 @@
 ---
 id: T-0122
 title: the pre-commit touches gate has no merge case, so no task branch can merge main
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T16:55:41Z
+lease_expires_at: 2026-09-08T18:55:41Z
+worktree: .worktrees/T-0122
+branch: task/T-0122
 exclusive: []
 touches: [.githooks/pre-commit, ops/lib/check-touches-merge]
 pins_affected: []
@@ -79,3 +79,4 @@ But `task/T-0097`'s merge stays blocked until this reaches `main`. Its resolved 
 and nothing was smuggled past the gate.
 
 ## Log
+- 2026-09-08T16:55:41Z claimed by agent/claude-opus-5; lease until 2026-09-08T18:55:41Z
