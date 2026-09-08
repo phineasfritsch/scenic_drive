@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Check the tests themselves, not the code they cover.
+#
+#   ops/check-tests              find assertions whose expected value comes from the thing they check
+#   ops/check-tests --cases      the red/green demonstration on constructed shapes
+#   ops/check-tests --history    the same, against the real commits where each defect shipped
+#   ops/check-tests --list-types print the type names it recognises as "the code under test"
+#
+# Locates itself from BASH_SOURCE, NOT `git rev-parse --show-toplevel`. CLAUDE.md and T-0060 ban that in
+# anything under ops/: from WSL against this Windows checkout the worktree's `.git` file reads
+# `gitdir: C:/...`, WSL's git cannot follow it, and every wrapper that locates itself that way dies (T-0055).
+# T-0093 records that fifteen call sites still do it; this is not going to be the sixteenth.
+set -uo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# The interpreter may be a WINDOWS python while this is a git-bash shell, in which case it cannot open the
+# MSYS-style `/c/Users/...` path `pwd` just produced - it reads it as a relative path and looks for
+# `C:\c\Users\...`. That is what happened on the first run here. `cygpath` translates it; on WSL and Linux
+# there is no cygpath and the POSIX path is already the right one.
+if command -v cygpath >/dev/null 2>&1; then
+  here="$(cygpath -w "$here")"
+fi
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+
+if [[ "${1:-}" == "--cases" ]]; then
+  exec "$PY" "$here/lib/check-self-referential-cases.py"
+fi
+if [[ "${1:-}" == "--history" ]]; then
+  exec "$PY" "$here/lib/check-self-referential-history.py"
+fi
+exec "$PY" "$here/lib/check-self-referential-tests.py" "$@"

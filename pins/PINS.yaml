@@ -134,3 +134,16 @@
   pending: T-0013
   owner: agent/claude-opus-5
   added: 2026-09-07
+
+- id: P-TEST-02
+  statement: No assertion of the three recognised shapes takes its expected value from the thing it checks - a comparison against a static member of a type under Sources/, both sides of one receiver, or a range bound taken from such a member
+  why_no_test_catches_it: It is the tests that are wrong, so every suite is green by construction and no amount of running them helps. Found EIGHT times in one session by six different reviewers, four of those inside tests written to close a previous instance - and three more survived in LambdaSearchTests after the defect had been named in that exact file and the fix commit described it at length. A person cannot see this shape in their own work; this check found those three in its first run against real history.
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "bash ops/check-tests"
+  # Scope is stated rather than implied. The check reads Swift under Sources/ and Tests/ only, and
+  # nine shapes it cannot see are listed in ops/lib/check-self-referential-tests.py. It found three
+  # real instances a person had been told about and still could not see; it is not a proof that none
+  # remain, and a pin claiming otherwise would be this defect one level up.
+  owner: agent/claude-opus-5
+  added: 2026-09-08
