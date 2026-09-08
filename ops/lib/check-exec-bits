@@ -14,7 +14,8 @@ cd "$(git rev-parse --show-toplevel)"
 MIN_FILES=17
 REQUIRED=(ops/test ops/sane ops/check-pins ops/queue-check ops/queue-sweep ops/claim ops/queue-next ops/lock
           ops/merge ops/deploy ops/prod-read ops/agent-preflight ops/new-task .githooks/pre-commit
-          .githooks/commit-msg)
+          .githooks/commit-msg
+          ops/lib/junit_count.py ops/lib/pins.py ops/lib/queue.py ops/lib/ro_grammar.py ops/lib/ro_cases.json)
 
 n="$(git ls-files ops .githooks | wc -l | tr -d '[:space:]')"
 if [[ "$n" -lt "$MIN_FILES" ]]; then
@@ -32,9 +33,14 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   exit 1
 fi
 
-# Data files stay 100644; everything else under ops/ and .githooks/ is a script and stays 100755.
+# Data files stay 100644; everything else under ops/ and .githooks/ is a script and stays 100755 -
+# except ops/lib/*.py, which is also 100644: every call site (ops/check-pins, ops/claim, ops/lock,
+# ops/new-task, ops/queue-check, ops/queue-next, ops/queue-sweep, ops/prod-read, ops/test) invokes it
+# as `"$PY" ops/lib/x.py` / `exec "$PYTHON" .../ops/lib/x.py`, i.e. as an argument to an interpreter,
+# never as `./ops/lib/x.py`. The exec bit does nothing there, so asserting 100755 would assert a mode
+# the repo does not actually depend on.
 bad="$(git ls-files -s ops .githooks | awk '
-  $4 ~ /\.(json|txt|md)$/ || $4 == "ops/api-url" { if ($1 != "100644") print $4 " (data, should be 100644, is " $1 ")"; next }
+  $4 ~ /\.(json|txt|md|py)$/ || $4 == "ops/api-url" { if ($1 != "100644") print $4 " (data, should be 100644, is " $1 ")"; next }
   $1 != "100755" { print $4 " (script, should be 100755, is " $1 ")" }
 ')"
 if [[ -n "$bad" ]]; then

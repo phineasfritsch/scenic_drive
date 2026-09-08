@@ -6,6 +6,12 @@ xcuserdata/
 DerivedData/
 .artifacts/
 
+# Task worktrees. `git worktree add .worktrees/T-0007 -b task/T-0007` puts every task's checkout
+# inside the repo instead of a sibling directory nothing here references. Ignored so that ~70
+# checkouts never appear as untracked files, never reach `git add -A`, and never nest: a worktree
+# does not populate an ignored path, so .worktrees/ stays empty inside each worktree.
+.worktrees/
+
 # Apple package + app
 apps/ios/Packages/ScenicApp/.build/
 apps/ios/Packages/ScenicApp/.swiftpm/
@@ -20,7 +26,11 @@ __pycache__/
 .venv/
 
 # Data artifacts — published to R2, never committed
-services/etl/inputs/
+# The payloads are R2-published and never committed - but manifest.yaml IS the record of what we fetch,
+# its checksum and its licence, and three tests read it. Ignoring the whole directory made it invisible to
+# git while every local run stayed green, and CI failed 3 tests with no name attached. Ignore the payloads.
+services/etl/inputs/*
+!services/etl/inputs/manifest.yaml
 services/etl/work/
 services/routing/graph-cache/
 *.osm.pbf

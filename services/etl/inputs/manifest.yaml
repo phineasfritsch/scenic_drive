@@ -1,0 +1,17 @@
+# Every external file the ETL consumes. Nothing is fetched without a verification mode and a licence.
+# See etl/manifest.py for the rules. Entries are added by the TASK THAT CONSUMES THEM, not in advance -
+# an entry sitting here unverified is exactly the "pending" state this design exists to forbid.
+#
+# verify: sha256        static file, digest pinned below. Get it with `--record-digest NAME`, then commit it.
+# verify: upstream-md5  publisher refreshes on a schedule and publishes a checksum sidecar.
+
+- name: california-osm.pbf
+  url: https://download.geofabrik.de/north-america/us/california-latest.osm.pbf
+  verify: upstream-md5
+  checksum_url: https://download.geofabrik.de/north-america/us/california-latest.osm.pbf.md5
+  license: ODbL-1.0
+  purpose: base road network and POIs for the Bay Area extract
+  bytes: 1288490188
+  retrieved: 2026-09-07
+  consumed_by: T-0024
+  notes: Geofabrik rebuilds this DAILY, so a pinned sha256 would break the fetcher every day and teach everyone to bypass it. The publisher's .md5 sidecar is the verification.
