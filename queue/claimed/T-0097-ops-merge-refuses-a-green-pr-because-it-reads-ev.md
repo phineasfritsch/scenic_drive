@@ -351,3 +351,32 @@ stopped firing without pretending the PR is mergeable. Pick a second PR that is 
   above, so the bounded re-ask added in the previous entry does not always resolve it. That refusal is in the
   safe direction and is outside this review's findings; noting it rather than quietly widening the task
   again.
+
+- 2026-09-08 — **CI cannot run on this PR, and the reason predates my commits.** Recording it here so the
+  next reviewer does not have to discover a PR with no checks on it.
+
+        $ gh api repos/.../commits/252d327/check-runs -q .total_count   -> 0
+        $ gh api repos/.../commits/5de1a06/check-runs -q .total_count   -> 0
+        $ gh pr view 57 --json mergeable,mergeStateStatus               -> CONFLICTING DIRTY
+        $ git merge-tree --write-tree origin/main HEAD                  -> CONFLICT (content): ops/merge
+        $ git merge-tree --write-tree origin/main 6db0597               -> exit 1, the same conflict
+
+  GitHub creates no `pull_request` run for a PR whose merge ref cannot be built. Actions is healthy — six
+  other branches ran while I was checking. `6db0597`, the head reviewer-pr57 read, already conflicts with
+  `origin/main` (`ce4e989`), so the last green run on this branch is `34200267339` on `6db0597`, from before
+  `main` moved.
+
+  **Not resolved here, deliberately.** `main` has since rewritten this same gate (T-0034, and the
+  `--no-task-reason` change): classification moved into `ops/lib/classify-checks.py`, fail-closed, with
+  `SUCCESS` the only passing conclusion. It conflicts line-for-line with this diff. And it still carries both
+  defects — it classifies every rollup entry with no reduction to the latest run per name, and its jq does
+  not project a timestamp at all, so a green PR with a superseded FAILURE still refuses on `main` today.
+  Reconciling means porting the `(unfinished, t)` reduction **into `classify-checks.py`**, extending the jq,
+  keeping `main`'s fail-closed classes, and pointing `ops/merge-selftest` at that module. That is a different
+  diff in a file this task does not list in `touches:`, and doing it here would rewrite the change under
+  review into something the reviewer has not read. Left for whoever owns that reconciliation; said in a PR
+  comment too.
+
+  The fix itself is verifiable without CI: `bash ops/merge-selftest` green, the same command against a copy
+  of `6db0597:ops/merge` red. `ops/check-pins`, `ops/queue-check` and `ops/sane` pass locally; `ops/test` is
+  red for the pre-existing `services/api/node_modules` reason above.
