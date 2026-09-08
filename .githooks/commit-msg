@@ -2,6 +2,15 @@
 # Refuses a commit that LOWERS any pins/floor_*.txt unless the commit message body
 # carries a `floor-lower: <reason>` line. Raising a floor is always allowed (that is the reviewer's ratchet).
 set -uo pipefail
+
+# Provenance FIRST. This hook is the one PR #47 recorded a red for, from a worktree, while core.hooksPath
+# named the main checkout - so the transcript's "REFUSED" was main's hook refusing on main's rules, and the
+# branch's own change went untested. See .githooks/hook-guard.sh.
+_hook_self="${BASH_SOURCE[0]:-$0}"
+. "$(dirname "$_hook_self")/hook-guard.sh" || {
+  echo "commit-msg: hook-guard.sh is not next to this hook - refusing an unverifiable hook" >&2; exit 1; }
+hook_guard commit-msg "$_hook_self" || exit 1
+
 msgfile="$1"
 # Every floor file, not a hard-coded pair. The names changed once already - one combined Linux floor
 # became one per tier (T-0071) - and a guard that lists filenames literally stops guarding the moment

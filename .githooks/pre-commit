@@ -5,6 +5,16 @@
 #  3. Staged paths outside the current task's `touches:` list (active once a queue task file exists for the branch).
 # Floor-lowering protection lives in .githooks/commit-msg (T-0002).
 set -uo pipefail
+
+# Provenance FIRST - before any check and before the empty-staging-area early exit below. The one thing a
+# hook cannot take on trust is that it is the hook this worktree meant to run: core.hooksPath is untracked,
+# shared by every worktree, and when it names another checkout that checkout's hooks are what police your
+# commits. See .githooks/hook-guard.sh; the configured value is checked separately by ops/lib/hookspath-state.
+_hook_self="${BASH_SOURCE[0]:-$0}"
+. "$(dirname "$_hook_self")/hook-guard.sh" || {
+  echo "pre-commit: hook-guard.sh is not next to this hook - refusing an unverifiable hook" >&2; exit 1; }
+hook_guard pre-commit "$_hook_self" || exit 1
+
 fail=0
 CR=$(printf '\r')
 staged="$(git diff --cached --name-only --diff-filter=ACMR)"
