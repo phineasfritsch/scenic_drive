@@ -97,11 +97,23 @@
 _SCENIC_SET='PATH LANG LC_ALL TERM PYTHONNOUSERSITE GIT_CONFIG_GLOBAL SCENIC_SEALED SCENIC_HOST_PATH SCENIC_GIT'
 # forwarded when present, because a real local need reads them (each documented at its use site):
 _SCENIC_KEEP='HOME TMPDIR TMP TEMP PYTHON API_URL SCENIC_RO_TOKEN SKIP_IOS IOS_DESTINATION DEPLOY_UNLOCKED CI'
-# forwarded ON TOP of those only for SCENIC_TOOLCHAIN=1 scripts: swift, node/npx and docker on Windows
-# do not start without them. APPDATA is here, and is why PYTHONNOUSERSITE=1 is in _SCENIC_SET, not
-# optional: APPDATA alone reaches site.USER_SITE and usercustomize.py.
-_SCENIC_TOOLENV='APPDATA LOCALAPPDATA USERPROFILE PROGRAMDATA ALLUSERSPROFILE PROGRAMFILES PROGRAMW6432
- SYSTEMDRIVE COMSPEC PATHEXT NUMBER_OF_PROCESSORS PROCESSOR_ARCHITECTURE OS USERNAME HOMEDRIVE HOMEPATH
+# The OS's own base directories, forwarded to EVERY sealed script. They were TOOLCHAIN-only in the first
+# draft, and the cost was measured, not guessed: with them absent the Windows CRT and python's `site`
+# fall back to the LITERAL default strings and create them relative to the working directory, which for
+# an ops/* script is the repository root. `bash ops/queue-check`, on a clean tree, produced
+#     <root>/%SystemDrive%/ProgramData/Microsoft/Windows/Caches/...   and   <root>/Python/
+# on every single run - untracked junk in `git status` for every agent, in a repo whose hook forbids
+# `git add -A` for exactly this class of thing. These names are OS facts rather than caller preferences,
+# but the caller can still set them, so the two that reach something are re-attacked and not assumed:
+# APPDATA reaches site.USER_SITE (hence PYTHONNOUSERSITE=1 in _SCENIC_SET, not optional) and USERPROFILE
+# is git-for-Windows' HOME fallback (hence GIT_CONFIG_GLOBAL=/dev/null). Both measured in T-0086's log.
+# ProgramData is spelled mixed-case because that is the name that exists: MSYS bash matches
+# case-sensitively, and PROGRAMDATA is unset on this box while ProgramData is not.
+_SCENIC_WINBASE='SYSTEMDRIVE SYSTEMROOT WINDIR ProgramData ALLUSERSPROFILE LOCALAPPDATA APPDATA
+ USERPROFILE HOMEDRIVE HOMEPATH COMSPEC PATHEXT'
+# forwarded ON TOP of those only for SCENIC_TOOLCHAIN=1 scripts: swift, node/npx and docker do not
+# start without them.
+_SCENIC_TOOLENV='PROGRAMFILES PROGRAMW6432 NUMBER_OF_PROCESSORS PROCESSOR_ARCHITECTURE OS USERNAME
  DEVELOPER_DIR SDKROOT'
 # set by bash/msys itself inside the sealed child, so they are expected there and are not forwarded.
 # SHELLOPTS and BASHOPTS are deliberately NOT here: if bash ever exports one, the seal must refuse.
@@ -172,7 +184,7 @@ if [[ "${SCENIC_SEALED:-}" != "1" ]]; then
   _env=/usr/bin/env; [[ -x "$_env" ]] || _env=/bin/env
   _kv=(PATH="$SCENIC_PATH" SCENIC_HOST_PATH="${PATH:-}" SCENIC_SEALED=1 LANG=C LC_ALL=C TERM=dumb
        PYTHONNOUSERSITE=1 GIT_CONFIG_GLOBAL=/dev/null)
-  _names="$_SCENIC_KEEP"
+  _names="$_SCENIC_KEEP $_SCENIC_WINBASE"
   [[ "${SCENIC_TOOLCHAIN:-0}" == "1" ]] && _names="$_names $_SCENIC_TOOLENV"
   for _n in $_names; do
     [[ "$_n" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
@@ -186,7 +198,7 @@ fi
 # ---- sealed: verify. The marker is not trusted; the environment is checked against the constants. ---
 _bad=""
 for _n in $(compgen -e); do
-  _scenic_in_list "$_n" "$_SCENIC_SET $_SCENIC_KEEP $_SCENIC_TOOLENV $_SCENIC_SHELL_SET" || _bad="$_bad $_n"
+  _scenic_in_list "$_n" "$_SCENIC_SET $_SCENIC_KEEP $_SCENIC_WINBASE $_SCENIC_TOOLENV $_SCENIC_SHELL_SET" || _bad="$_bad $_n"
 done
 if [[ -n "$_bad" ]]; then
   echo "${0##*/}: refusing: variable(s) outside the ops/lib/seal.sh allowlist survived the seal:$_bad" >&2

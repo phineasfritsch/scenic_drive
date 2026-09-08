@@ -336,3 +336,78 @@ Identical to the pre-fix control on the same tree. Nothing was weakened to make 
    Untracked `%SystemDrive%/` and `Python/` directories were present in this worktree at the start of the
    task and reappeared during exploratory runs. They are NOT produced by the fix: removed, then a full
    `bash ops/test` and `bash ops/check-pins` under the seal left the tree clean. They were never staged.
+
+### 2026-09-08 agent/claude-opus-5 — CORRECTION to finding 4, and the fix for it
+
+**The second paragraph of finding 4 above is WRONG and is retracted.** It says the untracked
+`%SystemDrive%/` and `Python/` directories are "NOT produced by the fix", on the evidence that a full
+`ops/test` left the tree clean. `ops/test` was the wrong probe. The right one:
+
+    $ rm -rf '%SystemDrive%' Python
+    $ bash ops/queue-check >/dev/null 2>&1; echo "exit=$?"
+    exit=0
+    $ find '%SystemDrive%' Python | head -6
+    %SystemDrive%
+    %SystemDrive%/ProgramData
+    %SystemDrive%/ProgramData/Microsoft
+    %SystemDrive%/ProgramData/Microsoft/Windows
+    %SystemDrive%/ProgramData/Microsoft/Windows/Caches
+    %SystemDrive%/ProgramData/Microsoft/Windows/Caches/cversions.2.db
+
+Every `ops/*` run created those in the repository ROOT. The seal forwarded the Windows base-directory
+variables only to `SCENIC_TOOLCHAIN=1` scripts, so for `ops/sane` and `ops/queue-check` the Windows CRT and
+python's `site` fell back to the LITERAL default strings `%SystemDrive%\ProgramData` and `%APPDATA%\Python`
+and created them relative to the working directory. `ops/test` did not show it because it IS a
+`SCENIC_TOOLCHAIN=1` script. Untracked junk in `git status` on every run, in a repo whose hook forbids
+`git add -A` for exactly this class of thing — a real regression, caught only because the directories kept
+coming back after I had already written down that they did not.
+
+**FIX** — a new `_SCENIC_WINBASE` list, forwarded to EVERY sealed script:
+`SYSTEMDRIVE SYSTEMROOT WINDIR ProgramData ALLUSERSPROFILE LOCALAPPDATA APPDATA USERPROFILE HOMEDRIVE
+HOMEPATH COMSPEC PATHEXT`. `ProgramData` is spelled mixed-case because that is the name that exists —
+measured, `ProgramData=C:\ProgramData` is set and `PROGRAMDATA` is unset, and MSYS bash matches
+case-sensitively. This supersedes the case-sensitivity note in finding 4. `_SCENIC_TOOLENV` keeps only what
+is genuinely toolchain-specific.
+
+    $ rm -rf '%SystemDrive%' Python; bash ops/queue-check; bash ops/sane; ls -d '%SystemDrive%' Python
+    ls: cannot access '%SystemDrive%': No such file or directory
+    ls: cannot access 'Python': No such file or directory
+
+**That widened the always-on allowlist, so the two names in it that reach something were re-attacked
+rather than assumed harmless.**
+
+`APPDATA` reaches `site.USER_SITE`, which is the `PYTHONUSERBASE` route under a different name:
+
+    USER_SITE with APPDATA=<atk dir> = <atk dir>\Python\Python314\site-packages
+    (both usercustomize.py and sitecustomize.py planted there)
+    $ APPDATA=<atk dir> bash ops/queue-check
+    QUEUE OK (81 tasks)      EXIT=0        <- honest; PYTHONNOUSERSITE=1 in _SCENIC_SET holds
+
+`USERPROFILE`, and `HOMEDRIVE`+`HOMEPATH`, are git-for-Windows' fallbacks when `HOME` is unset:
+
+    $ env -u HOME USERPROFILE=<evil home with .gitconfig core.excludesFile> bash ops/sane
+    SANE FAIL exit=2                        <- honest; GIT_CONFIG_GLOBAL=/dev/null holds
+    $ env -u HOME HOMEDRIVE= HOMEPATH=<evil home> USERPROFILE=<evil home> bash ops/sane
+    SANE FAIL exit=2
+
+`PYTHONUSERBASE` is still on no list and still closed (`QUEUE OK (81 tasks)`), and a name outside the
+widened list under a forged seal is still refused, exit 2.
+
+The full battery was then re-run against this final code with the stray planted. Unchanged from the table
+above: routes 1, 1b, 2, 3, 4, 6 closed; the grep-shim, forged-seal, exported-function, shadowed-`cd` and
+shadowed-`basename` neighbours all refuse; routes 3b (interpreter shim) and `SHELLOPTS=noexec` still open
+with the same surviving commands. A pin assertion inside the seal, with a git shim, a grep shim, an evil
+`HOME`, `APPDATA` and `GIT_CONFIG_PARAMETERS` all set at once, still sees `git=/mingw64/bin/git`,
+`grep=/usr/bin/grep`, `excludesFile=<none>`, `autocrlf=false`, and the stray (`1`). `env-count` is 28,
+up from 18, which is the price of the base directories and is the whole of what widened.
+
+Gates, last lines, after the change:
+
+    $ bash ops/queue-check          -> QUEUE OK (81 tasks)                                        EXIT=0
+    $ bash ops/check-pins           -> PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux EXIT=0
+    $ bash ops/check-pins --source-only
+                                    -> PINS ok=3 skipped=8 pending=1 ... tier=linux source-only    EXIT=0
+    $ PYTHON=$(command -v python) bash ops/test
+                                    -> TESTS linux=50/50 ios=skipped failed=0 skipped=0 / OK       EXIT=0
+
+`git status --short` clean afterwards, with no `%SystemDrive%/` or `Python/`.
