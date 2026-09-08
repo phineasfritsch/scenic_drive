@@ -1,13 +1,13 @@
 ---
 id: T-0063
 title: ops/review must handle main's stale claimed copy, or every branch duplicates on merge
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T03:35:43Z
+lease_expires_at: 2026-09-08T09:35:43Z
+worktree: wt/T-0063
+branch: task/T-0063
 exclusive: []
 touches: [ops/lib/queue.py, queue/README.md]
 pins_affected: []
@@ -63,3 +63,4 @@ point of it.
   in dependency order with the gates run after each. The same rehearsal found an ADD/ADD conflict on
   ops/lib/gh-stub-for-merge-tests across T-0022/T-0044/T-0049, the exec-bits trap T-0041 predicted, and a
   436-line test file (T-0062) that no single branch could see.
+- 2026-09-08T03:35:43Z claimed by agent/claude-opus-5; lease until 2026-09-08T09:35:43Z
