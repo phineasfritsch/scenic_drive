@@ -3,9 +3,12 @@
 
   pins.py [--source-only] [--tier linux|mac] [--verbose]
 
-Prints `PINS ok=N skipped=M pending=P expired=K failed=F` and exits 1 when failed > 0 or expired > 0.
+Prints `PINS ok=N skipped=M pending=P expired=K failed=F`. Exit 0 only when the run proved it ran: exit 1 when
+failed > 0, expired > 0, or a floor below was breached; exit 2 when the arguments themselves were refused.
 
 Rules (each one exists because an agent will otherwise satisfy the letter of the check):
+  * the run must prove it executed something - see the floors below. failed=0 over an empty list is not a pass.
+  * an unrecognised argument or --tier is refused, not silently honoured as "nothing matched".
   * an assertion equal to TODO (or empty) FAILS - an unenforced pin is worse than none.
   * a pin not runnable on this host (runs_on excludes the tier) is SKIPPED, but if it has expires_days and
     last_verified is missing or older than that, it is EXPIRED and fails the run. Human/device pins therefore
@@ -29,6 +32,28 @@ ROOT = Path(__file__).resolve().parents[2]
 PINS = ROOT / "pins" / "PINS.yaml"
 QUEUE = ROOT / "queue"
 DEFAULT_EXPIRY = {"human": 30, "device": 30}
+
+# ----------------------------------------------------------------------------- the run must prove it ran
+# Third instance of one bug. `test -z "$(...)"` over an empty file list passed vacuously in P-OPS-01's
+# assertion (reviewer-5 -> ops/lib/check-exec-bits got MIN_FILES + REQUIRED) and again in P-SRC-02's
+# (reviewer-10 -> ops/lib/check-line-cap got MIN_FILES). The runner that executes both never got the guard:
+# `ok=0 ... failed=0` exit 0 was reachable three ways, none of them touching an assertion -
+#   (a) empty pins/PINS.yaml            -> load() returns [], nothing iterates       -> MIN_PINS
+#   (b) `anchor: source` -> `sources`   -> --source-only skips all 12, push gate green -> MIN_RAN_SOURCE_ONLY
+#                                          with the import ban and 300-line cap dead   + REQUIRED_SOURCE
+#   (c) `--tier bogus`, no file edit    -> `tier in runs_on` never true               -> TIERS
+# Floors sit below the current counts so a deliberate removal has headroom; REQUIRED carries the precision.
+# None of this touches the runs_on skip logic: skipping is correct, reporting success after skipping
+# everything is not.
+TIERS = ("linux", "mac")
+MIN_PINS = 10            # 12 today
+MIN_RAN = 6              # 9 assertions execute on tier=linux today
+MIN_RAN_SOURCE_ONLY = 2  # 3 execute under --source-only today
+REQUIRED = ("P-SRC-01", "P-SRC-02", "P-OPS-01", "P-GIT-01", "P-DATA-02", "P-TEST-01", "P-PROC-01",
+            "P-ATTR-02", "P-PROD-01", "P-COST-02", "P-SAFE-05", "P-HUMAN-01")
+# The two pins the `pins-source-only` job in .github/workflows/linux-core.yml exists for. Anchored on the id
+# and the anchor field, never on the job's comment.
+REQUIRED_SOURCE = ("P-SRC-01", "P-SRC-02")
 
 
 # ----------------------------------------------------------------------------- yaml subset
@@ -94,18 +119,73 @@ def days_since(date_str):
     return (dt.date.today() - d).days
 
 
+# ----------------------------------------------------------------------------- argv
+def parse_args(argv):
+    """Strict. Returns (opts, error). A typo must refuse, never quietly select an empty set of pins."""
+    usage = f"accepted: --tier <{'|'.join(TIERS)}>, --source-only, --verbose"
+    source_only = verbose = False
+    tier = None
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--tier":
+            if i + 1 >= len(argv):
+                return None, f"--tier needs a value; {usage}"
+            tier, i = argv[i + 1], i + 2
+            continue
+        if a == "--source-only":
+            source_only = True
+        elif a == "--verbose":
+            verbose = True
+        else:
+            return None, f"unrecognised argument {a!r}; {usage}"
+        i += 1
+    if tier is None:
+        tier = host_tier()
+    elif tier not in TIERS:
+        return None, (f"unknown --tier {tier!r}; {usage}. An unknown tier matches no runs_on, "
+                      "so every pin would skip and the run would report failed=0")
+    return (source_only, verbose, tier), None
+
+
+# ----------------------------------------------------------------------------- structural guards
+def check_population(pins):
+    """Floors on the list being checked, before any assertion runs. Returns a list of failure lines."""
+    rel = PINS.relative_to(ROOT).as_posix()
+    if len(pins) < MIN_PINS:
+        return [f"only {len(pins)} pin(s) loaded from {rel} (expected >= {MIN_PINS}).",
+                "  An empty or truncated pin list must never read as 'every load-bearing property holds'."]
+    by_id = {p.get("id"): p for p in pins}
+    missing = [pid for pid in REQUIRED if pid not in by_id]
+    if missing:
+        return [f"required pin id(s) absent from {rel}: {' '.join(missing)}.",
+                "  A pin that silently disappears is the same failure as one that never ran."]
+    wrong = [f"{pid} (anchor: {by_id[pid].get('anchor')!r})" for pid in REQUIRED_SOURCE
+             if by_id[pid].get("anchor") != "source"]
+    if wrong:
+        return [f"pin(s) the --source-only push gate exists for are not anchor: source: {' '.join(wrong)}.",
+                "  The import ban and the 300-line cap would stop running on every push with nothing red."]
+    return []
+
+
 # ----------------------------------------------------------------------------- main
 def main(argv):
-    source_only = "--source-only" in argv
-    verbose = "--verbose" in argv
-    tier = host_tier()
-    if "--tier" in argv:
-        tier = argv[argv.index("--tier") + 1]
+    opts, err = parse_args(argv)
+    if err:
+        print(f"PINS FAIL: {err}")
+        return 2
+    source_only, verbose, tier = opts
     if not PINS.exists():
         print(f"PINS FAIL: {PINS.relative_to(ROOT).as_posix()} missing")
         return 1
     pins = load(PINS)
-    ok = skipped = pending = expired = failed = 0
+    bad = check_population(pins)
+    if bad:
+        print(f"PINS FAIL: {bad[0]}")
+        for line in bad[1:]:
+            print(line)
+        return 1
+    ok = skipped = pending = expired = failed = ran = 0
     problems = []
     seen = set()
     for p in pins:
@@ -144,6 +224,7 @@ def main(argv):
             continue
 
         if tier in runs_on:
+            ran += 1
             good, out = run(str(assertion))
             if good:
                 ok += 1
@@ -174,9 +255,14 @@ def main(argv):
             elif verbose:
                 print(f"  skipped {pid} (runs_on {runs_on}, verified {age}d ago)")
     print(f"PINS ok={ok} skipped={skipped} pending={pending} expired={expired} failed={failed} tier={tier}{' source-only' if source_only else ''}")
+    floor = MIN_RAN_SOURCE_ONLY if source_only else MIN_RAN
+    if ran < floor:
+        mode = f"tier={tier}{' --source-only' if source_only else ''}"
+        problems.append(f"only {ran} assertion(s) actually ran for {mode} (expected >= {floor})\n"
+                        "      Skipping is correct; reporting success after skipping everything is not.")
     for pr in problems:
         print(" -", pr)
-    return 1 if (failed or expired) else 0
+    return 1 if (failed or expired or ran < floor) else 0
 
 
 if __name__ == "__main__":
