@@ -1,13 +1,13 @@
 ---
 id: T-0107
 title: second region around UCLA, because the developer who has to drive the routes lives in Westwood
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T11:41:59Z
+lease_expires_at: 2026-09-08T15:41:59Z
 worktree: null
-branch: null
+branch: task/T-0107
 exclusive: []
 touches: [services/etl/regions/, services/etl/etl/region.py, ops/etl-extract]
 pins_affected: []
@@ -76,3 +76,4 @@ recorded class counts, the flagship 280/Cañada/Skyline shape. Two regions also 
 accidentally single-region, which is worth having before a third.
 
 ## Log
+- 2026-09-08T11:41:59Z claimed by agent/claude-opus-5; lease until 2026-09-08T15:41:59Z
