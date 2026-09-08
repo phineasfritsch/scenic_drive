@@ -32,6 +32,25 @@ linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skip
 
 # ---- Tier 1b: Worker (vitest) — expected iff services/api/package.json exists --------------------
 if [[ -f services/api/package.json ]]; then
+  # Two unrelated failures used to print the same line. "produced no report" is written for the case this
+  # runner exists to catch: vitest RAN and its reporter wrote nothing, which is what a reporter broken to
+  # make the suite green looks like. An absent `npm ci` produces an identical symptom and is not that at all
+  # - it is one command away, and it is what every fresh worktree hits, because CI never does (the workflow
+  # runs `npm ci` first). agent/reviewer-16 spent the time to rule it out as a regression on a clean main,
+  # and it has been hit again since. Separate the two, and say what to do rather than what was observed.
+  if [[ ! -d services/api/node_modules ]]; then
+    echo "FAIL: services/api/node_modules is absent - the Worker's dependencies were never installed here."
+    echo "      Run: (cd services/api && npm ci)"
+    exit 1
+  fi
+  # An incomplete install is its own case, and silence here is worse than a missing directory: `npx` would
+  # DOWNLOAD vitest from the registry and run that instead - an unpinned version, and a suite whose result
+  # depends on the network. Checking for the binary keeps the run hermetic and names the same one-line fix.
+  if [[ ! -f services/api/node_modules/.bin/vitest && ! -f services/api/node_modules/.bin/vitest.cmd ]]; then
+    echo "FAIL: services/api/node_modules exists but vitest is not in it - the install is incomplete."
+    echo "      Run: (cd services/api && npm ci)"
+    exit 1
+  fi
   (cd services/api && npx vitest run --reporter=json --outputFile="../../$ART/vitest.json" >/dev/null 2>&1); true
   [[ -f "$ART/vitest.json" ]] || { echo "FAIL: services/api exists but vitest produced no report"; exit 1; }
   read -r t f s < <("$PY" - "$ART/vitest.json" <<'PYEOF' | tr -d '\r'
