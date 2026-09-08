@@ -86,3 +86,243 @@ requiring one makes every merge of a branch that mentions a constant impossible.
 `$2`/`$3` are `merge`/`commit` for `git merge`, and `.git/MERGE_HEAD` exists — and skip.
 
 That is separate from, and additional to, excluding `queue/**/*.md` from the scan.
+
+- 2026-09-08 agent/claude-opus-5, worktree `wt/T-0085`, branch `task/T-0085`, fix at `37f04d6`.
+
+  **What was actually wrong — two faults, not one.** The filed defect is real: markdown prose parses as a
+  binding. Measuring it turned up a second false positive in the same comparison, which is the one that
+  actually fired at `685ec8a`.
+
+  Fault 1, the filed one. `ratchet_facts` fed every changed path to the parser, and `BIND` is
+  `^[ \t]*(declare|readonly|export|const|let|var|local|static|final|public|private)* NAME [:type]? =`.
+  Line 438 of the T-0079 report is an indented transcript line, quoted here verbatim, which is a binding to
+  the parser and indistinguishable from `ops/lib/ro_grammar.py:17`:
+
+        Security effect proved by importing the module:
+        MAX_SQL_LENGTH = 400000
+        5000-char query problem: None      (the read-only SQL length gate is 100x wider)
+
+  Fault 2, found while measuring fault 1. `RCOMPARE` separated the two sides with `FNR==NR`. That idiom
+  names the first file only while the first file has records; when the old side has **no** bindings, awk
+  reads the NEW facts as OLD ones, `nkey` stays empty, and the `END` block reports every one of them
+  "is gone". So the refusal at `685ec8a` did not need a *disappearance* in the markdown at all — one
+  quoted constant on the new side and none on the old was enough.
+
+  ### ROUTE 1 — a markdown task file quoting a constant is refused (the filed defect, replayed at 685ec8a)
+
+  Replay: `demo/T-0085-fp` at `685ec8a^`, the `685ec8a` version of the T-0079 task file staged, a commit
+  message with no `ratchet-lower:` line. `.artifacts/commit-msg.orig` is the hook as committed at that
+  point; `.artifacts/commit-msg.fixed` is the hook after `37f04d6`. Identical staged state, identical
+  message file, both sides.
+
+        $ git checkout 685ec8a -- queue/claimed/T-0079-...md
+        $ bash .artifacts/commit-msg.orig .artifacts/msg1.txt
+    RED
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          queue/claimed/T-0079-the-min-ratchet-constants-have-no-commit-msg-pro.md: MAX_SQL_LENGTH is gone -
+          no binding of that name at queue/claimed/T-0079-...md, so nothing constrains it any more
+        --- exit: 1 ---
+    GREEN (`bash .artifacts/commit-msg.fixed .artifacts/msg1.txt`, same index, same message)
+        (no output)
+        --- exit: 0 ---
+
+  The facts behind it, measured with the hook's own parser (`.artifacts/rparse.awk`, extracted verbatim):
+
+        $ git show 685ec8a^:queue/.../T-0079-...md | awk -v path=$F -f .artifacts/rparse.awk
+        (nothing)
+        $ git show 685ec8a:queue/.../T-0079-...md  | awk -v path=$F -f .artifacts/rparse.awk
+        queue/claimed/T-0079-...md   MAX_SQL_LENGTH   num   400000
+
+    Old side empty, new side one fact — and the hook nonetheless reported that fact as *gone*. That is
+    fault 2 doing the work; fault 1 supplied the fact.
+
+  **SELF-ATTACK, one directory over.** `queue/**` is not what makes a file documentation, so the neighbour
+  is the same prose in a markdown file that is not in `queue/`: `docs/notes.md`, committed with the quoted
+  transcript, then revised so the quoted line is dropped (the exact shape of the original refusal).
+
+        $ sed -i '/MAX_SQL_LENGTH/d' docs/notes.md ; git add -- docs/notes.md
+        $ bash .artifacts/commit-msg.fixed .artifacts/msg1.txt
+        --- exit: 0 ---     CLOSED — the exclusion is by suffix, not by directory.
+
+  **SELF-ATTACK, one type over — NOT CLOSED.** The same transcript in a `docs/notes.txt` instead of a
+  `docs/notes.md`, revised the same way:
+
+        $ sed -i '/MAX_SQL_LENGTH/d' docs/notes.txt ; git add -- docs/notes.txt
+        $ bash .artifacts/commit-msg.fixed .artifacts/msg1.txt
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          docs/notes.txt: MAX_SQL_LENGTH is gone - no binding of that name at docs/notes.txt, so nothing
+          constrains it any more
+        --- exit: 1 ---     SURVIVES.
+
+    This is left open **deliberately, and measured, not assumed**. `pins/floor_*.txt` is a real ratchet
+    this repo keeps in a `.txt`, so "text file" is not documentation here the way "markdown" is; excluding
+    `.txt` would put a hole exactly where the repo does store a ratchet as a data file. Measured surface:
+    across all 55 local branches, `git grep -l -E '(MIN|MAX|REQUIRED|EXEMPT)[A-Z0-9_]*[ \t]*[:=]'` matches
+    **20** distinct `.md` files and **0** `.txt`/`.rst`/`.adoc` files, and the four tracked `.txt` files
+    are the floors, which hold a bare number and no name at all. The false positive is closed where it
+    exists and left open where it does not. Route 1 is therefore closed for markdown and open for `.txt`.
+
+  ### ROUTE 2 — a real lowering in ops/lib/pins.py is still refused
+
+  `ops/lib/pins.py` carries no ratchets on `main`; they live on `task/T-0066` (the T-0079 log measured this
+  too). Setup on `demo/T-0085-real`: `git show task/T-0066:ops/lib/pins.py > ops/lib/pins.py`, committed,
+  giving `MIN_PINS = 12`, `MIN_RAN = 9`, `MIN_RAN_SOURCE_ONLY = 3`, `REQUIRED`, `REQUIRED_SOURCE`,
+  `REQUIRED_RAN`, `REQUIRED_RAN_SOURCE`.
+
+    RED  `sed -i 's/^MIN_RAN = 9$/MIN_RAN = 6/' ops/lib/pins.py ; git add -- ops/lib/pins.py`
+         `bash .artifacts/commit-msg.fixed .artifacts/msg1.txt`
+            commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+              ops/lib/pins.py: MIN_RAN 9 -> 6
+            --- exit: 1 ---
+    RED  the set half, same command, `sed -i 's/"P-OPS-01", //'`
+            ops/lib/pins.py: REQUIRED lost P-OPS-01
+            ops/lib/pins.py: REQUIRED_RAN lost P-OPS-01
+            --- exit: 1 ---
+    GREEN identical command, `MIN_RAN 9 -> 12` (raising a MIN_ is the free direction)
+            --- exit: 0 ---
+
+  **SELF-ATTACK, one type over — the evasion the fix invites.** If markdown is not scanned, carry the
+  ratchet into markdown and lower it there:
+
+        $ git mv ops/lib/pins.py docs/pins.md
+        $ sed -i 's/^MIN_RAN = 9$/MIN_RAN = 6/' docs/pins.md ; git add -- docs/pins.md
+        $ bash .artifacts/commit-msg.fixed .artifacts/msg1.txt
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          ops/lib/pins.py: MIN_PINS is gone - no binding of that name at ops/lib/pins.py or at its rename
+          docs/pins.md, so nothing constrains it any more
+          ... same for MIN_RAN, MIN_RAN_SOURCE_ONLY, REQUIRED, REQUIRED_RAN, REQUIRED_RAN_SOURCE,
+          REQUIRED_SOURCE (7 lines)
+        --- exit: 1 ---     CLOSED.
+
+    This is why the exclusion is safe by construction and not a narrowing: dropping a path drops it from
+    **both** sides, so a binding that leaves a scanned file for a `.md` is reported gone. The only thing
+    the exclusion can hide is a ratchet born, kept and lowered entirely inside documentation, which no
+    code reads.
+
+  **SELF-ATTACK 2, one mechanism over — no code-suffix whitelist.** The obvious wrong fix is to scan only
+  files with code extensions, which would silently retire `ops/lib/check-exec-bits` and
+  `ops/lib/check-line-cap` — extensionless shell scripts that hold real ratchets, and named as such in
+  this hook's own header. Nothing was whitelisted, so:
+
+        $ sed -i 's/^MIN_FILES=17$/MIN_FILES=10/' ops/lib/check-exec-bits ; git add -- ops/lib/check-exec-bits
+        $ bash .artifacts/commit-msg.fixed .artifacts/msg1.txt
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          ops/lib/check-exec-bits: MIN_FILES 17 -> 10
+        --- exit: 1 ---     CLOSED.
+
+  ### ROUTE 3 — a real lowering in services/api/src/ro.ts is still refused
+
+    RED  `sed -i 's/= 4000;$/= 400000;/' services/api/src/ro.ts ; git add -- services/api/src/ro.ts`
+         `bash .artifacts/commit-msg.fixed .artifacts/msg1.txt`
+            commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+              services/api/src/ro.ts: MAX_SQL_LENGTH 4000 -> 400000
+            --- exit: 1 ---
+    GREEN identical command, `4000 -> 2000` (tightening a MAX_ is free)
+            --- exit: 0 ---
+
+  **SELF-ATTACK, one type over.** `git mv services/api/src/ro.ts services/api/src/ro.md`, then loosen it
+  inside the markdown, so git's own rename detection points the guard at an unscanned file:
+
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          services/api/src/ro.ts: MAX_SQL_LENGTH is gone - no binding of that name at
+          services/api/src/ro.ts or at its rename services/api/src/ro.md, so nothing constrains it any more
+        --- exit: 1 ---     CLOSED.
+
+  **SELF-ATTACK 2, one file over, and hidden behind the very thing the fix now ignores.** Lower
+  `MAX_SQL_LENGTH` in `ops/lib/ro_grammar.py` in the SAME commit as a markdown edit, so the changed-path
+  set is half documentation:
+
+        $ git diff --cached --name-only
+        docs/notes.md
+        ops/lib/ro_grammar.py
+        $ bash .artifacts/commit-msg.fixed .artifacts/msg1.txt
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          ops/lib/ro_grammar.py: MAX_SQL_LENGTH 4000 -> 400000
+        --- exit: 1 ---     CLOSED.
+    GREEN identical command with the markdown edit alone staged --- exit: 0 ---
+
+  ### ROUTE 4 — adding a constant was reported as losing it (the second fault, not in the brief)
+
+    RED  hook as at `685ec8a`; the entire commit is one new file containing `MAX_FOO = 5`:
+        $ printf 'MAX_FOO = 5\n' > ops/lib/demo_new.py ; git add ops/lib/demo_new.py
+        $ bash .artifacts/commit-msg.orig .artifacts/msg1.txt
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          ops/lib/demo_new.py: MAX_FOO is gone - no binding of that name at ops/lib/demo_new.py, so
+          nothing constrains it any more
+        --- exit: 1 ---
+    GREEN identical command against `.artifacts/commit-msg.fixed`
+        --- exit: 0 ---
+
+    Nothing about markdown is involved. Any commit whose changed paths held no MIN_/MAX_/REQUIRED/EXEMPT
+    binding before and hold one after was refused for lowering the binding it had just introduced.
+
+  **SELF-ATTACK, the mirror case — one scale over.** The fix must not turn "everything vanished" into
+  silence. Delete the file that holds the only binding, so the NEW side is empty instead of the old:
+
+        $ git rm -q ops/lib/ro_grammar.py
+        $ bash .artifacts/commit-msg.fixed .artifacts/msg1.txt
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          ops/lib/ro_grammar.py: MAX_SQL_LENGTH is gone - no binding of that name at
+          ops/lib/ro_grammar.py, so nothing constrains it any more
+        --- exit: 1 ---     CLOSED.
+
+  **SELF-ATTACK, one mechanism over — `--audit`.** The fix is in the shared comparison, so the durable
+  half had to be re-checked. Two commits after a base: one real lowering in `ops/lib/ro_grammar.py`, one
+  markdown revision, neither justified.
+
+        $ bash .artifacts/commit-msg.fixed --audit $BASE
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          ops/lib/ro_grammar.py: MAX_SQL_LENGTH 4000 -> 400000
+        --- exit: 1 ---     CLOSED — the real lowering is named, the markdown revision is not.
+
+  ### The change
+
+  `.githooks/commit-msg`, 3 lines of code and one header paragraph, 300 lines exactly (at the cap; the
+  header was tightened to pay for the new paragraph):
+
+        case "${f,,}" in *.md|*.markdown) continue ;; esac   # in ratchet_facts
+        FILENAME==OLDF{                                      # was FNR==NR, in RCOMPARE
+        awk -F'\t' -v OLDF="$rtmp/old" "$RCOMPARE" "$rtmp/old" "$rtmp/new"
+
+  The scan was **not** narrowed to `ops/lib`: `services/api/src/ro.ts` (route 3), the extensionless
+  `ops/lib/check-exec-bits` (route 2 self-attack 2) and `ops/lib/ro_grammar.py` (route 3 self-attack 2)
+  are all still scanned and still refuse.
+
+  ### Gates, on `task/T-0085`, last line each
+
+        $ bash ops/queue-check              QUEUE OK (81 tasks)                                   exit 0
+        $ bash ops/check-pins               PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+                                                                                                  exit 0
+        $ bash ops/check-pins --source-only PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux
+                                            source-only                                           exit 0
+        $ (cd services/api && npm ci) ; PYTHON=$(command -v python) bash ops/test
+                                            TESTS linux=50/50 (swift=16/16 ts=34/34 py=-/0)
+                                            ios=skipped failed=0 skipped=0 / OK                    exit 0
+
+  ### ROUTE 5 — this log entry is itself the regression test, measured not asserted
+
+  The entry above quotes T-0079's line 438 verbatim, so it carries a real parsed binding: the hook's own
+  parser over this file prints `MAX_SQL_LENGTH   num   400000`. Staged, with the same unjustified message
+  file, against each hook in turn:
+
+        $ git add -- queue/claimed/T-0085-...md
+        $ bash .artifacts/commit-msg.orig .artifacts/msg1.txt
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          queue/claimed/T-0085-the-ratchet-check-scans-any-file-so-prose-that-q.md: MAX_SQL_LENGTH is gone
+          - no binding of that name at queue/claimed/T-0085-...md, so nothing constrains it any more
+        --- exit: 1 ---
+        $ bash .artifacts/commit-msg.fixed .artifacts/msg1.txt
+        --- exit: 0 ---
+
+  The commit that records this verification is the commit the old hook refuses — which is exactly where
+  T-0085 came from. Under the fixed hook it lands with no `ratchet-lower:` line, because nothing was
+  lowered.
+
+  ### Still open, stated rather than claimed shut
+
+  1. **An indented transcript in a non-markdown text file is still read as a binding.** Surviving command
+     pasted under route 1. Deliberate: `pins/floor_*.txt` is a ratchet kept in a `.txt`.
+  2. **`--no-verify` still skips all of this**, and no pin runs `--audit`, exactly as T-0079 reported.
+     T-0085 did not touch `pins/PINS.yaml` (outside `touches:`), so that route is unchanged.
+  3. The `.md` exclusion cannot see a ratchet **born** in markdown. It can see one that moves there
+     (route 2 and route 3 self-attacks). Nothing in this tree executes a `.md`.
