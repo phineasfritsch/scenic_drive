@@ -363,11 +363,17 @@ it. Measure it on the merged tree and set it in the same commit:
 `ops/test` now also fails a tier whose floor is positive but which did not run, so this cannot be set
 optimistically and forgotten — but a floor of 0 is silent by design, and that is the one that needs a human.
 
-**Merge `task/T-0036` before `task/T-0021` and `task/T-0049`.** Not a preference — both fail CI today, on the
-real runs, for exactly this:
+**Merge `task/T-0036` before `task/T-0021`, `task/T-0049` and `task/T-0081`.** Not a preference — all three
+fail CI today, on the real runs, for exactly this:
 
     #17 task/T-0021   core FAILURE   P-OPS-01: ops/lib/classify-checks.py (script, should be 100755, is 100644)
     #41 task/T-0049   core FAILURE   P-OPS-01: ops/lib/merge_reason_cap_assert.py (script, should be 100755, is 100644)
+    #56 task/T-0081   core FAILURE   P-OPS-01: ops/lib/etl_mutation.py, ops/lib/etl_mutation_rules.py
+
+T-0081 is the one that matters for the RULE rather than for the order: it did not exist when the rule was
+written, and `ops/merge-rehearse` derives its edge anyway, by asking which branches add an `ops/lib/*.py`.
+A hand-written list would have named T-0021 and stopped. Verified in a throwaway: `main` + T-0036 + T-0081
+gives `P-OPS-01: 31 files, 20 required present, all modes correct`.
 
 Both go green once T-0036 reclassifies `ops/lib/*.py` as data. `ops/pr-ci-preflight` (T-0075) predicts both
 locally without waiting for a run, and `ops/merge-rehearse` derives the ordering edge itself by asking which
