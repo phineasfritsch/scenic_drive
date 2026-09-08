@@ -6,7 +6,13 @@ msgfile="$1"
 # Every floor file, not a hard-coded pair. The names changed once already - one combined Linux floor
 # became one per tier (T-0071) - and a guard that lists filenames literally stops guarding the moment
 # they are renamed, silently, which is the failure this repo keeps finding in its own checks.
-floors="$(git diff --cached --name-only --diff-filter=d -- 'pins/floor_*.txt' 2>/dev/null)"
+#
+# Deletions are INCLUDED (there is no --diff-filter=d). Deleting a floor file lowers that floor to 0 - ops/test
+# reads an absent floor as 0 - so excluding deletions left a hole the exact size of the rule: `git rm
+# pins/floor_linux_swift.txt` was accepted with no output and no reason. A rename reaches git as a delete plus
+# an add, so the delete half now needs a `floor-lower:` line, which is the point: moving a floor to a name
+# ops/test does not read is how a guard gets retired without anyone saying so.
+floors="$(git diff --cached --name-only -- 'pins/floor_*.txt' 2>/dev/null)"
 for f in $floors; do
   old="$(git show "HEAD:$f" 2>/dev/null | tr -d '[:space:]' || echo 0)"; [[ -z "$old" ]] && old=0
   new="$(git show ":$f" 2>/dev/null | tr -d '[:space:]' || echo 0)"; [[ -z "$new" ]] && new=0

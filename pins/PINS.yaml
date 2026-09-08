@@ -51,11 +51,11 @@
   added: 2026-09-07
 
 - id: P-TEST-01
-  statement: A floor file exists per tier, each is an integer, and the Linux floors sum to at least 3
-  why_no_test_catches_it: ops/test enforces the floor, but an agent can delete the floor file and ops/test would fail to read it in a way that looks like a tooling error
+  statement: A floor file exists per tier, each is an integer, and every tier whose manifest is in the tree has a floor of at least 1 - asserted per tier, never as a sum
+  why_no_test_catches_it: ops/test enforces the floors, but an agent can delete a floor file (it then reads as absent) or drive one tier to 0 while the others carry the total; the first version of this pin summed the three and so reproduced the aggregation defect the tiers exist to remove - with the swift floor at 0, 10 of 16 Swift tests were deleted and check-pins stayed green
   anchor: config
   runs_on: [linux, mac]
-  assertion: "for f in pins/floor_linux_swift.txt pins/floor_linux_ts.txt pins/floor_linux_py.txt pins/floor_ios.txt; do grep -qE '^[0-9]+$' \"$f\" || exit 1; done; test \"$(( $(cat pins/floor_linux_swift.txt) + $(cat pins/floor_linux_ts.txt) + $(cat pins/floor_linux_py.txt) ))\" -ge 3"
+  assertion: "for f in pins/floor_linux_swift.txt pins/floor_linux_ts.txt pins/floor_linux_py.txt pins/floor_ios.txt; do grep -qE '^[0-9]+$' \"$f\" || exit 1; done; test \"$(cat pins/floor_linux_swift.txt)\" -ge 1 || exit 1; if [ -f services/api/package.json ]; then test \"$(cat pins/floor_linux_ts.txt)\" -ge 1 || exit 1; fi; if [ -f services/etl/pyproject.toml ]; then test \"$(cat pins/floor_linux_py.txt)\" -ge 1 || exit 1; fi; exit 0"
   owner: agent/claude-opus-5
   added: 2026-09-07
 
