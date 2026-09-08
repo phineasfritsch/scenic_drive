@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T10:10:02Z
 worktree: wt/T-0081
 branch: task/T-0081
 exclusive: []
-touches: [services/etl/etl/, services/etl/tests/, services/etl/pyproject.toml, ops/etl-mutation]
+touches: [services/etl/etl/, services/etl/tests/, services/etl/pyproject.toml, ops/etl-mutation, ops/lib/etl_mutation.py, ops/lib/etl_mutation_rules.py]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -59,3 +59,98 @@ rejected, because the next adversary will find X13.
 - 2026-09-08 filed by agent/claude-opus-5 from the round-two adversarial verification of T-0074. All ten
   mutations were executed and reverted; the verifier's tree ended clean.
 - 2026-09-08T04:10:02Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:10:02Z
+
+- 2026-09-08 agent/claude-opus-5 — mutation coverage, built rather than installed, and it reproduced the
+  adversary mechanically.
+
+  **The argument for doing this at all.** T-0025, T-0069 and T-0074 each closed the routes they were shown and
+  were beaten by the next variant of the same idea. T-0074 closed seven and an adversary executed ten more that
+  pass. The list does not terminate, so a test per route is the wrong shape.
+
+  **Why not `mutmut` or `cosmic-ray`, which this brief names.** Both would work. Neither is pinned in
+  `services/etl/inputs/manifest.yaml`, and the ETL's whole discipline is that every input is pinned and
+  digest-verified — adding an unpinned dependency in order to produce a *trust signal* is the wrong trade, and
+  a framework nobody here can audit sits badly in a repository whose founding premise is that checks lie. The
+  harness is stdlib `ast`, it enumerates its mutations explicitly, and it runs anywhere the suite runs. If a
+  reviewer disagrees, the counter-argument is short and this paragraph is where to attack it.
+
+  **RUN 1 — 121 mutants, and it found the adversary's own holes without being told them:**
+
+        MUTATION 84 killed, 37 survived, of 121 run in 389s
+
+        SURVIVED  etl/oracle_select.py:86   continue  `continue` -> `pass`
+        SURVIVED  etl/oracle_select.py:90   continue  `continue` -> `pass`
+        SURVIVED  etl/oracle_select.py:154  continue  `continue` -> `pass`
+        SURVIVED  etl/oracle_select.py:68   constant  20 -> 21
+        SURVIVED  etl/oracle_select.py:167  constant  7 -> 8
+        SURVIVED  etl/oracle.py:170         constant  400 -> 401
+
+  Those three `continue` survivors are **exactly** the guard deletions evasions E8 and E9 used against T-0074,
+  and `20 -> 21` at line 68 is E5's size dodge. A mechanical pass reproduced in six minutes what an adversary
+  took a session to enumerate by hand. That is the whole argument, measured.
+
+  **THE RULE SET WAS AUDITED AGAINST THOSE TEN EVASIONS, and it had gaps.** Checking a mutation tool against a
+  textbook list would have missed this:
+
+        E4   delete `or near_tagged_node(ours, grid)`   operand deletion   MISSING - and it is the FIRST
+                                                                           evasion that ever beat T-0074
+        X11  drop one entry from NODE_TAGS              collection element MISSING
+        E6   _sha256 loop -> one fh.read(1 << 20)       statement swap     DELIBERATELY NOT MODELLED
+
+  Two were added (`operand`, `dictkey`, `setmember`): **121 -> 186 mutants**. E6 is not, and the file says so
+  rather than faking coverage: replacing an arbitrary statement with an arbitrary other one is not an
+  enumerable mutation, it is writing a different program, and a rule that tried would produce noise. That
+  shape belongs to a test that reads a file larger than one block — T-0074's own outstanding correction.
+
+  **RUN 2 — 186 mutants, and the two new rules found X11 verbatim:**
+
+        MUTATION 117 killed, 69 survived, of 186 run in 661s
+
+        SURVIVED  etl/oracle_select.py:37  dictkey    drop key 'traffic_calming'
+        SURVIVED  etl/oracle_select.py:38  setmember  drop member 'crossing'
+        SURVIVED  etl/oracle_select.py:38  setmember  drop member 'give_way'
+        SURVIVED  etl/oracle_select.py:38  setmember  drop member 'mini_roundabout'
+        SURVIVED  etl/oracle.py:166        operand    drop operand 0 of Or
+        SURVIVED  etl/oracle.py:170        operand    drop operand 1 of Or
+
+  X11 was *"delete `traffic_calming` from NODE_TAGS"* and X12 was *"keep the one value the new test uses, drop
+  the other five"*. The harness produced both without being told they existed. That is what a rule set buys
+  over a test per route: it covers the mutation nobody has thought of yet, which is the only kind that matters.
+
+  `MAX_SURVIVORS = 69`, the measured number. **It is a ratchet in the safe direction: lower it as tests land,
+  never raise it.** `.githooks/commit-msg` guards `MAX_*` bindings (T-0079), so raising it costs a stated
+  reason. 63% is not a good mutation score and this file does not pretend otherwise — it is the honest floor
+  under a suite that had none, and the 69 names exactly where the next adversary will go.
+
+  **THREE DEFECTS IN MY OWN HARNESS, ALL FOUND BY OPERATING IT RATHER THAN BY READING IT.**
+
+  1. **A killed run leaves a mutant on disk** — and because `ast.unparse` does not preserve comments, it leaves
+     a COMMENT-STRIPPED module, which is far more damage than one flipped operator. It happened for real: a
+     `tee` into a directory that did not exist closed the pipe and killed the run mid-mutant. The clean-tree
+     guard, written an hour earlier for a case I called unlikely, refused to start:
+
+            MUTATION FAIL: these modules are not clean, and this harness rewrites them in place:
+                services/etl/etl/oracle.py
+
+  2. **Two runs can race.** Python survived that broken pipe and kept mutating invisibly while I started a
+     second run; both rewrote the same two modules at once. Added an `O_EXCL` lock, demonstrated red
+     (`another run holds .artifacts/etl-mutation.lock (pid 99999)`) and green.
+
+  3. **`import ast` was dropped in the split** and the runner still calls `ast.parse`/`ast.unparse`. Caught
+     because I ran a two-mutant control after the split instead of trusting it — the traceback was on the last
+     line of the file.
+
+  **Split, not exempted.** The harness reached 332 lines against the 300-line cap. `ops/lib/check-line-cap` on
+  this branch is still the Swift-only version, so nothing would have reported it — which is precisely the
+  reasoning [[T-0059]] records as wrong ("the check cannot see it is not a reason"), and [[T-0058]] brings the
+  Python cap that will. Split at the real seam: `etl_mutation_rules.py` (188) knows what a mutation IS and
+  needs only `ast`; `etl_mutation.py` (220) knows how to apply one, run a suite and decide whether the result
+  can be trusted. They change for different reasons.
+
+  **NOT wired into `ops/test`**, deliberately: a full pass restores and re-runs the suite once per mutant —
+  661 seconds — and `ops/test` is the per-commit gate. This belongs in CI on its own schedule. Said here so
+  the omission is a decision rather than something a reviewer has to notice.
+
+  **What this does NOT do**, since a tool that oversells itself is the thing this repo exists to catch: it
+  does not decide which of the 69 survivors are genuinely equivalent mutations, and some certainly are. It
+  ranks nothing. It is a floor and a map, not a verdict.

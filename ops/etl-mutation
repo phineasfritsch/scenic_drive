@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Mutation coverage for the curvature oracle's modules. See ops/lib/etl_mutation.py for why this is ~200 lines
+# of stdlib ast rather than mutmut: neither mutmut nor cosmic-ray is pinned in the ETL's input manifest, and
+# the numbers this repo trusts are produced inside the pinned image.
+#
+#   ops/etl-mutation                              both modules
+#   ops/etl-mutation --module etl/oracle.py       one
+#   ops/etl-mutation --list                       enumerate mutants, run nothing
+#   ops/etl-mutation --limit 20                   a quick sample
+#
+# NOT wired into ops/test: a full run restores and re-runs the suite once per mutant, which is minutes, and
+# ops/test is the per-commit gate. This belongs in CI on its own schedule.
+set -uo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -d ops && -d services/etl ]] || { echo "$(pwd) is not the repo root"; exit 2; }
+exec "${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/etl_mutation.py "$@"
