@@ -1,7 +1,7 @@
 ---
 id: T-0097
 title: ops/merge refuses a green PR because it reads every rollup entry, not the latest run per check
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T07:22:44Z
@@ -11,7 +11,7 @@ branch: task/T-0097
 exclusive: []
 touches: [ops/merge, ops/merge-selftest]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-final-pr57
 depends_on: []
 verify: [ops/test, ops/check-pins, ops/merge-selftest]
 acceptance:
@@ -380,3 +380,115 @@ stopped firing without pretending the PR is mergeable. Pick a second PR that is 
   The fix itself is verifiable without CI: `bash ops/merge-selftest` green, the same command against a copy
   of `6db0597:ops/merge` red. `ops/check-pins`, `ops/queue-check` and `ops/sane` pass locally; `ops/test` is
   red for the pre-existing `services/api/node_modules` reason above.
+
+- 2026-09-08 — **reviewer-final-pr57: PASS, moved to `queue/done/`.** Head `749dd48`. Every one of
+  reviewer-pr57's findings was re-verified by RUNNING the demonstration against both versions, never by
+  reading the diff; the new self-test's vacuity floors were attacked directly, including with a mutation the
+  fixer did not try. Scratch under `.artifacts/rvw-pr57/` in this worktree.
+
+  **F2/F3 (BLOCKING) — closed, reproduced red then green.** `ops/merge-selftest` against a copy of the exact
+  head reviewer-pr57 failed:
+
+        $ git show 6db0597:ops/merge > .artifacts/rvw-pr57/merge.6db0597.sh
+        $ bash ops/merge-selftest .artifacts/rvw-pr57/merge.6db0597.sh
+        FAIL F2   exit=0 want=1
+              > checks   checks=2 runs=3 pending=0 failed=[none] mergeState=CLEAN
+              > DRY RUN: every gate passed; would merge pr=99 task=T-0097 head=task/T-0097
+        FAIL F3   exit=0 want=1   (same, empty-string serialization)
+        FAIL F5 · FAIL F10
+        MERGE-SELFTEST FAIL: 4 of 10 case(s) failed                                      exit=1
+
+        $ bash ops/merge-selftest                    # HEAD
+        ok F1..F10 · MERGE-SELFTEST OK: 10 cases, 4 in-flight, script=ops/merge          exit=0
+
+  The old head really does print `DRY RUN: every gate passed` with a check in flight, and the fixed one
+  prints `pending=1` / `MERGE REFUSED: 1 check(s) still running`. F5 closed by the same key, F4 still holds.
+
+  **The check is load-bearing in isolation, not just against an old commit.** I re-injected only the
+  reviewer's defect into the CURRENT `ops/merge` — one line, `rank(r) >= rank(prev)` back to
+  `(r["t"] or "") >= (prev["t"] or "")` — and the self-test goes red on exactly the three in-flight cases:
+
+        M2  reduction ordered on t alone   FAIL F2 (exit=0 want=1) · FAIL F3 · FAIL F5
+            MERGE-SELFTEST FAIL: 3 of 10 case(s) failed                                  exit=1
+        M3  pending gate disabled ([[ $pending -gt 99 ]])
+            FAIL F2 F3 F4 F5 · MERGE-SELFTEST FAIL: 4 of 10                              exit=1
+        RED-2  ops/merge-selftest .artifacts/rvw-pr57/merge.8632f4d.sh (the replaced code)
+            FAIL F1..F10 · MERGE-SELFTEST FAIL: 10 of 10                                 exit=1
+
+  **The FALSE-CLAIM finding — closed, and I measured it rather than trusting the correction.**
+
+        $ "$PY" -c '<pre-fix expression>' "$rollup" | od -c            -> c o r e \r \n   (6 bytes)
+        $ failed="$("$PY" -c '<same>' "$rollup")"; printf '%s' "$failed" | od -c
+                                                                      -> c o r e         (4 bytes, no CR)
+        $ read -r x < <("$PY" -c 'print("core")'); printf '%s' "$x" | od -c
+                                                                      -> c o r e \r      (5 bytes)
+
+  Confirms the fixer's correction. The retraction is present in three places as claimed: the CORRECTION
+  block in the Log entry above, `ops/merge` lines 74-78, and the PR #57 body.
+
+  **The vacuity floors hold, including against an attack the fixer did not run.** Acceptance items 3 and 4
+  reproduce verbatim, and I added a third shape: keep the case count at 10 but replace the four in-flight
+  cases with copies of the ordinary-green case, so every case still passes and `asserted` still clears
+  `MIN_CASES`.
+
+        sed '77,96d'  (four in-flight cases deleted)   6 ok, then
+                      only 6 case(s) asserted (floor 10) + only 0 in-flight (floor 4)    exit=1
+        sed '73,119d' (whole table deleted)            only 0 asserted + only 0 in-flight
+                      + the table must contain both a case that merges and one that refuses (pass=0
+                      refuse=0)                                                          exit=1
+        PADDED        10 ok, floor 10 satisfied, and still
+                      MERGE-SELFTEST FAIL: only 0 in-flight case(s) asserted (floor 4)   exit=1
+
+  Ten `ok` lines and a FAIL verdict is the answer to the question I came to ask: the floor counts the
+  in-flight population that was examined, not the number of rows in the table.
+
+  **verify: and the rest, with exit codes.**
+
+        bash ops/queue-check          QUEUE OK (89 tasks)                                exit=0
+        bash ops/check-pins           PINS ok=9 skipped=0 pending=3 expired=0 failed=0   exit=0
+        bash ops/sane                 SANE OK                                            exit=0
+        bash ops/merge-selftest       MERGE-SELFTEST OK: 10 cases, 4 in-flight           exit=0
+        bash -n ops/merge ; bash -n ops/merge-selftest                                   exit=0
+        bash ops/test                 16 tests in 3 suites passed, then
+                                      FAIL: services/api exists but vitest produced no report  exit=1
+
+  `ops/test` red is environmental and confirmed not caused here: `services/api/node_modules` is absent on
+  this box and `git diff $(git merge-base origin/main HEAD)..HEAD` touches exactly three files —
+  `ops/merge`, `ops/merge-selftest`, this task file — nothing under `services/api`.
+
+  **Mechanical.** `git ls-files -s` gives 100755 for both `ops/merge` (146 lines) and `ops/merge-selftest`
+  (172), under the 300-line cap. Staged paths are inside `touches: [ops/merge, ops/merge-selftest]` plus this
+  queue file. No secrets in the diff. `exclusive: []` and no lock is held.
+
+  **Three findings recorded, none of them blocking, none of them fixed here (testers find and do not fix).**
+
+  1. *`ops/merge-selftest` is not wired to anything that runs on its own.* `ops/test` does not call it and
+     `.github/workflows/linux-core.yml` runs `ops/agent-preflight`, `ops/test`, `ops/check-pins`,
+     `ops/queue-check` — not this. It runs only because this task's `verify:` names it, and `verify:` is
+     per-task. The regression it was written for would not be caught by CI on any future PR.
+  2. *The recorded shapes cannot tell timestamp order from array order.* Every fixture lists runs oldest
+     first, so a reducer that ignores `rank` entirely and keeps the LAST array entry per name passes all ten
+     cases and both floors:
+
+            M1  latest[r["name"]] = r  (rank ignored)
+                ok F1..F10 · MERGE-SELFTEST OK: 10 cases, 4 in-flight                    exit=0
+
+     The shipped reducer is genuinely order-independent — driving it directly with a reversed pair gives
+     `[SUCCESS 01:51, FAILURE 01:26] -> 1 2 0 -` and `[IN_PROGRESS, SUCCESS 01:00] -> 1 2 1 -` — so this is
+     missing coverage, not a live defect. One fixture with the in-flight run FIRST would close it.
+  3. *Unrecognised conclusions read as passing.* Driving the reducer directly: `NEUTRAL`, `SKIPPED` and
+     `STARTUP_FAILURE` each give `pending=0 failed=-`, i.e. green. Identical in the code this replaces, and
+     the brief said to keep the failure classes, so it is not introduced here — but `main` has since made
+     exactly this fail-closed in `ops/lib/classify-checks.py`, and that property must survive the
+     reconciliation below. A nameless check (`name` and `context` both null) crashes the reducer and is
+     caught fail-closed by the `if ! read` guard: `MERGE REFUSED: could not classify the check rollup`.
+
+  **The sign-off does not make PR #57 mergeable, on purpose.** `gh api .../commits/<sha>/check-runs` is
+  `total_count=0` for `5de1a06`, `252d327` and `749dd48`; only `6db0597` has runs (`core` success,
+  `pins-source-only` success). `git merge-tree --write-tree origin/main HEAD` exits 1 with
+  `CONFLICT (content): ops/merge`, so GitHub builds no merge ref and starts no run — the fixer's diagnosis is
+  correct. `ops/merge` refuses anything that is not `mergeStateStatus=CLEAN`, so `done/` cannot let this land
+  by itself. Whoever reconciles it must port the `(unfinished, t)` reduction into `ops/lib/classify-checks.py`
+  and keep BOTH of main's newer properties, which this branch predates and would otherwise revert: the
+  fail-closed classification, and the `--no-task-reason` gate that refuses a branch naming no task instead of
+  skipping the review gate for it.
