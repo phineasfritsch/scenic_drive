@@ -84,3 +84,61 @@ stopped firing without pretending the PR is mergeable. Pick a second PR that is 
 
 ## Log
 - 2026-09-08T07:22:44Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:22:44Z
+
+- 2026-09-08 — **fixed, and the fix uncovered a second defect that was latent in the code it replaced.**
+
+  `ops/merge` now reduces the rollup to the LATEST run per check name before classifying anything, and
+  prints both numbers so the discrepancy that caused this is visible rather than buried.
+
+  **RED — the tool as it stands on `main`, on a PR whose CI is green:**
+
+        $ ops/merge 26 --dry-run
+        task     T-0024 is in queue/done/ on task/T-0024
+        checks   total=4 pending=0 failed=[core] mergeState=DIRTY
+        MERGE REFUSED: failing checks: core
+        exit=1
+
+        $ gh pr checks 26
+        core              pass
+        pins-source-only  pass
+
+  **GREEN — same command, same PR:**
+
+        $ ops/merge 26 --dry-run
+        task     T-0024 is in queue/done/ on task/T-0024
+        checks   checks=2 runs=4 pending=0 failed=[none] mergeState=DIRTY
+        MERGE REFUSED: mergeStateStatus=DIRTY (want CLEAN)
+
+  `runs=4 checks=2` is the whole bug in one line. The tool still refuses PR #26 — it has a real conflict —
+  but it now refuses for the reason that is true, having stopped refusing for one that is not. That
+  distinction is the point: a gate that blocks for the wrong reason teaches its operator to stop reading it.
+
+  **CONTROL — a genuinely failing PR must still be refused, or this "fix" is just a way to merge red work:**
+
+        $ ops/merge 17 --dry-run
+        checks   checks=2 runs=2 pending=0 failed=[core] mergeState=UNKNOWN
+        MERGE REFUSED: failing checks: core
+
+  `runs=2` there: PR #17 has one run per check and its `core` is genuinely red, so the reduction changes
+  nothing and the refusal stands. The two transcripts together are the claim — the gate stopped firing on
+  superseded runs and did not stop firing on current ones.
+
+  **The second defect, found by the fix failing in a new way.** The first green run printed:
+
+        checks   checks=2 runs=4 pending=0 failed=[-] mergeState=DIRTY
+        MERGE REFUSED: failing checks: -
+
+  `bash -x` showed `failed=[-\r]`. Python's text-mode stdout writes CRLF on Windows; `read` splits on LF, so
+  the LAST field keeps the carriage return and `[[ "$failed" == "-" ]]` was false. **The code this replaces
+  had the same bug and nobody saw it**: its `failed` was `core\r`, and every `MERGE REFUSED: failing checks:`
+  line this tool has ever printed carried a CR that the terminal quietly ate. Fixed with `| tr -d '\r'`
+  inside the process substitution, with the reason written next to it. This is the CRLF family
+  `CLAUDE.md` already warns about, met one layer further in.
+
+  **What is NOT demonstrated here, said plainly:** a full pass through every gate. `mergeStateStatus` reads
+  `UNKNOWN` on every candidate PR right now — GitHub computes it lazily and had not been asked — so there was
+  no CLEAN PR to run a complete green against. The checks gate is demonstrated red-then-green with a
+  control; the gates after it are unchanged by this diff and were not re-proven.
+
+        $ bash -n ops/merge     # syntax
+        $ ops/queue-check       # QUEUE OK

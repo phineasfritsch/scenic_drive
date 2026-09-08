@@ -47,11 +47,44 @@ attempt=0
 while :; do
   attempt=$((attempt + 1))
   state="$(gh pr view "$pr" --json mergeStateStatus -q .mergeStateStatus)"
-  rollup="$(gh pr view "$pr" --json statusCheckRollup -q '[.statusCheckRollup[]? | {name: (.name // .context), c: (.conclusion // .state // "PENDING")}]')"
-  pending="$("$PY" -c 'import json,sys; d=json.loads(sys.argv[1]); print(sum(1 for x in d if x["c"] in ("PENDING","IN_PROGRESS","QUEUED","")))' "$rollup")"
-  failed="$("$PY" -c 'import json,sys; d=json.loads(sys.argv[1]); print(",".join(x["name"] for x in d if x["c"] in ("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED","ERROR")))' "$rollup")"
-  total="$("$PY" -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$rollup")"
-  echo "checks   total=$total pending=$pending failed=[${failed:-none}] mergeState=$state"
+  rollup="$(gh pr view "$pr" --json statusCheckRollup -q '[.statusCheckRollup[]? | {name: (.name // .context), c: (.conclusion // .state // "PENDING"), t: (.completedAt // .startedAt // "")}]')"
+  # The rollup holds one entry per check RUN, not per check. A PR that failed, was fixed and re-ran carries
+  # BOTH, and classifying every entry refuses a PR whose CI is green. Measured on PR #26 (task/T-0024):
+  # a `core` FAILURE at 01:26 and a `core` SUCCESS at 01:50, `gh pr checks 26` reporting both checks pass,
+  # and this tool printing `total=4 pending=0 failed=[core]` and refusing. `total=4` in a two-check
+  # repository was the tell, and it was printed on every merge this gate has ever run without being read.
+  #
+  # Wrong in the direction that BLOCKS, and more likely the more a branch is repaired after review - so it
+  # punishes exactly the branches that did the work, and the workaround is the `gh pr merge` that
+  # queue/README.md step 7 forbids. Reduce to the latest run per name before classifying anything.
+  #
+  # Ties (both runs missing a timestamp) keep the later entry in GitHub's own order. That is a real
+  # ambiguity, not a resolved one: it is only reachable when a check reports no times at all.
+  # `| tr -d '\r'`: python's text-mode stdout writes CRLF on Windows and `read` splits on LF, so without
+  # this the LAST field carries a trailing carriage return. That is not hypothetical - it made `failed`
+  # compare unequal to "-" and this tool refused a green PR with `failing checks: -`. The code replaced
+  # here had the same bug latently: its `failed` was "core\r" and its refusal line printed a CR.
+  read -r n_checks n_runs pending failed < <("$PY" - "$rollup" <<'PYCHECKS' | tr -d '\r'
+import json, sys
+runs = json.loads(sys.argv[1])
+latest = {}
+for r in runs:
+    prev = latest.get(r["name"])
+    if prev is None or (r["t"] or "") >= (prev["t"] or ""):
+        latest[r["name"]] = r
+cur = list(latest.values())
+PEND = ("PENDING", "IN_PROGRESS", "QUEUED", "")
+FAIL = ("FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "ERROR")
+print(len(cur), len(runs),
+      sum(1 for x in cur if x["c"] in PEND),
+      ",".join(sorted(x["name"] for x in cur if x["c"] in FAIL)) or "-")
+PYCHECKS
+)
+  [[ "$failed" == "-" ]] && failed=""
+  total="$n_checks"
+  # Both numbers are printed on purpose: runs > checks is the state that produced this bug, and a reader
+  # who can see it can diagnose a stale refusal without reading the rollup by hand.
+  echo "checks   checks=$n_checks runs=$n_runs pending=$pending failed=[${failed:-none}] mergeState=$state"
   [[ -n "$failed" ]] && { echo "MERGE REFUSED: failing checks: $failed"; exit 1; }
   if [[ "$pending" -gt 0 ]]; then
     if [[ $wait -eq 1 && $attempt -lt 40 ]]; then sleep 30; continue; fi
@@ -59,6 +92,8 @@ while :; do
   fi
   break
 done
+# `total` is now DISTINCT check names, not runs. The guard is unchanged in meaning and finally means it:
+# a PR with four runs of one check is not a PR with four checks.
 [[ "$total" -gt 0 ]] || { echo "MERGE REFUSED: no checks reported at all - CI did not run for this PR"; exit 1; }
 case "$state" in
   CLEAN|HAS_HOOKS) ;;
