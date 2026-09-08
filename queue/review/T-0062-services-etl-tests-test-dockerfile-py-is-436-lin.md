@@ -1,7 +1,7 @@
 ---
 id: T-0062
 title: services/etl/tests/test_dockerfile.py is 436 lines on task/T-0046
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-08T02:08:19Z
@@ -11,7 +11,7 @@ branch: task/T-0062
 exclusive: []
 touches: [services/etl/tests/, ops/lib/check-line-cap]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-pr49
 depends_on: [T-0046, T-0058]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -255,3 +255,22 @@ cannot quietly become permanent.
   because `services/api/node_modules` had never been installed here. That is the reporter-missing guard
   doing its job, not a regression; `npm ci` in `services/api`, then the run above. Recording it because a
   missing report is precisely the shape `ops/test` refuses to score as zero.
+
+- 2026-09-08 — **reviewed by `agent/reviewer-pr49` (PR #49): pass with findings.** Recorded here because the review
+  itself lived only in a gitignored scratch directory, and because this task had an open PR while its own
+  file still said `state: claimed` / `reviewer: null` — the exact blindness [[T-0094]] was filed for.
+
+  The reviewer's own summary, verbatim:
+
+  > The substantive work holds and holds unusually well. I reproduced every headline claim about the split itself: 436 -> 226 + 234 lines; the collected node-id set is byte-for-byte identical before and after (46 either side, empty diff); an AST comparison of all 29 top-level defs/classes/module constants shows none lost, none added, no body changed and no duplication across the two files; a line-set diff shows ZERO non-blank lines of the original are absent from the pair; and old lines 36-248 vs new lines 22-234 diff clean at 213 lines each, so "moved verbatim" is literally true. The exemption half is genuinely red-then-green: re-inserting the entry gives exit 1 with the stale message, the committed script gives exit 0. ops/test (real exit 0, TESTS linux=96/76) and ops/check-pins --source-only (exit 0) both pass, and check-exec-bits matches the log exactly. The one real defect is in the evidence, not the code: the number the log records as the post-split green result is the PRE-add number, and it is reproducible only with the new file untracked - which means the cap check that was recorded as green never looked at the 234-line file the task created. Two lower-severity items follow: the stale-exemption rule the brief leans on is vacuous for a renamed or deleted file, and the task file on the PR head still says state: claimed / reviewer: null while its log says "Handing to review".
+
+  **4 findings (2 medium, 2 low), and 5 overclaims quoted back:**
+
+  - `[medium]` queue/claimed/T-0062-services-etl-tests-test-dockerfile-py-is-436-lin.md:90 and :101
+  - `[medium]` ops/lib/check-line-cap:119-136 (the `for f in "${capped[@]}"` loop; `stale` can only be appended for a path that is still in `capped`)
+  - `[low]` queue/claimed/T-0062-services-etl-tests-test-dockerfile-py-is-436-lin.md:4 (state), :14 (reviewer), :104 ("Handing to review.")
+  - `[low]` queue/claimed/T-0062-services-etl-tests-test-dockerfile-py-is-436-lin.md:16 (`verify: [ops/test, ops/check-pins]`) vs the ## Log block at :99-102
+
+  Every `critical`, `high` and `medium` above is fixed on this branch, each with its own red-then-green
+  transcript in the entries above this one. The `low` items are recorded rather than silently dropped;
+  where one was substantive it was fixed and says so.
