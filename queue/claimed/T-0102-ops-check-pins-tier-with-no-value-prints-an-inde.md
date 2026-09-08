@@ -1,13 +1,13 @@
 ---
 id: T-0102
 title: ops/check-pins --tier with no value prints an IndexError traceback, the same shape T-0087 fixed in queue.py
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T08:53:47Z
+lease_expires_at: 2026-09-08T10:53:47Z
 worktree: null
-branch: null
+branch: task/T-0102
 exclusive: []
 touches: [ops/lib/pins.py]
 pins_affected: []
@@ -66,3 +66,4 @@ claimed. Filed rather than fixed so the finding is not lost and T-0066's owner i
   `next_id()` READS the refs and the commit that publishes the id happens minutes later, so two allocators
   that both read before either pushed get the same number. Allocation needs the compare-and-swap that
   claiming already has.
+- 2026-09-08T08:53:47Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:53:47Z
