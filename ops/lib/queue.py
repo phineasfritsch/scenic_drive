@@ -534,6 +534,56 @@ def cmd_claim(argv):
     return 1
 
 
+def _git(*args):
+    """(ok, stdout). ok is False for a failed command AND for a git that cannot run at all - the caller must
+    treat those the same, because "I could not ask" and "the answer is no" lead to opposite actions here."""
+    try:
+        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=30)
+        return r.returncode == 0, r.stdout.strip()
+    except Exception:
+        return False, ""
+
+
+def _main_ref():
+    for ref in ("refs/remotes/origin/main", "refs/heads/main"):
+        ok, _ = _git("rev-parse", "--verify", "-q", ref)
+        if ok:
+            return ref
+    return None
+
+
+def _would_duplicate_on_merge(tid):
+    """Paths where main holds `tid` that THIS BRANCH CANNOT DELETE. None when git cannot answer.
+
+    A branch deletes a file by recording a deletion against a base that has it. `ops/claim` moves
+    ready/ -> claimed/ on MAIN; a stacked worktree is cut from another task branch whose base predates that
+    claim, so the branch does not contain the commit that created claimed/<id>. Whatever it writes, main's
+    copy is an independent add and survives the merge - both exist, `queue-check` fails on the merged tree
+    only, and eleven branches were repaired by hand for exactly this.
+
+    Note the test is on HISTORY, not on the working tree. A branch that WROTE a file at main's path still has
+    a file there; it just shares no history with main's copy, so git keeps both. Asking "does the path exist"
+    answers yes and misses the defect - measured, in this task's first attempt.
+    """
+    ref = _main_ref()
+    if ref is None:
+        return None
+    ok, out = _git("ls-tree", "-r", "--name-only", ref, "queue/")
+    if not ok:
+        return None
+    bad = []
+    for path in (l.strip() for l in out.splitlines()):
+        if f"/{tid}-" not in path:
+            continue
+        ok, commit = _git("rev-list", "-1", ref, "--", path)
+        if not ok or not commit:
+            return None
+        reachable, _ = _git("merge-base", "--is-ancestor", commit, "HEAD")
+        if not reachable:
+            bad.append(path)
+    return bad
+
+
 def cmd_review(argv):
     """Move a CLAIMED task to review/, assign its reviewer, and release the locks it holds.
 
@@ -586,6 +636,33 @@ def cmd_review(argv):
                 return 1
         if reviewer == owner:
             print(f"reviewer {reviewer_raw} is also the owner of {tid} - a worker may not grade its own work")
+            return 1
+
+        # THE MERGE STATE, checked before anything moves, because it is the only defect here that no check
+        # running on the branch or on main can see - it exists solely in the merged tree.
+        #
+        # Refused, not silently repaired: `git merge origin/main` inside a state transition is a
+        # history-changing act hidden in a rename, and it would swallow a genuine duplicate created some other
+        # way. The refusal prints the two commands and costs one run.
+        dup = _would_duplicate_on_merge(tid)
+        if dup is None:
+            print(f"{tid}: cannot read main, so whether merging this branch would duplicate the task file")
+            print("cannot be decided. Refusing rather than guessing - a wrong guess is invisible until the")
+            print("merge. Fetch, or run this where git can read the repo.")
+            return 1
+        if dup:
+            print(f"{tid}: main holds this task where this branch cannot delete it:")
+            for m in dup:
+                print(f"    {m}")
+            print("This branch does not contain the commit that put the file there, so it has no deletion to")
+            print("record. Merging leaves BOTH that copy and queue/review/ - ops/queue-check then fails on the")
+            print("merged tree while passing here and on main, which is why no per-branch CI ever caught it.")
+            print()
+            print("    git merge origin/main")
+            for m in dup:
+                print(f"    git rm {m}")
+            print()
+            print("then run this again. (T-0063; this repair was applied by hand to eleven branches.)")
             return 1
 
         # Inspect every lock BEFORE unlinking any of them, so a foreign lock cannot leave the task half
