@@ -467,3 +467,35 @@ owner's:
 **And the ordering rule from section 11 still binds all of it**: `task/T-0071` deletes `pins/floor_linux.txt`,
 which fifteen branches modify, so it merges LAST among those — `ops/merge-rehearse` derives that edge itself
 now and will print it.
+
+## 15. The definitive rehearsal, 41 open PRs
+
+    REHEARSAL (cumulative): 37 of 41 merged, 4 conflicts, 0 gate failures, 0 unresolvable
+
+**Zero gate failures across the whole backlog.** Every duplicate task id, every mode error and every line-cap
+breach that earlier rehearsals found is repaired. What remains is four conflicts, and all four are known, with
+a written resolution:
+
+    task/T-0022   ops/lib/gh-stub-for-merge-tests                 section 10 - take T-0022's copy
+    task/T-0044   ops/lib/gh-stub-for-merge-tests                 same file, same resolution
+    task/T-0049   ops/lib/gh-stub-for-merge-tests + PINS.yaml     section 10 and section 13 (UNION the pins)
+    task/T-0071   ops/test + pins/floor_linux.txt                 section 11 - and it is deliberate
+
+`task/T-0071`'s conflict is **not** a defect and must not be scheduled away. It deletes `pins/floor_linux.txt`
+and fourteen branches modify it, so the delete/modify collision is the moment somebody has to set
+`floor_linux_py` for the ETL suite that those fourteen branches bring. Merged any earlier it is fourteen
+identical hand resolutions; merged last it is one, and that one is a question that needs answering.
+
+**Both derived ordering rules fired, and the second one is why they are derived rather than listed:**
+
+    ordering: task/T-0021 / T-0049 / T-0081 add an ops/lib/*.py, so each must follow task/T-0036
+    ordering: task/T-0071 deletes pins/floor_linux.txt, which <14 branches> modify - T-0071 must follow them
+
+`task/T-0081` did not exist when the first rule was written. A hand-maintained list would have named T-0021,
+been corrected to add T-0049 when `--pairwise` found it, and been wrong again within a day.
+
+**Also true, and not visible in this run:** the rehearsal does not run `ops/lib/check-lock-lifecycle` or
+`ops/lib/check-brief-required`, and the first of those is currently RED on every branch carrying both
+[[T-0073]]'s `MIN_TASKS` floor and [[T-0032]]'s fixture. A collision of exactly the shape this tool exists to
+find is invisible to it. Filed as [[T-0091]]; until it lands, `0 gate failures` above means "0 of the four
+gates this tool runs", not "0 gates fail".
