@@ -1,7 +1,19 @@
 # Make a temp directory whose path the interpreter on PATH can actually open. Source this; do not run it.
 #
-#   source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"
-#   TMP="$(portable_mktemp_d)"
+#   source ops/lib/tmpdir.sh || { echo "cannot source ops/lib/tmpdir.sh"; exit 2; }
+#   TMP="$(portable_mktemp_d)" || exit 2
+#
+# SOURCE IT BY A REPO-ROOT-RELATIVE PATH, and check the status. The first version of this documented
+# `source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"`, which the three callers placed AFTER their `cd` to the
+# repo root. `BASH_SOURCE[0]` is whatever argv named - `lib/check-brief-required` when invoked as
+# `cd ops && bash lib/check-brief-required` - so after the cd the derived path no longer resolves. There is no
+# `set -e` in these scripts and the status was unchecked, so the source failed silently, `portable_mktemp_d`
+# was not defined, `TMP` was the empty string, and the next line was
+#
+#     rm -rf "$TMP/queue" "$TMP/ops" "$TMP/.git"      ->      rm -rf "/queue" "/ops" "/.git"
+#
+# Measured on this box (reviewer-pr79 F5), against a non-destructive replica. Hence also the emptiness guard
+# in portable_mktemp_d below: a caller that forgets the `|| exit` must still not be handed "".
 #
 # WHY THIS EXISTS. `mktemp -d` in git-bash returns an MSYS path, `/tmp/tmp.XXXXXX`. The interpreter on PATH
 # on this checkout is a WINDOWS python, which reads a leading `/` as a relative path and looks for
@@ -24,10 +36,16 @@
 # question (locating the script, not making a temp dir) and is documented there.
 
 portable_mktemp_d() {
-  local d
+  local d w
   d="$(mktemp -d)" || return 1
+  # Never emit an empty path. Callers interpolate the result straight into `rm -rf "$TMP/queue"`, so ""
+  # silently means "/", and `mktemp -d` printing nothing while exiting 0 is not the only way to get there -
+  # a cygpath that fails is another. Refuse at the source as well as at the call site.
+  [[ -n "$d" && -d "$d" ]] || return 1
   if command -v cygpath >/dev/null 2>&1; then
-    cygpath -w "$d"
+    w="$(cygpath -w "$d")" || return 1
+    [[ -n "$w" ]] || return 1
+    printf '%s\n' "$w"
   else
     printf '%s\n' "$d"
   fi

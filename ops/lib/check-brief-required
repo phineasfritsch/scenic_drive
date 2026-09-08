@@ -21,9 +21,12 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"
 [[ -f ops/lib/queue.py ]] || { echo "$(pwd) is not the repo root (no ops/lib/queue.py)"; exit 2; }
 
 PY="${PYTHON:-$(command -v python3 || command -v python)}"
+# Repo-root-relative, and the status is checked - see the note in ops/lib/tmpdir.sh. A relative BASH_SOURCE
+# stops resolving after the cd above, and an unchecked failure left TMP="" one line above an `rm -rf`.
 # shellcheck source=ops/lib/tmpdir.sh
-source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"
-TMP="$(portable_mktemp_d)"
+source ops/lib/tmpdir.sh || { echo "cannot source ops/lib/tmpdir.sh from $(pwd)"; exit 2; }
+TMP="$(portable_mktemp_d)" || { echo "cannot make a temp directory"; exit 2; }
+[[ -n "$TMP" ]] || { echo "portable_mktemp_d returned an empty path; refusing to rm -rf from /"; exit 2; }
 trap 'rm -rf "$(portable_posix_path "$TMP")"' EXIT
 fail=0
 

@@ -17,7 +17,7 @@ REQUIRED=(ops/test ops/sane ops/check-pins ops/queue-check ops/queue-sweep ops/c
           .githooks/commit-msg
           ops/lib/junit_count.py ops/lib/pins.py ops/lib/queue.py ops/lib/ro_grammar.py ops/lib/ro_cases.json
           ops/lib/classify-checks.py ops/lib/gh-stub-for-merge-tests ops/lib/check-failure-naming
-          ops/lib/tmpdir.sh)
+          ops/lib/tmpdir.sh ops/lib/check-tmpdir-guard ops/mutate/lock_lifecycle.py)
 
 n="$(git ls-files ops .githooks | wc -l | tr -d '[:space:]')"
 if [[ "$n" -lt "$MIN_FILES" ]]; then
@@ -44,11 +44,17 @@ fi
 #           i.e. as an argument to an interpreter, never as `./ops/lib/x.py`.
 #
 #   *.sh  - a SOURCED shell library: the same category, reached by `source` instead of by an interpreter
-#           named on the command line. ops/lib/tmpdir.sh is the only one today and all three of its call
-#           sites are `source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"` - ops/lib/check-brief-required:25,
-#           ops/lib/check-failure-naming:26, ops/lib/check-lock-lifecycle:27. `source` needs the READ bit and
-#           never the exec bit. Nothing globs `ops/lib/*` and runs the matches (the checks are named one by
-#           one), and no `./`, `bash ` or `exec ` form of the path exists anywhere in the tree.
+#           named on the command line. ops/lib/tmpdir.sh is the only one today; `git grep -n 'tmpdir\.sh'`
+#           finds every call site and all of them are a `source`. `source` needs the READ bit and never the
+#           exec bit. Nothing globs `ops/lib/*` and runs the matches (the checks are named one by one), and
+#           no `./`, `bash ` or `exec ` form of the path exists anywhere in the tree.
+#
+#           The call sites are deliberately NOT listed here by line number. The first version of this note
+#           did, and reviewer-pr79 (F5) then found that the form it was quoting -
+#           `source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"` - was itself the bug: placed after the cd to
+#           the repo root it stops resolving from any other cwd, silently, leaving TMP empty one line above
+#           an `rm -rf "$TMP/queue"`. A comment that pins line numbers goes stale on the first edit and
+#           reads as endorsement of whatever it quoted. ops/lib/check-tmpdir-guard asserts the behaviour.
 #
 # In both cases the exec bit does nothing, so asserting 100755 would assert a mode the repo does not actually
 # depend on - the opposite of what this pin is for. What the pin protects is DIRECT invocation (`./ops/x`,

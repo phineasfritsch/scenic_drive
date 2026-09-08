@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# No ops/lib check may hand `rm` a path outside a temp directory - not even when invoked from a foreign cwd.
+#
+# THE RUN THIS EXISTS FOR. T-0124 gave three checks a shared `ops/lib/tmpdir.sh` and sourced it as
+#
+#     source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"
+#
+# placed AFTER the script had already cd'd to the repo root. `BASH_SOURCE[0]` is whatever argv named, so
+# under `cd ops && bash lib/check-brief-required` the derived path no longer resolved. There is no `set -e`
+# in these scripts and the source status was unchecked, so the failure was silent, `portable_mktemp_d` was
+# never defined, `TMP` was the empty string, and the next line was
+#
+#     rm -rf "$TMP/queue" "$TMP/ops" "$TMP/.git"      ->      rm -rf "/queue" "/ops" "/.git"
+#
+# Found by reviewer-pr79 (F5) against a non-destructive replica; `cd ops && bash lib/check-brief-required`
+# exits 0 on main, so it was new. Nothing would have caught it: all three checks pass from the repo root,
+# which is the only place anybody had ever run them.
+#
+# HOW IT IS CHECKED. `rm` is shadowed by a logging shim, first on PATH, and each check is run FROM A
+# SUBDIRECTORY - the cwd that triggers the bug. Every path the check asks to delete is recorded, and every
+# recorded path must live under a temp directory. The shim deletes nothing, so these are not functional runs
+# of the three checks and their exit codes are deliberately not asserted here; ops/check-pins and their own
+# invocations do that. What is asserted is the argv.
+#
+# The log must also be NON-EMPTY per check. An assertion of the form "no bad path appeared" is satisfied by a
+# script that never got as far as calling rm at all, which is the same vacuity these checks were written to
+# refuse.
+#
+# Anchored on the executables under test and on the shim's recorded argv, never on a comment.
+set -uo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -f ops/lib/queue.py ]] || { echo "$(pwd) is not the repo root (no ops/lib/queue.py)"; exit 2; }
+ROOT="$(pwd)"
+
+# shellcheck source=ops/lib/tmpdir.sh
+source ops/lib/tmpdir.sh || { echo "cannot source ops/lib/tmpdir.sh from $(pwd)"; exit 2; }
+TMP="$(portable_mktemp_d)" || { echo "cannot make a temp directory"; exit 2; }
+[[ -n "$TMP" ]] || { echo "portable_mktemp_d returned an empty path"; exit 2; }
+TMP_POSIX="$(portable_posix_path "$TMP")"
+trap 'rm -rf "$TMP_POSIX"' EXIT
+fail=0
+
+SUBJECTS=(ops/lib/check-brief-required ops/lib/check-failure-naming ops/lib/check-lock-lifecycle)
+
+# The shim. Records argv one path per line and deletes NOTHING, so a check that has regressed cannot do
+# damage while being measured.
+mkdir -p "$TMP_POSIX/shim"
+cat > "$TMP_POSIX/shim/rm" <<'SHIM'
+#!/usr/bin/env bash
+for a in "$@"; do
+  case "$a" in -*) continue ;; esac
+  printf '%s\n' "$a" >> "$RM_LOG"
+done
+exit 0
+SHIM
+chmod +x "$TMP_POSIX/shim/rm"
+
+say() { printf '%s\n' "$1"; }
+bad() { echo "FAIL: $1"; fail=1; }
+
+for subject in "${SUBJECTS[@]}"; do
+  name="$(basename "$subject")"
+  log="$TMP_POSIX/$name.rmlog"
+  : > "$log"
+  # From ops/, i.e. NOT the repo root: the invocation under which the derived-path source stopped resolving.
+  ( cd "$ROOT/ops" && RM_LOG="$log" PATH="$TMP_POSIX/shim:$PATH" \
+      bash "../$subject" >/dev/null 2>&1 )
+
+  if [[ ! -s "$log" ]]; then
+    bad "$name asked rm for nothing at all - the guard would pass vacuously, so this is a failure"
+    continue
+  fi
+  # Every recorded path must sit under a temp directory. mktemp names them tmp.XXXXXXXXXX in both the POSIX
+  # and the Windows form, so that component is the marker; "/queue", "/ops", "/.git" and "/summary-only.xml"
+  # are the four the regression actually produced.
+  #
+  # awk and not `grep -v`, and each path printed inside brackets: the EMPTY path is a real outcome here -
+  # `rm -rf "$(portable_posix_path "$TMP")"` with the function undefined expands to `rm -rf ""` - and
+  # command substitution strips it, so a grep pipeline reported "nothing offending" for a check whose
+  # cleanup had degraded to nothing at all. Measured while writing this guard, against the pre-fix subjects.
+  offending="$(awk '!/tmp\./ { printf "[%s]\n", $0 }' "$log")"
+  if [[ -n "$offending" ]]; then
+    bad "$name asked rm for a path outside any temp directory, run from ops/:"
+    printf '%s\n' "$offending" | sed 's/^/    /'
+  else
+    say "ok: $name only ever deletes under a temp dir ($(wc -l < "$log" | tr -d '[:space:]') path(s)), run from ops/"
+  fi
+done
+
+if [[ $fail -ne 0 ]]; then
+  echo "TMPDIR GUARD FAIL"
+  exit 1
+fi
+echo "TMPDIR GUARD OK"

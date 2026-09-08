@@ -22,9 +22,12 @@ PY="${PYTHON:-$(command -v python3 || command -v python)}"
 JC="ops/lib/junit_count.py"
 [[ -f "$JC" ]] || { echo "P-OPS-02: $JC is missing"; exit 1; }
 
+# Repo-root-relative, and the status is checked - see the note in ops/lib/tmpdir.sh. A relative BASH_SOURCE
+# stops resolving after the cd above, and an unchecked failure left tmp="" one line above a `cat > "$tmp/..."`.
 # shellcheck source=ops/lib/tmpdir.sh
-source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"
-tmp="$(portable_mktemp_d)"
+source ops/lib/tmpdir.sh || { echo "cannot source ops/lib/tmpdir.sh from $(pwd)"; exit 2; }
+tmp="$(portable_mktemp_d)" || { echo "cannot make a temp directory"; exit 2; }
+[[ -n "$tmp" ]] || { echo "portable_mktemp_d returned an empty path; refusing to write into /"; exit 2; }
 trap 'rm -rf "$(portable_posix_path "$tmp")"' EXIT
 fail=0
 
