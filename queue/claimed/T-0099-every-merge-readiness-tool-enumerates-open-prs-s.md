@@ -300,11 +300,20 @@ enumeration fix either way.
                      actually receive) or positively behind $MAINREF            -> refuse
         SPLIT        n_all (EDGES) == n_pr (GitHub) + n_extra (CLS_ADD)         -> refuse
 
+  Being honest about what each one is worth: PARTITION is a structural regression guard, not a property —
+  every path through the loop body adds one to exactly one bucket, so it can only fail when a future edit
+  adds an exit that classifies nothing (probes G2/G3/H). ANCESTRY and OUTPUT are the ones that measure
+  something the loop could get wrong: ANCESTRY asks a second, differently-implemented git question about
+  the one answer that removes a branch from the run, and OUTPUT's expected side is the consumed refs minus
+  the positively-excluded ones while its measured side is the EDGES array itself.
+
   OUTPUT is the one that closes finding 1: its expected side is `SEEN_REFS` minus the positively-excluded
   refs, and its measured side is the EDGES array itself, so nothing inside the append branch can make it
   green by being deleted.
 
-  **RED, then GREEN — `ops/merge-rehearse`, ten probes (`.artifacts/fix67c/out_*.txt`):**
+  **RED, then GREEN — `ops/merge-rehearse`, eleven probes (`.artifacts/fix67c/out_*.txt`). Every one of the
+  seven checks is red here for its OWN reason, not merely as part of an overall red — that distinction is
+  what failed the last two rounds:**
 
         A   unmodified                          branches: 69 to rehearse = 38 + 31            REAL EXIT = 0
         B   ref query -> zzznope/*              REFUSED: enumeration consumed 0 ref(s)        REAL EXIT = 2
@@ -327,6 +336,18 @@ enumeration fix either way.
         G3  bookkeeping removed, append kept    REFUSED: consumed 85 and decided about 54      REAL EXIT = 2
         H   a bare `continue` added, so one ref leaves the loop with no decision
                                                 REFUSED: consumed 85 and decided about 54      REAL EXIT = 2
+        I   one branch that HAS an open PR is not recognised as one, so it is appended to EDGES a second
+            time. `sort -u` hides the duplicate from n_all, the ref IS in EDGE_HEADS, the partition still
+            sums and the ancestry bucket is untouched — every other check stays green and only the SPLIT
+            equation can see it. Added because SPLIT had not yet been red for its own reason.
+                                                REFUSED: the branch list holds 70 head(s), and the
+                                                  enumeration accounts for 39 with an open PR + 32 without
+                                                  = 71                                         REAL EXIT = 2
+              (A re-run alongside I: 70 to rehearse = 39 with an open PR + 31 with none        REAL EXIT = 0)
+
+  Which check each probe fires, so none of them is riding on another's red:
+  `n_seen==0` <- B, D · `missing PR heads` <- E · `UNKNOWN` <- F · `PARTITION` <- G2, G3, H ·
+  `ANCESTRY` <- F2 · `OUTPUT` <- G · `SPLIT` <- I.
 
   **RED, then GREEN — `ops/pr-ci-preflight`, the new finding:**
 
@@ -338,6 +359,9 @@ enumeration fix either way.
                                                   origin/main' are not contained in origin/main either
                                                                                               REAL EXIT = 2
         f3_undecided  a bare `continue`         NOT COVERED: UNKNOWN - 86 walked, 55 decided  REAL EXIT = 2
+
+  All four of that block's checks fire for their own reason: `_refs==0` <- f3_empty · `UNKNOWN` <-
+  f3_ahead_unanswerable · `ANCESTRY` <- f3_old_echo0 · `PARTITION` <- f3_undecided.
 
   **verify:** `bash ops/check-pins` -> `PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux`, real
   exit 0. `bash ops/sane` -> `SANE OK`, real exit 0. `bash ops/queue-check` -> `QUEUE OK (91 tasks)`, real
@@ -360,8 +384,19 @@ enumeration fix either way.
     reading exit codes. Pre-existing, named by both reviewers, its own task.
   - The brief's last step (record the real number in `queue/MERGE-ORDER.md`) is still not done: that file
     exists only on `task/T-0045` and is outside `touches:`.
-  - A full `ops/merge-rehearse` run over all 70 branches was not made. It holds the repo-global lock for a
-    long time on a box other agents are working on. The enumeration and all five checks were exercised
-    against the live refs and the live PR list by the probes above.
+  - A full `ops/merge-rehearse` run over all 70 branches was not made, and neither was a partial one carried
+    through the topological sort. I started the latter (`.artifacts/fix67c/S_through_sort.sh`, truncated
+    before the scratch worktree is created, printing `n_all` against the sort's `want`); after ~40 minutes
+    it was still inside the derived-ordering-edge loop — 70 three-dot `git diff`s — holding the repo-global
+    lock on a box other agents share, so I killed it, removed its lock file and confirmed no scratch
+    worktree or `tmp/merge-rehearse` branch was left behind. **So I have not seen the enumeration's output
+    reach the sort in a live run.** What I can say instead: `n_all` and `n_extra` are computed to the same
+    values as before (`n_all` is the same `awk | sort -u` expression via `$EDGE_HEADS`; `n_extra` is the
+    size of `CLS_ADD`, which is appended to on exactly the line that used to increment the counter), no
+    variable read after the enumeration was removed, `set -u` is on and every probe above runs the real
+    script through line 317 without an unbound-variable error. The `n_all` vs `want` assertion itself is
+    unchanged on this branch and was verified red-then-green by the second reviewer at 152a37f.
+    Incidentally, the lock did its job while all this was going on: probe I refused with
+    `another run holds .git/merge-rehearse.lock ... worktree=.../T-0099` until the stuck run was cleared.
 
   Queue state untouched: I am the fixer, not the reviewer.
