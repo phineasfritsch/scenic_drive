@@ -51,11 +51,11 @@
   added: 2026-09-07
 
 - id: P-TEST-01
-  statement: Test-count floors exist, are integers, and the Linux floor is at least 3
+  statement: A floor file exists per tier, each is an integer, and the Linux floors sum to at least 3
   why_no_test_catches_it: ops/test enforces the floor, but an agent can delete the floor file and ops/test would fail to read it in a way that looks like a tooling error
   anchor: config
   runs_on: [linux, mac]
-  assertion: "grep -qE '^[0-9]+$' pins/floor_linux.txt && grep -qE '^[0-9]+$' pins/floor_ios.txt && test \"$(cat pins/floor_linux.txt)\" -ge 3"
+  assertion: "for f in pins/floor_linux_swift.txt pins/floor_linux_ts.txt pins/floor_linux_py.txt pins/floor_ios.txt; do grep -qE '^[0-9]+$' \"$f\" || exit 1; done; test \"$(( $(cat pins/floor_linux_swift.txt) + $(cat pins/floor_linux_ts.txt) + $(cat pins/floor_linux_py.txt) ))\" -ge 3"
   owner: agent/claude-opus-5
   added: 2026-09-07
 

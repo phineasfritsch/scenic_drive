@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Refuses a commit that LOWERS pins/floor_linux.txt or pins/floor_ios.txt unless the commit message body
+# Refuses a commit that LOWERS any pins/floor_*.txt unless the commit message body
 # carries a `floor-lower: <reason>` line. Raising a floor is always allowed (that is the reviewer's ratchet).
 set -uo pipefail
 msgfile="$1"
-for f in pins/floor_linux.txt pins/floor_ios.txt; do
-  git diff --cached --quiet -- "$f" 2>/dev/null && continue        # not staged
+# Every floor file, not a hard-coded pair. The names changed once already - one combined Linux floor
+# became one per tier (T-0071) - and a guard that lists filenames literally stops guarding the moment
+# they are renamed, silently, which is the failure this repo keeps finding in its own checks.
+floors="$(git diff --cached --name-only --diff-filter=d -- 'pins/floor_*.txt' 2>/dev/null)"
+for f in $floors; do
   old="$(git show "HEAD:$f" 2>/dev/null | tr -d '[:space:]' || echo 0)"; [[ -z "$old" ]] && old=0
   new="$(git show ":$f" 2>/dev/null | tr -d '[:space:]' || echo 0)"; [[ -z "$new" ]] && new=0
   if [[ "$new" -lt "$old" ]]; then

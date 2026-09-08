@@ -8,14 +8,24 @@
 # Exit 1 on any failing test, any tier below its floor, or any expected report file missing.
 # A missing report never counts as zero: that is how agents make a suite "green" by breaking the reporter.
 #
-# Floors live in pins/floor_linux.txt and pins/floor_ios.txt. They are ratcheted UP by a reviewer only;
-# .githooks/commit-msg refuses to lower one without a `floor-lower: <reason>` line in the commit body.
+# Floors live in pins/floor_linux_swift.txt, pins/floor_linux_ts.txt, pins/floor_linux_py.txt and
+# pins/floor_ios.txt - one per tier, because one combined number cannot tell a deleted suite from a small
+# one. They are ratcheted UP by a reviewer only; .githooks/commit-msg refuses to lower any pins/floor_*.txt
+# without a `floor-lower: <reason>` line in the commit body. A floor above zero also asserts that its tier
+# still runs, so deleting the manifest that gates a tier is a failure, not a silence.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 PY="${PYTHON:-$(command -v python3 || command -v python)}"
 ART=".artifacts"; mkdir -p "$ART"
 rm -f "$ART"/spm-junit*.xml "$ART"/vitest.json "$ART"/pytest-junit.xml
 linux_total=0; linux_failed=0; linux_skipped=0; ios_total=0; ios_failed=0; ios_skipped=0
+# Per tier, so a floor can bind the tier it belongs to. The combined number could not: every tier below
+# is conditional on a manifest file, so deleting one skipped that tier entirely and the survivors only
+# had to clear the combined floor. `_ran` is set where the tier actually produces a report, never
+# inferred from the count - a tier that ran and found nothing is a different fact from one that did not
+# run, and only the second is allowed to skip its floor.
+swift_total=0; ts_total=0; py_total=0
+swift_ran=0;   ts_ran=0;   py_ran=0
 rc=0
 
 # ---- Tier 1a: root Swift package (Linux-safe) ----------------------------------------------------
@@ -26,6 +36,7 @@ spm_files=()
 [[ -f "$ART/spm-junit-swift-testing.xml" ]] && spm_files+=("$ART/spm-junit-swift-testing.xml")
 if [[ ${#spm_files[@]} -eq 0 ]]; then echo "FAIL: swift test produced no JUnit report (expected $ART/spm-junit*.xml)"; exit 1; fi
 read -r t f s < <("$PY" ops/lib/junit_count.py "${spm_files[@]}" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/') || { echo "FAIL: could not parse swift JUnit"; exit 1; }
+swift_total=$t; swift_ran=1
 linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 
 # ---- Tier 1b: Worker (vitest) — expected iff services/api/package.json exists --------------------
@@ -36,6 +47,7 @@ if [[ -f services/api/package.json ]]; then
 import json,sys; d=json.load(open(sys.argv[1])); print(d.get("numTotalTests",0), d.get("numFailedTests",0), d.get("numPendingTests",0))
 PYEOF
 )
+  ts_total=$t; ts_ran=1
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 fi
 
@@ -44,6 +56,7 @@ if [[ -f services/etl/pyproject.toml ]]; then
   (cd services/etl && "$PY" -m pytest -q --junitxml="../../$ART/pytest-junit.xml" >/dev/null 2>&1); true
   [[ -f "$ART/pytest-junit.xml" ]] || { echo "FAIL: services/etl exists but pytest produced no report"; exit 1; }
   read -r t f s < <("$PY" ops/lib/junit_count.py "$ART/pytest-junit.xml" | tr -d '\r' | sed -E 's/total=([0-9]+) failed=([0-9]+) skipped=([0-9]+)/\1 \2 \3/')
+  py_total=$t; py_ran=1
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 fi
 
@@ -66,13 +79,51 @@ PYEOF
 fi
 
 # ---- Floors --------------------------------------------------------------------------------------
-floor_linux="$(tr -d '[:space:]' < pins/floor_linux.txt)"
-floor_ios="$(tr -d '[:space:]' < pins/floor_ios.txt)"
+# One floor per tier. A single combined number could not tell "the ETL suite was deleted" from "the ETL suite
+# is smaller than the Swift suite is large", and on the ETL branches it sat 151 below the actual count.
+read_floor() {  # read_floor <path> -> the integer, or 0 when the file is absent
+  local f="$1" v
+  [[ -f "$f" ]] || { echo 0; return; }
+  v="$(tr -d '[:space:]' < "$f")"
+  # A floor that is not an integer must never read as 0 and let everything through: that is the whole failure
+  # mode this file exists to prevent, appearing in the file that defines it. P-TEST-01 asserts the format too.
+  [[ "$v" =~ ^[0-9]+$ ]] || { echo "FAIL: $f is not an integer floor: '"'"'$v'"'"'" >&2; echo -1; return; }
+  echo "$v"
+}
+floor_swift="$(read_floor pins/floor_linux_swift.txt)"
+floor_ts="$(read_floor pins/floor_linux_ts.txt)"
+floor_py="$(read_floor pins/floor_linux_py.txt)"
+floor_ios="$(read_floor pins/floor_ios.txt)"
+floor_linux=$((floor_swift + floor_ts + floor_py))
 failed=$((linux_failed + ios_failed)); skipped=$((linux_skipped + ios_skipped))
 if [[ $ios_ran -eq 1 ]]; then ios_str="$ios_total/$floor_ios"; else ios_str="skipped"; fi
-echo "TESTS linux=$linux_total/$floor_linux ios=$ios_str failed=$failed skipped=$skipped"
+tier_str="swift=$swift_total/$floor_swift"
+[[ $ts_ran -eq 1 ]] && tier_str="$tier_str ts=$ts_total/$floor_ts" || tier_str="$tier_str ts=-/$floor_ts"
+[[ $py_ran -eq 1 ]] && tier_str="$tier_str py=$py_total/$floor_py" || tier_str="$tier_str py=-/$floor_py"
+echo "TESTS linux=$linux_total/$floor_linux ($tier_str) ios=$ios_str failed=$failed skipped=$skipped"
 [[ $failed -gt 0 ]] && { echo "FAIL: $failed failing test(s)"; rc=1; }
-[[ $linux_total -lt $floor_linux ]] && { echo "FAIL: linux test count $linux_total is below floor $floor_linux - tests were deleted or a reporter broke"; rc=1; }
+
+# A tier is checked against its own floor when it ran; and a POSITIVE floor is itself the claim that the tier
+# existed when a reviewer set it, so a tier with a positive floor that did not run is a failure rather than a
+# silence. Without that second half, every tier here is disabled by deleting one manifest file - the tiers are
+# conditional on `services/api/package.json` and `services/etl/pyproject.toml` - and the run still reports OK.
+check_tier() {  # check_tier <name> <ran> <total> <floor>
+  local name="$1" ran="$2" total="$3" floor="$4"
+  if [[ "$floor" -lt 0 ]]; then rc=1; return; fi          # read_floor already printed why
+  if [[ "$ran" -eq 1 ]]; then
+    if [[ "$total" -lt "$floor" ]]; then
+      echo "FAIL: $name test count $total is below its floor $floor - tests were deleted or a reporter broke"
+      rc=1
+    fi
+  elif [[ "$floor" -gt 0 ]]; then
+    echo "FAIL: the $name tier did not run, but its floor is $floor - a floor above zero says this tier"
+    echo "      existed when it was set. Deleting the manifest that gates a tier must not silence it."
+    rc=1
+  fi
+}
+check_tier swift "$swift_ran" "$swift_total" "$floor_swift"
+check_tier ts    "$ts_ran"    "$ts_total"    "$floor_ts"
+check_tier py    "$py_ran"    "$py_total"    "$floor_py"
 [[ $ios_ran -eq 1 && $ios_total -lt $floor_ios ]] && { echo "FAIL: ios test count $ios_total is below floor $floor_ios"; rc=1; }
 [[ $rc -eq 0 ]] && echo "OK"
 exit $rc
