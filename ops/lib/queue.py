@@ -13,6 +13,7 @@ No PyYAML: front matter is parsed by a deliberately small reader (scalars, [flow
 """
 import datetime as dt
 import os
+import hashlib
 import re
 import subprocess
 import sys
@@ -234,6 +235,16 @@ def log(path, msg):
 def cmd_new(argv):
     title = argv[0]
     opts = _opts(argv[1:])
+    # Refused here as well as in cmd_check, on T-0056's argument: after the fact is a report, at the
+    # transition is a prevention. A duplicate never committed costs nothing; one that is claimed costs two
+    # worktrees and a merge conflict.
+    want, _ = _same_work(title, "")
+    for _s, _p, _fm, _b in tasks():
+        have, _ = _same_work(_fm.get("title"), "")
+        if want and have == want:
+            print(f"refusing: {_fm.get('id')} already has this title ({_p.relative_to(ROOT).as_posix()}).")
+            print("Add to that task, or give this one a title that says how it differs.")
+            return 1
     tid = next_id()
     state = opts.get("state", "backlog")
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:48]
@@ -250,9 +261,22 @@ def cmd_new(argv):
     print(p.relative_to(ROOT).as_posix())
 
 
+def _same_work(title, body):
+    """A pair of keys for "these two files are the same task".
+
+    `title` is normalised (case, punctuation, runs of whitespace) because two agents writing the same finding
+    minutes apart differ by exactly that much. `body` is hashed with the `id:` line removed, which is the only
+    line new-task guarantees will differ - T-0066 and T-0067 were otherwise byte-identical.
+    """
+    norm = re.sub(r"[^a-z0-9]+", " ", (title or "").lower()).strip()
+    stripped = "\n".join(l for l in (body or "").splitlines() if not l.startswith("id:"))
+    return norm, hashlib.sha256(stripped.encode("utf-8")).hexdigest()
+
+
 def cmd_check(_argv):
     problems = []
     seen = {}
+    by_title, by_body, _raw = {}, {}, {}
     # STRUCTURE FIRST, because P-PROC-01's whole assertion is `bash ops/queue-check >/dev/null` and an
     # unpopulated pass IS the pin passing. All three were executed green before (T-0073 route 4): an empty
     # queue/ printed QUEUE OK (0 tasks), so did deleting queue/review and queue/done, and a self-graded task
@@ -268,8 +292,9 @@ def cmd_check(_argv):
     for p in sorted(Q.rglob("T-*.md")) if Q.is_dir() else []:
         if p.relative_to(Q).parts[0] not in STATES and TASK_FILE.match(p.name):
             problems.append(f"{p.relative_to(ROOT).as_posix()}: a task file outside {'/'.join(STATES)}")
-    for state, p, fm, _ in tasks():
+    for state, p, fm, _body in tasks():
         rel = p.relative_to(ROOT).as_posix()
+        _raw[rel] = _body or ""
         # Asserted, not assumed: tasks() yields every file under a state dir so a mis-named one is reported
         # here instead of being hidden by the glob that used to define what counted as a task.
         if not TASK_FILE.match(p.name):
@@ -284,6 +309,13 @@ def cmd_check(_argv):
         if tid in seen:
             problems.append(f"duplicate id {tid}: {rel} and {seen[tid]}")
         seen[tid] = rel
+        # The id is the one field new-task GUARANTEES is unique, so the check above can never fire on
+        # anything it produced. Two ids for one piece of work can, and did: T-0066 and T-0067 were
+        # byte-identical apart from the id line and this printed QUEUE OK.
+        nt, nb = _same_work(fm.get('title'), _raw.get(rel, ''))
+        if nt:
+            by_title.setdefault(nt, []).append(rel)
+        by_body.setdefault(nb, []).append(rel)
         if fm.get("state") != state:
             problems.append(f"{rel}: state field '{fm.get('state')}' != directory '{state}'")
         if state in ("review", "done"):
@@ -319,9 +351,6 @@ def cmd_check(_argv):
                     problems.append(f"{rel}: declares exclusive [{res}] but {lock.relative_to(ROOT).as_posix()} is not held")
                 elif tid not in lock.read_text(encoding="utf-8"):
                     problems.append(f"{rel}: {res}.lock is held by someone else")
-        if state == "done":
-            for dep in fm.get("depends_on") or []:
-                pass  # done tasks may reference anything
     # locks held by non-claimed tasks
     if LOCKS.is_dir():
         claimed_ids = {fm.get("id") for s, _, fm, _ in tasks() if s == "claimed"}
@@ -340,6 +369,15 @@ def cmd_check(_argv):
     # floor sits far below the real count because it exists to catch "inspected nothing", not to track the
     # queue. It is a constant here and not pins/floor_queue.txt: that path is serial-only (CLAUDE.md) and
     # this task declares no exclusive lock.
+    for key, paths in sorted(by_body.items()):
+        if len(paths) > 1:
+            problems.append(f"{len(paths)} tasks share one brief (identical but for the id line): "
+                            + ", ".join(paths))
+    for key, paths in sorted(by_title.items()):
+        # Reported separately from the body match: two briefs that diverged after being filed twice
+        # still describe one piece of work, and that is the state worth catching before either is claimed.
+        if len(paths) > 1 and not any(set(paths) <= set(q) for q in by_body.values() if len(q) > 1):
+            problems.append(f"{len(paths)} tasks share one title: " + ", ".join(paths))
     if len(seen) < MIN_TASKS:
         problems.append(f"only {len(seen)} task(s) visible, floor is {MIN_TASKS} - a queue-check that "
                         f"inspected nothing still reports success, and that IS P-PROC-01 passing")
