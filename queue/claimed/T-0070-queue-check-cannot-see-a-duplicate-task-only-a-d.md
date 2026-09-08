@@ -1,13 +1,13 @@
 ---
 id: T-0070
 title: queue-check cannot see a duplicate task, only a duplicate id, and reports OK on an empty queue
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T03:01:15Z
+lease_expires_at: 2026-09-08T09:01:15Z
+worktree: wt/T-0070
+branch: task/T-0070
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
@@ -66,3 +66,4 @@ before fixing it: point the queue root at an empty directory and show the exit c
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 after `ops/new-task` filed the same finding twice as T-0066 and
   T-0067 and `ops/queue-check` stayed green. T-0067 was deleted; T-0066 keeps the finding.
+- 2026-09-08T03:01:15Z claimed by agent/claude-opus-5; lease until 2026-09-08T09:01:15Z
