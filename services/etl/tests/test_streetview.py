@@ -64,8 +64,18 @@ def test_url_rejects_impossible_coordinates():
 
 
 def test_look_along_faces_down_the_road():
-    b = sv.bearing(*SUNSET[0], *SUNSET[1])
-    assert f"heading={b % 360.0:.1f}" in sv.look_along(SUNSET, 0)
+    """The expected heading is derived HERE, not read back out of `sv.bearing`.
+
+    The first draft asserted `f"heading={sv.bearing(*SUNSET[0], *SUNSET[1]):.1f}"` - an expectation computed
+    by the thing under test, which passes for any pair of consistent-but-wrong functions and leans on
+    `test_bearing_cardinals` to notice.
+
+    Sunset's first leg runs 0.0009 deg north and 0.0045 deg east of (34.0736, -118.4630). On the local
+    plane that is 0.0009 * 111320 = 100.2 m north and 0.0045 * 111320 * cos(34.074 deg) = 414.9 m east, so
+    the heading is atan2(414.9, 100.2) = 76.43 deg. Over a 430 m leg the great-circle answer differs from
+    the flat one by thousandths of a degree, far inside the one decimal place the URL carries.
+    """
+    assert "heading=76.4" in sv.look_along(SUNSET, 0)
 
 
 def test_look_along_at_the_last_point_uses_the_previous_one():

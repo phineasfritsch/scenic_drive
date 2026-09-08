@@ -217,3 +217,22 @@ repository's signature defect in its most expensive form.
 
   Line counts after the fix: `review_sheet.py` 225, `test_review_sheet.py` 199, both under the 300 cap.
   Scratch confined to the gitignored `.artifacts/fix0108/`.
+
+- 2026-09-08 — **the review's MINOR NOTE closed too, since it is the same defect class.**
+
+  `test_look_along_faces_down_the_road` asserted `f"heading={sv.bearing(*SUNSET[0], *SUNSET[1]):.1f}"` - an
+  expectation computed by the function under test, which passes for any pair of consistent-but-wrong
+  implementations and survived only by leaning on `test_bearing_cardinals` next door. The expected heading is
+  now derived in the test: Sunset's first leg runs 100.2 m north and 414.9 m east
+  (0.0045 * 111320 * cos 34.074), so atan2(414.9, 100.2) = 76.43 deg, and over a 430 m leg the great-circle
+  answer differs from the flat one by thousandths of a degree - the implementation returns 76.424, the hand
+  figure is 76.426, and the URL carries one decimal place. Cross-checked before adopting, not after.
+
+        BASELINE                                              exit=0  sha=d24dffb1bbf1
+        look_along aims backwards down the road               exit=1  test_look_along_faces_down_the_road
+        bearing swaps y and x (a transcription slip)          exit=1  test_look_along_faces_down_the_road
+        bearing drops the cos(lat) term                       exit=1  test_look_along_faces_down_the_road
+        RESTORED                                              exit=0  sha=d24dffb1bbf1
+
+        cd services/etl && python -m pytest     425 passed     exit 0
+        bash ops/check-pins                     failed=0       exit 0
