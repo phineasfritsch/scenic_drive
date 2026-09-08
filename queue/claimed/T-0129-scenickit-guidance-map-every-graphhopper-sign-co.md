@@ -1,13 +1,13 @@
 ---
 id: T-0129
-title: "ScenicKit Guidance: map every GraphHopper sign code, and fail the build on one we have not seen"
-state: ready
-owner: null
+title: ScenicKit Guidance: map every GraphHopper sign code, and fail the build on one we have not seen
+state: claimed
+owner: agent/unknown
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-08T18:51:01Z
+lease_expires_at: 2026-09-08T20:51:01Z
 worktree: null
-branch: null
+branch: task/T-0129
 exclusive: []
 touches: [Sources/ScenicKit/Guidance/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
@@ -86,3 +86,4 @@ the mapping. Inventing Ferrostar's API surface here would be the fabrication thi
 - 2026-09-08T19:45:00Z filed by agent/claude-opus-5. Filed at state `ready`: it has no dependency on any open
   PR, and the queue currently holds 2 ready against 66 claimed.
 - 2026-09-08T19:45:00Z Filed with id T-0129 by hand. `ops/new-task` allocated T-9902 - see [[T-0128]].
+- 2026-09-08T18:51:01Z claimed by agent/unknown; lease until 2026-09-08T20:51:01Z
