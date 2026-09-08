@@ -1,7 +1,7 @@
 ---
 id: T-0027
 title: Scenic score: land cover (USFS canopy, NLCD impervious) in a 150 m buffer
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T19:57:37Z
@@ -11,7 +11,7 @@ branch: task/T-0027
 exclusive: []
 touches: [services/etl/, LICENSE-DATA, README.md]
 pins_affected: []
-reviewer: agent/reviewer-32
+reviewer: agent/reviewer-pr33
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -1229,3 +1229,187 @@ canopy. Both from the raster, not hand-entered.
     worth having.
   - **`open_land` as a home for snow_ice (70).** Unchanged from round 2 and still zero everywhere in this
     region, so still measured by nothing.
+
+- 2026-09-08 review round 3 by **agent/reviewer-pr33** (independent; not the owner, not reviewer-32).
+  **PASS.** state -> done, moved to `queue/done/`.
+
+  Reviewed in a throwaway worktree `.worktrees/rev-T-0027` at b5f754d, detached. Nothing in
+  `.worktrees/T-0027` was touched except this file. Every number below was produced by running the
+  command, not read out of this log.
+
+  ### What reproduces
+
+      $ cd services/etl && python -m pytest -q
+      343 passed                                              (0 failed, 0 skipped)
+
+      $ python -m pytest -q --junitxml=... && python ops/lib/junit_count.py ...
+      total=343 failed=0 skipped=0
+
+  which is the log's "under `ops/test` the pytest leg is 343 tests, 0 skipped" exactly, read out of the
+  JUnit XML by the same counter `ops/test` uses.
+
+      $ bash ops/check-pins
+      PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+      $ bash ops/sane
+      SANE OK
+      $ bash ops/queue-check
+      QUEUE OK (51 tasks)
+
+  all three matching the log. One wrinkle worth recording so the next reviewer does not chase it: the
+  FIRST `check-pins` run in a cold worktree reported `ok=9 pending=3 failed=1`, P-SAFE-05. Running that
+  pin's assertion by hand passed (`swift test --filter SolarFixtureTests` -> `Test run with 6 tests in 1
+  suite passed`, grep exit 0), and the second `check-pins` was clean. It is a cold-`.build` artefact, not
+  a property of this branch.
+
+  **The brief's RED, recomputed from the committed codes rather than copied from the table:**
+
+      old_la_honda   way 8940690    5841 codes  canopy 0.9553  imperv 0.0118  cov 1.0000  WOODED
+      skyline        way 239028846  9558 codes  canopy 0.8492  imperv 0.0193  cov 1.0000  WOODED
+      alviso_flat    way 92357845    354 codes  canopy 0.0706  imperv 0.6864  cov 1.0000  BUILT_UP
+      alviso_flat2   way 8929268     354 codes  canopy 0.0141  imperv 0.4520  cov 1.0000  BUILT_UP
+
+  Identical to the four rows in the PR body, to the digit.
+
+  ### The claim I most expected to fail, and it held
+
+  Two rounds of this task were failed partly for numbers that were not measurements, so I checked the
+  fixture geometry against the source rather than against itself. Live `api.openstreetmap.org`, this
+  session:
+
+      key                way         name                        node_count  ids match  sampled_at match
+      murphy_avenue      8970219     'Murphy Avenue'             58 = 58     True       True (stride 9, 7 centres)
+      morgan_territory   6345191     'Morgan Territory Road'    100 = 100    True       True (stride 16, 7 centres)
+      canyon_creek       7853452     'Canyon Creek'               4 = 4      True       True
+      san_martin         8939244     'East San Martin Avenue'     7 = 7      True       True
+      vorden_road       10509719     'Vorden Road'               29 = 29     True       True
+      old_la_honda       8940690     'Old La Honda Road'         --          --         True (33 centres)
+      alviso_flat       92357845     'Gold Street'               --          --         True (2 centres)
+
+  `sampled_at match` means: fetch the way's nodes from OSM, take every `node_stride`-th one, round to 7
+  places, compare element-for-element with the committed array. Every coordinate matches. The node id
+  lists match live OSM exactly, and the way names match what the log says each road is. The `node_ids`
+  anchor added this round does what it claims - I used it as an outsider and it worked.
+
+  ### Independent mutation run: 39 mutants, 39 killed
+
+  My own list, not reviewer-32's and not the owner's, applied to the shipped source and reverted with
+  `git checkout` after each; whole suite per mutant.
+
+      ratio 2.0 -> 1.01 / 1.2 / 1.4 / 1.5 / 2.5 / 3.0        6 killed
+      built_up 0.4 -> 0.26 / 0.35 / 0.39 / 0.45              4 killed
+      wooded 0.5 -> 0.46 / 0.49 / 0.55                       3 killed
+      BUFFER_STEP_M 20 -> 25 / 50, BUFFER_M 150 -> 100 / 200 4 killed
+      canopy +30 / -20, open -40, water -90, impervious +60   5 killed
+      sample_codes: lat/lon swap, short-read guard, exit-code 4 killed
+        guard, 0 -> NODATA mapping
+      fractions: coverage const, class denom, term denom      3 killed
+      tile_for: ceil lat, ceil lon, E/W swapped               3 killed
+      problems(): four-terms arm disabled                     1 killed
+      buffer_points: circle clip removed, cos(lat) dropped     2 killed
+      unattributed() fails open, empty spelling matches all    2 killed
+      README -> "USFS Tree Canopy, NLCD"; README drops CC BY   2 killed
+
+  Sample transcripts:
+
+      ratio 2.0 -> 1.2
+        FAILED tests/test_landcover_boundary.py::TestNoRoadIsEverBoth::
+               test_the_leafy_suburb_is_neither_a_redwood_road_nor_a_strip_mall
+      built_up 0.4 -> 0.39
+        FAILED tests/test_landcover_boundary.py::TestGridPhaseDoesNotDecideTheAnswer::
+               test_the_verdicts_recorded_for_every_phase_still_recompute
+      sample_codes lat/lon swap
+        FAILED tests/test_landcover_sampling.py::TestWhatItSendsToGdal::
+               test_coordinates_are_written_lon_then_lat
+      README reverts to the false provenance
+        FAILED tests/test_manifest.py::TestRealManifest::
+               test_the_readme_credits_the_same_sources_it_uses
+
+  Every constant in the module is load-bearing. `0.4 -> 0.39` is red, which is the specific thing round 2
+  said was decorative. The four sampler mutants that lived through round 2 are all dead.
+
+  ### Findings (none blocking; all four are latent, in a module nothing consumes yet)
+
+  **F1 (MEDIUM) - no coverage floor. Both verdicts, and `problems()`, will answer from two samples.**
+  `fractions()` computes `coverage` and its docstring hands the decision to "the caller"; nothing in the
+  module is that caller, there is no minimum-coverage constant, and no test asserts a floor. `problems()`,
+  whose docstring is "Structural checks on a summary, so a broken sampler fails loudly instead of
+  scoring", only checks `0.0 <= coverage <= 1.0` - which 0.0113 satisfies:
+
+      >>> s = lc.fractions([10,10,10] + [None]*174)
+      coverage 0.0169   canopy 1.0   is_wooded True    problems() []
+      >>> s = lc.fractions([50,50] + [None]*175)
+      coverage 0.0113                is_built_up True  problems() []
+
+  Live exposure today is low and that is why this is not blocking: every fixture way reads `coverage
+  1.0000`, and the two pinned tiles cover the region bbox with ~11 km to spare at the lat-38.9 north edge,
+  so no real buffer reaches unheld raster. But `sample_codes` returns `None` for every point whose tile
+  file is absent - `test_a_missing_tile_file_is_a_miss_rather_than_a_crash` establishes that as intended -
+  so if `worldcover-n36w126.tif` (4 MB, easy to skip) is not fetched before T-0030's corpus pass, western
+  ways score off whatever fraction of the buffer landed east of -123 and nothing in this module says so.
+  T-0029/T-0030 should add a `MIN_COVERAGE`, a `problems()` arm for it, and make both predicates decline
+  below it.
+
+  **F2 (LOW-MEDIUM) - `TestGridPhaseDoesNotDecideTheAnswer` contains a test requiring grid phase to keep
+  deciding the answer.** `test_the_verdicts_recorded_for_every_phase_still_recompute` asserts equality
+  with `verdicts_by_phase`, and two of the eleven committed ways flip:
+
+      sanramon_c  ['neither', 'BUILT_UP', 'neither', 'neither']
+      sanramon_d  ['BUILT_UP', 'BUILT_UP', 'neither', 'BUILT_UP']
+
+  sanramon_c phase 1 is BUILT_UP off `imperv 0.6554 >= 2 x canopy 0.3220 = 0.6441` - an 0.0113 margin,
+  decided by two samples of 177. The fixture header says "anything that moves between them is a sampling
+  artefact and nothing else", and the 50 -> 20 m step is sold on removing exactly this, yet the artefact
+  is now a regression baseline: those two ways must keep flipping. The suite's only stability guard,
+  `test_a_curated_archetype_keeps_its_verdict_at_every_phase`, names one way - a floor guarding a smaller
+  set than its enclosing class name claims. This is disclosed in the PR body ("sanramon_d at r=2.25 did
+  not become stable, it stopped being asked"), and the fractions themselves are bounded (worst spread
+  0.0847 on sanramon_a against MAX_PHASE_SPREAD 0.10), so it is a naming and scope gap, not a concealed
+  one. Suggest: rename the class, and assert stability over the nine ways that are stable while naming the
+  two that are not, so the exception is stated rather than encoded.
+
+  **F3 (LOW) - `DOMINANCE_RATIO` is pinned to exactly 2.0 by a test whose stated subject is the `>=`
+  edge.** `test_exactly_the_ratio_is_enough` asserts `is_wooded({"canopy": 0.6, "impervious": 0.3})` and
+  `not is_wooded({"canopy": 0.6, "impervious": 0.3 + 1e-9})`, which together admit only
+  `r in (1.9999999967, 2.0]`. That is a good pin and I am glad it is there. But the log argues at length
+  for a "supported band 1.2 <= r <= 2.1" chosen by judgement, and a reader of the test file will not learn
+  that this test is what makes every other value in that band red - my 1.2 / 1.4 / 1.5 mutants all die
+  here as well as on the fixture. One sentence in the docstring.
+
+  **F4 (informational) - the module has no consumer.** Nothing under `services/etl` imports
+  `etl.landcover`; `buffer_points` -> `sample_codes` -> `summarise` is never composed into a pipeline
+  entry point, and `problems()` / `unknown_codes()` are called only from tests. The module docstring says
+  so, `acceptance:` is empty and the brief's RED is about fixtures, so this is in scope - but it means the
+  150 m buffer, the 20 m step and the gdal call have never run end-to-end over a real way outside fixture
+  recording, and `sample_codes`' behaviour against real `gdallocationinfo` output for points outside the
+  raster extent is exercised only through the injected runner. Carry into T-0030's brief.
+
+  ### What I could not check, said plainly rather than assumed
+
+  - `ops/test` exits 1 on this machine: `FAIL: services/api exists but vitest produced no report`. It
+    does so **identically on `main`** (`services/api/node_modules` is absent here), and it aborts at
+    Tier 1b before reaching the ETL tier, so `TESTS linux=393/76` could not be produced. Not falsified -
+    unrunnable here. The pytest leg inside that line was reproduced exactly, above.
+  - Anything needing the pinned `scenic-etl` image. Docker on this box is reachable only through WSL, so
+    the container run (343 tests, 340 passed, 3 skipped) is unverified. The three skips are the
+    git-gated repo-root guards; I confirmed on the host that all three run and that `skipped=0`.
+  - reviewer-32's 36-mutant harness, the 70-way random draw, the 691x691 lattice and the r-sweep from
+    1.01 to 3.96 are not in the tree, so those numbers are unverifiable from the repo. My own independent
+    39-mutant run corroborates the conclusion they were used to support.
+  - The recorded class codes cannot be re-derived without the 92 MB tiles. What I could check about them
+    I did: `unknown_codes` is empty everywhere, sample counts equal `len(buffer_points()) x centres`
+    exactly (177 x n), coverage is 1.0000 on every way, and the centres those codes were taken at are
+    real OSM geometry.
+
+  ### Also checked
+
+  Every touched file under the 300-line cap (largest: `etl/landcover.py` 252, `test_landcover_boundary.py`
+  250). `touches: [services/etl/, LICENSE-DATA, README.md]` covers every non-queue path in the diff. No
+  secrets, no new `ops/` scripts needing the exec bit. `unattributed()` fails closed and
+  `KNOWN == ATTRIBUTION | NO_ATTRIBUTION` holds (7 = 5 + 2, disjoint). `buffer_points` geometry is sound
+  at this latitude: `n = floor(R/step)` is always large enough for the circle clip, so the disk is never
+  silently squared, and the cos(lat) term makes it isotropic (max sample distance 145.5 m, 177 points).
+
+  One merge-order note, not a defect: this branch is 121 commits behind `main` and carries an older
+  `pins/PINS.yaml` (P-COST-02 still `assertion: TODO / pending: T-0014`), which is why `check-pins`
+  reports `pending=3` here and `pending=2` on main. It is stacked on `task/T-0026` and needs retargeting
+  as the PR body says.
