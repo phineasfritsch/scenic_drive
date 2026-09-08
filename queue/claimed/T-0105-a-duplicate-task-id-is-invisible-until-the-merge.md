@@ -69,3 +69,54 @@ duplicates. That is precisely the mistake `next_id()` made ([[T-0101]]): the sam
 
 ## Log
 - 2026-09-08T10:18:01Z claimed by agent/claude-opus-5; lease until 2026-09-08T13:18:01Z
+
+- 2026-09-08 — **`ops/queue-ids`. It found the live collision on its first run, which is the only evidence
+  that counts here.**
+
+        IDS FAIL: 1 id(s) name different work on different refs
+          T-0076
+            core-hookspath-is-machine-local-and-unverified-s   task/T-0071
+            ops-test-picks-whichever-python3-is-first-on-pat   main, task/T-0045, task/T-0060 (+22 more)
+          Same id, different slug: two pieces of work were given one name. Renumber the LATER one and
+          record why in its log - the id is referenced from other task files by [[T-nnnn]].
+        real exit 1
+
+  **The discriminator is the SLUG, and getting it wrong in either direction makes the check worthless.**
+  The same task file legitimately appears on 25 refs — that is the normal, healthy case, and reporting it
+  would produce sixty false pairs and get this ignored within a day. Only the same id carrying two different
+  slugs is a collision. The run above is the proof in both directions at once: it named the one real pair
+  and stayed silent about the 25 refs carrying the *same* T-0076.
+
+  **Deliberately not part of `ops/queue-check`.** That command runs in CI, in the pre-commit hook and inside
+  `merge-rehearse`'s gates. Making it reach the network would make it a command people stop running, which
+  is the failure mode this repository keeps meeting — so this is its own entry point.
+
+  **Vacuity floors, because this check is about a scan that lied.** A failed `for-each-ref` or a single
+  unreadable `queue/` refuses with exit 2 rather than reporting no duplicates, and fewer than two refs
+  scanned refuses too: *cross-branch* means at least two. That is exactly the mistake `next_id()` made — the
+  same degraded scan that issued `T-0076` would otherwise let this report a clean bill of health.
+
+  **Two implementation notes worth keeping.** `COMMANDS` is derived from `OPTS` on this branch ([[T-0087]]),
+  so adding the option entry is the whole registration and there is no second list to forget. And `_git()`
+  here collapses *"could not run"* and *"ran and failed"* into one `False`, which is acceptable only because
+  both answers lead to the same action — refuse. If a caller ever needs to tell them apart, that helper is
+  the wrong one to use.
+
+  **What this does not do:** it detects, it does not prevent. [[T-0101]] is the prevention half. Both are
+  needed, and today proved it — the third collision happened *after* T-0101 was filed, because the fix is
+  not merged.
+
+- 2026-09-08 — **green, on live data, after the collision it found was repaired.**
+
+        RED    IDS FAIL: 1 id(s) name different work on different refs   (T-0076)   real exit 1
+        GREEN  IDS OK (105 ids across 75 refs; no id names two different tasks)     real exit 0
+
+  The repair was `task/T-0071`'s new task being renumbered `T-0076 -> T-0106`. So the cycle here is not a
+  fixture: the check found a real collision, a real branch was corrected because of it, and the same command
+  then went green across all 75 refs. It is also the first of the three collisions found by a tool rather
+  than by a human reading two agents' output side by side.
+
+  Worth stating what the green does NOT prove: 75 refs carry 105 ids and the vast majority of those ids
+  appear on many refs at once. `IDS OK` means no id carries two different slugs — it says nothing about
+  whether the work behind any id is correct, and the count is large because branches share history, not
+  because 105 tasks are healthy.
