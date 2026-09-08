@@ -1,7 +1,7 @@
 ---
 id: T-0105
 title: a duplicate task id is invisible until the merge, so all three of today's were found by hand
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T10:18:01Z
@@ -11,7 +11,7 @@ branch: task/T-0105
 exclusive: []
 touches: [ops/lib/queue.py, ops/queue-ids, ops/lib/check-ids-floor, ops/agent-preflight]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-final-pr66
 depends_on: [T-0101]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -222,3 +222,130 @@ duplicates. That is precisely the mistake `next_id()` made ([[T-0101]]): the sam
   failed=0 tier=linux`, real exit 0. `ops/test` -> real exit 1 (F5, identical on main). Also green:
   `ops/queue-check` -> QUEUE OK (98 tasks) exit 0, `ops/queue-ids` exit 0, `ops/lib/check-ids-floor` exit 0,
   `ops/agent-preflight` -> PREFLIGHT OK exit 0.
+
+- 2026-09-08 — **second review of PR #66, agent/reviewer-final-pr66 (owner is agent/claude-opus-5). PASS,
+  transitioned to `queue/done/`.** Reviewed on `task/T-0105` @ 59d917e, worktree `.worktrees/T-0105`,
+  scratch under `.artifacts/rvw-final-pr66/`. Every prior finding was re-closed by RUNNING what
+  demonstrated it, not by reading the diff. Exit codes taken as `<cmd> >file 2>&1; echo $?`, never after a
+  pipe.
+
+  **verify: and acceptance:, every exit code**
+
+        bash ops/check-pins            0   PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+        bash ops/test                  1   FAIL: services/api exists but vitest produced no report   (F5)
+        bash ops/queue-check           0   QUEUE OK (98 tasks)
+        bash ops/lib/check-ids-floor   0   IDS-FLOOR ok (4 cases)                     acceptance 1
+        RED: with_ids < 2 -> < 0       1   A FAIL expected 2 got 0; B FAIL expected 2 got 0   acceptance 2
+        restored                       0   IDS-FLOOR ok (4 cases)
+        bash ops/queue-ids             1   IDS FAIL: T-0117 - see below               acceptance 3, NOT 0
+        bash ops/agent-preflight       1   ids COLLISION -> PREFLIGHT FAIL            acceptance 4
+        python ops/lib/queue.py bogus  2   `commands:` block lists `queue.py ids`     acceptance 5
+
+  **acceptance 3 and 4 do not reproduce, and the reason is the deliverable working.** `ops/queue-ids` is
+  exit 1 on live refs today because there is a FOURTH real collision, which this command found:
+
+        T-0117
+          scenickit-routescore-is-this-route-actually-pret   main, task/T-0117, task/T-0118 (+1 more)
+          the-review-sheet-captures-no-verdict-and-seeds-f   task/T-0108
+
+  Confirmed by hand with `git ls-tree -r --name-only <ref> queue/` on all four refs. `task/T-0108` committed
+  its `T-0117` at 2026-09-08 07:15:06 -0700, **68 seconds after** this task's 59d917e at 07:13:58 — so the
+  fixer's `exit 0` was true when written and the queue moved under it. The detector is right and the queue
+  is wrong; the repair is to renumber the later one, which belongs to `task/T-0108`, not to this task.
+  Recorded rather than fixed: testers find and do not fix.
+
+  **F1 (was blocking) — closed, and proved by disabling it.** The floor is on `with_ids`, refs that actually
+  yielded an id, and `ops/lib/check-ids-floor` pins it at exactly 2: A (no ids anywhere) forces >= 1,
+  B (collision with one side outside `queue/`) forces >= 2, D (healthy pair) forbids > 2. Setting
+  `if with_ids < 2:` to `< 0` reproduced the reviewer's original F1 exactly — A and B fall back to exit 0,
+  the confident green over a tree with a live duplicate in it. Restored, `diff` against a pre-run backup
+  clean, `git status` clean.
+
+  **F1's guard is not vacuous in either direction — mutation-tested, which the fixer did not do.** I broke
+  the DETECTOR (not the floor it tests) two ways and checked the fixture noticed:
+
+        M1  bad = {}                                  never report   -> C FAIL expected 1, got 0   floor exit 1
+            same mutation on live refs                               -> IDS OK (117 ids on 85 of 85 refs), exit 0
+        M2  bad keyed on ref count, slug ignored      always report  -> D FAIL expected 0, got 1   floor exit 1
+
+  M1 is the important one: with the discriminator gutted the live command printed a clean bill of health
+  over the real T-0117 collision, and `check-ids-floor` is the only thing in the tree that caught it. Case D
+  is what stops the floor being made green by refusing everything, and M2 shows it earns its place.
+
+  **My own attack, which the author did not run: the queue state directory.** Task files move
+  backlog -> claimed -> review -> done constantly here (61 claimed right now), and the author's healthy case D
+  puts the SAME path on both refs, so it never proves the state directory is excluded from the slug. If it
+  leaked in, every ordinary move would read as a collision and the command would be worthless in this repo.
+  Three standalone repos, driven through the real `ops/queue-ids` wrapper
+  (`.artifacts/rvw-final-pr66/statedir.sh`):
+
+        E  same id, same slug, queue/backlog on one ref and queue/done on the other   expected 0, got 0
+        F  a real collision that ALSO crosses state directories                       expected 1, got 1
+        G  one ref carrying the same id+slug under two state dirs (a stale copy)      expected 0, got 0
+        STATEDIR ok (3 cases)                                                         real exit 0
+
+  Clean: the regex anchors on the last `/T-NNNN-` so the state directory never reaches the slug, and a
+  collision is still found when both sides move.
+
+  **F2 — closed.** The docstring no longer claims a network cost the code never paid, and every result line
+  carries its own staleness: `refs/remotes read as they stand: this command never fetches, so this answer is
+  as old as this worktree's last fetch (4.8h ago).` Present on the OK line, the FAIL line, and observed on
+  both during this review.
+
+  **F3 — closed structurally, not by typing the missing line.** `python ops/lib/queue.py bogus` prints a
+  `commands:` block built from `OPTS`; `grep -c 'queue.py ids'` is 1 where it was 0, real exit 2. The
+  `_usage`/`_invocation`/`_usage_all` refactor did not regress argument hygiene — `ids extra-operand`,
+  `ids --nope`, `ids --nope V`, `claim` with no operand and `check --x` all still refuse with exit 2 and the
+  right message.
+
+  **F4 — closed, and I proved BOTH preflight branches, not just the red one.** `grep -rn queue-ids` now hits
+  `ops/agent-preflight`. Exit 1 -> `ids COLLISION` + `PREFLIGHT FAIL`, observed live on the T-0117 pair. For
+  the exit-2 branch, which had only been asserted in prose, I forced a refused scan (`with_ids < 999`):
+
+        bash ops/queue-ids        2   IDS REFUSED: 117 task id(s) found on 85 of 85 ref(s) scanned.
+        bash ops/agent-preflight  0   ids  not checked (IDS REFUSED: ...)   PREFLIGHT OK
+
+  That also isolates the cause: preflight is red today ONLY because of the real collision — every other
+  line in it is green. Restored, `git status` clean.
+
+  **F5 — confirmed, still red, still not attributable.** `bash ops/test` -> real exit 1,
+  `FAIL: services/api exists but vitest produced no report`, no `TESTS linux=N/F ios=N/F` line. I checked
+  the attribution rather than taking it on trust: `git diff --stat origin/main HEAD -- ops/test services/api`
+  shows this branch is BEHIND main (main added `services/api/test/quota.test.ts` and `upstream.test.ts` at
+  16a49a0 on 2026-09-07 and extended `ops/test`); no commit in `origin/main..HEAD` deletes them, and none of
+  this task's four commits touches JS or a test runner. Environmental, pre-existing.
+
+  **F6 — closed.** `acceptance:` is five lines naming commands and expected exits, including both reds.
+
+  **Mechanical.** Commits touch exactly `ops/lib/queue.py`, `ops/queue-ids`, `ops/lib/check-ids-floor`,
+  `ops/agent-preflight` and this task file — all inside `touches:`; `exclusive: []` and none of them is a
+  serial-only file; no `git add -A`; no secrets. `git ls-files -s`: `ops/queue-ids` and
+  `ops/lib/check-ids-floor` are 100755 (both are bash, so the ops/lib `.py`-is-data carve-out does not
+  apply), `ops/agent-preflight` 100755, `ops/lib/queue.py` mode unchanged; `ops/check-pins` P-OPS-01 green.
+
+  **Non-blocking, recorded for whoever picks them up — none of these changed the verdict:**
+
+  1. **`ops/lib/check-ids-floor` has no gate.** Nothing runs it: not `ops/test`, not `ops/sane`, not CI, not
+     a pin (`pins_affected: []`). F4 was "nothing runs the detector"; the fix wired the detector into
+     preflight and left its guard ungated one level up. [[T-0090]] is already filed for exactly this class
+     (`check-brief-required` and `check-lock-lifecycle` are ungated too), so this belongs there rather than
+     in a new task. It is at least named in `acceptance:`, so a reviewer re-runs it by hand.
+  2. **`IDS-FLOOR ok (4 cases)` is a hard-coded literal**, not a count of cases that ran — the same
+     "state the population you examined" discipline the green `IDS OK (N ids on M of M refs)` line was fixed
+     to follow, missing thirty lines away in the check that guards it. Not reachable today (the four
+     `expect` calls are straight-line), so a note, not a finding.
+  3. **`if scanned < 2` is now dead.** `with_ids <= scanned`, so `with_ids < 2` subsumes it; no fixture case
+     distinguishes them. Harmless — it produces a clearer message for the one-ref case — but it is untested.
+  4. **A collision is still invisible if a task file lives outside `queue/` while other refs are healthy.**
+     Fixture B only refuses because it drove `with_ids` to 1; with 80 healthy refs alongside, the same shape
+     passes. Inherent to scanning `queue/`, out of scope for this task.
+  5. **`ops/lib/queue.py` is 1244 lines** against CLAUDE.md's 300-line cap. P-SRC-02 scopes its assertion to
+     `Sources/`+`Tests/` `.swift`, so nothing enforces it here. Pre-existing and inherited through the stack
+     (372 on `origin/main`, 1078 before this task's commits); this task added 166.
+
+  **Verdict: PASS.** Every prior finding closed and verified by execution; my own attacks (two detector
+  mutations, three state-directory cases, the preflight exit-2 branch) found nothing disqualifying. Moved
+  `queue/claimed/` -> `queue/done/` with `git mv`, `state: done`, `reviewer: agent/reviewer-final-pr66`
+  (owner is `agent/claude-opus-5`, so P-PROC-01's inequality holds). No code in this PR was modified by this
+  review: every mutation above was reverted with `git checkout --` and `git status` was clean before the
+  transition.
