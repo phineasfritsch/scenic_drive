@@ -548,3 +548,31 @@ fail — which is the constraint, not a bug in anyone's branch.
 `core pass` / `pins-source-only pass`. A tool that counts failures in the rollup reports four red PRs where
 three exist, and would refuse a branch that is green. `gh pr checks` — or the conclusion of the LATEST run
 per check name — is the thing to read.
+
+## Read "37 of 41" as 41 of 52, because eleven branches are invisible to this tool
+
+`ops/merge-rehearse:76` builds its branch list from `gh pr list --state open`. So does
+`ops/pr-ci-preflight`, by construction. On 2026-09-08 there are **62 `origin/task/*` refs, 41 with an open
+PR, and eleven that are ahead of `main` with no PR at all**:
+
+    task/T-0069   59 commits      task/T-0086   15 commits      task/T-0078    2 commits
+    task/T-0029   55 commits      task/T-0068   11 commits      task/T-0057    1 commit
+    task/T-0087   28 commits      task/T-0077    8 commits
+    task/T-0085    9 commits      task/T-0066    5 commits
+    task/T-0079    5 commits
+
+Ten of the eleven hold a task in `queue/claimed/` on their own head — live, owned work, not abandoned
+experiments. `task/T-0087` is the `_opts` rewrite that closes T-0084 and two other overclaimed routes;
+`task/T-0086` is the environment seal; `task/T-0077` is one of the two branches T-0093 waits on. **None of
+them has ever been merged even in rehearsal**, so nothing in this repository knows whether they collide with
+the 41 that have.
+
+The number above was never wrong. The noun attached to it was: it is merge readiness *of the branches with
+pull requests*, and it was published as merge readiness of the backlog. Filed as **T-0099**, which also
+carries the fix — enumerate refs, not pull requests, and fail if the branch set is smaller than the PR set.
+
+**What this means for the operator running the merge.** The order at the top of this file is correct for the
+41 it covers. After those land, the eleven need their own rehearsal against the new `main` before any of
+them merges — do not assume a branch that has been quiet is a branch that fits. `task/T-0057` needs
+something else first: it has a commit while its task sits unclaimed in `queue/ready/`, so the
+push-to-claim compare-and-swap that makes this queue safe never happened for it.
