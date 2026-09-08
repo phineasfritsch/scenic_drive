@@ -386,3 +386,34 @@ The three conflicts are the one `gh-stub` ADD/ADD resolved in section 10; the tw
 T-0049 above. Nothing else is red.
 
 `ops/merge 21 --dry-run` reports **every gate passed** for T-0036, which is the branch the other two wait on.
+
+## 13. The `pins/PINS.yaml` conflict must be resolved as a UNION, and taking a side is silent
+
+`task/T-0023` and `task/T-0049` both add a pin, and they conflict on `pins/PINS.yaml`. **Resolving it by
+taking either side drops the other's pin and nothing complains.** Executed, in that order, deliberately wrong
+first:
+
+    merge T-0036, then T-0023        -> P-OPS-01, P-OPS-02
+    merge T-0049, `checkout --theirs pins/PINS.yaml`
+                                     -> P-OPS-01, P-OPS-03        <- P-OPS-02 GONE, no error
+    check-pins on that tree          -> failed=0
+
+`check-pins` only reports ids it can *see*, which is the same blind spot the task-id census exists for on the
+queue side. A pin that vanishes in a merge resolution is invisible to the tool whose whole job is pins.
+
+**The correct resolution** keeps the merged-so-far file and appends only the other branch's own pin block:
+
+    P-OPS-01, P-OPS-02, P-OPS-03
+    PINS ok=11 skipped=0 pending=3 expired=0 failed=0        exit 0
+
+So after resolving `pins/PINS.yaml` — or any conflict on it — run the pin census the same way the task census
+is run after a conflicted merge:
+
+    grep -E '^- id:' pins/PINS.yaml | sort | uniq -d      # must print nothing
+    grep -cE '^- id:' pins/PINS.yaml                      # must not have gone DOWN
+
+`ops/merge-rehearse` reports duplicate pin ids but cannot report a *missing* one, for the same reason: it
+compares the tree against itself. The count is the check.
+
+T-0057 is closed on this: the renumber to P-OPS-03 landed at `4fb4609`, and `check-pins` does detect a
+duplicate id (`- P-SRC-01: duplicate id`, exit 1), which the task's brief said it did not.
