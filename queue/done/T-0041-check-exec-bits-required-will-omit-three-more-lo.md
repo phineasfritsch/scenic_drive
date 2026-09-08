@@ -1,7 +1,7 @@
 ---
 id: T-0041
 title: check-exec-bits REQUIRED will omit three more load-bearing ops/lib files once T-0021 and T-0023 merge
-state: review
+state: done
 owner: agent/fixer-T0041
 owner_session: d217767a
 claimed_at: 2026-09-08T13:34:53Z
@@ -11,7 +11,7 @@ branch: task/T-0041
 exclusive: []
 touches: [ops/lib/check-exec-bits, ops/lib/ro_grammar.py]
 pins_affected: [P-OPS-01]
-reviewer: agent/reviewer-25
+reviewer: agent/reviewer-pr72
 depends_on: [T-0021, T-0023]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -225,3 +225,111 @@ Demonstrate red by reproducing the rehearsal rather than by reasoning: merge `or
   down in task logs - I argued tracked-ness is the load-bearing property, but that is the weakest of the three;
   and (2) the two omissions I reported and did not fix (`check-line-cap`, `check-exec-bits` itself), in case you
   think they should have been in scope after all.
+
+- 2026-09-08T15:05:00Z REVIEW by agent/reviewer-pr72 (owner is agent/fixer-T0041; different agent, and I did not
+  edit any file this PR touches). PR #72, `task/T-0041` @ `8055411`, base `main`, not stacked; `gh pr diff 72` is
+  the whole change: `M ops/lib/check-exec-bits`, `M ops/lib/ro_grammar.py`, `D queue/claimed/T-0041-*.md`,
+  `A queue/review/T-0041-*.md`. **PASS.** Every number in the Log reproduced; the check is not vacuous; my own
+  mutations are caught.
+
+  `acceptance:` is empty, so the gate is `verify:`. Ran in `.worktrees/T-0041`, exit codes captured as
+  `<cmd> >/dev/null 2>&1; echo $?` / `out=$(cmd); rc=$?`, never after a pipe:
+
+      bash ops/agent-preflight        PREFLIGHT OK                                                   EXIT=0
+      bash ops/test                   TESTS linux=119/76 ios=skipped failed=0 skipped=0 / OK         EXIT=0
+      bash ops/check-pins             PINS ok=11 skipped=0 pending=2 expired=0 failed=0 tier=linux   EXIT=0
+      bash ops/queue-check            QUEUE OK (106 tasks)                                           EXIT=0
+      bash ops/sane                   SANE OK (crlf none, autocrlf false, gitattrs eol=lf)           EXIT=0
+      bash ops/lib/check-exec-bits    P-OPS-01: 27 files, 23 required present, all modes correct     EXIT=0
+      bash -n ops/lib/check-exec-bits                                                                EXIT=0
+      python3 ops/lib/ro_grammar.py --self-test   RO-GRAMMAR OK 26 cases                             EXIT=0
+
+  `services/api/node_modules` was already present in this worktree, so I did not need the `npm ci` the owner's
+  14:20 entry records; `ops/test` reproduced `linux=119/76` regardless. Not a discrepancy.
+
+  **NOT VACUOUS - the decisive test.** Restored the merge-base copy of the script
+  (`git show $(git merge-base HEAD origin/main):ops/lib/check-exec-bits`) and re-ran the same removals. The
+  pre-change check passes all three; the post-change check fails all three, naming the file. Owner's 13:55
+  numbers reproduce exactly, including the `20 required` / `23 required` counts:
+
+      PRE  baseline                                 27 files, 20 required present, all modes correct  EXIT=0
+      PRE  rm --cached classify-checks.py           26 files, 20 required present, all modes correct  EXIT=0
+      PRE  rm --cached gh-stub-for-merge-tests      26 files, 20 required present, all modes correct  EXIT=0
+      PRE  rm --cached check-failure-naming         26 files, 20 required present, all modes correct  EXIT=0
+      POST baseline                                 27 files, 23 required present, all modes correct  EXIT=0
+      POST rm --cached classify-checks.py           load-bearing script(s) not tracked: ...           EXIT=1
+      POST rm --cached gh-stub-for-merge-tests      load-bearing script(s) not tracked: ...           EXIT=1
+      POST rm --cached check-failure-naming         load-bearing script(s) not tracked: ...           EXIT=1
+      POST git mv classify-checks.py -> renamed     load-bearing script(s) not tracked: ...           EXIT=1
+
+  **MY OWN MUTATIONS - ones the owner did not write.** All index-only; index diffed against a pre-sweep
+  baseline afterwards (`INDEX RESTORED: identical`), `git status --short` empty:
+
+      chmod -x ops/lib/gh-stub-for-merge-tests   -> (script, should be 100755, is 100644)   EXIT=1  caught
+      chmod -x ops/lib/check-failure-naming      -> (script, should be 100755, is 100644)   EXIT=1  caught
+      chmod +x ops/lib/classify-checks.py        -> (data, should be 100644, is 100755)     EXIT=1  caught
+      check-failure-naming re-staged as 120000   -> (script, should be 100755, is 120000)   EXIT=1  caught
+      rm --cached ops/merge                      -> not tracked: ops/merge                  EXIT=1  caught
+      rm --cached ops/lib/ro_cases.json          -> not tracked: ops/lib/ro_cases.json      EXIT=1  caught
+      rm --cached .githooks/pre-commit           -> not tracked: .githooks/pre-commit       EXIT=1  caught
+
+  **Propagation, which the Log asserted only implicitly.** A green sub-check inside a gate that swallows its
+  exit code is worth nothing, so I drove each mutation through `ops/check-pins` rather than the assertion alone:
+
+      rm --cached classify-checks.py    PINS ok=10 ... failed=1   EXIT=1
+      rm --cached check-failure-naming  PINS ok=10 ... failed=1   EXIT=1
+      chmod +x classify-checks.py       PINS ok=10 ... failed=1   EXIT=1
+
+  `.github/workflows/linux-core.yml` runs `bash ops/check-pins` as its own step, so this reaches CI.
+
+  **Merged result, not just the branch** - this task exists because of a merge-time trap, so the branch passing
+  alone would not settle it. `git merge-tree --write-tree origin/main task/T-0041` -> EXIT=0, tree
+  `935f49c636b845c9b032945e4d7a08cdda1fc928` (no conflict against `origin/main` @ `ce4e989`, which has advanced
+  well past this branch's base `288ebf6`). Evaluated all three P-OPS-01 assertions against that tree directly:
+  27 entries under `ops/`+`.githooks/`, all 23 REQUIRED present, zero mode violations under the PR's own
+  classifier, and `ops/`+`.githooks/` modes byte-identical to this branch. The merged `queue/` carries exactly
+  one T-0041 file, in `review/` - the `git mv` left no stale copy in `claimed/`.
+
+  **Claims I checked rather than accepted.** Call sites: `git grep` outside `queue/` gives `ops/merge:70` for
+  `classify-checks.py`, `pins/PINS.yaml:40` for `check-failure-naming`, and nothing at all for
+  `gh-stub-for-merge-tests` - the owner's three classifications hold, including the honest caveat on the stub.
+  `ops/prod-read:16-17` really does invoke `"$PY" ops/lib/ro_grammar.py`, and `ro_grammar.py` really does carry
+  `#!/usr/bin/env python3` at mode 100644, so the new docstring line is accurate and not decorative.
+  `git ls-tree -r` shows `ops/` modes identical to `origin/main` end to end: this PR changes no file mode, as
+  claimed. Mechanical rules: 54 and 72 lines (cap 300); `check-exec-bits` 100755, `ro_grammar.py` 100644; both
+  changed paths inside `touches:`, which was already widened in the same commit (`15ddefb`) that first staged
+  `ro_grammar.py`, so the hook saw the widened list - no retroactive widening; no secrets; no CRLF.
+
+  **I verified the owner's deferral argument instead of taking it.** The 13:58 entry declines to add
+  `check-line-cap` / `check-exec-bits` on the grounds that they "fail loudly" via their own pin. Moving each
+  file aside (moved, never edited in place - that is how the owner's own first sweep got contaminated):
+
+      ops/lib/check-line-cap  missing from disk   ops/check-pins  PINS ok=10 ... failed=1  EXIT=1
+      ops/lib/check-exec-bits missing from disk   ops/check-pins  PINS ok=10 ... failed=1  EXIT=1
+      untracked but still on disk (each)          ops/check-pins  PINS ok=11 ... failed=0  EXIT=0
+
+  The argument is correct and the residual hole is exactly as narrow as described. Scope call upheld.
+
+  **Two cases that are NOT caught. Both pre-existing, neither introduced or worsened by this PR, neither
+  blocking - filing follows.**
+  (1) `ops/etl-fetch-inputs` is a third file under `ops/` outside `REQUIRED`, and it is *worse* than the owner's
+  two: no pin runs it, so `git rm --cached ops/etl-fetch-inputs` -> `ops/check-pins` EXIT=0 **and** removing it
+  from disk is silent too. The owner's note names only `check-line-cap` and `check-exec-bits`; this completes
+  the list. The four files under `ops/`+`.githooks/` outside `REQUIRED` are `ops/api-url`,
+  `ops/etl-fetch-inputs`, `ops/lib/check-exec-bits`, `ops/lib/check-line-cap`.
+  (2) The mode classifier's `awk` reads the path as `$4` under default field splitting, so a tracked path
+  containing a space is misparsed and misbucketed. Staged `ops/lib/spaced name.json` at **100755** - a data file
+  at a script's mode, exactly what P-OPS-01 exists to catch - and got
+  `P-OPS-01: 28 files, 23 required present, all modes correct`, **EXIT=0**. `$4` is `ops/lib/spaced`, which does
+  not match `/\.(json|txt|md|py)$/`, so it falls to the script bucket and `100755` passes. The `awk` block is
+  untouched by this diff (only the comment above it changed), so this is not a regression here. Index entry
+  removed with `git update-index --force-remove` and the baseline re-verified.
+
+  **Observation, no action.** `MIN_FILES=17` is now unreachable: `REQUIRED` holds 23 distinct paths all under
+  `ops/`/`.githooks/`, so any state passing the by-name loop has `n >= 23 > 17`, and any state with `n < 17` is
+  missing at least seven REQUIRED files and fails the loop anyway. reviewer-5's original vacuity floor is now
+  fully subsumed by the by-name list. Harmless redundancy; documents intent; left alone.
+
+  Transitioned to `queue/done/` with `git mv` (no stale copy), `state: done`, `reviewer: agent/reviewer-pr72`
+  (owner is `agent/fixer-T0041`, so `reviewer != owner` holds). `bash ops/queue-check` -> EXIT=0 after the move.
+  All reviewer scratch lived in `.worktrees/T-0041/.artifacts/rvw72/` (gitignored); no shared temp path touched.
