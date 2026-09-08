@@ -2,7 +2,7 @@
 # Rejects commits that would corrupt the repo for the agent fleet.
 #  1. CRLF in any staged text file.
 #  2. Secret-looking content or files (sk. tokens, private keys, .p8/.p12/.netrc/.env).
-#  3. Staged paths outside the current task's `touches:` list (active once a queue task file exists for the branch).
+#  3. Staged paths outside the touches: of every queue task claimed onto this branch.
 # Floor-lowering protection lives in .githooks/commit-msg (T-0002).
 set -uo pipefail
 fail=0
@@ -27,24 +27,120 @@ while IFS= read -r f; do
   fi
 done <<< "$staged"
 
-# 3. touches: enforcement
+# 3. touches: enforcement                                                              (T-0078)
+#
+# WHICH task governs this commit is decided by the task files, not by the branch name. A branch
+# routinely carries a follow-up as well as the task it was cut for (T-0072 rode task/T-0066,
+# T-0073 task/T-0068, T-0074 task/T-0069). Parsing `task/T-XXXX` out of the branch name found
+# only the parent, so a follow-up's touches: was written, committed, reviewed and never read,
+# and a branch carrying ONLY a follow-up was not governed at all.
+#
+# Rule: every task file in queue/claimed/ or queue/review/ whose `branch:` names THIS branch
+# governs the commit, and the allowlist is the UNION of their touches:.
+#   Union, not "refuse until the commit names one task": `branch:` is already written by
+#   ops/claim and is already set by hand on a follow-up, so the union needs no new convention
+#   and no change to any tool that commits; and one commit on a stacked branch legitimately
+#   spans both tasks (the follow-up's fix plus both task logs). Requiring the commit to name a
+#   task would put a second load-bearing convention in the message body -- which already carries
+#   the floor ratchet -- and teach it to ops/claim, ops/queue-sweep and every agent.
+#   The union stays honest because it is a union of DECLARED scopes: widening it means editing a
+#   task file, and that edit is in the commit (see below) and therefore in review.
+# Task files are read from the INDEX, never the working tree: the touches: that governs a commit
+# must be the touches: the commit contains, or a widening never reaches review. That also means
+# an untracked task file governs nothing.
+# Strip surrounding whitespace then one layer of quotes, into $R. Pure parameter expansion and a
+# global result: `$(...)` here forks once per YAML line and cost ~10s a commit on the Windows box.
+norm() { R="$1"; R="${R#"${R%%[![:space:]]*}"}"; R="${R%"${R##*[![:space:]]}"}"
+         R="${R%\"}"; R="${R#\"}"; R="${R%\'}"; R="${R#\'}"; }
+R=""
+
 branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-if [[ "$branch" =~ ^task/(T-[0-9]+) ]]; then
-  task="${BASH_REMATCH[1]}"
-  taskfile="$(ls queue/claimed/"$task"*.md queue/review/"$task"*.md 2>/dev/null | head -1 || true)"
-  if [[ -n "$taskfile" ]]; then
-    # touches: [a, b, c]  (single line, YAML flow list)
-    allowed="$(grep -E '^touches:' "$taskfile" | head -1 | sed -E 's/^touches:[[:space:]]*\[(.*)\][[:space:]]*$/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//' | grep -v '^$')"
-    if [[ -n "$allowed" ]]; then
-      while IFS= read -r f; do
-        [[ -z "$f" ]] && continue
-        ok=0
-        [[ "$f" == queue/* ]] && ok=1   # a task may always update its own queue file
-        while IFS= read -r a; do [[ -z "$a" ]] && continue; [[ "$f" == "$a"* ]] && ok=1; done <<< "$allowed"
-        if [[ $ok -eq 0 ]]; then echo "pre-commit: $f is outside $task touches: [$(echo "$allowed" | tr '\n' ' ')]"; fail=1; fi
-      done <<< "$staged"
+govern=(); allow=()
+collect() {  # $1 = task file path, $2 = its raw `touches:` line from the index
+  local tf="$1" tline="$2" val inner item
+  norm "${tline#touches:}"; val="$R"
+  govern+=("$tf")
+  # touches: [a, b, c] -- single-line YAML flow list. `[]` is a real, empty allowlist, not a
+  # licence to commit anywhere. Anything else (missing, block list, unterminated) leaves this
+  # task governing with an empty allowlist, so the commit is refused and says why.
+  if [[ -z "$tline" || "$val" != \[*\] ]]; then
+    echo "pre-commit: $tf has no single-line \`touches: [...]\` list; cannot bound this commit"; fail=1; return 0
+  fi
+  inner="${val:1:${#val}-2}"
+  local IFS=,
+  set -f                       # a touches: entry is a literal path, never a shell glob
+  for item in $inner; do
+    norm "$item"; item="$R"
+    [[ -n "$item" ]] && allow+=("$item")
+  done
+  set +f
+}
+
+# One `git grep` over the index, not one `git show` per task file: at 46 claimed tasks the
+# per-file form cost 39s per commit on the Windows checkout, which the fleet would route around.
+# git grep groups its output by path, so a linear scan rebuilds one record per task file.
+tpath=(); tbranch=(); ttouch=(); tn=0; last=""
+while IFS= read -r line; do
+  [[ -z "$line" ]] && continue
+  p="${line%%:*}"; rest="${line#*:}"; rest="${rest%$CR}"
+  if [[ "$p" != "$last" ]]; then
+    tpath[$tn]="$p"; tbranch[$tn]=""; ttouch[$tn]=""; last="$p"; tn=$((tn+1))
+  fi
+  i=$((tn-1))
+  case "$rest" in
+    branch:*)  if [[ -z "${tbranch[$i]}" ]]; then norm "${rest#branch:}"; tbranch[$i]="$R"; fi ;;
+    touches:*) [[ -z "${ttouch[$i]}" ]] && ttouch[$i]="$rest" ;;
+  esac
+done <<< "$(git grep --cached -I --full-name -E '^(branch|touches):' -- 'queue/claimed/*.md' 'queue/review/*.md' 2>/dev/null || true)"
+
+i=0
+while [[ $i -lt $tn ]]; do
+  tb="${tbranch[$i]#refs/heads/}"
+  [[ -n "$branch" && "$tb" == "$branch" ]] && collect "${tpath[$i]}" "${ttouch[$i]}"
+  i=$((i+1))
+done
+
+if [[ ${#govern[@]} -eq 0 && "$branch" =~ ^task/(T-[0-9]+) ]]; then
+  id="${BASH_REMATCH[1]}"
+  # Compat: a claimed task whose `branch:` is null/absent still governs its own branch by id.
+  i=0
+  while [[ $i -lt $tn ]]; do
+    case "${tpath[$i]}" in
+      queue/claimed/$id*|queue/review/$id*) collect "${tpath[$i]}" "${ttouch[$i]}" ;;
+    esac
+    i=$((i+1))
+  done
+  if [[ ${#govern[@]} -eq 0 ]]; then
+    if [[ -n "$(git ls-files -- "queue/done/$id*.md")" ]]; then
+      # Signed-off task, branch still open: touches: is not enforced. That hole is T-0039's,
+      # left exactly as it was so T-0039 can still reproduce it; adding queue/done/ to the scan
+      # above is the whole fix when T-0039 lands.
+      echo "pre-commit: $id is in queue/done/ - touches: NOT enforced (T-0039)"
+    else
+      echo "pre-commit: no claimed or review task declares \`branch: $branch\` - nothing bounds this commit"; fail=1
     fi
   fi
+fi
+
+if [[ ${#govern[@]} -gt 0 ]]; then
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    ok=0
+    # A task may always update queue bookkeeping - task files, locks, dir keeps. Only those:
+    # queue/ is not a hiding place for a script.
+    case "$f" in queue/*.md|queue/LOCKS/*.lock|queue/*.gitkeep) ok=1;; esac
+    if [[ $ok -eq 0 ]]; then
+      for a in ${allow[@]+"${allow[@]}"}; do
+        a="${a%/}"
+        # Exact file, or a path under a declared directory. NOT a bare string prefix:
+        # `src/parent.txt` must not license `src/parent.txt.bak`.
+        if [[ "$f" == "$a" || "$f" == "$a"/* ]]; then ok=1; break; fi
+      done
+    fi
+    if [[ $ok -eq 0 ]]; then
+      echo "pre-commit: $f is outside touches: of ${govern[*]} [${allow[*]-}]"; fail=1
+    fi
+  done <<< "$staged"
 fi
 
 if [[ $fail -ne 0 ]]; then echo "pre-commit: refusing commit"; exit 1; fi
