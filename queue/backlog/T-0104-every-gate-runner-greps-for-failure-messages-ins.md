@@ -73,6 +73,17 @@ Do:
 **Red demos are already written**: the reviewers built the attack trees with `git mktree` / `commit-tree`
 and recorded the SHAs. Reuse them rather than inventing new ones, and cite them.
 
+**Scope, because two agents are already in these files.** The per-file fixes for `ops/merge-rehearse`
+(PR #55's critical and highs) and `ops/pr-ci-preflight` (PR #48's critical and highs) are in flight on
+`task/T-0065` and `task/T-0075` as of 2026-09-08. **Do not redo them.** What is left for this task, and what
+neither reviewer could see because each was shown one tool:
+
+  * the observation that these are ONE defect in two files, so a fix in one that the other does not adopt
+    leaves the class open;
+  * the `CLAUDE.md` rule, which is the only artifact that outlives both files;
+  * **verifying that both fixes read the exit code rather than adding the missing patterns.** If either one
+    landed as a longer regex, the class is not closed and this task says so with the transcript.
+
 **Do not** fix this by adding the missing message patterns. That is what was done last time, it is why the
 patterns are out of date again, and it is the shape [[T-0080]] proved does not converge for pin assertions:
 enumerating the ways something can fail never finishes.
