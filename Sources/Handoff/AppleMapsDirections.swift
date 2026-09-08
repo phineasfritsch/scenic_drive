@@ -126,7 +126,14 @@ public struct AppleMapsDirections: Equatable, Sendable {
     /// locale to consult, which means there is no longer a line here that a locale change could break -
     /// a property no test has to be clever enough to catch.
     ///
-    /// Safe for coordinates because `pair(_:)` has already refused anything outside +/-180.
+    /// Safe for coordinates because `pair(_:)` has already refused anything outside +/-180, and total for
+    /// every `coordinateDecimals >= 0`.
+    ///
+    /// The fold used to run over `1..<coordinateDecimals` from a seed of 10, which is `(1..<0)` at zero - a
+    /// Swift precondition failure, i.e. a public constant documented as a deliberate choice whose own
+    /// function could not survive one of its plausible values. A reviewer set it to 0, got a crash, and the
+    /// harness scored the crash as a detection. Folding over `0..<coordinateDecimals` from 1 gives the same
+    /// 100000 at five decimals and an empty fold rather than an invalid range at zero.
     static func decimal(_ v: Double) -> String {
         // DERIVED from coordinateDecimals, not a literal beside it.
         //
@@ -137,7 +144,7 @@ public struct AppleMapsDirections: Equatable, Sendable {
         // DIFFERENT one, about 69 km north. A public constant that no longer governs the value it names,
         // with a comment pointing at a check that does not exist, in code added to fix exactly this defect
         // class.
-        let scale = (1..<coordinateDecimals).reduce(10) { acc, _ in acc * 10 }
+        let scale = (0..<coordinateDecimals).reduce(1) { acc, _ in acc * 10 }
         let scaled = (v * Double(scale)).rounded()
         let negative = scaled < 0
         let magnitude = Int(abs(scaled))

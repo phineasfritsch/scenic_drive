@@ -76,11 +76,15 @@ struct AppleMapsDirectionsTests {
 
         let url = try AppleMapsDirections(source: Self.ucla, destination: Self.malibu,
                                           waypoints: route).url()
+        // WRITTEN OUT, not `route.map { pair($0) }`. The previous version compared pair() output to pair()
+        // output, so it agreed with the builder about the order by construction and would have agreed with
+        // any pair() at all - the finding a reviewer filed as R2-E and this file did not answer.
         let pinned = Self.items(url).filter { $0.0 == "waypoint" }.map(\.1)
-        #expect(pinned == route.map { try! AppleMapsDirections.pair($0) })
-        #expect(pinned.count == 4)
-        #expect(pinned.first == (try AppleMapsDirections.pair(Self.piuma)))
-        #expect(pinned.last == (try AppleMapsDirections.pair(Self.malibu)))
+        #expect(pinned == ["34.08130,-118.69440",     // piuma
+                           "34.04210,-118.75630",     // latigo
+                           "34.04210,-118.75630",     // latigo again, an out-and-back pinning one junction twice
+                           "34.02590,-118.77980"],    // malibu
+                "got \(pinned)")
     }
 
     @Test("the cap is nine, and the number itself is pinned")
@@ -92,25 +96,32 @@ struct AppleMapsDirectionsTests {
         #expect(AppleMapsDirections.maxWaypoints == 9)
     }
 
-    @Test("the source is omitted entirely when there is none, rather than sent empty")
+    @Test("the source is omitted when there is none, and never invented from a pinned stop")
     func noSource() throws {
-        let url = try AppleMapsDirections(destination: Self.malibu).url()
-        #expect(!Self.items(url).contains { $0.0 == "source" })
+        // The first version's only fixture had no waypoints either, so
+        //     else if let first = waypoints.first { ... name: "source" ... }
+        // was unreachable from it and passed - a URL that starts the drive at the first pinned stop instead
+        // of where the user is. Every waypoint-bearing fixture elsewhere in this file passes a source, so
+        // nothing else covered the branch either.
+        for plan in [AppleMapsDirections(destination: Self.malibu),
+                     AppleMapsDirections(destination: Self.malibu, waypoints: [Self.latigo]),
+                     AppleMapsDirections(destination: Self.malibu, waypoints: [Self.piuma, Self.latigo])] {
+            let names = Self.items(try plan.url()).map(\.0)
+            #expect(!names.contains("source"), "source invented from \(plan.waypoints.count) waypoints")
+            #expect(!names.contains("source-place-id"))
+            #expect(!names.contains("start"))
+        }
     }
 
     @Test("the source carries the origin, under the name Apple documents")
     func sourceValueIsPinned() throws {
-        // Of the four things url() emits - source, destination, waypoint, mode - three had a value
-        // assertion and source had none. A reviewer showed what that permitted: emitting source under
-        // another documented name (`start`, `source-place-id`), or emitting `source=` with the
-        // DESTINATION's coordinate. All three passed 30 tests.
-        //
-        // That last one is a URL telling Apple Maps the drive starts where it ends.
-        //
-        // The existing tests could not see it. `refusesNonCoordinates` guards only the validation call, so
-        // keeping `try Self.pair(source)` leaves the value free. `onlyDocumentedParameters` asserts every
-        // emitted name is a MEMBER of the documented set, never which names must appear - it would pass
-        // over an empty query string. `roundTrip` compares the URL against a reparse of itself.
+        // Of the four things url() emits, three had a value assertion and source had none. A reviewer showed
+        // what that permitted: source under another documented name (`start`, `source-place-id`), or
+        // `source=` carrying the DESTINATION's coordinate - a URL telling Apple Maps the drive starts where
+        // it ends. All three passed 30 tests. `refusesNonCoordinates` guards only the validation call, so
+        // keeping `try Self.pair(source)` leaves the value free; `onlyDocumentedParameters` asserts every
+        // emitted name is a MEMBER of the documented set, never which must appear; `roundTrip` compares the
+        // URL against a reparse of itself.
         //
         // Literals, not `pair(...)`, so the assertion does not go through the code it is checking.
         let url = try AppleMapsDirections(source: Self.ucla, destination: Self.malibu).url()
@@ -118,6 +129,10 @@ struct AppleMapsDirectionsTests {
         #expect(items.first { $0.0 == "source" }?.1 == "34.06890,-118.44520")
         #expect(items.first { $0.0 == "destination" }?.1 == "34.02590,-118.77980")
         #expect(items.filter { $0.0 == "source" }.count == 1)
+        // `source` had the exactly-once assertion and `destination` did not, so emitting the destination
+        // twice was invisible: every reader here uses `.first { ... }`.
+        #expect(items.filter { $0.0 == "destination" }.count == 1)
+        #expect(items.filter { $0.0 == "mode" }.count == 1)
         #expect(!items.contains { $0.0 == "start" })
         #expect(!items.contains { $0.0 == "source-place-id" })
     }
@@ -179,22 +194,14 @@ struct AppleMapsDirectionsTests {
 
     @Test("the coordinate arithmetic rounds, signs, pads and carries correctly")
     func coordinateArithmetic() throws {
-        // RENAMED. This was called "the coordinate format consults no locale at all", and a reviewer showed
-        // it cannot observe that: a mutant using `Locale.current` passes here, while the same body pinned to
-        // de_DE goes red - so the locale path is live and the test simply does not see it. A test whose NAME
+        // RENAMED. This was "the coordinate format consults no locale at all", and a reviewer showed it
+        // cannot observe that: a mutant using `Locale.current` passes here while the same body pinned to
+        // de_DE goes red, so the locale path was live and the test simply did not see it. A test whose NAME
         // promises a property nothing checks is the same shape as the finding it replaced, one level up.
+        // The no-locale property is pinned separately, on identifiers, by HandoffSourceTests.
         //
-        // What it actually pins is the integer arithmetic that replaced the formatter, so that is now its
-        // name. The no-locale property is pinned separately, on an identifier, by `noLocaleInTheSource`.
-        // The failure: `String(format:)` follows the current locale, so on a German device "34.06890"
-        // becomes "34,06890" - a decimal comma inside a comma-separated pair, which Apple Maps reads as four
-        // numbers. The first version pinned the formatter to en_US_POSIX and asserted one value; a reviewer
-        // mutated the locale to `Locale.current` and the suite stayed green, because CI runs on en_US. The
-        // defence was untested by construction.
-        //
-        // `decimal` now uses integer arithmetic and `String(Int)`, which have no locale to consult. These
-        // cases pin the arithmetic that replaced it - the rounding, the negative sign, the zero padding, and
-        // the carry - none of which the old one-value assertion covered either.
+        // What this pins is the integer arithmetic that replaced the formatter - the rounding, the negative
+        // sign, the zero padding and the carry - none of which the old one-value assertion covered either.
         for (input, expected) in [(34.0689, "34.06890"),
                                   (-118.4452, "-118.44520"),
                                   (0.0, "0.00000"),
@@ -211,15 +218,24 @@ struct AppleMapsDirectionsTests {
         }
     }
 
-    @Test("the scale is derived from coordinateDecimals, not a literal beside it")
+    @Test("the scale is ten to the coordinateDecimals - a decade either way changes the coordinate")
     func scaleFollowsTheConstant() {
-        // The assertion the source comment used to point at and that did not exist. `scale` was hardcoded
-        // 100_000 while the padding loop read `coordinateDecimals`, so the two could disagree - and at 2
-        // decimals the result was 34.6890, a different coordinate about 69 km north rather than a coarser
-        // one. Checked as a property of the OUTPUT so it holds however the scale is computed.
+        // NEVER FIRED on a wrong scale. The first version asserted only that the fraction had
+        // `coordinateDecimals` digits and that the whole part was "34", which holds for EVERY scale up to
+        // 10^5 - so a scale one decade too small was caught by four other tests and never by this one, the
+        // test named for the property. `fraction.count == AppleMapsDirections.coordinateDecimals` was also
+        // an assertion stated in terms of the constant it is checking.
+        //
+        // These values have five distinct decimal digits, so they survive the round trip at 10^5 and at no
+        // other scale: at 10^4 decimal(1.23456) is "1.02346", at 10^6 it is "1.234560".
+        #expect(AppleMapsDirections.decimal(1.23456) == "1.23456")
+        #expect(AppleMapsDirections.decimal(9.87654) == "9.87654")
+        #expect(AppleMapsDirections.decimal(0.00001) == "0.00001")
+        #expect(AppleMapsDirections.decimal(0.00010) == "0.00010")
+
         let s = AppleMapsDirections.decimal(34.0689)
-        let fraction = s.split(separator: ".").last.map(String.init) ?? ""
-        #expect(fraction.count == AppleMapsDirections.coordinateDecimals)
+        #expect(s == "34.06890")
+        #expect((s.split(separator: ".").last.map(String.init) ?? "").count == 5)
         #expect(AppleMapsDirections.coordinateDecimals == 5)
 
         // The whole part must not move when the precision does - that is exactly what the mismatch did.
@@ -227,52 +243,45 @@ struct AppleMapsDirectionsTests {
         #expect(AppleMapsDirections.decimal(-118.4452).split(separator: ".").first.map(String.init) == "-118")
     }
 
-    @Test("no locale is consulted anywhere in the shipping source")
-    func noLocaleInTheSource() throws {
-        // The property the renamed test could not observe, anchored on identifiers rather than behaviour -
-        // which CLAUDE.md permits and prefers over anchoring on a comment. `String(format:)` follows the
-        // current locale and is the only way a decimal comma can reach a comma-separated coordinate pair.
-        //
-        // Deliberately excludes comments: the file discusses `String(format:)` at length to explain why it
-        // is gone, and a check that failed on that prose would be anchored on a comment, which is the thing
-        // CLAUDE.md forbids.
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()      // HandoffTests
-            .deletingLastPathComponent()      // Tests
-            .deletingLastPathComponent()      // repo root
-            .appendingPathComponent("Sources/Handoff")
-        let files = try FileManager.default.contentsOfDirectory(atPath: root.path)
-            .filter { $0.hasSuffix(".swift") }
-        #expect(files.count >= 2, "expected the Handoff sources; found \(files)")
+    // The no-locale property moved to HandoffSourceTests, because the version here - a deny-list of two
+    // spellings under the name "no locale is consulted anywhere" - was walked past with
+    // `NumberFormatter().decimalSeparator`. It is an allow-list of type names there, which is closed.
 
-        for name in files {
-            let source = try String(contentsOf: root.appendingPathComponent(name), encoding: .utf8)
-            let code = source.split(separator: "\n")
-                .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
-                .joined(separator: "\n")
-            #expect(!code.contains("String(format:"), "\(name) formats with String(format:)")
-            #expect(!code.contains("Locale"), "\(name) mentions Locale outside a comment")
-        }
-    }
+    // The mode raw values are pinned as written-out literals in AppleMapsDirectionsURLTests. The version that
+    // lived here looped over `allCases` comparing the emitted value to `m.rawValue` - the expectation
+    // recomputed from the object under test - so renaming walking/transit/cycling to walk/public/bike, which
+    // Apple does not document, was green.
 
-    @Test("the mode is present and driving by default, because this is a car product")
-    func mode() throws {
-        let url = try AppleMapsDirections(destination: Self.malibu).url()
-        #expect(Self.items(url).first { $0.0 == "mode" }?.1 == "driving")
-        for m in AppleMapsDirections.Mode.allCases {
-            let u = try AppleMapsDirections(destination: Self.malibu, mode: m).url()
-            #expect(Self.items(u).first { $0.0 == "mode" }?.1 == m.rawValue)
-        }
-    }
-
-    @Test("avoid=highways is never emitted")
+    @Test("avoid=highways is never emitted, in any shape a caller can build")
     func neverAvoidsHighways() throws {
         // CLAUDE.md product invariant: motorway and trunk are penalised, not excluded. The route already
-        // decided where the freeway shoulders go; asking Apple to avoid them would re-plan a different
-        // drive. This asserts the invariant at the one place it could be violated by a one-line "fix".
-        let url = try AppleMapsDirections(source: Self.ucla, destination: Self.malibu,
-                                          waypoints: [Self.latigo]).url()
-        #expect(!Self.items(url).contains { $0.0 == "avoid" })
+        // decided where the freeway shoulders go; asking Apple to avoid them would discard it and re-plan a
+        // different drive.
+        //
+        // The first version claimed to assert that "at the one place it could be violated by a one-line
+        // fix" and had a single fixture, which carried a waypoint. So the one-line fix
+        //     if waypoints.isEmpty { items.append(URLQueryItem(name: "avoid", value: "highways")) }
+        // passed it - and that branch is every short drive and every first plan. Every shape a caller can
+        // build is now checked, empty waypoints first.
+        let shapes: [AppleMapsDirections] = [
+            AppleMapsDirections(destination: Self.malibu),
+            AppleMapsDirections(source: Self.ucla, destination: Self.malibu),
+            AppleMapsDirections(source: Self.ucla, destination: Self.malibu, mode: .walking),
+            AppleMapsDirections(destination: Self.malibu, waypoints: [Self.latigo]),
+            AppleMapsDirections(source: Self.ucla, destination: Self.malibu,
+                                waypoints: [Self.latigo, Self.piuma]),
+            AppleMapsDirections(destination: Self.malibu,
+                                waypoints: Array(repeating: Self.latigo,
+                                                 count: AppleMapsDirections.maxWaypoints)),
+        ]
+        for plan in shapes {
+            let names = Self.items(try plan.url()).map(\.0)
+            #expect(!names.contains("avoid"),
+                    "avoid emitted with \(plan.waypoints.count) waypoints, source \(plan.source != nil)")
+            // The other two parameters that would re-plan rather than reproduce.
+            #expect(!names.contains("transit-preferences"))
+            #expect(!names.contains("start"))
+        }
     }
 
     @Test("the built URL survives a parse, so nothing is over- or under-encoded")

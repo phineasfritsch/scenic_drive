@@ -15,9 +15,9 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 34 tests in 4 suites passed, exit 0"
-  - "python ops/mutate/handoff.py -> 20 caught by a named test, 0 missed, 1 equivalent mutant correctly not caught, exit 0"
-  - "RED: python ops/mutate/handoff.py --prove-vacuity -> 0 caught with the tests removed"
+  - "swift test -> 41 tests in 6 suites passed, exit 0"
+  - "PY=\"${PYTHON:-$(command -v python3 || command -v python)}\"; $PY ops/mutate/handoff.py -> 28 caught by a named test of 28, trapped/compile-only/MISSED/skipped all 0, 1 equivalent mutant MISSED, exit 0"
+  - "RED: $PY ops/mutate/handoff.py --prove-vacuity -> caught=0 and MISSED=28 of 28 with every HandoffTests file replaced by an empty suite"
 ---
 ## Brief
 
@@ -282,3 +282,187 @@ caught.
     VACUITY PROOF OK: with no tests present, 0 mutations were reported caught
 
 `--prove-vacuity` was also added, which acceptance line 3 named and the harness did not have.
+
+---
+
+## Third fix pass: reviewer3-pr70's six BLOCKING findings, plus 7, 8 and the two they found unanswered
+
+Every finding below was reproduced before it was fixed and re-run after. The scripts are in `.artifacts/`
+(gitignored, evidence for this log): `missed_to_caught.py`, `which_tests.py`, `scale_named_test.py`,
+`trap_before_after.py`, `make_brokenregex.py`, `make_holes.py`. All of them read the pristine bytes first,
+restore in a `finally`, and print the md5 at the end; `git status` after every run showed no stray file.
+
+### The five source mutations, MISSED -> caught, run both ways
+
+`.artifacts/missed_to_caught.py` puts each of the reviewer's mutations through the suite AS THEY FOUND IT
+(HEAD's source, HEAD's single test file, the two new files absent) and then through today's suite:
+
+    M3 avoid=highways only when waypoints.isEmpty        before=MISSED      after=caught
+    M1 mode raw values renamed to walk/public/bike       before=MISSED      after=caught
+    M6 NumberFormatter().decimalSeparator                before=MISSED      after=caught
+    M2 waypoints.first promoted to source                before=MISSED      after=caught
+    M4 destination emitted twice                         before=MISSED      after=caught
+    M5 a scale one decade too small                      before=caught      after=caught
+
+M5 reads "before=caught" because the reviewer filed it as a CONTROL, not a miss - see SHOULD FIX 7 below.
+
+`caught` is not enough on its own, because it can mean "caught by something unrelated". `which_tests.py`
+prints the failing test NAMES, and in each case the test that claims the property is among them:
+
+    NumberFormatter().decimalSeparator   -> every capitalised identifier ... is on the allow-list
+                                            the shipping source uses none of the lowercase ... spellings
+    avoid=highways only when isEmpty     -> avoid=highways is never emitted, in any shape a caller can build
+    mode raw values renamed              -> each mode reaches the URL as the exact string Apple documents
+    waypoints.first promoted to source   -> the source is omitted when there is none, and never invented
+    destination emitted twice            -> nothing is emitted twice - not source, not destination, not mode
+
+All six are now in `ops/mutate/handoff.py`, which is why they cannot silently reopen.
+
+### 1 (BLOCKING) - avoid=highways, guarded by `waypoints.isEmpty`, violating the first product invariant
+
+`neverAvoidsHighways` said it asserted the invariant "at the one place it could be violated by a one-line
+fix" and had exactly one fixture, which carried a waypoint. So the one-line fix in the OTHER branch - the
+branch that serves every short drive and every first plan - passed it. Motorway and trunk are penalised, not
+excluded; asking Apple to avoid them discards the computed route and re-plans a different drive.
+
+Now six shapes, empty waypoints first, and `start` and `transit-preferences` checked alongside `avoid`
+because they are the other two documented ways to make Apple re-plan rather than reproduce. The whole query
+string is also written out as a literal for five shapes in the new `AppleMapsDirectionsURLTests`, so the
+extra parameter fails four more tests as well.
+
+### 2 (BLOCKING) - the mode loop recomputed its expectation from the object under test
+
+    for m in Mode.allCases { #expect(emitted(m) == m.rawValue) }
+
+passes for any raw values at all. Renaming walking/transit/cycling to `walk`/`public`/`bike`, which Apple
+does not document, was green; only `driving` had a literal witness. Replaced by four whole URLs typed out
+one per case, plus `allCases.count == 4` and a check that every case has an entry in the table - by CASE
+identity, not by raw value, so a rename cannot satisfy it.
+
+### 3 (BLOCKING) - a deny-list of two spellings named as if it covered a class
+
+`noLocaleInTheSource` was called "no locale is consulted anywhere in the shipping source" and grepped for
+`String(format:` and `Locale`. `NumberFormatter().decimalSeparator ?? "."` contains neither, and the
+reviewer showed the separator IS locale-derived on this toolchain - so the German-device bug was live again
+behind a green suite, for the third time in this PR.
+
+**Deny-lists cannot be complete, so the load-bearing check is now an ALLOW-list**, in the new
+`HandoffSourceTests`: every capitalised identifier in `Sources/Handoff` must be one on a list transcribed by
+hand. `NumberFormatter` is not on it, and neither is any other type a future edit reaches for without saying
+so. That check's stated scope and its coverage are the same sentence, which is the part the last two
+versions got wrong. A five-entry deny-list survives only for the lowercase spellings an allow-list of TYPE
+names cannot see (`String` is allowed, `format:` is an argument label), and its name now claims exactly that
+and nothing more.
+
+The cost is honest and worth naming: the allow-list must be edited when a new type legitimately arrives.
+That is the gate working - the check fails first and the argument happens second.
+
+### 4 (BLOCKING) - the first waypoint promoted to source
+
+`noSource` built a destination-only route, so `else if let first = waypoints.first` was unreachable from it,
+and every waypoint-bearing fixture elsewhere passed a source. The URL starts the drive at the first pinned
+stop instead of where the user is. `noSource` now runs three fixtures, two of them with waypoints, and also
+refuses `source-place-id` and `start`; `waypointsWithoutASource` pins the whole query string for that shape.
+
+### 5 (BLOCKING) - destination emitted twice
+
+`source` had an exactly-once assertion and `destination` had none, and every reader uses `.first { ... }`.
+Added for `destination` and `mode` in `sourceValueIsPinned`, plus `nothingIsEmittedTwice` across three
+shapes, plus the five written-out query strings.
+
+### 6 (BLOCKING) - the shared harness defect, on the file where it was found
+
+    return 0 if caught + len(trapped) == len(MUTATIONS) and not wrongly_caught else 1
+
+`trapped` is this file's own name for "non-zero exit, no named test failed" - what its docstring calls not a
+catch - added back into the pass total. Reproduced on a copy of the shipped harness with the subject
+PRISTINE and only `FAIL_LINE` broken (`.artifacts/make_brokenregex.py`, three mutations to keep it cheap):
+
+    caught by a named test: 0 of 3   (trapped 3, compile-only 0, MISSED 0, skipped 0)
+    OLD RULE  caught + trapped == len(MUTATIONS)  -> exit 0
+    NEW RULE  caught == len(MUTATIONS)            -> exit 1
+
+The other two holes, each on its own copy (`.artifacts/make_holes.py`):
+
+    hole 2  --prove-vacuity with build() broken after the baseline:
+            caught=0, compile-only=2, MISSED=0
+            OLD RULE  caught == 0                     -> exit 0
+            NEW RULE  caught == 0 and MISSED complete -> exit 1
+    hole 3  EQUIVALENT anchor made stale:
+            SKIP  hardcode the scale ... anchor not found - the harness is stale
+            OLD RULE  equivalent arm inspects only eq_caught -> eq_ok=True
+            NEW RULE  equivalent arm needs MISSED complete   -> eq_ok=False   exit 1
+
+Fixed to the reference on `task/T-0129` (`ops/mutate/guidance.py`, read, not guessed): the pass condition is
+`caught == len(MUTATIONS)`; trapped, compile-only and skipped each fail the run; `--prove-vacuity` needs
+`caught == 0` AND `missed == len(MUTATIONS)`; the EQUIVALENT arm needs its mutants MISSED specifically; SKIP
+is its own bucket and is never folded into MISSED.
+
+**The honest number.** Under the strict rule the shipped run is **28 caught of 28, with trapped,
+compile-only, MISSED and skipped all 0** - it did not drop, because this subject's trapped bucket is empty.
+It was not always: the reviewer's own demonstration used `coordinateDecimals -> 0`, which trapped inside
+`(1..<0)`. `.artifacts/trap_before_after.py` runs both arms -
+
+    BEFORE (HEAD source, HEAD tests)  coordinateDecimals -> 0 : trapped
+    AFTER  (today's source and tests) coordinateDecimals -> 0 : caught
+
+- so that mutation can now sit in MUTATIONS under a rule that refuses to count traps. The old rule was not
+hiding a miss in this subject today; what it was hiding is a BROKEN HARNESS, and that is what the three
+copies above demonstrate. Eight mutations were added, so the count went 20 -> 28 for reasons that are all
+new coverage, not a relaxed rule.
+
+### 7 (SHOULD FIX) - the test named for the scale never fired on a wrong scale
+
+Confirmed, then closed. `.artifacts/scale_named_test.py` lists the failing test names for a scale one decade
+too small:
+
+    BEFORE:  a coordinate is a comma-separated pair at five decimals
+             the built URL survives a parse ...
+             the coordinate arithmetic rounds, signs, pads and carries correctly
+             the source carries the origin ...                       <- scaleFollowsTheConstant absent
+    AFTER:   ... and "the scale is ten to the coordinateDecimals - a decade either way changes the
+             coordinate", in BOTH directions (too small and too large)
+
+Its assertions used to hold for every scale up to 10^5, and `fraction.count ==
+AppleMapsDirections.coordinateDecimals` was an assertion stated in terms of the constant it checks. It now
+pins four values with five distinct decimal digits, which survive the round trip at 10^5 and at no other
+scale. Both decades are mutations in the harness.
+
+### 8 (NIT) - a public constant whose own function could not survive one of its values
+
+`(1..<coordinateDecimals).reduce(10)` is `(1..<0)` at zero, a Swift precondition failure. Folding over
+`0..<coordinateDecimals` from 1 gives the same 100000 at five decimals and an empty fold at zero. The doc
+comment now states the range, and `coordinateDecimals -> 0` is a harness mutation that is CAUGHT rather than
+a crash - which is what emptied the trapped bucket, above.
+
+### 9 (PROCESS) - R2-E and R2-G, filed twice and answered in neither log
+
+Both fixed, neither declined:
+
+  * **R2-E** `waypointOrder` compared `pair()` output to `pair()` output, so it agreed with the builder
+    about the order by construction. The four expected values are now written out as literals.
+  * **R2-G** the harness left an untracked `.build-mutate-handoff/`, because `.gitignore` has `.build/` and
+    not `.build-*/`. The scratch path is now `.build/mutate-handoff`, which the existing rule already covers
+    - a one-line fix inside `touches:`, rather than widening `touches:` to reach `.gitignore`. `git status`
+    after a full harness run is clean.
+
+### Result
+
+    swift test --scratch-path .build/T0114     41 tests in 6 suites passed          exit 0
+    $PY ops/mutate/handoff.py                  28 caught by a named test of 28
+                                               (trapped 0, compile-only 0, MISSED 0, skipped 0)
+                                               EQUIVALENT: 1 MISSED as required      exit 0
+    $PY ops/mutate/handoff.py --prove-vacuity  caught=0 (need 0), MISSED=28 of 28    exit 0
+    bash ops/check-pins                        PINS ok=11 pending=2 failed=0         exit 0
+    bash ops/sane                              SANE OK                              exit 0
+    bash ops/queue-check                       QUEUE OK (104 tasks)                  exit 0
+
+`AppleMapsDirectionsTests.swift` was held at 296 lines by moving the mode assertions and the source-text
+check out; the two new files are 122 and 98. Nothing is over the 300 cap.
+
+### Not fixed, and named
+
+`bash ops/test` still exits 1 with "services/api exists but vitest produced no report" -
+`services/api/node_modules` is absent in every checkout on this box. Pre-existing, this PR touches no
+TypeScript, and the Swift half is green. Unchanged from the previous pass and still not folded into this
+task.
