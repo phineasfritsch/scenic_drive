@@ -36,12 +36,26 @@ public struct LearnedCorridorSpeeds: Sendable {
     /// single unusual Tuesday - a crash, a ballgame - cannot move the estimate far on its own.
     public static let smoothing = 0.3
 
-    /// A corridor cannot be learned as faster than free-flow: the router's free-flow speed is already the
-    /// legal limit, and a ratio below this means the sample is measuring something other than traffic (a GPS
-    /// glitch, a drive that skipped part of the corridor).
+    // The stored ratio is FREE-FLOW OVER ACTUAL, so 1.0 means "moving at free-flow" and lower means slower.
+    // Both comments below were transposed in the first version - each described the other constant - and a
+    // reviewer noticed that the one with no real test was also the one whose comment pointed at the wrong
+    // identifier. Those two facts are not a coincidence: a comment nothing checks is a comment nobody reads
+    // against the code.
+
+    /// Below this the corridor is not congested, it is closed: a third of free-flow on a road the router
+    /// thinks runs at 60 km/h is 20 km/h sustained over the whole corridor. Clamped rather than rejected,
+    /// because a genuinely terrible Tuesday is real data and should count.
     public static let minRatio = 0.3
 
-    /// Nor meaningfully slower than a third of free-flow; beyond that it is a closure, not congestion.
+    /// Nothing is faster than free-flow. The router's free-flow speed is already the legal limit, so a
+    /// sample above 1.0 is measuring something other than traffic - a GPS glitch, or a drive that skipped
+    /// part of the corridor.
+    ///
+    /// Untested, this constant is the over-promise reached from the other side. A reviewer mutated it to
+    /// 3.0 and the whole suite stayed green, after which five fast drives gave `adjust(1800)` a duration of
+    /// 600 s with `learned == true` - an ETA BELOW the free-flow it was handed, badge off. The guard that
+    /// was supposed to prevent that read `#expect(r2 <= LearnedCorridorSpeeds.maxRatio)`, which is true for
+    /// any value the constant takes.
     public static let maxRatio = 1.0
 
     private var ratios: [CorridorKey: Double] = [:]

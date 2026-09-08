@@ -9,15 +9,15 @@ lease_expires_at: 2026-09-08T16:07:13Z
 worktree: .worktrees/T-0118
 branch: task/T-0118
 exclusive: []
-touches: [Sources/ScenicKit/Traffic/, Tests/ScenicKitTests/]
+touches: [Sources/ScenicKit/Traffic/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 28 tests in 4 suites passed, exit 0"
-  - "python .artifacts/mutate-T0118.py -> 9 of 9 mutations caught, exit 0"
-  - "RED: each of the 9 mutations alone makes swift test exit 1"
+  - "swift test -> 29 tests in 4 suites passed, exit 0"
+  - "python ops/mutate/corridorspeeds.py -> 18 caught by a named test, 0 missed, exit 0"
+  - "RED: python ops/mutate/corridorspeeds.py --prove-vacuity -> 0 caught with the tests removed"
 ---
 ## Brief
 
@@ -121,3 +121,56 @@ have been, if the harness had been written to flatter itself.
 
 No H3. No `TrafficProvider` protocol or paid flow source - that is V1.1 in the plan. No persistence: the
 store is in-memory here and its SQL belongs with PlaceStore, deliberately, for the privacy reason above.
+
+---
+
+## Fix pass: reviewer-pr75 found the same defect thirty lines below where I had just fixed it
+
+`#expect(r2 <= LearnedCorridorSpeeds.maxRatio, "nothing is faster than free flow")` is stated in terms of
+the constant it checks, so it is true for **any** value that constant takes.
+
+The reviewer mutated `maxRatio` from 1.0 to 3.0. The whole suite stayed green. Five drives at
+`actual = 600, freeFlow = 1800` then produced a stored ratio of 3.0, and `adjust(1800)` returned **600 s
+with `learned == true`** - an ETA below the free-flow duration it was handed, badge off. That is the
+rush-hour over-promise this type exists to prevent, arrived at from the opposite direction.
+
+The Log entry directly above describes finding and fixing exactly this defect for `confidenceThreshold`.
+It was thirty lines away in the same file, in the same test suite, written in the same sitting. **Finding
+this defect once does not inoculate a file against it**, which is worth recording because the obvious
+lesson - "now I know to look for it" - is demonstrably false.
+
+Fixed in the shape already used for the threshold: the constants are written out
+(`#expect(minRatio == 0.3)`, `#expect(maxRatio == 1.0)`), the clamp assertions use literals, and - more
+useful than either - the **property** is asserted rather than the number:
+
+    #expect(adjusted.duration >= 1800)   // a learned ETA may never be shorter than free-flow
+
+That survives any refactor of the clamp, and it is what actually failed under the mutation.
+
+### The transposed comments, which are the same finding wearing a different hat
+
+`minRatio`'s doc comment described `maxRatio` and vice versa - "cannot be learned as faster than free-flow"
+sat above the floor, "nor meaningfully slower than a third" above the ceiling. The reviewer put the two
+observations together: **the one constant with no real test was also the one whose comment pointed at the
+wrong identifier.** Not a coincidence - a comment nothing checks is a comment nobody reads against the code.
+Both rewritten, and `maxRatio`'s now records what happened to it.
+
+### The structural gap behind the blend
+
+`if n == 0` widened to `if n <= 1` - so drive #2 discards drive #1 entirely - was uncaught, because **every
+multi-sample test fed identical values**, which makes "blend the new sample in" and "replace the estimate
+with it" produce the same number. `laterSamplesBlend` uses heterogeneous samples: ratios 1.0 then 0.5 with
+smoothing 0.3 give 0.85 blended and 0.5 replaced.
+
+### The harness, rebuilt
+
+`ops/mutate/corridorspeeds.py`: tracked (the old one was in gitignored `.artifacts/`), mutates both source
+files, builds before believing a compile failure, requires a NAMED TEST to fail rather than a non-zero exit,
+and reports `trapped` separately.
+
+    caught by a named test: 18   trapped: 0   compile-only: 0   MISSED: 0   of 18
+    VACUITY PROOF OK: with no tests present, 0 mutations were reported caught
+
+Nine of the eighteen are numeric-constant mutations, including both clamp ends in both directions, the
+smoothing weight, and the badge threshold moved up as well as down. The previous harness had nine mutations
+and only one touched a number.

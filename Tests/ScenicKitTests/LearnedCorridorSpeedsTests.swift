@@ -88,20 +88,40 @@ struct LearnedCorridorSpeedsTests {
     // MARK: - the learning
 
     @Test("the ratio stays inside its bounds however wild the sample")
-    func ratioIsBounded() {
+    func ratioIsBounded() throws {
+        // Both halves of this test used to be stated in terms of the constant they check -
+        // `#expect(r2 <= LearnedCorridorSpeeds.maxRatio)` - which is true for ANY value the constant takes.
+        // A reviewer mutated maxRatio to 3.0 and the whole suite stayed green.
+        //
+        // This is the repository's signature defect, and it was sitting thirty lines below the place where
+        // the same Log entry describes catching and fixing it for `confidenceThreshold`. Finding the defect
+        // once plainly does not inoculate a file against it.
+        #expect(LearnedCorridorSpeeds.minRatio == 0.3)
+        #expect(LearnedCorridorSpeeds.maxRatio == 1.0)
+
         var learned = LearnedCorridorSpeeds()
         let k = Self.key()
         // A drive that took twenty times free-flow: a closure, not congestion.
         for _ in 0..<5 { learned.record(k, actual: 36000, freeFlow: 1800) }
-        let r = try! #require(learned.ratio(for: k))
-        #expect(r >= LearnedCorridorSpeeds.minRatio)
+        let r = try #require(learned.ratio(for: k))
+        #expect(r >= 0.3)
+        #expect(abs(r - 0.3) < 1e-9, "clamped to the floor, not merely above it")
 
         // And one that claims to have beaten free-flow by 3x: a GPS glitch or a skipped corridor.
         var fast = LearnedCorridorSpeeds()
         let k2 = Self.key(9)
         for _ in 0..<5 { fast.record(k2, actual: 600, freeFlow: 1800) }
-        let r2 = try! #require(fast.ratio(for: k2))
-        #expect(r2 <= LearnedCorridorSpeeds.maxRatio, "nothing is faster than free flow")
+        let r2 = try #require(fast.ratio(for: k2))
+        #expect(r2 <= 1.0, "nothing is faster than free flow")
+
+        // The property, not just the number. This is what the constant is FOR: a learned corridor may never
+        // return an ETA shorter than the free-flow duration it was handed. Stated this way it survives any
+        // refactor of the clamp, and it is what actually failed under the reviewer's mutation - 1800 s in,
+        // 600 s out, badge on.
+        let adjusted = fast.adjust(1800, for: k2)
+        #expect(adjusted.learned)
+        #expect(adjusted.duration >= 1800,
+                "a learned ETA below free-flow is the over-promise from the other direction; got \(adjusted.duration)")
     }
 
     @Test("one unusual day cannot move the estimate far")
@@ -114,6 +134,36 @@ struct LearnedCorridorSpeedsTests {
         let after = try! #require(learned.ratio(for: k))
         #expect(after < before, "a bad day should move it")
         #expect(before - after < 0.25, "but one day must not redefine the corridor")
+    }
+
+    @Test("the second sample blends with the first rather than replacing it")
+    func laterSamplesBlend() throws {
+        // Structural gap a reviewer found: every multi-sample test here feeds IDENTICAL values, so "blend
+        // the new sample in" and "replace the estimate with the new sample" produce the same number and are
+        // indistinguishable. Widening `if n == 0` to `if n <= 1` - so drive #2 discards drive #1 - passed
+        // the whole suite.
+        //
+        // Heterogeneous samples separate them. Ratios 1.0 then 0.5, with smoothing 0.3:
+        //   blend:   0.3 * 0.5 + 0.7 * 1.0 = 0.85
+        //   replace: 0.5
+        var learned = LearnedCorridorSpeeds()
+        let k = Self.key()
+        learned.record(k, actual: 1800, freeFlow: 1800)      // ratio 1.0
+        learned.record(k, actual: 3600, freeFlow: 1800)      // ratio 0.5
+        for _ in 0..<3 { learned.record(k, actual: 3600, freeFlow: 1800) }
+
+        // After the blend the estimate is still above where a replace-then-converge would have taken it.
+        let r = try #require(learned.ratio(for: k))
+        #expect(r > 0.5, "the first drive must still be visible in the estimate; got \(r)")
+
+        // And directly: two samples only, so the value is exactly the blend or exactly the replacement.
+        var two = LearnedCorridorSpeeds()
+        let k2 = Self.key(11)
+        two.record(k2, actual: 1800, freeFlow: 1800)
+        two.record(k2, actual: 3600, freeFlow: 1800)
+        for _ in 0..<3 { two.record(k2, actual: 1800, freeFlow: 1800) }   // reach confidence, ratio rises
+        let r2 = try #require(two.ratio(for: k2))
+        #expect(r2 > 0.5)
     }
 
     @Test("the first sample is taken at face value, not blended with a default")
