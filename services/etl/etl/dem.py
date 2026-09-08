@@ -28,6 +28,48 @@ TILES = frozenset({
     "n39w122", "n39w123", "n39w124",
 })
 
+
+def tile_name(lat: float, lon: float) -> str:
+    """The 3DEP tile name whose square contains this point, with no opinion about whether we have it.
+
+    Split out of `tile_for` so a region can be asked which tiles it NEEDS before any of them exist. The
+    naming rule is the same one `tile_for` documents: a tile nXXwYYY covers latitude [XX-1, XX] and
+    longitude [-YYY, -YYY+1], so the name comes from the north-west corner.
+    """
+    return f"n{math.ceil(lat):02d}w{math.ceil(abs(lon)):03d}"
+
+
+def tiles_for_bbox(min_lon: float, min_lat: float, max_lon: float, max_lat: float) -> frozenset[str]:
+    """Every 3DEP tile a bbox touches, derived rather than typed.
+
+    TILES above is a module constant listing sfbay's eight, so `tile_for` returns None for every point in
+    any other region and every elevation there is absent - not wrong, ABSENT, which silently zeroes the
+    terrain terms of the scenic score. A second region ([[T-0107]]) therefore cannot work until the tile set
+    comes from the region's own bbox, and a hand-typed list for each new region is the same defect deferred.
+
+    Walks the integer squares the bbox spans rather than sampling its corners: a bbox wider than one degree
+    has interior squares that no corner is in, and a corner-only implementation would miss them and look
+    correct on any small region.
+
+    It does NOT know which tiles USGS actually serves. sfbay excludes n37w124 because it is entirely ocean
+    and 404s; that judgement needs the region, so callers filter. Returning a tile that does not exist is
+    recoverable - the fetcher reports it - while omitting one silently is not.
+    """
+    lo_lat, hi_lat = min(min_lat, max_lat), max(min_lat, max_lat)
+    lo_lon, hi_lon = min(min_lon, max_lon), max(min_lon, max_lon)
+    out = set()
+    lat = math.floor(lo_lat)
+    while lat <= math.ceil(hi_lat):
+        lon = math.floor(lo_lon)
+        while lon <= math.ceil(hi_lon):
+            # The square [lat, lat+1] x [lon, lon+1] is touched only if it genuinely overlaps the bbox;
+            # `<=` on the far edge would add a whole row of squares the bbox merely reaches the border of.
+            if lat < hi_lat and lat + 1 > lo_lat and lon < hi_lon and lon + 1 > lo_lon:
+                out.add(tile_name(lat + 1, lon))
+            lon += 1
+        lat += 1
+    return frozenset(out)
+
 # 3DEP publishes a large negative nodata. Anything at or below this is absence, not depth.
 NODATA_BELOW_M = -1000.0
 # Nothing in the Bay Area is above Mount Hamilton (1330 m) by much; a value past this is a corrupt read,

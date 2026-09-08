@@ -101,8 +101,7 @@
   why_no_test_catches_it: An agent will make it configurable, and a config value is a value an agent can raise
   anchor: source
   runs_on: [linux]
-  assertion: TODO
-  pending: T-0014
+  assertion: "v=\"$(sed -n '/^- id: P-COST-02/,/^- id: /p' pins/PINS.yaml | sed -n 's/^  value: *//p' | tr -d '[:space:]')\"; test -n \"$v\" && test \"$(grep -oE '^export const MAX_MONTHLY_UPSTREAM_CALLS = [0-9_]+' services/api/src/quota.ts | grep -oE '[0-9_]+$' | tr -d _)\" = \"$v\" && ! grep -rqE 'MAX_MONTHLY_UPSTREAM_CALLS[[:space:]]*=[[:space:]]*[^0-9[:space:]]' services/api/src"
   owner: agent/claude-opus-5
   added: 2026-09-07
   value: 250000

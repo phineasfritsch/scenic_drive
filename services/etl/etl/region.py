@@ -59,12 +59,59 @@ class BBox:
 
 
 @dataclass(frozen=True)
+class CountsFrom:
+    """Which extract produced `counts`. A baseline nobody can trace is a number, not a baseline.
+
+    `bbox` is the killer field. On 2026-09-08 sfbay's first real extract came in 18-26% low across every
+    class, and the cause was that its bbox had been corrected from -121.20 to -121.55 - removing Tracy and
+    Stockton - while the recorded counts were left describing the old, larger region. Every class low by
+    roughly the same fraction, which is the signature of a bbox change and not of a filter defect. The
+    baseline had silently become a measurement of a region the code no longer cuts.
+
+    Recording the bbox the counts were measured over turns that into a load-bearing check: if the region's
+    bbox is edited and the counts are not re-recorded, the two disagree and `problems()` says so, at the
+    stage that caused it, instead of surfacing as a 20% bounds failure weeks later that reads like a broken
+    tag filter.
+    """
+    source: str
+    source_bytes: int
+    built_at: str
+    bbox: str
+
+    def problems(self, region_bbox: BBox) -> list[str]:
+        out = []
+        if not self.source:
+            out.append("counts_from.source is empty - name the PBF the counts were measured from")
+        if not isinstance(self.source_bytes, int) or isinstance(self.source_bytes, bool) \
+                or self.source_bytes <= 0:
+            out.append(f"counts_from.source_bytes is not a size: {self.source_bytes!r}")
+        if not self.built_at:
+            out.append("counts_from.built_at is empty - say when the extract ran")
+        try:
+            measured = tuple(float(v) for v in str(self.bbox).split(","))
+        except ValueError:
+            out.append(f"counts_from.bbox is not four numbers: {self.bbox!r}")
+            return out
+        if len(measured) != 4:
+            out.append(f"counts_from.bbox is not four numbers: {self.bbox!r}")
+            return out
+        here = (region_bbox.min_lon, region_bbox.min_lat, region_bbox.max_lon, region_bbox.max_lat)
+        if measured != here:
+            out.append(
+                f"counts were measured over {self.bbox} but the region's bbox is now "
+                f"{region_bbox.as_osmium()} - the baseline describes a different region than the code cuts. "
+                f"Re-record with ops/etl-extract --region <id> --record-counts.")
+        return out
+
+
+@dataclass(frozen=True)
 class Region:
     id: str
     name: str
     counties: tuple[str, ...]
     bbox: BBox
     counts: dict[str, int] = field(default_factory=dict)
+    counts_from: CountsFrom | None = None
 
     def problems(self) -> list[str]:
         out = [f"bbox: {p}" for p in self.bbox.problems()]
@@ -77,6 +124,13 @@ class Region:
         for cls, n in self.counts.items():
             if not isinstance(n, int) or isinstance(n, bool) or n < 0:
                 out.append(f"counts[{cls}] is not a count: {n!r}")
+        # Counts without provenance are the defect above, one step earlier. No counts is fine - checkbounds
+        # reports "cannot tell" and nothing pretends otherwise - but a baseline that exists must be traceable.
+        if self.counts and self.counts_from is None:
+            out.append("counts are recorded but counts_from is absent - a baseline nobody can trace to an "
+                       "extract cannot be checked against one")
+        if self.counts_from is not None:
+            out.extend(self.counts_from.problems(self.bbox))
         return out
 
 
@@ -86,10 +140,11 @@ def load(region_id: str, root: Path | None = None) -> Region:
     data = json.loads(path.read_text(encoding="utf-8"))
     # Keys beginning with _ are prose for humans reading the file; they are never read back as data.
     unknown = [k for k in data if not k.startswith("_") and k not in
-               {"id", "name", "counties", "bbox", "counts"}]
+               {"id", "name", "counties", "bbox", "counts", "counts_from"}]
     if unknown:
         raise ValueError(f"{path}: unknown field(s): {unknown}")
     b = data.get("bbox") or {}
+    cf = data.get("counts_from")
     region = Region(
         id=data.get("id", ""),
         name=data.get("name", ""),
@@ -97,6 +152,12 @@ def load(region_id: str, root: Path | None = None) -> Region:
         bbox=BBox(b.get("min_lon", float("nan")), b.get("min_lat", float("nan")),
                   b.get("max_lon", float("nan")), b.get("max_lat", float("nan"))),
         counts=dict(data.get("counts") or {}),
+        counts_from=None if not isinstance(cf, dict) else CountsFrom(
+            source=cf.get("source", ""),
+            source_bytes=cf.get("source_bytes", 0),
+            built_at=cf.get("built_at", ""),
+            bbox=cf.get("bbox", ""),
+        ),
     )
     problems = region.problems()
     if problems:
