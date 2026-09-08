@@ -42,8 +42,17 @@ DEFAULT_MODULES = ["etl/oracle.py", "etl/oracle_select.py"]
 
 # A survivor budget, not a target. It exists so this can gate without pretending the number is zero today:
 # raise the bar by LOWERING it, never by loosening a rule. `.githooks/commit-msg` guards MAX_* bindings.
-MAX_SURVIVORS = 69    # measured 2026-09-08: 117 killed, 69 survived, of 186. Lower it as tests land;
+MAX_SURVIVORS = 14    # measured 2026-09-08: 172 killed, 14 survived, of 186. Lower it as tests land;
                       # never raise it. `.githooks/commit-msg` guards MAX_* bindings (T-0079).
+                      #   117/69  T-0081, the first measurement
+                      #   121/65  T-0088 gap 2, the emitted record's shape
+                      #   149/37  T-0088 gap 1, main() and the cap/seed defaults
+                      #   163/23  T-0088 gap 3, the parser guards
+                      #   165/21  T-0088 gap 4, eligible()'s comparability guard
+                      #   172/14  T-0088, the survivors that were holes rather than equivalences
+                      # The 14 are named in T-0088's log with the reason each one stands: six are the brief's
+                      # gap 5 (NODE_TAGS and the highway value set) and are a real hole nobody has closed
+                      # yet; the other eight are equivalent or need an input the suite cannot have.
 
 
 # ----------------------------------------------------------------------------- the run
@@ -65,9 +74,33 @@ def dirty(rels):
     return [l[3:].strip() for l in r.stdout.splitlines() if l.strip()]
 
 
+def purge_bytecode(path):
+    """Delete the module's cached bytecode, and stop a run writing more.
+
+    CPython validates a `.pyc` against its source's mtime IN WHOLE SECONDS and its SIZE. Two mutants of
+    one module differ by a single character and `ast.unparse` gives them the SAME size - so two mutant
+    runs inside the same wall-clock second reuse the FIRST one's bytecode, and the second mutant is
+    judged on code that was never on disk for it.
+
+    This harness has never hit that: at ~2.3 s per mutant, consecutive writes are more than a second
+    apart and therefore always land in different seconds. That is not a guarantee, it is an accident of
+    how slow the suite is - a faster caller reproduced it immediately and reported CAUGHT for a mutant
+    that survives (T-0088). A measurement that is correct only because it is slow is not a measurement.
+    Both halves are closed: the stale file is removed, and PYTHONDONTWRITEBYTECODE stops a new one.
+    """
+    cache = path.parent / "__pycache__"
+    if cache.is_dir():
+        for pyc in cache.glob(path.stem + ".*.pyc"):
+            try:
+                pyc.unlink()
+            except OSError:
+                pass
+
+
 def run_suite(py):
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     r = subprocess.run([py, "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider", "-o", "addopts="],
-                       cwd=ETL, capture_output=True, text=True, timeout=900)
+                       cwd=ETL, capture_output=True, text=True, timeout=900, env=env)
     return r.returncode == 0     # True = suite PASSED = the mutant SURVIVED
 
 
@@ -192,10 +225,12 @@ def _run(py, modules, plan, a):
                 print(f"  {rel}:{line} {rule}: could not unparse ({type(e).__name__}); skipped")
                 continue
             path.write_text(mutated, encoding="utf-8", newline="\n")
+            purge_bytecode(path)
             try:
                 lived = run_suite(py)
             finally:
                 path.write_text(original, encoding="utf-8", newline="\n")
+                purge_bytecode(path)
             if lived:
                 survivors.append((rel, line, rule, desc))
                 print(f"  SURVIVED  {rel}:{line}  {rule:9s} {desc}")

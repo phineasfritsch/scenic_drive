@@ -14,7 +14,9 @@ from __future__ import annotations
 import json
 import math
 
+from etl import curvature as cv
 from etl import oracle_select as sel
+from tests import oracle_kmz as ok
 
 
 def test_the_selection_constants_are_pinned_against_literals():
@@ -157,3 +159,142 @@ def test_load_export_collects_only_nodes_carrying_a_squash_tag(tmp_path):
     path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     _, _, tagged = sel.load_export(path)
     assert tagged == [(44.0, -72.8), (44.02, -72.82)]
+
+
+# --------------------------------------------------------------------------- condition 0: is it comparable
+# `eligible()` opens with the line that decides whether a published way can be looked at at all:
+#
+#     if not ours or not theirs or len(ours) < 3:
+#         continue
+#
+# `ops/etl-mutation` dropped any ONE of those three operands, and flipped the `or` to `and`, with the suite
+# green - four survivors at oracle_select.py:153, plus the `continue` itself at :154. This is E4's
+# neighbourhood: E4, the first evasion that beat T-0074, was deleting `or near_tagged_node(ours, grid)` six
+# lines further down, and it worked because every export the suite wrote made that operand a no-op. The same
+# thing is true here for a different reason - every export the suite wrote contained every published way,
+# with the KML's own geometry, three vertices long - so all three operands were dead code under test.
+#
+# Each operand therefore gets its own negative case, driven against a well-formed neighbour in the same KMZ.
+# The neighbour is what makes the assertion sharp: `have_geometry == 1` says the probe was excluded HERE,
+# where `kept == []` alone could not tell exclusion from a funnel that was empty to begin with.
+
+GOOD_WAY = 111
+PROBE_WAY = 222
+GOOD_COORDS = [(44.0, -72.8), (44.001, -72.8), (44.002, -72.8)]
+PROBE_COORDS = [(44.1, -72.8), (44.101, -72.8), (44.102, -72.8)]
+TWO_VERTICES = [(44.1, -72.8), (44.101, -72.8)]
+
+
+def _funnel_with_probe(tmp_path, probe_block, probe_export):
+    """`eligible()` over one good collection plus one probe, and the probe is what the case is about."""
+    kmz = ok.write_kmz(tmp_path / "probe.kmz",
+                       ok.collection(GOOD_WAY, GOOD_COORDS), probe_block)
+    export = ok.write_export(tmp_path / "probe.geojsonseq",
+                             ways=[ok.road(GOOD_WAY, GOOD_COORDS)] + probe_export)
+    return sel.eligible(export, kmz)
+
+
+def _assert_only_the_good_way_survived(kept, stages):
+    assert stages["single_way"] == 2, "both collections must be published, or the probe tests nothing"
+    assert stages["have_geometry"] == 1, "the probe got past the comparability guard"
+    assert [w["way_id"] for w in kept] == [GOOD_WAY]
+
+
+def test_a_published_way_the_export_never_returned_is_not_comparable(tmp_path):
+    """`not ours`, and it is the operand that handles the ORDINARY case, not a corrupt one.
+
+    `osmium getid` exits 1 for ids that are not in the extract, after writing a complete file for every id it
+    did find - 21 of 3318 for the pinned pair, because the KMZ was generated from an older OSM snapshot -
+    and `ops/etl-curvature-fixture` deliberately carries on rather than treating that as failure. So
+    `ways.get(way_id)` returning None happens on every real rebuild. Without this operand it is `len(None)`,
+    and the rebuild dies on input it was designed to tolerate.
+    """
+    kept, stages = _funnel_with_probe(
+        tmp_path, ok.collection(PROBE_WAY, PROBE_COORDS), [])
+    _assert_only_the_good_way_survived(kept, stages)
+
+
+def test_a_way_the_kml_carries_no_geometry_for_is_not_comparable(tmp_path):
+    """`not theirs`. A Placemark can hold a constituent-ways table and no `<LineString>`, and
+    `kml_geometry` skips it - so the way is published but the geometry Curvature computed over was not.
+
+    Condition 2 is the comparison against THAT geometry: the module's own note is that 726 of 3297 ways
+    differ from it and agree 29.6% of the time against 90.4% for unchanged geometry. With nothing to compare
+    against there is no condition 2, and admitting the way anyway is admitting a way on two conditions out
+    of three while the fixture goes on claiming three.
+    """
+    kept, stages = _funnel_with_probe(
+        tmp_path,
+        ok.placemark("Probe Road", ways=(PROBE_WAY,), coords=None),
+        [ok.road(PROBE_WAY, PROBE_COORDS)])
+    _assert_only_the_good_way_survived(kept, stages)
+
+
+def test_a_way_of_fewer_than_three_vertices_is_not_comparable(tmp_path):
+    """`len(ours) < 3`. A radius needs three points. `assign_radii` says so explicitly - a way with a single
+    segment is given `MAX_RADIUS`, which is above every band in `LEVELS`, so its curvature is 0 by
+    construction and not by measurement. Comparing there is agreeing that 0 == 0, and counting that into the
+    headline percentage is counting a way that tested none of the five steps as evidence about all of them.
+    """
+    kept, stages = _funnel_with_probe(
+        tmp_path,
+        ok.collection(PROBE_WAY, TWO_VERTICES),
+        [ok.road(PROBE_WAY, TWO_VERTICES)])
+    _assert_only_the_good_way_survived(kept, stages)
+    assert cv.way_curvature(TWO_VERTICES) == 0, "a single-segment way is MAX_RADIUS, which scores nothing"
+
+
+def _cell(lat, lon):
+    return int(lat / sel.CELL_DEG), int(lon / sel.CELL_DEG)
+
+
+def test_the_proximity_grid_searches_all_four_neighbouring_cells():
+    """`near_tagged_node` walks `for dy in (-1, 0, 1)` and `for dx in (-1, 0, 1)`, and `ops/etl-mutation`
+    could turn ANY of those four non-zero offsets into a 2 - searching a cell 110 m away instead of the
+    adjacent one - with the suite green. The one boundary case in this file put the node BELOW the way, so
+    only `dy = -1` was ever exercised; the other three offsets were dead code under test.
+
+    Missing a neighbour is condition 3 failing OPEN, the dangerous direction: the way's published value HAS
+    been modified by a squash step this repo does not implement, and it would be compared and counted anyway.
+
+    Each pair straddles a cell edge by 10 m on either side - 20 m apart, inside the 30 m radius, in adjacent
+    cells. Both are asserted, or a case that stopped straddling the edge would pass while testing nothing.
+    """
+    dlat = 10.0 / (6373000 * math.pi / 180)
+    lat = math.floor(44.0 / sel.CELL_DEG) * sel.CELL_DEG       # exactly on a cell boundary, in both axes
+    lon = math.floor(-72.8 / sel.CELL_DEG) * sel.CELL_DEG
+    dlon = dlat / math.cos(math.radians(lat))
+
+    # name -> (the way's vertex, the tagged node, which axis the cells differ on, by how much)
+    cases = {
+        "north": ((lat - dlat, lon), (lat + dlat, lon), 0, +1),
+        "south": ((lat + dlat, lon), (lat - dlat, lon), 0, -1),
+        "east":  ((lat, lon - dlon), (lat, lon + dlon), 1, +1),
+        "west":  ((lat, lon + dlon), (lat, lon - dlon), 1, -1),
+    }
+    for name, (way, node, axis, step) in cases.items():
+        assert _cell(*node)[axis] - _cell(*way)[axis] == step, f"{name}: vacuous, the cells do not differ"
+        assert cv.distance_on_earth(*way, *node) <= sel.SQUASH_RADIUS_M, f"{name}: outside the radius"
+        assert sel.near_tagged_node([way], _grid([node])), f"{name}: the grid never looked in that cell"
+
+
+def test_the_records_coordinates_are_rounded_to_seven_places(tmp_path):
+    """`round(lat, 7)` is about 11 mm, and it is a decision rather than a formatting accident.
+
+    `GEOMETRY_TOL_M` is 1 m, so no digit below a centimetre can change any answer the fixture is used for -
+    while the fixture is a 684 KB file tracked in git and compared line by line by
+    `ops/etl-curvature-fixture --check`. An eighth digit on every coordinate of every way buys nothing and
+    makes that comparison bigger. Nothing asserted the precision, so `7 -> 8` mutated green on both the
+    latitude and the longitude.
+    """
+    lat0, lon0 = 44.000000049, -72.800000049
+    assert round(lat0, 7) != round(lat0, 8), "vacuous unless the two roundings differ"
+    assert round(lon0, 7) != round(lon0, 8)
+
+    coords = [(lat0, lon0), (44.001, -72.8), (44.002, -72.8)]
+    kmz = ok.write_kmz(tmp_path / "precise.kmz", ok.collection(GOOD_WAY, coords))
+    export = ok.write_export(tmp_path / "precise.geojsonseq", ways=[ok.road(GOOD_WAY, coords)])
+
+    kept, _stages = sel.eligible(export, kmz)
+    assert [w["way_id"] for w in kept] == [GOOD_WAY]
+    assert kept[0]["coords"][0] == [round(lat0, 7), round(lon0, 7)]

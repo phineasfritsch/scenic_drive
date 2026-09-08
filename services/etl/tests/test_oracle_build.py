@@ -298,3 +298,53 @@ class TestBuildRefusesAnUnpinnedOracle:
         assert written != oracle.pinned_digest(PINNED_NAME, MANIFEST), (
             "a fixture built this way must NOT be able to claim the pinned digest - that claim is the only "
             "thing standing between the rename and a silently replaced oracle")
+
+
+class TestTheRecordCarriesWhatTheOracleIsFor:
+    """The SHAPE of each written record, which nothing asserted until T-0088.
+
+    `ops/etl-mutation` dropped each key from the dict `build()` appends and the suite stayed green for every
+    one - including `oracle_curvature`, the value the entire oracle exists to carry, and `coords`, the
+    geometry the agreement is measured against. The keys appear in this repository only inside the committed
+    `tests/fixtures/curvature_oracle.json`; no assertion ever read them, so the fixture could be regenerated
+    without its curvature values and nothing would object.
+
+    That is the T-0069 provenance defect one level further in: a fixture trusted because it exists, rather
+    than because something checks what is in it.
+    """
+
+    EXPECTED = {"way_id", "name", "surface", "oracle_curvature", "coords"}
+
+    def test_every_key_the_downstream_comparison_needs_is_written(self, tmp_path):
+        kmz = write_kmz(tmp_path / "not-the-oracle.kmz")
+        export = write_export(tmp_path / "subset.geojsonseq")
+        fixture = tmp_path / "out.json"
+
+        n, _stages = sel.build(fixture, export, kmz)
+        assert n == 1
+
+        ways = json.loads(fixture.read_text(encoding="utf-8"))["ways"]
+        assert len(ways) == 1
+        got = set(ways[0])
+        missing = self.EXPECTED - got
+        assert not missing, (
+            f"build() wrote a record without {sorted(missing)}. Dropping any of these leaves every other "
+            f"test green, which is how five of them survived mutation: nothing read the record's keys.")
+
+    def test_the_curvature_and_geometry_are_the_oracles_own_values(self, tmp_path):
+        """Presence is not enough - a key holding the wrong thing is the adjacent defect, and it is the one
+        that matters here, because agreement is computed against exactly these two fields."""
+        coords = [(44.0, -72.8), (44.001, -72.8), (44.002, -72.8)]
+        kmz = write_kmz(tmp_path / "not-the-oracle.kmz", coords=coords)
+        export = write_export(tmp_path / "subset.geojsonseq", coords=coords)
+        fixture = tmp_path / "out.json"
+
+        sel.build(fixture, export, kmz)
+        rec = json.loads(fixture.read_text(encoding="utf-8"))["ways"][0]
+
+        assert rec["way_id"] == WAY_ID
+        assert isinstance(rec["oracle_curvature"], (int, float)), "curvature must be a number, not a string"
+        assert rec["oracle_curvature"] > 0, "a zero curvature is the value a stubbed-out parser writes"
+        assert len(rec["coords"]) == len(coords), "the record's geometry is not the way's geometry"
+        for (glat, glon), (elat, elon) in zip(rec["coords"], coords):
+            assert abs(glat - elat) < 1e-6 and abs(glon - elon) < 1e-6
