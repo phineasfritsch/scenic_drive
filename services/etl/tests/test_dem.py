@@ -14,6 +14,19 @@ import pytest
 from etl import dem
 
 
+class AcceptsAnyTileName:
+    """A stand-in for `dem.TILES` that contains every string.
+
+    With the real TILES an out-of-hemisphere point is refused TWICE: once by the hemisphere guard, and again
+    because the name it builds (`n38w-122`, `n-37w123`) is in no tile set anywhere. The second refusal hides
+    the first, so `tile_for(38.0, 122.5) is None` passes with the guard deleted - which is how the guard
+    shipped untested the first time. Patching plausible names into TILES does not help; the malformed name
+    misses those too. Dropping membership entirely leaves the guard as the only thing that can return None.
+    """
+    def __contains__(self, name: object) -> bool:
+        return True
+
+
 def fake_runner(stdout, returncode=0, stderr=""):
     def run(argv, stdin):
         run.calls.append((argv, stdin))
@@ -47,6 +60,17 @@ class TestTileForAPoint:
         assert dem.tile_for(float("nan"), -122.0) is None
         assert dem.tile_for(37.5, float("nan")) is None
 
+    def test_an_infinite_coordinate_returns_none_rather_than_raising(self):
+        """`math.ceil(inf)` raises OverflowError, and `group_by_tile` calls `tile_for` once per road node -
+        so one infinite coordinate anywhere in an extract aborted the whole ETL run instead of costing that
+        one point its elevation. A NaN check sitting directly above an unguarded `ceil` read as coverage it
+        did not have. Found by agent/reviewer-pr34."""
+        inf = float("inf")
+        assert dem.tile_for(inf, -122.0) is None
+        assert dem.tile_for(-inf, -122.0) is None
+        assert dem.tile_for(37.5, -inf) is None
+        assert dem.tile_for(37.5, inf) is None
+
     def test_the_name_comes_from_the_north_west_corner(self):
         """Ceil, not floor. Getting this backwards names a tile that EXISTS, for the wrong square, so every
         elevation is plausibly wrong rather than missing - the hardest kind of wrong to notice."""
@@ -56,6 +80,42 @@ class TestTileForAPoint:
     def test_the_tile_set_matches_what_the_manifest_pins(self):
         assert len(dem.TILES) == 8
         assert "n37w124" not in dem.TILES
+
+    @pytest.mark.parametrize("lat,lon,where", [
+        (38.0, 122.5, "122.5 E - from abs(lon) this named n38w123, the peninsula's own tile"),
+        (37.5, 122.5, "122.5 E at a latitude we do hold a tile for"),
+        (37.5, 121.5, "121.5 E"),
+        (-37.5, -122.5, "37.5 S - Chile's coast sits at California's longitudes"),
+        (-38.5, -123.2, "38.5 S"),
+        (0.0, -122.5, "the equator"),
+        (37.5, 0.0, "the prime meridian"),
+    ])
+    def test_a_point_outside_the_northern_western_quadrant_has_no_tile(self, lat, lon, where):
+        """The CONTRACT: `n`/`w` in nXXwYYY are claims about the hemisphere, not a prefix, so a point
+        outside that quadrant has no name in this scheme and must come back None rather than folded into
+        someone else's tile. These cases say nothing about which line enforces it - they pass with the
+        hemisphere guard deleted, on the malformed name missing TILES. The MECHANISM is pinned one test
+        down, by `test_the_guard_and_not_the_tile_set_is_what_refuses_a_point`."""
+        assert dem.tile_for(lat, lon) is None, where
+
+    def test_the_guard_and_not_the_tile_set_is_what_refuses_a_point(self, monkeypatch):
+        """The only test in this file that can see the hemisphere guard at all. Delete either half of
+        `lat <= 0.0 or lon >= 0.0` and this goes red; delete both and the other 45 tests here stay green,
+        satisfied by the malformed name missing TILES - an accident, not a check. It is also the honest
+        statement of why the guard is worth having while unreachable: TILES membership is what stops the
+        collision today, and it stops stopping it the moment the tile set covers a second region.
+        """
+        monkeypatch.setattr(dem, "TILES", AcceptsAnyTileName())
+        # Vacuity guard. `test_a_point_outside_the_region_returns_none` pins that this is None against the
+        # real TILES, so a name coming back here proves the stand-in is installed and that membership is no
+        # longer refusing anything - without it, a monkeypatch that silently did nothing would still pass.
+        assert dem.tile_for(45.0, -100.0) == "n45w100"
+        assert dem.tile_for(37.5, -122.5) == "n38w123"
+        assert dem.tile_for(38.0, 122.5) is None       # 122.5 E - the collision itself
+        assert dem.tile_for(38.0, 120.5) is None       # 120.5 E
+        assert dem.tile_for(-37.5, -122.5) is None     # 37.5 S, off Chile
+        assert dem.tile_for(0.0, -122.5) is None       # the equator
+        assert dem.tile_for(37.5, 0.0) is None         # the prime meridian
 
 
 class TestGrouping:

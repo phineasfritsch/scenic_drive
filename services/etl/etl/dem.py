@@ -39,12 +39,27 @@ def tile_for(lat: float, lon: float) -> str | None:
     """The 3DEP tile covering a point, or None if we do not have one.
 
     A tile nXXwYYY covers latitude [XX-1, XX] and longitude [-YYY, -YYY+1], so the name comes from the
-    NORTH-WEST corner: ceil the latitude, ceil the absolute longitude. Getting this backwards produces a
+    NORTH-WEST corner: ceil the latitude, ceil the negated longitude. Getting this backwards produces a
     name that exists, for the wrong square, and every elevation is then plausibly wrong rather than missing.
+
+    The `n`/`w` in that naming scheme are not decoration - it can only describe the northern and western
+    hemispheres, so a point outside them has no name here and must be refused rather than folded into one.
+    This used to build the name from `abs(lon)`, which mapped 122.5 degrees EAST - in China - onto
+    `n38w123`, the Bay Area's own tile, and returned real elevation for the wrong continent. Unreachable
+    today because every longitude in the region bbox is negative and TILES membership catches the rest; the
+    guard is here because that is exactly the protection that evaporates the moment TILES gains a second
+    region, and because a plausible number from the wrong place is the hardest kind of wrong to notice. Same
+    argument as the ceil-versus-floor case the tests already cover. Found by agent/reviewer-31 on T-0026.
+
+    Non-finite in, None out - `math.ceil` RAISES on an infinity, and this runs once per road node from
+    `group_by_tile`, so one bad coordinate used to abort the whole extract rather than cost that one point
+    its elevation. Found by agent/reviewer-pr34.
     """
-    if lat != lat or lon != lon:          # NaN
+    if not (math.isfinite(lat) and math.isfinite(lon)):   # NaN or +/-inf: no tile, not a crash
         return None
-    name = f"n{math.ceil(lat):02d}w{math.ceil(abs(lon)):03d}"
+    if lat <= 0.0 or lon >= 0.0:          # not northern AND western: this scheme cannot name it
+        return None
+    name = f"n{math.ceil(lat):02d}w{math.ceil(-lon):03d}"
     return name if name in TILES else None
 
 
@@ -104,7 +119,22 @@ def sample_tile(name: str, points: list[tuple[float, float]],
 
 
 def sample(points: list[tuple[float, float]], runner=None) -> list[float | None]:
-    """Elevation for every point, in the order given. Points with no tile come back as None."""
+    """Elevation for every point, in the order given. Points with no tile come back as None.
+
+    WHICH OF THESE TWO TO CALL, because the answer is not "whichever you reach for first":
+
+      `sample`          the raw cell value at a point. Correct when you want to know what the DEM says at
+                        one place - checking a tile, a spot elevation, a fixture's provenance.
+      `sample_smoothed` the 3x3 average. Correct for ANY road profile, and therefore for anything feeding
+                        `terrain.elevation_gain`, `relief` or `grade_percent`.
+
+    The distinction is load-bearing and has already failed once: `terrain.smooth3x3` was written, tested and
+    never wired in, so the first fixture carried ~1 m of DEM noise per cell and summing positive deltas over
+    25 m steps produced climb on flat ground - the Alviso failure. This note is documentation and documentation
+    guards nothing; what actually holds the line is `TestSmoothedSampling`, which pins that `sample_smoothed`
+    averages its nine cells and that `sample` does not. The real enforcement point is T-0030's production
+    caller, which is where a reviewer should check that the smoothed path is the one being used.
+    """
     out: list[float | None] = [None] * len(points)
     for name, indices in group_by_tile(points).items():
         if name is None:
