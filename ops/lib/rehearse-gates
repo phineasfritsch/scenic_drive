@@ -33,6 +33,10 @@ git rev-parse --git-dir >/dev/null 2>&1 || {
   echo "cannot measure: no ops/ and no queue/ under $(pwd)"; exit 3; }
 [[ -f ops/queue-check ]] || {
   echo "cannot measure: ops/queue-check is not in this tree"; exit 3; }
+# Without ops/lib there is nothing to run and nothing to enumerate, so the coverage assertion below would
+# pass on an empty set - the shape of vacuous pass this whole file is written against.
+[[ -d ops/lib ]] || {
+  echo "cannot measure: no ops/lib/ under $(pwd), so there are no checks to run"; exit 3; }
 
 findings=()
 
@@ -59,36 +63,100 @@ if [[ $qrc -ne 0 ]]; then
   [[ $n -gt 0 ]] || findings+=("queue-check: exit $qrc with no problem lines")
 fi
 
-# ---------------------------------------------------------------- the pin checks, by EXIT CODE
+# ---------------------------------------------------------------- the ops/lib checks, by EXIT CODE
 # The old function grepped for one message per check and ignored the exit code, so most real failures printed
 # as "merged, gates clean": ops/lib/check-exec-bits has three failure messages and two were matched;
 # ops/lib/check-line-cap has one today and six once T-0058 lands, of which one was matched. A check that says
 # "I failed" is a failure whatever it says next.
 #
-# first_finding keeps the header line AND the line under it, because `wrong git file mode:` is a header and
-# the offending path is on the next line - the header alone names no file and tells a reviewer nothing.
+# WHICH CHECKS - T-0091. This list was short by two, and that is how the collision this whole tool exists to
+# find got past it. ops/lib/check-lock-lifecycle builds a ONE-task queue in a mktemp -d; T-0073 added a
+# forty-task population floor to cmd_check; each guard is right on its own and together they are red. Two
+# branches green alone and red merged is the definition of what a merge rehearsal is for - and this one could
+# not see it, because check-lock-lifecycle was simply not in the set. It was found instead by an agent
+# noticing a red check while working on something else, which is luck, not a process.
+#
+# Both additions are cheap by the standard this tool already applies. It skips ops/test because the swift,
+# vitest and pytest tiers dominate the runtime by an order of magnitude; measured on the Windows checkout
+# these two are 8s and 19s (almost all of it python process startup, x15), against ~2.5 min per row.
+#
+# And the list is no longer only a list: GATE_COVERAGE below asserts every ops/lib/check-* in the tree is IN
+# it, because the next check added is invisible for exactly the same reason unless something notices.
+GATE_CHECKS=(check-exec-bits check-line-cap check-brief-required check-lock-lifecycle)
+
+# first_finding picks the line a reviewer needs, and it is PRESENTATION ONLY - the verdict is $rc, decided
+# below. Three structural rules, no failure wording:
+#   * an INDENTED line is a continuation of the one above, never the finding itself;
+#   * a line beginning `ok:` is a case that PASSED. check-lock-lifecycle and check-brief-required log every
+#     case, so the first line of a failing run is an `ok:` and quoting it would read as the opposite of what
+#     happened;
+#   * a header ending in `:` keeps the line under it, because `wrong git file mode:` names no file.
+# If every line is filtered out - a check that changed its prose - it falls back to the LAST line, which for
+# all four is the check's own verdict banner. Degrading to "LOCK LIFECYCLE FAIL" is safe; quoting a case that
+# passed is not. (Precedent for wording in presentation while the verdict comes from the exit code: the
+# queue-check block above drops the `QUEUE CHECK FAIL` banner by name and takes its answer from $qrc.)
 first_finding() {
-  local n=0 l1="" l2="" line
+  local l1="" l2="" last="" line trimmed want2=0
   while IFS= read -r line; do
-    line="${line#"${line%%[![:space:]]*}"}"
-    [[ -n "$line" ]] || continue
-    n=$((n + 1))
-    if [[ $n -eq 1 ]]; then l1="$line"; else l2="$line"; break; fi
+    trimmed="${line#"${line%%[![:space:]]*}"}"
+    [[ -n "$trimmed" ]] || continue
+    last="$trimmed"
+    if [[ $want2 -eq 1 ]]; then l2="$trimmed"; want2=0; fi
+    [[ -n "$l1" ]] && continue
+    [[ "$line" == [[:space:]]* ]] && continue
+    [[ "$trimmed" == ok:* ]] && continue
+    l1="$trimmed"
+    [[ "$l1" == *: ]] && want2=1
   done <<<"$1"
-  if [[ "$l1" == *: ]]; then printf '%s %s' "$l1" "$l2"; else printf '%s' "$l1"; fi
+  if [[ -z "$l1" ]]; then printf '%s' "$last"
+  elif [[ -n "$l2" ]]; then printf '%s %s' "$l1" "$l2"
+  else printf '%s' "$l1"; fi
 }
 
-for chk in check-exec-bits check-line-cap; do
+for chk in "${GATE_CHECKS[@]}"; do
   if [[ ! -f "ops/lib/$chk" ]]; then
-    # Not "skip": main has both, so a merged tree without one is a merge that deleted a check. Silently
+    # Not "skip": main has all four, so a merged tree without one is a merge that deleted a check. Silently
     # skipping a missing check is how a rehearsal reports "clean" for a tree that removed its own gates.
     findings+=("$chk: NOT IN THIS TREE - a merge removed ops/lib/$chk")
     continue
   fi
   out="$(bash "ops/lib/$chk" 2>&1)"
   rc=$?
-  [[ $rc -eq 0 ]] || findings+=("$chk: $(first_finding "$out") [exit $rc]")
+  case $rc in
+    0) ;;
+    1) findings+=("$chk: $(first_finding "$out") [exit $rc]") ;;
+    *) # NOT a finding. 2 is "cannot reach the repo root" in check-brief-required and check-lock-lifecycle,
+       # 126/127 are an unreadable script or a missing interpreter; none of them is a verdict about this
+       # tree. Calling one a finding is the fabrication half of the same error as calling it clean, and the
+       # caller must throw the run away rather than the row - hence exit 3, not findings+=.
+       echo "cannot measure: ops/lib/$chk exited $rc, which is neither pass (0) nor findings (1):"
+       printf '%s\n' "$out" | sed 's/^/  /'
+       exit 3 ;;
+  esac
 done
+
+# ---------------------------------------------------------------- GATE_COVERAGE: is that list complete?
+# The structural half of T-0091. Adding two names above fixes the collision that was missed; it does not fix
+# the reason it was missable, which is that the gate set is hand-maintained and nothing compared it against
+# the checks the tree actually has. A check that exists and is not run is a check whose failure this tool
+# will report as "gates clean", and that sentence is the thing this file was rewritten to stop saying.
+#
+# A finding rather than exit 3, deliberately: the gates that DID run are real measurements and the rows stand.
+# What is false is the word "clean", so the row must carry the reason it is not entitled to it.
+#
+# NOTE the direction. The harness is fixed for a whole run (merge-rehearse runs THIS copy) while the checks
+# come out of the merged tree, so a branch that ADDS a check trips this until the branch also adds it here.
+# That is the intended ratchet: wiring a new check into the rehearsal is part of adding one.
+shopt -s nullglob
+for p in ops/lib/check-*; do
+  [[ -f "$p" ]] || continue
+  name="${p##*/}"
+  known=0
+  for chk in "${GATE_CHECKS[@]}"; do [[ "$name" == "$chk" ]] && known=1 && break; done
+  [[ $known -eq 1 ]] || findings+=("gate-coverage: ops/lib/$name is a check in this tree that this rehearsal \
+does not run, so a clean row does not cover it - add it to GATE_CHECKS in ops/lib/rehearse-gates")
+done
+shopt -u nullglob
 
 # ---------------------------------------------------------------- duplicate pin ids
 # ops/check-pins catches these too, but it is slow, so look directly. Keyed on the ID, not on the whole line:
