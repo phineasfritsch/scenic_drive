@@ -1138,8 +1138,9 @@ that shape.
 
 ### The coverage that was missing - `services/etl/tests/test_dockerfile_pip_parser.py` (new, 272 lines)
 
-BLOCKER 2 is the one that made the others invisible, so it is the one that got the most work. 34
-blind-spot cases and 14 ordinary-install cases, each a real construction from a real review round and
+BLOCKER 2 is the one that made the others invisible, so it is the one that got the most work. 34 blind-spot
+cases and 14 ordinary-install cases at this point in the round - 37 and 15 once the addendum below adds the
+`-f`/`-i` cases - each a real construction from a real review round and
 labelled with the round that found it, all run through the **same** `pip_offenders_in` the Dockerfile check
 calls - `pip_indirect_target_offenders` was refactored onto it so the tests cannot drift onto a parallel
 implementation. The parser is a pure function over strings, so none of this needs Docker. That matters
@@ -1158,7 +1159,11 @@ Three guards keep the tables from going hollow the way the old test did:
   can emit is declared as `PIP_OFFENDER_REASONS`; a new refusal reason must arrive with a case that shows
   it red. This is the check that would have made round 4's uncovered landing impossible.
 
-### RED/GREEN - ten mutations (`.artifacts/demo_redgreen.py`, full transcript `.artifacts/redgreen.txt`)
+### RED/GREEN - ten mutations, at this point in the round
+
+Superseded by the twelve-mutation table in the addendum below, which is the final state; these numbers are
+the suite at 102 passed, before the `-f`/`-i` fix took it to 106. Harness `.artifacts/demo_redgreen.py`,
+full transcript `.artifacts/redgreen.txt`.
 
 Each mutation reverts exactly one part of this change or breaks one precondition, runs the full ETL suite,
 and is restored from a file backup (no git). `EXIT` is the pytest process's own exit code.
