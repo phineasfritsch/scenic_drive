@@ -23,6 +23,17 @@ it.** `main` got *"every merge-readiness tool enumerates open PRs, so eleven bra
 invisible"*; `task/T-0080` got *"P-SRC-01 greps Sources/ only, so a banned import in Tests/ is invisible"*.
 Two unrelated findings, one id. Reconciled by hand and the second renumbered to `T-0100`.
 
+**It happened TWICE in one day, and the second one was worse.** `T-0088` was also allocated twice: `main`
+has *"the 69 mutation survivors are five gaps"* (from `task/T-0081`) and `task/T-0087` has *"ops/check-pins
+tier with no value prints an index"*. Renumbered to `T-0102`.
+
+That second instance is the one that should decide the priority, because **no gate could see it**.
+`ops/queue-check` passes on `main`. It passes on `task/T-0087`. The duplicate exists only in the MERGE of
+the two — the merge-time-only class [[T-0063]] was filed for and [[T-0065]]'s rehearsal exists to catch —
+and the rehearsal could not see it either, because `task/T-0087` has no open PR and the rehearsal
+enumerated pull requests ([[T-0099]]). It surfaced only because an unrelated task happened to branch from
+`task/T-0087` and merge `main` into it. That is luck, not a mechanism.
+
 **This is not a hole in [[T-0017]]'s fix; it is the limit of its shape.** `next_id()` consults
 `_ids_in_refs()`, which scans every remote ref precisely to stop this, and the comment there is right about
 what it buys. But the sequence is:
