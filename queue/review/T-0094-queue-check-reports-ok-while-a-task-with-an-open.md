@@ -1,7 +1,7 @@
 ---
 id: T-0094
 title: queue-check reports OK while a task with an open PR sits in claimed with reviewer null
-state: claimed
+state: review
 owner: agent/queue-pr-gate
 owner_session: d217767a
 claimed_at: 2026-09-08T07:12:17Z
@@ -11,7 +11,7 @@ branch: task/T-0094
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-pr58
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -176,3 +176,28 @@ must not be dragged in. Key on the task id parsed from the head ref, the way `op
   `SKIPPED, NOT CHECKED: gh is not installed` and CI stays green. It bites where an agent runs
   `ops/queue-check` on its own branch. Making it bite in CI means installing `gh` and passing
   `GH_TOKEN: ${{ github.token }}` on that step — `.github/` is outside this task's `touches:`.
+
+- 2026-09-08 pushed `57a10d8` to `origin/task/T-0094`; opened **PR #58**.
+
+  **The end-to-end proof, on this task itself, with the real `gh` and no stub at all.** PR #58 open,
+  `T-0094` still in `claimed/` with `reviewer: null` — the exact shape #47–#56 shipped in:
+
+      $ bash ops/queue-check
+      open-PR gate: checked T-0094 against PR #58 on task/T-0094
+      QUEUE CHECK FAIL
+       - queue/claimed/T-0094-queue-check-reports-ok-while-a-task-with-an-open.md: PR #58 is open on task/T-0094 but the task is still in claimed/ - a PR is the request for review, so git mv it to queue/review/ before opening one
+       - queue/claimed/T-0094-queue-check-reports-ok-while-a-task-with-an-open.md: PR #58 is open on task/T-0094 but reviewer: is null - the reviewer-is-not-owner rule has no reviewer to read
+      EXIT=1
+
+  Transitioned: `state: review`, `reviewer: agent/reviewer-pr58` (≠ owner `agent/queue-pr-gate`), and
+  `git mv queue/claimed/… queue/review/…` — a move, not a copy, so the file exists in exactly one
+  directory (see [[queue-transition-on-stacked-branches]]). `git status` shows the single `R` rename.
+  Same command again, unchanged, same real PR:
+
+      $ bash ops/queue-check
+      open-PR gate: checked T-0094 against PR #58 on task/T-0094
+      QUEUE OK (88 tasks) - open-PR gate: checked T-0094 against PR #58 on task/T-0094
+      EXIT=0
+
+  `ops/review` does not exist on this branch (it lands with T-0063, PR #52), so the transition was the
+  `git mv` above rather than a hand copy.
