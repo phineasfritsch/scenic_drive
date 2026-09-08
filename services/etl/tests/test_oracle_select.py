@@ -248,31 +248,34 @@ def _cell(lat, lon):
     return int(lat / sel.CELL_DEG), int(lon / sel.CELL_DEG)
 
 
-def test_the_proximity_grid_also_searches_the_cell_above_and_the_cell_to_the_east():
-    """The mirror of the case above, and it was missing in both axes.
+def test_the_proximity_grid_searches_all_four_neighbouring_cells():
+    """`near_tagged_node` walks `for dy in (-1, 0, 1)` and `for dx in (-1, 0, 1)`, and `ops/etl-mutation`
+    could turn ANY of those four non-zero offsets into a 2 - searching a cell 110 m away instead of the
+    adjacent one - with the suite green. The one boundary case in this file put the node BELOW the way, so
+    only `dy = -1` was ever exercised; the other three offsets were dead code under test.
 
-    `near_tagged_node` walks `for dy in (-1, 0, 1)` and `for dx in (-1, 0, 1)`, and `ops/etl-mutation` could
-    turn either TRAILING `1` into a `2` - dropping the +1 neighbour and searching a cell 110 m away instead -
-    with the suite green, because the only boundary case here put the node BELOW the way and so only ever
-    exercised the -1. A node just north, or just east, of the way's own cell is still inside the 30 m radius
-    and must still be found. Missing it lets a squash-exposed way into the fixture, which is condition 3
-    failing OPEN: the way's published value has been modified by a step this repo does not implement, and it
-    would be compared and counted anyway.
+    Missing a neighbour is condition 3 failing OPEN, the dangerous direction: the way's published value HAS
+    been modified by a squash step this repo does not implement, and it would be compared and counted anyway.
+
+    Each pair straddles a cell edge by 10 m on either side - 20 m apart, inside the 30 m radius, in adjacent
+    cells. Both are asserted, or a case that stopped straddling the edge would pass while testing nothing.
     """
     dlat = 10.0 / (6373000 * math.pi / 180)
     lat = math.floor(44.0 / sel.CELL_DEG) * sel.CELL_DEG       # exactly on a cell boundary, in both axes
     lon = math.floor(-72.8 / sel.CELL_DEG) * sel.CELL_DEG
     dlon = dlat / math.cos(math.radians(lat))
 
-    way_south, node_north = (lat - dlat, lon), (lat + dlat, lon)
-    assert _cell(*node_north)[0] == _cell(*way_south)[0] + 1, "vacuous unless the two are in different cells"
-    assert cv.distance_on_earth(*way_south, *node_north) <= sel.SQUASH_RADIUS_M
-    assert sel.near_tagged_node([way_south], _grid([node_north]))
-
-    way_west, node_east = (lat, lon - dlon), (lat, lon + dlon)
-    assert _cell(*node_east)[1] == _cell(*way_west)[1] + 1, "vacuous unless the two are in different cells"
-    assert cv.distance_on_earth(*way_west, *node_east) <= sel.SQUASH_RADIUS_M
-    assert sel.near_tagged_node([way_west], _grid([node_east]))
+    # name -> (the way's vertex, the tagged node, which axis the cells differ on, by how much)
+    cases = {
+        "north": ((lat - dlat, lon), (lat + dlat, lon), 0, +1),
+        "south": ((lat + dlat, lon), (lat - dlat, lon), 0, -1),
+        "east":  ((lat, lon - dlon), (lat, lon + dlon), 1, +1),
+        "west":  ((lat, lon + dlon), (lat, lon - dlon), 1, -1),
+    }
+    for name, (way, node, axis, step) in cases.items():
+        assert _cell(*node)[axis] - _cell(*way)[axis] == step, f"{name}: vacuous, the cells do not differ"
+        assert cv.distance_on_earth(*way, *node) <= sel.SQUASH_RADIUS_M, f"{name}: outside the radius"
+        assert sel.near_tagged_node([way], _grid([node])), f"{name}: the grid never looked in that cell"
 
 
 def test_the_records_coordinates_are_rounded_to_seven_places(tmp_path):

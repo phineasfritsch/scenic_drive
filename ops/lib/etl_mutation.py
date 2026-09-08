@@ -69,9 +69,33 @@ def dirty(rels):
     return [l[3:].strip() for l in r.stdout.splitlines() if l.strip()]
 
 
+def purge_bytecode(path):
+    """Delete the module's cached bytecode, and stop a run writing more.
+
+    CPython validates a `.pyc` against its source's mtime IN WHOLE SECONDS and its SIZE. Two mutants of
+    one module differ by a single character and `ast.unparse` gives them the SAME size - so two mutant
+    runs inside the same wall-clock second reuse the FIRST one's bytecode, and the second mutant is
+    judged on code that was never on disk for it.
+
+    This harness has never hit that: at ~2.3 s per mutant, consecutive writes are more than a second
+    apart and therefore always land in different seconds. That is not a guarantee, it is an accident of
+    how slow the suite is - a faster caller reproduced it immediately and reported CAUGHT for a mutant
+    that survives (T-0088). A measurement that is correct only because it is slow is not a measurement.
+    Both halves are closed: the stale file is removed, and PYTHONDONTWRITEBYTECODE stops a new one.
+    """
+    cache = path.parent / "__pycache__"
+    if cache.is_dir():
+        for pyc in cache.glob(path.stem + ".*.pyc"):
+            try:
+                pyc.unlink()
+            except OSError:
+                pass
+
+
 def run_suite(py):
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     r = subprocess.run([py, "-m", "pytest", "-x", "-q", "-p", "no:cacheprovider", "-o", "addopts="],
-                       cwd=ETL, capture_output=True, text=True, timeout=900)
+                       cwd=ETL, capture_output=True, text=True, timeout=900, env=env)
     return r.returncode == 0     # True = suite PASSED = the mutant SURVIVED
 
 
@@ -196,10 +220,12 @@ def _run(py, modules, plan, a):
                 print(f"  {rel}:{line} {rule}: could not unparse ({type(e).__name__}); skipped")
                 continue
             path.write_text(mutated, encoding="utf-8", newline="\n")
+            purge_bytecode(path)
             try:
                 lived = run_suite(py)
             finally:
                 path.write_text(original, encoding="utf-8", newline="\n")
+                purge_bytecode(path)
             if lived:
                 survivors.append((rel, line, rule, desc))
                 print(f"  SURVIVED  {rel}:{line}  {rule:9s} {desc}")

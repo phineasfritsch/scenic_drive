@@ -289,3 +289,39 @@ repository did write. `load_export`'s case moved there from `test_oracle_select.
 that also keeps both files under the 300-line cap (297 and 215).
 
 GREEN, unmutated: `217 passed`.
+
+### The demonstration tool was lying, and how that surfaced
+
+The sweep-up run above reported `oracle_select.py:119 constant 1 -> 2` CAUGHT twice. The full
+`ops/etl-mutation` run afterwards reported one survivor at `:119`. Two measurements of the same mutant
+disagreeing is not a discrepancy to reconcile, it is one of them being wrong, so it was chased:
+
+CPython validates a `.pyc` against its source's **mtime in whole seconds** and its **size**. Two mutants of
+one module differ by a single character, and `ast.unparse` gives them the SAME size. So two mutant runs
+inside the same wall-clock second reuse the FIRST one's bytecode, and the second mutant is judged on code
+that was never on disk for it. `-p no:cacheprovider` is pytest's cache, not this one.
+
+`ops/etl-mutation` has never hit it: at ~2.3 s per mutant, consecutive writes are more than a second apart
+and so always land in different seconds. That is not a guarantee, it is an accident of how slow the suite is.
+`.artifacts/redsweep.py` runs one file in 0.15 s, hit it immediately, and reported CAUGHT for a mutant that
+survives - which is precisely the failure mode this repository exists to contradict, arriving through the
+tool built to demonstrate it. Reproduced by running the same two-mutant plan twice and getting two different
+answers; stable across repeated runs after the fix.
+
+Fixed in BOTH: `purge_bytecode()` deletes the module's `.pyc` after every write and after every restore, and
+`PYTHONDONTWRITEBYTECODE=1` in the child environment stops a new one being written. The harness change is in
+`ops/lib/etl_mutation.py`, which the final run below re-measures.
+
+The real survivor it had hidden: `for dx in (-1, 0, 1)` -> `(-2, 0, 1)`, a tagged node one cell WEST of the
+way. The mirror case only covered north and east, and the pre-existing boundary case only south. The test is
+now all four neighbours in one loop, each asserting that the pair really does straddle a cell edge and really
+is inside the 30 m radius, so a case that stopped straddling would fail rather than pass vacuously.
+
+ALL FOUR red demonstrations re-run against the WHOLE suite with the fixed tool - the transcripts above were
+produced by the tool before the fix and are superseded by these:
+
+    gap 1     27 listed, 27 CAUGHT, 0 not caught
+    gap 3      9 listed,  7 CAUGHT, 2 SURVIVED (oracle_select.py:86 and :91, equivalent, explained above)
+    gap 4      5 listed,  5 CAUGHT, 0 not caught
+    sweep-up   9 listed,  9 CAUGHT, 0 not caught
+    UNMUTATED 217 passed
