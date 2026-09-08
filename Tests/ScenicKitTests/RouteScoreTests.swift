@@ -1,0 +1,169 @@
+import Foundation
+import Testing
+@testable import ScenicKit
+
+/// The properties that matter here are invariances, not values.
+///
+/// A weighted sum of four terms will produce *a* number for any input; that number is only worth anything if
+/// it describes the drive rather than describing how the router happened to segment and orient the path. The
+/// plan pins two of these explicitly - *"RouteScore invariant under reversal (1e-9) and re-encoding (0.5%)"*
+/// - and they are the tests that can actually fail for a real reason.
+@Suite("Route score")
+struct RouteScoreTests {
+
+    /// A plausible scenic route: freeway shoulder, canyon middle, arterial run-in.
+    static let realistic: [ScoredEdge] = [
+        ScoredEdge(length: 8000, score: 0.0),      // motorway shoulder, scores 0 by construction
+        ScoredEdge(length: 1200, score: 0.35),     // arterial approach
+        ScoredEdge(length: 2400, score: 0.78),     // canyon
+        ScoredEdge(length: 1800, score: 0.83),     // canyon continues, different way
+        ScoredEdge(length: 900, score: 0.42),      // down into town
+        ScoredEdge(length: 1500, score: 0.20),     // arterial
+    ]
+
+    static func split(_ edges: [ScoredEdge], into k: Int) -> [ScoredEdge] {
+        edges.flatMap { e in
+            (0..<k).map { _ in ScoredEdge(length: e.length / Double(k), score: e.score) }
+        }
+    }
+
+    // MARK: - the invariances
+
+    @Test("driving the route backwards does not change how pretty it is")
+    func reversalInvariant() throws {
+        let forward = try #require(RouteScore(edges: Self.realistic))
+        let backward = try #require(RouteScore(edges: Self.realistic.reversed()))
+        #expect(abs(forward.value - backward.value) < 1e-9)
+        #expect(forward.episodeCount == backward.episodeCount)
+        #expect(abs(forward.p90 - backward.p90) < 1e-9)
+    }
+
+    @Test("how the router split the path does not change how pretty it is", arguments: [2, 3, 5, 17])
+    func reEncodingInvariant(k: Int) throws {
+        // The router may return one OSM way as six path-detail intervals or six ways as one. Splitting every
+        // edge into k equal pieces with the same score is exactly that, and the drive is identical.
+        let whole = try #require(RouteScore(edges: Self.realistic))
+        let pieces = try #require(RouteScore(edges: Self.split(Self.realistic, into: k)))
+        #expect(abs(whole.value - pieces.value) < 1e-9)
+        #expect(whole.episodeCount == pieces.episodeCount)
+        #expect(abs(whole.mean - pieces.mean) < 1e-9)
+        #expect(abs(whole.dudFraction - pieces.dudFraction) < 1e-9)
+        #expect(abs(whole.totalLength - pieces.totalLength) < 1e-6)
+    }
+
+    // MARK: - length weighting, which is where a plausible implementation goes wrong
+
+    @Test("ten metres of glory does not outvote ten kilometres of arterial")
+    func percentileIsLengthWeighted() {
+        // Two edges either way, so a percentile taken over the EDGE LIST returns 1.0 and calls this route
+        // spectacular. Over metres it returns 0.1, which is what the drive is.
+        let lopsided = [ScoredEdge(length: 10, score: 1.0),
+                        ScoredEdge(length: 10_000, score: 0.1)]
+        #expect(RouteScore.lengthWeightedPercentile(lopsided, fraction: 0.90) == 0.1)
+    }
+
+    @Test("the mean is over metres, not over edges")
+    func meanIsLengthWeighted() throws {
+        let lopsided = [ScoredEdge(length: 10, score: 1.0),
+                        ScoredEdge(length: 990, score: 0.0)]
+        let s = try #require(RouteScore(edges: lopsided))
+        #expect(abs(s.mean - 0.01) < 1e-9)      // an edge-mean would say 0.5
+    }
+
+    @Test("an episode is counted across edge boundaries, not within one edge")
+    func episodesSpanEdges() {
+        // Five kilometres of one canyon road, returned by the router as twelve intervals because the OSM way
+        // is split at every junction. Every interval is under the 800 m minimum on its own. Asking the
+        // question per edge gives zero episodes for the prettiest road in the region.
+        let canyon = (0..<12).map { _ in ScoredEdge(length: 420, score: 0.8) }
+        #expect(RouteScore.episodes(canyon) == 1)
+
+        // And a run must be broken by a genuinely dull stretch, not merely by an edge boundary.
+        let broken = canyon.prefix(6) + [ScoredEdge(length: 3000, score: 0.1)] + canyon.suffix(6)
+        #expect(RouteScore.episodes(Array(broken)) == 2)
+    }
+
+    @Test("scattered prettiness is not a scenic drive")
+    func fragmentsAreNotEpisodes() {
+        // Fifty 200 m gems separated by 300 m of arterial. Excellent mean, no episode: you never get to
+        // enjoy any of it.
+        let confetti = (0..<50).flatMap { _ in
+            [ScoredEdge(length: 200, score: 0.9), ScoredEdge(length: 300, score: 0.3)]
+        }
+        #expect(RouteScore.episodes(confetti) == 0)
+    }
+
+    // MARK: - the terms
+
+    @Test("motorway shoulders count as duds without disqualifying the route")
+    func motorwayIsADud() throws {
+        let s = try #require(RouteScore(edges: Self.realistic))
+        // The 8 km motorway and the 1.5 km arterial are duds; 1.2 km at 0.35 and 0.9 km at 0.42 are not.
+        let expected = (8000.0 + 1500.0) / 15_800.0
+        #expect(abs(s.dudFraction - expected) < 1e-9)
+        // CLAUDE.md: motorway is penalised, not excluded. The route still scores, and still has its episode.
+        #expect(s.episodeCount == 1)
+        #expect(s.value > 0)
+    }
+
+    @Test("the value is the plan's formula, computed by hand")
+    func matchesTheFormula() throws {
+        let s = try #require(RouteScore(edges: Self.realistic))
+        let expected = 0.60 * s.mean + 0.25 * s.p90 - 0.15 * s.dudFraction
+            + 0.10 * min(1.0, Double(s.episodeCount) / 3.0)
+        #expect(abs(s.value - expected) < 1e-12)
+    }
+
+    @Test("a dull route is an honest failure, and says so")
+    func honestFailure() throws {
+        let dull = [ScoredEdge(length: 12_000, score: 0.05),
+                    ScoredEdge(length: 3000, score: 0.15)]
+        let s = try #require(RouteScore(edges: dull))
+        #expect(s.isHonestFailure)
+        #expect(s.episodeCount == 0)
+    }
+
+    @Test("a genuinely scenic route is not an honest failure")
+    func goodRoutePasses() throws {
+        let good = [ScoredEdge(length: 3000, score: 0.85),
+                    ScoredEdge(length: 4000, score: 0.9),
+                    ScoredEdge(length: 1000, score: 0.5)]
+        let s = try #require(RouteScore(edges: good))
+        #expect(!s.isHonestFailure)
+        #expect(s.episodeCount == 1)
+    }
+
+    // MARK: - bounds and refusals
+
+    @Test("the score stays inside 0...1 even when the dud penalty dominates")
+    func staysInRange() throws {
+        // Everything is a dud, so the negative term is at full strength and the positive ones are near zero.
+        let allDud = [ScoredEdge(length: 20_000, score: 0.0)]
+        let s = try #require(RouteScore(edges: allDud))
+        #expect(s.value >= 0 && s.value <= 1)
+
+        let allPerfect = (0..<10).map { _ in ScoredEdge(length: 2000, score: 1.0) }
+        let best = try #require(RouteScore(edges: allPerfect))
+        #expect(best.value >= 0 && best.value <= 1)
+    }
+
+    @Test("no route is not a dull route")
+    func emptyIsNil() {
+        // Returning 0 here would make "the router found nothing" indistinguishable from "the router found
+        // a freeway", and those need different words on the screen.
+        #expect(RouteScore(edges: []) == nil)
+    }
+
+    @Test("an invalid edge is refused rather than absorbed",
+          arguments: [ScoredEdge(length: 0, score: 0.5),
+                      ScoredEdge(length: -100, score: 0.5),
+                      ScoredEdge(length: .nan, score: 0.5),
+                      ScoredEdge(length: .infinity, score: 0.5),
+                      ScoredEdge(length: 100, score: 1.5),
+                      ScoredEdge(length: 100, score: -0.1),
+                      ScoredEdge(length: 100, score: .nan)])
+    func refusesInvalidEdges(bad: ScoredEdge) {
+        #expect(RouteScore(edges: [bad]) == nil)
+        #expect(RouteScore(edges: Self.realistic + [bad]) == nil)
+    }
+}
