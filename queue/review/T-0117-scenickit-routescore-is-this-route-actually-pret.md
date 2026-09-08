@@ -1,7 +1,7 @@
 ---
 id: T-0117
 title: ScenicKit RouteScore: is this route actually pretty, length-weighted and invariant to how the router split the edges
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T13:54:42Z
@@ -11,7 +11,7 @@ branch: task/T-0117
 exclusive: []
 touches: [Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/, ops/mutate/, .gitignore]
 pins_affected: []
-reviewer: null
+reviewer: agent/rvw4-pr73
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
