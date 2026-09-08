@@ -524,3 +524,27 @@ inert — `ops/lib/queue.py` grew on three branches and `CLAUDE.md` changed on o
 edits touched a file another branch touches, which is the only thing this tool measures. The caveat above
 still stands too: `0 gate failures` means zero of the four gates this tool runs, and
 `ops/lib/check-lock-lifecycle` is not one of them ([[T-0091]]).
+
+## The red PRs are three, not two, and they are one cause
+
+Measured from the CI logs themselves, not from the rollup:
+
+    PR #17  task/T-0021   P-OPS-01: ops/lib/classify-checks.py        (script, should be 100755, is 100644)
+    PR #41  task/T-0049   P-OPS-01: ops/lib/merge_reason_cap_assert.py (script, should be 100755, is 100644)
+    PR #56  task/T-0081   P-OPS-01: ops/lib/etl_mutation.py           (script, should be 100755, is 100644)
+                          P-OPS-01: ops/lib/etl_mutation_rules.py     (script, should be 100755, is 100644)
+
+Same pin, same sentence, three branches. Each adds an `ops/lib/*.py` that `main`'s P-OPS-01 still classifies
+as a script; `task/T-0036` is the branch that reclassifies them, and after it merges all three are `merged,
+gates clean` in the rehearsal above. **One merge turns every red PR in the repository green.** That is the
+whole argument for the order at the top of this file, stated in the branches' own CI output.
+
+It is also why no mode change is the fix: setting 100755 on those files makes them green today and red the
+moment T-0036 lands, because then they are data. Whichever mode is chosen, one of the two merge orders must
+fail — which is the constraint, not a bug in anyone's branch.
+
+**A trap for anything that reads GitHub's rollup rather than the checks.** `statusCheckRollup` on PR #26
+(`task/T-0024`) still carries a `FAILURE` entry from a superseded run, while `gh pr checks 26` reports
+`core pass` / `pins-source-only pass`. A tool that counts failures in the rollup reports four red PRs where
+three exist, and would refuse a branch that is green. `gh pr checks` — or the conclusion of the LATEST run
+per check name — is the thing to read.
