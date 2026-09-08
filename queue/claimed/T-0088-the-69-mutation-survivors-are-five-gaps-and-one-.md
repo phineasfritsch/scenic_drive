@@ -199,3 +199,41 @@ doing work the case was not aimed at: `oracle_select.py:94` and `:98`, the `star
 geom.get("type") == ...` pair that decides whether a feature is read as a way or as a node, and - because a
 null geometry means the way has no `ours` - two of the four at `:153` and the `continue` at `:154`, which are
 gap 4's. Ratchet: `MAX_SURVIVORS` 37 -> 23.
+
+### Gap 4 - `eligible()`'s comparability guard had three dead operands
+
+    if not ours or not theirs or len(ours) < 3:
+        continue
+
+Every export the suite wrote contained every published way, with the KML's own geometry, three vertices long,
+so all three operands were dead code under test - the same reason E4 beat T-0074 six lines further down. Three
+cases in `test_oracle_select.py`, one per operand, each driven against a well-formed neighbour in the same
+KMZ so `have_geometry == 1` says the probe was excluded HERE rather than never eligible:
+
+- `not ours` - a published way `osmium getid` did not return. This is the ORDINARY case, not a corrupt one:
+  21 of 3318 ids are absent from the pinned extract because the KMZ predates it, and
+  `ops/etl-curvature-fixture` deliberately carries on. Without the operand it is `len(None)`, and the rebuild
+  dies on input it was designed to tolerate.
+- `not theirs` - a Placemark with a way table and no `<LineString>`, so the geometry Curvature computed over
+  was never published. Condition 2 IS the comparison against that geometry; admitting the way anyway admits
+  it on two conditions out of three while the fixture goes on claiming three.
+- `len(ours) < 3` - a radius needs three points, and `assign_radii` gives a single-segment way `MAX_RADIUS`,
+  which is above every band in `LEVELS`. Its curvature is 0 by construction, not by measurement, so agreeing
+  with the oracle there is agreeing that 0 == 0 and counting it as evidence about the five steps.
+
+<!-- -->
+
+    UNMUTATED           18 passed in 0.08s
+    CAUGHT   oracle_select.py:153 boolop  Or -> And           test_a_published_way_the_export_never_returned
+    CAUGHT   oracle_select.py:153 operand drop operand 0      test_a_published_way_the_export_never_returned
+    CAUGHT   oracle_select.py:153 operand drop operand 1      test_a_way_the_kml_carries_no_geometry_for
+    CAUGHT   oracle_select.py:153 operand drop operand 2      test_a_way_of_fewer_than_three_vertices
+    CAUGHT   oracle_select.py:154 continue `continue` -> `pass`  test_a_published_way_the_export_never_returned
+
+    0 of the listed mutants were NOT caught
+
+Three of those five had already died as a side effect of gap 3's malformed features; the cases are kept
+separate anyway, because a side effect is not a statement about the operand and the next person to touch
+`load_export` would take the coverage away without knowing it.
+
+GREEN, unmutated: `213 passed`.

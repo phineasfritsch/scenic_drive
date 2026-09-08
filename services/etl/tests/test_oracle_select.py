@@ -14,7 +14,9 @@ from __future__ import annotations
 import json
 import math
 
+from etl import curvature as cv
 from etl import oracle_select as sel
+from tests import oracle_kmz as ok
 
 
 def test_the_selection_constants_are_pinned_against_literals():
@@ -199,3 +201,86 @@ def test_load_export_reads_a_plain_geojson_collection_and_the_shapes_the_format_
     assert ways[2][0] == (44.0, -72.8)
     assert props[2] == {}, "a null `properties` must arrive as an empty dict, not as None"
     assert tagged == [], "a feature with no id is not a node, whatever its geometry reads like"
+
+
+# --------------------------------------------------------------------------- condition 0: is it comparable
+# `eligible()` opens with the line that decides whether a published way can be looked at at all:
+#
+#     if not ours or not theirs or len(ours) < 3:
+#         continue
+#
+# `ops/etl-mutation` dropped any ONE of those three operands, and flipped the `or` to `and`, with the suite
+# green - four survivors at oracle_select.py:153, plus the `continue` itself at :154. This is E4's
+# neighbourhood: E4, the first evasion that beat T-0074, was deleting `or near_tagged_node(ours, grid)` six
+# lines further down, and it worked because every export the suite wrote made that operand a no-op. The same
+# thing is true here for a different reason - every export the suite wrote contained every published way,
+# with the KML's own geometry, three vertices long - so all three operands were dead code under test.
+#
+# Each operand therefore gets its own negative case, driven against a well-formed neighbour in the same KMZ.
+# The neighbour is what makes the assertion sharp: `have_geometry == 1` says the probe was excluded HERE,
+# where `kept == []` alone could not tell exclusion from a funnel that was empty to begin with.
+
+GOOD_WAY = 111
+PROBE_WAY = 222
+GOOD_COORDS = [(44.0, -72.8), (44.001, -72.8), (44.002, -72.8)]
+PROBE_COORDS = [(44.1, -72.8), (44.101, -72.8), (44.102, -72.8)]
+TWO_VERTICES = [(44.1, -72.8), (44.101, -72.8)]
+
+
+def _funnel_with_probe(tmp_path, probe_block, probe_export):
+    """`eligible()` over one good collection plus one probe, and the probe is what the case is about."""
+    kmz = ok.write_kmz(tmp_path / "probe.kmz",
+                       ok.collection(GOOD_WAY, GOOD_COORDS), probe_block)
+    export = ok.write_export(tmp_path / "probe.geojsonseq",
+                             ways=[ok.road(GOOD_WAY, GOOD_COORDS)] + probe_export)
+    return sel.eligible(export, kmz)
+
+
+def _assert_only_the_good_way_survived(kept, stages):
+    assert stages["single_way"] == 2, "both collections must be published, or the probe tests nothing"
+    assert stages["have_geometry"] == 1, "the probe got past the comparability guard"
+    assert [w["way_id"] for w in kept] == [GOOD_WAY]
+
+
+def test_a_published_way_the_export_never_returned_is_not_comparable(tmp_path):
+    """`not ours`, and it is the operand that handles the ORDINARY case, not a corrupt one.
+
+    `osmium getid` exits 1 for ids that are not in the extract, after writing a complete file for every id it
+    did find - 21 of 3318 for the pinned pair, because the KMZ was generated from an older OSM snapshot -
+    and `ops/etl-curvature-fixture` deliberately carries on rather than treating that as failure. So
+    `ways.get(way_id)` returning None happens on every real rebuild. Without this operand it is `len(None)`,
+    and the rebuild dies on input it was designed to tolerate.
+    """
+    kept, stages = _funnel_with_probe(
+        tmp_path, ok.collection(PROBE_WAY, PROBE_COORDS), [])
+    _assert_only_the_good_way_survived(kept, stages)
+
+
+def test_a_way_the_kml_carries_no_geometry_for_is_not_comparable(tmp_path):
+    """`not theirs`. A Placemark can hold a constituent-ways table and no `<LineString>`, and
+    `kml_geometry` skips it - so the way is published but the geometry Curvature computed over was not.
+
+    Condition 2 is the comparison against THAT geometry: the module's own note is that 726 of 3297 ways
+    differ from it and agree 29.6% of the time against 90.4% for unchanged geometry. With nothing to compare
+    against there is no condition 2, and admitting the way anyway is admitting a way on two conditions out
+    of three while the fixture goes on claiming three.
+    """
+    kept, stages = _funnel_with_probe(
+        tmp_path,
+        ok.placemark("Probe Road", ways=(PROBE_WAY,), coords=None),
+        [ok.road(PROBE_WAY, PROBE_COORDS)])
+    _assert_only_the_good_way_survived(kept, stages)
+
+
+def test_a_way_of_fewer_than_three_vertices_is_not_comparable(tmp_path):
+    """`len(ours) < 3`. A radius needs three points. `assign_radii` says so explicitly - a way with a single
+    segment is given `MAX_RADIUS`, which is above every band in `LEVELS`, so its curvature is 0 by
+    construction and not by measurement. Comparing there is agreeing that 0 == 0, and counting that into the
+    headline percentage is counting a way that tested none of the five steps as evidence about all of them.
+    """
+    kept, stages = _funnel_with_probe(
+        tmp_path,
+        ok.collection(PROBE_WAY, TWO_VERTICES),
+        [ok.road(PROBE_WAY, TWO_VERTICES)])
+    _assert_only_the_good_way_survived(kept, stages)
+    assert cv.way_curvature(TWO_VERTICES) == 0, "a single-segment way is MAX_RADIUS, which scores nothing"
