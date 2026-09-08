@@ -81,4 +81,33 @@ Do:
 accepts an absence of evidence is the defect this repository is built around, and it would accept every
 future PR whose CI silently did not run.
 
+## The measurement that narrows it
+
+`gh run list` and `statusCheckRollup` both show nothing, but the check-suite API shows the commit is not
+untouched - it is untouched *by Actions specifically*:
+
+    $ gh api 'repos/.../actions/runs?head_sha=4aafdd2...' --jq .total_count
+    0
+
+    $ gh api 'repos/.../commits/4aafdd2.../check-suites' --jq '.total_count, (.check_suites[] | ...)'
+    4
+    vercel                        queued  null
+    xcode-cloud                   queued  null
+    cloudflare-workers-and-pages  queued  null
+    claude                        queued  null
+
+**Four check suites, and `github-actions` is not among them.** Every other installed app created one for
+this commit; Actions did not. So the question is not "why did the run fail to start" but "why was no
+Actions check suite created for this push", which is a different and much narrower question.
+
+**A hypothesis, labelled as one:** GitHub does not trigger workflows for pushes authenticated as a GitHub
+App or with the Actions token, to prevent recursion. A `claude` check suite is present, so that app is
+installed on this repository. If an agent's push is authenticated that way, this is exactly what it looks
+like. **Not verified** - confirming it means checking which credential the pushes actually use, and the two
+affected PRs (#33, #57) were both pushed by agents while the branches that did get runs were pushed by
+several different actors. That is a correlation and nothing more until someone checks the credential.
+
+If the hypothesis holds, the fix is not in `ops/merge` at all, and the acceptance criteria below should be
+re-argued before any code is written.
+
 ## Log
