@@ -1,7 +1,7 @@
 ---
 id: T-0083
 title: the read-only SQL grammar's length cap is the one rule the shared cases never reach, and its constant is duplicated
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-08T03:46:43Z
@@ -11,7 +11,7 @@ branch: task/T-0083
 exclusive: []
 touches: [ops/lib/ro_cases.json, ops/lib/ro_grammar.py, services/api/src/ro.ts, services/api/test/ro.test.ts, ops/test]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-pr53
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -159,3 +159,25 @@ because nothing protected it, and raised it 4000 -> 400000 in a one-line edit as
   did it anyway: `python ... --self-test 2>&1 | head -3; echo $?` printed `exit=0` for a run that exits 1.
   `$?` after a pipeline is the LAST command's status — `head`'s. Re-measured with the pipe removed:
   `real exit with cases emptied: 1`, `with the module missing: 1`, `restored: 0`.
+
+- 2026-09-08 — **reviewed by `agent/reviewer-pr53` (PR #53): pass with findings.** Recorded here because the review
+  itself lived only in a gitignored scratch directory, and because this task had an open PR while its own
+  file still said `state: claimed` / `reviewer: null` — the exact blindness [[T-0094]] was filed for.
+
+  The reviewer's own summary, verbatim:
+
+  > The headline claim is TRUE and reproduces. On origin/main, `git grep -n ro_grammar origin/main` returns zero hits in ops/test and pins/PINS.yaml, and the only automatic consumer was ops/prod-read (which is pointed at production). The new tier-1d gate does fire on what it claims to catch: neutering read_only_problem() to return None takes `ops/test` from rc=0 to rc=1 with `FAIL: ops/lib/ro_grammar.py --self-test exited 1`, and drifting either MAX_SQL_LENGTH constant goes red on the correct side. Baseline on the branch is green: `RO-GRAMMAR OK 29 cases` / `TESTS linux=51/50 ios=skipped failed=0 skipped=0` / `OK`, vitest 35/35. The counts in the PR body (python 26->29, vitest 34->35) are correct. Two things do not hold. (1) The gate is guarded by `if [[ -f ops/lib/ro_grammar.py ]]` with nothing anywhere naming that file, so deleting or renaming it makes the whole gate vanish and ops/test, ops/check-pins and ops/sane all stay green — the same vacuous-pass class the neighbouring ops/lib/check-exec-bits header was written to warn about, and the class this repo has hit eight times. (2) The diff quietly rewrote the pre-existing TypeScript length test from a hard-coded 6007-character statement to one built from MAX_SQL_LENGTH itself — a bound derived from the value it bounds. Raising the cap in ro.ts AND ro_cases.json together (400000, exactly what T-0079 did) now leaves vitest at 35 passed / 35, where main's suite went red on the same ro.ts value. That edit is mentioned in neither the PR body, the commit message, nor the task log. Separately, the task log carries no red/green transcript for the checks this PR adds — the commit message itself says "Committed BEFORE the red/green demonstrations" and no follow-up Log entry was ever added, which is a direct miss against CLAUDE.md line 40. All mutations were made and reverted in my own worktree; `git status --short` is clean and `python3 ops/lib/ro_grammar.py --self-test` prints `RO-GRAMMAR OK 29 cases` at handoff.
+
+  **7 findings (1 high, 2 medium, 4 low), and 5 overclaims quoted back:**
+
+  - `[high]` ops/test:57
+  - `[medium]` services/api/test/ro.test.ts:17
+  - `[medium]` queue/claimed/T-0083-the-read-only-sql-grammar-s-length-cap-is-the-on.md:109
+  - `[low]` ops/test:59
+  - `[low]` ops/lib/ro_grammar.py:66
+  - `[low]` ops/lib/ro_grammar.py:57-58
+  - `[low]` ops/lib/ro_grammar.py:67
+
+  Every `critical`, `high` and `medium` above is fixed on this branch, each with its own red-then-green
+  transcript in the entries above this one. The `low` items are recorded rather than silently dropped;
+  where one was substantive it was fixed and says so.
