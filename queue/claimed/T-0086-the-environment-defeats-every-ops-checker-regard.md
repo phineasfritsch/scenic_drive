@@ -322,3 +322,17 @@ Identical to the pre-fix control on the same tree. Nothing was weakened to make 
 3. The brief said `CLAUDE.md` carries an NTFS section with eight rules. It does not — `CLAUDE.md` is 51
    lines with no such section, and there is exactly one `CLAUDE.md` in the tree. The Windows rules were
    followed from the task prompt instead. Worth correcting wherever that instruction is generated.
+4. A gap in this fix's own allowlist, measured and left in place deliberately. `_SCENIC_TOOLENV` names
+   `PROGRAMDATA`, but the variable on this box is `ProgramData` — `PROGRAMDATA` is unset — and MSYS bash
+   matches names case-sensitively, so it is dropped. Measured: `ProgramData=C:\ProgramData` set,
+   `PROGRAMDATA` unset; `SYSTEMDRIVE` by contrast IS uppercase here and does forward. No observable
+   effect — `ops/test` gives `TESTS linux=50/50 ios=skipped failed=0 skipped=0` and `swift test` inside
+   `check-pins` (P-SAFE-05) passes — so nothing was changed on speculation. It is recorded because the
+   Windows environment is case-insensitive by definition and another box may well spell these
+   differently; if a toolchain ever fails inside the seal for a missing Windows path, this is the first
+   thing to check, and the fix is case-insensitive matching for `_SCENIC_TOOLENV` only (never for
+   `_SCENIC_SET`/`_SCENIC_KEEP`, where on Linux `path` and `PATH` are genuinely different variables).
+
+   Untracked `%SystemDrive%/` and `Python/` directories were present in this worktree at the start of the
+   task and reappeared during exploratory runs. They are NOT produced by the fix: removed, then a full
+   `bash ops/test` and `bash ops/check-pins` under the seal left the tree clean. They were never staged.
