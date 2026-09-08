@@ -265,12 +265,14 @@ def _same_work(title, body):
     """A pair of keys for "these two files are the same task".
 
     `title` is normalised (case, punctuation, runs of whitespace) because two agents writing the same finding
-    minutes apart differ by exactly that much. `body` is hashed with the `id:` line removed, which is the only
-    line new-task guarantees will differ - T-0066 and T-0067 were otherwise byte-identical.
+    minutes apart differ by exactly that much. `body` is the text after the front matter, hashed whole -
+    T-0066 and T-0067 were byte-identical there. An UNWRITTEN body is never compared; see cmd_check.
     """
     norm = re.sub(r"[^a-z0-9]+", " ", (title or "").lower()).strip()
-    stripped = "\n".join(l for l in (body or "").splitlines() if not l.startswith("id:"))
-    return norm, hashlib.sha256(stripped.encode("utf-8")).hexdigest()
+    # The body is the text AFTER the front matter, so it never contains an `id:` line: the filter that
+    # used to sit here was dead, and the message it fed said "identical but for the id line", which was
+    # false in both directions. Reported by the reviewer of PR #50.
+    return norm, hashlib.sha256((body or "").encode("utf-8")).hexdigest()
 
 
 def cmd_check(_argv):
@@ -315,7 +317,20 @@ def cmd_check(_argv):
         nt, nb = _same_work(fm.get('title'), _raw.get(rel, ''))
         if nt:
             by_title.setdefault(nt, []).append(rel)
-        by_body.setdefault(nb, []).append(rel)
+        else:
+            # An empty-normalising title exempted a task from the duplicate check entirely, so two files
+            # for one finding passed green by having no usable title at all.
+            problems.append(f"{rel}: title {fm.get('title')!r} normalises to nothing, so it cannot be "
+                            "compared against any other task")
+        # An UNWRITTEN brief is not evidence of duplicated work: ops/new-task writes the same placeholder
+        # into every task it creates, so hashing it made any two fresh tasks a duplicate pair. Measured on
+        # task/T-0040 - `QUEUE OK (61 tasks)` became QUEUE CHECK FAIL naming T-0032, T-0033 and T-0034,
+        # three unrelated tasks whose only shared text was the template, and three real pushed branches
+        # regressed from exit 0 to exit 1. Found by an independent reviewer of PR #50.
+        # brief_is_unwritten() matches on SHAPE (T-0056), so this does not re-anchor on the placeholder
+        # wording: rephrasing the template cannot silently switch the guard off.
+        if not brief_is_unwritten(_raw.get(rel, '')):
+            by_body.setdefault(nb, []).append(rel)
         if fm.get("state") != state:
             problems.append(f"{rel}: state field '{fm.get('state')}' != directory '{state}'")
         if state in ("review", "done"):
@@ -371,12 +386,14 @@ def cmd_check(_argv):
     # this task declares no exclusive lock.
     for key, paths in sorted(by_body.items()):
         if len(paths) > 1:
-            problems.append(f"{len(paths)} tasks share one brief (identical but for the id line): "
+            problems.append(f"{len(paths)} tasks share one written brief: "
                             + ", ".join(paths))
     for key, paths in sorted(by_title.items()):
         # Reported separately from the body match: two briefs that diverged after being filed twice
         # still describe one piece of work, and that is the state worth catching before either is claimed.
-        if len(paths) > 1 and not any(set(paths) <= set(q) for q in by_body.values() if len(q) > 1):
+        # Only suppress when this EXACT set was already reported as a shared brief. The subset test let any
+        # superset body group silence a real title duplicate, naming an innocent third task instead.
+        if len(paths) > 1 and not any(set(paths) == set(q) for q in by_body.values() if len(q) > 1):
             problems.append(f"{len(paths)} tasks share one title: " + ", ".join(paths))
     if len(seen) < MIN_TASKS:
         problems.append(f"only {len(seen)} task(s) visible, floor is {MIN_TASKS} - a queue-check that "

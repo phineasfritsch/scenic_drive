@@ -135,3 +135,46 @@ before fixing it: point the queue root at an empty directory and show the exit c
   now more urgent than when it was filed, and this task made it worse.
 
   Gates: `QUEUE OK (76 tasks)`, `PINS ok=9 failed=0`, `P-SRC-02` clean, `P-OPS-01: 26 files, all modes correct`.
+
+- 2026-09-08 agent/claude-opus-5 — **an independent reviewer of PR #50 returned FAIL, and was right. This
+  change shipped a regression that broke three real branches.** Fixed here.
+
+  **CRITICAL — the duplicate-brief guard fired on `ops/new-task`'s own placeholder.** Every task the tool
+  creates carries the same template body, so any two freshly-filed, entirely unrelated tasks hashed
+  identically and turned `queue-check` — and pin P-PROC-01 with it — red. Reproduced on a real pushed branch:
+
+        task/T-0040 with its own queue.py     QUEUE OK (61 tasks)                       exit 0
+        task/T-0040 with this change          QUEUE CHECK FAIL
+                                               - 3 tasks share one brief ...: T-0032, T-0033, T-0034
+
+  Three unrelated tasks whose only shared text was the template. `task/T-0027` and `task/T-0029` regressed
+  the same way. **A guard that fires on the tool's own output is the false-positive failure this session
+  already recorded once**, in T-0079's ratchet check, and I shipped it again a few hours later.
+
+  The fix uses `brief_is_unwritten()`, which T-0056 added and which matches on SHAPE rather than on the
+  placeholder wording — so rephrasing the template cannot silently switch the guard off. After it:
+
+        task/T-0027   base: QUEUE OK (51 tasks)   fixed: QUEUE OK (51 tasks)
+        task/T-0029   base: QUEUE OK (51 tasks)   fixed: QUEUE OK (51 tasks)
+        task/T-0040   base: QUEUE OK (61 tasks)   fixed: QUEUE OK (61 tasks)
+
+        CONTROL, the duplicate this guard exists for, on task/T-0021:
+        QUEUE CHECK FAIL
+         - 2 tasks share one written brief: T-0066..., T-0067...
+
+  **MEDIUM — "identical but for the id line" was false, in the code and in the message.** The hashed text is
+  the body AFTER the front matter, which never contains an `id:` line, so the filter was dead code with a
+  misleading name and the emitted message described something that could not happen. Filter removed, message
+  now reads "share one written brief", docstring corrected.
+
+  **LOW — an empty-normalising title exempted a task from the title check entirely.** Two files for one
+  finding could pass green by having no usable title. Now reported.
+
+  **LOW — the suppression predicate silenced genuine title duplicates.** `set(paths) <= set(q)` let any
+  SUPERSET body group suppress a real title report, naming an innocent third task. Now an exact-set test.
+
+  **Not fixed here, and the reviewer is right that it stands:** the creation-time refusal in `cmd_new` reads
+  only the local working tree, so the "two agents, two worktrees" duplicate this task's own Brief calls the
+  entire cost is not prevented — while `_ids_in_refs()` in the same file deliberately scans remote refs for
+  exactly that reason. That is a real gap and it needs the same remote scan; filed as its own task rather
+  than bolted on here, because it changes `ops/new-task` from a local operation into a networked one.
