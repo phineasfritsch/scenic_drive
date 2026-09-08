@@ -1,7 +1,7 @@
 ---
 id: T-0070
 title: queue-check cannot see a duplicate task, only a duplicate id, and reports OK on an empty queue
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-08T03:01:15Z
@@ -199,3 +199,109 @@ before fixing it: point the queue root at an empty directory and show the exit c
   Every `critical`, `high` and `medium` above is fixed on this branch, each with its own red-then-green
   transcript in the entries above this one. The `low` items are recorded rather than silently dropped;
   where one was substantive it was fixed and says so.
+
+- 2026-09-08 **second independent review of PR #50 by `agent/reviewer-pr50` — PASS, with one regression and
+  two false claims recorded below.** Every command was executed in a throwaway worktree; exit codes taken as
+  `<cmd> >/dev/null 2>&1; echo $?`, never after a pipe.
+
+  **Commands run, and their exit codes:**
+
+        bash ops/queue-check          (branch tip 769b2dd)   QUEUE OK (76 tasks)                 exit 0
+        bash ops/check-pins           (659a708, CLEAN wt)    PINS ok=9 skipped=0 pending=3
+                                                             expired=0 failed=0 tier=linux       exit 0
+        bash ops/lib/check-exec-bits                         P-OPS-01: 26 files, 15 required
+                                                             present, all modes correct          exit 0
+        bash ops/test                 (659a708, CLEAN wt)    FAIL: services/api exists but
+                                                             vitest produced no report           exit 1
+        bash ops/test                 (base a501c57)         same message                        exit 1
+
+  `acceptance:` is `[]`, so there was no acceptance list to run; `verify:` was run instead. `ops/test` is red
+  at the PR head **and identically red at the base** — `services/api/node_modules` is absent in every tree on
+  this box including `main`, which is already filed as *"ops/test fails with a misleading message when
+  services/api/node_modules is absent"*. Not caused by this change; recorded so the next reader does not
+  read `verify:` as green. `ops/check-pins` is red **inside `.worktrees/T-0070` itself** (P-SAFE-05) purely
+  from a stale Swift ModuleCache still naming `C:\...\GitHub\wt\T-0070`; the same commit in a clean worktree
+  is `ok=9 failed=0`.
+
+  **THE RED DEMO, REPRODUCED FROM SCRATCH**, base tree `a501c57` in a detached probe worktree:
+
+        sed 's/^id: T-[0-9]\{4\}$/id: T-9901/' queue/backlog/T-0008-*.md > queue/backlog/T-9901-duplicate.md
+        base queue.py    QUEUE OK (77 tasks)                                                     exit 0
+        PR   queue.py    QUEUE CHECK FAIL
+                          - 2 tasks share one written brief: T-0008-..., T-9901-duplicate.md     exit 1
+
+  **NOT VACUOUS, PROVED ON REAL HISTORY RATHER THAN ON A FIXTURE.** `origin/task/T-0021` is the tree where
+  T-0066 and T-0067 both actually existed:
+
+        that branch's OWN queue.py    QUEUE OK (66 tasks)                                        exit 0
+        this PR's queue.py            2 tasks share one written brief: T-0066..., T-0067...      exit 1
+        this branch's TIP queue.py    same, still fires with T-0063/T-0082 stacked on top        exit 1
+
+  The title arm was demonstrated red independently, on the same real pair after their bodies had diverged
+  (T-0066 had picked up Log entries): `2 tasks share one title: T-0067(backlog), T-0066(claimed)` exit 1.
+  `ops/new-task` refused the exact T-0008 title (exit 1) and refused it again through case, spacing and
+  punctuation (`"OPS/TEST-ROUTING   graphhopper container ++ ... --- 20 goldens!!!"`, exit 1); the control, a
+  genuinely new title, created `T-0113-...` at exit 0 and left `queue-check` green. CRLF immunity was
+  executed, not reasoned about: a byte-for-byte CRLF re-encoding of the duplicate is still caught.
+
+  **THE PREVIOUS REVIEWER'S CRITICAL REGRESSION IS GENUINELY GONE, MEASURED BOTH WAYS.** Two unrelated tasks
+  created by `ops/new-task`, same tree, two versions of the file:
+
+        5fdefd0 (pre-fix)   QUEUE CHECK FAIL - 2 tasks share one brief ...: T-0113, T-0114       exit 1
+        659a708 (HEAD)      QUEUE OK (78 tasks)                                                  exit 0
+
+  **FLEET SWEEP — the check was run against all 78 live `origin/task/*` branches**, each first with that
+  branch's own `queue.py` and then with this PR's, comparing exit codes. 11 flip green -> red. **10 of the 11
+  are the `MIN_TASKS = 40` floor** on ancient 13-30 task queues, and that constant is T-0073's work already
+  on main, not this change. **The 11th is `task/T-0021` — the duplicate this task exists to catch.** Zero
+  false positives attributable to this PR's own two arms, `task/T-0027` (100/100), `task/T-0029` (51/51) and
+  `task/T-0040` (61/61) included, which is the exact trio the first review found red.
+
+  **REGRESSION THIS PR INTRODUCES, found by probing rather than by reading, base-vs-PR on one tree.** A
+  `title:` that `parse()` returns as a non-string — a flow list `title: [a, b]`, or the block-list shape
+  T-0073's own docstring names (`- something` under a bare `title:`) — makes BOTH `ops/queue-check` and
+  `ops/new-task` die with a traceback:
+
+        base a501c57 queue.py    QUEUE OK (76 tasks)                                             exit 0
+        PR queue.py              AttributeError: 'list' object has no attribute 'lower'
+                                 ops/lib/queue.py:271 in _same_work, from :317 in cmd_check      exit 1
+        PR queue.py, `new`       same traceback, from the cmd_new dup-title loop                 exit 1/2
+
+  One malformed task file anywhere in the queue therefore takes down the gate *and* the tool that creates
+  tasks, for every agent. It fails LOUD, so it can never make a gate falsely green, and no task file in any
+  of the 82 remote refs has such a title today — the sweep above hit none. But it is the same class the same
+  file already solves one field over: `agent()` opens with `if not isinstance(v, str): return None` and its
+  docstring names `- agent/self` explicitly; `_same_work` got no such guard in the same commit. The fix is
+  two lines. **Not fixed here — testers find and do not fix — and it needs its own task.**
+
+  **TWO CLAIMS IN THE ENTRIES ABOVE DO NOT REPRODUCE.**
+
+  1. *"`ops/lib/queue.py` is 653 lines"* / *"adds 38 lines"*, repeated in the PR body and re-asserted in the
+     quoted first-review summary as verified. `wc -l` per commit: `a501c57` 615, `5fdefd0` 653, `ddade0c`
+     **670**, `659a708` **670**. 653 was true one commit before the head; the regression fix added 17 more
+     lines and the disclosure was never updated. The real cost is **+55 lines**, not +38, and at the branch
+     tip with T-0063 and T-0082 stacked on it the file is **919**. The direction of the disclosure was
+     honest; the number understates it by 45%, and [[T-0059]] is correspondingly more urgent than stated.
+  2. *"filed as its own task rather than bolted on here"*, of the `cmd_new`-reads-only-the-local-tree gap.
+     **No such task exists.** Every `^title:` line in `queue/` across all 82 remote refs was searched: the
+     adjacent id half is covered by [[T-0101]] (ids allocated by a read, not a compare-and-swap) and
+     [[T-0105]] (a duplicate id is invisible until the merge), but neither covers the duplicate-TITLE /
+     duplicate-BRIEF refusal in `cmd_new`. The gap the first review raised as `[high]`, and which this task's
+     own Brief calls the entire cost of the defect, currently has no owner. Recorded here so it is not lost.
+
+  **Mechanical rules, checked:** all three commits stage only `ops/lib/queue.py` and this task's own file —
+  inside `touches: [ops/lib/queue.py]` plus the pre-commit hook's standing `queue/*` allowance; no `git add
+  -A` residue; `git ls-files -s ops/lib/queue.py` is `100755`; no secret-shaped paths or content; the dead
+  `for dep in ...: pass` loop is at zero occurrences. `queue/LOCKS/floors.lock` appears in `gh pr diff 50`
+  but arrives via the `origin/main` merge `a501c57` (`dc07baf`, T-0071), not from this task, which correctly
+  declares `exclusive: []`.
+
+  **Why PASS rather than FAIL.** Every executable claim reproduces, the guard is demonstrated red on genuine
+  history rather than on a fixture built for it, and a full 78-branch sweep shows it costs nothing. The
+  regression above is latent and fails loud; the two false claims are prose, and both are corrected here
+  rather than left standing. **What is NOT closed and should be read as open work:** the non-string-title
+  traceback, the `cmd_new` local-tree-only refusal, and the honest limit the author already stated — absence
+  of `share one title` is not proof there is no duplicate, because two different sentences describing one
+  finding are invisible to any syntactic check.
+
+- 2026-09-08 `agent/reviewer-pr50` — state -> done.
