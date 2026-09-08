@@ -9,14 +9,15 @@ lease_expires_at: 2026-09-08T18:09:08Z
 worktree: .worktrees/T-0120
 branch: task/T-0120
 exclusive: []
-touches: [ops/lib/check-self-referential-tests.py, ops/lib/check-self-referential-cases.py, ops/check-tests, pins/PINS.yaml, Tests/ScenicKitTests/]
+touches: [ops/lib/check-self-referential-tests.py, ops/lib/check-self-referential-cases.py, ops/lib/check-self-referential-history.py, ops/check-tests, pins/PINS.yaml, Tests/ScenicKitTests/]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "ops/check-tests -> SELF-REF OK, exit 0"
-  - "ops/check-tests --cases -> SELF-REF CASES OK (12 cases), exit 0"
+  - "ops/check-tests --cases -> SELF-REF CASES OK (19 cases), exit 0"
+  - "ops/check-tests --history -> SELF-REF HISTORY OK (2 commit pairs), exit 0"
   - "RED: adding one self-referential assertion to a real test file makes ops/check-tests exit 1 and ops/check-pins name P-TEST-02"
 ---
 ## Brief
@@ -149,4 +150,97 @@ are the other half and are not covered. Saying so is the point: a check whose st
 its real one is the defect it exists to prevent. A follow-up should do for the bash checks what this does
 for the Swift suites - the shapes there are different (a grep whose pattern the fixture always satisfies, a
 counter incremented unconditionally) and need their own recogniser, not a wider regex.
+
+---
+
+## Fix pass: reviewer-pr77 found that the check has the defect it exists to catch, in three places
+
+Ten findings. The three that matter most are not false negatives - they are the check being green on
+nothing, which is the class it was written to close.
+
+### 1. The history demonstration decayed into a green (BLOCKING)
+
+`.artifacts/against-history.py` anchored on `origin/task/T-0116~1` - **a moving branch tip**. The branch
+advanced, `~1` became the fix commit, and the transcript in the Log stopped reproducing. It was true when
+written and false a few hours later. The substance survived at the fixed sha `10c2c5a`, which the reviewer
+checked.
+
+Worse: `main()` did `continue` on an unreadable ref **without setting `ok = False`**, so pointed at a
+branch that did not exist it printed `AGAINST HISTORY OK` and exited 0 having demonstrated nothing. Had the
+branch been deleted rather than advanced, the decay would have been silent.
+
+And `.artifacts/` is gitignored, so the PR's headline "stronger demonstration" shipped nowhere and nobody
+could re-run it - the same defect the fourth finding of the FIRST review already made about the mutation
+harness, repeated one file over.
+
+Now `ops/lib/check-self-referential-history.py`: tracked, every commit pinned by full SHA, a SKIP is a
+FAILURE, and each before-run must NAME the expected finding rather than merely exit 1. Wired in as
+`ops/check-tests --history`.
+
+    before 245d5418ebf1: exit 1, naming LearnedCorridorSpeeds.minRatio AND maxRatio
+    after  d8d15e2     : exit 0
+    before 10c2c5a     : exit 1, three `out.duration vs out.ceiling`
+    after  b1be8cc     : exit 0
+
+### 2. A traceback read as a successful catch (BLOCKING)
+
+`--cases` used `fired = code == 1`, and a traceback is exit 1. The reviewer replaced the matcher body with
+`raise` and **all six RED cases reported `ok RED`**. The suite failed only because the negative half caught
+it. A catch now requires `SELF-REF FAIL` in the output AND the expected finding text.
+
+### 3. The floor counted the wrong population (BLOCKING)
+
+`MIN_TEST_FILES` counts files PRESENT. Three files containing no assertions cleared it - and two of this
+check's own three scaffold files were a single comment line. **That is the identical defect this task's own
+Brief indicts in `ops/lib/check-review-remedy`**: "counts case blocks ENTERED, not assertions EXECUTED".
+
+`MIN_ASSERTIONS = 10` now floors the assertions actually examined, and the OK line reports it:
+`SELF-REF OK (31 assertions in 4 test files, 5 types under Sources/)`. The scaffold gained real assertions
+rather than the floor being lowered to fit it.
+
+### 4. The escape hatch promised more than it enforced
+
+The docstring said the reason "must be more than a word" and nothing inspected it: a single character
+silenced a real finding, and a bare `// self-ref-ok:` with no reason survived a mutation of that very line.
+`ALLOW` now requires two words. And `ALLOW.search(raw)` ran BEFORE `strip_comment`, so the marker inside a
+Swift **string literal** silenced the line; suppression is now decided on the trailing comment, anchored at
+its start, and only for lines that are actually assertions. The count is printed, because an unqualified
+"OK" over a tree with silenced findings is the same shape as a green over an empty one.
+
+### 5. The case crediting the function-call exclusion was vacuous
+
+`Geo` was not among the scaffold's declared types, so rule A never reached the lookahead: green with it,
+green without it. The first of the three "defects found by running it" had a test that could not fail.
+`Geo` is now declared.
+
+### 6. Four false positives, three on shapes the remedy text recommends
+
+`== .5`, `== .infinity` and `== ["a","b"]` were all flagged, because `LITERAL` accepted only
+decimal/hex/quoted-string/bool/nil, and because the right-hand operand was matched with a character class
+that cannot span `["a", "b"]`. A check that flags its own advice is a check that gets switched off. The RHS
+is now taken as the rest of the line and `LITERAL` covers leading-dot floats, enum cases and collection
+literals.
+
+Rule C had no `\b` after MEMBER, so the engine backtracked one character to satisfy the lookahead and
+reported `LambdaSearch.stepCoun` - a symbol that does not exist. That is the third "defect found by running
+it" still live in the rule the original fix did not reach.
+
+### 7. Nine false negatives, now written down
+
+The Brief admitted one. The reviewer found eight more, including **the most natural way to write the
+defect** - a function call on the left, `#expect(Geo.distanceMeters(a,b) <= Geo.earthRadiusMeters)`. All
+nine are listed in the check's own docstring, and P-TEST-02's statement is narrowed from "No assertion" to
+"No assertion **of the three recognised shapes**", with the scope caveat carried in the pin itself.
+
+A check whose stated scope quietly exceeds its real one is the defect it exists to prevent.
+
+### What did NOT change, and why the check is still worth having
+
+It found three real instances in `LambdaSearchTests.swift` that a person had already been told about, in
+that exact file, in the same sitting, and still could not see. That is the argument, and it is unaffected by
+any of the above.
+
+    bash ops/check-tests            SELF-REF OK (31 assertions in 4 test files)   exit 0
+    bash ops/check-tests --cases    SELF-REF CASES OK (19 cases)                  exit 0
+    bash ops/check-tests --history  SELF-REF HISTORY OK (2 commit pairs)          exit 0
 

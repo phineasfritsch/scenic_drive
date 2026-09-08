@@ -30,10 +30,24 @@ arguing about:
   C. **A range bound taken from the constant under test.** `for i in 0..<Type.member`. Lower the constant
      and the loop body stops running; the test passes over zero iterations.
 
-**Not detected**, and this is stated so the check is not mistaken for complete: two DIFFERENT objects both
-produced by the code under test (`pieces.p90` against `whole.p90`) needs dataflow, not pattern matching. The
-fourth real instance above is invisible here. A check that claimed to cover it would be the same defect one
-level up.
+**NOT detected.** This list is long on purpose: a check whose stated scope quietly exceeds its real one is
+the defect it exists to prevent, and every entry below was found by a reviewer rather than volunteered.
+
+  * Two DIFFERENT objects both produced by the code under test - `pieces.p90` against `whole.p90`. Needs
+    dataflow, not pattern matching, and one of the real instances above is of exactly this shape.
+  * A function call on the left: `#expect(Geo.distanceMeters(a, b) <= Geo.earthRadiusMeters)`. This is
+    arguably the most natural way to write the defect, and it is missed.
+  * An `#expect(` split across lines by ordinary formatting - the scan is line-by-line.
+  * The trailing-closure form, `#expect { ... }`.
+  * The expected value hoisted into a local `let` before the assertion.
+  * A nested-type constant reached through the outer type, `Type.Limits.ceiling`.
+  * A constant reached through a `typealias`; `declared_types` matches struct/class/enum/actor/protocol.
+  * A member in SCREAMING_CASE or starting uppercase; MEMBER requires a lowercase first character.
+  * XCTest assertions - `XCTAssertEqual`, `XCTAssertLessThanOrEqual` - which are outside the gate entirely.
+
+So P-TEST-02 says "of the three recognised shapes", not "no assertion anywhere". The check is worth having
+because it found three real instances a person had already been told about and still could not see; it is
+not a proof that none remain.
 
 ## The escape hatch
 
@@ -55,8 +69,16 @@ TESTS = ROOT / "Tests"
 # iterate over nothing exit 0; that is the same defect this file is about, one level up.
 MIN_TEST_FILES = 3
 MIN_TYPES = 3
+# The floor that matters: assertions actually EXAMINED. `MIN_TEST_FILES` counts files present, and three
+# files containing no assertions at all cleared it - which is the identical defect this task's own Brief
+# indicts in ops/lib/check-review-remedy, "counts case blocks ENTERED, not assertions EXECUTED". Found by
+# a reviewer, whose evidence was that two of this check's own scaffold files are a single comment line.
+MIN_ASSERTIONS = 10
 
-ALLOW = re.compile(r"//\s*self-ref-ok:\s*(?P<reason>.+?)\s*$")
+# The reason must be at least two words. The docstring promised that and nothing enforced it, so a
+# single character silenced a real finding on the real tree - and a bare `// self-ref-ok:` with no reason
+# at all survived a mutation of this very line.
+ALLOW = re.compile(r"//\s*self-ref-ok:\s*(?P<reason>\S+(?:\s+\S+)+)\s*$")
 # NON-capturing. The first version captured the operator, so `m.group(3)` in the same-object
 # rule returned "<=" instead of the second member and the finding printed "out.duration vs
 # out.<=". The match was right and the message was nonsense, which is the kind of thing that
@@ -73,7 +95,20 @@ COMPARISON = r"(?:==|!=|<=|>=|<|>)"
 # metamorphic symmetry property - two invocations with different arguments - and it is a legitimate and good
 # test. Comparing the code against ITSELF is fine; comparing it against a CONSTANT OF ITS OWN is the defect.
 MEMBER = r"[A-Z][A-Za-z0-9_]*\.[a-z][A-Za-z0-9_]*(?!\s*\()"
-LITERAL = re.compile(r"^-?(\d[\d_]*(\.\d+)?([eE][-+]?\d+)?|0x[0-9a-fA-F]+|\"[^\"]*\"|true|false|nil)$")
+# A LITERAL is anything whose value is written in the test rather than read from the code. The first
+# version accepted only decimal/hex/quoted-string/bool/nil, so it flagged three shapes the remedy text
+# itself recommends: `== .5`, `== .infinity`, and `== ["a","b"]`. A check that flags its own advice is a
+# check that gets switched off.
+LITERAL = re.compile(
+    r"^-?("
+    r"\.\d+([eE][-+]?\d+)?"                 # .5
+    r"|\d[\d_]*(\.\d+)?([eE][-+]?\d+)?"     # 1, 1.5, 1e3
+    r"|0x[0-9a-fA-F]+"
+    r"|\"[^\"]*\""
+    r"|\[.*\]"                              # array or dictionary literal
+    r"|\.[a-zA-Z_][A-Za-z0-9_]*"             # .infinity, .nan, an enum case
+    r"|true|false|nil"
+    r")$")
 
 
 def declared_types() -> set[str]:
@@ -104,23 +139,43 @@ def strip_comment(line: str) -> str:
     return line
 
 
-def problems_in(path: pathlib.Path, types: set[str]) -> list[tuple[int, str, str]]:
+def problems_in(path: pathlib.Path, types: set[str]):
+    """Return (findings, assertions_examined, suppressed)."""
     found: list[tuple[int, str, str]] = []
+    assertions = 0
+    suppressed = 0
     text = path.read_text(encoding="utf-8")
     for n, raw in enumerate(text.splitlines(), 1):
-        if ALLOW.search(raw):
-            continue
         line = strip_comment(raw).strip()
         if not line:
             continue
+        # Suppression is decided AFTER the comment is stripped, and only for a line that is actually an
+        # assertion. Searching the raw line let the marker work inside a Swift string literal, and let a
+        # marker on a non-assertion line silence nothing while still reading as deliberate.
+        is_assertion = "#expect(" in line or "#require(" in line
+        if is_assertion:
+            assertions += 1
+        # The marker must BEGIN the line's trailing comment. Searching anywhere in the raw line let it work
+        # from inside a Swift string literal - `// note: write "// self-ref-ok: ..." to suppress` silenced a
+        # real finding - and searching the stripped code would never find it at all, since it is a comment.
+        # So: take the comment that `strip_comment` removed, and require the marker at its start.
+        comment = raw[len(strip_comment(raw)):].strip()
+        if comment.startswith("//") and ALLOW.match(comment):
+            if is_assertion:
+                suppressed += 1
+            continue
 
         # C. A range bound taken from a static member of the code under test.
-        for m in re.finditer(r"(?:\.\.<|\.\.\.)\s*(" + MEMBER + r")", line):
+        # `\b` after MEMBER, which rule A has and this did not. Without it the engine backtracks one
+        # character to satisfy the function-call lookahead, so `0..<LambdaSearch.stepCount(4)` was reported
+        # as `LambdaSearch.stepCoun` - a symbol that does not exist. Right instinct, nonsense message, which
+        # is exactly the failure mode that gets a check ignored.
+        for m in re.finditer(r"(?:\.\.<|\.\.\.)\s*(" + MEMBER + r")\b", line):
             owner = m.group(1).split(".")[0]
             if owner in types:
                 found.append((n, "range bound taken from the constant under test", m.group(1)))
 
-        if "#expect(" not in line and "#require(" not in line:
+        if not is_assertion:
             continue
 
         # A. A comparison against a static member of the code under test, where the other side is not a
@@ -129,8 +184,13 @@ def problems_in(path: pathlib.Path, types: set[str]) -> list[tuple[int, str, str
             lhs, member = m.group(1).strip(), m.group(2)
             if member.split(".")[0] in types and not LITERAL.match(lhs):
                 found.append((n, "compared against the constant it checks; true for any value", member))
-        for m in re.finditer(r"(" + MEMBER + r")\s*" + COMPARISON + r"\s*([A-Za-z0-9_.\[\]!?]+)", line):
-            member, rhs = m.group(1), m.group(2).strip()
+        # The right-hand side is taken as the REST OF THE LINE rather than through a character class. A
+        # class cannot span `["a", "b"]` - it stops at the first space or quote - so an array literal was
+        # captured as `[` and failed the literal test, flagging the CORRECT pinning shape. Trailing `)` and
+        # `,` are trimmed because the assertion's own closing paren is not part of the value.
+        for m in re.finditer(r"(" + MEMBER + r")\s*" + COMPARISON + r"\s*(.+)$", line):
+            member = m.group(1)
+            rhs = m.group(2).strip().rstrip(")").rstrip(",").strip()
             if member.split(".")[0] in types and not LITERAL.match(rhs):
                 found.append((n, "compared against the constant it checks; true for any value", member))
 
@@ -140,7 +200,7 @@ def problems_in(path: pathlib.Path, types: set[str]) -> list[tuple[int, str, str
             if m.group(2) != m.group(3):
                 found.append((n, "both sides come from the same object under test",
                               f"{m.group(1)}.{m.group(2)} vs {m.group(1)}.{m.group(3)}"))
-    return found
+    return found, assertions, suppressed
 
 
 def main(argv: list[str]) -> int:
@@ -158,9 +218,20 @@ def main(argv: list[str]) -> int:
         return 2
 
     problems = []
+    assertions = 0
+    suppressed = 0
     for f in files:
-        for line_no, why, what in problems_in(f, types):
+        found, seen, quiet = problems_in(f, types)
+        assertions += seen
+        suppressed += quiet
+        for line_no, why, what in found:
             problems.append((f.relative_to(ROOT).as_posix(), line_no, why, what))
+
+    if assertions < MIN_ASSERTIONS:
+        sys.stdout.write("SELF-REF FAIL: examined %d assertion(s), expected at least %d - a check that "
+                         "reads files without assertions in them proves nothing\n"
+                         % (assertions, MIN_ASSERTIONS))
+        return 2
 
     if "--list-types" in argv:
         sys.stdout.write("types under Sources/: " + ", ".join(sorted(types)) + "\n")
@@ -174,7 +245,11 @@ def main(argv: list[str]) -> int:
                          "  genuinely right as written, end the line with `// self-ref-ok: <why>`.\n")
         return 1
 
-    sys.stdout.write("SELF-REF OK (%d test files, %d types under Sources/)\n" % (len(files), len(types)))
+    # The suppression count is printed on purpose. An unqualified "OK" over a tree with silenced findings
+    # is the same shape as a green over an empty one.
+    sys.stdout.write("SELF-REF OK (%d assertions in %d test files, %d types under Sources/%s)\n"
+                     % (assertions, len(files), len(types),
+                        ", %d suppressed by self-ref-ok" % suppressed if suppressed else ""))
     return 0
 
 

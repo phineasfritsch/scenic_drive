@@ -31,53 +31,108 @@ SCAFFOLD_SOURCES = {
         "public enum RetraceDetector {\n    public static let cellSizeMeters = 25.0\n}\n",
     "AppleMapsDirections.swift":
         "public struct AppleMapsDirections {\n    public static let maxWaypoints = 9\n}\n",
+    # Geo must be DECLARED here or the metamorphic-symmetry negative case is vacuous: rule A only looks at
+    # members of types under Sources/, so without this the function-call lookahead is never reached and the
+    # case is green whether the lookahead exists or not. A reviewer proved that by deleting the lookahead
+    # and watching nothing change.
+    "Geo.swift":
+        "public enum Geo {\n    public static let earthRadiusMeters = 6_371_008.8\n"
+        "    public static func distanceMeters(_ a: Double, _ b: Double) -> Double { 0 }\n}\n",
 }
+
+# Real assertions, not comment lines. The check floors on assertions EXAMINED - a reviewer showed that
+# counting files PRESENT let three files containing no assertions clear the gate, and pointed out that two
+# of this scaffold's own three files were a single comment line. So the scaffold has to carry a real
+# population. Every one of these is a legitimate literal comparison that must never fire, which keeps the
+# case's own line the only variable in the run.
+_PAD_ASSERTIONS = "\n".join("        #expect(value%d == %d)" % (i, i) for i in range(1, 13))
 
 SCAFFOLD_TESTS = {
-    "PadOne.swift": "// keeps the file count above the floor\n",
-    "PadTwo.swift": "// keeps the file count above the floor\n",
+    "PadOne.swift":
+        'import Testing\n@Suite("pad one") struct PadOneSuite {\n'
+        '    @Test("pad") func pad() {\n' + _PAD_ASSERTIONS + "\n    }\n}\n",
+    "PadTwo.swift":
+        'import Testing\n@Suite("pad two") struct PadTwoSuite {\n'
+        '    @Test("pad") func pad() {\n' + _PAD_ASSERTIONS + "\n    }\n}\n",
 }
 
-# (name, the line, must_fire)
+# (name, the line, must_fire, expected_substring_when_firing)
+#
+# The substring is not decoration. `fired = code == 1` alone treats a TRACEBACK as a successful catch: a
+# reviewer replaced the matcher body with `raise` and every RED case reported `ok`. A red case must show
+# that the check found the thing, not merely that it exited non-zero.
 CASES = [
     # --- real instances, verbatim in shape ------------------------------------------------------------
     ("T-0118: a clamp asserted against its own constant",
-     "        #expect(r2 <= LearnedCorridorSpeeds.maxRatio)", True),
+     "        #expect(r2 <= LearnedCorridorSpeeds.maxRatio)", True,
+     "LearnedCorridorSpeeds.maxRatio"),
 
     ("T-0118: a loop bound taken from the constant under test",
-     "        for n in 1..<LearnedCorridorSpeeds.confidenceThreshold {", True),
+     "        for n in 1..<LearnedCorridorSpeeds.confidenceThreshold {", True,
+     "range bound taken from the constant"),
 
     ("T-0116: both sides of one object",
-     "        #expect(out.duration <= out.ceiling)", True),
+     "        #expect(out.duration <= out.ceiling)", True,
+     "out.duration vs out.ceiling"),
 
     ("T-0114: a cap asserted through its own symbol",
-     "        #expect(pinned.count == AppleMapsDirections.maxWaypoints)", True),
+     "        #expect(pinned.count == AppleMapsDirections.maxWaypoints)", True,
+     "AppleMapsDirections.maxWaypoints"),
 
     ("a constant on the left, a computed value on the right",
-     "        #expect(LambdaSearch.maxLambda > measured)", True),
+     "        #expect(LambdaSearch.maxLambda > measured)", True,
+     "LambdaSearch.maxLambda"),
 
     ("a range built from the constant, closed form",
-     "        for i in 0...RetraceDetector.cellSizeMeters {", True),
+     "        for i in 0...RetraceDetector.cellSizeMeters {", True,
+     "RetraceDetector.cellSizeMeters"),
 
     # --- negatives: legitimate assertions that must NOT fire -------------------------------------------
     ("pinning a constant against a literal, which is the CORRECT shape",
-     "        #expect(LearnedCorridorSpeeds.maxRatio == 1.0)", False),
+     "        #expect(LearnedCorridorSpeeds.maxRatio == 1.0)", False, None),
 
     ("a metamorphic symmetry property over two invocations",
-     "        #expect(Geo.distanceMeters(a, b) == Geo.distanceMeters(b, a))", False),
+     "        #expect(Geo.distanceMeters(a, b) == Geo.distanceMeters(b, a))", False, None),
 
     ("a value compared against a literal",
-     "        #expect(out.duration <= 3300.0)", False),
+     "        #expect(out.duration <= 3300.0)", False, None),
 
     ("two different receivers, which this check deliberately does not cover",
-     "        #expect(pieces.p90 == whole.p90)", False),
+     "        #expect(pieces.p90 == whole.p90)", False, None),
 
     ("an allowlisted line with a stated reason",
      "        #expect(r2 <= LearnedCorridorSpeeds.maxRatio)  "
-     "// self-ref-ok: the clamp value is pinned separately by constantsArePinned", False),
+     "// self-ref-ok: the clamp value is pinned separately by constantsArePinned", False, None),
 
     ("a constant mentioned in a comment only",
-     "        // #expect(r2 <= LearnedCorridorSpeeds.maxRatio)", False),
+     "        // #expect(r2 <= LearnedCorridorSpeeds.maxRatio)", False, None),
+
+    # --- the escape hatch, which promised more than it enforced ---------------------------------------
+    ("a one-word reason does NOT silence the check",
+     "        #expect(r2 <= LearnedCorridorSpeeds.maxRatio)  // self-ref-ok: later", True,
+     "LearnedCorridorSpeeds.maxRatio"),
+
+    ("a marker with no reason at all does NOT silence the check",
+     "        #expect(r2 <= LearnedCorridorSpeeds.maxRatio)  // self-ref-ok:", True,
+     "LearnedCorridorSpeeds.maxRatio"),
+
+    ("a marker inside a Swift string does NOT silence the check",
+     '        #expect(name == LearnedCorridorSpeeds.maxRatio)  '
+     '// note: write \\"// self-ref-ok: because reasons\\" to suppress', True,
+     "LearnedCorridorSpeeds.maxRatio"),
+
+    # --- literal forms the remedy text itself recommends ----------------------------------------------
+    ("a constant pinned against a leading-dot float is the CORRECT shape",
+     "        #expect(LambdaSearch.maxLambda == .5)", False, None),
+
+    ("a constant pinned against .infinity is the CORRECT shape",
+     "        #expect(LambdaSearch.maxLambda == .infinity)", False, None),
+
+    ("a constant pinned against an array literal is the CORRECT shape",
+     '        #expect(LambdaSearch.codes == ["a", "b"])', False, None),
+
+    ("a constant pinned against a negative float is the CORRECT shape",
+     "        #expect(LambdaSearch.maxLambda == -1.5)", False, None),
 ]
 
 
@@ -105,9 +160,16 @@ def run_case(line: str) -> tuple[int, str]:
 
 def main() -> int:
     ok = True
-    for name, line, must_fire in CASES:
+    for name, line, must_fire, expect_text in CASES:
         code, out = run_case(line)
-        fired = code == 1
+        # A finding, not merely a non-zero exit. A traceback is also exit 1, and treating that as a catch
+        # made every RED case pass against a matcher replaced by `raise`.
+        fired = code == 1 and "SELF-REF FAIL" in out
+        if fired and expect_text and expect_text not in out:
+            ok = False
+            sys.stdout.write("FAIL   TEXT   %s\n         fired, but did not report %r\n"
+                             % (name, expect_text))
+            continue
         if code == 2:
             sys.stdout.write("SCAFFOLD FAIL %-58s %s\n" % (name, out.strip().splitlines()[:1]))
             ok = False

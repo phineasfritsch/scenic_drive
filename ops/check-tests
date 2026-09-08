@@ -2,7 +2,8 @@
 # Check the tests themselves, not the code they cover.
 #
 #   ops/check-tests              find assertions whose expected value comes from the thing they check
-#   ops/check-tests --cases      run the red/green demonstration on the real historical instances
+#   ops/check-tests --cases      the red/green demonstration on constructed shapes
+#   ops/check-tests --history    the same, against the real commits where each defect shipped
 #   ops/check-tests --list-types print the type names it recognises as "the code under test"
 #
 # Locates itself from BASH_SOURCE, NOT `git rev-parse --show-toplevel`. CLAUDE.md and T-0060 ban that in
@@ -23,5 +24,8 @@ PY="${PYTHON:-$(command -v python3 || command -v python)}"
 
 if [[ "${1:-}" == "--cases" ]]; then
   exec "$PY" "$here/lib/check-self-referential-cases.py"
+fi
+if [[ "${1:-}" == "--history" ]]; then
+  exec "$PY" "$here/lib/check-self-referential-history.py"
 fi
 exec "$PY" "$here/lib/check-self-referential-tests.py" "$@"
