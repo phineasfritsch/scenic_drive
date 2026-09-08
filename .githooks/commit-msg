@@ -1,21 +1,288 @@
 #!/usr/bin/env bash
-# Refuses a commit that LOWERS any pins/floor_*.txt unless the commit message body
-# carries a `floor-lower: <reason>` line. Raising a floor is always allowed (that is the reviewer's ratchet).
+# Refuses a commit that LOWERS a ratchet unless the commit body says why.
+#
+# Two families of ratchet, one rule, two keywords:
+#
+#   pins/floor_*.txt                                  ->  floor-lower: <reason>     (T-0002, T-0071)
+#   MIN_* MAX_* REQUIRED* EXEMPT* bindings, any file  ->  ratchet-lower: <reason>   (T-0079)
+#
+# Raising a floor, raising a MIN_, lowering a MAX_, adding a REQUIRED/EXEMPT entry: always free, that is the
+# reviewer's ratchet. Going the other way is sometimes right - a pin is retired, a suite is genuinely split -
+# and this hook does not forbid it. It forbids doing it silently.
+#
+# WHY THE CONSTANTS TOO. ops/lib/pins.py MIN_PINS/MIN_RAN/REQUIRED/REQUIRED_RAN, ops/lib/check-exec-bits
+# MIN_FILES/REQUIRED and ops/lib/check-line-cap MIN_FILES/MIN_CAPPED/EXEMPT are ratchets that happen to be
+# stored as module constants rather than as files. `MIN_RAN = 9` -> `6` is one line, and restores exactly the
+# headroom T-0072 was filed to remove. A ratchet whose notch can be moved silently is a suggestion again.
+#
+# WHAT IT IS ANCHORED ON. The identifier, and nothing else. Never a comment: comments are stripped before
+# parsing, so a commented-out binding reads as absent, which is itself reported as a lowering. Never a file
+# path: both sides scan the WHOLE tree, so moving a constant to another file, or renaming the file it lives
+# in, does not retire the guard. If the name survives somewhere at the same strength the move passes in
+# silence; if it does not, the move IS the lowering. T-0071 fixed this exact shape in the floors half, where
+# two filenames were named literally and a rename would have retired the hook without a word.
+#
+# CARDINALITY IS NOT IDENTITY (T-0072's lesson, applied here). A REQUIRED/EXEMPT lowering is not caught by
+# counting entries: swapping one entry for a duplicate of another keeps the count and loses the coverage.
+# The entries are compared as a SET, and every entry that disappears is named in the refusal.
+#
+# HOOK, AND IT SHOULD ALSO BE A CHECK. `git commit --no-verify` skips this file and no hook runs in CI, so on
+# its own this is a speed bump on the honest path and nothing at all on the dishonest one. The durable half
+# is `--audit <base>`: the same comparison between two refs, with the justification looked for in every commit
+# message in the range. That mode is implemented and demonstrated (T-0079 log) but is NOT yet wired into
+# ops/check-pins or CI, because pins/PINS.yaml is outside T-0079's touches:. Until a pin runs
+#
+#     bash .githooks/commit-msg --audit origin/main
+#
+# the --no-verify route stays open. T-0079's report says so rather than claiming the ratchet is safe.
 set -uo pipefail
-msgfile="$1"
+
+fail=0
+mode="commit"
+msgfile=""
+oldref="HEAD"
+newref=""          # empty means "the index"
+
+if [[ "${1:-}" == "--audit" ]]; then
+  mode="audit"; oldref="${2:-origin/main}"; newref="HEAD"
+else
+  msgfile="${1:-}"
+  [[ -z "$msgfile" ]] && { echo "commit-msg: no message file given"; exit 1; }
+fi
+
+# The commit body for a commit; every message in base..HEAD for an audit.
+justification() {  # $1 = keyword regex
+  if [[ "$mode" == "audit" ]]; then
+    git log --format=%B "$oldref..$newref" 2>/dev/null | grep -E "$1" | head -1
+  else
+    grep -E "$1" "$msgfile" 2>/dev/null | head -1
+  fi
+}
+FLOOR_RE='^floor-lower:[[:space:]]*[^[:space:]]'
+RATCHET_RE='^ratchet-lower:[[:space:]]*[^[:space:]]'
+
+blob() { git show "$1:$2" 2>/dev/null; }   # $1 = ref or empty for the index, $2 = path
+
+# --------------------------------------------------------------------- 1. the test floors
 # Every floor file, not a hard-coded pair. The names changed once already - one combined Linux floor
 # became one per tier (T-0071) - and a guard that lists filenames literally stops guarding the moment
 # they are renamed, silently, which is the failure this repo keeps finding in its own checks.
-floors="$(git diff --cached --name-only --diff-filter=d -- 'pins/floor_*.txt' 2>/dev/null)"
+if [[ "$mode" == "audit" ]]; then
+  floors="$(git diff --name-only --diff-filter=d "$oldref" "$newref" -- 'pins/floor_*.txt' 2>/dev/null)"
+else
+  floors="$(git diff --cached --name-only --diff-filter=d -- 'pins/floor_*.txt' 2>/dev/null)"
+fi
 for f in $floors; do
-  old="$(git show "HEAD:$f" 2>/dev/null | tr -d '[:space:]' || echo 0)"; [[ -z "$old" ]] && old=0
-  new="$(git show ":$f" 2>/dev/null | tr -d '[:space:]' || echo 0)"; [[ -z "$new" ]] && new=0
+  old="$(blob "$oldref" "$f" | tr -d '[:space:]')"; [[ -z "$old" ]] && old=0
+  new="$(blob "$newref" "$f" | tr -d '[:space:]')"; [[ -z "$new" ]] && new=0
   if [[ "$new" -lt "$old" ]]; then
-    if ! grep -qE '^floor-lower:[[:space:]]*[^[:space:]]' "$msgfile"; then
+    fjust="$(justification "$FLOOR_RE")"
+    if [[ -z "$fjust" ]]; then
       echo "commit-msg: $f lowered $old -> $new without a 'floor-lower: <reason>' line in the commit body"
-      exit 1
+      fail=1
+    else
+      echo "commit-msg: $f lowered $old -> $new (justified: $fjust)"
     fi
-    echo "commit-msg: $f lowered $old -> $new (justified: $(grep -E '^floor-lower:' "$msgfile" | head -1))"
   fi
 done
-exit 0
+
+# --------------------------------------------------------------------- 2. the ratchet constants
+# Candidate files, cheaply, and deliberately broader than the parser: it is the parser below, not this
+# regex, that decides what is a binding. The scan is restricted to the paths this commit actually changes
+# (--no-renames, so a rename contributes BOTH its names): a path the commit does not touch has the same blob
+# in HEAD and in the index, so it cannot have moved its own ratchet. Scanning the whole tree instead cost
+# 10s per commit on the Windows box this repo is driven from, measured, which is how a hook gets disabled.
+RGREP='(MIN|MAX|REQUIRED|EXEMPT)[A-Z0-9_]*[ \t]*[:=]'
+
+read -r -d '' RPARSE <<'AWK'
+BEGIN{
+  SQ=sprintf("%c",39); DQ=sprintf("%c",34)
+  PFX="^[ \t]*(declare[ \t]+-[A-Za-z]+[ \t]+|readonly[ \t]+|export[ \t]+|const[ \t]+|let[ \t]+|var[ \t]+|local[ \t]+|static[ \t]+|final[ \t]+|public[ \t]+|private[ \t]+)*"
+  NM="(MIN|MAX|REQUIRED|EXEMPT)[A-Z0-9_]*"
+  BIND=PFX NM "[ \t]*(:[^=]*)?="
+  open=""; depth=0; buf=""; nm=""
+}
+function unq(t,  c){
+  while(length(t)>0){ c=substr(t,1,1); if(c==DQ||c==SQ) t=substr(t,2); else break }
+  while(length(t)>0){ c=substr(t,length(t),1); if(c==DQ||c==SQ) t=substr(t,1,length(t)-1); else break }
+  return t
+}
+function decomment(s,  out,i,c,q){
+  out=""; q=""
+  for(i=1;i<=length(s);i++){
+    c=substr(s,i,1)
+    if(q!=""){ out=out c; if(c==q) q=""; continue }
+    if(c==DQ||c==SQ){ q=c; out=out c; continue }
+    if(c=="#") break
+    out=out c
+  }
+  return out
+}
+function balance(s,o,c,  i,ch,d){ d=0; for(i=1;i<=length(s);i++){ ch=substr(s,i,1); if(ch==o) d++; else if(ch==c) d-- } return d }
+function emitset(name,b,  o,c,body,i,d,ch,n,arr,t,p){
+  o=substr(b,1,1); c=(o=="(")?")":"]"
+  d=0; body=""
+  for(i=1;i<=length(b);i++){
+    ch=substr(b,i,1)
+    if(ch==o){ d++; if(d==1) continue }
+    else if(ch==c){ d--; if(d==0) break }
+    body=body ch
+  }
+  n=split(body,arr,/[,\t ]+/)
+  print path "\t" name "\tsetmark\t-"
+  for(i=1;i<=n;i++){
+    t=arr[i]; sub(/;+$/,"",t)
+    p=index(t,"]=")
+    if(substr(t,1,1)=="[" && p>0) t=substr(t,2,p-2)
+    t=unq(t)
+    if(t!="") print path "\t" name "\tset\t" t
+  }
+}
+{
+  line=decomment($0)
+  if(depth>0){
+    buf=buf " " line
+    depth+=balance(line,open,(open=="(")?")":"]")
+    if(depth<=0){ emitset(nm,buf); depth=0; buf=""; nm="" }
+    next
+  }
+  if(match(line,BIND)){
+    st=RSTART; ln=RLENGTH
+    seg=substr(line,st,ln)
+    if(!match(seg,NM)) next
+    nm=substr(seg,RSTART,RLENGTH)
+    rest=substr(line,st+ln); sub(/^[ \t]+/,"",rest)
+    if(rest==""){ nm=""; next }
+    ch=substr(rest,1,1)
+    if(ch=="(" || ch=="["){
+      open=ch; buf=rest; depth=balance(rest,open,(open=="(")?")":"]")
+      if(depth<=0){ emitset(nm,buf); depth=0; buf=""; nm="" }
+      next
+    }
+    split(rest,a,/[ \t]+/); t=a[1]; sub(/[;,]+$/,"",t)
+    if(t ~ /^-?[0-9]+$/ || t ~ /^-?[0-9]+\.[0-9]+$/) print path "\t" nm "\tnum\t" t
+    else print path "\t" nm "\topaque\t" t
+    nm=""
+  }
+}
+AWK
+
+# Weakest binding wins on each side (a second, lower assignment later in the same file is a lowering);
+# strength is the value for MIN_/REQUIRED/EXEMPT and its negation for MAX_, where bigger means weaker.
+#
+# A binding that leaves its file is followed ONLY through git's own rename detection (the @rename records
+# prepended to the old side). It is deliberately not rescued by "some file somewhere still binds that name":
+# that shortcut let `MIN_FILES=5` in check-line-cap be renamed to `MIN_FILE_COUNT=2` and pass, because the
+# UNRELATED MIN_FILES=17 in check-exec-bits was found and read as the surviving binding. Measured, self-attack
+# B1 in the T-0079 log. Moving a ratchet to a genuinely new home without renaming the file is therefore
+# reported and needs one `ratchet-lower:` line - the safe direction, and a cheap one.
+read -r -d '' RCOMPARE <<'AWK'
+function strength(n,v){ return (n ~ /^MAX/) ? -v : v }
+FNR==NR{
+  p=$1; n=$2; k=$3; v=$4; key=p SUBSEP n
+  if(p=="@rename"){ ren[n]=k; next }
+  if(k=="num"){
+    if(!(key in onum) || strength(n,v)<strength(n,onum[key])) onum[key]=v
+    okind[key]="num"
+  } else if(k=="setmark"){ okind[key]="set" }
+  else if(k=="set"){ olist[key]=olist[key] " " v; next }
+  else { okind[key]="opaque" }
+  okey[key]=1; oname[key]=n; opath[key]=p
+  next
+}
+{
+  p=$1; n=$2; k=$3; v=$4; key=p SUBSEP n
+  if(k=="num"){
+    if(!(key in nnum) || strength(n,v)<strength(n,nnum[key])) nnum[key]=v
+    nkind[key]="num"
+  } else if(k=="setmark"){ nkind[key]="set" }
+  else if(k=="set"){ nitem[key SUBSEP v]=1; next }
+  else { nkind[key]="opaque" }
+  nkey[key]=1
+}
+END{
+  for(key in okey){
+    p=opath[key]; n=oname[key]; ok=okind[key]
+    if(ok=="opaque") continue
+    q=p; via=""
+    if(!(key in nkey) && (p in ren) && ((ren[p] SUBSEP n) in nkey)){ q=ren[p]; via=" (followed the rename to " q ")" }
+    nk=q SUBSEP n; here=(nk in nkey)
+    if(!here){
+      print p ": " n " is gone - no binding of that name at " p ((p in ren) ? " or at its rename " ren[p] : "") \
+            ", so nothing constrains it any more"
+      continue
+    }
+    if(nkind[nk]!=ok){
+      print p ": " n " changed shape (" ok " -> " nkind[nk] ")" via " - the old value can no longer be compared"
+      continue
+    }
+    if(ok=="num"){
+      if(strength(n,nnum[nk]) < strength(n,onum[key])) print p ": " n " " onum[key] " -> " nnum[nk] via
+    } else {
+      cnt=split(olist[key],items," "); gone=""
+      for(i=1;i<=cnt;i++){
+        t=items[i]; if(t=="") continue
+        if(!((nk SUBSEP t) in nitem)) gone=gone " " t
+      }
+      if(gone!="") print p ": " n via " lost" gone
+    }
+  }
+}
+AWK
+
+touched() {  # every path this commit changes, old and new names both
+  if [[ -z "$newref" ]]; then
+    git diff --cached --no-renames --name-only -z "$oldref" 2>/dev/null
+  else
+    git diff --no-renames --name-only -z "$oldref" "$newref" 2>/dev/null
+  fi
+}
+
+ratchet_facts() {  # $1 = ref, or empty for the index; narrowed to "${tpaths[@]}"
+  local ref="$1" f
+  local -a files=()
+  if [[ -z "$ref" ]]; then
+    mapfile -d '' -t files < <(git grep -I -l -z --cached -E "$RGREP" -- "${tpaths[@]}" 2>/dev/null)
+  else
+    mapfile -d '' -t files < <(git grep -I -l -z -E "$RGREP" "$ref" -- "${tpaths[@]}" 2>/dev/null)
+  fi
+  for f in "${files[@]}"; do
+    [[ -z "$f" ]] && continue
+    [[ -n "$ref" ]] && f="${f#"$ref":}"
+    blob "$ref" "$f" | awk -v path="$f" "$RPARSE"
+  done
+}
+
+renames() {  # git's own rename detection, so a moved file keeps its ratchets without a justification line
+  if [[ -z "$newref" ]]; then
+    git diff --cached -M --name-status --diff-filter=R "$oldref" 2>/dev/null
+  else
+    git diff -M --name-status --diff-filter=R "$oldref" "$newref" 2>/dev/null
+  fi | awk -F'\t' 'NF>=3 {print "@rename\t" $2 "\t" $3 "\t-"}'
+}
+
+if git rev-parse --verify -q "$oldref" >/dev/null 2>&1; then
+  rtmp="$(mktemp -d)"
+  trap 'rm -rf "$rtmp"' EXIT
+  mapfile -d '' -t tpaths < <(touched)
+  # A commit large enough to blow the argv limit falls back to the whole tree rather than to no check.
+  [[ ${#tpaths[@]} -gt 200 ]] && tpaths=(".")
+  [[ ${#tpaths[@]} -eq 0 ]] && exit $fail
+  renames > "$rtmp/old"
+  ratchet_facts "$oldref" >> "$rtmp/old"
+  ratchet_facts "$newref" > "$rtmp/new"
+  lowered="$(awk -F'\t' "$RCOMPARE" "$rtmp/old" "$rtmp/new" | sort)"
+  if [[ -n "$lowered" ]]; then
+    rjust="$(justification "$RATCHET_RE")"
+    if [[ -z "$rjust" ]]; then
+      echo "commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:"
+      printf '  %s\n' "$lowered"
+      fail=1
+    else
+      echo "commit-msg: ratchet lowered (justified: $rjust)"
+      printf '  %s\n' "$lowered"
+    fi
+  fi
+fi
+
+exit $fail
