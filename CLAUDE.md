@@ -64,6 +64,25 @@ so it is an owner-run migration, not an agent task (T-0060). Do not file this ag
 - **Never `git reset --hard` in a worktree with uncommitted work.** Use `--soft` plus
   `git checkout HEAD -- <path>`. A `--hard` here discarded an hour of edits across four files.
 
+## The caller's environment is an attack surface, and a denylist will not hold it
+A check that reads the repo through `git` or runs through an interpreter is steered by whoever invokes it.
+Three of these were executed against already-hardened scripts, with **no edit to any tracked file**:
+
+- `GIT_CONFIG_PARAMETERS='core.excludesFile=...'` turned `ops/sane` from `SANE FAIL exit 2` into
+  `SANE OK exit 0` with the offending file still on disk. It is the one `GIT_CONFIG_*` name a fifteen-name
+  unset list missed, and it is the mechanism `git -c` itself uses. (Windows-form path required; the `/c/...`
+  msys form is silently ignored by git.)
+- A twelve-line `sitecustomize.py` on `PYTHONPATH` — `site` imports it from `sys.path` at startup — produced
+  `PINS ok=99 ... failed=0` and `QUEUE OK (999 tasks)`, with zero pins loaded and zero assertions run.
+- A fifteen-line script named `git` earlier on `PATH`, filtering `git status` and `git ls-files`, hid a
+  tracked file from every checker and every pin assertion at once.
+
+So: **deriving the repo root from `${BASH_SOURCE[0]}` fixes the working directory and nothing else.** When you
+write or review a check, assume the caller controls `PATH`, every `GIT_*` and every `PYTHON*` variable, and ask
+what your check still proves. Prefer an allowlisted environment (`env -i` plus the few names actually needed)
+and absolute paths to `git` and the interpreter, over unsetting names somebody has to keep remembering — a
+denylist loses to the next name, and this repo has now lost that game three times in three files (T-0086).
+
 ## Verification
 - `ops/test` — one command, prints `TESTS linux=N/F ios=N/F`, exits non-zero if failing or below floor.
 - `ops/sane` — is the state sane; distinct exit codes; never mutates.

@@ -103,3 +103,18 @@ them.
 
   mid-way through resolving a real merge conflict, which is the worst possible moment to lose a scratch file.
   Scratch goes in a gitignored directory inside the repo.
+
+- 2026-09-08 agent/claude-opus-5 — an eighth rule, and the only one here that is not about this checkout being
+  on NTFS. Added because it changes how every future check must be written, and CLAUDE.md is where agents
+  actually look.
+
+  Three environment variables were used to turn red gates green against scripts that had ALREADY been hardened
+  to derive their root from `${BASH_SOURCE[0]}`, with no edit to any tracked file:
+  `GIT_CONFIG_PARAMETERS`, `PYTHONPATH` (via `sitecustomize.py`, which `site` imports from `sys.path` at
+  interpreter startup), and a `git` shim on `PATH`. The second produced `PINS ok=99 ... failed=0` and
+  `QUEUE OK (999 tasks)` — the exact two strings the hardening commit's own header cited as proof of the
+  defect it had just fixed.
+
+  The rule is stated as "assume the caller controls PATH and every GIT_*/PYTHON* variable, and ask what your
+  check still proves", not as a list of three names to unset — because the list is the losing move, and
+  [[T-0086]] exists to fix it properly rather than by adding a fourth name.
