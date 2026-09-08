@@ -15,7 +15,7 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (7 cases), exit 0"
+  - "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (7 cases), exit 0"
   - "RED: --hook <pre-fix> fails cases 1 and 2; --hook <naive> fails case 3"
 ---
 ## Brief
@@ -212,4 +212,54 @@ no merge in progress; and a secret arriving from the other side of a merge.
 Their first CRLF verdict was a false green - it matched the word "CRLF" in the commit MESSAGE. They caught
 it, rewrote the probe binary-safe, and the result reversed. Their words: *"That is the same signature defect
 I was sent to hunt, in my own harness."*
+
+## CI fix: the pin's own assertion could not run on the Linux runner
+
+P-GIT-02 shipped with `assertion: "python ops/lib/check-touches-merge.py"`. PR #78's `core` check went red:
+
+    PINS ok=12 skipped=0 pending=2 expired=0 failed=1 tier=linux
+     - P-GIT-02: ...
+           assertion: python ops/lib/check-touches-merge.py
+           output: bash: line 1: python: command not found
+
+The runner installs `python3` (`.github/workflows/linux-core.yml:48`) and Debian ships no `python` alias, so
+the pin could never have passed there. The pin was green on the authoring box only because Windows has a bare
+`python` on PATH - the check was passing for a reason that had nothing to do with the property it asserts.
+
+This repo already has one way to name an interpreter, used at 17 call sites
+(`ops/check-pins:2`, `ops/claim`, `ops/lock`, `ops/new-task`, `ops/queue-*`, `ops/merge:23`, `ops/sane:17`,
+`ops/test:15`, `ops/prod-read:10`, `ops/lib/check-*`):
+
+    "${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/x.py
+
+`ops/lib/check-exec-bits:37-42` is explicit that this is the contract, and that it is *why* `ops/lib/*.py`
+stays 100644: every call site passes the script as an argument to an interpreter, never `./ops/lib/x.py`.
+So the fix is the shim, not `chmod +x` and not a hardcoded `python3` - hardcoding `python3` would break the
+Windows box, where `python3` resolves to the App Execution Alias stub that `ops/test:47` documents.
+`pins.py:86` runs assertions through `bash -o pipefail -c`, and does not export `PYTHON`, so the `${PYTHON:-...}`
+default has to live in the assertion itself.
+
+### RED then GREEN, against a PATH shaped like the runner's
+
+A shim directory holding a real `python3` only, then `PATH=<shim>:/usr/bin:/mingw64/bin`, `PYTHON` unset:
+
+    command -v python  -> []            (exit 1)
+    command -v python3 -> <shim>        Python 3.10.11
+
+    RED   (old assertion)  bash: line 1: python: command not found          exit 127
+    GREEN (new assertion)  TOUCHES-MERGE OK (7 cases)                       exit 0
+
+RED reproduces the CI output byte for byte. GREEN was run through `pins.load` + `pins.run` rather than by
+hand, so it exercises the same code path CI does.
+
+### One false red, worth recording
+
+The first GREEN attempt reported `TOUCHES-MERGE FAIL (stubbed by reviewer)`. That was not this fix: a
+reviewer's red-demo (`.artifacts/rvw2/pinred.sh:9`) overwrites `ops/lib/check-touches-merge.py` with a
+failing stub and restores it at line 16, and it was running in this worktree at the same moment. The probe
+now hashes the subject against `HEAD:` before and after the run and aborts if they differ. Both matched on
+the recorded run. Note that the reviewer's own `pinred.out` already shows the fixed assertion resolving an
+interpreter and executing the stub - the failure it captured is the stub's, not a `command not found`.
+
+Staging explicit paths is what kept that stub out of this commit.
 
