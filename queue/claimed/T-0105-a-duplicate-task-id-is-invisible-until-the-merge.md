@@ -1,15 +1,15 @@
 ---
 id: T-0105
 title: a duplicate task id is invisible until the merge, so all three of today's were found by hand
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T10:18:01Z
+lease_expires_at: 2026-09-08T13:18:01Z
 worktree: null
-branch: null
+branch: task/T-0105
 exclusive: []
-touches: [ops/lib/queue.py, ops/queue-check]
+touches: [ops/lib/queue.py, ops/queue-ids]
 pins_affected: []
 reviewer: null
 depends_on: [T-0101]
@@ -68,3 +68,4 @@ duplicates. That is precisely the mistake `next_id()` made ([[T-0101]]): the sam
 `T-0076` would otherwise let this check report a clean bill of health.
 
 ## Log
+- 2026-09-08T10:18:01Z claimed by agent/claude-opus-5; lease until 2026-09-08T13:18:01Z
