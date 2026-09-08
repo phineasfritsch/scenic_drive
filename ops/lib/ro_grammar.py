@@ -82,9 +82,16 @@ def check_length_probes(cases, bad):
     for p in probes:
         sql = "SELECT " + "1" * (p["chars"] - 7)
         problem = read_only_problem(sql)
-        if p["expect"] == "reject" and problem is None:
-            bad.append(f"should REJECT a statement of exactly {p['chars']} chars but accepted it")
-        elif p["expect"] == "accept" and problem is not None:
+        if p["expect"] == "reject":
+            # "refused for SOME reason" is not the assertion. The probe has to trip the LENGTH rule, or it
+            # stays green while that rule is deleted and some other gate happens to catch the statement.
+            # services/api/test/ro.test.ts asserts the same thing with toMatch(/longer/).
+            if problem is None:
+                bad.append(f"should REJECT a statement of exactly {p['chars']} chars but accepted it")
+            elif "longer than" not in problem:
+                bad.append(f"rejected a {p['chars']}-char statement for the wrong reason: {problem!r} - the "
+                           f"length rule is what this probe exists to exercise")
+        elif problem is not None:
             bad.append(f"should ACCEPT a statement of exactly {p['chars']} chars but refused: {problem}")
         ran += 1
     return ran
