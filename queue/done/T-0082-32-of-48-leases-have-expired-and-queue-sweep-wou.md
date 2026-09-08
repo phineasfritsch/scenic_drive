@@ -1,7 +1,7 @@
 ---
 id: T-0082
 title: 32 of 48 leases have expired and queue-sweep would clobber every one of them
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-08T03:28:24Z
@@ -253,3 +253,94 @@ task whose work is complete.
   Every `critical`, `high` and `medium` above is fixed on this branch, each with its own red-then-green
   transcript in the entries above this one. The `low` items are recorded rather than silently dropped;
   where one was substantive it was fixed and says so.
+
+- 2026-09-08 — **second review pass by `agent/reviewer-pr51`, against the head that actually merged
+  (`7750ecc`), not the one the first pass saw (`09a3836`). PASS, review -> done, with two findings.**
+
+  `acceptance:` is `[]`, so there was nothing to run there and nothing to check it against — see finding
+  (5). What was run, in the worktree at `7750ecc`, exit code taken with `<cmd> >/dev/null 2>&1; echo $?`:
+
+        bash ops/queue-check   exit 0   QUEUE OK (76 tasks)
+        bash ops/check-pins    exit 0   PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+        PYTHON=$(command -v python) bash ops/test
+                               exit 0   TESTS linux=50/50 ios=skipped failed=0 skipped=0
+        bash ops/sane          exit 0   SANE OK
+
+  Both `verify:` lines match the transcript pasted above verbatim. `check-pins` was red on its first run
+  (`ok=8 failed=1`, P-SAFE-05) and that was **not** this branch: `.build` carried a Swift ModuleCache
+  stamped with this worktree's previous path (`GitHub/wt/T-0082`), so `swift test --filter
+  SolarFixtureTests` died in `could not build module 'vcruntime'`. `rm -rf
+  .build/x86_64-unknown-windows-msvc/debug/ModuleCache` and the pin is green. Recorded because a reviewer
+  who stopped at `failed=1` would have failed this PR for a stale cache.
+
+  **RED DEMO, built from scratch rather than re-run from `.artifacts/`** (`.artifacts/rvw51-probe.sh`): a
+  throwaway `git init` repo with a real bare `origin`, five expired-lease fixtures whose branches are only
+  shapes `ops/claim` can produce, and the same fixtures replanted between runs.
+
+        T-9001  branch task/T-9001, 0 commits ahead   the dead agent: README step 4 ran, then nothing
+        T-9002  branch task/T-9002, 2 commits ahead   work waiting to merge
+        T-9003  branch task/T-9002 (borrowed), no commit touching queue/*/T-9003-*
+        T-9004  branch task/T-9002 (borrowed), one commit touching queue/*/T-9004-*
+        T-9005  branch null
+
+        RED   (ops/lib/queue.py at 33d5533, this PR's base)   exit 0   SWEEP done (5 moved)
+              T-9001..T-9005 all SWEPT, all five exclusive locks RELEASED
+        GREEN (ops/lib/queue.py at 7750ecc)                   exit 0   SWEEP done (3 moved, 2 kept)
+              T-9001 SWEPT / T-9002 kept, lock held / T-9003 SWEPT / T-9004 kept, lock held / T-9005 SWEPT
+
+  So the guard is not vacuous in either direction: the base loses two live tasks and their locks, and the
+  fix still sweeps the abandoned-agent shape the first version of this guard had made unsweepable. The two
+  fail-closed paths reproduce too — `PATH` without git gives `SWEEP REFUSED: git cannot read this repo`,
+  exit 2, 0 moved; an unreachable `origin` gives `SWEEP REFUSED: git fetch origin failed`, exit 2, 0 moved;
+  and `--no-fetch` restores the normal 3-moved/2-kept result.
+
+  **On the live tree**, in a throwaway worktree cut from this branch (never the real one):
+  `SWEEP done (2 moved, 43 kept)`. The two are T-0014 and T-0036 — both branches exist on origin, both are
+  0 commits ahead of `origin/main`, and both worktrees are `git status --porcelain` empty. Genuinely
+  abandoned claims, which is the outcome the brief asked for. The four borrowed tasks are held with the
+  borrowed reason, as the entry above claims.
+
+  **(medium) `_main_ref` is defined twice on the merged head, and it is this PR's copy that is dead.**
+  `ops/lib/queue.py:424` (added here, built on the three-state `_git_out`) is shadowed by
+  `ops/lib/queue.py:627` (added by T-0063, built on the two-state `_git`). Python keeps the later one.
+  Measured, not inferred: replacing only the definition at :424 with `raise RuntimeError(...)` leaves the
+  sweep byte-identical and never raises. The two are behaviourally equivalent today — both return the first
+  ref `rev-parse --verify -q` accepts and `None` otherwise, and `cmd_sweep` refuses on `None` — so this is
+  not a regression, but the three-state discipline `_git_out` is documented for is not what the base ref is
+  actually read with. It is a clean merge with a semantic conflict: `8c63b29`, `0c301bc` and `09a3836` each
+  have one `_main_ref`; two appear only at `7750ecc`, the PR #52 merge, committed 05:23:39 — nine seconds
+  before PR #51 merged at 05:23:48, and five hours after the first review pass signed off on `09a3836`.
+
+  **(medium) the borrowed-branch evidence query is cwd-sensitive and fails OPEN.**
+  `_branch_has_work` runs `git log ... {base}..{ref} -- queue/*/<id>-*` with `cwd=ROOT`. A git pathspec is
+  resolved against the current directory, so when `ROOT` is not the repository root the pattern matches
+  nothing, `own` is empty, and the task is swept — owner cleared, exclusive lock released, no error, no
+  refusal, because git itself succeeded. That is not hypothetical here: it is the exact harness this task's
+  own RED/GREEN numbers came from — `.artifacts/sweep-probe.sh` copies `ops/lib` and `queue` to
+  `$ROOT/.artifacts/sweeptest`, where `_git_usable()` passes (still inside the repo) and every pathspec
+  silently misses. Measured on identical refs and identical fixtures: from a worktree root T-0072, T-0073,
+  T-0074 and T-0076 are kept with the borrowed reason; from `.artifacts/liveprobe` all four are SWEPT.
+  Shipped `ops/queue-sweep` execs at `git rev-parse --show-toplevel`, so the tool as invoked is safe — but
+  the probe the evidence was gathered with is not, and the failure is silent. `:(top,glob)queue/*/<id>-*`
+  would make the query independent of where it is run from.
+
+  **(low) the line-count claim is stale.** The PR body and the first log entry say 653 -> 711. 711 is
+  `37bdea3`; the last T-0082 code commit `0c301bc` is 791 and the merged head is 902.
+
+  **(low) `gh pr diff 51` is no longer this task's diff.** task/T-0063 was merged into task/T-0082 after the
+  first review, so the PR's 835/167 now includes `queue/README.md`, `_would_duplicate_on_merge` and four
+  T-0063 queue files. A later reader of this PR is reading two tasks.
+
+  **(low, systemic — not this PR's) `acceptance:` is empty in all 66 task files and nothing notices.**
+  `queue/_schema/task.md` designates that field for "the exact command and the exact expected output line"
+  and "the red run: what was broken on purpose and the non-zero exit it produced". Every task file in the
+  queue has `acceptance: []`, and `ops/queue-check` prints `QUEUE OK (76 tasks)` over all of them. The
+  schema's own red-demo record is a field with no floor, so a reviewer sent to "run the acceptance
+  commands" has none to run and the red demo survives only as prose in `## Log`.
+
+  **(low) `--no-fetch` is matched with `"--no-fetch" in argv`,** not through `_opts`, so `--nofetch` and
+  `--no_fetch` silently fall through to a real fetch instead of erroring.
+
+  Not re-raised, already filed: nothing executes `ops/lib/queue.py` in any tier of `ops/test` (T-0096,
+  backlog on main), and the file is 902 lines against CLAUDE.md's 300-line cap, which P-SRC-02 checks for
+  Swift only (T-0059, T-0103).
