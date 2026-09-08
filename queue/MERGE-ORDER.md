@@ -534,7 +534,14 @@ Measured from the CI logs themselves, not from the rollup:
     PR #56  task/T-0081   P-OPS-01: ops/lib/etl_mutation.py           (script, should be 100755, is 100644)
                           P-OPS-01: ops/lib/etl_mutation_rules.py     (script, should be 100755, is 100644)
 
-Same pin, same sentence, three branches. Each adds an `ops/lib/*.py` that `main`'s P-OPS-01 still classifies
+Same pin, same sentence, three branches.
+
+**Make that four.** `task/T-0080` (PR #59, `ops/pins-mutation`) added `ops/lib/pins_mutation.py` and
+`ops/lib/pins_mutation_cases.py` at **100755** — green against `main` today and wrong the moment T-0036
+lands. It was set to 100644 on 2026-09-08 and is now red with the other three, which is the correct state
+to be in before T-0036. The outlier direction was the dangerous one: the derived rule orders every branch
+that adds an `ops/lib/*.py` **after** T-0036, so at 100755 it would have merged into the tree where that
+mode is wrong and put the failure on `main` rather than on a PR. Each adds an `ops/lib/*.py` that `main`'s P-OPS-01 still classifies
 as a script; `task/T-0036` is the branch that reclassifies them, and after it merges all three are `merged,
 gates clean` in the rehearsal above. **One merge turns every red PR in the repository green.** That is the
 whole argument for the order at the top of this file, stated in the branches' own CI output.
