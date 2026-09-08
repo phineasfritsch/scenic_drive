@@ -101,3 +101,18 @@ it, and a wrong value fails **open**: hooks silently do the wrong job and every 
   documented degraded path, warning to stderr where nobody reads it, and continuing. T-0101 now refuses
   instead of warning, for exactly this reason.
 - 2026-09-08T11:05:19Z claimed by agent/hookspath; lease until 2026-09-08T15:05:19Z
+
+- 2026-09-08 agent/hookspath — **state re-measured before building anything, both facts in the brief confirmed.**
+
+        $ git config --show-origin --get core.hooksPath
+        file:C:/Users/phineasf/Documents/GitHub/scenic_drive/.git/config	.githooks
+        $ git config --get extensions.worktreeConfig ; echo rc=$?
+        rc=1
+        $ git rev-parse --git-dir --git-common-dir --show-toplevel
+        C:/Users/.../scenic_drive/.git/worktrees/T-0106
+        C:/Users/.../scenic_drive/.git
+        C:/Users/.../wt/T-0106
+
+  So the value is the relative `.githooks` today, it comes from the ONE config file every worktree shares
+  (`--git-common-dir` is the main checkout's `.git` for all of them), and there is no per-worktree override
+  in play. The right value, held in the wrong kind of place.
