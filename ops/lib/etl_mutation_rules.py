@@ -174,15 +174,26 @@ class Collector(ast.NodeVisitor):
 
 
 def mutants_for(path):
-    src = path.read_text(encoding="utf-8")
-    c = Collector()
-    c.visit(ast.parse(src))
-    return src, sorted(c.found, key=lambda m: (m[0], m[1], m[2]))
-
-
-def mutants_for(path):
     """Every mutation this file knows how to make in `path`, deterministically ordered."""
     src = path.read_text(encoding="utf-8")
     c = Collector()
     c.visit(ast.parse(src))
     return src, sorted(c.found, key=lambda m: (m[0], m[1], m[2]))
+
+
+# --------------------------------------------------------------------------- the floor under the denominator
+# MAX_SURVIVORS in the runner bounds the numerator; on its own that is half a ratchet. Turning a rule off
+# shrinks the mutant set, so fewer mutants survive, and the run prints a BETTER number and exits 0 without
+# anyone touching MAX_SURVIVORS. Measured, not imagined: renaming visit_Dict/visit_Set out of the way took the
+# enumeration 186 -> 154 and the survivors 69 -> 54 (PR #56 review). Same shape as MIN_FILES in
+# ops/lib/check-exec-bits and MIN_FILES/MIN_CAPPED in ops/lib/check-line-cap, added there for the same reason.
+#
+# Per module, and scalars, deliberately: T-0079's `ratchet-lower:` hook parses a numeric binding of a
+# MIN_*/MAX_* name and classifies a dict literal as `opaque`, which it then skips. A number here is guardable
+# the day that hook merges; a dict would have looked like a ratchet and been none.
+#
+# Raising these is free. LOWERING one claims the module legitimately got smaller, and that has to be said out
+# loud, because from the outside it is indistinguishable from an evasion.
+MIN_MUTANTS_ORACLE = 66           # etl/oracle.py,        measured 2026-09-08
+MIN_MUTANTS_ORACLE_SELECT = 120   # etl/oracle_select.py, measured 2026-09-08
+MODULE_FLOORS = {"etl/oracle.py": MIN_MUTANTS_ORACLE, "etl/oracle_select.py": MIN_MUTANTS_ORACLE_SELECT}

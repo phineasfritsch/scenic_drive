@@ -12,7 +12,7 @@ exclusive: []
 touches: [services/etl/etl/, services/etl/tests/, services/etl/pyproject.toml, ops/etl-mutation, ops/lib/etl_mutation.py, ops/lib/etl_mutation_rules.py]
 pins_affected: []
 reviewer: null
-depends_on: []
+depends_on: [T-0079]
 verify: [ops/test, ops/check-pins]
 acceptance: []
 ---

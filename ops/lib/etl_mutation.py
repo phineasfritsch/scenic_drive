@@ -13,17 +13,22 @@ Adding an unpinned dependency to produce a trust signal is the wrong trade, and 
 audit is a poor fit for a repository whose founding premise is that checks lie. This harness is ~200 lines of
 stdlib `ast`, it enumerates its mutations explicitly, and it runs anywhere the suite runs.
 
-WHAT A SURVIVOR MEANS. A mutant that the suite does not kill is a change to the module that no test objects
-to. It is not automatically a defect - some mutations are genuinely equivalent - but every one of the ten
-evasions that beat T-0074 is in this file's rule set, so a survivor is where the next adversary will go.
+WHAT A SURVIVOR MEANS. A mutant the suite does not kill is a change to the module that no test objects to.
+Not automatically a defect - some mutations are equivalent - but it is where the next adversary will go.
+WHAT ZERO SURVIVORS WOULD NOT MEAN: the rules reproduce SIX of the ten evasions that beat T-0074, audited
+one by one in the rules module. X2 (a refusal keyed on a directory), X4 (a call site ignoring the pinned
+constant) and X5 (`random.Random(seed).shuffle` -> `random.shuffle`) are call-site rewrites, not node edits;
+no rule generates them and X5 passes the suite today. This docstring claimed all ten until PR #56's review
+executed the counterexample.
 
     ops/etl-mutation                  both modules
     ops/etl-mutation --module etl/oracle_select.py
     ops/etl-mutation --list           enumerate mutants without running anything
+    ops/etl-mutation --limit 20       a sample - and a sample is never a pass: exit 3, never 0
 
 The rules live in ops/lib/etl_mutation_rules.py, split out because they change for a different reason: that
 file grows when somebody finds a new shape of evasion, this one when the way a run is judged changes. It is
-audited there against the ten evasions that beat T-0074, and says which one it deliberately does not model.
+audited there against the evasions that beat T-0074, and says which ones it deliberately does not model.
 """
 import argparse
 import ast
@@ -34,26 +39,38 @@ import sys
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from etl_mutation_rules import mutants_for   # noqa: E402  (sys.path set immediately above)
+from etl_mutation_rules import MODULE_FLOORS, mutants_for   # noqa: E402  (sys.path set immediately above)
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 ETL = ROOT / "services" / "etl"
 DEFAULT_MODULES = ["etl/oracle.py", "etl/oracle_select.py"]
 
 # A survivor budget, not a target. It exists so this can gate without pretending the number is zero today:
-# raise the bar by LOWERING it, never by loosening a rule. `.githooks/commit-msg` guards MAX_* bindings.
+# raise the bar by LOWERING it, never by loosening a rule - and the DENOMINATOR is held by MIN_MUTANTS_* in
+# the rules module, because generating fewer mutants is the other way to make this number fall.
+#
+# NOTHING GUARDS THIS CONSTANT ITSELF ON THIS BRANCH: `.githooks/commit-msg` here guards pins/floor_*.txt and
+# nothing else (`grep -c MAX_ .githooks/commit-msg` -> 0, on this branch and on main). The `ratchet-lower:`
+# rule covering MAX_* bindings is T-0079's, unmerged, which is why depends_on names it. An earlier draft of
+# this comment stated that guard as present-tense fact; PR #56's review took 69 -> 999 through the hook in
+# silence.
 MAX_SURVIVORS = 69    # measured 2026-09-08: 117 killed, 69 survived, of 186. Lower it as tests land;
-                      # never raise it. `.githooks/commit-msg` guards MAX_* bindings (T-0079).
+                      # never raise it.
 
 
 # ----------------------------------------------------------------------------- the run
 def dirty(rels):
-    """Modules git does not consider clean. None when git cannot answer, which is refused, not assumed.
+    """Paths git does not consider clean. None when git cannot answer, which is refused, not assumed.
 
     A killed run leaves a module mutated on disk. The baseline check usually catches that - a mutated module
     normally fails the suite - but an EQUIVALENT mutation leaves the suite green, so the baseline passes and
     every result after it is computed against a module nobody meant to change. Asking git puts the evidence
     outside the loop.
+
+    Called with the whole `etl` PACKAGE, not this run's module list, which is what it used to be: PR #56's
+    review left a comment-stripped oracle_select.py in the tree, ran `--module etl/oracle.py`, and the guard
+    inspected the wrong file and reported numbers. A killed run's leftover need not be in the set you mutate
+    next, and an uncommitted sibling changes what the suite - and so MAX_SURVIVORS - is measuring anyway.
     """
     try:
         r = subprocess.run(["git", "status", "--porcelain", "--", *[f"services/etl/{x}" for x in rels]],
@@ -112,10 +129,16 @@ def main(argv):
     ap = argparse.ArgumentParser(prog="ops/etl-mutation")
     ap.add_argument("--module", action="append", default=None)
     ap.add_argument("--list", action="store_true")
-    ap.add_argument("--limit", type=int, default=0, help="stop after N mutants (for a quick sample)")
+    ap.add_argument("--limit", type=int, default=0,
+                    help="stop after N executed mutants: a sample, which exits 3 and is never a pass")
     a = ap.parse_args(argv)
     py = sys.executable
     modules = a.module or DEFAULT_MODULES
+
+    if a.limit < 0:
+        # `--limit -1` used to mean "run nothing, print 0 killed, 0 survived, exit 0" (PR #56 review).
+        print(f"MUTATION FAIL: --limit must be >= 0 (0 means no limit), not {a.limit}")
+        return 2
 
     total = 0
     plan = []
@@ -134,6 +157,20 @@ def main(argv):
         print("MUTATION FAIL: no mutants generated - the rules matched nothing, so nothing was tested")
         return 2
 
+    # The same guard with the numbers filled in: not "did the rules match anything" but "did they match as
+    # much as when MAX_SURVIVORS was measured". `--list` is gated too - it is how you would confirm the rule
+    # set is intact, and it printed MUTANTS 154 for a loosened one without complaint (PR #56 review).
+    short = [(rel, len(m), MODULE_FLOORS[rel]) for rel, _p, _s, m in plan
+             if rel in MODULE_FLOORS and len(m) < MODULE_FLOORS[rel]]
+    if short:
+        print("MUTATION FAIL: the mutant set shrank, so the survivor count falls for a reason that is not")
+        print("  better tests. Raise the bar by killing mutants, never by generating fewer of them.")
+        for rel, got, want in short:
+            print(f"    {rel}: {got} mutants, floor MIN_MUTANTS is {want}")
+        print("  If the module really did get smaller: lower the floor in ops/lib/etl_mutation_rules.py with")
+        print("  a `ratchet-lower: <reason>` line in the commit body.")
+        return 2
+
     if a.list:
         for rel, _p, _s, muts in plan:
             for line, rule, desc, _m in muts:
@@ -147,13 +184,13 @@ def main(argv):
     if not take_lock():
         return 2
     try:
-        return _run(py, modules, plan, a)
+        return _run(py, plan, a, total)
     finally:
         drop_lock()
 
 
-def _run(py, modules, plan, a):
-    d = dirty(modules)
+def _run(py, plan, a, total):
+    d = dirty(["etl"])
     if d is None:
         print("MUTATION FAIL: git cannot say whether the modules are clean, so a leftover mutation from a")
         print("  killed run could not be ruled out. Refusing rather than reporting numbers about a tree of")
@@ -171,7 +208,27 @@ def _run(py, modules, plan, a):
     print("baseline: ", end="", flush=True)
     if not run_suite(py):
         print("FAIL")
-        print("MUTATION FAIL: the suite does not pass unmutated, so no mutant result can be trusted")
+        print(f"MUTATION FAIL: the suite does not pass unmutated under {py}, so no mutant result can be")
+        print("  trusted. An interpreter with no pytest installed looks exactly like this - check that first.")
+        return 2
+    print("suite passes")
+
+    # The second baseline, the easy one to forget: that one ran the ORIGINAL source, every mutant runs
+    # `ast.unparse` output. A module where unparse ALONE broke the suite reports every mutant killed and a
+    # perfect score - fail-open, in the flattering direction. So: same trees, unparsed, unmutated. PR #56's
+    # review ran this by hand and it passed; a control in a reviewer's scratch directory is not a control.
+    print("unparse control: ", end="", flush=True)
+    for _rel, path, src, _m in plan:
+        path.write_text(ast.unparse(ast.parse(src)), encoding="utf-8", newline="\n")
+    try:
+        ok = run_suite(py)
+    finally:
+        for _rel, path, src, _m in plan:
+            path.write_text(src, encoding="utf-8", newline="\n")
+    if not ok:
+        print("FAIL")
+        print("MUTATION FAIL: the suite fails on the UNMUTATED ast.unparse of these modules, so every mutant")
+        print("  would be scored as killed by that alone and the run would look perfect. Refusing.")
         return 2
     print("suite passes")
 
@@ -205,14 +262,31 @@ def _run(py, modules, plan, a):
             break
 
     secs = int(time.time() - t0)
+    ran = killed + len(survivors)
     print()
-    print(f"MUTATION {killed} killed, {len(survivors)} survived, of {n} run in {secs}s")
+    print(f"MUTATION {killed} killed, {len(survivors)} survived, of {ran} run in {secs}s")
+    if ran == 0 or ran != n:
+        # A mutant whose applier matched nothing, or whose tree would not unparse, was counted in "of N run"
+        # anyway - so a rule that quietly stopped mutating made the run look bigger than it was.
+        print(f"MUTATION FAIL: {n} mutants were reached and {ran} of them actually ran. A mutant whose")
+        print("  applier matched nothing, or whose tree would not unparse, is not a tested mutant - and a")
+        print("  run that executed nothing must never read as clean. An enumeration is not coverage.")
+        return 2
     if survivors:
         print("  A survivor is a change to the module that no test objects to. Some are genuinely equivalent;")
-        print("  every evasion that beat T-0074 is one of the rules above, so this is where the next one goes.")
+        print("  the rules reproduce six of the ten evasions that beat T-0074, so this is where the next goes.")
     if len(survivors) > MAX_SURVIVORS:
         print(f"  ABOVE THE BUDGET of {MAX_SURVIVORS} - raise the bar by lowering it, never by loosening a rule.")
         return 1
+    # A run can fail on any subset. It can only PASS over the whole floored set: a sample has a smaller
+    # denominator, so it has fewer survivors, so `--limit 4` used to print a clean result and exit 0.
+    reasons = ["no MIN_MUTANTS floor for " + r for r, _p, _s, _m in plan if r not in MODULE_FLOORS]
+    if n < total:
+        reasons.insert(0, f"only {n} of {total} mutants ran")
+    if reasons:
+        print("  PARTIAL, so not a verdict: " + "; ".join(reasons) + ".")
+        print(f"  The budget of {MAX_SURVIVORS} only means anything over the whole floored set. Exit 3, not 0.")
+        return 3
     return 0
 
 
