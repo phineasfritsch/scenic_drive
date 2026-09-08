@@ -8,6 +8,12 @@
 --record-digest exists so that pinning a digest is a deliberate human act. A fetcher that silently accepts
 whatever the network hands it the first time, and pins THAT, is not verifying anything - it is laundering
 whatever it got into a number that looks like provenance.
+
+That promise used to hold only for an entry with no digest yet. Run against an ALREADY-pinned entry whose
+upstream file had changed, it printed the new digest and said nothing about the old one, and the operator
+pasted it in - the pin laundering the change instead of catching it. It now refuses (exit 3), prints both
+digests and both sizes, and leaves the pinned file on disk untouched. Re-pinning deliberately means setting
+the entry's sha256 back to TODO in the manifest first: two edits, both visible in a diff.
 """
 from __future__ import annotations
 
@@ -138,8 +144,46 @@ def main(argv: list[str]) -> int:
             print(f"no such entry: {args.record_digest}", file=sys.stderr)
             return 2
         dest = DEST / entry.name
-        download(entry.url, dest)
-        digest = sha256_file(dest)
+        pinned = (entry.sha256 or "").strip().lower()
+        already_pinned = bool(pinned) and pinned != "todo"
+
+        # Download BESIDE the pinned file, never onto it. This used to write straight to `dest`, which meant
+        # the known-good, digest-verified bytes were replaced by unverified new ones before anything compared
+        # them - so any refusal after that point had already destroyed the thing it was refusing to give up.
+        staged = dest.with_suffix(dest.suffix + ".recording") if already_pinned else dest
+        download(entry.url, staged)
+        digest = sha256_file(staged)
+
+        if already_pinned and digest != pinned:
+            # THE REASON THIS COMMAND EXISTS, applied to the case it used to skip. For a NEW entry, printing
+            # whatever the network returned is the point. For an entry that is ALREADY pinned, printing it
+            # with no mention of the old digest is how a pin quietly becomes a rubber stamp: the operator
+            # pastes the new number in and nobody ever looks at what changed. T-0025 pinned the Curvature
+            # oracle precisely so that "if they regenerate it the fetch fails and a human re-pins it having
+            # looked at what changed" - this is the part that makes them look.
+            old_size = dest.stat().st_size if dest.exists() else None
+            print(f"UPSTREAM CHANGED: {entry.name} does not match its pinned digest", file=sys.stderr)
+            print(f"  pinned : {pinned}"
+                  + (f"  ({old_size} bytes on disk)" if old_size is not None else "  (not on disk)"),
+                  file=sys.stderr)
+            print(f"  fetched: {digest}  ({staged.stat().st_size} bytes)", file=sys.stderr)
+            print(f"  url    : {entry.url}", file=sys.stderr)
+            print("", file=sys.stderr)
+            print("Refusing to hand you a replacement digest for a file that is already pinned. If this "
+                  "change is one you have looked at and accept, set this entry's sha256 to TODO in the "
+                  "manifest and run this again - two deliberate edits, both visible in a diff, which is a "
+                  "stronger record than a --force flag nobody sees in review.", file=sys.stderr)
+            print(f"The fetched bytes are at {staged.name}; the pinned file is untouched.", file=sys.stderr)
+            return 3
+
+        if already_pinned:
+            # Matches. Re-running must be safe and must not look like a change - an operator checking whether
+            # upstream moved should get a clear "it did not", not a digest they then wonder about.
+            staged.replace(dest)
+            print(f"{entry.name} still matches its pinned sha256: {digest}")
+            print("Nothing to record.", file=sys.stderr)
+            return 0
+
         print(f"{entry.name} sha256: {digest}")
         print("Put that in the manifest deliberately; this command does not edit it for you.", file=sys.stderr)
         return 0
