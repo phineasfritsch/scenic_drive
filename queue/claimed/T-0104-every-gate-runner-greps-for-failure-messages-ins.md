@@ -1,15 +1,15 @@
 ---
 id: T-0104
 title: every gate-runner greps for failure messages instead of reading the exit code it already has
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T11:03:47Z
+lease_expires_at: 2026-09-08T14:03:47Z
 worktree: null
-branch: null
+branch: task/T-0104
 exclusive: []
-touches: [ops/merge-rehearse, ops/pr-ci-preflight, CLAUDE.md]
+touches: [CLAUDE.md]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -89,3 +89,4 @@ patterns are out of date again, and it is the shape [[T-0080]] proved does not c
 enumerating the ways something can fail never finishes.
 
 ## Log
+- 2026-09-08T11:03:47Z claimed by agent/claude-opus-5; lease until 2026-09-08T14:03:47Z
