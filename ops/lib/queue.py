@@ -430,7 +430,7 @@ def _main_ref():
     return None
 
 
-def _branch_has_work(name, base):
+def _branch_has_work(name, base, tid=None, path=None):
     """True when this task's branch carries commits - i.e. a sweep would strand real work.
 
     NOT "does the branch exist". `cmd_claim` always records branch: task/<id> and queue/README.md step 4
@@ -443,15 +443,31 @@ def _branch_has_work(name, base):
     Ahead-of-main is the property that separates the two populations. A claim-time branch sits at main's tip,
     zero ahead. The 29 expired leases of 2026-09-08 were all pushed branches with open PRs, all ahead.
 
+    A BORROWED branch is held to a stricter test. `cmd_claim` writes `task/<id>` and nothing else, so any
+    other value was written by hand - and four claimed tasks in this tree carry one (T-0072 -> task/T-0066,
+    T-0073 -> task/T-0068, T-0074 -> task/T-0069, T-0076 -> task/T-0077). Stacking work on another task's
+    branch is a real workflow here, not an error, so this does not refuse it; but "that branch is ahead of
+    main" is then a fact about somebody else's task, and holding a lease on it is holding it on evidence
+    that was never about this work. On a borrowed branch, demand a commit that touches THIS task's file.
+    Reviewer of PR #51.
+
     Returns (has_work, why); why is the sentence printed when the answer is "hold".
     """
     if not name or str(name).strip() in ("", "null", "none", "~"):
         return False, None
+    borrowed = bool(tid) and str(name).strip() != f"task/{tid}"
     for ref in (f"refs/remotes/origin/{name}", f"refs/heads/{name}"):
         st, _ = _git_out("rev-parse", "--verify", "-q", ref)
         if st is None:
             return True, f"git could not be run to look up {ref}"
         if st is False:
+            continue
+        if borrowed and path:
+            st, own = _git_out("log", "--format=%H", "-1", f"{base}..{ref}", "--", path)  # path is a glob on the id
+            if st is not True:
+                return True, f"git could not ask whether {ref} touches {path}, and that is not an answer"
+            if own:
+                return True, f"{ref} (borrowed from another task) carries a commit touching {path}"
             continue
         st, n = _git_out("rev-list", "--count", f"{base}..{ref}")
         if st is not True:
@@ -508,7 +524,8 @@ def cmd_sweep(argv):
             continue
         exp = dt.datetime.fromisoformat(fm["lease_expires_at"].replace("Z", "+00:00"))
         if exp < now():
-            work, why = _branch_has_work(fm.get("branch"), base)
+            work, why = _branch_has_work(fm.get("branch"), base, fm.get("id"),
+                                         f"queue/*/{fm['id']}-*")
             if work:
                 held.append(f"{fm['id']}: {why}")
                 continue

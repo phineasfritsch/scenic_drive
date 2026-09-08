@@ -192,3 +192,42 @@ task whose work is complete.
   a task log and nothing else. Both regressions this file shipped this session (PR #50's duplicate-brief
   guard, PR #51's sweep guard) would have been caught by one test each. Filed as **T-0096**, with the
   measurements, rather than left as a note here.
+
+- 2026-09-08 — **a borrowed branch is evidence about someone else's task.** Reviewer of PR #51, [low]: four
+  claimed task files record a branch that is not their own, so the guard keeps them alive on commits that
+  belong to a different task.
+
+        T-0072  branch: task/T-0066      T-0074  branch: task/T-0069
+        T-0073  branch: task/T-0068      T-0076  branch: task/T-0077
+
+  `cmd_claim` writes `task/<id>` and nothing else, so every one of these was written by hand — and stacking
+  work on another task's branch is a real workflow here, not an error. So the rule does not refuse a
+  borrowed branch; it asks it for evidence about **this** task: at least one commit ahead of main touching
+  `queue/*/<id>-*`. The pathspec is a glob on the id, not the file's current path, so a task that has since
+  moved between queue states is still found.
+
+  **On the four real ones the rule changes nothing**, which is the honest result and matches what the
+  reviewer said (*"latent rather than active"*) — every borrowed branch here does carry a commit touching
+  its task's file, so all four are held either way. Only the printed reason changes:
+
+        RED    T-0072: refs/remotes/origin/task/T-0066 is 5 commit(s) ahead of refs/remotes/origin/main
+        GREEN  T-0072: refs/remotes/origin/task/T-0066 (borrowed from another task) carries a commit
+                       touching queue/*/T-0072-*
+
+  **So the red had to be synthetic, and it is** (`.artifacts/demo-borrowed2.sh`). `T-9987`, expired lease,
+  `branch: task/T-0086` — a real branch, 14 commits ahead of main, with **0** commits touching
+  `queue/*/T-9987-*`:
+
+        ===== RED: ahead-of-main only =====
+          T-9987: refs/remotes/origin/task/T-0086 is 14 commit(s) ahead of refs/remotes/origin/main
+          SWEEP done (0 moved, 36 kept)
+          T-9987 stays in claimed/
+          exclusive lock STILL HELD
+
+        ===== GREEN: borrowed branch must touch this task's file =====
+          swept T-9987 -> ready/
+          SWEEP done (1 moved, 35 kept)
+          exclusive lock released
+
+  Two throwaway worktrees rather than one with `git checkout --` between runs: that idiom silently lost a
+  fix earlier in this session and two "green" runs were measured against the unpatched module.
