@@ -219,9 +219,16 @@ def cmd_check(_argv):
         if fm.get("state") != state:
             problems.append(f"{rel}: state field '{fm.get('state')}' != directory '{state}'")
         if state in ("review", "done"):
-            if not fm.get("reviewer"):
-                problems.append(f"{rel}: in {state}/ without a reviewer")
-            elif fm.get("reviewer") == fm.get("owner"):
+            # P-PROC-01 is an INEQUALITY, and an inequality between two absent values is vacuously true.
+            # `owner: null` with `reviewer: agent/self` passed this gate while the worker graded its own
+            # work, and so did deleting the `owner:` line outright (both executed in T-0068). cmd_sweep
+            # writes owner=None itself when a lease expires, so a null owner is a state this tooling
+            # PRODUCES, not an exotic hand edit. Presence of both names is therefore part of the rule,
+            # not a precondition somebody else is checking.
+            missing = [k for k in ("owner", "reviewer") if not fm.get(k)]
+            for k in missing:
+                problems.append(f"{rel}: in {state}/ without {'an' if k == 'owner' else 'a'} {k}")
+            if not missing and fm.get("reviewer") == fm.get("owner"):
                 problems.append(f"{rel}: reviewer == owner ({fm.get('owner')}) - a worker may not grade its own work")
         if state == "claimed":
             for k in ("owner", "claimed_at", "lease_expires_at"):
@@ -373,7 +380,17 @@ def cmd_review(argv):
             return 1
         # Refused here as well as in cmd_check, on the same argument as T-0056's brief guard: after the fact
         # is a report, at the transition is a prevention.
-        if reviewer == fm.get("owner"):
+        #
+        # The owner must EXIST before that comparison means anything: `reviewer != None` is true for every
+        # reviewer alive, so an ownerless task hands itself to itself and this gate says nothing. T-0068
+        # executed it - `owner: null` and a deleted `owner:` line both walked a self-review into review/.
+        owner = fm.get("owner")
+        if not owner:
+            print(f"{tid} has no owner, so 'the reviewer is not the owner' cannot be decided - a null owner")
+            print("satisfies that inequality for every reviewer. Restore owner: before handing it over")
+            print("(ops/queue-sweep clears owner: when a lease expires; re-claim with ops/claim).")
+            return 1
+        if reviewer == owner:
             print(f"reviewer {reviewer} is also the owner of {tid} - a worker may not grade its own work")
             return 1
 
