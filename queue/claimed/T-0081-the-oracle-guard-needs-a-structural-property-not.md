@@ -1,15 +1,15 @@
 ---
 id: T-0081
 title: the oracle guard needs a structural property, not more enumerated routes
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T04:10:02Z
+lease_expires_at: 2026-09-08T10:10:02Z
+worktree: wt/T-0081
+branch: task/T-0081
 exclusive: []
-touches: [services/etl/etl/]
+touches: [services/etl/etl/, services/etl/tests/, services/etl/pyproject.toml, ops/etl-mutation]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -58,3 +58,4 @@ rejected, because the next adversary will find X13.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the round-two adversarial verification of T-0074. All ten
   mutations were executed and reverted; the verifier's tree ended clean.
+- 2026-09-08T04:10:02Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:10:02Z
