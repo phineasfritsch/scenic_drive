@@ -1,5 +1,11 @@
 # Swift / SPM
 .build/
+# CLAUDE.md requires every `swift build/test` on this shared box to pass its own --scratch-path, so the
+# scratch directories are named `.build-<something>` and there are as many as there are agents and
+# harnesses. `.build/` alone left them untracked-but-visible: three reviews of PR #73 in a row reported
+# `.build-mutate-routescore/` (the mutation harness's own scratch path, created by running the acceptance
+# line) and `.build-rvw2/` in git status.
+.build-*/
 .swiftpm/
 *.xcuserstate
 xcuserdata/
