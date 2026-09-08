@@ -74,8 +74,16 @@
 #     and `declare` can itself be an exported function. Measured against the first draft of this fix:
 #         env "BASH_FUNC_declare%%=() { :; }" "BASH_FUNC_cd%%=<lies outside ops/lib>" bash ops/sane
 #             -> SANE OK exit=0 with the stray on disk: the seal re-exec'd the ADVERSARY's script.
-#     So the sealed pass, where no function survives, re-checks that $0 is an ops/* script of this root.
-#     What remains is unreachable from inside a bash script at all - bash imports SHELLOPTS at startup,
+#     A $0 re-check in the SEALED pass does not catch that - the adversary's script never sources this
+#     file - so the re-exec target is validated in the UNSEALED pass instead, against SCENIC_ROOT, with
+#     nothing but keywords and parameter expansion. Both that and its neighbour now refuse, exit 2:
+#         ...same command as above                                          -> refusing: the re-exec
+#         env "BASH_FUNC_declare%%=..." "BASH_FUNC_basename%%=<returns queue-check>" bash ops/sane
+#             -> refusing: target resolved to <root>/ops/queue-check, which is not <root>/ops/sane.
+#             Worth its own line: that one re-aims a checker at a DIFFERENT REAL wrapper, so it would
+#             have printed QUEUE OK and exited 0 without any adversary-written file existing at all.
+#     The sealed pass keeps its own $0 check, which is what refuses an out-of-tree script that sources
+#     boot.sh directly. What remains is unreachable from a bash script at all - bash imports SHELLOPTS
 #     before line 1 of anything:
 #         env SHELLOPTS=noexec bash ops/sane      -> no output whatsoever, EXIT=0
 #     Nothing in this file executes, so nothing in it can object. The decision, in writing: every ops/*
@@ -145,6 +153,20 @@ if [[ "${SCENIC_SEALED:-}" != "1" ]]; then
   if [[ ! -r "$_s" ]]; then
     echo "${0##*/}: refusing: cannot locate the script to re-exec ($0)." >&2
     echo "  ops/lib/boot.sh is sourced by an ops/* script, not by an interactive shell." >&2
+    return 2 2>/dev/null || exit 2
+  fi
+  # $_s was computed with dirname, cd, pwd, printf and basename - every one of which the caller can
+  # replace with an exported function, and part 0 of boot.sh cannot see it because `declare` is
+  # replaceable too. So the target is checked against SCENIC_ROOT, which is either honest or already
+  # refused by boot.sh's marker assert, using ONLY shell keywords and parameter expansion: there is no
+  # command on these two lines to shadow. The basename must match too, or a lying `basename` re-aims
+  # `bash ops/sane` at a different real wrapper - ops/queue-check prints QUEUE OK and exits 0.
+  if [[ "$_s" != "$SCENIC_ROOT"/ops/* || "${_s##*/}" != "${0##*/}" ]]; then
+    echo "${0##*/}: refusing: the re-exec target resolved to" >&2
+    echo "    $_s" >&2
+    echo "  which is not $SCENIC_ROOT/ops/${0##*/}. A caller that can define shell functions can make" >&2
+    echo "  this pass compute the wrong \$0: a shadowed 'declare' blinds the clean-shell test in" >&2
+    echo "  boot.sh part 0, and a shadowed 'cd' then moves the target (T-0086)." >&2
     return 2 2>/dev/null || exit 2
   fi
   _env=/usr/bin/env; [[ -x "$_env" ]] || _env=/bin/env
