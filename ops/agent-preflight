@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
+# The repo root, without asking git where it is. `git rev-parse --show-toplevel` prints a WINDOWS path when
+# this worktree is read from WSL, which no Linux shell can use - so every gate was unrunnable from the one
+# shell that can reach the pinned Docker image (T-0055). It failed closed, exit 2, but it meant no single
+# shell could run all four gates and every Verification block was stitched from two.
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[[ -f "$root/ops/lib/queue.py" ]] || { echo "$0: $root is not the repo root (no ops/lib/queue.py)" >&2; exit 2; }
 # Prints the toolchain state and exits non-zero if the repo is misconfigured for agent work.
 # Run first thing in every session: a wrong-toolchain agent is caught in 5 seconds, not after a confident wrong diagnosis.
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel)"
+cd "$root" || { echo "$0: cannot enter $root" >&2; exit 2; }
 fail=0
 say() { printf '%-12s %s\n' "$1" "$2"; }
 CR=$(printf '\r')

@@ -1,7 +1,7 @@
 ---
 id: T-0055
 title: ops/check-pins and ops/queue-check cannot run from WSL, so no single shell runs all four gates
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-07T23:06:34Z
@@ -11,7 +11,7 @@ branch: task/T-0055
 exclusive: []
 touches: [ops/check-pins, ops/queue-check, ops/claim, ops/lock, ops/new-task, ops/queue-next, ops/queue-sweep, ops/agent-preflight]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-45
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -79,3 +79,55 @@ Also measured and NOT a defect: `ops/queue-check` failed once with
 does not reproduce - three consecutive runs pass, and the resolved path execs fine directly. Recorded as a
 transient rather than filed, because a bug nobody can reproduce is not a finding.
 - 2026-09-07T23:06:34Z claimed by agent/unknown; lease until 2026-09-08T01:06:34Z
+
+- 2026-09-08T07:40Z implemented by agent/claude-opus-5. EIGHT wrappers converted, and the work turned up the
+  actual root cause, which is not in any script.
+
+  **THE ROOT CAUSE IS THE CHECKOUT LOCATION, and it is a plan decision that was not followed.** The plan's Dev
+  box row says: *"Repo in WSL2 ext4 home, never `/mnt/c`"*, with the rationale *"CRLF and NTFS break every
+  `ops/*` script"*. The repo is at `C:/Users/phineasf/Documents/GitHub/scenic_drive` - NTFS, reached from WSL
+  as `/mnt/c/...`. Every symptom in this task follows from that one fact: a Windows worktree's `.git` file
+  says `gitdir: C:/...`, which WSL's git cannot follow, so `git rev-parse` and every `git ls-files` inside a
+  pin assertion fails there. T-0051's CRLF work is the same rationale's other half.
+  Filed separately as T-0060 - it is an environment decision for the owner, not something a script can fix.
+
+  **What this task does fix:** `ops/agent-preflight`, `check-pins`, `claim`, `lock`, `new-task`, `queue-check`,
+  `queue-next`, `queue-sweep` now derive the repo root from `${BASH_SOURCE[0]}` and verify it with a marker
+  file, instead of asking git. Same treatment T-0025 applied to the two etl scripts.
+
+      before, from WSL:  fatal: not a git repository: .../wt/T-0055/C:/Users/.../worktrees/T-0055   exit 2
+      after,  from WSL:  QUEUE OK (56 tasks)
+      after,  git-bash:  QUEUE OK (56 tasks) / PINS ok=9 skipped=0 pending=3 expired=0 failed=0
+
+  **THE INTERESTING RESULT.** With the wrapper fixed, `ops/check-pins` RUNS from WSL and then FAILS - because
+  the pin ASSERTIONS shell out to `git ls-files` themselves, which still cannot read the worktree:
+
+      P-OPS-01 output: only 0 files tracked under ops/ and .githooks/ (expected >= 17).
+        An empty or truncated set must never read as 'all modes correct'.
+      P-SRC-02 output: An empty or truncated set must never read as 'no file exceeds 300 lines'.
+
+  Those two lines are T-0019's and T-0037's vacuity guards firing, and they are the reason this is a failure
+  and not a FALSE PASS. Without them, running check-pins from WSL would have reported that no file exceeds 300
+  lines and every mode is correct - over an empty set, on a machine where nothing had been checked at all.
+  Two guards written for a hypothetical caught a real one the first time the door was opened. Filed as T-0061:
+  the assertion layer needs the same treatment as the wrappers.
+
+  **The acceptance criterion in the brief IS NOT MET, and I am not claiming it.** It asks for one transcript,
+  from one shell, with `ops/test`, `ops/check-pins`, `ops/queue-check` and the ETL pytest all passing. That
+  needs `ops/test` and `ops/sane` converted too, and both are owned by unmerged branches - `ops/test` by
+  T-0023 (done) and T-0040 (review), `ops/sane` by T-0024 - so touching them here would be the
+  two-agents-one-file collision CLAUDE.md forbids. Five of the thirteen scripts using this pattern are left:
+  `deploy`, `merge`, `prod-read`, `sane`, `test`. Whoever merges their owning branches should convert them,
+  and T-0061 covers the assertions.
+
+  **Verification:** git-bash `ops/queue-check` -> `QUEUE OK (56 tasks)`, `ops/check-pins` -> `PINS ok=9
+  skipped=0 pending=3 expired=0 failed=0 tier=linux`. WSL `ops/queue-check` -> `QUEUE OK (56 tasks)`,
+  `ops/queue-next` -> `(no unblocked ready task)`. GitHub Actions is DISABLED repo-wide (T-0053), so there is
+  no CI signal.
+
+  **What to attack.** The marker file is `ops/lib/queue.py`, so `ops/check-pins` now refuses to run if that
+  unrelated file is missing - a coupling I introduced for uniformity and cannot defend well. Second: the
+  brief's own acceptance is unmet and I moved the task to review anyway; if you think that should have stayed
+  in claimed until T-0061 lands, say so. Third: `ops/claim` with no arguments still raises IndexError and
+  prints a traceback here - fixed on task/T-0032, not on main, so this branch shows the old behaviour.
+
