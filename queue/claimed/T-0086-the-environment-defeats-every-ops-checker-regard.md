@@ -411,3 +411,59 @@ Gates, last lines, after the change:
                                     -> TESTS linux=50/50 ios=skipped failed=0 skipped=0 / OK       EXIT=0
 
 `git status --short` clean afterwards, with no `%SystemDrive%/` or `Python/`.
+
+- 2026-09-08 — **round-four adversarial verification: `holds=false`. Three of the seven routes this task
+  marks CLOSED are defeated.** Recorded here in full rather than summarised, because a task whose log says
+  "closed" and whose verifier says otherwise is precisely the failure mode this repository was built for.
+  Filed as **T-0098**; this entry is the honest state of *this* branch.
+
+  Measured against the committed fix (`git diff HEAD --stat` empty throughout), with one untracked
+  `Sources/ScenicKit/StrayAdversary.swift` planted and the honest answer `SANE FAIL exit=2` established
+  first.
+
+  **Route 3 (PATH) — reopened by the neighbouring NAME in the same family.** `git` is absolute now.
+  `boot.sh:65-76` still resolves `dirname`, `basename` and `readlink` through the caller's `PATH` to compute
+  `SCENIC_ROOT`, and `boot.sh:95` sources `$SCENIC_ROOT/ops/lib/seal.sh`. A shim named `dirname` that lies
+  only for `*/boot.sh` points `SCENIC_ROOT` at an attacker tree carrying the five marker files, and this
+  script sources the **adversary's** seal:
+
+        PATH=<shim dir>:$PATH bash ops/sane   ->  SANE OK  EXIT=0   (stray import on disk)
+        same shim                             ->  PINS ok=99 ... failed=0   EXIT=0
+        same shim                             ->  QUEUE OK (999 tasks)      EXIT=0
+
+  Those last two are verbatim the strings this file's own header cites as the measured proof of the T-0077
+  defect it closes.
+
+  **Route 5 (entry shell) — same landing point, different door.** The re-exec TARGET is validated against
+  `SCENIC_ROOT`, but `SCENIC_ROOT` is computed by the same shadowable helpers and `seal.sh` is sourced
+  *before* that validation exists. Blind `declare`, shadow `dirname` instead of `cd`:
+
+        env BASH_FUNC_declare%%='() { :; }' \
+            BASH_FUNC_dirname%%='() { case $1 in */boot.sh) echo <fake>/ops/lib;; *) /usr/bin/dirname "$@";; esac; }' \
+            bash ops/sane                 ->  SANE OK  EXIT=0
+
+  The validation is downstream of the value it validates against. That is the general shape, not a detail.
+
+  **Route 4 (HOME) — same variable, one mechanism over.** `core.excludesFile` also has a DEFAULT PATH under
+  `$HOME`. `GIT_CONFIG_GLOBAL=/dev/null` deletes the global config FILE and never touches
+  `$HOME/.config/git/ignore`, which git reads when the key is unset. `HOME` is forwarded through `env -i` by
+  design:
+
+        HOME=<dir with .config/git/ignore containing *.swift>  bash ops/sane  ->  SANE OK   EXIT=0
+        HOME=<empty dir>                                       bash ops/sane  ->  SANE FAIL exit=2
+
+  The second line is the tight control — the ignore file is the only variable. It also survives this log's
+  own strongest recorded test verbatim, `env -i PATH=<trusted> SCENIC_SEALED=1 SCENIC_HOST_PATH=<py>
+  HOME=<evil>`, which is written above as `SANE FAIL exit=2`. **Two sentences in `seal.sh` are false as
+  written** and should be read as aspirations until T-0098 lands: *"so no HOME-shaped name reaches git's
+  config"* (lines 50-51) and *"neither PATH nor HOME nor XDG_CONFIG_HOME nor a name nobody has thought of
+  can reach it"* (line 234).
+
+  **Two routes this task already declares OPEN are unchanged:** the interpreter is still resolved from the
+  caller's `PATH`, and `SHELLOPTS=noexec` is imported by bash before line 1.
+
+  **The meta-result, and the reason T-0098 is not just "close three more routes".** This is the third
+  consecutive round ending `holds=false`, and each time the defeat was *the neighbour one over* rather than
+  the route as named. Enumerating routes does not converge — the same conclusion [[T-0080]] reached about
+  pin assertions from a completely different direction. The closure test has to become mechanical: inject
+  the violation, require red.
