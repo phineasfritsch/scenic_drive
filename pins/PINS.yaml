@@ -134,3 +134,12 @@
   pending: T-0013
   owner: agent/claude-opus-5
   added: 2026-09-07
+
+- id: P-GIT-02
+  statement: The pre-commit touches gate applies to the author's own changes on a merge, not to every file the merge stages
+  why_no_test_catches_it: Nothing exercises the hook during a merge. The gate looks correct reading it, and is correct on an ordinary commit; only a real merge shows that `git merge` stages the whole other side and the gate refuses all of it. Measured on task/T-0097 - a merge of origin/main resolving ONE conflict in a file that IS in touches: was refused with 41 paths, every one a file main changed and the branch did not. That very likely produced the stacked-branch tower T-0113 measured and could not explain: if merging main into a task branch is blocked, the only way to get current is to branch off another task branch.
+  anchor: process
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-touches-merge.py"
+  owner: agent/claude-opus-5
+  added: 2026-09-08
