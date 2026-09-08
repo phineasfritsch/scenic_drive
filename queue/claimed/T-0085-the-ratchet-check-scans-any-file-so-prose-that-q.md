@@ -1,13 +1,13 @@
 ---
 id: T-0085
 title: the ratchet check scans any file, so prose that quotes a constant reads as a binding
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T04:04:58Z
+lease_expires_at: 2026-09-08T10:04:58Z
+worktree: wt/T-0085
+branch: task/T-0085
 exclusive: []
 touches: [.githooks/commit-msg]
 pins_affected: []
@@ -56,3 +56,4 @@ what a red-then-green demonstration looks like.
 
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 after this hook refused the commit recording its own verification.
+- 2026-09-08T04:04:58Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:04:58Z

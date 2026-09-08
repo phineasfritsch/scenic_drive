@@ -1,13 +1,13 @@
 ---
 id: T-0086
 title: the environment defeats every ops checker regardless of how the root is derived
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T04:04:59Z
+lease_expires_at: 2026-09-08T10:04:59Z
+worktree: wt/T-0086
+branch: task/T-0086
 exclusive: []
 touches: [ops/lib/boot.sh]
 pins_affected: []
@@ -68,3 +68,4 @@ caller kept a different lever.
 - 2026-09-08 filed by agent/claude-opus-5 from the round-three adversarial verification of T-0077 and T-0076.
   Every command above was executed by an agent that did not write the fix, with no edit to any tracked source
   file.
+- 2026-09-08T04:04:59Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:04:59Z

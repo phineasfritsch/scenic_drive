@@ -1,13 +1,13 @@
 ---
 id: T-0087
 title: three ops entry points print a Python traceback instead of a usage line
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T04:05:00Z
+lease_expires_at: 2026-09-08T10:05:00Z
+worktree: wt/T-0087
+branch: task/T-0087
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
@@ -58,3 +58,4 @@ the defect is absent.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the round-three verification of T-0077. All three were executed
   by an agent that did not write the fix.
+- 2026-09-08T04:05:00Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:05:00Z
