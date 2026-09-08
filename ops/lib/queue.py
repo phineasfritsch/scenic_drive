@@ -367,6 +367,19 @@ def _reserve_id(n):
       as the fallback when the remote cannot be asked a second time, and only in the direction that a
       unique object makes sound.
 
+    WHICH HALF CARRIES WHICH PROPERTY, because the first version of this note had it backwards and a
+    reader who believes the wrong half is redundant deletes the load-bearing one:
+
+    * `_reservation_object()` is what defeats the duplicate-id bug, ALONE. Measured: revert it (push HEAD
+      again) while still asking the remote, and two allocators at one commit are both told True - because
+      `holder == obj` compares by object identity, so it can only tell "I put it there" from "it was
+      already there" when the object could not have been there. `queue.py selftest` goes red on that.
+    * `_remote_ref_object()` cannot defeat that bug on its own and does not claim to. Revert IT alone -
+      push the unique object, trust the push exit code - and the race comes out True/False, green. What it
+      carries is the other direction: a push that could not be MADE must not read as a lost race. The exit
+      code cannot tell those apart (both are non-zero) and neither can git's prose. The selftest's
+      unreachable-origin floor is what holds that, and it is the only thing that does.
+
     Nothing is committed and no branch is touched, so this is safe to run from any worktree.
     """
     tag = f"{ID_TAG}T-{n:04d}"
@@ -1087,11 +1100,21 @@ def cmd_selftest(_operand, _opts_):
     The two clones sit at the SAME commit on purpose: that is what two agents look like right after
     `git worktree add` off main, and it is the condition under which the old code failed.
 
-    Two floors, because a green that examines nothing is the failure this repository keeps finding:
+    FOUR floors, because a green that examines nothing is the failure this repository keeps finding:
+      * the two clones must be at the SAME commit - this one was PRINTED and not asserted in the first
+        version of this check, and that is the whole of what PR #61's second review blocked on. Measured
+        there and re-measured here: give clone B a commit of its own and the OLD, defective `_reserve_id`
+        passes this check, exit 0, because the same-object push it read as "Everything up-to-date" cannot
+        happen between two clones that are not at one object. The condition this check's sensitivity rests
+        on cannot be a line of status output;
       * the reservations that LANDED on the throwaway origin must be non-empty - otherwise "the second
         allocator backed off" is indistinguishable from "no push ever worked";
       * both allocators must have computed the SAME number - otherwise the race was never set up and a
-        pass says nothing about the race.
+        pass says nothing about the race;
+      * a reservation whose push COULD NOT BE MADE must come back None, never False. This is the floor for
+        `_remote_ref_object()`, and it exists because that half is NOT what defeats the duplicate-id bug -
+        see `_reserve_id()`. Without it the ask-the-remote half is untested: revert it alone, trust the
+        push exit code again, and the race phase above stays green (measured).
     """
     import shutil
     import tempfile
@@ -1156,12 +1179,28 @@ def cmd_selftest(_operand, _opts_):
                         for ln in git(["ls-remote", "--refs", origin.as_posix(), ID_TAG + "T-*"],
                                       cwd=box).stdout.splitlines()
                         if re.search(r"refs/tags/id/T-\d+$", ln.strip()))
+        # Second phase, and the only thing that exercises `_remote_ref_object()`. The race above does
+        # NOT: revert the ask-the-remote half alone and the race still comes out True/False, because the
+        # per-attempt object already separates "we put it there" from "it was already there". What this
+        # half carries is the OTHER direction - a push that could not be made at all must not come back
+        # as "somebody else holds the id". Clone B lost the race, so its state is free to wreck.
+        git(["remote", "set-url", "origin", (box / "there-is-no-origin-here.git").as_posix()], cwd=b)
+        ROOT = b
+        unreachable = _reserve_id(9999)
+        ROOT, Q = saved_root, saved_q
     finally:
         ROOT, Q = saved_root, saved_q
         rm(box)
 
     print(f"RESERVE SELFTEST heads-equal={heads[0] == heads[1]} A-read=T-{na:04d} B-read=T-{nb:04d} "
-          f"A-reserve={ga} B-reserve={gb} landed={landed}")
+          f"A-reserve={ga} B-reserve={gb} landed={landed} unreachable-reserve={unreachable}")
+    if heads[0] != heads[1]:
+        print(f"RESERVE SELFTEST FAIL: the two clones are not at one commit ({heads[0][:12]} vs "
+              f"{heads[1][:12]}), so the same-object push - the one the old code read as 'Everything "
+              f"up-to-date', exit 0, 'we won it' - cannot occur, and this run cannot tell the fixed code "
+              f"from the broken code. Measured on the defective version: with the clones drifted apart it "
+              f"passes. Fix the lab, do not relax this.")
+        return 1
     if not landed:
         print("RESERVE SELFTEST FAIL: no id was reserved on the throwaway origin, so nothing was compared "
               "and this run proves nothing. A green here would be vacuous.")
@@ -1175,7 +1214,15 @@ def cmd_selftest(_operand, _opts_):
               f"{ga!r} and {gb!r}; exactly one must win. `True, True` is the defect T-0101 was filed for "
               f"and the one PR #61's first version shipped.")
         return 1
-    print(f"RESERVE SELFTEST ok: T-{na:04d} contested by two allocators at one commit, won once")
+    if unreachable is not None:
+        print(f"RESERVE SELFTEST FAIL: reserving against an origin that is not there returned "
+              f"{unreachable!r}, not None. False here is a lie - it tells the caller somebody else holds "
+              f"T-9999 when the push never reached a remote at all, and that is the failure mode the "
+              f"stderr grep for 'already exists' / 'rejected' had. Only asking the remote what the ref "
+              f"holds separates 'they beat me to it' from 'I could not ask'.")
+        return 1
+    print(f"RESERVE SELFTEST ok: T-{na:04d} contested by two allocators at one commit, won once; "
+          f"an unreachable origin came back None, not a lost race")
     return 0
 
 

@@ -15,10 +15,12 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "python ops/lib/queue.py selftest prints 'RESERVE SELFTEST ok: T-0043 contested by two allocators at one commit, won once' and exits 0"
+  - "python ops/lib/queue.py selftest prints 'RESERVE SELFTEST ok: T-0043 contested by two allocators at one commit, won once; an unreachable origin came back None, not a lost race' and exits 0"
   - "the red run: revert _reserve_id to push HEAD and to trust the push exit code, and the same command prints 'RESERVE SELFTEST FAIL: two allocators that both read T-0043 before either pushed got True and True' and exits 1"
   - "the red run for the race floor: let A push before B reads, and it prints 'the two allocators did not compute the same id, so the race this checks was never set up' and exits 1"
   - "the red run for the population floor: point the reservation push at a remote that is not there, and it prints 'no id was reserved on the throwaway origin, so nothing was compared and this run proves nothing' and exits 1"
+  - "the red run for the same-commit floor: give clone B a commit of its own so the two clones drift apart, and it prints 'the two clones are not at one commit' and exits 1 - and it still does with the OLD defective _reserve_id applied on top, which exited 0 before this floor existed"
+  - "the red run for the ask-the-remote floor: revert only the _remote_ref_object half so the push exit code decides, and it prints 'reserving against an origin that is not there returned False, not None' and exits 1"
 ---
 ## Brief
 
@@ -294,10 +296,19 @@ read, and this task exists because a read is not enough.
 
         GREEN (restored)    exit=0
 
-  Note that RED 1 fails *because both halves were reverted together*. Reverting either half alone still
+  ~~Note that RED 1 fails *because both halves were reverted together*. Reverting either half alone still
   passes — a unique object defeats the same-sha push on its own, and asking the remote defeats it on its
   own. That is deliberate belt and braces on the operation that invents unique names, not an accident, and
-  it is stated here so a future reader does not delete one half as dead weight.
+  it is stated here so a future reader does not delete one half as dead weight.~~
+
+  **The sentence above is WRONG and is struck rather than deleted, because it was written to stop a future
+  reader deleting the load-bearing half and it named the wrong half.** The second reviewer measured it and
+  so did the fixer pass below: reverting the unique-object half alone makes the selftest RED, reverting the
+  ask-the-remote half alone left it GREEN. `_reservation_object()` is what defeats the duplicate-id bug,
+  alone; `_remote_ref_object()` cannot, in principle, because `holder == obj` compares by object identity
+  and can only separate "I put it there" from "it was already there" when the object could not have been
+  there already. See the 2026-09-08 (fixer, second review) entry for what the second half does carry and
+  the floor that now holds it.
 
   **2. The log's GREEN line — reproduced, and the number in it was wrong.** On the branch as reviewed:
   `ops/check-pins --source-only` → `PINS ok=2 skipped=8 pending=1 expired=0 failed=1`, **exit 1**, P-SAFE-05
@@ -346,3 +357,95 @@ read, and this task exists because a read is not enough.
          ! [rejected]  ... -> id/T-0103 (already exists)              exit 1   -> new code: False
 
   **State:** not transitioned. Still `claimed`, reviewer still null, for the same reviewer to look again.
+
+- 2026-09-08 — **fixer pass on the SECOND review: the selftest's decisive precondition is a floor now, and
+  the log's claim about which half is load-bearing was backwards and is corrected.**
+
+  Both findings were reproduced on the real `ops/lib/queue.py` before anything was changed
+  (`.artifacts/fix61b/repro.py`; every break restored from a byte-for-byte snapshot with the restore
+  asserted by sha256; the real origin never contacted — `selftest` builds its own throwaway bare repo).
+
+  **1. BLOCKING, reproduced.** `heads[0] == heads[1]` was computed, printed and never asserted, and the
+  docstring names that condition as the one under which the old code failed. Drift the lab and the check
+  goes green over the original defect:
+
+        F1-A  drift only, fix intact                                exit 0
+        F1-B  drift + the OLD defective _reserve_id  <-- THE BUG    exit 0   <-- reviewer's finding
+              heads-equal=False A-reserve=True B-reserve=False landed=['T-0043']
+              RESERVE SELFTEST ok: ... contested by two allocators at one commit, won once
+        F1-C  the OLD defective _reserve_id, no drift (control)     exit 1   True and True
+
+  F1-C is the control that makes F1-B a finding rather than a coincidence: the same broken `_reserve_id`
+  is caught when the clones are at one commit and missed when they are not, so the unasserted precondition
+  is exactly what the check's sensitivity rests on. The success line also asserted *"at one commit"* while
+  the status line printed `heads-equal=False` — a check reporting a condition it did not verify.
+
+  **Fix:** the same-commit floor, placed FIRST, because a lab that is not set up voids the run whatever
+  else it finds. It says what it costs rather than what it is.
+
+  **2. Reproduced, and the reviewer's reading is right.** The two halves reverted separately:
+
+        F2-RED1a  revert the unique-object half ONLY   exit 1   A-reserve=True B-reserve=True
+        F2-RED1b  revert the ask-the-remote half ONLY  exit 0   True / False, green
+
+  So the log's *"reverting either half alone still passes … belt and braces"* was wrong in the direction
+  that matters: a reader trusting it deletes `_reservation_object()` as dead weight and puts the duplicate
+  back. That sentence is struck in place above (not deleted — it was written for a future reader and it
+  misdirected them) and the correction says which half carries what and why the other cannot substitute:
+  `holder == obj` compares by object identity, so it can only tell "I put it there" from "it was already
+  there" when the object could not have been there already. `_reserve_id()`'s docstring now carries the
+  same paragraph, because that is where a reader about to delete a function is looking.
+
+  **The redundant half is no longer untested, which is the real content of finding 2.** `_remote_ref_object()`
+  cannot defeat the duplicate-id bug — but it carries the other direction, that a push which could not be
+  MADE must not read as a lost race, and nothing exercised it. A fourth floor does: after the race, clone B
+  (which lost, so its state is free) gets its `origin` pointed at a path that does not exist, and
+  `_reserve_id()` must return `None`. `False` there is a lie — it tells the caller somebody holds the id
+  when the push never reached a remote — and it is precisely what the deleted stderr grep used to produce.
+
+  **RED, then GREEN, on the real file** (`.artifacts/fix61b/red.py`). Each row declares the substring its
+  failure message must contain, so a red for an unrelated reason is reported as a MISS; an overall non-zero
+  is not evidence:
+
+        GREEN unmodified                                                    exit 0
+        RED-HEADS         drift the lab (fix intact)                        exit 1  FIRED "not at one commit"
+        RED-HEADS-ATTACK  drift + OLD defective _reserve_id                 exit 1  FIRED "not at one commit"
+        RED-CAS           OLD _reserve_id: push HEAD, trust the exit code   exit 1  FIRED "exactly one must win"
+        RED-CAS-a         revert the unique-object half only                exit 1  FIRED "exactly one must win"
+        RED-ASK           revert the ask-the-remote half only               exit 1  FIRED "not None"
+        RED-RACE          A pushes before B reads (sequential, not a race)  exit 1  FIRED "did not compute the same id"
+        RED-LANDED        reservations sent to a remote that is not there   exit 1  FIRED "no id was reserved"
+        GREEN restored                                                      exit 0
+        floors that did not fire for their own reason: 0
+
+  `RED-HEADS-ATTACK` is the reviewer's finding, now caught: exit 0 before, exit 1 after, and for the heads
+  reason rather than by accident. `RED-ASK` is the new coverage: exit 0 before, exit 1 after. `RED-CAS-a`
+  and `RED-ASK` together are the measurement behind the corrected sentence — they are the two halves,
+  reverted one at a time, disagreeing.
+
+  **3. Nothing runs the check — agreed, and left.** A wrapper is a new script under `ops/`, outside
+  `touches: [ops/lib/queue.py]`, and P-OPS-01 wants it committed executable. Naming it here rather than
+  widening `touches` under a task about id allocation.
+
+  **Verify, on this branch today:**
+
+        ops/test                          TESTS linux=119/76 ios=skipped failed=0 skipped=0   exit 0
+        ops/check-pins                    PINS ok=11 skipped=0 pending=2 expired=0 failed=0   exit 0
+        ops/check-pins --source-only      PINS ok=4 skipped=9 pending=0 expired=0 failed=0    exit 0
+        ops/queue-check                   QUEUE OK (109 tasks)                                exit 0
+        python ops/lib/queue.py selftest  RESERVE SELFTEST ok: ...                            exit 0
+        ops/queue-ids                     IDS FAIL: T-0117 names different work                exit 1
+
+  `ops/queue-ids` is **red and stays red**, unchanged by this pass: `T-0117` is a live duplicate allocation
+  on `main`/`task/T-0117`/`task/T-0118` versus `task/T-0108`, made by the old allocator that is still on
+  `main`. It is the fourth instance of the bug this task was filed for, it is not in `verify:`, and it is
+  an argument for landing this rather than against it. Also unchanged: `ops/lib/queue.py` is 1401 lines
+  against CLAUDE.md's 300-line cap — pre-existing and systemic (the merge base is 1182, `main` is 372) and
+  not mechanically covered, since `pins/PINS.yaml`'s cap is *"no **Swift** source file exceeds 300 lines"*.
+  `ops/test`'s vitest tier is green only because this box has `services/api/node_modules`; on a box without
+  it, `ops/test` exits 1 the same way it does on `main`.
+
+  `ops/lib/queue.py` stays `100644`; no new `ops/` scripts. Probes are gitignored under `.artifacts/fix61b/`
+  and build their own throwaway origins; the real origin was not contacted at all in this pass.
+
+  **State:** not transitioned. Still `claimed`, `reviewer: null` — the fixer does not transition.
