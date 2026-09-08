@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+# WORK THAT NEVER LEFT A DIRECTORY IS INVISIBLE TO EVERY OTHER CHECK IN THIS REPOSITORY.
+#
+# `ops/sane` asks whether THIS checkout is dirty. `ops/queue-check` reads the tree it runs in. The lease
+# sweeper and `ops/merge-rehearse` read remote refs. A worktree nobody is standing in is outside all of
+# them, and on 2026-09-08 there were 75 of them.
+#
+# What that cost, measured: `wt/T-0030` held five untracked modules -- schema.py (246 lines), geom.py (147),
+# segmenter.py (119), contentdigest.py (91), segid.py (59) -- and `origin/task/T-0030` did not exist at all.
+# A `git clean`, a `git worktree remove --force`, or a reinstall would have deleted 662 lines of the corpus
+# emitter, and nothing anywhere would have reported anything missing. The same sweep found four more
+# worktrees with unpushed commits and one sitting on a leftover `demo/*` branch, so an agent returning to it
+# would have committed to the demo branch instead of its task.
+#
+# The queue's whole safety argument is "claim = git mv + push, git is the lock". That assumes work reaches
+# the remote. This check is what makes the assumption observable.
+#
+# FOUR STATES, NEVER COLLAPSED INTO "dirty". They need different actions:
+#   untracked   may be scratch, may be 662 lines of emitter -> only reported inside the task's touches:
+#   modified    tracked file changed and not committed
+#   unpushed    committed and reachable only from this disk
+#   branch      the directory's HEAD is not the task branch that directory is named for
+#
+# ALL FOUR RUN BY DEFAULT, and that is the point of the task this file was written for. An earlier revision
+# put untracked and modified behind `--deep` and wired only the cheap half into `ops/sane`, which meant the
+# 662-line case was caught only because `origin/task/T-0030` also happened to be missing: push that branch,
+# leave the untracked files, and every gate went green. The reason given was cost, and the cost was real but
+# it was never git's:
+#
+#   `basename` on this box costs ~0.45s per call, so 74 of them cost 33.7s of the 57s the "zero git calls"
+#   pass took. Parameter expansion (${wt##*/}) costs 0.002s for all 74. The per-worktree `git status` is
+#   0.38s each; 74 of them serially is 28s, at --jobs 16 it is 8.4s. Measured, in this order, on this box.
+#
+# So the fix was to stop forking, not to stop checking. Every per-worktree subprocess is gone except the one
+# `git status`, which runs in parallel and with `--no-optional-locks` so that reading another agent's
+# worktree never writes that agent's index.
+#
+#   ops/lib/check-worktrees             all four states (default)
+#   ops/lib/check-worktrees --fast      skip the per-worktree `git status`: on-disk, on-origin, on-branch only
+#   ops/lib/check-worktrees --jobs=N    parallelism for the status calls (default 16)
+#
+# It emits a machine-readable `WORKTREES-SUMMARY` line. Callers read that. Nothing may re-derive a count by
+# grepping these lines: `ops/sane` did exactly that (`grep -c '^  '`), counted its own summary's continuation
+# lines as worktrees, and printed "6 worktree(s)" two lines above this file's own "3 of 75".
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" 2>/dev/null || { echo "check-worktrees: not a git worktree"; exit 2; }
+
+FAST=0; JOBS=16
+for a in "$@"; do
+  case "$a" in
+    --fast)   FAST=1 ;;
+    --deep)   ;;  # was the opt-in for untracked/modified; those are the default now, so this is a no-op
+    --jobs=*) JOBS="${a#--jobs=}" ;;
+    *) echo "check-worktrees: unknown argument: $a"; exit 2 ;;
+  esac
+done
+[[ "$JOBS" =~ ^[1-9][0-9]*$ ]] || { echo "check-worktrees: --jobs must be a positive integer, got '$JOBS'"; exit 2; }
+
+# ---- listing + POPULATION FLOOR ------------------------------------------------------------------------
+# The floor is counted from git's own on-disk metadata ($GIT_COMMON_DIR/worktrees, one directory per linked
+# worktree) and NOT from a reparse of the listing this check is about to trust. A floor of "did the parser
+# return anything at all" is the weaker thing this file used to have: a parser that returned 1 of 75 printed
+# "every branch is on origin" and exited 0 -- a green from a query that saw 1.3% of the fleet.
+common="$(git rev-parse --git-common-dir 2>/dev/null || echo .git)"
+META=0
+count_meta() {  # sets META; not a command substitution, because a fork costs ~0.45s on this box
+  local d
+  META=0
+  if [[ -d "$common/worktrees" ]]; then
+    for d in "$common"/worktrees/*/; do [[ -d "$d" ]] && META=$((META + 1)); done
+  fi
+}
+
+paths=(); branches=(); heads=(); n=0; stable=0
+for attempt in 1 2 3 4 5; do
+  paths=(); branches=(); heads=()
+  count_meta; before=$META
+  mapfile -t LINES < <(git worktree list --porcelain 2>/dev/null)
+  count_meta; after=$META
+  [[ ${#LINES[@]} -gt 0 ]] || { echo "check-worktrees: git worktree list returned nothing"; exit 2; }
+  p=""; b=""; h=""
+  for l in "${LINES[@]}" ""; do
+    case "$l" in
+      worktree\ *) p="${l#worktree }" ;;
+      HEAD\ *)     h="${l#HEAD }" ;;
+      branch\ *)   b="${l#branch }"; b="${b#refs/heads/}" ;;
+      detached)    b="(detached)" ;;
+      "")          [[ -n "$p" ]] && { paths+=("$p"); branches+=("${b:-(none)}"); heads+=("${h:-}"); }; p=""; b=""; h="" ;;
+    esac
+  done
+  n=${#paths[@]}
+  # +1 for the main checkout, which has no directory under $GIT_COMMON_DIR/worktrees. Matching EITHER
+  # snapshot is enough: four agents run `git worktree add` here, and a fleet that moved between the two
+  # reads is not a broken parser. Only a disagreement on a fleet that DID NOT move is.
+  if (( n == after + 1 || n == before + 1 )); then stable=1; break; fi
+  if (( before == after )); then
+    echo "check-worktrees: parsed $n worktrees while $common/worktrees held a steady $after (+1 main checkout)."
+    echo "  The listing and git's own metadata disagree and nothing moved between the two reads, so this pass"
+    echo "  did not see the fleet - and 'no problems found' from a query that saw part of it is the defect"
+    echo "  this file exists for."
+    exit 2
+  fi
+done
+if (( ! stable )); then
+  echo "check-worktrees: the fleet moved under every one of 5 reads (last: $before -> $after, parsed $n)."
+  echo "  No listing was ever consistent with git's own metadata, so this pass cannot claim to have seen"
+  echo "  the fleet. Re-run when fewer agents are adding or removing worktrees."
+  exit 2
+fi
+
+# Every origin ref, once. Compared by SHA against the HEAD the listing already gave us, so a branch that is
+# behind origin is not flagged (that is normal) while one whose HEAD is not ON origin is.
+declare -A ORIGIN
+while read -r name sha; do
+  [[ -n "$name" ]] && ORIGIN["$name"]="$sha"
+done < <(git for-each-ref --format='%(refname:strip=3) %(objectname)' refs/remotes/origin 2>/dev/null)
+
+# ---- the one per-worktree git call, in parallel --------------------------------------------------------
+# `--no-optional-locks`: this reads 74 worktrees that other agents are actively committing in. Without it
+# `git status` refreshes and REWRITES that worktree's index, which is a mutation, and `ops/sane` promises it
+# never mutates anything.
+declare -A ST; declare -A STRC
+if [[ $FAST -eq 0 ]]; then
+  tmp="$(mktemp -d 2>/dev/null)" || tmp=""
+  [[ -n "$tmp" && -d "$tmp" ]] || { echo "check-worktrees: cannot create a temp dir for the status pass"; exit 2; }
+  trap 'rm -rf "$tmp"' EXIT
+  # Spawned in chunks of JOBS and reaped by PID, so each worktree's own exit status is known. `wait -n`
+  # would be tidier but reaps an arbitrary job, and a status call that FAILED must not be counted as a
+  # worktree this pass examined - that is what the floor below is for. One fork per worktree, no subshell:
+  # a simple background command is a single fork, `{ ...; ...; } &` is two, and at 79 worktrees the second
+  # fork alone cost 35 seconds here.
+  k=0
+  while (( k < n )); do
+    cpid=(); cidx=()
+    for ((j = 0; j < JOBS && k < n; j++, k++)); do
+      [[ -d "${paths[$k]}" ]] || continue
+      git -C "${paths[$k]}" --no-optional-locks status --porcelain >"$tmp/o$k" 2>/dev/null &
+      cpid+=($!); cidx+=("$k")
+    done
+    for ((j = 0; j < ${#cpid[@]}; j++)); do
+      wait "${cpid[$j]}"; STRC[${cidx[$j]}]=$?
+      [[ ${STRC[${cidx[$j]}]} -eq 0 ]] && ST[${cidx[$j]}]="$(<"$tmp/o${cidx[$j]}")"
+    done
+  done
+fi
+
+problems=0; c_untracked=0; c_modified=0; c_unpushed=0; c_branch=0; c_missing=0
+statted=0; touched=0
+for ((i = 0; i < n; i++)); do
+  wt="${paths[$i]}"; br="${branches[$i]}"; hd="${heads[$i]}"; name="${wt##*/}"
+  [[ -d "$wt" ]] || { printf '  %-26s %s\n' "$name" "MISSING on disk (branch $br) - run: git worktree prune"; problems=$((problems + 1)); c_missing=$((c_missing + 1)); continue; }
+
+  # The task id for `touches:` comes from the BRANCH, which is what ops/claim writes - those disagree in this
+  # repo (wt/T-0085 sat in a T-0085 directory while checked out on demo/T-0085-mrg). The directory basename
+  # is the fallback precisely for that case, because a worktree on the wrong branch is the one whose
+  # untracked work is most likely to be lost.
+  tid=""
+  if [[ "$br" =~ ^task/(T-[0-9]{4})$ ]]; then tid="${BASH_REMATCH[1]}"
+  elif [[ "$name" =~ ^(T-[0-9]{4})$ ]]; then tid="${BASH_REMATCH[1]}"; fi
+
+  touches=()
+  if [[ $FAST -eq 0 && -n "$tid" ]]; then
+    for tf in "$wt"/queue/*/"$tid"-*.md; do
+      [[ -f "$tf" ]] || continue
+      while IFS= read -r tl; do
+        tl="${tl%$'\r'}"  # a checkout with core.autocrlf=true hands back CRLF; the floor below caught this
+        case "$tl" in
+          'touches: ['*']')
+            inner="${tl#touches: [}"; inner="${inner%]}"
+            IFS=',' read -ra parts <<< "$inner"
+            for pt in "${parts[@]}"; do
+              pt="${pt#"${pt%%[![:space:]]*}"}"; pt="${pt%"${pt##*[![:space:]]}"}"
+              [[ -n "$pt" ]] && touches+=("$pt")
+            done
+            break ;;
+        esac
+      done < "$tf"
+      break
+    done
+    [[ ${#touches[@]} -gt 0 ]] && touched=$((touched + 1))
+  fi
+
+  mods=0; untracked=""
+  if [[ $FAST -eq 0 && "${STRC[$i]:-1}" == "0" ]]; then
+    statted=$((statted + 1))
+    while IFS= read -r line; do
+      [[ -n "$line" ]] || continue
+      x="${line:0:1}"; y="${line:1:1}"
+      if [[ "$x$y" == "??" ]]; then
+        # Untracked files count ONLY inside a declared touches: path. `.artifacts/` is gitignored and is where
+        # this repo tells agents to put scratch, so a file under a path the task said it would edit is the
+        # task's own work - that is the discriminator, and it is why this does not drown in noise.
+        f="${line:3}"; f="${f%\"}"; f="${f#\"}"
+        for t in "${touches[@]:-}"; do
+          [[ -n "$t" ]] || continue
+          tn="${t%/}"
+          if [[ "$f" == "$tn" || "$f" == "$tn"/* ]] || { [[ "$f" == */ ]] && [[ "$tn" == "$f"* ]]; }; then
+            untracked="$untracked $f"; break
+          fi
+        done
+      elif [[ "$x" == [MADRCU] || "$y" == [MADRCU] ]]; then
+        mods=$((mods + 1))
+      fi
+    done <<< "${ST[$i]}"
+  fi
+
+  unpushed=""
+  if [[ "$br" != "(detached)" && "$br" != "(none)" ]]; then
+    if [[ -z "${ORIGIN[$br]+x}" ]]; then
+      unpushed="no origin/$br at all"
+    elif [[ -n "$hd" && "${ORIGIN[$br]}" != "$hd" ]]; then
+      # Differs: could be ahead, behind, or diverged. Only "ahead" is work at risk, so pay for ONE rev-list
+      # here - on the handful that differ, not on all 75. No `-C`: every worktree shares this object
+      # database, so the count is the same and the repo discovery is not paid for again.
+      c="$(git rev-list --count "${ORIGIN[$br]}..$hd" 2>/dev/null || echo 0)"
+      [[ "${c:-0}" -gt 0 ]] && unpushed="$c commit(s) not on origin"
+    fi
+  fi
+
+  # A worktree whose HEAD is not its own task's branch: an agent returning to it commits to the wrong branch.
+  # This one keys on the DIRECTORY, deliberately and unlike `tid` above: the question it asks is "is the
+  # directory named T-0085 checked out on task/T-0085", and the branch cannot be both the question and the
+  # answer.
+  wrongbr=""
+  if [[ "$name" =~ ^T-[0-9]{4}$ && "$br" != "task/$name" ]]; then wrongbr="HEAD is $br, not task/$name"; fi
+
+  msg=""
+  [[ -n "${untracked// }" ]] && { msg="$msg untracked-in-touches:${untracked}"; c_untracked=$((c_untracked + 1)); }
+  [[ "${mods:-0}" -gt 0 ]]   && { msg="$msg modified:$mods"; c_modified=$((c_modified + 1)); }
+  [[ -n "$unpushed" ]]       && { msg="$msg unpushed:[$unpushed]"; c_unpushed=$((c_unpushed + 1)); }
+  [[ -n "$wrongbr" ]]        && { msg="$msg branch:[$wrongbr]"; c_branch=$((c_branch + 1)); }
+  if [[ -n "${msg// }" ]]; then
+    printf '  %-26s %s\n' "$name" "${msg# }"
+    problems=$((problems + 1))
+  fi
+done
+
+# ---- VACUITY FLOORS ON THE POPULATIONS THIS PASS ACTUALLY EXAMINED -------------------------------------
+# Not "how many worktrees exist" - how many this pass got an answer out of. A `git status` that failed in
+# every worktree, or a `touches:` parse that matched in none, both produce a silent all-clear otherwise.
+if [[ $FAST -eq 0 ]]; then
+  if [[ $statted -lt 1 ]]; then
+    echo "check-worktrees: 0 of $n worktrees returned a usable 'git status' - the modified/untracked half"
+    echo "  examined nothing, so it cannot report anything, so it must not report 'all clear'."
+    exit 2
+  fi
+  if [[ $touched -lt 1 ]]; then
+    echo "check-worktrees: no worktree yielded a touches: list ($n inspected, $statted statted) - the"
+    echo "  untracked-in-touches half has no population to examine. Either the queue files moved or the"
+    echo "  'touches: [...]' parse is broken; either way this pass cannot see the case it exists for."
+    exit 2
+  fi
+fi
+
+mode=full; [[ $FAST -eq 1 ]] && mode=fast
+if [[ $problems -gt 0 ]]; then
+  echo "WORKTREES: $problems of $n need attention. Work that is not on origin exists only on this disk -"
+  echo "  no other check in this repository can see it, and the lease sweeper reads such a task as"
+  echo "  ABANDONED because it has no commits ahead of main."
+  [[ $FAST -eq 1 ]] && echo "  (--fast: no per-worktree git call was made, so untracked and modified were NOT examined)"
+elif [[ $FAST -eq 1 ]]; then
+  echo "WORKTREES: $n inspected (--fast), every branch is on origin and on the right branch."
+  echo "  This pass makes no per-worktree git call. It cannot see untracked or uncommitted files."
+else
+  echo "WORKTREES: $n inspected, $statted statted, $touched with a touches: list - all four states clean."
+fi
+# The machine-readable line. Every count is a number of WORKTREES, so the per-state counts sum to more than
+# `problems` when one worktree is in several states at once. `inspected` is the population of the on-origin
+# and on-branch halves; `statted` and `touches` are the populations of the modified and untracked halves,
+# and they are emitted rather than assumed so a caller can see when a half examined nothing.
+echo "WORKTREES-SUMMARY inspected=$n statted=$statted touches=$touched problems=$problems untracked=$c_untracked modified=$c_modified unpushed=$c_unpushed branch=$c_branch missing=$c_missing mode=$mode"
+[[ $problems -gt 0 ]] && exit 1
+exit 0
