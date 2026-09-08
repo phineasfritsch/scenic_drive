@@ -130,3 +130,53 @@ and `ops/merge-rehearse` reporting a clean rehearsal having merged one branch of
   Handing to review. The reviewer should run `--tree 777a2ae` themselves — the commit survives in the local
   object store even though GitHub has since recomputed the ref — and should re-run the whole pass rather than
   reading these numbers.
+
+- 2026-09-08 — **the agent working this PR's critical hit the session limit mid-task; its work was preserved
+  and then verified against the reviewer's own attacks.**
+
+  216 insertions sat uncommitted in the worktree when the agent stopped. That is the [[T-0103]] failure mode
+  seen from the other side, and the reason this entry exists at all. Committed as `wip` first, verified
+  second.
+
+  **The change is the right one.** `gates()` now takes each check's **exit status** as the verdict instead
+  of grepping its wording:
+
+        out="$(bash "$f" 2>&1)"; rc=$?     # a command substitution, not a pipeline: $? is this command's
+        [[ $rc -eq 0 ]] || bad="$bad | ${f##*/} exit $rc: $(digest "$out")"
+
+  That is the critical the review found and the rule [[T-0104]] states.
+
+  **ATTACK_E — `ops/deploy` deleted** (the reviewer's construction, rebuilt with `git read-tree` /
+  `update-index --force-remove` / `write-tree` / `commit-tree`):
+
+        the check itself   bash ops/lib/check-exec-bits      exit 1
+        pr-ci-preflight    --tree 0bce772                    exit 1
+
+  The review recorded `gates clean, exit 0` for this tree.
+
+  **ATTACK_B — the truncated .swift set, and the first construction of it was wrong.** Taking the first five
+  `.swift` paths in tree order removed `Package.swift` and four under `Sources/`, leaving five under
+  `Sources/`+`Tests/` — the floor is five, so `check-line-cap` exited **0** and the tree proved nothing.
+  Recorded because a red whose precondition did not reproduce is not evidence, and reporting the preflight
+  exit alone would have looked like one.
+
+  Rebuilt against paths matching `^(Sources|Tests)/.*\.swift$`:
+
+        the check itself   P-SRC-02: only 3 tracked .swift file(s) under Sources/ and Tests/ (expected >= 5).
+                             An empty or truncated set must never read as 'no file exceeds 300 lines'.
+                           exit 1
+        pr-ci-preflight    a595e93  GATES FAIL | check-pins exit 1: ... P-SRC-02 ... only 3 tracked
+                           .swift file(s) ...
+                           exit 1
+
+  **This is the strongest of the four**, because that guard's message — *"only N tracked .swift file(s)"* —
+  is not one of the two strings the old regex looked for, so the old tool could not have seen it even in
+  principle. It is now reported through the exit status, and the message appears only in the summary the
+  operator reads.
+
+  **Control** — the base tree, unmodified: `exit 0`.
+
+  **Still open, and not to be mistaken for done:** the remaining highs and mediums of the PR #48 review are
+  untouched, no task-log transcript was written by the agent that made the change, and ATTACK_A (`import
+  SwiftUI` added to `Sources/`) and ATTACK_D (a path git cannot check out on Windows) have not been re-run.
+  Two of four attacks verified is what this entry claims and no more.
