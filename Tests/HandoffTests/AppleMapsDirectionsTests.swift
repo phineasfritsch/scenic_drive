@@ -98,6 +98,42 @@ struct AppleMapsDirectionsTests {
         #expect(!Self.items(url).contains { $0.0 == "source" })
     }
 
+    @Test("the source carries the origin, under the name Apple documents")
+    func sourceValueIsPinned() throws {
+        // Of the four things url() emits - source, destination, waypoint, mode - three had a value
+        // assertion and source had none. A reviewer showed what that permitted: emitting source under
+        // another documented name (`start`, `source-place-id`), or emitting `source=` with the
+        // DESTINATION's coordinate. All three passed 30 tests.
+        //
+        // That last one is a URL telling Apple Maps the drive starts where it ends.
+        //
+        // The existing tests could not see it. `refusesNonCoordinates` guards only the validation call, so
+        // keeping `try Self.pair(source)` leaves the value free. `onlyDocumentedParameters` asserts every
+        // emitted name is a MEMBER of the documented set, never which names must appear - it would pass
+        // over an empty query string. `roundTrip` compares the URL against a reparse of itself.
+        //
+        // Literals, not `pair(...)`, so the assertion does not go through the code it is checking.
+        let url = try AppleMapsDirections(source: Self.ucla, destination: Self.malibu).url()
+        let items = Self.items(url)
+        #expect(items.first { $0.0 == "source" }?.1 == "34.06890,-118.44520")
+        #expect(items.first { $0.0 == "destination" }?.1 == "34.02590,-118.77980")
+        #expect(items.filter { $0.0 == "source" }.count == 1)
+        #expect(!items.contains { $0.0 == "start" })
+        #expect(!items.contains { $0.0 == "source-place-id" })
+    }
+
+    @Test("every parameter the builder must emit is present, not merely permitted")
+    func requiredParametersArePresent() throws {
+        // `onlyDocumentedParameters` checks membership in the documented set and would be satisfied by an
+        // empty query string. This checks the other direction.
+        let url = try AppleMapsDirections(source: Self.ucla, destination: Self.malibu,
+                                          waypoints: [Self.latigo]).url()
+        let names = Self.items(url).map(\.0)
+        for required in ["source", "destination", "waypoint", "mode"] {
+            #expect(names.contains(required), "\(required) is missing from the URL")
+        }
+    }
+
     @Test("more waypoints than the cap is refused, not truncated")
     func refusesTruncation() {
         let many = Array(repeating: Self.latigo, count: AppleMapsDirections.maxWaypoints + 1)
@@ -141,8 +177,15 @@ struct AppleMapsDirectionsTests {
         }
     }
 
-    @Test("the coordinate format consults no locale at all")
-    func localeIndependent() throws {
+    @Test("the coordinate arithmetic rounds, signs, pads and carries correctly")
+    func coordinateArithmetic() throws {
+        // RENAMED. This was called "the coordinate format consults no locale at all", and a reviewer showed
+        // it cannot observe that: a mutant using `Locale.current` passes here, while the same body pinned to
+        // de_DE goes red - so the locale path is live and the test simply does not see it. A test whose NAME
+        // promises a property nothing checks is the same shape as the finding it replaced, one level up.
+        //
+        // What it actually pins is the integer arithmetic that replaced the formatter, so that is now its
+        // name. The no-locale property is pinned separately, on an identifier, by `noLocaleInTheSource`.
         // The failure: `String(format:)` follows the current locale, so on a German device "34.06890"
         // becomes "34,06890" - a decimal comma inside a comma-separated pair, which Apple Maps reads as four
         // numbers. The first version pinned the formatter to en_US_POSIX and asserted one value; a reviewer
@@ -165,6 +208,50 @@ struct AppleMapsDirectionsTests {
             let s = AppleMapsDirections.decimal(input)
             #expect(s == expected, "decimal(\(input)) was \(s)")
             #expect(!s.contains(","))
+        }
+    }
+
+    @Test("the scale is derived from coordinateDecimals, not a literal beside it")
+    func scaleFollowsTheConstant() {
+        // The assertion the source comment used to point at and that did not exist. `scale` was hardcoded
+        // 100_000 while the padding loop read `coordinateDecimals`, so the two could disagree - and at 2
+        // decimals the result was 34.6890, a different coordinate about 69 km north rather than a coarser
+        // one. Checked as a property of the OUTPUT so it holds however the scale is computed.
+        let s = AppleMapsDirections.decimal(34.0689)
+        let fraction = s.split(separator: ".").last.map(String.init) ?? ""
+        #expect(fraction.count == AppleMapsDirections.coordinateDecimals)
+        #expect(AppleMapsDirections.coordinateDecimals == 5)
+
+        // The whole part must not move when the precision does - that is exactly what the mismatch did.
+        #expect(s.split(separator: ".").first.map(String.init) == "34")
+        #expect(AppleMapsDirections.decimal(-118.4452).split(separator: ".").first.map(String.init) == "-118")
+    }
+
+    @Test("no locale is consulted anywhere in the shipping source")
+    func noLocaleInTheSource() throws {
+        // The property the renamed test could not observe, anchored on identifiers rather than behaviour -
+        // which CLAUDE.md permits and prefers over anchoring on a comment. `String(format:)` follows the
+        // current locale and is the only way a decimal comma can reach a comma-separated coordinate pair.
+        //
+        // Deliberately excludes comments: the file discusses `String(format:)` at length to explain why it
+        // is gone, and a check that failed on that prose would be anchored on a comment, which is the thing
+        // CLAUDE.md forbids.
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()      // HandoffTests
+            .deletingLastPathComponent()      // Tests
+            .deletingLastPathComponent()      // repo root
+            .appendingPathComponent("Sources/Handoff")
+        let files = try FileManager.default.contentsOfDirectory(atPath: root.path)
+            .filter { $0.hasSuffix(".swift") }
+        #expect(files.count >= 2, "expected the Handoff sources; found \(files)")
+
+        for name in files {
+            let source = try String(contentsOf: root.appendingPathComponent(name), encoding: .utf8)
+            let code = source.split(separator: "\n")
+                .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+                .joined(separator: "\n")
+            #expect(!code.contains("String(format:"), "\(name) formats with String(format:)")
+            #expect(!code.contains("Locale"), "\(name) mentions Locale outside a comment")
         }
     }
 

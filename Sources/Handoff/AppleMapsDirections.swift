@@ -101,10 +101,9 @@ public struct AppleMapsDirections: Equatable, Sendable {
 
     /// `latitude,longitude` at `coordinateDecimals`, or a refusal for anything that is not a position.
     ///
-    /// Uses the POSIX locale explicitly. `String(format:)` honours the current locale for `%f`, so on a
-    /// device set to German this would produce `34,06890` - a decimal comma inside a comma-separated pair,
-    /// which parses as four numbers and navigates somewhere in the Gulf of Guinea. That is a real bug this
-    /// project would otherwise ship to exactly the users least able to report it.
+    /// See `decimal(_:)` for why the formatting consults no locale. This comment used to describe a
+    /// `String(format:locale:)` call that the commit fixing that removed, fifteen lines above a comment
+    /// explaining at length why it was gone - a reviewer pointed out that both cannot be true.
     static func pair(_ c: Coordinate) throws -> String {
         guard c.latitude.isFinite, c.longitude.isFinite,
               c.latitude >= -90, c.latitude <= 90,
@@ -129,7 +128,16 @@ public struct AppleMapsDirections: Equatable, Sendable {
     ///
     /// Safe for coordinates because `pair(_:)` has already refused anything outside +/-180.
     static func decimal(_ v: Double) -> String {
-        let scale = 100_000                                   // 10^coordinateDecimals, see the assertion below
+        // DERIVED from coordinateDecimals, not a literal beside it.
+        //
+        // This was `let scale = 100_000` with a comment reading "10^coordinateDecimals, see the assertion
+        // below". There was no assertion below - a reviewer grepped Sources, Tests and pins/PINS.yaml and
+        // found none. The padding loop read the constant while the scale did not, so the two could disagree:
+        // setting `coordinateDecimals = 2` produced `34.6890`, which is not a coarser coordinate but a
+        // DIFFERENT one, about 69 km north. A public constant that no longer governs the value it names,
+        // with a comment pointing at a check that does not exist, in code added to fix exactly this defect
+        // class.
+        let scale = (1..<coordinateDecimals).reduce(10) { acc, _ in acc * 10 }
         let scaled = (v * Double(scale)).rounded()
         let negative = scaled < 0
         let magnitude = Int(abs(scaled))

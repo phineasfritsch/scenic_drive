@@ -15,9 +15,9 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 30 tests in 4 suites passed, exit 0"
-  - "python ops/mutate/handoff.py -> 12 caught by a named test, 0 compile-only, 0 missed, exit 0"
-  - "RED: replacing the test file with an empty suite makes every mutation report MISSED"
+  - "swift test -> 34 tests in 4 suites passed, exit 0"
+  - "python ops/mutate/handoff.py -> 20 caught by a named test, 0 missed, 1 equivalent mutant correctly not caught, exit 0"
+  - "RED: python ops/mutate/handoff.py --prove-vacuity -> 0 caught with the tests removed"
 ---
 ## Brief
 
@@ -205,3 +205,80 @@ The reviewer notes `bash ops/test` exits 1 with *"services/api exists but vitest
 `services/api/node_modules` is absent in every checkout on this box. It is pre-existing, this PR touches no
 TypeScript, and it means the declared `verify: [ops/test, ops/check-pins]` cannot currently pass here.
 `ops/check-pins` is green (exit 0). I am not folding an unrelated environment failure into this task.
+
+---
+
+## Second fix pass: reviewer2-pr70 confirmed all four findings closed, then found three more
+
+They verified the closures by RUNNING them rather than reading the diff - re-applying the reversal mutation
+(now red), restoring the palindromic fixture (now red on the new anti-palindrome guard), lowering the cap
+(red), and putting a deliberately non-compiling mutation through the tracked classifier to confirm it prints
+`compile-only ... NOT a test catch` and is excluded from the count.
+
+### A - the `source` parameter was emitted and asserted by nothing (BLOCKING)
+
+Three mutations, all green against 30 tests:
+
+  * emit the source under another documented name (`start`);
+  * emit it as `source-place-id`;
+  * **validate the source and then send the DESTINATION's coordinate as `source`.**
+
+That last URL tells Apple Maps the drive starts where it ends.
+
+Why nothing saw it: `refusesNonCoordinates` guards only the *validation call*, so keeping
+`try Self.pair(source)` leaves the value free. `onlyDocumentedParameters` asserts every emitted name is a
+MEMBER of the documented set - never which names must appear - so it would pass over an empty query string.
+`roundTrip` compares the URL against a reparse of itself, and its only literal is the destination. Of the
+four things `url()` emits, three had a value assertion and `source` had none.
+
+Closed with `sourceValueIsPinned` (literals, not `pair(...)`, so the assertion does not run through the code
+it checks) and `requiredParametersArePresent`, which checks the direction membership cannot.
+
+### B - a test whose NAME promised a property it could not observe (BLOCKING)
+
+`the coordinate format consults no locale at all` was green under a mutant using `Locale.current`, while the
+same body pinned to `de_DE` went red - proving the locale path is live and the test simply cannot see it.
+Deleting the dependency was right; leaving a test named for a property nothing checks is the same shape as
+the finding it replaced, one level up.
+
+Renamed to what it pins. The no-locale property is now checked separately by `noLocaleInTheSource`, anchored
+on identifiers in the shipping sources - comments excluded, because the file discusses `String(format:)` at
+length to explain why it is gone, and failing on that prose would be anchoring on a comment.
+
+### C - a constant that no longer governed the value it named, in the fix (BLOCKING)
+
+    let scale = 100_000    // 10^coordinateDecimals, see the assertion below
+
+**There was no assertion below.** The reviewer grepped Sources, Tests and `pins/PINS.yaml`. The padding loop
+read `coordinateDecimals`; the scale did not. Setting it to 2 produced `34.6890` - not a coarser coordinate
+but a different one, about 69 km north - so the harness mutation named "apply the 2-decimal privacy rule"
+was being caught for a reason unrelated to the confusion it is named for.
+
+This repository's signature defect, in code added to fix that same defect class, with a comment pointing at
+a check that does not exist. The scale is now derived from the constant, and `scaleFollowsTheConstant` is
+the assertion the comment used to promise - written as a property that holds for ANY precision (the fraction
+has exactly `coordinateDecimals` digits) rather than as a claim about 5.
+
+### D - a doc comment describing the mechanism its own commit deleted
+
+`pair(_:)` still explained the `String(format:locale:)` call, fifteen lines above a comment explaining at
+length why it was gone. Both cannot be true. Rewritten.
+
+### The harness gained a category: EQUIVALENT MUTANTS
+
+Hardcoding the scale on its own reported MISSED, and that is correct - with `coordinateDecimals` at 5 the
+derived value IS 100_000, so the output is byte-identical and no test can tell. **A harness that demands an
+equivalent mutant be caught is demanding the impossible**, and the way a person satisfies it is by anchoring
+a test on the source text, which CLAUDE.md forbids.
+
+So equivalent mutants are asserted the other way round: they are run, and **a catch is a failure**, because
+it means a test has an opinion about how the code is written rather than what it does. The real protection
+is the two-step regression - hardcode now, change the precision later - which is a separate mutation and is
+caught.
+
+    caught by a named test: 20   trapped: 0   compile-only: 0   MISSED: 0   of 20
+    EQUIVALENT MUTANTS - a catch is a FAILURE
+    MISSED      hardcode the scale to the value coordinateDecimals currently derives
+    VACUITY PROOF OK: with no tests present, 0 mutations were reported caught
+
+`--prove-vacuity` was also added, which acceptance line 3 named and the harness did not have.
