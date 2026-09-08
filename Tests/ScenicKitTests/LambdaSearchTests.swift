@@ -25,16 +25,98 @@ struct LambdaSearchTests {
 
     @Test("the ceiling holds across a wide sweep of slopes and budgets")
     func ceilingAlwaysHolds() throws {
+        // The headline invariant test, and it was self-referential: `out.duration <= out.ceiling` takes
+        // BOTH sides from the code under test, so mutating `ceiling` to `fastest + budget + 1` left it
+        // untouched. A reviewer found that. The whole ceiling guarantee rested on one other fixture that
+        // happened to recompute the constant independently.
+        //
+        // The expected bound is now computed in the test, from the inputs the test chose.
         for slopeTenths in 0...40 {
             let slope = Double(slopeTenths) / 40.0          // 0 ... 1.0 extra per unit lambda
             for budgetMinutes in [0, 1, 5, 10, 25, 60, 240] {
                 let budget = TimeInterval(budgetMinutes * 60)
+                let expectedCeiling = Self.fastest + budget            // independent of the code under test
                 let search = try LambdaSearch(fastest: Self.fastest, budget: budget)
                 let out = try search.search(Self.monotone(slope))
-                #expect(out.duration <= out.ceiling,
-                        "slope \(slope) budget \(budget): \(out.duration) > \(out.ceiling)")
+                #expect(out.ceiling == expectedCeiling,
+                        "slope \(slope) budget \(budget): ceiling \(out.ceiling) != \(expectedCeiling)")
+                #expect(out.duration <= expectedCeiling,
+                        "slope \(slope) budget \(budget): \(out.duration) > \(expectedCeiling)")
             }
         }
+    }
+
+    @Test("the search's own constants are pinned")
+    func constantsArePinned() {
+        // Every other test reaches these through their symbols, so their values had no witness. A reviewer
+        // demonstrated all three:
+        //   minBudgetUse 0.5 -> 0.05  green, and a route buying 90 s of a 1500 s budget reports usedBudget
+        //   maxLambda    8 -> 16      green, and 4 of 6 router requests land in an infeasible region
+        //   lambdaTolerance 0.05 -> 0.75  green, and the search gives back one of the twelve requests the
+        //                                 plan pays for
+        // The suite constrained minBudgetUse only to 0 < m <= 0.93, because its fixtures buy 1395 s and 0 s
+        // of a 1500 s budget - nothing in between.
+        #expect(LambdaSearch.maxLambda == 8.0)
+        #expect(LambdaSearch.lambdaTolerance == 0.05)
+        #expect(LambdaSearch.minBudgetUse == 0.5)
+    }
+
+    @Test("a route that buys well under half the budget has not used it")
+    func partialBudgetIsNotUsed() throws {
+        // The fixture the suite was missing. Existing tests buy either 93% of the budget or none of it, so
+        // any threshold in between passed. This one buys about 40%: over zero, under half.
+        //
+        // usedBudget's own doc comment says a user offered 25 minutes and handed 90 seconds "has been told
+        // yes and given no" - and with minBudgetUse at 0.05 that user was being told yes.
+        let budget = Self.budget                                    // 1500 s
+        let target = Self.fastest + 0.4 * budget                    // 40% of it
+        let plateau: (Double) -> TimeInterval = { $0 < 1.0 ? Self.fastest : target }
+        let search = try LambdaSearch(fastest: Self.fastest, budget: budget)
+        let out = try search.search(plateau)
+        #expect(out.duration == target)
+        #expect(!out.usedBudget, "40% of the budget is not half of it")
+
+        // And just over half is used, so the assertion pins a boundary rather than a direction.
+        let justOver = Self.fastest + 0.55 * budget
+        let plateau2: (Double) -> TimeInterval = { $0 < 1.0 ? Self.fastest : justOver }
+        let out2 = try LambdaSearch(fastest: Self.fastest, budget: budget).search(plateau2)
+        #expect(out2.duration == justOver)
+        #expect(out2.usedBudget)
+    }
+
+    @Test("among equally fast feasible routes, the most scenic one wins")
+    func tieBreaksTowardTheHigherLambda() throws {
+        // A router whose duration does not depend on lambda at all: every candidate costs the same. Lambda
+        // penalises dull edges, so the LARGEST feasible lambda is the route that avoided the most dull road
+        // for that identical time - strictly better, for free.
+        //
+        // The original code kept whichever equal-duration candidate it saw first, which on this curve is
+        // lambda 0: the least scenic of a set of equally fast options. Nothing objected when a mutation
+        // flipped the comparison, because nothing had an opinion. Now it does.
+        let flat: (Double) -> TimeInterval = { _ in Self.fastest }
+        let search = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
+        let out = try search.search(flat)
+        #expect(out.duration == Self.fastest)
+        #expect(out.lambda > 0, "an equally fast but more scenic option was available and was not taken")
+
+        // And the winner must still be a lambda that was actually measured.
+        final class Recorder: @unchecked Sendable { var asked: Set<Double> = [] }
+        let rec = Recorder()
+        let out2 = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
+            .search { rec.asked.insert($0); return Self.fastest }
+        #expect(rec.asked.contains(out2.lambda))
+        #expect(out2.lambda == rec.asked.max())
+    }
+
+    @Test("the default search spends exactly the evaluations it is configured for")
+    func evaluationCountIsPinned() throws {
+        // boundedEvaluations asserts only `<= cap`, and returnsMeasuredValues asserts
+        // `rec.asked.count == out.evaluations`, which stays self-consistent when the search silently does
+        // fewer. Widening lambdaTolerance from 0.05 to 0.75 cut the search from 6 evaluations to 5 with the
+        // whole suite green - one of the twelve router requests per plan, given back for nothing.
+        let search = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
+        let out = try search.search(Self.monotone(0.2))
+        #expect(out.evaluations == 6, "the default cap is 6 and this curve exhausts it")
     }
 
     @Test("the returned duration is the one the router gave for the returned lambda, not an estimate")
@@ -210,7 +292,7 @@ struct LambdaSearchTests {
 
     @Test("invalid inputs are refused at construction",
           arguments: [(TimeInterval(0), TimeInterval(60)), (-1, 60), (.nan, 60),
-                      (1800, -1), (1800, .nan), (1800, .infinity)])
+                      (1800, -1), (1800, -0.5), (1800, -1e-9), (1800, .nan), (1800, .infinity)])
     func refusesBadInputs(fastest: TimeInterval, budget: TimeInterval) {
         #expect(throws: BudgetError.self) { _ = try LambdaSearch(fastest: fastest, budget: budget) }
     }

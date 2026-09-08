@@ -68,7 +68,14 @@ public struct LambdaSearch: Sendable {
             seen.append((lambda, d))
             // Feasible AND better than what we have. "Better" is longer, not shorter: the point is to SPEND
             // the budget, so among routes that fit, the slowest one is the most scenic one we can afford.
-            if d <= ceiling, best == nil || d > best!.duration {
+            //
+            // The tie is not arbitrary and used to be. Lambda is a penalty on dull edges, so two lambdas
+            // producing the SAME duration means the larger one avoided more dull road at no cost in time -
+            // strictly the better route, for free. The first version kept whichever was found first, which
+            // on a flat curve is lambda 0: the least scenic of a set of equally fast options. A mutation
+            // that flipped the comparison went uncaught, which is what prompted looking at it properly.
+            if d <= ceiling, best == nil || d > best!.duration
+                || (d == best!.duration && lambda > best!.lambda) {
                 best = (lambda, d)
             }
             return d

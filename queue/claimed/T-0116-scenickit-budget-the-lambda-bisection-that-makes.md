@@ -9,15 +9,15 @@ lease_expires_at: 2026-09-08T15:32:03Z
 worktree: .worktrees/T-0116
 branch: task/T-0116
 exclusive: []
-touches: [Sources/ScenicKit/Budget/, Tests/ScenicKitTests/]
+touches: [Sources/ScenicKit/Budget/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 33 tests in 4 suites passed, exit 0"
-  - "python .artifacts/mutate-T0116.py -> 8 of 8 mutations caught, exit 0"
-  - "RED: each of the 8 mutations alone makes swift test exit 1"
+  - "swift test -> 37 tests in 4 suites passed, exit 0"
+  - "python ops/mutate/budget.py -> 16 caught by a named test, 0 missed, exit 0"
+  - "RED: python ops/mutate/budget.py --prove-vacuity -> 0 caught with the tests removed"
 ---
 ## Brief
 
@@ -123,3 +123,67 @@ thing that matters: the ceiling holds, because the returned duration was measure
 No alternative-route scoring, no `areas` rat-run repair, no closure polygons. Those are the caller's job and
 each needs the router. This type is the arithmetic, and it is injected with a duration function so it can be
 tested against exact adversarial curves without a network, a graph or a container.
+
+---
+
+## Fix pass: reviewer-pr71 found six uncaught mutations and one structural blind spot
+
+Their verdict was explicit: **FAIL on test coverage, not on correctness.** They tried hard to breach the
+ceiling invariant and could not - including by compiling the three Budget sources standalone and fuzzing
+20,000 adversarial non-monotone curves with values clustered on the ceiling: zero breaches, zero unmeasured
+returned pairs. The code was right. The suite was not constraining it.
+
+### The blind spot, which is the finding worth keeping
+
+**Every one of my eight mutations was structural** - delete a guard, invert a comparison, drop the seed -
+and **not one touched a number.** The plan specifies these constants; the suite reached all of them through
+their own symbols, so none had a witness. Three were demonstrated:
+
+  * `minBudgetUse` 0.5 -> **0.05**: green, and a route buying 90 s of a 1500 s budget then reports
+    `usedBudget == true`. That is precisely what `usedBudget`'s own doc comment says it exists to prevent -
+    a user "told yes and given no". The suite constrained the constant only to `0 < m <= 0.93`, because its
+    fixtures buy 1395 s or 0 s of the budget and nothing in between.
+  * `maxLambda` 8 -> **16**: green, and 4 of 6 router requests land in an infeasible region.
+  * `lambdaTolerance` 0.05 -> **0.75**: green, and the search silently returns one of the twelve router
+    requests the plan pays for.
+
+Closed with `constantsArePinned`, a 40%-of-budget fixture (`partialBudgetIsNotUsed`) which is the case the
+suite had no example of, and `evaluationCountIsPinned` asserting `evaluations == 6` rather than `<= cap`.
+
+### The headline invariant test was self-referential
+
+`ceilingAlwaysHolds` asserted `out.duration <= out.ceiling` with **both sides from the code under test**, so
+mutating `ceiling` to `fastest + budget + 1` left it untouched. The entire ceiling-arithmetic guarantee
+rested on one other fixture that happened to recompute the constant independently. The expected bound is now
+computed in the test from the inputs the test chose, and `out.ceiling` is itself asserted against it.
+
+### One uncaught mutation was a design defect, not a test gap
+
+`d > best!.duration` -> `d >= ...` went uncaught, and the reviewer rated it the weakest of their findings -
+"benign for the invariant". Looking at why nothing had an opinion: **lambda is a penalty on dull edges, so
+two lambdas producing the same duration mean the larger one avoided more dull road at no cost in time.** It
+is strictly the better route, for free. The original kept whichever equal-duration candidate arrived first,
+which on a flat curve is lambda 0 - the least scenic of a set of equally fast options.
+
+Now explicit: `|| (d == best!.duration && lambda > best!.lambda)`, with `tieBreaksTowardTheHigherLambda`
+pinning it and asserting the winner is still a measured lambda. **The mutation was uncaught because the
+behaviour was undefined, and defining it was the fix.**
+
+### The harness, rebuilt
+
+`ops/mutate/budget.py`: tracked (the old one was in gitignored `.artifacts/`, so its acceptance line could
+not run from a clone), builds before believing a compile failure, requires a NAMED TEST to fail rather than
+a non-zero exit, reports `trapped` separately.
+
+    caught by a named test: 16   trapped: 0   compile-only: 0   MISSED: 0   of 16
+    VACUITY PROOF OK: with no tests present, 0 mutations were reported caught
+
+Eight of the sixteen are numeric-constant mutations, including `minBudgetUse` moved in both directions.
+
+### Also confirmed by the reviewer, and worth recording
+
+They re-applied my originally mis-aimed bracket mutation and confirmed independently that it really is a
+no-op - the Log's claim that "the bracket steers, the best guard enforces" is true and was not a defect
+quietly redefined into a harmless one. They verified it twice: by re-running the mutation, and by fuzzing
+the standalone-compiled sources, where the answer fingerprint changed (proving the mutation is live rather
+than equivalent) while breaches stayed at zero.
