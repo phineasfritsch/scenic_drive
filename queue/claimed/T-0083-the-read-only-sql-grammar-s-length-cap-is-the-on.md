@@ -1,13 +1,13 @@
 ---
 id: T-0083
 title: the read-only SQL grammar's length cap is the one rule the shared cases never reach, and its constant is duplicated
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T03:46:43Z
+lease_expires_at: 2026-09-08T09:46:43Z
+worktree: wt/T-0083
+branch: task/T-0083
 exclusive: []
 touches: [services/api/src/ro.ts]
 pins_affected: []
@@ -67,3 +67,4 @@ because nothing protected it, and raised it 4000 -> 400000 in a one-line edit as
 - 2026-09-08 filed by agent/claude-opus-5. Found while verifying a finding reported by the T-0079 fix agent,
   whose summary line misattributed the constant to `ops/lib/check-exec-bits`; its own log had the right file.
   Every number above was measured on `main`, not taken from that report.
+- 2026-09-08T03:46:43Z claimed by agent/claude-opus-5; lease until 2026-09-08T09:46:43Z
