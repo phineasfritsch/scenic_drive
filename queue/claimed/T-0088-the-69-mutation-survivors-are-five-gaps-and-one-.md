@@ -136,3 +136,11 @@ retyped by hand, then restored (`.artifacts/redsweep.py`):
     0 of the listed mutants were NOT caught
 
 GREEN, unmutated: `200 passed` for the whole ETL suite (185 before this file).
+
+Full run after gap 1 landed (770174d):
+
+    MUTATION 149 killed, 37 survived, of 186 run in 488s
+
+28 survivors gone, one more than the 27 demonstrated - `selection` and `funnel` at `oracle_select.py:199`
+died too, because the new cases read those keys to check the cap and the funnel. Ratchet: `MAX_SURVIVORS`
+69 -> 37.
