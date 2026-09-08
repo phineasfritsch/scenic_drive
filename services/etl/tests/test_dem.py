@@ -81,23 +81,22 @@ class TestTileForAPoint:
         assert len(dem.TILES) == 8
         assert "n37w124" not in dem.TILES
 
-    def test_an_east_longitude_does_not_collide_with_a_bay_area_tile(self):
-        """122.5 degrees EAST is in China. Built from abs(lon) it named `n38w123` - the peninsula's own
-        tile - so the sampler returned real elevation for the wrong continent: a plausible number from the
-        wrong place, which is the hardest kind of wrong to notice."""
-        assert dem.tile_for(38.0, 122.5) is None
-        assert dem.tile_for(37.5, 122.5) is None
-        assert dem.tile_for(37.5, 121.5) is None
-
-    def test_a_southern_latitude_is_refused_rather_than_named_with_an_n(self):
-        """The `n` in nXXwYYY is a claim about the hemisphere, not a prefix. Chile's coast sits at the same
-        longitudes as California's."""
-        assert dem.tile_for(-37.5, -122.5) is None
-        assert dem.tile_for(-38.5, -123.2) is None
-
-    def test_the_equator_and_the_prime_meridian_are_outside_this_scheme(self):
-        assert dem.tile_for(0.0, -122.5) is None
-        assert dem.tile_for(37.5, 0.0) is None
+    @pytest.mark.parametrize("lat,lon,where", [
+        (38.0, 122.5, "122.5 E - from abs(lon) this named n38w123, the peninsula's own tile"),
+        (37.5, 122.5, "122.5 E at a latitude we do hold a tile for"),
+        (37.5, 121.5, "121.5 E"),
+        (-37.5, -122.5, "37.5 S - Chile's coast sits at California's longitudes"),
+        (-38.5, -123.2, "38.5 S"),
+        (0.0, -122.5, "the equator"),
+        (37.5, 0.0, "the prime meridian"),
+    ])
+    def test_a_point_outside_the_northern_western_quadrant_has_no_tile(self, lat, lon, where):
+        """The CONTRACT: `n`/`w` in nXXwYYY are claims about the hemisphere, not a prefix, so a point
+        outside that quadrant has no name in this scheme and must come back None rather than folded into
+        someone else's tile. These cases say nothing about which line enforces it - they pass with the
+        hemisphere guard deleted, on the malformed name missing TILES. The MECHANISM is pinned one test
+        down, by `test_the_guard_and_not_the_tile_set_is_what_refuses_a_point`."""
+        assert dem.tile_for(lat, lon) is None, where
 
     def test_the_guard_and_not_the_tile_set_is_what_refuses_a_point(self, monkeypatch):
         """The only test in this file that can see the hemisphere guard at all. Delete either half of
