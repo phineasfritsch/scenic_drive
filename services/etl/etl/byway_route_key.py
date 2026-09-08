@@ -47,6 +47,12 @@ is rejected instead of one frontage road. Measured in the pinned pull:
     221 row), 197, 200 - and FID 226 differs only as an abbreviation (AM vs AMA). FID 181 is in NEITHER
     list, because both of its fields carry the same wrong number, so ~2% is the floor on DETECTABLE
     corruption rather than the rate.
+    WHICH field is wrong is not decidable from the disagreement, and guessing it backwards is easy: on
+    FID 265 it is the DYNSEGPM. Its line is a 7.38 km north-south by 3.42 km east-west strip from Bernal
+    Ave to the Contra Costa line, which is I-680 - so `RTE=680` is right and `ALA 580 ...` is wrong. That
+    row is also the cheapest proof that the corroboration floor above is not theoretical: Caltrans's own
+    RTE=580 row (FID 199) touches FID 265's line at 0.0 m, so had 265 been keyed 580 instead, real
+    correctly-tagged I-580 ways at the crossing would have corroborated the wrong key.
 
 THE REPAIR, AND WHY IT IS NOT "FALL BACK TO GEOMETRY". Dropping the key for a row nothing claims is the
 obvious fix and it is wrong. Of the 53.46 km clearing the gate along FID 181 only 28.14 km is Big Basin
