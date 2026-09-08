@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# RED-THEN-GREEN FOR ops/lib/check-worktrees, in a throwaway repo of its own.
+#
+# CLAUDE.md: "A check that has never been seen red is untested." check-worktrees reports four states and two
+# vacuity floors, and demonstrating them against the live fleet is not possible: the fleet is 79 directories
+# owned by other agents, a red there cannot be turned green by this script, and the states that matter
+# (a worktree on the wrong branch, a parser that saw part of the fleet) do not occur on demand.
+#
+# So this builds one: a bare origin, a main checkout, two linked worktrees, a queue task file with a real
+# `touches:` list. Every state is driven red, then the cause is removed and it is driven green, and the two
+# exit codes are printed. Nothing outside $TMPDIR is touched and no network is used.
+#
+#   bash ops/lib/check-worktrees-demo          run every case
+#   bash ops/lib/check-worktrees-demo -v       also print the check's own output for each case
+set -uo pipefail
+CW="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/check-worktrees"
+[[ -f "$CW" ]] || { echo "demo: cannot find $CW"; exit 2; }
+VERBOSE=0; [[ "${1:-}" == "-v" ]] && VERBOSE=1
+
+ROOT="$(mktemp -d)" || { echo "demo: mktemp failed"; exit 2; }
+trap 'rm -rf "$ROOT"' EXIT
+pass=0; failed=0
+
+run() {  # run <label> <expect-rc> [args...] - runs the check inside the fixture, compares exit code
+  local label="$1" want="$2"; shift 2
+  local out rc
+  out="$(cd "$ROOT/repo" && bash "$CW" "$@" 2>&1)"; rc=$?
+  if [[ $rc -eq $want ]]; then printf 'ok    %-46s exit=%s\n' "$label" "$rc"; pass=$((pass + 1))
+  else printf 'FAIL  %-46s exit=%s (wanted %s)\n' "$label" "$rc" "$want"; failed=$((failed + 1)); fi
+  [[ $VERBOSE -eq 1 ]] && printf '%s\n' "$out" | sed 's/^/        | /'
+  LAST="$out"
+}
+saw() {  # saw <label> <substring> - the exit code alone does not prove WHICH state fired
+  if [[ "$LAST" == *"$1"* ]]; then printf 'ok    %-46s\n' "  said: $1"; pass=$((pass + 1))
+  else printf 'FAIL  %-46s\n' "  did NOT say: $1"; failed=$((failed + 1)); fi
+}
+
+# ---- fixture -------------------------------------------------------------------------------------------
+git init -q --bare "$ROOT/origin.git"
+git init -q -b main "$ROOT/repo"
+mkdir -p "$ROOT/nohooks"
+cd "$ROOT/repo"
+git config user.email demo@example.invalid; git config user.name demo
+git config core.hooksPath "$ROOT/nohooks"
+git config commit.gpgsign false
+git config core.autocrlf false
+git remote add origin "$ROOT/origin.git"
+mkdir -p demo queue/claimed
+printf 'tracked\n' > demo/kept.txt
+printf 'x\n' > README.md
+cat > queue/claimed/T-9901-demo.md <<'EOF'
+---
+id: T-9901
+touches: [demo/, README.md]
+---
+EOF
+git add demo/kept.txt README.md queue/claimed/T-9901-demo.md
+git commit -qm "fixture"
+git push -q origin main
+git branch -q task/T-9901
+# Outside the main working tree on purpose, so the main checkout stays clean and the only worktree with a
+# task id is the one being driven red.
+git worktree add -q "$ROOT/wt/T-9901" task/T-9901
+W="$ROOT/wt/T-9901"
+echo "fixture: $ROOT (main + 1 linked worktree, bare origin, task/T-9901 declares touches: [demo/, README.md])"
+echo
+
+# ---- 1. unpushed: the shape that lost 662 lines --------------------------------------------------------
+run "unpushed  RED  (no origin/task/T-9901 at all)" 1
+saw "unpushed:[no origin/task/T-9901 at all]"
+git -C "$W" push -q origin task/T-9901
+run "unpushed  green (branch pushed)" 0
+echo
+
+# ---- 2. untracked inside the task's touches: -----------------------------------------------------------
+# The brief's demo verbatim: drop an untracked file under the task's touches:, see it named; commit and push
+# it, see the check go quiet.
+printf 'def lost(): pass\n' > "$W/demo/lost.py"
+printf 'scratch\n' > "$W/notes-not-in-touches.txt"
+run "untracked RED  (demo/lost.py under touches:)" 1
+saw "untracked-in-touches: demo/lost.py"
+[[ "$LAST" == *notes-not-in-touches* ]] && { echo "FAIL  reported a file OUTSIDE touches:"; failed=$((failed + 1)); } || { echo "ok      and did NOT report notes-not-in-touches.txt"; pass=$((pass + 1)); }
+rm -f "$W/notes-not-in-touches.txt"
+git -C "$W" add demo/lost.py && git -C "$W" commit -qm "keep it" && git -C "$W" push -q origin task/T-9901
+run "untracked green (committed and pushed)" 0
+echo
+
+# ---- 3. modified tracked file ---------------------------------------------------------------------------
+printf 'edited\n' >> "$W/demo/kept.txt"
+run "modified  RED  (1 tracked file changed)" 1
+saw "modified:1"
+git -C "$W" checkout -q -- demo/kept.txt
+run "modified  green (change reverted)" 0
+echo
+
+# ---- 4. branch: the directory is not on the branch it is named for --------------------------------------
+# This is the wt/T-0085 shape: a T-9901 directory sitting on a leftover demo/* branch, so an agent returning
+# to it commits to the demo branch instead of its task. Nothing in this repo had ever seen it red.
+git -C "$W" checkout -q -b demo/T-9901-mrg
+git -C "$W" push -q origin demo/T-9901-mrg
+run "branch    RED  (T-9901 dir on demo/T-9901-mrg)" 1
+saw "branch:[HEAD is demo/T-9901-mrg, not task/T-9901]"
+git -C "$W" checkout -q task/T-9901
+run "branch    green (back on task/T-9901)" 0
+echo
+
+# ---- 5. population floor: a parser that saw part of the fleet -------------------------------------------
+# The floor this replaced was `n -lt 1`, which only caught a parse that returned NOTHING. A parser that
+# returned 1 of 79 printed "every branch is on origin and on the right branch" and exited 0. Simulated by
+# truncating the parsed list to its first entry, which is exactly that bug.
+sed 's|^  n=${#paths\[@\]}$|  n=${#paths[@]}; paths=("${paths[0]}"); branches=("${branches[0]}"); heads=("${heads[0]}"); n=1|' "$CW" > "$ROOT/cw-crippled"
+if ! grep -q 'paths=("${paths\[0\]}")' "$ROOT/cw-crippled"; then
+  echo "FAIL  could not build the crippled-parser copy (the anchor line moved)"; failed=$((failed + 1))
+else
+  out="$(cd "$ROOT/repo" && bash "$ROOT/cw-crippled" 2>&1)"; rc=$?
+  if [[ $rc -eq 2 && "$out" == *"did not see the fleet"* ]]; then
+    printf 'ok    %-46s exit=%s\n' "floor     RED  (parser returned 1 of 2)" "$rc"; pass=$((pass + 1))
+  else
+    printf 'FAIL  %-46s exit=%s (wanted 2 + \"did not see the fleet\")\n' "floor     parser returned 1 of 2" "$rc"; failed=$((failed + 1))
+  fi
+  [[ $VERBOSE -eq 1 ]] && printf '%s\n' "$out" | sed 's/^/        | /'
+fi
+run "floor     green (parser intact)" 0
+echo
+
+# ---- 6. vacuity floor: the untracked half examined nothing ----------------------------------------------
+# `touches=0` means no worktree yielded a declared path, so the untracked check had no population at all -
+# and "all clear" from a check that examined nothing is the defect this whole file exists for.
+mv "$W/queue" "$ROOT/queue-parked"
+run "touches   RED  (no task file -> 0 examined)" 2
+saw "untracked-in-touches half has no population"
+mv "$ROOT/queue-parked" "$W/queue"
+run "touches   green (task file back)" 0
+echo
+
+# ---- 7. vacuity floor: the status half examined nothing --------------------------------------------------
+# Same class, other population: if every `git status` fails, `statted` is 0 and the modified/untracked halves
+# saw nothing. Simulated by breaking the one status call.
+sed 's|--no-optional-locks status --porcelain|--no-optional-locks status-does-not-exist --porcelain|' "$CW" > "$ROOT/cw-nostat"
+out="$(cd "$ROOT/repo" && bash "$ROOT/cw-nostat" 2>&1)"; rc=$?
+if [[ $rc -eq 2 && "$out" == *"returned a usable 'git status'"* ]]; then
+  printf 'ok    %-46s exit=%s\n' "statted   RED  (every status call failed)" "$rc"; pass=$((pass + 1))
+else
+  printf 'FAIL  %-46s exit=%s (wanted 2)\n' "statted   every status call failed" "$rc"; failed=$((failed + 1))
+fi
+[[ $VERBOSE -eq 1 ]] && printf '%s\n' "$out" | sed 's/^/        | /'
+echo
+
+echo "DEMO: $pass ok, $failed failed"
+[[ $failed -eq 0 ]] || exit 1
+exit 0
