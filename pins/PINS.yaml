@@ -77,6 +77,15 @@
   owner: agent/claude-opus-5
   added: 2026-09-07
 
+- id: P-PROC-02
+  statement: A task file round-trips through ops/lib/queue.py - parse() reads back exactly what dump() wrote - and no front-matter value can declare a second key
+  why_no_test_catches_it: "P-PROC-01 compares owner against reviewer, and both are read out of this format. A value carrying a line break wrote a second `owner:` line that the last-wins reader preferred, so the reviewer-is-not-owner rule passed while the real owner was displaced - and every gate stayed green, because nothing reads a task file back and compares. T-0092 closed the hole and committed no check: reverting the whole change left queue-check, check-pins --source-only and check-brief-required all at exit 0, byte for byte. The assertion also refuses to pass on an unexamined population - zero task files, zero payloads - which is how the write-side guard came to be tested against a character list of the author's own devising rather than against the parser (reviewer-pr60)."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "bash ops/lib/check-queue-roundtrip"
+  owner: agent/claude-opus-5
+  added: 2026-09-08
+
 - id: P-ATTR-02
   statement: LICENSE-DATA exists and credits OpenStreetMap contributors under ODbL
   why_no_test_catches_it: Attribution is a license obligation, not a feature; nothing fails when it is deleted
