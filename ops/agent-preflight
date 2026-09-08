@@ -28,4 +28,19 @@ if grep -qE "^\* text=auto eol=lf" .gitattributes 2>/dev/null; then say "gitattr
 if [[ -f Package.resolved ]]; then say "resolved" "$(sha256sum Package.resolved | cut -c1-12)"; else say "resolved" "none yet"; fi
 say "queue"    "$(ls queue/claimed 2>/dev/null | wc -l | tr -d ' ') claimed, $(ls queue/ready 2>/dev/null | wc -l | tr -d ' ') ready"
 
+# Cross-branch id collisions (ops/queue-ids). Here because this is the one command every agent runs first,
+# and until now NOTHING in the tree ran that detector (reviewer, PR #66 F4): three ids were issued twice on
+# 2026-09-08 and all three were found by a human. It costs ~6 s (one ls-tree per remote ref) and reaches no
+# network, which is why it is here once a session and not in queue-check's per-commit path.
+#   exit 1 = a real collision, and an agent must not start work on a queue that names one id twice -> FAIL.
+#   exit 2 = the scan refused (one ref, unreadable queue/, ...). That is a fresh clone or a CI checkout, not
+#            a defect this agent introduced or can fix, so it is REPORTED AND NOT FAILED - a preflight that
+#            goes red in every shallow clone is a preflight people stop running.
+ids_out="$(bash ops/queue-ids 2>&1)"; ids_rc=$?
+case $ids_rc in
+  0) say "ids" "$(printf '%s\n' "$ids_out" | head -1)";;
+  1) say "ids" "COLLISION - run ops/queue-ids"; printf '%s\n' "$ids_out" | sed 's/^/             /'; fail=1;;
+  *) say "ids" "not checked ($(printf '%s\n' "$ids_out" | head -1))";;
+esac
+
 if [[ $fail -eq 0 ]]; then echo "PREFLIGHT OK"; else echo "PREFLIGHT FAIL"; exit 1; fi

@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """Repo work queue. State IS the directory; every transition is a git commit (and a push, for claims).
 
-  queue.py new "<title>" [--touches a,b] [--exclusive x,y] [--depends T-0001,...] [--state backlog|ready]
-  queue.py check              exit 1 on any protocol violation (reviewer == owner, review/ without reviewer, ...)
-  queue.py sweep              move expired claimed/ tasks back to ready/, release their LOCKS, append to ## Log
-  queue.py review ID --reviewer NAME   claimed/ -> review/, assign the reviewer, release its LOCKS
-  queue.py next               print the next unblocked ready/ task id
-  queue.py claim T-0007 --owner agent/x --session <id> [--worktree ../wt/T-0007] [--hours 2]
-  queue.py lock T-0007 [--owner agent/x]   acquire locks a claimed task declares but does not hold
+The `commands:` block this prints is BUILT from OPTS, the dispatch table. It used to be written out by
+hand right here, and `ids` - added to OPTS, to the dispatch and to its own ops/ wrapper on 2026-09-08 -
+never reached it, so the only usage text a reader gets never named the command (reviewer, PR #66 F3).
+That is the drift `_usage()` already existed to prevent one scale down; a command cannot now be
+registered without appearing, described or not.
 
 --touches, --exclusive, --pins and --depends are LISTS: repeat the flag or use commas, in any mix. Every
 other flag holds one value and repeating it is refused, as is an unknown flag, a flag with no value, and a
@@ -659,8 +657,16 @@ def cmd_ids(_operand, _opts_):
     healthy case and reporting it would produce sixty false pairs and get this ignored within a day. Only
     the same id carrying two different slugs is a collision.
 
-    Deliberately NOT part of `queue-check`: that command runs in CI, in the pre-commit hook and inside
-    `merge-rehearse`'s gates, and a check that reaches the network is one people stop running.
+    Deliberately NOT part of `queue-check`: that command runs on every commit through the pre-commit hook
+    and inside `merge-rehearse`'s gates, and this walks EVERY remote-tracking ref with one `ls-tree` each -
+    measured 3.9-6.2 s over 82 refs on the Windows box this repo is driven from, against `queue-check`'s
+    1.2 s. A per-commit check that costs that is one people stop running; `ops/agent-preflight` runs this
+    one once a session instead.
+
+    It does NOT reach the network, and the first version of this docstring said it did ("a check that
+    reaches the network is one people stop running") - the rationale described a cost the code never paid
+    (reviewer, PR #66 F2). `refs/remotes` is a CACHE of the last fetch, so every answer here is exactly as
+    old as that fetch and the output says so on every line that reports a result.
     """
     # `_git` collapses "could not run" and "ran and failed" into ok=False on this branch, and that is
     # fine here only because BOTH answers lead to the same action: refuse. A scan that cannot see
@@ -672,7 +678,8 @@ def cmd_ids(_operand, _opts_):
         print("  same failure that issued T-0076 (see T-0101).")
         return 2
     seen = {}          # id -> {slug -> [refs]}
-    scanned = 0
+    scanned = 0        # refs LOOKED AT
+    with_ids = 0       # refs that actually YIELDED a task id - the population being compared
     for ref in refs.split():
         if ref.endswith("/HEAD"):
             continue
@@ -682,10 +689,14 @@ def cmd_ids(_operand, _opts_):
             print("  is worse than no scan, because it looks like an answer.")
             return 2
         scanned += 1
+        here = 0
         for name in out.splitlines():
             m = re.search(r"/(T-\d{4})-(.+)\.md$", name)
             if m:
                 seen.setdefault(m.group(1), {}).setdefault(m.group(2), []).append(ref)
+                here += 1
+        if here:
+            with_ids += 1
 
     # VACUITY FLOOR. A scan that inspected nothing must not read as "no duplicates" - that is the shape this
     # whole repository exists to refuse, and it is exactly how the degraded id scan behaved.
@@ -693,9 +704,29 @@ def cmd_ids(_operand, _opts_):
         print(f"IDS REFUSED: only {scanned} ref(s) scanned. Cross-branch means at least two.")
         return 2
 
+    # THE SECOND FLOOR, AND THE ONE THAT MATTERS. The first counts refs WALKED PAST; this counts refs that
+    # produced an id, which is the population the comparison is actually made over. They are not the same
+    # number and the difference is invisible from up here: `ls-tree -r <ref> queue/` on a ref with no queue/
+    # directory EXITS 0 AND PRINTS NOTHING, identical to a ref whose queue/ holds no task files. Measured on
+    # this branch before the floor existed (reviewer, PR #66 F1): two refs with no T-NNNN-<slug>.md where the
+    # scan looks -> "IDS OK (0 ids across 2 refs)", exit 0; and a LIVE collision with one side at
+    # tasks/backlog/ instead of queue/ -> "IDS OK (1 ids across 2 refs)", exit 0, while the control with both
+    # sides under queue/ was exit 1. Move queue/, or change the filename convention, and the old floor let
+    # this command certify a tree it had read nothing of - the exact failure of the degraded scan in
+    # `next_id()` (T-0101) that issued T-0076, in a different costume.
+    if with_ids < 2:
+        print(f"IDS REFUSED: {len(seen)} task id(s) found on {with_ids} of {scanned} ref(s) scanned.")
+        print("  Cross-branch means the same id has to be VISIBLE on two refs, so fewer than two refs")
+        print("  carrying a T-NNNN-<slug>.md under queue/ means this scanned refs and examined nothing.")
+        print("  queue/ has moved, or the filename convention changed, or the refs are empty - fix the")
+        print("  scan. 'No duplicates' from a scan that found no ids is the answer that issued T-0076.")
+        return 2
+
+    fresh = _fetch_age_note()
     bad = {i: s for i, s in seen.items() if len(s) > 1}
     if not bad:
-        print(f"IDS OK ({len(seen)} ids across {scanned} refs; no id names two different tasks)")
+        print(f"IDS OK ({len(seen)} ids on {with_ids} of {scanned} refs; no id names two different tasks)")
+        print(f"  {fresh}")
         return 0
     print(f"IDS FAIL: {len(bad)} id(s) name different work on different refs")
     for tid in sorted(bad):
@@ -706,7 +737,31 @@ def cmd_ids(_operand, _opts_):
             print(f"    {slug[:58]:<58} {head}")
     print("  Same id, different slug: two pieces of work were given one name. Renumber the LATER one and")
     print("  record why in its log - the id is referenced from other task files by [[T-nnnn]].")
+    print(f"  {fresh}")
     return 1
+
+
+def _fetch_age_note():
+    """One line saying how old the answer is, for a command that reads a CACHE and never refreshes it.
+
+    `refs/remotes` is whatever the last `git fetch` left behind, so a clone that has not fetched today can
+    be told 'no duplicates' about a branch pushed an hour ago. FETCH_HEAD is rewritten by every fetch and
+    is per-worktree, which makes its mtime a LOWER bound on freshness: a fetch run from a sibling worktree
+    updates the shared refs without touching this file, so the age printed can read older than the refs
+    really are. Erring old is the safe direction for a command whose entire subject is a scan that lied.
+    """
+    ok, path = _git("rev-parse", "--git-path", "FETCH_HEAD")
+    p = Path(path) if ok and path else None
+    if p is not None and not p.is_absolute():
+        p = ROOT / p
+    try:
+        sec = max(0.0, dt.datetime.now().timestamp() - p.stat().st_mtime)
+    except (OSError, AttributeError):
+        return ("refs/remotes read as they stand: this command never fetches, and this worktree has no "
+                "record of one - the scan is as old as the clone. `git fetch --all` first.")
+    ago = f"{int(sec // 60)}m" if sec < 3600 else (f"{sec / 3600:.1f}h" if sec < 86400 else f"{sec / 86400:.1f}d")
+    return (f"refs/remotes read as they stand: this command never fetches, so this answer is as old as "
+            f"this worktree's last fetch ({ago} ago). `git fetch --all` first if a push since then matters.")
 
 
 def cmd_next(_operand, _opts_):
@@ -1095,6 +1150,19 @@ OPTS = {
 COMMANDS = tuple(OPTS)
 # subcommand -> the operand it reads, for the usage line. `new` takes a title, not an id.
 NEEDS_ARG = {"new": '"<title>"', "claim": "<id>", "lock": "<id>", "review": "<id>"}
+# subcommand -> what it does, for the printed command list. Keyed by command and READ THROUGH .get, so a
+# command missing from here still appears in the usage block as "(undocumented)" rather than vanishing
+# from it - the list of commands comes from OPTS and nothing here can shorten it.
+SUMMARY = {
+    "new": "file a task in backlog/ (or --state ready) and print its path",
+    "check": "exit 1 on any protocol violation (reviewer == owner, review/ without reviewer, ...)",
+    "ids": "exit 1 if one id names DIFFERENT work on two remote refs; reads cached refs, never fetches",
+    "sweep": "move expired claimed/ tasks back to ready/, release their LOCKS, append to ## Log",
+    "next": "print the next unblocked ready/ task id",
+    "claim": "ready/ -> claimed/, take the lease and the LOCKS the task declares",
+    "lock": "acquire locks a claimed task declares but does not hold",
+    "review": "claimed/ -> review/, assign the reviewer, release its LOCKS",
+}
 # Every dash that a keyboard, an autocorrect or a pasted document can leave where '-' was meant. The first
 # version of the guard below said "may not start with '-'" and was defeated by the neighbouring character
 # in one line: `new '--touches' ops/lib/queue.py` typed with EN DASHES still wrote a task titled "--touches".
@@ -1116,13 +1184,29 @@ def _bad_operand(cmd, got):
 def _usage(cmd):
     """Built from OPTS, so a usage line cannot describe a command the parser no longer implements - a
     hand-written one drifts, and a wrong usage line is worse than none because it is believed."""
+    return "usage: " + _invocation(cmd)
+
+
+def _invocation(cmd):
     flags = " ".join(f"[--{o} V]" for o in sorted(OPTS[cmd]))
-    return " ".join(x for x in ("usage: queue.py", cmd, NEEDS_ARG.get(cmd, ""), flags) if x)
+    return " ".join(x for x in ("queue.py", cmd, NEEDS_ARG.get(cmd, ""), flags) if x)
+
+
+def _usage_all():
+    """Every registered command, in OPTS order. The block is DERIVED - see the module docstring for the
+    command that was missing from the hand-written one for a whole branch."""
+    out = ["commands:"]
+    for cmd in COMMANDS:
+        out.append("  " + _invocation(cmd))
+        out.append("      " + SUMMARY.get(cmd, "(undocumented)"))
+    return "\n".join(out)
 
 
 def main(argv):
     if len(argv) < 2 or argv[1] not in COMMANDS:
-        print(__doc__)
+        print(__doc__.rstrip())
+        print()
+        print(_usage_all())
         return 2
     cmd, rest = argv[1], list(argv[2:])
     # These four read rest[0] directly, so calling one with no argument raised IndexError and printed a

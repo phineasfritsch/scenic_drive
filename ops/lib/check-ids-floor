@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Does `ops/queue-ids` refuse when the population it EXAMINES is empty - and only then?
+#
+# The floor that matters in that command is not "how many refs did I walk past" but "how many refs actually
+# yielded a task id", because `git ls-tree -r <ref> queue/` on a ref with no queue/ exits 0 and prints
+# nothing. Before that second floor existed, both A and B below printed a confident `IDS OK (...)` and
+# exited 0 - B while a real collision sat in the tree (reviewer, PR #66 F1).
+#
+# Four standalone repos, two remote-tracking refs each, driven through the real ops/queue-ids wrapper:
+#   A  nothing matching T-NNNN-<slug>.md where the scan looks   -> 2  0 ids: it examined nothing
+#   B  a real collision, one side at tasks/ instead of queue/   -> 2  1 ref carries ids: nothing to compare
+#   C  the same collision, both sides under queue/              -> 1  found, and named
+#   D  the same task file on both refs, same slug               -> 0  the normal, healthy case
+#
+# C and D are not decoration: a floor can always be made green by refusing everything, and D is the only
+# thing standing between this check and a command that reports sixty false pairs. Run from anywhere.
+set -uo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+WORK="$ROOT/.artifacts/ids-floor-$$"
+trap 'rm -rf "$WORK"' EXIT
+rm -rf "$WORK"; mkdir -p "$WORK"
+
+mkrepo() {                       # $1 = case name -> prints the repo path
+  local d="$WORK/$1"
+  mkdir -p "$d"
+  git -C "$d" init -q -b main .
+  git -C "$d" config user.email fixture@example.invalid
+  git -C "$d" config user.name fixture
+  git -C "$d" config core.autocrlf false
+  cp -r "$ROOT/ops" "$d/ops"
+  git -C "$d" add ops >/dev/null 2>&1
+  git -C "$d" commit -qm ops >/dev/null 2>&1
+  printf '%s' "$d"
+}
+
+add() {                          # $1 = repo, $2 = path, $3+ = content
+  mkdir -p "$(dirname "$1/$2")"
+  printf 'fixture\n' > "$1/$2"
+  git -C "$1" add "$2" >/dev/null 2>&1
+  git -C "$1" commit -qm "$2" >/dev/null 2>&1
+}
+
+fail=0
+expect() {                       # $1 = case, $2 = expected exit, $3 = repo
+  local got
+  ( cd "$3" && bash ops/queue-ids >/dev/null 2>&1 ); got=$?
+  if [[ "$got" == "$2" ]]; then
+    printf 'ids-floor  %s  ok    expected %s, got %s\n' "$1" "$2" "$got"
+  else
+    printf 'ids-floor  %s  FAIL  expected %s, got %s\n' "$1" "$2" "$got"
+    fail=1
+  fi
+}
+
+a="$(mkrepo A)"; add "$a" queue/backlog/README.md
+git -C "$a" update-ref refs/remotes/origin/main HEAD
+add "$a" queue/backlog/notes.md
+git -C "$a" update-ref refs/remotes/origin/two HEAD
+expect "A no ids anywhere        " 2 "$a"
+
+b="$(mkrepo B)"; add "$b" queue/backlog/T-0001-alpha-work.md
+git -C "$b" update-ref refs/remotes/origin/main HEAD
+git -C "$b" rm -q queue/backlog/T-0001-alpha-work.md
+add "$b" tasks/backlog/T-0001-completely-other-work.md
+git -C "$b" update-ref refs/remotes/origin/two HEAD
+expect "B collision outside queue" 2 "$b"
+
+c="$(mkrepo C)"; add "$c" queue/backlog/T-0001-alpha-work.md
+git -C "$c" update-ref refs/remotes/origin/main HEAD
+git -C "$c" rm -q queue/backlog/T-0001-alpha-work.md
+add "$c" queue/backlog/T-0001-completely-other-work.md
+git -C "$c" update-ref refs/remotes/origin/two HEAD
+expect "C real collision         " 1 "$c"
+
+d="$(mkrepo D)"; add "$d" queue/backlog/T-0001-alpha-work.md
+git -C "$d" update-ref refs/remotes/origin/main HEAD
+add "$d" queue/ready/T-0002-second-task.md
+git -C "$d" update-ref refs/remotes/origin/two HEAD
+expect "D one id, two refs, ok   " 0 "$d"
+
+if [[ $fail -eq 0 ]]; then echo "IDS-FLOOR ok (4 cases)"; else echo "IDS-FLOOR FAIL"; fi
+exit $fail
