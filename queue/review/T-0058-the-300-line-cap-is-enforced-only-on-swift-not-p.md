@@ -149,3 +149,55 @@ the same script. Whichever lands first, the other rebases.
   cannot see part of the tree is not a rule. I built exactly that mistake into my own measurement of it.
   Corrected here rather than in a commit message, because this log is what a reviewer reads.
 
+- 2026-09-08T10:40Z second correction by agent/claude-opus-5. A repo-wide sweep for self-referential checks -
+  eight surfaces, two adversarial skeptics per finding, each required to EXECUTE its falsification - found
+  two in this very file, and the second one is mine.
+
+  **1. The coverage guard could never fire, and never could.** It asked whether a package directory
+  contributes any file to `files` = `git ls-files '*.swift'`, where the package directories are the dirnames
+  of `git ls-files '*Package.swift' '*Package@swift-*.swift'`. Those manifest pathspecs are a strict SUBSET
+  of the examined one, so a package's own manifest is always in `files` and `covered` was 1 BY CONSTRUCTION,
+  for every possible repository state. The guard watched a condition it had itself made true.
+
+  T-0043's log came within one sentence of this - "a Package@swift-6.0.swift is itself a .swift file, so
+  while FILES globs every tracked .swift the package always contributes and there is nothing to report" - and
+  concluded the DEMO had to be narrow, rather than that the GUARD could not fire. I wrote that sentence.
+
+  **2. T-0058 made it worse.** I introduced `capped` as a second, independent `git ls-files`, and the cap
+  loop walks THAT. So the guard was defending a set with no consequence: the sweep narrowed `capped` alone -
+  the exact T-0037 regression, applied to the list the cap actually iterates - and a 400-line file left the
+  cap while this check printed `P-SRC-02: 12 Swift files, 19 source files under the cap`, rc=0. The summary
+  line even counted the vanished package's files.
+
+  **3. And `MIN_CAPPED` did not exist.** `MIN_FILES` guards `files`, the Swift-only list. T-0058's own brief
+  said, in as many words, that the set it added "needs the same, or it will pass cheerfully on the day
+  somebody moves services/etl and nothing matches the glob". It did not get the same. I wrote that
+  requirement into the brief and then did not implement it.
+
+  **Fixed.** The guard now reads `capped`, and a manifest no longer counts as its own package's
+  contribution - so a package whose sources drop out of the cap is reported even though its manifest remains.
+  `capped` has its own floor, `MIN_CAPPED=15`, because a floor of 5 would be satisfied by the Swift skeleton
+  alone while every Python file had vanished.
+
+  **The decisive demonstration** is the manifest-only package, which is the case this guard's header has
+  always claimed to catch:
+
+      a package whose ONLY tracked file is its manifest
+        OLD check:    rc=0   P-SRC-02: 11 Swift files, 21 source files under the cap, 2 exempt
+        FIXED check:  rc=1   P-SRC-02: Swift package(s) contribute no file to the checked set: 
+                             apps/ios/Packages/ScenicApp
+
+  With `capped` narrowed, the fixed guard also fires with its own message rather than relying on the cap to
+  stumble over the file. I am NOT claiming my run reproduced the old check's silence there - my throwaway
+  narrowed the copy under test and not the old copy, so that column compared two different states. The sweep
+  demonstrated it properly and their transcript is the evidence for it; mine only confirms the fix.
+
+  Real repo, unchanged: `P-SRC-02: 10 Swift files, 20 source files under the cap, 2 exempt`.
+
+  **What this says about the exercise.** I built the sweep to hunt "a check whose expected value comes from
+  the thing it checks" after that defect appeared five rounds running in T-0025. It found two more in the
+  file I had written to enforce the rule, one of which I had described accurately and then misdiagnosed, and
+  one of which I had specified in my own brief and then skipped. The pattern is not that I keep making a
+  careless mistake; it is that I keep writing the guard and then not asking what would have to be true for it
+  to go red.
+
