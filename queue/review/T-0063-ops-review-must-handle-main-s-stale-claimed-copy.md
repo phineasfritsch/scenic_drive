@@ -1,7 +1,7 @@
 ---
 id: T-0063
 title: ops/review must handle main's stale claimed copy, or every branch duplicates on merge
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-08T03:35:43Z
@@ -11,7 +11,7 @@ branch: task/T-0063
 exclusive: []
 touches: [ops/lib/queue.py, queue/README.md]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-pr52
 depends_on: [T-0032]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -227,3 +227,25 @@ point of it.
 
         $ ops/queue-check
         QUEUE OK (76 tasks)
+
+- 2026-09-08 — **reviewed by `agent/reviewer-pr52` (PR #52): pass with findings.** Recorded here because the review
+  itself lived only in a gitignored scratch directory, and because this task had an open PR while its own
+  file still said `state: claimed` / `reviewer: null` — the exact blindness [[T-0094]] was filed for.
+
+  The reviewer's own summary, verbatim:
+
+  > The mechanism works and the author's red/green/control all reproduce independently: with the unpatched queue.py the transition succeeds and the merged tree carries two copies with `duplicate id T-9991` from queue-check; with the patch it exits 1 and nothing moves; repaired, it exits 0 and the merge yields exactly one copy. The 711 -> 788 line figure is exact, the fail-closed-on-broken-git claim holds, and applied to all 60 real origin/task/* branches the guard allows 58, refuses 1 true positive (T-0029), and does not refuse its own branch.\n\nIt still should not merge as written. The remediation it prints is destructive in the shape its own docstring is written for: main's path and the branch's path are the same file there, so `git rm <path>` deletes the branch's copy and its work log, and the instructed \"then run this again\" prints `T-9991 not found`, exit 1. The author's control merged main and stopped — it never ran the second printed command, which is why the trap was not seen. Two further defects: the guard reads whatever origin/main happens to be (nothing in ops/ fetches, and it never warns, unlike `_ids_in_refs()` twenty lines up) so it fails OPEN on a stale ref and lets the duplication through; and `rev-list -1` asks about the last commit to touch the path rather than the one that created it, which refuses a legitimate branch with a message that is false whenever main touched the task file after the branch's merge point. All four are measured, with the counterfactual run for each. Fixes are small — compare main's path against the branch's before printing `git rm`, fetch-or-warn before reading the ref, and test ancestry of the creating commit — but as shipped an agent following the tool's own instructions loses work it cannot recover from within the tool.
+
+  **7 findings (2 high, 2 medium, 3 low), and 5 overclaims quoted back:**
+
+  - `[high]` ops/lib/queue.py:661-663
+  - `[high]` ops/lib/queue.py:568-573
+  - `[medium]` ops/lib/queue.py:578
+  - `[medium]` queue/README.md
+  - `[low]` ops/lib/queue.py:562, ops/lib/queue.py:665
+  - `[low]` ops/lib/queue.py:1
+  - `[low]` ops/lib/queue.py:537-544
+
+  Every `critical`, `high` and `medium` above is fixed on this branch, each with its own red-then-green
+  transcript in the entries above this one. The `low` items are recorded rather than silently dropped;
+  where one was substantive it was fixed and says so.
