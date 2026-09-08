@@ -86,7 +86,18 @@ So the hook is enforcing a list that the tool which writes the list cannot expre
   meant is not knowable, and last-wins is the answer an agent re-reading its own command line is least likely
   to expect.
 
-  **Still to do when this and T-0087 merge:** the four tasks whose `touches:` were truncated by the old
-  parser are still wrong on their branches — T-0072 recorded 1 of 2, T-0077 1 of 4, T-0081 1 of 2, T-0083
-  1 of 3. The parser is fixed; the data it corrupted is not. T-0081's and T-0083's were widened by hand
-  during this session; T-0072's and T-0077's were not.
+  **The data the old parser corrupted — checked rather than assumed, because the first version of this entry
+  got it wrong.** `main` still carries the truncated values (`T-0072: [ops/check-pins]`,
+  `T-0077: [ops/new-task]`, `T-0081: 4 of 6`, `T-0083: 1 of 5`), but three of the four branches already carry
+  the corrected list and will bring it on merge:
+
+        T-0072  on task/T-0066   [ops/lib/pins.py, ops/check-pins]                        correct
+        T-0081  on task/T-0081   [... 6 paths ...]                                        correct
+        T-0083  on task/T-0083   [... 5 paths ...]                                        correct
+        T-0077  on task/T-0077   [ops/]                                                   widened, not fixed
+
+  `T-0077: [ops/]` is the failure [[T-0078]]'s brief names: an agent refused on its own legitimate files
+  widens the declaration until the commit goes through, and the declared scope stops describing the task.
+  It is defensible in this one case — that fix genuinely touched 13 of the ~21 files under `ops/` — but it is
+  a wildcard standing in for a list, and nothing distinguishes "this task really is repo-wide" from "the
+  parser dropped my flags and I gave up". Worth narrowing when T-0077 is reviewed.
