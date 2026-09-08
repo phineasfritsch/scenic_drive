@@ -1,5 +1,5 @@
 ---
-id: T-0076
+id: T-0106
 title: core.hooksPath is machine-local and unverified, so a worktree may run another branch's hooks
 state: backlog
 owner: null
@@ -82,3 +82,21 @@ it, and a wrong value fails **open**: hooks silently do the wrong job and every 
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the PR #47 review round. All numbers above were measured in
   `wt/T-0071`, not inferred; the two `git config` readings are an hour apart in one session.
+
+- 2026-09-08 — **filed as `T-0076` and renumbered to `T-0106`: that id already meant something else.**
+  `T-0076` on `main` and on 24 other refs is *"ops/test picks whichever python3 is first on PATH"*.
+
+  **Third id collision of the day, and the first one a tool caught.** `ops/queue-ids` ([[T-0105]]) reported
+  it, having been written that morning because the first two were found by a human reading two agents'
+  output side by side:
+
+        IDS FAIL: 1 id(s) name different work on different refs
+          T-0076
+            core-hookspath-is-machine-local-and-unverified-s   task/T-0071
+            ops-test-picks-whichever-python3-is-first-on-pat   main, task/T-0045, task/T-0060 (+22 more)
+
+  **How this one was issued is worth more than the renumber.** It was not the read/push race [[T-0101]] was
+  filed for. `task/T-0071`'s own tree tops out at `T-0075` and `main` is at `T-0104`, so `next_id()` returned
+  `max + 1` from the worktree alone — 28 ids below the real maximum. That is `_ids_in_refs()` taking its own
+  documented degraded path, warning to stderr where nobody reads it, and continuing. T-0101 now refuses
+  instead of warning, for exactly this reason.
