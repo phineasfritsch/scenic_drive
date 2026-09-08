@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T15:41:59Z
 worktree: null
 branch: task/T-0107
 exclusive: []
-touches: [services/etl/regions/, services/etl/etl/region.py, services/etl/etl/dem.py, services/etl/tests/test_dem_tiles.py, ops/etl-extract]
+touches: [services/etl/regions/, services/etl/etl/region.py, services/etl/etl/dem.py, services/etl/tests/test_dem_tiles.py, services/etl/tests/test_region.py, ops/etl-extract]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -181,3 +181,84 @@ accidentally single-region, which is worth having before a third.
 
   `road: 3` in both regions is the same three ways - a class one mapper's afternoon from moving, noted
   because a count of three will drift.
+
+---
+
+### CI went red on this branch, and the test that failed was right until it wasn't
+
+`ops/test` on the PR: `TESTS linux=476/76 ios=skipped failed=1`, and the failure was this branch's own test:
+
+    tests.test_dem_tiles.test_the_la_region_file_loads_and_records_no_counts
+    AssertionError: la must ship with NO counts until an extract records them
+
+The assertion was correct when written - a fabricated baseline is worse than no baseline, because `ops/sane`
+then gates against a number nobody measured. Then the extract ran and recorded them, and the guard became a
+guard against the thing that was supposed to happen.
+
+**The wrong fix is to delete the guard.** That leaves nothing at all between the file and an invented
+baseline. What the assertion was reaching for was never "no counts" - it was "no counts you cannot trace".
+
+### counts_from, and why it is a data field and not a comment
+
+`region.json` gains a real field, not prose:
+
+    "counts_from": {
+      "source": "california-osm.pbf",
+      "source_bytes": 1327206195,
+      "built_at": "2026-09-08T12:15:45Z",
+      "bbox": "-119.0,33.7,-117.85,34.45"
+    }
+
+CLAUDE.md forbids anchoring a guard on a comment, and this is exactly why: sfbay's `_comment_counts` already
+said *"Recorded from a real extract, not invented"*, which was true and useless - it could not say WHICH
+extract, and nothing could check it.
+
+`region.py` now refuses a `counts_from.bbox` that disagrees with the region's own bbox, compared numerically
+so `-121.20` and `-121.2` are the same edge.
+
+**This is the structural fix for [[T-0110]].** That task describes sfbay's first real extract failing bounds
+by 18-26% on every class, with the cause being a bbox corrected from `max_lon -121.20` to `-121.55` while the
+counts were left describing the larger box. With `counts_from`, editing a bbox without re-recording is not a
+latent 20% error discovered weeks later that reads like a broken tag filter - it is a load failure on the
+file that was edited.
+
+### RED, then GREEN
+
+Set sfbay's `max_lon` back to `-121.20` - the exact historical state - leaving its counts alone:
+
+    counts were measured over -123.62,36.85,-121.55,38.92 but the region's bbox is now
+    -123.62,36.85,-121.2,38.92 - the baseline describes a different region than the code cuts.
+    Re-record with ops/etl-extract --region <id> --record-counts.
+    exit 1
+
+The *only* complaint is the new check. The first attempt at this demo reverted `min_lon` instead of
+`max_lon`, which produced `min_lon > max_lon` and tripped the pre-existing bbox sanity check as well - the
+new check would have taken credit for a catch that was not its own. Restored:
+
+    sfbay loads: 19 classes, from 2026-09-08T12:10:39Z
+    exit 0
+
+### sfbay's counts re-recorded, which closes T-0110's substance
+
+Both regions' `counts` and `counts_from` are now written by `.artifacts/record-provenance.py` directly from
+each extract's own `work/<region>/meta.json`. Nothing is transcribed by hand, and the script refuses if the
+extract's bbox disagrees with the region file - copying counts from a stale extract would record the same
+lie one level deeper.
+
+sfbay: 19 of 19 classes changed. motorway 19,515 -> 15,572 (-20.2%), park 5,670 -> 4,362 (-23.1%),
+living_street 323 -> 286 (-11.5%). la: 0 classes changed - its counts were already recorded from this run.
+
+### Verification
+
+    python -m pytest services/etl/tests -q            403 passed, exit 0
+    python -m pytest test_region.py test_dem_tiles.py  37 passed, exit 0
+
+`test_dem_tiles` gains a shape check on the LA counts that is not a transcription of them: residential > 4x
+motorway, service > residential, motorway > trunk, viewpoint > 100. Any of those inverting means the bbox or
+the filter moved, and none of them can be satisfied by copying a number out of the file being checked.
+
+`test_every_shipped_region_ties_its_counts_to_the_bbox_they_were_measured_over` iterates whatever regions
+exist rather than a hardcoded pair, and asserts at least two are present - a check that silently iterates
+over nothing proves nothing.
+
+`touches:` widened to include `services/etl/tests/test_region.py`, which the new provenance tests live in.

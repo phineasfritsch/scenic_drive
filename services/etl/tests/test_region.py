@@ -136,3 +136,96 @@ class TestLoading:
         with pytest.raises(ValueError) as e:
             rg.load("probe", root=self.write(tmp_path, doc))
         assert "name is empty" in str(e.value) and "counties is empty" in str(e.value)
+
+
+class TestCountsProvenance:
+    """counts_from, and the one defect it exists for.
+
+    On 2026-09-08 the first real sfbay extract came in 18-26% low on every single class. Nothing was broken:
+    the bbox had been corrected months earlier from max_lon -121.20 to -121.55, removing Tracy and Stockton,
+    and the recorded counts were never re-measured. The baseline had quietly become a description of a region
+    the code no longer cuts, and it read exactly like a broken tag filter.
+
+    The uniformity across classes is what identifies it, and no assertion in the codebase looked at that. So
+    instead of a check on the counts, the fix is a check on their PROVENANCE: record the bbox they were
+    measured over and refuse it disagreeing with the region's own bbox.
+    """
+
+    def write(self, tmp_path, doc):
+        d = tmp_path / "probe"
+        d.mkdir()
+        (d / "region.json").write_text(json.dumps(doc), encoding="utf-8")
+        return tmp_path
+
+    def good(self):
+        return {"id": "probe", "name": "Probe", "counties": ["Somewhere"],
+                "bbox": {"min_lon": -123.62, "min_lat": 36.85, "max_lon": -121.2, "max_lat": 38.92},
+                "counts": {"viewpoint": 746},
+                "counts_from": {"source": "california-osm.pbf", "source_bytes": 1327206195,
+                                "built_at": "2026-09-08T12:10:39Z",
+                                "bbox": "-123.62,36.85,-121.2,38.92"}}
+
+    def test_matching_provenance_loads(self, tmp_path):
+        r = rg.load("probe", root=self.write(tmp_path, self.good()))
+        assert r.counts == {"viewpoint": 746}
+        assert r.counts_from.source == "california-osm.pbf"
+
+    def test_counts_without_provenance_are_refused(self, tmp_path):
+        doc = {k: v for k, v in self.good().items() if k != "counts_from"}
+        with pytest.raises(ValueError, match="counts_from is absent"):
+            rg.load("probe", root=self.write(tmp_path, doc))
+
+    def test_no_counts_and_no_provenance_is_fine(self, tmp_path):
+        """A region with no baseline is honest. checkbounds reports 'cannot tell' and nothing pretends."""
+        doc = {k: v for k, v in self.good().items() if k not in ("counts", "counts_from")}
+        assert rg.load("probe", root=self.write(tmp_path, doc)).counts == {}
+
+    def test_the_sfbay_defect_itself_a_corrected_bbox_with_stale_counts(self, tmp_path):
+        """The exact historical state: the bbox is edited, the counts are left alone."""
+        doc = self.good()
+        doc["bbox"] = dict(doc["bbox"], max_lon=-121.55)     # the correction that was actually made
+        with pytest.raises(ValueError, match="describes a different region than the code cuts"):
+            rg.load("probe", root=self.write(tmp_path, doc))
+
+    def test_provenance_bbox_is_compared_numerically_not_as_a_string(self, tmp_path):
+        """-121.20 and -121.2 are the same edge. A string compare would call this a stale baseline."""
+        doc = self.good()
+        doc["counts_from"] = dict(doc["counts_from"], bbox="-123.620,36.85,-121.20,38.920")
+        assert rg.load("probe", root=self.write(tmp_path, doc)).counts_from is not None
+
+    def test_a_provenance_block_with_no_source_is_refused(self, tmp_path):
+        doc = self.good()
+        doc["counts_from"] = dict(doc["counts_from"], source="")
+        with pytest.raises(ValueError, match="counts_from.source is empty"):
+            rg.load("probe", root=self.write(tmp_path, doc))
+
+    def test_a_zero_byte_source_is_not_a_source(self, tmp_path):
+        doc = self.good()
+        doc["counts_from"] = dict(doc["counts_from"], source_bytes=0)
+        with pytest.raises(ValueError, match="source_bytes is not a size"):
+            rg.load("probe", root=self.write(tmp_path, doc))
+
+    def test_a_malformed_provenance_bbox_is_refused(self, tmp_path):
+        doc = self.good()
+        doc["counts_from"] = dict(doc["counts_from"], bbox="-123.62,36.85,-121.2")
+        with pytest.raises(ValueError, match="not four numbers"):
+            rg.load("probe", root=self.write(tmp_path, doc))
+
+    def test_every_shipped_region_ties_its_counts_to_the_bbox_they_were_measured_over(self):
+        """The regression guard on the real files, not on a fixture.
+
+        This is the assertion that would have caught the stale sfbay baseline the moment the bbox was
+        edited. It runs over whatever regions exist rather than a hardcoded list, so a third region cannot
+        be added without provenance, and it fails if there are no regions at all - a check that silently
+        iterates over nothing proves nothing.
+        """
+        ids = sorted(p.name for p in rg.REGIONS.iterdir()
+                     if p.is_dir() and (p / "region.json").is_file())
+        assert len(ids) >= 2, f"expected at least sfbay and la, found {ids}"
+        for rid in ids:
+            r = rg.load(rid)                       # load() raises on any mismatch; this is the real check
+            if r.counts:
+                assert r.counts_from is not None, f"{rid} has counts with no provenance"
+                measured = tuple(float(v) for v in r.counts_from.bbox.split(","))
+                assert measured == (r.bbox.min_lon, r.bbox.min_lat, r.bbox.max_lon, r.bbox.max_lat), \
+                    f"{rid}: counts measured over {r.counts_from.bbox}, bbox is {r.bbox.as_osmium()}"
