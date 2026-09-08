@@ -157,8 +157,10 @@ struct LambdaSearchTests {
         let out = try search.search(bumpy)
 
         // The invariant holds, and that is the point. It holds because the returned duration was MEASURED,
-        // not because the curve behaved.
-        #expect(out.duration <= out.ceiling)
+        // not because the curve behaved. Bound computed here, not read off the result - the mechanical
+        // check found three more of these after the headline one was fixed, which is a fair argument that a
+        // person cannot be trusted to spot the last of them by eye.
+        #expect(out.duration <= Self.fastest + Self.budget)
 
         // Deliberately NOT asserted: that the violation was detected. This bisection samples
         // 0, 4, 6, 5, 5.5, 5.75 and every one of those lands outside the 1..3 spike, so the dip is invisible
@@ -177,7 +179,7 @@ struct LambdaSearchTests {
         let search = try LambdaSearch(fastest: fastest, budget: 1500)
         let out = try search.search(dips)
         #expect(out.monotonicityViolated)
-        #expect(out.duration <= out.ceiling)
+        #expect(out.duration <= fastest + 1500)          // the bound this test chose, not the one it got
 
         // This curve is also the one place where the bisection's final bracket and the correct answer come
         // apart, which makes it the fixture for two failures the rest of the suite could not see.
@@ -201,7 +203,7 @@ struct LambdaSearchTests {
         let barelyOver: (Double) -> TimeInterval = { $0 < 2.0 ? Self.fastest : ceiling + 1 }
         let search = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
         let out = try search.search(barelyOver)
-        #expect(out.duration <= out.ceiling)
+        #expect(out.duration <= ceiling)                 // the local constant, computed above
         #expect(out.duration == Self.fastest, "the only feasible route here is the fastest one")
     }
 
