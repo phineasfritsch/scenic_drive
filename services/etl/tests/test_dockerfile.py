@@ -77,6 +77,49 @@ PIP_UNREADABLE_TARGET_LETTERS = set("rce")  # -r requirement / -c constraint / -
 PIP_DESTINATION_VALUE_LETTERS = set("tCif")  # -t target / -C config-settings / -i index-url / -f find-links
 PIP_BOOLEAN_LETTERS = set("qvUIhV")  # -q quiet / -v verbose / -U upgrade / -I ignore-installed / -h help / -V version
 
+# A PEP 508 dependency specification and nothing else: a PEP 503 project name, optional extras, optional
+# version specifiers, optional environment marker. This is the *positional* half of the same whitelist
+# discipline round 3 applied to flags, and round 5 is where it was finally applied here too - see
+# `pip_indirect_targets` for why enumerating bad positional shapes kept losing. Deliberately excluded, so
+# each fails closed: `@` (PEP 508 direct URL references, `pkg @ https://...`), `:` and `/` (URLs of every
+# scheme and absolute paths), `~` (home-relative paths, which `/bin/sh -c` expands for pip), `#`
+# (fragments like `#egg=`), backticks and `$` (command substitution), and the empty string.
+PIP_REQUIREMENT_SPECIFIER = re.compile(
+    r"""^
+    [A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?              # PEP 503 project name
+    (?:\[\s*[A-Za-z0-9][A-Za-z0-9._,\s-]*\])?               # optional extras
+    (?:\s*(?:===|==|!=|~=|<=|>=|<|>)\s*[A-Za-z0-9][A-Za-z0-9.*+!_-]*
+       (?:\s*,\s*(?:===|==|!=|~=|<=|>=|<|>)\s*[A-Za-z0-9][A-Za-z0-9.*+!_-]*)*
+    )?                                                      # optional version specifiers
+    (?:\s*;\s*\S.*)?                                        # optional PEP 508 environment marker
+    $""",
+    re.VERBOSE,
+)
+
+# The suffixes above are the one place the name rule is not enough: PEP 503 allows `.` in a project name,
+# so `foo-1.0.tar.gz` and `evil.whl` both satisfy `PIP_REQUIREMENT_SPECIFIER` while naming a local archive
+# whose contents this parser cannot read. The set is fixed by the packaging specs (wheel, plus the sdist
+# formats pip accepts), not by pip's CLI, so unlike the flag lists it does not drift with pip releases.
+PIP_DISTRIBUTION_ARCHIVE_SUFFIXES = (".whl", ".egg", ".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tar.xz")
+
+# The complete vocabulary of reasons this file gives for refusing to vouch for a pip install argument.
+# `tests/test_dockerfile_pip_parser.py` asserts its case table exercises every one, so a new offender
+# class cannot be added here without a committed case that demonstrates it going red.
+REASON_SUBSTITUTION = "a shell/build-arg substitution this parser cannot resolve"
+REASON_UNREADABLE_TARGET = "an unreadable target flag"
+REASON_UNRECOGNIZED_LONG = "a long flag this check does not recognize"
+REASON_BUNDLED_SHORT = "a bundled short flag - bundling order is not modeled"
+REASON_UNRECOGNIZED_SHORT = "a short flag this check does not recognize"
+REASON_NOT_A_SPECIFIER = (
+    "not a PEP 508 requirement - a path, URL, archive, fragment or other install source whose contents "
+    "decide what gets installed"
+)
+REASON_UNPARSABLE = "this invocation could not be tokenized - unbalanced or nested quoting"
+PIP_OFFENDER_REASONS = (
+    REASON_SUBSTITUTION, REASON_UNREADABLE_TARGET, REASON_UNRECOGNIZED_LONG, REASON_BUNDLED_SHORT,
+    REASON_UNRECOGNIZED_SHORT, REASON_NOT_A_SPECIFIER, REASON_UNPARSABLE,
+)
+
 
 def _split_unquoted(text, seps=("&&", "|", ";")):
     """Split `text` on `&&`, `|`, or `;` - the boundaries the rest of this file treats as command
@@ -132,10 +175,30 @@ def _shlex_tokens(text):
     keeps everything from "install" to the end of that segment, which ends mid-quote when the segment
     itself was quoted from the outside). That failure is reported as unparsable, not silently ignored or
     guessed at - the same fail-closed answer this file gives a heredoc it cannot read into.
+
+    Round 5 found both of `shlex`'s defaults wrong for this job, in opposite directions:
+
+    - `commenters` defaults to `'#'`, so the lexer *dropped the rest of the line* at the first `#` and
+      still returned `ok=True`. `pip install pkg#egg=z -r requirements.txt` tokenized to `['pkg']`, and
+      the caller then vouched for an argument list two thirds of which it had never seen - the exact
+      "reads a partial input and reports it as whole" failure this whole file exists to prevent, sitting
+      inside the tokenizer. It is also simply wrong about shell: `#` opens a comment only at the start of
+      a word, so a real `/bin/sh -c` passes `pkg#egg=z` to pip intact. Cleared outright rather than
+      taught the word-start rule: a `#` anywhere in a pip invocation now survives into a token, matches
+      nothing on any whitelist, and fails closed. That over-refuses a genuine trailing `# comment` inside
+      a RUN - a cost this file takes knowingly, and zero today, since no RUN here installs from pip.
+    - `punctuation_chars=True` split on `<`, `>`, `(`, `)` etc. even mid-token, so the single most common
+      argument pip ever gets, `requests>=2.31.0`, arrived as `['requests', '>', '=2.31.0']` - three
+      fragments, none of them a requirement, none of them recognizable as anything. It was harmless only
+      while every fragment fell through to a permissive "not a flag, therefore fine" default; it makes
+      the positive `PIP_REQUIREMENT_SPECIFIER` check below impossible to state. The command separators it
+      was presumably enabled for (`&&`, `|`, `;`) are already handled by `_split_unquoted`, before this
+      function is ever called, and handled with quote-awareness that `punctuation_chars` does not have.
     """
     try:
-        lexer = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lexer = shlex.shlex(text, posix=True, punctuation_chars=False)
         lexer.whitespace_split = True
+        lexer.commenters = ""
         return list(lexer), True
     except ValueError:
         return [], False
@@ -176,10 +239,22 @@ def pip_indirect_targets(args):
       docstrings already record losing repeatedly. Refusing to parse a bundle at all closes the whole
       class at once, at the cost of also failing on harmless bundles like `-qt` - a trade this file takes
       deliberately; see the task log.
-    - a bare positional path (`.`, `..`, or anything starting `./`, `../` or `/`) - pip installs a local
-      directory as a plain positional argument with no flag required at all.
+    - **any positional argument that is not a PEP 508 dependency specification** (`PIP_REQUIREMENT_SPECIFIER`),
+      and any that is one but ends in a distribution-archive suffix. Round 5 is where this half of the
+      function stopped being a blacklist. Until then a positional was refused only if it was `.`/`..` or
+      started `./`, `../`, `/` - an enumeration of remembered bad shapes, and rounds 1, 2 and 5 each found
+      another shape that was not on it: `pip install ./localpkg` (round 1), `"./localpkg"` (round 2), and
+      then `~/localpkg`, `file:///w/wheels/evil.whl` and `` `cat req.txt` `` (round 5) - a home-relative
+      path that `/bin/sh -c` expands before pip sees it, a non-http URL scheme that `PIP_FROM_NETWORK`'s
+      `https?://` never matched, and backtick command substitution, which `$`-matching missed because
+      backticks are not `$`. Three more prefix characters, findable only by thinking of them. The fix is
+      the same inversion round 3 made for flags: say what a safe positional *is* - a project name with
+      optional extras, version specifiers and marker - and refuse everything else, so the next prefix
+      character nobody thought of fails closed without this file having to have heard of it.
     - a token containing `$` - a shell/build-time substitution (`ARG`/`ENV`) this parser cannot resolve;
-      it could name a URL, a `git+` ref, or a `-r` file just as easily as a version pin.
+      it could name a URL, a `git+` ref, or a `-r` file just as easily as a version pin. (Now redundant
+      with the rule above for positionals, and kept because it also fires inside flag values and gives a
+      more specific reason than "not a requirement".)
     - a long or short flag that is not on one of the three small, explicitly-curated lists above - an
       "unrecognized flag" is a flag this check does not know it can vouch for, not a flag assumed safe.
       round 4 removed three entries from those lists (`--build`, `--use-pep517`,
@@ -205,13 +280,13 @@ def pip_indirect_targets(args):
             continue
 
         if "$" in tok:
-            offenders.append((tok, "a shell/build-arg substitution this parser cannot resolve"))
+            offenders.append((tok, REASON_SUBSTITUTION))
             continue
 
         if tok.startswith("--"):
             head = tok.split("=", 1)[0]
             if head in PIP_UNREADABLE_TARGET_FLAGS_LONG:
-                offenders.append((tok, "an unreadable target flag"))
+                offenders.append((tok, REASON_UNREADABLE_TARGET))
                 skip_next = "=" not in tok
                 continue
             if head in PIP_DESTINATION_VALUE_FLAGS_LONG:
@@ -219,17 +294,17 @@ def pip_indirect_targets(args):
                 continue
             if head in PIP_BOOLEAN_FLAGS_LONG:
                 continue
-            offenders.append((tok, "a long flag this check does not recognize"))
+            offenders.append((tok, REASON_UNRECOGNIZED_LONG))
             continue
 
         if tok.startswith("-") and len(tok) > 1:
             letters = tok[1:]
             if len(letters) > 1:
-                offenders.append((tok, "a bundled short flag - bundling order is not modeled"))
+                offenders.append((tok, REASON_BUNDLED_SHORT))
                 continue
             letter = letters
             if letter in PIP_UNREADABLE_TARGET_LETTERS:
-                offenders.append((tok, "an unreadable target flag"))
+                offenders.append((tok, REASON_UNREADABLE_TARGET))
                 skip_next = True
                 continue
             if letter in PIP_DESTINATION_VALUE_LETTERS:
@@ -237,14 +312,30 @@ def pip_indirect_targets(args):
                 continue
             if letter in PIP_BOOLEAN_LETTERS:
                 continue
-            offenders.append((tok, "a short flag this check does not recognize"))
+            offenders.append((tok, REASON_UNRECOGNIZED_SHORT))
             continue
 
-        if tok in (".", "..") or tok.startswith(("./", "../", "/")):
-            offenders.append((tok, "a local path"))
+        # Positional. Safe only if positively recognized as a PEP 508 dependency specification that is
+        # not also the filename of a distribution archive; everything else - `.`, `~/pkg`, `./localpkg`,
+        # `file:///x.whl`, `pkg#egg=z`, `` `cat req.txt` ``, `-` (stdin), `>` (a redirection this parser
+        # does not model), `""` - fails closed without this check needing to recognize it individually.
+        if not PIP_REQUIREMENT_SPECIFIER.match(tok) or tok.lower().endswith(PIP_DISTRIBUTION_ARCHIVE_SUFFIXES):
+            offenders.append((tok, REASON_NOT_A_SPECIFIER))
+    return offenders
+
+
+def pip_offenders_in(run_line):
+    """Every offending token in one RUN instruction's text, from whatever `pip install` invocations it
+    contains - the whole guard behind one pure function of a string, so that
+    `tests/test_dockerfile_pip_parser.py` exercises the same code path the Dockerfile check below runs
+    rather than a parallel re-implementation of it.
+    """
+    offenders = []
+    for tokens, ok in pip_install_arglists(run_line):
+        if not ok:
+            offenders.append(("(unparsable)", REASON_UNPARSABLE))
             continue
-        # else: an ordinary requirement specifier - a package name, optionally pinned, extras'd, or
-        # carrying a PEP 508 environment marker - and therefore safe as far as this check goes.
+        offenders.extend(pip_indirect_targets(tokens))
     return offenders
 
 
@@ -277,14 +368,9 @@ def pip_indirect_target_offenders():
     """
     hits = []
     for line in directive("RUN"):
-        for tokens, ok in pip_install_arglists(line):
-            if not ok:
-                hits.append((line, [("(unparsable)", "this invocation could not be tokenized - "
-                                                       "unbalanced or nested quoting")]))
-                continue
-            offenders = pip_indirect_targets(tokens)
-            if offenders:
-                hits.append((line, offenders))
+        offenders = pip_offenders_in(line)
+        if offenders:
+            hits.append((line, offenders))
     return hits
 
 
