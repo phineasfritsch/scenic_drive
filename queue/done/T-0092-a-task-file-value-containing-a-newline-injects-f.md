@@ -1,7 +1,7 @@
 ---
 id: T-0092
 title: a task-file value containing a newline injects front matter, and dump does not quote it
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T08:12:49Z
@@ -11,7 +11,7 @@ branch: task/T-0092
 exclusive: []
 touches: [ops/lib/queue.py, ops/lib/check-queue-roundtrip, pins/PINS.yaml]
 pins_affected: [P-PROC-02]
-reviewer: null
+reviewer: agent/reviewer-final-pr60
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -222,3 +222,98 @@ and this session alone has pasted multi-line command output into task fields mor
   `touches:` widened from `[ops/lib/queue.py]` to add `ops/lib/check-queue-roundtrip` and `pins/PINS.yaml`,
   because the fix for F1 is exactly "commit a checker and make a pin run it" and neither path could be
   staged otherwise. `pins_affected:` is no longer `[]`.
+
+- 2026-09-08 — **reviewed by agent/reviewer-final-pr60 (PR #60, second pass). PASS → done/.** Every F1-F6
+  finding was re-tested by RUNNING what demonstrated it, against the merged module, not by reading the diff.
+
+  **The red demo, reproduced by the reviewer.** `ops/lib/check-queue-roundtrip` was run against three
+  different `ops/lib/queue.py` blobs in this worktree, restoring `git checkout -- ops/lib/queue.py` after
+  each (working tree left clean, verified):
+
+        $ bash ops/lib/check-queue-roundtrip                      exit=0  OK: 29 write, 9 read, 95 task files
+        $ cp 976410a^:queue.py ...  (whole T-0092 change deleted)
+          bash ops/lib/check-queue-roundtrip                      exit=1  FAIL (30 of 133 cases)
+          bash ops/check-pins --source-only                       exit=1  ok=3 failed=1, P-PROC-02 named
+        $ cp 976410a:queue.py ...   (what PR #60 first shipped)
+          bash ops/lib/check-queue-roundtrip                      exit=1  FAIL (21 of 133 cases), \x0b..\u2029
+        $ git checkout -- ops/lib/queue.py
+          bash ops/lib/check-queue-roundtrip                      exit=0
+
+  F1 is therefore closed as a number the reviewer measured, not as a claim: before this commit deleting the
+  change left every gate at exit 0; now it turns `ops/check-pins --source-only` red.
+
+  **The floors are floors on what was EXAMINED — re-demonstrated, not taken on trust:**
+
+        $ SCENIC_RT_QUEUE=<empty dir> bash ops/lib/check-queue-roundtrip   exit=1  only 0 task files (>= 40)
+        $ <copy with BREAKS=[] and the payload tail dropped>               exit=1  only 1 write payloads (>= 24)
+        $ <copy with READ_REFUSE=[] and READ_ACCEPT=[]>                    exit=1  only 0 read payloads (>= 6)
+
+  MIN_WRITE/MIN_READ/MIN_TASKS are independent literals (24/6/40 against 29/9/95), not `len(payloads)`, so
+  shrinking a payload table cannot shrink the floor with it. BREAKS is the reader's ten line boundaries plus
+  `\r\n`, written out rather than recomputed from `str.splitlines()`.
+
+  **The reviewer's own attack** (`.artifacts/rvw-final/attack.py`, gitignored, exit 0) — 30 write probes the
+  committed table does not contain (a bare `---`, a value that ends the document, NUL, BOM, whitespace-only,
+  a trailing backslash, an inner quote, a leading `- `, a key-shaped value, a numeric and a bool, nine list
+  and `acceptance` element shapes) and five unwritable KEYS. **No write-side leak: every probe was either
+  refused or read back identically.** Read-side probes confirmed F3's shape refused, and `agent()` still
+  returns None for every list this could produce.
+
+  **Merge safety, which had only been measured on this tree's 95 files:**
+
+        $ python .artifacts/rvw-final/mainfiles.py                          exit=0
+          refs walked=85   task-file paths=6109   DISTINCT BLOBS PARSED=278
+          every task-file blob on every origin ref parses and round-trips under the new module
+
+  (the floor there is blobs actually parsed, 278, not the 85 refs walked.)
+
+  **Declared verify: and the rest of the gates, every exit code recorded:**
+
+        $ bash ops/queue-check                    exit=0  QUEUE OK (95 tasks)
+        $ bash ops/check-pins --source-only       exit=0  ok=4 skipped=8 pending=1 expired=0 failed=0
+        $ bash ops/check-pins                     exit=0  ok=10 skipped=0 pending=3 expired=0 failed=0
+        $ bash ops/test                           exit=1  FAIL: services/api exists but vitest produced no
+                                                          report (no services/api/node_modules on this box;
+                                                          older than this branch, Swift side 16 tests pass)
+        $ bash ops/sane                           exit=0  SANE OK
+        $ bash ops/lib/check-exec-bits            exit=0  P-OPS-01: 27 files, 15 required present
+        $ bash ops/lib/check-brief-required       exit=0  BRIEF CHECK OK
+        $ bash ops/lib/check-lock-lifecycle       exit=1  pre-existing (T-0090) - output BYTE-IDENTICAL with
+                                                          the T-0092 change removed (diff exit=0), so not
+                                                          caused here
+        $ git ls-files -s ops/lib/check-queue-roundtrip   100755   (new ops/ script, correct mode)
+
+  **Two residuals the reviewer found and did NOT fix — testers find, they do not fix. Neither is an
+  integrity hole and neither blocks this task; both want their own queue entry.**
+
+  1. *A refusal is scored as a correct verdict for every write payload but the control,* and `dump()` now
+     ends with a whole-file re-parse that converts any mis-encoding into a `ValueError`. So the payloads
+     that exist to assert the POSITIVE side cannot fail through the encoder. Demonstrated: delete the
+     quoted candidate from `_encodings` — T-0073 route 2's actual protection — and
+
+            bash ops/lib/check-queue-roundtrip     exit=0  OK: 29 write payloads, 9 read, 95 task files
+            bash ops/check-pins --source-only      exit=0  ok=4 failed=0
+
+     The Log's sentence above claiming the check asserts "`owner: \"null\"` staying quoted (T-0073 route 2)"
+     is therefore not true of that payload; the *dangerous* direction (writing it back as a bare `null`) is
+     covered, the *availability* direction is not. The pin statement and the checker's own header are
+     accurate as written ("refuse or write recoverably"), and the 95-file population does assert positive
+     round-tripping for every value that actually exists in the tree, so this is a gap in a claim, not in
+     the invariant.
+  2. *`parse()` still permits a block-list continuation under a key holding an explicit `null`/`~`.* The new
+     rule's docstring says only "a key declared with an empty value" may be continued, but the test is
+     `fm.get(key) is not None`, and `owner: null` parses to None:
+
+            owner: null
+              - agent/nobody      ->  parse() ACCEPTS, owner=['agent/nobody']
+
+     Not reachable through `dump()` (a line break has no encoding), and not a P-PROC-01 evasion: `agent()`
+     returns None for a list and `cmd_check` reports "not an agent/<name>" (both executed). F3's stated
+     case — a block item discarding a SCALAR — is genuinely refused.
+
+  Also noted in passing, pre-existing: `cmd_claim` writes its `exclusive:` lock files BEFORE `dump()`, so a
+  refused write now leaks a lock; and `ops/test` stays red for an environment reason nobody on this branch
+  caused.
+
+  Transitioned: `git mv` claimed/ -> done/, `state: done`, `reviewer: agent/reviewer-final-pr60` (owner is
+  agent/claude-opus-5, so the reviewer is not the owner), `bash ops/queue-check` exit=0 after the move.
