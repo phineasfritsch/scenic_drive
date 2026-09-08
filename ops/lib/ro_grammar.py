@@ -44,6 +44,19 @@ def read_only_problem(sql):
 def self_test():
     cases = json.loads((Path(__file__).with_name("ro_cases.json")).read_text(encoding="utf-8"))
     bad = []
+    # The cap is the one rule the shared case list could not express, because a case long enough to trip it
+    # would be 4000 characters of JSON. So the file carries the NUMBER and both implementations assert their
+    # own literal against it - services/api/test/ro.test.ts does the same. Without this the two constants
+    # agreed only by luck, and nothing anywhere compared them.
+    shared_cap = cases.get("max_sql_length")
+    if shared_cap != MAX_SQL_LENGTH:
+        bad.append(f"MAX_SQL_LENGTH is {MAX_SQL_LENGTH} but ro_cases.json says {shared_cap!r} - the "
+                   f"TypeScript mirror asserts the same number, so these two have drifted apart")
+    else:
+        if read_only_problem("SELECT " + "1," * shared_cap) is None:
+            bad.append(f"should REJECT a statement longer than {shared_cap} chars but accepted")
+        if read_only_problem("SELECT " + "1" * (shared_cap - 10)) is not None:
+            bad.append(f"should ACCEPT a statement under {shared_cap} chars but refused")
     for sql in cases["accept"]:
         p = read_only_problem(sql)
         if p is not None:
@@ -51,7 +64,7 @@ def self_test():
     for sql in cases["reject"]:
         if read_only_problem(sql) is None:
             bad.append(f"should REJECT {sql!r} but accepted")
-    n = len(cases["accept"]) + len(cases["reject"])
+    n = len(cases["accept"]) + len(cases["reject"]) + 3   # +3: the cap assertion and its two length cases
     if bad:
         print(f"RO-GRAMMAR FAIL {len(bad)}/{n}")
         for b in bad:

@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T09:46:43Z
 worktree: wt/T-0083
 branch: task/T-0083
 exclusive: []
-touches: [services/api/src/ro.ts]
+touches: [ops/lib/ro_cases.json, ops/lib/ro_grammar.py, services/api/src/ro.ts, services/api/test/ro.test.ts, ops/test]
 pins_affected: []
 reviewer: null
 depends_on: []

@@ -1,5 +1,6 @@
 {
-  "_": "Shared read-only SQL grammar cases. services/api/test/ro.test.ts and ops/lib/ro_grammar.py both run every case; if the two implementations ever disagree, one of those suites goes red.",
+  "_": "Shared read-only SQL grammar cases. services/api/test/ro.test.ts and ops/lib/ro_grammar.py both run every case AND assert their own MAX_SQL_LENGTH equals max_sql_length below, so the two implementations cannot drift on the rules OR on the cap. ops/test runs the Python side; vitest runs the TypeScript side.",
+  "max_sql_length": 4000,
   "accept": [
     "SELECT 1",
     "select count(*) from users",

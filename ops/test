@@ -47,6 +47,19 @@ if [[ -f services/etl/pyproject.toml ]]; then
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 fi
 
+# ---- Tier 1d: the read-only SQL grammar's Python mirror ------------------------------------------
+# Not a counted tier: it produces no JUnit report and adding a floor for it would collide with the per-tier
+# floors T-0071 is introducing in this same file. It is a GATE - non-zero fails the run - because until now
+# nothing executed it at all. `ops/test` and `pins/PINS.yaml` had zero references to ro_grammar, so
+# read_only_problem() could be made to return None for every statement - accepting `DROP TABLE users` - with
+# the whole suite green. That module is the only check in ops/prod-read, which is pointed at production; the
+# Worker's /__ro is the SECOND line of defence and is the one that was well tested.
+if [[ -f ops/lib/ro_grammar.py ]]; then
+  ro_out="$("$PY" ops/lib/ro_grammar.py --self-test 2>&1)"; ro_rc=$?
+  echo "$ro_out" | tail -3
+  [[ $ro_rc -eq 0 ]] || { echo "FAIL: ops/lib/ro_grammar.py --self-test exited $ro_rc"; rc=1; }
+fi
+
 # ---- Tier 2: iOS simulator — macOS only, expected iff the xcodeproj exists ----------------------
 ios_ran=0
 if [[ "$(uname)" == "Darwin" && "${SKIP_IOS:-0}" != "1" && -d apps/ios/ScenicDrive.xcodeproj ]]; then
