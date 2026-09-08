@@ -73,7 +73,6 @@ command -v gh >/dev/null 2>&1 || { echo "gh is not on PATH; the merge order come
 
 SCRATCH="$ROOT/../wt/_rehearsal"
 BRANCH="tmp/merge-rehearse"
-LOCK="$ROOT/.artifacts/merge-rehearse.lock"
 
 # ONE RUN AT A TIME, because $SCRATCH is a fixed path and this script's first act is to delete it. A second
 # invocation removes the first one's worktree mid-run, and the first then answers every remaining question
@@ -82,13 +81,36 @@ LOCK="$ROOT/.artifacts/merge-rehearse.lock"
 # `UNRESOLVABLE: no origin/task/NNNN` for refs that exist. The run printed
 # `10 of 55 merged, 12 conflicts, 3 gate failures, 33 unresolvable` and none of it was true.
 #
+# THE LOCK GOES BESIDE THE RESOURCE, NOT BESIDE THE CALLER. It used to be $ROOT/.artifacts/<name>, which is a
+# DIFFERENT file in every worktree, while everything it protects is repo-global: $SCRATCH is $ROOT/../wt/<name>,
+# which is the same directory for every worktree under .worktrees/, and $BRANCH is one branch in one shared
+# .git. This repo has ~70 worktrees and agents run ops/ from their own, so the lock covered the one case that
+# does not happen (two runs from the same directory) and missed the one that does. Reproduced on PR #67 with
+# the lock in place: the second run, launched from another worktree, took its own lock (exit 0) and deleted
+# the holder's scratch worktree; the holder reported `my scratch worktree is GONE`. The git COMMON dir is the
+# one path every worktree of this repository agrees on, so the lock lives there.
+#
 # `set -o noclobber` + `>` is the shell's compare-and-swap: it fails if the file exists. A lock file left by
-# a killed run is stale, so it names the pid and says how to clear it rather than blocking forever.
-mkdir -p "$(dirname "$LOCK")"
-if ! (set -o noclobber; printf 'pid=%s started=%s\n' "$$" "$(date -u +%FT%TZ)" > "$LOCK") 2>/dev/null; then
+# a killed run is stale, so it names the pid, the worktree and how to clear it rather than blocking forever.
+# `--git-common-dir` answers `.git` in the main checkout and an absolute path in a worktree, and from WSL
+# against a Windows checkout it answers a path no Linux shell can enter (T-0055) - so the directory is
+# resolved by ENTERING it, which is the only test that distinguishes "usable" from "printable".
+LOCKDIR="$(git rev-parse --git-common-dir 2>/dev/null)"
+LOCKDIR="$(cd "$LOCKDIR" 2>/dev/null && pwd)"
+if [[ -z "$LOCKDIR" || ! -d "$LOCKDIR" ]]; then
+  echo "REHEARSAL REFUSED: cannot locate this repository's shared git directory"
+  echo "  (\`git rev-parse --git-common-dir\` gave '${LOCKDIR:-}'), so the only lock this run could take"
+  echo "  would be one private to $ROOT. A per-worktree lock does not protect $SCRATCH, which every"
+  echo "  worktree shares - and an unprotected run is how this tool once printed a summary of nothing."
+  exit 2
+fi
+LOCK="$LOCKDIR/merge-rehearse.lock"
+if ! (set -o noclobber; printf 'pid=%s started=%s worktree=%s\n' \
+        "$$" "$(date -u +%FT%TZ)" "$ROOT" > "$LOCK") 2>/dev/null; then
   echo "REHEARSAL REFUSED: another run holds $LOCK"
   sed 's/^/  /' "$LOCK" 2>/dev/null
-  echo "  This tool deletes and recreates one fixed scratch worktree, so two runs destroy each other's."
+  echo "  This tool deletes and recreates one fixed scratch worktree shared by every worktree of this repo,"
+  echo "  so two runs destroy each other's - from any directory, not only from this one."
   echo "  If that run is dead, remove the lock file and try again."
   exit 2
 fi
@@ -157,9 +179,11 @@ fi
 PR_HEADS="$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u)"
 n_pr=$(printf '%s\n' "$PR_HEADS" | grep -c .)
 n_extra=0
+SEEN_REFS=""   # every ref THIS LOOP consumed - the population the guard below is a floor on
 while IFS= read -r ref; do
   [[ -n "$ref" ]] || continue
   b="${ref#refs/remotes/origin/}"
+  SEEN_REFS+="$b"$'\n'
   printf '%s\n' "$PR_HEADS" | grep -qx "$b" && continue
   ahead="$(git rev-list --count "origin/main..$ref" 2>/dev/null || echo 0)"
   [[ "$ahead" -gt 0 ]] || continue
@@ -172,22 +196,43 @@ done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*')
 
 # Vacuity guard for the ENUMERATION, which is the part that was wrong.
 #
-# The first version of this guard was ITSELF vacuous, which is worth leaving written down. It compared the
-# unique heads in EDGES against the unique PR heads - but EDGES *starts* as the PR list, so that count can
-# never fall below it. Pointing the ref query at an empty namespace added nothing, the guard passed, and the
-# tool rehearsed 44 branches while printing a total. A guard whose expected value comes from the thing it
-# checks: the defect this whole task is about, written into the check for it. It was found by demanding a
-# red run rather than reasoning about it, which is the only reason it is not still here.
+# TWO earlier versions of this guard were themselves vacuous, and both are worth leaving written down
+# because they are the same mistake at different distances from the code.
 #
-# Compare like with like instead: refs under the same namespace are a SUPERSET of the PR heads in it, by
-# construction, because every open PR head is a branch that exists. Count them independently.
-n_task_refs=$(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*' | grep -c .)
+#   v1 compared the unique heads in EDGES against the unique PR heads - but EDGES *starts* as the PR list,
+#      so that count can never fall below it.
+#   v2 (reviewed and failed on PR #67) ran its OWN SECOND COPY of the `git for-each-ref` query above and
+#      compared THAT against the PR heads. So it measured whether the query CAN return refs, never whether
+#      the loop consuming it DID. Demonstrated by the reviewer and re-demonstrated here: replace line
+#      `done < <(git for-each-ref ...)` with `done < /dev/null` - the enumeration deleted outright, the
+#      exact pre-fix state this task exists to fix - and v2 stayed GREEN, exit 0, printing
+#      `branches: 35 to rehearse = 35 with an open PR + 0 with none`. That `+ 0` is not a missing number,
+#      it is a false one. Expected value and measured value were the same expression written twice.
+#
+# The guard has to read what the LOOP PRODUCED. `SEEN_REFS` is appended to inside the loop body, so it is
+# the enumeration's own output and cannot be green when the enumeration is empty; `PR_HEADS` comes from
+# GitHub, which is a genuinely independent source. The floor is on the population examined, not on the
+# population available:
+#   - the loop must have consumed at least one ref (we only get here when there IS at least one open PR), and
+#   - every open PR head under task/ must be AMONG the refs the loop consumed, by name.
+n_seen=$(printf '%s' "$SEEN_REFS" | grep -c .)
 n_task_pr=$(printf '%s\n' "$PR_HEADS" | grep -c '^task/')
-if [[ "$n_task_refs" -lt "$n_task_pr" ]]; then
-  echo "REHEARSAL REFUSED: git lists $n_task_refs ref(s) under refs/remotes/origin/task/ but GitHub reports"
-  echo "  $n_task_pr open PR head(s) in that namespace. Every PR head is a branch, so the ref query lost"
-  echo "  some - fetch, or fix the pattern. Rehearsing a subset while printing a total is the defect this"
-  echo "  guard exists for, not a smaller run."
+if [[ "$n_seen" -eq 0 ]]; then
+  echo "REHEARSAL REFUSED: the branch enumeration consumed 0 ref(s) while GitHub reports ${#EDGES[@]} open"
+  echo "  PR edge(s). A rehearsal whose branch list is empty cannot be a smaller run - it is no run, and the"
+  echo "  totals printed after it would be a statement about nothing."
+  exit 2
+fi
+missing_heads="$(comm -23 \
+  <(printf '%s\n' "$PR_HEADS" | grep '^task/' | sort -u) \
+  <(printf '%s' "$SEEN_REFS" | grep '^task/' | sort -u))"
+n_missing=$(printf '%s\n' "$missing_heads" | grep -c .)
+if [[ "$n_missing" -gt 0 ]]; then
+  echo "REHEARSAL REFUSED: the branch enumeration consumed $n_seen ref(s) under refs/remotes/origin/task/,"
+  echo "  and $n_missing of GitHub's $n_task_pr open PR head(s) in that namespace were not among them:"
+  printf '%s\n' "$missing_heads" | grep . | head -5 | sed 's/^/    /'
+  echo "  Every open PR head is a branch that exists, so the enumeration lost some - fetch, or fix the"
+  echo "  pattern. Rehearsing a subset while printing a total is the defect this guard exists for."
   exit 2
 fi
 n_all=$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u | grep -c .)
@@ -589,6 +634,16 @@ if [[ ${n_extra:-0} -gt 0 ]]; then
   echo "  $want branches = $n_pr with an open PR + $n_extra with none. The ones with no PR have no CI"
   echo "  result anywhere, so a clean row for them says only that they MERGE, not that they pass."
 fi
+# The line above is an EQUATION whose left side comes from the sort ($ORDER) and whose right side comes from
+# the enumeration ($n_pr + $n_extra = $n_all). Nothing asserted that the two agree, so the sort could drop a
+# branch and the split would still be printed as if it described the run. Assert it.
+miscount=0
+if [[ ${n_all:-0} -ne $want ]]; then
+  echo "  MISCOUNT: the enumeration produced $n_all branch(es) and the sort produced $want. The split above"
+  echo "  describes the enumeration, so it is not a description of what was rehearsed. The sort dropped or"
+  echo "  invented branches; do not read any number in this run as a statement about the backlog."
+  miscount=1
+fi
 [[ $PAIRWISE -eq 1 ]] || echo "  Run --pairwise too: a defect a later branch cleans up is silent here."
 if [[ $merged -eq 0 || $((merged + conflicts + unresolved)) -lt $want ]]; then
   echo "  INCOMPLETE: $want branches were requested and only $((merged + conflicts + unresolved)) were accounted for."
@@ -601,4 +656,4 @@ fi
 if [[ $noref -gt 0 ]]; then
   echo "  $noref branch(es) had no local ref at derivation time and were ordered by nothing."
 fi
-[[ $conflicts -eq 0 && $gatefails -eq 0 && $unresolved -eq 0 && $ordervio -eq 0 ]] || exit 1
+[[ $conflicts -eq 0 && $gatefails -eq 0 && $unresolved -eq 0 && $ordervio -eq 0 && $miscount -eq 0 ]] || exit 1

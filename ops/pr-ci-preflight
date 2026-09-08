@@ -160,13 +160,38 @@ echo "PR-CI PREFLIGHT: $ok ok, $bad failing gates, $noref genuinely conflicting,
 # the tree GitHub Actions tests, so a branch with no PR has no tree to gate and no CI result to compare
 # against - it is not "fine", it is unmeasured, and only saying so keeps $want from being mistaken for the
 # whole. `ops/merge-rehearse` covers those branches; nothing covers their CI.
-_norepo=$(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*' | while IFS= read -r r; do
-  [[ "$(git rev-list --count "origin/main..$r" 2>/dev/null || echo 0)" -gt 0 ]] && echo "$r"
-done | wc -l)
-if [[ "$_norepo" -gt "$want" ]]; then
-  echo "  NOT COVERED: $((_norepo - want)) branch(es) are ahead of main with no open PR, so they have no CI"
-  echo "  result at all. This number is about the $want PRs above, not about the backlog."
+#
+# "Has no open PR" is a SET DIFFERENCE and must be computed as one. This block used to subtract two counts -
+# the ahead-of-main refs under task/ minus $want, which is every open PR in ANY namespace - and the two
+# populations are not comparable. It was right only by the coincidence that today every open PR head happens
+# to be a task/ branch that is ahead of main. Measured 2026-09-08 with the true set difference at 31: raise
+# $want by one - one open PR from a branch outside task/, and branches outside task/ do exist here
+# (demo/T-0085-fp, demo/T-0085-real) - and the old block printed 30. It understates, in the reassuring
+# direction, and the reader has no way to tell.
+# `ops/merge-rehearse` already does this correctly, by name, against its PR head list; so does this now.
+PRCI_HEADS="$(printf '%s\n' "${PRS[@]}" | tr -d '\r' | awk '{print $2}' | sort -u)"
+_refs=0; _nopr=0
+while IFS= read -r r; do
+  [[ -n "$r" ]] || continue
+  _refs=$((_refs + 1))
+  b="${r#refs/remotes/origin/}"
+  printf '%s\n' "$PRCI_HEADS" | grep -qx "$b" && continue
+  [[ "$(git rev-list --count "origin/main..$r" 2>/dev/null || echo 0)" -gt 0 ]] || continue
+  _nopr=$((_nopr + 1))
+done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*')
+# A floor on the population THIS BLOCK EXAMINED, not on the one it could have. The old block printed nothing
+# at all whenever its comparison came out false, so an ABSENT `NOT COVERED` line read as "everything is
+# covered" - a guard with no floor, indistinguishable from a guard that looked at nothing. It now always
+# prints, and refuses outright when the ref query it depends on examined zero refs.
+if [[ $_refs -eq 0 ]]; then
+  echo "  NOT COVERED: UNKNOWN - the branch query examined 0 ref(s) under refs/remotes/origin/task/ while"
+  echo "  GitHub reports $want open PR(s). That is not 'every branch is covered', it is 'the question was"
+  echo "  not asked', and the counts above cannot be placed against the backlog at all."
+  exit 2
 fi
+echo "  NOT COVERED: $_nopr of the $_refs branch(es) under refs/remotes/origin/task/ are ahead of main with"
+echo "  no open PR, so they have no CI result at all. The counts above are about the $want open PR(s), not"
+echo "  about the backlog. (\`ops/merge-rehearse\` rehearses them; nothing gates their CI.)"
 if [[ $seen -lt $want ]]; then
   echo "  INCOMPLETE: $want PRs were listed and only $seen were accounted for."
   exit 2
