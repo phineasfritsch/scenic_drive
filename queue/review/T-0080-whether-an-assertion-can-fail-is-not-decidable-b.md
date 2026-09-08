@@ -261,3 +261,29 @@ half-attempting it, and that judgement was right.
   **Cost.** ~1m40 unfiltered; ~7s for a `--pin` probe. `--pin` prints FILTERED and does not apply the floors,
   so a filtered run can never be mistaken for the gate.
 - 2026-09-08 reviewer set to agent/reviewer-14 (not the owner); moved to queue/review/ with PR open.
+
+- 2026-09-08 — **`ops/lib/pins_mutation.py` and `ops/lib/pins_mutation_cases.py` set to 100644, which turns
+  this PR's CI RED on purpose.** They were committed 100755. That is green against `main`'s P-OPS-01 today
+  and **wrong the moment [[T-0036]] merges**, because T-0036 reclassifies `ops/lib/*.py` as data:
+
+        ops/lib/check-exec-bits (on task/T-0036):
+          $4 ~ /\.(json|txt|md|py)$/ ... { if ($1 != "100644") print $4 " (data, should be 100644, ...)" }
+
+  Its reason: every call site invokes these as `"$PY" ops/lib/x.py`, never `./ops/lib/x.py`, so the exec bit
+  asserts a mode nothing uses.
+
+  The three other branches that add an `ops/lib/*.py` all committed 100644 and are all red today for exactly
+  this reason — `task/T-0021` (`classify-checks.py`), `task/T-0049` (`merge_reason_cap_assert.py`),
+  `task/T-0081` (`etl_mutation.py`, `etl_mutation_rules.py`). This branch was the outlier, and being the
+  outlier is what would have hurt: `ops/merge-rehearse`'s derived rule orders every such branch **after**
+  T-0036, so at 100755 it merges into the tree where that mode is wrong, and the failure arrives on `main`
+  rather than on a PR.
+
+        $ bash ops/lib/check-exec-bits
+          ops/lib/pins_mutation.py (script, should be 100755, is 100644)
+        ops/lib/pins_mutation_cases.py (script, should be 100755, is 100644)
+
+  That red is the correct state to be in before T-0036, and it is the same red the other three carry. Do not
+  "fix" it with `--chmod=+x`: there is no mode that is right in both merge orders, which is why the ordering
+  constraint exists at all. `ops/pins-mutation` stays 100755 — it is a wrapper under `ops/`, not `ops/lib/`,
+  and it IS invoked directly.
