@@ -2,7 +2,9 @@
 # Rejects commits that would corrupt the repo for the agent fleet.
 #  1. CRLF in any staged text file.
 #  2. Secret-looking content or files (sk. tokens, private keys, .p8/.p12/.netrc/.env).
-#  3. Staged paths outside the current task's `touches:` list (active once a queue task file exists for the branch).
+#  3. Staged paths outside the current task's `touches:` list (active once a queue task file exists for the
+#     branch, in claimed/, review/ OR done/ - a signed-off task still commits nothing that wasn't already
+#     allowed; review does not widen what a path may touch).
 # Floor-lowering protection lives in .githooks/commit-msg (T-0002).
 set -uo pipefail
 fail=0
@@ -31,7 +33,7 @@ done <<< "$staged"
 branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 if [[ "$branch" =~ ^task/(T-[0-9]+) ]]; then
   task="${BASH_REMATCH[1]}"
-  taskfile="$(ls queue/claimed/"$task"*.md queue/review/"$task"*.md 2>/dev/null | head -1 || true)"
+  taskfile="$(ls queue/claimed/"$task"*.md queue/review/"$task"*.md queue/done/"$task"*.md 2>/dev/null | head -1 || true)"
   if [[ -n "$taskfile" ]]; then
     # touches: [a, b, c]  (single line, YAML flow list)
     allowed="$(grep -E '^touches:' "$taskfile" | head -1 | sed -E 's/^touches:[[:space:]]*\[(.*)\][[:space:]]*$/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//' | grep -v '^$')"

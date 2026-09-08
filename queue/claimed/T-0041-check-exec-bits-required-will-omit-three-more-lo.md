@@ -1,13 +1,13 @@
 ---
 id: T-0041
 title: check-exec-bits REQUIRED will omit three more load-bearing ops/lib files once T-0021 and T-0023 merge
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/fixer-T0041
+owner_session: d217767a
+claimed_at: 2026-09-08T13:34:53Z
+lease_expires_at: 2026-09-08T15:34:53Z
+worktree: .worktrees/T-0041
+branch: task/T-0041
 exclusive: []
 touches: [ops/lib/check-exec-bits]
 pins_affected: []
@@ -74,3 +74,4 @@ Demonstrate red by reproducing the rehearsal rather than by reasoning: merge `or
 `origin/task/T-0036` into a scratch branch off `main` and run `bash ops/lib/check-exec-bits`.
 
 ## Log
+- 2026-09-08T13:34:53Z claimed by agent/fixer-T0041; lease until 2026-09-08T15:34:53Z
