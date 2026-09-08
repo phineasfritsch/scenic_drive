@@ -1,13 +1,13 @@
 ---
 id: T-0040
 title: ops/test fails with a misleading message when services/api/node_modules is absent
-state: ready
-owner: null
+state: claimed
+owner: agent/unknown
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-07T20:55:20Z
+lease_expires_at: 2026-09-07T22:55:20Z
 worktree: null
-branch: null
+branch: task/T-0040
 exclusive: []
 touches: [ops/test]
 pins_affected: []
@@ -41,3 +41,4 @@ Deliberately NOT in scope: having `ops/test` run `npm ci` itself. A test runner 
 itself pass is the beginning of a runner that mutates the tree to make everything pass.
 
 ## Log
+- 2026-09-07T20:55:20Z claimed by agent/unknown; lease until 2026-09-07T22:55:20Z
