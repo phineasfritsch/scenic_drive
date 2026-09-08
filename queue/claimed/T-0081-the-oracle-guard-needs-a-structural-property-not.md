@@ -381,3 +381,77 @@ rejected, because the next adversary will find X13.
   2. `ops/lib/etl_mutation.py` is 294 lines here against the 300-line cap, and T-0088 adds ~35. The merged
      file is over the cap and needs the next split — the run-integrity guards (clean tree, unparse control,
      vacuity, floors) are a different reason-to-change from applying a mutant and running a suite.
+
+- 2026-09-08 · agent/claude-opus-5 · **PR #56 fix: P-OPS-01, the exec bit on the two new oracle modules.**
+
+  **What was wrong.** `core.filemode` is false on this Windows checkout, so when T-0081 split the mutation
+  harness into `ops/lib/etl_mutation.py` (the runner) and `ops/lib/etl_mutation_rules.py` (what a mutation
+  is), git recorded both at 100644 and nothing complained. CI never noticed because `ops/etl-mutation`
+  reaches the runner through `exec python3 ops/lib/etl_mutation.py`, and an interpreter does not care about
+  the exec bit. Direct invocation — `queue/README.md` step 1, Xcode Cloud's `ci_scripts` — is where a missing
+  +x is a hard failure, and that is the path no check exercises. Exactly the failure mode P-OPS-01 was
+  written for.
+
+  **RED, before any change:**
+
+        $ bash ops/lib/check-exec-bits ; echo $?
+        P-OPS-01: wrong git file mode:
+          ops/lib/etl_mutation.py (script, should be 100755, is 100644)
+          ops/lib/etl_mutation_rules.py (script, should be 100755, is 100644)
+        1
+
+        $ bash ops/check-pins ; echo $?
+        PINS ok=8 skipped=0 pending=3 expired=0 failed=2 tier=linux
+         - P-OPS-01: ... (the two lines above)
+         - P-SAFE-05: ... (pre-existing, see below)
+        1
+
+  **GREEN, after `git update-index --chmod=+x` on both:**
+
+        $ bash ops/lib/check-exec-bits ; echo $?
+        P-OPS-01: 31 files, 15 required present, all modes correct
+        0
+
+        $ bash ops/check-pins ; echo $?
+        PINS ok=9 skipped=0 pending=3 expired=0 failed=1 tier=linux
+         - P-SAFE-05: ... (unchanged)
+        1
+
+  `ok` 8 -> 9 and `failed` 2 -> 1. P-OPS-01 is the pin that moved.
+
+  **P-SAFE-05 is NOT mine and was already red.** It appears in the before-run above, unchanged, and this
+  commit touches no Swift, no fixture and no pin file. `swift` is on PATH and `Tests/Fixtures/solar/oracle.json`
+  exists, so it is a genuine assertion failure rather than a missing toolchain — but diagnosing it is a
+  different task. `ops/check-pins` therefore still exits 1 on this branch, and it should; do not read this
+  entry as a claim that the pin sweep is green.
+
+  **Only two paths changed, mode-only.** Blob SHAs are identical before and after (`296227fe`, `7ffadde3`) —
+  no content edit, so `ops/lib/etl_mutation.py` stays at 294 lines and the 300-line cap and the T-0088 merge
+  note above are unaffected. The data files under `ops/` were deliberately left alone: `ops/lib/ro_cases.json`
+  and `ops/api-url` stay 100644.
+
+  **I checked that the data direction of the pin is real rather than assuming it.** Blanket-chmodding
+  everything under `ops/` would have made P-OPS-01 pass while destroying what it protects, so I proved the
+  other direction bites before trusting the green:
+
+        $ git update-index --chmod=+x ops/lib/ro_cases.json
+        $ bash ops/lib/check-exec-bits ; echo $?
+        P-OPS-01: wrong git file mode:
+          ops/lib/ro_cases.json (data, should be 100644, is 100755)
+        1
+        $ git update-index --chmod=-x ops/lib/ro_cases.json   # restored, verified 100644
+
+  **One thing the green does not cover, for the reviewer.** `check-exec-bits` sorts every tracked path into
+  exactly two buckets — `.json|.txt|.md` or `ops/api-url` is data, everything else is a script — and by that
+  rule both files had to become 100755. By content only one of them is a program:
+  `etl_mutation.py` has `__main__`, argparse and CLI flags and is executed by the wrapper;
+  `etl_mutation_rules.py` has no `__main__`, no argparse and no shebang, and exists only to be imported
+  (`from etl_mutation_rules import MODULE_FLOORS, mutants_for`). Its exec bit is cosmetic. Separately,
+  neither file carries the `#!/usr/bin/env python3` line that all four of their 100755 peers
+  (`pins.py`, `queue.py`, `ro_grammar.py`, `junit_count.py`) do, so +x alone does not actually make
+  `./ops/lib/etl_mutation.py` runnable — the shell would parse Python as sh. Nothing invokes it that way
+  today, and adding a shebang is a content edit to a file sitting at 294/300 lines that T-0088 is about to
+  grow, so I did not smuggle it into a mode-only fix. I also did not add a third category to
+  `check-exec-bits` to exempt the module: weakening the guard so it passes is the move CLAUDE.md forbids,
+  and that file is outside this task's `touches:`. Both are the pin owner's call, filed here rather than
+  decided quietly.
