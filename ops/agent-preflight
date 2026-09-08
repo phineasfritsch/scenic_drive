@@ -14,8 +14,52 @@ say "node"     "$(node --version 2>/dev/null || echo MISSING)"
 say "python"   "$(python3 --version 2>/dev/null || python --version 2>/dev/null || echo MISSING)"
 say "docker"   "$(docker --version 2>/dev/null || echo 'MISSING on host (use WSL2)')"
 
+# The worktrees, at session start, because that is the only moment somebody can still act on it. CLAUDE.md
+# says to run this command first thing; a stranded branch found now is a push, found later it is 662 lines
+# nobody knew existed. Default pass only - it makes no per-worktree git call.
+if [[ -f ops/lib/check-worktrees ]]; then
+  wt_out="$(bash ops/lib/check-worktrees 2>&1)"; wt_rc=$?
+  if [[ $wt_rc -eq 0 ]]; then
+    say "worktrees" "$(printf '%s' "$wt_out" | head -1 | sed 's/^WORKTREES: //')"
+  else
+    say "worktrees" "NEEDS ATTENTION"
+    printf '%s\n' "$wt_out" | sed 's/^/             /'
+    fail=1
+  fi
+fi
+
+# hooksPath: THREE states, and the old check collapsed them into a string comparison against ".githooks".
+# An absolute value failed that test, so this printed "NOT SET" for a repository where it IS set - in every
+# worktree, in every session, on the command CLAUDE.md says to run first. A check that always fails is a
+# check nobody reads.
+#
+# The state underneath the wrong message is the one worth reporting: git resolves a RELATIVE core.hooksPath
+# against the top level of the working tree, so `.githooks` is per-worktree, while an absolute path is not.
+# With an absolute value pointing at the main checkout, every worktree runs MAIN's hooks - a branch cannot
+# exercise its own `.githooks` change by committing, and a hook red/green demo done in a worktree tested
+# main's copy. Found by the reviewer of PR #47, whose recorded REFUSED commit was in fact accepted.
 hooks="$(git config --get core.hooksPath || true)"
-if [[ "$hooks" != ".githooks" ]]; then say "hooksPath" "NOT SET - run: git config core.hooksPath .githooks"; fail=1; else say "hooksPath" "$hooks"; fi
+top="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+if [[ -z "$hooks" ]]; then
+  say "hooksPath" "NOT SET - run: git config core.hooksPath .githooks"; fail=1
+elif [[ "$hooks" == ".githooks" ]]; then
+  say "hooksPath" ".githooks (relative - resolves to THIS worktree, which is what you want)"
+else
+  # Resolve both sides before comparing; a value that happens to name this worktree's own directory is fine
+  # however it is spelled, and only a value pointing somewhere ELSE is the hazard.
+  hp="$(cd "$hooks" 2>/dev/null && pwd -P || echo "$hooks")"
+  mine="$(cd "$top/.githooks" 2>/dev/null && pwd -P || echo "$top/.githooks")"
+  if [[ "$hp" == "$mine" ]]; then
+    say "hooksPath" "$hooks (absolute, but it is this worktree's own .githooks)"
+  else
+    say "hooksPath" "$hooks"
+    say ""          "  ^ ABSOLUTE and NOT this worktree: hooks run from there, not from $top/.githooks."
+    say ""          "    A change to .githooks on this branch is NOT what runs, and a hook red/green demo"
+    say ""          "    here tests that other copy. Fix: git config core.hooksPath .githooks   (relative,"
+    say ""          "    which git resolves per worktree)."
+    fail=1
+  fi
+fi
 
 crlf="$(git config --get core.autocrlf || echo false)"
 if [[ "$crlf" == "true" ]]; then say "autocrlf" "true - run: git config core.autocrlf false"; fail=1; else say "autocrlf" "$crlf"; fi

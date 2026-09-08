@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# WORK THAT NEVER LEFT A DIRECTORY IS INVISIBLE TO EVERY OTHER CHECK IN THIS REPOSITORY.
+#
+# `ops/sane` asks whether THIS checkout is dirty. `ops/queue-check` reads the tree it runs in. The lease
+# sweeper and `ops/merge-rehearse` read remote refs. A worktree nobody is standing in is outside all of
+# them, and on 2026-09-08 there were 66 of them.
+#
+# What that cost, measured: `wt/T-0030` held five untracked modules -- schema.py (246 lines), geom.py (147),
+# segmenter.py (119), contentdigest.py (91), segid.py (59) -- and `origin/task/T-0030` did not exist at all.
+# A `git clean`, a `git worktree remove --force`, or a reinstall would have deleted 662 lines of the corpus
+# emitter, and nothing anywhere would have reported anything missing. The same sweep found four more
+# worktrees with unpushed commits and one sitting on a leftover `demo/*` branch, so an agent returning to it
+# would have committed to the demo branch instead of its task.
+#
+# The queue's whole safety argument is "claim = git mv + push, git is the lock". That assumes work reaches
+# the remote. This check is what makes the assumption observable.
+#
+# THREE STATES, NOT ONE. They need different actions and are never collapsed into "dirty":
+#   untracked   may be scratch, may be 662 lines of emitter -> only reported inside the task's touches:
+#   modified    tracked file changed and not committed
+#   unpushed    committed and reachable only from this disk
+#
+# CHEAP BY DEFAULT, and that is a correctness property rather than tuning. Measured on this box, at 67
+# worktrees, under four concurrent agents:
+#
+#   three git calls per worktree   real 11m55s   user 0m22s   sys 2m14s
+#   one   git call  per worktree   real  6m55s   user 0m14s   sys 1m19s
+#   ZERO  git calls per worktree   real  1m57s   user 0m01s   sys 0m11s   <- the default
+#
+# Almost none of it was ever computation. A check that takes minutes is a check nobody runs, and a check
+# nobody runs is precisely the hole this file was written to close - so the default had to get out of the
+# per-worktree business entirely, not merely get faster at it.
+#
+# It could, because THE CASE THIS FILE EXISTS FOR NEEDS NO PER-WORKTREE CALL. `wt/T-0030` was catastrophic
+# because `origin/task/T-0030` did not exist -- 662 lines reachable from one disk only. That fact is already
+# in `git worktree list --porcelain`, which prints each HEAD sha, plus ONE `for-each-ref` for the origin
+# refs. So the default answers "is this work on the remote at all", "is this worktree still on disk" and
+# "is it on the branch its task names" for free, and it caught exactly that shape on its first run.
+#
+# `--deep` adds the questions that genuinely need each worktree's own index -- untracked files inside the
+# task's `touches:`, and modified tracked files -- at one `git status` each, and says so in its output.
+#
+#   ops/lib/check-worktrees           the free checks: on disk, on origin, on the right branch
+#   ops/lib/check-worktrees --deep    + untracked-in-touches and modified files (one git status each)
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" 2>/dev/null || { echo "check-worktrees: not a git worktree"; exit 2; }
+DEEP=0
+for a in "$@"; do
+  case "$a" in
+    --deep) DEEP=1 ;;
+    *) echo "check-worktrees: unknown argument: $a"; exit 2 ;;
+  esac
+done
+
+# `--porcelain` is the only stable form; the plain listing right-pads and is ambiguous for paths with spaces.
+mapfile -t LINES < <(git worktree list --porcelain 2>/dev/null)
+[[ ${#LINES[@]} -gt 0 ]] || { echo "check-worktrees: git worktree list returned nothing"; exit 2; }
+
+paths=(); branches=(); heads=()
+p=""; b=""; h=""
+for l in "${LINES[@]}" ""; do
+  case "$l" in
+    worktree\ *) p="${l#worktree }" ;;
+    HEAD\ *)     h="${l#HEAD }" ;;
+    branch\ *)   b="${l#branch }"; b="${b#refs/heads/}" ;;
+    detached)    b="(detached)" ;;
+    "")          [[ -n "$p" ]] && { paths+=("$p"); branches+=("${b:-(none)}"); heads+=("${h:-}"); }; p=""; b=""; h="" ;;
+  esac
+done
+
+# VACUITY FLOOR. `git worktree list` always reports at least this checkout, so zero means the query failed -
+# and "no problems found" from a query that returned nothing is the defect this whole file exists for.
+n=${#paths[@]}
+if [[ $n -lt 1 ]]; then
+  echo "check-worktrees: parsed 0 worktrees from a non-empty listing - the parser is wrong, not the repo."
+  exit 2
+fi
+
+# Every origin ref, once. Compared by SHA against the HEAD the listing already gave us, so a branch that is
+# behind origin is not flagged (that is normal) while one whose HEAD is not ON origin is.
+declare -A ORIGIN
+while read -r name sha; do
+  [[ -n "$name" ]] && ORIGIN["$name"]="$sha"
+done < <(git for-each-ref --format='%(refname:strip=3) %(objectname)' refs/remotes/origin 2>/dev/null)
+
+problems=0
+for ((i = 0; i < n; i++)); do
+  wt="${paths[$i]}"; br="${branches[$i]}"; hd="${heads[$i]}"
+  [[ -d "$wt" ]] || { printf '  %-26s %s\n' "$(basename "$wt")" "MISSING on disk (branch $br) - run: git worktree prune"; problems=$((problems + 1)); continue; }
+
+  # The task id comes from the BRANCH, which is what ops/claim writes, not from the directory name - those
+  # disagree in this repo (wt/T-0085 was checked out on demo/T-0085-mrg while its branch was task/T-0085).
+  tid=""; [[ "$br" =~ ^task/(T-[0-9]{4})$ ]] && tid="${BASH_REMATCH[1]}"
+
+  touches=""
+  if [[ $DEEP -eq 1 && -n "$tid" ]]; then
+    for tf in "$wt"/queue/*/"$tid"-*.md; do
+      [[ -f "$tf" ]] || continue
+      touches="$(sed -n 's/^touches: \[\(.*\)\]$/\1/p' "$tf" | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -v '^$')"
+      break
+    done
+  fi
+
+  # The ONLY per-worktree git call in this file, and it runs only under --deep. Default untracked mode,
+  # deliberately: `--untracked-files=all` walks every file, and a wholly-untracked directory still shows
+  # here as `dir/`, which is enough to say "look in there".
+  st=""; mods=0
+  if [[ $DEEP -eq 1 ]]; then
+    st="$(git -C "$wt" status --porcelain 2>/dev/null || true)"
+    mods="$(printf '%s\n' "$st" | grep -cE '^ ?[MADRC]' || true)"
+  fi
+
+  # Untracked files only count INSIDE a declared touches: path. `.artifacts/` is gitignored and is where this
+  # repo tells agents to put scratch, so a file under a path the task said it would edit is the task's own
+  # work - that is the discriminator, and it is why this does not drown in noise.
+  untracked=""
+  if [[ $DEEP -eq 1 && -n "$touches" ]]; then
+    while IFS= read -r f; do
+      [[ -n "$f" ]] || continue
+      while IFS= read -r t; do
+        [[ -n "$t" ]] || continue
+        if [[ "$f" == "$t"* ]]; then untracked="$untracked $f"; break; fi
+      done <<< "$touches"
+    done < <(printf '%s\n' "$st" | sed -n 's/^?? //p')
+  fi
+
+  unpushed=""
+  if [[ "$br" != "(detached)" && "$br" != "(none)" ]]; then
+    if [[ -z "${ORIGIN[$br]+x}" ]]; then
+      unpushed="no origin/$br at all"
+    elif [[ -n "$hd" && "${ORIGIN[$br]}" != "$hd" ]]; then
+      # Differs: could be ahead, behind, or diverged. Only "ahead" is work at risk, so pay for ONE rev-list
+      # here - on the handful that differ, not on all 66.
+      c="$(git -C "$wt" rev-list --count "${ORIGIN[$br]}..$hd" 2>/dev/null || echo 0)"
+      [[ "${c:-0}" -gt 0 ]] && unpushed="$c commit(s) not on origin"
+    fi
+  fi
+
+  # A worktree whose HEAD is not its task's branch: an agent returning to it commits to the wrong branch.
+  wrongbr=""
+  case "$(basename "$wt")" in
+    T-[0-9][0-9][0-9][0-9])
+      want="task/$(basename "$wt")"
+      [[ "$br" != "$want" ]] && wrongbr="HEAD is $br, not $want"
+      ;;
+  esac
+
+  msg=""
+  [[ -n "${untracked// }" ]] && msg="$msg untracked-in-touches:${untracked}"
+  [[ "${mods:-0}" -gt 0 ]]   && msg="$msg modified:$mods"
+  [[ -n "$unpushed" ]]       && msg="$msg unpushed:[$unpushed]"
+  [[ -n "$wrongbr" ]]        && msg="$msg branch:[$wrongbr]"
+  if [[ -n "${msg// }" ]]; then
+    printf '  %-26s %s\n' "$(basename "$wt")" "${msg# }"
+    problems=$((problems + 1))
+  fi
+done
+
+if [[ $problems -gt 0 ]]; then
+  echo "WORKTREES: $problems of $n need attention. Work that is not on origin exists only on this disk -"
+  echo "  no other check in this repository can see it, and the lease sweeper reads such a task as"
+  echo "  ABANDONED because it has no commits ahead of main."
+  [[ $DEEP -eq 0 ]] && echo "  (no per-worktree git call was made; run --deep to also see untracked and modified files)"
+  exit 1
+fi
+if [[ $DEEP -eq 1 ]]; then
+  echo "WORKTREES: $n inspected (deep), all committed and pushed"
+else
+  echo "WORKTREES: $n inspected, every branch is on origin and on the right branch."
+  echo "  This pass makes no per-worktree git call. It cannot see untracked or uncommitted files -"
+  echo "  run --deep for those (roughly 6 seconds per worktree on this box, so minutes at this size)."
+fi
+exit 0
