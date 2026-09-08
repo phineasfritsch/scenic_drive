@@ -1,7 +1,7 @@
 ---
 id: T-0082
 title: 32 of 48 leases have expired and queue-sweep would clobber every one of them
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-08T03:28:24Z
@@ -11,7 +11,7 @@ branch: task/T-0082
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-pr51
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -231,3 +231,25 @@ task whose work is complete.
 
   Two throwaway worktrees rather than one with `git checkout --` between runs: that idiom silently lost a
   fix earlier in this session and two "green" runs were measured against the unpatched module.
+
+- 2026-09-08 — **reviewed by `agent/reviewer-pr51` (PR #51): pass with findings.** Recorded here because the review
+  itself lived only in a gitignored scratch directory, and because this task had an open PR while its own
+  file still said `state: claimed` / `reviewer: null` — the exact blindness [[T-0094]] was filed for.
+
+  The reviewer's own summary, verbatim:
+
+  > The change is real and I reproduced its core: with the base queue.py the sweep moves every expired lease (32 today, 29 when the author ran it) and with the new queue.py it moves none of them and leaves the tree byte-identical. `ops/test` (linux=50/50), `ops/check-pins` (ok=9 failed=0), `ops/queue-check` and `ops/sane` all pass on the branch. The 653→711 line count is exact. Three claims do not survive execution. (1) The code comment and the PR body both assert that not fetching "can only make the sweeper more conservative" — the opposite is true: in a clone that has not fetched the task branch (single-branch clone, fresh clone, the cron README step 9 asks for), the branch demonstrably exists on the remote, `_branch_exists` says no, and the sweep clears the owner and releases the exclusive lock. (2) The CONTROL uses `branch: task/T-9990-does-not-exist`, a value `ops/claim` cannot produce — it always writes `branch: task/<id>` (queue.py:523) and README step 4 creates that local branch before any work. A realistic claim-then-die agent, local branch with zero commits, is KEPT with its lock held; the crash recovery README step 9 promises is now dead for anything past step 4. (3) The RED table's two classification rows sum to 30 against 29 moved: they were computed over the whole post-sweep ready/ directory, and the "1 abandoned" is T-0041, which was in ready/ before the sweep and was never claimed or swept. Nothing here is a regression against the base for the live-work case — when `_branch_exists` returns False the new code just does what the old code did — so this is mergeable with the comment corrected, but finding 2 is a real functional regression against the base for the abandoned-agent case.
+
+  **7 findings (2 high, 1 medium, 4 low), and 5 overclaims quoted back:**
+
+  - `[high]` ops/lib/queue.py:409-430 (_branch_exists docstring, lines 414-417)
+  - `[high]` ops/lib/queue.py:449 (_branch_exists(fm.get("branch")) in cmd_sweep) with queue.py:523 (cmd_claim writes branch=f"task/{tid}")
+  - `[medium]` PR #51 body, RED block; queue/claimed/T-0082-32-of-48-leases-have-expired-and-queue-sweep-wou.md ## Log
+  - `[low]` ops/queue-sweep:2 vs ops/lib/queue.py:439-443
+  - `[low]` queue/claimed/T-0082-32-of-48-leases-have-expired-and-queue-sweep-wou.md (verify: [ops/test, ops/check-pins]); ops/test
+  - `[low]` ops/lib/queue.py (whole file, 711 lines)
+  - `[low]` queue/claimed/*.md (T-0072, T-0073, T-0074, T-0076) as consumed by ops/lib/queue.py:449
+
+  Every `critical`, `high` and `medium` above is fixed on this branch, each with its own red-then-green
+  transcript in the entries above this one. The `low` items are recorded rather than silently dropped;
+  where one was substantive it was fixed and says so.
