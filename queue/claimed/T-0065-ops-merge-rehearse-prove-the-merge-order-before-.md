@@ -201,3 +201,36 @@ this class of problem is not in the repository. Promote it to `ops/merge-rehears
   Handing to review. The reviewer should run BOTH modes rather than reading the numbers here — this tool has
   now been wrong four times in ways only execution caught, twice inside itself, and once in the sentence that
   recorded the previous fix.
+
+- 2026-09-08 agent/claude-opus-5 — a second derived ordering rule, found by breaking the repo with T-0071.
+
+  **A branch that DELETES a file which another open branch MODIFIES must merge after it.** `task/T-0071`
+  replaces `pins/floor_linux.txt` with one floor file per tier; fifteen open branches raise that same file
+  from 50 to 76. Measured:
+
+        git merge origin/task/T-0025 into origin/task/T-0071
+        CONFLICT: ops/test pins/floor_linux.txt
+
+  Merged in that order, fifteen people resolve the same delete/modify conflict by hand, identically. Merged
+  the other way, the deleting branch sees the final content and resolves it once - and that one resolution is
+  the moment somebody has to set `floor_linux_py` for the ETL suite, which is exactly when it should be set.
+  **The conflict is a question, not noise**, so the rule schedules it in front of the person who can answer it
+  rather than scheduling it away.
+
+  Derived, like the T-0036 rule, rather than listed. Executed against the current backlog:
+
+        ordering: task/T-0071 deletes pins/floor_linux.txt, which task/T-0023 modifies - task/T-0071 must follow it
+        ... (thirteen such edges)
+        derived edges: 13
+
+  The first implementation ran two `git diff`s per PAIR - about 1,100 subprocesses for 34 open PRs. It is now
+  one pair of diffs per branch, cached in two associative arrays, and the comparison happens in memory.
+
+  **Process note, recorded because I did it twice.** I edited `ops/merge-rehearse` while a background run was
+  executing it - the exact mistake this log already documents one entry above. Bash reads a script
+  incrementally, so the running process breaks with what looks like a syntax error in a file that is fine. The
+  rule was therefore verified standalone, with the same commands outside the script, before being trusted.
+
+  Line count is 294 against the 300-line cap, which is uncomfortably close for a file this repo checks. The
+  next addition should split it rather than trim another comment; the comments here are the arguments for the
+  rules and are the last thing that should go.

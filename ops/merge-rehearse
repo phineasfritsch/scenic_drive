@@ -109,6 +109,34 @@ if printf '%s\n' "${EDGES[@]}" | grep -q '^task/T-0036 '; then
   done
 fi
 
+# A branch that DELETES a file which another open branch MODIFIES must merge after it. Otherwise the delete
+# lands first and every branch that touched that file hits the same delete/modify conflict, resolved by hand,
+# once each, identically. The other way round, the deleting branch sees the final content and resolves it once.
+# Found by doing it wrong: task/T-0071 replaces pins/floor_linux.txt with one floor per tier while fifteen open
+# branches raise that file from 50 to 76 - fifteen conflicts merged first, one merged last. And that one is the
+# moment somebody must set the per-tier floor for the suite those branches added, so the conflict is not noise
+# to schedule away, it is a question, put in front of the person who can answer it.
+# One `git diff` per branch, not per pair: the pairwise form cost two diffs for each of ~34x34 combinations.
+declare -A DEL TOUCH
+for e in "${EDGES[@]}"; do
+  h="${e%% *}"
+  [[ -n "${DEL[$h]+x}" ]] && continue
+  git rev-parse --verify -q "origin/$h" >/dev/null 2>&1 || continue
+  DEL[$h]="$(git diff --name-only --diff-filter=D "origin/main...origin/$h" 2>/dev/null | sort -u)"
+  TOUCH[$h]="$(git diff --name-only --diff-filter=M "origin/main...origin/$h" 2>/dev/null | sort -u)"
+done
+for h in "${!DEL[@]}"; do
+  [[ -n "${DEL[$h]}" ]] || continue
+  for o in "${!TOUCH[@]}"; do
+    [[ "$o" == "$h" ]] && continue
+    both="$(comm -12 <(printf '%s\n' "${DEL[$h]}") <(printf '%s\n' "${TOUCH[$o]}") | tr '\n' ' ')"
+    if [[ -n "${both// }" ]]; then
+      EDGES+=("$h $o")
+      [[ $QUIET -eq 0 ]] && echo "ordering: $h deletes ${both% }, which $o modifies - $h must follow it"
+    fi
+  done
+done
+
 ORDER="$("${PYTHON:-$(command -v python3 || command -v python)}" - "${EDGES[@]}" <<'PYEOF'
 import sys
 pairs = [tuple(a.split()[:2]) for a in sys.argv[1:] if a.strip()]
