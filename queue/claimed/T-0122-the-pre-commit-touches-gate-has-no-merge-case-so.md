@@ -15,7 +15,7 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (4 cases), exit 0"
+  - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (7 cases), exit 0"
   - "RED: --hook <pre-fix> fails cases 1 and 2; --hook <naive> fails case 3"
 ---
 ## Brief
@@ -135,3 +135,81 @@ reaches `main`.
 
 More broadly, [[T-0113]] found ten open PRs based on a branch whose own PR had already merged, and could not
 explain how the tower formed. This is a mechanism that would produce exactly that shape.
+
+---
+
+## Fix pass: a reviewer defeated the gate outright
+
+### F1 (BLOCKING) - rename detection let a branch relocate any file into its own touches:
+
+    git merge --no-commit --no-ff main
+    git mv other/b.txt allowed/b.txt      # touches: [allowed/]
+    git commit                            # exit 0, two parents
+
+`git diff --name-only` has rename detection ON by default and prints only the DESTINATION of a rename. So
+`other/b.txt` never appeared on the `MERGE_HEAD` side, dropped out of the intersection, and was never
+checked - **the intersection was omitting a path that genuinely differs from both parents, which is exactly
+the rule this hook claims to implement.**
+
+The effect is a full bypass: a task branch could move ANY file in the repository into its own `touches:`
+prefix inside a merge commit and then own it. A delete-plus-add variant committed too.
+
+Fixed with `--no-renames` on both diffs, which the reviewer had already verified closes it. Case 5 in the
+fixture is that exact attack, and it now refuses.
+
+The reviewer scoped it honestly rather than maximally: the same `git mv` is allowed on an ORDINARY commit
+too, because `staged` is built with `--diff-filter=ACMR` which drops the `D` side. So the defect is
+pre-existing *in kind* and this PR did not invent it - but it is the rule the PR claims to implement, so it
+is this PR's to close.
+
+### The fixture asserted only on exit code, which is how F1 stayed invisible
+
+A hook that refuses everything - or one that dies on a syntax error - passed every negative case. Each
+refusing case now names the reason it must give, and a refusal for a different reason is a FAIL. That is the
+hazard the original Log documented for the *variant* path and did not close in the fixture itself.
+
+Three cases added: the rename attack, a delete outside `touches:` during a merge, and a secret arriving
+across a merge - the last because the Log claimed the secret scan still guards a merge and nothing asserted
+it. It does; now it is pinned.
+
+### F5 - my own comment asserted something false
+
+*"A file identical to either side arrived from that side and is not an edit."* True in the `MERGE_HEAD`
+direction. **False in the HEAD direction:** `git merge -X ours`, or resolving by keeping this branch's
+version, produces a file identical to HEAD while silently discarding main's change to it. No rule over
+staged paths can see that, because nothing was staged.
+
+Uncatchable by this gate, so the fix is to state the limit. The comment now does, instead of asserting the
+opposite.
+
+### F3 - octopus merges, stated rather than discovered later
+
+`git rev-parse MERGE_HEAD` silently resolves a multi-sha `MERGE_HEAD` to its FIRST parent, so files from
+parents 2..n look like author edits. That fails CLOSED - the octopus merge is refused - and is left that way
+deliberately, now written down.
+
+### F4 - an asymmetry, named
+
+`to_check` has no `--diff-filter` while `staged` has `ACMR`, so a delete outside `touches:` is refused
+inside a merge and allowed outside it. Refusing is the safe direction; case 6 pins it so the behaviour is
+deliberate rather than incidental.
+
+### F2 - not fixed here, filed instead
+
+The CRLF check in the same hook **never fires on this checkout**: MSYS2 grep strips `\r` in text mode, so
+`grep -qI` cannot match a carriage return that is genuinely in the blob. Pre-existing, a different layer,
+and it deserves its own red demonstration - filed as T-0125 rather than folded in.
+
+### What held under attack
+
+The reviewer ran sixteen attacks. These survived unchanged: a genuine octopus merge; a new file
+byte-identical to main's version of another path; a plain delete outside `touches:` inside a merge; an
+exec-bit flip outside `touches:`; `--amend` onto a finished merge commit; a hand-written `MERGE_HEAD` with
+no merge in progress; and a secret arriving from the other side of a merge.
+
+### And their method note is worth keeping
+
+Their first CRLF verdict was a false green - it matched the word "CRLF" in the commit MESSAGE. They caught
+it, rewrote the probe binary-safe, and the result reversed. Their words: *"That is the same signature defect
+I was sent to hunt, in my own harness."*
+

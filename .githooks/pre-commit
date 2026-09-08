@@ -48,13 +48,34 @@ done <<< "$staged"
 #
 # So: on a merge, check the paths that differ from BOTH parents. A file identical to either side arrived
 # from that side and is not an edit; a file differing from both is a resolution the author wrote.
+#
+# THAT SENTENCE IS TRUE ONLY IN THE MERGE_HEAD DIRECTION, and a reviewer was right to say so. Taking OURS -
+# `git merge -X ours`, or resolving by keeping this branch's version - produces a file identical to HEAD
+# while silently discarding main's change to it. No rule over staged paths can see that, because nothing was
+# staged. It is a real limit of this gate and it is stated here rather than implied away.
 to_check="$staged"
 if [[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]]; then
   # `git rev-parse --git-dir`, not `--show-toplevel`: the latter is banned under ops/ and in the hooks
   # because from WSL this checkout's `.git` file reads `gitdir: C:/...` which WSL's git cannot follow.
+  #
+  # `--no-renames` IS LOAD-BEARING, not tidiness. With rename detection on - which is the default - a diff
+  # prints only a rename's DESTINATION, so the source path disappears from the MERGE_HEAD side and drops out
+  # of the intersection. A reviewer used that to defeat this gate outright:
+  #
+  #     git merge --no-commit --no-ff main
+  #     git mv ops/merge allowed/merge      # `touches: [allowed/]`
+  #     git commit                          # exit 0
+  #
+  # A task branch could relocate ANY file in the repository into its own touches: prefix inside a merge
+  # commit and then own it. The intersection was omitting a path that genuinely differs from both parents,
+  # which is precisely the rule the comment above claims to implement.
+  #
+  # `git rev-parse MERGE_HEAD` also resolves a multi-sha octopus MERGE_HEAD to its FIRST parent only, so
+  # files arriving from parents 2..n look like author edits. That fails CLOSED - an octopus merge is
+  # refused - and is left that way deliberately; octopus merges are not part of this workflow.
   to_check="$(comm -12 \
-    <(git diff --cached --name-only HEAD | sort) \
-    <(git diff --cached --name-only MERGE_HEAD | sort))"
+    <(git diff --cached --name-only --no-renames HEAD | sort) \
+    <(git diff --cached --name-only --no-renames MERGE_HEAD | sort))"
   if [[ -n "$to_check" ]]; then
     echo "pre-commit: merge in progress; checking touches: against the $(printf '%s\n' "$to_check" | grep -c .) path(s) that differ from both parents"
   fi
