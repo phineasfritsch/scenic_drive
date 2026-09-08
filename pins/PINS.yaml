@@ -32,6 +32,15 @@
   owner: agent/claude-opus-5
   added: 2026-09-07
 
+- id: P-OPS-02
+  statement: Every hook in .githooks/ prints the blob id and directory of the file that actually ran, and refuses to run from anywhere but the current worktree's .githooks
+  why_no_test_catches_it: core.hooksPath is untracked, machine-local, and shared by every worktree of this repo, so no diff, no test and no review has ever seen it. On 2026-09-08 it held an absolute path into the main checkout for part of the day: every worktree ran main's hooks, a branch could not exercise its own .githooks change by committing, and PR #47 recorded a REFUSED commit that had in fact been accepted. It fails open - the commit succeeds and prints nothing - and the value changed mid-session with nothing recording it. Same class as P-OPS-01: the hook exists, reads correctly, and is not the thing that ran. The assertion runs the guard rather than grepping it, so a gutted guard fails, and it checks that the id the guard prints matches git hash-object, so a recorded HOOK line stays checkable after the fact.
+  anchor: artifact
+  runs_on: [linux, mac]
+  assertion: "bash ops/lib/check-hook-guard"
+  owner: agent/hookspath
+  added: 2026-09-08
+
 - id: P-GIT-01
   statement: .gitattributes normalizes every text file to LF
   why_no_test_catches_it: Lost on 2026-09-07 to a sweep-everything demo commit; every ops/* script would then break under WSL2 with no test failing

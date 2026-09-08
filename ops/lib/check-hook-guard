@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# P-OPS-02's assertion: every hook in .githooks/ proves which file ran and refuses to run from anywhere but
+# this worktree's .githooks.
+#
+# Same class of defect as P-OPS-01 (exec bits): the hook exists, reads correctly, and is not the thing that
+# ran. P-OPS-01 catches "the file cannot execute"; this catches "a different file executed". Neither is
+# visible in a diff, and both fail open - the commit succeeds and prints nothing.
+#
+# Four checks, because the obvious one (grep for the call) passes on a gutted guard:
+#   1. the hook set is non-empty and includes the two load-bearing hooks     <- vacuity: an empty .githooks
+#   2. every hook sources hook-guard.sh and calls hook_guard, on a real         must never read as "all
+#      code line, not in a comment (comments get stripped; CLAUDE.md)           hooks are guarded"
+#   3. the guard actually REFUSES a hook running from another directory
+#   4. the guard actually ACCEPTS this worktree's own hook, and the blob id it prints matches
+#      `git hash-object`, which is what makes a recorded HOOK line checkable after the fact
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+GUARD=.githooks/hook-guard.sh
+REQUIRED=(pre-commit commit-msg)
+rc=0
+
+# ---- 1. the set is non-empty and plausibly complete -------------------------------------------------
+if ! git ls-files --error-unmatch "$GUARD" >/dev/null 2>&1; then
+  echo "P-OPS-02: $GUARD is not tracked - nothing can be guarded and nothing was inspected"
+  exit 1
+fi
+hooks="$(git ls-files .githooks | grep -v '/hook-guard\.sh$' || true)"
+n="$(printf '%s\n' "$hooks" | grep -c . || true)"
+if [[ "$n" -lt ${#REQUIRED[@]} ]]; then
+  echo "P-OPS-02: only $n hook(s) tracked under .githooks/ (expected >= ${#REQUIRED[@]})."
+  echo "  An empty or truncated hook set must never read as 'every hook is guarded'."
+  exit 1
+fi
+for h in "${REQUIRED[@]}"; do
+  git ls-files --error-unmatch ".githooks/$h" >/dev/null 2>&1 || {
+    echo "P-OPS-02: load-bearing hook not tracked: .githooks/$h"; rc=1; }
+done
+
+# ---- 2. every hook sources the guard and calls it ----------------------------------------------------
+# Anchored on identifiers - the filename hook-guard.sh and the function name hook_guard - never on comment
+# text, and the call must be on a line that is not a comment.
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  grep -q 'hook-guard\.sh' "$f" || { echo "P-OPS-02: $f does not source hook-guard.sh"; rc=1; continue; }
+  grep -qE '^[[:space:]]*hook_guard[[:space:]]+[^[:space:]]' "$f" || {
+    echo "P-OPS-02: $f sources hook-guard.sh but never calls hook_guard on a code line"; rc=1; continue; }
+  grep -qE '\|\|[[:space:]]*exit[[:space:]]+1' "$f" || {
+    echo "P-OPS-02: $f calls hook_guard but does not exit on its failure - a guard whose verdict is"
+    echo "          discarded is not a guard"; rc=1; }
+done <<< "$hooks"
+
+# ---- 3 + 4. the guard's behaviour, not its text ------------------------------------------------------
+tmp="$(mktemp -d)" || { echo "P-OPS-02: cannot create a temp dir - the behaviour checks cannot run"; exit 1; }
+trap 'rm -rf "$tmp"' EXIT
+cp "$GUARD" "$tmp/hook-guard.sh"
+cp .githooks/pre-commit "$tmp/pre-commit"
+
+# 3. a hook running from somewhere that is not this worktree's .githooks must be refused.
+out_bad="$(bash "$GUARD" pre-commit "$tmp/pre-commit" 2>&1)"; rc_bad=$?
+if [[ $rc_bad -eq 0 ]]; then
+  echo "P-OPS-02: the guard ACCEPTED a pre-commit hook running from $tmp"
+  echo "  It must refuse any hook that is not $(pwd)/.githooks/pre-commit. As written, a worktree pointed"
+  echo "  at another checkout's hooks would commit with no warning at all."
+  rc=1
+fi
+
+# 4. this worktree's own hook must be accepted, and the id it prints must be the real blob id.
+out_ok="$(bash "$GUARD" pre-commit .githooks/pre-commit 2>&1)"; rc_ok=$?
+if [[ $rc_ok -ne 0 ]]; then
+  echo "P-OPS-02: the guard REFUSED this worktree's own .githooks/pre-commit (exit $rc_ok):"
+  printf '%s\n' "$out_ok" | sed 's/^/  /'
+  echo "  A guard that refuses the correct setup blocks every commit in every worktree."
+  rc=1
+else
+  want="$(git hash-object .githooks/pre-commit)"
+  got="$(printf '%s\n' "$out_ok" | grep -E '^HOOK pre-commit ' | head -1 | awk '{print $3}')"
+  if [[ -z "$got" ]]; then
+    echo "P-OPS-02: the guard printed no 'HOOK pre-commit <id> <path>' provenance line."
+    echo "  Without it a hook red/green transcript still cannot say which file ran, which is the whole point."
+    rc=1
+  elif [[ "${want:0:12}" != "$got" ]]; then
+    echo "P-OPS-02: provenance id mismatch: guard printed '$got', git hash-object says '${want:0:12}'."
+    echo "  A recorded HOOK line has to be checkable against the branch, or it is decoration."
+    rc=1
+  fi
+fi
+
+if [[ $rc -eq 0 ]]; then
+  echo "P-OPS-02: $n hook(s) guarded; guard refuses a foreign dir (exit $rc_bad), accepts this worktree's,"
+  echo "          and its printed id ${want:0:12} matches git hash-object .githooks/pre-commit"
+fi
+exit $rc
