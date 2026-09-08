@@ -128,3 +128,52 @@ read, and this task exists because a read is not enough.
   demo. Deleting a reservation is the one operation that reintroduces the collision, so it should be a
   deliberate act and not a cleanup step in a demo script. A future `queue-check` rule could report
   reservations with no task file; that is not this task.
+
+- 2026-09-08 — **a third collision, hours after this task was filed, through the other door — so the
+  degraded path now REFUSES instead of warning.**
+
+  `task/T-0071`'s agent filed *"core.hooksPath is machine-local and unverified"* as **T-0076**. `T-0076` on
+  `main` and on every other branch is *"ops/test picks whichever python3 is first on PATH"*.
+
+  **This one was not the read/push race this task was filed for.** `task/T-0071`'s own tree tops out at
+  `T-0075`, `main` is at `T-0104`, and `next_id()` returned `max + 1` from the worktree alone — 28 ids below
+  the real maximum. That is `_ids_in_refs()` taking its own documented degraded path, the one whose comment
+  reads *"a degraded scan means collision protection is off, and the caller must know"*, and then
+  continuing.
+
+  **The warning is the defect, not the mitigation.** It goes to stderr, where an agent running a tool does
+  not read it; the id comes back looking ordinary; and `ops/queue-check` cannot see the duplicate from
+  either tree — only from the merge, on a branch neither author is watching. Three for three today.
+
+  So `SCAN_DEGRADED` now makes the degradation observable to the caller, and `next_id()` raises:
+
+        cannot allocate an id: the id reservations on origin could not be read. Allocating without
+        seeing the other allocators is what issued T-0076, T-0088 and T-0099 twice each, so this
+        refuses instead of warning. Fix the remote, or pass `--reserve no` to take an id you know
+        may collide.
+
+  It is a module global rather than a return value on purpose: every existing caller reads the set and none
+  of them asked about its quality, so a tuple would simply have let them keep ignoring it — which is what
+  happened.
+
+  **Why the reservation tag alone would NOT have caught T-0076**, which is the reason this needed a second
+  change rather than more of the first: the tag reserves the id it is *given*. A degraded scan computes a
+  low maximum, the push of `refs/tags/id/T-0076` succeeds because nobody had reserved that number, and the
+  allocation still collides with a **task** called T-0076 that the scan never saw. Reservation protects
+  against another allocator; it cannot protect against an id space you did not read.
+
+  **On the red, honestly.** `.artifacts/demo-refuse.py` points the module's `ROOT` at a directory that is not
+  a git worktree, so every git query fails as it would with no network. Under that simulation the *previous*
+  version also refuses — but at the reservation push, not at the read, because in that scenario the push
+  fails too. So it is not a clean isolation of this change, and I am not presenting it as one:
+
+        RED    (previous)  refused: cannot reserve T-0001 ... the push could not be made at all
+        GREEN  (this)      refused: cannot allocate an id: the id reservations ... could not be read
+        CONTROL --reserve no -> T-0001, with the warning saying exactly what it costs
+
+  **The real red is T-0076**: a live duplicate, produced by this exact path, under ordinary fleet load,
+  hours after the task describing the race was filed. A simulation that says the same thing would add
+  nothing to that.
+
+  Renumbering `T-0076` is deferred while an agent is still finishing on `task/T-0071`; committing to a
+  branch under a live agent is the rule this session already broke once.

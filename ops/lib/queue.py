@@ -180,6 +180,12 @@ def tasks():
             yield state, p, fm, body
 
 
+# Set by _ids_in_refs() when its scan could not be completed. A module global rather than a return value
+# because every existing caller reads the set and none of them asked; making it a tuple would have let a
+# caller keep ignoring it, which is exactly what happened.
+SCAN_DEGRADED = []
+
+
 def _ids_in_refs():
     """Task ids visible on every remote-tracking branch, not just this worktree.
 
@@ -199,6 +205,7 @@ def _ids_in_refs():
     ids = set()
 
     def warn(what, detail):
+        SCAN_DEGRADED.append(what)
         # Never silent: a degraded scan means collision protection is off, and the caller must know.
         # This is the difference between "offline, as expected" and "the network hiccupped and you now
         # have a duplicate id you will not notice until two branches merge".
@@ -312,10 +319,22 @@ def next_id(reserve=True):
     # T-0103 while T-0103 was already reserved - measured in this task's own demo, which is the only
     # reason it is not still doing that.
     reserved = _reserved_ids()
-    if reserved is None:
-        print("WARNING: could not read the id reservations on origin, so allocation is a READ again and "
-              "two agents can be handed the same id. That has happened twice (T-0088, T-0099). Fix the "
-              "remote, or pass `--reserve no` to accept it deliberately.", file=sys.stderr)
+    if reserved is None or SCAN_DEGRADED:
+        why = ("the id reservations on origin could not be read" if reserved is None
+               else "the remote-ref scan degraded (" + ", ".join(sorted(set(SCAN_DEGRADED))) + ")")
+        if reserve:
+            # REFUSE, do not warn. Warning here is what produced the third collision of 2026-09-08: the
+            # message goes to stderr where an agent running a tool does not read it, the id comes back
+            # looking ordinary, and queue-check cannot see the duplicate from either tree - only from the
+            # merge, on a branch neither author is watching. An allocator that cannot see the other
+            # allocators is not degraded, it is wrong.
+            raise SystemExit(
+                f"cannot allocate an id: {why}. Allocating without seeing the other allocators is what "
+                f"issued T-0076, T-0088 and T-0099 twice each, so this refuses instead of warning. Fix the "
+                f"remote, or pass `--reserve no` to take an id you know may collide.")
+        print(f"WARNING: {why}; the id below is a guess at the maximum from this worktree alone. "
+              f"task/T-0071's tree topped out at T-0075 while main was at T-0104, and that is how T-0076 "
+              f"was issued twice.", file=sys.stderr)
         reserved = set()
     ids |= reserved
     n = (max(ids) + 1) if ids else 1
