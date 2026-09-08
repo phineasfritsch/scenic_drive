@@ -11,7 +11,7 @@ branch: task/T-0028
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: agent/reviewer-33
+reviewer: agent/reviewer-pr36
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -1053,3 +1053,180 @@ second external oracle in the plan (the first being Curvature).
   - Whether mapping FHWA NSB onto OD's 0.15 is right. Unchanged from last round, still labelled a
     judgement, still the thing here I have read the least about.
   - The E weight, again. 0.06 is inside a bracket I measured; the bracket is the only defended part.
+
+- 2026-09-08T05:40Z REVIEW ROUND 3 by agent/reviewer-pr36 (independent; not the owner). **FAIL.**
+  State stays `review`, task stays in `queue/review/`. Reviewed in a throwaway worktree
+  (`.worktrees/rev-T-0028`, `git worktree add ... --detach`, removed afterwards); nothing in
+  `.worktrees/T-0028` was written to.
+
+  **WHAT REPRODUCED.** I ran every headline claim rather than reading it, and I could not break any of
+  them. Against the pinned bytes in `.worktrees/T-0028/services/etl/inputs/`:
+
+      caltrans sha256: b8ec29e302533edc19eb21d598eb19ea2e147224f8cc67a46421c85f71a524f7   (= manifest)
+      fhwa     sha256: 1feaf38b3f7f7b6a75b720cadc629afa13c7bdb06e1ed086a304f265823b8942   (= manifest)
+      caltrans features: 273   fhwa features: 648
+      Status counts: Counter({'E': 207, 'OD': 66})          MultiLineString features: 154
+      km by status: {'E': 10367.8, 'OD': 2512.5} total km 12880.4
+      OD share measured: 0.19507  constant: 0.195
+      Admin_Org tokens: {'STATE': 525, 'USFS': 130, 'NSB': 127, 'BLM': 54, 'NPS': 9, 'OTHER': 7}
+      kept NSB rows: 127  dropped: 521
+      dropped partition: {'STATE-only': 364, 'carries USFS': 96, 'carries BLM': 53, 'NPS-only': 2,
+                          'carries OTHER': 6} sum 521
+      Type values: Counter({'National Scenic Byway': 648})
+      caltrans entries: 865  fhwa entries: 793  total 1658    caltrans entries with no route key: 0
+      rows with RTE=236: 0   FID181: CO=SCR RTE=221 Status=E, 2 parts, 1139 vertices, 27.904 km
+      problems(): ['865 keyed byway(s) were never checked against the ways along them ...']
+
+  and the ops surface:
+
+      $ python -m pytest -q          -> 385 passed, exit 0
+      $ python -m pytest -q (6 byway/snap files) -> 107 passed, exit 0
+      $ bash ops/test     -> TESTS linux=435/76 ios=skipped failed=0 skipped=0 / OK, exit 0
+      $ bash ops/check-pins -> PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+      $ bash ops/queue-check -> QUEUE OK (51 tasks)
+      $ bash ops/sane     -> bounds skip - no extract built here / SANE OK
+
+  Every number above matches the owner's log exactly. The round-2 blocker really is fixed for the case it
+  was raised on: `reconcile` over the whole 1813-way pull re-keys both parts of FID 181 to 236 with
+  12389.1 m / 15753.8 m of evidence. The motorway gate, the required `way_class`, the R17 tiebreak in both
+  list orders and the frontage-road key all do what they say. This FAIL is not about any of that.
+
+  ---
+
+  **F1 - BLOCKER. `CORROBORATED` has no evidence floor, so the round-2 blocker is reachable again through
+  the check that was added to close it.** `corridor_verdict` decides the SILENT branch with a membership
+  test - `if key & set(claimed)` - and nothing else. Any single way of any length that names the source's
+  number and clears the gate makes the entry "corroborated", `problems()` says nothing, and the wrong key
+  goes on rejecting the whole corridor. The two floors this round added (`MIN_CONSENSUS_M` = 1000 m,
+  `MIN_CONSENSUS_SHARE` = 0.80) guard only the LOUD branch. The asymmetry is backwards: changing the
+  source's number needs a kilometre of agreement, keeping it and telling nobody needs 23 metres.
+
+  Run on the real FID 181 corridor and the real OSM ways in `tests/fixtures/byway_miskey_fixture.json`,
+  adding nothing but two fragments tagged `ref=CA 221` lying on the corridor between its own vertices 10
+  and 11:
+
+      BASELINE - the real ways under FID 181
+        verdicts : ['rekeyed', 'rekeyed']   routes: [['236'], ['236']]
+        Big Basin Way metres earning the byway bonus: 28142.9 of 28142.9
+
+      + ONE 23.2 m way mistagged ref='CA 221'
+        verdicts : ['corroborated', 'rekeyed']   routes: [['221'], ['236']]
+        problems(): (nothing about part 0)
+        Big Basin Way metres earning the byway bonus: 15753.8 of 28142.9   <- 12.4 km lost, silently
+
+      + a second one, 21.0 m, on the other part
+        stub 0 length 23.2 m ; stub 1 length 21.0 m
+        verdicts : ['corroborated', 'corroborated']   routes: [['221'], ['221']]
+        problems(): ['no officially designated byways at all - the pull is probably filtered wrong']
+        Big Basin Way metres earning the bonus: 0 of 28142.9
+
+  44.2 m of mis-tagged OSM turns 27.9 km of eligible byway back into a silent total loss, and the only
+  line `problems()` still prints is the unrelated all-E one. That is the round-2 finding verbatim.
+
+  It is not a corner case. Measured on the pinned pull by grid-hashing every entry's centreline at the
+  60 m snap tolerance, **267 of the 865 Caltrans entries (30.9%) have at least one OTHER numbered state
+  route running inside their own snap band**:
+
+      entries with at least one OTHER state route inside their own ~60 m snap band: 267 of 865  (30.9%)
+      distribution of how many other numbers are in the band: {1: 217, 2: 40, 3: 6, 4: 4}
+      e.g. a corridor keyed '9' has 2 other numbered routes inside its band, e.g. ['221', '35']
+
+  For any of those, a mis-key to the neighbouring number is corroborated by that neighbour's real,
+  correctly-tagged ways - no OSM error required at all. And a neighbouring number is exactly the kind of
+  mis-key this module documents: FID 14 (5 vs 7), 19 (10 vs 5), 44 (29 vs 28), 52 (36 vs 35), 265 (680 vs
+  580) are all adjacent-number disagreements. FID 181 - keyed to a route 150 km away in Napa - is the
+  EASY case, and it is the only one the fixture exercises.
+
+  What would fix it: give the corroborated branch the same shape as the re-key branch - report (or refuse)
+  a corroboration that holds less than `MIN_CONSENSUS_M`, or less than some share of the reffed length
+  along the corridor - and let `problems()` name it. "No problems must not be reachable by never looking"
+  is the right principle; corroboration currently looks, sees 23 m, and says nothing.
+
+  **F2 - MUST FIX. `claimed_lengths` does not count what its own docstring says it counts, and the 0.80
+  threshold is applied to the wrong quantity.** The docstring's first line is "Metres of REFFED way, by
+  route number, running along this entry's corridor." The code adds `snap.length_m(geom)` - the whole way,
+  including every metre of it that is nowhere near the corridor. A way is admitted at 30% overlap and then
+  votes with 100% of itself, so the vote can be inflated by up to 3.3x. On the fixture's own ways:
+
+      part0 way 824667001 ref='CA 9' frac=0.465 voted=133.3 m  actually_along=62.0 m  inflation=2.15x
+      part1 way 264538576 ref='CA 236' frac=0.947 voted=6762.6 m actually_along=6403.6 m inflation=1.06x
+
+  and over the whole real corridor the difference is 2%: 236 -> 28143 m counted vs 27569 m actually along
+  it, 9 -> 197 m vs 126 m. Latent there. Not latent in general - it flips a correct verdict:
+
+      CA 236    length   522.8 m   overlap 1.000   ALONG the corridor  522.8 m   VOTED  522.8 m
+      CA 9      length  2488.0 m   overlap 0.311   ALONG the corridor  772.7 m   VOTED 2488.0 m
+
+      claimed_lengths -> {'236': 522.8, '9': 2488.0}   winner share 0.826 >= 0.80  -> REKEYED to '9'
+      what the docstring says  -> {'236': 522.8, '9': 772.7}  winner share 0.596  -> UNCLAIMED (correct)
+
+      reconcile verdict: rekeyed  routes now: {'9'}  key_was: ['221']  evidence_m: 2488.0
+      consequence: ref=CA 236 bonus=0.0   ref=CA 9 bonus=0.06
+
+  The byway's bonus moves off the road under the corridor and onto a road that is 69% somewhere else. Fix
+  is one line - weight the vote by the overlap fraction, or by the near length `overlap_fraction` already
+  computes - and it also makes the docstring true.
+
+  **F3 - THE EVIDENCE FOR THE RE-KEY IS NOT REPRODUCIBLE WITH THIS BRANCH'S OWN CODE.** The fixture's
+  `census` block says `"note": "Re-derived from pull b, independently of the numbers in byway_route_key's
+  docstring"`, and `byway_route_key`'s docstring presents a two-column table as two independent Overpass
+  pulls agreeing. Re-running the repo's own `snap` functions over the owner's own cached raw pulls
+  (`work/osm_236.json` = pull a, `work/fid181_bbox.json` = pull b) against both kernels:
+
+      pull a  osm_236.json: highway ways 303,  within 150 m 302
+         flat-earth (work/census2.py)   gate=142  km= 53.54  CA236= 28.07  votes={'236': 28074, '9': 196}
+         repo snap/distance_on_earth    gate=141  km= 53.46  CA236= 28.14  votes={'236': 28143, '9': 197}
+      pull b  fid181_bbox.json: highway ways 1813,  within 150 m 306
+         flat-earth (work/census2.py)   gate=142  km= 53.54  CA236= 28.07  votes={'236': 28074, '9': 196}
+         repo snap/distance_on_earth    gate=141  km= 53.46  CA236= 28.14  votes={'236': 28143, '9': 197}
+
+  The two pulls are IDENTICAL to the digit under either kernel. Every paired difference in the docstring's
+  table - 141/142, 53.46/53.54, 28.14/28.07, 28143/28074, 197/196 - is the difference between
+  `work/census2.py`'s hand-rolled flat-earth `seg_m` and `snap.distance_on_earth`. It is the instrument,
+  not the data. The only genuine pull-to-pull difference in the table is the 303/306 row.
+
+  So the fixture's census - the block `test_the_census_the_re_key_argument_rests_on_is_carried_with_the_
+  fixture` asserts, and the block `test_it_was_measured_at_the_constants_this_module_still_uses` frames as
+  "every property below was measured at these two numbers" - was produced by a re-implementation of the
+  module, not by the module. Nothing in the suite can notice, because that test asserts census fields
+  against other census fields and against a constant; it never runs the code. The fixture now carries two
+  different values for one quantity: its own ways sum to 28142.9 m under the repo's code (which
+  `test_reconcile_re_keys_it_and_the_corridor_scores_again` asserts as `approx(28143, abs=200)`), while
+  the census 40 lines above says 28.07 km. At the census test's own `abs=0.05` tolerance those two
+  disagree. Re-derive the census with `etl.snap`, or say plainly in the fixture that it was measured with
+  a different kernel and why.
+
+  **F4 - note. A concurrency can never be re-keyed.** Because `claimed_lengths` gives both numbers of
+  `ref='A 1;B 35'` the full length, a corridor whose gate-clearing ways are all concurrency-tagged tops
+  out at a 0.50 share and is `unclaimed` by construction, however unambiguous it is on the ground:
+
+      a 3.3 km way tagged ref='CA 1;CA 35' lying exactly on a corridor mis-keyed to 221:
+        claimed: {'1': 3336.9, '35': 3336.9}   share of the winner: 0.5   MIN_CONSENSUS_SHARE: 0.8
+        verdict: unclaimed  routes kept: {'221'}
+
+  `ref='I 280;CA 35'` is the real tag on I-280 in this branch's OTHER fixture, so the shape is real. This
+  one fails safe (it is reported), but the repair provably cannot fire on concurrent corridors and the
+  docstring should say so rather than leaving 0.80 looking like a tunable.
+
+  **F5 - note. The suggested next attack is probably backwards.** FID 265 is `CO=ALA RTE=680` with
+  `DYNSEGPM 'ALA 580 16.75 / ALA 580 21.879'`, `LOCATION 'From Bernal Ave near Pleasanton / CC Co Line'`,
+  bbox lat 37.657-37.723 lon -121.940..-121.901 - a north-south strip from Pleasanton to the Contra Costa
+  line, which is I-680, not I-580. `RTE` looks right and `DYNSEGPM` looks wrong. Worth knowing before
+  spending an Overpass round on it. (It is still a good F1 case: I-580 crosses I-680 inside that bbox, so
+  had the row been keyed 580 it would have been corroborated by real I-580 ways.)
+
+  **F6 - note, and mine to fix, not the owner's.** The 107 new tests are not floored:
+  `pins/floor_linux.txt` is 76 against `linux=435`, so deleting every byway test leaves 328 and `ops/test`
+  stays green. `pins/floor_*.txt` is serial-only and floors are ratcheted up by a reviewer, so the owner
+  was right not to touch it; recording it here so the ratchet happens on the merge commit rather than
+  never.
+
+  **WHAT I COULD NOT CHECK.** Docker is only reachable through WSL here, so I did not run the pinned
+  `scenic-etl` container; I ran pytest on the host (`python -m pytest`, 385 passed) and `bash ops/test`
+  (435/76, OK, exit 0) instead. I did not make any new Overpass request: F1's reachability number comes
+  from the pinned Caltrans centrelines, and F3 comes from the owner's own cached pulls under
+  `services/etl/work/`.
+
+  **WHAT WOULD MAKE THIS PASS.** F1 and F2. F3 is a correction to the record rather than to the code, but
+  it is the fourth recorded measurement in this branch that its own code does not reproduce, and the
+  fixture is committed data that a test asserts, so it should not merge as it stands. F4-F6 are notes.
