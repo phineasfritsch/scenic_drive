@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Resolves the EFFECTIVE core.hooksPath for the worktree it is run from and says whether the hooks that
+# would run on the next commit are this worktree's own .githooks. Distinct exit codes; never mutates.
+#
+# Why this is a check and not a setup note. core.hooksPath lives in .git/config, which every worktree of
+# this repo SHARES (git rev-parse --git-common-dir is the main checkout's .git for all of them) and which is
+# not tracked, so no diff, no review and no gate has ever seen it. A wrong value fails OPEN: git runs some
+# other checkout's hooks, or none, and every commit looks exactly the same. On 2026-09-08 the value was an
+# absolute path into the main checkout for part of the day and the relative `.githooks` for the rest, and
+# nothing recorded the change. Under the absolute value a hook red/green performed in a worktree was
+# exercising main's copy of the hook, which is how PR #47 recorded a REFUSED commit that had been accepted.
+#
+#   Exit codes
+#     0  the effective hooks dir IS this worktree's .githooks
+#     3  core.hooksPath is UNSET -> git falls back to $GIT_DIR/hooks, which is empty here, so every hook
+#        silently does nothing. Fails open, so it must fail this check closed.
+#     4  set, but resolves somewhere that is not this worktree's .githooks (another checkout, a stale dir)
+#     5  VACUITY: the check could not do its job (not a git worktree, git config errored for a reason other
+#        than "not set", this worktree has no .githooks, or the effective dir holds none of the hooks).
+#        A check that inspected nothing must FAIL, never report ok.
+#
+# Prints a one-line verdict first (callers `head -1` it) and remediation lines after it when failing.
+# It never runs `git config --unset|--replace-all`: .git/config is shared by every worktree and by every
+# agent committing through it, so this tool detects and prints the command for a human to run.
+set -uo pipefail
+
+top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$top" ]]; then
+  echo "HOOKSPATH FAIL(5) not inside a git worktree - nothing was inspected"
+  exit 5
+fi
+cd "$top" || { echo "HOOKSPATH FAIL(5) cannot cd to worktree top $top"; exit 5; }
+
+# This worktree's own hooks directory, normalised the same way as the configured value below so the two are
+# comparable. On the Windows checkout `git rev-parse --show-toplevel` prints C:/... while `pwd -P` prints
+# /c/..., so BOTH sides must come back through `cd ... && pwd -P` or a correct value reads as wrong.
+mine="$(cd "$top/.githooks" 2>/dev/null && pwd -P || true)"
+if [[ -z "$mine" ]]; then
+  echo "HOOKSPATH FAIL(5) $top/.githooks does not exist - there is nothing to compare against"
+  echo "  This worktree has no hooks of its own, so 'the right hooks are running' is not a question"
+  echo "  this check can answer. Restore .githooks/ before trusting any hook demonstration here."
+  exit 5
+fi
+
+# Exit code, read directly and never through a pipe: `git config --get` exits 1 for "key not set" and >=2
+# for a real failure (unreadable or malformed config). Collapsing those two into "unset" would report a
+# broken .git/config as a merely-missing setting and print a remedy that cannot work.
+value="$(git config --get core.hooksPath 2>/dev/null)"; cfg_rc=$?
+# --show-origin prints "<origin><TAB><value>", so cut on the tab: splitting on whitespace turns the
+# "command line:" origin into "command" and hides that the value came from the environment, not the file.
+origin="$(git config --show-origin --get core.hooksPath 2>/dev/null | head -1 | cut -f1)"
+
+if [[ $cfg_rc -gt 1 ]]; then
+  echo "HOOKSPATH FAIL(5) git config --get core.hooksPath exited $cfg_rc (config unreadable) - nothing was inspected"
+  exit 5
+fi
+
+if [[ $cfg_rc -eq 1 || -z "$value" ]]; then
+  echo "HOOKSPATH FAIL(3) UNSET - git falls back to \$GIT_DIR/hooks, which is empty in this repo"
+  echo "  Every hook in .githooks/ is inert: commits are accepted with no CRLF, secret, touches: or"
+  echo "  floor-lowering check at all, and nothing prints. Fix (a human runs this once, it is machine-local"
+  echo "  and shared by every worktree, so do not script it):"
+  echo "      git config core.hooksPath .githooks"
+  exit 3
+fi
+
+# git resolves a RELATIVE core.hooksPath against the top of the working tree, which is per worktree and is
+# the reason `.githooks` is the correct value; an absolute one names a single checkout for all of them.
+eff="$(cd "$value" 2>/dev/null && pwd -P || true)"
+if [[ -z "$eff" ]]; then
+  echo "HOOKSPATH FAIL(4) '$value' (from ${origin:-unknown origin}) does not resolve to an existing directory"
+  echo "  git will find no hooks there, so every hook is inert. Fix:  git config core.hooksPath .githooks"
+  exit 4
+fi
+
+if [[ "$eff" != "$mine" ]]; then
+  echo "HOOKSPATH FAIL(4) '$value' -> $eff, which is NOT this worktree ($mine)"
+  echo "  origin: ${origin:-unknown}"
+  echo "  The hooks that run on your next commit are the ones in $eff, on whatever branch that checkout"
+  echo "  has out. A change to .githooks on this branch is not what runs, and a hook red/green demonstrated"
+  echo "  here by committing tested that other copy, not yours. Fix (a human, once):"
+  echo "      git config core.hooksPath .githooks"
+  echo "  To demonstrate a hook without waiting for that, name the file: bash .githooks/pre-commit"
+  exit 4
+fi
+
+# The path is right; the hooks still have to be there. An effective dir with no hooks in it is the same
+# fail-open state as an unset value, and reporting "ok" for it is exactly the vacuous pass this file exists
+# to refuse.
+present=0
+for h in pre-commit commit-msg prepare-commit-msg pre-push post-checkout; do
+  [[ -f "$eff/$h" ]] && present=$((present + 1))
+done
+if [[ $present -eq 0 ]]; then
+  echo "HOOKSPATH FAIL(5) $eff is this worktree's .githooks but holds no hook files - nothing would run"
+  exit 5
+fi
+
+echo "HOOKSPATH ok      '$value' -> $eff (this worktree, $present hook(s)); origin ${origin:-unknown}"
+exit 0
