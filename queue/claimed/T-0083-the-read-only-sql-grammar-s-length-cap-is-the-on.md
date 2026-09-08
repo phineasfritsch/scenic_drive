@@ -68,3 +68,42 @@ because nothing protected it, and raised it 4000 -> 400000 in a one-line edit as
   whose summary line misattributed the constant to `ops/lib/check-exec-bits`; its own log had the right file.
   Every number above was measured on `main`, not taken from that report.
 - 2026-09-08T03:46:43Z claimed by agent/claude-opus-5; lease until 2026-09-08T09:46:43Z
+
+- 2026-09-08 agent/claude-opus-5 — **CORRECTION TO THIS BRIEF, BEFORE ANY FIX.** I filed it and half of it is
+  wrong. Executed, both ways:
+
+        RED 1 (as filed): raise MAX_SQL_LENGTH in services/api/src/ro.ts only, 4000 -> 40000
+          vitest:  Tests  1 failed | 33 passed (34)
+          FAIL  test/ro.test.ts > "rejects anything over the length cap"
+
+  **The TypeScript side IS covered.** `ro.test.ts:16` builds `"SELECT " + "1,".repeat(3000) + "1"` — about
+  6007 characters — and asserts it is rejected. I checked `ro_cases.json` for a long case, found none
+  correctly, and never opened `ro.test.ts`. The brief's claim that "either side's cap can be changed alone and
+  both suites stay green" is false for the TS side and I should not have written it without looking.
+
+  **RED 2 is the real defect, and it is worse than the one I filed.**
+
+        references to ro_grammar in ops/test:     0
+        references to ro_grammar in pins/PINS.yaml: 0
+
+        make read_only_problem() return None for everything:
+          read_only_problem('DROP TABLE users') -> None
+          vitest:  Tests  34 passed (34)
+
+  **The Python mirror is executed by nothing automatic.** `ro_grammar.py --self-test` exists, runs the 26
+  shared cases and prints `RO-GRAMMAR OK 26 cases` — and no workflow, no pin and `ops/test` itself never call
+  it. So `ops/lib/ro_grammar.py` can be made to accept `DROP TABLE users` with the entire suite green.
+
+  That matters because of who runs it: `ops/prod-read` is the tool a human points at **production**, and its
+  only gate is `"$PY" ops/lib/ro_grammar.py "$sql"`. The Worker's `/__ro` is the second line of defence and is
+  well tested; the first line is tested by nothing.
+
+  So the corrected work is:
+  1. `ops/test` must run the Python self-test. That is the structural fix and it is one line.
+  2. A long case belongs in `ro_cases.json` so the length rule is covered on BOTH sides from one place —
+     currently the TS side covers it in a test the Python side cannot see.
+  3. The two `MAX_SQL_LENGTH` constants still have nothing comparing them.
+  4. `ro.ts`'s "so they cannot drift" comment is still an overclaim: the shared cases constrain only what is
+     in them, and the Python side was not being run at all.
+
+  `touches:` widened to include `ops/test` for item 1, which the original scope did not cover.
