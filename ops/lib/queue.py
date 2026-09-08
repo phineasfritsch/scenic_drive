@@ -407,13 +407,145 @@ def cmd_check(_argv):
     return 0
 
 
-def cmd_sweep(_argv):
+def _git_usable():
+    """Can git answer questions about this repo at all?
+
+    Asked once, before anything is swept, because every guard below is a git query and a git that cannot read
+    the worktree would answer "no such branch" to all of them - which is indistinguishable from "abandoned"
+    and is exactly the wrong default. From WSL against a Windows worktree this is a real state, not a
+    hypothetical: the .git file says `gitdir: C:/...` and WSL's git cannot follow it (T-0055).
+    """
+    try:
+        r = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=ROOT,
+                           capture_output=True, text=True, timeout=30)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _git_out(*args):
+    """(status, stdout) for a git query. THREE states, not two.
+
+    status True  - git ran and answered.
+    status False - git ran and said no (ref absent, and that is a real answer).
+    status None  - git could not run at all. Never treat this as "no": every guard below is a git query, and
+                   "cannot answer" read as "absent" is what makes a sweeper delete live work.
+    """
+    try:
+        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=60)
+        return (r.returncode == 0), r.stdout.strip()
+    except Exception:
+        return None, ""
+
+
+def _main_ref():
+    """The ref a task branch is measured against, preferring the remote."""
+    for ref in ("refs/remotes/origin/main", "refs/heads/main"):
+        st, _ = _git_out("rev-parse", "--verify", "-q", ref)
+        if st is True:
+            return ref
+    return None
+
+
+def _branch_has_work(name, base, tid=None, path=None):
+    """True when this task's branch carries commits - i.e. a sweep would strand real work.
+
+    NOT "does the branch exist". `cmd_claim` always records branch: task/<id> and queue/README.md step 4
+    creates exactly that branch, from main, BEFORE any work happens - so existence is true for every task the
+    documented workflow has ever claimed, including one whose agent died in its first minute. Keyed on
+    existence, this guard holds every expired lease forever and the sweeper stops being a sweeper: the
+    abandonment it exists for is precisely the case it refuses. (Reviewer of PR #51; my own control used
+    `branch: task/T-9990-does-not-exist`, a name `ops/claim` cannot produce, so it never saw this.)
+
+    Ahead-of-main is the property that separates the two populations. A claim-time branch sits at main's tip,
+    zero ahead. The 29 expired leases of 2026-09-08 were all pushed branches with open PRs, all ahead.
+
+    A BORROWED branch is held to a stricter test. `cmd_claim` writes `task/<id>` and nothing else, so any
+    other value was written by hand - and four claimed tasks in this tree carry one (T-0072 -> task/T-0066,
+    T-0073 -> task/T-0068, T-0074 -> task/T-0069, T-0076 -> task/T-0077). Stacking work on another task's
+    branch is a real workflow here, not an error, so this does not refuse it; but "that branch is ahead of
+    main" is then a fact about somebody else's task, and holding a lease on it is holding it on evidence
+    that was never about this work. On a borrowed branch, demand a commit that touches THIS task's file.
+    Reviewer of PR #51.
+
+    Returns (has_work, why); why is the sentence printed when the answer is "hold".
+    """
+    if not name or str(name).strip() in ("", "null", "none", "~"):
+        return False, None
+    borrowed = bool(tid) and str(name).strip() != f"task/{tid}"
+    for ref in (f"refs/remotes/origin/{name}", f"refs/heads/{name}"):
+        st, _ = _git_out("rev-parse", "--verify", "-q", ref)
+        if st is None:
+            return True, f"git could not be run to look up {ref}"
+        if st is False:
+            continue
+        if borrowed and path:
+            st, own = _git_out("log", "--format=%H", "-1", f"{base}..{ref}", "--", path)  # path is a glob on the id
+            if st is not True:
+                return True, f"git could not ask whether {ref} touches {path}, and that is not an answer"
+            if own:
+                return True, f"{ref} (borrowed from another task) carries a commit touching {path}"
+            continue
+        st, n = _git_out("rev-list", "--count", f"{base}..{ref}")
+        if st is not True:
+            return True, f"git could not count {base}..{ref}, and a failed query is not an answer"
+        if n.isdigit() and int(n) > 0:
+            return True, f"{ref} is {n} commit(s) ahead of {base}"
+    return False, None
+
+
+def _sweep_fetch(argv):
+    """Refresh origin/* before reading it, or say why we did not and stop.
+
+    The first version of this guard did not fetch and justified it backwards - it claimed a stale ref could
+    only make the sweeper more conservative. The opposite is true: a branch pushed since the last fetch reads
+    as ABSENT here, so the sweeper clears its owner and releases its exclusive lock, and nothing refuses
+    because git itself is fine. Reading a possibly-stale fact in silence is the fail-open class this
+    repository keeps finding, so: fetch, and refuse if the fetch fails.
+    """
+    if "--no-fetch" in argv:
+        print("SWEEP: --no-fetch given. origin/* is whatever the last fetch left, so a task pushed from")
+        print("  another machine since then reads as abandoned. Only correct where you are the only pusher.")
+        return True
+    st, _ = _git_out("fetch", "--quiet", "origin")
+    if st is True:
+        return True
+    print("SWEEP REFUSED: `git fetch origin` failed, so origin/* may predate work pushed from elsewhere.")
+    print("  Every such task would read as abandoned and be swept - owner cleared, exclusive lock released.")
+    print("  Fix the network or the remote, or pass --no-fetch if you are certain nobody else pushes here.")
+    return False
+
+
+def cmd_sweep(argv):
     moved = 0
+    # A lease says an agent stopped working. It does not say the work is gone, and this queue keeps finished
+    # work in claimed/ until it MERGES - so on 2026-09-08, 29 of 29 expired leases belonged to pushed branches
+    # with open PRs. Sweeping them would have set owner: None on all 29 (the state T-0068 exists to reject,
+    # and which this very function produces), and left main saying ready/<id> while each branch says review/ or
+    # done/ - the add/add divergence eleven branches had already been repaired by hand for.
+    if not _git_usable():
+        print("SWEEP REFUSED: git cannot read this repo, so 'is this branch ahead of main?' cannot be answered.")
+        print("  Every expired lease would look abandoned and be swept. Run this where git works.")
+        return 2
+    if not _sweep_fetch(argv):
+        return 2
+    base = _main_ref()
+    if base is None:
+        print("SWEEP REFUSED: neither origin/main nor main resolves, so there is nothing to measure a task")
+        print("  branch against. Without a base every branch reads as carrying no work, and every expired")
+        print("  lease is swept.")
+        return 2
+    held = []
     for state, p, fm, _ in list(tasks()):
         if state != "claimed" or not fm.get("lease_expires_at"):
             continue
         exp = dt.datetime.fromisoformat(fm["lease_expires_at"].replace("Z", "+00:00"))
         if exp < now():
+            work, why = _branch_has_work(fm.get("branch"), base, fm.get("id"),
+                                         f"queue/*/{fm['id']}-*")
+            if work:
+                held.append(f"{fm['id']}: {why}")
+                continue
             for res in fm.get("exclusive") or []:
                 lock = LOCKS / f"{res}.lock"
                 if lock.exists() and fm["id"] in lock.read_text(encoding="utf-8"):
@@ -426,7 +558,13 @@ def cmd_sweep(_argv):
             log(dest, f"sweep: lease held by {owner} expired at {iso(exp)}; returned to ready/, locks released")
             print(f"swept {fm['id']} -> ready/")
             moved += 1
-    print(f"SWEEP done ({moved} moved)")
+    if held:
+        print(f"SWEEP kept {len(held)} expired lease(s) whose branch carries commits - finished work waiting to")
+        print("  merge is not an abandoned task, and clearing its owner would break the reviewer-is-not-owner")
+        print("  rule it will be checked against later:")
+        for h in held:
+            print(f"    {h}")
+    print(f"SWEEP done ({moved} moved, {len(held)} kept)")
     return 0
 
 
@@ -493,6 +631,84 @@ def cmd_claim(argv):
     return 1
 
 
+def _git(*args):
+    """(ok, stdout). ok is False for a failed command AND for a git that cannot run at all - the caller must
+    treat those the same, because "I could not ask" and "the answer is no" lead to opposite actions here."""
+    try:
+        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=30)
+        return r.returncode == 0, r.stdout.strip()
+    except Exception:
+        return False, ""
+
+
+def _main_ref():
+    for ref in ("refs/remotes/origin/main", "refs/heads/main"):
+        ok, _ = _git("rev-parse", "--verify", "-q", ref)
+        if ok:
+            return ref
+    return None
+
+
+def _would_duplicate_on_merge(tid):
+    """Paths where main holds `tid` that THIS BRANCH CANNOT DELETE. None when git cannot answer.
+
+    A branch deletes a file by recording a deletion against a base that has it. `ops/claim` moves
+    ready/ -> claimed/ on MAIN; a stacked worktree is cut from another task branch whose base predates that
+    claim, so the branch does not contain the commit that created claimed/<id>. Whatever it writes, main's
+    copy is an independent add and survives the merge - both exist, `queue-check` fails on the merged tree
+    only, and eleven branches were repaired by hand for exactly this.
+
+    Note the test is on HISTORY, not on the working tree. A branch that WROTE a file at main's path still has
+    a file there; it just shares no history with main's copy, so git keeps both. Asking "does the path exist"
+    answers yes and misses the defect - measured, in this task's first attempt.
+    """
+    ref = _main_ref()
+    if ref is None:
+        # Three different facts get conflated here if you are not careful, and only one is a hazard:
+        #
+        #   ROOT is not a git worktree at all   -> there will never be a merge. Nothing to protect. ALLOW.
+        #   ROOT is a worktree, no main ref     -> no copy on main to duplicate against.             ALLOW.
+        #   ROOT is a worktree, git cannot read it -> the answer is unknown.                         REFUSE.
+        #
+        # The third is real on this checkout: from WSL, a Windows worktree's `.git` names a path WSL's git
+        # cannot follow (CLAUDE.md, T-0055), so git fails on a tree that genuinely has a main.
+        #
+        # Collapsing the first case into the third broke ops/lib/check-lock-lifecycle, which copies queue.py
+        # into a mktemp dir and runs it there: LOCK LIFECYCLE FAIL on "review did not release the lock" and
+        # "review refused a task that holds no locks", on every branch carrying this change. The check was
+        # already red and nothing reported it; the T-0087 fix agent noticed while working nearby.
+        if not (ROOT / ".git").exists():
+            return []
+        return [] if _git_usable() else None
+    # Nothing here fetches: a state transition that reaches the network is one people stop running, and
+    # `_ids_in_refs` already shows what that costs. But reading a possibly-stale ref in silence is how a
+    # guard fails OPEN, so say which commit the answer is about and let the operator judge.
+    ok, head = _git("rev-parse", "--short", ref)
+    if ok and head:
+        print(f"(checked against {ref} at {head}; run `git fetch origin` first if that is stale - this guard cannot see a claim pushed since)")
+    ok, out = _git("ls-tree", "-r", "--name-only", ref, "queue/")
+    if not ok:
+        return None
+    bad = []
+    for path in (l.strip() for l in out.splitlines()):
+        if f"/{tid}-" not in path:
+            continue
+        # --diff-filter=A: the commit that CREATED the path. `rev-list -1` alone returns the commit that
+        # last TOUCHED it, so a branch that genuinely contains the creating commit was refused the moment
+        # main appended one log line to the same file - which queue-sweep, ops/lock and any hand edit do
+        # routinely. The message it printed in that case was factually false. Reviewer of PR #52.
+        # `git log`, not `git rev-list`: rev-list does not accept --diff-filter and exits with a usage
+        # message, which _git reports as "cannot answer" and this function turns into a refusal for
+        # every branch. Caught by running the probe instead of trusting the command.
+        ok, commit = _git("log", "--diff-filter=A", "--format=%H", "-1", ref, "--", path)
+        if not ok or not commit:
+            return None
+        reachable, _ = _git("merge-base", "--is-ancestor", commit, "HEAD")
+        if not reachable:
+            bad.append(path)
+    return bad
+
+
 def cmd_review(argv):
     """Move a CLAIMED task to review/, assign its reviewer, and release the locks it holds.
 
@@ -545,6 +761,39 @@ def cmd_review(argv):
                 return 1
         if reviewer == owner:
             print(f"reviewer {reviewer_raw} is also the owner of {tid} - a worker may not grade its own work")
+            return 1
+
+        # THE MERGE STATE, checked before anything moves, because it is the only defect here that no check
+        # running on the branch or on main can see - it exists solely in the merged tree.
+        #
+        # Refused, not silently repaired: `git merge origin/main` inside a state transition is a
+        # history-changing act hidden in a rename, and it would swallow a genuine duplicate created some other
+        # way. The refusal prints the two commands and costs one run.
+        dup = _would_duplicate_on_merge(tid)
+        if dup is None:
+            print(f"{tid}: cannot read main, so whether merging this branch would duplicate the task file")
+            print("cannot be decided. Refusing rather than guessing - a wrong guess is invisible until the")
+            print("merge. Fetch, or run this where git can read the repo.")
+            return 1
+        if dup:
+            print(f"{tid}: main holds this task where this branch cannot delete it:")
+            for m in dup:
+                print(f"    {m}")
+            print("This branch does not contain the commit that put the file there, so it has no deletion to")
+            print("record. Merging leaves BOTH that copy and queue/review/ - ops/queue-check then fails on the")
+            print("merged tree while passing here and on main, which is why no per-branch CI ever caught it.")
+            print()
+            print("    git merge origin/main        # resolve the add/add on the task file, keeping YOUR copy")
+            # NEVER print `git rm <main's path>` for a path this branch also holds: they are the same file,
+            # so it deletes the branch's only copy and its work log, and the re-run then says "not found".
+            # That was the printed remedy until the reviewer of PR #52 actually followed it. After the merge
+            # the branch CONTAINS main's commit, so ops/review's own `git mv` records a proper rename and
+            # nothing needs removing.
+            elsewhere = [m for m in dup if not (ROOT / m).exists()]
+            for m in elsewhere:
+                print(f"    git rm {m}    # main holds it here; this branch does not, so the merge re-adds it")
+            print()
+            print("then run this again. (T-0063; this repair was applied by hand to eleven branches.)")
             return 1
 
         # Inspect every lock BEFORE unlinking any of them, so a foreign lock cannot leave the task half
