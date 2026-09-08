@@ -31,24 +31,6 @@ if [[ -n "$crlf" ]]; then fail "crlf" "tracked files with CRLF: $crlf" 2; else o
 if [[ "$(git config --get core.autocrlf || echo false)" == "true" ]]; then fail "autocrlf" "true" 2; else ok "autocrlf" "$(git config --get core.autocrlf || echo unset)"; fi
 if grep -qE '^\* text=auto eol=lf' .gitattributes 2>/dev/null; then ok "gitattrs" "eol=lf"; else fail "gitattrs" "missing eol=lf" 2; fi
 
-# ---- 10. other worktrees ------------------------------------------------------------------------------
-# Every check above this line asks about THIS checkout. There are 67 others, and work that never left one of
-# them is invisible to all of them: `wt/T-0030` held 662 lines of the corpus emitter with no
-# `origin/task/T-0030` at all, and only a hand sweep found it. The default pass makes no per-worktree git
-# call, so it costs about as much as the CRLF scan above; `--deep` (untracked and modified files) is left to
-# the operator because at this many worktrees it takes minutes.
-if [[ -x ops/lib/check-worktrees || -f ops/lib/check-worktrees ]]; then
-  wt_out="$(bash ops/lib/check-worktrees 2>&1)"; wt_rc=$?
-  if [[ $wt_rc -eq 0 ]]; then
-    ok "worktrees" "$(printf '%s' "$wt_out" | head -1 | sed 's/^WORKTREES: //')"
-  else
-    fail "worktrees" "$(printf '%s' "$wt_out" | grep -c '^  ') worktree(s) hold work that is not on origin" 10
-    printf '%s\n' "$wt_out" | sed 's/^/          /'
-  fi
-else
-  skip "worktrees" "ops/lib/check-worktrees not present"
-fi
-
 # ---- 3 / 7 / 9. production --------------------------------------------------------------------------
 if [[ $prod -eq 1 ]]; then
   url="${API_URL:-$(cat ops/api-url 2>/dev/null || true)}"
@@ -87,6 +69,40 @@ if [[ $prod -eq 1 ]]; then
   skip "corpus" "T-0008 (graph hash, counts, gate parity)"
   skip "goldens" "T-0008 (live routing goldens)"
   skip "quota" "T-0014 (kill switch, projected calls)"
+fi
+
+# ---- 10. other worktrees ------------------------------------------------------------------------------
+# Every check above this line asks about THIS checkout. There are 78 others, and work that never left one of
+# them is invisible to all of them: `wt/T-0030` held 662 lines of the corpus emitter with no
+# `origin/task/T-0030` at all, and only a hand sweep found it. This runs the FULL four-state pass (untracked
+# inside the task's touches:, modified, unpushed, wrong branch) - the cheap subset alone caught T-0030 only
+# because its branch was missing too, so pushing the branch and leaving the files would have gone green.
+#
+# LAST, deliberately: the header above says "the FIRST failing check in this order decides" over a list
+# ending 7, 9, 10, and `fail` keeps the first code it is given. When this block sat above the production
+# section, a dead backend plus one stranded worktree exited 10 instead of 7 - the code contradicted the
+# table three lines above it.
+if [[ -f ops/lib/check-worktrees ]]; then
+  wt_out="$(bash ops/lib/check-worktrees 2>&1)"; wt_rc=$?
+  # Read the counts the check EMITS. The previous version derived them with `grep -c '^  '` over this
+  # output, which also matched the continuation lines of the check's own summary, and printed "6
+  # worktree(s)" two lines above the check's own "3 of 75". A gate that scrapes the prose of the thing it
+  # reports on is inventing its number.
+  wt_sum=""; while IFS= read -r wl; do [[ "$wl" == WORKTREES-SUMMARY\ * ]] && wt_sum="${wl#WORKTREES-SUMMARY }"; done <<< "$wt_out"
+  if [[ -z "$wt_sum" ]]; then
+    fail "worktrees" "check-worktrees exited $wt_rc with no WORKTREES-SUMMARY line - refusing to invent a count" 10
+    printf '%s\n' "$wt_out" | sed 's/^/          /'
+  else
+    declare -A W=(); for kv in $wt_sum; do W["${kv%%=*}"]="${kv#*=}"; done
+    if [[ $wt_rc -eq 0 ]]; then
+      ok "worktrees" "${W[inspected]} inspected, ${W[statted]} statted, ${W[touches]} with touches: - clean (mode=${W[mode]})"
+    else
+      fail "worktrees" "${W[problems]:-?} of ${W[inspected]:-?} need attention - untracked:${W[untracked]:-?} modified:${W[modified]:-?} unpushed:${W[unpushed]:-?} wrong-branch:${W[branch]:-?} missing:${W[missing]:-?}" 10
+      printf '%s\n' "$wt_out" | sed 's/^/          /'
+    fi
+  fi
+else
+  skip "worktrees" "ops/lib/check-worktrees not present"
 fi
 
 if [[ $rc -eq 0 ]]; then echo "SANE OK"; else echo "SANE FAIL exit=$rc"; fi

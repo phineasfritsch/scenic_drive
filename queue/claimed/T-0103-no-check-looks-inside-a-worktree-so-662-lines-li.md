@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T12:21:19Z
 worktree: null
 branch: task/T-0103
 exclusive: []
-touches: [ops/sane, ops/agent-preflight, ops/lib/check-worktrees]
+touches: [ops/sane, ops/agent-preflight, ops/lib/check-worktrees, ops/lib/check-worktrees-demo]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -143,3 +143,167 @@ the fix is visibility.
 
         $ bash ops/lib/check-exec-bits
         P-OPS-01: 24 files, 15 required present, all modes correct
+
+- 2026-09-08 — **PR #65 review FAIL closed. Four findings; three fixed, one refuted in part. Every fix is
+  demonstrated red-then-green, and the reds are re-runnable: `bash ops/lib/check-worktrees-demo`.**
+
+  `touches:` widened by one path, `ops/lib/check-worktrees-demo`, and only that. It is the red demo the
+  brief asked for, turned into a file, for the reason given under F3.
+
+  **F1 — `ops/sane` printed a count it invented. FIXED.** Reproduced first:
+
+        $ bash ops/sane                                   # exit 10
+        worktrees FAIL   6 worktree(s) hold work that is not on origin
+                    _dupprobe                  unpushed:[no origin/tmp/dupprobe at all]
+                    _t0075probe                unpushed:[no origin/tmp/t0075-probe at all]
+                    T-0104                     unpushed:[no origin/task/T-0104 at all]
+                  WORKTREES: 3 of 75 need attention. ...
+        $ grep -c '^  ' <that check-worktrees output>
+        6
+
+  Three worktrees, three summary continuation lines, `grep -c '^  '` counts six. `check-worktrees` now
+  emits its own numbers on one machine-readable line and `ops/sane` reads that line; nothing greps the
+  prose. If the line is missing, `ops/sane` says so and refuses to print a number at all.
+
+        $ bash ops/sane                                   # exit 10
+        worktrees FAIL   15 of 80 need attention - untracked:4 modified:11 unpushed:7 wrong-branch:0 missing:0
+                  ...
+                  WORKTREES-SUMMARY inspected=80 statted=80 touches=74 problems=15 untracked=4 \
+                    modified=11 unpushed=7 branch=0 missing=0 mode=full
+
+  The wording is fixed with it: the reviewer was right that "hold work that is not on origin" was applied
+  to worktrees that were only `modified:`. Each state now carries its own count.
+
+  **F1, second half — the block sat above the production section and stole its exit code. FIXED**, and this
+  one is a genuine red/green because the old file is still runnable:
+
+        $ export API_URL=http://127.0.0.1:9      # dead backend (7) AND stranded worktrees (10) at once
+        $ bash .artifacts/sane-old --prod        # ops/sane at 81ad441
+        worktrees FAIL   11 worktree(s) hold work that is not on origin
+        backend   FAIL   http://127.0.0.1:9/__health -> unreachable
+        SANE FAIL exit=10                                          <- contradicts its own header
+        $ bash ops/sane --prod
+        backend   FAIL   http://127.0.0.1:9/__health -> unreachable
+        worktrees FAIL   8 of 79 need attention - untracked:2 modified:4 unpushed:5 ...
+        SANE FAIL exit=7                                           <- matches the table
+
+  That run also re-proves F1's first half from the other side: the old file said **11** where the new one
+  says **8**, on the same fleet, in the same minute.
+
+  **F2 — two of the four states were behind a flag nothing invoked. FIXED, and the reason given for it was
+  wrong.** The defence was cost. The cost was never git's:
+
+        74 basename subprocesses                33.7s     <- of the 57s the "zero git calls" pass took
+        74 "${wt##*/}" parameter expansions      0.002s
+        74 git status, serial                   28.5s
+        74 git status, --jobs=8                 14.9s
+        74 git status, --jobs=16                 8.4s
+
+  A fork costs ~0.45s on this box, so the file was paying a third of a minute to compute basenames. Every
+  per-worktree subprocess is gone except the one `git status`, which now runs 16 at a time and carries
+  `--no-optional-locks` — without it, reading 79 worktrees **rewrites 79 other agents' indexes**, and
+  `ops/sane` promises it never mutates anything. All four states are the default; `--fast` is the opt-out.
+  `ops/sane` runs the full pass. Measured under four concurrent agents at 79-80 worktrees: full 1m34s,
+  `--fast` 43s, against the reviewer's 19m40s for the old `--deep`.
+
+  What that buys, on the first run of the fixed version, is the shape the brief was filed for and the old
+  default could not see:
+
+        T-0063   untracked-in-touches: ops/lib/check-review-remedy modified:3
+        T-0097   untracked-in-touches: ops/merge-selftest modified:2
+        T-0117   untracked-in-touches: Sources/ScenicKit/Scoring/ Tests/ScenicKitTests/RouteScoreTests.swift
+                 unpushed:[no origin/task/T-0117 at all]
+
+  Three worktrees holding uncommitted work under a path their own task declared. `T-0063` and `T-0097` are
+  invisible to the old default: both branches ARE on origin.
+
+  **F3 — the red demo was not performed. FIXED, and made re-runnable.** The reviewer is right that a red
+  seen once in a log is weak evidence and that `branch:[...]` and the vacuity floor had never been seen red
+  by anyone. They cannot be demonstrated on the live fleet: it is 80 directories owned by other agents, a
+  red there cannot be turned green by me, and "a T-0085 directory checked out on demo/T-0085-mrg" does not
+  occur on demand. So `ops/lib/check-worktrees-demo` builds a fixture — bare origin, main checkout, one
+  linked worktree, a queue file with a real `touches:` list — and drives every state red and then green:
+
+        $ bash ops/lib/check-worktrees-demo                                       # exit 0
+        ok    unpushed  RED  (no origin/task/T-9901 at all)  exit=1
+        ok    unpushed  green (branch pushed)                exit=0
+        ok    untracked RED  (demo/lost.py under touches:)   exit=1     <- the brief's demo, verbatim
+        ok      and did NOT report notes-not-in-touches.txt
+        ok    untracked green (committed and pushed)         exit=0
+        ok    modified  RED  (1 tracked file changed)        exit=1
+        ok    modified  green (change reverted)              exit=0
+        ok    branch    RED  (T-9901 dir on demo/T-9901-mrg) exit=1
+        ok    branch    green (back on task/T-9901)          exit=0
+        ok    floor     RED  (parser returned 1 of 2)        exit=2
+        ok    floor     green (parser intact)                exit=0
+        ok    touches   RED  (no task file -> 0 examined)    exit=2
+        ok    statted   RED  (every status call failed)      exit=2
+        DEMO: 19 ok, 0 failed
+
+  **F3, second half — the floor counted the wrong population. FIXED.** `n -lt 1` only caught a parse that
+  returned nothing; a parser that returned 1 of 79 exited 0. The floor now counts the population from git's
+  own on-disk metadata (`$GIT_COMMON_DIR/worktrees`, one directory per linked worktree) rather than from a
+  reparse of the listing it is about to trust. Same fixture, same crippled parser, old file and new:
+
+        $ bash cw-old-crippled          # ops/lib/check-worktrees at 81ad441, parser truncated to 1 of 2
+        exit=0
+          | WORKTREES: 1 inspected, every branch is on origin and on the right branch.
+        $ bash cw-new-crippled          # identical truncation
+        exit=2
+          | check-worktrees: parsed 1 worktrees while .git/worktrees held a steady 1 (+1 main checkout).
+          |   The listing and git's own metadata disagree and nothing moved between the two reads, so this
+          |   pass did not see the fleet ...
+
+  Two more floors, on the two populations the other halves actually examine, because "files present" is not
+  "files examined": `statted` (worktrees whose `git status` succeeded) and `touches` (worktrees that yielded
+  a declared path). Either at zero is exit 2, not a green. The `touches` floor earned itself immediately —
+  it went red on the first fixture run for a real reason: the fixture inherited `core.autocrlf=true`, so
+  every task file came back with CRLF and `touches: [...]` matched nothing. Without the floor that would
+  have been a silent all-clear from a check examining zero worktrees. The parser now strips the CR.
+
+  A fleet that MOVES between the two metadata reads is not a broken parser, and saying so is the difference
+  between a floor and a flake: five reads, and a listing consistent with either snapshot is accepted. Only
+  a disagreement on a fleet that did not move is red.
+
+  **F4 — preflight failed for reasons no session can act on. FIXED.** Reproduced: a spotless `T-0103`
+  checkout, `PREFLIGHT FAIL` exit 1, because `_dupprobe`, `_t0075probe` and `T-0104` are other agents'
+  probes. The fleet sweep now prints and does not vote. The reviewer's own test is the proof, because their
+  point was that the exit code had stopped distinguishing the two hooksPath states:
+
+        ### 1. as configured today (fleet has 15 problems)
+        exit=0    hooksPath  .githooks (relative - resolves to THIS worktree, which is what you want)
+                  worktrees  FYI ... (does not fail preflight; ops/sane exit 10 is the gate)
+        ### 2. hooksPath forced ABSOLUTE, pointing at the MAIN checkout          <- the hazard
+        exit=1    ^ ABSOLUTE and NOT this worktree: hooks run from there ...
+        ### 3. hooksPath forced ABSOLUTE, naming THIS worktree                   <- benign
+        exit=0    (absolute, but it is this worktree's own .githooks)
+
+  1 / 0 / 0, where the reviewer measured 1 / 1. Preflight's exit code is again about what this session can
+  fix; `ops/sane` exit 10 is the gate for what it cannot. `.github/workflows/linux-core.yml:59` therefore
+  keeps gating on the toolchain rather than on 79 strangers' directories. Preflight runs `--fast` for the
+  same reason it now reports rather than votes: it is the per-session command, `ops/sane` is the audit.
+
+  **REFUTED, in part — "roughly 6 seconds per worktree".** The header sentence the reviewer measured
+  against (7½ minutes predicted, 19m40s observed) was wrong in both directions and is gone: a `git status`
+  here is 0.38s, and the missing 19 minutes were fork overhead the sentence never mentioned. The reviewer's
+  19m40s stands; the file's explanation of it did not.
+
+  **Verify.**
+
+        $ bash ops/check-pins           0    PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+        $ bash ops/lib/check-exec-bits  0    P-OPS-01: 25 files, 15 required present, all modes correct
+        $ bash ops/queue-check          0    QUEUE OK (93 tasks)
+        $ bash ops/test                 1    FAIL: services/api exists but vitest produced no report
+        $ npm ci --prefix services/api  0    added 85 packages in 9s      # node_modules/ is gitignored
+        $ bash ops/test                 0    TESTS linux=50/50 ios=skipped failed=0 skipped=0
+
+  The first `ops/test` red is this worktree missing `services/api/node_modules`, not this branch: the main
+  checkout is missing it too, and nothing here touches `services/api`. Named rather than quietly installed
+  around, because `ops/test` failing for an environment reason in a fresh worktree is worth somebody's
+  attention.
+
+  `bash ops/sane` still exits **10** on this branch, correctly: 15 of 80 worktrees hold work off origin,
+  including `T-0117`'s untracked `Sources/ScenicKit/Scoring/`. That is the check working, not the check
+  failing. Also still red and not mine, as the reviewer noted: `origin/main` carries
+  `ops/lib/ro_grammar.py` at `100644`, so `ops/lib/check-exec-bits` fails on `main` (P-OPS-01). This
+  branch has it `100755`.

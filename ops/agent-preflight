@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Prints the toolchain state and exits non-zero if the repo is misconfigured for agent work.
-# Run first thing in every session: a wrong-toolchain agent is caught in 5 seconds, not after a confident wrong diagnosis.
+# Prints the toolchain state and exits non-zero if THIS checkout is misconfigured for agent work.
+# Run first thing in every session: a wrong-toolchain agent is caught before a confident wrong diagnosis.
+# The exit code covers only what this session can fix - toolchain, core.hooksPath, autocrlf, CRLF in tracked
+# files, .gitattributes. The fleet-wide worktree sweep below prints and does not vote; `ops/sane` gates it.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 fail=0
@@ -16,15 +18,32 @@ say "docker"   "$(docker --version 2>/dev/null || echo 'MISSING on host (use WSL
 
 # The worktrees, at session start, because that is the only moment somebody can still act on it. CLAUDE.md
 # says to run this command first thing; a stranded branch found now is a push, found later it is 662 lines
-# nobody knew existed. Default pass only - it makes no per-worktree git call.
+# nobody knew existed.
+#
+# REPORTED, NEVER FAILED ON, and that is the whole point. This command answers "is THIS checkout and this
+# toolchain configured for agent work" - every other line here is about the session's own environment and is
+# something the session can fix. The fleet is not: it is 78 other directories owned by other agents, several
+# of them deliberate probes nobody intends to push. A first revision let this set the exit code, and within
+# one review it had eaten the exit code of the check on the line below - preflight returned 1 for BOTH the
+# hazardous absolute core.hooksPath and the benign one, so the code no longer distinguished them and only
+# the printed text did. `.github/workflows/linux-core.yml` runs this as a hard gate, and it passed there only
+# because GitHub's checkout is a single detached-HEAD worktree with nothing to scan.
+#
+# The gate for this is `ops/sane` (exit 10), which runs the FULL four-state pass. Here it is `--fast`:
+# on-disk, on-origin, on-the-right-branch, no per-worktree git call. Measured on this box under four
+# concurrent agents, at 79 worktrees: --fast 43s, full 1m42s. Unloaded the same two were ~2s and ~12s.
 if [[ -f ops/lib/check-worktrees ]]; then
-  wt_out="$(bash ops/lib/check-worktrees 2>&1)"; wt_rc=$?
+  wt_out="$(bash ops/lib/check-worktrees --fast 2>&1)"; wt_rc=$?
+  wt_sum=""; while IFS= read -r wl; do [[ "$wl" == WORKTREES-SUMMARY\ * ]] && wt_sum="${wl#WORKTREES-SUMMARY }"; done <<< "$wt_out"
+  declare -A W=(); for kv in $wt_sum; do W["${kv%%=*}"]="${kv#*=}"; done
   if [[ $wt_rc -eq 0 ]]; then
-    say "worktrees" "$(printf '%s' "$wt_out" | head -1 | sed 's/^WORKTREES: //')"
-  else
-    say "worktrees" "NEEDS ATTENTION"
+    say "worktrees" "${W[inspected]:-?} inspected (--fast), every branch is on origin and on the right branch"
+  elif [[ -z "$wt_sum" ]]; then
+    say "worktrees" "check-worktrees exited $wt_rc with no WORKTREES-SUMMARY line (FYI - does not fail preflight)"
     printf '%s\n' "$wt_out" | sed 's/^/             /'
-    fail=1
+  else
+    say "worktrees" "FYI ${W[problems]:-?} of ${W[inspected]:-?} need attention (does not fail preflight; ops/sane exit 10 is the gate)"
+    printf '%s\n' "$wt_out" | sed 's/^/             /'
   fi
 fi
 
