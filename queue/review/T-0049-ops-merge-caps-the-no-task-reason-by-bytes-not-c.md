@@ -42,6 +42,40 @@ audit trail is the one thing on that code path that has to be trustworthy.
   9a18891 on task/T-0044 newest). touches: extended past the seeded [ops/merge] because the fix is being anchored
   on a new pin assertion (P-OPS-02) rather than on a comment - see the decision entry below.
 - 2026-09-07T22:06:34Z agent/claude-opus-5: fix + P-OPS-02; state -> review, reviewer agent/reviewer-39.
+- 2026-09-08T13:02:52Z agent/claude-opus-5 (session 01SS4jAGs2oyr4Z4Wd8yK82t), fixer for PR #41: P-OPS-01 was red.
+  **What was wrong.** `ops/lib/merge_reason_cap_assert.py` was committed 100644, not 100755. Both `ops/lib/`
+  files are new on this branch (neither is on main); `check-merge-reason-cap` got the bit, the `.py` never did.
+  The "Gates, re-run at the final tree" entry below claims *"Both `ops/lib/` files stay 100755 (P-OPS-01)"* -
+  that claim was false when it was written, and nothing local contradicted it: `core.filemode` is false on this
+  Windows checkout so git does not notice a mode, and `ops/lib/check-merge-reason-cap:156` runs the file as
+  `"$PY" "$ASSERT"`, which does not need the bit. It breaks only on direct invocation - `./ops/lib/...`,
+  queue/README.md step 1, Xcode Cloud's ci_scripts.
+  **Classified from content, not name:** the file opens `#!/usr/bin/env python3` and ends
+  `if __name__ == "__main__": sys.exit(main(sys.argv))`. It is a program, so it takes the bit. Fixed with
+  `git update-index --chmod=+x ops/lib/merge_reason_cap_assert.py` - one path, zero content change
+  (`git diff --cached --summary`: `mode change 100644 => 100755`; 0 insertions, 0 deletions).
+  **Left at 100644 on purpose:** `ops/api-url` (a one-line URL) and `ops/lib/ro_cases.json`. check-exec-bits
+  classifies `*.json`/`*.txt`/`*.md` and the literal `ops/api-url` as data and fails if they are executable, so
+  chmodding everything under ops/ would make the pin pass while destroying what it protects. I checked that
+  direction rather than assuming it: `git update-index --chmod=+x ops/api-url` turned the assertion red with
+  `ops/api-url (data, should be 100644, is 100755)`; reverted, blob hash unchanged.
+  **RED then GREEN.**
+
+      $ bash ops/lib/check-exec-bits          # P-OPS-01's assertion, on its own
+      before: P-OPS-01: wrong git file mode:
+                ops/lib/merge_reason_cap_assert.py (script, should be 100755, is 100644)    EXIT=1
+      after:  P-OPS-01: 26 files, 15 required present, all modes correct                    EXIT=0
+
+      $ bash ops/check-pins
+      before: PINS ok=8 skipped=0 pending=3 expired=0 failed=2 tier=linux    EXIT=1   (P-OPS-01, P-SAFE-05)
+      after:  PINS ok=9 skipped=0 pending=3 expired=0 failed=1 tier=linux    EXIT=1   (P-SAFE-05 only)
+
+  `ops/check-pins` still exits 1 and I am not claiming otherwise: P-SAFE-05 (`swift test --filter
+  SolarFixtureTests`) was already red in that same pre-change run, has nothing to do with file modes, and is
+  outside this task's `touches:`. P-OPS-01 itself moved failed -> ok; ok went 8 -> 9, failed 2 -> 1, and
+  skipped/pending/expired are unchanged, so nothing else went red. `bash ops/sane` -> SANE OK.
+  I did not run `ops/test`: this is a mode bit with zero content delta and cannot move a test result.
+  Queue state NOT transitioned - I am the fixer, not the reviewer.
 
 ### Decision: cap by CHARACTERS (option 1 of the three the brief offered)
 
