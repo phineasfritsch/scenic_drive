@@ -568,6 +568,12 @@ def _would_duplicate_on_merge(tid):
     ref = _main_ref()
     if ref is None:
         return None
+    # Nothing here fetches: a state transition that reaches the network is one people stop running, and
+    # `_ids_in_refs` already shows what that costs. But reading a possibly-stale ref in silence is how a
+    # guard fails OPEN, so say which commit the answer is about and let the operator judge.
+    ok, head = _git("rev-parse", "--short", ref)
+    if ok and head:
+        print(f"(checked against {ref} at {head}; run `git fetch origin` first if that is stale - this guard cannot see a claim pushed since)")
     ok, out = _git("ls-tree", "-r", "--name-only", ref, "queue/")
     if not ok:
         return None
@@ -575,7 +581,14 @@ def _would_duplicate_on_merge(tid):
     for path in (l.strip() for l in out.splitlines()):
         if f"/{tid}-" not in path:
             continue
-        ok, commit = _git("rev-list", "-1", ref, "--", path)
+        # --diff-filter=A: the commit that CREATED the path. `rev-list -1` alone returns the commit that
+        # last TOUCHED it, so a branch that genuinely contains the creating commit was refused the moment
+        # main appended one log line to the same file - which queue-sweep, ops/lock and any hand edit do
+        # routinely. The message it printed in that case was factually false. Reviewer of PR #52.
+        # `git log`, not `git rev-list`: rev-list does not accept --diff-filter and exits with a usage
+        # message, which _git reports as "cannot answer" and this function turns into a refusal for
+        # every branch. Caught by running the probe instead of trusting the command.
+        ok, commit = _git("log", "--diff-filter=A", "--format=%H", "-1", ref, "--", path)
         if not ok or not commit:
             return None
         reachable, _ = _git("merge-base", "--is-ancestor", commit, "HEAD")
@@ -658,9 +671,15 @@ def cmd_review(argv):
             print("record. Merging leaves BOTH that copy and queue/review/ - ops/queue-check then fails on the")
             print("merged tree while passing here and on main, which is why no per-branch CI ever caught it.")
             print()
-            print("    git merge origin/main")
-            for m in dup:
-                print(f"    git rm {m}")
+            print("    git merge origin/main        # resolve the add/add on the task file, keeping YOUR copy")
+            # NEVER print `git rm <main's path>` for a path this branch also holds: they are the same file,
+            # so it deletes the branch's only copy and its work log, and the re-run then says "not found".
+            # That was the printed remedy until the reviewer of PR #52 actually followed it. After the merge
+            # the branch CONTAINS main's commit, so ops/review's own `git mv` records a proper rename and
+            # nothing needs removing.
+            elsewhere = [m for m in dup if not (ROOT / m).exists()]
+            for m in elsewhere:
+                print(f"    git rm {m}    # main holds it here; this branch does not, so the merge re-adds it")
             print()
             print("then run this again. (T-0063; this repair was applied by hand to eleven branches.)")
             return 1

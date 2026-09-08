@@ -121,3 +121,48 @@ point of it.
   blocked because six unmerged branches hold the file. That is no longer a footnote: the file has grown 90%
   past its exemption in a day, and every increment was a real defect that could not wait for a merge that has
   not come.
+
+- 2026-09-08 agent/claude-opus-5 — **an independent reviewer of PR #52 returned FAIL with four findings. Three
+  are code and are fixed here; the fourth is scope and is acknowledged.**
+
+  **HIGH — the remediation this guard printed was destructive.** It printed `git rm <main's path>` without
+  ever comparing main's path to the branch's own, and in the shape the docstring is written for they are the
+  SAME file. Following the two printed commands verbatim deleted the branch's only copy of its task file,
+  work log and all, after which the instructed re-run printed `T-9991 not found`, exit 1. **My control merged
+  main and stopped — it never ran the second command I told people to run**, which is exactly why the trap
+  survived my own testing. It now prints only
+
+        git merge origin/main        # resolve the add/add on the task file, keeping YOUR copy
+
+  and emits a `git rm` only for a path the branch does not hold, where the merge really would re-add it.
+  After the merge the branch CONTAINS main's commit, so `ops/review`'s own `git mv` records a proper rename
+  and nothing needs removing.
+
+  **HIGH — it failed OPEN on a stale `origin/main`.** Nothing fetched and nothing warned, so a branch reviewed
+  against a week-old ref was allowed and duplicated anyway. It does not fetch now either — a state transition
+  that reaches the network is one people stop running, and `_ids_in_refs` shows what that costs — but it names
+  the ref and commit its answer is about:
+
+        (checked against refs/heads/main at bfd2b1e; run `git fetch origin` first if that is stale -
+         this guard cannot see a claim pushed since)
+
+  **MEDIUM — the query was wrong, and refused branches that were fine.** `git rev-list -1 <ref> -- <path>`
+  returns the commit that LAST TOUCHED the path, not the one that created it. So a branch that genuinely
+  contained the creating commit was refused the moment main appended a log line to that same file — which
+  `ops/queue-sweep`, `ops/lock` and any hand edit do routinely — with a message stating something factually
+  false. Now `git log --diff-filter=A --format=%H -1`. Probed:
+
+        branch contains the creating commit; main last touched the file more recently
+        -> T-9992 -> queue/review/T-9992-x.md  reviewer=agent/other        (allowed, correctly)
+
+  **And a mistake inside the fix, caught by running the probe rather than trusting the command:** `git
+  rev-list` does not accept `--diff-filter` at all. It exits with a usage message, which `_git` reports as
+  "cannot answer", which this function turns into a refusal for **every** branch. The first version of this
+  fix would have broken `ops/review` completely. `git log` takes the flag; `rev-list` does not.
+
+  Control after all three: the legitimate flow still passes and the merge still yields exactly one copy.
+
+  **MEDIUM, not fixed, acknowledged:** two of the brief's four bullets were not delivered and the PR body did
+  not say so. `queue/README.md` is in this task's `touches:` and is untouched, and there is still no
+  `ops/done` for the review -> done transition the brief names. Both are real omissions; recording them here
+  rather than quietly leaving the brief looking satisfied.
