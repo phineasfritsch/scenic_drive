@@ -109,4 +109,110 @@ struct LambdaSearchBudgetUseTests {
         #expect(out.extraTime(overFastest: Self.fastest) == out.duration - Self.fastest)
         #expect(out.extraTime(overFastest: Self.fastest) <= Self.budget)
     }
+
+    // MARK: - the boundaries and the errors (reviewer-pr71, findings F3 and F4)
+
+    @Test("usedBudget is true at exactly half the budget and false just under it")
+    func usedBudgetBoundaryIsExact() throws {
+        // F3: the documented "at least half" boundary had no witness. partialBudgetIsNotUsed pinned the
+        // interval (0.4, 0.55], which holds for any threshold in that range, and its own comment claimed it
+        // "pins a boundary rather than a direction". These are the two sides of the actual boundary.
+        //
+        // fastest 1800 s, budget 1500 s, so half the budget is 750 s and the boundary duration is 2550 s.
+        // Written out rather than computed from minBudgetUse, which is the constant under test.
+        let atTheBoundary = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
+            .search { _ in 2550 }
+        #expect(atTheBoundary.usedBudget, "2550 s is exactly fastest + half the budget; the rule is >=")
+
+        let justUnder = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
+            .search { _ in 2549 }
+        #expect(!justUnder.usedBudget, "one second under the half-budget boundary is not using the budget")
+
+        let wellOver = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
+            .search { _ in 3000 }
+        #expect(wellOver.usedBudget)
+    }
+
+    @Test("a zero budget counts as used, because there was none to spend")
+    func zeroBudgetIsAlwaysUsed() throws {
+        let out = try LambdaSearch(fastest: Self.fastest, budget: 0).search { _ in Self.fastest }
+        #expect(out.usedBudget, "asking for no extra time and getting none is not a failure to use it")
+
+        // The `budget == 0` short-circuit only earns its place when the router BEATS the recorded fastest
+        // duration - which it can, since `fastest` was measured on an earlier request. At exactly `fastest`
+        // the arithmetic gives the same answer either way, so a fixture there pins nothing: removing the
+        // short-circuit was MISSED until this case existed.
+        let quicker = try LambdaSearch(fastest: Self.fastest, budget: 0).search { _ in Self.fastest - 60 }
+        #expect(quicker.usedBudget, "a zero budget is spent by definition, whatever the router returned")
+    }
+
+    @Test("every BudgetError says what happened, in a sentence with the numbers in it")
+    func errorsDescribeThemselves() {
+        // F4: every error assertion in this suite was type-only, so 41 lines of public API - including the
+        // whole CustomStringConvertible conformance - had no behavioural coverage at all. These strings
+        // reach a log and a bug report, so they are pinned as text.
+        #expect(String(describing: BudgetError.notADuration(-1))
+                == "fastest duration is not a positive finite number of seconds: -1.0")
+        #expect(String(describing: BudgetError.notABudget(-5))
+                == "budget is not a non-negative finite number of seconds: -5.0")
+        #expect(String(describing: BudgetError.routerReturnedNonsense(lambda: 2.5, duration: -3))
+                == "router returned -3.0 s at lambda 2.5")
+        #expect(String(describing: BudgetError.noFeasibleLambda(ceiling: 3300, best: 4000, evaluations: 6))
+                == "no lambda produced a route within the 3300.0 s ceiling in 6 evaluations; "
+                + "the shortest seen was 4000.0 s")
+    }
+
+    @Test("the error carries the values, not just the case")
+    func errorsCarryTheirNumbers() throws {
+        // A typed throw whose payload is wrong is worse than an untyped one: it puts a plausible wrong number
+        // in front of whoever reads it. Pinned by pattern-matching the payload, not by the case alone.
+        do {
+            _ = try LambdaSearch(fastest: -1, budget: Self.budget)
+            Issue.record("a negative fastest duration must be refused")
+        } catch let e as BudgetError {
+            guard case let .notADuration(t) = e else {
+                Issue.record("wrong case: \(e)"); return
+            }
+            #expect(t == -1)
+        }
+
+        do {
+            _ = try LambdaSearch(fastest: Self.fastest, budget: -5)
+            Issue.record("a negative budget must be refused")
+        } catch let e as BudgetError {
+            guard case let .notABudget(b) = e else {
+                Issue.record("wrong case: \(e)"); return
+            }
+            #expect(b == -5)
+        }
+
+        do {
+            _ = try LambdaSearch(fastest: Self.fastest, budget: Self.budget).search { l in
+                l == 0 ? -7 : Self.fastest
+            }
+            Issue.record("a negative duration from the router must be refused")
+        } catch let e as BudgetError {
+            guard case let .routerReturnedNonsense(lambda, duration) = e else {
+                Issue.record("wrong case: \(e)"); return
+            }
+            #expect(lambda == 0)
+            #expect(duration == -7)
+        }
+    }
+    @Test("the search stops on lambdaTolerance, not only on the evaluation cap")
+    func toleranceTerminatesTheSearch() throws {
+        // F2: reviewer-pr71 measured that the `hi - lo > lambdaTolerance` condition never fired in any test,
+        // so deleting it was free - and widening it from 0.05 to 0.75 silently cut a search from 6 router
+        // requests to 5 with the whole suite green. Every default-configured search stops on the evaluation
+        // cap first, so the tolerance only becomes observable with the cap lifted out of the way.
+        //
+        // Derived by hand, and I got it wrong the first time: I wrote 10 and the answer is 9. The condition
+        // is checked BEFORE each evaluation, so a midpoint is taken while the bracket is still wider than the
+        // tolerance. Widths 8, 4, 2, 1, 0.5, 0.25, 0.125, 0.0625 are each > 0.05 and each buy a midpoint;
+        // 0.03125 is not, and the loop stops. 1 seed + 8 midpoints = 9, well inside the cap of 30. The code
+        // was right and the derivation was wrong, which is the only reason worth changing a test for.
+        let search = try LambdaSearch(fastest: Self.fastest, budget: Self.budget, maxEvaluations: 30)
+        let out = try search.search { _ in Self.fastest }
+        #expect(out.evaluations == 9, "stopped after \(out.evaluations) evaluations, not on the tolerance")
+    }
 }

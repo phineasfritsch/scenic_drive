@@ -100,12 +100,25 @@ struct LambdaSearchTests {
         #expect(out.lambda > 0, "an equally fast but more scenic option was available and was not taken")
 
         // And the winner must still be a lambda that was actually measured.
-        final class Recorder: @unchecked Sendable { var asked: Set<Double> = [] }
+        //
+        // Written out as LITERALS, because the previous form asked the object under test what it had done and
+        // then checked it against itself: `rec.asked.contains(out2.lambda)` and
+        // `out2.lambda == rec.asked.max()` hold for any search that returns something it asked for, including
+        // one that asks for entirely the wrong things. reviewer-pr71 measured the consequence - the mutation
+        // "return the bracket instead of a measured candidate" was caught by ONE unrelated test, and slipped
+        // straight through the test written against it, because on a flat curve the bracket `lo` IS the
+        // largest lambda asked.
+        //
+        // Derived by hand from the constants: seed at 0, then bisect [0, maxLambda = 8] with every candidate
+        // feasible, for maxEvaluations = 6 total. 4, 6, 7, 7.5, 7.75 - stopping on the evaluation cap, not on
+        // lambdaTolerance = 0.05, since 8 - 7.75 is still above it. This sequence pins maxLambda's USE, which
+        // its value being pinned elsewhere did not: at maxLambda 16 the search would ask 0, 8, 12, 14, 15, 15.5.
+        final class Recorder: @unchecked Sendable { var asked: [Double] = [] }
         let rec = Recorder()
         let out2 = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
-            .search { rec.asked.insert($0); return Self.fastest }
-        #expect(rec.asked.contains(out2.lambda))
-        #expect(out2.lambda == rec.asked.max())
+            .search { rec.asked.append($0); return Self.fastest }
+        #expect(rec.asked == [0, 4, 6, 7, 7.5, 7.75])
+        #expect(out2.lambda == 7.75)
     }
 
     @Test("the default search spends exactly the evaluations it is configured for")

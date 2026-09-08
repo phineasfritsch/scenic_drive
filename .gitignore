@@ -43,3 +43,4 @@ corpus*.sqlite
 *.p8
 *.p12
 .netrc
+.build-*/
