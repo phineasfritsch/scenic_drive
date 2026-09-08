@@ -1,13 +1,13 @@
 ---
 id: T-0082
 title: 32 of 48 leases have expired and queue-sweep would clobber every one of them
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T03:28:24Z
+lease_expires_at: 2026-09-08T09:28:24Z
+worktree: wt/T-0082
+branch: task/T-0082
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
@@ -55,3 +55,4 @@ task whose work is complete.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 after declining to sweep. The 32 figure was measured by parsing
   `lease_expires_at` from every file in `queue/claimed/`.
+- 2026-09-08T03:28:24Z claimed by agent/claude-opus-5; lease until 2026-09-08T09:28:24Z
