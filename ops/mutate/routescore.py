@@ -5,9 +5,21 @@ line names a file nobody else can run has no reproducible red evidence. Each mut
 mutation that does not compile is reported `compile-only` and does not count, since a compiler error is a
 fact about Swift and not about this suite.
 
-Run `--prove-vacuity` to check the harness itself: it replaces the test file with an empty suite and
-requires every mutation to report MISSED. A harness that still reports catches with no tests present is
-measuring the compiler.
+THE PASS CONDITION IS `caught == len(MUTATIONS)`, full stop. It used to be
+`caught + len(trapped) == len(MUTATIONS)`, which counted a crash as a pass while the docstring three lines
+above said a crash is not a catch. That was filed against every harness in this repository (BLOCKING 6 on
+PR #70) and demonstrated: break a harness's own FAIL_LINE regex with the subject pristine and every mutation
+scores `trapped` and the run exits 0, so the harness cannot tell "the subject is covered" from "I am
+broken". The corrected shape is ops/mutate/guidance.py on task/T-0129, and this file follows it:
+
+  * a trap, a compile failure and a stale anchor each fail the run;
+  * SKIP is its own bucket, never folded into MISSED - a mutation that did not land says the harness is
+    stale, which is the opposite of what MISSED says;
+  * `--prove-vacuity` requires `caught == 0` AND `missed == len(MUTATIONS)`. Requiring only `caught == 0`
+    let a reviewer replace all 21 anchors with strings absent from the source and still print
+    "VACUITY PROOF OK", because a mutation that never landed is indistinguishable from one that landed and
+    was correctly not caught;
+  * the EQUIVALENT arm requires its mutants to go MISSED specifically, not merely "not caught".
 """
 from __future__ import annotations
 
@@ -19,13 +31,23 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SRC = ROOT / "Sources" / "ScenicKit" / "Scoring" / "RouteScore.swift"
-TESTS = ROOT / "Tests" / "ScenicKitTests" / "RouteScoreTests.swift"
+TESTS = (ROOT / "Tests" / "ScenicKitTests" / "RouteScoreTests.swift",
+         ROOT / "Tests" / "ScenicKitTests" / "RouteScoreBoundaryTests.swift")
 SCRATCH = ".build-mutate-routescore"
 
 EMPTY_SUITE = ('import Testing\n'
-               '@Suite("empty") struct EmptyRouteScoreSuite {\n'
-               '    @Test("nothing") func nothing() { #expect(true) }\n'
+               '@Suite("empty %(n)s") struct Empty%(n)sSuite {\n'
+               '    @Test("nothing %(n)s") func nothing() { #expect(true) }\n'
                '}\n')
+
+# The two places a run can be closed. Both need their own anchor, and both anchors carry the line ABOVE
+# them: "        if run >= episodeMinLength - tolerance { count += 1 }" is a substring of the indented
+# in-loop copy, so an 8-space anchor would silently mutate the wrong one.
+EPISODE_INLOOP = ("            } else {\n"
+                  "                if run >= episodeMinLength - tolerance { count += 1 }")
+EPISODE_ATEND = ("        }\n"
+                 "        if run >= episodeMinLength - tolerance { count += 1 }\n"
+                 "        return count")
 
 MUTATIONS = [
     # --- structural: the natural-but-wrong implementation -------------------------------------------
@@ -46,8 +68,7 @@ MUTATIONS = [
      "                count += 1\n            }\n            if false {\n                run += e.length\n"),
 
     ("forget the episode that the route ends on",
-     "        if run >= episodeMinLength { count += 1 }\n        return count",
-     "        return count"),
+     EPISODE_ATEND, "        }\n        return count"),
 
     ("add the dud fraction instead of subtracting it",
      "- Self.dudPenalty * dud",
@@ -64,25 +85,27 @@ MUTATIONS = [
      "        guard edges.allSatisfy(\\.isValid) else { return nil }\n"
      "        let total = edges.reduce(0.0) { $0 + $1.length }"),
 
-    # --- the percentile, where the shipped bug was --------------------------------------------------
+    # --- the percentile, where the first shipped bug was ---------------------------------------------
     ("sort the percentile the other way, turning p90 into p10",
      "let sorted = edges.sorted { $0.score < $1.score }",
      "let sorted = edges.sorted { $0.score > $1.score }"),
 
-    # The shipped regression, restored whole. A separate `reduce` is NOT independently a defect any more:
-    # the boundary tolerance absorbs the discrepancy, so mutating only the reduce is a no-op. Either half of
-    # the fix suffices on its own, which means the mutation that reproduces the bug has to remove BOTH -
-    # exactly the shape the code had when the reviewer found it.
-    ("restore the shipped bug: separate reduce AND no tolerance",
-     "        let target = total * fraction\n"
-     "        let tolerance = total * 1e-9",
-     "        let separateTotal = sorted.reduce(0.0) { $0 + $1.length }\n"
-     "        let target = separateTotal * fraction\n"
+    # The shipped regression, restored. It used to be listed as two mutations - "separate reduce AND no
+    # tolerance" and "drop the tolerance" - under a comment claiming "either half of the fix suffices on
+    # its own". A reviewer measured that claim and found it inverted, and measuring it again the other way
+    # says why: `sorted.reduce { $0 + $1.length }` is a left fold over the same sequence, in the same
+    # order, as the loop's own `cumulative`, so the two totals are bit-identical for every input (worst
+    # difference over the fixture at k = 1...400: exactly 0.0). The separate reduce was never a defect and
+    # never part of the fix. Dropping the tolerance IS the shipped bug, and there is one mutation for it.
+    # The equivalence is not left as a claim either: it is EQUIVALENT[1] below, and the run fails if it is
+    # ever caught.
+    ("restore the shipped bug: drop the percentile boundary tolerance",
+     "        let tolerance = total * Self.boundaryTolerance",
      "        let tolerance = 0.0"),
 
-    ("drop the boundary tolerance",
-     "        let tolerance = total * 1e-9",
-     "        let tolerance = 0.0"),
+    ("flip the percentile boundary tolerance to the wrong side",
+     "        for (i, c) in running.enumerated() where c >= target - tolerance {",
+     "        for (i, c) in running.enumerated() where c >= target + tolerance {"),
 
     ("percentile by index instead of by length",
      "        var running: [Double] = []",
@@ -94,6 +117,16 @@ MUTATIONS = [
     ("use the seventieth percentile instead of the ninetieth",
      "let p90 = Self.lengthWeightedPercentile(edges, fraction: 0.90)",
      "let p90 = Self.lengthWeightedPercentile(edges, fraction: 0.70)"),
+
+    # 0.89 and 0.91 are the two that matter: the suite used to pin the fraction only to (0.85, 0.90], so a
+    # reviewer moved it to 0.86 and to 0.89 with every assertion green.
+    ("use the eighty-ninth percentile instead of the ninetieth",
+     "let p90 = Self.lengthWeightedPercentile(edges, fraction: 0.90)",
+     "let p90 = Self.lengthWeightedPercentile(edges, fraction: 0.89)"),
+
+    ("use the ninety-first percentile instead of the ninetieth",
+     "let p90 = Self.lengthWeightedPercentile(edges, fraction: 0.90)",
+     "let p90 = Self.lengthWeightedPercentile(edges, fraction: 0.91)"),
 
     ("move the dud threshold from 0.25 to 0.05",
      "public static let dudThreshold = 0.25",
@@ -115,6 +148,18 @@ MUTATIONS = [
      "public static let honestFailureThreshold = 0.45",
      "public static let honestFailureThreshold = 0.01"),
 
+    ("widen the shared boundary tolerance to 4% of route length",
+     "public static let boundaryTolerance = 1e-9",
+     "public static let boundaryTolerance = 0.04"),
+
+    ("raise the episode target from three to five",
+     "public static let episodeTarget = 3.0",
+     "public static let episodeTarget = 5.0"),
+
+    ("drop the cap, so a route with eight episodes keeps being paid for them",
+     "+ Self.episodeWeight * min(1.0, Double(episodes) / Self.episodeTarget)",
+     "+ Self.episodeWeight * (Double(episodes) / Self.episodeTarget)"),
+
     # --- threshold strictness, which was stated only in doc comments ---------------------------------
     ("make the episode threshold non-strict, so a flat 0.6 becomes an episode",
      "            if e.score > episodeThreshold {",
@@ -124,20 +169,57 @@ MUTATIONS = [
      "let dud = edges.filter { $0.score <= Self.dudThreshold }",
      "let dud = edges.filter { $0.score < Self.dudThreshold }"),
 
-    ("require a run to EXCEED the episode minimum rather than reach it",
-     "                if run >= episodeMinLength { count += 1 }",
-     "                if run > episodeMinLength { count += 1 }"),
-    ("flip the boundary tolerance to the wrong side",
-     "        for (i, c) in running.enumerated() where c >= target - tolerance {",
-     "        for (i, c) in running.enumerated() where c >= target + tolerance {"),
+    ("make isHonestFailure non-strict, so a route exactly on the threshold is refused",
+     "public var isHonestFailure: Bool { value < Self.honestFailureThreshold }",
+     "public var isHonestFailure: Bool { value <= Self.honestFailureThreshold }"),
 
+    # --- the episode boundary, which is an ACCUMULATED length and had no tolerance at all ------------
+    # Four mutations, because there are two closing sites and two ways to break each: remove the tolerance
+    # (the shipped defect - an 800 m episode returned as k intervals is thrown away for 99 of the first
+    # 200 k) and put it on the wrong side (which throws it away for every k).
+    # There is deliberately NO `>=` -> `>` mutation here any more. It used to be caught, and with the
+    # tolerance present it is unobservable: at a run of exactly 800 m both `>=` and `>` clear
+    # `800 - tolerance`. Measured, not assumed - it went MISSED when tried. Keeping it would report a gap
+    # that is not one; the four below cover the same boundary and more of it.
+    ("drop the episode tolerance where a dull stretch closes the run",
+     EPISODE_INLOOP,
+     "            } else {\n                if run >= episodeMinLength { count += 1 }"),
+
+    ("drop the episode tolerance where the route ends on the run",
+     EPISODE_ATEND,
+     "        }\n        if run >= episodeMinLength { count += 1 }\n        return count"),
+
+    ("flip the episode tolerance to the wrong side, mid-route",
+     EPISODE_INLOOP,
+     "            } else {\n                if run >= episodeMinLength + tolerance { count += 1 }"),
+
+    ("flip the episode tolerance to the wrong side, at the end of the route",
+     EPISODE_ATEND,
+     "        }\n        if run >= episodeMinLength + tolerance { count += 1 }\n        return count"),
 ]
 
+# Cannot change behaviour, so a catch here is a FAILURE and anything other than MISSED is a failure too.
+EQUIVALENT = [
+    # raw <= 0.60*1 + 0.25*1 - 0.15*0 + 0.10*1 = 0.95, because ScoredEdge.isValid pins every score to
+    # 0...1, so the upper half of the clamp is unreachable. It stays for the reader and because it goes
+    # live the moment the episode cap changes; it is not test coverage and is not counted as any.
+    ("drop the unreachable upper half of the clamp",
+     "self.value = min(1.0, max(0.0, raw))",
+     "self.value = max(0.0, raw)"),
+
+    # The half of the F1 "fix" that never did anything. `reduce` is a left fold over `sorted` in the same
+    # order as the loop that produced `cumulative`, so the two are bit-identical for every input. This is
+    # the assertion that keeps the corrected story honest: if a future change ever makes the two totals
+    # differ, this mutant starts being caught and the run fails, which is the right way to find out.
+    ("take the percentile total from a separate reduce, as the shipped code did",
+     "        let total = cumulative\n",
+     "        let total = sorted.reduce(0.0) { $0 + $1.length }\n"),
+]
 
 FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
 
 
-def build():
+def build() -> int:
     p = subprocess.run(["swift", "build", "--build-tests", "--scratch-path", SCRATCH],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     return p.returncode
@@ -149,100 +231,106 @@ def test():
     return p.returncode, (p.stdout + p.stderr)
 
 
-def run_all(text, pristine):
-    caught, compile_only, missed, trapped = 0, [], [], []
-    for name, old, new in MUTATIONS:
+def run_all(pristine, mutations):
+    """A verdict per mutation. SKIP is its own bucket: a mutation that did not land means the harness is
+    stale, which is the opposite of what MISSED means."""
+    out = {"caught": [], "trapped": [], "compile_only": [], "missed": [], "skipped": []}
+    text = pristine.decode("utf-8")
+    for name, old, new in mutations:
         if old not in text:
-            sys.stdout.write("SKIP        %-56s anchor not found - harness stale\n" % name)
-            missed.append(name)
+            sys.stdout.write("SKIP        %-62s anchor not found - harness is stale\n" % name)
+            out["skipped"].append(name)
             continue
+        code = 0
         try:
             SRC.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
             if SRC.read_bytes() == pristine:
-                sys.stdout.write("SKIP        %-56s mutation did not land\n" % name)
-                missed.append(name)
+                sys.stdout.write("SKIP        %-62s mutation did not land\n" % name)
+                out["skipped"].append(name)
                 continue
-            # Build twice before believing a compile failure. Other agents run swift builds on this box
-            # concurrently and a transient scratch-directory collision produced a false compile-only
-            # verdict for a mutation that compiles fine - checked by hand, exit 0.
+            # Built twice before a compile failure is believed: other agents run swift builds on this box
+            # concurrently and a transient scratch collision produced a false compile-only verdict once.
             if build() != 0 and build() != 0:
-                verdict, code = "compile-only", 1
+                verdict = "compile_only"
             else:
-                code, out = test()
-                if FAIL_LINE.search(out):
-                    verdict = "caught"
-                elif code != 0:
-                    # Non-zero with no named failure means the test process died - a Swift trap. The suite
-                    # DID detect the mutation (a test drove the code into it), but not through an assertion,
-                    # so it is reported separately rather than counted as a named-test catch. Calling a crash
-                    # a passing check would be the kind of flattery this harness exists to avoid.
-                    verdict = "trapped"
-                else:
-                    verdict = "MISSED"
+                code, txt = test()
+                verdict = "caught" if FAIL_LINE.search(txt) else ("trapped" if code != 0 else "missed")
         finally:
             SRC.write_bytes(pristine)
-
-        if verdict == "caught":
-            caught += 1
-            sys.stdout.write("caught      %-56s exit=%d\n" % (name, code))
-        elif verdict == "trapped":
-            trapped.append(name)
-            sys.stdout.write("trapped     %-56s the code trapped; no assertion fired\n" % name)
-        elif verdict == "compile-only":
-            compile_only.append(name)
-            sys.stdout.write("%-11s %-56s NOT a test catch\n" % (verdict, name))
-        else:
-            missed.append(name)
-            sys.stdout.write("MISSED      %-56s exit=0  no test objected\n" % name)
-    return caught, compile_only, missed, trapped
+        out[verdict].append(name)
+        label = {"caught": "caught", "trapped": "trapped", "compile_only": "compile-only",
+                 "missed": "MISSED"}
+        note = {"caught": "exit=%d" % code,
+                "trapped": "non-zero exit, but NO named test failed - does not count",
+                "compile_only": "a fact about Swift, not about these tests - does not count",
+                "missed": "exit=0  no test objected"}
+        sys.stdout.write("%-12s%-62s %s\n" % (label[verdict], name, note[verdict]))
+    return out
 
 
 def main(argv) -> int:
     prove = "--prove-vacuity" in argv
     pristine = SRC.read_bytes()
-    pristine_tests = TESTS.read_bytes()
+    pristine_tests = {f: f.read_bytes() for f in TESTS}
     sys.stdout.write("pristine %s md5 %s\n" % (SRC.name, hashlib.md5(pristine).hexdigest()))
 
+    eq = None
     try:
         if prove:
-            sys.stdout.write("PROVING NON-VACUITY: replacing the test file with an empty suite.\n"
-                             "Every mutation must now report MISSED; a catch here would mean the harness is\n"
-                             "measuring the Swift compiler rather than these tests.\n")
-            TESTS.write_text(EMPTY_SUITE, encoding="utf-8", newline="\n")
+            sys.stdout.write("PROVING NON-VACUITY: both test files are replaced by empty suites, so every\n"
+                             "mutation must report MISSED - not merely 'not caught'.\n")
+            for i, f in enumerate(TESTS):
+                f.write_text(EMPTY_SUITE % {"n": i}, encoding="utf-8", newline="\n")
 
         if build() != 0:
             sys.stdout.write("baseline does not build; nothing below would mean anything\n")
             return 2
         code, _ = test()
-        sys.stdout.write("BASELINE                                                      exit=%d\n" % code)
+        sys.stdout.write("BASELINE                                                              exit=%d\n" % code)
         if code != 0:
             sys.stdout.write("baseline is not green; refusing to call anything a caught mutation\n")
             return 2
 
-        caught, compile_only, missed, trapped = run_all(pristine.decode("utf-8"), pristine)
+        r = run_all(pristine, MUTATIONS)
+        if not prove:
+            sys.stdout.write("\nEQUIVALENT MUTANTS - cannot change behaviour, so anything but MISSED is a FAILURE\n")
+            eq = run_all(pristine, EQUIVALENT)
     finally:
         SRC.write_bytes(pristine)
-        TESTS.write_bytes(pristine_tests)
+        for f, b in pristine_tests.items():
+            f.write_bytes(b)
 
-    if SRC.read_bytes() != pristine or TESTS.read_bytes() != pristine_tests:
+    if SRC.read_bytes() != pristine or any(f.read_bytes() != b for f, b in pristine_tests.items()):
         sys.stdout.write("RESTORE FAILED - the working tree is not pristine\n")
         return 2
+
     sys.stdout.write("\nrestored, md5 %s\n" % hashlib.md5(SRC.read_bytes()).hexdigest())
-    sys.stdout.write("caught by a named test: %d   trapped: %d   compile-only: %d   MISSED: %d   of %d\n"
-                     % (caught, len(trapped), len(compile_only), len(missed), len(MUTATIONS)))
-    for n in trapped:
-        sys.stdout.write("  trapped (detected, but by a crash and not an assertion): %s\n" % n)
-    for n in compile_only:
-        sys.stdout.write("  compile-only: %s\n" % n)
-    for n in missed:
-        sys.stdout.write("  MISSED: %s\n" % n)
+    sys.stdout.write("caught by a named test: %d of %d   (trapped %d, compile-only %d, MISSED %d, skipped %d)\n"
+                     % (len(r["caught"]), len(MUTATIONS), len(r["trapped"]), len(r["compile_only"]),
+                        len(r["missed"]), len(r["skipped"])))
+    for bucket, why in (("trapped", "detected, but by a crash and not an assertion - DOES NOT COUNT"),
+                        ("compile_only", "a compile failure is not a test catch - DOES NOT COUNT"),
+                        ("missed", "no test objected"),
+                        ("skipped", "anchor missing - the harness is stale")):
+        for n in r[bucket]:
+            sys.stdout.write("  %s: %s (%s)\n" % (bucket.upper(), n, why))
 
     if prove:
-        ok = caught == 0
-        sys.stdout.write("VACUITY PROOF %s: with no tests present, %d mutations were reported caught\n"
-                         % ("OK" if ok else "FAILED", caught))
+        ok = len(r["caught"]) == 0 and len(r["missed"]) == len(MUTATIONS)
+        sys.stdout.write("VACUITY PROOF %s: with no tests present, caught=%d (need 0) and MISSED=%d of %d\n"
+                         "  (requiring MISSED to be COMPLETE, not just caught==0, is what stops a harness\n"
+                         "   whose anchors have all gone stale from proving its own non-vacuity)\n"
+                         % ("OK" if ok else "FAILED", len(r["caught"]), len(r["missed"]), len(MUTATIONS)))
         return 0 if ok else 1
-    return 0 if caught + len(trapped) == len(MUTATIONS) else 1
+
+    eq_ok = eq is not None and len(eq["missed"]) == len(EQUIVALENT)
+    if not eq_ok and eq is not None:
+        sys.stdout.write("EQUIVALENT ARM FAILED: %d of %d went MISSED as required; a catch means a test has\n"
+                         "  an opinion about how the code is WRITTEN rather than what it DOES.\n"
+                         % (len(eq["missed"]), len(EQUIVALENT)))
+
+    # A trap does not count. A compile failure does not count. A stale anchor does not count.
+    return 0 if len(r["caught"]) == len(MUTATIONS) and eq_ok else 1
 
 
 if __name__ == "__main__":

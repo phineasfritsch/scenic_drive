@@ -36,6 +36,23 @@ public struct RouteScore: Equatable, Sendable {
     /// Episodes beyond this buy nothing more.
     public static let episodeTarget = 3.0
 
+    /// How close to a boundary still counts as being ON it, as a fraction of the route's own length.
+    ///
+    /// Two statistics here compare an ACCUMULATED length against a boundary: the percentile's running sum
+    /// against `total * fraction`, and an episode's run against `episodeMinLength`. Both accumulations
+    /// depend on how many pieces the router split the route into, and floating-point addition is not
+    /// associative, so a boundary landing exactly on an edge boundary is decided by the last bits of a sum
+    /// rather than by the road. At such a boundary the answer is genuinely ambiguous, so the tie is broken
+    /// deterministically - toward the lower score, and toward keeping the episode - rather than left to the
+    /// noise. Both uses have a fixture that fails without it.
+    ///
+    /// Relative to the route's own length, so it means the same thing for a 2 km loop and a 300 km road
+    /// trip. 1e-9 sits between the two magnitudes that matter: accumulation error is about 1e-13 of the
+    /// route even when it is split into thousands of pieces, and the smallest real distinction any fixture
+    /// here draws is 1 m in 10 km, which is 1e-4. Named rather than inlined because a reviewer floated the
+    /// inlined version to 4% of route length - 12 km on a long trip - with the whole suite green.
+    public static let boundaryTolerance = 1e-9
+
     /// At or below this, a stretch is a dud.
     ///
     /// **The plan does not specify this number.** It names the `dud_frac` term and its weight and leaves the
@@ -56,6 +73,22 @@ public struct RouteScore: Equatable, Sendable {
     /// Below this the route has no scenic middle worth showing, and the product says so out loud rather than
     /// presenting a dull route as an answer. From the plan: *"not much pretty within 25 minutes of this
     /// drive"*.
+    ///
+    /// **The plan does not specify this number**, any more than it specifies `dudThreshold`. It names the
+    /// behaviour and leaves the threshold open, so 0.45 is chosen here - and what it actually rejects is
+    /// worth writing down rather than discovering in the field. The formula's ceiling is 0.95
+    /// (0.60 + 0.25 + 0.10, with the dud term at zero), so 0.45 is not "half of a good route"; it is
+    /// roughly "mean around 0.5, with a high point".
+    ///
+    /// The suite's `realistic` fixture - 8 km of motorway shoulder, 4.2 km of 0.78-0.83 canyon, arterial
+    /// either side - scores 0.320162 and IS an honest failure at 0.45. A reviewer flagged that as a
+    /// surprise, and it is: 51% motorway by length is the shape a lot of drives over 15 km have to take.
+    /// It is not motorway being excluded - the route still scores, still keeps its episode and is still
+    /// returned, which is the CLAUDE.md invariant - but whether the product should show that route or
+    /// refuse it is a tuning question that needs the router and a real corpus. It is not settled by
+    /// inventing a number here that makes a fixture read well, so the number stays and the consequence is
+    /// pinned instead: `motorwayScoresAsADudAndIsAnHonestFailure` is the assertion that must move if 0.45
+    /// ever does.
     public static let honestFailureThreshold = 0.45
 
     public var isHonestFailure: Bool { value < Self.honestFailureThreshold }
@@ -101,16 +134,27 @@ public struct RouteScore: Equatable, Sendable {
         // more than any weight change would.
         let sorted = edges.sorted { $0.score < $1.score }
 
-        // The total is accumulated in exactly the same order and by exactly the same additions as the
-        // running sum below. The first version took it with a separate `reduce`, and floating-point
-        // addition is not associative: the two sums differed in their last bits, so when the percentile
-        // boundary fell on an edge boundary the comparison went whichever way the noise pointed.
+        // The bug this guards, and the mechanism - CORRECTED, because the first fix got the mechanism
+        // wrong and a later reviewer's measurements said so.
         //
-        // A reviewer demonstrated it on [9000 m @ 0.1, 1000 m @ 0.9] - the boundary sits exactly at 9000 m,
-        // which is p90 - split into k equal pieces per interval, exactly what the router does at junctions.
-        // k = 1, 2, 4 gave p90 = 0.1 and a route score of 0.031; k = 3, 7, 9, 12, 21 and many more gave
-        // p90 = 0.9 and 0.231. A 0.2 swing on a 0...1 score, from nothing but how the path was segmented -
-        // which is precisely the invariance this type exists to provide.
+        // A reviewer demonstrated a p90 that depended on how the router segmented the path, on
+        // [9000 m @ 0.1, 1000 m @ 0.9] - the boundary sits exactly at 9000 m, which is p90 - split into k
+        // equal pieces per interval, exactly what the router does at junctions. k = 1, 2, 4 gave p90 = 0.1
+        // and a route score of 0.031; k = 3, 7, 9, 12, 21 and 176 others up to k = 400 gave p90 = 0.9 and
+        // 0.231. A 0.2 swing on a 0...1 score from nothing but segmentation, which is precisely the
+        // invariance this type exists to provide.
+        //
+        // The first fix blamed `total` having come from a separate `sorted.reduce` while the running sum
+        // was accumulated by the loop, "and floating-point addition is not associative". That explanation
+        // is FALSE: `reduce` is a left fold over the same sequence in the same order, so the two totals are
+        // bit-identical for every input - measured over the fixture at k = 1...400, worst difference
+        // exactly 0.0. Reverting that half alone changes nothing at all, and a third reviewer measured
+        // exactly that.
+        //
+        // The real cause is comparing an ACCUMULATED sum against `total * fraction`, a product whose
+        // rounding does not track the accumulation's. The tolerance below is the whole fix: with it, 0 of
+        // 400 splits flip, with or without the separate reduce. Accumulating once is kept because it is
+        // the better shape, not because it is load-bearing.
         var running: [Double] = []
         running.reserveCapacity(sorted.count)
         var cumulative = 0.0
@@ -121,13 +165,10 @@ public struct RouteScore: Equatable, Sendable {
         let total = cumulative
         guard total > 0 else { return sorted.last?.score ?? 0 }
 
-        // Even with one accumulation, splitting an edge changes the number of additions and so the last
-        // bits. At a boundary the correct answer is genuinely ambiguous - both adjacent scores are defensible
-        // - so the tie is broken deterministically toward the lower score rather than left to the noise.
-        // The tolerance is relative to the route's own length, so it means the same thing for a 2 km loop
-        // and a 300 km road trip.
+        // At a boundary the correct answer is genuinely ambiguous - both adjacent scores are defensible -
+        // so the tie is broken deterministically toward the lower score rather than left to the noise.
         let target = total * fraction
-        let tolerance = total * 1e-9
+        let tolerance = total * Self.boundaryTolerance
         for (i, c) in running.enumerated() where c >= target - tolerance {
             return sorted[i].score
         }
@@ -139,18 +180,35 @@ public struct RouteScore: Equatable, Sendable {
     /// Runs are accumulated ACROSS edge boundaries. Asking "is this edge above threshold and over 800 m"
     /// per edge would count zero episodes on a five-kilometre canyon road the router happened to return as
     /// twelve intervals, which is the normal case and not an exotic one.
+    ///
+    /// And because the run is ACCUMULATED, comparing it against `episodeMinLength` is the same boundary
+    /// problem as the percentile's, in the same file, needing the same cure - which the first two versions
+    /// of this file missed while fixing the percentile, and a third reviewer found. 800 m returned as
+    /// twelve 66.67 m intervals does not sum to 800 m, and a bare `>=` then throws the episode away: on
+    /// `[800 m @ 0.9]` a bare comparison lost the episode for 99 of the first 200 equal splits, and on
+    /// `[800 m @ 0.9, 2000 m @ 0.1]` that moves the route's score from 0.348333 to 0.315000 - 9.6% - against
+    /// a suite tolerance of 1e-9 and the plan's 0.5% re-encoding pin. The Brief's own junction case
+    /// reproduces it: a canyon returned as 400 m + 400 m loses its episode at k = 6, 7, 13, 14, 15, 17, 18,
+    /// 21, 22, 24, 26, 27, 29, 31, 34, 36, 38.
     static func episodes(_ edges: [ScoredEdge]) -> Int {
+        // Same scale as the percentile's: the route's own length. That is at most a millimetre on a
+        // 1000 km trip, six orders of magnitude below the 1 m margin `thresholdStrictness` pins at 799 m,
+        // so it cannot promote a run that is genuinely short into an episode.
+        var scale = 0.0
+        for e in edges { scale += e.length }
+        let tolerance = scale * Self.boundaryTolerance
+
         var count = 0
         var run = 0.0
         for e in edges {
             if e.score > episodeThreshold {
                 run += e.length
             } else {
-                if run >= episodeMinLength { count += 1 }
+                if run >= episodeMinLength - tolerance { count += 1 }
                 run = 0
             }
         }
-        if run >= episodeMinLength { count += 1 }
+        if run >= episodeMinLength - tolerance { count += 1 }
         return count
     }
 }

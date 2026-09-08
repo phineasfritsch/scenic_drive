@@ -9,15 +9,17 @@ lease_expires_at: 2026-09-08T15:54:42Z
 worktree: .worktrees/T-0117
 branch: task/T-0117
 exclusive: []
-touches: [Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/, ops/mutate/]
+touches: [Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/, ops/mutate/, .gitignore]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 34 tests in 4 suites passed, exit 0"
-  - "python ops/mutate/routescore.py -> 21 caught by a named test, 0 missed, exit 0"
-  - "RED: python ops/mutate/routescore.py --prove-vacuity -> 0 caught with the tests removed"
+  - "ops/test -> TESTS linux=142/76 ios=skipped failed=0 skipped=0, exit 0"
+  - "swift test -> 39 tests in 5 suites passed, exit 0"
+  - "python ops/mutate/routescore.py -> 29 of 29 caught by a named test; 0 trapped, 0 compile-only, 0 MISSED, 0 skipped; both EQUIVALENT mutants MISSED as required; exit 0"
+  - "RED: python ops/mutate/routescore.py --prove-vacuity -> caught=0 and MISSED=29 of 29 with the tests replaced by empty suites, exit 0"
+  - "RED: the same harness with every anchor stale -> VACUITY PROOF FAILED, exit 1 (the old pass condition printed OK, exit 0)"
 ---
 ## Brief
 
@@ -197,4 +199,158 @@ The expected values are now literals worked out by hand: 90% of 10000 m is 9000 
 unsplit route is checked against them too, so the fixture itself has a witness.
 
 `flip the boundary tolerance to the wrong side` is now a mutation in the harness: 21 caught, 0 missed.
+
+---
+
+## Third fix pass: the same boundary bug, one function further down
+
+reviewer-rvw-pr73 confirmed the percentile fix and the boundary test, then blocked on B1 - **`episodes()`
+had the identical defect the percentile had just been fixed for**, and on four items the second review had
+already asked for and not received.
+
+### VERIFICATION (F8 - the third reviewer to ask for these; here they are)
+
+    ops/test                                      TESTS linux=142/76 ios=skipped failed=0 skipped=0   exit 0
+    ops/check-pins                                PINS ok=11 skipped=0 pending=2 expired=0 failed=0   exit 0
+    ops/check-pins --source-only                  PINS ok=4 skipped=9 pending=0 expired=0 failed=0    exit 0
+    ops/queue-check                               QUEUE OK (107 tasks)                                exit 0
+    swift test --scratch-path .build-T0117fix     39 tests in 5 suites passed                         exit 0
+    python ops/mutate/routescore.py               29 of 29 caught, 0 trapped/compile-only/MISSED/skip exit 0
+    python ops/mutate/routescore.py --prove-vacuity  caught=0, MISSED=29 of 29                        exit 0
+
+`ops/test` had never been recorded because it could not pass on this box: it exits 1 at the Worker tier
+with "services/api exists but vitest produced no report" whenever `services/api/node_modules` is absent,
+and it was absent in main and in every task worktree. `npm ci` in services/api (7 s, from the committed
+lockfile) is all it needed. That is an environment fact, not a code change - no JS or TS is in this diff.
+
+### B1 - BLOCKER, and it was product logic, not a test gap
+
+`episodes()` accumulated `run` across edges and then compared it against `episodeMinLength` with a bare
+`>=`. The percentile got a boundary tolerance at line 130 for exactly this reason; `episodes()` did not.
+800 m returned by the router as k equal intervals does not sum to 800 m, so the episode was thrown away.
+
+RED, against the SHIPPED source (a245704, RouteScore.swift md5 565d52d707c1b7b5ea2abade336fd899) in an
+isolated copy, with the new assertion transplanted onto it and nothing else changed:
+
+    swift test --scratch-path .build-b1red        Test run with 35 tests in 5 suites FAILED   exit 1
+      episodes lost to re-splitting: junction k=6, 7, 13, 14, 15, 17, 18, 21, 22, 24, 26, 27, 29, 31,
+                                     34, 36, 38; endsTheRoute k=12, 14, 17, 21, 23, 26, 28, 30, 31, 34, 36
+      route score moved with segmentation alone: k=12 value=0.387 ... (expected 0.4203333)
+
+The junction list is the Brief's own case - a canyon the router returns as 400 m + 400 m - and it matches
+the reviewer's list exactly. The score moves 0.420333 -> 0.387, 7.9% relative, against a 1e-9 suite
+tolerance and the plan's 0.5% re-encoding pin.
+
+GREEN: `boundaryTolerance` is now a named constant used by BOTH statistics, and
+`episodeOfExactlyTheMinimumSurvivesResplitting` sweeps k = 1...40 over three fixtures - a run that ends the
+route, the Brief's junction, and a run closed by a dull stretch - because the two places a run can be
+closed need separate witnesses. Four harness mutations guard it (drop the tolerance / flip it to the wrong
+side, at each of the two closing sites); all four are caught.
+
+### B2, B3, B5, B6 - the reviewer's own mutations, MISSED before and caught after
+
+Each was re-run against the pre-fix tree with the pre-fix harness, then against the fixed tree:
+
+    B2 / N2  percentile fraction 0.90 -> 0.86        MISSED  ->  caught
+    B2 / N3  percentile fraction 0.90 -> 0.89        MISSED  ->  caught
+    B3 / R2  tolerance total*1e-9 -> total*0.04      MISSED  ->  caught
+    B5 / R3  drop the episode cap min(1.0, ...)      MISSED  ->  caught
+    B6 / N1  isHonestFailure `<` -> `<=`             MISSED  ->  caught
+
+  * **B2** - `percentileFractionIsPinned` put its boundary at 75% of the length, pinning the fraction only
+    to (0.85, 0.90]. `percentileFractionIsPinnedFromBothSides` puts it 1 m either side of 90% of a 10 km
+    route: `[8999 m @ 0.1, 1001 m @ 0.9]` must give p90 = 0.9 and `[9001 m @ 0.1, 999 m @ 0.9]` must give
+    p90 = 0.1, which pins it to (0.8999, 0.9001]. Both expectations are literals.
+  * **B3** - the tolerance is now `RouteScore.boundaryTolerance`, named and pinned, and the same fixture
+    holds its SIZE below 1e-4 of route length by behaviour rather than by the constant alone.
+  * **B5** - `episodeTermSaturatesAtTheTarget` uses 3 episodes (value 0.613) and 8 episodes (value 0.571,
+    which without the cap is 0.737667). Both literals worked by hand.
+  * **B6** - `honestFailureIsStrictAtItsThreshold` needed a route whose value is EXACTLY 0.45, which no
+    fixture had. `[1024 m @ 0.51, 1024 m @ 0.54]`: no duds, no episodes, mean 0.525, p90 0.54, and
+    0.60*0.525 + 0.25*0.54 = 0.315 + 0.135 = 0.45 to the last bit. The test asserts the fixture lands on
+    the threshold before asserting the strictness, so it cannot go vacuous.
+
+### B4 - the claim was inverted, and the reason is worse than the reviewer could see
+
+R7 said "Either half of the fix suffices on its own" and the reviewer measured the opposite. Measuring the
+other half explains why: **`sorted.reduce { $0 + $1.length }` and the loop's own `cumulative` are the same
+left fold over the same sequence in the same order, so the two totals are bit-identical for every input** -
+worst difference over the reviewer's fixture at k = 1...400, exactly 0.0. The separate reduce was never a
+defect and was never part of the fix; the tolerance is the whole fix (with it, 0 of 400 splits flip; without
+it, 180 of 400, with or without the separate reduce).
+
+Three consequences, all applied: the false mechanism is corrected in the source comment, in
+`percentileIsStableOnTheBoundary`'s comment and here; the two mutations that claimed to be halves are now
+ONE mutation named for what it is ("restore the shipped bug: drop the percentile boundary tolerance"); and
+the equivalence is no longer a claim - "take the percentile total from a separate reduce, as the shipped
+code did" is an EQUIVALENT mutant that the harness requires to go MISSED, so if it ever starts being caught
+the run fails and someone finds out.
+
+### B7 - the test's name asserted the opposite of what its fixture does. Renamed and pinned, NOT retuned
+
+`motorwayIsADud` was titled "...without disqualifying the route" and asserted only `value > 0`, while the
+fixture's actual verdict is `isHonestFailure == true` (0.320162 against 0.45). Renamed to
+`motorwayScoresAsADudAndIsAnHonestFailure`, and the verdict is now asserted rather than left implicit.
+
+**I did not move 0.45.** The CLAUDE.md invariant is that motorway is penalised and not excluded, and that
+holds: the route scores, keeps its episode, and is returned - `isHonestFailure` is a presentation signal,
+not exclusion. Whether a route that is 51% motorway by length should be shown or refused is a tuning
+question that needs the router and a real corpus, and retuning a constant so a fixture reads better is
+exactly how a threshold gets laundered. The constant now documents its own provenance (the plan does not
+specify it, the formula's ceiling is 0.95, this fixture scores 0.320162) and names the assertion that has
+to move with it if it is ever recalibrated.
+
+### B8 and B9 - the shared harness defect, demonstrated rather than argued
+
+Both were reproduced red on the old logic and green on the new, in isolated copies:
+
+    B8  every anchor replaced by a string absent from the source, --prove-vacuity
+          OLD  caught 0, MISSED 21 of 21   VACUITY PROOF OK       exit 0   <- the defect
+          NEW  caught 0, skipped 29 of 29  VACUITY PROOF FAILED   exit 1
+    B9  the harness's own FAIL_LINE regex broken, three real mutations that DO fail a named test
+          OLD  caught 0, trapped 3                                exit 0   <- the defect
+          NEW  caught 0 of 3                                      exit 1
+
+B9 was a code reading in the review; it is a measurement now. The harness is rebuilt on the corrected
+reference (ops/mutate/guidance.py on task/T-0129): the pass condition is `caught == len(MUTATIONS)`, a
+trap / a compile failure / a stale anchor each fail the run, SKIP is its own bucket, `--prove-vacuity`
+requires `caught == 0 AND missed == len(MUTATIONS)`, and the EQUIVALENT arm requires MISSED specifically.
+
+**The score before and after, honestly:** the old harness scored 21 caught / 0 trapped / 0 compile-only /
+0 MISSED, exit 0 - so on this subject the trapped-counts-as-pass rule was latent and was masking nothing.
+The number did not drop when the rule was tightened. It went 21 -> 29 because eight mutations were added
+for the gaps above, and one pair was merged into one for B4.
+
+### One mutation was REMOVED, and that is a coverage change, so it is recorded
+
+`require a run to EXCEED the episode minimum rather than reach it` (`>=` -> `>`) used to be caught. With
+the tolerance present it is unobservable: at a run of exactly 800 m both `>=` and `>` clear
+`800 - tolerance`. Measured, not assumed - it went MISSED at both closing sites when tried. Keeping it
+would report a gap that is not one. The four new episode-tolerance mutations cover the same boundary and
+more of it, and `thresholdStrictness` still pins the behaviour (800 m is an episode, 799 m is not).
+
+### File discipline
+
+`RouteScoreTests.swift` reached 325 lines, over the 300 cap, so the boundary tests moved to
+`RouteScoreBoundaryTests.swift` (a suite per file, filename == type name): 254 and 289 lines,
+`RouteScore.swift` 214. The harness's `--prove-vacuity` blanks both test files, not one.
+
+### Not fixed, deliberately
+
+  * **`honestFailureThreshold` = 0.45 itself** - see B7. Documented and pinned, not retuned.
+  * **The unreachable fallbacks at `RouteScore.swift` lines 122 and 134** (N5). `guard total > 0` cannot
+    fire (every valid edge has positive length) and the trailing `return sorted.last?.score ?? 0` cannot be
+    reached for `fraction` in 0...1. Both are `return` statements the compiler requires; removing them
+    needs a restructure of the function that is not a finding and would churn code under review.
+  * **`min(1.0, ...)` on the clamp** is dead while the episode cap holds (raw <= 0.95). It is now an
+    EQUIVALENT mutant with the proof written out, rather than an untested line pretending to be tested.
+  * **F7** is fixed: `.build-*/` is in `.gitignore` (`.gitignore` added to `touches:`). Every
+    `swift build/test` here must pass its own `--scratch-path`, so these directories are guaranteed to
+    exist and three reviews in a row reported them as untracked.
+
+### A defect found on the way, not fixed here
+
+`ops/new-task --help` does not print help - it files a backlog task titled `--help`. Reproduced and the
+stray file removed. `ops/lib/queue.py` is outside this task's `touches:` and T-0096 already covers that
+module.
 

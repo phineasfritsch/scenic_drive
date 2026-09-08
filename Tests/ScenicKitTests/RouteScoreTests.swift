@@ -76,47 +76,8 @@ struct RouteScoreTests {
         #expect(RouteScore.lengthWeightedPercentile(thirds, fraction: 0.50) == 0.5)
     }
 
-    @Test("the percentile boundary landing exactly on an edge boundary is stable under re-splitting")
-    func percentileIsStableOnTheBoundary() throws {
-        // The bug this pins, found by a reviewer and real: `target` was derived from a `reduce` while the
-        // running sum was accumulated separately, and floating-point addition is not associative. When the
-        // boundary fell exactly on an edge boundary the two sums disagreed in their last bits and p90
-        // jumped to the next distinct score.
-        //
-        // Here the boundary sits exactly at 9000 m of 10000, which is p90. Measured before the fix:
-        // k = 1, 2, 4 gave p90 = 0.1 and value 0.031; k = 3, 7, 9, 12, 21, 22, 23, 26, ... gave p90 = 0.9
-        // and value 0.231. A 0.2 swing on a 0...1 score from nothing but how the router segmented the path.
-        //
-        // `reEncodingInvariant` could not see it: its `realistic` fixture never puts the boundary on an
-        // edge boundary, and its worst delta over the same range of k is 1e-15.
-        // The expected values are LITERALS, worked out by hand. The first version compared every split
-        // against `whole.p90` and `whole.value` - both taken from the function under test on the same
-        // fixture - so it asserted the percentile was CONSISTENT and never that it was RIGHT. A second
-        // reviewer flipped one character (`target - tolerance` to `target + tolerance`) and restored the
-        // exact 0.200 swing the first reviewer had blocked on, with this test still green.
-        //
-        // 90% of 10000 m is 9000 m, and the first 9000 m of length scores 0.1, so p90 is 0.1 - the boundary
-        // is inclusive. The route score then follows from the four terms:
-        //   mean = (9000*0.1 + 1000*0.9)/10000 = 0.18
-        //   p90  = 0.1
-        //   dud  = 9000/10000 = 0.9   (0.1 is at or below dudThreshold 0.25)
-        //   episodes = 1             (1000 m at 0.9 exceeds 0.6, and 1000 >= 800)
-        //   0.60*0.18 + 0.25*0.1 - 0.15*0.9 + 0.10*(1/3) = 0.108 + 0.025 - 0.135 + 0.033333 = 0.031333
-        let boundary = [ScoredEdge(length: 9000, score: 0.1),
-                        ScoredEdge(length: 1000, score: 0.9)]
-        let expectedP90 = 0.1
-        let expectedValue = 0.60 * 0.18 + 0.25 * 0.1 - 0.15 * 0.9 + 0.10 * (1.0 / 3.0)
-
-        let whole = try #require(RouteScore(edges: boundary))
-        #expect(abs(whole.p90 - expectedP90) < 1e-12)
-        #expect(abs(whole.value - expectedValue) < 1e-12)
-
-        for k in 1...40 {
-            let pieces = try #require(RouteScore(edges: Self.split(boundary, into: k)))
-            #expect(abs(pieces.p90 - expectedP90) < 1e-9, "k=\(k): p90 \(pieces.p90)")
-            #expect(abs(pieces.value - expectedValue) < 1e-9, "k=\(k): value \(pieces.value)")
-        }
-    }
+    // `percentileIsStableOnTheBoundary` and `thresholdStrictness` live in RouteScoreBoundaryTests: they
+    // are boundary tests, and this file is at its 300-line cap.
 
     @Test("the score uses the ninetieth percentile, and the number is pinned")
     func percentileFractionIsPinned() throws {
@@ -126,46 +87,21 @@ struct RouteScoreTests {
         // Deliberately uneven. Three EQUAL thirds give the same answer for p70 and p90 - which was the
         // first version of this fixture, and it failed for that reason. Here 75% of the length scores 0.1,
         // so p70 lands on 0.1 and p90 on 0.9.
+        //
+        // The first version of THIS test then compared `s.p90` against
+        // `lengthWeightedPercentile(uneven, fraction: 0.90)` - the same function, on the same fixture -
+        // and `s.p90 != lengthWeightedPercentile(uneven, fraction: 0.70)`. Both are the implementation
+        // compared with itself and neither pins a value. Every expectation below is a literal.
+        // This fixture pins the fraction only to (0.85, 0.90]; `percentileFractionIsPinnedFromBothSides`
+        // in RouteScoreBoundaryTests narrows it to (0.8999, 0.9001].
         let uneven = [ScoredEdge(length: 7500, score: 0.1),
                       ScoredEdge(length: 1000, score: 0.5),
                       ScoredEdge(length: 1500, score: 0.9)]
         let s = try #require(RouteScore(edges: uneven))
-        #expect(s.p90 == RouteScore.lengthWeightedPercentile(uneven, fraction: 0.90))
         #expect(s.p90 == 0.9, "the top 15% of the length scores 0.9, so p90 is 0.9")
         #expect(RouteScore.lengthWeightedPercentile(uneven, fraction: 0.70) == 0.1)
-        #expect(s.p90 != RouteScore.lengthWeightedPercentile(uneven, fraction: 0.70))
-    }
-
-    @Test("the thresholds are strict or non-strict exactly as documented")
-    func thresholdStrictness() throws {
-        // Every threshold's intended strictness was stated only in a doc comment, and CLAUDE.md forbids
-        // anchoring a guard on a comment. No fixture used a score of exactly 0.6 or exactly 0.25, or a run
-        // of exactly 800 m, so `>` versus `>=` was free to flip in any of three places.
-
-        // An episode needs to EXCEED 0.6; exactly 0.6 is not an episode.
-        #expect(RouteScore.episodes([ScoredEdge(length: 5000, score: RouteScore.episodeThreshold)]) == 0)
-        #expect(RouteScore.episodes([ScoredEdge(length: 5000,
-                                                score: RouteScore.episodeThreshold + 0.001)]) == 1)
-
-        // A run of exactly the minimum length counts. Both places it can be closed need a fixture: a run
-        // that ENDS THE ROUTE is closed by the final check after the loop, and a run closed by a dull
-        // stretch mid-route is closed inside it. Testing only the first leaves the second free to flip -
-        // the mutation harness found exactly that, because the single-edge fixture below never reaches the
-        // in-loop branch.
-        #expect(RouteScore.episodes([ScoredEdge(length: RouteScore.episodeMinLength, score: 0.9)]) == 1)
-        #expect(RouteScore.episodes([ScoredEdge(length: RouteScore.episodeMinLength - 1, score: 0.9)]) == 0)
-        #expect(RouteScore.episodes([ScoredEdge(length: RouteScore.episodeMinLength, score: 0.9),
-                                     ScoredEdge(length: 2000, score: 0.1)]) == 1,
-                "a run of exactly the minimum, closed by a dull stretch, is still an episode")
-        #expect(RouteScore.episodes([ScoredEdge(length: RouteScore.episodeMinLength - 1, score: 0.9),
-                                     ScoredEdge(length: 2000, score: 0.1)]) == 0)
-
-        // A score of exactly the dud threshold IS a dud.
-        let atThreshold = try #require(RouteScore(edges: [
-            ScoredEdge(length: 1000, score: RouteScore.dudThreshold),
-            ScoredEdge(length: 1000, score: RouteScore.dudThreshold + 0.001),
-        ]))
-        #expect(abs(atThreshold.dudFraction - 0.5) < 1e-9)
+        #expect(RouteScore.lengthWeightedPercentile(uneven, fraction: 0.85) == 0.5,
+                "85% of 10000 m is 8500 m, which is exactly where the 0.5 stretch ends")
     }
 
     @Test("the constants are the plan's, and dudThreshold is ours")
@@ -217,23 +153,50 @@ struct RouteScoreTests {
 
     // MARK: - the terms
 
-    @Test("motorway shoulders count as duds without disqualifying the route")
-    func motorwayIsADud() throws {
+    @Test("a motorway shoulder is penalised not excluded, and 8 km of it is an honest failure")
+    func motorwayScoresAsADudAndIsAnHonestFailure() throws {
         let s = try #require(RouteScore(edges: Self.realistic))
+        // CLAUDE.md: motorway is penalised, not excluded. What that means here, and all it means, is that
+        // the 8 km at 0.0 goes into the dud fraction and the route still scores - it is not refused, it
+        // keeps its episode, and it comes back with a number.
         // The 8 km motorway and the 1.5 km arterial are duds; 1.2 km at 0.35 and 0.9 km at 0.42 are not.
-        let expected = (8000.0 + 1500.0) / 15_800.0
-        #expect(abs(s.dudFraction - expected) < 1e-9)
-        // CLAUDE.md: motorway is penalised, not excluded. The route still scores, and still has its episode.
+        #expect(abs(s.dudFraction - (8000.0 + 1500.0) / 15_800.0) < 1e-9)
         #expect(s.episodeCount == 1)
         #expect(s.value > 0)
+
+        // The previous version stopped there, under the title "motorway shoulders count as duds WITHOUT
+        // DISQUALIFYING THE ROUTE". A reviewer pointed out that the fixture does the opposite: at value
+        // 0.320162 against honestFailureThreshold 0.45 the product reports this route as "not much pretty
+        // within 25 minutes of this drive". The name asserted the opposite of what the fixture showed, and
+        // nothing asserted the verdict at all. The verdict is now pinned rather than left as an untested
+        // consequence of a tuning constant - if 0.45 is ever retuned on corpus evidence, this is the line
+        // that has to move with it.
+        #expect(s.isHonestFailure)
     }
 
-    @Test("the value is the plan's formula, computed by hand")
+    @Test("the value is the plan's formula on the realistic route, every term computed by hand")
     func matchesTheFormula() throws {
         let s = try #require(RouteScore(edges: Self.realistic))
-        let expected = 0.60 * s.mean + 0.25 * s.p90 - 0.15 * s.dudFraction
-            + 0.10 * min(1.0, Double(s.episodeCount) / 3.0)
-        #expect(abs(s.value - expected) < 1e-12)
+        // Worked out by hand from the FIXTURE, not from `s`. The previous version built `expected` out of
+        // s.mean, s.p90, s.dudFraction and s.episodeCount, so it asserted only that the four terms were
+        // combined in the documented way and said nothing about the four terms themselves: a 0.90 -> 0.70
+        // percentile left it green, and so did a p90 of 0.00.
+        //
+        //   total = 8000 + 1200 + 2400 + 1800 + 900 + 1500                        = 15800 m
+        //   mean  = (1200*0.35 + 2400*0.78 + 1800*0.83 + 900*0.42 + 1500*0.20) / 15800
+        //         = (420 + 1872 + 1494 + 378 + 300) / 15800 = 4464/15800          = 0.2825316...
+        //   p90   = 0.90 * 15800 = 14220 m. Ascending, the cumulative lengths are 8000, 9500, 10700,
+        //           11600, 14000, 15800, so 14220 m first falls inside the 1800 m at 0.83 = 0.83
+        //   dud   = (8000 at 0.00 + 1500 at 0.20) / 15800 = 9500/15800            = 0.6012658...
+        //   episodes = 1 (2400 + 1800 = 4200 m contiguous above 0.6)
+        //   value = 0.60*0.2825316... + 0.25*0.83 - 0.15*0.6012658... + 0.10*(1/3)
+        //         = 0.1695189... + 0.2075 - 0.0901898... + 0.0333333...           = 0.320162447257384
+        #expect(abs(s.totalLength - 15_800) < 1e-9)
+        #expect(abs(s.mean - 4464.0 / 15_800.0) < 1e-12)
+        #expect(s.p90 == 0.83)
+        #expect(abs(s.dudFraction - 9500.0 / 15_800.0) < 1e-12)
+        #expect(s.episodeCount == 1)
+        #expect(abs(s.value - 0.320162447257384) < 1e-12)
     }
 
     @Test("a dull route is an honest failure, and says so")
