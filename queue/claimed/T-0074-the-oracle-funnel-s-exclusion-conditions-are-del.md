@@ -1,13 +1,13 @@
 ---
 id: T-0074
 title: the oracle funnel's exclusion conditions are deletable with the ETL suite green
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T02:03:32Z
+lease_expires_at: 2026-09-08T06:03:32Z
+worktree: wt/T-0069
+branch: task/T-0069
 exclusive: []
 touches: [services/etl/tests/test_oracle_build.py]
 pins_affected: []
@@ -80,3 +80,4 @@ it here.**
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the adversarial verification of T-0069. Every mutation above
   was executed and reverted; the verifier's tree ended clean.
+- 2026-09-08T02:03:32Z claimed by agent/claude-opus-5; lease until 2026-09-08T06:03:32Z

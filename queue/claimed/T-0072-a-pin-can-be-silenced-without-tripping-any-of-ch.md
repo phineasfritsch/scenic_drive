@@ -1,13 +1,13 @@
 ---
 id: T-0072
 title: a pin can be silenced without tripping any of check-pins' new floors
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T02:03:31Z
+lease_expires_at: 2026-09-08T06:03:31Z
+worktree: wt/T-0066
+branch: task/T-0066
 exclusive: []
 touches: [ops/check-pins]
 pins_affected: []
@@ -63,3 +63,4 @@ routes 1 and 3 change *which* and *what*. See [[T-0073]] and [[T-0074]] for the 
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the adversarial verification of T-0066, every case executed by
   an agent that did not write the fix.
+- 2026-09-08T02:03:31Z claimed by agent/claude-opus-5; lease until 2026-09-08T06:03:31Z

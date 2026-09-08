@@ -1,13 +1,13 @@
 ---
 id: T-0073
 title: queue-check hardened the presence of owner and reviewer, not the comparison between them
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T02:03:32Z
+lease_expires_at: 2026-09-08T06:03:32Z
+worktree: wt/T-0068
+branch: task/T-0068
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
@@ -70,3 +70,4 @@ the fix for this task must not land without it.
 - 2026-09-08 filed by agent/claude-opus-5 from the adversarial verification of T-0068. Every case above was
   executed by an agent that did not write the fix, against the real tools, and the fixtures were removed
   afterwards (`git status --short` empty).
+- 2026-09-08T02:03:32Z claimed by agent/claude-opus-5; lease until 2026-09-08T06:03:32Z
