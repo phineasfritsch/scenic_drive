@@ -1,7 +1,7 @@
 ---
 id: T-0103
 title: no check looks inside a worktree, so 662 lines lived untracked with no branch on origin
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T09:21:19Z
@@ -11,7 +11,7 @@ branch: task/T-0103
 exclusive: []
 touches: [ops/sane, ops/agent-preflight, ops/lib/check-worktrees, ops/lib/check-worktrees-demo]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-final-pr65
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -307,3 +307,125 @@ the fix is visibility.
   failing. Also still red and not mine, as the reviewer noted: `origin/main` carries
   `ops/lib/ro_grammar.py` at `100644`, so `ops/lib/check-exec-bits` fails on `main` (P-OPS-01). This
   branch has it `100755`.
+
+- 2026-09-08 — **REVIEW #2: PASS — `agent/reviewer-final-pr65`** (not the owner; owner is
+  `agent/claude-opus-5`). Transitioned `queue/claimed/` -> `queue/done/` by `git mv`. All four prior
+  findings verified closed **by running what demonstrated them**, not by reading the diff. Exit codes taken
+  as `<cmd> >/dev/null 2>&1; echo $?`, never off a pipe. Scratch under `.worktrees/T-0103/.artifacts/`.
+
+  **Verify + acceptance.** `verify: [ops/test, ops/check-pins]`; `acceptance:` is empty.
+
+        $ bash ops/test                  0    TESTS linux=50/50 ios=skipped failed=0 skipped=0
+        $ bash ops/check-pins            0    PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+        $ bash ops/queue-check           0    QUEUE OK (93 tasks)
+        $ bash ops/lib/check-exec-bits   0    P-OPS-01: 25 files, 15 required present, all modes correct
+        $ bash ops/lib/check-worktrees-demo   0    DEMO: 19 ok, 0 failed
+        $ bash ops/agent-preflight       0    PREFLIGHT OK
+        $ bash ops/sane                 10    worktrees FAIL 5 of 81 - untracked:0 modified:2 unpushed:3
+        gh pr view 65                         core SUCCESS, pins-source-only SUCCESS
+
+  `ops/test` exits **0** here, so the previous log's "1, then 0 after npm ci" is reproduced in its resolved
+  state: `services/api/node_modules` is present in this worktree now. Every number the previous Log claims
+  above is reproducible.
+
+  **F1 — the invented count. CLOSED, and re-proved on live data rather than trusted.** One captured
+  `check-worktrees` run, both counts taken off the same bytes:
+
+        WORKTREES-SUMMARY ... problems=9 ...        <- what the check emits
+        grep -c '^  '   -> 11                       <- what ops/sane used to derive
+        grep -c '^  [^ ]' -> 11                     <- the summary's own continuation lines match too
+
+  Off by exactly the two continuation lines, on live output. `ops/sane` now reads the emitted line: its FAIL
+  line said `5 of 81` above the check's own `5 of 81` and `problems=5`, and each state carries its own count
+  (`untracked:0 modified:2 unpushed:3`), so a modified-only worktree is no longer called work off origin.
+
+  F1's second half (the block stole the production exit code) is a real red/green, because the old file still
+  runs. Same dead backend, same minute, same fleet:
+
+        $ API_URL=http://127.0.0.1:9 bash .artifacts/sane-old --prod    # ops/sane at 81ad441
+        worktrees FAIL   9 worktree(s) hold work that is not on origin
+        backend   FAIL   http://127.0.0.1:9/__health -> unreachable
+        SANE FAIL exit=10          <- contradicts the exit-code table in its own header
+        $ API_URL=http://127.0.0.1:9 bash ops/sane --prod
+        backend   FAIL   http://127.0.0.1:9/__health -> unreachable
+        worktrees FAIL   9 of 82 need attention - untracked:0 modified:6 unpushed:3 ...
+        SANE FAIL exit=7           <- matches the table
+
+  **F2 — two of four states behind a flag nothing invoked. CLOSED.** `--deep` is a no-op; all states are the
+  default. Proved on the live fleet, not only in the fixture: a default `ops/sane` run reported
+  `statted=82 touches=77`, so the per-worktree `git status` and the `touches:` parse both ran against 82 and
+  77 real worktrees, and it named `T-0083 modified:1` / `T-0114 modified:3` — the modified state firing on
+  the fleet with no flag. The runtime objection is gone too. Re-measured on a **quiet box, 82 worktrees**:
+
+        bash ops/lib/check-worktrees           real 0m28.3s   (was: --deep 19m40s)
+        bash ops/lib/check-worktrees --fast    real 0m5.9s
+
+  Against the previous reviewer's 19m40s for the old `--deep`, that is the difference between a check nobody
+  runs and one that runs. (Under my own concurrent load the same two were 3m07s and 1m20s, which brackets
+  the Log's "full 1m34s / --fast 43s under four agents" — the claim is consistent, not fabricated.)
+
+  **F3 — the red demo. CLOSED, and I did not take the demo's word for it.** `ops/lib/check-worktrees-demo`
+  reproduces at `DEMO: 19 ok, 0 failed`, exit 0. But a demo that passes is worth nothing until it is shown to
+  fail, so I **mutation-tested the demo against its own subject**: seven copies of `ops/lib/check-worktrees`
+  in `.artifacts/mut/`, one defect each, the committed demo run against each. Nothing under `ops/` was
+  touched.
+
+        mutation (in a COPY of check-worktrees)          demo result
+        untracked never reported                         FAIL untracked RED + FAIL "did NOT say" (17/2)
+        modified never reported                          FAIL modified  RED + FAIL "did NOT say" (17/2)
+        wrong-branch never reported                      FAIL branch    RED + FAIL "did NOT say" (17/2)
+        missing origin branch never reported             FAIL unpushed  RED + FAIL "did NOT say" (17/2)
+        population floor reverted to the old `n -lt 1`   FAIL floor     RED                      (18/1)
+        touches floor removed                            FAIL touches   RED + FAIL "did NOT say" (17/2)
+        statted floor removed                            FAIL statted   RED                      (18/1)
+
+  **Seven for seven, and each mutation killed only its own assertion.** The demo is not vacuous: every state
+  and every floor it claims to cover, it actually covers. The floor case is the sharpest — reverting to
+  `n -lt 1` still exits 2 (the truncated parse trips the `touches` floor instead), so an exit-code-only
+  assertion would have passed it; the demo asserts the *message* (`"did not see the fleet"`) and caught it.
+
+  **And I re-performed the brief's red demo myself, on the real 84-worktree fleet rather than in a fixture**,
+  because a fixture proves the logic and not the parse at scale. Probe worktree on `task/T-9902` with a
+  real-shaped task file (`touches: [services/etl/etl/, ops/probe-marker]`), one untracked file inside
+  `touches:` and one outside it:
+
+        RED    _rvw65probe   untracked-in-touches: services/etl/etl/_rvw65_lost.py
+                             unpushed:[no origin/task/T-9902 at all]          exit=1
+               ... and did NOT name notes-outside-touches.txt                 <- the brief's discriminator
+        GREEN  file removed -> untracked=0                                    exit=1 (unpushed only)
+
+  Then the state the previous reviewer said deserved the demo most, `branch:[...]`, also on the live fleet —
+  the probe moved to a directory named `T-9902` and checked out on a leftover demo branch, which is the
+  `wt/T-0085` shape verbatim:
+
+        RED    T-9902   unpushed:[no origin/demo/T-9902-mrg at all]
+                        branch:[HEAD is demo/T-9902-mrg, not task/T-9902]     exit=1, branch=1
+
+  Probe cleanup: `git worktree remove --force .worktrees/T-9902`, `git branch -D task/T-9902
+  demo/T-9902-mrg`. Neither branch was ever pushed; `git worktree list | grep 9902` is empty.
+
+  **F4 — preflight voted on other agents' directories. CLOSED.** All three hooksPath cases re-run in this
+  worktree with `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=...`, so no shared
+  config was mutated, and with the fleet dirty (3 problems) throughout:
+
+        1. as configured (.githooks)          exit=0   "relative - resolves to THIS worktree"
+        2. absolute -> MAIN checkout          exit=1   "^ ABSOLUTE and NOT this worktree"
+        3. absolute -> THIS worktree          exit=0   "(absolute, but it is this worktree's own .githooks)"
+
+  **0 / 1 / 0**, where the previous reviewer measured 1 / 1: preflight's exit code distinguishes the hazard
+  from the benign case again, and the sweep prints `FYI 3 of 82 ... (does not fail preflight)` while exiting
+  0. `.github/workflows/linux-core.yml:59` therefore gates on the toolchain and not on 82 strangers'
+  directories.
+
+  **Mechanical rules — clean.** Branch touches exactly `ops/agent-preflight`, `ops/lib/check-worktrees`,
+  `ops/lib/check-worktrees-demo`, `ops/sane` and this queue file, all inside `touches:` (widened by one path
+  in the same commit, declared in the Log). `git ls-files -s` -> `100755` on all four scripts, including the
+  new `ops/lib/check-worktrees-demo`. Line counts 109 / 94 / 273 / 151, all under the 300 cap; one script per
+  file. No `git add -A` residue, no secrets, no pin or assertion anchored on a comment.
+
+  **Noted, not blocking.** (a) The header says "FOUR STATES" but five are reported and counted — `missing:`
+  is the fifth, and it is undemonstrated; it predates this PR (it is present at `81ad441`) so it is not a
+  check this PR introduced. (b) `statted >= 1` and `touched >= 1` are floored independently, so in principle
+  they could be satisfied by two *different* worktrees while the untracked half examined none; at
+  `statted=82 touches=77` this is theoretical. (c) Still red and not this branch's: `origin/main` carries
+  `ops/lib/ro_grammar.py` at `100644`, so `ops/lib/check-exec-bits` fails on `main` (P-OPS-01).
