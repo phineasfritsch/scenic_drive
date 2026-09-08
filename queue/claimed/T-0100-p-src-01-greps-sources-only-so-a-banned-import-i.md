@@ -1,13 +1,13 @@
 ---
 id: T-0100
 title: P-SRC-01 greps Sources/ only, so a banned import in a root-package TEST target is invisible
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T08:45:02Z
+lease_expires_at: 2026-09-08T11:45:02Z
 worktree: null
-branch: null
+branch: task/T-0100
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/pins_mutation_cases.py]
 pins_affected: [P-SRC-01]
@@ -58,3 +58,4 @@ mutation run will print `PROMOTE` until the exemption is removed.
 
   Caught by hand while reconciling two agents' output, which is the part that should not be relied on.
   Filed as its own finding rather than fixed here.
+- 2026-09-08T08:45:02Z claimed by agent/claude-opus-5; lease until 2026-09-08T11:45:02Z
