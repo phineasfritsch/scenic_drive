@@ -45,11 +45,9 @@ so it is an owner-run migration, not an agent task (T-0060). Do not file this ag
   *silently* and the script continues in whatever directory it started in (T-0025). Resolve the root from
   `${BASH_SOURCE[0]}` and assert a marker file. T-0055 fixed the wrappers; T-0077 fixes how they locate their
   module, which is the same bug one layer down.
-- **A python heredoc's stdout carries CRLF.** Strip `
-` before comparing or `rev-parse`-ing anything that came
+- **A python heredoc's stdout carries CRLF.** Strip `\r` before comparing or `rev-parse`-ing anything that came
   out of one. `ops/merge-rehearse` reported *"0 conflicts, 0 gate failures"* having merged one branch of
-  thirty-one, because every branch name arrived as `task/T-0014
-` and the loop skipped it silently.
+  thirty-one, because every branch name arrived as `task/T-0014\r` and the loop skipped it silently.
 - **Write scripts to a file before running them.** Inline shell quoting here eats backslash escapes: three
   separate attempts to patch a script through a heredoc left literal control bytes in it.
 - **MSYS rewrites POSIX-looking literals in argv.** `/bin/true` becomes a Windows path with a space in it, so
