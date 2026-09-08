@@ -96,13 +96,40 @@ public struct RouteScore: Equatable, Sendable {
     /// coast road and ten kilometres of arterial are two edges either way; only the length-weighted form
     /// says the route is mostly arterial.
     static func lengthWeightedPercentile(_ edges: [ScoredEdge], fraction: Double) -> Double {
+        // ASCENDING. `fraction` of the length lies at or below the returned score, so 0.90 is the high end.
+        // Sorting the other way turns p90 into p10 silently, and on a real route that moves the score by
+        // more than any weight change would.
         let sorted = edges.sorted { $0.score < $1.score }
-        let total = sorted.reduce(0.0) { $0 + $1.length }
-        let target = total * fraction
+
+        // The total is accumulated in exactly the same order and by exactly the same additions as the
+        // running sum below. The first version took it with a separate `reduce`, and floating-point
+        // addition is not associative: the two sums differed in their last bits, so when the percentile
+        // boundary fell on an edge boundary the comparison went whichever way the noise pointed.
+        //
+        // A reviewer demonstrated it on [9000 m @ 0.1, 1000 m @ 0.9] - the boundary sits exactly at 9000 m,
+        // which is p90 - split into k equal pieces per interval, exactly what the router does at junctions.
+        // k = 1, 2, 4 gave p90 = 0.1 and a route score of 0.031; k = 3, 7, 9, 12, 21 and many more gave
+        // p90 = 0.9 and 0.231. A 0.2 swing on a 0...1 score, from nothing but how the path was segmented -
+        // which is precisely the invariance this type exists to provide.
+        var running: [Double] = []
+        running.reserveCapacity(sorted.count)
         var cumulative = 0.0
         for e in sorted {
             cumulative += e.length
-            if cumulative >= target { return e.score }
+            running.append(cumulative)
+        }
+        let total = cumulative
+        guard total > 0 else { return sorted.last?.score ?? 0 }
+
+        // Even with one accumulation, splitting an edge changes the number of additions and so the last
+        // bits. At a boundary the correct answer is genuinely ambiguous - both adjacent scores are defensible
+        // - so the tie is broken deterministically toward the lower score rather than left to the noise.
+        // The tolerance is relative to the route's own length, so it means the same thing for a 2 km loop
+        // and a 300 km road trip.
+        let target = total * fraction
+        let tolerance = total * 1e-9
+        for (i, c) in running.enumerated() where c >= target - tolerance {
+            return sorted[i].score
         }
         return sorted.last?.score ?? 0
     }

@@ -9,15 +9,15 @@ lease_expires_at: 2026-09-08T15:54:42Z
 worktree: .worktrees/T-0117
 branch: task/T-0117
 exclusive: []
-touches: [Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/]
+touches: [Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 29 tests in 4 suites passed, exit 0"
-  - "python .artifacts/mutate-T0117.py -> 8 of 8 mutations caught, exit 0"
-  - "RED: each of the 8 mutations alone makes swift test exit 1"
+  - "swift test -> 34 tests in 4 suites passed, exit 0"
+  - "python ops/mutate/routescore.py -> 20 caught by a named test, 0 missed, exit 0"
+  - "RED: python ops/mutate/routescore.py --prove-vacuity -> 0 caught with the tests removed"
 ---
 ## Brief
 
@@ -118,3 +118,64 @@ not excluded - the freeway shoulder around a scenic middle is the shape most dri
 No RouteScore-based candidate selection, no rat-run detection, no `areas` re-issue. Those need the router
 and belong to the caller. This is the arithmetic, and it takes a plain array so it can be tested against
 exact adversarial shapes with no network, graph or container.
+
+---
+
+## Fix pass: reviewer-pr73 found a real bug in the shipped code
+
+Not a test gap. **`lengthWeightedPercentile` was not invariant under re-splitting** - the one property this
+whole task exists to guarantee, and the one the plan pins at 0.5%.
+
+`let target = total * fraction` took `total` from a separate `reduce`, while `cumulative` was a different
+partial sum. Floating-point addition is not associative, so the two disagreed in their last bits; when the
+percentile boundary fell exactly on an edge boundary, `cumulative >= target` went whichever way the noise
+pointed and p90 jumped to the next distinct score.
+
+Demonstrated by the reviewer against the compiled source, on `[9000 m @ 0.1, 1000 m @ 0.9]` - where the
+boundary sits exactly at p90 - split into k equal pieces per interval, which is what the router does at
+junctions:
+
+    k = 1, 2, 4                              p90 = 0.1   value = 0.031333
+    k = 3, 7, 9, 12, 21, 22, 23, 26, 28, ...  p90 = 0.9   value = 0.231333
+
+A 0.200 swing on a 0...1 score, from nothing but how the path was segmented, against a test tolerance of
+1e-9. `reEncodingInvariant` passed only because the `realistic` fixture never puts the boundary on an edge
+boundary - its worst delta over the same range of k is 9.99e-16. Reversal invariance was genuinely fine.
+
+**Fixed** by accumulating the total in the same order and by the same additions as the running sum, and
+breaking the residual tie deterministically toward the lower score with a tolerance relative to the route's
+own length. `percentileIsStableOnTheBoundary` now runs the reviewer's exact fixture over k = 1...40.
+
+### Four test gaps behind it, all closed
+
+  * **The percentile's sort direction had no witness.** Its only direct fixture, `[10 m @ 1.0, 10 km @ 0.1]`,
+    returns 0.1 under *both* directions, so one character turning p90 into p10 left the suite green - and
+    moved the realistic route's p90 from 0.83 to 0.00. New fixture is asymmetric.
+  * **Which percentile is used was pinned by nothing.** `matchesTheFormula` recomputes the expected value
+    from `s.p90`, so it stays self-consistent under any definition; 0.90 -> 0.70 survived it.
+  * **Threshold strictness was stated only in doc comments**, which CLAUDE.md forbids anchoring on. No
+    fixture used a score of exactly 0.6 or 0.25, or a run of exactly 800 m. All three now have one - and the
+    harness caught that a run of exactly 800 m needs TWO fixtures, because a run ending the route is closed
+    after the loop while one closed by a dull stretch is closed inside it.
+  * **`dudThreshold`'s own claim was false.** The source said it was named rather than inlined "so that
+    tuning it is a one-line change with a test that moves". Nothing moved. Now it does.
+
+### The harness, rebuilt
+
+Moved to `ops/mutate/routescore.py` (tracked; `.artifacts/` is gitignored, so the old acceptance line could
+not be run from a clone), builds each mutation before believing a compile failure, requires a NAMED TEST to
+fail rather than a non-zero exit, and reports `trapped` separately for a mutation detected by a crash.
+
+    caught by a named test: 20   trapped: 0   compile-only: 0   MISSED: 0   of 20
+    VACUITY PROOF OK: with no tests present, 0 mutations were reported caught
+
+Eight of the twenty are numeric-constant mutations. **A reviewer on T-0116 pointed out that every mutation
+in that harness was structural and not one touched a number** - which is exactly where such a suite is
+blind, and it was true here too.
+
+### One mutation is a no-op, and that is recorded rather than hidden
+
+Taking the total with a separate `reduce` is no longer independently a defect: the boundary tolerance
+absorbs the discrepancy. Either half of the fix is sufficient alone, so the mutation that reproduces the
+shipped bug has to remove BOTH - which is the shape the code had when the reviewer found it. That is what
+the mutation now does.
