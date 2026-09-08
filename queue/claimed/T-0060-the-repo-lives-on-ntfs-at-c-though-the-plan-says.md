@@ -60,3 +60,37 @@ them.
 - 2026-09-08 filed by agent/claude-opus-5 from T-0055, which fixed eight wrappers and then found that the
   cause was one level below all of them.
 - 2026-09-08T03:07:18Z claimed by agent/claude-opus-5; lease until 2026-09-08T07:07:18Z
+
+- 2026-09-08 agent/claude-opus-5 — the third option in this brief, taken deliberately: **the decision is
+  recorded, and the migration is left where the brief puts it — with the owner.**
+
+  This task says the move is the owner's call and I have not made it. What I have removed is the state the
+  brief calls the worst outcome: *"the plan says one thing, the disk says another, and nobody has reconciled
+  them."* CLAUDE.md now says the repo is on NTFS, that this binds until the owner migrates, and what an agent
+  must therefore do. Moving still costs exactly what the brief says — every `worktree:` path in every claimed
+  task file, plus a ~2.5 GB re-fetch — so it stays an owner-run migration.
+
+  **Six rules, each of which cost this fleet real time in the last day**, all executed rather than recalled:
+
+  1. No `git rev-parse --show-toplevel` under `ops/` or `.githooks/`. Fails from WSL against a Windows
+     worktree, and without `set -e` it fails SILENTLY (T-0025). T-0055 fixed the wrappers' `cd`; T-0077 fixes
+     how they locate their module, which is the same bug one layer down.
+  2. Python heredoc stdout carries CRLF. `ops/merge-rehearse` reported `0 conflicts, 0 gate failures` having
+     merged **one** branch of thirty-one, because every name arrived as `task/T-0014\r`.
+  3. Write scripts to a file. Inline heredoc quoting ate backslash escapes three separate times in one task.
+  4. MSYS rewrites `/bin/true` in argv into a Windows path with a space, so a command fails for the wrong
+     reason and reads as "the guard caught it" — a round-two verifier lost an evasion to exactly this.
+  5. `python3` here is 3.14.5 with no pytest; `python` is 3.10.11 with it. `ops/test` runs the former and
+     blames `services/etl` (T-0076).
+  6. Never edit a running script; never `git reset --hard` with uncommitted work. Both happened today, both
+     cost real work, and both are cheap to repeat.
+
+  **Not done, and deliberately:** `queue/README.md` is in this task's `touches:` and needed nothing — the
+  rules belong where agents already read them on every task, and duplicating them into a second file creates
+  two copies to drift apart.
+
+  Gates: `PINS ok=9 failed=0`, `--source-only ok=3 failed=0`, `QUEUE OK`.
+
+  **If the owner chooses to move**, this section is what gets deleted, and T-0061 evaporates with it. That is
+  still the better end state; it is just not an agent's call, and pretending otherwise would leave twenty
+  worktrees pointing at paths that no longer exist.
