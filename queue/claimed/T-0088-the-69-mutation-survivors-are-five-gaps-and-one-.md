@@ -144,3 +144,48 @@ Full run after gap 1 landed (770174d):
 28 survivors gone, one more than the 27 demonstrated - `selection` and `funnel` at `oracle_select.py:199`
 died too, because the new cases read those keys to check the cap and the funnel. Ratchet: `MAX_SURVIVORS`
 69 -> 37.
+
+### Gap 3 - the parser guards were never reached
+
+`oracle.py:82`, `:86`, `:119` and `:125` are `if not m: continue` / `if not rows: continue` / `if not cm:
+continue`. Three of the four are an `AttributeError` on `None.group(1)` the moment they stop guarding, so
+they are not equivalent mutations - they had simply never been executed, because every KMZ the suite wrote
+was well-formed. `tests/oracle_kmz.py` (added with gap 1) builds a Placemark from parts, so a test can leave
+out the `<description>`, the way rows or the `<coordinates>`. New: `services/etl/tests/test_oracle_parser.py`
+(6 cases), plus one case in `test_oracle_select.py` for `load_export`'s sibling pair - the same defect in the
+other module, where the two opening guards are what let one reader take both `-f geojsonseq` and `-f geojson`.
+
+`:86` is the only one of the four whose failure is silent: a Placemark whose description is not a
+constituent-ways table gets yielded as a collection with an empty way list, `single_way_collections` then
+drops it on `len(rows) != 1`, and nothing downstream changes - what changes is the count in
+`oracle: N collections, M of them single-way`, which is the number a human compares across a re-pin.
+
+    UNMUTATED           21 passed in 0.10s
+    CAUGHT   oracle.py:82  continue `continue` -> `pass`   test_a_placemark_with_no_description_is_skipped...
+    CAUGHT   oracle.py:86  continue `continue` -> `pass`   ...and_not_dereferenced (collections)
+    CAUGHT   oracle.py:119 continue `continue` -> `pass`   test_a_placemark_with_no_description_is_skipped
+    CAUGHT   oracle.py:125 continue `continue` -> `pass`   (kml_geometry)
+    SURVIVED oracle_select.py:86 continue `continue` -> `pass`    21 passed
+    CAUGHT   oracle_select.py:90 continue `continue` -> `pass`    test_load_export_reads_a_plain_geojson...
+    SURVIVED oracle_select.py:91 operand  drop operand 1 of Or    21 passed
+    CAUGHT   oracle_select.py:92 operand  drop operand 1 of Or    test_load_export_reads_a_plain_geojson...
+    CAUGHT   oracle_select.py:93 operand  drop operand 1 of Or    test_load_export_reads_a_plain_geojson...
+
+TWO SURVIVED, and both are equivalent mutations rather than missing cases. They are left as survivors and
+explained rather than chased, which is the whole point of measuring:
+
+- `oracle_select.py:86`, `if not line.startswith("{"): continue`. Turning it into `pass` sends the line into
+  the `try` below, and every line that does not start with `{` and occurs in a real export - blank, `[`,
+  `]}`, a truncated tail - raises `JSONDecodeError` and is skipped by the guard at `:90` instead. The two
+  guards produce different behaviour only for a line that is VALID JSON and is not an object (`null`, `[]`,
+  a bare number), which no exporter writes. `:86` is a clearer statement of intent than `:90`, not a
+  different decision.
+- `oracle_select.py:91`, `str(feature.get("id") or "")`. This one was written as a case first and the case
+  disproved its own premise: the reasoning was that dropping `or ""` makes an id-less feature `str(None)` and
+  that `"None".startswith("n")` then collects it as a tagged node. `str(None)` is `"None"` with a capital N.
+  It begins with neither `"w"` nor `"n"`, so both branches skip it exactly as `""` does. Every id that
+  reaches a branch is a string beginning `w` or `n`, whose `str()` is itself; every falsy one stringifies to
+  something that reaches neither. The finding is written into the test's docstring so the next reader does
+  not re-derive it.
+
+GREEN, unmutated: `210 passed`.

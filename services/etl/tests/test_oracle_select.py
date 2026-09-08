@@ -157,3 +157,45 @@ def test_load_export_collects_only_nodes_carrying_a_squash_tag(tmp_path):
     path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     _, _, tagged = sel.load_export(path)
     assert tagged == [(44.0, -72.8), (44.02, -72.82)]
+
+
+def test_load_export_reads_a_plain_geojson_collection_and_the_shapes_the_format_allows(tmp_path):
+    r"""`load_export`'s two opening guards and its three `or` defaults, none of which had been reached.
+
+    The guards are why one reader takes `-f geojsonseq` AND `-f geojson`: a FeatureCollection's opening
+    `{"type": "FeatureCollection", "features": [` starts with `{` and is not valid JSON on its own, so the
+    `except json.JSONDecodeError: continue` skips it; its closing `]}` does not start with `{`; and each
+    member line's trailing comma is what `rstrip(",")` removes. Every export the suite had written was a few
+    clean objects with no commas, so all of that was dead code under test - `ops/etl-mutation` turned the
+    JSONDecodeError guard into `pass` with the suite green.
+
+    The `or {}` defaults are RFC 7946, not paranoia: a Feature's `geometry` MAY be null and its `properties`
+    MAY be null, and an export produced without `--add-unique-id=type_id` carries no `id` at all. All three
+    shapes are here, and a way is still read out of the file around them.
+
+    The `or ""` on the id is the one this case does NOT kill, and the attempt is what showed why. The
+    reasoning was that dropping it leaves an id-less feature as `str(None)`, and that `"None".startswith("n")`
+    would then collect it as a tagged node - but `str(None)` is `"None"` with a capital N, so it begins with
+    neither `"w"` nor `"n"` and both branches skip it exactly as the empty string does. Every id that reaches
+    a branch is a string beginning `w` or `n`, whose `str()` is itself; every falsy one stringifies to
+    something that reaches neither. That mutation is equivalent, and it is recorded as one rather than chased.
+    """
+    members = [
+        json.dumps({"type": "Feature", "id": "w1", "geometry": None,
+                    "properties": {"highway": "residential"}}),
+        json.dumps({"type": "Feature", "id": "w2",
+                    "geometry": {"type": "LineString", "coordinates": [[-72.8, 44.0], [-72.79, 44.01]]},
+                    "properties": None}),
+        json.dumps({"type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [-72.8, 44.0]},
+                    "properties": {"highway": "traffic_signals"}}),
+    ]
+    path = tmp_path / "e.geojson"
+    path.write_text('{"type": "FeatureCollection", "features": [\n' + ",\n".join(members) + "\n]}\n",
+                    encoding="utf-8")
+
+    ways, props, tagged = sel.load_export(path)
+    assert sorted(ways) == [2], "the only readable way is the one that has a LineString"
+    assert ways[2][0] == (44.0, -72.8)
+    assert props[2] == {}, "a null `properties` must arrive as an empty dict, not as None"
+    assert tagged == [], "a feature with no id is not a node, whatever its geometry reads like"
