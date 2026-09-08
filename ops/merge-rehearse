@@ -77,6 +77,45 @@ mapfile -t EDGES < <(gh pr list --state open --limit 200 --json headRefName,base
   --template '{{range .}}{{.headRefName}} {{.baseRefName}}{{"\n"}}{{end}}' 2>/dev/null)
 [[ ${#EDGES[@]} -gt 0 ]] || { echo "no open PRs to rehearse"; exit 0; }
 
+# ---------------------------------------------------------------- a branch with no PR is still a branch
+# The list above comes from `gh pr list`, so a ref that is ahead of main WITHOUT an open PR was never
+# rehearsed and never counted. On 2026-09-08 that was ELEVEN refs - up to 59 commits each, ten of them
+# holding a task in queue/claimed/ on their own head - while this tool printed "37 of 41 merged, 0 gate
+# failures" and that number was published as merge readiness of the backlog. The count was right; the noun
+# attached to it was wrong. A branch merges into main whether or not anybody opened a pull request for it.
+#
+# PRs still supply the ORDERING - `baseRefName` is the only place that says what is stacked on what - and
+# they are the only source of CI state. They must not decide what gets rehearsed.
+PR_HEADS="$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u)"
+n_pr=$(printf '%s\n' "$PR_HEADS" | grep -c .)
+n_extra=0
+while IFS= read -r ref; do
+  [[ -n "$ref" ]] || continue
+  b="${ref#refs/remotes/origin/}"
+  printf '%s\n' "$PR_HEADS" | grep -qx "$b" && continue
+  ahead="$(git rev-list --count "origin/main..$ref" 2>/dev/null || echo 0)"
+  [[ "$ahead" -gt 0 ]] || continue
+  EDGES+=("$b main")
+  n_extra=$((n_extra + 1))
+  if [[ $QUIET -eq 0 ]]; then
+    echo "no-PR branch: $b ($ahead commit(s)) - rehearsed here, but it has NO CI result anywhere"
+  fi
+done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*')
+
+# Vacuity guard for the ENUMERATION, which is the part that was wrong. Refs are a superset by construction:
+# every open PR head is a branch. If the ref query yields fewer heads than the PR list, it failed or was
+# filtered - and rehearsing a subset while printing a total is precisely the defect being fixed here.
+n_all=$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u | grep -c .)
+if [[ "$n_all" -lt "$n_pr" ]]; then
+  echo "REHEARSAL REFUSED: $n_all branch(es) enumerated but $n_pr open PR head(s) exist."
+  echo "  Every PR head is a branch, so the ref query lost some. A rehearsal of a subset that reports a"
+  echo "  total is the defect this guard exists for, not a smaller run."
+  exit 2
+fi
+if [[ $QUIET -eq 0 ]]; then
+  echo "branches: $n_all to rehearse = $n_pr with an open PR + $n_extra with none"
+fi
+
 # ---------------------------------------------------------------- ordering constraints PR bases cannot express
 # Some branches must merge in an order their PR bases do not imply, because one changes a RULE that the other's
 # content is only correct under. A constraint is just another edge - "X after Y" is the same shape as "X is
@@ -286,6 +325,10 @@ fi
 want=$(printf '%s\n' $ORDER | sed 's/\r$//' | grep -c .)
 mode=cumulative; [[ $PAIRWISE -eq 1 ]] && mode=pairwise
 echo "REHEARSAL ($mode): $merged of $want merged, $conflicts conflicts, $gatefails gate failures, $unresolved unresolvable"
+if [[ ${n_extra:-0} -gt 0 ]]; then
+  echo "  $want branches = $n_pr with an open PR + $n_extra with none. The ones with no PR have no CI"
+  echo "  result anywhere, so a clean row for them says only that they MERGE, not that they pass."
+fi
 [[ $PAIRWISE -eq 1 ]] || echo "  Run --pairwise too: a defect a later branch cleans up is silent here."
 if [[ $merged -eq 0 || $((merged + conflicts + unresolved)) -lt $want ]]; then
   echo "  INCOMPLETE: $want branches were requested and only $((merged + conflicts + unresolved)) were accounted for."

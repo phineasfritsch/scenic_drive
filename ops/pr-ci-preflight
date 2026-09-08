@@ -156,6 +156,17 @@ echo
 want=${#PRS[@]}
 seen=$((ok + bad + noref + disagree))
 echo "PR-CI PREFLIGHT: $ok ok, $bad failing gates, $noref genuinely conflicting, $disagree stale on GitHub (of $want open PRs)"
+# Name the population, because the number above was read as a statement about the backlog. This tool gates
+# the tree GitHub Actions tests, so a branch with no PR has no tree to gate and no CI result to compare
+# against - it is not "fine", it is unmeasured, and only saying so keeps $want from being mistaken for the
+# whole. `ops/merge-rehearse` covers those branches; nothing covers their CI.
+_norepo=$(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*' | while IFS= read -r r; do
+  [[ "$(git rev-list --count "origin/main..$r" 2>/dev/null || echo 0)" -gt 0 ]] && echo "$r"
+done | wc -l)
+if [[ "$_norepo" -gt "$want" ]]; then
+  echo "  NOT COVERED: $((_norepo - want)) branch(es) are ahead of main with no open PR, so they have no CI"
+  echo "  result at all. This number is about the $want PRs above, not about the backlog."
+fi
 if [[ $seen -lt $want ]]; then
   echo "  INCOMPLETE: $want PRs were listed and only $seen were accounted for."
   exit 2
