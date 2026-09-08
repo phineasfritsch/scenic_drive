@@ -20,7 +20,11 @@ __pycache__/
 .venv/
 
 # Data artifacts — published to R2, never committed
-services/etl/inputs/
+# The payloads are R2-published and never committed - but manifest.yaml IS the record of what we fetch,
+# its checksum and its licence, and three tests read it. Ignoring the whole directory made it invisible to
+# git while every local run stayed green, and CI failed 3 tests with no name attached. Ignore the payloads.
+services/etl/inputs/*
+!services/etl/inputs/manifest.yaml
 services/etl/work/
 services/routing/graph-cache/
 *.osm.pbf

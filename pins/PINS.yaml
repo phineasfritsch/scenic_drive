@@ -32,6 +32,15 @@
   owner: agent/claude-opus-5
   added: 2026-09-07
 
+- id: P-OPS-02
+  statement: A failing test run names the tests that failed - every failure the counter counts, --list-failures names, and an unreadable report fails closed on both paths
+  why_no_test_catches_it: The suite stays green while the runner is blind, so nothing goes red when the naming breaks. PR #14 printed `TESTS linux=85/76 failed=3` with no names and cost a debugging round of re-running every tier by hand in a container; the first fix for that was itself incomplete - --list-failures walked only <testcase> elements, so a summary-only <testsuite failures="1">, which is exactly what `swift test --xunit-output` writes into .artifacts/spm-junit.xml today, counted as a failure and named nothing (reviewer-18). A runner that hides which test broke is the fleet's central failure mode wearing a hat.
+  anchor: artifact
+  runs_on: [linux, mac]
+  assertion: "bash ops/lib/check-failure-naming"
+  owner: agent/claude-opus-5
+  added: 2026-09-07
+
 - id: P-GIT-01
   statement: .gitattributes normalizes every text file to LF
   why_no_test_catches_it: Lost on 2026-09-07 to a sweep-everything demo commit; every ops/* script would then break under WSL2 with no test failing
