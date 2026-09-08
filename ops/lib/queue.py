@@ -235,6 +235,15 @@ def log(path, msg):
 def cmd_new(argv):
     title = argv[0]
     opts = _opts(argv[1:])
+    # `state` is interpolated straight into the path this function writes, so an unchecked one is not a
+    # typo, it is a traceback and a write outside queue/: `--state` with no value became queue/true/ and
+    # `--state ../../../escape` resolved out of the repo. Both raised FileNotFoundError only because the
+    # directory happened not to exist, which is not a guard.
+    state = opts.get("state", "backlog")
+    if state not in STATES:
+        print(f"usage: queue.py new \"<title>\" [--state {'|'.join(STATES)}] [options]")
+        print(f"refused --state {state!r}: a task file lives in one of those directories and nowhere else.")
+        return 2
     # Refused here as well as in cmd_check, on T-0056's argument: after the fact is a report, at the
     # transition is a prevention. A duplicate never committed costs nothing; one that is claimed costs two
     # worktrees and a merge conflict.
@@ -246,7 +255,6 @@ def cmd_new(argv):
             print("Add to that task, or give this one a title that says how it differs.")
             return 1
     tid = next_id()
-    state = opts.get("state", "backlog")
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:48]
     fm = {
         "id": tid, "title": title, "state": state, "owner": None, "owner_session": None,
@@ -788,6 +796,22 @@ def _list(v):
 COMMANDS = ("new", "check", "sweep", "next", "claim", "lock", "review")
 # subcommand -> the operand it reads out of argv[0], for the usage line. `new` takes a title, not an id.
 NEEDS_ARG = {"new": '"<title>"', "claim": "<id>", "lock": "<id>", "review": "<id>"}
+# Every dash that a keyboard, an autocorrect or a pasted document can leave where '-' was meant. The first
+# version of the guard below said "may not start with '-'" and was defeated by the neighbouring character
+# in one line: `new '--touches' ops/lib/queue.py` typed with EN DASHES still wrote a task titled "--touches".
+DASHES = "-\u00ad\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uff0d"
+
+
+def _bad_operand(cmd, got):
+    """Why `got` cannot be cmd's first operand, or None when it can. Anchored on TASK_ID, not on shape
+    guesswork: for claim/lock/review the operand is an id, and an id is exactly T- and four digits."""
+    if not got.strip():
+        return "the operand comes first and may not be blank."
+    if got.strip()[0] in DASHES:
+        return "that is an option, not an operand - the operand comes first."
+    if cmd != "new" and not TASK_ID.match(got):
+        return "a task id is 'T-' and four digits."
+    return None
 
 
 def main(argv):
@@ -804,12 +828,13 @@ def main(argv):
     # mistake along: `new --touches ops/lib/queue.py` has three arguments, so it passed, and cmd_new wrote
     # queue/backlog/T-0088-touches.md TITLED "--touches"; `new ""` and `new "   "` wrote task files with an
     # empty title and an empty slug. Silent garbage in the queue is worse than a stack trace, because
-    # nobody reads queue/backlog until they need it. No task title or id here has ever begun with '-'.
+    # nobody reads queue/backlog until they need it.
     if argv[1] in NEEDS_ARG:
         got = rest[0] if rest else ""
-        if not got.strip() or got.startswith("-"):
+        why = _bad_operand(argv[1], got)
+        if why:
             print(f"usage: queue.py {argv[1]} {NEEDS_ARG[argv[1]]} [options]")
-            print(f"refused {got!r}: the operand comes first, may not be blank, and may not start with '-'.")
+            print(f"refused {got!r}: {why}")
             return 2
     return globals()[f"cmd_{argv[1]}"](rest) or 0
 
