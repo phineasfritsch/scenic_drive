@@ -88,3 +88,35 @@ Do:
 today; it must refuse afterwards. #56 is a live example that can stay unmerged while it is used as one.
 
 ## Log
+- 2026-09-08T20:50:00Z **THE PREMISE OF THIS TASK IS WRONG AND THE MECHANICAL FIX IT IMPLIES IS UNSAFE.** Checked all 18 open PRs whose base is a task branch, asking of each whether the base is already contained in `main`:
+
+  ```
+  for p in 69 68 63 62 56 49 44 43 42 41 40 39 38 37 35 34 33 29; do
+    git merge-base --is-ancestor "origin/$base" origin/main && echo safe || echo "base still unmerged"
+  done
+  ```
+
+  **All 18 report `base still unmerged`. Not one is safe to retarget.**
+
+  The title says these PRs are unmergeable *only* because their base is a task branch rather than `main`. That
+  is not the situation. `gh pr edit --base main` does not just relabel a PR - it changes the merge base, so the
+  PR's diff grows to include every unmerged commit on the base branch. Retargeting #63 (head `task/T-0100`,
+  base `task/T-0080`) would make its diff contain all of T-0080's work, and merging it would land T-0080 on
+  `main` **unreviewed**, under a PR whose title and review say nothing about it.
+
+  That is the same failure this repository has already recorded once: [[T-0115]], seven PRs merged with a
+  zero-file diff. A blind retarget would produce the mirror image - PRs merged with a diff far larger than
+  anyone reviewed.
+
+  So the tower is a **real dependency chain**, not a labelling mistake, and there is no mechanical unblock. The
+  only correct path is to land the bases in dependency order, each after its own review. Two concrete chains:
+
+  * `#33`/`#34` (base `task/T-0026`) → `#38` → ... - T-0026 first;
+  * `#63` (base `task/T-0080`) - **T-0080's PR #59 is green and MERGEABLE right now**, so this chain is one
+    review away from moving. T-0080 sits in `queue/claimed/` with `reviewer: null`, owned by
+    `agent/pins-mutation`; it needs to reach `review/` with a reviewer who is not that owner before `ops/merge`
+    will take it.
+
+  **Rewrite this task** to be "land the tower in dependency order, starting with T-0026 and T-0080", or close
+  it in favour of that. Do not leave it phrased as a retarget, because the retarget is the dangerous action and
+  the title currently recommends it.
