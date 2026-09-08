@@ -105,15 +105,44 @@ fi
 
 # EXEMPTIONS. Each entry is a path and the task that removes it. Not a way to be under the cap - a way to
 # turn the cap on TODAY for the ninety-odd files that comply, instead of leaving every Python file unchecked
-# until one refactor lands. Two rules keep it from becoming permanent:
+# until one refactor lands. Three rules keep it from becoming permanent:
 #   - an entry with no task id is refused, so nobody can add one without saying who will remove it;
-#   - an entry whose file is now UNDER the cap is refused as stale, so a fixed file cannot keep its licence.
+#   - an entry whose file is now UNDER the cap is refused as stale, so a fixed file cannot keep its licence;
+#   - an entry naming a path the cap loop never visits is refused, because nothing can ever make it expire.
 # Adding a name here is a visible diff on a load-bearing check. That is the intended cost.
 declare -A EXEMPT=(
   ["ops/lib/queue.py"]="T-0059"   # 498 lines. Already 415 before T-0032 added the review transition, and
                                   # never reported because this check could not see Python. T-0059 splits it
                                   # along the seams its own section comments already mark.
 )
+
+# The stale rule below can only fire for an entry the cap loop actually VISITS, because that loop walks
+# `capped` and looks the path up in EXEMPT - never the other way round. So it catches the one shape where the
+# path is still there and has come under 300, and misses every shape where the path itself went away: rename
+# or delete the file and the entry is carried forever, in silence, still counted in the "N exempt" tally on
+# the last line (agent/reviewer, reviewing T-0062). An exemption that cannot expire is the exact thing the
+# other two rules exist to prevent.
+#
+# Anchored on `capped` - the same git ls-files set the cap loop walks - and not on the working tree, because
+# a file present on disk but untracked is invisible to this check, so an exemption naming one is just as dead.
+# `git ls-files --error-unmatch` then separates the two causes, which have different fixes: a path that is not
+# tracked at all was renamed or deleted, and a path that is tracked but absent from `capped` has an extension
+# or a location the cap does not cover, so no edit to that file could ever trip the rule either.
+declare -A CAPPED_SET=()
+for f in "${capped[@]}"; do
+  [[ -z "$f" ]] && continue
+  CAPPED_SET["$f"]=1
+done
+
+unreachable=()
+for f in "${!EXEMPT[@]}"; do
+  [[ -n "${CAPPED_SET[$f]:-}" ]] && continue
+  if git ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+    unreachable+=("$f (exempt for ${EXEMPT[$f]}) - tracked, but outside the capped set; the cap never reads it")
+  else
+    unreachable+=("$f (exempt for ${EXEMPT[$f]}) - not a tracked file; it was renamed or deleted")
+  fi
+done
 
 bad=(); stale=(); unowned=()
 for f in "${capped[@]}"; do
@@ -143,6 +172,12 @@ fi
 if [[ ${#unowned[@]} -gt 0 ]]; then
   echo "P-SRC-02: exemption(s) with no task to remove them:"
   printf '  %s\n' "${unowned[@]}"
+  exit 1
+fi
+if [[ ${#unreachable[@]} -gt 0 ]]; then
+  echo "P-SRC-02: exemption(s) the cap never examines - nothing can make these expire:"
+  printf '  %s\n' "${unreachable[@]}"
+  echo "  Point the entry at the file's current path, or delete it."
   exit 1
 fi
 if [[ ${#stale[@]} -gt 0 ]]; then
