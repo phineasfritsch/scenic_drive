@@ -118,8 +118,20 @@ So the hook is enforcing a list that the tool which writes the list cannot expre
 
         $ MSYS_NO_PATHCONV=1 git show origin/task/T-0087:ops/lib/queue.py | sed -n '/^def _opts/,/^def /p'
 
-  **What is NOT fixed by that branch**, and is the reason this file stays open rather than being deleted:
-  the four task files measured above still carry the under-declared `touches:` the old parser wrote —
-  T-0072 `[ops/check-pins]` for 2 flags, T-0077 `[ops/new-task]` for 4, T-0081 `[services/etl/etl/]` for 2,
-  T-0083 `[services/api/src/ro.ts]` for 3. Those are data, on four separate branches, and fixing them is a
-  sweep this task should carry once T-0087 lands.
+  **A correction to the paragraph that was here.** I wrote that the four measured task files "still carry
+  the under-declared `touches:`" and that fixing them is a sweep this task should carry. I had checked
+  `main` and not the branches. On the branches all four were widened by hand during their own work, so each
+  is corrected the moment it merges:
+
+        on main                      on its own branch
+        T-0072  [ops/check-pins]     [ops/lib/pins.py, ops/check-pins]        (on task/T-0066)
+        T-0077  [ops/new-task]       [ops/]
+        T-0081  4 entries            6 entries
+        T-0083  1 entry              5 entries
+
+  So there is **no data residue and no sweep**. This task's only remaining work is T-0087 merging, which is
+  what `depends_on` now says. Recorded rather than quietly edited, because a wrong claim I committed and
+  then silently replaced is worse than the claim.
+
+  (T-0072 is also the borrowed-branch case: its file lives on `task/T-0066`, not on a `task/T-0072`, which
+  is why the first lookup found nothing. That is the shape [[T-0082]]'s sweep guard was tightened for.)
