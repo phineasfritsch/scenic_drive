@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T19:25:15Z
 worktree: .worktrees/T-0124
 branch: task/T-0124
 exclusive: []
-touches: [ops/lib/check-lock-lifecycle, ops/lib/check-brief-required, ops/lib/check-failure-naming, ops/lib/tmpdir.sh]
+touches: [ops/lib/check-lock-lifecycle, ops/lib/check-brief-required, ops/lib/check-failure-naming, ops/lib/tmpdir.sh, ops/lib/check-exec-bits]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -145,3 +145,55 @@ Worth recording from the attempt: the 45 identical fillers were caught by the du
 
 Before this task it produced no `ok` lines at all, because it could not open its own temp directory.
 
+
+- 2026-09-08T19:05:00Z P-OPS-01 went red on this branch: `ops/lib/tmpdir.sh (script, should be 100755, is
+  100644)`. Did NOT chmod +x. `tmpdir.sh` is a SOURCED library and the exec bit is not what makes it work.
+
+### Why chmod +x would have been the wrong fix
+
+Every call site is a `source`, and there are exactly three:
+
+    ops/lib/check-brief-required:25    source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"
+    ops/lib/check-failure-naming:26    source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"
+    ops/lib/check-lock-lifecycle:27    source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"
+
+`git grep -nE '(\./|bash |sh |exec )[^ ]*tmpdir\.sh'` over the tree returns nothing - no direct-execution
+form exists. Nothing globs `ops/lib/*` and runs the matches; the checks are named one at a time, and CI
+(`.github/workflows/linux-core.yml`) invokes everything as `bash ops/x`. `source` needs the READ bit and
+never the exec bit, so 100755 would have asserted a mode the repo does not depend on.
+
+This is the identical category to `ops/lib/*.py`, which T-0036 moved into the 100644 data bucket for exactly
+this reason ("they are all invoked as `"$PY" ops/lib/x.py`"). `tmpdir.sh` is the stronger case of the two:
+the `.py` helpers still carry a vestigial `#!/usr/bin/env python3`, and `tmpdir.sh` has NO shebang at all.
+Shebang-iff-executable therefore already holds for it, and needed no change.
+
+Fix: extended the documented exemption in `ops/lib/check-exec-bits` to `*.sh`, with the reasoning written
+into the file the way the `.py` reasoning is. Also added `ops/lib/tmpdir.sh` to `REQUIRED` - three checks
+source it, so it is load-bearing, and purpose #2 of that file is that load-bearing files are actually
+tracked.
+
+### The exemption is bounded so it cannot become a hole
+
+A new `.sh` here inherits the data classification automatically, so an executable one could slip in
+unnoticed. `check-exec-bits` now also fails when a `*.sh` under `ops/`/`.githooks/` HAS a shebang - that is
+a file somebody means to execute, and it must not sit in the data bucket. Anchored on the committed blob's
+first two bytes (an artifact), not on a comment.
+
+### RED then GREEN - mutation demo in a throwaway repo, real index never touched
+
+    M0 baseline                              rc=0  P-OPS-01: 34 files, 24 required present, all modes correct
+    M1 ops/sane -> 100644                    rc=1  ops/sane (script, should be 100755, is 100644)
+    M2 ro_cases.json -> 100755               rc=1  ops/lib/ro_cases.json (data, should be 100644, is 100755)
+    M3 tmpdir.sh -> 100755                   rc=1  ops/lib/tmpdir.sh (data, should be 100644, is 100755)
+    M4 tmpdir.sh untracked                   rc=1  load-bearing script(s) not tracked: ops/lib/tmpdir.sh
+    M5 tmpdir.sh gains a shebang             rc=1  *.sh ... is the sourced-library extension, but has a shebang
+    M6 restored                              rc=0  P-OPS-01: 34 files, 24 required present, all modes correct
+
+M1 is the "does it still catch a genuinely wrong mode" case; M3 is the new rule proving it still fails in
+the inverse direction rather than just ignoring `.sh`. Verified on the real tree:
+
+    bash ops/lib/check-exec-bits   P-OPS-01: 34 files, 24 required present, all modes correct   exit 0
+    bash ops/check-pins            PINS ok=12 skipped=0 pending=2 expired=0 failed=0 tier=linux exit 0
+
+`ops/lib/tmpdir.sh` is byte-for-byte and mode-for-mode unchanged (still blob 58c9728, still 100644).
+`ops/lib/check-exec-bits` was added to `touches:` before being edited.
