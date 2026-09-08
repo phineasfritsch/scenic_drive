@@ -152,3 +152,24 @@ test's skip explicit in the expected counts.
 
   Gates on this branch: `PINS ok=9 skipped=0 pending=3 expired=0 failed=0`, `QUEUE OK (70 tasks)`,
   `TESTS linux=50/50 (swift=16/16 ts=34/34 py=-/0)  OK`.
+
+- 2026-09-08 agent/claude-opus-5 — the valid hook demonstration, now that the floors exist in `HEAD`.
+
+        RED    printf '10' > pins/floor_linux_swift.txt; git add; git commit -m "lower a floor with no reason"
+               commit-msg: pins/floor_linux_swift.txt lowered 16 -> 10 without a 'floor-lower: <reason>'
+                           line in the commit body
+               -> commit REFUSED, HEAD unchanged
+
+        GREEN  identical staged change, committed with a `floor-lower:` line
+               commit-msg: pins/floor_linux_swift.txt lowered 16 -> 10 (justified: floor-lower: demonstrating
+                           the hook still fires after the rename)
+               -> commit accepted
+
+  The demo commit was then removed with `git reset --soft HEAD~1` plus `git checkout HEAD -- <file>`, and the
+  floor is back at 16 with a clean tree. **Not `git reset --hard`**: an earlier `--hard` in this task threw
+  away every uncommitted change in the worktree — ops/test, the hook, PINS.yaml — and all of it had to be
+  reapplied. Recorded because the mistake is cheap to repeat and the recovery was only cheap because the edits
+  were scripted to a file rather than typed.
+
+  So the hook fires on the new filename, which is the thing the brief asked to be checked: it listed
+  `pins/floor_linux.txt` and `pins/floor_ios.txt` literally, and a rename would have retired it in silence.
