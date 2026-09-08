@@ -114,7 +114,30 @@ public struct AppleMapsDirections: Equatable, Sendable {
         return "\(decimal(c.latitude)),\(decimal(c.longitude))"
     }
 
+    /// `v` at `coordinateDecimals`, with a `.` decimal point, built without consulting any locale.
+    ///
+    /// The first version was `String(format:locale:)` pinned to `en_US_POSIX`, and a reviewer showed that
+    /// defence was worth nothing: mutating the locale to `Locale.current` - the obvious simplification, and
+    /// what somebody writes who does not know why the identifier is there - left every test green, because
+    /// the tests run on an en_US machine. The bug the doc comment described (a German device producing
+    /// `34,06890`, a decimal comma inside a comma-separated pair, which Apple Maps reads as four numbers)
+    /// would have shipped with a green suite and a comment explaining why it could not.
+    ///
+    /// So the dependency is removed rather than defended. Integer arithmetic and `String(Int)` have no
+    /// locale to consult, which means there is no longer a line here that a locale change could break -
+    /// a property no test has to be clever enough to catch.
+    ///
+    /// Safe for coordinates because `pair(_:)` has already refused anything outside +/-180.
     static func decimal(_ v: Double) -> String {
-        String(format: "%.\(coordinateDecimals)f", locale: Locale(identifier: "en_US_POSIX"), v)
+        let scale = 100_000                                   // 10^coordinateDecimals, see the assertion below
+        let scaled = (v * Double(scale)).rounded()
+        let negative = scaled < 0
+        let magnitude = Int(abs(scaled))
+        let whole = magnitude / scale
+        let fraction = magnitude % scale
+
+        var digits = String(fraction)
+        while digits.count < coordinateDecimals { digits = "0" + digits }
+        return (negative ? "-" : "") + String(whole) + "." + digits
     }
 }

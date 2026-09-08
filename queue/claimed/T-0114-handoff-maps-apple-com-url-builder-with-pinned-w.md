@@ -9,15 +9,15 @@ lease_expires_at: 2026-09-08T15:14:26Z
 worktree: .worktrees/T-0114
 branch: task/T-0114
 exclusive: [Package.swift]
-touches: [Package.swift, Sources/Handoff/, Tests/HandoffTests/]
+touches: [Package.swift, Sources/Handoff/, Tests/HandoffTests/, ops/mutate/]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 29 tests in 4 suites passed, exit 0"
-  - "python .artifacts/mutate-T0114.py -> 8 of 8 mutations caught, exit 0"
-  - "RED: each of the 8 mutations alone makes swift test exit 1"
+  - "swift test -> 30 tests in 4 suites passed, exit 0"
+  - "python ops/mutate/handoff.py -> 12 caught by a named test, 0 compile-only, 0 missed, exit 0"
+  - "RED: replacing the test file with an empty suite makes every mutation report MISSED"
 ---
 ## Brief
 
@@ -117,3 +117,91 @@ than the mechanism, so a different locale-correct formatter stays green.
 
 No `place-id`, no `avoid`, no `start`, no `transit-preferences`. Each is a documented parameter with no
 caller today, and an unused parameter with no test is a place for a wrong default to hide.
+
+---
+
+## Fix pass: four findings from reviewer-pr70, all of them mine and all of them real
+
+The reviewer verified the Apple documentation independently (`/directions`, all ten parameter names, the
+coordinate form, and - importantly - that no maximum waypoint count is documented, so naming nine as ours
+was correct). Then they attacked the suite and the harness, and found four things.
+
+### 1. The waypoint-order fixture was a palindrome
+
+`[piuma, latigo, piuma]` reads the same backwards, so `for w in waypoints.reversed()` passed a test named
+*"waypoints repeat, in the order given"*. The round-trip test could not help: it compares the URL against a
+reparse of itself.
+
+Fixed with `[piuma, latigo, latigo, malibu]` - still deliberately out of geographic order, still with a
+repeat, but the repeat is at one end so order is observable. The test now also asserts the fixture itself is
+not a palindrome, so the next person cannot quietly reintroduce one.
+
+### 2. The locale defence was worth nothing, so the dependency is gone
+
+`String(format:locale: Locale(identifier: "en_US_POSIX"), ...)` looked careful. The reviewer mutated the
+locale to `Locale.current` - the obvious simplification, what somebody writes who does not know why the
+identifier is there - and every test stayed green, because CI runs on an en_US machine. The German-device
+bug the doc comment describes (`34,06890`, a decimal comma inside a comma-separated pair, read as four
+numbers) would have shipped with a green suite and a comment explaining why it could not.
+
+**Removed rather than defended.** `decimal` is integer arithmetic and `String(Int)` now, neither of which
+consults a locale. There is no longer a line here for a locale change to break, which is better than a test
+clever enough to catch one. The replacement arithmetic gets its own cases - rounding up, rounding down, the
+carry into the whole part, the negative sign, negative zero, and zero padding - none of which the old
+single-value assertion covered either.
+
+### 3. `maxWaypoints` had no witness
+
+9 -> 99 left the suite green: every test reaches the cap through the symbol. Nine is OUR number (Apple
+documents no maximum), which makes it a decision that should have to be changed deliberately.
+`#expect(AppleMapsDirections.maxWaypoints == 9)`.
+
+This is the same defect I had just found in T-0118's own tests - an assertion parameterised by the value it
+is meant to pin - which is a reasonable argument that finding it once does not inoculate you against writing
+it again.
+
+### 4. The harness was untracked, and scored a build failure as a catch
+
+`.artifacts/` is gitignored, and the `acceptance:` line named a file in it. From a fresh clone the command
+was unrunnable and the red evidence lived only in my worktree. Red evidence that exists only on the machine
+that produced it has the same shape as no red evidence.
+
+Worse: it counted ANY non-zero `swift test` as caught. **A mutation that does not compile also exits
+non-zero**, so the score would have been identical with every test deleted.
+
+Now `ops/mutate/handoff.py`, tracked, with `touches:` widened to `ops/mutate/` and disclosed here. Each
+mutation is BUILT first; a compile failure is reported as `compile-only` and does not count. A run must also
+see a named test fail, not merely a non-zero exit.
+
+**Writing that check found a bug in the check.** The first version matched Swift Testing's `U+00D7` failure
+glyph, and `subprocess` was decoding the child's UTF-8 output with the Windows code page, so the glyph
+arrived mangled and **all twelve mutations reported as `compile-only`** - a harness silently classifying
+every real catch as a non-catch. Both halves are fixed: the runs decode as UTF-8, and the pattern is ASCII
+(`recorded an issue`) so no decoding question can reach it again.
+
+### The harness is now demonstrated non-vacuous
+
+Not argued - run. With `AppleMapsDirectionsTests.swift` replaced by an empty suite:
+
+    caught by a named test: 0 ... MISSED: drop the range check ... truncate the coordinate ...
+    lose the sign on a southern or western coordinate ... stop zero-padding the fraction
+
+Every mutation reports MISSED, which is the proof that the harness measures this suite rather than the Swift
+compiler. Restored, and the source md5 is unchanged: `887a32aee0044fd817dbdaa58a3c331e`.
+
+### Result
+
+    swift test                    30 tests in 4 suites passed          exit 0
+    python ops/mutate/handoff.py  12 caught by a named test,
+                                  0 compile-only, 0 MISSED, of 12      exit 0
+
+Four mutations are new, covering the three findings above: `reverse the waypoint order`, `raise the cap from
+9 to 99`, `truncate the coordinate instead of rounding it`, `lose the sign on a southern or western
+coordinate`, and `stop zero-padding the fraction`.
+
+### Not fixed, and named
+
+The reviewer notes `bash ops/test` exits 1 with *"services/api exists but vitest produced no report"* -
+`services/api/node_modules` is absent in every checkout on this box. It is pre-existing, this PR touches no
+TypeScript, and it means the declared `verify: [ops/test, ops/check-pins]` cannot currently pass here.
+`ops/check-pins` is green (exit 0). I am not folding an unrelated environment failure into this task.

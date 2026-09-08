@@ -63,14 +63,33 @@ struct AppleMapsDirectionsTests {
 
     @Test("waypoints repeat, in the order given, and are not sorted or deduplicated")
     func waypointOrder() throws {
-        // Deliberately out of geographic order and with a repeat: the planner may legitimately pin the same
-        // junction twice on an out-and-back, and it is not this type's place to decide otherwise.
-        let route = [Self.piuma, Self.latigo, Self.piuma]
+        // NOT a palindrome. The first version of this fixture was [piuma, latigo, piuma], which reads the
+        // same forwards and backwards - so `for w in waypoints.reversed()` passed a test named "in the
+        // order given". A reviewer found it by mutating the reversal in, and the round-trip test could not
+        // help either, because it compares the URL against a reparse of itself.
+        //
+        // Still deliberately out of geographic order and still with a repeat - the planner may legitimately
+        // pin the same junction twice on an out-and-back, and it is not this type's place to decide
+        // otherwise - but the repeat is now at one end only, so order is observable.
+        let route = [Self.piuma, Self.latigo, Self.latigo, Self.malibu]
+        #expect(Array(route.reversed()) != route, "the fixture must be able to detect a reversal")
+
         let url = try AppleMapsDirections(source: Self.ucla, destination: Self.malibu,
                                           waypoints: route).url()
         let pinned = Self.items(url).filter { $0.0 == "waypoint" }.map(\.1)
         #expect(pinned == route.map { try! AppleMapsDirections.pair($0) })
-        #expect(pinned.count == 3)
+        #expect(pinned.count == 4)
+        #expect(pinned.first == (try AppleMapsDirections.pair(Self.piuma)))
+        #expect(pinned.last == (try AppleMapsDirections.pair(Self.malibu)))
+    }
+
+    @Test("the cap is nine, and the number itself is pinned")
+    func capValueIsPinned() {
+        // Every other test reaches the cap through `AppleMapsDirections.maxWaypoints`, so raising it from 9
+        // to 99 left the whole suite green - the value had no witness. A reviewer found that by mutating it.
+        // Nine is OUR choice (Apple documents no maximum), which makes it a decision that should have to be
+        // changed deliberately rather than drift.
+        #expect(AppleMapsDirections.maxWaypoints == 9)
     }
 
     @Test("the source is omitted entirely when there is none, rather than sent empty")
@@ -122,15 +141,31 @@ struct AppleMapsDirectionsTests {
         }
     }
 
-    @Test("a decimal comma can never appear in a coordinate")
-    func localeIndependent() {
-        // The failure this pins: `String(format:)` follows the current locale, so on a German device
-        // "34.06890" becomes "34,06890" and the pair parses as four numbers. The formatter is pinned to
-        // en_US_POSIX; this asserts the property rather than the mechanism, so replacing the formatter with
-        // something else that is also locale-correct keeps the test green.
-        let s = AppleMapsDirections.decimal(34.0689)
-        #expect(s == "34.06890")
-        #expect(!s.contains(","))
+    @Test("the coordinate format consults no locale at all")
+    func localeIndependent() throws {
+        // The failure: `String(format:)` follows the current locale, so on a German device "34.06890"
+        // becomes "34,06890" - a decimal comma inside a comma-separated pair, which Apple Maps reads as four
+        // numbers. The first version pinned the formatter to en_US_POSIX and asserted one value; a reviewer
+        // mutated the locale to `Locale.current` and the suite stayed green, because CI runs on en_US. The
+        // defence was untested by construction.
+        //
+        // `decimal` now uses integer arithmetic and `String(Int)`, which have no locale to consult. These
+        // cases pin the arithmetic that replaced it - the rounding, the negative sign, the zero padding, and
+        // the carry - none of which the old one-value assertion covered either.
+        for (input, expected) in [(34.0689, "34.06890"),
+                                  (-118.4452, "-118.44520"),
+                                  (0.0, "0.00000"),
+                                  (-0.0, "0.00000"),
+                                  (1.000005, "1.00001"),          // rounds up
+                                  (1.0000049, "1.00000"),         // rounds down
+                                  (89.999999, "90.00000"),        // carries into the whole part
+                                  (-179.999999, "-180.00000"),
+                                  (0.000001, "0.00000"),
+                                  (-0.000004, "0.00000")] {
+            let s = AppleMapsDirections.decimal(input)
+            #expect(s == expected, "decimal(\(input)) was \(s)")
+            #expect(!s.contains(","))
+        }
     }
 
     @Test("the mode is present and driving by default, because this is a car product")
