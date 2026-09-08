@@ -417,3 +417,47 @@ compares the tree against itself. The count is the check.
 
 T-0057 is closed on this: the renumber to P-OPS-03 landed at `4fb4609`, and `check-pins` does detect a
 duplicate id (`- P-SRC-01: duplicate id`, exit 1), which the task's brief said it did not.
+
+## 14. The 2026-09-08 branches, and a dependency worth knowing before you start
+
+Nine tasks shipped that day, plus three more in flight. They are **not** independent, and one chain is rooted
+somewhere that cannot merge yet.
+
+**Rooted on `main`, mergeable in any order once their gates pass:**
+
+    #47 task/T-0071   per-tier test floors        #53 task/T-0083   the read-only SQL gate's Python mirror
+    #48 task/T-0075   ops/pr-ci-preflight         #54 task/T-0060   the NTFS rules in CLAUDE.md
+    #55 task/T-0065   ops/merge-rehearse
+
+**The `queue.py` chain — five deep, and its root has no PR:**
+
+    task/T-0068  (T-0073's fix)  ── no PR, not signed off ──┐
+      #50 task/T-0070   duplicate WORK, not just id         │
+        #51 task/T-0082   never sweep a live branch         │
+          #52 task/T-0063   ops/review refuses a duplicate  │
+            task/T-0087   usage lines, in flight            ┘
+
+`task/T-0068` carries T-0073's round-two fix and is where `ops/lib/queue.py` grew to 615 lines. Each of the
+four above was cut from its predecessor deliberately, to build on the newest `queue.py` rather than fork it —
+but the consequence is that **none of them can merge until T-0068 does**, and T-0068 is not signed off: its
+adversarial verification came back `holds = false`, and eleven evasions survived.
+
+That is the right state — T-0068's fix is strictly better than what it replaced and is genuinely incomplete —
+but it means four green PRs are parked behind one that is not ready. Two ways out, and the choice is the
+owner's:
+
+- **Sign off T-0068 as a partial improvement** with its open routes recorded (they are, verbatim, in its
+  `## Log`), and merge the chain. [[T-0073]]'s remaining routes then continue as their own task.
+- **Rebase #50 onto `main`.** The conflict is real but small: `cmd_check`'s duplicate-detection block sits
+  beside T-0073's owner/reviewer normalisation, and both are additive.
+
+**Two other chains from the same day**, both rooted on branches that are also unmerged and unsigned:
+
+    task/T-0066 → task/T-0072 → task/T-0077 → task/T-0086     (pins.py, the ops shims, the environment)
+    task/T-0071 → task/T-0079 → task/T-0085                    (the commit-msg hook and its ratchets)
+
+`task/T-0071` is the exception in that list: it IS on `main` as #47, so that chain's root is mergeable.
+
+**And the ordering rule from section 11 still binds all of it**: `task/T-0071` deletes `pins/floor_linux.txt`,
+which fifteen branches modify, so it merges LAST among those — `ops/merge-rehearse` derives that edge itself
+now and will print it.
