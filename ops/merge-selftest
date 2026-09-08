@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# REPLAY ops/merge's CHECK-ROLLUP GATE AGAINST RECORDED statusCheckRollup SHAPES.
+#
+#   ops/merge-selftest                       test ops/merge as it stands
+#   ops/merge-selftest /path/to/other/merge  test another copy (see RED, below)
+#
+# Why this exists: the rollup gate has now been wrong twice, in both directions, and neither error was
+# reachable from the repository - you needed a live PR in a particular transient state to see it.
+#   1. it classified EVERY run in the rollup, so a check that failed and was re-run green refused (T-0097).
+#   2. the reduction that fixed (1) ordered runs by `completedAt // startedAt // ""`, which an UNFINISHED run
+#      does not have; the in-flight re-run sorted below the old completed one and was dropped, so the gate
+#      merged while CI was running (reviewer-pr57, findings F2/F3/F5).
+# Both were demonstrated against PRs #26 and #30. `gh pr view 26 --json statusCheckRollup` returns `[]` today
+# and #30 is merged, so neither demonstration can be re-run. The shapes are recorded here instead, projected
+# exactly as `gh pr view --json statusCheckRollup -q '<the jq in ops/merge>'` emits them - captured from live
+# PR #14, which carried 4 runs over 2 checks on one head SHA.
+#
+# RED: this test must be seen failing. Point it at the version that had defect (2) and F2/F3/F5 must fail:
+#   ops/merge-selftest <(git show 6db0597:ops/merge)
+#
+# The stub `gh` answers only the four calls ops/merge makes and never touches the network.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+MERGE="${1:-ops/merge}"
+[[ -r "$MERGE" ]] || { echo "merge-selftest: cannot read $MERGE"; exit 2; }
+
+# Floors. These count cases ACTUALLY EXECUTED AND COMPARED, not cases listed and not fixtures on disk:
+# a table someone empties, or a run that dies after two cases, must fail rather than report OK.
+MIN_CASES=10
+MIN_PENDING_CASES=4   # the in-flight-re-run window defect (2) lived in; deleting those cases must go red
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/bin"
+cat > "$tmp/bin/gh" <<'STUBGH'
+#!/usr/bin/env bash
+set -uo pipefail
+all="$*"
+case "${1:-}" in
+  repo) echo "phineasfritsch/scenic_drive"; exit 0;;
+  api)  printf '%s\n' "T-0097-ops-merge-refuses-a-green-pr-because-it-reads-ev.md"; exit 0;;
+  pr)
+    case "$all" in
+      *headRefName*)       echo "task/T-0097"; exit 0;;
+      *mergeStateStatus*)  echo "${GH_STATE:-CLEAN}"; exit 0;;
+      *statusCheckRollup*) cat "$GH_FIXTURE"; exit 0;;
+    esac;;
+esac
+echo "stub gh: unhandled call: $all" >&2
+exit 3
+STUBGH
+chmod +x "$tmp/bin/gh"
+
+# --- recorded runs, in the projected {name,c,t} shape ------------------------------------------------
+PIN_A='{"name":"pins-source-only","c":"SUCCESS","t":"2026-09-08T01:26:35Z"}'
+PIN_B='{"name":"pins-source-only","c":"SUCCESS","t":"2026-09-08T01:50:49Z"}'
+CORE_RED='{"name":"core","c":"FAILURE","t":"2026-09-08T01:26:58Z"}'
+CORE_OK1='{"name":"core","c":"SUCCESS","t":"2026-09-08T01:26:58Z"}'
+CORE_OK2='{"name":"core","c":"SUCCESS","t":"2026-09-08T01:51:35Z"}'
+# An in-flight run, in both serializations gh emits: the Go zero time, and the empty string a QUEUED run
+# leaves behind when it has neither completedAt nor startedAt. Both sort BELOW every real 2026 timestamp.
+CORE_ZERO='{"name":"core","c":"PENDING","t":"0001-01-01T00:00:00Z"}'
+CORE_EMPTY='{"name":"core","c":"QUEUED","t":""}'
+CORE_RUN='{"name":"core","c":"IN_PROGRESS","t":""}'
+
+PASS='DRY RUN: every gate passed; would merge pr=99 task=T-0097 head=task/T-0097'
+
+IDS=(); STATES=(); RCS=(); LINES=(); VERDICTS=(); ROLLUPS=(); WHYS=()
+add() { IDS+=("$1"); STATES+=("$2"); RCS+=("$3"); LINES+=("$4"); VERDICTS+=("$5"); ROLLUPS+=("$6"); WHYS+=("$7"); }
+
+# id  mergeState  rc  expected `checks` line ('-' = none printed)  expected verdict line  rollup  why
+add F1 CLEAN 0 \
+  'checks   checks=2 runs=4 pending=0 failed=[none] mergeState=CLEAN' "$PASS" \
+  "[$PIN_A,$CORE_RED,$PIN_B,$CORE_OK2]" \
+  'PR #26 shape: a superseded FAILURE must not refuse a PR whose CI is green (T-0097)'
+add F2 CLEAN 1 \
+  'checks   checks=2 runs=3 pending=1 failed=[none] mergeState=CLEAN' \
+  'MERGE REFUSED: 1 check(s) still running (use --wait to poll)' \
+  "[$PIN_A,$CORE_OK1,$CORE_ZERO]" \
+  'green run + in-flight re-run, zero-time: the re-run must WIN the reduction, not be dropped'
+add F3 CLEAN 1 \
+  'checks   checks=2 runs=3 pending=1 failed=[none] mergeState=CLEAN' \
+  'MERGE REFUSED: 1 check(s) still running (use --wait to poll)' \
+  "[$PIN_A,$CORE_OK1,$CORE_EMPTY]" \
+  'same, empty-string serialization: the verdict must not depend on which one gh emits'
+add F4 CLEAN 1 \
+  'checks   checks=2 runs=2 pending=1 failed=[none] mergeState=CLEAN' \
+  'MERGE REFUSED: 1 check(s) still running (use --wait to poll)' \
+  "[$PIN_A,$CORE_RUN]" \
+  'a check with NO completed run must not read as passing'
+add F5 CLEAN 1 \
+  'checks   checks=2 runs=3 pending=1 failed=[none] mergeState=CLEAN' \
+  'MERGE REFUSED: 1 check(s) still running (use --wait to poll)' \
+  "[$PIN_A,$CORE_RED,$CORE_EMPTY]" \
+  'red run + in-flight re-run: pending, not a refusal on the superseded FAILURE - --wait has something to poll'
+add F6 CLEAN 0 \
+  'checks   checks=2 runs=2 pending=0 failed=[none] mergeState=CLEAN' "$PASS" \
+  "[$PIN_B,$CORE_OK2]" \
+  'the ordinary green PR still passes every gate'
+add F7 CLEAN 1 \
+  'checks   checks=0 runs=0 pending=0 failed=[none] mergeState=CLEAN' \
+  'MERGE REFUSED: no checks reported at all - CI did not run for this PR' \
+  '[]' \
+  'a PR with no checks at all once merged; an empty rollup must never read as green'
+add F8 CLEAN 1 \
+  'checks   checks=2 runs=2 pending=0 failed=[core] mergeState=CLEAN' \
+  'MERGE REFUSED: failing checks: core' \
+  "[$PIN_A,$CORE_RED]" \
+  'CONTROL: a genuinely red check with no re-run must still refuse'
+add F9 DIRTY 1 \
+  'checks   checks=2 runs=2 pending=0 failed=[none] mergeState=DIRTY' \
+  'MERGE REFUSED: mergeStateStatus=DIRTY (want CLEAN)' \
+  "[$PIN_B,$CORE_OK2]" \
+  'the checks gate passing must not smuggle a PR past the mergeState gate'
+add F10 CLEAN 1 '-' \
+  'MERGE REFUSED: could not classify the check rollup (no verdict line from the reducer)' \
+  '[{"name":' \
+  'a reducer that crashes must say so, not fall through to "CI did not run for this PR"'
+
+# --- run ---------------------------------------------------------------------------------------------
+asserted=0; failed=0; pending_cases=0; saw_pass=0; saw_refuse=0
+for i in "${!IDS[@]}"; do
+  printf '%s' "${ROLLUPS[$i]}" > "$tmp/rollup.json"
+  out="$(PATH="$tmp/bin:$PATH" GH_FIXTURE="$tmp/rollup.json" GH_STATE="${STATES[$i]}" \
+         bash "$MERGE" 99 --dry-run 2>&1)"; rc=$?
+  out="$(printf '%s\n' "$out" | tr -d '\r')"
+
+  bad=()
+  [[ "$rc" == "${RCS[$i]}" ]] || bad+=("exit=$rc want=${RCS[$i]}")
+  if [[ "${LINES[$i]}" != "-" ]]; then
+    printf '%s\n' "$out" | grep -qxF "${LINES[$i]}" || bad+=("missing line: ${LINES[$i]}")
+  fi
+  printf '%s\n' "$out" | grep -qxF "${VERDICTS[$i]}" || bad+=("missing verdict: ${VERDICTS[$i]}")
+
+  asserted=$((asserted + 1))
+  [[ "${RCS[$i]}" == "0" ]] && saw_pass=1 || saw_refuse=1
+  [[ "${LINES[$i]}" == *"pending=1"* ]] && pending_cases=$((pending_cases + 1))
+
+  if [[ ${#bad[@]} -eq 0 ]]; then
+    echo "ok   ${IDS[$i]}  ${WHYS[$i]}"
+  else
+    failed=$((failed + 1))
+    echo "FAIL ${IDS[$i]}  ${WHYS[$i]}"
+    printf '       %s\n' "${bad[@]}"
+    printf '%s\n' "$out" | sed 's/^/       > /'
+  fi
+done
+
+# --- floors ------------------------------------------------------------------------------------------
+# Everything below is about the population that was actually examined. `asserted` is incremented only after
+# a case has been run and compared, so a truncated run or an emptied table cannot report OK.
+rc=0
+if [[ $failed -gt 0 ]]; then
+  echo "MERGE-SELFTEST FAIL: $failed of $asserted case(s) failed"; rc=1
+fi
+if [[ $asserted -lt $MIN_CASES ]]; then
+  echo "MERGE-SELFTEST FAIL: only $asserted case(s) asserted (floor $MIN_CASES) - the table is short"; rc=1
+fi
+if [[ $pending_cases -lt $MIN_PENDING_CASES ]]; then
+  echo "MERGE-SELFTEST FAIL: only $pending_cases in-flight case(s) asserted (floor $MIN_PENDING_CASES)."
+  echo "  The gate's second defect merged a PR with a check still running. Deleting those cases is how"
+  echo "  that regression comes back silently."
+  rc=1
+fi
+if [[ $saw_pass -eq 0 || $saw_refuse -eq 0 ]]; then
+  echo "MERGE-SELFTEST FAIL: the table must contain both a case that merges and a case that refuses"
+  echo "  (pass=$saw_pass refuse=$saw_refuse) - a table of only-refusals passes for a script that always exits 1"
+  rc=1
+fi
+[[ $rc -eq 0 ]] && echo "MERGE-SELFTEST OK: $asserted cases, $pending_cases in-flight, script=$MERGE"
+exit $rc

@@ -59,28 +59,47 @@ while :; do
   # punishes exactly the branches that did the work, and the workaround is the `gh pr merge` that
   # queue/README.md step 7 forbids. Reduce to the latest run per name before classifying anything.
   #
-  # Ties (both runs missing a timestamp) keep the later entry in GitHub's own order. That is a real
-  # ambiguity, not a resolved one: it is only reachable when a check reports no times at all.
+  # AN UNFINISHED RUN IS NOT ORDERED BY ITS TIMESTAMP, BECAUSE IT HAS NONE. A run still in flight has no
+  # `completedAt`, and `gh` renders the absent value either as null - so `//` falls through to `startedAt`,
+  # which a QUEUED run also lacks - or as the Go zero time "0001-01-01T00:00:00Z". Both sort BELOW every
+  # real 2026 timestamp, so ordering on `t` alone keeps the OLD completed run and throws the in-flight one
+  # away: `pending` is then summed over a set the running check is not in and the gate MERGES WHILE CI IS
+  # RUNNING - the exact failure this file exists to prevent. So the key is (unfinished, t): an in-flight run
+  # outranks every finished run of its name whatever `t` says, and `t` only breaks ties within a class.
+  # Reported by reviewer-pr57 against the first version of this reduction; both serializations are replayed
+  # as F2/F3 in `ops/merge-selftest`, which fails if either one merges.
+  #
+  # Ties inside a class (two finished runs, neither with a timestamp) keep the later entry in GitHub's own
+  # order. That is a real ambiguity, not a resolved one: it is only reachable when a check reports no times.
   # `| tr -d '\r'`: python's text-mode stdout writes CRLF on Windows and `read` splits on LF, so without
   # this the LAST field carries a trailing carriage return. That is not hypothetical - it made `failed`
-  # compare unequal to "-" and this tool refused a green PR with `failing checks: -`. The code replaced
-  # here had the same bug latently: its `failed` was "core\r" and its refusal line printed a CR.
-  read -r n_checks n_runs pending failed < <("$PY" - "$rollup" <<'PYCHECKS' | tr -d '\r'
+  # compare unequal to "-" and this tool refused a green PR with `failing checks: -`. The CR arrives WITH
+  # `read`: the command substitution this replaced stripped the trailing CRLF itself, so the code replaced
+  # here did not have this bug (an earlier version of this Log claimed it did; measured, it did not).
+  if ! read -r n_checks n_runs pending failed < <("$PY" - "$rollup" <<'PYCHECKS' | tr -d '\r'
 import json, sys
 runs = json.loads(sys.argv[1])
+PEND = ("PENDING", "IN_PROGRESS", "QUEUED", "")
+FAIL = ("FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "ERROR")
+def rank(r):
+    return (1 if r["c"] in PEND else 0, r["t"] or "")
 latest = {}
 for r in runs:
     prev = latest.get(r["name"])
-    if prev is None or (r["t"] or "") >= (prev["t"] or ""):
+    if prev is None or rank(r) >= rank(prev):
         latest[r["name"]] = r
 cur = list(latest.values())
-PEND = ("PENDING", "IN_PROGRESS", "QUEUED", "")
-FAIL = ("FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "ERROR")
 print(len(cur), len(runs),
       sum(1 for x in cur if x["c"] in PEND),
       ",".join(sorted(x["name"] for x in cur if x["c"] in FAIL)) or "-")
 PYCHECKS
 )
+  then
+    # Without this the classifier crashing leaves every field empty, which reaches the `total` guard below
+    # and refuses with "CI did not run for this PR" - a reason that is not true. Fails closed either way;
+    # this way it fails closed and says what actually happened.
+    echo "MERGE REFUSED: could not classify the check rollup (no verdict line from the reducer)"; exit 1
+  fi
   [[ "$failed" == "-" ]] && failed=""
   total="$n_checks"
   # Both numbers are printed on purpose: runs > checks is the state that produced this bug, and a reader
