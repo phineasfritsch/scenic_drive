@@ -1,13 +1,13 @@
 ---
 id: T-0078
 title: pre-commit reads touches from the branch name, so a follow-up task's touches field is decorative
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T02:59:05Z
+lease_expires_at: 2026-09-08T08:59:05Z
+worktree: wt/T-0078
+branch: task/T-0078
 exclusive: []
 touches: [.githooks/pre-commit]
 pins_affected: []
@@ -48,3 +48,4 @@ follows.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the T-0072 fix agent's report. It hit this while committing and
   widened both task files' `touches:` to proceed, which is recorded there.
+- 2026-09-08T02:59:05Z claimed by agent/claude-opus-5; lease until 2026-09-08T08:59:05Z

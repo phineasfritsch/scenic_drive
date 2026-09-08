@@ -1,13 +1,13 @@
 ---
 id: T-0079
 title: the MIN_ ratchet constants have no commit-msg protection, unlike the test floors
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T02:59:05Z
+lease_expires_at: 2026-09-08T08:59:05Z
+worktree: wt/T-0079
+branch: task/T-0079
 exclusive: []
 touches: [.githooks/commit-msg]
 pins_affected: []
@@ -51,3 +51,4 @@ saying why. The constants deserve the same treatment and currently get none.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the T-0072 fix agent's report, which identified it while
   re-ratcheting the floors it had just been asked to tighten.
+- 2026-09-08T02:59:05Z claimed by agent/claude-opus-5; lease until 2026-09-08T08:59:05Z

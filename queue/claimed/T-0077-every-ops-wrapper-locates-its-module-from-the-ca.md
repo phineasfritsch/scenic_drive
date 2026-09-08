@@ -1,13 +1,13 @@
 ---
 id: T-0077
 title: every ops wrapper locates its module from the caller's git toplevel, so another repo's module runs instead
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T02:59:04Z
+lease_expires_at: 2026-09-08T08:59:04Z
+worktree: wt/T-0077
+branch: task/T-0077
 exclusive: []
 touches: [ops/new-task]
 pins_affected: []
@@ -57,3 +57,4 @@ going wrong by accident rather than on purpose.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the round-two adversarial verification of [[T-0072]]. The
   synthetic-repo bypass was executed by the verifier, not reasoned about.
+- 2026-09-08T02:59:04Z claimed by agent/claude-opus-5; lease until 2026-09-08T08:59:04Z
