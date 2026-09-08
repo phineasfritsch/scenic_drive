@@ -152,7 +152,8 @@ def main(argv):
         print(f"CASES {len(cases)}")
         return 0
     if not cases:
-        print(f"MUTATION FAIL: no cases match --pin {want} - a filter that selects nothing is not a pass")
+        print(f"MUTATION FAIL: {'no case matches --pin ' + str(want) if want else '0 injections are defined'}"
+              " - a run that mutates nothing is not a pass, it is a run that proved nothing")
         return 2
 
     if not pins.PINS.exists():
@@ -271,8 +272,7 @@ def report(cases, ran, killed, survived, errors, promote, problems, notes, mutab
           f"survived={len(survived)} gaps={gaps} errors={len(errors)} tier={pins.host_tier()}"
           f"{' FILTERED' if want else ''}")
     for s in survived:
-        print(f" - SURVIVED {s}")
-        print("   The assertion stayed green while the property its statement claims was false.")
+        print(f" - SURVIVED {s}\n   The assertion stayed green while the statement it makes was false.")
     for e in errors:
         print(f" - ERROR {e}")
     for p in promote:
