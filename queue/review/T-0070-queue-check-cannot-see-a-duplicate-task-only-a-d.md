@@ -1,7 +1,7 @@
 ---
 id: T-0070
 title: queue-check cannot see a duplicate task, only a duplicate id, and reports OK on an empty queue
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-08T03:01:15Z
@@ -11,7 +11,7 @@ branch: task/T-0070
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-pr50
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -178,3 +178,24 @@ before fixing it: point the queue root at an empty directory and show the exit c
   entire cost is not prevented — while `_ids_in_refs()` in the same file deliberately scans remote refs for
   exactly that reason. That is a real gap and it needs the same remote scan; filed as its own task rather
   than bolted on here, because it changes `ops/new-task` from a local operation into a networked one.
+
+- 2026-09-08 — **reviewed by `agent/reviewer-pr50` (PR #50): pass with findings.** Recorded here because the review
+  itself lived only in a gitignored scratch directory, and because this task had an open PR while its own
+  file still said `state: claimed` / `reviewer: null` — the exact blindness [[T-0094]] was filed for.
+
+  The reviewer's own summary, verbatim:
+
+  > Every headline number in the PR body and the task log reproduces exactly: the RED run (`QUEUE OK (77 tasks)` exit 0 under the base, FAIL exit 1 under the PR), all five GREEN cases, `QUEUE OK (76 tasks)`, `PINS ok=9 failed=0`, `P-OPS-01: 26 files`, 615 -> 653 lines, dead loop at zero occurrences, mode still 100755. The guard also genuinely catches the real historical duplicate it was written for: running the new queue.py against origin/task/T-0021 (the tree where T-0066 and T-0067 both existed) goes red naming exactly that pair. Empty-queue vacuity is genuinely closed by T-0073's MIN_TASKS floor, as the author claims, and the body hash is CRLF-immune.
+
+  **6 findings (1 critical, 1 high, 1 medium, 3 low), and 4 overclaims quoted back:**
+
+  - `[critical]` ops/lib/queue.py:318 (by_body populated unconditionally) with ops/lib/queue.py:258 (new-task writes a constant placeholder body) and ops/lib/queue.py:373-375 (the report)
+  - `[high]` ops/lib/queue.py:241-247 (cmd_new duplicate-title refusal) vs ops/lib/queue.py:144 (_ids_in_refs, which scans remote refs for exactly this reason)
+  - `[medium]` ops/lib/queue.py:272 (the id-line filter) and ops/lib/queue.py:374 (the message text)
+  - `[low]` ops/lib/queue.py:378-380 (the by_title suppression predicate)
+  - `[low]` ops/lib/queue.py:316-317 (`if nt:` gate on by_title) and cmd_check's field validation, which has no title-presence assertion
+  - `[low]` queue/claimed/T-0070-queue-check-cannot-see-a-duplicate-task-only-a-d.md (front matter `verify:` vs the Log's "Gates:" line)
+
+  Every `critical`, `high` and `medium` above is fixed on this branch, each with its own red-then-green
+  transcript in the entries above this one. The `low` items are recorded rather than silently dropped;
+  where one was substantive it was fixed and says so.
