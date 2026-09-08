@@ -349,3 +349,40 @@ moved to the front because both T-0021 and T-0049 add an `ops/lib/*.py`:
 rather than carrying a list. The first version hard-coded `task/T-0021` because that was the branch that had
 been measured; `--pairwise` then found `task/T-0049` failing identically on
 `ops/lib/merge_reason_cap_assert.py`, which the hard-coded pair said nothing about.
+
+## 11. Two things the merger must DO, not just check
+
+**Set `pins/floor_linux_py.txt` when the ETL chain lands.** T-0071 split the single Linux test floor into one
+file per tier — `floor_linux_swift.txt` (16), `floor_linux_ts.txt` (34), `floor_linux_py.txt` (**0**). It is 0
+because the pytest tier does not exist on `main`. The moment the ETL chain merges, the tier appears with a
+floor of zero, which is exactly the hole T-0071 was filed to close, for the suite that has the most tests in
+it. Measure it on the merged tree and set it in the same commit:
+
+    ops/test   ->   TESTS linux=N/M (swift=16/16 ts=34/34 py=<count>/0 ...)
+
+`ops/test` now also fails a tier whose floor is positive but which did not run, so this cannot be set
+optimistically and forgotten — but a floor of 0 is silent by design, and that is the one that needs a human.
+
+**Merge `task/T-0036` before `task/T-0021` and `task/T-0049`.** Not a preference — both fail CI today, on the
+real runs, for exactly this:
+
+    #17 task/T-0021   core FAILURE   P-OPS-01: ops/lib/classify-checks.py (script, should be 100755, is 100644)
+    #41 task/T-0049   core FAILURE   P-OPS-01: ops/lib/merge_reason_cap_assert.py (script, should be 100755, is 100644)
+
+Both go green once T-0036 reclassifies `ops/lib/*.py` as data. `ops/pr-ci-preflight` (T-0075) predicts both
+locally without waiting for a run, and `ops/merge-rehearse` derives the ordering edge itself by asking which
+branches add an `ops/lib/*.py`.
+
+## 12. State as of 2026-09-08
+
+Actions is on and both jobs pass on `main`. Every open PR was reopened to force a run, since a PR opened while
+Actions was disabled never gets one and `ops/merge` refuses a PR with no checks.
+
+    ops/merge-rehearse              28 of 31 merged, 3 conflicts, 0 gate failures
+    ops/merge-rehearse --pairwise   31 of 31 merged, 0 conflicts, 2 gate failures
+    ops/pr-ci-preflight             29 ok, 2 failing gates, 0 conflicting, 0 stale   (of 31 open PRs)
+
+The three conflicts are the one `gh-stub` ADD/ADD resolved in section 10; the two gate failures are T-0021 and
+T-0049 above. Nothing else is red.
+
+`ops/merge 21 --dry-run` reports **every gate passed** for T-0036, which is the branch the other two wait on.
