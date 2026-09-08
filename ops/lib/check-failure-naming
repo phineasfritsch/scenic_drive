@@ -15,6 +15,16 @@
 # .artifacts/spm-junit.xml right now - counted as a failure and named nothing. reviewer-18 caught it. This
 # check is the guard that would have caught it mechanically.
 #
+# Also covers T-0042: a summary-only <testsuite> whose tests=/failures=/errors=/skipped= attribute is
+# present but not a valid, plausible non-negative integer (missing value, non-numeric, negative, or
+# implausibly large) is not an XML parse error, but it must fail exactly like one - a bare `int(...)` raising
+# ValueError out of both count() and list_failures() is a traceback where the docstring promises a clean
+# exit 2 (reviewer-18, re-reviewing T-0023). A missing attribute is different: it defaults to 0 and must
+# still be counted, not rejected. reviewer-25's re-review of this pin's own fix found the gap this loop was
+# supposed to close was itself incomplete a second time: list_failures() validated only failures=/errors=,
+# so a bad tests= or skipped= paired with a valid failures= made count() exit 2 while --list-failures exited
+# 0 with no output on the identical file - the fixtures below isolate exactly that.
+#
 # Anchored on the executable and on generated report fixtures, never on a comment.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -52,11 +62,47 @@ cat > "$tmp/green.xml" <<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites><testsuite name="green" tests="3" failures="0" errors="0"></testsuite></testsuites>
 XML
-# 5. unreadable.
+# 5. unreadable: malformed XML.
 printf '<testsuite tests="1"' > "$tmp/malformed.xml"
+# 6. unreadable: a count attribute present but not a valid non-negative integer (T-0042). Not an XML parse
+#    error - int() on the attribute is where the old code crashed instead of exiting 2.
+cat > "$tmp/attr-non-numeric.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="broken" tests="1" failures="abc" errors="0"></testsuite>
+XML
+cat > "$tmp/attr-float.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="broken" tests="1" failures="0" errors="1.5"></testsuite>
+XML
+cat > "$tmp/attr-empty.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="broken" tests="1" failures="" errors="0"></testsuite>
+XML
+cat > "$tmp/attr-negative.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="broken" tests="1" failures="-1" errors="0"></testsuite>
+XML
+# 7. NOT unreadable: a missing tests= attribute is a terse but valid summary suite and must still be counted.
+cat > "$tmp/attr-missing-tests.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="broken" failures="1" errors="0"></testsuite>
+XML
+# 8. unreadable: a bad tests= paired with a perfectly valid failures=/errors= (reviewer-25's finding). This
+#    isolates count() and list_failures() validating a different attribute subset - failures=/errors= alone
+#    give list_failures() no reason to notice the report is bad, so it must read tests= too, on this path,
+#    purely to validate it.
+cat > "$tmp/attr-bad-tests.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="broken" tests="abc" failures="0" errors="0"></testsuite>
+XML
+# 9. same gap, via skipped= instead of tests=.
+cat > "$tmp/attr-bad-skipped.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="broken" tests="1" failures="0" errors="0" skipped="xyz"></testsuite>
+XML
 
 # --- the invariant ---------------------------------------------------------------------------------------
-for f in summary-only per-case errors-only green; do
+for f in summary-only per-case errors-only green attr-missing-tests; do
   counted="$("$PY" "$JC" "$tmp/$f.xml" 2>&1)" || { note "counting path failed on $f.xml: $counted"; continue; }
   n="$(printf '%s' "$counted" | sed -E 's/.*failed=([0-9]+).*/\1/')"
   named="$("$PY" "$JC" --list-failures "$tmp/$f.xml" 2>&1)"
@@ -76,11 +122,20 @@ named="$("$PY" "$JC" --list-failures "$tmp/per-case.xml" 2>&1)"
 printf '%s' "$named" | grep -q 'test_licence_is_required' || note "a <failure> testcase was not named: $named"
 printf '%s' "$named" | grep -q 'test_without_a_classname' || note "an <error> testcase with no classname was not named: $named"
 
-# An unreadable report must exit non-zero on BOTH paths. Returning 0 with no output would make "cannot read
-# the report" indistinguishable from "nothing failed" - the failure this whole check exists to forbid.
-for path in "$tmp/malformed.xml" "$tmp/does-not-exist.xml"; do
-  "$PY" "$JC" "$path" >/dev/null 2>&1 && note "counting path exited 0 on unreadable $(basename "$path")"
-  "$PY" "$JC" --list-failures "$path" >/dev/null 2>&1 && note "--list-failures exited 0 on unreadable $(basename "$path")"
+# An unreadable report must exit exactly 2 on BOTH paths, printing the documented clean message - not exit
+# 0 (indistinguishable from "nothing failed"), and not a Python traceback (indistinguishable from a broken
+# runner rather than a broken report - the specific shape of T-0042).
+for path in "$tmp/malformed.xml" "$tmp/does-not-exist.xml" "$tmp/attr-non-numeric.xml" "$tmp/attr-float.xml" \
+            "$tmp/attr-empty.xml" "$tmp/attr-negative.xml" "$tmp/attr-bad-tests.xml" "$tmp/attr-bad-skipped.xml"; do
+  out="$("$PY" "$JC" "$path" 2>&1)"; rc=$?
+  [[ $rc -eq 2 ]] || note "counting path exited $rc (want 2) on unreadable $(basename "$path"): $out"
+  printf '%s' "$out" | grep -q '^junit_count: cannot read ' || \
+    note "counting path did not print the clean cannot-read message on $(basename "$path"): $out"
+
+  out="$("$PY" "$JC" --list-failures "$path" 2>&1)"; rc=$?
+  [[ $rc -eq 2 ]] || note "--list-failures exited $rc (want 2) on unreadable $(basename "$path"): $out"
+  printf '%s' "$out" | grep -q '^junit_count: cannot read ' || \
+    note "--list-failures did not print the clean cannot-read message on $(basename "$path"): $out"
 done
 
 [[ $fail -eq 0 ]] && echo "P-OPS-02: every counted failure is named; unreadable reports fail closed"
