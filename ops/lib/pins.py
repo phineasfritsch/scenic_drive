@@ -95,16 +95,71 @@ def days_since(date_str):
 
 
 # ----------------------------------------------------------------------------- main
+USAGE = ("usage: check-pins [--source-only] [--verbose] [--tier <tier>]\n"
+         "  --tier takes a value and it must be a tier some pin declares in runs_on.")
+
+
+def _argv(argv, declared):
+    """(options, None) or (None, why). Every wrong invocation is refused, with exit 2.
+
+    Exit 2, not 1: `1` is what this tool returns for "a pin FAILED", and an agent or a CI step that reads
+    only the status could not tell "you typed the flag wrong" apart from "a load-bearing property of this
+    repository is broken". Every other ops/* entry point answers a bad invocation with 2.
+    """
+    opts = {"source_only": False, "verbose": False, "tier": None}
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--source-only":
+            opts["source_only"] = True
+        elif a == "--verbose":
+            opts["verbose"] = True
+        elif a == "--tier":
+            i += 1
+            if i >= len(argv):
+                return None, "--tier needs a value; it was the last word on the line."
+            opts["tier"] = argv[i]
+        elif a.startswith("--tier="):
+            opts["tier"] = a.split("=", 1)[1]
+        elif a.startswith("-"):
+            return None, f"{a} is not an option of check-pins."
+        else:
+            return None, f"{a!r} is not an option. check-pins takes no operands."
+        i += 1
+    tier = opts["tier"]
+    if tier is not None:
+        if tier == "":
+            return None, "--tier was given an empty value."
+        if tier not in declared:
+            # THE ONE THAT MATTERS. `--tier linx` skipped every pin, ran no assertion, printed a summary
+            # that reads like success and exited 0. A tier nothing declares cannot be a tier anything runs.
+            return None, (f"--tier {tier!r} is a tier no pin declares. Declared: "
+                          f"{', '.join(sorted(declared)) or '(none)'}.")
+    return opts, None
+
+
 def main(argv):
-    source_only = "--source-only" in argv
-    verbose = "--verbose" in argv
-    tier = host_tier()
-    if "--tier" in argv:
-        tier = argv[argv.index("--tier") + 1]
     if not PINS.exists():
         print(f"PINS FAIL: {PINS.relative_to(ROOT).as_posix()} missing")
         return 1
     pins = load(PINS)
+    # The set of tiers is DERIVED from the pins, never a literal list here. A hard-coded
+    # {linux, mac, device, human} would keep accepting `--tier device` long after the last device pin was
+    # deleted, and would reject a tier somebody legitimately adds - both of which are the check disagreeing
+    # with the file it exists to enforce.
+    declared = set()
+    for _p in pins:
+        _r = _p.get("runs_on") or []
+        for _x in ([_r] if isinstance(_r, str) else _r):
+            declared.add(str(_x).strip())
+    opts, why = _argv(argv, declared)
+    if why:
+        print(f"check-pins: {why}")
+        print(USAGE)
+        return 2
+    source_only = opts["source_only"]
+    verbose = opts["verbose"]
+    tier = opts["tier"] or host_tier()
     ok = skipped = pending = expired = failed = 0
     problems = []
     seen = set()
@@ -176,6 +231,14 @@ def main(argv):
     print(f"PINS ok={ok} skipped={skipped} pending={pending} expired={expired} failed={failed} tier={tier}{' source-only' if source_only else ''}")
     for pr in problems:
         print(" -", pr)
+    if ok == 0 and failed == 0 and expired == 0:
+        # A run that executed no assertion is not a passing run. `--tier human` reaches this honestly -
+        # its one pin is pending - and that is exactly the state that must not be reported as success,
+        # because "nothing ran" and "everything passed" print the same summary otherwise. The counts above
+        # already say WHY (skipped / pending); this makes the exit code say it too.
+        print(" - no assertion ran: every pin was skipped or is pending, so this run proves nothing. "
+              "That is P-PROC-01 passing on an empty set, which is the shape this repository refuses.")
+        return 1
     return 1 if (failed or expired) else 0
 
 
