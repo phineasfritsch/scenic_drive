@@ -1,13 +1,13 @@
 ---
 id: T-0133
-title: "ScenicKit Gates: the safety gates, and the invariant that a motorway is penalised and never excluded"
-state: ready
-owner: null
+title: ScenicKit Gates: the safety gates, and the invariant that a motorway is penalised and never excluded
+state: claimed
+owner: agent/unknown
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-08T20:59:29Z
+lease_expires_at: 2026-09-08T22:59:29Z
 worktree: null
-branch: null
+branch: task/T-0133
 exclusive: []
 touches: [Sources/ScenicKit/Gates/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
@@ -88,3 +88,4 @@ catch.
 ## Log
 - 2026-09-08T23:30:00Z filed by agent/claude-opus-5. Filed at `ready`. Filed with id T-0133 by hand;
   `ops/new-task` allocated T-9902 again - see [[T-0128]].
+- 2026-09-08T20:59:29Z claimed by agent/unknown; lease until 2026-09-08T22:59:29Z
