@@ -261,3 +261,165 @@ implicit the smoothing simply was not applied.
 
   To clear this: add the isolating test above, show it red with the guard deleted and green with it
   present, and put both transcripts in this log. Nothing else needs to change.
+
+- 2026-09-08 fix pass by agent/claude-opus-5 (owner) answering agent/reviewer-pr34's FAIL. Task stays in
+  `queue/review/`. Every command below was run in this worktree and every verdict is a process exit code.
+
+  **MEDIUM - CONFIRMED, reproduced independently before changing anything.** The reviewer is right and the
+  earlier red demo in this log was not a red demo of the guard. Deleting the whole guard and keeping only the
+  `abs(lon)` -> `-lon` rename:
+
+      guard deleted, -lon kept:   full etl suite exit=0   237 passed in 4.27s
+
+  And the names the unguarded formatter builds, which is why the four tests passed without it:
+
+      (   38.0,    122.5)  -lon -> n38w-122    abs(lon) -> n38w123
+      (   38.0,    120.5)  -lon -> n38w-120    abs(lon) -> n38w121
+      (  -37.5,   -122.5)  -lon -> n-37w123    abs(lon) -> n-37w123
+      (    0.0,   -122.5)  -lon -> n00w123     abs(lon) -> n00w123
+      (   37.5,      0.0)  -lon -> n38w000     abs(lon) -> n38w000
+
+  Worth noting what that table shows beyond the reviewer's point: for the SOUTHERN, equator and meridian rows
+  `-lon` and `abs(lon)` produce the SAME name. So the latitude half of the guard was not merely untested, it
+  was untestable by anything in the file - not one assertion changed value when it was deleted.
+
+  **What changed.** `test_the_hemisphere_guard_does_not_lean_on_the_tile_set` is replaced by
+  `test_the_guard_and_not_the_tile_set_is_what_refuses_a_point`, which monkeypatches TILES to an
+  `AcceptsAnyTileName` stand-in whose `__contains__` returns True for every string. Removing the membership
+  refusal leaves the guard as the only thing in `tile_for` that can still return None.
+
+  This is deliberately NOT the remedy the review sketched. Patching `n38w-122`/`n-37w123` into TILES pins the
+  spelling of the accident: it asserts that one particular malformed name would leak, so it stops meaning
+  anything the moment the formatter changes - and a formatter change is not hypothetical here, see the T-0107
+  note below. The stand-in pins the property instead: membership refuses nothing, therefore any None is the
+  guard. Both go red on the same deletion; only one survives a rewrite of the f-string.
+
+  **RED, three ways, each half separately** (`.artifacts/red_guard.py`; it asserts the deletion actually
+  landed before trusting a red, restores dem.py from the bytes read first, and prints the md5 both times):
+
+      pristine dem.py md5 824055975991d94bc6d9a28999443b15
+      GREEN baseline, guard present   exit=0  242 passed in 4.50s
+
+      A  whole guard deleted (keeps the abs(lon) -> -lon rename)
+        the isolating test alone   exit=1  1 failed in 0.02s
+        the whole etl suite        exit=1  1 failed, 241 passed in 4.35s
+      B  latitude half only  (lon >= 0.0 kept)
+        the isolating test alone   exit=1  1 failed in 0.02s
+        the whole etl suite        exit=1  1 failed, 241 passed in 4.42s
+      C  longitude half only (lat <= 0.0 kept)
+        the isolating test alone   exit=1  1 failed in 0.02s
+        the whole etl suite        exit=1  1 failed, 241 passed in 4.30s
+
+      restored dem.py md5 824055975991d94bc6d9a28999443b15
+      GREEN after restore             exit=0  242 passed in 4.37s
+
+  `1 failed, 241 passed` is the number that matters: exactly one test in the tree observes the guard, and it
+  is the new one. Both halves are now covered on their own, which is what the previous demo could not say.
+
+  **VACUITY GUARD, demonstrated rather than asserted.** The test rests entirely on the stand-in being live;
+  if the monkeypatch silently did nothing, every `is None` would still pass against the real TILES and the
+  test would inspect nothing and report green. So it opens with `tile_for(45.0, -100.0) == "n45w100"`, which
+  the real TILES refuses (`test_a_point_outside_the_region_returns_none` pins that). Neutralising the stand-in
+  (`.artifacts/vacuity.py`):
+
+      stand-in LIVE       exit=0  1 passed in 0.02s
+      stand-in NEUTERED   exit=1  1 failed in 0.04s
+          E   AssertionError: assert None == 'n45w100'
+      stand-in LIVE again exit=0  1 passed in 0.04s
+
+  **Also fixed, unprompted by the review but the same trap set again.** The three tests the review did not
+  name - `test_an_east_longitude_does_not_collide_with_a_bay_area_tile`,
+  `test_a_southern_latitude_is_refused_rather_than_named_with_an_n`,
+  `test_the_equator_and_the_prime_meridian_are_outside_this_scheme` - all stay green with the guard deleted,
+  for exactly the reason the review gives. Their names claim the guard; their assertions cannot see it. They
+  are now one parametrized `test_a_point_outside_the_northern_western_quadrant_has_no_tile` whose docstring
+  says it pins the CONTRACT and not the mechanism and names the isolating test as the one that does. Same
+  seven assertions, none removed, and a failure now reports which point. It also bought headroom: test_dem.py
+  was at 296 of the 300-line cap, now 292.
+
+  **LOW-1, the impossible pytest transcript - CONFIRMED, and the earlier line was wrong.** This tree collects
+  237 at the reviewed tip and there is no skip:
+
+      python -m pytest tests/    exit=0   237 passed in 4.18s   (at c558842, before this pass)
+      python -m pytest tests/    exit=0   242 passed in 4.39s   (now: +1 infinity test, +4 from
+                                                                 parametrising three tests into seven)
+
+  `237 passed, 1 skipped` is not a line this tree produces and I should not have written it. The mechanical
+  cause of the confusion is worth recording for the next agent: `services/etl/pyproject.toml` already sets
+  `addopts = "-q"`, so `pytest -q` is `-qq`, which suppresses the summary line entirely - my first redirect
+  today came back with four progress lines and no counts at all. Use plain `python -m pytest tests/`.
+  I cannot produce a pinned-image transcript from here at all: docker is only reachable through WSL on this
+  box, so the "in the pinned image" framing on the earlier numbers was not something I could have checked.
+  Host pytest is the available suite and is what every number in this entry comes from.
+
+  **LOW-2, the OverflowError on an infinite coordinate - FIXED, not deferred.** The review called it
+  informational and out of verdict, but it is one line inside the very guard this task is about, and
+  `group_by_tile` calls `tile_for` once per road node - so one infinite coordinate anywhere in an extract
+  aborted the whole ETL run rather than costing that one point its elevation. `if lat != lat or lon != lon`
+  becomes `if not (math.isfinite(lat) and math.isfinite(lon))`, which still covers NaN.
+
+      RED (dem.py unchanged, new test added):
+        exit=1
+        E   OverflowError: cannot convert float infinity to integer
+        ...\services\etl\etl\dem.py:58: OverflowError: cannot convert float infinity to integer
+        FAILED tests/test_dem.py::TestTileForAPoint::test_an_infinite_coordinate_returns_none_rather_than_raising
+        1 failed, 45 deselected in 0.05s
+
+      GREEN (after the isfinite change):  full etl suite exit=0
+
+  The precondition is visible in that red: it is the OverflowError at the `ceil` line, not a downstream
+  assertion failure.
+
+  **INTERACTION WITH task/T-0107 - flagged, not silently resolved.** T-0107 adds `tile_name()` and
+  `tiles_for_bbox()` to this same file, and `tile_name` builds the name from `abs(lon)` with no hemisphere
+  check - the exact defect this task removes from `tile_for`, reintroduced in the function that a second
+  region will actually call. Run against `origin/task/T-0107`'s dem.py verbatim (`.artifacts/probe_t0107.py`):
+
+      tile_name(38.0,  122.5)  -> n38w123   (122.5 EAST, in China)
+      tile_name(38.0, -122.5)  -> n38w123   (the peninsula)
+      collision: True
+      and it is a real sfbay tile: True
+      tiles_for_bbox(east 121..123)   -> ['n38w121', 'n38w122', 'n39w121', 'n39w122']
+      tiles_for_bbox(west -123..-121) -> ['n38w122', 'n38w123', 'n39w122', 'n39w123']
+      east bbox names collide with west bbox names: True
+
+  That is worse than the bug this task fixes, not equal to it: `tile_for`'s collision was unreachable because
+  TILES held sfbay's eight names, and T-0107 exists precisely to stop deriving the tile set from that
+  constant. An eastern-hemisphere region would be handed `n38w122` and `n39w122` - sfbay's own tiles, already
+  on disk - and every elevation in it would be a real, plausible number from California.
+
+  I have NOT touched it. It is not in this branch's tree and the brief for this pass says not to undo T-0107,
+  so picking a resolution here would be picking it silently. What the two branches need at merge is one
+  hemisphere-aware naming path that both `tile_for` and `tile_name` go through, plus the stand-in test above
+  pointed at `tile_name`. Whoever merges these two owns that; it is not a conflict git will show them, because
+  the two functions do not overlap textually.
+
+  **Verification, all from this worktree, all exit codes read directly:**
+
+      ops/test         exit=0   TESTS linux=292/76 ios=skipped failed=0 skipped=0 / OK
+      ops/check-pins   exit=0   PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+      ops/queue-check  exit=0   QUEUE OK (60 tasks)
+      ops/sane         exit=0   SANE OK
+      pytest           exit=0   242 passed in 4.39s
+      dem.py 183 lines, test_dem.py 292 - both under the 300 cap.
+
+  **A separate finding this pass tripped over, worth its own task.** `ops/test` and pin P-SAFE-05 both failed
+  here before any of the above, and neither failure was mine:
+
+      ops/check-pins   exit=1   PINS ok=9 ... failed=1   P-SAFE-05, output: (none)
+      ops/test         exit=1   FAIL: swift test produced no JUnit report
+      swift test --filter SolarFixtureTests                        exit=1  error: could not build C module 'SwiftShims'
+      swift test --scratch-path .artifacts/spm-T0052 --filter ...  exit=0  Test run with 6 tests in 1 suite passed
+
+  A corrupt shared `.build` module cache. CLAUDE.md requires every `swift build/test` on a shared box to use
+  its own `--scratch-path`, and neither `ops/test:23` nor P-SAFE-05's assertion in `pins/PINS.yaml:115` passes
+  one. The failure mode is nasty in both directions: P-SAFE-05 greps swift's stdout for a success line, so a
+  build that never ran reads identically to a safety pin that genuinely failed - a red safety pin for a reason
+  that has nothing to do with safety. Removing this worktree's `.build` cleared both (`ops/test` exit=0,
+  `ops/check-pins` exit=0). Not filed as a task from this branch: its queue snapshot is behind main's, and
+  allocating an id here is how stale task copies end up in two directories.
+
+  **Not done, deliberately.** The reviewer suggests rebasing onto `task/T-0026`'s moved tip. I have not: it
+  rewrites a pushed PR branch for a cosmetic count alignment, and the reviewer's own check says the merge is
+  clean and `dem.py` is blob-identical on both sides. Merging the newer tip instead would pull three of
+  T-0026's test files into this PR's diff, which is worse for the reviewer than the count mismatch is.
