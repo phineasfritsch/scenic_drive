@@ -34,6 +34,27 @@ and the rehearsal could not see it either, because `task/T-0087` has no open PR 
 enumerated pull requests ([[T-0099]]). It surfaced only because an unrelated task happened to branch from
 `task/T-0087` and merge `main` into it. That is luck, not a mechanism.
 
+**A THIRD instance, hours after this task was filed, and it came through the other door.** `task/T-0071`'s
+agent filed *"core.hooksPath is machine-local and unverified"* as **T-0076**. `T-0076` on `main` and on
+every other branch is *"ops/test picks whichever python3 is first on PATH"*.
+
+This one was not the read/push race. `task/T-0071`'s own tree tops out at **T-0075**, `main` is at
+**T-0104**, and `next_id()` returned `max(0075) + 1`. That is `_ids_in_refs()` taking its **documented
+degraded path** — the one whose own comment says *"a degraded scan means collision protection is off, and
+the caller must know"* — and then continuing anyway.
+
+    WARNING: next_id could not ... ; id allocation is falling back to this worktree only,
+    so a duplicate id is possible. Verify with ops/queue-check after pushing.
+
+**The warning is the defect, not the mitigation.** It goes to stderr, where an agent running a tool does not
+read it; the id it hands back looks ordinary; and `ops/queue-check` cannot see the collision from either
+tree, only from the merge. So the fallback produced a duplicate 28 ids away from the real maximum, under
+ordinary fleet load, on a normal working day — three for three today.
+
+Whatever this task builds must therefore **refuse** rather than warn when the id space cannot be read. An
+allocator that cannot see the other allocators is not degraded, it is wrong, and this is the third piece of
+evidence for that in one day.
+
 **This is not a hole in [[T-0017]]'s fix; it is the limit of its shape.** `next_id()` consults
 `_ids_in_refs()`, which scans every remote ref precisely to stop this, and the comment there is right about
 what it buys. But the sequence is:
