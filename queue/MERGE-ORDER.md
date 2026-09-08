@@ -651,3 +651,36 @@ files. One merge turns all three green.
 Everything past those thirteen needs its task moved to `done/` by a reviewer who is not its owner —
 `ops/merge` refuses any PR whose head does not have the task in `done/`, and that is the reviewer-is-not-owner
 rule doing its job, not an obstacle to route around.
+
+## Do not rely on the rehearsal numbers in this file until the tool is re-measured
+
+An independent review of PR #55 found a **critical** defect in `ops/merge-rehearse`, and a second run of my
+own hit it: **when the scratch worktree disappears underneath a run, every subsequent git call fails and the
+tool converts those failures into specific, confident, false findings.** The reviewer's run produced 93
+fabricated "dropped tasks" — every task id in the repository — plus three fabricated `UNRESOLVABLE` branches
+against refs that had existed for hours, while incrementing the gate-failure count. Mine produced
+`10 of 55 merged, 12 conflicts, 3 gate failures, 33 unresolvable`, none of it true.
+
+The cause is that `$SCRATCH` is a **fixed path** and the script's first act is to delete it, so a second
+invocation destroys the first one's worktree mid-run. I caused mine by starting a copy of the script to demo
+a guard while a real run was in flight.
+
+**What that does and does not invalidate.**
+
+- The **`37 of 41`** figure recorded above came from two runs that completed with `0 unresolvable` and agreed
+  with each other row for row. That is evidence, not proof: the failure mode is silent, so a run that was
+  not disturbed and a run that was disturbed late enough differ only in numbers nobody can check from the
+  outside. **Treat it as provisional until a run with the fixed tool reproduces it.**
+- The **13-PR merge list** does NOT depend on this tool at all. It comes from `ops/merge --dry-run`, was
+  produced twice a day apart with the same result, and each row is independently checkable in one command.
+  It stands.
+- The **conflict resolutions** written above were derived by hand from the conflicting files, not from a
+  rehearsal summary. They stand.
+
+Fixes in flight: `task/T-0099` added a `noclobber` lock (a second run now refuses, naming the holding pid)
+and a `git rev-parse --git-dir` abort in the merge loop that says *"nothing below this line is a
+measurement"* instead of reporting a live ref as missing. `task/T-0065` is closing the rest, including the
+task-id census, which runs after the merge loop and so is not covered by that abort.
+
+A full run takes **77 minutes** and must not overlap with agent work that creates or removes worktrees —
+which is most of it. Re-measure when the fleet is quiet.
