@@ -116,3 +116,46 @@ task whose work is complete.
 
   `ops/lib/queue.py` is now **711 lines** — 653 before this. That is the third time in one session this file
   has grown while [[T-0059]] waits, and T-0059 is blocked because six unmerged branches hold it.
+
+- 2026-09-08 — **the reviewer of PR #51 was right twice, and the second one had disabled the tool.**
+
+  **(high) The guard asked the wrong question, so nothing real was ever swept again.** `cmd_claim` writes
+  `branch: task/<id>` for every task without exception, and `queue/README.md` step 4 creates exactly that
+  branch — `git worktree add ../wt/T-XXXX -b task/T-XXXX` — *before* any work happens. So `_branch_exists`
+  is true for every task the documented workflow has ever claimed, including the one shape this sweeper
+  exists for: claim, open the worktree, die. That task keeps its owner and its `exclusive:` lock forever.
+  My CONTROL missed it because I wrote `branch: task/T-9990-does-not-exist`, a name `ops/claim` cannot
+  produce; it proved only that the sweeper still sweeps tasks that could not exist.
+
+  The property that actually separates the two populations is **ahead-of-main**, not existence. A
+  claim-time branch sits at main's tip, zero commits ahead. The 29 expired leases of 2026-09-08 were
+  pushed branches with open PRs — all ahead. `_branch_has_work(name, base)` replaces `_branch_exists`.
+
+  **(high) The docstring's reason for not fetching was backwards.** It claimed a stale ref could only make
+  the sweeper more conservative. The opposite: a branch pushed since the last fetch reads as *absent*, so
+  the sweeper clears its owner and releases its exclusive lock — and nothing refuses, because git itself is
+  fine and `_git_usable()` returns True. `_sweep_fetch()` now fetches and **refuses on failure**;
+  `--no-fetch` is the explicit, documented escape for a single-pusher checkout.
+
+  **Corrected control (`.artifacts/demo-t0082-review.sh`)** — two fixtures with names `ops/claim` really
+  writes, in a throwaway worktree: `T-9989` = claimed, `task/T-9989` created from `origin/main`, no commits
+  (agent died); `T-9988` = `task/T-9988` one commit ahead (work waiting to merge).
+
+        ===== RED: guard as shipped in PR #51 =====
+          SWEEP kept 37 expired lease(s) whose branch still exists - finished work waiting to
+          SWEEP done (0 moved, 37 kept)
+          T-9989 still in claimed/: YES
+          T-9989 lock still held:   YES
+
+        ===== GREEN: with the fix =====
+          SWEEP kept 36 expired lease(s) whose branch carries commits - finished work waiting to
+          SWEEP done (1 moved, 36 kept)
+          T-9989 swept to ready/:   YES
+          T-9989 lock released:     YES
+          T-9988 kept in claimed/:  YES
+
+  RED is the reviewer's finding, not a hypothetical: the abandonment this task was filed to sweep was the
+  one case the fix refused to sweep. GREEN sweeps it, releases the lock, and still holds every one of the
+  36 branches that carry commits — the regression T-0068 exists to reject is still rejected.
+
+  `ops/queue-check` → `QUEUE OK (76 tasks)`.

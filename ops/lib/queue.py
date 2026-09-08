@@ -406,30 +406,84 @@ def _git_usable():
         return False
 
 
-def _branch_exists(name):
-    """True when this task's branch is real - here or on the remote.
+def _git_out(*args):
+    """(status, stdout) for a git query. THREE states, not two.
 
-    Deliberately checks the remote-tracking ref FIRST: the case this exists for is work that was pushed and is
-    waiting on a merge, which is visible as origin/<branch> even in a worktree that never had the local
-    branch. No fetch is done - a sweeper that reaches the network is a sweeper nobody runs - so a branch
-    pushed by someone else since the last fetch reads as absent. That direction is safe: it can only make the
-    sweeper more conservative if the ref is stale in the other direction, and `git fetch` before sweeping is
-    one line in the caller.
+    status True  - git ran and answered.
+    status False - git ran and said no (ref absent, and that is a real answer).
+    status None  - git could not run at all. Never treat this as "no": every guard below is a git query, and
+                   "cannot answer" read as "absent" is what makes a sweeper delete live work.
+    """
+    try:
+        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=60)
+        return (r.returncode == 0), r.stdout.strip()
+    except Exception:
+        return None, ""
+
+
+def _main_ref():
+    """The ref a task branch is measured against, preferring the remote."""
+    for ref in ("refs/remotes/origin/main", "refs/heads/main"):
+        st, _ = _git_out("rev-parse", "--verify", "-q", ref)
+        if st is True:
+            return ref
+    return None
+
+
+def _branch_has_work(name, base):
+    """True when this task's branch carries commits - i.e. a sweep would strand real work.
+
+    NOT "does the branch exist". `cmd_claim` always records branch: task/<id> and queue/README.md step 4
+    creates exactly that branch, from main, BEFORE any work happens - so existence is true for every task the
+    documented workflow has ever claimed, including one whose agent died in its first minute. Keyed on
+    existence, this guard holds every expired lease forever and the sweeper stops being a sweeper: the
+    abandonment it exists for is precisely the case it refuses. (Reviewer of PR #51; my own control used
+    `branch: task/T-9990-does-not-exist`, a name `ops/claim` cannot produce, so it never saw this.)
+
+    Ahead-of-main is the property that separates the two populations. A claim-time branch sits at main's tip,
+    zero ahead. The 29 expired leases of 2026-09-08 were all pushed branches with open PRs, all ahead.
+
+    Returns (has_work, why); why is the sentence printed when the answer is "hold".
     """
     if not name or str(name).strip() in ("", "null", "none", "~"):
-        return False
+        return False, None
     for ref in (f"refs/remotes/origin/{name}", f"refs/heads/{name}"):
-        try:
-            r = subprocess.run(["git", "rev-parse", "--verify", "-q", ref], cwd=ROOT,
-                               capture_output=True, text=True, timeout=30)
-            if r.returncode == 0:
-                return True
-        except Exception:
-            return True   # cannot tell -> assume the work is real. Never sweep on a failed query.
+        st, _ = _git_out("rev-parse", "--verify", "-q", ref)
+        if st is None:
+            return True, f"git could not be run to look up {ref}"
+        if st is False:
+            continue
+        st, n = _git_out("rev-list", "--count", f"{base}..{ref}")
+        if st is not True:
+            return True, f"git could not count {base}..{ref}, and a failed query is not an answer"
+        if n.isdigit() and int(n) > 0:
+            return True, f"{ref} is {n} commit(s) ahead of {base}"
+    return False, None
+
+
+def _sweep_fetch(argv):
+    """Refresh origin/* before reading it, or say why we did not and stop.
+
+    The first version of this guard did not fetch and justified it backwards - it claimed a stale ref could
+    only make the sweeper more conservative. The opposite is true: a branch pushed since the last fetch reads
+    as ABSENT here, so the sweeper clears its owner and releases its exclusive lock, and nothing refuses
+    because git itself is fine. Reading a possibly-stale fact in silence is the fail-open class this
+    repository keeps finding, so: fetch, and refuse if the fetch fails.
+    """
+    if "--no-fetch" in argv:
+        print("SWEEP: --no-fetch given. origin/* is whatever the last fetch left, so a task pushed from")
+        print("  another machine since then reads as abandoned. Only correct where you are the only pusher.")
+        return True
+    st, _ = _git_out("fetch", "--quiet", "origin")
+    if st is True:
+        return True
+    print("SWEEP REFUSED: `git fetch origin` failed, so origin/* may predate work pushed from elsewhere.")
+    print("  Every such task would read as abandoned and be swept - owner cleared, exclusive lock released.")
+    print("  Fix the network or the remote, or pass --no-fetch if you are certain nobody else pushes here.")
     return False
 
 
-def cmd_sweep(_argv):
+def cmd_sweep(argv):
     moved = 0
     # A lease says an agent stopped working. It does not say the work is gone, and this queue keeps finished
     # work in claimed/ until it MERGES - so on 2026-09-08, 29 of 29 expired leases belonged to pushed branches
@@ -437,8 +491,16 @@ def cmd_sweep(_argv):
     # and which this very function produces), and left main saying ready/<id> while each branch says review/ or
     # done/ - the add/add divergence eleven branches had already been repaired by hand for.
     if not _git_usable():
-        print("SWEEP REFUSED: git cannot read this repo, so 'has this task got a branch?' cannot be answered.")
+        print("SWEEP REFUSED: git cannot read this repo, so 'is this branch ahead of main?' cannot be answered.")
         print("  Every expired lease would look abandoned and be swept. Run this where git works.")
+        return 2
+    if not _sweep_fetch(argv):
+        return 2
+    base = _main_ref()
+    if base is None:
+        print("SWEEP REFUSED: neither origin/main nor main resolves, so there is nothing to measure a task")
+        print("  branch against. Without a base every branch reads as carrying no work, and every expired")
+        print("  lease is swept.")
         return 2
     held = []
     for state, p, fm, _ in list(tasks()):
@@ -446,8 +508,9 @@ def cmd_sweep(_argv):
             continue
         exp = dt.datetime.fromisoformat(fm["lease_expires_at"].replace("Z", "+00:00"))
         if exp < now():
-            if _branch_exists(fm.get("branch")):
-                held.append(f"{fm['id']} (branch {fm.get('branch')} exists)")
+            work, why = _branch_has_work(fm.get("branch"), base)
+            if work:
+                held.append(f"{fm['id']}: {why}")
                 continue
             for res in fm.get("exclusive") or []:
                 lock = LOCKS / f"{res}.lock"
@@ -462,7 +525,7 @@ def cmd_sweep(_argv):
             print(f"swept {fm['id']} -> ready/")
             moved += 1
     if held:
-        print(f"SWEEP kept {len(held)} expired lease(s) whose branch still exists - finished work waiting to")
+        print(f"SWEEP kept {len(held)} expired lease(s) whose branch carries commits - finished work waiting to")
         print("  merge is not an abandoned task, and clearing its owner would break the reviewer-is-not-owner")
         print("  rule it will be checked against later:")
         for h in held:
