@@ -1,13 +1,13 @@
 ---
 id: T-0076
 title: ops/test picks whichever python3 is first on PATH, which here is a different interpreter without pytest
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T02:59:03Z
+lease_expires_at: 2026-09-08T08:59:03Z
+worktree: wt/T-0077
+branch: task/T-0077
 exclusive: []
 touches: [ops/test]
 pins_affected: []
@@ -61,3 +61,4 @@ that pinned rather than discovered?
 - 2026-09-08 filed by agent/claude-opus-5, found while producing T-0071's red demonstration. Every command
   above was executed; the two interpreter paths and versions are verbatim output of
   `python3 -c "import sys, importlib.util; ..."` and the same for `python`.
+- 2026-09-08T02:59:03Z claimed by agent/claude-opus-5; lease until 2026-09-08T08:59:03Z

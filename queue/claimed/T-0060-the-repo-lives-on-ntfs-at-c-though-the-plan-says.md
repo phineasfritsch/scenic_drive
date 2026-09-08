@@ -1,13 +1,13 @@
 ---
 id: T-0060
 title: the repo lives on NTFS at C:/ though the plan says WSL2 ext4, never /mnt/c
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T03:07:18Z
+lease_expires_at: 2026-09-08T07:07:18Z
+worktree: wt/T-0060
+branch: task/T-0060
 exclusive: []
 touches: [CLAUDE.md, queue/README.md]
 pins_affected: []
@@ -59,3 +59,4 @@ them.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from T-0055, which fixed eight wrappers and then found that the
   cause was one level below all of them.
+- 2026-09-08T03:07:18Z claimed by agent/claude-opus-5; lease until 2026-09-08T07:07:18Z

@@ -73,10 +73,31 @@ command -v gh >/dev/null 2>&1 || { echo "gh is not on PATH; the merge order come
 
 SCRATCH="$ROOT/../wt/_rehearsal"
 BRANCH="tmp/merge-rehearse"
+LOCK="$ROOT/.artifacts/merge-rehearse.lock"
+
+# ONE RUN AT A TIME, because $SCRATCH is a fixed path and this script's first act is to delete it. A second
+# invocation removes the first one's worktree mid-run, and the first then answers every remaining question
+# from a directory that is no longer a worktree. That is not hypothetical: on 2026-09-08 a copy of this
+# script was started while a real run was in flight, and from that moment every remaining branch reported
+# `UNRESOLVABLE: no origin/task/NNNN` for refs that exist. The run printed
+# `10 of 55 merged, 12 conflicts, 3 gate failures, 33 unresolvable` and none of it was true.
+#
+# `set -o noclobber` + `>` is the shell's compare-and-swap: it fails if the file exists. A lock file left by
+# a killed run is stale, so it names the pid and says how to clear it rather than blocking forever.
+mkdir -p "$(dirname "$LOCK")"
+if ! (set -o noclobber; printf 'pid=%s started=%s\n' "$$" "$(date -u +%FT%TZ)" > "$LOCK") 2>/dev/null; then
+  echo "REHEARSAL REFUSED: another run holds $LOCK"
+  sed 's/^/  /' "$LOCK" 2>/dev/null
+  echo "  This tool deletes and recreates one fixed scratch worktree, so two runs destroy each other's."
+  echo "  If that run is dead, remove the lock file and try again."
+  exit 2
+fi
+
 cleanup() {
   cd "$ROOT" || return
   git worktree remove --force "$SCRATCH" >/dev/null 2>&1
   git branch -D "$BRANCH" >/dev/null 2>&1
+  rm -f "$LOCK"
 }
 trap cleanup EXIT
 
@@ -123,6 +144,56 @@ if [[ ${#EDGES[@]} -lt $gh_lines ]]; then
   exit 2
 fi
 [[ ${#EDGES[@]} -gt 0 ]] || { echo "no open PRs to rehearse"; exit 0; }
+
+# ---------------------------------------------------------------- a branch with no PR is still a branch
+# The list above comes from `gh pr list`, so a ref that is ahead of main WITHOUT an open PR was never
+# rehearsed and never counted. On 2026-09-08 that was ELEVEN refs - up to 59 commits each, ten of them
+# holding a task in queue/claimed/ on their own head - while this tool printed "37 of 41 merged, 0 gate
+# failures" and that number was published as merge readiness of the backlog. The count was right; the noun
+# attached to it was wrong. A branch merges into main whether or not anybody opened a pull request for it.
+#
+# PRs still supply the ORDERING - `baseRefName` is the only place that says what is stacked on what - and
+# they are the only source of CI state. They must not decide what gets rehearsed.
+PR_HEADS="$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u)"
+n_pr=$(printf '%s\n' "$PR_HEADS" | grep -c .)
+n_extra=0
+while IFS= read -r ref; do
+  [[ -n "$ref" ]] || continue
+  b="${ref#refs/remotes/origin/}"
+  printf '%s\n' "$PR_HEADS" | grep -qx "$b" && continue
+  ahead="$(git rev-list --count "origin/main..$ref" 2>/dev/null || echo 0)"
+  [[ "$ahead" -gt 0 ]] || continue
+  EDGES+=("$b main")
+  n_extra=$((n_extra + 1))
+  if [[ $QUIET -eq 0 ]]; then
+    echo "no-PR branch: $b ($ahead commit(s)) - rehearsed here, but it has NO CI result anywhere"
+  fi
+done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*')
+
+# Vacuity guard for the ENUMERATION, which is the part that was wrong.
+#
+# The first version of this guard was ITSELF vacuous, which is worth leaving written down. It compared the
+# unique heads in EDGES against the unique PR heads - but EDGES *starts* as the PR list, so that count can
+# never fall below it. Pointing the ref query at an empty namespace added nothing, the guard passed, and the
+# tool rehearsed 44 branches while printing a total. A guard whose expected value comes from the thing it
+# checks: the defect this whole task is about, written into the check for it. It was found by demanding a
+# red run rather than reasoning about it, which is the only reason it is not still here.
+#
+# Compare like with like instead: refs under the same namespace are a SUPERSET of the PR heads in it, by
+# construction, because every open PR head is a branch that exists. Count them independently.
+n_task_refs=$(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*' | grep -c .)
+n_task_pr=$(printf '%s\n' "$PR_HEADS" | grep -c '^task/')
+if [[ "$n_task_refs" -lt "$n_task_pr" ]]; then
+  echo "REHEARSAL REFUSED: git lists $n_task_refs ref(s) under refs/remotes/origin/task/ but GitHub reports"
+  echo "  $n_task_pr open PR head(s) in that namespace. Every PR head is a branch, so the ref query lost"
+  echo "  some - fetch, or fix the pattern. Rehearsing a subset while printing a total is the defect this"
+  echo "  guard exists for, not a smaller run."
+  exit 2
+fi
+n_all=$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u | grep -c .)
+if [[ $QUIET -eq 0 ]]; then
+  echo "branches: $n_all to rehearse = $n_pr with an open PR + $n_extra with none"
+fi
 
 # ---------------------------------------------------------------- ordering constraints PR bases cannot express
 # Some branches must merge in an order their PR bases do not imply, because one changes a RULE that the other's
@@ -402,6 +473,16 @@ for b in $ORDER; do
   b="${b%$'\r'}"
   [[ -n "$b" ]] || continue
   if ! git rev-parse --verify -q "origin/$b" >/dev/null 2>&1; then
+    # THREE answers, not two. "git said no" and "git could not answer" are different facts, and the second
+    # one is what happened when this worktree was deleted mid-run: 33 healthy refs were reported missing.
+    # `git rev-parse --git-dir` is the cheapest question that separates them.
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+      echo "REHEARSAL ABORTED: this is no longer a git worktree, so every remaining answer would be a"
+      echo "  guess. The scratch worktree was removed while the run was in flight - almost certainly a"
+      echo "  second rehearsal, which the lock at the top now prevents. Nothing below this line is a"
+      echo "  measurement; discard the whole run rather than the rows after it."
+      exit 2
+    fi
     printf '%-22s UNRESOLVABLE: no origin/%s\n' "$b" "$b"
     unresolved=$((unresolved + 1))
     continue
@@ -504,6 +585,10 @@ fi
 want=$(printf '%s\n' $ORDER | sed 's/\r$//' | grep -c .)
 mode=cumulative; [[ $PAIRWISE -eq 1 ]] && mode=pairwise
 echo "REHEARSAL ($mode): $merged of $want merged, $conflicts conflicts, $gatefails gate failures, $unresolved unresolvable"
+if [[ ${n_extra:-0} -gt 0 ]]; then
+  echo "  $want branches = $n_pr with an open PR + $n_extra with none. The ones with no PR have no CI"
+  echo "  result anywhere, so a clean row for them says only that they MERGE, not that they pass."
+fi
 [[ $PAIRWISE -eq 1 ]] || echo "  Run --pairwise too: a defect a later branch cleans up is silent here."
 if [[ $merged -eq 0 || $((merged + conflicts + unresolved)) -lt $want ]]; then
   echo "  INCOMPLETE: $want branches were requested and only $((merged + conflicts + unresolved)) were accounted for."
