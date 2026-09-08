@@ -98,6 +98,18 @@ MUTATIONS = [
     ("'git cannot answer' is read as 'no duplicate' instead of being refused", SUBJECT,
      "        dup = _would_duplicate_on_merge(tid)\n        if dup is None:",
      "        dup = _would_duplicate_on_merge(tid) or []\n        if dup is None:"),
+
+    # Exists to prove case 3's RESIDUAL assertion is load-bearing rather than decorative. That case no longer
+    # demands a bare `QUEUE OK` - it demands that every problem cmd_check reports be gone except the
+    # MIN_TASKS floor - and this is the mutation that leaves a new one: the task ends up in claimed/ AND
+    # review/ at once. Nothing else in this set is caught by that assertion, so without it the change to
+    # case 3 would be untested.
+    ("review writes the task to review/ without removing the claimed/ copy", SUBJECT,
+     '        dest = Q / "review" / p.name\n'
+     '        dest.write_text(dump(fm, body), encoding="utf-8", newline="\\n")\n'
+     "        p.unlink()",
+     '        dest = Q / "review" / p.name\n'
+     '        dest.write_text(dump(fm, body), encoding="utf-8", newline="\\n")'),
 ]
 
 # Cannot change behaviour. Anything but MISSED here means a case has an opinion about how the subject is

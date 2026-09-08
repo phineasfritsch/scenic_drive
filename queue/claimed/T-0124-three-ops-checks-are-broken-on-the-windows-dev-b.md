@@ -353,15 +353,28 @@ requires a named case in `check-lock-lifecycle` to print `FAIL:`.
     caught      the merge rehearsal is deleted outright (return [])          <- reviewer-pr79's M2
     caught      the rehearsal asks whether the path exists instead of whether this branch can delete it
     caught      'git cannot answer' is read as 'no duplicate' instead of being refused
+    caught      review writes the task to review/ without removing the claimed/ copy
     MISSED      rename the comprehension variable in the rehearsal's loop    <- EQUIVALENT, must be MISSED
     MISSED      split a tuple assignment into two statements                 <- EQUIVALENT, must be MISSED
-    caught by a named case: 8 of 8   (trapped 0, compile-only 0, MISSED 0, skipped 0)          exit 0
+    caught by a named case: 9 of 9   (trapped 0, compile-only 0, MISSED 0, skipped 0)          exit 0
 
     --prove-vacuity (check replaced by a stub that asserts nothing):
-    caught by a named case: 0 of 8   (trapped 0, compile-only 0, MISSED 8, skipped 0)
+    caught by a named case: 0 of 9   (trapped 0, compile-only 0, MISSED 9, skipped 0)
     VACUITY PROOF OK                                                                           exit 0
 
 Subject md5 identical before and after both runs; the tree is left pristine.
+
+The last mutation exists to keep me honest about the change to case 3. Rewriting that assertion is the one
+place here where a weaker-looking form replaced a stronger-looking one, so it needs a mutation that ONLY it
+catches. `.artifacts/which-case.sh` shows which case fires:
+
+    FAIL: queue-check reported a problem other than the MIN_TASKS floor after review:
+         - queue/claimed/T-9102-demo.md: declares exclusive [scenic-index] but ... lock is not held
+     - duplicate id T-9102: queue/review/T-9102-demo.md and queue/claimed/T-9102-demo.md
+     - 2 tasks share one title: queue/claimed/T-9102-demo.md, queue/review/T-9102-demo.md
+
+The old `grep -q "^QUEUE OK"` form could not have distinguished this from its own baseline, because its
+baseline was already failing. Case 3 catches strictly more than it did before, not less.
 
 ### Verification
 
