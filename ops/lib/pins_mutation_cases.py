@@ -211,7 +211,7 @@ CASES = [case("P-SRC-01", f"import {mod} in {IMPORT_HOST}", IMPORTS, append(IMPO
     # breaks Linux CI exactly as hard - is not seen. Filed, not fixed here: fixing it edits pins/PINS.yaml,
     # which is not this task's `touches:`, and a pin change wants its own red/green.
     case("P-SRC-01", f"import UIKit in {TEST_HOST} (test target)", IMPORTS,
-         append(TEST_HOST, "import UIKit"), expect="gap", gap_task="T-0099"),
+         append(TEST_HOST, "import UIKit")),
 
     case("P-SRC-02", "a 320-line tracked Swift file under Sources/", CAP,
          add_tracked("Sources/ScenicKit/Model/MutationOverflow.swift", overflow_swift("MutationOverflow"))),
