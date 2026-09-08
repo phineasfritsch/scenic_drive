@@ -9,6 +9,10 @@
   queue.py claim T-0007 --owner agent/x --session <id> [--worktree ../wt/T-0007] [--hours 2]
   queue.py lock T-0007 [--owner agent/x]   acquire locks a claimed task declares but does not hold
 
+--touches, --exclusive, --pins and --depends are LISTS: repeat the flag or use commas, in any mix. Every
+other flag holds one value and repeating it is refused, as is an unknown flag, a flag with no value, and a
+stray word - all four used to be accepted silently and cost the task file its declared scope (T-0084).
+
 No PyYAML: front matter is parsed by a deliberately small reader (scalars, [flow, lists], and `- ` block lists).
 """
 import datetime as dt
@@ -232,9 +236,7 @@ def log(path, msg):
 
 
 # ----------------------------------------------------------------------------- commands
-def cmd_new(argv):
-    title = argv[0]
-    opts = _opts(argv[1:])
+def cmd_new(title, opts):
     # `state` is interpolated straight into the path this function writes, so an unchecked one is not a
     # typo, it is a traceback and a write outside queue/: `--state` with no value became queue/true/ and
     # `--state ../../../escape` resolved out of the repo. Both raised FileNotFoundError only because the
@@ -281,7 +283,7 @@ def _same_work(title, body):
     return norm, hashlib.sha256(stripped.encode("utf-8")).hexdigest()
 
 
-def cmd_check(_argv):
+def cmd_check(_operand, _opts_):
     problems = []
     seen = {}
     by_title, by_body, _raw = {}, {}, {}
@@ -437,7 +439,7 @@ def _branch_exists(name):
     return False
 
 
-def cmd_sweep(_argv):
+def cmd_sweep(_operand, _opts_):
     moved = 0
     # A lease says an agent stopped working. It does not say the work is gone, and this queue keeps finished
     # work in claimed/ until it MERGES - so on 2026-09-08, 29 of 29 expired leases belonged to pushed branches
@@ -479,7 +481,7 @@ def cmd_sweep(_argv):
     return 0
 
 
-def cmd_next(_argv):
+def cmd_next(_operand, _opts_):
     done = {fm.get("id") for s, _, fm, _ in tasks() if s == "done"}
     for state, p, fm, _ in tasks():
         if state != "ready":
@@ -491,9 +493,7 @@ def cmd_next(_argv):
     return 0
 
 
-def cmd_claim(argv):
-    tid = argv[0]
-    opts = _opts(argv[1:])
+def cmd_claim(tid, opts):
     owner = opts.get("owner") or "agent/unknown"
     hours = _hours(opts.get("hours", "2"))
     if hours is None:
@@ -596,7 +596,7 @@ def _would_duplicate_on_merge(tid):
     return bad
 
 
-def cmd_review(argv):
+def cmd_review(tid, opts):
     """Move a CLAIMED task to review/, assign its reviewer, and release the locks it holds.
 
     The transition existed only as a habit: every agent did `git mv` plus a hand edit of `state:` and
@@ -611,8 +611,6 @@ def cmd_review(argv):
     which already exists to acquire the locks a claimed task declares. The round trip is supported, so this
     is not a one-way door.
     """
-    tid = argv[0]
-    opts = _opts(argv[1:])
     for state, p, fm, body in tasks():
         if fm.get("id") != tid:
             continue
@@ -717,15 +715,13 @@ def cmd_review(argv):
     return 1
 
 
-def cmd_lock(argv):
+def cmd_lock(tid, opts):
     """Acquire the locks a CLAIMED task declares but does not hold.
 
     `claim` creates every declared lock, but a task whose `exclusive:` list is edited AFTER it was claimed
     has no lock and no way to get one. That happened on T-0011 (exclusive: [floors] added post-claim);
     queue-check caught it, but only after the window in which a concurrent write could have been lost.
     """
-    tid = argv[0]
-    opts = _opts(argv[1:])
     for state, p, fm, _ in tasks():
         if fm.get("id") != tid:
             continue
@@ -762,16 +758,55 @@ def cmd_lock(argv):
     return 1
 
 
-def _opts(argv):
-    out = {}
+def _opts(argv, cmd):
+    """(options, None), or (None, why-this-command-line-cannot-be-obeyed).
+
+    Every failure this refuses used to be SILENT, which is worse than the traceback T-0087 started from: a
+    stack trace at least stops. The old parser wrote `out[name] = value` into a dict nobody validated:
+
+      --touchez a                 set a key no caller reads; the task recorded touches: []
+      --touches a --touches b     kept only `b` - T-0084, measured on four live branches
+      --touches --state done      recorded touches: ['--state'] and dropped --state entirely
+      --owner x --owner y         claimed for `y`, last-wins, with nothing printed
+      claim T-1 T-2               ignored the second word
+
+    List options ACCUMULATE, because `--touches a --touches b` has exactly one meaning. A repeated SCALAR
+    is refused instead of resolved: which of two `--owner`s was meant is not knowable from here, and the
+    old answer (the last) is the one an agent re-reading its own command line is least likely to expect.
+    """
+    out, seen = {}, set()
     i = 0
     while i < len(argv):
-        if argv[i].startswith("--"):
-            out[argv[i][2:]] = argv[i + 1] if i + 1 < len(argv) else "true"
-            i += 2
+        tok = argv[i]
+        if not tok.startswith("--"):
+            takes = f"one operand ({NEEDS_ARG[cmd]}) then options" if cmd in NEEDS_ARG else "no operand"
+            return None, f"{tok!r} is not an option. `{cmd}` takes {takes}, and a stray word was ignored."
+        name, eq, inline = tok[2:].partition("=")
+        if name not in OPTS[cmd]:
+            known = ", ".join("--" + o for o in sorted(OPTS[cmd])) or "it takes none"
+            return None, f"--{name} is not an option of `{cmd}` ({known})."
+        if eq:
+            val = inline
         else:
             i += 1
-    return out
+            if i >= len(argv):
+                return None, f"--{name} needs a value; it was the last word on the line."
+            val = argv[i]
+            # A value starting with a dash is the NEXT OPTION, eaten. Guarded on the whole DASHES class for
+            # the same reason the operand is: an ASCII-only version of this test is one keystroke from
+            # useless. No option here takes a dash-leading value.
+            if val[:1] and val[0] in DASHES:
+                return None, f"--{name} was given {val!r}, which is another option, not a value."
+        if name in LIST_OPTS:
+            out.setdefault(name, []).append(val)
+        elif name in seen:
+            return None, (f"--{name} was given twice ({out[name]!r} then {val!r}); it holds one value and "
+                          "which one was meant is not knowable here.")
+        else:
+            out[name] = val
+        seen.add(name)
+        i += 1
+    return out, None
 
 
 def _hours(v):
@@ -790,11 +825,29 @@ def _hours(v):
 
 
 def _list(v):
-    return [x.strip() for x in v.split(",") if x.strip()] if v else []
+    """A list option's value: comma-separated (`--touches a,b`), repeated (`--touches a --touches b`),
+    or both. The comma spelling was the only one that ever worked and it is documented nowhere an agent
+    reads, which is how T-0084's four tasks came to declare one path out of several."""
+    return [x.strip() for part in (v if isinstance(v, list) else [v]) if part
+            for x in str(part).split(",") if x.strip()]
 
 
-COMMANDS = ("new", "check", "sweep", "next", "claim", "lock", "review")
-# subcommand -> the operand it reads out of argv[0], for the usage line. `new` takes a title, not an id.
+# subcommand -> options it accepts. The dispatch reads this, so a command added without a line here is a
+# KeyError at parse time rather than a command that quietly accepts anything - COMMANDS is derived from it
+# so the two cannot drift. Names in LIST_OPTS accumulate across repeats; every other name is scalar and a
+# repeat is refused.
+LIST_OPTS = frozenset({"touches", "exclusive", "pins", "depends"})
+OPTS = {
+    "new": frozenset({"state", "touches", "exclusive", "pins", "depends"}),
+    "check": frozenset(),
+    "sweep": frozenset(),
+    "next": frozenset(),
+    "claim": frozenset({"owner", "session", "worktree", "hours"}),
+    "lock": frozenset({"owner"}),
+    "review": frozenset({"reviewer"}),
+}
+COMMANDS = tuple(OPTS)
+# subcommand -> the operand it reads, for the usage line. `new` takes a title, not an id.
 NEEDS_ARG = {"new": '"<title>"', "claim": "<id>", "lock": "<id>", "review": "<id>"}
 # Every dash that a keyboard, an autocorrect or a pasted document can leave where '-' was meant. The first
 # version of the guard below said "may not start with '-'" and was defeated by the neighbouring character
@@ -814,11 +867,18 @@ def _bad_operand(cmd, got):
     return None
 
 
+def _usage(cmd):
+    """Built from OPTS, so a usage line cannot describe a command the parser no longer implements - a
+    hand-written one drifts, and a wrong usage line is worse than none because it is believed."""
+    flags = " ".join(f"[--{o} V]" for o in sorted(OPTS[cmd]))
+    return " ".join(x for x in ("usage: queue.py", cmd, NEEDS_ARG.get(cmd, ""), flags) if x)
+
+
 def main(argv):
     if len(argv) < 2 or argv[1] not in COMMANDS:
         print(__doc__)
         return 2
-    rest = argv[2:]
+    cmd, rest = argv[1], list(argv[2:])
     # These four read rest[0] directly, so calling one with no argument raised IndexError and printed a
     # traceback instead of usage. Found while adding `review`; `claim`, `lock` and `new` have had it since
     # they were written. A tool that answers a typo with a stack trace teaches people to stop reading its
@@ -829,14 +889,25 @@ def main(argv):
     # queue/backlog/T-0088-touches.md TITLED "--touches"; `new ""` and `new "   "` wrote task files with an
     # empty title and an empty slug. Silent garbage in the queue is worse than a stack trace, because
     # nobody reads queue/backlog until they need it.
-    if argv[1] in NEEDS_ARG:
-        got = rest[0] if rest else ""
-        why = _bad_operand(argv[1], got)
+    #
+    # The OPTIONS are the neighbouring half and were open until T-0084 was folded in here: guarding the
+    # operand and then handing the rest to a parser that validates nothing moves the silence one word to
+    # the right. Both halves are decided BEFORE any cmd_* runs, so a refusal cannot half-write a task file.
+    operand = None
+    if cmd in NEEDS_ARG:
+        operand = rest[0] if rest else ""
+        why = _bad_operand(cmd, operand)
         if why:
-            print(f"usage: queue.py {argv[1]} {NEEDS_ARG[argv[1]]} [options]")
-            print(f"refused {got!r}: {why}")
+            print(_usage(cmd))
+            print(f"refused {operand!r}: {why}")
             return 2
-    return globals()[f"cmd_{argv[1]}"](rest) or 0
+        rest = rest[1:]
+    opts, why = _opts(rest, cmd)
+    if why:
+        print(_usage(cmd))
+        print(f"refused: {why}")
+        return 2
+    return globals()[f"cmd_{cmd}"](operand, opts) or 0
 
 
 if __name__ == "__main__":
