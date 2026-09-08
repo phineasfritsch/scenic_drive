@@ -10,6 +10,7 @@ let package = Package(
     platforms: [.iOS("18.4"), .macOS(.v14)],
     products: [
         .library(name: "ScenicKit", targets: ["ScenicKit"]),
+        .library(name: "Handoff", targets: ["Handoff"]),
     ],
     targets: [
         .target(
@@ -21,6 +22,21 @@ let package = Package(
             name: "ScenicKitTests",
             dependencies: ["ScenicKit"],
             path: "Tests/ScenicKitTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // Handoff depends on ScenicKit for Coordinate ONLY. It must never gain a dependency in the other
+        // direction: ScenicKit is the scoring and routing core and has no business knowing that a URL to a
+        // third-party maps app exists.
+        .target(
+            name: "Handoff",
+            dependencies: ["ScenicKit"],
+            path: "Sources/Handoff",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "HandoffTests",
+            dependencies: ["Handoff", "ScenicKit"],
+            path: "Tests/HandoffTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]
