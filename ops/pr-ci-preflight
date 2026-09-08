@@ -170,23 +170,67 @@ echo "PR-CI PREFLIGHT: $ok ok, $bad failing gates, $noref genuinely conflicting,
 # direction, and the reader has no way to tell.
 # `ops/merge-rehearse` already does this correctly, by name, against its PR head list; so does this now.
 PRCI_HEADS="$(printf '%s\n' "${PRS[@]}" | tr -d '\r' | awk '{print $2}' | sort -u)"
-_refs=0; _nopr=0
+# ONE resolved notion of "main". This used to be the literal `origin/main..` with `|| echo 0` behind it, so
+# on a checkout without that remote ref the comparison could not be made for ANY branch and every failure
+# became the number 0 - see the UNKNOWN bucket below.
+PRCI_MAIN=origin/main
+git rev-parse --verify -q "$PRCI_MAIN" >/dev/null 2>&1 || PRCI_MAIN=main
+if ! git rev-parse --verify -q "$PRCI_MAIN" >/dev/null 2>&1; then
+  echo "  NOT COVERED: UNKNOWN - neither origin/main nor main resolves, so 'ahead of main' has no answer."
+  exit 2
+fi
+_refs=0; _NOPR=""; _HASPR=""; _BEHIND=""; _UNK=""
 while IFS= read -r r; do
   [[ -n "$r" ]] || continue
   _refs=$((_refs + 1))
   b="${r#refs/remotes/origin/}"
-  printf '%s\n' "$PRCI_HEADS" | grep -qx "$b" && continue
-  [[ "$(git rev-list --count "origin/main..$r" 2>/dev/null || echo 0)" -gt 0 ]] || continue
-  _nopr=$((_nopr + 1))
+  if printf '%s\n' "$PRCI_HEADS" | grep -qx "$b"; then _HASPR+="$b"$'\n'; continue; fi
+  if ! _a="$(git rev-list --count "$PRCI_MAIN..$r" 2>/dev/null)" || [[ ! "$_a" =~ ^[0-9]+$ ]]; then
+    _UNK+="$b"$'\n'; continue
+  fi
+  if [[ "$_a" -eq 0 ]]; then _BEHIND+="$b"$'\n'; continue; fi
+  _NOPR+="$b"$'\n'
 done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*')
-# A floor on the population THIS BLOCK EXAMINED, not on the one it could have. The old block printed nothing
-# at all whenever its comparison came out false, so an ABSENT `NOT COVERED` line read as "everything is
-# covered" - a guard with no floor, indistinguishable from a guard that looked at nothing. It now always
-# prints, and refuses outright when the ref query it depends on examined zero refs.
+_nopr=$(printf '%s' "$_NOPR" | grep -c .)
+_nunk=$(printf '%s' "$_UNK" | grep -c .)
+_ndec=$(( $(printf '%s' "$_HASPR" | grep -c .) + $(printf '%s' "$_BEHIND" | grep -c .) + _nopr + _nunk ))
+# A floor on the number in the SENTENCE, not on the number of refs walked. The old block printed nothing at
+# all whenever its comparison came out false, so an ABSENT `NOT COVERED` line read as "everything is
+# covered". The version after that always printed and refused when the query examined zero refs - but its
+# floor was on `_refs`, and `_nopr` is what the sentence says. Break the ahead-of-main comparison alone and
+# all 84 refs are still walked, `_refs` is still 84, and the line becomes `NOT COVERED: 0 of the 84`: an
+# all-clear manufactured out of a question that was never answered. Every ref now ends in exactly one bucket
+# and an unanswerable comparison is its own bucket, so the only way to reach the number 0 is to be told 0.
 if [[ $_refs -eq 0 ]]; then
   echo "  NOT COVERED: UNKNOWN - the branch query examined 0 ref(s) under refs/remotes/origin/task/ while"
   echo "  GitHub reports $want open PR(s). That is not 'every branch is covered', it is 'the question was"
   echo "  not asked', and the counts above cannot be placed against the backlog at all."
+  exit 2
+fi
+if [[ $_nunk -gt 0 ]]; then
+  echo "  NOT COVERED: UNKNOWN - $_nunk of the $_refs branch(es) under refs/remotes/origin/task/ could not be"
+  echo "  compared against $PRCI_MAIN, so how many lack CI is unknown. A git command that could not run is"
+  echo "  not the answer 0: $(printf '%s' "$_UNK" | grep -m1 .) was the first."
+  exit 2
+fi
+if [[ $_ndec -ne $_refs ]]; then
+  echo "  NOT COVERED: UNKNOWN - $_refs ref(s) were walked and only $_ndec were decided about, so the count"
+  echo "  below would be over a population this block never finished classifying."
+  exit 2
+fi
+# Second, independent reading of the one answer that removes a branch from the count: `rev-list --count
+# X..Y = 0` and `merge-base --is-ancestor Y X` are different commands answering the same question. Put
+# `|| echo 0` back on the rev-list above - the construction this block used to have - and the branches it
+# wrongly calls "not ahead" fail the ancestry test one by one instead of vanishing into `NOT COVERED: 0`.
+_notanc=""
+while IFS= read -r b; do
+  [[ -n "$b" ]] || continue
+  git merge-base --is-ancestor "refs/remotes/origin/$b" "$PRCI_MAIN" >/dev/null 2>&1 || _notanc+="$b"$'\n'
+done < <(printf '%s' "$_BEHIND" | grep .)
+if [[ "$(printf '%s' "$_notanc" | grep -c .)" -gt 0 ]]; then
+  echo "  NOT COVERED: UNKNOWN - $(printf '%s' "$_notanc" | grep -c .) ref(s) counted as 'not ahead of"
+  echo "  $PRCI_MAIN' are not contained in $PRCI_MAIN either, starting with $(printf '%s' "$_notanc" | grep -m1 .)."
+  echo "  The count and the ancestry disagree, so the count is not measuring what it says."
   exit 2
 fi
 echo "  NOT COVERED: $_nopr of the $_refs branch(es) under refs/remotes/origin/task/ are ahead of main with"

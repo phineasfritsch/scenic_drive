@@ -178,43 +178,62 @@ fi
 # they are the only source of CI state. They must not decide what gets rehearsed.
 PR_HEADS="$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u)"
 n_pr=$(printf '%s\n' "$PR_HEADS" | grep -c .)
-n_extra=0
-SEEN_REFS=""   # every ref THIS LOOP consumed - the population the guard below is a floor on
+
+# ONE notion of "main", resolved HERE, before anything is measured against it. This loop used to write out
+# the literal `origin/main..` with `|| echo 0` behind it - two hundred lines above the point where the same
+# script explicitly allows for origin/main not existing. On a checkout without that remote ref every branch
+# answered "0 commits ahead", every branch without a PR left the run in silence, and the guard stayed green.
+MAINREF=origin/main
+git rev-parse --verify -q "$MAINREF" >/dev/null 2>&1 || MAINREF=main
+if ! git rev-parse --verify -q "$MAINREF" >/dev/null 2>&1; then
+  echo "REHEARSAL REFUSED: neither origin/main nor main resolves here, so 'ahead of main' has no answer and"
+  echo "  the enumeration cannot decide what belongs in the run."
+  exit 2
+fi
+
+# Every ref this loop consumes lands in EXACTLY ONE bucket, and "git could not answer" is one of the buckets.
+SEEN_REFS=""     # consumed
+CLS_PR=""        #   -> has an open PR, so it is already in EDGES
+CLS_ADD=""       #   -> no PR and positively ahead of $MAINREF: appended to EDGES right here
+CLS_BEHIND=""    #   -> no PR and positively NOT ahead: git answered, and the answer was 0
+CLS_UNKNOWN=""   #   -> git did not answer. That is not the number 0. See c3a4072.
 while IFS= read -r ref; do
   [[ -n "$ref" ]] || continue
   b="${ref#refs/remotes/origin/}"
   SEEN_REFS+="$b"$'\n'
-  printf '%s\n' "$PR_HEADS" | grep -qx "$b" && continue
-  ahead="$(git rev-list --count "origin/main..$ref" 2>/dev/null || echo 0)"
-  [[ "$ahead" -gt 0 ]] || continue
+  if printf '%s\n' "$PR_HEADS" | grep -qx "$b"; then CLS_PR+="$b"$'\n'; continue; fi
+  if ! ahead="$(git rev-list --count "$MAINREF..$ref" 2>/dev/null)" || [[ ! "$ahead" =~ ^[0-9]+$ ]]; then
+    CLS_UNKNOWN+="$b"$'\n'; continue
+  fi
+  if [[ "$ahead" -eq 0 ]]; then CLS_BEHIND+="$b"$'\n'; continue; fi
+  CLS_ADD+="$b"$'\n'
   EDGES+=("$b main")
-  n_extra=$((n_extra + 1))
   if [[ $QUIET -eq 0 ]]; then
     echo "no-PR branch: $b ($ahead commit(s)) - rehearsed here, but it has NO CI result anywhere"
   fi
 done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*')
 
-# Vacuity guard for the ENUMERATION, which is the part that was wrong.
+# Vacuity guard for the ENUMERATION, which is the part that was wrong. THREE earlier versions of this guard
+# were themselves vacuous - the same mistake at three distances from the code - and all three are worth
+# leaving written down, because each one looked right to its author.
 #
-# TWO earlier versions of this guard were themselves vacuous, and both are worth leaving written down
-# because they are the same mistake at different distances from the code.
+#   v1 compared the unique heads in EDGES against the unique PR heads. EDGES *starts* as the PR list, so
+#      that count can never fall below it.
+#   v2 ran its OWN SECOND COPY of the `git for-each-ref` query above and compared THAT against the PR heads,
+#      so it measured whether the query CAN return refs, never whether the loop consuming it DID. Replacing
+#      `done < <(git for-each-ref ...)` with `done < /dev/null` - the enumeration deleted outright - left it
+#      GREEN at exit 0, printing `35 to rehearse = 35 with an open PR + 0 with none`.
+#   v3 read SEEN_REFS - but SEEN_REFS is appended to at the TOP of the loop body, ahead of every `continue`,
+#      so it is the loop's INPUT, and the loop's OUTPUT is the `EDGES+=` append. Two one-line breaks left v3
+#      green, each printing `38 to rehearse = 38 with an open PR + 0 with none` while 31 refs were ahead of
+#      main with no PR: (F) point the `git rev-list --count` at a ref that does not exist, so the old
+#      `|| echo 0` read "cannot answer" as "not ahead"; (G) delete the `EDGES+=` line, which is the whole of
+#      what the enumeration produces - i.e. the pre-fix tool exactly, output and all.
 #
-#   v1 compared the unique heads in EDGES against the unique PR heads - but EDGES *starts* as the PR list,
-#      so that count can never fall below it.
-#   v2 (reviewed and failed on PR #67) ran its OWN SECOND COPY of the `git for-each-ref` query above and
-#      compared THAT against the PR heads. So it measured whether the query CAN return refs, never whether
-#      the loop consuming it DID. Demonstrated by the reviewer and re-demonstrated here: replace line
-#      `done < <(git for-each-ref ...)` with `done < /dev/null` - the enumeration deleted outright, the
-#      exact pre-fix state this task exists to fix - and v2 stayed GREEN, exit 0, printing
-#      `branches: 35 to rehearse = 35 with an open PR + 0 with none`. That `+ 0` is not a missing number,
-#      it is a false one. Expected value and measured value were the same expression written twice.
-#
-# The guard has to read what the LOOP PRODUCED. `SEEN_REFS` is appended to inside the loop body, so it is
-# the enumeration's own output and cannot be green when the enumeration is empty; `PR_HEADS` comes from
-# GitHub, which is a genuinely independent source. The floor is on the population examined, not on the
-# population available:
-#   - the loop must have consumed at least one ref (we only get here when there IS at least one open PR), and
-#   - every open PR head under task/ must be AMONG the refs the loop consumed, by name.
+# What holds instead: the loop PARTITIONS its input, the only exit from the run is a positive answer from a
+# `git rev-list` that EXITED 0, and the last check's measured side is the EDGES array itself - the artifact
+# the rest of this script consumes - against an expected side that is the consumed refs minus the ones
+# positively excluded. Nothing inside the append branch can make that check green by being deleted.
 n_seen=$(printf '%s' "$SEEN_REFS" | grep -c .)
 n_task_pr=$(printf '%s\n' "$PR_HEADS" | grep -c '^task/')
 if [[ "$n_seen" -eq 0 ]]; then
@@ -235,7 +254,64 @@ if [[ "$n_missing" -gt 0 ]]; then
   echo "  pattern. Rehearsing a subset while printing a total is the defect this guard exists for."
   exit 2
 fi
-n_all=$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u | grep -c .)
+n_haspr=$(printf '%s' "$CLS_PR" | grep -c .)
+n_extra=$(printf '%s' "$CLS_ADD" | grep -c .)
+n_behind=$(printf '%s' "$CLS_BEHIND" | grep -c .)
+n_unknown=$(printf '%s' "$CLS_UNKNOWN" | grep -c .)
+if [[ "$n_unknown" -gt 0 ]]; then
+  echo "REHEARSAL REFUSED: $n_unknown of the $n_seen ref(s) the enumeration consumed could not be compared"
+  echo "  against $MAINREF, so whether they belong in this rehearsal is unknown. A git command that could not"
+  echo "  run is not the answer 0, and reading it as one is how a branch leaves the run without a line:"
+  printf '%s' "$CLS_UNKNOWN" | grep . | head -5 | sed 's/^/    /'
+  exit 2
+fi
+n_dec=$((n_haspr + n_extra + n_behind + n_unknown))
+if [[ "$n_dec" -ne "$n_seen" ]]; then
+  echo "REHEARSAL REFUSED: the enumeration consumed $n_seen ref(s) and decided about $n_dec. A ref that"
+  echo "  leaves the loop with no decision is a branch dropped from the run in silence, which is this"
+  echo "  tool's own history."
+  exit 2
+fi
+# The `-eq 0` above is the ONE answer that removes a branch from the run, so it gets a second, independent
+# reading of the same fact. `rev-list --count X..Y = 0` and `merge-base --is-ancestor Y X` are different
+# commands answering the same question, and putting `|| echo 0` back on the rev-list - which is exactly how
+# this tool used to convert "cannot answer" into "not ahead", and the mutation that survived every other
+# check here - sends 31 live branches into this bucket where the ancestry test contradicts them one by one.
+notanc=""
+while IFS= read -r b; do
+  [[ -n "$b" ]] || continue
+  git merge-base --is-ancestor "refs/remotes/origin/$b" "$MAINREF" >/dev/null 2>&1 || notanc+="$b"$'\n'
+done < <(printf '%s' "$CLS_BEHIND" | grep .)
+n_notanc=$(printf '%s' "$notanc" | grep -c .)
+if [[ "$n_notanc" -gt 0 ]]; then
+  echo "REHEARSAL REFUSED: $n_notanc of the $n_behind ref(s) the enumeration dropped as 'not ahead of"
+  echo "  $MAINREF' are not contained in $MAINREF either. The count and the ancestry disagree, so the count"
+  echo "  is not measuring what it says, and every ref in that bucket is a branch left out of the run:"
+  printf '%s' "$notanc" | grep . | head -5 | sed 's/^/    /'
+  exit 2
+fi
+# The one that reads the OUTPUT. Every consumed ref must be either in the branch list this script goes on to
+# rehearse, or positively behind $MAINREF. `EDGE_HEADS` is the EDGES array - what the sort and the merge loop
+# below actually receive - so deleting the append, the counter, or the whole branch of the `if` that fills
+# them cannot make this green: the ref is still in SEEN_REFS and still not in CLS_BEHIND.
+EDGE_HEADS="$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u)"
+dropped="$(comm -23 \
+  <(printf '%s' "$SEEN_REFS" | grep . | sort -u) \
+  <(printf '%s\n%s' "$EDGE_HEADS" "$CLS_BEHIND" | grep . | sort -u))"
+n_dropped=$(printf '%s\n' "$dropped" | grep -c .)
+if [[ "$n_dropped" -gt 0 ]]; then
+  echo "REHEARSAL REFUSED: $n_dropped of the $n_seen ref(s) the enumeration consumed are neither in the"
+  echo "  branch list it produced nor positively behind $MAINREF. They would be absent from the run while"
+  echo "  the total below counted them out of existence:"
+  printf '%s\n' "$dropped" | grep . | head -5 | sed 's/^/    /'
+  exit 2
+fi
+n_all=$(printf '%s\n' "$EDGE_HEADS" | grep -c .)
+if [[ "$n_all" -ne $((n_pr + n_extra)) ]]; then
+  echo "REHEARSAL REFUSED: the branch list holds $n_all head(s), and the enumeration accounts for $n_pr with"
+  echo "  an open PR + $n_extra without = $((n_pr + n_extra)). The sentence below would be a false one."
+  exit 2
+fi
 if [[ $QUIET -eq 0 ]]; then
   echo "branches: $n_all to rehearse = $n_pr with an open PR + $n_extra with none"
 fi
@@ -399,8 +475,8 @@ fi
 # LOCAL main while every derived edge above was computed against ORIGIN/main - two different trees in one run,
 # and nothing in the output said which. Local main was two commits behind origin/main during the review that
 # found it. A rehearsal is about what happens when these branches meet the main everybody else has.
-MAINREF=origin/main
-git rev-parse --verify -q "$MAINREF" >/dev/null 2>&1 || MAINREF=main
+# $MAINREF was resolved before the enumeration, which measures "ahead of main" against it; a second
+# resolution here could disagree with the one the branch list was built from.
 git worktree remove --force "$SCRATCH" >/dev/null 2>&1
 git branch -D "$BRANCH" >/dev/null 2>&1
 git worktree add -q -b "$BRANCH" "$SCRATCH" "$MAINREF" || { echo "cannot create the scratch worktree"; exit 2; }

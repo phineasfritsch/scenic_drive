@@ -253,3 +253,115 @@ enumeration fix either way.
   `ops/lib/queue.py`. Splitting this script is a change to files outside `touches:` and is its own task.
   `ops/pr-ci-preflight`'s `gates()` still decides pass/fail by grepping failure wording rather than reading
   exit codes — pre-existing, named by the reviewer, and also its own task.
+
+- 2026-09-08 — **second review (FAIL at 152a37f): reproduced both open findings, fixed both, and found one
+  more attack of my own that survived the first version of the fix.** Reviewer `agent/reviewer-final-pr67`
+  closed prior findings 2 and 3 and the `$want`/`$n_all` note. Prior finding 1 was still open, and the same
+  hole was in the fix for finding 3. Both reproduced by running the code before changing anything.
+
+  Method throughout: truncated copies of the real scripts generated from the file by
+  `.artifacts/fix67c/mkprobe.py` (merge-rehearse, truncated after the `branches:` line so the guard's verdict
+  is the only thing measured) and `.artifacts/fix67c/mkf3.py` (the `NOT COVERED` block of pr-ci-preflight
+  lifted verbatim into a harness that supplies `PRS`/`want` the way the script does). Each probe differs from
+  the unmodified copy by ONE line except where noted. Exit codes taken with no pipe in between. The ref and
+  PR counts drift between runs — other agents push while this runs — so read the shapes, not the absolutes.
+
+  **REPRODUCED, using the reviewer's own generator (`.artifacts/rvw67b/mkprobe.py`, `mkf3.py`) at 152a37f
+  with nothing of mine applied:**
+
+        merge-rehearse  A  unmodified              69 to rehearse = 38 with an open PR + 31 with none  EXIT 0
+                        F  line 188 only, the ahead-of-main question unanswerable
+                                                   38 to rehearse = 38 with an open PR + 0 with none   EXIT 0
+                        G  lines 190-191 removed, the enumeration's output deleted
+                             31 `no-PR branch:` lines printed, then
+                                                   38 to rehearse = 38 with an open PR + 0 with none   EXIT 0
+        pr-ci-preflight f3_green                   NOT COVERED: 31 of the 85 ...                       EXIT 0
+                        f3_ahead_unanswerable      NOT COVERED: 0 of the 85 ...                        EXIT 0
+
+  Both reviewers were right. `SEEN_REFS` was appended to at the TOP of the loop body, ahead of both
+  `continue`s, so it recorded the loop's INPUT; the enumeration's OUTPUT is the `EDGES+=` append, and nothing
+  was a floor on that. `_refs` in pr-ci-preflight counted refs WALKED while `_nopr` is the number in the
+  sentence. Third and fourth versions of the same mistake, at successively shorter distances from the code.
+
+  **The fix — the loop partitions its input, and "git could not answer" is one of the buckets.** Every ref
+  the enumeration consumes lands in exactly one of `CLS_PR` / `CLS_ADD` / `CLS_BEHIND` / `CLS_UNKNOWN`, and
+  the only way out of the run is a positive answer from a `git rev-list` that EXITED 0. `origin/main` is no
+  longer written out literally with `|| echo 0` behind it: `$MAINREF` is resolved once, before anything is
+  measured against it, and if neither `origin/main` nor `main` resolves the run refuses instead of answering
+  "0 commits ahead" for every branch. (That resolution used to live 200 lines below the enumeration, which
+  is the contradiction the reviewer pointed at: the script allowed for `origin/main` being absent in one
+  place and assumed it in another.) Four checks then read the loop's decisions, not its input:
+
+        UNKNOWN      any ref the ahead-of-main comparison could not answer for  -> refuse
+        PARTITION    consumed == decided-about                                  -> refuse
+        ANCESTRY     every ref dropped as "not ahead" must be contained in $MAINREF, asked the other way
+                     round with `git merge-base --is-ancestor`                  -> refuse
+        OUTPUT       every consumed ref must be in EDGE_HEADS (the EDGES array the sort and the merge loop
+                     actually receive) or positively behind $MAINREF            -> refuse
+        SPLIT        n_all (EDGES) == n_pr (GitHub) + n_extra (CLS_ADD)         -> refuse
+
+  OUTPUT is the one that closes finding 1: its expected side is `SEEN_REFS` minus the positively-excluded
+  refs, and its measured side is the EDGES array itself, so nothing inside the append branch can make it
+  green by being deleted.
+
+  **RED, then GREEN — `ops/merge-rehearse`, ten probes (`.artifacts/fix67c/out_*.txt`):**
+
+        A   unmodified                          branches: 69 to rehearse = 38 + 31            REAL EXIT = 0
+        B   ref query -> zzznope/*              REFUSED: enumeration consumed 0 ref(s)        REAL EXIT = 2
+        D   `done < /dev/null`                  REFUSED: enumeration consumed 0 ref(s)        REAL EXIT = 2
+        E   ref query -> task/T-00[0-3]*        REFUSED: consumed 28, 32 of GitHub's 38 open PR head(s)
+                                                  were not among them                         REAL EXIT = 2
+        F   ahead-of-main unanswerable          REFUSED: 47 of the 85 ref(s) consumed could not be
+              (the probe that was GREEN before)   compared against origin/main                REAL EXIT = 2
+        F2  the old `|| echo 0` swallow put back, so the failure becomes a valid 0 and the ref is dropped
+            as "not ahead" — my own attack; it survived every check above and this is why ANCESTRY exists
+                                                REFUSED: 31 of the 47 ref(s) dropped as 'not ahead of
+                                                  origin/main' are not contained in origin/main either
+                                                                                              REAL EXIT = 2
+        G   `EDGES+=` removed, ONE line         REFUSED: 31 of the 85 ref(s) consumed are neither in the
+              (the probe that was GREEN before)   branch list it produced nor positively behind origin/main
+                                                                                              REAL EXIT = 2
+        G2  whole add branch removed (append + bookkeeping), i.e. the pre-fix tool exactly
+                                                REFUSED: consumed 85 ref(s) and decided about 54
+                                                                                              REAL EXIT = 2
+        G3  bookkeeping removed, append kept    REFUSED: consumed 85 and decided about 54      REAL EXIT = 2
+        H   a bare `continue` added, so one ref leaves the loop with no decision
+                                                REFUSED: consumed 85 and decided about 54      REAL EXIT = 2
+
+  **RED, then GREEN — `ops/pr-ci-preflight`, the new finding:**
+
+        f3_green   unmodified                   NOT COVERED: 31 of the 85 branch(es) ...      REAL EXIT = 0
+        f3_empty   ref query -> zzznope/*       NOT COVERED: UNKNOWN - examined 0 ref(s)      REAL EXIT = 2
+        f3_ahead_unanswerable                   NOT COVERED: UNKNOWN - 48 of the 86 branch(es) could not be
+              (the probe that was GREEN before)   compared against origin/main                REAL EXIT = 2
+        f3_old_echo0  the swallow put back      NOT COVERED: UNKNOWN - 32 ref(s) counted as 'not ahead of
+                                                  origin/main' are not contained in origin/main either
+                                                                                              REAL EXIT = 2
+        f3_undecided  a bare `continue`         NOT COVERED: UNKNOWN - 86 walked, 55 decided  REAL EXIT = 2
+
+  **verify:** `bash ops/check-pins` -> `PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux`, real
+  exit 0. `bash ops/sane` -> `SANE OK`, real exit 0. `bash ops/queue-check` -> `QUEUE OK (91 tasks)`, real
+  exit 0. `bash -n` clean on both scripts. `bash ops/test` -> **real exit 1**,
+  `FAIL: services/api exists but vitest produced no report`. `services/api/node_modules` does not exist in
+  this checkout and `git diff origin/main...HEAD --name-only` lists nothing under `services/` or `ops/test`.
+  Both reviewers recorded the same failure, one of them before any of this branch's changes existed.
+  Environment, not this branch, and still red.
+
+  **Named and NOT fixed here, so the next reader does not have to find them again:**
+  - `ops/merge-rehearse` is now **735 lines** against CLAUDE.md's 300-line cap (`ops/lib/check-line-cap`
+    only scans `*.swift`, so nothing catches it). This branch is what took it past 300 and these checks add
+    a further 19 net. Splitting it needs a new file under `ops/lib/`, which is outside `touches:`.
+  - `ops/merge-rehearse:344` computes the derived ordering edges from
+    `git diff --no-renames --name-status "origin/main...origin/$h" 2>/dev/null` and swallows a failure into
+    an empty `$ns`, which yields no derived edges rather than an error — the same silent-swallow shape as
+    the one closed above, in the ordering section rather than the enumeration. It is inside `touches:` but
+    outside these findings, and I am not changing it without a red demonstration of its own.
+  - `ops/pr-ci-preflight`'s `gates()` still decides pass/fail by grepping failure wording rather than
+    reading exit codes. Pre-existing, named by both reviewers, its own task.
+  - The brief's last step (record the real number in `queue/MERGE-ORDER.md`) is still not done: that file
+    exists only on `task/T-0045` and is outside `touches:`.
+  - A full `ops/merge-rehearse` run over all 70 branches was not made. It holds the repo-global lock for a
+    long time on a box other agents are working on. The enumeration and all five checks were exercised
+    against the live refs and the live PR list by the probes above.
+
+  Queue state untouched: I am the fixer, not the reviewer.
