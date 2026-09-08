@@ -42,12 +42,17 @@ DEFAULT_MODULES = ["etl/oracle.py", "etl/oracle_select.py"]
 
 # A survivor budget, not a target. It exists so this can gate without pretending the number is zero today:
 # raise the bar by LOWERING it, never by loosening a rule. `.githooks/commit-msg` guards MAX_* bindings.
-MAX_SURVIVORS = 23    # measured 2026-09-08: 163 killed, 23 survived, of 186. Lower it as tests land;
+MAX_SURVIVORS = 14    # measured 2026-09-08: 172 killed, 14 survived, of 186. Lower it as tests land;
                       # never raise it. `.githooks/commit-msg` guards MAX_* bindings (T-0079).
                       #   117/69  T-0081, the first measurement
                       #   121/65  T-0088 gap 2, the emitted record's shape
                       #   149/37  T-0088 gap 1, main() and the cap/seed defaults
                       #   163/23  T-0088 gap 3, the parser guards
+                      #   165/21  T-0088 gap 4, eligible()'s comparability guard
+                      #   172/14  T-0088, the survivors that were holes rather than equivalences
+                      # The 14 are named in T-0088's log with the reason each one stands: six are the brief's
+                      # gap 5 (NODE_TAGS and the highway value set) and are a real hole nobody has closed
+                      # yet; the other eight are equivalent or need an input the suite cannot have.
 
 
 # ----------------------------------------------------------------------------- the run

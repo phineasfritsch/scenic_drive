@@ -325,3 +325,78 @@ produced by the tool before the fix and are superseded by these:
     gap 4      5 listed,  5 CAUGHT, 0 not caught
     sweep-up   9 listed,  9 CAUGHT, 0 not caught
     UNMUTATED 217 passed
+
+Final run, with the fixed harness (6c44d8f):
+
+    MUTATION 172 killed, 14 survived, of 186 run in 537s
+
+Ratchet: `MAX_SURVIVORS` 23 -> 14. The whole sequence, all measured rather than projected:
+
+    186 mutants   117/69   T-0081, the first measurement
+                  121/65   gap 2, the emitted record's shape (landed before this session)
+                  149/37   gap 1, main() and the cap/seed defaults
+                  163/23   gap 3, the parser guards
+                  165/21   gap 4, eligible()'s comparability guard
+                  172/14   the survivors that were holes rather than equivalences
+
+### The residual 14, one at a time
+
+Six are a real hole. Eight cannot be killed by any test this suite can contain.
+
+**Gap 5, the brief's own fifth item - 6 survivors, a real hole, deliberately not closed here.**
+
+    oracle_select.py:37   dictkey   drop key 'traffic_calming'          (NODE_TAGS)
+    oracle_select.py:38   setmember drop 'stop' / 'give_way' / 'crossing' / 'mini_roundabout'
+                                    / 'traffic_calming'                 (NODE_TAGS["highway"])
+
+`test_load_export_collects_only_nodes_carrying_a_squash_tag` feeds a `highway=traffic_signals` node and a
+`barrier=gate` node, so those two entries die; the other six values have no case at all. This is the X11/X12
+class T-0081 named and the brief lists as gap 5, "already described there; listed for completeness" - it was
+not in this session's scope, and closing it here would take the work off whoever holds it. It is one
+parametrised case over `NODE_TAGS` itself, driven through `load_export`, and it would take the number to 8.
+Written down precisely so nobody has to re-derive it.
+
+**Genuinely equivalent - these can never die.**
+
+- `oracle_select.py:68` twice, `fh.read(1 << 20)` -> `2 << 20` and `1 << 21`. The block size of a streaming
+  sha256 cannot change the digest; the same bytes are read in different-sized chunks. A test that could tell
+  them apart would be asserting about read syscalls rather than about the digest. (T-0074's E6 - collapsing
+  that loop to a SINGLE read - is a different mutation, is not equivalent, and dies against
+  `test_two_large_kmzs_sharing_a_first_block_still_get_different_digests`.)
+- `oracle.py:54` and `:56`, `line.split(":", 1)` -> `split(":", 2)`. The only two lines that reach these are
+  `- name: <filename>` and `sha256: <hex>`, and neither value can contain a colon, so `[1]` is the same
+  string under both. Observable only for a manifest the format cannot produce.
+- `oracle_select.py:86`, `if not line.startswith("{"): continue` -> `pass`. Every line that does not start
+  with `{` and can occur in a real export - blank, `[`, `]}`, a truncated tail - raises `JSONDecodeError` and
+  is skipped by the guard at `:90` instead. The two differ only for a line that is VALID JSON and is not an
+  object (`null`, `[]`, a bare number), which no exporter writes. `:86` is a clearer statement of the same
+  decision, not a different one.
+- `oracle_select.py:91`, `str(feature.get("id") or "")` -> `str(feature.get("id"))`. `str(None)` is `"None"`
+  with a capital N, so it begins with neither `"w"` nor `"n"` and both branches skip it exactly as `""` does.
+  Every id that reaches a branch is a string beginning `w` or `n`, whose `str()` is itself. This one was
+  written as a test case first, on the opposite reasoning, and the case disproved its own premise; the
+  finding is in the docstring of `test_a_plain_geojson_collection_reads_the_same_as_a_sequence`.
+- `oracle_select.py:98`, dropping `geom.get("type") == "Point"` from the node branch. `osmium export` emits a
+  node only as a Point, so no file the toolchain can produce distinguishes the two. Killing it would mean
+  fabricating an `n`-prefixed feature carrying a LineString and asserting about it - a test about a file that
+  cannot exist. Its sibling at `:94` is NOT in this category and is killed: an id-less LineString is a real
+  shape, produced by any export run without `--add-unique-id=type_id`.
+
+**Unkillable without the fetched input - 1.**
+
+- `oracle_select.py:187`, `if want and digest != want:` with `digest != want` dropped, which refuses every
+  KMZ whose basename is the pinned one regardless of its bytes. To kill it a test would have to present a
+  file named `vermont-curvature.kmz` whose sha256 IS the manifest's pin - `build()` asks
+  `oracle.pinned_digest(kmz.name)` with no manifest argument, so the pin always comes from the repository's
+  own `inputs/manifest.yaml`, and the only file that satisfies it is the real 2.5 MB oracle: gitignored,
+  fetched by `ops/etl-fetch-inputs`, absent from a fresh checkout. The guard IS exercised end to end - with
+  this operand dropped, `ops/etl-curvature-fixture` refuses the pinned oracle and exits 2 - just not by a
+  suite that must run without the input.
+
+### Verification
+
+- `services/etl`: 217 passed (185 at the start of this session).
+- `ops/check-pins --source-only`: `PINS ok=3 skipped=9 pending=1 expired=0 failed=0 tier=linux source-only`.
+- `ops/test`: the Swift suites pass (16 tests, 3 suites); it then exits 1 on
+  `FAIL: services/api exists but vitest produced no report`, which is this worktree having no
+  `services/api/node_modules`. Pre-existing and unrelated: this branch changes 0 files under `services/api`.
