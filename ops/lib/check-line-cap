@@ -4,32 +4,141 @@
 #   test -z "$(find Sources Tests -name '*.swift' -exec awk 'NR>300{print FILENAME; exit}' {} \;)"
 #
 # Over a deleted, renamed or emptied Sources/Tests tree, `find` prints nothing, `test -z ""` is true, and the
-# pin reports OK on an empty artefact. Two checks instead:
+# pin reports OK on an empty artefact. Three checks instead:
 #
 #   1. the tracked .swift file set is non-empty and plausibly complete
-#   2. no tracked .swift file exceeds 300 lines
+#   2. every Swift package in the tree contributes to that set, so no package is silently exempt
+#   3. no tracked source file exceeds 300 lines - .swift, .py AND .ts
 #
 # `git ls-files` is used instead of `find` so untracked build junk is never counted and the check matches what
 # is actually committed.
+#
+# CLAUDE.md states the cap with no language qualifier, and until now this only ever looked at Swift - while
+# the Swift tree is a skeleton and every M2 task works in `services/etl/` and `services/api/`. The file
+# closest to breaking the rule was in the language the rule was not checked in (agent/reviewer-33, reviewing
+# T-0028, whose byways.py sits at 296). Checks 1 and 2 stay Swift-only on purpose: MIN_FILES and the package
+# coverage guard are about the Swift PACKAGE layout, and there is no equivalent structure to assert for a
+# directory of Python modules.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 MIN_FILES=5
+# The capped set spans three languages and is far larger than the Swift-only list; a floor of 5 there
+# would be satisfied by the Swift skeleton alone while every Python file had vanished.
+MIN_CAPPED=15
 
-mapfile -t files < <(git ls-files 'Sources/**/*.swift' 'Tests/**/*.swift')
+# EVERY tracked .swift file, at any depth. The globs here were 'Sources/**/*.swift' and 'Tests/**/*.swift',
+# which cover the root package and nothing else: a 301-line file under apps/ios/Packages/ScenicApp/Sources/
+# passed the 300-line cap and did not even appear in the count. CLAUDE.md puts no package outside the cap.
+mapfile -t files < <(git ls-files '*.swift')
 n="${#files[@]}"
 
 if [[ "$n" -lt "$MIN_FILES" ]]; then
-  echo "P-SRC-02: only $n tracked .swift file(s) under Sources/ and Tests/ (expected >= $MIN_FILES)."
+  echo "P-SRC-02: only $n tracked .swift file(s) (expected >= $MIN_FILES)."
   echo "  An empty or truncated set must never read as 'no file exceeds 300 lines'."
   exit 1
 fi
 
-bad=()
-for f in "${files[@]}"; do
-  lines="$(wc -l < "$f" | tr -d '[:space:]')"
+# Coverage guard. A manifest is itself a .swift file, so if a package's directory contributes NOTHING to the
+# examined set, the set has been narrowed and a whole package has dropped out of the cap. That is exactly how
+# the Apple package was exempt, and this is what makes narrowing it again loud instead of silent.
+#
+# BOTH manifest spellings. SwiftPM also accepts version-specific manifests named `Package@swift-<version>.swift`,
+# and `*Package.swift` cannot match one - the name ends in `swift-6.0.swift`, not `Package.swift`
+# (agent/reviewer-21, while reviewing T-0037). No file dodged the CAP because of that, since the cap runs over
+# every tracked .swift file regardless; what was missed is narrower and is the whole job of this block. A
+# package carrying ONLY a versioned manifest was never enumerated here, so if it later fell out of the checked
+# set this guard would have stayed silent about it - the one thing it exists to be loud about.
+#
+# Packages are collected as DIRECTORIES and de-duplicated, because a package that ships both spellings is one
+# package and would otherwise be reported twice.
+# Everything the cap applies to. Vendored trees are excluded by `git ls-files` already, since nothing
+# third-party is committed here; if that ever changes it is a deliberate decision, not this check's default.
+mapfile -t capped < <(git ls-files '*.swift' '*.py' '*.ts' | grep -v '/node_modules/' || true)
+
+# The vacuity floor for the CAPPED set, which is the set that actually matters and had none.
+#
+# MIN_FILES above guards `files` - the Swift-only list - and T-0058's brief said in as many words that the
+# set it added "needs the same, or it will pass cheerfully on the day somebody moves services/etl and
+# nothing matches the glob". It did not get the same. Emptying or narrowing `capped` left the floor,
+# guarding a different list, perfectly happy.
+if [[ ${#capped[@]} -lt "$MIN_CAPPED" ]]; then
+  echo "P-SRC-02: only ${#capped[@]} tracked source file(s) in the capped set (expected >= $MIN_CAPPED)."
+  echo "  An empty or truncated set must never read as 'no file exceeds 300 lines'."
+  exit 1
+fi
+
+# A package is "covered" only if it contributes a file to the capped set OTHER THAN its own manifest.
+#
+# This guard could not fire until now, and the sweep that found that was looking for exactly this shape. It
+# asked whether the package directory contributed anything to `git ls-files '*.swift'` - but the manifest
+# pathspecs are a strict SUBSET of that, so a package's own manifest was always present and `covered` was 1
+# by construction, for every possible repository state. It watched a condition it had made true.
+#
+# T-0058 then made it worse in a way worth stating plainly: it introduced `capped` as a second, independent
+# `git ls-files`, and the cap loop walks THAT. So the guard was defending a set with no consequence -
+# narrowing `capped` alone let a 400-line file leave the cap while this printed nothing.
+#
+# Both fixed here: the guard reads `capped`, and the manifest is excluded from what counts as a
+# contribution, so a package whose sources drop out of the cap is reported even though its manifest remains.
+missed=()
+while IFS= read -r dir; do
+  [[ -z "$dir" ]] && continue
+  prefix=""; [[ "$dir" != "." ]] && prefix="$dir/"
+  covered=0
+  for f in "${capped[@]}"; do
+    [[ "$f" == "$prefix"* ]] || continue
+    case "$(basename "$f")" in
+      Package.swift|Package@swift-*.swift) continue;;   # the manifest cannot vouch for its own package
+    esac
+    covered=1; break
+  done
+  [[ $covered -eq 0 ]] && missed+=("$dir")
+done < <(git ls-files '*Package.swift' '*Package@swift-*.swift' | while IFS= read -r m; do dirname "$m"; done | sort -u)
+
+if [[ ${#missed[@]} -gt 0 ]]; then
+  echo "P-SRC-02: Swift package(s) contribute no file to the checked set - the 300-line cap does not reach them:"
+  printf '  %s\n' "${missed[@]}"
+  exit 1
+fi
+
+
+# EXEMPTIONS. Each entry is a path and the task that removes it. Not a way to be under the cap - a way to
+# turn the cap on TODAY for the ninety-odd files that comply, instead of leaving every Python file unchecked
+# until one refactor lands. Two rules keep it from becoming permanent:
+#   - an entry with no task id is refused, so nobody can add one without saying who will remove it;
+#   - an entry whose file is now UNDER the cap is refused as stale, so a fixed file cannot keep its licence.
+# Adding a name here is a visible diff on a load-bearing check. That is the intended cost.
+declare -A EXEMPT=(
+  ["ops/lib/queue.py"]="T-0059"   # 498 lines. Already 415 before T-0032 added the review transition, and
+                                  # never reported because this check could not see Python. T-0059 splits it
+                                  # along the seams its own section comments already mark.
+  ["services/etl/tests/test_dockerfile.py"]="T-0062"
+                                  # 436 lines on task/T-0046, 125 on task/T-0038 - it grew across T-0046's
+                                  # four review rounds. Invisible on every branch INDIVIDUALLY: this file is
+                                  # not on the chain this check lives on, and the chain it is on did not have
+                                  # a Python cap. Found only by merging all 30 open branches into a throwaway
+                                  # and running the gates after each. Without this entry the first merge of
+                                  # the Dockerfile chain after T-0058 turns main red.
+)
+
+bad=(); stale=(); unowned=()
+for f in "${capped[@]}"; do
+  [[ -z "$f" ]] && continue
+  # `wc -l` counts newlines, not lines: a file whose final line has no trailing newline is
+  # undercounted by one, so a genuine 301-line file reads as 300 and slips past the cap.
+  # `awk 'END{print NR}'` counts the last unterminated line too, matching what an editor or
+  # compiler calls the line count.
+  lines="$(awk 'END{print NR}' "$f" | tr -d '[:space:]')"
+  owner="${EXEMPT[$f]:-}"
   if [[ "$lines" -gt 300 ]]; then
-    bad+=("$f ($lines lines)")
+    if [[ -z "$owner" ]]; then
+      bad+=("$f ($lines lines)")
+    elif [[ ! "$owner" =~ ^T-[0-9]{4}$ ]]; then
+      unowned+=("$f (exempt, but '$owner' is not a task id)")
+    fi
+  elif [[ -n "$owner" ]]; then
+    stale+=("$f ($lines lines, exempt for $owner)")
   fi
 done
 
@@ -38,5 +147,15 @@ if [[ ${#bad[@]} -gt 0 ]]; then
   printf '  %s\n' "${bad[@]}"
   exit 1
 fi
+if [[ ${#unowned[@]} -gt 0 ]]; then
+  echo "P-SRC-02: exemption(s) with no task to remove them:"
+  printf '  %s\n' "${unowned[@]}"
+  exit 1
+fi
+if [[ ${#stale[@]} -gt 0 ]]; then
+  echo "P-SRC-02: exemption(s) no longer needed - the file is under the cap, so delete the entry:"
+  printf '  %s\n' "${stale[@]}"
+  exit 1
+fi
 
-echo "P-SRC-02: $n Swift files tracked, none over 300 lines"
+echo "P-SRC-02: $n Swift files, ${#capped[@]} source files under the cap, ${#EXEMPT[@]} exempt"
