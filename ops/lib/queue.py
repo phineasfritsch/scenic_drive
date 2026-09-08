@@ -487,7 +487,11 @@ def cmd_claim(argv):
     tid = argv[0]
     opts = _opts(argv[1:])
     owner = opts.get("owner") or "agent/unknown"
-    hours = float(opts.get("hours", "2"))
+    hours = _hours(opts.get("hours", "2"))
+    if hours is None:
+        print("usage: queue.py claim <id> [--owner NAME] [--session ID] [--worktree PATH] [--hours N]")
+        print(f"refused --hours {opts.get('hours')!r}: a lease is a positive number of hours under a year.")
+        return 2
     for state, p, fm, body in tasks():
         if fm.get("id") != tid:
             continue
@@ -762,26 +766,52 @@ def _opts(argv):
     return out
 
 
+def _hours(v):
+    """A lease length in hours, or None when the string cannot be one.
+
+    Three tracebacks lived in this one argument: `--hours` with no value parses as "true" (ValueError out
+    of float), and `inf`/`nan` got past float() to blow up inside dt.timedelta. `-5` raised nothing at all
+    - it claimed the task with a lease that had already expired, which queue-sweep hands to the next agent.
+    The range rejects all four; every comparison against nan is False.
+    """
+    try:
+        h = float(v)
+    except (TypeError, ValueError):
+        return None
+    return h if 0 < h < 24 * 365 else None
+
+
 def _list(v):
     return [x.strip() for x in v.split(",") if x.strip()] if v else []
 
 
 COMMANDS = ("new", "check", "sweep", "next", "claim", "lock", "review")
-NEEDS_ARG = ("new", "claim", "lock", "review")
+# subcommand -> the operand it reads out of argv[0], for the usage line. `new` takes a title, not an id.
+NEEDS_ARG = {"new": '"<title>"', "claim": "<id>", "lock": "<id>", "review": "<id>"}
 
 
 def main(argv):
     if len(argv) < 2 or argv[1] not in COMMANDS:
         print(__doc__)
         return 2
-    # These four read argv[0] directly, so calling one with no argument raised IndexError and printed a
+    rest = argv[2:]
+    # These four read rest[0] directly, so calling one with no argument raised IndexError and printed a
     # traceback instead of usage. Found while adding `review`; `claim`, `lock` and `new` have had it since
     # they were written. A tool that answers a typo with a stack trace teaches people to stop reading its
     # output, which is expensive in a repo whose whole premise is that output gets read.
-    if argv[1] in NEEDS_ARG and len(argv) < 3:
-        print(f"usage: queue.py {argv[1]} <id> [options]")
-        return 2
-    return globals()[f"cmd_{argv[1]}"](argv[2:]) or 0
+    #
+    # Counting the arguments is not enough. The count-only version of this guard was defeated by the next
+    # mistake along: `new --touches ops/lib/queue.py` has three arguments, so it passed, and cmd_new wrote
+    # queue/backlog/T-0088-touches.md TITLED "--touches"; `new ""` and `new "   "` wrote task files with an
+    # empty title and an empty slug. Silent garbage in the queue is worse than a stack trace, because
+    # nobody reads queue/backlog until they need it. No task title or id here has ever begun with '-'.
+    if argv[1] in NEEDS_ARG:
+        got = rest[0] if rest else ""
+        if not got.strip() or got.startswith("-"):
+            print(f"usage: queue.py {argv[1]} {NEEDS_ARG[argv[1]]} [options]")
+            print(f"refused {got!r}: the operand comes first, may not be blank, and may not start with '-'.")
+            return 2
+    return globals()[f"cmd_{argv[1]}"](rest) or 0
 
 
 if __name__ == "__main__":
