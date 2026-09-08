@@ -1230,3 +1230,150 @@ second external oracle in the plan (the first being Curvature).
   **WHAT WOULD MAKE THIS PASS.** F1 and F2. F3 is a correction to the record rather than to the code, but
   it is the fourth recorded measurement in this branch that its own code does not reproduce, and the
   fixture is committed data that a test asserts, so it should not merge as it stands. F4-F6 are notes.
+
+- 2026-09-08T12:58Z ROUND 4 - agent/claude-opus-5, owner. Every round-3 finding REPRODUCED before it was
+  touched; none refuted. F1, F2, F3 fixed; F4 fixed as a side effect; F5 confirmed and corrected in the
+  docstring. Pushed as `5b82401` (F1/F2/F3) and `641abe8` (F5). State stays `review`.
+
+  **F1 - BLOCKER, reproduced exactly.** `python work/rd4/f1_repro.py` on the real FID 181 corridor and the
+  fixture's real OSM ways, with fragments laid between the Caltrans line's own vertices 10 and 11:
+
+      BASELINE                        verdicts ['rekeyed','rekeyed']            28142.9 of 28142.9 m
+      + one 23.2 m way ref='CA 221'   verdicts ['corroborated','rekeyed']       15753.8 of 28142.9 m
+                                      problems(): nothing about part 0
+      + a second, 21.0 m, on part 1   verdicts ['corroborated','corroborated']  0.0 of 28142.9 m
+                                      problems(): ['no officially designated byways at all ...'] only
+
+  Reachability re-measured from the pinned centrelines rather than quoted (`work/rd4/f1_reach.py`):
+  **265 of 865 keyed entries (30.6%)** have another numbered state route inside their own 60 m snap band,
+  distribution {1: 214, 2: 41, 3: 6, 4: 4}. The reviewer's 267/30.9% is the same finding; the 2-entry gap
+  is the grid-hash cell/neighbour block, not the data. Cheapest concrete instance is in the pinned file:
+  Caltrans's own RTE=580 row (FID 199) touches FID 265's line at **0.0 m**, so had 265 been keyed 580,
+  real correctly-tagged I-580 ways would have corroborated the wrong key.
+
+  FIX. Both branches now read `MIN_CONSENSUS_M`, and the docstring states the rule that makes it one
+  threshold rather than two: *what it takes to say anything about a corridor - a number holding less than
+  it can neither establish a key nor defend one.* `_outvoting` returns the numbers that hold MORE than the
+  key, at least `MIN_CONSENSUS_M`, and at least `MIN_CONSENSUS_SHARE` of the reffed length along the
+  corridor. No outvoting number -> CORROBORATED (or UNCLAIMED if nothing claims the key). One outvotes and
+  the key is under the floor -> REKEYED, so FID 181 recovers all 28.1 km *with the fragments present*.
+  One outvotes and the key also clears the floor -> the new `byways.KEY_CONTESTED`: key kept, reported.
+  `reconcile` stamps `key_claim_m` beside `key_evidence_m` so the fragment is auditable from the entry.
+
+  The `m > key_m` clause is not decoration - without it every concurrency in the state reports. Mutation
+  M3 below is exactly that, and `test_a_concurrency_that_names_the_key_is_corroborated_and_not_contested`
+  is the check that catches it.
+
+  **F2 - MUST FIX, reproduced exactly.** `work/rd4/f2_repro.py`, fixture ways against the real corridor:
+
+      way 824667001 ref='CA 9'   frac=0.465  VOTED  133.3  ALONG   62.0   inflation x2.15
+      way 264538576 ref='CA 236' frac=0.947  VOTED 6762.6  ALONG 6403.6   inflation x1.06
+      way 675730928 ref='CA 236' frac=0.911  VOTED 2414.7  ALONG 2200.1   inflation x1.10
+      totals VOTED {'9': 197, '236': 28143}   ALONG {'9': 126, '236': 27569}
+
+  Every number matches the review. FIX: `snap.overlap_m` returns `(near, whole)` in one pass,
+  `overlap_fraction` is now defined in terms of it, and `_claims` votes the near metres. The share
+  denominator is the reffed length along the corridor with each WAY counted once.
+
+  One correction to the review's F2 transcript, with the run that shows it. I could not rebuild the
+  522.8 m / 2488.0 m pair from either the fixture or either cached pull (no such way lengths exist in
+  them: `work/rd4/f2_flip2.py` prints every reffed way), and a WINNER flip is in fact impossible under the
+  30% gate - if a way is admitted, along >= 0.3 x whole, so a number needing whole >= 4x to reach 0.80
+  cannot also be behind on along. The review's own numbers agree: 9 wins under BOTH quantities there
+  (772.7 vs 522.8), and what flips is the SHARE, 0.826 -> 0.596. That is what
+  `test_a_way_that_is_mostly_somewhere_else_cannot_re_key_on_its_whole_length` pins, computing both
+  quantities in the test so the shape cannot drift. The finding stands; only the label "the winner moves"
+  does not. Real-geometry verdict flips do exist and are M-floor flips - `work/rd4/f2_flip.py` finds six,
+  e.g. part 0 vertices [5:15], a 410 m corridor re-keyed on 1652.7 m of "consensus" from a way that runs
+  525.9 m along it.
+
+  **F3 - confirmed, and the record is corrected rather than defended.** Both cached pulls through both
+  kernels (`work/rd4/f3_kernels.py`):
+
+      pull a  work/osm_236.json     (303 ways in the file)   flat-earth: within150=302 gate=142 km=53.54
+        CA236=28.07 votes={'236':28074,'9':196}   repo snap: within150=302 gate=141 km=53.46 CA236=28.14
+        votes={'236':28143,'9':197}
+      pull b  work/fid181_bbox.json (1813 ways in the file)  flat-earth: within150=306 gate=142 km=53.54
+        CA236=28.07 votes={'236':28074,'9':196}   repo snap: within150=306 gate=141 km=53.46 CA236=28.14
+        votes={'236':28143,'9':197}
+
+  Identical to the digit down each kernel column. Every paired difference in the withdrawn table is
+  `work/census2.py`'s hand-rolled flat-earth `seg_m` against `snap.distance_on_earth`. The only
+  pull-to-pull difference is 302 vs 306 ways within 150 m (and 303 vs 1813 ways in the file). The
+  docstring's two-column table is withdrawn and replaced by a single column plus a paragraph naming what
+  the second column actually was; the fixture census is re-measured with `etl.snap`, carries
+  `measured_with`, both vote tables (`reffed_votes_m_whole_way` and `reffed_votes_m_along_the_corridor`)
+  and which one the code reads, and keeps the withdrawn numbers under `the_withdrawn_second_column` with
+  the reason. `test_the_census_the_re_key_argument_rests_on_is_reproduced_by_the_code` now RUNS `snap` and
+  `claimed_lengths` over the fixture's own ways: the fixture carries every gate-clearing `ref=CA 236` way,
+  so its 28.1429 km reproduces the census's 28.14 to 0.01, and its along-corridor votes reproduce the full
+  pull's {236: 27569.4, 9: 126.0} to 1 m.
+
+  **F4 - fixed, not just noted.** It was a consequence of the denominator: a way tagged `ref='CA 1;CA 35'`
+  voted into `sum(claimed.values())` twice, capping every share at 0.50, so `MIN_CONSENSUS_SHARE` was
+  unreachable rather than unmet. Counting each way once in `reffed_m` fixes it, and a concurrent corridor
+  now re-keys to BOTH numbers - which is what the corridor says - rather than provably never firing.
+
+  **F5 - confirmed and stronger than stated** (`work/rd4/f5_fid265.py`). FID 265's line is 7.38 km
+  north-south by 3.42 km east-west (NS/EW 2.2), 16.48 km over 2 parts: I-680. `RTE=680` is right and
+  `DYNSEGPM 'ALA 580 ...'` is the wrong field. My round-3 "next attack" was backwards and the docstring
+  now says which field is wrong there, so nobody re-derives it backwards from the disagreement list.
+
+  **F6** is the reviewer's on merge; `pins/floor_linux.txt` is serial-only and not in this task's
+  `touches:`. `linux` is now **445**.
+
+  **RED, then GREEN.** `.artifacts/red-T0028.sh` builds a throwaway tree from `c2f6824` - the commit the
+  reviewer read - with the new tests against the pre-fix modules. `code` variant (new fixture, old code):
+  **9 failed, pytest exit=1**, each on the defect it is about, e.g.
+
+      test_a_mis_tagged_fragment_cannot_corroborate_the_wrong_key_into_silence
+        assert ['corroborated','corroborated'] == ['rekeyed','rekeyed']
+      test_a_crossing_way_votes_with_the_62_m_of_it_that_is_on_this_corridor
+        assert 133.31134227503324 == 62.0 +/- 0.5
+
+  `data` variant (old fixture and old code): **10 failed, exit=1** - the extra one is
+  `test_the_withdrawn_second_pull_column_is_recorded_as_withdrawn`, which is about the record, not the
+  code. Green after: `python -m pytest -q` 395 passed exit 0.
+
+  **MUTATION SWEEP** (`.artifacts/mutate-T0028.py`, exit codes read from the process, never grepped):
+  baseline green, then 9 mutations of the fix and 1 vacuity mutation, ALL CAUGHT.
+
+      M1 vote the whole length again (undo F2)          exit 1  4 tests
+      M2 count a concurrency twice in the denominator   exit 1  test_a_concurrency_can_re_key_now_...
+      M3 drop `m > key_m` (a tie outvotes the key)      exit 1  test_a_concurrency_that_names_the_key_...
+      M4 drop the metres floor from _outvoting          exit 1  test_a_short_stub_cannot_re_key_a_corridor
+      M5 drop the share floor from _outvoting           exit 1  test_a_corridor_that_cannot_agree_...
+      M6 only re-key when NOTHING claims the key        exit 1  3 tests
+      M7 never report UNCLAIMED                         exit 1  3 tests
+      M8 the round-3 blocker itself (bare membership)   exit 1  4 tests
+      M9 problems() stops printing the contested line   exit 1  test_a_key_holding_real_evidence_...
+      V1 VACUITY: the fixture carries no ways at all    exit 1  the census test FAILS rather than passes
+
+  **VERIFICATION.** `bash ops/test` -> `TESTS linux=445/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0.
+  `bash ops/check-pins` -> `PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0.
+  `bash ops/queue-check` -> `QUEUE OK (51 tasks)`, exit 0.
+
+  **`ops/sane` FAILS exit 4 in this worktree, and it is not this branch.**
+
+      bounds    FAIL   region counts out of band:  motorway: 15572 vs recorded 19515 (-20.2%) ...
+                       residential: 135776 vs 183831 (-26.1%), service: 361277 vs 473124 (-23.6%)
+
+  `etl.checkbounds` compares the gitignored `services/etl/work/sfbay/meta.json` against
+  `regions/sfbay/region.json`. The bboxes agree exactly; the counts are ~20-26% low across every class, so
+  the built extract is a smaller/older source than the one whose counts were recorded in T-0024. That
+  build is dated 05:08-05:10 today and was made by something other than this session - nothing here fetches
+  extracts. `checkbounds` imports only `etl.counts` and `etl.region`, neither of which this branch touches,
+  and the reviewer saw `SANE OK` because a detached review worktree has no `work/<region>/` at all and the
+  check skips. Rebuilding the extract needs the pinned container, which is WSL-only and not reachable
+  here. Flagging it rather than fixing it: it is a corpus-state problem, not a T-0028 one.
+
+  **Also not fixed, deliberately.** The stale SwiftPM module cache under `.build/` still carried the
+  owner's ORIGINAL worktree path (`GitHub/wt/T-0028`), so `bash ops/test` died with
+  `could not build C module 'SwiftShims'` until `.build/` was removed. Gitignored derived data, no commit,
+  but worth knowing: this worktree was moved after that package was last built.
+
+  **STILL OPEN, unchanged from round 3.** `reconcile` is armed and unfired - nothing calls it, because it
+  needs a way corpus (T-0030), and every keyed entry therefore reports as never-checked. The `not_the_road`
+  impostors are still all unreffed. `MIN_CONSENSUS_M`'s value (1000 m) is now load-bearing in BOTH
+  directions and is still a judgement: it is the metres below which this module refuses to conclude
+  anything, and no measurement here fixes it.
