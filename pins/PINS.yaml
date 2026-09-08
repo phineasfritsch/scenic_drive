@@ -10,7 +10,7 @@
   why_no_test_catches_it: The code compiles and tests pass on the Mac; only Linux CI notices, ten minutes after an agent reported success
   anchor: source
   runs_on: [linux, mac]
-  assertion: "! grep -rEn '^\\s*(@testable\\s+)?import\\s+(CoreLocation|MapKit|UIKit|SwiftUI|MapLibre|Ferrostar)' Sources/"
+  assertion: "! grep -rEn '^\\s*(@testable\\s+)?import\\s+(CoreLocation|MapKit|UIKit|SwiftUI|MapLibre|Ferrostar)' Sources/ Tests/"
   owner: agent/claude-opus-5
   added: 2026-09-07
 
