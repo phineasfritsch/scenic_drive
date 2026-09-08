@@ -43,8 +43,16 @@ so it is an owner-run migration, not an agent task (T-0060). Do not file this ag
 - **Never `git rev-parse --show-toplevel` in anything under `ops/` or `.githooks/`.** A Windows worktree's
   `.git` file says `gitdir: C:/...`, which WSL's git cannot follow, so it fails — and without `set -e` it fails
   *silently* and the script continues in whatever directory it started in (T-0025). Resolve the root from
-  `${BASH_SOURCE[0]}` and assert a marker file. T-0055 fixed the wrappers; T-0077 fixes how they locate their
-  module, which is the same bug one layer down.
+  `${BASH_SOURCE[0]}` and assert a marker file.
+  **This rule is written ahead of the tree: it binds new and edited code, and the existing violations are still
+  there.** As of 2026-09-08 `git grep -n show-toplevel origin/main -- ops .githooks` returns 15 hits — every one
+  of them live code under `ops/`, none under `.githooks/` — and the same 15 on the branch that added this
+  paragraph. The fix is unmerged and split across two independent branches, neither an ancestor of the other:
+  `task/T-0055` (the wrappers' `cd`; 7 live sites left) and `task/T-0077` (how a wrapper locates its module;
+  3 live sites left, its other 13 hits being comment lines). After **both** land, three live call sites survive
+  that neither task touches and no queue task covers — `ops/lib/check-exec-bits:12`, `ops/lib/check-line-cap:15`
+  and `ops/merge:16`, each the identical `cd "$(git rev-parse --show-toplevel)"`. Fix them in whatever task next
+  touches those files, and re-run the grep rather than trusting this count.
 - **A python heredoc's stdout carries CRLF.** Strip `\r` before comparing or `rev-parse`-ing anything that came
   out of one. `ops/merge-rehearse` reported *"0 conflicts, 0 gate failures"* having merged one branch of
   thirty-one, because every branch name arrived as `task/T-0014\r` and the loop skipped it silently.
@@ -81,7 +89,11 @@ So: **deriving the repo root from `${BASH_SOURCE[0]}` fixes the working director
 write or review a check, assume the caller controls `PATH`, every `GIT_*` and every `PYTHON*` variable, and ask
 what your check still proves. Prefer an allowlisted environment (`env -i` plus the few names actually needed)
 and absolute paths to `git` and the interpreter, over unsetting names somebody has to keep remembering — a
-denylist loses to the next name, and this repo has now lost that game three times in three files (T-0086).
+denylist loses to the next name, and this repo has already lost that game **three ways in one file** (T-0086).
+All three evasions above went around the defences in `ops/lib/boot.sh` — its fifteen-name `unset` list, which
+`GIT_CONFIG_PARAMETERS` is not in, and its `find_spec` interpreter probe, which `sitecustomize.py` runs inside;
+`PATH` it never touches. That is the only file under `ops/` carrying either a denylist or a probe, so "three
+files" would have been three chances to notice. There was one.
 
 ## Verification
 - `ops/test` — one command, prints `TESTS linux=N/F ios=N/F`, exits non-zero if failing or below floor.
