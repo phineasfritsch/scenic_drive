@@ -13,6 +13,7 @@ No PyYAML: front matter is parsed by a deliberately small reader (scalars, [flow
 import datetime as dt
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -178,15 +179,80 @@ def cmd_new(argv):
     print(p.relative_to(ROOT).as_posix())
 
 
+# States a task may legitimately be in while a PR is open on its branch. `claimed/` is not one of them:
+# the PR *is* the request for review, so by then the file must already carry the reviewer that the
+# `reviewer != owner` rule reads. Anchored on the directory name, which IS the state (queue/README.md).
+PR_OPEN_OK_STATES = ("review", "done")
+
+
+def _run(cmd, timeout=20):
+    """(stdout, "") when the command answered; (None, reason) when it could not.
+
+    argv[0] is resolved through shutil.which so PATH order and PATHEXT decide - without that the seam is
+    dead on the Windows checkout this repo is driven from: CreateProcess only ever appends `.exe`, so a
+    `gh` shim shadowing the real CLI is silently stepped over and the real network answers the "offline"
+    test. A seam that silently does not divert is worse than no seam.
+    """
+    exe = shutil.which(cmd[0]) or cmd[0]
+    try:
+        r = subprocess.run([exe, *cmd[1:]], cwd=ROOT, capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError:
+        return None, f"{cmd[0]} is not installed"
+    except Exception as e:
+        return None, f"{cmd[0]} failed: {type(e).__name__}"
+    if r.returncode != 0:
+        err = [ln for ln in (r.stderr or "").strip().splitlines() if ln.strip()]
+        return None, (err[-1] if err else f"{cmd[0]} exited {r.returncode}")
+    return r.stdout.strip(), ""
+
+
+def open_pr_on_head():
+    """Ask GitHub about the open PR whose head is the branch this worktree is on.
+
+    -> (head_ref, pr_number, note, skip_reason); exactly one of head_ref / note / skip_reason is set.
+
+    The seam is `gh` resolved on PATH - the same seam ops/merge uses - so shadowing `gh` with
+    ops/lib/gh-stub-for-merge-tests drives every branch of this offline.
+
+    `gh repo view` runs first, exactly as ops/merge does, and it is what separates "GitHub could not be
+    asked" (skip, loudly) from "GitHub answered, and this branch has no open PR" (a real negative). Without
+    that split an unreachable network reads as "no PR" and the gate passes in silence - the fail-open class
+    T-0063 and T-0082 both shipped and both had caught in review.
+    """
+    branch, why = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    if not branch:
+        return None, None, None, why or "git could not name the current branch"
+    if branch == "HEAD":  # detached (CI checks out a merge commit); GITHUB_HEAD_REF names the PR branch
+        branch = (os.environ.get("GITHUB_HEAD_REF") or "").strip()
+        if not branch:
+            return None, None, None, "detached HEAD and GITHUB_HEAD_REF is unset, so no branch to ask about"
+    repo, why = _run(["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"])
+    if repo is None:
+        return None, None, None, f"GitHub could not be reached ({why})"
+    out, why = _run(["gh", "pr", "view", branch, "--json", "headRefName,number,state",
+                     "-q", '[.headRefName, (.number|tostring), .state] | join(" ")'])
+    if not out:
+        return None, None, f"{repo} reports no open PR on {branch} ({why or 'empty answer'})", None
+    # A `gh` double may answer with the head ref alone - that is all ops/merge ever asks it for. Missing
+    # fields make this gate check MORE, never less: the number is cosmetic, an unknown state reads as OPEN.
+    parts = out.split()
+    ref, num = parts[0], (parts[1] if len(parts) > 1 else None)
+    if (parts[2] if len(parts) > 2 else "OPEN") != "OPEN":
+        return None, None, f"the PR on {ref} is {parts[2]}, not OPEN", None
+    return ref, num, None, None
+
+
 def cmd_check(_argv):
     problems = []
     seen = {}
+    by_id = {}
     for state, p, fm, _ in tasks():
         rel = p.relative_to(ROOT).as_posix()
         tid = fm.get("id")
         if tid in seen:
             problems.append(f"duplicate id {tid}: {rel} and {seen[tid]}")
         seen[tid] = rel
+        by_id[tid] = (state, rel, fm)
         if fm.get("state") != state:
             problems.append(f"{rel}: state field '{fm.get('state')}' != directory '{state}'")
         if state in ("review", "done"):
@@ -220,12 +286,39 @@ def cmd_check(_argv):
         for dep in fm.get("depends_on") or []:
             if dep not in ids:
                 problems.append(f"{p.relative_to(ROOT).as_posix()}: depends_on {dep} which does not exist")
+    # an open PR is the request for review: the task may not still be sitting in claimed/ with no reviewer.
+    # Keyed on the task id parsed out of the HEAD REF gh returns, the way ops/merge gate 1 keys - a
+    # device/* or tmp/* branch names no task, has no task file, and must not be dragged in.
+    g_ref, g_num, g_note, g_skip = open_pr_on_head()
+    if g_skip:
+        gate = f"open-PR gate SKIPPED, NOT CHECKED: {g_skip}"
+    elif g_note:
+        gate = f"open-PR gate: nothing to check - {g_note}"
+    else:
+        m = re.search(r"T-\d{4}", g_ref)
+        label = f"PR #{g_num}" if g_num else "a PR"
+        if not m:
+            gate = f"open-PR gate: nothing to check - head ref {g_ref} names no task (T-nnnn)"
+        else:
+            gate = f"open-PR gate: checked {m.group(0)} against {label} on {g_ref}"
+            where = by_id.get(m.group(0))
+            if where is None:
+                problems.append(f"{m.group(0)}: {label} is open on {g_ref} but this tree holds no queue file for it")
+            else:
+                g_state, g_rel, g_fm = where
+                if g_state not in PR_OPEN_OK_STATES:
+                    problems.append(f"{g_rel}: {label} is open on {g_ref} but the task is still in {g_state}/ - a PR "
+                                    f"is the request for review, so git mv it to queue/review/ before opening one")
+                if not g_fm.get("reviewer"):
+                    problems.append(f"{g_rel}: {label} is open on {g_ref} but reviewer: is null - the "
+                                    f"reviewer-is-not-owner rule has no reviewer to read")
+    print(gate, file=sys.stderr)  # loud even under `ops/queue-check >/dev/null` (P-PROC-01 runs it that way)
     if problems:
         print("QUEUE CHECK FAIL")
         for pr in problems:
             print(" -", pr)
         return 1
-    print(f"QUEUE OK ({len(seen)} tasks)")
+    print(f"QUEUE OK ({len(seen)} tasks) - {gate}")
     return 0
 
 
