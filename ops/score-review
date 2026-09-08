@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Emit a Street View review sheet for scored segments, so "does this segment look like its score" costs ten
+# minutes instead of a Saturday.
+#
+# See services/etl/etl/streetview.py for what this is and, more importantly, for the licensing line: links
+# only, never the Street View Static API, nothing fetched or embedded, and nothing here ever ships in the app.
+#
+#   ops/score-review segments.json                        the 4-6 band, where the score earns its keep
+#   ops/score-review segments.json --top 20 --bottom 20
+#   ops/score-review segments.json --band 3-7 -o sheet.html
+#
+# Input is a JSON list (or {"segments": [...]}) of
+#   {"id": ..., "name": ..., "score": 5.2, "terms": {...}, "geometry": [[lat, lon], ...]}
+# `score` may be absent - there is no composite score yet (T-0029) - in which case every segment is listed
+# and the terms are what gets reviewed.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+exec "${PYTHON:-$(command -v python3 || command -v python)}" services/etl/etl/review_sheet.py "$@"
