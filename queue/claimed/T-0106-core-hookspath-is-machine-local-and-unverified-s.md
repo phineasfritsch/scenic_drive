@@ -1,15 +1,15 @@
 ---
 id: T-0106
 title: core.hooksPath is machine-local and unverified, so a worktree may run another branch's hooks
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/hookspath
+owner_session: d217767a
+claimed_at: 2026-09-08T11:05:19Z
+lease_expires_at: 2026-09-08T15:05:19Z
+worktree: C:/Users/phineasf/Documents/GitHub/wt/T-0106
+branch: task/T-0106
 exclusive: []
-touches: [ops/sane, ops/agent-preflight, pins/PINS.yaml]
+touches: [ops/sane, ops/agent-preflight, ops/lib/, .githooks/, pins/PINS.yaml]
 pins_affected: [P-OPS-01]
 reviewer: null
 depends_on: []
@@ -100,3 +100,4 @@ it, and a wrong value fails **open**: hooks silently do the wrong job and every 
   `max + 1` from the worktree alone — 28 ids below the real maximum. That is `_ids_in_refs()` taking its own
   documented degraded path, warning to stderr where nobody reads it, and continuing. T-0101 now refuses
   instead of warning, for exactly this reason.
+- 2026-09-08T11:05:19Z claimed by agent/hookspath; lease until 2026-09-08T15:05:19Z
