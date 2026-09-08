@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T15:41:59Z
 worktree: null
 branch: task/T-0107
 exclusive: []
-touches: [services/etl/regions/, services/etl/etl/region.py, ops/etl-extract]
+touches: [services/etl/regions/, services/etl/etl/region.py, services/etl/etl/dem.py, services/etl/tests/test_dem_tiles.py, ops/etl-extract]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -77,3 +77,71 @@ accidentally single-region, which is worth having before a third.
 
 ## Log
 - 2026-09-08T11:41:59Z claimed by agent/claude-opus-5; lease until 2026-09-08T15:41:59Z
+
+- 2026-09-08 — **the region exists, and building it found the reason a second region was impossible.**
+
+  `services/etl/regions/la/region.json`: `-119.00, 33.70` to `-117.85, 34.45`. 1.15 x 0.75 degrees —
+  deliberately **smaller** than sfbay's 2.07 x 2.07, so the fifteen-minute build promise holds. Every edge is
+  argued in the file rather than asserted: west to keep the Malibu canyons whole (cutting at -118.9 severs
+  Yerba Buena and Decker mid-canyon, and a road clipped in half scores as two short ones), east to the far
+  end of Angeles Crest, south around Palos Verdes, north clear of the San Gabriel crest so the mountain
+  highway is not truncated at its best part.
+
+  **THE BLOCKER, which is the real finding here.** `dem.TILES` is a module constant naming sfbay's eight
+  3DEP tiles, and `dem.tile_for` returns `None` for anything outside it. In any second region every point
+  therefore has **no elevation** — absent, not wrong — and `elev_gain` and `relief`, two of the four signals,
+  are silently zero. A second region was not a configuration change; it was impossible.
+
+  `dem.tiles_for_bbox()` derives the set from a bbox. It walks the integer squares the bbox spans rather
+  than sampling its corners, because a bbox wider than one degree has interior squares no corner is in —
+  a corner-only version looks correct on any small region and drops the middle of a large one.
+
+  **The derivation is checked against the list that predates it**, which is the only honest oracle available:
+
+        derived for sfbay  minus  the hand-typed TILES  ->  {n37w124}
+        the hand-typed TILES  minus  derived for sfbay  ->  {}
+
+  It reproduces all eight, and its one extra is `n37w124` — the tile sfbay's own comment excludes as
+  entirely ocean, which USGS 404s. That exception is pinned as a test so the derivation cannot quietly grow
+  a ninth tile and have it read as the same known case.
+
+        LA needs exactly: n34w118, n34w119, n35w118, n35w119
+
+  **What is deliberately NOT done:**
+  * **No counts.** sfbay's file says its counts are *"Recorded from a real extract, not invented"*, and
+    `checkbounds` correctly returns 2 — *cannot tell* — for a region without them. A fabricated baseline is
+    worse than none, because `ops/sane` would then assert against a number nobody measured.
+  * **The four tiles are not in `inputs/manifest.yaml`.** Pinning them needs their sha256, which needs the
+    download, which needs the pinned image. Faking a digest would defeat the manifest's entire purpose.
+  * **`tile_for` still reads the constant.** Wiring it to the region is one line, and it is left undone on
+    purpose: `dem.py` is under review right now on `task/T-0052` (PR #34) and a signature change would
+    collide with a fix in flight. Sequenced, not forgotten.
+
+  **Tests** (`services/etl/tests/test_dem_tiles.py`, 8 cases): the sfbay reproduction both ways, the LA set,
+  north-west corner naming, interior squares on a wide bbox, a bbox touching a border not claiming the next
+  square, the region file loading with no counts, and the bbox actually containing UCLA, Mulholland, Malibu
+  Canyon, Angeles Crest and Palos Verdes — because a region that does not contain where the driver lives is
+  the wrong box.
+
+  **One of those expectations was mine and it was wrong**: I asserted a 3x3-degree box touches 12 squares.
+  It touches 16 — it starts mid-square and ends mid-square. The code was right and the test was corrected,
+  with the mistake left in the comment.
+
+        services/etl  257 passed
+
+- 2026-09-08 — **`touches:` widened to add `services/etl/etl/dem.py` and
+  `services/etl/tests/test_dem_tiles.py`, and the pre-commit hook is why this entry exists.**
+
+  It refused the first commit:
+
+        pre-commit: services/etl/etl/dem.py is outside T-0107 touches: [services/etl/regions/ ...]
+        pre-commit: refusing commit
+
+  The original `touches:` assumed a second region was a configuration change — a new `region.json` and
+  perhaps a flag. It is not: `dem.TILES` is a module constant naming one region's tiles, so the region
+  cannot have elevation until that file changes. The hook caught the difference between what the task was
+  filed as and what it turned out to be, which is what it is for.
+
+  Worth noting the hook that ran was **this branch's**, not `main`'s. Until today `core.hooksPath` was an
+  absolute path into the main checkout and every worktree ran main's hooks ([[T-0106]]); this refusal is the
+  corrected configuration doing its job on the first commit after it.

@@ -1,0 +1,18 @@
+{
+  "id": "la",
+  "name": "Greater Los Angeles",
+  "_comment_why": "The plan's success criterion is the developer driving a route this app made and finding it better than the freeway. The developer is in Westwood. Human gate #1 is five real commutes and gate #2 is twenty more, and neither can happen against a graph 350 miles away - so this region exists to put the feedback loop where the person tuning the score actually is.",
+  "counties": [
+    "Los Angeles"
+  ],
+  "_comment_counties": "Los Angeles County is the whole of the intent. The bbox clips slivers of Ventura (west of Leo Carrillo) and San Bernardino (east of the Angeles Crest county line); both are edge, neither is a reason to claim the county.",
+  "bbox": {
+    "min_lon": -119.00,
+    "min_lat": 33.70,
+    "max_lon": -117.85,
+    "max_lat": 34.45
+  },
+  "_comment_bbox": "Argued, not asserted, and deliberately SMALLER than sfbay's 2.07 x 2.07 so the fifteen-minute build promise holds: 1.15 x 0.75 degrees. West to -119.00 keeps PCH and the Malibu canyons whole through Leo Carrillo; cutting at -118.9 would sever Yerba Buena and Decker mid-canyon, and a road clipped in half scores as two short ones. East to -117.85 reaches the far end of Angeles Crest (CA-2), which climbs past -117.9 before dropping to Wrightwood. South to 33.70 takes in the whole Palos Verdes peninsula, whose loop is the coastal-suburban case. North to 34.45 clears the San Gabriel crest - Mt Wilson is 34.226, Angeles Crest tops out around 34.35 - so the mountain highway is not truncated at its best part. What this deliberately EXCLUDES: Orange County, the Inland Empire and San Diego. They are a different market, not a bigger bbox, and each degree costs build time and graph size for roads nobody here will drive this month.",
+  "_comment_dem": "3DEP needs four tiles for this bbox: n34w118, n34w119, n35w118, n35w119. Derived from the bbox by dem.tiles_for_bbox, not typed by hand. None is ocean-only - n34w119 looks like it should be (Santa Monica Bay) but carries Palos Verdes and the Malibu coast, so unlike sfbay's n37w124 there is nothing to exclude. The tiles are NOT yet in inputs/manifest.yaml: pinning them needs their sha256, which needs the download, which needs the pinned image. That is the next step and it is deliberately not faked.",
+  "_comment_counts": "ABSENT ON PURPOSE. sfbay's counts are described in its own file as 'Recorded from a real extract, not invented', and etl.checkbounds correctly returns 2 - cannot tell - for a region with none. A fabricated baseline would be worse than no baseline: ops/sane would then assert against a number nobody measured. Record with ops/etl-extract --region la --record-counts once the extract has actually run."
+}
