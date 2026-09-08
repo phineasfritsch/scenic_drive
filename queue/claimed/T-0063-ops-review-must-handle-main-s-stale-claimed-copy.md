@@ -166,3 +166,41 @@ point of it.
   not say so. `queue/README.md` is in this task's `touches:` and is untouched, and there is still no
   `ops/done` for the review -> done transition the brief names. Both are real omissions; recording them here
   rather than quietly leaving the brief looking satisfied.
+
+- 2026-09-08 agent/claude-opus-5 — **this change had silently broken `ops/lib/check-lock-lifecycle`, and
+  nothing reported it.** Found by the T-0087 fix agent, which noticed the check was already red while working
+  nearby. Two of its three failures were mine and are fixed here.
+
+        task/T-0032   LOCK LIFECYCLE OK     exit 0     <- where the check was written
+        task/T-0063   LOCK LIFECYCLE FAIL   exit 1
+        task/T-0087   LOCK LIFECYCLE FAIL   exit 1
+
+  **The cause: three different facts collapsed into one.** `check-lock-lifecycle` copies `queue.py` into a
+  `mktemp -d` and runs it there, so `ROOT` is not a git worktree at all. My guard treated that the same as
+  "git cannot answer" and refused, which meant `ops/review` never reached the lock release:
+
+        FAIL: review did not release the lock
+        FAIL: review refused a task that holds no locks
+
+  They are not the same fact and only one is a hazard:
+
+        ROOT is not a git worktree          -> there will never be a merge. Nothing to protect.   ALLOW
+        ROOT is a worktree, no main ref     -> no copy on main to duplicate against.              ALLOW
+        ROOT is a worktree, git cannot read -> the answer is unknown.                             REFUSE
+
+  The third is real on this checkout: from WSL a Windows worktree's `.git` names a path WSL's git cannot
+  follow, so git fails on a tree that genuinely has a main. Keeping that refusal is the point of the guard;
+  collapsing the first case into it was the defect. Both FAIL lines are gone, and the probe confirms the guard
+  still refuses the branch it exists for.
+
+  **The third failure is NOT mine and is a cross-task collision worth its own task.** `queue-check` now
+  reports `only 1 task(s) visible, floor is 40` inside the fixture — [[T-0073]]'s `MIN_TASKS` floor, added in
+  round two, against a throwaway tree with one task. `check-lock-lifecycle` came from [[T-0032]] and predates
+  that floor, so it passes on `task/T-0032` and fails on every branch carrying both. Neither task is wrong on
+  its own; together they are. Filed separately — `ops/lib/check-lock-lifecycle` is not in this task's
+  `touches:` and reaching outside it to make a red check green would be the exact move this repo forbids.
+
+  **And a gap in my own tooling, which this exposes:** `ops/merge-rehearse` (T-0065) runs `queue-check`,
+  `check-exec-bits`, `check-line-cap` and a pin-id scan after each merge — it does **not** run
+  `check-lock-lifecycle` or `check-brief-required`, so a collision of exactly this shape is invisible to the
+  rehearsal that exists to find collisions. Recorded against T-0065.

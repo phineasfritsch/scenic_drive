@@ -567,7 +567,22 @@ def _would_duplicate_on_merge(tid):
     """
     ref = _main_ref()
     if ref is None:
-        return None
+        # Three different facts get conflated here if you are not careful, and only one is a hazard:
+        #
+        #   ROOT is not a git worktree at all   -> there will never be a merge. Nothing to protect. ALLOW.
+        #   ROOT is a worktree, no main ref     -> no copy on main to duplicate against.             ALLOW.
+        #   ROOT is a worktree, git cannot read it -> the answer is unknown.                         REFUSE.
+        #
+        # The third is real on this checkout: from WSL, a Windows worktree's `.git` names a path WSL's git
+        # cannot follow (CLAUDE.md, T-0055), so git fails on a tree that genuinely has a main.
+        #
+        # Collapsing the first case into the third broke ops/lib/check-lock-lifecycle, which copies queue.py
+        # into a mktemp dir and runs it there: LOCK LIFECYCLE FAIL on "review did not release the lock" and
+        # "review refused a task that holds no locks", on every branch carrying this change. The check was
+        # already red and nothing reported it; the T-0087 fix agent noticed while working nearby.
+        if not (ROOT / ".git").exists():
+            return []
+        return [] if _git_usable() else None
     # Nothing here fetches: a state transition that reaches the network is one people stop running, and
     # `_ids_in_refs` already shows what that costs. But reading a possibly-stale ref in silence is how a
     # guard fails OPEN, so say which commit the answer is about and let the operator judge.
