@@ -1,13 +1,13 @@
 ---
 id: T-0069
 title: T-0025's provenance guard is hollow: both halves of the round-5 fix can be deleted with tests green
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T01:19:37Z
+lease_expires_at: 2026-09-08T05:19:37Z
+worktree: wt/T-0069
+branch: task/T-0069
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
@@ -60,3 +60,4 @@ the pattern is the finding.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the self-referential-check sweep, which was built precisely to
   hunt this class after it appeared in five consecutive rounds of T-0025. It found it in the round-5 fix.
+- 2026-09-08T01:19:37Z claimed by agent/claude-opus-5; lease until 2026-09-08T05:19:37Z

@@ -1,13 +1,13 @@
 ---
 id: T-0068
 title: queue-check's reviewer-is-not-owner gate is satisfied by owner: null
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T01:19:37Z
+lease_expires_at: 2026-09-08T05:19:37Z
+worktree: wt/T-0068
+branch: task/T-0068
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
@@ -51,3 +51,4 @@ hand can reach `done/` with no owner and no complaint.
 
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from the self-referential-check sweep.
+- 2026-09-08T01:19:37Z claimed by agent/claude-opus-5; lease until 2026-09-08T05:19:37Z

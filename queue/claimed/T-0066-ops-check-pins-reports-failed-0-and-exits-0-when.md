@@ -1,13 +1,13 @@
 ---
 id: T-0066
 title: ops/check-pins reports failed=0 and exits 0 when it ran no assertion at all
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T01:19:36Z
+lease_expires_at: 2026-09-08T05:19:36Z
+worktree: wt/T-0066
+branch: task/T-0066
 exclusive: []
 touches: [ops/lib/pins.py]
 pins_affected: []
@@ -60,3 +60,4 @@ everybody, and nothing anywhere goes red.
 - 2026-09-08 filed by agent/claude-opus-5 from a repo-wide sweep for checks whose expected value comes from
   the thing they check. Eight surfaces, two adversarial verifiers per finding, each required to execute its
   falsification.
+- 2026-09-08T01:19:36Z claimed by agent/claude-opus-5; lease until 2026-09-08T05:19:36Z
