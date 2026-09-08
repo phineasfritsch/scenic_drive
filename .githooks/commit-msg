@@ -26,6 +26,17 @@
 # counting entries: swapping one entry for a duplicate of another keeps the count and loses the coverage.
 # The entries are compared as a SET, and every entry that disappears is named in the refusal.
 #
+# WHAT IS NOT A BINDING (T-0085). Nothing in this tree executes a .md, and a red-then-green task log quotes
+# constants for a living, so an indented `MAX_SQL_LENGTH = 400000` in a transcript parsed exactly like the
+# definition it quoted: this hook refused the commit recording T-0079's own verification (replay: 685ec8a),
+# and a guard that fires on documentation teaches one habit, --no-verify. Markdown is not scanned. That
+# cannot HIDE a lowering - dropping a path drops it from BOTH sides, and a binding that leaves a scanned file
+# for a .md is still "is gone" - only a ratchet born, kept and lowered in prose, which no code reads. Suffix,
+# not directory: queue/ is not special. NOT .txt (pins/floor_*.txt is a real ratchet); a .txt transcript is
+# still a false positive - T-0085 log. `FNR==NR` went with it: it names the first file only while that file
+# has records, so with no old binding every NEW fact was read as an OLD one and reported "gone", and a commit
+# that merely ADDED its first MIN_/MAX_ constant was refused for lowering it. Keyed on FILENAME instead.
+#
 # HOOK, AND IT SHOULD ALSO BE A CHECK. `git commit --no-verify` skips this file and no hook runs in CI, so on
 # its own this is a speed bump on the honest path and nothing at all on the dishonest one. The durable half
 # is `--audit <base>`: the same comparison between two refs, with the justification looked for in every commit
@@ -178,7 +189,7 @@ AWK
 # reported and needs one `ratchet-lower:` line - the safe direction, and a cheap one.
 read -r -d '' RCOMPARE <<'AWK'
 function strength(n,v){ return (n ~ /^MAX/) ? -v : v }
-FNR==NR{
+FILENAME==OLDF{
   p=$1; n=$2; k=$3; v=$4; key=p SUBSEP n
   if(p=="@rename"){ ren[n]=k; next }
   if(k=="num"){
@@ -249,6 +260,7 @@ ratchet_facts() {  # $1 = ref, or empty for the index; narrowed to "${tpaths[@]}
   for f in "${files[@]}"; do
     [[ -z "$f" ]] && continue
     [[ -n "$ref" ]] && f="${f#"$ref":}"
+    case "${f,,}" in *.md|*.markdown) continue ;; esac   # documentation, not a definition - see WHAT IS NOT
     blob "$ref" "$f" | awk -v path="$f" "$RPARSE"
   done
 }
@@ -271,7 +283,7 @@ if git rev-parse --verify -q "$oldref" >/dev/null 2>&1; then
   renames > "$rtmp/old"
   ratchet_facts "$oldref" >> "$rtmp/old"
   ratchet_facts "$newref" > "$rtmp/new"
-  lowered="$(awk -F'\t' "$RCOMPARE" "$rtmp/old" "$rtmp/new" | sort)"
+  lowered="$(awk -F'\t' -v OLDF="$rtmp/old" "$RCOMPARE" "$rtmp/old" "$rtmp/new" | sort)"
   if [[ -n "$lowered" ]]; then
     rjust="$(justification "$RATCHET_RE")"
     if [[ -z "$rjust" ]]; then
