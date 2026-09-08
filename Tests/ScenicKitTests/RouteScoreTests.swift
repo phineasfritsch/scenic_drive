@@ -89,13 +89,32 @@ struct RouteScoreTests {
         //
         // `reEncodingInvariant` could not see it: its `realistic` fixture never puts the boundary on an
         // edge boundary, and its worst delta over the same range of k is 1e-15.
+        // The expected values are LITERALS, worked out by hand. The first version compared every split
+        // against `whole.p90` and `whole.value` - both taken from the function under test on the same
+        // fixture - so it asserted the percentile was CONSISTENT and never that it was RIGHT. A second
+        // reviewer flipped one character (`target - tolerance` to `target + tolerance`) and restored the
+        // exact 0.200 swing the first reviewer had blocked on, with this test still green.
+        //
+        // 90% of 10000 m is 9000 m, and the first 9000 m of length scores 0.1, so p90 is 0.1 - the boundary
+        // is inclusive. The route score then follows from the four terms:
+        //   mean = (9000*0.1 + 1000*0.9)/10000 = 0.18
+        //   p90  = 0.1
+        //   dud  = 9000/10000 = 0.9   (0.1 is at or below dudThreshold 0.25)
+        //   episodes = 1             (1000 m at 0.9 exceeds 0.6, and 1000 >= 800)
+        //   0.60*0.18 + 0.25*0.1 - 0.15*0.9 + 0.10*(1/3) = 0.108 + 0.025 - 0.135 + 0.033333 = 0.031333
         let boundary = [ScoredEdge(length: 9000, score: 0.1),
                         ScoredEdge(length: 1000, score: 0.9)]
+        let expectedP90 = 0.1
+        let expectedValue = 0.60 * 0.18 + 0.25 * 0.1 - 0.15 * 0.9 + 0.10 * (1.0 / 3.0)
+
         let whole = try #require(RouteScore(edges: boundary))
+        #expect(abs(whole.p90 - expectedP90) < 1e-12)
+        #expect(abs(whole.value - expectedValue) < 1e-12)
+
         for k in 1...40 {
             let pieces = try #require(RouteScore(edges: Self.split(boundary, into: k)))
-            #expect(abs(pieces.p90 - whole.p90) < 1e-9, "k=\(k): p90 \(pieces.p90) vs \(whole.p90)")
-            #expect(abs(pieces.value - whole.value) < 1e-9, "k=\(k): value \(pieces.value)")
+            #expect(abs(pieces.p90 - expectedP90) < 1e-9, "k=\(k): p90 \(pieces.p90)")
+            #expect(abs(pieces.value - expectedValue) < 1e-9, "k=\(k): value \(pieces.value)")
         }
     }
 

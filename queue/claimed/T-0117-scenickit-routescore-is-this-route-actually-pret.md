@@ -16,7 +16,7 @@ depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "swift test -> 34 tests in 4 suites passed, exit 0"
-  - "python ops/mutate/routescore.py -> 20 caught by a named test, 0 missed, exit 0"
+  - "python ops/mutate/routescore.py -> 21 caught by a named test, 0 missed, exit 0"
   - "RED: python ops/mutate/routescore.py --prove-vacuity -> 0 caught with the tests removed"
 ---
 ## Brief
@@ -179,3 +179,22 @@ Taking the total with a separate `reduce` is no longer independently a defect: t
 absorbs the discrepancy. Either half of the fix is sufficient alone, so the mutation that reproduces the
 shipped bug has to remove BOTH - which is the shape the code had when the reviewer found it. That is what
 the mutation now does.
+
+---
+
+## Second fix pass: the boundary test asserted consistency, never correctness
+
+reviewer2-pr73 confirmed the headline re-encoding bug is genuinely fixed, F2-F4 closed with real behaviour
+tests, the harness move right and the vacuity proof real - then blocked on the test written to close F1.
+
+`percentileIsStableOnTheBoundary` compared every split against `whole.p90` and `whole.value`, **both taken
+from the function under test on the same fixture**. It asserted the percentile was CONSISTENT across splits
+and never that it was RIGHT. Flipping one character - `c >= target - tolerance` to `target + tolerance` -
+restores the exact 0.200 swing the first reviewer blocked on, with this test green.
+
+The expected values are now literals worked out by hand: 90% of 10000 m is 9000 m, the first 9000 m scores
+0.1, so p90 is 0.1; and the four terms give 0.60*0.18 + 0.25*0.1 - 0.15*0.9 + 0.10/3 = 0.031333. The
+unsplit route is checked against them too, so the fixture itself has a witness.
+
+`flip the boundary tolerance to the wrong side` is now a mutation in the harness: 21 caught, 0 missed.
+

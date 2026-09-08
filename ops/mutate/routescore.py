@@ -127,6 +127,10 @@ MUTATIONS = [
     ("require a run to EXCEED the episode minimum rather than reach it",
      "                if run >= episodeMinLength { count += 1 }",
      "                if run > episodeMinLength { count += 1 }"),
+    ("flip the boundary tolerance to the wrong side",
+     "        for (i, c) in running.enumerated() where c >= target - tolerance {",
+     "        for (i, c) in running.enumerated() where c >= target + tolerance {"),
+
 ]
 
 
