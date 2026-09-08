@@ -22,6 +22,10 @@
 # survive - and advice derived from an empty population is advice derived from nothing. That is how the
 # destructive `git rm` got printed in the first place, so the empty case must refuse, not read as all-clear.
 #
+# The last block is the floor on THIS file's own population, for the same argument one level up: it counts
+# the verdicts actually emitted, not the case blocks entered. Counting blocks entered is straight-line code
+# that cannot fail, and with case 4's loop emptied this check printed OK over a live regression.
+#
 # Anchored on the executable and on generated git fixtures, never on a comment.
 #
 #   QUEUE_PY=<path>  check a different queue.py (used to demonstrate this check red against the old one)
@@ -38,8 +42,13 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 fail=0
 cases=0
-say() { printf '%s\n' "$1"; }
-bad() { echo "FAIL: $1"; fail=1; }
+# `cases` is incremented by unconditional straight-line code, so it says only "control reached the bottom".
+# `verdicts` is incremented where a verdict is actually EMITTED, which is the population that decides the
+# exit code, and it is what the floor at the end of this file is asserted on. See that floor for the run
+# that made the difference matter.
+verdicts=0
+say() { verdicts=$((verdicts + 1)); printf '%s\n' "$1"; }
+bad() { verdicts=$((verdicts + 1)); echo "FAIL: $1"; fail=1; }
 
 G="git -c user.name=fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false -c core.autocrlf=false"
 export GIT_MERGE_AUTOEDIT=no GIT_EDITOR=true GIT_TERMINAL_PROMPT=0
@@ -118,15 +127,30 @@ elif grep -qE '^[[:space:]]+git rm ' "$out"; then
 else
   say "ok: 1/rename - refused, no git rm printed, and the file survives the printed remedy ($after copy)"
 fi
-# The refusal must also be honest about what is left: main re-stated the task, so review cannot proceed.
+# The refusal must also be honest about what is left: main re-stated the task, so review cannot proceed and
+# no sequence of commands this tool can print gets there. That is the second `[high]` of PR #52, and this is
+# the only assertion in the repo that executes it.
+#
+# NOT `grep -q blocked "$out"`, which is what this tested first and which cannot fail: the refusal lists
+# main's path - queue/blocked/T-9201-rename-shape.md - five lines above the remedy, so the fixture's own
+# path string satisfies that pattern on EVERY output the guard can produce. Nor `grep -q "not claimed/"
+# "$out2"` on its own: cmd_review returns at `state != "claimed"` before the guard is reached, so it reports
+# where the merge left the file and says nothing about what was printed. Measured: with `_paths_after_merge`
+# stubbed to the branch's own path, the guard printed "Then run this again." - the impossible sequence the
+# previous review failed this PR for - and both operands were still satisfied. Anchor on the disagreement
+# sentence itself, and on the ABSENCE of the re-run instruction. Reviewer of PR #52, round 4.
 out2="$TMP/o1b"
 ( cd "$R" && "$PY" ops/lib/queue.py review T-9201 --reviewer agent/bob ) > "$out2" 2>&1; rc2=$?
 if [[ $rc2 -eq 0 ]]; then
   bad "1/rename: review succeeded after the merge although main says blocked/"
-elif grep -q "blocked" "$out" && grep -q "not claimed/" "$out2"; then
-  say "ok: 1/rename - the refusal names main's blocked/ instead of printing a sequence that cannot work"
+elif ! grep -q "has re-stated T-9201 as blocked/" "$out"; then
+  bad "1/rename: the refusal never named main's re-stated blocked/; it ended: $(tail -1 "$out")"
+elif grep -qi "run this again" "$out"; then
+  bad "1/rename: the refusal said to run it again, and re-running cannot reach review/: $(grep -im1 'run this again' "$out")"
+elif ! grep -q "not claimed/" "$out2"; then
+  bad "1/rename: after the printed remedy review refused for another reason: $(head -1 "$out2")"
 else
-  bad "1/rename: the refusal did not name main's state; second run said: $(head -1 "$out2")"
+  say "ok: 1/rename - the refusal names main's re-stated blocked/ and prints no re-run that cannot work"
 fi
 
 # ------------------------------------------------------------------ 2. the stacked-branch shape (control)
@@ -233,13 +257,20 @@ for mode in empty unreadable; do
   fi
 done
 
-# The floor on this check's own population, for the same reason case 4 exists: four cases must have run.
-if [[ $cases -ne 4 ]]; then
-  bad "only $cases case(s) executed, expected 4 - a check that ran nothing still prints OK"
+# THE FLOOR ON THIS CHECK'S OWN POPULATION, for the same reason case 4 exists - and counting the population
+# that decides the exit code, which is verdicts EMITTED, not case blocks ENTERED. `if [[ $cases -ne 4 ]]` was
+# here first and could not fail: every assignment to `cases` is unconditional top-level straight-line code
+# with no `set -e`, no `continue` and no early `exit` between them, so reaching this line makes it exactly 4.
+# Measured by the reviewer of PR #52, round 4: emptying case 4's `for mode in empty unreadable` loop, with
+# QUEUE_PY pointed at the `if after is None:` regression that ONLY case 4 detects, printed
+# `REVIEW REMEDY OK (4 cases)` and exited 0 - zero of case 4's assertions ran and the count did not notice.
+VERDICTS_EXPECTED=6   # 1/rename x2, 2/stacked, 3/second-copy, 4/empty, 4/unreadable
+if [[ $verdicts -ne $VERDICTS_EXPECTED ]]; then
+  bad "$verdicts assertion(s) reached a verdict, expected $VERDICTS_EXPECTED - a check that ran nothing still prints OK"
 fi
 
 if [[ $fail -ne 0 ]]; then
   echo "REVIEW REMEDY FAIL"
   exit 1
 fi
-echo "REVIEW REMEDY OK ($cases cases)"
+echo "REVIEW REMEDY OK ($cases cases, $verdicts assertions)"

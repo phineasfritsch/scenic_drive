@@ -403,3 +403,146 @@ point of it.
 
   fails the same way. It is not attributable to this diff, which touches no TypeScript — but it is red, and
   it stays named here rather than being written off.
+
+- 2026-09-08 agent/claude-opus-5 — **round 4 (`agent/reviewer-final-pr52`) returned FAIL on two `[medium]`
+  findings, both inside `ops/lib/check-review-remedy` — the check this task added last round. Both are the
+  repository's signature defect one level up: an assertion that is true whether or not the property it names
+  holds. Both reproduced before anything changed; both fixed; each replacement assertion demonstrated red on
+  its own, for its own reason, with every other assertion in the file still green.**
+
+  **MEDIUM 1 — the only assertion in the repo that executes prior `[high]` #2 could not fail.**
+  `ops/lib/check-review-remedy:126`:
+
+        elif grep -q "blocked" "$out" && grep -q "not claimed/" "$out2"; then
+          say "ok: 1/rename - the refusal names main's blocked/ instead of printing a sequence that cannot work"
+
+  `$out` is the refusal, and the refusal lists main's path — `queue/blocked/T-9201-rename-shape.md` — five
+  lines above the remedy, so `grep -q blocked` is satisfied by the fixture's own path string on **every**
+  output the guard can produce. `$out2` is a second `review` run, which returns at `state != "claimed"`
+  before the guard is reached at all, so it reports where the merge left the file and says nothing about
+  what was printed. Neither operand looks at the sentence the case exists for.
+
+  REPRODUCED, with a one-line mutant of this branch's `queue.py` — `after = [p.relative_to(ROOT).as_posix()]`,
+  the rehearsal that never rehearses, which is precisely the shape round 3 was failed for. Rebuilding this
+  check's own `1/rename` fixture (`.artifacts/t63fix2/probe-case1.sh`) and printing `$out` verbatim:
+
+        | T-9201: main holds this task where this branch cannot delete it:
+        |     queue/blocked/T-9201-rename-shape.md          <- satisfies grep -q "blocked"
+        |     ...
+        |     git merge origin/main        # resolve the task file, keeping YOUR copy
+        | The merge collapses both paths onto ONE file, queue/claimed/T-9201-rename-shape.md,
+        | so there is nothing to `git rm` here - deleting it would delete your only copy.
+        | Then run this again. (T-0063; this repair was applied by hand to eleven branches.)
+
+            grep -q blocked $out            -> 0   (satisfied — by the path listing, not by the guard)
+            grep -q 'has re-stated' $out    -> 1   (the disagreement was never named)
+            grep -qi 'run this again' $out  -> 0   (the impossible sequence WAS printed)
+            grep -q 'not claimed/' $out2    -> 0   (satisfied — by the early return, four lines into cmd_review)
+
+  Following it: `git merge origin/main` exit 0, then `T-9201 is in blocked/, not claimed/`. A dead end — and
+  the check printed `ok: 1/rename - the refusal names main's blocked/ ...`. The run went red overall, but via
+  `3/second-copy` and `4/empty`, which are about other shapes.
+
+  **FIX.** Anchor on the disagreement sentence itself and on the ABSENCE of the re-run instruction:
+
+        elif ! grep -q "has re-stated T-9201 as blocked/" "$out"; then   bad ...
+        elif grep -qi "run this again" "$out"; then                      bad ...
+        elif ! grep -q "not claimed/" "$out2"; then                      bad ...
+        else say "ok: 1/rename - the refusal names main's re-stated blocked/ and prints no re-run that cannot work"
+
+  **RED, each operand on its own.** `QUEUE_PY=<mutant> bash ops/lib/check-review-remedy`:
+
+        mutant A — `after = [p.relative_to(ROOT).as_posix()]` (the rehearsal never rehearses)
+        FAIL: 1/rename: the refusal never named main's re-stated blocked/; it ended: Then run this
+              again. (T-0063; this repair was applied by hand to eleven branches.)          exit 1
+
+        mutant D — one added line in the disagreement branch: print("Then run this again.")
+        ok: 1/rename - refused, no git rm printed, and the file survives the printed remedy (1 copy)
+        FAIL: 1/rename: the refusal said to run it again, and re-running cannot reach review/: Then run this again.
+        ok: 2/stacked ...   ok: 3/second-copy ...   ok: 4/empty ...   ok: 4/unreadable ...
+        REVIEW REMEDY FAIL                                                                  exit 1
+
+  Mutant D is the isolated red: one line added to `queue.py`, everything else in the file green, and the
+  only assertion that fires is the one being demonstrated. The old assertion passed both mutants.
+
+  **MEDIUM 2 — the floor on this check's own population counted increments, not assertions.**
+  `ops/lib/check-review-remedy:236-239`:
+
+        if [[ $cases -ne 4 ]]; then
+          bad "only $cases case(s) executed, expected 4 - a check that ran nothing still prints OK"
+
+  Every assignment to `cases` is unconditional top-level straight-line code — `cases=0`, then four
+  `cases=$((cases + 1))` — with no `set -e`, no `continue` and no early `exit` between them. Reaching the
+  test at all makes `$cases` exactly 4, so the branch could never be taken. It counted case blocks ENTERED,
+  not assertions EXECUTED.
+
+  REPRODUCED. Case 4's loop header emptied to `for mode in ; do`, with `QUEUE_PY` pointed at the
+  `if after is None:` regression that **only case 4 detects**:
+
+        $ QUEUE_PY=<if-after-is-None mutant> bash <check with case 4's loop emptied>
+        ok: 1/rename ...  ok: 1/rename ...  ok: 2/stacked ...  ok: 3/second-copy ...
+        REVIEW REMEDY OK (4 cases)                                                          exit 0
+
+  Zero of case 4's assertions ran, a live regression was present, and the check printed a green verdict and
+  a case count it does not measure — its own `bad` string happening.
+
+  **FIX.** `verdicts` is incremented inside `say()` and `bad()`, so it counts verdicts actually emitted —
+  the population that decides the exit code — and the floor is asserted on that:
+
+        VERDICTS_EXPECTED=6   # 1/rename x2, 2/stacked, 3/second-copy, 4/empty, 4/unreadable
+        if [[ $verdicts -ne $VERDICTS_EXPECTED ]]; then
+          bad "$verdicts assertion(s) reached a verdict, expected $VERDICTS_EXPECTED - ..."
+
+  **RED — the identical scenario that printed OK above:**
+
+        $ QUEUE_PY=<if-after-is-None mutant> bash <check with case 4's loop emptied>
+        ok: 1/rename ...  ok: 1/rename ...  ok: 2/stacked ...  ok: 3/second-copy ...
+        FAIL: 4 assertion(s) reached a verdict, expected 6 - a check that ran nothing still prints OK
+        REVIEW REMEDY FAIL                                                                  exit 1
+
+  And with the **unmutated** `queue.py`, same emptied loop — the floor is about population, not subject, so
+  it fires there too: same four `ok:` lines, same `FAIL: 4 assertion(s) reached a verdict, expected 6`,
+  exit 1. `cases` is kept only for the summary line and is documented in place as saying nothing more than
+  "control reached the bottom".
+
+  Control, so the floor is not masking a case that stopped working: the intact fixed check against the same
+  `if after is None:` mutant still catches it where it should — `FAIL: 4/empty: the refusal did not say the
+  rehearsal came back empty: Then stop and look: after the merge T-9201 lives at , none of them the`,
+  six verdicts, exit 1.
+
+  **GREEN — fixed check, unmutated `queue.py`:**
+
+        ok: 1/rename - refused, no git rm printed, and the file survives the printed remedy (1 copy)
+        ok: 1/rename - the refusal names main's re-stated blocked/ and prints no re-run that cannot work
+        ok: 2/stacked - refused, the remedy works, and the merge leaves exactly one copy
+        ok: 3/second-copy - git rm printed for main's path only, and the remedy works
+        ok: 4/empty - an empty rehearsal refuses and prints no deletion
+        ok: 4/unreadable - an empty rehearsal refuses and prints no deletion
+        REVIEW REMEDY OK (4 cases, 6 assertions)                                            exit 0
+
+  `queue.py` is not touched this round: both findings were about the check, and round 4 reproduced both
+  `[high]` fixes closed on `origin/task/T-0029` independently. `touches:` is unchanged.
+
+  **`verify:` as run on this branch at this commit:**
+
+        bash ops/check-pins        exit 0   PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+        bash ops/test              exit 1   Swift "Test run with 16 tests in 3 suites passed", then
+                                            "FAIL: services/api exists but vitest produced no report"
+        bash ops/queue-check       exit 0   QUEUE OK (76 tasks)
+        bash ops/lib/check-review-remedy    exit 0   REVIEW REMEDY OK (4 cases, 6 assertions)
+        bash ops/lib/check-exec-bits        exit 0   27 files, 15 required present, all modes correct
+        bash ops/lib/check-line-cap         exit 0   9 Swift files tracked, none over 300 lines
+        bash ops/lib/check-brief-required   exit 0   BRIEF CHECK OK
+        bash ops/lib/check-lock-lifecycle   exit 1   one failure, the pre-existing MIN_TASKS collision
+                                                     (T-0091): "only 1 task(s) visible, floor is 40"
+
+  `ops/test` is red and stays named: `services/api/node_modules` is absent in the **main** checkout as well
+  as here (`ls -d services/api/node_modules` -> "No such file or directory" in both), so vitest writes no
+  report either place. This diff is one bash file and touches no TypeScript, but the red is not written off.
+
+  **Left open, not fixed here, and not filed from this branch.** Round 4 recorded that
+  `ops/lib/check-review-remedy` is run by nothing — absent from `pins/PINS.yaml`, `ops/test`, `ops/sane` and
+  `.github/workflows/linux-core.yml`. Pinning it needs `pins/PINS.yaml`, outside this task's `touches:`, and
+  the highest id visible on this branch is T-0082 while `origin/main` is at T-0120, so `ops/new-task` here
+  would mint an id main already uses — the duplicate-id collision this very task exists to prevent. It
+  belongs to a task filed from `main`.
