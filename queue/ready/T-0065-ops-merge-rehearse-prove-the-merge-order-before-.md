@@ -1,7 +1,7 @@
 ---
 id: T-0065
 title: ops/merge-rehearse: prove the merge order before the window opens
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
