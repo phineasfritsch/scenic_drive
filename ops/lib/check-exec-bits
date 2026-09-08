@@ -15,7 +15,8 @@ MIN_FILES=17
 REQUIRED=(ops/test ops/sane ops/check-pins ops/queue-check ops/queue-sweep ops/claim ops/queue-next ops/lock
           ops/merge ops/deploy ops/prod-read ops/agent-preflight ops/new-task .githooks/pre-commit
           .githooks/commit-msg
-          ops/lib/junit_count.py ops/lib/pins.py ops/lib/queue.py ops/lib/ro_grammar.py ops/lib/ro_cases.json)
+          ops/lib/junit_count.py ops/lib/pins.py ops/lib/queue.py ops/lib/ro_grammar.py ops/lib/ro_cases.json
+          ops/lib/classify-checks.py ops/lib/gh-stub-for-merge-tests ops/lib/check-failure-naming)
 
 n="$(git ls-files ops .githooks | wc -l | tr -d '[:space:]')"
 if [[ "$n" -lt "$MIN_FILES" ]]; then
@@ -35,10 +36,10 @@ fi
 
 # Data files stay 100644; everything else under ops/ and .githooks/ is a script and stays 100755 -
 # except ops/lib/*.py, which is also 100644: every call site (ops/check-pins, ops/claim, ops/lock,
-# ops/new-task, ops/queue-check, ops/queue-next, ops/queue-sweep, ops/prod-read, ops/test) invokes it
-# as `"$PY" ops/lib/x.py` / `exec "$PYTHON" .../ops/lib/x.py`, i.e. as an argument to an interpreter,
-# never as `./ops/lib/x.py`. The exec bit does nothing there, so asserting 100755 would assert a mode
-# the repo does not actually depend on.
+# ops/new-task, ops/queue-check, ops/queue-next, ops/queue-sweep, ops/prod-read, ops/test, and ops/merge:70
+# for classify-checks.py) invokes it as `"$PY" ops/lib/x.py` / `exec "$PYTHON" .../ops/lib/x.py`, i.e. as an
+# argument to an interpreter, never as `./ops/lib/x.py`. The exec bit does nothing there, so asserting 100755
+# would assert a mode the repo does not actually depend on.
 bad="$(git ls-files -s ops .githooks | awk '
   $4 ~ /\.(json|txt|md|py)$/ || $4 == "ops/api-url" { if ($1 != "100644") print $4 " (data, should be 100644, is " $1 ")"; next }
   $1 != "100755" { print $4 " (script, should be 100755, is " $1 ")" }

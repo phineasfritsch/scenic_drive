@@ -2,8 +2,11 @@
 """Read-only SQL grammar — Python mirror of services/api/src/ro.ts. Used by ops/prod-read before any request
 leaves the machine, and by the Worker again on arrival. Both are tested against ops/lib/ro_cases.json.
 
-  ro_grammar.py --self-test      run every case, exit 1 on any disagreement with the case list
-  ro_grammar.py "<sql>"          print OK or the refusal reason (exit 1)
+Invoke it through an interpreter, never bare: this file is committed 100644 (P-OPS-01's data bucket), so
+`./ops/lib/ro_grammar.py` fails on any checkout where core.filemode is honored.
+
+  python3 ops/lib/ro_grammar.py --self-test   run every case, exit 1 on any disagreement with the case list
+  python3 ops/lib/ro_grammar.py "<sql>"       print OK or the refusal reason (exit 1)
 """
 import json
 import re
