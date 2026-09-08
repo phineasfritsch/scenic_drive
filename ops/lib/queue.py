@@ -185,8 +185,16 @@ def _ids_in_refs():
 
     Without this, two branches allocate the same id: T-0015 was created on task/T-0007 and again on
     task/T-0011 because the first was pushed but unmerged, and `queue-check` only notices once both land.
-    Scanning remote refs catches every id that has been pushed. Two agents allocating offline at the same
-    instant can still collide - the push is the compare-and-swap that settles that, exactly as for claims.
+    Scanning remote refs catches every id that has been PUSHED, and that is all it can do.
+
+    This docstring used to end "the push is the compare-and-swap that settles that, exactly as for claims."
+    That was false, and it is the sentence T-0101 was filed against. For a CLAIM the push really is the CAS:
+    the moved file goes to main and a rejected push means somebody else moved it first. For an ALLOCATION
+    nothing is pushed at allocation time, and the task file's eventual push goes to a task BRANCH, where it
+    can never conflict with another branch's push. There was no second step, only a longer read.
+
+    Measured on 2026-09-08: T-0099 and T-0088 were each allocated twice, hours apart, by agents that both
+    read the refs before either had pushed anything. `_reserve_id()` below supplies the missing step.
     """
     ids = set()
 
@@ -228,10 +236,109 @@ def _ids_in_refs():
     return ids
 
 
-def next_id():
+ID_TAG = "refs/tags/id/"
+
+
+def _git_env():
+    """MSYS rewrites any argument that looks like a path, and `HEAD:refs/tags/...` looks like one.
+
+    Without this, `HEAD:refs/tags/id/T-0103` reaches git as `HEAD;C:/Program Files/Git/refs/tags/...` and
+    the push fails for a reason that has nothing to do with the id. Measured in this repo on the merge
+    tooling before it was measured here.
+    """
+    env = dict(os.environ)
+    env["MSYS_NO_PATHCONV"] = "1"
+    env["MSYS2_ARG_CONV_EXCL"] = "*"
+    return env
+
+
+def _reserved_ids():
+    """Ids reserved on the remote, whether or not any branch carries a file for them yet.
+
+    Asked of the remote directly rather than of local refs: a reservation made by another agent one second
+    ago must be visible, and `git fetch` does not bring `refs/tags/id/*` into this repo by default.
+
+    Returns a set, or None for "could not ask" - which the caller must not read as "none reserved".
+    """
+    try:
+        r = subprocess.run(["git", "ls-remote", "--refs", "origin", ID_TAG + "T-*"],
+                           cwd=ROOT, capture_output=True, text=True, timeout=60, env=_git_env())
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    out = set()
+    for line in r.stdout.splitlines():
+        m = re.search(r"refs/tags/id/T-(\d+)$", line.strip())
+        if m:
+            out.add(int(m.group(1)))
+    return out
+
+
+def _reserve_id(n):
+    """Try to claim id n by creating its tag on the remote.
+
+    True  - we created it, the id is ours.
+    False - the ref already exists, somebody else holds it. THIS is the compare-and-swap.
+    None  - the question could not be asked (offline, no remote, no permission).
+
+    The tag points at HEAD only because a ref needs an object; nothing ever reads it. The NAME is the
+    reservation. Nothing is committed and no branch is touched, so this is safe to run from any worktree.
+    """
+    tag = f"{ID_TAG}T-{n:04d}"
+    try:
+        r = subprocess.run(["git", "push", "origin", f"HEAD:{tag}"],
+                           cwd=ROOT, capture_output=True, text=True, timeout=120, env=_git_env())
+    except Exception:
+        return None
+    if r.returncode == 0:
+        return True
+    err = ((r.stderr or "") + (r.stdout or "")).lower()
+    if "already exists" in err or "rejected" in err or "cannot lock ref" in err or "non-fast-forward" in err:
+        return False
+    return None
+
+
+def next_id(reserve=True):
+    """Allocate an id, and RESERVE it before returning, so two allocators cannot be handed the same one.
+
+    `--reserve no` (reserve=False) is the escape hatch for an offline box. It restores the old behaviour exactly, which
+    is why it prints what it is giving up rather than doing it quietly.
+    """
     ids = {int(str(fm.get("id")).split("-")[1]) for _, _, fm, _ in tasks()
            if TASK_ID.match(str(fm.get("id")))} | _ids_in_refs()
-    return f"T-{(max(ids) + 1 if ids else 1):04d}"
+    # Read the reservations ALWAYS, even with --reserve no. The escape hatch exists because a box
+    # may not be able to PUSH; it does not make reading free-er to skip, and skipping it handed out
+    # T-0103 while T-0103 was already reserved - measured in this task's own demo, which is the only
+    # reason it is not still doing that.
+    reserved = _reserved_ids()
+    if reserved is None:
+        print("WARNING: could not read the id reservations on origin, so allocation is a READ again and "
+              "two agents can be handed the same id. That has happened twice (T-0088, T-0099). Fix the "
+              "remote, or pass `--reserve no` to accept it deliberately.", file=sys.stderr)
+        reserved = set()
+    ids |= reserved
+    n = (max(ids) + 1) if ids else 1
+    if not reserve:
+        print(f"WARNING: --reserve no: T-{n:04d} is NOT reserved on origin. Another agent reading right "
+              f"now gets the same number, and nothing notices until the two branches merge - which is how "
+              f"T-0088 and T-0099 were each issued twice.", file=sys.stderr)
+        return f"T-{n:04d}"
+    for _ in range(20):
+        got = _reserve_id(n)
+        if got is True:
+            return f"T-{n:04d}"
+        if got is False:
+            # Somebody won the race between our read and our push. That is the mechanism working.
+            print(f"T-{n:04d} was reserved by someone else between the read and the push; taking the next.",
+                  file=sys.stderr)
+            n += 1
+            continue
+        raise SystemExit(
+            f"cannot reserve T-{n:04d} on origin: the push could not be made at all. Allocating without a "
+            f"reservation is what issued T-0088 and T-0099 twice, so this refuses instead. Use "
+            f"`--reserve no` if you accept that risk deliberately.")
+    raise SystemExit(f"could not reserve an id after 20 attempts starting at T-{n - 20:04d}")
 
 
 BRIEF_SECTION = re.compile(r"^##[ \t]+Brief[ \t]*$(.*?)(?=^##[ \t]|\Z)", re.M | re.S)
@@ -291,7 +398,11 @@ def cmd_new(title, opts):
             print(f"refusing: {_fm.get('id')} already has this title ({_p.relative_to(ROOT).as_posix()}).")
             print("Add to that task, or give this one a title that says how it differs.")
             return 1
-    tid = next_id()
+    # `--reserve no` is the offline escape. A bare flag is not expressible here: every option in
+    # this parser takes a value (T-0087), and inventing a flag class for one caller is worse than
+    # the small ugliness of writing the word.
+    reserve = str(opts.get("reserve", "yes")).strip().lower() not in ("no", "false", "0", "off")
+    tid = next_id(reserve=reserve)
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:48]
     fm = {
         "id": tid, "title": title, "state": state, "owner": None, "owner_session": None,
@@ -890,7 +1001,7 @@ def _list(v):
 # repeat is refused.
 LIST_OPTS = frozenset({"touches", "exclusive", "pins", "depends"})
 OPTS = {
-    "new": frozenset({"state", "touches", "exclusive", "pins", "depends"}),
+    "new": frozenset({"state", "touches", "exclusive", "pins", "depends", "reserve"}),
     "check": frozenset(),
     "sweep": frozenset(),
     "next": frozenset(),

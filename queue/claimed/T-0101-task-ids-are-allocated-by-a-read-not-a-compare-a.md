@@ -77,3 +77,54 @@ read, and this task exists because a read is not enough.
 
 ## Log
 - 2026-09-08T08:23:05Z claimed by agent/claude-opus-5; lease until 2026-09-08T11:23:05Z
+
+- 2026-09-08 — **the id is now reserved by pushing a ref whose NAME is the id, which is the missing second
+  step.**
+
+  `git push origin HEAD:refs/tags/id/T-0103` is rejected when the ref already exists — no `--force`, no
+  lease — so the push either wins the id or says who has it. It commits nothing, touches no branch, and
+  reserves globally rather than per-branch, so it works from any worktree.
+
+  **The sentence this task was filed against is corrected in place**, because it was the load-bearing part
+  of the mistake. `_ids_in_refs()` said *"the push is the compare-and-swap that settles that, exactly as for
+  claims."* For a CLAIM that is true — the moved file goes to `main` and a rejected push means somebody else
+  moved it first. For an ALLOCATION nothing is pushed at allocation time and the task file's eventual push
+  goes to a task BRANCH, where it can never conflict with another branch's push. There was no second step,
+  only a longer read, and the comment asserting otherwise is why nobody looked.
+
+  **RED** (`.artifacts/demo-reserve.py`, two module instances, nothing pushed between them):
+
+        allocator A -> T-0103
+        allocator B -> T-0103     (nothing was pushed in between)
+        SAME ID: True
+
+  **GREEN:**
+
+        reservations on origin before: ['T-0103', 'T-0104']
+        allocator C -> T-0105
+        allocator D -> T-0106     (again nothing was committed or pushed by the caller)
+        SAME ID: False
+        reservations on origin after: ['T-0103', 'T-0104', 'T-0105', 'T-0106']
+
+        $ ops/queue-check   QUEUE OK (95 tasks)   exit 0
+        $ ops/check-pins --source-only   ok=3 failed=0   exit 0
+
+  **Two defects of my own, both found by the demo rather than by reading:**
+
+  1. The first RED printed `T-0001`. The before-copy had been written to `.artifacts/`, so its
+     `ROOT = Path(__file__).parents[2]` resolved outside the repository — it saw no tasks and no git, and
+     the "red" was an artifact of the harness. Moved to `ops/lib/queue_before.py` and re-run. A red that
+     comes from the harness proves nothing, and this one would have read as proof.
+  2. `--reserve no` skipped *reading* the reservations as well as writing them, and handed out `T-0103`
+     while `T-0103` was already reserved. The escape hatch exists because a box may not be able to PUSH;
+     that does not make reading free-er to skip. It now always reads and only the push is conditional.
+
+  **Failure modes, deliberately:** if the reservations cannot be READ, it warns loudly and continues, because
+  that is exactly the old behaviour and refusing would make an offline box unable to file a task at all. If
+  the reservation cannot be WRITTEN, it **refuses** — allocating unreserved is what issued two ids twice, so
+  it is not something to do by accident. `--reserve no` is the deliberate version and prints what it costs.
+
+  **Left as it is, on purpose:** `T-0103`–`T-0106` are now reserved with no task behind them, burned by this
+  demo. Deleting a reservation is the one operation that reintroduces the collision, so it should be a
+  deliberate act and not a cleanup step in a demo script. A future `queue-check` rule could report
+  reservations with no task file; that is not this task.
