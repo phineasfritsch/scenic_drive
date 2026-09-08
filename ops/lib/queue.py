@@ -19,8 +19,10 @@ import datetime as dt
 import os
 import hashlib
 import re
+import secrets
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -282,27 +284,111 @@ def _reserved_ids():
     return out
 
 
+def _remote_ref_object(ref):
+    """The object `ref` points at ON THE REMOTE, asked directly rather than inferred.
+
+    Returns the sha, "" for "asked, and the ref is not there", or None for "could not ask". The three are
+    different answers and `_reserve_id()` acts differently on each; collapsing "not there" into "could not
+    ask" is how a failed push gets read as a lost race.
+    """
+    try:
+        r = subprocess.run(["git", "ls-remote", "--refs", "origin", ref],
+                           cwd=ROOT, capture_output=True, text=True, timeout=60, env=_git_env())
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    for line in r.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1] == ref:
+            return parts[0]
+    return ""
+
+
+def _reservation_object(n):
+    """A commit object that exists nowhere else, created for THIS reservation attempt only.
+
+    This is the whole of the fix for the defect the T-0101 reviewer found, so it is worth being explicit
+    about. `git push origin HEAD:refs/tags/id/T-0103` is rejected only when the ref exists at a DIFFERENT
+    object. When it already exists at the SAME object git prints "Everything up-to-date" and exits 0. The
+    first version of this file read that 0 as "we created the tag", so two allocators that pushed the same
+    commit were both told they had won the id.
+
+    That is not an edge case: `ops/new-task` runs at the START of a piece of work, when a fresh worktree has
+    no commits of its own and HEAD is still the shared base. Two agents who branch off main and allocate
+    therefore have IDENTICAL HEADs - the same-object condition and the collision condition coincide almost
+    exactly. This PR's own reservations (T-0103..T-0106) all sit on the single commit 4305be5, which is the
+    evidence for it.
+
+    A per-attempt object removes the coincidence: the remote cannot already be at an object that was
+    invented here a millisecond ago, so "already there" and "we put it there" stop being confusable. The
+    commit is parentless over an empty tree, references nothing, and is never read - only its uniqueness is
+    load-bearing. Returns None if the object could not be made, which the caller treats as "cannot ask".
+    """
+    env = _git_env()
+    # A box with no user.name configured can still reserve an id; commit-tree would otherwise refuse.
+    env.setdefault("GIT_AUTHOR_NAME", "scenic-drive")
+    env.setdefault("GIT_AUTHOR_EMAIL", "id-reservation@scenic.invalid")
+    env.setdefault("GIT_COMMITTER_NAME", "scenic-drive")
+    env.setdefault("GIT_COMMITTER_EMAIL", "id-reservation@scenic.invalid")
+    nonce = f"{os.getpid()} {time.time_ns()} {secrets.token_hex(16)}"
+    try:
+        tree = subprocess.run(["git", "hash-object", "-w", "-t", "tree", "--stdin"], cwd=ROOT, input="",
+                              capture_output=True, text=True, timeout=60, env=env)
+        if tree.returncode != 0 or not tree.stdout.strip():
+            return None
+        obj = subprocess.run(["git", "commit-tree", tree.stdout.strip(), "-m",
+                              f"scenic-drive id reservation T-{n:04d}\n\nnonce: {nonce}\n"],
+                             cwd=ROOT, capture_output=True, text=True, timeout=60, env=env)
+    except Exception:
+        return None
+    if obj.returncode != 0:
+        return None
+    sha = obj.stdout.strip()
+    return sha or None
+
+
 def _reserve_id(n):
     """Try to claim id n by creating its tag on the remote.
 
-    True  - we created it, the id is ours.
-    False - the ref already exists, somebody else holds it. THIS is the compare-and-swap.
+    True  - the tag on origin carries OUR object, so we created it and the id is ours.
+    False - the tag on origin carries somebody else's object, so they hold the id. THIS is the
+            compare-and-swap, and it is decided by looking at the remote, not by reading the push.
     None  - the question could not be asked (offline, no remote, no permission).
 
-    The tag points at HEAD only because a ref needs an object; nothing ever reads it. The NAME is the
-    reservation. Nothing is committed and no branch is touched, so this is safe to run from any worktree.
+    Two things it deliberately does NOT do, both of which it used to:
+
+    * It does not push HEAD. See `_reservation_object()`: pushing an object the remote may already have
+      turns a lost race into "Everything up-to-date", exit 0, "we won".
+    * It does not classify a failed push by grepping stderr for "already exists" / "rejected" /
+      "non-fast-forward". Wording is not an interface; git's phrasing, locale and hint text all move. After
+      the push, the remote ref is asked what it holds, and that answer decides. The exit code is used only
+      as the fallback when the remote cannot be asked a second time, and only in the direction that a
+      unique object makes sound.
+
+    Nothing is committed and no branch is touched, so this is safe to run from any worktree.
     """
     tag = f"{ID_TAG}T-{n:04d}"
+    obj = _reservation_object(n)
+    if obj is None:
+        return None
     try:
-        r = subprocess.run(["git", "push", "origin", f"HEAD:{tag}"],
+        r = subprocess.run(["git", "push", "origin", f"{obj}:{tag}"],
                            cwd=ROOT, capture_output=True, text=True, timeout=120, env=_git_env())
     except Exception:
-        return None
-    if r.returncode == 0:
+        r = None
+    holder = _remote_ref_object(tag)
+    if holder is None:
+        # Could not look. Fall back to the exit code, which is sound in this one direction ONLY because
+        # `obj` was invented for this call: the remote cannot have been at it already, so exit 0 cannot
+        # mean "up-to-date" and can only mean "created".
+        return True if (r is not None and r.returncode == 0) else None
+    if holder == obj:
         return True
-    err = ((r.stderr or "") + (r.stdout or "")).lower()
-    if "already exists" in err or "rejected" in err or "cannot lock ref" in err or "non-fast-forward" in err:
+    if holder:
         return False
+    # Asked, and the tag is not on the remote at all - so the push did not take effect and nobody holds
+    # the id either. Not ours, and not somebody else's: unanswerable.
     return None
 
 
