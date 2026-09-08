@@ -67,3 +67,53 @@ claimed. Filed rather than fixed so the finding is not lost and T-0066's owner i
   that both read before either pushed get the same number. Allocation needs the compare-and-swap that
   claiming already has.
 - 2026-09-08T08:53:47Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:53:47Z
+
+- 2026-09-08 — **the brief asked what a bad value does. The answer was worse than the traceback it was
+  filed for.**
+
+  **RED**, all four executed on this branch before the change:
+
+        --tier          IndexError traceback                            real exit 1
+        --tier bogus    PINS ok=0 skipped=9 pending=3 failed=0          real exit 0
+        --tier device   PINS ok=0 skipped=9 pending=3 failed=0          real exit 0
+        --nosuchflag    ignored entirely                                real exit 0
+        extra-word      ignored entirely                                real exit 0
+
+  **`--tier bogus` is the finding, not the traceback.** A typo — `--tier linx` — skips every pin, runs no
+  assertion, prints a summary that reads exactly like success, and exits 0. That is P-PROC-01 passing on an
+  empty set, reachable by a slip of the finger, which is the defect class this repository exists to refuse.
+  `--tier device` does the same, and `device` is not even a tier any pin declares; the declared set is
+  measured from `runs_on` as `{linux: 11, mac: 9, human: 1}`.
+
+  The traceback's exit code was the brief's second point and it stands: `1` is what this tool returns for
+  *a pin FAILED*, so a CI step reading only the status could not tell a typo from a broken invariant.
+
+  **GREEN:**
+
+        --tier          exit 2  check-pins: --tier needs a value; it was the last word on the line.
+        --tier bogus    exit 2  --tier 'bogus' is a tier no pin declares. Declared: human, linux, mac.
+        --tier device   exit 2  --tier 'device' is a tier no pin declares. Declared: human, linux, mac.
+        --nosuchflag    exit 2  --nosuchflag is not an option of check-pins.
+        extra-word      exit 2  'extra-word' is not an option. check-pins takes no operands.
+        --tier human    exit 1  PINS ok=0 ... - no assertion ran: every pin was skipped or is pending
+
+  **The real invocations are unchanged**, which is the control that matters for a change to the gate itself:
+
+        (no args)       exit 0  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+        --source-only   exit 0  PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only
+        --tier linux    exit 0  PINS ok=9 ...
+        --tier mac      exit 0  PINS ok=9 ...
+
+  **Two decisions worth stating.**
+
+  The tier set is **derived from the pins**, never a literal `{linux, mac, device, human}` here. A hard-coded
+  list would keep accepting `--tier device` long after the last device pin was deleted, and would reject a
+  tier somebody legitimately adds — both are the check disagreeing with the file it exists to enforce. This
+  is the same argument `ops/merge-rehearse` makes for deriving its ordering edges instead of listing them.
+
+  `ok == 0` now exits 1 with a line saying so. `--tier human` reaches that honestly — its one pin is pending
+  — and that is exactly the state that must not read as success, because "nothing ran" and "everything
+  passed" print the same summary otherwise. The counts already said why; now the exit code says it too.
+
+  Every exit code above was read with the pipe removed. `... | head -1; echo $?` reports the status of
+  `head`, and this file's own brief was written from a `$?` that had been through a pipe.
