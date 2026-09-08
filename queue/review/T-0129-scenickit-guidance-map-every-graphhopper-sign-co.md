@@ -11,7 +11,7 @@ branch: task/T-0129
 exclusive: []
 touches: [Sources/ScenicKit/Guidance/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-pr81
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
