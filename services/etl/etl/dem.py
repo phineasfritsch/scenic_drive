@@ -50,8 +50,12 @@ def tile_for(lat: float, lon: float) -> str | None:
     guard is here because that is exactly the protection that evaporates the moment TILES gains a second
     region, and because a plausible number from the wrong place is the hardest kind of wrong to notice. Same
     argument as the ceil-versus-floor case the tests already cover. Found by agent/reviewer-31 on T-0026.
+
+    Non-finite in, None out - `math.ceil` RAISES on an infinity, and this runs once per road node from
+    `group_by_tile`, so one bad coordinate used to abort the whole extract rather than cost that one point
+    its elevation. Found by agent/reviewer-pr34.
     """
-    if lat != lat or lon != lon:          # NaN
+    if not (math.isfinite(lat) and math.isfinite(lon)):   # NaN or +/-inf: no tile, not a crash
         return None
     if lat <= 0.0 or lon >= 0.0:          # not northern AND western: this scheme cannot name it
         return None
