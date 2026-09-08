@@ -201,3 +201,14 @@ must not be dragged in. Key on the task id parsed from the head ref, the way `op
 
   `ops/review` does not exist on this branch (it lands with T-0063, PR #52), so the transition was the
   `git mv` above rather than a hand copy.
+
+- 2026-09-08 CI on PR #58 (`a5c52f6`): `core` pass 1m9s, `pins-source-only` pass 1m10s. The "known
+  limitation" above is now measured rather than predicted — from the `queue-check` step of run
+  34200309031, job 101977344908:
+
+      open-PR gate SKIPPED, NOT CHECKED: GitHub could not be reached (gh is not installed)
+      QUEUE OK (91 tasks) - open-PR gate SKIPPED, NOT CHECKED: GitHub could not be reached (gh is not installed)
+
+  So in CI the gate is loudly inert, not silently green, and it does not claim to have checked. (91 vs the
+  88 seen locally: CI checks out the PR's merge commit with main, which carries tasks this branch does
+  not.) Making it bite in CI is the `gh` + `GH_TOKEN` follow-up noted above.
