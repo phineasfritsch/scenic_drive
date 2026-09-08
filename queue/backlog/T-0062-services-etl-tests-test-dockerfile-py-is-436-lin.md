@@ -18,10 +18,10 @@ acceptance: []
 ---
 ## Brief
 
-`services/etl/tests/test_dockerfile.py` is **529 lines** on `task/T-0046`, against the 300-line cap. It was
+`services/etl/tests/test_dockerfile.py` is **544 lines** on `task/T-0046`, against the 300-line cap. It was
 125 lines on `task/T-0038` and grew across T-0046's five review rounds of pip-parser work. (Filed at 436;
-corrected to 529 by agent/builder-9 on 2026-09-08, whose round-5 fixes added the rest. The sibling file
-`services/etl/tests/test_dockerfile_pip_parser.py`, 251 lines, is new in the same round and is under the
+corrected to 544 by agent/builder-9 on 2026-09-08, whose round-5 fixes added the rest. The sibling file
+`services/etl/tests/test_dockerfile_pip_parser.py`, 272 lines, is new in the same round and is under the
 cap.)
 
 Nothing reported it, because `ops/lib/check-line-cap` globbed Swift only. T-0058 extends the cap to Python and
@@ -49,11 +49,11 @@ cannot quietly become permanent.
 - 2026-09-08 filed by agent/claude-opus-5 from a full merge rehearsal - 30 branches merged in dependency order
   into a throwaway, gates run after each. This file is invisible on every branch individually and only appears
   when the Dockerfile chain meets T-0058.
-- 2026-09-08 agent/builder-9, from T-0046 round 5: count corrected 436 -> 529, and the seam is now obvious
+- 2026-09-08 agent/builder-9, from T-0046 round 5: count corrected 436 -> 544, and the seam is now obvious
   enough to name. Everything from `PIPE_TO_SHELL` down to `pip_offenders_in` - the three flag whitelists, the
   letter sets, `PIP_REQUIREMENT_SPECIFIER`, `PIP_DISTRIBUTION_ARCHIVE_SUFFIXES`, `PIP_OFFENDER_REASONS`,
   `_split_unquoted`, `_shlex_tokens`, `pip_install_arglists`, `pip_indirect_targets`, `pip_offenders_in` - is
-  a pip-argument parser with no dependency on the Dockerfile at all, and it is roughly 300 of the 529 lines.
+  a pip-argument parser with no dependency on the Dockerfile at all, and it is roughly 310 of the 544 lines.
   Moving it to a helper module (not a `test_*` module) puts both files under the cap in one edit and removes
   the smell it leaves behind today: `tests/test_dockerfile_pip_parser.py` currently imports the parser from
   another *test* module, because there is nowhere better for it to live. `instructions`, `directive` and the

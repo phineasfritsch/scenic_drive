@@ -1040,7 +1040,7 @@ blocker 1 without another review round.
 | BLOCKER 1(c) `file://` matches neither guard | **CONFIRMED** | RED 1 below |
 | BLOCKER 2 the guard has zero automated coverage; the new test is vacuous | **CONFIRMED** | RED 2 below |
 | NOTE the whitelist's provenance is not pinned anywhere | **CONFIRMED** - and I cannot reproduce "pip 26.1.1" either | fix 4 below |
-| not-held: 436 lines over the 300 cap (T-0062) | accepted, and **now worse: 529**. See "left undone" | |
+| not-held: 436 lines over the 300 cap (T-0062) | accepted, and **now worse: 544 (see the addendum)**. See "left undone" | |
 | not-held: `check-pins failed=1` (P-SAFE-05) | reproduced, pre-existing | gates below |
 | not-held: `ops/test` not green here | reproduced, different stage than the reviewer saw | gates below |
 
@@ -1136,7 +1136,7 @@ that shape.
      value-taking makes `skip_next` swallow the next token, so `pip install --dry-run ./localpkg` would
      skip the local path. **63 of 71 entries verified against pip 23.0.1, 0 mismatches.**
 
-### The coverage that was missing - `services/etl/tests/test_dockerfile_pip_parser.py` (new, 251 lines)
+### The coverage that was missing - `services/etl/tests/test_dockerfile_pip_parser.py` (new, 272 lines)
 
 BLOCKER 2 is the one that made the others invisible, so it is the one that got the most work. 34
 blind-spot cases and 14 ordinary-install cases, each a real construction from a real review round and
@@ -1236,8 +1236,8 @@ I am reporting what it does here rather than asserting it is pre-existing.
 
 ### Left undone, recorded rather than dropped
 
-1. **`test_dockerfile.py` is now 529 lines, up from 436** against the 300-line cap - I made an accepted
-   debt 21% worse. T-0062 already owns the split and depends on this task. I did not do it here for a
+1. **`test_dockerfile.py` is now 544 lines, up from 436** against the 300-line cap - I made an accepted
+   debt 25% worse. T-0062 already owns the split and depends on this task. I did not do it here for a
    specific reason, not to avoid the work: T-0062's own brief requires deleting the exemption entry from
    `ops/lib/check-line-cap` once the file is under the cap, and that path is outside this task's
    `touches: [services/etl/]`. Splitting here would land the seam and leave the exemption stale, which
@@ -1245,7 +1245,7 @@ I am reporting what it does here rather than asserting it is pre-existing.
    the whole pip parser (`PIP_*` constants, `_split_unquoted`, `_shlex_tokens`, `pip_install_arglists`,
    `pip_indirect_targets`, `pip_offenders_in`) moves to a helper module, which also removes this round's
    one real smell - a test module importing a parser from another test module. T-0062's line count has
-   been corrected from 436 to 529 in its brief.
+   been corrected from 436 to 544 in its brief.
 2. **`PIP_FROM_NETWORK` is still a substring match** and still owns only `https?://`, `git+`,
    `--index-url`, `--extra-index-url`, `--find-links`. It is not widened here: the indirect guard now
    fails closed on every URL scheme as a non-specifier, so the two together are closed, and
@@ -1260,3 +1260,77 @@ I am reporting what it does here rather than asserting it is pre-existing.
    the 8 that only a pip 26.x could confirm remain unconfirmed by anyone on this branch. Someone with a
    pip 26.1.1 should run `test_whitelisted_flag_arity_matches_the_reachable_pip` there - it will then
    cover all 71 and the "NOT the recorded version" wording will drop out of the failure message.
+
+### Addendum, same day - attacking the round-5 fix found one more hole of the same species
+
+Pushed `be9cff6`. Before handing back I ran 22 constructions at the *fixed* parser
+(`.artifacts/probe_attack.py`), checking both guards the way the two Dockerfile tests combine them. Two
+came back green that should not have:
+
+    GREEN [NOBODY] RUN pip install -f /local/wheels requests
+    GREEN [NOBODY] RUN pip install -i /local/index requests
+    RED   [PIP_FROM_NETWORK] RUN pip install --find-links /local/wheels requests
+    RED   [PIP_FROM_NETWORK] RUN pip install --index-url /local/index requests
+
+A pure short/long asymmetry, and the same species as everything else on this task. `--find-links` and
+`--index-url` are literals inside `PIP_FROM_NETWORK`, so the long spellings were always caught - but by
+that test, not this one, because the indirect guard had them on its *destination-value* list and skipped
+their values. `-f` and `-i` are spellings `PIP_FROM_NETWORK` has never known, so nothing looked at them at
+all. `pip install -i https://evil/simple requests` was caught only incidentally, by `https://` appearing in
+the value; `-i /local/index` has no URL in it and was green. Round 4 found this same asymmetry in the
+harmless direction (`-q` whitelisted, `--quiet` not); this is its fail-open direction.
+
+Fixed by moving the whole family onto one list rather than by adding two letters:
+
+- `-f`, `-i`: `PIP_DESTINATION_VALUE_LETTERS` -> `PIP_UNREADABLE_TARGET_LETTERS`.
+- `--index-url`, `--extra-index-url`, `--find-links`: `PIP_DESTINATION_VALUE_FLAGS_LONG` ->
+  `PIP_UNREADABLE_TARGET_FLAGS_LONG`. An index or a link page is a place whose contents decide what gets
+  installed, which is that list's own definition. Both guards now catch the family in both spellings, and
+  `PIP_FROM_NETWORK` is a backstop rather than the sole owner of it.
+- `test_the_direct_url_check_still_owns_plain_url_installs` is replaced by
+  `test_the_two_guards_agree_on_everything_that_names_a_package_source`, which pins that agreement so
+  neither guard can be narrowed again on the assumption the other covers it.
+
+**Checked against real pip and NOT a finding:** `pip install pkg --config-settings ./localpkg` stays green.
+Rather than reason about it, I ran it - pip 23.0.1, with a real `localpkg/pyproject.toml` present:
+
+    $ pip install --dry-run --no-index --no-build-isolation ./localpkg
+      rc=1   Processing c:\...\.artifacts\pipprobe\localpkg          <- control: a bare dir IS a source
+    $ pip install --dry-run --no-index --no-build-isolation --config-settings ./localpkg not-a-real-pkg
+      rc=2   Usage: ... [options] <requirement specifier> ...        <- usage error, localpkg NOT processed
+
+So skipping a `--config-settings` value is correct, and `-C`/`--config-settings` and `-t`/`--target` stay
+on the destination list. 20 of the 22 constructions are now red; the other green is
+`pip install -U --user requests`, which is an ordinary install and should be green.
+
+### Final numbers
+
+    GREEN BASELINE                                               EXIT=0   106 passed
+    M1  commenters='#' restored                                  EXIT=1   2 failed, 104 passed
+    M2  punctuation_chars=True restored                          EXIT=1   2 failed, 104 passed
+    M3  round 4's ./ ../ / blacklist restored                    EXIT=1   13 failed, 93 passed
+    M4  pip_indirect_targets -> []                               EXIT=1   38 failed, 68 passed
+    M5  pip_install_arglists -> []                               EXIT=1   40 failed, 66 passed
+    M6  case table emptied                                       EXIT=1   2 failed, 67 passed, 1 skipped
+    M7  new refusal reason, no case                              EXIT=1   1 failed, 105 passed
+    M8  '--build' back on the safe whitelist                     EXIT=1   2 failed, 104 passed
+    M9  '--dry-run' also listed as value-taking                  EXIT=1   1 failed, 105 passed
+    M10 pip's option table comes back empty                      EXIT=1   1 failed, 105 passed
+    M11 -f/-i back on the destination list                       EXIT=1   4 failed, 102 passed
+        red: blind_spot[-f is --find-links], blind_spot[-i is --index-url],
+             blind_spot[the same behind --no-index], test_the_two_guards_agree_...
+    M12 --index-url/--extra-index-url/--find-links moved back    EXIT=1   1 failed, 105 passed
+        red: test_the_two_guards_agree_on_everything_that_names_a_package_source
+    GREEN AFTER RESTORE                                          EXIT=0   106 passed
+
+    cd services/etl && python -m pytest -q   -> 106 passed, EXIT=0   (46 at the start of this round)
+    bash ops/sane                            -> SANE OK, EXIT=0
+    bash ops/queue-check                     -> QUEUE OK (67 tasks), EXIT=0
+    bash ops/lib/check-line-cap              -> EXIT=0 (Swift-only on this branch; T-0058 not merged here)
+    bash ops/check-pins                      -> PINS ok=9 pending=3 failed=1 (P-SAFE-05), EXIT=1, pre-existing
+    bash ops/test                            -> EXIT=1, Swift toolchain crash, see above
+
+`test_dockerfile.py` finishes the round at **544** lines and `test_dockerfile_pip_parser.py` at 272;
+T-0062's brief has been corrected to match and now names the seam.
+
+Handing back to agent/reviewer-pr29. Task stays in `queue/review/`.
