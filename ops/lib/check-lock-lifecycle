@@ -15,6 +15,23 @@
 # `ops/queue-check` for every agent in every worktree. Exactly one lock exists today (scenic-index, held by
 # T-0024, still claimed) and it had not happened yet.
 #
+# THE FIXTURE IS ONE TASK, AND THAT COLLIDED WITH THE POPULATION FLOOR (T-0091). T-0073 added MIN_TASKS = 40
+# to cmd_check because `QUEUE OK (0 tasks)` was a real vacuous pass, and this fixture is a queue of one, so
+# every `check` below started reporting "only 1 task(s) visible, floor is 40" and this whole file went red on
+# every branch after T-0073. Neither guard was wrong: a lock LIFECYCLE test wants one task and a tree it can
+# destroy, and the floor is what stops an emptied queue reading as a clean one.
+#
+# The resolution is NOT to lower the floor and NOT to inflate this fixture to forty tasks. Every `check` here
+# now declares the population it built - `--expect-tasks 1` - which cmd_check enforces as an EQUALITY rather
+# than a floor. On a tree this file constructs itself that is the stricter assertion of the two: it fails if
+# the task vanishes AND if a second one appears, where the floor could only ever have caught the first, and
+# only once it had lost thirty-nine. The floor still governs every argument-less run, which is every run
+# P-PROC-01 and CI make.
+#
+# Cases 3b and 3c are there because a population assertion nobody has seen fail is not an assertion. They
+# demonstrate, inside this file and on every invocation, that the declared count is checked (2 against a
+# one-task tree FAILS) and that "I inspected nothing" cannot be declared correct (0 is REFUSED, exit 2).
+#
 # Anchored on the executable and on generated task fixtures, never on a comment.
 set -uo pipefail
 # Not `git rev-parse --show-toplevel`: from WSL against a Windows worktree it prints an unusable path and,
@@ -61,12 +78,14 @@ fi
 # Reproduce exactly what every agent did before this command existed: move the file and edit the fields.
 mv "$TMP/queue/claimed/T-9101-demo.md" "$TMP/queue/review/T-9101-demo.md"
 sed -i 's/^state: claimed$/state: review/; s|^reviewer: null$|reviewer: agent/bob|' "$TMP/queue/review/T-9101-demo.md"
-out="$("$PY" "$Q" check 2>&1)"
-if grep -q "scenic-index.lock held by T-9101" <<<"$out"; then
+out="$("$PY" "$Q" check --expect-tasks 1 2>&1)"; rc=$?
+# rc AND the message: a non-zero exit alone would be satisfied by any unrelated failure, and the message
+# alone would be satisfied by a check that printed it and then exited 0.
+if [[ $rc -eq 1 ]] && grep -q "scenic-index.lock held by T-9101" <<<"$out"; then
   say "ok: a hand git mv leaves the lock and queue-check FAILS - the red run this command exists for"
   say "    $(grep 'scenic-index.lock' <<<"$out" | head -1 | sed 's/^ *//')"
 else
-  bad "a hand transition did not produce the orphaned-lock failure; premise not reproduced"
+  bad "a hand transition did not produce the orphaned-lock failure (rc=$rc); premise not reproduced"
   printf '    %s\n' "$out" | head -3
 fi
 
@@ -80,12 +99,37 @@ if [[ -f "$TMP/queue/LOCKS/scenic-index.lock" ]]; then
 elif [[ ! -f "$TMP/queue/review/T-9102-demo.md" ]]; then
   bad "review did not move the task"
 else
-  out="$("$PY" "$Q" check 2>&1)"
-  if grep -q "^QUEUE OK" <<<"$out"; then
-    say "ok: review releases the lock, moves the task, and queue-check is clean"
+  # The EXIT CODE, not `grep -q "^QUEUE OK"`. Matching the success wording is the same defect as matching
+  # the failure wording, in the direction where a check that stops printing its banner reads as broken and a
+  # check that prints it while exiting 1 reads as clean. cmd_check's verdict is its exit status.
+  out="$("$PY" "$Q" check --expect-tasks 1 2>&1)"; rc=$?
+  if [[ $rc -eq 0 ]]; then
+    say "ok: review releases the lock, moves the task, and queue-check is clean ($out)"
   else
-    bad "queue-check not clean after review: $(head -2 <<<"$out")"
+    bad "queue-check not clean after review (rc=$rc): $(head -2 <<<"$out")"
   fi
+fi
+
+# ------------------------------------------- 3b. the population assertion those runs lean on is not asleep
+# Every `check` above declares --expect-tasks 1. If that argument were ignored, or if the equality were
+# never evaluated, every case would still pass and this file would be asserting nothing about how much of
+# the tree the check actually saw - which is the exact hole MIN_TASKS was added to close. So: the same tree,
+# a wrong declared count, must FAIL. Same fixture, same command, one number different.
+out="$("$PY" "$Q" check --expect-tasks 2 2>&1)"; rc=$?
+if [[ $rc -eq 1 ]] && grep -q "1 task(s) visible, but this tree was declared to hold exactly 2" <<<"$out"; then
+  say "ok: a wrong declared population FAILS on the same tree - the count is really being checked"
+else
+  bad "check --expect-tasks 2 on a one-task tree did not fail (rc=$rc): $(head -2 <<<"$out")"
+fi
+
+# ------------------------------------------- 3c. "it inspected nothing" cannot be declared correct
+# The one sentence the floor exists to make unsayable stays unsayable under the declared form: a population
+# of zero is REFUSED (exit 2), not merely failed, so no caller can opt out of the assertion by naming zero.
+out="$("$PY" "$Q" check --expect-tasks 0 2>&1)"; rc=$?
+if [[ $rc -eq 2 ]] && grep -q "inspected nothing" <<<"$out"; then
+  say "ok: --expect-tasks 0 is refused outright, so the vacuous pass cannot be declared into legitimacy"
+else
+  bad "check --expect-tasks 0 was not refused (rc=$rc): $(head -2 <<<"$out")"
 fi
 
 # ---------------------------------------------------------------- 4. a task with no locks still transitions

@@ -3,6 +3,8 @@
 
   queue.py new "<title>" [--touches a,b] [--exclusive x,y] [--depends T-0001,...] [--state backlog|ready]
   queue.py check              exit 1 on any protocol violation (reviewer == owner, review/ without reviewer, ...)
+  queue.py check --expect-tasks N   same, but for a BUILT tree of exactly N tasks (N >= 1); see
+                              _population_assertion. Bare `check` always applies the MIN_TASKS floor.
   queue.py sweep              move expired claimed/ tasks back to ready/, release their LOCKS, append to ## Log
   queue.py review ID --reviewer NAME   claimed/ -> review/, assign the reviewer, release its LOCKS
   queue.py next               print the next unblocked ready/ task id
@@ -273,7 +275,65 @@ def _same_work(title, body):
     return norm, hashlib.sha256(stripped.encode("utf-8")).hexdigest()
 
 
-def cmd_check(_argv):
+def _population_assertion(argv):
+    """How many tasks must this run have seen for its verdict to mean anything?
+
+    Returns ("floor", MIN_TASKS) or ("exact", N). Raises ValueError on anything it will not accept.
+
+    NO ARGUMENT is the only form P-PROC-01, .github/workflows/linux-core.yml and every human invocation
+    use, and it is unchanged: len(seen) >= MIN_TASKS, refusing the vacuous `QUEUE OK (0 tasks)` that
+    T-0073 executed green three ways. Nothing a caller omits or misspells can lower that.
+
+    `--expect-tasks N` exists for a queue that was BUILT rather than grown. ops/lib/check-lock-lifecycle
+    copies this file into a `mktemp -d` and constructs a queue of exactly one task, because a lock
+    LIFECYCLE fixture wants one task and a tree it can destroy - and a built tree's population is known
+    by construction, which is the thing MIN_TASKS can only approximate for a queue nobody counted. The
+    declared form is STRICTER than the floor, not a hole in it:
+
+      * It is an EQUALITY. It fails on a task that vanished AND on one that appeared, so a fixture whose
+        reset silently stopped writing its task, or that leaked a task from a previous case, fails here
+        where the floor would only have caught the first and only below 40.
+      * N < 1 is REFUSED (exit 2), not merely failed. "This run inspected nothing and that is correct"
+        is exactly the sentence the floor exists to make unsayable, and it stays unsayable here.
+      * It cannot become a standing bypass in the real queue. The only value that satisfies an equality
+        is the true population - which is already above the floor, and which stops being true the moment
+        anyone files a task. A bypass that invalidates itself on the next commit is not one.
+
+    An unknown argument is a hard error rather than being ignored. `--expect-task 1` falling back to the
+    floor would be fail-closed by luck rather than by design, and the neighbouring _opts() accepting any
+    spelling is how a typo turns into a check nobody notices has stopped running.
+    """
+    kind, want = "floor", MIN_TASKS
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--expect-tasks" or arg.startswith("--expect-tasks="):
+            if "=" in arg:
+                raw = arg.split("=", 1)[1]
+            else:
+                i += 1
+                raw = argv[i] if i < len(argv) else ""
+            try:
+                want = int(raw)
+            except ValueError:
+                raise ValueError(f"--expect-tasks wants an integer, got {raw!r}")
+            if want < 1:
+                raise ValueError(
+                    f"--expect-tasks {want} would declare that a run which inspected nothing is correct, "
+                    f"and that is the one state the population assertion exists to refuse")
+            kind = "exact"
+        else:
+            raise ValueError(f"unknown argument {arg!r} (check takes only --expect-tasks N)")
+        i += 1
+    return kind, want
+
+
+def cmd_check(argv):
+    try:
+        kind, want = _population_assertion(argv)
+    except ValueError as e:
+        print(f"queue.py check: {e}")
+        return 2
     problems = []
     seen = {}
     by_title, by_body, _raw = {}, {}, {}
@@ -364,11 +424,12 @@ def cmd_check(_argv):
         for dep in fm.get("depends_on") or []:
             if dep not in ids:
                 problems.append(f"{p.relative_to(ROOT).as_posix()}: depends_on {dep} which does not exist")
-    # THE FLOOR. Everything above is decoration if the population can be emptied. 69 tasks live here today,
-    # so a run seeing fewer than MIN_TASKS is looking at a truncated tree, not a queue that shrank; the
-    # floor sits far below the real count because it exists to catch "inspected nothing", not to track the
-    # queue. It is a constant here and not pins/floor_queue.txt: that path is serial-only (CLAUDE.md) and
-    # this task declares no exclusive lock.
+    # THE POPULATION ASSERTION. Everything above is decoration if the population can be emptied. 69 tasks
+    # live here today, so a run seeing fewer than MIN_TASKS is looking at a truncated tree, not a queue that
+    # shrank; the floor sits far below the real count because it exists to catch "inspected nothing", not to
+    # track the queue. It is a constant here and not pins/floor_queue.txt: that path is serial-only
+    # (CLAUDE.md) and this task declares no exclusive lock. See _population_assertion for the built-tree
+    # form and for why an equality on a known population is the stricter of the two, not a way around this.
     for key, paths in sorted(by_body.items()):
         if len(paths) > 1:
             problems.append(f"{len(paths)} tasks share one brief (identical but for the id line): "
@@ -378,7 +439,12 @@ def cmd_check(_argv):
         # still describe one piece of work, and that is the state worth catching before either is claimed.
         if len(paths) > 1 and not any(set(paths) <= set(q) for q in by_body.values() if len(q) > 1):
             problems.append(f"{len(paths)} tasks share one title: " + ", ".join(paths))
-    if len(seen) < MIN_TASKS:
+    if kind == "exact":
+        if len(seen) != want:
+            problems.append(f"{len(seen)} task(s) visible, but this tree was declared to hold exactly "
+                            f"{want} - a check run against a tree with a different population than the "
+                            f"caller built is not evidence about the tree the caller meant")
+    elif len(seen) < MIN_TASKS:
         problems.append(f"only {len(seen)} task(s) visible, floor is {MIN_TASKS} - a queue-check that "
                         f"inspected nothing still reports success, and that IS P-PROC-01 passing")
     if problems:
@@ -386,7 +452,12 @@ def cmd_check(_argv):
         for pr in problems:
             print(" -", pr)
         return 1
-    print(f"QUEUE OK ({len(seen)} tasks)")
+    # The mode is printed, so a pasted transcript can never be read as a floor-mode pass when it was a
+    # declared-population one. `QUEUE OK` stays the prefix on both, for callers that match it.
+    if kind == "exact":
+        print(f"QUEUE OK ({len(seen)} tasks, exactly the declared population)")
+    else:
+        print(f"QUEUE OK ({len(seen)} tasks)")
     return 0
 
 
