@@ -23,15 +23,35 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"
 [[ -f ops/lib/queue.py ]] || { echo "$(pwd) is not the repo root (no ops/lib/queue.py)"; exit 2; }
 
 PY="${PYTHON:-$(command -v python3 || command -v python)}"
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+# shellcheck source=ops/lib/tmpdir.sh
+source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"
+TMP="$(portable_mktemp_d)"
+trap 'rm -rf "$(portable_posix_path "$TMP")"' EXIT
 fail=0
 Q="$TMP/ops/lib/queue.py"
 
 reset_repo() {
-  rm -rf "$TMP/queue" "$TMP/ops"
+  rm -rf "$TMP/queue" "$TMP/ops" "$TMP/.git"
   mkdir -p "$TMP/ops/lib" "$TMP/queue"/{backlog,ready,claimed,review,blocked,done,LOCKS}
   cp ops/lib/queue.py "$Q"
+
+  # A REAL git repo with a main branch, because cmd_review rehearses the merge: it reads `main` to decide
+  # whether merging this branch would leave two copies of the task file. Against a bare directory it
+  # refuses with "cannot read main", which is fail-closed and correct - and which made cases 3 and 4 of
+  # this check fail the first time it ever ran on the Windows box, after the mktemp path was fixed.
+  #
+  # The check had gone stale against its own subject and nothing could see it, because the check itself
+  # could not run. Both halves are why T-0124 exists.
+  (
+    cd "$TMP" || exit 1
+    git init -q -b main
+    git config user.email "probe@example.invalid"
+    git config user.name "probe"
+    git config commit.gpgsign false
+    git add -A >/dev/null 2>&1
+    git -c core.hooksPath=/dev/null commit -q -m "fixture base" --allow-empty
+    git checkout -q -b task/T-9999
+  )
 }
 
 # $1 = id, $2 = exclusive list body (e.g. "scenic-index"), $3 = state dir

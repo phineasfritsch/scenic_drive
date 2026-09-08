@@ -22,8 +22,10 @@ PY="${PYTHON:-$(command -v python3 || command -v python)}"
 JC="ops/lib/junit_count.py"
 [[ -f "$JC" ]] || { echo "P-OPS-02: $JC is missing"; exit 1; }
 
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+# shellcheck source=ops/lib/tmpdir.sh
+source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"
+tmp="$(portable_mktemp_d)"
+trap 'rm -rf "$(portable_posix_path "$tmp")"' EXIT
 fail=0
 
 note() { echo "P-OPS-02: $*"; fail=1; }

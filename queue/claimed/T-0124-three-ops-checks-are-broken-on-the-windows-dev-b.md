@@ -75,3 +75,73 @@ purpose, and a check that mutates the tree it is checking is a worse problem tha
 
 ## Log
 - 2026-09-08T17:25:15Z claimed by agent/claude-opus-5; lease until 2026-09-08T19:25:15Z
+
+    bash ops/lib/check-brief-required     exit 1 -> exit 0
+    bash ops/lib/check-failure-naming     exit 1 -> exit 0
+    bash ops/lib/check-lock-lifecycle     exit 1 -> exit 1, but for a different and already-filed reason
+    bash ops/check-pins                   P-OPS-02 failed -> PINS ok=12 failed=0
+
+### The fix
+
+`ops/lib/tmpdir.sh`, sourced by all three. `portable_mktemp_d` runs `mktemp -d` and translates with
+`cygpath -w` when `cygpath` exists; on Linux and WSL there is no `cygpath` and the POSIX path is already
+right, so it is a no-op there. `portable_posix_path` gives the shell-side form back for the `rm -rf` trap,
+because a backslash path inside a single-quoted trap is an escaping hazard and a trap that fails to fire
+leaves a temp tree behind on every run.
+
+A helper rather than three inline copies: the next check written will copy whichever neighbour its author
+happens to open.
+
+`ops/lib/check-worktrees` and `check-worktrees-demo` also call `mktemp -d`, and were left alone - their temp
+paths never reach a Windows interpreter. Checked, not assumed.
+
+### Making one check run for the first time found two more things
+
+`check-lock-lifecycle` had never executed on this box. Once it could, it reported two failures that read like
+defects in `cmd_review`:
+
+    FAIL: review did not release the lock
+    FAIL: review refused a task that holds no locks
+
+**Neither was a defect in `cmd_review`.** `.artifacts/probe-review.py` runs the command in a throwaway tree
+and shows what actually happens:
+
+    review rc=1  T-9201: cannot read main, so whether merging this branch would duplicate the task file
+
+`cmd_review` gained a merge rehearsal - it reads `main` to decide whether merging this branch would leave
+two copies of the task file. The check's fixture is a bare directory with no git at all, so the rehearsal
+cannot run and the command refuses. Fail-closed, and correct.
+
+So **the check had gone stale against its own subject, and nothing could see it because the check could not
+run.** Both halves are the point of this task. Fixed by giving `reset_repo` a real git repo with a `main`
+branch; both failures are gone and the case now reads `ok: a task declaring no exclusive resources still
+moves`.
+
+### What remains red, and why it is not mine to fix here
+
+    FAIL: queue-check not clean after review: QUEUE CHECK FAIL
+     - only 1 task(s) visible, floor is 40
+
+`cmd_check`'s `MIN_TASKS` floor against a one-task fixture. **Already filed as T-0091**, and independently
+confirmed as pre-existing by the T-0063 fixer in the same session.
+
+I did pad the fixture to 45 filler tasks and it did go green - and then reverted it. The padding is a
+workaround for a filed task, it duplicates T-0091's decision about which population the floor should count,
+and choosing that here would settle a question that belongs to that task. It is also how a fixture grows
+until it is a second implementation of the thing under test.
+
+Worth recording from the attempt: the 45 identical fillers were caught by the duplicate-brief guard
+(`45 tasks share one brief`), which is T-0070's work doing exactly its job on a fixture built carelessly.
+
+### Six of seven cases now pass
+
+    ok: claim takes the lock and names the task
+    ok: a hand git mv leaves the lock and queue-check FAILS - the red run this command exists for
+    FAIL: queue-check not clean after review          <- T-0091
+    ok: a task declaring no exclusive resources still moves
+    ok: reviewer == owner refused, and the task did not move
+    ok: a lock held by another task is left alone and the transition refuses
+    ok: a task already in done/ cannot be handed to review
+
+Before this task it produced no `ok` lines at all, because it could not open its own temp directory.
+
