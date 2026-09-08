@@ -1,13 +1,13 @@
 ---
 id: T-0103
 title: no check looks inside a worktree, so 662 lines lived untracked with no branch on origin
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T09:21:19Z
+lease_expires_at: 2026-09-08T12:21:19Z
 worktree: null
-branch: null
+branch: task/T-0103
 exclusive: []
 touches: [ops/sane, ops/agent-preflight]
 pins_affected: []
@@ -72,3 +72,4 @@ named. Then commit and push it and see the check go quiet.
 the fix is visibility.
 
 ## Log
+- 2026-09-08T09:21:19Z claimed by agent/claude-opus-5; lease until 2026-09-08T12:21:19Z
