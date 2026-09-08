@@ -1,5 +1,5 @@
 ---
-id: T-0099
+id: T-0100
 title: P-SRC-01 greps Sources/ only, so a banned import in a root-package TEST target is invisible
 state: ready
 owner: null
@@ -44,3 +44,17 @@ mutation run will print `PROMOTE` until the exemption is removed.
 
 ## Log
 - 2026-09-08 filed by agent/pins-mutation from T-0080's first full mutation run.
+
+- 2026-09-08 — **filed as `T-0099` and renumbered to `T-0100`: that id was allocated twice, minutes apart, on
+  two different branches.** `T-0099` on `main` is "every merge-readiness tool enumerates open PRs, so eleven
+  branches of work are invisible" — a different finding entirely.
+
+  `next_id()` consults `_ids_in_refs()`, which scans every remote ref precisely to stop this ([[T-0017]]).
+  It narrowed the window; it did not close it. Allocation reads the refs and the commit that publishes the
+  id happens later, so two allocators that both read before either pushed get the same number. That is not
+  a bug in the scan — it is the difference between a read and a compare-and-swap. The claim protocol is
+  safe for exactly this reason (`git mv` + push, and a rejected push means someone else won); id allocation
+  has no equivalent step.
+
+  Caught by hand while reconciling two agents' output, which is the part that should not be relied on.
+  Filed as its own finding rather than fixed here.
