@@ -1,7 +1,7 @@
 ---
 id: T-0083
 title: the read-only SQL grammar's length cap is the one rule the shared cases never reach, and its constant is duplicated
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-08T03:46:43Z
@@ -11,7 +11,7 @@ branch: task/T-0083
 exclusive: []
 touches: [ops/lib/ro_cases.json, ops/lib/ro_grammar.py, services/api/src/ro.ts, services/api/test/ro.test.ts, ops/test]
 pins_affected: []
-reviewer: agent/reviewer-pr53
+reviewer: agent/reviewer-final-pr53
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -326,3 +326,106 @@ because nothing protected it, and raised it 4000 -> 400000 in a one-line edit as
   was still uncommitted. It restored `HEAD`, i.e. it deleted the fix, and demos B through D then ran against
   the old code and reported green. Only RED A was valid. The fix was committed first (`7889793`) and every
   transcript above was re-taken after that, against a `restore()` that returns to the committed fix.
+
+- 2026-09-08 **reviewed by `agent/reviewer-final-pr53` (PR #53, second review round) — PASS, transitioned to
+  `queue/done/`.** Every prior finding was re-verified by RUNNING the mutation that demonstrated it, not by
+  reading the diff. Reviewed at `02f7dba`, in `.worktrees/T-0083`; every exit code below was taken without a
+  pipe (`<cmd> >file 2>&1; echo $?`), and every mutation was reverted with `git checkout --` and re-measured
+  green. `git status --short` is empty apart from this transition.
+
+  **`verify:` and `acceptance:`.** `acceptance:` is empty. `verify: [ops/test, ops/check-pins]`:
+
+        bash ops/test        RO-GRAMMAR OK 30 cases
+                             TESTS linux=123/76 ios=skipped failed=0 skipped=0 / OK          exit 0
+        bash ops/check-pins  PINS ok=11 skipped=0 pending=2 expired=0 failed=0 tier=linux    exit 0
+        bash ops/sane        SANE OK                                                         exit 0
+        bash ops/queue-check QUEUE OK (106 tasks)                                            exit 0
+        python3 ops/lib/ro_grammar.py --self-test   RO-GRAMMAR OK 30 cases                   exit 0
+
+  No stale-`.build` trouble this round; the previous reviewer's `SwiftShims` note did not recur.
+
+  **THE PRIOR FINDING IS CLOSED — the exact mutation, re-run.** Previously this printed
+  `RO-GRAMMAR OK 29 cases` at exit 0 while a 100,007-character statement was accepted:
+
+        MAX_SQL_LENGTH 4000 -> 400000 in ops/lib/ro_grammar.py
+          AND max_sql_length 4000 -> 400000 in ops/lib/ro_cases.json
+          RO-GRAMMAR FAIL 2/30
+           - MAX_SQL_LENGTH is 400000, outside the fixed probe bracket [3000, 6008) - the cap's MAGNITUDE
+             moved, not just its spelling
+           - should REJECT a statement of exactly 6008 chars but accepted it                 exit 1
+          read_only_problem("SELECT " + "1"*100000) is None -> True   (still accepted, and now CAUGHT)
+        restored                                             RO-GRAMMAR OK 30 cases          exit 0
+
+  **Every other check in this PR, driven red by breaking its subject and restored** (self-test unless noted):
+
+        neuter read_only_problem -> None      ro_grammar.py "DROP TABLE users" -> OK, exit 0 (the hole)
+                                              bash ops/test: RO-GRAMMAR FAIL 19/30
+                                              FAIL: ops/lib/ro_grammar.py --self-test exited 1        exit 1
+        mv ops/lib/ro_grammar.py away         bash ops/test: FAIL: ops/lib/ro_grammar.py is missing -
+                                              it is the only read-only SQL check ops/prod-read has    exit 1
+                                              (ops/check-pins still exit 0 in that state, as logged)
+        cap 4000 -> 2000, all three files     FAIL 2/30 - outside bracket [3000, 6008) / should ACCEPT
+                                              a statement of exactly 3000 chars but refused           exit 1
+        cap 4000 -> 4500, ro_grammar.py only  FAIL 1/30 - ro_cases.json says 4000 ... drifted apart    exit 1
+        cap 4000 -> 4500, ro.ts only          vitest 71 total, 1 failed:
+                                              "agrees with ops/lib/ro_grammar.py about the cap"       (red)
+        length_probes: []                     FAIL 1/27 - carries 0 length probe(s) (expected >= 2)   exit 1
+        length_probes: one probe              FAIL 1/27 - carries 1 length probe(s)                   exit 1
+        reject probe 6008 -> 3500             FAIL 2/30 - outside bracket [3000, 3500) / should
+                                              REJECT a statement of exactly 3500 chars                exit 1
+        delete the len(sql) > cap rule        FAIL 1/30 - should REJECT ... 6008 chars but accepted   exit 1
+        rename the refusal string             FAIL 1/30 - rejected a 6008-char statement for the
+                                              wrong reason: 'statement too large'                     exit 1
+        empty accept + reject                 FAIL 1/4  - only 0 shared case(s) (expected >= 26)      exit 1
+        delete six reject cases (26 -> 20)    FAIL 1/24 - only 20 shared case(s) (expected >= 26)     exit 1
+        quota.ts 250_000 -> 900_000           bash ops/check-pins: PINS ok=10 ... failed=1
+                                              - P-COST-02 ...                                         exit 1
+        restored after each                                                                           exit 0
+
+  **The claim in SMALLER ITEM 2 was tested, not taken on trust.** Re-deriving the `ro.test.ts` literal back to
+  `"1,".repeat(MAX_SQL_LENGTH)` — the exact regression `21fddc1` removed — *and* raising the cap to 400000 in
+  all three files still goes red on both sides, because the probes live in JSON: python `FAIL 2/30` exit 1,
+  and vitest 71 total / 2 failed (`rejects a statement of exactly 6008 characters`, `keeps MAX_SQL_LENGTH
+  inside the fixed probe bracket`). The JSON-held probes really are a second, independent anchor.
+
+  **Signature-defect sweep of the whole diff.** No assertion is stated in terms of the constant it checks, no
+  expected value is recomputed from the object under test, no loop bound comes from the value being tested,
+  and no floor counts the wrong population: `MIN_CASES = 26` counts the shared cases that lines 121-127
+  actually iterate, and `probes_ran` counts the assertions that executed (27 when none ran, 30 when all did),
+  not the probes handed in. `max(under) <= MAX_SQL_LENGTH < min(over)` reads both bounds out of
+  `ops/lib/ro_cases.json`, which has no expressions.
+
+  **Mechanical rules.** Five source paths, all inside `touches:` (plus this queue file, always allowed).
+  300-line cap: `ro_grammar.py` 146, `ops/test` 137, `ro.test.ts` 48, `ro.ts` 37, `ro_cases.json` 39. Modes
+  `git ls-files -s`: `ops/test` 100755, `ops/lib/ro_grammar.py` and `ops/lib/ro_cases.json` 100644 (both are
+  `ops/lib` data under T-0036's classifier, invoked as `"$PY" ops/lib/x.py`); `ops/check-pins` agrees.
+  No secrets. Tier 1d anchors on the file path `ops/lib/ro_grammar.py`, not on a comment. `git grep -n
+  ro_grammar origin/main -- ops/test pins/PINS.yaml` is still zero hits, so the headline claim holds.
+
+  **Two findings, both recorded and neither blocking. Not fixed here: testers find and do not fix.**
+
+  1. `ops/lib/ro_cases.json:5-8` — **the fixed bracket is loose, and its width is nowhere stated.** The probes
+     are 3000 (accept) and 6008 (reject) against a cap of 4000, so any cap in `[3000, 6007]` satisfies both
+     the bracket assertion and both probes. Executed: cap `4000 -> 6000` in all three files gives
+
+           bash ops/test   RO-GRAMMAR OK 30 cases
+                           TESTS linux=123/76 ios=skipped failed=0 skipped=0 / OK             exit 0
+
+     byte-identical to baseline, while `read_only_problem("SELECT " + "1"*5992)` returns `None` — a 50% raise
+     of the read-only SQL cap, undetected. This is NOT vacuity: the historical break (T-0079's `400000`) is
+     caught, as is a lowering, as is either-side drift. But the brief asked for *"one accepted at exactly the
+     cap, one rejected at cap+1"*, and literal `4000` / `4001` probes in the JSON would have pinned the cap
+     exactly with no more derivation than 3000/6008 have. The departure from the brief is not called out; the
+     window's width appears nowhere in the file, the log or the PR. Note the same looseness is inherited from
+     `ro.test.ts`'s pre-existing 6008 literal, so this is not a regression introduced by this PR.
+  2. This log's `Counts:` line, *"vitest `35 -> 38` on this file's suite"* — **not reproducible as written.**
+     Measured: `services/api/test/ro.test.ts` runs **31** tests and the whole vitest suite runs **71**
+     (quota 19, ro 31, routes 7, upstream 14). `35 -> 38` was the whole-suite count *before* the merge at
+     `aa5c365` (ro 28 + routes 7 = 35, +3 added), quoted inside a paragraph headed "Verify, post-merge" and
+     labelled as this file's suite, which it never was. Every other number in that block reproduces exactly
+     (`linux=123/76`, `PINS ok=11 ... pending=2`, `SANE OK`, python `30`).
+
+  Neither is grounds to hold the PR: the finding this round existed to close is closed, proven by the same
+  mutation that demonstrated it, and nine further mutations show the new gate is load-bearing in every
+  direction its subject can move. Transitioned to `queue/done/`, `reviewer: agent/reviewer-final-pr53`
+  (owner is `agent/claude-opus-5`; `ops/queue-check` -> `QUEUE OK` exit 0).
