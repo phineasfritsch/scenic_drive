@@ -150,3 +150,66 @@ class TestMainFlow:
         m = self._manifest(tmp_path, f"{server}/file.bin", GOOD_SHA)
         assert fetch.main(["--manifest", str(m), "--dry-run"]) == 0
         assert not (tmp_path / "file.bin").exists()
+
+
+class TestRecordDigestBootstrap:
+    """--record-digest exists to fill in a digest a new entry does not have yet.
+
+    Until T-0025 hit it, the manifest header documented "Get it with `--record-digest NAME`, then commit it"
+    and that was impossible: the placeholder made the entry invalid, validation ran first, and the tool
+    refused with `sha256 must be 64 lowercase hex chars` - the one problem it exists to solve.
+    """
+
+    def _manifest(self, tmp_path, body):
+        p = tmp_path / "manifest.yaml"
+        p.write_text(body, encoding="utf-8")
+        return p
+
+    def _entry(self, url, digest):
+        return (f"- name: file.bin\n  url: {url}\n  verify: sha256\n  license: CC0-1.0\n"
+                f"  purpose: test\n  sha256: {digest}\n")
+
+    def test_a_placeholder_digest_does_not_block_recording_one(self, server, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        m = self._manifest(tmp_path, self._entry(f"{server}/file.bin", "TODO"))
+        assert fetch.main(["--manifest", str(m), "--record-digest", "file.bin"]) == 0
+        assert GOOD_SHA in capsys.readouterr().out
+
+    def test_an_empty_digest_does_not_block_recording_one(self, server, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        m = self._manifest(tmp_path, self._entry(f"{server}/file.bin", "null"))
+        assert fetch.main(["--manifest", str(m), "--record-digest", "file.bin"]) == 0
+        assert GOOD_SHA in capsys.readouterr().out
+
+    def test_it_still_refuses_when_the_digest_is_present_but_malformed(self, server, tmp_path, monkeypatch):
+        """Only a MISSING digest is excused. `sha256: deadbeef` is someone getting it wrong, not bootstrapping."""
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        m = self._manifest(tmp_path, self._entry(f"{server}/file.bin", "deadbeef"))
+        assert fetch.main(["--manifest", str(m), "--record-digest", "file.bin"]) == 2
+
+    def test_it_still_refuses_when_another_entry_is_broken(self, server, tmp_path, monkeypatch):
+        """A manifest broken elsewhere is not one you should be pinning new digests into."""
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        body = (self._entry(f"{server}/file.bin", "TODO")
+                + "- name: other.bin\n  url: https://e.org/other\n  verify: sha256\n  purpose: p\n")
+        assert fetch.main(["--manifest", str(self._manifest(tmp_path, body)), "--record-digest", "file.bin"]) == 2
+
+    def test_it_still_refuses_when_the_SAME_entry_is_broken_another_way(self, server, tmp_path, monkeypatch):
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        body = (f"- name: file.bin\n  url: {server}/file.bin\n  verify: sha256\n  license: NotALicence\n"
+                f"  purpose: test\n  sha256: TODO\n")
+        assert fetch.main(["--manifest", str(self._manifest(tmp_path, body)), "--record-digest", "file.bin"]) == 2
+
+    def test_the_excuse_does_not_apply_to_a_normal_fetch(self, server, tmp_path, monkeypatch):
+        """Without --record-digest, a placeholder digest is still a broken manifest."""
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        m = self._manifest(tmp_path, self._entry(f"{server}/file.bin", "TODO"))
+        assert fetch.main(["--manifest", str(m)]) == 2
+        assert not (tmp_path / "file.bin").exists()
+
+    def test_the_excuse_does_not_apply_to_a_DIFFERENT_entry(self, server, tmp_path, monkeypatch):
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        body = (self._entry(f"{server}/file.bin", "TODO")
+                + f"- name: other.bin\n  url: {server}/file.bin\n  verify: sha256\n  license: CC0-1.0\n"
+                  f"  purpose: p\n  sha256: TODO\n")
+        assert fetch.main(["--manifest", str(self._manifest(tmp_path, body)), "--record-digest", "other.bin"]) == 2
