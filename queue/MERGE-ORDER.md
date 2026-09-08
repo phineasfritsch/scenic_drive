@@ -499,3 +499,28 @@ been corrected to add T-0049 when `--pairwise` found it, and been wrong again wi
 [[T-0073]]'s `MIN_TASKS` floor and [[T-0032]]'s fixture. A collision of exactly the shape this tool exists to
 find is invisible to it. Filed as [[T-0091]]; until it lands, `0 gate failures` above means "0 of the four
 gates this tool runs", not "0 gates fail".
+
+## Re-run after a day of review fixes — the result did not move
+
+The rehearsal above was recorded before an independent review round landed sixteen fixes across six
+branches: `task/T-0082` (three commits, including a guard that had disabled the sweeper), `task/T-0063`,
+`task/T-0060`, `task/T-0062`, `task/T-0086`, plus eleven queue commits on `main`. Re-run afterwards against
+the refreshed refs:
+
+    REHEARSAL (cumulative): 37 of 41 merged, 4 conflicts, 0 gate failures, 0 unresolvable
+
+    task/T-0022  CONFLICT: ops/lib/gh-stub-for-merge-tests
+    task/T-0044  CONFLICT: ops/lib/gh-stub-for-merge-tests
+    task/T-0049  CONFLICT: ops/lib/gh-stub-for-merge-tests pins/PINS.yaml
+    task/T-0071  CONFLICT: ops/test pins/floor_linux.txt
+
+Diffing the per-branch outcome column of the two runs gives **no output**: every branch landed in the same
+state, in the same order, with the same four conflicts. That is the useful result — it says a day of edits
+to five branches and to `main` changed nothing about mergeability, so the resolutions written above are
+still the resolutions.
+
+It is worth being precise about what that does and does not license. It does NOT mean the fixes were
+inert — `ops/lib/queue.py` grew on three branches and `CLAUDE.md` changed on one. It means none of those
+edits touched a file another branch touches, which is the only thing this tool measures. The caveat above
+still stands too: `0 gate failures` means zero of the four gates this tool runs, and
+`ops/lib/check-lock-lifecycle` is not one of them ([[T-0091]]).
