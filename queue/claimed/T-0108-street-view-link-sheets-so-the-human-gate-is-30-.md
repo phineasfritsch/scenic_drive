@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T15:47:56Z
 worktree: null
 branch: task/T-0108
 exclusive: []
-touches: [services/etl/etl/streetview.py, services/etl/tests/test_streetview.py, ops/score-review]
+touches: [services/etl/etl/streetview.py, services/etl/etl/review_sheet.py, services/etl/tests/test_streetview.py, services/etl/tests/test_review_sheet.py, ops/score-review]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -69,3 +69,53 @@ repository's signature defect in its most expensive form.
 
 ## Log
 - 2026-09-08T11:47:56Z claimed by agent/claude-opus-5; lease until 2026-09-08T15:47:56Z
+
+- 2026-09-08 — **built. `ops/score-review <segments.json>` emits the sheet; the empty page is refused.**
+
+  **The default reviews the MIDDLE, and that is the design rather than a setting.** A page of the highest and
+  lowest scores mostly confirms what anyone would already guess. The segments that decide whether the index
+  is any good are the ones it placed at 4-6, where a small weighting error changes the ranking. On four
+  fixtures scored 9.1, 5.2, 4.4 and 2.0:
+
+        default band 4-6      picks Mulholland (5.2) and Sepulveda (4.4); skips PCH and the access road
+        --top 1 --bottom 1    adds both extremes, 4 rows, no duplicates
+
+  The heading is computed from the road's own geometry so the panorama looks *along* it rather than at a
+  wall, taken at the **length-midpoint** - the ends of an OSM way are junctions, which look like every other
+  junction.
+
+  **A defect I wrote and then caught by running it.** `midpoint_index` first returned the index of the
+  *segment* containing the half-way mark, which for an evenly drawn way is segment 0 - so a function whose
+  docstring promised "the point nearest the middle BY LENGTH" returned the **start of the road**. Found by
+  calling it on three points of Sunset and getting index 0. It now picks the point nearest the half-length,
+  pinned with a deliberately skewed way - four tight points then one far - where the by-index answer (2) and
+  the by-length answer (3) differ.
+
+  `bearing()` returns None rather than 0 when two points are too close to define a direction. Zero means due
+  north; substituting it would be a silent lie, and a confidently wrong heading is worse than none.
+
+  **Both vacuity guards, executed:**
+
+        empty input     SCORE-REVIEW REFUSED: no segments to review ...                    exit 2
+        band 7.5-8.5    SCORE-REVIEW REFUSED: 4 segment(s) given but none selected ...     exit 2
+                        - widen the selection rather than reviewing an empty page
+
+  An afternoon of clicking that ends in *"reviewed 0 segments, no problems"* is this repository's signature
+  defect in its most expensive form, so it refuses rather than warns.
+
+  **The licensing line is pinned as a test, not left in a comment.**
+  `test_the_sheet_never_requests_an_image` asserts no `streetview`, no `key=`, no `<img>` in the output. The
+  plan avoids Google because the Maps terms forbid showing their imagery beside a non-Google map - **that
+  constraint is about the APP**, and this is a build-time tool emitting links a developer opens in a browser.
+  "Just show the thumbnail" is the obvious next feature and exactly the one that would turn the app's map
+  stack into a licensing problem.
+
+  **What it does not do:** replace the drive. Gate #1 asks whether the ROUTE was better than the freeway -
+  pacing, traffic, whether the pretty part arrives while you still have the patience for it - and no
+  photograph answers that. This removes the cheaper question that currently rides along with it.
+
+  **Not wired to real data**, because there is nothing to wire: the composite score is [[T-0029]] and the
+  corpus emitter is [[T-0030]]. `select()` falls back to reviewing every segment when none carries a score,
+  since "does this look like a road with 82% canopy" is answerable from a photograph and the terms exist.
+
+        services/etl  282 passed  (25 of them new)
