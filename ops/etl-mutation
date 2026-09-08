@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Mutation coverage for the curvature oracle's modules. See ops/lib/etl_mutation.py for why this is ~200 lines
+# of stdlib ast rather than mutmut: neither mutmut nor cosmic-ray is pinned in the ETL's input manifest, and
+# the numbers this repo trusts are produced inside the pinned image.
+#
+#   ops/etl-mutation                              both modules
+#   ops/etl-mutation --module etl/oracle.py       one
+#   ops/etl-mutation --list                       enumerate mutants, run nothing
+#   ops/etl-mutation --limit 20                   a sample: exit 3, never 0 - a subset cannot pass
+#
+# EXIT: 0 whole floored set, at or under the budget · 1 above the budget · 2 refused (the tree is dirty, the
+# rule set shrank, the unparse control failed, nothing ran) · 3 partial, so not a verdict.
+#
+# NOTHING RUNS THIS YET, and that is the outstanding half of T-0081. Not in ops/test: a full pass re-runs the
+# suite once per mutant, ~11 minutes, and ops/test is the per-commit gate. Not in CI either -
+# .github/workflows/linux-core.yml runs check-pins, agent-preflight, test and queue-check, and no file in the
+# tree invokes this one (PR #56 review). Until a scheduled workflow calls it, MAX_SURVIVORS gates nothing but
+# a human's own run. Wiring it needs .github/, outside T-0081's touches:, so it is written down here and in
+# the task log rather than done - a stated gap, not a quiet one.
+#
+# PYTHON= overrides the interpreter, and on the Windows checkout it has to: `python3` there resolves to the
+# Microsoft Store shim, which has no pytest, and the run then refuses with "the suite does not pass unmutated"
+# (closed, not open, but a misleading diagnosis). Use `PYTHON=python ops/etl-mutation`. T-0076 owns the
+# repo-wide policy for this; this line is the local warning, not a second policy.
+set -uo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -d ops && -d services/etl ]] || { echo "$(pwd) is not the repo root"; exit 2; }
+exec "${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/etl_mutation.py "$@"
