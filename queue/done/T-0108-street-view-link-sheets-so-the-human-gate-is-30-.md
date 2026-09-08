@@ -1,7 +1,7 @@
 ---
 id: T-0108
 title: Street View link sheets so the human gate is 30 clicks instead of 5 drives
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T11:47:56Z
@@ -11,7 +11,7 @@ branch: task/T-0108
 exclusive: []
 touches: [services/etl/etl/streetview.py, services/etl/etl/review_sheet.py, services/etl/tests/test_streetview.py, services/etl/tests/test_review_sheet.py, ops/score-review]
 pins_affected: []
-reviewer: null
+reviewer: agent/reviewer-final-pr69
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -236,3 +236,111 @@ repository's signature defect in its most expensive form.
 
         cd services/etl && python -m pytest     425 passed     exit 0
         bash ops/check-pins                     failed=0       exit 0
+
+- 2026-09-08 — **re-review of PR #69 after the fix pass — PASS. Transitioned to `queue/done/`.**
+  Reviewer `agent/reviewer-final-pr69`, worktree `.worktrees/T-0108` @ `3761b81`. Not the owner
+  (`agent/claude-opus-5`). Every prior finding was re-checked by RUNNING the break that demonstrated it,
+  not by reading the diff.
+
+  **`verify:` and `acceptance:` (`acceptance:` is empty).** Exit codes taken with
+  `<cmd> >/dev/null 2>&1; echo $?`, never after a pipe.
+
+        bash ops/check-pins                     PINS ok=11 ... failed=0                exit 0
+        bash ops/sane                           SANE OK                                exit 0
+        bash ops/queue-check                    QUEUE OK                               exit 0
+        cd services/etl && python -m pytest     425 passed (counted by progress dots;
+                                                pytest 9.1.1 prints no summary line)   exit 0
+        bash ops/test                           FAIL: services/api exists but vitest
+                                                produced no report                     exit 1
+
+  **`ops/test` red is pre-existing and not this task's.** Confirmed rather than accepted: run from the
+  `main` checkout in the same shell it exits 1 with the identical final line. No vitest install for
+  `services/api` on this box.
+
+  **The tool, end to end through the wrapper** (`bash ops/score-review`, so `git rev-parse` in the
+  wrapper is exercised in a worktree too):
+
+        segs.json                     wrote ... (4 segments in, 2 rows out)  Mulholland + Sepulveda  exit 0
+        segs.json --top 1 --bottom 1  wrote ... (4 segments in, 4 rows out)                          exit 0
+        empty.json                    SCORE-REVIEW REFUSED: no segments to review ...                exit 2
+        segs.json --band 7.5-8.5      SCORE-REVIEW REFUSED: 4 segment(s) given but none selected ... exit 2
+
+  Both refusal strings verbatim as logged. Greps of the rendered page: `streetview` 0, `key=` 0, `<img` 0,
+  `<form` 0, `<script` 0, `localStorage` 0, `download=` 0. `viewpoint=34.130100,-118.399000` — w/12 stands
+  on its middle node.
+
+  **Prior findings, each closed by its own red demo (drivers in the gitignored `.artifacts/rvw69/`; both
+  source files restored byte-for-byte between every break, sha256 compared — `review_sheet.py`
+  `68f464172463`, `streetview.py` `d24dffb1bbf1`, identical at baseline and after the last restore, and
+  `git status --porcelain` empty).**
+
+        BASELINE                                                     exit=0  no failures
+        F1  render stands on point 0 (the shipped defect)            exit=1  ..._not_on_a_junction,
+                                                                             ..._not_the_index_midpoint
+        F1  render stands on the INDEX midpoint                      exit=1  ..._not_the_index_midpoint
+        F1  midpoint_index returns the SEGMENT holding the half-way  exit=1  test_midpoint_is_by_length...,
+                                                                             ..._not_on_a_junction
+        F2  dedup key back to `id` (the shipped defect)              exit=1  4 tests
+        F2  dedup key back to `id` AND the floor disabled            exit=1  4 tests
+        F2  radio group named after the id again                     exit=1  ..._own_radio_group...
+        F2  truncation floor disabled, key left correct              exit=1  ..._refuses_rather_than_short...
+        F3  the not-recorded notice dropped                          exit=1  ..._does_not_pretend_to_record...
+        F3  notice replaced by "saved automatically"                 exit=1  ..._does_not_pretend_to_record...
+        MN  look_along aims backwards down the road                  exit=1  test_look_along_faces_down...
+        MN  bearing swaps atan2(y, x)                                exit=1  test_bearing_cardinals, ...
+        MN  bearing returns 0.0 instead of None on a degenerate span exit=1  test_bearing_refuses_a_point...
+        LIC BASE switched to the Static API                          exit=1  4 tests incl. ..._never_requests...
+        GUARD empty-input refusal deleted                            exit=1  test_empty_input_refuses
+        GUARD none-selected refusal deleted                          exit=1  test_a_selection_that_matches...
+        RESTORED                                                     exit=0  no failures
+
+  **Constants perturbed in both directions — none of the assertions is stated in terms of the constant it
+  checks**, which is what this repository keeps shipping:
+
+        REVIEW_BAND (4,6) -> (0,10)          exit=1   ..._default_reviews_the_middle..., ..._top_and_bottom...
+        REVIEW_BAND (4,6) -> (5.15,5.25)     exit=1   7 tests
+        MIN_BEARING_SPAN_M 1.0 -> 1000.0     exit=1   3 tests
+        MIN_BEARING_SPAN_M 1.0 -> 0.0        exit=1   test_bearing_refuses_a_point_too_close...
+        viewpoint 6dp -> 2dp                 exit=1   3 tests
+        heading .1f -> .0f                   exit=1   2 tests
+
+  **Numbers in the Log re-derived independently rather than believed.** w/12's legs 506.5 m and 462.8 m,
+  half-length 484.7 m, so the middle node is 21.8 m from it and each end 484.6-484.7 m — index 1, by a wide
+  margin. SKEWED: 0.001 deg of longitude at lat 34 is 92.29 m and the far leg is 8951.6 m, cum
+  `[0, 92.3, 184.6, 276.9, 9228.5]`, half 4614.2, so |276.9-half| = 4337 beats |9228.5-half| = 4614 —
+  index 3, not the index midpoint 2. Sunset's first leg is 100.2 m north and 415.0 m east, atan2 = 76.43 deg,
+  matching `heading=76.4`. All three expectations come from the fixture or from hand arithmetic, none from
+  the function under test.
+
+  **The truncation floor is reachable, not tautological.** I suspected `len(out) != len(matched)` could
+  never fire, since `_position_key` returns `i`. A 28,540-input search (`floor_probe.py`, random scores/ids/
+  bands plus every same-id / no-id / distinct shape at n = 1, 2, 6, 40, 400) never fired it — but breaking
+  the assembly loop (`break` after the first append) does: `SCORE-REVIEW REFUSED: selection matched 6
+  segment(s) but kept 1`, exit 2. So it is live, and it holds the invariant its docstring names.
+
+  **Notes, none blocking — recorded so the next agent does not have to rediscover them; posted on PR #69.**
+
+  1. `test_the_sheet_does_not_pretend_to_record_the_verdict` asserts nothing once any of
+     `RECORDING_MECHANISMS` appears in the page. Dropping `NOT_RECORDED_NOTICE` **and** adding an inert
+     `<form>` around the table — or `download=""` on the existing link — leaves all 425 tests green with a
+     page that records nothing and no longer says so. Demonstrated twice. That escape hatch pins a string as
+     the proxy for a behaviour, which is the objection this task itself raised against
+     `assert "localStorage" in html`. Whoever takes T-0117 should make the other branch assert the sink
+     works, not that a tag exists.
+  2. `midpoint_index`'s `if len(points) < 3: return 0` is unpinned: returning `len(points) - 1` instead, or
+     deleting the branch entirely, leaves 425 tests green. Shipped behaviour is right — for two points both
+     ends tie at half the length and `min` takes the first, so the short-circuit agrees with the general
+     path — but nothing says so, and this is the branch most real segments take.
+  3. `test_look_along_at_the_last_point_uses_the_previous_one` asserts only that `heading=` is present, not
+     its direction; reversing the tail fallback leaves the suite green. Not reachable from the sheet
+     (`midpoint_index` can never return the last index — it always ties with index 0 and loses), so this is
+     an untested direction on a public function rather than a live defect.
+  4. Wording only: the floor's `matched` is read off `picks`, not "recomputed from the input" as the Log
+     says. Truncation applied while building `picks` (a cap on the band pick, on `scored`, or on the
+     unscored fallback) shrinks both sides equally and goes out as "6 segments in, 1 rows out" at exit 0 —
+     caught by other tests in every case I tried, but not by the floor.
+
+  **Mechanical.** `git ls-files -s`: `ops/score-review` 100755, the four `.py` 100644. Line counts 18 /
+  128 / 225 / 107 / 199, all under the 300 cap. Commits `99fdc23`, `7a1b247`, `3761b81` touch only paths in
+  `touches:` plus `queue/` files, which `.githooks/pre-commit` exempts explicitly. No secrets. T-0117 filed
+  in `queue/backlog/`. Scratch confined to the gitignored `.artifacts/rvw69/`.
