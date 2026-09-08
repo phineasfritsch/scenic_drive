@@ -53,11 +53,12 @@ fail-open on any conclusion I tried, and I did not invent a change to `ops/merge
 to show: **this task's diff does not touch `ops/merge` at all.**
 
 Why the task is still worth its number. The property was won once and then guarded by nothing: no test, no
-pin, no assertion anywhere. It survived only as prose in a merged task log, while three open tasks
-([[T-0115]], [[T-0065]], [[T-0044]]) queue up to edit `ops/merge` and one plausible edit - widening the
-passing set to quiet a noisy SKIPPED check - restores the exact defect with the suite green, CI green and the
-merge gate quietly saying yes. Per CLAUDE.md, *a check that has never been seen red is untested*; this one had
-never been seen at all.
+pin, no assertion anywhere. It survived only as prose in a merged task log, while **four** open tasks declare
+`touches: [ops/merge]` - [[T-0044]], [[T-0049]] and [[T-0097]] in `claimed/`, [[T-0115]] in `backlog/` - and
+one plausible edit, widening the passing set to quiet a noisy SKIPPED check, restores the exact defect with
+the suite green, CI green and the merge gate quietly saying yes. Per CLAUDE.md, *a check that has never been
+seen red is untested*; this one had never been seen at all. (Counted from the task files, not from memory:
+[[T-0065]] is `ops/merge-rehearse`, a different file, and is not one of the four.)
 
 So T-0034 delivers **P-OPS-03** and its assertion `ops/lib/check-merge-fail-closed`, which asserts, offline,
 through the repository's own recorded `gh` stub:
@@ -72,11 +73,20 @@ through the repository's own recorded `gh` stub:
    for it - without these, a gate that refused everything would satisfy points 1-4 trivially.
 
 **Not absorbed, deliberately.** [[T-0115]] (zero-file-diff merges) touches the same file and is a different
-task; nothing here fixes or pre-empts it. One forward dependency is worth naming for whoever takes it: if
-T-0115 adds a gate that refuses *before* the checks loop, P-OPS-03's positive control (point 6) goes red,
-because the fixture branch `task/T-0000-fail-closed-fixture` has no diff at all. That is the pin doing its
-job, not a bug in it - the fixture should be extended (give the stub a non-empty diff, or pass T-0115's
-override), never deleted. The check prints that instruction in its own failure message.
+task; nothing here fixes or pre-empts it. Three forward dependencies are worth naming for whoever takes those
+tasks, because a pin that surprises its neighbours gets deleted rather than read:
+
+* **T-0115.** If it adds a gate that refuses *before* the checks loop, P-OPS-03's positive control (point 6)
+  goes red, because the fixture branch `task/T-0000-fail-closed-fixture` has no diff at all. That is the pin
+  doing its job, not a bug in it - extend the fixture (give the stub a non-empty diff, or pass T-0115's own
+  override), never delete the control. The check prints that instruction in its own failure message.
+* **T-0097** (superseded check runs: the rollup carries one entry per *run*, not per check). Its fix lands in
+  exactly the classification path P-OPS-03 drives. The fixtures here use distinct check names and carry no
+  timestamps, so a dedup keyed on `name` leaves them alone; a dedup that *requires* a timestamp field would
+  make them red and should extend them instead.
+* **T-0049** also edits `pins/PINS.yaml` and adds its own `ops/lib/check-merge-reason-cap` in the same shape.
+  No id collision (its `pins_affected` is P-OPS-02, this is P-OPS-03), but the two PINS.yaml insertions will
+  need a textual merge - both land next to P-OPS-02.
 
 ## Log
 - 2026-09-08T13:37:04Z claimed by agent/fixer-T0034; lease until 2026-09-08T15:37:04Z
@@ -122,10 +132,29 @@ override), never deleted. The check prints that instruction in its own failure m
   naming P-OPS-03 and quoting the check's output, exit 1. Both files restored; that restore also reverted my
   own uncommitted PINS.yaml edit, which I re-applied - noting it because a demo script that runs
   `git checkout --` on a file you are editing will silently eat your work.
-- 2026-09-08T15:05:00Z Full `bash ops/check-pins` and `bash ops/test` results recorded below.
-- 2026-09-08T15:05:00Z Scope kept deliberately small: **no change to `ops/merge`**. Two things I found and did
+- 2026-09-08T15:10:00Z VERIFY, local (Windows dev box, this worktree):
+  `bash ops/test` -> first run `FAIL: services/api exists but vitest produced no report`, exit 1. Not caused by
+  this diff (it touches no JS): `services/api/node_modules` is gitignored and absent in a fresh worktree, the
+  known artefact already recorded in queue/done/T-0015 and T-0021. After `npm ci` (85 packages):
+  `TESTS linux=119/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0.
+  `bash ops/check-pins` -> `PINS ok=12 skipped=0 pending=2 expired=0 failed=0 tier=linux`, exit 0 (was ok=11
+  before P-OPS-03).  `bash ops/queue-check` -> `QUEUE OK (106 tasks)`, exit 0.
+- 2026-09-08T15:15:00Z VERIFY, Linux CI on PR #74 (run 34236840267): `pins-source-only` pass 47s, `core` pass
+  1m21s. `TESTS linux=119/76 ios=skipped failed=0 skipped=0`; `PINS ok=12 skipped=0 pending=2 expired=0
+  failed=0 tier=linux`; `QUEUE OK (108 tasks)`. The whole check-pins step took 2.05 s of wall clock there
+  (14:14:23.08 -> 14:14:25.13 in the job log), so P-OPS-03 costs ~1 s on Linux against 2m10s on this Windows
+  box - the cost is process creation on Windows, not the check.
+- 2026-09-08T15:20:00Z PR #74 opened with `--base main` (base `f02e19d`, NOT another task branch). Its
+  `base...head` diff is 3 files / 267 insertions - not one of the zero-file merges [[T-0115]] is about.
+- 2026-09-08T15:22:00Z Scope kept deliberately small: **no change to `ops/merge`**. Two things I found and did
   NOT fix, so they stay visible for their owners: (a) [[T-0115]]'s zero-file-diff gate will interact with
   P-OPS-03's positive control as described in the Brief; (b) `ops/merge`'s `task="$(... grep -oE 'T-[0-9]{4}')"`
   returns MULTIPLE lines for a branch naming two task ids, which then goes into `grep -q "^$task-"` as a
   two-pattern query - adjacent to [[T-0092]]/[[T-0044]] (embedded newlines in task-file values), not to this
   task's title, and not reproducible as a merge of the wrong thing.
+- 2026-09-08T15:25:00Z QUEUE STATE: left in `claimed/`, deliberately. Protocol step 6 pairs the `git mv` to
+  `review/` with setting `reviewer:`, and `queue.py check` fails a task in `review/` that has no reviewer
+  ("in review/ without a reviewer"), so moving it would mean inventing a reviewer identity - a fabricated
+  sign-off is the one thing this queue exists to prevent. **Next step for whoever assigns reviewers: set
+  `reviewer:` to an agent that is not `agent/fixer-T0034` and `git mv` this file to `queue/review/`.** PR #74
+  is open and green in the meantime.
