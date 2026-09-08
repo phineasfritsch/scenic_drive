@@ -181,3 +181,148 @@ because nothing protected it, and raised it 4000 -> 400000 in a one-line edit as
   Every `critical`, `high` and `medium` above is fixed on this branch, each with its own red-then-green
   transcript in the entries above this one. The `low` items are recorded rather than silently dropped;
   where one was substantive it was fixed and says so.
+
+- 2026-09-08 agent/claude-opus-5 (**fixer**, PR #53 second review round) — **the reviewer's one finding is
+  closed, the four smaller items are answered, and every check below is shown red then green with the exit
+  code taken without a pipe.** I did not transition this task; the same reviewer looks again.
+
+  **THE FINDING — `ops/lib/ro_grammar.py:66` and `:68`: the two length cases were bounds derived from the
+  value they bound.** Reproduced first, on `b23bc18`, before changing anything:
+
+        baseline                                              RO-GRAMMAR OK 29 cases    exit 0
+        read_only_problem("SELECT " + "1"*100000) is None  ->  False
+        MAX_SQL_LENGTH  4000 -> 400000  in ops/lib/ro_grammar.py
+          AND max_sql_length 4000 -> 400000 in ops/lib/ro_cases.json
+                                                              RO-GRAMMAR OK 29 cases    exit 0
+        read_only_problem("SELECT " + "1"*100000) is None  ->  True
+
+  Byte-identical output, exit 0, while a 100,007-character statement is accepted. `"SELECT " + "1," * cap`
+  is `2*cap + 7` characters and `"SELECT " + "1" * (cap - 10)` is `cap - 3`, so both assertions held for
+  every value of the cap. The reviewer is right, and it is the same construct commit `21fddc1` removed from
+  `services/api/test/ro.test.ts` four lines above the code it edited here.
+
+  **The fix is a magnitude bound made of fixed literals that live in `ops/lib/ro_cases.json`.** JSON has no
+  expressions, so a number stored there cannot be re-derived from the value it bounds by a later edit — which
+  is also what the `ro.test.ts` literal had only a comment protecting. Both implementations now run the same
+  probes: build a statement of exactly `chars` characters, assert accept/reject, and assert
+  `max(accept) <= MAX_SQL_LENGTH < min(reject)`. `6008` is the magnitude `ro.test.ts` has hardcoded since
+  before this PR; its own literal test is untouched and still there as a second, independent anchor.
+  The equality assertion against `ro_cases.json`'s cap stays, relabelled for what it actually is: a DRIFT
+  check, which both sides raised together will always satisfy.
+
+  **RED A — the finding itself. Coordinated raise, `ro_grammar.py` + `ro_cases.json`:**
+
+        GREEN  RO-GRAMMAR OK 30 cases                                                   exit 0
+        RED    RO-GRAMMAR FAIL 2/30
+                - MAX_SQL_LENGTH is 400000, outside the fixed probe bracket [3000, 6008)
+                  - the cap's MAGNITUDE moved, not just its spelling
+                - should REJECT a statement of exactly 6008 chars but accepted it       exit 1
+               100,007-char statement accepted? True
+        GREEN  restored                                                                 exit 0
+
+  **RED G — the same raise across all three files, through `ops/test`.** Before this fix the only thing that
+  went red was `services/api/test/ro.test.ts:21`; tier 1d printed `RO-GRAMMAR OK` and passed. Now the gate
+  fails first:
+
+        GREEN  bash ops/test  ->  RO-GRAMMAR OK 30 cases / TESTS linux=123/76 ... failed=0 / OK   exit 0
+        RED    export const MAX_SQL_LENGTH = 400000  (services/api/src/ro.ts)
+               MAX_SQL_LENGTH = 400000               (ops/lib/ro_grammar.py)
+               "max_sql_length": 400000              (ops/lib/ro_cases.json)
+               bash ops/test
+                 RO-GRAMMAR FAIL 2/30
+                  - MAX_SQL_LENGTH is 400000, outside the fixed probe bracket [3000, 6008) ...
+                  - should REJECT a statement of exactly 6008 chars but accepted it
+                 FAIL: ops/lib/ro_grammar.py --self-test exited 1
+                 TESTS linux=123/76 ios=skipped failed=3 skipped=0
+                 FAIL: 3 failing test(s)                                                          exit 1
+        GREEN  restored                                                                           exit 0
+
+  **The floors, each shown red on the population the check actually examines** — the probes it ran, not the
+  probes it was handed, and the shared cases present, not the file being present:
+
+        RED B  length_probes: []          RO-GRAMMAR FAIL 1/27  - ro_cases.json carries 0 length probe(s)
+                                          (expected >= 2) - with none of them nothing here bounds the
+                                          MAGNITUDE of MAX_SQL_LENGTH ...                          exit 1
+        RED C  one probe left             RO-GRAMMAR FAIL 1/27  - carries 1 length probe(s) ...     exit 1
+        RED F  two probes, both "reject"  RO-GRAMMAR FAIL 1/27  - length probes must bracket the cap:
+                                          0 accept and 2 reject probe(s) - probing one side only cannot
+                                          see the cap move the other way                            exit 1
+        RED E  reject probe 6008 -> 3500  RO-GRAMMAR FAIL 2/30  - MAX_SQL_LENGTH is 4000, outside the
+                                          fixed probe bracket [3000, 3500) ...                      exit 1
+        GREEN  restored after each                                                                  exit 0
+
+  Note the denominator: 27 when no probe ran, 30 when all three assertions ran. It counts the probes that
+  actually executed, not a constant 3, so a run that checked nothing cannot report the number of a run that
+  checked everything.
+
+  **RED H — a defect I found reviewing my own fix, before the reviewer could (`f1c787f`).** My first version
+  asserted only `problem is not None` for a reject probe, i.e. "refused for some reason". That would stay
+  green with the length rule deleted, if any other gate happened to catch the statement. The probe now
+  requires the length refusal, which is what `ro.test.ts` already asserts with `toMatch(/longer/)`:
+
+        RED    rename the refusal: return "statement too large" instead of f"longer than {N} chars"
+               RO-GRAMMAR FAIL 1/30
+                - rejected a 6008-char statement for the wrong reason: 'statement too large'
+                  - the length rule is what this probe exists to exercise                           exit 1
+        GREEN  restored                                                                             exit 0
+
+  **SMALLER ITEM 1 — `ops/lib/ro_grammar.py:44`, `MIN_CASES = 20` against 26 cases present.** Raised to 26.
+  Shown red, and shown green at the old floor to prove the old one was slack:
+
+        RED    delete six reject cases (26 -> 20)
+               RO-GRAMMAR FAIL 1/24 - only 20 shared case(s) in ro_cases.json (expected >= 26)      exit 1
+               the same deletion with MIN_CASES back at 20:
+               RO-GRAMMAR OK 24 cases                                                               exit 0
+        GREEN  restored                                                                             exit 0
+
+  **SMALLER ITEM 2 — `services/api/test/ro.test.ts:16-20`, a guard anchored on a comment.** The comment
+  stays (it explains the history) but it is no longer the only thing standing between that literal and
+  re-derivation: `ro_cases.json` now carries the same magnitudes as data, `ro.test.ts` runs three more tests
+  from them, and `ro_grammar.py` runs the same two probes plus the bracket. If a later edit re-derives the
+  6008 literal from `MAX_SQL_LENGTH`, the JSON-held probes still catch the raise on both sides. That is the
+  honest limit of the fix: nothing mechanically forbids writing a derived expression in that file; what is
+  now mechanical is that doing so no longer hides a cap raise.
+
+  **SMALLER ITEM 3 — brief bullet 4, `MAX_MONTHLY_UPSTREAM_CALLS` / P-COST-02.** Dropped silently by the
+  previous entries; answered here by running it, not by reading it. `T-0014` landed on `main` in the
+  meantime, so the pin is no longer `assertion: TODO`. It reads `value:` out of `pins/PINS.yaml` and compares
+  it to the literal `grep`ed out of `services/api/src/quota.ts` — two independent sources, not one read
+  twice — and additionally refuses any non-numeric right-hand side. Measured:
+
+        baseline                                          PINS ok=11 ... failed=0             exit 0
+        quota.ts 250_000 -> 900_000, pin value untouched   PINS ok=10 ... failed=1             exit 1
+                                                          - P-COST-02: MAX_MONTHLY_UPSTREAM_CALLS is a
+                                                            compile-time constant in the Worker equal to
+                                                            the value pinned here
+        quota.ts -> Number(globalThis.CAP ?? 250_000)      PINS ok=10 ... failed=1             exit 1
+        restored                                          PINS ok=11 ... failed=0             exit 0
+
+  So the failure mode the brief feared is not present there: mutating one side alone goes red, and making
+  the constant configurable goes red too. Nothing to fix; recorded so it stops being an open question.
+
+  **SMALLER ITEM 4 — the merge.** The branch was 91 commits behind `origin/main`. Merged at `aa5c365`, no
+  conflicts. Checked afterwards rather than assumed: tier 1d survives intact (`ops/test:64-89`) and every
+  change `main` made to `ops/test` survives with it — `junit_reports`, the `--list-failures` naming block and
+  the tier-1c pytest interpreter probe are all present, `ops/test` is 137 lines. The reviewer's warning about
+  "main's per-tier floors" does not apply: `main` has no per-tier floors, only `floor_linux` / `floor_ios`;
+  the per-tier ones are still T-0071's unlanded work, which is what the tier-1d comment already says.
+  One mode change came in with the merge and is correct: `ops/lib/ro_grammar.py` is now `100644`, because
+  T-0036 made every `ops/lib/*.py` a data file for P-OPS-01 (they are all invoked as `"$PY" ops/lib/x.py`,
+  never as `./ops/lib/x.py`). `ops/check-pins` agrees: `P-OPS-01 ... all modes correct`.
+
+  **Verify, post-merge, exit codes without a pipe:**
+
+        bash ops/test        RO-GRAMMAR OK 30 cases / TESTS linux=123/76 ios=skipped failed=0 skipped=0 / OK
+                                                                                                    exit 0
+        bash ops/check-pins  PINS ok=11 skipped=0 pending=2 expired=0 failed=0 tier=linux            exit 0
+        bash ops/sane        SANE OK                                                                 exit 0
+
+  Counts: python `29 -> 30` self-test assertions, vitest `35 -> 38` on this file's suite, `linux 123/76`
+  after the merge brought in the ETL and quota tiers. `git status --short` is empty at handoff; every
+  mutation above was reverted with `git checkout --` and re-measured green.
+
+  **A trap, recorded because I fell into it.** My first red/green script called
+  `git checkout -- ops/lib/ro_grammar.py ops/lib/ro_cases.json` to "restore" between mutations while the fix
+  was still uncommitted. It restored `HEAD`, i.e. it deleted the fix, and demos B through D then ran against
+  the old code and reported green. Only RED A was valid. The fix was committed first (`7889793`) and every
+  transcript above was re-taken after that, against a `restore()` that returns to the committed fix.
