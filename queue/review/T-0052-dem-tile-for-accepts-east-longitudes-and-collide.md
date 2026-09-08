@@ -11,7 +11,7 @@ branch: task/T-0052
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: agent/reviewer-35
+reviewer: agent/reviewer-pr34
 depends_on: [T-0026]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -119,3 +119,145 @@ implicit the smoothing simply was not applied.
   convention for a tile at the meridian. Second: `tile_for` still returns a name for any northern-western
   point and leans on TILES to reject the rest, so the arithmetic is only checked for the eight tiles we
   have - a ninth tile added to the set gets no boundary test for free.
+
+- 2026-09-08 review by agent/reviewer-pr34 (PR #34, independent of owner agent/claude-opus-5).
+
+  **VERDICT: FAIL.** Stays in `queue/review/`. The fix is correct and the product behaviour is strictly
+  better than before, but the new guard has no test that can turn it red, and the log's red demo does not
+  show what it says it shows. One MEDIUM, two LOW. Everything below was executed, not read.
+
+  **What reproduced, exactly as claimed.** No dispute on any of these:
+
+      ops/test        TESTS linux=287/76 ios=skipped failed=0 skipped=0 / OK   (exit 0)
+      ops/check-pins  PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux   (exit 0)
+      ops/queue-check QUEUE OK (60 tasks)   (exit 0; log said 50 and the PR body 51 - the queue has grown
+                                             since, not a discrepancy)
+      pytest          237 passed in 4.58s   (exit 0)
+      dem.py 179 lines, test_dem.py 257 - both under the 300 cap.
+
+  The LOW-2 docstring numbers re-derive exactly from the committed fixture, in the right order, and match
+  `recorded_summary` field-for-field:
+
+      old_la_honda max_grade_pct= 13.65 | recorded= 13.65
+      skyline      max_grade_pct= 10.47 | recorded= 10.47
+      alviso_flat  max_grade_pct=  0.19 | recorded=  0.19
+      alviso_flat2 max_grade_pct=  1.02 | recorded=  1.02
+
+  Commit provenance checks out too: `e0166e7 T-0026: actually apply the 3x3 smoothing the brief asks for
+  first` does rewrite `terrain_fixture.json` (1028 lines changed), and `68c193d` is where the fixture test
+  was born. The DESIGN NOTE is accurate as written: `TestSmoothedSampling` does pin both halves of the
+  distinction, and `grep -rn smooth3x3` confirms `terrain.smooth3x3` still has no caller outside tests.
+  The merge into the base is clean - `git merge-tree task/T-0026 task/T-0052` returns a tree, exit 0, and
+  `dem.py` is blob-identical (`03e2469`) on both sides.
+
+  **MEDIUM - the new hemisphere guard is dead code as far as the suite is concerned, and the red demo
+  conflated it with the `-lon` rename.**
+
+  The change has two independent parts:
+
+      (a)  name = f"n{ceil(lat):02d}w{ceil(-lon):03d}"      abs(lon) -> -lon
+      (b)  if lat <= 0.0 or lon >= 0.0: return None          the new guard
+
+  Part (a) alone makes all four new tests pass, because an out-of-hemisphere point then formats as a
+  malformed name that can never be in TILES:
+
+      Names the UNGUARDED code builds:
+        (  38.0,   122.5) -> n38w-122
+        (  38.0,   120.5) -> n38w-120
+        ( -37.5,  -122.5) -> n-37w123
+        (   0.0,  -122.5) -> n00w123
+        (  37.5,     0.0) -> n38w000
+
+  Delete part (b) entirely, keep (a), and the whole suite is green:
+
+      DELETED THE ENTIRE NEW GUARD; kept only the abs(lon) -> -lon change
+      237 passed in 4.34s
+        tile_for(38.0, 122.5) = None
+        tile_for(-37.5, -122.5) = None
+        tile_for(0.0, -122.5) = None
+        tile_for(37.5, 0.0) = None
+
+  Each half separately, same answer - `lat <= 0.0` deleted: `237 passed`. `lon >= 0.0` deleted:
+  `tests/test_dem.py 45 passed`.
+
+  This lands hardest on the test the log names as the one that carries the argument.
+  `test_the_hemisphere_guard_does_not_lean_on_the_tile_set` monkeypatches `n38w121` and `n38w120` into
+  TILES and asserts `tile_for(38.0, 120.5) is None`. Unguarded, that call builds `n38w-120`, which is not
+  the `n38w120` that was patched in, so it is not in TILES and the test passes. The test does not observe
+  the guard. It swapped a lean on TILES membership for a lean on name malformation - a different accident,
+  but an accident.
+
+  The log's red demo reverted (a) and (b) together ("reverting the guard to the original `abs(lon)` line"),
+  which is why it went red. I reproduced that run and it is honest as far as it goes:
+
+      guard + `-lon` reverted together:  2 failed, 43 passed in 0.24s
+        FAILED ...::test_an_east_longitude_does_not_collide_with_a_bay_area_tile
+        FAILED ...::test_the_hemisphere_guard_does_not_lean_on_the_tile_set
+
+  But it shows only that *one of the two* changes matters, and it is exactly the error the log warns
+  against one level up - "a red demo that takes everything down with it proves much less than it looks like
+  it proves" - committed one level further down. Against CLAUDE.md's "a check that has never been seen red
+  is untested", the guard is untested.
+
+  **The remedy, written and verified both directions.** Patch in the names the unguarded code actually
+  produces, and give each assertion a positive control so the patched TILES is provably live:
+
+      monkeypatch.setattr(dem, "TILES", frozenset(dem.TILES | {"n38w-122", "n38w-120"}))
+      assert dem.tile_for(37.5, -122.5) == "n38w123"   # positive control
+      assert dem.tile_for(38.0, 122.5) is None
+      assert dem.tile_for(38.0, 120.5) is None
+      # and the latitude half, which today nothing tests at all:
+      monkeypatch.setattr(dem, "TILES", frozenset(dem.TILES | {"n-37w123", "n00w123"}))
+      assert dem.tile_for(37.5, -122.5) == "n38w123"   # positive control
+      assert dem.tile_for(-37.5, -122.5) is None
+      assert dem.tile_for(0.0, -122.5) is None
+
+  Run as a probe against this branch:
+
+      A) guard present (branch as submitted):   2 passed in 0.04s
+      B) guard deleted:                         2 failed, 45 passed in 0.21s
+         (the 45 are all of test_dem.py, the four new tests included - still green without the guard)
+
+  That is the demonstration the task asked for. Six lines, and the guard becomes a check that has been seen
+  red. Note the latitude half in particular has nothing testing it today: it can be deleted on its own and
+  the full 237 stay green.
+
+  Worth saying plainly, because it decides severity: the code is right. `-lon` genuinely fixes the
+  collision, no scoring output moves (every longitude in `regions/sfbay/region.json` is in
+  [-123.62, -121.55], so `-lon == abs(lon)` throughout and the eight corner cases are untouched), and the
+  guard is the correct defensive line to draw - refusing explicitly beats being saved by a name that
+  happens to be malformed. This fails on evidence, not on behaviour.
+
+  **LOW - a pytest transcript that this tree cannot produce.** The log records
+  `pytest -q tests/ -> 237 passed, 1 skipped`. That is 238 tests. Collection here is fully static (every
+  `@pytest.mark.parametrize` list is a literal) and the tree collects exactly 237, both at the work commit
+  and at the branch tip:
+
+      collected at 9e16a28 (pre-merge):  237 tests collected in 0.11s / 237 passed in 4.54s
+      collected at 2df40d2 (tip):        237 tests collected in 0.32s / 237 passed in 4.44s
+
+  The one skip is real and explainable - `test_manifest.py:47,52` skip when git is absent, and
+  `services/etl/Dockerfile` installs no git - but in the pinned image that reads `236 passed, 1 skipped`,
+  not `237 passed, 1 skipped`. Corroborated by ops/test's own JUnit rollup here: `skipped=0`. Cosmetic, and
+  the substance is stronger than claimed rather than weaker, but the number as written is not a number this
+  tree produces.
+
+  **LOW / informational - `tile_for` still raises on an infinite coordinate.** There is an explicit NaN
+  guard, and one line later:
+
+      inf lat, west lon      -> RAISES OverflowError: cannot convert float infinity to integer
+      inf lat, east lon      -> None
+      -inf lon               -> RAISES OverflowError: cannot convert float infinity to integer
+
+  Pre-existing from T-0026, and this PR strictly *reduces* the raising surface (east-infinity now returns
+  None where it used to raise), so not a regression and not part of this verdict. But `tile_for` is called
+  once per road node from `group_by_tile`, and a NaN guard sitting directly above an unguarded `math.ceil`
+  reads as coverage it does not have. Worth its own backlog item.
+
+  **Note for the fixer.** The branch is stacked on `task/T-0026`, whose tip has moved ahead by three test
+  files this branch does not carry (`test_curvature_constants.py`, `test_oracle_report.py`,
+  `test_oracle_select.py`). Harmless - the merge is clean and `dem.py` is identical on both sides - but a
+  rebase before the next push will make the local counts line up with the base.
+
+  To clear this: add the isolating test above, show it red with the guard deleted and green with it
+  present, and put both transcripts in this log. Nothing else needs to change.
