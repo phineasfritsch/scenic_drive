@@ -423,3 +423,57 @@ implicit the smoothing simply was not applied.
   rewrites a pushed PR branch for a cosmetic count alignment, and the reviewer's own check says the merge is
   clean and `dem.py` is blob-identical on both sides. Merging the newer tip instead would pull three of
   T-0026's test files into this PR's diff, which is worse for the reviewer than the count mismatch is.
+
+- 2026-09-08 P-PROC-01 pass by agent/claude-opus-5 (fixer). **The reported diagnosis is wrong: nothing in
+  `done/` is missing a reviewer.** Task stays in review/ - I am the fixer, not the reviewer, so I have not
+  transitioned it.
+
+  **Why the pin's statement is not what failed.** P-PROC-01's assertion is `bash ops/queue-check >/dev/null`,
+  and `queue.py check` exits 1 on *any* protocol violation, so a red P-PROC-01 does not imply a reviewer
+  problem. Every task in `queue/done/` - all 16 on this branch, and all 19 on `origin/task/T-0026` - has a
+  `reviewer:` that differs from its `owner:`. I checked them one at a time. No reviewer field needed setting,
+  and inventing a name would have defeated the pin while turning the check green.
+
+  **What is actually red: a duplicate task id, and only in the merge.** This branch holds the task file at
+  `queue/review/T-0052-...md`. The PR's base branch is `task/T-0026` (not main), and it still carries a stale
+  `queue/claimed/T-0052-...md`, last touched by `24f3d8d claim T-0052`. Both copies survive into the PR merge:
+
+      duplicate id T-0052: queue/review/T-0052-...md and queue/claimed/T-0052-...md
+
+  It shows up only at merge because the two branches have a criss-cross pair of merge bases - `d46a65c`, where
+  `queue/claimed/T-0052` exists, and `e67572f` ("review: T-0026 PASS"), where no T-0052 file exists at all.
+  Local `git merge-tree` (ort, virtual base) resolves the deletion and looks clean; GitHub's
+  `refs/pull/34/merge` (0214fdf, parents 8cbb407 + 36d0693) keeps both. That is the whole reason this worktree
+  is green while CI is red, and why checking only this branch can never reproduce it.
+
+  **Red then green, exact commands and exit codes:**
+
+      # this branch alone - green, and therefore useless as a reproduction
+      bash ops/queue-check                                     exit=0  QUEUE OK (60 tasks)
+      bash ops/check-pins                                      exit=0  PINS ok=10 ... failed=0
+
+      # CI run 34225410885, job "core", on refs/pull/34/merge
+      bash ops/check-pins                                      exit=1  PINS ok=9 ... failed=1
+                                                                       P-PROC-01, output: (none)
+
+      # RED, reproduced locally against CI's exact merge ref, exported into gitignored .artifacts/
+      python .artifacts/pr34merge/ops/lib/queue.py check        exit=1  duplicate id T-0052
+      # GREEN, same tree, stale claimed copy removed - this is the entire fix
+      python .artifacts/pr34merge/ops/lib/queue.py check        exit=0  QUEUE OK (67 tasks)
+
+  **NOT FIXED on the branch.** The fix is a single deletion, but it cannot be made from this tree: this branch
+  does not contain `queue/claimed/T-0052-...md` to delete. Recording that deletion against the base needs a
+  merge commit (`git merge origin/task/T-0026`, then drop the stale claimed copy) - the same move `2df40d2`
+  made against main earlier in this task. Both attempts to run that merge were refused by this session's
+  permission classifier. I stopped there rather than push the same mutating git command through another shell
+  to get around the refusal, so the tree is unchanged by this pass apart from this entry, and PR #34 is still
+  red. Do not read the green `ops/queue-check` in the entry above as this task passing.
+
+  **For whoever picks it up** - either option is sufficient, neither invents a reviewer:
+    1. here: `git merge origin/task/T-0026`, then
+       `git rm queue/claimed/T-0052-dem-tile-for-accepts-east-longitudes-and-collide.md`, commit, push; or
+    2. on `task/T-0026`: `git rm` its stale `queue/claimed/T-0052-...md` - the copy that should have moved
+       when this task went to review/.
+  Option 2 is cleaner. The previous entry declined the merge ("Not done, deliberately") to keep three of
+  T-0026's test files out of this PR's diff; that is exactly what leaves the duplicate behind at merge time,
+  and option 2 removes the duplicate without paying that diff cost.
