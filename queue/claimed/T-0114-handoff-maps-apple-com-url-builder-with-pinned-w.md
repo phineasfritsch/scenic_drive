@@ -354,8 +354,12 @@ versions got wrong. A five-entry deny-list survives only for the lowercase spell
 names cannot see (`String` is allowed, `format:` is an argument label), and its name now claims exactly that
 and nothing more.
 
-The cost is honest and worth naming: the allow-list must be edited when a new type legitimately arrives.
-That is the gate working - the check fails first and the argument happens second.
+Two costs, both named rather than implied. The allow-list must be edited when a new type legitimately
+arrives - that is the gate working, the check fails first and the argument happens second. And the residue:
+the allow-list is complete for TYPE names, so no locale-bearing type can be reached without failing it, but
+the deny-list half is a list of spellings and cannot be complete. A locale consulted through a member of an
+already-allowed type (`Array`, `String`, the numeric types, the three URL types) would pass both. That is
+the whole remaining surface, and it is why the load-bearing half is the closed one.
 
 ### 4 (BLOCKING) - the first waypoint promoted to source
 

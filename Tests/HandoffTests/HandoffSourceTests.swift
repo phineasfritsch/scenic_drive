@@ -21,6 +21,12 @@ import Testing
 /// the lowercase spellings an allow-list of type names cannot see - `String` is allowed, `format:` is an
 /// argument label - and its name now claims nothing more than that.
 ///
+/// **What is still not covered, stated rather than implied.** The allow-list is complete for TYPE names: no
+/// locale-bearing type can be reached without failing it. The deny-list half is not complete and cannot be,
+/// because it is a list of spellings; a locale consulted through a member of an already-allowed type would
+/// pass both checks. That residue is small (the allowed types are `Array`, `String`, the numeric types and
+/// three URL types) and it is the reason the load-bearing half is the closed one.
+///
 /// Anchored on identifiers, which CLAUDE.md permits and prefers, and never on a comment: whole-line comments
 /// are stripped first, because `AppleMapsDirections.swift` argues about `String(format:)` and `Locale` at
 /// length to explain why they are gone.
