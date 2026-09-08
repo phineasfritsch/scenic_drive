@@ -70,7 +70,7 @@ excluded set is contaminated with ways that were always going to miss.
   They are not abandoned: every one is finished work sitting on a branch waiting for a merge that has not been
   possible. `ops/queue-sweep` would move all 32 back to `ready/` and set `owner: None` — which is exactly the
   null-owner state T-0068 was filed to reject — on tasks whose branches say `review/` or `done/`, multiplying
-  the task-file divergence this session has spent hours repairing. Filed separately as [[T-0083]].
+  the task-file divergence this session has spent hours repairing. Filed separately as [[T-0082]].
 
   **[[T-0032]] is the fix and it is already written**, sitting unmerged: it releases exclusive locks on the
   claim -> review transition, so a completed task stops holding a serial resource. This task is therefore a
