@@ -125,3 +125,12 @@
   pending: T-0013
   owner: agent/claude-opus-5
   added: 2026-09-07
+
+- id: P-TEST-02
+  statement: No assertion takes its expected value from the thing it checks
+  why_no_test_catches_it: It is the tests that are wrong, so every suite is green by construction and no amount of running them helps. Found EIGHT times in one session by six different reviewers, four of those inside tests written to close a previous instance - and three more survived in LambdaSearchTests after the defect had been named in that exact file and the fix commit described it at length. A person cannot see this shape in their own work; this check found those three in its first run against real history.
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "bash ops/check-tests"
+  owner: agent/claude-opus-5
+  added: 2026-09-08
