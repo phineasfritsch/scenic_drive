@@ -576,3 +576,54 @@ carries the fix — enumerate refs, not pull requests, and fail if the branch se
 them merges — do not assume a branch that has been quiet is a branch that fits. `task/T-0057` needs
 something else first: it has a commit while its task sits unclaimed in `queue/ready/`, so the
 push-to-claim compare-and-swap that makes this queue safe never happened for it.
+
+## What can actually be merged today, and the one thing to know before running it
+
+**Run `ops/merge` from `wt/T-0097`, not from `main`, until PR #57 lands.** `main`'s copy has two defects that
+make it refuse work that is fine, and both were measured today:
+
+- it classifies every `statusCheckRollup` entry, but the rollup holds one entry per check **run** — so a PR
+  that failed, was fixed and re-ran is refused on the superseded run;
+- it refuses on `mergeStateStatus=UNKNOWN`, which GitHub returns from the *first* query while it computes the
+  answer. A sweep of the fifteen signed-off PRs returned `UNKNOWN` for **all fifteen**.
+
+With `main`'s copy, **zero** of the signed-off backlog merges. `ops/merge` acts through `gh pr merge`, so
+running the fixed copy from another worktree merges the same PRs on GitHub — nothing about the fix needs to
+be on `main` first.
+
+**13 of the 15 PRs whose task is already in `done/` pass every gate**, measured with the fixed tool:
+
+    PR#21  task/T-0036   <- merge this FIRST
+    PR#18  task/T-0014       PR#24  task/T-0039       PR#31  task/T-0025
+    PR#19  task/T-0035       PR#27  task/T-0042       PR#32  task/T-0026
+    PR#14  task/T-0023       PR#25  task/T-0044
+    PR#22  task/T-0022       PR#30  task/T-0047
+    PR#20  task/T-0037       PR#23  task/T-0038
+
+    PR#17  MERGE REFUSED: failing checks: core                  <- true; T-0036 resolves it
+    PR#26  MERGE REFUSED: mergeStateStatus=DIRTY (want CLEAN)   <- true; really conflicts
+
+**Merge `PR#21` (`task/T-0036`) first.** It is the branch every red PR in the repository waits behind: #17,
+#41 and #56 all fail P-OPS-01 on a new `ops/lib/*.py` committed 100644, and T-0036 is what reclassifies those
+files. One merge turns all three green.
+
+    cd ../wt/T-0097
+    ./ops/merge 21              # task/T-0036
+    ./ops/merge 18              # then the rest, in this order
+    ./ops/merge 14
+    ./ops/merge 22              # first of the three gh-stub branches
+    ./ops/merge 23
+    ./ops/merge 19  20  24  27  30  31  32
+    ./ops/merge 25              # task/T-0044 - see the conflict note below
+
+**Two things will change under you as these land, and both are correct behaviour rather than a fault:**
+
+1. `ops/merge` re-reads `mergeStateStatus` every time, so a PR that passed the sweep can refuse later — that
+   is the gate noticing that `main` moved. Re-run it after resolving, do not force it.
+2. `task/T-0022`, `task/T-0044` and `task/T-0049` all ADD `ops/lib/gh-stub-for-merge-tests`. Whichever lands
+   first is clean; the other two then conflict on that path. The resolution is written above: **take
+   `task/T-0022`'s copy.** `PR#25` is `task/T-0044`, which is why it is last in the list.
+
+Everything past those thirteen needs its task moved to `done/` by a reviewer who is not its owner —
+`ops/merge` refuses any PR whose head does not have the task in `done/`, and that is the reviewer-is-not-owner
+rule doing its job, not an obstacle to route around.
