@@ -1,13 +1,13 @@
 ---
 id: T-0065
 title: ops/merge-rehearse: prove the merge order before the window opens
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-08T00:11:07Z
+lease_expires_at: 2026-09-08T02:11:07Z
 worktree: null
-branch: null
+branch: task/T-0065
 exclusive: []
 touches: [ops/merge-rehearse]
 pins_affected: []
@@ -51,3 +51,4 @@ this class of problem is not in the repository. Promote it to `ops/merge-rehears
 
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 after the hand-rolled version paid for itself four times in one run.
+- 2026-09-08T00:11:07Z claimed by agent/unknown; lease until 2026-09-08T02:11:07Z
