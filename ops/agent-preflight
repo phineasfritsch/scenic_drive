@@ -6,6 +6,10 @@
 # the toolchain state of whatever repo the caller happened to be standing in, which is the one report in
 # this repo that must never be about a different tree (T-0077).
 set -uo pipefail
+# THE ENVIRONMENT IS AN ALLOWLIST (T-0086): boot.sh re-execs through `env -i`, so this report is
+# about a known environment rather than the caller's. SCENIC_TOOLCHAIN=1 is declared because the
+# whole point of the report is swift/node/docker, which live only on the caller's PATH.
+SCENIC_TOOLCHAIN=1
 source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
 scenic_cd_root
 fail=0

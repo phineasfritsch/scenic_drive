@@ -20,6 +20,14 @@
 # not only this one. A hostile operator who can set the environment can also edit this file; the reviewer
 # and the pre-commit hook are the defence there, not a shell test. CI never sets PYTHON
 # (.github/workflows/linux-core.yml installs python3 and runs `bash ops/check-pins` with none in scope).
+#
+# THE ENVIRONMENT IS AN ALLOWLIST, ENFORCED BY A RE-EXEC IN boot.sh (T-0086). PYTHONPATH pointing at a
+# twelve-line sitecustomize.py printed `PINS ok=99 skipped=0 pending=0 expired=0 failed=0 tier=linux` with
+# zero pins loaded and zero assertions run, and APPDATA pointing at a usercustomize.py did the same under a
+# name containing neither GIT nor PYTHON. SCENIC_TOOLCHAIN=1 is declared here because pin assertions are
+# arbitrary shell - P-SRC-06 runs `swift test` - and swift exists only on the caller's PATH; boot.sh
+# appends that PATH AFTER the trusted directories, so it can supply swift and cannot replace git or grep.
+SCENIC_TOOLCHAIN=1
 source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
 scenic_python || { echo "PINS FAIL: refusing to exit 0 without loading a single pin, let alone running an assertion." >&2; exit 2; }
 exec "$SCENIC_PY" "$SCENIC_ROOT/ops/lib/pins.py" "$@"

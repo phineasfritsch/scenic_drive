@@ -20,6 +20,13 @@
 # requested WITH pytest, so a python that cannot run it is rejected by name, path and version up front
 # instead of surfacing three tiers later as a missing file.
 set -uo pipefail
+# THE ENVIRONMENT IS AN ALLOWLIST (T-0086): boot.sh re-execs this script through `env -i` with a
+# fixed set of names, so PYTHONPATH/GIT_CONFIG_PARAMETERS/APPDATA and every name nobody has thought
+# of yet are simply absent. SCENIC_TOOLCHAIN=1 is declared because swift, node, npx, xcodebuild and
+# docker exist only on the caller's PATH; boot.sh appends it AFTER the trusted directories, so a
+# caller can still supply a toolchain and can no longer replace git, grep or the interpreter. That a
+# shimmed `swift` could still write a junit report is why the floors are committed files, not counts.
+SCENIC_TOOLCHAIN=1
 source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
 scenic_cd_root
 if [[ -f services/etl/pyproject.toml ]]; then scenic_python pytest || exit 2; else scenic_python || exit 2; fi

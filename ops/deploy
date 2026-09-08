@@ -8,6 +8,10 @@
 # have deployed whatever services/api the caller was standing next to, and stamped it with that repo's
 # HEAD sha (T-0077). A deploy that can be aimed by choosing a working directory is not a gate.
 set -euo pipefail
+# THE ENVIRONMENT IS AN ALLOWLIST (T-0086): boot.sh re-execs through `env -i`. SCENIC_TOOLCHAIN=1 is
+# declared because `npx wrangler` is on the caller's PATH and nowhere trusted; it is appended after
+# the trusted directories. DEPLOY_UNLOCKED and API_URL are forwarded because boot.sh names them.
+SCENIC_TOOLCHAIN=1
 source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
 scenic_cd_root
 scenic_python || exit 2

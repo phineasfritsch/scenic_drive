@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T10:04:59Z
 worktree: wt/T-0086
 branch: task/T-0086
 exclusive: []
-touches: [ops/lib/boot.sh]
+touches: [ops/lib/boot.sh, ops/lib/seal.sh, ops/agent-preflight, ops/check-pins, ops/deploy, ops/test]
 pins_affected: []
 reviewer: null
 depends_on: []
