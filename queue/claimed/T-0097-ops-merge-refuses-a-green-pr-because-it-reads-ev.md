@@ -14,7 +14,14 @@ pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins, ops/merge-selftest]
-acceptance: []
+acceptance:
+  - "bash ops/merge-selftest -> ok F1..F10 then MERGE-SELFTEST OK: 10 cases, 4 in-flight, exit 0"
+  - "RED regression (the version reviewer-pr57 failed): git show 6db0597:ops/merge > .artifacts/m.sh; bash ops/merge-selftest .artifacts/m.sh -> FAIL F2 (exit=0 want=1, it MERGES with core in flight), FAIL F3, FAIL F5, FAIL F10; MERGE-SELFTEST FAIL: 4 of 10 case(s) failed, exit 1"
+  - "RED population floor: copy ops/merge-selftest with the four `add F2`..`add F5` blocks deleted -> every remaining case prints ok, and it still fails: 'only 6 case(s) asserted (floor 10)' + 'only 0 in-flight case(s) asserted (floor 4)', exit 1"
+  - "RED empty population: copy with the whole case table deleted -> 'only 0 case(s) asserted (floor 10)' + 'only 0 in-flight case(s) asserted (floor 4)' + 'the table must contain both a case that merges and a case that refuses (pass=0 refuse=0)', exit 1"
+  - "CR claim refuted: failed=\"$($PY -c '<the pre-fix expression>' \"$rollup\")\"; printf '%s' \"$failed\" | od -c -> c o r e, 4 bytes, no CR - command substitution strips the CRLF, so the replaced code did not carry it"
+  - "bash ops/check-pins -> PINS ok=9 skipped=0 pending=3 expired=0 failed=0, exit 0"
+  - "bash ops/queue-check -> QUEUE OK, exit 0"
 ---
 ## Brief
 
