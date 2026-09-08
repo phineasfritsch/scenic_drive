@@ -119,3 +119,101 @@ repository's signature defect in its most expensive form.
   since "does this look like a road with 82% canopy" is answerable from a photograph and the terms exist.
 
         services/etl  282 passed  (25 of them new)
+
+- 2026-09-08 — **fix pass on the PR #69 review (FAIL, three findings). All three reproduced first; all three
+  closed. Nothing refuted: the reviewer was right about every one.**
+
+  **Finding 1 — the length-midpoint was anchored on prose.** Reproduced before touching anything: changing
+  `review_sheet.py` to `sv.look_along(pts, 0)` and running the whole suite gave
+
+        25 new tests, exit 0                    - nothing noticed, every link on the first node of the way
+
+  The unit was pinned (`test_midpoint_is_by_length_not_by_index`); the one call site where the property
+  matters was not, while `review_sheet.py` printed "at its length-midpoint" into every page it emitted. Two
+  tests now stand on the emitted URL rather than on the sentence. `w/12` is the only SEGS fixture with three
+  points, and its legs are ~506 m and ~463 m, so its middle node is 22 m from the half-length and each end is
+  485 m away; the sheet must carry `viewpoint=34.130100,-118.399000` and must not carry either junction. A
+  second fixture (`SKEWED`: four points 92 m apart, then one 8.9 km away) separates the length midpoint
+  (index 3) from the INDEX midpoint (index 2) — the arithmetic is hand-derived in the comment above it, not
+  read back off the implementation.
+
+  **Finding 2 — `select()` truncated while its docstring said it did not.** Reproduced against the public
+  API, exactly as reported:
+
+        unscored, distinct ids   5 of 5
+        unscored, no id field    1 of 5      all share k = None
+        6 pieces of one way      1 of 6      rendered, exit 0, no refusal
+        6 SCORED pieces, band    1 of 6      (mine - the same collapse on the scored path)
+
+  The dedup key is now the segment's POSITION in the input (`_position_key`), which is unique by
+  construction; `id` never was, and nothing in the corpus contract says it is. Two further things came with
+  it:
+
+  * **The floor is the population the criteria matched, not "at least one row".** `if not rows: raise`
+    catches 400 → 0 and waves through 400 → 1. `select` now counts the rows it kept against the segments the
+    criteria matched, recomputed from the input, and refuses on a shortfall. Through the tool:
+
+        ops/score-review pieces.json (dedup key = id)   SCORE-REVIEW REFUSED: selection matched 6
+                                                        segment(s) but kept 1 ...            exit 2
+        ops/score-review pieces.json (fixed)            wrote ... (6 segments in, 6 rows out) exit 0
+
+  * **The same collapse one layer down, which the review did not reach.** The radio GROUP was named
+    `v_<id>`, and a browser groups radios by name — so six pieces of `w/12`, or six segments with no id all
+    rendering `?`, shared ONE group: answering row 6 silently un-answered row 1. The group is now named
+    after the row.
+
+  **Finding 3 — the verdict is recorded nowhere, and that was not disclosed. It still is not recorded; it is
+  now disclosed in the three places that matter, and the page itself is the loudest of them.**
+
+  Greps of a rendered sheet still return `<form` 0, `<script` 0, `localStorage` 0, `download` 0. What
+  changed is that the sheet no longer pretends otherwise: every page prints `NOT_RECORDED_NOTICE` —
+  *"Verdicts on this page are not recorded anywhere: nothing here writes them to a file, so closing the tab
+  loses them"* — the module docstring's opening paragraph says the same, and [[T-0117]] is filed with the
+  execution problem written down rather than left for the next agent to rediscover. Brief item 4 (seed from
+  term disagreements) is in the same task; it wants [[T-0029]], because "one term is extreme" has no meaning
+  until the terms are normalised and choosing thresholds now would be inventing product.
+
+  **Why not just build the sink, since that would close the finding outright.** A static page can only
+  persist through JavaScript, and this suite cannot execute the sheet's JavaScript: the ETL image ships
+  python3/osmium/gdal and no node, so a node-driven test would SKIP exactly where the pipeline runs, and
+  `assert "localStorage" in html` pins a string rather than a behaviour. Shipping untested browser code
+  under a green suite is the defect this repository exists to catch, so the honest move was to defer it
+  loudly. `test_the_sheet_does_not_pretend_to_record_the_verdict` encodes that: it passes if the sheet
+  carries a real recording mechanism OR admits it has none, and fails only if the page starts lying.
+
+  **Red demos — every new guard broken on purpose, one at a time, restored between each (driver at
+  `.artifacts/fix0108/reddemo.py`; the source file's sha256 is compared before and after every break).**
+
+        BASELINE                                                    exit=0  sha=68f464172463
+        render stands on point 0 (the shipped defect)               exit=1  ..._not_on_a_junction,
+                                                                            ..._not_the_index_midpoint
+        render stands on the INDEX midpoint                         exit=1  ..._not_the_index_midpoint
+        render stands on the last node                              exit=1  both midpoint tests
+        dedup key back to `id` (the shipped defect)                 exit=1  ..._shares_one_id,
+                                                                            ..._no_id_at_all, ..._refuses...
+        truncation floor deleted                                    exit=1  ..._refuses_rather_than_short...
+        radio group named after the id again                        exit=1  ..._own_radio_group...
+        the not-recorded notice dropped from the page               exit=1  ..._does_not_pretend_to_record...
+        empty-input refusal deleted                                 exit=1  test_empty_input_refuses
+        none-selected refusal deleted                               exit=1  test_a_selection_that_matches...
+        RESTORED                                                    exit=0  sha=68f464172463
+
+  The last two are the empty-population end of the same floor, re-demonstrated: 0 rows refuses, and now so
+  does 1 row where 6 matched.
+
+  **Verify.**
+
+        cd services/etl && python -m pytest     425 passed          exit 0   (was 418; 7 new tests)
+        bash ops/check-pins                     PINS ok=11 ... failed=0      exit 0
+        bash ops/sane                           SANE OK                      exit 0
+        bash ops/queue-check                    QUEUE OK (100 tasks)         exit 0
+        bash ops/test                           FAIL: services/api exists but vitest produced no report
+                                                                             exit 1
+
+  **`ops/test` is red and it is not mine.** Identical message and exit 1 on `main` in the same shell
+  (`bash ops/test >/dev/null 2>&1; echo $?` → 1 from the main checkout): there is no vitest install for
+  `services/api` on this box, so the Worker tier reports nothing. It is in this task's `verify:` list and it
+  cannot be green here.
+
+  Line counts after the fix: `review_sheet.py` 225, `test_review_sheet.py` 199, both under the 300 cap.
+  Scratch confined to the gitignored `.artifacts/fix0108/`.
