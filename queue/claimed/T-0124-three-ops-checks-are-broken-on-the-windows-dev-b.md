@@ -1,13 +1,13 @@
 ---
 id: T-0124
 title: three ops checks are broken on the Windows dev box because mktemp gives a path Windows python cannot open
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T17:25:15Z
+lease_expires_at: 2026-09-08T19:25:15Z
+worktree: .worktrees/T-0124
+branch: task/T-0124
 exclusive: []
 touches: [ops/lib/check-lock-lifecycle, ops/lib/check-brief-required, ops/lib/check-failure-naming, ops/lib/tmpdir.sh]
 pins_affected: []
@@ -74,3 +74,4 @@ the temp-directory use in favour of writing into the worktree - these checks bui
 purpose, and a check that mutates the tree it is checking is a worse problem than this one.
 
 ## Log
+- 2026-09-08T17:25:15Z claimed by agent/claude-opus-5; lease until 2026-09-08T19:25:15Z
