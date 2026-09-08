@@ -70,7 +70,14 @@ task whose work is complete.
                 exclusive locks released: 1
 
         swept tasks whose branch EXISTS (work in flight):   29
-        swept tasks with no branch at all (abandoned):       1
+        swept tasks with no branch at all (abandoned):       0
+
+  (An earlier version of this table wrote `1` on the second row, summing to 30 against 29 moved. Reported
+  as [medium] by the reviewer of PR #51 and confirmed: the rows had been counted over the whole post-sweep
+  `ready/` directory rather than over the swept set, so the extra file was **T-0041**, which was already in
+  `ready/` before the sweep, was never claimed and was never swept. The reviewer reproduced the same
+  off-by-one at a different scale — 32 moved, 32 with branches, plus the same single pre-existing T-0041.
+  The conclusion is unchanged and is now arithmetically consistent: no swept task lacked a branch.)
 
   **Twenty-nine of twenty-nine.** Not one expired lease belonged to an abandoned task; every one was pushed
   work waiting on a merge. The sweeper would have set `owner: None` on all of them — the state [[T-0068]]
