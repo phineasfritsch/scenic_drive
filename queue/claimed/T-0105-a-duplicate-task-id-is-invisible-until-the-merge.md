@@ -105,3 +105,18 @@ duplicates. That is precisely the mistake `next_id()` made ([[T-0101]]): the sam
   **What this does not do:** it detects, it does not prevent. [[T-0101]] is the prevention half. Both are
   needed, and today proved it — the third collision happened *after* T-0101 was filed, because the fix is
   not merged.
+
+- 2026-09-08 — **green, on live data, after the collision it found was repaired.**
+
+        RED    IDS FAIL: 1 id(s) name different work on different refs   (T-0076)   real exit 1
+        GREEN  IDS OK (105 ids across 75 refs; no id names two different tasks)     real exit 0
+
+  The repair was `task/T-0071`'s new task being renumbered `T-0076 -> T-0106`. So the cycle here is not a
+  fixture: the check found a real collision, a real branch was corrected because of it, and the same command
+  then went green across all 75 refs. It is also the first of the three collisions found by a tool rather
+  than by a human reading two agents' output side by side.
+
+  Worth stating what the green does NOT prove: 75 refs carry 105 ids and the vast majority of those ids
+  appear on many refs at once. `IDS OK` means no id carries two different slugs — it says nothing about
+  whether the work behind any id is correct, and the count is large because branches share history, not
+  because 105 tasks are healthy.
