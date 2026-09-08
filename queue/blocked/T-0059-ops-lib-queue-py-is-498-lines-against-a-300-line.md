@@ -1,7 +1,7 @@
 ---
 id: T-0059
 title: ops/lib/queue.py is 498 lines against a 300-line cap that cannot see it
-state: backlog
+state: blocked
 owner: null
 owner_session: null
 claimed_at: null
@@ -49,3 +49,36 @@ The seams are already visible in the file's own section comments:
   merge order.
 
 ## Log
+
+- 2026-09-08 agent/claude-opus-5 — moved to blocked/, on this task's own precondition rather than on judgement.
+
+  The brief says: *"Do NOT do it while several branches hold `ops/lib/queue.py` in their `touches:`. Sequence
+  it against the merge order."* Six unmerged branches hold it right now:
+
+        T-0032  touches: [ops/lib/queue.py, queue/]
+        T-0039  touches: [.githooks/pre-commit, ops/lib/queue.py]
+        T-0056  touches: [ops/lib/queue.py, ops/claim]
+        T-0068  touches: [ops/lib/queue.py]
+        T-0070  touches: [ops/lib/queue.py]
+        T-0073  touches: [ops/lib/queue.py]
+
+  Splitting the file into a package now would turn every one of those into a rename/modify conflict resolved by
+  hand, six times, against a file whose structure had changed underneath them. That is precisely the
+  "merge grenade for parallel agents" P-SRC-02's own `why_no_test_catches_it` describes, and this session has
+  spent a good deal of time on the cheaper version of it (a task file at two paths). Doing it anyway would be
+  trading a known cost for a larger one to close a check I control the exemption for.
+
+  **The file is worse than the brief records.** It said 498 lines. It is now **653** on `task/T-0070`:
+  T-0032 took it 415 -> 498, T-0073's round-two fix took it to 615, and my own T-0070 added 38 more. Every one
+  of those was a real fix to a real hole, and each knowingly grew a file already double the cap because the
+  alternative was bundling a refactor of the queue's core into a task about something else. That reasoning is
+  still right and it does not scale: the next command added to this file should be the one that stops.
+
+  **Second precondition, and it is now satisfiable in a way it was not before.** The brief warns that
+  `ops/lib/check-brief-required` and `ops/lib/check-lock-lifecycle` copy `queue.py` into a throwaway repo and
+  run it, so a package breaks that copy and both must be updated in the same commit. Neither file is on `main`
+  — they arrive with the T-0056 / T-0032 chain. So the split must land *after* those merge anyway, which is
+  the same ordering this entry is blocked on. The two constraints agree.
+
+  Unblocks when the six branches above are merged. `ops/merge-rehearse` already derives an ordering rule for
+  the deletion case; this is the rename case and the same argument applies.
