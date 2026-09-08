@@ -300,3 +300,52 @@ Section 4 hedged every trap with *"provided CI runs, which is T-0053"*. The repo
 enabled as of 2026-09-07, branch protection requires `core` and `pins-source-only`, and both are green on
 `main` (16 and 5 steps respectively). `enforce_admins` is deliberately **false**, because `ops/claim` pushes
 the claim commit straight to `main` and a required-review rule would deadlock the queue. T-0053 can close.
+
+## 10. The `gh-stub` conflict, resolved and executed rather than reasoned
+
+Sections 1 and "The one real conflict" both describe this as three branches adding the same path with
+different content. Measured, that is wrong in a way that makes it easier:
+
+    task/T-0021   100755 blob 0002d211   ops/lib/gh-stub-for-merge-tests
+    task/T-0022   100755 blob e00393e1
+    task/T-0044   100755 blob e00393e1
+    task/T-0049   100755 blob e00393e1
+
+T-0022, T-0044 and T-0049 carry the **byte-identical** blob at the **same mode**, and git auto-resolves an
+identical ADD/ADD. So there is **one** conflict, not three: T-0021's copy against the other three's. Once the
+first of them merges, the rest are clean.
+
+T-0022's copy is a strict superset — it adds `STUB_HEAD_REF` and `STUB_DONE_NAMES` and a
+`contents/queue/done` case, and both new defaults reproduce T-0021's fixed behaviour exactly
+(`${STUB_HEAD_REF:-tmp/stub-no-task}` against T-0021's literal `tmp/stub-no-task`). **Resolution: take
+T-0022's copy** — as previously written, and now performed:
+
+    reset --hard origin/main
+    merge task/T-0036, task/T-0021              -> clean
+    merge task/T-0022                           -> CONFLICT: ops/lib/gh-stub-for-merge-tests
+      resolve to T-0022's copy                  -> e00393e1
+    merge task/T-0044                           -> clean
+    merge task/T-0049                           -> clean
+
+and every gate run on the resolved tree:
+
+    check-merge-reason-cap  P-OPS-02: ... (15 cases: ...)                    exit 0
+    check-exec-bits         P-OPS-01: 27 files, 20 required present, all modes correct
+    check-line-cap          P-SRC-02: 9 Swift files tracked, none over 300 lines
+    queue-check             QUEUE OK (66 tasks)
+    duplicate pin ids       none
+
+`ops/lib/check-merge-reason-cap` is the **only executable caller** of the stub on any branch
+(`git grep -l gh-stub` across all four: T-0021's and T-0022's uses are hand-run demonstrations recorded in
+their task logs). It is T-0049's pin, it exercises the resolved stub, and it passes. That is the evidence
+that the resolution satisfies both callers rather than whichever one the resolver was looking at.
+
+**So the whole `ops/merge` chain has a proven order**, and it is not the one in "The order" above — T-0036
+moved to the front because both T-0021 and T-0049 add an `ops/lib/*.py`:
+
+    main -> T-0036 -> T-0021 -> T-0022 (resolve stub to T-0022's copy) -> T-0044 -> T-0049
+
+`ops/merge-rehearse` derives the T-0036 edges itself now, by asking which branches add an `ops/lib/*.py`,
+rather than carrying a list. The first version hard-coded `task/T-0021` because that was the branch that had
+been measured; `--pairwise` then found `task/T-0049` failing identically on
+`ops/lib/merge_reason_cap_assert.py`, which the hard-coded pair said nothing about.
