@@ -1,4 +1,11 @@
-r"""The four parser guards in `etl.oracle`, fed the malformed Placemarks nothing in the suite fed them.
+r"""Every reader in the oracle's two modules, fed the input nothing in the suite had fed it.
+
+Three readers: the KML Placemark parser in `etl.oracle` (`collections` and `kml_geometry`), the osmium-export
+parser in `etl.oracle_select` (`load_export`), and the manifest parser `etl.oracle.pinned_digest`. Each one
+consumes a file this repository does not write, and each one had been tested only on input this repository
+DID write - well-formed, complete, and produced by the same tests that then asserted about it.
+
+THE FOUR PARSER GUARDS in `etl.oracle`, first.
 
 `ops/etl-mutation` turned each of these `continue`s into `pass` and the suite stayed green:
 
@@ -126,3 +133,83 @@ class TestAMalformedNeighbourDoesNotStopTheRebuild:
         n, stages = sel.build(fixture, export, kmz)
         assert (n, stages["single_way"]) == (1, 2), "only the good collection and the geometry-less one"
         assert [w["way_id"] for w in json.loads(fixture.read_text(encoding="utf-8"))["ways"]] == [GOOD]
+
+
+class TestTheExportReaderTakesTheShapesTheFormatAllows:
+    """`oracle_select.load_export` is the same defect in the other module: two opening guards and three
+    defaults that no test had ever reached, because every export the suite wrote was a few clean objects."""
+
+    def test_a_plain_geojson_collection_reads_the_same_as_a_sequence(self, tmp_path):
+        r"""The guards are why one reader takes `-f geojsonseq` AND `-f geojson`: a FeatureCollection's
+        opening `{"type": "FeatureCollection", "features": [` starts with `{` and is not valid JSON on its
+        own, so the `except json.JSONDecodeError: continue` skips it; its closing `]}` does not start with
+        `{`; and each member line's trailing comma is what `rstrip(",")` removes.
+
+        The `or {}` defaults are RFC 7946, not paranoia: a Feature's `geometry` MAY be null and its
+        `properties` MAY be null. The id-less features are the other real shape - an export produced without
+        `--add-unique-id=type_id` carries no `id` at all - and the LineString one is what stops
+        `ident.startswith("w")` from being dead: without it, ANY LineString feature is read as a way and
+        `int(ident[1:])` is `int("")`.
+
+        The `or ""` on the id itself is the one this case does NOT kill, and the attempt is what showed why.
+        The reasoning was that dropping it leaves an id-less feature as `str(None)`, and that
+        `"None".startswith("n")` would then collect it as a tagged node - but `str(None)` is `"None"` with a
+        capital N, so it begins with neither `"w"` nor `"n"` and both branches skip it exactly as the empty
+        string does. Every id that reaches a branch is a string beginning `w` or `n`, whose `str()` is
+        itself; every falsy one stringifies to something that reaches neither. That mutation is equivalent,
+        and it is recorded as one rather than chased.
+        """
+        members = [
+            json.dumps({"type": "Feature", "id": "w1", "geometry": None,
+                        "properties": {"highway": "residential"}}),
+            json.dumps({"type": "Feature", "id": "w2",
+                        "geometry": {"type": "LineString", "coordinates": [[-72.8, 44.0], [-72.79, 44.01]]},
+                        "properties": None}),
+            json.dumps({"type": "Feature",
+                        "geometry": {"type": "LineString", "coordinates": [[-72.7, 44.2], [-72.69, 44.21]]},
+                        "properties": {"highway": "residential"}}),
+            json.dumps({"type": "Feature",
+                        "geometry": {"type": "Point", "coordinates": [-72.8, 44.0]},
+                        "properties": {"highway": "traffic_signals"}}),
+        ]
+        path = tmp_path / "e.geojson"
+        path.write_text('{"type": "FeatureCollection", "features": [\n' + ",\n".join(members) + "\n]}\n",
+                        encoding="utf-8")
+
+        ways, props, tagged = sel.load_export(path)
+        assert sorted(ways) == [2], "the only readable way is the one with both an id and a LineString"
+        assert ways[2][0] == (44.0, -72.8)
+        assert props[2] == {}, "a null `properties` must arrive as an empty dict, not as None"
+        assert tagged == [], "a feature with no id is not a node, whatever its geometry reads like"
+
+
+class TestThePinReaderReadsTheManifestItIsGiven:
+    """`pinned_digest` is the third reader in `etl/oracle.py`, and it parses `inputs/manifest.yaml` by hand.
+
+    The `manifest` PARAMETER could be dropped - `path = manifest or (ROOT / "inputs" / "manifest.yaml")`
+    reduced to the default alone - with the suite green, because every caller in the suite passes exactly
+    that default path, so no case could tell an honoured argument from an ignored one. A parameter that is
+    silently ignored is worse than one that does not exist: everything `oracle_select.build` refuses rests on
+    this function answering about the manifest it was ASKED about.
+    """
+
+    def _manifest(self, tmp_path, body: str):
+        path = tmp_path / "manifest.yaml"
+        path.write_text(body, encoding="utf-8")
+        return path
+
+    def test_the_manifest_argument_is_the_file_that_is_read(self, tmp_path):
+        other = self._manifest(tmp_path, "inputs:\n  - name: vermont-curvature.kmz\n"
+                                         "    sha256: " + "0" * 64 + "\n")
+        got = oracle.pinned_digest("vermont-curvature.kmz", other)
+        assert got == "0" * 64
+        assert got != oracle.pinned_digest("vermont-curvature.kmz"), (
+            "pinned_digest ignored the manifest it was handed and read the repository's own instead")
+
+    def test_a_sha256_line_with_nothing_after_it_names_no_digest(self, tmp_path):
+        """`return want or None`. The docstring promises None when the manifest "names no digest", and an
+        empty value names none - a half-written entry must read as unpinned rather than as pinned to the
+        empty string, because `build()` decides whether to refuse on the truthiness of this answer and a
+        reader deciding whether the input IS pinned gets `None` either way only if this says so."""
+        empty = self._manifest(tmp_path, "inputs:\n  - name: vermont-curvature.kmz\n    sha256:\n")
+        assert oracle.pinned_digest("vermont-curvature.kmz", empty) is None

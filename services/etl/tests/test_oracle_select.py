@@ -161,48 +161,6 @@ def test_load_export_collects_only_nodes_carrying_a_squash_tag(tmp_path):
     assert tagged == [(44.0, -72.8), (44.02, -72.82)]
 
 
-def test_load_export_reads_a_plain_geojson_collection_and_the_shapes_the_format_allows(tmp_path):
-    r"""`load_export`'s two opening guards and its three `or` defaults, none of which had been reached.
-
-    The guards are why one reader takes `-f geojsonseq` AND `-f geojson`: a FeatureCollection's opening
-    `{"type": "FeatureCollection", "features": [` starts with `{` and is not valid JSON on its own, so the
-    `except json.JSONDecodeError: continue` skips it; its closing `]}` does not start with `{`; and each
-    member line's trailing comma is what `rstrip(",")` removes. Every export the suite had written was a few
-    clean objects with no commas, so all of that was dead code under test - `ops/etl-mutation` turned the
-    JSONDecodeError guard into `pass` with the suite green.
-
-    The `or {}` defaults are RFC 7946, not paranoia: a Feature's `geometry` MAY be null and its `properties`
-    MAY be null, and an export produced without `--add-unique-id=type_id` carries no `id` at all. All three
-    shapes are here, and a way is still read out of the file around them.
-
-    The `or ""` on the id is the one this case does NOT kill, and the attempt is what showed why. The
-    reasoning was that dropping it leaves an id-less feature as `str(None)`, and that `"None".startswith("n")`
-    would then collect it as a tagged node - but `str(None)` is `"None"` with a capital N, so it begins with
-    neither `"w"` nor `"n"` and both branches skip it exactly as the empty string does. Every id that reaches
-    a branch is a string beginning `w` or `n`, whose `str()` is itself; every falsy one stringifies to
-    something that reaches neither. That mutation is equivalent, and it is recorded as one rather than chased.
-    """
-    members = [
-        json.dumps({"type": "Feature", "id": "w1", "geometry": None,
-                    "properties": {"highway": "residential"}}),
-        json.dumps({"type": "Feature", "id": "w2",
-                    "geometry": {"type": "LineString", "coordinates": [[-72.8, 44.0], [-72.79, 44.01]]},
-                    "properties": None}),
-        json.dumps({"type": "Feature",
-                    "geometry": {"type": "Point", "coordinates": [-72.8, 44.0]},
-                    "properties": {"highway": "traffic_signals"}}),
-    ]
-    path = tmp_path / "e.geojson"
-    path.write_text('{"type": "FeatureCollection", "features": [\n' + ",\n".join(members) + "\n]}\n",
-                    encoding="utf-8")
-
-    ways, props, tagged = sel.load_export(path)
-    assert sorted(ways) == [2], "the only readable way is the one that has a LineString"
-    assert ways[2][0] == (44.0, -72.8)
-    assert props[2] == {}, "a null `properties` must arrive as an empty dict, not as None"
-    assert tagged == [], "a feature with no id is not a node, whatever its geometry reads like"
-
-
 # --------------------------------------------------------------------------- condition 0: is it comparable
 # `eligible()` opens with the line that decides whether a published way can be looked at at all:
 #
@@ -284,3 +242,56 @@ def test_a_way_of_fewer_than_three_vertices_is_not_comparable(tmp_path):
         [ok.road(PROBE_WAY, TWO_VERTICES)])
     _assert_only_the_good_way_survived(kept, stages)
     assert cv.way_curvature(TWO_VERTICES) == 0, "a single-segment way is MAX_RADIUS, which scores nothing"
+
+
+def _cell(lat, lon):
+    return int(lat / sel.CELL_DEG), int(lon / sel.CELL_DEG)
+
+
+def test_the_proximity_grid_also_searches_the_cell_above_and_the_cell_to_the_east():
+    """The mirror of the case above, and it was missing in both axes.
+
+    `near_tagged_node` walks `for dy in (-1, 0, 1)` and `for dx in (-1, 0, 1)`, and `ops/etl-mutation` could
+    turn either TRAILING `1` into a `2` - dropping the +1 neighbour and searching a cell 110 m away instead -
+    with the suite green, because the only boundary case here put the node BELOW the way and so only ever
+    exercised the -1. A node just north, or just east, of the way's own cell is still inside the 30 m radius
+    and must still be found. Missing it lets a squash-exposed way into the fixture, which is condition 3
+    failing OPEN: the way's published value has been modified by a step this repo does not implement, and it
+    would be compared and counted anyway.
+    """
+    dlat = 10.0 / (6373000 * math.pi / 180)
+    lat = math.floor(44.0 / sel.CELL_DEG) * sel.CELL_DEG       # exactly on a cell boundary, in both axes
+    lon = math.floor(-72.8 / sel.CELL_DEG) * sel.CELL_DEG
+    dlon = dlat / math.cos(math.radians(lat))
+
+    way_south, node_north = (lat - dlat, lon), (lat + dlat, lon)
+    assert _cell(*node_north)[0] == _cell(*way_south)[0] + 1, "vacuous unless the two are in different cells"
+    assert cv.distance_on_earth(*way_south, *node_north) <= sel.SQUASH_RADIUS_M
+    assert sel.near_tagged_node([way_south], _grid([node_north]))
+
+    way_west, node_east = (lat, lon - dlon), (lat, lon + dlon)
+    assert _cell(*node_east)[1] == _cell(*way_west)[1] + 1, "vacuous unless the two are in different cells"
+    assert cv.distance_on_earth(*way_west, *node_east) <= sel.SQUASH_RADIUS_M
+    assert sel.near_tagged_node([way_west], _grid([node_east]))
+
+
+def test_the_records_coordinates_are_rounded_to_seven_places(tmp_path):
+    """`round(lat, 7)` is about 11 mm, and it is a decision rather than a formatting accident.
+
+    `GEOMETRY_TOL_M` is 1 m, so no digit below a centimetre can change any answer the fixture is used for -
+    while the fixture is a 684 KB file tracked in git and compared line by line by
+    `ops/etl-curvature-fixture --check`. An eighth digit on every coordinate of every way buys nothing and
+    makes that comparison bigger. Nothing asserted the precision, so `7 -> 8` mutated green on both the
+    latitude and the longitude.
+    """
+    lat0, lon0 = 44.000000049, -72.800000049
+    assert round(lat0, 7) != round(lat0, 8), "vacuous unless the two roundings differ"
+    assert round(lon0, 7) != round(lon0, 8)
+
+    coords = [(lat0, lon0), (44.001, -72.8), (44.002, -72.8)]
+    kmz = ok.write_kmz(tmp_path / "precise.kmz", ok.collection(GOOD_WAY, coords))
+    export = ok.write_export(tmp_path / "precise.geojsonseq", ways=[ok.road(GOOD_WAY, coords)])
+
+    kept, _stages = sel.eligible(export, kmz)
+    assert [w["way_id"] for w in kept] == [GOOD_WAY]
+    assert kept[0]["coords"][0] == [round(lat0, 7), round(lon0, 7)]

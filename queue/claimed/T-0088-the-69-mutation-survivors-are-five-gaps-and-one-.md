@@ -237,3 +237,55 @@ separate anyway, because a side effect is not a statement about the operand and 
 `load_export` would take the coverage away without knowing it.
 
 GREEN, unmutated: `213 passed`.
+
+Full run after gap 4 landed (f887858):
+
+    MUTATION 165 killed, 21 survived, of 186 run in 486s
+
+Only 2 more, because three of gap 4's five had already died in gap 3. Ratchet: 23 -> 21 is folded into the
+sweep-up below rather than committed on its own.
+
+### The sweep-up, before calling anything a floor
+
+Reading the 21 one by one, seven of them are not equivalent mutations at all - they are real holes that a
+line or two of test closes, and writing "explained floor" over a hole one can close in three lines is the
+thing this repository exists to catch. So, one more pass, and the three assigned gaps are untouched by it:
+
+- `oracle.py:47`, `path = manifest or (ROOT / "inputs" / "manifest.yaml")`. The `manifest` PARAMETER could be
+  dropped entirely with the suite green, because every caller in the suite passes exactly the default path,
+  so no case could tell an honoured argument from an ignored one. Everything `oracle_select.build` refuses
+  rests on this function answering about the manifest it was ASKED about.
+- `oracle.py:58`, `return want or None`. A `sha256:` line with nothing after it names no digest, which the
+  docstring promises reads as None; without the `or None` it reads as the empty string.
+- `oracle_select.py:94`, `ident.startswith("w") and ...`. Drop the id test and ANY LineString feature is read
+  as a way, `int(ident[1:])` on an id-less one being `int("")`. Covered by adding an id-less LineString to
+  the export-reader case, which is the same shape as the id-less node already there.
+- `oracle_select.py:118` and `:119`, `for dy in (-1, 0, 1)` / `for dx in (-1, 0, 1)`. The trailing `1` could
+  become a `2` on both axes with the suite green: the one cell-boundary case in the file put the node BELOW
+  the way, so only the -1 neighbour was ever exercised. A node just north, or just east, is still inside the
+  30 m radius, and missing it is condition 3 failing OPEN - a squash-exposed way compared and counted.
+- `oracle_select.py:167` twice, `round(lat, 7)` / `round(lon, 7)`. 11 mm, against a `GEOMETRY_TOL_M` of 1 m
+  and a 684 KB file that `--check` compares line by line. Nothing asserted the precision.
+
+<!-- -->
+
+    UNMUTATED           28 passed in 0.13s
+    CAUGHT   oracle.py:47  operand  drop operand 0 of Or    test_the_manifest_argument_is_the_file_that_is_read
+    CAUGHT   oracle.py:58  operand  drop operand 1 of Or    test_a_sha256_line_with_nothing_after_it_names_no...
+    CAUGHT   oracle_select.py:94  operand drop operand 0    test_a_plain_geojson_collection_reads_the_same_as...
+    CAUGHT   oracle_select.py:118 constant 1 -> 2   [0]     test_the_proximity_grid_finds_a_node_across_a_cell...
+    CAUGHT   oracle_select.py:118 constant 1 -> 2   [1]     test_the_proximity_grid_also_searches_the_cell_above
+    CAUGHT   oracle_select.py:119 constant 1 -> 2   [0]     test_the_proximity_grid_also_searches_the_cell_above
+    CAUGHT   oracle_select.py:119 constant 1 -> 2   [1]     test_the_proximity_grid_also_searches_the_cell_above
+    CAUGHT   oracle_select.py:167 constant 7 -> 8   [0]     test_the_records_coordinates_are_rounded_to_seven...
+    CAUGHT   oracle_select.py:167 constant 7 -> 8   [1]     test_the_records_coordinates_are_rounded_to_seven...
+
+    0 of the listed mutants were NOT caught
+
+`test_oracle_parser.py` widened from "the four guards in etl.oracle" to every reader in the two modules -
+the KML Placemark parser, the osmium-export parser and the manifest parser - since all three have the same
+defect: each consumes a file this repository does not write, and each had only ever been fed input this
+repository did write. `load_export`'s case moved there from `test_oracle_select.py` for the same reason, and
+that also keeps both files under the 300-line cap (297 and 215).
+
+GREEN, unmutated: `217 passed`.
