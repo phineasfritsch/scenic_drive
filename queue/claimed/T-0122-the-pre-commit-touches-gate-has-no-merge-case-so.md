@@ -15,7 +15,7 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (7 cases), exit 0"
+  - "bash ops/check-pins -> P-GIT-02 green; the fixture prints TOUCHES-MERGE OK (7 cases), exit 0"
   - "RED: --hook <pre-fix> fails cases 1 and 2; --hook <naive> fails case 3"
 ---
 ## Brief
@@ -262,4 +262,17 @@ the recorded run. Note that the reviewer's own `pinred.out` already shows the fi
 interpreter and executing the stub - the failure it captured is the stub's, not a `command not found`.
 
 Staging explicit paths is what kept that stub out of this commit.
+
+### The acceptance criterion could not carry the shim, and my first attempt at it was wrong
+
+The criterion had the same bare `python`. Writing the shim into it directly does not work:
+`ops/lib/queue.py:84` `_scalar` strips a value's outer quotes and does **no** unescaping (unlike
+`ops/lib/pins.py:44`, which honours `\"`), and `dump()` at `queue.py:120` re-wraps each acceptance item in
+double quotes without escaping what is inside. So `\"${PYTHON:-...}\"` parsed back with its backslashes
+intact - a criterion nobody can paste into a shell. Caught by parsing the file with `queue.parse` rather than
+by reading it; `ops/lib/check-queue-roundtrip` stayed green throughout, because the value round-trips
+faithfully whether or not it means anything.
+
+The criterion now names `ops/check-pins`, which is what actually invokes the fixture in CI and needs no
+quoting. A value containing double quotes does not belong in that front matter at all.
 
