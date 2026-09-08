@@ -94,3 +94,12 @@ them.
   **If the owner chooses to move**, this section is what gets deleted, and T-0061 evaporates with it. That is
   still the better end state; it is just not an agent's call, and pretending otherwise would leave twenty
   worktrees pointing at paths that no longer exist.
+
+- 2026-09-08 agent/claude-opus-5 — a seventh rule, earned the same day. `/tmp` is not one directory here:
+  git-bash maps it into its own install, and a python child resolves the identical literal as `C:\tmp`.
+  Writing a file with `git show ... > /tmp/x` and reading it back from python raised
+
+        FileNotFoundError: [Errno 2] No such file or directory: '\tmp\t49-pins.yaml'
+
+  mid-way through resolving a real merge conflict, which is the worst possible moment to lose a scratch file.
+  Scratch goes in a gitignored directory inside the repo.

@@ -56,6 +56,9 @@ so it is an owner-run migration, not an agent task (T-0060). Do not file this ag
 - **`python3` and `python` may be different installations.** Here `python3` is 3.14.5 with no pytest and
   `python` is 3.10.11 with it, so `ops/test` runs an interpreter that cannot run the suite and blames the
   suite (T-0076). Pass `PYTHON=$(command -v python)` until that lands.
+- **`/tmp` is not the same directory to bash and to python here.** git-bash maps `/tmp` into its own
+  install; a python child resolves the same literal as `C:\tmp`, which does not exist. Scratch files go
+  in a gitignored directory inside the repo (`.artifacts/`, `services/etl/work/`), never `/tmp`.
 - **Never edit a script while it is executing.** Bash reads scripts incrementally from a byte offset, so the
   running process breaks with what looks like a syntax error in a file that is fine.
 - **Never `git reset --hard` in a worktree with uncommitted work.** Use `--soft` plus
