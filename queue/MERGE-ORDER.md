@@ -610,6 +610,18 @@ be on `main` first.
     PR#17  MERGE REFUSED: failing checks: core                  <- true; T-0036 resolves it
     PR#26  MERGE REFUSED: mergeStateStatus=DIRTY (want CLEAN)   <- true; really conflicts
 
+**By the end of 2026-09-08 the T-0036 group is SIX pull requests, still one cause.** Four branches add an
+`ops/lib/*.py` — `task/T-0021`, `task/T-0049`, `task/T-0081`, `task/T-0080` — and two more inherit the red
+from a stack base rather than adding a file of their own: `PR #62` (`task/T-0088`, on `task/T-0081`) and
+`PR #63` (`task/T-0100`, on `task/T-0080`). Every one of the six fails with the same P-OPS-01 sentence,
+verified from the CI logs, not from the rollup:
+
+    PR#17 T-0021   classify-checks.py            PR#59 T-0080   pins_mutation.py, pins_mutation_cases.py
+    PR#41 T-0049   merge_reason_cap_assert.py    PR#62 T-0088   etl_mutation.py, etl_mutation_rules.py  (inherited)
+    PR#56 T-0081   etl_mutation.py, ...          PR#63 T-0100   pins_mutation.py, ...                   (inherited)
+
+Merging `task/T-0036` turns all six green. Nothing else in the repository is red.
+
 **Re-verified after `main` moved.** The sweep above was taken, then ~15 commits landed on `main` (queue
 churn, five task transitions, four new task files), then the identical sweep was run again: **the same 13
 pass every gate**, none flipped to `DIRTY`. So this list is not a snapshot that rots in an hour — it held
