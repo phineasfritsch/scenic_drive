@@ -1,15 +1,15 @@
 ---
 id: T-0108
 title: Street View link sheets so the human gate is 30 clicks instead of 5 drives
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T11:47:56Z
+lease_expires_at: 2026-09-08T15:47:56Z
 worktree: null
-branch: null
+branch: task/T-0108
 exclusive: []
-touches: [ops/score-review, services/etl/etl/streetview.py]
+touches: [services/etl/etl/streetview.py, services/etl/tests/test_streetview.py, ops/score-review]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -68,3 +68,4 @@ An afternoon spent clicking through nothing that reports "reviewed 0 segments, n
 repository's signature defect in its most expensive form.
 
 ## Log
+- 2026-09-08T11:47:56Z claimed by agent/claude-opus-5; lease until 2026-09-08T15:47:56Z
