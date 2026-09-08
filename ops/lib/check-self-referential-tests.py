@@ -110,6 +110,17 @@ LITERAL = re.compile(
     r"|true|false|nil"
     r")$")
 
+# `#expect(a == b, "why this matters")` takes a trailing message, and this checker reads the right-hand side
+# as the REST OF THE LINE, so it captured `b, "why this matters")`. `.rstrip(")").rstrip(",")` cannot remove
+# that, so the literal test failed and the CORRECT pinning shape was reported as self-referential. Found by
+# reviewer-pr77 on the real tree: `#expect(Geo.earthRadiusMeters == 6_371_008.8, "WGS84 mean radius")` made
+# this check exit 1, which takes P-TEST-02 red on correct code written in the style 7 of the 31 existing
+# assertions use - and a check that flags correct code is a check that gets switched off.
+#
+# The comma is REQUIRED, so `== "some string"` is untouched, and the closing bracket of an array literal
+# stops `== ["a", "b"]` from matching.
+MESSAGE_TAIL = re.compile(r",\s*\"(?:[^\"\\]|\\.)*\"\s*\)?\s*$")
+
 
 def declared_types() -> set[str]:
     """Type names declared under Sources/. Only these count as 'the thing under test'."""
@@ -190,7 +201,7 @@ def problems_in(path: pathlib.Path, types: set[str]):
         # `,` are trimmed because the assertion's own closing paren is not part of the value.
         for m in re.finditer(r"(" + MEMBER + r")\s*" + COMPARISON + r"\s*(.+)$", line):
             member = m.group(1)
-            rhs = m.group(2).strip().rstrip(")").rstrip(",").strip()
+            rhs = MESSAGE_TAIL.sub("", m.group(2).strip()).strip().rstrip(")").rstrip(",").strip()
             if member.split(".")[0] in types and not LITERAL.match(rhs):
                 found.append((n, "compared against the constant it checks; true for any value", member))
 

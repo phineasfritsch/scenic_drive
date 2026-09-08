@@ -18,6 +18,11 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 CHECK = ROOT / "ops" / "lib" / "check-self-referential-tests.py"
 
+# Floors on the SUITE, not on the tree. Deleting cases until a change looks green is the cheapest way to
+# make this check stop objecting, and it leaves no trace: the OK line just says a smaller number.
+MIN_RED_CASES = 8
+MIN_GREEN_CASES = 6
+
 # Enough types and files to clear the check's own vacuity floors.
 SCAFFOLD_SOURCES = {
     "LearnedCorridorSpeeds.swift":
@@ -133,6 +138,23 @@ CASES = [
 
     ("a constant pinned against a negative float is the CORRECT shape",
      "        #expect(LambdaSearch.maxLambda == -1.5)", False, None),
+
+    # reviewer-pr77's finding 4: the RHS is read as the rest of the line, so a trailing message argument was
+    # captured with the value and failed the literal test. This fired on the REAL tree - on
+    # `Geo.earthRadiusMeters == 6_371_008.8, "WGS84 mean radius"` - taking P-TEST-02 red on correct code
+    # written in the style 7 of the 31 existing assertions use.
+    ("the CORRECT shape with a trailing message argument",
+     "        #expect(Geo.earthRadiusMeters == 6_371_008.8, \"WGS84 mean radius\")", False, None),
+
+    ("the CORRECT shape with a message argument that itself contains a comma",
+     "        #expect(LambdaSearch.maxLambda == 8.0, \"the ceiling, not a target\")", False, None),
+
+    # reviewer-pr77's finding 1: MEMBER carries `(?!\s*\()` so that a CALL is not mistaken for a constant.
+    # Nothing exercised it. The shape that does is a call on the RIGHT-hand side - with the lookahead
+    # deleted this line is reported, with it present it is silent - so this case is what pins the lookahead.
+    # The previously-claimed case did not: it passed either way.
+    ("a call on the right-hand side is not a constant",
+     "        #expect(x <= Geo.distanceMeters(a, b))", False, None),
 ]
 
 
@@ -160,11 +182,37 @@ def run_case(line: str) -> tuple[int, str]:
 
 def main() -> int:
     ok = True
+
+    # A suite over no cases is not a suite. `CASES = []` printed "SELF-REF CASES OK (0 cases)" and exited 0,
+    # and so did a suite with only negatives - the sibling check-self-referential-history.py has had exactly
+    # this guard ("a demonstration over nothing is not a demonstration") since it was written; this file did
+    # not. Both directions are required: greens alone cannot show the matcher fires, reds alone cannot show
+    # it ever stays quiet.
+    reds = sum(1 for _, _, must_fire, _ in CASES if must_fire)
+    greens = len(CASES) - reds
+    if reds < MIN_RED_CASES or greens < MIN_GREEN_CASES:
+        sys.stdout.write("SELF-REF CASES FAIL: %d red and %d green cases, expected at least %d and %d - "
+                         "a demonstration over nothing is not a demonstration\n"
+                         % (reds, greens, MIN_RED_CASES, MIN_GREEN_CASES))
+        return 2
+
     for name, line, must_fire, expect_text in CASES:
         code, out = run_case(line)
         # A finding, not merely a non-zero exit. A traceback is also exit 1, and treating that as a catch
         # made every RED case pass against a matcher replaced by `raise`.
+        #
+        # The same reasoning applies to the GREEN half and was missing: `fired = False` is what a negative
+        # case wants, and a matcher that raises on every input produces exactly that - so nine of nineteen
+        # cases passed against a matcher replaced by `raise`, and the suite exited 0. A negative case must
+        # therefore show the check RAN and was SILENT: exit 0 with its own OK line, not merely "did not fire".
         fired = code == 1 and "SELF-REF FAIL" in out
+        if not must_fire and not (code == 0 and "SELF-REF OK" in out):
+            ok = False
+            sys.stdout.write("FAIL   green  %s\n         did not fire, but the check did not report OK "
+                             "either (exit %d) - a crash is not a clean pass\n" % (name, code))
+            for l in out.strip().splitlines()[:3]:
+                sys.stdout.write("         %s\n" % l)
+            continue
         if fired and expect_text and expect_text not in out:
             ok = False
             sys.stdout.write("FAIL   TEXT   %s\n         fired, but did not report %r\n"
