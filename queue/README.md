@@ -32,6 +32,19 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
 6. **Review**: open a PR, set `reviewer:` to someone who is not you, `git mv` the file to `review/`. The reviewer
    has no write access to `Sources/`; they run `verify:`, read the artifact (not just the diff), and either move the
    task to `done/` or back to `claimed/` with a `## Log` line saying what is wrong.
+   **Use `ops/review <id> --reviewer <who>`, not a hand `git mv`.** It records the rename as a rename, and it
+   refuses a branch that cannot record the deletion of `main`'s copy — the state below, which no per-branch CI
+   can see.
+   - **The stale `claimed/` copy.** If your branch was cut *before* the commit that put your task file in
+     `main`'s `queue/claimed/`, your branch has no deletion to record there. `git mv` on your branch produces
+     `queue/review/<id>`, `main` still has `queue/claimed/<id>`, and the **merge keeps both**: `ops/queue-check`
+     then fails on the merged tree while passing on your branch *and* on `main`. Eleven branches were repaired
+     by hand for exactly this. Fix it by merging `origin/main` into your branch first, then running `ops/review`
+     — after the merge your branch contains `main`'s commit, so the rename is a rename.
+     Do **not** `git rm` the path `main` holds when your branch holds the same path: that deletes your only
+     copy and your work log. `ops/review` prints a `git rm` line only for a path your branch does not have.
+   - The `review/ -> done/` transition is still a hand `git mv` — there is no `ops/done`. That half of T-0063's
+     brief was not delivered and is filed as its own task rather than left implied.
 7. **Merge with `ops/merge <pr>`**, never `gh pr merge`. It refuses unless the task is in `done/` on the PR head,
    every check has concluded green, `mergeStateStatus` is CLEAN, and CI actually reported. `--wait` polls;
    `--dry-run` reports the verdict without merging. On 2026-09-07 `main` was broken by merging a PR that `gh`
