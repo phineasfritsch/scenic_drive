@@ -1,13 +1,13 @@
 ---
 id: T-0126
 title: ScenicKit Hazards: the strip that tells a driver what the route will do to them
-state: ready
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T18:07:49Z
+lease_expires_at: 2026-09-08T20:07:49Z
+worktree: .worktrees/T-0126
+branch: task/T-0126
 exclusive: []
 touches: [Sources/ScenicKit/Hazards/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
@@ -74,3 +74,4 @@ each source is its own task, and inventing their formats here would be the fabri
 exists to catch.
 
 ## Log
+- 2026-09-08T18:07:49Z claimed by agent/claude-opus-5; lease until 2026-09-08T20:07:49Z
