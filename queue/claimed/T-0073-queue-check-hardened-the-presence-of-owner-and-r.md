@@ -540,3 +540,211 @@ the fix for this task must not land without it.
   HYGIENE: every fixture was written into the real queue dirs and removed by the harness's own EXIT trap;
   `find queue -iname "*9001*" -o -iname "*selfgraded*" -o -type d -name completed -o -type d -name archive`
   returns nothing; `.artifacts/` is gitignored and nothing in it is staged.
+
+- 2026-09-08 round-two adversarial verification, by an agent that did not write the fix.
+  **holds = false.**
+
+  Every evasion below was EXECUTED. Full report verbatim, so the next person inherits the limits
+  along with the code.
+
+  # Round-two adversarial verification of T-0073 — holds = False
+  
+  ## Round-one routes still open
+  
+  - (none)
+  
+  
+  ## Verdict
+  
+  HOLDS = FALSE.
+  
+  The fix is real and honestly reported, and it is a much better fix than round one's. STEP 1 reproduces exactly: QUEUE OK (69 tasks), PINS ok=9 failed=0, --source-only ok=3 failed=0, SANE OK. STEP 2 is the fixer's strongest claim and it verifies completely — **round1RoutesStillOpen is empty**. All twelve round-one routes were re-executed and every one is now red: the quoted "null", both block-list operands, agent/Self, the file named outside the glob, queue/completed/, the empty tree, the deleted state directories, on both the queue-check and the ops/review side. The agent() normaliser and the structural assertions do what they say, and both no-regression controls stay green. Nothing was weakened.
+  
+  It does not survive contact. Six fresh routes are green and one existing repo check is now red.
+  
+  FINDING 1 (worst). ops/lib/queue.py:115 — `NOT_TASKS = frozenset({".gitkeep"})`, and tasks() skips any file with that name in any state directory. A complete self-graded done task (state: done, owner: agent/self, reviewer: agent/self) written into **queue/done/.gitkeep** gives `QUEUE OK (69 tasks)` exit 0, and `bash ops/queue-check >/dev/null` — P-PROC-01 verbatim — exits 0. The identical bytes at queue/done/T-9001-fixture.md go red with "reviewer == owner". This is round one's EV4 with the exclusion list shrunk from "every name that is not T-*.md" to one name, and .gitkeep already exists and is tracked in all six state dirs, so it is an edit to a tracked file rather than a new one. tasks()' own docstring claims this class is closed: "a file it could not see was a file no check could fail on ... Name discipline is now ASSERTED in cmd_check instead of enforced by invisibility." It is not.
+  
+  FINDING 2. ops/lib/queue.py:268-270 — the rule for task files outside STATES ANDs `parts[0] not in STATES` with `TASK_FILE.match(p.name)`. queue/LOCKS/**selfgraded.md** and queue/_schema/**selfgraded.md** both give `QUEUE OK (69 tasks)` exit 0; queue/LOCKS/**T-9001-fixture.md**, same bytes, goes red. The only thing standing between caught and uncaught is the filename — round one's EV4 and EV6 recombined, inside the two directories the fixer's own comment names as needing this rule.
+  
+  FINDING 3. MIN_TASKS = 40 (:117) bounds the whole tree; the gate at :289 iterates only review/ + done/, 16 files of 69. Emptying queue/done of every task file while leaving the directory and its .gitkeep in place gives `QUEUE OK (55 tasks)` exit 0 — the fixer measured that same 55 for the DELETE variant and closed it with the directory-existence assertion, which emptying never trips. Emptying both gated directories gives `QUEUE OK (53 tasks)` exit 0. The gate inspected zero files and P-PROC-01 is green. (Deleting the files strands 4 depends_on references; repairing those four lines is mechanical and is an incidental catch from an unrelated rule, not the floor.)
+  
+  FINDING 4 — REGRESSION, unreported. `bash ops/lib/check-lock-lifecycle` now exits 1: "FAIL: queue-check not clean after review: QUEUE CHECK FAIL - only 1 task(s) visible, floor is 40". Its step 3 asserts `^QUEUE OK` on a synthetic one-task tree, which MIN_TASKS=40 can never satisfy. Measured, not reasoned: the identical script run against `git show 65c9841^:ops/lib/queue.py` prints "ok: review releases the lock, moves the task, and queue-check is clean / LOCK LIFECYCLE OK" exit 0. The check is not referenced in pins/PINS.yaml, which is why ops/check-pins stayed green and the fixer's gate list missed it. Its green arm is now dead for a reason unrelated to what it tests.
+  
+  FINDING 5. parse() (:41-51) silently takes the last of duplicate keys and (:29) the first of two front-matter blocks. `owner: agent/self` followed by `owner: agent/other`, and a benign front-matter block placed ahead of the real one, both give `QUEUE OK (70 tasks)` exit 0 on a counted, visible queue/done/ task whose text plainly reads owner: agent/self / reviewer: agent/self.
+  
+  FINDING 6 (weakest, judgment call). AGENT_NAME allows trailing punctuation that casefold does not collapse: owner agent/self vs reviewer agent/self. is green. Arguably a different agent name; recorded, not pressed.
+  
+  ADJACENT, PRE-EXISTING, not caused by 65c9841: both wrappers `exec "${PYTHON:-...}"`, so `PYTHON=true bash ops/queue-check` exits 0 and `PYTHON=true bash ops/check-pins` exits 0 with no output at all. Worth a task of its own since P-PROC-01's assertion is exactly `bash ops/queue-check >/dev/null`.
+  
+  DISCLOSED: ops/lib/queue.py is 615 lines, more than twice the 300-line cap; it was already over before this change (T-0059 owns the split) and this fix added 100 lines to an existing violation. `bash ops/test` fails with "FAIL: services/api exists but vitest produced no report" exit 1; I did not re-litigate it — the fixer's pre-existing/T-0040 attribution is consistent with the tree.
+  
+  SHAPE OF THE REMAINING FIX (not applied — I am the verifier): drop NOT_TASKS and treat every file in a state directory as a task, .gitkeep included, or assert .gitkeep is empty; drop `TASK_FILE.match(p.name)` from the outside-STATES rule so ANY file under queue/ that parses as front matter with a state: field is reported wherever it sits; make the floor bound the GATED population (assert a minimum count of review/+done/ tasks, or better, compare the counted population against `git ls-files queue/`, which is the data the tree cannot silently shrink); and update ops/lib/check-lock-lifecycle:83-88 in the same commit, or the floor stays red there.
+  
+  HYGIENE: every fixture was created and removed. All destructive probes (emptying directories, deleting the tree) ran only against .artifacts/V0073/ — a byte-identical copy of ops/ + queue/ whose baseline is QUEUE OK (69 tasks); the real queue/ saw only the five realtree.sh fixtures, each removed. My cleanup list initially missed queue/LOCKS/T-9001-fixture.md; I caught it on the leftover scan and removed it. Final state: `find queue services -iname '*9001*' -o -iname '*selfgraded*' -o -type d -name completed` returns nothing; `bash ops/queue-check` -> QUEUE OK (69 tasks); **`git status --short` printed NO OUTPUT — worktree clean, nothing staged, nothing committed, nothing pushed by me.** Harnesses are reproducible at C:\Users\phineasf\Documents\GitHub\wt\T-0068\.artifacts\V0073\drive.py, drive2.py and realtree.sh (.artifacts/ is gitignored).
+  
+  ## Evasions executed
+  
+  ### 1. CAUGHT — STEP 1 — reproduce the fixer's greens, unmodified worktree
+  
+  ```
+  $ cd C:/Users/phineasf/Documents/GitHub/wt/T-0068 && bash ops/queue-check; bash ops/check-pins; bash ops/check-pins --source-only; bash ops/sane
+  QUEUE OK (69 tasks) exit=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux exit=0
+  PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only exit=0
+  SANE OK exit=0
+  ```
+  
+  ### 2. CAUGHT — STEP 2 — all 12 round-one routes re-run against a byte-identical copy of ops/+queue/ (baseline on the copy: QUEUE OK (69 tasks) exit=0). R1-QNULL owner: "null"; R1-BLKREV reviewer block list; R1-BLKOWN owner block list; R1-CAP agent/Self; R1-NAME queue/done/selfgraded-fixture.md; R1-DIR queue/completed/; R1-EMPTY empty queue/; R1-RMDIRS delete review+done; R1-TYPO ownr:; R1-EMPTYLIST owner: []; plus the equality control and the agent/a-vs-agent/b no-regression control.
+  
+  ```
+  $ python .artifacts/V0073/drive.py
+  R1-CTRL      reviewer == owner (agent/self)                       exit=1 CAUGHT
+  R1-QNULL     with owner: 'null', which is not an agent/<name>     exit=1 CAUGHT
+  R1-BLKREV    with reviewer: ['agent/self'], not an agent/<name>   exit=1 CAUGHT
+  R1-BLKOWN    with owner: ['agent/self'], not an agent/<name>      exit=1 CAUGHT
+  R1-CAP       reviewer == owner (agent/self)                       exit=1 CAUGHT
+  R1-NAME      not a task file (expected T-NNNN-slug.md) + reviewer == owner  exit=1 CAUGHT
+  R1-DIR       queue/completed/ is not a queue state + task file outside states exit=1 CAUGHT
+  R1-EMPTY     6x '<state>/ is missing' + only 0 task(s), floor is 40 exit=1 CAUGHT
+  R1-RMDIRS    queue/review/ is missing; queue/done/ is missing     exit=1 CAUGHT
+  R1-TYPO      in done/ without an owner                            exit=1 CAUGHT
+  R1-EMPTYLIST in done/ without an owner                            exit=1 CAUGHT
+  R1-LEGIT     QUEUE OK (70 tasks) exit=0   (control, correctly green)
+  BASELINE     QUEUE OK (69 tasks) exit=0   (control, correctly green)
+  ```
+  
+  ### 3. CAUGHT — STEP 2 — round-one's ops/review-side routes (EV8 quoted null, P3 block-list reviewer with no flag, P4 block-list owner, EV2 --reviewer agent/Self, EV9 --reviewer=agent/self), fixture in claimed/
+  
+  ```
+  $ python .artifacts/V0073/drive2.py R1-RV-QNULL R1-RV-BLKREV R1-RV-BLKOWN R1-RV-CAP R1-RV-EQFLAG R1-RV-LEGIT
+  R1-RV-QNULL   T-9001: owner is 'null', which is not an agent/<name>...        exit=1  fixture still at queue/claimed/
+  R1-RV-BLKREV  T-9001: reviewer is ['agent/self'], which is not an agent/<name> exit=1  fixture still at queue/claimed/
+  R1-RV-BLKOWN  T-9001: owner is ['agent/self'], which is not an agent/<name>    exit=1  fixture still at queue/claimed/
+  R1-RV-CAP     reviewer agent/Self is also the owner of T-9001                  exit=1  fixture still at queue/claimed/
+  R1-RV-EQFLAG  reviewer agent/self is also the owner of T-9001                  exit=1  fixture still at queue/claimed/
+  R1-RV-LEGIT   T-9001 -> queue/review/... reviewer=agent/b                      exit=0  (control, correctly green)
+  ```
+  
+  ### 4. *** UNCAUGHT *** — FRESH F1 (WORST). Round one's EV4 was 'a self-graded task the glob cannot see'. The fixer replaced rglob("T-*.md") with rglob("*") but added ops/lib/queue.py:115 NOT_TASKS = frozenset({".gitkeep"}) and tasks() skips any file with that name. queue/done/.gitkeep already exists and is tracked in every state dir, so this is an edit to an existing tracked file, not a suspicious new one. Wrote a complete self-graded done task (state: done, owner: agent/self, reviewer: agent/self) into queue/done/.gitkeep. Same bytes as the CONTROL, only the filename differs.
+  
+  ```
+  $ cd C:/Users/phineasf/Documents/GitHub/wt/T-0068 && bash .artifacts/V0073/realtree.sh   # real worktree, real wrapper
+  --- CONTROL  same bytes at queue/done/T-9001-fixture.md
+      $ bash ops/queue-check
+      QUEUE CHECK FAIL
+       - queue/done/T-9001-fixture.md: reviewer == owner (agent/self) - a worker may not grade its own work
+      exit=1  CAUGHT
+  
+  --- F1  same bytes at queue/done/.gitkeep
+      $ bash ops/queue-check
+      QUEUE OK (69 tasks)
+      exit=0
+      $ bash ops/queue-check >/dev/null   # P-PROC-01 verbatim
+      exit=0
+      *** UNCAUGHT ***
+  ```
+  
+  ### 5. *** UNCAUGHT *** — FRESH F3/F17. Round one's EV6 parked the task in queue/completed/; the fixer closed that with KNOWN_DIRS, and closed task-NAMED files in the allow-listed dirs with the cmd_check rglob("T-*.md") rule at ops/lib/queue.py:268-270. But that rule ANDs 'outside STATES' with TASK_FILE.match(p.name), so a non-task-shaped NAME inside an allow-listed dir slips both. Same self-graded bytes at queue/LOCKS/selfgraded.md and queue/_schema/selfgraded.md, with queue/LOCKS/T-9001-fixture.md as the isolating control.
+  
+  ```
+  $ cd C:/Users/phineasf/Documents/GitHub/wt/T-0068 && bash .artifacts/V0073/realtree.sh   # real worktree, real wrapper
+  --- F3  queue/LOCKS/selfgraded.md    (allow-listed dir, non-TASK_FILE name)
+      QUEUE OK (69 tasks)   exit=0   *** UNCAUGHT ***
+  
+  --- F17 queue/_schema/selfgraded.md  (allow-listed dir, non-TASK_FILE name)
+      QUEUE OK (69 tasks)   exit=0   *** UNCAUGHT ***
+  
+  --- F16 CONTROL queue/LOCKS/T-9001-fixture.md  (same dir, TASK_FILE name)
+      QUEUE CHECK FAIL
+       - queue/LOCKS/T-9001-fixture.md: a task file outside backlog/ready/claimed/review/blocked/done
+      exit=1   CAUGHT
+  
+  (69, not 70, in both UNCAUGHT cases: the file is not even counted, exactly as round one's EV4 reported.)
+  ```
+  
+  ### 6. *** UNCAUGHT *** — FRESH F13 — empty the population the guard iterates. MIN_TASKS = 40 (ops/lib/queue.py:117) bounds the WHOLE tree; the gate at :289 iterates only review/ + done/, which is 16 of the 69. The fixer measured that DELETING queue/done leaves 55 'which a floor of 40 would have passed' and closed it with the directory-existence assertion. EMPTYING the directory reaches the same 55 and the assertion never fires (dir + .gitkeep intact). Deleting the files creates 4 dangling depends_on lines, which I repaired - that is an incidental catch from an unrelated rule, not the floor.
+  
+  ```
+  $ python -c "<A: empty queue/done, repair deps>  <B: empty queue/done AND queue/review>"  (.artifacts/V0073, isolated copy)
+  A) queue/done emptied (dir + .gitkeep intact), 4 dangling deps repaired:
+      QUEUE OK (55 tasks) exit=0
+  B) queue/done AND queue/review emptied - the ENTIRE gated population:
+      QUEUE OK (53 tasks) exit=0
+  
+  The reviewer-is-not-owner gate inspected zero files and P-PROC-01 is green.
+  ```
+  
+  ### 7. *** UNCAUGHT *** — FRESH — REGRESSION, not an evasion. ops/lib/check-lock-lifecycle:83-88 builds a synthetic tree and asserts `grep -q "^QUEUE OK"` on it. That tree holds ONE task, and the new MIN_TASKS=40 floor now fails it. The check is not referenced anywhere in pins/PINS.yaml, so ops/check-pins stayed green and the fixer's gate list never ran it.
+  
+  ```
+  $ cd C:/Users/phineasf/Documents/GitHub/wt/T-0068 && bash ops/lib/check-lock-lifecycle    # then the same script against `git show 65c9841^:ops/lib/queue.py`
+  AFTER the fix:
+    ok: claim takes the lock and names the task
+    ok: a hand git mv leaves the lock and queue-check FAILS - the red run this command exists for
+    FAIL: queue-check not clean after review: QUEUE CHECK FAIL
+     - only 1 task(s) visible, floor is 40 - a queue-check that inspected nothing still reports success, and that IS P-PROC-01 passing
+    ok: a task declaring no exclusive resources still moves
+    ok: reviewer == owner refused, and the task did not move
+    LOCK LIFECYCLE FAIL   exit=1
+  
+  BEFORE the fix (HEAD~1 queue.py, identical check script):
+    ok: review releases the lock, moves the task, and queue-check is clean
+    LOCK LIFECYCLE OK     exit=0
+  ```
+  
+  ### 8. *** UNCAUGHT *** — FRESH F4 — parse() at ops/lib/queue.py:41-51 has no duplicate-key detection; last assignment wins. Front matter carries `owner: agent/self` on one line and `owner: agent/other` on the next, reviewer: agent/self.
+  
+  ```
+  $ python .artifacts/V0073/drive2.py F4-DUPKEY   (isolated copy)
+  QUEUE OK (70 tasks)
+  exit=0   *** UNCAUGHT ***
+  
+  The file literally contains the line `owner: agent/self` beside `reviewer: agent/self`, is counted as a task, sits in queue/done/, and the gate reads agent/other.
+  ```
+  
+  ### 9. *** UNCAUGHT *** — FRESH F5 — parse()'s front-matter regex is non-greedy (`^---\n(.*?)\n---\n`), so a second front-matter block becomes body text. Benign block first (owner: agent/a / reviewer: agent/b), the real self-graded block second.
+  
+  ```
+  $ python .artifacts/V0073/drive2.py F5-DOUBLEFM   (isolated copy)
+  QUEUE OK (70 tasks)
+  exit=0   *** UNCAUGHT ***
+  ```
+  
+  ### 10. *** UNCAUGHT *** — FRESH F6 — AGENT_NAME is ^agent/[a-z0-9][a-z0-9._+-]*$, so trailing punctuation is a valid name that casefold() does not collapse. owner: agent/self vs reviewer: agent/self. (one trailing dot). Weakest of the findings - arguably a different agent name - reported for completeness.
+  
+  ```
+  $ python .artifacts/V0073/drive2.py F6-PUNCT   (isolated copy)
+  QUEUE OK (70 tasks)
+  exit=0   *** UNCAUGHT ***
+  ```
+  
+  ### 11. *** UNCAUGHT *** — FRESH — wrapper-level, PRE-EXISTING (not introduced by 65c9841). ops/queue-check and ops/check-pins both `exec "${PYTHON:-...}"`, so one environment variable replaces the interpreter. Reported because P-PROC-01's literal assertion is `bash ops/queue-check >/dev/null`.
+  
+  ```
+  $ cd C:/Users/phineasf/Documents/GitHub/wt/T-0068 && PYTHON=true bash ops/queue-check; echo exit=$?; PYTHON=true bash ops/check-pins; echo exit=$?
+  $ PYTHON=true bash ops/queue-check
+  exit=0
+  $ PYTHON=true bash ops/check-pins
+  exit=0
+  
+  No output at all from either; the entire pin harness reports success.
+  ```
+  
+  ### 12. CAUGHT — FRESH — routes that WENT RED (the fix genuinely covers these). F7 self-graded task in queue/done/archive/ subdirectory; F8 the same task saved with CRLF line endings; F9 reviewer: agent/ſelf (LATIN SMALL LETTER LONG S, casefolds to 'self'); F11 owner:/reviewer: indented one space so the key regex skips them; F12 queue/.archive/ dot-directory; F16 task-NAMED file in queue/LOCKS/; F2 emptying review+done without repairing depends_on.
+  
+  ```
+  $ python .artifacts/V0073/drive2.py F7-SUBDIR F8-CRLF F9-LONGS F11-INDENT F12-DOTDIR   (isolated copy)
+  F7-SUBDIR   queue/done/archive/T-9001-fixture.md: reviewer == owner (agent/self)   exit=1 CAUGHT
+  F8-CRLF     queue/done/T-9001-fixture.md: reviewer == owner (agent/self)           exit=1 CAUGHT
+  F9-LONGS    queue/done/T-9001-fixture.md: reviewer == owner (agent/self)           exit=1 CAUGHT
+  F11-INDENT  in done/ without an owner; in done/ without a reviewer                 exit=1 CAUGHT
+  F12-DOTDIR  queue/.archive/ is not a queue state + task file outside states        exit=1 CAUGHT
+  ```
+  
+  ### 13. CAUGHT — FRESH F10 — self-graded task parked in queue/blocked/ with state: blocked. Green, but the gate at :289 only covers review/ and done/ and P-PROC-01's statement is 'No task reaches done/...', so I do NOT count this as a defect. Recorded so the next round does not re-file it.
+  
+  ```
+  $ python .artifacts/V0073/drive2.py F10-BLOCKED   (isolated copy)
+  QUEUE OK (70 tasks)
+  exit=0   (green, but out of the pin's scope - not counted as a finding)
+  ```
