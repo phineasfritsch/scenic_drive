@@ -15393,18 +15393,20 @@
   }
  },
  "census": {
-  "note": "Re-derived from pull b, independently of the numbers in byway_route_key's docstring.",
+  "note": "Re-derived from pull b with the repo's own etl.snap - the kernel the shipped code uses - independently of the numbers in byway_route_key's docstring.",
+  "measured_with": "etl.snap",
   "highway_ways_in_padded_bbox": 1813,
   "ways_within_150m_of_the_corridor": 306,
-  "ways_clearing_the_overlap_gate": 142,
-  "km_clearing_the_gate": 53.54,
+  "ways_within_150m_of_the_corridor_pull_a": 302,
+  "ways_clearing_the_overlap_gate": 141,
+  "km_clearing_the_gate": 53.46,
   "km_clearing_the_gate_that_claim_the_source_key_221": 0.0,
-  "km_clearing_the_gate_reffed_CA_236": 28.07,
+  "km_clearing_the_gate_reffed_CA_236": 28.14,
   "km_clearing_the_gate_by_class": {
-   "tertiary": 28.07,
-   "path": 13.43,
-   "residential": 5.55,
-   "service": 5.03,
+   "tertiary": 28.14,
+   "path": 13.46,
+   "residential": 5.35,
+   "service": 5.04,
    "track": 0.59,
    "footway": 0.35,
    "primary": 0.2,
@@ -15413,9 +15415,26 @@
    "passing_place": 0.04,
    "steps": 0.01
   },
-  "reffed_votes_m": {
-   "236": 28074,
-   "9": 196
+  "reffed_votes_m_whole_way": {
+   "236": 28142.9,
+   "9": 197.3
+  },
+  "reffed_votes_m_along_the_corridor": {
+   "236": 27569.4,
+   "9": 126.0
+  },
+  "which_of_those_the_code_votes_with": "reffed_votes_m_along_the_corridor",
+  "the_withdrawn_second_column": {
+   "what_it_claimed_to_be": "a SECOND, INDEPENDENT Overpass pull agreeing with the first to a rounding - byway_route_key's docstring ran it as a two-column table",
+   "ways_clearing_the_overlap_gate": 142,
+   "km_clearing_the_gate": 53.54,
+   "km_clearing_the_gate_reffed_CA_236": 28.07,
+   "reffed_votes_m_whole_way": {
+    "236": 28074,
+    "9": 196
+   },
+   "what_it_actually_is": "the same two pulls under a hand-rolled flat-earth segment length in the scratch script that measured the census, instead of snap.distance_on_earth - the instrument, not the data",
+   "how_that_was_established": "both pulls were run through both kernels: each kernel gives the same numbers to the digit on BOTH pulls, and the only pull-to-pull difference is 302 vs 306 ways within 150 m of the corridor"
   }
  }
 }

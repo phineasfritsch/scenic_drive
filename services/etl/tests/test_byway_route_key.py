@@ -9,16 +9,25 @@ real OSM ways under it. This file is the constructed cases that pin each decisio
 """
 from __future__ import annotations
 
+import pytest
+
 from etl import byway_route_key as rk
 from etl import byways as bw
 from etl import snap
 
 # A north-south line, and ways along it, for the constructed cases.
 LINE = [(37.50, -122.35), (37.49, -122.35), (37.48, -122.35), (37.47, -122.35)]
+# A longer one, for the cases that need both sides of a disagreement to clear MIN_CONSENSUS_M.
+LONG_LINE = [(37.60 - i * 0.01, -122.35) for i in range(14)]
 
 
 def way_along(lon=-122.35, ref=None, n=4):
     return {"ref": ref, "geometry": [(37.50 - i * 0.01, lon) for i in range(n)]}
+
+
+def entry(routes, line=None):
+    return {"routes": set(routes), "status": bw.ELIGIBLE, "source": "caltrans",
+            "geometry": line or LINE}
 
 
 class TestReadingARef:
@@ -81,6 +90,35 @@ class TestWhatTheCorridorClaims:
         assert set(claimed) == {"280", "35"}
         assert claimed["280"] == claimed["35"] > 0
 
+    def test_a_way_votes_with_the_part_of_it_that_is_on_this_corridor(self):
+        """A way is admitted at 30% overlap, so up to 70% of it is somewhere else, and the somewhere-else
+        part is not evidence about this corridor. It used to vote with its whole length - up to 3.3x."""
+        e = entry({"221"})
+        crossing = {"ref": "CA 9", "geometry": [(37.50, -122.35), (37.4886, -122.35), (37.4886, -122.325)]}
+        frac = snap.overlap_fraction(crossing["geometry"], LINE)
+        whole = snap.length_m(crossing["geometry"])
+        assert bw.MIN_OVERLAP_FRACTION <= frac < 0.6, frac   # admitted, and mostly somewhere else
+        claimed = rk.claimed_lengths(e, [crossing])
+        assert claimed["9"] == pytest.approx(frac * whole, rel=1e-9)
+        assert claimed["9"] < 0.75 * whole
+
+    def test_a_way_that_is_mostly_somewhere_else_cannot_re_key_on_its_whole_length(self):
+        """What that inflation bought: a way 66% of which is on another road clearing MIN_CONSENSUS_SHARE
+        against the road actually under the corridor, and taking the corridor's key with it. The two
+        assertions on `whole` are what the old vote saw; the two on `claimed` are what is really there."""
+        line = [(37.500 - i * 0.001, -122.35) for i in range(8)]
+        e = entry({"221"}, line)
+        under = {"ref": "CA 236", "geometry": [(37.500, -122.35), (37.4953, -122.35)]}
+        crossing = {"ref": "CA 9", "geometry": [(37.500, -122.35), (37.4930, -122.35),
+                                                (37.4930, -122.3306)]}
+        w9, w236 = snap.length_m(crossing["geometry"]), snap.length_m(under["geometry"])
+        assert bw.MIN_OVERLAP_FRACTION <= snap.overlap_fraction(crossing["geometry"], line) < 0.5
+        assert w9 >= rk.MIN_CONSENSUS_M and w9 / (w9 + w236) >= rk.MIN_CONSENSUS_SHARE
+        claimed = rk.claimed_lengths(e, [under, crossing])
+        assert claimed["9"] / sum(claimed.values()) < rk.MIN_CONSENSUS_SHARE, claimed
+        verdict, routes, _ = rk.corridor_verdict(e, [under, crossing])
+        assert (verdict, routes) == (bw.KEY_UNCLAIMED, {"221"})
+
     def test_a_way_nowhere_near_is_rejected_by_the_bounding_box_not_just_by_the_gate(self):
         """The bbox reject is what makes this affordable over a whole region. It has to agree with the
         slow path, so a way outside the box must be one the gate would have refused anyway."""
@@ -126,6 +164,48 @@ class TestTheVerdict:
         assert verdict == bw.KEY_UNCLAIMED
         assert routes == {"221"}
 
+    def test_a_fragment_claiming_the_key_does_not_buy_it_silence(self):
+        """Round 3's blocker. CORROBORATED was decided on `if key & set(claimed)` and nothing else, so a
+        single mis-tagged fragment could confirm a key that the whole corridor contradicts - and
+        CORROBORATED is the one verdict `problems()` never prints. Keeping a wrong number needed 23 m while
+        changing it needed a kilometre; both directions read MIN_CONSENSUS_M now."""
+        e = entry({"221"})
+        stub = {"ref": "CA 221", "geometry": [LINE[1], (LINE[1][0] - 0.0002, LINE[1][1])]}
+        road = way_along(ref="CA 236")
+        # Preconditions: the fragment IS admitted, it DOES claim the key, and it is under the floor.
+        assert snap.overlap_fraction(stub["geometry"], LINE) >= bw.MIN_OVERLAP_FRACTION
+        assert rk.claimed_lengths(e, [stub]) == {"221": pytest.approx(snap.length_m(stub["geometry"]))}
+        assert snap.length_m(stub["geometry"]) < rk.MIN_CONSENSUS_M
+        verdict, routes, claimed = rk.corridor_verdict(e, [road, stub])
+        assert verdict != bw.KEY_CORROBORATED, (verdict, claimed)
+        assert (verdict, routes) == (bw.KEY_REKEYED, {"236"})
+        assert any("re-keyed" in p for p in bw.problems(rk.reconcile([e], [road, stub])))
+
+    def test_a_concurrency_that_names_the_key_is_corroborated_and_not_contested(self):
+        """The false positive the new floor could easily have introduced. `ref='I 280;CA 35'` gives 280 and
+        35 the SAME metres, so on a corridor keyed 35 the number 280 holds 100% of the reffed length - and
+        a rival test that only asked "does another number clear the bar" would report every concurrency in
+        the state. A number that merely TIES the key has not outvoted it."""
+        e = entry({"35"})
+        verdict, routes, claimed = rk.corridor_verdict(e, [way_along(ref="I 280;CA 35")])
+        assert claimed["280"] == claimed["35"] >= rk.MIN_CONSENSUS_M     # 280 clears the bar on its own
+        assert (verdict, routes) == (bw.KEY_CORROBORATED, {"35"})
+        assert not bw.problems([dict(e, **{bw.KEY_VERDICT: verdict, "status": bw.DESIGNATED})])
+
+    def test_a_key_holding_real_evidence_is_reported_rather_than_guessed_about(self):
+        """CONTESTED, the other half of the floor. Both numbers clear MIN_CONSENSUS_M, so neither the
+        silence of CORROBORATED nor the guess of a re-key is honest: the key stays and somebody is told."""
+        e = entry({"221"}, LONG_LINE)
+        mine = {"ref": "CA 221", "geometry": [(37.60, -122.35), (37.5875, -122.35)]}
+        theirs = {"ref": "CA 236", "geometry": [(37.5875, -122.35), (37.47, -122.35)]}
+        assert snap.length_m(mine["geometry"]) >= rk.MIN_CONSENSUS_M       # the key can defend itself
+        claimed = rk.claimed_lengths(e, [mine, theirs])
+        assert claimed["236"] / sum(claimed.values()) >= rk.MIN_CONSENSUS_SHARE   # and is still outvoted
+        verdict, routes, _ = rk.corridor_verdict(e, [mine, theirs])
+        assert verdict != bw.KEY_CORROBORATED, verdict
+        assert (verdict, routes) == (bw.KEY_CONTESTED, {"221"})
+        assert any("outvoted" in p and "221" in p for p in bw.problems(rk.reconcile([e], [mine, theirs])))
+
     def test_an_entry_with_no_key_at_all_is_not_the_same_thing_as_a_wrong_one(self):
         """An FHWA row has no route number to check, and geometry-only is its designed mode, not a fault."""
         verdict, routes, _ = rk.corridor_verdict({"routes": set(), "geometry": LINE}, [])
@@ -146,6 +226,29 @@ class TestReconcile:
         assert out[0]["routes"] == {"236"}
         assert out[0]["key_was"] == ["221"]
         assert out[0]["key_evidence_m"] > rk.MIN_CONSENSUS_M
+
+    def test_an_outvoted_key_records_what_each_side_held(self):
+        """A re-key over a fragment, and a contested key, both have to say how much each side had - the
+        fragment that nearly bought the wrong key its silence is the whole finding."""
+        e = entry({"221"})
+        stub = {"ref": "CA 221", "geometry": [LINE[1], (LINE[1][0] - 0.0002, LINE[1][1])]}
+        out = rk.reconcile([e], [way_along(ref="CA 236"), stub])[0]
+        assert out[bw.KEY_VERDICT] == bw.KEY_REKEYED
+        assert out["key_claim_m"] == pytest.approx(snap.length_m(stub["geometry"]), abs=0.1)
+        assert out["key_evidence_m"] > rk.MIN_CONSENSUS_M > out["key_claim_m"]
+
+    def test_a_concurrency_can_re_key_now_that_the_share_is_a_share_of_the_corridor(self):
+        """A corridor whose gate-clearing ways all carry `ref='I 280;CA 35'` used to give each number half
+        the vote, because each way counted twice into its own denominator - so MIN_CONSENSUS_SHARE was
+        UNREACHABLE there rather than unmet, and 0.80 looked like a tunable when it could not fire at all.
+        The reffed length counts a way once. The corridor is both numbers, so it is re-keyed to both."""
+        e = entry({"221"})
+        way = way_along(ref="I 280;CA 35")
+        verdict, routes, claimed = rk.corridor_verdict(e, [way])
+        assert claimed["280"] == claimed["35"] >= rk.MIN_CONSENSUS_M
+        assert max(claimed.values()) / sum(claimed.values()) < rk.MIN_CONSENSUS_SHARE  # the old denominator
+        assert (verdict, routes) == (bw.KEY_REKEYED, {"280", "35"})
+        assert rk.reconcile([e], [way])[0]["key_evidence_m"] == pytest.approx(claimed["35"], abs=0.1)
 
     def test_problems_sees_a_re_key_and_stops_seeing_the_unchecked_warning(self):
         entries = [{"status": "OD", "source": "caltrans", "routes": {"221"}, "geometry": LINE}]

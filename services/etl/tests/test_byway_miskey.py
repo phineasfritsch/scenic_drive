@@ -73,20 +73,58 @@ class TestTheFixtureItself:
             assert box["min_lat"] <= lat <= box["max_lat"], lat
             assert box["min_lon"] <= lon <= box["max_lon"], lon
 
-    def test_the_census_the_re_key_argument_rests_on_is_carried_with_the_fixture(self):
+    def test_the_census_the_re_key_argument_rests_on_is_reproduced_by_the_code(self):
         """`byway_route_key`'s case for re-keying rather than falling back to geometry is a claim about
-        the WHOLE corridor - 25.4 km of trail, service road and residential grid also clears the gate - and
-        the fixture carries only a sample of it. The census the paragraph quotes travels here so it is data
-        somebody can check, not a number in a comment that nothing can contradict."""
+        the WHOLE corridor - 25.3 km of trail, service road and residential grid also clears the gate - and
+        the fixture carries only a sample of it. So the census travels here as data somebody can check.
+
+        The version of this test that shipped in round 3 asserted census fields against other census
+        fields and a constant, and never ran the code - which is how the census kept numbers from a
+        DIFFERENT distance kernel than the one the module uses, for three rounds, with nothing able to
+        notice. Every assertion below either runs `snap`/`claimed_lengths` over the fixture's own ways or
+        is a structural claim about the census that the run can contradict."""
         c = load()["census"]
+        assert c["measured_with"] == "etl.snap"
         assert c["ways_within_150m_of_the_corridor"] > c["ways_clearing_the_overlap_gate"] > 100
         assert c["km_clearing_the_gate_that_claim_the_source_key_221"] == 0.0
         by_class = c["km_clearing_the_gate_by_class"]
         assert by_class["tertiary"] == pytest.approx(c["km_clearing_the_gate_reffed_CA_236"], abs=0.05)
         assert sum(v for k, v in by_class.items() if k != "tertiary") > 20.0, by_class
-        votes = c["reffed_votes_m"]
+
+        # The census counts every ref=CA 236 way that clears the gate along the whole corridor, and the
+        # fixture carries all of them - so this one the fixture CAN re-derive, with the shipped kernel.
+        corridor = fixture_ways("the_corridor_itself")
+        assert corridor, "vacuity guard: no corridor ways to measure"
+        km = sum(snap.length_m(w["geometry"]) for w in corridor) / 1000
+        assert km == pytest.approx(c["km_clearing_the_gate_reffed_CA_236"], abs=0.01), km
+
+        # And the votes the re-key actually reads - the metres running ALONG the corridor, not the ways'
+        # whole lengths - come back out of `claimed_lengths` itself.
+        votes: dict[str, float] = {}
+        for e in byway_entries():
+            for number, metres in rk.claimed_lengths(e, fixture_ways()).items():
+                votes[number] = votes.get(number, 0.0) + metres
+        assert votes, "vacuity guard: nothing voted"
+        recorded = c["reffed_votes_m_along_the_corridor"]
+        assert c["which_of_those_the_code_votes_with"] == "reffed_votes_m_along_the_corridor"
+        assert set(votes) == set(recorded)
+        for number, metres in recorded.items():
+            assert votes[number] == pytest.approx(metres, abs=1.0), (number, votes[number], metres)
         assert max(votes, key=votes.get) == "236"
         assert votes["236"] / sum(votes.values()) >= rk.MIN_CONSENSUS_SHARE
+
+    def test_the_withdrawn_second_pull_column_is_recorded_as_withdrawn(self):
+        """The docstring ran two columns - 141/142, 53.46/53.54, 28.14/28.07, 28143/28074, 197/196 - as
+        two independent pulls agreeing. They are one pull under two kernels. The withdrawn numbers stay in
+        the fixture next to the reason, and this asserts they are NOT what the code produces, so putting
+        them back goes red instead of reading as corroboration again."""
+        c = load()["census"]
+        w = c["the_withdrawn_second_column"]
+        assert "instrument, not the data" in w["what_it_actually_is"]
+        assert w["ways_clearing_the_overlap_gate"] != c["ways_clearing_the_overlap_gate"]
+        assert w["km_clearing_the_gate"] != c["km_clearing_the_gate"]
+        km = sum(snap.length_m(w2["geometry"]) for w2 in fixture_ways("the_corridor_itself")) / 1000
+        assert km != pytest.approx(w["km_clearing_the_gate_reffed_CA_236"], abs=0.01), km
 
     def test_both_osm_pulls_are_recorded_and_every_way_says_which_one_it_came_from(self):
         """Two pulls from different mirrors six weeks of OSM apart. Mixed provenance is fine; mixed
@@ -162,6 +200,49 @@ class TestTheRealMisKeyedCorridor:
                 >= bw.MIN_OVERLAP_FRACTION, w["way_id"]
             assert bw.bonus_for(w["geometry"], fixed, way_ref=w["ref"],
                                 way_class=w["highway"]) == 0.0, w["way_id"]
+
+    def test_a_mis_tagged_fragment_cannot_corroborate_the_wrong_key_into_silence(self):
+        """Round 3's blocker, on the real corridor. Two fragments tagged `ref=CA 221` laid between the
+        Caltrans line's own consecutive vertices - 23.2 m and 21.0 m, 44.2 m in total - used to make both
+        parts CORROBORATED, which is the ONE verdict `problems()` does not print. 44.2 m of mis-tagged OSM
+        turned 27.9 km of eligible byway into a silent total loss, and this is the shape a mis-key takes
+        for the 265 of 865 Caltrans entries that have another numbered route inside their own snap band:
+        the neighbour's own correctly-tagged ways do the corroborating."""
+        entries = byway_entries()
+        frags = [{"way_id": f"mistagged-{i}", "name": "mistagged fragment", "highway": "tertiary",
+                  "ref": "CA 221", "role": "fake", "geometry": [e["geometry"][10], e["geometry"][11]]}
+                 for i, e in enumerate(entries)]
+        assert len(frags) == len(entries) >= 2
+        for f, e in zip(frags, entries):
+            assert bw.route_numbers(f["ref"]) == e["routes"]                      # it claims the key
+            assert snap.overlap_fraction(f["geometry"], e["geometry"]) == 1.0     # and is admitted
+        total = sum(snap.length_m(f["geometry"]) for f in frags)
+        assert total == pytest.approx(44.2, abs=1.0), total
+
+        fixed = rk.reconcile(entries, fixture_ways() + frags)
+        assert [e[bw.KEY_VERDICT] for e in fixed] == [bw.KEY_REKEYED] * len(fixed)
+        assert all(e["routes"] == {"236"} and e["key_was"] == ["221"] for e in fixed)
+        assert all(e["key_claim_m"] < rk.MIN_CONSENSUS_M < e["key_evidence_m"] for e in fixed)
+        recovered = sum(snap.length_m(w["geometry"]) for w in fixture_ways("the_corridor_itself")
+                        if bw.bonus_for(w["geometry"], fixed, way_ref=w["ref"],
+                                        way_class=w["highway"]) > 0)
+        assert recovered == pytest.approx(28143, abs=200), recovered
+        assert any("re-keyed" in p for p in bw.problems(fixed))
+
+    def test_a_crossing_way_votes_with_the_62_m_of_it_that_is_on_this_corridor(self):
+        """Way 824667001 is `ref=CA 9` where CA 9 meets CA 236 in Boulder Creek. It is 133.3 m long and
+        overlaps FID 181 by 0.465, and it used to put all 133.3 m of CA 9 into a decision about a corridor
+        only 62.0 m of it is on. Over 28 km that is a 2% error; on a short corridor the same inflation
+        clears MIN_CONSENSUS_M on evidence that is not there."""
+        entries = byway_entries()
+        way = next(w for w in fixture_ways("another_route") if w["way_id"] == 824667001)
+        whole = snap.length_m(way["geometry"])
+        assert whole == pytest.approx(133.3, abs=0.5), whole
+        best = max((snap.overlap_fraction(way["geometry"], e["geometry"]), e) for e in entries)
+        assert best[0] == pytest.approx(0.465, abs=0.005), best[0]
+        voted = rk.claimed_lengths(best[1], [way])["9"]
+        assert voted == pytest.approx(62.0, abs=0.5), voted
+        assert voted == pytest.approx(best[0] * whole, rel=1e-9)
 
     def test_a_way_on_a_different_numbered_route_is_still_refused(self):
         """CA 9 crosses this corridor in Boulder Creek. The re-key must not turn the gate off."""
