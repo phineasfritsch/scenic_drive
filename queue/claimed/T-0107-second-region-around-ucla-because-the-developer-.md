@@ -145,3 +145,39 @@ accidentally single-region, which is worth having before a third.
   Worth noting the hook that ran was **this branch's**, not `main`'s. Until today `core.hooksPath` was an
   absolute path into the main checkout and every worktree ran main's hooks ([[T-0106]]); this refusal is the
   corrected configuration doing its job on the first commit after it.
+
+- 2026-09-08 — **the region is real: extracted, counted, and the counts recorded from that run.**
+
+  The gap this task deliberately left is now filled, the honest way round — the counts were measured, not
+  typed. `california-latest.osm.pbf` was fetched (1.3 GB, md5-verified against Geofabrik's sidecar; nothing
+  in this repository had ever fetched it) and cut:
+
+        bbox -119.0,33.7,-117.85,34.45
+        extract   312 MB in 50s
+        filter    36 MB in 31s, 19 expressions
+        total     2m32s, well inside the fifteen-minute promise
+        meta      work/la/meta.json
+        recorded  regions/la/region.json
+
+  **The counts pass a sanity check they could easily have failed.** LA's bbox is 20% of sfbay's area, so
+  every class should be denser - but *how much* denser is the test, and the pattern is exactly right:
+
+        class          LA      sfbay   per-area ratio
+        primary    45,530     26,578      8.51x     <- LA's arterial grid; the highest ratio, correctly
+        motorway   17,390     19,515      4.43x     <- the freeway capital
+        service   312,495    473,124      3.28x
+        residential 99,685   183,831      2.69x
+        park        2,580      5,670      2.26x
+        viewpoint     302        746      2.01x
+        track       8,138     32,236      1.25x     <- near parity
+        peak          342      1,470      1.16x     <- near parity
+
+  **Urban classes are several times denser and terrain classes are at parity.** That is what a correct
+  extract of Los Angeles looks like against the Bay Area, and it is not what a broken filter or a wrong
+  bbox looks like - either of those moves classes together, or moves one alone.
+
+  (The sfbay column is its RECORDED counts, which [[T-0110]] shows are ~20-26% high because they predate the
+  bbox correction. The true ratios are higher still; the shape of the comparison does not change.)
+
+  `road: 3` in both regions is the same three ways - a class one mapper's afternoon from moving, noted
+  because a count of three will drift.
