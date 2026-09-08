@@ -21,7 +21,7 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
    lease, and creates `LOCKS/<resource>.lock` for each `exclusive:` entry. Then
    `git add queue/ && git commit -m "claim T-0007" && git push`. **A rejected push means someone else claimed it:
    `git reset --hard origin/main` and pick another.** Push-to-claim is the compare-and-swap; git is the lock.
-4. **Work** in `git worktree add ../wt/T-0007 -b task/T-0007`, touching only the paths in `touches:`
+4. **Work** in `git worktree add .worktrees/T-0007 -b task/T-0007`, touching only the paths in `touches:`
    (`.githooks/pre-commit` enforces this). Stage explicit paths. Never `git add -A`.
    If you add a resource to `exclusive:` **after** claiming, `claim` never saw it and no lock exists — run
    `ops/lock T-0007 --owner agent/<you>` to acquire it. It refuses if another task holds the lock, and
@@ -39,7 +39,7 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
    ("Upgrade to GitHub Pro or make this repository public"). This gate is client-side and therefore bypassable —
    it makes the safe path the easy path, nothing more.
 8. **Demos that need a commit** (hook red/green, floor guard) run in a SEPARATE worktree:
-   `git worktree add ../wt/demo-<task> -b tmp/demo-<task>` ... `git worktree remove --force ../wt/demo-<task>`.
+   `git worktree add .worktrees/demo-<task> -b tmp/demo-<task>` ... `git worktree remove --force .worktrees/demo-<task>`.
    Never on the main checkout, never `git commit -a`, never `git stash`/`git restore`/`git clean` there. On 2026-09-07 a
    throwaway-branch `commit -a` in the main checkout swept a modified `.gitattributes` into the demo commit and the
    checkout back to main silently reverted it.
