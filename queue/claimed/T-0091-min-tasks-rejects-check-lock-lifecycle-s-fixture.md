@@ -1,13 +1,13 @@
 ---
 id: T-0091
 title: MIN_TASKS rejects check-lock-lifecycle's fixture, and merge-rehearse cannot see the collision
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/lock-lifecycle
+owner_session: d217767a
+claimed_at: 2026-09-08T11:02:25Z
+lease_expires_at: 2026-09-08T15:02:25Z
 worktree: null
-branch: null
+branch: task/T-0091
 exclusive: []
 touches: [ops/lib/check-lock-lifecycle, ops/lib/queue.py, ops/merge-rehearse]
 pins_affected: []
@@ -60,3 +60,4 @@ noticing a red check while working on something else. That is luck, not a proces
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5. Found by the T-0087 fix agent, which reported the check was already
   red before its own change; confirmed on three branches here.
+- 2026-09-08T11:02:25Z claimed by agent/lock-lifecycle; lease until 2026-09-08T15:02:25Z
