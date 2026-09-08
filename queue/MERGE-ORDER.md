@@ -610,6 +610,11 @@ be on `main` first.
     PR#17  MERGE REFUSED: failing checks: core                  <- true; T-0036 resolves it
     PR#26  MERGE REFUSED: mergeStateStatus=DIRTY (want CLEAN)   <- true; really conflicts
 
+**Re-verified after `main` moved.** The sweep above was taken, then ~15 commits landed on `main` (queue
+churn, five task transitions, four new task files), then the identical sweep was run again: **the same 13
+pass every gate**, none flipped to `DIRTY`. So this list is not a snapshot that rots in an hour — it held
+across a day's worth of movement on the base.
+
 **Merge `PR#21` (`task/T-0036`) first.** It is the branch every red PR in the repository waits behind: #17,
 #41 and #56 all fail P-OPS-01 on a new `ops/lib/*.py` committed 100644, and T-0036 is what reclassifies those
 files. One merge turns all three green.
