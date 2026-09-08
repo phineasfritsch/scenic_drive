@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Fetch and verify every external input the ETL consumes. See services/etl/inputs/manifest.yaml.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)/services/etl"
+exec "${PYTHON:-$(command -v python3 || command -v python)}" -m etl.fetch "$@"

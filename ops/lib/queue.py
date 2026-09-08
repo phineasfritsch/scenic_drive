@@ -6,7 +6,7 @@
   queue.py sweep              move expired claimed/ tasks back to ready/, release their LOCKS, append to ## Log
   queue.py review ID --reviewer NAME   claimed/ -> review/, assign the reviewer, release its LOCKS
   queue.py next               print the next unblocked ready/ task id
-  queue.py claim T-0007 --owner agent/x --session <id> [--worktree ../wt/T-0007] [--hours 2]
+  queue.py claim T-0007 --owner agent/x --session <id> [--worktree .worktrees/T-0007] [--hours 2]
   queue.py lock T-0007 [--owner agent/x]   acquire locks a claimed task declares but does not hold
 
 --touches, --exclusive, --pins and --depends are LISTS: repeat the flag or use commas, in any mix. Every
