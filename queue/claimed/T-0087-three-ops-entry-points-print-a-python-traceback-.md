@@ -320,3 +320,22 @@ defect in the other direction. Outside this task's `touches:`; recorded here so 
 Also recorded: this task's dispatch prompt said CLAUDE.md carries "a section on this checkout being on NTFS
 with eight rules". It does not - `grep -in ntfs CLAUDE.md` on this worktree returns nothing. The eight rules
 exist only in the prompt. Whoever expected them to be in the file should put them there.
+
+### The limit of this fix, stated so nobody reads it as wider than it is
+
+`_opts` validates the SHAPE of a command line - the option name, that it takes exactly one value, that the
+value is not the next option, not empty, and not a repeat of a scalar. It does NOT validate the CONTENT of
+a value, and one line proves it:
+
+    $ queue.py new "traversal" --exclusive ../../../pwned --touches ../../../etc/passwd
+    queue/backlog/T-0001-traversal.md
+    EXIT=0
+    11:exclusive: [../../../pwned]
+    12:touches: [../../../etc/passwd]
+
+That is [[T-0089]] - already filed from this task in an earlier round, with the fix specified as one
+`lock_path(res)` used by all four sites, sequenced after [[T-0032]] merges - plus the same shape in
+`touches:`, which `.githooks/pre-commit` reads as an allowlist. Route 1 of this task is "a wrong command
+line is refused instead of obeyed in silence"; "a well-formed value that names somewhere it should not"
+is a different route and this commit does not close it.
+
