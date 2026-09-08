@@ -18,8 +18,12 @@ written on, and it contains no pip at all (apt `python3` + `python3-pytest`).
 import pytest
 
 from tests.test_dockerfile import (
+    PIP_BOOLEAN_FLAGS_LONG,
+    PIP_DESTINATION_VALUE_FLAGS_LONG,
     PIP_FROM_NETWORK,
     PIP_OFFENDER_REASONS,
+    PIP_UNREADABLE_TARGET_FLAGS_LONG,
+    PIP_WHITELIST_VALIDATED_AGAINST,
     REASON_BUNDLED_SHORT,
     REASON_NOT_A_SPECIFIER,
     REASON_SUBSTITUTION,
@@ -171,6 +175,70 @@ def test_the_direct_url_check_still_owns_plain_url_installs():
     for direct in (P + "https://evil.example/pkg.tar.gz", P + "git+https://evil.example/pkg"):
         assert PIP_FROM_NETWORK.search(direct)
         assert pip_offenders_in(direct), "the indirect guard should back the direct one up, not defer to it"
+
+
+def test_no_whitelisted_flag_abbreviates_an_unreadable_target_flag():
+    """The round-4 bypass, as a string invariant that needs no pip at all.
+
+    `--build` was whitelisted as a safe destination flag. It is not a pip flag; pip's option parser
+    accepts any unambiguous abbreviation of a real one, and `--build` abbreviates `--build-constraint`,
+    which reads a file. So `pip install --build constraints.txt requests` was resolved by pip as a
+    constraint install and read here as "known safe flag, skip its value". Any safe-list entry that is a
+    proper prefix of an unreadable-target entry re-creates that hole exactly, whatever its name, and this
+    catches it at commit time rather than after a review round.
+    """
+    safe = tuple(PIP_DESTINATION_VALUE_FLAGS_LONG) + tuple(PIP_BOOLEAN_FLAGS_LONG)
+    violations = [
+        (s, d) for s in safe for d in PIP_UNREADABLE_TARGET_FLAGS_LONG if d != s and d.startswith(s)
+    ]
+    assert not violations, (
+        "a flag whitelisted as safe abbreviates a flag that reads an external file; pip would resolve "
+        f"the abbreviation to the dangerous one while this check vouches for it: {violations}"
+    )
+
+
+def test_whitelisted_flag_arity_matches_the_reachable_pip():
+    """Cross-check the three lists against a real pip's own option table, for the entries that pip has.
+
+    Not an existence check: whether an entry is missing from the reachable pip is ambiguous (invented, or
+    added in a later release), and asserting on it would fail every box that does not carry exactly
+    `PIP_WHITELIST_VALIDATED_AGAINST`. Arity is not ambiguous, and getting it wrong is fail-OPEN in the
+    direction that matters: a value-taking flag listed as boolean leaves its value to be read as a
+    positional, and - worse - a boolean listed as value-taking makes `skip_next` swallow the *next* token,
+    so `pip install --upgrade ./localpkg` would skip the local path entirely.
+    """
+    pip = pytest.importorskip("pip", reason="no pip importable here - the pinned ETL image has none")
+    try:
+        from pip._internal.commands import create_command
+    except ImportError:  # pragma: no cover - a pip whose internals moved
+        pytest.skip(f"pip {pip.__version__} does not expose pip._internal.commands")
+
+    arity = {
+        long: opt.takes_value()
+        for opt in create_command("install").parser.option_list_all
+        for long in opt._long_opts
+    }
+    declared = (
+        [(f, True) for f in PIP_UNREADABLE_TARGET_FLAGS_LONG]
+        + [(f, True) for f in PIP_DESTINATION_VALUE_FLAGS_LONG]
+        + [(f, False) for f in PIP_BOOLEAN_FLAGS_LONG]
+    )
+    checked = [(f, want) for f, want in declared if f in arity]
+    # Vacuity guard: if pip's option table ever comes back empty or under a different shape, this test
+    # must fail rather than pass having compared nothing.
+    assert len(checked) >= 20, (
+        f"only {len(checked)} of {len(declared)} whitelisted flags were found in pip {pip.__version__}'s "
+        f"option table - this test compared almost nothing, so treat it as broken, not as passing"
+    )
+    wrong = [(f, "takes a value" if arity[f] else "takes none") for f, want in checked if arity[f] != want]
+    provenance = (
+        "the pip the lists were validated against"
+        if pip.__version__ == PIP_WHITELIST_VALIDATED_AGAINST
+        else f"NOT {PIP_WHITELIST_VALIDATED_AGAINST}, the pip the lists were validated against"
+    )
+    assert not wrong, (
+        f"pip {pip.__version__} ({provenance}) disagrees with how these flags are listed: {wrong}"
+    )
 
 
 def test_the_shipped_dockerfile_contributes_no_coverage():

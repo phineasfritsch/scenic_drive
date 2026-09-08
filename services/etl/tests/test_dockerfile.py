@@ -37,6 +37,13 @@ PIP_FROM_NETWORK = re.compile(
 # round 4 found a hallucinated entry (`--build`) that created a real bypass; see pip_indirect_targets's
 # docstring and the task log for how, and for what "validated" means here.
 
+# Which pip that was. Round 4 recorded "26.1.1" in the task log and nowhere in the tree, so reviewer-pr29
+# could not reproduce it - the only pip reachable on this box is 23.0.1, under which 8 of these entries do
+# not exist. An unvalidated entry is exactly what created the `--build` bypass, so the version belongs
+# next to the lists where a check can read it, not in prose. `test_dockerfile_pip_parser.py` uses it, and
+# cross-checks whatever pip IS importable for the entries that pip can speak to.
+PIP_WHITELIST_VALIDATED_AGAINST = "26.1.1"
+
 # Flags that read an external file (or a `pyproject.toml` dependency group) whose *content* decides what
 # gets installed - the actual unreadable-target class this whole check exists for.
 PIP_UNREADABLE_TARGET_FLAGS_LONG = (
