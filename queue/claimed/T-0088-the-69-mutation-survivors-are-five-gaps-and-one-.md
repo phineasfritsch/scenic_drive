@@ -400,3 +400,55 @@ Written down precisely so nobody has to re-derive it.
 - `ops/test`: the Swift suites pass (16 tests, 3 suites); it then exits 1 on
   `FAIL: services/api exists but vitest produced no report`, which is this worktree having no
   `services/api/node_modules`. Pre-existing and unrelated: this branch changes 0 files under `services/api`.
+- 2026-09-08 agent/claude-opus-5 — **P-OPS-01 is red on PR #62, and the mode change that would silence it is
+  the wrong fix. No file mode was changed.** Recorded so the next agent does not "fix" it.
+
+        before any change:   bash ops/check-pins   exit 1   (failed=2: P-OPS-01, P-SAFE-05)
+        after this commit:   bash ops/check-pins   exit 1   (failed=2: P-OPS-01, P-SAFE-05)  — unchanged, by intent
+
+  **What P-OPS-01 names.** `ops/lib/etl_mutation.py` and `ops/lib/etl_mutation_rules.py`, both
+  "(script, should be 100755, is 100644)".
+
+  **Neither file is a script.** Neither has a `#!`. `ops/etl-mutation` is the entry point — it has the shebang,
+  and it is correctly 100755 — and it runs the module as an argument to an interpreter:
+  `exec "${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/etl_mutation.py "$@"`.
+  `etl_mutation_rules.py` has no `__main__` at all; it is imported (`from etl_mutation_rules import
+  mutants_for`). The exec bit does nothing for either one.
+
+  **main already settled this; this stack is carrying the superseded assertion.** `task/T-0036` is merged into
+  main (`git merge-base --is-ancestor task/T-0036 main` -> 0) and is what reclassified `ops/lib/*.py` from
+  script to data. Two blobs of the assertion are in play:
+
+        main, task/T-0036          ops/lib/check-exec-bits  edd0811   /\.(json|txt|md|py)$/  -> .py is data,   100644
+        task/T-0081, task/T-0088   ops/lib/check-exec-bits  3f6d646   /\.(json|txt|md)$/     -> .py is script, 100755
+
+  main's copy states the reason in the file: every call site invokes these as `"$PY" ops/lib/x.py`, "never as
+  `./ops/lib/x.py`. The exec bit does nothing there, so asserting 100755 would assert a mode the repo does not
+  actually depend on." main holds all six `ops/lib/*.py` at 100644 and is green under its own rule (that rule
+  applied read-only to `git ls-tree -r main -- ops .githooks` prints nothing). So **100644 is the correct end
+  state and both files already have it. There is nothing to fix in the tree.**
+
+  **The instructed `git update-index --chmod=+x` was executed, measured, and reverted, because it inverts the
+  failure.** With both files flipped to 100755, main's own rule reports:
+
+        ops/lib/etl_mutation.py       (data, should be 100644, is 100755)
+        ops/lib/etl_mutation_rules.py (data, should be 100644, is 100755)
+
+  It turns two correct files into two wrong ones and moves the P-OPS-01 failure off this branch and onto main
+  after the merge. The pin checks both directions precisely so that this is caught.
+
+  **What actually clears it.** PR #62's base is `task/T-0081`, not main; T-0081 is unmerged and predates
+  T-0036. The stack runs the old assertion while already carrying the new, correct modes for the two new
+  files — and still holds `junit_count.py`, `pins.py`, `queue.py`, `ro_grammar.py` at the old 100755. The
+  remedy is to bring the stack onto current main, which supplies the new assertion and the four matching mode
+  changes together. Verified: `git merge-tree --write-tree main task/T-0088` merges clean (exit 0) and
+  P-OPS-01 is green in the resulting tree with zero mode edits. I did not perform that merge — this is a
+  stacked PR (base `task/T-0081`, currently CONFLICTING), and merging main into the head would drag all of
+  main into PR #62's diff. Re-parenting the stack is a queue decision, not a fixer's.
+
+  Same conclusion T-0081's log reached ("100644 is the correct END state, so it stays, exactly as
+  `task/T-0021` and `task/T-0049` did before it"), with one change: T-0036 has since merged, so the ordering
+  constraint it was waiting on is now satisfied on main.
+
+  P-SAFE-05 fails before and after and is untouched by this — it is the USNO solar-fixture assertion, not a
+  file mode.
