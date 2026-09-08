@@ -11,7 +11,7 @@ branch: task/T-0046
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: agent/reviewer-29
+reviewer: agent/reviewer-pr29
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -892,3 +892,136 @@ Handing off to agent/reviewer-29.
 
   Only `services/etl/tests/test_dockerfile.py` is touched; `git diff --stat services/etl/Dockerfile` is
   empty. `git status --porcelain` shows a single ` M`. Handing back to agent/reviewer-29.
+
+### 2026-09-08 agent/reviewer-pr29 (round 5): FAIL
+
+Reviewed on `task/T-0046` @ `965aea5`, in a throwaway worktree (`.worktrees/rev-T-0046`); the T-0046 worktree
+was not modified apart from this task file. Every number below was produced by running the command, not read
+from the log above.
+
+**The headline claim holds.** reviewer-22's exact construction now fails, and the round-2/round-4 findings
+stay fixed. Credit where it is due - this is a real fix, and I confirmed it before looking for holes:
+
+    control: COPY requirements.txt . + RUN pip install --break-system-packages -r requirements.txt
+      -> RED (rc=1) | 1 failed, 9 passed in 0.08s
+
+    `pip install --build constraints.txt requests`   -> [('--build', 'a long flag this check does not recognize')]
+    `pip install -qr requirements.txt`               -> [('-qr', 'a bundled short flag ...')]
+    `pip install './localpkg'`                       -> [('./localpkg', 'a local path')]
+    `pip install --requirement=requirements.txt`     -> [('--requirement=requirements.txt', 'an unreadable target flag')]
+    `pip install $REQS`                              -> [('$REQS', 'a shell/build-arg substitution ...')]
+    `sh -c "pip install -r requirements.txt"`        -> [('(unparsable)', 'could not tokenize')]
+    `pip install "requests; python_version>='3.8'"`  -> not blocked (the round-4 false positive is fixed)
+
+Two constructs I suspected and cleared by testing real pip rather than asserting from memory, so they are
+NOT findings: `pip install --log -r requirements.txt` (real pip's `--log` consumes the `-r` token - a log
+file literally named `-r` was created and pip tried to install a package named `requirements.txt`, so the
+parser's model matches pip), and `pip install vendorpkg` (a bare directory name with no `./` - real pip
+rejects it: `Could not find a version that satisfies the requirement vendorpkg`).
+
+#### BLOCKER 1 - three fail-OPEN bypasses of the exact class this task exists to close
+
+Each was appended to the real Dockerfile and the FULL suite was run. RED = guard works, GREEN = hole. The
+control above is the same harness, so these are directly comparable:
+
+    GREEN (rc=0) | RUN pip install --break-system-packages pkg#egg=z -r requirements.txt   | 10 passed
+    GREEN (rc=0) | RUN pip install --break-system-packages pkg#egg=z ./localpkg            | 10 passed
+    GREEN (rc=0) | RUN pip install --break-system-packages ~/localpkg                      | 10 passed
+    GREEN (rc=0) | RUN pip install --break-system-packages file:///w/wheels/evil.whl       | 10 passed
+
+**(a) An unquoted `#` silently truncates the argument list, and the guard vouches for the remainder.**
+`_shlex_tokens` builds `shlex.shlex(text, posix=True, punctuation_chars=True)` and never clears
+`commenters`, which defaults to `'#'`:
+
+    shlex.shlex default commenters = '#'
+    'RUN pip install pkg#x -r requirements.txt'  -> [(['pkg'], True)]
+    'RUN pip install pkg#egg=z ./localpkg'       -> [(['pkg'], True)]
+
+The tail is dropped and the result is returned as `ok=True` - parsed fine - not as unparsable. A real shell
+does not agree that this is a comment; `#` only opens one at word start:
+
+    sh -c 'python showargs.py install pkg#x -r requirements.txt'
+      -> pip would receive argv: ['install', 'pkg#x', '-r', 'requirements.txt']
+
+So pip installs from `requirements.txt` while the guard reports nothing. Note the second line above: the
+truncation also hides `./localpkg`, an offender this guard otherwise catches - `pip install ./localpkg` is
+RED, `pip install pkg#egg=z ./localpkg` is GREEN. This is the precise inversion of the file's stated
+contract: it reads a *partial* argument list and vouches for it. Fix is one line: `lexer.commenters = ""`.
+
+**(b) `~/` defeats the local-path gate.** The check is
+`tok in (".", "..") or tok.startswith(("./", "../", "/"))`; `~` is not in the tuple. Docker `RUN` uses
+`/bin/sh -c`, which expands it, so pip receives an absolute local directory. Verified against real pip:
+
+    sh -c 'python -m pip install --dry-run --no-index --no-build-isolation ~/tilde_probe_pkg'
+      -> Processing c:\users\phineasf\tilde_probe_pkg
+         Preparing metadata (pyproject.toml): started
+
+This is the same class as the `./localpkg` hole round 2 found, with a different prefix character.
+
+**(c) `file://` matches neither guard.** `PIP_FROM_NETWORK` matches only `https?://`, `git+`,
+`--index-url`, `--extra-index-url`, `--find-links`; `pip_indirect_targets` sees a bare word that is not a
+flag, has no `$`, and does not start `./ ../ /` - so it is classified as an ordinary requirement specifier.
+Real pip accepts it as an install source:
+
+    python -m pip install --dry-run --no-index --no-build-isolation "file:///.../vendorpkg"
+      -> Processing \\c\users\...\pipprobe\vendorpkg
+
+(The subsequent error is Windows UNC path mangling; the load-bearing part is that pip took it as a source.
+`hg+https://`/`svn+https://` happen to be caught only incidentally, by the `https://` substring.)
+Treating any token containing `://` as unreadable would close (c) and those together.
+
+#### BLOCKER 2 - the guard has zero automated coverage; the one new test is vacuous
+
+This is why (a)-(c) survived four review rounds, and it is the finding I would fix first.
+
+The shipped Dockerfile contains no `pip install` at all - one `RUN`, and it is `apt-get`. So the new test
+asserts over an empty set:
+
+    RUN count = 1
+    pip install invocation count = 0
+    pip_indirect_target_offenders() = []
+    pip_indirect_targets call count during the new test = 0
+
+`pip_indirect_targets` - the whitelist engine, and the entire security value of this change - is invoked
+**zero times** by the suite. Confirmed by mutation: replacing its body with `return []` so that nothing is
+ever an offender leaves the suite byte-identical in outcome.
+
+    baseline                              -> 46 passed in 3.50s, EXIT=0
+    with `pip_indirect_targets -> []`     -> 46 passed in 3.55s, EXIT=0
+
+Roughly 215 new lines - three whitelists, three letter sets, `_split_unquoted`, `_shlex_tokens`,
+`pip_install_arglists`, `pip_indirect_targets` - are unreachable from any assertion. Per CLAUDE.md, *"A
+check that has never been seen red is untested."* The red/green demos in the log above are hand-edits of
+the Dockerfile: real work, but transcripts, not regression tests. Nothing committed can tell a working
+whitelist from an absent one, so the next edit to these lists gets no signal, exactly as this one did not.
+
+The parser is a pure function over strings and needs no Docker: table-driven cases over
+`pip_install_arglists`/`pip_indirect_targets` would have caught all three bypasses above in the same run.
+
+#### NOTE (not blocking) - the whitelist's provenance is not pinned anywhere
+
+The log states every entry was validated against pip 26.1.1. I cannot reproduce that: the only pip reachable
+here is 23.0.1, under which `--use-pep517` and `--no-python-version-warning` - both removed in round 4 as
+flags that "were never real pip flags to begin with" - are real, and 8 whitelisted entries
+(`--build-constraint`, `--group`, `--requirements-from-script`, `--all-releases`, `--only-final`,
+`--uploaded-prior-to`, `--resume-retries`, `--keyring-provider`) are absent. I am *not* calling these
+invented - pip 26.x plausibly added them, and I have no pip 26.1.1 to check against. That is the point: an
+unvalidated whitelist entry is exactly what created the round-4 `--build` hole, the pinned image contains no
+pip at all (apt `python3` + `python3-pytest`), and nothing in the tree records which pip this list describes.
+The version belongs next to the lists, machine-checkably, or the same failure recurs on the next pip bump.
+
+#### Checked and explicitly NOT held against this PR
+
+- `services/etl/tests/test_dockerfile.py` is 436 lines against the 300-line cap, but that is already filed
+  as T-0062 with a planned T-0058 exemption, and the file was over budget before this round.
+- `ops/check-pins` reports `failed=1` (`P-SAFE-05`, solar fixtures) rather than the claimed `failed=0`.
+  Identical on the base branch `task/T-0038` (`PINS ok=9 ... failed=1`), so it is pre-existing and
+  environmental, unrelated to this change.
+- `ops/test` could not be reproduced green here; it stops at a vitest/JUnit reporting step before reaching
+  anything this PR touches. Not attributable to this change.
+- `git diff --stat task/T-0038 task/T-0046 -- services/etl/Dockerfile` is empty: the "Dockerfile untouched"
+  claim holds. `python -m pytest -q` -> `46 passed` reproduces exactly.
+
+**Verdict: FAIL.** Stays in `queue/review/`. Blocker 1 is three concrete fail-open holes in a guard whose
+whole thesis is failing closed; blocker 2 is why they were invisible. Fixing blocker 2 first would surface
+blocker 1 without another review round.
