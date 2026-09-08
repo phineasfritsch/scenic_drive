@@ -1,13 +1,13 @@
 ---
 id: T-0101
 title: task ids are allocated by a read, not a compare-and-swap, and T-0099 was issued twice
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T08:23:05Z
+lease_expires_at: 2026-09-08T11:23:05Z
 worktree: null
-branch: null
+branch: task/T-0101
 exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
@@ -76,3 +76,4 @@ That is a two-line reproduction and it should be in the log before the fix.
 read, and this task exists because a read is not enough.
 
 ## Log
+- 2026-09-08T08:23:05Z claimed by agent/claude-opus-5; lease until 2026-09-08T11:23:05Z
