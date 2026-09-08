@@ -1,15 +1,15 @@
 ---
 id: T-0088
 title: the 69 mutation survivors are five gaps, and one of them is the fixture's own record shape
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T05:48:57Z
+lease_expires_at: 2026-09-08T11:48:57Z
+worktree: wt/T-0088
+branch: task/T-0088
 exclusive: []
-touches: [services/etl/tests/, services/etl/etl/]
+touches: [services/etl/tests/, services/etl/etl/, ops/lib/etl_mutation.py]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -65,3 +65,4 @@ verbatim. Already described there; listed for completeness.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5. The 69 came from `ops/etl-mutation` on `task/T-0081`; the grouping
   was done by reading the modules and confirming each cause, not by counting lines.
+- 2026-09-08T05:48:57Z claimed by agent/claude-opus-5; lease until 2026-09-08T11:48:57Z
