@@ -107,3 +107,55 @@ because nothing protected it, and raised it 4000 -> 400000 in a one-line edit as
      in them, and the Python side was not being run at all.
 
   `touches:` widened to include `ops/test` for item 1, which the original scope did not cover.
+
+- 2026-09-08 agent/claude-opus-5 — **an independent reviewer of PR #53 found three real defects in this work,
+  one of them introduced by this diff. All three are fixed here, and the red/green transcripts CLAUDE.md
+  requires — which the previous commit admitted omitting — are below.**
+
+  The review was run because CLAUDE.md says *"the reviewer of a task is never its owner"* and every PR opened
+  in this session was written by one agent with no reviewer. It was worth it.
+
+  **DEFECT 1 (high) — the gate written to close a vacuous pass, passing vacuously.** The tier was guarded by
+  `if [[ -f ops/lib/ro_grammar.py ]]` and nothing anywhere required that file to exist. Reproduced:
+
+        RED   mv ops/lib/ro_grammar.py elsewhere
+              bash ops/test        -> TESTS linux=51/50 ... OK      exit 0     <- no RO-GRAMMAR line at all
+              bash ops/check-pins  -> PINS ok=9 ... failed=0        exit 0
+              bash ops/sane        -> SANE OK                       exit 0
+
+        GREEN same deletion, after the fix
+              FAIL: ops/lib/ro_grammar.py is missing - it is the only read-only SQL check ops/prod-read has
+              exit 1
+
+  Tiers 1b and 1c already hard-fail when their expected report is missing; this now matches them.
+
+  **DEFECT 2 (medium) — I introduced a bound derived from the value it bounds, and did not disclose it.**
+  The pre-existing TypeScript length test used a hardcoded 6007-character statement. This diff quietly
+  rewrote it to `"1,".repeat(MAX_SQL_LENGTH)`, so the statement grows with the cap and the test can never
+  fail for any value of it. Mentioned in neither the PR body, the commit message, nor this log.
+
+        RED   cap 4000 -> 400000 in BOTH services/api/src/ro.ts and ops/lib/ro_cases.json
+              npx vitest run  ->  Tests  35 passed (35)            <- the coordinated raise sails through
+        GREEN same edit, hardcoded literal restored
+              FAIL  test/ro.test.ts > "rejects anything over the length cap"
+
+  The literal is now marked `must NOT be derived` in the file. This is the repository's signature defect, and
+  the commit that added a check against it introduced one.
+
+  **DEFECT 3 (medium) — no red/green demonstration in this log**, which CLAUDE.md line 40 requires and the
+  previous commit message openly admitted (*"Committed BEFORE the red/green demonstrations"*) without ever
+  appending them. This entry is that demonstration.
+
+  **Also fixed, from the same review:**
+  - The self-test had no floor on the shared case list. Emptying `accept` and `reject` printed
+    `RO-GRAMMAR OK 3 cases`, exit 0 — a run that checked three synthetic length cases and none of the
+    grammar. Now `MIN_CASES = 20`: `RO-GRAMMAR FAIL 1/3 - only 0 shared case(s) ... (expected >= 20)`, exit 1.
+  - The failure report was piped through `tail -3`, which dropped the `RO-GRAMMAR FAIL n/m` header — the line
+    the previous commit message credits with catching a lost fix. It now prints `head -8` on failure.
+  - `n` added 3 unconditionally, but the two length cases only run when the cap matches, so a drift failure
+    reported a denominator of 29 when 27 checks ran. Now conditional.
+
+  **A trap I fell into while writing this entry**, worth recording because it is documented in CLAUDE.md and I
+  did it anyway: `python ... --self-test 2>&1 | head -3; echo $?` printed `exit=0` for a run that exits 1.
+  `$?` after a pipeline is the LAST command's status — `head`'s. Re-measured with the pipe removed:
+  `real exit with cases emptied: 1`, `with the module missing: 1`, `restored: 0`.

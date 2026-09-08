@@ -41,9 +41,19 @@ def read_only_problem(sql):
     return None
 
 
+MIN_CASES = 20   # 26 today. A self-test over an empty case list reported "RO-GRAMMAR OK 3 cases", exit 0.
+
+
 def self_test():
     cases = json.loads((Path(__file__).with_name("ro_cases.json")).read_text(encoding="utf-8"))
     bad = []
+    # The population must be non-empty before any of it means anything. Emptying accept/reject printed
+    # `RO-GRAMMAR OK 3 cases` and exited 0 - the shared case file is the whole grammar contract, and a run
+    # that checked three synthetic length cases is not a run that checked the grammar.
+    shared = len(cases.get("accept") or []) + len(cases.get("reject") or [])
+    if shared < MIN_CASES:
+        bad.append(f"only {shared} shared case(s) in ro_cases.json (expected >= {MIN_CASES}) - the file is "
+                   f"the contract both implementations run, and an empty one proves nothing")
     # The cap is the one rule the shared case list could not express, because a case long enough to trip it
     # would be 4000 characters of JSON. So the file carries the NUMBER and both implementations assert their
     # own literal against it - services/api/test/ro.test.ts does the same. Without this the two constants
@@ -64,7 +74,9 @@ def self_test():
     for sql in cases["reject"]:
         if read_only_problem(sql) is None:
             bad.append(f"should REJECT {sql!r} but accepted")
-    n = len(cases["accept"]) + len(cases["reject"]) + 3   # +3: the cap assertion and its two length cases
+    # +1 for the cap assertion; the two length cases only run when the cap matches, so counting them
+    # unconditionally reported a denominator of 29 for a drift failure in which 27 checks ran.
+    n = len(cases["accept"]) + len(cases["reject"]) + (3 if shared_cap == MAX_SQL_LENGTH else 1)
     if bad:
         print(f"RO-GRAMMAR FAIL {len(bad)}/{n}")
         for b in bad:
