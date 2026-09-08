@@ -47,6 +47,14 @@ def parse(text):
         if not km:
             continue
         key, val = km.group(1), km.group(2).strip()
+        # LAST-WINS is the amplifier, not the newline. `dump()` writes each key once, so a second one means
+        # the file was hand-edited, arrived from a merge, or was injected through a value - and in every
+        # case silently preferring the later line is how `owner:` gets displaced by something written below
+        # it. Refuse instead. Measured before enforcing: 0 of the task files in this tree carry a duplicate.
+        if key in fm:
+            raise ValueError(
+                f"front matter defines {key!r} twice; the parser is last-wins, so the later line silently "
+                f"replaces the earlier one. That is the shape a value containing a newline produces.")
         if val.startswith("[") and val.endswith("]"):
             inner = val[1:-1].strip()
             fm[key] = [_scalar(v) for v in inner.split(",")] if inner else []
@@ -85,9 +93,36 @@ def agent(v):
     return v if v not in NOT_A_NAME and AGENT_NAME.match(v) else None
 
 
+def _no_newline(k, v):
+    """A front-matter scalar may not contain a line break. Refuse; do not try to encode it.
+
+    `dump()` decided quoting with a round-trip test - `_scalar(s) == s` - and that is TRUE for a string with
+    an embedded newline, because `.strip()` does not touch interior ones. So the value was written raw and
+    every line after the first became another key, which `parse()` then applied LAST-WINS:
+
+        fm["reviewer"] = "agent/x\nowner: agent/x"   ->   reviewer: agent/x
+                                                          owner: agent/x     <- overwrites line 5's null
+
+    One field setting another, in the format P-PROC-01 reads. The reviewer-is-not-owner rule that T-0068 and
+    T-0073 were both filed to make un-evadable is satisfied while the real owner is displaced.
+
+    Quoting does not fix it: `reviewer: "agent/x\nowner: agent/x"` still occupies two physical lines and the
+    second still parses as a key. The value has no representation here, so writing it is the bug.
+    """
+    if isinstance(v, str) and ("\n" in v or "\r" in v):
+        raise ValueError(
+            f"front-matter field {k!r} contains a line break, which cannot be written: every line after the "
+            f"first would parse as another key and overwrite it (last-wins). Value: {v!r}")
+    return v
+
+
 def dump(fm, body):
     lines = ["---"]
     for k, v in fm.items():
+        _no_newline(k, v)
+        if isinstance(v, list):
+            for x in v:
+                _no_newline(k, x)
         if isinstance(v, list):
             if k == "acceptance" and v:
                 lines.append(f"{k}:")
