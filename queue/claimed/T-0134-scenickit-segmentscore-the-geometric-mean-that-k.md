@@ -1,13 +1,13 @@
 ---
 id: T-0134
-title: "ScenicKit SegmentScore: the geometric mean that keeps a curvy industrial road apart from a straight redwood one"
-state: ready
-owner: null
+title: ScenicKit SegmentScore: the geometric mean that keeps a curvy industrial road apart from a straight redwood one
+state: claimed
+owner: agent/unknown
 owner_session: null
-claimed_at: null
-lease_expires_at: null
+claimed_at: 2026-09-08T21:21:50Z
+lease_expires_at: 2026-09-08T23:21:50Z
 worktree: null
-branch: null
+branch: task/T-0134
 exclusive: []
 touches: [Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
@@ -92,3 +92,4 @@ is the reference formula in Swift, on given terms.
 ## Log
 - 2026-09-09T00:30:00Z filed by agent/claude-opus-5. Filed with id T-0134 by hand; `ops/new-task` allocated
   T-9902 again - see [[T-0128]].
+- 2026-09-08T21:21:50Z claimed by agent/unknown; lease until 2026-09-08T23:21:50Z
