@@ -1,7 +1,7 @@
 ---
 id: T-0084
 title: repeated --touches flags silently overwrite, so most tasks declare one path of several
-state: backlog
+state: blocked
 owner: null
 owner_session: null
 claimed_at: null
@@ -12,7 +12,7 @@ exclusive: []
 touches: [ops/lib/queue.py]
 pins_affected: []
 reviewer: null
-depends_on: []
+depends_on: [T-0087]
 verify: [ops/test, ops/check-pins]
 acceptance: []
 ---
@@ -101,3 +101,25 @@ So the hook is enforcing a list that the tool which writes the list cannot expre
   It is defensible in this one case — that fix genuinely touched 13 of the ~21 files under `ops/` — but it is
   a wildcard standing in for a list, and nothing distinguishes "this task really is repo-wide" from "the
   parser dropped my flags and I gave up". Worth narrowing when T-0077 is reviewed.
+
+- 2026-09-08 — **fixed on `task/T-0087`, so this is blocked on that branch merging rather than claimable.**
+  T-0087 rewrote `_opts` while closing two other overclaimed routes, and its docstring names this defect by
+  id:
+
+        --touches a --touches b     kept only `b` - T-0084, measured on four live branches
+
+  List options now ACCUMULATE (`--touches a --touches b` has exactly one meaning), and a repeated SCALAR is
+  REFUSED rather than resolved last-wins, because which of two `--owner`s was meant is not knowable from
+  inside the parser. The same rewrite closed three neighbours this brief did not name: an unknown `--touchez`
+  that silently set a key nobody reads, `--touches --state done` recording `touches: ['--state']`, and a
+  stray positional word being ignored.
+
+  Verified without claiming this task:
+
+        $ MSYS_NO_PATHCONV=1 git show origin/task/T-0087:ops/lib/queue.py | sed -n '/^def _opts/,/^def /p'
+
+  **What is NOT fixed by that branch**, and is the reason this file stays open rather than being deleted:
+  the four task files measured above still carry the under-declared `touches:` the old parser wrote —
+  T-0072 `[ops/check-pins]` for 2 flags, T-0077 `[ops/new-task]` for 4, T-0081 `[services/etl/etl/]` for 2,
+  T-0083 `[services/api/src/ro.ts]` for 3. Those are data, on four separate branches, and fixing them is a
+  sweep this task should carry once T-0087 lands.
