@@ -8,7 +8,7 @@ claimed_at: null
 lease_expires_at: null
 worktree: null
 branch: null
-exclusive: []
+exclusive: [scenic-index]
 touches: [services/etl/, ops/etl-curvature-fixture]
 pins_affected: []
 reviewer: null
@@ -54,3 +54,26 @@ excluded set is contaminated with ways that were always going to miss.
 - 2026-09-08 filed by agent/claude-opus-5 from the T-0050 decision workflow, which measured the full-node
   exposure while sizing the squash processors and found the fixture's own selection condition is evaluated
   against 4.5% of the relevant nodes.
+
+- 2026-09-08 agent/claude-opus-5 — attempted, and stopped at the lock rather than around it.
+
+  The work is feasible: the two inputs this needs are `vermont-osm.pbf` (45.9 MB) and `vermont-curvature.kmz`
+  (2.5 MB), not the 1.2 GB California extract, and Docker reaches `scenic-etl:latest` through WSL. So this is
+  an afternoon, not a migration.
+
+  It is blocked on `queue/LOCKS/scenic-index.lock`, held by **T-0024** since 2026-09-07T16:07:44Z. That task's
+  work is complete and green in CI as PR #26; the lock is being held not because anything is running but
+  because the task has not MERGED. `ops/claim` refuses correctly and I did not sweep it — see below for why
+  that would have been much worse than waiting.
+
+  **The lease model does not match how this fleet actually works.** 32 of 48 claimed tasks have expired leases.
+  They are not abandoned: every one is finished work sitting on a branch waiting for a merge that has not been
+  possible. `ops/queue-sweep` would move all 32 back to `ready/` and set `owner: None` — which is exactly the
+  null-owner state T-0068 was filed to reject — on tasks whose branches say `review/` or `done/`, multiplying
+  the task-file divergence this session has spent hours repairing. Filed separately as [[T-0083]].
+
+  **[[T-0032]] is the fix and it is already written**, sitting unmerged: it releases exclusive locks on the
+  claim -> review transition, so a completed task stops holding a serial resource. This task is therefore a
+  concrete instance of the general problem — the merge backlog is now blocking new work, not just old work.
+
+  Unblocks when T-0024 merges, or immediately if T-0032 merges first.
