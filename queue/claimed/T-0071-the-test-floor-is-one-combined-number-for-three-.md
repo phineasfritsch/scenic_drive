@@ -1,15 +1,15 @@
 ---
 id: T-0071
 title: the test floor is one combined number for three tiers, so a whole suite can vanish under it
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
-exclusive: []
-touches: [ops/test]
+claimed_at: 2026-09-08T02:23:27Z
+lease_expires_at: 2026-09-08T08:23:27Z
+worktree: wt/T-0071
+branch: task/T-0071
+exclusive: [floors]
+touches: [ops/test, .githooks/commit-msg, pins/PINS.yaml, pins/floor_linux.txt, pins/floor_linux_swift.txt, pins/floor_linux_ts.txt, pins/floor_linux_py.txt]
 pins_affected: []
 reviewer: null
 depends_on: []
@@ -72,3 +72,4 @@ test's skip explicit in the expected counts.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5. The floor values and the three `ops/test` lines were read
   directly; the 227 count comes from the T-0069 fix run and must be re-measured by whoever claims this.
+- 2026-09-08T02:23:27Z claimed by agent/claude-opus-5; lease until 2026-09-08T08:23:27Z
