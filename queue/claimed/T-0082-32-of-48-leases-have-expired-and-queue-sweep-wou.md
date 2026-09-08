@@ -166,3 +166,29 @@ task whose work is complete.
   36 branches that carry commits — the regression T-0068 exists to reject is still rejected.
 
   `ops/queue-check` → `QUEUE OK (76 tasks)`.
+
+- 2026-09-08 — **the declared `verify:` commands, run and pasted**, which `queue/README.md` step 5 requires
+  and this log did not have. Raised as [low] by the reviewer of PR #51.
+
+        $ (cd services/api && npm ci)
+        $ PYTHON=$(command -v python) bash ops/test
+        TESTS linux=50/50 ios=skipped failed=0 skipped=0
+        OK
+
+        $ bash ops/check-pins
+        PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+
+  Worth stating what the first run showed before `npm ci`, because it is the tier rule working:
+
+        FAIL: services/api exists but vitest produced no report
+        test exit=1
+
+  `ops/test` refuses a tier that exists and did not run, rather than reporting a smaller green number. That
+  is [[T-0071]]'s property, and it fired here on a real omission of mine.
+
+  **And the part the same reviewer was right about that these two commands do not fix:** neither of them
+  executes `ops/lib/queue.py`. `ops/test`'s pytest tier is `cd services/etl && pytest`, so it cannot reach
+  `ops/lib/` at all — the guard this task adds, and every other guard in that file, is protected by prose in
+  a task log and nothing else. Both regressions this file shipped this session (PR #50's duplicate-brief
+  guard, PR #51's sweep guard) would have been caught by one test each. Filed as **T-0096**, with the
+  measurements, rather than left as a note here.
