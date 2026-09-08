@@ -189,3 +189,13 @@ explained rather than chased, which is the whole point of measuring:
   not re-derive it.
 
 GREEN, unmutated: `210 passed`.
+
+Full run after gap 3 landed (004dc2b):
+
+    MUTATION 163 killed, 23 survived, of 186 run in 451s
+
+14 gone against the 7 demonstrated. The extra seven are the malformed features in the `load_export` case
+doing work the case was not aimed at: `oracle_select.py:94` and `:98`, the `startswith(...) and
+geom.get("type") == ...` pair that decides whether a feature is read as a way or as a node, and - because a
+null geometry means the way has no `ours` - two of the four at `:153` and the `continue` at `:154`, which are
+gap 4's. Ratchet: `MAX_SURVIVORS` 37 -> 23.
