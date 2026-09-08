@@ -8,6 +8,7 @@
   queue.py next               print the next unblocked ready/ task id
   queue.py claim T-0007 --owner agent/x --session <id> [--worktree .worktrees/T-0007] [--hours 2]
   queue.py lock T-0007 [--owner agent/x]   acquire locks a claimed task declares but does not hold
+  queue.py selftest           exit 1 unless two allocators racing for one id end with exactly one winner
 
 --touches, --exclusive, --pins and --depends are LISTS: repeat the flag or use commas, in any mix. Every
 other flag holds one value and repeating it is refused, as is an unknown flag, a flag with no value, and a
@@ -1009,6 +1010,112 @@ def cmd_lock(tid, opts):
     return 1
 
 
+def cmd_selftest(_operand, _opts_):
+    """Prove the id reservation is a compare-and-swap, in the interleaving that actually issued duplicates.
+
+    This exists because the first version of `_reserve_id()` was reviewed, believed and merged while being
+    a no-op in the concurrent case: it read the push's exit status, and `git push HEAD:refs/tags/id/T-XXXX`
+    exits 0 with "Everything up-to-date" when the ref is already there at the same object. A prose argument
+    could not tell the two apart, and neither could a reader. This can.
+
+    Everything happens in a throwaway bare repo under a temp directory. The real `origin` is never
+    contacted, nothing is committed to this repository and no reservation is made on it.
+
+    The two clones sit at the SAME commit on purpose: that is what two agents look like right after
+    `git worktree add` off main, and it is the condition under which the old code failed.
+
+    Two floors, because a green that examines nothing is the failure this repository keeps finding:
+      * the reservations that LANDED on the throwaway origin must be non-empty - otherwise "the second
+        allocator backed off" is indistinguishable from "no push ever worked";
+      * both allocators must have computed the SAME number - otherwise the race was never set up and a
+        pass says nothing about the race.
+    """
+    import shutil
+    import tempfile
+
+    def rm(path):
+        def force(func, p, _exc):
+            try:
+                os.chmod(p, 0o200)
+                func(p)
+            except Exception:
+                pass
+        shutil.rmtree(path, onerror=force)
+
+    def git(args, cwd, check=True):
+        env = _git_env()
+        env.setdefault("GIT_AUTHOR_NAME", "selftest")
+        env.setdefault("GIT_AUTHOR_EMAIL", "selftest@scenic.invalid")
+        env.setdefault("GIT_COMMITTER_NAME", "selftest")
+        env.setdefault("GIT_COMMITTER_EMAIL", "selftest@scenic.invalid")
+        r = subprocess.run(["git"] + args, cwd=str(cwd), capture_output=True, text=True, env=env, timeout=120)
+        if check and r.returncode != 0:
+            raise SystemExit(f"selftest could not set up its lab: git {' '.join(args)}\n{r.stderr}")
+        return r
+
+    global ROOT, Q
+    saved_root, saved_q = ROOT, Q
+    box = Path(tempfile.mkdtemp(prefix="queue-selftest-"))
+    try:
+        origin, seed, a, b = box / "origin.git", box / "seed", box / "A", box / "B"
+        git(["init", "--bare", "-b", "main", origin.as_posix()], cwd=box)
+        seed.mkdir()
+        git(["init", "-b", "main"], cwd=seed)
+        (seed / "queue" / "ready").mkdir(parents=True)
+        (seed / "queue" / "ready" / "T-0042-already-here.md").write_text(
+            "---\nid: T-0042\ntitle: already here\nstate: ready\n---\n## Brief\n\nSomething.\n",
+            encoding="utf-8", newline="\n")
+        git(["add", "queue/ready/T-0042-already-here.md"], cwd=seed)
+        git(["commit", "-m", "seed"], cwd=seed)
+        git(["remote", "add", "origin", origin.as_posix()], cwd=seed)
+        git(["push", "origin", "main"], cwd=seed)
+        for c in (a, b):
+            git(["clone", "--quiet", origin.as_posix(), c.as_posix()], cwd=box)
+        heads = [git(["rev-parse", "HEAD"], cwd=c).stdout.strip() for c in (a, b)]
+
+        def read(wt):
+            global ROOT, Q
+            ROOT, Q = wt, wt / "queue"
+            SCAN_DEGRADED.clear()
+            seen = {int(str(fm.get("id")).split("-")[1]) for _, _, fm, _ in tasks()
+                    if TASK_ID.match(str(fm.get("id")))} | _ids_in_refs() | (_reserved_ids() or set())
+            return (max(seen) + 1) if seen else 1
+
+        def push(wt, n):
+            global ROOT
+            ROOT = wt
+            return _reserve_id(n)
+
+        na, nb = read(a), read(b)          # BOTH read before EITHER pushes. That is the whole point.
+        ga, gb = push(a, na), push(b, nb)
+        ROOT, Q = saved_root, saved_q
+        landed = sorted(re.search(r"refs/tags/id/(T-\d+)$", ln.strip()).group(1)
+                        for ln in git(["ls-remote", "--refs", origin.as_posix(), ID_TAG + "T-*"],
+                                      cwd=box).stdout.splitlines()
+                        if re.search(r"refs/tags/id/T-\d+$", ln.strip()))
+    finally:
+        ROOT, Q = saved_root, saved_q
+        rm(box)
+
+    print(f"RESERVE SELFTEST heads-equal={heads[0] == heads[1]} A-read=T-{na:04d} B-read=T-{nb:04d} "
+          f"A-reserve={ga} B-reserve={gb} landed={landed}")
+    if not landed:
+        print("RESERVE SELFTEST FAIL: no id was reserved on the throwaway origin, so nothing was compared "
+              "and this run proves nothing. A green here would be vacuous.")
+        return 1
+    if na != nb:
+        print("RESERVE SELFTEST FAIL: the two allocators did not compute the same id, so the race this "
+              "checks was never set up.")
+        return 1
+    if ga is not True or gb is not False:
+        print(f"RESERVE SELFTEST FAIL: two allocators that both read T-{na:04d} before either pushed got "
+              f"{ga!r} and {gb!r}; exactly one must win. `True, True` is the defect T-0101 was filed for "
+              f"and the one PR #61's first version shipped.")
+        return 1
+    print(f"RESERVE SELFTEST ok: T-{na:04d} contested by two allocators at one commit, won once")
+    return 0
+
+
 def _opts(argv, cmd):
     """(options, None), or (None, why-this-command-line-cannot-be-obeyed).
 
@@ -1113,6 +1220,7 @@ OPTS = {
     "claim": frozenset({"owner", "session", "worktree", "hours"}),
     "lock": frozenset({"owner"}),
     "review": frozenset({"reviewer"}),
+    "selftest": frozenset(),
 }
 COMMANDS = tuple(OPTS)
 # subcommand -> the operand it reads, for the usage line. `new` takes a title, not an id.
