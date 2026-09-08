@@ -122,6 +122,12 @@ rejected, because the next adversary will find X13.
   reason. 63% is not a good mutation score and this file does not pretend otherwise — it is the honest floor
   under a suite that had none, and the 69 names exactly where the next adversary will go.
 
+  > **CORRECTED 2026-09-08 (PR #56 review, F1 below).** The sentence about `.githooks/commit-msg` was false
+  > when written: that guard is T-0079's and T-0079 is unmerged. `grep -c "MAX_" .githooks/commit-msg` on this
+  > branch and on main returns 0, and the reviewer took 69 -> 999 through the hook in silence. Left in place
+  > rather than edited away, because the entry is the record of what I claimed. `depends_on: [T-0079]` now
+  > carries the dependency the sentence assumed.
+
   **THREE DEFECTS IN MY OWN HARNESS, ALL FOUND BY OPERATING IT RATHER THAN BY READING IT.**
 
   1. **A killed run leaves a mutant on disk** — and because `ast.unparse` does not preserve comments, it leaves
@@ -182,3 +188,196 @@ rejected, because the next adversary will find X13.
   `ordering: task/T-0081 ... must follow task/T-0036`. So this is the third branch the derived rule covers,
   and the first one it covers that did not exist when the rule was written — which was the whole argument for
   deriving it rather than listing T-0021 by hand.
+- 2026-09-08 agent/claude-opus-5 — **PR #56's review was right on every count, and all four attacks are
+  closed.** I reproduced each finding before changing anything; not one of them turned out to be wrong.
+
+  **F1 [high] the ratchet was unprotected, and the file said otherwise.** RED, on this branch:
+
+        $ grep -c "MAX_" .githooks/commit-msg
+        0
+        $ python .artifacts/toggle_budget.py up      # MAX_SURVIVORS = 69 -> 999
+        $ git add ops/lib/etl_mutation.py
+        $ bash .githooks/commit-msg .artifacts/msg.txt ; echo "HOOK_EXIT=$?"
+        HOOK_EXIT=0
+
+  The hook here guards `pins/floor_linux.txt` and `pins/floor_ios.txt` and nothing else. The `MAX_*` rule is
+  T-0079's and is unmerged. I cannot fix that from here — `.githooks/` is outside this task's `touches:` —
+  so the fix is to stop claiming it: the comment now states plainly that nothing guards the constant on this
+  branch, and `depends_on: [T-0079]` records the ordering the way the log records T-0036's. GREEN is the
+  same staged index under the hook the dependency brings:
+
+        $ bash .artifacts/commit-msg-T0079 .artifacts/msg.txt ; echo "HOOK_EXIT=$?"
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          ops/lib/etl_mutation.py: MAX_SURVIVORS 69 -> 999
+        HOOK_EXIT=1
+
+  **F2 [high] nothing bounded the mutant set.** RED — the two rules this PR added, turned off by renaming
+  their visitors, and no check anywhere objects:
+
+        $ python .artifacts/toggle_rules.py off
+        $ python ops/lib/etl_mutation.py --list | tail -1 ; echo "LIST_EXIT=$?"
+        MUTANTS 154
+        LIST_EXIT=0
+        $ python ops/lib/etl_mutation.py --limit 4 ; echo "RUN_EXIT=$?"
+        MUTATION 3 killed, 1 survived, of 4 run in 9s
+        RUN_EXIT=0
+
+  (The reviewer ran the full pass at 154 mutants and got 54 survivors — a fifteen-survivor "improvement".)
+  GREEN — `MIN_MUTANTS_ORACLE = 66` and `MIN_MUTANTS_ORACLE_SELECT = 120` in the rules module, checked before
+  `--list` and before any run, because `--list` is how you would confirm the rule set is intact:
+
+        $ python .artifacts/toggle_rules.py off
+        $ python ops/lib/etl_mutation.py --list ; echo "LIST_EXIT=$?"
+        MUTATION FAIL: the mutant set shrank, so the survivor count falls for a reason that is not
+          better tests. Raise the bar by killing mutants, never by generating fewer of them.
+            etl/oracle.py: 63 mutants, floor MIN_MUTANTS is 66
+            etl/oracle_select.py: 91 mutants, floor MIN_MUTANTS is 120
+          If the module really did get smaller: lower the floor in ops/lib/etl_mutation_rules.py with
+          a `ratchet-lower: <reason>` line in the commit body.
+        LIST_EXIT=2
+
+  They are two scalars rather than one dict on purpose, and that was checked rather than assumed: T-0079's
+  parser classifies a dict literal as `opaque` and skips it, so a dict would have looked like a ratchet and
+  been none. With the floors committed, its hook reads them:
+
+        $ # MIN_MUTANTS_ORACLE_SELECT = 120 -> 12, staged
+        $ bash .artifacts/commit-msg-T0079 .artifacts/msg.txt ; echo "HOOK_EXIT=$?"
+        commit-msg: ratchet lowered without a 'ratchet-lower: <reason>' line in the commit body:
+          ops/lib/etl_mutation_rules.py: MIN_MUTANTS_ORACLE_SELECT 120 -> 12
+        HOOK_EXIT=1
+
+  **F3 [high] the vacuity guard sat on the planned count, not the executed one.** RED:
+
+        $ python ops/lib/etl_mutation.py --limit -1 ; echo "EXIT=$?"
+        baseline: suite passes
+
+        MUTATION 0 killed, 0 survived, of 0 run in 0s
+        EXIT=0
+
+  GREEN, both halves — refused at the door, and a truncated run is no longer a pass:
+
+        $ python ops/lib/etl_mutation.py --limit -1 ; echo "EXIT=$?"
+        MUTATION FAIL: --limit must be >= 0 (0 means no limit), not -1
+        EXIT=2
+
+        $ python ops/lib/etl_mutation.py --limit 4 ; echo "EXIT=$?"
+        baseline: suite passes
+        unparse control: suite passes
+          SURVIVED  etl/oracle.py:47  operand   drop operand 0 of Or
+
+        MUTATION 3 killed, 1 survived, of 4 run in 9s
+          PARTIAL, so not a verdict: only 4 of 186 mutants ran.
+          The budget of 69 only means anything over the whole floored set. Exit 3, not 0.
+        EXIT=3
+
+  A subset can still FAIL — the budget is applied first, so a sample that blows it exits 1 — but it can never
+  pass. The same rule covers a module with no floor, which was the other way to get a small denominator:
+
+        $ PYTHON=python ops/etl-mutation --module etl/counts.py --limit 2 ; echo "EXIT=$?"
+          PARTIAL, so not a verdict: only 2 of 33 mutants ran; no MIN_MUTANTS floor for etl/counts.py.
+        EXIT=3
+
+  **F4 [medium] the clean-tree guard asked git about the wrong files.** RED — the exact disaster the
+  docstring describes, sitting in the tree while the harness reports numbers:
+
+        $ python .artifacts/corrupt_select.py corrupt      # ast.unparse, comments stripped, behaviour same
+        $ git status --porcelain
+         M services/etl/etl/oracle_select.py
+        $ python ops/lib/etl_mutation.py --module etl/oracle.py --limit 2 ; echo "EXIT=$?"
+        baseline: suite passes
+
+        MUTATION 2 killed, 0 survived, of 2 run in 2s
+        EXIT=0
+
+  GREEN — `dirty()` now asks about the whole `etl` package, not this run's module list:
+
+        $ python ops/lib/etl_mutation.py --module etl/oracle.py --limit 2 ; echo "EXIT=$?"
+        MUTATION FAIL: these modules are not clean, and this harness rewrites them in place:
+            services/etl/etl/oracle_select.py
+        EXIT=2
+
+  **F5 [medium] "every one of the ten evasions is in this file's rule set" was false.** Confirmed: X5's site
+  produces no mutant at all (`--list | grep "oracle_select.py:196"` is empty), and X2 and X4 are the same
+  shape — a call site rewritten, not a node edited. The docstring now says SIX, names the three that no rule
+  can generate, and says what that means: zero survivors would still not close the class. That sentence was
+  load-bearing — it is what licensed "so a survivor is where the next adversary will go".
+
+  **F6 [low] `mutants_for` was defined twice**, the first dead. Removed; the rules module is 199 lines.
+
+  **F7 [low] there was no unparse-only control**, and this one was not latent — it is a fail-open in the
+  flattering direction, so I demonstrated it rather than reasoning about it. A temporary probe test that
+  reads the module SOURCE (any docstring, licence-header or line-budget assertion has this shape) passes
+  normally and fails on unparsed output. RED, against the committed runner:
+
+        $ python ops/lib/_old_runner.py --module etl/oracle.py --limit 3 ; echo "EXIT=$?"
+        baseline: suite passes
+
+        MUTATION 3 killed, 0 survived, of 3 run in 5s
+        EXIT=0
+
+  A perfect score, produced entirely by `ast.unparse` stripping comments. GREEN:
+
+        $ python ops/lib/etl_mutation.py --module etl/oracle.py --limit 3 ; echo "EXIT=$?"
+        baseline: suite passes
+        unparse control: FAIL
+        MUTATION FAIL: the suite fails on the UNMUTATED ast.unparse of these modules, so every mutant
+          would be scored as killed by that alone and the run would look perfect. Refusing.
+        EXIT=2
+
+  **F8 (mine, found while closing F3) a mutant could be counted in "of N run" without ever running.** A
+  mutant whose applier matches nothing was skipped silently and counted anyway. RED — every applier degraded
+  to a no-op, against the committed runner:
+
+        $ python .artifacts/toggle_noop.py off
+        $ python ops/lib/_old_runner.py --limit 3 ; echo "EXIT=$?"
+        baseline: suite passes
+
+        MUTATION 0 killed, 0 survived, of 3 run in 0s
+        EXIT=0
+
+  GREEN:
+
+        $ python ops/lib/etl_mutation.py --limit 3 ; echo "EXIT=$?"
+        MUTATION 0 killed, 0 survived, of 0 run in 0s
+        MUTATION FAIL: 3 mutants were reached and 0 of them actually ran. A mutant whose
+          applier matched nothing, or whose tree would not unparse, is not a tested mutant - and a
+          run that executed nothing must never read as clean. An enumeration is not coverage.
+        EXIT=2
+
+  **THE FULL PASS AFTER ALL OF IT**, to show the guards cost nothing and the headline numbers still stand:
+
+        $ python ops/lib/etl_mutation.py ; echo "FULL_EXIT=$?"
+        baseline: suite passes
+        unparse control: suite passes
+          SURVIVED  etl/oracle.py:166        operand   drop operand 0 of Or
+          SURVIVED  etl/oracle.py:170        operand   drop operand 1 of Or
+          SURVIVED  etl/oracle_select.py:37  dictkey   drop key 'traffic_calming'
+          SURVIVED  etl/oracle_select.py:38  setmember drop member 'crossing'
+          ... 65 more ...
+
+        MUTATION 117 killed, 69 survived, of 186 run in 664s
+        FULL_EXIT=0
+
+  The same 117/69/186 as the PR body (661s) and as the reviewer's independent run (657s), with the same
+  survivors at the same lines. The new guards cost one extra suite run: 664s against 661s. Tree clean
+  afterwards, lock removed.
+
+  **NOT FIXED, and why.** The review's other medium is that nothing in the tree invokes `ops/etl-mutation`,
+  so `MAX_SURVIVORS` gates only a human's own run. Wiring it needs `.github/workflows/`, outside this task's
+  `touches:`, and the instruction for this round was not to widen it. It is stated in the wrapper header now
+  instead of implied away.
+
+  I tried the one route that WAS inside `touches:` — a pytest test in `services/etl/tests/` asserting the
+  MIN_MUTANTS floors, which `ops/test` and therefore CI already run — and rejected it, because it is a trap:
+  the harness rewrites the modules in place while the suite runs, so a test that enumerates mutants of the
+  working tree would see the MUTATED module. Every `dictkey`/`setmember` mutation drops an entry, the count
+  falls below the floor, that test fails, and the mutant is scored KILLED by its own floor check. It would
+  have inflated the kill count and looked like an improvement. Filed here rather than committed.
+
+  **FOR WHOEVER MERGES THIS UNDER task/T-0088.** Two things, both mechanical:
+  1. The `MAX_SURVIVORS` comment block is edited on both branches and will conflict. The resolution is
+     T-0088's value and history list, plus this branch's sentence about the constant being unguarded until
+     T-0079 lands — the two say different things and both are true.
+  2. `ops/lib/etl_mutation.py` is 294 lines here against the 300-line cap, and T-0088 adds ~35. The merged
+     file is over the cap and needs the next split — the run-integrity guards (clean tree, unparse control,
+     vacuity, floors) are a different reason-to-change from applying a mutant and running a suite.
