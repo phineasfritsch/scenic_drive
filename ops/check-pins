@@ -1,2 +1,18 @@
 #!/usr/bin/env bash
-exec "${PYTHON:-$(command -v python3 || command -v python)}" "$(git rev-parse --show-toplevel)/ops/lib/pins.py" "$@"
+# Entry point for ops/lib/pins.py, which holds every guard. See that file for the rules.
+#
+# PYTHON= is KEPT, deliberately: a venv, a pyenv shim or an explicit python3.12 is a real local need, and it
+# is not a security boundary - anyone who can set the environment already owns the box. CI never sets it
+# (.github/workflows/linux-core.yml installs python3 and runs `bash ops/check-pins` with no PYTHON in scope).
+# T-0072 recorded that decision instead of leaving it to omission, and closed the half that is not a
+# convenience: `PYTHON=true bash ops/check-pins` used to print nothing and exit 0, which no caller - CI, a
+# hook, or an agent - can tell apart from a pass. The probe refuses a non-Python value with exit 2 instead.
+# It costs one interpreter start. The same `${PYTHON:-...}` shape is in every other ops/* wrapper, unfixed.
+set -uo pipefail
+py="${PYTHON:-$(command -v python3 || command -v python)}"
+if [[ "$("$py" -c 'print("pins-probe-ok")' 2>/dev/null | tr -d '\r')" != "pins-probe-ok" ]]; then
+  echo "PINS FAIL: PYTHON=${PYTHON:-<unset>} does not resolve to a working python3 (tried: ${py:-nothing})." >&2
+  echo "  Refusing to exit 0 without loading a single pin, let alone running an assertion." >&2
+  exit 2
+fi
+exec "$py" "$(git rev-parse --show-toplevel)/ops/lib/pins.py" "$@"

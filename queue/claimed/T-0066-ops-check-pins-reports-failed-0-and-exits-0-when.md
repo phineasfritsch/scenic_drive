@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T05:19:36Z
 worktree: wt/T-0066
 branch: task/T-0066
 exclusive: []
-touches: [ops/lib/pins.py]
+touches: [ops/lib/pins.py, ops/check-pins]
 pins_affected: []
 reviewer: null
 depends_on: []
