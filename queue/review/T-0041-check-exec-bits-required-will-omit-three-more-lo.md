@@ -1,7 +1,7 @@
 ---
 id: T-0041
 title: check-exec-bits REQUIRED will omit three more load-bearing ops/lib files once T-0021 and T-0023 merge
-state: claimed
+state: review
 owner: agent/fixer-T0041
 owner_session: d217767a
 claimed_at: 2026-09-08T13:34:53Z
@@ -11,7 +11,7 @@ branch: task/T-0041
 exclusive: []
 touches: [ops/lib/check-exec-bits, ops/lib/ro_grammar.py]
 pins_affected: [P-OPS-01]
-reviewer: null
+reviewer: agent/reviewer-25
 depends_on: [T-0021, T-0023]
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -203,3 +203,25 @@ Demonstrate red by reproducing the rehearsal rather than by reasoning: merge `or
   too - `git grep -E "classify-checks|gh-stub-for-merge-tests|check-failure-naming" -- .github ops services`
   returns only `ops/merge:70`, the stub's own self-references, and this pin's own list. `.github/workflows/`
   contains one file (`linux-core.yml`) and it names none of the three.
+
+- 2026-09-08T14:20:00Z VERIFY, both commands in `verify:`, run in `.worktrees/T-0041` on the committed tree:
+  * `bash ops/check-pins` -> `PINS ok=11 skipped=0 pending=2 expired=0 failed=0 tier=linux`, exit 0.
+  * `bash ops/test` -> `TESTS linux=119/76 ios=skipped failed=0 skipped=0` / `OK`, exit 0.
+    `services/api/node_modules` was absent in this fresh worktree, the known artifact documented in
+    `queue/done/T-0015-*.md` and again in T-0021's log; `npm ci` in `services/api` (85 packages, 0
+    vulnerabilities) before the run, which is environment setup and not a diff change.
+  * `bash -n ops/lib/check-exec-bits` -> 0. `python3 -c "ast.parse(...)"` on `ro_grammar.py` -> 0.
+    `python3 ops/lib/ro_grammar.py --self-test` -> `RO-GRAMMAR OK 26 cases`, exit 0.
+  * Modes unchanged end to end: `git ls-files -s ops/lib/` matches `origin/main` on every entry, and the two
+    committed files kept theirs (`ops/lib/check-exec-bits` 100755, `ops/lib/ro_grammar.py` 100644).
+  * No CRLF in any staged file; `git status --short` clean at handoff.
+
+- 2026-09-08T14:22:00Z PR https://github.com/phineasfritsch/scenic_drive/pull/72, base `main` (branched from
+  `origin/main` at `288ebf6`, never from another task branch - see T-0113). reviewer set to
+  `agent/reviewer-25`; moved to `review/` with `git mv` so no stale copy is left in `claimed/`. Not transitioned
+  past `review/`.
+  For the reviewer: the two things most worth attacking are (1) whether `ops/lib/gh-stub-for-merge-tests`
+  belongs in `REQUIRED` at all, given it has no tracked call site and its only consumers are procedures written
+  down in task logs - I argued tracked-ness is the load-bearing property, but that is the weakest of the three;
+  and (2) the two omissions I reported and did not fix (`check-line-cap`, `check-exec-bits` itself), in case you
+  think they should have been in scope after all.
