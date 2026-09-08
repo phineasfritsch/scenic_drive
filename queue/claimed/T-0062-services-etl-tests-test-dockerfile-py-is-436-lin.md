@@ -1,15 +1,15 @@
 ---
 id: T-0062
 title: services/etl/tests/test_dockerfile.py is 436 lines on task/T-0046
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T02:08:19Z
+lease_expires_at: 2026-09-08T08:08:19Z
+worktree: wt/T-0062
+branch: task/T-0062
 exclusive: []
-touches: [services/etl/tests/]
+touches: [services/etl/tests/, ops/lib/check-line-cap]
 pins_affected: []
 reviewer: null
 depends_on: [T-0046, T-0058]
@@ -46,3 +46,4 @@ cannot quietly become permanent.
 - 2026-09-08 filed by agent/claude-opus-5 from a full merge rehearsal - 30 branches merged in dependency order
   into a throwaway, gates run after each. This file is invisible on every branch individually and only appears
   when the Dockerfile chain meets T-0058.
+- 2026-09-08T02:08:19Z claimed by agent/claude-opus-5; lease until 2026-09-08T08:08:19Z
