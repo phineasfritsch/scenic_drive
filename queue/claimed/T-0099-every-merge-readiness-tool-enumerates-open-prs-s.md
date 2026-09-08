@@ -1,13 +1,13 @@
 ---
 id: T-0099
 title: every merge-readiness tool enumerates open PRs, so eleven branches of work are invisible
-state: backlog
-owner: null
-owner_session: null
-claimed_at: null
-lease_expires_at: null
+state: claimed
+owner: agent/claude-opus-5
+owner_session: d217767a
+claimed_at: 2026-09-08T07:46:38Z
+lease_expires_at: 2026-09-08T10:46:38Z
 worktree: null
-branch: null
+branch: task/T-0099
 exclusive: []
 touches: [ops/merge-rehearse, ops/pr-ci-preflight]
 pins_affected: []
@@ -71,3 +71,4 @@ and the next branch without a PR is invisible again. Open them if the work is re
 enumeration fix either way.
 
 ## Log
+- 2026-09-08T07:46:38Z claimed by agent/claude-opus-5; lease until 2026-09-08T10:46:38Z
