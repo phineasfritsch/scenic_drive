@@ -15,9 +15,9 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 29 tests in 4 suites passed, exit 0"
-  - "python ops/mutate/corridorspeeds.py -> 18 caught by a named test, 0 missed, exit 0"
-  - "RED: python ops/mutate/corridorspeeds.py --prove-vacuity -> 0 caught with the tests removed"
+  - "swift test -> 36 tests in 5 suites passed, exit 0"
+  - "python ops/mutate/corridorspeeds.py -> 27 of 27 caught BY A NAMED TEST (trapped, compile-only, MISSED and skipped all 0), both EQUIVALENT mutants MISSED, exit 0"
+  - "RED: python ops/mutate/corridorspeeds.py --prove-vacuity -> caught 0 AND MISSED 27 of 27 with both test files removed"
 ---
 ## Brief
 
@@ -174,3 +174,181 @@ and reports `trapped` separately.
 Nine of the eighteen are numeric-constant mutations, including both clamp ends in both directions, the
 smoothing weight, and the badge threshold moved up as well as down. The previous harness had nine mutations
 and only one touched a number.
+
+---
+
+## Second fix pass: reviewer-pr75's re-review (FAIL). Three BLOCKING findings, all reproduced first
+
+Every finding below was re-run against the tree the reviewer saw (`LearnedCorridorSpeeds.swift`
+md5 `63f529c816a3ca9f022d7bf619174c28`, `CorridorKey.swift` md5 `938ae18bf4c7d587c0fd15c99888fafd`, matching
+the report byte for byte) BEFORE anything was changed. Nine mutations, nine MISSED, exit 0 every time. The
+same nine after the fix: nine caught, exit 1 every time.
+
+    F1-hashable-ignores-cell   MISSED -> caught      F5-smoothing-0.001   MISSED -> caught
+    F1-cell-masked             MISSED -> caught      F5-smoothing-0.15    MISSED -> caught
+    F2-guard-dropped           MISSED -> caught      F5-smoothing-0.4     MISSED -> caught
+    F2-guard-weakened          MISSED -> caught      F7-record-false      MISSED -> caught
+    F4-bucket-forced-utc       MISSED -> caught
+
+### F1 BLOCKING - the `cell` half of the key had never been tested at all
+
+There was a `hoursAreSeparate` and no `cellsAreSeparate`. Every store-level test used ONE cell and every
+key-construction test used `cell: 1`, so both halves of `CorridorKey` were nominally covered while only the
+hour half actually was. A hand-written `Hashable` combining only `hourOfWeek`, and `self.cell = cell & 0xFFFF`,
+each left all 29 tests green.
+
+The user-visible failure is the badge invariant defeated from the inside, and it is worse than an ETA being
+wrong: after five crawling drives on a freeway cell, a back road at the same hour that the user has **never
+driven** reports `samples=5`, drops the *estimate - no traffic data* badge, and doubles its ETA on somebody
+else's evidence. CLAUDE.md's ">= 5 learned samples" is satisfied by five samples of a different road.
+
+`cellsAreSeparate` (store level) plus `cellIsNotTruncated` and `differentCellsAreDifferentKeys` (key level).
+The two cell ids differ ONLY above the low sixteen bits, which is what makes the truncating mutant fail;
+`cell: 1` survives any mask, which is why nothing had failed before. Equality and hashing are asserted
+separately, because a `==` that agrees with a `hash(into:)` that does not is still a broken dictionary key,
+and the same-cell direction is asserted too, so a `==` that simply returns false cannot satisfy the test.
+
+### F2 BLOCKING - prior finding #5, not closed the first time and not mentioned in the Log
+
+`adjust`'s guard was still unpinned. `record` has six parameterised cases for exactly this input class;
+`adjust` had none. On a corridor learned at ratio 0.75, dropping the guard turns `freeFlow = -600` into
+`(-800.0000000000001, learned: true)` and `freeFlow = nan` into `(nan, learned: true)` - a nonsense number
+wearing the badge that means "we checked". The weaker `guard freeFlow.isFinite, let r = ...` lets 0 and
+negatives through the same way.
+
+`adjustRejectsUnusableFreeFlow` is parameterised over `0, -600, nan, +inf, -inf`, asserts `learned == false`
+and that the input comes back untouched. Both reductions are now caught, and both are in the harness.
+
+The honest note about the first pass: this finding was filed, and the fix pass shipped without a test, a
+mutation, or a line in the Log about it. Nothing in the process caught that; the reviewer re-running their
+own demonstration did.
+
+### F3 BLOCKING - the harness counted a crash as a pass, and it is the shared defect
+
+    return 0 if caught + len(trapped) == len(MUTATIONS) else 1
+
+`trapped` is this file's own name for "non-zero exit with NO named test failing", and its docstring says
+that is not a catch. The exit code added it back. Reproduced exactly as filed - the tracked harness, subject
+pristine, one trapping mutation (`counts[key] ?? 0` -> `counts[key]!`):
+
+    caught by a named test: 0   trapped: 1   compile-only: 0   MISSED: 0   of 1
+    HARNESS EXIT CODE: 0                                        <- the harness said PASS
+
+Rebuilt against the corrected reference (`ops/mutate/guidance.py` on task/T-0129). Same run now:
+
+    caught by a named test: 0 of 1   (trapped 1, compile-only 0, MISSED 0, skipped 0)
+    HARNESS EXIT CODE: 1
+
+Four changes, and all four are load-bearing rather than tidying:
+
+  * pass is `caught == len(MUTATIONS)`; trapped, compile-only and skipped each fail the run;
+  * SKIP is its own bucket. It used to be folded into MISSED, which reads a stale anchor - a check that no
+    longer runs - as a known coverage gap. Those are opposites;
+  * `--prove-vacuity` requires `caught == 0` **and** `missed == len(MUTATIONS)`. Demonstrated why, with
+    `build()` forced to fail after the baseline: every mutant then scores compile-only, `caught == 0` holds,
+    and the OLD rule prints VACUITY PROOF OK for a harness that measured nothing. The new rule exits 1;
+  * an EQUIVALENT arm whose two mutants must go MISSED specifically. Reordering `record`'s four independent
+    guard conditions and flipping `isConfident`'s comparison cannot change behaviour, so a catch there would
+    mean a test has an opinion about how the code is WRITTEN rather than what it DOES. Both MISSED.
+
+Both test files are blanked during the vacuity proof. Splitting the key tests into their own file and
+blanking only one would have let the surviving file "prove" the other's non-vacuity - the same shape of
+mistake the exit code was making.
+
+**The score dropped and then was earned back.** Under the corrected rule the old 18-mutation set scored
+18 of 18 still, but the nine gaps above were outside it. The set is now 27 and the harness's own trapping
+self-test fails as it should.
+
+### F6 - the signature defect again, inside the test written to close the last one
+
+`laterSamplesBlend`'s second block said "two samples only, so the value is exactly the blend or exactly the
+replacement" and then recorded five, with `#expect(r2 > 0.5)` - true under BOTH hypotheses (0.94855 blended,
+0.8285 replaced). The reviewer deleted the first block, left the advertised discriminator standing, and
+`if n == 0` -> `if n <= 1` sailed through. The direct discriminator discriminated nothing.
+
+This defect has shipped eleven times across the fleet this session, four of those inside a test written to
+close a previous instance, and this is one of the four - the block was added in the last fix pass, in this
+file, to close prior finding #4. So both blocks now carry a **written-out literal, arithmetic done by hand**:
+
+    1.0, 0.5, 0.5, 0.5, 0.5  ->  1.0, 0.85, 0.745, 0.6715, 0.62005     (replace lands on 0.5)
+    0.5, 1.0, 1.0, 1.0, 1.0  ->  0.5, 0.65, 0.755, 0.8285, 0.87995     (replace lands on 1.0)
+
+The second is the same five ratios in the opposite order, so it also states what "history is retained" means.
+Cross-check that costs nothing: the EWMA is affine, so swapping 0.5 and 1.0 throughout maps r to 1.5 - r, and
+1.5 - 0.62005 = 0.87995 - the two literals were not transcribed twice from the same slip. Re-ran the
+reviewer's attack in both directions: `n <= 1` with the FIRST half deleted is caught, with the SECOND half
+deleted is caught, whole test standing is caught. Neither half is decorative now.
+
+### F5 - `smoothing` was pinned from above and at exactly zero, and nowhere else
+
+0.7 fails `ewmaResistsOutliers`; 0.0 fails only because `#expect(after < before)` becomes a tie; 0.4, 0.15
+and 0.001 all passed. At 0.001 the suite is green while the model is inert - the reviewer's probe had forty
+drives at three times free-flow still reporting 1848 s for a 90-minute drive, `learned == true`, badge off.
+That is the headline over-promise, reached through the one constant the suite deliberately left loose, and
+the Log said the tolerance was deliberate without saying it was one-sided.
+
+Two fixes, because the two failure directions are different properties. The exact literals above pin the
+constant. `consistentlySlowCorridorIsLearned` states the product claim instead: ten free-flow drives then ten
+that each took an hour must produce an ETA of at least 55 minutes - 3300 s, written out. At 0.3 it is 3501 s;
+at 0.15, 3008 s; at 0.001, 1809 s, which is the free-flow number the badge exists to protect the user from.
+0.4, 0.15, 0.001 and 0.7 are all in the harness now, in both directions.
+
+### F4 - the calendar's time zone was never varied
+
+`mondayIsZero` pins `firstWeekday` and sets BOTH calendars to UTC; `sundayIsSix` is UTC too. So the half of
+`Calendar` that shifts the WEEK was pinned while the half that shifts the DAY was free, and forcing
+`calendar.timeZone = UTC` inside `CorridorKey.init?(cell:date:calendar:)` left everything green. That is
+verbatim the failure `mondayIsZero`'s own comment says it prevents, arrived at through the other parameter.
+
+`bucketUsesTheCalendarsTimeZone` uses fixed offsets rather than "Australia/Sydney", deliberately: an
+identifier lookup depends on a tzdata snapshot that differs between this box, Linux CI and a future OS
+update, and a test whose expected value moves with the host is not a pin. (This box has no tzdata at all -
+python's `ZoneInfo("Australia/Sydney")` raises here.) Monday 22:00 UTC read at UTC+10 is Tuesday 08:00,
+`hourOfWeek == 32`; the same instant read as UTC is 22. Tuesday 02:00 UTC read at UTC-7 is Monday 19:00,
+`hourOfWeek == 19`; as UTC it is 26. All four numbers written out.
+
+### F7 - nothing pinned the accepted path
+
+`rejectsBadSamples` pins `== false` for six bad inputs; nothing pinned `== true` for a good one, so
+`return true` -> `return false` was uncaught. `acceptedSampleSaysSo`.
+
+### F8 - the harness scratch directory
+
+`.build-mutate-corridorspeeds/` is not matched by `.gitignore`'s `.build/`, so the command in `acceptance:`
+left an untracked directory behind. Moved inside `.build/` rather than widening `touches:` to reach
+`.gitignore`, which is a file three other agents are working around today.
+
+### The file split
+
+`LearnedCorridorSpeedsTests.swift` plus everything above is 341 lines, over CLAUDE.md's 300-line cap. The key
+tests moved to `Tests/ScenicKitTests/CorridorKeyTests.swift` (`struct CorridorKeyTests`, filename == type
+name), which is where the new cell coverage belongs anyway. 286 and 128 lines.
+
+### Verification
+
+    swift test --scratch-path .build-T0118-fix
+      Test run with 36 tests in 5 suites passed.                                       exit 0
+    python ops/mutate/corridorspeeds.py
+      caught by a named test: 27 of 27 (trapped 0, compile-only 0, MISSED 0, skipped 0)
+      EQUIVALENT: 2 of 2 MISSED as required                                            exit 0
+    python ops/mutate/corridorspeeds.py --prove-vacuity
+      VACUITY PROOF OK: caught=0 (need 0) and MISSED=27 of 27                           exit 0
+    ops/check-pins    PINS ok=11 pending=2 failed=0                                     exit 0
+    ops/sane                                                                            exit 0
+    ops/queue-check   QUEUE OK                                                          exit 0
+
+`ops/test` exits 1 on `FAIL: services/api exists but vitest produced no report`. Pre-existing and not this
+PR - `git diff --stat main...HEAD -- services/` is empty - and it is not claimed green here, the same way the
+reviewer recorded it.
+
+### Deliberately not fixed
+
+The reviewer's closing NOTE, that P-PRIV-05 and P-SAFE-07 are cited in the source and in the tests but are
+not in `pins/PINS.yaml`, so `ops/check-pins` enforces neither. They filed it as "not a finding" and confirmed
+`pins_affected: []` is correct as written. Adding them would mean editing `pins/PINS.yaml`, which is outside
+this task's `touches:` and belongs to whoever owns the pin set. The runtime `#expect(!(learned is any
+Encodable))` remains the only enforcement of the Codable ban and still covers exactly these two types; no
+serialisation of any kind was added in this pass, and the "add Codable to the key" mutation is still caught.
+
+Task stays in `claimed/`. Moving it to `review/` needs a non-null `reviewer:` or `ops/queue-check` fails and
+takes P-PROC-01 red with it, and a fixer does not get to name their own reviewer.

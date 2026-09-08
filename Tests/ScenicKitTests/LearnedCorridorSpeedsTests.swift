@@ -70,6 +70,31 @@ struct LearnedCorridorSpeedsTests {
         #expect(learned.ratio(for: sunday) == nil, "Sunday at 8am is not Tuesday at 8am")
     }
 
+    @Test("cells are learned separately, so one road's traffic never speaks for another's")
+    func cellsAreSeparate() throws {
+        // There was a `hoursAreSeparate` and no `cellsAreSeparate`: every store-level test used ONE cell, so
+        // a hand-written `Hashable` that combined only `hourOfWeek` — and `self.cell = cell & 0xFFFF` — both
+        // left the whole suite green. The user-visible failure is the badge invariant defeated from the
+        // inside: a back road nobody has ever driven inherits the freeway's five crawling samples, drops the
+        // *estimate · no traffic data* badge, and doubles its own ETA on somebody else's evidence.
+        //
+        // The two ids differ only ABOVE the low sixteen bits, which is what makes a truncating key fail here.
+        let freeway = try #require(CorridorKey(cell: 0x8829_a1d6_ffff_ffff, hourOfWeek: 32))
+        let backRoad = try #require(CorridorKey(cell: 0x8829_a1d7_ffff_ffff, hourOfWeek: 32))
+
+        var learned = LearnedCorridorSpeeds()
+        for _ in 0..<5 { learned.record(freeway, actual: 3600, freeFlow: 1800) }
+        #expect(learned.sampleCount(for: freeway) == 5)
+        #expect(learned.isConfident(about: freeway))
+
+        #expect(learned.sampleCount(for: backRoad) == 0,
+                "the back road has never been driven; its count must still be zero")
+        #expect(learned.ratio(for: backRoad) == nil, "and nil means show the badge")
+        let (duration, isLearned) = learned.adjust(1800, for: backRoad)
+        #expect(duration == 1800, "an untravelled corridor keeps its free-flow ETA; got \(duration)")
+        #expect(!isLearned, "and it must still be badged as an estimate")
+    }
+
     // MARK: - the privacy invariant
 
     @Test("nothing here is Codable, and that is a privacy property not an oversight")
@@ -124,6 +149,28 @@ struct LearnedCorridorSpeedsTests {
                 "a learned ETA below free-flow is the over-promise from the other direction; got \(adjusted.duration)")
     }
 
+    @Test("a learned corridor still refuses a free-flow duration that is not a duration",
+          arguments: [TimeInterval(0), -600, .nan, .infinity, -.infinity])
+    func adjustRejectsUnusableFreeFlow(freeFlow: TimeInterval) {
+        // `record` has six parameterised cases for exactly this input class and `adjust` had none, so both
+        // reductions of its guard were uncaught: `guard let r = ratio(for: key)` and the weaker
+        // `guard freeFlow.isFinite, let r = ...`. Under either, a corridor learned at ratio 0.75 turns
+        // freeFlow = -600 into (-800.0, learned: true) and freeFlow = nan into (nan, learned: true) — a
+        // nonsense number wearing the badge that means "we checked".
+        var learned = LearnedCorridorSpeeds()
+        let k = Self.key()
+        for _ in 0..<5 { learned.record(k, actual: 2400, freeFlow: 1800) }   // ratio 0.75, confident
+        #expect(learned.isConfident(about: k))
+
+        let (duration, isLearned) = learned.adjust(freeFlow, for: k)
+        #expect(!isLearned, "an unusable input cannot produce a learned ETA; got \(duration)")
+        if freeFlow.isNaN {
+            #expect(duration.isNaN, "and it is handed back untouched")
+        } else {
+            #expect(duration == freeFlow, "and it is handed back untouched; got \(duration)")
+        }
+    }
+
     @Test("one unusual day cannot move the estimate far")
     func ewmaResistsOutliers() {
         var learned = LearnedCorridorSpeeds()
@@ -143,27 +190,64 @@ struct LearnedCorridorSpeedsTests {
         // indistinguishable. Widening `if n == 0` to `if n <= 1` - so drive #2 discards drive #1 - passed
         // the whole suite.
         //
-        // Heterogeneous samples separate them. Ratios 1.0 then 0.5, with smoothing 0.3:
-        //   blend:   0.3 * 0.5 + 0.7 * 1.0 = 0.85
-        //   replace: 0.5
+        // The block that used to sit below this one was the signature defect again: its comment claimed
+        // "two samples only, so the value is exactly the blend or exactly the replacement" while recording
+        // five, and its `#expect(r2 > 0.5)` was true under BOTH hypotheses (0.94855 blended, 0.8285
+        // replaced). A reviewer deleted this first block, left that one standing, and `if n <= 1` sailed
+        // through. So the expectation below is a WRITTEN-OUT LITERAL, arithmetic done by hand at smoothing
+        // 0.3 for the sequence 1.0, 0.5, 0.5, 0.5, 0.5:
+        //
+        //   r1 = 1.0                          (first sample at face value)
+        //   r2 = 0.3*0.5 + 0.7*1.0     = 0.85
+        //   r3 = 0.15   + 0.7*0.85     = 0.745
+        //   r4 = 0.15   + 0.7*0.745    = 0.6715
+        //   r5 = 0.15   + 0.7*0.6715   = 0.62005
+        //
+        // Under "replace the estimate with the newest sample" every step after the first lands on 0.5.
         var learned = LearnedCorridorSpeeds()
         let k = Self.key()
         learned.record(k, actual: 1800, freeFlow: 1800)      // ratio 1.0
-        learned.record(k, actual: 3600, freeFlow: 1800)      // ratio 0.5
-        for _ in 0..<3 { learned.record(k, actual: 3600, freeFlow: 1800) }
-
-        // After the blend the estimate is still above where a replace-then-converge would have taken it.
+        for _ in 0..<4 { learned.record(k, actual: 3600, freeFlow: 1800) }   // ratio 0.5, four times
         let r = try #require(learned.ratio(for: k))
         #expect(r > 0.5, "the first drive must still be visible in the estimate; got \(r)")
+        #expect(abs(r - 0.62005) < 1e-9, "expected exactly the blend, 0.62005; got \(r)")
 
-        // And directly: two samples only, so the value is exactly the blend or exactly the replacement.
-        var two = LearnedCorridorSpeeds()
+        // The same five ratios in the opposite order must land somewhere else, which is what "history is
+        // retained" MEANS. Sequence 0.5, 1.0, 1.0, 1.0, 1.0, again by hand:
+        //
+        //   r1 = 0.5 ; r2 = 0.65 ; r3 = 0.755 ; r4 = 0.8285 ; r5 = 0.87995
+        //
+        // Cross-check that costs nothing: the EWMA is affine, so swapping 0.5 and 1.0 throughout maps a
+        // result r to 1.5 - r. 1.5 - 0.62005 = 0.87995, so the two literals were not transcribed twice from
+        // the same slip. Under "replace" this run ends on 1.0 — free-flow — instead.
+        var reversed = LearnedCorridorSpeeds()
         let k2 = Self.key(11)
-        two.record(k2, actual: 1800, freeFlow: 1800)
-        two.record(k2, actual: 3600, freeFlow: 1800)
-        for _ in 0..<3 { two.record(k2, actual: 1800, freeFlow: 1800) }   // reach confidence, ratio rises
-        let r2 = try #require(two.ratio(for: k2))
-        #expect(r2 > 0.5)
+        reversed.record(k2, actual: 3600, freeFlow: 1800)    // ratio 0.5
+        for _ in 0..<4 { reversed.record(k2, actual: 1800, freeFlow: 1800) }  // ratio 1.0, four times
+        let r2 = try #require(reversed.ratio(for: k2))
+        #expect(abs(r2 - 0.87995) < 1e-9, "expected exactly the blend, 0.87995; got \(r2)")
+        #expect(r2 < 1.0, "the slow first drive must still be visible; got \(r2)")
+    }
+
+    @Test("a corridor that is consistently slow is actually learned, not merely nudged")
+    func consistentlySlowCorridorIsLearned() throws {
+        // `smoothing` was constrained from above (0.7 fails ewmaResistsOutliers) and at exactly 0.0, and
+        // nowhere else: 0.4, 0.15 and 0.001 all passed. At 0.001 the suite is green while the model is
+        // inert — forty drives at three times free-flow still report a 31-minute ETA for a 90-minute drive,
+        // with `learned == true` and the badge off. That is the headline over-promise reached through the
+        // one constant the suite left loose, so here is the floor, stated as a product claim.
+        var learned = LearnedCorridorSpeeds()
+        let k = Self.key()
+        for _ in 0..<10 { learned.record(k, actual: 1800, freeFlow: 1800) }   // ten free-flow drives
+        for _ in 0..<10 { learned.record(k, actual: 3600, freeFlow: 1800) }   // then ten that took an hour
+
+        let (duration, isLearned) = learned.adjust(1800, for: k)
+        #expect(isLearned)
+        // The drive really takes 3600 s. After ten consecutive hours-long drives the estimate must be at
+        // least 55 minutes — 3300 s, written out. At smoothing 0.3 it is 3501 s; at 0.15, 3008 s; at 0.001,
+        // 1809 s, which is the free-flow number the badge was supposed to protect the user from.
+        #expect(duration >= 3300, "ten identical slow drives must move the estimate; got \(duration)")
+        #expect(duration <= 3600, "and never past what was actually observed; got \(duration)")
     }
 
     @Test("the first sample is taken at face value, not blended with a default")
@@ -189,49 +273,14 @@ struct LearnedCorridorSpeedsTests {
                 "a rejected sample that still counted would let five bad drives drop the badge")
     }
 
-    // MARK: - the key
-
-    @Test("an hour outside the week is not a key")
-    func rejectsBadHours() {
-        #expect(CorridorKey(cell: 1, hourOfWeek: -1) == nil)
-        #expect(CorridorKey(cell: 1, hourOfWeek: 168) == nil)
-        #expect(CorridorKey(cell: 1, hourOfWeek: 0) != nil)
-        #expect(CorridorKey(cell: 1, hourOfWeek: 167) != nil)
-    }
-
-    @Test("Monday is bucket zero regardless of what the calendar calls the first weekday")
-    func mondayIsZero() throws {
-        // The bug this pins: Calendar.firstWeekday is 1 (Sunday) in en_US and 2 (Monday) in most of Europe.
-        // Deriving the bucket from it would bucket the same drive differently for two users, and would
-        // re-bucket a user's own history when they travelled.
-        var us = Calendar(identifier: .gregorian)
-        us.firstWeekday = 1
-        us.timeZone = TimeZone(identifier: "UTC")!
-        var eu = Calendar(identifier: .gregorian)
-        eu.firstWeekday = 2
-        eu.timeZone = TimeZone(identifier: "UTC")!
-
-        // 2026-09-07 is a Monday.
-        var comps = DateComponents()
-        comps.year = 2026; comps.month = 9; comps.day = 7; comps.hour = 9
-        comps.timeZone = TimeZone(identifier: "UTC")!
-        let monday9am = try #require(us.date(from: comps))
-
-        let a = try #require(CorridorKey(cell: 1, date: monday9am, calendar: us))
-        let b = try #require(CorridorKey(cell: 1, date: monday9am, calendar: eu))
-        #expect(a.hourOfWeek == 9)
-        #expect(a == b)
-    }
-
-    @Test("Sunday is the last day of the week, not the first")
-    func sundayIsSix() throws {
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = TimeZone(identifier: "UTC")!
-        var comps = DateComponents()
-        comps.year = 2026; comps.month = 9; comps.day = 13; comps.hour = 0   // Sunday
-        comps.timeZone = TimeZone(identifier: "UTC")!
-        let sunday = try #require(cal.date(from: comps))
-        let k = try #require(CorridorKey(cell: 1, date: sunday, calendar: cal))
-        #expect(k.hourOfWeek == 6 * 24)
+    @Test("a usable sample is accepted, and says so")
+    func acceptedSampleSaysSo() {
+        // `rejectsBadSamples` pins `== false` for six unusable inputs and nothing pinned `== true` for a
+        // good one, so `return true` -> `return false` on the accepted path was uncaught. A caller that
+        // branches on the result would then treat every recorded drive as discarded.
+        var learned = LearnedCorridorSpeeds()
+        let k = Self.key()
+        #expect(learned.record(k, actual: 2400, freeFlow: 1800) == true)
+        #expect(learned.sampleCount(for: k) == 1)
     }
 }
