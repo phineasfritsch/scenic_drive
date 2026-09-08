@@ -400,3 +400,317 @@ routes 1 and 3 change *which* and *what*. See [[T-0073]] and [[T-0074]] for the 
     `silence.py`, `vacuous.py`, `drop_pin.py`, `decoy.py`, `coord_inject.swift`. Every edit to
     `pins/PINS.yaml` and `Sources/ScenicKit/Model/Coordinate.swift` was reverted with `git checkout --`;
     `git status --short` after the last run shows only `ops/check-pins` and `ops/lib/pins.py` modified.
+
+- 2026-09-08 round-two adversarial verification, by an agent that did not write the fix.
+  **holds = false.**
+
+  **CORRECTION TO THIS TASK FILE.** The entry above records all four routes as closed. Two are not, and this
+  line is here because a task file claiming a closed route is worse than one that never claimed it:
+
+    ROUTE 3 is OPEN. The verbatim round-one evasion (`assertion: "true"` on every pin) now goes red. Two more
+    characters do not: `assertion: "true || false"` is accepted by `vacuous()`, executes, exits 0, and
+    reproduces the round-one green byte for byte with a banned `import CoreLocation` sitting in
+    `Sources/ScenicKit/Model/Coordinate.swift`. 28 of 32 cannot-fail shapes tested are accepted. Deleting one
+    alternative from P-SRC-01's real regex - still a genuine grep that can fail - is green too.
+
+    ROUTE 4 is HALF OPEN, and the half that is missing was not mentioned. `PYTHON=true` now exits 2, but a
+    four-line script that answers the probe token and then does nothing still passes. Worse, and separately:
+    `ops/check-pins` locates the module with `git rev-parse --show-toplevel`, so running THIS repo's
+    check-pins from inside any other git repo executes THAT repo's `ops/lib/pins.py`. The verifier got
+    `PINS ok=99 ... failed=0`, exit 0, from a synthetic repo, with nothing in this one modified. Pre-existing
+    - `git show dac14c3:ops/check-pins` has the same line - and not introduced here, but it defeats every
+    guard in the file at once and the task file does not say so.
+
+  What IS closed, and it is real: routes 1 and 2, plus all four round-one survivors re-run verbatim. Today's
+  headroom is exactly zero (ran=9 against MIN_RAN=9). The floors are hard literals, not derived from
+  PINS.yaml. `ROOT` now comes from `__file__`, so all four entry points keep their guards.
+
+  Every evasion below was EXECUTED. Full report verbatim, so the next person inherits the limits
+  along with the code.
+
+  # Round-two adversarial verification of T-0072 — holds = False
+  
+  ## Round-one routes still open
+  
+  - ROUTE 3 (`assertion` that cannot fail) — the VERBATIM round-one evasion (`assertion: "true"` on every pin) now goes RED, but the route itself is wide open: appending two characters, `assertion: "true || false"`, is accepted by vacuous(), executes, exits 0, and reproduces the round-one green byte-for-byte with a banned `import CoreLocation` in Sources/. 28 of 32 cannot-fail shapes I table-tested are accepted. The task file records this route as closed=true; it is not.
+  
+  - ROUTE 4 (`PYTHON=` bypass) — the VERBATIM round-one evasion (`PYTHON=true`) now goes RED with exit 2, but the route is only half closed and the fixer says so in the file: `PYTHON=<binary that echoes the probe token> bash ops/check-pins` still prints nothing and exits 0. Additionally the same shim line resolves the module via `git rev-parse --show-toplevel`, so `bash <this-repo>/ops/check-pins` run from any OTHER git repo executes THAT repo's ops/lib/pins.py — I got `PINS ok=99 ... failed=0 / EXIT=0` from a synthetic repo. The task file records this route as closed=true (with the hostile-PYTHON caveat); the module-path half is not mentioned.
+  
+  
+  ## Verdict
+  
+  HOLDS = FALSE. Round two is a genuine improvement and its own transcript reproduces exactly — but the task file now records all four routes as closed=true, and two of them are not.
+  
+  WHAT IS REAL. All four round-one survivors, re-run verbatim, now go red: `runs_on: []` on P-SRC-01 (exit 1 in all three modes, naming P-SRC-01 in the new "never executed" line), the three-pin headroom bisect (exit 1), `assertion: "true"` on every pin (failed=9, exit 1), and `PYTHON=true` (exit 2 with a reason). round1RoutesStillOpen as literally defined — round-one commands that still pass — is EMPTY. REQUIRED_RAN/REQUIRED_RAN_SOURCE work: they caught `runs_on: []`, a single-pin `runs_on` key typo, and `pending: <live task>`, each printing the pin id. The floors are hard literals, not derived from PINS.yaml, and today's headroom is exactly zero (ran=9 vs MIN_RAN=9; source-only ran=3 vs floor 3). Nine argv shapes round one never tried were all refused or behaved. Four entry points (subdirectory, outside the repo, module direct, module direct from outside) all keep every guard, because ROOT comes from `__file__`. `anchor: [source]` (type change) is refused. Process claims check out: 297 lines, both files 100755, commit 3fb8968 touches only the two ops files and the two queue files, pins/PINS.yaml is not in the commit, queue-check/sane/agent-preflight green, tree clean.
+  
+  THE FINDINGS — seven fresh evasions passed, six of them reaching the exact scenario the task exists to prevent: a banned `import CoreLocation` sitting in Sources/ with `bash ops/check-pins`, `--source-only` and `--tier mac` all printing the healthy baseline and exiting 0.
+  
+  1. ROUTE 3 IS OPEN, one line wide. `assertion: "true || false"` — two characters more than the round-one evasion the fix names — is accepted by `vacuous()` because it refuses only when EVERY fragment split on `;|&`/`&&`/`||` is a truth literal. One line of pins/PINS.yaml turns the import ban off and the run stays byte-identical to green. Table-tested 32 cannot-fail shapes: 28 are accepted, including `bash -c true`, `{ true; }` (while `(true)` is refused), `echo ok`, `test -d .`, `cd .`, `eval true`, `exit $((0))`.
+  
+  2. A DUPLICATE `assertion:` KEY IN THE SAME BLOCK SHADOWS THE REAL ONE, silently. `load()` keeps the last value for a repeated key; a second `assertion: "test -d ."` three lines below the real one leaves the correct assertion visible on line 13 to any reviewer, marks P-SRC-01 EXECUTED, satisfies every floor, and prints the healthy baseline with the banned import present. This is the sharpest evasion I found and it defeats REQUIRED_RAN's core promise — "the pin executed its assertion" is true, of the wrong assertion.
+  
+  3. THE RATCHET IS SATISFIABLE BY ADDING A CHEAP PIN. The fixer's ROUTE 2 claim (`anchor: source -> artifact` on P-SAFE-05 is caught) is true alone — I reproduced exit 1 — but one appended filler pin with `anchor: source` restores ran=3 and both modes go green with the USNO solar oracle no longer on the push gate.
+  
+  4. THE FLOOR IS A SNAPSHOT, NOT A RATCHET. Any pin added after 2026-09-08 arrives with one pin of fresh headroom and no REQUIRED_RAN entry, so it can be silenced with `runs_on: []` in one line and both modes stay green (measured: ok=10 -> ok=9, EXIT=0 both times). REQUIRED_RAN is a hand-maintained literal that nothing forces anyone to update.
+  
+  5. ROUTE 4 IS HALF OPEN, AS DISCLOSED, PLUS A HALF THAT IS NOT DISCLOSED. `PYTHON=<script that echoes pins-probe-ok>` prints nothing and exits 0 — confirmed, and the file says so. Not said: `ops/check-pins:18` locates the module with `git rev-parse --show-toplevel`, i.e. from the CALLER's CWD rather than from the script's own directory, so `bash <this-repo>/ops/check-pins` executed inside any other git repo runs THAT repo's ops/lib/pins.py. From a synthetic repo I got `PINS ok=99 ... failed=0 / EXIT=0`. Pre-existing (identical at dac14c3), but it is in the file this fix edited and reasoned about, and it is the same failure class the probe was added to close.
+  
+  6. Minor, structural: `executed` is keyed on the id string alone, so the decoy-duplicate-pin evasion was stopped only by the pre-existing duplicate-id check — note the absence of any "never executed" line in that transcript. And `ops/lib/pins.py` at 297 lines is under a cap nothing enforces: `ops/lib/check-line-cap` reads `git ls-files 'Sources/**/*.swift' 'Tests/**/*.swift'` only (T-0058 already filed).
+  
+  RECOMMENDATION. Keep the fix — it closes all four recorded round-one evasions and that is real. Do not mark routes 3 and 4 closed. Route 3 needs the assertion CONTENT pinned, not its shape: the cheapest honest version is a hash or a required-substring per REQUIRED_RAN id (e.g. P-SRC-01's assertion must contain `CoreLocation` and `Sources/`), since no vacuity heuristic will ever refuse `true || false` and `echo ok` and still accept real assertions. `load()` should refuse a duplicate key inside a block outright — that is a five-line fix and it kills finding 2. The shim should use `$(dirname "$(readlink -f "$0")")` instead of `git rev-parse --show-toplevel`.
+  
+  WORKTREE STATE. Every edit reverted with `git checkout -- .` after each attempt. Nothing created under queue/ or services/ (`git status --porcelain -uall queue services` -> no output). Helper scripts lived in the gitignored `.artifacts/verify-T-0072/` and were deleted; the synthetic repo lived in the session scratchpad, outside the repo, and was deleted. No commit, no push, main never touched. HEAD is still 3fb8968 and the baseline re-runs still print `ok=9 ... EXIT=0` and `ok=3 ... EXIT=0`. Final command: `git status --short` -> no output (clean).
+  
+  ## Evasions executed
+  
+  ### 1. CAUGHT — none — STEP 1 reproduction of the fixer's own gates on an unmodified tree at HEAD 3fb8968
+  
+  ```
+  $ bash ops/queue-check ; bash ops/check-pins ; bash ops/check-pins --source-only ; bash ops/check-pins --tier mac ; bash ops/sane ; bash ops/agent-preflight
+  QUEUE OK (69 tasks) / EXIT=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux / EXIT=0
+  PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only / EXIT=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=mac / EXIT=0
+  SANE OK / EXIT=0
+  PREFLIGHT OK / EXIT=0
+  Also verified: ops/lib/pins.py = 297 lines, ops/check-pins = 18 lines; git ls-files -s -> both 100755; commit 3fb8968 touches ops/check-pins, ops/lib/pins.py and the two queue files only (pins/PINS.yaml NOT in the commit).
+  ```
+  
+  ### 2. CAUGHT — ROUND-ONE EVASION 9 re-run verbatim: pins/PINS.yaml P-SRC-01 `runs_on: [linux, mac]` -> `runs_on: []`, plus the banned import injected into Sources/ScenicKit/Model/Coordinate.swift under `#if canImport(CoreLocation)`. Setup proved: `bash -o pipefail -c "! grep -rEn '^\s*(@testable\s+)?import\s+(CoreLocation|MapKit|UIKit|SwiftUI|MapLibre|Ferrostar)' Sources/"` -> Sources/ScenicKit/Model/Coordinate.swift:3:import CoreLocation, EXIT=1
+  
+  ```
+  $ bash ops/check-pins --source-only ; bash ops/check-pins ; bash ops/check-pins --tier mac
+  PINS ok=2 skipped=9 pending=1 expired=0 failed=0 tier=linux source-only
+   - only 2 assertion(s) actually ran for tier=linux --source-only (expected >= 3)
+   - required pin(s) never executed their assertion for tier=linux --source-only: P-SRC-01
+  EXIT=1
+  PINS ok=8 skipped=1 pending=3 expired=0 failed=0 tier=linux
+   - only 8 assertion(s) actually ran for tier=linux (expected >= 9)
+   - required pin(s) never executed their assertion for tier=linux: P-SRC-01
+  EXIT=1
+  PINS ok=8 skipped=1 pending=3 expired=0 failed=0 tier=mac
+   - only 8 assertion(s) actually ran for tier=mac (expected >= 9)
+   - required pin(s) never executed their assertion for tier=mac: P-SRC-01
+  EXIT=1
+  (was EXIT=0 in all three modes in round one)
+  ```
+  
+  ### 3. CAUGHT — ROUND-ONE EVASION 10 re-run verbatim: silence three REQUIRED pins by emptying runs_on — P-SRC-01, P-GIT-01, P-DATA-02 (round one measured exactly 3 pins of headroom here and stayed green)
+  
+  ```
+  $ bash ops/check-pins
+  PINS ok=6 skipped=3 pending=3 expired=0 failed=0 tier=linux
+   - only 6 assertion(s) actually ran for tier=linux (expected >= 9)
+   - required pin(s) never executed their assertion for tier=linux: P-SRC-01 P-GIT-01 P-DATA-02
+  EXIT=1
+  (was EXIT=0 in round one)
+  ```
+  
+  ### 4. CAUGHT — ROUND-ONE EVASION 11 re-run verbatim: rewrite every `assertion:` value in pins/PINS.yaml to "true" (12 lines)
+  
+  ```
+  $ bash ops/check-pins ; bash ops/check-pins --source-only
+  PINS ok=0 skipped=0 pending=3 expired=0 failed=9 tier=linux
+   - P-SRC-01: assertion 'true' cannot fail whatever the tree contains - a truth literal executes, and asserts nothing
+     ... (same line for P-SRC-02, P-OPS-01, P-GIT-01, P-DATA-02, P-TEST-01, P-PROC-01, P-ATTR-02, P-SAFE-05)
+   - only 0 assertion(s) actually ran for tier=linux (expected >= 9)
+   - required pin(s) never executed their assertion for tier=linux: P-SRC-01 P-SRC-02 P-OPS-01 P-GIT-01 P-DATA-02 P-TEST-01 P-PROC-01 P-ATTR-02 P-SAFE-05
+  EXIT=1
+  PINS ok=0 skipped=8 pending=1 expired=0 failed=3 tier=linux source-only ... EXIT=1
+  (was byte-identical to the healthy baseline, EXIT=0, in round one)
+  ```
+  
+  ### 5. CAUGHT — ROUND-ONE EVASION 12 re-run verbatim: no file edit, environment only
+  
+  ```
+  $ PYTHON=true bash ops/check-pins ; PYTHON=true bash ops/check-pins --source-only
+  PINS FAIL: PYTHON=true does not resolve to a working python3 (tried: true).
+    Refusing to exit 0 without loading a single pin, let alone running an assertion.
+  EXIT=2
+  (identical for --source-only, EXIT=2. Was silent EXIT=0 in round one.)
+  ```
+  
+  ### 6. *** UNCAUGHT *** — FRESH 1 — route 3, adjacent form. Every `assertion:` in pins/PINS.yaml rewritten to "true || false" (two characters more than the round-one evasion the fix names), banned `import CoreLocation` present in Sources/ScenicKit/Model/Coordinate.swift. Setup proof: the real P-SRC-01 assertion run by hand -> Sources/ScenicKit/Model/Coordinate.swift:3:import CoreLocation, EXIT=1
+  
+  ```
+  $ bash ops/check-pins ; bash ops/check-pins --source-only ; bash ops/check-pins --tier mac
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+  EXIT=0
+  PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only
+  EXIT=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=mac
+  EXIT=0
+  Byte-identical to the healthy baseline. vacuous() splits on || and && and refuses only when EVERY fragment is a truth literal, so one non-literal fragment disarms it.
+  ```
+  
+  ### 7. *** UNCAUGHT *** — FRESH 2 — the minimal form of FRESH 1. ONE line of pins/PINS.yaml: `-  assertion: "! grep -rEn ...(CoreLocation|MapKit|UIKit|SwiftUI|MapLibre|Ferrostar)' Sources/"` / `+  assertion: "true || false"` on P-SRC-01. id, anchor: source and runs_on all untouched; banned import still in Sources/.
+  
+  ```
+  $ bash ops/check-pins --source-only ; bash ops/check-pins ; bash ops/check-pins --tier mac
+  PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only
+  EXIT=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux
+  EXIT=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=mac
+  EXIT=0
+  This is the T-0066/T-0072 acceptance scenario exactly — the Apple-import ban off, the push gate green — reached by a one-line data edit through a neighbouring field.
+  ```
+  
+  ### 8. *** UNCAUGHT *** — FRESH 3 — route 3, the fixer's disclosed limit, executed. One token deleted from P-SRC-01's real assertion: `(CoreLocation|MapKit|UIKit|SwiftUI|MapLibre|Ferrostar)` -> `(MapKit|UIKit|SwiftUI|MapLibre|Ferrostar)`. Still a real grep that can fail; banned `import CoreLocation` present.
+  
+  ```
+  $ bash ops/check-pins --source-only ; bash ops/check-pins ; bash ops/check-pins --tier mac
+  PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only / EXIT=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux / EXIT=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=mac / EXIT=0
+  Disclosed in ops/lib/pins.py:126-127 ('Bounded: it cannot refuse a grep for something always present') — confirmed open, not a broken claim.
+  ```
+  
+  ### 9. *** UNCAUGHT *** — FRESH 3b — table test of vacuous() vs. reality: 32 candidate assertions, each asked (a) does vacuous() refuse it, (b) what does `bash -o pipefail -c` actually return. Run through the module itself via importlib on ops/lib/pins.py.
+  
+  ```
+  $ python .artifacts/verify-T-0072/vac_table.py
+  ACCEPTED BY vacuous() YET CANNOT FAIL: 28
+    - true || false / false || true / echo ok / echo ok >/dev/null / printf '' / cd . / pwd >/dev/null / test -d . / [ -d . ] / test -e . / command true / env true / bash -c true / bash -c 'exit 0' / { true; } / if true; then true; fi / while false; do :; done / for i in 1; do :; done / test 1 -lt 2 / test -z '' / grep -q id pins/PINS.yaml / ls >/dev/null / exit $((0)) / true 2>/dev/null / eval true / set -e / unset NOPE / shift 0 || true
+  Refused (4): 'true; true', '(true)', 'true # real check disabled', ': || :'. Note `(true)` is refused but `{ true; }` is not.
+  ```
+  
+  ### 10. CAUGHT — FRESH 4 — decoy duplicate id. P-SRC-01 `runs_on: []`, plus an appended second block with `id: P-SRC-01`, `anchor: source`, `runs_on: [linux, mac]`, `assertion: "test -d ."` so the decoy lands in the `executed` set on the real pin's behalf. Banned import present.
+  
+  ```
+  $ bash ops/check-pins --source-only ; bash ops/check-pins
+  PINS ok=3 skipped=9 pending=1 expired=0 failed=1 tier=linux source-only
+   - P-SRC-01: duplicate id
+  EXIT=1
+  PINS ok=9 skipped=1 pending=3 expired=0 failed=1 tier=linux
+   - P-SRC-01: duplicate id
+  EXIT=1
+  Caught — but ONLY by the pre-existing duplicate-id check: note there is no 'never executed' line, i.e. the decoy DID satisfy REQUIRED_RAN. `executed` is keyed on the id string alone, so the new guard is load-bearing on the old one.
+  ```
+  
+  ### 11. CAUGHT — FRESH 5a — the fixer's own ROUTE 2 claim, tested. P-SAFE-05 `anchor: source` -> `anchor: artifact`, nothing else.
+  
+  ```
+  $ bash ops/check-pins --source-only
+  PINS ok=2 skipped=9 pending=1 expired=0 failed=0 tier=linux source-only
+   - only 2 assertion(s) actually ran for tier=linux --source-only (expected >= 3)
+  EXIT=1
+  Claim confirmed as stated.
+  ```
+  
+  ### 12. *** UNCAUGHT *** — FRESH 5b — same edit, plus one appended filler pin (`id: P-FILL-01`, `anchor: source`, `runs_on: [linux, mac]`, `assertion: "test -f README.md"`) to put the source-only ran count back to 3. Satisfy the floor while removing the thing that mattered.
+  
+  ```
+  $ bash ops/check-pins --source-only ; bash ops/check-pins ; bash ops/check-pins --source-only --verbose
+  PINS ok=3 skipped=9 pending=1 expired=0 failed=0 tier=linux source-only
+  EXIT=0
+  PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
+  EXIT=0
+  --verbose shows what now runs on the push gate:
+    ok      P-SRC-01
+    ok      P-SRC-02
+    ok      P-FILL-01
+  P-SAFE-05 (the USNO solar oracle) is gone from the push gate and both modes are green. The ratchet is satisfiable by adding a cheap pin.
+  ```
+  
+  ### 13. *** UNCAUGHT *** — FRESH 6 — is the floor a ratchet or a snapshot? Append one genuinely load-bearing-looking pin (P-FILL-01, anchor: source, runs_on [linux, mac], real assertion) — it is NOT in REQUIRED_RAN, because REQUIRED_RAN is a hand-maintained literal — then silence it with `runs_on: []` in one line.
+  
+  ```
+  $ bash ops/check-pins ; bash ops/check-pins --source-only   # with the new pin live, then again after silencing it
+  with the new pin live:
+    PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux / EXIT=0
+    PINS ok=4 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only / EXIT=0
+  after `runs_on: []` on that pin:
+    PINS ok=9 skipped=1 pending=3 expired=0 failed=0 tier=linux / EXIT=0
+    PINS ok=3 skipped=9 pending=1 expired=0 failed=0 tier=linux source-only / EXIT=0
+  Every pin added after 2026-09-08 arrives with exactly one pin of fresh headroom and no REQUIRED_RAN entry. 'the first silencing is now red' is true only for the exact 12-pin tree the constants were measured against.
+  ```
+  
+  ### 14. CAUGHT — FRESH 7 — `pending: T-0066` (a task live in queue/claimed/) added to P-SRC-01, banned import present
+  
+  ```
+  $ bash ops/check-pins --source-only
+  PINS ok=2 skipped=8 pending=2 expired=0 failed=0 tier=linux source-only
+   - only 2 assertion(s) actually ran for tier=linux --source-only (expected >= 3)
+   - required pin(s) never executed their assertion for tier=linux --source-only: P-SRC-01
+  EXIT=1
+  ```
+  
+  ### 15. CAUGHT — FRESH 8 — typo ONE pin's field name only (round one renamed all of them): P-SRC-01's `  runs_on: [linux, mac]` -> `  runs_on_: [linux, mac]`, a valid identifier the parser accepts silently
+  
+  ```
+  $ bash ops/check-pins
+  PINS ok=8 skipped=1 pending=3 expired=0 failed=0 tier=linux
+   - only 8 assertion(s) actually ran for tier=linux (expected >= 9)
+   - required pin(s) never executed their assertion for tier=linux: P-SRC-01
+  EXIT=1
+  ```
+  
+  ### 16. CAUGHT — FRESH 9 — change the TYPE of the operand the push-gate check compares: P-SRC-01 `anchor: source` -> `anchor: [source]` (a one-element flow list, still reads as 'source' to a human)
+  
+  ```
+  $ bash ops/check-pins --source-only
+  PINS FAIL: pin(s) the --source-only push gate exists for are not anchor: source: P-SRC-01 (anchor: ['source']).
+    The import ban and the 300-line cap would stop running on every push with nothing red.
+  EXIT=1
+  ```
+  
+  ### 17. CAUGHT — FRESH 10 — nine argv shapes round one did not try (case variants, trailing whitespace, repeats, combinations, bare --)
+  
+  ```
+  $ for a in '--tier Linux' '--tier LINUX' '--tier mac --source-only' '--verbose --verbose' '--source-only --source-only' '--tier linux --tier mac' '--' '--tier=mac --source-only'; do bash ops/check-pins $a; done ; bash ops/check-pins --tier "linux "
+  --tier Linux              -> PINS FAIL: unknown --tier 'Linux'  EXIT=2
+  --tier LINUX              -> PINS FAIL: unknown --tier 'LINUX'  EXIT=2
+  --tier "linux "           -> PINS FAIL: unknown --tier 'linux ' EXIT=2
+  --                        -> PINS FAIL: unrecognised argument '--' EXIT=2
+  --tier=mac --source-only  -> PINS FAIL: unrecognised argument '--tier=mac' EXIT=2
+  --tier mac --source-only  -> PINS ok=3 skipped=8 pending=1 ... tier=mac source-only EXIT=0 (legitimate)
+  --verbose --verbose       -> full verbose run, EXIT=0 (legitimate)
+  --source-only --source-only -> ok=3 ... EXIT=0 (legitimate)
+  --tier linux --tier mac   -> ok=9 ... tier=mac EXIT=0 (last wins; still a real tier, still ran 9)
+  No argv shape reached a zero-assertion exit 0.
+  ```
+  
+  ### 18. *** UNCAUGHT *** — FRESH 11 — route 4, the half the fixer says is NOT closed. A 4-line /bin/sh script that answers the probe with `pins-probe-ok` and then does nothing, pointed at by PYTHON. No file edit inside the repo.
+  
+  ```
+  $ PYTHON=$PWD/.artifacts/verify-T-0072/fakepy bash ops/check-pins ; PYTHON=... bash ops/check-pins --source-only
+  (no output at all)
+  EXIT=0
+  (no output at all)
+  EXIT=0
+  Confirmed exactly as the fixer disclosed in ops/check-pins:1-10. A run that prints nothing still exits 0, so no caller can tell it from a pass.
+  ```
+  
+  ### 19. CAUGHT — FRESH 12 — alternate entry points, no file edit: (a) from a subdirectory, (b) from outside any git repo, (c) the module invoked directly, bypassing the shim, (d) the module invoked directly from outside the repo
+  
+  ```
+  $ (cd services && bash ../ops/check-pins) ; (cd /tmp && bash <wt>/ops/check-pins) ; python ops/lib/pins.py --source-only ; (cd /tmp && python <wt>/ops/lib/pins.py)
+  a) PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux / EXIT=0
+  b) fatal: not a git repository ... python: can't open file 'C:\Program Files\Git\ops\lib\pins.py' / EXIT=2
+  c) PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only / EXIT=0
+  d) PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux / EXIT=0
+  ROOT comes from __file__, so the module is CWD-independent and every guard survives all four. No hole here.
+  ```
+  
+  ### 20. *** UNCAUGHT *** — FRESH 13 — the other half of the shim line. `ops/check-pins:18` is `exec "$py" "$(git rev-parse --show-toplevel)/ops/lib/pins.py" "$@"` — the module is located from the CALLER's git toplevel, not from the script's own directory. Created a throwaway git repo in the session scratchpad containing `ops/lib/pins.py` that just prints a green summary line, then ran the real repo's check-pins from inside it. Nothing inside the repo under test was modified. (Pre-existing: `git show dac14c3:ops/check-pins` has the same line.)
+  
+  ```
+  $ cd <unrelated git repo> && bash /c/Users/phineasf/Documents/GitHub/wt/T-0066/ops/check-pins
+  PINS ok=99 skipped=0 pending=0 expired=0 failed=0 tier=linux
+  EXIT=0
+  The interpreter probe added by this fix does not protect the module path. Same class the probe was written to close ('no caller can tell it apart from a pass'), one argument to the left.
+  ```
+  
+  ### 21. *** UNCAUGHT *** — FRESH 14 — the stealthiest one. `load()` keeps the LAST value for a repeated key inside a block. Inserted a second `  assertion: "test -d ."` three lines below P-SRC-01's real assertion (after `added:`). The correct assertion is still there on line 13 for any reviewer to read. Banned `import CoreLocation` present in Sources/.
+  
+  ```
+  $ python -c "...m.load(m.PINS)... print P-SRC-01 assertion" ; bash ops/check-pins --source-only ; bash ops/check-pins ; bash ops/check-pins --tier mac
+  the visible assertion is still the real one; the parser keeps the last:
+  test -d .
+  
+  PINS ok=3 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only / EXIT=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=linux / EXIT=0
+  PINS ok=9 skipped=0 pending=3 expired=0 failed=0 tier=mac / EXIT=0
+  P-SRC-01 is counted as EXECUTED, every floor is satisfied, vacuous() is bypassed, the summary is byte-identical to the healthy baseline, and the Apple import is in Sources/. A duplicate key in a pin block produces no warning of any kind.
+  ```
