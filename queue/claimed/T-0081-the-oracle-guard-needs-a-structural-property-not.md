@@ -154,3 +154,31 @@ rejected, because the next adversary will find X13.
   **What this does NOT do**, since a tool that oversells itself is the thing this repo exists to catch: it
   does not decide which of the 69 survivors are genuinely equivalent mutations, and some certainly are. It
   ranks nothing. It is a floor and a map, not a verdict.
+
+- 2026-09-08 agent/claude-opus-5 — **PR #56's CI is red, and it is the T-0036 ordering constraint, not a
+  defect in this work.** Recorded here so a reviewer does not spend time on it.
+
+        core / check-pins
+          P-OPS-01: wrong git file mode:
+            ops/lib/etl_mutation.py       (script, should be 100755, is 100644)
+            ops/lib/etl_mutation_rules.py (script, should be 100755, is 100644)
+
+  This branch adds two `ops/lib/*.py`, and `task/T-0036` — unmerged — is what reclassifies those from script
+  to data, because they are only ever invoked as `"$PY" ops/lib/x.py`. Whichever mode they carry, ONE of the
+  two merge orders fails. Measured both ways:
+
+        on this branch's base (T-0036 absent):   should be 100755, is 100644          exit 1
+        main + task/T-0036 + task/T-0081:        P-OPS-01: 31 files, 20 required present, all modes correct
+
+  100644 is the correct END state, so it stays, exactly as `task/T-0021` and `task/T-0049` did before it.
+
+  **The tool written in this session derives the edge for this very branch**, which is the check that matters:
+
+        git diff --name-only --diff-filter=A origin/main...origin/task/T-0081 -- 'ops/lib/*.py'
+          ops/lib/etl_mutation.py
+          ops/lib/etl_mutation_rules.py
+
+  `ops/merge-rehearse` (T-0065) asks exactly that question and emits
+  `ordering: task/T-0081 ... must follow task/T-0036`. So this is the third branch the derived rule covers,
+  and the first one it covers that did not exist when the rule was written — which was the whole argument for
+  deriving it rather than listing T-0021 by hand.
