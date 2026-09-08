@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Run the gates on the tree GitHub Actions ACTUALLY tests, for every open PR.
+# Run the tree-answerable half of CI on the tree GitHub Actions ACTUALLY tests, for every open PR.
 #
 #   ops/pr-ci-preflight              every open PR
-#   ops/pr-ci-preflight --quiet      only report failures
+#   ops/pr-ci-preflight --quiet      only report PRs that are not ok
 #   ops/pr-ci-preflight --tree <ish> run the gates on one arbitrary commit (demonstrations, and any PR whose
 #                                    merge ref is missing)
+#
+# EXIT CODES.  0 every listed PR was gated and every gate passed.  1 a gate failed, or a PR could not be
+# gated at all.  2 the tool could not do its job (gh unreachable, its answer did not parse, the scratch
+# worktree could not be made, the gates ran on nothing) - a refusal, never a verdict.
 #
 # WHY THIS EXISTS, and why it does not simulate the merge itself.
 #
@@ -18,21 +22,23 @@
 #   ops/queue-check on refs/pull/32/merge      QUEUE CHECK FAIL      exit 1
 #     duplicate id T-0051 / duplicate id T-0026
 #
-# and the real `core` job failed on P-PROC-01, whose assertion is `bash ops/queue-check >/dev/null`. Three of
-# thirty-one open PRs were in that state, and nothing in ops/ looked there.
+# THE MERGE MUST BE FETCHED, NOT REPRODUCED. Measured on PR #32's own merge commit, 777a2ae, whose parents
+# are exactly fc068e6 (base) and d023009 (head): GitHub's refs/pull/32/merge kept FOUR queue/ paths where
+# git's own merge of the same two parents kept TWO - local git resolved the ready/->claimed/ and
+# claimed/->done/ moves by rename detection, GitHub's merge kept both sides and produced the duplicate. Same
+# parents, different trees. A tool that reconstructs the merge answers a question CI is not asking.
 #
-# THE MERGE MUST BE FETCHED, NOT REPRODUCED. Merging the same two commits locally does not give GitHub's tree.
-# Measured on PR #32's own merge commit, 777a2ae, whose parents are exactly fc068e6 (base) and d023009 (head):
+# WHAT IS AND IS NOT COVERED.  CI runs two jobs. `pins-source-only` runs `bash ops/check-pins --source-only`.
+# `core` runs `bash ops/agent-preflight`, `bash ops/test`, `bash ops/check-pins` and `bash ops/queue-check`.
+# This tool runs `ops/check-pins` (which is a superset of --source-only) and `ops/queue-check`, VERBATIM, and
+# nothing else. It does NOT run `ops/test` (needs npm ci and minutes) and does NOT run `ops/agent-preflight`
+# (it asserts things about the host - hooksPath, docker, node - not about the tree). Those two remain CI's
+# alone, and the summary line says so on every run so this can never be read as full parity.
 #
-#   GitHub's refs/pull/32/merge kept FOUR paths      git's own merge of the same two parents kept TWO
-#     queue/claimed/T-0026-...                         queue/claimed/T-0051-...
-#     queue/claimed/T-0051-...                         queue/done/T-0026-...
-#     queue/done/T-0026-...
-#     queue/ready/T-0051-...
-#
-# Local git resolved the ready/->claimed/ and claimed/->done/ moves by rename detection; GitHub's merge kept
-# both sides and produced the duplicate. Same parents, different trees. So a tool that reconstructs the merge
-# answers a question CI is not asking, and this one fetches the ref GitHub built.
+# The verdict for a gate is that command's EXIT STATUS. It is never a grep of the command's wording: the
+# previous version matched failure messages by regex and three of the checks' own failure messages -
+# `only N tracked .swift file(s)`, `load-bearing script(s) not tracked`, and every pin other than the three
+# it reimplemented - matched no pattern, so `import SwiftUI` in Sources/ was reported `gates clean`.
 #
 # It NEVER pushes, never merges into a real branch, and never touches an existing worktree.
 set -uo pipefail
@@ -44,120 +50,244 @@ ROOT="$(pwd)"
 
 QUIET=0
 TREE=""
+LIMIT=200
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --quiet) QUIET=1; shift ;;
     --tree)  TREE="${2:-}"; [[ -n "$TREE" ]] || { echo "--tree needs a commit-ish"; exit 2; }; shift 2 ;;
+    --limit) LIMIT="${2:-}"; [[ "$LIMIT" =~ ^[0-9]+$ ]] || { echo "--limit needs a number"; exit 2; }; shift 2 ;;
     *) echo "unknown argument: $1"; exit 2 ;;
   esac
 done
 
-SCRATCH="$ROOT/../wt/_prci"
-BRANCH="tmp/pr-ci-preflight"
+# The scratch worktree is per-invocation. A fixed name is shared mutable state: several agents drive this
+# repo at once, and a run that dies before its trap used to park the branch `tmp/pr-ci-preflight` where every
+# later run - from any worktree - died with "a branch named ... already exists" and exited 2 having tested
+# nothing. Anchored on the common git dir so the path does not depend on which worktree invoked it (from a
+# task worktree `$ROOT/..` was `GitHub/wt`, which is how an empty `GitHub/wt/wt/` kept appearing).
+COMMON="$(git rev-parse --git-common-dir 2>/dev/null)" || { echo "not a git repository"; exit 2; }
+case "$COMMON" in /*|?:*) ;; *) COMMON="$ROOT/$COMMON" ;; esac
+WTROOT="$(cd "$COMMON/../.." >/dev/null 2>&1 && pwd)" || WTROOT="$ROOT/.."
+UNIQ="$$-$(date +%s)"
+SCRATCH="$WTROOT/wt/_prci-$UNIQ"
+BRANCH="tmp/prci-$UNIQ"
+REFNS="refs/tmp/prci/$UNIQ"
+
 cleanup() {
   cd "$ROOT" || return
   git worktree remove --force "$SCRATCH" >/dev/null 2>&1
   git branch -D "$BRANCH" >/dev/null 2>&1
-  git for-each-ref --format='%(refname)' 'refs/tmp/prci/*' 2>/dev/null | while read -r r; do
+  git for-each-ref --format='%(refname)' "$REFNS/*" 2>/dev/null | while read -r r; do
     git update-ref -d "$r" 2>/dev/null
   done
+  git worktree prune >/dev/null 2>&1
 }
 trap cleanup EXIT
 
-git worktree remove --force "$SCRATCH" >/dev/null 2>&1
-git branch -D "$BRANCH" >/dev/null 2>&1
-git worktree add -q -b "$BRANCH" "$SCRATCH" main || { echo "cannot create the scratch worktree"; exit 2; }
+git worktree prune >/dev/null 2>&1
+if ! err="$(git worktree add -q -b "$BRANCH" "$SCRATCH" main 2>&1)"; then
+  echo "cannot create the scratch worktree at $SCRATCH"
+  printf '  %s\n' "$err"
+  exit 2
+fi
 
-# Every gate CI's `core` job runs that can be answered from a tree alone. NOT ops/test: it needs npm ci and a
-# swift toolchain, takes minutes, and this tool is about what the merge does to the tree. `core` runs both;
-# this catches the half that is cheap and that per-branch checking cannot see.
-gates() {
-  local bad="" q e l dup
-  q="$(bash ops/queue-check 2>&1 | tail -1)"
-  [[ "$q" == QUEUE\ OK* ]] || bad="$bad | queue-check: ${q# }"
-  if [[ -f ops/lib/check-exec-bits ]]; then
-    e="$(bash ops/lib/check-exec-bits 2>&1)"
-    grep -qE 'wrong git file mode|only [0-9]+ files tracked' <<<"$e" && \
-      bad="$bad | exec-bits: $(grep -m1 -A1 -E 'wrong git file mode|only [0-9]+ files' <<<"$e" \
-            | sed 's/^ *//' | tr '\n' ' ' | sed 's/ *$//')"
-  fi
-  if [[ -f ops/lib/check-line-cap ]]; then
-    l="$(bash ops/lib/check-line-cap 2>&1)"
-    grep -qE 'over the 300-line cap|no longer needed' <<<"$l" && \
-      bad="$bad | line-cap: $(grep -m1 -A1 -E 'over the 300-line cap|no longer needed' <<<"$l" \
-            | tail -1 | sed 's/^ *//')"
-  fi
-  if [[ -f pins/PINS.yaml ]]; then
-    dup="$(grep -E '^- id:' pins/PINS.yaml | sort | uniq -d | tr '\n' ' ')"
-    [[ -z "${dup// }" ]] || bad="$bad | duplicate pin id: $dup"
-  fi
+# ------------------------------------------------------------------ gates
+GATE_FILES=(ops/queue-check ops/check-pins)
+
+# Pure parameter expansion: `sed 's/\036/ ; /'` does not portably match a literal control byte here, and a
+# separator that silently does not appear glues two messages into one unreadable line.
+oneline() {
+  local s="${1//$'\r'/}"
+  s="${s//$'\n'/ ; }"
+  while [[ "$s" == *" ;  ; "* ]]; do s="${s//" ;  ; "/" ; "}"; done
+  s="${s#" ; "}"; s="${s%" ; "}"
+  printf '%s' "$s"
+}
+
+digest() {  # keep every failing line, not just the last one, capped so one PR cannot own the report
+  local s; s="$(oneline "$1")"
+  if [[ ${#s} -gt 500 ]]; then s="${s:0:500}... [truncated, run the gate yourself for the rest]"; fi
+  printf '%s' "$s"
+}
+
+gates() {  # run in the tree under test; prints the failure summary, empty ONLY when every gate ran and passed
+  local bad="" ran=0 out rc f
+  for f in "${GATE_FILES[@]}"; do
+    if [[ ! -f "$f" ]]; then
+      # A tree that deletes a gate must not thereby pass it. The previous version skipped a missing gate.
+      bad="$bad | ${f##*/}: MISSING from this tree"
+      continue
+    fi
+    out="$(bash "$f" 2>&1)"; rc=$?     # a command substitution, not a pipeline: $? is this command's status
+    ran=$((ran + 1))
+    [[ $rc -eq 0 ]] || bad="$bad | ${f##*/} exit $rc: $(digest "$out")"
+  done
+  [[ $ran -gt 0 ]] || bad="$bad | NO GATE RAN: none of ${GATE_FILES[*]} exists in this tree"
   printf '%s' "$bad"
 }
 
-run_on() {  # run_on <commit-ish> -> prints the failure summary, empty when clean
-  ( cd "$SCRATCH" && git reset -q --hard "$1" >/dev/null 2>&1 && git clean -qfd && gates )
+# run_on <commit-ish> -> prints the failure summary, empty when clean. A summary starting with the CANNOT
+# marker means the tool could not gate this tree at all, which is never the same as gating it clean: the
+# previous version discarded the checkout's output and status, so a tree git refused to check out (an
+# `a:b` path is legal on Linux, where GitHub builds these merges, and illegal on Windows) produced empty
+# output from the subshell and was reported `gates clean`.
+# A "cannot" answer is returned WITHOUT the leading " | " that gates() uses, so the caller distinguishes the
+# two by prefix and no gate's own wording can be mistaken for it.
+CANNOT="CANNOT GATE"
+run_on() {
+  local ish="$1" out rc head want
+  out="$(cd "$SCRATCH" && git reset -q --hard "$ish" 2>&1)"; rc=$?
+  if [[ $rc -ne 0 ]]; then printf '%s: git reset --hard exit %s: %s' "$CANNOT" "$rc" "$(digest "$out")"; return; fi
+  out="$(cd "$SCRATCH" && git clean -qfd 2>&1)"; rc=$?
+  if [[ $rc -ne 0 ]]; then printf '%s: git clean exit %s: %s' "$CANNOT" "$rc" "$(digest "$out")"; return; fi
+  want="$(git rev-parse --verify -q "$ish^{commit}" 2>/dev/null)"
+  head="$(cd "$SCRATCH" && git rev-parse --verify -q HEAD 2>/dev/null)"
+  if [[ -z "$want" || "$head" != "$want" ]]; then
+    printf '%s: the scratch worktree holds %s, not %s' "$CANNOT" "${head:-nothing}" "${want:-$ish}"; return
+  fi
+  out="$(cd "$SCRATCH" && git status --porcelain 2>&1)"
+  if [[ -n "$out" ]]; then
+    printf '%s: the scratch worktree is dirty after reset+clean: %s' "$CANNOT" "$(digest "$out")"; return
+  fi
+  ( cd "$SCRATCH" && gates )
 }
+
+COVERAGE="gates run per tree: $(printf '%s ' "${GATE_FILES[@]}")| NOT run: ops/test, ops/agent-preflight (CI's alone)"
 
 # ------------------------------------------------------------------ single-tree mode
 if [[ -n "$TREE" ]]; then
-  if ! git rev-parse --verify -q "$TREE^{commit}" >/dev/null 2>&1; then
-    echo "no such commit: $TREE"; exit 2
-  fi
+  git rev-parse --verify -q "$TREE^{commit}" >/dev/null 2>&1 || { echo "no such commit: $TREE"; exit 2; }
+  short="$(git rev-parse --short "$TREE")"
   bad="$(run_on "$TREE")"
-  if [[ -n "$bad" ]]; then
-    echo "$(git rev-parse --short "$TREE")  GATES FAIL${bad}"
-    exit 1
+  if [[ "$bad" == "$CANNOT"* ]]; then echo "$short  $bad"; echo "  $COVERAGE"; exit 2; fi
+  if [[ -n "$bad" ]]; then echo "$short  GATES FAIL${bad}"; echo "  $COVERAGE"; exit 1; fi
+  echo "$short  gates clean"
+  echo "  $COVERAGE"
+  exit 0
+fi
+
+# ------------------------------------------------------------------ ask GitHub for the PR list
+command -v gh >/dev/null 2>&1 || { echo "gh is not on PATH; the PR list comes from GitHub"; exit 2; }
+WORK="$(mktemp -d)" || { echo "cannot make a temp dir"; exit 2; }
+trap 'rm -rf "$WORK"; cleanup' EXIT
+
+# `gh` failing - expired auth, no network, rate limit - used to be swallowed by 2>/dev/null, leaving the list
+# empty, whereupon the tool printed `no open PRs` and exited 0: a successful-looking run that gated nothing.
+# "gh answered and there are none" and "gh could not be asked" are now different outcomes, and the second is
+# a refusal.
+gh pr list --state open --limit "$LIMIT" --json number,headRefName,baseRefName,mergeable \
+  --template '{{range .}}{{.number}} {{.headRefName}} {{.baseRefName}} {{.mergeable}}{{"\n"}}{{end}}' \
+  >"$WORK/list" 2>"$WORK/err"
+rc=$?
+if [[ $rc -ne 0 ]]; then
+  echo "REFUSING: gh could not be asked for the open PR list (exit $rc). Nothing was gated."
+  sed 's/^/  /' "$WORK/err"
+  echo "  This is NOT the same as 'there are no open PRs'."
+  exit 2
+fi
+
+# A second, independent question to GitHub, so completeness is not asserted against the same array the loop
+# walks. The old guard compared ${#PRS[@]} with a counter derived from ${#PRS[@]} and could only fire on a
+# blank line, which `gh --template` never emits.
+gh pr list --state open --limit "$LIMIT" --json number --jq 'length' >"$WORK/count" 2>"$WORK/cerr"
+rc=$?
+COUNT="$(tr -cd '0-9' <"$WORK/count")"   # also drops the trailing \r if a future gh or shell adds one
+if [[ $rc -ne 0 || -z "$COUNT" ]]; then
+  echo "REFUSING: gh answered the list but not the independent count (exit $rc), so completeness cannot be"
+  echo "  checked. Nothing was gated."
+  sed 's/^/  /' "$WORK/cerr"
+  exit 2
+fi
+
+mapfile -t RAW <"$WORK/list"
+NUM=(); HEAD=(); BASE=(); MERG=()   # assigned empty, not merely declared: `set -u` trips on ${#NUM[@]} for a
+                                    # declared-but-never-assigned array, which is exactly the 0-PR path
+bad_lines=0
+for line in "${RAW[@]}"; do
+  line="${line%$'\r'}"     # harmless where gh's stdout is LF-only, which it is on this box - measured, not assumed
+  [[ -n "${line// }" ]] || continue
+  if [[ "$line" =~ ^([0-9]+)\ ([^\ ]+)\ ([^\ ]+)\ ([A-Za-z_]+)$ ]]; then
+    NUM+=("${BASH_REMATCH[1]}"); HEAD+=("${BASH_REMATCH[2]}")
+    BASE+=("${BASH_REMATCH[3]}"); MERG+=("${BASH_REMATCH[4]}")
+  else
+    echo "  unparsable line from gh: $line"
+    bad_lines=$((bad_lines + 1))
   fi
-  echo "$(git rev-parse --short "$TREE")  gates clean"
+done
+WANT=${#NUM[@]}
+
+if [[ $bad_lines -gt 0 ]]; then
+  echo "REFUSING: $bad_lines line(s) of gh's answer did not parse. Nothing was gated."
+  exit 2
+fi
+if [[ $WANT -ne $COUNT ]]; then
+  echo "REFUSING: gh listed $WANT PRs but its own count says $COUNT. The list is truncated or raced;"
+  echo "  a partial pass must not read as a clean one."
+  exit 2
+fi
+if [[ $WANT -eq 0 ]]; then
+  echo "gh answered: 0 open PRs (query ok, count 0). Nothing to gate."
+  echo "  $COVERAGE"
   exit 0
 fi
 
 # ------------------------------------------------------------------ every open PR
-command -v gh >/dev/null 2>&1 || { echo "gh is not on PATH; the PR list comes from GitHub"; exit 2; }
-mapfile -t PRS < <(gh pr list --state open --limit 200 --json number,headRefName,baseRefName \
-  --template '{{range .}}{{.number}} {{.headRefName}} {{.baseRefName}}{{"\n"}}{{end}}' 2>/dev/null)
-[[ ${#PRS[@]} -gt 0 ]] || { echo "no open PRs"; exit 0; }
+ok=0; bad=0; ungated=0
+for i in "${!NUM[@]}"; do
+  n="${NUM[$i]}"; head="${HEAD[$i]}"; base="${BASE[$i]}"; merg="${MERG[$i]}"
 
-ok=0; bad=0; noref=0; disagree=0
-for line in "${PRS[@]}"; do
-  line="${line%$'\r'}"          # git-bash gives gh's stdout CRLF; an unstripped CR breaks every rev-parse
-  [[ -n "$line" ]] || continue
-  read -r n head base <<<"$line"
-
-  if ! git fetch -q origin "refs/pull/$n/merge:refs/tmp/prci/$n" 2>/dev/null; then
-    # GitHub has no merge ref, which it reports as mergeable=CONFLICTING. Do NOT print that as fact: four PRs
-    # here claimed CONFLICTING while `git merge-tree --write-tree` produced a clean tree, and the value only
-    # refreshed after a new commit landed on the head. Say which of the two said what.
-    if git merge-tree --write-tree "origin/$base" "origin/$head" >/dev/null 2>&1; then
-      printf '#%-4s %-18s <- %-18s NO MERGE REF, but git merges it cleanly - GitHub is stale, push to refresh\n' \
-        "$n" "$head" "$base"
-      disagree=$((disagree + 1))
+  if ! git fetch -q origin "refs/pull/$n/merge:$REFNS/$n" 2>"$WORK/fetcherr"; then
+    # No merge ref, so the tree CI tests does not exist and CANNOT be gated here. Report what each side
+    # actually said - GitHub's mergeable is read, not guessed - and count it as ungated, never as ok.
+    # `git merge-tree --write-tree` exits 1 both for a real conflict and for a ref it cannot resolve, so
+    # the refs are resolved first rather than reading exit 1 as "git agrees".
+    if ! git rev-parse --verify -q "origin/$base^{commit}" >/dev/null 2>&1; then
+      verdict="git cannot be asked: origin/$base is not fetched here"
+    elif ! git rev-parse --verify -q "origin/$head^{commit}" >/dev/null 2>&1; then
+      verdict="git cannot be asked: origin/$head is not fetched here"
     else
-      printf '#%-4s %-18s <- %-18s CONFLICTS (git agrees)\n' "$n" "$head" "$base"
-      noref=$((noref + 1))
+      mt="$(git merge-tree --write-tree "origin/$base" "origin/$head" 2>&1)"; mrc=$?
+      case $mrc in
+        0) verdict="git merges origin/$head into origin/$base cleanly" ;;
+        1) verdict="git also reports conflicts" ;;
+        *) verdict="git could not perform the merge (exit $mrc): $(digest "$mt")" ;;
+      esac
     fi
+    printf '#%-4s %-18s <- %-18s NOT GATED: no refs/pull/%s/merge; github mergeable=%s; %s\n' \
+      "$n" "$head" "$base" "$n" "$merg" "$verdict"
+    ungated=$((ungated + 1))
     continue
   fi
 
-  fail="$(run_on "refs/tmp/prci/$n")"
-  if [[ -n "$fail" ]]; then
+  fail="$(run_on "$REFNS/$n")"
+  git update-ref -d "$REFNS/$n" 2>/dev/null
+  if [[ "$fail" == "$CANNOT"* ]]; then
+    printf '#%-4s %-18s <- %-18s NOT GATED: %s\n' "$n" "$head" "$base" "$fail"
+    ungated=$((ungated + 1))
+  elif [[ -n "$fail" ]]; then
     printf '#%-4s %-18s <- %-18s GATES FAIL%s\n' "$n" "$head" "$base" "$fail"
     bad=$((bad + 1))
   else
     [[ $QUIET -eq 1 ]] || printf '#%-4s %-18s <- %-18s ok\n' "$n" "$head" "$base"
     ok=$((ok + 1))
   fi
-  git update-ref -d "refs/tmp/prci/$n" 2>/dev/null
 done
 
 echo
-# A run that examined nothing must never read as a clean run. Same guard, and for the same reason, as the one
-# ops/merge-rehearse grew after reporting "0 conflicts" having merged one branch of thirty-one.
-want=${#PRS[@]}
-seen=$((ok + bad + noref + disagree))
-echo "PR-CI PREFLIGHT: $ok ok, $bad failing gates, $noref genuinely conflicting, $disagree stale on GitHub (of $want open PRs)"
-if [[ $seen -lt $want ]]; then
-  echo "  INCOMPLETE: $want PRs were listed and only $seen were accounted for."
+# A run that examined nothing must never read as a clean run. Same guard, same reason, as the one
+# ops/merge-rehearse grew after reporting "0 conflicts" having merged one branch of thirty-one - except that
+# this one counts trees the gates actually RAN on, not PRs that were merely classified. Every PR reached by
+# the no-merge-ref branch is ungated by definition, and a pass made entirely of those used to exit 0.
+gated=$((ok + bad))
+seen=$((ok + bad + ungated))
+echo "PR-CI PREFLIGHT: $ok ok, $bad failing gates, $ungated NOT gated (of $WANT open PRs; gh's own count: $COUNT)"
+echo "  $COVERAGE"
+if [[ $seen -ne $WANT ]]; then
+  echo "  INCOMPLETE: $WANT PRs were listed and only $seen were accounted for."
   exit 2
 fi
-[[ $bad -eq 0 && $noref -eq 0 ]] || exit 1
+if [[ $gated -eq 0 ]]; then
+  echo "  REFUSING: $WANT PRs were listed and the gates ran on NONE of them. This is not a clean run."
+  exit 2
+fi
+[[ $bad -eq 0 && $ungated -eq 0 ]] || exit 1
