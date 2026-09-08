@@ -100,3 +100,24 @@ the same defect class as everything else here.
 
 No reseeding, no `areas` re-issue on the retraced edges, no seeded loop generation. Those need the router.
 This is the property, and it takes a plain array of coordinates so it can be tested against exact shapes.
+
+---
+
+## Fix pass: the test written to catch a self-referential assertion was itself one
+
+reviewer2-pr76 found no correctness bug in the detector and blocked on the suite. The finding:
+
+`cellsAreSquare` placed its east probe at `origin.longitude + d / metersPerDegreeLongitude(at: lat)`, and
+`cell()` then multiplied that offset back by the same function. **The two uses cancel exactly**, so
+`cE.x = Int(floor((d / M) * M / 25)) = 1` for ANY definition of M - including a constant, which is the
+mutation it was written to catch.
+
+That test exists because an out-and-back fixture could not see the grid. It replaced one self-referential
+assertion with another, one level down, in the same commit that describes the problem.
+
+The probe offsets now come from a reference constant computed in the test. The grid mutation is still
+caught, and `cE.x == 1` is asserted directly rather than only against `cN.y`.
+
+    swift test                       30 tests passed                              exit 0
+    python ops/mutate/retrace.py     12 caught, 1 trapped, 0 missed, of 13         exit 0
+

@@ -169,18 +169,25 @@ struct RetraceDetectorTests {
         // The real failure of an equatorial constant: at latitude 60 the columns become 12.5 m wide instead
         // of 25, so a road driven out and back with any lateral offset (opposite carriageways, GPS jitter)
         // lands in different columns and the retrace is missed entirely.
+        // The probe offsets are computed from an INDEPENDENT constant, not from the function under test.
+        // The first version placed the east probe at `origin.longitude + d / metersPerDegreeLongitude(at:)`
+        // and then `cell()` multiplied that offset back by the same function - the two uses cancel exactly,
+        // so `cN.y == cE.x` held for ANY definition of it, including a constant. A second reviewer found
+        // that: the test written to catch a self-referential assertion was itself one.
+        let metersPerDegreeLonReference = { (lat: Double) in 111_320.0 * cos(lat * .pi / 180) }
+
         for lat in [0.0, 34.0689, 60.0, -45.0] {
             let origin = Coordinate(latitude: lat, longitude: -118.4452)
-            let d = 30.0                                   // metres, more than one cell
+            let d = 30.0                                   // metres, more than one 25 m cell
             let north = Coordinate(latitude: lat + d / 111_132.0, longitude: origin.longitude)
             let east = Coordinate(latitude: lat,
-                                  longitude: origin.longitude
-                                      + d / RetraceDetector.metersPerDegreeLongitude(at: lat))
+                                  longitude: origin.longitude + d / metersPerDegreeLonReference(lat))
             let cN = RetraceDetector.cell(north, origin: origin)
             let cE = RetraceDetector.cell(east, origin: origin)
             // 30 m north and 30 m east must be the same number of cells away, or the grid is not square.
             #expect(cN.y == cE.x, "at latitude \(lat): \(d) m north is \(cN.y) cells, east is \(cE.x)")
             #expect(cN.y == 1, "30 m should be one 25 m cell away, got \(cN.y)")
+            #expect(cE.x == 1, "and so should 30 m east, got \(cE.x)")
         }
     }
 
