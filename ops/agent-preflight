@@ -14,8 +14,25 @@ say "node"     "$(node --version 2>/dev/null || echo MISSING)"
 say "python"   "$(python3 --version 2>/dev/null || python --version 2>/dev/null || echo MISSING)"
 say "docker"   "$(docker --version 2>/dev/null || echo 'MISSING on host (use WSL2)')"
 
-hooks="$(git config --get core.hooksPath || true)"
-if [[ "$hooks" != ".githooks" ]]; then say "hooksPath" "NOT SET - run: git config core.hooksPath .githooks"; fail=1; else say "hooksPath" "$hooks"; fi
+# hooksPath, from ops/lib/hookspath-state so that this and ops/sane cannot drift apart or disagree. The
+# check it replaced was a string comparison against ".githooks", which printed "NOT SET" for a repository
+# where the value IS set - just set to an absolute path - and so said the wrong thing in every worktree for
+# the whole of the day the value was actually wrong.
+#
+# The exit status is consumed; the output is not grepped. A missing library FAILS: preflight's job is to
+# refuse a session that cannot be trusted, and an unrun hooks check has not cleared the hooks.
+if [[ ! -f ops/lib/hookspath-state ]]; then
+  say "hooksPath" "ops/lib/hookspath-state is MISSING - the hooks check could not run"; fail=1
+else
+  hp_out="$(bash ops/lib/hookspath-state 2>&1)"; hp_rc=$?
+  if [[ $hp_rc -eq 0 ]]; then
+    say "hooksPath" "$(printf '%s\n' "$hp_out" | head -1 | sed 's/^HOOKSPATH ok  *//')"
+  else
+    say "hooksPath" "$(printf '%s\n' "$hp_out" | head -1 | sed 's/^HOOKSPATH //')"
+    printf '%s\n' "$hp_out" | tail -n +2 | sed 's/^/             /'
+    fail=1
+  fi
+fi
 
 crlf="$(git config --get core.autocrlf || echo false)"
 if [[ "$crlf" == "true" ]]; then say "autocrlf" "true - run: git config core.autocrlf false"; fail=1; else say "autocrlf" "$crlf"; fi

@@ -56,10 +56,22 @@ if [[ $cfg_rc -gt 1 ]]; then
 fi
 
 if [[ $cfg_rc -eq 1 || -z "$value" ]]; then
-  echo "HOOKSPATH FAIL(3) UNSET - git falls back to \$GIT_DIR/hooks, which is empty in this repo"
+  # Report the fallback by inspecting it, not by asserting it. `git rev-parse --git-path hooks` is NOT usable
+  # here: it honours core.hooksPath, so with the value set it answers ".githooks" and with it empty it
+  # answers "./" - it can never show you the unset fallback. The fallback is <git-common-dir>/hooks, shared
+  # by every worktree, and git never runs a *.sample file, so a dir holding only samples runs nothing.
+  local_fallback="$(git rev-parse --git-common-dir 2>/dev/null)/hooks"
+  runnable="$(ls -A "$local_fallback" 2>/dev/null | grep -cv '\.sample$' || true)"
+  if [[ $cfg_rc -eq 1 ]]; then
+    echo "HOOKSPATH FAIL(3) UNSET - git looks in $local_fallback ($runnable non-sample file(s) there)"
+  else
+    echo "HOOKSPATH FAIL(3) set to the EMPTY string - git resolves the hooks dir to the worktree top, not to"
+    echo "                  .githooks, and there is no pre-commit or commit-msg at the top level"
+  fi
   echo "  Every hook in .githooks/ is inert: commits are accepted with no CRLF, secret, touches: or"
-  echo "  floor-lowering check at all, and nothing prints. Fix (a human runs this once, it is machine-local"
-  echo "  and shared by every worktree, so do not script it):"
+  echo "  floor-lowering check run at all, and nothing prints - which is indistinguishable from passing."
+  echo "  Fix (a human runs this once; it is machine-local, untracked and shared by every worktree, so it"
+  echo "  is deliberately not scripted):"
   echo "      git config core.hooksPath .githooks"
   exit 3
 fi

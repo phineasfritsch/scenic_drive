@@ -10,6 +10,10 @@
 #   3  deployed Worker != this checkout: live git_sha is not in HEAD's history, or services/api changed since it
 #   7  backend down: /__health unreachable or not ok
 #   9  legal URLs (Terms, Privacy) not returning 200
+#   10 hooks: core.hooksPath is unset, or resolves somewhere that is not THIS worktree's .githooks, or could
+#      not be read at all. Checked first, and it decides the exit code when it fails, because every guarantee
+#      in this repo that a hook enforces is void while it is wrong - and it fails open, so nothing else
+#      notices. ops/lib/hookspath-state carries the finer codes (3 unset / 4 elsewhere / 5 vacuous).
 #   4/5/6/8 reserved: corpus/graph bounds, golden routes, quota/kill switch, R2 manifests - added with T-0008/T-0014.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -21,6 +25,27 @@ say()  { printf '%-9s %-6s %s\n' "$1" "$2" "$3"; }
 fail() { say "$1" "FAIL" "$2"; [[ $rc -eq 0 ]] && rc=$3; }
 ok()   { say "$1" "ok" "$2"; }
 skip() { say "$1" "skip" "$2"; }
+
+# ---- 10. hooks --------------------------------------------------------------------------------------
+# FIRST, deliberately. core.hooksPath is untracked, machine-local and shared by every worktree of this
+# repo; when it is wrong, git runs another checkout's hooks or none at all, the commit succeeds, nothing
+# prints, and every other check below is reporting on a repo whose enforcement is off. It changed under a
+# running session on 2026-09-08 with nothing recording it, so reading it once at the top of a session is
+# not enough - this is the check the gate runners consume.
+#
+# The exit status is consumed; the output is never grepped for failure wording. A missing library is a
+# FAIL, not a skip: a hooks check that could not run has not cleared the hooks.
+if [[ ! -x ops/lib/hookspath-state && ! -f ops/lib/hookspath-state ]]; then
+  fail "hooks" "ops/lib/hookspath-state is missing - the hooks check could not run, so it has not passed" 10
+else
+  hooks_out="$(bash ops/lib/hookspath-state 2>&1)"; hooks_rc=$?
+  if [[ $hooks_rc -eq 0 ]]; then
+    ok "hooks" "$(printf '%s\n' "$hooks_out" | head -1 | sed 's/^HOOKSPATH ok  *//')"
+  else
+    fail "hooks" "$(printf '%s\n' "$hooks_out" | head -1 | sed 's/^HOOKSPATH //')" 10
+    printf '%s\n' "$hooks_out" | tail -n +2 | sed 's/^/                 /'
+  fi
+fi
 
 # ---- 2. repo ----------------------------------------------------------------------------------------
 stray="$(git status --porcelain --untracked-files=all -- Sources Tests apps/ios 2>/dev/null | grep -E '^\?\? .*\.swift$' | head -3 | tr '\n' ' ')"
