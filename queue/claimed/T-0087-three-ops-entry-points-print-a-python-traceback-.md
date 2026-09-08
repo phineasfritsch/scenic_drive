@@ -339,3 +339,48 @@ That is [[T-0089]] - already filed from this task in an earlier round, with the 
 line is refused instead of obeyed in silence"; "a well-formed value that names somewhere it should not"
 is a different route and this commit does not close it.
 
+
+- 2026-09-08 agent/claude-opus-5 — **the adversarial verification returned holds=false with two overclaimed
+  routes, both defeated on the fix's OWN WORDING. That is the round-three pattern a third time, and both are
+  closed here.**
+
+  **(1) The empty-value guard shipped a weaker criterion than its own comment states.** The comment justifies
+  the refusal with *"`_list("")` is []"* — correct — and the code was `if not val.strip()`. But `_list(",")`
+  is ALSO `[]`, and a comma survives `.strip()`:
+
+        RED   ops/new-task "..." --touches ,        -> exit 0, recorded  touches: []
+              ops/new-task "..." --exclusive ,,,    -> exit 0, recorded  exclusive: []
+              ops/new-task "..." --depends " , "    -> exit 0, recorded  depends: []
+
+  A supplied flag whose value was thrown away with nothing printed — verbatim the silence this commit claims
+  to remove. Now the guard tests the PARSED value for a list option:
+
+        GREEN refused: --touches was given ',', which parses to nothing; drop the flag or give it a value.
+
+  **(2) The DASHES guard lived inside the `else:` branch, so the `--name=value` spelling never reached it.**
+  One step past the fixer's own self-attack, which discovered `=` bypasses this parser and then closed only
+  the EMPTY instance sitting in that same branch:
+
+        RED   --touches=--state   -> exit 0, recorded  touches: [--state]
+              --touches --state   -> refused, exit 2          <- the identical option, two spellings, two answers
+
+  Both checks are now hoisted above the `if eq:` split, so the two spellings take one path:
+
+        GREEN --touches=--state   -> refused: --touches was given '--state', which is another option, not a value.
+              --touches --state   -> refused: identical message
+
+  **CONTROL — the thing the fix exists for still works**, which matters because it is trivial to close a
+  bypass by breaking the feature:
+
+        --touches ops/a --touches ops/b   -> touches: [ops/a, ops/b]
+        --touches=ops/x                   -> touches: [ops/x]
+        ops/queue-check                   -> QUEUE OK (84 tasks)
+
+  **On route 2's status, stated as the verifier stated it rather than collapsed:** the literal word
+  "accumulate" held — no repeat overwrote an earlier value — but the HARM [[T-0084]] names was not closed,
+  because `--touches a --touches ,` recorded `[a]` with the second repeat contributing nothing. That is fixed
+  by (1), not by the accumulation logic.
+
+  **A third finding, outside all three routes, filed separately:** `dump()` writes multi-line scalars raw,
+  because its round-trip check `_scalar(s) == s` is true for a string containing newlines — so a value with an
+  embedded newline injects arbitrary front-matter lines into the task file it writes.

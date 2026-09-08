@@ -792,17 +792,28 @@ def _opts(argv, cmd):
             if i >= len(argv):
                 return None, f"--{name} needs a value; it was the last word on the line."
             val = argv[i]
+            # (the DASHES and empty checks live below, outside this branch - see there for why)
             # A value starting with a dash is the NEXT OPTION, eaten. Guarded on the whole DASHES class for
             # the same reason the operand is: an ASCII-only version of this test is one keystroke from
             # useless. No option here takes a dash-leading value.
-            if val[:1] and val[0] in DASHES:
-                return None, f"--{name} was given {val!r}, which is another option, not a value."
+        # BOTH checks below sit outside the `if eq:` split on purpose. The DASHES guard used to live only in
+        # this branch, so `--touches=--state` walked straight past it and recorded `touches: [--state]` while
+        # the identical `--touches --state` was refused - one step past the self-attack that found `=` bypasses
+        # this parser at all. Two spellings of one option must take one path.
+        if val[:1] and val[0] in DASHES:
+            return None, f"--{name} was given {val!r}, which is another option, not a value."
         # An EMPTY value is a supplied flag whose value was thrown away, which is the same silence one
         # scale down and it survived the first version of this guard: `claim T-1 --owner=` and
         # `--owner ""` both claimed the task for agent/unknown, exit 0, nothing printed. No option here
         # has a meaningful empty value - `_list("")` is [], and every scalar is a name, a path or a number.
-        if not val.strip():
-            return None, f"--{name} was given an empty value; drop the flag or give it one."
+        # Test the PARSED value, not the raw string. The comment above states the right criterion -
+        # "`_list("")` is []" - and `if not val.strip()` shipped a weaker one: `_list(",")` is ALSO [], and a
+        # comma survives .strip(). `--touches ,`, `--exclusive ,,,` and `--depends " , "` were each accepted
+        # with exit 0, recorded an empty list, and printed nothing - verbatim the silence this guard removes.
+        empty = (not _list(val)) if name in LIST_OPTS else (not val.strip())
+        if empty:
+            return None, (f"--{name} was given {val!r}, which parses to nothing; drop the flag or give it a "
+                          f"value.")
         if name in LIST_OPTS:
             out.setdefault(name, []).append(val)
         elif name in seen:
