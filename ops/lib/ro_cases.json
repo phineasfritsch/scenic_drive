@@ -1,6 +1,11 @@
 {
   "_": "Shared read-only SQL grammar cases. services/api/test/ro.test.ts and ops/lib/ro_grammar.py both run every case AND assert their own MAX_SQL_LENGTH equals max_sql_length below, so the two implementations cannot drift on the rules OR on the cap. ops/test runs the Python side; vitest runs the TypeScript side.",
   "max_sql_length": 4000,
+  "_length_probes": "Fixed magnitudes that BRACKET max_sql_length, and are deliberately not computed from it. Both implementations build a statement of exactly `chars` characters and assert accept/reject, and both assert max_accept <= their own MAX_SQL_LENGTH < min_reject. A bound derived from the value it bounds holds for every value of that value: raising max_sql_length here and MAX_SQL_LENGTH in ro_grammar.py together once left `RO-GRAMMAR OK 29 cases` byte-identical at exit 0 while read_only_problem accepted a 100,007-character statement. JSON has no expressions, so a number living here cannot be re-derived from the cap. 6008 is the magnitude services/api/test/ro.test.ts has hardcoded since before PR #53.",
+  "length_probes": [
+    { "chars": 3000, "expect": "accept" },
+    { "chars": 6008, "expect": "reject" }
+  ],
   "accept": [
     "SELECT 1",
     "select count(*) from users",
