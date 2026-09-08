@@ -56,13 +56,14 @@ def runnable(p, tier):
     runs_on = p.get("runs_on") or []
     runs_on = [runs_on] if isinstance(runs_on, str) else runs_on
     a = p.get("assertion")
+    why = []
     if p.get("pending"):
-        return False, f"pending on {p['pending']} - there is no assertion to make red yet"
+        why.append(f"pending on {p['pending']}, so there is no assertion to make red yet")
     if not a or str(a).strip().upper() == "TODO":
-        return False, "assertion is TODO/empty - check-pins already fails this"
+        why.append("assertion is TODO/empty, which check-pins already fails")
     if tier not in runs_on:
-        return False, f"runs_on {runs_on} excludes this tier - a human or a device answers it, not a worktree"
-    return True, ""
+        why.append(f"runs_on {runs_on} excludes this tier - a human or a device answers it, not a worktree")
+    return not why, "; ".join(why)
 
 
 def gap_ok(task_id):
@@ -198,8 +199,7 @@ def coverage(pinlist, cases, want):
         if want and pid not in want:
             continue
         if pid not in covered:
-            problems.append(f"{pid}: runnable here and has NO injection - write one in pins_mutation_cases.py "
-                            f"or this run is reporting coverage it does not have")
+            problems.append(f"{pid}: runs here but has NO injection - write one in pins_mutation_cases.py")
     return problems, notes, mutable
 
 
