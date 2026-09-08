@@ -4,10 +4,11 @@
 #   test -z "$(find Sources Tests -name '*.swift' -exec awk 'NR>300{print FILENAME; exit}' {} \;)"
 #
 # Over a deleted, renamed or emptied Sources/Tests tree, `find` prints nothing, `test -z ""` is true, and the
-# pin reports OK on an empty artefact. Two checks instead:
+# pin reports OK on an empty artefact. Three checks instead:
 #
 #   1. the tracked .swift file set is non-empty and plausibly complete
-#   2. no tracked .swift file exceeds 300 lines
+#   2. every Swift package in the tree contributes to that set, so no package is silently exempt
+#   3. no tracked .swift file exceeds 300 lines
 #
 # `git ls-files` is used instead of `find` so untracked build junk is never counted and the check matches what
 # is actually committed.
@@ -16,12 +17,36 @@ cd "$(git rev-parse --show-toplevel)"
 
 MIN_FILES=5
 
-mapfile -t files < <(git ls-files 'Sources/**/*.swift' 'Tests/**/*.swift')
+# EVERY tracked .swift file, at any depth. The globs here were 'Sources/**/*.swift' and 'Tests/**/*.swift',
+# which cover the root package and nothing else: a 301-line file under apps/ios/Packages/ScenicApp/Sources/
+# passed the 300-line cap and did not even appear in the count. CLAUDE.md puts no package outside the cap.
+mapfile -t files < <(git ls-files '*.swift')
 n="${#files[@]}"
 
 if [[ "$n" -lt "$MIN_FILES" ]]; then
-  echo "P-SRC-02: only $n tracked .swift file(s) under Sources/ and Tests/ (expected >= $MIN_FILES)."
+  echo "P-SRC-02: only $n tracked .swift file(s) (expected >= $MIN_FILES)."
   echo "  An empty or truncated set must never read as 'no file exceeds 300 lines'."
+  exit 1
+fi
+
+# Coverage guard. A Package.swift is itself a .swift file, so if a package's directory contributes NOTHING to
+# the examined set, the set has been narrowed and a whole package has dropped out of the cap. That is exactly
+# how the Apple package was exempt, and this is what makes narrowing it again loud instead of silent.
+missed=()
+while IFS= read -r manifest; do
+  [[ -z "$manifest" ]] && continue
+  dir="$(dirname "$manifest")"
+  prefix=""; [[ "$dir" != "." ]] && prefix="$dir/"
+  covered=0
+  for f in "${files[@]}"; do
+    [[ "$f" == "$prefix"* ]] && { covered=1; break; }
+  done
+  [[ $covered -eq 0 ]] && missed+=("$dir")
+done < <(git ls-files '*Package.swift')
+
+if [[ ${#missed[@]} -gt 0 ]]; then
+  echo "P-SRC-02: Swift package(s) contribute no file to the checked set - the 300-line cap does not reach them:"
+  printf '  %s\n' "${missed[@]}"
   exit 1
 fi
 
