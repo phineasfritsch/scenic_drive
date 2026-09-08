@@ -390,13 +390,65 @@ def cmd_check(_argv):
     return 0
 
 
+def _git_usable():
+    """Can git answer questions about this repo at all?
+
+    Asked once, before anything is swept, because every guard below is a git query and a git that cannot read
+    the worktree would answer "no such branch" to all of them - which is indistinguishable from "abandoned"
+    and is exactly the wrong default. From WSL against a Windows worktree this is a real state, not a
+    hypothetical: the .git file says `gitdir: C:/...` and WSL's git cannot follow it (T-0055).
+    """
+    try:
+        r = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=ROOT,
+                           capture_output=True, text=True, timeout=30)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _branch_exists(name):
+    """True when this task's branch is real - here or on the remote.
+
+    Deliberately checks the remote-tracking ref FIRST: the case this exists for is work that was pushed and is
+    waiting on a merge, which is visible as origin/<branch> even in a worktree that never had the local
+    branch. No fetch is done - a sweeper that reaches the network is a sweeper nobody runs - so a branch
+    pushed by someone else since the last fetch reads as absent. That direction is safe: it can only make the
+    sweeper more conservative if the ref is stale in the other direction, and `git fetch` before sweeping is
+    one line in the caller.
+    """
+    if not name or str(name).strip() in ("", "null", "none", "~"):
+        return False
+    for ref in (f"refs/remotes/origin/{name}", f"refs/heads/{name}"):
+        try:
+            r = subprocess.run(["git", "rev-parse", "--verify", "-q", ref], cwd=ROOT,
+                               capture_output=True, text=True, timeout=30)
+            if r.returncode == 0:
+                return True
+        except Exception:
+            return True   # cannot tell -> assume the work is real. Never sweep on a failed query.
+    return False
+
+
 def cmd_sweep(_argv):
     moved = 0
+    # A lease says an agent stopped working. It does not say the work is gone, and this queue keeps finished
+    # work in claimed/ until it MERGES - so on 2026-09-08, 29 of 29 expired leases belonged to pushed branches
+    # with open PRs. Sweeping them would have set owner: None on all 29 (the state T-0068 exists to reject,
+    # and which this very function produces), and left main saying ready/<id> while each branch says review/ or
+    # done/ - the add/add divergence eleven branches had already been repaired by hand for.
+    if not _git_usable():
+        print("SWEEP REFUSED: git cannot read this repo, so 'has this task got a branch?' cannot be answered.")
+        print("  Every expired lease would look abandoned and be swept. Run this where git works.")
+        return 2
+    held = []
     for state, p, fm, _ in list(tasks()):
         if state != "claimed" or not fm.get("lease_expires_at"):
             continue
         exp = dt.datetime.fromisoformat(fm["lease_expires_at"].replace("Z", "+00:00"))
         if exp < now():
+            if _branch_exists(fm.get("branch")):
+                held.append(f"{fm['id']} (branch {fm.get('branch')} exists)")
+                continue
             for res in fm.get("exclusive") or []:
                 lock = LOCKS / f"{res}.lock"
                 if lock.exists() and fm["id"] in lock.read_text(encoding="utf-8"):
@@ -409,7 +461,13 @@ def cmd_sweep(_argv):
             log(dest, f"sweep: lease held by {owner} expired at {iso(exp)}; returned to ready/, locks released")
             print(f"swept {fm['id']} -> ready/")
             moved += 1
-    print(f"SWEEP done ({moved} moved)")
+    if held:
+        print(f"SWEEP kept {len(held)} expired lease(s) whose branch still exists - finished work waiting to")
+        print("  merge is not an abandoned task, and clearing its owner would break the reviewer-is-not-owner")
+        print("  rule it will be checked against later:")
+        for h in held:
+            print(f"    {h}")
+    print(f"SWEEP done ({moved} moved, {len(held)} kept)")
     return 0
 
 

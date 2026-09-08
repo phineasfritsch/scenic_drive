@@ -56,3 +56,63 @@ task whose work is complete.
 - 2026-09-08 filed by agent/claude-opus-5 after declining to sweep. The 32 figure was measured by parsing
   `lease_expires_at` from every file in `queue/claimed/`.
 - 2026-09-08T03:28:24Z claimed by agent/claude-opus-5; lease until 2026-09-08T09:28:24Z
+
+- 2026-09-08 agent/claude-opus-5 — the containment, with the sweeper still working.
+
+  **RED, measured against a COPY of the live tree** (never the real one — `.artifacts/sweep-probe.sh` builds a
+  throwaway holding only `ops/lib/` and `queue/`, which is self-contained because `ROOT` comes from `__file__`):
+
+        BEFORE  claimed=46  ready=1  with an owner=46  locks=2
+        SWEEP done (29 moved)
+        AFTER   claimed=17  ready=30  with an owner=17  locks=1
+                task files moved claimed/ -> ready/:  29
+                files in ready/ now carrying owner: null: 30
+                exclusive locks released: 1
+
+        swept tasks whose branch EXISTS (work in flight):   29
+        swept tasks with no branch at all (abandoned):       1
+
+  **Twenty-nine of twenty-nine.** Not one expired lease belonged to an abandoned task; every one was pushed
+  work waiting on a merge. The sweeper would have set `owner: None` on all of them — the state [[T-0068]]
+  exists to reject, produced by this very function, which that brief already names — and left `main` saying
+  `ready/<id>` while each branch says `review/` or `done/`, recreating on 29 branches the add/add divergence
+  eleven branches had already been repaired by hand for.
+
+  **GREEN, identical probe:**
+
+        SWEEP kept 29 expired lease(s) whose branch still exists ...
+        SWEEP done (0 moved, 29 kept)
+        AFTER   claimed=46  ready=1  with an owner=46  locks=2
+
+  **CONTROL — and this is the one that matters, because a guard that disables the tool is not a fix.** A
+  genuinely abandoned task (`T-9990`, expired lease, `branch: task/T-9990-does-not-exist`) added to the
+  sandbox:
+
+        SWEEP done (1 moved, 29 kept)
+        T-9990 is now in ready/, gone from claimed/, owner: null
+
+  The dead agent is still swept. Only live work is kept.
+
+  **FAIL-CLOSED.** Every guard here is a git query, and a git that cannot read the worktree answers "no such
+  branch" to all of them — indistinguishable from "abandoned", and the wrong default by exactly the margin of
+  the damage above. That is not hypothetical: from WSL against this Windows checkout, `.git` says
+  `gitdir: C:/...` and WSL's git cannot follow it (T-0055). So `_git_usable()` is asked once, before anything
+  moves. Demonstrated with a PATH containing python but not git:
+
+        SWEEP REFUSED: git cannot read this repo, so 'has this task got a branch?' cannot be answered.
+          Every expired lease would look abandoned and be swept. Run this where git works.
+        exit 2
+        claimed: 46  ready: 1   (unchanged)
+
+  `_branch_exists` also returns True on an exception rather than False: cannot tell means do not sweep.
+
+  **What this does NOT fix**, and the brief is right that it is the larger question: the queue is still using
+  `claimed/` to answer two questions with different timescales — "is an agent working on this" (hours) and
+  "has this merged" (days). This makes the current 29 safe without deciding that. [[T-0032]] fixes the LOCK
+  half on the claim -> review transition and is written and unmerged.
+
+  No fetch is done. A sweeper that reaches the network is a sweeper nobody runs, and a stale remote-tracking
+  ref can only make this MORE conservative.
+
+  `ops/lib/queue.py` is now **711 lines** — 653 before this. That is the third time in one session this file
+  has grown while [[T-0059]] waits, and T-0059 is blocked because six unmerged branches hold it.
