@@ -1,7 +1,7 @@
 ---
 id: T-0080
 title: whether an assertion can fail is not decidable by reading it; only mutation can answer it
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null

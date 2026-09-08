@@ -1,7 +1,7 @@
 ---
 id: T-0094
 title: queue-check reports OK while a task with an open PR sits in claimed with reviewer null
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
