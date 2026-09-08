@@ -58,3 +58,46 @@ So the hook is enforcing a list that the tool which writes the list cannot expre
 - 2026-09-08 filed by agent/claude-opus-5 after `git commit` on task/T-0083 was refused for four files that
   belonged to the task, because `ops/new-task` had recorded only the last of three `--touches` flags. The
   refusal message printed the one-entry list, which is what made it visible.
+
+- 2026-09-08 agent/claude-opus-5 — **fixed by T-0087's `_opts` rewrite on `task/T-0087` (fa5c55a), verified
+  independently here rather than taken on the fixer's word.**
+
+  T-0087's brief folded this in because both defects live in the same function. Measured against that branch
+  in a throwaway worktree:
+
+        ops/new-task "..." --touches ops/a --touches ops/b --touches ops/c
+          -> touches: [ops/a, ops/b, ops/c]            (was: [ops/c], the other two dropped silently)
+
+        ops/new-task "..." --owner agent/x --owner agent/y
+          -> refused: --owner is not an option of `new` (--depends, --exclusive, --pins, --state, --touches)
+             (was: accepted, last-wins, nothing printed)
+
+        ops/new-task                    (no arguments - T-0087's own defect)
+          -> usage: queue.py new "<title>" [--depends V] ...
+             refused '': the operand comes first and may not be blank.
+             (was: IndexError traceback)
+
+  The rewrite goes further than this brief asked, and the extra cases are the valuable part: `--touchez a`
+  set a key nobody reads, `--touches --state done` recorded `touches: ['--state']` and dropped `--state`
+  entirely, and `claim T-1 T-2` ignored the second word. **Every one of those was silent**, which its
+  docstring correctly calls worse than the traceback the task started from — a stack trace at least stops.
+
+  A repeated SCALAR is now refused rather than resolved, which is the right call: which of two `--owner`s was
+  meant is not knowable, and last-wins is the answer an agent re-reading its own command line is least likely
+  to expect.
+
+  **The data the old parser corrupted — checked rather than assumed, because the first version of this entry
+  got it wrong.** `main` still carries the truncated values (`T-0072: [ops/check-pins]`,
+  `T-0077: [ops/new-task]`, `T-0081: 4 of 6`, `T-0083: 1 of 5`), but three of the four branches already carry
+  the corrected list and will bring it on merge:
+
+        T-0072  on task/T-0066   [ops/lib/pins.py, ops/check-pins]                        correct
+        T-0081  on task/T-0081   [... 6 paths ...]                                        correct
+        T-0083  on task/T-0083   [... 5 paths ...]                                        correct
+        T-0077  on task/T-0077   [ops/]                                                   widened, not fixed
+
+  `T-0077: [ops/]` is the failure [[T-0078]]'s brief names: an agent refused on its own legitimate files
+  widens the declaration until the commit goes through, and the declared scope stops describing the task.
+  It is defensible in this one case — that fix genuinely touched 13 of the ~21 files under `ops/` — but it is
+  a wildcard standing in for a list, and nothing distinguishes "this task really is repo-wide" from "the
+  parser dropped my flags and I gave up". Worth narrowing when T-0077 is reviewed.
