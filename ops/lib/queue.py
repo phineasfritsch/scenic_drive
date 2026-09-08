@@ -36,11 +36,27 @@ def parse(text):
         raise ValueError("no front matter")
     fm, body = {}, m.group(2)
     key = None
+    block = set()                          # keys opened as `k:` + `  - item` lines, the only appendable form
     for line in m.group(1).splitlines():
         if re.match(r"^\s+-\s", line) and key:
-            fm.setdefault(key, [])
-            if not isinstance(fm[key], list):
+            # A `  - value` line appends to the CURRENT key, and the old reader threw away whatever that key
+            # already held (`fm[key] = []`). That is a SECOND way to redefine a key, and the duplicate-key
+            # rule below cannot see it because the key never repeats:
+            #
+            #     owner: agent/worker
+            #       - agent/nobody          ->  owner = ['agent/nobody'], the real owner discarded
+            #
+            # Only a key declared with an empty value (`acceptance:`, which parses to None) may be continued.
+            # Measured before enforcing: every task file in queue/ still parses (ops/lib/check-queue-roundtrip).
+            if key not in block:
+                if fm.get(key) is not None:
+                    raise ValueError(
+                        f"front matter continues {key!r} with a block-list item, but {key!r} already holds "
+                        f"{fm[key]!r}, which would be discarded. Only a key written with an empty value may "
+                        f"be continued by `  - ` lines. That is the shape a value containing a line break "
+                        f"produces.")
                 fm[key] = []
+                block.add(key)
             fm[key].append(_scalar(line.split("-", 1)[1]))
             continue
         km = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", line)
@@ -93,52 +109,77 @@ def agent(v):
     return v if v not in NOT_A_NAME and AGENT_NAME.match(v) else None
 
 
-def _no_newline(k, v):
-    """A front-matter scalar may not contain a line break. Refuse; do not try to encode it.
+def _encodings(k, v):
+    """Every physical rendering of `k: v` this writer is willing to emit, best first.
 
-    `dump()` decided quoting with a round-trip test - `_scalar(s) == s` - and that is TRUE for a string with
-    an embedded newline, because `.strip()` does not touch interior ones. So the value was written raw and
-    every line after the first became another key, which `parse()` then applied LAST-WINS:
-
-        fm["reviewer"] = "agent/x\nowner: agent/x"   ->   reviewer: agent/x
-                                                          owner: agent/x     <- overwrites line 5's null
-
-    One field setting another, in the format P-PROC-01 reads. The reviewer-is-not-owner rule that T-0068 and
-    T-0073 were both filed to make un-evadable is satisfied while the real owner is displaced.
-
-    Quoting does not fix it: `reviewer: "agent/x\nowner: agent/x"` still occupies two physical lines and the
-    second still parses as a key. The value has no representation here, so writing it is the bug.
+    A flow list gets no quoted variant on purpose: `k: ["a, b"]` splits on the comma inside the quotes, so
+    quoting does not rescue such an element - it must be refused instead.
     """
-    if isinstance(v, str) and ("\n" in v or "\r" in v):
-        raise ValueError(
-            f"front-matter field {k!r} contains a line break, which cannot be written: every line after the "
-            f"first would parse as another key and overwrite it (last-wins). Value: {v!r}")
-    return v
+    if isinstance(v, list):
+        if k == "acceptance" and v:
+            yield [f"{k}:"] + [f"  - \"{x}\"" for x in v]
+        else:
+            yield [f"{k}: [{', '.join(str(x) for x in v)}]"]
+        return
+    if v is None:
+        yield [f"{k}: null"]
+        return
+    s = str(v)
+    yield [f"{k}: {s}"]
+    yield [f"{k}: \"{s}\""]
+
+
+def _entry(k, v):
+    """Render one front-matter entry, choosing the encoding by ASKING parse() to read it back.
+
+    The predecessor of this function decided writability from a hand-written character list - `"\\n" in v or
+    "\\r" in v` - while the reader splits front matter with `str.splitlines()`, which ends a line on TEN
+    characters: \\n \\r \\x0b \\x0c \\x1c \\x1d \\x1e \\x85 \\u2028 \\u2029. Eight of them therefore passed the
+    guard and were still written as one physical line that came back as two:
+
+        fm["worktree"] = "../wt\\x85  - agent/nobody"   ->   dump() wrote it
+                                                            parse() read ['agent/nobody']
+
+    The same mistake in a different suit: `_scalar(s) == s` decided quoting, and `_scalar` is not the reader
+    either - it never sees `[`, so `worktree = "[a, b]"` was written bare and read back as the LIST ['a','b'].
+    Both are the repository's signature defect, an expected value derived from the author's model of the thing
+    it checks rather than from the thing itself.
+
+    So do not model the format. Write the candidate, hand it to `parse()`, and keep it only if `parse()`
+    returns exactly `{k: v}`. A value with no such encoding has no representation in this format, and writing
+    it is the bug - `reviewer: "agent/x\\nowner: agent/y"` still occupies two physical lines and the second is
+    still a key. This also covers a KEY that cannot be written, which the character list never inspected.
+    """
+    for cand in _encodings(k, v):
+        try:
+            back, _ = parse("---\n" + "\n".join(cand) + "\n---\n")
+        except ValueError:
+            continue
+        if list(back.items()) == [(k, v)]:
+            return cand
+    raise ValueError(
+        f"front-matter field {k!r} has no representation in this format: no encoding of {v!r} is read back "
+        f"as itself by parse(). A line break inside a value (any of the ten str.splitlines() honours) makes "
+        f"every line after the first parse as another key; a comma inside a list element splits it in two.")
 
 
 def dump(fm, body):
     lines = ["---"]
     for k, v in fm.items():
-        _no_newline(k, v)
-        if isinstance(v, list):
-            for x in v:
-                _no_newline(k, x)
-        if isinstance(v, list):
-            if k == "acceptance" and v:
-                lines.append(f"{k}:")
-                lines += [f"  - \"{x}\"" for x in v]
-            else:
-                lines.append(f"{k}: [{', '.join(str(x) for x in v)}]")
-        elif v is None:
-            lines.append(f"{k}: null")
-        else:
-            # Round-trip, never reinterpret. The string 'null' was written back as a bare `null`, so
-            # ops/review on a task carrying owner: "null" MANUFACTURED the real null the guard exists to
-            # refuse (T-0073 route 2). Any scalar parse() would not read back unchanged is quoted.
-            s = str(v)
-            lines.append(f"{k}: {s}" if _scalar(s) == s else f"{k}: \"{s}\"")
+        lines += _entry(k, v)
     lines.append("---")
-    return "\n".join(lines) + "\n" + body.lstrip("\n")
+    text = "\n".join(lines) + "\n" + body.lstrip("\n")
+    # Per-entry probes are context-free; the guarantee is about the whole file, so state it about the whole
+    # file. Nothing may leave this function that parse() does not read back as what came in.
+    back, back_body = parse(text)
+    if back != fm:
+        differ = [k for k in set(back) | set(fm) if back.get(k, KeyError) != fm.get(k, KeyError)]
+        raise ValueError(
+            f"front matter does not round-trip through parse(): {sorted(differ)} differ. "
+            f"wrote {fm!r}, read back {back!r}")
+    if back_body != body.lstrip("\n"):
+        raise ValueError("the body does not round-trip through parse(); a front-matter value ended it early")
+    return text
 
 
 # ----------------------------------------------------------------------------- helpers

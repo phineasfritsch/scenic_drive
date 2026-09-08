@@ -9,8 +9,8 @@ lease_expires_at: 2026-09-08T11:12:49Z
 worktree: null
 branch: task/T-0092
 exclusive: []
-touches: [ops/lib/queue.py]
-pins_affected: []
+touches: [ops/lib/queue.py, ops/lib/check-queue-roundtrip, pins/PINS.yaml]
+pins_affected: [P-PROC-02]
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
@@ -117,3 +117,108 @@ and this session alone has pasted multi-line command output into task fields mor
   **And one of my own, worth recording because CLAUDE.md warns about it by name:** I wrote
   `ops/queue-check 2>&1 | tail -3 && echo "exit=$?"` and read `exit=0` for a run that exits 1 — `$?` after a
   pipeline is the LAST command's status. The failure above was nearly missed for that reason.
+
+- 2026-09-08 — **reviewer-pr60 FAILED this (F1-F6). Fixed: the writer now asks the reader, and the property
+  is committed as a checker that can be seen red from the tree.**
+
+  Every finding was reproduced against the committed module (`976410a`) before anything was changed
+  (`.artifacts/fix-t0092/repro.py`, gitignored, exit 1):
+
+        === F2: dump() writes values parse() cannot read back (str.splitlines set) ===
+          \n           dump REFUSED
+          \r           dump REFUSED
+          \x0b VT      dump WROTE it -> parse read ['agent/nobody']  round-trips=False
+          \x0c \x1c \x1d \x1e \x85 \u2028 \u2029      ... all seven the same
+          LEAKED: 8/10
+        === F3 ===  parse ACCEPTED: owner=['agent/nobody'] touches=['a', 'ops/lib/queue.py']
+        === F4 ===  dump wrote ['worktree: [a, b]'] -> parse read ['a', 'b']  round-trips=False
+        === F5 ===  dump wrote a raw key; parse read reviewer='agent/nobody: agent/worker'
+        REPRO: 4 finding-families still reproduce                                     exit=1
+
+  **F2 / F4 / F5 — a writer must ASK the reader, never model it.** `_no_newline` is deleted. Its guard was
+  `"\n" in v or "\r" in v` while `parse()` splits with `str.splitlines()`, which ends a line on TEN
+  characters; the guard's expected value came from the author's model of the format instead of from the
+  parser that reads it — this repository's signature defect, committed by the very change that diagnosed it.
+  `_entry(k, v)` now renders each candidate encoding, hands it to `parse()`, and keeps it only if `parse()`
+  returns exactly `{k: v}`; `dump()` then re-parses the finished file and refuses to return anything that
+  does not come back as what went in. One mechanism closes all ten line-break characters instead of two
+  (F2), the `[a, b]` scalar that was read back as a LIST (F4, now quoted and recovered), a KEY with no
+  writable form (F5, which the character list never inspected), and a comma inside a list element, which
+  nobody had reported.
+
+  **F3 — the second way a key gets redefined.** A `  - value` line appended to the CURRENT key and threw
+  away whatever it held (`fm[key] = []`), so no key repeated and the duplicate-key rule could never fire.
+  `parse()` now permits a block item only under a key declared with an empty value; a scalar or a flow list
+  underneath is refused. Measured before enforcing, as the duplicate rule was: all 95 task files in this
+  tree still parse, and `dump()` writes them **byte-identically** to the shipped version
+  (`.artifacts/fix-t0092/nochurn.py`: `examined=95 differ=0`), so nothing is reformatted.
+
+  **F1 — the change now has something that goes red.** New `ops/lib/check-queue-roundtrip`, wired as
+  **P-PROC-02** (`anchor: source`, so `ops/check-pins --source-only` runs it too). Three populations, each
+  with a floor on what was ACTUALLY EXAMINED, never on what was merely present:
+
+        QUEUE ROUNDTRIP OK: 29 write payloads, 9 read payloads, 95 task files      exit=0
+
+  **RED, then GREEN — the check against the code it protects:**
+
+        $ cp 976410a^:ops/lib/queue.py ops/lib/queue.py     # the whole T-0092 change deleted
+        $ bash ops/lib/check-queue-roundtrip
+          P-PROC-02: WRITE reviewer carries '\n' + a key: dump() wrote
+            'agent/worker\nowner: agent/nobody' and parse() read 'agent/worker'
+          ... 22 more                                                              exit=1
+        $ ops/check-pins --source-only                                             exit=1
+          P-PROC-02: A task file round-trips through ops/lib/queue.py ...
+
+        $ cp 976410a:ops/lib/queue.py ops/lib/queue.py      # what PR #60 actually shipped
+        $ bash ops/lib/check-queue-roundtrip
+          P-PROC-02: WRITE worktree carries '\x0b' + a list item: dump() wrote
+            '../wt\x0b  - agent/nobody' and parse() read ['agent/nobody']           exit=1
+        $ ops/check-pins --source-only                                             exit=1
+
+        $ git checkout -- ops/lib/queue.py                  # this task's fix restored
+        $ bash ops/lib/check-queue-roundtrip                                       exit=0
+        $ ops/check-pins --source-only
+          PINS ok=4 skipped=8 pending=1 expired=0 failed=0 tier=linux source-only  exit=0
+
+  That is the F1 answer stated as a number: before this commit `ops/check-pins --source-only` reported
+  `ok=3` with or without the change; it now reports `ok=4`, and reverting `ops/lib/queue.py` alone turns it
+  red.
+
+  **RED on an EMPTY population — the floors are floors on what was examined.** A count of task files
+  *found*, or of payloads *defined*, would pass over a population nothing iterated. Each counter is
+  incremented only after its case reaches a verdict, and each was demonstrated at zero:
+
+        $ SCENIC_RT_QUEUE=<empty dir> bash ops/lib/check-queue-roundtrip
+          P-PROC-02: only 0 task files examined (expected >= 40)                   exit=1
+        $ bash <copy with BREAKS = [] and the payload tail unused>
+          P-PROC-02: only 1 write payloads examined (expected >= 24)               exit=1
+        $ bash <copy with READ_REFUSE = [] and READ_ACCEPT = []>
+          P-PROC-02: only 0 read payloads examined (expected >= 6)                 exit=1
+        (all three restored -> QUEUE ROUNDTRIP OK: 29 / 9 / 95                     exit=0)
+
+  The check also asserts the other side of the rule — an ordinary task file, a block list under an empty
+  key, a flow list, an empty flow list, `owner: "null"` staying quoted (T-0073 route 2). A rule that only
+  ever refuses is an outage, not a check.
+
+  **F6 — `ops/test` was declared in `verify:` and never run.** Run now, on this tree and on `main`:
+
+        $ ops/test        FAIL: services/api exists but vitest produced no report  exit=1   (this branch)
+        $ ops/test        FAIL: services/api exists but vitest produced no report  exit=1   (main)
+
+  There is no `services/api/node_modules` anywhere on this box, so it is red for a reason older than this
+  branch and identical on `main`. Recorded, not claimed as passing. The Swift side runs and passes inside
+  it (16 tests, 3 suites).
+
+  **Still red on this branch, none of it caused here:** `ops/test` (above); `ops/lib/check-lock-lifecycle`
+  exits 1 with AND without this change ([[T-0090]]) — measured both ways, `976410a: exit=1`,
+  `this fix: exit=1`.
+
+  **Reviewer findings not fixed, deliberately:** the reviewer's two out-of-scope notes stand as filed —
+  P-SAFE-05 shelling `swift test` with no `--scratch-path` (a stale `.build` makes `ops/check-pins` red for
+  everyone, and CLAUDE.md forbids the invocation) is a real defect of P-SAFE-05, not of this task; it wants
+  its own queue entry. Full `ops/check-pins` on this tree: `ok=10 skipped=0 pending=3 expired=0 failed=0`,
+  exit 0.
+
+  `touches:` widened from `[ops/lib/queue.py]` to add `ops/lib/check-queue-roundtrip` and `pins/PINS.yaml`,
+  because the fix for F1 is exactly "commit a checker and make a pin run it" and neither path could be
+  staged otherwise. `pins_affected:` is no longer `[]`.
