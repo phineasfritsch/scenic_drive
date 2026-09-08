@@ -204,3 +204,26 @@ point of it.
   `check-exec-bits`, `check-line-cap` and a pin-id scan after each merge — it does **not** run
   `check-lock-lifecycle` or `check-brief-required`, so a collision of exactly this shape is invisible to the
   rehearsal that exists to find collisions. Recorded against T-0065.
+
+- 2026-09-08 — **the reviewer of PR #52's second [medium]: two of the brief's four bullets were never
+  delivered, and the PR body did not say so.**
+
+  `queue/README.md` is in this task's `touches:` and the brief names it explicitly — *"Document the rule in
+  `queue/README.md` next to the claim protocol, because until `ops/review` is merged every agent is doing
+  this by hand"* — and the branch did not touch it:
+
+        $ git diff origin/main...origin/task/T-0063 --name-status -- queue/README.md
+        (no output)
+
+  Now delivered: step 6 carries the stale-`claimed/`-copy rule, the merge-then-`ops/review` repair, and the
+  explicit warning never to `git rm` a path this branch also holds (that was the destructive remedy the same
+  reviewer found as finding 1). Written next to the claim protocol, as the brief asked.
+
+  **`ops/done` is NOT delivered, and this says so rather than leaving it implied.** `grep -n "def cmd_" `
+  shows no `cmd_done`; the `review/ -> done/` transition is still a hand `git mv`, with the same
+  stale-copy exposure `ops/review` exists to close on the other transition. Filed as its own task
+  (see `queue/backlog/`), because shipping it here would widen `touches:` past what this PR was reviewed
+  against.
+
+        $ ops/queue-check
+        QUEUE OK (76 tasks)
