@@ -195,3 +195,108 @@ off** - T-0014, T-0021, T-0022, T-0023, T-0024, T-0026, T-0035, T-0036, T-0037, 
 T-0044, T-0047 - and the rest are still in review. Merge the signed-off set first, in the dependency order
 above; the others cannot merge yet regardless of what this file says.
 
+
+---
+
+# Revision, 2026-09-08 (second): order is a constraint, and one rehearsal is not enough
+
+The revision above rehearsed the backlog cumulatively and reported **27 merged, 3 conflicts, 25 gate
+failures**. Two things were wrong with that number, and both are worth more than the corrected figure.
+
+## 6. The exec-bits failures were an ORDERING constraint, not a mode error
+
+Section 4 above says: *when `task/T-0036` lands, `check-exec-bits` fails because `classify-checks.py` is
+100755 on T-0021 while T-0036 reclassifies `ops/lib/*.py` as 100644 data — fix with `git update-index
+--chmod=-x`, per T-0041.*
+
+**That is not what is happening, and the prescribed fix is already applied.** The file has been 100644 since
+`b86a62e`. The failure direction is the opposite of the one recorded:
+
+    merging task/T-0021 first:
+      P-OPS-01: wrong git file mode:
+        ops/lib/classify-checks.py (script, should be 100755, is 100644)
+
+    merging task/T-0036 first, then task/T-0021:
+      P-OPS-01: 25 files, 20 required present, all modes correct
+
+T-0036 changes the *rule* — `ops/lib/*.py` are data, because they are only ever invoked as
+`"$PY" ops/lib/x.py`. T-0021 adds a file the rule applies to. Whichever mode `classify-checks.py` carries,
+**one of the two orders fails**: at 100644 it is correct after T-0036 and wrong before it; at 100755, correct
+before and wrong after. There is no mode that is right in both orders, so this can only be fixed by ordering.
+
+Nine of the twenty-five gate failures were this one constraint, re-reported against every branch that
+followed T-0021. Both branches are based on `main`, so nothing in the PR graph orders them and the
+rehearsal's topological sort fell back to alphabetical — T-0021 first, which is the wrong one.
+
+**Encoded rather than written down.** `ops/merge-rehearse` now carries the constraint as an extra edge, since
+"X must merge after Y" has the same shape as "X is based on Y" and the sort needs no special case:
+
+    EDGES+=("task/T-0021 task/T-0036")
+
+A constraint a human has to remember is one that gets forgotten. After it, the cumulative run reports
+**28 of 31 merged, 3 conflicts, 4 gate failures** — the nine exec-bits failures gone, and the three conflicts
+unchanged and still real.
+
+## 7. A cumulative rehearsal cannot answer "does this branch break main"
+
+The four remaining gate failures were all `duplicate id`. Checking them by merging each branch into `main`
+**alone** gave a different and larger answer:
+
+    task/T-0023        T-0032 T-0033 T-0038 T-0039
+    task/T-0024        T-0032 T-0033
+    task/T-0038        T-0032 T-0033
+    task/T-0042        T-0032 T-0033
+    task/T-0046        T-0032 T-0033
+    task/T-0049        T-0049
+    (task/T-0025, T-0027, T-0028, T-0029, T-0030, T-0040, T-0069: clean)
+
+**Six branches break `main` on their own. The cumulative run named four, and two of those wrongly.**
+
+- **It missed T-0042 and T-0046.** Both reintroduce `queue/ready/T-0032` and `T-0033`. By the time they
+  merged, `task/T-0032` and `task/T-0033` had already merged and taken those paths with them, so the
+  duplicate never appeared and both were reported *"merged, gates clean"*.
+- **It blamed T-0025 for T-0024's defect.** A failure that no later branch repairs is still present at the
+  next step, and the next, so cumulative mode re-reports it against every branch that follows the one that
+  caused it.
+
+Both directions are the same root cause: in cumulative mode the state under test is *everything merged so
+far*, and a per-branch verdict read off it is not a per-branch verdict.
+
+So `ops/merge-rehearse` now has two modes, and **both must be run** — each is blind exactly where the other
+sees:
+
+| Mode | Finds | Cannot see |
+|---|---|---|
+| `ops/merge-rehearse` (cumulative) | collisions BETWEEN branches: the ADD/ADD on `gh-stub-for-merge-tests`, the line-cap failure where the Dockerfile chain meets T-0058 — defects no single branch can produce | a defect a later branch happens to clean up |
+| `ops/merge-rehearse --pairwise` | "this branch alone breaks `main`" — the question a reviewer is actually asking, and the only one whose answer does not depend on what merged first | a cross-branch collision, since it never holds two branches at once |
+
+Cumulative mode also now marks a repeated failure `(INHERITED, unchanged by this branch)` instead of counting
+it again, and `--pairwise` refuses to run at all if `main`'s own gates are red, because then every row
+inherits main's failure and the run says nothing.
+
+## 8. The six branches, repaired
+
+The mechanism is the one section 2 describes, with a case that section missed: not only *moved* task files
+but **files the branch itself created**. `task/T-0023` filed T-0038 and T-0039 into `queue/ready/`; `main`
+later claimed them into `queue/claimed/`. That is an ADD/ADD across two different paths, so git keeps both
+and rename detection has nothing to work with — there was no rename.
+
+Repaired on all six by merging `origin/main` first, so the branch knows about the move, and only then
+removing the copy at the path `main` no longer uses. Deleting without merging first just re-creates the
+divergence. Verified after by re-merging each into `main` alone:
+
+    task/T-0023        dups=none         QUEUE OK (67 tasks)
+    task/T-0024        dups=none         QUEUE OK (67 tasks)
+    task/T-0038        dups=none         QUEUE OK (67 tasks)
+    task/T-0042        dups=none         QUEUE OK (67 tasks)
+    task/T-0046        dups=none         QUEUE OK (67 tasks)
+    task/T-0049        dups=none         QUEUE OK (66 tasks)
+
+`ops/review` should make this class impossible to reach; that is **T-0063**, still open.
+
+## 9. Correction to section 5: CI runs again
+
+Section 4 hedged every trap with *"provided CI runs, which is T-0053"*. The repository is public with Actions
+enabled as of 2026-09-07, branch protection requires `core` and `pins-source-only`, and both are green on
+`main` (16 and 5 steps respectively). `enforce_admins` is deliberately **false**, because `ops/claim` pushes
+the claim commit straight to `main` and a required-review rule would deadlock the queue. T-0053 can close.
