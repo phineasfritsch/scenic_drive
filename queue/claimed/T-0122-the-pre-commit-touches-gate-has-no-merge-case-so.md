@@ -9,12 +9,14 @@ lease_expires_at: 2026-09-08T18:55:41Z
 worktree: .worktrees/T-0122
 branch: task/T-0122
 exclusive: []
-touches: [.githooks/pre-commit, ops/lib/check-touches-merge]
+touches: [.githooks/pre-commit, ops/lib/check-touches-merge.py, pins/PINS.yaml]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (4 cases), exit 0"
+  - "RED: --hook <pre-fix> fails cases 1 and 2; --hook <naive> fails case 3"
 ---
 ## Brief
 
@@ -80,3 +82,56 @@ and nothing was smuggled past the gate.
 
 ## Log
 - 2026-09-08T16:55:41Z claimed by agent/claude-opus-5; lease until 2026-09-08T18:55:41Z
+
+## Log
+
+    python ops/lib/check-touches-merge.py            TOUCHES-MERGE OK (4 cases)      exit 0
+    bash -n .githooks/pre-commit                     syntax OK                       exit 0
+
+### The fix
+
+`.githooks/pre-commit` gains a merge case. On a merge it applies `touches:` to
+`staged INTERSECT (differs from HEAD) INTERSECT (differs from MERGE_HEAD)` - the files that differ from BOTH
+parents. A file identical to either side arrived from that side and is not an edit; a file differing from
+both is a resolution the author wrote, and those are exactly what `touches:` should still govern.
+
+The CRLF check and the secret scan above it keep reading the raw staged list on purpose: a secret arriving
+from the other side of a merge is still a secret in this branch's history.
+
+`git rev-parse --git-dir`, not `--show-toplevel` - the latter is banned in `ops/` and the hooks because from
+WSL this checkout's `.git` file reads `gitdir: C:/...` which WSL's git cannot follow (T-0060, T-0093).
+
+### RED, against two different wrong hooks, each failing a DIFFERENT case
+
+`ops/lib/check-touches-merge.py --hook <path>` runs the four cases against a variant.
+
+    hook                              1 merge   2 resolve-inside   3 resolve-outside   4 plain-outside
+    origin/main (no merge case)       FAIL      FAIL               ok                  ok
+    naive: skip on MERGE_HEAD         ok        ok                 FAIL                ok
+    this branch                       ok        ok                 ok                  ok
+
+**Case 3 is why the naive fix is not the fix.** Skipping the check whenever `MERGE_HEAD` exists passes three
+of four cases and turns "merge main" into a way to stage any file into any branch - and nothing else in the
+repository would notice. It is the obvious one-line change and it is wrong.
+
+**Case 4 is the control.** A hook that had lost the touches check entirely passes 1, 2 and 3.
+
+Each variant fails a different case, which is what makes the four discriminating rather than decorative.
+
+### The variant builder had a defect of its own, and it is the kind that fakes a red
+
+The first version sliced the hook on `src.index("fi\n", ...)` and cut at the INNER
+`if [[ -n "$to_check" ]]` terminator, leaving a stray `fi`. The variant did not parse, so every case failed
+with a bash syntax error - **which looks exactly like a successful red run** if you only read the verdict.
+Rebuilt line-based, walking the block by nesting depth. Worth recording: a red for the wrong reason is
+worse than a green, because it is evidence that will be cited later.
+
+### What this unblocks
+
+`task/T-0097` needs `main` to resolve a genuine semantic conflict in `ops/merge` (two fixes that compose;
+taking either side drops the other). That merge was aborted rather than forced past the gate, and its
+resolved files are preserved at `.worktrees/T-0097/.artifacts/resolution/`. It can be redone once this
+reaches `main`.
+
+More broadly, [[T-0113]] found ten open PRs based on a branch whose own PR had already merged, and could not
+explain how the tower formed. This is a mechanism that would produce exactly that shape.
