@@ -797,6 +797,12 @@ def _opts(argv, cmd):
             # useless. No option here takes a dash-leading value.
             if val[:1] and val[0] in DASHES:
                 return None, f"--{name} was given {val!r}, which is another option, not a value."
+        # An EMPTY value is a supplied flag whose value was thrown away, which is the same silence one
+        # scale down and it survived the first version of this guard: `claim T-1 --owner=` and
+        # `--owner ""` both claimed the task for agent/unknown, exit 0, nothing printed. No option here
+        # has a meaningful empty value - `_list("")` is [], and every scalar is a name, a path or a number.
+        if not val.strip():
+            return None, f"--{name} was given an empty value; drop the flag or give it one."
         if name in LIST_OPTS:
             out.setdefault(name, []).append(val)
         elif name in seen:
