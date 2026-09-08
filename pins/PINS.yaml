@@ -41,6 +41,15 @@
   owner: agent/claude-opus-5
   added: 2026-09-07
 
+- id: P-OPS-03
+  statement: The merge gate is fail-CLOSED - SUCCESS is the only check conclusion that passes, an unrecognised one refuses, a nameless check is reported rather than dropped or crashed on, and a green rollup still merges
+  why_no_test_catches_it: ops/merge decides what reaches main and no test covers it. Before T-0021 it asked "is this conclusion in my list of BAD ones?", so SKIPPED/NEUTRAL/STALE or anything GitHub invents next year was neither pending nor failed and the gate proceeded, and a record with no `name` raised KeyError inside a shell substitution which bash swallowed into failed="" - a genuine FAILURE printing "every gate passed". That was fixed, but the argument then survived only in a merged task log while three open tasks queue up to edit the same file; nothing re-asks the question. A regression here is invisible from every other direction - the suite stays green, CI stays green, and the gate quietly starts saying yes. The assertion carries two positive controls because a gate that refused everything would satisfy the negative half trivially.
+  anchor: artifact
+  runs_on: [linux, mac]
+  assertion: "bash ops/lib/check-merge-fail-closed"
+  owner: agent/fixer-T0034
+  added: 2026-09-08
+
 - id: P-GIT-01
   statement: .gitattributes normalizes every text file to LF
   why_no_test_catches_it: Lost on 2026-09-07 to a sweep-everything demo commit; every ops/* script would then break under WSL2 with no test failing
