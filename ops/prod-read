@@ -5,9 +5,15 @@
 # Three layers: (1) the read-only grammar is checked HERE before anything leaves the machine,
 # (2) the Worker checks it again on arrival, (3) the token only unlocks /__ro.
 # Every query is appended to .artifacts/prod-read.log. This script never sends anything but a SELECT.
+# The repo and the interpreter come from ops/lib/boot.sh, not from the caller. Layer 1 of the three is
+# `"$PY" ops/lib/ro_grammar.py`, resolved RELATIVE TO THE CALLER'S git toplevel: from another repo it read
+# that repo's ro_grammar.py, so the read-only grammar - the layer that runs before anything leaves the
+# machine - was chosen by the caller's working directory (T-0077).
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
-PY="${PYTHON:-$(command -v python3 || command -v python)}"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
+scenic_cd_root
+scenic_python || exit 2
+PY="$SCENIC_PY"
 mkdir -p .artifacts
 
 # Grammar first, before anything else: a refused statement must never even need a URL or a token.

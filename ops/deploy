@@ -4,8 +4,13 @@
 #   2. the working tree is clean for services/api (a deploy of uncommitted code has no version),
 #   3. queue/LOCKS/prod.lock is held (deploys are serial; the task holding the lock is accountable).
 # After deploying it re-fetches /__version from the live URL and exits non-zero if live != HEAD.
+# The repo comes from ops/lib/boot.sh, not from the caller: `cd "$(git rev-parse --show-toplevel)"` would
+# have deployed whatever services/api the caller was standing next to, and stamped it with that repo's
+# HEAD sha (T-0077). A deploy that can be aimed by choosing a working directory is not a gate.
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
+scenic_cd_root
+scenic_python || exit 2
 ART=".artifacts"; mkdir -p "$ART"
 sha="$(git rev-parse HEAD)"
 
@@ -28,6 +33,6 @@ if [[ -z "$url" ]]; then echo "DEPLOY FAILED: no workers.dev URL in output and n
 printf '%s\n' "$url" > ops/api-url
 
 sleep 2
-live="$(curl -fsS --max-time 10 "$url/__version" | "${PYTHON:-python3}" -c 'import json,sys; print(json.load(sys.stdin)["git_sha"])' || echo "unreachable")"
+live="$(curl -fsS --max-time 10 "$url/__version" | "$SCENIC_PY" -c 'import json,sys; print(json.load(sys.stdin)["git_sha"])' || echo "unreachable")"
 echo "DEPLOYED sha=$sha live=$live built_at=$built_at url=$url"
 if [[ "$live" != "$sha" ]]; then echo "DEPLOY MISMATCH: live version is not HEAD"; exit 1; fi

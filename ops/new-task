@@ -1,2 +1,9 @@
 #!/usr/bin/env bash
-exec "${PYTHON:-$(command -v python3 || command -v python)}" "$(git rev-parse --show-toplevel)/ops/lib/queue.py" new "$@"
+# Root and interpreter come from ops/lib/boot.sh, which derives both from the SCRIPT, not the caller.
+# `git rev-parse --show-toplevel` here located ops/lib/queue.py in whatever repo the caller was standing
+# in, so this wrapper ran the module belonging to THAT repo and reported its answer (T-0077). The
+# interpreter is chosen by capability, not by the name python3 (T-0076). Both decisions are written
+# down in boot.sh; do not re-decide either one here.
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
+scenic_python || exit 2
+exec "$SCENIC_PY" "$SCENIC_ROOT/ops/lib/queue.py" new "$@"

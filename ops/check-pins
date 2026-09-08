@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
 # Entry point for ops/lib/pins.py, which holds every guard. See that file for the rules.
 #
-# PYTHON= is KEPT, deliberately: a venv, a pyenv shim or an explicit python3.12 is a real local need, and it
-# is not a security boundary - anyone who can set the environment already owns the box. CI never sets it
-# (.github/workflows/linux-core.yml installs python3 and runs `bash ops/check-pins` with no PYTHON in scope).
-# T-0072 recorded that decision instead of leaving it to omission, and closed the half that is not a
-# convenience: `PYTHON=true bash ops/check-pins` used to print nothing and exit 0, which no caller - CI, a
-# hook, or an agent - can tell apart from a pass. The probe refuses a non-Python value with exit 2 instead.
-# It costs one interpreter start. The same `${PYTHON:-...}` shape is in every other ops/* wrapper, unfixed.
-set -uo pipefail
-py="${PYTHON:-$(command -v python3 || command -v python)}"
-if [[ "$("$py" -c 'print("pins-probe-ok")' 2>/dev/null | tr -d '\r')" != "pins-probe-ok" ]]; then
-  echo "PINS FAIL: PYTHON=${PYTHON:-<unset>} does not resolve to a working python3 (tried: ${py:-nothing})." >&2
-  echo "  Refusing to exit 0 without loading a single pin, let alone running an assertion." >&2
-  exit 2
-fi
-exec "$py" "$(git rev-parse --show-toplevel)/ops/lib/pins.py" "$@"
+# THE MODULE IS FOUND FROM THIS SCRIPT, NOT FROM THE CALLER'S DIRECTORY. It used to be
+#     exec "$py" "$(git rev-parse --show-toplevel)/ops/lib/pins.py" "$@"
+# and `git rev-parse --show-toplevel` answers "the repo the CALLER is standing in". Run this file from
+# inside any other git repository and it executed THAT repository's ops/lib/pins.py. Measured against a
+# synthetic repo whose ops/lib/pins.py was three lines:
+#     PINS ok=99 skipped=0 pending=0 expired=0 failed=0 tier=linux    EXIT=0
+# with nothing in this repo modified - every floor, REQUIRED, REQUIRED_RAN and the strict argv parser
+# bypassed at once by choosing a working directory (T-0077). ops/lib/boot.sh derives the root from
+# ${BASH_SOURCE[0]}, resolving symlinks, so it is a property of where this script lives.
+#
+# PYTHON= IS KEPT, AND IT IS NOT A GUARD. T-0072 added a probe here that refused `PYTHON=true`; a four-line
+# script that echoes the probe token defeated it, and any probe always will - it asks the thing under test
+# to describe itself, using a token printed in the script the adversary is reading. Claiming that hole is
+# shut is worse than the hole, so boot.sh's probe is aimed at the ACCIDENT it can actually catch (no python,
+# a python2, a python without the modules the script needs) and it names the interpreter, its real
+# sys.executable and its version when it refuses. `PYTHON=true` is still refused - and now in every wrapper,
+# not only this one. A hostile operator who can set the environment can also edit this file; the reviewer
+# and the pre-commit hook are the defence there, not a shell test. CI never sets PYTHON
+# (.github/workflows/linux-core.yml installs python3 and runs `bash ops/check-pins` with none in scope).
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
+scenic_python || { echo "PINS FAIL: refusing to exit 0 without loading a single pin, let alone running an assertion." >&2; exit 2; }
+exec "$SCENIC_PY" "$SCENIC_ROOT/ops/lib/pins.py" "$@"

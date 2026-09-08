@@ -11,9 +11,15 @@
 #   7  backend down: /__health unreachable or not ok
 #   9  legal URLs (Terms, Privacy) not returning 200
 #   4/5/6/8 reserved: corpus/graph bounds, golden routes, quota/kill switch, R2 manifests - added with T-0008/T-0014.
+#
+# The repo and the interpreter come from ops/lib/boot.sh, not from the caller. `cd "$(git rev-parse
+# --show-toplevel)"` reported on whatever repo the caller was standing in: from a synthetic repo carrying one
+# .gitattributes this printed a full green `SANE OK` about a tree that is not scenic_drive (T-0077).
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel)"
-PY="${PYTHON:-$(command -v python3 || command -v python)}"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
+scenic_cd_root
+scenic_python || exit 2
+PY="$SCENIC_PY"
 CR=$(printf '\r')
 prod=0; [[ "${1:-}" == "--prod" ]] && prod=1
 rc=0

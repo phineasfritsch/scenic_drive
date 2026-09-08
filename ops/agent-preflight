@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # Prints the toolchain state and exits non-zero if the repo is misconfigured for agent work.
 # Run first thing in every session: a wrong-toolchain agent is caught in 5 seconds, not after a confident wrong diagnosis.
+#
+# The repo comes from ops/lib/boot.sh, not from the caller: `cd "$(git rev-parse --show-toplevel)"` printed
+# the toolchain state of whatever repo the caller happened to be standing in, which is the one report in
+# this repo that must never be about a different tree (T-0077).
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/boot.sh" || exit 2
+scenic_cd_root
 fail=0
 say() { printf '%-12s %s\n' "$1" "$2"; }
 CR=$(printf '\r')
@@ -11,7 +16,11 @@ say "head"     "$(git rev-parse --short HEAD 2>/dev/null || echo 'no commits yet
 say "branch"   "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '-')"
 say "swift"    "$(swift --version 2>&1 | head -1)"
 say "node"     "$(node --version 2>/dev/null || echo MISSING)"
-say "python"   "$(python3 --version 2>/dev/null || python --version 2>/dev/null || echo MISSING)"
+# The interpreter ops/* will ACTUALLY use, by capability, not `python3 --version`. Reporting the name here
+# is how T-0076 stayed hidden: python3 answered 3.14.5 and had no pytest, python had it, and ops/test picked
+# the first. Both lines are printed because the ETL tier needs pytest and nothing else does.
+if scenic_python 2>/dev/null; then say "python" "$(scenic_py_id)"; else say "python" "NONE USABLE - run 'bash ops/check-pins' for the full diagnosis"; fail=1; fi
+if scenic_python pytest 2>/dev/null; then say "python+pytest" "$(scenic_py_id)"; else say "python+pytest" "none on PATH - ops/test refuses the ETL tier until there is one"; fi
 say "docker"   "$(docker --version 2>/dev/null || echo 'MISSING on host (use WSL2)')"
 
 hooks="$(git config --get core.hooksPath || true)"
