@@ -37,3 +37,89 @@
   retrieved: 2026-09-07
   consumed_by: T-0025
   notes: Pinned by sha256 ON PURPOSE, unlike the Geofabrik extracts. An oracle that silently follows upstream is not an oracle - if roadcurvature.com regenerates this file the fetch must FAIL and a human must re-pin it deliberately, having looked at what changed. c_300 rather than c_1000 for wider coverage - the threshold selects which collections are published, so a higher one leaves fewer ways to compare. Data is derived from OSM, hence ODbL.
+
+# USGS 3DEP 1/3 arc-second (about 10 m) bare-earth elevation, the eight tiles the sfbay bbox needs.
+# A tile nXXwYYY covers latitude [XX-1, XX] and longitude [-YYY, -YYY+1]. n37w124 is NOT here: it is
+# entirely ocean and USGS returns 404 for it, which the sampler must treat as "no elevation", never as 0 m -
+# zero is sea level, a real elevation, and would flatten every coastal way's relief.
+# Static files (Last-Modified 2025-08-27 for most), so each is pinned by sha256 rather than a sidecar.
+
+- name: 3dep-n38w123.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n38w123/USGS_13_n38w123.tif
+  verify: sha256
+  sha256: 73c9935d3b750c01f19b292760547b8c2db0a1c8beb3ee0aaea375425b713538
+  license: US-PD-17USC105
+  purpose: "elevation for lat 37-38, lon -123..-122: the peninsula, Santa Cruz mountains, inner coast"
+  bytes: 222936410
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n38w122.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n38w122/USGS_13_n38w122.tif
+  verify: sha256
+  sha256: d6dd52bd01ef81d8af06a336d881ca73083e15139f22c2e84262e77aa138ffb4
+  license: US-PD-17USC105
+  purpose: "elevation for lat 37-38, lon -122..-121: east bay, Diablo range, the Altamont"
+  bytes: 499782172
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n37w122.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n37w122/USGS_13_n37w122.tif
+  verify: sha256
+  sha256: 786ad73dc03e5c7cde26b285631ef04198e386ac83d3e91ac8c1e577e7fdcd80
+  license: US-PD-17USC105
+  purpose: "elevation for lat 36-37, lon -122..-121: south bay approaches, Santa Cruz, Pacheco"
+  bytes: 415276131
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n37w123.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n37w123/USGS_13_n37w123.tif
+  verify: sha256
+  sha256: 3f36dd93848c01c97322ea52a3df0344daa5efe466c57aae139b08c9a490aee6
+  license: US-PD-17USC105
+  purpose: "elevation for lat 36-37, lon -123..-122: almost entirely ocean, small on purpose"
+  bytes: 5494012
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n39w123.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n39w123/USGS_13_n39w123.tif
+  verify: sha256
+  sha256: 68e1bdf99704c5bb7ab8136354f39a3401bc5bdd8889b086336a4b5e259c65f9
+  license: US-PD-17USC105
+  purpose: "elevation for lat 38-39, lon -123..-122: Sonoma, Napa, the north bay ranges"
+  bytes: 488805186
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n39w122.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n39w122/USGS_13_n39w122.tif
+  verify: sha256
+  sha256: 76da1d095839553bfda3cf8dc464695b45b907bd0755b379ab2215cfa1bb416b
+  license: US-PD-17USC105
+  purpose: "elevation for lat 38-39, lon -122..-121: Solano and the north Delta"
+  bytes: 490935937
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n38w124.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n38w124/USGS_13_n38w124.tif
+  verify: sha256
+  sha256: 57b05122de1c4df2b8c74e4ae64923b3a1fb3d95a2d9f782c98d78ae91e37b2b
+  license: US-PD-17USC105
+  purpose: "elevation for lat 37-38, lon -124..-123: the outer coast, mostly ocean"
+  bytes: 1656024
+  retrieved: 2026-09-07
+  consumed_by: T-0026
+
+- name: 3dep-n39w124.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n39w124/USGS_13_n39w124.tif
+  verify: sha256
+  sha256: ea12b027e83a667bb97b3b4db2574f93787602b62cd5d4360798fb8fe802dadf
+  license: US-PD-17USC105
+  purpose: "elevation for lat 38-39, lon -124..-123: the Sonoma coast"
+  bytes: 153554813
+  retrieved: 2026-09-07
+  consumed_by: T-0026

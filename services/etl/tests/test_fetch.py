@@ -207,9 +207,31 @@ class TestRecordDigestBootstrap:
         assert fetch.main(["--manifest", str(m)]) == 2
         assert not (tmp_path / "file.bin").exists()
 
-    def test_the_excuse_does_not_apply_to_a_DIFFERENT_entry(self, server, tmp_path, monkeypatch):
+    def test_several_unrecorded_entries_do_not_block_recording_one_of_them(self, server, tmp_path,
+                                                                          monkeypatch, capsys):
+        """Recording is incremental, so other UNRECORDED entries must not block the one being recorded.
+
+        This test previously asserted the opposite - that a second `TODO` entry made the command refuse. That
+        rule survived exactly one real use: T-0026 added eight 3DEP tiles at once and could not record the
+        first, because the other seven were also unpinned. An unrecorded digest is not a wrong value, it is an
+        absent one, and an absent one cannot be a reason to refuse the command whose job is to supply it.
+
+        What still refuses is unchanged and covered by the tests either side of this one: a digest that is
+        present but malformed, any other kind of problem on any entry, and a normal fetch.
+        """
         monkeypatch.setattr(fetch, "DEST", tmp_path)
         body = (self._entry(f"{server}/file.bin", "TODO")
                 + f"- name: other.bin\n  url: {server}/file.bin\n  verify: sha256\n  license: CC0-1.0\n"
                   f"  purpose: p\n  sha256: TODO\n")
-        assert fetch.main(["--manifest", str(self._manifest(tmp_path, body)), "--record-digest", "other.bin"]) == 2
+        m = self._manifest(tmp_path, body)
+        assert fetch.main(["--manifest", str(m), "--record-digest", "other.bin"]) == 0
+        assert GOOD_SHA in capsys.readouterr().out
+
+    def test_a_malformed_digest_on_ANOTHER_entry_still_refuses(self, server, tmp_path, monkeypatch):
+        """The line the widening must not cross: `sha256: deadbeef` anywhere is someone getting it wrong."""
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        body = (self._entry(f"{server}/file.bin", "TODO")
+                + f"- name: other.bin\n  url: {server}/file.bin\n  verify: sha256\n  license: CC0-1.0\n"
+                  f"  purpose: p\n  sha256: deadbeef\n")
+        m = self._manifest(tmp_path, body)
+        assert fetch.main(["--manifest", str(m), "--record-digest", "file.bin"]) == 2
