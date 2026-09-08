@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# P-OPS-02's assertion, part 1 of 2 (part 2 is ops/lib/merge_reason_cap_assert.py).
+#
+# The property: ops/merge's --no-task-reason cap truncates the audit reason on a CHARACTER boundary, and the
+# override line it echoes is always valid UTF-8 and always exactly ONE line under Unicode line-break rules -
+# no C0 control byte, DEL, U+0085, U+2028 or U+2029 survives sanitizing into it.
+#
+# The defect this exists to prevent (T-0049, found by agent/reviewer-26 while reviewing T-0044): the cap was
+# `${#no_task_reason}` / `${no_task_reason:0:200}`, and bash parameter expansion does not count characters here.
+# With no locale set it counts BYTES; under LC_ALL=C.UTF-8 on this Cygwin bash it counts UTF-16 code units. So a
+# multi-byte character straddling the cap was cut in half and half a UTF-8 sequence went into the audit line.
+#
+# The second defect (found by agent/reviewer-39 reviewing T-0049): `str.splitlines()` - the definition of "line"
+# this check uses, and the one every Unicode-aware reader of the audit trail uses - honours U+0085, U+2028 and
+# U+2029, which T-0044's byte-oriented `tr` pipeline could not see. A reason carrying one of them produced a
+# SECOND line of output that read as one of ops/merge's own gate lines, with the closing >>> <<< delimiter
+# stranded at its tail. str.splitlines() honours ten code points and the cases below feed every one: LF and CR
+# (folded at step 1), U+000B, U+000C and U+001C-U+001E (deleted at step 2), U+0085, U+2028 and U+2029 (folded
+# at step 4). A statement about "one line" that omits any of them is broader than what it tests.
+#
+# This drives the REAL ops/merge against the committed gh stub and inspects its raw stdout BYTES. It does not
+# re-implement the cap and it does not grep for a fixed idiom, so a rewrite that keeps the property still passes.
+# Nothing here is anchored on a comment: the inputs are argv, the assertions are on emitted bytes, and the two
+# anti-vacuity greps are on shell code (a `case` arm and an assignment), not on prose.
+#
+# Why the split into two files: the outputs have to reach the assertions as exact bytes. On this Windows box,
+# argv from bash to python is re-encoded (a raw `f0 9f` arrives as `c3 b0 c2 9f`), so argv is unusable for
+# carrying them - but stdin is byte-exact. stdin therefore carries the data, which means the python cannot also
+# be a heredoc on stdin. Same shape as ops/check-pins -> ops/lib/pins.py.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+CAP=200
+MERGE=ops/merge
+STUB=ops/lib/gh-stub-for-merge-tests
+ASSERT=ops/lib/merge_reason_cap_assert.py
+
+fail() { echo "P-OPS-02: $*"; exit 1; }
+
+# ---- 0. refuse to pass vacuously (the P-OPS-01 / P-SRC-02 lesson) -------------------------------------
+[[ -n "$PY" ]]      || fail "no python on PATH; this check cannot count characters without one"
+[[ -f "$MERGE" ]]   || fail "$MERGE is missing"
+[[ -f "$STUB" ]]    || fail "$STUB is missing (this check needs the committed gh stub)"
+[[ -f "$ASSERT" ]]  || fail "$ASSERT is missing (this check is only half of itself without it)"
+grep -q -- '--no-task-reason=\*)' "$MERGE" \
+  || fail "$MERGE no longer has a --no-task-reason=*) case arm; the option this pin guards is gone"
+grep -q '^no_task_reason_max=' "$MERGE" \
+  || fail "$MERGE no longer assigns no_task_reason_max; the cap this pin guards is gone"
+
+shim="$(mktemp -d)"
+trap 'rm -rf "$shim"' EXIT
+{ echo '#!/usr/bin/env bash'; echo "exec bash \"$PWD/$STUB\" \"\$@\""; } > "$shim/gh"
+chmod +x "$shim/gh"
+
+# ---- 1. inputs, built from explicit bytes so they do not depend on this shell's locale ----------------
+A198="$(printf 'A%.0s' {1..198})"
+A199="$(printf 'A%.0s' {1..199})"
+GRIN="$(printf '\xf0\x9f\x98\x80')"   # U+1F600 grinning face, 4 bytes - the width a naive fix still splits
+HAN="$(printf '\xe6\xbc\xa2')"        # U+6F22 han, 3 bytes
+DASH="$(printf '\xe2\x80\x94')"       # U+2014 em dash, 3 bytes
+EACUTE="$(printf '\xc3\xa9')"         # U+00E9 PRECOMPOSED - an NFD pass would rewrite it to e + U+0301
+LSEP="$(printf '\xe2\x80\xa8')"       # U+2028 LINE SEPARATOR - a line break to splitlines(), invisible to tr
+PSEP="$(printf '\xe2\x80\xa9')"       # U+2029 PARAGRAPH SEPARATOR
+NEL="$(printf '\xc2\x85')"            # U+0085 NEXT LINE
+NBSP="$(printf '\xc2\xa0')"           # U+00A0 - rebuilds the 5-space `task     ` gate-line column
+HAN250=""; for _ in {1..250}; do HAN250+="$HAN"; done
+NL=$'\n'; CR=$'\r'; TAB=$'\t'; ESC=$'\033'
+
+# FAKE is the shape of a genuine gate-1-pass line, which is what T-0044's reporter forged. FAKE_1SP is the same
+# text after the sanitizer has done its job: the break became a space and the 5-space column collapsed to one.
+FAKE="task     T-FAKE is in queue/done/ on tmp/stub-no-task"
+FAKE_1SP="task T-FAKE is in queue/done/ on tmp/stub-no-task"
+FAKE_NBSP="task${NBSP}${NBSP}${NBSP}${NBSP}${NBSP}T-FAKE is in queue/done/ on tmp/stub-no-task"
+
+# (label, reason, expectation) triples. The expectation is one of:
+#   derive     the character-cap rule, computed by the assertion from the reason itself, so a case cannot
+#              drift away from what it claims to test
+#   refuse     ops/merge must exit 1 and emit no override line at all (the reason sanitizes to empty)
+#   is:<text>  the exact text ops/merge must echo between its >>> <<< delimiters
+# `is:` cases are the ones whose input is deliberately rewritten by the sanitizer, so there is nothing to
+# derive; stating the post-sanitizing text is what pins HOW it was rewritten - a space and not a deletion, one
+# space and not five, the ESC byte gone but its payload text still legible.
+cases=(
+  "at-cap-198A-2emoji"    "$A198$GRIN$GRIN"       "derive"   # 200 chars / 206 bytes: reviewer-26's input
+  "over-by-1-198A-3emoji" "$A198$GRIN$GRIN$GRIN"  "derive"   # 201 chars / 210 bytes: 4-byte char straddles
+  "over-by-1-199A-2han"   "$A199$HAN$HAN"         "derive"   # 201 chars / 205 bytes: 3-byte char straddles
+  "wide-250han"           "$HAN250"               "derive"   # 250 chars / 750 bytes: a byte cap keeps 66
+  # `caf<U+00E9>` is load-bearing: it is the only input here that is not NFD-invariant, so it is what notices a
+  # filter that silently normalizes the operator's text on its way to the permanent record.
+  "short-multibyte"       "short $DASH $HAN $GRIN caf$EACUTE ok"  "derive"
+  # argv itself is not valid UTF-8: must be repaired, not echoed back raw.
+  "invalid-input-bytes"   "$(printf 'bad \xf0\x9f end')"          "derive"
+  # --- the five line-break code points splitlines() honours, each carrying a forged gate line ----------
+  "forgery-embedded-newline"  "why$NL$FAKE"    "is:why $FAKE_1SP"
+  "forgery-carriage-return"   "why$CR$FAKE"    "is:why $FAKE_1SP"
+  "forgery-u2028-line-sep"    "why$LSEP$FAKE"  "is:why $FAKE_1SP"
+  "forgery-u0085-next-line"   "why$NEL$FAKE"   "is:why $FAKE_1SP"
+  # U+2029 carrying a U+00A0 column: NBSP is untouched by every tr here and by the cap, so it can rebuild the
+  # `task     ` column of a real gate line pixel for pixel. That is harmless only while nothing can start a
+  # new line, which is exactly what the case above it and this one pin.
+  "forgery-u2029-nbsp-column" "why$PSEP$FAKE_NBSP"  "is:why $FAKE_NBSP"
+  # ESC is the terminal-repaint attack T-0044 closed, and it had no automated guard anywhere in the repo until
+  # now (agent/reviewer-39's surviving mutation V5). The escape BYTE goes; its payload text stays visible.
+  "forgery-ansi-escape"       "why${ESC}[2J${ESC}[1;31m$FAKE"  "is:why[2J[1;31m$FAKE_1SP"
+  # Folding a break to a space can itself create a run of spaces or a leading space, which is why the collapse
+  # and trim are repeated after the fold. These two are what make that repeat load-bearing: without it the one
+  # above keeps `  why    task ...` and the one below records a blank override instead of refusing.
+  "forgery-u2028-spaced"      "$LSEP why $LSEP$LSEP $FAKE"  "is:why $FAKE_1SP"
+  # Control bytes and whitespace only: sanitizes to nothing, so gate 1 must refuse rather than record an empty
+  # override. This is T-0044's "whitespace-only counts as no reason" rule, which had no guard either. The first
+  # reason also carries U+000B, U+000C and U+001C-U+001E - the OTHER five code points str.splitlines() honours,
+  # which step 2 deletes as control bytes. Between these two and the four above, all ten reach the real script.
+  "refuse-controls-and-breaks"  "$(printf '\001\013\014')$TAB$NL$CR   $(printf '\034\035\036')"  "refuse"
+  "refuse-line-breaks-only"     "$LSEP$NEL$PSEP "                                                "refuse"
+)
+
+STRIDE=3
+if [[ $((${#cases[@]} % STRIDE)) -ne 0 ]]; then
+  fail "the cases array has ${#cases[@]} entries; it must be (label, reason, expectation) triples"
+fi
+
+# ---- 2. run the real ops/merge once per case ---------------------------------------------------------
+# In parallel: each case is an independent ops/merge run and each one costs several process spawns, which are
+# expensive on the Windows checkout (5 cases serially measured 10.8s, and ops/check-pins already takes ~80s).
+# Each job owns its own files, so there is nothing to race on.
+n=0
+i=0
+while [[ $i -lt ${#cases[@]} ]]; do
+  label="${cases[$i]}"; reason="${cases[$((i + 1))]}"; want="${cases[$((i + 2))]}"; i=$((i + STRIDE))
+  printf '%s' "$label"  > "$shim/label.$n"
+  printf '%s' "$reason" > "$shim/reason.$n"
+  printf '%s' "$want"   > "$shim/want.$n"
+  (
+    PATH="$shim:$PATH" bash "$MERGE" 9 --dry-run "--no-task-reason=$reason" > "$shim/out.$n"
+    echo $? > "$shim/rc.$n"
+  ) &
+  n=$((n + 1))
+done
+wait
+
+# Records are NUL-separated: label, expectation, exit code, reason, stdout. ops/merge deletes \000 from the
+# reason and emits none of its own, so NUL cannot occur inside a record. The exit code is carried rather than
+# checked here because a `refuse` case must exit 1: which codes are legal is a property, so it belongs with
+# the other assertions and not in the plumbing.
+stream="$shim/records"
+: > "$stream"
+for ((j = 0; j < n; j++)); do
+  cat "$shim/label.$j"  >> "$stream"; printf '\0' >> "$stream"
+  cat "$shim/want.$j"   >> "$stream"; printf '\0' >> "$stream"
+  printf '%s\0' "$(cat "$shim/rc.$j" 2>/dev/null || echo missing)" >> "$stream"
+  cat "$shim/reason.$j" >> "$stream"; printf '\0' >> "$stream"
+  cat "$shim/out.$j"    >> "$stream"; printf '\0' >> "$stream"
+done
+
+"$PY" "$ASSERT" "$CAP" < "$stream"

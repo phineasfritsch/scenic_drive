@@ -21,6 +21,9 @@
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 PY="${PYTHON:-$(command -v python3 || command -v python)}"
+# Checked here rather than at first use: without it an absent python surfaces as `"" -c: command not found`
+# midway through a gate, which reads like a gate failure rather than a missing dependency.
+[[ -n "$PY" ]] || { echo "ops/merge: no python3/python on PATH (set PYTHON=...)"; exit 2; }
 
 pr="${1:-}"
 [[ -n "$pr" ]] || { echo "usage: ops/merge <pr-number> [--wait] [--dry-run] [--no-task-reason=<reason>]"; exit 2; }
@@ -44,22 +47,46 @@ done
 #   3. Runs of whitespace collapse to one space, then leading/trailing whitespace is trimmed. This subsumes the
 #      original "whitespace-only counts as no reason, not a reason" rule; it now runs after sanitizing rather
 #      than before, so a reason of pure control bytes/newlines is correctly treated as empty too.
-#   4. The result is capped at $no_task_reason_max chars - a giant reason is a milder version of the same attack
-#      (burying real output instead of forging it) and gets the same treatment.
-# Residual, accepted limitation: this strips bytes, not code points, so a non-ASCII Unicode format character
-# (e.g. a bidi override) would survive. It cannot inject a line break or an escape sequence either way, which is
-# the actual exploit this closes; full Unicode sanitizing is out of scope for a one-line audit annotation.
+#   4. U+0085, U+2028 and U+2029 collapse to a space as well, and step 3's collapse-and-trim is repeated over
+#      the result. `tr` works on bytes, and those three are the line breaks it cannot see - but str.splitlines()
+#      honours them, and so does every other Unicode-aware reader of this audit trail. Until T-0049's review a
+#      reason carrying one of them still produced a SECOND line of output, shaped like a gate line, with the
+#      closing <<< stranded at its tail (agent/reviewer-39 forged `MERGED pr=...` and `DRY RUN:` lines this
+#      way end to end). That closes the set: splitlines() honours ten code points, and the other five - U+000B,
+#      U+000C and U+001C-U+001E - are already deleted as control bytes at step 2.
+#   5. The result is capped at $no_task_reason_max CHARACTERS - a giant reason is a milder version of the same
+#      attack (burying real output instead of forging it) and gets the same treatment. The cap is a display
+#      bound, so it counts what is displayed: 200 bytes of Japanese is 66 glyphs and 200 bytes of emoji is 50,
+#      and an audit annotation must not be silently rationed by the script its author writes in.
+#      This step is python and not `${#s}` / `${s:0:n}` on purpose (T-0049): bash parameter expansion does not
+#      count characters here. With no locale set it counts bytes, and under LC_ALL=C.UTF-8 on the Cygwin bash
+#      this repo is driven from it counts UTF-16 code units. Both cut a multi-byte character in half at the
+#      boundary and put invalid UTF-8 into the audit line. Decoding with errors="replace" also means a reason
+#      that arrived as invalid bytes is repaired rather than echoed: the audit line is always valid UTF-8.
+#      If steps 4-5 fail, the reason comes out empty and gate 1 refuses the merge - fail-closed, as it should.
+# Residual, accepted limitations: (a) non-ASCII format and space characters that are NOT line breaks survive -
+# a bidi override (U+202E), or a U+00A0 that rebuilds the 5-space `task     ` column of a gate line. Neither
+# matters while nothing can start a line, which is what steps 1 and 4 together guarantee; nested inside the
+# >>> <<< delimiters they are operator text and read as such. (b) the cap counts code points, not grapheme
+# clusters, so it can still split a ZWJ emoji sequence or strand a combining mark - the result is valid UTF-8
+# that renders as a different glyph, and truncation always carries the ...[truncated] marker, so a mangled
+# reason can never pose as a complete one. Full Unicode sanitizing is out of scope for a one-line annotation.
 no_task_reason_max=200
 no_task_reason="$(
   printf '%s' "$no_task_reason" \
     | tr '\n\r\t' '   ' \
     | tr -d '\000-\010\013\014\016-\037\177' \
     | tr -s ' ' \
-    | sed -e 's/^ *//' -e 's/ *$//'
+    | sed -e 's/^ *//' -e 's/ *$//' \
+    | "$PY" -c 'import re, sys
+cap = int(sys.argv[1])
+s = sys.stdin.buffer.read().decode("utf-8", "replace")
+s = re.sub("[  ]", " ", s)
+s = re.sub(" +", " ", s).strip(" ")
+if len(s) > cap:
+    s = s[:cap] + "...[truncated]"
+sys.stdout.buffer.write(s.encode("utf-8"))' "$no_task_reason_max"
 )"
-if [[ "${#no_task_reason}" -gt $no_task_reason_max ]]; then
-  no_task_reason="${no_task_reason:0:$no_task_reason_max}...[truncated]"
-fi
 repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 
 # --- 1. the PR's queue task must be in done/, i.e. a reviewer signed it off ---------------------------
