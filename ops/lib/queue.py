@@ -5,7 +5,7 @@
   queue.py check              exit 1 on any protocol violation (reviewer == owner, review/ without reviewer, ...)
   queue.py sweep              move expired claimed/ tasks back to ready/, release their LOCKS, append to ## Log
   queue.py next               print the next unblocked ready/ task id
-  queue.py claim T-0007 --owner agent/x --session <id> [--worktree ../wt/T-0007] [--hours 2]
+  queue.py claim T-0007 --owner agent/x --session <id> [--worktree .worktrees/T-0007] [--hours 2]
   queue.py lock T-0007 [--owner agent/x]   acquire locks a claimed task declares but does not hold
 
 No PyYAML: front matter is parsed by a deliberately small reader (scalars, [flow, lists], and `- ` block lists).
