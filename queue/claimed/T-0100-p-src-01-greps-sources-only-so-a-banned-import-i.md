@@ -108,3 +108,59 @@ mutation run will print `PROMOTE` until the exemption is removed.
   Exit codes above were read with the pipe removed. `ops/pins-mutation | tail -6; echo $?` printed `0` for
   the run that exits 2 — `$?` after a pipeline is the last command's status, which CLAUDE.md warns about by
   name and which cost a wrong reading in this very session before it was caught.
+
+- 2026-09-08 — **handed "fix P-OPS-01 with `git update-index --chmod=+x`"; refused, and changed nothing.**
+  Recording the refusal here because the instruction was plausible, mechanical, and wrong, and the next
+  agent handed it will land in the same place. **No file mode was changed by this entry.**
+
+  **RED before:** `bash ops/check-pins` → **exit 1** (`PINS ok=7 skipped=0 pending=3 expired=0 failed=2`)
+
+        P-OPS-01: wrong git file mode:
+          ops/lib/pins_mutation.py (script, should be 100755, is 100644)
+        ops/lib/pins_mutation_cases.py (script, should be 100755, is 100644)
+
+  **RED after:** `bash ops/check-pins` → **exit 1**, byte-identical. There is no green to report. Both
+  exit codes were read with `... >/dev/null 2>&1; echo $?`, not through a pipe.
+
+  **Why the premise is wrong.** The brief said the cause was mechanical — `core.filemode=false`, so a new
+  script got committed 100644 and nobody noticed. It is not. Those two files were set to 100644 **on
+  purpose** by [[T-0080]], which is the base branch of this PR (#63 targets `task/T-0080`, not `main` —
+  neither file exists on `main`). T-0080's log says it in as many words: *"Do not 'fix' it with
+  `--chmod=+x`: there is no mode that is right in both merge orders."*
+
+  Verified against the branches rather than taken on the log's word:
+
+  - `git show task/T-0036:ops/lib/check-exec-bits` line 43 classifies `.py` as **data**:
+    `$4 ~ /\.(json|txt|md|py)$/ ... should be 100644`. T-0036's own tree carries all four pre-existing
+    `ops/lib/*.py` at 100644 to match. So 100644 is correct *after* T-0036 and wrong *before* it.
+  - Three sibling branches independently did the same: `task/T-0021` (`classify-checks.py`),
+    `task/T-0049` (`merge_reason_cap_assert.py`), `task/T-0081` (`etl_mutation.py`,
+    `etl_mutation_rules.py`) — every newly added `ops/lib/*.py` is 100644. Four branches agree; a chmod
+    here would make this one the outlier, which is the specific thing `ops/merge-rehearse`'s ordering
+    exists to prevent. At 100755 it merges into the tree where that mode is wrong and the break lands on
+    `main` instead of on a PR.
+  - The functional claim holds too: **nothing invokes `ops/lib/*` directly.** Every call site is
+    `exec "$PY" .../ops/lib/x.py` (`ops/check-pins:2`, `ops/claim:2`, `ops/lock:2`, `ops/new-task:2`,
+    `ops/queue-check:2`, `ops/queue-next:2`, `ops/prod-read:16-17`, `ops/pins-mutation:17`). `git grep`
+    for `./ops/lib/` finds no invocation anywhere in the tree. [[T-0015]] reached this same conclusion in
+    `queue/done/`: requiring 100755 there *"satisfies the pin's letter but not its stated purpose."*
+
+  **And the content test the brief itself specified says the same.** Judge each file by content, not name:
+  `pins_mutation.py` has a `#!/usr/bin/env python3` shebang but is only ever run as an interpreter
+  argument, so the bit is unused; `pins_mutation_cases.py` has **no shebang at all** — it opens with a
+  docstring and is import-only (`from pins_mutation_cases import CASES, NoOp`, pins_mutation.py:32).
+  It is not a program and cannot be one. Marking it 100755 would assert something false. The brief warned
+  that blanket-chmodding "makes the pin pass while breaking what it protects"; that warning fires here.
+
+  Chmod-ing only the shebang file would not have helped either — `check-exec-bits` classifies by
+  extension, so P-OPS-01 stays red until T-0036 changes the classifier. There is no chmod available on
+  this branch that produces a durable green.
+
+  **Correct resolution: none here.** P-OPS-01 goes green when [[T-0036]] merges and the classifier starts
+  calling `.py` data. That is a dependency, not a defect in this branch, and it is already stated in #63's
+  own body. T-0100's actual subject (P-SRC-01 now searching `Sources/ Tests/`) was already complete and is
+  untouched by this entry.
+
+  **Also red at baseline and not mine:** P-SAFE-05 (the USNO solar-fixture assertion, which runs
+  `swift test`). It was failing before I ran anything, is unrelated to file modes, and I did not touch it.
+  Flagging it rather than folding it into this task's result.
