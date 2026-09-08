@@ -61,6 +61,25 @@ def _scalar(v):
     return v
 
 
+AGENT_NAME = re.compile(r"^agent/[a-z0-9][a-z0-9._+-]*$")
+NOT_A_NAME = frozenset({"", "-", "~", "nil", "none", "null", "true", "false"})
+
+
+def agent(v):
+    """Normalise an owner/reviewer field to a comparable agent name, or None if it is not one.
+
+    P-PROC-01 is an INEQUALITY. T-0068 hardened the PRESENCE of its operands and left the COMPARISON
+    vacuous, and eleven evasions walked through the gap by supplying something truthy that was not a name
+    (T-0073): `- agent/self` parses to ['agent/self'], truthy AND != 'agent/self'; `owner: "null"` survives
+    _scalar's quote-stripping as the STRING 'null'; `agent/Self` is one capital away. A non-name is a
+    FAILURE, never a value to compare - callers must read None as "undecidable", not as "they differ".
+    """
+    if not isinstance(v, str):
+        return None                       # a list (block or flow), None, a number: not a name
+    v = v.strip().casefold()
+    return v if v not in NOT_A_NAME and AGENT_NAME.match(v) else None
+
+
 def dump(fm, body):
     lines = ["---"]
     for k, v in fm.items():
@@ -73,7 +92,11 @@ def dump(fm, body):
         elif v is None:
             lines.append(f"{k}: null")
         else:
-            lines.append(f"{k}: {v}")
+            # Round-trip, never reinterpret. The string 'null' was written back as a bare `null`, so
+            # ops/review on a task carrying owner: "null" MANUFACTURED the real null the guard exists to
+            # refuse (T-0073 route 2). Any scalar parse() would not read back unchanged is quoted.
+            s = str(v)
+            lines.append(f"{k}: {s}" if _scalar(s) == s else f"{k}: \"{s}\"")
     lines.append("---")
     return "\n".join(lines) + "\n" + body.lstrip("\n")
 
@@ -87,14 +110,33 @@ def iso(t):
     return t.isoformat().replace("+00:00", "Z")
 
 
+TASK_FILE = re.compile(r"^T-\d{4}-[A-Za-z0-9._-]+\.md$")
+TASK_ID = re.compile(r"^T-\d{4}$")
+NOT_TASKS = frozenset({".gitkeep"})
+KNOWN_DIRS = frozenset(STATES) | {"LOCKS", "_schema"}
+MIN_TASKS = 40
+
+
 def tasks():
-    """yield (state, path, fm, body) for every task file."""
+    """yield (state, path, fm, body) for EVERY file in a state directory except .gitkeep.
+
+    The glob was rglob("T-*.md"), and a file it could not see was a file no check could fail on:
+    queue/done/selfgraded-fixture.md was owner == reviewer == agent/self and queue-check printed QUEUE OK
+    without counting it, as did the same fixture saved as .markdown (T-0073). Name discipline is now
+    ASSERTED in cmd_check instead of enforced by invisibility; an unreadable file yields fm={} so callers
+    report it rather than raising a traceback at whoever ran an unrelated command.
+    """
     for state in STATES:
         d = Q / state
         if not d.is_dir():
             continue
-        for p in sorted(d.rglob("T-*.md")):
-            fm, body = parse(p.read_text(encoding="utf-8"))
+        for p in sorted(d.rglob("*")):
+            if not p.is_file() or p.name in NOT_TASKS:
+                continue
+            try:
+                fm, body = parse(p.read_text(encoding="utf-8"))
+            except (ValueError, OSError, UnicodeDecodeError):
+                fm, body = {}, ""
             yield state, p, fm, body
 
 
@@ -147,7 +189,8 @@ def _ids_in_refs():
 
 
 def next_id():
-    ids = {int(fm["id"].split("-")[1]) for _, _, fm, _ in tasks()} | _ids_in_refs()
+    ids = {int(str(fm.get("id")).split("-")[1]) for _, _, fm, _ in tasks()
+           if TASK_ID.match(str(fm.get("id")))} | _ids_in_refs()
     return f"T-{(max(ids) + 1 if ids else 1):04d}"
 
 
@@ -210,9 +253,34 @@ def cmd_new(argv):
 def cmd_check(_argv):
     problems = []
     seen = {}
+    # STRUCTURE FIRST, because P-PROC-01's whole assertion is `bash ops/queue-check >/dev/null` and an
+    # unpopulated pass IS the pin passing. All three were executed green before (T-0073 route 4): an empty
+    # queue/ printed QUEUE OK (0 tasks), so did deleting queue/review and queue/done, and a self-graded task
+    # parked in queue/completed/ was invisible because that directory is not in STATES.
+    for state in STATES:
+        if not (Q / state).is_dir():
+            problems.append(f"queue/{state}/ is missing - a deleted state directory silently hides every task in it")
+    for d in sorted(Q.iterdir()) if Q.is_dir() else []:
+        if d.is_dir() and d.name not in KNOWN_DIRS:
+            problems.append(f"{d.relative_to(ROOT).as_posix()}/ is not a queue state - a task parked there is invisible")
+    # LOCKS/ and _schema/ are allow-listed above, so a task file dropped in one of them would be invisible
+    # for exactly the reason queue/completed/ was. A task-NAMED file only belongs in a state directory.
+    for p in sorted(Q.rglob("T-*.md")) if Q.is_dir() else []:
+        if p.relative_to(Q).parts[0] not in STATES and TASK_FILE.match(p.name):
+            problems.append(f"{p.relative_to(ROOT).as_posix()}: a task file outside {'/'.join(STATES)}")
     for state, p, fm, _ in tasks():
         rel = p.relative_to(ROOT).as_posix()
+        # Asserted, not assumed: tasks() yields every file under a state dir so a mis-named one is reported
+        # here instead of being hidden by the glob that used to define what counted as a task.
+        if not TASK_FILE.match(p.name):
+            problems.append(f"{rel}: not a task file (expected T-NNNN-slug.md) - an unnameable file is uncheckable")
+        if not fm:
+            problems.append(f"{rel}: no readable front matter")
+            continue
         tid = fm.get("id")
+        if not TASK_ID.match(str(tid)):
+            problems.append(f"{rel}: id {tid!r} is not a T-NNNN task id")
+            continue
         if tid in seen:
             problems.append(f"duplicate id {tid}: {rel} and {seen[tid]}")
         seen[tid] = rel
@@ -223,13 +291,24 @@ def cmd_check(_argv):
             # `owner: null` with `reviewer: agent/self` passed this gate while the worker graded its own
             # work, and so did deleting the `owner:` line outright (both executed in T-0068). cmd_sweep
             # writes owner=None itself when a lease expires, so a null owner is a state this tooling
-            # PRODUCES, not an exotic hand edit. Presence of both names is therefore part of the rule,
-            # not a precondition somebody else is checking.
-            missing = [k for k in ("owner", "reviewer") if not fm.get(k)]
-            for k in missing:
-                problems.append(f"{rel}: in {state}/ without {'an' if k == 'owner' else 'a'} {k}")
-            if not missing and fm.get("reviewer") == fm.get("owner"):
-                problems.append(f"{rel}: reviewer == owner ({fm.get('owner')}) - a worker may not grade its own work")
+            # PRODUCES, not an exotic hand edit. Presence of both names is part of the rule.
+            #
+            # PRESENCE IS NOT ENOUGH (T-0073): eleven evasions supplied a truthy NON-name and sailed
+            # through - `- agent/self` as a block list, `owner: "null"` in quotes, `agent/Self`. Both
+            # operands go through agent() first, and a non-name fails rather than being compared.
+            names = {}
+            for k in ("owner", "reviewer"):
+                raw = fm.get(k)
+                names[k] = agent(raw)
+                if names[k]:
+                    continue
+                if raw in (None, [], ""):
+                    problems.append(f"{rel}: in {state}/ without {'an' if k == 'owner' else 'a'} {k}")
+                else:
+                    problems.append(f"{rel}: in {state}/ with {k}: {raw!r}, which is not an agent/<name> - "
+                                    f"a non-name cannot be compared, so reviewer-is-not-owner is undecidable")
+            if names["owner"] and names["owner"] == names["reviewer"]:
+                problems.append(f"{rel}: reviewer == owner ({names['owner']}) - a worker may not grade its own work")
         if state == "claimed":
             for k in ("owner", "claimed_at", "lease_expires_at"):
                 if not fm.get(k):
@@ -245,7 +324,7 @@ def cmd_check(_argv):
                 pass  # done tasks may reference anything
     # locks held by non-claimed tasks
     if LOCKS.is_dir():
-        claimed_ids = {fm["id"] for s, _, fm, _ in tasks() if s == "claimed"}
+        claimed_ids = {fm.get("id") for s, _, fm, _ in tasks() if s == "claimed"}
         for lock in LOCKS.glob("*.lock"):
             holder = lock.read_text(encoding="utf-8").strip().split()[0] if lock.read_text(encoding="utf-8").strip() else "?"
             if holder not in claimed_ids:
@@ -256,6 +335,14 @@ def cmd_check(_argv):
         for dep in fm.get("depends_on") or []:
             if dep not in ids:
                 problems.append(f"{p.relative_to(ROOT).as_posix()}: depends_on {dep} which does not exist")
+    # THE FLOOR. Everything above is decoration if the population can be emptied. 69 tasks live here today,
+    # so a run seeing fewer than MIN_TASKS is looking at a truncated tree, not a queue that shrank; the
+    # floor sits far below the real count because it exists to catch "inspected nothing", not to track the
+    # queue. It is a constant here and not pins/floor_queue.txt: that path is serial-only (CLAUDE.md) and
+    # this task declares no exclusive lock.
+    if len(seen) < MIN_TASKS:
+        problems.append(f"only {len(seen)} task(s) visible, floor is {MIN_TASKS} - a queue-check that "
+                        f"inspected nothing still reports success, and that IS P-PROC-01 passing")
     if problems:
         print("QUEUE CHECK FAIL")
         for pr in problems:
@@ -289,12 +376,12 @@ def cmd_sweep(_argv):
 
 
 def cmd_next(_argv):
-    done = {fm["id"] for s, _, fm, _ in tasks() if s == "done"}
+    done = {fm.get("id") for s, _, fm, _ in tasks() if s == "done"}
     for state, p, fm, _ in tasks():
         if state != "ready":
             continue
         if all(d in done for d in (fm.get("depends_on") or [])):
-            print(fm["id"], "-", fm["title"])
+            print(fm.get("id"), "-", fm.get("title"))
             return 0
     print("(no unblocked ready task)")
     return 0
@@ -306,7 +393,7 @@ def cmd_claim(argv):
     owner = opts.get("owner") or "agent/unknown"
     hours = float(opts.get("hours", "2"))
     for state, p, fm, body in tasks():
-        if fm["id"] != tid:
+        if fm.get("id") != tid:
             continue
         if state != "ready":
             print(f"{tid} is in {state}/, not ready/")
@@ -369,13 +456,13 @@ def cmd_review(argv):
     tid = argv[0]
     opts = _opts(argv[1:])
     for state, p, fm, body in tasks():
-        if fm["id"] != tid:
+        if fm.get("id") != tid:
             continue
         if state != "claimed":
             print(f"{tid} is in {state}/, not claimed/")
             return 1
-        reviewer = opts.get("reviewer") or fm.get("reviewer")
-        if not reviewer:
+        reviewer_raw = opts.get("reviewer") or fm.get("reviewer")
+        if not reviewer_raw:
             print(f"{tid} needs a reviewer: ops/review {tid} --reviewer agent/<name>")
             return 1
         # Refused here as well as in cmd_check, on the same argument as T-0056's brief guard: after the fact
@@ -384,14 +471,25 @@ def cmd_review(argv):
         # The owner must EXIST before that comparison means anything: `reviewer != None` is true for every
         # reviewer alive, so an ownerless task hands itself to itself and this gate says nothing. T-0068
         # executed it - `owner: null` and a deleted `owner:` line both walked a self-review into review/.
-        owner = fm.get("owner")
-        if not owner:
+        owner_raw = fm.get("owner")
+        if not owner_raw:
             print(f"{tid} has no owner, so 'the reviewer is not the owner' cannot be decided - a null owner")
             print("satisfies that inequality for every reviewer. Restore owner: before handing it over")
             print("(ops/queue-sweep clears owner: when a lease expires; re-claim with ops/claim).")
             return 1
+        # Present is not the same as comparable (T-0073): a `- agent/self` block list is truthy and
+        # != 'agent/self'; `owner: "null"` is the truthy STRING 'null', which dump() then wrote back as a
+        # real null, so this guard MANUFACTURED the state it exists to refuse; `--reviewer` with no value
+        # made the reviewer 'true'. Refuse a non-name outright rather than compare it.
+        owner, reviewer = agent(owner_raw), agent(reviewer_raw)
+        for label, norm, raw in (("owner", owner, owner_raw), ("reviewer", reviewer, reviewer_raw)):
+            if not norm:
+                print(f"{tid}: {label} is {raw!r}, which is not an agent/<name>. A non-name cannot be")
+                print("compared, so 'the reviewer is not the owner' cannot be decided - a list, a quoted")
+                print("\"null\" and a bare flag all read as present while meaning nothing.")
+                return 1
         if reviewer == owner:
-            print(f"reviewer {reviewer} is also the owner of {tid} - a worker may not grade its own work")
+            print(f"reviewer {reviewer_raw} is also the owner of {tid} - a worker may not grade its own work")
             return 1
 
         # Inspect every lock BEFORE unlinking any of them, so a foreign lock cannot leave the task half
@@ -416,6 +514,8 @@ def cmd_review(argv):
             lock.unlink()
         released = [res for res, _ in mine]
 
+        # The NORMALISED name is persisted on purpose, so `agent/Self` cannot be stored and later re-read
+        # as something different from its owner.
         fm.update(state="review", reviewer=reviewer)
         dest = Q / "review" / p.name
         dest.write_text(dump(fm, body), encoding="utf-8", newline="\n")
@@ -442,7 +542,7 @@ def cmd_lock(argv):
     tid = argv[0]
     opts = _opts(argv[1:])
     for state, p, fm, _ in tasks():
-        if fm["id"] != tid:
+        if fm.get("id") != tid:
             continue
         if state != "claimed":
             print(f"{tid} is in {state}/, not claimed/ - only a claimed task holds locks")
