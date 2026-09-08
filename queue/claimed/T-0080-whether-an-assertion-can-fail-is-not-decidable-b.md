@@ -9,12 +9,17 @@ lease_expires_at: 2026-09-08T11:12:16Z
 worktree: null
 branch: task/T-0080
 exclusive: []
-touches: [ops/lib/pins.py]
+touches: [ops/lib/pins.py, ops/lib/pins_mutation.py, ops/lib/pins_mutation_cases.py, ops/pins-mutation]
 pins_affected: []
 reviewer: null
 depends_on: []
-verify: [ops/test, ops/check-pins]
-acceptance: []
+verify: [ops/test, ops/check-pins, ops/pins-mutation]
+acceptance:
+  - "ops/pins-mutation -> PINS-MUTATION mutable=9 covered=9 cases=29 killed=27 survived=0 gaps=2 errors=0, exit 0"
+  - "RED: delete CoreLocation from P-SRC-01's regex in a demo worktree -> ops/check-pins still exits 0, ops/pins-mutation reports SURVIVED and exits 1"
+  - "RED: assertion: \"true || false\" on P-GIT-01 -> ops/check-pins still exits 0, ops/pins-mutation reports 2 SURVIVED and exits 1"
+  - "RED: the vacuity floor - a cases list of 0 injections must FAIL, not report every pin healthy"
+  - "the demo worktree is removed and git status is clean in both the caller's tree and the demo tree"
 ---
 ## Brief
 

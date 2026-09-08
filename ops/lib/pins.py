@@ -14,6 +14,12 @@ Rules (each one exists because an agent will otherwise satisfy the letter of the
   * `pending: T-XXXX` marks a pin whose assertion cannot exist yet. It is reported as PENDING and does not fail -
     UNLESS the named task is already in queue/done/ (then the debt is due) or does not exist at all.
   * --source-only runs only pins with anchor: source (the cheap CI gate on every push).
+  * whether an assertion CAN fail is not decidable from its text, and this file does not pretend otherwise.
+    The syntactic refusals here (TODO/empty) are cheap and stay; they are a floor, not the gate. `ops/pins-
+    mutation` is the gate: it injects the violation each pin's own `statement` names into a throwaway worktree
+    and requires the assertion to go RED. Deleting one alternative from P-SRC-01's regex leaves a genuine grep
+    that can fail, still runs, still counts - and no longer catches the import it was written for. Only
+    mutation sees that. This module never mutates anything; check-pins stays read-only.
 
 pins/PINS.yaml is a list of mappings. Values are scalars, "quoted strings" or [flow, lists]. No PyYAML needed.
 """
@@ -81,9 +87,15 @@ def task_state(tid):
     return None
 
 
-def run(assertion):
-    """Run one assertion under bash from the repo root. Returns (ok, output)."""
-    p = subprocess.run(["bash", "-o", "pipefail", "-c", assertion], cwd=ROOT, capture_output=True, text=True)
+def run(assertion, cwd=None):
+    """Run one assertion under bash from the repo root. Returns (ok, output).
+
+    `cwd` exists for ops/pins-mutation, which runs these same assertions against a throwaway worktree. It must
+    stay the ONE place an assertion is executed: a mutation runner that spawned bash its own way would be
+    proving something about its own harness rather than about what check-pins does.
+    """
+    p = subprocess.run(["bash", "-o", "pipefail", "-c", assertion], cwd=str(cwd or ROOT),
+                       capture_output=True, text=True)
     return p.returncode == 0, (p.stdout + p.stderr).strip()
 
 
