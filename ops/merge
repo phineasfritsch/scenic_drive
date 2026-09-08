@@ -44,6 +44,7 @@ fi
 
 # --- 2. every check run must have succeeded -----------------------------------------------------------
 attempt=0
+unknown_tries=0
 while :; do
   attempt=$((attempt + 1))
   state="$(gh pr view "$pr" --json mergeStateStatus -q .mergeStateStatus)"
@@ -89,6 +90,21 @@ PYCHECKS
   if [[ "$pending" -gt 0 ]]; then
     if [[ $wait -eq 1 && $attempt -lt 40 ]]; then sleep 30; continue; fi
     echo "MERGE REFUSED: $pending check(s) still running (use --wait to poll)"; exit 1
+  fi
+  # UNKNOWN is not a verdict. GitHub computes mergeStateStatus lazily: the first query returns UNKNOWN and
+  # TRIGGERS the computation, and a second query moments later returns the real value. Refusing on it makes
+  # the FIRST run against any PR nobody has touched today fail - measured on 2026-09-08, when a sweep of
+  # fifteen signed-off PRs returned UNKNOWN for all fifteen and a re-query returned CLEAN for every one.
+  # That is the whole backlog refused on first contact, by the command the operator has to run 41 times.
+  #
+  # Deliberately NOT behind --wait: --wait is for CI that is still running, and this is not waiting for
+  # anything to happen - it is asking a question GitHub had not been asked yet. Bounded, so a genuinely
+  # stuck field still refuses rather than spinning.
+  if [[ "$state" == "UNKNOWN" && $unknown_tries -lt 3 ]]; then
+    unknown_tries=$((unknown_tries + 1))
+    echo "         mergeState=UNKNOWN (GitHub computes it on demand); re-asking ($unknown_tries/3)"
+    sleep 3
+    continue
   fi
   break
 done

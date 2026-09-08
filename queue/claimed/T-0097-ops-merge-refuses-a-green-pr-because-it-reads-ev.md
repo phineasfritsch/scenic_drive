@@ -142,3 +142,59 @@ stopped firing without pretending the PR is mergeable. Pick a second PR that is 
 
         $ bash -n ops/merge     # syntax
         $ ops/queue-check       # QUEUE OK
+
+- 2026-09-08 — **a second refusal in the same gate, found by running the fixed tool across the backlog
+  instead of stopping at one PR: `mergeStateStatus=UNKNOWN` is not a verdict.**
+
+  Scope note first, because widening a task quietly is the thing this repository files tasks about: this is
+  outside the brief above, which is only about the rollup. It is in the same `while` loop, in the same file,
+  in this task's `touches:`, and it is the same defect class — **the gate refuses a branch that is fine** —
+  so it is fixed here rather than filed and left blocking the merge it blocks. Said in the commit message
+  too.
+
+  GitHub computes `mergeStateStatus` **on demand**. The first query returns `UNKNOWN` and *triggers* the
+  computation; a query moments later returns the real value. Sweeping the fifteen PRs whose task is already
+  in `done/`, with only the rollup fix applied:
+
+        PR#18  MERGE REFUSED: mergeStateStatus=UNKNOWN (want CLEAN)
+        PR#19  MERGE REFUSED: mergeStateStatus=UNKNOWN (want CLEAN)
+        ... UNKNOWN for every PR in the sweep
+
+  Then asking the same three again, by hand, seconds later:
+
+        PR#18  CLEAN      PR#19  CLEAN      PR#14  CLEAN
+
+  So the tool refused **the entire signed-off backlog on first contact** — the command the operator has to
+  run 41 times, failing the first time on every one of them. `--wait` does not help: it polls for CI that is
+  still running, and nothing here is running.
+
+  Fixed with a bounded re-ask (3 tries, 3 s apart), deliberately not behind `--wait`, and it prints what it
+  is doing so nobody mistakes the pause for a hang.
+
+  **GREEN — and this is the full pass the entry above had to say was not demonstrated:**
+
+        $ ops/merge 30 --dry-run
+        task     T-0047 is in queue/done/ on task/T-0047
+        checks   checks=2 runs=2 pending=0 failed=[none] mergeState=CLEAN
+        DRY RUN: every gate passed; would merge pr=30 task=T-0047 head=task/T-0047
+
+  **The sweep with both fixes — 13 of 15 signed-off PRs now pass every gate:**
+
+        PR#18  DRY RUN: every gate passed; would merge pr=18 task=T-0014 head=task/T-0014
+        PR#19  DRY RUN: every gate passed; would merge pr=19 task=T-0035 head=task/T-0035
+        PR#17  MERGE REFUSED: failing checks: core
+        PR#14  DRY RUN: every gate passed; would merge pr=14 task=T-0023 head=task/T-0023
+        PR#21  DRY RUN: every gate passed; would merge pr=21 task=T-0036 head=task/T-0036
+        PR#22  DRY RUN: every gate passed; would merge pr=22 task=T-0022 head=task/T-0022
+        PR#20  DRY RUN: every gate passed; would merge pr=20 task=T-0037 head=task/T-0037
+        PR#23  DRY RUN: every gate passed; would merge pr=23 task=T-0038 head=task/T-0038
+        PR#26  MERGE REFUSED: mergeStateStatus=DIRTY (want CLEAN)
+        PR#24  DRY RUN: every gate passed; would merge pr=24 task=T-0039 head=task/T-0039
+        PR#27  DRY RUN: every gate passed; would merge pr=27 task=T-0042 head=task/T-0042
+        PR#25  DRY RUN: every gate passed; would merge pr=25 task=T-0044 head=task/T-0044
+        PR#30  DRY RUN: every gate passed; would merge pr=30 task=T-0047 head=task/T-0047
+        PR#32  DRY RUN: every gate passed; would merge pr=32 task=T-0026 head=task/T-0026
+        PR#31  DRY RUN: every gate passed; would merge pr=31 task=T-0025 head=task/T-0025
+
+  PR #17 is the known `ops/lib/*.py` exec-bit constraint that `task/T-0036` resolves; the refusals that
+  remain are true ones.
