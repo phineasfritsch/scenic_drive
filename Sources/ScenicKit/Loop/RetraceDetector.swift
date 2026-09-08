@@ -44,11 +44,38 @@ public enum RetraceDetector {
     public static func retraceFraction(_ points: [Coordinate]) -> Double? {
         guard points.count >= 2 else { return nil }
         for p in points where !(p.latitude.isFinite && p.longitude.isFinite) { return nil }
+        // Range, not just finiteness. The adjacent guard exists to refuse nonsense rather than quantise it,
+        // and it screened the wrong predicate: a longitude of 1e17 is perfectly finite and made the cell
+        // arithmetic trap with "Double value cannot be converted to Int because the result would be greater
+        // than Int.max". Unreachable from the router today, which is not a reason for the guard to be wrong.
+        for p in points where !(-90.0...90.0).contains(p.latitude)
+            || !(-180.0...180.0).contains(p.longitude) { return nil }
 
-        let origin = points[0]
-        guard metersPerDegreeLongitude(at: origin.latitude) > 1 else { return nil }  // no grid at the pole
+        // The anchor and the longitude scale come from the BOUNDING BOX, never from points[0].
+        //
+        // `points[0]` made the grid's position depend on which end of the road the drive started at, and the
+        // verdict with it: reviewer-pr76 swept one fixed connector and got f = 0.498 (reject) at 0 m, 0.497
+        // at 6 m, and 0.0 (ACCEPT) at 12 m - the same piece of road, three answers. Reversing a route moved
+        // the grid by the 14 m between carriageways and flipped `isAcceptableLoop` outright.
+        //
+        // min and max over the points do not depend on the order they arrive in, so a reversed route gets an
+        // identical grid. The reference latitude is the box's mid-latitude rather than any one point's, so
+        // the cells stay square across the whole route instead of being sized by whichever end came first.
+        let lats = points.map(\.latitude)
+        let lons = points.map(\.longitude)
+        guard let minLat = lats.min(), let maxLat = lats.max(), let minLon = lons.min() else { return nil }
+        let mPerLon = metersPerDegreeLongitude(at: (minLat + maxLat) / 2)
+        guard mPerLon > 1 else { return nil }  // no grid at the pole
+        let anchor = Coordinate(latitude: minLat, longitude: minLon)
 
-        var headingsByCell: [Cell: [Double]] = [:]
+        return retraceFraction(points, anchor: anchor, metersPerDegreeLon: mPerLon)
+    }
+
+    /// The retrace fraction on a grid anchored at `anchor`.
+    static func retraceFraction(_ points: [Coordinate],
+                                anchor: Coordinate,
+                                metersPerDegreeLon: Double) -> Double? {
+        var samplesByCell: [Cell: [(point: Coordinate, heading: Double)]] = [:]
         var total = 0.0
         var retraced = 0.0
 
@@ -64,12 +91,34 @@ public enum RetraceDetector {
                 let t = (Double(i) + 0.5) / Double(steps)
                 let lat = a.latitude + (b.latitude - a.latitude) * t
                 let lon = a.longitude + (b.longitude - a.longitude) * t
-                let cell = self.cell(Coordinate(latitude: lat, longitude: lon), origin: origin)
-                let seen = headingsByCell[cell] ?? []
-                if seen.contains(where: { angularDifference($0, heading) > oppositeHeadingDegrees }) {
+                let cell = self.cell(Coordinate(latitude: lat, longitude: lon), anchor: anchor,
+                                     metersPerDegreeLon: metersPerDegreeLon)
+                // The grid is an INDEX, not the measurement.
+                //
+                // Asking only "was an earlier sample in this same cell" makes the verdict depend on where
+                // the cell boundaries happen to fall. reviewer-pr76 swept one fixed connector and got three
+                // answers from the same road - 0 m and 6 m rejected at f = 0.498, 12 m ACCEPTED at f = 0.0 -
+                // because the two carriageways landed either side of a boundary. Reversing a route did the
+                // same thing.
+                //
+                // Two fixes were tried and this suite rejected both. Offsetting the grid by half a cell does
+                // not work: carriageways 14 m apart are 0.56 of a 25 m cell apart, wider than any half-cell
+                // shift, so the straddle survives every phase. Simply searching the 3x3 neighbourhood does
+                // not work either: it reaches up to two cells, so a genuinely parallel street 40 m away
+                // started reading as the same road, which is the honest-loop false positive.
+                //
+                // So the neighbourhood is searched to FIND candidates - every earlier sample within 25 m is
+                // guaranteed to be in one of the nine cells - and the actual distance decides. The radius is
+                // then exactly `cellSizeMeters`, set by geometry rather than by where a boundary fell.
+                let seen = neighbourhood.flatMap { samplesByCell[Cell(x: cell.x + $0.0, y: cell.y + $0.1)] ?? [] }
+                let here = Coordinate(latitude: lat, longitude: lon)
+                if seen.contains(where: { angularDifference($0.heading, heading) > oppositeHeadingDegrees
+                                          && Geo.distanceMeters($0.point, here) <= cellSizeMeters }) {
                     retraced += share
                 }
-                headingsByCell[cell] = seen + [heading]
+                // Only this sample's own cell records it. Writing `seen` back would copy every neighbour's
+                // samples into this cell and they would spread further on each step.
+                samplesByCell[cell, default: []].append((here, heading))
             }
         }
 
@@ -96,15 +145,23 @@ public enum RetraceDetector {
 
     static let metersPerDegreeLatitude = 111_132.0
 
-    /// The cell a point falls in, relative to the route's first point.
-    static func cell(_ p: Coordinate, origin: Coordinate) -> Cell {
+    /// The cell a point falls in, on one phase of a grid anchored at `anchor`.
+    ///
+    /// `metersPerDegreeLon` is passed in rather than derived from `p` itself. Scaling longitude at each
+    /// point's own latitude would stop the grid being a grid - the columns would change width down the
+    /// route - and on a route spanning under 2 km the difference is about 0.03%, far too small for any
+    /// fixture here to notice while being wrong in principle.
+    static func cell(_ p: Coordinate, anchor: Coordinate, metersPerDegreeLon: Double) -> Cell {
         Cell(
-            x: Int(((p.longitude - origin.longitude)
-                    * metersPerDegreeLongitude(at: origin.latitude) / cellSizeMeters).rounded(.down)),
-            y: Int(((p.latitude - origin.latitude)
-                    * metersPerDegreeLatitude / cellSizeMeters).rounded(.down))
+            x: Int(((p.longitude - anchor.longitude) * metersPerDegreeLon / cellSizeMeters).rounded(.down)),
+            y: Int(((p.latitude - anchor.latitude) * metersPerDegreeLatitude / cellSizeMeters).rounded(.down))
         )
     }
+
+    /// The nine cells a sample is compared against: its own and its eight neighbours.
+    static let neighbourhood: [(Int, Int)] = [(-1, -1), (-1, 0), (-1, 1),
+                                              (0, -1), (0, 0), (0, 1),
+                                              (1, -1), (1, 0), (1, 1)]
 
     /// The smaller angle between two compass headings, in `0...180`.
     ///

@@ -182,8 +182,13 @@ struct RetraceDetectorTests {
             let north = Coordinate(latitude: lat + d / 111_132.0, longitude: origin.longitude)
             let east = Coordinate(latitude: lat,
                                   longitude: origin.longitude + d / metersPerDegreeLonReference(lat))
-            let cN = RetraceDetector.cell(north, origin: origin)
-            let cE = RetraceDetector.cell(east, origin: origin)
+            // The scale handed to `cell` is the FUNCTION UNDER TEST, while the probe offsets above come
+            // from `metersPerDegreeLonReference`. Passing the reference constant here as well would make
+            // the two uses cancel again and pin nothing - which is the exact defect a second reviewer
+            // found in the first version of this test.
+            let scale = RetraceDetector.metersPerDegreeLongitude(at: lat)
+            let cN = RetraceDetector.cell(north, anchor: origin, metersPerDegreeLon: scale)
+            let cE = RetraceDetector.cell(east, anchor: origin, metersPerDegreeLon: scale)
             // 30 m north and 30 m east must be the same number of cells away, or the grid is not square.
             #expect(cN.y == cE.x, "at latitude \(lat): \(d) m north is \(cN.y) cells, east is \(cE.x)")
             #expect(cN.y == 1, "30 m should be one 25 m cell away, got \(cN.y)")
