@@ -1,13 +1,13 @@
 ---
 id: T-0075
 title: nothing checks the tree GitHub Actions actually tests, which for a stacked PR is not main
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-08T02:14:05Z
+lease_expires_at: 2026-09-08T08:14:05Z
+worktree: wt/T-0075
+branch: task/T-0075
 exclusive: []
 touches: [ops/pr-ci-preflight]
 pins_affected: []
@@ -63,3 +63,4 @@ and `ops/merge-rehearse` reporting a clean rehearsal having merged one branch of
 - 2026-09-08 filed by agent/claude-opus-5 after a scratch pass over all 31 open PRs found three failing on
   the tree CI tests while passing every local check. The scratch script is at
   `.artifacts/check-pr-merges.sh` (gitignored) and is a starting point, not the deliverable.
+- 2026-09-08T02:14:05Z claimed by agent/claude-opus-5; lease until 2026-09-08T08:14:05Z
