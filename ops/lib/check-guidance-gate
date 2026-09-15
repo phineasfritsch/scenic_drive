@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# The plan's guidance gate, proved by COMPILING rather than by reading.
+#
+#     "every GraphHopper sign code maps; unknown fails build"
+#
+# The property is not "somebody wrote the mapping carefully". It is: adding a sign that nothing maps must stop
+# the package compiling. That is true only while `GuidanceMapping.maneuver(for:)` switches over the closed
+# `GuidanceSign` with no catch-all clause - `default:`, `case _:` or an irrefutable binding all satisfy the
+# compiler silently, and swiftc emits no diagnostic at all for any of the three.
+#
+# Until PR #81's review the only thing defending it was a sentence in the source asking the next agent not to.
+# CLAUDE.md: "Never anchor a pin, a test, or a guard on a comment. Comments get stripped." A reviewer added
+# `default: return .continueStraight`, the build stayed green and no test objected.
+#
+# Two guards now exist and they fail for different reasons, on purpose:
+#   * the named test `signSwitchHasNoCatchAll` reads the shipped source and refuses the clause;
+#   * this check COMPILES a copy of the three Guidance files with one extra sign case and requires swiftc to
+#     reject it. It would catch a way of losing the gate that nobody thought to write a string match for.
+#
+# Nothing tracked is written: the three files are copied into .artifacts/ (gitignored) and mutated there.
+set -uo pipefail
+# Not `git rev-parse --show-toplevel`: from WSL against a Windows worktree that prints an unusable path (T-0055).
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "GUIDANCE GATE: cannot reach the repo root"; exit 2; }
+[[ -f Package.swift ]] || { echo "GUIDANCE GATE: $(pwd) is not the repo root (no Package.swift)"; exit 2; }
+
+G="Sources/ScenicKit/Guidance"
+FILES=(GuidanceSign.swift GuidanceManeuver.swift GuidanceMapping.swift)
+for f in "${FILES[@]}"; do
+  [[ -f "$G/$f" ]] || { echo "GUIDANCE GATE: $G/$f is missing - the gate cannot be measured"; exit 2; }
+done
+
+SWIFTC="${SWIFTC:-$(command -v swiftc)}"
+[[ -n "$SWIFTC" ]] || { echo "GUIDANCE GATE: no swiftc - refusing to report a compile gate without compiling"; exit 2; }
+
+WORK=".artifacts/guidance-gate.$$"
+trap 'rm -rf "$WORK"' EXIT
+mkdir -p "$WORK" || { echo "GUIDANCE GATE: cannot create $WORK"; exit 2; }
+for f in "${FILES[@]}"; do cp "$G/$f" "$WORK/$f"; done
+
+# STEP 1 - the control. These three files must typecheck on their own; if they do not, step 2's failure would
+# prove nothing at all, which is how a gate check comes to pass for the wrong reason.
+if ! "$SWIFTC" -typecheck "$WORK"/*.swift > "$WORK/control.log" 2>&1; then
+  echo "GUIDANCE GATE: the Guidance sources do not typecheck as they stand - step 2 would be meaningless"
+  head -5 "$WORK/control.log"
+  exit 2
+fi
+
+# STEP 2 - one unmapped sign. Inserted after the enum's own declaration line, so a renamed or reshaped enum
+# fails LOUDLY here instead of quietly not being probed.
+PROBE="    case scenicDriveGateProbeSign = 424242"
+awk -v probe="$PROBE" '
+  { print }
+  !done && /^public enum GuidanceSign: Int.*\{$/ { print probe; done = 1 }
+  END { if (!done) exit 3 }
+' "$G/GuidanceSign.swift" > "$WORK/GuidanceSign.swift"
+if [[ $? -ne 0 ]] || ! grep -q "scenicDriveGateProbeSign" "$WORK/GuidanceSign.swift"; then
+  echo "GUIDANCE GATE: could not find 'public enum GuidanceSign: Int ... {' to add a probe case to"
+  exit 2
+fi
+
+"$SWIFTC" -typecheck "$WORK"/*.swift > "$WORK/probe.log" 2>&1
+rc=$?
+if [[ $rc -eq 0 ]]; then
+  echo "GUIDANCE GATE FAIL: a sign that nothing maps COMPILED CLEANLY."
+  echo "  The plan's property - every GraphHopper sign code maps; unknown fails build - is not true here."
+  echo "  A catch-all in GuidanceMapping.maneuver(for:) is what does this; there must not be one."
+  exit 1
+fi
+if ! grep -q "GuidanceMapping.swift" "$WORK/probe.log"; then
+  echo "GUIDANCE GATE FAIL: the probe failed to compile, but not in GuidanceMapping.swift - so the failure is"
+  echo "  not the exhaustive switch objecting, and this check is no longer measuring the gate."
+  head -5 "$WORK/probe.log"
+  exit 1
+fi
+
+echo "GUIDANCE GATE ok: 3 files typecheck; +1 unmapped sign -> swiftc exit $rc from GuidanceMapping.swift"
+grep -m1 "error:" "$WORK/probe.log" | sed 's/^/  /'
+exit 0

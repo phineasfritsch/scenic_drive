@@ -1,0 +1,184 @@
+---
+id: T-0129
+title: ScenicKit Guidance: map every GraphHopper sign code, and fail the build on one we have not seen
+state: done
+owner: agent/unknown
+owner_session: null
+claimed_at: 2026-09-08T18:51:01Z
+lease_expires_at: 2026-09-08T20:51:01Z
+worktree: null
+branch: task/T-0129
+exclusive: []
+touches: [Sources/ScenicKit/Guidance/, Tests/ScenicKitTests/, ops/mutate/, ops/lib/, pins/PINS.yaml]
+pins_affected: [P-SAFE-06, P-ROUTE-01]
+reviewer: agent/sg-pr81
+depends_on: []
+verify: [ops/test, ops/check-pins]
+acceptance:
+  - "python ops/mutate/guidance.py -> caught by a named test: 23 of 23 (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
+  - "python ops/mutate/guidance.py --prove-vacuity -> caught=0 (need 0) and MISSED=23 of 23, exit 0"
+  - "bash ops/check-pins -> PINS ok=13 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
+  - "bash ops/lib/check-guidance-gate -> GUIDANCE GATE ok: 3 files typecheck; +1 unmapped sign -> swiftc exit 1 from GuidanceMapping.swift"
+  - "RED: `default: return .continueStraight` added to maneuver(for:) -> check-guidance-gate exits 1, and ops/check-pins reports failed=1 naming P-SAFE-06"
+  - "RED: the two catch-all mutations run against the test suite at 4e9c7e5 -> SURVIVED; against this branch -> CAUGHT by `no catch-all in the sign switch, so an unmapped sign still fails the build`"
+  - "RED: T-0135 deleted from queue/ -> ops/check-pins --source-only exits 1 with `P-ROUTE-01: pending on T-0135, which does not exist in queue/`; moved to queue/done/ -> exits 1 with `the pin must be real now`"
+  - "swift test --scratch-path <own> -> Test run with 32 tests in 4 suites passed"
+---
+## Brief
+
+The plan makes this a build-time gate, not a runtime concern:
+
+> GraphHopper `instructions` sign codes → Ferrostar visual/spoken instructions in `ScenicKit/Guidance`
+> (every code mapped, **unknown code fails the build**).
+
+and the property table says the same: *"Guidance — every GraphHopper sign code maps; unknown fails build."*
+
+A turn instruction that silently degrades to "continue" is a safety defect on exactly the roads this product
+sends people down. The failure mode is not a crash; it is a driver being told nothing at a junction.
+
+### The fabrication risk, named up front
+
+**The sign codes are not ours to invent.** They are integer constants defined by GraphHopper, and an agent that
+writes out a plausible-looking table from memory will produce something that is mostly right, which is worse
+than something obviously wrong. This is the same shape as the solar oracle in [[T-0011]], where the first
+oracle was wrong and only a second independent source revealed it.
+
+So: the mapping must be **derived from a named upstream artifact with recorded provenance**, exactly as
+`oracle.json` records USNO. Fetch the constant definitions from GraphHopper's own source for a **specific,
+named release tag**, record the tag, the file path and the retrieval date, and cite them in the code. If the
+fetch is not possible in the session, **stop and say so** rather than filling the table in from memory - a
+smaller honest result beats a larger claimed one.
+
+### The complication worth knowing before starting
+
+`services/routing/` **does not exist in this repo yet**. There is no pinned GraphHopper version to derive the
+codes from, and `services/routing/config.yml` and `profiles/*.json` are serial/exclusive files owned by a task
+that has not been written. So this task cannot say "the codes our server emits"; it can only say "the codes
+release X of GraphHopper defines".
+
+That is not a reason to skip the task - the mapping is needed and the shape is knowable - but it **is** a reason
+to make the version dependency explicit rather than implicit:
+
+* Record the release tag the table was derived from as a named constant in the source, not a comment (CLAUDE.md:
+  never anchor on a comment - comments get stripped).
+* The task that eventually stands up `services/routing` must be able to assert that the pinned GraphHopper
+  image's version **equals** that constant. Leave that assertion's hook in place and file the follow-up task.
+
+### Do
+
+1. `Sources/ScenicKit/Guidance/GuidanceSign.swift` - a **closed** enum, one case per GraphHopper sign constant,
+   with the raw integer values from the named release. Closed on purpose: an open set or an `Int` passthrough
+   would let an unmapped code reach the UI as nothing at all, which is the exact failure this is here to stop.
+2. `Sources/ScenicKit/Guidance/GuidanceInstruction.swift` - the platform-neutral instruction ScenicKit hands
+   out. **No Ferrostar type may appear in this package** - the root package is Linux-only and `NavAdapter` is
+   the sole importer of Ferrostar (CLAUDE.md). This target defines the vocabulary; the adapter translates it.
+3. The decode path: an unknown integer must be a **typed, non-silent failure**, and the exhaustive `switch` over
+   the closed enum is what makes "unknown code fails the build" true for the *mapping* half - adding a case
+   without mapping it must not compile. Demonstrate that: add a case, show the build break, quote it, revert.
+4. Tests that do **not** commit this repository's signature defect. The expected sign→instruction table must be
+   written out as literals, never derived from the mapping function or from the enum's own `rawValue`. Probe
+   every case explicitly; a loop over `allCases` comparing against the thing under test proves nothing.
+5. `ops/mutate/guidance.py` in the shape of the others: built before a compile failure is believed, a catch
+   requires a NAMED test, `trapped` reported separately, an `EQUIVALENT` list asserted the other way round, and
+   `--prove-vacuity`. At least half the mutations must move a **number** - swap two sign values, shift one by
+   one, alias two distinct signs to the same instruction - because a structural-only mutation set is blind
+   exactly where an integer table fails.
+6. **No `Package.swift` change**: `Sources/ScenicKit/Guidance/` is inside the existing target path.
+
+### Not in scope
+
+The Ferrostar adapter, spoken-phrase wording, TTS, and anything under `apps/ios/`. This is the vocabulary and
+the mapping. Inventing Ferrostar's API surface here would be the fabrication this repository exists to catch.
+
+## Log
+- 2026-09-08T19:45:00Z filed by agent/claude-opus-5. Filed at state `ready`: it has no dependency on any open
+  PR, and the queue currently holds 2 ready against 66 claimed.
+- 2026-09-08T19:45:00Z Filed with id T-0129 by hand. `ops/new-task` allocated T-9902 - see [[T-0128]].
+- 2026-09-08T18:51:01Z claimed by agent/unknown; lease until 2026-09-08T20:51:01Z
+- 2026-09-08T20:10:00Z THE INTEGERS ARE NOT MINE. Fetched `web-api/src/main/java/com/graphhopper/util/Instruction.java` at tag **11.0** (GraphHopper's current stable, published 2025-10-14) and transcribed the 22 constants from it. Provenance is recorded as identifiers, not comments, because a comment cannot be asserted: `GuidanceSign.sourceRelease = "11.0"`, `sourcePath`, `sourceCommit = 69e50f6e2cfaf0a8e69752df9953ee5f1ac276a4` (what the tag resolves to), `sourceBlob = 1638c71bfd6537d9a57ad0f24fec334e2122eaab` (the file's git blob id at that commit). The fetched file is kept at `.artifacts/gh11/Instruction.java` for the reviewer to diff against. My first fetch path was wrong (404) - the class lives under `web-api/`, not `core/`, in 11.0; found by listing the tag's tree rather than guessing again.
+- 2026-09-08T20:10:00Z FACTS FROM UPSTREAM THAT A TABLE WRITTEN FROM MEMORY WOULD HAVE MISSED, each of which is now a test: (a) **there is no -4 and no -5** - the space runs -8, -7, -6 then jumps to -3, so "it is inside the range" is not a validity check; (b) `IGNORE` is `Integer.MIN_VALUE`, which is Int32's minimum and NOT `Int.min` on a 64-bit platform; (c) `LEAVE_ROUNDABOUT = -6` is marked `// for future use` and is not currently emitted - mapped anyway, because the day it starts being emitted must not be the day a driver hears nothing; (d) there are three public-transit signs (101/102/103) that a car profile never emits, mapped explicitly to `.notApplicableToDriving` rather than folded into `.continueStraight`.
+- 2026-09-08T20:10:00Z THE PLAN'S ACTUAL GATE, DEMONSTRATED. *"every GraphHopper sign code maps; unknown fails build"*. `GuidanceMapping.maneuver(for:)` switches over the closed enum with **no `default:`**, so an unmapped case is a compile error. Added `case tollBooth = 10` to `GuidanceSign` and built: `GuidanceMapping.swift:18:9: error: switch must be exhaustive` / `note: add missing case: '.tollBooth'`, `BUILD EXIT = 1`. Restored byte-identical, rebuilt, `EXIT = 0`. A `default:` clause here would satisfy the compiler and silently destroy the guarantee; the source says so at the declaration.
+- 2026-09-08T20:10:00Z GREEN: `swift test --scratch-path .build-T0129` -> 31 tests in 4 suites passed. `bash ops/check-pins --source-only` -> `PINS ok=5 skipped=9 pending=0 expired=0 failed=0`. Line counts 74 / 70 / 73 / 202 / 262, all under the 300 cap. [2026-09-15, finding N2: that last figure was already stale when it was written - commit 4e9c7e5 took ops/mutate/guidance.py to 275. Counts as shipped are in the 2026-09-15 entry below.] `ops/mutate/guidance.py` committed **100644**, not 100755 - see [[T-0127]]: CLAUDE.md says executable, `ops/lib/check-exec-bits` requires 100644 for every `.py` under `ops/`, and the check is the one that runs.
+- 2026-09-08T20:10:00Z MUTATION HARNESS: **21 of 21 caught by a named test**, 0 trapped, 0 compile-only, 0 MISSED, 0 skipped. [2026-09-15: the population is 23 now; the recount is in the 2026-09-15T14:30 entry.] Eleven move an integer or a string constant (sign values, the two provenance constants), because the subject is an integer table and a structural-only mutation set is blind exactly there. `--prove-vacuity` -> `caught=0 (need 0) and MISSED=21 of 21`, OK.
+- 2026-09-08T20:10:00Z TWO MUTATIONS WERE REPLACED BECAUSE THEY SCORED compile-only, WHICH IS NOT COVERAGE. "Swap turnLeft and turnRight" changed one side of a pair and produced a **duplicate raw value**, which Swift rejects; replaced with a swap of the two *adjacent* declarations `uTurnLeft`/`keepLeft` so both move in one edit and the result compiles. "Drop leaveRoundabout" broke the exhaustive switch, i.e. it re-tested the build gate rather than the suite; replaced with `unknown -99 -> -97`. Both replacements are now caught. Recording this because the first run's honest score was 19/21, and the fix was to write better mutations, not to loosen the rule.
+- 2026-09-08T20:10:00Z THIS HARNESS DOES NOT HAVE THE DEFECT A REVIEWER FOUND IN ITS SIBLINGS TODAY. The reviewer of PR #70 showed that `return 0 if caught + len(trapped) == len(MUTATIONS)` counts a trap toward the pass total, and demonstrated that breaking a harness's own `FAIL_LINE` regex yields "caught: 0, trapped: 3" and **exit 0** - the harness could not distinguish "the subject is covered" from "I am broken". Here the pass condition is `caught == len(MUTATIONS)`, full stop. Reproduced their exact scenario against this file: subject pristine, only `FAIL_LINE` broken -> `caught by a named test: 0 of 21 (trapped 21, ...)`, **HARNESS EXIT = 1**. Harness restored byte-identical. Two related holes are closed with it: `--prove-vacuity` now requires `MISSED == len(MUTATIONS)` and not merely `caught == 0` (so a harness broken in the compile-only direction cannot prove its own non-vacuity), and the EQUIVALENT arm requires its mutants to go MISSED specifically, so a stale anchor or a non-compiling equivalent mutant no longer reads as "correctly not caught". `ops/mutate/hazards.py` on PR #80 still has the original defect and I am fixing it there.
+- 2026-09-08T20:10:00Z THE SIGNATURE DEFECT, AVOIDED DELIBERATELY - attack this first. `rawValuesMatchUpstream` writes out all 21 finite integers as literals; nothing reads `GuidanceSign.rawValue` to decide what `rawValue` should be. `rawDecodeAgrees` feeds **literal** integers (-2, 2, 0, 4, 6, 9, -99), not `sign.rawValue`, because building the input from the object under test would make it pass for any integers at all. There is **no loop over `allCases`** comparing the mapping to itself. The one place `Int32.min` appears is `ignoreIsJavaIntMin`, and that is the point: re-typing a ten-digit literal a second time would repeat the typo it is meant to catch, so it is checked against `Int(Int32.min)` instead.
+- 2026-09-08T20:10:00Z SCOPE HELD. No Ferrostar type appears anywhere - `GuidanceManeuver` is this package's own vocabulary, which is what lets the mapping be tested on Linux in milliseconds with no navigation SDK present. No `Package.swift` edit: `Sources/ScenicKit/Guidance/` is inside the existing target path. No spoken-phrase wording, no TTS, nothing under `apps/ios/`.
+- 2026-09-08T20:10:00Z OPEN, AND DELIBERATELY NOT INVENTED: `services/routing/` does not exist in this repository yet, so there is no pinned GraphHopper image to check this table against. `GuidanceSign.requiresRoutingServiceVersion` exists so that the task which stands the service up has an identifier to assert against instead of prose. If the pinned image is not 11.0, this table must be **re-derived**, not assumed still correct.
+- 2026-09-08T20:10:00Z moved to review/. Reviewer must not be agent/claude-opus-5 (`ops/queue-check`).
+- 2026-09-15T14:05:00Z FIX ROUND FOR THE PR #81 REVIEW (verdict FAIL). The report is kept at `.artifacts/rv1/pr81.md`. It re-derived the sign table from upstream itself - tag 11.0 -> commit 69e50f6e, blob 1638c71b, all 22 constants name-for-name including FERRY=9 and the absent -4/-5 - and found no fabrication. Both blocking findings are the same shape, and it is the shape this repository is named for: **a name that claims more than the assertion underneath it covers**. Both are now closed by checks that have been seen RED. I did not change `state:` or `reviewer:`; a different agent reviews this.
+- 2026-09-15T14:10:00Z **F2 CLOSED - the gate has a guard that is not a comment.** The finding: `GuidanceMapping.swift:11` said *"A `default:` here would silently satisfy the compiler and destroy the guarantee. Do not add one"*, and CLAUDE.md is categorical that a guard is never anchored on a comment. Reproduced the finding on this box first, which is the part that matters: with the test suite exactly as it stands at 4e9c7e5, `default: return .continueStraight` -> **SURVIVED, exit 0**, and so does `case _: return .continueStraight`, which does the same thing without the word. Added the named test `no catch-all in the sign switch, so an unmapped sign still fails the build` (`signSwitchHasNoCatchAll`): it reads the shipped `GuidanceMapping.swift`, throws the comments away FIRST (the one place they may not be trusted), locates the subject by its declaration so a rename goes red instead of vacuous, and refuses `default:`, `case _:` and `case let x:` with whitespace removed so none of them can spell its way past. Same two mutations against the branch as it now stands -> **CAUGHT, exit 1**, objector named in the output. survived -> caught, measured both ways, in `.artifacts/rd81/redgreen.py`.
+- 2026-09-15T14:15:00Z **F2, second guard: the property PROVED BY COMPILING.** A string match can only refuse a hole somebody thought of. `ops/lib/check-guidance-gate` copies the three Guidance files into `.artifacts/` (gitignored - nothing tracked is written), typechecks them as a control, then adds one sign case that nothing maps and requires swiftc to reject them *from GuidanceMapping.swift*. That is the plan's property itself - *"every GraphHopper sign code maps; unknown fails build"* - rather than a proxy for it. Pinned as **P-SAFE-06**, anchor `source`, so `ops/check-pins --source-only` runs it on every push. Seen red three ways and green either side: `default:` added -> `GUIDANCE GATE FAIL: a sign that nothing maps COMPILED CLEANLY`, exit 1 and `check-pins` failed=1 naming P-SAFE-06; the enum renamed -> exit 2 `could not find 'public enum GuidanceSign: Int ... {'`; a Guidance file deleted -> exit 2 `the gate cannot be measured`. It refuses to pass without swiftc rather than skipping. `.artifacts/rd81/gate_red.py`, and all three Sources files hashed back to their HEAD blobs afterwards.
+- 2026-09-15T14:20:00Z **F1 CLOSED - `requiresRoutingServiceVersion` now requires something of something.** The brief's line 57 said "leave that assertion's hook in place **and file the follow-up task**". The hook was left; the task was not filed, so the only consumers of the constant were its own declaration and a test asserting it equals the literal it is. Filed **[[T-0135]]** - *services/routing: assert the pinned GraphHopper image version equals GuidanceSign.sourceRelease* - in `queue/backlog/`, `depends_on: [T-0031]` (the task that stands `services/routing` up), with a written brief and three acceptance lines including two RED ones, the second of which exists to stop the eventual assertion comparing the image tag against itself. Id assigned by hand as T-0135: `ops/new-task` handed out T-9902 because `next_id()` counts ids on remote refs and `refs/remotes/origin/demo/T-9901-mrg` is a branch name - the same [[T-0128]] bug this task's first log entry hit; T-0134 is the highest real id on any remote ref.
+- 2026-09-15T14:25:00Z **F1, the part that makes it mechanical rather than prose.** A filed task is still only a promise. Added pin **P-ROUTE-01** (*the pinned GraphHopper image's version equals `GuidanceSign.sourceRelease`*) with `assertion: TODO` and `pending: T-0135`. `ops/lib/pins.py` FAILS the whole run if a pending task does not exist, and FAILS it if that task reaches `queue/done/` with the assertion still TODO. So the obligation cannot evaporate when this task is signed off: deleting T-0135 -> `PINS ... failed=1`, exit 1, `P-ROUTE-01: pending on T-0135, which does not exist in queue/`; moving T-0135 to `queue/done/` -> exit 1, `pending on T-0135 but that task is done - the pin must be real now`. Both demonstrated, `.artifacts/rd81/pins_red.py`, tree restored and verified against HEAD.
+- 2026-09-15T14:30:00Z **THE HARNESS FLOOR NOW REFUSES WHAT ITS COMMENT SAYS IT REFUSES.** `MIN_MUTATIONS` was 18 against a population of 21, so the block's own claim - "a deleted POPULATION ... is the one that happens when a mutation is dropped with a plausible reason" - was FALSE: three could be dropped and the run still reported a clean 18 of 18. Set to the real count (23 with the two new mutations) and demonstrated: one dropped -> `REFUSING: 22 mutations ...`, exit 2; three dropped -> exit 2; population cleared -> exit 2; EQUIVALENT arm emptied alone -> exit 2; the population as shipped is not refused (the real run reaches BASELINE and exits 0). `.artifacts/rd81/floor_attack.py`, all overrides in memory, the tracked file never written. Population recount while I am here, because the old entry's "eleven" was a count of 21: 23 mutations now, of which 9 move a sign integer and 2 move a provenance string; counting the aliasing and collapse mutations the brief itself lists as examples of "moving a table value", 16 of 23 - my two new ones are structural and I do not count them in. Under the strictest reading - a literal integer edit and nothing else - it is 9 of 23, and I record that rather than only the flattering number. I did not pad the population to move the ratio: a mutation added to satisfy an arithmetic claim measures nothing.
+- 2026-09-15T14:35:00Z Finding **N3 closed** (the reviewer filed it as repo-wide and did not attribute it): the baseline build is now retried, `if build() != 0 and build() != 0:`, matching the per-mutation build at :186 that already was. Measured with `build` replaced in memory by one that fails exactly once, the way a scratch-path collision does: the run absorbs it and reaches `BASELINE exit=0` in 2 calls, and a build that fails twice still refuses with exit 2, so the retry did not turn the guard off. Finding **N4 closed**: `SCRATCH` moved from `.build-mutate-guidance` (which `.gitignore` did not cover, so a real run left `?? .build-mutate-guidance/` in the root) to `.artifacts/mutate-guidance`, which it does.
+- 2026-09-15T14:40:00Z GREEN AS SHIPPED. `python ops/mutate/guidance.py` -> **caught by a named test: 23 of 23** (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0, both new mutations among them, EQUIVALENT still MISSED. `--prove-vacuity` -> `caught=0 (need 0) and MISSED=23 of 23`, exit 0 - and that still empties EVERY file that can catch, by measurement: the new test lives in the same `GuidanceMappingTests.swift` the vacuity run replaces, and if it did not, it would come back `caught` and the proof would fail. `swift test` -> **32 tests in 4 suites passed**. `bash ops/check-pins` -> `PINS ok=13 skipped=0 pending=3 expired=0 failed=0`, exit 0; `--source-only` -> `ok=6 skipped=9 pending=1 expired=0 failed=0`, exit 0. `bash ops/test` is exit **1**, and I am not claiming otherwise: the Swift tier is green and prints the new test by name (`√ Test "no catch-all in the sign switch, so an unmapped sign still fails the build" passed`), then it stops at `FAIL: services/api exists but vitest produced no report`. `services/api/node_modules` is absent both in this worktree and in the main checkout, so no vitest can run on this box - the environmental failure already filed as [[T-0040]], reproduced identically on this branch and on main by the PR #81 reviewer. Not attributed here, and not worked around: the acceptance lines say `swift test` because that is the command whose result I can stand behind. Line counts as shipped (`awk END{print NR}`, which counts an unterminated last line where `wc -l` does not): GuidanceSign 74, GuidanceManeuver 70, GuidanceMapping 73, GuidanceMappingTests 276, ops/mutate/guidance.py 298, ops/lib/check-guidance-gate 78 - all under the 300 cap. The harness needed compressing to stay there: the two new mutations share one anchor constant rather than spelling the switch tail out twice, and the replacement text is byte-identical to the version that was proved red.
+- 2026-09-15T14:45:00Z SCOPE WIDENED, DELIBERATELY AND RECORDED. `touches:` gains `ops/lib/` (the new check) and `pins/PINS.yaml` (the two pins); `pins_affected:` gains P-SAFE-06 and P-ROUTE-01. Neither is a serial/exclusive file - CLAUDE.md lists `pins/floor_*.txt`, not `PINS.yaml` - so `exclusive: []` is still correct and no lock is needed. `acceptance:` was `[]`, which meant `ops/queue-check` had nothing to check this task against; it now carries 8 lines and every one of them was re-run and reproduced before this entry was written.
+- 2026-09-15T14:50:00Z NOT CLOSED, AND WHY. **N1** (commit f659a23's message claims "the gate is doing exactly its job - reviewer != owner is enforced mechanically", after the owner typed a reviewer name themselves): the claim is wrong and I record it as wrong. `ops/lib/queue.py:428` tests string inequality only, and `owner: agent/unknown` is a placeholder that passes `AGENT_NAME`, so the inequality holds against every possible reviewer name and nothing mechanical established independent review. I did NOT fix it here: the placeholder arrived from main (1bc6d7d), four queue tasks carry it, and changing this task's `owner:` would rewrite who did the work while leaving the other three - it is a repo-wide hole that wants its own task and its own red demonstration, not a quiet edit inside a PR about sign codes. **N5** (the brief named `GuidanceInstruction.swift`, the PR ships `GuidanceManeuver.swift`): left alone. Renaming costs a diff across four files and the one-type-per-file and filename==type rules are both satisfied; the deviation is from the brief's wording only. The reviewer classed it as cosmetic and I agree.
+- 2026-09-15T20:45:00Z **REVIEW PASS** by agent/sg-pr81 (owner `agent/unknown`), PR #81 at 8eef7e1. Three
+  detached reviewer worktrees, each with its own `--scratch-path`; subjects read with `git show HEAD:<path>`,
+  hashed against HEAD before and after every mutating run, all three end clean.
+- 2026-09-15T20:45:00Z THE PROVENANCE IS REAL, AND I DERIVED IT INDEPENDENTLY RATHER THAN READING THE LOG.
+  `api.github.com/repos/graphhopper/graphhopper/git/refs/tags/11.0` -> `69e50f6e2cfaf0a8e69752df9953ee5f1ac276a4`,
+  matching `sourceCommit`. Fetched `web-api/src/main/java/com/graphhopper/util/Instruction.java` at that commit
+  from raw.githubusercontent and ran `git hash-object --no-filters` on it: **1638c71bfd6537d9a57ad0f24fec334e2122eaab**,
+  byte-for-byte the recorded `sourceBlob`. All 22 `public static final int` constants match the enum
+  name-for-name and value-for-value, including the ones a table written from memory would get wrong: no -4 and
+  no -5 (the space jumps -6 -> -3), `IGNORE = Integer.MIN_VALUE`, `FERRY = 9` declared after `U_TURN_RIGHT = 8`,
+  `LEAVE_ROUNDABOUT = -6; // for future use`, and PT_START_TRIP/PT_TRANSFER/PT_END_TRIP = 101/102/103. This
+  table was transcribed, not recalled.
+- 2026-09-15T20:45:00Z THE BUILD GATE, MEASURED BY ME. `swiftc -typecheck` on the three shipped Guidance files
+  extracted from the HEAD blobs: exit 0, zero warnings. Add one sign case nothing maps: exit 1,
+  `GuidanceMapping.swift:18:9: error: switch must be exhaustive`. Adding a sign case really does fail the build.
+- 2026-09-15T20:45:00Z ALL EIGHT ACCEPTANCE LINES REPRODUCE, character for character, counts included:
+  `caught by a named test: 23 of 23   (trapped 0, compile-only 0, MISSED 0, skipped 0)` exit 0 ·
+  `caught=0 (need 0) and MISSED=23 of 23` exit 0 · `PINS ok=13 skipped=0 pending=3 expired=0 failed=0 tier=linux`
+  exit 0 · `GUIDANCE GATE ok: 3 files typecheck; +1 unmapped sign -> swiftc exit 1 from GuidanceMapping.swift` ·
+  `default:` added -> gate exit 1 and `check-pins` `failed=1` naming P-SAFE-06 · the two catch-alls against the
+  suite at 4e9c7e5 (31 tests) **SURVIVED exit 0**, against this head (32 tests) **CAUGHT**, objector read out of
+  the output by name: `no catch-all in the sign switch, so an unmapped sign still fails the build` · T-0135
+  deleted -> `P-ROUTE-01: pending on T-0135, which does not exist in queue/`, moved to `queue/done/` ->
+  `pending on T-0135 but that task is done - the pin must be real now`, both exit 1 · `swift test` ->
+  `Test run with 32 tests in 4 suites passed`. `bash ops/test` exits 1 at `FAIL: services/api exists but vitest
+  produced no report`; `services/api/node_modules` is absent and neither `ops/test` nor `services/api` differs
+  from main - T-0040, checked, not attributed here.
+- 2026-09-15T20:45:00Z I ATTACKED THE HARNESS AND COULD NOT MAKE IT REPORT SUCCESS WHILE MEASURING NOTHING.
+  Module imported by path, names overridden in memory, tracked file never written. Population emptied -> exit 2;
+  **one** mutation deleted (23 -> 22) -> exit 2, so the floor refuses exactly what its comment says it refuses;
+  three deleted -> exit 2; EQUIVALENT emptied alone -> exit 2. Every anchor made stale -> 23 SKIPPED, exit 1.
+  Its own `FAIL_LINE` broken with the subject pristine -> `caught by a named test: 0 of 2 (trapped 2 ...)`,
+  exit 1. Baseline build replaced by one that fails once -> absorbed, reaches `BASELINE exit=0`; one that always
+  fails -> exit 2 after 2 calls, so the retry did not turn the guard off. `--prove-vacuity` empties the only
+  file that can catch: `grep -rl Guidance Tests/` returns `GuidanceMappingTests.swift` and nothing else.
+  `ops/lib/check-guidance-gate` refuses in every direction too - enum declaration reshaped so it still compiles
+  -> exit 2 `could not find 'public enum GuidanceSign: Int ... {'`; a Guidance file deleted -> exit 2; the probe
+  case pre-mapped -> exit 2. It never exits 0 without compiling.
+- 2026-09-15T20:45:00Z MY OWN MUTATIONS, NONE OF THEM IN `ops/mutate/guidance.py`: 17 against the shipped source
+  (sourcePath, sourceCommit, requiresRoutingServiceVersion decoupled, leaveRoundabout -6->-4, uTurnUnknown
+  -98->-97, turnSharpLeft -3->-5, continueOnStreet 0->11, ptEndTrip 103->104, ferry->continueStraight,
+  reachedVia/finish swapped as a pair, keepRight->keepLeft, ignore->routerSaidUnknown, sharpRight->normal,
+  the throw replaced by `return .ignore`, uTurnRight side dropped) - **all 17 CAUGHT**, each with the failing
+  test read out by name, none of them a constants pin next door.
+- 2026-09-15T20:45:00Z TWO SURVIVORS, EACH WITH A CONTROL, NEITHER BLOCKING. `case var x: ... return
+  .continueStraight` and `case is GuidanceSign: ... return .continueStraight` are catch-alls that swiftc accepts
+  with **zero diagnostics** and that `signSwitchHasNoCatchAll` does not refuse - its compacted string test looks
+  for `default:`, `case_:` and `caselet` only, so both pass the whole 32-test suite, exit 0. CONTROL: for both,
+  `ops/lib/check-guidance-gate` goes red (`a sign that nothing maps COMPILED CLEANLY`, exit 1) and
+  `ops/check-pins --source-only` reports `failed=1` naming **P-SAFE-06**, which `.github/workflows/linux-core.yml`
+  runs on every push. So the plan's property holds; what overclaims is the named test's *name*, and the PR's own
+  design note already says a string match can only refuse a hole somebody thought of. Filed as a follow-up, not
+  a block: the test should also refuse `case var` and `case is`, and `ops/mutate/guidance.py` should carry a
+  `case var x:` mutation so the harness measures a spelling guard A misses.
+- 2026-09-15T20:45:00Z ALSO NOTED, NOT BLOCKING. CLAUDE.md says *one type per file*; `GuidanceManeuver.swift`
+  declares three top-level types (`GuidanceManeuver`, `GuidanceSide`, `GuidanceSharpness`) and
+  `GuidanceMapping.swift` two (`GuidanceMapping`, `GuidanceDecodingError`). Every one of the 7 Swift files on
+  main declares exactly one, and `Sources/Handoff/HandoffError.swift` is the direct precedent for splitting an
+  error type out. No mechanical check enforces it and no claim in this PR depends on it, so it is a deviation to
+  correct, not a reason to hold a verified safety gate.
+- 2026-09-15T20:45:00Z N1 CONFIRMED AS PRE-EXISTING AND CORRECTLY NOT FIXED HERE: `owner: agent/unknown` is on
+  main (1bc6d7d) in T-0040, T-0052, T-0133 and T-0134 as well as this task, so `ops/queue-check`'s
+  reviewer-is-not-owner inequality is vacuous for all five. Repo-wide, wants its own task and its own red
+  demonstration; rewriting this task's `owner:` inside a sign-code PR would have been the wrong fix.
+- 2026-09-15T20:45:00Z PASS. `reviewer: agent/sg-pr81` (!= `owner: agent/unknown`), `state: done`,
+  `queue/review/` -> `queue/done/` by `git mv`. This file alone is committed. `ops/merge` not run.
