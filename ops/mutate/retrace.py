@@ -36,6 +36,14 @@ def empty_suite(path: pathlib.Path) -> str:
             '    @Test("nothing") func nothing() { #expect(true) }\n'
             '}\n' % (name, name))
 
+# Floors on the HARNESS's own population. reviewer-pr76 emptied the three lists and got
+# "caught by a named test: 0 of 0 ... exit 0" and "VACUITY PROOF OK ... MISSED=0 of 0" - a clean bill of
+# health over nothing examined. ops/lib/check-exec-bits (MIN_FILES = 17) and ops/lib/check-line-cap
+# (MIN_FILES = 5) both carry this guard, and their headers say it is because this repository has already
+# shipped that defect twice.
+MIN_MUTATIONS = 16
+MIN_EQUIVALENT = 1
+
 MUTATIONS = [
     ("compare headings without wrapping", SRC,
      "        let d = abs(a - b).truncatingRemainder(dividingBy: 360)\n        return d > 180 ? 360 - d : d",
@@ -43,11 +51,11 @@ MUTATIONS = [
 
     ("call any revisited cell a retrace, whatever the heading", SRC,
      "                if seen.contains(where: { angularDifference($0.heading, heading) > oppositeHeadingDegrees\n"
-     "                                          && Geo.distanceMeters($0.point, here) <= cellSizeMeters }) {",
+     "                                          && Geo.distanceMeters($0.point, here) <= retraceRadiusMeters }) {",
      "                if !seen.isEmpty {"),
 
     ("record only the segment midpoint instead of sampling along it", SRC,
-     "let steps = max(1, Int((length / (cellSizeMeters / samplesPerCell)).rounded(.up)))",
+     "let steps = max(1, Int((length / (retraceRadiusMeters / samplesPerCell)).rounded(.up)))",
      "let steps = 1"),
 
     ("quantise the grid in degrees, so cells are not square", SRC,
@@ -73,9 +81,9 @@ MUTATIONS = [
      "public static let oppositeHeadingDegrees = 150.0",
      "public static let oppositeHeadingDegrees = 80.0"),
 
-    ("make the cells 250 m, so a parallel street collides with its neighbour", SRC,
-     "public static let cellSizeMeters = 25.0",
-     "public static let cellSizeMeters = 250.0"),
+    ("widen the retrace radius to 250 m, so a parallel street is the same road", SRC,
+     "public static let retraceRadiusMeters = 25.0",
+     "public static let retraceRadiusMeters = 250.0"),
 
     ("raise the acceptable retrace to 95 percent", SRC,
      "public static let maxRetraceFraction = 0.15",
@@ -99,15 +107,15 @@ MUTATIONS = [
 
     # The radius, which is now what decides. These are the numbers a reviewer found no harness touching.
     ("drop the distance test, so the grid's reach decides again", SRC,
-     "                                          && Geo.distanceMeters($0.point, here) <= cellSizeMeters }) {",
+     "                                          && Geo.distanceMeters($0.point, here) <= retraceRadiusMeters }) {",
      "                                          }) {"),
 
     ("double the retrace radius, so a parallel street 40 m away is the same road", SRC,
-     "&& Geo.distanceMeters($0.point, here) <= cellSizeMeters }) {",
-     "&& Geo.distanceMeters($0.point, here) <= cellSizeMeters * 2 }) {"),
+     "&& Geo.distanceMeters($0.point, here) <= retraceRadiusMeters }) {",
+     "&& Geo.distanceMeters($0.point, here) <= retraceRadiusMeters * 2 }) {"),
 
     ("shrink the retrace radius below a divided road's width", SRC,
-     "&& Geo.distanceMeters($0.point, here) <= cellSizeMeters }) {",
+     "&& Geo.distanceMeters($0.point, here) <= retraceRadiusMeters }) {",
      "&& Geo.distanceMeters($0.point, here) <= 10.0 }) {"),
 
     # G1: the grid anchor. NOTE - with the neighbourhood search in place this mutation is MISSED, and that
@@ -118,6 +126,42 @@ MUTATIONS = [
     # G5: finiteness was screened, range was not, and the cell arithmetic trapped on a finite 1e17.
     # G4/N4: the zero-length segment guard had never been seen red - degenerateIsNil looks like its test and
     # reaches `guard total > 0` instead.
+
+    # reviewer-pr76's F2a and F2b. Both of these sat in KNOWN_MISSED with a reason that measurement showed to
+    # be FALSE - the arm was recording closable gaps as facts, which is the thing that arm is most dangerous
+    # for. They are ordinary mutations now, each with a named test.
+    #
+    # F2a: the stated reason was that a zero-length segment "contributes a sample at a point it already
+    # occupies, with the same heading". Geo.initialBearingDegrees(from: a, to: a) is 0.0, not the segment's
+    # heading, so a repeated coordinate plants a due-north sample on a southbound road.
+    ("drop the zero-length segment guard", SRC,
+     "guard length.isFinite, length > 0 else { continue }",
+     "guard length.isFinite else { continue }"),
+
+    # F2b: the stated reason was that the test "cannot report, because the process is gone". True only
+    # because the 1e17 case shared a @Test with the ordinary out-of-range cases and trapped before they ran.
+    # Splitting them made this killable, which it always was.
+    ("drop the coordinate range screen", SRC,
+     "        for p in points where !(-90.0...90.0).contains(p.latitude)\n"
+     "            || !(-180.0...180.0).contains(p.longitude) { return nil }\n",
+     ""),
+
+    # F5-prior: the opposite-heading threshold was bracketed at 80 and 179.9 and nowhere between, so a shift
+    # to 105 degrees survived - present in neither MUTATIONS nor KNOWN_MISSED, which is exactly what that
+    # arm's own header says must not happen.
+    ("relax the opposite-heading threshold to 105 degrees, so a switchback counts as a retrace", SRC,
+     "public static let oppositeHeadingDegrees = 150.0",
+     "public static let oppositeHeadingDegrees = 105.0"),
+
+    # F1: the index cell must exceed the retrace radius, or a pair inside the radius can land two cells apart
+    # and escape the 3x3 search. This is the defect reviewer-pr76 measured at a 24.99 m separation.
+    ("shrink the index cell back to the retrace radius", SRC,
+     "    static let indexCellMeters = 2 * retraceRadiusMeters",
+     "    static let indexCellMeters = retraceRadiusMeters"),
+
+    ("give the index cell too little margin for the scale error", SRC,
+     "    static let indexCellMeters = 2 * retraceRadiusMeters",
+     "    static let indexCellMeters = 1.002 * retraceRadiusMeters"),
 ]
 
 # Mutations this suite is KNOWN not to catch, asserted the other way round.
@@ -151,18 +195,9 @@ KNOWN_MISSED = [
     # The code TRAPS before any assertion runs: removing the range screen lets a finite 1e17 reach the cell
     # arithmetic, and `Int(_:)` dies with "Double value cannot be converted to Int". refusesOutOfRange is the
     # test for this property and it cannot report, because the process is gone. Detected, but by a crash.
-    ("drop the coordinate range screen", SRC,
-     "        for p in points where !(-90.0...90.0).contains(p.latitude)\n"
-     "            || !(-180.0...180.0).contains(p.longitude) { return nil }\n",
-     ""),
-
     # Became unkillable when the distance test went in: a zero-length segment now contributes a sample at a
     # point it already occupies, with the same heading, so nothing is counted either way. It was caught
     # before that change. Left here so that if the distance test is removed, this arm says so.
-    ("drop the zero-length segment guard", SRC,
-     "guard length.isFinite, length > 0 else { continue }",
-     "guard length.isFinite else { continue }"),
-
     # Pre-existing, found by this harness rather than by a reviewer: no fixture separates two samples per
     # cell from one. longSegmentsAreSampled uses a 600 m segment against three 200 m ones, which both
     # densities resolve identically.
@@ -242,6 +277,11 @@ def run_all(pristine, mutations):
 
 def main(argv) -> int:
     prove = "--prove-vacuity" in argv
+    if len(MUTATIONS) < MIN_MUTATIONS or len(EQUIVALENT) < MIN_EQUIVALENT:
+        sys.stdout.write("REFUSING: %d mutations and %d equivalent mutants, expected at least %d and %d.\n"
+                         "A harness that examines nothing exits 0 and proves nothing.\n"
+                         % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
+        return 2
     pristine = {f: f.read_bytes() for f in (SRC,)}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
     for f, b in pristine.items():

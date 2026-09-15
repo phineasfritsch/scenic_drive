@@ -7,7 +7,13 @@ import Foundation
 /// it optimises for a distance target, and out-and-back is the cheapest way to hit one. So the check is
 /// ours, applied to the returned geometry, and a route that fails it is reseeded rather than shown.
 ///
-/// The plan's parameters: **25 m cells, heading delta > 150 degrees, retrace < 15% of length.**
+/// The plan's parameters: **25 m cells, heading delta > 150 degrees, retrace at most 15% of length.**
+///
+/// The plan says both `< 15%` (in the engine section) and `<= 0.15` (in the property table). reviewer-pr76
+/// found the code doing `<=` under a doc comment saying `<`. `<=` is kept - it is the number the property
+/// table will be checked against - and the prose is corrected here rather than the behaviour, because
+/// silently tightening a product threshold to match a comment is the larger change. Pinned at the boundary
+/// by `exactlyTheThresholdIsAcceptable`.
 ///
 /// ## Three things that are easy to get wrong here, and all three are in the tests
 ///
@@ -26,14 +32,34 @@ import Foundation
 /// **Cells must be metric.** A grid quantised in degrees is 25 m tall and about 19 m wide at Los Angeles,
 /// and 12 m wide in Anchorage. Two passes that fall in different cells are not detected at all.
 public enum RetraceDetector {
-    /// Metres. Coarse enough that the two directions of one road land in the same cell, fine enough that
-    /// genuinely different parallel roads do not.
-    public static let cellSizeMeters = 25.0
+    /// How close two passes must come before they can count as the same road. The plan's 25 m.
+    ///
+    /// This is the PRODUCT decision and it is measured with `Geo.distanceMeters`, the same haversine the rest
+    /// of the app uses. The grid below is only an index for finding candidates.
+    public static let retraceRadiusMeters = 25.0
+
+    /// The index grid's cell size. An implementation detail, and **deliberately larger than the radius**.
+    ///
+    /// reviewer-pr76 found the reason. The grid measures longitude at 111_320 m/degree while
+    /// `Geo.distanceMeters` is haversine on `Geo.earthRadiusMeters`, which works out at 111_195.08 m/degree -
+    /// so the grid's metre is 0.1123% short and a pair exactly 25 true metres apart reads as **1.001123
+    /// cells**. Just over one. Two such points can therefore fall TWO columns apart, outside a 3x3 search,
+    /// where the distance test is never asked - and they measured it: with the road held fixed and only the
+    /// anchor moving, 8 of 10001 phases flipped a retracing out-and-back to ACCEPTED. That is verbatim the
+    /// defect this type exists to prevent, relocated from a 14 m separation to a 24.99 m one.
+    ///
+    /// The guarantee now holds by margin rather than by the two scales happening to agree. With the cell at
+    /// twice the radius, two points within `retraceRadiusMeters` differ by at most
+    /// `25 x 1.001123 / 50 = 0.5006` cells on each axis, so their floors differ by at most 1 and the 3x3
+    /// neighbourhood always contains both - and it would still hold if the two scales disagreed by up to a
+    /// factor of two. A guarantee that depends on a constant somewhere else being close enough is not a
+    /// guarantee; this one does not.
+    static let indexCellMeters = 2 * retraceRadiusMeters
 
     /// Degrees. Above this the two passes are heading opposite ways rather than merely crossing.
     public static let oppositeHeadingDegrees = 150.0
 
-    /// A loop may be this much retrace and no more.
+    /// A loop may be this much retrace and no more. Inclusive: exactly this much is acceptable.
     public static let maxRetraceFraction = 0.15
 
     /// Samples per cell along a segment. Two is enough that no cell a segment crosses is skipped.
@@ -85,7 +111,7 @@ public enum RetraceDetector {
             total += length
             let heading = Geo.initialBearingDegrees(from: a, to: b)
 
-            let steps = max(1, Int((length / (cellSizeMeters / samplesPerCell)).rounded(.up)))
+            let steps = max(1, Int((length / (retraceRadiusMeters / samplesPerCell)).rounded(.up)))
             let share = length / Double(steps)
             for i in 0..<steps {
                 let t = (Double(i) + 0.5) / Double(steps)
@@ -109,11 +135,11 @@ public enum RetraceDetector {
                 //
                 // So the neighbourhood is searched to FIND candidates - every earlier sample within 25 m is
                 // guaranteed to be in one of the nine cells - and the actual distance decides. The radius is
-                // then exactly `cellSizeMeters`, set by geometry rather than by where a boundary fell.
+                // then exactly `retraceRadiusMeters`, set by geometry rather than by where a boundary fell.
                 let seen = neighbourhood.flatMap { samplesByCell[Cell(x: cell.x + $0.0, y: cell.y + $0.1)] ?? [] }
                 let here = Coordinate(latitude: lat, longitude: lon)
                 if seen.contains(where: { angularDifference($0.heading, heading) > oppositeHeadingDegrees
-                                          && Geo.distanceMeters($0.point, here) <= cellSizeMeters }) {
+                                          && Geo.distanceMeters($0.point, here) <= retraceRadiusMeters }) {
                     retraced += share
                 }
                 // Only this sample's own cell records it. Writing `seen` back would copy every neighbour's
@@ -153,8 +179,8 @@ public enum RetraceDetector {
     /// fixture here to notice while being wrong in principle.
     static func cell(_ p: Coordinate, anchor: Coordinate, metersPerDegreeLon: Double) -> Cell {
         Cell(
-            x: Int(((p.longitude - anchor.longitude) * metersPerDegreeLon / cellSizeMeters).rounded(.down)),
-            y: Int(((p.latitude - anchor.latitude) * metersPerDegreeLatitude / cellSizeMeters).rounded(.down))
+            x: Int(((p.longitude - anchor.longitude) * metersPerDegreeLon / indexCellMeters).rounded(.down)),
+            y: Int(((p.latitude - anchor.latitude) * metersPerDegreeLatitude / indexCellMeters).rounded(.down))
         )
     }
 

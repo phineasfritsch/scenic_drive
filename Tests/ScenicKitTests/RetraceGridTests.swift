@@ -18,7 +18,16 @@ struct RetraceGridTests {
 
     /// Metres per degree, as INDEPENDENT constants. Deriving these from `RetraceDetector` would make every
     /// offset below cancel against the grid it is meant to probe.
-    static let mPerDegLat = 111_132.0
+    /// Metres per degree of latitude on the SAME sphere `Geo.distanceMeters` uses: 2*pi*6_371_008.8/360.
+    ///
+    /// Written out as an independent literal, not read from `Geo`, but it must be the same SPHERE - because
+    /// the thing that decides a retrace is haversine distance, and a fixture that lays its carriageways out
+    /// on a different metre is mislabelling its own separations. The first version of the boundary sweep
+    /// below used 111_132.0 (the WGS84 value at 45 degrees latitude) and a separation it called 24.99 m was
+    /// really 25.004 m - past the radius, correctly not detected, and the test blamed the code. Three
+    /// different metres in one test was the whole finding this file exists to close, committed one more time
+    /// in the test written to close it.
+    static let mPerDegLat = 111_195.080234
     static func mPerDegLon(_ lat: Double) -> Double { 111_320.0 * cos(lat * .pi / 180) }
 
     /// An approach leg running north for `approachMeters`, then a divided road driven out east and back west
@@ -132,13 +141,133 @@ struct RetraceGridTests {
 
     @Test("an out-of-range coordinate is refused rather than trapped")
     func refusesOutOfRange() {
-        // Finiteness was screened; range was not. 1e17 is finite, and the cell arithmetic trapped with
-        // "Double value cannot be converted to Int because the result would be greater than Int.max".
-        #expect(RetraceDetector.retraceFraction(
-            [Self.base, Coordinate(latitude: 34.0689, longitude: 1e17)]) == nil)
+        // SPLIT from the 1e17 case on purpose, and reviewer-pr76's F2b is why. These two live in their own
+        // test because the 1e17 case TRAPS when the range screen is removed - and a trap takes the process
+        // down, so any assertion sharing a @Test with it never runs. That turned a perfectly killable
+        // mutation into one the harness recorded as unkillable, which is a gap disguised as a fact.
+        //
+        // An ordinary out-of-range latitude does not trap; without the screen it returns 0.0 instead of nil,
+        // and this objects.
+        //
+        // The 1e17 case that motivated the screen is NOT a fixture here, and splitting it into its own @Test
+        // was not enough either: a trap takes the whole test process down, so any assertion anywhere in the
+        // run is silenced with it. While that fixture existed, "drop the range screen" could only ever score
+        // `trapped` - detected, but not by a check - and the harness recorded it as unkillable. The value
+        // that motivated the guard lives in the guard's own documentation, where it cannot suppress a test.
         #expect(RetraceDetector.retraceFraction(
             [Self.base, Coordinate(latitude: 91.0, longitude: -118.0)]) == nil)
         #expect(RetraceDetector.retraceFraction(
+            [Self.base, Coordinate(latitude: -91.0, longitude: -118.0)]) == nil)
+        #expect(RetraceDetector.retraceFraction(
             [Self.base, Coordinate(latitude: 34.0, longitude: -181.0)]) == nil)
+        #expect(RetraceDetector.retraceFraction(
+            [Self.base, Coordinate(latitude: 34.0, longitude: 181.0)]) == nil)
+    }
+
+    @Test("a repeated coordinate does not plant a due-north sample on a southbound road")
+    func duplicatedCoordinateIsNotARetrace() {
+        // reviewer-pr76's F2a. `guard length.isFinite, length > 0` had never been seen red, and the harness
+        // recorded it as unkillable on the reasoning that a zero-length segment "contributes a sample at a
+        // point it already occupies, with the same heading". Measured, that is false:
+        // Geo.initialBearingDegrees(from: a, to: a) is 0.0, NOT the segment's heading. So a duplicated
+        // coordinate plants a DUE NORTH sample on a road heading due south, and the next segment's samples
+        // within the radius score 180 degrees against it - a retrace invented out of a repeated point.
+        //
+        // Duplicated coordinates are ordinary in OSM geometry and in GPS traces, so this is a real input.
+        let lat0 = 34.0689, lon0 = -118.4452
+        var pts: [Coordinate] = []
+        for i in 0...25 { pts.append(Coordinate(latitude: lat0 - Double(i) * 40.0 / Self.mPerDegLat,
+                                                longitude: lon0)) }
+        pts.insert(pts[12], at: 13)          // one point repeated, mid-route
+        #expect(RetraceDetector.retraceFraction(pts) == 0.0,
+                "a one-way road with a repeated point retraces nothing")
+    }
+    @Test("a separation just under the radius is caught at every phase, not just at 14 m")
+    func radiusBoundaryIsCaughtAtEveryPhase() {
+        // reviewer-pr76's F1. The previous fix searched a 3x3 neighbourhood of 25 m cells and the source
+        // claimed "every earlier sample within 25 m is guaranteed to be in one of the nine cells". It was
+        // not: the grid measured longitude at 111_320 m/degree while Geo.distanceMeters is haversine on
+        // Geo.earthRadiusMeters = 111_195.08 m/degree, so a pair exactly 25 true metres apart read as
+        // 1.001123 cells - just over one - and could land TWO columns apart, outside the search, where the
+        // distance test is never asked. They measured 8 of 10001 phases flipping a retracing road to
+        // ACCEPTED at a 24.99 m separation.
+        //
+        // verdictDoesNotDependOnGridPhase covers exactly one separation, 14 m, which is 0.56 cells and never
+        // straddles. This sweeps the separation right up to the radius, which is where the guarantee is thin.
+        for separation in [14.0, 20.0, 24.0, 24.9, 24.99] {
+            for approach in [0.0, 37.0, 74.0, 111.0, 148.0, 185.0] {
+                let route = Self.dividedOutAndBack(separationMeters: separation,
+                                                                   approachMeters: approach)
+                let f = RetraceDetector.retraceFraction(route)
+                #expect((f ?? 0) > 0.25,
+                        "separation \(separation) m, approach \(approach) m: measured \(f ?? -1)")
+                #expect(!RetraceDetector.isAcceptableLoop(route),
+                        "separation \(separation) m, approach \(approach) m: accepted as a loop")
+            }
+        }
+    }
+
+    @Test("the index cell is larger than the retrace radius, which is what makes the search complete")
+    func indexCellExceedsTheRadius() {
+        // The guarantee is by MARGIN, not by two scale constants happening to agree. Two points within the
+        // radius differ by at most radius * (grid m/deg) / (haversine m/deg) / cell cells on each axis; with
+        // the cell at twice the radius that is about 0.5006, so their floors differ by at most 1 and a 3x3
+        // search always contains both. Written out as literals so shrinking the cell back to the radius -
+        // which is what reintroduces the defect - fails here and says why.
+        #expect(RetraceDetector.retraceRadiusMeters == 25.0)
+        #expect(RetraceDetector.indexCellMeters == 50.0)
+        #expect(RetraceDetector.indexCellMeters > RetraceDetector.retraceRadiusMeters * 1.5,
+                "the margin is what makes the 3x3 search complete; see the constant's own documentation")
+    }
+    @Test("two points a radius apart are never more than one cell apart, at any grid phase")
+    func indexNeverSeparatesAPairInsideTheRadius() {
+        // THIS is the guarantee, tested directly rather than sampled through route outcomes.
+        //
+        // The 3x3 neighbourhood search is complete only if two points within `retraceRadiusMeters` always
+        // land within one cell index of each other on each axis. The previous version set the cell equal to
+        // the radius, and that made the claim FALSE by 0.1123%: the grid measures longitude at 111_320
+        // m/degree while the decider is haversine on Geo.earthRadiusMeters = 111_195.08, so a 25 m pair reads
+        // as 1.001123 cells - just over one - and can straddle into two columns, outside the search, where
+        // the distance test is never asked.
+        //
+        // reviewer-pr76 found it by sweeping 10001 route phases and catching 8 failures, a band about 28 mm
+        // wide. A route-level sweep is the wrong instrument for that: 30 fixtures would miss it and report
+        // green. Sweeping the GRID PHASE directly hits every offset within a cell and needs no routing.
+        let lat0 = 34.0689
+        let radius = RetraceDetector.retraceRadiusMeters
+        let mPerLon = 111_320.0 * cos(lat0 * .pi / 180)   // the grid's own longitude metre, independently
+        var worstX = 0, worstY = 0
+        for step in 0..<2000 {
+            // Walk the anchor across two whole cells, so every phase inside a cell is visited.
+            let phaseMeters = Double(step) / 2000.0 * 2 * RetraceDetector.indexCellMeters
+            let anchor = Coordinate(latitude: lat0, longitude: -118.4452 - phaseMeters / mPerLon)
+
+            // A pair exactly `radius` apart in true metres, once east-west and once north-south.
+            let a = Coordinate(latitude: lat0, longitude: -118.4452)
+            let east = Coordinate(latitude: lat0, longitude: -118.4452 + radius / Self.mPerDegLon(lat0))
+            let north = Coordinate(latitude: lat0 + radius / Self.mPerDegLat, longitude: -118.4452)
+
+            let ca = RetraceDetector.cell(a, anchor: anchor, metersPerDegreeLon: mPerLon)
+            let cE = RetraceDetector.cell(east, anchor: anchor, metersPerDegreeLon: mPerLon)
+            let cN = RetraceDetector.cell(north, anchor: anchor, metersPerDegreeLon: mPerLon)
+            worstX = max(worstX, abs(cE.x - ca.x))
+            worstY = max(worstY, abs(cN.y - ca.y))
+        }
+        #expect(worstX <= 1, "east-west: a pair \(radius) m apart landed \(worstX) cells apart")
+        #expect(worstY <= 1, "north-south: a pair \(radius) m apart landed \(worstY) cells apart")
+    }
+
+    @Test("a separation past the radius is not a retrace, so the radius is pinned from both sides")
+    func pastTheRadiusIsNotRetrace() {
+        // The other side of the boundary, and the reason the fix could not simply widen the search. Placed
+        // with the same metre the decider uses, so the label on the number is true.
+        for sep in [26.0, 30.0, 40.0] {
+            for approach in [0.0, 37.0, 111.0] {
+                let route = Self.dividedOutAndBack(separationMeters: sep, approachMeters: approach)
+                let f = RetraceDetector.retraceFraction(route)
+                #expect((f ?? 1) < 0.15,
+                        "separation \(sep) m, approach \(approach) m: measured \(f ?? -1)")
+            }
+        }
     }
 }

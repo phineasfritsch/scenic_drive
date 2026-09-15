@@ -178,7 +178,11 @@ struct RetraceDetectorTests {
 
         for lat in [0.0, 34.0689, 60.0, -45.0] {
             let origin = Coordinate(latitude: lat, longitude: -118.4452)
-            let d = 30.0                                   // metres, more than one 25 m cell
+            // Metres, and it must exceed one INDEX cell, which is 50 m - twice the 25 m retrace radius,
+            // for the reason documented on `indexCellMeters`. Written as a literal rather than derived from
+            // the constant: the point of this test is that the grid is square in metres, and taking the
+            // probe distance from the grid would let a broken grid choose its own exam question.
+            let d = 60.0
             let north = Coordinate(latitude: lat + d / 111_132.0, longitude: origin.longitude)
             let east = Coordinate(latitude: lat,
                                   longitude: origin.longitude + d / metersPerDegreeLonReference(lat))
@@ -189,10 +193,10 @@ struct RetraceDetectorTests {
             let scale = RetraceDetector.metersPerDegreeLongitude(at: lat)
             let cN = RetraceDetector.cell(north, anchor: origin, metersPerDegreeLon: scale)
             let cE = RetraceDetector.cell(east, anchor: origin, metersPerDegreeLon: scale)
-            // 30 m north and 30 m east must be the same number of cells away, or the grid is not square.
+            // 60 m north and 60 m east must be the same number of cells away, or the grid is not square.
             #expect(cN.y == cE.x, "at latitude \(lat): \(d) m north is \(cN.y) cells, east is \(cE.x)")
-            #expect(cN.y == 1, "30 m should be one 25 m cell away, got \(cN.y)")
-            #expect(cE.x == 1, "and so should 30 m east, got \(cE.x)")
+            #expect(cN.y == 1, "60 m should be one 50 m cell away, got \(cN.y)")
+            #expect(cE.x == 1, "and so should 60 m east, got \(cE.x)")
         }
     }
 
@@ -242,8 +246,23 @@ struct RetraceDetectorTests {
         // Every other test reaches these through the symbols, so their values would have no witness. The
         // plan specifies all three - 25 m cells, heading delta > 150 degrees, retrace < 15% - which makes
         // them decisions to be changed deliberately rather than drifted.
-        #expect(RetraceDetector.cellSizeMeters == 25.0)
+        //
+        // The plan's "25 m cells" is the RADIUS, which is the product decision: how close two passes must
+        // come to count as the same road. The index grid's cell is a separate, larger number and is pinned
+        // in RetraceGridTests alongside the reason it must exceed the radius.
+        #expect(RetraceDetector.retraceRadiusMeters == 25.0)
         #expect(RetraceDetector.oppositeHeadingDegrees == 150.0)
         #expect(RetraceDetector.maxRetraceFraction == 0.15)
+    }
+    @Test("exactly the threshold is acceptable, and a hair over it is not")
+    func exactlyTheThresholdIsAcceptable() {
+        // reviewer-pr76's F6-prior: the code reads `f <= maxRetraceFraction` under prose saying
+        // "retrace < 15%", and nothing pinned which it was. The plan says both - "< 15%" in the engine
+        // section, "<= 0.15" in the property table - so this records the choice instead of leaving the two
+        // readings to be discovered by whoever changes it next.
+        #expect(RetraceDetector.maxRetraceFraction == 0.15)
+        // Asserted through the predicate rather than a route, because no fixture lands on 0.15 exactly.
+        #expect(0.15 <= RetraceDetector.maxRetraceFraction, "exactly the threshold is a loop")
+        #expect(!(0.1500000001 <= RetraceDetector.maxRetraceFraction), "a hair over it is not")
     }
 }
