@@ -11,6 +11,13 @@ import Foundation
 /// **Nothing is dropped.** Anything the derivation cannot classify becomes `.unrecognised` and sorts above
 /// the advisory flags. A hazard strip that quietly omits a ford is worse than no strip, because the driver
 /// has learned to trust it.
+///
+/// **A missing attribution is not a missing hazard.** For an unclassified TAG the string *is* the hazard, so
+/// an empty one is nothing and is skipped. For a CLOSURE the string is only the provenance: the hazard is the
+/// closure the router reported, and it is `severityRank` 0 - the route does not go through. So a closure
+/// whose `source` the feed left blank reaches the strip unattributed rather than vanishing, and the caller
+/// writes the sentence. Suppressing a rank-0 hazard because the feed forgot to name itself is the exact
+/// failure this type exists to prevent.
 public enum HazardStrip {
     /// Below this the route barely touches unsurveyed road and saying so costs more attention than it is
     /// worth. The plan's number: *"shown only if the route spends >2 km on such edges."*
@@ -74,7 +81,10 @@ public enum HazardStrip {
     public static func flags(for facts: RouteFacts) -> [HazardFlag] {
         var out: [HazardFlag] = []
 
-        for c in facts.closures where !c.source.isEmpty {
+        // EVERY closure the router reported, whatever the feed called itself. No guard on `source`: the
+        // closure is the hazard and the source is only its attribution, so an unattributed one still says
+        // "the route does not go through" and still sorts first.
+        for c in facts.closures {
             out.append(.closure(source: c.source, until: c.until))
         }
         if facts.hasFord { out.append(.ford) }

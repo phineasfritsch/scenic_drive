@@ -12,10 +12,16 @@ Shape settled by six rounds of review on this file and its siblings:
   * EQUIVALENT mutants are asserted the OTHER WAY ROUND: they cannot change behaviour, so a catch there is
     a FAILURE, because it means a test has an opinion about how the code is written rather than what it
     does - and the way a person satisfies such a demand is by anchoring a test on source text;
-  * `--prove-vacuity` empties the test file and requires every mutation to report MISSED - COMPLETE, and
-    not merely `caught == 0`, which a harness broken in the compile-only direction also satisfies. It is
-    only adequate while HazardStripTests.swift is the ONLY test file that can catch one of these, so that
-    is now CHECKED (`vacuity_gap()`) rather than grepped once by hand;
+  * the subject is compared to `git show HEAD:` BEFORE anything is built, and a difference REFUSES. The
+    PR #80 reviewer planted a behaviour-changing line on a row no anchor quotes and this harness printed
+    "pristine", "BASELINE exit=0", "21 of 21", exit 0 - certifying a defective subject with a clean sheet.
+    "Pristine" was a word about a variable, not a claim anyone checked. Now it is checked, and the final
+    restore is verified against HEAD too rather than against bytes this process read from the same disk;
+  * `--prove-vacuity` empties EVERY test file that can catch a mutation and requires every mutation to
+    report MISSED - COMPLETE, and not merely `caught == 0`, which a harness broken in the compile-only
+    direction also satisfies. Which files those are is GREPPED each run (`subject_test_files()`), and a
+    file found by the grep that is not in `EMPTIED` refuses the run rather than being silently left
+    populated - the proof's "no tests present" premise would otherwise be false;
   * EVERY build is retried once, the baseline included, before a failure is believed: a fresh scratch dir
     on this box fails with an I/O 512 symlink error often enough to have produced a false verdict;
   * the floors below EQUAL the shipped population, so deleting any one mutation refuses the run;
@@ -41,13 +47,28 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 STRIP = ROOT / "Sources" / "ScenicKit" / "Hazards" / "HazardStrip.swift"
 FLAG = ROOT / "Sources" / "ScenicKit" / "Hazards" / "HazardFlag.swift"
 TESTS = ROOT / "Tests" / "ScenicKitTests" / "HazardStripTests.swift"
+OMISSION_TESTS = ROOT / "Tests" / "ScenicKitTests" / "HazardStripOmissionTests.swift"
+# Every test file `--prove-vacuity` empties. `subject_test_files()` greps for the real set each run and the
+# run REFUSES if the grep finds one that is not here, so this tuple cannot quietly go stale.
+EMPTIED = (TESTS, OMISSION_TESTS)
+# Everything the run must find byte-identical to HEAD before it builds anything: the two subjects, both
+# test files, and this harness. A mutation report is a claim about a COMMIT, and it is worth nothing about
+# a dirty tree. Stated plainly, because it is a real limit: including this file catches an uncommitted
+# local edit to the instrument, NOT an author who deletes the check - the modified code is what runs. The
+# floors, the EQUIVALENT arm and `--prove-vacuity` are the guards against a weakened harness; this one is
+# against measuring something other than what is under review.
+HEAD_CHECKED = (STRIP, FLAG, TESTS, OMISSION_TESTS, pathlib.Path(__file__).resolve())
 SCRATCH = ".build/mutate-hazards"  # inside .build/, which .gitignore covers: the harness must not dirty
                                    # the worktree it certifies, and `ops/sane` counts untracked files.
 
-EMPTY_SUITE = ('import Testing\n'
-               '@Suite("empty") struct EmptyHazardSuite {\n'
-               '    @Test("nothing") func nothing() { #expect(true) }\n'
-               '}\n')
+
+def empty_suite(path: pathlib.Path) -> str:
+    """A distinct suite and type name per file - two files both declaring `EmptyHazardSuite` would be a
+    redeclaration error, and the vacuity proof would then be measuring the Swift compiler again."""
+    return ('import Testing\n'
+            '@Suite("empty %s") struct Empty%sSuite {\n'
+            '    @Test("nothing") func nothing() { #expect(true) }\n'
+            '}\n' % (path.stem, path.stem))
 
 # Floors on the HARNESS's own population. Without them the pass condition and `--prove-vacuity` are both
 # VACUOUSLY TRUE on empty lists - "0 of 0 ... exit 0" and "VACUITY PROOF OK ... MISSED=0 of 0", the proof
@@ -55,7 +76,9 @@ EMPTY_SUITE = ('import Testing\n'
 # reason and nothing to say the count fell - so these EQUAL the shipped population rather than sitting
 # under it. The PR #80 reviewer found 13 here against 15 shipped, which refuses nothing: two could go.
 # Adding a mutation means raising these by hand, which is the point - the number is a claim, not a length.
-MIN_MUTATIONS = 21
+# 21 -> 27: two entries whose anchor no longer exists were replaced by three that pin the SAME behaviour
+# from the other side (an unattributed closure must reach the strip), plus five from the PR #80 review.
+MIN_MUTATIONS = 27
 MIN_EQUIVALENT = 3
 
 MUTATIONS = [
@@ -122,9 +145,28 @@ MUTATIONS = [
      "        if facts.hasFord { out.append(.ford) }",
      "        if facts.hasFord { out.append(.gate) }"),
 
-    ("accept a closure with no source", STRIP,
-     "        for c in facts.closures where !c.source.isEmpty {",
-     "        for c in facts.closures {"),
+    # --- the PR #80 blocker, now pinned in BOTH directions ----------------------------------------------
+    # These three replace "accept a closure with no source" and "widen the closure source guard to swallow
+    # a whitespace source", which pinned the OPPOSITE behaviour and whose anchor
+    # (`where !c.source.isEmpty`) no longer exists in the source. They are not deletions dressed up: every
+    # way of losing an unattributed closure that the old pair protected is reinstated here as a mutation
+    # that must be CAUGHT, and a third covers the option the review named but nothing tested.
+    ("drop a closure whose source is empty - the rank-0 hazard that vanished in PR #80", STRIP,
+     "        for c in facts.closures {",
+     "        for c in facts.closures where !c.source.isEmpty {"),
+
+    ("drop a closure whose source is only whitespace", STRIP,
+     "        for c in facts.closures {",
+     "        for c in facts.closures where !c.source.trimmingCharacters(in: .whitespaces).isEmpty {"),
+
+    ("demote an unattributed closure to .unrecognised, rank 0 -> rank 3", STRIP,
+     "        for c in facts.closures {\n"
+     "            out.append(.closure(source: c.source, until: c.until))\n"
+     "        }",
+     "        for c in facts.closures {\n"
+     "            out.append(c.source.isEmpty ? .unrecognised(\"closure\")\n"
+     "                                        : .closure(source: c.source, until: c.until))\n"
+     "        }"),
 
     ("a clean route gets a reassuring flag", STRIP,
      "        var out: [HazardFlag] = []",
@@ -150,9 +192,26 @@ MUTATIONS = [
      "        if facts.surfaceUnknownKm > surfaceUnknownMinimumKm {",
      "        if facts.surfaceUnknownKm > surfaceUnknownMinimumKm && facts.surfaceUnknownKm < 100 {"),
 
-    ("widen the closure source guard to swallow a whitespace source", STRIP,
-     "        for c in facts.closures where !c.source.isEmpty {",
-     "        for c in facts.closures where !c.source.trimmingCharacters(in: .whitespaces).isEmpty {"),
+    # --- ... and at the top of the TYPE, not merely above the last fixture's number --------------------
+    # The three below are the PR #80 reviewer's surviving mutations (SG1, SG14) and their siblings. Each of
+    # the three above was closed by probing one value bigger than the ceiling, which only MOVED the ceiling
+    # to whatever the new fixture happened to use: `.prefix(9)` and `<= 100_000` then survived the whole
+    # suite. These are caught by Int.max, .greatestFiniteMagnitude and a swept strip length instead.
+    ("truncate the strip to the first NINE flags - the number the last fix moved the cap to", STRIP,
+     "        return out.enumerated()\n"
+     "            .sorted { ($0.element.severityRank, $0.offset) < ($1.element.severityRank, $1.offset) }\n"
+     "            .map(\\.element)",
+     "        return Array(out.enumerated()\n"
+     "            .sorted { ($0.element.severityRank, $0.offset) < ($1.element.severityRank, $1.offset) }\n"
+     "            .map(\\.element).prefix(9))"),
+
+    ("no-cell stops firing above 100_000 minutes, the last fixture's own top value", STRIP,
+     "        if facts.noCellMinutes >= noCellMinimumMinutes {",
+     "        if facts.noCellMinutes >= noCellMinimumMinutes && facts.noCellMinutes <= 100_000 {"),
+
+    ("the surface advisory stops firing above 1e300 km, far past any fixture but not past Double", STRIP,
+     "        if facts.surfaceUnknownKm > surfaceUnknownMinimumKm {",
+     "        if facts.surfaceUnknownKm > surfaceUnknownMinimumKm && facts.surfaceUnknownKm < 1e300 {"),
 
     # --- RouteFacts is Equatable BY HAND (a tuple array cannot be synthesised), so each half of the
     # closure comparison can be deleted on its own. Nothing in the repository compared two RouteFacts.
@@ -165,6 +224,17 @@ MUTATIONS = [
      "                && a.closures.map(\\.source) == b.closures.map(\\.source)\n"
      "                && a.closures.map(\\.until) == b.closures.map(\\.until)",
      "                && a.closures.map(\\.until) == b.closures.map(\\.until)"),
+
+    # Neither half can be deleted unnoticed any more, but either could be made ORDER-BLIND, which deletes
+    # only the part of the comparison that a one-element fixture cannot see. The PR #80 reviewer's SG10.
+    # The two are separate mutations because each is invisible to the other's fixture.
+    ("compare closure SOURCES order-blind, so a reordered feed reads as the same route", STRIP,
+     "                && a.closures.map(\\.source) == b.closures.map(\\.source)",
+     "                && a.closures.map(\\.source).sorted() == b.closures.map(\\.source).sorted()"),
+
+    ("compare closure END TIMES as a set, so a reordered feed reads as the same route", STRIP,
+     "                && a.closures.map(\\.until) == b.closures.map(\\.until)",
+     "                && Set(a.closures.map(\\.until)) == Set(b.closures.map(\\.until))"),
 ]
 
 # Cannot change behaviour, so a catch here is a FAILURE.
@@ -216,13 +286,39 @@ EQUIVALENT = [
 FAIL_LINE = re.compile(r'Test "[^"]*" recorded an issue')
 
 
+def subject_test_files():
+    """Every test file that mentions the subject, found by GREP rather than remembered."""
+    return [f for f in sorted((ROOT / "Tests").rglob("*.swift"))
+            if any(n in f.read_text(encoding="utf-8", errors="replace")
+                   for n in ("Hazard", "RouteFacts"))]
+
+
 def vacuity_gap():
-    """Test files OTHER than TESTS that reference the subject. `--prove-vacuity` empties only TESTS, so if
-    any other file can catch a mutation the proof's "no tests present" premise is false. The PR #80 review
-    established this by hand with one grep; a fact a harness depends on belongs in the harness."""
-    return [f.relative_to(ROOT).as_posix() for f in sorted((ROOT / "Tests").rglob("*.swift"))
-            if f != TESTS and any(n in f.read_text(encoding="utf-8", errors="replace")
-                                  for n in ("Hazard", "RouteFacts"))]
+    """Test files that could catch a mutation and that `--prove-vacuity` does NOT empty. Any such file
+    makes the proof's "no tests present" premise false, so one refuses the run. The PR #80 review
+    established the set by hand with one grep; a fact a harness depends on belongs in the harness."""
+    return [f.relative_to(ROOT).as_posix() for f in subject_test_files() if f not in set(EMPTIED)]
+
+
+def head_diff():
+    """Subjects and test files that differ from `git show HEAD:<path>`, as (path, on-disk md5, HEAD md5).
+
+    A mutation report is a claim about a COMMIT. The PR #80 reviewer planted a rounding change on
+    HazardStrip.swift:96 - a line no anchor quotes, so nothing went stale - and this harness reported
+    `pristine ... md5 d4ed91e8`, `BASELINE exit=0`, `caught by a named test: 21 of 21`, EXIT 0, then
+    restored the mutant. It never consulted git. `capture_output` without `text=True` on purpose: bytes,
+    so nothing translates a newline on this Windows box and turns every file into a false difference."""
+    bad = []
+    for f in HEAD_CHECKED:
+        rel = f.relative_to(ROOT).as_posix()
+        p = subprocess.run(["git", "show", "HEAD:" + rel], cwd=ROOT, capture_output=True)
+        if p.returncode != 0:
+            bad.append((rel, "on disk", "NOT IN HEAD (untracked, or renamed since the commit)"))
+            continue
+        disk = f.read_bytes()
+        if disk != p.stdout:
+            bad.append((rel, hashlib.md5(disk).hexdigest(), hashlib.md5(p.stdout).hexdigest()))
+    return bad
 
 
 def build() -> int:
@@ -281,20 +377,34 @@ def main(argv) -> int:
         return 2
     gap = vacuity_gap()
     if gap:
-        sys.stdout.write("REFUSING: --prove-vacuity empties only %s, but these test files also reference\n"
-                         "the subject and could catch a mutation: %s\n" % (TESTS.name, ", ".join(gap)))
+        sys.stdout.write("REFUSING: --prove-vacuity empties %s, but these test files also reference\n"
+                         "the subject and could catch a mutation: %s\n"
+                         % (", ".join(f.name for f in EMPTIED), ", ".join(gap)))
+        return 2
+    # BEFORE ANY BUILD. Everything printed below is a claim about HEAD, so a subject that is not HEAD makes
+    # every line of it false - including the word "pristine" two lines down.
+    drift = head_diff()
+    if drift:
+        sys.stdout.write("REFUSING: the subject on disk is not HEAD, so nothing measured here would be a\n"
+                         "statement about the commit under review:\n")
+        for rel, disk, head in drift:
+            sys.stdout.write("  %-52s disk %s  HEAD %s\n" % (rel, disk, head))
+        sys.stdout.write("Commit or stash first. There is no flag to skip this: a harness that measures a\n"
+                         "mutated file and prints a clean sheet is the failure this check exists for.\n")
         return 2
     pristine = {f: f.read_bytes() for f in (STRIP, FLAG)}
-    pristine_tests = TESTS.read_bytes()
+    pristine_tests = {f: f.read_bytes() for f in EMPTIED}
     for f, b in pristine.items():
-        sys.stdout.write("pristine %-32s md5 %s\n" % (f.name, hashlib.md5(b).hexdigest()))
+        sys.stdout.write("pristine %-32s md5 %s  (== git show HEAD:)\n" % (f.name, hashlib.md5(b).hexdigest()))
 
     eq = None
     try:
         if prove:
-            sys.stdout.write("PROVING NON-VACUITY: the test file is replaced by an empty suite, so every\n"
-                             "mutation must report MISSED - not merely 'not caught'.\n")
-            TESTS.write_text(EMPTY_SUITE, encoding="utf-8", newline="\n")
+            sys.stdout.write("PROVING NON-VACUITY: every test file that mentions the subject (%s)\n"
+                             "is replaced by an empty suite, so every mutation must report MISSED - not\n"
+                             "merely 'not caught'.\n" % ", ".join(f.name for f in EMPTIED))
+            for f in EMPTIED:
+                f.write_text(empty_suite(f), encoding="utf-8", newline="\n")
 
         # Retried, exactly as the mutation build is. A fresh scratch directory on this box fails once with
         # an I/O 512 symlink error often enough that a single try turned a healthy run into EXIT 2.
@@ -315,13 +425,20 @@ def main(argv) -> int:
     finally:
         for f, b in pristine.items():
             f.write_bytes(b)
-        TESTS.write_bytes(pristine_tests)
+        for f, b in pristine_tests.items():
+            f.write_bytes(b)
 
-    if any(f.read_bytes() != b for f, b in pristine.items()) or TESTS.read_bytes() != pristine_tests:
-        sys.stdout.write("RESTORE FAILED - the working tree is not pristine\n")
+    # Verified against HEAD, not against the bytes this process read off the same disk: comparing a restore
+    # to a "pristine" snapshot that was already wrong proves only that the run was consistently wrong.
+    left_behind = head_diff()
+    if left_behind:
+        sys.stdout.write("RESTORE FAILED - these files no longer match git show HEAD:\n")
+        for rel, disk, head in left_behind:
+            sys.stdout.write("  %-52s disk %s  HEAD %s\n" % (rel, disk, head))
         return 2
 
-    sys.stdout.write("\nrestored: " + ", ".join(hashlib.md5(f.read_bytes()).hexdigest()[:8] for f in pristine) + "\n")
+    sys.stdout.write("\nrestored to HEAD: "
+                     + ", ".join(hashlib.md5(f.read_bytes()).hexdigest()[:8] for f in pristine) + "\n")
     sys.stdout.write("caught by a named test: %d of %d   (trapped %d, compile-only %d, MISSED %d, skipped %d)\n"
                      % (len(r["caught"]), len(MUTATIONS), len(r["trapped"]), len(r["compile_only"]),
                         len(r["missed"]), len(r["skipped"])))
