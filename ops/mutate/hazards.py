@@ -30,10 +30,17 @@ Shape settled by six rounds of review on this file and its siblings:
     `trapped` and the run exits 0 - the harness cannot tell "covered" from "I am broken".
 
 Half the mutations move a NUMBER or a comparison direction, because an earlier harness was all-structural -
-delete a guard, invert a comparison - which is exactly where such a suite is blind. The six added after the
-PR #80 review attack the other blind spot it found: a hazard removed at the TOP of its range, where nothing
-had ever probed. This file is not under the 300-line cap; P-SRC-02 asserts that over `Sources/**/*.swift`
-and `Tests/**/*.swift`, and ops/lib/queue.py is 1007 lines.
+delete a guard, invert a comparison - which is exactly where such a suite is blind. The batch added after
+the FIRST PR #80 review attacked the blind spot it found - a hazard removed at the TOP of its range - and
+the batch added after the SECOND attacks what that fix left behind: each ceiling had been closed by probing
+one value above it, so `.prefix(9)` and `noCellMinutes <= 100_000` survived a suite that had just closed
+`.prefix(7)` and `< 600`. A ceiling is only gone when the probe is at the top of the TYPE.
+
+TWO entries lost their anchor when the second review's blocker was fixed (`where !c.source.isEmpty` no
+longer exists in the source). They were REPLACED by three, not dropped: every way of losing an unattributed
+closure that they protected is now a mutation that must be CAUGHT, and the third covers the option the
+review named and nothing tested. This file is not under the 300-line cap; P-SRC-02 asserts
+that over `Sources/**/*.swift` and `Tests/**/*.swift`, and ops/lib/queue.py is 1007 lines.
 """
 from __future__ import annotations
 
@@ -76,9 +83,10 @@ def empty_suite(path: pathlib.Path) -> str:
 # reason and nothing to say the count fell - so these EQUAL the shipped population rather than sitting
 # under it. The PR #80 reviewer found 13 here against 15 shipped, which refuses nothing: two could go.
 # Adding a mutation means raising these by hand, which is the point - the number is a claim, not a length.
-# 21 -> 27: two entries whose anchor no longer exists were replaced by three that pin the SAME behaviour
-# from the other side (an unattributed closure must reach the strip), plus five from the PR #80 review.
-MIN_MUTATIONS = 27
+# 21 -> 28: two entries whose anchor no longer exists were replaced by three that pin the SAME behaviour
+# from the other side (an unattributed closure must reach the strip), plus five from the PR #80 review,
+# plus one for the empty-TAG guard, which the closure fix left with a test but no mutation.
+MIN_MUTATIONS = 28
 MIN_EQUIVALENT = 3
 
 MUTATIONS = [
@@ -140,6 +148,14 @@ MUTATIONS = [
     ("stop deduplicating the unknown tags", STRIP,
      "        for tag in Set(facts.unclassified).sorted() where !tag.isEmpty {",
      "        for tag in facts.unclassified where !tag.isEmpty {"),
+
+    # The OTHER empty string. `emptyStringsIgnored` lost its closure assertion when the PR #80 blocker was
+    # fixed, leaving it with one assertion and - until this entry - no mutation pinning it, so it could
+    # have rotted into a test that cannot fail. An empty TAG really is nothing: there the string IS the
+    # hazard, which is the whole distinction the closure fix rests on, so it is worth a mutation of its own.
+    ("accept an empty unknown tag as a hazard", STRIP,
+     "        for tag in Set(facts.unclassified).sorted() where !tag.isEmpty {",
+     "        for tag in Set(facts.unclassified).sorted() {"),
 
     ("report a ford as a gate", STRIP,
      "        if facts.hasFord { out.append(.ford) }",
