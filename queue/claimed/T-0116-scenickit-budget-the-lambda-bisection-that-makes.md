@@ -294,7 +294,9 @@ path (`python .artifacts/probe_new.py .build-probe-before`): baseline green, the
   only Doubles are 0 and -0 and they compare identically. **Pinned, not bracketed more tightly.** The
   comment on `zeroIsADurationNotNonsense` that implied otherwise now says which side it owns.
 - 2026-09-15T18:00:00Z **Each new test was then made to go red, one mutation at a time, and the names are
-  the evidence** (`.artifacts/probe_names.py` in the same demo worktree, at 32e8f0c):
+  the evidence** (`.artifacts/probe_names.py` in the same demo worktree, run at 32e8f0c - which was amended
+  into eb5b551 to add a `ROOT` import budget.py needed, so the three suites are byte-identical; the worktree
+  is now at eb5b551 and both probes re-run there unchanged):
   `drop isFinite` and the `isNaN` spelling each fail `refusesBadInputs` *"with 2 arguments fastest -> inf,
   budget -> 60.0"* AND `infiniteFastestIsRefusedAsNotADuration`; `d >= -0.5` fails `refusesNonsense`
   *"with 1 argument bad -> -0.2"* AND `routerGuardBoundaryIsExactlyZero`; and
