@@ -35,6 +35,13 @@ TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "RetraceDetectorTests.swift",
 # Kept honest by grep, not by memory: `git grep -l Retrace -- Tests/` must list exactly these four files.
 # Any other file that mentions RetraceDetector could catch a mutation, and the vacuity proof would then be
 # emptying less than the suite.
+#
+# These files share ONE probe - RetraceDiagonalTests calls RetraceIndexTests.point, so that "place a point
+# N true metres away by bisecting on the decider" has a single definition rather than two that can drift.
+# The consequence for this list is worth knowing before you debug it: emptying RetraceIndexTests.swift while
+# leaving RetraceDiagonalTests.swift in place does not compile, so dropping the diagonal file from TEST_FILES
+# makes --prove-vacuity report "baseline does not build" and exit 2. Nothing reads as green either way -
+# measured both directions, in the task log - but the message you get names the build, not the omission.
 SCRATCH = ".build-mutate-retrace"
 
 def empty_suite(path: pathlib.Path) -> str:

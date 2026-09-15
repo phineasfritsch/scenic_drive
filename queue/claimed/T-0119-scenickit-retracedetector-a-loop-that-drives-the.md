@@ -15,13 +15,17 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 41 tests in 6 suites passed, exit 0"
-  - "python ops/mutate/retrace.py -> 21 of 21 caught by a named test; 0 trapped, 0 compile-only, 0 MISSED, 0 skipped; exit 0"
-  - "python ops/mutate/retrace.py --prove-vacuity -> caught=0 and MISSED=21 of 21, exit 0"
+  - "swift test -> 43 tests in 7 suites passed, exit 0"
+  - "python ops/mutate/retrace.py -> 23 of 23 caught by a named test; 0 trapped, 0 compile-only, 0 MISSED, 0 skipped; exit 0. KNOWN GAPS arm 3 MISSED + 1 trapped of 4; EQUIVALENT arm 2 MISSED of 2"
+  - "python ops/mutate/retrace.py --prove-vacuity -> VACUITY PROOF OK: caught=0 (need 0) and MISSED=23 of 23, exit 0"
+  - "RED: the plus-shaped neighbourhood [(-1, 0), (0, -1), (0, 0), (0, 1), (1, 0)] fails BY NAME 'every cell a pair inside the radius can land in is one the index actually searches' (4 issues, one per corner: 'a pair 25.0 m apart on bearing 75 landed at cell offset (1, 1), which the index does not search') and 'a divided road on a diagonal is retrace at every phase, corner cells included' (7 of 12 phases, e.g. 'approach 0.0 m: measured 0.3382839184189396 retrace, not 0.5'), exit 1"
+  - "RED: dropping ONE corner from the neighbourhood fails 'every cell a pair inside the radius can land in is one the index actually searches' BY NAME, one issue, naming offset (1, 1), exit 1"
+  - "RED: setting indexCellMeters back to retraceRadiusMeters fails 'two points a radius apart are never more than one cell apart, at the WORST grid phase' BY NAME with 'east-west: a pair 25.0 m apart landed 2 cells apart', exit 1 (and three more tests by name, including offsets (2, 0) and (-2, 0))"
   - "RED: emptying MUTATIONS makes the harness REFUSE with 'A harness that examines nothing exits 0 and proves nothing', exit 2"
-  - "RED: setting indexCellMeters back to retraceRadiusMeters fails indexNeverSeparatesAPairInsideTheRadius BY NAME with 'a pair 25.0 m apart landed 2 cells apart', exit 1"
-  - "RED: deleting ONE mutation makes the harness REFUSE (20 of 21), exit 2 - the floor equals the population"
-  - "NOTE: the guarantee test correctly STAYS GREEN at indexCellMeters = 1.002x and 1.5x radius. The correctness edge is radius * 1.001123; 2x is headroom. Only the constants pin fails there, and it is a policy margin."
+  - "RED: deleting ONE mutation (22 of 23), ONE of the two EQUIVALENT mutants, or ONE of the four KNOWN_MISSED entries each makes the harness REFUSE, exit 2 - every floor is its own arm's real population"
+  - "RED: a subject or a test file that differs from 'git show HEAD:' makes the harness REFUSE before any build, exit 2, naming both md5s"
+  - "RED: TEST_FILES decay is refused in both directions - without RetraceIndexTests.swift, --prove-vacuity reports 'VACUITY PROOF FAILED: caught=1 (need 0)', exit 1; without RetraceDiagonalTests.swift it reports 'baseline does not build', exit 2 (the two files share one probe)"
+  - "NOTE: the guarantee test correctly STAYS GREEN at indexCellMeters = 1.002x and 1.5x radius - the correctness edge is radius * 1.001123 and the 2x is policy headroom, not the boundary. At 1.5x the ONLY failure is the policy pin 'the index cell is larger than the retrace radius, which is what makes the search complete'. At 1.002x 'cells are square in metres, at every latitude' fails as well ('60 m should be one 50 m cell away, got 2' - its 60 m probe against a 50 m cell is entangled with indexCellMeters), so the previous NOTE's 'Only the constants pin fails there' was FALSE and is struck: reviewer-sg-pr76's B2"
 ---
 ## Brief
 
@@ -161,3 +165,102 @@ caught, and `cE.x == 1` is asserted directly rather than only against `cN.y`.
 - 2026-09-15T06:00:00Z The baseline build is retried, matching every mutation build (T-0132's second defect: a fresh scratch directory on this box can fail once with an I/O 512 symlink error, and a single attempt turns that into "baseline does not build" with nothing measured).
 - 2026-09-15T06:00:00Z GREEN: `swift test` -> **41 tests in 5 suites passed**. `python ops/mutate/retrace.py` -> **21 of 21 caught by a named test**, 0 trapped, 0 compile-only, 0 MISSED, 0 skipped, exit 0. `--prove-vacuity` -> `caught=0 (need 0) and MISSED=21 of 21`, exit 0.
 - 2026-09-15T19:00:00Z **CI caught what I did not run.** The rewrite took `RetraceGridTests.swift` to 328 lines and I pushed without re-running `ops/check-pins --source-only`, so P-SRC-02 went red on the 300-line cap - the one gate I had not repeated after the change. Split along the real seam: `RetraceGridTests` asks what verdict a ROUTE gets, `RetraceIndexTests` asks the question underneath it - can the index ever separate a pair the distance test would have accepted. 241 and 110 lines. `ops/mutate/retrace.py`'s `TEST_FILES` gained the new file **in the same commit**, because a split the vacuity proof does not know about silently stops it emptying all the tests ([[T-0132]], five occurrences). Re-verified: `PINS ok=4 skipped=9 pending=0 expired=0 failed=0`, 41 tests in 6 suites, `--prove-vacuity` caught=0 MISSED=21 of 21.
+
+---
+
+## Fix pass: reviewer-sg-pr76's B1 - the index's four CORNER cells had no witness
+
+- 2026-09-15T22:30:00Z **B1 reproduced by hand before anything was written.** Replaced `neighbourhood` with
+  `[(-1, 0), (0, -1), (0, 0), (0, 1), (1, 0)]` - the 3x3 index minus its four corners - and ran the
+  delivered suite: `Test run with 41 tests in 6 suites passed`, exit 0, **zero failing test names**. Subject
+  md5 taken from `git show HEAD:` before the mutation and after the restore, `7f93452ba6bd57104e8084bebf29bdf9`
+  both times.
+- 2026-09-15T22:30:00Z **Why the suite could not see it.** Both probes in
+  `indexNeverSeparatesAPairInsideTheRadius` are due EAST and due NORTH, and no fixture anywhere separates a
+  pair INSIDE the radius along a diagonal: `dividedOutAndBack` and the 40 m street offset their two passes
+  in latitude, and the out-and-back fixtures retrace themselves exactly, which lands in the same cell
+  whatever shape the cell is. A pair separated along an axis differs on ONE cell axis. So what was asserted
+  was the BOUND (`|dx| <= 1`, `|dy| <= 1`) and what was never asserted is the COVERAGE - that the search
+  visits the cell at (+-1, +-1) - which is the half RetraceDetector.swift:53 actually claims. **The bound is
+  not the guarantee**, and this is the third consecutive round on this file where a name and a source
+  comment asserted a property the assertion underneath did not cover.
+- 2026-09-15T22:30:00Z **Two witnesses, one per level, because the defect exists at both.**
+  (a) `theSearchCoversEveryCellAPairCanLandIn` places 24 probes one radius from the origin by **bisecting on
+  `Geo.distanceMeters`** - `eastUnits` carries a 1/cos(lat) RATIO so the bearings spread evenly, and the
+  LENGTH still comes from the decider, so nothing in the probe can cancel against the grid it probes - and
+  asserts BOTH halves: every cell offset that occurs is one `neighbourhood` contains, AND all four diagonal
+  offsets do occur. The second half is not decoration: an assertion over a set that never contains a corner
+  would be green against exactly the mutation it exists for.
+  (b) `RetraceDiagonalTests` drives a divided road on bearing 045, 1200 m each way, return carriageway 24 m
+  PERPENDICULAR, over twelve approach phases, and pins the retrace at the return leg's share of the route
+  (`1200 / (2400 + approach)`, held to 0.005 at every phase). It is the product statement: under the plus,
+  a third of a real road's retrace disappears, at some grid phases and not others.
+- 2026-09-15T22:30:00Z **The independent phase sweep is load-bearing, and I had to correct my own comment
+  about why.** A corner needs the pair to straddle a column boundary and a row boundary at once. I first
+  wrote that a single f "comes out as the five cells of a plus". Measured, that is false: one f moving both
+  anchors together yields SEVEN of the nine offsets over 24 bearings, and it is `(-1, 1)` and `(1, -1)` that
+  never occur - confirmed over a 20000-step sweep. Struck in commit `edec7dd`, with the measurement, rather
+  than corrected further down. Same commit struck "every route fixture in this repository is axis-aligned",
+  which `retraceAcrossNorth` (355/175, 350/010, 010/190) and `reversalInvariant` (200) make false.
+- 2026-09-15T22:30:00Z **RED, by NAME, read out of the output and never from an exit code.**
+  * plus-shaped neighbourhood -> 2 tests, 11 issues:
+    `every cell a pair inside the radius can land in is one the index actually searches` with one issue per
+    corner (`a pair 25.0 m apart on bearing 75 landed at cell offset (1, 1), which the index does not
+    search`, and 165 -> (1, -1), 255 -> (-1, -1), 285 -> (-1, 1)), and
+    `a divided road on a diagonal is retrace at every phase, corner cells included` at 7 of 12 phases
+    (`approach 0.0 m: measured 0.3382839184189396 retrace, not 0.5`).
+  * drop ONE corner -> 1 test, 1 issue, naming `(1, 1)`. Counting nine cells is not covering nine cells.
+  * the neighbourhood reduced to `[(0, 0)]` -> 4 tests by name, 57 issues (not the same mutation as
+    MUTATIONS' "search only the sample's own cell", which cuts the flatMap instead; both are caught).
+  * `indexCellMeters = retraceRadiusMeters` -> 4 tests by name, including the new one at offsets `(2, 0)`
+    and `(-2, 0)` - so the index test now witnesses the F1 defect from the coverage side as well.
+- 2026-09-15T22:30:00Z **The EQUIVALENT arm is the control on the new assertion.** `search a 5x5
+  neighbourhood` and `list the neighbourhood in a different order` both still go MISSED, so the new test has
+  an opinion about WHICH cells are covered and none about how the list is written. That arm is what would
+  catch a coverage assertion written in the over-matching direction.
+- 2026-09-15T22:30:00Z **B1's second half: a test whose name promised a witness it does not provide.**
+  `neighbourhoodIsOneCellNotTwo` was named *"a street 40 m away is a different road, so the neighbourhood
+  must not grow"*, and its comment said "the reach needs a witness on BOTH sides". Widening to 5x5 has been
+  EQUIVALENT since the distance test went in - this harness's own EQUIVALENT arm records it and every run
+  confirms it goes MISSED - so the name claimed a witness that does not exist. Renamed to "whatever reach
+  the index has", and the comment now says what it pins (the radius, from the far side) and where the other
+  side is witnessed. Not deleted: what it does assert is true.
+- 2026-09-15T22:30:00Z **Harness: two mutations added, and every arm now has a floor equal to its own
+  population.** `MIN_MUTATIONS` 21 -> 23. `MIN_EQUIVALENT` was **1 against a population of 2** and
+  `KNOWN_MISSED` had **no floor at all** (`known_ok` compared 0 == 0), which reviewer-sg-pr76 demonstrated by
+  deleting an equivalent mutant and then all four recorded gaps and still getting a clean sheet at exit 0.
+  RED for each, in one run: 22 mutations -> REFUSE, 1 equivalent -> REFUSE, 3 known gaps -> REFUSE, all
+  exit 2.
+- 2026-09-15T22:30:00Z **The harness now refuses a tree that is not the committed one.** `git show HEAD:` for
+  the subject and every test file, compared BEFORE any build, and again after the restore instead of against
+  the bytes this process happened to load. RED both ways: an already-mutated `RetraceDetector.swift` and an
+  edited `RetraceDiagonalTests.swift` each produce `REFUSING: ... differs from git show HEAD:` with both
+  md5s, exit 2, nothing built. The cost is real and worth naming: you must commit before you can measure.
+- 2026-09-15T22:30:00Z **TEST_FILES gained `RetraceDiagonalTests.swift` in the SAME commit as the file**
+  ([[T-0132]], five occurrences). Decay refused in both directions, measured: drop `RetraceIndexTests.swift`
+  from the list and `--prove-vacuity` reports `VACUITY PROOF FAILED: caught=1 (need 0)`, exit 1; drop
+  `RetraceDiagonalTests.swift` and it reports `baseline does not build`, exit 2 - the two files share one
+  probe, so emptying the index file while leaving the diagonal file in place does not compile. Neither reads
+  as green; the second names the build rather than the omission, which is written at `TEST_FILES`.
+- 2026-09-15T22:30:00Z **B2: the acceptance NOTE did not reproduce, so the NOTE is what changed.** *"Only the
+  constants pin fails there, and it is a policy margin"* is false at 1.002x: `cells are square in metres, at
+  every latitude` fails too (`60 m should be one 50 m cell away, got 2`), because its 60 m probe against a
+  50 m cell is entangled with `indexCellMeters`. At 1.5x the NOTE was right - the policy pin is the only
+  failure. Struck in the frontmatter itself, not corrected further down. The whole acceptance block was
+  re-run line by line against this tree, counts included.
+- 2026-09-15T22:30:00Z GREEN: `swift test` -> **43 tests in 7 suites passed**, exit 0.
+  `python ops/mutate/retrace.py` -> **23 of 23 caught by a named test**, 0 trapped, 0 compile-only, 0 MISSED,
+  0 skipped, exit 0 (KNOWN GAPS 3 MISSED + 1 trapped of 4; EQUIVALENT 2 MISSED of 2).
+  `--prove-vacuity` -> `caught=0 (need 0) and MISSED=23 of 23`, exit 0.
+  `bash ops/check-pins --source-only` -> `PINS ok=4 skipped=9 pending=0 expired=0 failed=0`.
+  `bash ops/queue-check` -> `QUEUE OK (109 tasks)`. Lines: RetraceDetector 225, DetectorTests 268,
+  GridTests 245, IndexTests 180, DiagonalTests 100 - all under the cap.
+- 2026-09-15T22:30:00Z NOT MINE THIS ROUND, and left open rather than half-closed: **N1** (the mutation named
+  "give the index cell too little margin for the scale error" is caught by the constants pin, not by a
+  guarantee break - the name overstates what the suite detects; measured again here: at 1.002x the guarantee
+  test and the new coverage test are both GREEN), **N3** (`exactlyTheThresholdIsAcceptable` never calls
+  `isAcceptableLoop`) and **N4** (M4 is in neither MUTATIONS nor KNOWN_MISSED). Each is a live finding
+  against this branch and none is closed by this pass. `ops/mutate/retrace.py` is now **459 lines**, still
+  outside P-SRC-02's `Sources/**` and `Tests/**` walk, still flagged against T-0058. `bash ops/test` exits 1
+  on `services/api exists but vitest produced no report` - checked, not attributed: `services/api/node_modules`
+  is absent on this branch and on main alike, which is T-0040.
