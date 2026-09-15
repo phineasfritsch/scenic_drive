@@ -24,7 +24,8 @@ SRC = ROOT / "Sources" / "ScenicKit" / "Loop" / "RetraceDetector.swift"
 # first one and correctly reported FAILED with 7 mutations still caught - the proof caught the split before
 # I did.
 TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "RetraceDetectorTests.swift",
-              ROOT / "Tests" / "ScenicKitTests" / "RetraceGridTests.swift"]
+              ROOT / "Tests" / "ScenicKitTests" / "RetraceGridTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "RetraceIndexTests.swift"]
 SCRATCH = ".build-mutate-retrace"
 
 def empty_suite(path: pathlib.Path) -> str:

@@ -15,7 +15,7 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 41 tests in 5 suites passed, exit 0"
+  - "swift test -> 41 tests in 6 suites passed, exit 0"
   - "python ops/mutate/retrace.py -> 21 of 21 caught by a named test; 0 trapped, 0 compile-only, 0 MISSED, 0 skipped; exit 0"
   - "python ops/mutate/retrace.py --prove-vacuity -> caught=0 and MISSED=21 of 21, exit 0"
   - "RED: emptying MUTATIONS makes the harness REFUSE with 'A harness that examines nothing exits 0 and proves nothing', exit 2"
@@ -160,3 +160,4 @@ caught, and `cE.x == 1` is asserted directly rather than only against `cN.y`.
 - 2026-09-15T06:00:00Z **The floor did not refuse what its own comment said it refused.** `MIN_MUTATIONS = 16` against a population of 21 meant five mutations could be deleted one at a time, each with a plausible reason, while the run still printed a clean sheet - which is precisely the failure the floor was added to prevent, and the reviewer of a sibling demonstrated it by deleting both motorway mutations and getting `18 of 18 ... exit 0`. Set to the real count. RED: deleting exactly ONE mutation now gives `REFUSING: 20 mutations ... expected at least 21`, exit 2.
 - 2026-09-15T06:00:00Z The baseline build is retried, matching every mutation build (T-0132's second defect: a fresh scratch directory on this box can fail once with an I/O 512 symlink error, and a single attempt turns that into "baseline does not build" with nothing measured).
 - 2026-09-15T06:00:00Z GREEN: `swift test` -> **41 tests in 5 suites passed**. `python ops/mutate/retrace.py` -> **21 of 21 caught by a named test**, 0 trapped, 0 compile-only, 0 MISSED, 0 skipped, exit 0. `--prove-vacuity` -> `caught=0 (need 0) and MISSED=21 of 21`, exit 0.
+- 2026-09-15T19:00:00Z **CI caught what I did not run.** The rewrite took `RetraceGridTests.swift` to 328 lines and I pushed without re-running `ops/check-pins --source-only`, so P-SRC-02 went red on the 300-line cap - the one gate I had not repeated after the change. Split along the real seam: `RetraceGridTests` asks what verdict a ROUTE gets, `RetraceIndexTests` asks the question underneath it - can the index ever separate a pair the distance test would have accepted. 241 and 110 lines. `ops/mutate/retrace.py`'s `TEST_FILES` gained the new file **in the same commit**, because a split the vacuity proof does not know about silently stops it emptying all the tests ([[T-0132]], five occurrences). Re-verified: `PINS ok=4 skipped=9 pending=0 expired=0 failed=0`, 41 tests in 6 suites, `--prove-vacuity` caught=0 MISSED=21 of 21.
