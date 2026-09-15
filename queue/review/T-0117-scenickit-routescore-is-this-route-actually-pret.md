@@ -15,12 +15,13 @@ reviewer: agent/rvw4-pr73
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 40 tests in 6 suites passed, exit 0"
-  - "python ops/mutate/routescore.py -> 31 of 31 caught by a named test; 0 trapped, 0 compile-only, 0 MISSED, 0 skipped; both EQUIVALENT mutants MISSED as required; exit 0"
-  - "RED: python ops/mutate/routescore.py --prove-vacuity -> caught=0 and MISSED=31 of 31 with the tests replaced by empty suites, exit 0"
-  - "RED: the same harness with every anchor stale -> VACUITY PROOF FAILED, exit 1"
-  - "RED: emptying MUTATIONS makes the harness REFUSE ('A harness that examines nothing exits 0 and proves nothing'), exit 2"
-  - "NOTE: ops/test exits 1 everywhere with 'services/api exists but vitest produced no report' - services/api/node_modules is absent on this box and on main. Environmental, filed as T-0040, not this PR. The previous acceptance line claimed a TESTS summary this command never reaches."
+  - "swift test --scratch-path <yours> -> 'Test run with 42 tests in 6 suites passed', exit 0"
+  - "python ops/mutate/routescore.py -> 'caught by a named test: 36 of 36   (trapped 0, compile-only 0, MISSED 0, skipped 0)'; both EQUIVALENT mutants MISSED as required; exit 0"
+  - "RED: python ops/mutate/routescore.py --prove-vacuity -> 'VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=36 of 36', exit 0"
+  - "RED: the same harness with every anchor stale, population size untouched, --prove-vacuity -> 36 SKIP lines and 'VACUITY PROOF FAILED: with no tests present, caught=0 (need 0) and MISSED=0 of 36', exit 1"
+  - "RED: DELETING any mutation now refuses. Removing the two restored '>=' -> '>' mutations (36 -> 34) gives 'REFUSING: 34 mutations and 2 equivalent mutants, expected at least 36 and 2.' / 'A harness that examines nothing exits 0 and proves nothing.', exit 2. At MIN_MUTATIONS = 28 that same deletion printed '29 of 29' and exited 0 - that was F1."
+  - "RED: ADDING a mutation without raising the floor also refuses (36 -> 37): 'REFUSING: 37 mutations and 2 equivalent mutants against floors of 36 and 2.' / 'The floor is slack by 1 and 0, so that many could be deleted again in silence', exit 2."
+  - "ops/test -> 'TESTS linux=145/76 ios=skipped failed=0 skipped=0' then 'OK', exit 0 - WHERE services/api/node_modules is present (npm ci in services/api from the committed lockfile, ~7 s). Where it is absent, main included, it exits 1 at the Worker tier with 'services/api exists but vitest produced no report' before reaching the TESTS line. Environmental, T-0040; no JS or TS in this diff."
 ---
 ## Brief
 
@@ -373,3 +374,161 @@ measured with controls rather than read off the diff. All three are now closed.
 - 2026-09-09T02:40:00Z `RouteScoreBoundaryTests.swift` reached 321 lines with the witness test in it, over the 300 cap. The exact-double witnesses moved to `RouteScoreWitnessTests.swift` - they need hex float literals and a rationale of their own, so the split follows a real seam. **The harness's `TESTS` tuple was updated in the same commit**, because a suite split the vacuity proof does not know about silently stops it emptying all the tests, which has now happened five times here ([[T-0132]]).
 - 2026-09-09T02:40:00Z GREEN: `swift test` -> **40 tests in 6 suites passed**. `python ops/mutate/routescore.py` -> **31 of 31 caught by a named test**, 0 trapped, 0 compile-only, 0 MISSED, 0 skipped, exit 0. `--prove-vacuity` -> `caught=0 (need 0) and MISSED=31 of 31`, exit 0. `bash ops/check-pins` -> `ok=11 skipped=0 pending=2 expired=0 failed=0`.
 - 2026-09-09T02:40:00Z NOT CLOSED, and named rather than left implied: the reviewer's N1 (the tolerance USE SITES survive replacement by a literal down to `1e-6` on the episode site and `1e-5` on the percentile site), N2 and N3 (two arithmetic claims in comments that are wrong - 7.93% written as 9.6%, three orders of magnitude written as six), and N4 (a comment whose stated scope exceeds its assertion on long routes). N2 and N3 are comment defects in a file whose subject is checks that claim more than they cover, so they should not sit long.
+
+---
+
+## Fourth review pass: agent/so-pr73 returned FAIL on three blocking findings. All three are closed.
+
+Every number below was re-measured in this worktree (`.worktrees/T-0117`, scratch `.build-T0117d`); nothing
+is copied from the report. The independent Python replays are `.artifacts/t117d-measure.py` and
+`t117d-band.py`, the survived/caught probes `.artifacts/t117d-probe.py`, the floor repro
+`.artifacts/t117d-floor.py`, the stale-anchor run `.artifacts/t117d-stale.py`.
+
+### F1 - the population floor did not refuse the deletion its own comment named. CLOSED.
+
+`MIN_MUTATIONS = 28` against `len(MUTATIONS) = 31`. Reproduced first, with no tracked file edited:
+
+    population 31 -> 29 ; MIN_MUTATIONS = 28
+    BASELINE                                                              exit=0
+    caught by a named test: 29 of 29   (trapped 0, compile-only 0, MISSED 0, skipped 0)
+    EXIT=0        <- no REFUSING line. The exact state the sign-off round blocked on.
+
+Three mutations of slack, and the comment above the constant presented it as the cure for precisely the
+31 -> 29 deletion it does not notice. The floor is now the EXACT population, and the check is two-sided,
+because a floor set below the population is how the slack got there in the first place:
+
+    36 -> 34 (the two restored `>=` -> `>`)  REFUSING: 34 mutations ... expected at least 36 and 2.  exit 2
+    36 -> 35 (any single deletion)           REFUSING: 35 mutations ... expected at least 36 and 2.  exit 2
+    36 -> 37 (added, floor not raised)       REFUSING: ... The floor is slack by 1 and 0 ...          exit 2
+    MUTATIONS=[] and EQUIVALENT=[]           REFUSING: 0 mutations ... exits 0 and proves nothing.    exit 2
+
+Adding a mutation now costs one more edited line in the same commit. That is the price of the acceptance
+line's "36 of 36" meaning anything.
+
+### F2 - the twin of the restored comparison was uncovered. CLOSED, with a mutation and a witness.
+
+`for (i, c) in running.enumerated() where c >= target - tolerance` is the same `>=`-against-a-tolerated-
+boundary comparison as the two episode closing sites this commit exists to re-pin. SURVIVED, measured
+against the shipped source before any fix:
+
+    PROBE F2: percentile boundary: `>=` -> `>`
+      swift test exit=0   Test run with 40 tests in 6 suites passed
+      SURVIVED: no named test recorded an issue
+
+**The witness was not placed by computing anything from RouteScore.** `>=` and `>` differ only where
+`c == target - tolerance` exactly as a double; with a 1000 m high edge that is a fixed point of
+`a == (a + 1000)*0.9 - (a + 1000)*1e-9`. I solved it in Python by walking outward from the algebraic root
+with `nextafter` and comparing bit patterns - and the measurement corrected my own first design, which is
+worth recording because it is this session's signature defect in miniature: I had assumed the solution was
+a single double and that one ulp below it would land on the other side. **It is a BAND of ten consecutive
+doubles** (`0x1.193fffcb923a1p+13` ... `0x1.193fffcb923aap+13`), because the bound is flat under rounding
+across them - so "one ulp below" is still inside the band and would have asserted nothing. The fixture sits
+FIVE ulps into the band, five from either edge.
+
+    @Test("the percentile boundary landing exactly on the tolerated bound takes the lower score")
+
+    [0x1.193fffcb923a6p+13 @0.1, 1000 @0.9] -> p90 == 0.1   (mutant returns 0.9)
+    [0x1.193fffcb92399p+13 @0.1, 1000 @0.9] -> p90 == 0.9   (eight ulps below the band)
+
+Both expected values are the fixtures' own literal scores, not anything the function computed. RED then
+green, by failing test NAME:
+
+    PROBE F2 after   swift test exit=1   Test run with 42 tests in 6 suites failed ... with 1 issue
+      CAUGHT by 1 named test: "the percentile boundary landing exactly on the tolerated bound takes the
+      lower score"
+
+### F3 - the restored-mutation comment was false by measurement. CORRECTED.
+
+It gave the witness condition as the fixed point `X == 800.0 - X * 1e-9` and then claimed
+`0x1.8ffffff94a036p+9` discriminates "at BOTH closing sites". Measured on the suite's own shape:
+
+    [0x1.8ffffff94a036p+9 @0.9, 200 @0.1]   scale 999.9999992, bound 799.999999
+    episodes(>=) = 1  AND  episodes(>) = 1          <- no discrimination at the in-loop site at all
+
+Reaching the in-loop site requires a following edge with positive length, so `scale > X`, so the bound
+falls BELOW X and `>` is satisfied too. The in-loop condition is `X == 800.0 - (X + dull) * 1e-9`, which is
+why the test beside it always needed the other constant (`0x1.8ffffff79c843p+9`) and always stated the
+equation correctly. Only the harness prose was wrong; it now states both sites separately, with the
+measurement of the false claim written next to it.
+
+### N1 - the same defect INSIDE the fix written to close the last round. CLOSED.
+
+`RouteScoreWitnessTests` said "one ulp below it is NOT an episode, so this test pins the comparison" and
+then asserted `episodes([ScoredEdge(length: 700.0, score: 0.9)]) == 0` - 100 m below the boundary, eleven
+orders of magnitude out. The property was true and nothing checked it. The assertion is now the real one,
+`0x1.8ffffff94a035p+9` (799.9999991999999, exactly one ulp below the at-end witness, gap
+1.1368683772161603e-13 m), in a test of its own. The coarse case is not lost: `thresholdStrictness`
+already pins 799 m at zero.
+
+### N2 and N3 - the tolerance USE SITES, disclosed-and-unclosed for two rounds. CLOSED.
+
+The constant was pinned; the two multiplications that apply it were not. All three survived the suite:
+
+    percentile tolerance made ABSOLUTE (N3)          SURVIVED -> caught by the F2 witness
+    percentile tolerance inlined at total*1e-5 (N2)  SURVIVED -> caught by the F2 far-side fixture
+    episode tolerance inlined at scale*1e-6  (N2)    SURVIVED -> caught by the one-ulp-below fixture
+
+This is why the two fixtures at each site STRADDLE the boundary rather than sitting on it. Measured flip
+points: the episode pair refuses any tolerance constant at or above `1.0000000837403711e-09`, the
+percentile pair any at or above `1.0000001666368189e-09`. Five mutations added, 31 -> 36, all five caught:
+
+    caught      require the percentile boundary to be EXCEEDED rather than reached            exit=1
+    caught      inline the percentile tolerance use site at 1e-5 of route length              exit=1
+    caught      make the percentile tolerance absolute instead of relative to route length    exit=1
+    caught      inline the episode tolerance use site at 1e-6 of route length                 exit=1
+    caught      make the episode tolerance absolute instead of relative to route length       exit=1
+
+### N4 - two arithmetic claims in comments that are wrong. CORRECTED, both divided rather than believed.
+
+    RouteScoreBoundaryTests "a 9.6% relative move"  -> 0.420333 -> 0.387 is 7.930214%. 9.6% belongs to the
+                                                       OTHER fixture [800 @0.9, 2000 @0.1] (0.348333 ->
+                                                       0.315 = 9.569%), quoted correctly in `episodes`.
+    RouteScore.episodes "six orders of magnitude"   -> 1 mm against 1 m is three. The conclusion survives;
+                                                       only the number was wrong.
+
+### Harness rules, each re-checked rather than inherited
+
+  * **Floor vs real population**: was 28 vs 31, now 36 vs 36, two-sided. Demonstrated red four ways above.
+  * **Baseline build retried**: `if build() != 0 and build() != 0` is present at BOTH sites
+    (`routescore.py:340` mutation, `:389` baseline). Unchanged by this pass; verified by grep, not assumed.
+  * **`--prove-vacuity` empties EVERY file that could catch a mutation**: `TESTS` carries all three
+    RouteScore files, and `grep -l 'RouteScore\|ScoredEdge'` over the other four files in
+    `Tests/ScenicKitTests/` returns nothing, so there is no fourth file to miss. The run returns
+    `caught=0 (need 0) and MISSED=36 of 36`, exit 0 - and completeness is self-proving here, because a file
+    left un-emptied would show up as a catch or a non-MISSED. The two tests added this pass went into
+    `RouteScoreWitnessTests.swift`, already in `TESTS`, so no new drift.
+  * **The EQUIVALENT arm requires MISSED specifically**: with every anchor stale the two equivalents SKIP
+    rather than MISS and the run prints `EQUIVALENT ARM FAILED: 0 of 2 went MISSED as required`, exit 1.
+  * **SKIP is its own bucket**: 36 SKIP, `caught ... (trapped 0, compile-only 0, MISSED 0, skipped 36)`.
+
+### Demo discipline
+
+Every probe mutates a tracked file and restores it. The restore is verified by hashing the bytes and
+comparing - `git rev-parse HEAD:<path>` for the before-runs, the captured pre-run blob for the after-runs -
+not by trusting a `finally`. All eight probe runs reported `restored=True`, and `git status --porcelain`
+after every run shows only the four files this pass intends to change.
+
+### Found, NOT fixed, and out of scope by this repository's own rules
+
+`pins/floor_linux.txt` is **76** against a real `ops/test` count of **145** - 69 of slack, the exact F1
+shape one level up: 69 linux tests could be deleted with `ops/test` still green. I did not touch it. It is
+a serial-only file (CLAUDE.md) that this task does not hold `exclusive:` on, it is outside this task's
+`touches:`, and `ops/test` says floors "are ratcheted UP by a reviewer only". It needs its own task.
+
+Also named rather than implied: the acceptance NOTE about `ops/test` is now **conditional**, because the
+old one does not reproduce. `services/api/node_modules` is PRESENT in this worktree and absent on main, so
+the command exits 0 here with `TESTS linux=145/76 ios=skipped failed=0 skipped=0` and exits 1 only where
+that directory is missing. The previous line claimed it "exits 1 everywhere"; that is not true on this box,
+and it is the third round in a row an acceptance line has been wrong about this command.
+
+### GREEN
+
+    swift test --scratch-path .build-T0117d          Test run with 42 tests in 6 suites passed      exit 0
+    python ops/mutate/routescore.py                  caught by a named test: 36 of 36               exit 0
+                                                     (trapped 0, compile-only 0, MISSED 0, skipped 0)
+                                                     both EQUIVALENT mutants MISSED
+    python ops/mutate/routescore.py --prove-vacuity  caught=0 (need 0) and MISSED=36 of 36          exit 0
+    bash ops/test                                    TESTS linux=145/76 ios=skipped failed=0        exit 0
+    bash ops/check-pins                              PINS ok=11 pending=2 expired=0 failed=0        exit 0
+    bash ops/check-pins --source-only                PINS ok=4 skipped=9 pending=0 failed=0         exit 0
+    bash ops/queue-check                             QUEUE OK (107 tasks)                           exit 0

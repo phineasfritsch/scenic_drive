@@ -192,8 +192,11 @@ public struct RouteScore: Equatable, Sendable {
     /// 21, 22, 24, 26, 27, 29, 31, 34, 36, 38.
     static func episodes(_ edges: [ScoredEdge]) -> Int {
         // Same scale as the percentile's: the route's own length. That is at most a millimetre on a
-        // 1000 km trip, six orders of magnitude below the 1 m margin `thresholdStrictness` pins at 799 m,
-        // so it cannot promote a run that is genuinely short into an episode.
+        // 1000 km trip, THREE orders of magnitude below the 1 m margin `thresholdStrictness` pins at 799 m,
+        // so it cannot promote a run that is genuinely short into an episode. (It said six until someone
+        // divided: 1 mm against 1 m is 1e3, not 1e6. The conclusion survives the correction, which is why
+        // nothing but the number changed - but a comment in this file claiming more than it can show is
+        // the defect this whole type keeps being reviewed for.)
         var scale = 0.0
         for e in edges { scale += e.length }
         let tolerance = scale * Self.boundaryTolerance

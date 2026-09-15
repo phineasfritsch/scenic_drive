@@ -154,8 +154,10 @@ struct RouteScoreBoundaryTests {
         //   episodes = 1
         //   0.60*0.42 + 0.25*0.9 - 0.15*0.6 + 0.10*(1/3)
         //     = 0.252 + 0.225 - 0.09 + 0.0333333...                                = 0.4203333...
-        // Losing the episode drops the last term and gives 0.387: a 9.6% relative move on a statistic the
-        // plan pins at 0.5% and this suite pins at 1e-9.
+        // Losing the episode drops the last term and gives 0.387: a 7.93% relative move on a statistic the
+        // plan pins at 0.5% and this suite pins at 1e-9. (It said 9.6% until someone divided. 9.6% is the
+        // OTHER fixture, [800 m @ 0.9, 2000 m @ 0.1], where 0.348333 -> 0.315 is 9.57% - quoted correctly
+        // in `RouteScore.episodes`. Here 0.033333/0.420333 is 7.93%.)
         let expected = 0.60 * 0.42 + 0.25 * 0.9 - 0.15 * 0.6 + 0.10 * (1.0 / 3.0)
         for k in 1...40 {
             let s = try #require(RouteScore(edges: RouteScoreTests.split(closedByADullStretch, into: k)))

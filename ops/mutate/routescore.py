@@ -58,7 +58,22 @@ EPISODE_ATEND = ("        }\n"
 # the acceptance block). It did not detect a deleted POPULATION - and that is the one that happened here,
 # when the `>=` -> `>` mutation was removed and nothing said the count had fallen. ops/lib/check-exec-bits
 # refuses below MIN_FILES = 17 for the same reason.
-MIN_MUTATIONS = 28
+#
+# THE FLOORS ARE THE EXACT POPULATION, AND THAT IS THE WHOLE POINT. The first attempt at this fix set
+# MIN_MUTATIONS = 28 against a population of 31 and the paragraph above claimed it caught the deletion that
+# had just happened. It did not, and the review measured it: deleting exactly the two restored
+# `>=` -> `>` mutations leaves 29, and the run prints "caught by a named test: 29 of 29", no REFUSING line,
+# exit 0 - byte for byte the state the sign-off round blocked on. A floor with three mutations of slack and
+# no stated reason for the slack refuses nothing anyone would actually do.
+#
+# So the check is two-sided, and both sides are demonstrated red in the acceptance block:
+#   len(MUTATIONS) < MIN_MUTATIONS   the population FELL - something was deleted.
+#   len(MUTATIONS) > MIN_MUTATIONS   the floor went SLACK - a mutation was added and the floor was not
+#                                    raised with it, which silently re-opens the hole by exactly the slack.
+# Adding a mutation therefore costs one more edited line in the same commit. That is cheaper than a floor
+# nobody can read a guarantee off, and it is the only reason the acceptance line's "36 of 36" means
+# anything at all.
+MIN_MUTATIONS = 36
 MIN_EQUIVALENT = 2
 
 MUTATIONS = [
@@ -118,6 +133,38 @@ MUTATIONS = [
     ("flip the percentile boundary tolerance to the wrong side",
      "        for (i, c) in running.enumerated() where c >= target - tolerance {",
      "        for (i, c) in running.enumerated() where c >= target + tolerance {"),
+
+    # The TWIN of the two restored episode comparisons, at the percentile's own boundary - the same
+    # `>=`-against-a-tolerated-boundary shape, in the same file, and it was uncovered for the same reason:
+    # every mutation at this site moved the TOLERANCE and none reached the comparison itself. Measured
+    # against the shipped source, it survived all 40 tests. The discriminating input class is
+    # `c == target - tolerance` exactly as a double, and with a 1000 m high edge that is a BAND of ten
+    # consecutive doubles rather than one point; RouteScoreWitnessTests takes one five ulps into it.
+    ("require the percentile boundary to be EXCEEDED rather than reached",
+     "        for (i, c) in running.enumerated() where c >= target - tolerance {",
+     "        for (i, c) in running.enumerated() where c > target - tolerance {"),
+
+    # The tolerance USE SITES, as opposed to the constant. `boundaryTolerance` itself was pinned (widening
+    # it to 0.04 is caught above), while the two multiplications that APPLY it were not: both survived
+    # replacement by an inline literal - 1e-5 at the percentile, 1e-6 at the episode - with the whole suite
+    # green. "Relative to the route's own length, so it means the same thing for a 2 km loop and a 300 km
+    # road trip" is a claim in the doc comment on `boundaryTolerance`; making a use site ABSOLUTE is that
+    # claim's exact negation, and at the percentile it also survived.
+    ("inline the percentile tolerance use site at 1e-5 of route length",
+     "        let tolerance = total * Self.boundaryTolerance",
+     "        let tolerance = total * 1e-5"),
+
+    ("make the percentile tolerance absolute instead of relative to route length",
+     "        let tolerance = total * Self.boundaryTolerance",
+     "        let tolerance = Self.boundaryTolerance"),
+
+    ("inline the episode tolerance use site at 1e-6 of route length",
+     "        let tolerance = scale * Self.boundaryTolerance",
+     "        let tolerance = scale * 1e-6"),
+
+    ("make the episode tolerance absolute instead of relative to route length",
+     "        let tolerance = scale * Self.boundaryTolerance",
+     "        let tolerance = Self.boundaryTolerance"),
 
     ("percentile by index instead of by length",
      "        var running: [Double] = []",
@@ -194,10 +241,21 @@ MUTATIONS = [
     # drawn from it is false, which the sign-off reviewer of PR #73 showed with compiled witnesses.
     #
     # `>=` and `>` differ on exactly one input class: `run == episodeMinLength - tolerance` EXACTLY as a
-    # double. Since `tolerance = scale * 1e-9`, the witness condition is the fixed point
-    # `X == 800.0 - X * 1e-9`, and it has a one-parameter family of solutions rather than one lucky point.
-    # At 0x1.8ffffff94a036p+9 metres the shipped code counts 1 episode and the mutant counts 0, at BOTH
-    # closing sites, and the route score moves 0.798333... -> 0.765.
+    # double. `tolerance = scale * 1e-9` where `scale` is the WHOLE route, so the witness condition depends
+    # on what follows the run, and the two closing sites need two DIFFERENT constants:
+    #
+    #   at-end   the run is the whole route, so scale == X and the condition is X == 800.0 - X * 1e-9.
+    #            0x1.8ffffff94a036p+9 = 799.9999992 solves it. episodes(>=) = 1, episodes(>) = 0, and the
+    #            route score moves 0.798333... -> 0.765.
+    #   in-loop  a dull edge must FOLLOW to close the run, so scale == X + dull > X and the condition is
+    #            X == 800.0 - (X + dull) * 1e-9. With a 200 m tail, 0x1.8ffffff79c843p+9 = 799.999999
+    #            solves it. episodes(>=) = 1, episodes(>) = 0.
+    #
+    # CORRECTED: this comment used to give the at-end constant as the witness "at BOTH closing sites". That
+    # is false, and measurably so - on [0x1.8ffffff94a036p+9 @0.9, 200 @0.1] the scale is 999.9999992, the
+    # bound is 799.999999, and a run of 799.9999992 clears it under BOTH operators: episodes(>=) = 1 AND
+    # episodes(>) = 1, no discrimination at all. The test beside it always used the second constant and
+    # always stated the equation correctly; only this prose was wrong, in the one block the commit is about.
     #
     # The four tolerance mutations below do NOT cover it: every one of them mutates the TOLERANCE, and none
     # reaches the `>=` vs `>` comparison at the boundary itself. Deleting a previously-caught mutation with
@@ -303,6 +361,14 @@ def main(argv) -> int:
         sys.stdout.write("REFUSING: %d mutations and %d equivalent mutants, expected at least %d and %d.\n"
                          "A harness that examines nothing exits 0 and proves nothing.\n"
                          % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
+        return 2
+    if len(MUTATIONS) > MIN_MUTATIONS or len(EQUIVALENT) > MIN_EQUIVALENT:
+        sys.stdout.write("REFUSING: %d mutations and %d equivalent mutants against floors of %d and %d.\n"
+                         "The floor is slack by %d and %d, so that many could be deleted again in silence -\n"
+                         "which is exactly how the `>=` -> `>` pair went missing. Raise the floor in the\n"
+                         "same commit that adds the mutation.\n"
+                         % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT,
+                            len(MUTATIONS) - MIN_MUTATIONS, len(EQUIVALENT) - MIN_EQUIVALENT))
         return 2
     pristine = SRC.read_bytes()
     pristine_tests = {f: f.read_bytes() for f in TESTS}
