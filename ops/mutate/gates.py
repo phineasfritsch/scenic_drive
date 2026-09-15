@@ -46,6 +46,20 @@ def empty_suite(path: pathlib.Path) -> str:
             '}\n' % (name, name))
 
 
+# Floors on the HARNESS's own population.
+#
+# Found by the sign-off reviewer of PR #73, against this file specifically, while I was holding it up as the
+# corrected reference: `return 0 if caught == len(MUTATIONS) and eq_ok and known_ok else 1` is VACUOUSLY TRUE
+# on empty lists. Emptying the lists gives "caught by a named test: 0 of 0 ... exit 0" and, worse,
+# "VACUITY PROOF OK ... MISSED=0 of 0" - the vacuity proof certifying its own vacuity.
+#
+# The harness detected "my anchors rotted" and not "my population was deleted", and it is the second that
+# actually happens: a mutation gets removed with a plausible reason and nothing ever says the count fell.
+# ops/lib/check-exec-bits (MIN_FILES = 17) and ops/lib/check-line-cap (MIN_FILES = 5) both carry this guard,
+# and their headers say it is because this repository has already shipped the defect twice.
+MIN_MUTATIONS = 18
+MIN_EQUIVALENT = 1
+
 MUTATIONS = [
     # --- THE INVARIANT ------------------------------------------------------------------------------------
     # If only one mutation in this file is caught, it has to be this one.
@@ -208,6 +222,11 @@ def run_all(pristine, mutations):
 
 def main(argv) -> int:
     prove = "--prove-vacuity" in argv
+    if len(MUTATIONS) < MIN_MUTATIONS or len(EQUIVALENT) < MIN_EQUIVALENT:
+        sys.stdout.write("REFUSING: %d mutations and %d equivalent mutants, expected at least %d and %d.\n"
+                         "A harness that examines nothing exits 0 and proves nothing.\n"
+                         % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
+        return 2
     pristine = {f: f.read_bytes() for f in (GATES, DECISION)}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
     for f, b in pristine.items():
