@@ -2,14 +2,18 @@ import Foundation
 import Testing
 @testable import ScenicKit
 
-/// The other half of the budget promise: that the search actually SPENDS the extra minutes, that it
-/// costs a bounded number of router requests, and that it refuses rather than guesses.
+/// The other half of the budget promise: that the search actually SPENDS the extra minutes, and that it
+/// costs a bounded number of router requests while doing it.
 ///
-/// Split out of `LambdaSearchTests` at the 300-line cap. The split is along the section boundary the
-/// suite already had, not at an arbitrary line: `LambdaSearchTests` asks whether the ceiling holds,
-/// this asks whether the budget is used. Cutting at a line number would have left half of one argument
-/// in each file.
-@Suite("Lambda search - budget use, cost and refusals")
+/// Split out of `LambdaSearchTests` at the 300-line cap, and split again for the same reason when the
+/// refusals grew payload assertions - they are now `LambdaSearchRefusalTests`. Both cuts follow a section
+/// boundary this suite already had rather than a line number: `LambdaSearchTests` asks whether the ceiling
+/// holds, this asks whether the budget is used, and the third asks what happens when it cannot be.
+///
+/// A split is also the one edit that has silently broken the mutation harness before (a suite the vacuity
+/// proof did not know to empty), so `TEST_FILES` in ops/mutate/budget_mutations.py lists all three and
+/// `--prove-vacuity` fails loudly if one is missing.
+@Suite("Lambda search - budget use and cost")
 struct LambdaSearchBudgetUseTests {
 
     static let fastest: TimeInterval = 1800
@@ -71,46 +75,42 @@ struct LambdaSearchBudgetUseTests {
         #expect(out.lambda == 0)
     }
 
-    // MARK: - refusals
-
-    @Test("a router that overshoots even at lambda zero is refused, not rounded down to a breach")
-    func noFeasibleLambdaThrows() throws {
-        let search = try LambdaSearch(fastest: Self.fastest, budget: 60)
-        #expect(throws: BudgetError.self) {
-            _ = try search.search { _ in Self.fastest + 99_999 }
-        }
+    @Test("a cap below one is clamped to one, and a legal cap is left alone")
+    func capIsClampedToAtLeastOne() throws {
+        // F-E. Recorded in the harness as a KNOWN GAP reasoned "No behaviour to assert; the clamp is
+        // defensive" - a gap booked as permanent that one assertion closes. Half right: the clamp cannot
+        // change `evaluations`, because the seed runs before the loop. But `maxEvaluations` is PUBLIC and is
+        // what a caller reads to see how many router requests this may cost; unclamped it reads -5.
+        #expect(try LambdaSearch(fastest: Self.fastest, budget: Self.budget, maxEvaluations: 0)
+                    .maxEvaluations == 1)
+        #expect(try LambdaSearch(fastest: Self.fastest, budget: Self.budget, maxEvaluations: -5)
+                    .maxEvaluations == 1)
+        #expect(try LambdaSearch(fastest: Self.fastest, budget: Self.budget, maxEvaluations: 3)
+                    .maxEvaluations == 3, "3 is a legal cap and must survive the clamp unchanged")
     }
 
-    @Test("nonsense from the router is refused rather than compared",
-          arguments: [TimeInterval.nan, .infinity, -1])
-    func refusesNonsense(bad: TimeInterval) throws {
-        let search = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
-        #expect(throws: BudgetError.self) { _ = try search.search { _ in bad } }
-    }
-
-    @Test("invalid inputs are refused at construction",
-          arguments: [(TimeInterval(0), TimeInterval(60)), (-1, 60), (.nan, 60),
-                      (1800, -1), (1800, -0.5), (1800, -1e-9), (1800, .nan), (1800, .infinity)])
-    func refusesBadInputs(fastest: TimeInterval, budget: TimeInterval) {
-        #expect(throws: BudgetError.self) { _ = try LambdaSearch(fastest: fastest, budget: budget) }
-    }
-
-    @Test("the search propagates a router error rather than swallowing it")
-    func propagatesRouterErrors() throws {
-        struct Offline: Error {}
-        let search = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
-        #expect(throws: Offline.self) { _ = try search.search { _ in throw Offline() } }
-    }
-
-    @Test("extraTime reports what was actually bought")
+    @Test("extraTime reports what was bought, with the sign it was bought at")
     func extraTime() throws {
-        let search = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
-        let out = try search.search(Self.monotone(0.2))
-        #expect(out.extraTime(overFastest: Self.fastest) == out.duration - Self.fastest)
+        // The assertion here was `out.extraTime(...) == out.duration - Self.fastest`: the expected value
+        // recomputed from the result being checked, which is true of any implementation that combines those
+        // two numbers - including one that returns the magnitude and throws the sign away. Derived instead:
+        // monotone(0.2) is 1800 * (1 + 0.2 * lambda) against a 3300 s ceiling, so lambda 4 measures 3240 and
+        // is the slowest sample that still fits.
+        let out = try LambdaSearch(fastest: Self.fastest, budget: Self.budget).search(Self.monotone(0.2))
+        #expect(out.duration == 3240)
+        #expect(out.extraTime(overFastest: Self.fastest) == 1440)
         #expect(out.extraTime(overFastest: Self.fastest) <= Self.budget)
+
+        // F-H: every fixture in the suite had duration > fastest, so the SIGN had no witness and
+        // `abs(duration - fastest)` survived - the difference between "you saved a minute" and "you spent a
+        // minute". A later request coming back quicker than the recorded `fastest` is ordinary: `fastest`
+        // was measured on an earlier one.
+        let quicker = try LambdaSearch(fastest: Self.fastest, budget: 0).search { _ in Self.fastest - 60 }
+        #expect(quicker.duration == 1740)
+        #expect(quicker.extraTime(overFastest: Self.fastest) == -60)
     }
 
-    // MARK: - the boundaries and the errors (reviewer-pr71, findings F3 and F4)
+    // MARK: - the boundaries (reviewer-pr71, finding F3; the errors are in LambdaSearchRefusalTests)
 
     @Test("usedBudget is true at exactly half the budget and false just under it")
     func usedBudgetBoundaryIsExact() throws {
@@ -144,61 +144,15 @@ struct LambdaSearchBudgetUseTests {
         // short-circuit was MISSED until this case existed.
         let quicker = try LambdaSearch(fastest: Self.fastest, budget: 0).search { _ in Self.fastest - 60 }
         #expect(quicker.usedBudget, "a zero budget is spent by definition, whatever the router returned")
+
+        // And the short-circuit is for ZERO, not for "small". Widening it to `budget <= 0.5` changed 638
+        // cases in the standalone control - every one of them a budget being reported as spent when none of
+        // it was - and no test objected. 0.4 s is an absurd budget and a legal one; half of it is 0.2 s, and
+        // a route that buys 0 s has not bought that.
+        let tiny = try LambdaSearch(fastest: Self.fastest, budget: 0.4).search { _ in Self.fastest }
+        #expect(!tiny.usedBudget, "0.4 seconds is a budget, and none of it was spent")
     }
 
-    @Test("every BudgetError says what happened, in a sentence with the numbers in it")
-    func errorsDescribeThemselves() {
-        // F4: every error assertion in this suite was type-only, so 41 lines of public API - including the
-        // whole CustomStringConvertible conformance - had no behavioural coverage at all. These strings
-        // reach a log and a bug report, so they are pinned as text.
-        #expect(String(describing: BudgetError.notADuration(-1))
-                == "fastest duration is not a positive finite number of seconds: -1.0")
-        #expect(String(describing: BudgetError.notABudget(-5))
-                == "budget is not a non-negative finite number of seconds: -5.0")
-        #expect(String(describing: BudgetError.routerReturnedNonsense(lambda: 2.5, duration: -3))
-                == "router returned -3.0 s at lambda 2.5")
-        #expect(String(describing: BudgetError.noFeasibleLambda(ceiling: 3300, best: 4000, evaluations: 6))
-                == "no lambda produced a route within the 3300.0 s ceiling in 6 evaluations; "
-                + "the shortest seen was 4000.0 s")
-    }
-
-    @Test("the error carries the values, not just the case")
-    func errorsCarryTheirNumbers() throws {
-        // A typed throw whose payload is wrong is worse than an untyped one: it puts a plausible wrong number
-        // in front of whoever reads it. Pinned by pattern-matching the payload, not by the case alone.
-        do {
-            _ = try LambdaSearch(fastest: -1, budget: Self.budget)
-            Issue.record("a negative fastest duration must be refused")
-        } catch let e as BudgetError {
-            guard case let .notADuration(t) = e else {
-                Issue.record("wrong case: \(e)"); return
-            }
-            #expect(t == -1)
-        }
-
-        do {
-            _ = try LambdaSearch(fastest: Self.fastest, budget: -5)
-            Issue.record("a negative budget must be refused")
-        } catch let e as BudgetError {
-            guard case let .notABudget(b) = e else {
-                Issue.record("wrong case: \(e)"); return
-            }
-            #expect(b == -5)
-        }
-
-        do {
-            _ = try LambdaSearch(fastest: Self.fastest, budget: Self.budget).search { l in
-                l == 0 ? -7 : Self.fastest
-            }
-            Issue.record("a negative duration from the router must be refused")
-        } catch let e as BudgetError {
-            guard case let .routerReturnedNonsense(lambda, duration) = e else {
-                Issue.record("wrong case: \(e)"); return
-            }
-            #expect(lambda == 0)
-            #expect(duration == -7)
-        }
-    }
     @Test("the search stops on lambdaTolerance, not only on the evaluation cap")
     func toleranceTerminatesTheSearch() throws {
         // F2: reviewer-pr71 measured that the `hi - lo > lambdaTolerance` condition never fired in any test,

@@ -5,9 +5,19 @@ line names a file nobody else can run has no reproducible red evidence. Each mut
 mutation that does not compile is reported `compile-only` and does not count, since a compiler error is a
 fact about Swift and not about this suite.
 
-Run `--prove-vacuity` to check the harness itself: it replaces the test file with an empty suite and
-requires every mutation to report MISSED. A harness that still reports catches with no tests present is
-measuring the compiler.
+Run `--prove-vacuity` to check the harness itself: it replaces EVERY test file in TEST_FILES with an empty
+suite and requires every mutation to report MISSED. A harness that still reports catches with no tests
+present is measuring the compiler. Emptying only one of two suites is how this proof was false once; the
+wording is plural because the code is.
+
+The population it runs, and the floor under it, live in budget_mutations.py - split off at the 300-line cap.
+Contract, unchanged from ops/mutate/gates.py and T-0132:
+  * the pass condition is `caught == len(MUTATIONS)`; a trap, a compile failure and a stale anchor each FAIL;
+  * `--prove-vacuity` requires `caught == 0` AND `missed == len(MUTATIONS)`;
+  * the EQUIVALENT and KNOWN_MISSED arms require MISSED specifically, not merely "not caught";
+  * the baseline is built twice before it is called broken, like every mutation;
+  * an empty population REFUSES rather than reporting a clean sheet over nothing - `--prove-floor`
+    demonstrates that refusal, and costs no build.
 """
 from __future__ import annotations
 
@@ -17,17 +27,27 @@ import re
 import subprocess
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-SRC = ROOT / "Sources" / "ScenicKit" / "Budget" / "LambdaSearch.swift"
-ERR = ROOT / "Sources" / "ScenicKit" / "Budget" / "BudgetError.swift"
-# BOTH suites. reviewer-pr71's blocking finding: commit bc5e7f6 split ten tests into
-# LambdaSearchBudgetUseTests.swift and --prove-vacuity kept emptying only the first file, so it reported
-# "VACUITY PROOF FAILED: 8 mutations were reported caught" while the task log recorded OK. The harness's own
-# message - "with no tests present" - was false; it was measuring the sibling test file. A demonstration
-# that decayed at the last commit, and exactly the shape of defect this repository exists to catch.
-TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchTests.swift",
-              ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchBudgetUseTests.swift"]
+# The population lives next to this file, not on the caller's sys.path: `python ops/mutate/budget.py` from
+# the repo root and `./ops/mutate/budget.py` must both find it.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+from budget_mutations import (EQUIVALENT, KNOWN_MISSED, MIN_EQUIVALENT, MIN_MUTATIONS, MUTATIONS, ROOT,
+                              SUBJECTS, TEST_FILES)
+
 SCRATCH = ".build-mutate-budget"
+
+# A run that is KILLED - not failed, killed - dies between writing a mutation and the `finally` that puts the
+# file back, and leaves a mutated subject on disk. The next run then snapshots that mutant as `pristine`,
+# restores it at the end, and reports its verdicts against it. That happened on this box while this harness
+# was being fixed: a backgrounded run was killed mid-mutation, the following run recorded
+# `pristine LambdaSearch.swift md5 1f7512ba` - a file with `maxEvaluations: Int = 2` in it - and the working
+# tree kept the mutation afterwards.
+#
+# try/finally cannot defend against SIGKILL, so the defence is a sentinel: written before the first mutation,
+# removed after the last restore. Finding one at startup means the previous run did not finish, and this run
+# REFUSES rather than measuring whatever is on disk.
+SENTINEL = ROOT / ".artifacts" / "budget-mutation-in-flight"
+
 
 def empty_suite(path: pathlib.Path) -> str:
     """An empty suite named after the file it replaces - two identically-named structs would not compile, and
@@ -37,133 +57,6 @@ def empty_suite(path: pathlib.Path) -> str:
             '@Suite("empty %s") struct Empty%s {\n'
             '    @Test("nothing") func nothing() { #expect(true) }\n'
             '}\n' % (name, name))
-
-MUTATIONS = [
-    # --- structural: the author's original eight ------------------------------------------------------
-    ("return the bracket instead of a measured candidate", SRC,
-     "        return BudgetOutcome(\n            lambda: winner.lambda,\n"
-     "            duration: winner.duration,",
-     "        return BudgetOutcome(\n            lambda: lo,\n"
-     "            duration: winner.duration,"),
-
-    ("let the ceiling slip by one percent, on the guard that enforces it", SRC,
-     "            if d <= ceiling, best == nil || d > best!.duration",
-     "            if d <= ceiling * 1.01, best == nil || d > best!.duration"),
-
-    ("among feasible routes, prefer the fastest instead of the most scenic", SRC,
-     "            if d <= ceiling, best == nil || d > best!.duration",
-     "            if d <= ceiling, best == nil || d < best!.duration"),
-
-    ("skip the lambda = 0 seed and start from the bisection", SRC,
-     "        _ = try evaluate(0)",
-     "        // seed removed"),
-
-    ("trust the router's numbers", SRC,
-     "            guard d.isFinite, d >= 0 else {\n"
-     "                throw BudgetError.routerReturnedNonsense(lambda: lambda, duration: d)\n"
-     "            }",
-     "            // guard removed"),
-
-    ("compare only consecutive samples for monotonicity", SRC,
-     "        for a in samples {\n            for b in samples where b.lambda > a.lambda {\n"
-     "                if b.duration < a.duration { return true }\n            }\n        }",
-     "        for (a, b) in zip(samples, samples.dropFirst()) {\n"
-     "            if b.lambda > a.lambda && b.duration < a.duration { return true }\n        }"),
-
-    ("call the budget used whenever anything was found", SRC,
-     "usedBudget: budget == 0 || winner.duration >= fastest + Self.minBudgetUse * budget,",
-     "usedBudget: true,"),
-
-    ("keep the last feasible candidate rather than the best", SRC,
-     "            if d <= ceiling, best == nil || d > best!.duration\n"
-     "                || (d == best!.duration && lambda > best!.lambda) {",
-     "            if d <= ceiling {"),
-
-    # --- the six a reviewer found uncaught. Every mutation above is STRUCTURAL - delete a guard, invert a
-    # --- comparison - and not one touches a number, which is exactly where this suite was blind.
-    ("minBudgetUse 0.5 -> 0.05, so 90 seconds of a 25-minute budget counts as used", SRC,
-     "public static let minBudgetUse = 0.5",
-     "public static let minBudgetUse = 0.05"),
-
-    ("minBudgetUse 0.5 -> 0.95, so almost nothing ever counts as used", SRC,
-     "public static let minBudgetUse = 0.5",
-     "public static let minBudgetUse = 0.95"),
-
-    ("maxLambda 8 -> 16, sending four of six router requests into an infeasible region", SRC,
-     "public static let maxLambda = 8.0",
-     "public static let maxLambda = 16.0"),
-
-    ("lambdaTolerance 0.05 -> 0.75, giving back a router request for nothing", SRC,
-     "public static let lambdaTolerance = 0.05",
-     "public static let lambdaTolerance = 0.75"),
-
-    ("the ceiling is one second more generous than the budget", SRC,
-     "    public var ceiling: TimeInterval { fastest + budget }",
-     "    public var ceiling: TimeInterval { fastest + budget + 1 }"),
-
-    ("accept a fractionally negative budget", SRC,
-     "guard budget.isFinite, budget >= 0 else { throw BudgetError.notABudget(budget) }",
-     "guard budget.isFinite, budget > -1 else { throw BudgetError.notABudget(budget) }"),
-
-    # --- and two more of my own in the same spirit ----------------------------------------------------
-    ("default maxEvaluations from 6 to 2", SRC,
-     "maxEvaluations: Int = 6",
-     "maxEvaluations: Int = 2"),
-
-    ("drop the tie-break, keeping whichever equally fast route was seen first", SRC,
-     "                || (d == best!.duration && lambda > best!.lambda) {",
-     "                || (d == best!.duration && lambda < best!.lambda) {"),
-
-    # --- reviewer-pr71's findings F1 to F4 ----------------------------------------------------------------
-    # F3: the "at least half the budget" boundary had no witness on either side.
-    ("usedBudget becomes strict, so exactly half the budget stops counting", SRC,
-     "            usedBudget: budget == 0 || winner.duration >= fastest + Self.minBudgetUse * budget,",
-     "            usedBudget: budget == 0 || winner.duration > fastest + Self.minBudgetUse * budget,"),
-
-    ("a zero budget stops counting as used", SRC,
-     "            usedBudget: budget == 0 || winner.duration >= fastest + Self.minBudgetUse * budget,",
-     "            usedBudget: winner.duration >= fastest + Self.minBudgetUse * budget,"),
-
-    # F2: the tolerance termination fired in no test at all, so deleting it was free - and widening it gave
-    # back a router request for nothing, with the whole suite green.
-    ("drop the lambdaTolerance termination, spending router requests for nothing", SRC,
-     "        while evaluations < maxEvaluations, hi - lo > Self.lambdaTolerance {",
-     "        while evaluations < maxEvaluations {"),
-
-    # F4: BudgetError's whole CustomStringConvertible conformance had no behavioural coverage. These strings
-    # reach a log and a bug report.
-    ("the error message reports the lambda as the duration", ERR,
-     '            return "router returned \\(duration) s at lambda \\(lambda)"',
-     '            return "router returned \\(lambda) s at lambda \\(duration)"'),
-
-    ("the no-feasible-lambda message loses the ceiling it was measured against", ERR,
-     '            return "no lambda produced a route within the \\(ceiling) s ceiling in \\(evaluations) "',
-     '            return "no lambda produced a route within the ceiling in \\(evaluations) "'),
-
-    ("a bad budget is reported as a bad duration", SRC,
-     "        guard budget.isFinite, budget >= 0 else { throw BudgetError.notABudget(budget) }",
-     "        guard budget.isFinite, budget >= 0 else { throw BudgetError.notADuration(budget) }"),
-]
-
-# Mutations this suite is KNOWN not to catch, asserted the other way round.
-#
-# A gap merely absent from the list is a gap nobody can see. Each entry names why, and the harness FAILS if
-# one starts being caught - that means the gap closed and it should move up into MUTATIONS.
-KNOWN_MISSED = [
-    # reviewer-pr71's F7: the seed runs before the loop, so the clamp cannot change the number of
-    # evaluations. No behaviour to assert; the clamp is defensive and stays.
-    ("drop the max(1, ...) clamp on maxEvaluations", SRC,
-     "max(1, maxEvaluations)", "maxEvaluations"),
-]
-
-# Cannot change behaviour, so anything but MISSED is a FAILURE - a catch means a test has an opinion about
-# how the code is WRITTEN rather than what it DOES.
-EQUIVALENT = [
-    ("start the evaluation counter from a different literal zero", SRC,
-     "        var evaluations = 0",
-     "        var evaluations = 0o0"),
-]
-
 
 
 FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
@@ -216,23 +109,80 @@ def run_all(pristine, mutations):
     return out
 
 
+def population_ok() -> bool:
+    """A FLOOR on the harness's own evidence. `caught == len(MUTATIONS)` is satisfied by an empty list - 0 of
+    0, exit 0 - so an emptied or truncated population would report the cleanest sheet this file can print.
+    ops/lib/check-exec-bits refuses the same way with MIN_FILES. KNOWN_MISSED is exempt: empty there is the
+    honest state, and its own arm is what guards it."""
+    bad = []
+    if len(MUTATIONS) < MIN_MUTATIONS:
+        bad.append("MUTATIONS has %d, floor is %d" % (len(MUTATIONS), MIN_MUTATIONS))
+    if len(EQUIVALENT) < MIN_EQUIVALENT:
+        bad.append("EQUIVALENT has %d, floor is %d" % (len(EQUIVALENT), MIN_EQUIVALENT))
+    for b in bad:
+        sys.stdout.write("POPULATION FLOOR: %s. A shrunken list must never read as a clean sheet.\n" % b)
+    return not bad
+
+
+def prove_floor() -> int:
+    """`--prove-floor`: demonstrate the floor instead of asserting it. Empties the population, requires
+    population_ok() to REFUSE, puts it back and requires it to pass. Shipped as a flag rather than left in a
+    scratch script for the same reason this harness is tracked at all - a demonstration that only exists in
+    a gitignored directory is one nobody else can re-run. Costs no build."""
+    global MUTATIONS, EQUIVALENT
+    real = (MUTATIONS, EQUIVALENT)
+    try:
+        MUTATIONS, EQUIVALENT = [], []
+        sys.stdout.write("with the population emptied:\n")
+        refused = not population_ok()
+    finally:
+        MUTATIONS, EQUIVALENT = real
+    sys.stdout.write("with the real population (%d mutations, %d equivalent):\n"
+                     % (len(MUTATIONS), len(EQUIVALENT)))
+    restored = population_ok()
+    ok = refused and restored
+    sys.stdout.write("FLOOR PROOF %s: emptied -> refused=%s, real -> accepted=%s\n"
+                     "  (without this floor `caught == len(MUTATIONS)` reads 0 of 0 and exits 0)\n"
+                     % ("OK" if ok else "FAILED", refused, restored))
+    return 0 if ok else 1
+
+
 def main(argv) -> int:
     prove = "--prove-vacuity" in argv
-    pristine = {f: f.read_bytes() for f in (SRC, ERR)}
+    if "--prove-floor" in argv:
+        return prove_floor()
+    if not population_ok():
+        return 2
+    if SENTINEL.exists():
+        sys.stdout.write(
+            "REFUSING: %s exists, so the previous run was killed while a mutation was on disk.\n"
+            "  The subject files may still be mutated. A run starting now would snapshot a MUTATED file\n"
+            "  as `pristine`, measure every verdict against it, and restore the mutant afterwards.\n"
+            "  Check them - `git diff -- Sources/ScenicKit/Budget/` - restore, then delete the sentinel.\n"
+            % SENTINEL)
+        return 2
+    pristine = {f: f.read_bytes() for f in SUBJECTS}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
     for f, b in pristine.items():
         sys.stdout.write("pristine %-32s md5 %s\n" % (f.name, hashlib.md5(b).hexdigest()))
 
     eq = None
     known = None
+    SENTINEL.parent.mkdir(parents=True, exist_ok=True)
+    SENTINEL.write_text("mutating %s\n" % ", ".join(f.name for f in SUBJECTS), encoding="utf-8")
     try:
         if prove:
-            sys.stdout.write("PROVING NON-VACUITY: the test file is replaced by an empty suite, so every\n"
+            sys.stdout.write("PROVING NON-VACUITY: EVERY test file is replaced by an empty suite, so every\n"
                              "mutation must report MISSED - not merely 'not caught'.\n")
             for f in TEST_FILES:
                 f.write_text(empty_suite(f), encoding="utf-8", newline="\n")
 
-        if build() != 0:
+        # Built TWICE before the baseline is declared broken, for the same reason each mutation is (T-0132).
+        # On this Windows checkout a first build into a fresh scratch directory can fail with "unable to
+        # create symbolic link ... I/O error (code: 512)" and succeed immediately after. The mutation loop
+        # allowed for that and the baseline did not, so a transient failure would abort the whole run with
+        # "baseline does not build" and nothing would ever be measured.
+        if build() != 0 and build() != 0:
             sys.stdout.write("baseline does not build; nothing below would mean anything\n")
             return 2
         code, _ = test()
@@ -245,7 +195,10 @@ def main(argv) -> int:
 
         if not prove:
             sys.stdout.write("\nKNOWN GAPS - asserted MISSED on purpose; a catch here means the gap closed\n")
-            known = run_all(pristine, KNOWN_MISSED)
+            if KNOWN_MISSED:
+                known = run_all(pristine, KNOWN_MISSED)
+            else:
+                sys.stdout.write("  (none - every mutation above is claimed to be caught by a named test)\n")
             sys.stdout.write("\nEQUIVALENT MUTANTS - cannot change behaviour, so anything but MISSED is a FAILURE\n")
             eq = run_all(pristine, EQUIVALENT)
     finally:
@@ -253,6 +206,7 @@ def main(argv) -> int:
             f.write_bytes(b)
         for f, b in pristine_tests.items():
             f.write_bytes(b)
+        SENTINEL.unlink()
 
     if any(f.read_bytes() != b for f, b in pristine.items()) or any(f.read_bytes() != b for f, b in pristine_tests.items()):
         sys.stdout.write("RESTORE FAILED - the working tree is not pristine\n")
@@ -277,11 +231,14 @@ def main(argv) -> int:
                          % ("OK" if ok else "FAILED", len(r["caught"]), len(r["missed"]), len(MUTATIONS)))
         return 0 if ok else 1
 
-    known_ok = known is not None and len(known["missed"]) + len(known["trapped"]) == len(KNOWN_MISSED)
+    # MISSED specifically, on both arms. `missed + trapped` was the `caught + trapped` shape F6 was filed
+    # for, left standing in this one arm: a KNOWN_MISSED mutation that starts CRASHING the runner would keep
+    # the arm green instead of prompting a look at why a gap changed shape.
+    known_ok = not KNOWN_MISSED or (known is not None and len(known["missed"]) == len(KNOWN_MISSED))
     if not known_ok and known is not None:
-        sys.stdout.write("KNOWN-GAP ARM FAILED: %d of %d still uncaught. A gap that closed is good news - "
-                         "move it into MUTATIONS.\n" % (len(known["missed"]) + len(known["trapped"]),
-                                                        len(KNOWN_MISSED)))
+        sys.stdout.write("KNOWN-GAP ARM FAILED: %d of %d still MISSED. A gap that closed is good news - move "
+                         "it into MUTATIONS. A gap that now traps or fails to build is not a gap any more "
+                         "either.\n" % (len(known["missed"]), len(KNOWN_MISSED)))
     eq_ok = eq is not None and len(eq["missed"]) == len(EQUIVALENT)
     if not eq_ok and eq is not None:
         sys.stdout.write("EQUIVALENT ARM FAILED: %d of %d went MISSED as required; a catch means a test has an\n"

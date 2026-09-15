@@ -234,5 +234,52 @@ struct LambdaSearchTests {
         let samples: [(lambda: Double, duration: TimeInterval)] = [(0, 100), (4, 300), (2, 50)]
         #expect(LambdaSearch.violatesMonotonicity(samples))
         #expect(!LambdaSearch.violatesMonotonicity([(0, 100), (4, 300), (2, 200)]))
+
+        // And the OUTER loop has to reach every sample, including the last. Here the only violating pair is
+        // (2, 300) against (4, 100) - the smaller lambda of the pair arrived last - so a scan written
+        // `for a in samples.dropLast()` reports a real violation as none. That mutation survived the whole
+        // suite (F8/F-C); this is the pair that kills it.
+        #expect(LambdaSearch.violatesMonotonicity([(4, 100), (2, 300)]))
+        #expect(!LambdaSearch.violatesMonotonicity([(4, 300), (2, 100)]))
+
+        // Two samples at the SAME lambda are not a monotonicity violation whatever their durations: the
+        // property is that a LARGER lambda measured shorter. Loosening `>` to `>=` here accuses a router
+        // that merely answered the same question twice - my own mutation, and it survived until this line.
+        #expect(!LambdaSearch.violatesMonotonicity([(2, 300), (2, 100)]))
+    }
+
+    @Test("a violation lying entirely between two over-ceiling samples is still reported")
+    func reportsAViolationAmongInfeasibleSamples() throws {
+        // Two gaps meet here, and both are about what the scan is allowed to forget.
+        //
+        // F-G: `seen` records every sample, feasible or not, and nothing pinned that it does. Recording only
+        // the feasible ones survived the suite - on a curve like this one, where every scenic candidate is
+        // over the ceiling, that leaves the scan a single sample and nothing to compare it with. The same
+        // mutation also degrades the refusal message to "the shortest seen was inf s".
+        //
+        // F-C/F8: the scan's outer loop is `for a in samples`, and `samples.dropLast()` survived. The only
+        // violating pair on this curve is (0.25, 4500) against (2, 4000) - a larger lambda measuring 500 s
+        // QUICKER - and 0.25 is the last lambda the bisection visits.
+        //
+        // Visit order, derived from the constants: seed 0 -> 1800 is the only route that fits, so the
+        // bracket halves downward every pass - 4 -> 5000, 2 -> 4000, 1 -> 3500, 0.5 -> 3400, 0.25 -> 4500 -
+        // and stops on the cap of 6.
+        let spikeNearZero: (Double) -> TimeInterval = { lambda in
+            switch lambda {
+            case 0:       return Self.fastest        // 1800, the only feasible route on this curve
+            case ..<0.4:  return 4500
+            case ..<0.75: return 3400
+            case ..<1.5:  return 3500
+            case ..<3:    return 4000
+            default:      return 5000
+            }
+        }
+        let out = try LambdaSearch(fastest: Self.fastest, budget: Self.budget).search(spikeNearZero)
+        #expect(out.monotonicityViolated,
+                "lambda 2 measured 4000 s, lambda 0.25 measured 4500 s: both over the ceiling, still a violation")
+        #expect(out.evaluations == 6)
+        #expect(out.lambda == 0)
+        #expect(out.duration == Self.fastest)
+        #expect(out.duration <= Self.fastest + Self.budget)   // 3300, computed here, not read off the result
     }
 }
