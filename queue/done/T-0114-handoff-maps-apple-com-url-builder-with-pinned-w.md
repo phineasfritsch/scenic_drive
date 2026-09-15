@@ -1,7 +1,7 @@
 ---
 id: T-0114
 title: Handoff: maps.apple.com URL builder with pinned waypoints, the whole payload of the walking skeleton
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T13:14:26Z
@@ -11,7 +11,7 @@ branch: task/T-0114
 exclusive: [Package.swift]
 touches: [Package.swift, Sources/Handoff/, Tests/HandoffTests/, ops/mutate/]
 pins_affected: []
-reviewer: null
+reviewer: agent/so-pr70
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -743,3 +743,81 @@ half is the closed one.
   The generalisation is recorded on [[T-0130]]: a red demo that mutates a tracked file and relies on a
   `finally` to restore it has a window, minutes long, in which the process can die. That is a second source
   of the same hazard the task was filed for, and it needs no second agent.
+
+- 2026-09-15 **Fifth review, PR #70, by agent/so-pr70 (owner agent/claude-opus-5). PASS.** Four detached
+  reviewer worktrees, each with its own `--scratch-path`; sources extracted with `git show HEAD:<path>`, never
+  copied from a working tree; every subject hashed against HEAD before and after each run. All four worktrees
+  end clean with `git hash-object == git rev-parse HEAD:<path>` on every subject and test file.
+
+  **Acceptance, all four re-run and matching character for character**
+
+        swift test --scratch-path .build/rvw-pr70
+          Test run with 51 tests in 8 suites passed after 0.058 seconds.            exit 0
+        python3 ops/mutate/handoff.py
+          population  mutations=39 (floor 30)  equivalent=1  known-missed=0
+                      subjects=2  test files=5 (floor 3)
+          caught by a named test: 39 of 39  (trapped 0, compile-only 0, MISSED 0, skipped 0)
+          EQUIVALENT  MISSED  hardcode the scale ...                                exit 0
+        python3 ops/mutate/handoff.py --prove-vacuity
+          VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=39 of 39   exit 0
+        python3 ops/mutate/handoff.py --prove-floor
+          FLOOR PROOF OK: 5 of 5 arms refused and the control did not               exit 0
+
+  `ops/check-pins` PINS ok=11 skipped=0 pending=2 expired=0 failed=0 exit 0 · `ops/sane` SANE OK ·
+  `ops/queue-check` QUEUE OK (104 tasks). `ops/test` exits 1 on `FAIL: services/api exists but vitest produced
+  no report`; checked, `services/api/node_modules` is absent on this box, T-0040, not attributed here. The
+  line-count table above reproduces exactly (158/30/287/165/103/103/178/600).
+
+  **The round's two BLOCKING closures re-broken rather than re-read.** Eleven mutations of my own, applied to
+  the shipped source, with the failing test NAMES recorded:
+
+        recursion  a locale helper TWO directories down, called from decimal()       caught
+                   the same helper one directory down, never called                  caught
+                     both by: every capitalised identifier ... is on the allow-list
+                              the shipping source uses none of the lowercase ... spellings
+        scan       the old contentsOfDirectory scan restored, tree EXACTLY as it ships  RED
+                     by: the source scan descends into subdirectories
+                   scanIsRecursive DISABLED + scan narrowed + helper one dir down       RED
+                     by the completeness guard alone: Set(files) == swiftFilesByHand
+                   CONTROLS: scanIsRecursive disabled alone -> GREEN; disabled + narrowed
+                     with no subdirectory -> GREEN, which is the residue the suite doc states
+        cap        the cap is one higher whenever the caller gave an origin          caught
+                   truncate (not refuse) whenever the caller gave an origin          caught
+                   the refusal reports the CAP as the count, only when a source is present  caught
+                   the origin silently dropped once the route is at the cap          caught
+                   dedupe before applying the cap / truncate in init()               caught
+        error      the pair separated by a semicolon / only the latitude printed     caught
+                   the advice dropped / the cap reported as the count                caught
+
+  **Harness attacked by import-and-override; the tracked file was never edited.** `MUTATIONS=[]` -> exit 2
+  REFUSING; `EQUIVALENT=[]`, `TESTS=[]` -> refuse; 31 entries with every anchor stale -> all SKIP, exit 1; 30
+  no-op edits -> did not land, exit 1; `FAIL_LINE` broken with the subject PRISTINE -> `caught by a named
+  test: 0 of 2 (trapped 2)`, exit 1. Baseline build retried twice, as claimed.
+
+  **Three findings, none blocking, all filed with a reproduction and a control.**
+
+  1. `ops/mutate/handoff.py:83` `TESTS = sorted(TEST_DIR.glob("*.swift"))` is NON-recursive, under a comment
+     at :82 reading *"A glob cannot fall behind a split."* `Package.swift:39` declares
+     `path: "Tests/HandoffTests"`, which SwiftPM compiles recursively - the same mechanism as this round's
+     BLOCKING 1, one directory over, in the same commit. With one suite at `Tests/HandoffTests/Sub/`,
+     `glob('*.swift')`=5 while `rglob`=6, the subdirectory suite is NOT emptied by `--prove-vacuity`, and the
+     proof reports `VACUITY PROOF FAILED: caught=1 (need 0)`, exit 1 - control with no subdirectory, exit 0.
+     Not blocking because the failure is LOUD, never a silent green; `rglob` closes it. Same comment at :80
+     says the suite "has since split to six"; it is five, and the population line prints `test files=5`.
+  2. `Sources/Handoff/AppleMapsDirections.swift:31` declares `Equatable` and nothing asserts it. A
+     hand-written `==` returning `true` for every pair SURVIVES all 51 tests and all 39 mutations. Control:
+     a test asserting two different plans are `!=` is GREEN on pristine and RED under it. Same gap the owner
+     closed one type over this pass; weaker here, because no `#expect` in the module compares two
+     `AppleMapsDirections`, so no existing assertion is silently weakened.
+  3. The order "cap first, coordinates second" at :72 is not pinned. Hoisting `for w in waypoints { _ = try
+     Self.pair(w) }` above the cap SURVIVES: a ten-stop route containing a NaN then refuses with
+     `notACoordinate` instead of `tooManyWaypoints`. Control GREEN/RED as above. Both branches refuse and
+     neither emits a URL, so only the payload a bug report quotes changes.
+
+  **`queue/LOCKS/Package.swift.lock` is released in this same commit, deliberately.** Moving T-0114 out of
+  `claimed/` leaves the lock held by a non-claimed task, and `ops/queue-check` then fails with
+  `queue/LOCKS/Package.swift.lock held by T-0114, which is not in claimed/`. CI runs `bash ops/queue-check`
+  (`.github/workflows/linux-core.yml`), so a sign-off without the release would turn the branch red and
+  `ops/merge` would refuse - a PASS that unblocks nothing. Nothing under `ops/` releases a lock on sign-off:
+  `ops/merge` never mentions LOCKS and only `queue-sweep` releases, on lease expiry. Dry-run first: with the
+  move alone, QUEUE CHECK FAIL; with the release, QUEUE OK (104 tasks).
