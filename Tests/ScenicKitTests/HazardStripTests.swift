@@ -149,4 +149,96 @@ struct HazardStripTests {
         let flags = HazardStrip.flags(for: .init(hasFord: true, hasGate: true))
         #expect(flags == [.ford, .gate])
     }
+
+    // MARK: - nothing is truncated and no flag has a silent ceiling
+    //
+    // Every test above tops out at seven flags, which is also the number of CASES, so nothing distinguished
+    // "the strip is complete" from "the strip stops at seven". Likewise every advisory was probed just above
+    // its floor and nowhere near the top of its range, so a ceiling could be added to either one and no
+    // assertion would move. A hazard that is dropped for being too big is the same failure as one dropped
+    // for having no source.
+
+    @Test("nine hazards on one route all reach the strip; nothing is truncated")
+    func nothingIsTruncated() {
+        // Nine is counted from the inputs below BY HAND - 2 closures + ford + gate + 2 distinct unknown
+        // tags + noCell + twilight + surface - and is deliberately more than the seven flag kinds.
+        // The closures and the tags are also fed in the OPPOSITE order to the one expected out.
+        let facts = HazardStrip.RouteFacts(
+            surfaceUnknownKm: 12,
+            noCellMinutes: 45,
+            hasFord: true,
+            hasGate: true,
+            closures: [(source: "511 SF Bay", until: Self.date(18)),
+                       (source: "Caltrans D4", until: nil)],
+            arrival: Self.date(21),
+            civilTwilight: Self.date(19),
+            unclassified: ["quarry_access", "avalanche_gate"])
+        let flags = HazardStrip.flags(for: facts)
+
+        #expect(flags.count == 9)
+        guard flags.count == 9 else { return }
+        #expect(flags[0] == .closure(source: "511 SF Bay", until: Self.date(18)))
+        #expect(flags[1] == .closure(source: "Caltrans D4", until: nil))
+        #expect(flags[2] == .ford)
+        #expect(flags[3] == .gate)
+        #expect(flags[4] == .unrecognised("avalanche_gate"), "reported second, shown first: tags sort")
+        #expect(flags[5] == .unrecognised("quarry_access"))
+        #expect(flags[6] == .noCell(minutes: 45))
+        #expect(flags[7] == .twilightArrival(at: Self.date(21)))
+        #expect(flags[8] == .surfaceUnknown(km: 12))
+    }
+
+    @Test("no signal has a floor but no ceiling - twelve hours out of contact is still reported")
+    func noCellHasNoCeiling() {
+        #expect(HazardStrip.flags(for: .init(noCellMinutes: 700)) == [.noCell(minutes: 700)])
+        #expect(HazardStrip.flags(for: .init(noCellMinutes: 100_000)) == [.noCell(minutes: 100_000)])
+    }
+
+    @Test("unsurveyed surface has a floor but no ceiling - 150 km is still reported")
+    func surfaceHasNoCeiling() {
+        #expect(HazardStrip.flags(for: .init(surfaceUnknownKm: 150)) == [.surfaceUnknown(km: 150)])
+        #expect(HazardStrip.flags(for: .init(surfaceUnknownKm: 100_000)) == [.surfaceUnknown(km: 100_000)])
+    }
+
+    @Test("a closure whose source is only whitespace still reaches the strip")
+    func whitespaceSourcedClosureReachesTheStrip() {
+        // Pins WHERE the source guard cuts. `emptyStringsIgnored` pins that "" is dropped; without this,
+        // the guard could be widened to swallow "   " - a rank-0 hazard - and nothing would object.
+        let facts = HazardStrip.RouteFacts(closures: [(source: "   ", until: Self.date(18))])
+        #expect(HazardStrip.flags(for: facts) == [.closure(source: "   ", until: Self.date(18))])
+    }
+
+    // MARK: - RouteFacts is Equatable BY HAND, so every field has to be in the operator
+
+    @Test("two RouteFacts that differ in any one field are not equal")
+    func routeFactsEqualityCoversEveryField() {
+        // `closures` is an array of TUPLES, which Swift cannot synthesise `==` for, so the whole operator
+        // is hand-written and any one line of it can be deleted invisibly. Nothing else in the repository
+        // ever compares two RouteFacts.
+        let base = HazardStrip.RouteFacts(
+            surfaceUnknownKm: 4, noCellMinutes: 20, hasFord: true, hasGate: true,
+            closures: [(source: "511 SF Bay", until: Self.date(18))],
+            arrival: Self.date(21), civilTwilight: Self.date(19),
+            unclassified: ["quarry_access"])
+        func differing(_ change: (inout HazardStrip.RouteFacts) -> Void) -> HazardStrip.RouteFacts {
+            var copy = base
+            change(&copy)
+            return copy
+        }
+
+        #expect(differing { _ in } == base, "two values built the same way are equal")
+
+        #expect(differing { $0.closures = [(source: "511 SF Bay", until: Self.date(21))] } != base,
+                "a closure that lifts at a different hour is a different route")
+        #expect(differing { $0.closures = [(source: "Caltrans D4", until: Self.date(18))] } != base,
+                "a closure from a different feed is a different route")
+        #expect(differing { $0.closures = [] } != base)
+        #expect(differing { $0.surfaceUnknownKm = 5 } != base)
+        #expect(differing { $0.noCellMinutes = 21 } != base)
+        #expect(differing { $0.hasFord = false } != base)
+        #expect(differing { $0.hasGate = false } != base)
+        #expect(differing { $0.arrival = Self.date(22) } != base)
+        #expect(differing { $0.civilTwilight = Self.date(18) } != base)
+        #expect(differing { $0.unclassified = ["other"] } != base)
+    }
 }

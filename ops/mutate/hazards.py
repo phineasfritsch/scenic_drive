@@ -1,32 +1,33 @@
 #!/usr/bin/env python3
 """Mutation harness for the hazard strip. A catch requires a NAMED TEST to fail, not a non-zero exit.
 
-Shape settled by five rounds of review on the sibling harnesses:
+Shape settled by six rounds of review on this file and its siblings:
 
   * each mutation is BUILT first, and a compile failure is `compile-only` and does not count, because a
     compiler error is a fact about Swift and not about this suite;
   * a mutation detected by a TRAP rather than an assertion is reported separately AND DOES NOT COUNT - a
     crash is the suite noticing, but not through a check;
+  * SKIP is its own bucket - a mutation that did not land means the harness is STALE, which is the
+    opposite of what MISSED means;
   * EQUIVALENT mutants are asserted the OTHER WAY ROUND: they cannot change behaviour, so a catch there is
     a FAILURE, because it means a test has an opinion about how the code is written rather than what it
     does - and the way a person satisfies such a demand is by anchoring a test on source text;
-  * `--prove-vacuity` replaces the test file with an empty suite and requires every mutation to report
-    MISSED, which is the only evidence that the harness measures these tests rather than the compiler.
+  * `--prove-vacuity` empties the test file and requires every mutation to report MISSED - COMPLETE, and
+    not merely `caught == 0`, which a harness broken in the compile-only direction also satisfies. It is
+    only adequate while HazardStripTests.swift is the ONLY test file that can catch one of these, so that
+    is now CHECKED (`vacuity_gap()`) rather than grepped once by hand;
+  * EVERY build is retried once, the baseline included, before a failure is believed: a fresh scratch dir
+    on this box fails with an I/O 512 symlink error often enough to have produced a false verdict;
+  * the floors below EQUAL the shipped population, so deleting any one mutation refuses the run;
+  * the pass condition is `caught == len(MUTATIONS)`. It shipped as `caught + trapped ==` and the PR #70
+    reviewer showed what that buys: with the subject pristine and only FAIL_LINE broken, everything scores
+    `trapped` and the run exits 0 - the harness cannot tell "covered" from "I am broken".
 
-The pass condition is `caught == len(MUTATIONS)`, and that is a CORRECTION. This file first shipped with
-`caught + len(trapped) == len(MUTATIONS)`, copied from its siblings, and the reviewer of PR #70 showed what
-that buys: with the subject pristine and only a harness's own FAIL_LINE regex broken, every mutation scores
-`trapped` and the run exits 0 - the harness cannot tell "the subject is covered" from "I am broken". Two
-smaller holes went with it and are closed here too: `--prove-vacuity` now requires `MISSED` to be COMPLETE
-rather than merely `caught == 0` (a harness broken in the compile-only direction satisfies `caught == 0`,
-and that is this repository's documented history, not a hypothetical), and the EQUIVALENT arm requires its
-mutants to go MISSED specifically, so a stale anchor or a mutant that fails to compile no longer reads as
-"correctly not caught". SKIP is its own bucket for the same reason - a mutation that did not land means the
-harness is stale, which is the opposite of what MISSED means.
-
-Roughly half the mutations move a NUMBER or a comparison direction. A reviewer found that every mutation in
-an earlier harness was structural - delete a guard, invert a comparison - and not one touched a constant,
-which is exactly where such a suite is blind.
+Half the mutations move a NUMBER or a comparison direction, because an earlier harness was all-structural -
+delete a guard, invert a comparison - which is exactly where such a suite is blind. The six added after the
+PR #80 review attack the other blind spot it found: a hazard removed at the TOP of its range, where nothing
+had ever probed. This file is not under the 300-line cap; P-SRC-02 asserts that over `Sources/**/*.swift`
+and `Tests/**/*.swift`, and ops/lib/queue.py is 1007 lines.
 """
 from __future__ import annotations
 
@@ -40,7 +41,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 STRIP = ROOT / "Sources" / "ScenicKit" / "Hazards" / "HazardStrip.swift"
 FLAG = ROOT / "Sources" / "ScenicKit" / "Hazards" / "HazardFlag.swift"
 TESTS = ROOT / "Tests" / "ScenicKitTests" / "HazardStripTests.swift"
-SCRATCH = ".build-mutate-hazards"
+SCRATCH = ".build/mutate-hazards"  # inside .build/, which .gitignore covers: the harness must not dirty
+                                   # the worktree it certifies, and `ops/sane` counts untracked files.
 
 EMPTY_SUITE = ('import Testing\n'
                '@Suite("empty") struct EmptyHazardSuite {\n'
@@ -49,11 +51,12 @@ EMPTY_SUITE = ('import Testing\n'
 
 # Floors on the HARNESS's own population. Without them the pass condition and `--prove-vacuity` are both
 # VACUOUSLY TRUE on empty lists - "0 of 0 ... exit 0" and "VACUITY PROOF OK ... MISSED=0 of 0", the proof
-# certifying its own vacuity. Found by the sign-off reviewer of PR #73 against a sibling harness. Stale
-# ANCHORS were already caught; a deleted POPULATION was not, and that is the failure that actually occurs -
-# a mutation removed with a plausible reason, and nothing to say the count fell.
-MIN_MUTATIONS = 13
-MIN_EQUIVALENT = 1
+# certifying its own vacuity. The failure that actually occurs is a mutation removed with a plausible
+# reason and nothing to say the count fell - so these EQUAL the shipped population rather than sitting
+# under it. The PR #80 reviewer found 13 here against 15 shipped, which refuses nothing: two could go.
+# Adding a mutation means raising these by hand, which is the point - the number is a claim, not a length.
+MIN_MUTATIONS = 21
+MIN_EQUIVALENT = 3
 
 MUTATIONS = [
     # --- the thresholds -------------------------------------------------------------------------------
@@ -94,7 +97,11 @@ MUTATIONS = [
      "        case .unrecognised:     return 3",
      "        case .unrecognised:     return 8"),
 
-    ("sort by rank alone, losing the stable order within a severity", STRIP,
+    # NOT named "losing the stable order": the replacement also inverts the comparator, so its catch is
+    # evidence about the DIRECTION of the sort and says nothing about stability. The PR #80 reviewer was
+    # right that the old name claimed more than the mutation shows. Stability within one severity cannot
+    # be mutation-tested here at all - see the EQUIVALENT list for why.
+    ("sort by rank DESCENDING, so the strip is read worst-last", STRIP,
      "        return out.enumerated()\n"
      "            .sorted { ($0.element.severityRank, $0.offset) < ($1.element.severityRank, $1.offset) }\n"
      "            .map(\\.element)",
@@ -122,16 +129,100 @@ MUTATIONS = [
     ("a clean route gets a reassuring flag", STRIP,
      "        var out: [HazardFlag] = []",
      "        var out: [HazardFlag] = [.unrecognised(\"checked\")]"),
+
+    # --- nothing is dropped AT THE TOP OF ITS RANGE either ----------------------------------------------
+    # Added after the PR #80 review. Every mutation above removes a hazard at its FLOOR or removes a whole
+    # category; none took one away for being too big, and four such mutations survived the shipped suite.
+    # Seven is the number of flag KINDS, so a strip truncated there looked complete in every fixture.
+    ("truncate the strip to the first seven flags", STRIP,
+     "        return out.enumerated()\n"
+     "            .sorted { ($0.element.severityRank, $0.offset) < ($1.element.severityRank, $1.offset) }\n"
+     "            .map(\\.element)",
+     "        return Array(out.enumerated()\n"
+     "            .sorted { ($0.element.severityRank, $0.offset) < ($1.element.severityRank, $1.offset) }\n"
+     "            .map(\\.element).prefix(7))"),
+
+    ("no-cell silently stops firing above 600 minutes", STRIP,
+     "        if facts.noCellMinutes >= noCellMinimumMinutes {",
+     "        if facts.noCellMinutes >= noCellMinimumMinutes && facts.noCellMinutes < 600 {"),
+
+    ("the surface advisory silently stops firing above 100 km", STRIP,
+     "        if facts.surfaceUnknownKm > surfaceUnknownMinimumKm {",
+     "        if facts.surfaceUnknownKm > surfaceUnknownMinimumKm && facts.surfaceUnknownKm < 100 {"),
+
+    ("widen the closure source guard to swallow a whitespace source", STRIP,
+     "        for c in facts.closures where !c.source.isEmpty {",
+     "        for c in facts.closures where !c.source.trimmingCharacters(in: .whitespaces).isEmpty {"),
+
+    # --- RouteFacts is Equatable BY HAND (a tuple array cannot be synthesised), so each half of the
+    # closure comparison can be deleted on its own. Nothing in the repository compared two RouteFacts.
+    ("delete the closure END TIME half of RouteFacts ==", STRIP,
+     "                && a.closures.map(\\.source) == b.closures.map(\\.source)\n"
+     "                && a.closures.map(\\.until) == b.closures.map(\\.until)",
+     "                && a.closures.map(\\.source) == b.closures.map(\\.source)"),
+
+    ("delete the closure SOURCE half of RouteFacts ==", STRIP,
+     "                && a.closures.map(\\.source) == b.closures.map(\\.source)\n"
+     "                && a.closures.map(\\.until) == b.closures.map(\\.until)",
+     "                && a.closures.map(\\.until) == b.closures.map(\\.until)"),
 ]
 
 # Cannot change behaviour, so a catch here is a FAILURE.
+#
+# The second and third arrived as SURVIVORS in the PR #80 review, and the reviewer refused to bank them as
+# findings - correctly. `flags(for:)` appends in groups of non-decreasing rank (closure 0, ford 1, gate 2,
+# unrecognised 3, noCell 4, twilight 5, surface 6) and within a group every element shares a rank, so
+# ordering by (rank, offset) is ordering by offset, which is the order `out` is already in. The sort is
+# therefore the IDENTITY for every possible input: deleting it, or flattening the rank table to a
+# constant, cannot change what comes out. Proved by differential dump over 15000 input combinations
+# (.artifacts/equiv_check.py, three byte-identical dumps, md5 70f0d004) as well as by the argument.
+# They live HERE, where a catch fails the run, because the only test that could "close" them is one that
+# reads `severityRank` or the source text - the exact defect this repository keeps shipping.
+# PRECONDITION: if the appends are ever reordered out of rank order, these two stop being equivalent and
+# this list must be revisited. That is also why the unstable-sort mutation is in NEITHER list: Swift's
+# `sorted(by:)` is not contractually stable, so a rank-only sort is equivalent by implementation accident
+# rather than by argument, and neither arm can honestly hold it.
 EQUIVALENT = [
     ("reorder two independent appends that cannot collide on rank", STRIP,
      "        if facts.hasFord { out.append(.ford) }\n        if facts.hasGate { out.append(.gate) }",
      "        if facts.hasGate { out.append(.gate) }\n        if facts.hasFord { out.append(.ford) }"),
+
+    ("delete the sort; ship the append order, which is already rank order", STRIP,
+     "        return out.enumerated()\n"
+     "            .sorted { ($0.element.severityRank, $0.offset) < ($1.element.severityRank, $1.offset) }\n"
+     "            .map(\\.element)",
+     "        return out"),
+
+    ("flatten every severityRank to 0", FLAG,
+     "        case .closure:          return 0\n"
+     "        case .ford:             return 1\n"
+     "        case .gate:             return 2\n"
+     "        case .unrecognised:     return 3\n"
+     "        case .noCell:           return 4\n"
+     "        case .twilightArrival:  return 5\n"
+     "        case .surfaceUnknown:   return 6",
+     "        case .closure:          return 0\n"
+     "        case .ford:             return 0\n"
+     "        case .gate:             return 0\n"
+     "        case .unrecognised:     return 0\n"
+     "        case .noCell:           return 0\n"
+     "        case .twilightArrival:  return 0\n"
+     "        case .surfaceUnknown:   return 0"),
 ]
 
-FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
+# A NAMED test, spelled out. The second branch used to be `|Test run with .*failed`, the RUN-LEVEL summary,
+# which fires for any failure anywhere in the package - precisely "a non-zero exit, summarised", which the
+# docstring above promises this is not. Narrowed after the PR #80 review; the verdict is unchanged.
+FAIL_LINE = re.compile(r'Test "[^"]*" recorded an issue')
+
+
+def vacuity_gap():
+    """Test files OTHER than TESTS that reference the subject. `--prove-vacuity` empties only TESTS, so if
+    any other file can catch a mutation the proof's "no tests present" premise is false. The PR #80 review
+    established this by hand with one grep; a fact a harness depends on belongs in the harness."""
+    return [f.relative_to(ROOT).as_posix() for f in sorted((ROOT / "Tests").rglob("*.swift"))
+            if f != TESTS and any(n in f.read_text(encoding="utf-8", errors="replace")
+                                  for n in ("Hazard", "RouteFacts"))]
 
 
 def build() -> int:
@@ -188,6 +279,11 @@ def main(argv) -> int:
                          "A harness that examines nothing exits 0 and proves nothing.\n"
                          % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
         return 2
+    gap = vacuity_gap()
+    if gap:
+        sys.stdout.write("REFUSING: --prove-vacuity empties only %s, but these test files also reference\n"
+                         "the subject and could catch a mutation: %s\n" % (TESTS.name, ", ".join(gap)))
+        return 2
     pristine = {f: f.read_bytes() for f in (STRIP, FLAG)}
     pristine_tests = TESTS.read_bytes()
     for f, b in pristine.items():
@@ -200,7 +296,9 @@ def main(argv) -> int:
                              "mutation must report MISSED - not merely 'not caught'.\n")
             TESTS.write_text(EMPTY_SUITE, encoding="utf-8", newline="\n")
 
-        if build() != 0:
+        # Retried, exactly as the mutation build is. A fresh scratch directory on this box fails once with
+        # an I/O 512 symlink error often enough that a single try turned a healthy run into EXIT 2.
+        if build() != 0 and build() != 0:
             sys.stdout.write("baseline does not build; nothing below would mean anything\n")
             return 2
         code, _ = test()
