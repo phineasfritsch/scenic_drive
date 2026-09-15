@@ -15,10 +15,13 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> Test run with 46 tests in 6 suites passed, exit 0"
-  - "python ops/mutate/budget.py -> caught by a named test: 34 of 34   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
-  - "RED: python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=34 of 34, exit 0"
-  - "RED: python ops/mutate/budget.py --prove-floor -> FLOOR PROOF OK: emptied -> refused=True, real -> accepted=True, exit 0"
+  - "swift test --scratch-path .build-T0116 -> Test run with 48 tests in 6 suites passed, exit 0"
+  - "python ops/mutate/budget.py -> caught by a named test: 38 of 38   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
+  - "python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=38 of 38, exit 0"
+  - "python ops/mutate/budget.py --prove-floor -> FLOOR PROOF OK: emptied -> refused=True, one deleted -> refused=True, real -> accepted=True, exit 0"
+  - "python ops/mutate/budget.py --prove-dirty -> DIRTY PROOF OK: committed -> accepted=True, mutated -> refused=True, exit 0"
+  - "RED: with .artifacts/budget-mutation-in-flight present, python ops/mutate/budget.py -> REFUSING: ... the previous run was killed while a mutation was on disk, exit 2, before any build"
+  - "RED: with MIN_MUTATIONS forced to 22 and MIN_EQUIVALENT to 1 (the one-liner is in the Log), --prove-floor -> FLOOR PROOF FAILED: emptied -> refused=True, one deleted -> refused=False, real -> accepted=True, exit 1"
 ---
 ## Brief
 
@@ -233,7 +236,7 @@ what it prints; not one line of it is carried over.
 - 2026-09-15T12:00:00Z **A killed run used to leave a mutation on disk, and the next run adopted it as `pristine`. Found the hard way, in this session.** A backgrounded run was killed between writing a mutation and the `finally` that restores it; the run after it recorded `pristine LambdaSearch.swift md5 1f7512ba` - that is `maxEvaluations: Int = 2`, a live mutation - measured every verdict against it, and restored the mutant when it finished. `git diff` found it because the subject md5 is checked against HEAD before and after every mutating run; without that check this commit would have shipped a corrupted source file with a green harness over it. `try/finally` cannot defend against a kill, so the harness now writes a SENTINEL before the first mutation and removes it after the last restore: finding one at startup means the previous run did not finish, and the run REFUSES instead of measuring whatever is on disk. Demonstrated red - sentinel present, `python ops/mutate/budget.py` and `--prove-vacuity` both exit 2 with `REFUSING` - then green once it is cleared.
 - 2026-09-15T12:00:00Z **The baseline build is now retried twice (T-0132), which this harness had never picked up.** Every mutation was already built twice before a compile failure was believed; the baseline was built once, so a transient `I/O error (code: 512)` on a fresh scratch directory would abort the whole run with "baseline does not build" and nothing would be measured.
 - 2026-09-15T12:00:00Z **Third split at the 300-line cap, and the harness was told about it in the same commit.** The refusal tests grew payload assertions; the file stood at 298 lines and the two remaining additions would have carried it past 300, so the refusals and the error messages moved to `LambdaSearchRefusalTests.swift` - a section boundary, not a line number. This is the exact edit that broke the vacuity proof last time, so the new suite went into `TEST_FILES` in the same commit - and that entry was demonstrated LOAD-BEARING rather than assumed to be. `.artifacts/testfilesprobe.py` runs the shipped driver with one mutation that only the refusal suite catches: with the suite left out of `TEST_FILES`, `--prove-vacuity` reports **`VACUITY PROOF FAILED: caught=1 (need 0)`, exit 1**; with all three listed, **MISSED 1 of 1, exit 0**. A suite missing from that list fails the proof loudly rather than weakening it quietly. `ops/mutate/budget.py` was at 296 of the same cap, so its population moved to `ops/mutate/budget_mutations.py` and the driver kept the protocol.
-- 2026-09-15T12:00:00Z **I then attacked the fixed suite with twelve mutations nobody had written, and six survived.** Each survivor was compiled STANDALONE - copies of the three Budget sources plus a sweep of 5891 cases covering every field of `BudgetOutcome`, the search's own cap and ceiling, each error's rendered text, and the exact sequence of lambdas the router is asked for - pristine against mutant, so no tracked file was written for a control. **Three were equivalent** (byte-identical fingerprints) and are now asserted MISSED in the EQUIVALENT arm with the reason each is equivalent, not merely the measurement: the tolerance comparison `>` -> `>=` (the bracket width is exactly 8*2^-k and 0.05 is not), the midpoint written as `(lo+hi)/2` (exact over a bracket bounded by 8), and the monotonicity scan run over the samples reversed (an all-pairs scan cannot depend on order). **Three were real, and are now caught**: dropping `isFinite` from the router guard sends an infinite duration all the way to `noFeasibleLambda` - a BudgetError, so `#expect(throws: BudgetError.self)` was satisfied by the wrong refusal, 154 cases changed; `b.lambda > a.lambda` -> `>=` accuses a router that answered the same lambda twice, 2 cases; and `budget == 0` -> `budget <= 0.5` reports a budget as spent when none of it was, 638 cases. The refusal suite now asserts cases and payloads and never a bare type.
+- 2026-09-15T12:00:00Z **I then attacked the fixed suite with twelve mutations nobody had written, and six survived.** Each survivor was compiled STANDALONE - copies of the three Budget sources plus a sweep of 5891 cases covering every field of `BudgetOutcome`, the search's own cap and ceiling, each error's rendered text, and the exact sequence of lambdas the router is asked for - pristine against mutant, so no tracked file was written for a control. **Three were equivalent** (byte-identical fingerprints) and are now asserted MISSED in the EQUIVALENT arm with the reason each is equivalent, not merely the measurement: the tolerance comparison `>` -> `>=` (the bracket width is exactly 8*2^-k and 0.05 is not), the midpoint written as `(lo+hi)/2` (exact over a bracket bounded by 8), and the monotonicity scan run over the samples reversed (an all-pairs scan cannot depend on order). **Three were real, and are now caught**: dropping `isFinite` from the router guard sends an infinite duration all the way to `noFeasibleLambda` - a BudgetError, so `#expect(throws: BudgetError.self)` was satisfied by the wrong refusal, 154 cases changed; `b.lambda > a.lambda` -> `>=` accuses a router that answered the same lambda twice, 2 cases; and `budget == 0` -> `budget <= 0.5` reports a budget as spent when none of it was, 638 cases. The refusal suite asserts cases and payloads wherever a refusal carries a value. ~~and never a bare type~~ - **that clause was false of the file it describes and is struck here, not only corrected below (F-R3)**: `noFeasibleLambdaThrows`, `refusesBadInputs` and `propagatesRouterErrors` are type-only on purpose, the suite's own header says so in the same commit, and `refusesBadInputs` is exactly where F-R1 was hiding.
 - 2026-09-15T12:00:00Z **Not one line of `Sources/` changed in this pass.** The three Budget files are byte-identical to 9657c9e - md5 2e420d88 (LambdaSearch), 4b3c09f7 (BudgetError), c0db374c (BudgetOutcome) - and the harness prints those same three on every run. Both reviews reached the same verdict about the code and a different one about the suite: the ceiling invariant survived every mutation either reviewer or I could land, and what was wrong was what the tests, the harness and the frontmatter CLAIMED to cover. This commit is tests, the harness and the record.
 - 2026-09-15T12:00:00Z GREEN, every command re-run against this tree: `swift test` -> **46 tests in 6 suites passed**, exit 0. `python ops/mutate/budget.py` -> **34 of 34 caught by a named test**, 0 trapped, 0 compile-only, 0 MISSED, 0 skipped, exit 0. `--prove-vacuity` -> caught=0, MISSED 34 of 34, exit 0. `--prove-floor` -> OK, exit 0. `bash ops/check-pins` -> ok=11 pending=2 failed=0. `bash ops/queue-check` -> QUEUE OK. `bash ops/sane` -> SANE OK. `bash ops/test` -> exit 1, `FAIL: services/api exists but vitest produced no report`, which is T-0040 and not this branch: `services/api/node_modules` does not exist on this box and this PR touches no TypeScript. Line counts 285 / 172 / 177 / 253 / 283, all under the cap. Subject md5s before and after every mutating run: 2e420d88 / 4b3c09f7 / c0db374c, identical to HEAD.
 
@@ -245,3 +248,121 @@ what it prints; not one line of it is carried over.
   The generalisation is recorded on [[T-0130]]: a red demo that mutates a tracked file and relies on a
   `finally` to restore it has a window, minutes long, in which the process can die. That is a second source
   of the same hazard the task was filed for, and it needs no second agent.
+
+---
+
+## Third fix pass: agent/so-pr71, and two guards whose stated scope exceeded their coverage
+
+Their verdict was FAIL on coverage for the third round running, and for the third round running they found
+the code right: 9732 standalone searches over monotone, flat, cliff, dipping, wobbling, zero, negative, NaN
+and infinite routers, zero ceiling breaches, zero returned lambdas the router was never asked for, and 23 of
+their own 26 mutations caught. Every acceptance line reproduced character for character. What failed was two
+guards and one sentence.
+
+Both blocking findings are the same shape, and it is the shape this task keeps being blocked for: **a guard
+with two halves, and a fixture family that only ever exercises one of them.** Neither was taken from the
+report's prose. Both were re-run first, in `.worktrees/fix71demo` detached at 33d1715 with its own scratch
+path (`python .artifacts/probe_new.py .build-probe-before`): baseline green, then
+
+    SURVIVED  F-R1 drop isFinite from the constructor guard on fastest
+    SURVIVED  F-R1 the same guard spelled with isNaN, which lets infinity through
+    SURVIVED  F-R2 the router guard tolerates half a second of negative duration
+    SURVIVED  F-R2 the router guard tolerates the smallest negative duration there is
+    restored and verified against HEAD: True (md5 2e420d88)
+
+- 2026-09-15T18:00:00Z **F-R1, BLOCKING: the `fastest.isFinite` half of the constructor guard had no
+  witness at all - and the reason it had none is worth more than the fix.** `refusesBadInputs` carries
+  `(.nan, 60)`, `(1800, .nan)` and `(1800, .infinity)`, so the family LOOKS like it covers finiteness on both
+  arguments. It does not: `Double.nan > 0` is already false, so `fastest > 0` refuses NaN on its own, and
+  **infinity is the only value the two halves of that guard disagree about** - the one combination the family
+  omitted. The payload assertions did not help either, because `errorsCarryTheirNumbers` pins
+  `notADuration(-1)` and -1 is another value `fastest > 0` refuses unaided. A guard with two halves needs an
+  input the halves DISAGREE about; everything else is decoration. What it costs is the reviewer's point and
+  it is the worse half of the finding: `ceiling` is `fastest + budget`, so an infinite `fastest` makes the
+  ceiling infinite and *"returned ETA <= fastest + budget"* is not breached but VACUOUS - the failure mode
+  this repository is named after. Closed by `infiniteFastestIsRefusedAsNotADuration`, which pattern-matches
+  the case, the payload and the rendered sentence, plus `(.infinity, 60)` filling the hole in the family
+  itself. Two mutations added, because `!fastest.isNaN` is how a well-meaning edit would spell the same hole.
+- 2026-09-15T18:00:00Z **F-R2, BLOCKING: `d >= 0` was bracketed in (-1, 0] and the comment above it claimed
+  it was pinned.** `refusesNonsense` pins -1 illegal, `zeroIsADurationNotNonsense` pins 0 legal, and every
+  threshold in between passes both: `d >= -0.5` survived all 46 tests, and a router answering -0.2 s then
+  reached the caller as a route with `usedBudget == true` and `extraTime == -1800.2`. Identical to F3
+  ("pinned the interval (0.4, 0.55], which holds for any threshold in that range"), one guard over.
+  `routerGuardBoundaryIsExactlyZero` pins both sides in one test, and the far side is
+  `-Double.leastNonzeroMagnitude` rather than a round number: every threshold `t <= -5e-324` accepts it and
+  every `t > 0` rejects the zero, so the two assertions together admit only `t` in (-5e-324, 0], where the
+  only Doubles are 0 and -0 and they compare identically. **Pinned, not bracketed more tightly.** The
+  comment on `zeroIsADurationNotNonsense` that implied otherwise now says which side it owns.
+- 2026-09-15T18:00:00Z **Each new test was then made to go red, one mutation at a time, and the names are
+  the evidence** (`.artifacts/probe_names.py` in the same demo worktree, at 32e8f0c):
+  `drop isFinite` and the `isNaN` spelling each fail `refusesBadInputs` *"with 2 arguments fastest -> inf,
+  budget -> 60.0"* AND `infiniteFastestIsRefusedAsNotADuration`; `d >= -0.5` fails `refusesNonsense`
+  *"with 1 argument bad -> -0.2"* AND `routerGuardBoundaryIsExactlyZero`; and
+  `d >= -Double.leastNonzeroMagnitude` fails **only** `routerGuardBoundaryIsExactlyZero` - which is the point
+  of choosing that literal, since no other fixture in the suite can be a witness for it. Each run ended
+  `restored and verified against HEAD: True (md5 2e420d88)`; no tracked file in `.worktrees/T-0116` was
+  mutated by hand at any point in this pass.
+- 2026-09-15T18:00:00Z **F-R3: the Log sentence *"the refusal suite now asserts cases and payloads and never
+  a bare type"* was false, and the file it describes said so in the same commit.** Struck in place in the
+  entry above rather than only corrected down here, because the false line is the one a reader stops at.
+  Three tests are type-only on purpose, `refusesBadInputs` is one of them, and it is exactly where F-R1 was
+  hiding - so the suite header now records the general rule as well: a type-only family is worth exactly as
+  much as its list of INPUTS.
+- 2026-09-15T18:00:00Z **The floor now refuses what it was documented to refuse (N5, and the standing rule
+  for this harness).** `MIN_MUTATIONS = 22` against 34 entries meant twelve could be deleted with a clean
+  sheet printed; `MIN_EQUIVALENT = 1` against 4 meant three could. Both are now the exact list length, 38 and
+  4, written as LITERALS - `len(MUTATIONS)` would move down with the list and refuse nothing, which is this
+  task's signature defect wearing the clothes of a fix. `--prove-floor` grew the arm that makes the claim
+  testable, and it was demonstrated RED with the old numbers before it was believed:
+
+      python -c "import sys; sys.path.insert(0,'ops/mutate'); import budget; budget.MIN_MUTATIONS=22; budget.MIN_EQUIVALENT=1; raise SystemExit(budget.main(['--prove-floor']))"
+      FLOOR PROOF FAILED: emptied -> refused=True, one deleted -> refused=False, real -> accepted=True   exit 1
+
+  and green with the real ones: `emptied -> refused=True, one deleted -> refused=True, real -> accepted=True`.
+- 2026-09-15T18:00:00Z **N1: the subject md5s are now CHECKED, not printed.** The reviewer planted a live
+  mutation by hand, ran the shipped harness with no sentinel present, and got `pristine ... md5 d08228d8`,
+  `BASELINE exit=0` and `34 of 34 caught`, exit 0, over a corrupted subject - while this Log credited *"the
+  subject md5 is checked against HEAD before and after every mutating run"*, which described a human reading
+  a printed number. `budget.py` now compares each subject with `git show HEAD:` and REFUSES on a difference,
+  with `--allow-dirty-subject` for the fixer whose edit is deliberate (it prints that it is measuring disk,
+  not HEAD). TEST_FILES are deliberately excluded and the reason is in `budget_tree.py`: a fix pass edits
+  tests by design, and an emptied test file makes every mutation report MISSED, which fails loudly rather
+  than reading as a clean sheet. `--prove-dirty` demonstrates the comparison **in memory**, feeding it the
+  bytes a mutated subject would have - writing a real mutation to a tracked file to prove a check about
+  mutated tracked files would open the very window this closes. Seen red first, with the comparison stubbed
+  out: `DIRTY PROOF FAILED: committed -> accepted=True, mutated -> refused=False`, exit 1.
+- 2026-09-15T18:00:00Z **N2, N3, N4 and N6.** N2: the comment on `partialBudgetIsNotUsed` claiming it *"pins
+  a boundary rather than a direction"* - the exact sentence F3 was filed for - was still standing over the
+  test it is false about; it now says it brackets (0.4, 0.55] and names `usedBudgetBoundaryIsExact` as the
+  test that pins. N3: acceptance line 1 is `swift test --scratch-path .build-T0116`, which is what CLAUDE.md
+  requires on a shared box and what every run in this Log actually used. N4: the `RED:` prefixes came off the
+  two self-proofs, which exit 0 and prove themselves; the two lines that now carry it describe a break on
+  purpose and the non-zero exit it produced, per `queue/_schema`. N6: `--prove-floor`, `--prove-dirty` and
+  `--prove-vacuity` all ship, so three of the four demonstrations this pass leans on are re-runnable from a
+  clone; the before/after mutation probes are inherently about a commit that is no longer HEAD, and their
+  exact commands and output are quoted above instead.
+- 2026-09-15T18:00:00Z **REFUSED, and this is the one finding-shaped thing I did not bank.** The reviewer's
+  third survivor, `lambda > best!.lambda` -> `>=` in the tie-break, they proved EQUIVALENT (byte-identical
+  fingerprint over 17058 cases) and correctly declined to count it. I have not added it to the EQUIVALENT
+  arm either, which is the only place it could go: the reason it cannot change behaviour is a property of
+  the CALLER - the bisection never asks the same lambda twice - and not of the comparison. A future change
+  to the bracket would make it live, and an EQUIVALENT entry whose reason can expire is an arm that will one
+  day fail for the right reason with the wrong message. The reasoning is recorded at the head of
+  `budget_arms.py` so the next agent does not re-derive it and add it.
+- 2026-09-15T18:00:00Z **Split at the 300-line cap again, along two real boundaries.** Adding four mutations
+  took `budget_mutations.py` to 325 lines, so the two arms asserted MISSED moved to `budget_arms.py` (the
+  boundary is "must be caught" against "must be missed", and `MIN_EQUIVALENT` went with the list it counts),
+  and what a run does to the working tree - the sentinel, the HEAD comparison, `--prove-dirty` - moved to
+  `budget_tree.py`. Line counts 275 / 282 / 76 / 112 for the four harness files and 289 / 172 / 246 for the
+  three suites, all under the cap.
+- 2026-09-15T18:00:00Z GREEN, every command re-run against this tree after the last edit: `swift test
+  --scratch-path .build-T0116` -> **48 tests in 6 suites passed**, exit 0. `python ops/mutate/budget.py` ->
+  **38 of 38 caught by a named test**, trapped 0, compile-only 0, MISSED 0, skipped 0, exit 0, with
+  `subjects match git show HEAD: yes (3 files)` and `restored: 2e420d88, 4b3c09f7, c0db374c`.
+  `--prove-vacuity` -> caught=0, MISSED 38 of 38, exit 0. `--prove-floor` and `--prove-dirty` -> OK, exit 0.
+  `bash ops/check-pins` -> ok=11 skipped=0 pending=2 expired=0 failed=0. `bash ops/queue-check` -> QUEUE OK.
+  `bash ops/sane` -> SANE OK. `bash ops/test` -> exit 1 on `services/api exists but vitest produced no
+  report`, which is T-0040 and not this branch: `services/api/node_modules` does not exist on this box and
+  `git diff main...task/T-0116 --name-only -- services/` is empty. **Not one line of `Sources/` changed in
+  this pass either** - the three Budget files are still md5 2e420d88 / 4b3c09f7 / c0db374c, the same bytes
+  as 9657c9e, and the harness prints them on every run.
