@@ -24,9 +24,10 @@ import Testing
 /// **What is still not closed, stated rather than denied.** A refusal keyed on a key that IS in
 /// `consideredTagKeys`, with a freeway-relevant value no test supplies. For a freeway that is `highway`, and
 /// `freewayTagsNeverGate` covers it across 52 ways. And deleting the filter while keying on a key neither the
-/// noise list nor the companion list names would still be invisible **to this suite**; what catches that is
-/// `ops/mutate/gates.py`, where `drop smoothness from consideredTagKeys` goes MISSED the instant the filter
-/// stops being applied and the run exits 1.
+/// noise list nor the companion list names would still be invisible **to this suite** - deleting the filter
+/// alone leaves every test here green, which was measured and not assumed. What objects to that deletion is
+/// `ops/mutate/gates.py`: six mutations are anchored on the filter line and report `SKIP ... anchor not found
+/// - harness is stale`, exit 1.
 @Suite("Gates invariant")
 struct GatesInvariantTests {
 

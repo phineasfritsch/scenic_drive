@@ -91,8 +91,10 @@ MUTATIONS = [
      '        "expressway", "foot", "bicycle",'),
 
     # And the mutation that proves the filter is LOAD-BEARING rather than decorative: drop a key a rule really
-    # reads and that rule stops firing. It is also what catches deletion of the filter itself - with `decide`
-    # no longer filtering, this mutation changes nothing, goes MISSED, and the run exits 1.
+    # reads and that rule stops firing, so behaviour tests object alongside the literal pin. It is NOT what
+    # catches deletion of the filter - measured against a tree with the filter removed, it is still caught by
+    # the literal pin alone, exit 0. What catches that deletion is the six entries anchored on FILTER above
+    # going SKIP / "anchor not found - harness is stale".
     ("drop smoothness from consideredTagKeys, which kills the smoothness gate", GATES, CONSIDERED_KEYS,
      '        "surface", "highway", "tracktype", "access",\n'
      '        "motor_vehicle", "barrier", "locked", "ford", "service",'),

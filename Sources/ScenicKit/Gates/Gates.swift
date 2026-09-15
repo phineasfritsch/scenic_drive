@@ -21,24 +21,28 @@ import Foundation
 ///
 /// There is no `GateReason` named for a motorway, and that is worth something - but it is **not** a
 /// structural guarantee, and an earlier version of this comment claimed it was. A new branch can reuse
-/// `.noAccess` and never touch the enum, which is how the review of PR #82 refused freeway geometry twice
-/// with the whole suite green.
+/// `.noAccess` and never touch the enum, which is how the two reviews of PR #82 refused freeway geometry six
+/// times between them with the whole suite green.
 ///
 /// 1. **`consideredTagKeys`.** `decide` drops every tag key no rule below is written on, before any rule
-///    runs. A branch keyed on `expressway`, `foot`, `bicycle`, `lanes` or `maxspeed` - all four shapes the
-///    second review of PR #82 got past the suite - is dead code once it is written, because the key it reads
-///    is not in the dictionary the rules see. Widening this set is the visible half of that edit, and
+///    runs. A branch keyed on `expressway`, on `foot`/`bicycle`, on `lanes` or on `maxspeed` - the four
+///    shapes the second review got past the suite - is dead code the moment it is written, because the key it
+///    reads is not in the dictionary the rules see. Widening this set is the visible half of that edit, and
 ///    `theGateSetConsidersOnlyTheTagKeysItsOwnRulesAreWrittenOn` pins it as a written-out literal.
-/// 2. **The behaviour pinned in `GatesInvariantTests`.** The four freeway `highway` values are crossed with
-///    the companion tags a freeway really carries, and `irrelevantTagKeysCannotChangeADecision` piles the
-///    keys no rule uses onto thirteen bases and requires the verdict not to move. That second test is what
-///    catches the *other* half of the edit - deleting the filter below and adding the branch in one go.
+/// 2. **The behaviour pinned in `GatesInvariantTests`.** `irrelevantTagKeysCannotChangeADecision` piles
+///    sixteen keys no rule uses onto sixteen bases and requires the verdict not to move. That is what catches
+///    the OTHER half of the edit - deleting the filter below and adding the branch in one go.
 ///
-/// **The residual, stated rather than denied:** a refusal keyed on a tag key that is in `consideredTagKeys`
-/// but whose freeway-relevant values no test supplies. `highway` is the only such key a freeway carries, and
-/// it is exactly what the 52-case cross product covers. Deleting the filter *and* keying on a tag no test
-/// names would still be invisible to `swift test`; `ops/mutate/gates.py` is what catches that, because
-/// `drop smoothness from consideredTagKeys` goes MISSED the moment the filter stops being applied.
+/// **What deleting the filter costs, measured rather than asserted.** On its own it changes no behaviour at
+/// all: with the line gone the whole suite still passes. What objects is `ops/mutate/gates.py`, where six
+/// mutations are ANCHORED on that line and report `SKIP ... anchor not found - harness is stale`, `0 of 6`,
+/// exit 1. (An earlier draft of this comment said the `drop smoothness from consideredTagKeys` mutation went
+/// MISSED instead. Run against a tree with the filter removed it stays caught, by the literal pin, exit 0 -
+/// so that sentence was false and is gone rather than corrected further down.)
+///
+/// **The residual neither layer closes:** deleting the filter AND keying on a tag that neither the thirteen
+/// companion sets in `GatesTests` nor the sixteen noise keys name. A refusal on `highway` itself - the one
+/// considered key a freeway carries - is covered by the 52-way cross product.
 ///
 /// ## Positive evidence only
 ///
