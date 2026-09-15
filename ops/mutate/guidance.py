@@ -43,6 +43,14 @@ EMPTY_SUITE = ('import Testing\n'
                '    @Test("nothing") func nothing() { #expect(true) }\n'
                '}\n')
 
+# Floors on the HARNESS's own population. Without them every arm - the pass condition, the EQUIVALENT check
+# and `--prove-vacuity` - is VACUOUSLY TRUE on empty lists, so the harness prints "0 of 0 ... exit 0" and
+# "VACUITY PROOF OK ... MISSED=0 of 0", the proof certifying its own vacuity. Found by the sign-off reviewer
+# of PR #73 against ops/mutate/gates.py. Stale ANCHORS were already detected; a deleted POPULATION was not,
+# and that is the one that happens when a mutation is dropped with a plausible reason.
+MIN_MUTATIONS = 18
+MIN_EQUIVALENT = 1
+
 MUTATIONS = [
     # --- the integers, which are the whole point of the type ---------------------------------------------
     ("turnLeft -2 -> -4, a value upstream does not declare", SIGN,
@@ -194,6 +202,11 @@ def run_all(pristine, mutations):
 
 def main(argv) -> int:
     prove = "--prove-vacuity" in argv
+    if len(MUTATIONS) < MIN_MUTATIONS or len(EQUIVALENT) < MIN_EQUIVALENT:
+        sys.stdout.write("REFUSING: %d mutations and %d equivalent mutants, expected at least %d and %d.\n"
+                         "A harness that examines nothing exits 0 and proves nothing.\n"
+                         % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
+        return 2
     pristine = {f: f.read_bytes() for f in (SIGN, MAP)}
     pristine_tests = TESTS.read_bytes()
     for f, b in pristine.items():
