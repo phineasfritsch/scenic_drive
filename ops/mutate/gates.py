@@ -3,29 +3,27 @@
 
 The mutation corpus is ops/mutate/gates_corpus.py; this file is the runner and the floors.
 
-The mutations that matter most are the five under THE INVARIANT there. If the suite does not catch them, the
-suite does not protect the invariant CLAUDE.md lists first - motorway and trunk are PENALISED, not excluded -
-and this repository has already broken that once, making the flagship Mountain View -> SF fixture unroutable.
-Two of the five exist because the review of PR #82 refused freeway geometry (`motorway_link` + `oneway=yes`,
-and `motorroad=yes`) with the whole suite still green.
-
-Second in importance is the absent-versus-present pair. Roughly half the corpus turns a rule that requires
-positive evidence into one that fires on a tag being absent or merely present, because that is how a gate set
-quietly starts refusing most of the rural roads the product exists to find - and every short fixture still
-passes when it does.
+The mutations that matter most are the eleven under THE INVARIANT there. If the suite does not catch them,
+the suite does not protect the invariant CLAUDE.md lists first - motorway and trunk are PENALISED, not
+excluded - and this repository has already broken that once, making the flagship Mountain View -> SF fixture
+unroutable. Six of the eleven exist because the two reviews of PR #82 refused freeway geometry (`motorway_link`
++ `oneway`, `motorroad`, `expressway`, `foot`/`bicycle`, `lanes`, `maxspeed`) with the whole suite green.
+Roughly half the rest turn a rule that requires positive evidence into one that fires on a tag being absent
+or merely present, because that is how a gate set quietly starts refusing the rural roads this product is for.
 
 Written on the corrected contract (T-0132, and the harness discussion on PR #70):
   * the pass condition is `caught == len(MUTATIONS)`. A trap, a compile failure and a stale anchor each FAIL
     the run - `caught + len(trapped)` was the defect found on PR #70, where breaking a harness's own
     FAIL_LINE regex produced "caught: 0, trapped: 3" and exit 0;
+  * a catch means a NAMED test recorded an issue, and the name is PRINTED. A non-zero exit with no name is a
+    trap. The second review of PR #82 had to write its own runner to establish the names this one now prints;
+  * every subject and every discovered test file must be byte-identical to `git show HEAD:` BEFORE anything
+    is built. That review put one line into Gates.swift and this harness measured the mutant and printed
+    "28 of 28", exit 0, while the invariant was broken on disk;
   * `--prove-vacuity` requires `caught == 0` AND `missed == len(MUTATIONS)`, and empties EVERY test file that
     could catch a mutation - discovered, not hardcoded, see TEST_FILES below;
   * the EQUIVALENT arm requires MISSED specifically, not merely "not caught";
   * the KNOWN_MISSED arm is asserted the other way round, and is actually executed.
-
-(An earlier docstring pointed at `ops/mutate/guidance.py` as the reference implementation. No such file
-exists on this branch or on main - it lives only on task/T-0129 - so the pointer is dropped rather than left
-dangling.)
 """
 from __future__ import annotations
 
@@ -38,22 +36,23 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from gates_corpus import DECISION, EQUIVALENT, GATES, KNOWN_MISSED, MUTATIONS  # noqa: E402
+from gates_corpus import DECISION, EQUIVALENT, GATES, KNOWN_MISSED, MUTATIONS, REASON  # noqa: E402
+
+SUBJECTS = (GATES, DECISION, REASON)
 
 # Inside `.build/`, which .gitignore already covers. As `.build-mutate-gates` it left an untracked directory
 # behind after every run, and ops/lib/check-worktrees only reports untracked paths inside the task's
-# `touches:`, so nothing complained. Raised on the review of PR #82.
+# `touches:`, so nothing complained. Raised on the first review of PR #82.
 SCRATCH = ".build/mutate-gates"
 
 # Every suite that could catch a mutation - DISCOVERED, not one hardcoded path.
 #
 # T-0132: a suite split at the 300-line cap silently broke the hardcoded-single-path form in five separate
 # harnesses. The half that moved out kept catching mutations while `--prove-vacuity` went on printing "EVERY
-# test file is replaced" and "with no tests present". Both sentences were then false, and the proof was
-# measuring a suite it had not emptied. The reviewer of PR #82 reproduced exactly that decay here.
-#
-# A file counts if it mentions any of the three symbols under test. That is a property of the tree, so the
-# split half is picked up the moment it exists.
+# test file is replaced". The reviewer of PR #82 reproduced that decay here, and the second round of fixes
+# split this very suite into three files - so the decay would have landed for real. A file counts if it
+# mentions any of the three symbols under test; that is a property of the tree, so a split half is picked up
+# the moment it exists.
 SUBJECT_SYMBOLS = re.compile(r"\bGates\b|\bGateDecision\b|\bGateReason\b")
 
 
@@ -69,27 +68,62 @@ TEST_FILES = discover_test_files()
 
 # Floors on the HARNESS's own population.
 #
-# Found by the sign-off reviewer of PR #73, against this file specifically, while I was holding it up as the
-# corrected reference: `return 0 if caught == len(MUTATIONS) and eq_ok and known_ok else 1` is VACUOUSLY TRUE
-# on empty lists. Emptying the lists gives "caught by a named test: 0 of 0 ... exit 0" and, worse,
-# "VACUITY PROOF OK ... MISSED=0 of 0" - the vacuity proof certifying its own vacuity.
+# Found by the sign-off reviewer of PR #73, against this file specifically: `return 0 if caught ==
+# len(MUTATIONS) and eq_ok and known_ok else 1` is VACUOUSLY TRUE on empty lists. Emptying the lists gives
+# "caught by a named test: 0 of 0 ... exit 0" and, worse, "VACUITY PROOF OK ... MISSED=0 of 0".
 #
 # MIN_MUTATIONS IS THE REAL COUNT, not a round number below it. At 18 against a population of 21 the floor
-# refused an empty corpus but not a deletion, so the reviewer of PR #82 deleted BOTH motorway mutations plus
-# one more and got `caught by a named test: 18 of 18 ... exit 0` - a clean sheet with the invariant no longer
-# measured, which is the exact failure the floor was added to prevent. ops/lib/check-exec-bits (MIN_FILES =
-# 17) and ops/lib/check-line-cap (MIN_FILES = 5) both sit at their real counts; this now does too. Adding a
-# mutation means bumping this number, in a different file from the list itself.
-MIN_MUTATIONS = 28
+# refused an empty corpus but not a deletion, so the first reviewer of PR #82 deleted BOTH motorway mutations
+# plus one more and got `caught by a named test: 18 of 18 ... exit 0` - a clean sheet with the invariant no
+# longer measured. Adding a mutation means bumping this number, in a different file from the list itself.
+MIN_MUTATIONS = 37
 MIN_EQUIVALENT = 1
 
 # NOT a completeness floor, and it must not be read as one: TEST_FILES is discovered precisely so that the
 # count CAN change when a suite is split, and a floor at today's count would fail on the split it exists to
-# survive. It refuses one thing only - a discovery that matched nothing, which would let `--prove-vacuity`
-# empty no files at all.
+# survive. It refuses one thing only - a discovery that matched nothing.
 MIN_TEST_FILES = 1
 
-FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
+# A catch is a NAMED test recording an issue, and group 1 is that name. Swift Testing prints
+#   x Test "a motorway is never gated, because ..." recorded an issue at GatesTests.swift:40:9: ...
+# for a display-named test and `Test motorwayIsNeverGated() recorded an issue` for one without. Also matching
+# "Test run with N tests ... failed" - which is what this regex used to be alone - counts a crash or any
+# other non-assertion failure as a catch, and names nothing.
+FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
+
+
+def failing_test_names(txt: str):
+    """The distinct NAMES that recorded an issue, in order. Empty means nothing named objected. A regex
+    broken in the over-matching direction (no capture group, matching every line) still yields "names" here,
+    so the EQUIVALENT arm goes on catching that: it would report the equivalent mutant caught."""
+    seen = []
+    for m in FAIL_LINE.finditer(txt):
+        groups = [g for g in (m.groups() or ()) if g]
+        name = groups[0] if groups else " ".join(m.group(0).split())[:60]
+        if name not in seen:
+            seen.append(name)
+    return seen
+
+
+def head_bytes(path: pathlib.Path):
+    rel = path.relative_to(ROOT).as_posix()
+    p = subprocess.run(["git", "show", "HEAD:" + rel], cwd=ROOT, capture_output=True)
+    return p.stdout if p.returncode == 0 else None
+
+
+def not_at_head(paths):
+    """Paths whose bytes on disk differ from `git show HEAD:`, with why. Without this the harness snapshots
+    whatever is on disk as "pristine" and measures THAT: the second review of PR #82 put one `expressway`
+    branch into Gates.swift, ran this harness unmodified, and got "caught by a named test: 28 of 28" / exit 0
+    over a tree that hard-excludes every expressway-tagged motorway. Printing the md5 was not enough."""
+    bad = []
+    for p in paths:
+        h = head_bytes(p)
+        if h is None:
+            bad.append((p, "not tracked at HEAD"))
+        elif h != p.read_bytes():
+            bad.append((p, "differs from HEAD"))
+    return bad
 
 
 def empty_suite(path: pathlib.Path) -> str:
@@ -124,6 +158,7 @@ def run_all(pristine, mutations):
             sys.stdout.write("SKIP        %-62s anchor not found - harness is stale\n" % name)
             out["skipped"].append(name)
             continue
+        names = []
         try:
             path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
             if path.read_bytes() == pristine[path]:
@@ -136,12 +171,13 @@ def run_all(pristine, mutations):
                 verdict, code = "compile_only", 1
             else:
                 code, txt = test()
-                verdict = "caught" if FAIL_LINE.search(txt) else ("trapped" if code != 0 else "missed")
+                names = failing_test_names(txt)
+                verdict = "caught" if names else ("trapped" if code != 0 else "missed")
         finally:
             path.write_bytes(pristine[path])
         out[verdict].append(name)
         label = {"caught": "caught", "trapped": "trapped", "compile_only": "compile-only", "missed": "MISSED"}
-        note = {"caught": "exit=%d" % code,
+        note = {"caught": "by: " + " | ".join(names),
                 "trapped": "non-zero exit, but NO named test failed - does not count",
                 "compile_only": "a fact about Swift, not about these tests - does not count",
                 "missed": "exit=0  no test objected"}
@@ -162,10 +198,21 @@ def main(argv) -> int:
                          % (len(TEST_FILES), MIN_TEST_FILES))
         return 2
 
-    pristine = {f: f.read_bytes() for f in (GATES, DECISION)}
+    pristine = {f: f.read_bytes() for f in SUBJECTS}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
+
+    # BEFORE any build, and before --prove-vacuity empties anything.
+    dirty = not_at_head(list(pristine) + list(pristine_tests))
+    if dirty:
+        sys.stdout.write("REFUSING: the subject is not what HEAD says it is, so nothing measured below would\n"
+                         "mean anything. A mutant left on disk reads as 'pristine' and the run certifies it.\n")
+        for p, why in dirty:
+            sys.stdout.write("  %s: %s\n" % (p.relative_to(ROOT).as_posix(), why))
+        sys.stdout.write("Commit or restore these, then re-run.\n")
+        return 2
+
     for f, b in pristine.items():
-        sys.stdout.write("pristine %-32s md5 %s\n" % (f.name, hashlib.md5(b).hexdigest()))
+        sys.stdout.write("pristine %-32s md5 %s  == HEAD\n" % (f.name, hashlib.md5(b).hexdigest()))
     sys.stdout.write("test files discovered: %s\n" % ", ".join(f.name for f in TEST_FILES))
 
     eq = None
@@ -180,9 +227,8 @@ def main(argv) -> int:
 
         # Built TWICE before the baseline is declared broken, for the same reason each mutation is. On this
         # Windows checkout a first build into a fresh scratch directory can fail with "unable to create
-        # symbolic link ... I/O error (code: 512)" and succeed immediately after. The mutation loop already
-        # allowed for that; the baseline did not, so a transient failure aborted the whole run with
-        # "baseline does not build" and nothing was ever measured. That happened on this harness's first run.
+        # symbolic link ... I/O error (code: 512)" and succeed immediately after. The mutation loop allowed
+        # for that; the baseline did not, so a transient failure aborted the run and nothing was measured.
         if build() != 0 and build() != 0:
             sys.stdout.write("baseline does not build; nothing below would mean anything\n")
             return 2
@@ -206,8 +252,8 @@ def main(argv) -> int:
         for f, b in pristine_tests.items():
             f.write_bytes(b)
 
-    if any(f.read_bytes() != b for f, b in pristine.items()) or any(f.read_bytes() != b for f, b in pristine_tests.items()):
-        sys.stdout.write("RESTORE FAILED - the working tree is not pristine\n")
+    if not_at_head(list(pristine) + list(pristine_tests)):
+        sys.stdout.write("RESTORE FAILED - the working tree is not back at HEAD\n")
         return 2
 
     sys.stdout.write("\nrestored: " + ", ".join(hashlib.md5(f.read_bytes()).hexdigest()[:8] for f in pristine) + "\n")

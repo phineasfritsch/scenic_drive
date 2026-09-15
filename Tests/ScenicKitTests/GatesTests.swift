@@ -21,11 +21,15 @@ import Testing
 ///
 /// `freewayTagsNeverGate` below crosses the four freeway `highway` values with the companion tags a freeway
 /// really carries in OSM. Every one of those inputs is a written-out literal and the expected side is the
-/// literal `.allowed`; nothing is read back from `Gates`. That kills both refuted branches and the class they
-/// belong to. It does **not** make a motorway refusal structurally impossible: a branch keyed on a tag no
-/// case below supplies would still be invisible, and `noMotorwayReasonExists` does not close that gap either,
-/// because a refusal can reuse an existing `GateReason` instead of adding one. `ops/mutate/gates.py` carries a
-/// mutation for each shape that has actually been proposed.
+/// literal `.allowed`; nothing is read back from `Gates`. That kills both refuted branches.
+///
+/// It does **not** kill the class, and the second review of PR #82 proved it by walking past this file four
+/// more times on keys these thirteen companions do not name - `expressway`, `foot`/`bicycle`, `lanes`,
+/// `maxspeed`. The class is closed in `GatesInvariantTests` instead, by `Gates.consideredTagKeys` plus
+/// `irrelevantTagKeysCannotChangeADecision`; this file's cross product is the layer that still catches such a
+/// branch once somebody deletes that filter. `noMotorwayReasonExists` closes neither gap - a refusal can
+/// reuse an existing `GateReason` instead of adding one - and it claims only what its name says.
+/// `ops/mutate/gates.py` carries a mutation for every shape that has actually been proposed.
 @Suite("Gates")
 struct GatesTests {
 
@@ -155,6 +159,20 @@ struct GatesTests {
         #expect(Gates.decide(["surface": "concrete"]) == .allowed)
         #expect(Gates.decide(["surface": "paved"]) == .allowed)
         #expect(Gates.decide(["surface": "paving_stones"]) == .allowed)
+    }
+
+    @Test("a cobbled or sett-paved lane is allowed, because those surfaces are paved")
+    func historicPavedSurfacesAreNotUnpaved() {
+        // The unpaved set is the plan's list verbatim, and widening it is a HARD SAFETY REFUSAL on exactly
+        // the roads this product exists to find: a cobbled village lane or a sett-paved pass is scenic, not
+        // unsafe. The review of PR #82 added "cobblestone" and "sett" to `unpavedSurfaces` and nothing
+        // objected - the allowed side named four values and the corpus attacked the set in the widening
+        // direction only once, with "asphalt", which those four happened to cover.
+        #expect(Gates.decide(["surface": "cobblestone"]) == .allowed)
+        #expect(Gates.decide(["surface": "sett"]) == .allowed)
+        #expect(Gates.decide(["surface": "unhewn_cobblestone"]) == .allowed)
+        #expect(Gates.decide(["surface": "chipseal"]) == .allowed)
+        #expect(Gates.decide(["surface": "concrete:plates"]) == .allowed)
     }
 
     @Test("a track is refused, by highway or by tracktype")

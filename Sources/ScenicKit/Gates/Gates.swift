@@ -17,12 +17,28 @@ import Foundation
 /// fixture still passes when it does. Every Bay Area commute over 15 km needs freeway shoulders around a
 /// scenic middle - 280, then Cañada, then Skyline.
 ///
-/// So there is no `GateReason` named for a motorway. That is worth something, but **it is not a structural
-/// guarantee, and an earlier version of this comment claimed it was.** The review of PR #82 refuted the claim
-/// by adding a branch that refuses freeway geometry while reusing the existing `.noAccess` case - a closed
-/// enum does not stop that. What actually holds the invariant is the behaviour pinned in `GatesTests`, where
-/// the four freeway `highway` values are crossed with the companion tags a freeway really carries, and the
-/// mutations in `ops/mutate/gates.py` that check those pins are alive.
+/// ## What holds the invariant, in two layers
+///
+/// There is no `GateReason` named for a motorway, and that is worth something - but it is **not** a
+/// structural guarantee, and an earlier version of this comment claimed it was. A new branch can reuse
+/// `.noAccess` and never touch the enum, which is how the review of PR #82 refused freeway geometry twice
+/// with the whole suite green.
+///
+/// 1. **`consideredTagKeys`.** `decide` drops every tag key no rule below is written on, before any rule
+///    runs. A branch keyed on `expressway`, `foot`, `bicycle`, `lanes` or `maxspeed` - all four shapes the
+///    second review of PR #82 got past the suite - is dead code once it is written, because the key it reads
+///    is not in the dictionary the rules see. Widening this set is the visible half of that edit, and
+///    `theGateSetConsidersOnlyTheTagKeysItsOwnRulesAreWrittenOn` pins it as a written-out literal.
+/// 2. **The behaviour pinned in `GatesInvariantTests`.** The four freeway `highway` values are crossed with
+///    the companion tags a freeway really carries, and `irrelevantTagKeysCannotChangeADecision` piles the
+///    keys no rule uses onto thirteen bases and requires the verdict not to move. That second test is what
+///    catches the *other* half of the edit - deleting the filter below and adding the branch in one go.
+///
+/// **The residual, stated rather than denied:** a refusal keyed on a tag key that is in `consideredTagKeys`
+/// but whose freeway-relevant values no test supplies. `highway` is the only such key a freeway carries, and
+/// it is exactly what the 52-case cross product covers. Deleting the filter *and* keying on a tag no test
+/// names would still be invisible to `swift test`; `ops/mutate/gates.py` is what catches that, because
+/// `drop smoothness from consideredTagKeys` goes MISSED the moment the filter stops being applied.
 ///
 /// ## Positive evidence only
 ///
@@ -63,11 +79,32 @@ public enum Gates {
         "driveway", "parking_aisle", "drive-through", "emergency_access",
     ]
 
+    /// Every tag key a rule in `decide` is written on, and nothing else.
+    ///
+    /// This is the enforcement of "hard gates are safety only". A way is refused on the evidence of one of
+    /// these ten keys or it is not refused at all, so a branch that reads any other key sees `nil` and can
+    /// never fire. `foot`, `bicycle`, `expressway`, `lanes`, `maxspeed`, `toll`, `motorroad` and `oneway`
+    /// are deliberately absent: `foot=no` and `bicycle=no` are on essentially every motorway in OSM, and a
+    /// "be thorough about access tags" refactor that loops over them would otherwise exclude the entire
+    /// freeway network.
+    ///
+    /// **This list fails toward `.allowed`, which is the right direction.** A genuinely new safety rule
+    /// written on a key that is missing here does nothing until the key is added - the author's own test for
+    /// their new rule goes red immediately and tells them. The opposite failure, a refusal that works the
+    /// moment somebody types it, is the one this product cannot survive.
+    public static let consideredTagKeys: Set<String> = [
+        "surface", "highway", "tracktype", "smoothness", "access",
+        "motor_vehicle", "barrier", "locked", "ford", "service",
+    ]
+
     /// The verdict for a way with these OSM tags.
     ///
     /// The order the rules are tried in is the order of the reasons a person would want to hear first, and it
-    /// only matters when a way trips more than one.
-    public static func decide(_ tags: [String: String]) -> GateDecision {
+    /// only matters when a way trips more than one - `ops/route-autopsy` is specified to read whichever
+    /// reason fires first, so the order is behaviour and `GatesOrderTests` pins every ordered pair of it.
+    public static func decide(_ allTags: [String: String]) -> GateDecision {
+        let tags = allTags.filter { consideredTagKeys.contains($0.key) }
+
         if let surface = tags["surface"], unpavedSurfaces.contains(surface) {
             return .refused(.unpavedSurface)
         }
@@ -90,8 +127,10 @@ public enum Gates {
 
         // Everything else is allowed - motorway and trunk included, deliberately and by omission. Omission
         // is not self-enforcing: a later edit can add a branch here as easily as it can invert one, and the
-        // review of PR #82 did exactly that twice (`motorway_link` + `oneway`, and `motorroad`). The thing
-        // that stops it is `freewayTagsNeverGate` in GatesTests, not the shape of this function.
+        // review of PR #82 did exactly that four more times. A branch added here can only read a key from
+        // `consideredTagKeys`; the review's `expressway`, `foot`/`bicycle`, `lanes` and `maxspeed` branches
+        // are all dead code in this position now, and deleting the filter to revive them is what
+        // `irrelevantTagKeysCannotChangeADecision` is for.
         return .allowed
     }
 }
