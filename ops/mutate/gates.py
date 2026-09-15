@@ -1,22 +1,31 @@
 #!/usr/bin/env python3
 """Mutation harness for the safety gates. A catch requires a NAMED TEST to fail, not a non-zero exit.
 
-The mutation that matters most in this file is `gate motorways too`. If the suite does not catch it, the
+The mutation corpus is ops/mutate/gates_corpus.py; this file is the runner and the floors.
+
+The mutations that matter most are the five under THE INVARIANT there. If the suite does not catch them, the
 suite does not protect the invariant CLAUDE.md lists first - motorway and trunk are PENALISED, not excluded -
 and this repository has already broken that once, making the flagship Mountain View -> SF fixture unroutable.
+Two of the five exist because the review of PR #82 refused freeway geometry (`motorway_link` + `oneway=yes`,
+and `motorroad=yes`) with the whole suite still green.
 
-Second in importance is the absent-versus-present pair. Roughly half the mutations here turn a rule that
-requires positive evidence into one that fires on a tag being absent or merely present, because that is how a
-gate set quietly starts refusing most of the rural roads the product exists to find - and every short fixture
-still passes when it does.
+Second in importance is the absent-versus-present pair. Roughly half the corpus turns a rule that requires
+positive evidence into one that fires on a tag being absent or merely present, because that is how a gate set
+quietly starts refusing most of the rural roads the product exists to find - and every short fixture still
+passes when it does.
 
-Written on the corrected contract (see ops/mutate/guidance.py, and T-0132):
+Written on the corrected contract (T-0132, and the harness discussion on PR #70):
   * the pass condition is `caught == len(MUTATIONS)`. A trap, a compile failure and a stale anchor each FAIL
-    the run - `caught + len(trapped)` was the defect found on PR #70 today, where breaking a harness's own
+    the run - `caught + len(trapped)` was the defect found on PR #70, where breaking a harness's own
     FAIL_LINE regex produced "caught: 0, trapped: 3" and exit 0;
   * `--prove-vacuity` requires `caught == 0` AND `missed == len(MUTATIONS)`, and empties EVERY test file that
-    could catch a mutation, each with an empty suite named after the file it stands in;
-  * the EQUIVALENT arm requires MISSED specifically, not merely "not caught".
+    could catch a mutation - discovered, not hardcoded, see TEST_FILES below;
+  * the EQUIVALENT arm requires MISSED specifically, not merely "not caught";
+  * the KNOWN_MISSED arm is asserted the other way round, and is actually executed.
+
+(An earlier docstring pointed at `ops/mutate/guidance.py` as the reference implementation. No such file
+exists on this branch or on main - it lives only on task/T-0129 - so the pointer is dropped rather than left
+dangling.)
 """
 from __future__ import annotations
 
@@ -27,13 +36,60 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-GATES = ROOT / "Sources" / "ScenicKit" / "Gates" / "Gates.swift"
-DECISION = ROOT / "Sources" / "ScenicKit" / "Gates" / "GateDecision.swift"
-SCRATCH = ".build-mutate-gates"
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-# Every suite that could catch a mutation, not one hardcoded file. A suite split at the 300-line cap silently
-# broke this in five separate harnesses today; filed as T-0132.
-TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "GatesTests.swift"]
+from gates_corpus import DECISION, EQUIVALENT, GATES, KNOWN_MISSED, MUTATIONS  # noqa: E402
+
+# Inside `.build/`, which .gitignore already covers. As `.build-mutate-gates` it left an untracked directory
+# behind after every run, and ops/lib/check-worktrees only reports untracked paths inside the task's
+# `touches:`, so nothing complained. Raised on the review of PR #82.
+SCRATCH = ".build/mutate-gates"
+
+# Every suite that could catch a mutation - DISCOVERED, not one hardcoded path.
+#
+# T-0132: a suite split at the 300-line cap silently broke the hardcoded-single-path form in five separate
+# harnesses. The half that moved out kept catching mutations while `--prove-vacuity` went on printing "EVERY
+# test file is replaced" and "with no tests present". Both sentences were then false, and the proof was
+# measuring a suite it had not emptied. The reviewer of PR #82 reproduced exactly that decay here.
+#
+# A file counts if it mentions any of the three symbols under test. That is a property of the tree, so the
+# split half is picked up the moment it exists.
+SUBJECT_SYMBOLS = re.compile(r"\bGates\b|\bGateDecision\b|\bGateReason\b")
+
+
+def discover_test_files():
+    out = []
+    for p in sorted((ROOT / "Tests").rglob("*.swift")):
+        if SUBJECT_SYMBOLS.search(p.read_text(encoding="utf-8", errors="replace")):
+            out.append(p)
+    return out
+
+
+TEST_FILES = discover_test_files()
+
+# Floors on the HARNESS's own population.
+#
+# Found by the sign-off reviewer of PR #73, against this file specifically, while I was holding it up as the
+# corrected reference: `return 0 if caught == len(MUTATIONS) and eq_ok and known_ok else 1` is VACUOUSLY TRUE
+# on empty lists. Emptying the lists gives "caught by a named test: 0 of 0 ... exit 0" and, worse,
+# "VACUITY PROOF OK ... MISSED=0 of 0" - the vacuity proof certifying its own vacuity.
+#
+# MIN_MUTATIONS IS THE REAL COUNT, not a round number below it. At 18 against a population of 21 the floor
+# refused an empty corpus but not a deletion, so the reviewer of PR #82 deleted BOTH motorway mutations plus
+# one more and got `caught by a named test: 18 of 18 ... exit 0` - a clean sheet with the invariant no longer
+# measured, which is the exact failure the floor was added to prevent. ops/lib/check-exec-bits (MIN_FILES =
+# 17) and ops/lib/check-line-cap (MIN_FILES = 5) both sit at their real counts; this now does too. Adding a
+# mutation means bumping this number, in a different file from the list itself.
+MIN_MUTATIONS = 28
+MIN_EQUIVALENT = 1
+
+# NOT a completeness floor, and it must not be read as one: TEST_FILES is discovered precisely so that the
+# count CAN change when a suite is split, and a floor at today's count would fail on the split it exists to
+# survive. It refuses one thing only - a discovery that matched nothing, which would let `--prove-vacuity`
+# empty no files at all.
+MIN_TEST_FILES = 1
+
+FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
 
 
 def empty_suite(path: pathlib.Path) -> str:
@@ -44,133 +100,6 @@ def empty_suite(path: pathlib.Path) -> str:
             '@Suite("empty %s") struct Empty%s {\n'
             '    @Test("nothing") func nothing() { #expect(true) }\n'
             '}\n' % (name, name))
-
-
-# Floors on the HARNESS's own population.
-#
-# Found by the sign-off reviewer of PR #73, against this file specifically, while I was holding it up as the
-# corrected reference: `return 0 if caught == len(MUTATIONS) and eq_ok and known_ok else 1` is VACUOUSLY TRUE
-# on empty lists. Emptying the lists gives "caught by a named test: 0 of 0 ... exit 0" and, worse,
-# "VACUITY PROOF OK ... MISSED=0 of 0" - the vacuity proof certifying its own vacuity.
-#
-# The harness detected "my anchors rotted" and not "my population was deleted", and it is the second that
-# actually happens: a mutation gets removed with a plausible reason and nothing ever says the count fell.
-# ops/lib/check-exec-bits (MIN_FILES = 17) and ops/lib/check-line-cap (MIN_FILES = 5) both carry this guard,
-# and their headers say it is because this repository has already shipped the defect twice.
-MIN_MUTATIONS = 18
-MIN_EQUIVALENT = 1
-
-MUTATIONS = [
-    # --- THE INVARIANT ------------------------------------------------------------------------------------
-    # If only one mutation in this file is caught, it has to be this one.
-    ("gate motorways, the invariant CLAUDE.md lists first", GATES,
-     "        return .allowed\n    }\n}",
-     '        if tags["highway"] == "motorway" || tags["highway"] == "trunk" {\n'
-     '            return .refused(.noAccess)\n'
-     '        }\n        return .allowed\n    }\n}'),
-
-    ("gate motorway_link and trunk_link, the shape a 'tidy-up' actually takes", GATES,
-     "        return .allowed\n    }\n}",
-     '        if tags["highway"]?.hasPrefix("motorway") == true\n'
-     '            || tags["highway"]?.hasPrefix("trunk") == true {\n'
-     '            return .refused(.noAccess)\n'
-     '        }\n        return .allowed\n    }\n}'),
-
-    # --- absent is not negative ---------------------------------------------------------------------------
-    ("refuse a way with NO surface tag, which would exclude most rural lanes", GATES,
-     '        if let surface = tags["surface"], unpavedSurfaces.contains(surface) {',
-     '        if !unpavedSurfaces.contains(tags["surface"] ?? "") == false || tags["surface"] == nil {'),
-
-    ("refuse any way that has a surface tag at all", GATES,
-     '        if let surface = tags["surface"], unpavedSurfaces.contains(surface) {',
-     '        if tags["surface"] != nil {'),
-
-    ("refuse every gate, locked or not", GATES,
-     '        if tags["barrier"] == "gate", tags["locked"] == "yes" { return .refused(.lockedBarrier) }',
-     '        if tags["barrier"] == "gate" { return .refused(.lockedBarrier) }'),
-
-    ("refuse a way tagged locked even with no barrier", GATES,
-     '        if tags["barrier"] == "gate", tags["locked"] == "yes" { return .refused(.lockedBarrier) }',
-     '        if tags["locked"] == "yes" { return .refused(.lockedBarrier) }'),
-
-    ("refuse every service way, not only driveways and parking aisles", GATES,
-     '        if tags["highway"] == "service", let s = tags["service"], refusedServiceValues.contains(s) {',
-     '        if tags["highway"] == "service" {'),
-
-    ("refuse a driveway value even on a road that is not a service way", GATES,
-     '        if tags["highway"] == "service", let s = tags["service"], refusedServiceValues.contains(s) {',
-     '        if let s = tags["service"], refusedServiceValues.contains(s) {'),
-
-    ("refuse ford = no as well as ford = yes", GATES,
-     '        if tags["ford"] == "yes" { return .refused(.ford) }',
-     '        if tags["ford"] != nil { return .refused(.ford) }'),
-
-    # --- the sets themselves ------------------------------------------------------------------------------
-    ("drop compacted and fine_gravel from the unpaved set", GATES,
-     '        "gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel",',
-     '        "gravel", "dirt", "ground", "sand", "unpaved",'),
-
-    ("call asphalt unpaved", GATES,
-     '        "gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel",',
-     '        "gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel", "asphalt",'),
-
-    ("let destination-only access through", GATES,
-     '    public static let closedAccess: Set<String> = ["private", "no", "permit", "destination"]',
-     '    public static let closedAccess: Set<String> = ["private", "no", "permit"]'),
-
-    ("refuse permissive access", GATES,
-     '    public static let closedAccess: Set<String> = ["private", "no", "permit", "destination"]',
-     '    public static let closedAccess: Set<String> = ["private", "no", "permit", "destination",\n'
-     '                                                   "permissive"]'),
-
-    ("move the tracktype boundary, letting grade3 through", GATES,
-     '    public static let refusedTracktypes: Set<String> = ["grade3", "grade4", "grade5"]',
-     '    public static let refusedTracktypes: Set<String> = ["grade4", "grade5"]'),
-
-    ("move the tracktype boundary the other way, refusing grade2", GATES,
-     '    public static let refusedTracktypes: Set<String> = ["grade3", "grade4", "grade5"]',
-     '    public static let refusedTracktypes: Set<String> = ["grade2", "grade3", "grade4", "grade5"]'),
-
-    ("refuse intermediate smoothness, which the plan allows", GATES,
-     '        "bad", "very_bad", "horrible", "very_horrible", "impassable",',
-     '        "intermediate", "bad", "very_bad", "horrible", "very_horrible", "impassable",'),
-
-    ("let a merely bad road through", GATES,
-     '        "bad", "very_bad", "horrible", "very_horrible", "impassable",',
-     '        "very_bad", "horrible", "very_horrible", "impassable",'),
-
-    # --- the reason, which the autopsy reads --------------------------------------------------------------
-    ("report an unpaved surface as a locked barrier", GATES,
-     "            return .refused(.unpavedSurface)",
-     "            return .refused(.lockedBarrier)"),
-
-    ("report a ford as rough surface", GATES,
-     '        if tags["ford"] == "yes" { return .refused(.ford) }',
-     '        if tags["ford"] == "yes" { return .refused(.tooRough) }'),
-
-    ("a refusal reports itself as allowed", DECISION,
-     "    public var isAllowed: Bool {\n        if case .allowed = self { return true }\n        return false",
-     "    public var isAllowed: Bool {\n        return true"),
-
-    ("an allowed way reports a reason anyway", DECISION,
-     "    public var reason: GateReason? {\n        if case let .refused(r) = self { return r }\n"
-     "        return nil",
-     "    public var reason: GateReason? {\n        if case let .refused(r) = self { return r }\n"
-     "        return .ford"),
-]
-
-# Cannot change behaviour, so anything but MISSED is a FAILURE.
-EQUIVALENT = [
-    ("reorder two independent rules that cannot both fire", GATES,
-     '        if tags["ford"] == "yes" { return .refused(.ford) }',
-     '        if tags["ford"] == "yes" { return .refused(GateReason.ford) }'),
-]
-
-# Mutations this suite is KNOWN not to catch, asserted the other way round. Empty for now, and that is a
-# claim: every mutation above is expected to be caught by a named test.
-KNOWN_MISSED = []
-
-FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
 
 
 def build() -> int:
@@ -227,17 +156,25 @@ def main(argv) -> int:
                          "A harness that examines nothing exits 0 and proves nothing.\n"
                          % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
         return 2
+    if len(TEST_FILES) < MIN_TEST_FILES:
+        sys.stdout.write("REFUSING: discovered %d test file(s) mentioning Gates/GateDecision/GateReason,\n"
+                         "expected at least %d. With none, --prove-vacuity would empty nothing.\n"
+                         % (len(TEST_FILES), MIN_TEST_FILES))
+        return 2
+
     pristine = {f: f.read_bytes() for f in (GATES, DECISION)}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
     for f, b in pristine.items():
         sys.stdout.write("pristine %-32s md5 %s\n" % (f.name, hashlib.md5(b).hexdigest()))
+    sys.stdout.write("test files discovered: %s\n" % ", ".join(f.name for f in TEST_FILES))
 
     eq = None
     known = None
     try:
         if prove:
-            sys.stdout.write("PROVING NON-VACUITY: EVERY test file is replaced by an empty suite, so every\n"
-                             "mutation must report MISSED - not merely 'not caught'.\n")
+            sys.stdout.write("PROVING NON-VACUITY: EVERY test file that mentions the subject is replaced by\n"
+                             "an empty suite (%d discovered), so every mutation must report MISSED - not\n"
+                             "merely 'not caught'.\n" % len(TEST_FILES))
             for f in TEST_FILES:
                 f.write_text(empty_suite(f), encoding="utf-8", newline="\n")
 
@@ -260,6 +197,9 @@ def main(argv) -> int:
         if not prove:
             sys.stdout.write("\nEQUIVALENT MUTANTS - cannot change behaviour, so anything but MISSED is a FAILURE\n")
             eq = run_all(pristine, EQUIVALENT)
+            if KNOWN_MISSED:
+                sys.stdout.write("\nKNOWN GAPS - each must still go MISSED; a gap that closed FAILS the run\n")
+                known = run_all(pristine, KNOWN_MISSED)
     finally:
         for f, b in pristine.items():
             f.write_bytes(b)
@@ -283,16 +223,22 @@ def main(argv) -> int:
 
     if prove:
         ok = len(r["caught"]) == 0 and len(r["missed"]) == len(MUTATIONS)
-        sys.stdout.write("VACUITY PROOF %s: with no tests present, caught=%d (need 0) and MISSED=%d of %d\n"
+        sys.stdout.write("VACUITY PROOF %s: with the %d discovered test file(s) emptied, caught=%d (need 0)\n"
+                         "  and MISSED=%d of %d\n"
                          "  (requiring MISSED to be complete, not just caught==0, is what stops a harness\n"
                          "   broken in the compile-only direction from proving its own non-vacuity)\n"
-                         % ("OK" if ok else "FAILED", len(r["caught"]), len(r["missed"]), len(MUTATIONS)))
+                         % ("OK" if ok else "FAILED", len(TEST_FILES), len(r["caught"]),
+                            len(r["missed"]), len(MUTATIONS)))
         return 0 if ok else 1
 
-    known_ok = not KNOWN_MISSED or (
-        known is not None and len(known["missed"]) + len(known["trapped"]) == len(KNOWN_MISSED))
-    if not known_ok and known is not None:
-        sys.stdout.write("KNOWN-GAP ARM FAILED: a gap that closed is good news - move it into MUTATIONS.\n")
+    known_ok = True
+    if KNOWN_MISSED:
+        known_ok = known is not None and len(known["missed"]) + len(known["trapped"]) == len(KNOWN_MISSED)
+        if not known_ok:
+            sys.stdout.write("KNOWN-GAP ARM FAILED: %d of %d stayed MISSED as asserted. A gap that closed is\n"
+                             "  good news - move it into MUTATIONS.\n"
+                             % (0 if known is None else len(known["missed"]) + len(known["trapped"]),
+                                len(KNOWN_MISSED)))
     eq_ok = eq is not None and len(eq["missed"]) == len(EQUIVALENT)
     if not eq_ok and eq is not None:
         sys.stdout.write("EQUIVALENT ARM FAILED: %d of %d went MISSED as required; a catch means a test has an\n"

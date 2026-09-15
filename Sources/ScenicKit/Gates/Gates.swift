@@ -17,7 +17,12 @@ import Foundation
 /// fixture still passes when it does. Every Bay Area commute over 15 km needs freeway shoulders around a
 /// scenic middle - 280, then Cañada, then Skyline.
 ///
-/// So there is no `GateReason` for a motorway, and `decide` has no branch that could grow one.
+/// So there is no `GateReason` named for a motorway. That is worth something, but **it is not a structural
+/// guarantee, and an earlier version of this comment claimed it was.** The review of PR #82 refuted the claim
+/// by adding a branch that refuses freeway geometry while reusing the existing `.noAccess` case - a closed
+/// enum does not stop that. What actually holds the invariant is the behaviour pinned in `GatesTests`, where
+/// the four freeway `highway` values are crossed with the companion tags a freeway really carries, and the
+/// mutations in `ops/mutate/gates.py` that check those pins are alive.
 ///
 /// ## Positive evidence only
 ///
@@ -83,8 +88,10 @@ public enum Gates {
             return .refused(.serviceWay)
         }
 
-        // Everything else is allowed - motorway and trunk included, deliberately and by omission rather than
-        // by a branch, because a branch is something a later edit can invert.
+        // Everything else is allowed - motorway and trunk included, deliberately and by omission. Omission
+        // is not self-enforcing: a later edit can add a branch here as easily as it can invert one, and the
+        // review of PR #82 did exactly that twice (`motorway_link` + `oneway`, and `motorroad`). The thing
+        // that stops it is `freewayTagsNeverGate` in GatesTests, not the shape of this function.
         return .allowed
     }
 }

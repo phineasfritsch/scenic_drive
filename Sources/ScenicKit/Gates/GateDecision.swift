@@ -30,8 +30,9 @@ public enum GateDecision: Equatable, Sendable {
 /// autopsy - as an unexplained refusal, and so that adding one forces every switch over this type to be
 /// revisited.
 ///
-/// **There is deliberately no case for a motorway.** See `Gates` for why that is the point rather than an
-/// omission.
+/// **There is deliberately no case for a motorway** - but that is a statement of intent, not a guard. A
+/// branch that refuses a motorway can reuse `.noAccess` and never touch this enum, which is how the review of
+/// PR #82 refuted the earlier wording here. The guard is the behaviour pinned in `GatesTests`; see `Gates`.
 public enum GateReason: String, Equatable, Sendable, CaseIterable {
     /// `surface` names a material a sedan should not be sent onto.
     case unpavedSurface
