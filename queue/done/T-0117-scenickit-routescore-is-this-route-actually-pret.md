@@ -1,7 +1,7 @@
 ---
 id: T-0117
 title: ScenicKit RouteScore: is this route actually pretty, length-weighted and invariant to how the router split the edges
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T13:54:42Z
@@ -11,7 +11,7 @@ branch: task/T-0117
 exclusive: []
 touches: [Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/, ops/mutate/, .gitignore]
 pins_affected: []
-reviewer: agent/rvw4-pr73
+reviewer: agent/sg-pr73
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -532,3 +532,126 @@ and it is the third round in a row an acceptance line has been wrong about this 
     bash ops/check-pins                              PINS ok=11 pending=2 expired=0 failed=0        exit 0
     bash ops/check-pins --source-only                PINS ok=4 skipped=9 pending=0 failed=0         exit 0
     bash ops/queue-check                             QUEUE OK (107 tasks)                           exit 0
+
+---
+
+## Sign-off: agent/sg-pr73 returned PASS. Nothing blocking survived.
+
+Reviewed from two detached worktrees of my own (`.worktrees/rvw-pr73`, `.worktrees/rvw-pr73b`), each with
+its own `--scratch-path`. Every subject was extracted with `git show HEAD:<path>` rather than copied from a
+working tree, and hashed against the HEAD blob before AND after every run that mutates a file; both
+worktrees end with `git status --porcelain` empty.
+
+### The acceptance block reproduces character for character, all seven lines
+
+    swift test --scratch-path .build-rvwpr73      Test run with 42 tests in 6 suites passed         exit 0
+    python ops/mutate/routescore.py               caught by a named test: 36 of 36
+                                                  (trapped 0, compile-only 0, MISSED 0, skipped 0)
+                                                  both EQUIVALENT mutants MISSED                    exit 0
+    python ops/mutate/routescore.py --prove-vacuity
+                                                  VACUITY PROOF OK: with no tests present,
+                                                  caught=0 (need 0) and MISSED=36 of 36             exit 0
+    every anchor stale, --prove-vacuity           36 SKIP lines, VACUITY PROOF FAILED: ...
+                                                  caught=0 (need 0) and MISSED=0 of 36              exit 1
+    36 -> 34 (the two restored `>=` -> `>`)       REFUSING: 34 mutations and 2 equivalent mutants,
+                                                  expected at least 36 and 2.                       exit 2
+    36 -> 37 (added, floor not raised)            REFUSING: 37 ... against floors of 36 and 2.
+                                                  The floor is slack by 1 and 0 ...                 exit 2
+    bash ops/test                                 FAIL: services/api exists but vitest produced
+                                                  no report                                         exit 1
+    npm ci in services/api, then bash ops/test    TESTS linux=145/76 ios=skipped failed=0 skipped=0
+                                                  OK                                                exit 0
+
+BOTH branches of the conditional `ops/test` line were run, not just the one this box happens to be in:
+`services/api/node_modules` was absent (exit 1 at the Worker tier, T-0040, nothing to do with this diff),
+and after `npm ci` from the committed lockfile the same command prints the claimed line and exits 0. Also
+`check-pins` ok=11 pending=2 failed=0, `--source-only` ok=4 skipped=9, `queue-check` QUEUE OK (107 tasks).
+
+### The two-sided floor refuses in BOTH directions, and on EQUIVALENT too
+
+By importing `ops/mutate/routescore.py` by path and overriding the population in memory - the tracked file
+was never edited. Six cases, all before any build, all exit 2: `MUTATIONS=[]` and `EQUIVALENT=[]` (both with
+and without `--prove-vacuity`); 36 -> 35; 36 -> 34; 36 -> 37; EQUIVALENT 2 -> 1 and 2 -> 3. The floor
+predecessor was confirmed rather than believed: `git show 645fcef:ops/mutate/routescore.py` has
+`MIN_MUTATIONS = 28` and a one-sided `len(MUTATIONS) < MIN_MUTATIONS`, which is the F1 state exactly.
+
+### The hex-float witnesses are exact fixed points, verified in Python from the equation, not from the report
+
+    at-end   X = 0x1.8ffffff94a036p+9 = 799.9999992   scale = X
+             800.0 - X*1e-9 == X  -> True   episodes(>=) = 1, episodes(>) = 0
+    in-loop  X = 0x1.8ffffff79c843p+9 = 799.999999    scale = X + 200 = 999.999999
+             800.0 - (X+200)*1e-9 == X -> True   episodes(>=) = 1, episodes(>) = 0
+
+Each is the ONLY double satisfying its own equation (walked outward with `nextafter`: band size 1 at both
+sites), so one ulp either way destroys the witness and the hex literals are load-bearing. F3's correction is
+confirmed independently: the at-end constant does NOT discriminate at the in-loop site - on
+`[0x1.8ffffff94a036p+9 @0.9, 200 @0.1]` both operators give 1. The one-ulp-below fixture
+`0x1.8ffffff94a035p+9` is exactly one ulp below (gap 1.1368683772161603e-13) and is not an episode. The
+percentile witness `0x1.193fffcb923a6p+13` sits inside a band of exactly ten consecutive doubles
+`0x1.193fffcb923a1p+13 ... 0x1.193fffcb923aap+13`, five ulps above the low edge, and the far-side fixture is
+eight ulps below the band - all as stated.
+
+### Every previously claimed fix was re-broken and read back BY FAILING TEST NAME
+
+The harness reports "caught" without naming the test, so all eight were re-run against the shipped source:
+
+    `>=` -> `>` in-loop          <- "a run landing exactly on the tolerated boundary is an episode, at
+    `>=` -> `>` at-end              both closing sites"
+    percentile `>=` -> `>`       <- "the percentile boundary landing exactly on the tolerated bound takes
+    percentile tolerance -> 0       the lower score" (+ "...stable under re-splitting", 29 issues)
+    episode tolerance 1e-6       <- "a run one ulp short of the tolerated boundary is not an episode"
+    episode tolerance absolute   <- "a run landing exactly on the tolerated boundary is an episode, ..."
+    percentile tolerance 1e-5    <- "the percentile boundary landing exactly on the tolerated bound ..."
+    percentile tolerance abs.    <- "the percentile boundary landing exactly on the tolerated bound ..."
+
+Both declared EQUIVALENT mutants genuinely survive with no named test objecting, as the arm requires.
+
+### Fifteen mutations nobody wrote, against the shipped source: fourteen caught, one survivor
+
+Caught, each with the failing test named: doubling either tolerance; sorting the percentile by LENGTH;
+never resetting `run`; swapping the mean and p90 weights at the USE SITE; taking the episode scale over the
+pretty edges only; making the episode bound relative to 800 m instead of to the route; scaling the
+percentile bound instead of subtracting the tolerance; HARD-EXCLUDING motorway (the CLAUDE.md invariant,
+caught by `motorwayScoresAsADudAndIsAnHonestFailure` among five others); counting at most one episode;
+removing the clamp floor; taking p90 unsorted; and two in `ScoredEdge`, which the harness does not mutate
+at all - a score of exactly 0 becoming invalid, and scores above 1 being accepted.
+
+### The harness was attacked and refused every time
+
+`FAIL_LINE` broken with the subject pristine -> 36 trapped, caught 0, exit 1. `FAIL_LINE` made to match
+everything -> 36 of 36 "caught" but the EQUIVALENT arm fails it, exit 1. Every anchor stale -> 36 SKIP,
+exit 1 in both modes. Every mutation a no-op -> "mutation did not land", exit 1. Baseline build failing once
+then succeeding -> proceeds (`routescore.py:389`, matching the per-mutation retry at `:340`); failing twice
+-> "baseline does not build", exit 2. A subject left MUTATED on disk -> baseline red, exit 2, nothing
+measured. `--prove-vacuity` completeness re-derived rather than taken on trust: `grep -rl` over every
+`.swift` file in the repo returns exactly the two sources and the three test files already in `TESTS`, and
+there is only one test target.
+
+### NOT BLOCKING, recorded so it is not lost
+
+  * **One surviving mutation, with a control.** Removing `total.isFinite` from
+    `RouteScore.swift:101` survives all 42 tests. It is not equivalent: on
+    `[.greatestFiniteMagnitude @0.5, .greatestFiniteMagnitude @0.5]` - two individually VALID edges - the
+    shipped code returns nil and the mutant returns
+    `RouteScore(value: 0.225, mean: 0.0, p90: 0.5, dudFraction: 0.0, episodeCount: 3, totalLength: inf)`,
+    three phantom episodes and all. Control: an untracked test asserting that route is nil passed on the
+    pristine tree (43 tests in 7 suites) and failed by name under the mutation; it was then deleted. Not a
+    blocker - a path-detail interval cannot reach 1e308 m - but it belongs with the unreachable fallbacks
+    already disclosed under "Not fixed, deliberately" at `RouteScore.swift:122`/`:134`, and it is the one
+    guard in the file with no coverage and no disclosure.
+  * `routescore.py:380` still says "**both** test files are replaced by empty suites"; `TESTS` has carried
+    three since the witness suite was split out. The code is right and the banner under-claims.
+  * `RouteScoreWitnessTests.swift:81` "five from either edge" is five ulps from the low edge and four from
+    the high (band `...a1` to `...aa`, fixture `...a6`). The conclusion it supports - not one ulp from
+    flipping either way - holds.
+  * The two measured flip points quoted at `RouteScoreWitnessTests.swift:61` and `:90`
+    (1.0000000837403711e-09 and 1.0000001666368189e-09) are looser than the real ones I measured
+    (1.0000000126860977e-09 and 1.000000075687348e-09, each exact: it flips at t and not at t-1ulp). The
+    statements stay TRUE - the fixtures refuse strictly more than claimed - and the 1e-6/1e-5/1e-8
+    conclusions were confirmed by running those mutations.
+  * PR #73's GitHub description still reads "swift test -> 29 tests in 4 suites" and
+    "`.artifacts/mutate-T0117.py` -> 8 of 8 mutations caught" against a shipped 42 tests in 6 suites and
+    `ops/mutate/routescore.py` with 36. Worth correcting before merge, but not a blocker and not a
+    regression: PR #70, already on main, carries the identical stale shape.
+  * `pins/floor_linux.txt` is 76 against a real 145, exactly as this task already recorded. Out of scope
+    here (serial-only file, no `exclusive:` held) and it needs its own task.
