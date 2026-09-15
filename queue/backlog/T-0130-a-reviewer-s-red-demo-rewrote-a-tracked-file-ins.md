@@ -129,3 +129,33 @@ Note the reviewers who did this correctly today did exactly that: PR #70's revie
   after the restore, with the harness refusing while one exists.** What remains is to lift it out of one
   harness into the shared place the rest of [[T-0132]] is heading, and to have `ops/agent-preflight` refuse
   on it too so a human session meets it at the start rather than on the next harness run.
+
+- 2026-09-15T19:30:00Z **IT ALREADY PRODUCED A FALSE GREEN, in a real run, and nobody noticed at the time.** Everything above was written about a *window*. The agent fixing PR #71 closed it and, in doing so, showed the window had already been walked through:
+
+  A subject file was left mutated on disk. A later harness run snapshotted that MUTANT as `pristine`,
+  measured all 34 mutations against it, printed **`34 of 34 caught`, exit 0**, and restored the mutant. A
+  clean bill of health over corrupted source, self-consistent, with nothing anywhere to contradict it. The
+  md5 of the file it measured (`d08228d8`) is not the md5 of `HEAD` (`2e420d88`).
+
+  So this is no longer a hazard with a plausible story attached. It is a defect with a reproduction.
+
+  **The guard that closes it is stronger than the sentinel**, and both are now wanted for different reasons:
+
+  * the **sentinel** (`.artifacts/<name>-mutation-in-flight`) catches *this run was killed mid-mutation*, and
+    it is the only thing that can speak before the next run starts;
+  * the **HEAD comparison** catches *the subject differs from `git show HEAD:` for ANY reason* - a killed
+    run, a hand-edit, a half-applied patch, another agent's demo - and it fires before a single build.
+
+  `ops/mutate/budget.py` now does the second and REFUSES with
+  `REFUSING: LambdaSearch.swift does not match \`git show HEAD:\`` and exit 2, with `--allow-dirty-subject`
+  as the escape hatch, which announces that it is measuring disk rather than HEAD. Demonstrated end to end
+  by hand-planting the exact mutation and getting the refusal where the earlier run had printed 34 of 34.
+
+  **TEST files are deliberately excluded from the comparison**, and the reason is written down rather than
+  left implicit: a fix pass edits tests by design, so refusing on them would refuse the ordinary case - and a
+  test file left emptied by a killed `--prove-vacuity` makes every mutation report MISSED, which fails
+  loudly (`caught 0 of 38`) instead of reading as a clean sheet. The asymmetry is the point: a dirty SUBJECT
+  fails silently, a dirty TEST file fails loudly, so only the subject needs the guard.
+
+  Both guards belong in the shared place [[T-0132]] is heading, and `ops/agent-preflight` should refuse on a
+  live sentinel so a human session meets it at the start rather than on the next harness run.
