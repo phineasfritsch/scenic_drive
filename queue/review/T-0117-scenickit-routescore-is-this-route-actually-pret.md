@@ -15,11 +15,12 @@ reviewer: agent/rvw4-pr73
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "ops/test -> TESTS linux=142/76 ios=skipped failed=0 skipped=0, exit 0"
-  - "swift test -> 39 tests in 5 suites passed, exit 0"
-  - "python ops/mutate/routescore.py -> 29 of 29 caught by a named test; 0 trapped, 0 compile-only, 0 MISSED, 0 skipped; both EQUIVALENT mutants MISSED as required; exit 0"
-  - "RED: python ops/mutate/routescore.py --prove-vacuity -> caught=0 and MISSED=29 of 29 with the tests replaced by empty suites, exit 0"
-  - "RED: the same harness with every anchor stale -> VACUITY PROOF FAILED, exit 1 (the old pass condition printed OK, exit 0)"
+  - "swift test -> 40 tests in 6 suites passed, exit 0"
+  - "python ops/mutate/routescore.py -> 31 of 31 caught by a named test; 0 trapped, 0 compile-only, 0 MISSED, 0 skipped; both EQUIVALENT mutants MISSED as required; exit 0"
+  - "RED: python ops/mutate/routescore.py --prove-vacuity -> caught=0 and MISSED=31 of 31 with the tests replaced by empty suites, exit 0"
+  - "RED: the same harness with every anchor stale -> VACUITY PROOF FAILED, exit 1"
+  - "RED: emptying MUTATIONS makes the harness REFUSE ('A harness that examines nothing exits 0 and proves nothing'), exit 2"
+  - "NOTE: ops/test exits 1 everywhere with 'services/api exists but vitest produced no report' - services/api/node_modules is absent on this box and on main. Environmental, filed as T-0040, not this PR. The previous acceptance line claimed a TESTS summary this command never reaches."
 ---
 ## Brief
 
@@ -354,3 +355,21 @@ more of it, and `thresholdStrictness` still pins the behaviour (800 m is an epis
 stray file removed. `ops/lib/queue.py` is outside this task's `touches:` and T-0096 already covers that
 module.
 
+
+---
+
+## Sign-off pass: agent/signoff-pr73 returned FAIL, and all three blocking findings were right
+
+A first reviewer passed this. A second, independent review failed it with three blocking findings, every one
+measured with controls rather than read off the diff. All three are now closed.
+
+- 2026-09-09T02:40:00Z **B2 was the serious one: a previously-caught mutation had been DELETED with a reason that measurement shows is false.** The harness and the Log both said the `>=` -> `>` mutation was *"unobservable: at a run of exactly 800 m both `>=` and `>` clear `800 - tolerance`"*. That sentence is true; the conclusion drawn from it is not. `>=` and `>` differ on exactly one input class - `run == episodeMinLength - tolerance` **exactly as a double** - and since `tolerance = scale * 1e-9`, a witness is a fixed point of `X == 800.0 - (X + dull) * 1e-9`. That is a one-parameter family, not one lucky value.
+- 2026-09-09T02:40:00Z **I verified the reviewer's witness independently before trusting it**, in Python rather than by re-reading their report: `0x1.8ffffff94a036p+9` is `799.9999992`, and `800.0 - 799.9999992e-9` is also exactly `799.9999992`, so `>=` counts the episode and `>` drops it. Then I searched for the second site's witness myself by walking outward from the approximate root: with a 200 m dull tail, `0x1.8ffffff79c843p+9` is the exact fixed point. **Both mutations are restored and both are caught.** Written as hex float literals, because a decimal literal that round-trips on this toolchain is not guaranteed to be the same bit pattern elsewhere, and one ulp destroys the witness.
+- 2026-09-09T02:40:00Z The old justification also claimed *"the four below cover the same boundary and more of it"*. They do not: all four mutate the **tolerance**, and none reaches the `>=` vs `>` comparison at the boundary itself - which is exactly why the restored pair went MISSED against a suite in which all four were caught. Deleting a previously-caught mutation with a false reason is worse than a `KNOWN_MISSED` entry with a bad reason, because nothing will ever re-check it.
+- 2026-09-09T02:40:00Z **B1: the harness reported a clean sheet over nothing.** With `MUTATIONS` and `EQUIVALENT` emptied it printed `caught by a named test: 0 of 0 ... exit 0` and `VACUITY PROOF OK ... MISSED=0 of 0` - the vacuity proof certifying its own vacuity. The asymmetry is the finding: this harness already detected stale ANCHORS (31 SKIP lines, exit 1, and that is in the acceptance block), but not a deleted POPULATION - and the deleted population is what actually happened here, in B2, with nothing to say the count had fallen from 31 to 29. `MIN_MUTATIONS = 28` / `MIN_EQUIVALENT = 2` now refuse. RED: `REFUSING: 0 mutations and 2 equivalent mutants, expected at least 28 and 2. / A harness that examines nothing exits 0 and proves nothing.`, exit 2.
+- 2026-09-09T02:40:00Z **The same defect was in every harness I wrote today, including the one I was holding up as the corrected reference.** `ops/mutate/gates.py` on `task/T-0133` had it, and the reviewer said so explicitly - *"the reference is not a defence for it"*. Floors added to `gates.py`, `segmentscore.py`, `guidance.py`, `hazards.py` and `retrace.py` on their own branches.
+- 2026-09-09T02:40:00Z **B3: the baseline build was not retried** while every mutation build already was, so one transient `I/O error (code: 512)` on a fresh scratch directory aborts the run with *"baseline does not build"* having measured nothing. Fixed; this is the defect filed as the second half of [[T-0132]], which landed on `main` six minutes after this branch's head and so was never inherited.
+- 2026-09-09T02:40:00Z **The acceptance block was wrong in two ways and is rewritten.** Line 1 claimed `ops/test -> TESTS linux=142/76 ... exit 0`; that command exits 1 everywhere on this box at the Worker tier and never reaches the `TESTS` summary at all, so the line asserted output that cannot be produced. It is replaced by an explicit NOTE recording the environmental cause ([[T-0040]]) rather than a claim. Lines 3 and 4 said `29 of 29`; the count is now **31**, and the floor above is what makes that number mean something.
+- 2026-09-09T02:40:00Z `RouteScoreBoundaryTests.swift` reached 321 lines with the witness test in it, over the 300 cap. The exact-double witnesses moved to `RouteScoreWitnessTests.swift` - they need hex float literals and a rationale of their own, so the split follows a real seam. **The harness's `TESTS` tuple was updated in the same commit**, because a suite split the vacuity proof does not know about silently stops it emptying all the tests, which has now happened five times here ([[T-0132]]).
+- 2026-09-09T02:40:00Z GREEN: `swift test` -> **40 tests in 6 suites passed**. `python ops/mutate/routescore.py` -> **31 of 31 caught by a named test**, 0 trapped, 0 compile-only, 0 MISSED, 0 skipped, exit 0. `--prove-vacuity` -> `caught=0 (need 0) and MISSED=31 of 31`, exit 0. `bash ops/check-pins` -> `ok=11 skipped=0 pending=2 expired=0 failed=0`.
+- 2026-09-09T02:40:00Z NOT CLOSED, and named rather than left implied: the reviewer's N1 (the tolerance USE SITES survive replacement by a literal down to `1e-6` on the episode site and `1e-5` on the percentile site), N2 and N3 (two arithmetic claims in comments that are wrong - 7.93% written as 9.6%, three orders of magnitude written as six), and N4 (a comment whose stated scope exceeds its assertion on long routes). N2 and N3 are comment defects in a file whose subject is checks that claim more than they cover, so they should not sit long.

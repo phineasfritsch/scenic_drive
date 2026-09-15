@@ -32,7 +32,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SRC = ROOT / "Sources" / "ScenicKit" / "Scoring" / "RouteScore.swift"
 TESTS = (ROOT / "Tests" / "ScenicKitTests" / "RouteScoreTests.swift",
-         ROOT / "Tests" / "ScenicKitTests" / "RouteScoreBoundaryTests.swift")
+         ROOT / "Tests" / "ScenicKitTests" / "RouteScoreBoundaryTests.swift",
+         ROOT / "Tests" / "ScenicKitTests" / "RouteScoreWitnessTests.swift")
 SCRATCH = ".build-mutate-routescore"
 
 EMPTY_SUITE = ('import Testing\n'
@@ -48,6 +49,17 @@ EPISODE_INLOOP = ("            } else {\n"
 EPISODE_ATEND = ("        }\n"
                  "        if run >= episodeMinLength - tolerance { count += 1 }\n"
                  "        return count")
+
+# Floors on the HARNESS's own population. The sign-off reviewer of PR #73 emptied MUTATIONS and EQUIVALENT
+# and got "caught by a named test: 0 of 0 ... exit 0" and "VACUITY PROOF OK ... MISSED=0 of 0" - every arm
+# vacuously true, and the vacuity proof certifying its own vacuity.
+#
+# The asymmetry matters: this harness already detected stale ANCHORS (31 SKIP lines, exit 1, demonstrated in
+# the acceptance block). It did not detect a deleted POPULATION - and that is the one that happened here,
+# when the `>=` -> `>` mutation was removed and nothing said the count had fallen. ops/lib/check-exec-bits
+# refuses below MIN_FILES = 17 for the same reason.
+MIN_MUTATIONS = 28
+MIN_EQUIVALENT = 2
 
 MUTATIONS = [
     # --- structural: the natural-but-wrong implementation -------------------------------------------
@@ -177,10 +189,27 @@ MUTATIONS = [
     # Four mutations, because there are two closing sites and two ways to break each: remove the tolerance
     # (the shipped defect - an 800 m episode returned as k intervals is thrown away for 99 of the first
     # 200 k) and put it on the wrong side (which throws it away for every k).
-    # There is deliberately NO `>=` -> `>` mutation here any more. It used to be caught, and with the
-    # tolerance present it is unobservable: at a run of exactly 800 m both `>=` and `>` clear
-    # `800 - tolerance`. Measured, not assumed - it went MISSED when tried. Keeping it would report a gap
-    # that is not one; the four below cover the same boundary and more of it.
+    # RESTORED. It was removed with the reason "with the tolerance present it is unobservable: at a run of
+    # exactly 800 m both `>=` and `>` clear `800 - tolerance`". That sentence is true and the conclusion
+    # drawn from it is false, which the sign-off reviewer of PR #73 showed with compiled witnesses.
+    #
+    # `>=` and `>` differ on exactly one input class: `run == episodeMinLength - tolerance` EXACTLY as a
+    # double. Since `tolerance = scale * 1e-9`, the witness condition is the fixed point
+    # `X == 800.0 - X * 1e-9`, and it has a one-parameter family of solutions rather than one lucky point.
+    # At 0x1.8ffffff94a036p+9 metres the shipped code counts 1 episode and the mutant counts 0, at BOTH
+    # closing sites, and the route score moves 0.798333... -> 0.765.
+    #
+    # The four tolerance mutations below do NOT cover it: every one of them mutates the TOLERANCE, and none
+    # reaches the `>=` vs `>` comparison at the boundary itself. Deleting a previously-caught mutation with
+    # a false reason is worse than a KNOWN_MISSED entry with a bad reason, because nothing will re-check it.
+    ("require a run to EXCEED the episode minimum, at the in-loop closing site",
+     EPISODE_INLOOP,
+     "            } else {\n                if run > episodeMinLength - tolerance { count += 1 }"),
+
+    ("require a run to EXCEED the episode minimum, where the route ends on the run",
+     EPISODE_ATEND,
+     "        }\n        if run > episodeMinLength - tolerance { count += 1 }\n        return count"),
+
     ("drop the episode tolerance where a dull stretch closes the run",
      EPISODE_INLOOP,
      "            } else {\n                if run >= episodeMinLength { count += 1 }"),
@@ -270,6 +299,11 @@ def run_all(pristine, mutations):
 
 def main(argv) -> int:
     prove = "--prove-vacuity" in argv
+    if len(MUTATIONS) < MIN_MUTATIONS or len(EQUIVALENT) < MIN_EQUIVALENT:
+        sys.stdout.write("REFUSING: %d mutations and %d equivalent mutants, expected at least %d and %d.\n"
+                         "A harness that examines nothing exits 0 and proves nothing.\n"
+                         % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
+        return 2
     pristine = SRC.read_bytes()
     pristine_tests = {f: f.read_bytes() for f in TESTS}
     sys.stdout.write("pristine %s md5 %s\n" % (SRC.name, hashlib.md5(pristine).hexdigest()))
@@ -282,7 +316,11 @@ def main(argv) -> int:
             for i, f in enumerate(TESTS):
                 f.write_text(EMPTY_SUITE % {"n": i}, encoding="utf-8", newline="\n")
 
-        if build() != 0:
+        # Built TWICE before the baseline is declared broken, exactly as each mutation build already is at
+        # the site above. On this Windows checkout a first build into a fresh scratch directory can fail
+        # with "unable to create symbolic link ... I/O error (code: 512)" and succeed immediately after, and
+        # a single attempt turns that into "baseline does not build" with nothing measured.
+        if build() != 0 and build() != 0:
             sys.stdout.write("baseline does not build; nothing below would mean anything\n")
             return 2
         code, _ = test()
