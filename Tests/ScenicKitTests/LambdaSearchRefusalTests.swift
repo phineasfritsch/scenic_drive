@@ -13,12 +13,14 @@ import Testing
 /// a different sentence in the log, and the same type. So wherever a refusal carries a value, the test here
 /// pattern-matches the case and its payload.
 ///
-/// Two tests are deliberately type-only, and this is the exact extent of it: `noFeasibleLambdaThrows` and
-/// `refusesBadInputs` pin "refused rather than returned" across many inputs, cheaply. Neither is the only
-/// assertion on its case - the payloads of `noFeasibleLambda` are pinned by
+/// THREE tests are deliberately type-only, and this is the exact extent of it. That count read "two" while
+/// the same paragraph went on to name the third (N-SG3) - in a header rewritten to fix a false sentence
+/// about exactly this, which is how a count gets copied instead of recounted. `noFeasibleLambdaThrows` and
+/// `refusesBadInputs` pin "refused rather than returned" across many inputs, cheaply, and neither is the
+/// only assertion on its case: the payloads of `noFeasibleLambda` are pinned by
 /// `refusalCarriesWhatTheSearchMeasured`, and those of `notADuration` and `notABudget` by
-/// `errorsCarryTheirNumbers`. `propagatesRouterErrors` asserts a type on purpose: the thing it pins is that
-/// a non-BudgetError comes back out unchanged.
+/// `errorsCarryTheirNumbers`. `propagatesRouterErrors` is the third, and it is type-only on purpose: what
+/// it pins is that a non-BudgetError comes back out unchanged, which is a statement about the type.
 ///
 /// What a type-only family is still worth exactly as much as is its list of INPUTS, which is how F-R1 hid
 /// here for three rounds. `refusesBadInputs` carried (.nan, 60), (1800, .nan) and (1800, .infinity) and not
@@ -168,6 +170,13 @@ struct LambdaSearchRefusalTests {
         // ETA <= fastest + budget - is then not breached but VACUOUS, which is the worse failure of the two
         // and the one this repository is named after. The refusal is the behaviour; the case and the value
         // it carries are asserted, not the bare type, because `noFeasibleLambda` is a BudgetError too.
+        //
+        // What this guard does NOT close, recorded rather than left to be rediscovered: `fastest` and
+        // `budget` can both be finite and legal and still SUM to an infinite ceiling -
+        // `LambdaSearch(fastest: 1e308, budget: 1e308)` constructs, and a standalone sweep prints
+        // `CTOR OK f=1e+308 b=1e+308 ceiling=inf`. Same vacuity, reached without an infinite input.
+        // Refused this round rather than closed (N-SG4): 1e308 seconds is unreachable from the product, and
+        // an honest refusal needs an error case of its own, since neither input is the bad one.
         do {
             _ = try LambdaSearch(fastest: .infinity, budget: 60)
             Issue.record("an infinite fastest duration must be refused at construction")

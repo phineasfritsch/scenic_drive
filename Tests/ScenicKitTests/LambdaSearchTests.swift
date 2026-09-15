@@ -33,8 +33,13 @@ struct LambdaSearchTests {
         // The expected bound is now computed in the test, from the inputs the test chose.
         for slopeTenths in 0...40 {
             let slope = Double(slopeTenths) / 40.0          // 0 ... 1.0 extra per unit lambda
-            for budgetMinutes in [0, 1, 5, 10, 25, 60, 240] {
-                let budget = TimeInterval(budgetMinutes * 60)
+            // Every budget here used to be a whole number of MINUTES, so the ceiling had no witness at a
+            // FRACTIONAL one: `self.ceiling = ceiling.rounded()` in BudgetOutcome survived all 48 tests
+            // (N-SG5). It reads an 1800.4 s ceiling back as 1800.0 and an 1800.6 s one back as 1801.0, so a
+            // caller checking `duration <= out.ceiling` is handed a bound that is wrong in whichever
+            // direction the fraction falls. 0.4 s is an absurd budget and a legal one; the constructor
+            // takes any finite budget >= 0, and `zeroBudgetIsAlwaysUsed` already relies on that.
+            for budget in [0, 60, 300, 600, 1500, 3600, 14_400, 0.4] as [TimeInterval] {
                 let expectedCeiling = Self.fastest + budget            // independent of the code under test
                 let search = try LambdaSearch(fastest: Self.fastest, budget: budget)
                 let out = try search.search(Self.monotone(slope))

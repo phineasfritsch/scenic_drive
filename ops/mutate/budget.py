@@ -35,8 +35,9 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from budget_arms import EQUIVALENT, KNOWN_MISSED, MIN_EQUIVALENT
-from budget_mutations import MIN_MUTATIONS, MUTATIONS, ROOT, SUBJECTS, TEST_FILES
-from budget_tree import SENTINEL, SENTINEL_MESSAGE, differs_from_head, prove_dirty
+from budget_mutations import MIN_MUTATIONS, MUTATIONS, ROOT, SUBJECTS
+from budget_tree import (SENTINEL, SENTINEL_MESSAGE, TEST_FILES, differs_from_head, prove_blind,
+                         prove_dirty, unanswerable)
 
 SCRATCH = ".build-mutate-budget"
 
@@ -101,6 +102,24 @@ def run_all(pristine, mutations):
     return out
 
 
+def head_line(snapshot) -> str:
+    """The sentence this run prints about the HEAD comparison, as a function of what git could answer.
+
+    N-SG2: this used to be `"subjects match git show HEAD: yes (%d files)"` in an else-branch, printed
+    whatever happened. `differs_from_head` deliberately treats "git cannot answer" as not-dirty, so with git
+    unreachable it returns [] over a mutated subject and that line asserted a comparison that never ran - a
+    harness making the exact claim it exists to stop anyone else making. A function rather than a `write`
+    inside `main` so the blind case can be DEMONSTRATED without a build; the demo is in the task Log."""
+    blind = unanswerable(snapshot)
+    line = ("subjects compared with git show HEAD: %d of %d match\n"
+            % (len(snapshot) - len(blind), len(snapshot)))
+    if blind:
+        line += ("  NOT COMPARED: git could not answer for %s, so nothing here is a statement about those\n"
+                 "  committed bytes - a mutation left on disk in one of them would not have been seen.\n"
+                 % ", ".join(f.name for f in blind))
+    return line
+
+
 def population_ok() -> bool:
     """A FLOOR on the harness's own evidence. `caught == len(MUTATIONS)` is satisfied by an empty list - 0 of
     0, exit 0 - so an emptied or truncated population would report the cleanest sheet this file can print.
@@ -155,6 +174,8 @@ def main(argv) -> int:
         return prove_floor()
     if "--prove-dirty" in argv:
         return prove_dirty(sys.stdout.write)
+    if "--prove-blind" in argv:
+        return prove_blind(sys.stdout.write, head_line)
     if not population_ok():
         return 2
     if SENTINEL.exists():
@@ -186,7 +207,7 @@ def main(argv) -> int:
                          "  verdict below is about that content and not about HEAD.\n"
                          % ", ".join(f.name for f in dirty))
     else:
-        sys.stdout.write("subjects match git show HEAD: yes (%d files)\n" % len(pristine))
+        sys.stdout.write(head_line(pristine))
 
     eq = None
     known = None

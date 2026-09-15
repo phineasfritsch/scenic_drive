@@ -46,6 +46,13 @@ KNOWN_MISSED = []
 # lambda sequence) rather than of the helper, so a future change to the bracket could make it live, and an
 # EQUIVALENT entry whose reason can expire is an arm that will one day fail for the right reason with the
 # wrong message. Recorded in the task Log instead.
+#
+# The fourth review pushed on that distinction and it is a difference of DEGREE, which is worth saying here
+# rather than leaving the sentence above to read as a bright line: the tolerance entry below also rests on
+# two constants and its own comment says what a catch there would mean. What separates them is how far the
+# reason lives from the mutated line and how quietly it can go stale - a constant changing is a one-line
+# diff next to the entry, a bracket that starts revisiting a lambda is not - and that is a judgement, not a
+# rule. The omission still costs nothing; the entry would.
 EQUIVALENT = [
     ("start the evaluation counter from a different literal zero", SRC,
      "        var evaluations = 0",

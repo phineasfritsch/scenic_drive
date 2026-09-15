@@ -15,11 +15,13 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test --scratch-path .build-T0116 -> Test run with 48 tests in 6 suites passed, exit 0"
-  - "python ops/mutate/budget.py -> caught by a named test: 38 of 38   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
-  - "python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=38 of 38, exit 0"
+  - "swift test --scratch-path .build-T0116 -> Test run with 50 tests in 7 suites passed, exit 0"
+  - "python ops/mutate/budget.py -> caught by a named test: 41 of 41   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
+  - "python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=41 of 41, exit 0"
   - "python ops/mutate/budget.py --prove-floor -> FLOOR PROOF OK: emptied -> refused=True, one deleted -> refused=True, real -> accepted=True, exit 0"
   - "python ops/mutate/budget.py --prove-dirty -> DIRTY PROOF OK: committed -> accepted=True, mutated -> refused=True, exit 0"
+  - "python ops/mutate/budget.py --prove-blind -> BLIND PROOF OK: differs=True, names every uncompared subject=True, subprocess restored=True, exit 0"
+  - "RED: prove_blind handed the sentence this replaced (the four-line stand-in is in the Log) -> BLIND PROOF FAILED: differs=False, names every uncompared subject=False, subprocess restored=True, exit 1"
   - "RED: with .artifacts/budget-mutation-in-flight present, python ops/mutate/budget.py -> REFUSING: ... the previous run was killed while a mutation was on disk, exit 2, before any build"
   - "RED: with MIN_MUTATIONS forced to 22 and MIN_EQUIVALENT to 1 (the one-liner is in the Log), --prove-floor -> FLOOR PROOF FAILED: emptied -> refused=True, one deleted -> refused=False, real -> accepted=True, exit 1"
 ---
@@ -78,20 +80,34 @@ returns 2000 s for every lambda at or above 4. The bracket climbs to ~7.5 becaus
 feasible; the best feasible route - the *slowest* that still fits, which is the most scenic affordable one -
 is at lambda 0 with 3000 s. Pinning that exact pair catches both mutations at once.
 
-### The third one was my mutation being wrong, and that is a finding about the code
+### ~~The third one was my mutation being wrong, and that is a finding about the code~~ - it was not (F-SG1)
 
 `let the ceiling slip by one percent` aimed at `if d <= ceiling {` inside the bisection and was not caught.
-That is correct behaviour, not a hole: **that line only steers the bracket.** Feasibility is filtered
-separately, where `best` is updated. Loosening the bracket makes the search waste an evaluation exploring an
-infeasible region; it cannot breach the invariant, because nothing infeasible can ever become `best`.
+~~That is correct behaviour, not a hole: **that line only steers the bracket.**~~ Feasibility is filtered
+separately, where `best` is updated. ~~Loosening the bracket makes the search waste an evaluation exploring
+an infeasible region; it cannot breach the invariant, because nothing infeasible can ever become `best`.~~
+
+**Both struck sentences are false and are struck here, in the entry that made them, not only corrected
+further down (F-SG1, fourth review).** The bracket decides which lambdas are ever MEASURED, and only a
+measured route can become `best`, so steering it wrong does not cost an evaluation - it costs the route. On
+the fixture now in `LambdaSearchSteeringTests.swift` the loosened bracket turns a 3200 s scenic plan into
+the 1800 s fastest route with `usedBudget` **false**; across 7296 standalone cases the reviewer measured
+1066 changed lines, 158 of them the RETURNED DURATION and 149 flipping `usedBudget`, with a worst case where
+the pristine search returns a plan and the mutant throws `noFeasibleLambda` - *"couldn't reach that
+address"*. What survives of the paragraph is one clause: the CEILING is never breached either way. That is
+why nothing caught this for three rounds, and it is not the same fact as harmless.
 
 So the guard that actually enforces the ceiling is a different line, and the mutation was retargeted at it.
 Re-run:
 
     8 of 8 mutations caught     exit 0
 
-The separation is worth keeping deliberately: the bisection can be wrong about where to look next without
-the returned answer ever being wrong about the ceiling.
+~~The separation is worth keeping deliberately: the bisection can be wrong about where to look next without
+the returned answer ever being wrong about the ceiling.~~ The separation is real and the invariant does hold
+either way. What was wrong was retargeting the mutation and leaving **nothing at all** on the line it came
+off - for three rounds the population named the guard it does not touch ("on the guard that enforces it")
+and was read as covering both. Both spellings of the steering guard are in `MUTATIONS` now, and each is
+caught by a test named for the direction it breaks.
 
 ### A third correction: what `monotonicityViolated` can and cannot mean
 
@@ -186,11 +202,16 @@ Eight of the sixteen are numeric-constant mutations, including `minBudgetUse` mo
 
 ### Also confirmed by the reviewer, and worth recording
 
-They re-applied my originally mis-aimed bracket mutation and confirmed independently that it really is a
-no-op - the Log's claim that "the bracket steers, the best guard enforces" is true and was not a defect
-quietly redefined into a harmless one. They verified it twice: by re-running the mutation, and by fuzzing
-the standalone-compiled sources, where the answer fingerprint changed (proving the mutation is live rather
-than equivalent) while breaches stayed at zero.
+~~They re-applied my originally mis-aimed bracket mutation and confirmed independently that it really is a
+no-op~~ - **struck here, in the entry that made the claim (F-SG1).** Read the rest of the sentence it was
+written in: the fingerprint CHANGED. A mutation whose observable fingerprint changes is live by definition,
+and this entry recorded it as "a no-op" in the same breath. What actually stayed at zero was ceiling
+breaches, which is a narrower claim than the one written down. The true part - the bracket steers, the
+`best` guard enforces, the invariant holds either way - is kept. The false part is the step from there to
+"so the line needs no witness": the fourth review measured what it costs (a refused plan, a budget reported
+unspent) and both directions are now caught by name. They verified it twice: by re-running the mutation, and
+by fuzzing the standalone-compiled sources, where the answer fingerprint changed while breaches stayed at
+zero.
 - 2026-09-08T23:00:00Z reviewer-pr71 returned FAIL. Their BLOCKING finding was that **acceptance line 3 did not reproduce**: `--prove-vacuity` exited 1 with `VACUITY PROOF FAILED: 8 mutations were reported caught`, because commit bc5e7f6 split ten tests into `LambdaSearchBudgetUseTests.swift` and the harness kept emptying only the first file. Its own message - *"with no tests present"* - was false; it was measuring the sibling suite. A demonstration that decayed at the last commit, and a green claim recorded over a red command.
 - 2026-09-08T23:00:00Z FIXED: the harness empties **both** suites, each replaced by an empty suite named after the file it stands in - two identically-named structs would not compile, and a compile failure would make the proof pass for the wrong reason. `--prove-vacuity` -> `caught=0 (need 0) and MISSED=22 of 22`, OK. Acceptance line 1 was also wrong for the same reason (*"37 tests in 4 suites"*); it is 5 suites, and now 42 tests.
 - 2026-09-08T23:00:00Z **F5, the signature defect, and F1 with it.** `tieBreaksTowardTheHigherLambda` asserted `rec.asked.contains(out2.lambda)` and `out2.lambda == rec.asked.max()` - both recomputed from what the object under test did, and both true of any search that returns something it asked for, including one asking for entirely the wrong things. The reviewer measured the consequence: the mutation *"return the bracket instead of a measured candidate"* slipped through the very test written against it, because on a flat curve the bracket `lo` **is** the largest lambda asked. Replaced with the literal sequence `rec.asked == [0, 4, 6, 7, 7.5, 7.75]` and `out2.lambda == 7.75`, derived by hand from the constants rather than read off a run. That also closes **F1**: it pins `maxLambda`'s USE, which its value being pinned elsewhere did not - at `maxLambda = 16` the search would ask 0, 8, 12, 14, 15, 15.5.
@@ -368,3 +389,145 @@ path (`python .artifacts/probe_new.py .build-probe-before`): baseline green, the
   `git diff main...task/T-0116 --name-only -- services/` is empty. **Not one line of `Sources/` changed in
   this pass either** - the three Budget files are still md5 2e420d88 / 4b3c09f7 / c0db374c, the same bytes
   as 9657c9e, and the harness prints them on every run.
+
+## Fourth fix pass: agent/sg-pr71, and the guard this Log called a no-op
+
+- 2026-09-15T22:00:00Z **F-SG1, BLOCKING, and the false sentences are struck where they were written.** The
+  finding reproduced exactly, against the SHIPPED bytes (`git show HEAD:`, never a working copy) with the
+  failing test read out by NAME and never from an exit code (`.artifacts/names.py`; subjects verified
+  2e420d88 / 4b3c09f7 / c0db374c before and after): `BASELINE exit=0 FAILED: (none)`;
+  `if d <= ceiling {` -> `if d <= ceiling * 1.01 {` **exit=0, FAILED: (none)**; -> `if d < ceiling {`
+  **exit=0, FAILED: (none)**. Two live mutations on `LambdaSearch.swift:94` with all 48 tests green. The
+  Log's `:84-85` (*"that line only steers the bracket"*, *"makes the search waste an evaluation exploring an
+  infeasible region"*) and `:190` (*"confirmed independently that it really is a no-op"*) are struck in the
+  entries that made them, above - not merely contradicted down here, because a reader going top-down met
+  the false version first for three rounds. The cost is not a wasted evaluation: the bracket decides which
+  lambdas are ever MEASURED and only a measured route can become `best`, so the loosened guard hands back
+  the 1800 s fastest route with `usedBudget` **false** where the pristine search returns a 3200 s scenic
+  one. The reviewer's standalone sweep put 1066 of 7296 cases on it, 158 of them the returned duration -
+  their measurement, cited as theirs; what was re-run here is the survival, and then the named failure.
+- 2026-09-15T22:00:00Z **Closed with a suite of its own, and each mutation fails exactly one test by name.**
+  `Tests/ScenicKitTests/LambdaSearchSteeringTests.swift`, because neither fixture belongs to "does the
+  ceiling hold", "is the budget used" or "how does it refuse", and `LambdaSearchTests.swift` had eleven
+  lines left under the 300-line cap. Both fixtures are derived from the constants in their own comments
+  rather than read off a run, and both were right first time:
+    * *"a duration just over the ceiling must steer the bracket DOWN"* - samples of 3310 s against a 3300 s
+      ceiling: ten seconds over, comfortably inside the 1% a loosened bracket forgives, where every other
+      over-ceiling fixture in the package is 4000, 5000 or 100_000. Pristine asks `[0, 4, 2, 3, 3.5, 3.25]`
+      and returns lambda 3 at 3200 s, `usedBudget` true; loosened it asks `[0, 4, 6, 7, 7.5, 7.75]`, never
+      measures 3200 at all, and returns lambda 0 at 1800 s.
+    * *"a duration exactly on the ceiling must steer the bracket UP"* - flat at exactly 3300. The invariant
+      is `<=`, so that sample fits and the whole upper half of the bracket is still worth searching; `<`
+      abandons it and returns lambda 4 instead of 7.75 for the identical 3300 seconds of driving. Every
+      other flat curve here sits well under its ceiling, where the two spellings cannot disagree.
+  RED, both against `git show HEAD:` bytes, restored and verified afterwards:
+  `A1 exit=1 FAILED: a duration just over the ceiling must steer the bracket DOWN` - that test and no
+  other; `A2 exit=1 FAILED: a duration exactly on the ceiling must steer the bracket UP` - that test and no
+  other. Both are in `MUTATIONS`, and `MIN_MUTATIONS` is the new literal length.
+- 2026-09-15T22:00:00Z **The new suite went into `TEST_FILES` in the same commit, and that entry was
+  DEMONSTRATED load-bearing rather than argued from the last time.** `.artifacts/testfilesprobe.py` runs the
+  shipped driver over the one mutation only the steering suite catches: with the suite missing from the
+  list, `--prove-vacuity` leaves it standing and reports **`VACUITY PROOF FAILED: with no tests present,
+  caught=1 (need 0) and MISSED=0 of 1`, exit 1**; with the real list, **`VACUITY PROOF OK: with no tests
+  present, caught=0 (need 0) and MISSED=1 of 1`, exit 0**. All eight files in `Tests/ScenicKitTests` were
+  hashed before and after: restored, `git status --porcelain` showing only this branch's own edits. That
+  the list is COMPLETE was then re-checked by grep rather than by memory: the only files in the tree naming
+  `LambdaSearch`, `BudgetOutcome` or `BudgetError` are the three subjects, the four suites now in
+  `TEST_FILES`, the four harness files and this task file. There is no fifth suite to leave standing.
+- 2026-09-15T22:00:00Z **N-SG5 closed.** `self.ceiling = ceiling` -> `ceiling.rounded()` survived all 48
+  tests at 6863e29 - re-run here as `A3 exit=0 FAILED: (none)` - because `ceilingAlwaysHolds` swept whole
+  minutes only. The sweep now includes a 0.4 s budget, and the mutation fails by name:
+  **`exit=1 FAILED: the ceiling holds across a wide sweep of slopes and budgets`**. It reads an 1800.4 s
+  ceiling back as 1800.0 and an 1800.6 s one back as 1801.0, so a caller checking `duration <= out.ceiling`
+  is given a bound wrong in whichever direction the fraction falls. The mutation is in `MUTATIONS`.
+- 2026-09-15T22:00:00Z **N-SG2 closed, and the new check was seen RED before it was seen green.**
+  `budget.py:189` printed `subjects match git show HEAD: yes (3 files)` unconditionally, while
+  `differs_from_head` returns `[]` both when the subjects match and when git cannot answer at all - a
+  harness asserting a comparison that never ran, which is the exact claim it exists to stop anyone else
+  making. It now prints how many were actually compared and names the ones that were not, and
+  `--prove-blind` demonstrates the difference in memory (`subprocess.run` replaced for one call and put
+  back, then the sentence rendered a third time to show that it was). RED first, with the sentence it
+  replaces handed to the same proof - four lines, so it can be redone without the scratch file:
+
+      def the_old_sentence(snapshot):
+          return "subjects match git show HEAD: yes (%d files)\n" % len(snapshot)
+      import sys; sys.path.insert(0, "ops/mutate"); import budget_tree
+      raise SystemExit(budget_tree.prove_blind(sys.stdout.write, the_old_sentence))
+
+  -> `BLIND PROOF FAILED: differs=False, names every uncompared subject=False, subprocess restored=True`,
+  **exit 1**, the two states printing the identical sentence. Green on the shipped one: `BLIND PROOF OK:
+  differs=True, names every uncompared subject=True, subprocess restored=True`, exit 0.
+- 2026-09-15T22:00:00Z **N-SG3 closed.** `LambdaSearchRefusalTests.swift:16` said *"Two tests are
+  deliberately type-only, and this is the exact extent of it"* and then named a third in the same
+  paragraph - in a header rewritten to fix a false sentence about exactly this. It says THREE now, and says
+  why the count was wrong: it was copied instead of recounted.
+- 2026-09-15T22:00:00Z **N-SG4 REFUSED this round, with the reason, and recorded where a reader meets it.**
+  `LambdaSearch(fastest: 1e308, budget: 1e308)` constructs with `ceiling == .infinity` - the same vacuity
+  `infiniteFastestIsRefusedAsNotADuration` exists to close, reached through two finite inputs that both
+  guards admit. Not closed here because an honest refusal needs an error case of its own: neither input is
+  the bad one, so `notADuration` and `notABudget` would both name a value that is fine, and a new case
+  brings a rendered message, payload assertions and mutations of its own. Unreachable from the product -
+  1e308 seconds is 3e292 years - so it is recorded in the test's own comment as well as here, next to the
+  guard whose scope it bounds. No arm of the harness claims otherwise: it is not a mutation of any line, so
+  it belongs in neither `MUTATIONS` nor `KNOWN_MISSED`.
+- 2026-09-15T22:00:00Z **Not re-litigated, and one sentence made honest.** The reviewer's judgement on the
+  deliberately omitted equivalent mutant (`lambda > best!.lambda` -> `>=`) agrees the reasoning is correct
+  on the facts and calls the omission defensible, while noting that the stated ground - *"the reason is a
+  property of the CALLER and can expire"* - is thinner than it reads next to the tolerance entry two lines
+  above, whose reason is equally two constants. The decision stands: out of both arms, recorded here. The
+  comment in `budget_arms.py` now says plainly that this is a difference of degree and a judgement rather
+  than a bright line, because the version that read like a rule was the part worth correcting.
+- 2026-09-15T22:00:00Z **Split at the 300-line cap again, along the boundary the modules already had.**
+  Three mutations and a fourth suite took `budget_mutations.py` to 322 lines, so `TEST_FILES` - the suites
+  `--prove-vacuity` empties and the driver restores - moved to `budget_tree.py`, which is "what the run does
+  to the working tree" and whose docstring was already the place explaining why those files are exempt from
+  the HEAD check. `budget_mutations.py` keeps what to break; `budget_tree.py` keeps what the run writes to.
+  Line counts: harness 296 / 299 / 83 / 183, suites 294 / 172 / 255 / 99, all under the cap.
+  `ops/mutate/*.py` are all still 100644 (T-0127), and nothing new was added under `ops/`.
+- 2026-09-15T22:00:00Z **What the mutant actually returns, read out of the failing expectations rather than
+  derived.** `.artifacts/names.py --all --detail`, against `git show HEAD:` bytes, restored and verified
+  afterwards (`restored and verified against HEAD: True (2e420d88, 4b3c09f7, c0db374c)`):
+    * A1 `if d <= ceiling {` -> `* 1.01`: `(rec.asked -> [0.0, 4.0, 6.0, 7.0, 7.5, 7.75]) == [0, 4, 2, 3,
+      3.5, 3.25]`, `(out.lambda -> 0.0) == 3`, `(out.duration -> 1800.0) == 3200`, `usedBudget -> false`.
+      Four expectations in one test; no other test in the run objected.
+    * A2 `-> if d < ceiling {`: `(rec.asked -> [0.0, 4.0, 2.0, 1.0, 0.5, 0.25])`, `(out.lambda -> 4.0) ==
+      7.75`. Two expectations in one test; no other test objected.
+    * A3 `ceiling.rounded()`: `(out.ceiling -> 1800.0) == (expectedCeiling -> 1800.4)`, 41 times - once per
+      slope in the sweep at the 0.4 s budget.
+    * And the sibling this line keeps being confused with, measured rather than asserted in a comment:
+      slipping the `best` guard at `:77` by one percent fails `the ceiling holds across a wide sweep of
+      slopes and budgets`, `a route one second over the ceiling is over the ceiling`, `extraTime reports
+      what was bought, with the sign it was bought at` **and** the new `a duration just over the ceiling
+      must steer the bracket DOWN` - there at `(out.duration -> 3310.0) <= (ceiling -> 3300.0)`, which is
+      the invariant itself. The two guards are genuinely different lines doing different jobs; what was
+      false was concluding that the steering one therefore needed no witness.
+- 2026-09-15T22:00:00Z GREEN, every acceptance line re-run against this tree after the last edit, each exit
+  code captured without a pipe (`.artifacts/acceptance.sh`, outputs in `.artifacts/acc/`):
+  `swift test --scratch-path .build-T0116` -> **`Test run with 50 tests in 7 suites passed`**, exit 0.
+  `python ops/mutate/budget.py` -> **`caught by a named test: 41 of 41   (trapped 0, compile-only 0,
+  MISSED 0, skipped 0)`**, exit 0, printing `subjects compared with git show HEAD: 3 of 3 match` and
+  `restored: 2e420d88, 4b3c09f7, c0db374c`, with all four EQUIVALENT mutants MISSED as required and the
+  KNOWN-GAP arm empty. `--prove-vacuity` -> **`VACUITY PROOF OK: with no tests present, caught=0 (need 0)
+  and MISSED=41 of 41`**, exit 0. `--prove-floor` -> **`FLOOR PROOF OK: emptied -> refused=True, one
+  deleted -> refused=True, real -> accepted=True`**, exit 0. `--prove-dirty` -> **`DIRTY PROOF OK:
+  committed -> accepted=True, mutated -> refused=True`**, exit 0. `--prove-blind` -> **`BLIND PROOF OK:
+  differs=True, names every uncompared subject=True, subprocess restored=True`**, exit 0.
+  RED with the sentinel present -> **`REFUSING: ...budget-mutation-in-flight exists, so the previous run was
+  killed while a mutation was on disk.`**, exit 2, and `.build-mutate-budget` **was NOT created** - the
+  directory is deleted before that arm runs, so "before any build" is checked rather than assumed.
+  RED with the floor one-liner verbatim -> **`FLOOR PROOF FAILED: emptied -> refused=True, one deleted ->
+  refused=False, real -> accepted=True`**, exit 1. RED with the old sentence into `prove_blind` ->
+  **`BLIND PROOF FAILED: differs=False, names every uncompared subject=False, subprocess restored=True`**,
+  exit 1.
+  verify: `bash ops/check-pins` -> `PINS ok=11 skipped=0 pending=2 expired=0 failed=0 tier=linux`, exit 0.
+  `bash ops/queue-check` -> `QUEUE OK (106 tasks)`, exit 0. `bash ops/sane` -> `SANE OK`, exit 0 - and it
+  was **`SANE FAIL exit=2`** on the run before, `repo FAIL untracked .swift is IN the build (buildable
+  folders)`, while the new suite was still untracked. That is the check doing its job on this very commit:
+  a test file that exists only on this disk is a suite CI cannot run, and the acceptance above would have
+  been measured against a tree nobody else has. `bash ops/test` -> exit 1 on `FAIL: services/api exists but
+  vitest produced no report`. CHECKED, NOT ATTRIBUTED: the same run prints `Test run with 50 tests in 7
+  suites passed` immediately above it, `services/api/node_modules` does not exist on this box while
+  `services/api/package.json` does, and `git diff main...HEAD --name-only -- services/` is empty. T-0040.
+  **Not one line of `Sources/` changed in this pass either** - LambdaSearch.swift 2e420d88,
+  BudgetError.swift 4b3c09f7, BudgetOutcome.swift c0db374c, on disk and at HEAD, checked after every
+  mutating run. This commit is tests, the harness and the record, exactly as the three before it.

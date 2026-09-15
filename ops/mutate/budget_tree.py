@@ -34,6 +34,29 @@ import subprocess
 
 from budget_mutations import MUTATIONS, ROOT, SUBJECTS
 
+# ALL FOUR suites, and the count in this sentence is part of the claim. reviewer-pr71's blocking finding:
+# commit bc5e7f6 split ten tests into LambdaSearchBudgetUseTests.swift and --prove-vacuity kept emptying
+# only the first file, so it reported "VACUITY PROOF FAILED: 8 mutations were reported caught" while the
+# task log recorded OK. The harness's own message - "with no tests present" - was false; it was measuring
+# the sibling test file. A demonstration that decayed at the last commit, and exactly the shape of defect
+# this repository exists to catch.
+#
+# The refusal suite was the third such split, and that its entry is LOAD-BEARING was demonstrated rather
+# than assumed: with it removed from this list, --prove-vacuity leaves it standing, it catches "the shortest
+# route seen is reported as the longest" - the one mutation only it catches - and the run reports
+# `VACUITY PROOF FAILED: caught=1 (need 0)`, exit 1. With the full list: MISSED 1 of 1, exit 0. A suite
+# missing from here fails the proof loudly; it does not weaken it quietly.
+#
+# LambdaSearchSteeringTests.swift is the fourth, added with F-SG1 and listed here in the same commit, and
+# demonstrated the same way rather than by analogy: dropped from this list, --prove-vacuity leaves it
+# standing, it catches "let the ceiling slip by one percent, on the guard that STEERS the bracket" - the one
+# mutation only it catches - and the run reports `VACUITY PROOF FAILED: caught=1 (need 0)`, exit 1. Listed,
+# the same mutation goes MISSED 1 of 1, exit 0. Both runs are in the task Log.
+TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchBudgetUseTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchRefusalTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchSteeringTests.swift"]
+
 SENTINEL = ROOT / ".artifacts" / "budget-mutation-in-flight"
 
 SENTINEL_MESSAGE = (
@@ -66,6 +89,54 @@ def differs_from_head(snapshot) -> list:
         if head is not None and head != b:
             out.append(f)
     return out
+
+
+def unanswerable(snapshot) -> list:
+    """The subjects git could NOT answer for, so `differs_from_head` said nothing either way about them.
+
+    "Not dirty" and "not compared" are different facts, and the run printed the first when it meant the
+    second (N-SG2): with git unreachable `differs_from_head` returns [] over a genuinely mutated subject and
+    budget.py asserted "subjects match git show HEAD: yes (3 files)". Reporting the difference is this
+    function's whole job; refusing is deliberately not, per the docstring above."""
+    return [f for f in snapshot if head_bytes(f) is None]
+
+
+def prove_blind(write, head_line) -> int:
+    """`--prove-blind`: demonstrate that the HEAD-comparison SENTENCE knows what it did not compare.
+
+    The defect it is about (N-SG2) was not a wrong verdict but a wrong sentence: the run printed "subjects
+    match git show HEAD: yes (3 files)" in an else-branch, and `differs_from_head` returns [] both when the
+    subjects match and when git cannot answer at all. The pass condition here is therefore that the two
+    states read DIFFERENTLY - identical sentences are the bug - and that the blind one names every file it
+    could not compare. In memory: `subprocess.run` is replaced for the length of one call and put back, and
+    the sentence is rendered a third time afterwards to show it was."""
+    snapshot = {f: f.read_bytes() for f in SUBJECTS}
+    with_git = head_line(snapshot)
+    real_run = subprocess.run
+
+    def unreachable(*a, **k):
+        raise OSError("git is not on PATH (simulated in memory, nothing was executed)")
+
+    try:
+        subprocess.run = unreachable
+        blind = head_line(snapshot)
+    finally:
+        subprocess.run = real_run
+    restored = head_line(snapshot)
+
+    named = all(f.name in blind for f in SUBJECTS)
+    ok = (with_git == "subjects compared with git show HEAD: %d of %d match\n" % (len(SUBJECTS), len(SUBJECTS))
+          and "NOT COMPARED" not in with_git
+          and "NOT COMPARED" in blind and named and blind != with_git
+          and restored == with_git)
+    write("with git answering:   %s" % with_git)
+    write("with git unreachable: %s" % blind)
+    write("after restoring:      %s" % restored)
+    write("BLIND PROOF %s: differs=%s, names every uncompared subject=%s, subprocess restored=%s\n"
+          "  (the sentence this replaces said `yes (3 files)` in both states, over a subject nothing had\n"
+          "   compared with anything)\n"
+          % ("OK" if ok else "FAILED", blind != with_git, named, restored == with_git))
+    return 0 if ok else 1
 
 
 def prove_dirty(write) -> int:

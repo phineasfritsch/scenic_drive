@@ -38,27 +38,16 @@ OUT = ROOT / "Sources" / "ScenicKit" / "Budget" / "BudgetOutcome.swift"
 # Every source a mutation may touch. The driver snapshots and restores exactly these.
 SUBJECTS = (SRC, ERR, OUT)
 
-# ALL THREE suites. reviewer-pr71's blocking finding: commit bc5e7f6 split ten tests into
-# LambdaSearchBudgetUseTests.swift and --prove-vacuity kept emptying only the first file, so it reported
-# "VACUITY PROOF FAILED: 8 mutations were reported caught" while the task log recorded OK. The harness's own
-# message - "with no tests present" - was false; it was measuring the sibling test file. A demonstration
-# that decayed at the last commit, and exactly the shape of defect this repository exists to catch.
-#
-# The refusal suite is the third such split, made in this commit for the same 300-line cap, and it is listed
-# here in the same commit. That this entry is LOAD-BEARING was demonstrated rather than assumed: with the
-# refusal suite removed from this list, --prove-vacuity leaves it standing, it catches "the shortest route
-# seen is reported as the longest" - the one mutation only it catches - and the run reports
-# `VACUITY PROOF FAILED: caught=1 (need 0)`, exit 1. With all three listed: MISSED 1 of 1, exit 0. A suite
-# missing from this list fails the proof loudly; it does not weaken it quietly.
-TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchTests.swift",
-              ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchBudgetUseTests.swift",
-              ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchRefusalTests.swift"]
+# TEST_FILES - the suites --prove-vacuity empties - moved to budget_tree.py when this file hit the 300-line
+# cap again. That module is "what the run does to the working tree", and emptying and restoring four tracked
+# test files is exactly that; its docstring was already the place explaining why they are exempt from the
+# HEAD check. This file keeps what to break; that one keeps what the run writes to.
 
 # The exact size of the list below, as a literal. Not a slack bound: at MIN_MUTATIONS = 22 against 34
 # entries, deleting twelve mutations printed a clean sheet, which is the same "documented to refuse
 # something it does not refuse" defect the tests in this package keep being blocked for. MIN_EQUIVALENT is
 # in budget_arms.py, next to the list IT counts.
-MIN_MUTATIONS = 38
+MIN_MUTATIONS = 41
 
 MUTATIONS = [
     # --- structural: the author's original eight ------------------------------------------------------
@@ -279,4 +268,32 @@ MUTATIONS = [
     ("the router guard tolerates the largest negative Double there is", SRC,
      "            guard d.isFinite, d >= 0 else {",
      "            guard d.isFinite, d >= -Double.leastNonzeroMagnitude else {"),
+
+    # --- the fourth review's F-SG1, and N-SG5 beside it -----------------------------------------------
+    # The BRACKET-STEERING guard at LambdaSearch.swift:94 - NOT the `best` guard at :77 that the second
+    # entry of this list covers. :77 decides what may be RETURNED; :94 decides what is ever MEASURED, and
+    # only a measured route can be returned, so the Log sentence calling this one "a no-op" that "makes the
+    # search waste an evaluation" was false and is struck where it stands. The reviewer's standalone sweep
+    # measured 1066 of 7296 cases changing, 158 of them the RETURNED DURATION; what was re-run here is that
+    # both spellings survived all 48 tests at 6863e29, and that each now fails a test by name.
+    #
+    # The predecessor entry names the line it does NOT touch ("on the guard that enforces it") and was read
+    # for three rounds as covering both. An entry distinguished from its sibling only in prose gets read as
+    # the sibling.
+    ("let the ceiling slip by one percent, on the guard that STEERS the bracket", SRC,
+     "            if d <= ceiling {",
+     "            if d <= ceiling * 1.01 {"),
+
+    # The other direction, which no fixture could see: a route landing EXACTLY on the ceiling fits - the
+    # invariant is `<=` - so the upper half of the bracket is still worth searching. Every other flat curve
+    # here sits well under its ceiling, where `<` and `<=` cannot disagree.
+    ("a duration exactly on the ceiling steers the bracket downward", SRC,
+     "            if d <= ceiling {",
+     "            if d < ceiling {"),
+
+    # N-SG5. The ceiling sweep used whole-minute budgets only, so `ceiling` had no witness at a FRACTIONAL
+    # one: 715 of 7296 cases changed, an 1800.4 s ceiling reading back as 1800.0, and nothing objected.
+    ("the outcome rounds the ceiling to a whole second", OUT,
+     "        self.ceiling = ceiling",
+     "        self.ceiling = ceiling.rounded()"),
 ]
