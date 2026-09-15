@@ -187,10 +187,11 @@ MUTATIONS = [
 
     # reviewer-sg-pr76's B1. The FOUR CORNERS of the 3x3 index had no witness anywhere - not in the suite,
     # not here, not in KNOWN_MISSED, not in EQUIVALENT - and they are the only part of the neighbourhood
-    # that is load-bearing for a road which is not due north or due east. A pair on an axis differs on ONE
-    # cell axis; a pair on a diagonal differs on both at once. Every route fixture in this repository was
-    # axis-aligned, so the plus below passed all 41 tests at exit 0 while a divided road on bearing 045 lost
-    # up to a third of its retrace, at some grid phases and not others.
+    # that is load-bearing for a road which is not due north or due east. A pair separated along an axis
+    # differs on ONE cell axis; only a diagonal separation differs on both at once, and no fixture here ever
+    # separated a pair inside the radius along a diagonal - so the plus below passed all 41 tests at exit 0
+    # while a divided road on bearing 045 lost up to a third of its retrace, at some grid phases and not
+    # others.
     ("shrink the neighbourhood to a plus, dropping the four diagonal cells", SRC,
      "    static let neighbourhood: [(Int, Int)] = [(-1, -1), (-1, 0), (-1, 1),\n"
      "                                              (0, -1), (0, 0), (0, 1),\n"

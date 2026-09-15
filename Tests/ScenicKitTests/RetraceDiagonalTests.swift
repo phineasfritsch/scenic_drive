@@ -4,14 +4,16 @@ import Testing
 
 /// A road that is NOT axis-aligned, which is the only shape that needs the index's four corner cells.
 ///
-/// reviewer-pr76's B1. Every route fixture in this repository runs due north or due east:
-/// `dividedOutAndBack` separates its carriageways in latitude only, the parallel-street and 40 m fixtures
-/// are east-west pairs, and the probes in `RetraceIndexTests` were due east and due north. A pair on an
-/// axis can only ever differ on ONE cell axis, so the four corners of the 3x3 neighbourhood had no witness
-/// anywhere - in the suite, in `MUTATIONS`, in `KNOWN_MISSED` or in `EQUIVALENT`. Deleting them (a
-/// plus-shaped neighbourhood) left all 41 tests green at exit 0 while this road loses up to a third of its
-/// retrace, at some grid phases and not others: verbatim the G2 failure this whole task exists to prevent,
-/// moved from an axis-aligned 14 m separation to a diagonal 24 m one.
+/// reviewer-sg-pr76's B1. No fixture in this repository ever separated a pair INSIDE the radius along a
+/// diagonal: `dividedOutAndBack` and the 40 m street offset their two passes in latitude, the out-and-back
+/// fixtures retrace themselves exactly (which lands in the same cell whatever shape the cell is), and both
+/// probes in `RetraceIndexTests` were due east and due north. A pair separated along an axis differs on ONE
+/// cell axis; only a diagonal separation differs on both at once. So the four corners of the 3x3
+/// neighbourhood had no witness anywhere - not in the suite, not in `MUTATIONS`, not in `KNOWN_MISSED`, not
+/// in `EQUIVALENT`. Deleting them (a plus-shaped neighbourhood) left all 41 tests green at exit 0 while
+/// this road loses up to a third of its retrace, at some grid phases and not others: verbatim the G2
+/// failure this whole task exists to prevent, moved from an axis-aligned 14 m separation to a diagonal
+/// 24 m one.
 ///
 /// `RetraceIndexTests` asks the index directly - which cells can a pair inside the radius land in, and does
 /// the search visit them. This asks what that is worth to a ROUTE, which is a different question and the

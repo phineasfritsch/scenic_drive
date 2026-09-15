@@ -112,10 +112,12 @@ struct RetraceIndexTests {
         // reviewer-pr76's B1. The test above asserts the BOUND - that neither axis separates by more than
         // one cell - and stops there. The guarantee the source claims is stronger: that the search VISITS
         // the cell the pair landed in. On a road that is not due north or due east the two cells differ on
-        // BOTH axes at once, and nothing exercised a corner: both probes above are axis-aligned, and so is
-        // every route fixture in this repository (`dividedOutAndBack` separates its carriageways in
-        // latitude only). Replacing the nine cells with a plus - the four sides, no corners - left all 41
-        // tests green at exit 0 while a divided road on bearing 045 lost up to a third of its retrace.
+        // BOTH axes at once, and nothing exercised a corner: both probes above are due east and due north,
+        // and no fixture anywhere separates a pair INSIDE the radius along a diagonal - `dividedOutAndBack`
+        // and the 40 m street offset their two passes in latitude, and the out-and-back fixtures retrace
+        // themselves exactly, which lands in the same cell whatever shape the cell is. Measured, not
+        // argued: replacing the nine cells with a plus - the four sides, no corners - left all 41 tests
+        // green at exit 0, while a divided road on bearing 045 lost up to a third of its retrace.
         //
         // So this asks BOTH halves. Every offset that can occur must be searched, and the four diagonal
         // offsets must occur - an assertion over a set that never contains a corner would be green against
@@ -140,10 +142,11 @@ struct RetraceIndexTests {
             probes.append((Geo.initialBearingDegrees(from: a, to: p), p))
         }
 
-        // The two axes' phases are swept INDEPENDENTLY. A corner needs the pair to straddle a column
-        // boundary and a row boundary at the same time, and one f moving both anchors together cannot
-        // produce that - with a single f this set comes out as the five cells of a plus, and the test would
-        // pass against the very mutation it exists for.
+        // The two axes' phases are swept INDEPENDENTLY, and that is load-bearing: a corner needs the pair
+        // to straddle a column boundary and a row boundary at the same time. Moving both anchors together
+        // by a single f yields only SEVEN of the nine offsets - measured over these 24 bearings and a
+        // 20000-step sweep, (-1, 1) and (1, -1) never occur at all - so the second assertion below would
+        // fail and the first would be blind to those two corners.
         var phases: [Double] = [0.0, 0.001, 0.5, 0.9, 0.99, 0.999, 0.9999, 0.99999, 0.999999]
         phases += (0..<40).map { Double($0) / 40.0 }
         var witness: [RetraceDetector.Cell: Double] = [:]
