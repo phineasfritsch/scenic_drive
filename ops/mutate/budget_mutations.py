@@ -1,9 +1,10 @@
 """The mutation population for ops/mutate/budget.py: what to break, and what this suite must say about it.
 
 Split out of budget.py at the 300-line cap. The driver is the protocol - build, run, require a NAMED test to
-fail, restore and verify - and this file is the evidence it runs over. Keeping the population in one file
-means a list that has been emptied or quietly trimmed shows up as one diff hunk, next to the floor that
-counts it.
+fail, restore and verify - and this file is the evidence it runs over: the mutations that must be CAUGHT.
+The two arms asserted the other way round, KNOWN_MISSED and EQUIVALENT, are in budget_arms.py, split off at
+the same cap along that boundary. Keeping each list whole means one that has been emptied or quietly trimmed
+shows up as one diff hunk, next to the floor that counts it.
 
 THE FLOOR, and why a mutation harness needs one. The pass condition is `caught == len(MUTATIONS)`, and an
 EMPTY list satisfies it: 0 of 0, exit 0, a clean sheet over nothing measured. ops/lib/check-exec-bits refuses
@@ -11,11 +12,19 @@ on exactly this shape - *"an empty or truncated set must never read as 'all mode
 this. A run that finds fewer than MIN_MUTATIONS REFUSES instead of reporting success, and lowering the floor
 is a deliberate edit somebody has to justify in a diff.
 
-What the floor is NOT: a certificate that these are the right mutations. MIN_MUTATIONS is the size of this
-list at the commit the second review measured - 22 - and that review found the list INCOMPLETE, not honest:
-F-C was a live gap that appeared in neither MUTATIONS nor KNOWN_MISSED while the run printed 22 of 22. The
-floor catches an emptied or gutted population and nothing finer; at 22 against today's population, deleting
-a single entry still passes. Same shape as MIN_FILES = 17 guarding 23 required files in check-exec-bits.
+THE FLOOR IS THE REAL COUNT, and that is a correction. It used to be 22 against a population of 34, with a
+comment saying it "catches an emptied or gutted population and nothing finer" - so deleting twelve entries
+still read as a clean sheet, and the third review said plainly that a floor which does not refuse what it is
+documented to refuse is not a floor. MIN_MUTATIONS is now the exact length of the list, written as a LITERAL
+(`len(MUTATIONS)` would move down with the list and refuse nothing), so deleting ONE entry refuses. The cost
+is that adding a mutation means editing the number a few lines above the list you just edited;
+`--prove-floor` demonstrates the empty case AND the one-entry-short case, so the number is never taken on
+trust.
+
+What the floor is still NOT: a certificate that these are the right mutations. The second review found this
+list INCOMPLETE, not dishonest - F-C was a live gap that appeared in neither MUTATIONS nor KNOWN_MISSED while
+the run printed 22 of 22 - and the third review found two more, both the "fixture family covers one branch of
+a condition" shape. A floor counts entries; only an attack finds the missing one.
 """
 from __future__ import annotations
 
@@ -45,8 +54,11 @@ TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchBudgetUseTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchRefusalTests.swift"]
 
-MIN_MUTATIONS = 22
-MIN_EQUIVALENT = 1
+# The exact size of the list below, as a literal. Not a slack bound: at MIN_MUTATIONS = 22 against 34
+# entries, deleting twelve mutations printed a clean sheet, which is the same "documented to refuse
+# something it does not refuse" defect the tests in this package keep being blocked for. MIN_EQUIVALENT is
+# in budget_arms.py, next to the list IT counts.
+MIN_MUTATIONS = 38
 
 MUTATIONS = [
     # --- structural: the author's original eight ------------------------------------------------------
@@ -235,49 +247,36 @@ MUTATIONS = [
     ("the zero-budget short-circuit becomes a half-second tolerance", SRC,
      "            usedBudget: budget == 0 || winner.duration >= fastest + Self.minBudgetUse * budget,",
      "            usedBudget: budget <= 0.5 || winner.duration >= fastest + Self.minBudgetUse * budget,"),
-]
 
-# Mutations this suite is KNOWN not to catch, asserted the other way round: the arm FAILS if one starts
-# being MISSED no longer, because a gap that closed should move up into MUTATIONS.
-#
-# EMPTY, and that emptiness is a claim rather than an oversight. The one entry it ever held - the
-# `max(1, ...)` clamp - justified itself with "No behaviour to assert; the clamp is defensive", and the
-# second review showed that reason was false: `maxEvaluations` is public and reads 1 pristine, -5 mutated.
-# One assertion killed it, so it is a MUTATION above now. An entry here claims no assertion can kill this
-# mutation; if that reason is wrong, the arm records a closable gap as a feature, which is worse than having
-# no arm at all. Every entry added here has to survive that question.
-KNOWN_MISSED = []
+    # --- the third review's two blocking findings, F-R1 and F-R2 --------------------------------------
+    # Both are the same shape as each other and as most of the list above: a guard with two halves, and a
+    # fixture family that only ever exercises one of them. Each SURVIVED all 46 tests at 33d1715 - measured,
+    # not assumed - and each is a real behaviour change with a standalone control behind it.
+    #
+    # F-R1, 70 of 17058 cases. `fastest > 0` already refuses NaN, so the family's (.nan, 60) fixture is not a
+    # witness for `isFinite`; infinity is the only value the two halves disagree about, and it was the one
+    # combination the family omitted. An infinite `fastest` makes `ceiling = fastest + budget` infinite, so
+    # the ceiling invariant is not breached but VACUOUS - the worse of the two failures.
+    ("drop isFinite from the constructor guard, keeping only fastest > 0", SRC,
+     "        guard fastest.isFinite, fastest > 0 else { throw BudgetError.notADuration(fastest) }",
+     "        guard fastest > 0 else { throw BudgetError.notADuration(fastest) }"),
 
-# Cannot change behaviour, so anything but MISSED is a FAILURE - a catch means a test has an opinion about
-# how the code is WRITTEN rather than what it DOES.
-#
-# The last three survived the second fix pass's own attack, and each was then compiled STANDALONE, pristine
-# against mutant, over 5891 cases covering every field of BudgetOutcome, the search's own cap and ceiling,
-# each error's rendered text, and the exact sequence of lambdas the router is asked for. All three came back
-# byte-identical - which is what "equivalent" has to mean here, and is the reason they are asserted MISSED
-# rather than quietly dropped from the report. Each also has a REASON below, because a fingerprint that
-# happened to match over one sweep is evidence and not a proof.
-EQUIVALENT = [
-    ("start the evaluation counter from a different literal zero", SRC,
-     "        var evaluations = 0",
-     "        var evaluations = 0o0"),
+    # The same hole spelled the way a well-meaning edit would spell it: NaN-safe, infinity-blind. Listed
+    # separately because a test that happened to pin only NaN would catch the entry above and miss this one.
+    ("the constructor guard rejects NaN but admits infinity", SRC,
+     "        guard fastest.isFinite, fastest > 0 else { throw BudgetError.notADuration(fastest) }",
+     "        guard !fastest.isNaN, fastest > 0 else { throw BudgetError.notADuration(fastest) }"),
 
-    # The bracket width is exactly 8 * 2^-k on every iteration - maxLambda is 8 and the midpoint halves a
-    # dyadic rational exactly - and lambdaTolerance 0.05 is not of that form, so `>` and `>=` can never
-    # disagree. A catch here would mean one of those two constants stopped being what this reasoning assumes.
-    ("the lambdaTolerance termination becomes inclusive", SRC,
-     "        while evaluations < maxEvaluations, hi - lo > Self.lambdaTolerance {",
-     "        while evaluations < maxEvaluations, hi - lo >= Self.lambdaTolerance {"),
+    # F-R2, 1701 of 17058 cases. -1 illegal and 0 legal brackets the threshold in (-1, 0] and pins nothing
+    # inside it. A router answering -0.2 s then reaches the caller as a route, with usedBudget true and
+    # extraTime -1800.2.
+    ("the router guard tolerates half a second of negative duration", SRC,
+     "            guard d.isFinite, d >= 0 else {",
+     "            guard d.isFinite, d >= -0.5 else {"),
 
-    # Algebraically equal, and over a bracket bounded by 8 both forms are exact in binary floating point, so
-    # the router is asked for identical lambdas to the last bit.
-    ("the midpoint is written as the average of the ends", SRC,
-     "            let mid = lo + (hi - lo) / 2",
-     "            let mid = (lo + hi) / 2"),
-
-    # The scan compares every ordered pair, so the order the samples arrive in cannot change its answer.
-    # Worth asserting: a test that pinned the scan by sample ORDER rather than by content would catch this.
-    ("the monotonicity scan runs over the samples reversed", SRC,
-     "            monotonicityViolated: Self.violatesMonotonicity(seen)",
-     "            monotonicityViolated: Self.violatesMonotonicity(Array(seen.reversed()))"),
+    # And the adjacent threshold, which is what makes the boundary PINNED rather than bracketed more
+    # tightly: there is no Double between this and 0 for a fixture to fall through.
+    ("the router guard tolerates the largest negative Double there is", SRC,
+     "            guard d.isFinite, d >= 0 else {",
+     "            guard d.isFinite, d >= -Double.leastNonzeroMagnitude else {"),
 ]

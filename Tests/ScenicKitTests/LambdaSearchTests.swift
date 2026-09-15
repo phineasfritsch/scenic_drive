@@ -76,7 +76,11 @@ struct LambdaSearchTests {
         #expect(out.duration == target)
         #expect(!out.usedBudget, "40% of the budget is not half of it")
 
-        // And just over half is used, so the assertion pins a boundary rather than a direction.
+        // And just over half is used. That BRACKETS the threshold in (0.4, 0.55] and does not pin it - the
+        // sentence that used to stand here claimed it "pins a boundary rather than a direction", which is
+        // the false-claim half of finding F3 and was left standing over the test it is false about while F3
+        // itself was closed elsewhere. The boundary is pinned by `usedBudgetBoundaryIsExact` at 2550/2549 s;
+        // what these two fixtures own is the 40%-of-budget case the suite had no example of at all.
         let justOver = Self.fastest + 0.55 * budget
         let plateau2: (Double) -> TimeInterval = { $0 < 1.0 ? Self.fastest : justOver }
         let out2 = try LambdaSearch(fastest: Self.fastest, budget: budget).search(plateau2)

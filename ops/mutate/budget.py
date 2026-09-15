@@ -10,14 +10,17 @@ suite and requires every mutation to report MISSED. A harness that still reports
 present is measuring the compiler. Emptying only one of two suites is how this proof was false once; the
 wording is plural because the code is.
 
-The population it runs, and the floor under it, live in budget_mutations.py - split off at the 300-line cap.
-Contract, unchanged from ops/mutate/gates.py and T-0132:
+This file is the protocol. The mutations that must be caught are in budget_mutations.py, the two arms that
+must go MISSED in budget_arms.py, and what the run does to the working tree in budget_tree.py - each split
+off at the 300-line cap. Contract, unchanged from ops/mutate/gates.py and T-0132:
   * the pass condition is `caught == len(MUTATIONS)`; a trap, a compile failure and a stale anchor each FAIL;
   * `--prove-vacuity` requires `caught == 0` AND `missed == len(MUTATIONS)`;
   * the EQUIVALENT and KNOWN_MISSED arms require MISSED specifically, not merely "not caught";
   * the baseline is built twice before it is called broken, like every mutation;
   * an empty population REFUSES rather than reporting a clean sheet over nothing - `--prove-floor`
-    demonstrates that refusal, and costs no build.
+    demonstrates that refusal, and the one-entry-short refusal too, and costs no build;
+  * a subject that does not match `git show HEAD:` REFUSES, because every verdict here is a statement about
+    the content of those files - `--prove-dirty` demonstrates it, and costs no build.
 """
 from __future__ import annotations
 
@@ -31,22 +34,11 @@ import sys
 # the repo root and `./ops/mutate/budget.py` must both find it.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from budget_mutations import (EQUIVALENT, KNOWN_MISSED, MIN_EQUIVALENT, MIN_MUTATIONS, MUTATIONS, ROOT,
-                              SUBJECTS, TEST_FILES)
+from budget_arms import EQUIVALENT, KNOWN_MISSED, MIN_EQUIVALENT
+from budget_mutations import MIN_MUTATIONS, MUTATIONS, ROOT, SUBJECTS, TEST_FILES
+from budget_tree import SENTINEL, SENTINEL_MESSAGE, differs_from_head, prove_dirty
 
 SCRATCH = ".build-mutate-budget"
-
-# A run that is KILLED - not failed, killed - dies between writing a mutation and the `finally` that puts the
-# file back, and leaves a mutated subject on disk. The next run then snapshots that mutant as `pristine`,
-# restores it at the end, and reports its verdicts against it. That happened on this box while this harness
-# was being fixed: a backgrounded run was killed mid-mutation, the following run recorded
-# `pristine LambdaSearch.swift md5 1f7512ba` - a file with `maxEvaluations: Int = 2` in it - and the working
-# tree kept the mutation afterwards.
-#
-# try/finally cannot defend against SIGKILL, so the defence is a sentinel: written before the first mutation,
-# removed after the last restore. Finding one at startup means the previous run did not finish, and this run
-# REFUSES rather than measuring whatever is on disk.
-SENTINEL = ROOT / ".artifacts" / "budget-mutation-in-flight"
 
 
 def empty_suite(path: pathlib.Path) -> str:
@@ -125,25 +117,35 @@ def population_ok() -> bool:
 
 
 def prove_floor() -> int:
-    """`--prove-floor`: demonstrate the floor instead of asserting it. Empties the population, requires
-    population_ok() to REFUSE, puts it back and requires it to pass. Shipped as a flag rather than left in a
-    scratch script for the same reason this harness is tracked at all - a demonstration that only exists in
-    a gitignored directory is one nobody else can re-run. Costs no build."""
+    """`--prove-floor`: demonstrate the floor instead of asserting it. Shipped as a flag rather than left in
+    a scratch script for the same reason this harness is tracked at all - a demonstration that only exists in
+    a gitignored directory is one nobody else can re-run. Costs no build.
+
+    THREE arms, because two of them are different claims. Emptied proves the floor refuses a gutted
+    population; ONE ENTRY SHORT proves it refuses a quiet trim, which is what a floor of 22 against 34
+    entries did NOT do while its own comment said it caught "an emptied or truncated" list. The third puts
+    the real lists back and requires them to pass, so a floor set above the population cannot hide here."""
     global MUTATIONS, EQUIVALENT
     real = (MUTATIONS, EQUIVALENT)
     try:
         MUTATIONS, EQUIVALENT = [], []
         sys.stdout.write("with the population emptied:\n")
-        refused = not population_ok()
+        refused_empty = not population_ok()
+
+        MUTATIONS, EQUIVALENT = real[0][:-1], real[1][:-1]
+        sys.stdout.write("with one mutation and one equivalent deleted (%d, %d):\n"
+                         % (len(MUTATIONS), len(EQUIVALENT)))
+        refused_short = not population_ok()
     finally:
         MUTATIONS, EQUIVALENT = real
     sys.stdout.write("with the real population (%d mutations, %d equivalent):\n"
                      % (len(MUTATIONS), len(EQUIVALENT)))
     restored = population_ok()
-    ok = refused and restored
-    sys.stdout.write("FLOOR PROOF %s: emptied -> refused=%s, real -> accepted=%s\n"
-                     "  (without this floor `caught == len(MUTATIONS)` reads 0 of 0 and exits 0)\n"
-                     % ("OK" if ok else "FAILED", refused, restored))
+    ok = refused_empty and refused_short and restored
+    sys.stdout.write("FLOOR PROOF %s: emptied -> refused=%s, one deleted -> refused=%s, real -> accepted=%s\n"
+                     "  (without this floor `caught == len(MUTATIONS)` reads 0 of 0 and exits 0; without the\n"
+                     "   middle arm the floor can sit far below the list and refuse nothing anybody would do)\n"
+                     % ("OK" if ok else "FAILED", refused_empty, refused_short, restored))
     return 0 if ok else 1
 
 
@@ -151,20 +153,40 @@ def main(argv) -> int:
     prove = "--prove-vacuity" in argv
     if "--prove-floor" in argv:
         return prove_floor()
+    if "--prove-dirty" in argv:
+        return prove_dirty(sys.stdout.write)
     if not population_ok():
         return 2
     if SENTINEL.exists():
-        sys.stdout.write(
-            "REFUSING: %s exists, so the previous run was killed while a mutation was on disk.\n"
-            "  The subject files may still be mutated. A run starting now would snapshot a MUTATED file\n"
-            "  as `pristine`, measure every verdict against it, and restore the mutant afterwards.\n"
-            "  Check them - `git diff -- Sources/ScenicKit/Budget/` - restore, then delete the sentinel.\n"
-            % SENTINEL)
+        sys.stdout.write(SENTINEL_MESSAGE % SENTINEL)
         return 2
     pristine = {f: f.read_bytes() for f in SUBJECTS}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
     for f, b in pristine.items():
         sys.stdout.write("pristine %-32s md5 %s\n" % (f.name, hashlib.md5(b).hexdigest()))
+
+    # The md5s above used to be printed and nothing else - a number for a human to read, which is what the
+    # task Log was crediting when it said the subjects "are checked against HEAD". They are now CHECKED: the
+    # third review planted a live mutation by hand, ran this harness with no sentinel present, and got
+    # `pristine ... md5 d08228d8`, `BASELINE exit=0` and `34 of 34 caught` over a corrupted subject, exit 0.
+    # Every verdict below is a statement about the content of these files, so measuring the wrong content
+    # makes every line of the report false at once.
+    dirty = differs_from_head(pristine)
+    if dirty and "--allow-dirty-subject" not in argv:
+        sys.stdout.write(
+            "REFUSING: %s does not match `git show HEAD:`.\n"
+            "  A mutation left on disk - by a killed run of this harness, or by a hand-run red demo that\n"
+            "  died before its restore - would be snapshotted as `pristine` and every verdict measured\n"
+            "  against it. Check `git diff -- Sources/ScenicKit/Budget/`, restore, and run again.\n"
+            "  If the change is yours and deliberate, re-run with --allow-dirty-subject.\n"
+            % ", ".join(f.name for f in dirty))
+        return 2
+    if dirty:
+        sys.stdout.write("--allow-dirty-subject: measuring %s as it is on disk, NOT as committed. Every\n"
+                         "  verdict below is about that content and not about HEAD.\n"
+                         % ", ".join(f.name for f in dirty))
+    else:
+        sys.stdout.write("subjects match git show HEAD: yes (%d files)\n" % len(pristine))
 
     eq = None
     known = None

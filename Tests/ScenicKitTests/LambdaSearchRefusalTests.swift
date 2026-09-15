@@ -19,6 +19,14 @@ import Testing
 /// `refusalCarriesWhatTheSearchMeasured`, and those of `notADuration` and `notABudget` by
 /// `errorsCarryTheirNumbers`. `propagatesRouterErrors` asserts a type on purpose: the thing it pins is that
 /// a non-BudgetError comes back out unchanged.
+///
+/// What a type-only family is still worth exactly as much as is its list of INPUTS, which is how F-R1 hid
+/// here for three rounds. `refusesBadInputs` carried (.nan, 60), (1800, .nan) and (1800, .infinity) and not
+/// (.infinity, 60), so the `fastest.isFinite` half of the constructor guard had no witness in the family and
+/// no payload assertion either: `errorsCarryTheirNumbers` pins `notADuration(-1)`, and -1 is a value
+/// `fastest > 0` refuses on its own. A guard with two halves needs a value the halves DISAGREE about;
+/// `infiniteFastestIsRefusedAsNotADuration` is that value, and `routerGuardBoundaryIsExactlyZero` is the
+/// same repair on the router-side guard, whose threshold was bracketed in (-1, 0] and not pinned.
 @Suite("Lambda search - refusals and the sentences they produce")
 struct LambdaSearchRefusalTests {
 
@@ -76,7 +84,7 @@ struct LambdaSearchRefusalTests {
     }
 
     @Test("nonsense from the router is refused AS nonsense, naming the value and the lambda",
-          arguments: [TimeInterval.nan, .infinity, -1])
+          arguments: [TimeInterval.nan, .infinity, -1, -0.2])
     func refusesNonsense(bad: TimeInterval) throws {
         // This was `#expect(throws: BudgetError.self)`, which any BudgetError satisfies - and dropping
         // `isFinite` from the guard produces one: an infinite duration sails past, is never feasible, and
@@ -102,16 +110,77 @@ struct LambdaSearchRefusalTests {
         // witnesses only on the far side. Tightening it to `d > 0` turns a legal answer into a refusal,
         // and nothing objected. Zero is feasible under every ceiling, so the flat-curve tie-break applies
         // and the winner is the last lambda the bisection reaches: 0, 4, 6, 7, 7.5, 7.75.
+        //
+        // This is ONE SIDE of that boundary and was written as though it were both: with -1 illegal and 0
+        // legal the threshold is only constrained to (-1, 0], and `d >= -0.5` survived. The other side is
+        // `routerGuardBoundaryIsExactlyZero`; what this test still owns is the winning lambda.
         let out = try LambdaSearch(fastest: Self.fastest, budget: Self.budget).search { _ in 0 }
         #expect(out.duration == 0)
         #expect(out.lambda == 7.75)
     }
 
+    @Test("the router guard's boundary is exactly zero, to the last bit a Double has")
+    func routerGuardBoundaryIsExactlyZero() throws {
+        // F-R2. `refusesNonsense` pins -1 as illegal and the test above pins 0 as legal, which BRACKETS the
+        // threshold in (-1, 0] and pins nothing inside it: `d >= -0.5` survived all 46 tests, and a router
+        // answering -0.2 s then reached the caller as a route, with `usedBudget == true` and an `extraTime`
+        // of -1800.2 s. Exactly the defect F3 was filed for - "pinned the interval (0.4, 0.55], which holds
+        // for any threshold in that range" - in the sibling guard, while the comment above claimed the
+        // boundary was pinned.
+        //
+        // The far side is therefore the LARGEST negative Double there is, not a round number: every
+        // threshold `t <= -Double.leastNonzeroMagnitude` accepts it, and every `t > 0` rejects the zero
+        // below, so the two assertions together admit only `t` in (-5e-324, 0] - and the only Doubles there
+        // are 0 and -0, which compare identically. The boundary is pinned, not bracketed.
+        let search = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
+        #expect(try search.search { _ in 0 }.duration == 0, "zero seconds is a legal answer")
+
+        let justBelowZero = -Double.leastNonzeroMagnitude
+        do {
+            let out = try search.search { _ in justBelowZero }
+            Issue.record("a negative duration is not a route; got \(out.duration) s at lambda \(out.lambda)")
+        } catch let e as BudgetError {
+            guard case let .routerReturnedNonsense(lambda, duration) = e else {
+                Issue.record("wrong case: \(e)"); return
+            }
+            #expect(lambda == 0, "the seed is where the router first answered")
+            #expect(duration == justBelowZero)
+        }
+    }
+
     @Test("invalid inputs are refused at construction",
-          arguments: [(TimeInterval(0), TimeInterval(60)), (-1, 60), (.nan, 60),
+          arguments: [(TimeInterval(0), TimeInterval(60)), (-1, 60), (.nan, 60), (.infinity, 60),
                       (1800, -1), (1800, -0.5), (1800, -1e-9), (1800, .nan), (1800, .infinity)])
     func refusesBadInputs(fastest: TimeInterval, budget: TimeInterval) {
         #expect(throws: BudgetError.self) { _ = try LambdaSearch(fastest: fastest, budget: budget) }
+    }
+
+    @Test("an infinite fastest duration is refused, because it makes the ceiling vacuous rather than tight")
+    func infiniteFastestIsRefusedAsNotADuration() {
+        // F-R1. The `fastest.isFinite` half of the constructor guard had NO witness: this family covered
+        // (.nan, 60), (1800, .nan) and (1800, .infinity), and an infinite `fastest` was the one combination
+        // it omitted. NaN does not witness `isFinite` - `Double.nan > 0` is already false, so `fastest > 0`
+        // refuses NaN on its own - and infinity is the only value the two halves disagree about. Dropping
+        // `isFinite` was MISSED by all 46 tests, twice, and again spelled `!fastest.isNaN`.
+        //
+        // What it costs: `ceiling` is `fastest + budget`, so an infinite `fastest` gives an infinite ceiling
+        // and EVERY duration the router returns compares `<=` against it. The product invariant - returned
+        // ETA <= fastest + budget - is then not breached but VACUOUS, which is the worse failure of the two
+        // and the one this repository is named after. The refusal is the behaviour; the case and the value
+        // it carries are asserted, not the bare type, because `noFeasibleLambda` is a BudgetError too.
+        do {
+            _ = try LambdaSearch(fastest: .infinity, budget: 60)
+            Issue.record("an infinite fastest duration must be refused at construction")
+        } catch let e as BudgetError {
+            guard case let .notADuration(t) = e else {
+                Issue.record("wrong case: \(e)"); return
+            }
+            #expect(t == .infinity)
+            #expect(String(describing: e)
+                    == "fastest duration is not a positive finite number of seconds: inf")
+        } catch {
+            Issue.record("wrong error type: \(error)")
+        }
     }
 
     @Test("the search propagates a router error rather than swallowing it")
