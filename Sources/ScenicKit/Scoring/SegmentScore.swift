@@ -64,12 +64,14 @@ public enum SegmentScore {
     public static let motorwayProximityMeters = 150.0
     public static let motorwayProximityMultiplier = 0.7
 
-    /// Roads whose missing `surface` tag means "probably paved" - these classes are surveyed enough that an
-    /// absent tag says nothing.
-    public static let assumedPavedClasses: Set<String> = ["primary", "secondary", "tertiary",
-                                                          "primary_link", "secondary_link", "tertiary_link"]
-
     /// Roads whose missing `surface` tag is worth a small penalty and a flag to the driver. The plan's x0.8.
+    ///
+    /// This one set carries the *whole* absent-surface rule. The plan's other half - "primary/secondary/
+    /// tertiary with no surface tag are treated as paved" - is what **not** being in this set already means,
+    /// so it is expressed by omission and pinned behaviourally in `absentSurfaceRule`. A second constant
+    /// listing the assumed-paved classes was here and was read by nothing: it could be emptied, or made to
+    /// claim `residential` in direct contradiction of this line, without any behaviour changing. A rule
+    /// stated twice, once inertly, is a rule that can disagree with itself.
     public static let unsurveyedClasses: Set<String> = ["unclassified", "residential"]
     public static let unsurveyedMultiplier = 0.8
 

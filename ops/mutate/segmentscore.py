@@ -15,9 +15,12 @@ Contract (see ops/mutate/gates.py, T-0132):
   * `--prove-vacuity` requires `caught == 0` AND `missed == len(MUTATIONS)` over EVERY test file that could
     catch a mutation, each replaced by an empty suite named after the file it stands in;
   * the EQUIVALENT arm requires MISSED specifically;
+  * SKIP is its own bucket and never folded into MISSED;
   * the BASELINE build is retried, like every mutation build - on this Windows checkout a first build into a
     fresh scratch directory can fail with an I/O 512 symlink error and succeed immediately after, which made
-    a sibling harness announce "baseline does not build" having measured nothing.
+    a sibling harness announce "baseline does not build" having measured nothing;
+  * MIN_MUTATIONS and MIN_EQUIVALENT are the REAL population, not a round number under it. A floor that sits
+    below the count it guards refuses nothing anyone would actually do - see the note on them below.
 """
 from __future__ import annotations
 
@@ -30,9 +33,17 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCORE = ROOT / "Sources" / "ScenicKit" / "Scoring" / "SegmentScore.swift"
 TERMS = ROOT / "Sources" / "ScenicKit" / "Scoring" / "SegmentTerms.swift"
-SCRATCH = ".build-mutate-segmentscore"
+# Under .artifacts/, which .gitignore covers. `.build-mutate-segmentscore` did NOT match .gitignore's
+# `.build/`, so every run left an untracked directory behind and `ops/sane` then counted this worktree as
+# dirty - a harness that reports on a tree it has itself made un-sane.
+SCRATCH = ".artifacts/mutate-segmentscore"
 
-TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreTests.swift"]
+# EVERY test file that could catch a mutation, because --prove-vacuity has to empty all of them for its proof
+# to mean anything: one catching file left standing turns "MISSED with no tests present" into a lie.
+# Checked with `grep -rln "SegmentScore\|SegmentTerms" Tests/ Sources/`, which returns these two test files
+# and the two sources and nothing else.
+TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreValidationTests.swift"]
 
 
 def empty_suite(path: pathlib.Path) -> str:
@@ -49,10 +60,35 @@ def empty_suite(path: pathlib.Path) -> str:
 # of PR #73 against ops/mutate/gates.py, the file this one was copied from. A harness detects "my anchors
 # rotted" without this; it does not detect "my population was deleted", and the second is what happens when a
 # mutation is removed with a plausible reason and nothing says the count fell.
-MIN_MUTATIONS = 28
-MIN_EQUIVALENT = 1
+#
+# These are set to the REAL population, not below it. At 28 against a population of 31 the floor refused
+# nothing anyone would actually do: three mutations could be deleted one at a time, each with a plausible
+# reason, and the floor stayed green while the comment above claimed it caught exactly that. A floor that
+# does not refuse what it is documented to refuse is worse than no floor, because it is believed. Raising
+# the population is a deliberate edit to these two numbers in the same commit.
+MIN_MUTATIONS = 49
+MIN_EQUIVALENT = 2
 
-MUTATIONS = [
+# The ten `0...1` terms, transcribed from SegmentTerms rather than imported from it, so that a term renamed
+# in the source makes the anchor go SKIP - which this harness scores as a failure - instead of quietly
+# shrinking the population. `SegmentTerms.unitTerms` is the list on trial; dropping one term from it used to
+# be a single mutation that removed `water`, which happened to be one of the four terms any test probed.
+UNIT_TERMS = ["curvature", "elevationGain", "speedFit", "sinuosity", "canopy",
+              "relief", "impervious", "pointsOfInterest", "water", "furniture"]
+
+
+def drop_from_validation(term):
+    """`term` leaves SegmentTerms.unitTerms, so nothing checks that it is in 0...1."""
+    # "furniture" closes the array literal, so it is the one entry with no trailing comma of its own. The
+    # others are taken WITH their comma but WITHOUT a trailing space, because `speedFit` and `impervious`
+    # each end a line in that literal and are followed by a newline. A first draft included the space and
+    # those two anchors matched nothing; the harness scores an unmatched anchor as SKIP and fails on it, so
+    # this would have been loud rather than silent - but the fix is to anchor on what is actually there.
+    anchor = ', ("%s", %s)' % (term, term) if term == "furniture" else '("%s", %s),' % (term, term)
+    return ("%s drops out of validation, so nothing checks its range" % term, TERMS, anchor, "")
+
+
+MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
     # --- THE MEAN -----------------------------------------------------------------------------------------
     ("arithmetic mean instead of geometric, the tidy-up the plan warns about", SCORE,
      "        var score = pow(m, driveExponent) * pow(e, sceneryExponent)",
@@ -97,8 +133,43 @@ MUTATIONS = [
     ("E's weights no longer sum to one", SCORE,
      "    public static let canopyWeight = 0.24", "    public static let canopyWeight = 0.34"),
 
-    ("water and canopy weights swapped", SCORE,
-     "    public static let canopyWeight = 0.24", "    public static let canopyWeight = 0.12"),
+    # A REAL swap: the previous entry under this name moved canopy 0.24 -> 0.12 and never touched water, so
+    # sum(E) fell to 0.88 and it was behaviourally the same mutation as the one above it. Anchored across the
+    # six contiguous E-weight declarations, which carry no comment between them.
+    ("canopy and water weights really swapped, E still summing to one", SCORE,
+     "    public static let canopyWeight = 0.24\n    public static let reliefWeight = 0.22\n"
+     "    public static let openGroundWeight = 0.16\n    public static let poiWeight = 0.14\n"
+     "    public static let waterWeight = 0.12",
+     "    public static let canopyWeight = 0.12\n    public static let reliefWeight = 0.22\n"
+     "    public static let openGroundWeight = 0.16\n    public static let poiWeight = 0.14\n"
+     "    public static let waterWeight = 0.24"),
+
+    # --- the weights AT THE POINT OF USE ---------------------------------------------------------------
+    # `weightSetsSumToOne` pins all ten weights as literals, so any mutation of the DECLARATIONS is caught by
+    # those literals whatever else is true. These two move the effective weights in the formula instead,
+    # leaving every literal green, which is the only way to ask whether the behavioural claims hold.
+    ("a coordinated pair of effective weights: the saturated product is still one, "
+     "neither set sums to one", SCORE,
+     "        let m = curvatureWeight * t.curvature\n"
+     "            + elevationGainWeight * t.elevationGain\n"
+     "            + speedFitWeight * t.speedFit\n"
+     "            + sinuosityWeight * t.sinuosity\n"
+     "\n"
+     "        var e = canopyWeight * t.canopy\n"
+     "            + reliefWeight * t.relief",
+     "        let m = 0.50 * t.curvature\n"
+     "            + elevationGainWeight * t.elevationGain\n"
+     "            + speedFitWeight * t.speedFit\n"
+     "            + sinuosityWeight * t.sinuosity\n"
+     "\n"
+     "        var e = 0.214070469967848 * t.canopy\n"
+     "            + reliefWeight * t.relief"),
+
+    ("elevationGain overtakes curvature in M, which still sums to one", SCORE,
+     "        let m = curvatureWeight * t.curvature\n"
+     "            + elevationGainWeight * t.elevationGain",
+     "        let m = 0.16 * t.curvature\n"
+     "            + 0.49 * t.elevationGain"),
 
     # --- the inverted terms -------------------------------------------------------------------------------
     ("impervious ground counts FOR the score", SCORE,
@@ -153,6 +224,17 @@ MUTATIONS = [
      '    public static let unsurveyedClasses: Set<String> = ["unclassified", "residential"]',
      '    public static let unsurveyedClasses: Set<String> = ["unclassified", "residential", "tertiary"]'),
 
+    ("a primary road stops being assumed paved", SCORE,
+     '    public static let unsurveyedClasses: Set<String> = ["unclassified", "residential"]',
+     '    public static let unsurveyedClasses: Set<String> = ["unclassified", "residential", "primary"]'),
+
+    # The mirror image of "only motorway scores zero" on the other class list. It was not written, and
+    # `absentSurfaceRule` exercised `residential` only, so every unclassified road in the graph could lose
+    # both the x0.8 and the driver-facing flag in silence.
+    ("unclassified stops taking the absent-surface penalty and the flag", SCORE,
+     '    public static let unsurveyedClasses: Set<String> = ["unclassified", "residential"]',
+     '    public static let unsurveyedClasses: Set<String> = ["residential"]'),
+
     ("the absent-surface penalty applies even when a surface tag is present", SCORE,
      "        if t.surface == nil, unsurveyedClasses.contains(t.highway) { score *= unsurveyedMultiplier }",
      "        if unsurveyedClasses.contains(t.highway) { score *= unsurveyedMultiplier }"),
@@ -178,22 +260,53 @@ MUTATIONS = [
      "            return nil\n        }",
      "        // validation removed"),
 
+    # --- the validation window, at its edges ---------------------------------------------------------------
+    # The third threshold in this file. The other two (tunnel 300/301, proximity 150/149) were pinned on both
+    # sides from the start; this one was probed only at 1.5 and -0.1, far enough outside that the window could
+    # move a quarter of its own width without any test noticing.
+    ("the 0...1 validation window is widened to 0...1.25", SCORE,
+     "        for term in t.unitTerms where !(term.value.isFinite && (0.0...1.0).contains(term.value)) {",
+     "        for term in t.unitTerms where !(term.value.isFinite && (0.0...1.25).contains(term.value)) {"),
+
+    ("the validation window excludes its own top, so a term of exactly 1 is refused", SCORE,
+     "        for term in t.unitTerms where !(term.value.isFinite && (0.0...1.0).contains(term.value)) {",
+     "        for term in t.unitTerms where !(term.value.isFinite && (0.0..<1.0).contains(term.value)) {"),
+
+    # --- the two non-unit inputs, each guarded by its own rule ---------------------------------------------
     ("a negative tunnel length is accepted", SCORE,
      "        guard t.tunnelMeters.isFinite, t.tunnelMeters >= 0 else { return nil }",
      "        guard t.tunnelMeters.isFinite else { return nil }"),
 
-    ("one term drops out of validation, so nothing checks it", TERMS,
-     '         ("pointsOfInterest", pointsOfInterest), ("water", water), ("furniture", furniture)]',
-     '         ("pointsOfInterest", pointsOfInterest), ("furniture", furniture)]'),
+    ("an infinite tunnel length is accepted", SCORE,
+     "        guard t.tunnelMeters.isFinite, t.tunnelMeters >= 0 else { return nil }",
+     "        guard t.tunnelMeters >= 0 else { return nil }"),
+
+    ("the motorway-distance guard is deleted entirely", SCORE,
+     "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway >= 0 else { return nil }",
+     "        // motorway-distance guard removed"),
+
+    ("a negative motorway distance is accepted, silently applying the x0.7 penalty", SCORE,
+     "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway >= 0 else { return nil }",
+     "        guard !t.metersToNearestMotorway.isNaN else { return nil }"),
 ]
 
+# Mutations that CANNOT change behaviour. Anything but MISSED here means a test has an opinion about how the
+# code is WRITTEN rather than what it DOES, which is the failure mode that makes a suite impossible to
+# refactor against. Each one carries the proof that it is equivalent.
 EQUIVALENT = [
     ("write the product in the other order", SCORE,
      "        var score = pow(m, driveExponent) * pow(e, sceneryExponent)",
      "        var score = pow(e, sceneryExponent) * pow(m, driveExponent)"),
-]
 
-KNOWN_MISSED = []
+    # PROOF: every IEEE 754 comparison with NaN is false, so `NaN >= 0` is false and the remaining clause
+    # already refuses NaN. The `!isNaN` clause is documentation, not a guard. It was tempting to bank this as
+    # a coverage hole next to the two real ones above - a reviewer listed it as MISSED - but a survivor that
+    # cannot change behaviour is not a missing test, so it is asserted the other way instead: if a test ever
+    # CATCHES this, that test is reading the source rather than the behaviour.
+    ("a NaN motorway distance stops being refused by name, only by the >= 0 comparison", SCORE,
+     "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway >= 0 else { return nil }",
+     "        guard t.metersToNearestMotorway >= 0 else { return nil }"),
+]
 
 FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
 
@@ -258,7 +371,6 @@ def main(argv) -> int:
         sys.stdout.write("pristine %-32s md5 %s\n" % (f.name, hashlib.md5(b).hexdigest()))
 
     eq = None
-    known = None
     try:
         if prove:
             sys.stdout.write("PROVING NON-VACUITY: EVERY test file is replaced by an empty suite, so every\n"
@@ -314,10 +426,11 @@ def main(argv) -> int:
                          % ("OK" if ok else "FAILED", len(r["caught"]), len(r["missed"]), len(MUTATIONS)))
         return 0 if ok else 1
 
-    known_ok = not KNOWN_MISSED or (
-        known is not None and len(known["missed"]) + len(known["trapped"]) == len(KNOWN_MISSED))
-    if not known_ok and known is not None:
-        sys.stdout.write("KNOWN-GAP ARM FAILED: a gap that closed is good news - move it into MUTATIONS.\n")
+    # The KNOWN_MISSED arm this file inherited from ops/mutate/gates.py was removed rather than left in
+    # place: `known` was never assigned, so the arm never ran, and with an empty KNOWN_MISSED its guard was
+    # true for the wrong reason. A dead arm reads, to the next agent, like a third bucket that is being
+    # checked. There is no known gap on this subject to declare; if one appears it goes in MUTATIONS and the
+    # harness goes red until it is closed, which is the point.
     eq_ok = eq is not None and len(eq["missed"]) == len(EQUIVALENT)
     if not eq_ok and eq is not None:
         sys.stdout.write("EQUIVALENT ARM FAILED: %d of %d went MISSED as required; a catch means a test has an\n"
@@ -325,7 +438,7 @@ def main(argv) -> int:
                          % (len(eq["missed"]), len(EQUIVALENT)))
 
     # A trap does not count. A compile failure does not count. A stale anchor does not count.
-    return 0 if len(r["caught"]) == len(MUTATIONS) and eq_ok and known_ok else 1
+    return 0 if len(r["caught"]) == len(MUTATIONS) and eq_ok else 1
 
 
 if __name__ == "__main__":

@@ -81,11 +81,31 @@ struct SegmentScoreTests {
 
     @Test("both weight sets sum to one, proved through the formula rather than by adding the constants")
     func weightSetsSumToOne() throws {
-        // Adding the constants together and checking the total is asking each set about itself. Instead:
-        // every term at 1 must give M = 1 and E = 1, so the score is 1 - which is only true if each set sums
-        // to exactly 1. A weight moved anywhere breaks this without any other test needing to know the split.
+        // `score = M^a * E^b` is ONE equation in the two sums, and one equation does not pin two unknowns.
+        // A reviewer produced the counterexample by measurement: with M's weights summing to 1.05 and E's to
+        // 1.05^(-a/b), about 0.97407046996785, `uniform(1.0)` still scores 1.0 to within 1e-12. So this test
+        // needs a SECOND equation, and the byway cap - the formula's only non-linearity - supplies it.
+        //
+        //   (1)  SM^a * SE^b          == 1
+        //   (2)  SM^a * min(1, SE+B)^b == 1      with B > 0
+        //
+        // Dividing, min(1, SE+B) == SE. If SE+B < 1 that forces B == 0, excluded by (3) below; so the cap is
+        // active, SE == 1, and (1) then forces SM == 1. Neither sum is added up here, and the counterexample
+        // above fails (2) at 1.0172231953677011.
         let best = try #require(SegmentScore.score(for: Self.uniform(1.0)))
-        #expect(abs(best - 1.0) < 1e-12, "got \(best)")
+        #expect(abs(best - 1.0) < 1e-12, "(1) every term at 1 must score exactly 1; got \(best)")
+
+        var saturated = Self.uniform(1.0)
+        saturated.isByway = true
+        let cappedBest = try #require(SegmentScore.score(for: saturated))
+        #expect(abs(cappedBest - 1.0) < 1e-12, "(2) the cap must bite at E = 1 and change nothing; got \(cappedBest)")
+
+        // (3) B > 0, behaviourally rather than against the literal: below saturation the bonus must move the
+        // score up. Without this, B == 0 collapses (2) back onto (1) and the pair proves nothing again.
+        let plain = try #require(SegmentScore.score(for: Self.uniform(0.5)))
+        var bonused = Self.uniform(0.5)
+        bonused.isByway = true
+        #expect(try #require(SegmentScore.score(for: bonused)) > plain, "(3) the byway bonus is strictly positive")
 
         // And the individual weights, written out, since the tuning process in the plan will move them and a
         // moved weight should be a deliberate act with a visible diff.
@@ -101,15 +121,29 @@ struct SegmentScoreTests {
         #expect(SegmentScore.quietRoadsideWeight == 0.12)
     }
 
+    /// One M term at 1 and the rest at 0, scenery held level, so the scores rank exactly as the M weights do.
+    static func driveOnly(_ path: WritableKeyPath<SegmentTerms, Double>) -> SegmentTerms {
+        var t = SegmentTerms(canopy: 0.5, relief: 0.5, impervious: 0.5,
+                             pointsOfInterest: 0.5, water: 0.5, furniture: 0.5, highway: "tertiary")
+        t[keyPath: path] = 1
+        return t
+    }
+
     @Test("curvature carries more of M than any other term")
     func curvatureDominatesM() throws {
-        // 0.45 against 0.20 / 0.20 / 0.15 is a product decision, not an accident, and swapping two weights
-        // would leave `weightSetsSumToOne` green.
-        let curvy = SegmentTerms(curvature: 1, canopy: 0.5, relief: 0.5, impervious: 0.5,
-                                 pointsOfInterest: 0.5, water: 0.5, furniture: 0.5, highway: "tertiary")
-        let sinuous = SegmentTerms(sinuosity: 1, canopy: 0.5, relief: 0.5, impervious: 0.5,
-                                   pointsOfInterest: 0.5, water: 0.5, furniture: 0.5, highway: "tertiary")
-        #expect(try #require(SegmentScore.score(for: curvy)) > #require(SegmentScore.score(for: sinuous)))
+        // Against EVERY other term in M, not only sinuosity. The earlier version compared curvature with
+        // sinuosity alone and carried a comment claiming a weight swap "would leave `weightSetsSumToOne`
+        // green" - both wrong. That test pins all ten weights as literals, so it catches any swap of the
+        // CONSTANTS; what it cannot see is the effective weights moving at the point of use. Measured: with
+        // 0.16 * curvature and 0.49 * elevationGain in the sum, M still totals 1.00, every literal stays
+        // green, and a curvature-vs-sinuosity comparison stays green too while curvature no longer dominates.
+        let curvy = try #require(SegmentScore.score(for: Self.driveOnly(\.curvature)))
+        for (name, path) in [("elevationGain", \SegmentTerms.elevationGain),
+                             ("speedFit", \SegmentTerms.speedFit),
+                             ("sinuosity", \SegmentTerms.sinuosity)] {
+            let other = try #require(SegmentScore.score(for: Self.driveOnly(path)))
+            #expect(curvy > other, "curvature must outrank \(name); got \(curvy) vs \(other)")
+        }
     }
 
     @Test("impervious ground and street furniture count against the score, not for it")
@@ -180,21 +214,30 @@ struct SegmentScoreTests {
 
     // MARK: - absent surface
 
-    @Test("a residential road with no surface tag is penalised and flagged; a tertiary one is not")
+    @Test("both unsurveyed classes with no surface tag are penalised and flagged; assumed-paved ones are not")
     func absentSurfaceRule() throws {
-        // The plan: primary/secondary/tertiary with no surface tag are treated as paved, while
-        // unclassified/residential take x0.8 and raise a flag. Absent is never treated as unpaved - that is
-        // the gates' business and they need positive evidence.
-        let residential = Self.uniform(0.5, highway: "residential")
-        #expect(abs(try #require(SegmentScore.score(for: residential)) - 0.5 * 0.8) < 1e-12)
-        #expect(SegmentScore.raisesSurfaceUnknownFlag(residential))
+        // The plan names TWO classes on each side: unclassified/residential take x0.8 and raise a flag, while
+        // primary/secondary/tertiary are treated as paved. An earlier version exercised `residential` and
+        // `tertiary` only, so dropping "unclassified" from `unsurveyedClasses` changed nothing any test could
+        // see - every unclassified road in the graph silently losing both the penalty and the driver-facing
+        // flag. Absent is never treated as unpaved: that is the gates' business and they need positive
+        // evidence.
+        for highway in ["unclassified", "residential"] {
+            let t = Self.uniform(0.5, highway: highway)
+            #expect(abs(try #require(SegmentScore.score(for: t)) - 0.5 * 0.8) < 1e-12, "\(highway) takes x0.8")
+            #expect(SegmentScore.raisesSurfaceUnknownFlag(t), "\(highway) must raise the flag")
+        }
 
-        let tertiary = Self.uniform(0.5, highway: "tertiary")
-        #expect(abs(try #require(SegmentScore.score(for: tertiary)) - 0.5) < 1e-12)
-        #expect(!SegmentScore.raisesSurfaceUnknownFlag(tertiary))
+        // The assumed-paved half of the rule is what NOT being in `unsurveyedClasses` means, so it is pinned
+        // here by behaviour rather than by a second constant that lists the classes and is read by nothing.
+        for highway in ["primary", "secondary", "tertiary"] {
+            let t = Self.uniform(0.5, highway: highway)
+            #expect(abs(try #require(SegmentScore.score(for: t)) - 0.5) < 1e-12, "\(highway) is assumed paved")
+            #expect(!SegmentScore.raisesSurfaceUnknownFlag(t), "\(highway) must raise no flag")
+        }
 
-        // A residential road that DOES carry a surface tag takes neither the penalty nor the flag.
-        var surfaced = residential
+        // A road that DOES carry a surface tag takes neither the penalty nor the flag.
+        var surfaced = Self.uniform(0.5, highway: "residential")
         surfaced.surface = "asphalt"
         #expect(abs(try #require(SegmentScore.score(for: surfaced)) - 0.5) < 1e-12)
         #expect(!SegmentScore.raisesSurfaceUnknownFlag(surfaced))
