@@ -41,7 +41,12 @@ def empty_suite(path: pathlib.Path) -> str:
 # health over nothing examined. ops/lib/check-exec-bits (MIN_FILES = 17) and ops/lib/check-line-cap
 # (MIN_FILES = 5) both carry this guard, and their headers say it is because this repository has already
 # shipped that defect twice.
-MIN_MUTATIONS = 16
+#
+# MIN_MUTATIONS IS THE REAL COUNT, not a round number below it. At 16 against a population of 21 this floor refused an empty
+# list but NOT a deletion - five mutations could be dropped and it still read as a clean sheet, which is the
+# exact failure the floor was added to prevent. The reviewer of PR #82 demonstrated that on a sibling by
+# deleting both motorway mutations and getting "18 of 18 ... exit 0". Adding a mutation means bumping this.
+MIN_MUTATIONS = 21
 MIN_EQUIVALENT = 1
 
 MUTATIONS = [
@@ -296,7 +301,11 @@ def main(argv) -> int:
             for f in TEST_FILES:
                 f.write_text(empty_suite(f), encoding="utf-8", newline="\n")
 
-        if build() != 0:
+        # Built TWICE before the baseline is declared broken, exactly as each mutation build already is.
+        # On this Windows checkout a first build into a fresh scratch directory can fail with "unable to
+        # create symbolic link ... I/O error (code: 512)" and succeed immediately after; a single attempt
+        # turns that into "baseline does not build" with nothing measured. T-0132's second defect.
+        if build() != 0 and build() != 0:
             sys.stdout.write("baseline does not build; nothing below would mean anything\n")
             return 2
         code, _ = test()

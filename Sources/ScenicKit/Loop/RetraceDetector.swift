@@ -54,6 +54,18 @@ public enum RetraceDetector {
     /// neighbourhood always contains both - and it would still hold if the two scales disagreed by up to a
     /// factor of two. A guarantee that depends on a constant somewhere else being close enough is not a
     /// guarantee; this one does not.
+    ///
+    /// **The minimum that works is `radius * 1.001123`, not `2 * radius`**, and that was measured rather
+    /// than assumed: `indexNeverSeparatesAPairInsideTheRadius` goes red at `cell == radius` and stays green
+    /// at `1.002 * radius`. The factor of two is headroom against the scales drifting further apart, not the
+    /// edge of correctness - which matters, because somebody shrinking this constant will find the
+    /// guarantee test still green well below 2x and should know that is expected.
+    ///
+    /// Only the EAST axis can break it. The grid's longitude metre (111_320) is LARGER than the decider's
+    /// (111_195.08), so the grid thinks an east-west pair is further apart than it is and can push it over
+    /// a boundary. The grid's latitude metre (111_132) is SMALLER, so a north-south pair reads as 0.999433
+    /// cells and never straddles two. A test that only walked north would be green against every version of
+    /// this defect.
     static let indexCellMeters = 2 * retraceRadiusMeters
 
     /// Degrees. Above this the two passes are heading opposite ways rather than merely crossing.
