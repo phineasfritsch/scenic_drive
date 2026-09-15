@@ -117,15 +117,20 @@ struct RetraceGridTests {
         #expect(RetraceDetector.isAcceptableLoop(out))
     }
 
-    @Test("a street 40 m away is a different road, so the neighbourhood must not grow")
+    @Test("a street 40 m away is a different road, whatever reach the index has")
     func neighbourhoodIsOneCellNotTwo() {
-        // The 3x3 search that fixes the boundary problem buys accuracy with reach: it now compares samples
-        // up to a cell away. Widening it to 5x5 would reach 50 m and swallow a genuinely parallel street -
-        // the shape of every honest short loop - so the reach needs a witness on BOTH sides.
+        // WHAT THIS PINS, AND WHAT IT DOES NOT. reviewer-sg-pr76's B1: this test's name used to end "so the
+        // neighbourhood must not grow", and that half of it has been false since the distance test went in.
+        // Widening the search to 5x5 is now EQUIVALENT - the extra candidates are found and then rejected
+        // by `Geo.distanceMeters(...) <= retraceRadiusMeters` - and ops/mutate/retrace.py carries it in the
+        // EQUIVALENT arm, where every run confirms it goes MISSED. A test whose name claims a witness it
+        // does not provide is worse than no test, because the next reader stops looking.
         //
-        // 40 m apart is the discriminating distance: outside 3x3's 25 m, inside 5x5's 50 m. The existing
-        // parallel-street fixture sits 120 m out and passes at either width, which is why nothing caught the
-        // widening mutation.
+        // What it does pin is the RADIUS from the far side, at the distance that used to discriminate:
+        // 40 m is outside the old 3x3 reach of 25 m and inside 5x5's 50 m, where the existing parallel
+        // street at 120 m passes either way. The reach from BELOW - that the four CORNER cells are searched
+        // at all - is witnessed by `RetraceDiagonalTests` and by the index's own
+        // `theSearchCoversEveryCellAPairCanLandIn`, which is the side B1 found uncovered.
         let lat0 = 34.0689, lon0 = -118.4452
         let stepLon = 20.0 / Self.mPerDegLon(lat0)
         var pts: [Coordinate] = []

@@ -197,6 +197,13 @@ public enum RetraceDetector {
     }
 
     /// The nine cells a sample is compared against: its own and its eight neighbours.
+    ///
+    /// The four CORNERS are the part that is load-bearing for a road which is not due north or due east: a
+    /// pair on an axis differs on one cell axis, a pair on a diagonal differs on both at once. Witnessed by
+    /// `theSearchCoversEveryCellAPairCanLandIn` (every offset a pair inside the radius can take is one of
+    /// these nine, and all four diagonal offsets do occur) and by `RetraceDiagonalTests` (deleting them
+    /// costs a divided road on bearing 045 up to a third of its retrace, at some grid phases and not
+    /// others). Nothing pinned them until reviewer-sg-pr76 asked for it.
     static let neighbourhood: [(Int, Int)] = [(-1, -1), (-1, 0), (-1, 1),
                                               (0, -1), (0, 0), (0, 1),
                                               (1, -1), (1, 0), (1, 1)]

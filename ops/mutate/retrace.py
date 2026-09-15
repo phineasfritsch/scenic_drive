@@ -8,6 +8,11 @@ fact about Swift and not about this suite.
 Run `--prove-vacuity` to check the harness itself: it replaces the test file with an empty suite and
 requires every mutation to report MISSED. A harness that still reports catches with no tests present is
 measuring the compiler.
+
+The subject and every test file must match `git show HEAD:` before anything is built. That is why the run
+REFUSES while you have uncommitted work in them: a sibling harness in this repository measured a file that
+was ALREADY mutated, printed "34 of 34 caught", exited 0, and restored the mutant. Commit first, then
+measure - a number that describes a tree nobody else can check out is not evidence.
 """
 from __future__ import annotations
 
@@ -25,7 +30,11 @@ SRC = ROOT / "Sources" / "ScenicKit" / "Loop" / "RetraceDetector.swift"
 # I did.
 TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "RetraceDetectorTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "RetraceGridTests.swift",
-              ROOT / "Tests" / "ScenicKitTests" / "RetraceIndexTests.swift"]
+              ROOT / "Tests" / "ScenicKitTests" / "RetraceIndexTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "RetraceDiagonalTests.swift"]
+# Kept honest by grep, not by memory: `git grep -l Retrace -- Tests/` must list exactly these four files.
+# Any other file that mentions RetraceDetector could catch a mutation, and the vacuity proof would then be
+# emptying less than the suite.
 SCRATCH = ".build-mutate-retrace"
 
 def empty_suite(path: pathlib.Path) -> str:
@@ -47,8 +56,15 @@ def empty_suite(path: pathlib.Path) -> str:
 # list but NOT a deletion - five mutations could be dropped and it still read as a clean sheet, which is the
 # exact failure the floor was added to prevent. The reviewer of PR #82 demonstrated that on a sibling by
 # deleting both motorway mutations and getting "18 of 18 ... exit 0". Adding a mutation means bumping this.
-MIN_MUTATIONS = 21
-MIN_EQUIVALENT = 1
+#
+# EVERY arm carries its own floor, and each floor is the REAL count. reviewer-sg-pr76 deleted one of the two
+# EQUIVALENT mutants against `MIN_EQUIVALENT = 1` and the run sailed past the check into the baseline; then
+# emptied KNOWN_MISSED, which had no floor at all, and got `caught by a named test: 1 of 1 ... MISSED 0`,
+# exit 0 - a clean sheet with all four recorded gaps deleted. `known_ok` was comparing 0 == 0. An arm that
+# exists so a gap is not invisible must not be silently deletable.
+MIN_MUTATIONS = 23
+MIN_EQUIVALENT = 2
+MIN_KNOWN_MISSED = 4
 
 MUTATIONS = [
     ("compare headings without wrapping", SRC,
@@ -168,6 +184,29 @@ MUTATIONS = [
     ("give the index cell too little margin for the scale error", SRC,
      "    static let indexCellMeters = 2 * retraceRadiusMeters",
      "    static let indexCellMeters = 1.002 * retraceRadiusMeters"),
+
+    # reviewer-sg-pr76's B1. The FOUR CORNERS of the 3x3 index had no witness anywhere - not in the suite,
+    # not here, not in KNOWN_MISSED, not in EQUIVALENT - and they are the only part of the neighbourhood
+    # that is load-bearing for a road which is not due north or due east. A pair on an axis differs on ONE
+    # cell axis; a pair on a diagonal differs on both at once. Every route fixture in this repository was
+    # axis-aligned, so the plus below passed all 41 tests at exit 0 while a divided road on bearing 045 lost
+    # up to a third of its retrace, at some grid phases and not others.
+    ("shrink the neighbourhood to a plus, dropping the four diagonal cells", SRC,
+     "    static let neighbourhood: [(Int, Int)] = [(-1, -1), (-1, 0), (-1, 1),\n"
+     "                                              (0, -1), (0, 0), (0, 1),\n"
+     "                                              (1, -1), (1, 0), (1, 1)]",
+     "    static let neighbourhood: [(Int, Int)] = [(-1, 0), (0, -1), (0, 0), (0, 1), (1, 0)]"),
+
+    # And one corner, because a suite can pin "nine cells" without pinning WHICH nine - counting is not
+    # covering. This one is caught only by the index test, and it names the cell: "a pair 25.0 m apart on
+    # bearing 75 landed at cell offset (1, 1), which the index does not search".
+    ("drop ONE diagonal cell from the neighbourhood", SRC,
+     "    static let neighbourhood: [(Int, Int)] = [(-1, -1), (-1, 0), (-1, 1),\n"
+     "                                              (0, -1), (0, 0), (0, 1),\n"
+     "                                              (1, -1), (1, 0), (1, 1)]",
+     "    static let neighbourhood: [(Int, Int)] = [(-1, -1), (-1, 0), (-1, 1),\n"
+     "                                              (0, -1), (0, 0), (0, 1),\n"
+     "                                              (1, -1), (1, 0)]"),
 ]
 
 # Mutations this suite is KNOWN not to catch, asserted the other way round.
@@ -234,6 +273,34 @@ EQUIVALENT = [
 FAIL_LINE = re.compile(r"recorded an issue|Test run with .*failed")
 
 
+def head_blob(path: pathlib.Path) -> bytes | None:
+    """The committed bytes of `path`, or None if git cannot produce them."""
+    rel = path.relative_to(ROOT).as_posix()
+    p = subprocess.run(["git", "show", "HEAD:" + rel], cwd=ROOT, capture_output=True)
+    return p.stdout if p.returncode == 0 else None
+
+
+def refuse_if_not_head(paths) -> str | None:
+    """The reason to refuse, or None. Checked BEFORE any build, because a harness that measures a file
+    somebody already edited reports on a tree that does not exist anywhere else.
+
+    The harness does NOT certify itself this way. A modified retrace.py could delete this function, and the
+    reviewer's technique - import the module and override its globals in memory - never touches the file at
+    all. What this closes is the accident: a mutant left on disk by a killed run, or an uncommitted edit to
+    the subject, being measured and reported as a score."""
+    for f in paths:
+        head = head_blob(f)
+        if head is None:
+            return "%s: git show HEAD:%s failed - refusing to measure an unverifiable tree" % (
+                f.name, f.relative_to(ROOT).as_posix())
+        if f.read_bytes() != head:
+            return ("%s differs from git show HEAD:%s\n"
+                    "  on disk %s   committed %s" % (f.name, f.relative_to(ROOT).as_posix(),
+                                                     hashlib.md5(f.read_bytes()).hexdigest(),
+                                                     hashlib.md5(head).hexdigest()))
+    return None
+
+
 def build() -> int:
     p = subprocess.run(["swift", "build", "--build-tests", "--scratch-path", SCRATCH],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -283,10 +350,20 @@ def run_all(pristine, mutations):
 
 def main(argv) -> int:
     prove = "--prove-vacuity" in argv
-    if len(MUTATIONS) < MIN_MUTATIONS or len(EQUIVALENT) < MIN_EQUIVALENT:
-        sys.stdout.write("REFUSING: %d mutations and %d equivalent mutants, expected at least %d and %d.\n"
+    if (len(MUTATIONS) < MIN_MUTATIONS or len(EQUIVALENT) < MIN_EQUIVALENT
+            or len(KNOWN_MISSED) < MIN_KNOWN_MISSED):
+        sys.stdout.write("REFUSING: %d mutations, %d equivalent mutants and %d known gaps, expected at "
+                         "least %d, %d and %d.\n"
                          "A harness that examines nothing exits 0 and proves nothing.\n"
-                         % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
+                         % (len(MUTATIONS), len(EQUIVALENT), len(KNOWN_MISSED),
+                            MIN_MUTATIONS, MIN_EQUIVALENT, MIN_KNOWN_MISSED))
+        return 2
+    stale = refuse_if_not_head([SRC] + TEST_FILES)
+    if stale is not None:
+        sys.stdout.write("REFUSING: %s\n"
+                         "A harness that measures an edited tree reports a number nobody can reproduce, and\n"
+                         "a sibling here measured an already-mutated file, printed '34 of 34 caught' and\n"
+                         "restored the mutant. Commit, then measure.\n" % stale)
         return 2
     pristine = {f: f.read_bytes() for f in (SRC,)}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
@@ -328,8 +405,12 @@ def main(argv) -> int:
         for f, b in pristine_tests.items():
             f.write_bytes(b)
 
-    if any(f.read_bytes() != b for f, b in pristine.items()) or any(f.read_bytes() != b for f, b in pristine_tests.items()):
-        sys.stdout.write("RESTORE FAILED - the working tree is not pristine\n")
+    # Against HEAD, not against the bytes read at the start: those two agree only because the run REFUSED
+    # unless they did, and re-deriving the comparison from git is what makes "restored" mean the committed
+    # file rather than whatever this process happened to load.
+    left_dirty = refuse_if_not_head([SRC] + TEST_FILES)
+    if left_dirty is not None:
+        sys.stdout.write("RESTORE FAILED - the working tree is not pristine: %s\n" % left_dirty)
         return 2
 
     sys.stdout.write("\nrestored: " + ", ".join(hashlib.md5(f.read_bytes()).hexdigest()[:8] for f in pristine) + "\n")
