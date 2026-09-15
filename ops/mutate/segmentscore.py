@@ -43,6 +43,15 @@ def empty_suite(path: pathlib.Path) -> str:
             '}\n' % (name, name))
 
 
+# Floors on the HARNESS's own population. Without them the pass condition, the EQUIVALENT arm and
+# `--prove-vacuity` are all VACUOUSLY TRUE on empty lists: "caught by a named test: 0 of 0 ... exit 0" and
+# "VACUITY PROOF OK ... MISSED=0 of 0", the proof certifying its own vacuity. Found by the sign-off reviewer
+# of PR #73 against ops/mutate/gates.py, the file this one was copied from. A harness detects "my anchors
+# rotted" without this; it does not detect "my population was deleted", and the second is what happens when a
+# mutation is removed with a plausible reason and nothing says the count fell.
+MIN_MUTATIONS = 28
+MIN_EQUIVALENT = 1
+
 MUTATIONS = [
     # --- THE MEAN -----------------------------------------------------------------------------------------
     ("arithmetic mean instead of geometric, the tidy-up the plan warns about", SCORE,
@@ -238,6 +247,11 @@ def run_all(pristine, mutations):
 
 def main(argv) -> int:
     prove = "--prove-vacuity" in argv
+    if len(MUTATIONS) < MIN_MUTATIONS or len(EQUIVALENT) < MIN_EQUIVALENT:
+        sys.stdout.write("REFUSING: %d mutations and %d equivalent mutants, expected at least %d and %d.\n"
+                         "A harness that examines nothing exits 0 and proves nothing.\n"
+                         % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
+        return 2
     pristine = {f: f.read_bytes() for f in (SCORE, TERMS)}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
     for f, b in pristine.items():
