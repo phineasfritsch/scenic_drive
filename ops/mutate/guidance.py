@@ -36,7 +36,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SIGN = ROOT / "Sources" / "ScenicKit" / "Guidance" / "GuidanceSign.swift"
 MAP = ROOT / "Sources" / "ScenicKit" / "Guidance" / "GuidanceMapping.swift"
 TESTS = ROOT / "Tests" / "ScenicKitTests" / "GuidanceMappingTests.swift"
-SCRATCH = ".build-mutate-guidance"
+SCRATCH = ".artifacts/mutate-guidance"   # under .artifacts/, which .gitignore covers; .build-mutate-guidance did not
 
 EMPTY_SUITE = ('import Testing\n'
                '@Suite("empty") struct EmptyGuidanceSuite {\n'
@@ -48,8 +48,16 @@ EMPTY_SUITE = ('import Testing\n'
 # "VACUITY PROOF OK ... MISSED=0 of 0", the proof certifying its own vacuity. Found by the sign-off reviewer
 # of PR #73 against ops/mutate/gates.py. Stale ANCHORS were already detected; a deleted POPULATION was not,
 # and that is the one that happens when a mutation is dropped with a plausible reason.
-MIN_MUTATIONS = 18
+#
+# Set to the REAL count, not to a round number below it. The first version of this block said 18 against a
+# population of 21, so its own comment - "a deleted population is the one that happens when a mutation is
+# dropped" - was false: three could be dropped and the floor still passed. A floor that does not refuse what
+# it is documented to refuse is the shape this repository keeps finding. Raise these WITH the population.
+MIN_MUTATIONS = 23
 MIN_EQUIVALENT = 1
+
+_TAIL = "            return .notApplicableToDriving\n        }"
+_CATCH_ALL = _TAIL[:-len("        }")] + "\n        %s return .continueStraight\n        }"
 
 MUTATIONS = [
     # --- the integers, which are the whole point of the type ---------------------------------------------
@@ -131,6 +139,17 @@ MUTATIONS = [
      "            return .notApplicableToDriving",
      "        case .ptStartTrip, .ptTransfer, .ptEndTrip:\n"
      "            return .continueStraight"),
+
+    # --- the gate itself: the plan's property is the ABSENCE of a catch-all ------------------------------
+    # Both compile CLEANLY - swiftc emits no diagnostic at all for either - and leave all 22 signs mapping
+    # exactly as before. They change behaviour only for a sign that does not exist yet, which is the event
+    # the gate exists for, so until `signSwitchHasNoCatchAll` was written the first SURVIVED (reviewer of
+    # PR #81, 1 of 24, "no named test objected"). _TAIL is the last case and the brace after it.
+    ("a default: clause turns the exhaustive switch into a silent fallback", MAP,
+     _TAIL, _CATCH_ALL % "default:                "),
+
+    ("a wildcard case does the same thing without the word default", MAP,
+     _TAIL, _CATCH_ALL % "case _:                 "),
 
     # --- provenance --------------------------------------------------------------------------------------
     ("the recorded upstream release is changed without re-deriving the table", SIGN,
@@ -219,7 +238,11 @@ def main(argv) -> int:
                              "mutation must report MISSED - not merely 'not caught'.\n")
             TESTS.write_text(EMPTY_SUITE, encoding="utf-8", newline="\n")
 
-        if build() != 0:
+        # Built twice here for the same reason as the per-mutation build at run_all(): a fresh scratch path
+        # on this box has failed once with an I/O 512 symlink error while another agent was building. A
+        # one-shot baseline turns that into "baseline does not build", exit 2 - loud, but a lie about the
+        # subject. Reported against this file by the reviewer of PR #81 (N3).
+        if build() != 0 and build() != 0:
             sys.stdout.write("baseline does not build; nothing below would mean anything\n")
             return 2
         code, _ = test()

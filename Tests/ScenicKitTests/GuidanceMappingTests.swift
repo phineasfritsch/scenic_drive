@@ -199,4 +199,78 @@ struct GuidanceMappingTests {
         #expect(GuidanceSign.sourceBlob == "1638c71bfd6537d9a57ad0f24fec334e2122eaab")
         #expect(GuidanceSign.requiresRoutingServiceVersion == "11.0")
     }
+
+    // MARK: - the gate is the ABSENCE of a catch-all, and nothing else was keeping it there
+
+    /// *"Every GraphHopper sign code maps; **unknown fails build**"* is the one property in the plan's table
+    /// that none of the tests above can fail on. It holds only while `maneuver(for:)` switches over the closed
+    /// enum with no catch-all: add `default:` (or `case _:`, or `case let other:`) and the compiler stops
+    /// objecting to an unmapped sign, so the next release's new code reaches a junction as "carry straight on".
+    ///
+    /// Measured, not assumed: the reviewer of PR #81 added `default: return .continueStraight`, built clean,
+    /// and no test here objected. Until this one existed the guarantee was defended by a sentence of prose in
+    /// `GuidanceMapping.swift` asking the next agent not to - and CLAUDE.md is categorical that a guard is
+    /// never anchored on a comment, because comments get stripped.
+    ///
+    /// Comments are therefore the first thing thrown away here, and the subject is located before anything is
+    /// asserted about it: a renamed function or a moved file goes RED rather than making every assertion below
+    /// vacuously true over an empty string.
+    @Test("no catch-all in the sign switch, so an unmapped sign still fails the build")
+    func signSwitchHasNoCatchAll() throws {
+        let source = try String(contentsOf: Self.mappingSourcePath, encoding: .utf8)
+        #expect(source.contains("public static func maneuver(for sign: GuidanceSign) -> GuidanceManeuver"),
+                "subject not found - this test has gone stale, which is not the same as green")
+
+        let code = Self.withoutComments(source)
+        #expect(code.contains("switch sign {"), "the switch is not in the stripped source")
+        #expect(code.contains("case .continueOnStreet:"), "stripping ate the switch body")
+        #expect(!code.contains("//"), "comments survived stripping, so a clause could hide in one")
+
+        // Whitespace removed so `@unknown default :` and `case  _ :` cannot spell their way past this.
+        let compact = code.filter { !$0.isWhitespace }
+        #expect(!compact.contains("default:"), "a default: clause destroys \"unknown code fails the build\"")
+        #expect(!compact.contains("case_:"), "a wildcard case is a default: under another name")
+        #expect(!compact.contains("caselet"), "an irrefutable binding pattern is a default: under another name")
+    }
+
+    /// The subject's path, derived from this file rather than from a working directory: `swift test` is run
+    /// from the repo root, from worktrees and from mutation scratch paths in this repository.
+    static var mappingSourcePath: URL {
+        URL(fileURLWithPath: #filePath)     // Tests/ScenicKitTests/GuidanceMappingTests.swift
+            .deletingLastPathComponent()    // Tests/ScenicKitTests
+            .deletingLastPathComponent()    // Tests
+            .deletingLastPathComponent()    // the package root
+            .appendingPathComponent("Sources/ScenicKit/Guidance/GuidanceMapping.swift")
+    }
+
+    /// Swift source with every comment removed. String literals are stepped over, so a `//` inside one is not
+    /// mistaken for a comment - the subject has none today and a check that broke when it gained one would be
+    /// a trap for the next author.
+    static func withoutComments(_ s: String) -> String {
+        let c = Array(s)
+        var out: [Character] = []
+        var i = 0, inString = false, inLine = false, depth = 0
+        while i < c.count {
+            let ch = c[i], nxt: Character? = i + 1 < c.count ? c[i + 1] : nil
+            if inLine {
+                if ch == "\n" { inLine = false; out.append(ch) }
+                i += 1
+            } else if depth > 0 {
+                if ch == "*" && nxt == "/" { depth -= 1; i += 2 } else if ch == "/" && nxt == "*" {
+                    depth += 1; i += 2
+                } else { if ch == "\n" { out.append(ch) }; i += 1 }
+            } else if inString {
+                if ch == "\\", let n = nxt { out.append(ch); out.append(n); i += 2 } else {
+                    if ch == "\"" { inString = false }
+                    out.append(ch); i += 1
+                }
+            } else if ch == "/" && nxt == "/" { inLine = true; i += 2 } else if ch == "/" && nxt == "*" {
+                depth = 1; i += 2
+            } else {
+                if ch == "\"" { inString = true }
+                out.append(ch); i += 1
+            }
+        }
+        return String(out)
+    }
 }
