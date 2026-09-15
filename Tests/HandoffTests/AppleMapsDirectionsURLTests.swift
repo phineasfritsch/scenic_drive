@@ -102,6 +102,49 @@ struct AppleMapsDirectionsURLTests {
         #expect(url.absoluteString.hasSuffix("&mode=driving"), "got \(url.absoluteString)")
     }
 
+    @Test("a destination in each quadrant reaches Apple unchanged, latitude first")
+    func everyQuadrant() throws {
+        // Until this test and `edgesAreValid` existed, every URL-level fixture in the module sat in one
+        // small box - latitude 34.02..34.09, longitude -118.44..-118.78, north and west. The named places
+        // in the sibling suites are still all in it, deliberately: they are a real drive and they read
+        // against each other. A reviewer showed what one box hides, twice, with 41 tests green: swapping
+        // `pair(_:)` to `"\(decimal(longitude)),\(decimal(latitude))"` ONLY when `c.latitude < 0` was
+        // MISSED, because no URL fixture was ever south of the equator. The harness's own "swap latitude
+        // and longitude" mutation was caught by the accident of fixture choice, not by a property.
+        // All four quadrants and both antimeridian signs, hand-typed.
+        let quadrants: [(Coordinate, String)] = [
+            (Coordinate(latitude: 64.1466, longitude: -21.9426), "64.14660,-21.94260"),    // NW Reykjavik
+            (Coordinate(latitude: 51.5007, longitude: 0.1246), "51.50070,0.12460"),        // NE Westminster
+            (Coordinate(latitude: -54.8019, longitude: -68.3030), "-54.80190,-68.30300"),  // SW Ushuaia
+            (Coordinate(latitude: -33.8523, longitude: 151.2108), "-33.85230,151.21080"),  // SE Sydney
+            (Coordinate(latitude: -1.2921, longitude: 36.8219), "-1.29210,36.82190"),      // just south
+            (Coordinate(latitude: 0, longitude: 180), "0.00000,180.00000"),                // antimeridian
+            (Coordinate(latitude: 0, longitude: -180), "0.00000,-180.00000"),
+        ]
+        for (c, pair) in quadrants {
+            let url = try AppleMapsDirections(destination: c).url()
+            #expect(url.absoluteString
+                    == "https://maps.apple.com/directions?destination=\(pair)&mode=driving",
+                    "got \(url.absoluteString)")
+        }
+    }
+
+    @Test("a whole route in the southern hemisphere - source, waypoint and destination all unswapped")
+    func southernRoute() throws {
+        // The quadrant test above only ever fills `destination`. `source` and `waypoint` go through the same
+        // `pair(_:)`, but a fixture that never exercises them there would leave the claim wider than the
+        // coverage - the shape this PR has now been blocked on four times. A Melbourne-to-Sydney drive.
+        let url = try AppleMapsDirections(
+            source: Coordinate(latitude: -37.8136, longitude: 144.9631),
+            destination: Coordinate(latitude: -33.8523, longitude: 151.2108),
+            waypoints: [Coordinate(latitude: -33.7969, longitude: 151.2878)]).url()
+        #expect(url.absoluteString
+                == "https://maps.apple.com/directions?source=-37.81360,144.96310"
+                + "&destination=-33.85230,151.21080"
+                + "&waypoint=-33.79690,151.28780&mode=driving",
+                "got \(url.absoluteString)")
+    }
+
     @Test("nothing is emitted twice - not source, not destination, not mode")
     func nothingIsEmittedTwice() throws {
         // `destination` had no exactly-once assertion, and every reader in this file and in the app uses

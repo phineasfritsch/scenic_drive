@@ -5,9 +5,17 @@ import ScenicKit
 
 /// What can and cannot be checked from here.
 ///
-/// **Checkable, and checked below:** the parameter names against Apple's documented set, the coordinate
-/// format, that waypoint order survives, that the builder refuses rather than truncates, that a decimal
-/// comma cannot appear, and that the round trip through `URLComponents` returns what went in.
+/// **Checked below, and nothing wider:** the parameter names against Apple's documented set, the coordinate
+/// format, that waypoint order survives, that the coordinate arithmetic rounds and pads and carries, that
+/// the poles and the antimeridian reach the URL unchanged, and that the round trip through `URLComponents`
+/// returns the query string that went in.
+///
+/// **Checked in a sibling file, not here**, so this list is not read as covering them: the waypoint cap in
+/// both shapes (`AppleMapsDirectionsCapTests`), the refusals and their payloads (`HandoffErrorTests`), the
+/// whole query string and the quadrants (`AppleMapsDirectionsURLTests`), and the no-locale property, which
+/// is pinned on identifiers by `HandoffSourceTests`. This paragraph is edited in the same commit that moves
+/// a test out - a suite doc still listing what it used to cover is the same defect as a test name promising
+/// what its assertion cannot see, which is what this task has been blocked on four times.
 ///
 /// **NOT checkable from here:** whether Apple Maps, on a real iPhone, actually follows the pinned waypoints
 /// rather than re-planning between source and destination. No unit test can answer that; it needs a phone.
@@ -87,14 +95,9 @@ struct AppleMapsDirectionsTests {
                 "got \(pinned)")
     }
 
-    @Test("the cap is nine, and the number itself is pinned")
-    func capValueIsPinned() {
-        // Every other test reaches the cap through `AppleMapsDirections.maxWaypoints`, so raising it from 9
-        // to 99 left the whole suite green - the value had no witness. A reviewer found that by mutating it.
-        // Nine is OUR choice (Apple documents no maximum), which makes it a decision that should have to be
-        // changed deliberately rather than drift.
-        #expect(AppleMapsDirections.maxWaypoints == 9)
-    }
+    // The waypoint cap moved to AppleMapsDirectionsCapTests, because every fixture it had here omitted
+    // `source` - the shape the product never uses - so two one-line off-by-ones on `url()`'s first line
+    // survived with the whole suite green. Both shapes are enumerated there.
 
     @Test("the source is omitted when there is none, and never invented from a pinned stop")
     func noSource() throws {
@@ -149,46 +152,24 @@ struct AppleMapsDirectionsTests {
         }
     }
 
-    @Test("more waypoints than the cap is refused, not truncated")
-    func refusesTruncation() {
-        let many = Array(repeating: Self.latigo, count: AppleMapsDirections.maxWaypoints + 1)
-        #expect(throws: HandoffError.tooManyWaypoints(count: AppleMapsDirections.maxWaypoints + 1,
-                                                      max: AppleMapsDirections.maxWaypoints)) {
-            _ = try AppleMapsDirections(destination: Self.malibu, waypoints: many).url()
-        }
-    }
+    // Refusals - which coordinates are refused, and what the refusal carries - moved to HandoffErrorTests,
+    // alongside the error type they are refusals of. The version here asserted only `throws:
+    // HandoffError.self`, so swapping the two arguments of `notACoordinate(latitude:longitude:)` was MISSED.
 
-    @Test("exactly the cap is allowed - an off-by-one here silently drops a decision point")
-    func capIsInclusive() throws {
-        let atCap = Array(repeating: Self.latigo, count: AppleMapsDirections.maxWaypoints)
-        let url = try AppleMapsDirections(destination: Self.malibu, waypoints: atCap).url()
-        #expect(Self.items(url).filter { $0.0 == "waypoint" }.count == AppleMapsDirections.maxWaypoints)
-    }
-
-    @Test("a non-coordinate is refused wherever it appears",
-          arguments: [Coordinate(latitude: .nan, longitude: 0),
-                      Coordinate(latitude: 0, longitude: .nan),
-                      Coordinate(latitude: .infinity, longitude: 0),
-                      Coordinate(latitude: 91, longitude: 0),
-                      Coordinate(latitude: -90.5, longitude: 0),
-                      Coordinate(latitude: 0, longitude: 180.1),
-                      Coordinate(latitude: 0, longitude: -181)])
-    func refusesNonCoordinates(bad: Coordinate) {
-        #expect(throws: HandoffError.self) { _ = try AppleMapsDirections(destination: bad).url() }
-        #expect(throws: HandoffError.self) {
-            _ = try AppleMapsDirections(source: bad, destination: Self.malibu).url()
-        }
-        #expect(throws: HandoffError.self) {
-            _ = try AppleMapsDirections(destination: Self.malibu, waypoints: [bad]).url()
-        }
-    }
-
-    @Test("the poles and the antimeridian are coordinates, not errors")
+    @Test("the poles and the antimeridian are coordinates, and reach the URL unchanged")
     func edgesAreValid() throws {
-        for c in [Coordinate(latitude: 90, longitude: 180),
-                  Coordinate(latitude: -90, longitude: -180),
-                  Coordinate(latitude: 0, longitude: 0)] {
-            #expect(throws: Never.self) { _ = try AppleMapsDirections(destination: c).url() }
+        // The version of this test that shipped asserted `throws: Never.self` and NOTHING about the value
+        // that came out, under a name that reads as though it covered the edge. A reviewer put
+        // `c.longitude.truncatingRemainder(dividingBy: 180)` into `pair(_:)` - an ordinary "normalise the
+        // longitude" edit - and the antimeridian was emitted as 0 with the whole suite green. Literals now.
+        for (c, expected) in [(Coordinate(latitude: 90, longitude: 180), "90.00000,180.00000"),
+                              (Coordinate(latitude: -90, longitude: -180), "-90.00000,-180.00000"),
+                              (Coordinate(latitude: 90, longitude: -180), "90.00000,-180.00000"),
+                              (Coordinate(latitude: -90, longitude: 180), "-90.00000,180.00000"),
+                              (Coordinate(latitude: 0, longitude: 0), "0.00000,0.00000")] {
+            let url = try AppleMapsDirections(destination: c).url()
+            #expect(Self.items(url).first { $0.0 == "destination" }?.1 == expected,
+                    "got \(Self.items(url))")
         }
     }
 
@@ -289,8 +270,18 @@ struct AppleMapsDirectionsTests {
         let url = try AppleMapsDirections(source: Self.ucla, destination: Self.malibu,
                                           waypoints: [Self.latigo, Self.piuma]).url()
         let reparsed = try #require(URL(string: url.absoluteString))
-        #expect(Self.items(reparsed).map(\.1) == Self.items(url).map(\.1))
+        // WRITTEN OUT. This was `items(reparsed).map(\.1) == items(url).map(\.1)`, which is the same
+        // `URLComponents` parse run twice over the same string - f(x) == f(x), an assertion that cannot
+        // fail, in a test named for an encoding property it therefore could not observe.
+        #expect(Self.items(reparsed).map { "\($0.0)=\($0.1)" }
+                == ["source=34.06890,-118.44520",
+                    "destination=34.02590,-118.77980",
+                    "waypoint=34.04210,-118.75630",
+                    "waypoint=34.08130,-118.69440",
+                    "mode=driving"],
+                "got \(Self.items(reparsed))")
         // A comma inside a coordinate must reach Apple as a comma. `%2C` here reads as a search string.
         #expect(url.absoluteString.contains("destination=34.02590,-118.77980"))
+        #expect(!url.absoluteString.contains("%2C"))
     }
 }

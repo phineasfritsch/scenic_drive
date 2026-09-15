@@ -15,9 +15,10 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 41 tests in 6 suites passed, exit 0"
-  - "PY=\"${PYTHON:-$(command -v python3 || command -v python)}\"; $PY ops/mutate/handoff.py -> 28 caught by a named test of 28, trapped/compile-only/MISSED/skipped all 0, 1 equivalent mutant MISSED, exit 0"
-  - "RED: $PY ops/mutate/handoff.py --prove-vacuity -> caught=0 and MISSED=28 of 28 with every HandoffTests file replaced by an empty suite"
+  - "swift test -> 51 tests in 8 suites passed, exit 0"
+  - "PY=\"${PYTHON:-$(command -v python3 || command -v python)}\"; $PY ops/mutate/handoff.py -> population line reads mutations=39 (floor 30) subjects=2 test files=5 (floor 3), then 39 caught by a named test of 39, trapped/compile-only/MISSED/skipped all 0, 1 equivalent mutant MISSED, exit 0"
+  - "RED: $PY ops/mutate/handoff.py --prove-vacuity -> caught=0 and MISSED=39 of 39 with every Tests/HandoffTests file replaced by an empty suite"
+  - "RED: $PY ops/mutate/handoff.py --prove-floor -> FLOOR PROOF OK: 5 of 5 arms refused (MUTATIONS empty, MUTATIONS truncated, EQUIVALENT empty, TESTS under floor, HandoffError mutated by nothing) and the control did not, exit 0"
 ---
 ## Brief
 
@@ -464,9 +465,281 @@ Both fixed, neither declined:
 `AppleMapsDirectionsTests.swift` was held at 296 lines by moving the mode assertions and the source-text
 check out; the two new files are 122 and 98. Nothing is over the 300 cap.
 
+> **Correction appended in the fourth pass (reviewer-4's NIT 7).** "122 and 98" is wrong and was wrong when
+> it was written: `awk 'END{print NR}'` gave 122 and 103. The sentence above is left as it was written
+> because `## Log` is append-only (queue/README.md); **the number to trust is 103.** A count typed from
+> memory, in a log whose entire purpose is to be re-run.
+
 ### Not fixed, and named
 
 `bash ops/test` still exits 1 with "services/api exists but vitest produced no report" -
 `services/api/node_modules` is absent in every checkout on this box. Pre-existing, this PR touches no
 TypeScript, and the Swift half is green. Unchanged from the previous pass and still not folded into this
 task.
+
+## Fourth fix pass: reviewer4-pr70's two BLOCKING findings, SHOULD FIX 3, 4 and 5, and NIT 6 and 7
+
+**No line of `Sources/Handoff` changed in this pass.** Every one of reviewer-4's findings is a test or a
+harness that claimed more than it covered, and the builder was right each time. That is worth saying plainly,
+because the tempting way to close a mutation finding is to edit the source until the mutation stops
+compiling.
+
+Reproduced before fixing, re-run after. Scripts in `.artifacts/fix70/` (gitignored, evidence for this log):
+`subdir_repro.py`, `which_tests.py`, `scan_red.py`. Each reads the pristine bytes first, restores in a
+`finally` and prints the md5; `git status --porcelain` after every run showed nothing stray. The floor
+demonstration is NOT in `.artifacts/` - see below.
+
+**One thing went wrong in this pass and is worth writing down.** A harness run was killed mid-flight to save
+time. `TaskStop` killed the wrapper shell and not the python child, so the `finally` that restores the tree
+never ran: `AppleMapsDirections.swift` was left carrying a mutation and all five test files were left as the
+empty suites `--prove-vacuity` writes. It was caught by hashing the subject against HEAD, which is the check
+that exists for exactly this, and the files were rebuilt and re-verified from scratch. The harness is not
+safe to interrupt, and the tree state after an interrupted run is not evidence of anything.
+
+### 1 (BLOCKING) - the source-text check read one directory; SwiftPM compiles the tree
+
+`Package.swift:33` declares `path: "Sources/Handoff"`, which SwiftPM compiles RECURSIVELY.
+`HandoffSourceTests.shippingSource()` read it with `FileManager.default.contentsOfDirectory(atPath:)`, which
+lists ONE directory. So a locale-bearing helper one level down was compiled, called, and invisible to the
+check written to make exactly that impossible - while the file's own doc claimed the allow-list was "closed
+where a deny-list is open" and that "no locale-bearing type can be reached without failing it". Third
+recurrence of this task's signature defect, inside the fix for the second one.
+
+`.artifacts/fix70/subdir_repro.py`, the reviewer's reproduction, run verbatim on HEAD and then on the fix:
+
+    ARM sub   Sources/Handoff/Fmt/point.swift   before: exit=0, 41 tests passed      <- MISSED
+                                                 after: exit=1, 2 issues             <- caught
+              failing: every capitalised identifier in the shipping source is on the allow-list
+                       the shipping source uses none of the lowercase locale-sensitive spellings
+    ARM top   Sources/Handoff/LocalePoint.swift before: exit=1  after: exit=1        <- the control,
+              red both times, so the check could always fire on this code where it looked
+
+The scan is now `subpathsOfDirectory(atPath:)`, which recurses, and returns paths relative to the root.
+
+**The completeness guard.** `#expect(files.count >= 2)` could not see a whole directory being skipped,
+because both top-level files were still there. Two things replace it, and both had to be seen red:
+
+  * `scanIsRecursive`, a new named test, builds a throwaway tree in the temp directory - `Top.swift`,
+    `Fmt/point.swift`, `Fmt/notes.md` - and asserts the walk returns the two `.swift` files including the
+    one a directory down. It does not wait for `Sources/Handoff` to grow a subdirectory before it can
+    observe anything, which is the whole reason a count floor and a same-shaped second walk are not enough;
+  * both source checks now assert `Set(files.map(\.0)) == swiftFilesByHand(under:)` - a hand-written
+    recursive walk over `contentsOfDirectory(at:)` and `.isDirectoryKey`, deliberately a DIFFERENT mechanism
+    from the scan. A guard that recursed the way the scan does would agree with it by construction, which is
+    an expectation computed from the thing it checks.
+
+`.artifacts/fix70/scan_red.py` puts the old `contentsOfDirectory` scan back:
+
+    narrowed, tree exactly as it ships      exit=1  FAILING: the source scan descends into subdirectories
+    narrowed + the Fmt/point.swift helper   exit=1  FAILING: the source scan descends into subdirectories
+                                                             every capitalised identifier ... allow-list
+                                                             the shipping source uses none of the ... spellings
+
+The first arm is the one that matters: the guard fires with `Sources/Handoff` untouched, so it is not
+waiting on a layout that does not exist yet.
+
+The harness carries the mutation as **"a locale-bearing helper one directory down, which SwiftPM compiles
+and a flat scan cannot see"**. It is the first mutation here that CREATES a file rather than editing one -
+`old is None` means create - and the cleanup deletes both the file and the directory it had to make.
+
+### 2 (BLOCKING) - the waypoint cap had no fixture carrying a source
+
+`refusesTruncation`, `capIsInclusive` and the at-cap shape inside `neverAvoidsHighways` were the only
+fixtures that reached the cap and all three omitted `source` - the field that exists precisely because the
+app knows where the user is standing. Two one-line edits to `url()`'s first line were MISSED with 41 green:
+
+    count the origin as one of the nine pinned stops     MISSED -> caught
+      `if waypoints.count + (source == nil ? 0 : 1) > Self.maxWaypoints {`
+      caught by: exactly nine pinned stops is allowed WITH an origin - the shape the app always builds
+    enforce the cap only when the caller gave no origin  MISSED -> caught
+      `if source == nil, waypoints.count > Self.maxWaypoints {`
+      caught by: ten pinned stops is refused, not truncated, WITH an origin
+                 a refusal emits no URL at all, rather than a shorter drive
+
+The cap moved to its own file, `AppleMapsDirectionsCapTests.swift`, with both shapes enumerated the way
+`neverAvoidsHighways` and `noSource` were enumerated in the pass before this one. The counts there are
+written out as 9 and 10 rather than reached through `AppleMapsDirections.maxWaypoints`: building the fixture
+out of the constant under test is what left the cap without a witness in the first place.
+
+### 3 (SHOULD FIX) - every coordinate fixture sat in one northern, western box
+
+Latitude 34.02..34.09, longitude -118.44..-118.78, in every URL-level fixture in the module. `edgesAreValid`
+asserted `throws: Never.self` and nothing about the value that came out, under a name that reads as though
+it covered the edge.
+
+    normalise the longitude, which turns the antimeridian into the prime meridian   MISSED -> caught
+      `decimal(c.longitude.truncatingRemainder(dividingBy: 180))`
+      caught by: a destination in each quadrant reaches Apple unchanged, latitude first
+                 the poles and the antimeridian are coordinates, and reach the URL unchanged
+    swap latitude and longitude, but only in the southern hemisphere                MISSED -> caught
+      caught by: a destination in each quadrant reaches Apple unchanged, latitude first
+                 a whole route in the southern hemisphere - source, waypoint and destination all unswapped
+                 the poles and the antimeridian are coordinates, and reach the URL unchanged
+
+`edgesAreValid` now asserts the emitted value as a literal at all four pole/antimeridian corners.
+`everyQuadrant` adds Reykjavik, Westminster, Ushuaia, Sydney, Nairobi and both antimeridian signs as whole
+URLs; `southernRoute` puts a Melbourne-to-Sydney drive through `source`, `waypoint` AND `destination`,
+because the quadrant test only ever fills `destination` and a claim about `pair(_:)` proved on one emitter
+is the same shape as everything else on this list.
+
+### 4 (SHOULD FIX) - the harness's stated subject was the module, its actual subject one file
+
+`ops/mutate/handoff.py` opened "Mutation harness for Sources/Handoff" while `SRC` named
+`AppleMapsDirections.swift` and nothing else. `HandoffError.swift` - public API, `Equatable` with associated
+values, a `CustomStringConvertible` description - had zero mutation coverage and zero assertions.
+
+`SUBJECTS` is now a list, every mutation names the file it edits, and `population_floor()` REFUSES to run if
+any subject is mutated by nothing. Four mutations land on `HandoffError.swift`, all four MISSED before:
+
+    the too-many-waypoints refusal stops saying how many, and how many are allowed  MISSED -> caught
+    count and max swapped in the refusal message                                    MISSED -> caught
+      both caught by: the refusal message says how many stops were pinned and what the limit was
+    the not-a-coordinate refusal quotes longitude first                             MISSED -> caught
+    the not-a-coordinate refusal drops the pair entirely                            MISSED -> caught
+      both caught by: the not-a-coordinate message quotes the pair, latitude first
+
+A fifth mutation is mine rather than the reviewer's, and it is the reason `refusalsAreEquatableByPayload`
+exists at all. Writing a test with no mutation behind it is writing a check that has never been seen red:
+
+    Equatable stops comparing the payload, weakening every refusal assertion at once  MISSED -> caught
+      a hand-written `==` in an extension suppresses the synthesised one; nothing stops compiling, and
+      every `#expect(throws: HandoffError.someCase(...))` in the suite silently stops comparing the numbers
+      caught by: the two refusals are distinguishable, and so are their payloads
+
+### 5 (SHOULD FIX) - the refusal payload was asserted only by its type
+
+`refusesNonCoordinates` said `#expect(throws: HandoffError.self)` and stopped, so swapping the arguments at
+the throw site was MISSED.
+
+    the refusal names the offending coordinate with its arguments swapped           MISSED -> caught
+      caught by: the refusal names the coordinate that was refused, latitude first
+
+The fixtures there are asymmetric on purpose - 91 against -12, not 91 against 91 - because a swapped pair is
+the mutation in question and a symmetric fixture cannot see it. NaN is deliberately excluded from the
+payload assertions and the reason is written in the test: `HandoffError` is `Equatable` and NaN != NaN, so
+an `#expect(throws:)` over a payload containing one can never match, which would be an assertion that cannot
+pass rather than one that cannot fail - the same defect wearing the other sign.
+
+### 6 (NIT) - an assertion that could not fail
+
+`roundTrip` compared `items(reparsed).map(\.1)` against `items(url).map(\.1)`: the same `URLComponents` parse
+run twice over the same string, f(x) == f(x), in a test named for an encoding property it therefore could
+not observe. The reparse is now compared against five written-out `name=value` literals, and `%2C` is
+asserted absent by name.
+
+### 7 (NIT) - the log's own numbers
+
+"the two new files are 122 and 98" was 122 and 103. `## Log` is append-only, so the third pass's sentence is
+left exactly as written and a blockquote immediately under it carries the correction. Editing the number in
+place would have made the log agree with itself about a thing that did not happen, which is the same move as
+a green test that has never been red.
+
+### The harness gained a floor, and the floor was seen red
+
+`caught == len(MUTATIONS)` is trivially true with an empty list - the same hole reviewer-5 found in
+`ops/lib/check-exec-bits`, where `test -z "$(...)"` over an empty file list passed forever. That check
+answered with `MIN_FILES`; this one answers with `MIN_MUTATIONS = 30`, `MIN_EQUIVALENT = 1`,
+`MIN_TEST_FILES = 3` and the per-subject coverage check, and REFUSES with exit 2 below any of them.
+
+The demonstration is `ops/mutate/handoff.py --prove-floor`, IN THE COMMITTED HARNESS rather than in a
+gitignored script, because this task has already shipped an `acceptance:` line naming a file under
+`.artifacts/` that no fresh clone could run:
+
+    FLOOR ARM   MUTATIONS emptied - reports success over nothing     MUTATIONS holds 0 entries, below the floor of 30
+    FLOOR ARM   MUTATIONS truncated to 5                             MUTATIONS holds 5 entries, below the floor of 30
+    FLOOR ARM   EQUIVALENT emptied                                   EQUIVALENT holds 0 entries, below the floor of 1
+    FLOOR ARM   TESTS globbed down to 2 ...                          TESTS globbed 2 files from HandoffTests, below the floor of 3
+    FLOOR ARM   every HandoffError mutation removed                  these subjects are mutated by nothing: HandoffError.swift.
+    FLOOR ARM   CONTROL: unpatched                                   no refusal, as required
+    FLOOR PROOF OK: 5 of 5 arms refused and the control did not
+
+Three other harness changes, all from the shared contract:
+
+  * **`TESTS` is globbed, not listed.** The hardcoded list was three files and the suite is now five.
+    Reviewer-4's `vacsplit` attack showed the old list failing LOUD on a fourth file rather than silently -
+    the right direction, but only because somebody looked. A glob cannot fall behind a split.
+  * **the baseline build is retried twice**, like every mutation build already was. T-0132: a first build
+    into a fresh scratch directory on this box can fail with "unable to create symbolic link ... I/O error
+    (code: 512)", and a transient failure used to abort the whole run with "baseline does not build" having
+    measured nothing.
+  * **`KNOWN_MISSED` exists and is EMPTY**, which is the claim that every mutation in the list is expected to
+    be caught by a named test. Nothing was moved into it. All six of reviewer-4's survivors are in
+    `MUTATIONS` with tests behind them; an entry saying "no assertion can kill this" would have been false
+    for every one of them, and a false entry there records a closable gap as a feature.
+
+The subject-coverage half of the floor counts `MUTATIONS` only, deliberately not `MUTATIONS + EQUIVALENT`.
+An `EQUIVALENT` entry asserts that nothing catches it, so a subject reachable only from that list is still
+measured by nothing that HAS to be caught - which is the same "stated subject wider than actual subject"
+shape the floor exists to refuse, one level in.
+
+### Caught, and caught by the right test
+
+`caught` alone can mean "caught by something unrelated", which leaves the test that CLAIMS the property
+still unable to see the defect. `.artifacts/fix70/which_tests.py` re-runs all eleven new mutations and
+prints the failing test NAMES; every mapping above is from that output, and in each case the named test is
+the one written for the property. The script reads its mutation list out of `ops/mutate/handoff.py`, so the
+two cannot drift.
+
+### Result
+
+    swift test --scratch-path .build/T0114fix   51 tests in 8 suites passed          exit 0
+    $PY ops/mutate/handoff.py                   population mutations=39 (floor 30) equivalent=1
+                                                  known-missed=0 subjects=2 test files=5 (floor 3)
+                                                39 caught by a named test of 39
+                                                  (trapped 0, compile-only 0, MISSED 0, skipped 0)
+                                                EQUIVALENT: 1 MISSED as required      exit 0
+    $PY ops/mutate/handoff.py --prove-vacuity   caught=0 (need 0), MISSED=39 of 39    exit 0
+    $PY ops/mutate/handoff.py --prove-floor     FLOOR PROOF OK: 5 of 5 arms refused   exit 0
+    bash ops/check-pins                         PINS ok=11 pending=2 failed=0         exit 0
+    bash ops/sane                               SANE OK                              exit 0
+    bash ops/queue-check                        QUEUE OK                             exit 0
+
+Line counts (`awk 'END{print NR}'`, the method `ops/lib/check-line-cap` uses):
+
+    158 Sources/Handoff/AppleMapsDirections.swift      unchanged this pass
+     30 Sources/Handoff/HandoffError.swift             unchanged this pass
+    287 Tests/HandoffTests/AppleMapsDirectionsTests.swift
+    165 Tests/HandoffTests/AppleMapsDirectionsURLTests.swift
+    103 Tests/HandoffTests/AppleMapsDirectionsCapTests.swift    new
+    103 Tests/HandoffTests/HandoffErrorTests.swift              new
+    178 Tests/HandoffTests/HandoffSourceTests.swift
+    600 ops/mutate/handoff.py
+
+Every Swift file is under the 300 cap that P-SRC-02 scopes to tracked `Sources/**/*.swift` and
+`Tests/**/*.swift` (`ops/lib/check-line-cap`, `MIN_FILES=5`). `AppleMapsDirectionsTests.swift` at 287 is
+the tight one, which is why the cap and the refusals moved to files of their own rather than being added to
+it. `handoff.py` at 600 is outside that pin's scope, and it is long: about 230 of those lines are the
+mutation table, which is data. Precedent on main is `ops/lib/queue.py` at 372. Named here rather than left
+for a reviewer to find, and a reviewer who wants the table split into its own module has a fair case.
+
+Every file this pass wrote is LF in both the index and the working tree (`git ls-files --eol`). The editor
+used for it writes CRLF by default, `.gitattributes` is `* text=auto eol=lf`, and `ops/sane` greps every
+TRACKED file in the WORKING TREE for a CR - so a CRLF working copy fails the repo-sanity gate with exit 2
+even though the blob git stores would be normalised on add.
+
+### Not fixed, and named
+
+`bash ops/test` still exits 1 with "services/api exists but vitest produced no report". `services/api/node_modules`
+is absent in every checkout on this box, already filed as T-0040, this PR touches no TypeScript, and the
+Swift half is green at 51/51. Unchanged from every previous pass and still not folded into this task.
+
+**PROCESS 8, the expired lease, is not fixed here and not fixed by hand.** `lease_expires_at` reads
+2026-09-08T15:14:26Z and the clock is long past it. There is no renewal command - `ops/claim` has no renew
+path and nothing under `ops/` writes `lease_expires_at` except the sweeper - so the only way to "fix" it in
+this PR would be to retype the field, which is editing the record instead of the process. `ops/queue-check`
+is green, T-0131 is already filed for it, and reviewer-4 filed it as an observation rather than a defect of
+this PR. Named, not touched.
+
+The residue `HandoffSourceTests` names in its own doc is unchanged and still real: the allow-list is closed
+over TYPE names written under `Sources/Handoff`, and a locale consulted through a member of an
+already-allowed type would pass both halves. It is stated there, not implied, and it is why the load-bearing
+half is the closed one.
+
+- 2026-09-15T05:10:00Z **Finished by the orchestrator after the session that was fixing this ended mid-run.** The agent's work was complete and green; what it had not reached was the restore at the end of its red demonstration. `git status` showed the shipping source modified and tests failing, which reads exactly like a broken fix and is not one - the failing tests WERE the demonstration succeeding.
+
+  Restored with `git checkout --` and re-verified from a clean tree. Nothing was lost: no commit had been
+  made, and the mutation was confined to the working tree.
+
+  The generalisation is recorded on [[T-0130]]: a red demo that mutates a tracked file and relies on a
+  `finally` to restore it has a window, minutes long, in which the process can die. That is a second source
+  of the same hazard the task was filed for, and it needs no second agent.
