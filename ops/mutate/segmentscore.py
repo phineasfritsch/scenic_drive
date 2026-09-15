@@ -19,6 +19,12 @@ Contract (see ops/mutate/gates.py, T-0132):
   * the BASELINE build is retried, like every mutation build - on this Windows checkout a first build into a
     fresh scratch directory can fail with an I/O 512 symlink error and succeed immediately after, which made
     a sibling harness announce "baseline does not build" having measured nothing;
+  * a TRAPPED verdict is re-run once, for the same reason and no further: a trap is a non-zero exit with no
+    named test failing, which is also what an infrastructure flake looks like. The green path still costs one
+    `swift test`;
+  * the SUBJECT must be byte-identical to `git show HEAD:` before anything is built. A sibling harness in this
+    repository was pointed at a file that already carried a mutation, measured the mutant, printed
+    "34 of 34 caught", exited 0, and its `finally` restored the mutant it had started from;
   * MIN_MUTATIONS and MIN_EQUIVALENT are the REAL population, not a round number under it. A floor that sits
     below the count it guards refuses nothing anyone would actually do - see the note on them below.
 """
@@ -40,10 +46,11 @@ SCRATCH = ".artifacts/mutate-segmentscore"
 
 # EVERY test file that could catch a mutation, because --prove-vacuity has to empty all of them for its proof
 # to mean anything: one catching file left standing turns "MISSED with no tests present" into a lie.
-# Checked with `grep -rln "SegmentScore\|SegmentTerms" Tests/ Sources/`, which returns these two test files
-# and the two sources and nothing else.
+# Re-checked by grep, not by memory, each time this list changes: `grep -rln "SegmentScore\|SegmentTerms"
+# Tests/ Sources/` returns these THREE test files and the two sources and nothing else.
 TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreTests.swift",
-              ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreValidationTests.swift"]
+              ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreValidationTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreWeightTests.swift"]
 
 
 def empty_suite(path: pathlib.Path) -> str:
@@ -66,7 +73,7 @@ def empty_suite(path: pathlib.Path) -> str:
 # reason, and the floor stayed green while the comment above claimed it caught exactly that. A floor that
 # does not refuse what it is documented to refuse is worse than no floor, because it is believed. Raising
 # the population is a deliberate edit to these two numbers in the same commit.
-MIN_MUTATIONS = 49
+MIN_MUTATIONS = 58
 MIN_EQUIVALENT = 2
 
 # The ten `0...1` terms, transcribed from SegmentTerms rather than imported from it, so that a term renamed
@@ -146,8 +153,14 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
 
     # --- the weights AT THE POINT OF USE ---------------------------------------------------------------
     # `weightSetsSumToOne` pins all ten weights as literals, so any mutation of the DECLARATIONS is caught by
-    # those literals whatever else is true. These two move the effective weights in the formula instead,
-    # leaving every literal green, which is the only way to ask whether the behavioural claims hold.
+    # those literals whatever else is true. These move the effective weights in the formula instead, leaving
+    # every literal green, which is the only way to ask whether the behavioural claims hold.
+    #
+    # There were two of them, and a reviewer measured that between them they asked about ONE weight out of
+    # ten: curvature's. The three sum-preserving swaps below - open ground with points of interest, canopy
+    # with water, elevation gain with sinuosity - each kept its set at 1.00 exactly and passed the whole
+    # suite. `SegmentScoreWeightTests` asserts the full rank of both sets through the score, which is what
+    # can see them.
     ("a coordinated pair of effective weights: the saturated product is still one, "
      "neither set sums to one", SCORE,
      "        let m = curvatureWeight * t.curvature\n"
@@ -170,6 +183,34 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
      "            + elevationGainWeight * t.elevationGain",
      "        let m = 0.16 * t.curvature\n"
      "            + 0.49 * t.elevationGain"),
+
+    ("elevation gain and sinuosity swap effective weights, M still summing to one", SCORE,
+     "        let m = curvatureWeight * t.curvature\n"
+     "            + elevationGainWeight * t.elevationGain\n"
+     "            + speedFitWeight * t.speedFit\n"
+     "            + sinuosityWeight * t.sinuosity",
+     "        let m = curvatureWeight * t.curvature\n"
+     "            + 0.15 * t.elevationGain\n"
+     "            + speedFitWeight * t.speedFit\n"
+     "            + 0.20 * t.sinuosity"),
+
+    ("canopy and water swap effective weights, E still summing to one", SCORE,
+     "        var e = canopyWeight * t.canopy\n"
+     "            + reliefWeight * t.relief\n"
+     "            + openGroundWeight * (1 - t.impervious)\n"
+     "            + poiWeight * t.pointsOfInterest\n"
+     "            + waterWeight * t.water",
+     "        var e = 0.12 * t.canopy\n"
+     "            + reliefWeight * t.relief\n"
+     "            + openGroundWeight * (1 - t.impervious)\n"
+     "            + poiWeight * t.pointsOfInterest\n"
+     "            + 0.24 * t.water"),
+
+    ("open ground and points of interest swap effective weights, E still summing to one", SCORE,
+     "            + openGroundWeight * (1 - t.impervious)\n"
+     "            + poiWeight * t.pointsOfInterest",
+     "            + 0.14 * (1 - t.impervious)\n"
+     "            + 0.16 * t.pointsOfInterest"),
 
     # --- the inverted terms -------------------------------------------------------------------------------
     ("impervious ground counts FOR the score", SCORE,
@@ -255,6 +296,19 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
     ("the byway bonus is dropped", SCORE,
      "    public static let bywayBonus = 0.15", "    public static let bywayBonus = 0.0"),
 
+    # Its VALUE and its FORM, not only its sign and its cap. 0.0 above is the single value the suite refused,
+    # because the only two byway fixtures sat at and above saturation where the cap is all that shows - so
+    # 0.25, 0.11 and "not an addition at all" were three survivors behind a 49-of-49 sheet.
+    ("the byway bonus is 0.25 instead of 0.15", SCORE,
+     "    public static let bywayBonus = 0.15", "    public static let bywayBonus = 0.25"),
+
+    ("the byway bonus is 0.11 instead of 0.15", SCORE,
+     "    public static let bywayBonus = 0.15", "    public static let bywayBonus = 0.11"),
+
+    ("the byway bonus scales E by 1.15 instead of adding 0.15 to it", SCORE,
+     "        if t.isByway { e = min(1, e + bywayBonus) }",
+     "        if t.isByway { e = min(1, e * (1 + bywayBonus)) }"),
+
     ("out-of-range terms are clamped instead of refused", SCORE,
      "        for term in t.unitTerms where !(term.value.isFinite && (0.0...1.0).contains(term.value)) {\n"
      "            return nil\n        }",
@@ -288,6 +342,37 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
     ("a negative motorway distance is accepted, silently applying the x0.7 penalty", SCORE,
      "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway >= 0 else { return nil }",
      "        guard !t.metersToNearestMotorway.isNaN else { return nil }"),
+
+    # WHERE each floor SITS, not merely that it is there. The two above delete the `>= 0` clause outright,
+    # which -1.0 catches; these move the floor by one unit, which -1.0 cannot see. Both are thresholds in the
+    # same sense as tunnel 300 and proximity 150, and both were probed on one side only.
+    ("the tunnel floor slips from 0 down to -1, accepting a broken measurement of -0.5", SCORE,
+     "        guard t.tunnelMeters.isFinite, t.tunnelMeters >= 0 else { return nil }",
+     "        guard t.tunnelMeters.isFinite, t.tunnelMeters > -1 else { return nil }"),
+
+    ("the motorway-distance floor slips from 0 down to -1, penalising a way that is nowhere near one", SCORE,
+     "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway >= 0 else { return nil }",
+     "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway > -1 else { return nil }"),
+
+    # --- the ORDER of the shortcut and the validation ------------------------------------------------------
+    # A motorway carrying a broken ETL term must still be REFUSED. With the shortcut moved above the checks it
+    # scores a confident 0 and the bad measurement never surfaces, which is the exact failure the nil return
+    # exists to prevent. No fixture put a dull class and an illegal term in the same way, so it survived.
+    ("the dull-class shortcut jumps the validation block", SCORE,
+     "        for term in t.unitTerms where !(term.value.isFinite && (0.0...1.0).contains(term.value)) {\n"
+     "            return nil\n"
+     "        }\n"
+     "        guard t.tunnelMeters.isFinite, t.tunnelMeters >= 0 else { return nil }\n"
+     "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway >= 0 else { return nil }\n"
+     "\n"
+     "        if dullClasses.contains(t.highway) { return 0 }",
+     "        if dullClasses.contains(t.highway) { return 0 }\n"
+     "\n"
+     "        for term in t.unitTerms where !(term.value.isFinite && (0.0...1.0).contains(term.value)) {\n"
+     "            return nil\n"
+     "        }\n"
+     "        guard t.tunnelMeters.isFinite, t.tunnelMeters >= 0 else { return nil }\n"
+     "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway >= 0 else { return nil }"),
 ]
 
 # Mutations that CANNOT change behaviour. Anything but MISSED here means a test has an opinion about how the
@@ -323,6 +408,32 @@ def test():
     return p.returncode, (p.stdout + p.stderr)
 
 
+def head_bytes(path: pathlib.Path):
+    """The file exactly as HEAD carries it, or None when git cannot produce it."""
+    rel = path.relative_to(ROOT).as_posix()
+    p = subprocess.run(["git", "show", "HEAD:%s" % rel], cwd=ROOT, capture_output=True)
+    return p.stdout if p.returncode == 0 else None
+
+
+def drift_from_head(paths) -> str:
+    """'' when every subject is byte-identical to HEAD's blob, otherwise which one is not and how.
+
+    `.gitattributes` forces `eol=lf` over the whole tree and `core.autocrlf` is false, so a clean working
+    file and its blob are the same bytes on Windows as on Linux. This is a comparison, not an invocation of
+    `git status`: a file can be listed as unmodified by a stale index and still differ.
+    """
+    for path in paths:
+        rel = path.relative_to(ROOT).as_posix()
+        blob = head_bytes(path)
+        if blob is None:
+            return "cannot read HEAD:%s - this harness only measures a committed tree" % rel
+        disk = path.read_bytes()
+        if blob != disk:
+            return ("%s is not what HEAD says it is (on disk md5 %s, HEAD md5 %s)"
+                    % (rel, hashlib.md5(disk).hexdigest()[:8], hashlib.md5(blob).hexdigest()[:8]))
+    return ""
+
+
 def run_all(pristine, mutations):
     """Returns a verdict per mutation. SKIP is its own bucket, never folded into MISSED: a mutation that did
     not land tells you the harness is stale, which is the opposite of what MISSED means."""
@@ -345,6 +456,14 @@ def run_all(pristine, mutations):
                 verdict, code = "compile_only", 1
             else:
                 code, txt = test()
+                # A TRAPPED verdict is re-run once, and only a trapped one. A trap is a non-zero exit with no
+                # named test failing - which is also exactly what an infrastructure flake looks like on this
+                # box: a --prove-vacuity run scored one mutation TRAPPED against EMPTY suites, where there is
+                # no assertion that could have failed. `build()` was already retried for that reason and
+                # `test()` was not. Re-running only this branch leaves the green path at one `swift test`,
+                # and a real trap is still a trap after the second run.
+                if code != 0 and not FAIL_LINE.search(txt):
+                    code, txt = test()
                 verdict = "caught" if FAIL_LINE.search(txt) else ("trapped" if code != 0 else "missed")
         finally:
             path.write_bytes(pristine[path])
@@ -365,6 +484,19 @@ def main(argv) -> int:
                          "A harness that examines nothing exits 0 and proves nothing.\n"
                          % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
         return 2
+
+    # The subject has to be what HEAD says it is, checked BEFORE anything is built. Every number this prints
+    # is about the bytes on disk, so if those bytes are not the reviewed ones the whole run measures something
+    # nobody is reviewing - and the `finally` then restores THAT, leaving the mutant in place and looking
+    # clean. A sibling harness in this repository did exactly that: it measured an already-mutated file,
+    # printed "34 of 34 caught", exited 0, and restored the mutant.
+    drift = drift_from_head([SCORE, TERMS] + TEST_FILES)
+    if drift:
+        sys.stdout.write("REFUSING: %s\n"
+                         "A harness measuring an already-modified subject reports the MUTANT's coverage and\n"
+                         "then restores the mutant. Commit or restore the tree and run it again.\n" % drift)
+        return 2
+
     pristine = {f: f.read_bytes() for f in (SCORE, TERMS)}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
     for f, b in pristine.items():

@@ -86,11 +86,21 @@ struct SegmentScoreValidationTests {
 
     @Test("tunnel length is validated by its own rule: finite and not negative, with no upper bound")
     func tunnelLengthIsValidated() throws {
-        for bad in [-1.0, Double.nan, .infinity, -.infinity] {
+        // `(0.0).nextDown` is the same IEEE 754 fact `validationWindowIsExactlyZeroToOne` uses, applied to
+        // the OTHER kind of threshold in this file. -1.0 alone leaves a whole unit of slack below the floor:
+        // measured, `t.tunnelMeters >= 0` could become `> -1` - accepting a broken ETL measurement of -0.5
+        // and scoring it - with every test green, while this test's name says "not negative". The floor is a
+        // threshold like 300 and 150 are, and those two were pinned on both sides from the start.
+        for bad in [-1.0, (0.0).nextDown, Double.nan, .infinity, -.infinity] {
             var t = Self.flat(0.5)
             t.tunnelMeters = bad
             #expect(SegmentScore.score(for: t) == nil, "tunnelMeters = \(bad) must be refused")
         }
+
+        // The inside of the same edge: 0 is a legal tunnel length and the commonest one there is.
+        var none = Self.flat(0.5)
+        none.tunnelMeters = 0
+        #expect(abs(try #require(SegmentScore.score(for: none)) - 0.5) < 1e-12)
 
         // A very long tunnel is a real road and must be PENALISED rather than refused - otherwise the
         // isFinite guard could be "fixed" into an upper bound and lose every alpine route.
@@ -101,7 +111,10 @@ struct SegmentScoreValidationTests {
 
     @Test("motorway distance is validated by a different rule: infinity is legal and means no motorway near")
     func motorwayDistanceIsValidated() throws {
-        for bad in [-1.0, -.infinity, Double.nan] {
+        // `(0.0).nextDown` for the same reason as the tunnel floor above: with -1.0 as the only probe below
+        // zero, `>= 0` could become `> -1` unnoticed, and a distance of -0.5 would then silently take the
+        // x0.7 penalty - which is exactly the wrong answer this guard exists to refuse.
+        for bad in [-1.0, (0.0).nextDown, -.infinity, Double.nan] {
             var t = Self.flat(0.5)
             t.metersToNearestMotorway = bad
             #expect(SegmentScore.score(for: t) == nil, "metersToNearestMotorway = \(bad) must be refused")
@@ -117,6 +130,32 @@ struct SegmentScoreValidationTests {
         var near = Self.flat(0.5)
         near.metersToNearestMotorway = 0
         #expect(abs(try #require(SegmentScore.score(for: near)) - 0.5 * 0.7) < 1e-12)
+    }
+
+    @Test("a motorway with an out-of-range term is refused, not scored zero")
+    func dullClassesDoNotJumpTheValidation() {
+        // The dull-class shortcut returns 0 AFTER the validation block, and the ORDER is load-bearing: moved
+        // above it, a motorway carrying a broken ETL term would score a confident 0 instead of saying nil,
+        // and the bad measurement would never surface - the one outcome the doc comment on `score(for:)`
+        // says the nil return exists to prevent. Measured: that reordering passed every other test, because
+        // no other fixture puts a dull class and an illegal term in the same way.
+        for highway in ["motorway", "motorway_link", "trunk", "trunk_link"] {
+            var overRange = Self.flat(0.5)
+            overRange.highway = highway
+            overRange.curvature = 1.5
+            #expect(SegmentScore.score(for: overRange) == nil, "\(highway) with curvature 1.5 is refused")
+
+            var negativeTunnel = Self.flat(0.5)
+            negativeTunnel.highway = highway
+            negativeTunnel.tunnelMeters = -1
+            #expect(SegmentScore.score(for: negativeTunnel) == nil, "\(highway) with tunnel -1 is refused")
+
+            // And with legal terms the same class still scores 0 rather than nil, so this test cannot pass
+            // by the class being refused outright - which would break the freeway-shoulders invariant.
+            var legal = Self.flat(0.5)
+            legal.highway = highway
+            #expect(SegmentScore.score(for: legal) == 0, "\(highway) with legal terms still scores 0")
+        }
     }
 
     @Test("a score that is returned at all lands in 0...1, across every combination that can move it")

@@ -255,6 +255,16 @@ struct SegmentScoreTests {
         var best = Self.uniform(1.0)
         best.isByway = true
         #expect(try #require(SegmentScore.score(for: best)) == 1.0, "the cap must hold at the top")
+
+        // "added" is the other half of this test's NAME, and both fixtures above sit at or above saturation,
+        // where the cap is the only thing visible - so the name outran the assertions and 0.25, 0.11 and a
+        // multiplicative `e * 1.15` all passed. One fixture below the cap, hand-computed: E = 0.4 + 0.15 =
+        // 0.55, M = 0.4, score = 0.4^0.35 * 0.55^0.65 = 0.4919905. The value and the form are pinned at two
+        // levels in `SegmentScoreWeightTests`; this line is here so this test's name is true of this test.
+        var belowSaturation = Self.uniform(0.4)
+        belowSaturation.isByway = true
+        let below = try #require(SegmentScore.score(for: belowSaturation))
+        #expect(abs(below - 0.4919905) < 1e-5, "the bonus is added, not only capped; got \(below)")
     }
 
     @Test("a term outside 0...1 is refused rather than quantised")
