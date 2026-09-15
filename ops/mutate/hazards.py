@@ -47,6 +47,14 @@ EMPTY_SUITE = ('import Testing\n'
                '    @Test("nothing") func nothing() { #expect(true) }\n'
                '}\n')
 
+# Floors on the HARNESS's own population. Without them the pass condition and `--prove-vacuity` are both
+# VACUOUSLY TRUE on empty lists - "0 of 0 ... exit 0" and "VACUITY PROOF OK ... MISSED=0 of 0", the proof
+# certifying its own vacuity. Found by the sign-off reviewer of PR #73 against a sibling harness. Stale
+# ANCHORS were already caught; a deleted POPULATION was not, and that is the failure that actually occurs -
+# a mutation removed with a plausible reason, and nothing to say the count fell.
+MIN_MUTATIONS = 13
+MIN_EQUIVALENT = 1
+
 MUTATIONS = [
     # --- the thresholds -------------------------------------------------------------------------------
     ("surface threshold 2 km -> 0.1, so every rural lane raises it", STRIP,
@@ -175,6 +183,11 @@ def run_all(pristine, mutations):
 
 def main(argv) -> int:
     prove = "--prove-vacuity" in argv
+    if len(MUTATIONS) < MIN_MUTATIONS or len(EQUIVALENT) < MIN_EQUIVALENT:
+        sys.stdout.write("REFUSING: %d mutations and %d equivalent mutants, expected at least %d and %d.\n"
+                         "A harness that examines nothing exits 0 and proves nothing.\n"
+                         % (len(MUTATIONS), len(EQUIVALENT), MIN_MUTATIONS, MIN_EQUIVALENT))
+        return 2
     pristine = {f: f.read_bytes() for f in (STRIP, FLAG)}
     pristine_tests = TESTS.read_bytes()
     for f, b in pristine.items():
