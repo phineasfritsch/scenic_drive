@@ -73,10 +73,24 @@ if [[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]]; then
   # `git rev-parse MERGE_HEAD` also resolves a multi-sha octopus MERGE_HEAD to its FIRST parent only, so
   # files arriving from parents 2..n look like author edits. That fails CLOSED - an octopus merge is
   # refused - and is left that way deliberately; octopus merges are not part of this workflow.
-  to_check="$(comm -12 \
-    <(git diff --cached --name-only --no-renames HEAD | sort) \
-    <(git diff --cached --name-only --no-renames MERGE_HEAD | sort))"
-  if [[ -n "$to_check" ]]; then
+  #
+  # A GATE THAT CANNOT COMPUTE THE NARROWER SET CHECKS THE WIDER ONE (T-0137). Both diffs are run into
+  # variables and their exit codes read, because process substitution throws the status away: when both
+  # calls fail their outputs are empty, the intersection is empty, the loop below iterates over nothing and
+  # the gate checks NOTHING - silently, no warning, and the commit that results looks ordinary afterwards.
+  # An empty `.git/MERGE_HEAD` was enough to produce it. Found by agent/rv-keystone while passing PR #78,
+  # which is the commit that introduced this whole branch; case 8 of ops/lib/check-touches-merge.py is the
+  # reproduction. "The command errored" must never read as "there is nothing to check".
+  head_paths="$(git diff --cached --name-only --no-renames HEAD | sort)"; head_rc=$?
+  merge_paths="$(git diff --cached --name-only --no-renames MERGE_HEAD | sort)"; merge_rc=$?
+  if [[ $head_rc -ne 0 || $merge_rc -ne 0 ]]; then
+    echo "pre-commit: merge in progress, but the diff against HEAD/MERGE_HEAD failed" \
+         "(exit $head_rc/$merge_rc); checking touches: against the FULL staged set instead"
+    to_check="$staged"
+  else
+    to_check="$(comm -12 <(printf '%s\n' "$head_paths") <(printf '%s\n' "$merge_paths"))"
+  fi
+  if [[ -n "$to_check" && $head_rc -eq 0 && $merge_rc -eq 0 ]]; then
     echo "pre-commit: merge in progress; checking touches: against the $(printf '%s\n' "$to_check" | grep -c .) path(s) that differ from both parents"
   fi
 fi
