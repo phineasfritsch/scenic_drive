@@ -8,9 +8,10 @@ import Foundation
 /// that fires on every rural lane trains the driver to ignore it - and the day it has something real to say,
 /// they will. The floors are the plan's numbers where the plan gives one.
 ///
-/// **Nothing is dropped.** Anything the derivation cannot classify becomes `.unrecognised` and sorts above
-/// the advisory flags. A hazard strip that quietly omits a ford is worse than no strip, because the driver
-/// has learned to trust it.
+/// **Nothing is dropped for being unclassifiable.** Anything the derivation cannot classify becomes
+/// `.unrecognised` and sorts above the advisory flags. A hazard strip that quietly omits a ford is worse
+/// than no strip, because the driver has learned to trust it. The one input this type does skip is an EMPTY
+/// unclassified tag, and the next paragraph is why that is not the same thing.
 ///
 /// **A missing attribution is not a missing hazard.** For an unclassified TAG the string *is* the hazard, so
 /// an empty one is nothing and is skipped. For a CLOSURE the string is only the provenance: the hazard is the

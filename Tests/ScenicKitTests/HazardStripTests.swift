@@ -36,7 +36,12 @@ struct HazardStripTests {
 
     // MARK: - the order, which is the product
 
-    @Test("flags sort by consequence, whatever order the router reported them")
+    // The title used to end "whatever order the router reported them", and three reviews in a row noted that
+    // this fixture permutes nothing. It cannot: at the `RouteFacts` interface each hazard KIND has its own
+    // field, so there is no cross-kind input order to reverse. What can be reordered is reordered where it
+    // lives - the unknown tags in `nothingIsTruncated`, the closures in `closureOrderIsStable` - so the
+    // clause is dropped here rather than dressed up with a fixture that does not test it.
+    @Test("every kind of flag at once, in the one order a driver reads them")
     func orderedByConsequence() {
         let everything = HazardStrip.RouteFacts(
             surfaceUnknownKm: 9,

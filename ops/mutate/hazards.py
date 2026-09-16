@@ -41,6 +41,13 @@ longer exists in the source). They were REPLACED by three, not dropped: every wa
 closure that they protected is now a mutation that must be CAUGHT, and the third covers the option the
 review named and nothing tested. This file is not under the 300-line cap; P-SRC-02 asserts
 that over `Sources/**/*.swift` and `Tests/**/*.swift`, and ops/lib/queue.py is 1007 lines.
+
+The batch added after the FOURTH review is the same lesson a fourth time, in the one dimension nothing had
+swept: COUNT and LENGTH. The suite swept the closure count, so a cap there died - but every fixture in it
+used at most two distinct unknown tags, gave no two closures the same source, kept every closure source to
+eleven characters or fewer, and never put an arrival more than two hours after dusk. Five mutations built
+on exactly those four facts survived the whole suite. They are here now, and each one is a hazard a driver
+would not be shown.
 """
 from __future__ import annotations
 
@@ -86,7 +93,9 @@ def empty_suite(path: pathlib.Path) -> str:
 # 21 -> 28: two entries whose anchor no longer exists were replaced by three that pin the SAME behaviour
 # from the other side (an unattributed closure must reach the strip), plus five from the PR #80 review,
 # plus one for the empty-TAG guard, which the closure fix left with a test but no mutation.
-MIN_MUTATIONS = 28
+# 28 -> 33: the five survivors the FOURTH PR #80 review found, all of them caps or guards on a COUNT or a
+# LENGTH that no fixture in the suite exceeded.
+MIN_MUTATIONS = 33
 MIN_EQUIVALENT = 3
 
 MUTATIONS = [
@@ -251,6 +260,38 @@ MUTATIONS = [
     ("compare closure END TIMES as a set, so a reordered feed reads as the same route", STRIP,
      "                && a.closures.map(\\.until) == b.closures.map(\\.until)",
      "                && Set(a.closures.map(\\.until)) == Set(b.closures.map(\\.until))"),
+
+    # --- a CAP on a count, or a GUARD on a length, that no fixture in the suite exceeded ----------------
+    # The fourth PR #80 review's five survivors. The previous round swept the closure COUNT and left every
+    # other count and every string LENGTH pinned at whatever the fixtures happened to contain: at most two
+    # distinct unknown tags, never two closures from one feed, no closure source over eleven characters, no
+    # unknown tag over sixteen, no arrival more than two hours after dusk. Each mutation below is built on
+    # exactly one of those numbers, and each one takes a hazard off a real driver's screen.
+    ("cap the unknown tags at the TWO any fixture used, so a third one vanishes", STRIP,
+     "        for tag in Set(facts.unclassified).sorted() where !tag.isEmpty {",
+     "        for tag in Set(facts.unclassified).sorted().prefix(2) where !tag.isEmpty {"),
+
+    ("truncate an unknown tag's TEXT at twenty characters - corruption, not omission", STRIP,
+     "            out.append(.unrecognised(tag))",
+     "            out.append(.unrecognised(String(tag.prefix(20))))"),
+
+    ("dedupe closures by source, so two closures from one feed collapse into one rank-0 line", STRIP,
+     "        for c in facts.closures {\n"
+     "            out.append(.closure(source: c.source, until: c.until))\n"
+     "        }",
+     "        var seenSources: Set<String> = []\n"
+     "        for c in facts.closures where seenSources.insert(c.source).inserted {\n"
+     "            out.append(.closure(source: c.source, until: c.until))\n"
+     "        }"),
+
+    ("drop a closure whose source is longer than the longest in any fixture", STRIP,
+     "        for c in facts.closures {",
+     "        for c in facts.closures where c.source.count <= 11 {"),
+
+    ("twilight silently stops firing more than two hours after dusk", STRIP,
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight {",
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight,\n"
+     "           arrival.timeIntervalSince(twilight) <= 7200 {"),
 ]
 
 # Cannot change behaviour, so a catch here is a FAILURE.

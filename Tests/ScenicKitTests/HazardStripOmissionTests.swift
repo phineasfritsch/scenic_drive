@@ -5,10 +5,12 @@ import Testing
 /// Everything about a hazard GOING MISSING, split out of `HazardStripTests` when that file reached the
 /// 300-line cap.
 ///
-/// Three review rounds have now found the same shape of defect here and only here, which is why it is worth
+/// Four review rounds have now found the same shape of defect here and only here, which is why it is worth
 /// its own file: a hazard can be lost at the BOTTOM of a range (below a threshold), at the TOP of one (a
-/// silent ceiling), at the END of the strip (a truncating cap), or for missing a piece of METADATA that is
-/// not the hazard itself (an unattributed closure). The last of those shipped in PR #80 and is fixed here.
+/// silent ceiling), at the END of the strip (a truncating cap), for missing a piece of METADATA that is not
+/// the hazard itself (an unattributed closure), for there being MORE of it than any fixture happened to
+/// carry (a third unknown tag, a second closure from one feed), or for its text being LONGER than any
+/// fixture happened to use. Every one of those was found by a mutation that the suite let through.
 ///
 /// The fixture helper deliberately stays in `HazardStripTests` rather than being copied: one date fixture,
 /// not two that can drift. `ops/mutate/hazards.py` empties BOTH files for `--prove-vacuity`, and refuses if
@@ -95,7 +97,9 @@ struct HazardStripOmissionTests {
     func nothingIsTruncated() {
         // Nine is counted from the inputs below BY HAND - 2 closures + ford + gate + 2 distinct unknown
         // tags + noCell + twilight + surface - and is deliberately more than the seven flag kinds.
-        // The closures and the tags are also fed in the OPPOSITE order to the one expected out.
+        // The TAGS are fed in the opposite order to the one expected out: avalanche_gate is reported second
+        // and shown first. The CLOSURES are not, and cannot be - `closureOrderIsStable` makes feed order
+        // product-visible, so their expected order IS their input order.
         let facts = HazardStrip.RouteFacts(
             surfaceUnknownKm: 12,
             noCellMinutes: 45,
@@ -158,5 +162,74 @@ struct HazardStripOmissionTests {
         // Same reasoning: the largest finite Double, so no finite ceiling can sit above it.
         #expect(HazardStrip.flags(for: .init(surfaceUnknownKm: .greatestFiniteMagnitude))
                 == [.surfaceUnknown(km: .greatestFiniteMagnitude)])
+    }
+
+    @Test("twilight has a floor but no ceiling: arriving long after dusk is still arriving after dusk")
+    func twilightHasNoCeiling() {
+        // The fourth review found this one: the other two advisories are probed at the top of their type
+        // above, and twilight had no ceiling probe at all. The largest arrival-after-dusk gap anywhere else
+        // in the suite is two hours, so `arrival.timeIntervalSince(twilight) <= 7200` passed every fixture.
+        let dusk = HazardStripTests.date(19)
+        #expect(HazardStrip.flags(for: .init(arrival: HazardStripTests.date(23), civilTwilight: dusk))
+                == [.twilightArrival(at: HazardStripTests.date(23))], "four hours after dusk")
+        // The end of the type: no finite gap can be a ceiling hiding above `.distantFuture`.
+        #expect(HazardStrip.flags(for: .init(arrival: .distantFuture, civilTwilight: dusk))
+                == [.twilightArrival(at: .distantFuture)])
+    }
+
+    // MARK: - nothing is dropped for there being MANY of it, or for being long
+    //
+    // `stripLengthFollowsTheInput` sweeps the closure count, and the fourth review found the two things a
+    // route can have many of that nothing swept: DISTINCT unknown tags (every fixture in the suite used at
+    // most two) and CHARACTERS in a string (every closure source in the suite is eleven characters or fewer,
+    // and no unknown tag is longer than sixteen). A cap on either is the same failure one step less obvious.
+
+    @Test("every distinct unknown tag reaches the strip; that list is not capped either")
+    func everyDistinctUnknownTagReachesTheStrip() {
+        // Three written out by hand - one more than any other fixture in the suite uses - and then SWEPT,
+        // so the cap cannot be closed by moving it to three the way `.prefix(7)` was moved to `.prefix(9)`.
+        #expect(HazardStrip.flags(for: .init(unclassified: ["quarry_access", "seasonal_closure",
+                                                            "avalanche_gate"]))
+                == [.unrecognised("avalanche_gate"), .unrecognised("quarry_access"),
+                    .unrecognised("seasonal_closure")])
+        for tagCount in [1, 2, 3, 4, 9, 33, 128] {
+            let facts = HazardStrip.RouteFacts(unclassified: (0..<tagCount).map { "unknown_tag_\($0)" })
+            #expect(HazardStrip.flags(for: facts).count == tagCount, "\(tagCount) distinct unknown tags in")
+        }
+    }
+
+    @Test("an unknown tag reaches the strip with its text intact, however long it is")
+    func unknownTagTextIsNotTruncated() {
+        // A tag is the only flag whose payload IS free text the router chose, so it is the only one that can
+        // be quietly SHORTENED rather than quietly dropped. "seasonal_closure_november..." truncated to
+        // twenty characters reads as a different hazard, and nothing in the suite noticed.
+        let longTag = "seasonal_closure_november_through_april_by_county_ordinance"
+        #expect(HazardStrip.flags(for: .init(unclassified: [longTag])) == [.unrecognised(longTag)])
+        let absurd = String(repeating: "x", count: 4096)
+        #expect(HazardStrip.flags(for: .init(unclassified: [absurd])) == [.unrecognised(absurd)])
+    }
+
+    @Test("a closure reaches the strip whatever length its source is")
+    func closureSourceLengthIsNotAGuard() {
+        // "" and "   " are pinned above; this pins the other end. Every closure source anywhere else in the
+        // suite is eleven characters or fewer ("Caltrans D4"), so `where c.source.count <= 11` would pass
+        // the whole suite while a real "Caltrans Lane Closure System District 4" polygon vanished.
+        for source in ["a", "Caltrans D4", "Caltrans Lane Closure System District 4",
+                       String(repeating: "feed ", count: 800)] {
+            #expect(HazardStrip.flags(for: .init(closures: [(source: source, until: nil)]))
+                    == [.closure(source: source, until: nil)], "a source of \(source.count) characters")
+        }
+    }
+
+    @Test("two closures from the same feed are two closures, not one")
+    func twoClosuresFromOneFeedBothReachTheStrip() {
+        // Every other fixture that reaches `flags(for:)` gives each closure a DIFFERENT source, so deduping
+        // closures by source - the treatment the unknown TAGS get eight lines below in the derivation -
+        // would have looked right everywhere. Two lanes shut by one agency are two closures.
+        let facts = HazardStrip.RouteFacts(closures: [(source: "511 SF Bay", until: HazardStripTests.date(18)),
+                                                      (source: "511 SF Bay", until: HazardStripTests.date(21))])
+        #expect(HazardStrip.flags(for: facts)
+                == [.closure(source: "511 SF Bay", until: HazardStripTests.date(18)),
+                    .closure(source: "511 SF Bay", until: HazardStripTests.date(21))])
     }
 }
