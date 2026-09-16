@@ -96,10 +96,13 @@ MUTATIONS = [
     # where such a suite is blind. These are the numbers here.
     #
     # EVERY NAME IN THIS LIST MUST DESCRIBE THE EDIT BESIDE IT. reviewer-fn-pr76 found two that did not, and
-    # the cost is not cosmetic: the acceptance evidence is "23 of 23 caught BY NAME", so a name that
+    # the cost is not cosmetic: the acceptance evidence is "all of them caught BY NAME", so a name that
     # describes a change the harness never applied certifies a catch that never happened. The first of the
     # two below said "halve" while applying 2.0 -> 0.4 (a fifth), under the SAME NAME as the real halving in
     # KNOWN_MISSED - so one run printed that string twice, once as `caught` and once as `MISSED`.
+    # (This line quoted the count - "23 of 23" - and went stale the moment the population grew to 26. A
+    # comment that repeats a number the acceptance block owns is one more place for the number to be wrong,
+    # so it names the property instead. Every arm's real count is the MIN_ constant above it.)
     ("cut the sampling density to a fifth along a segment", SRC,
      "    static let samplesPerCell = 2.0",
      "    static let samplesPerCell = 0.4"),
