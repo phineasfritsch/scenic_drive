@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prove the pre-commit touches gate handles a merge, in BOTH directions, on a repository built for it.
 
-Seven cases, each on a throwaway repo with the real hook installed:
+Nine cases, each on a throwaway repo with the real hook installed:
 
   1. a merge that only brings in the other side's files            must COMMIT
   2. a merge whose conflict resolution is inside touches:          must COMMIT
@@ -10,6 +10,13 @@ Seven cases, each on a throwaway repo with the real hook installed:
   5. `git mv` from outside touches: to inside it, during a merge   must REFUSE
   6. a delete outside touches:, during a merge                     must REFUSE
   7. a secret arriving from the other side of a merge              must REFUSE
+  8. a MERGE_HEAD that names no commit, so both diffs error        must REFUSE
+  9. the same merge, run inside a LINKED WORKTREE                  must REFUSE
+
+Case 8 is T-0137: when both `git diff --cached` calls fail their outputs are empty, the intersection is
+empty, and the gate checks nothing - the fail-open that arrived with the merge case. Case 9 pins the
+`--git-dir` handling every task in this fleet depends on and that cases 1-8 cannot see, because they build
+plain `git init` checkouts where `--git-dir` is `.git`.
 
 Case 3 is the one that matters most. The naive fix - skip the check whenever MERGE_HEAD exists - passes
 cases 1, 2 and 4 and fails only this one: it would turn "merge main" into a way to smuggle any file into
@@ -212,6 +219,98 @@ def case_secret_across_merge(repo):
     return git(repo, "commit", "-m", "merge main carrying a secret", check=False)
 
 
+def case_empty_merge_head(repo):
+    """8. A MERGE_HEAD that does not name a commit must not switch the gate off. Must be REFUSED.
+
+    The merge case intersects two `git diff --cached` outputs. If BOTH git calls fail their outputs are
+    empty, the intersection is empty, the `while` loop iterates over nothing, and the gate checks nothing -
+    silently, with no warning, producing an ordinary single-parent commit that looks normal afterwards. An
+    empty `.git/MERGE_HEAD` is enough to produce it:
+
+        printf 'x\\n' >> other/b.txt && git add other/b.txt
+        : > "$(git rev-parse --git-dir)/MERGE_HEAD"
+        git commit                      # exit 0 before the fix
+        git log -1 --pretty=%P          # ONE sha - not a merge
+
+    Found by agent/rv-keystone while passing PR #78, filed as T-0137. It needs a deliberate write into
+    `.git/`, so it is not an attack anyone stumbles into - it is here because the SHAPE is the one this
+    repository keeps finding: a check that silently passes when its own machinery fails. `check-exec-bits`
+    refuses on an empty file set, the mutation harnesses refuse on an empty population, `--prove-vacuity`
+    requires MISSED to be complete. The gate that runs on every commit by every agent should not be the one
+    place where "the command errored" reads as "nothing to check".
+
+    The fix is to fall back to the FULL staged set: a gate that cannot compute the narrower set must check
+    the wider one. So this case must be refused for the ORDINARY touches reason, which is what the expected
+    message asserts - a hook that died on a syntax error would also refuse, and must not pass here.
+    """
+    (repo / "other" / "b.txt").write_text("edited outside touches\n", encoding="utf-8", newline="\n")
+    git(repo, "add", "other/b.txt")
+    _, gitdir = git(repo, "rev-parse", "--git-dir")
+    mh = (repo / gitdir.strip()) if not os.path.isabs(gitdir.strip()) else pathlib.Path(gitdir.strip())
+    (mh / "MERGE_HEAD").write_text("", encoding="utf-8", newline="\n")
+    if not (mh / "MERGE_HEAD").is_file():
+        return 99, "setup failed: MERGE_HEAD was not created, so this case tested nothing"
+    code, out = git(repo, "commit", "-m", "commit with an empty MERGE_HEAD", check=False)
+    (mh / "MERGE_HEAD").unlink(missing_ok=True)
+    return code, out
+
+
+def _linked_worktree(repo):
+    """A linked checkout of task/T-9999, mid-merge with main. Returns (path, None) or (None, why)."""
+    wt = repo.parent / "linked"
+    git(repo, "checkout", "-q", "--detach")          # free task/T-9999 for the linked worktree
+    rc, out = git(repo, "worktree", "add", "-q", str(wt), "task/T-9999", check=False)
+    if rc != 0 or not (wt / ".git").exists():
+        return None, "git worktree add did not produce a linked checkout (%s)" % out.strip()[:120]
+    if (wt / ".git").is_dir():
+        return None, ".git is a directory, so this is not a linked worktree"
+    _, gd = git(wt, "rev-parse", "--git-dir")
+    if pathlib.Path(gd.strip()).name == ".git":
+        return None, "--git-dir is %r, so this case cannot tell a linked worktree from a plain one" % gd.strip()
+    git(wt, "merge", "--no-commit", "--no-ff", "main", check=False)
+    if not (wt / "other" / "c.txt").is_file():
+        return None, "the merge did not run in the linked worktree"
+    return wt, None
+
+
+def case_merge_inside_linked_worktree(repo):
+    """9. A legitimate merge run inside a LINKED WORKTREE still commits. Must COMMIT.
+
+    Every task in this fleet runs in a `git worktree add`ed checkout, where `--git-dir` is
+    `.git/worktrees/<name>` and `.git` is a FILE, not a directory. The hook is correct there today - a
+    reviewer verified it by hand - but nothing pinned it, and cases 1-8 all build plain `git init`
+    checkouts where `--git-dir` is `.git`. A "simplification" to a literal `.git/MERGE_HEAD` would leave
+    every one of them green and refuse every real merge in this repository.
+
+    THIS CASE MUST COMMIT, and that is the whole point. The first version of it was a REFUSE case, which
+    proved nothing: with `--git-dir` broken the narrowing never applies, the hook checks the full staged
+    set, and a REFUSE case passes for the wrong reason. Only the direction that DEPENDS on the narrowing
+    can discriminate. Case 10 guards the other direction.
+    """
+    wt, why = _linked_worktree(repo)
+    if wt is None:
+        return 99, "setup failed: " + why
+    (wt / "allowed" / "a.txt").write_text("resolved in the linked worktree\n",
+                                          encoding="utf-8", newline="\n")
+    git(wt, "add", "allowed/a.txt")
+    return git(wt, "commit", "-m", "merge main in a linked worktree, resolve inside touches", check=False)
+
+
+def case_linked_worktree_resolution_outside(repo):
+    """10. ...and the narrowing is not a blanket skip there either. Must be REFUSED.
+
+    Case 9 alone is satisfied by a hook that skips the check whenever MERGE_HEAD exists - the same naive
+    fix case 3 exists to catch, which would reappear in the one environment cases 1-8 never enter.
+    """
+    wt, why = _linked_worktree(repo)
+    if wt is None:
+        return 99, "setup failed: " + why
+    (wt / "other" / "b.txt").write_text("author edited this during the merge\n",
+                                        encoding="utf-8", newline="\n")
+    git(wt, "add", "other/b.txt")
+    return git(wt, "commit", "-m", "merge main in a linked worktree, sneak a file in", check=False)
+
+
 CASES = [
     ("1/merge-brings-other-side   must COMMIT", case_merge_clean, True, None),
     ("2/resolution-inside-touches must COMMIT", case_resolution_inside, True, None),
@@ -225,6 +324,11 @@ CASES = [
      "other/b.txt is outside T-9999 touches"),
     ("7/secret-across-a-merge     must REFUSE", case_secret_across_merge, False,
      "secret-looking content"),
+    ("8/empty-MERGE_HEAD          must REFUSE", case_empty_merge_head, False,
+     "other/b.txt is outside T-9999 touches"),
+    ("9/linked-worktree-resolve   must COMMIT", case_merge_inside_linked_worktree, True, None),
+    ("10/linked-worktree-outside  must REFUSE", case_linked_worktree_resolution_outside, False,
+     "other/b.txt is outside T-9999 touches"),
 ]
 
 
@@ -244,6 +348,15 @@ def variant_without(marker: str, replacement: str, tmp: pathlib.Path) -> pathlib
 # a defect a reviewer already found in the sibling check's history demo.
 VARIANTS = [
     ("without --no-renames", " --no-renames", "", "5/rename-into-touches"),
+    # T-0137. The fallback itself, removed: the error path computes an empty set instead of the wide one,
+    # which is the fail-open exactly as it shipped. Only case 8 enters that path.
+    ("without the error fallback", '    to_check="$staged"\n  else', '    to_check=""\n  else',
+     "8/empty-MERGE_HEAD"),
+    # The `--git-dir` lookup, "simplified" to the literal every plain checkout has. `.git` is a FILE in a
+    # linked worktree, so the narrowing never applies there and a real merge is refused - which only case 9
+    # can see, because it is the only case that must COMMIT in that environment.
+    ('literal ".git/MERGE_HEAD"', '"$(git rev-parse --git-dir)/MERGE_HEAD"', '".git/MERGE_HEAD"',
+     "9/linked-worktree-resolve"),
 ]
 
 
