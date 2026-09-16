@@ -19,7 +19,7 @@ acceptance:
   - "python ops/lib/check-touches-merge.py --variants -> TOUCHES-MERGE VARIANTS OK (4): --no-renames->5, error fallback->8, literal .git/MERGE_HEAD->9, fallback message->8, exit 0"
   - "RED (vacuity), each with --hook .githooks/pre-commit: CASES=CASES[:0] -> REFUSING: 0 cases defined, MIN_CASES says 10, exit 2; VARIANTS=VARIANTS[:0] -> REFUSING: 0 variants defined, MIN_VARIANTS says 4, exit 2; CASES=CASES+[CASES[0]] -> REFUSING: 11 cases defined ... and REFUSING: duplicate case labels, exit 2"
   - "RED (the message assertion), before run_variants and main were unified: the fallback-message variant broke NOTHING, TOUCHES-MERGE VARIANTS FAIL (4), exit 1"
-  - "bash ops/check-pins -> PINS ok=14 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0 (14, not 15: this branch is off 98725ec and P-PROC-03 arrives with PR #85)"
+  - "bash ops/check-pins -> PINS ok=15 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0 (14 before P-GIT-03; P-PROC-03 and P-PROC-04 arrive separately with PR #85)"
   - "bash ops/queue-check -> QUEUE OK, exit 0"
 ---
 ## Brief
@@ -109,9 +109,13 @@ closes four of them, plus a fifth found while closing the third.
   the first attempt at it raised `variant marker not present in the hook`, loudly, which is the behaviour
   that check is for.
 
-  **NOT FIXED, on the record.** `--variants` is still run by nothing automated: `grep -rn` finds two
-  references to this file, a comment in the hook and `pins/PINS.yaml:162`, and the pin invokes the plain
-  form. Adding a second pin for it is a one-line change, but a pin is a promise about what CI runs, and CI
-  runtime for this fixture is ~2 minutes; that is a judgement for the reviewer of this PR rather than
-  something to slip in. Recorded so it is not rediscovered. F-B (the merge exemption trusting any parent)
-  stays [[T-0138]]'s.
+  **FIXED AFTER ALL: `--variants` now has a pin, P-GIT-03.** This entry first recorded it as "a judgement
+  for the reviewer of this PR rather than something to slip in". Within the hour agent/rv-pr85 raised the
+  identical question on the sibling check ([[T-0131]], `ops/lib/check-sweep.py`) and called it **BLOCKING**,
+  with the argument that settles it: the layer that proves the cases can fail was itself unguarded, and on
+  that check it was the layer that had just caught a case which could not fail. The same is true here - this
+  round's whole fourth finding, `run_variants` judging on the exit code alone while `main()` also checked the
+  message, was invisible to every gate in this repository and surfaced only because a variant was added by
+  hand. Deferring it was the wrong call and is recorded as such rather than quietly reversed.
+  `bash ops/check-pins` -> `PINS ok=15 ...`, exit 0 (14 before). F-B (the merge exemption trusting any
+  parent) stays [[T-0138]]'s.
