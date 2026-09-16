@@ -69,7 +69,7 @@ def empty_suite(path: pathlib.Path) -> str:
 # emptied KNOWN_MISSED, which had no floor at all, and got `caught by a named test: 1 of 1 ... MISSED 0`,
 # exit 0 - a clean sheet with all four recorded gaps deleted. `known_ok` was comparing 0 == 0. An arm that
 # exists so a gap is not invisible must not be silently deletable.
-MIN_MUTATIONS = 25
+MIN_MUTATIONS = 26
 MIN_EQUIVALENT = 2
 MIN_KNOWN_MISSED = 7
 
@@ -198,7 +198,14 @@ MUTATIONS = [
      "    static let indexCellMeters = 2 * retraceRadiusMeters",
      "    static let indexCellMeters = retraceRadiusMeters"),
 
-    ("give the index cell too little margin for the scale error", SRC,
+    # reviewer-fn-pr76's N1, and the third name in this file that claimed more than the edit does. It read
+    # "give the index cell too little margin for the scale error", which says the guarantee breaks. It does
+    # not: 1.002x is ABOVE the correctness edge (radius * 1.001123), so both
+    # `indexNeverSeparatesAPairInsideTheRadius` and `theSearchCoversEveryCellAPairCanLandIn` stay GREEN at
+    # it. What objects is the policy pin and `cells are square in metres, at every latitude`, and both of
+    # those object to the CONSTANT. A caught mutation whose name misdescribes what caught it is the same
+    # defect as one whose name misdescribes what it changes.
+    ("shrink the index cell to 1.002x the radius, above the correctness edge", SRC,
      "    static let indexCellMeters = 2 * retraceRadiusMeters",
      "    static let indexCellMeters = 1.002 * retraceRadiusMeters"),
 
@@ -244,6 +251,14 @@ MUTATIONS = [
     ("refuse a two-point route, so the shortest real segment is unanswerable", SRC,
      "        guard points.count >= 2 else { return nil }",
      "        guard points.count >= 3 else { return nil }"),
+
+    # M7 from reviewer-sg-pr76, which reviewer-so-pr76 measured as a real flip (nil -> Optional(0.0) for a
+    # route at the pole) and reviewer-sg-pr76 declined to bank as equivalent for reachable input. It was in
+    # neither list, so the disagreement had nowhere to live. `noGridAtThePole` settles it: a degenerate grid
+    # is refused, and the refusal is the product statement rather than an accident of the arithmetic.
+    ("drop the pole guard, so a route with no columns is answered anyway", SRC,
+     "        guard mPerLon > 1 else { return nil }  // no grid at the pole",
+     "        // no grid at the pole"),
 ]
 
 # Mutations this suite is KNOWN not to catch, asserted the other way round.
@@ -285,12 +300,13 @@ KNOWN_MISSED = [
     # heading" - the second is false because `Geo.initialBearingDegrees(from: a, to: a)` is 0.0, which is
     # what made it killable in the first place. Neither has anything to do with sampling density.
     #
-    # The real reason for THIS gap, measured and not inherited: nothing in the suite has an opinion about
-    # the density. Halving it leaves the whole suite green - exit 0, zero failing test names - because every
-    # fixture that samples a long segment is asserted against a band far wider than the shift. The closest
-    # thing to a witness is `longSegmentsAreSampled`, and its 600 m leg against three 200 m ones is resolved
-    # the same way at 24 samples as at 48. Closing it needs a fixture built so that ONE cell is crossed
-    # between consecutive samples at 1.0 and not at 2.0, which is a different fixture from any here.
+    # The real reason for THIS gap, measured here and not inherited from anywhere: nothing in the suite has
+    # an opinion about the density. Halving it leaves every test green - exit 0, zero failing test names,
+    # which is what this arm records on every run. The closest thing to a witness is `longSegmentsAreSampled`
+    # (`steps = ceil(length / (radius / samplesPerCell))`, so its 600 m leg falls from 48 samples to 24 and
+    # each 200 m leg from 16 to 8), and its assertion is a band on the resulting fraction that the shift does
+    # not move the fraction out of. Closing this needs a fixture built so a cell is crossed BETWEEN
+    # consecutive samples at 1.0 and not at 2.0 - a different fixture from any here, and not yet written.
     ("halve the sampling density along a segment", SRC,
      "    static let samplesPerCell = 2.0",
      "    static let samplesPerCell = 1.0"),
@@ -308,9 +324,9 @@ KNOWN_MISSED = [
 
     # reviewer-fn-pr76's finding 5, and G4 from the first review round. Scaling longitude at the route's
     # SOUTHERN end instead of its mid-latitude is wrong in principle, and measurably invisible here: the
-    # longest fixture in this suite is a 1.95 km north-south leg, over which the two scales differ by
-    # 0.01035%, moving a 25 m pair by 0.0000429 of a cell. There is no fixture, and no fixture of a sane
-    # size, that turns that into a different cell index across the 2x margin. The sibling of "anchor the
+    # 1.95 km north-south leg `outAndBackIsRetrace` drives is the longest run of latitude in this suite, and
+    # over it the two scales differ by 0.01035%, which moves a 25 m pair by 0.0000429 of a cell. Nothing
+    # here turns that into a different cell index across the 2x margin. The sibling of "anchor the
     # grid at points[0] again" above: both are properties of the grid that stopped deciding any verdict
     # once the distance test became the measurement.
     ("scale longitude at the route's southern end, not its mid-latitude", SRC,

@@ -86,11 +86,13 @@ struct RetraceDiagonalTests {
         // the retrace is the return leg's share of the route: 1200 / (2400 + approach).
         //
         // TWO DIFFERENT NUMBERS, and an earlier version of this comment ran them together. MEASURED on the
-        // shipped code, each of the twelve phases lands between 0.00403502 and 0.00495061 BELOW that share
-        // - the deficit is the half-sample at each end of the return leg, and it shrinks monotonically as
-        // the approach lengthens. The ASSERTION below allows 0.02, four times looser, because the band is
-        // a property of where the samples fall and pinning it at its own measured width would fail on any
-        // change to `samplesPerCell` that this suite is not otherwise entitled to object to.
+        // shipped code, each of the twelve phases lands between 0.00403502 and 0.00495061 BELOW that share,
+        // shrinking strictly as the approach lengthens. No mechanism is claimed for that deficit here: the
+        // obvious one - a fixed length at each end of the return leg going uncounted - is ruled out, since
+        // deficit x (2400 + approach) is not constant across the twelve (11.881 down to 10.733). The
+        // ASSERTION below allows 0.02, four times the widest measured deficit, because pinning a band at
+        // its own measured width would make this fixture object to any change in `samplesPerCell` - which
+        // is a different property, and one KNOWN_MISSED records as having no witness here at all.
         //
         // With the four corner cells deleted, SEVEN of these twelve phases fall outside the asserted band
         // (approaches 0, 40, 60, 100, 140, 160 and 260 m), measuring 0.3248809338339293 to

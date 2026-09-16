@@ -242,4 +242,28 @@ struct RetraceGridTests {
             }
         }
     }
+
+    @Test("there is no grid at the pole, so a route there is refused rather than answered")
+    func noGridAtThePole() {
+        // `guard mPerLon > 1 else { return nil }` had no witness on either side. Two reviewers reached it
+        // and disagreed about whether it matters - reviewer-sg-pr76 called it equivalent for reachable
+        // input, reviewer-so-pr76 measured nil becoming Optional(0.0) - and a guard nothing pins is how
+        // that argument stays unsettled. It is pinned here: refused, and refused for THIS reason.
+        //
+        // The columns have to be degenerate, not merely narrow. metersPerDegreeLongitude crosses 1 m/degree
+        // at latitude 89.999485; at 89.9999 it is 0.194, so a whole degree of longitude is 19 cm and the
+        // grid has no columns left to tell two roads apart with.
+        let a = Coordinate(latitude: 89.9999, longitude: 0.0)
+        let b = Coordinate(latitude: 89.9999, longitude: 179.0)
+        // The fixture asserts what it IS before anything is concluded from it: this is a real segment, so a
+        // nil here is the pole guard and not the zero-length guard further down.
+        #expect(Geo.distanceMeters(a, b) > 1,
+                "the fixture must have length, or this tests the wrong guard: \(Geo.distanceMeters(a, b)) m")
+        #expect(RetraceDetector.metersPerDegreeLongitude(at: 89.9999) < 1,
+                "the fixture must sit where the grid degenerates")
+        #expect(RetraceDetector.retraceFraction([a, b]) == nil,
+                "a route at the pole has no grid, so it has no answer - got \(String(describing: RetraceDetector.retraceFraction([a, b])))")
+        #expect(!RetraceDetector.isAcceptableLoop([a, b]),
+                "an unanswerable route is not an acceptable loop")
+    }
 }
