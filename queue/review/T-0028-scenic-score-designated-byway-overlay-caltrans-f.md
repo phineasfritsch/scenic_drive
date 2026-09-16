@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-08T00:11:54Z
 worktree: ../wt/T-0028
 branch: task/T-0028
 exclusive: []
-touches: [services/etl/]
+touches: [services/etl/, ops/sane]
 pins_affected: []
 reviewer: agent/reviewer-pr36
 depends_on: []
@@ -1377,3 +1377,6 @@ second external oracle in the plan (the first being Curvature).
   impostors are still all unreffed. `MIN_CONSENSUS_M`'s value (1000 m) is now load-bearing in BOTH
   directions and is still a judgement: it is the metres below which this module refuses to conclude
   anything, and no measurement here fixes it.
+- 2026-09-16T00:30:00Z **Merged `origin/main` - the first merge of main into a task branch this repository has ever been able to make.** Until PR #78 landed, `.githooks/pre-commit` enforced the `touches:` allowlist with no merge case, so a branch taking an update from main staged hundreds of paths outside its allowlist and was refused. That is why this branch, carrying 17 ETL modules, has been stranded 262 commits behind since 2026-09-08, and why 41 PRs are in the same state.
+- 2026-09-16T00:30:00Z **The new gate worked, and its first act was to refuse me.** The merge staged 161 paths, 50 of them outside `services/etl/`. The hook narrowed that to the ONE path that differs from both parents - `ops/sane`, my conflict resolution - and refused it: `pre-commit: ops/sane is outside T-0028 touches: [services/etl/ ]`. That is exactly right. A merge resolution is an authored change, and an authored change outside the allowlist is what the gate exists to catch. `ops/sane` is declared in `touches:` above rather than worked around, because I really am editing it.
+- 2026-09-16T00:30:00Z The single conflict was in `ops/sane`'s exit-code comment block, and **both sides were true**: this branch documents code 4 (region extract out of bounds, T-0024) and reserves 5/6/8; main documents code 10 (another worktree holds work not on origin) and reserves 4/5/6/8. Verified in the CODE rather than trusting either comment - this side implements section 4 through `etl.checkbounds`, main implements section 10 through `ops/lib/check-worktrees`, and the merged file contains both sections. The resolution lists both codes and reserves 5/6/8, which is what the merged file actually does. Taking either side wholesale would have shipped a comment that under-claims what the file does, which is the defect class this repository keeps blocking on.

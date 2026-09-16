@@ -27,7 +27,11 @@ fi
 
 bad=()
 for f in "${files[@]}"; do
-  lines="$(wc -l < "$f" | tr -d '[:space:]')"
+  # `wc -l` counts newlines, not lines: a file whose final line has no trailing newline is
+  # undercounted by one, so a genuine 301-line file reads as 300 and slips past the cap.
+  # `awk 'END{print NR}'` counts the last unterminated line too, matching what an editor or
+  # compiler calls the line count.
+  lines="$(awk 'END{print NR}' "$f" | tr -d '[:space:]')"
   if [[ "$lines" -gt 300 ]]; then
     bad+=("$f ($lines lines)")
   fi

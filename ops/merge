@@ -4,6 +4,12 @@
 #   ops/merge 9              merge PR 9 if every check succeeded and the queue task is in done/
 #   ops/merge 9 --wait       poll until checks finish (up to ~20 min), then merge or refuse
 #   ops/merge 9 --dry-run    run every gate and report the verdict; never merges
+#   ops/merge 9 --no-task-reason="why"   PR 9's branch names no T-nnnn task (queue-only branch, revert, hotfix) -
+#                                        override the queue/done/ review gate, on the record, with a reason
+#
+# A branch whose name has no T-nnnn task id gets NO free pass: gate 1 refuses by default. Waiting must not become
+# merging, and convenient must not be the same as unchecked - so the only way past it is the reasoned override
+# above, which prints the reason before continuing. See queue/done/T-0022-*.md for the argument.
 #
 # Why this exists: on 2026-09-07 main was broken by merging a PR while `gh` reported mergeStateStatus=UNSTABLE.
 # GitHub-side branch protection would prevent that, but it is 403 on a private repo on the free plan
@@ -17,15 +23,18 @@ cd "$(git rev-parse --show-toplevel)"
 PY="${PYTHON:-$(command -v python3 || command -v python)}"
 
 pr="${1:-}"
-[[ -n "$pr" ]] || { echo "usage: ops/merge <pr-number> [--wait]"; exit 2; }
-wait=0; dry=0
+[[ -n "$pr" ]] || { echo "usage: ops/merge <pr-number> [--wait] [--dry-run] [--no-task-reason=<reason>]"; exit 2; }
+wait=0; dry=0; no_task_reason=""
 for arg in "${@:2}"; do
   case "$arg" in
     --wait) wait=1;;
     --dry-run) dry=1;;
+    --no-task-reason=*) no_task_reason="${arg#--no-task-reason=}";;
     *) echo "unknown option: $arg"; exit 2;;
   esac
 done
+# Whitespace-only counts as no reason, not a reason ("--no-task-reason=  " must refuse, not sneak through).
+no_task_reason="$(printf '%s' "$no_task_reason" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 
 # --- 1. the PR's queue task must be in done/, i.e. a reviewer signed it off ---------------------------
@@ -38,8 +47,15 @@ if [[ -n "$task" ]]; then
     exit 1
   fi
   echo "task     $task is in queue/done/ on $head_ref"
+elif [[ -n "$no_task_reason" ]]; then
+  # Opt-in, per-invocation, and requires a reason: a no-task merge always leaves one on the record instead of a
+  # bare flag someone could alias into a new silent default. Covers queue-only branches, reverts, hotfixes.
+  echo "task     branch $head_ref names no task; review gate overridden on record: $no_task_reason"
 else
-  echo "task     (branch $head_ref names no task; skipping the review gate)"
+  echo "MERGE REFUSED: branch $head_ref names no task (no T-nnnn), so the review gate can't check queue/done/ for it"
+  echo "  If this is really a no-task branch (queue-only maintenance, a revert, a hotfix), rerun with"
+  echo "  --no-task-reason=\"<why merging without a reviewed queue task is safe here>\" to override, on the record."
+  exit 1
 fi
 
 # --- 2. every check run must have succeeded -----------------------------------------------------------
@@ -48,14 +64,31 @@ while :; do
   attempt=$((attempt + 1))
   state="$(gh pr view "$pr" --json mergeStateStatus -q .mergeStateStatus)"
   rollup="$(gh pr view "$pr" --json statusCheckRollup -q '[.statusCheckRollup[]? | {name: (.name // .context), c: (.conclusion // .state // "PENDING")}]')"
-  pending="$("$PY" -c 'import json,sys; d=json.loads(sys.argv[1]); print(sum(1 for x in d if x["c"] in ("PENDING","IN_PROGRESS","QUEUED","")))' "$rollup")"
-  failed="$("$PY" -c 'import json,sys; d=json.loads(sys.argv[1]); print(",".join(x["name"] for x in d if x["c"] in ("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED","ERROR")))' "$rollup")"
-  total="$("$PY" -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$rollup")"
+  # Classification is fail-CLOSED and lives in one place: SUCCESS is the only passing conclusion, anything
+  # unrecognised is failed, and a parse error exits non-zero rather than printing an empty answer that reads
+  # like good news. The previous inline one-liners were fail-OPEN and crashed on a nameless check.
+  if ! classified="$("$PY" ops/lib/classify-checks.py "$rollup" 2>&1)"; then
+    echo "MERGE REFUSED: could not classify checks: $classified"; exit 1
+  fi
+  total="$(printf '%s\n' "$classified" | sed -n 's/^total=//p')"
+  pending="$(printf '%s\n' "$classified" | sed -n 's/^pending=//p')"
+  failed="$(printf '%s\n' "$classified" | sed -n 's/^failed=//p')"
   echo "checks   total=$total pending=$pending failed=[${failed:-none}] mergeState=$state"
   [[ -n "$failed" ]] && { echo "MERGE REFUSED: failing checks: $failed"; exit 1; }
-  if [[ "$pending" -gt 0 ]]; then
+  # Three transient states, not one. Right after a push GitHub has not registered the check runs yet
+  # (total=0) and has not computed mergeability (mergeStateStatus=UNKNOWN); polling only on pending>0 meant
+  # --wait fell straight through to a refusal seconds after a push. Observed on this gate's own PR #10.
+  # A PR that genuinely never runs CI still refuses once the cap is reached - waiting must not become merging.
+  if [[ "$pending" -gt 0 || "$total" -eq 0 || "$state" == "UNKNOWN" ]]; then
     if [[ $wait -eq 1 && $attempt -lt 40 ]]; then sleep 30; continue; fi
-    echo "MERGE REFUSED: $pending check(s) still running (use --wait to poll)"; exit 1
+    if [[ "$pending" -gt 0 ]]; then
+      echo "MERGE REFUSED: $pending check(s) still running (use --wait to poll)"; exit 1
+    elif [[ "$total" -eq 0 ]]; then
+      waited=""; [[ $wait -eq 1 ]] && waited=" (waited $((attempt * 30))s)"
+      echo "MERGE REFUSED: no checks reported at all - CI did not run for this PR${waited}"; exit 1
+    else
+      echo "MERGE REFUSED: GitHub has not computed mergeability yet (mergeStateStatus=UNKNOWN)"; exit 1
+    fi
   fi
   break
 done
