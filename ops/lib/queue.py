@@ -492,6 +492,15 @@ def _git_usable():
         return False
 
 
+def _declares_branch(name):
+    """Did this task ever name a branch? A written-down branch is a claim that work was started somewhere.
+
+    Separate from `_branch_exists` because the two answer different questions and only one of them can be
+    answered offline. See the fallback in `cmd_sweep` for why the difference decides whether work survives.
+    """
+    return bool(name) and str(name).strip().casefold() not in ("", "null", "none", "~")
+
+
 def _branch_exists(name):
     """True when this task's branch is real - here or on the remote.
 
@@ -502,7 +511,7 @@ def _branch_exists(name):
     sweeper more conservative if the ref is stale in the other direction, and `git fetch` before sweeping is
     one line in the caller.
     """
-    if not name or str(name).strip() in ("", "null", "none", "~"):
+    if not _declares_branch(name):
         return False
     for ref in (f"refs/remotes/origin/{name}", f"refs/heads/{name}"):
         try:
@@ -532,8 +541,26 @@ def cmd_sweep(_operand, _opts_):
             continue
         exp = dt.datetime.fromisoformat(fm["lease_expires_at"].replace("Z", "+00:00"))
         if exp < now():
-            if _branch_exists(fm.get("branch")):
-                held.append(f"{fm['id']} (branch {fm.get('branch')} exists)")
+            # TWO QUESTIONS, AND ONLY ONE OF THEM CAN BE ANSWERED OFFLINE (T-0131).
+            #
+            # `_branch_exists` does no fetch - deliberately; a sweeper that reaches the network is a sweeper
+            # nobody runs - so a branch another agent pushed since this checkout last fetched reads as
+            # ABSENT. The old code swept on that, and its comment called the direction safe. It is the
+            # unsafe one, and it is the failure this task was filed about: on 2026-09-15, 67 of 67 claimed
+            # tasks had an expired lease and 39 of them had an open PR. Sweeping one sets `owner: null`
+            # (the state T-0068 exists to reject) and leaves main saying ready/<id> while the branch says
+            # review/ - the add/add divergence eleven branches were repaired for by hand.
+            #
+            # So a DECLARED branch is kept even when no ref for it is here. "I cannot see it" and "it does
+            # not exist" are different answers, and only one of them is a reason to discard work. What is
+            # left to sweep is a task that never named a branch at all, which is the abandonment this
+            # command is for. ops/lib/check-sweep.py case 2 is the assertion; before it, nothing was.
+            branch = fm.get("branch")
+            if _branch_exists(branch):
+                held.append(f"{fm['id']} (branch {branch} exists)")
+                continue
+            if _declares_branch(branch):
+                held.append(f"{fm['id']} (declares branch {branch}; no ref here - fetch to see it)")
                 continue
             for res in fm.get("exclusive") or []:
                 lock = LOCKS / f"{res}.lock"

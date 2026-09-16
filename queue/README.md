@@ -49,6 +49,29 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
 9. **Crash recovery**: `ops/queue-sweep` returns tasks whose `lease_expires_at` has passed to `ready/` and releases
    their locks. Run it first thing every session and on a cron.
 
+   **An expired lease is not abandoned work, and the sweeper is the one command here that destroys state** —
+   it sets `owner: null`, the state `ops/review` then refuses as undecidable, and leaves `main` saying
+   `ready/<id>` while the branch says `review/`. On 2026-09-15 **all 67** claimed tasks had an expired lease
+   and **39 had an open PR**. So it sweeps a task only when that task **never named a branch**:
+
+   | state of `branch:` | sweeper |
+   |---|---|
+   | ref found (`origin/<branch>` or local) | **kept** — finished work waiting to merge |
+   | named, but no ref in this checkout | **kept** — it does no fetch, so "I cannot see it" is not "it does not exist" |
+   | `null` / absent | **swept** to `ready/`, locks released |
+   | git cannot read the repo | **refuses**, exit 2, moves nothing |
+
+   Leases are 2–4 hours and the work is routinely longer, so expiry mostly measures the wrong thing; the
+   branch is the evidence that matters. `ops/lib/check-sweep.py` (pin P-PROC-03) asserts all four rows and
+   reads what the sweeper *said*, not only where the file ended up — four of its six cases are must-KEEP,
+   and a sweeper that crashed before its loop would pass all four by moving nothing.
+
+   **A finished task whose owner is gone is not stuck**: `ops/review <id> --reviewer agent/<name>` makes the
+   `claimed → review` transition from any session. It is not the owner's private door — it checks that the
+   owner exists and is comparable, that `reviewer != owner`, and that merging the branch would not duplicate
+   the task file, then releases the `exclusive:` locks. What it cannot check is that the reviewer is not the
+   *same session* under another name; `owner_session:` is recorded and compared by nothing (T-0131 item 3).
+
 ## Exclusive resources (declare in `exclusive:` before touching)
 
 `package-swift` (either Package.swift) · `pbxproj` · `spm-resolve` (Package.resolved) · `ios-simulator` ·
