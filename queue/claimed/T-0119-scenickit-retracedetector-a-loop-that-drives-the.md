@@ -428,3 +428,28 @@ caught, and `cE.x == 1` is asserted directly rather than only against `cN.y`.
   `git show HEAD:` - not by trusting a `finally` to have run. All five files came back equal in every arm.
   The harness's own headline numbers were then re-measured a THIRD time, after `2174f01`, so the count in
   the acceptance block describes the exact committed tree and not a tree one comment away from it.
+- 2026-09-16T02:10:00Z **RED for the three code defects, by NAME, read out of the output.** The harness
+  scores a catch on a failing test line rather than an exit code, but the harness prints counts and not
+  names, and this repository has twice concluded "caught" from an exit while the test that failed was an
+  unrelated pin next door. So each of the three mutations this round exists for was applied on its own, run
+  through `swift test`, and the failing NAME parsed out (`.worktrees/fx76-static/.artifacts/codedefects.py`).
+  Subject restored and hashed against `git show HEAD:` after each - `552c42b7279aa9865339672a534a2cf6`,
+  equal every time.
+
+      accept only strictly below the threshold, so exactly 15 percent is refused
+        -> "exactly the threshold is acceptable, and a hair over it is not", 1 issue:
+           `exactly the threshold must be acceptable - the plan's property table says <= 0.15`
+
+      refuse a two-point route, so the shortest real segment is unanswerable
+        -> "a two-point route is answerable: no retrace, and an acceptable loop", 2 issues:
+           `one segment driven once is 0 retrace, not nil` and
+           `a two-point route retraces nothing, so it is acceptable`
+
+      drop the pole guard, so a route with no columns is answered anyway
+        -> "there is no grid at the pole, so a route there is refused rather than answered", 2 issues:
+           `a route at the pole has no grid, so it has no answer - got Optional(0.0)` and
+           `an unanswerable route is not an acceptable loop`
+
+  Each name is the test written for that defect, not a neighbour. The third also settles the argument two
+  earlier reviewers had about the pole guard in the only way that lasts: `nil` really does become
+  `Optional(0.0)`, printed by the assertion rather than asserted in a Log entry.
