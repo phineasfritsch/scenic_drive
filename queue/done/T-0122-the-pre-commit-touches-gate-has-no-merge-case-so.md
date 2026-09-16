@@ -1,7 +1,7 @@
 ---
 id: T-0122
 title: the pre-commit touches gate has no merge case, so no task branch can merge main
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T16:55:41Z
@@ -11,7 +11,7 @@ branch: task/T-0122
 exclusive: []
 touches: [.githooks/pre-commit, ops/lib/check-touches-merge.py, pins/PINS.yaml]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv-keystone
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -275,4 +275,107 @@ faithfully whether or not it means anything.
 
 The criterion now names `ops/check-pins`, which is what actually invokes the fixture in CI and needs no
 quoting. A value containing double quotes does not belong in that front matter at all.
+
+---
+
+## Review: PASS - agent/rv-keystone, PR #78 @ 72a1ce6
+
+Reviewed in an own worktree (`.worktrees/rv-keystone`, detached at the PR head). Every claim re-run rather
+than read. Nothing in the tree was fixed by the reviewer.
+
+### Acceptance reproduces, character for character
+
+    bash ops/check-pins                  PINS ok=13 skipped=0 pending=2 expired=0 failed=0 tier=linux   exit 0
+    bash ops/check-pins --verbose        "  ok      P-GIT-02"
+    <shim> ops/lib/check-touches-merge.py   TOUCHES-MERGE OK (7 cases)                                  exit 0
+    --hook <main's pre-commit>           FAIL 1, FAIL 2 (also 5, 6)                                     exit 1
+    --hook <naive skip-on-MERGE_HEAD>    FAIL 3 (also 5, 6)                                             exit 1
+    --variants                           without --no-renames breaks exactly 5/rename-into-touches      exit 0
+
+The two RED lines say "fails cases 1 and 2" / "fails case 3"; both are true. Each wrong hook also fails 5
+and 6, on the reason assertion rather than the exit code - the criterion does not claim "only", so it
+reproduces as written.
+
+The fixture does assert on the refusal REASON (`check-touches-merge.py:302`), and that assertion bites:
+under the pre-fix hook, cases 5 and 6 report *"refused, but not for the stated reason"* rather than passing
+on a refusal that names `other/c.txt` instead of `other/b.txt`.
+
+The CI interpreter claim was re-run through `pins.load` + `bash -o pipefail -c` on a PATH holding a working
+`python3` and no bare `python`:
+
+    RED   python ops/lib/check-touches-merge.py     bash: line 1: python: command not found    exit 127
+    GREEN <assertion as PINS.yaml parses it>        TOUCHES-MERGE OK (7 cases)                 exit 0
+
+`pins.load` returns the assertion with no stray backslashes. The fixture blob was hashed against `HEAD:`
+before and after and was unchanged, so no concurrent stub was in play.
+
+### The payoff was measured on the real repository, not only on fixtures
+
+In an isolated clone, `task/T-0122` merging today's `main` (2c5300a):
+
+    staged by the merge                             40 paths (22 outside touches:/queue/)
+    fixed hook    checks 1 path (pins/PINS.yaml)    COMMITTED   exit 0
+    pre-fix hook  22 "outside T-0122 touches" lines REFUSED     exit 1
+    fixed hook + one extra edit to ops/sane         REFUSED, naming ops/sane   exit 1
+
+Both directions, on real data, on the file set that actually stranded the tower.
+
+### Fourteen attacks and seven structural probes
+
+Held: hand-rolled delete+add relocation; a brand-new file outside `touches:` added in the merge commit; a
+third file edited while resolving a genuine conflict; a symlink; an exec-bit flip; `--amend` onto a finished
+merge commit; `merge --squash`; a non-ASCII path; a secret authored into an allowed path during a merge;
+`MERGE_HEAD` = HEAD; `MERGE_HEAD` holding a non-sha. `comm` and `sort` were checked for collation
+disagreement under C, C.UTF-8 and en_US.UTF-8 - none (coreutils 8.32).
+
+**P1 - the case works inside a LINKED WORKTREE**, which is where every task in this fleet runs and which the
+fixture never builds. `git rev-parse --git-dir` returns `.git/worktrees/<name>`, `MERGE_HEAD` is found
+there, a clean merge commits and a smuggle is refused. Verified by hand; see F-E.
+
+### Findings, none blocking
+
+**F-A (new, fail-open).** `.githooks/pre-commit:76-78`. An empty `.git/MERGE_HEAD` makes both `git diff`
+invocations fail; their empty output intersects to an empty `to_check`, and the `while` loop over `""` then
+checks nothing. The result is an **ordinary single-parent commit** carrying a file outside `touches:`:
+
+    printf 'x\n' >> other/b.txt && git add other/b.txt
+    : > "$(git rev-parse --git-dir)/MERGE_HEAD"
+    git commit -m whatever          # exit 0; git log -1 --pretty=%P prints ONE sha
+
+Control: main's hook refuses the identical sequence. Not blocking - it needs a deliberate write into
+`.git/`, and `--no-verify`, `git cherry-pick` and `git rebase` (P2, P3 below) are all easier - but the
+failure mode is the gate silently checking nothing when a git command errors. A guard that falls back to
+`"$staged"` unless both diffs exit 0 would close it.
+
+**F-B (permissive by design).** The merge case trusts *any* merge parent, not `main`. Commit the forbidden
+file on a branch whose name does not match `^task/(T-[0-9]+)` - where the gate does not apply at all,
+`.githooks/pre-commit:85`, pre-existing - then merge that branch: the file is byte-identical to `MERGE_HEAD`
+and is never checked. Control: main refuses. Weighed as non-blocking because **P2 and P3 measured that
+`git cherry-pick` and `git rebase` never run `pre-commit` at all** - the same file reaches a task branch
+today with fewer steps. Tightening the exemption to a `MERGE_HEAD` that is an ancestor of `origin/main`
+would close the merge route.
+
+**F-C (pre-existing).** `.githooks/pre-commit:95` - `queue/*` is always allowed, so a merge (or any commit)
+may rewrite *another* task's queue file. Present on main; not this PR's.
+
+**F-E (coverage).** The fixture only ever builds a plain `git init` checkout, where `git rev-parse --git-dir`
+is `.git`. Every real task works in a linked worktree. The behaviour is correct today, but nothing pins it:
+a later "simplification" to `.git/MERGE_HEAD` would leave all seven cases green and break every real merge.
+An eighth case using `git worktree add` would anchor it.
+
+**F-F (advisory).** `ops/lib/check-touches-merge.py` is 327 lines against CLAUDE.md's 300-line cap. P-SRC-02
+only measures Swift under `Sources/` and `Tests/`, and `ops/lib/queue.py` is 1007 lines, so this is the
+house norm rather than a new breach.
+
+### Mechanical
+
+    ops/check-pins                exit 0     ok=13 failed=0
+    ops/check-pins --source-only  exit 0     ok=5 skipped=10 failed=0
+    ops/queue-check               exit 0     QUEUE OK (115 tasks)
+    ops/sane                      exit 10    byte-identical on main - 8 other worktrees, none of them this PR's
+    ops/test                      exit 1     "services/api exists but vitest produced no report" - same on main, T-0040
+    modes                         ops/lib/check-touches-merge.py 100644 (correct: check-exec-bits:39-42), hook 100755
+    paths                         .githooks/pre-commit, ops/lib/check-touches-merge.py, pins/PINS.yaml + own queue file
+    secrets                       none in the diff
+    PR #78                        core and pins-source-only both SUCCESS at 72a1ce6; MERGEABLE
 
