@@ -12,8 +12,9 @@ import Foundation
 /// The plan says both `< 15%` (in the engine section) and `<= 0.15` (in the property table). reviewer-pr76
 /// found the code doing `<=` under a doc comment saying `<`. `<=` is kept - it is the number the property
 /// table will be checked against - and the prose is corrected here rather than the behaviour, because
-/// silently tightening a product threshold to match a comment is the larger change. Pinned at the boundary
-/// by `exactlyTheThresholdIsAcceptable`.
+/// silently tightening a product threshold to match a comment is the larger change. The boundary is pinned
+/// by `exactlyTheThresholdIsAcceptable` through `isAcceptable(fraction:)`, which exists because a test that
+/// can only reach the comparison through a route fixture cannot reach it at 0.15 at all.
 ///
 /// ## Three things that are easy to get wrong here, and all three are in the tests
 ///
@@ -167,7 +168,22 @@ public enum RetraceDetector {
     /// True when the route retraces itself little enough to be worth calling a loop.
     public static func isAcceptableLoop(_ points: [Coordinate]) -> Bool {
         guard let f = retraceFraction(points) else { return false }
-        return f <= maxRetraceFraction
+        return isAcceptable(fraction: f)
+    }
+
+    /// The threshold decision on its own: is this much retrace acceptable?
+    ///
+    /// Split out of `isAcceptableLoop` so the `<=` has a witness. reviewer-fn-pr76's N3: the test named
+    /// `exactlyTheThresholdIsAcceptable` asserted `0.15 <= maxRetraceFraction`, which is the line above it
+    /// restated and says nothing about this comparison - so `<=` here could be changed to `<` and the whole
+    /// suite stayed green at exit 0 with zero failing names. No route fixture can close that, because no
+    /// fraction computed from a geometry lands on 0.15 exactly; the predicate has to be reachable on its own
+    /// for the boundary to be testable at all.
+    ///
+    /// Internal rather than public: `isAcceptableLoop` is still the whole API, and nothing outside this
+    /// module should be asking about a bare fraction.
+    static func isAcceptable(fraction f: Double) -> Bool {
+        f <= maxRetraceFraction
     }
 
     /// Metres per degree of longitude at a latitude.

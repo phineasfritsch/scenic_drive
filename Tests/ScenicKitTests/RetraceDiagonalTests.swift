@@ -83,10 +83,21 @@ struct RetraceDiagonalTests {
                 "carriageways are \(Geo.distanceMeters(r[60], r[61])) m apart, not 24")
 
         // Every sample on the return leg has an outbound sample within 25 m and 180 degrees against it, so
-        // the retrace is the return leg's share of the route: 1200 / (2400 + approach). Measured, every
-        // phase below sits within 0.005 of that. With the four corner cells deleted the same road measures
-        // 0.32 to 0.39 at four of these twelve phases - a third of a real road's retrace gone, and only at
-        // some phases, which is what makes it the kind of defect that ships.
+        // the retrace is the return leg's share of the route: 1200 / (2400 + approach).
+        //
+        // TWO DIFFERENT NUMBERS, and an earlier version of this comment ran them together. MEASURED on the
+        // shipped code, each of the twelve phases lands between 0.00403502 and 0.00495061 BELOW that share
+        // - the deficit is the half-sample at each end of the return leg, and it shrinks monotonically as
+        // the approach lengthens. The ASSERTION below allows 0.02, four times looser, because the band is
+        // a property of where the samples fall and pinning it at its own measured width would fail on any
+        // change to `samplesPerCell` that this suite is not otherwise entitled to object to.
+        //
+        // With the four corner cells deleted, SEVEN of these twelve phases fall outside the asserted band
+        // (approaches 0, 40, 60, 100, 140, 160 and 260 m), measuring 0.3248809338339293 to
+        // 0.42207776693045557 against shares of 0.45112781954887216 to 0.5. Read out of the failing run,
+        // not estimated: a previous version of this comment said "0.32 to 0.39 at four of these twelve
+        // phases", which understated both the count and the damage. A third of a real road's retrace gone,
+        // at some grid phases and not others, which is what makes it the kind of defect that ships.
         for approach in [0.0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 220, 260] {
             let route = Self.diagonalDividedOutAndBack(approachMeters: approach)
             let f = RetraceDetector.retraceFraction(route)

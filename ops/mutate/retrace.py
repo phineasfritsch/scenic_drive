@@ -69,9 +69,9 @@ def empty_suite(path: pathlib.Path) -> str:
 # emptied KNOWN_MISSED, which had no floor at all, and got `caught by a named test: 1 of 1 ... MISSED 0`,
 # exit 0 - a clean sheet with all four recorded gaps deleted. `known_ok` was comparing 0 == 0. An arm that
 # exists so a gap is not invisible must not be silently deletable.
-MIN_MUTATIONS = 23
+MIN_MUTATIONS = 25
 MIN_EQUIVALENT = 2
-MIN_KNOWN_MISSED = 4
+MIN_KNOWN_MISSED = 7
 
 MUTATIONS = [
     ("compare headings without wrapping", SRC,
@@ -94,11 +94,21 @@ MUTATIONS = [
     # Numeric-constant mutations. A reviewer pointed out that every mutation in my Budget harness was
     # STRUCTURAL - delete a guard, invert a comparison - and not one touched a number, which is exactly
     # where such a suite is blind. These are the numbers here.
-    ("halve the sampling density along a segment", SRC,
+    #
+    # EVERY NAME IN THIS LIST MUST DESCRIBE THE EDIT BESIDE IT. reviewer-fn-pr76 found two that did not, and
+    # the cost is not cosmetic: the acceptance evidence is "23 of 23 caught BY NAME", so a name that
+    # describes a change the harness never applied certifies a catch that never happened. The first of the
+    # two below said "halve" while applying 2.0 -> 0.4 (a fifth), under the SAME NAME as the real halving in
+    # KNOWN_MISSED - so one run printed that string twice, once as `caught` and once as `MISSED`.
+    ("cut the sampling density to a fifth along a segment", SRC,
      "    static let samplesPerCell = 2.0",
      "    static let samplesPerCell = 0.4"),
 
-    ("use the equatorial degree for latitude too", SRC,
+    # The second: this said "use the equatorial degree for latitude too" while applying 55_000.0, which is
+    # not the equatorial degree (111_320.0) or any other degree - it is a caricature, and it is caught. The
+    # slip the old name described, 111_132.0 -> 111_320.0, SURVIVES the whole suite and is recorded in
+    # KNOWN_MISSED where a gap belongs.
+    ("halve the latitude metre, so grid rows cover twice the ground", SRC,
      "    static let metersPerDegreeLatitude = 111_132.0",
      "    static let metersPerDegreeLatitude = 55_000.0"),
 
@@ -215,6 +225,25 @@ MUTATIONS = [
      "    static let neighbourhood: [(Int, Int)] = [(-1, -1), (-1, 0), (-1, 1),\n"
      "                                              (0, -1), (0, 0), (0, 1),\n"
      "                                              (1, -1), (1, 0)]"),
+
+    # reviewer-fn-pr76's N3 and finding 5. Both of these survived the entire suite at exit 0 with zero
+    # failing test names while being real behaviour flips, and both were in neither MUTATIONS nor
+    # KNOWN_MISSED - which is the state that arm's own header says must not exist.
+    #
+    # The threshold: `<=` is the product decision (the plan's property table says "<= 0.15") and the test
+    # named for it asserted `0.15 <= maxRetraceFraction`, a restatement of the line above it. No route
+    # fixture can close this - no geometry here yields a fraction of exactly 0.15 - so the subject now
+    # exposes `isAcceptable(fraction:)` and the boundary is asserted on the predicate itself.
+    ("accept only strictly below the threshold, so exactly 15 percent is refused", SRC,
+     "    static func isAcceptable(fraction f: Double) -> Bool {\n        f <= maxRetraceFraction\n    }",
+     "    static func isAcceptable(fraction f: Double) -> Bool {\n        f < maxRetraceFraction\n    }"),
+
+    # The arity guard: `degenerateIsNil` asks about ONE point and about two IDENTICAL ones, which reaches
+    # the zero-length guard, not this one. A two-point route goes from Optional(0.0)/acceptable to
+    # nil/not-acceptable under this change, and nothing objected.
+    ("refuse a two-point route, so the shortest real segment is unanswerable", SRC,
+     "        guard points.count >= 2 else { return nil }",
+     "        guard points.count >= 3 else { return nil }"),
 ]
 
 # Mutations this suite is KNOWN not to catch, asserted the other way round.
@@ -245,18 +274,56 @@ KNOWN_MISSED = [
      "let anchor = Coordinate(latitude: minLat, longitude: minLon)",
      "let anchor = points[0]"),
 
-    # The code TRAPS before any assertion runs: removing the range screen lets a finite 1e17 reach the cell
-    # arithmetic, and `Int(_:)` dies with "Double value cannot be converted to Int". refusesOutOfRange is the
-    # test for this property and it cannot report, because the process is gone. Detected, but by a crash.
-    # Became unkillable when the distance test went in: a zero-length segment now contributes a sample at a
-    # point it already occupies, with the same heading, so nothing is counted either way. It was caught
-    # before that change. Left here so that if the distance test is removed, this arm says so.
-    # Pre-existing, found by this harness rather than by a reviewer: no fixture separates two samples per
-    # cell from one. longSegmentsAreSampled uses a 600 m segment against three 200 m ones, which both
-    # densities resolve identically.
+    # TWO FALSE REASONS USED TO STAND HERE, and they are struck rather than moved again. reviewer-fn-pr76's
+    # finding 2: when the two entries they belonged to - "drop the coordinate range screen" and "drop the
+    # zero-length segment guard" - were promoted into MUTATIONS in ffdb8f9, the ENTRIES moved and the
+    # COMMENTS did not, so they were left reading as the justification for the gap below them. Both were
+    # already measured FALSE in the 2026-09-09 Log, and both describe mutations this suite demonstrably
+    # KILLS: every run prints `caught  drop the coordinate range screen` and `caught  drop the zero-length
+    # segment guard`. The sentences were "refusesOutOfRange ... cannot report, because the process is gone"
+    # and "a zero-length segment now contributes a sample at a point it already occupies, with the same
+    # heading" - the second is false because `Geo.initialBearingDegrees(from: a, to: a)` is 0.0, which is
+    # what made it killable in the first place. Neither has anything to do with sampling density.
+    #
+    # The real reason for THIS gap, measured and not inherited: nothing in the suite has an opinion about
+    # the density. Halving it leaves the whole suite green - exit 0, zero failing test names - because every
+    # fixture that samples a long segment is asserted against a band far wider than the shift. The closest
+    # thing to a witness is `longSegmentsAreSampled`, and its 600 m leg against three 200 m ones is resolved
+    # the same way at 24 samples as at 48. Closing it needs a fixture built so that ONE cell is crossed
+    # between consecutive samples at 1.0 and not at 2.0, which is a different fixture from any here.
     ("halve the sampling density along a segment", SRC,
      "    static let samplesPerCell = 2.0",
      "    static let samplesPerCell = 1.0"),
+
+    # reviewer-fn-pr76's finding 4(b): the slip the MUTATIONS entry above USED to be named for. 111_320.0 is
+    # the equatorial degree and a plausible copy-paste from `metersPerDegreeLongitude` two declarations
+    # away, so it is the realistic version of that mistake - and it survives. It is verdict-neutral under
+    # the 2x margin rather than harmless in principle: a north-south pair a radius apart reads as 0.500561
+    # cells instead of 0.499716, still under one, so the guarantee holds and no assertion moves. What it
+    # would break is the ASYMMETRY RetraceDetector.swift's own documentation rests on ("Only the EAST axis
+    # can break it"), and nothing witnesses that - which is why it is recorded here rather than left out.
+    ("use the equatorial degree for latitude too", SRC,
+     "    static let metersPerDegreeLatitude = 111_132.0",
+     "    static let metersPerDegreeLatitude = 111_320.0"),
+
+    # reviewer-fn-pr76's finding 5, and G4 from the first review round. Scaling longitude at the route's
+    # SOUTHERN end instead of its mid-latitude is wrong in principle, and measurably invisible here: the
+    # longest fixture in this suite is a 1.95 km north-south leg, over which the two scales differ by
+    # 0.01035%, moving a 25 m pair by 0.0000429 of a cell. There is no fixture, and no fixture of a sane
+    # size, that turns that into a different cell index across the 2x margin. The sibling of "anchor the
+    # grid at points[0] again" above: both are properties of the grid that stopped deciding any verdict
+    # once the distance test became the measurement.
+    ("scale longitude at the route's southern end, not its mid-latitude", SRC,
+     "        let mPerLon = metersPerDegreeLongitude(at: (minLat + maxLat) / 2)",
+     "        let mPerLon = metersPerDegreeLongitude(at: minLat)"),
+
+    # reviewer-fn-pr76's finding 5. Sampling at the segment's START rather than its midpoint shifts every
+    # sample by half a step - a real change, and one no fixture separates, because each of them is asserted
+    # against a band wider than half a sample. The reviewer explicitly declined to call it a defect and so
+    # do I: it is an untested shift, recorded so it is not invisible.
+    ("sample at the start of each step instead of its midpoint", SRC,
+     "                let t = (Double(i) + 0.5) / Double(steps)",
+     "                let t = Double(i) / Double(steps)"),
 ]
 
 # Cannot change behaviour, so anything but MISSED is a failure.

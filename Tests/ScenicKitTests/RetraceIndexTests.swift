@@ -147,6 +147,15 @@ struct RetraceIndexTests {
         // by a single f yields only SEVEN of the nine offsets - measured over these 24 bearings and a
         // 20000-step sweep, (-1, 1) and (1, -1) never occur at all - so the second assertion below would
         // fail and the first would be blind to those two corners.
+        //
+        // reviewer-fn-pr76's finding 6: that second assertion had never been SEEN red, and a check that has
+        // never been seen red is untested (CLAUDE.md). It has now, twice, and the messages were read out of
+        // the output rather than inferred from an exit code. Collapsing the sweep below to a single f
+        // (`for fy in [fx]`) fails THIS test by name with `no pair inside the radius ever landed at
+        // diagonal offset (-1, 1)` and `(1, -1)` - exactly the two the paragraph above predicts, so the
+        // measurement and the assertion agree. And `metersPerDegreeLatitude = 55_000.0` fails it with
+        // `(-1, 1)` and `(1, 1)`: a grid whose rows cover twice the ground stops a 25 m pair from ever
+        // straddling a row boundary, so the corners it is asserted about stop occurring at all.
         var phases: [Double] = [0.0, 0.001, 0.5, 0.9, 0.99, 0.999, 0.9999, 0.99999, 0.999999]
         phases += (0..<40).map { Double($0) / 40.0 }
         var witness: [RetraceDetector.Cell: Double] = [:]

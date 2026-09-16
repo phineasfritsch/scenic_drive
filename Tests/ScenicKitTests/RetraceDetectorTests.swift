@@ -255,14 +255,43 @@ struct RetraceDetectorTests {
         #expect(RetraceDetector.maxRetraceFraction == 0.15)
     }
     @Test("exactly the threshold is acceptable, and a hair over it is not")
-    func exactlyTheThresholdIsAcceptable() {
+    func exactlyTheThresholdIsAcceptable() throws {
         // reviewer-pr76's F6-prior: the code reads `f <= maxRetraceFraction` under prose saying
-        // "retrace < 15%", and nothing pinned which it was. The plan says both - "< 15%" in the engine
-        // section, "<= 0.15" in the property table - so this records the choice instead of leaving the two
-        // readings to be discovered by whoever changes it next.
+        // "retrace < 15%". The plan says both - "< 15%" in the engine section, "<= 0.15" in the property
+        // table - so this records the choice rather than leaving it to be rediscovered.
+        //
+        // reviewer-fn-pr76's N3: the previous version asserted `0.15 <= maxRetraceFraction`, which is the
+        // line above it restated. It never reached the comparison its name is about, and the consequence
+        // was measured - `<=` changed to `<` survived the whole suite at exit 0 with zero failing names.
+        // The subject exposes `isAcceptable(fraction:)` so the boundary is reachable at all: no geometry
+        // here produces a fraction of exactly 0.15, so a route fixture cannot ask this question.
         #expect(RetraceDetector.maxRetraceFraction == 0.15)
-        // Asserted through the predicate rather than a route, because no fixture lands on 0.15 exactly.
-        #expect(0.15 <= RetraceDetector.maxRetraceFraction, "exactly the threshold is a loop")
-        #expect(!(0.1500000001 <= RetraceDetector.maxRetraceFraction), "a hair over it is not")
+        #expect(RetraceDetector.isAcceptable(fraction: RetraceDetector.maxRetraceFraction),
+                "exactly the threshold must be acceptable - the plan's property table says <= 0.15")
+        #expect(!RetraceDetector.isAcceptable(fraction: RetraceDetector.maxRetraceFraction.nextUp),
+                "one ulp over the threshold must not be acceptable")
+        // And that `isAcceptableLoop` is still decided BY that predicate, so the two cannot drift once the
+        // comparison lives in its own function. These two routes sit either side of the threshold; the
+        // assertions above pin the edge, this pins the wiring.
+        let out = Self.line(from: Self.base, bearing: 0, spacing: 50, count: 40)
+        for route in [out, out + out.reversed()] {
+            let f = try #require(RetraceDetector.retraceFraction(route))
+            #expect(RetraceDetector.isAcceptableLoop(route) == RetraceDetector.isAcceptable(fraction: f),
+                    "isAcceptableLoop disagreed with isAcceptable(fraction: \(f))")
+        }
+    }
+
+    @Test("a two-point route is answerable: no retrace, and an acceptable loop")
+    func twoPointRouteIsAnswerable() {
+        // reviewer-fn-pr76's finding 5. `guard points.count >= 2` had no witness on its own side: raising
+        // it to `>= 3` flips a two-point route from Optional(0.0)/acceptable to nil/not-acceptable, and it
+        // survived the whole suite - every other fixture here is long, and `degenerateIsNil` asks only
+        // about ONE point or two IDENTICAL ones, which is the zero-length guard further down, not this one.
+        let b = Coordinate(latitude: Self.base.latitude + 0.002, longitude: Self.base.longitude)
+        #expect(Geo.distanceMeters(Self.base, b) > 1, "the two points must be a real segment apart")
+        let f = RetraceDetector.retraceFraction([Self.base, b])
+        #expect(f == 0.0, "one segment driven once is 0 retrace, not \(String(describing: f))")
+        #expect(RetraceDetector.isAcceptableLoop([Self.base, b]),
+                "a two-point route retraces nothing, so it is acceptable")
     }
 }
