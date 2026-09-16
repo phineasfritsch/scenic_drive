@@ -6,10 +6,15 @@ import Foundation
 /// autopsy - as an unexplained refusal, and so that adding one forces every switch over this type to be
 /// revisited.
 ///
-/// **There is deliberately no case for a motorway** - but that is a statement of intent, not a guard. A
-/// branch that refuses a motorway can reuse `.noAccess` and never touch this enum, which is how the review of
-/// PR #82 refuted the earlier wording here. The guards are `Gates.consideredTagKeys`, which keeps such a
-/// branch from reading the tag it would need, and the behaviour pinned in `GatesInvariantTests`; see `Gates`.
+/// **There is deliberately no case for a motorway** - but that is a statement of intent, not a guard, and
+/// this comment used to claim otherwise. A branch that refuses a motorway can reuse `.noAccess` and never
+/// touch this enum, which is how four reviews of PR #82 refuted the earlier wording here.
+///
+/// What guards the invariant lives in `Gates`, not here: `ConsideredTags` answers `nil` for every key
+/// outside `Gates.consideredTagKeys`, so no rule can be written on a freeway tag; the key set itself is
+/// pinned as a literal; and the behaviour is pinned in `GatesInvariantTests`. Two residuals stay open and
+/// `Gates` names them - a refusal keyed on a *considered* key, and a refusal typed into `Gates.decide`
+/// itself, where the raw dictionary is still in scope.
 ///
 /// Split out of `GateDecision.swift` on the second review of PR #82: CLAUDE.md's file discipline is one type
 /// per file with the filename equal to the type name, and two public types shared that file.

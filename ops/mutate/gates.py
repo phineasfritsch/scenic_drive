@@ -3,13 +3,14 @@
 
 The mutation corpus is ops/mutate/gates_corpus.py; this file is the runner and the floors.
 
-The mutations that matter most are the eleven under THE INVARIANT there. If the suite does not catch them,
+The mutations that matter most are the seventeen under THE INVARIANT there. If the suite does not catch them,
 the suite does not protect the invariant CLAUDE.md lists first - motorway and trunk are PENALISED, not
 excluded - and this repository has already broken that once, making the flagship Mountain View -> SF fixture
-unroutable. Six of the eleven exist because the two reviews of PR #82 refused freeway geometry (`motorway_link`
-+ `oneway`, `motorroad`, `expressway`, `foot`/`bicycle`, `lanes`, `maxspeed`) with the whole suite green.
-Roughly half the rest turn a rule that requires positive evidence into one that fires on a tag being absent
-or merely present, because that is how a gate set quietly starts refusing the rural roads this product is for.
+unroutable. Nine of the seventeen exist because four reviews of PR #82 refused freeway geometry with the whole
+suite green: `motorway_link` + `oneway`, `motorroad`, `expressway`, `foot`/`bicycle`, `lanes`, `maxspeed`, and
+then `destination`, `horse` and `motor_vehicle != "yes"`. Roughly half the rest turn a rule that requires
+positive evidence into one that fires on a tag being absent or merely present, because that is how a gate set
+quietly starts refusing the rural roads this product is for.
 
 Written on the corrected contract (T-0132, and the harness discussion on PR #70):
   * the pass condition is `caught == len(MUTATIONS)`. A trap, a compile failure and a stale anchor each FAIL
@@ -36,9 +37,10 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from gates_corpus import DECISION, EQUIVALENT, GATES, KNOWN_MISSED, MUTATIONS, REASON  # noqa: E402
+from gates_corpus import (CONSIDERED, DECISION, EQUIVALENT, GATES,  # noqa: E402
+                          KNOWN_MISSED, MUTATIONS, REASON)
 
-SUBJECTS = (GATES, DECISION, REASON)
+SUBJECTS = (GATES, DECISION, REASON, CONSIDERED)
 
 # Inside `.build/`, which .gitignore already covers. As `.build-mutate-gates` it left an untracked directory
 # behind after every run, and ops/lib/check-worktrees only reports untracked paths inside the task's
@@ -53,7 +55,7 @@ SCRATCH = ".build/mutate-gates"
 # split this very suite into three files - so the decay would have landed for real. A file counts if it
 # mentions any of the three symbols under test; that is a property of the tree, so a split half is picked up
 # the moment it exists.
-SUBJECT_SYMBOLS = re.compile(r"\bGates\b|\bGateDecision\b|\bGateReason\b")
+SUBJECT_SYMBOLS = re.compile(r"\bGates\b|\bGateDecision\b|\bGateReason\b|\bConsideredTags\b")
 
 
 def discover_test_files():
@@ -76,8 +78,8 @@ TEST_FILES = discover_test_files()
 # refused an empty corpus but not a deletion, so the first reviewer of PR #82 deleted BOTH motorway mutations
 # plus one more and got `caught by a named test: 18 of 18 ... exit 0` - a clean sheet with the invariant no
 # longer measured. Adding a mutation means bumping this number, in a different file from the list itself.
-MIN_MUTATIONS = 37
-MIN_EQUIVALENT = 1
+MIN_MUTATIONS = 43
+MIN_EQUIVALENT = 2
 
 # NOT a completeness floor, and it must not be read as one: TEST_FILES is discovered precisely so that the
 # count CAN change when a suite is split, and a floor at today's count would fail on the split it exists to

@@ -101,7 +101,7 @@ struct GatesTests {
         #expect(Gates.decide(["highway": "motorway", "motorroad": "yes"]) == .allowed)
     }
 
-    @Test("no GateReason exists that could refuse a motorway")
+    @Test("no GateReason case is named for a motorway")
     func noMotorwayReasonExists() {
         // Written out as the complete expected set, in a literal, rather than as a count or as a filter over
         // GateReason.allCases. A count would pass when one reason was swapped for another; a filter over the
@@ -111,6 +111,12 @@ struct GatesTests {
         // not a guarantee that a motorway cannot be refused, because a new branch can reuse `.noAccess` - see
         // the suite comment. `ops/mutate/gates.py` carries the mutation that adds a case, so this test has
         // been seen red.
+        //
+        // The display name used to read "no GateReason exists that could refuse a motorway", which asserted
+        // more than the line below checks - `.noAccess` refuses motorways perfectly well, and that sentence
+        // is struck in the Log and the PR body. The harness PRINTS this name as its proof that the mutation
+        // was caught, so the name was handing a reader a refuted sentence as evidence. Renamed to what it
+        // actually pins.
         #expect(Set(GateReason.allCases.map(\.rawValue)) == Set([
             "unpavedSurface", "track", "tooRough", "noAccess", "lockedBarrier", "ford", "serviceWay",
         ]))

@@ -5,42 +5,105 @@ import Testing
 /// The motorway invariant, pinned as a **class** rather than as a list of instances.
 ///
 /// `GatesTests` crosses the four freeway `highway` values with thirteen literal companion tag sets. That kills
-/// every branch keyed on one of those thirteen keys, and the second review of PR #82 then walked straight past
-/// it four more times - `expressway=yes`, a loop over `foot`/`bicycle`, `lanes >= 5`, `maxspeed >= 100`. Each
-/// one refuses real freeway geometry (`foot=no` and `bicycle=no` are on essentially every motorway in OSM) and
-/// each left `swift test` green and `ops/mutate/gates.py` printing "28 of 28". Enumerating four more keys would
-/// have bought four more rounds of the same review.
+/// every branch keyed on one of those thirteen keys, and the reviews of PR #82 then walked straight past it
+/// nine times - `expressway=yes`, a loop over `foot`/`bicycle`, `lanes >= 5`, `maxspeed >= 100`, and then
+/// `destination`, `horse`, a loop over `horse`/`moped`, and `motor_vehicle != "yes"`. Each one refuses real
+/// freeway geometry and each left `swift test` green. Enumerating more keys buys more rounds of the same
+/// review, so the three tests below pin the class.
 ///
-/// The two tests below are the class instead of the instances:
+///   * `theConsideredTagsViewCannotReadAnUnconsideredKey` pins the *mechanism*. `Gates.verdict` - where every
+///     rule lives - is handed a `ConsideredTags`, and that type answers `nil` for any key outside
+///     `Gates.consideredTagKeys`, at each read, with the raw dictionary private. A rule keyed on a freeway
+///     tag is therefore dead code wherever it is typed, by an extra identifier or by a loop. This test is
+///     what goes red if that accessor ever stops narrowing.
+///   * `theGateSetConsidersOnlyTheTagKeysItsOwnRulesAreWrittenOn` pins the literal the accessor consults.
+///     Widening it is the one edit that revives such a branch, and it turns this test red by name.
+///   * `irrelevantTagKeysCannotChangeADecision` pins the *behaviour* for sixteen bases against nineteen keys
+///     no rule uses. It is what covers the one position a type cannot reach: `Gates.decide` itself, which
+///     still has the raw dictionary in scope because Swift gives a function no way to drop its own
+///     parameter. `ops/mutate/gates_corpus.py` keeps six mutations in exactly that position.
 ///
-///   * `theGateSetConsidersOnlyTheTagKeysItsOwnRulesAreWrittenOn` pins `Gates.consideredTagKeys` as a
-///     written-out literal. `Gates.decide` drops every other key before a rule runs, so a branch keyed on a
-///     key that is not in that set is dead code. Adding the key is the visible half of the edit, and it turns
-///     this test red by name.
-///   * `irrelevantTagKeysCannotChangeADecision` is the other half: it pins the *behaviour* for sixteen bases
-///     against sixteen keys no rule uses, which is what catches an edit that deletes the filter and adds the
-///     branch in one go - the shape `ops/mutate/gates_corpus.py` now carries four of.
+/// **What is still not closed, stated rather than denied.**
 ///
-/// **What is still not closed, stated rather than denied.** A refusal keyed on a key that IS in
-/// `consideredTagKeys`, with a freeway-relevant value no test supplies. For a freeway that is `highway`, and
-/// `freewayTagsNeverGate` covers it across 52 ways. And deleting the filter while keying on a key neither the
-/// noise list nor the companion list names would still be invisible **to this suite** - deleting the filter
-/// alone leaves every test here green, which was measured and not assumed. What objects to that deletion is
-/// `ops/mutate/gates.py`: six mutations are anchored on the filter line and report `SKIP ... anchor not found
-/// - harness is stale`, exit 1.
+///   1. A refusal keyed on a key that IS in `consideredTagKeys`, with a freeway-relevant value. The
+///      accessor is irrelevant to it by construction. `freewayValuesOfConsideredKeysAreAllowed` below is the
+///      only thing that closes it, and it closes it for the values it writes out and no others.
+///   2. A refusal typed into `Gates.decide` on a key this suite's noise list does not name. The list is an
+///      enumeration and that is its honest limit; it now names the keys all nine refuted branches used.
 @Suite("Gates invariant")
 struct GatesInvariantTests {
+
+    @Test("a tag view read of a key no rule is written on is nil, whatever the way carries")
+    func theConsideredTagsViewCannotReadAnUnconsideredKey() {
+        // A realistic signed freeway ramp, written out. Every key a refused branch has reached for in four
+        // reviews of PR #82 is on it.
+        let ramp = ConsideredTags([
+            "highway": "motorway_link", "destination": "San Francisco", "oneway": "yes",
+            "ref": "I 280", "expressway": "yes", "foot": "no", "bicycle": "no", "horse": "no",
+            "moped": "no", "lanes": "5", "maxspeed": "105", "motorroad": "yes", "toll": "yes",
+            "surface": "asphalt", "motor_vehicle": "designated",
+        ])
+
+        // Reads that must answer nil - the key is not one any rule is written on. Expected side is the
+        // literal `nil`, not `Gates.consideredTagKeys.contains(...)`, which would ask the thing under test.
+        for key in ["destination", "oneway", "ref", "expressway", "foot", "bicycle", "horse",
+                    "moped", "lanes", "maxspeed", "motorroad", "toll"] {
+            #expect(ramp[key] == nil, "\(key) is not a key any gate rule is written on and must read as nil")
+        }
+
+        // And the two keys on this way that ARE considered must read straight through, so the test cannot
+        // pass by narrowing everything to nothing.
+        #expect(ramp["highway"] == "motorway_link")
+        #expect(ramp["surface"] == "asphalt")
+        #expect(ramp["motor_vehicle"] == "designated")
+
+        // An absent considered key is still nil, which is what "positive evidence only" rests on.
+        #expect(ramp["ford"] == nil)
+        #expect(ConsideredTags([:])["highway"] == nil)
+    }
 
     @Test("the gate set considers only the tag keys its own rules are written on")
     func theGateSetConsidersOnlyTheTagKeysItsOwnRulesAreWrittenOn() {
         // Written out as the complete expected set, in a literal - not as a count, and not filtered out of
-        // anything `Gates` exposes. Ten keys, one per rule in `decide`, and every OSM key a freeway carries is
-        // deliberately absent. Widening this is how a motorway refusal gets its tag back; that is exactly why
-        // it is pinned here, by name, rather than left to a comment.
+        // anything `Gates` exposes. Ten keys, one per rule in `verdict`, and every OSM key a freeway carries
+        // is deliberately absent. Widening this is how a motorway refusal gets its tag back; that is exactly
+        // why it is pinned here, by name, rather than left to a comment.
         #expect(Gates.consideredTagKeys == Set([
             "surface", "highway", "tracktype", "smoothness", "access",
             "motor_vehicle", "barrier", "locked", "ford", "service",
         ]))
+    }
+
+    @Test("a freeway is allowed on every value of a considered key that real freeway geometry carries")
+    func freewayValuesOfConsideredKeysAreAllowed() {
+        // Residual 1, and the ONLY thing that closes it. `ConsideredTags` cannot help here: these keys are
+        // read by rules on purpose, so a "be thorough" branch on one of them fires. The fourth review of
+        // PR #82 got `if let mv = tags["motor_vehicle"], mv != "yes" { return .refused(.noAccess) }` past
+        // the whole suite; `motor_vehicle=designated` is how motorroad and expressway geometry is tagged,
+        // and refusing it refuses the freeway network again by a different door.
+        //
+        // Every pair below is a written-out literal and every expectation is the literal `.allowed`.
+        // Nothing is read back from `Gates.closedAccess` and friends, which would assert a set against
+        // itself.
+        let freeways = ["motorway", "motorway_link", "trunk", "trunk_link"]
+        let carried: [(String, String)] = [
+            ("motor_vehicle", "yes"), ("motor_vehicle", "designated"), ("motor_vehicle", "permissive"),
+            ("access", "yes"), ("access", "permissive"), ("access", "designated"),
+            ("surface", "asphalt"), ("surface", "paved"), ("surface", "concrete"),
+            ("smoothness", "excellent"), ("smoothness", "good"), ("smoothness", "intermediate"),
+        ]
+
+        for highway in freeways {
+            for (key, value) in carried {
+                #expect(Gates.decide(["highway": highway, key: value]) == .allowed,
+                        "\(highway) carrying \(key)=\(value) is penalised, never excluded")
+            }
+            // One way carrying a plausible set of them at once.
+            #expect(Gates.decide([
+                "highway": highway, "motor_vehicle": "designated", "access": "yes",
+                "surface": "asphalt", "smoothness": "excellent",
+            ]) == .allowed)
+        }
     }
 
     @Test("a tag key no safety rule is written on cannot change any decision")
@@ -67,12 +130,19 @@ struct GatesInvariantTests {
             (["highway": "service", "service": "driveway"], .refused(.serviceWay)),
         ]
 
-        // Keys no rule in `Gates.decide` reads. `foot=no` and `bicycle=no` are on essentially every motorway
-        // in OSM, which is what makes "be thorough about access tags" the most dangerous refactor in this
-        // file. `vehicle` is deliberately NOT here: it is a genuine access restriction the plan's gate list
-        // does not name, and pinning it as inert would pin a gap I was not asked to close.
+        // Keys no rule in `Gates.verdict` reads. `foot=no`, `bicycle=no` and `horse=no` are the standard
+        // access triple on essentially every motorway in OSM, which is what makes "be thorough about access
+        // tags" the most dangerous refactor in this file; `moped=no` is the fourth member a wider loop
+        // reaches for. `destination` is the text on a freeway sign - `destination=San Francisco` is on
+        // essentially every signed ramp - and has nothing to do with the `access=destination` VALUE the
+        // gates do refuse; a branch confusing the two hard-excludes every on-ramp and off-ramp, which is
+        // how the freeway shoulder in the middle of a long scenic drive becomes unreachable.
+        //
+        // `vehicle` is deliberately NOT here: it is a genuine access restriction the plan's gate list does
+        // not name, and pinning it as inert would pin a gap I was not asked to close.
         let noise: [(String, String)] = [
             ("expressway", "yes"), ("foot", "no"), ("bicycle", "no"),
+            ("horse", "no"), ("moped", "no"), ("destination", "San Francisco"),
             ("lanes", "6"), ("maxspeed", "120"), ("toll", "yes"),
             ("hgv", "designated"), ("lit", "no"), ("oneway", "yes"),
             ("motorroad", "yes"), ("junction", "roundabout"), ("ref", "I 280"),
@@ -89,7 +159,7 @@ struct GatesInvariantTests {
                 #expect(Gates.decide(tags) == expected,
                         "adding \(key)=\(value) must not change the verdict for \(base.keys.sorted())")
             }
-            // And all sixteen at once, which is closer to a real OSM way than any single one.
+            // And all nineteen at once, which is closer to a real OSM way than any single one.
             var loaded = base
             for (key, value) in noise { loaded[key] = value }
             #expect(Gates.decide(loaded) == expected,

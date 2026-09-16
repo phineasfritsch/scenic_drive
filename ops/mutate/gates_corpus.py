@@ -18,26 +18,33 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 GATES = ROOT / "Sources" / "ScenicKit" / "Gates" / "Gates.swift"
 DECISION = ROOT / "Sources" / "ScenicKit" / "Gates" / "GateDecision.swift"
 REASON = ROOT / "Sources" / "ScenicKit" / "Gates" / "GateReason.swift"
+CONSIDERED = ROOT / "Sources" / "ScenicKit" / "Gates" / "ConsideredTags.swift"
 
-# The tail of `decide`. Two invariant mutations insert a branch immediately above it.
+# The tail of `verdict`, where every rule lives. Two invariant mutations insert a branch immediately above it.
 RETURN_ALLOWED = "        return .allowed\n    }\n}"
 
-# The line that drops every tag key no rule is written on. Every "refuse freeway geometry" mutation below
-# REPLACES this line rather than inserting above RETURN_ALLOWED, because with the filter in place a branch
-# keyed on `expressway`, `foot`, `lanes` or `maxspeed` is dead code - it would be an equivalent mutant, not a
-# survivor. Deleting the filter and adding the branch is the edit an author actually makes once the branch
-# they typed does nothing, so that is the edit the corpus models. `let tags = allTags` keeps the rest of the
-# function compiling, which is exactly what such an author would do.
-FILTER = "        let tags = allTags.filter { consideredTagKeys.contains($0.key) }"
-UNFILTERED = "        let tags = allTags"
+# The body of the PUBLIC entry point - the one position in this package where a rule would still see the raw
+# dictionary, because Swift gives a function no way to drop its own parameter. `verdict` is handed a
+# `ConsideredTags` and cannot read an unconsidered key by any spelling, so the same branch inserted there
+# would be an equivalent mutant, not a survivor. Every "refuse freeway geometry" mutation below therefore
+# goes HERE, at the residual - which is where the fourth review of PR #82 put five survivors.
+ENTRY = "        return verdict(ConsideredTags(tags))"
 
-# The literal that IS the filter. Widening it is the other half of the same edit.
+# The accessor that IS the narrowing, checked per read rather than once up front. Breaking it is one half of
+# the edit that revives a dead branch; widening CONSIDERED_KEYS below is the other.
+SUBSCRIPT = "        return Gates.consideredTagKeys.contains(key) ? raw[key] : nil"
+
+# The literal the accessor consults.
 CONSIDERED_KEYS = ('        "surface", "highway", "tracktype", "smoothness", "access",\n'
                    '        "motor_vehicle", "barrier", "locked", "ford", "service",')
 
+# Rules reused as anchors by more than one mutation.
+ACCESS_RULE = '        if let access = tags["access"], closedAccess.contains(access) { return .refused(.noAccess) }'
+MOTOR_VEHICLE_RULE = '        if tags["motor_vehicle"] == "no" { return .refused(.noAccess) }'
+
 MUTATIONS = [
     # --- THE INVARIANT ------------------------------------------------------------------------------------
-    # If only one mutation in this file is caught, it has to be one of these eleven.
+    # If only one mutation in this file is caught, it has to be one of these seventeen.
     ("gate motorways, the invariant CLAUDE.md lists first", GATES, RETURN_ALLOWED,
      '        if tags["highway"] == "motorway" || tags["highway"] == "trunk" {\n'
      '            return .refused(.noAccess)\n'
@@ -49,60 +56,84 @@ MUTATIONS = [
      '            return .refused(.noAccess)\n'
      '        }\n' + RETURN_ALLOWED),
 
-    # Found by the first review of PR #82, which got both of these past the suite. They key on a SECOND tag,
-    # which the two above do not. Re-anchored on FILTER by the second review: `oneway` and `motorroad` are not
-    # in `consideredTagKeys`, so above RETURN_ALLOWED these no longer change behaviour.
-    ("gate a one-way motorway_link, i.e. every freeway ramp there is", GATES, FILTER,
-     UNFILTERED + '\n'
+    # Found by the first review of PR #82. They key on a SECOND tag, which the two above do not. Both keys
+    # are outside `consideredTagKeys`, so in `verdict` these are now dead code; they live at ENTRY, the one
+    # position where a raw read still bites.
+    ("gate a one-way motorway_link from the entry point, i.e. every freeway ramp there is", GATES, ENTRY,
      '        if tags["highway"] == "motorway_link", tags["oneway"] == "yes" {\n'
      '            return .refused(.noAccess)\n'
-     '        }'),
+     '        }\n' + ENTRY),
 
-    ("gate motorroad=yes, which is how a trunk expressway is tagged", GATES, FILTER,
-     UNFILTERED + '\n        if tags["motorroad"] == "yes" { return .refused(.noAccess) }'),
+    ("gate motorroad=yes from the entry point, which is how a trunk expressway is tagged", GATES, ENTRY,
+     '        if tags["motorroad"] == "yes" { return .refused(.noAccess) }\n' + ENTRY),
 
-    # Found by the SECOND review of PR #82, all four with `swift test` green and the harness printing 28 of 28.
-    # These are the ones `freewayTagsNeverGate`'s thirteen companions did not name, and they are why the
-    # invariant is now pinned as a class in GatesInvariantTests instead of as a longer list of instances.
-    ("delete the key filter and refuse expressway=yes", GATES, FILTER,
-     UNFILTERED + '\n        if tags["expressway"] == "yes" { return .refused(.noAccess) }'),
+    # Found by the SECOND review of PR #82, all four with `swift test` green. Until the fourth review they
+    # were anchored on the old `let tags = allTags.filter { ... }` line and named "delete the key filter
+    # and ...", so the edit modelled was deleting that filter. Wrong model: the filter never had to be
+    # deleted, because `allTags` stayed in scope. There is no filter line now, and these model what is live.
+    ("refuse expressway=yes from the entry point", GATES, ENTRY,
+     '        if tags["expressway"] == "yes" { return .refused(.noAccess) }\n' + ENTRY),
 
-    ("delete the key filter and be thorough about access tags, incl. foot and bicycle", GATES, FILTER,
-     UNFILTERED + '\n'
+    ("be thorough about access tags from the entry point, incl. foot and bicycle", GATES, ENTRY,
      '        for key in ["access", "motor_vehicle", "foot", "bicycle"] {\n'
      '            if let v = tags[key], closedAccess.contains(v) { return .refused(.noAccess) }\n'
-     '        }'),
+     '        }\n' + ENTRY),
 
-    ("delete the key filter and refuse anything with five or more lanes", GATES, FILTER,
-     UNFILTERED + '\n'
-     '        if let l = tags["lanes"], let n = Int(l), n >= 5 { return .refused(.noAccess) }'),
+    ("refuse anything with five or more lanes, from the entry point", GATES, ENTRY,
+     '        if let l = tags["lanes"], let n = Int(l), n >= 5 { return .refused(.noAccess) }\n' + ENTRY),
 
-    ("delete the key filter and refuse a maxspeed of 100 or more", GATES, FILTER,
-     UNFILTERED + '\n'
-     '        if let ms = tags["maxspeed"], let v = Int(ms), v >= 100 { return .refused(.noAccess) }'),
+    ("refuse a maxspeed of 100 or more, from the entry point", GATES, ENTRY,
+     '        if let ms = tags["maxspeed"], let v = Int(ms), v >= 100 { return .refused(.noAccess) }\n'
+     + ENTRY),
 
-    # The other half of the same edit, and the only reason a branch keyed on a freeway tag is dead code: give
-    # the branch its key back. This one is caught by a LITERAL PIN rather than by behaviour, and that is
-    # stated rather than glossed - `theGateSetConsidersOnlyTheTagKeysItsOwnRulesAreWrittenOn` is the named
-    # test, and widening the set changes no verdict on its own.
+    # Found by the FOURTH review, which got all three past the shipped suite by reading the function's own
+    # parameter instead of the narrowed local - one identifier's difference. `destination` is the text on a
+    # freeway sign, on essentially every signed ramp, so confusing that KEY for the `access=destination`
+    # VALUE excludes every ramp; `horse=no` is the third member of the motorway access triple.
+    ("refuse a signed ramp, confusing the destination KEY for the access VALUE", GATES, ENTRY,
+     '        if tags["destination"] != nil { return .refused(.noAccess) }\n' + ENTRY),
+
+    ("refuse horse=no, the third member of the motorway access triple", GATES, ENTRY,
+     '        if tags["horse"] == "no" { return .refused(.noAccess) }\n' + ENTRY),
+
+    ("loop over horse and moped too, the thorough form of the same mistake", GATES, ENTRY,
+     '        for key in ["access", "motor_vehicle", "horse", "moped"] {\n'
+     '            if tags[key] == "no" { return .refused(.noAccess) }\n'
+     '        }\n' + ENTRY),
+
+    # The narrowing itself. Breaking this accessor is what a "why is this branch dead?" edit reaches for once
+    # the branch above does nothing, and it is caught on its own - by the view test, not by a rule, because
+    # no rule reads an unconsidered key today.
+    ("stop ConsideredTags narrowing, so any key reads through to a rule again", CONSIDERED, SUBSCRIPT,
+     "        return raw[key]"),
+
+    # The other half of the same edit: give the branch its key back. Caught by a LITERAL PIN rather than by
+    # behaviour, and that is stated rather than glossed - widening the set changes no verdict on its own.
     ("widen consideredTagKeys so a freeway branch would work again", GATES, CONSIDERED_KEYS,
      '        "surface", "highway", "tracktype", "smoothness", "access",\n'
      '        "motor_vehicle", "barrier", "locked", "ford", "service",\n'
      '        "expressway", "foot", "bicycle",'),
 
-    # And the mutation that proves the filter is LOAD-BEARING rather than decorative: drop a key a rule really
-    # reads and that rule stops firing, so behaviour tests object alongside the literal pin. It is NOT what
-    # catches deletion of the filter - measured against a tree with the filter removed, it is still caught by
-    # the literal pin alone, exit 0. What catches that deletion is the six entries anchored on FILTER above
-    # going SKIP / "anchor not found - harness is stale".
+    # And the mutation that proves the key set is LOAD-BEARING rather than decorative: drop a key a rule
+    # really reads and that rule stops firing, so behaviour tests object alongside the literal pin.
     ("drop smoothness from consideredTagKeys, which kills the smoothness gate", GATES, CONSIDERED_KEYS,
      '        "surface", "highway", "tracktype", "access",\n'
      '        "motor_vehicle", "barrier", "locked", "ford", "service",'),
 
-    # The enum arm of the invariant. Without this, `noMotorwayReasonExists` - the test whose NAME carries the
-    # invariant - was never once demonstrated red by this harness, and CLAUDE.md says a check that has never
-    # been seen red is untested. Anchored on `case serviceWay`, which is code, not on the doc comment above it.
-    # Moved from GateDecision.swift to GateReason.swift when the two types were split one per file.
+    # RESIDUAL 1, which no type closes: a refusal keyed on a key that IS considered. `ConsideredTags` is
+    # irrelevant to both by construction - `motor_vehicle` and `access` are read by rules on purpose, and
+    # `motor_vehicle=designated` is how motorroad and expressway geometry is tagged. Only
+    # `freewayValuesOfConsideredKeysAreAllowed` stands between these and the freeway network.
+    ("refuse any motor_vehicle value but yes, which refuses motorroad geometry", GATES, MOTOR_VEHICLE_RULE,
+     '        if let mv = tags["motor_vehicle"], mv != "yes" { return .refused(.noAccess) }'),
+
+    ("refuse any access value but yes, tightening a considered key", GATES, ACCESS_RULE,
+     '        if let access = tags["access"], access != "yes" { return .refused(.noAccess) }'),
+
+    # The enum arm of the invariant. Without this, `noMotorwayReasonExists` - the test whose NAME used to
+    # carry the invariant - was never once demonstrated red by this harness, and CLAUDE.md says a check that
+    # has never been seen red is untested. Anchored on `case serviceWay`, which is code, not on the doc
+    # comment above it. Moved from GateDecision.swift to GateReason.swift when the two types were split.
     ("add a GateReason case that could name a motorway refusal", REASON,
      "    case serviceWay",
      "    case serviceWay\n\n    case motorwayExcluded"),
@@ -218,10 +249,9 @@ MUTATIONS = [
 
     # The two reorders the five hand-picked pairs in `theFirstRuleToFireIsTheReasonReported` did not cover.
     # Found by the second review of PR #82; both are caught by the all-pairs property in GatesOrderTests.
-    ("try a locked barrier before access, so a private way blames the gate", GATES,
-     '        if let access = tags["access"], closedAccess.contains(access) { return .refused(.noAccess) }',
+    ("try a locked barrier before access, so a private way blames the gate", GATES, ACCESS_RULE,
      '        if tags["barrier"] == "gate", tags["locked"] == "yes" { return .refused(.lockedBarrier) }\n'
-     '        if let access = tags["access"], closedAccess.contains(access) { return .refused(.noAccess) }'),
+     + ACCESS_RULE),
 
     ("try smoothness before highway=track, so a rough track blames the surface", GATES,
      '        if tags["highway"] == "track" { return .refused(.track) }',
@@ -241,20 +271,27 @@ MUTATIONS = [
 
 # Cannot change behaviour, so anything but MISSED is a FAILURE.
 #
-# The name below used to read "reorder two independent rules that cannot both fire", which described
-# something this entry does not do - nothing is reordered and no two rules are named. The review of PR #82
-# called that out, and the genuine reorders it was standing in for are now real MUTATIONS above. What is
-# left is what the code always was: spelling the same enum case two ways.
+# The first entry's name used to read "reorder two independent rules that cannot both fire", describing
+# something it does not do. The review of PR #82 called that out; the real reorders are MUTATIONS above.
+#
+# The second is the tidy-up that would undo the fourth review's finding without changing a verdict: narrow
+# once in the initialiser and let the subscript hand back whatever it stored. Identical for every input -
+# which is the point. It is banked here because a test that caught it would have an opinion about how
+# `ConsideredTags` is WRITTEN. What it costs is the thing this corpus cannot assert: it puts back a single
+# deletable line, exactly the shape that let `allTags` survive four reviews.
 #
 # NOT here, deliberately: "insert a branch on expressway= above RETURN_ALLOWED". It cannot change behaviour
-# today, but only because `consideredTagKeys` does not list `expressway` - a reason that lives in `decide`'s
-# first line rather than in the branch being mutated, and one that EXPIRES the moment somebody widens that
-# set. Banking it here would buy an arm that one day fails for the right reason with the wrong message
-# ("a test has an opinion about how the code is WRITTEN"). It is in neither list, and this comment is why.
+# today, but only because `consideredTagKeys` does not list `expressway` - a reason that EXPIRES the moment
+# somebody widens that set. Banking it would buy an arm that one day fails for the right reason with the
+# wrong message. It is in neither list, and this comment is why.
 EQUIVALENT = [
     ("spell a GateReason case fully qualified - the same case either way", GATES,
      '        if tags["ford"] == "yes" { return .refused(.ford) }',
      '        if tags["ford"] == "yes" { return .refused(GateReason.ford) }'),
+
+    ("narrow in the initialiser instead of at each read - same answer for every key", CONSIDERED,
+     "        self.raw = raw\n    }",
+     "        self.raw = raw.filter { Gates.consideredTagKeys.contains($0.key) }\n    }"),
 ]
 
 # Mutations this suite is KNOWN not to catch, asserted the other way round: each must still go MISSED, and a
