@@ -176,33 +176,31 @@ struct SegmentScoreTests {
         #expect(try #require(SegmentScore.score(for: Self.uniform(1.0, highway: "secondary"))) == 1.0)
     }
 
-    // MARK: - the soft multipliers, at and either side of each threshold
-
-    @Test("a tunnel longer than 300 m costs 85 percent of the score, and 300 m exactly does not")
-    func tunnelThresholdIsStrict() throws {
-        var t = Self.uniform(0.5)
-        t.tunnelMeters = 300
-        #expect(abs(try #require(SegmentScore.score(for: t)) - 0.5) < 1e-12, "300 m is not over 300 m")
-
-        t.tunnelMeters = 301
-        #expect(abs(try #require(SegmentScore.score(for: t)) - 0.5 * 0.15) < 1e-12)
-
-        t.tunnelMeters = 0
-        #expect(abs(try #require(SegmentScore.score(for: t)) - 0.5) < 1e-12)
+    @Test("a dull class scores zero whether or not the way carries a surface tag")
+    func dullClassScoresZeroWhateverTheSurfaceTag() throws {
+        // Every fixture that exercised the class rule - this test, `dullClassesDoNotJumpTheValidation` and
+        // `scoreAlwaysLandsInZeroToOne` - left `surface` at its nil default, so the rule was pinned on one
+        // axis only. Measured on the committed tree at `e2b77f5`: the shortcut could become
+        // `if dullClasses.contains(t.highway), t.surface == nil { return 0 }` with all 39 tests green, and a
+        // tagged motorway would then score its full terms. In OSM a motorway usually DOES carry a surface
+        // tag, so that mutation would have left the CLAUDE.md invariant - motorway and trunk carry
+        // scenic_score 0 - true only for the minority of them.
+        for highway in ["motorway", "motorway_link", "trunk", "trunk_link"] {
+            for surface in ["asphalt", "concrete", "gravel"] {
+                var t = Self.uniform(1.0, highway: highway)
+                t.surface = surface
+                #expect(try #require(SegmentScore.score(for: t)) == 0,
+                        "\(highway) with surface=\(surface) must still score 0")
+            }
+        }
     }
 
-    @Test("a road within 150 m of a motorway hears it, and 150 m exactly does not")
-    func motorwayProximityThresholdIsStrict() throws {
-        var t = Self.uniform(0.5)
-        t.metersToNearestMotorway = 150
-        #expect(abs(try #require(SegmentScore.score(for: t)) - 0.5) < 1e-12, "150 m is not within 150 m")
+    // MARK: - the soft multipliers
 
-        t.metersToNearestMotorway = 149
-        #expect(abs(try #require(SegmentScore.score(for: t)) - 0.5 * 0.7) < 1e-12)
-
-        t.metersToNearestMotorway = .infinity
-        #expect(abs(try #require(SegmentScore.score(for: t)) - 0.5) < 1e-12)
-    }
+    // Each threshold's own edges live in `SegmentScoreThresholdTests` now: the two tests moved there with
+    // their names and assertions intact and gained one probe each. They were pinned at 301 m and 149 m - the
+    // nearest INTEGERS - and `300.0 -> 300.5` and `150.0 -> 149.5` were both measured as survivors of this
+    // whole suite. What stays here is the claim the two multipliers make TOGETHER.
 
     @Test("the soft multipliers compound rather than replacing one another")
     func multipliersCompound() throws {

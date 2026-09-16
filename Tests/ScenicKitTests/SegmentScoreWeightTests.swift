@@ -4,7 +4,7 @@ import Testing
 
 /// What a literal pin on a weight cannot see, and what the byway bonus's two saturated fixtures could not see.
 ///
-/// ## The weights are pinned twice over, and the two pins catch different things
+/// ## The weights are pinned three times over, and the three pins catch different things
 ///
 /// `weightSetsSumToOne` writes all ten weights out as literals, so any edit to the DECLARATIONS is caught
 /// whatever else is true. What a literal cannot see is the **effective** weight at the point of use: writing
@@ -13,6 +13,14 @@ import Testing
 /// more that the whole suite passed: open ground with points of interest, canopy with water, elevation gain
 /// with sinuosity. Each preserves its set's total of 1.00 exactly, so `weightSetsSumToOne` cannot object
 /// either. Only the RANK, asserted through `SegmentScore.score(for:)`, can see them.
+///
+/// **And rank is not value.** The next reviewer measured the gap that leaves: `0.25 * t.canopy` with
+/// `0.21 * t.relief`, and `0.46 * t.curvature` with `0.14 * t.sinuosity`, each keep their set at 1.00
+/// exactly AND keep the declared order, so the literals, `weightSetsSumToOne` and both rank tests below are
+/// all green while every non-uniform way in the corpus scores differently. Both shifts survived all 39 tests
+/// on the committed tree at `e2b77f5`. The two `...AreExactlyTheDeclaredValues...` tests close that: one term
+/// at its best with the rest at their worst makes its set exactly that term's weight, so one hand-computed
+/// score per term pins the VALUE, which is the strongest of the three claims and implies the other two.
 ///
 /// ## The byway bonus's value and form
 ///
@@ -106,6 +114,43 @@ struct SegmentScoreWeightTests {
                 "water and quiet roadside carry the same weight; got \(scores[4].score) vs \(scores[5].score)")
     }
 
+    /// The same six terms with the score each one produces alone. `sceneryFloor()` puts M at 0.5 and every E
+    /// term at its worst, so one term at its best makes E **exactly that term's weight** and the score is
+    /// `0.5^0.35 * w^0.65`. Hand-computed in Python from the plan's stated weights and exponents before
+    /// anything was run, never read back off this code:
+    ///
+    ///     canopy            0.5^0.35 * 0.24^0.65 = 0.3102964512
+    ///     relief            0.5^0.35 * 0.22^0.65 = 0.2932339456
+    ///     openGround        0.5^0.35 * 0.16^0.65 = 0.2384061697
+    ///     pointsOfInterest  0.5^0.35 * 0.14^0.65 = 0.2185861922
+    ///     water             0.5^0.35 * 0.12^0.65 = 0.1977458197
+    ///     quietRoadside     0.5^0.35 * 0.12^0.65 = 0.1977458197
+    static var sceneryWeightScores: [(name: String, path: WritableKeyPath<SegmentTerms, Double>,
+                                      best: Double, expected: Double)] {
+        [("canopy", \.canopy, 1, 0.3102964512), ("relief", \.relief, 1, 0.2932339456),
+         ("openGround", \.impervious, 0, 0.2384061697),
+         ("pointsOfInterest", \.pointsOfInterest, 1, 0.2185861922),
+         ("water", \.water, 1, 0.1977458197), ("quietRoadside", \.furniture, 0, 0.1977458197)]
+    }
+
+    @Test("the scenery weights are exactly 0.24, 0.22, 0.16, 0.14, 0.12, 0.12 at the point of use, not merely ranked")
+    func sceneryWeightsAreExactlyTheDeclaredValuesAtThePointOfUse() throws {
+        // Rank is not value. Measured at `e2b77f5`: `0.25 * t.canopy` with `0.21 * t.relief` written into the
+        // sum keeps E at 1.00 exactly, keeps the declared order, keeps all ten literals green - and passed
+        // all 39 tests while moving every score in the corpus by about a percent at mid-range E. The test
+        // above cannot see it, because a shift that preserves order preserves rank by construction.
+        var walked = 0
+        for (name, path, best, expected) in Self.sceneryWeightScores {
+            var t = Self.sceneryFloor()
+            t[keyPath: path] = best
+            let score = try #require(SegmentScore.score(for: t))
+            #expect(abs(score - expected) < 1e-9, "\(name) alone must score \(expected); got \(score)")
+            walked += 1
+        }
+        // Without this the list could go to [] and the loop would assert nothing at all.
+        #expect(walked == 6, "a term added to E needs a line in sceneryWeightScores; walked \(walked)")
+    }
+
     // MARK: - the drive weights, at the point of use
 
     /// Every M term at 0, scenery held level at 0.5 so E = 0.5.
@@ -138,5 +183,35 @@ struct SegmentScoreWeightTests {
                 "elevation gain and speed fit are level; got \(scores[1].score) vs \(scores[2].score)")
         #expect(scores[2].score > scores[3].score,
                 "speed fit must outrank sinuosity; got \(scores[2].score) vs \(scores[3].score)")
+    }
+
+    /// The same four terms with the score each one produces alone. `driveFloor()` puts E at 0.5 and every M
+    /// term at 0, so one term at 1 makes M **exactly that term's weight** and the score is
+    /// `w^0.35 * 0.5^0.65`. Hand-computed in Python from the plan's stated weights and exponents:
+    ///
+    ///     curvature      0.45^0.35 * 0.5^0.65 = 0.4818977323
+    ///     elevationGain  0.20^0.35 * 0.5^0.65 = 0.3628198181
+    ///     speedFit       0.20^0.35 * 0.5^0.65 = 0.3628198181
+    ///     sinuosity      0.15^0.35 * 0.5^0.65 = 0.3280669216
+    static var driveWeightScores: [(name: String, path: WritableKeyPath<SegmentTerms, Double>,
+                                    expected: Double)] {
+        [("curvature", \.curvature, 0.4818977323), ("elevationGain", \.elevationGain, 0.3628198181),
+         ("speedFit", \.speedFit, 0.3628198181), ("sinuosity", \.sinuosity, 0.3280669216)]
+    }
+
+    @Test("the drive weights are exactly 0.45, 0.20, 0.20, 0.15 at the point of use, not merely ranked")
+    func driveWeightsAreExactlyTheDeclaredValuesAtThePointOfUse() throws {
+        // Measured at `e2b77f5`: `0.46 * t.curvature` with `0.14 * t.sinuosity` keeps M at 1.00 exactly and
+        // keeps curvature first, elevationGain level with speedFit and sinuosity last - so every literal,
+        // `curvatureDominatesM` and the rank test above all stay green, and all 39 tests passed.
+        var walked = 0
+        for (name, path, expected) in Self.driveWeightScores {
+            var t = Self.driveFloor()
+            t[keyPath: path] = 1
+            let score = try #require(SegmentScore.score(for: t))
+            #expect(abs(score - expected) < 1e-9, "\(name) alone must score \(expected); got \(score)")
+            walked += 1
+        }
+        #expect(walked == 4, "a term added to M needs a line in driveWeightScores; walked \(walked)")
     }
 }

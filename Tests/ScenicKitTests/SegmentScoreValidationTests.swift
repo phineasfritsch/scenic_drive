@@ -90,7 +90,11 @@ struct SegmentScoreValidationTests {
         // the OTHER kind of threshold in this file. -1.0 alone leaves a whole unit of slack below the floor:
         // measured, `t.tunnelMeters >= 0` could become `> -1` - accepting a broken ETL measurement of -0.5
         // and scoring it - with every test green, while this test's name says "not negative". The floor is a
-        // threshold like 300 and 150 are, and those two were pinned on both sides from the start.
+        // threshold like 300 and 150 are. A sentence here used to add "and those two were pinned on both
+        // sides from the start" - STRUCK IN ROUND 4, where it was measured false: 300 and 150 were probed at
+        // 301 and 149, the nearest INTEGERS, so `300.0 -> 300.5` and `150.0 -> 149.5` both survived all 39
+        // tests. `SegmentScoreThresholdTests` pins those two at the last representable Double now, which is
+        // what this comment already claimed of them.
         for bad in [-1.0, (0.0).nextDown, Double.nan, .infinity, -.infinity] {
             var t = Self.flat(0.5)
             t.tunnelMeters = bad
@@ -130,6 +134,21 @@ struct SegmentScoreValidationTests {
         var near = Self.flat(0.5)
         near.metersToNearestMotorway = 0
         #expect(abs(try #require(SegmentScore.score(for: near)) - 0.5 * 0.7) < 1e-12)
+    }
+
+    @Test("the default motorway distance is infinity, which is what makes the guard's asymmetry mean anything")
+    func defaultMotorwayDistanceIsInfinite() {
+        // The test above turns on `.infinity` being this field's DEFAULT and meaning "no motorway anywhere
+        // near" - and nothing asserted the default itself. Measured at `e2b77f5`: the initialiser could
+        // declare `metersToNearestMotorway: Double = 1000` with all 39 tests green, because 1000 is outside
+        // the 150 m window and no fixture that relies on the default would score differently. Every way the
+        // ETL builds without an explicit distance would then claim a motorway exactly 1 km away, and the
+        // reason the tunnel guard refuses infinity while this one accepts it would be a fiction.
+        #expect(SegmentTerms().metersToNearestMotorway == .infinity)
+        // Asserted as a property of the value and not only as a literal: no finite distance can be the
+        // default, however large, because the rule this field feeds is a comparison against 150.
+        #expect(SegmentTerms().metersToNearestMotorway.isInfinite)
+        #expect(!SegmentTerms().metersToNearestMotorway.isFinite)
     }
 
     @Test("a motorway with an out-of-range term is refused, not scored zero")

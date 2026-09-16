@@ -47,10 +47,11 @@ SCRATCH = ".artifacts/mutate-segmentscore"
 # EVERY test file that could catch a mutation, because --prove-vacuity has to empty all of them for its proof
 # to mean anything: one catching file left standing turns "MISSED with no tests present" into a lie.
 # Re-checked by grep, not by memory, each time this list changes: `grep -rln "SegmentScore\|SegmentTerms"
-# Tests/ Sources/` returns these THREE test files and the two sources and nothing else.
+# Tests/ Sources/` returns these FOUR test files and the two sources and nothing else.
 TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreValidationTests.swift",
-              ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreWeightTests.swift"]
+              ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreWeightTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "SegmentScoreThresholdTests.swift"]
 
 
 def empty_suite(path: pathlib.Path) -> str:
@@ -73,7 +74,7 @@ def empty_suite(path: pathlib.Path) -> str:
 # reason, and the floor stayed green while the comment above claimed it caught exactly that. A floor that
 # does not refuse what it is documented to refuse is worse than no floor, because it is believed. Raising
 # the population is a deliberate edit to these two numbers in the same commit.
-MIN_MUTATIONS = 58
+MIN_MUTATIONS = 64
 MIN_EQUIVALENT = 2
 
 # The ten `0...1` terms, transcribed from SegmentTerms rather than imported from it, so that a term renamed
@@ -160,7 +161,9 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
     # ten: curvature's. The three sum-preserving swaps below - open ground with points of interest, canopy
     # with water, elevation gain with sinuosity - each kept its set at 1.00 exactly and passed the whole
     # suite. `SegmentScoreWeightTests` asserts the full rank of both sets through the score, which is what
-    # can see them.
+    # can see them - and, since round 4, their full VALUE as well. Rank is the weaker claim: a SHIFT that
+    # moves two weights in opposite directions preserves both the sum and the order, so the rank assertions
+    # cannot see it. The last two entries in this section are those shifts, and both survived at e2b77f5.
     ("a coordinated pair of effective weights: the saturated product is still one, "
      "neither set sums to one", SCORE,
      "        let m = curvatureWeight * t.curvature\n"
@@ -212,6 +215,28 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
      "            + 0.14 * (1 - t.impervious)\n"
      "            + 0.16 * t.pointsOfInterest"),
 
+    # A SHIFT, not a swap: the three above exchange two weights, which reverses their order and is what a rank
+    # assertion sees. These move both weights of a pair in opposite directions by 0.01, so the set still totals
+    # 1.00 exactly AND the declared order is untouched - 0.25 > 0.21 > 0.16 > 0.14 > 0.12 == 0.12, and
+    # 0.46 > 0.20 == 0.20 > 0.14. Every literal, `weightSetsSumToOne`, `curvatureDominatesM` and both rank
+    # tests stay green, and every non-uniform way in the corpus scores differently. Both survived all 39 tests
+    # at e2b77f5; only a VALUE assertion can see them.
+    ("the effective E weights shift by 0.01, E still summing to one and the rank preserved", SCORE,
+     "        var e = canopyWeight * t.canopy\n"
+     "            + reliefWeight * t.relief",
+     "        var e = 0.25 * t.canopy\n"
+     "            + 0.21 * t.relief"),
+
+    ("the effective M weights shift by 0.01, M still summing to one and the rank preserved", SCORE,
+     "        let m = curvatureWeight * t.curvature\n"
+     "            + elevationGainWeight * t.elevationGain\n"
+     "            + speedFitWeight * t.speedFit\n"
+     "            + sinuosityWeight * t.sinuosity",
+     "        let m = 0.46 * t.curvature\n"
+     "            + elevationGainWeight * t.elevationGain\n"
+     "            + speedFitWeight * t.speedFit\n"
+     "            + 0.14 * t.sinuosity"),
+
     # --- the inverted terms -------------------------------------------------------------------------------
     ("impervious ground counts FOR the score", SCORE,
      "            + openGroundWeight * (1 - t.impervious)", "            + openGroundWeight * t.impervious"),
@@ -233,6 +258,13 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
      '    public static let dullClasses: Set<String> = ["motorway", "motorway_link", "trunk", "trunk_link",\n'
      '                                                  "secondary"]'),
 
+    # The class rule on the axis no fixture varied. Every test that exercised it left `surface` at its nil
+    # default, so the CLAUDE.md invariant "motorway/trunk carry scenic_score = 0" was pinned only for ways
+    # carrying no surface tag - which for a motorway in OSM is the minority. Survived all 39 tests at e2b77f5.
+    ("a dull class stops scoring zero once the way carries a surface tag", SCORE,
+     "        if dullClasses.contains(t.highway) { return 0 }",
+     "        if dullClasses.contains(t.highway), t.surface == nil { return 0 }"),
+
     # --- the soft multipliers -----------------------------------------------------------------------------
     ("the tunnel threshold becomes non-strict, so exactly 300 m is penalised", SCORE,
      "        if t.tunnelMeters > tunnelThresholdMeters { score *= tunnelMultiplier }",
@@ -252,6 +284,20 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
     ("motorway proximity reaches 1500 m instead of 150", SCORE,
      "    public static let motorwayProximityMeters = 150.0",
      "    public static let motorwayProximityMeters = 1500.0"),
+
+    # WHERE each of these two thresholds SITS, to the last representable Double. The four entries around them
+    # move a threshold by a factor of ten or flip its strictness, which an integer probe at 301 or 149 can
+    # see. These move it by HALF A METRE, which an integer probe cannot: both survived all 39 tests at
+    # e2b77f5, so a 300.4 m tunnel took no penalty and a way 149.8 m from a motorway took no x0.7 while the
+    # two tests named after those exact claims passed. Same defect, and the same fix, as the two guard floors
+    # in round 3 - and the comment that said these two were already done is struck above.
+    ("the tunnel threshold slips half a metre, so a 300.4 m tunnel is not penalised", SCORE,
+     "    public static let tunnelThresholdMeters = 300.0",
+     "    public static let tunnelThresholdMeters = 300.5"),
+
+    ("the motorway-proximity threshold slips half a metre, so a way 149.8 m away hears nothing", SCORE,
+     "    public static let motorwayProximityMeters = 150.0",
+     "    public static let motorwayProximityMeters = 149.5"),
 
     ("the soft multipliers replace one another instead of compounding", SCORE,
      "        if t.tunnelMeters > tunnelThresholdMeters { score *= tunnelMultiplier }\n"
@@ -315,9 +361,19 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
      "        // validation removed"),
 
     # --- the validation window, at its edges ---------------------------------------------------------------
-    # The third threshold in this file. The other two (tunnel 300/301, proximity 150/149) were pinned on both
-    # sides from the start; this one was probed only at 1.5 and -0.1, far enough outside that the window could
-    # move a quarter of its own width without any test noticing.
+    # This window is one of FIVE numeric thresholds in this file, not the third of three. What stood here from
+    # round 2 until round 4 was "The third threshold in this file. The other two (tunnel 300/301, proximity
+    # 150/149) were pinned on both sides from the start" - STRUCK, because it was false, and because it is the
+    # sentence a later agent reads when deciding which thresholds still need mutations. The round-3 Log
+    # declared it false and struck it in the Log and in the PR body; this copy, the one that actually steers
+    # the harness, was missed and stood verbatim at e2b77f5.
+    #
+    # The five: tunnel 300, motorway proximity 150, this window, and the two guard FLOORS at zero. The floors
+    # were probed at -1.0 only until round 3. Tunnel and proximity were probed at 301 and 149 - the nearest
+    # INTEGERS - until round 4, when `300.0 -> 300.5` and `150.0 -> 149.5` were both measured as survivors of
+    # all 39 tests. Every one of the five is probed at the last representable Double either side now, and
+    # every one carries its own mutation below. This window itself was probed only at 1.5 and -0.1 until
+    # round 2, far enough outside that it could move a quarter of its own width without any test noticing.
     ("the 0...1 validation window is widened to 0...1.25", SCORE,
      "        for term in t.unitTerms where !(term.value.isFinite && (0.0...1.0).contains(term.value)) {",
      "        for term in t.unitTerms where !(term.value.isFinite && (0.0...1.25).contains(term.value)) {"),
@@ -353,6 +409,15 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
     ("the motorway-distance floor slips from 0 down to -1, penalising a way that is nowhere near one", SCORE,
      "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway >= 0 else { return nil }",
      "        guard !t.metersToNearestMotorway.isNaN, t.metersToNearestMotorway > -1 else { return nil }"),
+
+    # The DEFAULT the guard above is asymmetric for. `motorwayDistanceIsValidated` turns on `.infinity` being
+    # this field's default and meaning "no motorway anywhere near", and nothing asserted the default itself:
+    # 1000 is outside the 150 m window, so every fixture that relies on the default scores identically and
+    # this survived all 39 tests at e2b77f5. A way built without an explicit distance would then claim a
+    # motorway exactly 1 km away.
+    ("SegmentTerms' default motorway distance stops being infinite", TERMS,
+     "                metersToNearestMotorway: Double = .infinity) {",
+     "                metersToNearestMotorway: Double = 1000) {"),
 
     # --- the ORDER of the shortcut and the validation ------------------------------------------------------
     # A motorway carrying a broken ETL term must still be REFUSED. With the shortcut moved above the checks it
