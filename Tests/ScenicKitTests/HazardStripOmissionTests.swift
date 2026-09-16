@@ -5,12 +5,14 @@ import Testing
 /// Everything about a hazard GOING MISSING, split out of `HazardStripTests` when that file reached the
 /// 300-line cap.
 ///
-/// Four review rounds have now found the same shape of defect here and only here, which is why it is worth
+/// Five review rounds have now found the same shape of defect here and only here, which is why it is worth
 /// its own file: a hazard can be lost at the BOTTOM of a range (below a threshold), at the TOP of one (a
 /// silent ceiling), at the END of the strip (a truncating cap), for missing a piece of METADATA that is not
-/// the hazard itself (an unattributed closure), for there being MORE of it than any fixture happened to
-/// carry (a third unknown tag, a second closure from one feed), or for its text being LONGER than any
-/// fixture happened to use. Every one of those was found by a mutation that the suite let through.
+/// the hazard itself (an unattributed closure), for what that metadata SAYS rather than for its absence (a
+/// closure that lifts at either end of `Date`), for there being MORE of it than any fixture happened to
+/// carry (a third unknown tag, a second closure from one feed), or for its text being LONGER - or SHORTER,
+/// once something trims it - than any fixture happened to use. Every one of those was found by a mutation
+/// that the suite let through.
 ///
 /// The fixture helper deliberately stays in `HazardStripTests` rather than being copied: one date fixture,
 /// not two that can drift. `ops/mutate/hazards.py` empties BOTH files for `--prove-vacuity`, and refuses if
@@ -41,16 +43,24 @@ struct HazardStripOmissionTests {
         #expect(HazardStrip.flags(for: facts).first == .unrecognised("mystery"))
     }
 
-    // MARK: - nothing is dropped for missing its ATTRIBUTION
+    // MARK: - nothing is dropped for its METADATA - for missing it, or for what it says
     //
     // The two empty strings in this file do not mean the same thing. For an unclassified tag the string IS
     // the hazard, so an empty one is nothing at all. For a closure the string is only the provenance, and
     // the hazard is the closure the router reported - at severity rank 0, "the route does not go through".
+    //
+    // `.closure` carries exactly TWO pieces of metadata, `source` and `until`, and a guard on either drops
+    // the same rank-0 flag. Both are pinned here, at both ends: `source` empty, whitespace and four
+    // thousand characters long; `until` nil and at each end of `Date`.
 
     @Test("an empty unknown TAG is not a hazard, because there the string IS the hazard")
     func emptyStringsIgnored() {
-        #expect(HazardStrip.flags(for: .init(unclassified: ["", "  "])).count == 1,
-                "a blank tag is not a hazard, but a whitespace one is still unknown text")
+        // The whitespace tag's TEXT is asserted and not merely its existence. This ended at `.count == 1`,
+        // which let `tag.trimmingCharacters(in: .whitespaces)` corrupt "  " into "" with nothing
+        // objecting - the sibling of the caught twenty-character truncation, one step less visible
+        // because the count does not move.
+        #expect(HazardStrip.flags(for: .init(unclassified: ["", "  "])) == [.unrecognised("  ")],
+                "a blank tag is not a hazard, but a whitespace one is still unknown text, unaltered")
         // This test used to end by asserting that a closure with an empty SOURCE produced nothing, which
         // pinned a rank-0 hazard silently vanishing. `unattributedClosureReachesTheStrip` now pins the
         // opposite, and `ops/mutate/hazards.py` carries the mutation that reinstates the dropping.
@@ -75,6 +85,13 @@ struct HazardStripOmissionTests {
         // An unnamed feed and a named one report the same number of hazards for the same route.
         #expect(HazardStrip.flags(for: .init(closures: [(source: "", until: nil)])).count
                 == HazardStrip.flags(for: .init(closures: [(source: "511 SF Bay", until: nil)])).count)
+
+        // BOTH halves of the metadata at their worst at once. This assertion lives here, in the test that
+        // owns the empty source, rather than in `closureUntilIsNotAGuard` which owns `until`: putting it
+        // there would have made that test a second guard on the empty source, and deleting this one -
+        // which is acceptance line 4 - would then have cost nothing and quietly stopped being a red run.
+        #expect(HazardStrip.flags(for: .init(closures: [(source: "", until: .distantPast)]))
+                == [.closure(source: "", until: .distantPast)])
     }
 
     @Test("a closure whose source is only whitespace still reaches the strip")
@@ -84,6 +101,28 @@ struct HazardStripOmissionTests {
         // `trimmingCharacters` one can come back without a named test objecting.
         let facts = HazardStrip.RouteFacts(closures: [(source: "   ", until: HazardStripTests.date(18))])
         #expect(HazardStrip.flags(for: facts) == [.closure(source: "   ", until: HazardStripTests.date(18))])
+    }
+
+    @Test("a closure reaches the strip whatever its until is, at both ends of the type")
+    func closureUntilIsNotAGuard() {
+        // The sixth review found this one. `source` was pinned in three directions - empty, whitespace,
+        // four thousand characters - and `until`, the OTHER half of the same rank-0 flag's metadata, took
+        // three values in the entire suite: nil, 18:00 and 21:00 on one 2026 evening. So a guard reading
+        // `where c.until.map({ $0 > <some date> }) ?? true`, or its mirror at the top, passed every
+        // fixture there was while a real closure vanished. nil is pinned by the fixtures above; these are
+        // the two ends of `Date`, outside which no such guard can hide.
+        //
+        // Written out rather than swept in a loop, on purpose: the review found this hole with the one-line
+        // check `grep -rho "until: [^),]*" Tests/ --include=*.swift`, which returned only `nil` and two
+        // hours of one 2026 evening. A loop variable would have answered that grep with `until: until`, and
+        // the next person doing the same audit would have had to read the fixture to learn anything.
+        #expect(HazardStrip.flags(for: .init(closures: [(source: "511 SF Bay", until: .distantPast)]))
+                == [.closure(source: "511 SF Bay", until: .distantPast)], "the bottom of the type")
+        #expect(HazardStrip.flags(for: .init(closures: [(source: "511 SF Bay", until: .distantFuture)]))
+                == [.closure(source: "511 SF Bay", until: .distantFuture)], "the top of the type")
+        // Both halves at their worst at once is pinned by `unattributedClosureReachesTheStrip`, which owns
+        // the empty source. Asserting it here as well would make this test a second guard on that, and
+        // acceptance line 4 - delete that test, lose exactly two mutations - would stop being red.
     }
 
     // MARK: - nothing is dropped at the TOP of a range, or off the END of the strip
@@ -175,6 +214,23 @@ struct HazardStripOmissionTests {
         // The end of the type: no finite gap can be a ceiling hiding above `.distantFuture`.
         #expect(HazardStrip.flags(for: .init(arrival: .distantFuture, civilTwilight: dusk))
                 == [.twilightArrival(at: .distantFuture)])
+    }
+
+    @Test("twilight fires wherever dusk itself falls, at both ends of the type")
+    func civilTwilightIsNotAGuard() {
+        // Found by the same audit as `closureUntilIsNotAGuard`, and it is the same hole: this flag needs
+        // TWO Dates and only `arrival` was ever moved. `twilightHasNoCeiling` takes arrival to the top of
+        // the type and leaves dusk at 19:00, and every other twilight fixture puts both times on one 2026
+        // evening - so a floor or a ceiling on `civilTwilight` passed the whole suite in both directions
+        // while the flag stopped firing.
+        #expect(HazardStrip.flags(for: .init(arrival: HazardStripTests.date(21),
+                                             civilTwilight: .distantPast))
+                == [.twilightArrival(at: HazardStripTests.date(21))], "dusk at the bottom of the type")
+        // And as high as dusk can go and still have an arrival after it: `.distantFuture` is the largest
+        // Date there is, so dusk one hour below it leaves no room for a ceiling in between.
+        #expect(HazardStrip.flags(for: .init(arrival: .distantFuture,
+                                             civilTwilight: Date.distantFuture.addingTimeInterval(-3600)))
+                == [.twilightArrival(at: .distantFuture)], "dusk one hour below the top of the type")
     }
 
     // MARK: - nothing is dropped for there being MANY of it, or for being long

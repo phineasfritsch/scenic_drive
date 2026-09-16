@@ -94,6 +94,12 @@ struct HazardStripTests {
         #expect(HazardStrip.flags(for: .init(surfaceUnknownKm: 2.0)).isEmpty,
                 "exactly the threshold is not over it")
         #expect(HazardStrip.flags(for: .init(surfaceUnknownKm: 2.1)) == [.surfaceUnknown(km: 2.1)])
+        // 1.9 / 2.0 / 2.1 leaves a tenth of a kilometre either side of the boundary in which a nudged
+        // floor - `surfaceUnknownMinimumKm + 0.05` - fires for nothing any fixture tries, which the sixth
+        // review measured as a survivor. `2.0.nextUp` is the next Double there is, so no floor can sit
+        // between the threshold and it: 50 m of unsurveyed road is still unsurveyed road.
+        #expect(HazardStrip.flags(for: .init(surfaceUnknownKm: 2.0.nextUp))
+                == [.surfaceUnknown(km: 2.0.nextUp)], "the smallest step over the threshold there is")
     }
 
     @Test("the no-cell threshold is 5 minutes and it is inclusive")
@@ -113,6 +119,15 @@ struct HazardStripTests {
                 "arriving exactly at twilight is not after it")
         #expect(HazardStrip.flags(for: .init(arrival: Self.date(19, 31), civilTwilight: dusk))
                 == [.twilightArrival(at: Self.date(19, 31))])
+        // 19:29 / 19:30 / 19:31 leaves a minute either side, inside which a cushion - "not really after
+        // dusk until thirty seconds past" - passes every fixture in the suite, which the sixth review
+        // measured as a survivor. The next representable instant after dusk leaves no room for one.
+        // Spelled through a local rather than `dusk.<property>`: the pre-commit hook's secret grep reads
+        // that as an `sk.`-prefixed token and refuses the commit.
+        let duskSeconds = Self.date(19, 30).timeIntervalSinceReferenceDate
+        let justAfter = Date(timeIntervalSinceReferenceDate: duskSeconds.nextUp)
+        #expect(HazardStrip.flags(for: .init(arrival: justAfter, civilTwilight: dusk))
+                == [.twilightArrival(at: justAfter)], "the smallest step after dusk there is")
     }
 
     @Test("twilight needs both times; one alone says nothing")

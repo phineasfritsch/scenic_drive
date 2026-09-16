@@ -48,6 +48,15 @@ used at most two distinct unknown tags, gave no two closures the same source, ke
 eleven characters or fewer, and never put an arrival more than two hours after dusk. Five mutations built
 on exactly those four facts survived the whole suite. They are here now, and each one is a hazard a driver
 would not be shown.
+
+The batch added after the SIXTH review is that lesson in the last dimension left: a VALUE that is not a
+count, a length or a magnitude. `.closure` carries two pieces of metadata and only `source` was pinned;
+`until` took three values in the entire suite (nil, 18:00, 21:00 on one 2026 evening), so a guard on it
+dropped a rank-0 hazard with nothing objecting. The audit that followed found the same hole on
+`civilTwilight` - the twilight flag needs two Dates and only `arrival` was ever moved to the end of its
+type - and two threshold nudges that fit inside the gap between a probe and its neighbour (a floor at
+2.05 km, a thirty-second cushion after dusk). A DATE field is swept when both ends of the type are
+probed, exactly as `Int.max` and `.greatestFiniteMagnitude` sweep the numeric ones.
 """
 from __future__ import annotations
 
@@ -95,7 +104,12 @@ def empty_suite(path: pathlib.Path) -> str:
 # plus one for the empty-TAG guard, which the closure fix left with a test but no mutation.
 # 28 -> 33: the five survivors the FOURTH PR #80 review found, all of them caps or guards on a COUNT or a
 # LENGTH that no fixture in the suite exceeded.
-MIN_MUTATIONS = 33
+# 33 -> 40: the SIXTH review's survivor on `until` and its mirror at the other end of Date; the two the
+# audit for siblings then found on `civilTwilight`, which is the same hole on the other flag that needs
+# two Dates; the tag-trimming survivor the review reported as MINOR 2; and the two threshold nudges it
+# reported as MINOR 1, which sit inside the gap between a probe and its neighbour rather than above the
+# largest one.
+MIN_MUTATIONS = 40
 MIN_EQUIVALENT = 3
 
 MUTATIONS = [
@@ -292,6 +306,50 @@ MUTATIONS = [
      "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight {",
      "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight,\n"
      "           arrival.timeIntervalSince(twilight) <= 7200 {"),
+
+    # --- a guard on a DATE, which is neither a count, a length nor a magnitude --------------------------
+    # The SIXTH review's survivor and the siblings the audit for it turned up. `.closure` carries two
+    # pieces of metadata; `source` was pinned empty, whitespace and four thousand characters long, and
+    # `until` had three values in the whole suite, so either of the first two mutations took a rank-0
+    # hazard off a driver's screen with no test objecting. `civilTwilight` is the same hole on the only
+    # other flag that needs two Dates: every ceiling probe moved `arrival` and left dusk at 19:00.
+    ("drop a closure that lifted before the epoch - a guard on `until`, the metadata nobody swept", STRIP,
+     "        for c in facts.closures {",
+     "        for c in facts.closures"
+     " where c.until.map({ $0 > Date(timeIntervalSince1970: 0) }) ?? true {"),
+
+    ("drop a closure that lifts after 3.0e9 - the same guard on `until`, at the other end", STRIP,
+     "        for c in facts.closures {",
+     "        for c in facts.closures"
+     " where c.until.map({ $0 < Date(timeIntervalSinceReferenceDate: 3.0e9) }) ?? true {"),
+
+    ("twilight stops firing when DUSK itself is before the epoch", STRIP,
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight {",
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight,\n"
+     "           twilight > Date(timeIntervalSince1970: 0) {"),
+
+    ("twilight stops firing when DUSK itself is past 3.0e9", STRIP,
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight {",
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight,\n"
+     "           twilight < Date(timeIntervalSinceReferenceDate: 3.0e9) {"),
+
+    # --- corruption rather than omission, and a threshold moved INSIDE a probe gap ----------------------
+    # The review's MINOR 2 and MINOR 1. The first is the sibling of the caught twenty-character
+    # truncation, one step less visible because the count does not move. The last two do not sit above the
+    # largest value any sweep reaches - the limit a finite suite cannot remove - but BETWEEN two adjacent
+    # probes, which `2.0.nextUp` and the next representable instant after dusk now close.
+    ("trim an unknown tag's text, corrupting a whitespace-only tag into an empty one", STRIP,
+     "            out.append(.unrecognised(tag))",
+     "            out.append(.unrecognised(tag.trimmingCharacters(in: .whitespaces)))"),
+
+    ("nudge the surface floor by 0.05 km, inside the 1.9 / 2.0 / 2.1 probe gap", STRIP,
+     "        if facts.surfaceUnknownKm > surfaceUnknownMinimumKm {",
+     "        if facts.surfaceUnknownKm > surfaceUnknownMinimumKm + 0.05 {"),
+
+    ("a thirty-second cushion after dusk, inside the one-minute probe gap", STRIP,
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight {",
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight,\n"
+     "           arrival.timeIntervalSince(twilight) > 30 {"),
 ]
 
 # Cannot change behaviour, so a catch here is a FAILURE.
