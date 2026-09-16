@@ -15,9 +15,9 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test --scratch-path .build-T0116 -> Test run with 50 tests in 7 suites passed, exit 0"
-  - "python ops/mutate/budget.py -> caught by a named test: 41 of 41   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
-  - "python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=41 of 41, exit 0"
+  - "swift test --scratch-path .build-T0116 -> Test run with 53 tests in 7 suites passed, exit 0"
+  - "python ops/mutate/budget.py -> caught by a named test: 49 of 49   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
+  - "python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=49 of 49, exit 0"
   - "python ops/mutate/budget.py --prove-floor -> FLOOR PROOF OK: emptied -> refused=True, one deleted -> refused=True, real -> accepted=True, exit 0"
   - "python ops/mutate/budget.py --prove-dirty -> DIRTY PROOF OK: committed -> accepted=True, mutated -> refused=True, exit 0"
   - "python ops/mutate/budget.py --prove-blind -> BLIND PROOF OK: differs=True, names every uncompared subject=True, subprocess restored=True, exit 0"
@@ -421,9 +421,12 @@ path (`python .artifacts/probe_new.py .build-probe-before`): baseline green, the
       abandons it and returns lambda 4 instead of 7.75 for the identical 3300 seconds of driving. Every
       other flat curve here sits well under its ceiling, where the two spellings cannot disagree.
   RED, both against `git show HEAD:` bytes, restored and verified afterwards:
-  `A1 exit=1 FAILED: a duration just over the ceiling must steer the bracket DOWN` - that test and no
-  other; `A2 exit=1 FAILED: a duration exactly on the ceiling must steer the bracket UP` - that test and no
-  other. Both are in `MUTATIONS`, and `MIN_MUTATIONS` is the new literal length.
+  `A1 exit=1 FAILED: a duration just over the ceiling must steer the bracket DOWN` - **at 84f9c82**, that
+  test and no other; `A2 exit=1 FAILED: a duration exactly on the ceiling must steer the bracket UP` - **at
+  84f9c82**, that test and no other. Both are in `MUTATIONS`, and `MIN_MUTATIONS` is the new literal length.
+  *"That test and no other" is a property of the suite at the commit it was measured at, and the fifth pass
+  changed the suite: re-read there, each of these now fails two named tests. The numbers are in that
+  section, not guessed from here.*
 - 2026-09-15T22:00:00Z **The new suite went into `TEST_FILES` in the same commit, and that entry was
   DEMONSTRATED load-bearing rather than argued from the last time.** `.artifacts/testfilesprobe.py` runs the
   shipped driver over the one mutation only the steering suite catches: with the suite missing from the
@@ -531,3 +534,8 @@ path (`python .artifacts/probe_new.py .build-probe-before`): baseline green, the
   **Not one line of `Sources/` changed in this pass either** - LambdaSearch.swift 2e420d88,
   BudgetError.swift 4b3c09f7, BudgetOutcome.swift c0db374c, on disk and at HEAD, checked after every
   mutating run. This commit is tests, the harness and the record, exactly as the three before it.
+- 2026-09-15T23:45:00Z **Finished by the orchestrator: the agent doing this pass was killed by an HTTP 429** (`rateLimitType: five_hour`, `overageStatus: rejected`, `overageDisabledReason: org_level_disabled`) and never committed. Its work was complete; what it had not reached was the acceptance block and the commit.
+- 2026-09-15T23:45:00Z It died mid-mutation and left `.artifacts/budget-mutation-in-flight` on disk - **the sentinel it added in an earlier round, doing exactly its job.** All three subjects were hashed against `HEAD` before it was cleared: `LambdaSearch.swift`, `BudgetError.swift` and `BudgetOutcome.swift` all clean, so the mutation had been restored before the process went.
+- 2026-09-15T23:45:00Z **The fifth review's BLOCKING finding is closed, verified by reading test NAMES rather than an exit code.** Mutating the RETURN guard at `LambdaSearch.swift:77`: `d <= ceiling + 0.5`, `d <= ceiling * 1.0001` and `d <= ceiling.nextUp` each fail `a route exactly on the ceiling is returned; a route one bit over it is refused` **and** `the bracket turns at exactly the ceiling: one bit over must steer DOWN`. The CONTROL, `d < ceiling`, fails five tests including `a duration exactly on the ceiling must steer the bracket UP` - so the boundary is pinned from both sides, not bracketed.
+- 2026-09-15T23:45:00Z **MY OWN FIRST MEASUREMENT OF THAT WAS A FALSE ALARM, and the cause is a defect I had already filed and fixed elsewhere.** My ad-hoc checker reported `+0.5 -> objecting tests: NONE`, which would have meant the product's central invariant was still unguarded. It was wrong: the script built into a FRESH scratch directory and hit the `unable to create symbolic link ... I/O error (code: 512)` failure on the first attempt, so the run produced no test output at all - no names, exit 1, reading exactly like "nothing objected". That is [[T-0132]]'s second defect, which I fixed in five harnesses and did not apply to my own script. Checking why the odd one out differed from its two siblings is the only reason it was caught.
+- 2026-09-15T23:45:00Z GREEN, all measured after the takeover: `swift test` -> **53 tests in 7 suites passed**. `python ops/mutate/budget.py` -> **49 of 49 caught by a named test**, 0 trapped, 0 compile-only, 0 MISSED, 0 skipped. `--prove-vacuity` -> `caught=0 (need 0) and MISSED=49 of 49`. `--prove-floor`, `--prove-dirty` and `--prove-blind` all OK. The acceptance block said 50 tests and 41 of 41 - two rounds stale, because the agent added mutations and tests and died before updating it. Corrected to what the commands print. Each `PROOF OK` implies exit 0 by construction: `budget.py:278` is `return 0 if ok else 1` with the printed verdict from the same `ok`.

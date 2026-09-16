@@ -192,6 +192,30 @@ struct LambdaSearchRefusalTests {
         }
     }
 
+    @Test("when both inputs are nonsense the refusal names the duration, which is checked first")
+    func bothBadInputsAreReportedAsTheDuration() {
+        // An OBSERVATION from the fifth review rather than a finding, closed here because it costs one
+        // fixture: swapping the two constructor guards survives the whole suite, because every case in
+        // `refusesBadInputs` carries exactly ONE bad value and the guards only disagree when both are bad.
+        //
+        // Which guard runs first is a free choice. Which field the sentence names is not: swapped, a caller
+        // holding (-1, -1) is told the budget is the problem while the duration is equally wrong, and the
+        // first thing anyone does with that sentence is go and look at the budget.
+        do {
+            _ = try LambdaSearch(fastest: -1, budget: -1)
+            Issue.record("both inputs are invalid and must be refused")
+        } catch let e as BudgetError {
+            guard case let .notADuration(t) = e else {
+                Issue.record("wrong case: \(e)"); return
+            }
+            #expect(t == -1)
+            #expect(String(describing: e)
+                    == "fastest duration is not a positive finite number of seconds: -1.0")
+        } catch {
+            Issue.record("wrong error type: \(error)")
+        }
+    }
+
     @Test("the search propagates a router error rather than swallowing it")
     func propagatesRouterErrors() throws {
         struct Offline: Error {}

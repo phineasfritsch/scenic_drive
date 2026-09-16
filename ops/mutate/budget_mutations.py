@@ -15,8 +15,9 @@ is a deliberate edit somebody has to justify in a diff.
 THE FLOOR IS THE REAL COUNT, and that is a correction. It used to be 22 against a population of 34, with a
 comment saying it "catches an emptied or gutted population and nothing finer" - so deleting twelve entries
 still read as a clean sheet, and the third review said plainly that a floor which does not refuse what it is
-documented to refuse is not a floor. MIN_MUTATIONS is now the exact length of the list, written as a LITERAL
-(`len(MUTATIONS)` would move down with the list and refuse nothing), so deleting ONE entry refuses. The cost
+documented to refuse is not a floor. MIN_MUTATIONS is now the exact length of the COMPOSED list - the core
+entries below plus BOUNDARY_MUTATIONS from budget_boundaries.py - written as a LITERAL (`len(MUTATIONS)`
+would move down with the list and refuse nothing), so deleting ONE entry from either file refuses. The cost
 is that adding a mutation means editing the number a few lines above the list you just edited;
 `--prove-floor` demonstrates the empty case AND the one-entry-short case, so the number is never taken on
 trust.
@@ -28,28 +29,22 @@ a condition" shape. A floor counts entries; only an attack finds the missing one
 """
 from __future__ import annotations
 
-import pathlib
-
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-SRC = ROOT / "Sources" / "ScenicKit" / "Budget" / "LambdaSearch.swift"
-ERR = ROOT / "Sources" / "ScenicKit" / "Budget" / "BudgetError.swift"
-OUT = ROOT / "Sources" / "ScenicKit" / "Budget" / "BudgetOutcome.swift"
-
-# Every source a mutation may touch. The driver snapshots and restores exactly these.
-SUBJECTS = (SRC, ERR, OUT)
+from budget_boundaries import BOUNDARY_MUTATIONS
+from budget_paths import ERR, OUT, SRC
 
 # TEST_FILES - the suites --prove-vacuity empties - moved to budget_tree.py when this file hit the 300-line
-# cap again. That module is "what the run does to the working tree", and emptying and restoring four tracked
-# test files is exactly that; its docstring was already the place explaining why they are exempt from the
-# HEAD check. This file keeps what to break; that one keeps what the run writes to.
+# cap the first time, and the subject PATHS moved to budget_paths.py when it hit the cap again. That module
+# is "what the run does to the working tree"; this one keeps what to break. The paths left because
+# budget_boundaries.py needs them too and importing them back out of this file would be a cycle.
 
-# The exact size of the list below, as a literal. Not a slack bound: at MIN_MUTATIONS = 22 against 34
+# The exact size of the COMPOSED list, as a literal. Not a slack bound: at MIN_MUTATIONS = 22 against 34
 # entries, deleting twelve mutations printed a clean sheet, which is the same "documented to refuse
-# something it does not refuse" defect the tests in this package keep being blocked for. MIN_EQUIVALENT is
-# in budget_arms.py, next to the list IT counts.
-MIN_MUTATIONS = 41
+# something it does not refuse" defect the tests in this package keep being blocked for. It counts the
+# boundary entries too, so deleting one from EITHER file refuses. MIN_EQUIVALENT is in budget_arms.py, next
+# to the list IT counts.
+MIN_MUTATIONS = 49
 
-MUTATIONS = [
+_CORE = [
     # --- structural: the author's original eight ------------------------------------------------------
     ("return the bracket instead of a measured candidate", SRC,
      "        return BudgetOutcome(\n            lambda: winner.lambda,\n"
@@ -269,31 +264,11 @@ MUTATIONS = [
      "            guard d.isFinite, d >= 0 else {",
      "            guard d.isFinite, d >= -Double.leastNonzeroMagnitude else {"),
 
-    # --- the fourth review's F-SG1, and N-SG5 beside it -----------------------------------------------
-    # The BRACKET-STEERING guard at LambdaSearch.swift:94 - NOT the `best` guard at :77 that the second
-    # entry of this list covers. :77 decides what may be RETURNED; :94 decides what is ever MEASURED, and
-    # only a measured route can be returned, so the Log sentence calling this one "a no-op" that "makes the
-    # search waste an evaluation" was false and is struck where it stands. The reviewer's standalone sweep
-    # measured 1066 of 7296 cases changing, 158 of them the RETURNED DURATION; what was re-run here is that
-    # both spellings survived all 48 tests at 6863e29, and that each now fails a test by name.
-    #
-    # The predecessor entry names the line it does NOT touch ("on the guard that enforces it") and was read
-    # for three rounds as covering both. An entry distinguished from its sibling only in prose gets read as
-    # the sibling.
-    ("let the ceiling slip by one percent, on the guard that STEERS the bracket", SRC,
-     "            if d <= ceiling {",
-     "            if d <= ceiling * 1.01 {"),
-
-    # The other direction, which no fixture could see: a route landing EXACTLY on the ceiling fits - the
-    # invariant is `<=` - so the upper half of the bracket is still worth searching. Every other flat curve
-    # here sits well under its ceiling, where `<` and `<=` cannot disagree.
-    ("a duration exactly on the ceiling steers the bracket downward", SRC,
-     "            if d <= ceiling {",
-     "            if d < ceiling {"),
-
-    # N-SG5. The ceiling sweep used whole-minute budgets only, so `ceiling` had no witness at a FRACTIONAL
-    # one: 715 of 7296 cases changed, an 1800.4 s ceiling reading back as 1800.0, and nothing objected.
-    ("the outcome rounds the ceiling to a whole second", OUT,
-     "        self.ceiling = ceiling",
-     "        self.ceiling = ceiling.rounded()"),
 ]
+
+# The fourth review's F-SG1 and N-SG5 entries used to close this list and are now the first three entries of
+# budget_boundaries.py, which is where the fifth review's four thresholds joined them. The split is along
+# the line the comment at the head of this list already draws - everything above DELETES a guard, INVERTS a
+# comparison or swaps one field for another; everything there MOVES A NUMBER by a hair - and it happened
+# because this file hit the 300-line cap for the third time.
+MUTATIONS = _CORE + BOUNDARY_MUTATIONS

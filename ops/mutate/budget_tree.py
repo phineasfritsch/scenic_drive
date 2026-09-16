@@ -32,7 +32,8 @@ from __future__ import annotations
 import pathlib
 import subprocess
 
-from budget_mutations import MUTATIONS, ROOT, SUBJECTS
+from budget_mutations import MUTATIONS
+from budget_paths import ROOT, SUBJECTS
 
 # ALL FOUR suites, and the count in this sentence is part of the claim. reviewer-pr71's blocking finding:
 # commit bc5e7f6 split ten tests into LambdaSearchBudgetUseTests.swift and --prove-vacuity kept emptying
@@ -52,6 +53,13 @@ from budget_mutations import MUTATIONS, ROOT, SUBJECTS
 # standing, it catches "let the ceiling slip by one percent, on the guard that STEERS the bracket" - the one
 # mutation only it catches - and the run reports `VACUITY PROOF FAILED: caught=1 (need 0)`, exit 1. Listed,
 # the same mutation goes MISSED 1 of 1, exit 0. Both runs are in the task Log.
+#
+# BOTH demonstrations above were RE-RUN in the fifth fix pass rather than carried forward. Three of these
+# four suites gained tests that round, and "the one mutation only it catches" is a property of the whole set
+# of suites, so a proof measured before the files it is about change is a claim and not a measurement. Both
+# still reproduce against this tree: dropped -> `VACUITY PROOF FAILED: with no tests present, caught=1
+# (need 0) and MISSED=0 of 1`, exit 1; shipped -> `VACUITY PROOF OK: ... caught=0 (need 0) and
+# MISSED=1 of 1`, exit 0. The re-run is in the task Log.
 TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchBudgetUseTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchRefusalTests.swift",

@@ -18,7 +18,7 @@ keeps being blocked for. KNOWN_MISSED has no floor and needs none: empty is the 
 """
 from __future__ import annotations
 
-from budget_mutations import SRC
+from budget_paths import SRC
 
 # Mutations this suite is KNOWN not to catch, asserted the other way round: the arm FAILS if one starts
 # being MISSED no longer, because a gap that closed should move up into MUTATIONS.

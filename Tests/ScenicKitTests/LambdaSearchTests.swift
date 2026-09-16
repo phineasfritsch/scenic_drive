@@ -66,32 +66,9 @@ struct LambdaSearchTests {
         #expect(LambdaSearch.minBudgetUse == 0.5)
     }
 
-    @Test("a route that buys well under half the budget has not used it")
-    func partialBudgetIsNotUsed() throws {
-        // The fixture the suite was missing. Existing tests buy either 93% of the budget or none of it, so
-        // any threshold in between passed. This one buys about 40%: over zero, under half.
-        //
-        // usedBudget's own doc comment says a user offered 25 minutes and handed 90 seconds "has been told
-        // yes and given no" - and with minBudgetUse at 0.05 that user was being told yes.
-        let budget = Self.budget                                    // 1500 s
-        let target = Self.fastest + 0.4 * budget                    // 40% of it
-        let plateau: (Double) -> TimeInterval = { $0 < 1.0 ? Self.fastest : target }
-        let search = try LambdaSearch(fastest: Self.fastest, budget: budget)
-        let out = try search.search(plateau)
-        #expect(out.duration == target)
-        #expect(!out.usedBudget, "40% of the budget is not half of it")
-
-        // And just over half is used. That BRACKETS the threshold in (0.4, 0.55] and does not pin it - the
-        // sentence that used to stand here claimed it "pins a boundary rather than a direction", which is
-        // the false-claim half of finding F3 and was left standing over the test it is false about while F3
-        // itself was closed elsewhere. The boundary is pinned by `usedBudgetBoundaryIsExact` at 2550/2549 s;
-        // what these two fixtures own is the 40%-of-budget case the suite had no example of at all.
-        let justOver = Self.fastest + 0.55 * budget
-        let plateau2: (Double) -> TimeInterval = { $0 < 1.0 ? Self.fastest : justOver }
-        let out2 = try LambdaSearch(fastest: Self.fastest, budget: budget).search(plateau2)
-        #expect(out2.duration == justOver)
-        #expect(out2.usedBudget)
-    }
+    // `partialBudgetIsNotUsed` lived here and is now in `LambdaSearchBudgetUseTests`, beside
+    // `usedBudgetBoundaryIsExact`, whose comment already referred to it across the file boundary: this
+    // suite asks whether the ceiling holds, that one asks whether the budget is spent.
 
     @Test("among equally fast feasible routes, the most scenic one wins")
     func tieBreaksTowardTheHigherLambda() throws {
@@ -227,6 +204,35 @@ struct LambdaSearchTests {
         let out = try search.search(barelyOver)
         #expect(out.duration <= ceiling)                 // the local constant, computed above
         #expect(out.duration == Self.fastest, "the only feasible route here is the fastest one")
+    }
+
+    @Test("a route exactly on the ceiling is returned; a route one bit over it is refused")
+    func ceilingBoundaryIsExactToTheLastBit() throws {
+        // The test above puts its infeasible sample at ceiling + 1 and `ceilingAlwaysHolds` sweeps smooth
+        // curves that never land near the boundary, so between them the guard that decides what may be
+        // RETURNED was constrained only to [ceiling, ceiling + 1). `d <= ceiling + 0.5`, `* 1.0001` and
+        // `.nextUp` each survived all 50 tests with no named test objecting, and each hands back an ETA over
+        // the ceiling - the CLAUDE.md invariant itself, and `ceiling + 1e-9` is how a developer would spell
+        // it. Same defect and same repair as `routerGuardBoundaryIsExactlyZero`.
+        //
+        // Both sides are needed. Exactly on the ceiling FITS - the invariant is `<=` - so a fixture that
+        // only refuses is satisfied by a guard refusing too much; one ULP over does not fit, and no Double
+        // lies in between for a threshold to hide in.
+        let ceiling = Self.fastest + Self.budget                 // 3300, computed here
+        let onTheCeiling: (Double) -> TimeInterval = { $0 == 0 ? Self.fastest : ceiling }
+        let out = try LambdaSearch(fastest: Self.fastest, budget: Self.budget).search(onTheCeiling)
+        #expect(out.duration == 3300, "a route landing exactly on fastest + budget fits")
+        #expect(out.lambda == 7.75, "every candidate fits, so the bracket climbs 0, 4, 6, 7, 7.5, 7.75")
+        #expect(out.usedBudget)
+
+        // One ULP over: 3300.0000000000005 s. Nothing but the seed fits, so the bisection halves downward
+        // (0, 4, 2, 1, 0.5, 0.25) and the fastest route is the whole answer.
+        let aHairOver: (Double) -> TimeInterval = { $0 == 0 ? Self.fastest : ceiling.nextUp }
+        let out2 = try LambdaSearch(fastest: Self.fastest, budget: Self.budget).search(aHairOver)
+        #expect(out2.duration == 1800, "one bit over a 3300 s ceiling is over the ceiling")
+        #expect(out2.duration <= ceiling)
+        #expect(out2.lambda == 0)
+        #expect(!out2.usedBudget)
     }
 
     @Test("a well-behaved router is not falsely accused of non-monotonicity")

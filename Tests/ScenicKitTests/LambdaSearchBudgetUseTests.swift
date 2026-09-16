@@ -11,8 +11,15 @@ import Testing
 /// holds, this asks whether the budget is used, and the third asks what happens when it cannot be.
 ///
 /// A split is also the one edit that has silently broken the mutation harness before (a suite the vacuity
-/// proof did not know to empty), so `TEST_FILES` in ops/mutate/budget_mutations.py lists all three and
+/// proof did not know to empty), so `TEST_FILES` lists every suite that can see these types and
 /// `--prove-vacuity` fails loudly if one is missing.
+///
+/// That sentence named `ops/mutate/budget_mutations.py` and "all three" until the fifth review, and by then
+/// both halves were false: `TEST_FILES` moved to ops/mutate/budget_tree.py in the same commit range that
+/// wrote the sentence, and the list had grown a fourth suite. A count copied instead of recounted, in a
+/// comment whose subject is a split silently breaking the harness. The count is deliberately not repeated
+/// here now - `grep -n TEST_FILES ops/mutate/*.py` is the one place it lives, and a number in prose beside
+/// it is a second copy that can only go stale.
 @Suite("Lambda search - budget use and cost")
 struct LambdaSearchBudgetUseTests {
 
@@ -112,6 +119,37 @@ struct LambdaSearchBudgetUseTests {
 
     // MARK: - the boundaries (reviewer-pr71, finding F3; the errors are in LambdaSearchRefusalTests)
 
+    @Test("a route that buys well under half the budget has not used it")
+    func partialBudgetIsNotUsed() throws {
+        // Moved here from `LambdaSearchTests` in the fifth fix pass. It is a usedBudget fixture, its own
+        // comment already pointed across the file boundary at `usedBudgetBoundaryIsExact` below, and the
+        // suite it left is the one that asks whether the CEILING holds.
+        //
+        // The fixture the suite was missing. Existing tests buy either 93% of the budget or none of it, so
+        // any threshold in between passed. This one buys about 40%: over zero, under half.
+        //
+        // usedBudget's own doc comment says a user offered 25 minutes and handed 90 seconds "has been told
+        // yes and given no" - and with minBudgetUse at 0.05 that user was being told yes.
+        let budget = Self.budget                                    // 1500 s
+        let target = Self.fastest + 0.4 * budget                    // 40% of it
+        let plateau: (Double) -> TimeInterval = { $0 < 1.0 ? Self.fastest : target }
+        let search = try LambdaSearch(fastest: Self.fastest, budget: budget)
+        let out = try search.search(plateau)
+        #expect(out.duration == target)
+        #expect(!out.usedBudget, "40% of the budget is not half of it")
+
+        // And just over half is used. That BRACKETS the threshold in (0.4, 0.55] and does not pin it - the
+        // sentence that used to stand here claimed it "pins a boundary rather than a direction", which is
+        // the false-claim half of finding F3 and was left standing over the test it is false about while F3
+        // itself was closed elsewhere. The boundary is pinned by `usedBudgetBoundaryIsExact`; what these two
+        // fixtures own is the 40%-of-budget case the suite had no example of at all.
+        let justOver = Self.fastest + 0.55 * budget
+        let plateau2: (Double) -> TimeInterval = { $0 < 1.0 ? Self.fastest : justOver }
+        let out2 = try LambdaSearch(fastest: Self.fastest, budget: budget).search(plateau2)
+        #expect(out2.duration == justOver)
+        #expect(out2.usedBudget)
+    }
+
     @Test("usedBudget is true at exactly half the budget and false just under it")
     func usedBudgetBoundaryIsExact() throws {
         // F3: the documented "at least half" boundary had no witness. partialBudgetIsNotUsed pinned the
@@ -127,6 +165,17 @@ struct LambdaSearchBudgetUseTests {
         let justUnder = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
             .search { _ in 2549 }
         #expect(!justUnder.usedBudget, "one second under the half-budget boundary is not using the budget")
+
+        // 2550 and 2549 BRACKET the threshold in (2549, 2550] and pin nothing inside it, which is the F3
+        // shape one order of magnitude down: `>= fastest + minBudgetUse * budget - 0.1` survived all 50
+        // tests, and a route buying 749.95 s of a 1500 s budget was then reported as having used at least
+        // half of it. The far side is therefore the largest Double BELOW 2550 rather than a round number:
+        // every threshold `t <= 2550.nextDown` calls it used and every `t > 2550` refuses the case above,
+        // so the two together admit only t == 2550. Pinned, not bracketed.
+        let oneBitUnder = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
+            .search { _ in (2550 as TimeInterval).nextDown }
+        #expect(!oneBitUnder.usedBudget,
+                "2549.9999999999995 s is under 2550 s, and the rule is at least half")
 
         let wellOver = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
             .search { _ in 3000 }

@@ -10,9 +10,11 @@ suite and requires every mutation to report MISSED. A harness that still reports
 present is measuring the compiler. Emptying only one of two suites is how this proof was false once; the
 wording is plural because the code is.
 
-This file is the protocol. The mutations that must be caught are in budget_mutations.py, the two arms that
-must go MISSED in budget_arms.py, and what the run does to the working tree in budget_tree.py - each split
-off at the 300-line cap. Contract, unchanged from ops/mutate/gates.py and T-0132:
+This file is the protocol. The mutations that must be caught are in budget_mutations.py and, for the ones
+that move a threshold by a hair rather than delete a guard, budget_boundaries.py; the two arms that must go
+MISSED are in budget_arms.py; what the run does to the working tree is in budget_tree.py; and the three
+subject paths they all share are in budget_paths.py - each split off at the 300-line cap, along a boundary
+of meaning rather than at a line number. Contract, unchanged from ops/mutate/gates.py and T-0132:
   * the pass condition is `caught == len(MUTATIONS)`; a trap, a compile failure and a stale anchor each FAIL;
   * `--prove-vacuity` requires `caught == 0` AND `missed == len(MUTATIONS)`;
   * the EQUIVALENT and KNOWN_MISSED arms require MISSED specifically, not merely "not caught";
@@ -35,7 +37,8 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from budget_arms import EQUIVALENT, KNOWN_MISSED, MIN_EQUIVALENT
-from budget_mutations import MIN_MUTATIONS, MUTATIONS, ROOT, SUBJECTS
+from budget_mutations import MIN_MUTATIONS, MUTATIONS
+from budget_paths import ROOT, SUBJECTS
 from budget_tree import (SENTINEL, SENTINEL_MESSAGE, TEST_FILES, differs_from_head, prove_blind,
                          prove_dirty, unanswerable)
 

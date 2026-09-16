@@ -6,11 +6,20 @@ import Testing
 ///
 /// `search` contains two `d <= ceiling` comparisons and they do different jobs. The one inside `evaluate`
 /// decides whether a measured route is allowed to become `best`: that is the guard which ENFORCES the
-/// invariant, and it is covered - measured, not assumed, by loosening it to `* 1.01` and reading the
-/// failures out: `the ceiling holds across a wide sweep of slopes and budgets`, `a route one second over
-/// the ceiling is over the ceiling`, `extraTime reports what was bought, with the sign it was bought at`,
-/// and the first test below. The one in the bisection loop decides which half of the bracket to keep. This
-/// suite is about the second one, which had a witness in neither direction for three rounds.
+/// invariant, and its exact boundary is pinned by `a route exactly on the ceiling is returned; a route one
+/// bit over it is refused`, in `LambdaSearchTests` where the invariant lives. The one in the bisection loop
+/// decides which half of the bracket to keep. This suite is about the second one, which had a witness in
+/// neither direction for three rounds.
+///
+/// That paragraph said the enforcing guard "is covered", on the evidence of a `* 1.01` loosening failing
+/// four named tests. Covered against a ONE PERCENT slip, and that is all it ever meant. Re-measured at
+/// 84f9c82 against the shipped bytes: `d <= ceiling + 0.5`, `* 1.0001` and `.nextUp` each survived all 50
+/// tests with no named test objecting, and each hands back an ETA above the ceiling (the fifth review
+/// measured `+ 0.999` the same way). A threshold constrained to an INTERVAL is not a threshold that is
+/// pinned, which is the finding this package has now been blocked for three rounds running - F3 on
+/// usedBudget, F-R2 on the router guard, and here on the product invariant itself. How many tests each
+/// spelling fails today is read out of a run and recorded in the task Log; a count written here is a second
+/// copy that only the next reader finds out is stale.
 ///
 /// The claim that made that look acceptable was that the steering guard is a no-op - *"loosening the bracket
 /// makes the search waste an evaluation exploring an infeasible region"*. It is not. Only lambdas that are
@@ -23,8 +32,8 @@ import Testing
 /// which is exactly why nothing caught it - but the other half of the promise, that the extra minutes get
 /// SPENT, is broken.
 ///
-/// Both fixtures are derived from the constants by hand, in the comments, and neither reads a bound off the
-/// result it is checking.
+/// Every fixture here is derived from the constants by hand, in its own comment, and none of them reads a
+/// bound off the result it is checking.
 @Suite("Lambda search - steering the bracket")
 struct LambdaSearchSteeringTests {
 
@@ -67,6 +76,41 @@ struct LambdaSearchSteeringTests {
         #expect(out.duration == 3200, "the scenic route that fits, not the fastest one")
         #expect(out.duration <= ceiling)
         #expect(out.usedBudget, "3200 s spends 1400 s of the 1500 s offered")
+        #expect(out.evaluations == 6)
+    }
+
+    @Test("the bracket turns at exactly the ceiling: one bit over must steer DOWN")
+    func steersDownWhenTheSampleIsOneBitOverTheCeiling() throws {
+        // Ten seconds over is a realistic router answer and it constrains this guard only to
+        // [ceiling, ceiling + 10): the fifth review measured `d <= ceiling + 1` and `+ 9.9` surviving all 50
+        // tests, both reproducing F-SG1 exactly - the bracket climbs into a region nothing can be RETURNED
+        // from, and a user with 25 minutes to spend is handed the fastest route with `usedBudget` false
+        // after paying for six router requests. This fixture is the boundary itself, so no positive slip of
+        // any size survives it.
+        //
+        // The curve above with 3310 replaced by `ceiling.nextUp`, which leaves the derivation unchanged:
+        //   0 -> 1800 fits  -> best = (0, 1800); bracket [0, 8]
+        //   4 -> OVER       -> hi = 4
+        //   2 -> 3200 fits  -> lo = 2, best = (2, 3200)
+        //   3 -> 3200 fits  -> lo = 3, best = (3, 3200)   equal duration, larger lambda, so it wins
+        //   3.5, 3.25 -> OVER, and the sixth evaluation ends the search.
+        // Loosened by any amount at all, the first midpoint is forgiven and the bracket climbs to
+        // 4, 6, 7, 7.5, 7.75 instead, where every sample is over the ceiling and none may become `best`.
+        let ceiling = Self.fastest + Self.budget                    // 3300, computed here
+        let overByOneBit: (Double) -> TimeInterval = { lambda in
+            if lambda == 0 { return Self.fastest }
+            return lambda <= 3 ? 3200 : ceiling.nextUp
+        }
+        let rec = Recorder()
+        let out = try LambdaSearch(fastest: Self.fastest, budget: Self.budget)
+            .search { rec.asked.append($0); return overByOneBit($0) }
+
+        #expect(rec.asked == [0, 4, 2, 3, 3.5, 3.25],
+                "3300.0000000000005 s is over a 3300 s ceiling, so `hi` has to move")
+        #expect(out.lambda == 3)
+        #expect(out.duration == 3200, "the scenic route that fits, not the fastest one")
+        #expect(out.duration <= ceiling)
+        #expect(out.usedBudget)
         #expect(out.evaluations == 6)
     }
 
