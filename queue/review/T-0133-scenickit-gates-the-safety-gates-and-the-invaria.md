@@ -15,21 +15,22 @@ reviewer: agent/reviewer-pr-gates
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - 'swift test --scratch-path .build/T0133 -> Test run with 37 tests in 6 suites passed, exit 0'
-  - 'python3 ops/mutate/gates.py -> caught by a named test: 37 of 37   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0. Every catch line names the tests: the EQUIVALENT arm prints MISSED      spell a GateReason case fully qualified - the same case either way exit=0  no test objected'
-  - 'python3 ops/mutate/gates.py --prove-vacuity -> VACUITY PROOF OK: with the 3 discovered test file(s) emptied, caught=0 (need 0) / and MISSED=37 of 37, exit 0. grep -rlE "\bGates\b|\bGateDecision\b|\bGateReason\b" Tests --include=*.swift lists exactly those 3 files.'
-  - 'RED the class (review finding 1): insert if tags["expressway"] == "yes" { return .refused(.noAccess) } above return .allowed plus an untracked control asserting an expressway-tagged trunk is allowed. At 9f3606e: Test run with 34 tests in 5 suites failed ... with 2 issues, failing NAME "control: an expressway-tagged trunk is allowed", exit 1. At this branch: exit 0, no failing names - the branch cannot refuse a freeway. And python3 ops/mutate/gates.py REFUSES exit 2 instead of printing 28 of 28.'
-  - 'RED the four survivors, from the harness output: "delete the key filter and refuse expressway=yes" / "...refuse anything with five or more lanes" / "...refuse a maxspeed of 100 or more" -> "a tag key no safety rule is written on cannot change any decision"; "...be thorough about access tags, incl. foot and bicycle" -> that plus "every earlier rule beats every later rule, over all 35 combinable pairs"; "widen consideredTagKeys so a freeway branch would work again" -> "the gate set considers only the tag keys its own rules are written on".'
-  - 'RED rule order (review finding 2): "try a locked barrier before access, so a private way blames the gate" and "try smoothness before highway=track, so a rough track blames the surface" -> both "every earlier rule beats every later rule, over all 35 combinable pairs". Both were silent on 9f3606e.'
-  - 'RED the unpaved set (review finding 3): "call cobblestone and sett unpaved, refusing a scenic cobbled lane" -> "a cobbled or sett-paved lane is allowed, because those surfaces are paved". Silent on 9f3606e.'
-  - 'RED the HEAD check: edit Gates.swift on disk, then python3 ops/mutate/gates.py -> REFUSING: the subject is not what HEAD says it is ... Sources/ScenicKit/Gates/Gates.swift: differs from HEAD, exit 2, before any build.'
-  - 'RED the floor: cut the three invariant entries out of MUTATIONS in ops/mutate/gates_corpus.py ON DISK, harness re-run as a separate interpreter -> REFUSING: 34 mutations and 1 equivalent mutants, expected at least 37 and 1., exit 2; gates_corpus.py restored and re-checked against git show HEAD:.'
-  - 'Deleting the consideredTagKeys filter (committed in a throwaway worktree): swift test -> Test run with 37 tests in 6 suites passed, exit 0 - the suite does NOT object; python3 ops/mutate/gates.py -> six SKIP ... anchor not found - harness is stale, caught by a named test: 0 of 6 (skipped 6), exit 1.'
-  - 'RED known-gap arm: put a mutation that IS caught into KNOWN_MISSED -> KNOWN-GAP ARM FAILED: 0 of 1 stayed MISSED as asserted., exit 1; with one that really is missed, exit 0. Both on a 1-mutation corpus with MIN_MUTATIONS lowered in memory, stated.'
-  - 'RED T-0132 decay, on the real three-file split: TEST_FILES pinned to the single old GatesTests.swift path -> VACUITY PROOF FAILED: with the 1 discovered test file(s) emptied, caught=2 (need 0) / and MISSED=0 of 2, exit 1; with discovery, 3 discovered -> VACUITY PROOF OK ... MISSED=2 of 2, exit 0. Two-mutation corpus, floors lowered in memory, stated.'
+  - 'swift test --scratch-path .build/T0133 -> Test run with 39 tests in 6 suites passed, exit 0'
+  - 'python3 ops/mutate/gates.py -> caught by a named test: 43 of 43   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0, log .artifacts/fix3-pr82/final-run.log. Four pristine lines, each ending == HEAD, incl. the new subject ConsideredTags.swift md5 e044e5d1734a60f46ac95c475c047c06. The EQUIVALENT arm prints two MISSED lines: "spell a GateReason case fully qualified - the same case either way exit=0  no test objected" and "narrow in the initialiser instead of at each read - same answer for every key exit=0  no test objected".'
+  - 'python3 ops/mutate/gates.py --prove-vacuity -> VACUITY PROOF OK: with the 3 discovered test file(s) emptied, caught=0 (need 0) / and MISSED=43 of 43, exit 0. "test files discovered: GatesInvariantTests.swift, GatesOrderTests.swift, GatesTests.swift", and git grep -lE for Gates/GateDecision/GateReason/ConsideredTags over ALL tracked *.swift returns exactly those three under Tests/ plus the four under Sources/ScenicKit/Gates/ - so no catching file can be missed.'
+  - 'RED THE CLASS, against the SHIPPED suite at 4b79342, .artifacts/fix3-pr82/before.log, each mutant carrying an untracked control so one run answers both questions. PRISTINE + controls exit=0 failing=[]. Then five survivors, every one "shipped: NOTHING OBJECTED" with a control red: allTags["destination"] != nil -> "control: a signed freeway ramp is allowed"; allTags["horse"] == "no" -> "control: a motorway carrying horse=no is allowed"; the allTags loop over access/motor_vehicle/horse/moped -> that plus "control: a motorway carrying moped=no is allowed"; let tags = allTags then horse -> same; and motor_vehicle != "yes" -> "control: a motorway carrying motor_vehicle=designated is allowed". Discriminators go the OTHER way, which is how I know none is an equivalent mutant: allTags["expressway"] IS caught, by "a tag key no safety rule is written on cannot change any decision"; tags["horse"] on the filtered local is inert, exit 0, everything green.'
+  - 'GREEN THE CLASS at this head, .artifacts/fix3-pr82/after.log. The two raw-read survivors can no longer be written: allTags["destination"] and allTags["horse"] inside verdict -> COMPILE ERROR, "Sources/ScenicKit/Gates/Gates.swift:166:12: error: cannot find allTags in scope". The same branches spelled against the narrowed view - tags["destination"], tags["horse"], the horse/moped loop, and let raw = tags then horse - all INERT: "Test run with 43 tests in 7 suites passed", exit 0, controls green, i.e. dead code rather than a survivor.'
+  - 'RED BOTH RESIDUALS BY NAME, same log, each with its control red so the mutant is known to change behaviour: a destination branch inserted into Gates.decide, the one place the raw dictionary is still in scope -> "a tag key no safety rule is written on cannot change any decision", exit 1; motor_vehicle != "yes" (a CONSIDERED key, so the accessor is irrelevant to it) -> "a freeway is allowed on every value of a considered key that real freeway geometry carries", exit 1; the ConsideredTags subscript replaced by return raw[key] -> "a tag view read of a key no rule is written on is nil, whatever the way carries", exit 1.'
+  - 'RED the invariant corpus by NAME, read out of final-run.log rather than from an exit code: "refuse a signed ramp, confusing the destination KEY for the access VALUE" / "refuse horse=no, the third member of the motorway access triple" / "refuse expressway=yes from the entry point" / "refuse anything with five or more lanes, from the entry point" / "refuse a maxspeed of 100 or more, from the entry point" -> all "a tag key no safety rule is written on cannot change any decision"; "loop over horse and moped too, the thorough form of the same mistake" and "be thorough about access tags from the entry point, incl. foot and bicycle" -> that plus "every earlier rule beats every later rule, over all 35 combinable pairs"; "stop ConsideredTags narrowing, so any key reads through to a rule again" -> "a tag view read of a key no rule is written on is nil, whatever the way carries"; "refuse any motor_vehicle value but yes, which refuses motorroad geometry" -> "a freeway is allowed on every value of a considered key that real freeway geometry carries"; "widen consideredTagKeys so a freeway branch would work again" -> "the gate set considers only the tag keys its own rules are written on"; "add a GateReason case that could name a motorway refusal" -> "no GateReason case is named for a motorway".'
+  - 'RED rule order (round-2 review finding 2): "try a locked barrier before access, so a private way blames the gate" and "try smoothness before highway=track, so a rough track blames the surface" -> both "every earlier rule beats every later rule, over all 35 combinable pairs". Both were silent on 9f3606e.'
+  - 'RED the unpaved set (round-2 review finding 3): "call cobblestone and sett unpaved, refusing a scenic cobbled lane" -> "a cobbled or sett-paved lane is allowed, because those surfaces are paved". Silent on 9f3606e.'
+  - 'RED the HEAD check on disk, .artifacts/fix3-pr82/arms.log arms C, D and E, each refused before any build with exit 2 and each restored and re-compared against git show HEAD:. Gates.swift edited -> REFUSING: the subject is not what HEAD says it is ... Sources/ScenicKit/Gates/Gates.swift: differs from HEAD. The NEW subject ConsideredTags.swift edited -> the same, naming Sources/ScenicKit/Gates/ConsideredTags.swift. A TEST file edited -> the same, naming Tests/ScenicKitTests/GatesInvariantTests.swift.'
+  - 'RED both floors on disk, same log, harness re-run as a separate interpreter. Three MUTATIONS entries cut out of ops/mutate/gates_corpus.py -> REFUSING: 40 mutations and 2 equivalent mutants, expected at least 43 and 2., exit 2. One EQUIVALENT entry cut -> REFUSING: 43 mutations and 1 equivalent mutants, expected at least 43 and 2., exit 2. len(MUTATIONS) == MIN_MUTATIONS == 43 and len(EQUIVALENT) == MIN_EQUIVALENT == 2, so a single deletion from either list cannot hide. gates_corpus.py restored to md5 8205222a and re-checked against git show HEAD:.'
+  - 'RED known-gap arm, .artifacts/fix3-pr82/arms2.log arms A and B: KNOWN_MISSED holding a mutation that IS caught -> KNOWN-GAP ARM FAILED: 0 of 1 stayed MISSED as asserted., exit 1; KNOWN_MISSED holding one that really is missed, with MUTATIONS holding a caught entry -> exit 0. Reduced corpus with the floors lowered IN MEMORY, stated not glossed; the real floors are exercised by the unmodified 43-mutation run above.'
+  - 'RED T-0132 decay on the real three-file split, same log, arms C and D: TEST_FILES pinned to the single old GatesTests.swift path -> "test files discovered: GatesTests.swift", VACUITY PROOF FAILED: with the 1 discovered test file(s) emptied, caught=2 (need 0), exit 1; with discovery -> 3 discovered, VACUITY PROOF OK ... caught=0 (need 0), MISSED=2 of 2, exit 0. Two-mutation corpus, floors lowered in memory, stated.'
   - 'bash ops/check-pins -> PINS ok=12 skipped=0 pending=2 expired=0 failed=0 tier=linux, exit 0; --source-only -> PINS ok=5 skipped=9 pending=0 expired=0 failed=0 tier=linux source-only, exit 0'
   - 'bash ops/queue-check -> QUEUE OK (126 tasks), exit 0'
-  - 'bash ops/test -> Test run with 37 tests in 6 suites passed, then FAIL: services/api exists but vitest produced no report, exit 1. Pre-existing and environmental (T-0040): services/api/node_modules is absent in this worktree and in the main checkout, and git diff --name-only main...task/T-0133 -- services/ is empty. Checked, not attributed.'
+  - 'bash ops/test -> Test run with 39 tests in 6 suites passed, then FAIL: services/api exists but vitest produced no report, exit 1. Pre-existing and environmental (T-0040): services/api/node_modules is absent in this worktree and in the main checkout, and git diff --name-only main...task/T-0133 -- services/ is empty. Checked, not attributed.'
 ---
 ## Brief
 
@@ -105,7 +106,7 @@ catch.
   `ops/new-task` allocated T-9902 again - see [[T-0128]].
 - 2026-09-08T20:59:29Z claimed by agent/unknown; lease until 2026-09-08T22:59:29Z
 - 2026-09-09T00:10:00Z GREEN: `swift test --scratch-path .build-T0133` -> **28 tests in 4 suites passed**. `bash ops/check-pins --source-only` -> `PINS ok=5 skipped=9 pending=0 expired=0 failed=0`. `bash ops/queue-check` -> `QUEUE OK`. ~~Line counts 56 / 90 / 164 / 288, all under the 300 cap.~~ **STRUCK 2026-09-15 (round 3): FALSE WHEN WRITTEN.** `ops/mutate/gates.py` was 307 lines the day this was written, over the cap it claims to be under. Round 2 noted this further down; leaving the sentence standing here meant a top-down reader met the false version first. Current counts are in the round-3 entries below. `ops/mutate/gates.py` committed **100644** (see [[T-0127]]).
-- 2026-09-09T00:10:00Z **THE INVARIANT IS THE POINT AND IT IS PINNED TWICE.** CLAUDE.md lists it first: motorway and trunk carry `scenic_score = 0` and are **penalised, not hard-excluded**. `motorwayIsNeverGated` asserts `.allowed` for motorway, motorway_link, trunk and trunk_link, and again for a motorway carrying the tags a real freeway has. The mutation harness attacks it two ways - a literal `highway == "motorway" || == "trunk"` refusal, and the `hasPrefix` form a real "tidy-up" would take, since that is what somebody writes when they think they are being thorough. **Both caught.** ~~There is deliberately no `GateReason` case that could describe a motorway refusal, and `decide` has no branch that could grow one - refusing by omission rather than by a branch, because a branch is something a later edit can invert.~~ **STRUCK 2026-09-15 (round 3): REFUTED, TWICE.** Both reviews of PR #82 added a branch to `decide` that refuses a motorway while reusing `.noAccess`, so the enum was never a guarantee and `decide` grew such a branch six times over. Round 2 removed the equivalent wording from the two source comments but left this sentence standing at the top of the Log, where a top-down reader meets it before the correction. What holds the invariant now is `Gates.consideredTagKeys` plus the behaviour pinned in `GatesInvariantTests`; see the round-3 entries.
+- 2026-09-09T00:10:00Z **THE INVARIANT IS THE POINT AND IT IS PINNED TWICE.** CLAUDE.md lists it first: motorway and trunk carry `scenic_score = 0` and are **penalised, not hard-excluded**. `motorwayIsNeverGated` asserts `.allowed` for motorway, motorway_link, trunk and trunk_link, and again for a motorway carrying the tags a real freeway has. The mutation harness attacks it two ways - a literal `highway == "motorway" || == "trunk"` refusal, and the `hasPrefix` form a real "tidy-up" would take, since that is what somebody writes when they think they are being thorough. **Both caught.** ~~There is deliberately no `GateReason` case that could describe a motorway refusal, and `decide` has no branch that could grow one - refusing by omission rather than by a branch, because a branch is something a later edit can invert.~~ **STRUCK 2026-09-15 (round 3): REFUTED, TWICE.** Both reviews of PR #82 added a branch to `decide` that refuses a motorway while reusing `.noAccess`, so the enum was never a guarantee and `decide` grew such a branch six times over. Round 2 removed the equivalent wording from the two source comments but left this sentence standing at the top of the Log, where a top-down reader meets it before the correction. ~~What holds the invariant now is `Gates.consideredTagKeys` plus the behaviour pinned in `GatesInvariantTests`; see the round-3 entries.~~ **AMENDED 2026-09-15 (round 4): that replacement was itself refuted.** `consideredTagKeys` was applied by a filter on `decide`s first line while the unfiltered parameter stayed in scope, so it narrowed nothing a rule could not read around - five survivors in `.artifacts/fix3-pr82/before.log`. What holds the invariant now is `ConsideredTags`, which narrows at the accessor instead, plus `consideredTagKeys` as the literal it consults and the behaviour pinned in `GatesInvariantTests`. Two residuals stay open and the round-4 entries name them.
 - 2026-09-09T00:10:00Z **ABSENT IS NOT NEGATIVE, and that is half the mutation set.** A gate that fires on a *missing* `surface` tag would refuse most of the rural lanes this product exists to find - the plan handles those with x0.8 and a `surfaceUnknown` flag, a note to the driver rather than a refusal. Six mutations turn a positive-evidence rule into an absent-or-present one (refuse a way with no surface tag; refuse any way that has one; refuse every gate rather than only locked ones; refuse `locked=yes` with no barrier; refuse every service way; refuse `ford=no`). All caught, because every rule has a test for its tag being **absent** as well as present.
 - 2026-09-09T00:10:00Z `barrier=gate` alone is **allowed**, and only `barrier=gate` + `locked=yes` is refused. An unlocked gate may be openable and the driver can see it; the hazard strip tells them it is there. Refusing every gate would cut off a large share of the ranch and park roads this product is for. Pinned on both sides, plus `locked=yes` with no barrier, which says nothing.
 - 2026-09-09T00:10:00Z Boundaries pinned on the allowed side too, since a gate set is only as good as where it stops: `tracktype` grade1 and grade2 allowed while grade3-5 are refused; `smoothness` **intermediate allowed** ("worse than intermediate" means intermediate passes) while bad and worse are refused; `service=alley` allowed while driveway and parking_aisle are refused; `access=permissive` allowed while destination is refused. Four mutations move those boundaries one step in each direction; all caught.
@@ -142,14 +143,19 @@ catch.
   new branch reuses `.noAccess` and never touches the enum, which is how the reviewer got both branches past a
   closed enum. Both comments now say what actually holds the invariant — the behaviour pinned in `GatesTests`
   — and the suite comment states the residual in as many words: **a branch keyed on a tag none of the 52 cases
-  supplies is still invisible.** `noMotorwayReasonExists` keeps its name because it asserts exactly what the
-  name says (no case NAMED for a motorway) and nothing more; it now has a mutation behind it, so it has been
-  seen red.
+  supplies is still invisible.** ~~`noMotorwayReasonExists` keeps its name because it asserts exactly what the
+  name says (no case NAMED for a motorway) and nothing more;~~ **STRUCK 2026-09-15 (round 4): the DISPLAY name
+  did not say "named for".** It said `no GateReason exists that could refuse a motorway`, and `.noAccess`
+  refuses motorways perfectly well - the sentence struck two entries above. The harness prints that display
+  name as its proof that the mutation was caught, so a reader of the run was handed a refuted sentence as
+  evidence. Renamed in round 4 to `no GateReason case is named for a motorway`. It has a mutation behind it,
+  so it has been seen red.
 - 2026-09-15 **EVERY NEW TEST WAS DEMONSTRATED RED BEFORE IT WAS BANKED.** `.artifacts/fix-pr82/phaseB-fixed.log`,
   the same seven mutations against the fixed suite: **survivors: 0 of 7**, each named:
   F1 -> `a one-way freeway ramp is never gated...` + `no freeway tag combination is gated...`;
   F2 -> `motorroad=yes is never gated...` + `no freeway tag combination...`;
-  F3 -> `no GateReason exists that could refuse a motorway`;
+  F3 -> `no GateReason exists that could refuse a motorway` (**renamed in round 4** to
+  `no GateReason case is named for a motorway`, which is what the `#expect` under it actually pins);
   F4 -> `every refused service value is refused...`;
   F5 -> `highway=track is refused whatever else it carries...`;
   F6 and F7 -> `a way that trips two rules reports the first one in the documented order`.
@@ -191,8 +197,12 @@ catch.
 - 2026-09-15 Also closed: the EQUIVALENT arm's only member was NAMED "reorder two independent rules that
   cannot both fire" while being an enum-qualification spelling change — renamed to
   `spell a GateReason case fully qualified`, and the genuine reorders it stood in for are now real MUTATIONS.
-  The docstring pointer to `ops/mutate/guidance.py` (no such file on this branch or on main) is dropped rather
-  than left dangling. `SCRATCH` moved from `.build-mutate-gates` to `.build/mutate-gates`, which `.gitignore`
+  The docstring pointer to `ops/mutate/guidance.py` ~~(no such file on this branch or on main)~~ is dropped
+  rather than left dangling. **CORRECTED 2026-09-15 (round 4): the parenthetical is wrong about main.**
+  `git ls-tree -r --name-only origin/main -- ops/mutate/` lists `guidance.py`, `handoff.py` and
+  `routescore.py`; `guidance.py` was added by 8eef7e1 and merged in a100ffb (PR #81), after the round-2 entry
+  was written. It is still absent from this branch, so dropping the pointer was right; the reason given for
+  it was not. `SCRATCH` moved from `.build-mutate-gates` to `.build/mutate-gates`, which `.gitignore`
   already covers, so a run stops leaving an untracked directory — done inside `ops/mutate/` because
   `.gitignore` is outside this task's `touches:`. The stale line-count claim is superseded below.
 - 2026-09-15 **REFUSED — the brief's "fixture set in a form the other two can consume later".** The reviewer
@@ -240,9 +250,14 @@ catch.
 - 2026-09-15 **THE CLASS, NOT FOUR MORE INSTANCES.** The previous round answered two refuted branches by
   naming two more companion tags. The reviewer then walked past that suite four more times on keys the
   thirteen companions do not name. Adding `expressway`, `foot`, `bicycle`, `lanes` and `maxspeed` to the cross
-  product would have bought a fifth round. `Gates.consideredTagKeys` is the close: `decide` drops every tag key
-  no rule is written on **before any rule runs**, so a branch keyed on a freeway tag is dead code the moment it
-  is typed. Reviving it takes one of two edits, and both are pinned - widening the set turns
+  product would have bought a fifth round. ~~`Gates.consideredTagKeys` is the close: `decide` drops every tag
+  key no rule is written on **before any rule runs**, so a branch keyed on a freeway tag is dead code the
+  moment it is typed. Reviving it takes one of two edits, and both are pinned~~ **STRUCK 2026-09-15 (round 4):
+  REFUTED - THERE WAS A THIRD EDIT AND IT WAS PINNED BY NOTHING.** `decide(_ allTags:)` kept the unfiltered
+  dictionary in scope for its whole body, so reviving the branch took neither of those two edits: it took one
+  extra identifier. Five survivors, measured in `.artifacts/fix3-pr82/before.log`. The filter was a naming
+  convention, not a gate. What closes it now is `ConsideredTags`; see round 4. The two edits below really are
+  pinned, and that part stands - widening the set turns
   `the gate set considers only the tag keys its own rules are written on` red by name, and deleting the filter
   while adding the branch turns `a tag key no safety rule is written on cannot change any decision` red
   (sixteen bases x sixteen keys no rule reads, every expectation a written-out `.allowed` or `.refused(<case>)`
@@ -276,8 +291,17 @@ catch.
   trap the task brief warns about - the catch would have come from a constants pin next door while the
   behaviour test it was written for passed. What actually objects, measured in the same worktree
   (`filter-removed.log`): `swift test` -> `Test run with 37 tests in 6 suites passed` exit 0, the suite says
-  NOTHING; `ops/mutate/gates.py` -> six `SKIP ... anchor not found - harness is stale`,
-  `caught by a named test: 0 of 6 ... skipped 6`, **exit 1**, because six mutations are anchored on that line.
+  NOTHING; ~~`ops/mutate/gates.py` -> six `SKIP ... anchor not found - harness is stale`,
+  `caught by a named test: 0 of 6 ... skipped 6`, **exit 1**, because six mutations are anchored on that
+  line.~~ **STRUCK 2026-09-15 (round 4): THE NUMBER IS FALSE AND SO IS THE ATTRIBUTION.** `python3
+  ops/mutate/gates.py` cannot print `of 6`. The denominator is `len(MUTATIONS)` (`ops/mutate/gates.py:261-263`)
+  and `MIN_MUTATIONS` (`:80`, `:191-195`) refuses any smaller population with exit 2 before a build, so a plain
+  invocation could only have printed `31 of 37 ... skipped 6`. `0 of 6` came from my own probe
+  `probe_filter_removed.py`, whose docstring says it reduces MUTATIONS to the six entries anchored on the
+  filter line and lowers MIN_MUTATIONS to match - a reduced run attributed to the shipped command. Two other
+  acceptance lines in this file do disclose their in-memory floor reduction; this one did not. The six SKIP
+  lines and exit 1 were real. Round 4 removed the filter line itself, so the claim is moot as well as wrong;
+  what replaces it is measured in `.artifacts/fix3-pr82/after.log` and in the round-4 entries below.
 - 2026-09-15 **REFUSED - I did not bank "insert a branch on `expressway=` above `return .allowed`" as an
   EQUIVALENT mutant, and it is in neither list.** It cannot change behaviour today, but only because
   `consideredTagKeys` does not list `expressway` - a reason that lives in `decide`'s first line rather than in
@@ -285,12 +309,16 @@ catch.
   fail for the right reason with the wrong message ("a test has an opinion about how the code is WRITTEN").
   The corpus entry that models the real edit replaces the filter line instead, so it changes behaviour and is
   caught by name. `gates_corpus.py` says so where the EQUIVALENT list is defined.
-- 2026-09-15 **STILL OPEN, and it is narrower than it was.** Deleting the filter AND keying on a tag that
+- 2026-09-15 ~~**STILL OPEN, and it is narrower than it was.** Deleting the filter AND keying on a tag that
   neither the thirteen companion sets nor the sixteen noise keys name is invisible to `swift test`. It is not
   invisible to `ops/mutate/gates.py` (six stale anchors, exit 1), but that is the harness, not the suite. A
   refusal on `highway` itself - the one considered key a freeway carries - is covered by the 52-way cross
-  product. Both sentences are in `Gates.swift` and in the `GatesInvariantTests` suite comment, as statements
-  of what is open rather than of what is impossible.
+  product.~~ **STRUCK 2026-09-15 (round 4): THE RESIDUAL WAS STATED NARROWER THAN IT WAS, TWICE OVER.**
+  Deleting the filter was never required - `allTags` stayed in scope, so `allTags["destination"]` was a
+  survivor with the filter exactly as shipped (`.artifacts/fix3-pr82/before.log`). And `highway` was not the
+  only considered key a freeway carries: `motor_vehicle`, `access`, `surface` and `smoothness` are all read
+  by rules and all on real freeway geometry, and `motor_vehicle != "yes"` was a survivor too. The corrected
+  residuals are in the round-4 entries and in `Gates.swift`.
 - 2026-09-15 **FINDING 2 - rule ORDER, pinned as a property instead of five samples.** `GatesOrderTests`
   writes the nine rules out in the documented order with a tag set that trips each and the reason each must
   report, then asserts every earlier rule beats every later one over **all 35 combinable ordered pairs**. The
@@ -355,4 +383,150 @@ catch.
   the filter deleted, `.worktrees/T0133-old` detached at 9f3606e) were removed with
   `git worktree remove --force`; `git worktree list` no longer lists either. No tracked file in any worktree I
   do not own was written.
+- 2026-09-15 NOT TRANSITIONED. `state: review` and `reviewer:` left untouched; a different agent reviews this.
+
+### Round 4 — closing the review FAIL on PR #82 (`.artifacts/fn/pr82.md`)
+
+- 2026-09-15 **I REPRODUCED FINDING 1 BEFORE CHANGING ANYTHING, AND ALL FIVE SURVIVORS WITH IT**
+  (`.artifacts/fix3-pr82/before.log`; `Gates.swift` md5 `82930af6`, confirmed identical to `git show HEAD:`
+  first and restored to it after, `git status --porcelain` empty). Each mutant carried an untracked control
+  suite so one run answers both questions - did the shipped suite object, and did the mutant really change
+  behaviour. `PRISTINE + controls exit=0  failing=[]`. Then, with the `consideredTagKeys` filter left exactly
+  as shipped: `allTags["destination"] != nil` -> shipped suite **NOTHING OBJECTED**, control red
+  `control: a signed freeway ramp is allowed`, exit 1. `allTags["horse"] == "no"` -> nothing objected,
+  `control: a motorway carrying horse=no is allowed`. The `allTags` loop over access/motor_vehicle/horse/moped
+  -> nothing objected, two controls red. `let tags = allTags` then `horse` -> nothing objected.
+  `motor_vehicle != "yes"` -> nothing objected, `control: a motorway carrying motor_vehicle=designated is
+  allowed`. **The reviewer is right: the filter was a naming convention.** `allTags` was the function's own
+  parameter and stayed in scope for the whole body, so reading it cost one identifier - and because the filter
+  was the FIRST statement, any branch added at the top of `decide` *had* to read `allTags`.
+- 2026-09-15 **THE CLASS IS CLOSED AT THE ACCESSOR, NOT AT A NAMING CONVENTION.** `ConsideredTags` is a new
+  type in `Sources/ScenicKit/Gates/ConsideredTags.swift`: it holds the raw tags behind a `private` stored
+  property and its subscript answers `nil` for every key outside `Gates.consideredTagKeys`, **at each read**
+  rather than once up front. `Gates.decide` now holds no rule at all - one expression that wraps the tags and
+  delegates - and every rule lives in `private static func verdict(_ tags: ConsideredTags)`, where the raw
+  dictionary does not exist under any name. There is no filter line left to delete.
+- 2026-09-15 **MEASURED, NOT ASSERTED** (`.artifacts/fix3-pr82/after.log`). The two raw-read survivors cannot
+  be written any more: `allTags["destination"]` and `allTags["horse"]` inside `verdict` ->
+  **COMPILE ERROR**, `Sources/ScenicKit/Gates/Gates.swift:166:12: error: cannot find 'allTags' in scope`. The
+  same four branches spelled against the narrowed view - `tags["destination"]`, `tags["horse"]`, the
+  horse/moped loop, and `let raw = tags` then `horse` - are **INERT**: `Test run with 43 tests in 7 suites
+  passed`, exit 0, every control green. Dead code, which is what the previous round claimed and did not have.
+- 2026-09-15 **WHAT I AM NOT CLAIMING. TWO RESIDUALS STAY OPEN, AND NO TYPE CLOSES EITHER.** They are in
+  `Gates.swift`, in `ConsideredTags.swift`, in the `GatesInvariantTests` suite comment and in the PR body, as
+  statements of what is open rather than of what is impossible.
+  **(1) A refusal keyed on a key that IS considered.** `motor_vehicle`, `access`, `surface`, `smoothness` and
+  `highway` are read by rules on purpose and are all carried by real freeways, so the accessor is irrelevant
+  to them by construction - `if let mv = tags["motor_vehicle"], mv != "yes"` refuses the
+  `motor_vehicle=designated` on motorroad geometry. Only behaviour closes this, and it closes it for the
+  values written out and no others.
+  **(2) A refusal typed into `Gates.decide` itself**, which still has the raw dictionary in scope because
+  Swift gives a function no way to drop its own parameter. Its body is one expression with no rule in it, but
+  that is a convention again, so it is pinned by behaviour rather than asserted.
+  The round-3 statement of the residual was narrower than the truth in **both** directions and is struck
+  above: deleting the filter was never required, and `highway` was not the only considered key a freeway
+  carries.
+- 2026-09-15 **THE NEW TESTS, EACH DEMONSTRATED RED BY A MUTATION, NAME READ OUT OF THE OUTPUT** (never an
+  exit code - that error was made twice on this PR). `a tag view read of a key no rule is written on is nil,
+  whatever the way carries` pins the accessor itself on a realistic signed ramp, and is the sole catcher of
+  `stop ConsideredTags narrowing, so any key reads through to a rule again`. `a freeway is allowed on every
+  value of a considered key that real freeway geometry carries` crosses the four freeway `highway` values with
+  twelve literal key/value pairs a freeway really carries, and is the sole catcher of `refuse any
+  motor_vehicle value but yes, which refuses motorroad geometry`. Both controls went red under those mutants
+  in `after.log`, so neither catch is an unrelated pin next door.
+- 2026-09-15 **THE NOISE LIST NOW NAMES THE KEYS THE SURVIVORS USED**, and its limit is stated: it is an
+  enumeration, nineteen keys, covering the keys it names and no others. `destination`, `horse` and `moped`
+  were added - `destination=San Francisco` is the text on a freeway sign and has nothing to do with the
+  `access=destination` VALUE the gates do refuse, which is the confusion that hard-excludes every ramp.
+  `vehicle` is still deliberately absent: it is a genuine access restriction the plan does not name, and
+  pinning it inert would pin a gap I was not asked to close.
+- 2026-09-15 **CORPUS 37 -> 43, `MIN_MUTATIONS` 43, `MIN_EQUIVALENT` 2.** The six entries anchored on the old
+  filter line are re-anchored on the entry point and renamed - "delete the key filter and ..." described an
+  edit that was never necessary, so the name was teaching the next reader the wrong lesson. Six new entries:
+  the three the reviewer used (`destination`, `horse`, the horse/moped loop), breaking the accessor, and the
+  two residual-1 shapes (`motor_vehicle != "yes"`, `access != "yes"`). `ConsideredTags.swift` joins `SUBJECTS`
+  so it is HEAD-checked, snapshotted and restored like the other three, and `SUBJECT_SYMBOLS` gained
+  `ConsideredTags` so a future test file mentioning only the new type is still discovered.
+- 2026-09-15 **A SECOND EQUIVALENT MUTANT, BANKED ON PURPOSE AND WITH ITS COST WRITTEN DOWN.** `narrow in the
+  initialiser instead of at each read - same answer for every key` is behaviourally identical for every input,
+  so anything but MISSED is a failure and it goes `MISSED exit=0`. It is banked because a test that caught it
+  would have an opinion about how `ConsideredTags` is WRITTEN. What it costs is the thing the corpus cannot
+  assert, and `gates_corpus.py` says so: it puts back a single deletable line, the exact shape that let
+  `allTags` survive four reviews.
+- 2026-09-15 HARNESS, unmodified, against the shipped tree (`.artifacts/fix3-pr82/final-run.log`):
+  `caught by a named test: 43 of 43   (trapped 0, compile-only 0, MISSED 0, skipped 0)`, exit 0, with four
+  `pristine ... == HEAD` lines. `--prove-vacuity` (`vacuity.log`) -> `VACUITY PROOF OK: with the 3 discovered
+  test file(s) emptied, caught=0 (need 0)` / `and MISSED=43 of 43`, exit 0. Discovery checked by grep over the
+  whole tree rather than remembered: `git grep -lE '\bGates\b|\bGateDecision\b|\bGateReason\b|\bConsideredTags\b'
+  -- '*.swift'` returns exactly the four files under `Sources/ScenicKit/Gates/` and the three under `Tests/`.
+- 2026-09-15 HARNESS REFUSALS, all five RED on disk and each restored and re-compared against
+  `git show HEAD:` rather than trusting a `finally` (`arms.log`): three MUTATIONS cut ->
+  `REFUSING: 40 mutations and 2 equivalent mutants, expected at least 43 and 2.` exit 2; one EQUIVALENT cut ->
+  `REFUSING: 43 mutations and 1 equivalent mutants, expected at least 43 and 2.` exit 2; `Gates.swift` edited,
+  `ConsideredTags.swift` edited, and a TEST file edited -> `REFUSING: the subject is not what HEAD says it is`
+  naming each path in turn, exit 2, before any build. The new subject is covered by that check, which is the
+  point of adding it to `SUBJECTS`.
+- 2026-09-15 **AN ERROR OF MINE, CAUGHT BY READING THE OUTPUT INSTEAD OF THE EXIT CODE.** My first
+  known-gap arm put the same missed entry in both `MUTATIONS` and `KNOWN_MISSED`, so the run exited 1 on
+  `caught == len(MUTATIONS)` while the known-gap arm itself was passing. Read as an exit code that would have
+  been recorded as the arm failing. Corrected (`arms2.log`): arm A, a CAUGHT mutation asserted as a known gap
+  -> `KNOWN-GAP ARM FAILED: 0 of 1 stayed MISSED as asserted.` exit 1; arm B, a genuinely missed one with
+  `MUTATIONS` holding a caught entry -> exit 0. Arms C and D re-do the T-0132 decay on the real three-file
+  split: `TEST_FILES` pinned to the single old path -> `test files discovered: GatesTests.swift`,
+  `VACUITY PROOF FAILED: with the 1 discovered test file(s) emptied, caught=2 (need 0)`, exit 1; with
+  discovery -> 3 discovered, `VACUITY PROOF OK`, `MISSED=2 of 2`, exit 0. All four ran reduced corpora with
+  the floors lowered **in memory**, stated rather than glossed.
+- 2026-09-15 **FINDING 2 CLOSED BY STRIKING IT WHERE IT WAS MADE, IN ALL FOUR PLACES.** `0 of 6` is a number
+  `python3 ops/mutate/gates.py` cannot print: the denominator is `len(MUTATIONS)` and `MIN_MUTATIONS` refuses
+  anything smaller with exit 2 before a build. It came from my own reduced probe and was attributed to the
+  shipped command. Struck in the acceptance block (the line is replaced by the round-4 measurements), struck
+  in the round-3 Log entry that made it, and the two source comments that repeated it are gone with the filter
+  they described - `git grep "0 of 6"` over the branch now returns only the struck copy and this entry.
+  Commit `5e66bef`s message carries it too and history is not rewritten; the strike says so.
+- 2026-09-15 **FINDING 3 CLOSED - the test NAME that asserted the struck sentence.**
+  `@Test("no GateReason exists that could refuse a motorway")` is now
+  `@Test("no GateReason case is named for a motorway")`, which is what the `#expect` under it pins.
+  `.noAccess` refuses motorways perfectly well, and the harness PRINTS the display name as its proof, so the
+  old name handed a reader a sentence struck in this very Log as evidence. `final-run.log` now reads
+  `add a GateReason case that could name a motorway refusal    by: no GateReason case is named for a
+  motorway`. The round-2 entry defending the old name is struck above, and the round-2 entry quoting it is
+  annotated.
+- 2026-09-15 **FINDING 5 (the reviewer marked it non-blocking) CORRECTED.** The round-2 Log said the docstring
+  pointer to `ops/mutate/guidance.py` was dropped because there is "no such file on this branch or on main".
+  `git ls-tree -r --name-only origin/main -- ops/mutate/` lists `guidance.py`, `handoff.py`, `routescore.py`;
+  it was added by 8eef7e1 and merged in a100ffb (PR #81). Absent here, present on main. The drop was right;
+  the reason was wrong, and the parenthetical is struck.
+- 2026-09-15 **REFUSED - I did not make residual 2 disappear by rewording it.** `Gates.decide` still has its
+  own parameter in scope and Swift offers no way to remove it. Rather than claim the one-expression body makes
+  a branch there impossible, six corpus mutations sit in exactly that position so the gap is MEASURED on every
+  run, and `irrelevantTagKeysCannotChangeADecision` is what kills them. That test is an enumeration and the
+  source says so in as many words.
+- 2026-09-15 **REFUSED - the brief's "fixture set in a form the other two can consume later", unchanged from
+  round 2.** The same brief says under **Not in scope** that inventing the GraphHopper profile or ETL format
+  here would be the fabrication this repository exists to catch, and P-PROD-01 is still `assertion: TODO` /
+  `pending: T-0012`. It needs its own task once one of the other two implementations lands.
+- 2026-09-15 LINE COUNTS, `awk 'END{print NR}'`: `GateDecision.swift` **25**, `GateReason.swift` **42**,
+  `ConsideredTags.swift` **57**, `Gates.swift` **168**, `GatesTests.swift` **289**,
+  `GatesInvariantTests.swift` **169**, `GatesOrderTests.swift` **62**, `ops/mutate/gates.py` **300**,
+  `ops/mutate/gates_corpus.py` **300**. Nothing over 300 - and both `.py` files were **301** after the first
+  commit of this round and were brought back under the cap in `bbea88c`, comments only: hashing
+  `[(name, file.name, old, new)]` over MUTATIONS + EQUIVALENT gives
+  `207b704bcb1eeb86406e7315fc859f85a6d86ae47519714f6dae805e6d850b52` before and after, and the 43-of-43 run
+  above was then re-run against the committed tree. All eight tracked files and the new one are **100644**
+  (`git ls-files -s`); no new executable script, so P-OPS-01 is untouched. Imports: `Foundation` only in the
+  four source files, `Foundation`+`Testing` in the three test files. No `Package.swift` change.
+- 2026-09-15 MECHANICAL. `bash ops/check-pins` -> `PINS ok=12 skipped=0 pending=2 expired=0 failed=0
+  tier=linux`, exit 0. `--source-only` -> `PINS ok=5 skipped=9 pending=0 expired=0 failed=0 tier=linux
+  source-only`, exit 0. `bash ops/queue-check` -> `QUEUE OK (126 tasks)`, exit 0. `bash ops/test` ->
+  `Test run with 39 tests in 6 suites passed` then `FAIL: services/api exists but vitest produced no report`,
+  **exit 1 - environmental, T-0040**, and CHECKED not attributed: `services/api/node_modules` is absent in
+  this worktree and in the main checkout, and `git diff --name-only main...task/T-0133 -- services/` is empty.
+  `bash ops/sane` -> exit 10; T-0133 appears only as `modified:1 unpushed:[2 commit(s) not on origin]`, which
+  is this task file and the push below, and the other eight worktrees flagged belong to other agents.
+- 2026-09-15 RESTORE DISCIPLINE. No throwaway worktree and no demo commit this round: every probe ran in this
+  worktree, restored from bytes captured before it ran, and then verified against `git show HEAD:` rather than
+  trusting a `finally`. `repro_f1.log`, `before.log`, `after.log` and `arms.log` each print the restored md5
+  with `== HEAD True`, and each ends with an empty or task-file-only `git status --porcelain`. The untracked
+  control suite was deleted after every run and the logs record `control file on disk: False`. No tracked file
+  in any worktree I do not own was written; scratch lives only in this worktree's gitignored `.artifacts/`.
 - 2026-09-15 NOT TRANSITIONED. `state: review` and `reviewer:` left untouched; a different agent reviews this.
