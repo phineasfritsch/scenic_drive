@@ -101,9 +101,8 @@ MUTATIONS = [
      '            if tags[key] == "no" { return .refused(.noAccess) }\n'
      '        }\n' + ENTRY),
 
-    # The narrowing itself. Breaking this accessor is what a "why is this branch dead?" edit reaches for once
-    # the branch above does nothing, and it is caught on its own - by the view test, not by a rule, because
-    # no rule reads an unconsidered key today.
+    # The narrowing itself - what a "why is this branch dead?" edit reaches for once the branch above does
+    # nothing. Caught on its own, by the view test rather than by a rule: no rule reads an unconsidered key.
     ("stop ConsideredTags narrowing, so any key reads through to a rule again", CONSIDERED, SUBSCRIPT,
      "        return raw[key]"),
 

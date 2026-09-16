@@ -37,8 +37,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from gates_corpus import (CONSIDERED, DECISION, EQUIVALENT, GATES,  # noqa: E402
-                          KNOWN_MISSED, MUTATIONS, REASON)
+from gates_corpus import CONSIDERED, DECISION, EQUIVALENT, GATES, KNOWN_MISSED, MUTATIONS, REASON  # noqa: E402
 
 SUBJECTS = (GATES, DECISION, REASON, CONSIDERED)
 
