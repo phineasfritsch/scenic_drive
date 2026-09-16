@@ -497,6 +497,12 @@ def _declares_branch(name):
 
     Separate from `_branch_exists` because the two answer different questions and only one of them can be
     answered offline. See the fallback in `cmd_sweep` for why the difference decides whether work survives.
+
+    Permissive ON PURPOSE, and the opposite of `agent()` two hundred lines up, which refuses a non-name
+    rather than comparing it. The asymmetry is the point: for `agent()` permissiveness fails OPEN (a
+    non-name gets compared and a self-review walks through), here it fails CLOSED (a non-name is treated as
+    a declared branch and the task is kept). A flow list, a number and a quoted name with a trailing space
+    are all kept, which is the safe direction. Only the written-down spellings of "no branch" say no.
     """
     return bool(name) and str(name).strip().casefold() not in ("", "null", "none", "~")
 
@@ -507,12 +513,18 @@ def _branch_exists(name):
     Deliberately checks the remote-tracking ref FIRST: the case this exists for is work that was pushed and is
     waiting on a merge, which is visible as origin/<branch> even in a worktree that never had the local
     branch. No fetch is done - a sweeper that reaches the network is a sweeper nobody runs - so a branch
-    pushed by someone else since the last fetch reads as absent. That direction is safe: it can only make the
-    sweeper more conservative if the ref is stale in the other direction, and `git fetch` before sweeping is
-    one line in the caller.
+    pushed by someone else since the last fetch reads as absent - and that direction is NOT safe, which is
+    why `cmd_sweep` keeps a task whose branch is merely DECLARED. This function answers only "can I see it".
+
+    It asks git about any non-empty string, including one spelled `None` or `null`. The sentinel list lives
+    in `_declares_branch` and belongs there: "the task did not name a branch" is a statement about the task
+    file, while a branch that really is called `None` is a fact about the repository, and short-circuiting
+    on the sentinel made a ref that demonstrably exists read as absent (found by agent/rv-pr85, who pushed
+    a branch named `None` and watched the task get swept).
     """
-    if not _declares_branch(name):
+    if not isinstance(name, str) or not name.strip():
         return False
+    name = name.strip()
     for ref in (f"refs/remotes/origin/{name}", f"refs/heads/{name}"):
         try:
             r = subprocess.run(["git", "rev-parse", "--verify", "-q", ref], cwd=ROOT,
@@ -575,7 +587,7 @@ def cmd_sweep(_operand, _opts_):
             print(f"swept {fm['id']} -> ready/")
             moved += 1
     if held:
-        print(f"SWEEP kept {len(held)} expired lease(s) whose branch still exists - finished work waiting to")
+        print(f"SWEEP kept {len(held)} expired lease(s) that name a branch - finished work waiting to")
         print("  merge is not an abandoned task, and clearing its owner would break the reviewer-is-not-owner")
         print("  rule it will be checked against later:")
         for h in held:

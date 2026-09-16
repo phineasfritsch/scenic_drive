@@ -16,7 +16,7 @@ Six cases, each on a throwaway repo with the real `ops/lib/queue.py` copied in:
   1. expired lease, branch pushed (origin/<branch> exists)       must KEEP
   2. expired lease, branch DECLARED but no ref anywhere          must KEEP
   3. expired lease, no branch declared at all                    must SWEEP to ready/
-  4. lease still valid, branch pushed                            must not be touched
+  4. lease still valid, NO branch declared                       must not be touched
   5. not a git repository at all                                 must REFUSE, exit 2, move nothing
   6. expired lease, LOCAL branch only, never pushed              must KEEP
 
@@ -26,8 +26,12 @@ fetched reads as ABSENT, and the old code swept it. The docstring called that di
 unsafe one, and it is the exact failure this task was filed about. A DECLARED branch is now evidence that
 work was started somewhere, and the sweeper says it cannot prove otherwise without a fetch.
 
-Case 5 is the control. Without it, a sweeper that refused everything - or one that died on a syntax error -
-would pass cases 1, 2, 4 and 6 by doing nothing at all.
+Case 5 is the control for the REFUSAL path: it is the only case asserting that the sweeper refuses when git
+cannot answer, so without it that guard could be deleted and nothing here would notice. (An earlier version
+of this paragraph claimed more - that without case 5 "a sweeper that refused everything would pass cases 1,
+2, 4 and 6 by doing nothing at all". agent/rv-pr85 disproved it by running exactly that: a queue.py printing
+SWEEP REFUSED and exiting 2 fails 1, 2, 4 AND 6, and one that does nothing at all fails all six. The
+`must_say` assertions below are what catch a do-nothing sweeper. Struck where it was made, not deleted.)
 
 EVERY CASE ASSERTS WHAT THE SWEEPER SAID, not only where the file ended up. A run that moves nothing looks
 identical whether the guard fired or the loop never ran, and "the loop never ran" is how the mutation
@@ -170,9 +174,16 @@ def case_no_branch_declared(tmp):
 
 
 def case_lease_still_valid(tmp):
+    """4. An unexpired lease is not touched - and NO BRANCH, or this case asserts nothing.
+
+    Its first version gave the task a pushed branch as well, so the branch guard kept it whether or not the
+    expiry comparison was respected: inverting `if exp < now():` to `>` left this case green, and the
+    sweeper's PRIMARY trigger went unasserted while a case labelled for it sat in the list. Found by
+    agent/rv-pr85, who inverted the comparison and watched only case 3 fail. With `branch: null` the expiry
+    is the only thing standing between this task and ready/, which is what the case claims to be about.
+    """
     repo = build(tmp)
-    add_task(repo, "T-9004", "task/T-9004", FUTURE)
-    make_branch(repo, "task/T-9004", pushed=True)
+    add_task(repo, "T-9004", None, FUTURE)
     return repo, "T-9004"
 
 
@@ -191,12 +202,49 @@ def case_local_branch_only(tmp):
 
 CASES = [
     ("1/pushed-branch          must KEEP",   case_pushed_branch,          "claimed", 0, "kept"),
-    ("2/declared-not-fetched   must KEEP",   case_declared_but_unfetched, "claimed", 0, "kept"),
+    ("2/declared-not-fetched   must KEEP",   case_declared_but_unfetched, "claimed", 0,
+     "declares branch task/T-9002; no ref here - fetch to see it"),
     ("3/no-branch-declared     must SWEEP",  case_no_branch_declared,     "ready",   0, "-> ready/"),
-    ("4/lease-still-valid      must NOT move", case_lease_still_valid,    "claimed", 0, "SWEEP done (0 moved"),
+    ("4/lease-still-valid      must NOT move", case_lease_still_valid,    "claimed", 0, "SWEEP done (0 moved, 0 kept)"),
     ("5/not-a-git-repo         must REFUSE", case_not_a_git_repo,         "claimed", 2, "SWEEP REFUSED"),
     ("6/local-branch-only      must KEEP",   case_local_branch_only,      "claimed", 0, "kept"),
 ]
+
+
+# The populations this file is allowed to hold: EQUAL, not "at least" (agent/rv-pr85, BLOCKING B1).
+#
+# `CASES = []` printed `SWEEP-CHECK OK (0 cases)`, exit 0, and `VARIANTS = []` printed
+# `SWEEP VARIANTS OK (0)`, exit 0. P-PROC-03 reads only the exit status, so the only gate protecting 39
+# pushed branches could be hollowed out with every check green. This repository has decided this question
+# twice already in writing - `ops/lib/check-line-cap` carries MIN_FILES=5 for exactly this, and P-PROC-02
+# advertises that it "refuses to pass on an unexamined population" nine lines above the new pin - and the
+# docstring at the top of THIS file says "the loop never ran" is how the mutation harnesses learned to
+# report a clean sheet over an empty population. It was not applying that to itself.
+#
+# EQUAL is load-bearing: a floor of "at least" lets cases be deleted one at a time with a clean sheet
+# printed each time, which is exactly how MIN_MUTATIONS failed in ops/mutate. Adding a case means changing
+# this number, on purpose, in the same commit.
+MIN_CASES = 6
+MIN_VARIANTS = 4
+
+
+def population_ok() -> bool:
+    ok = True
+    if len(CASES) != MIN_CASES:
+        sys.stdout.write("SWEEP-CHECK REFUSING: %d cases defined, MIN_CASES says %d. A case list that does "
+                         "not match its own floor cannot be trusted to have run anything.\n"
+                         % (len(CASES), MIN_CASES))
+        ok = False
+    if len(VARIANTS) != MIN_VARIANTS:
+        sys.stdout.write("SWEEP-CHECK REFUSING: %d variants defined, MIN_VARIANTS says %d.\n"
+                         % (len(VARIANTS), MIN_VARIANTS))
+        ok = False
+    labels = [c[0] for c in CASES]
+    if len(set(labels)) != len(labels):
+        sys.stdout.write("SWEEP-CHECK REFUSING: duplicate case labels - the count would stay right while "
+                         "fewer distinct checks ran.\n")
+        ok = False
+    return ok
 
 
 def run_cases(queue_override=None, quiet=False):
@@ -264,6 +312,14 @@ VARIANTS = [
     # any case is watching this guard.
     ("without any branch check", _KEEP_PUSHED + _KEEP_DECLARED,
      "            if False:\n                continue\n", {"1", "2", "6"}),
+    # The sweeper's PRIMARY trigger, and nothing touched it until agent/rv-pr85 inverted the
+    # comparison by hand and watched case 4 stay green - because case 4 had a branch and was kept
+    # by the branch guard instead of by the clock. Case 4 lost its branch; this variant says so.
+    # 2 as well as 3 and 4, and that is not slack: case 2 asserts the sweeper's OWN sentence about it, which
+    # it can only say if the expiry brought the task into the loop at all. Measured, not predicted - the
+    # first version of this entry expected {3, 4} and the sweep said "expected 3,4, got 2,3,4".
+    ("expiry comparison inverted", "        if exp < now():", "        if exp > now():",
+     {"2", "3", "4"}),
 ]
 
 
@@ -303,6 +359,8 @@ def run_variants() -> int:
 def main() -> int:
     if not QUEUE_PY.is_file():
         sys.stdout.write("SWEEP-CHECK FAIL: %s not found\n" % QUEUE_PY)
+        return 2
+    if not population_ok():
         return 2
     if "--variants" in sys.argv:
         return run_variants()

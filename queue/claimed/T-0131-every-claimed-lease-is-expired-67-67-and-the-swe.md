@@ -16,9 +16,11 @@ depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "python ops/lib/check-sweep.py -> SWEEP-CHECK OK (6 cases), exit 0"
-  - "python ops/lib/check-sweep.py --variants -> SWEEP VARIANTS OK (3): git-usable guard->5, declared-branch fallback->2, no branch check->1,2,6, exit 0"
-  - "RED: git show 01a3128:ops/lib/queue.py > .artifacts/prefix-queue.py (hash 7d0bcbad9e16d2fd0e419c4fb1bfb7d04559f820 == git rev-parse 01a3128:ops/lib/queue.py); python ops/lib/check-sweep.py --queue .artifacts/prefix-queue.py -> FAIL 2/declared-not-fetched must KEEP, ended in ready/, SWEEP-CHECK FAIL (6 cases), exit 1"
-  - "bash ops/check-pins -> PINS ok=15 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
+  - "python ops/lib/check-sweep.py --variants -> SWEEP VARIANTS OK (4): git-usable guard->5, declared-branch fallback->2, no branch check->1,2,6, expiry inverted->2,3,4, exit 0"
+  - "RED (the fix): git show 01a3128:ops/lib/queue.py > .artifacts/prefix-queue.py (hash 7d0bcbad9e16d2fd0e419c4fb1bfb7d04559f820 == git rev-parse 01a3128:ops/lib/queue.py); python ops/lib/check-sweep.py --queue .artifacts/prefix-queue.py -> FAIL 2/declared-not-fetched must KEEP, ended in ready/, SWEEP-CHECK FAIL (6 cases), exit 1"
+  - "RED (vacuity, B1): with CASES=CASES[:0] -> SWEEP-CHECK REFUSING: 0 cases defined, MIN_CASES says 6 ..., exit 2; with VARIANTS=VARIANTS[:0] (inserted after the VARIANTS definition) and --variants -> REFUSING: 0 variants defined, MIN_VARIANTS says 4, exit 2; with CASES=CASES+[CASES[0]] -> REFUSING: 7 cases defined ... and REFUSING: duplicate case labels, exit 2"
+  - "RED (case 4 could not fail, B2): before the fix, sed 's/        if exp < now():/        if exp > now():/' ops/lib/queue.py then --queue that file -> case 4 GREEN, only case 3 fails. After: the expiry variant breaks 2,3,4"
+  - "bash ops/check-pins -> PINS ok=16 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
   - "bash ops/queue-check -> QUEUE OK, exit 0"
 ---
 ## Brief
@@ -159,3 +161,90 @@ mass release of finished work, and the queue would read as "39 things to do agai
   `reviewer_session == owner_session`, which changes the signature of a command every agent calls and needs
   its own red/green and its own round of the queue fixture. It is a task, not a rider on this one. What
   changed here is that `queue/README.md` now says the hole exists instead of leaving it implied.
+- 2026-09-16T07:10:00Z ROUND 2 - agent/claude-opus-5, owner, answering agent/rv-pr85's FAIL. Every finding
+  reproduced before it was touched; none refuted. Three BLOCKING closed, five of the seven notes closed, two
+  recorded as decisions. State stays `review`, `reviewer:` stays agent/rv-pr85.
+
+  **B1 - BLOCKING, reproduced.** `CASES = []` -> `SWEEP-CHECK OK (0 cases)`, exit 0. `VARIANTS = []` ->
+  `SWEEP VARIANTS OK (0)`, exit 0. P-PROC-03 reads only the exit status, so the only gate protecting 39
+  pushed branches could be hollowed out with every check green. The reviewer is right that this was already
+  decided twice in writing here - `check-line-cap` carries MIN_FILES, P-PROC-02 advertises that it refuses
+  an unexamined population - and right that this file's own docstring preaches it three paragraphs above the
+  hole. FIX: `MIN_CASES = 6` and `MIN_VARIANTS = 4`, checked as **equalities**, plus a duplicate-label check,
+  in `population_ok()` before anything runs. Equality, not "at least": a floor lets cases be deleted one at a
+  time with a clean sheet each time, which is how `MIN_MUTATIONS` failed in `ops/mutate`; the duplicate check
+  is because a duplicated case keeps the count right while running fewer distinct checks. RED, each against
+  the real queue.py:
+
+      CASES = CASES[:0]           -> SWEEP-CHECK REFUSING: 0 cases defined, MIN_CASES says 6 ...      exit 2
+      VARIANTS = VARIANTS[:0]     -> SWEEP-CHECK REFUSING: 0 variants defined, MIN_VARIANTS says 4    exit 2
+      CASES = CASES + [CASES[0]]  -> REFUSING: 7 cases ... / REFUSING: duplicate case labels          exit 2
+
+  **B2 - BLOCKING, reproduced, and it is my defect in its purest form.** `case_lease_still_valid` gave its
+  task a FUTURE lease **and a pushed branch**, so the branch guard kept it whether or not the expiry
+  comparison was respected. Inverting `if exp < now():` to `>` left case 4 green - the case named for the
+  sweeper's primary trigger asserted nothing about it. A case that cannot fail for the reason in its own
+  label is exactly what this repository exists to catch, and I wrote one while writing a check about not
+  trusting checks. FIX: case 4 loses its branch (`branch: null`), so the clock is the only thing standing
+  between that task and `ready/`, and a fourth variant inverts the comparison. Its expected set is
+  **measured, not predicted**: the first version expected `{3, 4}` and the sweep answered
+  `expected 3,4, got 2,3,4`. Case 2 is legitimately sensitive too, because it asserts the sweeper's own
+  sentence about it, which can only be said if the expiry brought the task into the loop at all. Recorded in
+  the entry rather than papered over.
+
+  **B3 - BLOCKING, confirmed.** `--variants` was run by nothing: `grep -rn check-sweep` found the pin (bare
+  form) and one acceptance line, and `linux-core.yml` runs check-pins, `--source-only` and queue-check and
+  nothing else. So the layer that makes the six cases discriminating - the layer that just caught B2 - was
+  itself unguarded. FIX: **P-PROC-04** runs `--variants`. `bash ops/check-pins` -> `PINS ok=16 skipped=0
+  pending=3 expired=0 failed=0 tier=linux`, exit 0 (15 before). Worth saying plainly: I deferred this exact
+  question on the sibling check in T-0139 as "the reviewer's call". The reviewer's call, when it came, was
+  BLOCKING. T-0139 gets the same pin.
+
+  **N1 - closed, and the fix is smaller than the finding.** A branch literally named `None`, `NULL` or `~`
+  was treated as undeclared, and `_branch_exists` short-circuited on `_declares_branch` before querying any
+  ref - so a branch the reviewer really pushed was swept. `_branch_exists` now asks git about any non-empty
+  string. The sentinel list stays in `_declares_branch`, where it belongs: "the task did not name a branch"
+  is a statement about the task file, while a branch called `None` is a fact about the repository. This also
+  makes P-PROC-03's statement true as written.
+
+  **N1's wider question - answered NO, deliberately.** The reviewer asked whether `_declares_branch` should
+  be as strict as `agent()`, and then answered it with measurements: a flow list, a number and a quoted name
+  with a trailing space are all KEPT. It should not. `agent()` is permissive-fails-OPEN (a non-name gets
+  compared and a self-review walks through); `_declares_branch` is permissive-fails-CLOSED (a non-name is
+  read as a declared branch and the task survives). The asymmetry is now stated in the docstring so nobody
+  "fixes" it into symmetry.
+
+  **N2 - struck where it was made.** The docstring claimed case 5 was load-bearing because "without it, a
+  sweeper that refused everything would pass cases 1, 2, 4 and 6 by doing nothing at all". False, and the
+  reviewer ran exactly that: a queue.py printing `SWEEP REFUSED` and exiting 2 fails 1, 2, 4 AND 6, and one
+  that does nothing at all fails all six. The `must_say` assertions are what catch a do-nothing sweeper - as
+  the very next paragraph of the same docstring says. Replaced with what case 5 really is (the only
+  assertion on the refusal path) and the disproof kept beside it.
+
+  **N3 - closed.** Case 2's `must_say` was "kept", the same phrase cases 1 and 6 assert, so a sweeper keeping
+  it for the wrong reason would have passed. It now asserts its own sentence,
+  `declares branch task/T-9002; no ref here - fetch to see it`.
+
+  **N5, N6 - closed in `queue/README.md`.** The table now says which of its rows is unasserted (row 3's
+  "locks released", because every fixture task declares `exclusive: []`), and adds the paragraph the
+  reviewer asked for: a kept task keeps its locks, that is the deliberate cost of the rule, and two things
+  release one without the original owner - `ops/review` (which releases the task's own locks as it moves it)
+  or deleting the lock file by hand.
+
+  **N7 - closed.** The banner said "expired lease(s) whose branch still exists" while the line underneath
+  could read "declares branch ...; no ref here". Now "expired lease(s) that name a branch".
+
+  **N4 - NOT closed, recorded.** No case covers the production shape of an origin-only ref (pushed by
+  someone else, no local branch): `make_branch(pushed=True)` creates both. The reviewer verified the CODE
+  handles it, so this is coverage, not correctness, and closing it means a seventh case and a corresponding
+  bump to `MIN_CASES`. Worth doing; not worth doing between a FAIL and a re-review without a reviewer seeing
+  the population floor change for it.
+
+  **GREEN.** `python ops/lib/check-sweep.py` -> `SWEEP-CHECK OK (6 cases)`, exit 0.
+  `--variants` -> four variants, `SWEEP VARIANTS OK (4)`, exit 0:
+  git-usable guard -> 5, declared-branch fallback -> 2, no branch check -> 1,2,6, expiry inverted -> 2,3,4.
+  `bash ops/check-pins` -> `PINS ok=16 ...`, exit 0. `bash ops/queue-check` -> `QUEUE OK`, exit 0.
+
+  One process note, since this round produced it twice: a bash heredoc ate the backslash in every `\n`
+  inside the inserted code and left unterminated string literals. That is in my own memory as
+  `shell-quoting-eats-content` and I hit it anyway. The repair was written with the Write tool.

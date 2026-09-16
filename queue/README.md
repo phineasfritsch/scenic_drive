@@ -62,9 +62,19 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
    | git cannot read the repo | **refuses**, exit 2, moves nothing |
 
    Leases are 2–4 hours and the work is routinely longer, so expiry mostly measures the wrong thing; the
-   branch is the evidence that matters. `ops/lib/check-sweep.py` (pin P-PROC-03) asserts all four rows and
-   reads what the sweeper *said*, not only where the file ended up — four of its six cases are must-KEEP,
-   and a sweeper that crashed before its loop would pass all four by moving nothing.
+   branch is the evidence that matters. `ops/lib/check-sweep.py` asserts all four rows — pin P-PROC-03 runs
+   the cases, P-PROC-04 runs `--variants`, which is what proves the cases can fail — and it reads what the
+   sweeper *said*, not only where the file ended up: four of its six cases are must-KEEP, and a sweeper that
+   crashed before its loop would pass all four by moving nothing. The **locks released** clause of row 3 is
+   the one part no case covers, because every fixture task declares `exclusive: []`.
+
+   **A kept task keeps its locks, and that is the cost of the rule above.** Sweeping is what used to release
+   an `exclusive:` lock, so a task that names a branch now holds `scenic-index` or `prod` until somebody
+   moves it — and `ops/queue-check` reports an orphaned lock as an error for *every* agent in *every*
+   worktree, not just its owner's. That is deliberate: a stuck lock is recoverable, 39 discarded branches are
+   not. Two things release it, and neither needs the original owner: `ops/review <id> --reviewer agent/<name>`
+   (which releases the task's own locks as it moves it), or deleting `queue/LOCKS/<resource>.lock` by hand
+   once you have checked what holds it.
 
    **A finished task whose owner is gone is not stuck**: `ops/review <id> --reviewer agent/<name>` makes the
    `claimed → review` transition from any session. It is not the owner's private door — it checks that the
