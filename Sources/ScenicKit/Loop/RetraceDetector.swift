@@ -64,9 +64,17 @@ public enum RetraceDetector {
     ///
     /// Only the EAST axis can break it. The grid's longitude metre (111_320) is LARGER than the decider's
     /// (111_195.08), so the grid thinks an east-west pair is further apart than it is and can push it over
-    /// a boundary. The grid's latitude metre (111_132) is SMALLER, so a north-south pair reads as 0.999433
-    /// cells and never straddles two. A test that only walked north would be green against every version of
-    /// this defect.
+    /// a boundary. The grid's latitude metre (111_132) is SMALLER, so a north-south pair reads SHORT and
+    /// never straddles two. A test that only walked north would be green against every version of this
+    /// defect.
+    ///
+    /// The unit in that sentence used to be wrong, and it is the unit this whole comment turns on. It read
+    /// "a north-south pair reads as 0.999433 cells" while the cell is TWICE the radius. Measured, with the
+    /// decider's 111_195.080234 m/degree: a 25 m north-south pair spans 24.985818 grid metres - 0.999433 of
+    /// the RADIUS and 0.499716 of the 50 m cell; its east-west twin spans 25.028086 - 1.001123 of the radius
+    /// and 0.500562 of the cell. The paragraph above uses CELLS (0.5006), the F1 paragraph uses the old grid
+    /// where the cell WAS the radius (1.001123), and this one silently used neither. Both readings are under
+    /// one cell, which is why the conclusion survived the wrong number - and why nothing here caught it.
     static let indexCellMeters = 2 * retraceRadiusMeters
 
     /// Degrees. Above this the two passes are heading opposite ways rather than merely crossing.
