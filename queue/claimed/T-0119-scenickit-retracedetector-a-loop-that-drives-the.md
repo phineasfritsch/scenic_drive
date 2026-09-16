@@ -15,17 +15,17 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test -> 43 tests in 7 suites passed, exit 0"
-  - "python ops/mutate/retrace.py -> 23 of 23 caught by a named test; 0 trapped, 0 compile-only, 0 MISSED, 0 skipped; exit 0. KNOWN GAPS arm 3 MISSED + 1 trapped of 4; EQUIVALENT arm 2 MISSED of 2"
-  - "python ops/mutate/retrace.py --prove-vacuity -> VACUITY PROOF OK: caught=0 (need 0) and MISSED=23 of 23, exit 0"
-  - "RED: the plus-shaped neighbourhood [(-1, 0), (0, -1), (0, 0), (0, 1), (1, 0)] fails BY NAME 'every cell a pair inside the radius can land in is one the index actually searches' (4 issues, one per corner: 'a pair 25.0 m apart on bearing 75 landed at cell offset (1, 1), which the index does not search') and 'a divided road on a diagonal is retrace at every phase, corner cells included' (7 of 12 phases, e.g. 'approach 0.0 m: measured 0.3382839184189396 retrace, not 0.5'), exit 1"
-  - "RED: dropping ONE corner from the neighbourhood fails 'every cell a pair inside the radius can land in is one the index actually searches' BY NAME, one issue, naming offset (1, 1), exit 1"
-  - "RED: setting indexCellMeters back to retraceRadiusMeters fails 'two points a radius apart are never more than one cell apart, at the WORST grid phase' BY NAME with 'east-west: a pair 25.0 m apart landed 2 cells apart', exit 1 (and three more tests by name, including offsets (2, 0) and (-2, 0))"
-  - "RED: emptying MUTATIONS makes the harness REFUSE with 'A harness that examines nothing exits 0 and proves nothing', exit 2"
-  - "RED: deleting ONE mutation (22 of 23), ONE of the two EQUIVALENT mutants, or ONE of the four KNOWN_MISSED entries each makes the harness REFUSE, exit 2 - every floor is its own arm's real population"
-  - "RED: a subject or a test file that differs from 'git show HEAD:' makes the harness REFUSE before any build, exit 2, naming both md5s"
-  - "RED: TEST_FILES decay is refused in both directions - without RetraceIndexTests.swift, --prove-vacuity reports 'VACUITY PROOF FAILED: caught=1 (need 0)', exit 1; without RetraceDiagonalTests.swift it reports 'baseline does not build', exit 2 (the two files share one probe)"
-  - "NOTE: the guarantee test correctly STAYS GREEN at indexCellMeters = 1.002x and 1.5x radius - the correctness edge is radius * 1.001123 and the 2x is policy headroom, not the boundary. At 1.5x the ONLY failure is the policy pin 'the index cell is larger than the retrace radius, which is what makes the search complete'. At 1.002x 'cells are square in metres, at every latitude' fails as well ('60 m should be one 50 m cell away, got 2' - its 60 m probe against a 50 m cell is entangled with indexCellMeters), so the previous NOTE's 'Only the constants pin fails there' was FALSE and is struck: reviewer-sg-pr76's B2"
+  - "swift test -> 'Test run with 45 tests in 7 suites passed', exit 0"
+  - "python ops/mutate/retrace.py -> 'caught by a named test: 26 of 26   (trapped 0, compile-only 0, MISSED 0, skipped 0)', exit 0. KNOWN GAPS arm 6 MISSED + 1 trapped of 7; EQUIVALENT arm 2 MISSED of 2. No name occurs in two arms: 35 entries across the three lists, 35 distinct names"
+  - "python ops/mutate/retrace.py --prove-vacuity -> 'VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=26 of 26', exit 0"
+  - "RED: the plus-shaped neighbourhood [(-1, 0), (0, -1), (0, 0), (0, 1), (1, 0)] fails BY NAME 'every cell a pair inside the radius can land in is one the index actually searches' (4 issues, exactly one per corner: bearing 75 -> 'a pair 25.0 m apart on bearing 75 landed at cell offset (1, 1), which the index does not search', 165 -> (1, -1), 255 -> (-1, -1), 285 -> (-1, 1)) and 'a divided road on a diagonal is retrace at every phase, corner cells included' (7 of 12 phases - approaches 0, 40, 60, 100, 140, 160 and 260 m - e.g. 'approach 0.0 m: measured 0.3382839184189396 retrace, not 0.5'). 'Test run with 45 tests in 7 suites failed ... with 11 issues', exit 1"
+  - "RED: dropping ONE corner from the neighbourhood fails 'every cell a pair inside the radius can land in is one the index actually searches' BY NAME, ONE issue, 'a pair 25.0 m apart on bearing 75 landed at cell offset (1, 1), which the index does not search'. 45 tests, 1 issue, exit 1"
+  - "RED: setting indexCellMeters back to retraceRadiusMeters fails FOUR tests by name, 13 issues: 'two points a radius apart are never more than one cell apart, at the WORST grid phase' (worstX -> 2, 'east-west: a pair 25.0 m apart landed 2 cells apart'), 'every cell a pair inside the radius can land in is one the index actually searches' (2 issues, offsets (2, 0) on bearing 90 and (-2, 0) on bearing 270), 'cells are square in metres, at every latitude' (8 issues, '60 m should be one 50 m cell away, got 2') and 'the index cell is larger than the retrace radius, which is what makes the search complete' (2 issues). exit 1"
+  - "RED: emptying MUTATIONS makes the harness REFUSE with 'REFUSING: 0 mutations, 2 equivalent mutants and 7 known gaps, expected at least 26, 2 and 7. / A harness that examines nothing exits 0 and proves nothing.', exit 2, nothing built"
+  - "RED: deleting exactly ONE mutation (25 of 26), ONE of the two EQUIVALENT mutants (1 of 2), or ONE of the seven KNOWN_MISSED entries (6 of 7) each makes the harness REFUSE, exit 2, nothing built - every floor is its own arm's real population. Deleting one mutation under --prove-vacuity refuses as well"
+  - "RED: the subject or ANY ONE of the four test files differing from 'git show HEAD:' makes the harness REFUSE before any build, exit 2, naming both md5s - measured for all five files individually"
+  - "RED: TEST_FILES decay is refused in both directions. Without RetraceIndexTests.swift, --prove-vacuity reports 'VACUITY PROOF FAILED: with no tests present, caught=4 (need 0) and MISSED=22 of 26', exit 1 - the four still caught being 'halve the latitude metre, so grid rows cover twice the ground', 'shrink the index cell back to the retrace radius', 'shrink the neighbourhood to a plus, dropping the four diagonal cells' and 'drop ONE diagonal cell from the neighbourhood'. Without RetraceDiagonalTests.swift it reports 'baseline does not build; nothing below would mean anything', exit 2 (the two files share one probe). The 'caught=1' this line used to claim was never measured on the full population: reviewer-fn-pr76's finding 1"
+  - "NOTE: the guarantee test AND the new coverage test correctly STAY GREEN at indexCellMeters = 1.002x and 1.5x radius - the correctness edge is radius * 1.001123 and the 2x is policy headroom, not the boundary. At 1.5x exactly ONE test fails, the policy pin 'the index cell is larger than the retrace radius, which is what makes the search complete' (2 issues, verbatim: policy margin, not the correctness edge; see indexCellMeters' own documentation). At 1.002x exactly TWO fail, that pin plus 'cells are square in metres, at every latitude' (8 issues, '60 m should be one 50 m cell away, got 2' - its 60 m probe against a 50 m cell is entangled with indexCellMeters), so the older NOTE's 'Only the constants pin fails there' was FALSE and stays struck: reviewer-sg-pr76's B2"
 ---
 ## Brief
 
@@ -193,7 +193,10 @@ caught, and `cE.x == 1` is asserted directly rather than only against `cN.y`.
   would be green against exactly the mutation it exists for.
   (b) `RetraceDiagonalTests` drives a divided road on bearing 045, 1200 m each way, return carriageway 24 m
   PERPENDICULAR, over twelve approach phases, and pins the retrace at the return leg's share of the route
-  (`1200 / (2400 + approach)`, held to 0.005 at every phase). It is the product statement: under the plus,
+  (`1200 / (2400 + approach)`, ~~held to 0.005 at every phase~~ - STRUCK 2026-09-16, reviewer-fn-pr76's
+  finding 3: this stated a MEASUREMENT as if it were the ASSERTION. The measured deficit is 0.00403502 to
+  0.00495061; the assertion at `RetraceDiagonalTests.swift:107` allows `< 0.02`, four times the widest of
+  them, and the test does not hold anything to 0.005). It is the product statement: under the plus,
   a third of a real road's retrace disappears, at some grid phases and not others.
 - 2026-09-15T22:30:00Z **The independent phase sweep is load-bearing, and I had to correct my own comment
   about why.** A corner needs the pair to straddle a column boundary and a row boundary at once. I first
@@ -238,7 +241,10 @@ caught, and `cE.x == 1` is asserted directly rather than only against `cN.y`.
   md5s, exit 2, nothing built. The cost is real and worth naming: you must commit before you can measure.
 - 2026-09-15T22:30:00Z **TEST_FILES gained `RetraceDiagonalTests.swift` in the SAME commit as the file**
   ([[T-0132]], five occurrences). Decay refused in both directions, measured: drop `RetraceIndexTests.swift`
-  from the list and `--prove-vacuity` reports `VACUITY PROOF FAILED: caught=1 (need 0)`, exit 1; drop
+  from the list and `--prove-vacuity` reports ~~`VACUITY PROOF FAILED: caught=1 (need 0)`~~ - **STRUCK
+  2026-09-16, reviewer-fn-pr76's finding 1: `caught=1` was never measured on the full population.** On the
+  whole 26-mutation list it is `VACUITY PROOF FAILED: with no tests present, caught=4 (need 0) and
+  MISSED=22 of 26`, exit 1 - see the 2026-09-16 entry for the four names; drop
   `RetraceDiagonalTests.swift` and it reports `baseline does not build`, exit 2 - the two files share one
   probe, so emptying the index file while leaving the diagonal file in place does not compile. Neither reads
   as green; the second names the build rather than the omission, which is written at `TEST_FILES`.
@@ -264,3 +270,161 @@ caught, and `cE.x == 1` is asserted directly rather than only against `cN.y`.
   outside P-SRC-02's `Sources/**` and `Tests/**` walk, still flagged against T-0058. `bash ops/test` exits 1
   on `services/api exists but vitest produced no report` - checked, not attributed: `services/api/node_modules`
   is absent on this branch and on main alike, which is T-0040.
+
+### Round 5 - reviewer-fn-pr76, and two commits that had never left this disk
+
+- 2026-09-16T01:30:00Z **The fixes for findings 2 to 6 existed only in `.worktrees/T-0119` and had never been
+  pushed.** `ops/agent-preflight` said it in one line - `T-0119   unpushed:[2 commit(s) not on origin]` - so
+  neither the round-4 reviewer nor CI could have seen `c4e84ae` or `4e48614`, and the PR body and this Log
+  still described the tree at `7ce6f0e`. The same worktree also held a **crashed mutation run**:
+  `RetraceDetector.swift` carried a live mutant (`if seen.isEmpty { samplesByCell[cell, default: []]...`)
+  and all four test files were `--prove-vacuity`'s empty suites. That is the harness's own header defect -
+  "a harness that restores the mutant" - arriving as an interrupted process rather than a bug, and it is
+  exactly why `refuse_if_not_head` exists. Restored from `git show HEAD:` and hash-verified per file before
+  anything was measured. NOTHING in this entry was measured on that tree.
+- 2026-09-16T01:30:00Z **BLOCKING 1 CLOSED - the acceptance line understated the vacuity proof by 4x, not
+  3x.** It claimed that dropping `RetraceIndexTests.swift` from `TEST_FILES` leaves
+  `VACUITY PROOF FAILED: caught=1 (need 0)`. The reviewer measured THREE still caught from a four-mutation
+  subset. Re-run on the FULL 26-mutation population, nothing narrowed, at this branch's tip:
+
+      VACUITY PROOF FAILED: with no tests present, caught=4 (need 0) and MISSED=22 of 26      exit 1
+
+  The four the line omitted, verbatim from the run:
+
+      caught      halve the latitude metre, so grid rows cover twice the ground
+      caught      shrink the index cell back to the retrace radius
+      caught      shrink the neighbourhood to a plus, dropping the four diagonal cells
+      caught      drop ONE diagonal cell from the neighbourhood
+
+  Three of those four are the mutations that witness THIS PR's fix, and the fourth
+  (`metersPerDegreeLatitude = 55_000.0`) is caught by the DIAGONAL-OFFSETS half of the same new test - which
+  I measured rather than took from the comment that says so. With the other three retrace files replaced by
+  the empty suites, it fails `every cell a pair inside the radius can land in is one the index actually
+  searches` with `no pair inside the radius ever landed at diagonal offset (-1, 1), so the assertion above
+  says nothing about the corner cells` and the same for `(1, 1)`: 2 issues, 21 tests, exit 1. So the
+  line described the decay of the new coverage test as nearly invisible when it is the loudest thing in the
+  run. `caught=1` is struck where it was written, in the frontmatter AND in the 2026-09-15T22:30:00Z Log
+  entry above that repeated it. The other direction reproduces unchanged: drop `RetraceDiagonalTests.swift`
+  and it is `baseline does not build; nothing below would mean anything`, exit 2.
+- 2026-09-16T01:30:00Z **BLOCKING 2 CLOSED (`c4e84ae`) - two `KNOWN_MISSED` reasons this Log had already
+  declared FALSE were still standing verbatim, reading as the justification for a different gap.** When
+  "drop the coordinate range screen" and "drop the zero-length segment guard" were promoted into `MUTATIONS`
+  in `ffdb8f9` the ENTRIES moved and their COMMENTS did not. Every run prints both as `caught`. Struck, and
+  the real reason for the sampling-density gap measured rather than inherited. `grep` over `*.py`, `*.swift`
+  and `*.md` now finds neither sentence anywhere in the tree.
+- 2026-09-16T01:30:00Z **BLOCKING 3 CLOSED (`c4e84ae`) - the witness comment contradicted its own red demo.**
+  `RetraceDiagonalTests.swift` said the plus-shaped neighbourhood costs "0.32 to 0.39 at four of these twelve
+  phases". Measured, read out of the failing run: SEVEN of twelve (approaches 0, 40, 60, 100, 140, 160, 260),
+  0.3248809338339293 to 0.42207776693045557. The same comment stated the measured deficit (0.00403502 to
+  0.00495061) as though it were the assertion's band (`< 0.02`); both are now written out separately, and the
+  2026-09-15 Log line that repeated "held to 0.005 at every phase" is struck where it stands.
+- 2026-09-16T01:30:00Z **BLOCKING 4 CLOSED (`c4e84ae`, `4e48614`) - three mutation names did not describe the
+  edit beside them.** "halve the sampling density along a segment" applied `2.0 -> 0.4`, a FIFTH, under the
+  same name as the real halving in `KNOWN_MISSED`, so one run printed that string as `caught` and as
+  `MISSED`; it is "cut the sampling density to a fifth along a segment" now. "use the equatorial degree for
+  latitude too" applied `55_000.0`, which is no degree at all; that entry is "halve the latitude metre" now
+  and the slip it used to name, `111_132.0 -> 111_320.0`, is recorded in `KNOWN_MISSED` with what it would
+  break. "give the index cell too little margin for the scale error" claimed a guarantee break at 1.002x that
+  does not happen, and is "shrink the index cell to 1.002x the radius, above the correctness edge" now.
+  Checked mechanically rather than by eye: 35 entries across the three arms, 35 distinct names.
+- 2026-09-16T01:30:00Z **N3 / finding 5 CLOSED (`c4e84ae`) - the only real code defect.**
+  `exactlyTheThresholdIsAcceptable` asserted `0.15 <= RetraceDetector.maxRetraceFraction`, which is the line
+  above it restated, so `return f <= maxRetraceFraction` -> `<` survived the whole suite at exit 0 with zero
+  failing names. No route fixture can close it - no geometry here lands on 0.15 exactly - so the comparison
+  is split into `isAcceptable(fraction:)`, the boundary is asserted on the predicate at
+  `maxRetraceFraction` and `maxRetraceFraction.nextUp`, and the wiring back to `isAcceptableLoop` is asserted
+  too. Behaviour unchanged. Two more of the reviewer's survivors got their own witnesses: a two-point route
+  (`twoPointRouteIsAnswerable`; `points.count >= 3` flipped it from `Optional(0.0)`/acceptable to
+  `nil`/not-acceptable) and the pole guard (`noGridAtThePole`, in `4e48614`; two earlier reviewers disagreed
+  about whether it was reachable and a guard nothing pins is how that stays unsettled). The two the suite
+  still cannot kill - the mid-latitude longitude scale, and sampling at the segment start - are in
+  `KNOWN_MISSED` with the measurement that says why. **N4 is closed as unactionable as written**: it was
+  recorded only as the token "M4", and nothing in this repository defines M4, so it is replaced by those four
+  named survivors rather than carried forward as a token.
+- 2026-09-16T01:30:00Z **Finding 6 CLOSED (`c4e84ae`) - the second half of the new test had never been seen
+  red.** "all four diagonal offsets must occur" now has two demonstrations quoted at the assertion, both read
+  out of the output: collapsing the sweep to a single `f` fails it with `no pair inside the radius ever
+  landed at diagonal offset (-1, 1)` and `(1, -1)` - exactly the two the paragraph above it predicts - and
+  `metersPerDegreeLatitude = 55_000.0` fails it with `(-1, 1)` and `(1, 1)`.
+- 2026-09-16T01:30:00Z **A unit slip nobody had flagged, in the sentence the margin argument turns on**
+  (`c0b1008`). `indexCellMeters`' documentation read "a north-south pair reads as 0.999433 cells" while the
+  cell is TWICE the radius; two paragraphs above, the same file writes "25 x 1.001123 / 50 = 0.5006 cells",
+  and `ops/mutate/retrace.py` states the same pair as "0.500561 cells instead of 0.499716". The subject and
+  the harness disagreed in units about one measurement. Measured against the decider's 111_195.080234
+  m/degree: a 25 m north-south pair spans 24.985818 grid metres - 0.999433 of the RADIUS, 0.499716 of the
+  50 m cell; the east-west twin spans 25.028086 - 1.001123 and 0.500562. The ratio was right, the unit was
+  not, and the conclusion ("never straddles two") survived either way, which is why no test could notice:
+  this is prose about a ratio, and CLAUDE.md forbids anchoring a check on a comment.
+- 2026-09-16T01:30:00Z **One more stale number, in the shipped harness rather than in a report.**
+  `ops/mutate/retrace.py`'s own comment above the numeric mutations said *the acceptance evidence is
+  "23 of 23 caught BY NAME"*. The population is 26. A comment that repeats a count the acceptance block owns
+  is one more place for that count to be wrong, so it names the property instead of the number. Checked the
+  rest of the tree with `git grep` for every count this task has ever published (`23 of 23`, `43 tests`,
+  `21 of 21`, `41 tests`, `MIN_MUTATIONS = 23`, `MIN_KNOWN_MISSED = 4`): the only remaining hits are
+  (a) dated GREEN lines in this Log, which record what was true at the commit they name and are left
+  standing as history, and (b) three past-tense sentences saying the plus-shaped neighbourhood "left all 41
+  tests green at exit 0" - true of the suite as it then stood, and the reason the witness was written. Those
+  are kept. Today that same mutation fails two named tests with 11 issues out of 45.
+- 2026-09-16T01:30:00Z **What I did NOT close, stated as openly as what I did.**
+  * `KNOWN_MISSED` still holds 7 entries and every one of them is a real gap, not an alibi. Two came from
+    reviewer-fn-pr76's finding 5 and I did not write fixtures for them: `metersPerDegreeLongitude(at:)` at the
+    route's southern end instead of its mid-latitude (wrong in principle; over the longest north-south leg in
+    this suite the two scales differ by 0.01035%, which moves a 25 m pair by 0.0000429 of a cell) and sampling
+    at a step's START instead of its midpoint (a real half-step shift that no fixture's band separates).
+    Both are recorded with the measurement that says why, which is the most I can honestly claim.
+  * The sampling-density gap (`samplesPerCell 2.0 -> 1.0`) is still uncaught. Closing it needs a fixture built
+    so a cell is crossed BETWEEN consecutive samples at 1.0 and not at 2.0 - a different fixture from any here,
+    and I did not write it.
+  * `ops/mutate/retrace.py` is **545 lines**, up from 459. It is outside P-SRC-02's `Sources/**` and `Tests/**`
+    walk, so nothing fails; it is still the same standing exception flagged against [[T-0058]], and it got
+    worse this round rather than better.
+  * `bash ops/test` exits **1** on `FAIL: services/api exists but vitest produced no report`, AFTER the Swift
+    tier prints `Test run with 45 tests in 7 suites passed`. CHECKED, NOT ATTRIBUTED: `services/api/node_modules`
+    is absent in the main checkout and in this branch's worktree alike, and no commit on this branch touches
+    `services/api`. That is [[T-0040]].
+  * The branch is 111 commits behind `origin/main` and has not been rebased. CI on #76 is green on both checks
+    (core, pins-source-only); GitHub reports `mergeable: UNKNOWN`, which I did not resolve here.
+  * The task is NOT transitioned and `reviewer:` is still null. I am the owner; a reviewer of this task must
+    not be me ([[ops/queue-check]]).
+- 2026-09-16T01:30:00Z GREEN, every line re-run against the tip of this branch and pasted, not carried
+  forward. The previous GREEN line (2026-09-15T22:30:00Z) describes `7ce6f0e` and is superseded by these.
+
+      swift test --scratch-path .build-T0119fix
+      Test run with 45 tests in 7 suites passed                                          exit 0
+
+      python ops/mutate/retrace.py
+      caught by a named test: 26 of 26   (trapped 0, compile-only 0, MISSED 0, skipped 0) exit 0
+        KNOWN GAPS   6 MISSED + 1 trapped of 7
+        EQUIVALENT   2 MISSED of 2
+
+      python ops/mutate/retrace.py --prove-vacuity
+      VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=26 of 26      exit 0
+
+      bash ops/check-pins --source-only
+      PINS ok=4 skipped=9 pending=0 expired=0 failed=0 tier=linux source-only             exit 0
+
+      bash ops/queue-check
+      QUEUE OK (109 tasks)                                                                exit 0
+
+  Both gates were run BARE, not through a pipe: a pipeline's exit status is its last element's, and
+  `ops/queue-check | tail -1 && git commit` has already committed over a refusal in this repository.
+  Lines: RetraceDetector 249, DetectorTests 297, GridTests 269, IndexTests 189, DiagonalTests 113 - all under
+  the 300 cap, DetectorTests with 3 to spare. `ops/mutate/retrace.py` 545, outside the cap's walk.
+  `git ls-files -s ops/mutate/retrace.py` -> `100644`, which is what [[T-0127]] requires of a `*.py` there.
+- 2026-09-16T01:30:00Z **How this round's numbers were produced, so the next reviewer can repeat them
+  exactly.** Four worktrees, each at a named commit with its own `--scratch-path`, and no tracked file
+  written in a worktree I do not own:
+  * `.worktrees/T-0119` (the branch) - `swift test`, and `python ops/mutate/retrace.py` unmodified.
+  * `.worktrees/fx76-decay` - `--prove-vacuity`, and the TEST_FILES-decay experiments. The decay drivers
+    import `ops/mutate/retrace.py` BY PATH and override `TEST_FILES` IN MEMORY; the tracked harness is never
+    edited. Kept at `.artifacts/decay_full.py` and `.artifacts/decay_diag.py`.
+  * `.worktrees/fx76-static` - the three RED demos (`.artifacts/reddemo.py`) and the latitude-metre probe
+    (`.artifacts/latmetre.py`), each applying one mutation to the subject, running `swift test`, restoring
+    it, and hashing the result against `git show HEAD:`.
+  * `.worktrees/fx76-floor` - the eleven REFUSAL arms (`.artifacts/floors.py`) and the 1.002x / 1.5x NOTE
+    (`.artifacts/note.py`). Every refusal arm proves nothing was built by monkeypatching `build()`/`test()`
+    to record a call and printing `[built anything? False]`.
+  Every demo that mutated a tracked file restored it and VERIFIED the restore by hashing against
+  `git show HEAD:` - not by trusting a `finally` to have run. All five files came back equal in every arm.
+  The harness's own headline numbers were then re-measured a THIRD time, after `2174f01`, so the count in
+  the acceptance block describes the exact committed tree and not a tree one comment away from it.
