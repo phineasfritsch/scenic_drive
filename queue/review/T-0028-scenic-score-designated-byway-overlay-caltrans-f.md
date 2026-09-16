@@ -11,7 +11,7 @@ branch: task/T-0028
 exclusive: []
 touches: [services/etl/, ops/sane]
 pins_affected: []
-reviewer: agent/reviewer-pr36
+reviewer: agent/rv7-pr36
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -1380,3 +1380,87 @@ second external oracle in the plan (the first being Curvature).
 - 2026-09-16T00:30:00Z **Merged `origin/main` - the first merge of main into a task branch this repository has ever been able to make.** Until PR #78 landed, `.githooks/pre-commit` enforced the `touches:` allowlist with no merge case, so a branch taking an update from main staged hundreds of paths outside its allowlist and was refused. That is why this branch, carrying 17 ETL modules, has been stranded 262 commits behind since 2026-09-08, and why 41 PRs are in the same state.
 - 2026-09-16T00:30:00Z **The new gate worked, and its first act was to refuse me.** The merge staged 161 paths, 50 of them outside `services/etl/`. The hook narrowed that to the ONE path that differs from both parents - `ops/sane`, my conflict resolution - and refused it: `pre-commit: ops/sane is outside T-0028 touches: [services/etl/ ]`. That is exactly right. A merge resolution is an authored change, and an authored change outside the allowlist is what the gate exists to catch. `ops/sane` is declared in `touches:` above rather than worked around, because I really am editing it.
 - 2026-09-16T00:30:00Z The single conflict was in `ops/sane`'s exit-code comment block, and **both sides were true**: this branch documents code 4 (region extract out of bounds, T-0024) and reserves 5/6/8; main documents code 10 (another worktree holds work not on origin) and reserves 4/5/6/8. Verified in the CODE rather than trusting either comment - this side implements section 4 through `etl.checkbounds`, main implements section 10 through `ops/lib/check-worktrees`, and the merged file contains both sections. The resolution lists both codes and reserves 5/6/8, which is what the merged file actually does. Taking either side wholesale would have shipped a comment that under-claims what the file does, which is the defect class this repository keeps blocking on.
+- 2026-09-16T04:10:00Z REVIEW ROUND 5 by agent/rv7-pr36 (independent; not the owner). **VERDICT: FAIL.**
+  State stays `review`, task stays in `queue/review/`. Throwaway worktree `.worktrees/rv7-pr36-verdict`
+  detached at `cb09406`, removed after; nothing in `.worktrees/T-0028` written except this entry. CI on
+  `cb09406` given (run 35047951218). Exit codes below come from the process, never a grep.
+
+      cd services/etl && python -m pytest --junitxml=work/j.xml -p no:randomly -> exit 0, 395 passed
+      python work/rd4/f1_repro.py -> 0    python work/rd4/f2_repro.py -> 2 (R7-03)
+      python .artifacts/mutate-T0028.py -> 0; baseline green, M1-M9 + V1 each pytest exit=1, "every
+          mutation was caught"; git diff --stat after: empty.  python work_hole_rv7.py -> 0 (R7-01 probe)
+      python work/rv7v/v1_floor_defence.py -> 0    python work/rv7v/v2_contested_cost.py -> 0
+      python -m pytest -p no:randomly work/rv7v/test_rv7_floor.py -> 1, 4 failed
+      bash ops/check-pins --source-only -> 0, PINS ok=6 skipped=10 pending=1 expired=0 failed=0
+
+  **ROUND-4 NUMBERS THAT REPRODUCED.** F1: with BOTH fragments present (23.2 m, 21.0 m, overlap 1.000) FID
+  181 keeps `['rekeyed','rekeyed']` and all 28142.9 of 28142.9 m earn the bonus - round 3's blocker IS closed
+  for the case round 3 raised. F2: `824667001 frac=0.465 VOTED 133.3 ALONG 62.0 x2.15`, 264538576 x1.06,
+  675730928 x1.10, totals `VOTED {9:197, 236:28143} ALONG {9:126, 236:27569}` - to the digit. Sweep: every
+  mutation APPLIED (none SKIPPED), each caught by the test round 4 names, "caught" is the returncode, and it
+  mutates a copytree, not `services/etl`.
+
+  **F1 IS NOT CLOSED - BLOCKER, round 3's finding verbatim.** `corridor_verdict` still decides CORROBORATED
+  on `key_m > 0` alone. `MIN_CONSENSUS_M` reaches the DEFENDING side only through `_outvoting`, which also
+  demands one rival hold `MIN_CONSENSUS_SHARE` (0.80). Where no single rival clears BOTH bars, `_outvoting`
+  is empty and the function returns before either floor is read. `work/rv7v/v1_floor_defence.py`, my script:
+
+      A  real FID 181 slice, 415.9 m - shorter than the 1000 m floor, so NO number can ever reach it
+         real fixture ways only: claimed={'9':126.0} key_m=0.0 -> unclaimed, problems(): 1 line about it
+         + ONE 30.8 m ref='CA 221' fragment on the corridor's own vertices 0-1
+                               : claimed={'9':126.0,'221':30.8} key_m=30.8 -> CORROBORATED,
+                                 problems() about it: 0 lines, key_claim_m stamped: False
+      B  an 11691.0 m corridor with 11678.6 m of REAL rival evidence splitting 61/39, so neither rival
+         reaches the share: reported, until the same 30.8 m stub silences it the same way
+
+  So the constant's own comment ("Both branches read it: a number under this floor can neither establish a
+  key nor defend one") and the ONE FLOOR, BOTH DIRECTIONS paragraph are FALSE AS WRITTEN - a claim with no
+  command behind it, in the exact place round 3 said to look. No shipped test objects: every verdict test
+  with a sub-floor key has `key_m == 0.0`, so `0 < key_m < MIN_CONSENSUS_M` is untested, and
+  `test_a_fragment_claiming_the_key_does_not_buy_it_silence` - written to close this - hands the corridor a
+  `ref=CA 236` rival that clears both bars, so its stated scope exceeds its coverage. The sweep cannot reach
+  it either: M6 and M8 mutate branches this path returns BEFORE, and under M8 case A still returns
+  CORROBORATED. Red in `work/rv7v/test_rv7_floor.py` (4 failed, exit 1).
+
+  **MUST FIX - the key's defence has a METRES floor but no SHARE floor.** Round 4 states flatly: "the key is
+  under the floor -> REKEYED, so FID 181 recovers all 28.1 km *with the fragments present*." True only while
+  the fragments sum to under 1 km. `work/rv7v/v2_contested_cost.py`, real FID 181, fragments on its own
+  vertices:
+
+      real ways only / +20 frags  926.6 m  ['rekeyed','rekeyed']    bonus 28142.9 of 28142.9
+      +25 frags 1087.2 m / +40 frags 1476.1 m  ['contested','rekeyed']  bonus 15753.8  -> 12389.1 m lost
+
+  1087.2 m against the key's own 12389.1 m of real `ref=CA 236` evidence - 8% - reverses round 4's headline
+  repair. That is round 3's 12.4 km loss; the only difference is that `problems()` now prints a line, so it
+  is reported rather than silent - hence MUST FIX, not BLOCKER. By design:
+  `test_a_key_holding_real_evidence_is_reported_rather_than_guessed_about` pins CONTESTED as wanted for any
+  key over the floor whatever its share; nothing measures what CONTESTED costs.
+
+  **MUST FIX - `.artifacts/mutate-T0028.py`, the harness that IS round 4's evidence, can pass empty.**
+  `run()` returns `None` when its anchor is not present exactly once and the survivor test is `if code == 0`,
+  so `None` ("never ran") is indistinguishable from "killed". `python work_hole_rv7.py` runs the harness's
+  own logic with one non-existent anchor: `SKIPPED - anchor appears 0 times, not once`, then `every mutation
+  was caught`, exit 0. Latent today (all 10 applied in my run), but a pass condition satisfiable by an empty
+  population is the class this repo exists to catch. Fix: treat `None` as a hard failure.
+
+  **PROBE FINDINGS vs MY RE-RUN.** ATTACK lens: RV7-1 BLOCKER and RV7-2 MUST_FIX both SURVIVE, re-derived
+  above on my own scripts. Surviving NOTES: RV7-3 `reconcile` stamps `key_claim_m` only on REKEYED/CONTESTED,
+  so the verdict `problems()` never prints also has no audit trail (red in my suite); RV7-4 re-derived - a
+  `ref=CA 236` way running a 222.5 m corridor back and forth votes 5116.6 m and re-keys it, so the floor is
+  metres of WAY, not of corridor; RV7-5 confirmed at `byways.py:262` - `problems()` counts distinct
+  route-key STRINGS, not entries. RV7-6 (`routes` is a `set`) not re-derived; pre-existing, T-0030's.
+  REPRODUCE lens: R7-01 MUST_FIX SURVIVES (above); R7-02 `red-T0028.sh` ends in `echo "PYTEST EXIT=$?"` so
+  it always exits 0 whatever pytest did (its 9/10 counts are right); R7-03 `f2_repro.py` exits 2 on "NO FLIP
+  FOUND", which round 4 cites as corroborating without saying so; R7-04 stays a NOTE - two assertions
+  compute their expected value from the code under test, but each also carries an independent literal and
+  the literal is what goes red; R7-05 `addopts` is already `-q`, so `python -m pytest -q` prints no count.
+
+  **TO PASS.** Give CORROBORATED a floor of its own, tested in the `0 < key_m < MIN_CONSENSUS_M` interval on
+  a corridor no rival can win; decide what a key over the floor but under a share does; make the sweep fail
+  on a mutation that did not apply.
+
+  **STILL OPEN / DEBT.** `reconcile` is still armed and unfired - nothing calls it until a way corpus exists
+  (T-0030) - so every keyed entry still reports as never-checked. `MIN_CONSENSUS_M` = 1000 m is a judgement
+  no measurement here fixes. `pins/floor_linux.txt` is **76 against 559 real linux tests**, so deleting every
+  byway test leaves the floor green; serial-only and outside this task's `touches:`, so it is NOT ratcheted
+  in this commit - carried forward as debt on the merge.
