@@ -1,7 +1,7 @@
 ---
 id: T-0119
 title: ScenicKit RetraceDetector: a loop that drives the same road out and back is not a loop
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T14:21:47Z
@@ -11,7 +11,7 @@ branch: task/T-0119
 exclusive: []
 touches: [Sources/ScenicKit/Loop/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
-reviewer: null
+reviewer: agent/r6-pr76
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -453,3 +453,119 @@ caught, and `cE.x == 1` is asserted directly rather than only against `cN.y`.
   Each name is the test written for that defect, not a neighbour. The third also settles the argument two
   earlier reviewers had about the pole guard in the only way that lasts: `nil` really does become
   `Optional(0.0)`, printed by the assertion rather than asserted in a Log entry.
+
+### Round 6 - reviewer agent/r6-pr76, review PASS
+
+- 2026-09-15T21:40:00Z **The tree I measured.** `task/T-0119` local tip, `origin/task/T-0119` and PR #76's
+  `headRefOid` are all `670651f458b6f5cd6aedaa44a869568b4a2b9759` - the round-5 unpushed-commits state is
+  gone. Six own worktrees at that commit, each with its own `--scratch-path`, no tracked file written in a
+  worktree I do not own. All six files hashed against `git show HEAD:` BEFORE anything was measured and
+  again after every mutating run:
+
+      RetraceDetector.swift      552c42b7279aa9865339672a534a2cf6
+      RetraceDetectorTests.swift ad37932189799a17824292c695d40a43
+      RetraceGridTests.swift     56c895854084bd7fc38347a65e2f2f67
+      RetraceIndexTests.swift    6d713f6818c431f390890abdc88c8abe
+      RetraceDiagonalTests.swift a99f8e34fff79870ad83380ebb7f4cf5
+      ops/mutate/retrace.py      509611dd75cab4214400daf1323dfdeb
+
+- 2026-09-15T21:40:00Z **Every acceptance line re-run, counts and strings compared character for character.**
+
+      swift test --scratch-path .build-rv676
+      Test run with 45 tests in 7 suites passed                                          exit 0
+
+      python ops/mutate/retrace.py
+      caught by a named test: 26 of 26   (trapped 0, compile-only 0, MISSED 0, skipped 0) exit 0
+        KNOWN GAPS   6 MISSED + 1 trapped of 7
+        EQUIVALENT   2 MISSED of 2
+      35 entries across the three arms, 35 distinct names (checked mechanically, not by eye)
+
+      python ops/mutate/retrace.py --prove-vacuity
+      VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=26 of 26      exit 0
+
+      bash ops/check-pins --source-only
+      PINS ok=4 skipped=9 pending=0 expired=0 failed=0 tier=linux source-only             exit 0
+
+      bash ops/queue-check
+      QUEUE OK (109 tasks)                                                                exit 0
+
+- 2026-09-15T21:40:00Z **The three RED lines, read out of the output BY NAME and not from an exit code.**
+  Each mutation applied on its own to the subject, `swift test` run, subject restored and hashed against
+  `git show HEAD:` after each - `552c42b7279aa9865339672a534a2cf6`, equal every time.
+  * Plus-shaped neighbourhood: `Test run with 45 tests in 7 suites failed ... with 11 issues`, exit 1.
+    `every cell a pair inside the radius can land in is one the index actually searches` - 4 issues, one per
+    corner, and the four bearings are the acceptance line's: `bearing 75 -> (1, 1)`, `165 -> (1, -1)`,
+    `255 -> (-1, -1)`, `285 -> (-1, 1)`, each with the verbatim message `a pair 25.0 m apart on bearing N
+    landed at cell offset (x, y), which the index does not search`. And
+    `a divided road on a diagonal is retrace at every phase, corner cells included` - 7 issues at approaches
+    0, 40, 60, 100, 140, 160 and 260 m, `approach 0.0 m: measured 0.3382839184189396 retrace, not 0.5`
+    verbatim, spanning 0.3248809338339293 to 0.42207776693045557 against shares 0.45112781954887216 to 0.5.
+  * Dropping ONE corner: that one test, ONE issue, `a pair 25.0 m apart on bearing 75 landed at cell offset
+    (1, 1), which the index does not search`. 45 tests, 1 issue, exit 1.
+  * `indexCellMeters` back to `retraceRadiusMeters`: FOUR tests by name, 13 issues - `cells are square in
+    metres, at every latitude` (8, `60 m should be one 50 m cell away, got 2`), the policy pin (2),
+    `two points a radius apart are never more than one cell apart, at the WORST grid phase`
+    (1, `east-west: a pair 25.0 m apart landed 2 cells apart`) and the coverage test (2, offsets `(2, 0)` on
+    bearing 90 and `(-2, 0)` on bearing 270). exit 1.
+
+- 2026-09-15T21:40:00Z **The TEST_FILES-decay line, which has been wrong twice, re-measured on the FULL
+  26-mutation population.** Driver imports `ops/mutate/retrace.py` BY PATH and overrides `TEST_FILES` in
+  memory; the tracked harness is never edited. Both directions reproduce exactly as the frontmatter now
+  claims:
+
+      without RetraceIndexTests.swift:
+      VACUITY PROOF FAILED: with no tests present, caught=4 (need 0) and MISSED=22 of 26   exit 1
+        caught      halve the latitude metre, so grid rows cover twice the ground
+        caught      shrink the index cell back to the retrace radius
+        caught      shrink the neighbourhood to a plus, dropping the four diagonal cells
+        caught      drop ONE diagonal cell from the neighbourhood
+
+      without RetraceDiagonalTests.swift:
+      baseline does not build; nothing below would mean anything                          exit 2
+
+- 2026-09-15T21:40:00Z **The harness's own floors, every arm, overridden in memory and never on disk.**
+  All exit 2 with nothing built: `MUTATIONS` emptied and `MUTATIONS` minus ONE (25 of 26), the latter under
+  `--prove-vacuity` as well; `EQUIVALENT` emptied and minus one (1 of 2); `KNOWN_MISSED` emptied and minus
+  one (6 of 7). The refusal is verbatim `REFUSING: N mutations, M equivalent mutants and K known gaps,
+  expected at least 26, 2 and 7. / A harness that examines nothing exits 0 and proves nothing.`
+  The HEAD check was measured for all five files INDIVIDUALLY - subject and each of the four test files
+  perturbed in turn - and each refuses at exit 2 before any build, naming both md5s. A mutation whose anchor
+  is not in the file is reported `SKIP ... anchor not found - harness is stale` and is NOT a catch, so the
+  run cannot reach `caught == len(MUTATIONS)`. `FAIL_LINE` checked in BOTH directions: no match against a
+  green 45-test run, match against a run with one failing test.
+
+- 2026-09-15T21:40:00Z **My own mutations, written against the shipped source, not the author's list.**
+  18 of them; 13 caught, 5 survived. **Each of the eight non-central neighbourhood cells was dropped on its
+  own and every one is caught** - including all four diagonals individually, which is the thing round 5 was
+  asked to pin and which `MUTATIONS` only covers for `(1, 1)`. `indexCellMeters` at 1.0005x the radius -
+  BELOW the measured correctness edge of 1.001123 - is caught, which pins that edge from the side nobody had
+  tested. The five survivors are NOT banked as defects: `samplesPerCell` raised to 8 and sampling per index
+  cell rather than per radius are both the recorded `halve the sampling density` gap; scaling longitude at
+  the route's NORTHERN end is the recorded southern-end gap; and the two operator flips
+  (`angularDifference > 150` to `>=`, `distance <= radius` to `<`) each need an exact float equality that no
+  geometry in this repository produces, so I could not build a control that flips a verdict and an
+  equivalent mutant banked as a finding is worse than noise. They are noted for the next round, not blocked
+  on.
+
+- 2026-09-15T21:40:00Z **The acceptance NOTE reproduces, including the counts B2 corrected.** At
+  `indexCellMeters = 1.5 * radius` exactly ONE test fails - the policy pin, 2 issues, verbatim `policy
+  margin, not the correctness edge; see indexCellMeters' own documentation`. At `1.002 * radius` exactly TWO
+  fail - that pin plus `cells are square in metres, at every latitude` (8 issues, `60 m should be one 50 m
+  cell away, got 2`), 10 issues in total. The guarantee test and the coverage test are GREEN at both, as the
+  NOTE says.
+
+- 2026-09-15T21:40:00Z **Checked, not attributed.** `bash ops/test` exits 1 on `services/api`:
+  `services/api/node_modules` is absent in the main checkout AND in this branch's worktree, and this branch
+  changes 0 files under `services/api`. That is [[T-0040]]. `ops/mutate/retrace.py` is 545 lines and
+  `100644`, outside P-SRC-02's walk - the standing [[T-0058]] exception, unchanged by this review. Line
+  counts: RetraceDetector 249, DetectorTests 297, GridTests 269, IndexTests 189, DiagonalTests 113.
+  One environmental incident of my own, recorded because it is this harness's own header defect arriving as
+  an accident: my first full run died with `OSError: [Errno 22]` writing the subject back while six swift
+  builds shared the box, and left a live mutant on disk in MY worktree. `git status` found it, I restored
+  from `git checkout --` and re-ran the harness alone: `26 of 26`, exit 0. Nothing in this entry was
+  measured on that tree, and `refuse_if_not_head` would have refused it.
+
+- 2026-09-15T21:40:00Z **PASS.** Every acceptance line reproduces character for character, counts included;
+  every claimed fix was re-broken and the failing test read out by NAME; and my own attack found no survivor
+  outside the gaps this task already records. `state: done`, `reviewer: agent/r6-pr76`, which is not
+  `owner: agent/claude-opus-5`. `queue/claimed/` -> `queue/done/`.
