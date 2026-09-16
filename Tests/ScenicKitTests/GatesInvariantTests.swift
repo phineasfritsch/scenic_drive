@@ -6,10 +6,11 @@ import Testing
 ///
 /// `GatesTests` crosses the four freeway `highway` values with thirteen literal companion tag sets. That kills
 /// every branch keyed on one of those thirteen keys, and the reviews of PR #82 then walked straight past it
-/// nine times - `expressway=yes`, a loop over `foot`/`bicycle`, `lanes >= 5`, `maxspeed >= 100`, and then
-/// `destination`, `horse`, a loop over `horse`/`moped`, and `motor_vehicle != "yes"`. Each one refuses real
-/// freeway geometry and each left `swift test` green. Enumerating more keys buys more rounds of the same
-/// review, so the three tests below pin the class.
+/// eleven times - `expressway=yes`, a loop over `foot`/`bicycle`, `lanes >= 5`, `maxspeed >= 100`, then
+/// `destination`, `horse`, a loop over `horse`/`moped`, `let tags = allTags` then `horse`,
+/// `motor_vehicle != "yes"`, and then `sidewalk=no` and `int_ref` from the sixth review. Each one refuses
+/// real freeway geometry and each left `swift test` green.
+/// Enumerating more keys buys more rounds of the same review, so the three tests below pin the class.
 ///
 ///   * `theConsideredTagsViewCannotReadAnUnconsideredKey` pins the *mechanism*. `Gates.verdict` - where every
 ///     rule lives - is handed a `ConsideredTags`, and that type answers `nil` for any key outside
@@ -18,10 +19,11 @@ import Testing
 ///     what goes red if that accessor ever stops narrowing.
 ///   * `theGateSetConsidersOnlyTheTagKeysItsOwnRulesAreWrittenOn` pins the literal the accessor consults.
 ///     Widening it is the one edit that revives such a branch, and it turns this test red by name.
-///   * `irrelevantTagKeysCannotChangeADecision` pins the *behaviour* for sixteen bases against nineteen keys
-///     no rule uses. It is what covers the one position a type cannot reach: `Gates.decide` itself, which
-///     still has the raw dictionary in scope because Swift gives a function no way to drop its own
-///     parameter. `ops/mutate/gates_corpus.py` keeps six mutations in exactly that position.
+///   * `irrelevantTagKeysCannotChangeADecision` pins the *behaviour* for sixteen bases against twenty-one
+///     keys no rule uses. It is what covers the one position a type cannot reach: `Gates.decide` itself,
+///     which still has the raw dictionary in scope because Swift gives a function no way to drop its own
+///     parameter. `ops/mutate/gates_corpus.py` keeps eleven mutations in exactly that position. It is also
+///     what caught the sixth review's reflection mutant, which the accessor did not stop.
 ///
 /// **What is still not closed, stated rather than denied.**
 ///
@@ -29,7 +31,9 @@ import Testing
 ///      accessor is irrelevant to it by construction. `freewayValuesOfConsideredKeysAreAllowed` below is the
 ///      only thing that closes it, and it closes it for the values it writes out and no others.
 ///   2. A refusal typed into `Gates.decide` on a key this suite's noise list does not name. The list is an
-///      enumeration and that is its honest limit; it now names the keys all nine refuted branches used.
+///      enumeration and that is its honest limit; it now names the keys all eleven refuted branches used.
+///      The sixth review measured that limit at two keys - `sidewalk` and `int_ref` - and both are in the
+///      list below now, which moves the boundary without closing the class.
 @Suite("Gates invariant")
 struct GatesInvariantTests {
 
@@ -41,13 +45,14 @@ struct GatesInvariantTests {
             "highway": "motorway_link", "destination": "San Francisco", "oneway": "yes",
             "ref": "I 280", "expressway": "yes", "foot": "no", "bicycle": "no", "horse": "no",
             "moped": "no", "lanes": "5", "maxspeed": "105", "motorroad": "yes", "toll": "yes",
+            "sidewalk": "no", "int_ref": "I 280",
             "surface": "asphalt", "motor_vehicle": "designated",
         ])
 
         // Reads that must answer nil - the key is not one any rule is written on. Expected side is the
         // literal `nil`, not `Gates.consideredTagKeys.contains(...)`, which would ask the thing under test.
         for key in ["destination", "oneway", "ref", "expressway", "foot", "bicycle", "horse",
-                    "moped", "lanes", "maxspeed", "motorroad", "toll"] {
+                    "moped", "lanes", "maxspeed", "motorroad", "toll", "sidewalk", "int_ref"] {
             #expect(ramp[key] == nil, "\(key) is not a key any gate rule is written on and must read as nil")
         }
 
@@ -138,6 +143,11 @@ struct GatesInvariantTests {
         // gates do refuse; a branch confusing the two hard-excludes every on-ramp and off-ramp, which is
         // how the freeway shoulder in the middle of a long scenic drive becomes unreachable.
         //
+        // `sidewalk` and `int_ref` are here because the SIXTH review got a refusal past this list on each
+        // of them, with exit 0 and a control red: `sidewalk=no` is on essentially every motorway and
+        // `int_ref=I 280` on every numbered freeway and ramp. Adding them moves the boundary of an
+        // enumeration; it does not turn the enumeration into a proof, and nothing here claims it does.
+        //
         // `vehicle` is deliberately NOT here: it is a genuine access restriction the plan's gate list does
         // not name, and pinning it as inert would pin a gap I was not asked to close.
         let noise: [(String, String)] = [
@@ -147,7 +157,7 @@ struct GatesInvariantTests {
             ("hgv", "designated"), ("lit", "no"), ("oneway", "yes"),
             ("motorroad", "yes"), ("junction", "roundabout"), ("ref", "I 280"),
             ("bridge", "yes"), ("tunnel", "yes"), ("layer", "1"),
-            ("name", "Junipero Serra Freeway"),
+            ("name", "Junipero Serra Freeway"), ("sidewalk", "no"), ("int_ref", "I 280"),
         ]
 
         for (base, expected) in bases {
@@ -159,7 +169,7 @@ struct GatesInvariantTests {
                 #expect(Gates.decide(tags) == expected,
                         "adding \(key)=\(value) must not change the verdict for \(base.keys.sorted())")
             }
-            // And all nineteen at once, which is closer to a real OSM way than any single one.
+            // And all twenty-one at once, which is closer to a real OSM way than any single one.
             var loaded = base
             for (key, value) in noise { loaded[key] = value }
             #expect(Gates.decide(loaded) == expected,

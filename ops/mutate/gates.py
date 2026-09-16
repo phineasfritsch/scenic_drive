@@ -3,14 +3,14 @@
 
 The mutation corpus is ops/mutate/gates_corpus.py; this file is the runner and the floors.
 
-The mutations that matter most are the seventeen under THE INVARIANT there. If the suite does not catch them,
+The mutations that matter most are the nineteen under THE INVARIANT there. If the suite does not catch them,
 the suite does not protect the invariant CLAUDE.md lists first - motorway and trunk are PENALISED, not
 excluded - and this repository has already broken that once, making the flagship Mountain View -> SF fixture
-unroutable. Nine of the seventeen exist because four reviews of PR #82 refused freeway geometry with the whole
-suite green: `motorway_link` + `oneway`, `motorroad`, `expressway`, `foot`/`bicycle`, `lanes`, `maxspeed`, and
-then `destination`, `horse` and `motor_vehicle != "yes"`. Roughly half the rest turn a rule that requires
-positive evidence into one that fires on a tag being absent or merely present, because that is how a gate set
-quietly starts refusing the rural roads this product is for.
+unroutable. Most of them exist because reviews of PR #82 refused freeway geometry with the whole suite green,
+twelve shapes in all: `motorway_link` + `oneway`, `motorroad`, `expressway`, `foot`/`bicycle`, `lanes`,
+`maxspeed`, `destination`, `horse`, a `horse`/`moped` loop, `motor_vehicle != "yes"`, and then `sidewalk` and
+`int_ref` from the sixth review. Roughly half the rest turn a rule that requires positive evidence into one
+that fires on a tag being absent or merely present - how a gate set quietly starts refusing rural roads.
 
 Written on the corrected contract (T-0132, and the harness discussion on PR #70):
   * the pass condition is `caught == len(MUTATIONS)`. A trap, a compile failure and a stale anchor each FAIL
@@ -77,7 +77,7 @@ TEST_FILES = discover_test_files()
 # refused an empty corpus but not a deletion, so the first reviewer of PR #82 deleted BOTH motorway mutations
 # plus one more and got `caught by a named test: 18 of 18 ... exit 0` - a clean sheet with the invariant no
 # longer measured. Adding a mutation means bumping this number, in a different file from the list itself.
-MIN_MUTATIONS = 43
+MIN_MUTATIONS = 48
 MIN_EQUIVALENT = 2
 
 # NOT a completeness floor, and it must not be read as one: TEST_FILES is discovered precisely so that the

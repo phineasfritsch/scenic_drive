@@ -21,8 +21,8 @@ import Foundation
 ///
 /// There is no `GateReason` named for a motorway, and that is worth something - but it is **not** a
 /// structural guarantee, and an early version of this comment claimed it was. A new branch can reuse
-/// `.noAccess` and never touch the enum, which is how four reviews of PR #82 refused freeway geometry nine
-/// times between them with the whole suite green.
+/// `.noAccess` and never touch the enum, which is how five reviews of PR #82 refused freeway geometry
+/// eleven times between them with the whole suite green.
 ///
 /// 1. **`ConsideredTags`.** `verdict` below - where every rule lives - is handed a `ConsideredTags`, not a
 ///    dictionary. That type answers `nil` for every key outside `consideredTagKeys`, at each read rather
@@ -33,14 +33,18 @@ import Foundation
 ///    such a branch, and `theGateSetConsidersOnlyTheTagKeysItsOwnRulesAreWrittenOn` pins it as a
 ///    written-out literal, by name.
 /// 3. **The behaviour pinned in `GatesInvariantTests`.** `irrelevantTagKeysCannotChangeADecision` piles
-///    nineteen keys no rule uses onto sixteen bases and requires the verdict not to move. That is what
+///    twenty-one keys no rule uses onto sixteen bases and requires the verdict not to move. That is what
 ///    covers the residual below, where a type cannot reach.
 ///
 /// **What this shape replaced, and why.** `decide` used to take `allTags` and narrow it on its first line
 /// into a local called `tags`. The fourth review of PR #82 showed that this was a naming convention rather
 /// than a gate: `allTags` stayed in scope for the whole body, so `allTags["destination"]` - one identifier
-/// longer than the inert form - refused every signed freeway ramp in OSM with all 37 tests passing and
-/// `ops/mutate/gates.py` printing `37 of 37`, exit 0. Four more survivors of that shape are in the corpus
+/// longer than the inert form - refused every signed freeway ramp in OSM while the suite stayed green.
+/// Measured, not remembered: with that branch on disk at 4b79342, `swift test` printed
+/// `Test run with 37 tests in 6 suites passed`, exit 0, no named test objecting. This sentence used to end
+/// "and `ops/mutate/gates.py` printing `37 of 37`, exit 0" - **struck in round 7**, because with a mutant on
+/// disk the shipped harness prints `REFUSING: the subject is not what HEAD says it is` and exits 2 before it
+/// builds anything, so that run cannot have happened. Four more survivors of that shape are in the corpus
 /// now. Moving the narrowing into the accessor is what makes them `nil` instead of load-bearing.
 ///
 /// ## The two residuals, stated rather than denied
@@ -52,10 +56,11 @@ import Foundation
 ///    `freewayValuesOfConsideredKeysAreAllowed` is the pin.
 /// 2. **A branch inside `decide` itself**, which still has the raw dictionary in scope because Swift gives
 ///    a function no way to drop its own parameter. Its body is one expression and holds no rule, but that
-///    is a convention again, so it is pinned by behaviour rather than asserted: six corpus mutations put a
-///    refusal exactly there, and `irrelevantTagKeysCannotChangeADecision` is what kills them. That test is
-///    an enumeration of nineteen keys - it covers the keys it names and no others, which is the honest
-///    limit of this layer.
+///    is a convention again, so it is pinned by behaviour rather than asserted: eleven corpus mutations put
+///    a refusal exactly there, and `irrelevantTagKeysCannotChangeADecision` is what kills them. That test is
+///    an enumeration of twenty-one keys - it covers the keys it names and no others, which is the honest
+///    limit of this layer. Two of those keys, `sidewalk` and `int_ref`, are there because the sixth review
+///    got a refusal past the list on each of them; a twenty-second key would do it again.
 ///
 /// ## Positive evidence only
 ///
@@ -102,10 +107,10 @@ public enum Gates {
     /// This is the enforcement of "hard gates are safety only", and `ConsideredTags` is what enforces it: a
     /// way is refused on the evidence of one of these ten keys or it is not refused at all, because a read
     /// of any other key answers `nil`. `foot`, `bicycle`, `expressway`, `lanes`, `maxspeed`, `toll`,
-    /// `motorroad`, `oneway`, `destination`, `horse` and `moped` are deliberately absent: `foot=no`,
-    /// `bicycle=no` and `horse=no` are on essentially every motorway in OSM, `destination=<place>` is on
-    /// essentially every signed ramp, and a "be thorough about access tags" refactor that looped over them
-    /// would otherwise exclude the entire freeway network.
+    /// `motorroad`, `oneway`, `destination`, `horse`, `moped`, `sidewalk` and `int_ref` are deliberately
+    /// absent: `foot=no`, `bicycle=no`, `horse=no` and `sidewalk=no` are on essentially every motorway in
+    /// OSM, `destination=<place>` and `int_ref=<number>` are on essentially every signed ramp, and a "be
+    /// thorough about access tags" refactor that looped over them would exclude the entire freeway network.
     ///
     /// **This list fails toward `.allowed`, which is the right direction.** A genuinely new safety rule
     /// written on a key that is missing here does nothing until the key is added - the author's own test for
@@ -121,7 +126,7 @@ public enum Gates {
     /// This is the whole public surface, and it holds **no rule**. Its one job is to put the tags behind
     /// `ConsideredTags` before anything can read them, so that `verdict` below cannot see a key no rule is
     /// written on. `tags` here is still the raw dictionary - see residual 2 in the type comment - so a
-    /// refusal typed *in this function* would work; six mutations in `ops/mutate/gates_corpus.py` sit in
+    /// refusal typed *in this function* would work; eleven mutations in `ops/mutate/gates_corpus.py` sit in
     /// exactly this position to keep that measured.
     public static func decide(_ tags: [String: String]) -> GateDecision {
         return verdict(ConsideredTags(tags))
@@ -134,8 +139,11 @@ public enum Gates {
     /// reason fires first, so the order is behaviour and `GatesOrderTests` pins every ordered pair of it.
     ///
     /// `tags` is a `ConsideredTags`, not a `[String: String]`, and that is load-bearing rather than tidy:
-    /// the raw dictionary does not exist in this scope under any name, so no rule below can be written on a
-    /// key outside the set - by an extra identifier, by a loop, or by deleting a line.
+    /// no rule below can NAME the raw dictionary, so a rule keyed on a key outside the set is dead code
+    /// however it is spelled - by an extra identifier, by a loop, or by deleting a line. That is an
+    /// enumeration of the routes a rule takes, **not a proof**: `Mirror(reflecting:)` still reaches the
+    /// stored property, measured in round 7, and behaviour rather than this type is what kills that one.
+    /// `ConsideredTags` says so where the claim is made.
     private static func verdict(_ tags: ConsideredTags) -> GateDecision {
         if let surface = tags["surface"], unpavedSurfaces.contains(surface) {
             return .refused(.unpavedSurface)
@@ -159,10 +167,11 @@ public enum Gates {
 
         // Everything else is allowed - motorway and trunk included, deliberately and by omission. Omission
         // is not self-enforcing: a later edit can add a branch here as easily as it can invert one, and the
-        // reviews of PR #82 did exactly that nine times. What is different now is that a branch added HERE
-        // can only read a key from `consideredTagKeys`, whatever identifier it names, because the raw tags
-        // are not in this scope; `expressway`, `foot`/`bicycle`, `lanes`, `maxspeed`, `destination` and
-        // `horse` all answer `nil`. The branches that still bite are the two residuals in the type comment.
+        // reviews of PR #82 did exactly that eleven times. What is different now is that a branch added
+        // HERE can only read a key from `consideredTagKeys` by any ordinary spelling, because the raw tags
+        // are not in this scope under any name; `expressway`, `foot`/`bicycle`, `lanes`, `maxspeed`,
+        // `destination` and `horse` all answer `nil`. Reflection is the exception, and it is measured
+        // rather than called impossible. The branches that still bite are the two residuals above.
         return .allowed
     }
 }
