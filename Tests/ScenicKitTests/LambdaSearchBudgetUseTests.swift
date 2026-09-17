@@ -102,8 +102,9 @@ struct LambdaSearchBudgetUseTests {
         // is the plan's budget for a WHOLE plan, of which this search is one part, and in any case that is
         // the caller's policy to hold - this constructor's job is to refuse a cap below one and to hand back
         // unchanged every cap that is legal, however unreasonable. 10_000 is there so that no single
-        // fixture value is what the assertion rests on: a silent ceiling anywhere above 13 would still be
-        // seen.
+        // fixture value is what the assertion rests on. What this sweep SEES is a silent ceiling in
+        // [13, 10_000): `min(cap, 20_000)` passes it, as budget_boundaries.py's 9999 entry already says -
+        // the seventh review measured it, and an earlier version of this comment claimed "anywhere above 13".
         for cap in [1, 2, 3, 6, 12, 13, 20, 10_000] {
             #expect(try LambdaSearch(fastest: Self.fastest, budget: Self.budget, maxEvaluations: cap)
                         .maxEvaluations == cap,

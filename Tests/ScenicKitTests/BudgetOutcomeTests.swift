@@ -35,6 +35,11 @@ struct BudgetOutcomeTests {
         #expect(overCeiling.duration == 5000,
                 "the initializer stores what it was handed; it does not clamp an ETA down to the ceiling")
         #expect(overCeiling.ceiling == 3300)
+        // F-R7-1: the SAME fixture, asked for the OTHER user-facing number. The seventh review laundered
+        // `extraTime` instead - `min(duration - fastest, ceiling - fastest)` - and this test, which already
+        // held the killing fixture, never asked it. 5000 over a fastest of 1800 is 3200 bought, not 1500.
+        #expect(overCeiling.extraTime(overFastest: 1800) == 3200,
+                "extra time is measured from what was stored, and what was stored is over the ceiling")
 
         // And not rounded, and not moved by the smallest step a Double has. 1800.5 and 0.5 are both exact in
         // binary - 1800.4 is not, and a fixture spelled that way is red against the pristine source.
@@ -61,5 +66,33 @@ struct BudgetOutcomeTests {
                                     evaluations: 1, usedBudget: true, monotonicityViolated: false)
         #expect(quicker.extraTime(overFastest: 1800) == -0.5,
                 "half a second saved is half a second reported, with its sign")
+
+        // F-R7-2: the fraction on the FASTEST side. Every `fastest` in every suite was whole - 1800 or 3000 -
+        // so `duration - fastest.rounded()` survived the two cases above; `fastest` is a router-measured
+        // number and fractional in production. 1801 - 1800.5 is exact in binary.
+        let wholeOverFractional = BudgetOutcome(lambda: 1, duration: 1801, ceiling: 3300,
+                                                evaluations: 2, usedBudget: false, monotonicityViolated: false)
+        #expect(wholeOverFractional.extraTime(overFastest: 1800.5) == 0.5,
+                "the fastest route's own half second is not rounded away either")
+    }
+
+    @Test("every field is stored as given - including the four nobody had asked back")
+    func everyFieldIsStoredAsGiven() {
+        // F-R7-3. The suite's name says "the numbers it is handed" and witnessed two of six. A clamp on
+        // any of the other four - `min(lambda, maxLambda)`, `max(lambda, 0)`, `min(evaluations, 12)`,
+        // `max(evaluations, 1)`, `usedBudget || duration >= ceiling`, `violated && evaluations > 1` -
+        // survived all 55 tests. Each value here sits just OUTSIDE the range the search ever produces, so
+        // a clamp to that range is exactly what changes it.
+        let outside = BudgetOutcome(lambda: 9, duration: 3300, ceiling: 3300,
+                                    evaluations: 20, usedBudget: false, monotonicityViolated: true)
+        #expect(outside.lambda == 9, "above maxLambda, stored as 9")
+        #expect(outside.evaluations == 20, "above the twelve the doc names, stored as 20")
+        #expect(outside.usedBudget == false, "false at duration == ceiling stays false")
+        #expect(outside.monotonicityViolated == true)
+        let below = BudgetOutcome(lambda: -1, duration: 0, ceiling: 0,
+                                  evaluations: 0, usedBudget: true, monotonicityViolated: true)
+        #expect(below.lambda == -1, "a negative lambda is stored, not floored")
+        #expect(below.evaluations == 0, "zero evaluations is stored, not floored to one")
+        #expect(below.monotonicityViolated == true, "violated with one evaluation or none is still violated")
     }
 }

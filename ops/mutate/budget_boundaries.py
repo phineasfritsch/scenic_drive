@@ -147,6 +147,44 @@ BOUNDARY_MUTATIONS = [
      "        duration - fastest",
      "        (duration - fastest).nextUp"),
 
+    # --- the seventh review's F-R7-1 and F-R7-2: the same line, the two directions nobody had asked ------
+    # `min(duration, ceiling)` was killed in the sixth round; its twin on the OTHER user-facing number,
+    # laundering `extraTime` to the ceiling instead of the duration, survived all 55 - the test holding the
+    # killing fixture (5000 over 3300) never asked it for extraTime. And every `fastest` in every suite was
+    # a whole number, so rounding the FASTEST side survived too. Both killed by BudgetOutcomeTests.
+    ("extraTime is laundered to the ceiling", OUT,
+     "        duration - fastest",
+     "        min(duration - fastest, ceiling - fastest)"),
+
+    ("extraTime rounds the fastest side, which every fixture had whole", OUT,
+     "        duration - fastest",
+     "        duration - fastest.rounded()"),
+
+    # --- F-R7-3: the four fields the suite's name covered and its assertions did not ---------------------
+    ("the outcome clamps lambda to maxLambda", OUT,
+     "        self.lambda = lambda",
+     "        self.lambda = min(lambda, LambdaSearch.maxLambda)"),
+
+    ("the outcome floors lambda at zero", OUT,
+     "        self.lambda = lambda",
+     "        self.lambda = max(lambda, 0)"),
+
+    ("the outcome clamps evaluations to the twelve its doc names", OUT,
+     "        self.evaluations = evaluations",
+     "        self.evaluations = min(evaluations, 12)"),
+
+    ("the outcome floors evaluations at one", OUT,
+     "        self.evaluations = evaluations",
+     "        self.evaluations = max(evaluations, 1)"),
+
+    ("the outcome reports the budget used whenever the duration reached the ceiling", OUT,
+     "        self.usedBudget = usedBudget",
+     "        self.usedBudget = usedBudget || duration >= ceiling"),
+
+    ("the outcome forgets a violation seen on the first evaluation", OUT,
+     "        self.monotonicityViolated = monotonicityViolated",
+     "        self.monotonicityViolated = monotonicityViolated && evaluations > 1"),
+
     # --- the sixth review's F-R6-3: the clamp that is only asserted in one direction -------------------
     # `max(1, maxEvaluations)` has two jobs and a test for one of them. F-E promoted it out of KNOWN_MISSED
     # because `maxEvaluations` is PUBLIC and is what a caller reads to see what a plan may cost - and then
