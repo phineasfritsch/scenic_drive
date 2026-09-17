@@ -64,8 +64,11 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
    Leases are 2–4 hours and the work is routinely longer, so expiry mostly measures the wrong thing; the
    branch is the evidence that matters. `ops/lib/check-sweep.py` asserts all four rows — pin P-PROC-03 runs
    the cases, P-PROC-04 runs `--variants`, which is what proves the cases can fail — and it reads what the
-   sweeper *said* about that task, not only where the file ended up: five of its seven cases are must-KEEP, each asserting the sentence naming its own branch, and a sweeper that
-   crashed before its loop would pass none of them. The **locks released** clause of row 3 is
+   sweeper *said* about that task, not only where the file ended up. Four of its seven cases are must-KEEP
+   (1, 2, 6, 7) and each asserts the sentence naming its own branch, which is printed only when that task
+   was considered; case 4 (an unexpired lease) asserts the summary line instead, because the sweeper says
+   nothing per task about a lease that has not expired. A sweeper that exits non-zero before its loop fails
+   every case on exit code; one that exits 0 without looping fails 1, 2, 3, 6 and 7 and passes 4 and 5. The **locks released** clause of row 3 is
    the one part no case covers, because every fixture task declares `exclusive: []`.
 
    **A kept task keeps its locks, and that is the cost of the rule above.** Sweeping is what used to release

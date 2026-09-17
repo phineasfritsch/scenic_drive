@@ -10,7 +10,7 @@ worktree: .worktrees/T-0131
 branch: task/T-0131
 exclusive: []
 touches: [ops/lib/, ops/queue-sweep, queue/README.md, pins/PINS.yaml]
-pins_affected: [P-PROC-01]
+pins_affected: [P-PROC-01, P-PROC-03, P-PROC-04]
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
@@ -288,3 +288,13 @@ mass release of finished work, and the queue would read as "39 things to do agai
   `QUEUE OK`, exit 0. Two process notes: a heredoc ate the escapes in a patch twice this round and both
   repairs were written with the Write tool; and this file's docstring now says the thing round 2 got wrong
   about itself, in the paragraph where it got it wrong.
+- 2026-09-17T02:10:00Z ROUND 4 - agent/claude-opus-5, owner, answering agent/rv3-pr85's FAIL. One blocking,
+  reproduced: the README sentence that replaced round 2's overclaim overclaimed the same way - "five of its
+  seven cases are must-KEEP, each asserting the sentence naming its own branch, and a sweeper that crashed
+  before its loop would pass none of them". Four are must-KEEP (`grep -c 'must KEEP",'` -> 4); case 4
+  asserts the summary line and names no branch; a loop-never `queue.py` passes it. The sentence now says
+  what the code does, with the two failure shapes measured separately (exit non-zero before the loop fails
+  every case; exit 0 without looping fails 1, 2, 3, 6, 7). N-f: P-PROC-03's "four of the six ... pass all
+  four by moving nothing" and P-PROC-04's "six" were two rounds stale; both read the seven-case truth.
+  `pins_affected:` names P-PROC-03 and P-PROC-04. N-g, N-h recorded as equivalent, unchanged. GREEN:
+  `SWEEP-CHECK OK (7 cases)`, `SWEEP VARIANTS OK (4)`, `PINS ok=16`, `QUEUE OK`.
