@@ -125,6 +125,14 @@ struct HazardStripOmissionTests {
         // acceptance line 4 - delete that test, lose exactly two mutations - would stop being red.
     }
 
+    @Test("a closure's until keeps its seconds - the ends of the type do not pin the middle")
+    func closureUntilKeepsItsSeconds() {
+        // Round 7's reviewer: every `until` fixture was ON THE HOUR, so rounding it to the hour survived.
+        let lifts = HazardStripTests.date(18).addingTimeInterval(1830)          // 18:30:30
+        #expect(HazardStrip.flags(for: .init(closures: [(source: "511 SF Bay", until: lifts)]))
+                == [.closure(source: "511 SF Bay", until: lifts)])
+    }
+
     // MARK: - nothing is dropped at the TOP of a range, or off the END of the strip
     //
     // Every fixture outside this file probes a threshold just above its FLOOR and tops out at seven flags,

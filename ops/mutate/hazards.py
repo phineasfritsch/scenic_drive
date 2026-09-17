@@ -109,7 +109,7 @@ def empty_suite(path: pathlib.Path) -> str:
 # two Dates; the tag-trimming survivor the review reported as MINOR 2; and the two threshold nudges it
 # reported as MINOR 1, which sit inside the gap between a probe and its neighbour rather than above the
 # largest one.
-MIN_MUTATIONS = 40
+MIN_MUTATIONS = 42
 MIN_EQUIVALENT = 3
 
 MUTATIONS = [
@@ -322,6 +322,17 @@ MUTATIONS = [
      "        for c in facts.closures {",
      "        for c in facts.closures"
      " where c.until.map({ $0 < Date(timeIntervalSinceReferenceDate: 3.0e9) }) ?? true {"),
+
+    ("round a closure's until to the hour - both ENDS of Date were pinned, the middle was not", STRIP,
+     "            out.append(.closure(source: c.source, until: c.until))",
+     "            out.append(.closure(source: c.source, until: c.until.map {"
+     " Date(timeIntervalSinceReferenceDate: ($0.timeIntervalSinceReferenceDate / 3600).rounded() * 3600) }))"),
+
+    ("round DUSK to the minute before comparing - every dusk fixture was on the minute", STRIP,
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight {",
+     "        if let arrival = facts.arrival, let twilight = facts.civilTwilight.map({"
+     " Date(timeIntervalSinceReferenceDate: ($0.timeIntervalSinceReferenceDate / 60).rounded() * 60) }),"
+     " arrival > twilight {"),
 
     ("twilight stops firing when DUSK itself is before the epoch", STRIP,
      "        if let arrival = facts.arrival, let twilight = facts.civilTwilight, arrival > twilight {",

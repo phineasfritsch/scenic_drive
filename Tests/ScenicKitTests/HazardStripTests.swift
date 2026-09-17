@@ -128,6 +128,12 @@ struct HazardStripTests {
         let justAfter = Date(timeIntervalSinceReferenceDate: duskSeconds.nextUp)
         #expect(HazardStrip.flags(for: .init(arrival: justAfter, civilTwilight: dusk))
                 == [.twilightArrival(at: justAfter)], "the smallest step after dusk there is")
+        // And dusk with SECONDS on it: 19:30:20 against an arrival at 19:30:10. Every dusk above is on the
+        // minute, so a comparison that rounds dusk to the minute first passed all of them (round 7).
+        let duskWithSeconds = Date(timeIntervalSinceReferenceDate: duskSeconds + 20)
+        #expect(HazardStrip.flags(for: .init(arrival: Date(timeIntervalSinceReferenceDate: duskSeconds + 10),
+                                             civilTwilight: duskWithSeconds)).isEmpty,
+                "ten seconds before a dusk that has seconds of its own")
     }
 
     @Test("twilight needs both times; one alone says nothing")
