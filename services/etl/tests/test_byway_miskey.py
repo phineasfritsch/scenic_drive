@@ -233,7 +233,11 @@ class TestTheRealMisKeyedCorridor:
         """Way 824667001 is `ref=CA 9` where CA 9 meets CA 236 in Boulder Creek. It is 133.3 m long and
         overlaps FID 181 by 0.465, and it used to put all 133.3 m of CA 9 into a decision about a corridor
         only 62.0 m of it is on. Over 28 km that is a 2% error; on a short corridor the same inflation
-        clears MIN_CONSENSUS_M on evidence that is not there."""
+        clears MIN_CONSENSUS_M on evidence that is not there.
+
+        Every assertion here is a LITERAL recorded from the measurement (62.0 is 0.465 x 133.3). An
+        assertion of `voted == best[0] * whole` stood here too and has been removed: both sides of it come
+        out of `snap`, the code under test, so it could never go red for the defect it was about."""
         entries = byway_entries()
         way = next(w for w in fixture_ways("another_route") if w["way_id"] == 824667001)
         whole = snap.length_m(way["geometry"])
@@ -242,7 +246,6 @@ class TestTheRealMisKeyedCorridor:
         assert best[0] == pytest.approx(0.465, abs=0.005), best[0]
         voted = rk.claimed_lengths(best[1], [way])["9"]
         assert voted == pytest.approx(62.0, abs=0.5), voted
-        assert voted == pytest.approx(best[0] * whole, rel=1e-9)
 
     def test_a_way_on_a_different_numbered_route_is_still_refused(self):
         """CA 9 crosses this corridor in Boulder Creek. The re-key must not turn the gate off."""

@@ -14,7 +14,16 @@ pins_affected: []
 reviewer: agent/rv7-pr36
 depends_on: []
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "cd services/etl && python -m pytest --junitxml=work/rv8/j.xml -p no:randomly -> 407 passed, exit 0; the XML's <testsuite> carries tests=407 failures=0 errors=0 skipped=0 (addopts is -q, so the count is read from the XML, not stdout)"
+  - "cd services/etl && python -m pytest tests/test_byway_key_floor.py -p no:randomly -> 11 passed, exit 0"
+  - "RED: cd services/etl && python mutate/byway_route_key.py --red e19fd38 -> PYTEST EXIT=1  10 failed  (base=e19fd38) / RED as intended against e19fd38: 10 named test(s) fail without the fix, exit 0"
+  - "cd services/etl && python mutate/byway_route_key.py --red HEAD -> PYTEST EXIT=0  0 failed  (base=HEAD) / REFUSED: every check PASSED against the pre-fix code, so none of them is about the fix, exit 1"
+  - "cd services/etl && python mutate/byway_route_key.py -> BASELINE (unmutated)  pytest exit=0  0 failed; 19 labelled mutations each 'pytest exit=1' with the named killer(s) red; POPULATION 19 of 19 known mutations; APPLIED 19 / every one of the 19 applied mutations was killed by the test that names it, exit 0"
+  - "cd services/etl && python mutate/byway_route_key.py NOSUCHLABEL -> REFUSED: no mutations selected - an empty population cannot demonstrate anything, exit 1"
+  - "bash ops/check-pins --source-only -> PINS ok=6 skipped=10 pending=1 expired=0 failed=0 tier=linux source-only, exit 0"
+  - "bash ops/queue-check -> QUEUE OK (130 tasks), exit 0"
+  - "bash ops/test -> TESTS linux=571/76 ios=skipped failed=0 skipped=0 / OK, exit 0"
 ---
 ## Brief
 
@@ -1464,3 +1473,204 @@ second external oracle in the plan (the first being Curvature).
   no measurement here fixes. `pins/floor_linux.txt` is **76 against 559 real linux tests**, so deleting every
   byway test leaves the floor green; serial-only and outside this task's `touches:`, so it is NOT ratcheted
   in this commit - carried forward as debt on the merge.
+- 2026-09-17T05:30:00Z ROUND 6 - fixer acting for the owner agent/claude-opus-5. Every round-5 finding
+  REPRODUCED on `e19fd38` before anything was touched; none refuted. State stays `review`, reviewer stays
+  `agent/rv7-pr36`. HEAD confirmed `e19fd38` == `origin/task/T-0028` before starting; a throwaway worktree
+  `.worktrees/rv8-fix-repro` detached at `e19fd38` (every subject file hashed equal to `git show e19fd38:`)
+  was the unpatched side of every comparison below and is removed at the end.
+
+  **THE DIRT ON DISK, AND WHAT WAS DONE WITH IT.** A previous fixer left 4 modified files and an untracked
+  `tests/test_byway_key_floor.py` uncommitted, plus a drafted commit message and a sweep log in gitignored
+  `work/rv8/`. Treated as an untrusted patch: read in full (`git diff`, 403 lines), then VERIFIED against
+  round 5's cases A and B and RV7-2 with my own script (`work/rv8/cases.py`, run once against `e19fd38`
+  and once against the patched tree) before any of it was kept. Verdict: SOUND, built on. It is kept
+  because its mechanism is the one round 5 asked for and every number in it re-measured; one docstring in
+  a pre-existing test it left alone was corrected (below), and the harness and red script were
+  re-demonstrated rather than trusted from the previous fixer's `sweep_round6.txt`. Nothing in it was
+  discarded.
+
+  **RV7-1 BLOCKER - reproduced, closed.** `PYTHONPATH=. python work/rv8/cases.py` in the `e19fd38` tree:
+
+      CASE A  FID 181 part 0 vertices [:12] = 415.9 m, stub ref='CA 221' on vertices 0-1 = 30.8 m
+              real ways only : verdict=unclaimed      problems() lines about keys: 1
+              + the stub     : verdict=corroborated   problems() lines about keys: 0   key_claim_m=None
+      CASE B  part 0, 12712.3 m, the real CA 236 ways re-reffed alternately so the evidence splits
+              {'9': 4209.9, '236': 8305.2} of 12515.1 - shares 0.336 / 0.664, nobody at 0.80
+              real ways only : verdict=unclaimed      1 line
+              + the stub     : verdict=corroborated   0 lines
+
+  Same script, patched tree: A `unclaimed -> under_evidenced`, B `unclaimed -> under_evidenced`, each
+  with ONE `problems()` line naming `['221']` and `key_claim_m=30.8` stamped. THE MECHANISM: `_holds(m,
+  reffed_m)` - at least MIN_CONSENSUS_M AND at least MIN_CONSENSUS_SHARE of the reffed length - is one
+  function, and `_verdict` asks it of the KEY exactly as `_outvoting` asks it of every rival. No branch
+  returns before it is read: `key_holds` is computed before `outvoting` is consulted. A claimed key that
+  does not hold is the new `byways.KEY_UNDER_EVIDENCED`, kept and printed by `problems()`; UNCLAIMED
+  stays for `key_m == 0` because the two have different repairs.
+
+  **RV7-2 MUST_FIX - reproduced, closed by the same mechanism, not a constant.** Fragments tagged
+  `ref=CA 221` laid on part 0's own vertices, `e19fd38`:
+
+      +20 frags  926.2 m  ['rekeyed','rekeyed']     bonus 28142.9
+      +25 frags 1033.2 m  ['contested','rekeyed']   bonus 15753.8   <- 12389.1 m of Big Basin Way lost
+      +40 frags 1745.2 m  ['contested','rekeyed']   bonus 15753.8
+
+  (the reviewer's 25 fragments summed to 1087.2 m; mine, on vertices 0..24, to 1033.2 m - same shape,
+  same flip.) Patched: all three rows `['rekeyed','rekeyed']`, bonus 28142.9. Why: 1033.2 m is 7.6% of
+  the 13548.3 m reffed along part 0, and a key holding 7.6% of its corridor has not held it, so it does
+  not defend and 236 (which holds 91%) takes it. The share floor is the metres floor's other half, and
+  it was already on the rival side; nothing new was tuned.
+
+  **What the mechanism COSTS, measured rather than asserted.** `work/rv8/price.py` over the cached
+  Caltrans pull: `caltrans entries=865 keyed=865 shorter_than_1000m=305 (35.3%)`. Those 305 corridors can
+  never be held by any number, so once `reconcile` runs they report as UNDER_EVIDENCED or UNCLAIMED
+  forever - the key is still kept and still matches, so no bonus is lost, but 35% of the pull will be a
+  line in `problems()`. The docstring says so with that number. The other side: the share's denominator
+  is evidence too, so mis-tagged fragments at 19.2% of the reffed length stop the RIVAL holding part 0
+  and it becomes UNDER_EVIDENCED (82 fragments, 2974.2 of 15489.3 m) - the same 12389.1 m lost as round
+  5 measured, but reported instead of CORROBORATED-and-silent. Pinned by
+  `test_mis_tagged_fragments_worth_a_fifth_of_the_evidence_stop_any_number_holding_it`.
+
+  The one docstring corrected: `test_a_fragment_claiming_the_key_does_not_buy_it_silence` (pre-existing)
+  said "both directions read MIN_CONSENSUS_M now", the round-5 overclaim in miniature; it now names its
+  scope - the RE-KEY path, a rival that clears both floors - and points at `test_byway_key_floor.py` for
+  the corridor no rival can win.
+
+  **RV7-3, RV7-5 - reproduced (the `key_claim_m=None` in case A above is RV7-3), closed.** Every keyed
+  entry now carries `key_claim_m` and `reffed_claim_m`; `problems()` counts ENTRIES with the distinct
+  numbers beside the count. **RV7-4** - reproduced on a different construction (12 folds over a 222.5 m
+  corridor vote 2669.5 m; the reviewer's folded way voted 5116.6 m) and PINNED as a known limit with the
+  reason the obvious cap is worse (a divided highway tagged on both carriageways would sit at 0.50 forever).
+  Measuring corridor COVERAGE is its own task. **RV7-6** untouched, T-0030's.
+
+  **R7-01 MUST_FIX - reproduced by reading, closed, demonstrated RED, and the harness is now TRACKED.**
+  The harness round 4 quoted lived in gitignored `.artifacts/`, which `ops/mutate/routescore.py`'s own
+  docstring calls red evidence nobody else can see; `ops/mutate/` is outside this task's `touches:`, so
+  it is `services/etl/mutate/byway_route_key.py` (259 lines, 100644), writing only under gitignored
+  `work/`. An unapplied mutation is a hard failure, the applied count must EQUAL the declared population
+  before any verdict prints, `EXPECTED_MUTATIONS = 19` must equal `len(MUTATIONS)`, an empty selection
+  refuses, and a mutation must be killed BY THE TEST THAT NAMES IT. Each refusal seen red, on a copy of
+  the harness in `work/rv8/` with one thing broken at a time (`python <copy> M03`):
+
+      anchor replaced by text not in the file
+          M03 ...  DID NOT APPLY - anchor appears 0 times, not once
+          POPULATION 1 of 19 known mutations (filtered by M03); APPLIED 0
+          REFUSED: 1 mutation(s) never applied - a verdict over a smaller population ...     exit 1
+      EXPECTED_MUTATIONS = 20   REFUSED: this file declares 20 mutations and carries 19 ...  exit 1
+      M03's killer renamed to a test that does not cover it
+          pytest exit=1  1 failed  named killer(s) red: []
+          NAMED TEST DID NOT GO RED: ['test_a_short_stub_cannot_re_key_a_corridor']
+          CAUGHT, BUT NOT BY THE TEST THAT NAMES IT: M03 ...                                exit 1
+      python mutate/byway_route_key.py NOSUCHLABEL
+          REFUSED: no mutations selected - an empty population cannot demonstrate anything  exit 1
+      python mutate/byway_route_key.py --red no-such-commit
+          REFUSED: git show no-such-commit:... failed - no tree to be red against           exit 2
+
+  **R7-02 - reproduced, closed.** The red demonstration is the same file's `--red <commit>` mode: exit 0
+  only when pytest FAILED, 1 when every check passed against the pre-fix code ("REFUSED: ... none of
+  them is about the fix"), 2 when the tree could not be built or pytest could not run. It swaps only
+  `byway_route_key.py`, so the floor tests go red on the VERDICT they assert rather than on an
+  AttributeError for a name the old tree never had. **R7-03** - reproduced: `work/rd4/f2_repro.py`
+  still exits 2 on "NO FLIP FOUND"; round 4's text did say the flip did not rebuild and cited only the
+  VOTED/ALONG table, which prints; gitignored scratch, unchanged. **R7-04** - the two assertions named
+  are gone: `voted == best[0] * whole` removed, `frac * whole` replaced by the literal 1317.6 (and the
+  way's 3474.5). **R7-05** - every count below is read from `--junitxml` attributes, never from `-q`.
+
+  **RED, then GREEN.** `cd services/etl && python mutate/byway_route_key.py --red e19fd38` (current
+  tests and current `byways.py`, `byway_route_key.py` from `e19fd38`): `PYTEST EXIT=1  10 failed`,
+  `RED as intended against e19fd38: 10 named test(s) fail without the fix`, exit 0. The reasons, by
+  name, from a `--tb=line` run of the same tree:
+
+      test_a_sub_floor_fragment_cannot_corroborate_a_key_no_rival_is_big_enough_to_take
+      test_a_sub_floor_fragment_cannot_corroborate_a_key_on_a_corridor_that_cannot_agree
+      test_a_key_under_the_floor_is_printed_by_problems_because_reported_is_the_point
+      test_a_fragment_cannot_silence_a_slice_of_the_real_corridor_no_number_can_win
+                                          assert 'corroborated' == 'under_evidenced'
+      test_a_key_over_the_metres_floor_but_under_the_share_floor_is_re_keyed_not_contested
+                                          assert ('contested', {'221'}) == ('rekeyed', {'236'})
+      test_the_key_and_a_rival_are_judged_by_the_same_function_on_the_same_evidence
+                                          AttributeError: no attribute '_holds'
+      test_every_keyed_entry_records_..., test_an_under_evidenced_key_is_not_..., test_fragments_worth_
+      a_twelfth_..., test_mis_tagged_fragments_worth_a_fifth_...   KeyError: 'key_claim_m' / 'reffed_claim_m'
+
+  With `e19fd38`'s `byways.py` swapped in as well it is `11 failed, 41 passed`, the extra one being
+  `test_problems_counts_the_byways_affected_not_the_distinct_route_numbers` (RV7-5 lives in `byways.py`).
+  Two new tests are GREEN against `e19fd38` and are meant to be: `..._holds_its_corridor_and_is_still_
+  outvoted_...` (CONTESTED with both sides over the bar was already CONTESTED) and `..._doubling_back_...`
+  (RV7-4 is pinned, not repaired). The four KeyError reds are red on RV7-3 rather than on their verdict;
+  the sweep is where each of those goes red on its verdict with the fields present (M07, M09, M10,
+  M13). The
+  same mode at the PR tip - `--red HEAD` - is `REFUSED: every check PASSED against the pre-fix code`,
+  exit 1, which is the script's own exit status being demonstrated rather than described (R7-02).
+
+  GREEN: `cd services/etl && python -m pytest --junitxml=work/rv8/j.xml -p no:randomly` -> exit 0, JUnit
+  `tests=407 failures=0 errors=0 skipped=0` (395 at `e19fd38`; +11 in the new file, +1 net in
+  `test_byway_route_key.py`).
+
+  **MUTATION SWEEP** on the final tree - `cd services/etl && python mutate/byway_route_key.py`, exit
+  codes and names from the JUnit XML of each mutant run in the `work/` copy; `git status` stayed clean.
+  Run twice: once through the previous fixer's gitignored copy before the harness was tracked (same 19,
+  same killers), and once, quoted here, through the tracked file over the exact tree committed:
+
+      BASELINE (unmutated)  pytest exit=0  0 failed
+      M01  vote the way's WHOLE length again (undo the along-the-corridor vote)
+          pytest exit=1  5 failed  named killer(s) red: ['test_a_way_votes_with_the_part_of_it_that_is_on_this_corridor', 'test_a_crossing_way_votes_with_the_62_m_of_it_that_is_on_this_corridor']
+      M02  count a concurrency twice into its own denominator
+          pytest exit=1  3 failed  named killer(s) red: ['test_a_concurrency_can_re_key_now_that_the_share_is_a_share_of_the_corridor']
+      M03  drop `m > key_m` from _outvoting (a number that merely TIES takes the key)
+          pytest exit=1  1 failed  named killer(s) red: ['test_a_concurrency_that_names_the_key_is_corroborated_and_not_contested']
+      M04  drop the metres floor from _holds (both sides at once)
+          pytest exit=1  5 failed  named killer(s) red: ['test_a_short_stub_cannot_re_key_a_corridor']
+      M05  drop the share floor from _holds (both sides at once)
+          pytest exit=1  5 failed  named killer(s) red: ['test_a_corridor_that_cannot_agree_keeps_its_key_and_is_reported']
+      M06  the DEFENDING side loses the METRES floor
+          pytest exit=1  2 failed  named killer(s) red: ['test_a_key_under_the_floor_is_printed_by_problems_because_reported_is_the_point']
+      M07  the DEFENDING side loses the SHARE floor (round 4's rule: a bare metres floor)
+          pytest exit=1  3 failed  named killer(s) red: ['test_a_key_over_the_metres_floor_but_under_the_share_floor_is_re_keyed_not_contested', 'test_fragments_worth_a_twelfth_of_the_key_evidence_cannot_hold_the_real_corridor']
+      M08  the DEFENDING side back to bare membership (round 3's blocker)
+          pytest exit=1  12 failed  named killer(s) red: ['test_a_sub_floor_fragment_cannot_corroborate_a_key_no_rival_is_big_enough_to_take', 'test_a_sub_floor_fragment_cannot_corroborate_a_key_on_a_corridor_that_cannot_agree', 'test_a_fragment_cannot_silence_a_slice_of_the_real_corridor_no_number_can_win']
+      M09  UNDER_EVIDENCED downgraded back to CORROBORATED, i.e. back to silence
+          pytest exit=1  6 failed  named killer(s) red: ['test_a_key_under_the_floor_is_printed_by_problems_because_reported_is_the_point', 'test_an_under_evidenced_key_is_not_the_same_verdict_as_one_nothing_claims_at_all', 'test_mis_tagged_fragments_worth_a_fifth_of_the_evidence_stop_any_number_holding_it']
+      M10  UNDER_EVIDENCED collapsed into UNCLAIMED (one verdict for two repairs)
+          pytest exit=1  6 failed  named killer(s) red: ['test_an_under_evidenced_key_is_not_the_same_verdict_as_one_nothing_claims_at_all']
+      M11  problems() stops printing the under-evidenced line
+          pytest exit=1  3 failed  named killer(s) red: ['test_a_key_under_the_floor_is_printed_by_problems_because_reported_is_the_point']
+      M12  problems() counts distinct route-key STRINGS again (RV7-5)
+          pytest exit=1  1 failed  named killer(s) red: ['test_problems_counts_the_byways_affected_not_the_distinct_route_numbers']
+      M13  key_claim_m stamped only on the loud verdicts again (RV7-3)
+          pytest exit=1  4 failed  named killer(s) red: ['test_every_keyed_entry_records_what_the_key_held_and_what_it_was_a_share_of']
+      M14  _holds becomes a bare membership test for BOTH sides
+          pytest exit=1  18 failed  named killer(s) red: ['test_the_key_and_a_rival_are_judged_by_the_same_function_on_the_same_evidence']
+      M15  cap each vote at the corridor length (RV7-4's tempting repair)
+          pytest exit=1  1 failed  named killer(s) red: ['test_a_way_doubling_back_votes_more_metres_than_the_corridor_is_long']
+      M16  problems() stops printing the contested line
+          pytest exit=1  1 failed  named killer(s) red: ['test_a_key_that_holds_its_corridor_and_is_still_outvoted_is_reported_not_guessed_about']
+      M17  CONTESTED never happens - re-key whenever anything outvotes the key
+          pytest exit=1  1 failed  named killer(s) red: ['test_a_key_that_holds_its_corridor_and_is_still_outvoted_is_reported_not_guessed_about']
+      M18  nothing under the bar is ever reported - corroborate it all
+          pytest exit=1  10 failed  named killer(s) red: ['test_a_short_stub_cannot_re_key_a_corridor', 'test_a_key_under_the_floor_is_printed_by_problems_because_reported_is_the_point']
+      V1   the fixture carries no ways at all (a census measured on nothing)
+          pytest exit=1  9 failed  named killer(s) red: ['test_the_census_the_re_key_argument_rests_on_is_reproduced_by_the_code']
+
+      POPULATION 19 of 19 known mutations; APPLIED 19
+      every one of the 19 applied mutations was killed by the test that names it
+      SWEEP EXIT=0
+
+  **HYGIENE.** Before measuring: HEAD == origin, subject files hashed against `git show e19fd38:` (all
+  equal in the repro worktree; the dirty ones equal to the `git diff` index lines `8782061`, `2ea3290`,
+  `f7af9bd`, `cb55b10`). After both sweeps and every red run: `git status --short` shows only the
+  six intended paths and `git diff --stat` matches the commit; the gitignored `.artifacts/mutate-T0028.py`
+  and `red-T0028.sh` were deleted so nothing stale can be run in their place; `.worktrees/rv8-fix-repro`
+  removed.
+  `bash ops/check-pins --source-only` -> `PINS ok=6 skipped=10 pending=1 expired=0 failed=0`, exit 0.
+  `bash ops/queue-check` -> `QUEUE OK (130 tasks)`, exit 0. `bash ops/test` -> `TESTS linux=571/76
+  ios=skipped failed=0 skipped=0` / `OK`, exit 0 (571 = Swift + vitest + the 407 above; the floor
+  is still the 76 noted below).
+
+  **STILL OPEN.** (1) `reconcile` is still armed and unfired until T-0030 hands it a way corpus; every
+  keyed entry reports as never-checked until then. (2) The price above: 305/865 keyed Caltrans entries
+  are under MIN_CONSENSUS_M and will report forever once reconciled - a judgement the reviewer may
+  disagree with; the alternative (a floor that scales with corridor length) is a second constant and was
+  not introduced. (3) The floors are metres of WAY, not of corridor (RV7-4), pinned not fixed. (4)
+  `MIN_CONSENSUS_M` = 1000 and `MIN_CONSENSUS_SHARE` = 0.80 remain judgements. (5) `pins/floor_linux.txt`
+  is still 76 against the real count; serial-only, outside `touches:`, carried as debt. (6)
+  `byway_route_key.py` is at exactly 300 lines; the next sentence added to it has to take one out.

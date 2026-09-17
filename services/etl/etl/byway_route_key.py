@@ -34,12 +34,11 @@ is rejected instead of one frontage road. Measured in the pinned pull:
     provenance and pull b's full census.)
     AN EARLIER VERSION OF THIS PARAGRAPH RAN THAT AS A TWO-COLUMN TABLE - 141/142, 53.46/53.54,
     28.14/28.07, 28143/28074, 197/196 - and called it two independent pulls agreeing to a rounding. It is
-    not. Every one of those pairs is `snap.distance_on_earth` against a hand-rolled flat-earth segment
-    length in the scratch script that measured the census: THE INSTRUMENT, NOT THE DATA. Run either kernel
-    over either pull and the numbers are identical to the digit. A second measurement that was never a
-    second measurement is exactly the kind of corroboration this module exists to refuse, and it survived
-    three rounds here because the test asserting the census asserted census fields against census fields
-    and never ran the code.
+    not: every pair is `snap.distance_on_earth` against a hand-rolled flat-earth segment length in the
+    scratch script that measured the census - THE INSTRUMENT, NOT THE DATA - and either kernel over either
+    pull gives identical digits. A second measurement that was never one is the corroboration this module
+    exists to refuse; it survived three rounds because the test asserting the census asserted census fields
+    against census fields and never ran the code.
   It is not one row. Cross-checking each row's `RTE`/`CO` against its own `DYNSEGPM` string ("<CO> <RTE>
     <PM> / ...") finds 5 rows disagreeing on RTE - FID 14 (5 vs 7), 19 (10 vs 5), 44 (29 vs 28), 52 (36 vs
     35) and 265 (680 vs 580, an OD Bay Area row) - plus FID 233, whose DYNSEGPM omits the route number
@@ -50,34 +49,36 @@ is rejected instead of one frontage road. Measured in the pinned pull:
     WHICH field is wrong is not decidable from the disagreement, and guessing it backwards is easy: on
     FID 265 it is the DYNSEGPM. Its line is a 7.38 km north-south by 3.42 km east-west strip from Bernal
     Ave to the Contra Costa line, which is I-680 - so `RTE=680` is right and `ALA 580 ...` is wrong. That
-    row is also the cheapest proof that the corroboration floor above is not theoretical: Caltrans's own
-    RTE=580 row (FID 199) touches FID 265's line at 0.0 m, so had 265 been keyed 580 instead, real
-    correctly-tagged I-580 ways at the crossing would have corroborated the wrong key.
+    row is also the cheapest proof that the corroboration floor is not theoretical: Caltrans's own RTE=580
+    row (FID 199) touches FID 265's line at 0.0 m, so had 265 been keyed 580, real correctly-tagged I-580
+    ways at the crossing would have corroborated the wrong key.
 
 THE REPAIR, AND WHY IT IS NOT "FALL BACK TO GEOMETRY". Dropping the key for a row nothing claims is the
 obvious fix and it is wrong. Of the 53.46 km clearing the gate along FID 181 only 28.14 km is Big Basin
 Way. The other 25.32 km, by OSM highway class: 13.46 km path (the Skyline-to-the-Sea Trail and the park's
-trail network), 5.35 km residential (Boulder Creek's grid - Acorn Drive, Fallen Leaf Drive, Saint Francis
-Drive), 5.04 km service (campground and park service roads), 0.59 km track, 0.35 km footway, 0.20 km
-primary, 0.18 km pedestrian, 0.09 km unclassified, 0.04 km passing_place, 0.01 km steps. Geometry alone
-would hand an eligible byway's bonus to a footpath and to a cul-de-sac.
+trail network), 5.35 km residential (Boulder Creek's grid), 5.04 km service (campground and park service
+roads), 0.59 km track, 0.35 km footway, 0.20 km primary, 0.18 km pedestrian, 0.09 km unclassified, 0.04 km
+passing_place, 0.01 km steps. Geometry alone hands an eligible byway's bonus to a footpath and a cul-de-sac.
 
 What the corridor does say is which number it actually is. Along FID 181 the ways that carry a `ref` claim
 `236` for 27569 m of running along the line and `9` for 126 m: 99.5% consensus on one number, and it is not
 the row's key. So:
-  CORROBORATED - the key holds evidence of its own and no other number outvotes it past the bar the re-key
-    branch has to clear. Nothing changes and nothing is reported. This is the normal case and the one the
-    frontage-road evidence above was measured on.
-  REKEYED      - the key holds less than MIN_CONSENSUS_M, and another number holds more than the key, at
-    least MIN_CONSENSUS_M, and at least MIN_CONSENSUS_SHARE of the reffed length along the corridor. The
-    entry is re-keyed to that number - or to both, when a concurrency carries two of them past the bar -
-    and reported. The corridor is still gated on a route number, so the footpaths stay out.
-  CONTESTED    - the key holds at least MIN_CONSENSUS_M and another number STILL clears that bar over it.
-    Two numbers with a real case each: the key stays and the entry is reported, because choosing between
-    them on this evidence would be a guess.
-  UNCLAIMED    - nothing claims the key and no number reaches the bar. The key STAYS (guessing is worse
-    than scoring zero) and the entry is reported, because a corridor that can match nothing is a fact
-    somebody has to see.
+  CORROBORATED - the key HOLDS the corridor on the same terms a rival needs to take it: at least
+    MIN_CONSENSUS_M along the line and at least MIN_CONSENSUS_SHARE of the reffed length, and nothing
+    outvotes it. Nothing changes and nothing is reported - the normal case, and the one the frontage-road
+    evidence above was measured on.
+  REKEYED      - the key does NOT hold the corridor, and another number holds it and holds more than the
+    key does. The entry is re-keyed to that number - or to both, when a concurrency carries two of them
+    past the bar - and reported. The corridor is still gated on a route number, so the footpaths stay out.
+  CONTESTED    - the key holds the corridor AND another number still holds it over the top, which only
+    happens when they are tagged on the same ways. Two numbers with a real case each: the key stays and
+    the entry is reported, because choosing between them on this evidence would be a guess.
+  UNDER_EVIDENCED - something claims the key but less than it takes to hold the corridor, and no rival
+    holds it either. The key STAYS and the entry is reported: this is what a mis-tagged fragment now earns
+    where it used to earn CORROBORATED, i.e. the silence that cost FID 181 28 km.
+  UNCLAIMED    - NOTHING claims the key and no number reaches the bar. The key STAYS (guessing is worse
+    than scoring zero) and the entry is reported. The two are separate because their repairs are:
+    UNDER_EVIDENCED has a claim and a `key_claim_m` to go and look at, UNCLAIMED has nothing at all.
 Every verdict except CORROBORATED is a line in `byways.problems`, and so is an entry that was never put
 through `reconcile` at all: "no problems" must not be reachable by never looking, which is the exact way
 the keyless check managed to be green while FID 181 lost 28 km.
@@ -92,9 +93,22 @@ saying nothing about it. It does not take an OSM error to reach, either: grid-ha
 centreline at the 60 m snap tolerance, 265 of the 865 entries (30.6%) have ANOTHER numbered state route
 inside their own snap band, so for those a mis-key onto the neighbouring number is corroborated by that
 neighbour's real, correctly tagged ways - and neighbouring numbers are exactly what the DYNSEGPM
-disagreements above look like (5 vs 7, 10 vs 5, 29 vs 28, 36 vs 35, 680 vs 580). One threshold therefore
-governs both branches: MIN_CONSENSUS_M is what it takes to say ANYTHING about a corridor, so a number
-holding less than it can neither establish a key nor defend one.
+disagreements above look like (5 vs 7, 10 vs 5, 29 vs 28, 36 vs 35, 680 vs 580).
+
+A first repair gave the defending side the metres floor only, and only through `_outvoting` - read only
+when SOME ONE RIVAL cleared both floors, so where none did the function returned before either was read.
+The hole survived on real FID 181 geometry: a 415.9 m slice, too short for any number to reach 1000 m,
+went from UNCLAIMED-and-reported to CORROBORATED-and-silent on one 30.8 m way tagged `ref=CA 221`, and so
+did an 11691.0 m corridor whose rival evidence really splits 61/39. It cost the other way too: on a bare
+metres floor 1033.2 m of mis-tagged fragments - 7.6% of the reffed length there, 8.3% of the 12389.1 m of
+`ref=CA 236` under it - held 12.4 km of Big Basin Way as CONTESTED.
+
+`_holds(m, reffed_m)` is therefore the single bar - at least MIN_CONSENSUS_M AND at least
+MIN_CONSENSUS_SHARE of the reffed length - asked of the KEY exactly as `_outvoting` asks it of every rival.
+THE PRICE, measured: 305 of the 865 keyed Caltrans entries (35.3%) are shorter than MIN_CONSENSUS_M, so no
+number can hold them and their keys report forever. The DENOMINATOR is evidence too - fragments claiming
+the key enlarge `reffed_m` - so past 19.2% of it the RIVAL stops holding the corridor either, and part 0
+turns from REKEYED into UNDER_EVIDENCED: the same 12389.1 m lost, reported where the old code was silent.
 
 WHAT A WAY VOTES WITH: its length ALONG THE CORRIDOR, never its whole length. A way is admitted at 30%
 overlap, so up to 70% of it is somewhere else, and counting the whole thing lets the somewhere-else part
@@ -108,9 +122,21 @@ rather than once per number it names, so a concurrency no longer halves every sh
 its own denominator - which is what used to make MIN_CONSENSUS_SHARE unreachable, not just unmet, for a
 corridor tagged `ref='CA 1;CA 35'` end to end.
 
+IT IS STILL METRES OF WAY, NOT METRES OF CORRIDOR - a judgement, not an oversight. A way doubling back runs
+further along a short corridor than the corridor is long: a `ref=CA 236` way folded over a 222.5 m corridor
+votes 2669.5 m and clears a floor the corridor itself can never reach, which
+`test_a_way_doubling_back_votes_more_metres_than_the_corridor_is_long` pins as a known number. Capping the
+vote at the corridor length does not repair it: the cap must leave the denominator alone (capping both
+manufactures a share out of two rival carriageways), and then a DIVIDED highway correctly tagged with the
+key on both carriageways votes 2x, caps to 1x against a 2x denominator and sits at 0.50 forever - a worse
+failure, in the case this module exists for. The honest repair measures how much of the CORRIDOR each
+number covers - a different measurement from `snap.overlap_m` that moves every census number here, so its
+own task. Exposure is bounded: FID 181's parts vote 12389.1 and 15180.3 m along corridors 12712.3 and
+15191.7 m long, so no shipped number rests on the inflation.
+
 COST. `reconcile` is O(entries x reffed ways x way_length/SAMPLE_STEP_M) with only a bounding-box reject to
-save it. That is fine for the 865 Caltrans entries against a region's reffed ways and is not fine against
-every way in a corpus; T-0030 should hand it the reffed ways only, which is all `_claims` reads.
+save it - fine for the 865 Caltrans entries against a region's reffed ways, not fine against every way in a
+corpus; T-0030 should hand it the reffed ways only, which is all `_claims` reads.
 """
 from __future__ import annotations
 
@@ -119,13 +145,13 @@ import math
 from . import byways as bw
 from . import snap
 
-# Share of the REFFED length along a corridor that one route number has to hold before it outvotes the key.
-# FID 181's corridor gives 99.5% to `236`; a corridor that cannot agree that strongly is not telling us
-# anything and keeps the key it has.
+# Share of the REFFED length along a corridor that one route number has to hold to hold that corridor -
+# whether it is taking the key or keeping it. FID 181's corridor gives 99.5% to `236`; a corridor that
+# cannot agree that strongly is not telling us anything, and its key is reported rather than confirmed.
 MIN_CONSENSUS_SHARE = 0.80
-# What it takes to say anything at all about a corridor, so a 60 m reffed stub at a junction can neither
-# re-key 28 km of corridor nor - the round-3 blocker - corroborate a wrong key into silence. Both branches
-# read it: a number under this floor can neither establish a key nor defend one.
+# The metres half of the same bar: what it takes to say anything at all about a corridor, so a 60 m reffed
+# stub at a junction can neither re-key 28 km of corridor nor corroborate a wrong key into silence.
+# Both floors are read through `_holds`, which BOTH branches call - the one call site is the guarantee.
 MIN_CONSENSUS_M = 1000.0
 
 _M_PER_DEG_LAT = 110540.0
@@ -194,55 +220,77 @@ def claimed_lengths(entry: dict, ways: list[dict], **kw) -> dict[str, float]:
     return _claims(entry, ways, **kw)[0]
 
 
+def _holds(m: float, reffed_m: float) -> bool:
+    """Whether `m` metres is enough for one number to hold a corridor - the bar, read by BOTH branches.
+
+    This is the whole of ONE FLOOR, BOTH DIRECTIONS: `corridor_verdict` asks it of the key exactly as
+    `_outvoting` asks it of every rival, so keeping the source's number costs the same evidence as
+    changing it. Anything less is not a corroboration, it is a corridor that has not established its key.
+    """
+    return m >= MIN_CONSENSUS_M and m >= MIN_CONSENSUS_SHARE * reffed_m
+
+
 def _outvoting(claimed: dict[str, float], reffed_m: float, key: set[str], key_m: float) -> set[str]:
     """The numbers that beat the key on this corridor's own evidence.
 
-    Not simply the largest: to outvote a key a number has to hold MORE than the key does, at least
-    MIN_CONSENSUS_M, and at least MIN_CONSENSUS_SHARE of the reffed length along the corridor. Two numbers
-    can clear that together only by being tagged on the same ways, which is a concurrency and is the truth
-    about that corridor, so both are returned rather than one of them being picked arbitrarily.
+    Not simply the largest: to outvote a key a number has to hold MORE than the key does and clear
+    `_holds`. Two numbers can clear that together only by being tagged on the same ways, which is a
+    concurrency and is the truth about that corridor, so both are returned rather than one of them being
+    picked arbitrarily.
     """
-    return {n for n, m in claimed.items()
-            if n not in key and m > key_m and m >= MIN_CONSENSUS_M and m >= MIN_CONSENSUS_SHARE * reffed_m}
+    return {n for n, m in claimed.items() if n not in key and m > key_m and _holds(m, reffed_m)}
+
+
+def _verdict(key: set[str], claimed: dict[str, float], reffed_m: float) -> tuple[str, set[str]]:
+    """`(verdict, the routes to use)` from evidence already measured - the whole decision, one pass."""
+    key_m = sum(claimed.get(n, 0.0) for n in key)
+    key_holds = _holds(key_m, reffed_m)
+    outvoting = _outvoting(claimed, reffed_m, key, key_m)
+    if not outvoting:
+        if key_holds:
+            return bw.KEY_CORROBORATED, key
+        return (bw.KEY_UNDER_EVIDENCED if key_m > 0 else bw.KEY_UNCLAIMED), key
+    if not key_holds:
+        return bw.KEY_REKEYED, outvoting
+    return bw.KEY_CONTESTED, key
 
 
 def corridor_verdict(entry: dict, ways: list[dict], **kw) -> tuple[str, set[str], dict[str, float]]:
     """`(verdict, the routes to use, the metres each number claims)` for one entry.
 
-    The verdicts are `byways.KEY_*`; see this module's docstring for what each one means, why UNCLAIMED
-    keeps the key instead of falling back to geometry, and why CORROBORATED has to clear the same floor the
-    re-key branch does rather than being decided on a bare membership test.
+    The verdicts are `byways.KEY_*`; see this module's docstring for what each one means, why the key is
+    kept whatever the verdict rather than falling back to geometry, and why the key defends itself through
+    the same `_holds` a rival has to clear rather than on a bare membership test or a bare metres floor.
     """
     key = {str(r) for r in (entry.get("routes") or ())}
     if not key:
         return bw.KEY_UNKEYED, set(), {}
     claimed, reffed_m = _claims(entry, ways, **kw)
-    key_m = sum(claimed.get(n, 0.0) for n in key)
-    outvoting = _outvoting(claimed, reffed_m, key, key_m)
-    if not outvoting:
-        return (bw.KEY_CORROBORATED if key_m > 0 else bw.KEY_UNCLAIMED), key, claimed
-    if key_m < MIN_CONSENSUS_M:
-        return bw.KEY_REKEYED, outvoting, claimed
-    return bw.KEY_CONTESTED, key, claimed
+    return (*_verdict(key, claimed, reffed_m), claimed)
 
 
 def reconcile(entries: list[dict], ways: list[dict], **kw) -> list[dict]:
     """Every entry with its route key checked against the ways lying along it.
 
-    Returns NEW entries - the input is not mutated - each carrying `byways.KEY_VERDICT`. A re-keyed entry
-    also carries `key_was` (what Caltrans said) and `key_evidence_m` (the metres that outvoted it), and any
-    entry whose key was outvoted carries `key_claim_m` (what the key itself held), so the repair - and the
-    fragment that nearly bought the wrong key its silence - is auditable from the entry rather than only
-    from a log line.
+    Returns NEW entries - the input is not mutated - each carrying `byways.KEY_VERDICT`. EVERY keyed entry
+    also carries `key_claim_m` (the metres the key itself held) and `reffed_claim_m` (the reffed metres
+    along the corridor those are a share of), because the verdict is a judgement about those two numbers
+    and the verdict `problems()` never prints - CORROBORATED - is the one where nobody will go looking.
+    A re-keyed entry adds `key_was` (what Caltrans said), and an outvoted key adds `key_evidence_m` (the
+    metres that outvoted it), so the repair - and the fragment that nearly bought a wrong key its silence
+    - is auditable from the entry rather than only from a log line.
     """
     out = []
     for entry in entries:
-        verdict, routes, claimed = corridor_verdict(entry, ways, **kw)
+        key = {str(r) for r in (entry.get("routes") or ())}
+        claimed, reffed_m = _claims(entry, ways, **kw) if key else ({}, 0.0)
+        verdict, routes = _verdict(key, claimed, reffed_m) if key else (bw.KEY_UNKEYED, set())
         fixed = dict(entry)
         fixed[bw.KEY_VERDICT] = verdict
-        if verdict in (bw.KEY_REKEYED, bw.KEY_CONTESTED):
-            key = {str(r) for r in (entry.get("routes") or ())}
+        if key:
             fixed["key_claim_m"] = round(sum(claimed.get(n, 0.0) for n in key), 1)
+            fixed["reffed_claim_m"] = round(reffed_m, 1)
+        if verdict in (bw.KEY_REKEYED, bw.KEY_CONTESTED):
             fixed["key_evidence_m"] = round(min(claimed[n] for n in routes) if verdict == bw.KEY_REKEYED
                                             else max(claimed[n] for n in claimed if n not in key), 1)
         if verdict == bw.KEY_REKEYED:
