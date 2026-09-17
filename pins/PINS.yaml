@@ -120,7 +120,7 @@
   why_no_test_catches_it: Swapping or "simplifying" the solar math shifts every golden-hour card and the after-dark hazard flag; no functional test notices, and a fixture regenerated from our own code would bless the error. sunrise-sunset.org was tried first and rejected as an oracle - it disagreed with USNO by 84-343 s on rise/set.
   anchor: source
   runs_on: [linux, mac]
-  assertion: "grep -q 'Naval Observatory' Tests/Fixtures/solar/oracle.json && test $(grep -c 'SolarFixture(name:' Tests/ScenicKitTests/SolarFixtures.swift) -ge 20 && swift test --filter SolarFixtureTests 2>&1 | grep -qE 'Test run with [1-9][0-9]* tests?( in [0-9]+ suites?)? passed'"
+  assertion: "grep -q 'Naval Observatory' Tests/Fixtures/solar/oracle.json && test $(grep -c 'SolarFixture(name:' Tests/ScenicKitTests/SolarFixtures.swift) -ge 20 && swift test --filter SolarFixtureTests 2>&1 | grep -E 'Test run with [1-9][0-9]* tests?( in [0-9]+ suites?)? passed' >/dev/null"
   owner: agent/claude-opus-5
   added: 2026-09-07
 
@@ -153,6 +153,24 @@
   pending: T-0013
   owner: agent/claude-opus-5
   added: 2026-09-07
+
+- id: P-SEC-01
+  statement: The pre-commit secret scan refuses a staged secret at every size, including files larger than a pipe buffer
+  why_no_test_catches_it: "The scan piped git show of the staged blob into grep -q under the hook's own `set -o pipefail`. grep -q exits at its first match, git show gets SIGPIPE and exits 141, pipefail reports 141, and the `if` reads no match: a 256 KB file with an sk. token on line 1 COMMITTED with exit 0 and nothing printed, as did 1 MB and 4 MB, while 1 KB and 64 KB were refused. So the gate CLAUDE.md says greps for secrets was a race that any file over the pipe buffer won, and no fixture staged a large file. Found by following a CI flake in P-SAFE-05, which had the same shape (T-0140). The check straddles the threshold with five sizes and asserts the REASON printed, so a hook that refuses everything cannot pass it."
+  anchor: process
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-secret-scan.py"
+  owner: agent/claude-opus-5
+  added: 2026-09-16
+
+- id: P-OPS-03
+  statement: No gate decides anything by piping a producer into grep -q - every such pipeline reads its producer to EOF
+  why_no_test_catches_it: "Under pipefail, `grep -q` returning early gives the producer SIGPIPE and the pipeline exit 141, so the verdict depends on a race between how much the producer writes after the match and how fast grep returns. Eight sites had it: two in the pre-commit hook (the secret scan failed OPEN above 256 KB, P-SEC-01), one on the merge gate (a SIGPIPE from gh api reads as 'task not in queue/done/'), one in deploy, and P-SAFE-05, which lost the race 1 run in 3 on one reviewer's box and 0 in 10 on another - which is what makes it a flake rather than a failure, and why it was reported by two independent reviewers in one night. A text scan over ops/, .githooks/ and PINS.yaml, refusing on a tree that enumerates fewer than 20 files."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "bash ops/lib/check-pipe-consumers"
+  owner: agent/claude-opus-5
+  added: 2026-09-16
 
 - id: P-GIT-02
   statement: The pre-commit touches gate applies to the author's own changes on a merge, not to every file the merge stages

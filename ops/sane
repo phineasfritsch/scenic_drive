@@ -38,7 +38,7 @@ if [[ $prod -eq 1 ]]; then
     fail "backend" "no API URL (ops/api-url missing)" 7
   else
     health="$(curl -fsS --max-time 10 -A scenic-ops-sane/1 "$url/__health" 2>/dev/null || true)"
-    if [[ -z "$health" ]] || ! printf '%s' "$health" | grep -q '"ok":true'; then
+    if [[ -z "$health" ]] || ! printf '%s' "$health" | grep '"ok":true' >/dev/null; then
       fail "backend" "$url/__health -> ${health:-unreachable}" 7
     else
       ok "backend" "$url up, db up"

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# No gate may decide anything from `producer | grep -q` (T-0140).
+#
+# `grep -q` exits at its FIRST match. If the producer is still writing, it gets SIGPIPE and exits 141, and
+# under `set -o pipefail` - which every gate here runs with, and which ops/lib/pins.py imposes on every pin
+# assertion - the pipeline's status is 141, not grep's 0. The verdict then depends on a race between how
+# much the producer writes after the match and how fast grep returns:
+#
+#     bash -o pipefail -c "(echo 'Test run with 20 tests passed'; seq 1 200000) | grep -q passed"   -> 141
+#     bash -o pipefail -c "(echo 'Test run with 20 tests passed'; seq 1 200000) | grep passed >/dev/null" -> 0
+#
+# P-SAFE-05 lost that race 1 run in 3 on one reviewer's box (swift test kept writing after its summary
+# line) and never here in 10 - which is exactly what makes it a flake rather than a failure, and why two
+# independent reviewers reported it in one night. ops/merge:45 had the same shape on the merge gate itself:
+# a SIGPIPE from `gh api` reads as "task not in queue/done/" and refuses a merge that should land.
+#
+# The fix is one character class: `grep PAT >/dev/null` reads ALL of stdin and exits on its own result.
+# This check keeps the shape from coming back. It is a text scan, so it is anchored on the command text,
+# not on a comment - `grep -q` is the identifier.
+set -uo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -f ops/lib/pins.py ]] || { echo "$(pwd) is not the repo root"; exit 2; }
+
+# What is scanned: every tracked file under ops/ and .githooks/, plus the pin file - the places a verdict
+# is computed. `git ls-files` so an untracked scratch script cannot fail the check, and so a scan over a
+# tree that failed to glob reports a COUNT rather than a clean sheet.
+mapfile -t files < <(git ls-files -- ops .githooks pins/PINS.yaml)
+MIN_FILES=20
+if (( ${#files[@]} < MIN_FILES )); then
+  echo "PIPE-CONSUMERS REFUSING: scanned ${#files[@]} files, expected at least $MIN_FILES - the tree did not enumerate"
+  exit 2
+fi
+
+hits=0
+for f in "${files[@]}"; do
+  [[ "$f" == "ops/lib/check-pipe-consumers" ]] && continue   # this file quotes the shape on purpose
+  # A pipe, optional space, grep with a -q anywhere in its short flags (-q, -qE, -iq ...).
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    echo "PIPE-CONSUMERS: $f:$line"
+    hits=$((hits + 1))
+  done < <(grep -nE '\|[[:space:]]*grep[[:space:]]+-[A-Za-z]*q' -- "$f" | grep -vE '^[0-9]+:[[:space:]]*#')
+done
+
+if (( hits > 0 )); then
+  echo "PIPE-CONSUMERS FAIL: $hits pipeline(s) decide with grep -q; use 'grep PAT >/dev/null' so the producer is read to EOF (${#files[@]} files scanned)"
+  exit 1
+fi
+echo "PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (${#files[@]} files scanned)"

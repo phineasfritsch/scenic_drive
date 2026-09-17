@@ -12,19 +12,31 @@ CR=$(printf '\r')
 staged="$(git diff --cached --name-only --diff-filter=ACMR)"
 [[ -z "$staged" ]] && exit 0
 
-# 1. CRLF
+# 1 and 2. CRLF and secrets, read from the STAGED blob, never from the working file.
+#
+# NOT `git show ":$f" | grep -q PAT` (T-0140). `grep -q` exits at its first match; if `git show` is still
+# writing it gets SIGPIPE and exits 141, and under the `pipefail` on line 9 the pipeline's status is 141,
+# so the `if` reads "no match". Measured with the real hook: a 256 KB file with an sk. token on line 1
+# COMMITTED, exit 0, nothing printed - 1 KB and 64 KB were refused, 256 KB, 1 MB and 4 MB were not. The
+# secret scan CLAUDE.md promises was a race that any file over the pipe buffer won.
+#
+# So each blob is read ONCE into a temp file, with `git show`'s own exit status checked - a blob that
+# cannot be read fails CLOSED, because "could not look" must never read as "nothing there" - and grep runs
+# on the file, where its early exit costs nothing and nobody is left holding a broken pipe.
+blob="$(mktemp)"
+trap 'rm -f "$blob"' EXIT
 while IFS= read -r f; do
   [[ -z "$f" ]] && continue
-  if git show ":$f" | grep -qI "$CR"; then echo "pre-commit: CRLF in $f (repo is LF-only, see .gitattributes)"; fail=1; fi
-done <<< "$staged"
-
-# 2. Secrets
-while IFS= read -r f; do
-  [[ -z "$f" ]] && continue
+  if ! git show ":$f" > "$blob" 2>/dev/null; then
+    echo "pre-commit: cannot read the staged blob for $f, so it cannot be scanned; refusing rather than assuming"
+    fail=1
+    continue
+  fi
+  if grep -qI "$CR" "$blob"; then echo "pre-commit: CRLF in $f (repo is LF-only, see .gitattributes)"; fail=1; fi
   case "$f" in
     *.p8|*.p12|*.netrc|.netrc|.env|.env.*) echo "pre-commit: secret file staged: $f"; fail=1;;
   esac
-  if git show ":$f" | grep -qE '(sk\.[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC )?PRIVATE KEY|AKIA[0-9A-Z]{16})'; then
+  if grep -qE '(sk\.[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC )?PRIVATE KEY|AKIA[0-9A-Z]{16})' "$blob"; then
     echo "pre-commit: secret-looking content in $f"; fail=1
   fi
 done <<< "$staged"
