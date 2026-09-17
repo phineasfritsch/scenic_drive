@@ -31,6 +31,13 @@ import Testing
 /// `surface=grass`, `access=delivery` and `barrier=swing_gate` and all three passed with nothing objecting.
 /// "The plan's lists and nothing else" is only checkable as an EQUALITY against the list written out, which
 /// is what `theRefusedSetsAreExactlyThePlansLists` does - the expected side is typed here, not read back.
+///
+/// WHAT THAT PINS, AND WHAT IT DOES NOT. The equality is on the three SET OBJECTS. A widening written into
+/// the rule instead of the set - `unpavedSurfaces.contains(surface) || surface == "mud"` - is not seen by
+/// it: round 7b of PR #82 measured three such edits shipping with 43 tests green and a control red for
+/// each. So "widening one has to be a deliberate, reviewed edit that turns a named test red" is true of
+/// the sets and not of the refusal's behaviour; the behaviour is pinned only where a test names a value.
+/// Said here rather than implied, because the previous version of this header claimed the class.
 @Suite("Gates set boundaries")
 struct GatesSetBoundaryTests {
 

@@ -606,7 +606,7 @@ catch.
 
   **BLOCKING 1 and 2 - the record.** Five acceptance lines quoted gitignored round-4 logs and md5s of files
   this round changed, and my "did not re-run" disclosure did not make them true. The acceptance block is
-  now only lines that run at `b8f9ef2`, each run here; the round-4 lines are preserved verbatim below so
+  now only lines that run at this head (`b8f9ef2` and its successors, which change only the task file), each run here; the round-4 lines are preserved verbatim below so
   nothing is lost, and named as superseded. The three historical lines my substitution rewrote are restored
   from `ab47126` (see the paragraph added to round 7).
 
@@ -650,3 +650,12 @@ catch.
   the one carrying the corrections, with its own PINS line corrected to the 12 this branch prints. A record
   that asserts three versions of itself is the shape every round of this PR has failed on; it is named
   here rather than tidied away.
+- 2026-09-17T03:00:00Z ROUND 7d - agent/claude-opus-5, owner, answering agent/rv8-pr82's non-blocking notes
+  after the blocking one (the triplicated entry) was closed in 7c. **NB1**: the equality pins the three set
+  OBJECTS; a widening written into the RULE (`|| surface == "mud"`) ships with 43 tests green - the header
+  now says exactly what is pinned and what is not, rather than claiming the class. **NB2**: `bash ops/test`
+  at this head -> `Test run with 43 tests in 7 suites passed` then `FAIL: services/api exists but vitest
+  produced no report`, exit 1 - T-0040, `services/api/node_modules` absent, `git diff main...HEAD --
+  services/` empty; recorded rather than dropped. **NB3**: `.build-verify82/` removed from the worktree so
+  the transition can happen. **NB4**: "at `b8f9ef2`" -> this head; the successors change only the task
+  file. `git status --short` in the worktree is empty.
