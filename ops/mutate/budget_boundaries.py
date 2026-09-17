@@ -115,4 +115,56 @@ BOUNDARY_MUTATIONS = [
      "        guard budget.isFinite, budget >= 0 else { throw BudgetError.notABudget(budget) }",
      "        guard budget.isFinite, budget >= 0 else { throw BudgetError.notABudget(budget) }\n"
      "        guard fastest.isFinite, fastest > 0 else { throw BudgetError.notADuration(fastest) }"),
+
+    # --- the sixth review's F-R6-1, second half: the number that is NOT the ceiling --------------------
+    # The structural half of this line - `min(duration, ceiling)` - is in budget_mutations.py. This is the
+    # policy at the head of this file applied to it: the pin has to be exact, not merely "not the ceiling".
+    # Already CAUGHT at caa8c57, and recorded because that was MEASURED rather than assumed - it fails
+    # sixteen named tests, `the returned duration is the one the router gave for the returned lambda, not an
+    # estimate` among them. The precedent is F-F, an entry added after a Log claimed it uncovered and a run
+    # said otherwise: a mutation believed caught and never listed is a mutation nobody re-checks.
+    ("the outcome stores the smallest step off the duration it was handed", OUT,
+     "        self.duration = duration",
+     "        self.duration = duration.nextUp"),
+
+    # --- the sixth review's F-R6-2: extraTime, the OTHER number this type hands a user -----------------
+    # Exactly N-SG5 three entries above, ten lines down the same 64-line file and left behind by it. The
+    # ceiling got a fractional witness in the fifth round (a 0.4 s budget in `ceilingAlwaysHolds`);
+    # `extraTime` did not, because both fixtures in `extraTime reports what was bought, with the sign it was
+    # bought at` are whole seconds - 1440 and -60 - and every duration the search produces from those
+    # fixtures is whole too. So this survived all 53 tests at caa8c57 with nothing objecting, and a user who
+    # bought 30.5 extra seconds was told 31. Killed by BudgetOutcomeTests, at 1800.5 - 1800 == 0.5, both
+    # exact in binary. Spelled at 1800.4 the fixture is red against the pristine source
+    # (1800.4 - 1800 == 0.40000000000009095), which is the sixth review's own process note.
+    ("extraTime rounds what was bought to a whole second", OUT,
+     "        duration - fastest",
+     "        (duration - fastest).rounded()"),
+
+    # The smallest-step spelling, so the fraction is PINNED rather than bracketed by whatever a rounding
+    # rule happens to preserve. Already CAUGHT at caa8c57 - measured, one named test, `extraTime reports what
+    # was bought, with the sign it was bought at` - and listed for the same reason as the entry above it.
+    ("extraTime moves what was bought by the smallest step there is", OUT,
+     "        duration - fastest",
+     "        (duration - fastest).nextUp"),
+
+    # --- the sixth review's F-R6-3: the clamp that is only asserted in one direction -------------------
+    # `max(1, maxEvaluations)` has two jobs and a test for one of them. F-E promoted it out of KNOWN_MISSED
+    # because `maxEvaluations` is PUBLIC and is what a caller reads to see what a plan may cost - and then
+    # `a cap below one is clamped to one, and a legal cap is left alone` witnessed the second half of its own
+    # name at the single point 3. Twelve is the number a developer reaches for here, because the plan caps a
+    # whole plan at twelve requests; this search is one part of such a plan, so capping it here is both wrong
+    # and invisible - a caller asking for 20 reads 12 back. Survived all 53 tests at caa8c57.
+    ("a cap above the plan's twelve requests is silently lowered to twelve", SRC,
+     "        self.maxEvaluations = max(1, maxEvaluations)",
+     "        self.maxEvaluations = max(1, min(maxEvaluations, 12))"),
+
+    # The same clamp set so high no plausible fixture VALUE would sit above it. An integer clamp has no
+    # `nextUp`, so what stands in for the smallest-representable-step entry here is a threshold that only an
+    # assertion about the IDENTITY can see: any test that pins a handful of legal caps one by one passes this
+    # unless one of them happens to be larger. Found by attacking the fix for the entry above rather than by
+    # a review; it survived all 53 tests at caa8c57 too, and it is why the fixture list in that test ends at
+    # 10_000 instead of at 13.
+    ("a cap is silently lowered to a ceiling no fixture would reach", SRC,
+     "        self.maxEvaluations = max(1, maxEvaluations)",
+     "        self.maxEvaluations = max(1, min(maxEvaluations, 9999))"),
 ]

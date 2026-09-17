@@ -35,7 +35,12 @@ import subprocess
 from budget_mutations import MUTATIONS
 from budget_paths import ROOT, SUBJECTS
 
-# ALL FOUR suites, and the count in this sentence is part of the claim. reviewer-pr71's blocking finding:
+# EVERY suite that can see the subjects, and the fact that it is every one of them is part of the claim.
+# The number used to be spelled out here ("ALL FOUR"), and the sixth round added a fifth suite - so the
+# sentence is written without a count now, for the same reason
+# Tests/ScenicKitTests/LambdaSearchBudgetUseTests.swift stopped repeating it: a number in prose beside a list
+# is a second copy that can only go stale, and this comment is about a list going stale. The list below is
+# the one place it lives. reviewer-pr71's blocking finding:
 # commit bc5e7f6 split ten tests into LambdaSearchBudgetUseTests.swift and --prove-vacuity kept emptying
 # only the first file, so it reported "VACUITY PROOF FAILED: 8 mutations were reported caught" while the
 # task log recorded OK. The harness's own message - "with no tests present" - was false; it was measuring
@@ -60,10 +65,23 @@ from budget_paths import ROOT, SUBJECTS
 # still reproduce against this tree: dropped -> `VACUITY PROOF FAILED: with no tests present, caught=1
 # (need 0) and MISSED=0 of 1`, exit 1; shipped -> `VACUITY PROOF OK: ... caught=0 (need 0) and
 # MISSED=1 of 1`, exit 0. The re-run is in the task Log.
+#
+# BudgetOutcomeTests.swift is the fifth, added in the seventh round with the sixth review's two BudgetOutcome
+# findings, and demonstrated the same way rather than by analogy: dropped from this list, --prove-vacuity
+# leaves it standing, it catches "the outcome clamps the duration it was handed down to the ceiling" - one
+# of the two mutations only this suite catches (the other rounds `extraTime` to a whole second), because no
+# other suite constructs an outcome the search could never produce, or one bought at a fraction of a second
+# - and the run reports `VACUITY PROOF FAILED: caught=1 (need 0)`, exit 1. Listed, the same mutation goes
+# MISSED 1 of 1, exit 0. Both runs are in the task Log.
+#
+# That this is EVERY such suite is checkable rather than asserted:
+# `grep -rln 'LambdaSearch\|BudgetOutcome\|BudgetError' --include=*.swift Sources Tests` returns the three
+# subjects and exactly these five files.
 TEST_FILES = [ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchBudgetUseTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchRefusalTests.swift",
-              ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchSteeringTests.swift"]
+              ROOT / "Tests" / "ScenicKitTests" / "LambdaSearchSteeringTests.swift",
+              ROOT / "Tests" / "ScenicKitTests" / "BudgetOutcomeTests.swift"]
 
 SENTINEL = ROOT / ".artifacts" / "budget-mutation-in-flight"
 

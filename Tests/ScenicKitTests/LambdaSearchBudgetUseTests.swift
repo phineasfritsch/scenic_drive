@@ -92,8 +92,23 @@ struct LambdaSearchBudgetUseTests {
                     .maxEvaluations == 1)
         #expect(try LambdaSearch(fastest: Self.fastest, budget: Self.budget, maxEvaluations: -5)
                     .maxEvaluations == 1)
-        #expect(try LambdaSearch(fastest: Self.fastest, budget: Self.budget, maxEvaluations: 3)
-                    .maxEvaluations == 3, "3 is a legal cap and must survive the clamp unchanged")
+
+        // F-R6-3. The name says "a legal cap", and 3 was the only legal cap here - one point, standing in
+        // for a general claim. `max(1, min(maxEvaluations, 12))` therefore survived all 53 tests, and a
+        // caller asking for 20 router requests read 12 back: the exact reason F-E promoted this clamp out of
+        // KNOWN_MISSED, applied in one direction only.
+        //
+        // These fixtures assert the clamp is the IDENTITY above one, not that it is generous enough. Twelve
+        // is the plan's budget for a WHOLE plan, of which this search is one part, and in any case that is
+        // the caller's policy to hold - this constructor's job is to refuse a cap below one and to hand back
+        // unchanged every cap that is legal, however unreasonable. 10_000 is there so that no single
+        // fixture value is what the assertion rests on: a silent ceiling anywhere above 13 would still be
+        // seen.
+        for cap in [1, 2, 3, 6, 12, 13, 20, 10_000] {
+            #expect(try LambdaSearch(fastest: Self.fastest, budget: Self.budget, maxEvaluations: cap)
+                        .maxEvaluations == cap,
+                    "\(cap) is a legal cap and must survive the clamp unchanged")
+        }
     }
 
     @Test("extraTime reports what was bought, with the sign it was bought at")

@@ -42,7 +42,7 @@ from budget_paths import ERR, OUT, SRC
 # something it does not refuse" defect the tests in this package keep being blocked for. It counts the
 # boundary entries too, so deleting one from EITHER file refuses. MIN_EQUIVALENT is in budget_arms.py, next
 # to the list IT counts.
-MIN_MUTATIONS = 49
+MIN_MUTATIONS = 55
 
 _CORE = [
     # --- structural: the author's original eight ------------------------------------------------------
@@ -263,6 +263,20 @@ _CORE = [
     ("the router guard tolerates the largest negative Double there is", SRC,
      "            guard d.isFinite, d >= 0 else {",
      "            guard d.isFinite, d >= -Double.leastNonzeroMagnitude else {"),
+
+    # --- the sixth review's F-R6-1 --------------------------------------------------------------------
+    # Structural, so it belongs here rather than in budget_boundaries.py: it does not move a number, it adds
+    # a clamp. It is what a well-meaning edit writes to "enforce" the CLAUDE.md ceiling at the place the type
+    # documents it, and it is precisely backwards - the invariant holds because only a MEASURED feasible
+    # sample is ever returned, so a clamp in the initializer cannot make an over-budget route fit. It can
+    # only make one look as though it did, which is the failure BudgetOutcome.swift:5-8 is written against.
+    # Survived all 53 tests at caa8c57 with no named test objecting: every fixture reached this type through
+    # `search`, which never hands it a duration above the ceiling. Killed by BudgetOutcomeTests, which
+    # constructs one directly - the initializer is public and the app may.
+    # Its smallest-step sibling (`duration.nextUp`) is in budget_boundaries.py with the other moved numbers.
+    ("the outcome clamps the duration it was handed down to the ceiling", OUT,
+     "        self.duration = duration",
+     "        self.duration = min(duration, ceiling)"),
 
 ]
 

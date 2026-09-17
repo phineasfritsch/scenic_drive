@@ -15,9 +15,9 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test --scratch-path .build-T0116 -> Test run with 53 tests in 7 suites passed, exit 0"
-  - "python ops/mutate/budget.py -> caught by a named test: 49 of 49   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
-  - "python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=49 of 49, exit 0"
+  - "swift test --scratch-path .build-T0116 -> Test run with 55 tests in 8 suites passed, exit 0"
+  - "python ops/mutate/budget.py -> caught by a named test: 55 of 55   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
+  - "python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=55 of 55, exit 0"
   - "python ops/mutate/budget.py --prove-floor -> FLOOR PROOF OK: emptied -> refused=True, one deleted -> refused=True, real -> accepted=True, exit 0"
   - "python ops/mutate/budget.py --prove-dirty -> DIRTY PROOF OK: committed -> accepted=True, mutated -> refused=True, exit 0"
   - "python ops/mutate/budget.py --prove-blind -> BLIND PROOF OK: differs=True, names every uncompared subject=True, subprocess restored=True, exit 0"
@@ -539,3 +539,139 @@ path (`python .artifacts/probe_new.py .build-probe-before`): baseline green, the
 - 2026-09-15T23:45:00Z **The fifth review's BLOCKING finding is closed, verified by reading test NAMES rather than an exit code.** Mutating the RETURN guard at `LambdaSearch.swift:77`: `d <= ceiling + 0.5`, `d <= ceiling * 1.0001` and `d <= ceiling.nextUp` each fail `a route exactly on the ceiling is returned; a route one bit over it is refused` **and** `the bracket turns at exactly the ceiling: one bit over must steer DOWN`. The CONTROL, `d < ceiling`, fails five tests including `a duration exactly on the ceiling must steer the bracket UP` - so the boundary is pinned from both sides, not bracketed.
 - 2026-09-15T23:45:00Z **MY OWN FIRST MEASUREMENT OF THAT WAS A FALSE ALARM, and the cause is a defect I had already filed and fixed elsewhere.** My ad-hoc checker reported `+0.5 -> objecting tests: NONE`, which would have meant the product's central invariant was still unguarded. It was wrong: the script built into a FRESH scratch directory and hit the `unable to create symbolic link ... I/O error (code: 512)` failure on the first attempt, so the run produced no test output at all - no names, exit 1, reading exactly like "nothing objected". That is [[T-0132]]'s second defect, which I fixed in five harnesses and did not apply to my own script. Checking why the odd one out differed from its two siblings is the only reason it was caught.
 - 2026-09-15T23:45:00Z GREEN, all measured after the takeover: `swift test` -> **53 tests in 7 suites passed**. `python ops/mutate/budget.py` -> **49 of 49 caught by a named test**, 0 trapped, 0 compile-only, 0 MISSED, 0 skipped. `--prove-vacuity` -> `caught=0 (need 0) and MISSED=49 of 49`. `--prove-floor`, `--prove-dirty` and `--prove-blind` all OK. The acceptance block said 50 tests and 41 of 41 - two rounds stale, because the agent added mutations and tests and died before updating it. Corrected to what the commands print. Each `PROOF OK` implies exit 0 by construction: `budget.py:278` is `return 0 if ok else 1` with the printed verdict from the same `ok`.
+
+## Fifth fix pass: agent/r6-pr71, and the numbers BudgetOutcome is HANDED rather than the ones the search puts in it
+
+The sixth review's verdict was FAIL on three CONTROLLED survivors, each with a control green on pristine and
+red under that mutation alone, and none of them a breach of the ceiling: `BudgetOutcome.swift:53`
+`self.duration = duration` -> `min(duration, ceiling)` (F-R6-1), `BudgetOutcome.swift:62` `duration - fastest`
+-> `(duration - fastest).rounded()` (F-R6-2), and `LambdaSearch.swift:48` `max(1, maxEvaluations)` ->
+`max(1, min(maxEvaluations, 12))` (F-R6-3). All three are the shape `budget_boundaries.py`'s own docstring
+already legislates against - a structural mutation of a line whose "move the number" direction has no
+witness - and the first two share a cause: every `LambdaSearch*` fixture reaches `BudgetOutcome` through
+`search`, which only ever constructs one from a measured, feasible, whole-second sample, so the type's
+public initializer and `extraTime` had never been handed a number the search itself would not produce.
+
+- 2026-09-17T04:30:00Z **This pass was taken over from a fixer killed by a session limit, and what it left
+  on disk was treated as an untrusted patch, not as a head start.** Four tracked files modified and one
+  untracked (`git status`: ` M Tests/ScenicKitTests/LambdaSearchBudgetUseTests.swift`, ` M ops/mutate/
+  budget_boundaries.py`, ` M ops/mutate/budget_mutations.py`, ` M ops/mutate/budget_tree.py`,
+  `?? Tests/ScenicKitTests/BudgetOutcomeTests.swift`; +103/-5), nothing under `Sources/`, nothing committed,
+  no Log entry, acceptance block two rounds stale. `git diff` read in full first. The verdict is **verified
+  and built on, not replaced**: every claim its comments make was re-measured here before anything was
+  staged, the numbers below are this pass's own runs and not the comments', and one of its sentences was
+  found wrong and corrected (`budget_tree.py`, the fifth-suite comment: it called the clamp "the one
+  mutation only it catches"; there are two, F-R6-2's `.rounded()` is the other, and it says so now).
+  Nothing in it was discarded. What it had not done: demonstrate the fifth `TEST_FILES` entry red then
+  green, run the acceptance block, write the Log, commit.
+- 2026-09-17T04:30:00Z **All three findings reproduce against the SHIPPED bytes, by test name and not by
+  exit code, in a throwaway worktree of my own** (`.worktrees/fx7-pr71-repro`, detached at caa8c57, scratch
+  `.build-fx7repro`, removed at the end of this pass; driver `.artifacts/repro.py` extracts every subject
+  with `git show HEAD:`, refuses if disk differs, and re-hashes after restore). Six mutations, the three
+  findings and their siblings:
+
+      BASELINE   exit=0  Test run with 53 tests in 7 suites passed        FAILED(0): (none)
+      M12        exit=0  min(duration, ceiling)                           FAILED(0): (none)
+      M8         exit=0  (duration - fastest).rounded()                   FAILED(0): (none)
+      M10        exit=0  max(1, min(maxEvaluations, 12))                  FAILED(0): (none)
+      M10b       exit=0  max(1, min(maxEvaluations, 9999))                FAILED(0): (none)
+      M12n       exit=1  self.duration = duration.nextUp                  FAILED(16)
+      M8n        exit=1  (duration - fastest).nextUp                      FAILED(1): extraTime reports what was bought, with the sign it was bought at
+      restored and verified against HEAD: True (2e420d88, 4b3c09f7, c0db374c)
+
+  So the three findings reproduce exactly, the killed fixer's fourth (`9999`, its own attack on its own
+  fix) is a genuine survivor too, and the two smallest-step siblings the dirt's comments call "already
+  caught at caa8c57" are - sixteen named tests and one, as those comments say. Both are listed anyway, for
+  the reason F-F was: a mutation believed caught and never listed is a mutation nobody re-checks.
+- 2026-09-17T04:30:00Z **F-R6-1 and F-R6-2 closed with a suite of their own,
+  `Tests/ScenicKitTests/BudgetOutcomeTests.swift`, which constructs an outcome DIRECTLY.** `init` is public;
+  a decoder, a cache, a test double or a later planner may build one, and the type's doc comment promises
+  all of them that `duration` is "never the ceiling itself". Two tests, both with literal expectations that
+  are not computed from the code under test: 5000 s against a 3300 s ceiling stored as 5000 (the case the
+  search never produces and the initializer must not rewrite), 1800.5 stored as 1800.5; and `extraTime`
+  at 1800.5 over 1800 reading 0.5, at 1799.5 reading -0.5. The fractions are 0.5 and not 0.4 because
+  `1800.4 - 1800 == 0.40000000000009095` and a control spelled that way is red on pristine - the
+  reviewer's own process note, kept. Same driver, this time with the suite present, each finding now
+  fails exactly one test, by name:
+
+      BASELINE   exit=0  Test run with 55 tests in 8 suites passed
+      M12        exit=1  FAILED(1): the outcome stores the duration it was given, never the ceiling
+      M8         exit=1  FAILED(1): extraTime keeps the fraction of a second the route was bought at
+      M12n       exit=1  FAILED(18)  (the sixteen above plus both new tests)
+      M8n        exit=1  FAILED(2): extraTime keeps the fraction ...; extraTime reports what was bought ...
+
+  The `min(duration, ceiling)` entry is in `_CORE` (structural: it adds a clamp, it does not move a number);
+  `duration.nextUp`, `.rounded()` and `(duration - fastest).nextUp` are in `BOUNDARY_MUTATIONS`, which is
+  the two-entries-per-threshold policy applied to the file that states it.
+- 2026-09-17T04:30:00Z **F-R6-3 closed, and the name of the test is now true.** `a cap below one is
+  clamped to one, and a legal cap is left alone` witnessed its second clause at the single point 3, so a
+  cap of 12 imposed at the constructor was invisible. The fixture is a loop over `[1, 2, 3, 6, 12, 13, 20,
+  10_000]`, asserting the clamp is the IDENTITY above one - not that it is generous enough, which is the
+  caller's policy. 10_000 is there because an integer clamp has no `nextUp`: the killed fixer attacked its
+  own fix with `min(maxEvaluations, 9999)`, it survived all 53 tests at caa8c57 (M10b above, re-measured
+  here), and it is the second entry for this threshold. Both now fail the same one test by name:
+  `M10 exit=1 FAILED(1): a cap below one is clamped to one, and a legal cap is left alone`; `M10b exit=1
+  FAILED(1)`, the same test.
+- 2026-09-17T04:30:00Z **The fifth `TEST_FILES` entry was DEMONSTRATED load-bearing, red first, the way the
+  fourth was.** `.artifacts/testfilesprobe.py` imports the shipped driver and runs `--prove-vacuity` over
+  the one-entry population `the outcome clamps the duration it was handed down to the ceiling`, overriding
+  `TEST_FILES` in memory and editing nothing tracked. With `BudgetOutcomeTests.swift` dropped from the list
+  (four files emptied, the fifth left standing): **`caught 1 of 1`, `VACUITY PROOF FAILED: with no tests
+  present, caught=1 (need 0) and MISSED=0 of 1`, exit 1.** With the shipped list (five emptied):
+  **`VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=1 of 1`, exit 0.** All nine
+  files in `Tests/ScenicKitTests` hashed before and after: `test files restored: True (9 hashed)`. That the
+  list is complete was re-checked by grep, not memory: `grep -rln 'LambdaSearch\|BudgetOutcome\|
+  BudgetError' --include=*.swift Sources Tests` returns the three subjects and exactly those five suites,
+  and `budget_tree.py` now says so beside the list instead of spelling a count that would go stale.
+- 2026-09-17T04:30:00Z **`MIN_MUTATIONS` is 55, and 55 is the population, not a floor beneath it.**
+  `python -c "import sys; sys.path.insert(0,'ops/mutate'); import budget_mutations as m, budget_arms as a;
+  print(len(m.MUTATIONS), m.MIN_MUTATIONS, len(a.EQUIVALENT), a.MIN_EQUIVALENT)"` -> `55 55 4 4`. Six new
+  entries: one in `budget_mutations.py` (288 lines), five in `budget_boundaries.py` (170); `budget_tree.py`
+  209, `BudgetOutcomeTests.swift` 65, `LambdaSearchBudgetUseTests.swift` 236 - all under the cap, all
+  LF-only (`git ls-files --eol` w/lf; `.gitattributes` forces it), `ops/mutate/*.py` all still 100644.
+- 2026-09-17T04:30:00Z **Recorded, not fixed, and not attributable to this branch: `bash ops/check-pins` is
+  FLAKY on P-SAFE-05.** `ops/lib/pins.py:86` runs every assertion under `bash -o pipefail -c`, and
+  P-SAFE-05's assertion ends `swift test --filter SolarFixtureTests 2>&1 | grep -qE '...passed'`. `grep -q`
+  exits on its first match, `swift test` is still writing, gets SIGPIPE, and pipefail turns that into a
+  failed pipeline - a gate that goes red for a reason unrelated to what it asserts. The reviewer measured
+  1 red in 3 runs on this branch and 3/3 green on main with byte-identical pin text and solar sources; the
+  mechanism was confirmed here by reading `pins.py` and `pins/PINS.yaml:114`, not re-run. That pin is also
+  the one `swift test` in the tree without a `--scratch-path`. Out of this task's `touches:`; it needs a
+  queue task of its own. The one `check-pins` run in this pass is reported below as what it printed.
+- 2026-09-17T04:30:00Z **Not one line of `Sources/` changed in this pass either.** LambdaSearch.swift
+  2e420d88, BudgetError.swift 4b3c09f7, BudgetOutcome.swift c0db374c on disk and at HEAD, re-hashed after
+  every mutating run (the repro driver, the probe, and the harness each print the restore). The reviewer's
+  observation about a live mutant in `.worktrees/rv6-pr71` is noted; that worktree no longer exists on this
+  box and nothing of this pass was measured anywhere but `.worktrees/T-0116` and my own
+  `.worktrees/fx7-pr71-repro`.
+- 2026-09-17T04:30:00Z GREEN, every acceptance line re-run against this tree after the last edit, each exit
+  code captured bare (`.artifacts/acceptance.sh`, outputs in `.artifacts/acc/`):
+  `swift test --scratch-path .build-T0116` -> **`Test run with 55 tests in 8 suites passed`**, exit 0.
+  `python ops/mutate/budget.py` -> **`caught by a named test: 55 of 55   (trapped 0, compile-only 0,
+  MISSED 0, skipped 0)`**, exit 0, printing `subjects compared with git show HEAD: 3 of 3 match` and
+  `restored: 2e420d88, 4b3c09f7, c0db374c`, all four EQUIVALENT mutants MISSED as required, KNOWN-GAP arm
+  empty, and all six new entries on the `caught` side by name. `--prove-vacuity` -> **`VACUITY PROOF OK:
+  with no tests present, caught=0 (need 0) and MISSED=55 of 55`**, exit 0. `--prove-floor` -> **`FLOOR
+  PROOF OK: emptied -> refused=True, one deleted -> refused=True, real -> accepted=True`**, exit 0.
+  `--prove-dirty` -> **`DIRTY PROOF OK: committed -> accepted=True, mutated -> refused=True`**, exit 0.
+  `--prove-blind` -> **`BLIND PROOF OK: differs=True, names every uncompared subject=True, subprocess
+  restored=True`**, exit 0. RED with the sentinel present (after `rm -rf .build-mutate-budget`) ->
+  **`REFUSING: ...budget-mutation-in-flight exists, so the previous run was killed while a mutation was on
+  disk.`**, exit 2, and `.build-mutate-budget` **was NOT created**. RED with the floor one-liner verbatim
+  (`MIN_MUTATIONS=22; MIN_EQUIVALENT=1`) -> **`FLOOR PROOF FAILED: emptied -> refused=True, one deleted ->
+  refused=False, real -> accepted=True`**, exit 1. RED with the old sentence handed to `prove_blind` ->
+  **`BLIND PROOF FAILED: differs=False, names every uncompared subject=False, subprocess restored=True`**,
+  exit 1. Subjects after the whole block: 2e420d88 / 4b3c09f7 / c0db374c, `git status` showing only this
+  pass's own five files.
+  verify, after staging: `bash ops/queue-check` -> `QUEUE OK (106 tasks)`, exit 0. `bash ops/sane` -> `SANE OK`,
+  exit 0. `bash ops/check-pins` -> `PINS ok=11 skipped=0 pending=2 expired=0 failed=0 tier=linux`, exit 0 -
+  ONE run, green; the P-SAFE-05 flake above is a property of the pin, and a single green here is not
+  evidence against it. `bash ops/test` -> exit 1 on `FAIL: services/api exists but vitest produced no
+  report`. CHECKED, NOT ATTRIBUTED: the same run prints `Test run with 55 tests in 8 suites passed`
+  immediately above it, `services/api/node_modules` does not exist on this box while `services/api/
+  package.json` does, and `git diff main...HEAD --name-only -- services/` is empty. T-0040.
+- 2026-09-17T04:30:00Z **STILL OPEN.** `ops/test` red on T-0040 (not this branch). `check-pins` flaky on
+  P-SAFE-05 (not this branch; needs its own task). N-SG4 (`ceiling == .infinity` from two finite inputs)
+  stays refused on the grounds recorded in the fourth pass. Nothing else from the sixth review is open: the
+  three findings are closed by name, the reviewer's equivalent survivors stay out of both arms for the
+  reasons the Log already gives, and this commit is tests, the harness and the record - as the six before it.
