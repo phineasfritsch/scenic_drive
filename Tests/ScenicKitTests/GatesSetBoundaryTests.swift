@@ -26,6 +26,11 @@ import Testing
 /// Every input below is a written-out literal and every expectation is the literal `.allowed`. Nothing is
 /// read back from `Gates.unpavedSurfaces`, `Gates.closedAccess` or any other property of the rule set under
 /// test, which would assert a set against itself.
+///
+/// The three value tests above are an ENUMERATION and were shipped claiming a class: round 7 of PR #82 added
+/// `surface=grass`, `access=delivery` and `barrier=swing_gate` and all three passed with nothing objecting.
+/// "The plan's lists and nothing else" is only checkable as an EQUALITY against the list written out, which
+/// is what `theRefusedSetsAreExactlyThePlansLists` does - the expected side is typed here, not read back.
 @Suite("Gates set boundaries")
 struct GatesSetBoundaryTests {
 
@@ -62,5 +67,19 @@ struct GatesSetBoundaryTests {
         #expect(Gates.decide(["barrier": "cattle_grid"]) == .allowed)
         // The one shape that IS refused, written out beside them.
         #expect(Gates.decide(["barrier": "gate", "locked": "yes"]) == .refused(.lockedBarrier))
+    }
+
+    @Test("the refused sets are exactly the plan's lists - an equality, not a sample of widenings")
+    func theRefusedSetsAreExactlyThePlansLists() {
+        // The right-hand sides are the plan's tables, typed out. Any value added to a set - grass, delivery,
+        // swing_gate, or one nobody has thought of - turns this red by name, which the three tests above
+        // could not promise: each of them pins only the widenings its author imagined.
+        #expect(Gates.unpavedSurfaces == ["gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel"])
+        #expect(Gates.closedAccess == ["private", "no", "permit", "destination"])
+        #expect(Gates.refusableBarriers == ["gate"])
+        // And the values round 7 used to show the enumeration was not a class, so the record has them.
+        #expect(Gates.decide(["surface": "grass"]) == .allowed)
+        #expect(Gates.decide(["access": "delivery"]) == .allowed)
+        #expect(Gates.decide(["barrier": "swing_gate", "locked": "yes"]) == .allowed)
     }
 }

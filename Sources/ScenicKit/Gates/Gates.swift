@@ -88,6 +88,11 @@ public enum Gates {
     /// `destination` **key**, which carries the text on a freeway sign and is not read by any rule here.
     public static let closedAccess: Set<String> = ["private", "no", "permit", "destination"]
 
+    /// `barrier` values that refuse a way when `locked=yes`. The plan names one, and a set - rather than a
+    /// string compared in the rule - is what lets a test pin "this one and nothing else" as an equality
+    /// instead of an enumeration of the widenings somebody thought of (round 7 of PR #82).
+    public static let refusableBarriers: Set<String> = ["gate"]
+
     /// `tracktype` values at grade3 or worse. Written out rather than compared as strings, because "grade3"
     /// sorting below "grade2" is a property of the string encoding and not of the road.
     public static let refusedTracktypes: Set<String> = ["grade3", "grade4", "grade5"]
@@ -157,7 +162,9 @@ public enum Gates {
 
         // A gate is only a refusal when it is recorded as LOCKED. An unlocked gate may be openable, and the
         // driver is the one who can see it - the hazard strip tells them it is there.
-        if tags["barrier"] == "gate", tags["locked"] == "yes" { return .refused(.lockedBarrier) }
+        if let b = tags["barrier"], refusableBarriers.contains(b), tags["locked"] == "yes" {
+            return .refused(.lockedBarrier)
+        }
 
         if tags["ford"] == "yes" { return .refused(.ford) }
 

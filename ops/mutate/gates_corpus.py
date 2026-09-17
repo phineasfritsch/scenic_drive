@@ -43,7 +43,8 @@ ACCESS_RULE = '        if let access = tags["access"], closedAccess.contains(acc
 MOTOR_VEHICLE_RULE = '        if tags["motor_vehicle"] == "no" { return .refused(.noAccess) }'
 TRACK_RULE = '        if tags["highway"] == "track" { return .refused(.track) }'
 FORD_RULE = '        if tags["ford"] == "yes" { return .refused(.ford) }'
-BARRIER_RULE = '        if tags["barrier"] == "gate", tags["locked"] == "yes" { return .refused(.lockedBarrier) }'
+BARRIER_RULE = "\n".join(['        if let b = tags["barrier"], refusableBarriers.contains(b), tags["locked"] == "yes" {', '            return .refused(.lockedBarrier)', '        }'])
+BARRIER_SET = '    public static let refusableBarriers: Set<String> = ["gate"]'
 SERVICE_RULE = '        if tags["highway"] == "service", let s = tags["service"], refusedServiceValues.contains(s) {'
 SURFACE_RULE = '        if let surface = tags["surface"], unpavedSurfaces.contains(surface) {'
 SURFACE_BLOCK = SURFACE_RULE + "\n            return .refused(.unpavedSurface)\n        }"
@@ -206,9 +207,8 @@ MUTATIONS = [
      '    public static let closedAccess: Set<String> = ["private", "no", "permit", "destination",\n'
      '                                                   "customers"]'),
 
-    ("refuse a locked lift gate too, widening the barrier rule past barrier=gate", GATES, BARRIER_RULE,
-     '        if tags["barrier"] == "gate" || tags["barrier"] == "lift_gate", tags["locked"] == "yes" {\n'
-     '            return .refused(.lockedBarrier)\n        }'),
+    ("refuse a locked lift gate too, widening the barrier set past the plan's one value", GATES, BARRIER_SET,
+     '    public static let refusableBarriers: Set<String> = ["gate", "lift_gate"]'),
 
     ("move the tracktype boundary, letting grade3 through", GATES, TRACKTYPE_SET,
      '    public static let refusedTracktypes: Set<String> = ["grade4", "grade5"]'),
