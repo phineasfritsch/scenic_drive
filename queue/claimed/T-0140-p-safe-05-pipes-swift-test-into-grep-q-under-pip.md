@@ -111,3 +111,9 @@ done/" and refuses a merge that should land.
   inside `$( )` for DISPLAY and no verdict reads their status; they are the same mechanism but not the same
   defect, and the scan is deliberately narrow to the pattern that decides. P-SAFE-05 still runs `swift
   test` without `--scratch-path`, against CLAUDE.md's rule for shared boxes - pre-existing, not this task.
+- 2026-09-16T10:55:00Z The first commit of this fix was REFUSED by the hook it fixes: `pre-commit:
+  secret-looking content in ops/lib/check-secret-scan.py`. The check's fixture token was one literal, and
+  the fixed hook - now reading the whole blob - found it. It is assembled at run time now (`"sk." + "..."`),
+  the way `check-touches-merge.py`'s case 7 already does. Recorded because a gate refusing its own author
+  is the behaviour this repository pays for, and because the previous hook would have let a 1 KB file
+  through only by luck of size.
