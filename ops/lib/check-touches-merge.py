@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prove the pre-commit touches gate handles a merge, in BOTH directions, on a repository built for it.
 
-Ten cases, each on a throwaway repo with the real hook installed:
+Eleven cases, each on a throwaway repo with the real hook installed:
 
   1. a merge that only brings in the other side's files            must COMMIT
   2. a merge whose conflict resolution is inside touches:          must COMMIT
@@ -13,6 +13,7 @@ Ten cases, each on a throwaway repo with the real hook installed:
   8. a MERGE_HEAD that names no commit, so a diff errors           must REFUSE
   9. a merge inside a LINKED WORKTREE, resolution INSIDE touches:  must COMMIT
  10. the same, resolution OUTSIDE touches:                         must REFUSE
+ 11. `git mv` a file main NEVER CHANGED into touches:, in a merge  must REFUSE
 
 Case 8 is T-0137: an intersection is empty as soon as either side is, so one failing `git diff --cached`
 leaves the gate with nothing to check - the fail-open that arrived with the merge case. (Measured:
@@ -42,8 +43,8 @@ EVERY REFUSING CASE NAMES THE REASON IT MUST GIVE. Asserting only on the exit co
 everything - or one that dies on a syntax error - pass every negative case, which is how case 5's defect
 stayed invisible.
 
-`--variants` regenerates variants of the real hook and requires each to break exactly one case. That is
-tracked here rather than in a scratch directory, because a demonstration living in a gitignored path ships
+`--variants` regenerates variants of the real hook and requires each to break exactly the set of cases named
+against it. That is tracked here rather than in a scratch directory, because a demonstration living in a gitignored path ships
 nowhere and cannot be re-run.
 """
 from __future__ import annotations
@@ -117,6 +118,7 @@ def build(tmp: pathlib.Path, hook_override: pathlib.Path | None = None) -> pathl
     (repo / "other").mkdir()
     (repo / "allowed" / "a.txt").write_text("base\n", encoding="utf-8", newline="\n")
     (repo / "other" / "b.txt").write_text("base\n", encoding="utf-8", newline="\n")
+    (repo / "other" / "d.txt").write_text("nobody changes this\n", encoding="utf-8", newline="\n")
     (repo / "queue" / "claimed").mkdir(parents=True)
     (repo / "queue" / "claimed" / "T-9999-probe.md").write_text(TASK, encoding="utf-8", newline="\n")
     git(repo, "add", "-A")
@@ -319,6 +321,20 @@ def case_linked_worktree_resolution_outside(repo):
     return git(wt, "commit", "-m", "merge main in a linked worktree, sneak a file in", check=False)
 
 
+def case_rename_of_an_untouched_file(repo):
+    """11. `git mv` a file that main NEVER CHANGED into touches:, during a merge. Must be REFUSED.
+
+    Case 5 moves a file main did change, so its moved copy differs from HEAD's and HEAD-side rename
+    detection never fires - only the MERGE_HEAD side's `--no-renames` was ever exercised, and the one
+    variant removed both flags at once (agent/rv-pr86, N2). This file is byte-identical in both parents, so
+    with rename detection on the HEAD side the source path vanishes from THAT diff and the intersection is
+    just the destination, inside touches:. One variant per flag, below, so each occurrence is pinned alone.
+    """
+    git(repo, "merge", "--no-commit", "--no-ff", "main", check=False)
+    git(repo, "mv", "other/d.txt", "allowed/d.txt", check=False)
+    return git(repo, "commit", "-m", "merge main and relocate an untouched file into touches", check=False)
+
+
 CASES = [
     ("1/merge-brings-other-side   must COMMIT", case_merge_clean, True, None),
     # The narrowing announces itself, and case 2 is where it has exactly one path to announce. Without this
@@ -343,6 +359,8 @@ CASES = [
     ("9/linked-worktree-resolve   must COMMIT", case_merge_inside_linked_worktree, True, None),
     ("10/linked-worktree-outside  must REFUSE", case_linked_worktree_resolution_outside, False,
      "other/b.txt is outside T-9999 touches"),
+    ("11/rename-untouched-file    must REFUSE", case_rename_of_an_untouched_file, False,
+     "other/d.txt is outside T-9999 touches"),
 ]
 
 
@@ -356,27 +374,33 @@ def variant_without(marker: str, replacement: str, tmp: pathlib.Path) -> pathlib
     return out
 
 
-# (label, what to remove, what must break). Each variant must fail a DIFFERENT case, which is what makes the
-# seven discriminating rather than decorative. Generated from the real hook at run time and tracked here,
-# because a demonstration that lives in a gitignored scratch directory ships nowhere and cannot be re-run -
-# a defect a reviewer already found in the sibling check's history demo.
+# (label, what to remove, its replacement, the SET of cases that must break - and no others). That is the
+# whole rule, and it is the rule `run_variants` enforces; nothing here requires two variants to target
+# different cases, and two of them legitimately target case 8 (one removes the fallback, one removes its
+# message). An earlier version of this comment said "each variant must fail a DIFFERENT case" and
+# "the seven" - a rule the code never had and a count two rounds stale, in the task filed to remove exactly
+# that (agent/rv-pr86, BLOCKING 1). Generated from the real hook at run time and tracked here, because a
+# demonstration in a gitignored scratch directory ships nowhere and cannot be re-run.
 VARIANTS = [
-    ("without --no-renames", " --no-renames", "", "5/rename-into-touches"),
+    # One entry per OCCURRENCE of --no-renames. The single "without --no-renames" variant removed both and
+    # could not tell which side a case was watching; case 5 sees only the MERGE_HEAD side, case 11 only HEAD.
+    ("without --no-renames on the HEAD side", "--no-renames HEAD |", "HEAD |", {"11"}),
+    ("without --no-renames on the MERGE_HEAD side", "--no-renames MERGE_HEAD |", "MERGE_HEAD |", {"5", "11"}),
     # T-0137. The fallback itself, removed: the error path computes an empty set instead of the wide one,
     # which is the fail-open exactly as it shipped. Only case 8 enters that path.
-    ("without the error fallback", '    to_check="$staged"\n  else', '    to_check=""\n  else',
-     "8/empty-MERGE_HEAD"),
+    ("without the error fallback", '    to_check="$staged"\n  else', '    to_check=""\n  else', {"8"}),
     # The `--git-dir` lookup, "simplified" to the literal every plain checkout has. `.git` is a FILE in a
     # linked worktree, so the narrowing never applies there and a real merge is refused - which only case 9
     # can see, because it is the only case that must COMMIT in that environment.
-    ('literal ".git/MERGE_HEAD"', '"$(git rev-parse --git-dir)/MERGE_HEAD"', '".git/MERGE_HEAD"',
-     "9/linked-worktree-resolve"),
+    ('literal ".git/MERGE_HEAD"', '"$(git rev-parse --git-dir)/MERGE_HEAD"', '".git/MERGE_HEAD"', {"9"}),
     # T-0139. The operator message the fallback prints was advertised in a PR and asserted by nothing:
     # deleting the echo left all ten cases green. Case 8 reads it now, so it cannot quietly stop existing.
     # The marker is the phrase itself rather than the whole echo, because the statement spans a line
     # continuation and a marker carrying one is a marker nobody can keep correct.
-    ("without the fallback message", "checking touches: against the FULL staged set instead", "",
-     "8/empty-MERGE_HEAD"),
+    ("without the fallback message", "checking touches: against the FULL staged set instead", "", {"8"}),
+    # N5: case 2's narrowing-line assertion was never shown red. This is the variant that shows it.
+    ("without the narrowing message", "pre-commit: merge in progress; checking touches: against the",
+     "pre-commit: merge in progress; touches narrowed to", {"2"}),
 ]
 
 
@@ -428,17 +452,27 @@ def run_variants() -> int:
         tmp = pathlib.Path(tempfile.mkdtemp(prefix="touches-variant-"))
         try:
             hook = variant_without(marker, replacement, tmp)
-            failed = []
+            failed, setup_failed = set(), []
             for name, fn, must_commit, must_say in CASES:
                 ok_case, _lines = case_verdict(name, fn, must_commit, must_say, hook_override=hook)
-                if ok_case is False:
-                    failed.append(name.split()[0])
-            if must_fail.split("/")[0] in [f.split("/")[0] for f in failed] and len(failed) == 1:
-                sys.stdout.write("ok      variant %-22s breaks exactly %s\n" % (label, failed[0]))
+                if ok_case is None:
+                    # A case whose SETUP died ran nothing, and a sweep that counts it as "not broken" is
+                    # judging over fewer cases than it prints (agent/rv-pr86, N3). Fatal, not neutral.
+                    setup_failed.append(name.split("/")[0])
+                elif ok_case is False:
+                    failed.add(name.split("/")[0])
+            if setup_failed:
+                ok = False
+                sys.stdout.write("FAIL    variant %-44s case setup died for %s; nothing was judged\n"
+                                 % (label, ",".join(setup_failed)))
+            elif failed == must_fail:
+                sys.stdout.write("ok      variant %-44s breaks exactly %s\n"
+                                 % (label, ",".join(sorted(must_fail, key=int))))
             else:
                 ok = False
-                sys.stdout.write("FAIL    variant %-22s expected only %s to break, got %s\n"
-                                 % (label, must_fail, failed or "nothing"))
+                sys.stdout.write("FAIL    variant %-44s expected %s to break, got %s\n"
+                                 % (label, ",".join(sorted(must_fail, key=int)),
+                                    ",".join(sorted(failed, key=int)) or "nothing"))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
     sys.stdout.write("\nTOUCHES-MERGE VARIANTS %s (%d)\n" % ("OK" if ok else "FAIL", len(VARIANTS)))
@@ -457,8 +491,8 @@ def run_variants() -> int:
 # EQUAL is the load-bearing word. A floor of "at least" lets cases be deleted one at a time down to the
 # floor with a clean sheet printed each time, which is exactly how MIN_MUTATIONS failed in ops/mutate.
 # Adding a case means changing this number, on purpose, in the same commit.
-MIN_CASES = 10
-MIN_VARIANTS = 4
+MIN_CASES = 11
+MIN_VARIANTS = 6
 
 
 def _population_ok() -> bool:
@@ -474,8 +508,13 @@ def _population_ok() -> bool:
         ok = False
     # Two cases carrying the same label would report ten results over nine distinct checks.
     labels = [c[0] for c in CASES]
-    if len(set(labels)) != len(labels):
-        sys.stdout.write("TOUCHES-MERGE REFUSING: duplicate case labels\n")
+    builders = [c[1] for c in CASES]
+    if len(set(labels)) != len(labels) or len(set(builders)) != len(builders):
+        sys.stdout.write("TOUCHES-MERGE REFUSING: duplicate case labels or builders\n")
+        ok = False
+    edits = [(v[1], v[2]) for v in VARIANTS]
+    if len(set(edits)) != len(edits):
+        sys.stdout.write("TOUCHES-MERGE REFUSING: duplicate variant edits\n")
         ok = False
     return ok
 

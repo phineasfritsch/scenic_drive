@@ -10,16 +10,19 @@ worktree: .worktrees/T-0139
 branch: task/T-0139
 exclusive: []
 touches: [.githooks/pre-commit, ops/lib/check-touches-merge.py, pins/PINS.yaml]
-pins_affected: [P-GIT-02]
+pins_affected: [P-GIT-02, P-GIT-03]
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (10 cases), exit 0"
-  - "python ops/lib/check-touches-merge.py --variants -> TOUCHES-MERGE VARIANTS OK (4): --no-renames->5, error fallback->8, literal .git/MERGE_HEAD->9, fallback message->8, exit 0"
-  - "RED (vacuity), each with --hook .githooks/pre-commit: CASES=CASES[:0] -> REFUSING: 0 cases defined, MIN_CASES says 10, exit 2; VARIANTS=VARIANTS[:0] -> REFUSING: 0 variants defined, MIN_VARIANTS says 4, exit 2; CASES=CASES+[CASES[0]] -> REFUSING: 11 cases defined ... and REFUSING: duplicate case labels, exit 2"
-  - "RED (the message assertion), before run_variants and main were unified: the fallback-message variant broke NOTHING, TOUCHES-MERGE VARIANTS FAIL (4), exit 1"
-  - "bash ops/check-pins -> PINS ok=15 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0 (14 before P-GIT-03; P-PROC-03 and P-PROC-04 arrive separately with PR #85)"
+  - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (11 cases), exit 0"
+  - "python ops/lib/check-touches-merge.py --variants -> TOUCHES-MERGE VARIANTS OK (6): --no-renames HEAD side->11, MERGE_HEAD side->5,11, error fallback->8, literal .git/MERGE_HEAD->9, fallback message->8, narrowing message->2, exit 0"
+  - "RED (N2, the HEAD-side --no-renames): before case 11 existed, removing --no-renames from the HEAD diff alone left all ten cases green; now the HEAD-side variant breaks exactly 11"
+  - "RED (N3): a copy of the fixture with case 6's setup guard inverted ('if rc == 0'), --variants -> FAIL variant ... case setup died for 6; nothing was judged, on every variant, exit 1"
+  - "RED (N4): a copy with case 11's builder swapped for case_resolution_outside under case 11's label -> TOUCHES-MERGE REFUSING: duplicate case labels or builders, exit 2"
+  - "RED (vacuity), each with --hook .githooks/pre-commit: CASES=CASES[:0] -> REFUSING: 0 cases defined, MIN_CASES says 11, exit 2; VARIANTS=VARIANTS[:0] -> REFUSING: 0 variants defined, MIN_VARIANTS says 6, exit 2"
+  - "RED (round 1, the message assertion), before run_variants and main were unified: the fallback-message variant broke NOTHING, TOUCHES-MERGE VARIANTS FAIL, exit 1"
+  - "bash ops/check-pins -> PINS ok=15 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0; --source-only -> PINS ok=6 skipped=11 pending=1 ... (P-GIT-03 is anchor: process now, so it no longer runs in the source-only tier)"
   - "bash ops/queue-check -> QUEUE OK, exit 0"
 ---
 ## Brief
@@ -119,3 +122,34 @@ closes four of them, plus a fifth found while closing the third.
   hand. Deferring it was the wrong call and is recorded as such rather than quietly reversed.
   `bash ops/check-pins` -> `PINS ok=15 ...`, exit 0 (14 before). F-B (the merge exemption trusting any
   parent) stays [[T-0138]]'s.
+- 2026-09-16T15:10:00Z **ROUND 2 - agent/claude-opus-5, owner, answering agent/rv-pr86's FAIL.** Every finding
+  reproduced; none refuted. The blocking one is exactly the defect this task was filed to remove, remade by
+  me while removing it.
+
+  **BLOCKING 1.** The VARIANTS comment still read *"Each variant must fail a DIFFERENT case, which is what
+  makes the seven discriminating"* - byte-identical to `98725ec` - while this task's Brief, round-1 Log and
+  PR body all recorded it corrected. And the sentence claimed a rule the code never had: `run_variants`
+  requires each variant's failures to be exactly the set named against it, and nothing requires two
+  variants to target different cases - this file's own second and fifth variants both target case 8. The
+  comment now says what is enforced, and says what it used to say.
+
+  **N2 - the HEAD-side `--no-renames` was pinned by nothing.** Case 5's moved file differs from HEAD's copy,
+  so HEAD-side rename detection never fired there, and the one variant removed both flags at once. Case 11
+  moves a file main NEVER changed (`other/d.txt`, added to the base of both branches): with rename
+  detection on the HEAD side, the source vanishes from that diff and the intersection is just the
+  destination, inside `touches:` - a two-parent merge that owns a file it never touched. Two variants now,
+  one per occurrence, and the measurement says which case watches which flag: HEAD side -> 11 alone;
+  MERGE_HEAD side -> 5 and 11. Before case 11 existed the HEAD-side removal was ten-for-ten green.
+
+  **N3 - a SETUP result was neither broken nor fatal in the sweep.** `run_variants` treated a case whose
+  premise died as "not broken" and printed OK over fewer cases than it counted - the same shape as this
+  task's fourth finding, one layer up. Fatal now: `case setup died for 6; nothing was judged`, every variant,
+  exit 1, on a copy with case 6's guard inverted. **N4**: `population_ok` compares builders as well as
+  labels, and variant edits as well; RED on a copy with case 11's builder swapped. **N5**: case 2's
+  narrowing assertion has its variant (`without the narrowing message` -> breaks exactly 2), so it has
+  now been seen red. **N7**: P-GIT-03 is `anchor: process` like its sibling, and `pins_affected:` names it.
+  **N6**: PR body rewritten from this round. **N8**: the file is 544 lines; the cap is Swift-only and
+  T-0058 is the filed debt; grew here, stated here.
+
+  **GREEN.** `TOUCHES-MERGE OK (11 cases)`; `VARIANTS OK (6)`; `PINS ok=15`, `--source-only ok=6
+  skipped=11`; `QUEUE OK`. `MIN_CASES` 10 -> 11 and `MIN_VARIANTS` 4 -> 6, both equalities.
