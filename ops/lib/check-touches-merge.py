@@ -506,7 +506,8 @@ def _population_ok() -> bool:
         sys.stdout.write("TOUCHES-MERGE REFUSING: %d variants defined, MIN_VARIANTS says %d.\n"
                          % (len(VARIANTS), MIN_VARIANTS))
         ok = False
-    # Two cases carrying the same label would report ten results over nine distinct checks.
+    # Two cases carrying the same label (or the same builder) would report the full count over one fewer
+    # distinct check.
     labels = [c[0] for c in CASES]
     builders = [c[1] for c in CASES]
     if len(set(labels)) != len(labels) or len(set(builders)) != len(builders):
@@ -516,6 +517,13 @@ def _population_ok() -> bool:
     if len(set(edits)) != len(edits):
         sys.stdout.write("TOUCHES-MERGE REFUSING: duplicate variant edits\n")
         ok = False
+    # A variant whose replacement equals its marker changes nothing, and one expecting NO case to break
+    # is satisfied by that; together they are a variant that proves nothing and counts as one. The sweep
+    # blessed exactly that - ("decorative", "#!/", "#!/", set()) printed ok (agent/rv2-pr86, NB2).
+    for v in VARIANTS:
+        if v[1] == v[2] or not v[3]:
+            sys.stdout.write("TOUCHES-MERGE REFUSING: variant %r changes nothing or expects nothing to break\n" % v[0])
+            ok = False
     return ok
 
 

@@ -20,6 +20,7 @@ acceptance:
   - "RED (N2, the HEAD-side --no-renames): before case 11 existed, removing --no-renames from the HEAD diff alone left all ten cases green; now the HEAD-side variant breaks exactly 11"
   - "RED (N3): a copy of the fixture with case 6's setup guard inverted ('if rc == 0'), --variants -> FAIL variant ... case setup died for 6; nothing was judged, on every variant, exit 1"
   - "RED (N4): a copy with case 11's builder swapped for case_resolution_outside under case 11's label -> TOUCHES-MERGE REFUSING: duplicate case labels or builders, exit 2"
+  - "RED (NB2, round 3): a copy with ('decorative', '#!/', '#!/', set()) appended to VARIANTS and MIN_VARIANTS 7, --variants -> TOUCHES-MERGE REFUSING: variant 'decorative' changes nothing or expects nothing to break, exit 2"
   - "RED (vacuity), each with --hook .githooks/pre-commit: CASES=CASES[:0] -> REFUSING: 0 cases defined, MIN_CASES says 11, exit 2; VARIANTS=VARIANTS[:0] -> REFUSING: 0 variants defined, MIN_VARIANTS says 6, exit 2"
   - "RED (round 1, the message assertion), before run_variants and main were unified: the fallback-message variant broke NOTHING, TOUCHES-MERGE VARIANTS FAIL, exit 1"
   - "bash ops/check-pins -> PINS ok=15 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0; --source-only -> PINS ok=6 skipped=11 pending=1 ... (P-GIT-03 is anchor: process now, so it no longer runs in the source-only tier)"
@@ -148,8 +149,20 @@ closes four of them, plus a fifth found while closing the third.
   labels, and variant edits as well; RED on a copy with case 11's builder swapped. **N5**: case 2's
   narrowing assertion has its variant (`without the narrowing message` -> breaks exactly 2), so it has
   now been seen red. **N7**: P-GIT-03 is `anchor: process` like its sibling, and `pins_affected:` names it.
-  **N6**: PR body rewritten from this round. **N8**: the file is 544 lines; the cap is Swift-only and
-  T-0058 is the filed debt; grew here, stated here.
+  **N6**: PR body rewritten from this round. **N8**: the file is 544 lines against CLAUDE.md's unqualified 300-line
+  cap; only the ENFORCEMENT is Swift-only, which is T-0058's filed debt; grew here, stated here.
 
   **GREEN.** `TOUCHES-MERGE OK (11 cases)`; `VARIANTS OK (6)`; `PINS ok=15`, `--source-only ok=6
   skipped=11`; `QUEUE OK`. `MIN_CASES` 10 -> 11 and `MIN_VARIANTS` 4 -> 6, both equalities.
+- 2026-09-17T02:40:00Z **ROUND 3 - agent/claude-opus-5, owner, answering agent/rv2-pr86's FAIL.** One blocking,
+  reproduced: P-GIT-03's `statement:` said "the ten merge-gate cases" and "exactly the case named against
+  it" - a stale count and the one-case-per-variant rule that round 1 blocked on in the VARIANTS comment,
+  now in the registry entry that names what is pinned, in a commit that edited that very entry. The
+  statement reads the set rule now and no count. **NB2** - the sweep blessed a decorative variant (marker ==
+  replacement, empty expected set): `population_ok` refuses both; RED on a copy, `REFUSING: variant
+  'decorative' changes nothing or expects nothing to break`, exit 2. **NB3** - this Log and the PR body said
+  "the cap is Swift-only"; CLAUDE.md's cap is unqualified and only its ENFORCEMENT is Swift-only (T-0058);
+  corrected in place. **NB4** - the duplicate-check comment's "ten results over nine" was two versions stale;
+  it names no count now. **NB5** - the hook's `--no-renames` comment claimed less than the truth ("the
+  MERGE_HEAD side"); case 11 proved the HEAD side equally load-bearing and the comment says which side each
+  case exercises. GREEN: `OK (11 cases)`, `VARIANTS OK (6)`, `PINS ok=15`.

@@ -59,8 +59,10 @@ if [[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]]; then
   # because from WSL this checkout's `.git` file reads `gitdir: C:/...` which WSL's git cannot follow.
   #
   # `--no-renames` IS LOAD-BEARING, not tidiness. With rename detection on - which is the default - a diff
-  # prints only a rename's DESTINATION, so the source path disappears from the MERGE_HEAD side and drops out
-  # of the intersection. A reviewer used that to defeat this gate outright:
+  # prints only a rename's DESTINATION, so the source path disappears from that side's diff and drops out
+  # of the intersection - from EITHER side: the MERGE_HEAD side when the moved file was changed by main
+  # (case 5), the HEAD side when it was not (case 11, T-0139). A reviewer used the first to defeat this
+  # gate outright:
   #
   #     git merge --no-commit --no-ff main
   #     git mv ops/merge allowed/merge      # `touches: [allowed/]`
