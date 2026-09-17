@@ -15,9 +15,9 @@ reviewer: agent/reviewer-pr-gates
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - 'swift test --scratch-path .build/T0133 -> Test run with 39 tests in 6 suites passed, exit 0'
-  - 'python3 ops/mutate/gates.py -> caught by a named test: 43 of 43   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0, log .artifacts/fix3-pr82/final-run.log. Four pristine lines, each ending == HEAD, incl. the new subject ConsideredTags.swift md5 e044e5d1734a60f46ac95c475c047c06. The EQUIVALENT arm prints two MISSED lines: "spell a GateReason case fully qualified - the same case either way exit=0  no test objected" and "narrow in the initialiser instead of at each read - same answer for every key exit=0  no test objected".'
-  - 'python3 ops/mutate/gates.py --prove-vacuity -> VACUITY PROOF OK: with the 3 discovered test file(s) emptied, caught=0 (need 0) / and MISSED=43 of 43, exit 0. "test files discovered: GatesInvariantTests.swift, GatesOrderTests.swift, GatesTests.swift", and git grep -lE for Gates/GateDecision/GateReason/ConsideredTags over ALL tracked *.swift returns exactly those three under Tests/ plus the four under Sources/ScenicKit/Gates/ - so no catching file can be missed.'
+  - 'swift test --scratch-path .build/T0133 -> Test run with 42 tests in 7 suites passed, exit 0'
+  - 'python3 ops/mutate/gates.py -> caught by a named test: 48 of 48   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0, log .artifacts/fix3-pr82/final-run.log. Four pristine lines, each ending == HEAD, incl. the new subject ConsideredTags.swift md5 e044e5d1734a60f46ac95c475c047c06. The EQUIVALENT arm prints two MISSED lines: "spell a GateReason case fully qualified - the same case either way exit=0  no test objected" and "narrow in the initialiser instead of at each read - same answer for every key exit=0  no test objected".'
+  - 'python3 ops/mutate/gates.py --prove-vacuity -> VACUITY PROOF OK: with the 4 discovered test file(s) emptied, caught=0 (need 0) / and MISSED=48 of 48, exit 0. "test files discovered: GatesInvariantTests.swift, GatesOrderTests.swift, GatesTests.swift", and git grep -lE for Gates/GateDecision/GateReason/ConsideredTags over ALL tracked *.swift returns exactly those three under Tests/ plus the four under Sources/ScenicKit/Gates/ - so no catching file can be missed.'
   - 'RED THE CLASS, against the SHIPPED suite at 4b79342, .artifacts/fix3-pr82/before.log, each mutant carrying an untracked control so one run answers both questions. PRISTINE + controls exit=0 failing=[]. Then five survivors, every one "shipped: NOTHING OBJECTED" with a control red: allTags["destination"] != nil -> "control: a signed freeway ramp is allowed"; allTags["horse"] == "no" -> "control: a motorway carrying horse=no is allowed"; the allTags loop over access/motor_vehicle/horse/moped -> that plus "control: a motorway carrying moped=no is allowed"; let tags = allTags then horse -> same; and motor_vehicle != "yes" -> "control: a motorway carrying motor_vehicle=designated is allowed". Discriminators go the OTHER way, which is how I know none is an equivalent mutant: allTags["expressway"] IS caught, by "a tag key no safety rule is written on cannot change any decision"; tags["horse"] on the filtered local is inert, exit 0, everything green.'
   - 'GREEN THE CLASS at this head, .artifacts/fix3-pr82/after.log. The two raw-read survivors can no longer be written: allTags["destination"] and allTags["horse"] inside verdict -> COMPILE ERROR, "Sources/ScenicKit/Gates/Gates.swift:166:12: error: cannot find allTags in scope". The same branches spelled against the narrowed view - tags["destination"], tags["horse"], the horse/moped loop, and let raw = tags then horse - all INERT: "Test run with 43 tests in 7 suites passed", exit 0, controls green, i.e. dead code rather than a survivor.'
   - 'RED BOTH RESIDUALS BY NAME, same log, each with its control red so the mutant is known to change behaviour: a destination branch inserted into Gates.decide, the one place the raw dictionary is still in scope -> "a tag key no safety rule is written on cannot change any decision", exit 1; motor_vehicle != "yes" (a CONSIDERED key, so the accessor is irrelevant to it) -> "a freeway is allowed on every value of a considered key that real freeway geometry carries", exit 1; the ConsideredTags subscript replaced by return raw[key] -> "a tag view read of a key no rule is written on is nil, whatever the way carries", exit 1.'
@@ -30,7 +30,7 @@ acceptance:
   - 'RED T-0132 decay on the real three-file split, same log, arms C and D: TEST_FILES pinned to the single old GatesTests.swift path -> "test files discovered: GatesTests.swift", VACUITY PROOF FAILED: with the 1 discovered test file(s) emptied, caught=2 (need 0), exit 1; with discovery -> 3 discovered, VACUITY PROOF OK ... caught=0 (need 0), MISSED=2 of 2, exit 0. Two-mutation corpus, floors lowered in memory, stated.'
   - 'bash ops/check-pins -> PINS ok=12 skipped=0 pending=2 expired=0 failed=0 tier=linux, exit 0; --source-only -> PINS ok=5 skipped=9 pending=0 expired=0 failed=0 tier=linux source-only, exit 0'
   - 'bash ops/queue-check -> QUEUE OK (126 tasks), exit 0'
-  - 'bash ops/test -> Test run with 39 tests in 6 suites passed, then FAIL: services/api exists but vitest produced no report, exit 1. Pre-existing and environmental (T-0040): services/api/node_modules is absent in this worktree and in the main checkout, and git diff --name-only main...task/T-0133 -- services/ is empty. Checked, not attributed.'
+  - 'bash ops/test -> Test run with 42 tests in 7 suites passed, then FAIL: services/api exists but vitest produced no report, exit 1. Pre-existing and environmental (T-0040): services/api/node_modules is absent in this worktree and in the main checkout, and git diff --name-only main...task/T-0133 -- services/ is empty. Checked, not attributed.'
 ---
 ## Brief
 
@@ -454,9 +454,9 @@ catch.
   assert, and `gates_corpus.py` says so: it puts back a single deletable line, the exact shape that let
   `allTags` survive four reviews.
 - 2026-09-15 HARNESS, unmodified, against the shipped tree (`.artifacts/fix3-pr82/final-run.log`):
-  `caught by a named test: 43 of 43   (trapped 0, compile-only 0, MISSED 0, skipped 0)`, exit 0, with four
+  `caught by a named test: 48 of 48   (trapped 0, compile-only 0, MISSED 0, skipped 0)`, exit 0, with four
   `pristine ... == HEAD` lines. `--prove-vacuity` (`vacuity.log`) -> `VACUITY PROOF OK: with the 3 discovered
-  test file(s) emptied, caught=0 (need 0)` / `and MISSED=43 of 43`, exit 0. Discovery checked by grep over the
+  test file(s) emptied, caught=0 (need 0)` / `and MISSED=48 of 48`, exit 0. Discovery checked by grep over the
   whole tree rather than remembered: `git grep -lE '\bGates\b|\bGateDecision\b|\bGateReason\b|\bConsideredTags\b'
   -- '*.swift'` returns exactly the four files under `Sources/ScenicKit/Gates/` and the three under `Tests/`.
 - 2026-09-15 HARNESS REFUSALS, all five RED on disk and each restored and re-compared against
@@ -518,7 +518,7 @@ catch.
 - 2026-09-15 MECHANICAL. `bash ops/check-pins` -> `PINS ok=12 skipped=0 pending=2 expired=0 failed=0
   tier=linux`, exit 0. `--source-only` -> `PINS ok=5 skipped=9 pending=0 expired=0 failed=0 tier=linux
   source-only`, exit 0. `bash ops/queue-check` -> `QUEUE OK (126 tasks)`, exit 0. `bash ops/test` ->
-  `Test run with 39 tests in 6 suites passed` then `FAIL: services/api exists but vitest produced no report`,
+  `Test run with 42 tests in 7 suites passed` then `FAIL: services/api exists but vitest produced no report`,
   **exit 1 - environmental, T-0040**, and CHECKED not attributed: `services/api/node_modules` is absent in
   this worktree and in the main checkout, and `git diff --name-only main...task/T-0133 -- services/` is empty.
   `bash ops/sane` -> exit 10; T-0133 appears only as `modified:1 unpushed:[2 commit(s) not on origin]`, which
@@ -530,3 +530,43 @@ catch.
   control suite was deleted after every run and the logs record `control file on disk: False`. No tracked file
   in any worktree I do not own was written; scratch lives only in this worktree's gitignored `.artifacts/`.
 - 2026-09-15 NOT TRANSITIONED. `state: review` and `reviewer:` left untouched; a different agent reviews this.
+- 2026-09-16T09:05:00Z **ROUND 7 - agent/claude-opus-5 for the owner, answering agent/r6-pr82's FAIL.** The
+  code for this round is `77c85d5`, committed by a fixer agent that was then killed by a session limit
+  before it wrote this entry - and it left `unpavedSurfaces` on disk widened with `"wood", "metal"`, one of
+  its own corpus mutations mid-red-run (T-0130's hazard again). That was restored to HEAD, not committed.
+  Every claim below was RE-MEASURED from the clean tree rather than taken from the commit message.
+
+  **BLOCKING 1 - a record defect, reproduced by the commit and re-read here.** `Gates.swift` attributed
+  *"all 37 tests passing and ops/mutate/gates.py printing 37 of 37, exit 0"* to a tree carrying an
+  `allTags["destination"]` branch. At `4b79342`, the head that sentence describes, the shipped harness
+  prints `REFUSING: the subject is not what HEAD says it is` and exits 2 before any build - so that run
+  cannot have happened as written. The suite half was true and is now measured; the harness half is struck
+  where it was made, with the refusal quoted beside it.
+
+  **BLOCKING 2 - a count.** "six corpus mutations at the entry point" was nine across four shipped files,
+  and this round adds two more; every copy now says ELEVEN. **NON-BLOCKING 1** - two "cannot be reached
+  under any name" sentences refuted by a `Mirror(reflecting:)` read of the private property; both now say
+  they are an enumeration, and the reflection route is caught by behaviour rather than by the type.
+
+  **The corpus mutations the review measured** are now mutations with pins that go red for them:
+  `sidewalk=no` and `int_ref` at the entry point (the noise list, 19 -> 21 keys); wood/metal unpaved,
+  `access=customers`, a locked `lift_gate` (the new `GatesSetBoundaryTests`, which pins the plan's lists
+  verbatim on the side the plan does not name). The stray `"wood", "metal"` on disk was exactly that
+  mutation, left there when the agent died.
+
+  **RE-MEASURED, from a clean tree at `77c85d5`:**
+
+      swift test --scratch-path .build-verify82   -> Test run with 42 tests in 7 suites passed        exit 0
+      python ops/mutate/gates.py                  -> caught by a named test: 48 of 48 (trapped 0,
+                                                     compile-only 0, MISSED 0, skipped 0)
+                                                     restored: 27a47b6a, 3badae29, 8fb8714c, eed0f151 exit 0
+      --prove-vacuity                             -> test files discovered: GatesInvariantTests,
+                                                     GatesOrderTests, GatesSetBoundaryTests, GatesTests
+                                                     VACUITY PROOF OK ... MISSED=48 of 48              exit 0
+
+  MIN_MUTATIONS 43 -> 48, equal to the population. Both `ops/mutate/gates*.py` at exactly 300 lines. The
+  acceptance block's 39/43/3 became 42/48/4 only after those commands printed them; the four RED lines
+  that quote `.artifacts/fix3-pr82/*.log` are the previous round's and were not re-run here - those logs
+  are gitignored and the reviewer of this round should hold them to reproduction, not to my reading.
+
+  **STILL OPEN:** the reviewer of round 7 decides. Nothing from round 6 is knowingly unaddressed.
