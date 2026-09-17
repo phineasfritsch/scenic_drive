@@ -117,3 +117,11 @@ done/" and refuses a merge that should land.
   the way `check-touches-merge.py`'s case 7 already does. Recorded because a gate refusing its own author
   is the behaviour this repository pays for, and because the previous hook would have let a 1 KB file
   through only by luck of size.
+- 2026-09-16T15:40:00Z **CI failed this PR on its own lint, and the reason is the lesson.** `PIPE-CONSUMERS
+  FAIL: 2 pipeline(s)` - both hits in the DOCSTRING of `ops/lib/check-secret-scan.py`, which quoted the
+  shape it exists to describe. Locally the scan had printed OK over 41 files, because it enumerated with
+  plain `git ls-files` and `check-secret-scan.py` was still UNTRACKED when I ran it: the check saw every file
+  except the one being written. CI, where the file was tracked, saw it. The right way round, and still a
+  gap. The scope is now `git ls-files --cached --others --exclude-standard` - what git knows or would add,
+  ignored paths still out - so a new file is scanned before it is committed; 42 files now. The docstring is
+  reworded, as the pin's prose was, rather than the scan taught to skip docstrings.

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """The pre-commit secret scan must refuse a staged secret at EVERY size, not only small ones.
 
-Found by following a flake (T-0140). P-SAFE-05 failed 1 run in 3 on one box because `swift test | grep -q`
-under `pipefail` races: grep exits at its first match, the producer gets SIGPIPE, the pipeline reports 141.
-The hook's CRLF and secret scans were `git show ":$f" | grep -q PAT` under the same `pipefail` - and there
+Found by following a flake (T-0140). P-SAFE-05 failed 1 run in 3 on one box because it piped swift test into grep -q
+under `pipefail`, which races: grep exits at its first match, the producer gets SIGPIPE, the pipeline reports 141.
+The hook's CRLF and secret scans piped git show of the staged blob into grep -q under the same `pipefail` - and there
 the race is not a flake but a FAIL-OPEN with a threshold. Measured with the shipped hook, a file carrying an
 sk. token on line 1:
 

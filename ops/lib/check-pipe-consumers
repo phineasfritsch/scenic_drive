@@ -21,10 +21,13 @@ set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"; exit 2; }
 [[ -f ops/lib/pins.py ]] || { echo "$(pwd) is not the repo root"; exit 2; }
 
-# What is scanned: every tracked file under ops/ and .githooks/, plus the pin file - the places a verdict
-# is computed. `git ls-files` so an untracked scratch script cannot fail the check, and so a scan over a
-# tree that failed to glob reports a COUNT rather than a clean sheet.
-mapfile -t files < <(git ls-files -- ops .githooks pins/PINS.yaml)
+# What is scanned: every file under ops/ and .githooks/ that git knows or would add, plus the pin file -
+# the places a verdict is computed. `--cached --others --exclude-standard`, not plain `ls-files`: the first
+# version scanned tracked files only, passed locally over ops/lib/check-secret-scan.py while it was still
+# UNTRACKED, and failed in CI the moment it was committed - the check saw everything except the file being
+# written. Ignored paths (.artifacts/) stay out, so scratch cannot fail it; a tree that failed to
+# enumerate reports a COUNT rather than a clean sheet.
+mapfile -t files < <(git ls-files --cached --others --exclude-standard -- ops .githooks pins/PINS.yaml)
 MIN_FILES=20
 if (( ${#files[@]} < MIN_FILES )); then
   echo "PIPE-CONSUMERS REFUSING: scanned ${#files[@]} files, expected at least $MIN_FILES - the tree did not enumerate"
