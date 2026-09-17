@@ -27,6 +27,12 @@ blob="$(mktemp)"
 trap 'rm -f "$blob"' EXIT
 while IFS= read -r f; do
   [[ -z "$f" ]] && continue
+  # A submodule entry (mode 160000) is a commit id, not content: `git show ":$f"` exits 128 on it, and
+  # the fail-closed branch below would refuse every commit that stages one. No .gitmodules exists in this
+  # repository today; if one arrives, its gitlinks are skipped here on purpose and its files are scanned in
+  # their own repository's hook. Read from the index, not the working tree, so a directory that merely
+  # looks like a submodule cannot dodge the scan.
+  if [[ "$(git ls-files -s -- "$f" | cut -d" " -f1)" == "160000" ]]; then continue; fi
   if ! git show ":$f" > "$blob" 2>/dev/null; then
     echo "pre-commit: cannot read the staged blob for $f, so it cannot be scanned; refusing rather than assuming"
     fail=1

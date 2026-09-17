@@ -28,21 +28,29 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"
 # written. Ignored paths (.artifacts/) stay out, so scratch cannot fail it; a tree that failed to
 # enumerate reports a COUNT rather than a clean sheet.
 mapfile -t files < <(git ls-files --cached --others --exclude-standard -- ops .githooks pins/PINS.yaml)
-MIN_FILES=20
-if (( ${#files[@]} < MIN_FILES )); then
-  echo "PIPE-CONSUMERS REFUSING: scanned ${#files[@]} files, expected at least $MIN_FILES - the tree did not enumerate"
+# EQUAL to the real population, not a floor. With a floor of 20 over 42 files, dropping .githooks from the
+# path list scanned 40 files and printed OK with both original hook sites back in the tree (agent/rv-pr87,
+# BLOCKING 3). Adding a file under ops/ means changing this number, on purpose, in the same commit - which
+# is what makes an unexpected count a signal rather than noise.
+EXPECTED_FILES=42
+if (( ${#files[@]} != EXPECTED_FILES )); then
+  echo "PIPE-CONSUMERS REFUSING: scanned ${#files[@]} files, EXPECTED_FILES says $EXPECTED_FILES - the tree did not enumerate as recorded"
   exit 2
 fi
 
 hits=0
 for f in "${files[@]}"; do
   [[ "$f" == "ops/lib/check-pipe-consumers" ]] && continue   # this file quotes the shape on purpose
-  # A pipe, optional space, grep with a -q anywhere in its short flags (-q, -qE, -iq ...).
+  # A pipe, then grep/egrep/fgrep, then ANY run of flags and words, then a flag that makes it exit early:
+  # -q in any short group, --quiet, --silent, or -m<N> (stop after N matches). The first version matched
+  # only a -q in the FIRST short group directly after `grep`, so `grep -E -q`, `grep -e PAT -q`,
+  # `grep --quiet`, `egrep -q` all passed - each measured exit 141 under the chatty producer above
+  # (agent/rv-pr87, BLOCKING 2). The statement of P-OPS-03 is "every such pipeline"; the regex has to be.
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     echo "PIPE-CONSUMERS: $f:$line"
     hits=$((hits + 1))
-  done < <(grep -nE '\|[[:space:]]*grep[[:space:]]+-[A-Za-z]*q' -- "$f" | grep -vE '^[0-9]+:[[:space:]]*#')
+  done < <(grep -nE '\|[[:space:]]*(grep|egrep|fgrep)([[:space:]]+[^|;&]*)?[[:space:]]+(-[A-Za-z]*q[A-Za-z]*|--quiet|--silent|-m[[:space:]]*[0-9]+)([[:space:]]|$)' -- "$f" | grep -vE '^[0-9]+:[[:space:]]*#')
 done
 
 if (( hits > 0 )); then

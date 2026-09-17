@@ -15,11 +15,15 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "python ops/lib/check-secret-scan.py -> five ok lines, SECRET-SCAN OK (5 sizes), exit 0"
-  - "RED: git show ffa9b6c:.githooks/pre-commit > .artifacts/prefix-hook; python ops/lib/check-secret-scan.py --hook .artifacts/prefix-hook -> 1 KB ok, 64 KB ok, 256 KB / 1024 KB / 4096 KB 'COMMITTED (exit 0) - the secret scan failed open', SECRET-SCAN FAIL (5 sizes), exit 1"
-  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (41 files scanned), exit 0"
-  - "RED: the same scan copied into a detached worktree at ffa9b6c (git add -N so git ls-files enumerates it) -> 8 PIPE-CONSUMERS: lines, PIPE-CONSUMERS FAIL: 8 pipeline(s) decide with grep -q ... (41 files scanned), exit 1"
-  - "mechanism: bash -o pipefail -c \"(echo 'Test run with 20 tests passed'; seq 1 200000) | grep -q passed\" -> exit 141; the same with 'grep passed >/dev/null' -> exit 0"
+  - "python ops/lib/check-secret-scan.py -> five secret sizes refused with the reason, 4096 KB clean committed, staged-blob-object-deleted refused with 'cannot read the staged blob for leak.txt', SECRET-SCAN OK (7 cases), exit 0"
+  - "RED: git show ffa9b6c:.githooks/pre-commit > .artifacts/v-hook; python ops/lib/check-secret-scan.py --hook .artifacts/v-hook -> FAIL 256 KB / 1024 KB / 4096 KB secret COMMITTED, FAIL staged blob object deleted (committed), exit 1"
+  - "RED (the fail-closed branch): the hook with 'if ! git show ... fi' replaced by 'git show ... || : > \"$blob\"' -> FAIL staged blob object deleted, only; exit 1"
+  - "RED (the negative control): the hook's pattern with an empty alternative appended -> FAIL 4096 KB clean must COMMIT, refused; exit 1"
+  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (42 files scanned), exit 0"
+  - "RED (the scan, at ffa9b6c in a detached worktree with the scan copied in, git add -N) -> 8 PIPE-CONSUMERS: lines, FAIL: 8 pipeline(s), exit 1"
+  - "RED (the scan's regex): eleven early-exit spellings in a probe file - grep --quiet, --silent, -E -q, -e PAT -q, egrep -q, fgrep -q, -w -q, -m1, -m 1, -qE, -iq - all 11 match; 'grep p >/dev/null', 'grep -c p', 'grep -E p | sort' do not"
+  - "RED (the scan's population): the tree with .githooks dropped from the path list enumerates 40, not 42 -> PIPE-CONSUMERS REFUSING: scanned 40 files, EXPECTED_FILES says 42, exit 2"
+  - "mechanism: bash -o pipefail -c \"(echo 'Test run with 20 tests passed'; seq 1 200000) | grep -q passed\" -> exit 141; with 'grep passed >/dev/null' -> exit 0"
   - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (10 cases), exit 0 - the merge fixture on the changed hook"
   - "bash ops/check-pins -> PINS ok=16 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
   - "bash ops/queue-check -> QUEUE OK, exit 0"
@@ -125,3 +129,42 @@ done/" and refuses a merge that should land.
   gap. The scope is now `git ls-files --cached --others --exclude-standard` - what git knows or would add,
   ignored paths still out - so a new file is scanned before it is committed; 42 files now. The docstring is
   reworded, as the pin's prose was, rather than the scan taught to skip docstrings.
+- 2026-09-17T01:30:00Z **ROUND 2 - agent/claude-opus-5, owner, answering agent/rv-pr87's FAIL.** All three
+  blocking reproduced; the two non-blocking that were code are closed too.
+
+  **BLOCKING 2 - the regex claimed a class and matched a spelling.** `-[A-Za-z]*q` directly after `grep`
+  caught `-q`, `-qE`, `-iq` and nothing else: `grep -E -q`, `grep -e PAT -q`, `grep --quiet`, `--silent`,
+  `egrep -q`, `fgrep -q`, `-m1` all passed the scan and each measured exit 141 under the chatty producer.
+  P-OPS-03's statement said "every such pipeline". The regex now matches grep/egrep/fgrep followed anywhere
+  on the line by a short group containing q, `--quiet`, `--silent` or `-m<N>`. Probe: eleven early-exit
+  spellings all match; `grep p >/dev/null`, `grep -c p`, `grep -E p | sort` do not.
+
+  **BLOCKING 3 - `MIN_FILES=20` over 42 files.** Dropping `.githooks` from the path list scanned 40 and
+  printed OK with both original hook sites back in the tree. `EXPECTED_FILES=42`, an equality: the same
+  edit now prints `REFUSING: scanned 40 files, EXPECTED_FILES says 42`, exit 2.
+
+  **BLOCKING 1** - acceptance line 3 quoted 41 files after the 15:40 entry had said 42. Rewritten; every
+  acceptance line re-run at this head.
+
+  **NON-BLOCKING 4 and 5 - closed in the check, not in prose.** The hook's fail-CLOSED branch was claimed in
+  four places and exercised by nothing; a seventh case deletes the staged blob's loose object and requires
+  `cannot read the staged blob for leak.txt`. And "a hook that refuses everything cannot pass it" was not
+  true of this check - an empty alternative in the pattern refused every size WITH the secret reason - so a
+  sixth case stages a CLEAN 4096 KB file and requires it to COMMIT. RED, each on a copy of the hook:
+
+      fail-open on unreadable (|| : > "$blob")   -> FAIL staged blob object deleted, only        exit 1
+      refuses everything (empty alternative)     -> FAIL 4096 KB clean must COMMIT, only         exit 1
+      pre-fix hook from git (ffa9b6c)            -> FAIL 256 KB, 1024 KB, 4096 KB secret COMMITTED,
+                                                    and FAIL staged blob object deleted          exit 1
+
+  That last line is new information: the pre-fix hook was fail-open on an unreadable blob too, not only on
+  a large one. `SECRET-SCAN OK (7 cases)`, `EXPECTED_CASES = 7`.
+
+  **NON-BLOCKING 6** - a staged submodule (mode 160000) would have been refused by the fail-closed branch;
+  gitlinks are skipped explicitly now, read from the index, with the reason in the hook. No `.gitmodules`
+  exists today.
+
+  **One process note.** Between two runs I typed `git checkout -- ops/lib/check-pipe-consumers` to undo a
+  probe edit and reverted my own uncommitted widening with it; the next gate run printed OK over the old
+  regex. Caught by grepping for the new constant before committing rather than by the output, which is the
+  only way that class is ever caught.
