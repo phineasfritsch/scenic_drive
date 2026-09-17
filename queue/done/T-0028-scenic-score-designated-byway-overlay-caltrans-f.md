@@ -1,7 +1,7 @@
 ---
 id: T-0028
 title: Scenic score: designated byway overlay (Caltrans + FHWA), snapped to OSM ways
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T20:11:54Z
@@ -11,7 +11,7 @@ branch: task/T-0028
 exclusive: []
 touches: [services/etl/, ops/sane]
 pins_affected: []
-reviewer: agent/rv7-pr36
+reviewer: agent/rv8-pr36
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -1674,3 +1674,117 @@ second external oracle in the plan (the first being Curvature).
   `MIN_CONSENSUS_M` = 1000 and `MIN_CONSENSUS_SHARE` = 0.80 remain judgements. (5) `pins/floor_linux.txt`
   is still 76 against the real count; serial-only, outside `touches:`, carried as debt. (6)
   `byway_route_key.py` is at exactly 300 lines; the next sentence added to it has to take one out.
+- 2026-09-17T07:15:00Z REVIEW ROUND 6 by agent/rv8-pr36 (independent; not the owner). **VERDICT: PASS.**
+  PR #36 head `c0360e0` == `origin/task/T-0028`. Throwaway worktrees `.worktrees/rv8-pr36` (acceptance
+  lines, cases, data) and `.worktrees/rv8-pr36-atk` (my own mutants and the harness attacks, applied in
+  place and `git checkout --`'d after each), both detached at `c0360e0`, every subject and test file hashed
+  equal to `git show c0360e0:` before measuring and again after the sweep and after every in-place mutant
+  (`878206179d...` for byway_route_key.py, `2ea3290d...` byways.py, `f965c187...` the harness), both removed
+  at the end. `git status --short` empty in both and in `.worktrees/T-0028` throughout. Nothing in the PR
+  was changed. Exit codes are the process's; every count is read from JUnit XML, never from `-q` stdout.
+
+  **EVERY ACCEPTANCE LINE RE-RUN, character for character.**
+
+      pytest --junitxml=work/rv8/j.xml -p no:randomly   -> exit 0; XML tests=407 failures=0 errors=0 skipped=0
+      pytest tests/test_byway_key_floor.py -p no:randomly -> 11 passed, exit 0
+      python mutate/byway_route_key.py --red e19fd38      -> PYTEST EXIT=1  10 failed  (base=e19fd38)
+                                                             RED as intended ...: 10 named test(s) ...; exit 0
+      python mutate/byway_route_key.py --red HEAD         -> PYTEST EXIT=0  0 failed  (base=HEAD)
+                                                             REFUSED: every check PASSED ...; exit 1
+      python mutate/byway_route_key.py                    -> BASELINE pytest exit=0 0 failed; M01..M18, V1 each
+                                                             pytest exit=1 with the SAME killers the log quotes,
+                                                             line for line; POPULATION 19 of 19; APPLIED 19;
+                                                             "every one of the 19 applied mutations was killed
+                                                             by the test that names it"; exit 0
+      python mutate/byway_route_key.py NOSUCHLABEL        -> REFUSED: no mutations selected ...; exit 1
+      bash ops/check-pins --source-only                   -> PINS ok=6 skipped=10 pending=1 expired=0 failed=0
+                                                             tier=linux source-only; exit 0
+      bash ops/queue-check                                -> QUEUE OK (130 tasks); exit 0
+      bash ops/test                                       -> first run FAIL "services/api exists but vitest
+                                                             produced no report" - a fresh worktree has no
+                                                             node_modules; after `npm ci` in services/api:
+                                                             TESTS linux=571/76 ios=skipped failed=0 skipped=0
+                                                             / OK; exit 0
+
+  The 10 reds against `e19fd38` are the 10 names the log lists, and the two the log says stay green
+  (`..._holds_its_corridor_and_is_still_outvoted_...`, `..._doubling_back_...`) were not among them.
+
+  **RV7-1 / RV7-2 RE-DERIVED on my own script (`work/rv8/rv8_cases.py`, real FID 181 fixture).** Case A,
+  415.9 m slice + 30.8 m `ref=CA 221` stub: `real only: unclaimed key_claim_m=0.0 reffed=126.0`, `+stub:
+  under_evidenced key_claim_m=30.8 reffed=156.8`, one problems() line each - the stub buys a line, not
+  silence. RV7-2's mechanism on the current code, fragments on part 0's own vertices:
+
+      n= 20  926.2 m  key_share=0.069 236_share=0.922 ['rekeyed','rekeyed']         bonus 28142.9
+      n= 25 1033.2 m  key_share=0.076 236_share=0.914 ['rekeyed','rekeyed']         bonus 28142.9
+      n= 40 1745.2 m  key_share=0.122 236_share=0.869 ['rekeyed','rekeyed']         bonus 28142.9
+      n= 81 2955.6 m  key_share=0.191 236_share=0.8008 ['rekeyed','rekeyed']        bonus 28142.9
+      n= 82 2974.2 m  key_share=0.192 236_share=0.7998 ['under_evidenced','rekeyed'] bonus 15753.8
+      n=400 11807.7 m key_share=0.486 236_share=0.509 ['under_evidenced','rekeyed'] bonus 15753.8
+
+  What the +25 flip does now: nothing - 1033.2 m at 7.6% does not hold, 236 at 91.4% does, part 0 is
+  REKEYED and all 28142.9 m earn. The flip has moved to n=82, where 236's share crosses 0.80 downward and
+  the corridor becomes UNDER_EVIDENCED and reported; at `e19fd38` that same point was CORROBORATED and
+  silent, and n=25..81 were CONTESTED with the 12389.1 m lost. Strictly better at every n. The docstring's
+  1033.2 / 7.6% / 19.2% / 12389.1 are all the numbers above.
+
+  **THE 305, ARGUED ON THE DATA (`work/rv8/rv8_price.py` over the pinned pull, sha256 b8ec29e3...).**
+  305/865 (35.3%) reproduces. But "a third of the state" is the wrong picture:
+
+      short parts carry 91.8 km of 12880.4 km of centreline (0.71%)
+      0-50 m: 58 parts (1.1 km)  50-100: 44  100-200: 42  200-500: 87  500-1000: 74
+      shortest ten: 0.0, 0.1, 0.1, 0.2, 0.2, 0.3, 0.4, 1.0, 1.2, 1.4 m
+      304 of the 305 are parts of MULTI-PART features; 295 are under 5% of their own feature's length
+      features whose EVERY part is under the floor: 2 of 273 (FID 130: 993 m total, FID 264: 1132 m)
+      features with at least one short part: 65
+
+  So the permanent line is on 0.7% of the length, on slivers of a MultiLineString whose main part is a
+  judgeable corridor with the SAME RTE; only two real byways are under the floor, and one of those clears
+  it if its parts are pooled. The floor should NOT scale: min(1000, f x corridor) reopens the stub hole on
+  the 51-68 parts under 38-62 m and is meaningless on a 0.1 m part, and the fixer is right that it is a
+  second constant. The right repair is the UNIT: `reconcile` judges parts, but RTE is a property of the
+  feature, so pooling a feature's claims across its parts before `_verdict` takes the permanent line from
+  305 entries to at most 2 features. That is a change to what T-0030 hands `reconcile`, not to this floor,
+  and is recorded as debt below, not a defect: the docstring's sentence is true as written, nothing is
+  scored differently, and `problems()` has no non-test caller today. The line's noise is real - "305
+  byway(s)" will list ~65 route numbers and nobody will read it - so it should not be wired into a gate
+  before the unit is fixed. The docstring's 265/865 neighbouring-route claim re-measured at 253 by a
+  sample-to-sample method that can only undercount (`rv8_neighbours.py`): consistent.
+
+  **MY OWN MUTANTS (`work/rv8_own_mutants.py`, ten nobody wrote, four byway test files, names from XML).**
+  Killed on their verdict: X2 REKEYED keeps the old key beside the new (17 red, incl.
+  `test_a_key_nothing_claims_is_re_keyed_to_what_the_corridor_says`); X3 unreffed ways count into the
+  denominator (4 red, incl. `test_mis_tagged_fragments_worth_a_fifth...`); X7 MIN_CONSENSUS_M=100 (126 m
+  of CA 9 re-keys the 354 m slice: `test_a_fragment_cannot_silence_a_slice...`); X8 UNDER_EVIDENCED drops
+  the key in reconcile (`test_mis_tagged_fragments_worth_a_fifth...` - part 0 would earn on geometry);
+  X10 CONTESTED returns the rival (`..._is_still_outvoted_is_reported_not_guessed_about`). Survived and NOT
+  banked, each judged practically equivalent on this data: X1 share `>=`->`>` (exact float equality);
+  X4 key_m max-vs-sum (every Caltrans key is one number); X5 REKEYED key_evidence_m min->max and X9
+  reffed_claim_m stamped as max(reffed, sum(claimed)) (differ only on a concurrency, audit fields).
+  Survived and NOTED: **X6 MIN_CONSENSUS_M = 500 - exit 0, 0 failed.** No test distinguishes 1000 from
+  500; every case is far from the boundary or reads the constant. Both earlier rounds called the value a
+  judgement and a test of the value would be circular, so this is a NOTE: the MECHANISM is pinned (M04,
+  M06, M14 die), the VALUE is not.
+
+  **THE HARNESS ATTACKED (`work/rv8_run_harness_attacks.sh`, copies with one thing broken, on M03).**
+  anchor not in file -> `DID NOT APPLY - anchor appears 0 times`, `REFUSED: 1 mutation(s) never applied`,
+  exit 1. EXPECTED_MUTATIONS=20 -> `REFUSED: this file declares 20 ... carries 19`, exit 1. killer renamed
+  -> `CAUGHT, BUT NOT BY THE TEST THAT NAMES IT`, exit 1. old==new -> `DID NOT APPLY - the replacement left
+  the file unchanged`, exit 1. A mutation that breaks the module (collection error) -> failed names are the
+  three module names, `NAMED TEST DID NOT GO RED`, exit 1 - a crash is not a kill. `--red no-such-commit`
+  -> exit 2. Killer matching is list membership, not substring. V1 empties the fixture's only `"ways"`
+  array (one file, one array, as claimed). NOTE, not a finding: the harness copies the WORKING TREE and
+  has no subject-vs-HEAD check - with X6 live in `etl/byway_route_key.py` (` M`, blob 05260027...) it
+  printed `every one of the 1 applied mutations was killed by the test that names it`, exit 0. Given
+  eighteen abandoned worktrees with live mutants this week, a `git diff --quiet` refusal on the two subject
+  files would cost three lines. The fixer hashed before sweeping; the harness should.
+
+  **RECORD.** 300 lines byway_route_key.py, 259 lines / 100644 harness, `def test_` 361 -> 373 (+12 = 395
+  -> 407 collected), 52 tests in FILES[:3] (11 failed + 41 passed reproduces), R7-04's two computed
+  expectations are gone and the literals 1317.6 / 3474.5 / 62.0 stand. No claim found without a command.
+
+  **STILL OPEN / DEBT.** (1) `reconcile` per PART: pool per feature before judging, so the floor is asked
+  of a byway rather than of a 0.1 m sliver - T-0030's hand-off is the place. (2) `MIN_CONSENSUS_M` = 1000
+  and `MIN_CONSENSUS_SHARE` = 0.80 remain judgements; X6 shows the value is unpinned. (3) RV7-4 metres of
+  WAY, pinned not fixed. (4) `problems()` must not become a gate while (1) stands. (5) `pins/floor_linux.txt`
+  76 vs 571 real. (6) `byway_route_key.py` is at the 300-line cap. (7) A fresh worktree needs `npm ci` in
+  services/api before `ops/test` can report; the acceptance line assumes it.
