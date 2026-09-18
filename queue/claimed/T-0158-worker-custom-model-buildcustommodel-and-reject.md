@@ -197,3 +197,13 @@ Sequenced after T-0154 (the scorer contract) and the T-0024/T-0027 fix passes, a
   moving ref: `git diff --stat $(git merge-base origin/main HEAD) HEAD -- services/api` ->
   `2 files changed, 502 insertions(+)`, and `git diff --name-only $(git merge-base origin/main HEAD) HEAD`
   lists exactly those two plus this task file. This branch has NOT been rebased onto ed73969.
+- 2026-09-18T22:27:20Z **Record corrections from the read-only verification of this build, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier reproduced the diff (two new files plus this one), the typed-out
+  multiplier literals, the recursive walk over keys and string values with its depth cap, `npx vitest run` ->
+  `Test Files 5 passed (5)` / `Tests 108 passed (108)`, `wc -l` 224/278, queue-check and the line cap; these are
+  text.** (a) The 19:40:20Z entry says the final commit is "1adbd5c, amended with this one Log line"; the reflog
+  shows two amends (a0bd082, then a25a2c1), and `git diff 1adbd5c a25a2c1` is this task file only (17+/1-) -
+  the two source files are byte-identical across all three. (b) The three RED runs (7/11/5 failing) were not
+  re-executed by the verifier - it checked that every failing test it names exists and that the counts fit the
+  test structure. (c) `bash ops/test` -> `TESTS linux=810/76`, the pre-task control (`4 files / 71 tests`) and
+  the strict `tsc` of the two files with the TS2688 control were the author's runs, not re-run.
