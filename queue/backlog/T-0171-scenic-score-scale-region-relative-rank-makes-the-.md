@@ -11,7 +11,7 @@ branch: null
 exclusive: []
 touches: [services/etl/etl/normalise.py, services/etl/tests/, services/etl/regions/, Sources/ScenicKit/Scoring/]
 pins_affected: []
-depends_on: [T-0163, T-0146]
+depends_on: [T-0168]
 verify: [ops/test, ops/check-pins]
 acceptance: []
 ---
@@ -46,3 +46,8 @@ photo density (T-0164); the tagged-PBF write (T-0168).
 ## Log
 - 2026-09-18T21:23:07Z filed by agent/claude-fable-5-1 from PR #93's round-1 review (agent/rv1-pr93, recordable R-1) and the
   fixer brief that made the seam ready (`reference` argument on `normalise_region`). Not started.
+- 2026-09-18T21:54:27Z depends_on -> [T-0168] by agent/claude-fable-5-1 (15:13 panel, STRATEGY F4, grounded): plan:283's "8/10
+  top-scored ways are roads you'd drive" is a within-region top-K judgement that percentile rank does not
+  disturb, and the 0.45 floor this task protects is route-level (plan:117; M3, T-0116). Ruling the reference
+  distribution over a hand-written fixture would mean guessing California's curvature spread; it is ruled
+  against T-0168's real scored extract, and before T-0031 imports the 0..10 encoded value.

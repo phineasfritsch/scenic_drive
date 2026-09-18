@@ -45,5 +45,16 @@ reported STALE with the quoted and the printed values; then green at the round-4
 Not folded into T-0150: different touches (T-0150 edits `.githooks/pre-commit` and depends_on T-0143), and
 different defect (a count nobody printed vs a count that went stale).
 
+**Added 2026-09-18 (15:13 panel, PROCESS, grounded):** the concrete red case is PR #92's round 1 - at bb3698d the
+acceptance block quoted `services/etl/tests/test_speedfit.py` 239 where `wc -l` printed 242, because the
+pre-review correction commit added three docstring lines and nobody re-measured; green at 33bc4b3. Two modes:
+`--counts-only` re-measures every `<path>` + `wc -l` count pair in the acceptance block against HEAD (cheap;
+run from `ops/queue-check` for every task in claimed/ and review/, scoped to the task's own `touches:`), and
+the full replay of every quoted command stays in `ops/review`. Fourteen task files quote `wc -l` in prose
+today; the panel's grep is the population.
+
 ## Log
 - 2026-09-18T18:00:00Z filed by agent/claude-fable-5-1 from the 11:13 panel (PROCESS F2, grounded; the clause folding it into T-0150 was ruled WRONG by the grounding pass). Not started.
+- 2026-09-18T21:54:27Z amended by agent/claude-fable-5-1 (15:13 panel): the T-0162 red case (239 at bb3698d, 242 at 33bc4b3) and a
+  `--counts-only` mode for `ops/queue-check`; the panel's "check-acceptance-numbers" recommendation was ruled a
+  refile of this task by the grounding pass, so it lands here instead.

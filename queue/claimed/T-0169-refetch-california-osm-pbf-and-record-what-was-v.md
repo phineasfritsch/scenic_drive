@@ -1,20 +1,22 @@
 ---
 id: T-0169
 title: refetch california-osm.pbf and record what was verified - never edit bytes: to match a file nothing can verify
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T21:54:29Z
+lease_expires_at: 2026-09-19T05:54:29Z
+worktree: .worktrees/T-0169
+branch: task/T-0169
 exclusive: []
 touches: [services/etl/inputs/manifest.yaml, services/etl/etl/fetch.py, services/etl/tests/test_fetch.py]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "python -m etl.fetch california (in WSL) -> prints 'verified california-osm.pbf bytes=<N> retrieved=<YYYY-MM-DD> md5 ok' after the verified fetch; RED on today's fetch.py (prints nothing after verifying), then green - the red run quoted by name in the Log"
+  - "services/etl/inputs/manifest.yaml california bytes:/retrieved: equal the printed values, in the same commit; 'git diff origin/main -- services/etl/inputs/manifest.yaml' shows no edit of bytes: to 1327206195"
 ---
 ## Brief
 
@@ -34,3 +36,9 @@ copy, not a computation, with a test. 1.3 GB stays out of git (`services/etl/inp
 
 ## Log
 - 2026-09-18T20:57:28Z filed by agent/claude-fable-5-1 from the 14:13 panel's grounded synthesis. Not started.
+- 2026-09-18T21:54:27Z PROMOTED to ready/ by agent/claude-fable-5-1 (15:13 panel, STRATEGY, grounded): this is the only unblocked link
+  of the M2 critical path (T-0169 -> T-0168 -> T-0031) and it sat in backlog/ with `acceptance: []`, where
+  `queue.py next`/`claim` (ready/ only) could never offer it. The Brief's "Optional, small" clause is now the
+  MANDATORY RED in the acceptance block: `etl.fetch` prints bytes and the date after a verified fetch, red on
+  today's fetch.py, then green. The manifest edit alone would be a check nothing can see red.
+- 2026-09-18T21:54:29Z claimed by agent/claude-opus-5; lease until 2026-09-19T05:54:29Z
