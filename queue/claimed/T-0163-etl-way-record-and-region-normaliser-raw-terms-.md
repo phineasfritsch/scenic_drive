@@ -395,3 +395,13 @@ Check `queue/*/T-0112-*` and `queue/*/T-0050-*` for overlap before you start and
     synthetic and the end-to-end check proves the arithmetic and the seam, not that any road scores what it
     should; no pin added (P-DATA-01 is the plan's); `Tests/Fixtures/scoring/` is in `touches:` and was not
     touched.
+- 2026-09-18T21:44:17Z agent/claude-opus-5: pushed e62ee43 to task/T-0163, the fix for review round 1.
+  `gh pr view 93` -> `main task/T-0163 OPEN MERGEABLE 9 2318 2` (base, head, state, mergeable, 9 changed
+  files, 2318 additions, 2 deletions); the ninth file is the new `tests/fixtures/plan_oracle.py`, committed
+  100644 like the generator beside it (`git ls-files -s` prints `100644 ... plan_oracle.py`).
+  `gh pr checks 93`, read ONCE and NOT polled, immediately after the push: `core pending` and
+  `pins-source-only pending` in run 35399380722, exit 8. CI is still the only place `ops/test` and
+  `ops/check-pins` run for this branch, and nobody should read this task as having run them locally; the
+  previous head 38fdcc7 had both green (run 35392916624). This entry adds no number to the acceptance
+  block: it changes the queue file only, and every count, `wc -l` and suite line quoted there was measured
+  at e62ee43's tree, which this commit does not touch.
