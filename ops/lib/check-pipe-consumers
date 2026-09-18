@@ -59,12 +59,12 @@ if (( ${#files[@]} < ${#tracked[@]} )); then
   exit 2
 fi
 
-# The pattern. A pipe (`|` or `|&`), then grep/egrep/fgrep, then any run of flags and words, then a flag
-# that makes it exit early: -q in any short group (quoted or not), --quiet, --silent, -m<N>, --max-count.
-# Round 1 caught only a -q in the FIRST short group after grep; round 3 (agent/rv2-pr87) added the quoted
-# form, |&, --max-count, and a line that ENDS in a pipe with the consumer on the next line - awk joins
-# those before matching, so a continuation cannot hide the consumer.
-PATTERN='\|&?[[:space:]]*(grep|egrep|fgrep)([[:space:]]+[^|;&]*)?[[:space:]]+["'"'"']?(-[A-Za-z]*q[A-Za-z]*|--quiet|--silent|-m[[:space:]]*[0-9]+|--max-count(=|[[:space:]]+)[0-9]+)["'"'"']?([[:space:]]|$)'
+# The pattern. A pipe (`|` or `|&`), then grep/egrep/fgrep - bare, backslash-escaped, or by path - then any
+# run of flags and words, then a flag that makes it exit early: -q in any short group (quoted or not),
+# --quiet, --silent, -m<N>, --max-count. Round 1 caught only a -q in the FIRST short group after grep;
+# round 3 (agent/rv2-pr87) added the quoted form, |&, --max-count, and a line that ENDS in a pipe with the
+# consumer on the next line; the same round then added `| \` continuations, `\grep` and `/usr/bin/grep`.
+PATTERN='\|&?[[:space:]]*(\\|[^|;&[:space:]]*/)?(grep|egrep|fgrep)([[:space:]]+[^|;&]*)?[[:space:]]+["'"'"']?(-[A-Za-z]*q[A-Za-z]*|--quiet|--silent|-m[[:space:]]*[0-9]+|--max-count(=|[[:space:]]+)[0-9]+)["'"'"']?([[:space:]]|$)'
 
 hits=0
 scanned=0
@@ -76,7 +76,9 @@ for f in "${files[@]}"; do
   # version of this loop ran awk inside a process substitution, awk failed on every file (this gawk does
   # not take `--`), zero hits were counted, and the check printed OK over nothing - the exact fail-open
   # this file exists to forbid, one level up. A scan that did not run is refused, not passed.
-  if ! awk '{ if (prev != "") { $0 = prev " " $0; prev = "" } if ($0 ~ /\|[[:space:]]*$/) { prev = $0; next } print NR ":" $0 }' "$f" > "$scan"; then
+  # A line ending in `|` or `| \` is joined with the next before matching, and a joined line is reported
+  # at the number of its FIRST line.
+  if ! awk '{ if (prev != "") { $0 = prev " " $0; n = pn; prev = "" } else { n = NR } if ($0 ~ /\|[[:space:]]*\\?[[:space:]]*$/) { sub(/\\[[:space:]]*$/, "", $0); prev = $0; pn = n; next } print n ":" $0 }' "$f" > "$scan"; then
     echo "PIPE-CONSUMERS REFUSING: the scan failed to run on $f"
     exit 2
   fi

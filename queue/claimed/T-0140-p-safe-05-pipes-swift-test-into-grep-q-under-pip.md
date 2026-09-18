@@ -21,7 +21,7 @@ acceptance:
   - "RED (the negative control): the hook's pattern with an empty alternative appended -> FAIL 4096 KB clean must COMMIT, refused; exit 1"
   - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (41 scanned, 42 tracked, floor 42), exit 0 - on this checkout; scanned = tracked-plus-untracked minus this file, tracked >= 42 is whatever the checkout has"
   - "RED (the scan at ffa9b6c, .artifacts/r3-ffa9.sh): a detached worktree at ffa9b6c with the scan and check-secret-scan.py copied in and git add -N (the identifier guard sees every file it names; 40 tracked + 2 = 42 meets the floor) -> 8 PIPE-CONSUMERS: lines (.githooks/pre-commit:18 and :27, ops/deploy:12, ops/lib/check-failure-naming:76 and :77, ops/merge:45, ops/sane:41, pins/PINS.yaml:123), PIPE-CONSUMERS FAIL: 8 pipeline(s) decide with grep -q; use 'grep PAT >/dev/null' so the producer is read to EOF (41 scanned, 42 tracked, floor 42), exit 1"
-  - "RED (the scan's regex): fifteen early-exit spellings in an untracked probe file under ops/ - grep --quiet, --silent, -E -q, -e PAT -q, egrep -q, fgrep -q, -w -q, -m1, -m 1, -qE, -iq, --max-count=1, a quoted \"-q\", |& grep -q, and a line ending in | with grep -q on the next line -> all 15 reported, PIPE-CONSUMERS FAIL: 15 pipeline(s) ... (42 scanned, 42 tracked, floor 42), exit 1; the three that read to EOF (grep p >/dev/null, grep -c p, grep -E p | sort) are not reported"
+  - "RED (the scan's regex, .artifacts/r3f.sh over .artifacts/probe18.txt copied under ops/lib): eighteen early-exit spellings - grep --quiet, --silent, -E -q, -e PAT -q, egrep -q, fgrep -q, -w -q, -m1, -m 1, -qE, -iq, --max-count=1, a quoted \"-q\", |& grep -q, a line ending in | with grep -q on the next line, a line ending in | \\ with grep -q on the next line, \\grep -q, /usr/bin/grep -q -> hits on the probe: 18, reported at lines 1-15 17 19 20 (a joined pair at its first line), hits outside the probe: 0, PIPE-CONSUMERS FAIL: 18 pipeline(s) ... (47 scanned, 47 tracked, floor 42), exit 1; lines 21-23 (grep p >/dev/null, grep -c p, grep -E p | sort) not reported"
   - "RED (the scan's population and the scan itself, .artifacts/r3-red.sh, on untracked copies under ops/lib): .githooks dropped from both path lists -> PIPE-CONSUMERS REFUSING: .githooks/pre-commit is not in the scanned set - the tree did not enumerate, exit 2; the awk program given a syntax error -> awk: cmd. line:1: ... syntax error, then PIPE-CONSUMERS REFUSING: the scan failed to run on ops/lib/pc-probe-badawk, exit 2 - the guard the first rewrite lacked: it printed OK over an awk that failed on every file"
   - "mechanism: bash -o pipefail -c \"(echo 'Test run with 20 tests passed'; seq 1 200000) | grep -q passed\" -> exit 141; with 'grep passed >/dev/null' -> exit 0"
   - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (10 cases), exit 0 - the merge fixture on the changed hook"
@@ -236,4 +236,18 @@ done/" and refuses a merge that should land.
   (8 ok + P-OPS-03 failed) and typed into the message before the green run happened. The commit is pushed
   and stays; this line is the correction. Same class as everything this repository is about: a number in
   prose that no command printed.
+- 2026-09-18T17:25:00Z **Round 3 addendum, before the next review - agent/claude-fable-5-1.** Three evasions I could see
+  in my own regex, closed now rather than found for me: a pipe continued with `| \` (the join looked for a
+  line ending in `|` only), `\grep -q` and `/usr/bin/grep -q` (the regex wanted a bare name). The first fix
+  left 17 of 18: the join kept the continuation's backslash, which then sat between the pipe and `grep`; it
+  is stripped at join time. A joined line is reported at its FIRST line's number (it was the last's). Probe
+  of 18 spellings + 3 that read to EOF (`.artifacts/probe18.txt`, run by `.artifacts/r3f.sh`): 18 reported
+  at lines 1-15, 17, 19, 20; 21-23 not; nothing else in the tree reported; clean run
+  `PIPE-CONSUMERS OK ... (46 scanned, 47 tracked, floor 42)`.
+
+  **Known and NOT scanned.** Early-exit consumers other than grep - `| head -N`, `sed -n Np`, `sed Nq`,
+  `read` - are the same mechanism. The instances I read under ops/ and .githooks (`ops/sane:29,31,42`,
+  `.githooks/pre-commit:110,113`, `ops/deploy:25`, `ops/agent-preflight:14,86`) are value captures inside
+  `$( )` over small producers, not verdicts. The pin's statement is `grep -q`; widening the scan to those
+  consumers is a follow-up, not this PR, and this line is where that scope is stated.
 
