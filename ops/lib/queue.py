@@ -492,18 +492,39 @@ def _git_usable():
         return False
 
 
+def _declares_branch(name):
+    """Did this task ever name a branch? A written-down branch is a claim that work was started somewhere.
+
+    Separate from `_branch_exists` because the two answer different questions and only one of them can be
+    answered offline. See the fallback in `cmd_sweep` for why the difference decides whether work survives.
+
+    Permissive ON PURPOSE, and the opposite of `agent()` two hundred lines up, which refuses a non-name
+    rather than comparing it. The asymmetry is the point: for `agent()` permissiveness fails OPEN (a
+    non-name gets compared and a self-review walks through), here it fails CLOSED (a non-name is treated as
+    a declared branch and the task is kept). A flow list, a number and a quoted name with a trailing space
+    are all kept, which is the safe direction. Only the written-down spellings of "no branch" say no.
+    """
+    return bool(name) and str(name).strip().casefold() not in ("", "null", "none", "~")
+
+
 def _branch_exists(name):
     """True when this task's branch is real - here or on the remote.
 
     Deliberately checks the remote-tracking ref FIRST: the case this exists for is work that was pushed and is
     waiting on a merge, which is visible as origin/<branch> even in a worktree that never had the local
     branch. No fetch is done - a sweeper that reaches the network is a sweeper nobody runs - so a branch
-    pushed by someone else since the last fetch reads as absent. That direction is safe: it can only make the
-    sweeper more conservative if the ref is stale in the other direction, and `git fetch` before sweeping is
-    one line in the caller.
+    pushed by someone else since the last fetch reads as absent - and that direction is NOT safe, which is
+    why `cmd_sweep` keeps a task whose branch is merely DECLARED. This function answers only "can I see it".
+
+    It asks git about any non-empty string, including one spelled `None` or `null`. The sentinel list lives
+    in `_declares_branch` and belongs there: "the task did not name a branch" is a statement about the task
+    file, while a branch that really is called `None` is a fact about the repository, and short-circuiting
+    on the sentinel made a ref that demonstrably exists read as absent (found by agent/rv-pr85, who pushed
+    a branch named `None` and watched the task get swept).
     """
-    if not name or str(name).strip() in ("", "null", "none", "~"):
+    if not isinstance(name, str) or not name.strip():
         return False
+    name = name.strip()
     for ref in (f"refs/remotes/origin/{name}", f"refs/heads/{name}"):
         try:
             r = subprocess.run(["git", "rev-parse", "--verify", "-q", ref], cwd=ROOT,
@@ -532,8 +553,26 @@ def cmd_sweep(_operand, _opts_):
             continue
         exp = dt.datetime.fromisoformat(fm["lease_expires_at"].replace("Z", "+00:00"))
         if exp < now():
-            if _branch_exists(fm.get("branch")):
-                held.append(f"{fm['id']} (branch {fm.get('branch')} exists)")
+            # TWO QUESTIONS, AND ONLY ONE OF THEM CAN BE ANSWERED OFFLINE (T-0131).
+            #
+            # `_branch_exists` does no fetch - deliberately; a sweeper that reaches the network is a sweeper
+            # nobody runs - so a branch another agent pushed since this checkout last fetched reads as
+            # ABSENT. The old code swept on that, and its comment called the direction safe. It is the
+            # unsafe one, and it is the failure this task was filed about: on 2026-09-15, 67 of 67 claimed
+            # tasks had an expired lease and 39 of them had an open PR. Sweeping one sets `owner: null`
+            # (the state T-0068 exists to reject) and leaves main saying ready/<id> while the branch says
+            # review/ - the add/add divergence eleven branches were repaired for by hand.
+            #
+            # So a DECLARED branch is kept even when no ref for it is here. "I cannot see it" and "it does
+            # not exist" are different answers, and only one of them is a reason to discard work. What is
+            # left to sweep is a task that never named a branch at all, which is the abandonment this
+            # command is for. ops/lib/check-sweep.py case 2 is the assertion; before it, nothing was.
+            branch = fm.get("branch")
+            if _branch_exists(branch):
+                held.append(f"{fm['id']} (branch {branch} exists)")
+                continue
+            if _declares_branch(branch):
+                held.append(f"{fm['id']} (declares branch {branch}; no ref here - fetch to see it)")
                 continue
             for res in fm.get("exclusive") or []:
                 lock = LOCKS / f"{res}.lock"
@@ -548,7 +587,7 @@ def cmd_sweep(_operand, _opts_):
             print(f"swept {fm['id']} -> ready/")
             moved += 1
     if held:
-        print(f"SWEEP kept {len(held)} expired lease(s) whose branch still exists - finished work waiting to")
+        print(f"SWEEP kept {len(held)} expired lease(s) that name a branch - finished work waiting to")
         print("  merge is not an abandoned task, and clearing its owner would break the reviewer-is-not-owner")
         print("  rule it will be checked against later:")
         for h in held:
