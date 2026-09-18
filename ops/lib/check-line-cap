@@ -14,7 +14,7 @@
 #
 # T-0037: the globs were `Sources/**` and `Tests/**` only, so every Swift file under `apps/ios/` - the whole
 # Apple package and the app shell - was silently exempt from the cap the moment T-0141 created them. A pin that
-# covers 37 of 45 files while its message says "no file exceeds 300 lines" is worse than no pin. `apps/ios/**`
+# covers 36 of 44 files while its message says "no file exceeds 300 lines" is worse than no pin. `apps/ios/**`
 # joins the population, and the message names each root and its count so a shrinking root is visible rather
 # than absorbed into one total.
 #

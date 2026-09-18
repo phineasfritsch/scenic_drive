@@ -206,3 +206,4 @@ silently exempt every file this task adds. The globs gain `apps/ios/**/*.swift`;
   B's half. It is pushed and stays - history is not rewritten here - and this entry is where the diff is
   described. Author A's half, untracked at that moment, lands with this commit.
 
+- 2026-09-18T03:40:00Z A number I changed without measuring, put back on the measurement: I "corrected" the line-cap comment from 36 of 44 to 37 of 45 by adding one to a count I had not re-run; `bash ops/lib/check-line-cap` prints `44 Swift files tracked (Sources=15, Tests=21, apps/ios=8)`, so 36 before this task and 44 after was right the first time. Reverted. The pbxproj graph script asserts the location key ABSENT now (28 assertions, 0 failed).
