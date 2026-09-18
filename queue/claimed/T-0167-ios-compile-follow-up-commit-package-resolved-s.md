@@ -101,3 +101,30 @@ ref, which is also how T-0151, T-0152 and T-0153 can prove their Swift compiles 
       [red rc=1] the DEVELOPER_DIR existence guard deleted (a silent fall back to the image default): IOS-COMPILE-GUARDRAILS: workflow.jobs.simulator-build.steps[2].run: differs from the pinned value (compared by equality)
 
   `PROVE-RED OK: 32 mutations red, 3 legitimate spellings green, 0 unexpected result(s)`, exit 0, and the plain run is `IOS-COMPILE-GUARDRAILS OK: ios-compile.yml equals the pinned workflow: dispatch-only, contents: read, ['macos-15'], time-boxed, one job-level env key (DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer), and a build that cannot be skipped or fail green`, exit 0. `wc -l ops/lib/check-ios-compile-guardrails.py` -> 296, under CLAUDE.md's 300-line cap with four lines of margin.
+- 2026-09-18T21:05:00Z **STEP 2 IS GREEN ON THE RUNNER, ON XCODE 26.3 - run 35393590488, `task/T-0167` at `6af2c69`.** Job `simulator-build`, conclusion `success`. Verbatim from `gh run view 35393590488 --log`:
+
+      simulator-build	toolchain	2026-09-18T20:50:28.8007660Z   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      simulator-build	toolchain	2026-09-18T20:50:31.3607670Z Xcode 26.3
+      simulator-build	toolchain	2026-09-18T20:50:31.3612920Z Build version 17C529
+      simulator-build	toolchain	2026-09-18T20:50:35.0116980Z Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)
+      simulator-build	build for the iOS Simulator	2026-09-18T20:51:49.4354030Z ** BUILD SUCCEEDED **
+
+  **Xcode 26's compiler reported NOTHING to fix.** `grep -c " error:"` over the whole downloaded log is `0`; the only `warning:` in the run is the same benign one 16.4 printed: `appintentsmetadataprocessor[20498:60103] warning: Metadata extraction skipped. No AppIntents.framework dependency found.` So no `apps/ios` source change was needed, no path was added to `touches:` for one, and nothing is filed as STILL OPEN under item 2 of the Brief. The guard line ran and passed silently (`test -d "$DEVELOPER_DIR" || { echo ... ; exit 1; }` is echoed in the step's `##[group]` header and printed no message). The status step again printed only the `find` output and nothing from `git status --porcelain --untracked-files=all`, so the committed `Package.resolved` is what Xcode 26.3 resolves to as well - it was NOT rewritten by the newer toolchain. The configuration that is GREEN is therefore the shipped one: Xcode 26.3 by `DEVELOPER_DIR`, `-disableAutomaticPackageResolution`, `Package.resolved` tracked.
+
+- 2026-09-18T21:05:00Z **STEP 3 - the guardrail check is now run by something: P-OPS-06 (R6, R7).** Added to `pins/PINS.yaml`: `anchor: source`, `runs_on: [linux, mac]`, assertion `"${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/check-ios-compile-guardrails.py`, copied in that exact interpreter-selection spelling from P-GIT-02.
+
+  **SEEN RED BY NAME FIRST, as the pin, not as the script.** `.artifacts/T-0167/pin_red.py` (gitignored) loads `pins/PINS.yaml` with the repository's OWN reader (`ops/lib/pins.py`), points the tracked workflow's `DEVELOPER_DIR` at the image default, and runs the assertion string exactly as `PINS.yaml` spells it:
+
+      --- P-OPS-06 assertion on the mutated workflow: exit 0 = False
+      IOS-COMPILE-GUARDRAILS: jobs.simulator-build.env: must be exactly {'DEVELOPER_DIR': '/Applications/Xcode_26.3.app/Contents/Developer'} - the plan's iOS 26 SDK, pinned by path; any other key is a way to hand a token to a script, any other value is a silent toolchain change (found {'DEVELOPER_DIR': '/Applications/Xcode_16.4.app/Contents/Developer'})
+      IOS-COMPILE-GUARDRAILS FAIL: 1 guardrail(s) gone in ios-compile.yml
+      --- restored: git status --short on that path:
+      (empty)
+      --- byte-identical to before the mutation: True
+      --- P-OPS-06 assertion on the restored workflow: exit 0 = True
+
+  The mutation is reverted in a `finally` with `git checkout --`, and the restoration is printed rather than asserted. The repo's own parser reads the new entry: `parsed 24 pins, ids unique: True`.
+
+  **PyYAML, per R6.** `.github/workflows/linux-core.yml` now installs `python3-yaml` beside `python3-pytest` in the `core` container's apt line and prints its version in the same `&&` chain that already prints git, python and pytest; `pins-source-only` (ubuntu-latest, an image this repository does not control) tries the import, installs the distro package only if that fails, and prints the version either way, so the run log records which path ran. **NOT RUN HERE, and it must be read in CI rather than believed from this Log:** neither job runs on this Windows box. The local evidence is only that `python -c "import yaml"` works on this box (`PyYAML 6.0.3`, Python 3.10.11) and that the assertion exits 0 through `ops/lib/pins.py`'s own runner; whether `pins-source-only` took the install branch or the already-present branch is a fact only its log can state.
+
+- 2026-09-18T21:05:00Z **STEP 4 - the Node 20 notice: recorded, nothing changed (R8).** Dated 2026-09-18. Both `actions/checkout@v4` and `actions/upload-artifact@v4` print it, and its own text says the runner is ALREADY on Node 24 (`This workflow is running with Node 24 by default`), so there is nothing to opt into and nothing degraded today. A major bump would have to move `ALLOWED_USES`, `EXPECTED`, the `a third-party action` mutation and `linux-core.yml`'s four `actions/*@v4` uses in one commit, and its red belongs to its own dispatch; filed here as STILL OPEN rather than smuggled into a toolchain change.
