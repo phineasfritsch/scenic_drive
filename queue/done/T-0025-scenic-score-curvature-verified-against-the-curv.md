@@ -1,7 +1,7 @@
 ---
 id: T-0025
 title: Scenic score: curvature, verified against the Curvature project's published values
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T16:59:08Z
@@ -11,7 +11,7 @@ branch: task/T-0025
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: agent/reviewer-30
+reviewer: agent/rv-t0025
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -113,3 +113,59 @@ rather than quietly falling back to self-generated fixtures.
   fetch is a few minutes, and the honest number depends entirely on the partition being defensible. Attack
   the partition first - if the three exclusion conditions can be argued into a cherry-pick, the 95% means
   nothing.
+- 2026-09-18 review by agent/rv-t0025 (not the owner; agent/reviewer-30 was named on 2026-09-07 and never
+  reviewed this). **PASS.** Reviewed at origin/main 11078d3 in a throwaway worktree, removed afterwards. The
+  code landed in 43c93eb and has not been touched since, so what merged in PR #36 is what I read.
+
+- **The oracle is real, and I re-fetched it rather than trusting the fixture.**
+  `vermont.c_300.kmz` comes back at 2,557,952 bytes, sha256 `3bdf4d14...39046` - byte-identical to the pin in
+  `inputs/manifest.yaml` and to `source_sha256` in the fixture. (It needs a browser User-Agent; a bare urllib
+  request gets 403.) 4422 Placemarks, 3318 single-way, exactly as the Log says. All 400 fixture way ids are
+  single-way Placemarks in it, **all 400 `oracle_curvature` values match the KMZ's published numbers exactly**,
+  none of the 400 also sits in a multi-way collection, and the stored geometry matches the KML's own
+  `<coordinates>` to a worst case of 5.6 cm across all 400 ways. The expected values are not computed from the
+  code under test. That was the question that mattered and it is answered.
+
+- **The number re-derives, and the partition survives the attack the owner asked for.** The shipped fixture
+  gives 94.5% within 2%, median 0.064%, p90 1.04% - half a point BELOW the 95.0% claimed, which is not how a
+  cherry-pick fails. Computing on the KML's own geometry, so "OSM moved" cannot flatter anyone: all 3318
+  single-way collections 83.5%, the fixture's 400 89.5%, the 2918 outside it 82.7%. The 6.8-point gap is the
+  three written conditions doing what they say. And 22 of the 400 SELECTED ways still fail the tolerance on
+  their own geometry. A set chosen because it agreed would have none.
+
+- **The vacuity guards fail for the reasons they name.** Against a 0.93 floor and a 0.945 control: weight
+  2.0->1.0 gives 0.235, band 175->250 gives 0.355, the larger circumcircle gives 0.015, dropping the deflection
+  filter gives 0.915. Each monkeypatch genuinely binds - the module globals are resolved at call time - and each
+  is a real collapse in agreement, not a swallowed exception. The WGS84 test reproduces at 0.940 against its
+  `> 0.90`: the declared negative result is honest.
+
+- **Three mutations nobody had already guarded, each applied alone; no survivors.** `MAX_RADIUS` 10000->150
+  killed by `test_a_straight_line_is_flat` and the oracle. The third band's weight 1.3->1.35 - a 3.8% nudge -
+  killed by `test_each_band_and_its_boundary[60.0-2-1.3]`, its 99.999 sibling, and the oracle. Inverting the
+  deflection filter's `<` killed by the oracle ALONE.
+
+- **Four things to record, none of them blocking.** (1) The fixture's selection line says "400 from 400
+  eligible"; the Log says "from the 2307 eligible". They contradict, a seed is pointless if the sample is the
+  whole pool, and nothing tests the counts - `test_the_fixture_says_how_it_was_selected` only counts the list.
+  I could not settle it here: condition 3 needs osmium over the Geofabrik extract and osmium is not on this box.
+  (2) `test_a_single_segment_way_is_straight_by_definition` and `test_only_the_last_segment_is_capped` both
+  assert against `cv.MAX_RADIUS` itself, and both stayed GREEN when I moved it to 150. That is the exact defect
+  this repository exists to catch; it is survivable only because `test_a_straight_line_is_flat` and the oracle
+  caught the same mutation. (3) `filter_deflections` and `segment_heading` have no direct unit test at all, and
+  the guard keeping the filter load-bearing has 1.5 points of margin resting on 13 of 400 ways. (4) The
+  `_filtered` flag is inert: it can never be True while `curvature_level` is non-zero, and removing it changes
+  0 of 400 results - an equivalent mutant, so not a correctness finding, but the docstring oversells it.
+
+- **What I could not run here.** `ops/check-pins` produced nothing in ten minutes and was stopped - not
+  load-bearing, `pins_affected: []` and no pin mentions curvature. `ops/test` not re-run: whole-repo, multi-tier,
+  and this task touches only `services/etl`, whose tier I ran in full. `ops/queue-check` -> `QUEUE OK (147
+  tasks)`. `services/etl` pytest: 457 passed, **zero skipped** - the only conditional skips in that suite are
+  the two git-availability guards in `test_manifest.py` and neither fired. The Log's "142 passed" is eleven days
+  and sixty merges stale; the property holds. Re-deriving selection conditions 2 and 3 is impossible on this
+  box: no osmium, no GDAL, no PBF in the tree.
+
+- Product invariants are not implicated: `curvature.py` has no highway, surface, access or exclusion logic of
+  any kind - motorway/trunk scoring and the safety gates live in `byways.py` and `tagfilter.py`, untouched here
+  and still correct. Nothing in this task widens a gate or gates on absent evidence.
+
+- Signed agent/rv-t0025. Changed nothing; the transition is the orchestrator's.

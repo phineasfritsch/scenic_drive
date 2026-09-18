@@ -1,7 +1,7 @@
 ---
 id: T-0026
 title: Scenic score: terrain from 3DEP (elevation gain, relief) with a smoothing pass
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T17:41:07Z
@@ -11,7 +11,7 @@ branch: task/T-0026
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: agent/reviewer-31
+reviewer: agent/rv-t0026
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -162,3 +162,90 @@ RED: a known-flat fixture (Alviso/Bay margin) must score near 0 gain; a known-st
 
   Not done, deliberately: nothing writes these numbers into the corpus yet. That is T-0030's job, and the
   scoring composition is T-0029's.
+- 2026-09-18T18:14Z REVIEW by agent/rv-t0026, at 11078d3, in a throwaway detached worktree at origin/main,
+  since removed. The owner is agent/claude-opus-5; the reviewer named on this file, agent/reviewer-31, never
+  ran it - the task has sat in queue/review/ for eleven days. This is that review. I changed nothing.
+
+  **PASS.** Sign-off is warranted. What I ran, what I found, and what I could not run:
+
+  **The brief's RED still holds, eleven days and ~60 merges later.**
+  `cd services/etl && python -m pytest tests/test_terrain.py tests/test_terrain_fixture.py tests/test_dem.py
+  tests/test_dem_tiles.py -q` -> 98 passed, 0 failed, ZERO skipped (37 + 11 + 41 + 9). The whole ETL suite is
+  385 passed, 0 skipped. The log's "37 tests" and "41 tests" still count exactly. Recomputing every fixture
+  way through `tr.summarise` reproduces the committed `recorded_summary` to the digit, and every number in the
+  handoff table with it:
+
+      old_la_honda  way 8940690    259 nodes  5109.9 m  418.0 m gain  81.81 m/km  relief 87.9  grade 13.65%
+      skyline       way 239028846  428 nodes  7013.6 m  361.9 m gain  51.61 m/km  relief 62.2  grade 10.47%
+      alviso_flat   way 92357845    13 nodes   221.2 m    0.0 m gain   0.00 m/km  relief  0.2  grade  0.19%
+      alviso_flat2  way 8929268     11 nodes   264.0 m    0.6 m gain   2.08 m/km  relief  1.7  grade  1.02%
+
+  The eight manifest `bytes:` fields sum to 2,278,440,685 - the log's figure, exactly - and the eight
+  `- name: 3dep-*` entries are the same eight names as `dem.TILES`, with n37w124 in neither.
+
+  **Three mutations, each alone, control green before and after, worktree re-hashed clean each time:**
+  1. THRESHOLD MOVED, `NOISE_FLOOR_M 0.5 -> 0.05`: RED on 5 named tests, including the brief's own -
+     `test_terrain_fixture.py::TestTheNamedProperties::test_the_flat_bay_margin_roads_score_near_zero_gain`
+     and `test_terrain.py::TestElevationGain::test_noise_below_the_floor_is_not_climb`.
+  2. WEIGHT CHANGED, `RELIEF_WINDOW_M 1000.0 -> 100000.0`, relief over the whole way: RED on
+     `test_terrain.py::TestRelief::test_a_long_steady_climb_is_not_more_dramatic_than_a_short_one`. This is
+     the mutation the 18:40Z entry says caught NOTHING until both profiles were made to climb the same 600 m.
+     I re-ran it rather than take the repair on trust. The repair holds.
+  3. GATE INVERTED, `tile_for` ceil -> floor: RED on 17 named tests across the four files. The log claimed 12;
+     the suite has grown since.
+  No survivors, no equivalent mutants.
+
+  **Product invariants:** correctly not applicable. `grep -niE "motorway|trunk|unpaved|private|track|exclude"`
+  over both modules returns ONE line, and it is prose about an ocean tile. Nothing in T-0026 can exclude a way,
+  so motorway-scores-0-but-is-never-excluded is untouched, and no hard gate is widened. Absence is never zero
+  anywhere in the path - `tile_for`, `parse_values`, `sample_smoothed`, `coverage` and `relief` all keep None
+  as None, which is the right call and is tested directly.
+
+  **What I could NOT run, rather than claiming it.** `acceptance: []` is EMPTY, so there were no acceptance
+  lines to replay; I re-derived the log's numbers instead. Nothing that touches a raster: the 2.28 GB of tiles
+  are not on this box and `gdallocationinfo` is WSL-container-only, so `sample_tile`, `sample` and
+  `sample_smoothed` ran only against injected fake runners, and the sha256 pins, the eight HTTP 200s and
+  n37w124's 404 are unverified here. I did NOT run `ops/test`. `ops/check-pins --source-only` prints
+  `PINS ok=8 skipped=11 pending=1 expired=0 failed=0`; no pin covers terrain, matching `pins_affected: []`.
+  `ops/sane` prints `SANE FAIL exit=10` entirely from worktree hygiene - T-0104 and T-0154 unpushed, plus my
+  own mutation in flight when the gate ran - and nothing of T-0026's.
+
+  **Findings, all recordable, none blocking:**
+  - `summarise(coords, profile)` never checks `len(profile)` against `len(resample(coords))`. It takes length
+    from the GEOMETRY and gain from the PROFILE and divides. Truncating old_la_honda's 208-value profile to 50
+    returns `gain_per_km 18.39, coverage 1.0` - no exception, no sanity problem, and coverage says 1.0 because
+    it only ever sees the profile it was handed, never the geometry it was meant to cover. A three-quarters
+    truncated read reports FULL coverage and a plausible road. `parse_values` guards the GDAL read, which is
+    the guard the handoff pointed me at; THIS seam is the unguarded one, and it is the seam T-0030 builds on.
+  - `test_dem.py::test_the_tile_set_matches_what_the_manifest_pins` NEVER OPENS manifest.yaml. Its body is
+    `len(dem.TILES) == 8` and `"n37w124" not in dem.TILES` - the code against itself, under a name claiming an
+    external oracle. The correspondence does hold; I compared both lists and they are identical. Nothing
+    guards it.
+  - `dem.neighbourhood` is not a 3x3 CELL neighbourhood, whatever its docstring and the brief say.
+    `dlon = CELL_DEG/cos(lat)` is 1.269 cells at 38N, so east/west samples land 1 OR 2 cells out depending on
+    where the point falls inside its cell: ~54% of points get a symmetric +/-1 row, ~46% an asymmetric -1/+2
+    or -2/+1 that skips the adjacent cell on one side. Square-on-the-ground is a real argument and
+    `test_the_box_is_square_on_the_ground_not_square_in_degrees` locks it in deliberately - but the kernel is
+    not 3x3, and the per-point asymmetry is a sub-cell bias nobody has argued for. North-south is exact.
+  - No committed recorder for `terrain_fixture.json`. This entry asks its reviewer to "confirm the profile
+    really came from the pinned tiles by resampling a way yourself in the image"; there is no script in the
+    tree that does it, here or in the container. The GEOMETRY half IS independently guarded - the <120 m node
+    spacing assertion is a good guard against the hand-typed-polyline failure this log documents so well. The
+    ELEVATION half rests on the fixture's own `dem_source` string.
+  - `relief` and `grade_percent` window over the NODATA-FILTERED list, so a gap compresses the window on the
+    ground: a "1 km" relief window spans more than 1 km of road where cells are missing, and grade's 100 m run
+    is understated so the grade is overstated. Invisible here because all four fixtures are coverage 1.0.
+    `elevation_gain` documents its bridging; these two silently do something else with the same gaps.
+  - test_terrain_fixture.py line 14 says the roads "score 14.6% and 8.3%". The fixture produces 13.65% and
+    10.47%. Prose, nothing anchored on it, but wrong.
+  - The stdin worry from the handoff, answered rather than assumed: 3000 points -> 27,000 rows, 828,690 bytes,
+    ONE subprocess call. It goes down stdin, not argv, so no argument limit applies.
+  - Neither module has a production caller; `smooth3x3` still has none. Deliberate per the handoff, tracked by
+    T-0052. Recorded so this PASS is not read as "this code runs".
+
+  The two things this task got right are worth naming, because they are the reason it passes: it threw away
+  its own fixtures when the 44% grade showed the geometry was wrong rather than tuning the threshold to fit
+  them, and it re-derived the tile list against the bbox instead of against the URLs it had already checked.
+  Both are the failure this repository exists to catch, caught by the owner on himself.
+
+  Signed agent/rv-t0026. Not the owner; nothing in the repository was changed by this review.
