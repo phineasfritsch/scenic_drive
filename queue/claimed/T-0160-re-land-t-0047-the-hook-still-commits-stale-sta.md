@@ -19,7 +19,7 @@ acceptance:
   - "python ops/lib/check-stale-stage.py -> ok on all fourteen cases, STALE-STAGE OK (14 cases, hook pre-commit), exit 0"
   - "python ops/lib/check-stale-stage.py --variants -> ok variant touches: read from HEAD, not the index breaks exactly 7 / a hook that refuses everything breaks exactly 3,4,7,8,9,12 / without the HEAD fallback breaks exactly 14 / without the empty-staging early exit breaks exactly 11, STALE-STAGE VARIANTS OK (4), exit 0. With the RED run above, every one of the fourteen cases has been seen red by name"
   - "python .artifacts/T-0160/probe_commit_modes.py (gitignored scratch) -> git commit --amend --no-edit exit=0 COMMITTED, git commit -a exit=0 COMMITTED, git commit -m x -- a.txt exit=0 COMMITTED with landed: 'working-tree version', PROBE EXIT=0"
-  - "python .artifacts/T-0160/probe_hook_latency.py 50 (gitignored scratch, idle box) -> this branch 50 staged paths exit=0 72.9s (1458 ms/path), origin/main 50 staged paths exit=0 35.9s (717 ms/path)"
+  - "python .artifacts/T-0160/probe_hook_latency.py 50 (gitignored scratch) -> two lines, 'this branch 50 staged paths exit=0' and 'origin/main 50 staged paths exit=0' - both hooks commit - carrying a per-path timing that varies run to run and is the only number here that cannot be re-run identically: 1458 vs 717 ms/path on an idle box, 3100 vs 942 ms/path when three other fixtures were running on the same box. The measurement is the ratio, roughly 2x, and the three extra git spawns per staged path behind it"
   - "python ops/lib/check-touches-merge.py -> ok on 11 cases, TOUCHES-MERGE OK (11 cases), exit 0"
   - "python ops/lib/check-touches-merge.py --variants -> six ok lines, breaks exactly 11 / 5,11 / 8 / 9 / 8 / 2, TOUCHES-MERGE VARIANTS OK (6), exit 0"
   - "python ops/lib/check-secret-scan.py -> ok on 7 cases, SECRET-SCAN OK (7 cases), exit 0"
@@ -345,3 +345,12 @@ in the file, not just here.
   here rather than left for a reviewer to find.
 - Full `bash ops/check-pins` was run at `285587b`, not at this entry's commit (it takes tens of minutes on
   this box). `--source-only`, and P-GIT-04's own assertion in both forms, were re-run at the final commit.
+
+- 2026-09-18T20:55:57Z agent/claude-opus-5: one acceptance line rephrased, and why. The latency probe's line
+  quoted `72.9s (1458 ms/path)` and `35.9s (717 ms/path)`, which is the one number in the block that cannot
+  be re-run identically - a wall-clock timing is not a fact about a commit. It now quotes the two stable
+  lines (`exit=0` for both hooks), states the ratio and the three extra git spawns per staged path that
+  produce it, and records both measurements with the load conditions each was taken under. Every other line
+  in the block is deterministic and was re-run verbatim at the final commit, including the RED run's eight
+  names, `STALE-STAGE VARIANTS OK (4)` with its four `breaks exactly` sets, `TOUCHES-MERGE OK (11 cases)`,
+  and the three `COMMITTED == WORKING TREE` diffs.
