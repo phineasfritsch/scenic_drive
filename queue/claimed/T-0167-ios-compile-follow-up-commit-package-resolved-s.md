@@ -80,3 +80,24 @@ ref, which is also how T-0151, T-0152 and T-0153 can prove their Swift compiles 
       exit=1
 
   The same edit is now a permanent mutation in `--prove-red`, so it can never pass again by accident: `[red rc=1] -disableAutomaticPackageResolution dropped: ... differs from the pinned value (compared by equality)`. Both acceptance commands are green at this commit: `IOS-COMPILE-GUARDRAILS OK: ios-compile.yml equals the pinned workflow: dispatch-only, contents: read, ['macos-15'], time-boxed, and a build that cannot be skipped or fail green` (exit 0) and `PROVE-RED OK: 27 mutations red, 3 legitimate spellings green, 0 unexpected result(s)` (exit 0) - 26 mutations at T-0157's merge plus this one, every one applying exactly once.
+- 2026-09-18T20:52:00Z **STEP 1 IS GREEN ON THE RUNNER - run 35393082335, `task/T-0167` at `15eb979`.** Dispatched with `gh workflow run ios-compile.yml --ref task/T-0167`; job `simulator-build`, conclusion `success`. The build line, verbatim from `gh run view 35393082335 --log`:
+
+      simulator-build	build for the iOS Simulator	2026-09-18T20:45:52.2961690Z ** BUILD SUCCEEDED **
+
+  And the whole of the `what the build wrote into the tree` step after its `##[endgroup]` - ONE line, the `find` output, and NOTHING from `git status --porcelain --untracked-files=all`:
+
+      simulator-build	what the build wrote into the tree	2026-09-18T20:45:52.9025830Z apps/ios/ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+  No `??` line, no `M` line, no line at all from `git status`: the committed file is byte-identical to what a run with `-disableAutomaticPackageResolution` produces, which is what the Brief asked this dispatch to prove. Toolchain on this run was still the image default (`Xcode 16.4`, `Build version 16F6`, `Apple Swift version 6.1.2`) - step 2 is what changes that.
+
+- 2026-09-18T20:52:00Z **STEP 2 - Xcode 26.3 selected by one job-level `DEVELOPER_DIR` (R4, R5).** The same run's toolchain step listed the image's Xcode apps; the 26.x entries it printed are `Xcode_26.0.1.app`, `Xcode_26.0.app`, `Xcode_26.1.1.app`, `Xcode_26.1.app`, `Xcode_26.2.0.app`, `Xcode_26.2.app`, `Xcode_26.3.0.app`, `Xcode_26.3.app`. Newest taken: `env: DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer`, at the JOB level. The build step's first line is now `test -d "$DEVELOPER_DIR" || { echo "ios-compile: $DEVELOPER_DIR is not on this image"; exit 1; }`, so an image that drops 26.3 fails BY NAME before xcodebuild runs instead of quietly compiling against 16.4.
+
+  The check changed in the SAME commit: `JOB_ENV` is pinned by equality inside `EXPECTED`, the blanket job-level `env` refusal is replaced by an equality on that one key, and two refusals that previously existed only as the equality net are now named - a workflow-level `env:` and a step-level `env:`. Five new `--prove-red` mutations, each applying exactly once, each red BY NAME (the fifth by equality, being a run-body edit):
+
+      [red rc=1] a SECOND env key at the job level: IOS-COMPILE-GUARDRAILS: jobs.simulator-build.env: must be exactly {'DEVELOPER_DIR': '/Applications/Xcode_26.3.app/Contents/Developer'} - the plan's iOS 26 SDK, pinned by path; any other key is a way to hand a token to a script, any other value is a silent toolchain change (found {'DEVELOPER_DIR': '/Applications/Xcode_26.3.app/Contents/Developer', 'GH_TOKEN': 'a-token'})
+      [red rc=1] DEVELOPER_DIR pointed elsewhere (the image default, 16.4): IOS-COMPILE-GUARDRAILS: jobs.simulator-build.env: must be exactly {...} (found {'DEVELOPER_DIR': '/Applications/Xcode_16.4.app/Contents/Developer'})
+      [red rc=1] env: at the WORKFLOW level, inherited by every job: IOS-COMPILE-GUARDRAILS: env: a WORKFLOW-level environment is inherited by every job - the only one allowed is {...} at the job level (found {'DEVELOPER_DIR': '/Applications/Xcode_16.4.app/Contents/Developer'})
+      [red rc=1] env: on the build step, overriding the job's toolchain: IOS-COMPILE-GUARDRAILS: jobs.simulator-build.steps[2].env: no step carries its own environment - the one variable this workflow sets is {...} at the job level (found {'DEVELOPER_DIR': '/Applications/Xcode_16.4.app/Contents/Developer'})
+      [red rc=1] the DEVELOPER_DIR existence guard deleted (a silent fall back to the image default): IOS-COMPILE-GUARDRAILS: workflow.jobs.simulator-build.steps[2].run: differs from the pinned value (compared by equality)
+
+  `PROVE-RED OK: 32 mutations red, 3 legitimate spellings green, 0 unexpected result(s)`, exit 0, and the plain run is `IOS-COMPILE-GUARDRAILS OK: ios-compile.yml equals the pinned workflow: dispatch-only, contents: read, ['macos-15'], time-boxed, one job-level env key (DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer), and a build that cannot be skipped or fail green`, exit 0. `wc -l ops/lib/check-ios-compile-guardrails.py` -> 296, under CLAUDE.md's 300-line cap with four lines of margin.

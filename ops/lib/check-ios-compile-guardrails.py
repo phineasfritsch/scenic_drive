@@ -8,6 +8,9 @@ Three review rounds each found a door the previous version did not watch - a job
 REPLACES the workflow-level block), a step-level `shell:` and `continue-on-error`, `set +o pipefail` inside the
 script, `if: false` on the build step (a skipped build is a green job that compiled nothing). Enumerating
 doors is an arms race. So this check does two things: it names the dangerous edits it knows (good messages),
+(T-0167 opened exactly one of those doors on purpose: the plan's iOS 26 SDK can only be selected with
+DEVELOPER_DIR. One key, at the job level, at one pinned path; a second key, another value, and `env:` at the
+workflow or step level are each still refused BY NAME.)
 and then it compares the WHOLE parsed workflow with the structure pinned below (EXPECTED), after normalising
 the few spellings GitHub treats as identical, and names the first path that differs. Changing what this job
 is - any key, anywhere - means changing this file, deliberately, under review.
@@ -31,9 +34,14 @@ ALLOWED_RUNNERS = {"macos-15"}
 ALLOWED_USES = {"actions/checkout@v4", "actions/upload-artifact@v4"}
 MAX_TIMEOUT_MINUTES = 30
 BUILD_STEP = "build for the iOS Simulator"
+# The ONE environment variable this workflow is allowed, at the job level and nowhere else (T-0167): the plan
+# needs the iOS 26 SDK, the image defaults to 16.4, and DEVELOPER_DIR is the only selector. By exact path - a
+# glob would silently fall back to the default the day 26.3 leaves the image.
+JOB_ENV = {"DEVELOPER_DIR": "/Applications/Xcode_26.3.app/Contents/Developer"}
 
-TOOLCHAIN_RUN = "xcodebuild -version\nswift --version\nls /Applications | grep -i '^Xcode' || true\n"
+TOOLCHAIN_RUN ="xcodebuild -version\nswift --version\nls /Applications | grep -i '^Xcode' || true\n"
 BUILD_RUN = "\n".join([
+    'test -d "$DEVELOPER_DIR" || { echo "ios-compile: $DEVELOPER_DIR is not on this image"; exit 1; }',
     'mkdir -p "$GITHUB_WORKSPACE/DerivedData"',
     "xcodebuild \\",
     "  -project apps/ios/ScenicDrive.xcodeproj \\",
@@ -56,6 +64,7 @@ EXPECTED = {
     "jobs": {"simulator-build": {
         "runs-on": "macos-15",
         "timeout-minutes": 20,
+        "env": JOB_ENV,
         "steps": [
             {"uses": "actions/checkout@v4"},
             {"name": "toolchain", "run": TOOLCHAIN_RUN},
@@ -129,11 +138,14 @@ def named_problems(doc, raw):
         out.append("defaults.run.shell: must be bash (pipefail), or a failed build piped into tee reports success")
     if "secrets." in raw:
         out.append("secrets.: this job references no secret; a personal token would be outside the read-only GITHUB_TOKEN")
+    if "env" in doc:
+        out.append(f"env: a WORKFLOW-level environment is inherited by every job - the only one allowed is {JOB_ENV} at the job level (found {doc['env']!r})")
     for name, job in (doc.get("jobs") or {}).items():
+        if job.get("env") != JOB_ENV:
+            out.append(f"jobs.{name}.env: must be exactly {JOB_ENV} - the plan's iOS 26 SDK, pinned by path; any other key is a way to hand a token to a script, any other value is a silent toolchain change (found {job.get('env')!r})")
         for key, why in (("permissions", "a job-level block REPLACES the workflow-level one"),
                          ("defaults", "a job-level default can replace the bash shell"),
                          ("strategy", "a matrix multiplies the runner and can change its label"),
-                         ("env", "an environment is a way to hand a token to a script"),
                          ("if", "a job that is skipped is a green run that compiled nothing"),
                          ("continue-on-error", "a failed build must fail the job")):
             if key in job:
@@ -147,6 +159,8 @@ def named_problems(doc, raw):
             where = f"jobs.{name}.steps[{i}]"
             if s.get("name") == BUILD_STEP and "if" in s:
                 out.append(f"{where}.if: a build step that can be SKIPPED is a green job that compiled nothing (found {s['if']!r})")
+            if "env" in s:
+                out.append(f"{where}.env: no step carries its own environment - the one variable this workflow sets is {JOB_ENV} at the job level (found {s['env']!r})")
             if "shell" in s and s["shell"] != "bash":
                 out.append(f"{where}.shell: {s['shell']!r} replaces the pipefail default - a failed build piped into tee would pass")
             if s.get("continue-on-error"):
@@ -176,7 +190,7 @@ def check(path):
     lines = [f"IOS-COMPILE-GUARDRAILS: {p}" for p in found]
     if found:
         return 1, lines + [f"IOS-COMPILE-GUARDRAILS FAIL: {len(found)} guardrail(s) gone in {path.name}"]
-    return 0, [f"IOS-COMPILE-GUARDRAILS OK: {path.name} equals the pinned workflow: dispatch-only, contents: read, {sorted(ALLOWED_RUNNERS)}, time-boxed, and a build that cannot be skipped or fail green"]
+    return 0, [f"IOS-COMPILE-GUARDRAILS OK: {path.name} equals the pinned workflow: dispatch-only, contents: read, {sorted(ALLOWED_RUNNERS)}, time-boxed, one job-level env key ({sorted(JOB_ENV)[0]}={JOB_ENV['DEVELOPER_DIR']}), and a build that cannot be skipped or fail green"]
 
 
 # (what it breaks, exact text in the shipped workflow, replacement). --prove-red applies each ALONE to a copy
@@ -187,6 +201,9 @@ BUILD = "      - name: build for the iOS Simulator\n        run: |\n"
 MKDIR = '          mkdir -p "$GITHUB_WORKSPACE/DerivedData"\n'
 TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
 TOOL = "      - name: toolchain\n        run: |\n          xcodebuild -version\n          swift --version\n          ls /Applications | grep -i '^Xcode' || true\n\n"
+ENVLINE = "      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer\n"
+OTHER_XCODE = "      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer\n"
+GUARD = '          test -d "$DEVELOPER_DIR" || { echo "ios-compile: $DEVELOPER_DIR is not on this image"; exit 1; }\n'
 
 
 def after(anchor, line):
@@ -212,6 +229,13 @@ MUTATIONS = [
     ("a step-level timeout of zero", BUILD, after(BUILD, "timeout-minutes: 0")),
     ("the toolchain step deleted", TOOL, ""),
     ("a token handed to the build step", BUILD, "      - name: build for the iOS Simulator\n        env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n        run: |\n"),
+    ("a SECOND env key at the job level", ENVLINE, ENVLINE + "      GH_TOKEN: a-token\n"),
+    ("DEVELOPER_DIR pointed elsewhere (the image default, 16.4)", ENVLINE, OTHER_XCODE),
+    ("env: at the WORKFLOW level, inherited by every job", "permissions:\n  contents: read\n",
+     "permissions:\n  contents: read\n\nenv:\n  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer\n"),
+    ("env: on the build step, overriding the job's toolchain", BUILD,
+     "      - name: build for the iOS Simulator\n        env:\n    " + OTHER_XCODE + "        run: |\n"),
+    ("the DEVELOPER_DIR existence guard deleted (a silent fall back to the image default)", GUARD, ""),
     ("a matrix on the job", JOB, "  simulator-build:\n    strategy:\n      matrix:\n        os: [macos-15, macos-15-xlarge]\n    runs-on: macos-15\n"),
     ("a larger runner", "    runs-on: macos-15\n", "    runs-on: macos-15-xlarge\n"),
     ("the timeout removed", "    timeout-minutes: 20\n", ""),

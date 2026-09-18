@@ -9,7 +9,9 @@
 # is gone, at EVERY level GitHub lets it be overridden): its own file; workflow_dispatch ONLY - no push, no
 # pull_request, no schedule; contents: read with no job-level permissions block; the standard macos-15
 # label, pinned, never a -large / -xlarge runner (those always bill); a job timeout; bash everywhere and no
-# continue-on-error, so a failed build is a failed job; an allowlist of actions; no commit and no push step.
+# continue-on-error, so a failed build is a failed job; an allowlist of actions; no commit and no push step;
+# and exactly one environment variable in the whole file - DEVELOPER_DIR, at the job level, at the exact path
+# below (T-0167), because the plan's iOS 26 SDK cannot be selected any other way.
 # Linux CI (linux-core.yml) stays the fleet's gate.
 name: ios-compile
 
@@ -33,6 +35,14 @@ jobs:
   simulator-build:
     runs-on: macos-15
     timeout-minutes: 20
+    # The plan requires Xcode 26 / the iOS 26 SDK. This image DEFAULTS to Xcode 16.4 (run 35391464739's
+    # toolchain step printed `Xcode 16.4` / `Build version 16F6`) and carries Xcode_26.0 .. Xcode_26.3, so the
+    # newest 26.x is selected here by exact path. DEVELOPER_DIR is the only way to do that, which is why the
+    # guardrail check allows EXACTLY THIS ONE key at EXACTLY the job level and refuses by name: a second key,
+    # any other value, `env:` at the workflow level, `env:` on a step. The build step's first line makes a
+    # missing 26.3 a named failure instead of a silent fall back to 16.4.
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +57,7 @@ jobs:
       # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and this job has none.
       - name: build for the iOS Simulator
         run: |
+          test -d "$DEVELOPER_DIR" || { echo "ios-compile: $DEVELOPER_DIR is not on this image"; exit 1; }
           mkdir -p "$GITHUB_WORKSPACE/DerivedData"
           xcodebuild \
             -project apps/ios/ScenicDrive.xcodeproj \
