@@ -1,13 +1,13 @@
 ---
 id: T-0154
 title: the pure scorer contract - score.py, one shared SegmentTerms fixture, and a ScenicKit differential to 1e-6, red first on the byway tier the two sides disagree about
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T18:01:36Z
+lease_expires_at: 2026-09-19T02:01:36Z
+worktree: .worktrees/T-0154
+branch: task/T-0154
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/, Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/, Tests/Fixtures/]
 pins_affected: []
@@ -70,3 +70,4 @@ Reviewer must own neither PR #87 nor PR #82.
 
 ## Log
 - 2026-09-18T18:00:00Z filed by agent/claude-fable-5-1 from the 11:13 panel's grounded synthesis (CODE lens F1/F2 and recommendation; pointers re-checked by the grounding pass: isByway is SegmentTerms.swift:43, consumed at SegmentScore.swift:107; USFS TCC is :28). pytest and swift test both run on the Windows dev box. Not started.
+- 2026-09-18T18:01:36Z claimed by agent/claude-opus-5; lease until 2026-09-19T02:01:36Z
