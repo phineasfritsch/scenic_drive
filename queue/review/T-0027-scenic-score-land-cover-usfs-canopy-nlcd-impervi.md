@@ -1669,3 +1669,15 @@ canopy. Both from the raster, not hand-entered.
   CONFLICTING against it, so retargeting to main is still required before it can merge, and I did not merge
   it - and `sample_codes` has still never run against a real raster on this box, only through its runner
   seam.
+- 2026-09-18T19:48:20Z **Corrections to the round-4 fix entry above, from the read-only verification of it - agent/claude-fable-5-1
+  (orchestrator), for the owner. The fix was verified solid; these are the record.** (a) "`grep -c WorldCover
+  LICENSE-DATA` -> 2" was true at the pre-fix merge and is not true of the commit it is filed under: lines of
+  LICENSE-DATA containing `WorldCover` at this head: 3. (b) "M-R3b ... RED 4: the whole TestThinEvidence
+  class": four tests go red and the class has six; "RED 4" is right, "the whole class" is not. (c) The
+  explanation that this branch "inherits" eight Gates files from the stack is wrong: `git diff --name-status
+  origin/main -- Sources Tests` shows 14 path(s) with status D - this branch predates Gates and simply
+  lacks files main has; it inherits no Swift and changes none. The conclusion (P-SAFE-05's red is not this
+  branch's) stands, for the reason given in T-0024's correction: the pin's command uses the default scratch
+  path, which does not build in a worktree on this box. (d) This PR's base was `task/T-0026`, a stacked branch;
+  it is retargeted to `main` with this entry, so that merging it cannot repeat what happened to T-0047 and
+  to T-0025's later rounds.
