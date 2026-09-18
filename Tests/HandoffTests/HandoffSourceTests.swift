@@ -102,7 +102,7 @@ struct HandoffSourceTests {
         return found
     }
 
-    /// Every type this module is allowed to name, transcribed by hand from the two source files.
+    /// Every type this module is allowed to name, transcribed by hand from the source files.
     ///
     /// Two groups. The Swift value types (`Array`, `Bool`, `Double`, `Int`, `String`, ...) are pre-argued:
     /// none of them consults a locale, and refusing them would only push a normal refactor into editing this
@@ -112,7 +112,13 @@ struct HandoffSourceTests {
     /// the list: the check fails first and the argument happens second.
     static let allowedTypes: Set<String> = [
         // declared here
-        "AppleMapsDirections", "HandoffError", "Mode",
+        //
+        // `SkylineRoute` is the hard-coded Skyline drive's coordinates, moved in from the Apple-only
+        // feature target by T-0151 so that the spacing of its pins could be tested at all. It names no
+        // type this list did not already allow: `Coordinate` and the numeric literals, nothing else.
+        // This check went red on the move, by name, which is the list doing its job - the argument for
+        // the new file happened here before the suite went green again.
+        "AppleMapsDirections", "HandoffError", "Mode", "SkylineRoute",
         // modules
         "Foundation", "ScenicKit",
         // ScenicKit
