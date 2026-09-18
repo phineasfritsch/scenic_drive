@@ -19,10 +19,10 @@ acceptance:
   - "RED: git show ffa9b6c:.githooks/pre-commit > .artifacts/v-hook; python ops/lib/check-secret-scan.py --hook .artifacts/v-hook -> FAIL 256 KB / 1024 KB / 4096 KB secret COMMITTED, FAIL staged blob object deleted (committed), exit 1"
   - "RED (the fail-closed branch): the hook with 'if ! git show ... fi' replaced by 'git show ... || : > \"$blob\"' -> FAIL staged blob object deleted, only; exit 1"
   - "RED (the negative control): the hook's pattern with an empty alternative appended -> FAIL 4096 KB clean must COMMIT, refused; exit 1"
-  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (42 files scanned), exit 0"
+  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (42 scanned, 42 tracked), exit 0"
   - "RED (the scan, at ffa9b6c in a detached worktree with the scan copied in, git add -N) -> 8 PIPE-CONSUMERS: lines, FAIL: 8 pipeline(s), exit 1"
   - "RED (the scan's regex): eleven early-exit spellings in a probe file - grep --quiet, --silent, -E -q, -e PAT -q, egrep -q, fgrep -q, -w -q, -m1, -m 1, -qE, -iq - all 11 match; 'grep p >/dev/null', 'grep -c p', 'grep -E p | sort' do not"
-  - "RED (the scan's population): the tree with .githooks dropped from the path list enumerates 40, not 42 -> PIPE-CONSUMERS REFUSING: scanned 40 files, EXPECTED_FILES says 42, exit 2"
+  - "RED (the scan's population): the tree with .githooks dropped from both path lists tracks 40, not 42 -> PIPE-CONSUMERS REFUSING: 40 tracked file(s), EXPECTED_TRACKED says 42, exit 2. An untracked file added under ops/ does NOT refuse: 43 scanned, 42 tracked, exit 0"
   - "mechanism: bash -o pipefail -c \"(echo 'Test run with 20 tests passed'; seq 1 200000) | grep -q passed\" -> exit 141; with 'grep passed >/dev/null' -> exit 0"
   - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (10 cases), exit 0 - the merge fixture on the changed hook"
   - "bash ops/check-pins -> PINS ok=16 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
@@ -168,3 +168,16 @@ done/" and refuses a merge that should land.
   probe edit and reverted my own uncommitted widening with it; the next gate run printed OK over the old
   regex. Caught by grepping for the new constant before committing rather than by the output, which is the
   only way that class is ever caught.
+- 2026-09-18T00:20:00Z **CI failed this PR a second time, on the equality I had just added.**
+  `PIPE-CONSUMERS REFUSING: scanned 44 files, EXPECTED_FILES says 42`. Locally both enumerations return 42;
+  on the runner, after the earlier steps had run, two untracked-but-unignored files existed under those
+  paths. So the number I asserted was a fact about MY DISK, not about the commit - the same class as
+  everything else this task has been about, one level up: a population claim that moves with the machine is
+  not a population claim.
+
+  The two jobs the one number was doing are now split. SCANNED stays tracked + untracked-unignored, because
+  that is why `--others` is here at all - it is what makes a file scanned before it is committed, which the
+  first CI failure taught. COUNTED is what git TRACKS, which is the same wherever the commit is. Measured
+  both ways: an untracked file added under `ops/` -> `43 scanned, 42 tracked`, exit 0; `.githooks` dropped
+  from the path lists -> `40 tracked file(s), EXPECTED_TRACKED says 42`, exit 2. A second guard refuses a
+  scan smaller than the tracked set, so the two cannot drift apart silently.
