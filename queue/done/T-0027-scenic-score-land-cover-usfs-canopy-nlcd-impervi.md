@@ -1,7 +1,7 @@
 ---
 id: T-0027
 title: Scenic score: land cover (USFS canopy, NLCD impervious) in a 150 m buffer
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T19:57:37Z
@@ -11,7 +11,7 @@ branch: task/T-0027
 exclusive: []
 touches: [services/etl/, LICENSE-DATA, README.md]
 pins_affected: []
-reviewer: agent/reviewer-pr33
+reviewer: agent/rv2-pr33
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -1681,3 +1681,122 @@ canopy. Both from the raster, not hand-entered.
   path, which does not build in a worktree on this box. (d) This PR's base was `task/T-0026`, a stacked branch;
   it is retargeted to `main` with this entry, so that merging it cannot repeat what happened to T-0047 and
   to T-0025's later rounds.
+- 2026-09-18T20:09:08Z REVIEW ROUND 5: **PASS.** agent/rv2-pr33, reviewing PR #33 at 9920df3 (== `git rev-parse
+  origin/task/T-0027`; `gh pr view 33` -> base `main`, state OPEN, headRefOid 9920df3) from a throwaway worktree
+  `.worktrees/rv2-pr33` created detached at that sha and removed afterwards. Not the owner; not agent/reviewer-32,
+  agent/reviewer-pr33 or agent/rv-t0027. I changed nothing in the PR: every mutation below was applied in MY
+  worktree and restored with `git checkout -- <path>`, and `git status --short` there was empty before and after
+  each one (last check `FINAL-CLEAN` at 9920df3).
+
+  **The retarget is real, and the Swift doc lines are not in this PR.** `git diff --name-only origin/main...HEAD`
+  -> 16 paths, all of them LICENSE-DATA, README.md, two queue files and services/etl/*. No path under Sources/ or
+  Tests/, so Sources/ScenicKit/Scoring/SegmentTerms.swift is NOT in this diff and does not re-litigate what PR #89
+  landed on main.
+
+  **B1, the attribution half, verified against ESA rather than against the fixer's summary of ESA.** One WebFetch
+  of https://esa-worldcover.org/en/data-access today returns: licence "Creative Commons Attribution 4.0
+  International License"; the required credit `(c) ESA WorldCover project [year] / Contains modified Copernicus
+  Sentinel data ([year]) processed by ESA WorldCover consortium`; and, separately required, the v200 data citation
+  `Zanaga, D., Van De Kerchove, R., Daems, D., De Keersmaecker, W., Brockmann, C., Kirches, G., Wevers, J.,
+  Cartus, O., Santoro, M., Fritz, S., Lesiv, M., Herold, M., Tsendbazar, N.E., Xu, P., Ramoino, F., Arino, O.,
+  2022. ESA WorldCover 10 m 2021 v200. https://doi.org/10.5281/zenodo.7254221`. LICENSE-DATA's WorldCover section
+  carries all three, the credit with 2021 substituted for `[year]` on a 2021 v200 product, and the citation
+  author-for-author and DOI-for-DOI. Nothing is missing and nothing is paraphrased. README.md:14-16 names ESA
+  WorldCover (CC BY 4.0) and the Caltrans layer and no longer names USFS Tree Canopy or NLCD.
+
+  **test_license_data.py is mechanical, and each half was made red by hand here.**
+      LICENSE-DATA's whole `## ESA WorldCover` section deleted -> RED 4, by name:
+        test_license_data.py::TestEveryAttributionLicenceCarriesItsCredit::test_every_such_credit_appears_verbatim_in_license_data
+        ::test_the_worldcover_credit_is_the_string_the_fixture_records
+        ::TestLicenseDataListsOnlyWhatWeUse::test_worldcover_is_listed_under_its_own_heading_and_not_under_public_domain
+        test_manifest.py::TestRealManifest::test_every_attribution_licence_it_uses_is_actually_attributed
+      manifest.yaml: the `attribution:` line deleted from worldcover-n36w123.tif only -> RED 1, by name and by
+        entry: ::test_every_entry_that_needs_credit_names_the_credit_it_needs, `assert
+        ['worldcover-n36w123.tif'] == []`. So an attribution-required licence with no attribution field fails.
+      LICENSE-DATA: the old bullet `- USFS / MRLC Tree Canopy Cover; MRLC Annual NLCD fractional impervious
+        surface` put back under the public-domain heading -> RED 4, by name:
+        ::test_no_listed_source_names_a_dataset_no_manifest_entry_provides[USFS], [MRLC], [NLCD], [Tree Canopy].
+  The absence check is NOT one that can never fire: it reads the `- ` bullet lines, the bullet above is a bullet,
+  and it fired on all four parameters. Its guard is ordered fail-closed - `assert provided == []` on the manifest
+  runs BEFORE the absence assertion, so a future manifest entry that really does provide NLCD turns the test red
+  with "this test is the one that is stale" instead of quietly making the second half vacuous.
+
+  **The three round-1 survivors are dead, each by a named test.**
+      M2 `WATER_CLASSES = frozenset({80, 90, 95})` -> `{80, 90}`  -> RED 3: test_landcover.py::
+        TestTheClassToTermMapping::test_each_class_feeds_exactly_the_term_it_should[95-water],
+        ::TestOpenLand::test_the_four_terms_partition_every_class, ::test_the_four_fractions_sum_to_one_on_any_mix
+      M3 `out[i] = None if code == 0 else code` -> `out[i] = code` -> RED 1: test_landcover_sampling.py::
+        TestWhatItDoesWithTheAnswer::test_code_zero_is_nodata_and_not_a_class, `assert [0] == [None]`
+      M4 the circular clip's `>` -> `>=`                          -> RED 1: test_landcover.py::TestBufferGeometry::
+        test_the_buffer_is_exactly_this_many_samples_and_reaches_exactly_this_far, and it is the 29-sample literal
+        that catches it: `assert 25 == 29`, "the pre-boundary-fixture 50 m lattice". R3 is pinned on literals, not
+        on the module's own arithmetic.
+
+  **Two mutations nobody wrote, on the new thin-coverage rule. One dies, one LIVES.**
+      problems()'s message replaced by `out.append("thin")` -> RED 1: test_landcover_verdict.py::TestThinEvidence::
+        test_problems_says_why_rather_than_staying_silent, `AssertionError: ['thin']`. The text is load-bearing.
+      MIN_COVERAGE's BOUNDARY moved - all three comparison sites `< MIN_COVERAGE` -> `<= MIN_COVERAGE`
+        (landcover.py:168 in problems(), :195 in is_wooded, :204 in is_built_up) -> 552 passed, ZERO failures.
+        SURVIVES. See R11 below.
+
+  **The suite, and the acceptance block re-run at this head.** `cd services/etl && python -m pytest tests -rs` ->
+  `552 passed in 62.92s`, 0 failed, 0 skipped, no `-rs` skip section. The 7-file subset of acceptance line 2 ->
+  158 passed. `bash ops/queue-check` bare in my worktree -> `QUEUE OK (153 tasks)`, exit 0. Every number the
+  acceptance block quotes reproduces from this commit, printed rather than asserted: old_la_honda canopy 0.955
+  impervious 0.012 water 0.000 coverage 1.0000 WOODED; skyline 0.849 / 0.019 / 0.000 / 1.0000 WOODED; alviso_flat
+  0.071 / 0.686 / 0.017 / 1.0000 BUILT_UP; alviso_flat2 0.014 / 0.452 / 0.291 / 1.0000 BUILT_UP - each matching
+  the `expected` literal committed in the fixture, not a value recomputed into its own expectation. R2:
+  coverage 0.034482758620689655, impervious 1.0, is_built_up False, problems() the full MIN_COVERAGE sentence
+  verbatim; the 15/14 case coverage 0.5172, is_built_up True, problems []. R3: 177 and 29. B1: entries needing
+  credit 6 of 15, without an attribution field [], credits not verbatim [], `mf.unattributed` [] against both
+  LICENSE-DATA and README.md.
+
+  **queue/backlog/T-0054 riding in on this PR: not a duplicate.** `git ls-tree -r --name-only origin/main queue |
+  grep T-0054` -> no match, exit 1: the file does not exist on main, so merging cannot duplicate the id. `git
+  merge --no-commit --no-ff origin/main` in my worktree -> "Automatic merge went well", then `bash ops/queue-check`
+  bare -> `QUEUE OK (159 tasks)`, exit 0, and `git ls-files "queue/*/T-0027-*" "queue/*/T-0054-*"` -> exactly one
+  path each. `git merge --abort`, `git status --short` empty. Recordable only, as R12.
+
+  **What I did not run, and why that is not a judgement.** As directed for this round I ran neither `bash
+  ops/check-pins` nor `bash ops/test` locally: on this box the DEFAULT swift scratch path cannot build inside a
+  worktree (`could not build module 'vcruntime'`) and even --source-only drives that build, so a local red would
+  have measured the box. I relied on CI once, at the end: `gh pr checks 33` -> `no checks reported on the
+  'task/T-0027' branch`, exit 0. So NEITHER of the two acceptance lines quoting those commands is corroborated by
+  CI either - there is no CI on this branch to corroborate them. I am signing off on the ETL suite, the mutation
+  work above and the record, and NOT on those two lines; they stand as the round-4 fixer recorded them, with the
+  P-SAFE-05 reasoning that T-0024's correction already accepted, and this branch changes no Swift file
+  (`git diff --name-only origin/main...HEAD` lists none) so it cannot be what makes that pin red.
+
+  **RECORDABLE, not blocking - carried here because the record is where they belong.**
+  R11 - MIN_COVERAGE's boundary is unpinned. `MIN_COVERAGE = 0.5` and the rule reads "below that the answer is
+  'we did not look'", i.e. a buffer read exactly half-way still gets a verdict. Flipping all three `<` to `<=`
+  changes that and the whole 552-test suite stays green; the tests bracket the boundary (0.0345 below, 0.5172
+  above) but never sit on it. The rule itself IS seen red - M-R3b moving the constant to 0.0 reds four tests, and
+  my problems()-text mutation reds one - and nothing consumes is_wooded/is_built_up yet, so this costs nothing
+  today. One row, `fractions([50]*a + [None]*b)` contrived to coverage exactly 0.5 asserting is_built_up True,
+  would close it. Whoever picks up T-0030 should close it before the verdicts are consumed.
+  R12 - this PR adds queue/backlog/T-0054-readme-points-at-a-notice-file-that-does-not-exi.md, a task file for
+  other work, to a PR whose `touches:` is [services/etl/, LICENSE-DATA, README.md]. Harmless here (new id, not on
+  main, queue-check green through the merge) and it is the file that records the dangling `NOTICE` reference
+  README.md:16 still carries. Noted so the next queue filing goes on its own commit.
+  R13 - acceptance line 3 says its numbers are "recomputed from the committed codes by
+  tests/test_landcover_fixture.py and printed alongside it". They are recomputed and asserted there, but nothing
+  prints them: `python -m pytest tests/test_landcover_fixture.py -s -q | grep -i "old_la_honda\|skyline\|alviso"`
+  -> no output. The values are correct at this head (printed above, from `lc.fractions` on the committed codes);
+  only "printed" is wrong.
+  R14 - `test_the_worldcover_credit_is_the_string_the_fixture_records` asserts `item.attribution in recorded`,
+  which an EMPTY attribution satisfies (`"" in s` is always True), so that one assertion is vacuous for a deleted
+  field - which is exactly the mutation I ran, and it stayed green there while its sibling
+  ::test_every_entry_that_needs_credit_names_the_credit_it_needs caught it by name. The pair is sound; the
+  substring direction inside this test is not, and `assert item.attribution and item.attribution in recorded`
+  would make it carry its own weight.
+
+  **Still open and unchanged by this round, as the round-4 entry already states:** R5 (no fixture generator; needs
+  the 92 MB rasters and GDAL, WSL-only), R6 (no pin covers landcover; a CC-BY obligation and two pinned 92 MB
+  tiles are pin-shaped), a conforming mutation harness under services/etl/mutate/, P-SAFE-05's assertion needing
+  its own `--scratch-path`, and `sample_codes` never having run against a real raster on this box - only through
+  its `runner=` seam, which is what B2 asked for and all that can be had here.
+
+  **What I did not get to.** I did not exercise the sampling path against a raster (none on this box). I did not
+  re-verify the 20 m phase-swing measurements in tests/fixtures/landcover_boundary_fixture.json against the
+  rasters they came from - R5 is why nobody can. I ran no Swift and no pin check, as stated above.
