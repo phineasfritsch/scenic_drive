@@ -564,3 +564,20 @@ is pasted from that run at `f4581dd`, whose tree differs from the final commit o
 
     STALE-STAGE FAIL (14 cases, hook main-pre-commit)
     EXIT=1
+- 2026-09-18T22:27:20Z **Record corrections from the read-only verification of this build, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier saved origin/main's hook outside the tree (blob 3b04389, 144 lines)
+  and re-ran the fixture bare (`STALE-STAGE OK (14 cases, hook pre-commit)`), with `--hook` on that old hook
+  (`STALE-STAGE FAIL (14 cases, hook main-pre-commit)`, red by name on cases 1, 2, 4, 5, 6, 8, 10 and 13, twice,
+  identical), `--variants` (`STALE-STAGE VARIANTS OK (4)`), `check-touches-merge.py` (`11 cases`) and
+  `check-secret-scan.py` (`7 cases`); f4581dd is a true merge that changed neither the hook nor the fixture;
+  these are text.** (a) The 21:28:56Z entry says "the file now carries five `P-` ids after `P-OPS-03`" and lists
+  four (P-GIT-03, P-GIT-02, P-OPS-05, P-GIT-04); four is what the file has. (b) The build report's "4 files, 934
+  insertions / 7 deletions ... task file +292" was measured before the final commit; at a5fd960 `git diff
+  --stat 81f8483 HEAD` reads 4 files, 1144 insertions(+), 7 deletions(-) (hook 123+/7-, fixture +510, PINS +9,
+  this file +502). (c) The 21:28:56Z stamp is the start of that entry, not the time of the gate runs it quotes:
+  they take well over ten minutes on this box and the entry was committed at 21:57:12Z. (d) Not re-run by the
+  verifier: `check-touches-merge.py --variants`, the full `bash ops/check-pins` (ok=20 at 285587b), the
+  `P-GIT-04 count=0` loop over the open PR heads (origin/main and the merge base carry P-GIT-01/02/03 only),
+  and acceptance lines 4-5 (the two probes live in the gitignored `.artifacts/T-0160/`; their timings are
+  declared non-reproducible). (e) The symlink `-L` branch of check 4 is exercised by no case - this box cannot
+  make a real symlink - as the build already discloses.
