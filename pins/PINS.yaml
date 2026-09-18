@@ -172,6 +172,15 @@
   owner: agent/claude-opus-5
   added: 2026-09-07
 
+- id: P-GIT-03
+  statement: The merge-gate cases are discriminating - each variant of the hook breaks exactly the set of cases named against it, and no other
+  why_no_test_catches_it: "P-GIT-02 runs the cases; nothing ran the layer that proves the cases can fail. check-touches-merge.py says in its own comments that --variants is what makes the cases discriminating rather than decorative, and that claim rested on a command no gate executed - grep finds this file referenced only by a comment in the hook and by P-GIT-02, which invokes the plain form. T-0139 was the demonstration: adding a variant for the fallback's operator message showed that run_variants judged a case on its exit code alone while main() also checked the reason string, so a variant that silenced an asserted message broke nothing in the sweep's eyes. That defect was invisible to every gate in this repository. The same question was raised as BLOCKING by agent/rv-pr85 on the sibling check (P-PROC-04), after this task's author had deferred it as a judgement for the reviewer."
+  anchor: process
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-touches-merge.py --variants"
+  owner: agent/claude-opus-5
+  added: 2026-09-16
+
 - id: P-GIT-02
   statement: The pre-commit touches gate applies to the author's own changes on a merge, not to every file the merge stages
   why_no_test_catches_it: Nothing exercises the hook during a merge. The gate looks correct reading it, and is correct on an ordinary commit; only a real merge shows that `git merge` stages the whole other side and the gate refuses all of it. Measured on task/T-0097 - a merge of origin/main resolving ONE conflict in a file that IS in touches: was refused with 41 paths, every one a file main changed and the branch did not. That very likely produced the stacked-branch tower T-0113 measured and could not explain: if merging main into a task branch is blocked, the only way to get current is to branch off another task branch.
