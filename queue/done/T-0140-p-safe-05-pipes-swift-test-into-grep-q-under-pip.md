@@ -1,7 +1,7 @@
 ---
 id: T-0140
 title: P-SAFE-05 pipes swift test into grep -q under pipefail, so a SIGPIPE fails the pin at random
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: 014SvHby9PhsKZqo5FkfuP2D
 claimed_at: 2026-09-16T09:30:00Z
@@ -11,7 +11,7 @@ branch: task/T-0140
 exclusive: []
 touches: [.githooks/pre-commit, ops/, pins/PINS.yaml]
 pins_affected: [P-SAFE-05, P-SEC-01, P-OPS-03]
-reviewer: null
+reviewer: agent/rv4-pr87
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -323,3 +323,70 @@ done/" and refuses a merge that should land.
   **Timestamps.** My entries of 2026-09-18 from 16:15Z on carry times I typed rather than read from a clock,
   and they run up to about 45 minutes ahead of the commits that carry them (`git log --format=%cI` is the
   truth). They stay as written; this entry's time is `date -u`.
+- 2026-09-18T18:27:10Z **ROUND 4 REVIEW - agent/rv4-pr87: PASS.** Reviewed at `d1d86ec` in two throwaway
+  detached worktrees (`.worktrees/rv4-pr87`, `.worktrees/rv4b`, both removed); every subject file hashed
+  against `git show d1d86ec:<path>` before measuring and re-hashed after each mutating run, all equal; every
+  probe put under `ops/lib/` removed, both trees `git status --short` empty at the end.
+
+  **All twelve acceptance lines re-run character for character; every quoted string appeared and every exit
+  code matched.** 1: the seven case lines, `SECRET-SCAN OK (7 cases)`, exit 0. 2: `--hook` on
+  `git show ffa9b6c:.githooks/pre-commit` -> `FAIL 256 / 1024 / 4096 KB ... COMMITTED (exit 0) - failed
+  open`, `FAIL staged blob object deleted ... refused, but not for the stated reason`, `SECRET-SCAN FAIL
+  (7 cases)`, exit 1. 3: the fail-open variant (`git show ... || : > "$blob"`) -> `FAIL staged blob object
+  deleted` and nothing else, exit 1. 4: the empty alternative in the pattern -> `FAIL 4096 KB clean must
+  COMMIT`, exit 1. 5: `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (46 scanned, 47 tracked,
+  floor 42)`, exit 0. 6: `.artifacts/r3-ffa9.sh` -> the eight lines exactly as named (`.githooks/pre-commit:18`
+  and `:27`, `ops/deploy:12`, `ops/lib/check-failure-naming:76` and `:77`, `ops/merge:45`, `ops/sane:41`,
+  `pins/PINS.yaml:123`), `FAIL: 8 pipeline(s) ... (41 scanned, 42 tracked, floor 42)`, exit 1, worktree removed.
+  7: `.artifacts/r4-demo.sh` -> `hits on the probe: 26`, `reported at lines: 1 2 3 4 5 6 7 8 9 10 11 12 13 14
+  15 17 19 20 21 23 24 25 26 27 31 32`, `hits outside the probe: 0`, `must-not lines 33-37 reported: 0`,
+  `FAIL: 26 pipeline(s) ... (47 scanned, 47 tracked, floor 42)`, exit 1; `.artifacts/r3f.sh` still `18` at
+  `1-15 17 19 20`. 8: `.artifacts/r3-red.sh` -> `REFUSING: .githooks/pre-commit is not in the scanned set`
+  and `REFUSING: the scan failed to run on ops/lib/pc-probe-badawk`, exit 2 each. 9: 141 and 0. 10:
+  `TOUCHES-MERGE OK (11 cases)`, exit 0. 11: `PINS ok=19 skipped=0 pending=3 expired=0 failed=0 tier=linux`,
+  exit 0 (full run, ~20 min). 12: `QUEUE OK (140 tasks)`, exit 0. The clean run after every probe run still
+  prints `OK ... (46 scanned, 47 tracked, floor 42)`; nothing in the real tree is newly reported.
+
+  **Round 4's five closures re-broken and they hold.** The comment-join cases are right in both directions:
+  probe line 21 (`producer |  # explanation`) is reported at 21, the pair at 27-29 (a comment line inside a
+  continued pipeline) at 27, and the comment at 30 that ends in a pipe no longer swallows the real hit on 31,
+  which is reported at 31; line 30 itself stays silent. Wrapper words are a class, not a list of two: beyond
+  the probe's `timeout 5`, `command`, `env LC_ALL=C` I measured `nohup`, `stdbuf -oL`, `sudo -n`, `nice -n 5`,
+  `exec` and the stacked `env LC_ALL=C timeout 5` all reported. `-l`, `-L` and `--files-without-match` are
+  reported; `GREP_OPTIONS=-q grep` is reported by ENVPATTERN. The five must-not lines (33-37) stay unreported,
+  `xargs grep -q` among them and correctly so.
+
+  **The awk program cannot print OK over nothing, as far as I could push it.** awk's status is read (RED
+  above). An empty file scans and counts (`scanned = files - 1` still held at 53 scanned with seven probes
+  present). A file with NO trailing newline whose last line is the hit is reported; a pipeline left pending
+  at end of file with no trailing newline is reported at its FIRST line; a comment-only line ending in a pipe
+  at end of file is correctly silent. A missing or unreadable file makes awk fail and the scan REFUSE.
+
+  **Record.** agent/rv3-pr87's entry above is present verbatim, 33 lines, byte-identical to the text it
+  returned. `git show d1d86ec -- <this file>` is +79/-7: the seven removed lines are six acceptance lines and
+  the file's trailing blank. No dated Log text was edited or removed. The three numbers round 3 called stale
+  are now what the commands print here (`46 scanned, 47 tracked`, `11 cases`, `ok=19`), and the round-3 entry
+  keeps its `41/42` and `10 cases`, which were true of `9f15cbe`. P-OPS-03's `statement:` is narrowed to what
+  the scan recognises and the scan's header lists what it does not see. The six edits are each `grep -q X` ->
+  `grep X >/dev/null`, exit status unchanged; P-SAFE-05's assertion now ends `... >/dev/null`. CI runs both
+  new pins (`.github/workflows/linux-core.yml` runs `ops/check-pins`).
+
+  **RECORDABLE, not blocking - all latent, none present in the tree today.**
+  (1) A backslash continuation INSIDE a pipeline evades: `producer |` / `timeout 5 \` / `grep -q PAT` measures
+  exit 141 under the acceptance block's mechanism and is not reported, because the join only continues a line
+  that ends in `|`. `grep -rnE '\|[[:space:]]*$'` and `grep -rnE '\\[[:space:]]*$'` over `ops .githooks
+  pins/PINS.yaml` return nothing, so no line in the scanned set ends in a pipe or a backslash at all.
+  (2) The per-file `grep -E` at line 122 has its stdout trusted but its exit status unread - the same shape
+  one level up that reading awk's status closed. Not reachable at this head (both patterns are constants and
+  compile), so it is a shape, not a defect.
+  (3) The scan exempts its own path unconditionally (line 85). It carries no `| grep -q` decision today - its
+  own uses are `grep ... >/dev/null` and a `grep -v` that reads to EOF - so nothing hides behind the exemption
+  now, but the exemption is by path, not by content.
+  (4) A file with a NUL byte under the scanned paths is reported as `<file>:Binary file /tmp/tmp.XXXX matches`
+  - it fails CLOSED here (GNU grep 3.0 puts that on stdout, the hit is counted, exit 1) but names the temp
+  path instead of the source line; on GNU grep >= 3.5 that message goes to stderr and the hit would be dropped
+  silently. No binary file exists under `ops/`, `.githooks/` or `pins/PINS.yaml`.
+  (5) Acceptance line 2's parenthetical `(git itself refuses: Error building trees)` is a gloss, not that
+  command's output: line 2 prints `error: invalid object ... / fatal: bad object :leak.txt`, while the exact
+  string `error: Error building trees` is what line 3's run prints. The claim is true; the string belongs to
+  the neighbouring line.
