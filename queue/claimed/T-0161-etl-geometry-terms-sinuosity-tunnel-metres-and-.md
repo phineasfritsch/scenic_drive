@@ -452,3 +452,17 @@ command did not print.
   - `ops/test` and `ops/check-pins` were again NOT run on this box (both wrap swift; the default scratch
     path does not build inside a worktree here). CI decides them; `gh pr checks 94` is read once after the
     push.
+- 2026-09-18T23:25Z Acceptance block re-run at 474d0ad, the round-3 commit. `git status --short` empty at
+  474d0ad; `wc -l` 83 / 143 / 178 / 300 / 263 / 278 / 67 for sinuosity.py, proximity.py, test_sinuosity.py,
+  test_proximity.py, geometry_terms_fixture.json, test_proximity_bends.py and geometry_bends_fixture.json,
+  with `awk 'END{print NR}'` 300 / 178 / 278 for the three test files; `cd services/etl && python -m pytest
+  tests -rs` -> `602 passed in 62.98s (0:01:02)`, exit 0, and `grep -c 'short test summary'` over the
+  captured output prints 0; `python -m pytest tests/test_proximity.py tests/test_sinuosity.py
+  tests/test_proximity_bends.py` -> `130 passed in 0.35s`; `--collect-only -q` -> `tests/test_proximity.py:
+  60`, `tests/test_proximity_bends.py: 22`, `tests/test_sinuosity.py: 48`; `bash
+  ops/lib/check-pipe-consumers` bare -> `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (57
+  scanned, 58 tracked, floor 42)`, exit 0; `bash ops/queue-check` bare -> `QUEUE OK (158 tasks)`, exit 0.
+  Every COUNT quoted in the block reproduced and no line needed correcting. The only quantity that moved is
+  the whole-suite WALL TIME - 60.71s before the commit against 62.98s at it - which the block already
+  carries as evidence and not as a claim. This commit changes this file only, and this file is not one the
+  block measures, so nothing is re-measured by it; `state: claimed` and `reviewer: null` are untouched.
