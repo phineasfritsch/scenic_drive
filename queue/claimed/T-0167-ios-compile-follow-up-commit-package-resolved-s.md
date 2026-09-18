@@ -146,3 +146,17 @@ ref, which is also how T-0151, T-0152 and T-0153 can prove their Swift compiles 
   3. The check pins what the workflow SAYS. GitHub's own behaviour is out of its reach (T-0157's reviewers recorded two mutants that pass the check and are rejected by GitHub's parser instead); the dispatch remains the only proof the job compiles anything.
   4. Untouched by this task and unchanged: signing, TestFlight, the plan's push-to-phone gate (T-0009, the human). This tree has never been on a device, and nothing here changes that.
   5. `ops/lib/check-ios-compile-guardrails.py` is at 296 lines against a 300-line cap; the next edit to it should budget for that.
+- 2026-09-18T21:57:33Z **Record corrections from the read-only verification, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier reproduced the three runs on their shas (35394086754 on d9a09d3:
+  Xcode 26.3, Build version 17C529, ** BUILD SUCCEEDED **, 0 ' error:', DEVELOPER_DIR at job level, the status
+  step silent), the guardrail check and its --prove-red in this worktree (32 mutations red, 3 spellings green),
+  P-OPS-06 as the 24th pin with no duplicate id, and the clean tree; these are text.** (a) R7's "P-OPS-04 and
+  P-OPS-06 are both absent from every one of the 30 open PRs' pins/PINS.yaml" quotes no output; what is
+  re-derivable is that origin/main carries P-OPS-01/02/03/05 and this branch adds P-OPS-06 without a duplicate.
+  (b) The pin-as-pin red run (`.artifacts/T-0167/pin_red.py`) and STEP 1's `one-sided.yml` are quoted in the
+  Log but neither file survives under `.artifacts/T-0167/`, so that red cannot be re-executed from an artifact;
+  the script-level reds (--prove-red's "DEVELOPER_DIR pointed elsewhere" and the
+  `-disableAutomaticPackageResolution` mutation) are reproducible and were reproduced. (c) `grep -c ' error:'
+  = 0` for run 35393590488 (step 2) was not re-fetched; it holds for the final run. (d) Whether
+  `pins-source-only` took the PyYAML install branch: run 35394513701's step ran and the core container printed
+  `PyYAML 6.0.1`, still not that job's own line, so STILL OPEN item 2 stands as written.
