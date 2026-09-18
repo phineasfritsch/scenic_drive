@@ -1,0 +1,278 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		6E797450004414346C63CF2A /* FeatureScenicHome in Frameworks */ = {isa = PBXBuildFile; productRef = F07DC3C51D495EF9C456BF2A /* FeatureScenicHome */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		E3431FBAD2BD163B85A490C9 /* ScenicDrive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScenicDrive.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EDB6E68498A5045A5316E1E2 /* Exceptions for "ScenicDrive" folder in "ScenicDrive" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 08CC3078A869E795EA1EFD38 /* ScenicDrive */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		369DA5D7103E54591C5C8791 /* ScenicDrive */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EDB6E68498A5045A5316E1E2 /* Exceptions for "ScenicDrive" folder in "ScenicDrive" target */,
+			);
+			path = ScenicDrive;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		22F4557286C0F0D3D1C4018F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6E797450004414346C63CF2A /* FeatureScenicHome in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4D9119F612BB0F8484F040FB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E3431FBAD2BD163B85A490C9 /* ScenicDrive.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BFFCA77B9CDCD31BFF2208B0 = {
+			isa = PBXGroup;
+			children = (
+				369DA5D7103E54591C5C8791 /* ScenicDrive */,
+				4D9119F612BB0F8484F040FB /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		08CC3078A869E795EA1EFD38 /* ScenicDrive */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1222F56A5D2B894586AC3EF /* Build configuration list for PBXNativeTarget "ScenicDrive" */;
+			buildPhases = (
+				BF2AD671711214A799E257B1 /* Sources */,
+				22F4557286C0F0D3D1C4018F /* Frameworks */,
+				EF836D43724B349D3B21FD2B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				369DA5D7103E54591C5C8791 /* ScenicDrive */,
+			);
+			name = ScenicDrive;
+			packageProductDependencies = (
+				F07DC3C51D495EF9C456BF2A /* FeatureScenicHome */,
+			);
+			productName = ScenicDrive;
+			productReference = E3431FBAD2BD163B85A490C9 /* ScenicDrive.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		115F38F8EB05ACC668D67FF0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					08CC3078A869E795EA1EFD38 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+				};
+			};
+			buildConfigurationList = C3E2EAE990EC94D3A1F9A61E /* Build configuration list for PBXProject "ScenicDrive" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = BFFCA77B9CDCD31BFF2208B0;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				634F448852B3DFD0426F6CEC /* XCLocalSwiftPackageReference "Packages/ScenicApp" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 4D9119F612BB0F8484F040FB /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				08CC3078A869E795EA1EFD38 /* ScenicDrive */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EF836D43724B349D3B21FD2B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BF2AD671711214A799E257B1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5447AAB3CC7AE4C73C5E7522 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		7702C0E25135D56684128461 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		021E08FBC5F542BA86886883 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ScenicDrive/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.phineasfritsch.scenicdrive;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		2EF794759BE674921051C9E2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ScenicDrive/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.phineasfritsch.scenicdrive;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1222F56A5D2B894586AC3EF /* Build configuration list for PBXNativeTarget "ScenicDrive" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				021E08FBC5F542BA86886883 /* Debug */,
+				2EF794759BE674921051C9E2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C3E2EAE990EC94D3A1F9A61E /* Build configuration list for PBXProject "ScenicDrive" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5447AAB3CC7AE4C73C5E7522 /* Debug */,
+				7702C0E25135D56684128461 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		634F448852B3DFD0426F6CEC /* XCLocalSwiftPackageReference "Packages/ScenicApp" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ScenicApp;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F07DC3C51D495EF9C456BF2A /* FeatureScenicHome */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeatureScenicHome;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 115F38F8EB05ACC668D67FF0 /* Project object */;
+}

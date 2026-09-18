@@ -22,3 +22,4 @@ acceptance: []
 
 ## Log
 - 2026-09-07T15:44:53Z claimed by agent/claude-opus-5; lease until 2026-09-07T18:44:53Z
+- 2026-09-18T03:20:00Z addressed by [[T-0141]] (`ops/lib/check-line-cap` globs gain `apps/ios/**/*.swift`, demonstrated red with a 301-line file); moves to done/ when T-0141's PR merges, by its reviewer.
