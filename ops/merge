@@ -42,7 +42,7 @@ head_ref="$(gh pr view "$pr" --json headRefName -q .headRefName 2>/dev/null)"
 [[ -n "$head_ref" ]] || { echo "MERGE REFUSED: PR $pr does not exist or is not readable"; exit 1; }
 task="$(printf '%s' "$head_ref" | grep -oE 'T-[0-9]{4}' || true)"
 if [[ -n "$task" ]]; then
-  if ! gh api "repos/$repo/contents/queue/done?ref=$head_ref" --jq '.[].name' 2>/dev/null | grep -q "^$task-"; then
+  if ! gh api "repos/$repo/contents/queue/done?ref=$head_ref" --jq '.[].name' 2>/dev/null | grep "^$task-" >/dev/null; then
     echo "MERGE REFUSED: $task is not in queue/done/ on $head_ref - a reviewer has not signed it off"
     exit 1
   fi
