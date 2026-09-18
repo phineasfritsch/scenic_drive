@@ -15,18 +15,22 @@ reviewer: null
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
-  - "gh workflow run ios-compile.yml --ref task/T-0152 ; gh run view 35393000321 --json status,conclusion -> {\"conclusion\":\"success\",\"status\":\"completed\"} ; gh run view 35393000321 --log -> line 1616 '** BUILD SUCCEEDED **' (Xcode 16.4, Build version 16F6, swift-driver 1.120.5), grep -c 'error:' over that log -> 0, and line 1324 'SwiftCompile normal arm64 Compiling\\ ScenicHomeScreen.swift ... (in target FeatureScenicHome from project ScenicApp)'. ONE dispatch, green first time - no red compile to quote"
+  - "gh workflow run ios-compile.yml --ref task/T-0152 ; gh run view 35396900851 --json databaseId,headSha,status,conclusion -> {\"conclusion\":\"success\",\"databaseId\":35396900851,\"headSha\":\"d16a5e4713fb830b977d0f2641c91df04cf88399\",\"status\":\"completed\"} ; gh run view 35396900851 --log -> line 1613 '** BUILD SUCCEEDED **', with line 114 'Xcode 16.4', 115 'Build version 16F6', 120 'swift-driver version: 1.120.5'; grep -c 'error:' over that log -> 0; lines 1380 (x86_64) and 1427 (arm64) 'Compiling ScenicHomeScreen.swift (in target FeatureScenicHome from project ScenicApp)'. ONE dispatch for the amendment, green first time - no red compile to quote. The first half's green, 35393000321, sat on d428da0, an ancestor of d16a5e4"
   - "bash ops/lib/check-line-cap -> P-SRC-02: 68 Swift files tracked (Sources=25, Tests=35, apps/ios=8), none over 300 lines, exit 0"
-  - "RED FIRST, same gate, same file: 130 filler lines appended -> bash ops/lib/check-line-cap -> 'P-SRC-02: file(s) over the 300-line cap:' / '  apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift (309 lines)', exit 1; filler removed -> green above"
-  - "awk 'END{print NR}' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 179, exit 0"
-  - "grep -n 'accessibilityIdentifier(\"home\\.' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 59:home.error, 92:home.title, 100:home.caption, 129:home.openInAppleMaps (the last pre-existing), exit 0"
-  - "grep -n 'handoffFailure = \\|String(describing: error)' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 138 (doc comment), 145 'handoffFailure = nil', 152 'Self.log.error(... String(describing: error), privacy: .public)', 153 'handoffFailure = Copy.handoffFailed'. The raw error reaches Logger and nothing else; no assignment of it to the on-screen string remains, exit 0"
+  - "RED FIRST, re-run on the amended file: 130 filler lines appended -> awk 'END{print NR}' -> 329 -> bash ops/lib/check-line-cap -> 'P-SRC-02: file(s) over the 300-line cap:' / '  apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift (329 lines)', exit 1; filler removed -> 199 lines -> green above"
+  - "awk 'END{print NR}' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 199, exit 0"
+  - "THE THREE RULED STRINGS, transcribed: grep -n 'static let title\\|static let route\\|static let mapCaption' -A1 <file> -> 180 'Skyline loop · ends back in San Francisco', 186 'I-280 south, Cañada Road north, CA-92 west, Skyline Boulevard south, then back to the city.', 193 'This map doesn't show roads yet. Tap below and the drive opens in Apple Maps.'; sed -n '180p;186p;193p' <file> | od -c -> '302 267' (U+00B7 MIDDLE DOT in the title, not a hyphen), '303 261' (U+00F1 in Cañada), and a plain ASCII apostrophe in doesn't - no typographic substitution was applied to copy the owner ruled on, exit 0"
+  - "NO DURATION on the screen: grep -n 'minute\\|hour\\|[0-9] *hr\\|[0-9] *min\\|[0-9]h[0-9]\\|miles\\|[0-9] mi\\b' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> no output, exit 1 (no duration and no distance anywhere in the file: nobody has driven this route and no command here measured one)"
+  - "grep -n 'accessibilityIdentifier(\"home\\.' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 62:home.error, 96:home.title, 106:home.route (new in the amendment), 112:home.caption, 141:home.openInAppleMaps (pre-existing), exit 0"
+  - "grep -n 'handoffFailure = \\|String(describing: error)' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 150 (doc comment), 157 'handoffFailure = nil', 164 'Self.log.error(... String(describing: error), privacy: .public)', 165 'handoffFailure = Copy.handoffFailed'. The raw error reaches Logger and nothing else; the failure message is unchanged by the amendment, exit 0"
   - "grep -rn '0x[0-9A-Fa-f]\\{6\\}\\|Color(' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ -> no output, exit 1 (no raw hex and no ad-hoc Color in the feature target; colour comes from DesignTokens only)"
-  - "grep -n '\\.font(' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 55 .footnote, 87 .title2, 95 .subheadline, 119 .headline - four Dynamic Type text styles, no .system(size:) and no point size, exit 0"
+  - "grep -n '\\.font(' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 58 .footnote, 91 .title2, 99 .subheadline, 109 .subheadline (the new home.route line), 131 .headline - five Dynamic Type text styles; grep -n '\\.system(size:\\|size: [0-9]' over the same file -> no output, exit 1, so no point size anywhere"
   - "git diff --name-only origin/main...HEAD -> apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift and queue/claimed/T-0152-*.md, exit 0"
   - "git diff --name-only origin/main...HEAD -- apps/ios/Packages/ScenicApp/Sources/DesignSystem/ -> no output, exit 0 (DesignSystem is in touches: and needed no edit: bg, fg, fgMuted, destructive all already exist)"
+  - "git diff --name-only d16a5e4 -- '*.swift' -> no output, exit 0 (nothing Swift changed after run 35396900851 compiled d16a5e4; the record commit carries this file only)"
+  - "gh pr checks 95, run once on head d16a5e4 -> core pass 1m48s .../actions/runs/35396903921/job/105767728624 ; pins-source-only pass 1m14s .../actions/runs/35396903921/job/105767728229, exit 0"
   - "git status --porcelain -> no output, exit 0"
-  - "NOT RUN, on the record: bash ops/check-pins and bash ops/test (the default swift scratch path does not build in a worktree on this box) - gh pr checks on the PR is the record for the Linux gates. NOT DONE, on the record: nothing has rendered this screen - no simulator run, no device, no snapshot; this tree has never been on a phone"
+  - "NOT RUN, on the record: bash ops/check-pins and bash ops/test (the default swift scratch path does not build in a worktree on this box) - gh pr checks 95 above is the record for the Linux gates. NOT DONE, on the record: nothing has rendered this screen - no simulator run, no device, no snapshot, no screenshot; this tree has never been on a phone, so every claim about how these three strings look is a reading of code"
 ---
 ## Brief
 
@@ -234,3 +238,127 @@ do not add the disclaimer here (T-0153 owns it, and it gates the first plan, not
   `d428da0`; `git diff --name-only d428da0 979641c -- '*.swift'` -> no output, so no Swift changed after the
   compiler saw it. `state: claimed` and `reviewer: null` are unchanged: the reviewer of this task is not its
   owner, and this session is the owner.
+
+- 2026-09-18T21:30:52Z agent/claude-opus-5 (owner and author, second session on this task). **PART 2, the
+  strings amendment. The ruling and its source first, before any code.** Nothing above this line was edited:
+  the dated entries stand as written, including the ones describing the copy this amendment replaces. The
+  `acceptance:` block was re-run and rewritten in full at the final commit - that block is a record of the
+  current head, not a dated entry.
+
+  **R10 - the copy is replaced, by the owner, verbatim.** Source: the 14:13 expert panel's two focus drivers,
+  read against `ScenicHomeScreen.swift`, and the OWNER's ruling on them handed to this session. This session
+  did not read the panel transcript and quotes nothing from it; what is ruled in is the three strings
+  themselves, transcribed byte for byte:
+
+      title    "Skyline loop · ends back in San Francisco"
+      route    "I-280 south, Cañada Road north, CA-92 west, Skyline Boulevard south, then back to the city."
+      caption  "This map doesn't show roads yet. Tap below and the drive opens in Apple Maps."
+
+  They replace `Skyline via Cañada Road` and `Preview build - this map is a stand-in, not your route. The
+  drive opens in Apple Maps.` from the first half. The failure string, `Couldn't open Apple Maps. Try again.`,
+  is NOT touched - R1 above still holds and nothing in this amendment bears on it. The byte check is in the
+  acceptance block: the title's separator is U+00B7 (`302 267` in `od -c`), not a hyphen, `Cañada` is `303
+  261`, and `doesn't` carries a plain ASCII apostrophe. No typographic "improvement" was applied to copy the
+  owner ruled on, exactly as R9 ruled for the first half's strings.
+
+  **R11 - no duration, anywhere on this screen.** Ruled by the owner and adopted here with its reason on the
+  record: two panel lenses guessed different numbers for this drive and nobody has measured it. This tree has
+  never been on a phone, no handoff has ever been performed, and the ETA machinery the plan describes is not
+  wired to this screen - so any minutes printed here would be a number no command produced. The first device
+  handoff is what will measure it (T-0009's checklist). Written into the type's doc comment where the next
+  author will see it before adding one, and given a grep in the acceptance block that fails if a duration or a
+  distance ever appears in this file.
+
+  **R12 - the new line's text style: the ruling names Dynamic Type and the muted token, and is silent on
+  which style.** RULED: `.subheadline` and `DesignTokens.fgMuted` - the same pair the caption already uses,
+  with `fixedSize(horizontal: false, vertical: true)` like its neighbours so the largest accessibility sizes
+  wrap instead of truncating. Two reasons. It adds no new decision to the token table or the type scale
+  (R6 from the first half: no new tokens, no new fonts). And the alternative, demoting the roads to
+  `.footnote` under a `.subheadline` caption, would print the longest and most useful line on the screen -
+  the only line that says where you would actually be - at the smallest size on it. Order in the band: title,
+  then roads, then caption, which is the ruling's "a NEW second line under the title" read literally.
+  Identifier `home.route`, per the ruling; `home.title`, `home.caption`, `home.error` and
+  `home.openInAppleMaps` keep their names, so the identifiers a future XCUITest anchors on are stable across
+  this copy change even though two of the strings behind them changed.
+
+  **R13 - `Copy.mapIsAStandIn` is renamed to `Copy.mapCaption`.** The new caption does not say "stand-in", so
+  the old member name described a string that no longer exists. Private, nested, one call site; the rename is
+  mechanical and the compiler checked it (run below). The three-line `Copy` enum from R7 is otherwise
+  unchanged: still nested, still not an `.xcstrings` catalog, so `exclusive:` stays empty.
+
+  **T-0170 will reuse this line.** T-0170 (a copyable road list on a failed handoff) needs exactly the roads
+  in order, which is why they are a named member, `Copy.route`, and not an inline literal in the `Text`. The
+  note is in the source next to the string as well as here. Nothing in this task makes anything copyable -
+  R1's finding still holds: there is no copy affordance anywhere in the Apple package, which is why the
+  failure sentence still does not promise one.
+
+  **What this amendment does NOT touch**, each one checked in the acceptance block or by the diff: the failure
+  `Text`, its `destructive`/`.footnote` treatment and its string; the button, its `primary`/`onPrimary`
+  treatment and its 44 pt floor; `AttributionFooter`, its text, and the map's lower-right corner (the band is
+  above the map, R3, so it structurally cannot reach either); the map style, centre and zoom; `DesignSystem`
+  (no file under it changed - the tokens used are `bg`, `fg`, `fgMuted`, `destructive`, all pre-existing);
+  `SkylineHandoff.swift` and `SkylineRoute.swift` (T-0151 owns them and is editing them now); `Package.swift`
+  and every other serial-only file. No safety disclaimer (T-0153 owns it), no route line drawn (M4).
+
+  **The gate, demonstrated RED BY NAME again on the amended file.** `bash ops/lib/check-line-cap` is the only
+  gate this box can run against this change, and the first half's red run was against a 179-line file that no
+  longer exists. Re-run bare, on the file as amended:
+
+      $ for i in $(seq 1 130); do echo "// filler line $i appended to demonstrate P-SRC-02 red by name" \
+          >> apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift; done
+      $ awk 'END{print NR}' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift
+      329
+      $ bash ops/lib/check-line-cap; echo "exit=$?"
+      P-SRC-02: file(s) over the 300-line cap:
+        apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift (329 lines)
+      exit=1
+
+  Filler removed, same command, bare:
+
+      $ awk 'END{print NR}' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift
+      199
+      $ bash ops/lib/check-line-cap; echo "exit=$?"
+      P-SRC-02: 68 Swift files tracked (Sources=25, Tests=35, apps/ios=8), none over 300 lines
+      exit=0
+
+  **The compiler ran on the amendment, and it is green.** `d16a5e4` pushed to `task/T-0152` at
+  2026-09-18T21:28:02Z, then `gh workflow run ios-compile.yml --ref task/T-0152` -> run **35396900851**
+  (https://github.com/phineasfritsch/scenic_drive/actions/runs/35396900851), `headSha`
+  `d16a5e4713fb830b977d0f2641c91df04cf88399`, `status: completed`, `conclusion: success`. ONE dispatch;
+  nothing went red on the branch, so this entry has no red compile to quote and does not invent one. From
+  `gh run view 35396900851 --log`:
+
+      1613:  ** BUILD SUCCEEDED **
+      114:   Xcode 16.4
+      115:   Build version 16F6
+      120:  swift-driver version: 1.120.5
+      1380:  SwiftDriverJobDiscovery normal x86_64 Compiling ScenicHomeScreen.swift (in target
+             'FeatureScenicHome' from project 'ScenicApp')
+      1427:  SwiftDriverJobDiscovery normal arm64 Compiling ScenicHomeScreen.swift (in target
+             'FeatureScenicHome' from project 'ScenicApp')
+
+  `grep -c "error:" <log>` -> `0`, over a 1667-line log. The amended file is named as compiled for both
+  simulator architectures, so the green is about this change and not about a skipped target. `gh pr checks 95`
+  was read once on the same head: `core pass 1m48s`, `pins-source-only pass 1m14s` (run 35396903921). That is
+  the record for the Linux gates - `bash ops/check-pins` and `bash ops/test` were NOT run locally, because the
+  default swift scratch path does not build in a worktree on this box.
+
+  **STILL OPEN - unchanged by this amendment, and the list from 20:47:15Z still stands in full.**
+  1. **Nothing has rendered this screen.** No simulator run, no device, no snapshot, no screenshot. This tree
+     has never been on a phone. The compiler proves the three strings and the third `Text` type-check into
+     `FeatureScenicHome`; it proves nothing about what they look like. Whether three left-aligned lines in one
+     band read as a hierarchy, whether the roads line wraps to two lines or four on a small phone, and whether
+     the band crowds the map at AX5 are all unobserved.
+  2. **The route line is prose about roads nothing verifies.** `Copy.route` names five roads; `SkylineHandoff`
+     holds coordinates and no road names, and no test, pin or build step ties the sentence to the waypoints
+     (R8, now covering the road list as well as the title). Only review connects them, and the coordinates
+     themselves are being edited by T-0151 in another worktree as this is written.
+  3. **No duration is claimed, and none is known.** R11: nobody has driven this route. The absence is the
+     honest state, not a gap this task left for tidiness.
+  4. **Contrast is reasoned, not measured** (20:47:15Z item 2), and the failure `Text` still draws over map
+     tiles in `destructive` (item 3) - untouched here.
+  5. **No XCUITest anchors on `home.route`** any more than on `home.title` or `home.caption`: there is still
+     no test target in the Apple package (`Package.swift`: "NO TEST TARGETS HERE, deliberately and
+     temporarily"), and a suite authored on a box with no Apple toolchain could never be seen red.
+  6. **Dynamic Type was not exercised** (20:47:15Z item 6). R12's choice of `.subheadline` for the roads is an
+     argument, not an observation.
