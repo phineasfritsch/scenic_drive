@@ -67,3 +67,71 @@ before fixing it: point the queue root at an empty directory and show the exit c
 - 2026-09-08 filed by agent/claude-opus-5 after `ops/new-task` filed the same finding twice as T-0066 and
   T-0067 and `ops/queue-check` stayed green. T-0067 was deleted; T-0066 keeps the finding.
 - 2026-09-08T03:01:15Z claimed by agent/claude-opus-5; lease until 2026-09-08T09:01:15Z
+
+- 2026-09-08 agent/claude-opus-5 — duplicate work detected, `new-task` refuses at creation, dead loop removed.
+
+  **Half of this task was already done by [[T-0073]]** and is recorded here so the next reader does not go
+  looking for it: the population floor (`MIN_TASKS = 40`), the missing-state-directory check, the
+  outside-`STATES` check and the widened glob all landed with T-0073's round-two fix. `QUEUE OK (0 tasks)` is
+  already dead. What was left is the duplicate.
+
+  **RED.** Copy any task under a fresh id — which is exactly how T-0066 and T-0067 came to exist, filed
+  minutes apart for one finding, byte-identical apart from the `id:` line:
+
+        sed 's/^id: T-[0-9]\{4\}$/id: T-9901/' queue/backlog/T-0008-*.md > queue/backlog/T-9901-duplicate.md
+        bash ops/queue-check
+        QUEUE OK (77 tasks)                                                            exit 0
+
+  The only uniqueness assertion was on the id, and the id is the one field `new-task` guarantees. It was a
+  gate on the one thing that could not go wrong.
+
+  **GREEN**, three ways, each executed:
+
+        same brief, different id
+          QUEUE CHECK FAIL
+           - 2 tasks share one brief (identical but for the id line): queue/backlog/T-0008-...md,
+             queue/backlog/T-9901-duplicate-of-another-task.md                          exit 1
+
+        same title, genuinely different brief
+          QUEUE CHECK FAIL
+           - 2 tasks share one title: queue/backlog/T-0008-...md, queue/backlog/T-9902-...md
+
+        ops/new-task with an existing title
+          refusing: T-0008 already has this title (queue/backlog/T-0008-...md).
+          Add to that task, or give this one a title that says how it differs.          exit 1
+
+        the same title with different case, spacing and punctuation - which is how two agents actually collide
+          refusing: T-0008 already has this title (...)                                 exit 1
+
+        control: a genuinely new title
+          queue/backlog/T-0082-a-title-nothing-else-in-the-queue-has.md                 exit 0
+
+  Refused at creation as well as at check on T-0056's argument: after the fact is a report, at the transition
+  is a prevention. A duplicate never committed costs nothing; one that is claimed costs two worktrees, two
+  branches over the same paths, and a merge conflict instead of a refusal.
+
+  **AN INVALID TEST, RECORDED BECAUSE I NEARLY BELIEVED IT.** The first `new-task` run did NOT refuse, and it
+  looked like the fix was dead. It was not: I had typed *"container, Bay Area graph, 20 goldens"* while
+  T-0008's real title is *"container + Bay Area graph from R2, 20 goldens"*. Two different titles, correctly
+  not matched. The check that saved me was reading both `title:` lines rather than trusting the slug, which is
+  the same mistake shape as T-0071's invalid hook demonstration one task earlier.
+
+  **SELF-ATTACK, and the honest limit.** Normalising case, punctuation and whitespace catches the collision
+  that actually happens - two agents writing the same sentence minutes apart. It does not catch two genuinely
+  different sentences describing one finding, and no syntactic check can. This narrows the window; it does not
+  close the class, and anyone reading `2 tasks share one title` should not conclude that its absence means no
+  duplicate exists.
+
+  Also removed, found while reading:
+
+        if state == "done":
+            for dep in fm.get("depends_on") or []:
+                pass  # done tasks may reference anything
+
+  A loop that iterates to do nothing. Now zero occurrences.
+
+  `ops/lib/queue.py` is 653 lines - it was 615 before this change and is exempt for [[T-0059]], which owns the
+  split. This adds 38 lines to a file already three times over the cap. Stated rather than hidden: T-0059 is
+  now more urgent than when it was filed, and this task made it worse.
+
+  Gates: `QUEUE OK (76 tasks)`, `PINS ok=9 failed=0`, `P-SRC-02` clean, `P-OPS-01: 26 files, all modes correct`.

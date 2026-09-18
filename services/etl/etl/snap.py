@@ -69,11 +69,17 @@ def _subdivisions(seg_m: float, step_m: float) -> int:
     return max(1, math.ceil(seg_m / step_m))
 
 
-def overlap_fraction(way: list[tuple[float, float]], line: list[tuple[float, float]],
-                     tolerance_m: float = SNAP_TOLERANCE_M, step_m: float = SAMPLE_STEP_M) -> float:
-    """Fraction of the way's LENGTH that runs within `tolerance_m` of the reference polyline."""
+def overlap_m(way: list[tuple[float, float]], line: list[tuple[float, float]],
+              tolerance_m: float = SNAP_TOLERANCE_M,
+              step_m: float = SAMPLE_STEP_M) -> tuple[float, float]:
+    """`(metres of the way running within tolerance_m of the line, the way's whole length)`.
+
+    The gate needs the ratio; anything WEIGHING a way - voting on which route a corridor is, summing how
+    much road a designation covers - needs the near metres. A way admitted at MIN_OVERLAP_FRACTION is up to
+    70% somewhere else, so its whole length is not a quantity about this corridor at all.
+    """
     if len(way) < 2:
-        return 0.0
+        return 0.0, 0.0
     near = total = 0.0
     for a, b in zip(way, way[1:]):
         seg = distance_on_earth(a[0], a[1], b[0], b[1])
@@ -87,6 +93,13 @@ def overlap_fraction(way: list[tuple[float, float]], line: list[tuple[float, flo
             mid = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
             if distance_to_line_m(mid, line) <= tolerance_m:
                 near += piece
+    return near, total
+
+
+def overlap_fraction(way: list[tuple[float, float]], line: list[tuple[float, float]],
+                     tolerance_m: float = SNAP_TOLERANCE_M, step_m: float = SAMPLE_STEP_M) -> float:
+    """Fraction of the way's LENGTH that runs within `tolerance_m` of the reference polyline."""
+    near, total = overlap_m(way, line, tolerance_m, step_m)
     return (near / total) if total else 0.0
 
 

@@ -95,7 +95,7 @@ import re
 
 from .curvature import distance_on_earth  # noqa: F401  - re-exported, callers use byways.distance_on_earth
 from .snap import (MIN_OVERLAP_FRACTION, SAMPLE_STEP_M, SNAP_TOLERANCE_M,  # noqa: F401  - re-exported
-                   distance_to_line_m, length_m, overlap_fraction, point_to_segment_m)
+                   distance_to_line_m, length_m, overlap_fraction, overlap_m, point_to_segment_m)
 
 DESIGNATED_BONUS = 0.15
 # Measured, not quoted: officially designated centreline / all centreline in the pinned Caltrans pull.
@@ -119,7 +119,15 @@ KNOWN_STATUS = frozenset({DESIGNATED, ELIGIBLE})
 KEY_VERDICT = "key_verdict"
 KEY_CORROBORATED = "corroborated"
 KEY_REKEYED = "rekeyed"
+# The key holds real evidence AND another number still outvotes it past the re-key bar. Two numbers with a
+# case each: the key stays and this is reported, because choosing between them here would be a guess.
+KEY_CONTESTED = "contested"
 KEY_UNCLAIMED = "unclaimed"
+# Something along the corridor claims the key, but less than the bar a rival has to clear to take it, so
+# the corridor has not established the key either. Distinct from UNCLAIMED, where NOTHING claims it: here
+# there is a claim and a number to audit (`key_claim_m`), and that claim is exactly what used to buy a
+# wrong key its silence. The key is kept - this module never falls back to geometry - and reported.
+KEY_UNDER_EVIDENCED = "under_evidenced"
 KEY_UNKEYED = "unkeyed"
 
 # One `;`-separated part of an OSM `ref`: a network prefix and a bare number, nothing after it. `US 101` and
@@ -250,11 +258,27 @@ def problems(byways: list[dict]) -> list[str]:
         out.append(f"{blind} keyed byway(s) were never checked against the ways along them - Caltrans RTE "
                    f"is wrong on real corridors and a wrong key rejects the whole corridor in silence; "
                    f"run byway_route_key.reconcile")
-    rekeyed = sorted({",".join(b.get("key_was") or []) for b in byways
-                      if b.get(KEY_VERDICT) == KEY_REKEYED})
-    if rekeyed:
-        out.append(f"{len(rekeyed)} route number(s) {rekeyed} were claimed by no way along their own "
-                   f"corridor and re-keyed from the ways - the source's RTE field is wrong there")
+    # Counted in ENTRIES, with the distinct numbers named beside the count: one wrong RTE value shared by
+    # forty rows is forty corridors losing their ways, and a count of distinct STRINGS said "1".
+    rekeyed_entries = [b for b in byways if b.get(KEY_VERDICT) == KEY_REKEYED]
+    if rekeyed_entries:
+        keys = sorted({",".join(b.get("key_was") or []) for b in rekeyed_entries})
+        out.append(f"{len(rekeyed_entries)} byway(s) carrying route key(s) {keys} were claimed by no way "
+                   f"along their own corridor - or by too little of one to be evidence - and re-keyed "
+                   f"from the ways; the source's RTE field is wrong there")
+    contested_entries = [b for b in byways if b.get(KEY_VERDICT) == KEY_CONTESTED]
+    if contested_entries:
+        keys = sorted({",".join(sorted(b.get("routes") or ())) for b in contested_entries})
+        out.append(f"{len(contested_entries)} byway(s) whose route key(s) {keys} are outvoted along their "
+                   f"own corridor by another number that clears the re-key bar, while still holding the "
+                   f"corridor themselves - the key was kept and matched, so if it is the wrong one this "
+                   f"is a silent loss")
+    thin = [b for b in byways if b.get(KEY_VERDICT) == KEY_UNDER_EVIDENCED]
+    if thin:
+        keys = sorted({",".join(sorted(b.get("routes") or ())) for b in thin})
+        out.append(f"{len(thin)} byway(s) carrying route key(s) {keys} are claimed along their own "
+                   f"corridor by too little to establish them - under the metres or the share a rival "
+                   f"would need to take the key - so the key was kept without the corridor confirming it")
     stranded = sum(1 for b in byways if b.get(KEY_VERDICT) == KEY_UNCLAIMED)
     if stranded:
         out.append(f"{stranded} byway(s) have a route key nothing along them claims and no consensus to "

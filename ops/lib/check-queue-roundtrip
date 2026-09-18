@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+# P-PROC-02's assertion: a task file written by queue.py dump() is read back by queue.py parse() as what
+# was written, and no front-matter value can declare a second key.
+#
+# Why this file exists at all. T-0092 closed the injection hole in ops/lib/queue.py and committed NO check:
+# reverting the whole change left ops/queue-check, ops/check-pins --source-only and ops/lib/check-brief-required
+# all at exit 0, byte for byte. The property was true and untested, which is how it was lost the first time.
+#
+# Three populations, each with a floor on what was ACTUALLY EXAMINED - never on what was merely present:
+#
+#   1. WRITE payloads   values dump() must either refuse or write recoverably   floor MIN_WRITE
+#   2. READ payloads    hand-written front matter parse() must refuse           floor MIN_READ
+#   3. task files       every real file in queue/, parse -> dump -> parse       floor MIN_TASKS
+#
+# A count of files FOUND would pass on a queue/ that failed to glob; a count of payloads DEFINED would pass on
+# a table nothing iterated. Each counter below is incremented only after its case has been run to a verdict.
+#
+# Anchored on the module's exported functions (parse/dump) and on the task files themselves, never on a
+# comment and never on the wording of an error message.
+set -uo pipefail
+# Not `git rev-parse --show-toplevel`: from WSL against a Windows worktree that prints an unusable path (T-0055).
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -f ops/lib/queue.py ]] || { echo "$(pwd) is not the repo root (no ops/lib/queue.py)"; exit 2; }
+
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+[[ -n "$PY" ]] || { echo "no python interpreter"; exit 2; }
+
+"$PY" - <<'PYEOF'
+import importlib.util
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path.cwd()
+spec = importlib.util.spec_from_file_location("scenic_queue", ROOT / "ops" / "lib" / "queue.py")
+q = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(q)
+
+# SCENIC_RT_QUEUE exists so the floor below can be demonstrated red against an empty population without
+# emptying the real queue/. It is not a way to make the check pass: a smaller population fails.
+QUEUE = Path(os.environ.get("SCENIC_RT_QUEUE") or (ROOT / "queue"))
+
+MIN_WRITE = 24
+MIN_READ = 6
+MIN_TASKS = 40
+
+fail = []
+
+# ---------------------------------------------------------------- 1. what dump() is allowed to write
+BASE = {
+    "id": "T-9999", "title": "roundtrip probe", "state": "claimed",
+    "owner": "agent/worker", "owner_session": "abcd1234", "claimed_at": None,
+    "lease_expires_at": None, "worktree": None, "branch": "task/T-9999",
+    "exclusive": [], "touches": ["ops/lib/queue.py"], "pins_affected": [],
+    "reviewer": None, "depends_on": [], "verify": ["ops/test"], "acceptance": [],
+}
+BODY = "## Brief\nprobe\n\n## Log\n- probe\n"
+
+# str.splitlines() ends a line on TEN characters. The guard this check replaces knew about two of them, so
+# eight of these were written as one physical line and read back as two. The list is derived from the READER
+# (str.splitlines), not from a model of the format.
+BREAKS = ["\n", "\r", "\r\n", "\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"]
+
+payloads = []
+for ch in BREAKS:
+    # An injected key, and an injected block-list item that redefines a key without repeating it.
+    payloads.append((f"reviewer carries {ch!r} + a key", "reviewer", f"agent/worker{ch}owner: agent/nobody"))
+    payloads.append((f"worktree carries {ch!r} + a list item", "worktree", f"../wt{ch}  - agent/nobody"))
+payloads += [
+    ("worktree looks like a flow list", "worktree", "[a, b]"),
+    ("title looks like a flow list", "title", "[a, b]"),
+    ("owner is the string 'null'", "owner", "null"),          # T-0073 route 2 must stay quoted
+    ("title carries a colon", "title", "fix: the thing"),
+    ("worktree is quoted already", "worktree", '"quoted"'),
+    ("worktree has edge whitespace", "worktree", "  padded  "),
+]
+
+write_exercised = 0
+for label, key, value in payloads:
+    fm = dict(BASE)
+    fm[key] = value
+    verdict = None
+    try:
+        text = q.dump(fm, BODY)
+    except ValueError:
+        verdict = "refused"                                    # a value with no representation: correct
+    if verdict is None:
+        try:
+            back, back_body = q.parse(text)
+        except ValueError as e:
+            fail.append(f"WRITE {label}: dump() wrote it but parse() refused it: {e.args[0][:90]}")
+            write_exercised += 1
+            continue
+        if back != fm or back_body != BODY:
+            got = back.get(key)
+            fail.append(f"WRITE {label}: dump() wrote {value!r} and parse() read {got!r}")
+            write_exercised += 1
+            continue
+    write_exercised += 1
+
+# A rule that only ever refuses is an outage, not a check. An ordinary task must still survive.
+try:
+    ctrl, ctrl_body = q.parse(q.dump(dict(BASE), BODY))
+    if ctrl != BASE or ctrl_body != BODY:
+        fail.append("WRITE control: an ordinary task file does not round-trip")
+    write_exercised += 1
+except ValueError as e:
+    fail.append(f"WRITE control: dump()/parse() refused an ordinary task file: {e.args[0][:90]}")
+    write_exercised += 1
+
+# ---------------------------------------------------------------- 2. what parse() must refuse
+def doc(fm_text):
+    return "---\n" + fm_text + "\n---\n## Brief\nx\n"
+
+READ_REFUSE = [
+    ("a repeated key", "id: T-9999\nowner: agent/worker\nowner: agent/nobody"),
+    ("a repeated key far apart", "owner: agent/worker\nstate: claimed\nowner: agent/nobody"),
+    ("a block item over a scalar", "id: T-9999\nowner: agent/worker\n  - agent/nobody"),
+    ("a block item over a flow list", "id: T-9999\ntouches: [a]\n  - ops/lib/queue.py"),
+    ("a block item over an empty flow list", "id: T-9999\nexclusive: []\n  - Package.swift"),
+    ("a repeated key after a block list", "acceptance:\n  - \"x\"\nid: T-1\nid: T-2"),
+]
+READ_ACCEPT = [
+    ("a block list under an empty key", "id: T-9999\nacceptance:\n  - \"one\"\n  - \"two\"", {"id": "T-9999", "acceptance": ["one", "two"]}),
+    ("a flow list", "id: T-9999\ntouches: [a, b]", {"id": "T-9999", "touches": ["a", "b"]}),
+    ("an empty flow list", "id: T-9999\nexclusive: []", {"id": "T-9999", "exclusive": []}),
+]
+
+read_exercised = 0
+for label, fm_text in READ_REFUSE:
+    try:
+        got, _ = q.parse(doc(fm_text))
+        fail.append(f"READ {label}: parse() accepted it -> {got!r}")
+    except ValueError:
+        pass
+    read_exercised += 1
+for label, fm_text, want in READ_ACCEPT:
+    try:
+        got, _ = q.parse(doc(fm_text))
+        if got != want:
+            fail.append(f"READ {label}: parse() read {got!r}, wanted {want!r}")
+    except ValueError as e:
+        fail.append(f"READ {label}: parse() refused a legitimate file: {e.args[0][:90]}")
+    read_exercised += 1
+
+# ---------------------------------------------------------------- 3. every real task file
+tasks_examined = 0
+for p in sorted(QUEUE.glob("*/T-[0-9][0-9][0-9][0-9]-*.md")):
+    rel = p.relative_to(ROOT).as_posix() if p.is_relative_to(ROOT) else p.as_posix()
+    try:
+        fm, body = q.parse(p.read_text(encoding="utf-8"))
+    except ValueError as e:
+        fail.append(f"TASK {rel}: parse() refused a file already in the tree: {e.args[0][:90]}")
+        tasks_examined += 1
+        continue
+    try:
+        fm2, body2 = q.parse(q.dump(fm, body))
+    except ValueError as e:
+        fail.append(f"TASK {rel}: does not survive dump()/parse(): {e.args[0][:90]}")
+        tasks_examined += 1
+        continue
+    if fm2 != fm or body2 != body.lstrip("\n"):
+        differ = sorted(k for k in set(fm) | set(fm2) if fm.get(k, KeyError) != fm2.get(k, KeyError))
+        fail.append(f"TASK {rel}: round-trip changed {differ or 'the body'}")
+    tasks_examined += 1
+
+# ---------------------------------------------------------------- verdict
+floors = [
+    ("write payloads", write_exercised, MIN_WRITE),
+    ("read payloads", read_exercised, MIN_READ),
+    ("task files", tasks_examined, MIN_TASKS),
+]
+vacuous = [f"only {n} {what} examined (expected >= {floor})" for what, n, floor in floors if n < floor]
+
+if vacuous:
+    for v in vacuous:
+        print(f"P-PROC-02: {v}")
+    print("  An unexamined population must never read as 'the property holds'.")
+    sys.exit(1)
+
+if fail:
+    for f in fail[:20]:
+        print(f"P-PROC-02: {f}")
+    if len(fail) > 20:
+        print(f"P-PROC-02: ... and {len(fail) - 20} more")
+    print(f"QUEUE ROUNDTRIP FAIL ({len(fail)} of "
+          f"{write_exercised + read_exercised + tasks_examined} cases)")
+    sys.exit(1)
+
+print(f"QUEUE ROUNDTRIP OK: {write_exercised} write payloads, {read_exercised} read payloads, "
+      f"{tasks_examined} task files")
+PYEOF
