@@ -1,7 +1,7 @@
 ---
 id: T-0027
 title: Scenic score: land cover (USFS canopy, NLCD impervious) in a 150 m buffer
-state: done
+state: review
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T19:57:37Z
@@ -14,7 +14,24 @@ pins_affected: []
 reviewer: agent/reviewer-pr33
 depends_on: []
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "cd services/etl && python -m pytest -q --junitxml=../../.artifacts/pytest-junit.xml; python ops/lib/junit_count.py .artifacts/pytest-junit.xml -> total=552 failed=0 skipped=0, exit 0"
+  - "cd services/etl && python -m pytest tests/test_landcover.py tests/test_landcover_fixture.py tests/test_landcover_sampling.py tests/test_landcover_verdict.py tests/test_landcover_boundary.py tests/test_license_data.py tests/test_manifest.py -q --junitxml=../../.artifacts/pytest-lc.xml -> total=158 failed=0 skipped=0, exit 0"
+  - "the brief's RED, recomputed from the committed codes by tests/test_landcover_fixture.py and printed alongside it: old_la_honda canopy 0.955 impervious 0.012 water 0.000 coverage 1.0000 WOODED; skyline 0.849 / 0.019 / 0.000 / 1.0000 WOODED; alviso_flat 0.071 / 0.686 / 0.017 / 1.0000 BUILT_UP; alviso_flat2 0.014 / 0.452 / 0.291 / 1.0000 BUILT_UP - the 20 m re-record of round 2, not the 50 m numbers in the 2026-09-07T20:30Z table"
+  - "R2: lc.fractions([50] + [None]*28) -> coverage 0.0345 impervious 1.0; lc.is_built_up -> False; lc.problems -> ['coverage=0.034482758620689655 is below MIN_COVERAGE=0.5 - too little of the buffer was read for the fractions to mean anything, and no verdict is given on it']; lc.fractions([50]*15 + [None]*14) -> coverage 0.5172, is_built_up True, problems []  (asserted by tests/test_landcover_verdict.py::TestThinEvidence)"
+  - "R3: len(lc.buffer_points(37.5, -122.5)) -> 177, furthest 145.4846 m at BUFFER_STEP_M 20.0; len(lc.buffer_points(37.5, -122.5, step_m=50.0)) -> 29  (asserted by tests/test_landcover.py::TestBufferGeometry::test_the_buffer_is_exactly_this_many_samples_and_reaches_exactly_this_far)"
+  - "B1: entries needing credit 6 of 15, without an attribution field []; credits not verbatim in LICENSE-DATA []; mf.unattributed(manifest, LICENSE-DATA) -> [], mf.unattributed(manifest, README.md) -> []; LICENSE-DATA bullet lines naming USFS/MRLC/NLCD -> []  (asserted by tests/test_license_data.py and tests/test_manifest.py::TestRealManifest)"
+  - "RED (M-B1a, the ESA credit cut out of LICENSE-DATA) -> 4 named failures: test_license_data.py::TestEveryAttributionLicenceCarriesItsCredit::test_every_such_credit_appears_verbatim_in_license_data, ::test_the_worldcover_credit_is_the_string_the_fixture_records, ::TestLicenseDataListsOnlyWhatWeUse::test_worldcover_is_listed_under_its_own_heading_and_not_under_public_domain, test_manifest.py::TestRealManifest::test_every_attribution_licence_it_uses_is_actually_attributed; exit 1. Restored -> exit 0, 0 failed"
+  - "RED (M-B1b, the '- USFS / MRLC Tree Canopy Cover; MRLC Annual NLCD fractional impervious surface' bullet put back) -> 4 named failures: test_license_data.py::TestLicenseDataListsOnlyWhatWeUse::test_no_listed_source_names_a_dataset_no_manifest_entry_provides[USFS], [MRLC], [NLCD], [Tree Canopy]; exit 1. Restored -> exit 0"
+  - "RED (M-B1c, the two WorldCover entries' attribution: field deleted) -> test_license_data.py::TestEveryAttributionLicenceCarriesItsCredit::test_every_entry_that_needs_credit_names_the_credit_it_needs, exit 1. Restored -> exit 0"
+  - "RED (M-B1d, README.md loses 'State of California') -> test_manifest.py::TestRealManifest::test_the_readme_credits_the_same_sources_it_uses, exit 1. This one was RED for real, not as a demo, on the merge from origin/main: AssertionError: README.md does not credit: [CA-OpenData]. Restored -> exit 0"
+  - "RED (M3, the reviewer's mutation: out[i] = None if code == 0 else code -> out[i] = code) -> tests/test_landcover_sampling.py::TestWhatItDoesWithTheAnswer::test_code_zero_is_nodata_and_not_a_class, exit 1. Restored -> exit 0"
+  - "RED (M2, the reviewer's surviving mutation: WATER_CLASSES drops 95) -> 3 named failures: test_landcover.py::TestTheClassToTermMapping::test_each_class_feeds_exactly_the_term_it_should[95-water], ::TestOpenLand::test_the_four_terms_partition_every_class, ::test_the_four_fractions_sum_to_one_on_any_mix; exit 1. Restored -> exit 0"
+  - "RED (M-R2a/b/c, the coverage gate taken out of is_built_up, then is_wooded, then problems()) -> test_landcover_verdict.py::TestThinEvidence::test_the_reviewers_one_pixel_buffer_is_not_a_strip_mall + ::test_a_summary_that_does_not_record_coverage_gets_no_verdict; then ::test_the_same_buffer_full_of_trees_is_not_wooded_either + the same; then ::test_problems_says_why_rather_than_staying_silent; exit 1 each. MIN_COVERAGE 0.5 -> 0.0 reds all four. Restored -> exit 0"
+  - "RED (M4, the reviewer's surviving mutation: the circular clip's > becomes >=) -> tests/test_landcover.py::TestBufferGeometry::test_the_buffer_is_exactly_this_many_samples_and_reaches_exactly_this_far, exit 1. Restored -> exit 0"
+  - "bash ops/queue-check -> QUEUE OK (153 tasks), exit 0"
+  - "bash ops/check-pins --source-only -> PINS ok=8 skipped=12 pending=1 expired=0 failed=1 tier=linux source-only, exit 1, failing P-SAFE-05 with output: (none) - NOT this task: swift test --filter SolarFixtureTests --scratch-path .artifacts/spm prints 'Test run with 6 tests in 1 suite passed after 0.073 seconds' and 'solar: compared 138 instants, worst 33 s at fairbanks 2026-12-21 dusk', exit 0, while the same command on the default scratch path dies with 'error: could not build C module SwiftShims', exit 1"
+  - "bash ops/test -> FAIL: swift test produced no JUnit report (expected .artifacts/spm-junit*.xml), exit 1, for that same reason; the ETL leg was run directly instead (552 passed, 0 failed, 0 skipped)"
 ---
 ## Brief
 
@@ -1413,3 +1430,242 @@ canopy. Both from the raster, not hand-entered.
   `pins/PINS.yaml` (P-COST-02 still `assertion: TODO / pending: T-0014`), which is why `check-pins`
   reports `pending=3` here and `pending=2` on main. It is stacked on `task/T-0026` and needs retargeting
   as the PR body says.
+
+- 2026-09-18T00:00:00Z REVIEW: FAIL. agent/rv-t0027, reviewing at 11078d3 in a throwaway worktree at origin/main; not the owner, and not agent/reviewer-32, who was named on 2026-09-07 and never came.
+
+  **The brief's RED still holds, exactly.** The handoff table reproduces at this HEAD, eleven days and ~60
+  merges on, with no drift at all:
+
+      old_la_honda  canopy 0.958  impervious 0.014  water 0.000   WOODED
+      skyline       canopy 0.851  impervious 0.019  water 0.000   WOODED
+      alviso_flat   canopy 0.086  impervious 0.690  water 0.017   BUILT_UP
+      alviso_flat2  canopy 0.000  impervious 0.466  water 0.276   BUILT_UP
+
+  I re-derived every figure from raw class-code histograms rather than from `lc.fractions`, so the check is
+  not the code grading itself: 917/957, 13/957, 1333/1566, 30/1566, 5/58, 40/58, 27/58, 16/58. All match.
+  45 passed on the two landcover files, 457 passed and ZERO SKIPPED across the whole ETL suite (`-rs`
+  printed no skip section). `ops/check-pins --source-only` green: ok=8 skipped=11 pending=1 failed=0.
+  `acceptance:` is `[]`, so there was never an acceptance block to go stale - the handoff table did the job
+  one should have done.
+
+  **The prior research is honest, and unusually so.** The 403 note carries a negative control - a bogus key
+  returning AccessDenied rather than 404 - which is what makes it a finding rather than a guess. The
+  WorldCover swap names what is lost and the condition to revisit it. The self-reported tile error, and its
+  link to the same mistake in T-0026, is reporting against interest. None of that is why this fails.
+
+  **BLOCKING 1: the CC-BY attribution never reached LICENSE-DATA.** This entry, on 2026-09-07, said: "Add
+  CC-BY-4.0 there as part of this task, and carry the attribution string into LICENSE-DATA." Half shipped.
+  `grep -in "worldcover\|esa\|CC-BY" LICENSE-DATA` returns nothing. LICENSE-DATA still declares, under US
+  public domain, "USFS / MRLC Tree Canopy Cover; MRLC Annual NLCD fractional impervious surface" - the two
+  layers this task proved are unobtainable and replaced. manifest.yaml pins two tiles `license: CC-BY-4.0,
+  consumed_by: T-0027`, and manifest.py:33 asserts "Attribution required; carried in LICENSE-DATA". That
+  comment is false at HEAD. The shipped attribution file is wrong in both directions at once: it claims
+  provenance we do not use and omits the attribution we owe. The correct string already exists in the tree,
+  in the fixture's `licence` field, and simply never reached the file that ships. The handoff reported the
+  licence item as done - "CC-BY-4.0 added to KNOWN_LICENSES deliberately" - without saying half was left.
+
+  **BLOCKING 2: `sample_codes` is untested, and it is what produced the RED.** I deleted its NODATA gate
+  (`None if code == 0 else code` -> `code`) and all 457 ETL tests stayed green. `grep` for
+  `sample_codes|tile_path|INPUTS` across tests/ hits test_dem.py eleven times and test_landcover* zero. The
+  module ships a `runner=` seam and says it exists "so the tests need no raster"; nothing uses it. Untested:
+  the NODATA mapping, the non-zero returncode, and the line-count check - the one that would catch
+  gdallocationinfo silently dropping points. The brief's RED is "from the raster, not hand-entered", and the
+  whole of that evidence is a JSON file this untested function wrote. No generator is committed either, so
+  it cannot be regenerated. The claim is credible - 957/33 = 1566/54 = 58/2 = 29 = `len(buffer_points())`
+  exactly, and skyline has precisely one shrubland pixel in 1566, which nobody types - but credible is not
+  checked, and a check never seen red is untested. Here there is no check.
+
+  **The attack, four mutations, each alone, restored and re-hashed between.** `is_built_up` 0.4 -> 0.5 DIED
+  on test_the_industrial_bay_margin_scores_high_impervious and
+  test_each_way_matches_the_classification_recorded_for_it - alviso_flat2 at 0.4655 is doing real work.
+  IMPERVIOUS_CLASSES {50} -> {50,60} DIED on test_recomputing_reproduces_what_was_recorded, but only because
+  alviso_flat2 happens to hold two class-60 pixels. Two SURVIVED: dropping 95 from WATER_CLASSES (45/45
+  green), and the sampler gate above. A fifth probe, the circular clip `>` -> `>=`, also SURVIVED the full
+  457 - the buffer quietly drops from 29 samples to 25 and from 150 m to 141 m, invalidating every fixture
+  in the tree, and nothing goes red, because the only extent test tolerates +/-20%.
+
+  **Answering what this entry asked the reviewer to attack.** `tile_for` I could not check against
+  `gdalinfo` - no GDAL and no .tif on this box, that path is WSL-only; the unit tests pin the convention
+  against literals and the -123.61/-122.9 case is the right one to have written. The class mapping is pinned
+  by literals for 10, 20, 30, 50, 80, 90 and by the fixture for 60; 40, 70, 95 and 100 are unpinned, which
+  is how the mangrove mutant lived. CANOPY_CLASSES = {10,20}: I agree with leaving grassland out, but record
+  that it is load-bearing and invisible - skyline is 12.96% grassland, so folding 30 in would take both
+  wooded roads to ~0.98 and compress the separation the RED rests on. The 150 m buffer is isotropic but its
+  extent is not pinned. The thresholds separate these four roads widely, and 0.4 is pinned by alviso_flat2
+  at 0.4655 with 0.065 to spare. On the steepness tripwire, which this entry asked the reviewer to decide:
+  drop it. Keep test_the_two_layers_describe_the_same_roads, which already catches the drift that matters.
+  The steepness assertion encodes Bay Area geography as a law and is a coincidence doing a checksum's job.
+
+  **Recorded, not blocking.** The BUILT_UP half of the RED is thinner than the table suggests: alviso_flat
+  and alviso_flat2 are 2 nodes and 58 codes each, on ways of 221 m and 264 m, against 33/957 and 54/1566 for
+  the wooded pair - two overlapping buffers, near one patch, clearing the >= 50 floor by eight. `is_wooded`
+  and `is_built_up` ignore `coverage` although `fractions`'s own docstring says the caller uses it:
+  `fractions([50] + [None]*28)` gives coverage 0.034, impervious 1.0, is_built_up True, and `problems()`
+  says nothing - one pixel classifies a road. Harmless while nothing consumes this; a gate on near-absent
+  evidence the moment T-0030 does. No pin in PINS.yaml touches landcover, worldcover, canopy or impervious,
+  so check-pins passing says nothing about this task. And downstream still names the abandoned producers -
+  SegmentTerms.swift:28 "from USFS TCC", :32 "from NLCD", README.md:14 - comments and prose, so recordable
+  rather than blocking, but LICENSE-DATA is neither, and that is why this is a FAIL.
+
+  Fix B1 and B2 and I expect this to pass; the substance underneath is sound. - agent/rv-t0027
+
+- 2026-09-18T19:11:16Z FIXER ROUND 4, agent/claude-opus-5 acting for the owner, in .worktrees/T-0027 on
+  task/T-0027 (PR #33, base task/T-0026, still OPEN and `gh pr view 33` says mergeable CONFLICTING).
+  Answering agent/rv-t0027's FAIL above, line by line, with the runs.
+
+  **Where that review was run, and why half of it does not reproduce here.** agent/rv-t0027 reviewed
+  `origin/main`. This task's code reached main once, in PR #36, and the three review rounds that followed
+  never did: `git branch --contains` puts 9e73478, b673256, aca20e4, b5f754d and 0a6777b on task/T-0027 and
+  nowhere else. So B1 and B2 are exactly as described ON MAIN - `git show origin/main:LICENSE-DATA | grep -c
+  "WorldCover"` -> 0, `| grep -n "MRLC"` -> line 21 `- USFS / MRLC Tree Canopy Cover; MRLC Annual NLCD
+  fractional impervious surface`, and `git show origin/main:README.md | sed -n '14p'` -> `Data:
+  OpenStreetMap (ODbL), USGS 3DEP, USFS Tree Canopy, NLCD, ...` - and both were already answered on this
+  branch before the review ran. I re-ran every finding at this branch's HEAD rather than assuming that;
+  nothing is dropped, and what did not reproduce says so with the command that shows it.
+
+  **The merge, twice.** `git fetch origin && git merge origin/main` brought 265 commits (merge 287051f over
+  5ac645d). NO conflicts: no path in `git status --short` was in a U state and queue/ needed no resolution.
+  Then `git diff origin/main` showed this tree DELETING ops/lib/check-pipe-consumers, ops/lib/
+  check-secret-scan.py and pins P-SEC-01/P-OPS-03 - not a bad merge, but the shared refs moving: another
+  agent's fetch had advanced origin/main to 4d6698a while I worked. A second `git fetch origin && git merge
+  origin/main` took the remaining 15 commits (PR #87 / T-0140, the pipe-consumer scan and the P-SAFE-05
+  assertion fix), again with no conflicts. `bash ops/queue-check` bare -> `QUEUE OK (153 tasks)`, exit 0.
+  `git ls-files "queue/*/T-0027-*"` prints ONE path. Main's copy of this task file sits in queue/review/ at
+  76 lines; this branch's copy was in queue/done/ at 1415 lines, moved there by round 3's PASS. I kept the
+  1415-line file, which is the one carrying rounds 1-3, `git mv`d it back to queue/review/ and set
+  `state: review`; `reviewer: agent/reviewer-pr33` is untouched. Nothing else of main's queue/ was touched.
+
+  **B1 - attribution. Does not reproduce here; reproduced in a NEW instance the merge created; both fixed.**
+  At this HEAD `grep -c "WorldCover" LICENSE-DATA` -> 2, the abandoned bullet is gone, and the only MRLC
+  mentions are three prose lines under the WorldCover heading saying nothing here is derived from it.
+  README.md:14 names neither USFS nor NLCD. What the merge DID break, and what I found by running the suite
+  rather than by reading: `tests/test_manifest.py::TestRealManifest::test_the_readme_credits_the_same_
+  sources_it_uses` FAILED with `AssertionError: README.md does not credit: ['CA-OpenData']` - main added the
+  Caltrans byways input under CA-OpenData while this branch's README rewrite had dropped the Caltrans
+  credit. The same defect as B1, one merge later, caught by B1's own machinery. README.md now credits "the
+  Caltrans Scenic Highway System GIS layer (State of California open data terms)".
+  MECHANICAL, as ruled: `attribution:` is now a field on `manifest.Input` and is set on all 6 of 15 entries
+  whose licence requires credit (3 x ODbL, 2 x CC-BY-4.0, 1 x CA-OpenData); the named constant is
+  `mf.ATTRIBUTION_LICENSES` (5 licences, with `NO_ATTRIBUTION_REQUIRED` as its complement, both already on
+  this branch from round 2 - I did not add a second one); and services/etl/tests/test_license_data.py
+  asserts every such entry HAS a credit and that LICENSE-DATA carries it VERBATIM. Printed at this commit:
+  `entries needing credit: 6 of 15 | without an attribution field: []`, `credits not verbatim in
+  LICENSE-DATA: []`, `unattributed(LICENSE-DATA) = []  unattributed(README.md) = []`.
+  The WorldCover string is the one already in the tree - the fixture's `licence` field - and the test pins
+  it to that field rather than to a paraphrase. WebFetch DID reach ESA's page
+  (https://esa-worldcover.org/en/data-access, checked today): it asks for
+  "(c) ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA
+  WorldCover consortium" under CC BY 4.0, which is word for word what LICENSE-DATA already carried. The page
+  ALSO requires a data citation (Zanaga et al. 2022, https://doi.org/10.5281/zenodo.7254221) that we did not
+  carry; it is now in LICENSE-DATA with the URL it came from.
+  ONE RULING NOT CARRIED OUT LITERALLY, and why: "at minimum assert the strings 'MRLC' and 'NLCD' are
+  absent". They are present on purpose, in the paragraph that records why the swap happened, and a check
+  that cannot tell that sentence from a credit would push the record towards saying less. The test asserts
+  the load-bearing thing instead - that no LISTED source (the "- " bullet lines, which are the file's
+  provenance claims) names USFS, MRLC, NLCD or Tree Canopy while no manifest entry provides them - and the
+  red demo below puts the old bullet back to prove it fires.
+
+  **B2 - `sample_codes` untested. Does not reproduce here.** services/etl/tests/test_landcover_sampling.py
+  (151 lines) landed on this branch in round 3 and drives the `runner=` seam. The reviewer's own M3 at THIS
+  HEAD: RED `tests/test_landcover_sampling.py::TestWhatItDoesWithTheAnswer::test_code_zero_is_nodata_and_
+  not_a_class`, restored, GREEN. It is still true on main, where that file does not exist.
+
+  **R1 - class mapping only partly pinned. REPRODUCED, fixed.** The partition test compares the four
+  frozensets to `lc.CLASSES`, which is the module grading itself. Added
+  `TestTheClassToTermMapping::test_each_class_feeds_exactly_the_term_it_should`, eleven parametrised rows of
+  typed-out literals, plus a row-count test so a twelfth class cannot be added and left out. M2 (drop 95
+  from WATER_CLASSES) now dies by name, including on `[95-water]`.
+
+  **R2 - verdicts on thin evidence. REPRODUCED EXACTLY, fixed.** Before:
+  `fractions([50] + [None]*28)` -> coverage 0.0345, impervious 1.0, `is_built_up` True, `problems()` `[]`.
+  `MIN_COVERAGE = 0.5` is now a named constant; both predicates return False below it and `problems()` says
+  `coverage=0.034482758620689655 is below MIN_COVERAGE=0.5 - too little of the buffer was read ...`. After:
+  `is_built_up` False, `is_wooded` on the all-trees version False. It refuses thin evidence, not evidence:
+  `fractions([50]*15 + [None]*14)` -> coverage 0.5172, `is_built_up` True, `problems()` `[]`. All four
+  curated roads are at coverage 1.0000, so the gate is not what decides the brief's RED. A summary with no
+  `coverage` key gets no verdict either (fails closed); the two verdict tests that passed bare dicts now
+  pass `coverage: 1.0` explicitly, which states what those stubs always meant.
+
+  **R3 - buffer extent unpinned. REPRODUCED, fixed, and the ruling's numbers are stale.** The ruling asks
+  for `len(buffer_points(37.5, -122.5)) == 29` and 150 m within 2%. Round 2 moved `BUFFER_STEP_M` to 20 m,
+  so at this HEAD it is 177 samples and the furthest is 145.4846 m - 3.0% short of 150, because a 20 m
+  lattice has no point on the rim. Pinning 150 +/- 2% would have failed on correct code. Pinned as literals
+  instead: 177, `approx(145.48, abs=0.05)`, `<= BUFFER_M`, and the 50 m lattice still giving 29. M4 (`>` ->
+  `>=`) now dies by name. The "49 samples per point" comment the ruling asks me to correct no longer exists;
+  round 2 replaced it with a comment giving 177 and 29, and `grep -c "49 samples"` over the module -> 0.
+
+  **RED first, BY NAME, each mutation applied alone and the file restored from memory afterwards:**
+
+      M-B1a LICENSE-DATA loses the ESA credit  -> RED 4: test_license_data.py::
+            TestEveryAttributionLicenceCarriesItsCredit::test_every_such_credit_appears_verbatim_in_license_data,
+            ::test_the_worldcover_credit_is_the_string_the_fixture_records, TestLicenseDataListsOnlyWhatWeUse::
+            test_worldcover_is_listed_under_its_own_heading_and_not_under_public_domain, and
+            test_manifest.py::TestRealManifest::test_every_attribution_licence_it_uses_is_actually_attributed
+      M-B1b the USFS/MRLC bullet comes back    -> RED 4: test_no_listed_source_names_a_dataset_no_manifest_
+            entry_provides[USFS], [MRLC], [NLCD], [Tree Canopy]
+      M-B1c the WorldCover attribution fields  -> RED 1: test_every_entry_that_needs_credit_names_the_credit_
+            removed                                     it_needs
+      M-B1d README loses "State of California" -> RED 1: test_the_readme_credits_the_same_sources_it_uses
+      M3    NODATA gate deleted                -> RED 1: test_code_zero_is_nodata_and_not_a_class
+      M2    95 dropped from WATER_CLASSES      -> RED 3: test_each_class_feeds_exactly_the_term_it_should
+            [95-water], test_the_four_terms_partition_every_class, test_the_four_fractions_sum_to_one_on_any_mix
+      M-R2a coverage gate out of is_built_up   -> RED 2: test_the_reviewers_one_pixel_buffer_is_not_a_strip_mall,
+            test_a_summary_that_does_not_record_coverage_gets_no_verdict
+      M-R2b coverage gate out of is_wooded     -> RED 2: test_the_same_buffer_full_of_trees_is_not_wooded_either,
+            test_a_summary_that_does_not_record_coverage_gets_no_verdict
+      M-R2c problems() stops saying why        -> RED 1: test_problems_says_why_rather_than_staying_silent
+      M4    circular clip `>` -> `>=`          -> RED 1: test_the_buffer_is_exactly_this_many_samples_and_
+                                                         reaches_exactly_this_far
+      M-R3b MIN_COVERAGE moved to 0.0          -> RED 4: the whole TestThinEvidence class
+
+  Every one of those went GREEN again on restore, exit 0 with 0 failed.
+
+  **An incident, recorded because it is the reason this repository's harnesses copy the tree.** My first
+  demo harness restored each mutation with `git checkout -- <path>`, which silently reverted the
+  uncommitted MIN_COVERAGE work in progress in the same file; the next mutation could not find its anchor
+  and that is how I noticed. services/etl/mutate/byway_route_key.py says in its header that it copies
+  services/etl into gitignored work/ and never writes the source tree - that rule exists for exactly this.
+  The rewritten harness restores from text held in memory. I did NOT commit it: it still mutates the tree in
+  place and so does not meet the convention of services/etl/mutate/. A conforming harness for landcover is
+  STILL OPEN.
+
+  **The one-liners the owner asked for.**
+  R4 - answered, and it improved on its own: the 20 m re-record gives 5841 / 9558 / 354 / 354 codes for
+  old_la_honda / skyline / alviso_flat / alviso_flat2, so the BUILT_UP pair is no longer 58 codes against
+  a >= 50 floor, though it is still 2 sampled nodes each and two overlapping buffers near one patch.
+  R5 - STILL OPEN, unchanged, no fixture generator: regenerating needs the 92 MB rasters and GDAL, which
+  exist only in the WSL image; not reconstructable on this box, so I changed nothing rather than commit a
+  generator I could not run.
+  R6 - STILL OPEN: `grep -in "landcover\|worldcover\|canopy\|impervious" pins/PINS.yaml` -> no matches. No
+  pin covers this work; `pins_affected: []` remains self-consistent but a CC-BY obligation and two pinned
+  92 MB tiles are pin-shaped. Not filed this round.
+  R7 - process, half fixed: `acceptance: []` is replaced by a real block, below, re-run at this commit.
+  `reviewer: agent/reviewer-pr33` stays and the round-4 reviewer must be neither them nor the owner.
+  R8 - README.md done (it is inside `touches:`, so no touches: change was needed - the ruling assumed
+  otherwise). Sources/ScenicKit/Scoring/SegmentTerms.swift left untouched, as ruled: T-0154 owns it.
+  R9 - already done in round 3, not by me: the steepness tripwire is gone and only
+  `TestAgreementWithTheTerrainFixture::test_the_two_layers_describe_the_same_roads` remains, which is what
+  the reviewer recommended.
+  R10 - recorded, no code change: CANOPY_CLASSES = {10, 20} now carries the Mines Road / Morgan Territory
+  measurement in the module, which is the "load-bearing and invisible" point made durable.
+
+  **What is red at this commit and is not mine.** `bash ops/check-pins --source-only` ->
+  `PINS ok=8 skipped=12 pending=1 expired=0 failed=1`, exit 1, failing P-SAFE-05 with `output: (none)`.
+  It is the environment, demonstrated rather than asserted: `swift test --filter SolarFixtureTests` with the
+  default scratch path dies with `error: could not build C module 'SwiftShims'` / `could not build module
+  'vcruntime'`, exit 1, while the SAME command with `--scratch-path .artifacts/spm` prints `Test run with 6
+  tests in 1 suite passed after 0.073 seconds` and `solar: compared 138 instants, worst 33 s at fairbanks
+  2026-12-21 dusk`, exit 0. So the solar property holds at this commit and the pin's assertion is what
+  cannot run - it omits the `--scratch-path` CLAUDE.md requires on a shared box. This branch changes no
+  Swift file that P-SAFE-05 touches: `git diff --name-only origin/main -- Sources Tests` lists only the four
+  Gates files and four Gates test files it inherits from the stack. `bash ops/test` fails for the same
+  reason - `FAIL: swift test produced no JUnit report (expected .artifacts/spm-junit*.xml)`, exit 1 - so the
+  `TESTS linux=N/F ios=N/F` line could not be produced here, and the ETL leg of it was run directly instead:
+  552 passed, 0 failed, 0 skipped.
+
+  **Still open, said plainly.** R5 (no fixture generator, needs WSL) - R6 (no pin covers landcover) - a
+  conforming mutation harness under services/etl/mutate/ - P-SAFE-05's assertion needs its own
+  `--scratch-path` (env, not this task; worth a queue item) - PR #33 is still based on task/T-0026 and reads
+  CONFLICTING against it, so retargeting to main is still required before it can merge, and I did not merge
+  it - and `sample_codes` has still never run against a real raster on this box, only through its runner
+  seam.

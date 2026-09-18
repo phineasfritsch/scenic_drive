@@ -100,6 +100,7 @@ class Input:
     bytes: int | None = None
     retrieved: str | None = None
     consumed_by: str | None = None          # the task id that introduced it
+    attribution: str = ""                   # the credit line this source requires, verbatim in LICENSE-DATA
     notes: str = ""
     problems: list[str] = field(default_factory=list)
 

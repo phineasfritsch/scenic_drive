@@ -44,7 +44,7 @@ class TestTheVerdictIsOneVerdict:
         wooded = built = 0
         for c in range(101):
             for i in range(101 - c):
-                s = {"canopy": c / 100.0, "impervious": i / 100.0}
+                s = {"canopy": c / 100.0, "impervious": i / 100.0, "coverage": 1.0}
                 w, b = lc.is_wooded(s), lc.is_built_up(s)
                 assert not (w and b), (c, i)
                 wooded += w
@@ -72,10 +72,10 @@ class TestTheVerdictIsOneVerdict:
         `canopy == ratio * impervious` the majority term is ahead by exactly the margin the rule asks for,
         and `>` would make the answer depend on a rounding bit. `SURVIVED M20 is_wooded ratio uses >
         instead of >=` was reviewer-32's - nothing sat on the edge."""
-        assert lc.is_wooded({"canopy": 0.6, "impervious": 0.3})
-        assert not lc.is_wooded({"canopy": 0.6, "impervious": 0.3 + 1e-9})
-        assert lc.is_built_up({"impervious": 0.6, "canopy": 0.3})
-        assert not lc.is_built_up({"impervious": 0.6, "canopy": 0.3 + 1e-9})
+        assert lc.is_wooded({"canopy": 0.6, "impervious": 0.3, "coverage": 1.0})
+        assert not lc.is_wooded({"canopy": 0.6, "impervious": 0.3 + 1e-9, "coverage": 1.0})
+        assert lc.is_built_up({"impervious": 0.6, "canopy": 0.3, "coverage": 1.0})
+        assert not lc.is_built_up({"impervious": 0.6, "canopy": 0.3 + 1e-9, "coverage": 1.0})
 
     def test_a_quarter_built_is_not_yet_a_strip_mall(self):
         """With the dominance rule in place, a road with no trees at all clears `impervious >= ratio *
@@ -112,5 +112,57 @@ class TestTheVerdictIsOneVerdict:
     def test_a_tie_is_not_a_verdict(self):
         """A ratio of exactly 1 still lets both fire on an exact tie, and exact ties happen: a 29-sample
         buffer that lands 15/14 is one rounding away from 50/50."""
-        s = {"canopy": 0.5, "impervious": 0.5}
+        s = {"canopy": 0.5, "impervious": 0.5, "coverage": 1.0}
         assert not (lc.is_wooded(s) and lc.is_built_up(s))
+
+
+class TestThinEvidence:
+    """A verdict on a buffer that was barely read is not a verdict. `fractions` drops NODATA from the
+    denominator on purpose - a half-unreadable buffer must not report half its real canopy - and the price
+    is that one readable pixel reports 1.0000 of whatever it is. agent/rv-t0027 measured the whole failure
+    in one line: fractions([50] + [None]*28) -> coverage 0.0345, impervious 1.0000, is_built_up True,
+    problems() empty. Harmless while nothing consumes the verdicts; a gate on near-absent evidence the
+    moment T-0030 does.
+    """
+
+    ONE_PIXEL = [50] + [None] * 28
+
+    def test_the_reviewers_one_pixel_buffer_is_not_a_strip_mall(self):
+        s = lc.fractions(self.ONE_PIXEL)
+        assert s["impervious"] == 1.0, s
+        assert s["coverage"] == pytest.approx(1 / 29), s
+        assert s["coverage"] < lc.MIN_COVERAGE
+        assert not lc.is_built_up(s), s
+
+    def test_the_same_buffer_full_of_trees_is_not_wooded_either(self):
+        s = lc.fractions([10] + [None] * 28)
+        assert s["canopy"] == 1.0, s
+        assert not lc.is_wooded(s), s
+
+    def test_problems_says_why_rather_than_staying_silent(self):
+        s = lc.fractions(self.ONE_PIXEL)
+        assert any("coverage" in p and "MIN_COVERAGE" in p for p in lc.problems(s)), lc.problems(s)
+
+    def test_just_over_the_line_still_gets_a_verdict(self):
+        """The gate refuses thin evidence, not evidence. 15 of 29 read is over MIN_COVERAGE and the
+        verdict stands - otherwise the fix would be a way of never answering."""
+        s = lc.fractions([50] * 15 + [None] * 14)
+        assert s["coverage"] >= lc.MIN_COVERAGE, s
+        assert lc.is_built_up(s), s
+        assert lc.problems(s) == [], lc.problems(s)
+
+    def test_a_summary_that_does_not_record_coverage_gets_no_verdict(self):
+        """Fails closed. Every summary this module builds carries `coverage`; one that does not came from
+        somewhere that was not counting, and the answer to that is not a classification."""
+        assert not lc.is_wooded({"canopy": 1.0, "impervious": 0.0})
+        assert not lc.is_built_up({"impervious": 1.0, "canopy": 0.0})
+
+    def test_the_four_curated_roads_are_nowhere_near_the_gate(self):
+        """The fix must not be what decides the brief's RED. Every archetype is fully read."""
+        import json
+        from pathlib import Path
+        fx = json.loads((Path(__file__).resolve().parent / "fixtures" / "landcover_fixture.json")
+                        .read_text(encoding="utf-8"))
+        for way in fx["ways"]:
+            s = lc.fractions(way["codes"])
+            assert s["coverage"] > 0.9, (way["key"], s["coverage"])

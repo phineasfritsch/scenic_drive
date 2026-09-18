@@ -19,6 +19,10 @@ Built from OpenStreetMap with Protomaps (https://protomaps.com), attributed as "
 ## ESA WorldCover 2021 v200 — CC BY 4.0
 © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover
 consortium. Licensed under CC BY 4.0, https://creativecommons.org/licenses/by/4.0/.
+Cited as the product page requires (https://esa-worldcover.org/en/data-access, checked 2026-09-18): Zanaga, D.,
+Van De Kerchove, R., Daems, D., De Keersmaecker, W., Brockmann, C., Kirches, G., Wevers, J., Cartus, O.,
+Santoro, M., Fritz, S., Lesiv, M., Herold, M., Tsendbazar, N.E., Xu, P., Ramoino, F., Arino, O., 2022.
+ESA WorldCover 10 m 2021 v200. https://doi.org/10.5281/zenodo.7254221
 Used for the scenic index's land-cover terms — canopy, impervious, water and open land, as fractions of a 150 m
 buffer around each way. Those per-way fractions are a modified work and carry this attribution with them.
 This layer replaced the USFS Tree Canopy Cover and MRLC NLCD fractional impervious surface the plan named:

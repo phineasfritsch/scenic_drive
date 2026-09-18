@@ -72,6 +72,15 @@ BUFFER_STEP_M = 20.0
 # sample from an exact 50/50 tie, and at a ratio of 1 an exact tie satisfies both.
 DOMINANCE_RATIO = 2.0
 
+# How much of the buffer has to have been read before a verdict means anything. `fractions` deliberately
+# drops NODATA from the denominator, so one readable pixel out of 177 reports impervious 1.0000 with a
+# straight face; agent/rv-t0027 measured exactly that - fractions([50] + [None]*28) -> coverage 0.0345,
+# impervious 1.0, is_built_up True, problems() silent. Nothing consumes these verdicts yet, so it cost
+# nothing today and would be a gate firing on near-absent evidence the moment T-0030 does. A half-read
+# buffer is the most that can be lost to tile edges inside the region; below that the answer is "we did
+# not look", which is not the same as "not wooded" and must not be dressed up as one.
+MIN_COVERAGE = 0.5
+
 
 def tile_for(lat: float, lon: float) -> str:
     """The WorldCover tile covering a point.
@@ -155,6 +164,10 @@ def problems(summary: dict) -> list[str]:
             out.append(f"{key} is missing")
         elif not 0.0 <= v <= 1.0:
             out.append(f"{key}={v} is not a fraction")
+    cov = summary.get("coverage")
+    if cov is not None and 0.0 <= cov < MIN_COVERAGE:
+        out.append(f"coverage={cov} is below MIN_COVERAGE={MIN_COVERAGE} - too little of the buffer was "
+                   f"read for the fractions to mean anything, and no verdict is given on it")
     named = [k for k in CLASSES.values() if k in summary]
     if named:
         total = sum(summary[k] for k in named)
@@ -179,6 +192,8 @@ def is_wooded(summary: dict, threshold: float = 0.5, ratio: float = DOMINANCE_RA
     other. Any ratio above 1 makes them mutually exclusive - see test_no_pair_of_fractions_can_satisfy_both,
     which sweeps the whole simplex rather than four roads picked to sit far apart.
     """
+    if summary.get("coverage", 0.0) < MIN_COVERAGE:
+        return False
     canopy = summary.get("canopy", 0.0)
     return canopy >= threshold and canopy >= ratio * summary.get("impervious", 0.0)
 
@@ -186,6 +201,8 @@ def is_wooded(summary: dict, threshold: float = 0.5, ratio: float = DOMINANCE_RA
 def is_built_up(summary: dict, threshold: float = 0.4, ratio: float = DOMINANCE_RATIO) -> bool:
     """The strip-mall property: an industrial arterial must read as built up. Same dominance rule as
     `is_wooded`, and for the same reason - a street with as many trees as roofs is not a strip mall."""
+    if summary.get("coverage", 0.0) < MIN_COVERAGE:
+        return False
     impervious = summary.get("impervious", 0.0)
     return impervious >= threshold and impervious >= ratio * summary.get("canopy", 0.0)
 
