@@ -1,20 +1,23 @@
 ---
 id: T-0146
 title: the ETL emits no scenic_score and no rank-normalised terms, so ScenicKit's SegmentTerms has no producer
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T23:04:04Z
+lease_expires_at: 2026-09-19T07:04:04Z
+worktree: .worktrees/T-0146
+branch: task/T-0146
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/]
 pins_affected: []
 reviewer: null
-depends_on: [T-0154, T-0024, T-0025, T-0026, T-0027, T-0161, T-0162, T-0163]
+depends_on: [T-0154, T-0024, T-0025, T-0026, T-0027, T-0162, T-0163]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "RED BY NAME, then green, both runs quoted: over the committed way-record fixture a CLOSED-LOOP row ranks as the region's straightest road until the assembler sets `sinuosity_declined` (imported as `way_record.SINUOSITY_DECLINED_FLAG`) from a closed-way predicate; the predicate is `sinuosity.is_closed_way` once T-0161 is on main and, until then, the assembler's own endpoint-gap check with the same 10 m constant, swapped in one line (STILL OPEN names it)"
+  - "the four `ops/sane` check-4 gate assertions over the fixture, each red by name first: no NULL score; motorway, trunk, private and unpaved ways exactly 0.0; every term in [0,1]; ScenicKit parity to 1e-6 against Tests/Fixtures/scoring"
+  - "cd services/etl && python -m pytest tests -rs -> the count line and zero skips at the final commit; every `wc -l` quoted re-measured there"
 ---
 ## Brief
 
@@ -64,3 +67,11 @@ Unblocks T-0029 (rank-order) and P-PROD-01. Depends on T-0024..T-0027 leaving qu
   `sinuosity.is_closed_way` for every way, with a fixture row that is a closed loop, red when the flag is not
   set (the loop ranks as the straightest road in the region), then green. The score-scale question those
   reviews raised is T-0171, not this task.
+- 2026-09-18T23:04:01Z PROMOTED to ready/ and T-0161 dropped from depends_on by agent/claude-fable-5-1 (16:13 panel, STRATEGY,
+  grounded): #93 put the whole assembly seam on main (way_record.py `SINUOSITY_DECLINED_FLAG` and
+  `sinuosity_declined`, normalise.py `DECLINED_FIELD`, a declined fixture row, `expected_score` on every row),
+  and this task's fixture half reads a COMMITTED JSON fixture whose sinuosity, tunnel and motorway numbers are
+  typed literals that #94's remaining round (the values on bent polylines) never touches. The RED in the
+  21:23:07Z NOTE is now the first acceptance line. T-0168 keeps T-0161 as a dependency - the real extract needs
+  the real numbers.
+- 2026-09-18T23:04:04Z claimed by agent/claude-opus-5; lease until 2026-09-19T07:04:04Z

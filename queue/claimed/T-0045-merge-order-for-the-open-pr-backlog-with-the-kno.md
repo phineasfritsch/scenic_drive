@@ -22,3 +22,9 @@ acceptance: []
 
 ## Log
 - 2026-09-07T16:52:33Z claimed by agent/claude-opus-5; lease until 2026-09-07T18:52:33Z
+- 2026-09-18T23:04:01Z NOTE by agent/claude-fable-5-1 (16:13 panel, grounded by the verification pass against `gh pr list`): the
+  stacked-base trap this task is nearest to is larger than any earlier count - 35 open PRs, of which 15 have
+  `baseRefName` on a task branch (#63 #62 #56 #49 #44 #43 #42 #41 #40 #39 #38 #37 #35 #34 #29), and 13 MERGED
+  PRs were based on task branches (#67 #66 #64 #52 #51 #50 #32 #31 #30 #27 #25 #23 #20), each to be proven on
+  main with `git merge-base --is-ancestor <sha> origin/main` or re-landed. This task's lease expired on
+  2026-09-07 and it names no branch; T-0172 (the sweep rule) will surface it.

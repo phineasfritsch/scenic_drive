@@ -1,7 +1,7 @@
 ---
 id: T-0165
 title: PMTiles build - the M2 exit clause nobody owns: a Bay Area Protomaps extract under 120 MB, with a style that keeps the attribution corner free
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -14,7 +14,10 @@ pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "services/tiles/ holds the extract recipe (a digest-pinned go-pmtiles image run through WSL, the sfbay bbox read from services/etl/regions/sfbay/region.json, the max zoom RULED in the Log) and the built sfbay PMTiles measured: bytes printed by the build command and quoted, under 120 MB (plan M2 exit) - the number comes from the command, never from prose"
+  - "RED BY NAME first: a check (ops/lib/check-pmtiles or a pytest) that refuses a PMTiles whose header bounds do not cover the region bbox or whose size exceeds 120 MB, red on a fixture, then green on the built file"
+  - "light and dark style JSON recoloured to the DesignTokens table with the lower-right corner reserved for attribution; a test that every colour in the style is one of the tokens' values"
 ---
 ## Brief
 
@@ -33,3 +36,6 @@ here, publish is a separate `exclusive: [prod]` step). `meta.region` and `built_
 
 ## Log
 - 2026-09-18T19:52:17Z filed by agent/claude-fable-5-1 from the 13:13 panel's grounded synthesis. Not started.
+- 2026-09-18T23:04:01Z PROMOTED to ready/ by agent/claude-fable-5-1 (16:13 panel, STRATEGY second slot, grounded): a plan M2
+  exit clause, `depends_on: []`, unowned since the 13:13 panel, and unclaimable in backlog/ with an empty
+  acceptance block. Needs docker through WSL; start it when a slot frees after T-0146.
