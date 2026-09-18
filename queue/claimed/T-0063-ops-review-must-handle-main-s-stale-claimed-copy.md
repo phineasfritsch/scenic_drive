@@ -64,3 +64,60 @@ point of it.
   ops/lib/gh-stub-for-merge-tests across T-0022/T-0044/T-0049, the exec-bits trap T-0041 predicted, and a
   436-line test file (T-0062) that no single branch could see.
 - 2026-09-08T03:35:43Z claimed by agent/claude-opus-5; lease until 2026-09-08T09:35:43Z
+
+- 2026-09-08 agent/claude-opus-5 — `ops/review` now refuses a branch that would duplicate on merge, and the
+  first version of this guard DID NOT FIRE, which is the useful part of this entry.
+
+  **RED**, reproduced in a throwaway git repo shaped exactly like the real failure — `main` claims
+  `ready/ -> claimed/`, the branch is cut from a base that predates that claim, the branch writes the file at
+  `claimed/` itself. Unpatched `ops/review`:
+
+        T-9991 -> queue/review/T-9991-a-stacked-task.md  reviewer=agent/other      exit 0
+        merged tree holds: queue/claimed/... queue/ready/... queue/review/...
+        QUEUE CHECK FAIL - 2 tasks share one brief
+
+  Three copies. `queue-check` passes on the branch, passes on main, fails only on the merge.
+
+  **THE FIRST GUARD WAS WRONG AND I PROVED IT RATHER THAN SHIPPING IT.** It asked *"does the branch's working
+  tree hold main's path?"* It does — the branch WROTE the file there — so the check found nothing stale and
+  allowed the transition, producing the identical three-copy merge. The question was wrong, not the code:
+  **the two copies share no history at that path**, so git keeps both regardless of what the working tree
+  looks like.
+
+  **The right question is about history**, and the brief said so all along: *"it needs a rehearsal merge
+  against main."* A branch can delete a file only by recording a deletion against a base that HAS it, so:
+
+        commit = git rev-list -1 <main> -- <path>
+        git merge-base --is-ancestor $commit HEAD
+
+  If the branch does not contain the commit that put the file at that path, it has no deletion to record and
+  the merge re-adds main's copy every time. **GREEN:**
+
+        T-9991: main holds this task where this branch cannot delete it:
+            queue/claimed/T-9991-a-stacked-task.md
+        This branch does not contain the commit that put the file there, so it has no deletion to record.
+        ...
+            git merge origin/main
+            git rm queue/claimed/T-9991-a-stacked-task.md
+        exit 1   — nothing moved
+
+  **CONTROL, and it matters as much as the fix**, because a guard that only ever refuses is an outage rather
+  than a repair. The branch does what the refusal says, then reviews:
+
+        merged main; branch now holds: queue/claimed/T-9991-a-stacked-task.md
+        T-9991 -> queue/review/T-9991-a-stacked-task.md   exit 0
+        merged back into main cleanly
+        copies of T-9991 in the merged tree: 1            CONTROL PASSES
+
+  **Refused rather than silently repaired**, per the brief's own framing. `git merge origin/main` inside a
+  state transition is a history-changing act hidden in a rename, and the same code would swallow a genuine
+  duplicate created some other way. The refusal costs one run and teaches the rule once.
+
+  Fails closed, consistently with [[T-0082]]: `_git` returns `ok=False` both for a failed command and for a
+  git that cannot run, and `_would_duplicate_on_merge` returns `None` — "could not ask" — which the caller
+  refuses on. From WSL against this Windows checkout that is a live state, not a hypothetical.
+
+  `ops/lib/queue.py` is now **788 lines**, from 711. Fourth growth in one session while [[T-0059]] waits,
+  blocked because six unmerged branches hold the file. That is no longer a footnote: the file has grown 90%
+  past its exemption in a day, and every increment was a real defect that could not wait for a merge that has
+  not come.
