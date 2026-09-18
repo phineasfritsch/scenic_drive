@@ -217,3 +217,17 @@ copy, not a computation, with a test. 1.3 GB stays out of git (`services/etl/inp
   ruling was written against. This commit adds the `--verify-only` usage line, the T-0169 paragraph and the
   `datetime` import above them, so in the committed file the same three constants are at `fetch.py:30-32`.
   The ruling is unchanged; only the line numbers moved.
+- 2026-09-18T22:33:42Z **Record corrections from the read-only verification of this build, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier recomputed the on-disk md5 of the 1,328,688,632-byte file
+  (`1f90ab1d0c885e884eea96fdf896a6b7`, matching), confirmed `os.path.getsize` equals the manifest's `bytes:` and
+  that 1327206195 appears nowhere, re-ran the four RED tests' green (`21 passed`), the whole suite (`716 passed`),
+  the line cap, queue-check and `wc -l` 255/299; these are text.** (a) "Sidecar md5 and on-disk md5 both
+  `1f90ab1d...`": the sidecar itself is preserved nowhere on disk (`inputs/` holds the .pbf and the manifest;
+  `.artifacts/T-0169/fetch.log` carries `california-osm.pbf: verified (upstream-md5)` but not the value), so the
+  sidecar half of that pair rests on the fetcher's own comparison and on the uncommitted
+  `work/T-0169-md5-evidence.py` output - consistent, not independently re-derivable. (b) The `--verify-only`
+  run over the real file was not repeated by the verifier (it fetches the sidecar); the committed `verify_only()`
+  calls the same `report_verified()`, never downloads, never unlinks. (c) The 22:17:24Z entry says the
+  acceptance block was re-run "at this, the final pre-review commit"; the commit is stamped 22:17:32Z, eight
+  seconds later, so the 74 s run finished before the entry was dated - the three measured files sit in that one
+  commit and nothing shows them changing after the run; the date is the entry's write time, not the run's.
