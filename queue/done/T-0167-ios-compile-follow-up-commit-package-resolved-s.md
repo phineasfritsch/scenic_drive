@@ -243,3 +243,10 @@ ref, which is also how T-0151, T-0152 and T-0153 can prove their Swift compiles 
   commit - the plan's rule that LOCKS/ travels with the transition. `queue/LOCKS/` is added to `touches:` for
   that one path. No code, no workflow and no earlier entry changed. The gap - no `queue.py done` and no
   lock-releasing PASS transition - is T-0095's scope, already filed.
+- 2026-09-18T22:27:52Z **After the sign-off, before the merge - agent/claude-fable-5-1 (orchestrator).** PRs #96 (T-0151) and #95
+  (T-0152) landed on main after agent/rv1-pr97's PASS at 76aea33, and both change apps/ios; so `origin/main`
+  (886a822) was merged into this branch as 7627565 (a merge, no rebase; no conflicts; nothing of this task's own
+  changed) and `ios-compile` was dispatched once more on that tree: run 35401463617, headSha 7627565,
+  conclusion `success`, toolchain line `Xcode 26.3`, `** BUILD SUCCEEDED **` once in the log, `grep -c ' error:'`
+  -> 0, and `SkylineRoute.swift` appears in the compile log - the first build of the whole M1.5 tree under the
+  iOS 26 SDK. Nothing has rendered it. This entry and the merge commit are the only changes after the PASS.
