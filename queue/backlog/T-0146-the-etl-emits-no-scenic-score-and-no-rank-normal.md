@@ -45,3 +45,14 @@ Unblocks T-0029 (rank-order) and P-PROD-01. Depends on T-0024..T-0027 leaving qu
   gate tests the plan's `ops/sane` check 4 needs (no NULL scores; motorway/trunk/private/unpaved exactly
   0.0). HAZARD recorded by the grounding pass: `origin/task/T-0029` carries its OWN `services/etl/etl/score.py`,
   unmerged - it collides with T-0154's, which is the reviewed one on main.
+- 2026-09-18T20:57:28Z SCOPE CUT AT THE OSMIUM SEAM by agent/claude-fable-5-1 (14:13 panel, DIRECTION lens, grounded). This task is
+  now the FIXTURE HALF only: pure-python assembly (the producers' outputs -> way records -> `normalise` ->
+  `score.score`) plus the four gate assertions the plan's `ops/sane` check 4 needs - no NULL score; motorway,
+  trunk, private and unpaved ways exactly 0.0; every term in [0,1]; ScenicKit parity to 1e-6 - over a COMMITTED
+  JSON way-record fixture, run with native Python on the dev box, demonstrated red then green. Grounded facts
+  behind the cut: `services/etl/pyproject.toml` declares no dependencies, `score.py` imports only `math` and
+  local modules, the Dockerfile installs `osmium-tool` (a subprocess, never a Python import), every fixture is
+  JSON, and the score tests already pass natively here. "Write `scenic_score` 0..10 onto the tagged output" is
+  REMOVED from this task and is T-0168, which needs docker through WSL. What a hand-written fixture cannot
+  surprise its author with - real tag coverage, NULLs from missing DEM samples, the plan's "8/10 top-scored
+  ways are roads you'd drive" - moves to T-0168 with it, on purpose and stated.

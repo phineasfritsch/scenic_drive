@@ -22,3 +22,9 @@ acceptance:
 Proves the only on-device iteration path this project has (no owned Mac). Blocked on T-0007 and T-0010.
 
 ## Log
+- 2026-09-18T20:57:28Z DEVICE CHECKLIST additions from the 14:13 panel's two focus drivers (grounded): on the FIRST real handoff
+  from a phone, record (1) the duration Apple Maps quotes for the Skyline loop - the only honest source for a
+  minutes figure on the home screen; two panel lenses guessed "~2h30" and "about an hour", which is why the
+  title carries none; (2) whether Apple Maps announces an ARRIVAL at the pin on the Cañada Road / CA-92 corner
+  (a waypoint placed on a junction can read as a stop); (3) whether it climbs CA-92 to CA-35 as intended or
+  drops to I-280 and comes up CA-84 - the shortcut the ridge-leg pin in T-0151 exists to close.
