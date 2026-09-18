@@ -77,6 +77,24 @@
   owner: agent/claude-opus-5
   added: 2026-09-07
 
+- id: P-PROC-03
+  statement: ops/queue-sweep never returns a task to ready/ while it names a branch, and refuses outright where git cannot answer
+  why_no_test_catches_it: "The sweeper is the one command in this repository that DESTROYS state - it sets owner: null, the exact state T-0068 exists to reject, and leaves main saying ready/<id> while the branch says review/, which is the add/add divergence eleven branches were repaired for by hand. On 2026-09-15 every one of the 67 claimed tasks had an expired lease and 39 of them had an open PR, so one unguarded run would have discarded 39 finished branches. The guard that stops it was written for T-0131's first item and asserted by NOTHING: deleting it left ops/queue-check, ops/check-pins --source-only and the whole linux-core job green, because no check runs the sweeper at all. It cannot be covered by running it on the real queue either - the command mutates - so the assertion builds throwaway repos and reads what the sweeper SAID, not only where the file ended up: four of the seven cases are must-KEEP and each asserts the sentence naming its own branch, so a sweeper that exits 0 without looping fails all four; one that crashes before its loop fails every case on exit code."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-sweep.py"
+  owner: agent/claude-opus-5
+  added: 2026-09-16
+
+- id: P-PROC-04
+  statement: The seven sweeper cases are discriminating - each variant of queue.py breaks exactly the cases named against it
+  why_no_test_catches_it: "P-PROC-03 runs the cases; nothing ran the layer that proves the cases can fail. check-sweep.py states in its own docstring that --variants is 'what makes six cases discriminating rather than decorative', and that claim rested on a command no gate executed: grep found runners only in PINS.yaml (bare form) and in one task's acceptance block, and linux-core.yml runs check-pins, check-pins --source-only and queue-check and nothing else. So a stale marker, or a variant that silently stopped discriminating, would never be seen again - and combined with an unfloored case list that is the precise way this check goes hollow with every gate green. Raised as BLOCKING by agent/rv-pr85 while failing PR #85, whose own author had deferred the same question on the sibling check as 'the reviewer's call'."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-sweep.py --variants"
+  owner: agent/claude-opus-5
+  added: 2026-09-16
+
 - id: P-PROC-02
   statement: A task file round-trips through ops/lib/queue.py - parse() reads back exactly what dump() wrote - and no front-matter value can declare a second key
   why_no_test_catches_it: "P-PROC-01 compares owner against reviewer, and both are read out of this format. A value carrying a line break wrote a second `owner:` line that the last-wins reader preferred, so the reviewer-is-not-owner rule passed while the real owner was displaced - and every gate stayed green, because nothing reads a task file back and compares. T-0092 closed the hole and committed no check: reverting the whole change left queue-check, check-pins --source-only and check-brief-required all at exit 0, byte for byte. The assertion also refuses to pass on an unexamined population - zero task files, zero payloads - which is how the write-side guard came to be tested against a character list of the author's own devising rather than against the parser (reviewer-pr60)."
@@ -153,6 +171,15 @@
   pending: T-0013
   owner: agent/claude-opus-5
   added: 2026-09-07
+
+- id: P-GIT-03
+  statement: The merge-gate cases are discriminating - each variant of the hook breaks exactly the set of cases named against it, and no other
+  why_no_test_catches_it: "P-GIT-02 runs the cases; nothing ran the layer that proves the cases can fail. check-touches-merge.py says in its own comments that --variants is what makes the cases discriminating rather than decorative, and that claim rested on a command no gate executed - grep finds this file referenced only by a comment in the hook and by P-GIT-02, which invokes the plain form. T-0139 was the demonstration: adding a variant for the fallback's operator message showed that run_variants judged a case on its exit code alone while main() also checked the reason string, so a variant that silenced an asserted message broke nothing in the sweep's eyes. That defect was invisible to every gate in this repository. The same question was raised as BLOCKING by agent/rv-pr85 on the sibling check (P-PROC-04), after this task's author had deferred it as a judgement for the reviewer."
+  anchor: process
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-touches-merge.py --variants"
+  owner: agent/claude-opus-5
+  added: 2026-09-16
 
 - id: P-GIT-02
   statement: The pre-commit touches gate applies to the author's own changes on a merge, not to every file the merge stages

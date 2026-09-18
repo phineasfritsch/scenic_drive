@@ -59,8 +59,10 @@ if [[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]]; then
   # because from WSL this checkout's `.git` file reads `gitdir: C:/...` which WSL's git cannot follow.
   #
   # `--no-renames` IS LOAD-BEARING, not tidiness. With rename detection on - which is the default - a diff
-  # prints only a rename's DESTINATION, so the source path disappears from the MERGE_HEAD side and drops out
-  # of the intersection. A reviewer used that to defeat this gate outright:
+  # prints only a rename's DESTINATION, so the source path disappears from that side's diff and drops out
+  # of the intersection - from EITHER side: the MERGE_HEAD side when the moved file was changed by main
+  # (case 5), the HEAD side when it was not (case 11, T-0139). A reviewer used the first to defeat this
+  # gate outright:
   #
   #     git merge --no-commit --no-ff main
   #     git mv ops/merge allowed/merge      # `touches: [allowed/]`
@@ -75,12 +77,19 @@ if [[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]]; then
   # refused - and is left that way deliberately; octopus merges are not part of this workflow.
   #
   # A GATE THAT CANNOT COMPUTE THE NARROWER SET CHECKS THE WIDER ONE (T-0137). Both diffs are run into
-  # variables and their exit codes read, because process substitution throws the status away: when both
-  # calls fail their outputs are empty, the intersection is empty, the loop below iterates over nothing and
-  # the gate checks NOTHING - silently, no warning, and the commit that results looks ordinary afterwards.
-  # An empty `.git/MERGE_HEAD` was enough to produce it. Found by agent/rv-keystone while passing PR #78,
-  # which is the commit that introduced this whole branch; case 8 of ops/lib/check-touches-merge.py is the
-  # reproduction. "The command errored" must never read as "there is nothing to check".
+  # variables and their exit codes read, because process substitution throws the status away: an intersection
+  # is empty as soon as EITHER side is, so one failing call is enough to leave the loop below with nothing
+  # to iterate over and the gate checking NOTHING - silently, no warning, and the commit that results looks
+  # ordinary afterwards. An empty `.git/MERGE_HEAD` was enough to produce it. Found by agent/rv-keystone
+  # while passing PR #78, the commit that introduced this whole branch; case 8 of
+  # ops/lib/check-touches-merge.py is the reproduction.
+  #
+  # `||`, NOT `&&`, and that is measured rather than reasoned (T-0139). Every earlier version of this
+  # comment - and the task, the Log and the PR body - said "when BOTH calls fail". They are wrong: in the
+  # case-8 scenario an instrumented copy of this hook prints `head_rc=0 merge_rc=128`. The diff against HEAD
+  # SUCCEEDS; only MERGE_HEAD is unresolvable. A hook implementing the sentence those comments wrote would
+  # be `&&`, would never fire here, and turns case 8 red. "The command errored" must never read as "there is
+  # nothing to check", and it takes only one command to error.
   head_paths="$(git diff --cached --name-only --no-renames HEAD | sort)"; head_rc=$?
   merge_paths="$(git diff --cached --name-only --no-renames MERGE_HEAD | sort)"; merge_rc=$?
   if [[ $head_rc -ne 0 || $merge_rc -ne 0 ]]; then
