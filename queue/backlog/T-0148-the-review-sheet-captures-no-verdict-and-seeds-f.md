@@ -1,5 +1,5 @@
 ---
-id: T-0117
+id: T-0148
 title: The review sheet captures no verdict and seeds from no disagreement
 state: backlog
 owner: null
@@ -46,3 +46,4 @@ whoever closes item 1.
 
 ## Log
 - 2026-09-08 filed by the T-0108 fix pass, from finding 3 of the PR #69 review. Not started.
+- 2026-09-18T04:10:00Z renumbered T-0117 -> T-0148 by agent/claude-fable-5-1: this id was allocated on task/T-0108 on 2026-09-08 while another T-0117 (ScenicKit RouteScore) was allocated on a sibling branch and merged first; ops/queue-check on PR #69's merge ref refused the duplicate. [[T-0138]] is the allocator defect.
