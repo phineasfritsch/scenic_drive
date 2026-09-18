@@ -176,6 +176,22 @@ describe("(c) the band multipliers are monotone non-increasing in lambda", () =>
     }
   });
 
+  // Review round 1, recordable N1: the grid pins 7 literal lambdas while the bisection evaluates arbitrary
+  // ones, so sample each interval's midpoint as well - a band that dips between grid points is a real bug.
+  it("both falling bands stay monotone non-increasing across the grid's interval midpoints", () => {
+    const sampled = [...LAMBDA_GRID];
+    for (let i = 1; i < LAMBDA_GRID.length; i += 1) sampled.push((LAMBDA_GRID[i - 1]! + LAMBDA_GRID[i]!) / 2);
+    sampled.sort((a, b) => a - b);
+    expect(sampled).toEqual([0, 0.125, 0.25, 0.375, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8]);
+    for (let i = 1; i < sampled.length; i += 1) {
+      const previous = scenicBandMultipliers(sampled[i - 1]!);
+      const current = scenicBandMultipliers(sampled[i]!);
+      expect(current.high).toBe(1);
+      expect(current.mid).toBeLessThanOrEqual(previous.mid);
+      expect(current.low).toBeLessThanOrEqual(previous.low);
+    }
+  });
+
   it("the low band is never zero, because a dull road is penalised and not excluded", () => {
     for (const lambda of LAMBDA_GRID) expect(scenicBandMultipliers(lambda).low).toBeGreaterThan(0);
   });

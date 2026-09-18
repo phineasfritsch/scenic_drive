@@ -28,6 +28,8 @@ export const LAMBDA_MIN = 0;
 export const LAMBDA_MAX = 8;
 /** Closures KV holds <= 50 polygons (plan :110, :144). More than that is a corrupt feed, not a big day. */
 export const MAX_CLOSURE_POLYGONS = 50;
+/** A GeoJSON linear ring is >= 4 positions and closes on itself (RFC 7946 3.1.6). */
+export const MIN_RING_POSITIONS = 4;
 /** Encoded values a request-supplied model may not touch; they are the safety gates (plan :98). */
 export const FORBIDDEN_ENCODED_VALUES = ["road_access", "surface"] as const;
 /** Decimals kept when a multiplier is serialised. Fixed so the model is byte-stable across boxes. */
@@ -40,6 +42,8 @@ export type CustomModelRefusal =
   | "lambda_out_of_range"
   | "closures_not_feature_collection"
   | "closure_not_polygon"
+  | "closure_ring_not_closed"
+  | "closure_position_not_numeric"
   | "too_many_closure_polygons";
 
 /** Thrown by the builder. Never returned, never swallowed, never turned into a clamp. */
@@ -130,19 +134,78 @@ function closureGeometries(closures: ClosureCollection | null): ClosurePolygon["
       `closures carry ${closures.features.length} polygons, more than the ${MAX_CLOSURE_POLYGONS} allowed`,
     );
   }
-  return closures.features.map((feature, index) => {
-    const geometry = feature?.geometry;
-    if (!geometry || geometry.type !== "Polygon" || !Array.isArray(geometry.coordinates)) {
-      throw new CustomModelError("closure_not_polygon", `closure feature ${index} is not a Polygon`);
-    }
-    return { type: "Polygon" as const, coordinates: geometry.coordinates };
-  });
+  return closures.features.map((feature, index) => closureGeometry(feature, index));
 }
 
 /**
- * Build the per-request model. The closure features are REBUILT from their geometry alone with empty
- * properties and a generated id: whatever the KV feed put in `properties` never reaches the router, so the
- * "never mentions road_access or surface" property holds for closures we did not write either.
+ * One position, REBUILT. Nothing of the feed's own array survives: two finite numbers are copied into a
+ * fresh pair, so a string, a nested object, a third element or an own property on the feed's array cannot
+ * ride into the router. The message never echoes the position's contents - only its element types - so a
+ * poisoned feed cannot get its own text quoted back out through an error.
+ */
+function rebuildPosition(position: unknown, where: string): [number, number] {
+  if (!Array.isArray(position) || position.length !== 2) {
+    throw new CustomModelError(
+      "closure_position_not_numeric",
+      `${where} is not a [lon, lat] pair (${Array.isArray(position) ? `${position.length} elements` : typeof position})`,
+    );
+  }
+  const [lon, lat] = position as unknown[];
+  if (typeof lon !== "number" || typeof lat !== "number" || !Number.isFinite(lon) || !Number.isFinite(lat)) {
+    throw new CustomModelError(
+      "closure_position_not_numeric",
+      `${where} is not two finite numbers (${typeof lon}, ${typeof lat})`,
+    );
+  }
+  return [lon, lat];
+}
+
+/** One linear ring, rebuilt position by position: >= 4 positions, first == last, or it is refused by name. */
+function rebuildRing(ring: unknown, where: string): [number, number][] {
+  if (!Array.isArray(ring) || ring.length < MIN_RING_POSITIONS) {
+    throw new CustomModelError(
+      "closure_ring_not_closed",
+      `${where} needs at least ${MIN_RING_POSITIONS} positions (${Array.isArray(ring) ? `${ring.length}` : typeof ring})`,
+    );
+  }
+  const rebuilt = ring.map((position, at) => rebuildPosition(position, `${where} position ${at}`));
+  const first = rebuilt[0]!;
+  const last = rebuilt[rebuilt.length - 1]!;
+  if (first[0] !== last[0] || first[1] !== last[1]) {
+    throw new CustomModelError("closure_ring_not_closed", `${where} does not close on its first position`);
+  }
+  return rebuilt;
+}
+
+/** Every ring of one polygon, rebuilt. The feed's `coordinates` array itself is never returned. */
+function rebuildPolygonRings(coordinates: unknown[], index: number): [number, number][][] {
+  if (coordinates.length === 0) {
+    throw new CustomModelError("closure_ring_not_closed", `closure feature ${index} has no rings`);
+  }
+  return coordinates.map((ring, at) => rebuildRing(ring, `closure feature ${index} ring ${at}`));
+}
+
+/**
+ * The emitted geometry, built from scratch: exactly `type` and `coordinates`, both ours. A geometry object
+ * carrying foreign members (`bbox`, a stray `properties`, anything else the feed invented) loses them here,
+ * because this object is constructed rather than spread.
+ */
+function closureGeometry(feature: ClosurePolygon | undefined, index: number): ClosurePolygon["geometry"] {
+  const geometry = feature?.geometry;
+  if (!geometry || geometry.type !== "Polygon" || !Array.isArray(geometry.coordinates)) {
+    throw new CustomModelError("closure_not_polygon", `closure feature ${index} is not a Polygon`);
+  }
+  return { type: "Polygon" as const, coordinates: rebuildPolygonRings(geometry.coordinates, index) };
+}
+
+/**
+ * Build the per-request model. The closure features are REBUILT with empty properties, a generated id and a
+ * geometry constructed here: every ring is a fresh array of fresh [lon, lat] pairs of finite numbers, so no
+ * object, array or string from the KV feed reaches the router - not by copy and not BY REFERENCE. Review
+ * round 1 (B3) found the earlier version passing `geometry.coordinates` straight through behind a lone
+ * `Array.isArray`, which let foreign members and non-numeric elements ride in; that is what this closes.
+ * A ring that is not >= 4 positions closing on its first, or a position that is not two finite numbers, is
+ * refused by name (`closure_ring_not_closed`, `closure_position_not_numeric`), never silently repaired.
  */
 export function buildCustomModel(lambda: number, closures: ClosureCollection | null): CustomModel {
   const bands = scenicBandMultipliers(lambda);
