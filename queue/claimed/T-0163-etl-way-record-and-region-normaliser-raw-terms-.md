@@ -252,3 +252,12 @@ Check `queue/*/T-0112-*` and `queue/*/T-0050-*` for overlap before you start and
   about today's main - the same trap `ops/lib/check-pipe-consumers` records for its own file count - and
   the number CI prints on the merge ref will be higher than 549 because main has since gained tests of its
   own. Zero skips and the named tests are the parts that do not move.
+- 2026-09-18T20:41:32Z **Record corrections from the read-only verification of this build, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. Everything load-bearing reproduced, including a byte-identical regeneration of
+  the fixture; these are small.** (a) N3 and an acceptance line say a mutation is caught by "EXACTLY 1 named
+  failure in the whole repository"; the quoted procedure runs the three new test files, not the repository.
+  It is true by construction - only `tests/test_normalise.py` and `tests/test_way_records_fixture.py` import
+  `normalise` - but no whole-suite run backs the words. (b) R1 quotes T-0146's brief as "rank-normalise each";
+  that phrase does not occur there - the text is "normalising each within the region" - a paraphrase inherited
+  from this task's own Brief. (c) `way_record.py`'s docstring cited score.py:97-99 for `out_of_range`'s reason;
+  :97 is blank and the reason is :98-99. Corrected.

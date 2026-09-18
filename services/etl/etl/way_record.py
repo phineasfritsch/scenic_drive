@@ -121,7 +121,7 @@ class WayRecord:
     def problems(self) -> list[str]:
         """Everything wrong with this record, BY FIELD NAME. Empty means usable.
 
-        Reported rather than raised, and never clamped, for `score.out_of_range`'s reason (score.py:97-99):
+        Reported rather than raised, and never clamped, for `score.out_of_range`'s reason (score.py:98-99):
         a plausible number computed from a wrong input is the hardest kind of error to find later. The
         ranked fields are checked against the state the record says it is in, which is the only way a raw
         metre count can be told apart from a rank of 0.6.
