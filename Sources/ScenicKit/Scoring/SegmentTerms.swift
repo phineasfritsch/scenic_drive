@@ -25,11 +25,16 @@ public struct SegmentTerms: Equatable, Sendable {
 
     // MARK: - E, what the road goes past
 
-    /// Tree canopy cover, from USFS TCC.
+    /// Tree canopy cover, from ESA WorldCover 2021 v200.
     public var canopy: Double
     /// Terrain relief nearby, from 3DEP.
     public var relief: Double
-    /// Impervious surface from NLCD. Enters the formula as `1 - impervious`: parking lots are not scenery.
+    /// Impervious (built) surface, from ESA WorldCover 2021 v200. Enters the formula as `1 - impervious`:
+    /// parking lots are not scenery.
+    ///
+    /// Not USFS TCC and not NLCD, which the plan named and these two lines used to claim: MRLC's S3 refuses
+    /// all anonymous access (403, Requester Pays) and retrieval needs an authenticated order, so the
+    /// producer is WorldCover. Checked live, not assumed - `services/etl/etl/landcover.py:8-13`.
     public var impervious: Double
     /// Density of interesting places, from the curated corpus and the allowlist.
     public var pointsOfInterest: Double
@@ -38,9 +43,9 @@ public struct SegmentTerms: Equatable, Sendable {
     /// Street furniture - signs, lights, barriers. Enters as `1 - furniture`.
     public var furniture: Double
 
-    /// A designated scenic byway (FHWA or Caltrans). A bonus on E, capped, not a term of its own - the plan
-    /// treats it as corroboration of the rasters rather than as a substitute for them.
-    public var isByway: Bool
+    /// Scenic-byway designation, in the ETL's three tiers. A bonus on E, capped, not a term of its own - the
+    /// plan treats it as corroboration of the rasters rather than as a substitute for them.
+    public var bywayTier: BywayTier
 
     // MARK: - the road itself
 
@@ -64,7 +69,7 @@ public struct SegmentTerms: Equatable, Sendable {
                 pointsOfInterest: Double = 0,
                 water: Double = 0,
                 furniture: Double = 0,
-                isByway: Bool = false,
+                bywayTier: BywayTier = .none,
                 highway: String = "residential",
                 surface: String? = nil,
                 tunnelMeters: Double = 0,
@@ -79,7 +84,7 @@ public struct SegmentTerms: Equatable, Sendable {
         self.pointsOfInterest = pointsOfInterest
         self.water = water
         self.furniture = furniture
-        self.isByway = isByway
+        self.bywayTier = bywayTier
         self.highway = highway
         self.surface = surface
         self.tunnelMeters = tunnelMeters

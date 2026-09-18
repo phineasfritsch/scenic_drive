@@ -187,15 +187,20 @@ struct SegmentScoreValidationTests {
         let tunnels = [0.0, 300.0, 301.0, 10_000.0]
         let distances = [0.0, 149.0, 150.0, Double.infinity]
         let classes = ["tertiary", "residential", "unclassified", "motorway", "trunk_link", "secondary"]
+        // Written out rather than `BywayTier.allCases`, for the same reason the other four lists are: the
+        // count below has to be a literal that an emptied list cannot satisfy. This expectation is what
+        // keeps the literal list honest when a tier is added.
+        let tiers: [BywayTier] = [.none, .eligible, .designated]
+        #expect(tiers.count == BywayTier.allCases.count, "a byway tier was added and this grid never saw it")
         var walked = 0
         for m in levels {
             for e in levels {
-                for byway in [false, true] {
+                for byway in tiers {
                     for tunnel in tunnels {
                         for distance in distances {
                             for highway in classes {
                                 var t = Self.split(drive: m, scenery: e, highway: highway)
-                                t.isByway = byway
+                                t.bywayTier = byway
                                 t.tunnelMeters = tunnel
                                 t.metersToNearestMotorway = distance
                                 let at = "m=\(m) e=\(e) byway=\(byway) tunnel=\(tunnel)"
@@ -212,6 +217,6 @@ struct SegmentScoreValidationTests {
         }
         // Without this the loops could be emptied - by a fixture list going to [] - and the test would pass
         // having asserted nothing. The count is the product of the literal list lengths above.
-        #expect(walked == 7 * 7 * 2 * 4 * 4 * 6, "the grid must actually have been walked; walked \(walked)")
+        #expect(walked == 7 * 7 * 3 * 4 * 4 * 6, "the grid must actually have been walked; walked \(walked)")
     }
 }

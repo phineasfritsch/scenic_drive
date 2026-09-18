@@ -96,7 +96,7 @@ struct SegmentScoreTests {
         #expect(abs(best - 1.0) < 1e-12, "(1) every term at 1 must score exactly 1; got \(best)")
 
         var saturated = Self.uniform(1.0)
-        saturated.isByway = true
+        saturated.bywayTier = .designated
         let cappedBest = try #require(SegmentScore.score(for: saturated))
         #expect(abs(cappedBest - 1.0) < 1e-12, "(2) the cap must bite at E = 1 and change nothing; got \(cappedBest)")
 
@@ -104,7 +104,7 @@ struct SegmentScoreTests {
         // score up. Without this, B == 0 collapses (2) back onto (1) and the pair proves nothing again.
         let plain = try #require(SegmentScore.score(for: Self.uniform(0.5)))
         var bonused = Self.uniform(0.5)
-        bonused.isByway = true
+        bonused.bywayTier = .designated
         #expect(try #require(SegmentScore.score(for: bonused)) > plain, "(3) the byway bonus is strictly positive")
 
         // And the individual weights, written out, since the tuning process in the plan will move them and a
@@ -246,12 +246,12 @@ struct SegmentScoreTests {
     @Test("a byway bonus is added to scenery and capped, so it cannot push the score past one")
     func bywayBonusIsCapped() throws {
         var t = Self.uniform(0.9)
-        t.isByway = true
+        t.bywayTier = .designated
         // E = 0.9 + 0.15 = 1.05, capped to 1. Score = 0.9^0.35 * 1^0.65 = 0.9637955.
         #expect(abs(try #require(SegmentScore.score(for: t)) - 0.9637955) < 1e-5)
 
         var best = Self.uniform(1.0)
-        best.isByway = true
+        best.bywayTier = .designated
         #expect(try #require(SegmentScore.score(for: best)) == 1.0, "the cap must hold at the top")
 
         // "added" is the other half of this test's NAME, and both fixtures above sit at or above saturation,
@@ -260,7 +260,7 @@ struct SegmentScoreTests {
         // 0.55, M = 0.4, score = 0.4^0.35 * 0.55^0.65 = 0.4919905. The value and the form are pinned at two
         // levels in `SegmentScoreWeightTests`; this line is here so this test's name is true of this test.
         var belowSaturation = Self.uniform(0.4)
-        belowSaturation.isByway = true
+        belowSaturation.bywayTier = .designated
         let below = try #require(SegmentScore.score(for: belowSaturation))
         #expect(abs(below - 0.4919905) < 1e-5, "the bonus is added, not only capped; got \(below)")
     }
