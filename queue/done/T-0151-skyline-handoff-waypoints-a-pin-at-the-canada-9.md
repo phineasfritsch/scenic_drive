@@ -1,7 +1,7 @@
 ---
 id: T-0151
 title: SkylineHandoff waypoints - a pin at the Cañada/92 junction, a mid-Cañada pin, pin 5 moved onto CA-35, and a maximum-spacing test so Apple Maps cannot shortcut back onto 280
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T20:32:52Z
@@ -11,7 +11,7 @@ branch: task/T-0151
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Tests/, Sources/Handoff/, Tests/HandoffTests/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr96
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -380,3 +380,82 @@ Depends on T-0141 (PR #88) landing; do not open a second PR on the same file whi
   decimals and nothing turns on it, but the sentence described the scratch tool, not the test. (e) "261 tests
   in 34 suites" was the author's run; the verifier ran only the new suite and took CI (linux-core 35398130289
   on 07906ed, green) as the whole-package proof.
+- 2026-09-18T22:13:34Z **Review PASS - agent/rv1-pr96, reviewer; not the owner (agent/claude-opus-5) and
+  not the orchestrator who wrote the correction entry above.** Read-only worktree `.worktrees/rv1-pr96` at
+  cc63497 (= origin/task/T-0151), removed at the end; nothing in the PR was changed.
+
+  **Acceptance re-run at this head.** `swift test --scratch-path .build/rv1-pr96` -> `Test run with 261
+  tests in 34 suites passed after 0.292 seconds`, exit 0 - the acceptance line's counts exactly.
+  `--filter "Skyline"` -> `Test run with 11 tests in 2 suites passed`, which is the 8 + 3 of the first two
+  lines. `wc -l` -> 170 / 251 / 101 / 184 / 78, as written. ios-compile **35397654885**, `headSha`
+  **d9f5702**, conclusion **success**; its log is 1680 lines, `grep -c " error:"` prints **0**, it carries
+  `simulator-build	build for the iOS Simulator	2026-09-18T21:37:46.3860770Z ** BUILD SUCCEEDED **`, two
+  `Compiling SkylineRoute.swift` lines and six naming `SkylineHandoff.swift`, and it builds
+  `-destination generic/platform=iOS Simulator` with `-derivedDataPath` under the workspace - not a host
+  SDK by accident. `git diff --name-only d9f5702..cc63497` prints this task file and nothing else, so that
+  build stands for the head. `gh pr checks 96`, once, at the end: `core pass 2m9s`, `pins-source-only pass
+  1m14s`, actions run 35399333270, exit 0. No run was dispatched by this review.
+
+  **The arithmetic re-done independently** (own python, spherical law of cosines AND haversine,
+  R = 6_371_008.8): consecutive spacings 34401.374336583191 / 5271.360126616497 / 4417.869021966166 /
+  3984.707544395665 / 12369.033113903331 / 2887.583783736423 m. Cañada leg widest **5271.360126616497**
+  against 6000 (headroom 728.640); ridge leg widest **12369.033113903331** against 13000 (headroom
+  630.967) - both headroom figures as ruled. Every quoted red number reproduces to the last digit: pin 4 to
+  the retired CA-92 pin **242.389579315769**, that pin to the ridge pin **14928.716031752152**, Woodside to
+  the CA-92 junction without the mid pin **9681.899324888309**. Ruling 8's table reproduces as well: from
+  node 6606870993, A 351.8 m / B 1043.5 m / D **2752.617** m, widest ridge gap 14661.2 / 13992.3 /
+  12369.0 m, and 14928.7 - 14661.2 = 267.5 m = 1.79 %. Haversine and the suite's law of cosines agree to
+  under 3e-9 relative here, so ruling 5's independence costs no accuracy. The seven literals also read as
+  the roads their comments name against what I know of these roads: the Cañada/CA-92 junction is where
+  pin 4 is, CA-35 leaves that crossing south-east as pins 5-7 do, and no pin sits on I-280 or on CA-84.
+
+  **Three mutations nobody wrote, each alone, control green at 261/34.**
+  1. `ridgeLegMaxSpacingMeters` 13_000 -> 20_000, the widen-it-away move: RED by name -
+     `the CA-35 pin is what keeps that bound ... (widest → 14928.716031752152) > (Self.ridgeLegMaxSpacing
+     Meters → 20000.0)`. The ceiling cannot be loosened silently, and `maxSpacingOnTheRidgeLeg` holds it
+     from the other side at 12369 m. Same shape on the Cañada bound.
+  2. The CA-35 pin put back to the retired CA-92 literal in BOTH copies and in the URL expectation - the
+     lockstep edit that would undo part 2: RED by name twice, `the pins run the drive ... (w[i].latitude →
+     37.50621) > (w[i + 1].latitude → 37.50745)` and `no gap on the CA-92 climb and the ridge ... (widest →
+     14928.716031752152) < (... → 13000.0)`. This fix is not silently revertible.
+  3. Pin 6 moved 2401.8 m EAST off CA-35 to 37.40500, -122.25000 - the Portola Valley side of the ridge,
+     not a carriageway named Skyline Boulevard - in both copies and in the URL literal: **all 11 tests
+     GREEN**, exit 0. That is STILL OPEN 1 and 3 measured instead of asserted: the bounds know spacing, not
+     which road a pin is on, and the way id beside each literal is prose. Disclosed, so recorded, not
+     failed.
+
+  **STILL OPEN 8 (12369 m of ridge below the CA-35 pin), ruled: FOLLOW-UP, not a blocker.** M1.5's exit is
+  "You open it on your phone in week 2 and tap into Apple Maps on Skyline" (plan, M1.5 row). Seven pins
+  already force I-280 south, Cañada northbound with the Edgewood junction inside a 5271 m gap, the
+  Cañada/CA-92 turn, and three points on CA-35; the pin this PR retires was on CA-84 (way 32506261, La
+  Honda Road), and that one - the last waypoint of the drive sitting on the wrong road - is the defect that
+  would actually have broken the exit. It is gone. What is left is one unpinned stretch whose escape (off
+  CA-35, down to I-280, back up CA-84 into Sky Londa) is a longer drive in time than the ridge it skips, so
+  a time-optimal planner is unlikely to take it - unproven here, as everything about Apple's planner is.
+  The plan's "<=9 pinned waypoints at decision points" leaves room for the eighth pin, and the 630.967 m of
+  headroom is what will force the ceiling down when it lands. A task, not a round.
+
+  **Recordable; none of it fails this round.**
+  (a) `helperMeasuresAKnownDistance` says "6_371_008.8 * pi / 180 m, which is 111_194.9266... m". That
+      product is **111_195.0802**; 111_194.9266 is 6_371_000 * pi / 180. Tolerance is 0.5 m and the helper
+      measures 111195.080234, so the test is green and still catches any helper wrong by more than a few
+      parts per million - but in the one test written to be checkable by hand, the arithmetic shown does
+      not produce the literal shown.
+  (b) A fourth probe, pin 6 -> Kings Mountain Road at 37.42500, -122.29000, did go red - but by the wrong
+      name: `theCA35PinIsWhatKeepsTheRidgeBound` fell to 10291.970851506569 because its counterfactual
+      reads the same shared fixture the pin moved. The standing red demonstrations are not independent of
+      the pins they defend; worth knowing before the eighth pin moves them again.
+  (c) Pin 1 (I-280) is covered by no spacing bound - deliberate, ruling 3 - so it is held only by
+      `w[0].latitude > w[1].latitude`. One sentence in the next task on this file.
+  (d) The Bicycle Sunday paragraph disclaims the schedule and in the same breath states "Apple Maps will
+      route around the whole corridor" as fact; whether Apple has that closure at all is as unverified as
+      the dates.
+  (e) PR #95 (T-0152) touches `ScenicHomeScreen.swift` in the same Apple target. No file overlaps this PR,
+      but neither ios-compile run compiled both changes, so whichever of #95 / #96 merges SECOND must be
+      re-dispatched. Flagged only; not acted on here.
+
+  **Not got to.** No Nominatim query was re-issued - this review made no network call other than `gh` - so
+  every way id and returned point beside a literal still stands on the owner's record and on the
+  orchestrator's correction (c). The Apple-side forwarding in `SkylineHandoff.swift` is read and compiled
+  and executed by nothing. `bash ops/check-pins` and `bash ops/test` were not run locally, per the task
+  text; `gh pr checks 96` is the reading of both.
