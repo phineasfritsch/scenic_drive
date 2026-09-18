@@ -405,3 +405,11 @@ Check `queue/*/T-0112-*` and `queue/*/T-0050-*` for overlap before you start and
   previous head 38fdcc7 had both green (run 35392916624). This entry adds no number to the acceptance
   block: it changes the queue file only, and every count, `wc -l` and suite line quoted there was measured
   at e62ee43's tree, which this commit does not touch.
+- 2026-09-18T22:16:51Z **Record note from the read-only verification of the fix pass, closed before round 2 - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier re-applied both round-1 survivors and three neighbours of its own
+  to a copy (every one caught by name), regenerated the fixture outside the tree byte-identically, and found no
+  count, name or gate result that failed to reproduce at 052725c. One sentence to qualify:** the acceptance
+  line "`570 passed in 50.99s` at this tree" quotes a single wall-time reading; the verifier measured `570 passed
+  in 77.40s (0:01:17)`, exit 0, zero skips. The count, the exit status and the zero skips are the claim; the
+  wall clock moves on a shared box and is not.
+
