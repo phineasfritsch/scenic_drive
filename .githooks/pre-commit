@@ -4,18 +4,33 @@
 #  2. Secret-looking content or files (sk. tokens, private keys, .p8/.p12/.netrc/.env).
 #  3. Staged paths outside the current task's `touches:` list (active once a queue task file exists for the
 #     branch, in claimed/, review/ OR done/ - a signed-off task still commits nothing that wasn't already
-#     allowed; review does not widen what a path may touch).
+#     allowed; review does not widen what a path may touch). The list is read from the task file AS STAGED,
+#     never from the working tree (T-0160).
+#  4. Staged content that is stale relative to the working tree: `git mv` stages a rename against the
+#     PRE-edit blob and the edit that follows is never re-staged, so the commit records something other
+#     than what the author is looking at (T-0047, re-landed on this hook by T-0160).
 # Floor-lowering protection lives in .githooks/commit-msg (T-0002).
 set -uo pipefail
 fail=0
 CR=$(printf '\r')
-staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+# NUL-DELIMITED, WHEREVER THE STAGED LIST IS READ (T-0160). Plain `--name-only` C-QUOTES any path holding a
+# non-ASCII byte - `allowed/café-note.txt` arrives as the 27-character literal `"allowed/caf\303\251-note.txt"`,
+# quotes and backslashes included - and that string is not a path. `git show ":$f"` fails on it, so the
+# fail-closed branch below (T-0140) refuses an ordinary commit, and the `touches:` loop then reports the
+# same unreadable spelling as outside the list. Both were measured on the shipped hook. `-z` turns the
+# quoting off; `tr` puts the list back on lines, which is the shape everything downstream reads.
+#
+# A path containing a literal newline would still split wrong here. git can store one; nothing in this
+# repository creates one, and the alternative (arrays everywhere) breaks under `set -u` on the bash 3.2
+# that ships with macOS, which is a platform this hook runs on.
+staged="$(git diff --cached --name-only -z --diff-filter=ACMR | tr '\0' '\n')"
 [[ -z "$staged" ]] && exit 0
 
 # 1 and 2. CRLF and secrets, read from the STAGED blob, never from the working file.
 #
 # NOT `git show ":$f" | grep -q PAT` (T-0140). `grep -q` exits at its first match; if `git show` is still
-# writing it gets SIGPIPE and exits 141, and under the `pipefail` on line 9 the pipeline's status is 141,
+# writing it gets SIGPIPE and exits 141, and under the `pipefail` on line 13 the pipeline's status is 141,
 # so the `if` reads "no match". Measured with the real hook: a 256 KB file with an sk. token on line 1
 # COMMITTED, exit 0, nothing printed - 1 KB and 64 KB were refused, 256 KB, 1 MB and 4 MB were not. The
 # secret scan CLAUDE.md promises was a race that any file over the pipe buffer won.
@@ -71,6 +86,13 @@ done <<< "$staged"
 # `git merge -X ours`, or resolving by keeping this branch's version - produces a file identical to HEAD
 # while silently discarding main's change to it. No rule over staged paths can see that, because nothing was
 # staged. It is a real limit of this gate and it is stated here rather than implied away.
+#
+# THIS NARROWING IS FOR `touches:` ONLY. Check 4 below reads the FULL staged list on a merge, for the same
+# reason the secret scan does: its question is whether the staged bytes are the bytes on disk, which is
+# not a question about who owns the path. A merged-in file's index and working-tree copies are both the
+# merge result, so it compares equal and nothing legitimate is refused - while a file the author edits
+# AFTER `git merge --no-commit` has staged content identical to MERGE_HEAD, drops out of the intersection
+# below, and would be invisible to a narrowed check 4 (ops/lib/check-stale-stage.py, case 10).
 to_check="$staged"
 if [[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]]; then
   # `git rev-parse --git-dir`, not `--show-toplevel`: the latter is banned under ops/ and in the hooks
@@ -108,8 +130,11 @@ if [[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]]; then
   # SUCCEEDS; only MERGE_HEAD is unresolvable. A hook implementing the sentence those comments wrote would
   # be `&&`, would never fire here, and turns case 8 red. "The command errored" must never read as "there is
   # nothing to check", and it takes only one command to error.
-  head_paths="$(git diff --cached --name-only --no-renames HEAD | sort)"; head_rc=$?
-  merge_paths="$(git diff --cached --name-only --no-renames MERGE_HEAD | sort)"; merge_rc=$?
+  #
+  # `-z | tr` on both sides for the same reason as the staged list above: without it a non-ASCII path
+  # arrives C-quoted from one diff and raw from the other, so it never intersects with itself.
+  head_paths="$(git diff --cached --name-only -z --no-renames HEAD | tr '\0' '\n' | sort)"; head_rc=$?
+  merge_paths="$(git diff --cached --name-only -z --no-renames MERGE_HEAD | tr '\0' '\n' | sort)"; merge_rc=$?
   if [[ $head_rc -ne 0 || $merge_rc -ne 0 ]]; then
     echo "pre-commit: merge in progress, but the diff against HEAD/MERGE_HEAD failed" \
          "(exit $head_rc/$merge_rc); checking touches: against the FULL staged set instead"
@@ -127,8 +152,25 @@ if [[ "$branch" =~ ^task/(T-[0-9]+) ]]; then
   task="${BASH_REMATCH[1]}"
   taskfile="$(ls queue/claimed/"$task"*.md queue/review/"$task"*.md queue/done/"$task"*.md 2>/dev/null | head -1 || true)"
   if [[ -n "$taskfile" ]]; then
+    # THE GATE READS THE TASK FILE THAT IS BEING COMMITTED, NOT THE ONE ON DISK (T-0160). Reading the
+    # working-tree file let an author widen `touches:` in their editor, leave that edit unstaged, and land a
+    # path the committed task file forbids: `git show HEAD:<task file>` afterwards still says the path was
+    # out of scope, and the widening exists nowhere in the history. A reviewer landed it as ATTACK 3 on the
+    # shipped hook. The index is the right source because the index is what the commit will contain.
+    #
+    # HEAD is the fallback for the one case the index cannot answer: the task file removed from the index
+    # (`git rm --cached`) or left unmerged, where `git show ":$taskfile"` exits non-zero. A task file that
+    # is in NEITHER is a gate that cannot read its own rule, and that refuses rather than waving the commit
+    # through - the same posture as the unreadable-blob branch in check 1/2.
+    taskyaml="$(git show ":$taskfile" 2>/dev/null || true)"
+    [[ -z "$taskyaml" ]] && taskyaml="$(git show "HEAD:$taskfile" 2>/dev/null || true)"
+    if [[ -z "$taskyaml" ]]; then
+      echo "pre-commit: $taskfile is in the working tree but in neither the index nor HEAD, so this hook" \
+           "cannot read the touches: that is being committed. Fix: git add -- \"$taskfile\""
+      fail=1
+    fi
     # touches: [a, b, c]  (single line, YAML flow list)
-    allowed="$(grep -E '^touches:' "$taskfile" | head -1 | sed -E 's/^touches:[[:space:]]*\[(.*)\][[:space:]]*$/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//' | grep -v '^$')"
+    allowed="$(grep -E '^touches:' <<< "$taskyaml" | head -1 | sed -E 's/^touches:[[:space:]]*\[(.*)\][[:space:]]*$/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//' | grep -v '^$')"
     if [[ -n "$allowed" ]]; then
       while IFS= read -r f; do
         [[ -z "$f" ]] && continue
@@ -138,6 +180,82 @@ if [[ "$branch" =~ ^task/(T-[0-9]+) ]]; then
         if [[ $ok -eq 0 ]]; then echo "pre-commit: $f is outside $task touches: [$(echo "$allowed" | tr '\n' ' ')]"; fail=1; fi
       done <<< "$to_check"
     fi
+  fi
+fi
+
+# 4. STAGED CONTENT vs. THE WORKING TREE (T-0047; its fix never reached main, re-landed by T-0160).
+#
+# Six agents in one session shipped a commit whose staged content was a snapshot from before their edit:
+# `git mv` stages the rename against the PRE-edit blob, the file is then rewritten, and the edit is never
+# re-staged. `git status` shows a clean rename and says nothing is wrong; the commit lands as a pure rename
+# with 0 insertions, silently dropping a reviewer's verdict and their entire findings log.
+#
+# Object ids, not raw bytes: `git hash-object -- "$f"` applies the same clean filters (.gitattributes
+# `text=auto eol=lf`) that `git add` applies, so a file that is CRLF on disk and LF in the index hashes
+# EQUAL here and is correctly left alone. A byte compare would refuse every text file on this Windows
+# checkout.
+#
+# Symlinks are compared by TARGET TEXT, not through the link. `git hash-object -- "$f"` dereferences a
+# symlink and hashes the target FILE's content, while `git add` stores the link's own target text (mode
+# 120000): comparing those refuses every staged symlink unconditionally, even one untouched since `git add`.
+# reviewer-28 measured that on WSL2/ext4 against T-0047's first version. `-L` is lstat-based, so a broken
+# link still tests true, and branching on the working-tree entry's CURRENT type means a type change in
+# either direction is still compared against what is on disk.
+#   LOW, disclosed and not fixed (reviewer-28, T-0047): a symlink whose stored target text itself ends in a
+#   newline is a false positive, because `$(readlink -- "$f")` strips ALL trailing newlines, not just the
+#   one readlink adds for display. `ln -s $'foo\n' link` is the only way to produce it. Windows cannot
+#   create a real symlink without privilege (`ln -s` silently copies instead), so the whole symlink branch
+#   is verified on WSL2/Linux only - ops/lib/check-stale-stage.py does not exercise it.
+#
+# A staged deletion never reaches this loop (--diff-filter=ACMR excludes D), so `git rm` is out of scope by
+# construction. A path staged and then deleted from disk is a different thing - staged content that no
+# longer exists to be reviewed - and is reported separately below.
+#
+# ALLOW_PARTIAL_STAGE=1, and only the value 1, waives the refusal for a deliberate `git add -p`. Any other
+# value is not the waiver: an escape hatch nobody can spell by accident is the point, and a variable left
+# exported in a shell from an earlier commit must not quietly wave through an unrelated stale file. The
+# waiver is announced on stderr, because a commit that recorded content the author was not looking at
+# should say so at the moment it happens.
+stale=""
+missing=""
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  if [[ "$(git ls-files -s -- "$f" | cut -d" " -f1)" == "160000" ]]; then continue; fi
+  staged_oid="$(git rev-parse ":$f" 2>/dev/null || true)"
+  [[ -z "$staged_oid" ]] && continue
+  if [[ ! -e "$f" && ! -L "$f" ]]; then missing="$missing$f"$'\n'; continue; fi
+  if [[ -L "$f" ]]; then
+    working_oid="$(printf '%s' "$(readlink -- "$f")" | git hash-object --stdin 2>/dev/null || true)"
+  else
+    working_oid="$(git hash-object -- "$f" 2>/dev/null || true)"
+  fi
+  # An empty working_oid means hash-object could not read the file; that is not "they match".
+  [[ "$working_oid" != "$staged_oid" ]] && stale="$stale$f"$'\n'
+done <<< "$staged"
+
+if [[ -n "$stale" || -n "$missing" ]]; then
+  allow="${ALLOW_PARTIAL_STAGE:-}"
+  if [[ "$allow" == "1" ]]; then
+    echo "pre-commit: ALLOW_PARTIAL_STAGE=1 waives the stale-content check for: $(echo "$stale$missing" | tr '\n' ' ')" >&2
+  else
+    if [[ -n "$allow" ]]; then
+      echo "pre-commit: ALLOW_PARTIAL_STAGE is set to '$allow', which is not the value 1 - the only value" \
+           "that waives the stale-content check" >&2
+    fi
+    while IFS= read -r f; do
+      [[ -z "$f" ]] && continue
+      echo "pre-commit: staged content in $f is stale - the working tree changed after 'git add', so this" \
+           "commit would record something other than what you are looking at. Fix: git add -- \"$f\"." \
+           "For a deliberate partial stage, set ALLOW_PARTIAL_STAGE=1."
+      fail=1
+    done <<< "$stale"
+    while IFS= read -r f; do
+      [[ -z "$f" ]] && continue
+      echo "pre-commit: $f is staged but missing from the working tree (deleted after 'git add')." \
+           "Fix: git add -- \"$f\" to stage the deletion, or restore the file." \
+           "For a deliberate partial stage, set ALLOW_PARTIAL_STAGE=1."
+      fail=1
+    done <<< "$missing"
   fi
 fi
 

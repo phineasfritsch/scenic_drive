@@ -207,3 +207,12 @@
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-touches-merge.py"
   owner: agent/claude-opus-5
   added: 2026-09-08
+
+- id: P-GIT-04
+  statement: The pre-commit hook refuses a commit whose staged content differs from the working tree, and reads the touches list from the task file as staged
+  why_no_test_catches_it: "Nothing in this repository ever ran the hook against a stale index. Six agents in one session shipped a commit whose staged content was the pre-edit blob - `git mv` stages the rename, the file is then rewritten, the edit is never re-staged - and `git status` shows a clean rename while `git show HEAD:<the path>` proves the verdict never landed. PR #69's CI went red on 2026-09-18 for exactly that. T-0047 built the check and PR #30 merged it into the STACKED branch task/T-0039 a day after that branch had already landed on main, so the child never followed and nothing noticed for eleven days: `grep -rn ALLOW_PARTIAL_STAGE` over main hit one line, the task's own Brief. The touches half is the same class in the other direction - the gate read the WORKING-TREE task file, so widening the list in an editor and leaving that edit unstaged let a forbidden path land under a committed list that still forbids it. ops/lib/check-stale-stage.py runs fourteen throwaway repositories; eight of its cases are red on the hook at origin/main and six are false-positive controls, because a hook that refuses a legitimate commit is worse than the bug it guards."
+  anchor: process
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-stale-stage.py"
+  owner: agent/claude-opus-5
+  added: 2026-09-18
