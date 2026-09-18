@@ -362,3 +362,12 @@ do not add the disclaimer here (T-0153 owns it, and it gates the first plan, not
      temporarily"), and a suite authored on a box with no Apple toolchain could never be seen red.
   6. **Dynamic Type was not exercised** (20:47:15Z item 6). R12's choice of `.subheadline` for the roads is an
      argument, not an observation.
+- 2026-09-18T21:57:33Z **Record corrections from the read-only verification of part 2, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier reproduced the two ios-compile runs on their shas (35393000321
+  @d428da0, 35396900851 @d16a5e4; 419b43f changed only this file), the diff (ScenicHomeScreen.swift only; no
+  raw hex, no point sizes; the three ruled strings verbatim, U+00B7 and the n-tilde intact), and the clean tree;
+  these are text.** (a) "d16a5e4 pushed to task/T-0152 at 2026-09-18T21:28:02Z" is a timestamp no command
+  output backs; the dispatch's createdAt of 21:27:59Z is consistent with it. (b) The job ids quoted for run
+  35396903921 were not verified; the run itself is (linux-core, d16a5e4, success), and the follow-on run
+  35397425795 on 419b43f has since passed. (c) Part 1's R1 and R2 greps (one line for `UIPasteboard|ShareLink|
+  copy`; none of the copy-rule phrases in the plan) were not re-run by the verifier and stand as the author's.
