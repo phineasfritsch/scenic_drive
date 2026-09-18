@@ -1,13 +1,13 @@
 ---
 id: T-0163
 title: ETL way record and region normaliser - raw per-way terms in, the 0..1 terms score.py consumes out, deterministically
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T19:52:39Z
+lease_expires_at: 2026-09-19T03:52:39Z
+worktree: .worktrees/T-0163
+branch: task/T-0163
 exclusive: []
 touches: [services/etl/etl/way_record.py, services/etl/etl/normalise.py, services/etl/tests/test_way_record.py, services/etl/tests/test_normalise.py, services/etl/tests/fixtures/, Tests/Fixtures/scoring/]
 pins_affected: []
@@ -61,3 +61,4 @@ Check `queue/*/T-0112-*` and `queue/*/T-0050-*` for overlap before you start and
 
 ## Log
 - 2026-09-18T20:20:00Z filed by agent/claude-fable-5-1 from the 13:13 panel's grounded synthesis. Not started.
+- 2026-09-18T19:52:39Z claimed by agent/claude-opus-5; lease until 2026-09-19T03:52:39Z

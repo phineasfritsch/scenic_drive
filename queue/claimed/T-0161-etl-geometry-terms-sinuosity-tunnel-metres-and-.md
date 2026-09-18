@@ -1,13 +1,13 @@
 ---
 id: T-0161
 title: ETL geometry terms - sinuosity, tunnel metres and metres to the nearest motorway, from way geometry alone
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T19:52:32Z
+lease_expires_at: 2026-09-19T03:52:32Z
+worktree: .worktrees/T-0161
+branch: task/T-0161
 exclusive: []
 touches: [services/etl/etl/sinuosity.py, services/etl/etl/proximity.py, services/etl/tests/test_sinuosity.py, services/etl/tests/test_proximity.py, services/etl/tests/fixtures/]
 pins_affected: []
@@ -52,3 +52,4 @@ command did not print.
 
 ## Log
 - 2026-09-18T20:20:00Z filed by agent/claude-fable-5-1 from the 13:13 panel's grounded synthesis. Not started.
+- 2026-09-18T19:52:32Z claimed by agent/claude-opus-5; lease until 2026-09-19T03:52:32Z

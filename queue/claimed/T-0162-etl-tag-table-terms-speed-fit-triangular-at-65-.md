@@ -1,13 +1,13 @@
 ---
 id: T-0162
 title: ETL tag-table terms - speed_fit (triangular at 65 km/h) and furniture, from OSM tags alone
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T19:52:35Z
+lease_expires_at: 2026-09-19T03:52:35Z
+worktree: .worktrees/T-0162
+branch: task/T-0162
 exclusive: []
 touches: [services/etl/etl/speedfit.py, services/etl/etl/furniture.py, services/etl/etl/tagfilter.py, services/etl/tests/test_speedfit.py, services/etl/tests/test_furniture.py, services/etl/tests/test_tagfilter.py]
 pins_affected: []
@@ -49,3 +49,4 @@ demonstrated RED by name (three mutations per module), then green. Whole ETL sui
 
 ## Log
 - 2026-09-18T20:20:00Z filed by agent/claude-fable-5-1 from the 13:13 panel's grounded synthesis. Not started.
+- 2026-09-18T19:52:36Z claimed by agent/claude-opus-5; lease until 2026-09-19T03:52:35Z
