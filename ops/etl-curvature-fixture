@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# Rebuild services/etl/tests/fixtures/curvature_oracle.json from the pinned inputs, end to end.
+#
+#   ops/etl-curvature-fixture              rebuild the fixture
+#   ops/etl-curvature-fixture --check      rebuild into a temp file and diff against the committed one
+#
+# This exists because the fixture could not be regenerated. Its selection was done once by throwaway scripts
+# in a temp directory; `etl.oracle --build` implemented none of the three conditions, the intermediates were
+# gone, and nothing in the repository could rebuild the file (agent/reviewer-30). A fixture nobody can rebuild
+# is not evidence - it is a number someone once produced.
+#
+# Inputs, both pinned in services/etl/inputs/manifest.yaml and fetched by ops/etl-fetch-inputs:
+#   vermont-curvature.kmz   the Curvature project's published values, sha256-pinned ON PURPOSE
+#   vermont-osm.pbf         the ways those values were computed over
+#
+# osmium runs in services/etl/Dockerfile's image so the toolchain is the pinned one.
+set -uo pipefail
+# NOT `cd "$(git rev-parse --show-toplevel)"`. On a Windows worktree read from WSL, git prints a Windows path
+# that no Linux `cd` can use; without `set -e` that failure was silent and the script carried on in whatever
+# directory it started in. It happened to be the right one. A rebuild of the load-bearing fixture must not
+# depend on that. Derive the root from the script's own location and verify it by a marker.
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -f services/etl/etl/curvature.py && -d ops ]] || {
+  echo "$(pwd) does not look like the repo root (no services/etl/etl/curvature.py)"; exit 2; }
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+ETL="services/etl"
+WORK="$ETL/work/curvature-oracle"
+FIXTURE="$ETL/tests/fixtures/curvature_oracle.json"
+IMAGE="${SCENIC_ETL_IMAGE:-scenic-etl}"
+
+check=0
+[[ "${1:-}" == "--check" ]] && check=1
+
+for f in "$ETL/inputs/vermont-curvature.kmz" "$ETL/inputs/vermont-osm.pbf"; do
+  [[ -f "$f" ]] || { echo "missing $f - run ops/etl-fetch-inputs"; exit 2; }
+done
+command -v docker >/dev/null 2>&1 || { echo "docker is not on PATH; osmium runs in the pinned image"; exit 2; }
+
+mkdir -p "$WORK"
+# `osmium getid` exits 1 for TWO unrelated reasons and says almost nothing about either. Conflating them
+# cost three debugging rounds; both are handled, separately, and named where they are handled.
+echo "1/3  way ids of every single-way collection"
+"$PY" -m etl.oracle --list-ways > "$WORK/ids.txt" 2>/dev/null || {
+  # `python -m` needs the package root on the path; run it from there instead of guessing sys.path.
+  (cd "$ETL" && "$PY" -m etl.oracle --list-ways) > "$WORK/ids.txt"
+}
+# Written on Windows, read by osmium in Linux: a trailing CR makes every id "illegal id".
+"$PY" - "$WORK/ids.txt" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]); p.write_bytes(p.read_bytes().replace(b"\r\n", b"\n"))
+PYEOF
+echo "     $(wc -l < "$WORK/ids.txt" | tr -d '[:space:]') ways"
+
+echo "2/3  osmium getid + export, in $IMAGE"
+mount="$(cd "$ETL" && pwd)"
+# Every osmium invocation reports its own exit code. The first version wrapped both in `set -e` and
+# printed only "osmium failed" on error, which hid WHICH step broke and swallowed osmium's own message -
+# and osmium's message was the answer both times it went wrong.
+#
+# REASON 1, handled by the rm: osmium getid refuses an existing output with "File exists. Try using
+# --overwrite" and does not accept --overwrite itself. The rm happens HERE, inside the container, because the
+# process that writes the files should delete them - a host-side rm left "which directory is this?" open.
+#
+# REASON 2, handled by ignoring the exit code: getid exits 1 when ANY requested id is absent from the input,
+# after writing a complete and valid file for every id it did find. 21 of these 3318 ways are not in the
+# pinned Vermont extract, because the KMZ was generated from a different OSM snapshot - so a non-zero exit
+# here is EXPECTED and correct, and treating it as failure aborts a run that produced exactly what it should.
+# Without --verbose-ids osmium does not say which ids, or even that ids are the problem; with it, it does.
+# agent/reviewer-30 root-caused this by capturing real osmium output after two earlier guesses (including the
+# one that used to be written at the top of this file) were wrong.
+#
+# So getid is judged by WHAT IT PRODUCED, not by its exit code. "Produced something" is not enough: with
+# every requested id absent, getid still exits 1 and still writes a valid 204-byte header-only PBF, which
+# `-s` happily accepts; export then succeeds on it and the whole run reports success while building a fixture
+# of ZERO ways (agent/reviewer-34, who reproduced it). The only honest test is how many ways came back, so
+# that is what is checked, against the number asked for.
+requested="$(wc -l < "$WORK/ids.txt" | tr -d '[:space:]')"
+docker run --rm -v "$mount:/w" -w /w "$IMAGE" bash -c '
+rc=0
+rm -f work/curvature-oracle/subset.osm.pbf work/curvature-oracle/subset.geojsonseq
+osmium getid --no-progress --verbose-ids -r -o work/curvature-oracle/subset.osm.pbf inputs/vermont-osm.pbf --id-file work/curvature-oracle/ids.txt 2>&1 | grep -iE "missing|not in|illegal" | head -3
+if [ ! -s work/curvature-oracle/subset.osm.pbf ]; then echo "getid wrote no output at all"; rc=1; fi
+if [ $rc -eq 0 ]; then
+  osmium export --no-progress --overwrite -f geojsonseq --add-unique-id=type_id -o work/curvature-oracle/subset.geojsonseq work/curvature-oracle/subset.osm.pbf || { echo "export exited $?"; rc=1; }
+fi
+exit $rc
+' || { echo "osmium failed - its own message is above"; exit 2; }
+
+# A handful of ids are legitimately absent - 21 of 3318, the KMZ predates the extract - so this cannot demand
+# all of them. It can demand that the shortfall stay small: anything worse is a broken input or a broken
+# osmium, not upstream drift, and it must stop the run rather than quietly shrink the oracle's population.
+got="$(grep -c '"id":"w' "$WORK/subset.geojsonseq" || true)"
+floor=$(( requested * 95 / 100 ))
+echo "     $got of $requested requested ways came back"
+if [[ "$got" -lt "$floor" ]]; then
+  echo "TOO FEW WAYS: $got of $requested (floor $floor). A fixture built from this would be silently small."
+  echo "Check that ids.txt matches inputs/vermont-osm.pbf; osmium reports missing ids above."
+  exit 2
+fi
+
+echo "3/3  select and write"
+# ALWAYS build to a staging file, never onto the committed fixture, and move it into place only after every
+# check below has passed. The previous version built straight to $FIXTURE in rebuild mode, so the guards ran
+# AFTER the real fixture had already been overwritten - a run that correctly refused a 226-way build still
+# left that 226-way file on disk. Found by running the demonstration for the guard rather than reasoning
+# about it, which is the second time in this task that a check has fired too late to protect anything.
+out="$WORK/rebuilt.json"
+# Delete the target first. Without this, `--check` diffs against whatever rebuilt.json a PREVIOUS run left
+# behind, which is how it managed to print "FIXTURE OK" for a build that had failed.
+rm -f "$out"
+# And check the exit code. This script runs under `set -uo pipefail` with no `-e`, so the build's failure was
+# simply not noticed: it fell through to the diff below and the only guard on fixture reproducibility in the
+# repo reported success, exit 0 (agent/reviewer-34, who forced step 3 to fail and watched it pass).
+if ! (cd "$ETL" && "$PY" -m etl.oracle --build "../../$out" --export "work/curvature-oracle/subset.geojsonseq"); then
+  echo "BUILD FAILED: etl.oracle --build exited non-zero; its message is above"
+  exit 2
+fi
+[[ -s "$out" ]] || { echo "BUILD PRODUCED NOTHING: $out is missing or empty"; exit 2; }
+
+# The way-count floor above compares what came BACK against what was ASKED FOR, so it is blind to step 1
+# asking for too little. agent/reviewer-34 made `--list-ways` emit 300 of the 3318 ids: 298 came back, the
+# floor passed at 99%, the run built a 226-way fixture, the whole committed suite went green in the pinned
+# image, and `ops/etl-oracle-report` printed a perfectly plausible 94.248%. A guard that normalises by a
+# number the same broken step produced is not a guard.
+#
+# So cross-check against the funnel the BUILD wrote, which counts the KMZ's single-way collections directly
+# rather than counting the lines of ids.txt. If step 1 truncated, these disagree.
+declared="$(grep -o '"single_way": *[0-9]*' "$out" | head -1 | grep -o '[0-9]*' || true)"
+if [[ -n "$declared" && "$declared" -gt 0 ]]; then
+  id_floor=$(( declared * 95 / 100 ))
+  echo "     step 1 asked for $requested ids; the KMZ holds $declared single-way collections"
+  if [[ "$requested" -lt "$id_floor" ]]; then
+    echo "TOO FEW IDS REQUESTED: $requested of $declared single-way collections (floor $id_floor)."
+    echo "Step 1 produced a short ids.txt, so every count downstream of it is consistent and wrong."
+    exit 2
+  fi
+else
+  echo "COULD NOT READ THE FUNNEL from $out - refusing rather than skipping the cross-check"; exit 2
+fi
+
+if [[ $check -eq 1 ]]; then
+  if diff -q "$FIXTURE" "$out" >/dev/null; then
+    echo "FIXTURE OK: rebuilt output is identical to the committed file"
+    exit 0
+  fi
+  echo "FIXTURE DIFFERS from the committed file:"
+  diff "$FIXTURE" "$out" | head -20
+  exit 1
+fi
+
+# Every check passed. Only now does the committed fixture change.
+mv -f "$out" "$FIXTURE" || { echo "could not move $out into place"; exit 2; }
+echo "wrote $FIXTURE - review the diff before committing it"
