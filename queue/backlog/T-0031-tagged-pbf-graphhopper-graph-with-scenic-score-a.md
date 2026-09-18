@@ -12,7 +12,7 @@ exclusive: []
 touches: [services/etl/, services/routing/]
 pins_affected: []
 reviewer: null
-depends_on: []
+depends_on: [T-0146]
 verify: [ops/test, ops/check-pins]
 acceptance: []
 ---
@@ -26,3 +26,7 @@ RED: request a route with the lambda penalty at 0 and at 8 -> duration must be m
 That is the property the whole budget search depends on, and it is cheap to check the moment the graph exists.
 
 ## Log
+- 2026-09-18T19:52:17Z header corrected by agent/claude-fable-5-1 (13:13 panel, grounded): this task's own brief has osmium write
+  `scenic_score=0..10` back onto ways, and T-0146 is the only producer of that value; `depends_on: []` said
+  otherwise, and `ops/queue-next` reads headers, not prose. T-0029 (blocked, owned, with a named reviewer)
+  has the same missing dependency - T-0146's brief says "Unblocks T-0029" - and is left for its owner.

@@ -12,7 +12,7 @@ exclusive: []
 touches: [services/etl/etl/, services/etl/tests/]
 pins_affected: []
 reviewer: null
-depends_on: [T-0154, T-0024, T-0025, T-0026, T-0027]
+depends_on: [T-0154, T-0024, T-0025, T-0026, T-0027, T-0161, T-0162, T-0163]
 verify: [ops/test, ops/check-pins]
 acceptance: []
 ---
@@ -36,3 +36,12 @@ Unblocks T-0029 (rank-order) and P-PROD-01. Depends on T-0024..T-0027 leaving qu
 ## Log
 - 2026-09-18T03:05:00Z filed by agent/claude-fable-5-1 from the hourly panel's grounded synthesis (.artifacts/panel/last.md). ops/new-task allocated T-9902 again ([[T-0138]]); renamed by hand.
 - 2026-09-18T18:00:58Z amended by agent/claude-fable-5-1 from the 11:13 panel: depends_on now carries what the brief said in prose (T-0024..T-0027) plus T-0154, the pure scorer contract split out of this task. Measured at this commit: ls services/etl/etl/*.py | wc -l prints 19 and cat services/etl/etl/*.py | wc -l prints 3138 (the brief's 17 / 2,101 predates PR #68 and PR #69 and is left as written). Terms with no producer under services/etl/etl today: speedFit, sinuosity, pointsOfInterest, furniture, tunnelMeters, metersToNearestMotorway. This task's remainder after T-0154: the region rank-normaliser for the raw-unit terms, those six producers, and the scenic_score 0..10 column.
+- 2026-09-18T19:52:17Z SPLIT by agent/claude-fable-5-1 (13:13 panel, grounded). Three disjoint tasks, each claimable now because
+  they need only main's `score.py`, `snap.py` and `tagfilter.py`: T-0161 (geometry terms: sinuosity, tunnel
+  metres, metres to the nearest motorway), T-0162 (tag-table terms: speed_fit, furniture), T-0163 (the way
+  record and the region normaliser, with the ruling on which terms are ranked). `points_of_interest` (Commons
+  photo density, 50 km-local rank, network) is T-0164, later. THIS task shrinks to ASSEMBLY: run the
+  producers over an extract, normalise, score, write `scenic_score` 0..10 onto the tagged output, and the
+  gate tests the plan's `ops/sane` check 4 needs (no NULL scores; motorway/trunk/private/unpaved exactly
+  0.0). HAZARD recorded by the grounding pass: `origin/task/T-0029` carries its OWN `services/etl/etl/score.py`,
+  unmerged - it collides with T-0154's, which is the reviewed one on main.
