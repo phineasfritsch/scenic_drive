@@ -198,3 +198,110 @@ review; T-0152 (copy) touches the same file - sequence them, do not stack them.
   Swift and Python rule (CLAUDE.md, and `ops/lib/check-line-cap` scans `*.swift` only); the 307-line bash
   check is over 300 and is stated here rather than left for a reviewer to find - `ops/lib/check-sweep.py` and
   `check-touches-merge.py` are larger still and no gate in this repository caps a script.
+
+- 2026-09-18T23:37:08Z ACCEPTANCE BLOCK, re-run whole at the final pre-review commit, by
+  agent/claude-opus-5. Code head `d975dfb`. The only file edited after these runs is this task file's own
+  Log; `bash ops/queue-check` was re-run after the record commit and is quoted again at the bottom.
+
+  **(1) P-SAFE-03 in pins/PINS.yaml, an assertion that runs on Linux today, seen RED by name first, then
+  green; the run ids quoted.** The pin is `anchor: source`, `runs_on: [linux, mac]`,
+  `assertion: "bash ops/lib/check-safety-disclaimer"`. Red-by-name is the 23:27 entry above, verbatim: RED 1
+  against `origin/main`'s own `Sources/FeatureScenicHome` and RED 2 against the tracked tree, both refusing
+  with `missing file: .../SafetyDisclaimer.swift` at exit 1, before any Swift was written. Green:
+
+      $ bash ops/lib/check-safety-disclaimer
+      P-SAFE-03: 4 Swift file(s) under apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome; SafetyDisclaimer declared once in its own file;
+        home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in
+        SafetyDisclaimer.swift, the persistent line present, @AppStorage("safety.disclaimer.acknowledged.v1") on device;
+        SkylineHandoff.open( called once (GatedHandoffButton.swift line 51), dominated by the
+        guard at line 46; the button is built once, in ScenicHomeScreen.swift, with isSafetyDisclaimerAcknowledged
+        passed through. Not checked here: rendering, taps, contrast, Dynamic Type, 44 pt - XCUITest owns those.
+      exit=0
+
+      $ bash ops/lib/check-safety-disclaimer --prove-red
+      MUTATION                                             EXIT     REASON NAMED
+      the SafetyDisclaimer type renamed                    1        yes
+      the home.disclaimer identifier removed               1        yes
+      the acknowledgement guard removed                    1        yes
+      the persistent conditions line removed               1        yes
+      the acknowledgement no longer passed to the button   1        yes
+      the on-device store key changed                      1        yes
+      prove-red: 6/6 mutations refused by name
+      exit=0
+
+  The pin is carried by the runner, not just by this file - `ops/check-pins --source-only` went from
+  `ok=11` before the pin to `ok=12` after it, with nothing else changed:
+
+      before: PINS ok=11 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only
+      after:  PINS ok=12 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only
+
+  **(2) The gate, the persistent line, the tokens, and a green ios-compile run id.** The first tap calls
+  `onBlocked()` and presents `SafetyDisclaimer` (`home.disclaimer`); accepting writes
+  `@AppStorage("safety.disclaimer.acknowledged.v1")` - on the device, no account, no server - and dismisses;
+  the handoff is reached only through `guard isSafetyDisclaimerAcknowledged else` in
+  `GatedHandoffButton.swift` (line 46, the call at line 51, both measured by the check above). The accept
+  button is `home.disclaimer.accept` and the sheet is `interactiveDismissDisabled()`, so it cannot be swiped
+  past. `Copy.conditions` is on the home screen unconditionally - not inside any `if` - directly above the
+  button and above `AttributionFooter`, which is last in the stack and keeps the lower-right corner. Colour
+  is `DesignTokens` only (`fgMuted`, `surface`, `border`, `primary`, `onPrimary`, `fg`, `bg`, `destructive`);
+  there are no point sizes anywhere in the three files, only text styles, and every new tappable frame is
+  `minHeight: 44`. ios-compile, dispatched on this branch:
+
+      $ gh workflow run ios-compile.yml --ref task/T-0153
+      $ gh run view 35405951245 --json databaseId,status,conclusion,headSha,createdAt,updatedAt
+      {"conclusion":"success","createdAt":"2026-09-18T23:30:19Z","databaseId":35405951245,
+       "headSha":"d975dfb2e59d514c8b57d1b379867b555cad3ec3","status":"completed",
+       "updatedAt":"2026-09-18T23:31:39Z"}
+      $ grep -n -F '** BUILD' <run log>
+      2156:simulator-build	build for the iOS Simulator	2026-09-18T23:31:32.5423000Z ** BUILD SUCCEEDED **
+      $ grep -n -F ' error:' <run log>     -> no lines
+
+  One dispatch, one run, first try. `d975dfb` is the code head: the record commit that follows touches only
+  this file, which the iOS build does not read.
+
+  **(3) The drivers' round-3 strings, verbatim.** From `ScenicHomeScreen.swift` lines 198 and 211, read back
+  through `od -c` so the claim is about bytes:
+
+      static let title = "Skyline loop · starts and ends in San Francisco"
+          ...  S k y l i n e   l o o p  302 267   s t a r t s   a n d   e n d s   i n   S a n   F r a n c i s c o
+
+      "Preview build: one fixed Bay Area drive. The map doesn't show roads yet - tap below and it opens in Apple Maps."
+          ...  d o e s n ' t  ...  y e t   -   t a p  ...
+
+  `302 267` is U+00B7 MIDDLE DOT in UTF-8; the apostrophe and the hyphen are ASCII `'` and `-`. `Copy.route`
+  is untouched (T-0170 owns the copy action and the straight-line distance). No duration anywhere: the only
+  matches for `-iE 'minute|hour|duration'` in the file are the two doc comments saying there is none.
+
+  **(4) The gates, bare.**
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 73 Swift files tracked (Sources=26, Tests=37, apps/ios=10), none over 300 lines
+      exit=0
+
+      $ bash ops/queue-check
+      QUEUE OK (169 tasks)
+      exit=0
+
+      $ bash ops/check-pins --source-only
+      PINS ok=12 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only
+      exit=0
+
+  **STILL OPEN.** Plainly, because none of it is in this PR.
+  1. NOTHING HERE HAS BEEN RENDERED. There is no Apple toolchain on this box and no simulator; the ios-compile
+     run proves the three files COMPILE for the iOS Simulator and nothing more. Nobody has seen the sheet, the
+     conditions chip, or either of them on a dark appearance.
+  2. THE ACKNOWLEDGEMENT HAS NEVER BEEN TAPPED. That `@AppStorage` writes on accept, that the sheet dismisses,
+     that the second tap then leaves for Apple Maps, and that the flag survives a relaunch are all unobserved.
+     `check-safety-disclaimer` says so in its own output and in the pin's `why_no_test_catches_it`.
+  3. NO XCUITEST EXISTS. `apps/ios/Packages/ScenicApp/Package.swift` has no test target, on purpose; the tests
+     arrive with the first green Xcode Cloud run. `home.disclaimer`, `home.disclaimer.accept` and
+     `home.conditions` are reserved for it and are not asserted by any runtime test today. P-SAFE-03 is
+     therefore HALF the pin the plan describes: the source half runs, the XCUITest half is not filed as a
+     `pending:` field (ruling R6) and is owed by whoever lands the first XCUITest bundle.
+  4. `SafetyDisclaimerDisplaying`, the plan's protocol, is not in the tree (ruling R2). It wants a second
+     screen to be worth anything, and M4's route preview is the first one.
+  5. The 44 pt targets, the Dynamic Type behaviour and the contrast of `fgMuted` on the `surface` chip over a
+     basemap are arguments from `DesignTokens` and the plan's UI section, not measurements. Nothing on this
+     box can measure them.
+  6. `ops/lib/check-safety-disclaimer` is 307 lines. No gate caps a bash script; it is over the number
+     CLAUDE.md names for Swift and Python and that is recorded rather than hidden.
