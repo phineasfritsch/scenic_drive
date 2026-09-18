@@ -9,7 +9,7 @@ cd "$(git rev-parse --show-toplevel)"
 ART=".artifacts"; mkdir -p "$ART"
 sha="$(git rev-parse HEAD)"
 
-if ! git branch -r --contains "$sha" 2>/dev/null | grep -q "origin/"; then
+if ! git branch -r --contains "$sha" 2>/dev/null | grep "origin/" >/dev/null; then
   echo "DEPLOY REFUSED: HEAD $sha is not on origin - push first"; exit 1
 fi
 if [[ -n "$(git status --porcelain -- services/api ops/deploy)" ]]; then
