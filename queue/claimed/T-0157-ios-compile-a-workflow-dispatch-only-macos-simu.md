@@ -15,8 +15,8 @@ reviewer: null
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
-  - "python ops/lib/check-ios-compile-guardrails.py -> IOS-COMPILE-GUARDRAILS OK: ios-compile.yml is dispatch-only, read-only at every level, time-boxed, on ['macos-15'], exit 0"
-  - "python ops/lib/check-ios-compile-guardrails.py --prove-red -> one '[red rc=1]' line per mutation, each naming the guardrail and the LEVEL it was removed at (workflow, job or step), then a '[green rc=0]' line for each legitimate spelling that must not be refused (on: as a bare string, runs-on as a one-element list), '[refused rc=2] unreadable YAML', '[green rc=0] the shipped file', then PROVE-RED OK: 14 mutations red, 2 legitimate spellings green, 0 unexpected result(s), exit 0"
+  - "python ops/lib/check-ios-compile-guardrails.py -> IOS-COMPILE-GUARDRAILS OK: ios-compile.yml is dispatch-only, read-only, time-boxed, on ['macos-15'], and runs only its 3 pinned scripts, exit 0"
+  - "python ops/lib/check-ios-compile-guardrails.py --prove-red -> one '[red rc=1]' line per mutation, each naming the guardrail and the LEVEL it was removed at (workflow, job, step, or the run body - which is compared by equality), a '[green rc=0]' line for each legitimate spelling that must not be refused, '[refused rc=2] unreadable YAML', '[green rc=0] the shipped file', then PROVE-RED OK: 20 mutations red, 2 legitimate spellings green, 0 unexpected result(s), exit 0"
   - "bash ops/check-pins --source-only -> PINS ok=9 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only, exit 0"
   - "bash ops/lib/check-line-cap -> P-SRC-02: 56 Swift files tracked (Sources=20, Tests=28, apps/ios=8), none over 300 lines, exit 0"
   - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (54 scanned, 55 tracked, floor 42), exit 0"
@@ -121,3 +121,31 @@ the cost argument against this job falls - and the visibility itself is the huma
 
   **STILL OPEN, unchanged:** the workflow has never run (dispatch needs the file on the default branch); the
   check is an acceptance command, not a pin; `Package.resolved` is uncommitted.
+- 2026-09-18T19:38:36Z **Review FAIL (round 2) - agent/rv2-pr90 (reviewer, neither the owner nor the round-1 reviewer).** PR #90 read at e3c7345 in a detached `.worktrees/rv2-pr90` (== `origin/task/T-0157`), removed at the end; nothing written in `.worktrees/T-0157`. Both check acceptance lines reproduce verbatim: `IOS-COMPILE-GUARDRAILS OK: ios-compile.yml is dispatch-only, read-only at every level, time-boxed, on ['macos-15']` (exit 0) and 14 `[red rc=1]` lines naming guardrail+level, 2 `[green rc=0]` legitimate spellings, `[refused rc=2] unreadable YAML`, `[green rc=0] the shipped file`, `PROVE-RED OK: 14 mutations red, 2 legitimate spellings green, 0 unexpected result(s)` (exit 0). Round 1's three mutants, re-applied by hand from the shipped text (not --prove-red's copies), are each refused BY NAME at their level: `jobs.simulator-build.permissions` (write-all), `jobs.simulator-build.steps[2].shell` ('sh'), `jobs.simulator-build.steps[2].continue-on-error`. Its recordables are closed too (bare-string `on:` green, `runs-on: [macos-15]` green, `timeout-minutes: true` refused, unjudgeable shapes exit 2, artifact path one workspace-relative root). By reading: `-project` exists, `-scheme ScenicDrive` == the only shared scheme `ScenicDrive.xcscheme`, generic simulator destination, `-derivedDataPath` under `$GITHUB_WORKSPACE` (`DerivedData/` ignored at .gitignore:12), `CODE_SIGNING_ALLOWED=NO`, `mkdir -p` before the tee, both `if: always()` steps cannot clear a failed job's conclusion, both `uses:` in the allowlist, no commit/push step.
+  **BLOCKING, from six mutations nobody had written, applied one at a time to copies outside the tree; one breaks a guardrail and passes.** `set +o pipefail` prepended to the build step's run body (defaults untouched, no step `shell:`, no `continue-on-error`) -> exit 0, `IOS-COMPILE-GUARDRAILS OK: ... read-only at every level ...`. `shell: bash` is `bash --noprofile --norc -e -o pipefail {0}`, and `-o pipefail` is only the INITIAL state: demonstrated with a stub returning 65 through `| tee`, the shipped body exits 65 and the same body under `set +o pipefail` exits 0, so `** BUILD FAILED **` becomes a green job - the exact failure the check's own refusal text and the workflow's lines 26-27 name. Round 2 asserted the shell guardrail at the workflow, job (`defaults`) and step (`shell:`) levels but not in the run body, which is the level closest to the pipe; this is round 1's class, not a new one, and needs no new mechanism - `FORBIDDEN_IN_RUN` (which gained `gh api` this round) is where `set +o pipefail`, `set +e`, `|| true` and `; exit 0` belong, keyed to the step running xcodebuild. Only `set +o pipefail` was executed; note `set +e` alone would NOT mask it here, the pipeline being the body's last command.
+  **RECORDABLE.** `env: GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` plus `curl -X PUT -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/o/r/contents/x` passes - `api.github.com`/`curl` are not in the forbidden strings - but `permissions: contents: read` makes that PUT a 403 and every widening key is refused by name, so the read-only-token guardrail holds: a door the token scope already closes. Refused, for the record: job `permissions` as a mapping `{contents: write}`; a second clean `ubuntu-latest` job (every job-level guardrail applies to every job); `runs-on: ${{ matrix.os }}` with a matrix including `-xlarge` (by the unresolved literal, exit 1 not 2); `workflow_call:` beside `workflow_dispatch`. `ops/lib/check-ios-compile-guardrails.py` at 100644 is NOT a finding: every `.py` under `ops/lib/` is 100644 and every extensionless script 100755, and it is invoked as `python ops/lib/...`.
+  **Not re-run here:** `bash ops/check-pins --source-only` locally - it drives a swift build into the default `.build/` and cost the round-1 reviewer 8+ minutes on a shared box. CI at this head is the evidence: `gh pr checks 90` (once, no polling) -> `core pass 2m21s`, `pins-source-only pass 1m37s`.
+- 2026-09-18T19:47:06Z **ROUND 3 - agent/claude-fable-5-1 (owner), answering agent/rv2-pr90's FAIL above (verbatim).** One blocking,
+  reproduced first: `set +o pipefail` prepended to the build step's run body passed the round-2 check, and the
+  reviewer showed with a stub that under `bash -e -o pipefail` the shipped pipeline exits 65 on a failed build
+  while the mutated one exits 0 - a green job over `** BUILD FAILED **`. Round 2's docstring said "every level"
+  and had not looked inside the script, the level closest to the pipe it protects.
+
+  **The fix is structural, not another substring.** Hunting `set +o pipefail`, `set +e`, `|| true`, `|| :`, a
+  subshell, a trap... is the arms race PR #87 spent four rounds on. The check no longer scans run bodies: it
+  holds the ONLY three scripts this job may run as literals (`EXPECTED_RUN`, keyed by step name) and compares
+  each `run:` BY EQUALITY; a run step whose name is not pinned is refused; exactly one step may carry the build
+  step's name. Changing what this job runs now means changing the check, deliberately, under review - which
+  is the right cost for a job on a macOS runner.
+
+  **Recordables, taken by name:** a job-level `strategy:` (the reviewer's matrix was refused only because the
+  unresolved expression failed the label set); `env:` at workflow, job or step level; any `secrets.` reference
+  in the file (a personal token would sit outside the read-only GITHUB_TOKEN, and nothing here needs one);
+  `workflow_call` beside `workflow_dispatch` joined `--prove-red`. The reviewer's M5 (`curl` at the API with a
+  handed-in token) is now red twice over - by `env:`/`secrets.` and by the script equality.
+
+  **Measured at this commit:** `IOS-COMPILE-GUARDRAILS OK: ios-compile.yml is dispatch-only, read-only, time-boxed, on ['macos-15'], and runs only its 3 pinned scripts`; `PROVE-RED OK: 20 mutations red, 2 legitimate spellings green, 0 unexpected result(s)`.
+
+  **STILL OPEN, unchanged:** the workflow has never run; the check is an acceptance command, not a pin;
+  `Package.resolved` is uncommitted. NEW, stated: the three pinned scripts live in two places (the workflow
+  and the check) on purpose; an edit to one without the other is a red check, not a silent drift.
