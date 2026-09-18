@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# check-sane-exit-order - ops/sane's exit-code precedence, declared as data, checked against its own code.
+#
+#   bash ops/lib/check-sane-exit-order [path-to-sane]      (default: <repo root>/ops/sane)
+#
+# ops/sane promises "the FIRST failing check in this order decides" and then lists an order. That promise is
+# kept by `fail()`, which keeps the first code it is given - so the real precedence is EXECUTION ORDER, and
+# nothing but a reader's attention held the two together. Twice now a block was inserted in the wrong place:
+# the worktrees block once sat above the production section (a dead backend plus one stranded worktree exited
+# 10, not 7), and T-0024's bounds block was added above it (a dead backend plus one out-of-band extract exited
+# 4, not 7, reproduced by agent/rv-t0024 on 2026-09-18 with `API_URL=http://127.0.0.1:9 bash ops/sane --prod`).
+#
+# So the order is written down as DATA - the `EXIT_ORDER=(...)` array in ops/sane - and this check reads that
+# array and the literal exit codes of the `fail "<name>" "<msg>" <code>` calls in file order, keeping each
+# code's FIRST appearance, and refuses when the two sequences differ. It anchors on the EXIT_ORDER identifier
+# and on fail() call sites, never on the header comment: comments get stripped, and a comment is exactly what
+# was already wrong here. Comment lines are skipped for the same reason - a commented-out fail() is not code.
+#
+# Exit 0 sequences agree; 1 they disagree; 2 the check cannot tell (no file, no EXIT_ORDER, a fail() call
+# whose exit code is not a literal, or nothing scanned). "Cannot tell" is never 0.
+set -uo pipefail
+
+sane="${1:-}"
+if [[ -z "$sane" ]]; then
+  root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -n "$root" ]]; then sane="$root/ops/sane"; else sane="ops/sane"; fi
+fi
+if [[ ! -f "$sane" ]]; then
+  echo "SANE-EXIT-ORDER refuse   no such file: $sane"
+  exit 2
+fi
+
+# EXIT_ORDER=(2 7 3 9 4 10)  - the documented order, as data.
+re_assign='^EXIT_ORDER=\(([0-9[:space:]]*)\)'
+# A call site: `fail "name" "message" <code>`, possibly after `then`, `;` or a case arm.
+re_fail='(^|[^[:alnum:]_])fail[[:space:]]+"'
+# The code is the first integer that follows a closing quote on that line; the message may itself contain
+# quoted command substitutions, and the line may continue with `; else ok "..." ...` after the call.
+re_code='"[[:space:]]+([0-9]+)([[:space:]]|;|$)'
+
+documented=""
+code_seq=""
+fail_calls=0
+unreadable=0
+lineno=0
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  lineno=$((lineno + 1))
+  line="${line%$'\r'}"
+  stripped="${line#"${line%%[![:space:]]*}"}"
+  [[ -z "$stripped" ]] && continue
+  [[ "${stripped:0:1}" == "#" ]] && continue
+  if [[ "$stripped" =~ $re_assign ]]; then
+    for tok in ${BASH_REMATCH[1]}; do documented="$documented $tok"; done
+    continue
+  fi
+  [[ "$stripped" =~ $re_fail ]] || continue
+  fail_calls=$((fail_calls + 1))
+  if [[ "$stripped" =~ $re_code ]]; then
+    code="${BASH_REMATCH[1]}"
+    case " $code_seq " in
+      *" $code "*) : ;;
+      *) code_seq="$code_seq $code" ;;
+    esac
+  else
+    echo "SANE-EXIT-ORDER refuse   $sane:$lineno fail() call with no literal exit code: $stripped"
+    unreadable=$((unreadable + 1))
+  fi
+done < "$sane"
+
+doc_csv="$(printf '%s' "${documented# }" | tr ' ' ',')"
+code_csv="$(printf '%s' "${code_seq# }" | tr ' ' ',')"
+
+if [[ $unreadable -gt 0 ]]; then
+  echo "SANE-EXIT-ORDER refuse   $unreadable fail() call(s) in $sane do not end in a literal exit code"
+  exit 2
+fi
+if [[ $fail_calls -eq 0 ]]; then
+  # A scan that scanned nothing must not print OK.
+  echo "SANE-EXIT-ORDER refuse   no fail() call sites found in $sane - the scan scanned nothing"
+  exit 2
+fi
+if [[ -z "$documented" ]]; then
+  echo "SANE-EXIT-ORDER refuse   $sane declares no EXIT_ORDER=(...) array; code order is $code_csv"
+  echo "                         add the documented precedence as data, e.g. EXIT_ORDER=(${code_seq# })"
+  exit 2
+fi
+
+if [[ "$doc_csv" == "$code_csv" ]]; then
+  echo "SANE-EXIT-ORDER ok       documented=$doc_csv code=$code_csv calls=$fail_calls file=$sane"
+  exit 0
+fi
+
+echo "SANE-EXIT-ORDER FAIL     $sane: fail() execution order does not match EXIT_ORDER"
+echo "                         EXIT_ORDER (documented) = $doc_csv"
+echo "                         fail() calls, file order = $code_csv"
+i=0
+for a in $documented; do
+  i=$((i + 1))
+  j=0
+  for b in $code_seq; do
+    j=$((j + 1))
+    if [[ $j -eq $i ]]; then
+      if [[ "$a" != "$b" ]]; then
+        echo "                         first divergence at position $i: documented $a, code $b."
+        echo "                         fail() keeps the FIRST code it is given, so whichever block runs first wins;"
+        echo "                         move the block, or move the row - do not leave the two disagreeing."
+        exit 1
+      fi
+      break
+    fi
+  done
+done
+echo "                         the sequences differ in length: $doc_csv vs $code_csv"
+exit 1

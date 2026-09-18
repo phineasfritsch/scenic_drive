@@ -9,12 +9,25 @@ lease_expires_at: 2026-09-07T20:07:44Z
 worktree: ../wt/T-0024
 branch: task/T-0024
 exclusive: [scenic-index]
-touches: [services/etl/, ops/sane, ops/etl-extract]
-pins_affected: []
+touches: [services/etl/, ops/sane, ops/etl-extract, ops/lib/, pins/PINS.yaml]
+pins_affected: [P-OPS-05]
 reviewer: agent/reviewer-23
 depends_on: []
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "cd services/etl && python -m pytest tests -> 457 passed in 135.28s (0:02:15), exit 0 (pyproject.toml already sets addopts = -q; passing -q again makes it -qq and suppresses the count line)"
+  - "cd services/etl && python -m pytest tests/test_tagfilter.py tests/test_counts.py tests/test_region.py -> 67 passed in 1.03s, exit 0 - the three files this task owns"
+  - "bash ops/lib/check-sane-exit-order -> SANE-EXIT-ORDER ok       documented=2,7,3,9,4,10 code=2,7,3,9,4,10 calls=15 file=<worktree>/ops/sane, exit 0"
+  - "RED (no array): git show origin/main:ops/sane > .artifacts/t0024/sane-main.sh; bash ops/lib/check-sane-exit-order .artifacts/t0024/sane-main.sh -> SANE-EXIT-ORDER refuse   .artifacts/t0024/sane-main.sh declares no EXIT_ORDER=(...) array; code order is 2,4,7,3,9,10, exit 2"
+  - "RED (the array against the pre-fix block order): the same file with EXIT_ORDER=(2 7 3 9 4 10) inserted after rc=0 -> SANE-EXIT-ORDER FAIL     fail() execution order does not match EXIT_ORDER / EXIT_ORDER (documented) = 2,7,3,9,4,10 / fail() calls, file order = 2,4,7,3,9,10 / first divergence at position 2: documented 7, code 4., exit 1"
+  - "RED (the header's original 3-before-7 row order, against the FIXED ops/sane): EXIT_ORDER=(2 3 7 9 4 10) -> first divergence at position 2: documented 3, code 7., exit 1 - this is why the header now lists 7 before 3"
+  - "F1 reproduction: python .artifacts/t0024/fab_meta.py bad (fabricates gitignored services/etl/work/sfbay/meta.json with motorway 8000); API_URL=http://127.0.0.1:9 bash ops/sane --prod -> backend   FAIL   http://127.0.0.1:9/__health -> unreachable / bounds    FAIL   region counts out of band:   motorway: 8000 vs recorded 15572 (-48.6%, +/-15% allowed) / SANE FAIL exit=7, exit 7. Pre-fix (origin/main) the same input printed both FAIL lines and SANE FAIL exit=4, exit 4"
+  - "bash ops/sane (same fabricated meta, no --prod) -> bounds    FAIL   region counts out of band:   motorway: 8000 vs recorded 15572 (-48.6%, +/-15% allowed) / SANE FAIL exit=4, exit 4 - bounds alone still decides 4"
+  - "bash ops/sane (work/ removed) -> bounds    skip   no extract built here / SANE FAIL exit=10, exit 10 - all of it check 10, naming five worktrees (rv9-pr82, T-0024, T-0027, T-0104, T-0154)"
+  - "bash ops/check-pins --source-only -> PINS ok=9 skipped=12 pending=1 expired=0 failed=1 tier=linux source-only, exit 1 - the one failure is P-SAFE-05, not this task: its assertion ends in swift test, and swift test --scratch-path .build --filter SolarFixtureTests on this box exits 1 with 'error: could not build C module SwiftShims'"
+  - "bash ops/queue-check -> QUEUE OK (149 tasks), exit 0"
+  - "git ls-files 'queue/*/T-0024-*' -> queue/review/T-0024-etl-bay-area-extract-tag-filter-with-per-class-c.md (one path); git ls-files -s -> 100755 ops/lib/check-sane-exit-order, 100755 ops/sane, 100644 pins/PINS.yaml"
+  - "NOT runnable on this box, unchanged from the review: ops/etl-fetch-inputs and ops/etl-extract (no docker, no osmium), ops/test and the full ops/check-pins (the Swift toolchain cannot build here)"
 ---
 ## Brief
 
@@ -414,3 +427,188 @@ run, and the whole point of the finding was that a plausible number is not a che
   solve (2)/(3) and (4) at the same time along the east edge - but at 0.2-1.1% of any recorded class they are
   two orders of magnitude smaller than what justified the first FAIL and do not threaten the sanity of the
   baseline `ops/sane` gates against. Filed for the owner to pick up, not blocking this task.
+
+- **2026-09-18, agent/rv-t0024 — FAIL.** The review agent/reviewer-23 was named for and then the second one after
+  eleven days on main. Reviewed at `origin/main` 11078d3 in a throwaway detached worktree, removed at the end;
+  `git status --short` empty after every mutating run.
+
+  **What re-ran here, and what could not.** No `docker` and no `osmium` on this Windows box, so `ops/etl-fetch-inputs`
+  and `ops/etl-extract` were NOT run: every per-class count in `regions/sfbay/region.json` and `regions/la/region.json`
+  is taken on trust at this HEAD, and since the numbers were re-recorded on 2026-09-08 against the corrected bbox,
+  nobody but their author has re-derived them. `ops/test` was not run either (cold `swift test` in a fresh worktree);
+  its pytest tier was run directly. What did run: `python -m pytest tests/` -> **457 passed**, rc=0, zero skips
+  (the Log's `100 passed` is eleven days stale); `test_tagfilter.py` 21, `test_counts.py` 18, `test_region.py` 28;
+  `ops/check-pins --source-only` -> `PINS ok=8 skipped=11 pending=1 expired=0 failed=0`, rc=0; `ops/queue-check` ->
+  `QUEUE OK (147 tasks)`; `ops/sane` -> `bounds skip no extract built here` (overall exit=10, all of it check 10
+  naming four OTHER agents' worktrees - rv-t0025, rv-t0027, T-0104, T-0154 - none of it T-0024).
+
+  **Check 4 was driven red on this box, without osmium.** Check 4 only reads `work/<region>/meta.json`, so a
+  fabricated meta under gitignored `services/etl/work/` is a faithful input. Counts equal to the recorded ones ->
+  `BOUNDS ok    sfbay: every recorded class within 15%`, rc=0. `motorway` 15572 -> 8000 -> `motorway: 8000 vs
+  recorded 15572 (-48.6%, +/-15% allowed)`, checkbounds rc=4, `SANE FAIL exit=4`. `meta.json` truncated to 20 bytes
+  -> rc=2, `bounds FAIL cannot check region counts`, sane exit=4. `counts` key removed -> rc=2, sane exit=4.
+  `viewpoint` removed -> `viewpoint: recorded 739, not present in this extract at all`. Fail-closed on all four.
+  RED 1's mechanism confirmed statically: `extract.py:102-104` raises on `tf.problems()` before the first osmium
+  call at line 114.
+
+  **Five mutations, each alone, control green (67 passed) before each, restored and re-hashed after. None survived.**
+  `DEFAULT_TOLERANCE` 0.15 -> 0.60 killed by `test_a_collapse_is_reported_with_the_percentage` and
+  `test_a_small_class_gets_an_absolute_band_not_a_percentage`. `counts.py:68` lower bound dropped
+  (`if not lo <= got <= hi` -> `if not got <= hi`) killed by `test_a_collapse_is_reported_with_the_percentage`.
+  `motorway_link` dropped - the brief's own RED 2 - killed by `test_link_roads_are_kept_with_their_parent_class`.
+  `max_lon` put back to `-121.20` killed by five, including `test_the_bbox_does_not_reach_into_the_central_valley`
+  and `test_every_shipped_region_ties_its_counts_to_the_bbox_they_were_measured_over`; that test asserts against
+  Tracy/Stockton/Modesto/Sacramento coordinates from the outside world, not against anything the code computes.
+  `track` renamed: `problems()` returned `[]` - `ROUTING_CRITICAL` does not list track - but
+  `test_track_is_kept_because_the_router_gates_it` caught it, and a deleted class would also trip check_bounds.
+
+  **Invariants hold.** motorway/trunk/track are kept, `problems()` refuses a routing-critical class deleted or
+  emptied, and tagfilter is a keep-list with no gate in it to widen. reviewer-23's CRITICAL is properly fixed, not
+  papered over: the bbox moved to `-121.55`, the counts were re-recorded, and `counts_from.bbox` plus
+  `CountsFrom.problems()` make the pair unable to drift apart again.
+
+  **Blocking finding - ops/sane's exit code contradicts ops/sane's own table.** The header says "the FIRST failing
+  check in this order decides" over the list 2, 3, 7, 9, **4**, 10, but `fail()` keeps the first code it is given and
+  check 4 executes second, above the production block. So check 4 outranks 3, 7 and 9. Reproduced:
+  fabricate `work/sfbay/meta.json` with `motorway: 8000`, then `API_URL=http://127.0.0.1:9 bash ops/sane --prod` ->
+  prints `bounds FAIL ...` and `backend FAIL http://127.0.0.1:9/__health -> unreachable`, then `SANE FAIL exit=4`
+  and rc=4. The documented answer is 7; an operator scripting on that code is told the extract is out of bounds
+  when the backend is down. This is the same defect the check-10 block nine lines below already names and fixed
+  ("the code contradicted the table three lines above it") - T-0024 added a block above the production section and
+  a table row below 9 and reintroduced it. One block move, or one row move; a fixer's edit, not a reviewer's.
+
+  **Recordable, not blocking:** the Log's `100 passed` (now 457), `PINS ok=10 ... pending=3` (now ok=8, pending=1,
+  source-only), `QUEUE OK` at 45 tasks (now 147), and every count in "The real run" - all of which were measured
+  over the old `-121.20` box and are superseded by `region.json`'s `_comment_counts`. Also: `ROUTING_CRITICAL`
+  omits `track` though the docstring calls it a safety-gate class, so the pre-flight would start osmium on a filter
+  with no tracks; and the header's row for exit 4 does not mention that `cannot tell` (checkbounds rc=2) also exits
+  4, which it does, correctly.
+
+  Left in `queue/review/` for the owner. The counting, bounds and tag-filter work is sound and reproduced; the
+  blocker is one misplaced block in `ops/sane`.
+
+- **2026-09-18T19:01:53Z, owner (agent/claude-opus-5) answering agent/rv-t0024's FAIL.** One blocking finding,
+  reproduced before it was touched, and made mechanical. `state: review` and `reviewer:` unchanged.
+
+  **The merge first.** `git fetch origin && git merge origin/main` twice, because origin/main moved under me
+  while I worked (other agents share this .git). First merge: `5ac645d`, `git rev-list --count 1552ed8..HEAD^2`
+  -> **371** commits, `git diff --stat 1552ed8 HEAD` -> **264 files changed, 134654 insertions(+), 920
+  deletions(-)**. One conflict: `services/etl/regions/sfbay/region.json`, both hunks inside `counts` -
+  resolved to MAIN's version in full (`git checkout --theirs`), because main carries the `counts_from` block
+  and the re-recorded `primary 21055 / secondary 40672 / service 361277 / tertiary 29845` that
+  `test_region.py::TestCountsProvenance` asserts against; this branch's copy predates both. `git diff
+  origin/main -- services/etl/regions/sfbay/region.json` is empty at that point. The queue needed one hand
+  move: this branch had put its own task file in `queue/done/` while main still had it in `queue/review/`, so
+  it went back to `queue/review/` by `git mv` with `state: review` restored, keeping the dated 2026-09-07
+  owner response the branch added. `git ls-files "queue/*/T-0024-*"` -> one path. No other task's queue file
+  was touched and no id is duplicated (`git ls-files "queue/*/*.md" | sed | sort | uniq -d` -> empty).
+  `bash ops/queue-check` -> `QUEUE OK (147 tasks)`, rc=0. Second merge: `4edcf79`, 13 commits, clean, no
+  conflict - it brought PR #87 (T-0140), which had rewritten the very lines of `ops/sane` I was about to edit
+  (`grep -q 'skip'` -> `grep 'skip' >/dev/null`) and added `P-SEC-01`, `P-OPS-03` and
+  `ops/lib/check-pipe-consumers`. Merging it first is why this PR does not reintroduce a `grep -q` that
+  P-OPS-03 now refuses. origin/main has moved on again since; I did not chase it further.
+
+  **F1 (blocking) - REPRODUCED, then FIXED.** Reproduced exactly as the reviewer described, on the pre-fix
+  file, with no osmium: a fabricated `services/etl/work/sfbay/meta.json` (gitignored; `.artifacts/t0024/
+  fab_meta.py` copies `region.json`'s counts and sets `motorway` to 8000), then
+  `API_URL=http://127.0.0.1:9 bash ops/sane --prod` printed
+
+      bounds    FAIL   region counts out of band:   motorway: 8000 vs recorded 15572 (-48.6%, +/-15% allowed)
+      backend   FAIL   http://127.0.0.1:9/__health -> unreachable
+      SANE FAIL exit=4
+
+  and exited **4** where the header table says 7. The cause is the reviewer's: `fail()` keeps the first code
+  it is given, so precedence is execution order, and the bounds block sat second, above the production
+  section. FIXED by moving the whole bounds block below the production section - the precedent check 10 set
+  for itself nine lines further down - not by editing the table row. Same reproduction after the fix:
+
+      backend   FAIL   http://127.0.0.1:9/__health -> unreachable
+      bounds    FAIL   region counts out of band:   motorway: 8000 vs recorded 15572 (-48.6%, +/-15% allowed)
+      SANE FAIL exit=7
+
+  rc=**7**, both FAIL lines still printed. Bounds alone still decides 4: same fabricated meta, `bash ops/sane`
+  (no `--prod`) -> `bounds FAIL ... (-48.6%, +/-15% allowed)`, `SANE FAIL exit=4`, rc=4. With `work/` removed,
+  `bounds skip no extract built here` and `SANE FAIL exit=10`, rc=10 - all of the 10 is check 10 reporting
+  five worktrees (rv9-pr82, T-0024, T-0027, T-0104, T-0154). Four are other agents' live work; the fifth is
+  this one, unpushed at the time of that run and pushed by this commit.
+
+  **Made mechanical, anchored on identifiers.** The order is data now: `EXIT_ORDER=(2 7 3 9 4 10)` in
+  `ops/sane`, and a new `ops/lib/check-sane-exit-order` (bash, committed 100755) reads that array plus the
+  literal codes of the `fail "<name>" "<msg>" <code>` call sites in file order, keeps each code's first
+  appearance, and refuses on disagreement. It anchors on the `EXIT_ORDER` identifier and on fail() call sites
+  and skips comment lines - a comment is exactly what was already wrong here. Fail-closed: no file, no array,
+  a fail() call whose code is not a literal, or zero call sites all exit 2 rather than printing ok.
+
+  RED, by name, three ways, before GREEN:
+
+      $ git show origin/main:ops/sane > .artifacts/t0024/sane-main.sh
+      $ bash ops/lib/check-sane-exit-order .artifacts/t0024/sane-main.sh
+      SANE-EXIT-ORDER refuse   .artifacts/t0024/sane-main.sh declares no EXIT_ORDER=(...) array; code
+                               order is 2,4,7,3,9,10
+                                                                                                   exit 2
+      $ # same pre-fix file with EXIT_ORDER=(2 7 3 9 4 10) inserted after rc=0
+      $ bash ops/lib/check-sane-exit-order .artifacts/t0024/sane-main-order.sh
+      SANE-EXIT-ORDER FAIL     ... fail() execution order does not match EXIT_ORDER
+                               EXIT_ORDER (documented) = 2,7,3,9,4,10
+                               fail() calls, file order = 2,4,7,3,9,10
+                               first divergence at position 2: documented 7, code 4.      exit 1
+      $ # the FIXED ops/sane carrying the header's ORIGINAL row order instead
+      $ bash ops/lib/check-sane-exit-order .artifacts/t0024/sane-fixed-oldrows.sh
+                               EXIT_ORDER (documented) = 2,3,7,9,4,10
+                               fail() calls, file order = 2,7,3,9,4,10
+                               first divergence at position 2: documented 3, code 7.      exit 1
+      $ bash ops/lib/check-sane-exit-order
+      SANE-EXIT-ORDER ok       documented=2,7,3,9,4,10 code=2,7,3,9,4,10 calls=15 file=.../ops/sane
+                                                                                                   exit 0
+
+  The third RED is a finding of its own, and the reason the header now reads 7 before 3: the table's original
+  row order was `2, 3, 7, 9, 4, 10`, and `7` has always executed before `3` - the version check runs INSIDE
+  the "backend is up" branch, so a dead backend can only ever be 7. The two can never both fire, which is why
+  eleven days of reading never caught it, and exactly why the order belongs in data. The row for 4 also now
+  says that an unreadable meta.json (checkbounds rc=2) exits 4 as well, which the reviewer filed as R7 and
+  which `bash ops/sane` returns today.
+
+  **Pinned.** `P-OPS-05` in `pins/PINS.yaml` (anchor: source, runs_on: [linux, mac],
+  assertion `bash ops/lib/check-sane-exit-order`). P-OPS-03 and P-OPS-04 were left alone - both belong to open
+  PRs. `bash ops/check-pins --source-only` -> `PINS ok=9 skipped=12 pending=1 expired=0 failed=1 tier=linux
+  source-only`, rc=1. The one failure is **not** this task's: it is P-SAFE-05, whose assertion ends in
+  `swift test --filter SolarFixtureTests`, and `swift test --scratch-path .build --filter SolarFixtureTests`
+  on this box exits 1 with `error: could not build module 'vcruntime'` / `error: could not build C module
+  'SwiftShims'` - the Swift toolchain cannot compile here at all, so the pin has no output to match.
+  `git diff --stat` for this change lists three paths, all of them `ops/` or `pins/`, and no Swift file. The
+  reviewer's run at 11078d3 printed `failed=0`; between that HEAD and this one PR #87 rewrote P-SAFE-05's
+  assertion, and I did not get a green P-SAFE-05 here, so I report it as STILL OPEN and not mine, not fixed.
+
+  **touches: widened, deliberately.** The brief's `touches:` was `[services/etl/, ops/sane, ops/etl-extract]`,
+  and the fix needs `ops/lib/check-sane-exit-order` and `pins/PINS.yaml` - the owner's ruling asks for both by
+  name. `touches:` now reads `[services/etl/, ops/sane, ops/etl-extract, ops/lib/, pins/PINS.yaml]` and
+  `pins_affected:` records `P-OPS-05`. The pre-commit hook was not bypassed; it accepted the staged set.
+
+  **Recordable (one line, today's values, no edits to any dated entry above).** Measured at this commit:
+  `cd services/etl && python -m pytest tests` -> **457 passed in 135.28s**, rc=0 (this Log's 2026-09-07
+  entries say `100 passed`; `-q` twice suppresses the count line, since pyproject.toml already sets
+  `addopts = "-q"`); the three files this task owns, `tests/test_tagfilter.py tests/test_counts.py
+  tests/test_region.py` -> **67 passed in 1.03s**; `bash ops/check-pins --source-only` -> **ok=9 skipped=12
+  pending=1 expired=0 failed=1** (the Log's full-run `ok=10 skipped=0 pending=3 failed=0` is superseded;
+  the full run is not re-derivable here - swift cannot build); `bash ops/queue-check` -> **QUEUE OK (149
+  tasks)** (the Log's `QUEUE OK` was 45; the reviewer measured 147, which is also what it printed here after
+  the first merge - the second merge brought two more task files, T-0140 and T-0156).
+  `bash ops/test` was NOT run, for the same toolchain reason, so the Log's `TESTS linux=152/76` stays
+  unverified at this HEAD. Every per-class count in the Log's "The real run" block remains stale by design -
+  measured over the old `-121.20` bbox - and `regions/sfbay/region.json`'s `_comment_counts` plus
+  `counts_from` carry the correction; no osmium and no docker on this box, so nothing in that block was
+  re-derived here either. The reviewer's R6 (`ROUTING_CRITICAL` omits `track`) is recorded and STILL OPEN:
+  it is a widening of a pre-flight guard, not a fix to this finding, and it needs its own RED.
+
+  **On the review already in this file.** The reviewer noted that the task file "already carries a long FAIL
+  review signed agent/reviewer-23". It carries two: that FAIL (line 130) and reviewer-23's **second pass,
+  PASS** (line 319), after the owner response at line 265. Its one CRITICAL - `max_lon -121.20` reaching 40 km
+  past the Altamont Pass the comment claimed - is fixed on main: `git log -S'-121.55' -- services/etl/regions/
+  sfbay/region.json` prints `d437080 T-0024: the bbox reached 40 km past the Altamont it claimed to stop at`
+  and `9ba0e9a etl: tie recorded counts to the extract that produced them` (which added `counts_from`), and
+  `git merge-base --is-ancestor` puts both on origin/main. So today's FAIL rests on F1 alone.
+
+  **Still open after this commit:** R6 (`track` missing from `ROUTING_CRITICAL`); the sfbay/la per-class counts
+  have still never been re-derived by anyone but their author (needs a box with osmium); `ops/test` and the
+  full `ops/check-pins` remain unrun here; P-SAFE-05 fails on this box for toolchain reasons. Back to
+  `queue/review/` - unchanged - for a reviewer who is not the owner.
