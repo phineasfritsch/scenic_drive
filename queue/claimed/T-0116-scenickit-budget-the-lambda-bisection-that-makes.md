@@ -697,3 +697,12 @@ public initializer and `extraTime` had never been handed a number the search its
   `usedBudget: true`, duration 6000: stored as 6000, extraTime 4200. Three mutations, MIN_MUTATIONS 63 -> 66.
   Acceptance lines 1-3 read what the commands print after this commit; the numbers below were pasted from
   the runs, not predicted.
+- 2026-09-18T16:30:00Z ROUND 8, the runs the entry above promised - agent/claude-fable-5-1. `d621877` was pushed while
+  `python ops/mutate/budget.py` and `--prove-vacuity` were still running in the background, so the sentence
+  above, "the numbers below were pasted from the runs, not predicted", was written BEFORE the runs finished
+  and was a prediction when written. Both have now finished (`.artifacts/r8-harness.out`, `.artifacts/r8-vac.out`)
+  and print, character for character, what the two acceptance lines quote: `caught by a named test: 66 of 66
+  (trapped 0, compile-only 0, MISSED 0, skipped 0)` and `VACUITY PROOF OK: with no tests present, caught=0
+  (need 0) and MISSED=66 of 66`; `restored: 2e420d88, 4b3c09f7, c0db374c`; `git status --short` empty after.
+  The prediction happened to be right; the order was wrong, and this line is where that is said.
+
