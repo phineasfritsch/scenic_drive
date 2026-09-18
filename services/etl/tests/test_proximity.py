@@ -51,11 +51,24 @@ class TestFixture:
 
     def test_the_shapes_that_matter_are_all_present(self):
         for name in ("tunnel_no_is_not_a_tunnel", "tunnel_culvert_is_refused",
-                     "tunnel_value_is_case_and_space_normalised"):
+                     "tunnel_value_is_case_and_space_normalised",
+                     "tunnel_multi_segment_is_the_whole_way",
+                     "tunnel_three_node_under_the_threshold", "tunnel_four_node_over_the_threshold"):
             assert name in TUNNEL_IDS, name
         for name in ("crossing_a_motorway", "nearest_point_inside_a_long_way_segment",
-                     "two_motorways_nearest_wins", "no_motorways_at_all"):
+                     "two_motorways_nearest_wins", "two_motorways_nearest_first",
+                     "motorway_nearest_on_its_later_segment", "way_nearest_on_its_later_segment",
+                     "just_inside_the_scorer_s_proximity_boundary",
+                     "just_outside_the_scorer_s_proximity_boundary", "no_motorways_at_all"):
             assert name in MOTORWAY_IDS, name
+
+    def test_no_geometry_in_the_fixture_is_only_two_nodes(self):
+        """The hole review round 1 found: every polyline here had exactly one segment, so the double loop in
+        `line_distance_m` and the sum in `tunnel_meters` were never exercised over more than one of them
+        and three wrong implementations were green. Asserted rather than left to the next case."""
+        assert max(len(c["coordinates"]) for c in TUNNEL_CASES) >= 3
+        assert max(len(c["coordinates"]) for c in MOTORWAY_CASES) >= 3
+        assert max((len(line) for c in MOTORWAY_CASES for line in c["motorways"]), default=0) >= 3
 
 
 class TestTunnelValues:
@@ -174,6 +187,85 @@ class TestSegmentGeometry:
         assert proximity.line_distance_m(motorway, way) == pytest.approx(55.27, abs=0.01)
         nodes_only = min(snap.distance_to_line_m(p, motorway) for p in way)
         assert nodes_only == pytest.approx(884.90, abs=0.05)
+
+
+class TestMultiSegmentGeometry:
+    """The module docstring's own sentence - "every segment of the way is measured against every segment of
+    the motorway" - asserted instead of asserted in prose. Until these cases existed every geometry here had
+    exactly two nodes, and three implementations that lose the x0.7 or the x0.15 outright were green."""
+
+    def test_the_nearest_approach_may_be_on_a_later_segment_of_the_motorway(self):
+        """The candidate's first segment is 0.0566 * 88322.007 = 4999.03 m away, past the search radius;
+        its second comes back to 0.0011323 * 88322.007 = 100.007 m. Walking only the candidate's first
+        segment reports math.inf, which is score.py's "no motorway near this way"."""
+        case = [c for c in MOTORWAY_CASES if c["name"] == "motorway_nearest_on_its_later_segment"][0]
+        way, motorway = coords_of(case), motorways_of(case)[0]
+        assert len(motorway) == 3
+        assert proximity.line_distance_m(way, motorway) == pytest.approx(100.0, abs=0.05)
+        assert proximity.line_distance_m(way, motorway[:2]) > proximity.MOTORWAY_SEARCH_RADIUS_M
+        assert proximity.meters_to_nearest_motorway(way, [motorway]) == pytest.approx(100.0, abs=0.05)
+
+    def test_the_nearest_approach_may_be_on_a_later_segment_of_the_way(self):
+        """The mirror, and a separate wrong implementation: the outer loop is over the WAY's segments and
+        nothing above would notice if it stopped after the first."""
+        case = [c for c in MOTORWAY_CASES if c["name"] == "way_nearest_on_its_later_segment"][0]
+        way, motorway = coords_of(case), motorways_of(case)[0]
+        assert len(way) == 3
+        assert proximity.line_distance_m(way, motorway) == pytest.approx(100.0, abs=0.05)
+        assert proximity.line_distance_m(way[:2], motorway) > proximity.MOTORWAY_SEARCH_RADIUS_M
+        assert proximity.meters_to_nearest_motorway(way, [motorway]) == pytest.approx(100.0, abs=0.05)
+
+    def test_the_candidate_order_cannot_change_the_answer(self):
+        """[far, near] and [near, far] are the same question. The caller is an R-tree query with no reason
+        to sort, so keeping the last candidate rather than the smallest loses the x0.7 half the time."""
+        far_first = [c for c in MOTORWAY_CASES if c["name"] == "two_motorways_nearest_wins"][0]
+        near_first = [c for c in MOTORWAY_CASES if c["name"] == "two_motorways_nearest_first"][0]
+        assert coords_of(near_first) == coords_of(far_first)
+        assert motorways_of(near_first) == list(reversed(motorways_of(far_first)))
+        one = proximity.meters_to_nearest_motorway(coords_of(far_first), motorways_of(far_first))
+        two = proximity.meters_to_nearest_motorway(coords_of(near_first), motorways_of(near_first))
+        assert one == two == pytest.approx(100.0, abs=0.05)
+
+
+class TestTunnelLength:
+    def test_a_multi_segment_tunnel_is_measured_end_to_end(self):
+        """THE RULING, pinned. `tunnel=` is a tag on the WAY, so "tunnel metres" is the way's whole length
+        even when only part of its geometry is under the hill: a road that enters a tunnel halfway along is
+        two ways in OSM, and where it is not, the metres are wrong in the data and not here. The two legs
+        are 0.02 deg and 0.01 deg, so first-segment-only (2224.5967) and last-segment-only (1112.2983) are
+        both visible against the whole 2224.5967 + 1112.2983 = 3336.8950."""
+        case = [c for c in TUNNEL_CASES if c["name"] == "tunnel_multi_segment_is_the_whole_way"][0]
+        coords = coords_of(case)
+        assert len(coords) == 3
+        assert proximity.tunnel_meters(coords, case["tags"]) == pytest.approx(3336.8950, abs=0.001)
+        assert proximity.tunnel_meters(coords[:2], case["tags"]) == pytest.approx(2224.5967, abs=0.001)
+        assert proximity.tunnel_meters(coords[1:], case["tags"]) == pytest.approx(1112.2983, abs=0.001)
+
+    def test_the_metres_fall_either_side_of_the_threshold_score_cuts_at(self):
+        """score.py cuts at TUNNEL_THRESHOLD_M and this module supplies the number it cuts. Two ways drawn
+        with the same 0.001 deg legs, two of them and three: 2 * 111.2298 = 222.4597 m under the cut and
+        3 * 111.2298 = 333.6895 m over it. Neither the threshold nor the metres are restated here - the one
+        is imported and the others come from the fixture - and a way measured on one segment alone reads
+        111.2298 m and falls on the wrong side of it."""
+        under = [c for c in TUNNEL_CASES if c["name"] == "tunnel_three_node_under_the_threshold"][0]
+        over = [c for c in TUNNEL_CASES if c["name"] == "tunnel_four_node_over_the_threshold"][0]
+        assert proximity.tunnel_meters(coords_of(under), under["tags"]) < score.TUNNEL_THRESHOLD_M
+        assert proximity.tunnel_meters(coords_of(over), over["tags"]) > score.TUNNEL_THRESHOLD_M
+
+
+class TestProximityBoundary:
+    def test_the_metres_fall_either_side_of_the_proximity_score_cuts_at(self):
+        """The same for the other boundary: 0.00135 * 110540 = 149.229 m inside and 0.00137 * 110540 =
+        151.4398 m outside, two parallel east-west pairs so no cos(lat) enters it. The inside case's 0.77 m
+        of margin is inside the 0.94 m between this flat model and the spherical one at 37.5 deg, so it
+        also pins which model `snap.point_to_segment_m` measures on, where that difference decides."""
+        inside = [c for c in MOTORWAY_CASES if c["name"] == "just_inside_the_scorer_s_proximity_boundary"][0]
+        outside = [c for c in MOTORWAY_CASES
+                   if c["name"] == "just_outside_the_scorer_s_proximity_boundary"][0]
+        near = proximity.meters_to_nearest_motorway(coords_of(inside), motorways_of(inside))
+        far = proximity.meters_to_nearest_motorway(coords_of(outside), motorways_of(outside))
+        assert near < score.MOTORWAY_PROXIMITY_M
+        assert far > score.MOTORWAY_PROXIMITY_M
 
 
 class TestTheZeroClassesAreNotGatedHere:

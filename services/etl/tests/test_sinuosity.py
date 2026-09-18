@@ -23,6 +23,8 @@ from etl import sinuosity
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "geometry_terms_fixture.json").read_text())
 CASES = FIXTURE["sinuosity_cases"]
 IDS = [c["name"] for c in CASES]
+# The two cases whose geometry IS a straight line, so the floor is their true answer and not a refusal.
+STRAIGHT_BY_CONSTRUCTION = ("straight_two_node", "straight_three_node_meridian")
 
 
 def coords_of(case):
@@ -46,7 +48,8 @@ class TestFixture:
         outside the closed threshold. Named individually, because dropping one is how a guard stops being
         tested while the file still looks full."""
         for name in ("straight_two_node", "right_angle_dogleg", "hairpin_meridian",
-                     "closed_loop_rectangle", "near_closed_lasso", "just_open_rectangle"):
+                     "closed_loop_rectangle", "near_closed_lasso", "just_open_rectangle",
+                     "just_open_by_eleven_metres"):
             assert name in IDS, name
 
 
@@ -63,6 +66,14 @@ class TestConstants:
 
     def test_two_coordinates_is_the_minimum(self):
         assert sinuosity.MIN_COORDINATES == 2
+
+    def test_the_closed_threshold_is_pinned_from_both_sides(self):
+        """The band above, 1.0..30.0, is not a pin: it left (10, 22.2] free, and moving the constant to
+        20.0 turned `just_open_by_eleven_metres` from a genuine 4.2 km over 11 m into the floor with no
+        test able to see it. The two fixture gaps are 6373000 * 0.0000452 * pi/180 = 5.0276 m, which MUST
+        read closed, and 6373000 * 0.0001 * pi/180 = 11.1230 m, which MUST read open, so the constant
+        cannot leave [5.03, 11.12) without one of them going red by name."""
+        assert 5.03 <= sinuosity.CLOSED_ENDPOINT_M < 11.12
 
 
 class TestCases:
@@ -110,6 +121,38 @@ class TestRawNotNormalised:
         loop = [c for c in CASES if c["name"] == "closed_loop_rectangle"][0]
         assert sinuosity.endpoint_gap_m(coords_of(loop)) == 0.0
         assert sinuosity.way_sinuosity(coords_of(loop)) == sinuosity.CLOSED_WAY_SINUOSITY
+
+
+class TestTheDeclinedAnswerAndTheRankPopulation:
+    """The seam this module hands T-0163, and the one thing the value alone does not say.
+
+    `way_sinuosity` returns exactly `CLOSED_WAY_SINUOSITY` both for a way that DECLINED to answer and for a
+    genuinely straight one, so a normaliser that ranks the number alone seats every roundabout, cul-de-sac
+    loop and unsnapped lasso in a region at the floor of the population instead of leaving it out - which
+    lifts every other way's percentile. `is_closed_way` is public and is the only way to tell the two
+    apart; these tests pin that it still can.
+    """
+
+    def test_the_floor_is_returned_for_a_loop_and_for_a_straight_way_alike(self):
+        loop = coords_of([c for c in CASES if c["name"] == "closed_loop_rectangle"][0])
+        straight = coords_of([c for c in CASES if c["name"] == "straight_two_node"][0])
+        assert sinuosity.way_sinuosity(loop) == sinuosity.CLOSED_WAY_SINUOSITY
+        assert sinuosity.way_sinuosity(straight) == sinuosity.CLOSED_WAY_SINUOSITY
+        assert sinuosity.is_closed_way(loop) is True
+        assert sinuosity.is_closed_way(straight) is False
+
+    def test_is_closed_way_is_true_exactly_where_a_non_straight_way_reads_the_floor(self):
+        """The contract a ranking caller depends on: over every fixture case that is not straight by
+        construction, "the value is the floor" and "the way is closed" are the same answer. A public
+        predicate that drifted from the guard inside `way_sinuosity` - a different threshold, a different
+        comparison - would leave T-0163 unable to exclude the declined ways, and nothing else in this file
+        would notice."""
+        for case in CASES:
+            if case["name"] in STRAIGHT_BY_CONSTRUCTION:
+                continue
+            coords = coords_of(case)
+            at_floor = sinuosity.way_sinuosity(coords) == sinuosity.CLOSED_WAY_SINUOSITY
+            assert at_floor is sinuosity.is_closed_way(coords), case["name"]
 
 
 class TestRefusal:

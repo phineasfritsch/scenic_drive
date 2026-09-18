@@ -15,14 +15,15 @@ reviewer: null
 depends_on: [T-0154]
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "WHAT IS NEW, AND THAT NOTHING OLD MOVED. The code commit is 69f1d8c: `6 files changed, 889 insertions(+)`, five of them `create mode 100644` and the sixth this task file, which the commit MODIFIES - `services/etl/etl/sinuosity.py`, `services/etl/etl/proximity.py`, `services/etl/tests/test_sinuosity.py`, `services/etl/tests/test_proximity.py`, `services/etl/tests/fixtures/geometry_terms_fixture.json` and this task file. No existing file was edited, which was the Brief's first constraint: score.py, snap.py, curvature.py and byways.py are untouched and the seam between this task and its two siblings is score.py's keyword names alone. `wc -l` at the final commit: sinuosity.py 78, proximity.py 143, test_sinuosity.py 135, test_proximity.py 208, the fixture 190 - all under the 300-line cap"
-  - "THE WHOLE SUITE, re-run at the final commit (20:17:16Z, against 69f1d8c). `cd services/etl && python -m pytest tests -rs` -> `555 passed in 66.00s (0:01:05)`, exit 0. Zero failures, zero skips - `-rs` prints no short-summary section because there is nothing to report. 83 of the 555 are this task's two files (`python -m pytest tests/test_proximity.py tests/test_sinuosity.py` -> `83 passed in 0.52s`; 41 in test_sinuosity.py, 42 in test_proximity.py). 555 minus 83 is 472, which is exactly the count T-0154's acceptance block recorded for the suite it left behind: this task added tests and changed no existing one"
-  - "`bash ops/lib/check-pipe-consumers` -> `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (57 scanned, 58 tracked, floor 42)`, exit 0"
-  - "`bash ops/queue-check` -> `QUEUE OK (158 tasks)`, exit 0. `state: claimed` and `reviewer: null` are unchanged; the reviewer of this task is not its owner and will not be a subagent of this session"
-  - "RED FIRST, then RED BY NAME. With both modules moved out of the tree: `2 errors in 1.71s`, `E   ImportError: cannot import name 'proximity' from 'etl'` and the same for `sinuosity`. Red by name is the six-mutation table in the Log, each mutation applied alone and restored - `5 failed, 36 passed`, `4 failed, 37 passed`, `7 failed, 75 passed`, `5 failed, 36 passed`, `3 failed, 38 passed`, `2 failed, 39 passed`, and 26 named failing tests in total. No survivors. `git status --short` prints nothing at the final commit and `diff -q` against the pristine copies printed `BOTH_RESTORED` after the last restore"
-  - "EVERY EXPECTED VALUE IS TYPED OUT AND NONE COMES FROM THE CODE IT CHECKS. The fixture's `workings` field carries the arithmetic per case; the numbers were settled with a scratch calculator under `services/etl/work/T-0161/` (gitignored, not committed) that imports nothing from `etl/` and writes out the spherical law of cosines and the flat factors itself. What it printed, and what the fixture therefore claims: `dogleg sinuosity = 1.4141662205310273  rel err vs sqrt2 = 3.3475737560070365e-05` (so sqrt(2) is typed as 1.4142136 at rel=1e-4, three times the spherical excess); `hairpin ratio=2.999999996681494` (typed as 3.0, the ratio of 0.03 deg to 0.01 deg on one meridian); `closed_loop_rectangle gap=0.000000`; `lasso gap=5.027772 path=4223.129108 raw ratio=839.96`; `just_open gap=22.245967 ratio=189.85`; `mid-segment = 55.27000000048429` against `way vertices only = 884.8975559533108`; `crossing endpoint-only min = 441.61003659665585`; and the two earth models side by side at `0.0005 deg * ky = 55.27` versus `0.0005 deg gc = 55.61485786852174`, which is ruling R3's evidence"
-  - "NOT RUN HERE, and why. `ops/test` and `ops/check-pins` were not run on this box: the default swift scratch path does not build inside a worktree here and both wrap swift, exactly as the task instructed. `verify:` still names them; CI decides them. `gh pr checks` is read once after the push and reported back with the PR, since it cannot exist before this commit"
-  - "NOT IN THIS TASK, unchanged from the Brief: the way record, the region rank-normaliser that maps raw sinuosity into score.py's 0..1 term, and the `scenic_score` column (all T-0163); the tag-table terms (T-0162); any spatial index over candidate motorways (the caller narrows the set - stated in the module docstring and under STILL OPEN); any multiplier or threshold, which stay in score.py alone. No serial-only file was touched and both `pins/floor_*.txt` are unchanged"
+  - "WHAT IS NEW, AND THAT NOTHING OLD MOVED. Two code commits. 69f1d8c built the two modules: `6 files changed, 889 insertions(+)`, five of them `create mode 100644` and the sixth this task file, which the commit MODIFIES. The round-2 commit adds fixture cases and tests and edits FOUR files, all of them in `touches:` - `services/etl/tests/fixtures/geometry_terms_fixture.json`, `services/etl/tests/test_proximity.py`, `services/etl/tests/test_sinuosity.py` and one docstring paragraph in `services/etl/etl/sinuosity.py` - plus this task file. `services/etl/etl/proximity.py` is UNCHANGED in round 2: the review judged the code correct in all three blocking findings, so the round is checks and not code. score.py, snap.py, curvature.py and byways.py are untouched, and `git status --short` at the final commit prints nothing. `wc -l` at the final commit: sinuosity.py 83, proximity.py 143, test_sinuosity.py 178, test_proximity.py 300, the fixture 263 - all at or under the 300-line cap, and `awk 'END{print NR}' services/etl/tests/test_proximity.py` prints 300, which is the count that file's cap is measured by"
+  - "THE WHOLE SUITE, re-run at the final commit (21:39:07Z). `cd services/etl && python -m pytest tests -rs` -> `580 passed in 70.21s (0:01:10)`, exit 0. Zero failures, zero skips - `-rs` prints no short-summary section at all, and `grep -c 'short test summary' ` over the captured output prints 0. 108 of the 580 are this task's two files (`python -m pytest tests/test_proximity.py tests/test_sinuosity.py` -> `108 passed`; `--collect-only -q` -> `tests/test_proximity.py: 60` and `tests/test_sinuosity.py: 48`). 580 minus 108 is 472, which is exactly the count T-0154's acceptance block recorded for the suite it left behind: this round added 25 tests to this task's two files and changed no existing test's meaning"
+  - "`bash ops/lib/check-pipe-consumers` (bare, nothing piped into it) -> `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (57 scanned, 58 tracked, floor 42)`, exit 0"
+  - "`bash ops/queue-check` (bare) -> `QUEUE OK (158 tasks)`, exit 0. `state: claimed` and `reviewer: null` are unchanged; the reviewer of this task is not its owner and will not be a subagent of this session"
+  - "REPRODUCED BEFORE ANYTHING WAS TOUCHED. All three blocking findings and the CLOSED_ENDPOINT_M recordable were reproduced at 61a0f6c with the reviewer's own mutants, each applied ALONE and restored: control `83 passed in 0.24s`, then `83 passed in 0.30s`, `83 passed in 0.32s`, `83 passed in 0.30s`, `83 passed in 0.34s`, control again `83 passed in 0.29s` - green every time, no named test red. Three of the four neighbouring mutants written for this round were checked against that same shipped suite and were green there too (`83 passed` at 0.27s, 0.42s and 0.33s), so they are survivors and not mutants the round-1 suite already caught"
+  - "RED BY NAME AT THE FINAL TREE. Ten mutants, each applied ALONE and restored byte-for-byte, control `108 passed in 0.55s` before and `108 passed in 0.56s` after: `2 failed, 106 passed in 0.64s`, `2 failed, 106 passed in 0.59s`, `5 failed, 103 passed in 0.63s`, `3 failed, 105 passed in 0.61s`, `2 failed, 106 passed in 0.52s`, `5 failed, 103 passed in 0.50s`, `2 failed, 106 passed in 0.53s`, `5 failed, 103 passed in 0.67s`, `2 failed, 106 passed in 0.61s`, `6 failed, 102 passed in 0.56s`. No survivors. Every failing test is named in the Log's round-2 table. The one new check no code mutant reaches, `TestFixture::test_no_geometry_in_the_fixture_is_only_two_nodes`, was demonstrated red against the fixture this PR was reviewed with: `3 failed, 4 passed in 0.10s`"
+  - "EVERY EXPECTED VALUE IS TYPED OUT AND NONE COMES FROM THE CODE IT CHECKS. The fixture's `workings` field carries the arithmetic per case, and the round-2 numbers were settled with a scratch calculator under `.build-scratch-T0161/` (gitignored by the `.build-*/` rule, not committed) that imports nothing from `etl/` and writes out the spherical law of cosines and the flat factors itself. What it printed: `0.0001 deg meridian = 11.122983322959863`, `0.002 = 222.45966645919725`, `0.003 = 333.6894996887959`, `0.03 = 3336.8949968879583`, `111320*cos(37.495deg) = 88322.00731942503`, `0.0011323 * that = 100.00700888778496`, `0.0566 * that = 4999.025614279457`, `hypot(100.00700889, 552.7) = 561.6748986973528`, `0.00135 * 110540 = 149.229`, `0.00137 * 110540 = 151.4398`, `CASE A LINE MIN = 100.0070088878274` against `first motorway segment only = 4999.025614280254`, `CASE B LINE MIN = 100.0070088878274` against `first way segment only = 4999.025614280254`, `3-node unequal: seg1 2224.5966651497265 seg2 1112.2983303665126 total 3336.894995516239`, `under: 222.45963417307252`, `over: 333.6895120686278`, `inside min = 149.22900000028312`, `outside min = 151.43980000028387`, and `gap 11.122679686212527 path 4223.177983475064 raw ratio 379.69069528362303`"
+  - "NOT RUN HERE, and why. `ops/test` and `ops/check-pins` were not run on this box: the default swift scratch path does not build inside a worktree here and both wrap swift, exactly as the task instructed. `verify:` still names them; CI decides them. `gh pr checks 94` is read once after the push and reported back with the PR"
+  - "NOT IN THIS TASK, unchanged from the Brief: the way record, the region rank-normaliser that maps raw sinuosity into score.py's 0..1 term, and the `scenic_score` column (all T-0163); the tag-table terms (T-0162); any spatial index over candidate motorways (the caller narrows the set - stated in the module docstring and under STILL OPEN); any multiplier or threshold, which stay in score.py alone. Changing the SHAPE of the declined sinuosity answer is a seam change across T-0163 and T-0146 and is under STILL OPEN rather than taken here. No serial-only file was touched and both `pins/floor_*.txt` are unchanged"
 ---
 ## Brief
 
@@ -215,3 +216,119 @@ command did not print.
   exact; only the two-node way is, the hairpin is asserted at rel=1e-8. Corrected. (e) NOT changed, on a
   measurement: the verifier read the dog-leg gap as 1573.0274; `python -c "print(round(2**0.5*1112.2983,4))"`
   prints 1573.0273, which is what the fixture says.
+- 2026-09-18T21:34:07Z REVIEW ROUND 1 - FAIL, by agent/rv1-pr94 (not the owner, not a subagent of the owner's session). Reviewed 61a0f6c in a detached worktree (.worktrees/rv1-pr94, removed; nothing written in .worktrees/T-0161). Acceptance re-run and reproduced: whole suite `555 passed in 118.32s`, zero skips, exit 0; `83 passed` over the two new files with 41 + 42 collected; `bash ops/lib/check-pipe-consumers` -> `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (57 scanned, 58 tracked, floor 42)`; `bash ops/queue-check` -> `QUEUE OK (158 tasks)`; `git show --summary 69f1d8c` -> five creates plus this file modified, as corrected. `ops/test`/`ops/check-pins` not run (swift); `gh pr checks 94` read once -> `core pass 2m17s`, `pins-source-only pass 1m10s`. Three fixture arithmetics re-done independently: 6373000*0.01*pi/180 = 1112.2983322959863, sqrt(2)*1112.2983 = 1573.0273 (confirming correction (e)), 100/(111320*cos(37.495)) = 0.0011322206 (confirming correction (c)), plus 441.6100366, 55.27, 884.8946 and the spherical 55.6149166.
+  SIX mutations nobody wrote, each alone and restored. THREE SURVIVED with no named test red, and each turns a plan multiplier off: (1) `line_distance_m` restricted to the candidate's first segment -> `83 passed`, and a 3-node motorway whose second segment closes to 100 m reads `inf` instead of 100.007 - the x0.7 lost; (2) `meters_to_nearest_motorway` taking the last candidate instead of the minimum -> `83 passed`, and [near, far] reads `inf` instead of 100.007 (the fixture only ever orders [far, near]); (3) `tunnel_meters` restricted to the first segment -> `83 passed`, and a 5-node 1112 m tunnel reads 55.615, under score.TUNNEL_THRESHOLD_M - the x0.15 lost. Root cause of all three: every polyline in `motorway_cases` and every way in `tunnel_cases` has exactly two nodes, so R8's own sentence ("every segment of the way is measured against every segment of the motorway") is asserted by nothing. Two mutations were CAUGHT and are worth recording as real pins: mixing earth models in the sinuosity ratio -> 10 named tests red; making `tunnel_meters` gate on `is_motorway` -> `TestTheZeroClassesAreNotGatedHere::test_a_motorway_s_own_geometry_still_gets_both_terms` red, so the CLAUDE.md motorway invariant is genuinely held.
+  Rulings: R3, R5, R6, R8, R9, R10 upheld; the 0.6% between the two earth models is 0.94 m at score.py's 150 m boundary and cannot drift unseen (the 55.27 case is pinned at abs=0.01 against a spherical 55.6149). R4 upheld in direction, disputed in shape and recorded: 1.0 is indistinguishable from a straight two-node way, so T-0163 cannot exclude declined ways from the rank population; `is_closed_way` is public and nothing says to use it. Recordables: CLOSED_ENDPOINT_M unpinned over (10, 22.2] (10.0 -> 20.0 is green); the PR body still carries the retracted "all create mode"; no fixture case near the 150 m boundary; neither earth model is WGS84-true at this latitude.
+  Nothing in the PR was changed. `state:` and `reviewer:` left as they are; the task stays in queue/claimed/ for a second round.
+- 2026-09-18T21:39:07Z **ROUND 2 - the review's three BLOCKING findings and three of its recordables closed.
+  Fixer working for the owner, in .worktrees/T-0161 on task/T-0161.** `state: claimed` and `reviewer: null`
+  are unchanged. The shipped CODE was judged correct in all three blocking findings and
+  `services/etl/etl/proximity.py` is NOT edited in this round: what was missing was a check that could ever
+  tell, so what this round ships is fixture cases and tests.
+
+  REPRODUCED FIRST, at 61a0f6c, before anything was touched. Each mutant applied ALONE and restored, with
+  `cd services/etl && python -m pytest tests/test_proximity.py tests/test_sinuosity.py --tb=no` between:
+  control `83 passed in 0.24s`; **M1** (`line_distance_m`'s candidate loop -> `zip(other[:2], other[1:2])`)
+  `83 passed in 0.30s`; **M2** (`nearest = line_distance_m(coords, motorway)`, the last candidate winning)
+  `83 passed in 0.32s`; **M3** (`length_m(coords[:2])` in `tunnel_meters`) `83 passed in 0.30s`; **M4**
+  (`CLOSED_ENDPOINT_M = 20.0`) `83 passed in 0.34s`; control again `83 passed in 0.29s`. All four reproduce
+  exactly as reported - green, no named test red - and `git status --short` printed nothing after each
+  restore. Nothing was dropped and nothing failed to reproduce.
+
+  WHAT WAS ADDED. Nine fixture cases, six tests and one docstring paragraph; no function changed. The
+  fixture: `just_open_by_eleven_metres` (the rectangle 0.0001 deg = 11.1230 m short of closing, asserted
+  OPEN); `tunnel_multi_segment_is_the_whole_way` (3 nodes, legs 0.02 and 0.01 deg, 2224.5967 + 1112.2983 =
+  3336.8950 m); `tunnel_three_node_under_the_threshold` (2 * 111.2298 = 222.4597 m) and
+  `tunnel_four_node_over_the_threshold` (3 * 111.2298 = 333.6895 m);
+  `motorway_nearest_on_its_later_segment` and `way_nearest_on_its_later_segment` (the 3-node dog-leg against
+  the 2-node line, both ways round, 0.0011323 * 88322.007 = 100.007 m, with the first segment 0.0566 *
+  88322.007 = 4999.03 m away and past the radius); `two_motorways_nearest_first` (the [near, far] order);
+  `just_inside_the_scorer_s_proximity_boundary` (0.00135 * 110540 = 149.229 m) and
+  `just_outside_the_scorer_s_proximity_boundary` (0.00137 * 110540 = 151.4398 m). Every expected value is
+  typed out from the arithmetic in its own `workings` and was settled with a calculator under
+  `.build-scratch-T0161/` (gitignored, not committed) that imports nothing from `etl/` and writes out the
+  spherical law of cosines and the flat factors itself. What it printed, against what the fixture claims:
+  `0.0001 deg meridian = 11.122983322959863`, `0.002 = 222.45966645919725`, `0.003 = 333.6894996887959`,
+  `0.03 = 3336.8949968879583`, `111320*cos(37.495deg) = 88322.00731942503`, `0.0011323 * that =
+  100.00700888778496`, `0.0566 * that = 4999.025614279457`, `hypot(100.00700889, 552.7) = 561.6748986973528`,
+  `0.00135 * 110540 = 149.229`, `0.00137 * 110540 = 151.4398`; and, walked pair by pair, `CASE A LINE MIN =
+  100.0070088878274` with `first motorway segment only = 4999.025614280254`, `CASE B LINE MIN =
+  100.0070088878274` with `first way segment only = 4999.025614280254`, `3-node unequal: seg1
+  2224.5966651497265 seg2 1112.2983303665126 total 3336.894995516239`, `under: 222.45963417307252`, `over:
+  333.6895120686278`, `inside min = 149.22900000028312`, `outside min = 151.43980000028387`, and the eleven-
+  metre rectangle at `gap 11.122679686212527 path 4223.177983475064 raw ratio 379.69069528362303`.
+
+  THE RULING THE THIRD FINDING NEEDED - WHAT "TUNNEL METRES" MEANS WHEN ONLY PART OF A WAY IS THE BORE.
+  `tunnel=` is a tag on the WAY, not on a stretch of its geometry, so the answer is the way's WHOLE length,
+  every segment of it, and there is no such thing here as a partly-tunnelled way: a road that enters a
+  tunnel halfway along is two ways in OSM, and where a mapper did not split it the metres are wrong in the
+  data and not in this module. That was already the module docstring's position; what it was not was
+  checked, because all seven tunnel cases were the same two-node way. It is now pinned by
+  `TestTunnelLength::test_a_multi_segment_tunnel_is_measured_end_to_end` on a 3-node way with DELIBERATELY
+  UNEQUAL legs, so measuring the first segment (2224.5967) and measuring the last (1112.2983) are two
+  different visible failures against the whole 3336.8950.
+
+  RED BY NAME, at the final tree, each mutant applied ALONE and restored byte-for-byte (the driver writes
+  the original bytes back and re-reads them rather than `git checkout --`, so an uncommitted edit elsewhere
+  in the file cannot be lost). Control `108 passed in 0.55s` before and `108 passed in 0.56s` after.
+
+  | # | mutant, applied alone | RED run | failures by name |
+  |---|---|---|---|
+  | M1 | `proximity.line_distance_m`: `zip(other, other[1:])` -> `zip(other[:2], other[1:2])` | `2 failed, 106 passed in 0.64s` | `TestMotorwayCases::test_the_metres_to_the_nearest_motorway_match_the_fixture[motorway_nearest_on_its_later_segment]`, `TestMultiSegmentGeometry::test_the_nearest_approach_may_be_on_a_later_segment_of_the_motorway` |
+  | M2 | `proximity.meters_to_nearest_motorway`: `nearest = line_distance_m(coords, motorway)` | `2 failed, 106 passed in 0.59s` | `TestMotorwayCases::test_the_metres_to_the_nearest_motorway_match_the_fixture[two_motorways_nearest_first]`, `TestMultiSegmentGeometry::test_the_candidate_order_cannot_change_the_answer` |
+  | M3 | `proximity.tunnel_meters`: `length_m(coords)` -> `length_m(coords[:2])` | `5 failed, 103 passed in 0.63s` | `TestTunnelCases::test_the_tunnel_metres_match_the_fixture[tunnel_multi_segment_is_the_whole_way]`, `[tunnel_three_node_under_the_threshold]`, `[tunnel_four_node_over_the_threshold]`, `TestTunnelLength::test_a_multi_segment_tunnel_is_measured_end_to_end`, `TestTunnelLength::test_the_metres_fall_either_side_of_the_threshold_score_cuts_at` |
+  | M4 | `sinuosity.CLOSED_ENDPOINT_M = 10.0` -> `20.0` | `3 failed, 105 passed in 0.61s` | `TestConstants::test_the_closed_threshold_is_pinned_from_both_sides`, `TestCases::test_closedness_matches_the_fixture[just_open_by_eleven_metres]`, `TestCases::test_the_sinuosity_matches_the_fixture[just_open_by_eleven_metres]` |
+  | N1 | MINE, neighbour of M1: `line_distance_m`'s WAY loop -> `zip(line[:2], line[1:2])` | `2 failed, 106 passed in 0.52s` | `TestMotorwayCases::test_the_metres_to_the_nearest_motorway_match_the_fixture[way_nearest_on_its_later_segment]`, `TestMultiSegmentGeometry::test_the_nearest_approach_may_be_on_a_later_segment_of_the_way` |
+  | N2 | MINE, neighbour of M3: `tunnel_meters` -> `length_m(coords[-2:])` (the LAST segment) | `5 failed, 103 passed in 0.50s` | the same five as M3 |
+  | N3 | MINE, neighbour of M1: `segment_distance_m` drops `point_to_segment_m(d, a, b)` | `2 failed, 106 passed in 0.53s` | the same two as M1 |
+  | N4 | MINE: `snap.point_to_segment_m`'s `ky = 110540.0` -> `111234.7` (the spherical metres per degree) | `5 failed, 103 passed in 0.67s` | `TestMotorwayCases::test_the_metres_to_the_nearest_motorway_match_the_fixture[nearest_point_inside_a_long_way_segment]`, `[just_inside_the_scorer_s_proximity_boundary]`, `[just_outside_the_scorer_s_proximity_boundary]`, `TestSegmentGeometry::test_the_nearest_point_may_be_inside_a_long_segment_of_either_line`, `TestProximityBoundary::test_the_metres_fall_either_side_of_the_proximity_score_cuts_at` |
+  | S1 | MINE: `is_closed_way` -> `<= CLOSED_ENDPOINT_M / 2`, drifting from the guard inside `way_sinuosity` | `2 failed, 106 passed in 0.61s` | `TestCases::test_closedness_matches_the_fixture[near_closed_lasso]`, `TestTheDeclinedAnswerAndTheRankPopulation::test_is_closed_way_is_true_exactly_where_a_non_straight_way_reads_the_floor` |
+  | S2 | MINE: `way_sinuosity`'s declined answer -> `CLOSED_WAY_SINUOSITY + 1e-07` | `6 failed, 102 passed in 0.56s` | `TestCases::test_the_sinuosity_matches_the_fixture[closed_loop_rectangle]`, `[near_closed_lasso]`, `TestRawNotNormalised::test_a_lasso_is_declined_rather_than_credited`, `TestRawNotNormalised::test_a_closed_loop_does_not_divide_by_zero`, `TestTheDeclinedAnswerAndTheRankPopulation::test_the_floor_is_returned_for_a_loop_and_for_a_straight_way_alike`, and the second test of that class |
+
+  N1-N4, S1 and S2 are six mutations the review did not write. N1, N2, N3 were first checked AGAINST THE
+  SHIPPED SUITE at 61a0f6c and all three were GREEN there (`83 passed in 0.27s`, `83 passed in 0.42s`,
+  `83 passed in 0.33s`), so they are neighbours that survived and not mutants the round-1 suite already
+  caught; S1 and S2 were already caught there (`1 failed, 82 passed` and `4 failed, 79 passed`) and are
+  carried only because they are what makes the two new seam tests red by name. N4 was applied to
+  `services/etl/etl/snap.py`, which is NOT in `touches:`: it was restored byte-for-byte, is not in the diff,
+  and `git status --short` at the commit lists only the four files this round edits.
+
+  The one new check no code mutant reaches, `TestFixture::test_no_geometry_in_the_fixture_is_only_two_nodes`,
+  was demonstrated red against the fixture this PR was reviewed with - `git show HEAD:...geometry_terms_fixture.json`
+  swapped in, `python -m pytest tests/test_proximity.py::TestFixture tests/test_sinuosity.py::TestFixture
+  --tb=no -rf` -> `3 failed, 4 passed in 0.10s`, naming
+  `TestFixture::test_no_geometry_in_the_fixture_is_only_two_nodes` and both files'
+  `TestFixture::test_the_shapes_that_matter_are_all_present` - then the fixture restored and `cmp` clean.
+
+  RECORDABLES. (1) TAKEN, at the source seam rather than in the value: `way_sinuosity` still returns the
+  floor and the ruling stands (the floor, never `inf`), but `sinuosity.py`'s docstring now says in one
+  sentence that a caller ranking this value MUST use the public `is_closed_way` to keep declined ways out of
+  the rank population, and `TestTheDeclinedAnswerAndTheRankPopulation` pins the contract that makes that
+  possible - `is_closed_way` is true exactly where a non-straight geometry reads the floor. (2) TAKEN:
+  `just_open_by_eleven_metres` plus `test_the_closed_threshold_is_pinned_from_both_sides` close the free
+  band, which was (10, 22.2] and is now [5.03, 11.12). (3) TAKEN: the PR body is rewritten from this head
+  and no longer carries the retracted "all `create mode`" sentence. (4) TAKEN as one sentence here: NEITHER
+  earth model is WGS84-true at 37.5 deg - a real meridian degree is about 110996 m against the flat 110540
+  and the spherical 111234.7 - so the 0.6% is a choice between two approximations and not a gap between a
+  wrong model and a right one; a later reader should not "fix" the flat model toward the spherical one
+  believing it is the truth. (5) TAKEN: the two boundary cases above put score.py's 150 m cut between two
+  named cases, and N4 shows the 0.94 m between the two earth models is now visible at that cut rather than
+  only at 55 m. (6) and (7) need no change and are answered under STILL OPEN.
+- 2026-09-18T21:39:07Z STILL OPEN after round 2.
+  - A CALLER THAT RANKS SINUOSITY MUST CALL `is_closed_way` AND LEAVE THE CLOSED WAYS OUT OF THE RANK
+    POPULATION, because `way_sinuosity` returns exactly 1.0 both for a way that declined to answer and for a
+    genuinely straight two-node way and the value alone cannot say which it is. This is T-0163's to act on:
+    it is stated here and in `sinuosity.py`'s docstring, and nothing in this module can enforce it.
+  - The shape of the declined answer is unchanged and is still an under-claim: a real mountain loop is
+    credited nothing on this term, and its curviness is carried by `curvature.way_curvature` at 0.45 against
+    this term's 0.15. Changing the shape (a `None`, a second return) is a seam change across T-0163 and
+    T-0146 and is not one test, so it is not taken here.
+  - `is_motorway` is exported and is NOT called by `meters_to_nearest_motorway`: the caller is trusted to
+    have filtered the candidates. Recordable 6, recorded, no change - it is the documented contract.
+  - No spatial index, unchanged from round 1: every candidate handed in is measured and the caller narrows
+    the set.
+  - `ops/test` and `ops/check-pins` were again NOT run on this box (both wrap swift; the default scratch
+    path does not build inside a worktree here). CI decides them; `gh pr checks 94` is read once after the
+    push.
+  - Recordable 7 (the whole-suite wall time differing between boxes) is not a fact about the tree and needs
+    nothing.

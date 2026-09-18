@@ -22,6 +22,11 @@ rather than a nicety. `CLOSED_WAY_SINUOSITY` is the FLOOR, 1.0: a closed way is 
 its curviness is carried by `curvature.way_curvature`, which weighs 0.45 to this term's 0.15 and measures a
 loop perfectly well. Declining to answer is 1.0, never `inf` and never a large number.
 
+AND SO A CALLER THAT RANKS THIS VALUE MUST USE `is_closed_way` TO KEEP DECLINED WAYS OUT OF THE RANK
+POPULATION: `way_sinuosity` returns exactly `CLOSED_WAY_SINUOSITY` for a closed way and for a genuinely
+straight two-node way alike, so the number alone cannot say which it is, and seating every roundabout in a
+region at the floor lifts every other way's percentile.
+
 REFUSAL. Fewer than two coordinates is not a way and gets no value: `way_sinuosity` raises `ValueError`
 naming the caller and the count. A default returned for malformed geometry is the failure this repository
 exists to catch - it would score, it would look plausible, and nothing would ever print it.
