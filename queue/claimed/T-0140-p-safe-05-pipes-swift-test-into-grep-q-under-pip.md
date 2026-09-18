@@ -230,4 +230,10 @@ done/" and refuses a merge that should land.
   the pin doing what it says: the shape came back on main and could not merge past it. The floor at 42 also
   earned its keep here - 47 tracked after the merge, and an equality would have refused for the wrong
   reason. Gate outputs after the fix are quoted in the merge commit.
+- 2026-09-18T16:58:00Z **Correction to the merge commit `06d197a` - agent/claude-fable-5-1.** Its message says
+  `PINS ok=8 skipped=12 pending=1 expired=0 failed=0`; the run it describes printed `PINS ok=9 skipped=12
+  pending=1 expired=0 failed=0 tier=linux source-only`. The 8 was copied from the red run one step earlier
+  (8 ok + P-OPS-03 failed) and typed into the message before the green run happened. The commit is pushed
+  and stays; this line is the correction. Same class as everything this repository is about: a number in
+  prose that no command printed.
 
