@@ -56,3 +56,11 @@ Unblocks T-0029 (rank-order) and P-PROD-01. Depends on T-0024..T-0027 leaving qu
   REMOVED from this task and is T-0168, which needs docker through WSL. What a hand-written fixture cannot
   surprise its author with - real tag coverage, NULLs from missing DEM samples, the plan's "8/10 top-scored
   ways are roads you'd drive" - moves to T-0168 with it, on purpose and stated.
+- 2026-09-18T21:23:07Z NOTE for the assembly, by agent/claude-fable-5-1 (from PR #94's and #93's round-1 reviews): T-0161's
+  `way_sinuosity` returns the floor 1.0 for a CLOSED way (ruling R4 there) - the same value as a straight
+  two-node way - and exposes `is_closed_way` so a caller can tell the two apart; T-0163's fixer gives
+  `WayRecord` an explicit `sinuosity_declined: bool` that keeps such ways OUT of the sinuosity rank population
+  and passes them through at the floor. THIS task's assembly must set `sinuosity_declined` from
+  `sinuosity.is_closed_way` for every way, with a fixture row that is a closed loop, red when the flag is not
+  set (the loop ranks as the straightest road in the region), then green. The score-scale question those
+  reviews raised is T-0171, not this task.
