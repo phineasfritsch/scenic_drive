@@ -1,17 +1,16 @@
 """The guardrails on .github/workflows/ios-compile.yml, read as DATA (T-0157).
 
 That workflow runs on a macOS runner. It is safe to have in the tree only while it is dispatch-only, read-only,
-time-boxed and on the standard runner label: a `push:` trigger added in passing would put a macOS build on
-every commit of every branch, next to the Linux CI the whole fleet depends on. Each guardrail is an
-identifier in the parsed YAML, never a comment, and each refusal names the one that is gone.
+time-boxed, on the standard runner label, and unable to go green without compiling: a `push:` trigger added in
+passing would put a macOS build on every commit of every branch, beside the Linux CI the fleet depends on.
 
-GitHub Actions lets a JOB, a STEP and the RUN BODY itself override what the workflow level says: a job-level
-`permissions:` REPLACES the workflow-level block, a step-level `shell:` replaces `defaults.run.shell`,
-`continue-on-error: true` turns a failed build green, and `set +o pipefail` inside the script undoes the
-shell's initial state. Round 1 of the review passed the first three through a check that read only the top
-level; round 2 passed the fourth through a check that read every YAML level and not the script. Hunting bad
-substrings in a script is an arms race, so the run bodies are not scanned: each is compared BY EQUALITY to
-the literal below. Changing what this job runs means changing this file, deliberately, under review.
+Three review rounds each found a door the previous version did not watch - a job-level `permissions:` (it
+REPLACES the workflow-level block), a step-level `shell:` and `continue-on-error`, `set +o pipefail` inside the
+script, `if: false` on the build step (a skipped build is a green job that compiled nothing). Enumerating
+doors is an arms race. So this check does two things: it names the dangerous edits it knows (good messages),
+and then it compares the WHOLE parsed workflow with the structure pinned below (EXPECTED), after normalising
+the few spellings GitHub treats as identical, and names the first path that differs. Changing what this job
+is - any key, anywhere - means changing this file, deliberately, under review.
 
     python ops/lib/check-ios-compile-guardrails.py [path]        exit 0 ok, 1 a guardrail is gone, 2 cannot tell
     python ops/lib/check-ios-compile-guardrails.py --prove-red   every guardrail seen red on a mutated copy
@@ -31,102 +30,128 @@ WORKFLOW = ROOT / ".github/workflows/ios-compile.yml"
 ALLOWED_RUNNERS = {"macos-15"}
 ALLOWED_USES = {"actions/checkout@v4", "actions/upload-artifact@v4"}
 MAX_TIMEOUT_MINUTES = 30
-
-# The ONLY scripts this job may run, keyed by step name. Equality, not a scan.
-EXPECTED_RUN = {
-    "toolchain": "\n".join([
-        "xcodebuild -version",
-        "swift --version",
-        "ls /Applications | grep -i '^Xcode' || true",
-    ]) + "\n",
-    "build for the iOS Simulator": "\n".join([
-        'mkdir -p "$GITHUB_WORKSPACE/DerivedData"',
-        "xcodebuild \\",
-        "  -project apps/ios/ScenicDrive.xcodeproj \\",
-        "  -scheme ScenicDrive \\",
-        "  -destination 'generic/platform=iOS Simulator' \\",
-        '  -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \\',
-        "  CODE_SIGNING_ALLOWED=NO \\",
-        '  build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"',
-    ]) + "\n",
-    "what the build wrote into the tree": "\n".join([
-        "git status --porcelain --untracked-files=all",
-        "find apps/ios -name Package.resolved -print",
-    ]) + "\n",
-}
 BUILD_STEP = "build for the iOS Simulator"
 
+TOOLCHAIN_RUN = "xcodebuild -version\nswift --version\nls /Applications | grep -i '^Xcode' || true\n"
+BUILD_RUN = "\n".join([
+    'mkdir -p "$GITHUB_WORKSPACE/DerivedData"',
+    "xcodebuild \\",
+    "  -project apps/ios/ScenicDrive.xcodeproj \\",
+    "  -scheme ScenicDrive \\",
+    "  -destination 'generic/platform=iOS Simulator' \\",
+    '  -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \\',
+    "  CODE_SIGNING_ALLOWED=NO \\",
+    '  build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"',
+]) + "\n"
+STATUS_RUN = "git status --porcelain --untracked-files=all\nfind apps/ios -name Package.resolved -print\n"
 
-def triggers(on):
-    """`on:` may be a string, a list or a mapping; all three are the same set of event names."""
+# The whole workflow, as parsed YAML. Equality, not a scan.
+EXPECTED = {
+    "name": "ios-compile",
+    "on": {"workflow_dispatch": None},
+    "concurrency": {"group": "ios-compile-${{ github.ref }}", "cancel-in-progress": True},
+    "permissions": {"contents": "read"},
+    "defaults": {"run": {"shell": "bash"}},
+    "jobs": {"simulator-build": {
+        "runs-on": "macos-15",
+        "timeout-minutes": 20,
+        "steps": [
+            {"uses": "actions/checkout@v4"},
+            {"name": "toolchain", "run": TOOLCHAIN_RUN},
+            {"name": BUILD_STEP, "run": BUILD_RUN},
+            {"name": "what the build wrote into the tree", "if": "always()", "run": STATUS_RUN},
+            {"name": "keep the log and any Package.resolved", "if": "always()", "uses": "actions/upload-artifact@v4",
+             "with": {"name": "ios-compile-${{ github.run_id }}", "if-no-files-found": "warn",
+                      "path": "DerivedData/xcodebuild.log\napps/ios/**/Package.resolved\n"}},
+        ],
+    }},
+}
+
+
+def normalise(doc):
+    """The spellings GitHub treats as identical, folded to one: `on` read by PyYAML as the boolean True; `on:` as
+    a string or a list; `runs-on:` as a one-element list."""
+    d = dict(doc)
+    if True in d and "on" not in d:
+        d["on"] = d.pop(True)
+    on = d.get("on")
     if isinstance(on, str):
-        return {on}
-    if isinstance(on, (list, tuple)):
-        return {str(x) for x in on}
-    if isinstance(on, dict):
-        return {str(k) for k in on}
-    return {repr(on)}
+        d["on"] = {on: None}
+    elif isinstance(on, (list, tuple)):
+        d["on"] = {str(x): None for x in on}
+    jobs = d.get("jobs")
+    if isinstance(jobs, dict):
+        d["jobs"] = {}
+        for name, job in jobs.items():
+            job = dict(job) if isinstance(job, dict) else job
+            if isinstance(job, dict) and isinstance(job.get("runs-on"), list) and len(job["runs-on"]) == 1:
+                job["runs-on"] = job["runs-on"][0]
+            d["jobs"][name] = job
+    return d
 
 
-def runner(value):
-    """`runs-on:` may be a string or a one-element list; anything else (a matrix, a group) is not the pinned label."""
-    if isinstance(value, str):
-        return value
-    if isinstance(value, list) and len(value) == 1 and isinstance(value[0], str):
-        return value[0]
+def first_difference(want, got, path="workflow"):
+    """The first path at which two parsed YAML structures differ, or None."""
+    if isinstance(want, dict) and isinstance(got, dict):
+        for k in want:
+            if k not in got:
+                return f"{path}.{k}: missing"
+        for k in got:
+            if k not in want:
+                return f"{path}.{k}: a key the pinned workflow does not have (found {got[k]!r})"
+        for k in want:
+            d = first_difference(want[k], got[k], f"{path}.{k}")
+            if d:
+                return d
+        return None
+    if isinstance(want, list) and isinstance(got, list):
+        if len(want) != len(got):
+            return f"{path}: {len(got)} item(s) where the pinned workflow has {len(want)}"
+        for i, (w, g) in enumerate(zip(want, got)):
+            d = first_difference(w, g, f"{path}[{i}]")
+            if d:
+                return d
+        return None
+    if type(want) is not type(got) or want != got:
+        return f"{path}: differs from the pinned value (compared by equality)"
     return None
 
 
-def problems(doc, raw):
+def named_problems(doc, raw):
+    """The dangerous edits this check knows by name. Not the net - the net is first_difference."""
     out = []
-    # PyYAML reads the bare key `on` as the boolean True (YAML 1.1); accept either spelling of the same key.
-    found = triggers(doc.get("on", doc.get(True)))
-    if found != {"workflow_dispatch"}:
-        out.append(f"on: must be exactly workflow_dispatch, found {sorted(found)}")
+    if set(doc.get("on") or {}) != {"workflow_dispatch"}:
+        out.append(f"on: must be exactly workflow_dispatch, found {sorted(map(str, doc.get('on') or {}))}")
     if doc.get("permissions") != {"contents": "read"}:
         out.append(f"permissions: must be exactly contents: read, found {doc.get('permissions')!r}")
     if (doc.get("defaults") or {}).get("run", {}).get("shell") != "bash":
         out.append("defaults.run.shell: must be bash (pipefail), or a failed build piped into tee reports success")
-    if "env" in doc:
-        out.append("env: a workflow-level environment is a way to hand a token to a script - remove it")
     if "secrets." in raw:
         out.append("secrets.: this job references no secret; a personal token would be outside the read-only GITHUB_TOKEN")
-    jobs = doc.get("jobs") or {}
-    if not jobs:
-        out.append("jobs: none defined - nothing to guard is not the same as guarded")
-    for name, job in jobs.items():
+    for name, job in (doc.get("jobs") or {}).items():
         for key, why in (("permissions", "a job-level block REPLACES the workflow-level one"),
                          ("defaults", "a job-level default can replace the bash shell"),
                          ("strategy", "a matrix multiplies the runner and can change its label"),
-                         ("env", "a job-level environment is a way to hand a token to a script")):
+                         ("env", "an environment is a way to hand a token to a script"),
+                         ("if", "a job that is skipped is a green run that compiled nothing"),
+                         ("continue-on-error", "a failed build must fail the job")):
             if key in job:
                 out.append(f"jobs.{name}.{key}: {why} - remove it (found {job[key]!r})")
-        if job.get("continue-on-error"):
-            out.append(f"jobs.{name}.continue-on-error: a failed build must fail the job")
-        if runner(job.get("runs-on")) not in ALLOWED_RUNNERS:
+        if job.get("runs-on") not in ALLOWED_RUNNERS:
             out.append(f"jobs.{name}.runs-on: must be one of {sorted(ALLOWED_RUNNERS)}, found {job.get('runs-on')!r}")
         t = job.get("timeout-minutes")
         if isinstance(t, bool) or not isinstance(t, int) or not 0 < t <= MAX_TIMEOUT_MINUTES:
             out.append(f"jobs.{name}.timeout-minutes: must be an integer in 1..{MAX_TIMEOUT_MINUTES}, found {t!r}")
-        steps = job.get("steps") or []
-        if [s.get("name") for s in steps if "run" in s].count(BUILD_STEP) != 1:
-            out.append(f"jobs.{name}: must have exactly one step named '{BUILD_STEP}'")
-        for i, s in enumerate(steps):
+        for i, s in enumerate(job.get("steps") or []):
             where = f"jobs.{name}.steps[{i}]"
+            if s.get("name") == BUILD_STEP and "if" in s:
+                out.append(f"{where}.if: a build step that can be SKIPPED is a green job that compiled nothing (found {s['if']!r})")
             if "shell" in s and s["shell"] != "bash":
                 out.append(f"{where}.shell: {s['shell']!r} replaces the pipefail default - a failed build piped into tee would pass")
             if s.get("continue-on-error"):
                 out.append(f"{where}.continue-on-error: a failed step must fail the job")
-            if "env" in s:
-                out.append(f"{where}.env: a step-level environment is a way to hand a token to a script - remove it")
             if "uses" in s and s["uses"] not in ALLOWED_USES:
                 out.append(f"{where}.uses: {s['uses']!r} is not in the allowlist {sorted(ALLOWED_USES)}")
-            if "run" in s:
-                want = EXPECTED_RUN.get(s.get("name"))
-                if want is None:
-                    out.append(f"{where}: a run step named {s.get('name')!r} is not one of the pinned scripts {sorted(EXPECTED_RUN)}")
-                elif s["run"] != want:
-                    out.append(f"{where}.run: the script of '{s.get('name')}' differs from the text pinned in this check (compared by equality)")
     return out
 
 
@@ -140,22 +165,33 @@ def check(path):
     if not isinstance(doc, dict):
         return 2, [f"IOS-COMPILE-GUARDRAILS REFUSING: {path.name} is not a YAML mapping"]
     try:
-        found = problems(doc, raw)
+        doc = normalise(doc)
+        found = named_problems(doc, raw)
+        diff = first_difference(EXPECTED, doc)
     except Exception as e:  # a shape this check did not expect is "cannot tell", never a verdict
         return 2, [f"IOS-COMPILE-GUARDRAILS REFUSING: {path.name} has a shape this check cannot judge: {type(e).__name__}"]
+    if diff and not found:
+        found = [diff]
     lines = [f"IOS-COMPILE-GUARDRAILS: {p}" for p in found]
     if found:
         return 1, lines + [f"IOS-COMPILE-GUARDRAILS FAIL: {len(found)} guardrail(s) gone in {path.name}"]
-    return 0, [f"IOS-COMPILE-GUARDRAILS OK: {path.name} is dispatch-only, read-only, time-boxed, on {sorted(ALLOWED_RUNNERS)}, and runs only its {len(EXPECTED_RUN)} pinned scripts"]
+    return 0, [f"IOS-COMPILE-GUARDRAILS OK: {path.name} equals the pinned workflow: dispatch-only, contents: read, {sorted(ALLOWED_RUNNERS)}, time-boxed, and a build that cannot be skipped or fail green"]
 
 
-# One mutation per guardrail AND per level it can be overridden at: (what it breaks, exact text in the shipped
-# workflow, replacement). --prove-red applies each ALONE to a copy outside the tree. A mutation that does not
-# apply exactly once is a hard failure - a proof over a no-op would pass for the wrong reason.
+# (what it breaks, exact text in the shipped workflow, replacement). --prove-red applies each ALONE to a copy
+# outside the tree. A mutation that does not apply exactly once is a hard failure - a proof over a no-op would
+# pass for the wrong reason.
 JOB = "  simulator-build:\n    runs-on: macos-15\n"
 BUILD = "      - name: build for the iOS Simulator\n        run: |\n"
 MKDIR = '          mkdir -p "$GITHUB_WORKSPACE/DerivedData"\n'
 TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
+TOOL = "      - name: toolchain\n        run: |\n          xcodebuild -version\n          swift --version\n          ls /Applications | grep -i '^Xcode' || true\n\n"
+
+
+def after(anchor, line):
+    return anchor.replace("\n        run: |\n", f"\n        {line}\n        run: |\n")
+
+
 MUTATIONS = [
     ("a push trigger added", "on:\n  workflow_dispatch:\n", "on:\n  workflow_dispatch:\n  push:\n    branches: [main]\n"),
     ("on: as a list that includes push", "on:\n  workflow_dispatch:\n", "on: [workflow_dispatch, push]\n"),
@@ -163,11 +199,17 @@ MUTATIONS = [
     ("workflow-level permissions widened", "permissions:\n  contents: read\n", "permissions:\n  contents: write\n"),
     ("JOB-level permissions: write-all", JOB, "  simulator-build:\n    permissions: write-all\n    runs-on: macos-15\n"),
     ("the shell default dropped", "defaults:\n  run:\n    shell: bash\n", "defaults:\n  run:\n    shell: sh\n"),
-    ("STEP-level shell: sh on the build step", BUILD, "      - name: build for the iOS Simulator\n        shell: sh\n        run: |\n"),
+    ("STEP-level shell: sh on the build step", BUILD, after(BUILD, "shell: sh")),
     ("RUN-BODY: set +o pipefail above the build", MKDIR, "          set +o pipefail\n" + MKDIR),
     ("RUN-BODY: || true after the build pipeline", TEE, TEE.rstrip("\n") + " || true\n"),
-    ("continue-on-error on the build step", BUILD, "      - name: build for the iOS Simulator\n        continue-on-error: true\n        run: |\n"),
+    ("continue-on-error on the build step", BUILD, after(BUILD, "continue-on-error: true")),
     ("continue-on-error on the job", JOB, "  simulator-build:\n    continue-on-error: true\n    runs-on: macos-15\n"),
+    ("SKIPPED BUILD: if: false on the build step", BUILD, after(BUILD, "if: false")),
+    ("SKIPPED BUILD: a condition never true on dispatch", BUILD, after(BUILD, "if: github.event_name == 'push'")),
+    ("SKIPPED JOB: if: false on the job", JOB, "  simulator-build:\n    if: false\n    runs-on: macos-15\n"),
+    ("working-directory on the build step", BUILD, after(BUILD, "working-directory: apps/ios")),
+    ("a step-level timeout of zero", BUILD, after(BUILD, "timeout-minutes: 0")),
+    ("the toolchain step deleted", TOOL, ""),
     ("a token handed to the build step", BUILD, "      - name: build for the iOS Simulator\n        env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n        run: |\n"),
     ("a matrix on the job", JOB, "  simulator-build:\n    strategy:\n      matrix:\n        os: [macos-15, macos-15-xlarge]\n    runs-on: macos-15\n"),
     ("a larger runner", "    runs-on: macos-15\n", "    runs-on: macos-15-xlarge\n"),
@@ -183,10 +225,14 @@ MUTATIONS = [
 STILL_GREEN = [
     ("on: as a bare string", "on:\n  workflow_dispatch:\n", "on: workflow_dispatch\n"),
     ("runs-on as a one-element list", "    runs-on: macos-15\n", "    runs-on: [macos-15]\n"),
+    ("a comment added", "name: ios-compile\n", "# a comment changes nothing that runs\nname: ios-compile\n"),
 ]
 
 
 def prove_red():
+    if not WORKFLOW.is_file():
+        print(f"PROVE-RED REFUSING: {WORKFLOW} does not exist")
+        return 2
     src = WORKFLOW.read_text(encoding="utf-8")
     unexpected = 0
     with tempfile.TemporaryDirectory() as d:
