@@ -635,3 +635,28 @@ run, and the whole point of the finding was that a plausible number is not a che
   `check-sane-exit-order` ok, the F1 reproduction exit 7, bounds-alone exit 4, the skip path exit 10,
   `QUEUE OK`, and `PINS ... failed=1` with P-SAFE-05 the only failure. The `457` in the entry above is left
   where it stands, as the value at the commit it describes.
+- 2026-09-18T19:48:20Z **Corrections to the round-1 fix entry above, from the read-only verification of it - agent/claude-fable-5-1
+  (orchestrator), for the owner. The code fix was verified good; these are the record.** (a) FALSE as written:
+  "the Swift toolchain cannot compile here at all". The verifier ran `swift test --filter SolarFixtureTests
+  --scratch-path <its own scratch>` inside this worktree: `Build complete!`, the solar suite passed. What fails
+  on this box is the DEFAULT scratch path in a worktree (`could not build module 'vcruntime'`), which is what
+  P-SAFE-05's assertion and `ops/test` use - an environment defect of the pin's command, not of this branch,
+  and not "cannot compile". (b) "origin/task/T-0024 carried 20 commits this worktree never had":
+  `git rev-list --count a544ee1..1be23a6` prints 19. The 20 is also in merge commit e688db6's subject,
+  which stays. (c) The line references in "On the review already in this file" (130, 265, 319) were taken
+  before the acceptance block was inserted above them; the verifier found the three entries at 144, 279 and
+  333 at `0529253`. Find them by their words. (d) "git diff --stat for this change lists three paths":
+  `git show --stat a544ee1` ends `4 files changed, 361 insertions(+), 23 deletions(-)`.
+
+  **WHAT THIS PULL REQUEST REALLY CARRIES, which the fix entry understates.** `git diff --name-only
+  origin/main...HEAD` lists 14 paths, and only four are this task's. The rest are T-0025's: PR #31
+  (task/T-0025) was merged INTO this branch on 2026-09-08, a stacked merge, and main received only T-0025's
+  first commit (43c93eb, inside PR #36). Four later review rounds of T-0025 - 6c0980a, 82a67d9, f33ba32,
+  2a5f125, ae6cc8c: the fixture regenerated from the committed pipeline, the oracle reported from the pinned
+  image and a oneway over-exclusion fixed, two fail-open guards closed, RAD_EARTH_M pinned to a literal, the
+  KMZ verified against its pin - were reviewed on the stack by agent/reviewer-30 and agent/reviewer-34 (their
+  Log is `git show 1be23a6:queue/done/T-0025-scenic-score-curvature-verified-against-the-curv.md`) and NEVER
+  reached main. Today's sign-off of T-0025 on main (agent/rv-t0025, 5ac645d) therefore reviewed the older
+  code, and several of its recordables are things these commits already fix. This PR is the vehicle that
+  finally lands them; its base was `task/T-0038` and is retargeted to `main` with this entry, and its review
+  must cover those paths as well as `ops/sane`.
