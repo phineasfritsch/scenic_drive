@@ -63,13 +63,35 @@ def test_a_bbox_touching_a_border_does_not_claim_the_next_square():
     assert dem.tiles_for_bbox(-118.0, 34.0, -117.0, 35.0) == {"n35w118"}
 
 
-def test_the_la_region_file_loads_and_records_no_counts():
-    """The counts block is deliberately absent until a real extract records it, and checkbounds must be
-    able to tell that apart from 'in bounds'."""
+def test_the_la_region_file_loads_and_its_counts_come_from_a_real_extract():
+    """This test used to assert la had NO counts, which was right until the extract ran.
+
+    It ran on 2026-09-08 - 2m32s, 312 MB of California PBF cut to the la bbox - and recorded the counts, so
+    the old assertion became a guard against the thing that had just correctly happened. It is replaced by
+    the assertion that was always the real requirement: counts may exist, but only tied to the extract that
+    produced them. Deleting the guard outright would have left nothing between here and an invented baseline.
+    """
     la = rg.load("la")
     assert la.id == "la"
-    assert not la.counts, "la must ship with NO counts until an extract records them"
     assert la.bbox.problems() == []
+    assert la.counts, "la's counts were recorded on 2026-09-08; an empty block means they were lost"
+    assert la.counts_from is not None, "counts with no provenance cannot be checked against anything"
+    assert la.counts_from.source_bytes > 1_000_000_000, "the California PBF is ~1.3 GB"
+    measured = tuple(float(v) for v in la.counts_from.bbox.split(","))
+    assert measured == (la.bbox.min_lon, la.bbox.min_lat, la.bbox.max_lon, la.bbox.max_lat)
+
+
+def test_the_la_counts_are_the_shape_a_city_extract_has():
+    """Not a transcription check - a sanity check on what the numbers mean.
+
+    Any of these being wrong-way-round means the tag filter or the bbox is not doing what it says: LA has
+    far more residential than motorway, and service roads (parking aisles, driveways) outnumber everything.
+    """
+    c = rg.load("la").counts
+    assert c["residential"] > c["motorway"] * 4
+    assert c["service"] > c["residential"]
+    assert c["motorway"] > c["trunk"], "LA is a freeway city; trunk is the rarer tag here"
+    assert c["viewpoint"] > 100, "the Santa Monicas and the San Gabriels are full of them"
 
 
 def test_the_la_bbox_covers_ucla_and_the_santa_monicas():

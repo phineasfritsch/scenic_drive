@@ -77,6 +77,15 @@
   owner: agent/claude-opus-5
   added: 2026-09-07
 
+- id: P-PROC-02
+  statement: A task file round-trips through ops/lib/queue.py - parse() reads back exactly what dump() wrote - and no front-matter value can declare a second key
+  why_no_test_catches_it: "P-PROC-01 compares owner against reviewer, and both are read out of this format. A value carrying a line break wrote a second `owner:` line that the last-wins reader preferred, so the reviewer-is-not-owner rule passed while the real owner was displaced - and every gate stayed green, because nothing reads a task file back and compares. T-0092 closed the hole and committed no check: reverting the whole change left queue-check, check-pins --source-only and check-brief-required all at exit 0, byte for byte. The assertion also refuses to pass on an unexamined population - zero task files, zero payloads - which is how the write-side guard came to be tested against a character list of the author's own devising rather than against the parser (reviewer-pr60)."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "bash ops/lib/check-queue-roundtrip"
+  owner: agent/claude-opus-5
+  added: 2026-09-08
+
 - id: P-ATTR-02
   statement: LICENSE-DATA exists and credits OpenStreetMap contributors under ODbL
   why_no_test_catches_it: Attribution is a license obligation, not a feature; nothing fails when it is deleted
@@ -115,6 +124,25 @@
   owner: agent/claude-opus-5
   added: 2026-09-07
 
+- id: P-SAFE-06
+  statement: A GraphHopper sign that nothing maps fails the build - GuidanceMapping.maneuver(for:) has no catch-all clause
+  why_no_test_catches_it: "The plan's own property table says `unknown code fails build`, and until PR #81's review the only thing holding it up was a sentence in GuidanceMapping.swift asking the next agent not to add `default:` - which CLAUDE.md forbids as a guard, because comments get stripped. The reviewer added `default: return .continueStraight`: swiftc emitted no diagnostic at all, every one of the 15 tests stayed green, and the mutation SURVIVED (1 of 24). `case _:` does the same thing without the word. No behavioural test can catch this, because it changes behaviour only for a sign that does not exist yet - which is the event the gate exists for. So the assertion COMPILES: three Guidance files copied into .artifacts/, one probe case added, and swiftc must reject them from GuidanceMapping.swift."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "bash ops/lib/check-guidance-gate"
+  owner: agent/claude-opus-5
+  added: 2026-09-15
+
+- id: P-ROUTE-01
+  statement: The pinned GraphHopper image's version equals GuidanceSign.sourceRelease, the release the sign table was transcribed from
+  why_no_test_catches_it: "GuidanceSign carries 22 integers transcribed from GraphHopper 11.0. Nothing in this repository can notice that the router moved underneath them: every test here compares the table against itself, and a routing service pinned to another release would return signs this build decodes wrongly - or decodes as a throw at a junction. `services/routing/` does not exist yet, so the assertion cannot be written today; `pending: T-0135` is what makes that a debt the checker collects rather than a sentence in a closed task's log. check-pins FAILS if T-0135 is deleted, and FAILS if T-0135 reaches queue/done/ with this assertion still TODO."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: TODO
+  pending: T-0135
+  owner: agent/claude-opus-5
+  added: 2026-09-15
+
 - id: P-HUMAN-01
   statement: Human gate 1 - the developer drives 5 of their own commute routes; at least 4 beat the freeway and none is a rat-run
   why_no_test_catches_it: Cannot be automated; it is the one gate agents will most confidently claim to have passed
@@ -125,3 +153,12 @@
   pending: T-0013
   owner: agent/claude-opus-5
   added: 2026-09-07
+
+- id: P-GIT-02
+  statement: The pre-commit touches gate applies to the author's own changes on a merge, not to every file the merge stages
+  why_no_test_catches_it: Nothing exercises the hook during a merge. The gate looks correct reading it, and is correct on an ordinary commit; only a real merge shows that `git merge` stages the whole other side and the gate refuses all of it. Measured on task/T-0097 - a merge of origin/main resolving ONE conflict in a file that IS in touches: was refused with 41 paths, every one a file main changed and the branch did not. That very likely produced the stacked-branch tower T-0113 measured and could not explain: if merging main into a task branch is blocked, the only way to get current is to branch off another task branch.
+  anchor: process
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-touches-merge.py"
+  owner: agent/claude-opus-5
+  added: 2026-09-08

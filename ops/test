@@ -61,6 +61,33 @@ if [[ -f services/etl/pyproject.toml ]]; then
   linux_total=$((linux_total + t)); linux_failed=$((linux_failed + f)); linux_skipped=$((linux_skipped + s))
 fi
 
+# ---- Tier 1d: the read-only SQL grammar's Python mirror ------------------------------------------
+# Not a counted tier: it produces no JUnit report and adding a floor for it would collide with the per-tier
+# floors T-0071 is introducing in this same file. It is a GATE - non-zero fails the run - because until now
+# nothing executed it at all. `ops/test` and `pins/PINS.yaml` had zero references to ro_grammar, so
+# read_only_problem() could be made to return None for every statement - accepting `DROP TABLE users` - with
+# the whole suite green. That module is the only check in ops/prod-read, which is pointed at production; the
+# Worker's /__ro is the SECOND line of defence and is the one that was well tested.
+# The file is REQUIRED, not conditional. Guarding this with `if [[ -f ... ]]` made the gate vanish with the
+# module: `mv ops/lib/ro_grammar.py elsewhere` left ops/test, ops/check-pins and ops/sane all green and
+# printing nothing - a gate written to close a vacuous pass, passing vacuously. Found by an independent
+# reviewer of this very PR. Tiers 1b and 1c already fail hard when their expected report is missing; this
+# now matches them, and ops/prod-read cannot work without the module anyway.
+if [[ ! -f ops/lib/ro_grammar.py ]]; then
+  echo "FAIL: ops/lib/ro_grammar.py is missing - it is the only read-only SQL check ops/prod-read has"
+  rc=1
+else
+  ro_out="$("$PY" ops/lib/ro_grammar.py --self-test 2>&1)"; ro_rc=$?
+  # The FIRST line carries `RO-GRAMMAR FAIL n/m`; `tail -3` showed three arbitrary case lines and dropped
+  # the count this file's own history credits with catching a lost fix.
+  if [[ $ro_rc -eq 0 ]]; then
+    echo "$ro_out" | tail -1
+  else
+    echo "$ro_out" | head -8
+    echo "FAIL: ops/lib/ro_grammar.py --self-test exited $ro_rc"; rc=1
+  fi
+fi
+
 # ---- Tier 2: iOS simulator — macOS only, expected iff the xcodeproj exists ----------------------
 ios_ran=0
 if [[ "$(uname)" == "Darwin" && "${SKIP_IOS:-0}" != "1" && -d apps/ios/ScenicDrive.xcodeproj ]]; then
