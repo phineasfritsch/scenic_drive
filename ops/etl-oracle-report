@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Print the curvature oracle's agreement figures FROM THE PINNED IMAGE, which is the only place they should
+# be quoted from.
+#
+#   ops/etl-oracle-report              the fixture, in services/etl/Dockerfile's image
+#   ops/etl-oracle-report --with-population   also the full eligible set, if the export is still on disk
+#   ops/etl-oracle-report --compare-host      also run on the host interpreter and print the gap
+#
+# Every agreement number in T-0025's original log and PR was computed on Windows. The pinned Linux toolchain
+# gives a different one - up to a point apart, in both directions - because `circum_circle_radius` inverts
+# Heron's formula and amplifies libm's implementation-defined last-bit rounding in `math.acos` into radius
+# differences big enough to cross a curvature band threshold. `tests/test_curvature.py`'s MIN_AGREEMENT
+# comment carries the measured chain. Neither platform is wrong; quoting one without saying which is.
+set -uo pipefail
+# Find the repo root WITHOUT trusting `git rev-parse` to work. On a Windows worktree read from WSL, git
+# prints a Windows path that no Linux `cd` can use, and the previous version of the sibling script took that
+# failure silently and carried on in whatever directory it happened to be in - which is how a run can appear
+# to succeed while reading files nobody chose. Verify the destination by a marker instead of assuming it.
+top="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$top" || { echo "cannot cd to $top"; exit 2; }
+[[ -f services/etl/etl/curvature.py && -d ops ]] || {
+  echo "$top does not look like the repo root (no services/etl/etl/curvature.py)"; exit 2; }
+
+ETL="services/etl"
+IMAGE="${SCENIC_ETL_IMAGE:-scenic-etl}"
+EXPORT_REL="work/curvature-oracle/subset.geojsonseq"
+
+with_population=0
+compare_host=0
+for arg in "$@"; do
+  case "$arg" in
+    --with-population) with_population=1 ;;
+    --compare-host)    compare_host=1 ;;
+    *) echo "unknown argument: $arg"; exit 2 ;;
+  esac
+done
+
+command -v docker >/dev/null 2>&1 || { echo "docker is not on PATH; the pinned image is the point"; exit 2; }
+
+args=()
+if [[ $with_population -eq 1 ]]; then
+  # -s, not -f. A zero-byte export is exactly what the failure modes here leave behind, and with -f the
+  # report happily printed `population 0/0 = 0.000%` and exited 0 - a number that looks like a measurement
+  # and is the absence of one (agent/reviewer-34, who found the tree in that state after a demo).
+  if [[ -s "$ETL/$EXPORT_REL" ]]; then
+    args+=(--export "$EXPORT_REL")
+  else
+    echo "note: $ETL/$EXPORT_REL is absent (it is gitignored); run ops/etl-curvature-fixture to rebuild it."
+    echo "      Reporting the fixture only."
+  fi
+fi
+
+mount="$(cd "$ETL" && pwd)"
+docker run --rm -v "$mount:/w" -w /w "$IMAGE" python3 -m etl.oracle_report "${args[@]}" || {
+  echo "the report failed inside $IMAGE - its own message is above"; exit 1; }
+
+if [[ $compare_host -eq 1 ]]; then
+  PY="${PYTHON:-$(command -v python3 || command -v python)}"
+  echo
+  echo "host interpreter, for the gap only - do NOT quote this number:"
+  (cd "$ETL" && "$PY" -m etl.oracle_report "${args[@]}") || {
+    echo "the host run failed"; exit 1; }
+fi

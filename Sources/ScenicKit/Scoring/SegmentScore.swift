@@ -51,8 +51,22 @@ public enum SegmentScore {
     public static let waterWeight = 0.12
     public static let quietRoadsideWeight = 0.12
 
-    /// Added to E for a designated scenic byway, then E is capped at 1.
+    /// Added to E for an **officially designated** scenic byway, then E is capped at 1.
     public static let bywayBonus = 0.15
+
+    /// Added to E for an **eligible** byway - a corridor that meets the criteria and carries no official
+    /// designation. `services/etl/etl/byways.py:105`, `ELIGIBLE_BONUS = 0.06`, and this file paid the
+    /// designated 0.15 for both tiers until T-0154.
+    public static let eligibleBywayBonus = 0.06
+
+    /// The one place a tier becomes a number.
+    public static func bonus(for tier: BywayTier) -> Double {
+        switch tier {
+        case .none: return 0
+        case .eligible: return eligibleBywayBonus
+        case .designated: return bywayBonus
+        }
+    }
 
     // MARK: - the soft multipliers
 
@@ -104,7 +118,8 @@ public enum SegmentScore {
             + poiWeight * t.pointsOfInterest
             + waterWeight * t.water
             + quietRoadsideWeight * (1 - t.furniture)
-        if t.isByway { e = min(1, e + bywayBonus) }
+        let bywayBonusEarned = bonus(for: t.bywayTier)
+        if bywayBonusEarned > 0 { e = min(1, e + bywayBonusEarned) }
 
         // pow(0, positive) is 0, which is what the geometric mean should say: a way with nothing going for
         // it on one axis scores nothing, however good the other axis is. That is the whole point of using

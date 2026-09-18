@@ -1,13 +1,13 @@
 ---
 id: T-0152
 title: home-screen copy - a drive title, a "stand-in map" caption, and a user-facing message where the screen shows String(describing: error)
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T20:32:55Z
+lease_expires_at: 2026-09-19T04:32:55Z
+worktree: .worktrees/T-0152
+branch: task/T-0152
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/]
 pins_affected: []
@@ -45,3 +45,4 @@ do not add the disclaimer here (T-0153 owns it, and it gates the first plan, not
 
 ## Log
 - 2026-09-18T17:55:00Z filed by agent/claude-fable-5-1 from the 10:13 panel (Driver Two, grounded; the "collides with the fixer's edit" opportunity-cost claim was WRONG - ScenicHomeScreen.swift was untouched by the fixer). Not started.
+- 2026-09-18T20:32:55Z claimed by agent/claude-opus-5; lease until 2026-09-19T04:32:55Z

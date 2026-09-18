@@ -53,7 +53,7 @@ struct SegmentScoreWeightTests {
         // A bonus of 0.25 gives 0.5484218, one of 0.11 gives 0.4684267, and `e * 1.15` gives 0.4380398 -
         // none of them within 1e-5, and none of them reachable by the cap, which does not bite here.
         var low = Self.uniform(0.4)
-        low.isByway = true
+        low.bywayTier = .designated
         let lowScore = try #require(SegmentScore.score(for: low))
         #expect(abs(lowScore - 0.4919905) < 1e-5, "got \(lowScore)")
 
@@ -61,7 +61,7 @@ struct SegmentScoreWeightTests {
         // through it. E = 0.8 + 0.15 = 0.95, still under the cap: 0.8^0.35 * 0.95^0.65 = 0.8945443. Here a
         // bonus of 0.25 saturates and gives 0.9248717, 0.11 gives 0.8698781, `e * 1.15` gives 0.8760796.
         var high = Self.uniform(0.8)
-        high.isByway = true
+        high.bywayTier = .designated
         let highScore = try #require(SegmentScore.score(for: high))
         #expect(abs(highScore - 0.8945443) < 1e-5, "got \(highScore)")
 
