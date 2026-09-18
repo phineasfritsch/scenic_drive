@@ -21,29 +21,37 @@ set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"; exit 2; }
 [[ -f ops/lib/pins.py ]] || { echo "$(pwd) is not the repo root"; exit 2; }
 
-# What is scanned: every file under ops/ and .githooks/ that git knows or would add, plus the pin file -
-# the places a verdict is computed. `--cached --others --exclude-standard`, not plain `ls-files`: the first
-# version scanned tracked files only, passed locally over ops/lib/check-secret-scan.py while it was still
-# UNTRACKED, and failed in CI the moment it was committed - the check saw everything except the file being
-# written. Ignored paths (.artifacts/) stay out, so scratch cannot fail it; a tree that failed to
-# enumerate reports a COUNT rather than a clean sheet.
 # SCANNED: tracked plus untracked-unignored, so a file being written is scanned before it is committed.
 # That is why --others is here: the first version scanned tracked files only, passed over
 # ops/lib/check-secret-scan.py while it was still untracked, and failed in CI the moment it was committed.
 mapfile -t files < <(git ls-files --cached --others --exclude-standard -- ops .githooks pins/PINS.yaml)
-# COUNTED: what git TRACKS, which is a fact about the commit and the same on every machine. EQUAL, not a
-# floor - with a floor of 20 over 42 files, dropping .githooks from the path list scanned 40 and printed OK
-# with both original hook sites back in the tree (agent/rv-pr87, BLOCKING 3).
-#
-# The count and the scan are deliberately NOT the same set. Asserting the equality over the scanned set is
-# what failed CI at c986b2a: `scanned 44 files, EXPECTED_FILES says 42`, because two untracked-unignored
-# files existed on the runner and not here. A population claim that moves with the machine is not a
-# population claim. Adding a tracked file under these paths means changing this number, on purpose, in the
-# same commit.
 mapfile -t tracked < <(git ls-files -- ops .githooks pins/PINS.yaml)
-EXPECTED_TRACKED=42
-if (( ${#tracked[@]} != EXPECTED_TRACKED )); then
-  echo "PIPE-CONSUMERS REFUSING: ${#tracked[@]} tracked file(s), EXPECTED_TRACKED says $EXPECTED_TRACKED - the tree did not enumerate as recorded"
+
+# A COUNT EQUALITY IS A FACT ABOUT THE BASE BRANCH, NOT THE COMMIT (agent/rv2-pr87, BLOCKING 1). CI checks
+# out refs/pull/N/merge, so files main adds under these paths after the merge-base are in the count: 40
+# tracked at ffa9b6c, 42 on this branch, 43 on main, 45 in the union - exactly what CI printed while the
+# constant said 42. Once merged, every PR adding a file under ops/ would go red until renumbered, and two
+# such PRs could never both be green. Three CI failures of this PR on its own check: one on a docstring quoting the shape, two on this count.
+#
+# So the enumeration is proven by IDENTIFIERS, not by a number: the files that carried the class must be in
+# the scanned set (a scan that lost .githooks/ cannot claim to have looked), each pathspec must have
+# enumerated at least one tracked file, and the count is a FLOOR at the smallest real value - a lower bound
+# only detects a truncated tree, which is what it is for, and cannot be beaten by a file arriving on main.
+for must in .githooks/pre-commit ops/merge ops/deploy ops/sane ops/lib/check-failure-naming pins/PINS.yaml; do
+  if ! printf '%s\n' "${files[@]}" | grep -x -- "$must" >/dev/null; then
+    echo "PIPE-CONSUMERS REFUSING: $must is not in the scanned set - the tree did not enumerate"
+    exit 2
+  fi
+done
+for root in ops/ .githooks/; do
+  if ! printf '%s\n' "${tracked[@]}" | grep -- "^$root" >/dev/null; then
+    echo "PIPE-CONSUMERS REFUSING: no tracked file under $root - the tree did not enumerate"
+    exit 2
+  fi
+done
+MIN_TRACKED=42
+if (( ${#tracked[@]} < MIN_TRACKED )); then
+  echo "PIPE-CONSUMERS REFUSING: ${#tracked[@]} tracked file(s), fewer than the $MIN_TRACKED recorded - the tree did not enumerate"
   exit 2
 fi
 if (( ${#files[@]} < ${#tracked[@]} )); then
@@ -51,23 +59,42 @@ if (( ${#files[@]} < ${#tracked[@]} )); then
   exit 2
 fi
 
+# The pattern. A pipe (`|` or `|&`), then grep/egrep/fgrep, then any run of flags and words, then a flag
+# that makes it exit early: -q in any short group (quoted or not), --quiet, --silent, -m<N>, --max-count.
+# Round 1 caught only a -q in the FIRST short group after grep; round 3 (agent/rv2-pr87) added the quoted
+# form, |&, --max-count, and a line that ENDS in a pipe with the consumer on the next line - awk joins
+# those before matching, so a continuation cannot hide the consumer.
+PATTERN='\|&?[[:space:]]*(grep|egrep|fgrep)([[:space:]]+[^|;&]*)?[[:space:]]+["'"'"']?(-[A-Za-z]*q[A-Za-z]*|--quiet|--silent|-m[[:space:]]*[0-9]+|--max-count(=|[[:space:]]+)[0-9]+)["'"'"']?([[:space:]]|$)'
+
 hits=0
+scanned=0
+scan="$(mktemp)"
+trap 'rm -f "$scan"' EXIT
 for f in "${files[@]}"; do
   [[ "$f" == "ops/lib/check-pipe-consumers" ]] && continue   # this file quotes the shape on purpose
-  # A pipe, then grep/egrep/fgrep, then ANY run of flags and words, then a flag that makes it exit early:
-  # -q in any short group, --quiet, --silent, or -m<N> (stop after N matches). The first version matched
-  # only a -q in the FIRST short group directly after `grep`, so `grep -E -q`, `grep -e PAT -q`,
-  # `grep --quiet`, `egrep -q` all passed - each measured exit 141 under the chatty producer above
-  # (agent/rv-pr87, BLOCKING 2). The statement of P-OPS-03 is "every such pipeline"; the regex has to be.
+  # NOT a pipeline. awk writes the joined lines to a temp file and its OWN exit status is read: the first
+  # version of this loop ran awk inside a process substitution, awk failed on every file (this gawk does
+  # not take `--`), zero hits were counted, and the check printed OK over nothing - the exact fail-open
+  # this file exists to forbid, one level up. A scan that did not run is refused, not passed.
+  if ! awk '{ if (prev != "") { $0 = prev " " $0; prev = "" } if ($0 ~ /\|[[:space:]]*$/) { prev = $0; next } print NR ":" $0 }' "$f" > "$scan"; then
+    echo "PIPE-CONSUMERS REFUSING: the scan failed to run on $f"
+    exit 2
+  fi
+  scanned=$((scanned + 1))
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     echo "PIPE-CONSUMERS: $f:$line"
     hits=$((hits + 1))
-  done < <(grep -nE '\|[[:space:]]*(grep|egrep|fgrep)([[:space:]]+[^|;&]*)?[[:space:]]+(-[A-Za-z]*q[A-Za-z]*|--quiet|--silent|-m[[:space:]]*[0-9]+)([[:space:]]|$)' -- "$f" | grep -vE '^[0-9]+:[[:space:]]*#')
+  done < <(grep -E "$PATTERN" "$scan" | grep -vE '^[0-9]+:[[:space:]]*#')
 done
 
+expected=$(( ${#files[@]} - 1 ))   # every scanned file but this one
+if (( scanned != expected )); then
+  echo "PIPE-CONSUMERS REFUSING: scanned $scanned of $expected files"
+  exit 2
+fi
 if (( hits > 0 )); then
-  echo "PIPE-CONSUMERS FAIL: $hits pipeline(s) decide with grep -q; use 'grep PAT >/dev/null' so the producer is read to EOF (${#files[@]} scanned, ${#tracked[@]} tracked)"
+  echo "PIPE-CONSUMERS FAIL: $hits pipeline(s) decide with grep -q; use 'grep PAT >/dev/null' so the producer is read to EOF ($scanned scanned, ${#tracked[@]} tracked, floor $MIN_TRACKED)"
   exit 1
 fi
-echo "PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (${#files[@]} scanned, ${#tracked[@]} tracked)"
+echo "PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' ($scanned scanned, ${#tracked[@]} tracked, floor $MIN_TRACKED)"

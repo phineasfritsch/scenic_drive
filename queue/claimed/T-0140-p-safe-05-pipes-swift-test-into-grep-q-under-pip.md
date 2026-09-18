@@ -16,13 +16,13 @@ depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "python ops/lib/check-secret-scan.py -> five secret sizes refused with the reason, 4096 KB clean committed, staged-blob-object-deleted refused with 'cannot read the staged blob for leak.txt', SECRET-SCAN OK (7 cases), exit 0"
-  - "RED: git show ffa9b6c:.githooks/pre-commit > .artifacts/v-hook; python ops/lib/check-secret-scan.py --hook .artifacts/v-hook -> FAIL 256 KB / 1024 KB / 4096 KB secret COMMITTED, FAIL staged blob object deleted (committed), exit 1"
+  - "RED: git show ffa9b6c:.githooks/pre-commit > .artifacts/v-hook; python ops/lib/check-secret-scan.py --hook .artifacts/v-hook -> FAIL 256 KB / 1024 KB / 4096 KB secret COMMITTED (exit 0) - failed open; FAIL staged blob object deleted: refused, but not for the stated reason (git itself refuses: Error building trees); SECRET-SCAN FAIL (7 cases), exit 1"
   - "RED (the fail-closed branch): the hook with 'if ! git show ... fi' replaced by 'git show ... || : > \"$blob\"' -> FAIL staged blob object deleted, only; exit 1"
   - "RED (the negative control): the hook's pattern with an empty alternative appended -> FAIL 4096 KB clean must COMMIT, refused; exit 1"
-  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (42 scanned, 42 tracked), exit 0"
-  - "RED (the scan, at ffa9b6c in a detached worktree with the scan copied in, git add -N) -> 8 PIPE-CONSUMERS: lines, FAIL: 8 pipeline(s), exit 1"
-  - "RED (the scan's regex): eleven early-exit spellings in a probe file - grep --quiet, --silent, -E -q, -e PAT -q, egrep -q, fgrep -q, -w -q, -m1, -m 1, -qE, -iq - all 11 match; 'grep p >/dev/null', 'grep -c p', 'grep -E p | sort' do not"
-  - "RED (the scan's population): the tree with .githooks dropped from both path lists tracks 40, not 42 -> PIPE-CONSUMERS REFUSING: 40 tracked file(s), EXPECTED_TRACKED says 42, exit 2. An untracked file added under ops/ does NOT refuse: 43 scanned, 42 tracked, exit 0"
+  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (41 scanned, 42 tracked, floor 42), exit 0 - on this checkout; scanned = tracked-plus-untracked minus this file, tracked >= 42 is whatever the checkout has"
+  - "RED (the scan at ffa9b6c, .artifacts/r3-ffa9.sh): a detached worktree at ffa9b6c with the scan and check-secret-scan.py copied in and git add -N (the identifier guard sees every file it names; 40 tracked + 2 = 42 meets the floor) -> 8 PIPE-CONSUMERS: lines (.githooks/pre-commit:18 and :27, ops/deploy:12, ops/lib/check-failure-naming:76 and :77, ops/merge:45, ops/sane:41, pins/PINS.yaml:123), PIPE-CONSUMERS FAIL: 8 pipeline(s) decide with grep -q; use 'grep PAT >/dev/null' so the producer is read to EOF (41 scanned, 42 tracked, floor 42), exit 1"
+  - "RED (the scan's regex): fifteen early-exit spellings in an untracked probe file under ops/ - grep --quiet, --silent, -E -q, -e PAT -q, egrep -q, fgrep -q, -w -q, -m1, -m 1, -qE, -iq, --max-count=1, a quoted \"-q\", |& grep -q, and a line ending in | with grep -q on the next line -> all 15 reported, PIPE-CONSUMERS FAIL: 15 pipeline(s) ... (42 scanned, 42 tracked, floor 42), exit 1; the three that read to EOF (grep p >/dev/null, grep -c p, grep -E p | sort) are not reported"
+  - "RED (the scan's population and the scan itself, .artifacts/r3-red.sh, on untracked copies under ops/lib): .githooks dropped from both path lists -> PIPE-CONSUMERS REFUSING: .githooks/pre-commit is not in the scanned set - the tree did not enumerate, exit 2; the awk program given a syntax error -> awk: cmd. line:1: ... syntax error, then PIPE-CONSUMERS REFUSING: the scan failed to run on ops/lib/pc-probe-badawk, exit 2 - the guard the first rewrite lacked: it printed OK over an awk that failed on every file"
   - "mechanism: bash -o pipefail -c \"(echo 'Test run with 20 tests passed'; seq 1 200000) | grep -q passed\" -> exit 141; with 'grep passed >/dev/null' -> exit 0"
   - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (10 cases), exit 0 - the merge fixture on the changed hook"
   - "bash ops/check-pins -> PINS ok=16 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
@@ -157,8 +157,12 @@ done/" and refuses a merge that should land.
       pre-fix hook from git (ffa9b6c)            -> FAIL 256 KB, 1024 KB, 4096 KB secret COMMITTED,
                                                     and FAIL staged blob object deleted          exit 1
 
-  That last line is new information: the pre-fix hook was fail-open on an unreadable blob too, not only on
-  a large one. `SECRET-SCAN OK (7 cases)`, `EXPECTED_CASES = 7`.
+  ~~That last line is new information: the pre-fix hook was fail-open on an unreadable blob too, not only on
+  a large one.~~ [struck 2026-09-18 round 3, agent/rv2-pr87 BLOCKING 2: FALSE. The check's line reads
+  `refused, but not for the stated reason` - git itself refuses to build a tree over a missing blob
+  (`Error building trees`, rc 1, no HEAD) under ANY hook; the pre-fix hook was silent, not fail-open,
+  and nothing committed. I read a FAIL line as COMMITTED without reading it.] `SECRET-SCAN OK (7 cases)`,
+  `EXPECTED_CASES = 7`.
 
   **NON-BLOCKING 6** - a staged submodule (mode 160000) would have been refused by the fail-closed branch;
   gitlinks are skipped explicitly now, read from the index, with the reason in the hook. No `.gitmodules`
@@ -181,3 +185,38 @@ done/" and refuses a merge that should land.
   both ways: an untracked file added under `ops/` -> `43 scanned, 42 tracked`, exit 0; `.githooks` dropped
   from the path lists -> `40 tracked file(s), EXPECTED_TRACKED says 42`, exit 2. A second guard refuses a
   scan smaller than the tracked set, so the two cannot drift apart silently.
+- 2026-09-18T16:15:00Z **ROUND 3 - agent/claude-fable-5-1, owner, answering agent/rv2-pr87's FAIL.** Four blocking,
+  all reproduced, and a fifth thing found while fixing them.
+
+  **BLOCKING 1 - the count equality was a fact about the base branch.** CI checks out `refs/pull/87/merge`;
+  main had added files under `ops/` since the merge-base, so the union tracked 45 while the constant said 42.
+  Once merged, every PR adding a file under `ops/` would go red until renumbered and two could never both be
+  green. The enumeration is now proven by IDENTIFIERS - the six files that carried the class must be in the
+  scanned set, each pathspec must have enumerated something - with the count as a FLOOR at 42, which detects
+  a truncated tree (its purpose) and cannot be beaten by a file arriving on main. RED: `.githooks` dropped
+  from both path lists refuses by name, not by number.
+
+  **BLOCKING 4 - the regex, again.** `--max-count=1`, a quoted `"-q"`, `|& grep -q`, and a line ending in
+  `|` with the grep on the next line each exit 141 under the producer and passed. The pipe is `|` or `|&`,
+  the flag may be quoted, `--max-count` is named, and awk joins a line that ends in a pipe with the next
+  before matching. Fifteen spellings in a probe file are all reported; the three that read to EOF are not.
+
+  **The fifth thing: the first version of THAT rewrite passed over nothing.** awk ran inside a process
+  substitution, this gawk does not accept `--` before the filename, awk failed on all 41 files, zero hits
+  were counted, and the check printed OK - the fail-open this file exists to forbid, one level up, in the
+  file that forbids it. The per-file scan now writes to a temp file and reads awk's exit status; a scan that
+  did not run is REFUSING, not OK; and the count of files actually scanned must equal the files enumerated
+  minus this one. RED: a copy with a syntax error in the awk program refuses on the first file it reaches
+  (`the scan failed to run on ops/lib/pc-probe-badawk`, exit 2).
+
+  **BLOCKING 2 - a false conclusion, struck where it was made.** I wrote that the pre-fix hook was
+  fail-open on an unreadable blob; the check's line said `refused, but not for the stated reason`, and git
+  refuses to build a tree over a missing blob under any hook. I read a FAIL as COMMITTED without reading it.
+  **BLOCKING 3** - the ffa9b6c RED line did not reproduce as written once the equality arrived; with the
+  floor and the identifier guard it does again, with the procedure stated (`.artifacts/r3-ffa9.sh`: both
+  scripts `git add -N` so the identifier guard sees what it names and 40 + 2 meets the floor) and the eight
+  lines named.
+
+  **GREEN, pasted from the runs:** `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (41 scanned,
+  42 tracked, floor 42)` exit 0; `SECRET-SCAN OK (7 cases)`; `TOUCHES-MERGE OK (10 cases)`. `check-pins
+  --source-only` and `queue-check` are quoted in the commit that carries this entry.
