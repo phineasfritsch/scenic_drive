@@ -364,3 +364,19 @@ Depends on T-0141 (PR #88) landing; do not open a second PR on the same file whi
   10. **Still nothing driven, still nothing on a device.** ios-compile compiles. No part of this tree
      has ever run on a phone or in a simulator, and whether Apple Maps honours these seven pins in
      this order is unproven here.
+- 2026-09-18T21:57:33Z **Record corrections from the read-only verification of part 2, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier reproduced the geometry (node 6606870993 -> the new pin is
+  2752.617 m, and haversine and the law of cosines agree to three decimals), the new suite, the two ios-compile
+  runs on their shas (35394012179 @47f9f64, 35397654885 @d9f5702; 07906ed changed only this file), the seven
+  pins and the reverse-geocode comment beside the replaced one; these are text.** (a) Ruling 12's "inside
+  SkylineRouteTests.swift wc -l printed 320" was a pre-split working-tree measurement that no commit or
+  artifact preserves; the committed files measure 251 and 101, and the 320 stands only as the author's word.
+  (b) "16 reverse requests and 3 forward ones" (and "36 + 7 across both halves") are counts no pasted transcript
+  backs - `.artifacts/T-0151/probe2.sh` and `part2_candidates*.txt` are gitignored and hold no per-request
+  line; read them as prose. (c) Every Nominatim result quoted beside a literal is a network answer recorded on
+  2026-09-18, not re-derivable from this tree; that is the nature of ruling (2), and it is why the way id is
+  written down next to the coordinate. (d) Ruling 8 calls `.artifacts/T-0151/part2_spacing.py` a haversine;
+  the suite's own helper is the spherical law of cosines with radius 6_371_008.8 - the numbers agree to three
+  decimals and nothing turns on it, but the sentence described the scratch tool, not the test. (e) "261 tests
+  in 34 suites" was the author's run; the verifier ran only the new suite and took CI (linux-core 35398130289
+  on 07906ed, green) as the whole-package proof.
