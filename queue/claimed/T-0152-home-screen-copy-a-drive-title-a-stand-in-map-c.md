@@ -46,3 +46,123 @@ do not add the disclaimer here (T-0153 owns it, and it gates the first plan, not
 ## Log
 - 2026-09-18T17:55:00Z filed by agent/claude-fable-5-1 from the 10:13 panel (Driver Two, grounded; the "collides with the fixer's edit" opportunity-cost claim was WRONG - ScenicHomeScreen.swift was untouched by the fixer). Not started.
 - 2026-09-18T20:32:55Z claimed by agent/claude-opus-5; lease until 2026-09-19T04:32:55Z
+- 2026-09-18T20:39:30Z agent/claude-opus-5 (owner and author). **Rulings first, before any code.** Every place
+  the plan, this Brief, the owner's task rulings and the tree disagree or are silent, with pointers. Read
+  first: `ScenicHomeScreen.swift`, `DesignSystem/DesignTokens.swift`, `DesignSystem/AttributionFooter.swift`,
+  `MapAdapter/MapStyle.swift`, `FeatureScenicHome/SkylineHandoff.swift` (read only - T-0151 owns it),
+  `apps/ios/Packages/ScenicApp/Package.swift` (read only - serial-only, `exclusive: []` here), and the plan's
+  "UI and design system" section (`~/.claude/plans/i-want-to-make-synthetic-twilight.md`, lines 314-336).
+
+  **R1 - the failure string: the Brief and the owner's rulings disagree.** The Brief above (item 2) writes
+  `Couldn't open Apple Maps. Try again, or copy the route.`; the owner's rulings for this task write
+  `Couldn't open Apple Maps. Try again.` RULED: the short one, verbatim, no "or copy the route". There is no
+  copy affordance on this screen or anywhere in the Apple package -
+  `grep -rn "UIPasteboard\|ShareLink\|copy" apps/ios/Packages/ScenicApp/Sources/ --include=*.swift` returns
+  exactly one line, and it is `DesignTokens.swift:29`, the words "body copy" inside a doc comment. Telling a
+  user to copy a route they cannot copy is the same defect as showing them a Swift type name: a sentence the
+  screen cannot back up. If a share affordance ever lands, the sentence grows with it.
+
+  **R2 - the "copy rules from the plan" are not in the plan.** The owner's rulings cite "Copy rules from the
+  plan: active voice, says exactly what happens, no apology". The plan has no such rules:
+  `grep -n -i "active voice\|no apology\|says exactly\|Copy rules\|apolog\|microcopy" <plan>` returns nothing,
+  and its "UI and design system" section (lines 314-336) covers navigation, screens, the token table and
+  SF Pro / Dynamic Type only - it takes no view on wording. What the plan does have is its own user-facing
+  strings, and they are consistent with the three rules by example: `"not much pretty within 25 minutes of
+  this drive"` (line 117), `"Conditions change. Verify locally."` (line 359), `estimate · no traffic data`
+  (line 55) - declarative, present tense, no "sorry", no "oops", no "we". RULED: apply the three rules as the
+  OWNER's rules, not as a quotation from the plan, and record that they are unquotable there so the next agent
+  does not go looking. The three strings below are checked against the plan's examples, not against a rule
+  that does not exist in it.
+
+  **R3 - where the title and caption go: "above the map" or over it.** The Brief says "a title above the map";
+  the owner's rulings say only that nothing may cover the `AttributionFooter` or the lower-right corner of the
+  map at any size class. Both readings satisfy that. RULED: a header band on `DesignTokens.bg` ABOVE the map,
+  not an overlay on the tiles. `DesignTokens`' contrast claims are stated against `bg` and `surface` (its type
+  note), and a basemap is neither - `AttributionFooter` carries its own opaque `surface` chip for exactly this
+  reason, in its own words: text over tiles "carries its own ground rather than trusting the tiles". A header
+  band gets guaranteed `fg`/`fgMuted`-on-`bg` contrast with no new token, and it structurally cannot reach the
+  lower-right corner. Cost, stated: the map is shorter by the height of the band. That is the visible
+  consequence of "a title above the map" and is not a fourth change - see R6.
+
+  **R4 - where the raw error goes.** The owner's ruling says "the raw error goes to a log call, never to the
+  screen" and names no logger; nothing in `apps/ios/` logs anything today
+  (`grep -rn "import os\|Logger(" apps/ios/ --include=*.swift` -> no output). CLAUDE.md says feature targets
+  import only DesignSystem, ScenicKit, PlaceStore and their own protocols. RULED: `import OSLog` and a
+  `Logger`. That list governs FIRST-PARTY targets in this repository - the same file already imports SwiftUI,
+  and `SkylineHandoff.swift` in this same target imports Foundation and UIKit, so an Apple system framework is
+  plainly not what the list is about (`Package.swift`'s own "DEVIATION ON THE RECORD" note is about
+  `MapAdapter` and `Handoff`, two first-party products). OSLog also needs no manifest change - system
+  frameworks are linked by SPM on Apple platforms - which matters because `Package.swift` is serial-only and
+  this task holds no `exclusive:` lock on it. The alternative, `print`, writes to a stream nobody reads on a
+  phone. Subsystem string: `com.phineasfritsch.scenicdrive`, read from
+  `apps/ios/ScenicDrive.xcodeproj/project.pbxproj` (`PRODUCT_BUNDLE_IDENTIFIER`, both configurations).
+  Interpolated with `privacy: .public`: `HandoffError`'s two cases carry a latitude/longitude pair and a
+  waypoint count (`Sources/Handoff/HandoffError.swift`), and the coordinates in them are the hard-coded route
+  constants, never the user's location - `SkylineHandoff.directions()` passes `source: nil`, which is how this
+  screen avoids ever holding one. A `<private>` redaction here would log a failure with its reason removed.
+
+  **R5 - the existing doc comment on `handoff()` argues against this task.** It says rewriting the message is
+  "how the real reason stops reaching anybody". RULED: the premise is that the on-screen string is the only
+  record of the failure. With the raw error going to `Logger`, it is not, so the comment is now false and is
+  rewritten to say where the reason went. This is prose, not a check: CLAUDE.md forbids anchoring a pin, test
+  or guard on a comment, and nothing here is anchored on one.
+
+  **R6 - "exactly three user-visible changes, nothing else".** Added: a title, a caption, and a new string in
+  the failure `Text`. The map being shorter (R3) is the mechanical consequence of putting a title above it, not
+  a fourth change. Explicitly NOT touched: the button, its `primary`/`onPrimary` treatment and its 44 pt floor;
+  `AttributionFooter` and its text; the map style, centre and zoom; the failure `Text`'s existing `.footnote`
+  and `DesignTokens.destructive` treatment (only its STRING and its accessibility identifier change); and
+  `DesignSystem`, which gains nothing - every token this screen needs (`bg`, `fg`, `fgMuted`, `destructive`)
+  already exists, so `touches:` keeps `Sources/DesignSystem/` and no file under it is edited.
+
+  **R7 - "one private enum" (owner's ruling 3) vs "one type per file, filename == type name" (CLAUDE.md).**
+  RULED: a private enum `Copy` NESTED inside `ScenicHomeScreen`, not a second file-scope type. Nested types are
+  members of `ScenicHomeScreen`, so the file still declares exactly one top-level type and still equals its
+  filename, and the later `.xcstrings` extraction is still mechanical - each `static let` becomes a key and no
+  call site moves. No `.xcstrings` file is introduced (serial-only, one language today), so `exclusive:` stays
+  empty.
+
+  **R8 - the title is a literal, and says so.** `Skyline via Cañada Road` names the drive
+  `SkylineHandoff.waypoints` describes, but it is not derived from it: that file holds coordinates and no name,
+  and T-0151 is editing it right now. A rename of the drive and a change to the waypoint list are therefore two
+  edits that the compiler will not tie together. Written into the type's doc comment where a maintainer will
+  see it, not left implicit.
+
+  **R9 - the two ruled strings are transcribed byte for byte**, including the ASCII hyphen in
+  `Preview build - this map is a stand-in, not your route. The drive opens in Apple Maps.` and the apostrophe in
+  `Couldn't`. No typographic "improvement" (en dash, curly quote) was applied to copy the owner ruled on; the
+  apostrophe is a contraction, not an apology.
+
+  **Not in scope, per the owner's ruling 4 and the Brief:** no safety disclaimer (T-0153 owns it and edits this
+  same file after me), no route line drawn, no edit to `SkylineHandoff.swift` (T-0151), no real basemap.
+
+- 2026-09-18T20:39:30Z code written per R1-R9. One file changed:
+  `apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift`. `Sources/DesignSystem/` is in
+  `touches:` and is NOT edited - no new token was needed (R6). No `.xcstrings`, no manifest change, no edit to
+  `SkylineHandoff.swift`.
+
+  **The gate this task claims as proof, demonstrated RED BY NAME first.** `bash ops/lib/check-line-cap` is a
+  line-count cap, and a cap that has only ever been seen green is a cap nobody has watched refuse. 130 filler
+  lines appended to the file this task edits, then the gate run bare:
+
+      $ for i in $(seq 1 130); do echo "// filler line ..." >> apps/.../ScenicHomeScreen.swift; done
+      $ awk 'END{print NR}' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift
+      309
+      $ bash ops/lib/check-line-cap; echo "exit=$?"
+      P-SRC-02: file(s) over the 300-line cap:
+        apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift (309 lines)
+      exit=1
+
+  It names this file. Filler removed, same command, bare:
+
+      $ awk 'END{print NR}' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift
+      179
+      $ bash ops/lib/check-line-cap; echo "exit=$?"
+      P-SRC-02: 68 Swift files tracked (Sources=25, Tests=35, apps/ios=8), none over 300 lines
+      exit=0
+
+  No new check was written by this task, so this is the only red available to demonstrate locally: there is no
+  test target in the Apple package (`Package.swift`: "NO TEST TARGETS HERE, deliberately and temporarily"), so
+  the other proof is the compiler, dispatched below. `bash ops/check-pins` and `bash ops/test` were NOT run
+  locally - the default swift scratch path does not build in a worktree on this box; `gh pr checks` is the
+  record for those.
