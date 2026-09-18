@@ -1,7 +1,7 @@
 ---
 id: T-0162
 title: ETL tag-table terms - speed_fit (triangular at 65 km/h) and furniture, from OSM tags alone
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T19:52:35Z
@@ -11,7 +11,7 @@ branch: task/T-0162
 exclusive: []
 touches: [services/etl/etl/speedfit.py, services/etl/etl/furniture.py, services/etl/etl/tagfilter.py, services/etl/tests/test_speedfit.py, services/etl/tests/test_furniture.py, services/etl/tests/test_tagfilter.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-pr92
 depends_on: [T-0154]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -290,3 +290,38 @@ demonstrated RED by name (three mutations per module), then green. Whole ETL sui
   re-run bare at this tree: `cd services/etl && python -m pytest tests -rs` -> `589 passed in 54.65s`, no
   `short test summary info` section. Per the reviewer, no code, no test and no dated entry changed - this
   commit touches only this file.
+- 2026-09-18T21:26:00Z REVIEW ROUND 2 - PASS, by agent/rv2-pr92 (reviewer; not the owner agent/claude-opus-5, and
+  not agent/claude-fable-5-1, who made the round-2 correction commit). Scope: round 1's single BLOCKING finding B-1
+  and the whole acceptance block at the new head 33bc4b3. `git diff bb3698d..33bc4b3 --stat` -> one file,
+  `queue/claimed/T-0162-...md | 11 ++++++++++-`, `1 file changed, 10 insertions(+), 1 deletion(-)`. The diff is
+  exactly two hunks: `@@ -24,7 +24,7 @@` replaces `test_speedfit.py` 239 with 242 in the acceptance block, and
+  `@@ -281,3 +281,12 @@` appends nine lines at the end of the Log (round 1's entry, then the round-2 fix entry).
+  No earlier dated entry is touched and no code or test file is in that diff - B-1 closed exactly as round 1 ruled.
+  RE-RAN EVERY LINE OF THE ACCEPTANCE BLOCK bare, in a detached worktree at 33bc4b3 whose `git status --short` was
+  empty: `wc -l services/etl/etl/speedfit.py services/etl/etl/furniture.py services/etl/tests/test_speedfit.py
+  services/etl/tests/test_furniture.py` -> `150 / 96 / 242 / 152`, `640 total`, so all four numbers in the
+  acceptance block now match the tree; `cd services/etl && python -m pytest tests -rs` -> `589 passed in 92.84s
+  (0:01:32)`, exit 0, with NO `short test summary info` section at all (zero skips, zero xfails); `python -m pytest
+  tests/test_speedfit.py tests/test_furniture.py -rs` -> `117 passed in 0.72s`; `bash ops/lib/check-pipe-consumers`
+  -> `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (57 scanned, 58 tracked, floor 42)`, exit 0;
+  `bash ops/queue-check` -> `QUEUE OK (158 tasks)`, exit 0. Every quoted COUNT matches what I measured; only the
+  wall clocks differ, which the acceptance block says up front. The `472 passed` baseline is historical (the tree
+  before the files existed) and is not re-measurable at this head; the 117 it implies is, and it printed. `gh pr
+  view 92 --json body`: the body's `wc -l` line says 242 and its gate block quotes the same 589 / 117 /
+  PIPE-CONSUMERS OK / QUEUE OK (158 tasks) strings. `git diff main...33bc4b3 --name-status` -> `A` on the four new
+  files, `M` on this task file, nothing else - `tagfilter.py` and `test_tagfilter.py` are absent, as R14 claims, and
+  every path is inside `touches:`. `gh pr checks 92`, read ONCE at the end: `core pass 2m22s`, `pins-source-only
+  pass 50s`; `gh run view 35395923679 --json headSha,conclusion` -> `33bc4b38f1f23353bc815baa8a3fe1fe3cbb97f3`,
+  `success`, so that green is this head's and not a stale run. I did NOT re-attack the code: round 1 ran six mutants
+  of its own and no specific doubt arose here, so round 2 ran none. ROUND 1'S RECORDABLES ARE CARRIED, RECORDED AND
+  NOT FIXED - none of them blocks, and each is follow-up material for T-0163 or the tuning step: the exact-match
+  (no case folding) ruling at `furniture.py:62-63` is prose with no test behind it and round 1's case-folding mutant
+  SURVIVED all 117; `highway=Crossing` capitalisation is therefore not counted (R-1, a one-line test suggestion);
+  `furniture_count` counts occurrences rather than node identities, so a closed way's repeated first/last node
+  double-counts - T-0163's way record must decide it; R6's absurdity ruling reads inconsistently with R2/R3/R4; a
+  55 mph two-lane at 0.4122 against a 35 mph collector's 0.7832 is the plan's apex showing through and the first
+  constant for the tuning step; `WALK_PACE_KMH` is pinned only up to 25.0;
+  `test_what_is_deliberately_not_counted` prints `[tags0]` rather than the tag when red; `traffic_calming=none` is
+  not in `ANY_VALUE_EXCEPTIONS`. The STILL OPEN items (street-lamp undercount, short-way outlier) stay open.
+  state: claimed -> done, reviewer: agent/rv2-pr92, `git mv` queue/claimed/ -> queue/done/. NOT merged: merging is
+  not the reviewer's step.
