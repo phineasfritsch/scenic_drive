@@ -13,9 +13,12 @@ import SwiftUI
 /// (plan sheet, route preview, hazard strip) arrives in M4 and replaces the middle of this file; the
 /// map, the footer and the handoff at the edges are the parts that stay.
 ///
-/// The title names the drive `SkylineHandoff.waypoints` describes, but it is not derived from it: that
-/// type holds coordinates and no name. Changing the drive and renaming it are two edits, and nothing
-/// but review ties them together.
+/// The title and the road list name the drive `SkylineHandoff.waypoints` describes, but neither is
+/// derived from it: that type holds coordinates, and no name and no road names. Changing the drive,
+/// renaming it and rewriting the road list are three edits, and nothing but review ties them together.
+///
+/// No duration anywhere on this screen. Nobody has driven this route or measured it, and a number
+/// nobody measured is the kind of claim this repository exists to catch.
 public struct ScenicHomeScreen: View {
     /// The placeholder basemap. Named once so the style and the credit below cannot drift apart.
     private let style = MapStyle.maplibreDemoTiles
@@ -71,7 +74,8 @@ public struct ScenicHomeScreen: View {
         .background(DesignTokens.bg)
     }
 
-    /// The drive's name and the one caption, in a band on `bg` above the map rather than over it.
+    /// The drive's name, the roads it runs, and the one caption, in a band on `bg` above the map
+    /// rather than over it.
     ///
     /// Deliberately not an overlay. `DesignTokens` states its contrast against `bg` and `surface`, and
     /// a basemap is neither - `AttributionFooter` carries its own opaque chip for exactly that reason.
@@ -91,10 +95,18 @@ public struct ScenicHomeScreen: View {
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("home.title")
 
-            Text(Copy.mapIsAStandIn)
+            Text(Copy.route)
                 .font(.subheadline)
-                // `fgMuted`: this is secondary text under a title, and `primary` is a button fill,
-                // never a sentence on `bg` (`DesignTokens`).
+                // `fgMuted`, and the same muted pair for the caption below: both are secondary lines
+                // under the title, and `primary` is a button fill, never a sentence on `bg`
+                // (`DesignTokens`). Same text style for both, because the roads are the longer and
+                // more useful of the two and shrinking them would be the wrong way round.
+                .foregroundStyle(DesignTokens.fgMuted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("home.route")
+
+            Text(Copy.mapCaption)
+                .font(.subheadline)
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("home.caption")
@@ -162,15 +174,23 @@ public struct ScenicHomeScreen: View {
     /// Nested rather than a second file-scope type so the file still declares one type and still
     /// matches its own name.
     private enum Copy {
-        /// The drive, named. See the type's note: this is a literal, not a rendering of the waypoints.
-        static let title = "Skyline via Cañada Road"
+        /// The drive, named by the road it is about and by where it puts you back. See the type's
+        /// note: a literal, not a rendering of the waypoints. No duration in it - see the type's note
+        /// for why there is none anywhere on this screen.
+        static let title = "Skyline loop · ends back in San Francisco"
 
-        /// What is actually under the title. `MapStyle.maplibreDemoTiles` draws country polygons and
-        /// nothing at the scale of this drive, and the route is not drawn on it at all (M4 draws it),
-        /// so the user is looking at neither their route nor their roads. Saying which of the two is
-        /// missing would still be wrong; both are.
-        static let mapIsAStandIn =
-            "Preview build - this map is a stand-in, not your route. The drive opens in Apple Maps."
+        /// The roads, in the order the drive takes them - the one line on this screen that says where
+        /// you would actually be, while the map says nothing. Also a literal (the type's note). T-0170
+        /// reuses this line: when a handoff fails, the roads are what a user can still act on.
+        static let route =
+            "I-280 south, Cañada Road north, CA-92 west, Skyline Boulevard south, then back to the city."
+
+        /// What is under the header. `MapStyle.maplibreDemoTiles` draws country polygons and nothing at
+        /// the scale of this drive, and the route is not drawn on it at all (M4 draws it), so there is
+        /// not a road on screen to follow. First sentence: what the map is not. Second: what to do
+        /// instead, pointing at the button directly below it.
+        static let mapCaption =
+            "This map doesn't show roads yet. Tap below and the drive opens in Apple Maps."
 
         /// Shown when `Handoff` refuses. What failed, then what to do, and nothing this screen cannot
         /// back up: there is no copy-the-route affordance here to point the reader at.
