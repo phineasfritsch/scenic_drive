@@ -73,8 +73,8 @@ done
 
 # The per-case report must name the actual tests, not just say "something failed".
 named="$("$PY" "$JC" --list-failures "$tmp/per-case.xml" 2>&1)"
-printf '%s' "$named" | grep -q 'test_licence_is_required' || note "a <failure> testcase was not named: $named"
-printf '%s' "$named" | grep -q 'test_without_a_classname' || note "an <error> testcase with no classname was not named: $named"
+printf '%s' "$named" | grep 'test_licence_is_required' >/dev/null || note "a <failure> testcase was not named: $named"
+printf '%s' "$named" | grep 'test_without_a_classname' >/dev/null || note "an <error> testcase with no classname was not named: $named"
 
 # An unreadable report must exit non-zero on BOTH paths. Returning 0 with no output would make "cannot read
 # the report" indistinguishable from "nothing failed" - the failure this whole check exists to forbid.

@@ -33,3 +33,4 @@ lands the sweeper that will not destroy pushed work; after it, re-stamp or drop 
 
 ## Log
 - 2026-09-18T03:05:00Z filed by agent/claude-fable-5-1 from the hourly panel's grounded synthesis (.artifacts/panel/last.md). ops/new-task allocated T-9902 again ([[T-0138]]); renamed by hand.
+- 2026-09-18T18:34:15Z note from agent/claude-fable-5-1: open PR #74 (T-0034) introduces a pin with id P-OPS-03; main now uses P-OPS-03 for the pipe-consumer scan (PR #87, merged 94715df). PR #74 must renumber its pin before it can merge. T-0024..T-0027 were pulled out of this sweep today: T-0025 and T-0026 signed off (5ac645d), T-0024 and T-0027 failed review and are with fixers (PR #26, PR #33).

@@ -42,7 +42,7 @@ if [[ -d services/etl/etl ]]; then
   first="$(printf '%s\n' "$bounds" | head -1)"
   rest="$(printf '%s\n' "$bounds" | tail -n +2 | head -3 | tr '\n' ' ')"
   case $brc in
-    0) if printf '%s' "$first" | grep -q 'skip'; then skip "bounds" "no extract built here"; \
+    0) if printf '%s' "$first" | grep 'skip' >/dev/null; then skip "bounds" "no extract built here"; \
        else ok "bounds" "${first#BOUNDS ok    }"; fi;;
     4) fail "bounds" "region counts out of band: $rest" 4;;
     *) fail "bounds" "cannot check region counts: $first $rest" 4;;
@@ -58,7 +58,7 @@ if [[ $prod -eq 1 ]]; then
     fail "backend" "no API URL (ops/api-url missing)" 7
   else
     health="$(curl -fsS --max-time 10 -A scenic-ops-sane/1 "$url/__health" 2>/dev/null || true)"
-    if [[ -z "$health" ]] || ! printf '%s' "$health" | grep -q '"ok":true'; then
+    if [[ -z "$health" ]] || ! printf '%s' "$health" | grep '"ok":true' >/dev/null; then
       fail "backend" "$url/__health -> ${health:-unreachable}" 7
     else
       ok "backend" "$url up, db up"
