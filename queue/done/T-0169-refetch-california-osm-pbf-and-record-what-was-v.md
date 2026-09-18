@@ -1,7 +1,7 @@
 ---
 id: T-0169
 title: refetch california-osm.pbf and record what was verified - never edit bytes: to match a file nothing can verify
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T21:54:29Z
@@ -11,7 +11,7 @@ branch: task/T-0169
 exclusive: []
 touches: [services/etl/inputs/manifest.yaml, services/etl/etl/fetch.py, services/etl/tests/test_fetch.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr99
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -231,3 +231,62 @@ copy, not a computation, with a test. 1.3 GB stays out of git (`services/etl/inp
   acceptance block was re-run "at this, the final pre-review commit"; the commit is stamped 22:17:32Z, eight
   seconds later, so the 74 s run finished before the entry was dated - the three measured files sit in that one
   commit and nothing shows them changing after the run; the date is the entry's write time, not the run's.
+- 2026-09-18T22:49:32Z **review PASS - agent/rv1-pr99**, reviewer, neither the owner (agent/claude-opus-5) nor the
+  orchestrator. PR #99 at 75e0750. `gh pr checks 99`, run once at the end -> `core pass 2m25s`,
+  `pins-source-only pass 1m4s`. Nothing in the PR was changed by this review.
+
+  **RE-RUN AT THIS HEAD**, in my own worktree `.worktrees/rv1-pr99` - every acceptance line except the two that
+  would need the network. `cd services/etl && python -m pytest tests -rs` -> `716 passed in 84.67s (0:01:24)`,
+  exit 0, no `short test summary info` section. `python -m pytest tests/test_fetch.py -rs` -> `21 passed in 1.65s`.
+  `bash ops/lib/check-line-cap` -> `P-SRC-02: 68 Swift files tracked (Sources=25, Tests=35, apps/ios=8), none over
+  300 lines`, exit 0. `bash ops/queue-check` -> `QUEUE OK (166 tasks)`, exit 0. `wc -l` -> 255 `fetch.py`,
+  299 `test_fetch.py`. `git diff origin/main -- services/etl/inputs/manifest.yaml` -> exactly the four quoted lines
+  in the california entry, nothing else. `git check-ignore -v services/etl/inputs/california-osm.pbf` ->
+  `.gitignore:38:services/etl/inputs/*` for that path, exit 0. NOT re-run, by instruction: the real fetch and
+  `--verify-only` over the real file, both of which go to Geofabrik.
+
+  **THE PRODUCT QUESTION - the manifest number is NOT asserted against the file it was read from.** I measured the
+  1.3 GB file myself, offline, in the owner's worktree: `os.path.getsize` -> `1328688632`, full md5 ->
+  `1f90ab1d0c885e884eea96fdf896a6b7`. Both equal what the manifest now records and what the Log quotes, and
+  1327206195 is absent from `inputs/manifest.yaml` (it survives only in the untouched provenance blocks of
+  `regions/{sfbay,la}/region.json` and one fixture in `tests/test_region.py`). The sidecar half is not
+  independently re-derivable - the correction entry already says the sidecar value is preserved nowhere - but
+  `verify()` returns None only when `md5_file(path) == upstream_md5(checksum_url)`, so `EXIT=0` on that one fetch
+  IS that comparison, and my recomputed digest shows the bytes have not moved since. RULING: "verified" is fairly
+  claimed on the fetcher's comparison plus the recomputed md5. A RETAINED sidecar copy would be an improvement, not
+  a precondition, and is RECORDABLE (R2 below): this manifest deliberately pins no digest for a daily-rebuilt file
+  (`etl/manifest.py`'s own docstring), so a stored sidecar would be a record rather than a pin.
+
+  **THREE MUTATIONS NOBODY WROTE, each applied alone, control `716 passed`.** M1, `bytes={entry.bytes}` in
+  `report_verified` -> CAUGHT: `2 failed, 19 passed`, named
+  `TestTheVerifiedLine::test_a_verified_fetch_prints_the_bytes_and_the_date` and
+  `::test_verify_only_reprints_the_line_without_downloading`. M2, `report_verified(i, dest)` moved ABOVE
+  `why = verify(i, dest)` in `main()` - the line printed before the md5 compare -> SURVIVED, `716 passed in 94.62s`.
+  M3, `dest.unlink(missing_ok=True)` added to `verify_only()`'s failure branch -> SURVIVED, `716 passed in 89.15s`.
+  A fourth of my own, `bytes={entry.bytes if entry.bytes else path.stat().st_size}` -> SURVIVED,
+  `716 passed in 114.66s`. None is blocking: the shipped code is correct on all four points, and the four new
+  checks were demonstrated red by name, twice, the second red on the LINE itself. What the survivors name is
+  missing coverage, recorded below. `git status --short` in my worktree is empty again after each.
+
+  **RULINGS.** I disagree with none of R1-R8 on the merits. R2 against the plan: plan:185 puts WSL2 on
+  `osmium extract -> osm2pgsql --flex -> GraphHopper import`, not on the manifest fetch, and `fetch.py` imports
+  stdlib plus `etl.manifest` only - running it natively is right. R3: `--only` takes the manifest's `name:`, and the
+  usage line this PR corrects would have exited 2. R7 is the right call - a 60-byte sidecar hiccup and a real
+  mismatch come back from `verify()` in the same shape, so deleting there would discard 1.3 GB over a DNS failure.
+
+  **RECORDABLE, none of it failing this round.** (R1) Nothing pins the ORDER this task rests on: no named test goes
+  red when the `verified ... ok` line is printed before the compare (M2), so the line could be emitted for a file
+  that then fails and is deleted. Pointing the test manifest at `/wrong.bin.md5` and asserting
+  `"verified file.bin bytes=" not in out` is one assertion. (R2) The printed line carries no digest; an `md5=<hex>`
+  token would make every future `bytes:`/`retrieved:` pair re-derivable offline with `md5sum` - the sidecar-
+  retention gap, cheaply. (R3) R7's "never deletes" is guarded by nothing (M3); the only verify-only failure test is
+  the missing-file case. (R4) `bytes=` tells `stat()` from `entry.bytes` only because the test manifest omits
+  `bytes:`; an entry that HAS one is untested (my fourth mutant). (R5) STILL OPEN 5 CONFIRMED by reading
+  `manifest.py::Input.validate()`: it checks name, url, verify, license, purpose, sha256 and checksum_url and never
+  looks at `bytes` or `retrieved`, so nothing rejects a future date or an implausible size; `NUMERIC_FIELDS =
+  ("bytes",)` only coerces the type. (R6) `regions/{sfbay,la}/region.json` still record
+  `counts_from.source_bytes: 1327206195` - the build the manifest no longer describes. Nothing cross-checks the two,
+  and provenance recording what was actually used is correct, but T-0168 should expect the mismatch. (R7) On the
+  "already present and verified" and `--verify-only` paths the line prints TODAY's date for bytes fetched earlier;
+  coherent under R4's "the day it was verified", but the field is spelled `retrieved`, so the manifest header could
+  say which it means.
