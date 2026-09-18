@@ -1,7 +1,10 @@
 """`speed_fit`, checked against arithmetic written out by hand.
 
 Every expected number in this file is typed out, with the division that produces it shown in the comment
-above it. None of them is obtained by calling the function under test, or by re-deriving it from the
+above it. Three tests are PROPERTIES rather than values and say so - the symmetry test compares the function with
+itself at 65-d and 65+d, `walk` is pinned to WALK_PACE_KMH, and the unknown-class fallback is pinned to
+DEFAULT_SPEED_KMH["road"] as well as to the literal 50.0. Apart from those, none of them is obtained by
+calling the function under test, or by re-deriving it from the
 module's own constants at test time: a test that computes its expectation from the thing it checks passes
 whatever the constants say, which makes the two most product-defining numbers in the term - the apex and the
 two feet - unpinned while looking tested.

@@ -21,7 +21,7 @@ WHAT IS COUNTED is the named set below and nothing else. WHAT IS DELIBERATELY NO
   * `highway=turning_circle`, `highway=passing_place`, `highway=mini_roundabout` - the geometry of narrow and
     rural roads. A passing place is evidence of the opposite of urban.
   * `highway=bus_stop`, `amenity=*`, `shop=*` - roadside land use, which is what `impervious` (score.py:89)
-    and `points_of_interest` (score.py:91) are for. The same evidence must not enter E twice with two
+    and `points_of_interest` (score.py:90) are for. The same evidence must not enter E twice with two
     different signs.
   * `railway=level_crossing` - rural rail crossings are common and say nothing about a road being urban.
 
