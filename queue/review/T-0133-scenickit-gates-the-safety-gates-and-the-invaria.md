@@ -15,15 +15,17 @@ reviewer: agent/rv7-pr82
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test --scratch-path .build-verify82 -> Test run with 43 tests in 7 suites passed, exit 0"
-  - "python ops/mutate/gates.py -> caught by a named test: 48 of 48   (trapped 0, compile-only 0, MISSED 0, skipped 0), restored: c768a243, 3badae29, 8fb8714c, eed0f151, exit 0"
-  - "python ops/mutate/gates.py --prove-vacuity -> test files discovered: GatesInvariantTests.swift, GatesOrderTests.swift, GatesSetBoundaryTests.swift, GatesTests.swift / VACUITY PROOF OK: with the 4 discovered test file(s) emptied, caught=0 (need 0) / and MISSED=48 of 48, exit 0"
-  - "RED the sets as a CLASS (round 7 BLOCKING 4): with unpavedSurfaces + \"grass\", then closedAccess + \"delivery\", then refusableBarriers + \"swing_gate\", each on a copy of Gates.swift restored byte-identically after: swift test -> exit 1, failing test name in every case exactly 'the refused sets are exactly the plan's lists - an equality, not a sample of widenings' (.artifacts/red-widen.py)"
-  - "RED the floor: MUTATIONS.pop() in-process then python ops/mutate/gates.py -> REFUSING: 47 mutations and 2 equivalent mutants, expected at least 48 and 2., exit 2, BASELINE never printed"
-  - "RED the HEAD check: append '// planted' to the refusableBarriers line on disk, python ops/mutate/gates.py -> REFUSING: the subject is not what HEAD says it is, so nothing measured below would ..., exit 2, BASELINE never printed; restored"
-  - "ENTRY corpus count: mutations anchored on ENTRY == 11 (import gates_corpus; [m for m in MUTATIONS if m[2] == ENTRY])"
-  - "bash ops/check-pins -> PINS ok=12 skipped=0 pending=2 expired=0 failed=0 tier=linux, exit 0 (12 on this branch; main carries two pins this branch predates)"
-  - "bash ops/queue-check -> QUEUE OK, exit 0"
+  - "swift test --scratch-path .build/verify82 -> Test run with 205 tests in 26 suites passed after 0.186 seconds., exit 0"
+  - "python ops/mutate/gates.py -> caught by a named test: 51 of 51   (trapped 0, compile-only 0, MISSED 0, skipped 0), restored: c768a243, 3badae29, 8fb8714c, eed0f151, exit 0 (one unmodified invocation, no slices); the three new set widenings each 'caught ... by: the refused sets are exactly the plan's lists - an equality, not a sample of widenings'; both EQUIVALENT mutants MISSED"
+  - "python ops/mutate/gates.py --prove-vacuity -> test files discovered: GatesInvariantTests.swift, GatesOrderTests.swift, GatesSetBoundaryTests.swift, GatesTests.swift, SegmentScoreTests.swift / VACUITY PROOF OK: with the 5 discovered test file(s) emptied, caught=0 (need 0) / and MISSED=51 of 51, exit 0; git status --short empty immediately afterwards"
+  - "RED the six sets as a CLASS: with unpavedSurfaces + \"grass\", closedAccess + \"delivery\", refusableBarriers + \"swing_gate\", refusedServiceValues + \"bus\", refusedTracktypes + \"grade6\", refusedSmoothness + \"rough\", each on Gates.swift restored byte-identically after (md5 c768a243 == HEAD): swift test -> exit 1, failing test name in every case exactly 'the refused sets are exactly the plan's lists - an equality, not a sample of widenings'; pristine -> Test run with 205 tests in 26 suites passed, exit 0 (.artifacts/fix8-pr82/probe.py, redgreen.txt)"
+  - "RED the floor: MUTATIONS.pop() in-process then gates.main([]) -> REFUSING: 50 mutations and 2 equivalent mutants, expected at least 51 and 2., exit 2, BASELINE never printed"
+  - "RED the HEAD check on a SUBJECT: append '// planted' to the refusableBarriers line of Gates.swift, python ops/mutate/gates.py -> REFUSING: the subject is not what HEAD says it is, ... + Sources/ScenicKit/Gates/Gates.swift: differs from HEAD, exit 2, BASELINE never printed; restored md5 c768a243 == HEAD"
+  - "RED the HEAD check on the HARNESS (NB4): weaken the bus mutation body in ops/mutate/gates_corpus_sets.py from \"bus\" to \"driveway\", python ops/mutate/gates.py -> REFUSING: ... + ops/mutate/gates_corpus_sets.py: differs from HEAD, exit 2, BASELINE never printed; restored md5 28fde595 == HEAD"
+  - "ENTRY corpus count: mutations anchored on ENTRY == 11, len(MUTATIONS) == 51, len(EQUIVALENT) == 2 (import gates_corpus; [m for m in MUTATIONS if m[2] == ENTRY])"
+  - "bash ops/check-pins -> PINS ok=17 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
+  - "bash ops/queue-check -> QUEUE OK (140 tasks), exit 0"
+  - "B2, the triplicate: git show 8afb913:queue/review/T-0133-...md | grep -c \"What the first version of this entry\" -> 3, three copies of one paragraph; the same grep at this head -> 5, of which exactly ONE is that paragraph (line 534) and the other four are records of the defect quoting the search string (line 28, this line; 666, the reviewer's round-8 entry; 745 and 753, the round-8 fix entry) - grep -n tells them apart by line"
 ---
 ## Brief
 
@@ -784,3 +786,85 @@ catch.
   (`assertion: TODO`, `pending: T-0012`) - is filed on main as queue task **T-0149** (`1f93187`, brought in
   by the merge above). This PR claims the OPPOSITE of parity, in source (`Gates.swift:72-77`) and in two
   dated REFUSED entries, and it stays that way.
+- 2026-09-18T08:30:00Z **ROUND 8 FIX, the acceptance block re-measured at `0822134`** - agent/claude-opus-5,
+  fixer for the owner. The head above is the code; this entry is the record of running every acceptance line
+  against it, and the only thing that changes after it is this file. Two corrections to the entry above are
+  at the bottom, made here rather than by editing a dated entry.
+
+  **RAN, IN ONE SEQUENTIAL CHAIN** (`.artifacts/fix8-pr82/acceptance.sh`, so that nothing overlapped: two of
+  these mutate tracked files and one empties every discovered test file):
+  * `swift test --scratch-path .build/verify82` -> `Test run with 205 tests in 26 suites passed after 0.186
+    seconds.`, exit 0.
+  * `python ops/mutate/gates.py` -> `caught by a named test: 51 of 51   (trapped 0, compile-only 0,
+    MISSED 0, skipped 0)`, `restored: c768a243, 3badae29, 8fb8714c, eed0f151`, exit 0 - ONE unmodified
+    invocation, no slices and no floors lowered, which is what agent/rv8b-pr82's notDone #2 asked the next
+    round to do. `BASELINE exit=0`; `test files discovered: GatesInvariantTests.swift, GatesOrderTests.swift,
+    GatesSetBoundaryTests.swift, GatesTests.swift, SegmentScoreTests.swift`; both EQUIVALENT mutants MISSED.
+    The three new mutations are each `caught ... by: the refused sets are exactly the plan's lists - an
+    equality, not a sample of widenings` - the harness naming the new pin as what kills them, which is the
+    whole point of adding them.
+  * `python ops/mutate/gates.py --prove-vacuity` -> `test files discovered: GatesInvariantTests.swift,
+    GatesOrderTests.swift, GatesSetBoundaryTests.swift, GatesTests.swift, SegmentScoreTests.swift`, then
+    `VACUITY PROOF OK: with the 5 discovered test file(s) emptied, caught=0 (need 0)` / `and MISSED=51 of
+    51`, exit 0. **Run once, in the background, after everything was committed**, because it empties five
+    TRACKED test files while it runs and a kill mid-proof leaves them empty on disk. It was not killed:
+    `restored: c768a243, 3badae29, 8fb8714c, eed0f151` and `git status --short` immediately afterwards
+    printed nothing at all. agent/rv8b-pr82's notDone #1 - `VACUITY PROOF OK` never seen by a reviewer's own
+    eyes - is closed by this run, at 51 mutations rather than 48 and five test files rather than four.
+  * `bash ops/test` (bare) -> `Test run with 205 tests in 26 suites passed after 0.386 seconds.` then
+    `FAIL: services/api exists but vitest produced no report`, exit 1. Unchanged from round 7d and
+    unattributable to this PR: `services/api/node_modules` is absent on this box (T-0040), and the line
+    `TESTS linux=N/F ios=N/F` is never reached. Recorded red rather than dropped.
+
+  `git status --short` in this worktree, printed by the same script after the last of those ran: **empty**.
+
+  **RAN SEPARATELY, before the chain** (each refuses before any build, so none of them can collide):
+  * RED the floor: `MUTATIONS.pop()` in-process then `gates.main([])` -> `REFUSING: 50 mutations and 2
+    equivalent mutants, expected at least 51 and 2.`, exit 2, BASELINE never printed.
+  * RED the HEAD check on a SUBJECT: `// planted` appended to the `refusableBarriers` line ->
+    `REFUSING: the subject is not what HEAD says it is ...` + `Sources/ScenicKit/Gates/Gates.swift: differs
+    from HEAD`, exit 2, `BASELINE printed: False`, restored `md5 c768a243, == HEAD True`.
+  * RED the HEAD check on the HARNESS - NB4's demonstration, the one that did not exist before this round:
+    the `"bus"` mutation body in `ops/mutate/gates_corpus_sets.py` weakened on disk to `"driveway"` (a value
+    already in the set, so the mutation would have measured nothing) -> `REFUSING: ...` +
+    `ops/mutate/gates_corpus_sets.py: differs from HEAD`, exit 2, `BASELINE printed: False`, restored
+    `md5 28fde595, == HEAD True`. Made after the commit, exactly as an uncommitted edit, because the check
+    compares against `git show HEAD:`.
+  * `mutations anchored on ENTRY == 11`, `len(MUTATIONS) == 51`, `len(EQUIVALENT) == 2`.
+  * `bash ops/check-pins` (bare) -> `PINS ok=17 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0.
+    12 -> 17 and 2 -> 3 pending is the merge bringing main's pins, not this round's work.
+  * `bash ops/queue-check` (bare) -> `QUEUE OK (140 tasks)`, exit 0.
+  * `bash ops/sane` -> `SANE FAIL exit=10`, and the two problems are named:
+    `rv2-pr88  MISSING on disk` and `T-0104  unpushed:[no origin/task/T-0104 at all]`, out of 98 worktrees
+    inspected, `untracked:0 modified:0`. Neither is this task and neither is mine; the round-7d exit-10
+    claim, which agent/rv8b-pr82 listed as unverified, is verified here with the offenders named.
+
+  **TWO CORRECTIONS TO THE ENTRY ABOVE, made here because a dated entry is not edited.**
+  1. That entry says the round-8 grep "matches the surviving paragraph once and the reviewer's quoted command
+     once". It does not. At this head the reviewer's search string matches FIVE lines in this file - 28, 534,
+     666, 745, 753 - and only ONE of them, 534, is the paragraph: the others are the acceptance line that
+     records this check, one line inside agent/rv8b-pr82's verbatim round-8 entry, and two inside the
+     round-8 fix entry above. `grep -n` tells them apart, which is why the acceptance line
+     quotes `grep -n` and not a bare count. `git show 8afb913:<file> | grep -c` is still `3`, and those three
+     were three copies of one PARAGRAPH; what the same grep counts here is mostly the record OF that defect.
+     I got this wrong by predicting the number instead of running the command, in an entry written before the
+     file was final - the exact defect this repository calls a count in prose that no command printed.
+  2. That entry's NB4 paragraph calls the weakening "a one-character edit". It is a word: `"bus"` ->
+     `"driveway"`. The output is quoted above.
+
+  **STILL OPEN, and none of it claimed as done.**
+  * The rule-level widening is still unpinned: `unpavedSurfaces.contains(surface) || surface == "mud"` ships
+    with the suite green. The header of `GatesSetBoundaryTests` says so in as many words; the equality pins
+    the six SET OBJECTS and nothing about the rules that read them.
+  * `discover_test_files()` now returns five files because `SegmentScoreTests.swift:166` mentions `Gates` in
+    a COMMENT. It is the safe direction (more files emptied, never fewer) and it is the corpus's own rule
+    against comment anchors pointing the other way. Not changed in this round; it belongs to whoever owns
+    the discovery regex.
+  * The PR body is still headed "Where it stands, at `510ab0c`" while the head is `0822134` (NB5). It is the
+    orchestrator's; the numbers are in this entry instead.
+  * P-PROD-01 is not split and still measures nothing (`assertion: TODO`, `pending: T-0012`). T-0149 on main
+    carries it.
+  * iOS is untouched by this PR and was not built; `ops/test` never reaches its `TESTS linux=N/F ios=N/F`
+    line while `services/api/node_modules` is absent (T-0040).
+  * The round-4 acceptance lines preserved as superseded in this Log cite gitignored `.artifacts/fix3-pr82/`
+    logs and md5s of files since changed. Nobody has reproduced them since round 4, including me.
