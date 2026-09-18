@@ -20,7 +20,7 @@ acceptance:
   - "RED, by name: the same --filter run with the mid-Cañada pin deleted from SkylineRoute.waypoints -> `Test no gap on the 280 -> Cañada -> 92 leg is wider than the bound recorded an issue at SkylineRouteTests.swift:192:9: Expectation failed: (widest -> 9681.899324888309) < (Self.canadaLegMaxSpacingMeters -> 6000.0)` and `Test run with 8 tests in 1 suite failed after 0.005 seconds with 6 issues`. The pin was put back; no part of the demonstration is in the commit"
   - "gh workflow run ios-compile.yml --ref task/T-0151 -> run 35394012179, conclusion success, ONE dispatch, first try. gh run view 35394012179 --log contains `simulator-build build for the iOS Simulator 2026-09-18T20:56:21.0158350Z ** BUILD SUCCEEDED **`, and above it `Compiling SkylineRoute.swift` (target Handoff) and `Compiling SkylineHandoff.swift ... (in target FeatureScenicHome from project ScenicApp)`, so both changed Swift files were compiled and not merely present"
   - "wc -l on the four touched Swift files -> 150 Sources/Handoff/SkylineRoute.swift, 226 Tests/HandoffTests/SkylineRouteTests.swift, 184 Tests/HandoffTests/HandoffSourceTests.swift, 78 apps/ios/.../SkylineHandoff.swift; all under CLAUDE.md's 300-line cap, one type per file, filename == type name"
-  - "gh pr checks (this branch's PR) -> filled in by the final commit, read ONCE as the task text instructs; see the last Log entry"
+  - "gh pr checks 96 -> `pins-source-only pass 51s` and `core pass 2m20s` (both jobs of actions run 35394456751), exit 0. Read on the PR rather than run locally, as the task text instructs; ops/check-pins and ops/test are what those two jobs run"
   - "NOT RUN, on the record: `bash ops/check-pins` and `bash ops/test` were not run locally - the task text forbids it on this box (the default swift scratch path does not build in a worktree here), and `gh pr checks` is what reads them instead. No pin in pins/PINS.yaml is touched or added by this change (pins_affected: []), so nothing here is enforced by check-pins; the spacing bound is enforced by a test in the suite ops/test runs"
   - "NOT RUN, on the record: nothing here has been on a device or in a simulator at runtime. ios-compile COMPILES for the iOS Simulator and runs no test; no Apple test target exists to run (apps/ios/Packages/ScenicApp/Package.swift says why). Nobody has driven this route. Whether Apple Maps in fact refuses the Edgewood Road shortcut given these seven pins is NOT demonstrated by anything in this PR - the test measures pin spacing, which is the proxy this repository can check"
 ---
@@ -195,3 +195,13 @@ Depends on T-0141 (PR #88) landing; do not open a second PR on the same file whi
   6. **Untouched on purpose:** both `Package.swift` files (serial-only), `apps/ios/Packages/ScenicApp/Tests/`
      (does not exist; it stays in `touches:` as the Brief wrote it, unused), `pins/`, and the four
      coordinates carried over from T-0141, which were re-verified but not moved.
+- 2026-09-18T21:00:59Z-21:03:11Z **PR #96 opened against main; its checks read on the PR, not locally; the
+  whole acceptance block re-run at this commit.** `gh pr checks 96` -> `pins-source-only pass 51s` and
+  `core pass 2m20s`, both jobs of actions run 35394456751, exit 0; that is `ops/check-pins` and `ops/test`
+  reporting from CI, which is where the task text says to read them from on this box. Re-run here at
+  21:03:11Z, each command bare: `swift test --scratch-path .build/T0151 --filter SkylineRouteTests` ->
+  `√ Test run with 8 tests in 1 suite passed after 0.004 seconds`, exit 0; `swift test --scratch-path
+  .build/T0151` -> `√ Test run with 258 tests in 33 suites passed after 0.323 seconds`, exit 0; `wc -l` ->
+  150 / 226 / 184 / 78, all under the 300-line cap. ios-compile 35394012179 is not re-run: it was green on
+  47f9f64 and the only commits after it are this task file, which the Apple build does not read.
+  `state: claimed` and `reviewer: null` are unchanged - this task is not signed off by its own author.
