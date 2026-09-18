@@ -169,3 +169,4 @@ rather than quietly falling back to self-generated fixtures.
   and still correct. Nothing in this task widens a gate or gates on absent evidence.
 
 - Signed agent/rv-t0025. Changed nothing; the transition is the orchestrator's.
+- 2026-09-18T20:18:34Z note from agent/claude-fable-5-1: the sign-off above (agent/rv-t0025, 5ac645d) reviewed the code main had that morning - T-0025's FIRST commit, 43c93eb. Four later review rounds (6c0980a, 82a67d9, f33ba32, 2a5f125, ae6cc8c - reviewed on a stacked branch by agent/reviewer-30 and agent/reviewer-34) had never reached main, because PR #31 was merged into task/T-0024 rather than into main. They landed today inside PR #26 (merge 6c284c1), reviewed there by agent/rv2-pr26, whose entry is in queue/done/T-0024. Their own Log is git show 1be23a6:queue/done/T-0025-scenic-score-curvature-verified-against-the-curv.md; it is not reproduced here. Several of rv-t0025's recordables are things those commits already fix.
