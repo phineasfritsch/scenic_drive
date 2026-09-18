@@ -1,0 +1,67 @@
+{
+  "note": "T-0161 round 3. Geometry that BENDS, for the one claim geometry_terms_fixture.json cannot make: a polyline is the sum (tunnel metres) or the minimum (motorway distance) over its SEGMENTS, never its first-to-last chord. Every multi-node geometry here is non-collinear and none of them has its nearest approach at an end node, which is exactly what review round 2 found missing - `tunnel_meters` replaced by the chord and `line_distance_m`'s candidate replaced by its chord both survived all 580 tests. Split out of geometry_terms_fixture.json rather than appended to it because that file is 263 lines and the cap is 300. Same rules: coordinates are [lat, lon], every expected value is typed out from the arithmetic in its own `workings` field and NEVER from the function it checks - metres along a meridian are 6373000 * degrees * pi/180 (curvature.RAD_EARTH_M), a leg that is not on a meridian is the spherical law of cosines d = R * acos(sin(90-lat1)*sin(90-lat2)*cos(lon1-lon2) + cos(90-lat1)*cos(90-lat2)) on the same R, and the flat projection snap.point_to_segment_m measures in is 111320*cos(lat) metres per degree of longitude and 110540 per degree of latitude. `expected_chord_meters` may be the string \"inf\".",
+  "tunnel_cases": [
+    {
+      "name": "tunnel_kinked_bore_over_the_threshold_only_along_its_path",
+      "coordinates": [[37.49, -122.0], [37.49128, -121.999147], [37.49256, -122.0]],
+      "tags": {"highway": "secondary", "tunnel": "yes"},
+      "expected_meters": 322.1038,
+      "abs": 0.001,
+      "expected_chord_m": 284.7484,
+      "chord_abs": 0.001,
+      "crosses_the_threshold": true,
+      "workings": "A 322 m bore with ONE ORDINARY KINK - review round 2's own reproduction A. Each leg by the spherical law of cosines on R = 6373000: (37.49,-122.0)->(37.49128,-121.999147) = 161.0522 m and (37.49128,-121.999147)->(37.49256,-122.0) = 161.0516 m (the two differ in the seventh figure because the second sits 0.00128 deg further north), so the path is 161.0522 + 161.0516 = 322.1038 m, OVER score.TUNNEL_THRESHOLD_M = 300.0, and score.py multiplies this way by 0.15. The first-to-last CHORD is a pure meridian, 0.00256 deg: 0.00256 * 111229.8332 = 284.7484 m, UNDER 300.0. Sinuosity 322.1038 / 284.7484 = 1.1312 - a kink, not a hairpin - and that is enough to put the two measurements on opposite sides of the cut: every bore whose path lies in (300, 300 x sinuosity] m flips. abs 0.001 is the rounding of the typed value; the sum reads 322.10375774."
+    },
+    {
+      "name": "tunnel_switchback_bore_doubles_back",
+      "coordinates": [[37.49, -122.0], [37.4918, -121.9995], [37.49065, -122.0]],
+      "tags": {"highway": "secondary", "tunnel": "yes"},
+      "expected_meters": 340.3309,
+      "abs": 0.001,
+      "expected_chord_m": 72.2994,
+      "chord_abs": 0.001,
+      "crosses_the_threshold": true,
+      "workings": "A bore that turns back on itself - the shape the sinuosity fixture calls hairpin_meridian, drawn 0.0005 deg off the meridian so that it is not collinear and the structural guard below accepts it. Spherical law of cosines: (37.49,-122.0)->(37.4918,-121.9995) = 205.0190 m out, (37.4918,-121.9995)->(37.49065,-122.0) = 135.3119 m back, path = 340.3309 m, OVER the 300.0 cut. The chord is the 0.00065 deg of latitude the way actually advanced: 0.00065 * 111229.8332 = 72.2994 m, less than a QUARTER of the real bore. This is the extreme of the same failure the kinked bore shows at the boundary, and it is why the measurement cannot be an endpoint one at any threshold."
+    },
+    {
+      "name": "tunnel_bent_bore_under_the_threshold",
+      "coordinates": [[37.49, -122.0], [37.491, -121.99933], [37.492, -122.0]],
+      "tags": {"highway": "secondary", "tunnel": "yes"},
+      "expected_meters": 251.9409,
+      "abs": 0.001,
+      "expected_chord_m": 222.4597,
+      "chord_abs": 0.001,
+      "crosses_the_threshold": false,
+      "workings": "The CONTROL for the two above: a bent bore whose path AND chord are both under score.TUNNEL_THRESHOLD_M, so the x0.15 is not applied either way and the case cannot pass by accident of the threshold. Legs 125.9706 m and 125.9703 m by the spherical law of cosines, path 251.9409 m; chord 0.002 deg on the meridian = 0.002 * 111229.8332 = 222.4597 m. The two still differ by 29.48 m, which is far outside the 1 mm tolerance, so the chord shortcut is visible here as a VALUE even where it is invisible as a multiplier."
+    }
+  ],
+  "motorway_cases": [
+    {
+      "name": "motorway_nearest_at_its_middle_node",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "motorways": [[[37.49, -121.9434], [37.495, -121.9988677], [37.50, -121.9434]]],
+      "expected_meters": 100.0,
+      "abs": 0.05,
+      "expected_chord_meters": "inf",
+      "workings": "Review round 2's reproduction B. A motorway drawn as a V that runs 5 km east of the way at both ends and comes in to its apex opposite the way's middle: the apex (37.495,-121.9988677) carries the same offset as geometry_terms_fixture.json's parallel_100_m_east, 0.0011323 * 111320*cos(37.495 deg) = 0.0011323 * 88322.007 = 100.0070 m, INSIDE score.MOTORWAY_PROXIMITY_M = 150.0, so score.py multiplies this way by 0.7. Its two END nodes are 0.0566 * 88322.007 = 4999.03 m away, so the candidate's first-to-last CHORD is past MOTORWAY_SEARCH_RADIUS_M = 1000.0 and reports math.inf - the x0.7 lost outright. Note what this case is NOT about: both of the candidate's segments touch the apex, so motorway[:2] and motorway[1:] each still answer 100.0070. The subset-of-the-segments cases in geometry_terms_fixture.json cannot see an endpoints-only shortcut and this one cannot see a truncated loop; both are needed."
+    },
+    {
+      "name": "way_nearest_at_its_middle_node",
+      "coordinates": [[37.49, -121.9434], [37.495, -121.9988677], [37.50, -121.9434]],
+      "motorways": [[[37.49, -122.0], [37.5, -122.0]]],
+      "expected_meters": 100.0,
+      "abs": 0.05,
+      "expected_chord_meters": "inf",
+      "workings": "The same two geometries with the roles swapped: the WAY is the V and its apex is its own middle node. Same arithmetic and the same 100.0070 m, because the minimum is taken over every pair of segments and is symmetric in its two lines. The way's first-to-last chord is 4999.03 m from the motorway, past the radius, so an implementation that replaces the WAY by its chord answers math.inf here - a different line of the same function from the case above, and the mirror geometry_terms_fixture.json already uses for the subset failures."
+    },
+    {
+      "name": "way_bends_toward_the_motorway_between_its_end_nodes",
+      "coordinates": [[37.485, -122.03], [37.4959, -122.015], [37.4959, -121.985], [37.485, -121.97]],
+      "motorways": [[[37.495, -122.001], [37.495, -121.999]]],
+      "expected_meters": 99.486,
+      "abs": 0.001,
+      "expected_chord_meters": "inf",
+      "workings": "The production shape, where the nearest approach is not at any node at all. The way is a U: it runs east-west at lat 37.4959 from lon -122.015 to -121.985 and drops away to lat 37.485 at both ends. The motorway is a 176 m stub at lat 37.495 between lon -122.001 and -121.999, inside that span, so the nearest approach is strictly INSIDE the way's MIDDLE segment and is a pure latitude difference with no cos(lat) in it: 0.0009 deg * 110540 m/deg = 99.4860 m, inside score.MOTORWAY_PROXIMITY_M and x0.7. Everything else about this way is past MOTORWAY_SEARCH_RADIUS_M = 1000.0: its outer segments come no closer than hypot(0.014 * 88322.007 = 1236.5081, 99.486) = 1240.5038 m, and its first-to-last chord runs at lat 37.485, 0.01 * 110540 = 1105.40 m south of the stub. So walking only the way's first and last segments, or only its chord, answers math.inf and the way keeps a score it has not earned."
+    }
+  ]
+}
