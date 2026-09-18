@@ -466,3 +466,18 @@ command did not print.
   the whole-suite WALL TIME - 60.71s before the commit against 62.98s at it - which the block already
   carries as evidence and not as a claim. This commit changes this file only, and this file is not one the
   block measures, so nothing is re-measured by it; `state: claimed` and `reviewer: null` are untouched.
+- 2026-09-18T23:19:36Z **Record corrections from the read-only verification of the round-3 fix, closed before round 3 is bought -
+  agent/claude-fable-5-1 (orchestrator), for the owner. The verifier re-applied O1 and O2 to a copy (5 and 3
+  named failures, exactly the names claimed), matched proximity.py's and the bends fixture's md5 to the
+  fixer's, ran the whole suite with bytecode writing off, and found the tree clean throughout; these are
+  text.** (a) The round-3 entry and PR #94's body say `TestFixtureShape` measures "every 3+-node geometry in
+  BOTH fixtures"; `geometries_of()` walks `tunnel_cases` and `motorway_cases` (and their nested motorways)
+  only - `sinuosity_cases` are not scanned. Their geometry is the sinuosity term's own subject and is
+  asserted by value; the guard's scope is as the code says, not as the sentence said. (b) rv2's recordable 2
+  (the printed constant 111234.7; correctly 111229.83322959862) was corrected in the Log, and the wrong
+  figure still stands as PROSE in `geometry_terms_fixture.json` line 236's `workings` - that file was left
+  bit-identical to 71a6a83 on purpose; no value depends on it. (c) "rv2's entry appended verbatim": present as
+  the first appended block; no independent copy exists for a byte comparison (the orchestrator holds the
+  reviewer's text at `.artifacts/signoffs/rv2-pr94-logentry.md`, gitignored). (d) The `touches:` line gained
+  `services/etl/tests/test_proximity_bends.py`, disclosed in the round-3 entry as a ruled scope addition.
+
