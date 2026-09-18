@@ -11,16 +11,36 @@
 #
 # `git ls-files` is used instead of `find` so untracked build junk is never counted and the check matches what
 # is actually committed.
+#
+# T-0037: the globs were `Sources/**` and `Tests/**` only, so every Swift file under `apps/ios/` - the whole
+# Apple package and the app shell - was silently exempt from the cap the moment T-0141 created them. A pin that
+# covers 36 of 50 files while its message says "no file exceeds 300 lines" is worse than no pin. `apps/ios/**`
+# joins the population, and the message names each root and its count so a shrinking root is visible rather
+# than absorbed into one total.
+#
+# Known residual hole, stated rather than hidden: git's `<root>/**/*.swift` pathspec needs at least one
+# directory component after <root>, so a .swift file placed directly at `Sources/X.swift`, `Tests/X.swift` or
+# `apps/ios/X.swift` is still not counted. There are none today (`git ls-files '**/*.swift'` returns the same
+# 36 files as the two original globs); layout convention, not this check, is what keeps it true.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 MIN_FILES=5
 
-mapfile -t files < <(git ls-files 'Sources/**/*.swift' 'Tests/**/*.swift')
+ROOTS=('Sources/**/*.swift' 'Tests/**/*.swift' 'apps/ios/**/*.swift')
+
+mapfile -t files < <(git ls-files "${ROOTS[@]}")
 n="${#files[@]}"
 
+population=""
+for glob in "${ROOTS[@]}"; do
+  root="${glob%%/\*\**}"
+  c="$(git ls-files "$glob" | grep -c . || true)"
+  population="${population}${population:+, }${root}=${c}"
+done
+
 if [[ "$n" -lt "$MIN_FILES" ]]; then
-  echo "P-SRC-02: only $n tracked .swift file(s) under Sources/ and Tests/ (expected >= $MIN_FILES)."
+  echo "P-SRC-02: only $n tracked .swift file(s) ($population) (expected >= $MIN_FILES)."
   echo "  An empty or truncated set must never read as 'no file exceeds 300 lines'."
   exit 1
 fi
@@ -43,4 +63,4 @@ if [[ ${#bad[@]} -gt 0 ]]; then
   exit 1
 fi
 
-echo "P-SRC-02: $n Swift files tracked, none over 300 lines"
+echo "P-SRC-02: $n Swift files tracked ($population), none over 300 lines"

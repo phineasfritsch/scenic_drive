@@ -24,3 +24,4 @@ acceptance:
 ~2 MacinCloud hours. App target = buildable folder apps/ios/ScenicDrive. ScenicApp package depends on the root by path.
 
 ## Log
+- 2026-09-18T02:50:00Z superseded in scope by [[T-0141]] (the same tree, authored here and compiled by Xcode Cloud); moves to done/ when T-0141's PR merges.

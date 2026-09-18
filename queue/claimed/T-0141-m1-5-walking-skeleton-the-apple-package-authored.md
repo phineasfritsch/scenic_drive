@@ -8,13 +8,21 @@ claimed_at: 2026-09-18T01:40:00Z
 lease_expires_at: 2026-09-18T13:40:00Z
 worktree: .worktrees/T-0141
 branch: task/T-0141
-exclusive: []
+exclusive: [pbxproj, package-swift]
 touches: [apps/ios/, ops/lib/check-line-cap, pins/PINS.yaml]
-pins_affected: [P-SRC-02, P-ATTR-01]
+pins_affected: [P-SRC-02]
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "root Package.swift references nothing under apps/: git diff --stat main -- Package.swift is empty and grep -c apps/ Package.swift -> 0"
+  - "bash ops/lib/check-line-cap -> the tracked .swift count includes apps/ios/**, every file <= 300 lines; the exact count is printed and recorded here when the tree is committed"
+  - "one type per file under apps/ios/: a grep of '^(public )?(struct|enum|class|final class|actor) ' counts <= 1 per file"
+  - "bash ops/check-pins --source-only -> PINS ok=N ... failed=0, exit 0; bash ops/queue-check -> QUEUE OK, exit 0"
+  - "python .artifacts/T-0141/pbxproj-graph.py (quoted in the Log) -> every referenced 24-hex object id is defined; the target has a two-configuration list; the package product dependency names a product Packages/ScenicApp/Package.swift declares"
+  - "the MapLibre tag pinned in Package.swift is listed by gh api repos/maplibre/maplibre-gl-native-distribution/releases (command and output in the Log)"
+  - "every SkylineHandoff waypoint has its Nominatim query and returned lat/lon in the Log, and two are re-checked by the reviewer to 3 decimals"
+  - "NOT COMPILED HERE, on the record: no Apple toolchain exists on this box. The Xcode Cloud build is T-0009's proof and needs the human's M0 steps. This task's exit is a tree Xcode Cloud can build, not a build."
 ---
 ## Brief
 
@@ -58,6 +66,12 @@ EXACT version whose tag is verified to exist (`gh api repos/maplibre/maplibre-gl
 The Skyline waypoints are REAL coordinates each verified against Nominatim, query and result recorded here;
 ≤ 9 of them (`AppleMapsDirections.maxWaypoints`), 5 decimals (`coordinateDecimals`).
 
+### Folds T-0010, which stays in backlog until this merges
+
+T-0010 (the thin xcodeproj shell) is the same tree; it moves to done/ when this task's PR merges, by the
+reviewer, with a note pointing here. Both serial-only files it named are declared `exclusive:` above and
+locked.
+
 ### Also in scope, because it becomes true the moment these files exist
 
 T-0037: `ops/lib/check-line-cap` globs only `Sources/**/*.swift` and `Tests/**/*.swift`, so P-SRC-02 would
@@ -78,3 +92,12 @@ silently exempt every file this task adds. The globs gain `apps/ios/**/*.swift`;
   `af88ac2` (PR #36 merged). `ops/new-task` allocated **T-9902 for the fifth time** ([[T-0138]]); renamed by hand.
   Authored by two opus agents on disjoint paths and verified by one fable agent before anything is committed -
   the fleet's model rule from this session.
+- 2026-09-18T02:50:00Z **The hourly panel (grounded by a fable pass) found this task's own declaration wrong before
+  a line of it was committed:** `exclusive: []` while writing `project.pbxproj` and a `Package.swift`, both
+  serial-only in CLAUDE.md; `pins_affected` naming P-ATTR-01, a pin that does not exist in PINS.yaml;
+  `acceptance: []` under a title claiming M1.5. Corrected: locks declared and acquired, P-ATTR-01 dropped
+  (the attribution VISIBILITY pin belongs with the real basemap, when P-ATTR-01 is written), the Brief's
+  prose acceptance moved into `acceptance:`, and T-0010 named as folded rather than duplicated. The panel's
+  one-commit change - Info.plist asks for location and nothing uses it - is applied when the authors' tree is
+  committed, not while they are writing it.
+- 2026-09-18T15:45:37Z acquired lock(s) pbxproj, package-swift for agent/claude-fable-5-1
