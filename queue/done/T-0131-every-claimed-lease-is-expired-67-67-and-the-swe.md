@@ -1,7 +1,7 @@
 ---
 id: T-0131
 title: Every claimed lease is expired (67/67) and the sweeper cannot see that the work is already pushed
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: 012vL7Yk1ov7eNxoFD9U6Pfm
 claimed_at: 2026-09-16T04:30:00Z
@@ -11,7 +11,7 @@ branch: task/T-0131
 exclusive: []
 touches: [ops/lib/, ops/queue-sweep, queue/README.md, pins/PINS.yaml]
 pins_affected: [P-PROC-01, P-PROC-03, P-PROC-04]
-reviewer: null
+reviewer: agent/rv9-pr85
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -298,3 +298,32 @@ mass release of finished work, and the queue would read as "39 things to do agai
   four by moving nothing" and P-PROC-04's "six" were two rounds stale; both read the seven-case truth.
   `pins_affected:` names P-PROC-03 and P-PROC-04. N-g, N-h recorded as equivalent, unchanged. GREEN:
   `SWEEP-CHECK OK (7 cases)`, `SWEEP VARIANTS OK (4)`, `PINS ok=16`, `QUEUE OK`.
+- 2026-09-18T15:25:00Z ROUND 4 REVIEW - agent/rv9-pr85 (independent; not the owner). **VERDICT: PASS** on
+  PR #85 head `bb9fe56` == `origin/task/T-0131`. Bounded re-review of round 4's answer to agent/rv3-pr85's
+  FAIL, in own throwaway worktree `.worktrees/rv9-pr85` (removed after); all five subjects hashed equal to
+  `git show bb9fe56:<path>` before and after every run; every mutant a copy under gitignored `.artifacts/rv9/`.
+  ALL TWELVE ACCEPTANCE LINES RE-RUN BARE, exit codes read from the process: `SWEEP-CHECK OK (7 cases)` 0;
+  `SWEEP VARIANTS OK (4)` with 5 / 2 / 1,2,6,7 / 1,2,3,4,6,7, 0; pre-fix blob 7d0bcbad -> `FAIL 2/declared-
+  not-fetched ... never said 'declares branch task/T-9002; no ref here - fetch to see it'`, 1; `CASES[:0]`,
+  `VARIANTS[:0]`, `CASES+[CASES[0]]` -> REFUSING, 2; `VARIANTS[:3]+[VARIANTS[0]]` -> `duplicate variant
+  edits`, 2; count-preserving builder duplicate -> `duplicate case labels or builders`, 2; loop-never ->
+  FAIL 1,2,3,6,7 by name, 1 (1 and 6 green under 42344e1's harness); no-unlink -> `DUPLICATED-IN-
+  ready+claimed/`, 1; owner kept -> `swept, but owner still set: owner: agent/probe`, 1; inverted under
+  b0c6576's harness -> only 3 red with `ok 4/lease-still-valid`, under this harness 1,2,3,4,6,7; `PINS
+  ok=16 skipped=0 pending=3 expired=0 failed=0 tier=linux` 0; `QUEUE OK (131 tasks)` 0.
+  B1-r3 VERIFIED CLAUSE BY CLAUSE by running the code: `grep -c 'must KEEP",'` -> 4, labels 1, 2, 6, 7;
+  the four held sentences are printed only inside `if exp < now():` (queue.py:555-575) and the loop-never
+  run prints none of them; the pristine sweeper on the case-4 fixture prints exactly one line,
+  `SWEEP done (0 moved, 0 kept)`, so the summary line is all case 4 can assert. THE TWO FAILURE SHAPES,
+  BOTH CONSTRUCTED (my bounded attack): a `raise` (or `return 1`) as the first statement of `cmd_sweep`
+  fails all seven, each carrying `exit 1, expected 0` (case 5: `exit 1, expected 2`); `if exp < now():`
+  -> `if False:` and `for ... in []:` each fail exactly 1,2,3,6,7 and pass 4 and 5. Both sets match the
+  sentence exactly. N-f: P-PROC-03 (:82) and P-PROC-04 (:90) now read seven cases / four must-KEEP;
+  `pins_affected` names both and queue-check accepts it.
+  NOTES, not blocking: (1) the crash clause has literal edges - a raise placed AFTER the `_git_usable`
+  refusal passes case 5 (the sweeper refuses there, as it should), and a bare `return 2` at the top fails
+  case 5 on `never said 'SWEEP REFUSED'` rather than on exit code; the canonical crash matches. (2) a
+  sweeper that returns 0 before printing anything fails all seven, 4 and 5 included - "passes 4 and 5"
+  describes the loop-never shape, which still prints its summary line; safe direction. (3) README:71 is
+  145 columns. (4) PINS.yaml:91 still quotes the docstring as 'six cases discriminating'; it says seven.
+  N-g, N-h carried as equivalent. Nothing in the PR changed; this commit moves the task file alone.
