@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+# An exclusive lock is released when the work stops, and only by the task that holds it.
+#
+# The property, over the one tool that moves tasks:
+#
+#     claim T          =>  LOCKS/<res>.lock exists and names T
+#     review T         =>  the lock is gone, T is in review/, and queue-check is clean
+#     a hand `git mv`  =>  the lock survives and queue-check FAILS - which is why `review` exists
+#     lock held by U   =>  review T releases nothing and moves nothing
+#     reviewer == owner=>  refused
+#
+# Why this exists: there was no claimed -> review transition in code at all. Every agent did `git mv` plus a
+# hand edit, so nothing ran at the moment the work stopped and the lock was never released. `cmd_check`
+# already treats an orphaned lock as an error, so the first task to carry one into review/ would have failed
+# `ops/queue-check` for every agent in every worktree. Exactly one lock exists today (scenic-index, held by
+# T-0024, still claimed) and it had not happened yet.
+#
+# Anchored on the executable and on generated task fixtures, never on a comment.
+set -uo pipefail
+# Not `git rev-parse --show-toplevel`: from WSL against a Windows worktree it prints an unusable path and,
+# without set -e, leaves the script running in whatever directory it started in (T-0055).
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -f ops/lib/queue.py ]] || { echo "$(pwd) is not the repo root (no ops/lib/queue.py)"; exit 2; }
+
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+fail=0
+Q="$TMP/ops/lib/queue.py"
+
+reset_repo() {
+  rm -rf "$TMP/queue" "$TMP/ops"
+  mkdir -p "$TMP/ops/lib" "$TMP/queue"/{backlog,ready,claimed,review,blocked,done,LOCKS}
+  cp ops/lib/queue.py "$Q"
+}
+
+# $1 = id, $2 = exclusive list body (e.g. "scenic-index"), $3 = state dir
+make_task() {
+  local id="$1" excl="$2" dir="${3:-ready}"
+  { printf -- '---\nid: %s\ntitle: demo\nstate: %s\nowner: agent/alice\nowner_session: null\n' "$id" "$dir"
+    printf -- 'claimed_at: null\nlease_expires_at: null\nworktree: null\nbranch: null\n'
+    printf -- 'exclusive: [%s]\ntouches: [ops/]\npins_affected: []\nreviewer: null\ndepends_on: []\n' "$excl"
+    printf -- 'verify: [ops/test]\nacceptance: []\n---\n## Brief\n\nA real sentence, so the brief guard passes.\n\n## Log\n'
+  } > "$TMP/queue/$dir/$id-demo.md"
+}
+
+say() { printf '%s\n' "$1"; }
+bad() { echo "FAIL: $1"; fail=1; }
+
+# ---------------------------------------------------------------- 1. claim takes the lock
+reset_repo
+make_task T-9101 scenic-index
+"$PY" "$Q" claim T-9101 --owner agent/alice >/dev/null 2>&1
+if [[ -f "$TMP/queue/LOCKS/scenic-index.lock" ]] && grep -q "^T-9101 " "$TMP/queue/LOCKS/scenic-index.lock"; then
+  say "ok: claim takes the lock and names the task"
+else
+  bad "claim did not take the lock"
+fi
+
+# ---------------------------------------------------------------- 2. the hand transition, which is the bug
+# Reproduce exactly what every agent did before this command existed: move the file and edit the fields.
+mv "$TMP/queue/claimed/T-9101-demo.md" "$TMP/queue/review/T-9101-demo.md"
+sed -i 's/^state: claimed$/state: review/; s|^reviewer: null$|reviewer: agent/bob|' "$TMP/queue/review/T-9101-demo.md"
+out="$("$PY" "$Q" check 2>&1)"
+if grep -q "scenic-index.lock held by T-9101" <<<"$out"; then
+  say "ok: a hand git mv leaves the lock and queue-check FAILS - the red run this command exists for"
+  say "    $(grep 'scenic-index.lock' <<<"$out" | head -1 | sed 's/^ *//')"
+else
+  bad "a hand transition did not produce the orphaned-lock failure; premise not reproduced"
+  printf '    %s\n' "$out" | head -3
+fi
+
+# ---------------------------------------------------------------- 3. the command releases it
+reset_repo
+make_task T-9102 scenic-index
+"$PY" "$Q" claim T-9102 --owner agent/alice >/dev/null 2>&1
+"$PY" "$Q" review T-9102 --reviewer agent/bob >/dev/null 2>&1
+if [[ -f "$TMP/queue/LOCKS/scenic-index.lock" ]]; then
+  bad "review did not release the lock"
+elif [[ ! -f "$TMP/queue/review/T-9102-demo.md" ]]; then
+  bad "review did not move the task"
+else
+  out="$("$PY" "$Q" check 2>&1)"
+  if grep -q "^QUEUE OK" <<<"$out"; then
+    say "ok: review releases the lock, moves the task, and queue-check is clean"
+  else
+    bad "queue-check not clean after review: $(head -2 <<<"$out")"
+  fi
+fi
+
+# ---------------------------------------------------------------- 4. a task with no locks still transitions
+reset_repo
+make_task T-9103 ""
+"$PY" "$Q" claim T-9103 --owner agent/alice >/dev/null 2>&1
+if "$PY" "$Q" review T-9103 --reviewer agent/bob >/dev/null 2>&1 \
+   && [[ -f "$TMP/queue/review/T-9103-demo.md" ]]; then
+  say "ok: a task declaring no exclusive resources still moves"
+else
+  bad "review refused a task that holds no locks"
+fi
+
+# ---------------------------------------------------------------- 5. reviewer == owner is refused
+reset_repo
+make_task T-9104 ""
+"$PY" "$Q" claim T-9104 --owner agent/alice >/dev/null 2>&1
+out="$("$PY" "$Q" review T-9104 --reviewer agent/alice 2>&1)"; rc=$?
+if [[ $rc -ne 0 ]] && grep -qi "may not grade its own work" <<<"$out" \
+   && [[ -f "$TMP/queue/claimed/T-9104-demo.md" ]]; then
+  say "ok: reviewer == owner refused, and the task did not move"
+else
+  bad "reviewer == owner was accepted (rc=$rc): $out"
+fi
+
+# ---------------------------------------------------------------- 6. a foreign lock is never taken over
+reset_repo
+make_task T-9105 scenic-index
+"$PY" "$Q" claim T-9105 --owner agent/alice >/dev/null 2>&1
+# Somebody else's lock, under a resource this task also declares.
+printf 'T-9999 agent/carol 2026-01-01T00:00:00Z\n' > "$TMP/queue/LOCKS/scenic-index.lock"
+out="$("$PY" "$Q" review T-9105 --reviewer agent/bob 2>&1)"; rc=$?
+if [[ $rc -ne 0 ]] \
+   && [[ -f "$TMP/queue/LOCKS/scenic-index.lock" ]] \
+   && grep -q "^T-9999 " "$TMP/queue/LOCKS/scenic-index.lock" \
+   && [[ -f "$TMP/queue/claimed/T-9105-demo.md" ]]; then
+  say "ok: a lock held by another task is left alone and the transition refuses"
+else
+  bad "a foreign lock was released or the task moved anyway (rc=$rc): $out"
+fi
+
+# ---------------------------------------------------------------- 7. only ready tasks are claimable; only
+#                                                                     claimed ones reviewable
+reset_repo
+make_task T-9106 "" done
+out="$("$PY" "$Q" review T-9106 --reviewer agent/bob 2>&1)"; rc=$?
+if [[ $rc -ne 0 ]] && grep -q "not claimed/" <<<"$out"; then
+  say "ok: a task already in done/ cannot be handed to review"
+else
+  bad "review accepted a task that was not claimed (rc=$rc): $out"
+fi
+
+if [[ $fail -ne 0 ]]; then
+  echo "LOCK LIFECYCLE FAIL"
+  exit 1
+fi
+echo "LOCK LIFECYCLE OK"

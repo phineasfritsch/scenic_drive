@@ -11,7 +11,7 @@ branch: task/T-0026
 exclusive: []
 touches: [services/etl/]
 pins_affected: []
-reviewer: agent/reviewer-31
+reviewer: agent/rv-t0026
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance: []
@@ -162,136 +162,90 @@ RED: a known-flat fixture (Alviso/Bay margin) must score near 0 gain; a known-st
 
   Not done, deliberately: nothing writes these numbers into the corpus yet. That is T-0030's job, and the
   scoring composition is T-0029's.
+- 2026-09-18T18:14Z REVIEW by agent/rv-t0026, at 11078d3, in a throwaway detached worktree at origin/main,
+  since removed. The owner is agent/claude-opus-5; the reviewer named on this file, agent/reviewer-31, never
+  ran it - the task has sat in queue/review/ for eleven days. This is that review. I changed nothing.
 
-- 2026-09-07T20:15Z agent/reviewer-31, PASS. Attacked the priority list in order, re-deriving against
-  primary sources rather than the owner's own tests wherever that was possible. What was re-derived vs.
-  taken on trust, item by item:
+  **PASS.** Sign-off is warranted. What I ran, what I found, and what I could not run:
 
-  **1. `dem.tile_for` (services/etl/etl/dem.py:38-48).** RE-DERIVED, not trusted. Ran
-  `gdalinfo` inside the pinned `scenic-etl` image on all 8 pinned tiles (n37/n38/n39 x w122/w123/w124).
-  Every tile's Upper-Left corner is (ceil(lat), -ceil(|lon|)) to within a 2" seam buffer, e.g. n38w123's
-  actual extent is lat [36.9994, 38.0006] lon [-123.0006, -121.9994] - confirming ceil-of-lat /
-  ceil-of-abs-lon against the real files, not the owner's assertions about them. Then swept boundary
-  cases programmatically (`tests/fixtures` not involved): exactly on a whole degree, epsilon inside/
-  outside, region edges, the n37w124 ocean gap, NaN, negative latitude, positive longitude, and both
-  sides of the antimeridian. All correct for the region this pipeline actually serves, with one finding:
+  **The brief's RED still holds, eleven days and ~60 merges later.**
+  `cd services/etl && python -m pytest tests/test_terrain.py tests/test_terrain_fixture.py tests/test_dem.py
+  tests/test_dem_tiles.py -q` -> 98 passed, 0 failed, ZERO skipped (37 + 11 + 41 + 9). The whole ETL suite is
+  385 passed, 0 skipped. The log's "37 tests" and "41 tests" still count exactly. Recomputing every fixture
+  way through `tr.summarise` reproduces the committed `recorded_summary` to the digit, and every number in the
+  handoff table with it:
 
-  MEDIUM, not blocking - `dem.tile_for` builds its name as `f"n{ceil(lat)}w{ceil(abs(lon))}"` with no
-  check on the SIGN of lat/lon, only on magnitude. `dem.tile_for(38.0, 122.5)` (122.5°E, e.g. coastal
-  China) returns `'n38w123'` - the Bay Area's own peninsula tile - instead of `None`. That is exactly the
-  "plausible wrong answer" failure class item 1 warns about, just triggered by hemisphere confusion
-  instead of an index off-by-one: a positive longitude would silently draw a real elevation out of the
-  wrong hemisphere's tile rather than failing safe. It is not reachable today - `california-latest.osm.pbf`
-  extracted to the sfbay bbox (`services/etl/regions/sfbay/region.json`, lon -123.62..-121.55) can never
-  hand `tile_for` a positive longitude, and `TILES` (dem.py:25-29) only contains 8 "n..w.." names so no
-  other coincidental collision is possible - so this does not block the task. It is untested (no case in
-  `TestTileForAPoint` exercises sign), and worth a line in a future region-expansion task. Negative
-  latitude fails safe today too, but by accident (`f"n{-37:02d}"` produces a name absent from `TILES`),
-  not by validation.
+      old_la_honda  way 8940690    259 nodes  5109.9 m  418.0 m gain  81.81 m/km  relief 87.9  grade 13.65%
+      skyline       way 239028846  428 nodes  7013.6 m  361.9 m gain  51.61 m/km  relief 62.2  grade 10.47%
+      alviso_flat   way 92357845    13 nodes   221.2 m    0.0 m gain   0.00 m/km  relief  0.2  grade  0.19%
+      alviso_flat2  way 8929268     11 nodes   264.0 m    0.6 m gain   2.08 m/km  relief  1.7  grade  1.02%
 
-  **2. Fixture provenance (`tests/fixtures/terrain_fixture.json`).** RE-DERIVED for all 4 ways, not 1.
-  Pulled every way (8940690, 239028846, 92357845, 8929268) live from `api.openstreetmap.org/api/0.6/way/
-  <id>/full` (network available in this environment) and diffed the ordered node coordinate list against
-  the committed `coords` array: EXACT match, all 4 ways, node-for-node. Then, independently of the
-  owner's own build path, resampled each way's committed geometry with `terrain.resample` and re-sampled
-  elevation through `dem.sample_smoothed` against the real pinned tiles inside the `scenic-etl` container
-  (not a mock runner): the reproduced profile matched the committed `profile` array exactly (post-rounding)
-  for all 4 ways, and feeding that reproduced profile through `terrain.summarise` reproduced the committed
-  `recorded_summary` exactly for all 4. This independently confirms both halves of item 2 - the profile
-  really came from the pinned tiles, and the recorded summary really is what the recorded profile
-  produces - without relying on `TestTheRecordedSummariesStillHold` (tests/test_terrain_fixture.py:88-93),
-  which I also ran and which also passes. Also independently confirmed the USGS `n37w124` URL is a live
-  404 (curl'd it directly), and that the 8 tiles' sha256 in `services/etl/inputs/manifest.yaml` match
-  `sha256sum` on the local 2.28 GB files byte for byte.
+  The eight manifest `bytes:` fields sum to 2,278,440,685 - the log's figure, exactly - and the eight
+  `- name: 3dep-*` entries are the same eight names as `dem.TILES`, with n37w124 in neither.
 
-  **3a. Real mapper geometry (not typed lines).** RE-DERIVED via the same live-OSM fetch above - not just
-  the node-spacing test. Node ids exist in OSM, node order and coordinates match exactly.
+  **Three mutations, each alone, control green before and after, worktree re-hashed clean each time:**
+  1. THRESHOLD MOVED, `NOISE_FLOOR_M 0.5 -> 0.05`: RED on 5 named tests, including the brief's own -
+     `test_terrain_fixture.py::TestTheNamedProperties::test_the_flat_bay_margin_roads_score_near_zero_gain`
+     and `test_terrain.py::TestElevationGain::test_noise_below_the_floor_is_not_climb`.
+  2. WEIGHT CHANGED, `RELIEF_WINDOW_M 1000.0 -> 100000.0`, relief over the whole way: RED on
+     `test_terrain.py::TestRelief::test_a_long_steady_climb_is_not_more_dramatic_than_a_short_one`. This is
+     the mutation the 18:40Z entry says caught NOTHING until both profiles were made to climb the same 600 m.
+     I re-ran it rather than take the repair on trust. The repair holds.
+  3. GATE INVERTED, `tile_for` ceil -> floor: RED on 17 named tests across the four files. The log claimed 12;
+     the suite has grown since.
+  No survivors, no equivalent mutants.
 
-  **3b. `is_flat` threshold never tuned.** RE-DERIVED via `git log --oneline -- services/etl/etl/
-  terrain.py`: exactly one commit (c9d0db6) has ever touched that file, and it is the commit that
-  introduced `gain_per_km_threshold: float = 5.0` (terrain.py:177). No later commit touches the file, so
-  the constant cannot have been moved after the Alviso-at-5.64 scare the log describes. Confirmed true.
+  **Product invariants:** correctly not applicable. `grep -niE "motorway|trunk|unpaved|private|track|exclude"`
+  over both modules returns ONE line, and it is prose about an ocean tile. Nothing in T-0026 can exclude a way,
+  so motorway-scores-0-but-is-never-excluded is untouched, and no hard gate is widened. Absence is never zero
+  anywhere in the path - `tile_for`, `parse_values`, `sample_smoothed`, `coverage` and `relief` all keep None
+  as None, which is the right call and is tested directly.
 
-  **4. `sample_smoothed` row volume.** RE-DERIVED, not assumed. Built a synthetic 4000-point way (all
-  inside one tile) and ran it through the real `dem.sample()` and `dem.sample_smoothed()` (36,000 stdin
-  lines for the smoothed call) inside the container: both returned in under a second with exactly the
-  expected count, no truncation - `subprocess.run(input=...)` uses `communicate()` internally so this
-  never hits an ARG_MAX-style ceiling, only ordinary pipe throughput. Then constructed an actual truncated
-  read (a runner that halves `gdallocationinfo`'s stdout before returning it) and confirmed
-  `parse_values`'s count-mismatch guard (dem.py:86-87) really raises `ValueError` on it, rather than
-  assuming the guard fires because the code looks like it should.
+  **What I could NOT run, rather than claiming it.** `acceptance: []` is EMPTY, so there were no acceptance
+  lines to replay; I re-derived the log's numbers instead. Nothing that touches a raster: the 2.28 GB of tiles
+  are not on this box and `gdallocationinfo` is WSL-container-only, so `sample_tile`, `sample` and
+  `sample_smoothed` ran only against injected fake runners, and the sha256 pins, the eight HTTP 200s and
+  n37w124's 404 are unverified here. I did NOT run `ops/test`. `ops/check-pins --source-only` prints
+  `PINS ok=8 skipped=11 pending=1 expired=0 failed=0`; no pin covers terrain, matching `pins_affected: []`.
+  `ops/sane` prints `SANE FAIL exit=10` entirely from worktree hygiene - T-0104 and T-0154 unpushed, plus my
+  own mutation in flight when the gate ran - and nothing of T-0026's.
 
-  **5. Constants.** `SAMPLE_STEP_M=25.0` and `RELIEF_WINDOW_M=1000.0` are not the
-  owner's judgment at all - they are lifted straight from the brief's own spec, not fitted to anything.
-  `NOISE_FLOOR_M=0.5` and `is_flat`'s `5.0` m/km both predate the mapper-geometry fixture fix (single
-  commit, confirmed in 3b) and were never adjusted afterward, so neither is fitted post-hoc to make the
-  fixture pass - and with real geometry the two fixture classes land 16-40x apart (`gain_per_km`
-  2.08/81.81/51.61 vs. the 5.0 boundary), comfortable margin rather than a threshold balanced on the
-  fixture. The one I would argue with is `NOISE_FLOOR_M`: dem.py's own docstring cites "~1 m RMSE in open
-  terrain" for raw 3DEP noise, and 0.5 m is exactly half of that with no stated justification tying it to
-  the *smoothed* (3x3-averaged) noise floor specifically, which is what it is actually applied to via
-  `elevation_gain`'s default. It happens to work on both real fixtures here, but the number's derivation
-  is asserted, not shown. `sanity_problems`' 60% grade ceiling (terrain.py:200) is a domain constant with
-  real headroom above both drivable-road reality and the fixtures (13.65%/10.47%), not fixture-fitted.
+  **Findings, all recordable, none blocking:**
+  - `summarise(coords, profile)` never checks `len(profile)` against `len(resample(coords))`. It takes length
+    from the GEOMETRY and gain from the PROFILE and divides. Truncating old_la_honda's 208-value profile to 50
+    returns `gain_per_km 18.39, coverage 1.0` - no exception, no sanity problem, and coverage says 1.0 because
+    it only ever sees the profile it was handed, never the geometry it was meant to cover. A three-quarters
+    truncated read reports FULL coverage and a plausible road. `parse_values` guards the GDAL read, which is
+    the guard the handoff pointed me at; THIS seam is the unguarded one, and it is the seam T-0030 builds on.
+  - `test_dem.py::test_the_tile_set_matches_what_the_manifest_pins` NEVER OPENS manifest.yaml. Its body is
+    `len(dem.TILES) == 8` and `"n37w124" not in dem.TILES` - the code against itself, under a name claiming an
+    external oracle. The correspondence does hold; I compared both lists and they are identical. Nothing
+    guards it.
+  - `dem.neighbourhood` is not a 3x3 CELL neighbourhood, whatever its docstring and the brief say.
+    `dlon = CELL_DEG/cos(lat)` is 1.269 cells at 38N, so east/west samples land 1 OR 2 cells out depending on
+    where the point falls inside its cell: ~54% of points get a symmetric +/-1 row, ~46% an asymmetric -1/+2
+    or -2/+1 that skips the adjacent cell on one side. Square-on-the-ground is a real argument and
+    `test_the_box_is_square_on_the_ground_not_square_in_degrees` locks it in deliberately - but the kernel is
+    not 3x3, and the per-point asymmetry is a sub-cell bias nobody has argued for. North-south is exact.
+  - No committed recorder for `terrain_fixture.json`. This entry asks its reviewer to "confirm the profile
+    really came from the pinned tiles by resampling a way yourself in the image"; there is no script in the
+    tree that does it, here or in the container. The GEOMETRY half IS independently guarded - the <120 m node
+    spacing assertion is a good guard against the hand-typed-polyline failure this log documents so well. The
+    ELEVATION half rests on the fixture's own `dem_source` string.
+  - `relief` and `grade_percent` window over the NODATA-FILTERED list, so a gap compresses the window on the
+    ground: a "1 km" relief window spans more than 1 km of road where cells are missing, and grade's 100 m run
+    is understated so the grade is overstated. Invisible here because all four fixtures are coverage 1.0.
+    `elevation_gain` documents its bridging; these two silently do something else with the same gaps.
+  - test_terrain_fixture.py line 14 says the roads "score 14.6% and 8.3%". The fixture produces 13.65% and
+    10.47%. Prose, nothing anchored on it, but wrong.
+  - The stdin worry from the handoff, answered rather than assumed: 3000 points -> 27,000 rows, 828,690 bytes,
+    ONE subprocess call. It goes down stdin, not argv, so no argument limit applies.
+  - Neither module has a production caller; `smooth3x3` still has none. Deliberate per the handoff, tracked by
+    T-0052. Recorded so this PASS is not read as "this code runs".
 
-  **6. Smoothing coverage.** Confirmed `dem.sample_smoothed` is what actually built the committed fixture
-  (re-derivation in item 2 used it, not the owner's word). Additionally constructed a point whose 3x3
-  neighbourhood straddles the n38w123/n39w123 boundary (`dem.neighbourhood` + `dem.tile_for` on a synthetic
-  point at lat=38.00002) and confirmed `sample_smoothed` correctly drew from both real tile files and
-  returned a sane blended value (175.5 m smoothed vs. 176.1 m raw) rather than silently using only one
-  tile or crashing - the item-1/item-6 interaction is exercised, not just each in isolation. One
-  observation, not a defect in what's shipped: `terrain.smooth3x3` (terrain.py:33-56) has zero callers
-  outside its own tests anywhere in the tree (`grep -rn smooth3x3` outside tests/ only finds it defined
-  and mentioned in `dem.sample_smoothed`'s docstring) - `dem.sample_smoothed` reimplements equivalent
-  averaging for scattered points rather than calling it, which the docstring explains is because a grid
-  op and a point-cloud op are genuinely different code. Also: `dem.sample()` (unsmoothed) remains public
-  with the same signature as `sample_smoothed`, and nothing structurally stops a future integration
-  (T-0030, not yet written) from calling the wrong one and reintroducing the exact Alviso phantom-gain bug
-  this task already found and fixed once (commit e0166e7). Worth a note for T-0030's own review, not a
-  reason to fail this one - there is no caller of either function outside tests yet (`grep` confirms), so
-  nothing in this diff currently exercises the gap.
+  The two things this task got right are worth naming, because they are the reason it passes: it threw away
+  its own fixtures when the 44% grade showed the geometry was wrong rather than tuning the threshold to fit
+  them, and it re-derived the tile list against the bbox instead of against the URLs it had already checked.
+  Both are the failure this repository exists to catch, caught by the owner on himself.
 
-  **Also found, unprompted:** `tests/test_terrain_fixture.py:14`'s module docstring still reads "the same
-  roads score 14.6% and 8.3%" - those are the PRE-smoothing numbers from commit 68c193d. Commit e0166e7
-  ("actually apply the 3x3 smoothing") re-recorded the fixture to 13.65%/10.47% (confirmed live in the
-  committed JSON and reproduced independently above) but never touched the docstring 8 lines above the
-  import. LOW - nothing asserts the stale string, but it actively misleads a reader about what the
-  committed fixture demonstrates.
-
-  **Verification commands, exact output** (fresh `npm ci` in this worktree's `services/api/` first):
-
-      $ cd services/etl && python -m pytest -q tests/
-      (ran via `docker run --rm -v "$PWD:/w" -w /w/services/etl scenic-etl python3 -m pytest tests/`
-       since this box's own python3 has no pytest installed)
-      232 passed, 1 skipped in 4.11s
-      (the 1 skip is tests/test_manifest.py:47, "git is not installed here" inside the container -
-       environmental, unrelated to this diff, pre-existing)
-
-      $ bash ops/test
-      TESTS linux=283/76 ios=skipped failed=0 skipped=0
-      OK
-
-      $ bash ops/check-pins
-      PINS ok=10 skipped=0 pending=3 expired=0 failed=0 tier=linux
-
-      $ bash ops/check-pins --source-only
-      PINS ok=3 skipped=9 pending=1 expired=0 failed=0 tier=linux source-only
-
-      $ bash ops/queue-check
-      QUEUE OK (50 tasks)
-
-      $ bash ops/sane
-      SANE OK
-
-  All green, exit 0 on every command. GitHub Actions on PR #32 is red only because of the account's
-  billing block ("recent account payments have failed"), not this diff - not treated as this diff's
-  problem, per instruction.
-
-  **Verdict: PASS.** The tile arithmetic is correct for every case this pipeline can actually produce,
-  verified against real tile files rather than the owner's tests. The fixture's provenance is genuine on
-  both axes (OSM geometry and 3DEP elevation), independently reproduced end to end for all 4 ways, not
-  spot-checked on one. Both claimed corrections check out against git history. The 9x row volume has no
-  practical ceiling and its truncation guard actually fires. No constant looks filed down to fit these
-  fixtures. Findings above (hemisphere-blind `tile_for`, stale docstring, no structural guard against a
-  future unsmoothed call) are real but none touch code this task's own claims depend on, and none are
-  reachable by anything this diff wires up today.
+  Signed agent/rv-t0026. Not the owner; nothing in the repository was changed by this review.

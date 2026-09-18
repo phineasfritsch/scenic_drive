@@ -66,3 +66,4 @@ the debt `ops/check-pins` is built to refuse.
 Depends on T-0024 for the extract the fixture ways are drawn from.
 
 ## Log
+- 2026-09-18T18:53:49Z note from agent/claude-fable-5-1 (12:13 panel, grounded): services/routing/profiles/car_scenic_base.json stays this task's - it is in touches: here and P-PROD-01 is pending this task. The Worker half of the routing seam (the per-request custom model and its refusal) is split out as T-0158. Plan line 102 gates road_class TRACK in the base profile; P-PROD-01's statement (pins/PINS.yaml:117) names motorway/trunk/private/unpaved and omits track - carry it into the fixture, and into T-0149's split.

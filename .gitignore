@@ -1,10 +1,22 @@
 # Swift / SPM
 .build/
+# CLAUDE.md requires every `swift build/test` on this shared box to pass its own --scratch-path, so the
+# scratch directories are named `.build-<something>` and there are as many as there are agents and
+# harnesses. `.build/` alone left them untracked-but-visible: three reviews of PR #73 in a row reported
+# `.build-mutate-routescore/` (the mutation harness's own scratch path, created by running the acceptance
+# line) and `.build-rvw2/` in git status.
+.build-*/
 .swiftpm/
 *.xcuserstate
 xcuserdata/
 DerivedData/
 .artifacts/
+
+# Task worktrees. `git worktree add .worktrees/T-0007 -b task/T-0007` puts every task's checkout
+# inside the repo instead of a sibling directory nothing here references. Ignored so that ~70
+# checkouts never appear as untracked files, never reach `git add -A`, and never nest: a worktree
+# does not populate an ignored path, so .worktrees/ stays empty inside each worktree.
+.worktrees/
 
 # Apple package + app
 apps/ios/Packages/ScenicApp/.build/
@@ -37,3 +49,4 @@ corpus*.sqlite
 *.p8
 *.p12
 .netrc
+.build-*/

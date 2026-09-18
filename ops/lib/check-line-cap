@@ -11,23 +11,65 @@
 #
 # `git ls-files` is used instead of `find` so untracked build junk is never counted and the check matches what
 # is actually committed.
+#
+# T-0037: the globs were `Sources/**` and `Tests/**` only, so every Swift file under `apps/ios/` - the whole
+# Apple package and the app shell - was silently exempt from the cap the moment T-0141 created them. A pin that
+# covers part of the tree while its message says "no file exceeds 300 lines" is worse than no pin. `apps/ios/**`
+# joins the population, and the message names each root and its count so a shrinking root is visible rather
+# than absorbed into one total.
+#
+# Known residual hole, stated rather than hidden: git's `<root>/**/*.swift` pathspec needs at least one
+# directory component after <root>, so a .swift file placed directly at `Sources/X.swift`, `Tests/X.swift` or
+# `apps/ios/X.swift` is still not counted. Whether any exist today is a measurement, not a constant, and the
+# count belongs in the run output rather than in this comment: compare `git ls-files '**/*.swift' | wc -l`
+# with the total this script prints, and layout convention - not this check - is what keeps them equal.
+#
+# T-0141 round 1 review: MIN_FILES alone cannot see a root go to zero, because the other roots keep the total
+# above the floor - `git rm --cached` every apps/ios .swift left "apps/ios=0" green at exit 0, which is the
+# T-0037 condition again one rename away. Each glob now has to match at least one tracked file, and the
+# refusal names the empty root. MIN_FILES stays: it catches the whole population collapsing at once.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 MIN_FILES=5
 
-mapfile -t files < <(git ls-files 'Sources/**/*.swift' 'Tests/**/*.swift')
+ROOTS=('Sources/**/*.swift' 'Tests/**/*.swift' 'apps/ios/**/*.swift')
+
+mapfile -t files < <(git ls-files "${ROOTS[@]}")
 n="${#files[@]}"
 
+population=""
+empty_roots=()
+for glob in "${ROOTS[@]}"; do
+  root="${glob%%/\*\**}"
+  c="$(git ls-files "$glob" | grep -c . || true)"
+  population="${population}${population:+, }${root}=${c}"
+  if [[ "$c" -eq 0 ]]; then
+    empty_roots+=("$root")
+  fi
+done
+
+if [[ ${#empty_roots[@]} -gt 0 ]]; then
+  echo "P-SRC-02: root(s) matching no tracked .swift file: ${empty_roots[*]}"
+  echo "  Population: $population (total $n)."
+  echo "  A root that has gone to zero - renamed, moved, or never matched - is exempt from the cap"
+  echo "  while the other roots keep the total above MIN_FILES=$MIN_FILES. That is the T-0037 condition."
+  exit 1
+fi
+
 if [[ "$n" -lt "$MIN_FILES" ]]; then
-  echo "P-SRC-02: only $n tracked .swift file(s) under Sources/ and Tests/ (expected >= $MIN_FILES)."
+  echo "P-SRC-02: only $n tracked .swift file(s) ($population) (expected >= $MIN_FILES)."
   echo "  An empty or truncated set must never read as 'no file exceeds 300 lines'."
   exit 1
 fi
 
 bad=()
 for f in "${files[@]}"; do
-  lines="$(wc -l < "$f" | tr -d '[:space:]')"
+  # `wc -l` counts newlines, not lines: a file whose final line has no trailing newline is
+  # undercounted by one, so a genuine 301-line file reads as 300 and slips past the cap.
+  # `awk 'END{print NR}'` counts the last unterminated line too, matching what an editor or
+  # compiler calls the line count.
+  lines="$(awk 'END{print NR}' "$f" | tr -d '[:space:]')"
   if [[ "$lines" -gt 300 ]]; then
     bad+=("$f ($lines lines)")
   fi
@@ -39,4 +81,4 @@ if [[ ${#bad[@]} -gt 0 ]]; then
   exit 1
 fi
 
-echo "P-SRC-02: $n Swift files tracked, none over 300 lines"
+echo "P-SRC-02: $n Swift files tracked ($population), none over 300 lines"

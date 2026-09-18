@@ -1,0 +1,222 @@
+import Foundation
+import Testing
+@testable import ScenicKit
+
+/// Validation is the half of `SegmentScore` that produces **nil**, and it was the half that was barely pinned.
+///
+/// `SegmentTerms.unitTerms` exists so that a term added later cannot quietly escape the `0...1` check, and the
+/// suite next door probed four of the ten terms - so seven of them could be deleted from that list with
+/// nothing objecting, and the one mutation written against the list removed `water`, one of the four that
+/// happened to be probed. The same shape covered the two non-unit inputs: the whole
+/// `metersToNearestMotorway` guard could be deleted, and `tunnelMeters.isFinite` dropped, in silence.
+///
+/// Two rules for everything here:
+///
+/// * the term list below is **transcribed by hand**, never derived from `SegmentTerms.unitTerms`. Reading the
+///   list under test to decide what to test with makes the test agree with any list, an empty one included.
+/// * the boundary probes are `1.0.nextUp` and `0.0.nextDown` - the nearest representable Doubles outside the
+///   window, a fact about IEEE 754 and not about this code. A probe computed from the window it is testing
+///   cancels against it and holds for every window.
+@Suite("Segment score validation")
+struct SegmentScoreValidationTests {
+
+    /// Every `0...1` term, written out independently of `SegmentTerms.unitTerms`, which is the list on trial.
+    ///
+    /// Computed rather than stored because `WritableKeyPath` is not `Sendable`, and a stored static would be
+    /// shared mutable state under Swift 6 concurrency checking.
+    static var unitTermPaths: [(name: String, path: WritableKeyPath<SegmentTerms, Double>)] {
+        [("curvature", \.curvature), ("elevationGain", \.elevationGain), ("speedFit", \.speedFit),
+         ("sinuosity", \.sinuosity), ("canopy", \.canopy), ("relief", \.relief),
+         ("impervious", \.impervious), ("pointsOfInterest", \.pointsOfInterest),
+         ("water", \.water), ("furniture", \.furniture)]
+    }
+
+    /// Deliberately a local copy of the neighbouring suite's fixture builder rather than a call into it.
+    /// `--prove-vacuity` empties every test file at once, so sharing would cost nothing there - but the way
+    /// to check that this suite really is in the harness's TEST_FILES is to empty the OTHER file alone and
+    /// watch this one go on catching mutations. A cross-file helper turns that measurement into a build
+    /// error, which proves nothing about the vacuity arm.
+    static func split(drive m: Double, scenery e: Double, highway: String = "tertiary") -> SegmentTerms {
+        SegmentTerms(curvature: m, elevationGain: m, speedFit: m, sinuosity: m,
+                     canopy: e, relief: e, impervious: 1 - e, pointsOfInterest: e, water: e,
+                     furniture: 1 - e, highway: highway)
+    }
+
+    static func flat(_ v: Double) -> SegmentTerms { split(drive: v, scenery: v) }
+
+    @Test("every one of the ten unit terms is refused out of range, not just the four with a fixture")
+    func everyUnitTermIsValidated() {
+        #expect(Self.unitTermPaths.count == 10,
+                "a term added to SegmentTerms needs a line here as well as in unitTerms")
+
+        // Each probe is chosen so the score would be a finite, plausible number if the term escaped
+        // validation - the failure this file exists to make visible is a wrong answer, not a crash.
+        for (name, path) in Self.unitTermPaths {
+            for bad in [1.5, -0.1, Double.nan, .infinity, -.infinity] {
+                var t = Self.flat(0.5)
+                t[keyPath: path] = bad
+                #expect(SegmentScore.score(for: t) == nil, "\(name) = \(bad) must be refused, not scored")
+            }
+        }
+    }
+
+    @Test("the 0...1 window is pinned on both edges, at the last representable step either side")
+    func validationWindowIsExactlyZeroToOne() {
+        // The suite next door probes 1.5 and -0.1, which are so far outside that the window could be widened
+        // to 0...1.25 - accepting a curvature of 1.2 - with every test still green. These probes are one
+        // Double away from the edge, so the window cannot move at all in either direction.
+        for (name, path) in Self.unitTermPaths {
+            var top = Self.flat(0.5)
+            top[keyPath: path] = 1.0
+            #expect(SegmentScore.score(for: top) != nil, "\(name) = 1.0 is inside the window")
+
+            var overTop = Self.flat(0.5)
+            overTop[keyPath: path] = (1.0).nextUp
+            #expect(SegmentScore.score(for: overTop) == nil, "\(name) = \((1.0).nextUp) is outside it")
+
+            var bottom = Self.flat(0.5)
+            bottom[keyPath: path] = 0.0
+            #expect(SegmentScore.score(for: bottom) != nil, "\(name) = 0.0 is inside the window")
+
+            var underBottom = Self.flat(0.5)
+            underBottom[keyPath: path] = (0.0).nextDown
+            #expect(SegmentScore.score(for: underBottom) == nil, "\(name) = \((0.0).nextDown) is outside it")
+        }
+    }
+
+    @Test("tunnel length is validated by its own rule: finite and not negative, with no upper bound")
+    func tunnelLengthIsValidated() throws {
+        // `(0.0).nextDown` is the same IEEE 754 fact `validationWindowIsExactlyZeroToOne` uses, applied to
+        // the OTHER kind of threshold in this file. -1.0 alone leaves a whole unit of slack below the floor:
+        // measured, `t.tunnelMeters >= 0` could become `> -1` - accepting a broken ETL measurement of -0.5
+        // and scoring it - with every test green, while this test's name says "not negative". The floor is a
+        // threshold like 300 and 150 are. A sentence here used to add "and those two were pinned on both
+        // sides from the start" - STRUCK IN ROUND 4, where it was measured false: 300 and 150 were probed at
+        // 301 and 149, the nearest INTEGERS, so `300.0 -> 300.5` and `150.0 -> 149.5` both survived all 39
+        // tests. `SegmentScoreThresholdTests` pins those two at the last representable Double now, which is
+        // what this comment already claimed of them.
+        for bad in [-1.0, (0.0).nextDown, Double.nan, .infinity, -.infinity] {
+            var t = Self.flat(0.5)
+            t.tunnelMeters = bad
+            #expect(SegmentScore.score(for: t) == nil, "tunnelMeters = \(bad) must be refused")
+        }
+
+        // The inside of the same edge: 0 is a legal tunnel length and the commonest one there is.
+        var none = Self.flat(0.5)
+        none.tunnelMeters = 0
+        #expect(abs(try #require(SegmentScore.score(for: none)) - 0.5) < 1e-12)
+
+        // A very long tunnel is a real road and must be PENALISED rather than refused - otherwise the
+        // isFinite guard could be "fixed" into an upper bound and lose every alpine route.
+        var long = Self.flat(0.5)
+        long.tunnelMeters = 10_000
+        #expect(abs(try #require(SegmentScore.score(for: long)) - 0.5 * 0.15) < 1e-12)
+    }
+
+    @Test("motorway distance is validated by a different rule: infinity is legal and means no motorway near")
+    func motorwayDistanceIsValidated() throws {
+        // `(0.0).nextDown` for the same reason as the tunnel floor above: with -1.0 as the only probe below
+        // zero, `>= 0` could become `> -1` unnoticed, and a distance of -0.5 would then silently take the
+        // x0.7 penalty - which is exactly the wrong answer this guard exists to refuse.
+        for bad in [-1.0, (0.0).nextDown, -.infinity, Double.nan] {
+            var t = Self.flat(0.5)
+            t.metersToNearestMotorway = bad
+            #expect(SegmentScore.score(for: t) == nil, "metersToNearestMotorway = \(bad) must be refused")
+        }
+
+        // The two guards differ on purpose and the difference is load-bearing: `.infinity` is this field's
+        // DEFAULT and means "no motorway anywhere near", while an infinite tunnel is a broken measurement.
+        // A negative distance would otherwise apply the x0.7 penalty and a NaN would silently skip it.
+        var none = Self.flat(0.5)
+        none.metersToNearestMotorway = .infinity
+        #expect(abs(try #require(SegmentScore.score(for: none)) - 0.5) < 1e-12)
+
+        var near = Self.flat(0.5)
+        near.metersToNearestMotorway = 0
+        #expect(abs(try #require(SegmentScore.score(for: near)) - 0.5 * 0.7) < 1e-12)
+    }
+
+    @Test("the default motorway distance is infinity, which is what makes the guard's asymmetry mean anything")
+    func defaultMotorwayDistanceIsInfinite() {
+        // The test above turns on `.infinity` being this field's DEFAULT and meaning "no motorway anywhere
+        // near" - and nothing asserted the default itself. Measured at `e2b77f5`: the initialiser could
+        // declare `metersToNearestMotorway: Double = 1000` with all 39 tests green, because 1000 is outside
+        // the 150 m window and no fixture that relies on the default would score differently. Every way the
+        // ETL builds without an explicit distance would then claim a motorway exactly 1 km away, and the
+        // reason the tunnel guard refuses infinity while this one accepts it would be a fiction.
+        #expect(SegmentTerms().metersToNearestMotorway == .infinity)
+        // Asserted as a property of the value and not only as a literal: no finite distance can be the
+        // default, however large, because the rule this field feeds is a comparison against 150.
+        #expect(SegmentTerms().metersToNearestMotorway.isInfinite)
+        #expect(!SegmentTerms().metersToNearestMotorway.isFinite)
+    }
+
+    @Test("a motorway with an out-of-range term is refused, not scored zero")
+    func dullClassesDoNotJumpTheValidation() {
+        // The dull-class shortcut returns 0 AFTER the validation block, and the ORDER is load-bearing: moved
+        // above it, a motorway carrying a broken ETL term would score a confident 0 instead of saying nil,
+        // and the bad measurement would never surface - the one outcome the doc comment on `score(for:)`
+        // says the nil return exists to prevent. Measured: that reordering passed every other test, because
+        // no other fixture puts a dull class and an illegal term in the same way.
+        for highway in ["motorway", "motorway_link", "trunk", "trunk_link"] {
+            var overRange = Self.flat(0.5)
+            overRange.highway = highway
+            overRange.curvature = 1.5
+            #expect(SegmentScore.score(for: overRange) == nil, "\(highway) with curvature 1.5 is refused")
+
+            var negativeTunnel = Self.flat(0.5)
+            negativeTunnel.highway = highway
+            negativeTunnel.tunnelMeters = -1
+            #expect(SegmentScore.score(for: negativeTunnel) == nil, "\(highway) with tunnel -1 is refused")
+
+            // And with legal terms the same class still scores 0 rather than nil, so this test cannot pass
+            // by the class being refused outright - which would break the freeway-shoulders invariant.
+            var legal = Self.flat(0.5)
+            legal.highway = highway
+            #expect(SegmentScore.score(for: legal) == 0, "\(highway) with legal terms still scores 0")
+        }
+    }
+
+    @Test("a score that is returned at all lands in 0...1, across every combination that can move it")
+    func scoreAlwaysLandsInZeroToOne() throws {
+        // The brief asks for "output always in 0...1" and nothing asserted it in general: the top was pinned
+        // at a single point by the byway cap and the bottom at a single point by a zero axis, and a range
+        // claim is about every point. The 0 and the 1 here are the invariant itself, written as literals -
+        // not read back from anything the formula computes, which would hold for any range.
+        let levels = [0.0, 0.001, 0.25, 0.5, 0.75, 0.999, 1.0]
+        let tunnels = [0.0, 300.0, 301.0, 10_000.0]
+        let distances = [0.0, 149.0, 150.0, Double.infinity]
+        let classes = ["tertiary", "residential", "unclassified", "motorway", "trunk_link", "secondary"]
+        // Written out rather than `BywayTier.allCases`, for the same reason the other four lists are: the
+        // count below has to be a literal that an emptied list cannot satisfy. This expectation is what
+        // keeps the literal list honest when a tier is added.
+        let tiers: [BywayTier] = [.none, .eligible, .designated]
+        #expect(tiers.count == BywayTier.allCases.count, "a byway tier was added and this grid never saw it")
+        var walked = 0
+        for m in levels {
+            for e in levels {
+                for byway in tiers {
+                    for tunnel in tunnels {
+                        for distance in distances {
+                            for highway in classes {
+                                var t = Self.split(drive: m, scenery: e, highway: highway)
+                                t.bywayTier = byway
+                                t.tunnelMeters = tunnel
+                                t.metersToNearestMotorway = distance
+                                let at = "m=\(m) e=\(e) byway=\(byway) tunnel=\(tunnel)"
+                                    + " motorway=\(distance) highway=\(highway)"
+                                let score = try #require(SegmentScore.score(for: t),
+                                                         "every input in this grid is legal: \(at)")
+                                #expect(score >= 0 && score <= 1, "\(at) scored \(score)")
+                                walked += 1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Without this the loops could be emptied - by a fixture list going to [] - and the test would pass
+        // having asserted nothing. The count is the product of the literal list lengths above.
+        #expect(walked == 7 * 7 * 3 * 4 * 4 * 6, "the grid must actually have been walked; walked \(walked)")
+    }
+}
