@@ -23,6 +23,12 @@ RAW_TERMS = {"curvature": 640.0, "elevation_gain": 300.0, "relief": 180.0, "sinu
              "furniture": 0.1}
 MAPPED = {"canopy": 0.5, "impervious": 0.25, "water": 0.1, "speed_fit": 0.6}
 RANKS = {"curvature": 0.8, "elevation_gain": 0.6, "relief": 0.4, "sinuosity": 0.5, "furniture": 0.2}
+# One value per term and no two alike, none of them 0.5 and none of them near its own complement: the seam
+# is a comprehension over two tuples, so two terms holding the same number would hide a swap between them,
+# and 0.5 would hide an inversion. Typed out here and asserted as literals below.
+SEAM_RANKS = {"curvature": 0.11, "elevation_gain": 0.22, "relief": 0.33, "sinuosity": 0.44,
+              "furniture": 0.55}
+SEAM_MAPPED = {"canopy": 0.61, "impervious": 0.72, "water": 0.83, "speed_fit": 0.94}
 
 
 def raw(**kw) -> wr.WayRecord:
@@ -51,6 +57,39 @@ class TestTheSeam:
     def test_score_kwargs_is_exactly_scores_keywords(self):
         record = raw().with_ranks(RANKS)
         assert set(record.score_kwargs()) == set(inspect.signature(score.score).parameters)
+
+    def test_every_term_arrives_at_the_scorer_under_its_own_name_with_its_own_value(self):
+        """THE SEAM ITSELF, VALUE BY VALUE. `score_kwargs()` is the one function this module exists to
+        provide, and until this test existed only `points_of_interest` was compared to anything: the
+        review of PR #93 inverted `impervious` here and traded `canopy` for `water` here, and the whole
+        repository stayed green (mutants RV-M5 and RV-M6). The names come from
+        `inspect.signature(score.score)` so a keyword renamed in score.py fails here rather than silently
+        losing a term; the values are LITERALS, because the only way to see a term arrive inverted,
+        swapped or dropped is to have typed out what it should be. `impervious` and `furniture` are
+        deliberately passed through UNINVERTED - score.py:89 and :92 enter them as `(1 - x)`, and two
+        inversions would cancel."""
+        record = wr.WayRecord(way_id=700000123, highway="tertiary", surface="gravel", byway_status="OD",
+                              tunnel_meters=301.5, meters_to_nearest_motorway=149.5,
+                              points_of_interest=0.37, terms_state=wr.NORMALISED,
+                              **SEAM_RANKS, **SEAM_MAPPED)
+        kwargs = record.score_kwargs()
+        assert set(kwargs) == set(inspect.signature(score.score).parameters)
+        assert kwargs == {"curvature": 0.11, "elevation_gain": 0.22, "relief": 0.33, "sinuosity": 0.44,
+                          "furniture": 0.55, "canopy": 0.61, "impervious": 0.72, "water": 0.83,
+                          "speed_fit": 0.94, "points_of_interest": 0.37, "highway": "tertiary",
+                          "surface": "gravel", "byway_status": "OD", "tunnel_meters": 301.5,
+                          "meters_to_nearest_motorway": 149.5}
+
+    def test_what_a_record_does_not_carry_arrives_as_the_absence_it_is(self):
+        """The other branch of the same function, also as literals: no byway, no surface tag, no tunnel,
+        no motorway anywhere near, and a `points_of_interest` T-0164 has not produced."""
+        record = wr.WayRecord(way_id=700000124, highway="service", terms_state=wr.NORMALISED,
+                              **SEAM_RANKS, **SEAM_MAPPED)
+        kwargs = record.score_kwargs()
+        assert kwargs["points_of_interest"] == 0.0 and record.flags() == (wr.POI_ABSENT_FLAG,)
+        assert kwargs["surface"] is None and kwargs["byway_status"] is None
+        assert kwargs["tunnel_meters"] == 0.0 and kwargs["meters_to_nearest_motorway"] == math.inf
+        assert kwargs["highway"] == "service"
 
     def test_a_normalised_record_scores_without_a_refusal(self):
         value = score.score(**raw().with_ranks(RANKS).score_kwargs())
@@ -110,6 +149,13 @@ class TestTheValidatorNamesTheField:
     def test_a_surface_that_is_not_a_string_is_refused_by_name(self):
         assert any(p.startswith("surface=") for p in raw(surface=3).problems())
 
+    def test_a_declined_flag_that_is_not_a_bool_is_refused_by_name(self):
+        """A truthy 1 or "yes" out of a mapping would take the way off the sinuosity curve silently."""
+        for bad in (1, "yes", None):
+            problems = raw(sinuosity_declined=bad).problems()
+            assert any(p.startswith("sinuosity_declined=") for p in problems), (bad, problems)
+        assert raw(sinuosity_declined=True).problems() == []
+
     def test_an_unknown_terms_state_is_refused_by_name(self):
         assert any(p.startswith("terms_state=") for p in raw(terms_state="ranked").problems())
 
@@ -142,6 +188,18 @@ class TestTheStatesRefuseEachOther:
         with pytest.raises(ValueError) as caught:
             raw().score_kwargs()
         assert "700000001" in str(caught.value) and wr.RAW in str(caught.value), caught.value
+
+    def test_the_excluded_rank_is_a_value_the_scorer_cannot_refuse(self):
+        """Recordable R-4 from PR #93's review, taken. Both checks on `EXCLUDED_RANK` compare against the
+        constant itself, so its VALUE could drift with no test moving - and the reviewer proved the value
+        is equivalent w.r.t. the score. What is not equivalent, and what this pins by name, is that it is
+        INSIDE 0..1: score.py:131 refuses an out-of-range term BEFORE the zero-class branch at :139, so a
+        constant outside the range makes a motorway score None instead of 0.0, and the corpus carries
+        unknown for the one class plan:83 and CLAUDE.md are most explicit about."""
+        assert 0.0 <= wr.EXCLUDED_RANK <= 1.0, wr.EXCLUDED_RANK
+        record = raw(highway="motorway").excluded_from_population()
+        assert record.problems() == [], record.problems()
+        assert score.score(**record.score_kwargs()) == 0.0
 
     def test_the_raw_terms_score_none_if_they_reach_the_scorer_anyway(self):
         """Why the refusal above is worth having, demonstrated rather than asserted about."""

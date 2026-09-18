@@ -27,6 +27,14 @@ WHY THE INVERSIONS ARE NOT HERE. `score.scenery_mean` enters `impervious` and `f
 (score.py:89, :92). This record carries the term the way its producer states it - a furniture RATE, ranked -
 because two inversions cancel and no single-module test would ever see it.
 
+A WAY THAT DECLINED TO ANSWER IS NOT ON THE CURVE. `sinuosity_declined` is set by the assembler when the
+producer could not measure the term rather than measured a low one: T-0161's `way_sinuosity` returns its
+floor for a CLOSED way, where the straight-line distance is zero and the ratio is not a number. A floor
+is not a measurement, and thousands of roundabouts and cul-de-sacs sitting in the ranking population at one
+repeated value would move every other way's sinuosity rank. `normalise.normalise_region` therefore leaves
+such ways out of the sinuosity population and hands them `DECLINED_RANK`, with `flags()` saying so by name -
+the same bargain `points_of_interest` gets, for the same reason.
+
 `points_of_interest` IS DEFERRED, NOT DEFAULTED. It is ranked within 50 km with its top decile penalised
 (plan:89), which needs the road network, and it is T-0164. Until it lands the field is None, `flags()` says
 so by name, and `score_kwargs()` substitutes `POI_ABSENT`. A silent 0.5 would be indistinguishable from a
@@ -61,6 +69,11 @@ SCORABLE_STATES = (NORMALISED, EXCLUDED)
 # What a zero-class way's ranked fields hold. Not a rank, not a measurement: the way was never in the
 # population. Its score is 0.0 by class (score.py:139) whatever this value is.
 EXCLUDED_RANK = 0.0
+# What a way that DECLINED to answer a ranked term holds instead of a rank: the floor of the rank scale,
+# and not a claim that the way is the region's straightest road. It is the value a way gets for a term its
+# producer could not measure, and `flags()` names it so the corpus can tell the two apart.
+DECLINED_RANK = 0.0
+SINUOSITY_DECLINED_FLAG = "sinuosity_declined"
 # What `score_kwargs()` passes for an absent `points_of_interest`, with `POI_ABSENT_FLAG` alongside it.
 POI_ABSENT = 0.0
 POI_ABSENT_FLAG = "points_of_interest_absent"
@@ -86,6 +99,7 @@ class WayRecord:
     water: float
     speed_fit: float
     points_of_interest: float | None = None
+    sinuosity_declined: bool = False
     surface: str | None = None
     byway_status: str | None = None
     tunnel_meters: float = 0.0
@@ -137,6 +151,9 @@ class WayRecord:
             value = getattr(self, name)
             if value is not None and not isinstance(value, str):
                 out.append("%s=%r is neither a string nor None" % (name, value))
+        if not isinstance(self.sinuosity_declined, bool):
+            # A truthy 1 or "yes" from a mapping would silently take the way out of the ranking population.
+            out.append("sinuosity_declined=%r is not a bool" % (self.sinuosity_declined,))
         out.extend(self._ranked_problems())
         for name in MAPPED_TERMS:
             out.extend(_unit_problem(name, getattr(self, name)))
@@ -172,7 +189,12 @@ class WayRecord:
 
     def flags(self) -> tuple[str, ...]:
         """The names of this record's explicit absences. What the hazard strip and `meta` are told."""
-        return (POI_ABSENT_FLAG,) if self.points_of_interest is None else ()
+        out: list[str] = []
+        if self.points_of_interest is None:
+            out.append(POI_ABSENT_FLAG)
+        if self.sinuosity_declined:
+            out.append(SINUOSITY_DECLINED_FLAG)
+        return tuple(out)
 
     def with_ranks(self, ranks: dict) -> "WayRecord":
         """This record with its ranked fields replaced, `terms_state` -> normalised. Refuses by name."""

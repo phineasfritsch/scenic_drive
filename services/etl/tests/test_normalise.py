@@ -8,7 +8,8 @@ whose expectation is computed from the function it checks proves only that the f
 The three properties the fixture cannot see are here, each with its own named test: the TIE RULE
 (`test_a_tie_group_takes_the_average_rank`), the POPULATION FILTER
 (`test_the_zero_classes_do_not_set_the_curve`) and the SORT KEY
-(`test_the_order_is_by_value_then_way_id_not_insertion_order`).
+(`test_the_order_is_by_value_then_way_id_not_insertion_order`). The last two classes are WHICH POPULATION
+a rank counts against: a supplied `reference`, and the ways that declined to answer.
 """
 from __future__ import annotations
 
@@ -120,6 +121,109 @@ class TestThePopulation:
         assert [record.way_id for record in normalise.population_of(region)] == [151, 153]
 
 
+class TestARankAgainstASuppliedReference:
+    """The seam for the region-relativity question (STILL OPEN in T-0163's task file): the estimator does
+    not change, only the population it counts against, and the default is today's answer."""
+    def test_a_way_is_ranked_inside_the_reference_population_it_is_added_to(self):
+        """reference [10, 20, 30]. 5 -> below=0, equal=0+1 -> (0+0.5)/4 = 0.125. 20 -> below=1, equal=1+1
+        -> (1+1.0)/4 = 0.5. 25 -> below=2, equal=1 -> (2+0.5)/4 = 0.625. 35 -> (3+0.5)/4 = 0.875."""
+        ranks = normalise.ranks_against({301: 25.0, 302: 20.0, 303: 5.0, 304: 35.0}, [10.0, 20.0, 30.0])
+        assert ranks == {303: 0.125, 302: 0.5, 301: 0.625, 304: 0.875}
+
+    def test_a_rank_against_a_reference_is_still_never_exactly_zero_or_one(self):
+        """Why the way itself is counted in: without it, a way below every reference value takes exactly
+        0.0 and one above every value exactly 1.0, and a scorable way on 0.0 is what ruling R2 and
+        CLAUDE.md's invariant reserve for a zero CLASS. reference [0, 1, 2]: (0+0.5)/4 and (3+0.5)/4."""
+        assert normalise.ranks_against({311: -5.0, 312: 5000.0}, [0.0, 1.0, 2.0]) == {311: 0.125,
+                                                                                     312: 0.875}
+
+    def test_a_reference_makes_a_ways_rank_independent_of_its_neighbours(self):
+        """Two ways at one value against reference [10, 20, 30]: below=2, equal=0+1 -> (2+0.5)/4 = 0.625
+        EACH, neither seeing the other. The region's own population says 0.5 each (below=0, equal=2,
+        n=2) - and 0.5 for the pair whatever their values were."""
+        assert normalise.ranks_against({321: 25.0, 322: 25.0}, [10.0, 20.0, 30.0]) == {321: 0.625,
+                                                                                      322: 0.625}
+        assert normalise.percentile_ranks({321: 25.0, 322: 25.0}) == {321: 0.5, 322: 0.5}
+
+    def test_normalise_region_ranks_the_named_terms_against_the_reference_and_the_rest_against_itself(self):
+        """curvature against reference [0, 200, 400, 600]: 100 -> below=1, equal=0+1 -> (1 + 0.5)/5 = 0.3;
+        500 -> below=3, equal=1 -> (3 + 0.5)/5 = 0.7. elevation_gain is NOT in the mapping and keeps the
+        region's own curve: (0 + 0.5)/2 = 0.25 and (1 + 0.5)/2 = 0.75 - the pair those two ways would get
+        for ANY two distinct values, which is the region-relativity this argument exists to fix."""
+        region = [raw(331, curvature=100.0, elevation_gain=10.0),
+                  raw(332, curvature=500.0, elevation_gain=20.0)]
+        out = {record.way_id: record for record in
+               normalise.normalise_region(region, reference={"curvature": [0.0, 200.0, 400.0, 600.0]})}
+        assert [out[331].curvature, out[332].curvature] == [0.3, 0.7]
+        assert [out[331].elevation_gain, out[332].elevation_gain] == [0.25, 0.75]
+
+    def test_the_default_is_the_regions_own_population_and_nothing_moves(self):
+        """No argument and an explicit None are the same run: (0+0.5)/4, (1+0.5)/4, (2+0.5)/4, (3+0.5)/4."""
+        region = [raw(340 + i, curvature=100.0 * i) for i in (1, 2, 3, 4)]
+        plain = [record.curvature for record in normalise.normalise_region(region)]
+        explicit = [record.curvature for record in normalise.normalise_region(region, reference=None)]
+        assert plain == explicit == [0.125, 0.375, 0.625, 0.875]
+
+    def test_a_reference_for_a_term_that_is_not_ranked_is_refused_by_name(self):
+        # canopy is MAPPED (ruling R1): a reference for it would be silently ignored, which is worse.
+        with pytest.raises(ValueError) as caught:
+            normalise.normalise_region([raw(351)], reference={"canopy": [0.1, 0.2]})
+        assert "canopy" in str(caught.value), caught.value
+
+    def test_an_empty_reference_is_refused_rather_than_divided_by(self):
+        with pytest.raises(ValueError) as caught:
+            normalise.normalise_region([raw(361)], reference={"curvature": []})
+        assert "curvature" in str(caught.value) and "empty" in str(caught.value), caught.value
+
+    def test_a_reference_value_that_is_not_a_finite_number_is_refused_by_name(self):
+        """A NaN compares false both ways, so it would sit in the population and change every divisor."""
+        for bad in (float("nan"), math.inf, "600"):
+            with pytest.raises(ValueError) as caught:
+                normalise.normalise_region([raw(371)], reference={"relief": [1.0, bad]})
+            assert "relief" in str(caught.value), (bad, caught.value)
+
+
+class TestAWayThatDeclinedToAnswer:
+    """`sinuosity_declined`: T-0161 returns its floor for a closed way, which is not a measurement."""
+    def test_a_declined_sinuosity_is_out_of_the_population_and_comes_back_at_the_floor(self):
+        """Four ways answered (1.1, 1.2, 1.3, 1.4) and one declined. The population is the four:
+        (0+0.5)/4 ... (3+0.5)/4. Counting the closed way in would say 0.1, 0.3, 0.5, 0.7, and thousands
+        of roundabouts at one repeated floor value would flatten the curve outright."""
+        region = [raw(401, sinuosity=1.1), raw(402, sinuosity=1.2), raw(403, sinuosity=1.3),
+                  raw(404, sinuosity=1.4), raw(405, sinuosity=1.0, sinuosity_declined=True)]
+        out = {record.way_id: record for record in normalise.normalise_region(region)}
+        assert [out[i].sinuosity for i in (401, 402, 403, 404)] == [0.125, 0.375, 0.625, 0.875]
+        assert [out[i].sinuosity for i in (401, 402, 403, 404)] != [0.1, 0.3, 0.5, 0.7]
+        assert out[405].sinuosity == wr.DECLINED_RANK == 0.0
+        assert out[405].flags() == (wr.POI_ABSENT_FLAG, wr.SINUOSITY_DECLINED_FLAG)
+
+    def test_declining_one_term_does_not_take_the_way_off_the_other_curves(self):
+        """Still in the curvature population, n=4: 0.125/0.375/0.625/0.875. The three ways that answered
+        share sinuosity 1.4 and tie at (0 + 0.5*3)/3 = 0.5."""
+        region = [raw(411, curvature=100.0), raw(412, curvature=200.0, sinuosity_declined=True),
+                  raw(413, curvature=300.0), raw(414, curvature=400.0)]
+        out = {record.way_id: record for record in normalise.normalise_region(region)}
+        assert [out[i].curvature for i in (411, 412, 413, 414)] == [0.125, 0.375, 0.625, 0.875]
+        assert [out[i].sinuosity for i in (411, 413, 414)] == [0.5, 0.5, 0.5]
+        assert out[412].sinuosity == 0.0
+
+    def test_a_region_where_every_way_declined_ranks_no_sinuosity_and_refuses_nothing(self):
+        """The empty-population case through a real region: `percentile_ranks({})` is `{}`, every way
+        takes the floor, the other four terms rank as usual (both at 640.0: (0 + 0.5*2)/2 = 0.5)."""
+        out = normalise.normalise_region([raw(421, sinuosity_declined=True),
+                                          raw(422, sinuosity_declined=True)])
+        assert [record.sinuosity for record in out] == [0.0, 0.0]
+        assert [record.curvature for record in out] == [0.5, 0.5]
+
+    def test_a_declined_way_still_scores_and_scores_below_the_way_that_answered(self):
+        """A penalty, not a refusal: plan:86 weights sinuosity 0.15 and 441 keeps the other 0.85 of M.
+        442 is the only way in the sinuosity population, so it takes (0 + 0.5)/1 = 0.5."""
+        out = normalise.normalise_region([raw(441, sinuosity_declined=True), raw(442)])
+        values = [score.score(**record.score_kwargs()) for record in out]
+        assert all(value is not None and 0.0 < value <= 1.0 for value in values), values
+        assert values[0] < values[1], values
+
+
 class TestTheRefusals:
     def test_an_already_normalised_region_is_refused_by_way_id_and_state(self):
         """Ranking a rank re-spaces the region: well defined, and wrong. Ruling R4."""
@@ -127,6 +231,16 @@ class TestTheRefusals:
         with pytest.raises(ValueError) as caught:
             normalise.normalise_region(once)
         assert "161" in str(caught.value) and wr.NORMALISED in str(caught.value), caught.value
+
+    def test_an_already_normalised_region_names_every_offender_and_not_just_the_first(self):
+        """Recordable R-3 from PR #93's review, taken: `refusals` and `with_ranks`'s `_require_raw` both
+        refuse a second pass and the two tests around this one cannot tell them apart. `_require_raw`
+        raises on the FIRST record, so what the region-whole check adds is the LIST of offenders."""
+        once = normalise.normalise_region([raw(451), raw(452, curvature=900.0)])
+        with pytest.raises(ValueError) as caught:
+            normalise.normalise_region(once)
+        message = str(caught.value)
+        assert "451" in message and "452" in message, message
 
     def test_an_excluded_record_is_refused_too(self):
         once = normalise.normalise_region([raw(171, "motorway")])

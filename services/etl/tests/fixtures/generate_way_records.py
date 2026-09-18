@@ -7,13 +7,15 @@ from a seeded generator, and no way_id here is a claim about a road. It exists t
 arithmetic and the whole raw -> `normalise.normalise_region` -> `score.score` path over a population big
 enough to have ties, both ends of every threshold and all four zero classes in it.
 
-WHY THE EXPECTATION IS COMPUTED HERE, AND HOW IT IS DIFFERENT. `naive_rank` below counts, for one value,
-every other way in the population that is below it and every one equal to it, and returns
-`(below + 0.5*equal)/population`. That is the ruling's formula (T-0163 log, R2) evaluated pairwise: O(n^2),
-no sort, no grouping, no way_id anywhere. `normalise.percentile_ranks` gets the same numbers from a single
-pass over a sorted order, grouping equal values as it goes - which is where a tie rule and a sort key can be
-wrong. Two algorithms, one formula: this file imports nothing from `etl` and does not know the module it is
-an oracle for exists.
+TWO EXPECTATIONS PER WAY, AND NEITHER IS COMPUTED BY THE SUBJECT. Both come from `plan_oracle.py` beside
+this file, which imports nothing at all and is loaded by path. `expected_ranks` is `naive_rank`: for one
+value, a pairwise count of the ways below it and the ways equal to it, `(below + 0.5*equal)/population` -
+the ruling's formula (T-0163 log, R2) at O(n^2), no sort, no grouping, no way_id anywhere, while
+`normalise.percentile_ranks` gets the same numbers from one pass over a sorted order, which is where a tie
+rule and a sort key can be wrong. `expected_score` is `plan_score`: the plan's formula block (lines 78-87)
+transcribed line by line over those ranks, in the style of `Tests/Fixtures/scoring/generate.py`. It is what
+makes the SEAM between the record and the scorer visible - a term handed to `score.score` inverted, swapped
+with another or dropped changes `expected_score` for most of the region, whatever the ranks do.
 
 DETERMINISM. Seeded `random.Random(SEED)`, no iteration over unordered sets, floats emitted through
 `json.dumps`, which uses `repr` - the shortest string that round-trips to the same double. Re-running must
@@ -24,6 +26,7 @@ Run: python services/etl/tests/fixtures/generate_way_records.py
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import pathlib
 import random
@@ -31,15 +34,32 @@ import random
 SEED = 20260918
 WAY_TARGET = 240
 FIRST_WAY_ID = 700000000
-OUT = pathlib.Path(__file__).resolve().parent / "way_records_fixture.json"
+HERE = pathlib.Path(__file__).resolve().parent
+OUT = HERE / "way_records_fixture.json"
+ORACLE_PATH = HERE / "plan_oracle.py"
 
-# JSON has no infinity literal and `allow_nan=False` refuses to invent one. "no motorway anywhere near" is
-# infinity in the record, so the fixture spells it and the test translates it back.
-INF = "Infinity"
 
-# plan:83 - excluded from the ranking population and scored 0 by class. Restated, not imported: an oracle
-# that imports its constants from the subject is not an oracle.
-PLAN_ZERO_CLASSES = ("motorway", "motorway_link", "trunk", "trunk_link")
+def _oracle():
+    """`plan_oracle`, loaded by path: `tests/fixtures` is a data directory, not an importable package.
+
+    The same mechanism `test_way_records_fixture.py` uses to load THIS file, for the same reason, and it
+    keeps the oracle runnable whether the generator is run as a script or exec'd by the test.
+    """
+    spec = importlib.util.spec_from_file_location("plan_oracle", ORACLE_PATH)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+ORACLE = _oracle()
+# The expectations and the plan constants behind them live in `plan_oracle`, which imports nothing at all.
+INF = ORACLE.INF
+PLAN_ZERO_CLASSES = ORACLE.PLAN_ZERO_CLASSES
+DECLINED_FLOOR = ORACLE.DECLINED_FLOOR
+naive_rank = ORACLE.naive_rank
+declines = ORACLE.declines
+plan_score = ORACLE.plan_score
+
 HIGHWAYS = ("motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary",
             "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street",
             "service")
@@ -64,22 +84,11 @@ RAW_MID = {"curvature": 640.0, "elevation_gain": 300.0, "relief": 180.0, "sinuos
 MAPPED_MID = {"canopy": 0.5, "impervious": 0.25, "water": 0.1, "speed_fit": 0.6}
 
 
-def naive_rank(value: float, population: list[float]) -> float:
-    """The ruling's estimator, counted pairwise: the tie group's average rank mapped by (r - 0.5)/n."""
-    below = 0
-    equal = 0
-    for other in population:
-        if other < value:
-            below += 1
-        elif other == value:
-            equal += 1
-    return (below + 0.5 * equal) / len(population)
-
-
 def way(index: int, highway: str, **kw) -> dict:
     """One fixture way: its WayRecord fields with RAW terms, and room for the expectation."""
     record = {"way_id": FIRST_WAY_ID + index, "highway": highway, "surface": None, "byway_status": None,
-              "tunnel_meters": 0.0, "meters_to_nearest_motorway": INF, "points_of_interest": None}
+              "tunnel_meters": 0.0, "meters_to_nearest_motorway": INF, "points_of_interest": None,
+              "sinuosity_declined": False}
     record.update(RAW_MID)
     record.update(MAPPED_MID)
     unknown = sorted(set(kw) - set(record))
@@ -115,6 +124,25 @@ def covering_ways() -> list[dict]:
     # are the only pair in the fixture that can show it without another term moving.
     add("secondary", curvature=900.0, elevation_gain=400.0, relief=200.0, sinuosity=1.5, furniture=0.0)
     add("secondary", curvature=900.0, elevation_gain=400.0, relief=200.0, sinuosity=1.5, furniture=0.4)
+
+    # Alike but for the impervious fraction, and alike but for canopy against water: the two pairs that
+    # make a MAPPED term's pass-through visible on its own. plan:87 enters impervious as (1 - impervious),
+    # so the car park must score LOWER than the field; canopy is weighted 0.24 and water 0.12, so the
+    # wooded way must score HIGHER than the wet one. A seam that inverted impervious or traded canopy for
+    # water would put each pair in the wrong order - and move most of the region's scores besides.
+    for level in (0.02, 0.98):
+        add("secondary", curvature=901.0, elevation_gain=401.0, relief=201.0, sinuosity=1.51,
+            impervious=level)
+    for canopy, water in ((0.8, 0.1), (0.1, 0.8)):
+        add("secondary", curvature=902.0, elevation_gain=402.0, relief=202.0, sinuosity=1.52,
+            canopy=canopy, water=water)
+
+    # Ways whose sinuosity producer DECLINED to answer (T-0161 returns its floor for a closed way, where
+    # the straight-line distance is zero). They are out of the SINUOSITY population and come back at the
+    # floor; their values sit at the top of the range on purpose, so a way wrongly left in the population
+    # would take a rank near 1.0 and the oracle would see the difference.
+    for value in (2.55, 2.58):
+        add("residential", sinuosity=value, sinuosity_declined=True, surface="asphalt")
 
     # The extremes of the population: the region's floor and ceiling on every ranked term at once.
     add("primary", **{name: low for name, (low, _) in RAW_RANGES.items()})
@@ -172,17 +200,20 @@ def random_ways(rng: random.Random, start: int, count: int) -> list[dict]:
 
 
 def expect(ways: list[dict]) -> None:
-    """Stamp every way with the state it must come out in and, if it is scorable, its expected ranks."""
+    """Stamp every way with the state it must come out in, its expected ranks and its expected score."""
     population = [w for w in ways if w["record"]["highway"] not in PLAN_ZERO_CLASSES]
     ranks: dict = {}
     for term in RANKED_TERMS:
-        values = [w["record"][term] for w in population]
+        answering = [w for w in population if not declines(w["record"], term)]
+        values = [w["record"][term] for w in answering]
         for w in population:
-            ranks.setdefault(w["record"]["way_id"], {})[term] = naive_rank(w["record"][term], values)
+            rank = DECLINED_FLOOR if declines(w["record"], term) else naive_rank(w["record"][term], values)
+            ranks.setdefault(w["record"]["way_id"], {})[term] = rank
     for w in ways:
         excluded = w["record"]["highway"] in PLAN_ZERO_CLASSES
         w["expected_state"] = "excluded" if excluded else "normalised"
         w["expected_ranks"] = None if excluded else ranks[w["record"]["way_id"]]
+        w["expected_score"] = plan_score(w["record"], w["expected_ranks"] or {})
 
 
 def build() -> dict:
@@ -200,8 +231,10 @@ def build() -> dict:
     population = sum(1 for w in ways if w["expected_state"] == "normalised")
     return {
         "generator": "services/etl/tests/fixtures/generate_way_records.py",
-        "oracle": "naive_rank in the generator: (below + 0.5*equal)/population, counted pairwise, computed"
-                  " by nothing in etl/",
+        "oracle": "naive_rank in plan_oracle.py: (below + 0.5*equal)/population, counted pairwise,"
+                  " computed by nothing in etl/",
+        "scoreOracle": "plan_score in plan_oracle.py: the plan's formula (lines 78-87) transcribed by hand"
+                       " over the naive ranks, importing neither normalise nor score nor way_record",
         "note": "Synthetic. Every number is a seeded draw; no way_id here is a claim about a real road.",
         "seed": SEED,
         "rankedTerms": list(RANKED_TERMS),
@@ -210,6 +243,7 @@ def build() -> dict:
         "wayCount": len(ways),
         "populationCount": population,
         "excludedCount": len(ways) - population,
+        "sinuosityDeclinedCount": sum(1 for w in ways if w["record"]["sinuosity_declined"]),
         "ways": ways,
     }
 
@@ -245,6 +279,10 @@ def main() -> None:
           % (len({w["record"]["highway"] for w in ways}),
              sum(1 for w in ways if w["record"]["byway_status"] is not None),
              sum(1 for w in ways if w["record"]["points_of_interest"] is not None)))
+    scores = [w["expected_score"] for w in ways]
+    print("sinuosity declined=%d  oracle scores: min=%r max=%r exactly zero=%d"
+          % (doc["sinuosityDeclinedCount"], min(scores), max(scores),
+             sum(1 for s in scores if s == 0.0)))
 
 
 if __name__ == "__main__":

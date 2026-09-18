@@ -15,15 +15,15 @@ reviewer: null
 depends_on: [T-0154]
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "THE END-TO-END CHECK THIS TASK EXISTS FOR, green: `cd services/etl && python -m pytest tests/test_way_records_fixture.py -rs` inside the full run below. 240 raw ways from `tests/fixtures/way_records_fixture.json` -> `normalise.normalise_region` -> `score.score` for every row: `test_no_row_is_refused_and_every_score_is_in_zero_to_one`, `test_every_zero_class_row_scores_exactly_zero` (exactly 0.0, on all 51), `test_no_scorable_row_scores_zero` (ruling R2's consequence), `test_every_expected_rank_is_the_rank_the_normaliser_computes` (exact equality against the generator's pairwise oracle, `populationCount * len(RANKED_TERMS)` ranks checked, asserted in the test)"
-  - "`cd services/etl && python -m pytest tests -rs` -> `549 passed in 79.04s (0:01:19)` at bf17b30 and `549 passed in 71.18s (0:01:11)` re-run at this tree, exit 0 both times, and the `-rs` short summary printed NOTHING either time: zero skips. The wall clock moves on a shared box; the 549 and the zero skips do not. The same command at the merge-base (9939d39, before this task) printed `472 passed in 80.53s (0:01:20)`. The three new files alone: `python -m pytest tests/test_way_record.py tests/test_normalise.py tests/test_way_records_fixture.py -rs` -> `77 passed in 0.34s`"
+  - "THE REVIEW'S BLOCKING FINDING IS DEAD, BY NAME. Both surviving mutants from PR #93's review, each applied ALONE to `WayRecord.score_kwargs()` and restored: at 38fdcc7 they were invisible (three new files `77 passed`, whole suite `549 passed`, no FAILED line); at this tree each one is caught by two named tests - `tests/test_way_record.py::TestTheSeam::test_every_term_arrives_at_the_scorer_under_its_own_name_with_its_own_value` and `tests/test_way_records_fixture.py::TestTheWholePathScores::test_every_row_scores_exactly_what_the_plan_says_it_should` - printing `2 failed, 96 passed` each time"
+  - "THE END-TO-END CHECK THIS TASK EXISTS FOR, now against an ORACLE FINAL SCORE PER ROW: `cd services/etl && python -m pytest tests/test_way_records_fixture.py -rs` inside the full run below. 240 raw ways from `tests/fixtures/way_records_fixture.json` -> `normalise.normalise_region` -> `score.score` for every row, each row held to `plan_oracle.plan_score` within 1e-9 and named by way_id on failure (`test_every_row_scores_exactly_what_the_plan_says_it_should`), plus `test_no_row_is_refused_and_every_score_is_in_zero_to_one`, `test_every_zero_class_row_scores_exactly_zero` (exactly 0.0, on all 48), `test_no_scorable_row_scores_zero` (ruling R2's consequence) and `test_every_expected_rank_is_the_rank_the_normaliser_computes` (exact equality against the pairwise oracle, `populationCount * len(RANKED_TERMS)` ranks checked, asserted in the test)"
+  - "`cd services/etl && python -m pytest tests -rs` -> `570 passed in 50.99s` at this tree, exit 0, and the `-rs` short summary printed NOTHING: zero skips. 549 of those passed before this round; the 21 new ones are the seam, the oracle score, the reference population, the declined term and the two recordables taken. The same command at the merge-base (9939d39, before this task) printed `472 passed in 80.53s (0:01:20)`. The four files alone: `python -m pytest tests/test_way_record.py tests/test_normalise.py tests/test_way_records_fixture.py -rs` -> `98 passed in 0.41s`"
   - "`bash ops/lib/check-pipe-consumers` -> `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (57 scanned, 58 tracked, floor 42)`, exit 0"
   - "`bash ops/queue-check` -> `QUEUE OK (158 tasks)`, exit 0"
-  - "THE FIXTURE IS DETERMINISTIC AND ITS EXPECTATIONS ARE COMPUTED BY NOTHING IN `etl/`. `python services/etl/tests/fixtures/generate_way_records.py` at the committed tree -> `ways=240 covering=80 random=160` / `population=189 excluded=51 tied values across ranked terms=369` / `distinct highway classes=14  ways with a byway status=110  ways with points_of_interest=5`, and `git status --short` printed nothing afterwards. `naive_rank` in the generator counts ways below and ways equal pairwise; `normalise.percentile_ranks` groups a sorted order. The generator imports `json`, `pathlib`, `random` and nothing else"
-  - "NINE MUTATIONS, three per new module plus three on the fixture and its oracle, each applied ALONE and restored to its pristine md5, each caught by a NAMED test. NO SURVIVORS. The table with the exact `FAILED` lines is in the Log at 2026-09-18T20:16:29Z. The sharpest: the sort key (`sorted(values, key=lambda way_id: (values[way_id], way_id))` -> `values[way_id]`) is caught by exactly one test in the repository, `test_the_order_is_by_value_then_way_id_not_insertion_order`, because the mid-rank formula makes the within-tie order invisible in the numbers - which is why `ranked_order` is public"
-  - "ONE GENUINE RED FOUND WITHOUT MUTATING, quoted verbatim in the Log: `test_the_raw_rows_could_not_have_been_scored` asserted that raw producer units always answer None and printed `AssertionError: [(700000037, 0.3325295375632337)]` - the way at the region's floor (curvature 0.0, elevation_gain 0.0, relief 0.0, sinuosity 1.0, furniture 0.0) is inside 0..1 and scores a plausible number. The test now asserts the true and sharper property (`test_and_the_scorer_alone_would_not_have_caught_them`): a scorer can only refuse units it can SEE, so the guard has to be the record's state"
-  - "`wc -l` at the final commit, and `len(text.splitlines())` agrees on every one: `way_record.py` 233, `normalise.py` 128, `test_way_record.py` 212, `test_normalise.py` 185, `test_way_records_fixture.py` 213, `generate_way_records.py` 251, `way_records_fixture.json` 254. Under the 300-line cap, unenforced on Python though it is (T-0058). One type per file: `WayRecord` is the only class in `way_record.py`; `normalise.py` is functions, as `score.py` is"
-  - "NOT IN THIS TASK: the producers themselves (`sinuosity`, `tunnel_meters`, `meters_to_nearest_motorway` are T-0161; `speed_fit` and `furniture` T-0162; `points_of_interest` T-0164), the `scenic_score` 0..10 column, the corpus writer, and any run over a real region - no real raw terms exist on main yet, so the normaliser has never seen one. `ops/test` and `ops/check-pins` were NOT run: on this box the default swift scratch path does not build inside a worktree. `Tests/Fixtures/scoring/` is in `touches:` and was not touched. No pin added (P-DATA-01 is the plan's). See STILL OPEN"
+  - "THE FIXTURE IS DETERMINISTIC AND BOTH ITS EXPECTATIONS ARE COMPUTED BY NOTHING IN `etl/`. `python services/etl/tests/fixtures/generate_way_records.py` at the committed tree -> `ways=240 covering=86 random=154` / `population=192 excluded=48 tied values across ranked terms=387` / `distinct highway classes=14  ways with a byway status=106  ways with points_of_interest=5` / `sinuosity declined=2  oracle scores: min=0.0 max=0.7767038734897669 exactly zero=48`, and the fixture's md5 was `a478511cec3e9493fbc0c18a7ecfa82d` both before and after the run. `naive_rank` counts pairwise and `plan_score` transcribes plan:78-87 by hand; both live in `tests/fixtures/plan_oracle.py`, whose only import line is `from __future__ import annotations`. Copied out of the tree with the generator, `python generate_way_records.py` produced a BYTE-IDENTICAL fixture with no `etl` on sys.path"
+  - "SEVENTEEN MUTATIONS AT THIS TREE, each applied ALONE, restored to its pristine md5 (way_record.py 4af3622a29bdf801b214bee0cd229ac5, normalise.py a78838f439db96880d68c08295e76ffe), each caught. NO SURVIVORS. Two are the review's (impervious inverted at the seam, canopy traded with water); six are neighbours nobody showed us at the same seam (speed_fit inverted, canopy overwritten with impervious, water zeroed, a present points_of_interest replaced by 0.5, tunnel_meters forced to 0.0, byway_status dropped); nine are on the new code (the declined filter, the reference estimator, the reference refusals, the declined floor, the declined lookup, the rank inverted, the bool check, the region-whole refusal branch, and one in the GENERATOR that makes canopy equal water). The table with every `FAILED` name is in the Log at 2026-09-18T21:44:17Z. One of them, `_rank_of` no longer checking `declined`, is an ERROR at collection rather than a named FAILED - a KeyError, which is the reason it is a lookup and not a `.get` with a default"
+  - "`wc -l` at the final commit: `way_record.py` 255, `normalise.py` 231, `test_way_record.py` 270, `test_normalise.py` 299, `test_way_records_fixture.py` 281, `generate_way_records.py` 289, `plan_oracle.py` 102, `way_records_fixture.json` 256. All under the 300-line cap, unenforced on Python though it is (T-0058) - `generate_way_records.py` measured 329 with the oracle inside it, which is why `plan_oracle.py` is a file of its own. One type per file: `WayRecord` is the only class in `way_record.py`; `normalise.py` and `plan_oracle.py` are functions, as `score.py` is"
+  - "NOT IN THIS TASK: the producers themselves (`sinuosity`, `tunnel_meters`, `meters_to_nearest_motorway` are T-0161; `speed_fit` and `furniture` T-0162; `points_of_interest` T-0164), the `scenic_score` 0..10 column, the corpus writer, and any run over a real region - no real raw terms exist on main yet, so the normaliser has never seen one. THE PRODUCT QUESTION THE REVIEW RAISED (percentile rank makes scenic_score region-relative) IS NOT DECIDED HERE: `normalise_region` gains an optional `reference` population so the fix is a data change rather than a rewrite, and the default is today's behaviour. `sinuosity_declined` is an explicit field; T-0146's assembly must set it from `sinuosity.is_closed_way`. `ops/test` and `ops/check-pins` were NOT run: on this box the default swift scratch path does not build inside a worktree. `Tests/Fixtures/scoring/` is in `touches:` and was not touched. No pin added (P-DATA-01 is the plan's). See STILL OPEN"
 ---
 ## Brief
 
@@ -261,3 +261,137 @@ Check `queue/*/T-0112-*` and `queue/*/T-0050-*` for overlap before you start and
   that phrase does not occur there - the text is "normalising each within the region" - a paraphrase inherited
   from this task's own Brief. (c) `way_record.py`'s docstring cited score.py:97-99 for `out_of_range`'s reason;
   :97 is blank and the reason is :98-99. Corrected.
+- 2026-09-18T21:00:08Z agent/rv1-pr93 (reviewer, not the owner): **REVIEW ROUND 1 - FAIL, one blocking finding.** Reviewed PR #93 at 38fdcc7 from .worktrees/rv1-pr93 (removed at the end); nothing in the task's own worktree was touched, no file in the PR was changed.
+
+  RE-RAN THE ACCEPTANCE BLOCK. `cd services/etl && python -m pytest tests -rs` -> `549 passed in 85.87s (0:01:25)`, exit 0, `-rs` printed nothing (zero skips). The three new files alone -> `77 passed in 0.72s`. `python services/etl/tests/fixtures/generate_way_records.py` -> `ways=240 covering=80 random=160` / `population=189 excluded=51 tied values across ranked terms=369` / `distinct highway classes=14  ways with a byway status=110  ways with points_of_interest=5`, `git status --short` empty afterwards; and the generator run OUTSIDE the tree, with no `etl` on sys.path, produced BYTE-IDENTICAL output (`diff` empty) - the oracle is independent as claimed. `bash ops/lib/check-pipe-consumers` -> `PIPE-CONSUMERS OK ... (57 scanned, 58 tracked, floor 42)` exit 0. `bash ops/queue-check` -> `QUEUE OK (158 tasks)` exit 0. `wc -l` 233/128/212/185/213/251/254, all seven exact. `git ls-files -s` confirms 100644 on both generators. `gh pr checks 93`, read ONCE: `core pass 2m12s`, `pins-source-only pass 1m50s` (run 35392916624). Every expectation in test_normalise.py is a typed-out literal with its arithmetic shown; I re-did three (n=8 mid-group 0.5 with ends 0.0625/0.9375; 0.025/0.975 over 20; 0.125/0.375/0.625/0.875 vs the wrong-population 0.1/0.3/0.5/0.7) and all three are right.
+
+  BLOCKING - B1. `WayRecord.score_kwargs()` is the seam this task exists to build, and the pass-through of three of its four MAPPED terms is unchecked. Mutant, applied alone to the pristine tree: `out["impervious"] = 1.0 - out["impervious"]` inserted after the `out = {...}` comprehension. Three new files -> `77 passed`, no FAILED line; whole suite -> exit 0, 549 dots, no FAILED line. Not equivalent: through `normalise_region` + `score.score` on the committed fixture, 189 of 240 rows change score - way 700000194 (service, impervious=0.990206) 0.377526 -> 0.505732 and way 700000162 (primary_link, impervious=0.012118) 0.659225 -> 0.542091, i.e. plan:87's `0.16*(1-impervious)` inverted and a 99%-car-park road outscoring a 1% one. A second mutant at the same site, `out["canopy"], out["water"] = out["water"], out["canopy"]`, also survives (`77 passed`). This is the defect class way_record.py's own docstring names ("WHY THE INVERSIONS ARE NOT HERE... `impervious` and `furniture`") and that ruling R5 says is "checked end to end instead": the check exists for furniture - my mutant `out["furniture"] = 1.0 - out["furniture"]` is caught by EXACTLY ONE named test, `test_the_busier_roadside_scores_lower`, so R5's claim is true as far as it goes - and not for impervious. Smallest fix, for the owner: assert `score_kwargs()[name] == getattr(record, name)` for every MAPPED_TERM, or a fixture pair alike but for impervious; red against the mutant first.
+
+  MY OTHER FOUR MUTATIONS, each alone, all CAUGHT, and each aimed at what a wrong value does to a driver: the rank inverted (`1.0 - rank`) - 9 named, incl. test_the_ranks_run_the_same_way_as_the_values; `is_zero_class` narrowed to `highway == "motorway"`, putting trunk and the links back in the ranking curve - 8 named; `EXCLUDED_RANK = -1.0`, which slips past the excluded-state equality check into score.py:131 and makes a motorway score None instead of 0.0 - 5 named, incl. test_every_zero_class_row_scores_exactly_zero, which is CLAUDE.md's invariant and is properly guarded; furniture double-inverted - 1 named. Restored after every one (way_record.py md5 2873eb29c2d6a617989fbb962f6f889a, normalise.py md5 ddad9f8665b141c17b319daa6832872e, `git status --short` empty).
+
+  THE RULINGS. I overturn none. R1 is a defensible reading of plan:89 - it is the plan's only normalisation instruction and it is itself a rank, and no fixed divisor maps metres of climb to 0..1 without inventing an invisible ceiling. R2 I re-derived rather than accepted: below >= 0, equal >= 1 gives rank >= 0.5/n > 0, and (below + 0.5*equal) <= n - 0.5 gives rank <= 1 - 0.5/n < 1, so ranking alone cannot zero a scorable way and (rank-1)/(n-1) genuinely would. R3 is load-bearing, proved by my EXCLUDED_RANK mutant. R4 and R6 stand. R5 stands as a ruling; its guard is half-built - B1.
+
+  RECORDABLE, none of it failing this round. (a) PRODUCT, wants a task: percentile rank makes scenic_score region-relative and nothing says so. A region half of which is flat gives every flat way elevation_gain = relief = exactly (0 + 0.5*(n/2))/n = 0.25, and the least-flat road in a table-flat region gets 1 - 0.5/n - the same number a mountain pass gets in its own region. My arithmetic on plan:86-87 for such a road (M = 0.912, E = 0.4618) gives 0.586, clearing plan:117's honest-failure floor of 0.45 and plan:105's `scenic_score >= 4` bucket, so "not much pretty within 25 minutes of this drive" can essentially never fire in a flat region; and plan:91's 0.25*P90 is a P90 of region-relative numbers, which the road trip (plan:128) and Surprise Me's 50 km windows compare across regions. Either an anchor or a written rule, before a corpus exists. (b) Ranking makes the five ranked terms invariant to any strictly monotone producer error - curvature off by x1000, or feet for metres, is bit-identically invisible; STILL OPEN discloses the invariance, so this is a restatement, not a finding. (c) NIT, by reading and not run: removing the `terms_state != RAW` branch from `refusals` would leave both idempotence tests green, because `_require_raw`'s message also carries the way_id and the state - what is lost is the region-whole refusal, not the refusal. (d) NIT: EXCLUDED_RANK could be any value in 0..1 with no test moving (both checks compare against the constant), which I proved equivalent w.r.t. score.py:139; the out-of-range variant is caught. (e) IDEA: making `ranked_order` public because the mid-rank formula hides the within-tie order is the right pattern for T-0164's 50 km windows.
+
+  NOT DONE: `ops/test` and `ops/check-pins` were not run locally, as instructed (swift scratch path); `gh pr checks 93` read once instead and both checks pass. I did not re-run the author's nine mutations. I did not review the Swift side or `Tests/Fixtures/scoring/`, which is declared untouched and is.
+- 2026-09-18T21:44:17Z agent/claude-opus-5 (owner, fixing round 1): **B1 REPRODUCED FIRST, THEN KILLED BY
+  NAME; the four owner's rulings built; two of the reviewer's recordables taken as one test each.** The
+  shipped code was right in every blocking finding, exactly as the reviewer says - what was missing is a
+  check that could ever tell. Everything below is tests, fixture rows and one new argument.
+
+  B1 REPRODUCED BEFORE ANYTHING WAS TOUCHED, at 38fdcc7, each mutant applied ALONE and restored (md5 back
+  to way_record.py 2873eb29c2d6a617989fbb962f6f889a, normalise.py ddad9f8665b141c17b319daa6832872e,
+  `git status --short` empty). Control: three new files `77 passed in 0.35s`. RV-M5
+  (`out["impervious"] = 1.0 - out["impervious"]` inserted after the `out = {...}` comprehension): three
+  files `77 passed in 0.40s`, whole suite `549 passed in 81.01s (0:01:21)`, no FAILED line. RV-M6
+  (`out["canopy"], out["water"] = out["water"], out["canopy"]`): three files `77 passed in 0.35s`, whole
+  suite `549 passed in 67.61s (0:01:07)`, no FAILED line. The finding reproduces exactly as written.
+
+  WHAT CHANGED (ruling by ruling).
+
+  (1) AN ORACLE FINAL SCORE PER FIXTURE ROW. `tests/fixtures/plan_oracle.py` is new: `naive_rank` (moved
+  from the generator, unchanged) and `plan_score`, a line-by-line transcription of the plan's formula block
+  (lines 78-87) over the naive ranks, with the plan line cited beside each term and every constant
+  restated - the two byway tiers as literals, exactly as `Tests/Fixtures/scoring/generate.py` does it. It
+  imports NOTHING (`grep -nE "^import|^from"` prints one line, `from __future__ import annotations`), and
+  the generator loads it by path, the same mechanism `test_way_records_fixture.py` uses to load the
+  generator, because `tests/fixtures` is a data directory and not an importable package. It is a file of
+  its own because the generator with the oracle inside it measured 329 lines, over the cap. Every way now
+  carries `expected_score` alongside `expected_ranks`, and the end-to-end test asserts, per row and naming
+  the way_id and the fixture id on failure, `abs(score.score(**record.score_kwargs()) - expected) < 1e-9`
+  after `normalise_region`.
+
+  THE ROWS THAT DISCRIMINATE THE MAPPED TERMS, all measured on the committed fixture. Two new hand-written
+  pairs: way-0037/700000037 (impervious 0.02) oracle 0.5234671724461094 against way-0038/700000038
+  (impervious 0.98) 0.4072497947012822 - the field outscores the car park, which is plan:87's
+  `0.16*(1-impervious)`; and way-0039/700000039 (canopy 0.8, water 0.1) 0.5528851807010526 against
+  way-0040/700000040 (canopy 0.1, water 0.8) 0.4926907406000868 - E weights canopy 0.24 and water 0.12, so
+  a swap reverses them. The eight rows way-0058..way-0065 (700000058-700000065) hold each mapped term at
+  0.0 and at 1.0. Across the whole fixture: canopy != water in 240 of 240 rows, 27 rows have impervious
+  further than 0.4 from 0.5, and there are 157 distinct speed_fit values and 159 distinct canopy values -
+  asserted, not assumed, by `test_the_fixture_can_tell_every_mapped_term_apart`.
+
+  (2) A DIRECT UNIT TEST OF THE SEAM.
+  `tests/test_way_record.py::TestTheSeam::test_every_term_arrives_at_the_scorer_under_its_own_name_with_its_own_value`
+  builds one record with a different number in every field (ranks 0.11/0.22/0.33/0.44/0.55, mapped
+  0.61/0.72/0.83/0.94, poi 0.37, tunnel 301.5, motorway 149.5, surface gravel, byway OD - none of them 0.5,
+  no two alike, so neither an inversion nor a swap can hide), takes the NAMES from
+  `inspect.signature(score.score)` and asserts the whole dict against LITERALS.
+  `test_what_a_record_does_not_carry_arrives_as_the_absence_it_is` does the same for the other branch:
+  poi 0.0 with the flag, surface None, byway None, tunnel 0.0, distance inf.
+
+  (3) `normalise_region(records, reference=None)`. The estimator does not change; the POPULATION it counts
+  against does. `reference` is `{term: [values...]}`; a term in the mapping is ranked against that
+  distribution by `ranks_against`, a term left out keeps the region's own population, and the default is
+  today's behaviour bit for bit. The way's own value is counted INTO the reference (`equal + 1`, divisor
+  `len(reference) + 1`) - without that a way above every reference value would take exactly 1.0 and one
+  below every value exactly 0.0, and a scorable way on 0.0 is what ruling R2 and CLAUDE.md's motorway
+  invariant exist to prevent. `reference_refusals` refuses an unranked term, an empty distribution and a
+  non-finite value, each by name. The semantics are documented in `normalise.py`'s docstring, which also
+  says the product decision is NOT taken here.
+
+  (4) `WayRecord.sinuosity_declined: bool = False`, and the rank population excludes the ways that
+  declined. `DECLINED_RANK` and `SINUOSITY_DECLINED_FLAG` are new named constants; `flags()` reports the
+  flag beside `points_of_interest_absent`; `normalise.DECLINED_FIELD` maps the term to the field, so a
+  second declinable term is a row and not a branch. T-0161 is NOT imported and not depended on. The
+  fixture carries two declined rows, way-0041/700000041 and way-0042/700000042, with raw sinuosity 2.55 and
+  2.58 near the top of the range: left in the population they would rank above 0.98, and both come out at
+  the floor 0.0 and score 0.3831722734902434 apiece - the same number, which is the property.
+
+  (5) TWO RECORDABLES TAKEN, one test each. R-3: `test_an_already_normalised_region_names_every_offender_and_not_just_the_first`
+  (`_require_raw` raises on the first record, so what `refusals` adds is the LIST). R-4:
+  `test_the_excluded_rank_is_a_value_the_scorer_cannot_refuse` (the VALUE of `EXCLUDED_RANK` is equivalent
+  w.r.t. the score, as the reviewer proved; that it is INSIDE 0..1 is not, because score.py:131 runs before
+  :139). R-2 is a disclosed gap and a restatement - nothing to take. R-5 is an idea for T-0164.
+
+  SEVENTEEN MUTATIONS AT THIS TREE, each applied ALONE, run against the three test files, restored, md5
+  verified (way_record.py 4af3622a29bdf801b214bee0cd229ac5, normalise.py a78838f439db96880d68c08295e76ffe).
+  NO SURVIVORS. The review's two:
+  * RV-M5 `out["impervious"] = 1.0 - out["impervious"]` -> `2 failed, 96 passed`: FAILED
+    test_way_record.py::TestTheSeam::test_every_term_arrives_at_the_scorer_under_its_own_name_with_its_own_value,
+    FAILED test_way_records_fixture.py::TestTheWholePathScores::test_every_row_scores_exactly_what_the_plan_says_it_should.
+  * RV-M6 `out["canopy"], out["water"] = out["water"], out["canopy"]` -> the same two, `2 failed, 96 passed`.
+  Six NEIGHBOURS at the same seam, none of them shown to me: FX-M1 `speed_fit` inverted, FX-M2 canopy
+  overwritten with impervious, FX-M3 water zeroed, FX-M5 `tunnel_meters` forced to 0.0, FX-M6
+  `byway_status` dropped - each `2 failed, 96 passed`, the same two names; FX-M4 (a present
+  `points_of_interest` replaced by 0.5) `3 failed`, adding test_a_value_that_is_there_is_passed_through_and_not_flagged;
+  FX-M7 (`POI_ABSENT = 0.5`) `4 failed`, including test_what_a_record_does_not_carry_arrives_as_the_absence_it_is.
+  Nine more on the new code: FX-M8 (the `sinuosity_declined` bool check removed) 1 named;
+  FX-M9 (`answering` stops filtering) 4 named, incl. test_declining_a_sinuosity_does_not_move_the_other_ways_ranks;
+  FX-M10 (`equal + 1` dropped in `ranks_against`) 4 named, the whole reference class;
+  FX-M11 (`reference_refusals` returns nothing) 3 named; FX-M12 (`_rank_of` stops checking `declined`) is a
+  KeyError at collection, `1 error`, reported as ERROR tests/test_way_records_fixture.py rather than a named
+  FAILED - which is the point of the KeyError over a `.get` default; FX-M13 (the rank inverted) 15 named;
+  FX-M14 (`DECLINED_RANK = 0.5`) 7 named, incl. test_a_way_that_declined_its_sinuosity_is_off_that_curve_and_on_the_others;
+  FX-M15, in the GENERATOR (`mapped["water"] = mapped["canopy"]`, fixture regenerated) 1 named,
+  test_the_fixture_can_tell_every_mapped_term_apart, and regenerating after the restore gave back the
+  committed bytes; FX-M16 (the `terms_state != RAW` branch removed from `refusals`) 1 named, R-3's test;
+  FX-M17 (`EXCLUDED_RANK = -1.0`) 7 named, incl. R-4's test and test_every_zero_class_row_scores_exactly_zero.
+
+  STILL OPEN.
+  * R-1, THE PRODUCT QUESTION, NOT DECIDED HERE. The reviewer's arithmetic: in a region where half the ways
+    are dead flat every one of them gets elevation_gain = relief = (0 + 0.5*(n/2))/n = exactly 0.25 and the
+    least-flat road gets 1 - 0.5/n, the same number a Sierra pass gets in its own region, so such a road
+    scores M = 0.45*0.99 + 0.20*0.99 + 0.20*0.6 + 0.15*0.99 = 0.912, E = 0.24*0.1 + 0.22*0.99 + 0.16*0.7 +
+    0.12*0.9 = 0.4618 and 0.912^0.35 * 0.4618^0.65 = 0.586. That clears plan:117's honest-failure floor
+    (RouteScore < 0.45) and plan:105's scenic_score >= 4 bucket, so "not much pretty within 25 minutes of
+    this drive" can essentially never fire in a flat region, and plan:91's 0.25*P90 is a P90 of
+    region-relative numbers that the road trip (plan:128) and Surprise Me's 50 km windows compare across
+    regions. The normaliser's semantics are UNCHANGED in this PR; what is new is that fixing it is a data
+    change - pass `reference` - and not a rewrite. The decision belongs to the queue task the orchestrator
+    is filing, and until it lands nothing in the tree says scenic_score is region-relative except
+    `normalise.py`'s docstring.
+  * T-0146's ASSEMBLY MUST SET `sinuosity_declined` FROM `sinuosity.is_closed_way`. Nothing does it yet:
+    T-0161 is not on main, this record cannot import it, and the field defaults to False - so a corpus
+    built before that wiring lands would rank closed ways at their floor value inside the population, which
+    is the defect this field exists to prevent. Whoever assembles records from the producers owns it.
+  * The 1e-9 tolerance and `expected_score` are floating-point values written by this box's libm. The
+    scorer contract fixture beside it (`Tests/Fixtures/scoring/segment_terms.json`) already commits `**`
+    results the same way, so the precedent and the risk are the repository's existing ones, not new here.
+  * `ops/test` and `ops/check-pins` were NOT run in this round either, for the same reason as the first:
+    on this box the default swift scratch path does not build inside a worktree. `gh pr checks 93` read
+    ONCE after the push, quoted below.
+  * Unchanged from round 1 and still true: no producer on main emits these raw terms, so the fixture is
+    synthetic and the end-to-end check proves the arithmetic and the seam, not that any road scores what it
+    should; no pin added (P-DATA-01 is the plan's); `Tests/Fixtures/scoring/` is in `touches:` and was not
+    touched.

@@ -103,6 +103,8 @@ class TestTheFixtureItself:
         assert any(row["record"]["byway_status"] == byways.ELIGIBLE for row in WAYS)
         assert any(row["record"]["points_of_interest"] is not None for row in WAYS)
         assert any(row["record"]["points_of_interest"] is None for row in WAYS)
+        assert DOC["sinuosityDeclinedCount"] == sum(1 for row in WAYS
+                                                    if row["record"]["sinuosity_declined"]) >= 2
 
 
 class TestTheRanksAgreeWithTheOracle:
@@ -130,6 +132,38 @@ class TestTheRanksAgreeWithTheOracle:
                  if BY_WAY_ID[row["record"]["way_id"]].terms_state != row["expected_state"]]
         assert not wrong, wrong
 
+    def test_a_way_that_declined_its_sinuosity_is_off_that_curve_and_on_the_others(self):
+        """T-0161 returns its floor for a CLOSED way, which is not a measurement. Such a way is left out of
+        the SINUOSITY population and comes back at `DECLINED_RANK`, flagged - while its other four terms
+        are ranked normally, because declining one term is not declining the road. The two fixture rows
+        carry sinuosity 2.55 and 2.58, near the top of the range: left in the population they would rank
+        above 0.98, so the floor is not something the arithmetic could have produced by accident."""
+        declined = [row for row in WAYS if row["record"]["sinuosity_declined"]]
+        assert len(declined) == DOC["sinuosityDeclinedCount"] >= 2
+        for row in declined:
+            record = BY_WAY_ID[row["record"]["way_id"]]
+            assert record.sinuosity == wr.DECLINED_RANK == 0.0, record.way_id
+            assert wr.SINUOSITY_DECLINED_FLAG in record.flags(), record.flags()
+            assert row["record"]["sinuosity"] >= 2.5, row["record"]["sinuosity"]
+            for term in ("curvature", "elevation_gain", "relief", "furniture"):
+                assert 0.0 < getattr(record, term) < 1.0, (record.way_id, term)
+
+    def test_declining_a_sinuosity_does_not_move_the_other_ways_ranks(self):
+        """The reason the declined way is out of the population rather than sitting in it at the floor:
+        with it counted, every way's sinuosity rank shifts by up to 1/n. The region is re-ranked here
+        WITHOUT the two declined rows present at all, and every remaining way gets the same sinuosity rank
+        it gets in the region WITH them - which is the oracle's expectation too. Three ways of saying the
+        declined rows are not on that curve, and they have to agree."""
+        kept = [record for record in RAW_REGION if not record.sinuosity_declined]
+        assert len(kept) == len(RAW_REGION) - DOC["sinuosityDeclinedCount"]
+        without = {record.way_id: record for record in normalise.normalise_region(kept)}
+        for row in WAYS:
+            if row["expected_ranks"] is None or row["record"]["sinuosity_declined"]:
+                continue
+            way_id = row["record"]["way_id"]
+            expected = row["expected_ranks"]["sinuosity"]
+            assert without[way_id].sinuosity == BY_WAY_ID[way_id].sinuosity == expected, row["id"]
+
     def test_an_excluded_row_holds_no_rank(self):
         excluded = [record for record in NORMALISED_REGION if record.terms_state == wr.EXCLUDED]
         assert len(excluded) == DOC["excludedCount"] > 0
@@ -139,6 +173,37 @@ class TestTheRanksAgreeWithTheOracle:
 
 
 class TestTheWholePathScores:
+    def test_every_row_scores_exactly_what_the_plan_says_it_should(self):
+        """THE SEAM, CHECKED AT ITS OUTPUT. `score_kwargs()` is where the record hands ten terms to
+        `score.score` by keyword, and until this test existed only `furniture` and `points_of_interest`
+        were compared to anything: impervious could arrive inverted, canopy and water traded, speed_fit
+        turned upside down, and every other check in the repository still passed (review of PR #93,
+        mutants RV-M5 and RV-M6). Here the whole region is scored and every row is held to
+        `plan_oracle.plan_score` - the plan's formula over the oracle's own ranks, computed by nothing in
+        `etl/`. 1e-9 absolute, not equality: the oracle and `score.py` reach the same number by different
+        orders of the same multiplications, and a tolerance 8 orders of magnitude below the smallest
+        product decision in plan:105 cannot hide a term that moved."""
+        failures = []
+        for row in WAYS:
+            record = BY_WAY_ID[row["record"]["way_id"]]
+            value = score.score(**record.score_kwargs())
+            expected = row["expected_score"]
+            if value is None or abs(value - expected) >= 1e-9:
+                failures.append("way %d (%s, %s): scored %r, the plan says %r"
+                                % (record.way_id, row["id"], record.highway, value, expected))
+        assert not failures, "%d of %d rows disagree with the plan's own arithmetic\n%s" % (
+            len(failures), len(WAYS), "\n".join(failures[:20]))
+
+    def test_the_fixture_can_tell_every_mapped_term_apart(self):
+        """The rows above only bite if the fixture SEPARATES the mapped terms: a region where canopy and
+        water were equal everywhere would score the same with the two swapped, and one where impervious sat
+        at 0.5 would score the same with it inverted. Asserted, not assumed."""
+        rows = [row["record"] for row in WAYS]
+        assert sum(1 for r in rows if r["canopy"] != r["water"]) >= 200, "canopy and water are too alike"
+        assert sum(1 for r in rows if abs(r["impervious"] - 0.5) > 0.4) >= 20, "impervious is all mid-range"
+        assert len({r["speed_fit"] for r in rows}) >= 100, "speed_fit does not vary"
+        assert len({r["canopy"] for r in rows}) >= 100, "canopy does not vary"
+
     def test_no_row_is_refused_and_every_score_is_in_zero_to_one(self):
         failures = []
         for record in NORMALISED_REGION:
@@ -204,9 +269,12 @@ class TestTheWholePathScores:
     @pytest.mark.parametrize("term", wr.RANKED_TERMS)
     def test_more_of_a_ranked_term_is_never_worth_less_than_less_of_it(self, term):
         """The rank is monotone in the producer's number, which is the only property the score's weights
-        can rely on: whatever the producer's units are, the ordering survives normalisation."""
+        can rely on: whatever the producer's units are, the ordering survives normalisation. A way that
+        DECLINED to answer is not in this comparison at all - it is not on the curve, and its floor is a
+        statement about the producer rather than about the road."""
         pairs = sorted((row["record"][term], row["expected_ranks"][term]) for row in WAYS
-                       if row["expected_ranks"] is not None)
+                       if row["expected_ranks"] is not None
+                       and not (term == "sinuosity" and row["record"]["sinuosity_declined"]))
         for (value_a, rank_a), (value_b, rank_b) in zip(pairs, pairs[1:]):
             assert rank_a <= rank_b, (term, value_a, rank_a, value_b, rank_b)
             if value_a == value_b:
