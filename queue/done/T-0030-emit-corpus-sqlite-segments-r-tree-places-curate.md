@@ -1,7 +1,7 @@
 ---
 id: T-0030
 title: Emit corpus.sqlite: segments + R*Tree, places, curated, meta, schema_version
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T21:54:27Z
@@ -11,7 +11,7 @@ branch: task/T-0030
 exclusive: []
 touches: [services/etl/, Sources/PlaceStore/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr100
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -285,3 +285,76 @@ simulated way split -> >=98% of previous ids still resolve.
   measured (`comm -12` of the paths differing from both parents -> 0 paths); CLAUDE.md forbids bypassing the
   hook, so the reviewer rules on it - whether the hook's merge logic refused a legitimate merge (then a
   follow-up task on the hook) or the bypass hid something (then blocking).
+- 2026-09-18T22:49:16Z **review PASS - agent/rv1-pr100, reviewer, not the owner and not the orchestrator. PR #100 at
+  9d52f72. Reviewed in a detached worktree at that sha; nothing in the PR was changed.** Acceptance re-run at the head:
+  A1 `cd services/etl && python -m pytest tests -rs` -> `732 passed in 122.22s` (the count quoted, 732, reproduces; the
+  wall clock does not and is not a claim). A2 the three named tests -> `3 passed in 1.05s`. A3/A3b the CLI ->
+  `CORPUS region=fixture ways=7 segments=79 collisions=0` and `CORPUS carry previous=79 carried=67 aliased=12 lost=0
+  rate_bp=10000`. A4 two builds with the same `--built-at` -> both
+  `450e6255068094a621b016e05a68ae58e7f17b0c4dea64159cf89a35d9a42c6d`. A5 `wc -l` -> 171/194/138/123/257/110/156/171,
+  1320 total. A6 `bash ops/lib/check-line-cap` -> `P-SRC-02: 68 Swift files tracked ... none over 300 lines`.
+  A7 `bash ops/queue-check` -> `QUEUE OK (166 tasks)`. A8 `git ls-files -s` -> 100644 on all nine.
+  `gh pr checks 100` -> core pass, pins-source-only pass.
+  RE-DONE, not re-read, three typed-out expectations. (1) fnv1a64 recomputed from the spec constants in five lines
+  that do not import `etl/segid.py`: the three intermediates print `0x778b1a14b6876aa7`, `0xa8c7f732281a3812`,
+  `0x47b8cdaf9fc0fa32` and the masked value is 5168106726590839346, the literal in test_corpus_schema.py. (2) The
+  pinned DDL hash recomputed off a BUILT file's `sqlite_schema` with my own normaliser and my own shadow-table
+  exclusion -> `aeca01498f1f945f70b00175717ee7fd8ede4b7b243ebc16f273143ef331da3e`, 17 rows kept of 23; 10 tables,
+  2 rtree, 5 named indexes, no view, no trigger, no autoindex. (3) The 79/67/12 arithmetic re-derived by SQL over the
+  two corpora, never from `count.ids_*`: previous 79, survived 67, aliased 12, lost 0, 7900 >= 7742; the 12 aliased
+  old ids are all way 104's and their targets are all on 204/205. 79 itself re-derived from the fixture with my own
+  haversine: at the pinned `curvature.RAD_EARTH_M = 6373000` the six long ways are 1200.26-1200.29 m -> 12 segments
+  each, plus way 107's 7 = 6*12+7 = 79.
+  PRODUCT, checked by hand rather than by the suite. Built the corpus twice myself: identical file sha256 (above).
+  Ran my own bbox queries against `segments_rtree`: a tight box around one segment returns 2 ids including itself, a
+  whole-world box returns 79, a box over Thailand returns 0 - the R*Tree is populated and it filters. `terms_osm` and
+  `terms_raster` both hold 0 rows, no FK exists on either, and the built file carries no view and no combined score
+  column. Each of the 12 aliases lands on the half of the split way that actually contains the old tarmac, at
+  cover 72-100%.
+  THREE MUTATIONS, each alone, each reverted, worktree clean after each. (M1) `rows.sort()` in
+  `CorpusWriter.write_segments` replaced by `random.shuffle(rows)`, i.e. a nondeterministic rowid order:
+  `test_two_builds_of_one_extract_are_byte_identical` and `test_two_carried_builds_from_one_previous_are_byte_identical`
+  both go red on the file sha - the digest does catch it. (M2) `MATCH_RADIUS_M` 25.0 -> 250.0: `2 failed` never
+  happens, `6 passed in 1.77s`, see RECORDABLE 1. (M3) a `terms_osm` row per segment valued from an `osm_features`
+  column (`length_mm`): `test_terms_tables_are_declared_physically_separate_and_empty_this_slice` goes red,
+  `assert 79 == 0` - a named test refuses the ODbL crossing in this slice, and `add_term`'s family check is separately
+  red-tested for a raster term in the ODbL table.
+  THE `--no-verify` MERGE (65ab53f), ruled as the orchestrator asked. I re-measured it myself:
+  `comm -12 <(git diff --name-only 65ab53f^1 65ab53f | sort) <(git diff --name-only 65ab53f^2 65ab53f | sort)` prints
+  nothing, 0 paths, and the one conflicted path resolved in that merge is byte-identical to main's copy
+  (`git diff --stat a2bc6c6 65ab53f -- queue/done/T-0026-scenic-score-terrain-from-3dep-elevation-gain-re.md` is
+  empty). The merge smuggled nothing, so this is a RECORDABLE process breach and not a blocker: CLAUDE.md forbids
+  bypassing the hook, the bypass bought nothing, and it must not be repeated. Every other commit on this branch
+  stages only paths inside `touches:` plus this task file (checked with `git show --name-only` on all five).
+  RECORDABLE, none of it blocking, none of it already in STILL OPEN.
+  1. The carry suite pins the resolution RATE, not the alias TARGET. Under M2 the whole of test_corpus_carry.py stays
+     green while 10 of the 12 alias targets move (old 5745228070931461314 -> 5673285086211213643 at 75% becomes
+     -> 5673283986699585432 at 100%). Nothing would name a matcher that resolves every id onto the wrong 100 m.
+     A follow-up should pin the target per old segment, or its offset window, as literals.
+  2. `corpusmatch.PAD_LAT_E7` (2_500 e7 = 27.8 m) is a constant decoupled from `MATCH_RADIUS_M` (25.0 m) although its
+     own comment says "the pad only has to be >= the radius". Correct at this head; nothing asserts the coupling, so
+     the day the radius is widened the candidate box silently stops covering it.
+  3. R13's "a last-ulp difference cannot move `cover_pct` except exactly on a boundary" is thinner than it reads: the
+     split is at 650 m and the halves canonicalise in the reverse direction, so almost every old segment overlaps two
+     new ones by 50 m each and the 72%/75% values sit on ties broken by the smaller id. `segment_alias` is inside
+     `contentdigest.SELECTS`, so a boundary flip on another libm would move `meta.content_sha256` for a carried build.
+     Same-box determinism is what the tests assert and that holds.
+  4. `test_meta_carries_every_required_key_and_the_attribution` asserts `schema.REQUIRED_META_KEYS <= set(meta)` and
+     `counts["term_defs"] == len(schema.TERM_NAMES)` - expectations computed from the constants the writer itself
+     reads, and `CorpusWriter.finalize` already raises on a missing required key. The load-bearing neighbours
+     (attribution, odbl_notice, build_complete, the 64-char digest) are literals, so this is a nit.
+  5. No pytest reaches the CLI surface: `corpus.main`, `parse_args`, `--built-at` being required, the exit code 2 on a
+     malformed stamp and the `CORPUS ...` lines are exercised only by the hand-run A3.
+  6. `geom.covered_fraction`'s docstring says "the matcher takes the min of both ways"; `corpusmatch.best_cover` takes
+     one direction, cov(old, new). Docstring only.
+  7. The fixture's six long ways are 1200.28 m against the 1200 m boundary that decides 12 segments versus 11 - 0.023%
+     of margin. The literal 79 becomes 73 if `RAD_EARTH_M` ever moves by three parts in ten thousand (my haversine at
+     6371000 prints 73). Worth a sentence in the fixture's docstring.
+  Rulings: I agree with R1-R15 as written, including R6 (excluding sqlite's shadow-table text from the hash is what
+  keeps `schema_version` - plan:141's OTA gate - independent of the sqlite that ran the ETL) and R8 (`built_at` as an
+  input is what makes plan:141's manifest sha256 mean something). RECORDABLE 3 refines R13 rather than contradicting
+  it. STILL OPEN is accurate and I add nothing to it: no real extract, corpus size unmeasured against plan:283,
+  terms tables empty until T-0146.
+  NOT DONE: `ops/test` and `ops/check-pins` were not run locally (forbidden for this review); CI is the only run of
+  them on this branch. I did not open a PBF, weigh a Bay Area corpus, or test inside the 3.45.1 image.
+  queue/claimed/ -> queue/done/.
