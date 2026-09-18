@@ -12,8 +12,8 @@
   license: ODbL-1.0
   attribution: OpenStreetMap contributors
   purpose: base road network and POIs for the Bay Area extract
-  bytes: 1288490188
-  retrieved: 2026-09-07
+  bytes: 1328688632
+  retrieved: 2026-09-18
   consumed_by: T-0024
   notes: Geofabrik rebuilds this DAILY, so a pinned sha256 would break the fetcher every day and teach everyone to bypass it. The publisher's .md5 sidecar is the verification.
 

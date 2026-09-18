@@ -3,7 +3,9 @@ success for something it did not actually verify. These tests run against a loca
 """
 import hashlib
 import http.server
+import re
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -22,6 +24,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             body = PAYLOAD
         elif self.path == "/file.bin.md5":
             body = f"{GOOD_MD5}  file.bin\n".encode()
+        elif self.path == "/typed.bin.md5":
+            body = b"555d88e602cd0616798d705d3a51c1b4  file.bin\n"
         elif self.path == "/wrong.bin.md5":
             body = f"{'0' * 32}  file.bin\n".encode()
         else:
@@ -235,3 +239,61 @@ class TestRecordDigestBootstrap:
                   f"  purpose: p\n  sha256: deadbeef\n")
         m = self._manifest(tmp_path, body)
         assert fetch.main(["--manifest", str(m), "--record-digest", "file.bin"]) == 2
+
+
+class TestTheVerifiedLine:
+    """After a VERIFIED fetch the program must PRINT what the manifest is supposed to record.
+
+    T-0169: `bytes:` and `retrieved:` were being typed from whatever file happened to be on disk. The next
+    refetch has to be a COPY of a line this program printed after verifying. Every expectation is a typed-out
+    literal - the payload is 26 bytes times 100 copies, so `bytes=2600`; /typed.bin.md5 carries a typed md5;
+    `fetch.today_utc` is replaced with a constant, so the expected line is a literal string and not a value
+    read off the same clock the code under test reads.
+    """
+
+    EXPECTED = "verified file.bin bytes=2600 retrieved=2020-01-02 md5 ok"
+
+    @staticmethod
+    def _refuse(*a, **kw):
+        raise AssertionError("--verify-only downloaded the file")
+
+    def _manifest(self, tmp_path, server):
+        p = tmp_path / "manifest.yaml"
+        p.write_text(f"- name: file.bin\n  url: {server}/file.bin\n  verify: upstream-md5\n"
+                     f"  checksum_url: {server}/typed.bin.md5\n  license: CC0-1.0\n  purpose: test\n",
+                     encoding="utf-8")
+        return p
+
+    def test_a_verified_fetch_prints_the_bytes_and_the_date(self, server, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        monkeypatch.setattr(fetch, "today_utc", lambda: "2020-01-02")
+        assert fetch.main(["--manifest", str(self._manifest(tmp_path, server))]) == 0
+        out = capsys.readouterr().out
+        assert self.EXPECTED in out, out
+        assert out.count("verified file.bin bytes=") == 1, out
+
+    def test_verify_only_reprints_the_line_without_downloading(self, server, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        monkeypatch.setattr(fetch, "today_utc", lambda: "2020-01-02")
+        m = self._manifest(tmp_path, server)
+        assert fetch.main(["--manifest", str(m)]) == 0
+        capsys.readouterr()
+        monkeypatch.setattr(fetch, "download", self._refuse)
+        assert fetch.main(["--manifest", str(m), "--verify-only"]) == 0
+        assert self.EXPECTED in capsys.readouterr().out
+
+    def test_verify_only_on_a_missing_file_fails_and_fetches_nothing(self, server, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(fetch, "DEST", tmp_path)
+        monkeypatch.setattr(fetch, "download", self._refuse)
+        m = self._manifest(tmp_path, server)
+        assert fetch.main(["--manifest", str(m), "--verify-only"]) == 1
+        assert "verified file.bin bytes=" not in capsys.readouterr().out
+        assert not (tmp_path / "file.bin").exists()
+
+    def test_today_utc_is_a_utc_iso_date(self):
+        """time.gmtime is a stdlib path other than datetime.now(timezone.utc); before/after absorbs midnight."""
+        before = time.strftime("%Y-%m-%d", time.gmtime())
+        got = fetch.today_utc()
+        after = time.strftime("%Y-%m-%d", time.gmtime())
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", got), got
+        assert got in (before, after), got
