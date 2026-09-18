@@ -40,6 +40,7 @@ BUILD_RUN = "\n".join([
     "  -scheme ScenicDrive \\",
     "  -destination 'generic/platform=iOS Simulator' \\",
     '  -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \\',
+    "  -disableAutomaticPackageResolution \\",
     "  CODE_SIGNING_ALLOWED=NO \\",
     '  build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"',
 ]) + "\n"
@@ -216,6 +217,7 @@ MUTATIONS = [
     ("the timeout removed", "    timeout-minutes: 20\n", ""),
     ("the timeout as a boolean", "    timeout-minutes: 20\n", "    timeout-minutes: true\n"),
     ("derivedDataPath dropped", '            -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \\\n', ""),
+    ("-disableAutomaticPackageResolution dropped", "            -disableAutomaticPackageResolution \\\n", ""),
     ("a push step", "          find apps/ios -name Package.resolved -print\n",
      "          find apps/ios -name Package.resolved -print\n          git push origin HEAD\n"),
     ("an unpinned run step", "      - name: toolchain\n", "      - name: anything else\n        run: echo hi\n      - name: toolchain\n"),

@@ -53,11 +53,15 @@ jobs:
             -scheme ScenicDrive \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \
+            -disableAutomaticPackageResolution \
             CODE_SIGNING_ALLOWED=NO \
             build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"
 
       # NOT `git diff --exit-code`: it cannot see an untracked file, so it could never go red on the one
-      # thing xcodebuild is expected to write (Package.resolved, a serial-only file nobody has committed yet).
+      # thing xcodebuild is expected to write (Package.resolved, a serial-only file). That file is tracked
+      # now (T-0167) and the build runs with -disableAutomaticPackageResolution, so a resolution that drifts
+      # from it fails the build rather than being rewritten in place; this step remains the record of what
+      # the run left in the tree, printed rather than asserted.
       - name: what the build wrote into the tree
         if: always()
         run: |
