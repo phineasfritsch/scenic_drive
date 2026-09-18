@@ -1,7 +1,7 @@
 ---
 id: T-0139
 title: the merge fixture describes nine cases, says both diffs fail when one does, and reports OK over an empty case list
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: 012vL7Yk1ov7eNxoFD9U6Pfm
 claimed_at: 2026-09-16T05:40:00Z
@@ -11,7 +11,7 @@ branch: task/T-0139
 exclusive: []
 touches: [.githooks/pre-commit, ops/lib/check-touches-merge.py, pins/PINS.yaml]
 pins_affected: [P-GIT-02, P-GIT-03]
-reviewer: null
+reviewer: agent/rv9-pr86
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -166,3 +166,37 @@ closes four of them, plus a fifth found while closing the third.
   it names no count now. **NB5** - the hook's `--no-renames` comment claimed less than the truth ("the
   MERGE_HEAD side"); case 11 proved the HEAD side equally load-bearing and the comment says which side each
   case exercises. GREEN: `OK (11 cases)`, `VARIANTS OK (6)`, `PINS ok=15`.
+- 2026-09-18T15:30:00Z REVIEW ROUND 3 by agent/rv9-pr86 (independent; not the owner). **VERDICT: PASS.** PR #86 head
+  `6d0024f` == `origin/task/T-0139`. Bounded re-review of round 3's answers to agent/rv2-pr86, not a re-derivation.
+  Own detached worktree `.worktrees/rv9-pr86` at `6d0024f`; every mutant a COPY under its gitignored
+  `.artifacts/rv9-pr86/` (two levels down, so the copy's ROOT resolves to the PR's hook); the four subjects hashed
+  equal to `6d0024f` before and after every run (hook afaa575, fixture a412e3f, PINS 607f72f, task file d726bb0);
+  worktree removed. `.worktrees/T-0139` was written only for this sign-off.
+
+  **Acceptance re-run**, exit read from the process, verdicts read by NAME: `TOUCHES-MERGE OK (11 cases)`, 0.
+  `--variants` -> 11 / 5,11 / 8 / 9 / 8 / 2, `VARIANTS OK (6)`, 0. A hook COPY minus the HEAD-side `--no-renames`
+  alone, via `--hook` -> `FAIL 11/rename-untouched-file must REFUSE committed, but never said what it should`, ten
+  ok, 1 (the "before case 11" half is round 1's measurement). N3 copy -> `case setup died for 6; nothing was
+  judged` on all six, `VARIANTS FAIL (6)`, 1. N4 copy -> `REFUSING: duplicate case labels or builders`, 2. NB2 copy
+  -> `REFUSING: variant 'decorative' changes nothing or expects nothing to break`, 2; each half alone (same text +
+  {"8"}; real edit + set()) refuses naming its own variant. `CASES[:0]` / `VARIANTS[:0]` -> both REFUSING, 2.
+  `--source-only` -> `PINS ok=6 skipped=11 pending=1`, 0. `QUEUE OK (132 tasks)`, 0. Full `check-pins` and
+  `ops/test` taken from CI on `6d0024f`, read once at the end.
+
+  **Round 2's answers.** BLOCKING 1 closed: P-GIT-03's `statement:` carries no count and states the set rule
+  `run_variants` enforces (`failed == must_fail`, "and no other"). NB2 re-broken on a copy with the new refusal loop
+  deleted and the decorative variant present: `ok variant decorative breaks exactly ` (empty), `VARIANTS OK (7)`,
+  exit 0 - that loop is what goes red. NB3: Log and PR body say only the ENFORCEMENT is Swift-only. NB4: the
+  comment names no count. NB5: the hook comment names both sides and which case exercises each.
+
+  **Own attack, SURVIVES (non-blocking, same class as NB2 - it needs a deliberate floor bump).** The four refusals
+  key on the (marker, replacement) TUPLE, not on the hook the edit produces. A copy with
+  `("HEAD-side --no-renames, spelled via --name-only", "--name-only --no-renames HEAD |", "--name-only HEAD |",
+  {"11"})` prepended and MIN_VARIANTS 7 -> `ok variant ... breaks exactly 11`, `VARIANTS OK (7)`, exit 0, while
+  `text.replace` yields blob dde5e65 for it AND for variant 1: byte-identical hooks, counted twice. CONTROL: the
+  same edit as an exact duplicate tuple -> `REFUSING: duplicate variant edits`, 2. The comment-line route is
+  closed: a real edit with a non-empty set fails the sweep (`got nothing`), a no-op or empty set is refused. Fix:
+  dedupe on the resulting hook text. Smaller: variant LABELS are not deduplicated (only case labels are), and the
+  PR body stops at round 2 (`544 lines` is 552 at this head; its list of checks omits the fourth refusal). Cases
+  1, 3, 4, 6, 7, 10 are named by no variant; the statement's "discriminating" is carried by its dash clause, as
+  in the fixture's own comment. Nothing in the PR was changed.
