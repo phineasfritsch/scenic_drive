@@ -1,7 +1,7 @@
 ---
 id: T-0160
 title: re-land T-0047 - the hook still commits stale staged content after a git mv, its fix never reached main, and the touches gate reads the working tree instead of what is being committed
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T19:13:11Z
@@ -11,7 +11,7 @@ branch: task/T-0160
 exclusive: []
 touches: [.githooks/pre-commit, ops/lib/, pins/PINS.yaml]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr98
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -581,3 +581,105 @@ is pasted from that run at `f4581dd`, whose tree differs from the final commit o
   and acceptance lines 4-5 (the two probes live in the gitignored `.artifacts/T-0160/`; their timings are
   declared non-reproducible). (e) The symlink `-L` branch of check 4 is exercised by no case - this box cannot
   make a real symlink - as the build already discloses.
+
+- 2026-09-18T22:43:54Z agent/rv1-pr98: **review PASS of PR #98 at `32d5881`.** Eleven of the fourteen
+  acceptance lines re-run bare in a detached worktree at that head, plus three mutation families nobody
+  wrote and a re-do of two typed-out expectations. No BLOCKING finding. Recordables below; none of them
+  fails the round and none is new information about the shipped check.
+
+### Re-run at 32d5881, bare, in .worktrees/rv1-pr98 (each matched the block to the character)
+
+The RED run is against TODAY's main, not a saved copy of something older: `git hash-object` of the hook I
+saved outside the tree, `git rev-parse origin/main:.githooks/pre-commit` and
+`git rev-parse 81f8483:.githooks/pre-commit` are all `3b0438944ce5c1daaeaa25a527abf407efcfede6`, `wc -l`
+144. `python ops/lib/check-stale-stage.py --hook <that file>` ->
+`STALE-STAGE FAIL (14 cases, hook main-pre-commit)`, exit 1, FAIL by name on 1, 2, 4, 5, 6, 8, 10 and 13
+with the same expected-to-see lines, and `ok` on the six controls 3, 7, 9, 11, 12, 14. Bare ->
+`STALE-STAGE OK (14 cases, hook pre-commit)`, exit 0. Then `TOUCHES-MERGE OK (11 cases)`,
+`SECRET-SCAN OK (7 cases)`,
+`PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (62 scanned, 63 tracked, floor 42)`,
+`P-OPS-01: 62 files, 23 required present, all modes correct`,
+`PINS ok=10 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only`, `QUEUE OK (164 tasks)`,
+`100755 .githooks/pre-commit` + `100644 ops/lib/check-stale-stage.py`, and `git show HEAD:<p>` byte-identical
+to the working tree for all three of `.githooks/pre-commit`, `ops/lib/check-stale-stage.py` and
+`pins/PINS.yaml`. Acceptance line 4 re-run from a copy of the probe in MY worktree (the hooks compared equal
+with `git diff --no-index` first): `--amend --no-edit` exit=0, `-a` exit=0, `-m x -- a.txt` exit=0 with
+`landed: 'working-tree version'`, exit 0. That `landed:` line prints from inside the case, BEFORE its own
+label, so it reads as if it belonged to `-a`; the block's attribution of it to the pathspec commit is the
+correct one.
+
+### Two typed-out expectations re-done, not re-read
+
+- `EXPECTED_CASES = 14`: I counted the fourteen labels in `CASES` by hand, then copied the fixture to a temp
+  directory, changed the literal to `13` and pointed it at this branch's hook with `--hook`. It printed
+  `STALE-STAGE REFUSING: 14 cases defined, EXPECTED_CASES says 13.` and exited 2 without running a case.
+  The population guard is live, and `STALE-STAGE OK (0 cases)` is not reachable.
+- The waiver message: I re-typed
+  `pre-commit: ALLOW_PARTIAL_STAGE=1 waives the stale-content check for: allowed/a.txt` from the hook into
+  my own probe and asserted it on STDERR and absent from stdout. `1` commits and announces; `1 ` (trailing
+  space), `01`, `true`, the empty value and unset all REFUSE, four of them naming
+  `which is not the value 1`. RULING 2's property - an escape hatch nobody can spell by accident - holds for
+  every spelling I could think of.
+
+### Three mutations nobody wrote, each alone, against this branch's hook
+
+1. **A path with a space, the shape the fixture never stages.** `allowed/a b.txt` staged then edited ->
+   REFUSED, naming `staged content in allowed/a b.txt is stale` and `git add -- "allowed/a b.txt"`.
+   `git mv "allowed/a b.txt" "allowed/c d.txt"` then rewritten -> REFUSED, naming the destination. The
+   `-z | tr` enumeration and every `"$f"` in check 4 survive a space; case 12 (pure rename, must COMMIT)
+   is what proves `--name-only` hands the loop only the destination, so a rename does not report its
+   source as missing.
+2. **A merge that smuggles a stale blob.** `git merge --no-commit`, then
+   `git update-index --cacheinfo 100644,<HEAD's blob>,allowed/a.txt` while the working tree holds something
+   else -> COMMITTED, silently recording HEAD's bytes. This is NOT a dodge of the property this check
+   states: planting HEAD's own blob takes the path out of `--diff-filter=ACMR` against HEAD, which is the
+   same set every ordinary unstaged edit sits in, so refusing it would refuse every partial commit in the
+   fleet - and unlike the `git mv` defect, `git status` afterwards shows the file modified rather than
+   clean. The hook's merge comment already discloses the `-X ours` form of it. Recorded below, not
+   blocking.
+3. **Refusals that must NOT fire, the expensive direction.** All COMMITTED: a file rewritten with byte-
+   identical content after `git add`; `git update-index --chmod=+x` on a newly added script (CLAUDE.md's
+   own mandated workflow for `ops/` scripts - landed `100755`); a file CRLF on disk and LF in the index
+   under `* text=auto eol=lf` (the false positive T-0047 was built to avoid, and the reason check 4
+   compares object ids); and an ordinary commit made from a LINKED WORKTREE, which is how this entire
+   fleet commits and which no case covers. The same linked worktree with a stale stage -> REFUSED.
+4. (One more, because it is this repository's own hot path.) The PASS transition end to end:
+   `git mv queue/claimed -> queue/done`, rewrite with `state: done` and a verdict, `git add` the
+   DESTINATION -> COMMITTED and `git show HEAD:<dest>` carries both. The same flow without the re-add ->
+   REFUSED, naming `git add -- "queue/done/T-9999-probe.md"`. That is PR #69's defect and the Brief's
+   opening sequence, closed.
+
+### Rulings
+
+I disagree with none of the six. The one I tried hardest to break is RULING 3, because it contradicts the
+Brief's parenthetical: check 4 reads the FULL staged set on a merge. Mutation 3 confirms the author's
+measurement - a merge that brings in the other side's files compares equal and commits - and case 10's
+premise assertion is what keeps a future narrowing from passing quietly. The deviation is measured, stated
+and defended in the file it changes; that is what the author rule asks for. RULING 5 (symlinks ported
+verbatim, `-L` unexercised) is disclosed, not implied, and this box cannot test it either.
+
+### Recordable, none of it blocking
+
+- Mutation 2 above: a path whose index entry equals HEAD is outside check 4's window by construction. Worth
+  a line in whatever task re-lands T-0048's staged-deletion hole, since that is the same `--diff-filter`
+  window.
+- No case stages a path containing a space, and no case commits from a linked worktree. Both pass today (I
+  measured them); both are a follow-up case, not a defect in what shipped.
+- When `git hash-object` simply cannot READ a working-tree file, `working_oid` is empty and the refusal
+  says the content is "stale", which names a cause that may be wrong. Fail-closed is right; the message
+  could name the read failure. A nit.
+- `--hook` is ignored under `--variants` (`variant_of` always reads `ROOT/.githooks/pre-commit`). Harmless
+  for the shipped invocation, which is the plain form.
+- Already disclosed by the build and re-confirmed here, not findings: no gate runs `--variants`, the `-L`
+  branch is untested on Windows, a literal newline in a path still splits, `--no-verify` is untouched, and
+  the two probes live in a gitignored directory.
+
+### What I did not get to
+
+`python ops/lib/check-stale-stage.py --variants` (acceptance line 3) was started bare at this head but not
+finished inside my budget - 56 throwaway repositories on a box three other agents are building on. It was
+re-run green by the read-only verifier at this build (`STALE-STAGE VARIANTS OK (4)`), and I substituted the
+`EXPECTED_CASES` mutation above for the "this sweep judges over nothing" question. Also not re-run:
+`check-touches-merge.py --variants`, the full `bash ops/check-pins` (tens of minutes), acceptance line 5's
+latency probe (a wall clock, declared non-reproducible by the 20:55:57Z entry), and `ops/test`, which the
+build states it did not run and which this diff cannot affect.
