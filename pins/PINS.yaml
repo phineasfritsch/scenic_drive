@@ -223,5 +223,11 @@
   anchor: process
   runs_on: [linux, mac]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-stale-stage.py"
+- id: P-OPS-06
+  statement: The ios-compile workflow still equals the structure pinned in ops/lib/check-ios-compile-guardrails.py - dispatch-only, contents read-only, macos-15, time-boxed, exactly one job-level env key (DEVELOPER_DIR at a pinned Xcode 26 path), and a build that cannot be skipped or fail green
+  why_no_test_catches_it: "Nothing in this repository ran this check. Every reviewer of PR #90 recorded it and the last one measured it: outside its own file, the check was referenced only by the task file - not by ops/check-pins, ops/test or linux-core.yml. What it protects is a PAIR, a workflow file and a structure pinned inside the check, and the pair can only be seen to have come apart while the check is RUN; unrun, the two can sit divergent indefinitely with every gate green. The workflow it guards is the repository's only job on a macOS runner, which bills by the minute, so the edits it refuses are each a change no Swift test and no Linux job can see: a push or pull_request trigger that would put a macOS build on every commit of every branch, contents write, a -xlarge label, a matrix, a skipped or failure-tolerant build step (a green run that compiled nothing), a step-level shell that drops pipefail so a failed build piped into tee reports success, an action outside the allowlist, a commit or push step, and since T-0167 a second environment variable beside the one pinned DEVELOPER_DIR or that variable pointed at another toolchain. The check exits 2 rather than guessing when PyYAML is not importable, which is why linux-core.yml installs python3-yaml in the container job and proves the import in the source-only job."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-ios-compile-guardrails.py"
   owner: agent/claude-opus-5
   added: 2026-09-18

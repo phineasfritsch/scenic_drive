@@ -38,6 +38,10 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
 - `ops/sane` — is the state sane; distinct exit codes; never mutates.
 - `ops/check-pins` — every load-bearing property in `pins/PINS.yaml`; `TODO` assertions fail.
 - A check that has never been seen red is untested. New checks are demonstrated red, then green, in the task log.
+- The author rule: rule every disagreement between plan, Brief, code and reality in the Log before writing code;
+  at the final pre-review commit re-run and re-quote the whole acceptance block. A correction commit that touches
+  a measured file re-measures it (T-0162's `wc -l` 239 vs 242 cost a review round). Close the read-only
+  verifier's findings before the review is bought.
 - Testers find and do not fix. Fixers open PRs. The reviewer of a task is never its owner (`ops/queue-check`).
 - Snapshot references are re-recorded only by a human-initiated commit reviewed by a different agent.
 
