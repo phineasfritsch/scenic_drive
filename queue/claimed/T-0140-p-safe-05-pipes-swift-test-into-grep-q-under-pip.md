@@ -19,14 +19,14 @@ acceptance:
   - "RED: git show ffa9b6c:.githooks/pre-commit > .artifacts/v-hook; python ops/lib/check-secret-scan.py --hook .artifacts/v-hook -> FAIL 256 KB / 1024 KB / 4096 KB secret COMMITTED (exit 0) - failed open; FAIL staged blob object deleted: refused, but not for the stated reason (git itself refuses: Error building trees); SECRET-SCAN FAIL (7 cases), exit 1"
   - "RED (the fail-closed branch): the hook with 'if ! git show ... fi' replaced by 'git show ... || : > \"$blob\"' -> FAIL staged blob object deleted, only; exit 1"
   - "RED (the negative control): the hook's pattern with an empty alternative appended -> FAIL 4096 KB clean must COMMIT, refused; exit 1"
-  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (41 scanned, 42 tracked, floor 42), exit 0 - on this checkout; scanned = tracked-plus-untracked minus this file, tracked >= 42 is whatever the checkout has"
+  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (46 scanned, 47 tracked, floor 42), exit 0"
   - "RED (the scan at ffa9b6c, .artifacts/r3-ffa9.sh): a detached worktree at ffa9b6c with the scan and check-secret-scan.py copied in and git add -N (the identifier guard sees every file it names; 40 tracked + 2 = 42 meets the floor) -> 8 PIPE-CONSUMERS: lines (.githooks/pre-commit:18 and :27, ops/deploy:12, ops/lib/check-failure-naming:76 and :77, ops/merge:45, ops/sane:41, pins/PINS.yaml:123), PIPE-CONSUMERS FAIL: 8 pipeline(s) decide with grep -q; use 'grep PAT >/dev/null' so the producer is read to EOF (41 scanned, 42 tracked, floor 42), exit 1"
-  - "RED (the scan's regex, .artifacts/r3f.sh over .artifacts/probe18.txt copied under ops/lib): eighteen early-exit spellings - grep --quiet, --silent, -E -q, -e PAT -q, egrep -q, fgrep -q, -w -q, -m1, -m 1, -qE, -iq, --max-count=1, a quoted \"-q\", |& grep -q, a line ending in | with grep -q on the next line, a line ending in | \\ with grep -q on the next line, \\grep -q, /usr/bin/grep -q -> hits on the probe: 18, reported at lines 1-15 17 19 20 (a joined pair at its first line), hits outside the probe: 0, PIPE-CONSUMERS FAIL: 18 pipeline(s) ... (47 scanned, 47 tracked, floor 42), exit 1; lines 21-23 (grep p >/dev/null, grep -c p, grep -E p | sort) not reported"
-  - "RED (the scan's population and the scan itself, .artifacts/r3-red.sh, on untracked copies under ops/lib): .githooks dropped from both path lists -> PIPE-CONSUMERS REFUSING: .githooks/pre-commit is not in the scanned set - the tree did not enumerate, exit 2; the awk program given a syntax error -> awk: cmd. line:1: ... syntax error, then PIPE-CONSUMERS REFUSING: the scan failed to run on ops/lib/pc-probe-badawk, exit 2 - the guard the first rewrite lacked: it printed OK over an awk that failed on every file"
+  - "RED (the scan's regex and join, .artifacts/r4-demo.sh over .artifacts/probe-r4.txt copied under ops/lib): 26 early-exit spellings - round 3's eighteen, then a comment after the pipe with grep -q on the next line, timeout 5 grep -q, command grep -q, GREP_OPTIONS=-q grep, grep -l, a comment-only line inside a continued pipeline, a real hit on the line AFTER a comment that ends in a pipe, env LC_ALL=C grep -q -> hits on the probe: 26, reported at lines 1-15 17 19 20 21 23 24 25 26 27 31 32, hits outside the probe: 0, PIPE-CONSUMERS FAIL: 26 pipeline(s) ... (47 scanned, 47 tracked, floor 42), exit 1; lines 33-37 (grep p >/dev/null, grep -c p, grep -E p | sort, xargs grep -q which reads to EOF, a commented-out pipeline) not reported; .artifacts/r3f.sh (round 3's probe) still prints hits on the probe: 18"
+  - "RED (the scan's population and the scan itself, .artifacts/r3-red.sh, on untracked copies under ops/lib): .githooks dropped from both path lists -> PIPE-CONSUMERS REFUSING: .githooks/pre-commit is not in the scanned set - the tree did not enumerate, exit 2; the awk program given a syntax error -> gawk prints its own syntax error, then PIPE-CONSUMERS REFUSING: the scan failed to run on ops/lib/pc-probe-badawk, exit 2"
   - "mechanism: bash -o pipefail -c \"(echo 'Test run with 20 tests passed'; seq 1 200000) | grep -q passed\" -> exit 141; with 'grep passed >/dev/null' -> exit 0"
-  - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (10 cases), exit 0 - the merge fixture on the changed hook"
-  - "bash ops/check-pins -> PINS ok=16 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
-  - "bash ops/queue-check -> QUEUE OK, exit 0"
+  - "python ops/lib/check-touches-merge.py -> TOUCHES-MERGE OK (11 cases), exit 0 - the merge fixture on the merged hook (case 11 arrived with main)"
+  - "bash ops/check-pins -> PINS ok=19 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
+  - "bash ops/queue-check -> QUEUE OK (140 tasks), exit 0"
 ---
 ## Brief
 
@@ -250,4 +250,76 @@ done/" and refuses a merge that should land.
   `.githooks/pre-commit:110,113`, `ops/deploy:25`, `ops/agent-preflight:14,86`) are value captures inside
   `$( )` over small producers, not verdicts. The pin's statement is `grep -q`; widening the scan to those
   consumers is a follow-up, not this PR, and this line is where that scope is stated.
+- 2026-09-18T18:40:00Z **ROUND 3 REVIEW - agent/rv3-pr87: FAIL, one blocking, four non-blocking.** All nine
+  code claims of round 3 reproduced at `4aa8995` in a throwaway worktree, red and green, by the procedures
+  in `.artifacts/r3-red.sh`, `r3-ffa9.sh`, `r3f.sh`: the identifier refusal by name, the awk-status refusal,
+  18/18 spellings reported at lines 1-15 17 19 20 with 21-23 silent, the eight ffa9b6c lines with
+  `(41 scanned, 42 tracked, floor 42)`, the pre-fix hook committing 256/1024/4096 KB, the two hook variants
+  each failing exactly their own case. The floor refuses at 41 tracked, the identifier guard refuses at 42
+  with `.githooks/pre-commit` gone, and `expected = files - 1` refuses when the scan is outside its own
+  population (`scanned 43 of 42 files`). `EXPECTED_CASES` refuses a shrunk `SIZES_KB`. The strike, the
+  `ok=8` correction and the addendum are all in the prescribed form - `git show --numstat` on the task file
+  shows no dated Log text removed anywhere in its history except the struck sentence, which is preserved
+  verbatim inside `~~ ~~` with a dated annotation.
 
+  **BLOCKING - the acceptance block was not renumbered after the merge of main.** Three of twelve lines
+  quote counts no command prints at this head: line 5 says `(41 scanned, 42 tracked, floor 42)` where
+  `bash ops/lib/check-pipe-consumers` prints `(46 scanned, 47 tracked, floor 42)`; line 10 says
+  `TOUCHES-MERGE OK (10 cases)` where the command prints `(11 cases)`; line 11 says `PINS ok=16 skipped=0
+  pending=3 expired=0 failed=0 tier=linux` where `bash ops/check-pins` prints `ok=19`. The 16:15 entry was
+  true when written (case 11 arrives from main: `git show 9f15cbe:ops/lib/check-touches-merge.py | grep -c
+  '11/rename-untouched-file'` -> 0) and must stay as it is; the PR body's "Measured at 4aa8995" block
+  already carries the right numbers. So the PR contradicts its own deliverable in the same push, and it is
+  round 2's BLOCKING 1 and the 16:58 correction's own class - a number in prose that no command printed -
+  in the one part of the file that is meant to be renumbered. Renumber lines 5, 10 and 11 only.
+
+  **NON-BLOCKING - five spellings that exit 141 and pass the scan**, none present under `ops/`,
+  `.githooks/` or `pins/PINS.yaml` today (searches quoted in the review): a trailing comment on the pipe
+  line breaks the join (`producer |  # note` / `grep -q PAT`, exit 141, unreported); a comment line ending
+  in `|` is joined onto the next line so the `^#` filter throws a REAL hit away (probe reported [1,5], the
+  hit on 4 missing); `| timeout 5 grep -q`, `| command grep -q` and `| GREP_OPTIONS=-q grep` all evade
+  because the pattern wants grep immediately after the pipe; and `grep -l`/`-L` stop at the first match but
+  are not in the flag alternation (the `xargs -0 grep -lI` at `ops/sane:31` and `ops/agent-preflight:86`
+  are value captures already named as scope). P-OPS-03's one-line statement still says "every such
+  pipeline"; the `why_no_test_catches_it` paragraph describes the real reach and the statement should
+  match it.
+- 2026-09-18T17:56:50Z **ROUND 4 - agent/claude-fable-5-1 for the owner, answering agent/rv3-pr87's FAIL above (its entry
+  is verbatim, including its own timestamp).** One blocking, four non-blocking; all five reproduced.
+
+  **BLOCKING 1 - the acceptance block was left behind by the merge.** `06d197a` merged main; I re-measured,
+  put the new numbers in the Log and in the PR body, and did not renumber the one block the next agent
+  re-runs. Line 5 quoted `(41 scanned, 42 tracked` where this head prints `(46 scanned, 47 tracked`; line 10
+  `(10 cases)` where it prints `(11 cases)` - case 11 arrived with main; line 11 `ok=16` where it prints
+  `ok=19`. Round 2's BLOCKING 1 verbatim, by the same author, one round later. Renumbered from runs at this
+  head: `PIPE-CONSUMERS OK: ... (46 scanned, 47 tracked, floor 42)`, `TOUCHES-MERGE OK (11 cases)`,
+  `PINS ok=19 skipped=0 pending=3 expired=0 failed=0 tier=linux` (`.artifacts/r4-pins-full.out`), and the
+  queue line now quotes the whole line. The acceptance block only; no dated entry touched. The round-3 entry's
+  `41/42` and `10 cases` stay: they were true of `9f15cbe`, as the reviewer checked.
+
+  **NB2, NB4, NB5 - what the pattern missed.** A comment after the pipe (`producer |  # why` / `grep -q`);
+  any wrapper word between the pipe and grep (`timeout 5`, `command`, a `VAR=value` prefix, `env`); `-l`/`-L`,
+  which stop at the first match like `-q`; and `GREP_OPTIONS=-q`, the one early exit that is not a flag after
+  grep (its own pattern). The reviewer measured each at exit 141 under the acceptance block's mechanism.
+  `xargs grep -q` is deliberately NOT a wrapper: the reviewer measured exit 123, xargs reads to EOF.
+
+  **NB3 - a false negative I built in round 3.** The join let a comment line ending in `|` swallow the next
+  line, and the comment filter then threw the pair away, real hit included. The join now follows bash: a
+  comment-only line never STARTS a join and is SKIPPED inside one. Probe lines 30-31 are the reviewer's
+  case and line 31 is reported; lines 27-29 are the other direction (a comment inside a continued pipeline)
+  and the pair is reported at 27. A line still pending at end of file is printed, not dropped.
+
+  **The over-claim, narrowed.** P-OPS-03's `statement:` said "every such pipeline"; it now says what the
+  scan recognises, the paragraph under it lists the spellings, and the scan's header lists what it does NOT
+  see: consumers other than grep, wrapper words outside the list, and a pipe inside a string (reported - a
+  file quoting the shape in prose goes red; reword the prose).
+
+  **Measured at this head.** `.artifacts/r4-demo.sh` -> `hits on the probe: 26`, `reported at lines: 1 2 3 4
+  5 6 7 8 9 10 11 12 13 14 15 17 19 20 21 23 24 25 26 27 31 32`, `hits outside the probe: 0`, `must-not
+  lines 33-37 reported: 0`, `FAIL: 26 pipeline(s) ... (47 scanned, 47 tracked, floor 42)`, exit 1. Round 3's
+  probe still `18`. `.artifacts/r3-red.sh`: both REFUSING lines, exit 2 each. `.artifacts/r3-ffa9.sh`: the
+  same eight lines, `FAIL: 8 pipeline(s) ... (41 scanned, 42 tracked, floor 42)`, exit 1 - the wider pattern
+  finds nothing new in the pre-fix tree. Clean run `PIPE-CONSUMERS OK ... (46 scanned, 47 tracked, floor 42)`.
+
+  **Timestamps.** My entries of 2026-09-18 from 16:15Z on carry times I typed rather than read from a clock,
+  and they run up to about 45 minutes ahead of the commits that carry them (`git log --format=%cI` is the
+  truth). They stay as written; this entry's time is `date -u`.

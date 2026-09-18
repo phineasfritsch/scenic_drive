@@ -17,6 +17,13 @@
 # The fix is one character class: `grep PAT >/dev/null` reads ALL of stdin and exits on its own result.
 # This check keeps the shape from coming back. It is a text scan, so it is anchored on the command text,
 # not on a comment - `grep -q` is the identifier.
+#
+# WHAT THIS SCAN DOES NOT SEE, stated rather than implied:
+#   * early-exit consumers other than grep (`| head -N`, `sed Nq`, `read`) - the same mechanism, not scanned;
+#   * a wrapper word it does not list between the pipe and grep (the list is in PATTERN below); `xargs` is
+#     deliberately not one, because xargs reads its stdin to EOF;
+#   * it cannot tell a pipe inside a string from a pipeline, so a file that QUOTES the shape in running text
+#     is reported - reword the prose (two files were) rather than teaching the scan to skip strings.
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"; exit 2; }
 [[ -f ops/lib/pins.py ]] || { echo "$(pwd) is not the repo root"; exit 2; }
@@ -59,12 +66,16 @@ if (( ${#files[@]} < ${#tracked[@]} )); then
   exit 2
 fi
 
-# The pattern. A pipe (`|` or `|&`), then grep/egrep/fgrep - bare, backslash-escaped, or by path - then any
-# run of flags and words, then a flag that makes it exit early: -q in any short group (quoted or not),
-# --quiet, --silent, -m<N>, --max-count. Round 1 caught only a -q in the FIRST short group after grep;
-# round 3 (agent/rv2-pr87) added the quoted form, |&, --max-count, and a line that ENDS in a pipe with the
-# consumer on the next line; the same round then added `| \` continuations, `\grep` and `/usr/bin/grep`.
-PATTERN='\|&?[[:space:]]*(\\|[^|;&[:space:]]*/)?(grep|egrep|fgrep)([[:space:]]+[^|;&]*)?[[:space:]]+["'"'"']?(-[A-Za-z]*q[A-Za-z]*|--quiet|--silent|-m[[:space:]]*[0-9]+|--max-count(=|[[:space:]]+)[0-9]+)["'"'"']?([[:space:]]|$)'
+# The pattern. A pipe (`|` or `|&`); then any run of wrapper words - a VAR=value prefix, command, exec, env,
+# nice, nohup, stdbuf, sudo, time, timeout, each with its own flags and a duration; then grep/egrep/fgrep -
+# bare, backslash-escaped, or by path; then any run of flags and words; then a flag that makes it exit
+# early: -q, -l or -L in any short group (quoted or not), --quiet, --silent, --files-with-matches,
+# --files-without-match, -m<N>, --max-count. ENVPATTERN is the one early exit that is not a flag after grep:
+# GREP_OPTIONS in the consumer's environment. Round 1 caught only a -q in the FIRST short group; round 3
+# (agent/rv2-pr87) added the quoted form, |&, --max-count, line joins, `\grep` and `/usr/bin/grep`;
+# round 4 (agent/rv3-pr87) added the wrapper words, -l/-L, GREP_OPTIONS and a comment after the pipe.
+PATTERN='\|&?[[:space:]]*(([A-Za-z_][A-Za-z0-9_]*=[^[:space:]|;&]*|command|exec|env|nice|nohup|stdbuf|sudo|time|timeout)([[:space:]]+(-[^[:space:]|;&]*|[0-9.]+[smhd]?))*[[:space:]]+)*(\\|[^|;&[:space:]]*/)?(grep|egrep|fgrep)([[:space:]]+[^|;&]*)?[[:space:]]+["'"'"']?(-[A-Za-z]*[qlL][A-Za-z]*|--quiet|--silent|--files-with-matches|--files-without-match|-m[[:space:]]*[0-9]+|--max-count(=|[[:space:]]+)[0-9]+)["'"'"']?([[:space:]]|$)'
+ENVPATTERN='\|&?[^|;&]*GREP_OPTIONS='
 
 hits=0
 scanned=0
@@ -76,9 +87,30 @@ for f in "${files[@]}"; do
   # version of this loop ran awk inside a process substitution, awk failed on every file (this gawk does
   # not take `--`), zero hits were counted, and the check printed OK over nothing - the exact fail-open
   # this file exists to forbid, one level up. A scan that did not run is refused, not passed.
-  # A line ending in `|` or `| \` is joined with the next before matching, and a joined line is reported
-  # at the number of its FIRST line.
-  if ! awk '{ if (prev != "") { $0 = prev " " $0; n = pn; prev = "" } else { n = NR } if ($0 ~ /\|[[:space:]]*\\?[[:space:]]*$/) { sub(/\\[[:space:]]*$/, "", $0); prev = $0; pn = n; next } print n ":" $0 }' "$f" > "$scan"; then
+  #
+  # The join follows what bash parses. A line ending in `|`, `| \` or `| # comment` continues on the next
+  # line; a comment-only line INSIDE a continued pipeline is skipped, as bash skips it; a comment-only line
+  # never STARTS a join (round 3's join let `# note ending in a pipe |` swallow the real hit on the next
+  # line, and the comment filter then threw the pair away - agent/rv3-pr87, NON-BLOCKING 3). A joined line
+  # is reported at the number of its FIRST line.
+  if ! awk '
+    {
+      line = $0
+      if (prev != "") {
+        if (line ~ /^[[:space:]]*#/) next
+        line = prev " " line; n = pn; prev = ""
+      } else {
+        n = NR
+        if (line ~ /^[[:space:]]*#/) { print n ":" line; next }
+      }
+      if (line ~ /\|[[:space:]]*(\\|#.*)?[[:space:]]*$/) {
+        sub(/\|[[:space:]]*(\\|#.*)[[:space:]]*$/, "|", line)
+        prev = line; pn = n; next
+      }
+      print n ":" line
+    }
+    END { if (prev != "") print pn ":" prev }
+  ' "$f" > "$scan"; then
     echo "PIPE-CONSUMERS REFUSING: the scan failed to run on $f"
     exit 2
   fi
@@ -87,7 +119,7 @@ for f in "${files[@]}"; do
     [[ -z "$line" ]] && continue
     echo "PIPE-CONSUMERS: $f:$line"
     hits=$((hits + 1))
-  done < <(grep -E "$PATTERN" "$scan" | grep -vE '^[0-9]+:[[:space:]]*#')
+  done < <(grep -E -e "$PATTERN" -e "$ENVPATTERN" "$scan" | grep -vE '^[0-9]+:[[:space:]]*#')
 done
 
 expected=$(( ${#files[@]} - 1 ))   # every scanned file but this one
