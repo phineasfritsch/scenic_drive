@@ -210,12 +210,16 @@ REQUIRED_COUNT_KEYS = frozenset(f"count.{k}" for k in COUNT_KEYS)
 REQUIRED_META_KEYS = frozenset({
     "schema_version", "min_app_build", "corpus_version", "region", "bbox", "built_at",
     "attribution", "odbl_notice", "table_licenses", "sqlite_version", "content_sha256",
-    "build_complete", "carry_rate", "previous_content_sha256", "carry_override",
+    "build_complete", "carry_rate", "previous_content_sha256",
 }) | REQUIRED_COUNT_KEYS
 
 # Excluded from meta.content_sha256: everything that is a property of THIS build rather than of its content.
 # content_sha256 must be version independent so it can be committed as a golden and diffed by a human.
-DIGEST_EXCLUDED_META = frozenset({"built_at", "content_sha256", "build_complete", "sqlite_version"})
+# corpus_version joined the list when the first build ran: it defaults to built_at compacted, so leaving it
+# in made the "content" digest change on a rebuild of an identical extract on a different day - exactly the
+# property the file digest already has and the whole reason this second digest exists.
+DIGEST_EXCLUDED_META = frozenset({
+    "built_at", "corpus_version", "content_sha256", "build_complete", "sqlite_version"})
 
 _WS = re.compile(r"\s+")
 
@@ -229,11 +233,18 @@ def ddl_sha256(conn: sqlite3.Connection) -> str:
 
     The caller takes it immediately after the DDL executes and BEFORE any INSERT or ANALYZE, which keeps
     sqlite_stat1 out of it with no carve-out.
+
+    SHADOW_TABLES are excluded, and so is any row whose tbl_name is one. Their CREATE TABLE text is written
+    by sqlite, not by this repository, so hashing it would bind schema_version - the value that decides
+    whether a device may download a corpus at all (plan's OTA row) - to the sqlite build that happened to
+    run the ETL. This box is 3.40.1 and the pinned image is 3.45.1; a wording change between them would
+    invalidate every device's corpus with no DDL diff to point at.
     """
     rows = conn.execute(
         "SELECT type, name, tbl_name, ifnull(sql,'') FROM sqlite_schema ORDER BY type, name"
     ).fetchall()
-    body = "\n".join("\x1f".join(_WS.sub(" ", str(f)).strip() for f in row) for row in rows)
+    kept = [r for r in rows if r[1] not in SHADOW_TABLES and r[2] not in SHADOW_TABLES]
+    body = "\n".join("\x1f".join(_WS.sub(" ", str(f)).strip() for f in row) for row in kept)
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
