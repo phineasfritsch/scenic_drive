@@ -270,3 +270,18 @@ simulated way split -> >=98% of previous ids still resolve.
       this box. Only CI has run them on this branch.
     * `Sources/PlaceStore/` is in `touches:` and was not touched. There is no Swift reader for this corpus
       yet, so nothing on the device has opened one of these files.
+- 2026-09-18T22:33:42Z **Record corrections from the read-only verification of this build, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier built the corpus twice from the committed fixture and matched the
+  sha256 `450e6255...42c6d`, reproduced the `--previous` carry (`previous=79 carried=67 aliased=12 lost=0
+  rate_bp=10000`, 12 alias rows), recomputed the fnv64 worked example from the spec constants
+  (5168106726590839346), ran the three named tests and the whole suite (`732 passed`), and counted the four
+  empty tables; these are text.** (a) "merged origin/main, 506 commits behind" echoes the re-lease entry; the
+  merge's second parent a2bc6c6 is 507 commits from a2f1e2b (`git rev-list --count a2f1e2b..a2bc6c6`); 506 was
+  the count to 6c77cb5 when the re-lease was written. (b) The orchestrator's own verify instruction asked for
+  an empty `grep -rn "way_record\|normalise"` over the corpus files; it prints one line, `schema.py:228` -
+  the English word "normalised" in a pre-existing WIP docstring - and no import of either module exists; the
+  author's actual claim ("way_record.py/normalise.py not imported") holds as written. (c) For the reviewer,
+  not a correction: the merge commit 65ab53f was made with `--no-verify` and the Log records why and what was
+  measured (`comm -12` of the paths differing from both parents -> 0 paths); CLAUDE.md forbids bypassing the
+  hook, so the reviewer rules on it - whether the hook's merge logic refused a legitimate merge (then a
+  follow-up task on the hook) or the bypass hid something (then blocking).
