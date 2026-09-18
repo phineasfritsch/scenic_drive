@@ -1,7 +1,7 @@
 ---
 id: T-0152
 title: home-screen copy - a drive title, a "stand-in map" caption, and a user-facing message where the screen shows String(describing: error)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T20:32:55Z
@@ -11,7 +11,7 @@ branch: task/T-0152
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr95
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -371,3 +371,86 @@ do not add the disclaimer here (T-0153 owns it, and it gates the first plan, not
   35396903921 were not verified; the run itself is (linux-core, d16a5e4, success), and the follow-on run
   35397425795 on 419b43f has since passed. (c) Part 1's R1 and R2 greps (one line for `UIPasteboard|ShareLink|
   copy`; none of the copy-rule phrases in the plan) were not re-run by the verifier and stand as the author's.
+- 2026-09-18T22:09:20Z **review PASS - agent/rv1-pr95 (reviewer; not the owner, and not the orchestrator who wrote
+  the 21:57:33Z corrections).** Read PR #95, this file end to end, and `git diff origin/main...ca3df40`. Worktree
+  `.worktrees/rv1-pr95` detached at `ca3df40`, removed at the end; `git status --porcelain` empty before and after
+  every mutating run. Nothing in the PR was changed - testers find and do not fix.
+
+  **The acceptance block re-run at the head `ca3df40`, bare, every line this box can run.** `awk 'END{print NR}'`
+  -> `199`, exit 0. `bash ops/lib/check-line-cap` -> `P-SRC-02: 68 Swift files tracked (Sources=25, Tests=35,
+  apps/ios=8), none over 300 lines`, exit 0. The three ruled strings at 180 / 186 / 193; `sed -n '180p;186p;193p'
+  | od -c` -> `302 267` in the title (U+00B7, not a hyphen), `303 261` in `Cañada`, and `'` in `doesn't` -
+  byte-exact, no typographic substitution. The no-duration grep -> no output, exit 1. `accessibilityIdentifier("home.`
+  -> 62 error, 96 title, 106 route, 112 caption, 141 openInAppleMaps; `grep -c 'Text('` over the same file -> 5, so
+  every `Text` on this screen carries an identifier. `0x[0-9A-Fa-f]\{6\}\|Color(` over `Sources/FeatureScenicHome/`
+  -> no output, exit 1. `.font(` -> 58 `.footnote`, 91 `.title2`, 99 and 109 `.subheadline`, 131 `.headline`;
+  `.system(size:\|size: [0-9]` -> no output, exit 1. `git diff --name-only origin/main...HEAD` -> the Swift file and
+  this file, nothing else; `git diff --name-only d16a5e4 -- '*.swift'` -> no output. `git status --porcelain` -> empty.
+  `bash ops/queue-check` -> exit 0.
+
+  **Two arithmetics re-done rather than read.** (1) The red table: 199 + 130 filler lines = 329, and
+  `bash ops/lib/check-line-cap` bare named THIS file - `apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift
+  (329 lines)`, exit 1; control green first, filler removed, green again at 199. (2) The population 25 + 35 + 8 = 68,
+  recounted with `git ls-files 'Sources/*.swift' | wc -l` and the other two roots. For the record: `git ls-files
+  '*.swift' | wc -l` is **69** - the 69th is the root `Package.swift`, which `ops/lib/check-line-cap` documents as
+  its own known pathspec hole ("a .swift file placed directly at `Sources/X.swift` ... is still not counted"). The
+  acceptance line is internally correct; the residual hole is the check's, is written into it, and is not this task's.
+
+  **Both ios-compile runs reproduced on their shas; nothing dispatched.** 35396900851 ->
+  `{"conclusion":"success","databaseId":35396900851,"headSha":"d16a5e4713fb830b977d0f2641c91df04cf88399","status":"completed"}`;
+  35393000321 -> success on `d428da0`, an ancestor. `gh run view 35396900851 --log` is 1667 lines: 1613
+  `** BUILD SUCCEEDED **`, 114 `Xcode 16.4`, 115 `Build version 16F6`, 120 `swift-driver version: 1.120.5`, 1380
+  x86_64 and 1427 arm64 `Compiling ScenicHomeScreen.swift (in target 'FeatureScenicHome' from project 'ScenicApp')`;
+  `grep -c 'error:'` -> 0 and `grep -c ' error:'` -> 0. `gh pr checks 95`, once, at the end: `core pass 2m11s`,
+  `pins-source-only pass 1m9s`, run 35399342543, whose `headSha` is `ca3df401bafdcf369ccd60dbddfb9c353b144542` -
+  the current head, not an ancestor.
+
+  **The product question - does any string promise something the build cannot do?** No. `MapStyle.maplibreDemoTiles`
+  is `https://demotiles.maplibre.org/style.json` and its own type note says it "renders country polygons and nothing
+  else - no roads", so `This map doesn't show roads yet.` is true of the tiles actually loaded. `Tap below` points at
+  `home.openInAppleMaps`, the next element down the screen, and `SkylineHandoff.open()` does hand a
+  `maps.apple.com/directions` URL to `UIApplication.open`. The road list was checked name by name and direction by
+  direction against `SkylineHandoff.waypoints` at this head: 1 I-280 at its Daly City end, "the southbound on-ramp"
+  = `I-280 south`; 2 Cañada Rd's southern end, "drive Cañada Rd northbound up to CA-92" = `Cañada Road north`;
+  3 CA-92 / Half Moon Bay Road, "Westbound" = `CA-92 west`; 4 Skyline Boulevard (CA-35) on the ridge, "southbound"
+  = `Skyline Boulevard south`; 5 Sky Londa, the turn-around; `destination` is the San Francisco centroid = `then back
+  to the city` and the title's `ends back in San Francisco`. Five roads, five waypoints, same order, same directions.
+  The `Logger` subsystem matches `PRODUCT_BUNDLE_IDENTIFIER` at `project.pbxproj:211` and `:232`. No duration is on
+  the screen and none is known; the absence is the honest state.
+
+  **Three mutations nobody wrote, each alone on `ca3df40`, control green first, tree restored after each.**
+  M1: `Skyline Boulevard south` -> `north` in `Copy.route` (the one line that says where you would be, pointing the
+  wrong way down the ridge) - every check green, `fail=0`. M2: title -> `Skyline loop · 2h · ends back in San
+  Francisco` (a duration nobody measured, printed on the screen) - R11's grep still exits 1, every check green.
+  M3: the `Logger` subsystem -> `com.acme.wrongapp` - every check green. All three land in the same hole, and it is
+  disclosed in the author's own words at 21:30:52Z, STILL OPEN item 2: "no test, pin or build step ties the sentence
+  to the waypoints ... Only review connects them." What the record already admits is not a finding. **No BLOCKING
+  finding.**
+
+  **Rulings: I disagree with none of R1-R13.** R4 (OSLog is an Apple system framework, not one of the first-party
+  targets CLAUDE.md's import list governs) is the only one worth a second look, and the file's pre-existing
+  `import SwiftUI` plus `SkylineHandoff.swift`'s `import UIKit` in the same target settle it. R3's band is checked
+  against the plan's "lower-right reserved for attribution": a sibling above the map in a `VStack(spacing: 0)`
+  structurally cannot reach that corner or the `AttributionFooter`. R12's `.subheadline` + `fgMuted` sits inside the
+  plan's token table (`fgMuted` = secondary) and its "SF Pro via Dynamic Type only"; `primary` appears exactly once,
+  as the button's fill, never as text on `bg`.
+
+  **RECORDABLE - none of it fails this round.** (a) R11's grep is described as one that "fails if a duration or a
+  distance ever appears in this file"; it is narrower than that - M2's `2h` passes it, and a metric distance (`km`)
+  is outside the pattern entirely. It is an acceptance line and not a CI gate, so nothing on main regresses; a pin
+  over `Sources/FeatureScenicHome/` with a wider pattern is a follow-up, not a blocker. (b) Nothing ties the `Logger`
+  subsystem literal to `PRODUCT_BUNDLE_IDENTIFIER` (M3); it is right at this head and a one-line pin would keep it
+  so. (c) `ends back in San Francisco` and `then back to the city` read as a loop while `source: nil` means "wherever
+  you are" - true about the destination, presumptuous about the start; the framing is inherited from
+  `SkylineHandoff`'s own doc rather than introduced here, and it is worth a look on T-0009's first device handoff.
+  (d) The ios-compile runner is Xcode 16.4 while CLAUDE.md calls the project "Xcode 26 buildable folders" - quoted
+  openly in the acceptance line, pre-existing, and T-0157's file.
+
+  **Not done by this review:** nothing was rendered - this tree has still never been on a phone, and no claim here is
+  about appearance; `bash ops/check-pins` and `bash ops/test` were not run locally (run 35399342543 on this head is
+  the record for the Linux gates); nothing under `apps/ios` can be compiled on this box, so M1-M3 were judged by the
+  greps and the diff, not by a compiler; part 1's R1 and R2 greps were not re-run and still stand as the author's,
+  as the 21:57:33Z correction says.
+
+  `state: claimed` -> `done`, `reviewer: null` -> `agent/rv1-pr95`, `git mv` to `queue/done/`. Not merged: that is
+  not the reviewer's step.
