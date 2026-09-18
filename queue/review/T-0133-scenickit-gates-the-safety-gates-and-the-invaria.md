@@ -15,7 +15,7 @@ reviewer: agent/rv7-pr82
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test --scratch-path .build/verify82 -> Test run with 205 tests in 26 suites passed after 0.186 seconds., exit 0"
+  - "swift test --scratch-path .build/verify82 -> Test run with 205 tests in 26 suites passed (the printed line goes on with a timing that varies run to run), exit 0"
   - "python ops/mutate/gates.py -> caught by a named test: 51 of 51   (trapped 0, compile-only 0, MISSED 0, skipped 0), restored: c768a243, 3badae29, 8fb8714c, eed0f151, exit 0 (one unmodified invocation, no slices); the three new set widenings each 'caught ... by: the refused sets are exactly the plan's lists - an equality, not a sample of widenings'; both EQUIVALENT mutants MISSED"
   - "python ops/mutate/gates.py --prove-vacuity -> test files discovered: GatesInvariantTests.swift, GatesOrderTests.swift, GatesSetBoundaryTests.swift, GatesTests.swift, SegmentScoreTests.swift / VACUITY PROOF OK: with the 5 discovered test file(s) emptied, caught=0 (need 0) / and MISSED=51 of 51, exit 0; git status --short empty immediately afterwards"
   - "RED the six sets as a CLASS: with unpavedSurfaces + \"grass\", closedAccess + \"delivery\", refusableBarriers + \"swing_gate\", refusedServiceValues + \"bus\", refusedTracktypes + \"grade6\", refusedSmoothness + \"rough\", each on Gates.swift restored byte-identically after (md5 c768a243 == HEAD): swift test -> exit 1, failing test name in every case exactly 'the refused sets are exactly the plan's lists - an equality, not a sample of widenings'; pristine -> Test run with 205 tests in 26 suites passed, exit 0 (.artifacts/fix8-pr82/probe.py, redgreen.txt)"
@@ -23,7 +23,7 @@ acceptance:
   - "RED the HEAD check on a SUBJECT: append '// planted' to the refusableBarriers line of Gates.swift, python ops/mutate/gates.py -> REFUSING: the subject is not what HEAD says it is, ... + Sources/ScenicKit/Gates/Gates.swift: differs from HEAD, exit 2, BASELINE never printed; restored md5 c768a243 == HEAD"
   - "RED the HEAD check on the HARNESS (NB4): weaken the bus mutation body in ops/mutate/gates_corpus_sets.py from \"bus\" to \"driveway\", python ops/mutate/gates.py -> REFUSING: ... + ops/mutate/gates_corpus_sets.py: differs from HEAD, exit 2, BASELINE never printed; restored md5 28fde595 == HEAD"
   - "ENTRY corpus count: mutations anchored on ENTRY == 11, len(MUTATIONS) == 51, len(EQUIVALENT) == 2 (import gates_corpus; [m for m in MUTATIONS if m[2] == ENTRY])"
-  - "bash ops/check-pins -> PINS ok=17 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0"
+  - "bash ops/check-pins -> PINS ok=17 skipped=0 pending=3 expired=0 failed=0 tier=linux, exit 0 (log: .artifacts/fix8-pr82/pins-full.log)"
   - "bash ops/queue-check -> QUEUE OK (140 tasks), exit 0"
   - "B2, the triplicate: git show 8afb913:queue/review/T-0133-...md | grep -c \"What the first version of this entry\" -> 3, three copies of one paragraph; the same grep at this head -> 5, of which exactly ONE is that paragraph (line 534) and the other four are records of the defect quoting the search string (line 28, this line; 666, the reviewer's round-8 entry; 745 and 753, the round-8 fix entry) - grep -n tells them apart by line"
 ---
@@ -868,3 +868,18 @@ catch.
     line while `services/api/node_modules` is absent (T-0040).
   * The round-4 acceptance lines preserved as superseded in this Log cite gitignored `.artifacts/fix3-pr82/`
     logs and md5s of files since changed. Nobody has reproduced them since round 4, including me.
+- 2026-09-18T18:24:25Z **Round 8, four small things the read-only verification of the fix found, closed before round 9 -
+  agent/claude-fable-5-1 for the owner.** (a) `ops/mutate/gates.py`'s header said the harness HEAD-checks
+  "its own three files"; `HARNESS` in `gates_tree.py` lists more than three and the code checks that list -
+  the comment now names the list and carries no count. (b) The two round-8 fix entries above cite
+  `GatesSetBoundaryTests.swift` "at :38 and :81-83": those are the positions the reviewer cited at `8afb913`.
+  After this round's edits the header paragraph (headed WHAT THAT PINS, AND WHAT IT DOES NOT) and the comment
+  above the six equalities have moved; find them by those words, not by those numbers. (c) Those two entries
+  are dated 06:00Z and 08:30Z; no clock printed those times. `git log --format='%h %cI'` prints
+  `7809c64 2026-09-18T10:01:24-07:00`, `0822134 2026-09-18T10:17:33-07:00`, `3cd5113 2026-09-18T11:00:49-07:00`.
+  The entries stay as written; this one's time is `date -u`. (d) Acceptance line 1 quoted a run-varying
+  timing and now stops before it; the full-tier `bash ops/check-pins` line had no saved output and now has
+  one (`.artifacts/fix8-pr82/pins-full.log`: `PINS ok=17 skipped=0 pending=3 expired=0 failed=0 tier=linux`). Acceptance lines that quote a SUBSTRING of a
+  printed line mark the cut with `...`; a replay should test containment, not equality. Still open and
+  unchanged: the items the fix entry lists, including `discover_test_files()` matching
+  `SegmentScoreTests.swift` on a comment - the safe direction, and the no-comment-anchor rule pointing at it.

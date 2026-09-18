@@ -18,7 +18,7 @@ Written on the corrected contract (T-0132, and the harness discussion on PR #70)
     FAIL_LINE regex produced "caught: 0, trapped: 3" and exit 0;
   * a catch means a NAMED test recorded an issue, and the name is PRINTED. A non-zero exit with no name is a
     trap. The second review of PR #82 had to write its own runner to establish the names this one now prints;
-  * every subject, every discovered test file AND the harness's own three files must be byte-identical to
+  * every subject, every discovered test file AND the harness's own files (HARNESS in gates_tree.py) must be byte-identical to
     `git show HEAD:` BEFORE anything is built. That review put one line into Gates.swift and this harness
     measured the mutant and printed "28 of 28", exit 0, while the invariant was broken on disk; round 8
     added the harness files, because a mutation body weakened on disk is invisible to a floor that counts;
