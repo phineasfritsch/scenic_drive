@@ -49,6 +49,42 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
 9. **Crash recovery**: `ops/queue-sweep` returns tasks whose `lease_expires_at` has passed to `ready/` and releases
    their locks. Run it first thing every session and on a cron.
 
+   **An expired lease is not abandoned work, and the sweeper is the one command here that destroys state** —
+   it sets `owner: null`, the state `ops/review` then refuses as undecidable, and leaves `main` saying
+   `ready/<id>` while the branch says `review/`. On 2026-09-15 **all 67** claimed tasks had an expired lease
+   and **39 had an open PR**. So it sweeps a task only when that task **never named a branch**:
+
+   | state of `branch:` | sweeper |
+   |---|---|
+   | ref found (`origin/<branch>` or local) | **kept** — finished work waiting to merge |
+   | named, but no ref in this checkout | **kept** — it does no fetch, so "I cannot see it" is not "it does not exist" |
+   | `null` / absent | **swept** to `ready/`, locks released |
+   | git cannot read the repo | **refuses**, exit 2, moves nothing |
+
+   Leases are 2–4 hours and the work is routinely longer, so expiry mostly measures the wrong thing; the
+   branch is the evidence that matters. `ops/lib/check-sweep.py` asserts all four rows — pin P-PROC-03 runs
+   the cases, P-PROC-04 runs `--variants`, which is what proves the cases can fail — and it reads what the
+   sweeper *said* about that task, not only where the file ended up. Four of its seven cases are must-KEEP
+   (1, 2, 6, 7) and each asserts the sentence naming its own branch, which is printed only when that task
+   was considered; case 4 (an unexpired lease) asserts the summary line instead, because the sweeper says
+   nothing per task about a lease that has not expired. A sweeper that exits non-zero before its loop fails
+   every case on exit code; one that exits 0 without looping fails 1, 2, 3, 6 and 7 and passes 4 and 5. The **locks released** clause of row 3 is
+   the one part no case covers, because every fixture task declares `exclusive: []`.
+
+   **A kept task keeps its locks, and that is the cost of the rule above.** Sweeping is what used to release
+   an `exclusive:` lock, so a task that names a branch now holds `scenic-index` or `prod` until somebody
+   moves it — and `ops/queue-check` reports an orphaned lock as an error for *every* agent in *every*
+   worktree, not just its owner's. That is deliberate: a stuck lock is recoverable, 39 discarded branches are
+   not. Two things release it, and neither needs the original owner: `ops/review <id> --reviewer agent/<name>`
+   (which releases the task's own locks as it moves it), or deleting `queue/LOCKS/<resource>.lock` by hand
+   once you have checked what holds it.
+
+   **A finished task whose owner is gone is not stuck**: `ops/review <id> --reviewer agent/<name>` makes the
+   `claimed → review` transition from any session. It is not the owner's private door — it checks that the
+   owner exists and is comparable, that `reviewer != owner`, and that merging the branch would not duplicate
+   the task file, then releases the `exclusive:` locks. What it cannot check is that the reviewer is not the
+   *same session* under another name; `owner_session:` is recorded and compared by nothing (T-0131 item 3).
+
 ## Exclusive resources (declare in `exclusive:` before touching)
 
 `package-swift` (either Package.swift) · `pbxproj` · `spm-resolve` (Package.resolved) · `ios-simulator` ·

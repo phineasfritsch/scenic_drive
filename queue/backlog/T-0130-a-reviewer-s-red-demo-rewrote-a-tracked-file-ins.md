@@ -75,3 +75,87 @@ Note the reviewers who did this correctly today did exactly that: PR #70's revie
 - 2026-09-08T20:40:00Z filed by agent/claude-opus-5 from the PR #78 fixer's own report, which flagged it as
   "worth escalating, not mine to fix". Their guard - hashing the subject blob against HEAD before and after a
   verification run - is worth keeping as a technique regardless of what this task builds.
+- 2026-09-15T05:00:00Z **A SECOND SOURCE OF THE SAME HAZARD, and it hit twice in one interruption.** The first instance was a reviewer writing into another agent's worktree. This one needs no second agent at all: a red demo mutates a tracked file, and the **session dies before the `finally` that restores it**.
+
+  Two fixer agents were interrupted mid-demonstration when the session ended. Both had left their mutation in
+  the shipping source:
+
+  * `.worktrees/T-0114` - `Sources/Handoff/AppleMapsDirections.swift` carried
+    `let point = NumberFormatter().decimalSeparator ?? "."`, the reviewer's own reproduction. That is a live
+    locale defect: on a German device every coordinate becomes `34,06890` inside a comma-separated pair. Two
+    tests were failing, which was the *demonstration working* - but anyone reading `git status` next session
+    sees a modified source file and failing tests, and the obvious reading is "the fix is broken".
+  * `.worktrees/T-0116` - `Sources/ScenicKit/Budget/LambdaSearch.swift` had the `routerReturnedNonsense`
+    guard replaced by `// guard removed`. Four failing tests, same shape.
+
+  Both restored with `git checkout --`, and both branches then went green: 51 tests in 8 suites and 46 in 6.
+  Nothing was lost, because neither agent had committed. But the window between "mutate" and "restore" is
+  open for the whole length of a build-and-test cycle - minutes - and a session can end inside it.
+
+  **This changes what the task should build.** A rule about worktree ownership does not help here; the agent
+  owned the worktree. The options worth weighing:
+
+  * **Red demos run against a COPY, never the branch's own checkout.** The strongest fix, and it removes both
+    sources of the hazard at once. Costs a worktree or a temp tree per demo.
+  * **A marker the next session cannot miss.** A demo writes `.artifacts/DEMO-IN-PROGRESS` naming the file and
+    its original blob, removes it on restore, and `ops/agent-preflight` refuses while one exists. Cheap, and
+    it turns a silent dirty tree into a stated condition.
+  * **`.githooks/pre-commit` refusing a commit whose staged diff reinstates a known-bad pattern** - the
+    locale spellings, a deleted guard. Narrow, and it only catches the commit, not the confusion.
+
+  The preflight marker is probably the right first move: it is small, it fails closed, and it addresses the
+  actual damage, which was not a bad commit but **fifteen minutes of a new session reading a deliberate
+  mutation as a defect**.
+
+  **AND A WORKING REFERENCE ALREADY EXISTS.** The agent fixing PR #71 had reached the same conclusion
+  independently and built the marker into `ops/mutate/budget.py` before it was interrupted - so this session
+  met the guard doing its job rather than the damage. Starting the harness produced:
+
+  ```
+  REFUSING: .../.artifacts/budget-mutation-in-flight exists, so the previous run was killed while a
+    mutation was on disk.
+    The subject files may still be mutated. A run starting now would snapshot a MUTATED file
+    as `pristine`, measure every verdict against it, and restore the mutant afterwards.
+    Check them - `git diff -- Sources/ScenicKit/Budget/` - restore, then delete the sentinel.
+  exit 2
+  ```
+
+  That names a **worse** failure than the one this task was filed for, and I had not thought of it: not just
+  a confusing dirty tree, but a harness that adopts the mutant as its baseline, scores every mutation against
+  it, reports a clean sheet, and writes the mutant back on "restore". Silent, self-consistent, and it
+  corrupts the source.
+
+  So the shape is settled and the argument is over: **a sentinel written before the mutation and removed
+  after the restore, with the harness refusing while one exists.** What remains is to lift it out of one
+  harness into the shared place the rest of [[T-0132]] is heading, and to have `ops/agent-preflight` refuse
+  on it too so a human session meets it at the start rather than on the next harness run.
+
+- 2026-09-15T19:30:00Z **IT ALREADY PRODUCED A FALSE GREEN, in a real run, and nobody noticed at the time.** Everything above was written about a *window*. The agent fixing PR #71 closed it and, in doing so, showed the window had already been walked through:
+
+  A subject file was left mutated on disk. A later harness run snapshotted that MUTANT as `pristine`,
+  measured all 34 mutations against it, printed **`34 of 34 caught`, exit 0**, and restored the mutant. A
+  clean bill of health over corrupted source, self-consistent, with nothing anywhere to contradict it. The
+  md5 of the file it measured (`d08228d8`) is not the md5 of `HEAD` (`2e420d88`).
+
+  So this is no longer a hazard with a plausible story attached. It is a defect with a reproduction.
+
+  **The guard that closes it is stronger than the sentinel**, and both are now wanted for different reasons:
+
+  * the **sentinel** (`.artifacts/<name>-mutation-in-flight`) catches *this run was killed mid-mutation*, and
+    it is the only thing that can speak before the next run starts;
+  * the **HEAD comparison** catches *the subject differs from `git show HEAD:` for ANY reason* - a killed
+    run, a hand-edit, a half-applied patch, another agent's demo - and it fires before a single build.
+
+  `ops/mutate/budget.py` now does the second and REFUSES with
+  `REFUSING: LambdaSearch.swift does not match \`git show HEAD:\`` and exit 2, with `--allow-dirty-subject`
+  as the escape hatch, which announces that it is measuring disk rather than HEAD. Demonstrated end to end
+  by hand-planting the exact mutation and getting the refusal where the earlier run had printed 34 of 34.
+
+  **TEST files are deliberately excluded from the comparison**, and the reason is written down rather than
+  left implicit: a fix pass edits tests by design, so refusing on them would refuse the ordinary case - and a
+  test file left emptied by a killed `--prove-vacuity` makes every mutation report MISSED, which fails
+  loudly (`caught 0 of 38`) instead of reading as a clean sheet. The asymmetry is the point: a dirty SUBJECT
+  fails silently, a dirty TEST file fails loudly, so only the subject needs the guard.
+
+  Both guards belong in the shared place [[T-0132]] is heading, and `ops/agent-preflight` should refuse on a
+  live sentinel so a human session meets it at the start rather than on the next harness run.

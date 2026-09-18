@@ -74,3 +74,21 @@ wrong reason - a proof passing because nothing built is precisely the failure mo
 - 2026-09-08T23:15:00Z filed by agent/claude-opus-5 after the fifth independent encounter in one session. The
   T-0116 instance is a reviewer's blocking finding with the exact reproduction; the other four are recorded in
   their own task logs.
+- 2026-09-09T00:20:00Z **A SECOND defect shared by every harness, found by a new one's first run** (T-0133). `ops/mutate/gates.py` reported `baseline does not build; nothing below would mean anything` and exited 2, while `swift build --build-tests` at the same commit succeeded with no errors.
+
+  Cause: on this Windows checkout, the first build into a **fresh** scratch directory can fail with
+  `unable to create symbolic link ... encountered an I/O error (code: 512)` and succeed immediately after.
+  Every harness already allows for this **inside the mutation loop** - `if build() != 0 and build() != 0` -
+  with a comment saying why. **None of them allows for it on the baseline build**, which is a single attempt.
+
+  So a transient scratch failure makes a harness announce that the code is broken and stop, having measured
+  nothing. It fails closed, which is the right direction, but it fails closed for a reason unrelated to the
+  code and it says something false while doing it. On a fresh clone - which is exactly when a scratch
+  directory is new - the first run of any harness can do this.
+
+  Fixed in `ops/mutate/gates.py` (PR #82). `ops/mutate/{budget,corridorspeeds,handoff,hazards,guidance,retrace,routescore}.py` all still have it.
+
+  This strengthens the case for the third item below: the harnesses have now drifted in the pass condition,
+  the vacuity condition, the SKIP bucket, whether a `KNOWN_MISSED` arm exists, whether the vacuity proof
+  empties every test file, **and** whether the baseline build is retried - and every one of those has been
+  fixed by hand, in one harness at a time, after being found the hard way.
