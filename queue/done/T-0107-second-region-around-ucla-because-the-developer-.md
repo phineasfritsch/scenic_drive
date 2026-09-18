@@ -1,7 +1,7 @@
 ---
 id: T-0107
 title: second region around UCLA, because the developer who has to drive the routes lives in Westwood
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T11:41:59Z
@@ -275,3 +275,93 @@ over nothing proves nothing.
   on this box; the extract run is cited from its dated entry rather than re-run, and says so. Handing to
   agent/rv-pr68; state -> review.
 - 2026-09-18T15:21:06Z handed to agent/rv-pr68; state -> review
+- 2026-09-18T16:40:00Z REVIEW by agent/rv-pr68 (independent; not the owner). **VERDICT: PASS.**
+  PR #68 head `e089af294b9e9a958daddf446602aea0889c6b41` == `origin/task/T-0107` == this worktree's HEAD;
+  base `main`, `MERGEABLE`, `gh pr checks 68` -> `core pass 2m0s`, `pins-source-only pass 1m8s`. Reviewed in
+  a throwaway detached worktree `.worktrees/rv-pr68` cut at that sha and removed afterwards. Before anything
+  was measured, all eight touched paths were hashed against `git show e089af2:<path>` and every one matched
+  (`dem.py 3d07315d`, `region.py 4e7d4548`, `la/region.json c07c3c05`, `sfbay/region.json bb459844`,
+  `test_dem_tiles.py 1fb66aac`, `test_region.py cebb4037`, `ops/etl-extract 8e9f5660`, the task file
+  `641b84cf`); `git status --short` empty in both worktrees.
+
+  **ACCEPTANCE, re-run character for character; exit codes read from the process, counts from the XML.**
+
+        pytest --junitxml=work/rv/j.xml -p no:randomly   425 passed in 101.14s, exit 0
+        <testsuite ...>  tests=425 failures=0 errors=0 skipped=0      matches the line exactly
+        bash ops/queue-check          QUEUE OK (131 tasks), exit 0
+        bash ops/check-pins --source-only
+                                      PINS ok=6 skipped=10 pending=1 expired=0 failed=0
+                                      tier=linux source-only, exit 0
+        region.json one-liner         19 california-osm.pbf 2026-09-08T12:15:45Z, exit 0
+
+  Line 5 verified from the XML rather than from a second run: `test_la_needs_exactly_four_tiles` and all
+  eight other `tests.test_dem_tiles` cases, plus all nine `tests.test_region.TestCountsProvenance` cases
+  including `test_every_shipped_region_ties_its_counts_to_the_bbox_they_were_measured_over`, appear as
+  passing testcases inside the 425. Line 6 is correctly declared NOT re-run: the extract needs the WSL-only
+  container. The record below is held to what is checkable on this box.
+
+  **RECORD, against the 2026-09-08 Log entry rather than against the prose.**
+  `counts_from` agrees with the run it cites: `bbox` `-119.0,33.7,-117.85,34.45` is the bbox the entry says
+  was cut and is numerically identical to the region's own `bbox` block; `source_bytes 1327206195` is the
+  1.3 GB the entry claims; `built_at 2026-09-08T12:15:45Z` sits 5m06s after sfbay's `12:10:39Z`, which a
+  2m32s run plus the fetch fits. Every count quoted in the entry's ratio table reproduces from the file
+  unchanged - primary 45,530 / motorway 17,390 / service 312,495 / residential 99,685 / park 2,580 /
+  viewpoint 302 / track 8,138 / peak 342 - as do the three sfbay re-records (motorway 19,515 -> 15,572,
+  park 5,670 -> 4,362, living_street 323 -> 286) and `road: 3` in both. **The 19 count keys are identical
+  sets**: `sorted(la.counts) == sorted(sfbay.counts)`, la-only `[]`, sfbay-only `[]`, so nothing has gone
+  blind for `ops/sane` code 4. `test_la_needs_exactly_four_tiles` pins the set by **equality against four
+  literals** (`{"n34w118","n34w119","n35w118","n35w119"}`), not by re-deriving from `tiles_for_bbox` - the
+  asked-for shape; hand-walking the loop over the la bbox independently yields the same four.
+
+  **ATTACK (one, bounded): the constant reverted.** `tiles_for_bbox`'s body replaced with `return TILES` -
+  the pre-fix, region-blind behaviour that is the blocker this task names - leaving everything else alone:
+
+        FAILED tests/test_dem_tiles.py::test_la_needs_exactly_four_tiles
+        FAILED tests/test_dem_tiles.py::test_the_only_extra_over_sfbay_is_the_documented_ocean_tile
+        FAILED tests/test_dem_tiles.py::test_interior_squares_are_not_missed
+        FAILED tests/test_dem_tiles.py::test_a_bbox_touching_a_border_does_not_claim_the_next_square
+        4 failed, 5 passed
+
+  Four NAMED tests red, including the one the acceptance names. Restored by `git checkout --`, hash back to
+  `3d07315d`, 9 passed. The guard is real and is not satisfied by the constant.
+
+  **BBOX PROSE CHECKED AGAINST THE NUMBERS, not read.** Span is exactly the claimed 1.15 x 0.75 against
+  sfbay's 2.07 x 2.07, degree-area 20.1% (entry says 20%). Inside, every one: UCLA/Westwood, Leo Carrillo,
+  Yerba Buena, Decker, Malibu Canyon, Latigo, Topanga, Mulholland at Coldwater, PCH at Santa Monica,
+  Sepulveda Pass, Mt Wilson, Angeles Crest at Red Box, Palos Verdes, LAX. Outside, every one: Palmdale,
+  Lancaster, Mojave, Victorville, Big Bear, Riverside, San Bernardino, Santa Barbara, Wrightwood - **the
+  box does not reach the desert**, and the "north to 34.45 clears the San Gabriel crest" edge holds without
+  spilling into the Antelope Valley.
+
+  **FINDINGS - none blocking, all recorded. Found, not fixed.**
+
+  1. **The bbox includes northern Orange County, and the file's prose says it does not.** The Brief states
+     the box "deliberately EXCLUDES Orange County", and `_comment_counties` enumerates the clipped slivers
+     as Ventura and San Bernardino only. Against the numbers, eight unambiguously-OC cities are inside:
+     Anaheim (33.8366,-117.9143), Santa Ana (33.7455,-117.8677) - the county seat - Fullerton, Buena Park,
+     Garden Grove, Westminster, Seal Beach, La Habra. Reproduce: any point test against
+     `-119.0,33.7,-117.85,34.45`. Not blocking - it is prose, which CLAUDE.md forbids anchoring anything on,
+     and there is no numeric inconsistency: the counts were measured over this exact box and `counts_from`
+     ties them to it. It does soften one sentence of the ratio argument (`primary` 8.51x is partly an OC
+     arterial grid the entry does not acknowledge). **The fix is the comment, not the bbox** - editing the
+     bbox would now correctly fail the load until a re-extract, which is `counts_from` working as designed.
+  2. **`counts_from.source` is `california-osm.pbf`; the Log's run fetched `california-latest.osm.pbf`.**
+     `CountsFrom.problems()` only checks the field is non-empty, so nothing breaks, but a reviewer with the
+     container matching the source by name has an extra hop. Low.
+  3. **`dem.tile_for` still gates on `TILES` (dem.py:90), so la still has no elevation.** Disclosed in the
+     Log as deliberately sequenced behind the `dem.py` work in flight, and no acceptance line claims
+     otherwise. Recorded here so the next task does not assume la scoring has terrain: this PR makes the
+     tile set derivable and pins it; it does not yet wire it.
+  4. **`.artifacts/record-provenance.py` is gitignored (`.gitignore:13`).** The Log's claim that both
+     regions' counts were written by it from each extract's `meta.json` and that "nothing is transcribed by
+     hand" is therefore not independently reproducible from the tree. Consistent with repo convention for
+     scratch, but it is an unverifiable claim, not a checked one.
+
+  **STILL OPEN / DEBT.** (1) the four 3DEP tiles are absent from `inputs/manifest.yaml`, correctly, until
+  their sha256 exists - la has no pinned elevation input. (2) `tile_for` wiring, per finding 3. (3) `ops/sane`
+  code 4 cannot run for la on this box (no `work/la/meta.json`); the +/-15% comparison is still unexercised
+  for this region. (4) no `curated.yaml` for la - the Brief's twelve Westwood-adjacent seeds are not in this
+  PR. (5) finding 1's comment correction.
+
+  No claim in the acceptance block was found without a command behind it. Signed off; `queue/review/` ->
+  `queue/done/`. Not merged - merging is not the reviewer's to do.
