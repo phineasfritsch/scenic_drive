@@ -23,10 +23,10 @@ acceptance:
   - "python ops/lib/check-touches-merge.py -> ok on 11 cases, TOUCHES-MERGE OK (11 cases), exit 0"
   - "python ops/lib/check-touches-merge.py --variants -> six ok lines, breaks exactly 11 / 5,11 / 8 / 9 / 8 / 2, TOUCHES-MERGE VARIANTS OK (6), exit 0"
   - "python ops/lib/check-secret-scan.py -> ok on 7 cases, SECRET-SCAN OK (7 cases), exit 0"
-  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (58 scanned, 59 tracked, floor 42), exit 0"
-  - "bash ops/lib/check-exec-bits -> P-OPS-01: 58 files, 23 required present, all modes correct, exit 0"
-  - "bash ops/check-pins --source-only -> PINS ok=9 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only, exit 0"
-  - "bash ops/queue-check -> QUEUE OK (153 tasks), exit 0"
+  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (62 scanned, 63 tracked, floor 42), exit 0"
+  - "bash ops/lib/check-exec-bits -> P-OPS-01: 62 files, 23 required present, all modes correct, exit 0"
+  - "bash ops/check-pins --source-only -> PINS ok=10 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only, exit 0"
+  - "bash ops/queue-check -> QUEUE OK (164 tasks), exit 0"
   - "git ls-files -s .githooks/pre-commit ops/lib/check-stale-stage.py -> 100755 .githooks/pre-commit and 100644 ops/lib/check-stale-stage.py (P-OPS-01: a script keeps its exec bit, a .py under ops/ does not get one)"
   - "the check run on itself: git show HEAD:.githooks/pre-commit into a file, diff that file .githooks/pre-commit -> no output, COMMITTED == WORKING TREE"
 ---
@@ -354,3 +354,213 @@ in the file, not just here.
   in the block is deterministic and was re-run verbatim at the final commit, including the RED run's eight
   names, `STALE-STAGE VARIANTS OK (4)` with its four `breaks exactly` sets, `TOUCHES-MERGE OK (11 cases)`,
   and the three `COMMITTED == WORKING TREE` diffs.
+
+- 2026-09-18T21:28:56Z agent/claude-opus-5: a previous incarnation of this agent was killed by a session
+  reset after the build landed, with the branch four commits ahead of the `91c78ef` it was cut from and never
+  pushed. Nothing built above was redone and no dated entry above was edited. What this entry adds:
+  origin/main merged in, every gate re-run on the merged tree, four counts in the acceptance block renumbered
+  because the merge changed the population they count, and the branch pushed.
+
+### The merge - `f4581dd`, not a rebase
+
+`git rev-list --count HEAD..origin/main` said 63 and `origin/main..HEAD` said 4; the merge base was
+`91c78ef`. A MERGE, deliberately, not a rebase: `e23547d` (check 4 and the staged `touches:` read),
+`285587b` (the rulings and the RED run), `90b6627` (the variants layer) and `337dc69` are the shas this Log
+names, and a rebase would have rewritten every one of them out from under the reviewer.
+
+**One conflict, `pins/PINS.yaml`.** Both sides appended a pin at the end of the file, and because both
+entries end with the identical `owner: agent/claude-opus-5` / `added: 2026-09-18` pair, git left those two
+lines OUTSIDE the conflict as common context - so the naive resolution silently gives one entry both
+`owner:` lines and the other none. Resolved keeping BOTH pins in full, origin/main's `P-OPS-05` (ops/sane's
+exit-code precedence, `assertion: bash ops/lib/check-sane-exit-order`) first in main's position, then this
+branch's `P-GIT-04`, each with its own `owner:` and `added:` lines restored. No assertion text on either
+side was edited. The resolver asserted both ids were present before writing and `git diff --check` and the
+marker grep both come back empty; the file now carries five `P-` ids after `P-OPS-03`: `P-GIT-03`,
+`P-GIT-02`, `P-OPS-05`, `P-GIT-04`.
+
+**`.githooks/pre-commit` did not conflict, and that is worth stating rather than assuming**: origin/main has
+not touched the hook since `91c78ef` (`git diff --stat 91c78ef origin/main -- .githooks/` is empty), so
+T-0140's fail-closed blob loop and T-0137/T-0139's merge-aware `touches:` arrived on this branch by way of
+the base, not by way of the merge, and check 4 sits on top of them unchanged. `ops/lib/` merged cleanly -
+origin/main added `check-ios-compile-guardrails.py` and `check-sane-exit-order`, this branch added
+`check-stale-stage.py`, and no file was touched by both sides.
+
+**The merge commit went through the hook it edits.** A known-good copy of `.githooks/pre-commit` was kept
+outside the tree for the length of the merge and was not needed; `--no-verify` was not used. The hook
+printed one line and committed: `pre-commit: merge in progress; checking touches: against the 1 path(s)
+that differ from both parents` - that one path is `pins/PINS.yaml`, the conflict I resolved, which is the
+T-0137/T-0139 behaviour the Brief asked check 4 not to break, observed on a real merge rather than on a
+fixture.
+
+**`P-GIT-04` is still free everywhere.** After the merge, `git show origin/main:pins/PINS.yaml` carries
+`P-GIT-01`, `P-GIT-02` and `P-GIT-03` and no `P-GIT-04`; a loop over every head in
+`gh pr list --state open --json number,headRefName` printed `P-GIT-04 count=0` for all thirty open PRs
+(#97 down to #40 - PR #26 and PR #39, which the Brief named as claiming ids, are no longer open). The id
+this task took is uncontested.
+
+### Renumbered in the acceptance block, and why
+
+A merge is a tree change, so the four gates that count a population all print different numbers than they
+did at `337dc69`, and the acceptance block is required to quote the final commit. Only those four lines were
+renumbered; no dated entry above was touched, and no assertion, case list or `breaks exactly` set moved.
+
+- `check-exec-bits`: `58 files` -> `62 files` (the merge brought `ops/etl-curvature-fixture`,
+  `ops/etl-oracle-report`, `ops/lib/check-sane-exit-order` and this branch's own new file into its scan).
+  `23 required present, all modes correct` is unchanged.
+- `check-pipe-consumers`: `(58 scanned, 58 tracked, floor 42)` at the first build run and
+  `(58 scanned, 59 tracked, floor 42)` at `337dc69` -> the post-merge count below. The floor held.
+- `check-pins --source-only` and `queue-check`: both changed with the merge - `P-OPS-05` is a new
+  source-anchored pin, and the merge brought a dozen new task files into `queue/`. The post-merge outputs
+  are quoted below and pasted into the block.
+- The RED run, the GREEN run, the variants sweep, `check-touches-merge.py` (plain and `--variants`) and
+  `check-secret-scan.py` are all unchanged by the merge, to the character, including the eight FAIL names
+  and the four `breaks exactly` sets. That is the evidence that 63 commits of other people's work did not
+  quietly move this fixture's ground.
+
+### One mistake worth recording
+
+The first sweep script redirected `git show origin/main:.githooks/pre-commit` into the saved main hook and
+git-bash's MSYS path conversion rewrote the argument to `origin\main;.githooks\pre-commit`; git refused it
+and the file was left EMPTY (`git hash-object` on it returned `e69de29`, the empty blob). A RED run against
+an empty file is not a RED run against main's hook - it is a run against no hook at all, where every case
+"commits". It was caught by hashing the saved file rather than by trusting the redirect, the sweep was
+re-run with `MSYS_NO_PATHCONV=1`, and the saved hook's blob id is printed in the transcript below so a
+reviewer can check it against `git rev-parse origin/main:.githooks/pre-commit` instead of taking my word.
+
+### Every gate, bare, on the merged tree
+
+Each command below was run bare - never piped into `tail`, `head` or `grep` before a `&&` - and the output
+is pasted from that run at `f4581dd`, whose tree differs from the final commit only in this task file.
+
+    $ bash ops/lib/check-exec-bits
+    P-OPS-01: 62 files, 23 required present, all modes correct
+    EXIT=0
+
+    $ bash ops/lib/check-pipe-consumers
+    PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (62 scanned, 63 tracked, floor 42)
+    EXIT=0
+
+    $ bash ops/check-pins --source-only
+    PINS ok=10 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only
+    EXIT=0
+
+    $ bash ops/queue-check
+    QUEUE OK (164 tasks)
+    EXIT=0
+
+    $ python ops/lib/check-touches-merge.py
+    ok      1/merge-brings-other-side   must COMMIT
+    ok      2/resolution-inside-touches must COMMIT
+    ok      3/resolution-outside        must REFUSE
+    ok      4/plain-commit-outside      must REFUSE
+    ok      5/rename-into-touches       must REFUSE
+    ok      6/delete-outside-in-merge   must REFUSE
+    ok      7/secret-across-a-merge     must REFUSE
+    ok      8/empty-MERGE_HEAD          must REFUSE
+    ok      9/linked-worktree-resolve   must COMMIT
+    ok      10/linked-worktree-outside  must REFUSE
+    ok      11/rename-untouched-file    must REFUSE
+
+    TOUCHES-MERGE OK (11 cases)
+    EXIT=0
+
+    $ python ops/lib/check-touches-merge.py --variants
+    ok      variant without --no-renames on the HEAD side        breaks exactly 11
+    ok      variant without --no-renames on the MERGE_HEAD side  breaks exactly 5,11
+    ok      variant without the error fallback                   breaks exactly 8
+    ok      variant literal ".git/MERGE_HEAD"                    breaks exactly 9
+    ok      variant without the fallback message                 breaks exactly 8
+    ok      variant without the narrowing message                breaks exactly 2
+
+    TOUCHES-MERGE VARIANTS OK (6)
+    EXIT=0
+
+    $ python ops/lib/check-secret-scan.py
+    ok          1 KB secret on line 1   must REFUSE  refused: secret-looking content in leak.txt
+    ok         64 KB secret on line 1   must REFUSE  refused: secret-looking content in leak.txt
+    ok        256 KB secret on line 1   must REFUSE  refused: secret-looking content in leak.txt
+    ok       1024 KB secret on line 1   must REFUSE  refused: secret-looking content in leak.txt
+    ok       4096 KB secret on line 1   must REFUSE  refused: secret-looking content in leak.txt
+    ok       4096 KB clean               must COMMIT  committed
+    ok      staged blob object deleted   must REFUSE  refused: cannot read the staged blob for leak.txt
+
+    SECRET-SCAN OK (7 cases)
+    EXIT=0
+
+    $ python ops/lib/check-stale-stage.py
+    ok      1/git-mv-then-edit          must REFUSE
+    ok      2/staged-then-deleted       must REFUSE
+    ok      3/fully-staged              must COMMIT
+    ok      4/ALLOW_PARTIAL_STAGE=1     must COMMIT
+    ok      5/ALLOW_PARTIAL_STAGE=yes   must REFUSE
+    ok      6/unstaged-widening         must REFUSE
+    ok      7/staged-widening           must COMMIT
+    ok      8/non-ASCII-path            must COMMIT
+    ok      9/merge-brings-other-side   must COMMIT
+    ok      10/merge-then-stale-edit    must REFUSE
+    ok      11/empty-commit             must COMMIT
+    ok      12/pure-rename              must COMMIT
+    ok      13/task-file-untracked      must REFUSE
+    ok      14/task-file-HEAD-fallback  must REFUSE
+
+    STALE-STAGE OK (14 cases, hook pre-commit)
+    EXIT=0
+
+    $ python ops/lib/check-stale-stage.py --variants
+    ok      variant touches: read from HEAD, not the index breaks exactly 7
+    ok      variant a hook that refuses everything         breaks exactly 3,4,7,8,9,12
+    ok      variant without the HEAD fallback              breaks exactly 14
+    ok      variant without the empty-staging early exit   breaks exactly 11
+
+    STALE-STAGE VARIANTS OK (4)
+    EXIT=0
+
+    $ git show origin/main:.githooks/pre-commit > .artifacts/T-0160/main-pre-commit (MSYS_NO_PATHCONV=1)
+    saved blob id:               3b0438944ce5c1daaeaa25a527abf407efcfede6
+    origin/main:.githooks/pre-commit: 3b0438944ce5c1daaeaa25a527abf407efcfede6
+    wc -l: 144
+    EXIT=0
+
+    $ python ops/lib/check-stale-stage.py --hook .artifacts/T-0160/main-pre-commit
+    FAIL    1/git-mv-then-edit          must REFUSE  committed, but never said what it should
+                expected to see: staged content in queue/done/T-9990-x.md is stale
+                expected to see: git add -- "queue/done/T-9990-x.md"
+                [task/T-9999 05ade2a] T-9990 review complete, mark done
+                 1 file changed, 0 insertions(+), 0 deletions(-)
+                 rename queue/{review => done}/T-9990-x.md (100%)
+    FAIL    2/staged-then-deleted       must REFUSE  committed, but never said what it should
+                expected to see: allowed/gone.txt is staged but missing from the working tree
+                [task/T-9999 37a1755] add a file that is no longer on disk
+                 1 file changed, 1 insertion(+)
+                 create mode 100644 allowed/gone.txt
+    ok      3/fully-staged              must COMMIT
+    FAIL    4/ALLOW_PARTIAL_STAGE=1     must COMMIT  committed, but never said what it should
+                expected to see: ALLOW_PARTIAL_STAGE=1 waives the stale-content check for: allowed/a.txt
+    FAIL    5/ALLOW_PARTIAL_STAGE=yes   must REFUSE  committed, but never said what it should
+                expected to see: is not the value 1
+                expected to see: staged content in allowed/a.txt is stale
+                [task/T-9999 b133281] partial stage with a value that is not 1
+                 1 file changed, 1 insertion(+), 1 deletion(-)
+    FAIL    6/unstaged-widening         must REFUSE  committed, but never said what it should
+                expected to see: other/b.txt is outside T-9999 touches
+                [task/T-9999 02c358f] widen touches: without staging it
+                 1 file changed, 1 insertion(+), 1 deletion(-)
+    ok      7/staged-widening           must COMMIT
+    FAIL    8/non-ASCII-path            must COMMIT  refused (exit 1)
+                pre-commit: cannot read the staged blob for "allowed/caf\303\251-note.txt", so it cannot be scanned; refusing rather than assuming
+                pre-commit: "allowed/caf\303\251-note.txt" is outside T-9999 touches: [allowed/ ]
+                pre-commit: refusing commit
+    ok      9/merge-brings-other-side   must COMMIT
+    FAIL    10/merge-then-stale-edit    must REFUSE  committed, but never said what it should
+                expected to see: staged content in other/b.txt is stale
+                [task/T-9999 1fd1f6c] merge main, then edit a merged file without re-adding
+    ok      11/empty-commit             must COMMIT
+    ok      12/pure-rename              must COMMIT
+    FAIL    13/task-file-untracked      must REFUSE  committed, but never said what it should
+                expected to see: cannot read the touches: that is being committed
+                [task/T-9988 2b6ba08] commit on a branch whose task file was never staged
+                 1 file changed, 1 insertion(+), 1 deletion(-)
+    ok      14/task-file-HEAD-fallback  must REFUSE
+
+    STALE-STAGE FAIL (14 cases, hook main-pre-commit)
+    EXIT=1
