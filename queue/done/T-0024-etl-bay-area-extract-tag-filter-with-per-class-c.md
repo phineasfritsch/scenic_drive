@@ -1,7 +1,7 @@
 ---
 id: T-0024
 title: ETL: Bay Area extract + tag filter, with per-class counts and bounds
-state: review
+state: done
 owner: agent/claude-opus-5
 owner_session: 01SS4jAGs2oyr4Z4Wd8yK82t
 claimed_at: 2026-09-07T16:07:44Z
@@ -11,7 +11,7 @@ branch: task/T-0024
 exclusive: [scenic-index]
 touches: [services/etl/, ops/sane, ops/etl-extract, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-OPS-05]
-reviewer: agent/reviewer-23
+reviewer: agent/rv2-pr26
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -660,3 +660,102 @@ run, and the whole point of the finding was that a plausible number is not a che
   code, and several of its recordables are things these commits already fix. This PR is the vehicle that
   finally lands them; its base was `task/T-0038` and is retargeted to `main` with this entry, and its review
   must cover those paths as well as `ops/sane`.
+- 2026-09-18T20:10:26Z **reviewed by agent/rv2-pr26 - PASS.** Read-only review of PR #26 at `00a68e9` ==
+  `origin/task/T-0024`, base `main`, in my own detached worktree `.worktrees/rv2-pr26`, which `git status
+  --short` reported empty before and after every mutating run. Nothing in the branch was changed. `gh pr
+  checks 26`, once, at the end: `core pass`, `pins-source-only pass`. `ops/test` and the full
+  `ops/check-pins` were **not** run here - the DEFAULT swift scratch path cannot build inside a worktree on
+  this box - so those two lines rest on CI at this head and I say so rather than claiming them myself.
+
+  **(A) The reviewer's reproduction, re-run exactly at this head.** Fabricated the gitignored
+  `services/etl/work/sfbay/meta.json` with `motorway` 8000 and every other class exactly as
+  `regions/sfbay/region.json` records it (recorded motorway 15572). `API_URL=http://127.0.0.1:9 bash ops/sane
+  --prod` printed BOTH failures - `backend FAIL http://127.0.0.1:9/__health -> unreachable` and `bounds FAIL
+  region counts out of band: motorway: 8000 vs recorded 15572 (-48.6%, +/-15% allowed)` - then `SANE FAIL
+  exit=7`, rc=**7**. It was 4 before the fix. Bounds alone, same meta, `bash ops/sane`: the same bounds FAIL,
+  `SANE FAIL exit=4`, rc=**4**. With `work/` removed: `bounds skip no extract built here`, `SANE FAIL
+  exit=10`, rc=**10**. `bash ops/lib/check-sane-exit-order` -> `SANE-EXIT-ORDER ok documented=2,7,3,9,4,10
+  code=2,7,3,9,4,10 calls=15`, rc=0; against `git show origin/main:ops/sane` saved OUTSIDE the tree ->
+  `refuse ... declares no EXIT_ORDER=(...) array; code order is 2,4,7,3,9,10`, rc=2; against the FIXED
+  ops/sane carrying the header's original rows, `EXIT_ORDER=(2 3 7 9 4 10)` -> `first divergence at position
+  2: documented 3, code 7.`, rc=1. The header table at `ops/sane:8-17` reads 2, 7, 3, 9, 4, 10 and agrees
+  with the array.
+
+  **Attacked with three mutations of ops/sane nobody wrote, all built and run outside the worktree.**
+  (M1) the bounds block moved back above the production section -> `FAIL ... fail() calls, file order =
+  2,4,7,3,9,10 ... first divergence at position 2: documented 7, code 4.`, rc=1 - KILLED, and the message is
+  the one the acceptance block quotes. (M2) a new `fail "debt" "fabricated new check" 11` inserted between
+  the repo and production sections -> `FAIL ... file order = 2,11,7,3,9,4,10 ... divergence at position 2:
+  documented 7, code 11.`, rc=1 - KILLED; a code absent from EXIT_ORDER cannot slip in silently. (M3) M1's
+  move with `EXIT_ORDER=(2 4 7 3 9 10)` edited to agree -> `ok documented=2,4,7,3,9,10 code=2,4,7,3,9,10`,
+  rc=0 - **SURVIVES**, by construction, since the array IS the declaration of intent. **The record does not
+  admit this.** P-OPS-05's `why_no_test_catches_it` and the script header both enumerate only the fail-closed
+  cases (no file, no array, a non-literal code, zero call sites); neither states the one mutation the design
+  cannot catch, nor that the header table is now unchecked against the array. Recordable, one sentence in
+  either place would close it.
+
+  **RECORDABLE, with a reproduction - the check reads FILE order, and the pin's statement says "the order its
+  checks actually run in".** A fourth mutation: the production section left in its exact place in the file,
+  wrapped as `_production() { ... }`, and invoked after the worktrees block instead. `bash
+  ops/lib/check-sane-exit-order` on it -> `ok documented=2,7,3,9,4,10 code=2,7,3,9,4,10 calls=15`, rc=0,
+  while the same F1 input gives `bounds FAIL` then `backend FAIL` and `SANE FAIL exit=4`, rc=**4** - the
+  exact defect P-OPS-05 exists for, with the check green. Not blocking, and deliberately not blocking: today
+  `ops/sane` defines no function but `say/fail/ok/skip`, the recurrence that has actually happened twice IS
+  killed (M1), and the script's own header claims only "in file order" - it is P-OPS-05's statement that
+  reaches further. Closing it fail-closed looks like one refusal (ops/sane declares no function beyond the
+  four printers) and wants its own task. Recorded too so nobody repeats it: the mirror-image mutation, a
+  block invoked EARLIER than the line that defines it, is not expressible in bash - it dies with
+  `_bounds_block: command not found`, so execution can only be deferred, never advanced.
+
+  **(B) The four T-0025 rounds this PR carries. Confirmed, not re-reviewed.** (1) `cd services/etl && python
+  -m pytest tests -rs` -> **485 passed in 75.11s**, rc=0, and **zero skips**: `-rs` printed no skip section
+  and the progress line carries no `s`. (2) The oracle still is the published one. The fixture's
+  `source_sha256` is `3bdf4d140a6dcef0501223357d993df1b960934adf1a5cebdcdf2340b7039046`; `inputs/manifest.
+  yaml` pins that same digest for `vermont-curvature.kmz`; and the KMZ fetched fresh today from
+  `kml.roadcurvature.com/north_america/us/vermont.c_300.kmz` is 2557952 bytes - the manifest's recorded
+  `bytes` - and hashes to those same 64 hex digits. The comparison is not circular: `oracle_select.build`
+  writes `_sha256(kmz)` of the file it actually read and raises `SystemExit` when that disagrees with
+  `oracle.pinned_digest`, so the field is a measurement, and
+  `test_the_fixture_was_built_from_the_pinned_oracle` ties the measurement to the pin. (3) Two mutations of
+  the (B) code nobody wrote, both killed BY NAME: capping every segment at MAX_RADIUS instead of only the
+  final one (`elif segment.radius > MAX_RADIUS` -> `if`) -> `test_curvature.py::TestRadiiOnKnownGeometry::
+  test_only_the_last_segment_is_capped` fails on `assert any(s.radius > cv.MAX_RADIUS for s in
+  segments[:-1])`, 1 failed 46 passed; `"oneway": None` put back into `oracle_select.WAY_TAGS` ->
+  `test_oracle_select.py::test_oneway_does_not_mark_a_way_as_squash_exposed` fails, 1 failed 13 passed. A
+  third shows the ORACLE itself is load-bearing and not just the literal pins: `LEVELS` level-1 band 175.0 ->
+  180.0 -> `test_agreement_with_the_published_values` fails with `only 89.0% of 400 ways agree within 2%`
+  against its 90% floor, alongside `test_the_curvature_bands` and `test_each_band_and_its_boundary`. A fourth
+  survived and is an EQUIVALENT mutant, proved rather than assumed: `range(i, j)` -> `range(i + 1, j)` in
+  both loops of `filter_deflections` leaves all 400 fixture ways' computed curvature bit-identical (dumped
+  and diffed both ways), because segment `i` already carries `curvature_level == 0` wherever that branch is
+  reached. (4) `git ls-tree -r HEAD ops | grep -E "etl-curvature|etl-oracle|check-sane"` -> `100755
+  ops/etl-curvature-fixture`, `100755 ops/etl-oracle-report`, `100755 ops/lib/check-sane-exit-order`; all 21
+  `*.py` under `ops/` are `100644`; the only non-`.py` files there that are not 755 are the data files
+  `ops/api-url` and `ops/lib/ro_cases.json`. (5) Nothing in (B) reaches outside `services/etl/`, `ops/` and
+  the queue: `git show --stat` on each of 6c0980a, 82a67d9, f33ba32, 2a5f125, ae6cc8c lists only those, and
+  every file in `git diff --name-only origin/main...HEAD` (14 paths) is under the 300-line cap - largest
+  `tests/test_curvature.py` at 274 and `etl/oracle_select.py` at 217.
+
+  **This pull request is what lands T-0025's later review rounds**, and that is verified here rather than
+  taken from the entry above: `git merge-base --is-ancestor` puts 43c93eb on `origin/main`, and 6c0980a,
+  82a67d9, f33ba32, 2a5f125 and ae6cc8c on this HEAD and NOT on `origin/main`. Main's copy of T-0025's task
+  file - signed off today by agent/rv-t0025 against the older code - is untouched by this branch (`git diff
+  --name-only origin/main HEAD -- 'queue/*T-0025*'` is empty), so no part of that record is reverted by the
+  merge, and the four rounds keep their own review history at `git show
+  1be23a6:queue/done/T-0025-scenic-score-curvature-verified-against-the-curv.md` (agent/reviewer-30,
+  agent/reviewer-34). I did not re-review those rounds line by line and do not claim to have.
+
+  **Other recordables, none of which fails the round.** The acceptance block's first line says every line
+  below was re-run "at e688db6, the head of PR #26"; the head is now `00a68e9`, and the only two commits
+  between them, 0529253 and 00a68e9, touch nothing but this task file - every load-bearing acceptance line
+  still prints what it quotes at `00a68e9`, re-run above. The skip-path line names five worktrees (rv9-pr82,
+  T-0024, T-0027, T-0104, T-0154); the same command here names T-0104, T-0160, T-0161, T-0162, T-0163 over
+  `inspected=101`, which is this box's state and not the branch's. `bash ops/queue-check` -> `QUEUE OK (149
+  tasks)`, rc=0, and `git ls-files 'queue/*/T-0024-*'` is one path. The STILL OPEN list above is unchanged by
+  this review: R6 (`track` missing from `ROUTING_CRITICAL`), the sfbay/la per-class counts still re-derived
+  by nobody but their author, and P-SAFE-05's assertion unrunnable with the default scratch path on this box.
+
+  **Not got to:** `ops/test`, the full `ops/check-pins`, `ops/etl-extract` and `ops/etl-fetch-inputs` (no
+  swift build in a worktree here, no docker and no osmium on this box); T-0025's four rounds themselves,
+  which are out of this round's scope by the brief; and the per-class counts, which need a box with osmium.
+  `state: done`, `reviewer: agent/rv2-pr26`, moved `queue/review/` -> `queue/done/`. Not merged by me.
