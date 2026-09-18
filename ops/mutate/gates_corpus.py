@@ -5,6 +5,11 @@ Split out of gates.py when the review of PR #82 pushed the single file past the 
 The split is not only bookkeeping: `MIN_MUTATIONS` lives in the runner and is checked against
 `len(MUTATIONS)` from here, so deleting a mutation "with a plausible reason" has to defeat two files.
 
+Round 8 of PR #82 split it again, for the same reason: the mutations anchored on a rule SET literal now live
+in ops/mutate/gates_corpus_sets.py and are spliced into `MUTATIONS` below, so both files stay under the cap.
+That half is imported, not duplicated - `len(MUTATIONS)` still counts every mutation and is still checked
+against `MIN_MUTATIONS` in the runner, so a deletion from either file has to defeat two files.
+
 Each entry is `(name, file, old, new)`. `old` must appear verbatim in the pristine file or the runner reports
 SKIP and fails the run - a stale anchor is never silently a pass. **Anchor on code, never on a comment**
 (CLAUDE.md): comments get stripped, and a mutation anchored on one dies quietly. Anchors that more than one
@@ -13,6 +18,11 @@ mutation shares are named constants below, so an edit to the source breaks one l
 from __future__ import annotations
 
 import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+from gates_corpus_sets import set_mutations  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 GATES = ROOT / "Sources" / "ScenicKit" / "Gates" / "Gates.swift"
@@ -44,15 +54,12 @@ MOTOR_VEHICLE_RULE = '        if tags["motor_vehicle"] == "no" { return .refused
 TRACK_RULE = '        if tags["highway"] == "track" { return .refused(.track) }'
 FORD_RULE = '        if tags["ford"] == "yes" { return .refused(.ford) }'
 BARRIER_RULE = "\n".join(['        if let b = tags["barrier"], refusableBarriers.contains(b), tags["locked"] == "yes" {', '            return .refused(.lockedBarrier)', '        }'])
-BARRIER_SET = '    public static let refusableBarriers: Set<String> = ["gate"]'
 SERVICE_RULE = '        if tags["highway"] == "service", let s = tags["service"], refusedServiceValues.contains(s) {'
 SURFACE_RULE = '        if let surface = tags["surface"], unpavedSurfaces.contains(surface) {'
 SURFACE_BLOCK = SURFACE_RULE + "\n            return .refused(.unpavedSurface)\n        }"
-UNPAVED_SET = '        "gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel",'
-CLOSED_SET = '    public static let closedAccess: Set<String> = ["private", "no", "permit", "destination"]'
-TRACKTYPE_SET = '    public static let refusedTracktypes: Set<String> = ["grade3", "grade4", "grade5"]'
-SMOOTHNESS_SET = '        "bad", "very_bad", "horrible", "very_horrible", "impassable",'
-SERVICE_SET = '        "driveway", "parking_aisle", "drive-through", "emergency_access",'
+
+# The six rule SET literals are anchors in gates_corpus_sets.py, with every mutation written on them.
+SET_MUTATIONS = set_mutations(GATES)
 
 MUTATIONS = [
     # --- THE INVARIANT ------------------------------------------------------------------------------------
@@ -177,60 +184,15 @@ MUTATIONS = [
     ("refuse ford = no as well as ford = yes", GATES, FORD_RULE,
      '        if tags["ford"] != nil { return .refused(.ford) }'),
 
-    # --- the sets themselves ------------------------------------------------------------------------------
-    ("drop compacted and fine_gravel from the unpaved set", GATES, UNPAVED_SET,
-     '        "gravel", "dirt", "ground", "sand", "unpaved",'),
-
-    ("call asphalt unpaved", GATES, UNPAVED_SET, UNPAVED_SET + ' "asphalt",'),
-
-    # The widening direction, on values a "be thorough" edit actually reaches for. `asphalt` above was covered
-    # by the four paved values the old allowed-side list happened to name; cobblestone and sett were not, and
-    # a cobbled lane becoming a HARD SAFETY REFUSAL is the opposite of a scenic router's job. Second review.
-    ("call cobblestone and sett unpaved, refusing a scenic cobbled lane", GATES, UNPAVED_SET,
-     UNPAVED_SET + '\n        "cobblestone", "sett",'),
-
-    # The same direction again, on three values the SIXTH review found no allowed-side pin named; all three
-    # survived the whole suite with exit 0 and a control red. `GatesSetBoundaryTests` objects now. It pins
-    # the plan's lists verbatim rather than calling any of the three widenings wrong: a widening has to be a
-    # deliberate edit that turns a named test red, not a tidy-up that ships in silence.
-    ("call wood and metal unpaved, refusing every planked or grid bridge deck", GATES, UNPAVED_SET,
-     UNPAVED_SET + '\n        "wood", "metal",'),
-
-    ("let destination-only access through", GATES, CLOSED_SET,
-     '    public static let closedAccess: Set<String> = ["private", "no", "permit"]'),
-
-    ("refuse permissive access", GATES, CLOSED_SET,
-     '    public static let closedAccess: Set<String> = ["private", "no", "permit", "destination",\n'
-     '                                                   "permissive"]'),
-
-    ("refuse customers access, widening the closed set past the plan's four values", GATES, CLOSED_SET,
-     '    public static let closedAccess: Set<String> = ["private", "no", "permit", "destination",\n'
-     '                                                   "customers"]'),
-
-    ("refuse a locked lift gate too, widening the barrier set past the plan's one value", GATES, BARRIER_SET,
-     '    public static let refusableBarriers: Set<String> = ["gate", "lift_gate"]'),
-
-    ("move the tracktype boundary, letting grade3 through", GATES, TRACKTYPE_SET,
-     '    public static let refusedTracktypes: Set<String> = ["grade4", "grade5"]'),
-
-    ("move the tracktype boundary the other way, refusing grade2", GATES, TRACKTYPE_SET,
-     '    public static let refusedTracktypes: Set<String> = ["grade2", "grade3", "grade4", "grade5"]'),
-
-    ("refuse intermediate smoothness, which the plan allows", GATES, SMOOTHNESS_SET,
-     '        "intermediate", "bad", "very_bad", "horrible", "very_horrible", "impassable",'),
-
-    ("let a merely bad road through", GATES, SMOOTHNESS_SET,
-     '        "very_bad", "horrible", "very_horrible", "impassable",'),
-
-    # `refusedServiceValues` was the one rule set with neither a member-by-member test nor a shrink mutation,
-    # and the two members the old suite never named are exactly the two this drops. Added for PR #82.
-    ("shrink refusedServiceValues to the two values the old suite named", GATES, SERVICE_SET,
-     '        "driveway", "parking_aisle",'),
-
     # `highway = track` is an unconditional safety gate. Every old track test supplied either highway=track
     # with no tracktype or a tracktype on highway=residential, so this narrowing was invisible. Added for #82.
+    # It sat under "the sets themselves" until round 8's split and reads like a set mutation; it is anchored
+    # on the RULE, and gates_corpus_sets.py holds only what is anchored on a set literal, so it stays here.
     ("narrow the track gate to spare a well-graded track", GATES, TRACK_RULE,
      '        if tags["highway"] == "track", tags["tracktype"] != "grade1" { return .refused(.track) }'),
+
+    # --- the sets themselves: gates_corpus_sets.py, spliced in here so the reading order is unchanged ------
+] + SET_MUTATIONS + [
 
     # --- the reason, which the autopsy reads --------------------------------------------------------------
     ("report an unpaved surface as a locked barrier", GATES,

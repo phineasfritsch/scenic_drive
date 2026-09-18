@@ -18,13 +18,17 @@ Written on the corrected contract (T-0132, and the harness discussion on PR #70)
     FAIL_LINE regex produced "caught: 0, trapped: 3" and exit 0;
   * a catch means a NAMED test recorded an issue, and the name is PRINTED. A non-zero exit with no name is a
     trap. The second review of PR #82 had to write its own runner to establish the names this one now prints;
-  * every subject and every discovered test file must be byte-identical to `git show HEAD:` BEFORE anything
-    is built. That review put one line into Gates.swift and this harness measured the mutant and printed
-    "28 of 28", exit 0, while the invariant was broken on disk;
+  * every subject, every discovered test file AND the harness's own three files must be byte-identical to
+    `git show HEAD:` BEFORE anything is built. That review put one line into Gates.swift and this harness
+    measured the mutant and printed "28 of 28", exit 0, while the invariant was broken on disk; round 8
+    added the harness files, because a mutation body weakened on disk is invisible to a floor that counts;
   * `--prove-vacuity` requires `caught == 0` AND `missed == len(MUTATIONS)`, and empties EVERY test file that
     could catch a mutation - discovered, not hardcoded, see TEST_FILES below;
   * the EQUIVALENT arm requires MISSED specifically, not merely "not caught";
-  * the KNOWN_MISSED arm is asserted the other way round, and is actually executed.
+  * the KNOWN_MISSED arm is asserted the other way round - each entry must still go MISSED, and a trap does
+    NOT satisfy one, since a trap is a crash with no named test. It runs only when the list is non-empty;
+    KNOWN_MISSED is empty at this head, so that arm does not execute here and this docstring claims nothing
+    about it having been seen. What IS executed every run is the `if KNOWN_MISSED:` guard around it.
 """
 from __future__ import annotations
 
@@ -38,6 +42,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from gates_corpus import CONSIDERED, DECISION, EQUIVALENT, GATES, KNOWN_MISSED, MUTATIONS, REASON  # noqa: E402
+from gates_tree import HARNESS, discover_test_files, not_at_head  # noqa: E402
 
 SUBJECTS = (GATES, DECISION, REASON, CONSIDERED)
 
@@ -46,26 +51,9 @@ SUBJECTS = (GATES, DECISION, REASON, CONSIDERED)
 # `touches:`, so nothing complained. Raised on the first review of PR #82.
 SCRATCH = ".build/mutate-gates"
 
-# Every suite that could catch a mutation - DISCOVERED, not one hardcoded path.
-#
-# T-0132: a suite split at the 300-line cap silently broke the hardcoded-single-path form in five separate
-# harnesses. The half that moved out kept catching mutations while `--prove-vacuity` went on printing "EVERY
-# test file is replaced". The reviewer of PR #82 reproduced that decay here, and the second round of fixes
-# split this very suite into three files - so the decay would have landed for real. A file counts if it
-# mentions any of the three symbols under test; that is a property of the tree, so a split half is picked up
-# the moment it exists.
-SUBJECT_SYMBOLS = re.compile(r"\bGates\b|\bGateDecision\b|\bGateReason\b|\bConsideredTags\b")
-
-
-def discover_test_files():
-    out = []
-    for p in sorted((ROOT / "Tests").rglob("*.swift")):
-        if SUBJECT_SYMBOLS.search(p.read_text(encoding="utf-8", errors="replace")):
-            out.append(p)
-    return out
-
-
-TEST_FILES = discover_test_files()
+# Every suite that could catch a mutation - DISCOVERED, not one hardcoded path. Discovery and the HEAD check
+# both live in ops/mutate/gates_tree.py; the reasons they exist are written there.
+TEST_FILES = discover_test_files(ROOT)
 
 # Floors on the HARNESS's own population.
 #
@@ -77,7 +65,12 @@ TEST_FILES = discover_test_files()
 # refused an empty corpus but not a deletion, so the first reviewer of PR #82 deleted BOTH motorway mutations
 # plus one more and got `caught by a named test: 18 of 18 ... exit 0` - a clean sheet with the invariant no
 # longer measured. Adding a mutation means bumping this number, in a different file from the list itself.
-MIN_MUTATIONS = 48
+#
+# 48 -> 51 in round 8 of PR #82: one WIDENING mutation for each of the three refused sets the equality test
+# did not pin (refusedServiceValues, refusedTracktypes, refusedSmoothness). They live in
+# ops/mutate/gates_corpus_sets.py, which is a THIRD file, so the deletion this floor exists to stop now has
+# to defeat three.
+MIN_MUTATIONS = 51
 MIN_EQUIVALENT = 2
 
 # NOT a completeness floor, and it must not be read as one: TEST_FILES is discovered precisely so that the
@@ -104,27 +97,6 @@ def failing_test_names(txt: str):
         if name not in seen:
             seen.append(name)
     return seen
-
-
-def head_bytes(path: pathlib.Path):
-    rel = path.relative_to(ROOT).as_posix()
-    p = subprocess.run(["git", "show", "HEAD:" + rel], cwd=ROOT, capture_output=True)
-    return p.stdout if p.returncode == 0 else None
-
-
-def not_at_head(paths):
-    """Paths whose bytes on disk differ from `git show HEAD:`, with why. Without this the harness snapshots
-    whatever is on disk as "pristine" and measures THAT: the second review of PR #82 put one `expressway`
-    branch into Gates.swift, ran this harness unmodified, and got "caught by a named test: 28 of 28" / exit 0
-    over a tree that hard-excludes every expressway-tagged motorway. Printing the md5 was not enough."""
-    bad = []
-    for p in paths:
-        h = head_bytes(p)
-        if h is None:
-            bad.append((p, "not tracked at HEAD"))
-        elif h != p.read_bytes():
-            bad.append((p, "differs from HEAD"))
-    return bad
 
 
 def empty_suite(path: pathlib.Path) -> str:
@@ -202,11 +174,15 @@ def main(argv) -> int:
     pristine = {f: f.read_bytes() for f in SUBJECTS}
     pristine_tests = {f: f.read_bytes() for f in TEST_FILES}
 
-    # BEFORE any build, and before --prove-vacuity empties anything.
-    dirty = not_at_head(list(pristine) + list(pristine_tests))
+    # BEFORE any build, and before --prove-vacuity empties anything. The harness's own files are checked
+    # here too, and named individually below, so a weakened mutation body refuses the run instead of
+    # measuring one nobody reviewed.
+    dirty = not_at_head(ROOT, list(pristine) + list(pristine_tests) + list(HARNESS))
     if dirty:
         sys.stdout.write("REFUSING: the subject is not what HEAD says it is, so nothing measured below would\n"
-                         "mean anything. A mutant left on disk reads as 'pristine' and the run certifies it.\n")
+                         "mean anything. A mutant left on disk reads as 'pristine' and the run certifies it.\n"
+                         "The same check covers this harness and its corpus: a mutation body weakened on disk\n"
+                         "measures nothing either, and the floors only count mutations.\n")
         for p, why in dirty:
             sys.stdout.write("  %s: %s\n" % (p.relative_to(ROOT).as_posix(), why))
         sys.stdout.write("Commit or restore these, then re-run.\n")
@@ -253,7 +229,9 @@ def main(argv) -> int:
         for f, b in pristine_tests.items():
             f.write_bytes(b)
 
-    if not_at_head(list(pristine) + list(pristine_tests)):
+    # The restore check stays on the files this harness WRITES; the harness's own files are never written by
+    # it, and were checked against HEAD before anything ran.
+    if not_at_head(ROOT, list(pristine) + list(pristine_tests)):
         sys.stdout.write("RESTORE FAILED - the working tree is not back at HEAD\n")
         return 2
 
@@ -280,12 +258,15 @@ def main(argv) -> int:
 
     known_ok = True
     if KNOWN_MISSED:
-        known_ok = known is not None and len(known["missed"]) + len(known["trapped"]) == len(KNOWN_MISSED)
+        # MISSED and nothing else. Counting `trapped` here let a crash with no named test satisfy "this
+        # mutation is known not to be caught", which is a different claim entirely - the same confusion
+        # between a trap and a verdict that `caught + trapped` was found to be on PR #70. Round 8 of PR #82.
+        known_ok = known is not None and len(known["missed"]) == len(KNOWN_MISSED)
         if not known_ok:
-            sys.stdout.write("KNOWN-GAP ARM FAILED: %d of %d stayed MISSED as asserted. A gap that closed is\n"
+            sys.stdout.write("KNOWN-GAP ARM FAILED: %d of %d stayed MISSED as asserted. A trap does not\n"
+                             "  satisfy a known gap - it is a crash, not a verdict. A gap that closed is\n"
                              "  good news - move it into MUTATIONS.\n"
-                             % (0 if known is None else len(known["missed"]) + len(known["trapped"]),
-                                len(KNOWN_MISSED)))
+                             % (0 if known is None else len(known["missed"]), len(KNOWN_MISSED)))
     eq_ok = eq is not None and len(eq["missed"]) == len(EQUIVALENT)
     if not eq_ok and eq is not None:
         sys.stdout.write("EQUIVALENT ARM FAILED: %d of %d went MISSED as required; a catch means a test has an\n"
