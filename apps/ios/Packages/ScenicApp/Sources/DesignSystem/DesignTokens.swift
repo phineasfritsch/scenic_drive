@@ -24,7 +24,8 @@ import UIKit
 ///     border       #FCEAE1  rgba(255,255,255,0.08)
 ///
 /// - Important: **`primary` is never body text on `bg`.** It is a button fill and an accent, nothing
-///   else. `#EA580C` on `#FFF7ED` is roughly 3.6:1, which passes for a 44 pt control and fails WCAG AA
+///   else. `#EA580C` on `#FFF7ED` is 3.35:1 (WCAG 2.x relative luminance: 0.2450 vs 0.9390, so
+///   (0.9390+0.05)/(0.2450+0.05)), which passes for a 44 pt control and fails WCAG AA
 ///   for body copy; the dark pair `#FB923C` on `#0F172A` fails in the other direction for anything
 ///   small. Body text is `fg`, secondary text is `fgMuted`, and text on a `primary` fill is
 ///   `onPrimary`. A screen that reaches for `primary` to make a sentence look important is the one

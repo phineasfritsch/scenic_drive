@@ -2,7 +2,9 @@ import SwiftUI
 
 /// The map attribution line, bottom-right, on every map surface at every sheet detent.
 ///
-/// P-ATTR-01. The basemap licences are not decoration: OSM's ODbL and Protomaps both require visible
+/// The plan's P-ATTR-01, not yet filed in PINS.yaml (`grep -c P-ATTR-01 pins/PINS.yaml` -> 0); it is
+/// written when the real PMTiles basemap lands, and nothing mechanical enforces this file until then.
+/// The basemap licences are not decoration: OSM's ODbL and Protomaps both require visible
 /// credit, and the demo basemap this skeleton ships against credits different parties again. That is
 /// why `text` is a **required** initialiser parameter with no default. A default would be a string
 /// baked in here that stays put when the tiles underneath it change, and the first thing anybody would
@@ -52,8 +54,11 @@ public struct AttributionFooter: View {
         .padding(.trailing, 12)
         .padding(.bottom, 8)
         .accessibilityElement(children: .combine)
-        // Load-bearing identifier: the XCUITest that proves attribution survives every sheet detent
-        // anchors on this, not on the text, because the text changes with the basemap.
+        // Load-bearing identifier, reserved rather than used: no XCUITest exists yet - this package
+        // has no test targets, because an XCTest bundle authored on a box with no Apple toolchain
+        // could never be seen red. The XCUITest that proves attribution survives every sheet detent
+        // arrives with the first green Xcode Cloud run, and it will anchor on this identifier rather
+        // than on the text, because the text changes with the basemap.
         .accessibilityIdentifier("attribution.footer")
         // NEVER hidden from accessibility. Stated as an explicit `false` rather than left to the
         // default so that removing it is a visible deletion in a diff: a screen reader user is

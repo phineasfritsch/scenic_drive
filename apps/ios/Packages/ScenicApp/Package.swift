@@ -33,8 +33,10 @@ let package = Package(
     ],
     dependencies: [
         // The root package: ScenicKit (Coordinate and the scoring core) and Handoff
-        // (AppleMapsDirections). Three levels up from apps/ios/Packages/ScenicApp.
-        .package(name: "ScenicDrive", path: "../../.."),
+        // (AppleMapsDirections). Four levels up from apps/ios/Packages/ScenicApp: the manifest's
+        // own directory is four components below the repo root, so three dots-dots land on
+        // <repo>/apps, which has no Package.swift and makes `swift package resolve` exit 1.
+        .package(name: "ScenicDrive", path: "../../../.."),
         // EXACT, not `from:` and not a range. The tag was verified to exist before it was written:
         //   gh api repos/maplibre/maplibre-gl-native-distribution/releases --jq ".[0:5][].tag_name"
         //   -> 6.31.0  6.30.0  6.29.0  6.28.0  6.27.0
@@ -71,6 +73,10 @@ let package = Package(
         // cannot both hold. Taken literally the screen would need a protocol it owns plus a generic
         // parameter, which is machinery the skeleton has no second implementation for. The direct
         // dependency is what is written, and it is flagged here rather than quietly taken.
+        // `Handoff` below is the SAME deviation and was missed at round 0: it is a root-package product
+        // and is not on CLAUDE.md's feature-import list either. Ruled the same way - the list is
+        // incomplete, not the dependency wrong - and both are written into [[T-0147]]'s scope, which
+        // owns reconciling CLAUDE.md's shape with the tree.
         .target(
             name: "FeatureScenicHome",
             dependencies: [

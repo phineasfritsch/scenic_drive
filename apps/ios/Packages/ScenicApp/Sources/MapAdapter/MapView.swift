@@ -35,7 +35,8 @@ public struct MapView: UIViewRepresentable {
         mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
         // MapLibre's own attribution control stays on. `AttributionFooter` is the app's visible
-        // credit line and the thing P-ATTR-01 anchors on; this button is the licence detail sheet
+        // credit line and the thing the plan's P-ATTR-01 will anchor on - that pin is not yet filed
+        // in pins/PINS.yaml, so nothing checks this today; this button is the licence detail sheet
         // behind it, and hiding it to tidy the map would remove the only place the full terms appear.
         mapView.attributionButton.isHidden = false
         mapView.logoView.isHidden = false

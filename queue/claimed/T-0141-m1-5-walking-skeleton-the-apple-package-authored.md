@@ -9,20 +9,21 @@ lease_expires_at: 2026-09-18T13:40:00Z
 worktree: .worktrees/T-0141
 branch: task/T-0141
 exclusive: [pbxproj, package-swift]
-touches: [apps/ios/, ops/lib/check-line-cap, pins/PINS.yaml]
+touches: [apps/ios/, ops/lib/, pins/PINS.yaml, queue/]
 pins_affected: [P-SRC-02]
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "root Package.swift references nothing under apps/: git diff --stat main -- Package.swift is empty and grep -c apps/ Package.swift -> 0"
-  - "bash ops/lib/check-line-cap -> the tracked .swift count includes apps/ios/**, every file <= 300 lines; the exact count is printed and recorded here when the tree is committed"
-  - "one type per file under apps/ios/: a grep of '^(public )?(struct|enum|class|final class|actor) ' counts <= 1 per file"
-  - "bash ops/check-pins --source-only -> PINS ok=N ... failed=0, exit 0; bash ops/queue-check -> QUEUE OK, exit 0"
-  - "python .artifacts/T-0141/pbxproj-graph.py (quoted in the Log) -> every referenced 24-hex object id is defined; the target has a two-configuration list; the package product dependency names a product Packages/ScenicApp/Package.swift declares"
-  - "the MapLibre tag pinned in Package.swift is listed by gh api repos/maplibre/maplibre-gl-native-distribution/releases (command and output in the Log)"
-  - "every SkylineHandoff waypoint has its Nominatim query and returned lat/lon in the Log, and two are re-checked by the reviewer to 3 decimals"
-  - "NOT COMPILED HERE, on the record: no Apple toolchain exists on this box. The Xcode Cloud build is T-0009's proof and needs the human's M0 steps. This task's exit is a tree Xcode Cloud can build, not a build."
+  - "root Package.swift references nothing under apps/: `git diff --stat origin/main -- Package.swift` prints nothing, and `grep -cE '^ *[.]package[(].*apps/' Package.swift` -> 0 (grep -c exits 1 on a zero count: the printed count is the assertion, never the status). A comment cannot satisfy that grep (round-1 finding 2): over a control file carrying one real .package(...) line whose path starts with apps/ plus a comment naming the same path, it -> 1, while the round-0 `grep -c apps/ Package.swift` -> 1 on the real tree and is counting Package.swift:4, a comment"
+  - "the Apple package's path dependency lands on the root package, not on apps/ (round-1 BLOCKING finding 1): run from apps/ios/Packages/ScenicApp, `swift package --scratch-path ../../../../.artifacts/T-0141/spm dump-package` emits the fileSystem dependency as nameForTargetDependencyResolutionOnly ScenicDrive at the checkout root (a directory that has a Package.swift), and `swift package --scratch-path ../../../../.artifacts/T-0141/spm resolve` -> `Working copy of https://github.com/maplibre/maplibre-gl-native-distribution resolved at 6.31.0`, exit 0. RED at the reviewed `path: ../../..`: dump-package emits identity apps, resolve prints `error: the package manifest at <checkout>/apps/Package.swift cannot be accessed`, exit 1. Manifest resolution only - nothing here was compiled"
+  - "`bash ops/lib/check-line-cap` -> `P-SRC-02: 48 Swift files tracked (Sources=17, Tests=23, apps/ios=8), none over 300 lines`, exit 0. RED by the NAME of an emptied root (round-1 finding 6): `git rm --cached $(git ls-files 'apps/ios/**/*.swift')` then the same command -> `P-SRC-02: root(s) matching no tracked .swift file: apps/ios`, exit 1; before this round that identical state printed `apps/ios=0` and exited 0"
+  - "one type per file under apps/ios/: `git ls-files 'apps/ios/**/*.swift' | xargs -n1 grep -cE '^(public )?(struct|enum|class|final class|actor) ' | sort | uniq -c` -> `1 0` (Package.swift, a manifest) and `7 1` (every source file), i.e. no file declares two"
+  - "`bash ops/check-pins --source-only` -> `PINS ok=8 skipped=11 pending=1 expired=0 failed=0 tier=linux source-only`, exit 0; `bash ops/queue-check` -> `QUEUE OK (140 tasks)`, exit 0. Both run bare, never piped (a pipe swallows the exit status)"
+  - "`python ops/lib/check-pbxproj-graph.py` -> `pbxproj-graph: 28 assertions, 0 failed`, exit 0. The script now lives under ops/ instead of gitignored .artifacts/ (round-1 finding 7), mode 100644 like every other *.py under ops/. RED by name: re-add NSLocationWhenInUseUsageDescription to apps/ios/ScenicDrive/Info.plist -> `FAIL NSLocationWhenInUseUsageDescription is absent because nothing asks for location  present`, exit 1; on the green tree that same line's detail column now reads `absent` (round-1 finding 10)"
+  - "the MapLibre tag pinned in Package.swift exists: `gh api repos/maplibre/maplibre-gl-native-distribution/releases --jq '.[0:5][].tag_name'` -> 6.31.0 6.30.0 6.29.0 6.28.0 6.27.0, and apps/ios/Packages/ScenicApp/Package.swift:45 pins exact 6.31.0"
+  - "every SkylineHandoff waypoint has its Nominatim query and returned lat/lon in the Log; the round-1 reviewer re-checked three of the five (ways 23995546, 305925415, 27672021) to 7 decimals"
+  - "NOT COMPILED HERE, on the record: no Apple toolchain exists on this box. The Xcode Cloud build is T-0009's proof and needs the human's M0 steps. This task's exit is a tree Xcode Cloud can build, not a build. SPM manifest resolution is not a build"
 ---
 ## Brief
 
@@ -52,6 +53,7 @@ task ends with a tree Xcode Cloud can build, not with a build - and says so.
 
 ```
 apps/ios/Packages/ScenicApp/Package.swift        iOS 18.4; depends on the root package by path (../../..)
+                                                 [corrected 2026-09-18 round 1: ../../../.., four levels]
   Sources/DesignSystem/                           tokens from the plan's table, both appearances; AttributionFooter
   Sources/MapAdapter/                             the ONLY importer of MapLibre; a UIViewRepresentable over MLNMapView
   Sources/FeatureScenicHome/                      one screen: map, footer, "Open in Apple Maps" -> Handoff
@@ -207,3 +209,96 @@ silently exempt every file this task adds. The globs gain `apps/ios/**/*.swift`;
   described. Author A's half, untracked at that moment, lands with this commit.
 
 - 2026-09-18T03:40:00Z A number I changed without measuring, put back on the measurement: I "corrected" the line-cap comment from 36 of 44 to 37 of 45 by adding one to a count I had not re-run; `bash ops/lib/check-line-cap` prints `44 Swift files tracked (Sources=15, Tests=21, apps/ios=8)`, so 36 before this task and 44 after was right the first time. Reverted. The pbxproj graph script asserts the location key ABSENT now (28 assertions, 0 failed).
+- 2026-09-18 review round 1 by agent/rv1-pr88 (PR #88, head 32355c5, own worktree `.worktrees/rv1-pr88`, removed). **FAIL — one blocking defect: the Apple package cannot resolve.** `Packages/ScenicApp/Package.swift:37` declares `.package(name: "ScenicDrive", path: "../../..")`, but the manifest sits four components below the root, so the path lands on `<repo>/apps`, which has no `Package.swift`. Proven by the toolchain on this box (Swift 6.3.3 Windows; SPM resolution needs no Mac), each run under its own `--scratch-path`: `swift package dump-package` emits the dependency as `"identity": "apps", "path": "<repo>\apps"`, and `swift package resolve` -> `error: the package manifest at '<repo>\apps\Package.swift' cannot be accessed`, exit 1. Required: `"../../../.."`. The comment at :36 ("Three levels up"), the Brief's "(../../..)" and the PR body's "depends on the root package by path" all carry the same off-by-one. Nothing caught it: `pbxproj-graph.py` checks the xcodeproj's `relativePath` and the product names, never the manifest's own path dependency; the fable verifier checked the dependency's NAME; CI runs only `core` and `pins-source-only`, neither of which sees `apps/ios/`.
+  Everything else measured green at 32355c5 and is not disputed: line-cap `44 Swift files tracked (Sources=15, Tests=21, apps/ios=8)` exit 0; `check-pins --source-only` `ok=6 skipped=10 pending=1 expired=0 failed=0` exit 0; `queue-check` `QUEUE OK (132 tasks)` exit 0; `pbxproj-graph.py` 28 assertions 0 failed; MapLibre 6.31.0 first in the releases list; three waypoints (not two) re-queried on Nominatim — ways 23995546, 305925415, 27672021 — agreeing to 7 decimals; the 280→Cañada→92→Skyline shape matches the plan's line 53; `import MapLibre` exactly once; no Apple framework import in the root package; no sentence anywhere claims this was compiled. The 301-line red was reproduced by name (`apps/ios/ScenicDrive/OverCap.swift (301 lines)`, exit 1), and four fresh mutations — objectVersion, product rename, `relativePath`, a dangled scheme blueprint — each went red by name. The Log's account of `1215d89` is true to `git show --stat`; the T-0037 "addressed, not closed" ruling and both `queue/LOCKS` entries are correct.
+  Ten non-blocking findings recorded with the review, the recurring shape being a name or comment claiming more than the assertion under it: acceptance line 1 quotes `grep -c apps/ Package.swift -> 0` where it prints 1 (a comment satisfies it); `check-line-cap:24` still quotes 36 where the command now prints 44; `AttributionFooter.swift:55` cites an XCUITest that does not exist in a tree with no test targets; `AttributionFooter.swift:5` and `MapView.swift:38` cite P-ATTR-01, which `grep -c P-ATTR-01 pins/PINS.yaml` puts at 0 and which this task's own Log dropped for that reason; `MIN_FILES=5` lets a whole root reach zero green (`apps/ios=0`, exit 0); the graph script is gitignored and does not survive the merge; `FeatureScenicHome`'s `Handoff` dependency is a third unruled import deviation; CLAUDE.md's literal attribution string is now false in the tree with no task owning the reconciliation; the location assertion prints "present" on its passing line; and `DesignTokens.swift:27` says 3.6:1 where the formula gives 3.35:1. Nothing was changed anywhere; `.worktrees/T-0141` was read only (status empty, HEAD 32355c5) and every tree was left pristine and re-hashed against HEAD.
+- 2026-09-18 round-1 fixes by agent/claude-opus-5, acting for owner agent/claude-fable-5-1 on the owner's
+  rulings; the entry above is reviewer agent/rv1-pr88's own and is reproduced verbatim. Worktree
+  `.worktrees/T-0141`, branch `task/T-0141`, from 32355c5. First act, because two rulings needed main:
+  `git merge origin/main` (51 commits behind, merge-base af88ac2) -> merge commit 76f9e8e, **no conflicts**
+  and no queue/ duplicate to resolve - this task's file exists only in `queue/claimed/`, and main's own moves
+  (T-0107, T-0108, T-0126, T-0131, T-0139 into done/) came across untouched. Every finding was reproduced at
+  this tree before it was touched. **Nothing was compiled**: the only Swift toolchain here is Windows
+  6.3.3 and it was used for manifest loading and dependency resolution only.
+  * **F1 (blocking), reproduced twice.** `python -c "import os;print(os.path.normpath(os.path.join('apps/ios/Packages/ScenicApp','../../..')))"`
+    -> `apps`, and `ls apps/Package.swift` -> `No such file or directory`. With the toolchain, from
+    `apps/ios/Packages/ScenicApp` under its own `--scratch-path`: `swift package dump-package` emitted
+    `"identity": "apps"`, `"path": "...\.worktrees\T-0141\apps"`, and `swift package resolve` ->
+    `error: the package manifest at 'C:\...\.worktrees\T-0141\apps\Package.swift' cannot be accessed
+    (... doesn't exist in file system)`, exit 1. FIXED: `path: "../../../.."`, and the comment above it now
+    says four levels and why. GREEN, same commands: dump-package emits the dependency at the checkout root
+    with `nameForTargetDependencyResolutionOnly: ScenicDrive` (a one-liner over its JSON prints
+    `root manifest at dependency path: True | name: ScenicDrive`; at `../../..` the same line prints
+    `False ... identity: apps`), and `resolve` exits **0** - further than the ruling expected: it fetched
+    maplibre-gl-native-distribution, computed 6.31.0 and downloaded `MapLibre.dynamic.xcframework.zip`.
+    That is resolution, not a build. Two honest caveats: SPM derives a by-path dependency's *identity* from
+    the directory name, so in this worktree it reads `t-0141` and in a clone it reads `scenic_drive` -
+    `name: "ScenicDrive"` is what target dependencies resolve against, and it is unchanged; and `resolve`
+    wrote an untracked `apps/ios/Packages/ScenicApp/Package.resolved`, which is serial-only in CLAUDE.md and
+    NOT declared by this task, so it was deleted rather than committed. The Brief's spec line is corrected in
+    place with a dated bracket rather than silently.
+  * **F2, reproduced:** `grep -c apps/ Package.swift` -> 1 (Package.swift:4 is a comment). Acceptance line 1
+    now runs `grep -cE '^ *[.]package[(].*apps/' Package.swift` -> 0, written without backslashes so the YAML
+    is not escaping-dependent. Demonstrated to be a real detector, not a tautology: over a control file
+    holding one genuine `.package(name: "ScenicApp", path: "apps/ios/Packages/ScenicApp"),` line plus a
+    comment naming the same path, it prints 1 while the round-0 `grep -c apps/` prints 2. Recorded in the
+    acceptance line because it bites: `grep -c` exits 1 when the count is 0, so the count is the
+    assertion and the status is not.
+  * **F3, reproduced and worse than reported:** at this commit `git ls-files '**/*.swift' | wc -l` -> 48 and
+    `git ls-files 'Sources/**/*.swift' 'Tests/**/*.swift' | wc -l` -> 40, so the reviewer's 44/36 had already
+    rotted again inside one merge. Both counts removed from the header (`check-line-cap:17` "covers 36 of 44"
+    as well as :24's "the same 36 files"); the paragraph now says to compare `git ls-files '**/*.swift' | wc -l`
+    with the total the script prints. A comment that carries no number cannot go stale.
+  * **F4, reproduced:** `git ls-files | grep -ic xcuitest` -> 0, `git ls-files | grep -icE 'uitests?'` -> 0.
+    `AttributionFooter.swift` now says the identifier is reserved, that this package has no test targets, and
+    that the XCUITest arrives with the first green Xcode Cloud run.
+  * **F5, reproduced:** `grep -c P-ATTR-01 pins/PINS.yaml` -> 0. Both citations now read as the plan's
+    P-ATTR-01, not yet filed in PINS.yaml, and say that nothing mechanical enforces either file today. No pin
+    was invented.
+  * **F6, reproduced:** `git rm --cached $(git ls-files 'apps/ios/**/*.swift')` then `bash ops/lib/check-line-cap`
+    -> `P-SRC-02: 40 Swift files tracked (Sources=17, Tests=23, apps/ios=0), none over 300 lines`, exit **0** -
+    the T-0037 condition, green. FIXED with a per-root guard that refuses by the NAME of the empty root;
+    MIN_FILES=5 kept, since it is what catches the whole population collapsing at once. RED, in this worktree
+    with the index mutated the same way: `P-SRC-02: root(s) matching no tracked .swift file: apps/ios` /
+    `Population: Sources=17, Tests=23, apps/ios=0 (total 40).`, exit 1. `git reset HEAD -- apps/ios` then GREEN:
+    `P-SRC-02: 48 Swift files tracked (Sources=17, Tests=23, apps/ios=8), none over 300 lines`, exit 0.
+  * **F7, done:** `.artifacts/T-0141/pbxproj-graph.py` -> `ops/lib/check-pbxproj-graph.py`, mode 100644 (every
+    other `*.py` under `ops/` is 100644 and it is invoked as `python <path>`, so P-OPS-01's chmod rule for
+    wrappers does not apply). 263 lines, under the cap, one concern, so no split. `ROOT` is unchanged and still
+    correct: `ops/lib/../..` is the repo root exactly as `.artifacts/T-0141/../..` was. Acceptance line 6 names
+    the new path. Run at this commit: `pbxproj-graph: 28 assertions, 0 failed`, exit 0.
+  * **F8, ruled:** `FeatureScenicHome` -> `Handoff` is the same deviation as `MapAdapter` - CLAUDE.md's
+    feature-target list is incomplete, not the dependency wrong. `Handoff` is a root-package product this
+    screen genuinely needs ("Open in Apple Maps" is `AppleMapsDirections`), and routing it through a
+    one-conformance protocol would be machinery with no second implementation. Named on the target in
+    Package.swift and added to [[T-0147]]'s scope, where reconciling CLAUDE.md's shape with the tree lives.
+  * **F9, ruled the same way and written down:** [[T-0147]] gains a line for the attribution WORDING
+    (CLAUDE.md:48's literal `© OpenStreetMap contributors · Protomaps` vs `MapStyle.attributionText`'s
+    `© MapLibre · Natural Earth`). The VISIBILITY invariant is not in question. T-0147 also gains `apps/ios/`
+    in its `touches:`, and its round-0 `MapAdapter` ruling, which had been recorded in this Log as "added to
+    T-0147's scope" while T-0147 existed only on main - so the line had never reached the file. Nothing closed.
+  * **F10, reproduced:** on the green tree the passing line read
+    `ok NSLocationWhenInUseUsageDescription is absent because nothing asks for location  present`. The detail is
+    now computed, not hardcoded. GREEN prints `absent`; RED, with the key re-added to `apps/ios/ScenicDrive/Info.plist`:
+    `FAIL NSLocationWhenInUseUsageDescription is absent because nothing asks for location  present`, exit 1.
+    Info.plist restored with `git checkout --` and the tree re-hashed clean.
+  * **F11, reproduced:** WCAG 2.x relative luminance of `#EA580C` is 0.244984 and of `#FFF7ED` is 0.938960, so
+    (0.938960+0.05)/(0.244984+0.05) = **3.3526**, not 3.6. `DesignTokens.swift:27` now says 3.35:1 and shows the
+    two luminances. The conclusion is unchanged: clears 3:1 for a 44 pt control, fails 4.5:1 for body copy.
+  * **Acceptance block rewritten**, nine lines, every one re-run at this commit and quoting what it really
+    printed - including `bash ops/check-pins --source-only` -> `PINS ok=8 skipped=11 pending=1 expired=0
+    failed=0 tier=linux source-only` and `bash ops/queue-check` -> `QUEUE OK (140 tasks)` (both moved by the
+    merge from ok=6/132; both run bare, never piped). `touches:` becomes
+    `[apps/ios/, ops/lib/, pins/PINS.yaml, queue/]`: the hook matches by prefix, so the old
+    `ops/lib/check-line-cap` entry could not admit `ops/lib/check-pbxproj-graph.py`. Widened rather than
+    bypassed, and said here. `state: claimed` and `reviewer:` untouched.
+  * **STILL OPEN, not fixed by this round.** (a) Nothing here was compiled and this PR still cannot prove it
+    builds; the first Xcode Cloud run ([[T-0009]]) is the proof, and it needs the human's M0 steps.
+    (b) `ops/test` and the full `ops/check-pins` were NOT run: `ops/test` shells `swift test` without a
+    `--scratch-path` into the shared `.build`, which CLAUDE.md forbids on a shared box, and nothing in this
+    round touches a Linux target. (c) check-line-cap's older residual hole stands, stated in its header: a file
+    directly at `Sources/X.swift`, `Tests/X.swift` or `apps/ios/X.swift` is still uncounted, because git's
+    `<root>/**` pathspec needs a directory component. (d) The [[T-0010]] and [[T-0037]] transitions to done/
+    remain the merger's, not mine. (e) [[T-0147]] carries three reconciliations and is still `backlog`.
+    (f) The PR body still describes the round-0 tree; rewriting it is the orchestrator's, and this Log is the
+    record either way.
