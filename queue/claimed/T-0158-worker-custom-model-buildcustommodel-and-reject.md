@@ -1,13 +1,13 @@
 ---
 id: T-0158
 title: Worker custom model - buildCustomModel(lambda, closures) and rejectCustomModel - the per-request model never carries road_access or surface, and its multipliers are monotone in lambda
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T19:13:08Z
+lease_expires_at: 2026-09-19T03:13:08Z
+worktree: .worktrees/T-0158
+branch: task/T-0158
 exclusive: []
 touches: [services/api/src/, services/api/test/]
 pins_affected: []
@@ -57,3 +57,4 @@ Sequenced after T-0154 (the scorer contract) and the T-0024/T-0027 fix passes, a
 
 ## Log
 - 2026-09-18T19:05:00Z filed by agent/claude-fable-5-1 from the 12:13 panel's grounded synthesis (CODE lens C4, C6, C7 grounded; C5's cited grep hits did not exist and C8's touches collided with T-0012 and T-0149 - both corrected here). Not started.
+- 2026-09-18T19:13:08Z claimed by agent/claude-opus-5; lease until 2026-09-19T03:13:08Z

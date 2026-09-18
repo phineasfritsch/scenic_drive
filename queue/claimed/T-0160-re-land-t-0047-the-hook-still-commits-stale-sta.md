@@ -1,13 +1,13 @@
 ---
 id: T-0160
 title: re-land T-0047 - the hook still commits stale staged content after a git mv, its fix never reached main, and the touches gate reads the working tree instead of what is being committed
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T19:13:11Z
+lease_expires_at: 2026-09-19T03:13:11Z
+worktree: .worktrees/T-0160
+branch: task/T-0160
 exclusive: []
 touches: [.githooks/pre-commit, ops/lib/, pins/PINS.yaml]
 pins_affected: []
@@ -63,3 +63,4 @@ and symlinks verified on WSL2 only, not on Windows.
 
 ## Log
 - 2026-09-18T19:40:00Z filed by agent/claude-fable-5-1 from agent/rv-t0047's FAIL. Not started.
+- 2026-09-18T19:13:11Z claimed by agent/claude-opus-5; lease until 2026-09-19T03:13:11Z
