@@ -1,0 +1,190 @@
+{
+  "note": "T-0161. Hand-checkable geometry for etl.sinuosity and etl.proximity. Every expected value is typed out from the arithmetic in its own `workings` field and NEVER from the function it checks: metres are 6373000 * degrees * pi/180 along a meridian (curvature.RAD_EARTH_M, the model snap.py measures on) and 111320*cos(lat) / 110540 metres per degree in the flat projection snap.point_to_segment_m uses. Coordinates are [lat, lon]. `expected_meters` may be the string \"inf\".",
+  "sinuosity_cases": [
+    {
+      "name": "straight_two_node",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "closed": false,
+      "expected_gap_m": 1112.2983,
+      "gap_abs": 0.001,
+      "expected_sinuosity": 1.0,
+      "rel": 1e-12,
+      "workings": "0.01 deg of latitude = 6373000 * 0.01 * pi/180 = 1112.2983 m. Path and gap are the same single call, so the ratio is exactly 1.0 - no tolerance is needed and the 1e-12 is only there to use one assertion shape for every case."
+    },
+    {
+      "name": "straight_three_node_meridian",
+      "coordinates": [[37.48, -122.0], [37.49, -122.0], [37.5, -122.0]],
+      "closed": false,
+      "expected_gap_m": 2224.5967,
+      "gap_abs": 0.001,
+      "expected_sinuosity": 1.0,
+      "rel": 1e-8,
+      "workings": "A meridian is a great circle, so three collinear nodes are exactly straight: path = 2 * 1112.2983 = 2224.5967 m, gap = 6373000 * 0.02 * pi/180 = 2224.5967 m, ratio 1.0. The 1e-8 is the acos rounding of splitting one arc in two."
+    },
+    {
+      "name": "right_angle_dogleg",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0], [37.5, -121.9873953]],
+      "closed": false,
+      "expected_gap_m": 1573.0273,
+      "gap_abs": 0.1,
+      "expected_sinuosity": 1.4142136,
+      "rel": 0.0001,
+      "workings": "North 0.01 deg = 1112.2983 m, then east far enough to travel the same distance: 0.01 / cos(37.5 deg) = 0.01 / 0.7933533 = 0.0126047 deg, so -122.0 + 0.0126047 = -121.9873953. Two equal legs at a right angle: sinuosity = 2 / sqrt(2) = sqrt(2) = 1.4142136 and the gap is sqrt(2) * 1112.2983 = 1573.0273 m. Both tolerances are spherical excess, not slack: the right angle sits on a sphere, which makes the hypotenuse 5 cm longer than the plane value and the ratio 3.3e-05 relative below sqrt(2). rel=1e-4 is 3x that, so a 1% error in either leg still fails."
+    },
+    {
+      "name": "hairpin_meridian",
+      "coordinates": [[37.48, -122.0], [37.5, -122.0], [37.49, -122.0]],
+      "closed": false,
+      "expected_gap_m": 1112.2983,
+      "gap_abs": 0.001,
+      "expected_sinuosity": 3.0,
+      "rel": 1e-8,
+      "workings": "Out 0.02 deg and back 0.01 deg, all on one meridian: path = 0.03 deg, gap = 0.01 deg, and the ratio of two arcs on the same great circle is exactly 0.03/0.01 = 3.0 whatever the earth radius is. A switchback is the case the term exists for."
+    },
+    {
+      "name": "closed_loop_rectangle",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0], [37.5, -121.988677], [37.49, -121.988677], [37.49, -122.0]],
+      "closed": true,
+      "expected_gap_m": 0.0,
+      "gap_abs": 1e-09,
+      "expected_sinuosity": 1.0,
+      "rel": 1e-12,
+      "workings": "OSM closes a loop by repeating the first node, so the gap is exactly 0.0 and the raw ratio is a division by zero. The answer is CLOSED_WAY_SINUOSITY = 1.0, the floor of the scale: see etl/sinuosity.py's docstring for why declining is 1.0 and not inf."
+    },
+    {
+      "name": "near_closed_lasso",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0], [37.5, -121.988677], [37.49, -121.988677], [37.4900452, -122.0]],
+      "closed": true,
+      "expected_gap_m": 5.0276,
+      "gap_abs": 0.002,
+      "expected_sinuosity": 1.0,
+      "rel": 1e-12,
+      "workings": "The same rectangle with its last node 0.0000452 deg short of the first: 6373000 * 0.0000452 * pi/180 = 5.0276 m apart, inside CLOSED_ENDPOINT_M = 10.0, so it is closed and the answer is 1.0. Without the guard the ratio is 4.2 km over 5 m - in the hundreds, and the top of any region's rank-normalised range. The 2 mm tolerance is the spherical law of cosines losing precision at a few metres, which curvature.distance_on_earth's docstring already records."
+    },
+    {
+      "name": "just_open_rectangle",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0], [37.5, -121.988677], [37.49, -121.988677], [37.4902, -122.0]],
+      "closed": false,
+      "expected_gap_m": 22.246,
+      "gap_abs": 0.001,
+      "expected_min_sinuosity": 100.0,
+      "workings": "The same rectangle with a 0.0002 deg gap = 6373000 * 0.0002 * pi/180 = 22.2460 m, outside CLOSED_ENDPOINT_M = 10.0. The boundary has to be a boundary: this way is NOT closed and its raw sinuosity is a genuine 4.2 km over 22 m, so the only thing pinned is that it is in the hundreds rather than the 1.0 the guard would return. A path length summed over four legs is not hand-typeable, so no exact value is claimed."
+    }
+  ],
+  "tunnel_cases": [
+    {
+      "name": "tunnel_yes_is_the_whole_way",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "tags": {"highway": "secondary", "tunnel": "yes"},
+      "expected_meters": 1112.2983,
+      "abs": 0.001,
+      "workings": "tunnel= is a way tag, so a tagged way is tunnel end to end: 6373000 * 0.01 * pi/180 = 1112.2983 m."
+    },
+    {
+      "name": "tunnel_no_is_not_a_tunnel",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "tags": {"highway": "secondary", "tunnel": "no"},
+      "expected_meters": 0.0,
+      "abs": 0.0,
+      "workings": "tunnel=no is how a mapper records that a way is NOT in a tunnel. Any check shaped like `tunnel in tags` or a truthiness test on the value gets this case wrong, which is why the value set is an allowlist."
+    },
+    {
+      "name": "tunnel_key_absent",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "tags": {"highway": "secondary"},
+      "expected_meters": 0.0,
+      "abs": 0.0,
+      "workings": "No tunnel key at all: 0.0 m, the default score.score already assumes."
+    },
+    {
+      "name": "tunnel_building_passage",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "tags": {"highway": "residential", "tunnel": "building_passage"},
+      "expected_meters": 1112.2983,
+      "abs": 0.001,
+      "workings": "A road under a building is enclosed, which is the whole content of the multiplier: accepted, full length 1112.2983 m."
+    },
+    {
+      "name": "tunnel_avalanche_protector",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "tags": {"highway": "primary", "tunnel": "avalanche_protector"},
+      "expected_meters": 1112.2983,
+      "abs": 0.001,
+      "workings": "A gallery is a roof over the road and the driver cannot see out of it: accepted, full length 1112.2983 m."
+    },
+    {
+      "name": "tunnel_culvert_is_refused",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "tags": {"highway": "unclassified", "tunnel": "culvert"},
+      "expected_meters": 0.0,
+      "abs": 0.0,
+      "workings": "tunnel=culvert belongs to the waterway that runs through the pipe, not to the road over it. Honouring it on a highway would take a scenic lane to x0.15 for a drainage pipe, so it is not in TUNNEL_VALUES."
+    },
+    {
+      "name": "tunnel_value_is_case_and_space_normalised",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "tags": {"highway": "tertiary", "tunnel": " Yes "},
+      "expected_meters": 1112.2983,
+      "abs": 0.001,
+      "workings": "OSM values are lowercase by convention and not by validation; `Yes` and a stray space are both in the planet file. Normalised before the set lookup, so the way still measures 1112.2983 m."
+    }
+  ],
+  "motorway_cases": [
+    {
+      "name": "parallel_100_m_east",
+      "coordinates": [[37.49, -121.9988677], [37.5, -121.9988677]],
+      "motorways": [[[37.49, -122.0], [37.5, -122.0]]],
+      "expected_meters": 100.0,
+      "abs": 0.05,
+      "workings": "A way running parallel to a motorway, one typed-out 100 m offset east: 100 / (111320 * cos(37.495 deg)) = 100 / 88322.007 = 0.0011323 deg, so -122.0 + 0.0011323 = -121.9988677. The flat projection takes cos at the segment midpoint latitude, so the measurement comes back 100.007 m - the 5 cm tolerance is that, and inside 150 m this way is penalised x0.7 by score.py."
+    },
+    {
+      "name": "crossing_a_motorway",
+      "coordinates": [[37.495, -122.005], [37.495, -121.995]],
+      "motorways": [[[37.49, -122.0], [37.5, -122.0]]],
+      "expected_meters": 0.0,
+      "abs": 1e-06,
+      "workings": "An east-west way crossing a north-south motorway between its nodes. Distance 0 by definition - they meet. The four endpoint-to-segment distances are all 441.61 m, so an implementation without a crossing test answers 441.61 m and loses the x0.7 entirely."
+    },
+    {
+      "name": "touches_the_motorway_at_a_junction",
+      "coordinates": [[37.495, -122.0], [37.495, -121.99]],
+      "motorways": [[[37.49, -122.0], [37.5, -122.0]]],
+      "expected_meters": 0.0,
+      "abs": 1e-06,
+      "workings": "A road joining a motorway: its first node sits on the motorway segment. 0 m, and it arrives through the endpoint distances rather than the crossing test, which deliberately ignores touching and collinear pairs."
+    },
+    {
+      "name": "nearest_point_inside_a_long_way_segment",
+      "coordinates": [[37.5, -122.01], [37.5, -121.99]],
+      "motorways": [[[37.4995, -122.0], [37.499, -122.0]]],
+      "expected_meters": 55.27,
+      "abs": 0.01,
+      "workings": "A 1.8 km two-node chord with a short motorway stub 0.0005 deg south of its middle: 0.0005 * 110540 m/deg = 55.27 m. The way's own nodes are 0.01 deg of longitude away (883.16 m east and west), so measuring the way's NODES against the motorway answers 884.90 m - no penalty where the truth is x0.7. This case is the whole reason the measurement is segment to segment from both ends."
+    },
+    {
+      "name": "two_motorways_nearest_wins",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "motorways": [[[37.49, -121.9434], [37.5, -121.9434]], [[37.49, -121.9988677], [37.5, -121.9988677]]],
+      "expected_meters": 100.0,
+      "abs": 0.05,
+      "workings": "The far motorway is first in the list (0.0566 deg = 5 km east) and the near one second (0.0011323 deg = 100 m east), so the answer is the minimum over the candidates and not the first of them."
+    },
+    {
+      "name": "five_km_east_is_beyond_the_radius",
+      "coordinates": [[37.49, -121.9434], [37.5, -121.9434]],
+      "motorways": [[[37.49, -122.0], [37.5, -122.0]]],
+      "expected_meters": "inf",
+      "abs": 0.0,
+      "workings": "5000 / 88322.007 = 0.0566 deg east, about 4999 m out and past MOTORWAY_SEARCH_RADIUS_M = 1000.0, so the report is math.inf - which is exactly score.score's default for a way with no motorway near it."
+    },
+    {
+      "name": "no_motorways_at_all",
+      "coordinates": [[37.49, -122.0], [37.5, -122.0]],
+      "motorways": [],
+      "expected_meters": "inf",
+      "abs": 0.0,
+      "workings": "An empty candidate list is a way with no motorway near it, not an error: math.inf."
+    }
+  ]
+}
