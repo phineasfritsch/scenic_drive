@@ -31,7 +31,7 @@ struct SkylineRouteTests {
     static let canadaRoadWoodside = Coordinate(latitude: 37.44197, longitude: -122.26667)
     static let canadaRoadMid = Coordinate(latitude: 37.47579, longitude: -122.30852)
     static let canadaRoadAt92 = Coordinate(latitude: 37.50621, longitude: -122.34073)
-    static let halfMoonBayRoad = Coordinate(latitude: 37.50745, longitude: -122.34299)
+    static let skylineSouthOfCA92 = Coordinate(latitude: 37.47272, longitude: -122.35680)
     static let skylineRidge = Coordinate(latitude: 37.38776, longitude: -122.26638)
     static let skylineSouthOfSkyLonda = Coordinate(latitude: 37.36648, longitude: -122.24765)
 
@@ -40,7 +40,7 @@ struct SkylineRouteTests {
         canadaRoadWoodside,
         canadaRoadMid,
         canadaRoadAt92,
-        halfMoonBayRoad,
+        skylineSouthOfCA92,
         skylineRidge,
         skylineSouthOfSkyLonda,
     ]
@@ -49,11 +49,14 @@ struct SkylineRouteTests {
     /// Reservoir, up to CA-92. Typed out rather than sliced out of `SkylineRoute.waypoints`, for the
     /// reason in the suite comment; `theCanadaLegIsWhereThisTestThinksItIs` is what ties the two
     /// together, so a reordering of the route cannot leave this test measuring a different leg.
+    ///
+    /// It ends at the Cañada/CA-92 junction pin, which is also where `SkylineRidgeLegTests.ridgeLeg`
+    /// begins: the two legs share that pin, so between them every consecutive pair from Woodside to
+    /// the turn-around is under one bound or the other and none falls between the two suites.
     static let canadaLeg: [Coordinate] = [
         canadaRoadWoodside,
         canadaRoadMid,
         canadaRoadAt92,
-        halfMoonBayRoad,
     ]
 
     /// That leg as it appears in the array the app actually hands Apple Maps.
@@ -67,11 +70,17 @@ struct SkylineRouteTests {
     /// Empty if either end point is missing or they are the wrong way round, which makes the spacing
     /// below infinite rather than vacuously fine.
     static func canadaLegAsShipped() -> [Coordinate] {
+        legAsShipped(from: canadaRoadWoodside, to: canadaRoadAt92)
+    }
+
+    /// Shared with `SkylineRidgeLegTests`, which locates its leg the same way and for the same
+    /// reasons.
+    static func legAsShipped(from start: Coordinate, to end: Coordinate) -> [Coordinate] {
         let w = SkylineRoute.waypoints
-        guard let start = w.firstIndex(of: canadaRoadWoodside),
-              let end = w.firstIndex(of: halfMoonBayRoad),
-              start < end else { return [] }
-        return Array(w[start...end])
+        guard let first = w.firstIndex(of: start),
+              let last = w.firstIndex(of: end),
+              first < last else { return [] }
+        return Array(w[first...last])
     }
 
     /// THE BOUND. No two consecutive pins on the Cañada leg may be further apart than this.
@@ -155,28 +164,44 @@ struct SkylineRouteTests {
         // across the middle of the array. Monotone per leg is what is actually true, and each leg is
         // one direction of travel:
         //   pins 0..1  southbound I-280            latitude strictly decreasing
-        //   pins 1..4  northbound Cañada, west 92  latitude strictly increasing
-        //   pins 4..6  southbound CA-35 ridge      latitude strictly decreasing
+        //   pins 1..3  northbound Cañada           latitude strictly increasing
+        //   pins 3..6  west on 92, south on CA-35  latitude strictly decreasing
+        //
+        // RE-RULED for the CA-35 pin. The legs used to break at pin 4, because the pin after the
+        // Cañada/CA-92 junction stood on CA-92 NORTH of it and latitude was still rising there. The
+        // pin that replaced it is on CA-35 SOUTH of the junction, so the turn southbound now happens
+        // at the junction pin itself and the boundary moves from 4 to 3. The property being asserted
+        // is the same one: each leg is one direction of travel.
         let w = SkylineRoute.waypoints
         try #require(w.count == 7)
 
         #expect(w[0].latitude > w[1].latitude, "280 leg: \(w[0].latitude) then \(w[1].latitude)")
 
-        for i in 1..<4 {
+        for i in 1..<3 {
             #expect(w[i].latitude < w[i + 1].latitude,
                     "Cañada leg pin \(i): \(w[i].latitude) then \(w[i + 1].latitude)")
         }
 
-        for i in 4..<6 {
+        for i in 3..<6 {
             #expect(w[i].latitude > w[i + 1].latitude,
                     "ridge leg pin \(i): \(w[i].latitude) then \(w[i + 1].latitude)")
         }
 
         // The Cañada leg also runs west the whole way, which is the half of "northbound up the
         // reservoir" that latitude alone does not catch.
-        for i in 1..<4 {
+        for i in 1..<3 {
             #expect(w[i].longitude > w[i + 1].longitude,
                     "Cañada leg pin \(i): \(w[i].longitude) then \(w[i + 1].longitude)")
+        }
+
+        // The ridge leg's longitude turns exactly once, at the CA-35 pin: west up CA-92 to the
+        // ridge, then south-east down it. A pin put on the wrong side of the CA-92 junction still
+        // satisfies the latitudes above and fails here.
+        #expect(w[3].longitude > w[4].longitude,
+                "the CA-92 climb runs west: \(w[3].longitude) then \(w[4].longitude)")
+        for i in 4..<6 {
+            #expect(w[i].longitude < w[i + 1].longitude,
+                    "ridge leg pin \(i): \(w[i].longitude) then \(w[i + 1].longitude)")
         }
     }
 
@@ -199,7 +224,7 @@ struct SkylineRouteTests {
         // `maxSpacingOnTheCanadaLeg` fails. This test is the same arithmetic on this file's own
         // literals, so the reason the bound holds is stated rather than folklore, and a future edit
         // that moves the mid pin until the bound is met trivially has to fail one of the two.
-        let withoutMid = [Self.canadaRoadWoodside, Self.canadaRoadAt92, Self.halfMoonBayRoad]
+        let withoutMid = [Self.canadaRoadWoodside, Self.canadaRoadAt92]
         let widest = Self.spacings(withoutMid).max() ?? 0
         #expect(widest > Self.canadaLegMaxSpacingMeters,
                 "without the mid-Cañada pin the widest gap is \(widest) m, not over the \(Self.canadaLegMaxSpacingMeters) m bound")
@@ -219,7 +244,7 @@ struct SkylineRouteTests {
                            "37.44197,-122.26667",
                            "37.47579,-122.30852",
                            "37.50621,-122.34073",
-                           "37.50745,-122.34299",
+                           "37.47272,-122.35680",
                            "37.38776,-122.26638",
                            "37.36648,-122.24765"], "got \(pinned)")
     }

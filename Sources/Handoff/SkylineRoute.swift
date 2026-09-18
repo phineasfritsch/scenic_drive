@@ -39,9 +39,10 @@ import ScenicKit
 /// ## Bicycle Sunday
 ///
 /// Cañada Road between Edgewood Road and CA-92 is closed to motor vehicles on Sunday mornings for part
-/// of the year - "Bicycle Sunday", run by San Mateo County Parks. Four of the seven pins below are on
-/// that stretch, so on a Sunday morning in season Apple Maps will route around the whole corridor and a
-/// tester will see a drive that does not match this array. That is the road being closed, not the
+/// of the year - "Bicycle Sunday", run by San Mateo County Parks. Three of the seven pins below stand
+/// on Cañada Road, and two of them - the mid-Cañada pin and the junction pin - are north of the
+/// Edgewood Road junction and so inside that stretch, so on a Sunday morning in season Apple Maps will
+/// route around the whole corridor and a tester will see a drive that does not match this array. That is the road being closed, not the
 /// handoff being wrong. The dates and hours are NOT verified here - no query in this repository
 /// returned them, and the county's schedule is the only authority for them; this note exists so the
 /// next person to see a Sunday-morning detour checks the calendar before changing a coordinate.
@@ -111,20 +112,39 @@ public enum SkylineRoute {
         //    where Cañada Road ends at CA-92 - the point returned, 37.5062107 / -122.3407294, is the
         //    corner ["37.5058471", "37.5062130", "-122.3407323", "-122.3402096"] to five decimals.
         //    Pinning the Cañada side of the junction rather than the CA-92 side is deliberate: it is
-        //    the approach that has to be driven, and pin 5 already stands on CA-92.
+        //    the approach that has to be driven, and the CA-92 side is 242 m away - a second pin on
+        //    the same junction, which is what pin 5 used to be and no longer is.
         //    Reverse 37.50621, -122.34073
         //      -> way 417324930, name "Cañada Road", type secondary,
         //         "Cañada Road, San Mateo County, California, 94002, United States",
         //         returned 37.5062107, -122.3407294
         Coordinate(latitude: 37.50621, longitude: -122.34073),
 
-        // 5. CA-92, which OSM names Half Moon Bay Road, just west of the Cañada junction, heading for
-        //    the Skyline crossing at Skylawn. Westbound.
-        //    Reverse 37.50745, -122.34299
-        //      -> way 27672021, name "Half Moon Bay Road", type primary,
-        //         "Half Moon Bay Road, San Mateo County, California, 94002, United States",
-        //         returned 37.5074482, -122.3429911
-        Coordinate(latitude: 37.50745, longitude: -122.34299),
+        // 5. Skyline Boulevard (CA-35), on the ridge run south of where CA-92 crosses it at Skylawn.
+        //    Southbound: this is the top of the ridge, and the pin that says the drive is ON the
+        //    ridge rather than somewhere below it.
+        //
+        //    THE RAT-RUN THIS PIN CLOSES. It REPLACES a pin on CA-92 at 37.50745, -122.34299 (way
+        //    27672021, "Half Moon Bay Road"), which stood 242 m from pin 4 - two pins on one junction -
+        //    while the CA-92 climb and the whole northern ridge behind it carried none. With that
+        //    arrangement, a drive that leaves the ridge, runs down to I-280 and comes back up CA-84
+        //    arrives at pin 6 in order with nothing to notice it by: pin 6 is in Sky Londa, where
+        //    CA-84 meets CA-35. A pin up here cannot be reached that way.
+        //
+        //    Why it sits this far down the ridge rather than beside the junction: the CA-35/CA-92
+        //    crossing is node 6606870993, which Nominatim names "Half Moon Bay Road & Skyline
+        //    Boulevard" at 37.4956201, -122.3686478 (forward query `Skyline Boulevard, Half Moon Bay,
+        //    California`). A pin a few hundred metres below that node is on CA-35 and correct, but it
+        //    is west of pin 4 and leaves the gap down to pin 6 almost exactly as wide as the gap this
+        //    task was filed to close - a bound that such a pin passed would be a number written to
+        //    fit. This pin is on the same way, further down the same run. Both measurements are in
+        //    T-0151's log, and `SkylineRidgeLegTests` is what holds the result.
+        //    Reverse 37.47272, -122.35680
+        //      -> way 239028846, name "Skyline Boulevard", type secondary,
+        //         "Skyline Boulevard, San Mateo County, California, 94002, United States",
+        //         returned 37.4727185, -122.3568028, bounding box
+        //         ["37.4501451", "37.4948997", "-122.3684834", "-122.3383305"]
+        Coordinate(latitude: 37.47272, longitude: -122.35680),
 
         // 6. Skyline Boulevard (CA-35) on the ridge, southbound. The drive this whole file exists for.
         //    Reverse 37.38776, -122.26638
