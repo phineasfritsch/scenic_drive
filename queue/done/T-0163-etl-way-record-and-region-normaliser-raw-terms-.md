@@ -1,7 +1,7 @@
 ---
 id: T-0163
 title: ETL way record and region normaliser - raw per-way terms in, the 0..1 terms score.py consumes out, deterministically
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T19:52:39Z
@@ -11,7 +11,7 @@ branch: task/T-0163
 exclusive: []
 touches: [services/etl/etl/way_record.py, services/etl/etl/normalise.py, services/etl/tests/test_way_record.py, services/etl/tests/test_normalise.py, services/etl/tests/test_way_records_fixture.py, services/etl/tests/fixtures/, Tests/Fixtures/scoring/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-pr93
 depends_on: [T-0154]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -413,3 +413,110 @@ Check `queue/*/T-0112-*` and `queue/*/T-0050-*` for overlap before you start and
   in 77.40s (0:01:17)`, exit 0, zero skips. The count, the exit status and the zero skips are the claim; the
   wall clock moves on a shared box and is not.
 
+- 2026-09-18T22:26:52Z agent/rv2-pr93 (reviewer, round 2; not the owner, not round 1's reviewer, not the
+  fixer, not the orchestrator): **REVIEW ROUND 2 - PASS. Round 1's blocking finding is dead by name, and
+  nothing I could invent got a wrong value past the suite.** Reviewed PR #93 at d8d0445 (= origin/task/T-0163)
+  from a detached worktree .worktrees/rv2-pr93, removed at the end; `.worktrees/T-0163` was never written to
+  except for this transition, and no file in the PR was changed.
+
+  THE DIFF SINCE ROUND 1 IS WHAT THE FIX BRIEF ALLOWED. `git diff 38fdcc7..HEAD --name-status` -> 9 files:
+  this queue file, the three test files, the generator, the new `tests/fixtures/plan_oracle.py`, the fixture
+  JSON, and the two modules. The two module diffs are docstrings plus exactly the two allowed additions -
+  `sinuosity_declined` / `DECLINED_RANK` / `SINUOSITY_DECLINED_FLAG` with `flags()` and the bool check in
+  `problems()`, and `normalise_region(records, reference=None)` with `ranks_against`, `answering`,
+  `declined`, `reference_refusals`, `DECLINED_FIELD` and `_rank_of`. `score_kwargs()` itself is untouched
+  by the fix, which is the right shape for a round that says the shipped code was correct. Of the queue
+  file's diff, the only 7 removed lines are acceptance-block lines re-measured at the new head; no dated Log
+  entry was edited or removed (`git diff 38fdcc7..HEAD -- queue/... | grep -cE "^-[^-]"` -> 7, all inside
+  `acceptance:`).
+
+  BOTH ROUND-1 SURVIVORS RE-APPLIED ALONE AT THIS HEAD, EACH NOW RED BY NAME. Control: 98 collected on the
+  three named files. RV-M5 (`out["impervious"] = 1.0 - out["impervious"]` inserted after the `out = {...}`
+  comprehension in `score_kwargs`) -> exactly 2 `F` among the 98, `FAILED
+  tests/test_way_record.py::TestTheSeam::test_every_term_arrives_at_the_scorer_under_its_own_name_with_its_own_value`
+  and `FAILED
+  tests/test_way_records_fixture.py::TestTheWholePathScores::test_every_row_scores_exactly_what_the_plan_says_it_should`.
+  RV-M6 (`out["canopy"], out["water"] = out["water"], out["canopy"]`) -> the same two names, the same 2 of
+  98. That is the acceptance block's `2 failed, 96 passed` (98 - 2 = 96), measured. Restored after each,
+  `way_record.py` md5 back to `4af3622a29bdf801b214bee0cd229ac5`, `git status --short` empty.
+
+  THREE MUTANTS OF MY OWN, NONE OF THEM IN THE FIX PASS'S SEVENTEEN, ALL CAUGHT. (a) THE RANKED-SIDE TWIN OF
+  RV-M6, which the six "neighbours" never did - they all hit MAPPED or extra fields:
+  `out["curvature"], out["sinuosity"] = out["sinuosity"], out["curvature"]` at the seam, trading M's 0.45
+  weight for its 0.15 one. 2 named, the same two as RV-M5/M6. (b) THE REFERENCE DIVISOR, a NEW class the
+  brief did not name: `population = len(reference) + 1` -> `len(reference)` in `ranks_against`, which lets a
+  way above every reference value take a rank ABOVE 1.0 - out of range, so `score.py:131` answers None and
+  the way leaves the corpus rather than scoring wrong. 4 named:
+  `TestARankAgainstASuppliedReference::test_a_way_is_ranked_inside_the_reference_population_it_is_added_to`,
+  `::test_a_rank_against_a_reference_is_still_never_exactly_zero_or_one`,
+  `::test_a_reference_makes_a_ways_rank_independent_of_its_neighbours`,
+  `::test_normalise_region_ranks_the_named_terms_against_the_reference_and_the_rest_against_itself`.
+  (c) RULING R1 INVERTED, the sharpest form of the product question: `speed_fit` moved from `MAPPED_TERMS`
+  into `RANKED_TERMS`, so the plan's designed triangular 0..1 arrives at `score.score` as a region rank
+  instead. 10 named, including `test_its_term_lists_are_the_ones_the_record_declares`,
+  `test_every_expected_rank_is_the_rank_the_normaliser_computes`,
+  `test_every_row_scores_exactly_what_the_plan_says_it_should` and
+  `test_more_of_a_ranked_term_is_never_worth_less_than_less_of_it[speed_fit]`. So: no, a MAPPED or RANKED
+  term can no longer reach `score.py` under the wrong name, inverted, swapped, or as the wrong KIND of
+  number with the suite green. `normalise.py` restored to md5 `a78838f439db96880d68c08295e76ffe` after (b),
+  `way_record.py` to `4af3622a29bdf801b214bee0cd229ac5` after (a) and (c); `git status --short` empty every
+  time.
+
+  THE ACCEPTANCE BLOCK, RE-RUN AT d8d0445. `cd services/etl && python -m pytest tests -rs` -> `570 passed in
+  69.48s (0:01:09)`, exit 0, `-rs` printed NOTHING: zero skips - the count, the exit and the skips match, and
+  the wall clock is not the claim (the orchestrator's 22:16:51Z note already says so; I read 69.48s against
+  the block's 50.99s and the verifier's 77.40s). The three named files -> `98 passed in 0.29s`. `wc -l` ->
+  `way_record.py` 255, `normalise.py` 231, `test_way_record.py` 270, `test_normalise.py` 299,
+  `test_way_records_fixture.py` 281, `generate_way_records.py` 289, `plan_oracle.py` 102,
+  `way_records_fixture.json` 256 - all eight exact, all under 300. `bash ops/lib/check-pipe-consumers` bare
+  -> `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (57 scanned, 58 tracked, floor 42)`,
+  exit 0. `bash ops/queue-check` bare -> `QUEUE OK (158 tasks)`, exit 0.
+
+  THE ORACLE IS INDEPENDENT, AND I REGENERATED OUTSIDE THE TREE TO PROVE IT. `generate_way_records.py` and
+  `plan_oracle.py` copied to a scratch directory with no `etl` on `sys.path` (`importlib.util.find_spec("etl")`
+  -> None there), `python generate_way_records.py` -> `ways=240 covering=86 random=154` / `population=192
+  excluded=48 tied values across ranked terms=387` / `distinct highway classes=14  ways with a byway
+  status=106  ways with points_of_interest=5` / `sinuosity declined=2  oracle scores: min=0.0
+  max=0.7767038734897669 exactly zero=48` - every number in the acceptance line - and `diff` against the
+  committed JSON was EMPTY, md5 `a478511cec3e9493fbc0c18a7ecfa82d` both sides. `grep -nE "^import|^from"`:
+  `plan_oracle.py` prints one line, `from __future__ import annotations`, and nothing else; the generator
+  prints that plus `importlib.util`, `json`, `pathlib`, `random`. Neither names `normalise`, `way_record` or
+  `score` anywhere but in prose. Read against plan:78-87 line by line, `plan_score` is a faithful hand
+  transcription: `0.45/0.20/0.20/0.15` on M, `0.24/0.22/0.16*(1-imp)/0.14/0.12/0.12*(1-furn)` on E, the
+  byway bonus capped at 1.0, `m**0.35 * e**0.65`, tunnel >300 m x0.15, <150 m of a motorway x0.7, an absent
+  surface on unclassified/residential x0.8, and plan:83's four zero classes returning 0.0 first.
+
+  ARITHMETIC RE-DONE, NOT TAKEN. `test_a_way_is_ranked_inside_the_reference_population_it_is_added_to`,
+  reference [10, 20, 30], divisor 3+1=4: 5 -> below 0, equal 0+1 -> (0 + 0.5)/4 = 0.125; 20 -> below 1,
+  equal 1+1 -> (1 + 1.0)/4 = 0.5; 25 -> below 2, equal 1 -> (2 + 0.5)/4 = 0.625; 35 -> below 3, equal 1 ->
+  (3 + 0.5)/4 = 0.875. The literal is `{303: 0.125, 302: 0.5, 301: 0.625, 304: 0.875}` - correct.
+  `test_normalise_region_ranks_the_named_terms_against_the_reference_and_the_rest_against_itself`, curvature
+  against [0, 200, 400, 600], divisor 5: 100 -> (1 + 0.5)/5 = 0.3; 500 -> (3 + 0.5)/5 = 0.7; and
+  `elevation_gain`, left out of the mapping, keeps the region's own n=2 curve, (0 + 0.5)/2 = 0.25 and
+  (1 + 0.5)/2 = 0.75 - correct, and the second assertion is the region-relativity argument in one line.
+  I also re-derived the declined block: four answering ways -> 0.125/0.375/0.625/0.875 and the same four
+  WITH the closed way counted in -> 0.1/0.3/0.5/0.7 (n=5), the three-way tie -> (0 + 0.5*3)/3 = 0.5, the
+  all-declined region's pair at one value -> (0 + 0.5*2)/2 = 0.5, and the sole survivor -> (0 + 0.5)/1 = 0.5.
+  All five correct as typed.
+
+  R-1 IS NOT DECIDED HERE, BY INSTRUCTION. Region-relative rank vs plan:117's honest-failure floor is
+  `queue/backlog/T-0171` on main; this round does not fail on it, and `normalise.py`'s `reference` argument
+  plus its docstring are the right shape for whoever takes it - the decision becomes a data change.
+
+  CI, read ONCE and not polled: `gh pr checks 93` -> `core pass 2m16s` and `pins-source-only pass 1m25s`,
+  run 35400852741, exit 0. `ops/test` and `ops/check-pins` were NOT run locally, as instructed.
+
+  RECORDABLE, none of it failing this round. (a) `DECLINED_RANK = 0.0` is a PENALTY and only `flags()` can
+  tell it from a measurement: for the score, a closed way is the region's straightest road on a 0.15-weight
+  term, which is what `way_record.py`'s docstring says it is "not a claim" of. The tests now PIN the 0.0
+  (FX-M14 `DECLINED_RANK = 0.5` is caught by 7), so revisiting it is a test change - correct, and worth
+  knowing before T-0146's assembly starts setting the field. (b) The `reference` path is reachable by no
+  caller in the tree, so it is guarded only by its own eight tests until something passes one; that is the
+  right side of the trade for a seam filed against T-0171, and I name it so nobody reads the branch as
+  exercised. (c) Round 1's R-2 stands unchanged: ranking makes the five RANKED terms invariant to any
+  strictly monotone producer error, disclosed in STILL OPEN and still true.
+
+  NOT DONE: I did not re-run the fix pass's seventeen mutations or the author's original nine - I re-ran the
+  two the review left alive and added three of my own. I did not review the Swift side or
+  `Tests/Fixtures/scoring/`, declared untouched and untouched. I did not exercise the modules over a real
+  region: none exists on main, as STILL OPEN says.
