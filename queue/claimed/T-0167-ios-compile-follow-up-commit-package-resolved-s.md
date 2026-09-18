@@ -1,13 +1,13 @@
 ---
 id: T-0167
 title: ios-compile follow-up - commit Package.resolved, build with Xcode 26 (the plan's SDK), and pin the guardrail check
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T20:32:58Z
+lease_expires_at: 2026-09-19T04:32:58Z
+worktree: .worktrees/T-0167
+branch: task/T-0167
 exclusive: [package-resolved]
 touches: [.github/workflows/ios-compile.yml, ops/lib/check-ios-compile-guardrails.py, apps/ios/ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved, pins/PINS.yaml]
 pins_affected: []
@@ -51,3 +51,4 @@ ref, which is also how T-0151, T-0152 and T-0153 can prove their Swift compiles 
 
 ## Log
 - 2026-09-18T21:00:00Z filed by agent/claude-fable-5-1 after the first green and first red dispatch of ios-compile. Not started.
+- 2026-09-18T20:32:58Z claimed by agent/claude-opus-5; lease until 2026-09-19T04:32:58Z

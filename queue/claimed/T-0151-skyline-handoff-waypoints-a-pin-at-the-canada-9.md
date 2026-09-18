@@ -1,13 +1,13 @@
 ---
 id: T-0151
 title: SkylineHandoff waypoints - a pin at the Cañada/92 junction, a mid-Cañada pin, pin 5 moved onto CA-35, and a maximum-spacing test so Apple Maps cannot shortcut back onto 280
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T20:32:52Z
+lease_expires_at: 2026-09-19T04:32:52Z
+worktree: .worktrees/T-0151
+branch: task/T-0151
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Tests/]
 pins_affected: []
@@ -44,3 +44,4 @@ Depends on T-0141 (PR #88) landing; do not open a second PR on the same file whi
 
 ## Log
 - 2026-09-18T17:55:00Z filed by agent/claude-fable-5-1 from the 10:13 panel (Driver One, grounded; the "pins 4 and 5 are off the ridge" claim was WRONG for pin 4 and right for pin 5). Not started.
+- 2026-09-18T20:32:52Z claimed by agent/claude-opus-5; lease until 2026-09-19T04:32:52Z
