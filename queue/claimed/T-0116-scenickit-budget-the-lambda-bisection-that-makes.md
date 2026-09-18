@@ -15,9 +15,9 @@ reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "swift test --scratch-path .build-T0116 -> Test run with 55 tests in 8 suites passed, exit 0"
-  - "python ops/mutate/budget.py -> caught by a named test: 55 of 55   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
-  - "python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=55 of 55, exit 0"
+  - "swift test --scratch-path .build-T0116 -> Test run with 56 tests in 8 suites passed, exit 0"
+  - "python ops/mutate/budget.py -> caught by a named test: 66 of 66   (trapped 0, compile-only 0, MISSED 0, skipped 0), exit 0"
+  - "python ops/mutate/budget.py --prove-vacuity -> VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=66 of 66, exit 0"
   - "python ops/mutate/budget.py --prove-floor -> FLOOR PROOF OK: emptied -> refused=True, one deleted -> refused=True, real -> accepted=True, exit 0"
   - "python ops/mutate/budget.py --prove-dirty -> DIRTY PROOF OK: committed -> accepted=True, mutated -> refused=True, exit 0"
   - "python ops/mutate/budget.py --prove-blind -> BLIND PROOF OK: differs=True, names every uncompared subject=True, subprocess restored=True, exit 0"
@@ -675,3 +675,25 @@ public initializer and `extraTime` had never been handed a number the search its
   stays refused on the grounds recorded in the fourth pass. Nothing else from the sixth review is open: the
   three findings are closed by name, the reviewer's equivalent survivors stay out of both arms for the
   reasons the Log already gives, and this commit is tests, the harness and the record - as the six before it.
+- 2026-09-17T09:30:00Z ROUND 7 - agent/claude-opus-5 (orchestrator, for the owner), answering agent/rv8-pr71's FAIL
+  (2026-09-17T07:30:00Z) - WRITTEN LATE, on 2026-09-18, because the commit `b1f4c67` that carried this answer was
+  made, its harness run backgrounded, and neither the push nor this entry ever happened; the eighth reviewer
+  found the PR still at `b687caf` with acceptance lines quoting 55 where the commands print 56 and 63
+  (F-R8-1, F-R8-2, F-R8-3). What `b1f4c67` did: F-R7-1 `extraTime` laundered to the ceiling - the fixture
+  that kills it (5000 over 3300) was already in `durationIsNotLaundered` and never asked for extraTime; now
+  `overCeiling.extraTime(overFastest: 1800) == 3200`. F-R7-2 every `fastest` in every suite was whole, so
+  rounding the FASTEST side survived; now `1801` over `1800.5 == 0.5`. F-R7-3 the suite named "the numbers it
+  is handed" witnessed two of six fields; `everyFieldIsStoredAsGiven` pins lambda 9 and -1, evaluations 20
+  and 0, usedBudget false at duration == ceiling, violated with no evaluations. F-R7-4 the prose "anywhere
+  above 13" -> "[13, 10_000)". Eight harness entries, MIN_MUTATIONS 55 -> 63. RED, measured at the time in a
+  throwaway with BudgetOutcomeTests reverted to `b687caf` and committed: `caught by a named test: 55 of 63
+  (... MISSED 8 ...)` naming exactly the eight. The eighth reviewer re-measured all of it and it held; the
+  FAIL was the record and the push, which is where ops/merge and the next reviewer read.
+- 2026-09-18T04:30:00Z ROUND 8 - agent/claude-fable-5-1 (orchestrator, for the owner), answering agent/rv8-pr71.
+  F-R8-1: pushed. F-R8-2/3: this Log and the acceptance block, re-measured below. F-R8-4 (controlled, not
+  equivalent): the over-ceiling fixture said `usedBudget: false` - an outcome the type's doc says cannot
+  exist - so `usedBudget ? min(duration, ceiling) : duration` and its extraTime twin survived all 56; and
+  `min(duration - fastest, ceiling)` survived because 3200 < 3300 by fixture accident. A second fixture,
+  `usedBudget: true`, duration 6000: stored as 6000, extraTime 4200. Three mutations, MIN_MUTATIONS 63 -> 66.
+  Acceptance lines 1-3 read what the commands print after this commit; the numbers below were pasted from
+  the runs, not predicted.

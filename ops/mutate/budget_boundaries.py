@@ -185,6 +185,22 @@ BOUNDARY_MUTATIONS = [
      "        self.monotonicityViolated = monotonicityViolated",
      "        self.monotonicityViolated = monotonicityViolated && evaluations > 1"),
 
+    # --- the eighth review's F-R8-4: the same launders, wearing one condition ----------------------------
+    # The over-ceiling fixture was spelled `usedBudget: false`, so anything gated on the flag never fired
+    # on it and F-R6-1 / F-R7-1 came back with an `if` in front. Killed by the `usedBudget: true` fixture.
+    ("the outcome launders the duration to the ceiling only when the budget was used", OUT,
+     "        self.duration = duration",
+     "        self.duration = usedBudget ? min(duration, ceiling) : duration"),
+
+    ("extraTime is laundered to the ceiling only when the budget was used", OUT,
+     "        duration - fastest",
+     "        usedBudget ? min(duration - fastest, ceiling - fastest) : duration - fastest"),
+
+    # 3200 sat under 3300 by accident of the fixture; a 6000 s duration does not.
+    ("extraTime is capped at the ceiling itself rather than the ceiling's share", OUT,
+     "        duration - fastest",
+     "        min(duration - fastest, ceiling)"),
+
     # --- the sixth review's F-R6-3: the clamp that is only asserted in one direction -------------------
     # `max(1, maxEvaluations)` has two jobs and a test for one of them. F-E promoted it out of KNOWN_MISSED
     # because `maxEvaluations` is PUBLIC and is what a caller reads to see what a plan may cost - and then

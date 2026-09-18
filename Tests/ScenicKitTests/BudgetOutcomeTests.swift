@@ -41,6 +41,17 @@ struct BudgetOutcomeTests {
         #expect(overCeiling.extraTime(overFastest: 1800) == 3200,
                 "extra time is measured from what was stored, and what was stored is over the ceiling")
 
+        // F-R8-4. The fixture above says `usedBudget: false` for a route 3200 s over a 1500 s budget - an
+        // outcome the type's own doc says cannot exist - so a launder GATED on usedBudget
+        // (`usedBudget ? min(duration, ceiling) : duration`) never fired on it and survived all 56. The
+        // same fixture with the flag the type would actually carry, and a duration far enough over the
+        // ceiling that `min(duration - fastest, ceiling)` cannot hide under 3300 by fixture accident.
+        let overAndUsed = BudgetOutcome(lambda: 3, duration: 6000, ceiling: 3300,
+                                        evaluations: 4, usedBudget: true, monotonicityViolated: false)
+        #expect(overAndUsed.duration == 6000, "stored as given whatever usedBudget says")
+        #expect(overAndUsed.extraTime(overFastest: 1800) == 4200,
+                "4200 bought, not 1500 (the ceiling's share) and not 3300 (the ceiling itself)")
+
         // And not rounded, and not moved by the smallest step a Double has. 1800.5 and 0.5 are both exact in
         // binary - 1800.4 is not, and a fixture spelled that way is red against the pristine source.
         let fractional = BudgetOutcome(lambda: 2, duration: 1800.5, ceiling: 3300,

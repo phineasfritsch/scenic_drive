@@ -42,7 +42,7 @@ from budget_paths import ERR, OUT, SRC
 # something it does not refuse" defect the tests in this package keep being blocked for. It counts the
 # boundary entries too, so deleting one from EITHER file refuses. MIN_EQUIVALENT is in budget_arms.py, next
 # to the list IT counts.
-MIN_MUTATIONS = 63
+MIN_MUTATIONS = 66
 
 _CORE = [
     # --- structural: the author's original eight ------------------------------------------------------
