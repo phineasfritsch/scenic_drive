@@ -2,8 +2,13 @@
 
   python -m etl.fetch --dry-run              list what would be fetched, with sizes
   python -m etl.fetch                        fetch everything missing or changed
-  python -m etl.fetch --only california-osm  fetch one entry
+  python -m etl.fetch --only california-osm.pbf   fetch one entry (the manifest's `name:`, exactly)
   python -m etl.fetch --record-digest NAME   fetch NAME, print its sha256, and refuse to proceed further
+  python -m etl.fetch --verify-only          re-check what is on disk; download nothing, delete nothing
+
+Every entry that verifies prints one machine-readable line, `verified NAME bytes=N retrieved=DATE MODE ok`,
+so that the manifest's `bytes:` and `retrieved:` are COPIED from a verification that happened rather than read
+off whatever file was lying on disk (T-0169).
 
 --record-digest exists so that pinning a digest is a deliberate human act. A fetcher that silently accepts
 whatever the network hands it the first time, and pins THAT, is not verifying anything - it is laundering
@@ -17,6 +22,7 @@ import hashlib
 import os
 import sys
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 from . import manifest as mf
@@ -26,6 +32,15 @@ MANIFEST = ROOT / "inputs" / "manifest.yaml"
 DEST = ROOT / "inputs"
 UA = "scenic-drive-etl/1 (+https://github.com/phineasfritsch/scenic_drive)"
 CHUNK = 1 << 20
+
+
+def today_utc() -> str:
+    """The date for `retrieved:`: the UTC day on which the bytes on disk were verified.
+
+    UTC and not local time, so two operators in different zones cannot write different `retrieved:` dates for
+    the same verified file. It is not the publisher's build date - the fetcher never learns that.
+    """
+    return datetime.now(timezone.utc).date().isoformat()
 
 
 def sha256_file(path: Path) -> str:
@@ -94,9 +109,52 @@ def verify(entry: mf.Input, path: Path) -> str | None:
         return f"could not verify ({type(e).__name__}: {e})"
 
 
+def report_verified(entry: mf.Input, path: Path) -> None:
+    """Print the one line the manifest's `bytes:` and `retrieved:` are meant to be COPIED from.
+
+    `bytes` is `stat().st_size` of the file that just passed verification, read AFTER the check - never
+    `entry.bytes`, which is the manifest's own claim and is the number this line exists to supply. A manifest
+    field filled in from a file nothing verified is an assertion about its own source (T-0169).
+    """
+    mode = "md5" if entry.verify == "upstream-md5" else entry.verify
+    print(f"verified {entry.name} bytes={path.stat().st_size} retrieved={today_utc()} {mode} ok")
+
+
+def verify_only(selected: list[mf.Input]) -> int:
+    """Re-check what is already on disk. Downloads nothing, and deletes nothing.
+
+    The delete-on-failure rule in main() exists so this program never leaves a file IT JUST WROTE unverified
+    where a later stage could read it. This path writes nothing, and `verify` reports a network hiccup on a
+    60-byte sidecar in the same shape as a real mismatch, so deleting here would throw away a 1.3 GB download
+    over a transient DNS failure. It reports and exits 1 instead.
+    """
+    failures = 0
+    for i in selected:
+        dest = DEST / i.name
+        if not dest.exists():
+            print(f"{i.name}: not on disk at {dest} (--verify-only never downloads)", file=sys.stderr)
+            failures += 1
+            continue
+        why = verify(i, dest)
+        if why is not None:
+            print(f"{i.name}: VERIFICATION FAILED: {why} (left on disk, --verify-only never deletes)",
+                  file=sys.stderr)
+            failures += 1
+            continue
+        print(f"{i.name}: verified ({i.verify})")
+        report_verified(i, dest)
+    if failures:
+        print(f"VERIFY FAILED: {failures} input(s)", file=sys.stderr)
+        return 1
+    print(f"VERIFY OK: {len(selected)} input(s) verified")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="etl.fetch")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--verify-only", action="store_true",
+                    help="re-check files already on disk; never downloads, never deletes")
     ap.add_argument("--only")
     ap.add_argument("--record-digest", metavar="NAME")
     ap.add_argument("--manifest", default=str(MANIFEST))
@@ -157,6 +215,9 @@ def main(argv: list[str]) -> int:
             print(f"{i.name:28s} {state:8s} {size:>12s}  verify={i.verify:12s} {i.license:20s} {i.url}")
         return 0
 
+    if args.verify_only:
+        return verify_only(selected)
+
     failures = 0
     for i in selected:
         dest = DEST / i.name
@@ -164,6 +225,7 @@ def main(argv: list[str]) -> int:
             why = verify(i, dest)
             if why is None:
                 print(f"{i.name}: already present and verified")
+                report_verified(i, dest)
                 continue
             print(f"{i.name}: on-disk copy failed verification ({why}); refetching", file=sys.stderr)
         print(f"{i.name}: fetching {i.url}")
@@ -180,6 +242,7 @@ def main(argv: list[str]) -> int:
             failures += 1
             continue
         print(f"{i.name}: verified ({i.verify})")
+        report_verified(i, dest)
 
     if failures:
         print(f"FETCH FAILED: {failures} input(s)", file=sys.stderr)
