@@ -136,7 +136,7 @@
       "motorways": [[[37.49, -122.0], [37.5, -122.0]]],
       "expected_meters": 100.0,
       "abs": 0.05,
-      "workings": "A way running parallel to a motorway, one typed-out 100 m offset east: 100 / (111320 * cos(37.495 deg)) = 100 / 88322.007 = 0.0011323 deg, so -122.0 + 0.0011323 = -121.9988677. The flat projection takes cos at the segment midpoint latitude, so the measurement comes back 100.007 m - the 5 cm tolerance is that, and inside 150 m this way is penalised x0.7 by score.py."
+      "workings": "A way running parallel to a motorway, one typed-out 100 m offset east: 100 / (111320 * cos(37.495 deg)) = 100 / 88322.007 = 0.0011322 deg, which this fixture rounds UP to 0.0011323, so -122.0 + 0.0011323 = -121.9988677. 0.0011323 * 88322.007 = 100.007 m: the 7 mm is that rounding, not the projection (37.495 IS the segment's midpoint latitude) - the 5 cm tolerance covers it, and inside 150 m this way is penalised x0.7 by score.py."
     },
     {
       "name": "crossing_a_motorway",

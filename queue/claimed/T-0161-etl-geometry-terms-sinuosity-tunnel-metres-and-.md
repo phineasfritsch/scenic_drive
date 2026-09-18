@@ -15,7 +15,7 @@ reviewer: null
 depends_on: [T-0154]
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "WHAT IS NEW, AND THAT NOTHING OLD MOVED. The code commit is 69f1d8c: `6 files changed, 889 insertions(+)`, every one of them a `create mode 100644` - `services/etl/etl/sinuosity.py`, `services/etl/etl/proximity.py`, `services/etl/tests/test_sinuosity.py`, `services/etl/tests/test_proximity.py`, `services/etl/tests/fixtures/geometry_terms_fixture.json` and this task file. No existing file was edited, which was the Brief's first constraint: score.py, snap.py, curvature.py and byways.py are untouched and the seam between this task and its two siblings is score.py's keyword names alone. `wc -l` at the final commit: sinuosity.py 78, proximity.py 143, test_sinuosity.py 135, test_proximity.py 208, the fixture 190 - all under the 300-line cap"
+  - "WHAT IS NEW, AND THAT NOTHING OLD MOVED. The code commit is 69f1d8c: `6 files changed, 889 insertions(+)`, five of them `create mode 100644` and the sixth this task file, which the commit MODIFIES - `services/etl/etl/sinuosity.py`, `services/etl/etl/proximity.py`, `services/etl/tests/test_sinuosity.py`, `services/etl/tests/test_proximity.py`, `services/etl/tests/fixtures/geometry_terms_fixture.json` and this task file. No existing file was edited, which was the Brief's first constraint: score.py, snap.py, curvature.py and byways.py are untouched and the seam between this task and its two siblings is score.py's keyword names alone. `wc -l` at the final commit: sinuosity.py 78, proximity.py 143, test_sinuosity.py 135, test_proximity.py 208, the fixture 190 - all under the 300-line cap"
   - "THE WHOLE SUITE, re-run at the final commit (20:17:16Z, against 69f1d8c). `cd services/etl && python -m pytest tests -rs` -> `555 passed in 66.00s (0:01:05)`, exit 0. Zero failures, zero skips - `-rs` prints no short-summary section because there is nothing to report. 83 of the 555 are this task's two files (`python -m pytest tests/test_proximity.py tests/test_sinuosity.py` -> `83 passed in 0.52s`; 41 in test_sinuosity.py, 42 in test_proximity.py). 555 minus 83 is 472, which is exactly the count T-0154's acceptance block recorded for the suite it left behind: this task added tests and changed no existing one"
   - "`bash ops/lib/check-pipe-consumers` -> `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (57 scanned, 58 tracked, floor 42)`, exit 0"
   - "`bash ops/queue-check` -> `QUEUE OK (158 tasks)`, exit 0. `state: claimed` and `reviewer: null` are unchanged; the reviewer of this task is not its owner and will not be a subagent of this session"
@@ -201,3 +201,17 @@ command did not print.
   `check-pipe-consumers` and `queue-check` straight after it, each run bare with nothing piped into it. This
   second commit changes this file only. `state: claimed` and `reviewer: null` are untouched - the review is
   somebody else's, and not a subagent of this session (MEMORY: reviewer != owner, same session).
+- 2026-09-18T20:41:32Z **Record corrections from the read-only verification of this build, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier reproduced the code, the tests, the mutation table and the
+  gates; these are text.** (a) Acceptance line 1 said all six paths of 69f1d8c were `create mode 100644`;
+  `git show --summary 69f1d8c` prints five creates, and the sixth path is this task file, which the commit
+  modifies. Corrected in the acceptance block. (b) The 20:00Z entry says "RULINGS, all nine"; ten are listed
+  (R1-R10), R10's pinning test was by that entry's own words added after the mutation table, and rulings, code
+  and tests landed in ONE commit, so git cannot show that the rulings came first (T-0163 committed its rulings
+  separately, which is the form to copy). The entry stays as written. (c) Fixture `parallel_100_m_east`:
+  `100 / 88322.007` is 0.0011322, not 0.0011323 - the fixture's offset is that value rounded UP, and the 7 mm
+  it then measures is the rounding, not the projection. The `workings` prose is corrected; no coordinate and
+  no expected value changed, and the JSON still parses. (d) `test_sinuosity.py`'s docstring called two cases
+  exact; only the two-node way is, the hairpin is asserted at rel=1e-8. Corrected. (e) NOT changed, on a
+  measurement: the verifier read the dog-leg gap as 1573.0274; `python -c "print(round(2**0.5*1112.2983,4))"`
+  prints 1573.0273, which is what the fixture says.

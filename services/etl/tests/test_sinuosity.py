@@ -3,9 +3,9 @@
 EVERY EXPECTED VALUE IS TYPED OUT, in `fixtures/geometry_terms_fixture.json`, from the arithmetic in that
 case's `workings` field - metres are 6373000 * degrees * pi/180 on a meridian and the ratio of two arcs of
 one great circle is the ratio of their degrees, whatever the radius is. Nothing here calls
-`etl.sinuosity` to find out what it should say. Two of the cases are exact by construction and are
-asserted with no meaningful tolerance: a two-node way's path and gap are the same call, and a meridian
-hairpin's 0.03 deg over 0.01 deg is 3.0.
+`etl.sinuosity` to find out what it should say. One case is exact by construction and is asserted
+with no meaningful tolerance: a two-node way's path and gap are the same call, so its raw value is 1.0. The
+meridian hairpin's 0.03 deg over 0.01 deg is 3.0 only to floating point and is asserted at rel=1e-8.
 
 The failure this file is built against is a term that reads plausible on every real way and is nonsense on
 the two shapes nobody looks at: the loop, whose endpoints are one point, and the lasso, whose endpoints are
