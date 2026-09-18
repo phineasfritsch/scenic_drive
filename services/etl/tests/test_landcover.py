@@ -51,6 +51,26 @@ class TestBufferGeometry:
         furthest = max(distance_on_earth(lat, lon, p[0], p[1]) for p in lc.buffer_points(lat, lon))
         assert furthest > lc.BUFFER_M * 0.8
 
+    def test_the_buffer_is_exactly_this_many_samples_and_reaches_exactly_this_far(self):
+        """The +/-20% tolerance above is what let `>` -> `>=` in the circular clip through agent/rv-t0027's
+        attack: the buffer silently shrinks and every fixture in the tree - each one built at this sample
+        count - becomes irreproducible with nothing going red. Pinned as literals, not as a formula, so a
+        change to the step, the radius or the clip has to be argued for rather than absorbed.
+
+        177 and 145.48 m are what the shipped 20 m step produces; the numbers are recorded in
+        tests/fixtures/landcover_boundary_fixture.json and in the fixture's own buffer_step_m. The furthest
+        sample sits at hypot(7,2)*20 = 144.2 m of grid offset, 145.48 m on the ellipsoid - short of 150 m
+        because a 20 m lattice has no point on the rim, which is a property of the grid and not slack.
+        """
+        from etl.curvature import distance_on_earth
+        lat, lon = 37.5, -122.5
+        pts = lc.buffer_points(lat, lon)
+        assert len(pts) == 177
+        furthest = max(distance_on_earth(lat, lon, p[0], p[1]) for p in pts)
+        assert furthest == pytest.approx(145.48, abs=0.05), furthest
+        assert furthest <= lc.BUFFER_M
+        assert len(lc.buffer_points(lat, lon, step_m=50.0)) == 29, "the pre-boundary-fixture 50 m lattice"
+
     def test_the_buffer_is_the_same_size_east_west_as_north_south(self):
         """Without the cos(latitude) correction the buffer is an ellipse and the score becomes directional."""
         from etl.curvature import distance_on_earth
@@ -87,11 +107,20 @@ class TestFractions:
         assert f["impervious"] == pytest.approx(0.25)
 
     def test_nodata_is_excluded_from_the_denominator_not_counted(self):
-        """A coastal way has half its buffer in the ocean. Dividing by the full sample count would halve its
-        canopy fraction purely for being near water."""
+        """NODATA is a sample we could not read - a buffer reaching past the edge of the tiles we hold, or
+        the raster's own fill value - not water. agent/reviewer-32 marched west from the San Mateo coast and
+        WorldCover codes the open Pacific as class 80 all the way out, so a coastal way's ocean IS counted,
+        as water; the docstring that said otherwise described a case that does not occur. What NODATA must
+        not do is dilute the classes we did read, so it leaves the denominator and `coverage` records it.
+
+        The class fractions have to leave it out too, not just the four terms: dividing `tree_cover` by the
+        full count while dividing `canopy` by the valid count makes the two disagree, which is how a partly
+        unreadable buffer reads as half its real canopy."""
         f = lc.fractions([10, 10, None, None])
         assert f["canopy"] == 1.0
+        assert f["tree_cover"] == 1.0
         assert f["coverage"] == pytest.approx(0.5)
+        assert sum(f[name] for name in lc.CLASSES.values()) == pytest.approx(1.0)
 
     def test_an_entirely_empty_buffer_reports_no_coverage_rather_than_zero_canopy(self):
         f = lc.fractions([None, None])
@@ -143,23 +172,70 @@ class TestProblems:
         del s["canopy"]
         assert any("canopy is missing" in p for p in lc.problems(s))
 
+    def test_four_terms_that_do_not_sum_to_one_are_reported(self):
+        """The runtime half of the partition. `test_the_four_terms_partition_every_class` checks the class
+        sets as sets; this checks the SUMMARY, which is what T-0030 will hand the scorer - a class counted
+        into two terms, or into none, makes the four terms sum to something other than 1 while every
+        individual fraction stays in range and the class fractions still sum to 1."""
+        s = self._summary()
+        s["open_land"] = 0.5
+        assert any("the four terms sum to" in p for p in lc.problems(s))
+        assert not any("class fractions sum to" in p for p in lc.problems(s)), \
+            "the class-fraction arm must not be what catches this, or the new arm proves nothing"
 
-class TestTheNamedProperties:
-    def test_a_redwood_road_reads_as_wooded_and_not_built_up(self):
-        s = lc.fractions([10] * 45 + [30] * 5)
-        assert lc.is_wooded(s)
-        assert not lc.is_built_up(s)
 
-    def test_a_strip_mall_arterial_reads_as_built_up_and_not_wooded(self):
-        s = lc.fractions([50] * 40 + [30] * 10)
-        assert lc.is_built_up(s)
-        assert not lc.is_wooded(s)
+class TestTheClassToTermMapping:
+    """Every WorldCover class against a typed-out literal term, not against the module's own constants.
 
-    def test_the_two_are_distinguishable_not_marginal(self):
-        wooded = lc.fractions([10] * 45 + [30] * 5)
-        built = lc.fractions([50] * 40 + [30] * 10)
-        assert wooded["canopy"] - built["canopy"] > 0.5
-        assert built["impervious"] - wooded["impervious"] > 0.5
+    The partition test below compares the four frozensets to `lc.CLASSES`, which is the module grading its
+    own homework: a class dropped from a term AND from CLASSES passes it. agent/rv-t0027's M2 - dropping 95
+    (mangroves) from WATER_CLASSES - survived all 45 tests that existed then, because 40, 70, 95 and 100
+    were pinned nowhere. The mapping is a decision about what the score can see; it belongs in a test as
+    eleven literal rows.
+    """
+
+    MAPPING = [(10, "canopy"), (20, "canopy"), (30, "open_land"), (40, "open_land"), (50, "impervious"),
+               (60, "open_land"), (70, "open_land"), (80, "water"), (90, "water"), (95, "water"),
+               (100, "open_land")]
+
+    @pytest.mark.parametrize("code,term", MAPPING)
+    def test_each_class_feeds_exactly_the_term_it_should(self, code, term):
+        f = lc.fractions([code] * 10)
+        assert f[term] == 1.0, (code, term, f)
+        for other in ("canopy", "impervious", "water", "open_land"):
+            if other != term:
+                assert f[other] == 0.0, (code, other, f)
+
+    def test_the_mapping_covers_every_class_the_module_knows(self):
+        """So a twelfth class cannot be added to CLASSES and left out of the rows above."""
+        assert sorted(code for code, _ in self.MAPPING) == sorted(lc.CLASSES)
+
+
+class TestOpenLand:
+    def test_the_four_terms_partition_every_class(self):
+        """A class in no term is a class the score cannot see, and a class in two is counted twice.
+        cropland sat in neither for the whole of this task's first pass."""
+        groups = [lc.CANOPY_CLASSES, lc.IMPERVIOUS_CLASSES, lc.WATER_CLASSES, lc.OPEN_CLASSES]
+        assert set().union(*groups) == set(lc.CLASSES)
+        for a in range(len(groups)):
+            for b in range(a + 1, len(groups)):
+                assert not groups[a] & groups[b], (groups[a], groups[b])
+
+    def test_grassland_and_cropland_are_open_land(self):
+        assert lc.fractions([30] * 10)["open_land"] == 1.0
+        assert lc.fractions([40] * 10)["open_land"] == 1.0
+
+    def test_open_land_is_not_canopy_and_not_impervious(self):
+        f = lc.fractions([30] * 5 + [40] * 5)
+        assert f["canopy"] == 0.0
+        assert f["impervious"] == 0.0
+
+    def test_the_four_fractions_sum_to_one_on_any_mix(self):
+        f = lc.fractions([10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100])
+        assert f["canopy"] + f["impervious"] + f["water"] + f["open_land"] == pytest.approx(1.0)
+
+    def test_an_empty_buffer_has_no_open_land_either(self):
+        assert "open_land" not in lc.fractions([None, None])
 
 
 class TestSummarise:

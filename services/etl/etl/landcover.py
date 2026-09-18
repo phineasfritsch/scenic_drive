@@ -5,6 +5,11 @@ redwood road from a strip-mall arterial. Both are FRACTIONS of the land within a
 properties of the road itself: a lane with trees on one side and a parking lot on the other is genuinely
 half of each, and the score should say so rather than pick a winner.
 
+`is_wooded`/`is_built_up` are the other thing and must not be confused with the fractions. They answer one
+question - which of the two kinds of road is this - and a road that is half trees and half roofs is neither
+of them. Nothing in the scoring path calls them yet; they exist so the fixtures can state what a road IS,
+and that is exactly why they have to be one verdict rather than two independent cutoffs.
+
 Why WorldCover and not the USFS/NLCD layers the plan named: MRLC's S3 refuses all anonymous access (403,
 Requester Pays), their landing pages carry no download link, and retrieval needs the interactive viewer or an
 authenticated order. Checked live, not assumed. WorldCover is 10 m against NLCD's 30 m and gives both terms
@@ -36,15 +41,45 @@ CLASSES = {
     100: "moss_lichen",
 }
 
-# Tree cover and shrubland both read as green enclosure from a car. Grassland does not - an open golden hill
-# is scenic for a different reason, and it is `relief` and `water` that should pick that up, not `canopy`.
+# Tree cover and shrubland both read as green enclosure from a car. Grassland does not, and the measurement
+# says why: Mines Road (Diablo Range oak savanna) is canopy 0.47 / grassland 0.53, and Morgan Territory Road,
+# oak woodland half a mile away, is canopy 0.71. Fold grassland into canopy and Mines Road reads ~1.0 -
+# above Skyline's 0.85 - so the one term that exists to tell a redwood road from an open hill would rank a
+# treeless one first. Open land is a real thing that is neither trees nor buildings; it gets its own term.
 CANOPY_CLASSES = frozenset({10, 20})
 IMPERVIOUS_CLASSES = frozenset({50})
 WATER_CLASSES = frozenset({80, 90, 95})
+OPEN_CLASSES = frozenset({30, 40, 60, 70, 100})
+
+# The four terms partition CLASSES: every class is in exactly one, so a road can never be mostly something
+# the score has no name for. cropland was in none of them until agent/reviewer-32 sampled a Delta levee road
+# whose dominant class produced no signal at all.
+TERM_CLASSES = {"canopy": CANOPY_CLASSES, "impervious": IMPERVIOUS_CLASSES,
+                "water": WATER_CLASSES, "open_land": OPEN_CLASSES}
 
 TILE_DEG = 3.0
 BUFFER_M = 150.0          # the plan's buffer: what you can see from the road, not what you drive on
-BUFFER_STEP_M = 50.0      # a 7x7 grid across +/-150 m, so 49 samples per point
+
+# 20 m, not 50. WorldCover pixels are 10 m; a 50 m lattice beats against a suburban street grid, and the
+# measurement is that moving the grid half a step - the land underneath untouched - moved canopy by up to
+# 0.2759 on a real San Ramon street and flipped alviso_flat2, a curated archetype, between BUILT_UP and
+# neither. At 20 m the worst phase swing over the same nine roads is 0.0847. The cost is 177 samples per
+# point instead of 29; see tests/fixtures/landcover_boundary_fixture.json, which records both.
+BUFFER_STEP_M = 20.0
+
+# How far the dominant term has to be ahead before the verdict is a verdict. Above 1 is what makes the two
+# predicates mutually exclusive, and it has to be strictly above: a 29-sample buffer that lands 15/14 is one
+# sample from an exact 50/50 tie, and at a ratio of 1 an exact tie satisfies both.
+DOMINANCE_RATIO = 2.0
+
+# How much of the buffer has to have been read before a verdict means anything. `fractions` deliberately
+# drops NODATA from the denominator, so one readable pixel out of 177 reports impervious 1.0000 with a
+# straight face; agent/rv-t0027 measured exactly that - fractions([50] + [None]*28) -> coverage 0.0345,
+# impervious 1.0, is_built_up True, problems() silent. Nothing consumes these verdicts yet, so it cost
+# nothing today and would be a gate firing on near-absent evidence the moment T-0030 does. A half-read
+# buffer is the most that can be lost to tile edges inside the region; below that the answer is "we did
+# not look", which is not the same as "not wooded" and must not be dressed up as one.
+MIN_COVERAGE = 0.5
 
 
 def tile_for(lat: float, lon: float) -> str:
@@ -87,9 +122,17 @@ def buffer_points(lat: float, lon: float, radius_m: float = BUFFER_M,
 def fractions(codes: list[int | None]) -> dict[str, float]:
     """Fraction of valid samples in each named class. NODATA is excluded from the denominator.
 
-    Excluded, not counted as anything: a way at the coast has half its buffer in the ocean, and dividing by
-    the full sample count would halve its canopy fraction purely for being near water. The caller gets
-    `coverage` to decide whether there were enough samples to trust.
+    NODATA is not the ocean. WorldCover codes the open Pacific as class 80, continuously to 3 km offshore
+    and beyond - agent/reviewer-32 marched west from the San Mateo coast and measured `coverage` 1.0000 on
+    every shoreline buffer - so a coastal way's water IS counted, as water, and its canopy IS diluted by it.
+    That is the right answer and T-0029 has to weight it; the rationale recorded here before said the
+    opposite and described a case that does not occur.
+
+    What NODATA actually is: a sample with no tile (a buffer reaching past the tiles we hold, or a point
+    outside the region) and the raster's own 0 fill. Those must not dilute the classes we did read, so they
+    leave the denominator, and the caller gets `coverage` to decide whether there were enough samples to
+    trust. Every class fraction uses the same denominator as the four terms, or a partly unreadable buffer
+    would report half its real canopy.
     """
     valid = [c for c in codes if c is not None]
     if not valid:
@@ -97,9 +140,8 @@ def fractions(codes: list[int | None]) -> dict[str, float]:
     out: dict[str, float] = {"coverage": len(valid) / len(codes)}
     for code, name in CLASSES.items():
         out[name] = sum(1 for c in valid if c == code) / len(valid)
-    out["canopy"] = sum(1 for c in valid if c in CANOPY_CLASSES) / len(valid)
-    out["impervious"] = sum(1 for c in valid if c in IMPERVIOUS_CLASSES) / len(valid)
-    out["water"] = sum(1 for c in valid if c in WATER_CLASSES) / len(valid)
+    for term, classes in TERM_CLASSES.items():
+        out[term] = sum(1 for c in valid if c in classes) / len(valid)
     return out
 
 
@@ -116,28 +158,53 @@ def unknown_codes(codes: list[int | None]) -> set[int]:
 def problems(summary: dict) -> list[str]:
     """Structural checks on a summary, so a broken sampler fails loudly instead of scoring."""
     out = []
-    for key in ("canopy", "impervious", "water", "coverage"):
+    for key in (*TERM_CLASSES, "coverage"):
         v = summary.get(key)
         if v is None:
             out.append(f"{key} is missing")
         elif not 0.0 <= v <= 1.0:
             out.append(f"{key}={v} is not a fraction")
+    cov = summary.get("coverage")
+    if cov is not None and 0.0 <= cov < MIN_COVERAGE:
+        out.append(f"coverage={cov} is below MIN_COVERAGE={MIN_COVERAGE} - too little of the buffer was "
+                   f"read for the fractions to mean anything, and no verdict is given on it")
     named = [k for k in CLASSES.values() if k in summary]
     if named:
         total = sum(summary[k] for k in named)
         if not 0.99 <= total <= 1.01:
             out.append(f"class fractions sum to {total:.3f}, not 1 - samples are being lost or double-counted")
+    terms = [k for k in TERM_CLASSES if k in summary]
+    if len(terms) == len(TERM_CLASSES):
+        total = sum(summary[k] for k in terms)
+        if not 0.99 <= total <= 1.01:
+            out.append(f"the four terms sum to {total:.3f}, not 1 - a class is in two of them or in none")
     return out
 
 
-def is_wooded(summary: dict, threshold: float = 0.5) -> bool:
-    """The Skyline property: a road through the redwoods must read as wooded."""
-    return summary.get("canopy", 0.0) >= threshold
+def is_wooded(summary: dict, threshold: float = 0.5, ratio: float = DOMINANCE_RATIO) -> bool:
+    """The Skyline property: a road through the redwoods must read as wooded.
+
+    Not `canopy >= threshold` on its own. That is a statement about how much of the buffer is trees, and it
+    is true of a leafy cul-de-sac with a house under every one of them - OSM way 7853452 in San Ramon reads
+    canopy 0.508 / impervious 0.492 against these very tiles, which cleared the old wooded AND built-up
+    cutoffs at the same time. Both fractions are honest; what is not honest is calling that road Skyline.
+    So the two predicates are one verdict: the majority term wins, and only if it is `ratio` times the
+    other. Any ratio above 1 makes them mutually exclusive - see test_no_pair_of_fractions_can_satisfy_both,
+    which sweeps the whole simplex rather than four roads picked to sit far apart.
+    """
+    if summary.get("coverage", 0.0) < MIN_COVERAGE:
+        return False
+    canopy = summary.get("canopy", 0.0)
+    return canopy >= threshold and canopy >= ratio * summary.get("impervious", 0.0)
 
 
-def is_built_up(summary: dict, threshold: float = 0.4) -> bool:
-    """The strip-mall property: an industrial arterial must read as built up."""
-    return summary.get("impervious", 0.0) >= threshold
+def is_built_up(summary: dict, threshold: float = 0.4, ratio: float = DOMINANCE_RATIO) -> bool:
+    """The strip-mall property: an industrial arterial must read as built up. Same dominance rule as
+    `is_wooded`, and for the same reason - a street with as many trees as roofs is not a strip mall."""
+    if summary.get("coverage", 0.0) < MIN_COVERAGE:
+        return False
+    impervious = summary.get("impervious", 0.0)
+    return impervious >= threshold and impervious >= ratio * summary.get("canopy", 0.0)
 
 
 def summarise(coords: list[tuple[float, float]], codes_per_point: list[list[int | None]]) -> dict:
@@ -153,7 +220,7 @@ def summarise(coords: list[tuple[float, float]], codes_per_point: list[list[int 
     summary["samples"] = len(pooled)
     summary["length_m"] = round(
         sum(distance_on_earth(a[0], a[1], b[0], b[1]) for a, b in zip(coords, coords[1:])), 1)
-    for key in ("canopy", "impervious", "water", "coverage"):
+    for key in (*TERM_CLASSES, "coverage"):
         if key in summary:
             summary[key] = round(summary[key], 4)
     return summary
