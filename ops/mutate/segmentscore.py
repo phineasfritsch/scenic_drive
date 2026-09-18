@@ -336,8 +336,8 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
 
     # --- byway and the range ------------------------------------------------------------------------------
     ("the byway bonus is uncapped, so the score can exceed one", SCORE,
-     "        if t.isByway { e = min(1, e + bywayBonus) }",
-     "        if t.isByway { e = e + bywayBonus }"),
+     "        if bywayBonusEarned > 0 { e = min(1, e + bywayBonusEarned) }",
+     "        if bywayBonusEarned > 0 { e = e + bywayBonusEarned }"),
 
     ("the byway bonus is dropped", SCORE,
      "    public static let bywayBonus = 0.15", "    public static let bywayBonus = 0.0"),
@@ -352,8 +352,8 @@ MUTATIONS = [drop_from_validation(t) for t in UNIT_TERMS] + [
      "    public static let bywayBonus = 0.15", "    public static let bywayBonus = 0.11"),
 
     ("the byway bonus scales E by 1.15 instead of adding 0.15 to it", SCORE,
-     "        if t.isByway { e = min(1, e + bywayBonus) }",
-     "        if t.isByway { e = min(1, e * (1 + bywayBonus)) }"),
+     "        if bywayBonusEarned > 0 { e = min(1, e + bywayBonusEarned) }",
+     "        if bywayBonusEarned > 0 { e = min(1, e * (1 + bywayBonusEarned)) }"),
 
     ("out-of-range terms are clamped instead of refused", SCORE,
      "        for term in t.unitTerms where !(term.value.isFinite && (0.0...1.0).contains(term.value)) {\n"
