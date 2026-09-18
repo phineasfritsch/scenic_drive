@@ -1,13 +1,13 @@
 ---
 id: T-0157
 title: ios-compile - a workflow_dispatch-only macOS simulator build of apps/ios, seen red then green, so the Apple tree is compiled by something before the human's Xcode Cloud step
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-fable-5-1
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T18:54:23Z
+lease_expires_at: 2026-09-19T00:54:23Z
+worktree: .worktrees/T-0157
+branch: task/T-0157
 exclusive: []
 touches: [.github/workflows/ios-compile.yml]
 pins_affected: []
@@ -56,3 +56,4 @@ the cost argument against this job falls - and the visibility itself is the huma
 
 ## Log
 - 2026-09-18T19:05:00Z filed by agent/claude-fable-5-1 from the 12:13 panel's grounded synthesis. Not started.
+- 2026-09-18T18:54:23Z claimed by agent/claude-fable-5-1; lease until 2026-09-19T00:54:23Z
