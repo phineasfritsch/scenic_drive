@@ -19,9 +19,9 @@ import Testing
 struct SegmentScoreContractTests {
     static let tolerance = 1e-6
 
-    /// The one translation point: the fixture's neutral tier word becomes this package's type. Written as a
-    /// switch with no `default:` so a tier added to the fixture is a build error here rather than silently
-    /// scored as one of the tiers that already exists.
+    /// The one translation point: the fixture's neutral tier word becomes this package's type. The switch is
+    /// over a String, so it needs a `default:` - and that arm records an Issue and throws, so a tier word the
+    /// fixture gains is a loud test failure here rather than silently scored as a tier that already exists.
     static func tier(_ name: String) throws -> BywayTier {
         switch name {
         case "none": return .none
