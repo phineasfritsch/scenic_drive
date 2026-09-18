@@ -17,10 +17,13 @@ verify: [ops/test, ops/check-pins]
 acceptance:
   - "RED, the whole point: python ops/lib/check-stale-stage.py --hook .artifacts/T-0160/main-pre-commit (origin/main's hook, saved with git show) -> STALE-STAGE FAIL (14 cases, hook main-pre-commit), exit 1, FAIL by name on 1/git-mv-then-edit, 2/staged-then-deleted, 4/ALLOW_PARTIAL_STAGE=1, 5/ALLOW_PARTIAL_STAGE=yes, 6/unstaged-widening, 8/non-ASCII-path, 10/merge-then-stale-edit, 13/task-file-untracked, and ok on the six false-positive controls 3, 7, 9, 11, 12, 14"
   - "python ops/lib/check-stale-stage.py -> ok on all fourteen cases, STALE-STAGE OK (14 cases, hook pre-commit), exit 0"
+  - "python ops/lib/check-stale-stage.py --variants -> ok variant touches: read from HEAD, not the index breaks exactly 7 / a hook that refuses everything breaks exactly 3,4,7,8,9,12 / without the HEAD fallback breaks exactly 14 / without the empty-staging early exit breaks exactly 11, STALE-STAGE VARIANTS OK (4), exit 0. With the RED run above, every one of the fourteen cases has been seen red by name"
+  - "python .artifacts/T-0160/probe_commit_modes.py (gitignored scratch) -> git commit --amend --no-edit exit=0 COMMITTED, git commit -a exit=0 COMMITTED, git commit -m x -- a.txt exit=0 COMMITTED with landed: 'working-tree version', PROBE EXIT=0"
+  - "python .artifacts/T-0160/probe_hook_latency.py 50 (gitignored scratch, idle box) -> this branch 50 staged paths exit=0 72.9s (1458 ms/path), origin/main 50 staged paths exit=0 35.9s (717 ms/path)"
   - "python ops/lib/check-touches-merge.py -> ok on 11 cases, TOUCHES-MERGE OK (11 cases), exit 0"
   - "python ops/lib/check-touches-merge.py --variants -> six ok lines, breaks exactly 11 / 5,11 / 8 / 9 / 8 / 2, TOUCHES-MERGE VARIANTS OK (6), exit 0"
   - "python ops/lib/check-secret-scan.py -> ok on 7 cases, SECRET-SCAN OK (7 cases), exit 0"
-  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (58 scanned, 58 tracked, floor 42), exit 0"
+  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (58 scanned, 59 tracked, floor 42), exit 0"
   - "bash ops/lib/check-exec-bits -> P-OPS-01: 58 files, 23 required present, all modes correct, exit 0"
   - "bash ops/check-pins --source-only -> PINS ok=9 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only, exit 0"
   - "bash ops/queue-check -> QUEUE OK (153 tasks), exit 0"
@@ -267,3 +270,78 @@ outputs in the acceptance block.
   `ops/lib/` and `pins/PINS.yaml` only), and the gates the Brief names are the four fixtures plus
   `check-pins --source-only`, `check-exec-bits` and `queue-check`, all of which are in the acceptance block.
   A reviewer who wants `TESTS linux=N/F` on this branch has to run it.
+
+- 2026-09-18T20:35:08Z agent/claude-opus-5: every acceptance line re-run at `285587b`; **one number in the
+  block was wrong and is corrected above**; a `--variants` layer added so the six cases that must COMMIT can
+  also be seen red; two probes outside the fixture; full `ops/check-pins` green.
+
+### The wrong number
+
+`bash ops/lib/check-pipe-consumers` printed `(58 scanned, 58 tracked, floor 42)` when I ran it before
+committing and `(58 scanned, 59 tracked, floor 42)` at the final commit: `tracked` counts the tracked files
+in its pathspecs, and `ops/lib/check-stale-stage.py` was still untracked at the first run. The acceptance
+block now quotes the second. Everything else re-ran identical, including the RED run's eight names and the
+six `ok` controls.
+
+### Full ops/check-pins, at `285587b`
+
+    $ bash ops/check-pins
+    PINS ok=20 skipped=0 pending=3 expired=0 failed=0 tier=linux
+    EXIT=0
+
+23 pins, P-GIT-04 among the 20 that ran - so the new pin's YAML parses and its assertion runs under the pin
+runner, not only bare. It is not in the acceptance block because the Brief's gate list is
+`--source-only`; a re-run of the full form after this entry's commit is left to the reviewer.
+
+### The variants layer, and the prediction it corrected
+
+Eight cases were seen red against origin/main's hook. The other six must COMMIT, so that run cannot show
+them failing, and a control that has quietly stopped discriminating is exactly the defect this repository
+keeps finding. `--variants` rewrites the hook four ways:
+
+    $ python ops/lib/check-stale-stage.py --variants
+    ok      variant touches: read from HEAD, not the index breaks exactly 7
+    ok      variant a hook that refuses everything         breaks exactly 3,4,7,8,9,12
+    ok      variant without the HEAD fallback              breaks exactly 14
+    ok      variant without the empty-staging early exit   breaks exactly 11
+
+    STALE-STAGE VARIANTS OK (4)
+    EXIT=0
+
+The second variant's set was written as `3,4,7,8,9,12,14` and the sweep said `expected 3,4,7,8,9,12,14 to
+break, got 3,4,7,8,9,12`. Case 14 must REFUSE, so a hook that refuses everything passes it - my literal was
+a prediction, not a measurement, and the sweep is what caught it. The fourth variant was added for case 14
+instead: with the HEAD fallback removed, case 14 still refuses, on the "cannot read the touches:" branch, so
+only the REASON it gives tells the two apart. That is the variant that proves the case asserts a message and
+not just an exit code. Every one of the fourteen has now been seen red by name: 1, 2, 4, 5, 6, 8, 10, 13 on
+main's hook, and 3, 4, 7, 8, 9, 11, 12, 14 on a variant. The correction is recorded in the VARIANTS comment
+in the file, not just here.
+
+### Two probes outside the fixture (`.artifacts/T-0160/`, gitignored)
+
+- **Three commit modes no case covers**, against the new hook: `git commit --amend --no-edit` exit 0,
+  `git commit -a` exit 0, and `git commit -m x -- a.txt` over a deliberately stale stage exit 0, landing
+  `working-tree version`. The last is the one worth stating: a pathspec commit builds a temporary index from
+  the WORKING TREE copy of that path, so the index and disk agree and check 4 correctly says nothing.
+- **What check 4 costs**, on an idle box, 50 staged paths in one commit:
+
+        this branch  50 staged paths  exit=0  72.9s  (1458 ms/path)
+        origin/main  50 staged paths  exit=0  35.9s  (717 ms/path)
+
+  Check 4 adds three git invocations per staged path (`ls-files -s` for the gitlink skip, `rev-parse ":$f"`,
+  `hash-object`) on top of the blob loop's two, and on Windows every invocation is a process spawn. A first
+  run at 200 paths (3100 vs 942 ms/path) was taken while three other fixtures were running on the same box
+  and is not a fair number; the 50-path pair above is. For the 1-3 path commits this fleet actually makes it
+  is a second or two. It is not free, and it is not optimised here.
+
+### STILL OPEN, added by this entry
+
+- Check 4's per-path cost, above. It can be cut to roughly one spawn per path by reading mode and staged oid
+  for every path from a single `git diff --cached --raw -z` instead of `ls-files`+`rev-parse` per path, and
+  by batching `git hash-object -- <many paths>`. Not done here: it is a rewrite of the loop this task exists
+  to land, on the repository's serial chokepoint, and it would need the whole fixture set re-run behind it.
+- No gate runs `ops/lib/check-stale-stage.py --variants`. P-GIT-04 pins the plain form only - exactly where
+  P-GIT-02 stood until T-0139 filed the gap and pinned the sibling sweep as P-GIT-03. Same follow-up, named
+  here rather than left for a reviewer to find.
+- Full `bash ops/check-pins` was run at `285587b`, not at this entry's commit (it takes tens of minutes on
+  this box). `--source-only`, and P-GIT-04's own assertion in both forms, were re-run at the final commit.

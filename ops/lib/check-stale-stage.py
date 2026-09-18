@@ -56,6 +56,14 @@ that staged nothing. check-touches-merge.py's case 6 passed that way for a while
 
     git show origin/main:.githooks/pre-commit > /tmp/main-hook
     python ops/lib/check-stale-stage.py --hook /tmp/main-hook
+
+`--variants` rewrites the real hook four ways and requires each to break exactly the set of cases named
+against it. That layer exists for the six must-COMMIT cases the red run above cannot show failing, because a
+case that has never been seen red is untested and a false-positive control is exactly the kind that stops
+discriminating quietly. Between the two, every one of the fourteen has now been seen red by name: 1, 2, 4,
+5, 6, 8, 10 and 13 against origin/main's hook, and 3, 4, 7, 8, 9, 11, 12 and 14 against a variant. No gate
+runs `--variants` yet - P-GIT-04's assertion is the plain form, which is where P-GIT-02 stood until T-0139
+pinned its sibling sweep.
 """
 from __future__ import annotations
 
@@ -350,11 +358,50 @@ CASES = [
 ]
 
 
-def case_verdict(name, fn, must_commit, must_say):
+# (label, what to change in the real hook, its replacement, the SET of cases that must break - and no
+# others). Eight of the fourteen cases were demonstrated red against the hook at origin/main; these exist
+# for the other six, which must COMMIT and which that run therefore cannot show failing. A case that has
+# never been seen red is untested, and a must-COMMIT case is exactly the kind that silently stops
+# discriminating. Generated from the real hook at run time and tracked here, because a demonstration in a
+# gitignored scratch directory ships nowhere and cannot be re-run.
+VARIANTS = [
+    # The defect this task exists to close, in the other direction: read HEAD's task file instead of the
+    # index. Case 6 (unstaged widening) still refuses, so only the control can see it.
+    ("touches: read from HEAD, not the index", 'git show ":$taskfile"', 'git show "HEAD:$taskfile"', {"7"}),
+    # A hook that refuses everything passes every must-REFUSE case, messages and all, because the checks
+    # still run and still print. Only the must-COMMIT cases notice - which is the whole reason they exist.
+    # Measured, not predicted: this was written expecting case 14 to break too, and the sweep said
+    # `expected 3,4,7,8,9,12,14 to break, got 3,4,7,8,9,12`. Case 14 must REFUSE, so a hook that refuses
+    # everything passes it - which is precisely why the next variant exists.
+    ("a hook that refuses everything", "fail=0", "fail=1", {"3", "4", "7", "8", "9", "12"}),
+    # The HEAD fallback, removed. Case 14 still refuses - on the "cannot read the touches:" branch - so
+    # only its REASON tells the two apart. This is the variant that proves the case asserts a message and
+    # not just an exit code.
+    ("without the HEAD fallback", 'taskyaml="$(git show "HEAD:$taskfile" 2>/dev/null || true)"',
+     'taskyaml=""', {"14"}),
+    # The empty-staging early exit is above every check, so `fail=1` cannot reach case 11. This is the one
+    # edit that can.
+    ("without the empty-staging early exit", '[[ -z "$staged" ]] && exit 0',
+     '[[ -z "$staged" ]] && fail=1', {"11"}),
+]
+MIN_VARIANTS = 4
+
+
+def variant_of(marker: str, replacement: str, tmp: pathlib.Path) -> pathlib.Path:
+    """A copy of the real hook with one thing changed, written where the cases can point at it."""
+    text = (ROOT / ".githooks" / "pre-commit").read_text(encoding="utf-8")
+    if marker not in text:
+        raise RuntimeError("variant marker not present in the hook: %r" % marker)
+    out = tmp / "variant-hook"
+    out.write_text(text.replace(marker, replacement), encoding="utf-8", newline="\n")
+    return out
+
+
+def case_verdict(name, fn, must_commit, must_say, hook_override=None):
     """The one place a case is judged. Both callers must ask the same question (T-0139)."""
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="stale-stage-"))
     try:
-        repo = build(tmp)
+        repo = build(tmp, hook_override=hook_override)
         code, out = fn(repo)
         if code == 99:
             return None, ["SETUP   %s  %s" % (name, out)]
@@ -378,8 +425,54 @@ def case_verdict(name, fn, must_commit, must_say):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def run_variants() -> int:
+    ok = True
+    for label, marker, replacement, must_fail in VARIANTS:
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="stale-variant-"))
+        try:
+            hook = variant_of(marker, replacement, tmp)
+            failed, setup_failed = set(), []
+            for name, fn, must_commit, must_say in CASES:
+                ok_case, _lines = case_verdict(name, fn, must_commit, must_say, hook_override=hook)
+                if ok_case is None:
+                    # A case whose setup died ran nothing; counting it as "not broken" would judge over
+                    # fewer cases than it prints. Fatal, not neutral.
+                    setup_failed.append(name.split("/")[0])
+                elif ok_case is False:
+                    failed.add(name.split("/")[0])
+            if setup_failed:
+                ok = False
+                sys.stdout.write("FAIL    variant %-38s case setup died for %s; nothing was judged\n"
+                                 % (label, ",".join(setup_failed)))
+            elif failed == must_fail:
+                sys.stdout.write("ok      variant %-38s breaks exactly %s\n"
+                                 % (label, ",".join(sorted(must_fail, key=int))))
+            else:
+                ok = False
+                sys.stdout.write("FAIL    variant %-38s expected %s to break, got %s\n"
+                                 % (label, ",".join(sorted(must_fail, key=int)),
+                                    ",".join(sorted(failed, key=int)) or "nothing"))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    sys.stdout.write("\nSTALE-STAGE VARIANTS %s (%d)\n" % ("OK" if ok else "FAIL", len(VARIANTS)))
+    return 0 if ok else 1
+
+
 def _population_ok() -> bool:
     ok = True
+    if len(VARIANTS) != MIN_VARIANTS:
+        sys.stdout.write("STALE-STAGE REFUSING: %d variants defined, MIN_VARIANTS says %d.\n"
+                         % (len(VARIANTS), MIN_VARIANTS))
+        ok = False
+    for v in VARIANTS:
+        # A variant whose replacement equals its marker changes nothing, and one expecting no case to break
+        # is satisfied by that: together they are a variant that proves nothing and still counts as one.
+        if v[1] == v[2] or not v[3]:
+            sys.stdout.write("STALE-STAGE REFUSING: variant %r changes nothing or expects nothing to break\n" % v[0])
+            ok = False
+    if len(set((v[1], v[2]) for v in VARIANTS)) != len(VARIANTS):
+        sys.stdout.write("STALE-STAGE REFUSING: duplicate variant edits\n")
+        ok = False
     if len(CASES) != EXPECTED_CASES:
         sys.stdout.write("STALE-STAGE REFUSING: %d cases defined, EXPECTED_CASES says %d. A case list that "
                          "does not match its own count cannot be trusted to have run anything.\n"
@@ -399,6 +492,8 @@ def main() -> int:
         return 2
     if not _population_ok():
         return 2
+    if "--variants" in sys.argv:
+        return run_variants()
     ok = True
     for name, fn, must_commit, must_say in CASES:
         ok_case, lines = case_verdict(name, fn, must_commit, must_say)
