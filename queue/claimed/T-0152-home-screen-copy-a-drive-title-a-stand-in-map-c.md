@@ -221,3 +221,16 @@ do not add the disclaimer here (T-0153 owns it, and it gates the first plan, not
      class was rendered to confirm the header band does not crowd the map at AX5.
   7. **`bash ops/check-pins` and `bash ops/test` were not run locally** (the default swift scratch path does
      not build in a worktree on this box). `gh pr checks` on the PR is the record for the Linux gates.
+
+- 2026-09-18T20:54:53Z PR **#95** opened, base `main`, head `task/T-0152`
+  (https://github.com/phineasfritsch/scenic_drive/pull/95), carrying `d428da0` (the Swift) and `979641c` (this
+  record). `gh pr checks 95` at first read: both `pending`; watched once to completion:
+
+      core              pass  2m23s  .../actions/runs/35393737278/job/105757714627
+      pins-source-only  pass  1m0s   .../actions/runs/35393737278/job/105757714873
+
+  That is the record for the Linux gates this box cannot run in a worktree, and it is the only claim made about
+  them - `ops/check-pins` and `ops/test` were not run locally. The ios-compile green (35393000321) sits on
+  `d428da0`; `git diff --name-only d428da0 979641c -- '*.swift'` -> no output, so no Swift changed after the
+  compiler saw it. `state: claimed` and `reviewer: null` are unchanged: the reviewer of this task is not its
+  owner, and this session is the owner.
