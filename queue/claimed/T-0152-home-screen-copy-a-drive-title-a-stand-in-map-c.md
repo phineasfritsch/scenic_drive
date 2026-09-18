@@ -14,7 +14,19 @@ pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/check-pins]
-acceptance: []
+acceptance:
+  - "gh workflow run ios-compile.yml --ref task/T-0152 ; gh run view 35393000321 --json status,conclusion -> {\"conclusion\":\"success\",\"status\":\"completed\"} ; gh run view 35393000321 --log -> line 1616 '** BUILD SUCCEEDED **' (Xcode 16.4, Build version 16F6, swift-driver 1.120.5), grep -c 'error:' over that log -> 0, and line 1324 'SwiftCompile normal arm64 Compiling\\ ScenicHomeScreen.swift ... (in target FeatureScenicHome from project ScenicApp)'. ONE dispatch, green first time - no red compile to quote"
+  - "bash ops/lib/check-line-cap -> P-SRC-02: 68 Swift files tracked (Sources=25, Tests=35, apps/ios=8), none over 300 lines, exit 0"
+  - "RED FIRST, same gate, same file: 130 filler lines appended -> bash ops/lib/check-line-cap -> 'P-SRC-02: file(s) over the 300-line cap:' / '  apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift (309 lines)', exit 1; filler removed -> green above"
+  - "awk 'END{print NR}' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 179, exit 0"
+  - "grep -n 'accessibilityIdentifier(\"home\\.' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 59:home.error, 92:home.title, 100:home.caption, 129:home.openInAppleMaps (the last pre-existing), exit 0"
+  - "grep -n 'handoffFailure = \\|String(describing: error)' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 138 (doc comment), 145 'handoffFailure = nil', 152 'Self.log.error(... String(describing: error), privacy: .public)', 153 'handoffFailure = Copy.handoffFailed'. The raw error reaches Logger and nothing else; no assignment of it to the on-screen string remains, exit 0"
+  - "grep -rn '0x[0-9A-Fa-f]\\{6\\}\\|Color(' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ -> no output, exit 1 (no raw hex and no ad-hoc Color in the feature target; colour comes from DesignTokens only)"
+  - "grep -n '\\.font(' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift -> 55 .footnote, 87 .title2, 95 .subheadline, 119 .headline - four Dynamic Type text styles, no .system(size:) and no point size, exit 0"
+  - "git diff --name-only origin/main...HEAD -> apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift and queue/claimed/T-0152-*.md, exit 0"
+  - "git diff --name-only origin/main...HEAD -- apps/ios/Packages/ScenicApp/Sources/DesignSystem/ -> no output, exit 0 (DesignSystem is in touches: and needed no edit: bg, fg, fgMuted, destructive all already exist)"
+  - "git status --porcelain -> no output, exit 0"
+  - "NOT RUN, on the record: bash ops/check-pins and bash ops/test (the default swift scratch path does not build in a worktree on this box) - gh pr checks on the PR is the record for the Linux gates. NOT DONE, on the record: nothing has rendered this screen - no simulator run, no device, no snapshot; this tree has never been on a phone"
 ---
 ## Brief
 
@@ -166,3 +178,46 @@ do not add the disclaimer here (T-0153 owns it, and it gates the first plan, not
   the other proof is the compiler, dispatched below. `bash ops/check-pins` and `bash ops/test` were NOT run
   locally - the default swift scratch path does not build in a worktree on this box; `gh pr checks` is the
   record for those.
+
+- 2026-09-18T20:47:15Z **the compiler ran, and it is green.** `d428da0` pushed to `task/T-0152`, then
+  `gh workflow run ios-compile.yml --ref task/T-0152` -> run **35393000321**
+  (https://github.com/phineasfritsch/scenic_drive/actions/runs/35393000321), `status: completed`,
+  `conclusion: success`. ONE dispatch; nothing went red on the branch, so there is no red compile to quote and
+  this entry does not invent one. From `gh run view 35393000321 --log`:
+
+      1616:  ** BUILD SUCCEEDED **
+      114:   Xcode 16.4
+      115:   Build version 16F6
+      119:   swift-driver version: 1.120.5
+      1324:  SwiftCompile normal arm64 Compiling\ ScenicHomeScreen.swift .../FeatureScenicHome/ScenicHomeScreen.swift
+             (in target 'FeatureScenicHome' from project 'ScenicApp')
+
+  `grep -c "error:" <log>` -> `0`. The file this task edits is named in the log as compiled for both simulator
+  architectures, so the green is about this change and not about a target that was skipped. The build wrote one
+  untracked file, the same one the first run on main wrote:
+  `?? apps/ios/ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` - T-0167 owns
+  committing it, this task adds no dependency and does not touch it.
+
+  **STILL OPEN - what is NOT proven here.**
+  1. **Nothing has rendered this screen.** No simulator run, no device, no snapshot, no screenshot. This whole
+     tree has never been on a phone. `xcodebuild ... build` proves the three strings compile into
+     `FeatureScenicHome` and that the layout type-checks; it proves nothing about what they look like. Every
+     claim below about appearance is a reading of the code, not an observation.
+  2. **Contrast is reasoned, not measured.** `fg`/`fgMuted` on `bg` are the token table's own pairs and the
+     header band is drawn on `bg` (R3), but no contrast ratio was computed by this task and none is claimed.
+  3. **The failure `Text` still draws over map tiles**, inside the bottom stack, in `destructive` at
+     `.footnote` - untouched by this task except for its string and its identifier (R6). `destructive` over an
+     arbitrary basemap has no guaranteed contrast, exactly the reason `AttributionFooter` carries its own chip.
+     Whether it needs a chip is a design decision for the screen M4 replaces, and widening this task to take it
+     would have been a fourth visible change.
+  4. **No XCUITest anchors on `home.title`, `home.caption` or `home.error` yet.** The identifiers are placed
+     for the suite that arrives with a test target; `Package.swift` says why there is none
+     ("NO TEST TARGETS HERE, deliberately and temporarily"), and this task did not add one - a suite authored
+     on a box with no Apple toolchain could never be seen red.
+  5. **The title is not tied to the waypoints by anything mechanical** (R8). Renaming the drive and changing
+     `SkylineHandoff.waypoints` are two independent edits; only review connects them.
+  6. **Dynamic Type was not exercised.** `.title2`/`.subheadline` plus `fixedSize(horizontal: false,
+     vertical: true)` is the intent that the largest accessibility sizes wrap rather than truncate; no size
+     class was rendered to confirm the header band does not crowd the map at AX5.
+  7. **`bash ops/check-pins` and `bash ops/test` were not run locally** (the default swift scratch path does
+     not build in a worktree on this box). `gh pr checks` on the PR is the record for the Linux gates.
