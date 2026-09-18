@@ -1,0 +1,71 @@
+# iOS compile - the first compiler apps/ios meets. Dispatch-only, never a required check.
+#
+# WHY IT EXISTS: apps/ios reached main in PR #88 without ever being compiled; the only planned compiler is
+# Xcode Cloud, behind a human's App Store Connect step (T-0009). This job proves ONE thing: the tree builds
+# for the iOS Simulator. It proves nothing about signing, TestFlight, or the plan's <= 40 min push-to-phone
+# gate - those stay T-0009.
+#
+# GUARDRAILS (T-0157; ops/lib/check-ios-compile-guardrails.py reads this file as data and refuses when one
+# is gone): its own file; workflow_dispatch ONLY - no push, no pull_request, no schedule; contents: read;
+# the standard macos-15 label, pinned, never a -large / -xlarge runner (those always bill); a job timeout;
+# no commit and no push step. Linux CI (linux-core.yml) stays the fleet's gate.
+name: ios-compile
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# `shell: bash` makes every run: step `bash -e -o pipefail` (same reason as linux-core.yml): without it,
+# `xcodebuild ... | tee log` would report tee's success when the build fails.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  simulator-build:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          ls /Applications | grep -i '^Xcode' || true
+
+      # -derivedDataPath under the workspace: CLAUDE.md requires it, and DerivedData/ is gitignored.
+      # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and this job has none.
+      - name: build for the iOS Simulator
+        run: |
+          xcodebuild \
+            -project apps/ios/ScenicDrive.xcodeproj \
+            -scheme ScenicDrive \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee "$RUNNER_TEMP/xcodebuild.log"
+
+      # NOT `git diff --exit-code`: it cannot see an untracked file, so it could never go red on the one
+      # thing xcodebuild is expected to write (Package.resolved, a serial-only file nobody has committed yet).
+      - name: what the build wrote into the tree
+        if: always()
+        run: |
+          git status --porcelain --untracked-files=all
+          find apps/ios -name Package.resolved -print
+
+      - name: keep the log and any Package.resolved
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-compile-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/xcodebuild.log
+            apps/ios/**/Package.resolved

@@ -9,12 +9,19 @@ lease_expires_at: 2026-09-19T00:54:23Z
 worktree: .worktrees/T-0157
 branch: task/T-0157
 exclusive: []
-touches: [.github/workflows/ios-compile.yml]
+touches: [.github/workflows/ios-compile.yml, ops/lib/check-ios-compile-guardrails.py]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/check-pins]
-acceptance: []
+acceptance:
+  - "python ops/lib/check-ios-compile-guardrails.py -> IOS-COMPILE-GUARDRAILS OK: ios-compile.yml is dispatch-only, read-only, time-boxed, on ['macos-15'], exit 0"
+  - "python ops/lib/check-ios-compile-guardrails.py --prove-red -> seven '[red rc=1]' lines each naming the guardrail its mutation removed (the push trigger, permissions, the shell default, the runner label, the timeout, -derivedDataPath, a git push step), '[refused rc=2] unreadable YAML', '[green rc=0] the shipped file', then PROVE-RED OK: 7 guardrails mutated, 0 unexpected result(s), exit 0"
+  - "bash ops/check-pins --source-only -> PINS ok=9 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only, exit 0"
+  - "bash ops/lib/check-line-cap -> P-SRC-02: 56 Swift files tracked (Sources=20, Tests=28, apps/ios=8), none over 300 lines, exit 0"
+  - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (54 scanned, 55 tracked, floor 42), exit 0"
+  - "bash ops/queue-check -> QUEUE OK (152 tasks), exit 0"
+  - "NOT RUN, on the record: the workflow itself. GitHub only offers workflow_dispatch for a file that exists on the default branch, so the first dispatch happens AFTER this PR merges; its red-then-green is recorded by the follow-up task filed at merge, not claimed here"
 ---
 ## Brief
 
@@ -57,3 +64,28 @@ the cost argument against this job falls - and the visibility itself is the huma
 ## Log
 - 2026-09-18T19:05:00Z filed by agent/claude-fable-5-1 from the 12:13 panel's grounded synthesis. Not started.
 - 2026-09-18T18:54:23Z claimed by agent/claude-fable-5-1; lease until 2026-09-19T00:54:23Z
+- 2026-09-18T19:07:14Z **Authored - agent/claude-fable-5-1 (owner).** `.github/workflows/ios-compile.yml`: its own file;
+  `on: workflow_dispatch` only; `permissions: contents: read`; `defaults.run.shell: bash`; one job on the
+  pinned standard label `macos-15` with `timeout-minutes: 20`; `xcodebuild ... -destination
+  'generic/platform=iOS Simulator' -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" CODE_SIGNING_ALLOWED=NO
+  build`, tee'd to a log; then, `if: always()`, `git status --porcelain --untracked-files=all` and an upload of
+  the log and any `Package.resolved`. No commit step, no push step, not a required check.
+
+  **The guardrails are data, and checked.** `ops/lib/check-ios-compile-guardrails.py` parses the workflow as
+  YAML and refuses by the NAME of whichever guardrail is gone - anchored on keys, never on a comment. It is
+  outside this task's original `touches:`; added there in this commit because a dispatch-only macOS job that
+  quietly gains a `push:` trigger is the failure this task has to make impossible to miss. `--prove-red`
+  ships with it: seven mutations, one per guardrail, each applied ALONE to a copy outside the tree, each
+  required to apply exactly once (a stale anchor REFUSES rather than proving a no-op), plus an unreadable
+  file that must exit 2, not 0. Output at this commit: `PROVE-RED OK: 7 guardrails mutated, 0 unexpected result(s)`.
+
+  **What this PR cannot show.** The workflow has never run: `workflow_dispatch` needs the file on the default
+  branch. The first dispatch is expected RED for real reasons - nobody has compiled `apps/ios` - and that
+  red, the fixes, and the first `** BUILD SUCCEEDED **` belong to the follow-up filed at merge. Also not
+  decided here: which Xcode the `macos-15` image selects by default (the job prints it) and whether the
+  plan's "Xcode 26 / iOS 26 SDK" needs an explicit `xcode-select`; the first run's toolchain step answers it.
+
+  **STILL OPEN.** The guardrail check is an acceptance command, not a pin: `pins/PINS.yaml` is outside
+  touches and two open PRs are already contending for the next P-OPS id. Pin it with the follow-up.
+  `Package.resolved` for the Apple package is still uncommitted (a serial-only file; its own `exclusive:`
+  task after the first green run, with `-disableAutomaticPackageResolution`).
