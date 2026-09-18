@@ -6,9 +6,11 @@
 # gate - those stay T-0009.
 #
 # GUARDRAILS (T-0157; ops/lib/check-ios-compile-guardrails.py reads this file as data and refuses when one
-# is gone): its own file; workflow_dispatch ONLY - no push, no pull_request, no schedule; contents: read;
-# the standard macos-15 label, pinned, never a -large / -xlarge runner (those always bill); a job timeout;
-# no commit and no push step. Linux CI (linux-core.yml) stays the fleet's gate.
+# is gone, at EVERY level GitHub lets it be overridden): its own file; workflow_dispatch ONLY - no push, no
+# pull_request, no schedule; contents: read with no job-level permissions block; the standard macos-15
+# label, pinned, never a -large / -xlarge runner (those always bill); a job timeout; bash everywhere and no
+# continue-on-error, so a failed build is a failed job; an allowlist of actions; no commit and no push step.
+# Linux CI (linux-core.yml) stays the fleet's gate.
 name: ios-compile
 
 on:
@@ -40,17 +42,19 @@ jobs:
           swift --version
           ls /Applications | grep -i '^Xcode' || true
 
-      # -derivedDataPath under the workspace: CLAUDE.md requires it, and DerivedData/ is gitignored.
+      # -derivedDataPath under the workspace: CLAUDE.md requires it, and DerivedData/ is gitignored - which is
+      # also why the log goes there: one workspace-relative artifact root, nothing untracked left behind.
       # CODE_SIGNING_ALLOWED=NO: a simulator build needs no identity, and this job has none.
       - name: build for the iOS Simulator
         run: |
+          mkdir -p "$GITHUB_WORKSPACE/DerivedData"
           xcodebuild \
             -project apps/ios/ScenicDrive.xcodeproj \
             -scheme ScenicDrive \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
-            build | tee "$RUNNER_TEMP/xcodebuild.log"
+            build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"
 
       # NOT `git diff --exit-code`: it cannot see an untracked file, so it could never go red on the one
       # thing xcodebuild is expected to write (Package.resolved, a serial-only file nobody has committed yet).
@@ -67,5 +71,5 @@ jobs:
           name: ios-compile-${{ github.run_id }}
           if-no-files-found: warn
           path: |
-            ${{ runner.temp }}/xcodebuild.log
+            DerivedData/xcodebuild.log
             apps/ios/**/Package.resolved

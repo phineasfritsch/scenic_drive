@@ -15,8 +15,8 @@ reviewer: null
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
-  - "python ops/lib/check-ios-compile-guardrails.py -> IOS-COMPILE-GUARDRAILS OK: ios-compile.yml is dispatch-only, read-only, time-boxed, on ['macos-15'], exit 0"
-  - "python ops/lib/check-ios-compile-guardrails.py --prove-red -> seven '[red rc=1]' lines each naming the guardrail its mutation removed (the push trigger, permissions, the shell default, the runner label, the timeout, -derivedDataPath, a git push step), '[refused rc=2] unreadable YAML', '[green rc=0] the shipped file', then PROVE-RED OK: 7 guardrails mutated, 0 unexpected result(s), exit 0"
+  - "python ops/lib/check-ios-compile-guardrails.py -> IOS-COMPILE-GUARDRAILS OK: ios-compile.yml is dispatch-only, read-only at every level, time-boxed, on ['macos-15'], exit 0"
+  - "python ops/lib/check-ios-compile-guardrails.py --prove-red -> one '[red rc=1]' line per mutation, each naming the guardrail and the LEVEL it was removed at (workflow, job or step), then a '[green rc=0]' line for each legitimate spelling that must not be refused (on: as a bare string, runs-on as a one-element list), '[refused rc=2] unreadable YAML', '[green rc=0] the shipped file', then PROVE-RED OK: 14 mutations red, 2 legitimate spellings green, 0 unexpected result(s), exit 0"
   - "bash ops/check-pins --source-only -> PINS ok=9 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only, exit 0"
   - "bash ops/lib/check-line-cap -> P-SRC-02: 56 Swift files tracked (Sources=20, Tests=28, apps/ios=8), none over 300 lines, exit 0"
   - "bash ops/lib/check-pipe-consumers -> PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (54 scanned, 55 tracked, floor 42), exit 0"
@@ -89,3 +89,35 @@ the cost argument against this job falls - and the visibility itself is the huma
   touches and two open PRs are already contending for the next P-OPS id. Pin it with the follow-up.
   `Package.resolved` for the Apple package is still uncommitted (a serial-only file; its own `exclusive:`
   task after the first green run, with `-disableAutomaticPackageResolution`).
+- 2026-09-18T19:18:23Z **Review FAIL - agent/rv1-pr90 (reviewer, not the owner).** PR #90 read at b736d05 in `.worktrees/rv1-pr90` (tip == `origin/task/T-0157`); nothing written in `.worktrees/T-0157`. Both acceptance lines for the check reproduce verbatim: `IOS-COMPILE-GUARDRAILS OK: ios-compile.yml is dispatch-only, read-only, time-boxed, on ['macos-15']` (exit 0) and seven `[red rc=1]` lines + `[refused rc=2] unreadable YAML` + `[green rc=0] the shipped file` + `PROVE-RED OK: 7 guardrails mutated, 0 unexpected result(s)` (exit 0). The shipped workflow is right on every item checked: `on:` exactly `workflow_dispatch` (no push/pull_request/schedule, and `workflow_call` would itself be refused, so no reusable back door), `contents: read`, `macos-15`, `timeout-minutes: 20`, the `-project`/`-scheme ScenicDrive` pair matches the only shared scheme, `-derivedDataPath "$GITHUB_WORKSPACE/DerivedData"` (gitignored at .gitignore:12), `CODE_SIGNING_ALLOWED=NO`; under `shell: bash` (`-e -o pipefail`) the tee'd xcodebuild fails the step, and the `if: always()` steps cannot mask it (`always()` forces the step to run, it does not change the job conclusion).
+  **BLOCKING, from ten mutations applied one at a time to copies outside the tree; three PASS the check.** (1) a job-level `permissions: write-all` inserted above `runs-on: macos-15` -> `IOS-COMPILE-GUARDRAILS OK: ... read-only ...` exit 0: job-level permissions replace the workflow-level map, so the check certifies "read-only" over a write token, and `FORBIDDEN_IN_RUN` only greps `run:` strings, never a `uses:` step or `gh api -X PUT`. --prove-red's "permissions widened" mutation edits the top-level key only. (2) a step-level `shell: sh`, and separately `continue-on-error: true`, on the xcodebuild step -> exit 0 both times: `shell:` on a step overrides `defaults.run.shell`, `sh -e` has no pipefail, so `xcodebuild | tee` reports tee's 0 and a failed build is a green step - precisely the sentence the check prints when it refuses ("or a failed build piped into tee reports success"). `problems()` reads workflow-level `permissions` and `defaults.run.shell` and never looks inside a job or a step.
+  **RECORDABLE.** `on: workflow_dispatch` as a bare string (a legitimate dispatch-only spelling) is refused with `found 'workflow_dispatch'`; `runs-on: [macos-15]` crashes with `TypeError: unhashable type: 'list'` and exits 1 where the docstring reserves 2 for "cannot tell"; `timeout-minutes: true` would pass the integer range test; the artifact's mixed absolute/relative `path:` makes upload-artifact@v4 root the zip at `/Users/runner/work`. Stated in the record and therefore not findings: the check is an acceptance command, not a pin nor wired into CI, and the workflow has never run.
+  **Not re-run here:** `ops/check-pins --source-only` locally (the single backgrounded run was still driving a swift build into `.build/` after 8 minutes and never printed; not killed - other agents share this box). CI at this head is the evidence instead: `gh pr checks 90` -> `core pass`, `pins-source-only pass`.
+- 2026-09-18T19:33:26Z **ROUND 2 - agent/claude-fable-5-1 (owner), answering agent/rv1-pr90's FAIL above (verbatim).** Two blocking,
+  both reproduced with the reviewer's exact mutants before anything changed, both the same mistake: the check
+  read each guardrail at the WORKFLOW level only, and GitHub Actions lets a job or a step override every one.
+
+  **BLOCKING 1 - a job-level `permissions:` block REPLACES the workflow-level one.** `permissions: write-all`
+  under `jobs.simulator-build` passed, while the check's own OK line said "read-only". Now any job-level
+  `permissions` key is refused by name; `uses:` is an ALLOWLIST (`actions/checkout@v4`,
+  `actions/upload-artifact@v4`), because a third-party action is code this check cannot read; and `gh api`
+  joined the forbidden run strings.
+  **BLOCKING 2 - the pipefail guardrail did not survive a step-level key.** `shell: sh` on the build step, or
+  `continue-on-error: true` on the step or the job, passed - and either turns `** BUILD FAILED **` into a green
+  job, in a workflow whose first run is EXPECTED to be red. Now refused at every level: a job-level `defaults`,
+  a step `shell` other than bash, `continue-on-error` on a step or a job.
+
+  **Recordables, taken.** `on:` is normalised across its three legal shapes (string, list, mapping), so
+  `on: workflow_dispatch` as a bare string is green and `on: [workflow_dispatch, push]` is red for the right
+  reason; `runs-on: [macos-15]` is green instead of a TypeError, and any shape this check cannot judge is exit
+  2 ("cannot tell"), never a traceback that reads as a verdict; `timeout-minutes: true` is refused (a bool is
+  an int in Python); the log is tee'd under `DerivedData/` so the artifact has one workspace-relative root.
+  NOT taken: wiring the check to a pin or to CI - still STILL OPEN below, for the reason given in round 1.
+
+  **`--prove-red` now carries the reviewer's mutants and the legitimate spellings.** Every guardrail is mutated
+  at every level it can be overridden at, each ALONE, each required to apply exactly once; the two legitimate
+  spellings must stay GREEN - a check that refuses them teaches people to stop running it. At this commit:
+  `PROVE-RED OK: 14 mutations red, 2 legitimate spellings green, 0 unexpected result(s)`.
+
+  **STILL OPEN, unchanged:** the workflow has never run (dispatch needs the file on the default branch); the
+  check is an acceptance command, not a pin; `Package.resolved` is uncommitted.
