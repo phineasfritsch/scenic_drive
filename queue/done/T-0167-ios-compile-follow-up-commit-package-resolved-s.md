@@ -1,7 +1,7 @@
 ---
 id: T-0167
 title: ios-compile follow-up - commit Package.resolved, build with Xcode 26 (the plan's SDK), and pin the guardrail check
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T20:32:58Z
@@ -9,9 +9,9 @@ lease_expires_at: 2026-09-19T04:32:58Z
 worktree: .worktrees/T-0167
 branch: task/T-0167
 exclusive: [package-resolved]
-touches: [.github/workflows/ios-compile.yml, .github/workflows/linux-core.yml, ops/lib/check-ios-compile-guardrails.py, apps/ios/ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved, pins/PINS.yaml]
+touches: [.github/workflows/ios-compile.yml, .github/workflows/linux-core.yml, ops/lib/check-ios-compile-guardrails.py, apps/ios/ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved, pins/PINS.yaml, queue/LOCKS/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr97
 depends_on: [T-0157]
 verify: [ops/check-pins]
 acceptance:
@@ -160,3 +160,86 @@ ref, which is also how T-0151, T-0152 and T-0153 can prove their Swift compiles 
   = 0` for run 35393590488 (step 2) was not re-fetched; it holds for the final run. (d) Whether
   `pins-source-only` took the PyYAML install branch: run 35394513701's step ran and the core container printed
   `PyYAML 6.0.1`, still not that job's own line, so STILL OPEN item 2 stands as written.
+- 2026-09-18T22:05:58Z **REVIEW PASS - agent/rv1-pr97 (reviewer; not the owner `agent/claude-opus-5`, not the
+  orchestrator `agent/claude-fable-5-1` who wrote the correction entry above). PR #97 at head `76aea33`.** Read in a
+  detached worktree `.worktrees/rv1-pr97` (removed after this entry): the PR body, this file end to end including
+  both correction entries and STILL OPEN, and `git diff origin/main...HEAD` (6 files, +194/-9). Nothing in the PR
+  was changed.
+
+  **Acceptance re-run at this head, not read.** `python ops/lib/check-ios-compile-guardrails.py` printed the OK
+  line the block quotes, word for word, exit 0. `--prove-red` printed
+  `PROVE-RED OK: 32 mutations red, 3 legitimate spellings green, 0 unexpected result(s)`, exit 0 - 32 `[red rc=1]`,
+  4 `[green rc=0]` (the 3 legitimate spellings plus the shipped file), 1 `[refused rc=2] unreadable YAML: ...
+  ParserError`. `cmp` between
+  `.artifacts/ios-compile/art/ios-compile-35391464739/apps/ios/ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`
+  and the committed copy: identical, `sha256sum` prints
+  `2c13b9b6788a636eee9026a10c5a31560dcc2ec670be941fbfa50854ef11c44a` for both, and `tr -dc '\r' | wc -c` is `0`.
+  `git check-ignore -v <that path>` printed nothing, exit 1. `wc -l ops/lib/check-ios-compile-guardrails.py` -> 296.
+  The three dispatches by `gh run view <id> --json headSha,conclusion`: 35393082335 / `15eb979`, 35393590488 /
+  `6af2c69`, 35394086754 / `d9a09d3`, each `success` on `task/T-0167`. The final run's log: one
+  `** BUILD SUCCEEDED **`, `grep -c ' error:'` = `0`, `DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer`,
+  `Xcode 26.3`, `Build version 17C529`, `Apple Swift version 6.2.4`, and the `what the build wrote into the tree`
+  step printing exactly ONE line after its `##[endgroup]` - the `find` output - and nothing from `git status
+  --porcelain --untracked-files=all`. `git diff --name-only d9a09d3..HEAD` lists only this task file, so the tree
+  that run built is the shipped one.
+
+  **Two of the arithmetics redone rather than believed.** (1) 32 = 26 + 1 + 5: `origin/main`'s `MUTATIONS` table
+  holds 26 top-level tuples, this head holds 32, the six new ones being `-disableAutomaticPackageResolution
+  dropped` plus the five env/guard mutations - and 32 is also the count of `[red rc=1]` lines, so no mutation is
+  a no-op. (2) 296 = 270 + 29 - 3: `origin/main`'s copy of the check is 270 lines and `git diff --numstat
+  origin/main...HEAD` prints `29 3` for it; four lines under CLAUDE.md's 300 cap. Also 23 `^- id:` on main + 1 =
+  24, confirmed through the repository's OWN reader: `ops/lib/pins.py`'s `load()` gives `parsed pins: 24 | ids
+  unique: True`, with `P-OPS-06` at `anchor=source runs_on=['linux', 'mac']` and no `TODO` in the assertion.
+
+  **Four mutations of the reviewer's own, each applied ALONE to a copy of the shipped workflow, control green.**
+  None of them is in the author's table. (i) `DEVELOPER_DIR` at **Xcode_26.0** - still "Xcode 26", so a check that
+  only grepped for the major would pass it - refused `rc=1`: `jobs.simulator-build.env: must be exactly {...}
+  (found {'DEVELOPER_DIR': '/Applications/Xcode_26.0.app/Contents/Developer'})`. (ii) step-level `env:` on the
+  **toolchain** step rather than the build step, i.e. a log that would print 16.4 while the build used 26.3 -
+  `jobs.simulator-build.steps[1].env: no step carries its own environment ...`, `rc=1`. (iii) a second job-level
+  key that changes the SDK instead of handing over a token, `SDKROOT: iphonesimulator16.4` -> `... (found
+  {'DEVELOPER_DIR': ..., 'SDKROOT': 'iphonesimulator16.4'})`, `rc=1`. (iv) the whole job-level `env:` block
+  deleted, leaving `DEVELOPER_DIR` unset -> `... (found None)`, `rc=1`. Control, the shipped file, `rc=0`.
+  **The pin AS the pin was reproduced too**, because correction entry (b) records that the author's `pin_red.py`
+  does not survive: the assertion string exactly as `pins/PINS.yaml` spells it, run against the TRACKED workflow
+  with `DEVELOPER_DIR` pointed at 16.4, exits 1 with the same named failure; `git checkout --` restores it and the
+  assertion exits 0 again with `git status --short` clean on that path.
+
+  **The product question.** M1.5's exit is the phone and the tap into Apple Maps on Skyline. The wrong value in
+  this PR's reach is a toolchain or a package resolution, and both now fail loudly instead of green: a workflow
+  that would build against the image's 16.4 default is refused BY NAME before it ever reaches a runner, and on the
+  runner `test -d "$DEVELOPER_DIR"` fails by name before `xcodebuild` starts; a resolution that drifts from the
+  committed `Package.resolved` fails the build rather than being rewritten in place. No claim here is that
+  anything rendered - this tree has still never been on a device, which the PR and STILL OPEN #4 state plainly.
+
+  **Rulings.** R1-R8 stand; the reviewer disagrees with none of them. R4 is the plan's platform row verbatim
+  (`Xcode 26 / iOS 26 SDK mandatory since 2026-04-28`), and pinning by exact path rather than a glob is precisely
+  what makes a missing 26.3 visible instead of a silent 16.4. R6's widening of `touches:` to `linux-core.yml` is
+  the honest move; narrowing the pin's `runs_on` to hide an exit 2 would have been the dishonest one.
+
+  **Recordable, none blocking.** (a) `TOOLCHAIN_RUN ="..."` lost the space before the quote in this diff; the value
+  is unchanged and no linter runs over `ops/` (grepping `flake8|ruff|pycodestyle|pylint|black` across `ops/`,
+  `.github/workflows/` and `services/etl/` finds nothing), so it is cosmetic. (b) The new docstring parenthetical
+  is inserted between `(good messages),` and `and then it compares`, splitting that sentence in half. (c)
+  `pins_affected: []` although this task adds `P-OPS-06`; `grep -rn pins_affected ops/ .githooks/` finds only
+  fixtures, so nothing enforces the field and it is informational drift, not a gate. (d) STILL OPEN #2 is now half
+  answered: on run 35399355056, head `76aea33`, the `pins-source-only` job printed `PyYAML 6.0.1` 0.065s after its
+  `##[endgroup]` with no apt output at all, so the import branch ran and the apt fallback has still never been
+  exercised. (e) A follow-up, not a blocker under the two-round harness rule: the check reads only
+  `.github/workflows/ios-compile.yml`, so a SECOND macOS workflow file added beside it is outside its reach; it
+  cannot make this build fail green.
+
+  **CI at this head, read once.** `gh pr checks 97` -> `core pass`, `pins-source-only pass`, and
+  `gh run view 35399355056 --json headSha,conclusion` -> `76aea334828c629d261c27a8e1aecb3c8ae6c6a7`, `success`.
+  NOT run by this review, on the record: `bash ops/check-pins`, `bash ops/test`, and any `ios-compile` dispatch
+  (it bills a macOS runner; the existing three runs were read instead). `state: claimed` -> `state: done`,
+  `reviewer: agent/rv1-pr97`, `queue/claimed/` -> `queue/done/`. Not merged - that is the merge step's own gate.
+- 2026-09-18T22:19:29Z **Sign-off applied for the reviewer by agent/claude-fable-5-1 (orchestrator; not the owner, not the reviewer).**
+  agent/rv1-pr97 returned PASS at 76aea33 (entry above, verbatim) but was PASS-BLOCKED: `bash ops/queue-check` on
+  the prepared transition printed `queue/LOCKS/package-resolved.lock held by T-0167, which is not in claimed/`,
+  and `queue/LOCKS/` is outside this task's `touches:`, so the reviewer reverted and committed nothing. This
+  commit is that transition: `state: done`, `reviewer: agent/rv1-pr97`, the file moved to queue/done/, and
+  `queue/LOCKS/package-resolved.lock` (`T-0167 agent/claude-opus-5 2026-09-18T20:32:58Z`) removed in the SAME
+  commit - the plan's rule that LOCKS/ travels with the transition. `queue/LOCKS/` is added to `touches:` for
+  that one path. No code, no workflow and no earlier entry changed. The gap - no `queue.py done` and no
+  lock-releasing PASS transition - is T-0095's scope, already filed.
