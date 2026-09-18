@@ -1,7 +1,7 @@
 ---
 id: T-0133
 title: ScenicKit Gates: the safety gates, and the invariant that a motorway is penalised and never excluded
-state: review
+state: done
 owner: agent/unknown
 owner_session: null
 claimed_at: 2026-09-08T20:59:29Z
@@ -11,7 +11,7 @@ branch: task/T-0133
 exclusive: []
 touches: [Sources/ScenicKit/Gates/, Tests/ScenicKitTests/, ops/mutate/]
 pins_affected: []
-reviewer: agent/rv7-pr82
+reviewer: agent/rv9-pr82
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -883,3 +883,121 @@ catch.
   printed line mark the cut with `...`; a replay should test containment, not equality. Still open and
   unchanged: the items the fix entry lists, including `discover_test_files()` matching
   `SegmentScoreTests.swift` on a comment - the safe direction, and the no-comment-anchor rule pointing at it.
+- 2026-09-18T18:52:57Z **ROUND 9 - agent/rv9-pr82 reviewing PR #82 at `82172dd`. PASS.** Reviewed in two of
+  my own detached worktrees at `82172dd` - `.worktrees/rv9-pr82` for the mutation harness and
+  `.worktrees/rv9-pr82b` for every other swift run, because one job's live mutant must never be what the
+  other measures; both removed at the end. `git ls-remote origin task/T-0133` -> `82172dd`, equal to both
+  tips and to `.worktrees/T-0133`. Subjects hashed against `git show HEAD:` before and after every mutating
+  run - `c768a243, 3badae29, 8fb8714c, eed0f151` - identical afterwards each time, and `git status --short`
+  empty in both worktrees at the end.
+
+  **THE ACCEPTANCE BLOCK RE-RUN, ten of eleven lines, character for character, all reproducing.**
+  * `swift test --scratch-path .build/verify82` -> `Test run with 205 tests in 26 suites passed after 0.182
+    seconds.`, exit 0 - the quoted text is a substring of the printed line, as line 1 says it is.
+  * `python ops/mutate/gates.py`, ONE unmodified invocation, no slices and no floors lowered ->
+    `caught by a named test: 51 of 51   (trapped 0, compile-only 0, MISSED 0, skipped 0)`,
+    `restored: c768a243, 3badae29, 8fb8714c, eed0f151`, exit 0. `BASELINE exit=0`; `test files discovered:
+    GatesInvariantTests.swift, GatesOrderTests.swift, GatesSetBoundaryTests.swift, GatesTests.swift,
+    SegmentScoreTests.swift`; both EQUIVALENT mutants MISSED; and the three round-8 widenings are each
+    `caught ... by: the refused sets are exactly the plan's lists - an equality, not a sample of widenings`,
+    the new pin naming itself as what kills them.
+  * The six-widening class, each alone on `Gates.swift` and restored byte-identically after (`md5 c768a243 ==
+    HEAD` every time): `+ "grass"`, `+ "delivery"`, `+ "swing_gate"`, `+ "bus"`, `+ "grade6"`, `+ "rough"` ->
+    `swift test` exit 1 in all six, `Test run with 205 tests in 26 suites failed`, and in every case the ONLY
+    failing name is `the refused sets are exactly the plan's lists - an equality, not a sample of widenings`.
+  * Floor RED: `MUTATIONS.pop()` in-process then `gates.main([])` -> `REFUSING: 50 mutations and 2 equivalent
+    mutants, expected at least 51 and 2.`, exit 2, `BASELINE printed: False`.
+  * HEAD check on a SUBJECT: `// planted` on the `refusableBarriers` line -> `REFUSING: the subject is not
+    what HEAD says it is` + `Sources/ScenicKit/Gates/Gates.swift: differs from HEAD`, exit 2, BASELINE never
+    printed, restored `md5 c768a243 == HEAD`.
+  * HEAD check on the HARNESS: the `"bus"` mutation body in `ops/mutate/gates_corpus_sets.py` weakened to
+    `"driveway"` -> `REFUSING: ...` + `ops/mutate/gates_corpus_sets.py: differs from HEAD`, exit 2, BASELINE
+    never printed, restored `md5 28fde595 == HEAD`.
+  * `ENTRY-anchored 11 MUTATIONS 51 EQUIVALENT 2`.
+  * `bash ops/check-pins` (bare) -> `PINS ok=17 skipped=0 pending=3 expired=0 failed=0 tier=linux`, exit 0.
+  * `bash ops/queue-check` (bare) -> `QUEUE OK (140 tasks)`, exit 0.
+  * B2: `git show 8afb913:<file> | grep -c "What the first version of this entry"` -> `3`; the same grep at
+    this head matches 5 lines, `grep -n` giving exactly 28, 534, 666, 745, 753, of which only 534 is the
+    paragraph. Exactly what the line quotes.
+
+  **NOT RE-RUN, and why.** `--prove-vacuity` (line 3): it empties five tracked test files for 12+ minutes and
+  this round's scope excluded it. Instead I read the PROOF LOGIC in `ops/mutate/gates.py` and
+  `ops/mutate/gates_tree.py`, and the fixer's saved run. The logic is sound in the directions that matter: the
+  HEAD check runs BEFORE anything is emptied, so the proof starts from the committed tree; each discovered
+  file is replaced by an empty suite NAMED after it, so a duplicate-struct compile failure cannot pass the
+  proof for the wrong reason; the baseline must still be green or the run returns 2; and the verdict is
+  `caught == 0 AND missed == len(MUTATIONS)`, so a mutation that merely fails to compile, or traps, does not
+  count as missed and the proof FAILS - which is the hole a "nothing caught anything" proof would otherwise
+  walk through. Restore and the `not_at_head` re-check both happen before the verdict is printed.
+  `.artifacts/fix8-pr82/acc3.log` agrees with the code: the discovery line as quoted, 51 `MISSED` lines in the
+  log, `VACUITY PROOF OK: with the 5 discovered test file(s) emptied, caught=0 (need 0)` / `and MISSED=51 of
+  51`, `exit=0`.
+
+  **ROUND 8's FINDING RE-BROKEN, and it no longer ships.** `refusedServiceValues + "bus"` alone -> exit 1 with
+  the single name `the refused sets are exactly the plan's lists - an equality, not a sample of widenings`.
+  The equality's expected sides are typed-out literals, nothing read back from `Gates`, and they match the
+  source member for member: `Gates.swift` declares seven `Set<String>` in all (lines 80, 89, 94, 98, 101, 106,
+  124) and all seven are pinned against a written-out literal - six in `GatesSetBoundaryTests`,
+  `consideredTagKeys` in `GatesInvariantTests`. `GatesTests` writes out every member of every refused set on
+  the refusal side and its neighbours on the allowed side, so the NARROWING direction is pinned value by value
+  as well.
+
+  **MY OWN ATTACK - five mutations nobody wrote, on the DECISION ORDER and the rules rather than the set
+  contents.** Control green on pristine (`205 tests in 26 suites passed`, exit 0); each mutation alone on
+  `Gates.swift`, restored to `md5 c768a243 == HEAD` after each. All five RED:
+  1. the locked-gate rule with the `locked` check dropped -> `a gate is refused only when it is recorded as
+     locked`.
+  2. the access rule hoisted above surface/track/tracktype/smoothness - order only, same verdicts -> `every
+     earlier rule beats every later rule, over all 35 combinable pairs` + `a way that trips two rules reports
+     the first one in the documented order`.
+  3. the ford rule made unreachable -> `a ford is refused on positive evidence` + three more.
+  4. `motor_vehicle=no` deleted -> `access that forbids the public is refused` + two more.
+  5. a refusal for `highway=motorway` typed into `verdict`, where a tidy-up would put it -> `a motorway is
+     never gated, because freeway shoulders carry every long scenic drive`, `no freeway tag combination is
+     gated, not just the bare highway value`, `motorroad=yes is never gated`, `a freeway is allowed on every
+     value of a considered key that real freeway geometry carries`, `a tag key no safety rule is written on
+     cannot change any decision` - 54 issues. The invariant CLAUDE.md lists first is pinned by behaviour,
+     five named tests deep.
+
+  **THE RECORD.** agent/rv8b-pr82's round-8 entry is verbatim: the 5934-character
+  `.artifacts/fix8-pr82/reviewer_logentry.md` is a substring of the file at this head, starting at line 660.
+  B2's annotation is in place inside the round-7 entry and names `510ab0c` and `d89e721`. `git log -p
+  --unified=0 8afb913..82172dd -- <task file>` removes 23 lines in total and nothing else: 11 acceptance lines
+  (9 in `3cd5113`, 2 in `82172dd`) and the 12 lines of the two duplicate paragraphs in `0822134`. No other
+  dated line is touched. The fix entries' numbers check out against commands: `146 files changed, 120358
+  insertions(+), 778 deletions(-)` and 174 commits for the merge; `2:.build/` alone in `.gitignore` at
+  `8afb913`, and `.gitignore:8:.build-*/` for `.build-verify82/` here; the three paragraph copies at `8afb913`
+  byte-identical at 532-537, 539-544, 546-551 (`md5 9a6cc6bf` three times); `7809c64
+  2026-09-18T10:01:24-07:00`, `0822134 ...10:17:33-07:00`, `3cd5113 ...11:00:49-07:00` exactly as quoted; file
+  lengths 281 / 262 / 108 / 67 / 107 and `bash ops/lib/check-line-cap` -> `P-SRC-02: 48 Swift files tracked,
+  none over 300 lines`; `no origin/task/T-0104 at all` still true. The four subject md5s quoted in acceptance
+  line 2 are the md5s of `git show HEAD:` for those files.
+
+  **RECORDABLE, none of it blocking.**
+  1. The rule-level widening `unpavedSurfaces.contains(surface) || surface == "mud"` is unpinned, and I agree
+     it is recordable rather than blocking: the record states it in three places (the header of
+     `GatesSetBoundaryTests`, the fix entry's STILL OPEN, the PR body), and it is disclosed as the exact limit
+     of what an equality over set OBJECTS can pin. Every direction that IS closable by an equality or an
+     enumeration is closed - the six sets, `consideredTagKeys`, and every member of every set on both sides.
+     A value-level widening written into a rule is a claim about an open vocabulary; no equality reaches it.
+     What would: make the gate read ONLY through the set, so a rule-level `||` has nowhere to live; or bank
+     the gap as a `KNOWN_MISSED` entry - which would also make that arm execute for the first time, since
+     `KNOWN_MISSED` is empty at this head and `gates.py` says so.
+  2. `discover_test_files()` still matches `SegmentScoreTests.swift` on a comment. Disclosed, and it is the
+     safe direction: more files emptied in the vacuity proof, never fewer.
+  3. Nit: acceptance line 1 marks its cut with a parenthetical where the correction entry above sets the
+     convention `...`. It says the same thing and containment holds; noted, not a defect.
+  4. Not a finding, checked because CLAUDE.md's exec-bit rule looks like one: `ops/lib/check-exec-bits`
+     requires every `.py` under `ops/` to be **100644** (they are run as `python ops/x.py`, never
+     `./ops/x.py`), and `gates_corpus_sets.py` and `gates_tree.py` are 100644 like the eight files beside
+     them. P-OPS-01 is green.
+
+  **WHAT I DID NOT DO.** `--prove-vacuity`, above. `bash ops/test` - unchanged and red for `services/api`
+  (T-0040), disclosed; iOS untouched by this PR and not built. `bash ops/sane` - not re-run: its numbers are a
+  fact about this box at a past minute, and I added two worktrees to it myself. P-PROD-01 is still
+  `assertion: TODO` / `pending: T-0012` and T-0149 carries it; this PR is anchored by no pin and claims the
+  OPPOSITE of parity in source.
+
+  **TRANSITIONED.** `reviewer: agent/rv9-pr82`, `state: done`, `git mv` to `queue/done/`. `bash ops/queue-check`
+  bare -> `QUEUE OK (140 tasks)`, exit 0; the one lock file, `queue/LOCKS/floors.lock`, is held by T-0071 and
+  is not touched. Not merged: the PR is signed off, not landed.
