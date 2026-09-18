@@ -15,8 +15,9 @@ reviewer: agent/reviewer-23
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
-  - "cd services/etl && python -m pytest tests -> 457 passed in 135.28s (0:02:15), exit 0 (pyproject.toml already sets addopts = -q; passing -q again makes it -qq and suppresses the count line)"
-  - "cd services/etl && python -m pytest tests/test_tagfilter.py tests/test_counts.py tests/test_region.py -> 67 passed in 1.03s, exit 0 - the three files this task owns"
+  - "every line below was re-run at e688db6, the head of PR #26, and prints what is quoted here"
+  - "cd services/etl && python -m pytest tests -> 485 passed in 56.11s, exit 0 (457 before origin/task/T-0024 was merged back, which brought T-0025's 28 tests; 76.97s on the run before this one - the duration is this box's load, the count is not. pyproject.toml already sets addopts = -q; passing -q again makes it -qq and suppresses the count line)"
+  - "cd services/etl && python -m pytest tests/test_tagfilter.py tests/test_counts.py tests/test_region.py -> 67 passed in 0.27s, exit 0 - the three files this task owns"
   - "bash ops/lib/check-sane-exit-order -> SANE-EXIT-ORDER ok       documented=2,7,3,9,4,10 code=2,7,3,9,4,10 calls=15 file=<worktree>/ops/sane, exit 0"
   - "RED (no array): git show origin/main:ops/sane > .artifacts/t0024/sane-main.sh; bash ops/lib/check-sane-exit-order .artifacts/t0024/sane-main.sh -> SANE-EXIT-ORDER refuse   .artifacts/t0024/sane-main.sh declares no EXIT_ORDER=(...) array; code order is 2,4,7,3,9,10, exit 2"
   - "RED (the array against the pre-fix block order): the same file with EXIT_ORDER=(2 7 3 9 4 10) inserted after rc=0 -> SANE-EXIT-ORDER FAIL     fail() execution order does not match EXIT_ORDER / EXIT_ORDER (documented) = 2,7,3,9,4,10 / fail() calls, file order = 2,4,7,3,9,10 / first divergence at position 2: documented 7, code 4., exit 1"
@@ -612,3 +613,25 @@ run, and the whole point of the finding was that a plausible number is not a che
   have still never been re-derived by anyone but their author (needs a box with osmium); `ops/test` and the
   full `ops/check-pins` remain unrun here; P-SAFE-05 fails on this box for toolchain reasons. Back to
   `queue/review/` - unchanged - for a reviewer who is not the owner.
+
+- **2026-09-18, owner - one more merge, and the numbers re-measured after it.** `git push origin task/T-0024`
+  was refused: `the tip of your current branch is behind its remote counterpart`. `origin/task/T-0024` carried
+  **20** commits this worktree never had, ending in `1be23a6 Merge pull request #31 from
+  phineasfritsch/task/T-0025` - PR #31 was based on THIS branch, so T-0025's curvature-oracle work has been
+  part of PR #26's head for days. Merged it rather than force-pushing, so nothing of T-0025's is dropped:
+  `git diff --stat a544ee1 HEAD --name-only` -> ten paths, all curvature/oracle (`etl/oracle.py`,
+  `oracle_report.py`, `oracle_select.py`, `tests/fixtures/curvature_oracle.json`, four test files,
+  `ops/etl-curvature-fixture`, `ops/etl-oracle-report`) - none of them `ops/sane`, `region.json`, `counts.py`
+  or `tagfilter.py`. One conflict, another task's file: `queue/.../T-0025-...md`, a rename/delete plus add/add,
+  resolved to MAIN's state (`git checkout origin/main -- queue/done/T-0025-...md`), leaving one path for
+  T-0025 and no duplicate id anywhere. Pushed as `e688db6`.
+
+  Re-measured at `e688db6`, because that merge moved the test count: `cd services/etl && python -m pytest
+  tests` -> **485 passed**, rc=0 - `in 76.97s (0:01:16)` on the first run and `in 56.11s` on the acceptance
+  re-run of the same tree, so the duration is a fact about this box's load and the count is not. It was
+  **457** at `a544ee1`, before T-0025's 28 tests arrived; the three files this task owns -> **67 passed**
+  (1.03s, then 0.27s), unchanged. The acceptance block above
+  quotes this run. Everything else was re-run at `e688db6` too and printed what it printed at `a544ee1`:
+  `check-sane-exit-order` ok, the F1 reproduction exit 7, bounds-alone exit 4, the skip path exit 10,
+  `QUEUE OK`, and `PINS ... failed=1` with P-SAFE-05 the only failure. The `457` in the entry above is left
+  where it stands, as the value at the commit it describes.
