@@ -240,3 +240,15 @@ Check `queue/*/T-0112-*` and `queue/*/T-0050-*` for overlap before you start and
     this is run as `python <path>` exactly as the other generator is.
   * THE 300-LINE CAP IS STILL SWIFT-ONLY (`ops/lib/check-line-cap`, T-0058 open). Every file here is under
     it by measurement, not by the cap.
+- 2026-09-18T20:22:15Z agent/claude-opus-5: pushed 18c80df and opened PR #93 against main.
+  `gh pr view 93` -> `base=main head=task/T-0163 sha=18c80dfc6b9db783f9196b6491d0457bd91ffa88 state=OPEN`
+  and `mergeable=MERGEABLE state=BLOCKED files=8 additions=1656` (BLOCKED is checks-pending plus the review
+  requirement, not a conflict). `gh pr checks 93`, read ONCE as instructed: `core pending` and
+  `pins-source-only pending` in run 35390990872 - so CI is the first place `ops/test` and
+  `ops/check-pins` run for this branch, and nobody should read this task as having run them.
+  MAIN MOVED WHILE THIS BRANCH WAS OPEN: the branch was cut at 9939d39 and `origin/main` is now 0242421
+  (PRs #26 and #33 merged, T-0166 filed). The 8 changed files are this task's 7 plus this queue file; the
+  merge is clean. The `472 passed` baseline in the acceptance block is therefore a fact about 9939d39, not
+  about today's main - the same trap `ops/lib/check-pipe-consumers` records for its own file count - and
+  the number CI prints on the merge ref will be higher than 549 because main has since gained tests of its
+  own. Zero skips and the named tests are the parts that do not move.
