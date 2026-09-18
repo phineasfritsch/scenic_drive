@@ -5,7 +5,7 @@ state: claimed
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-08T00:11:07Z
-lease_expires_at: 2026-09-08T02:11:07Z
+lease_expires_at: 2026-09-08T08:00:00Z
 worktree: null
 branch: task/T-0065
 exclusive: []

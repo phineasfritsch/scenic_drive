@@ -30,6 +30,7 @@ KNOWN_LICENSES = (
     "CDLA-Permissive-2.0",   # Overture
     "Apache-2.0",            # Foursquare OS Places
     "CA-OpenData",           # State of California open data terms
+    "CC-BY-4.0",             # ESA WorldCover. Attribution required; carried in LICENSE-DATA.
 )
 
 

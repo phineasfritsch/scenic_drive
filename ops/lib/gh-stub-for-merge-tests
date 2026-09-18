@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# A deterministic stand-in for `gh`, used to exercise ops/merge's transient-state branches without racing
+# GitHub. ops/merge calls `gh repo view`, `gh pr view`, `gh api .../contents/queue/done` (only when the branch
+# names a task) and `gh pr merge`, so those are what it fakes.
+#
+#   STUB_STATE      what mergeStateStatus returns (default CLEAN)
+#   STUB_ROLLUP     the statusCheckRollup JSON array (default two successful checks)
+#   STUB_FLIP       if set, the FIRST call returns total=0/UNKNOWN and later calls return STUB_STATE/STUB_ROLLUP,
+#                   which is what a real PR looks like in the seconds after a push
+#   STUB_COUNT      path to a counter file used by STUB_FLIP
+#   STUB_HEAD_REF   what headRefName returns (default tmp/stub-no-task, i.e. the no-task case)
+#   STUB_DONE_NAMES filenames (newline-separated) that `contents/queue/done` reports present, i.e. what a
+#                   reviewer has signed off (default empty: no task is in queue/done/). Only consulted when
+#                   ops/merge's gate 1 finds a T-nnnn in STUB_HEAD_REF and asks the contents API about it.
+set -uo pipefail
+state="${STUB_STATE:-CLEAN}"
+# NOT `${STUB_ROLLUP:-[{...}]}`: bash brace-expands `{a,b}` inside the default, which silently shreds the JSON
+# into multiple words. That cost a debugging round - the stub looked broken in exactly the way a real bug would.
+if [[ -n "${STUB_ROLLUP:-}" ]]; then
+  rollup="$STUB_ROLLUP"
+else
+  rollup='[{"name":"core","c":"SUCCESS"},{"name":"pins-source-only","c":"SUCCESS"}]'
+fi
+
+if [[ -n "${STUB_FLIP:-}" ]]; then
+  # ops/merge asks for mergeStateStatus FIRST and statusCheckRollup SECOND within one loop iteration, and both
+  # must describe the SAME moment. So the counter advances on the SECOND call - the rollup - which means both
+  # reads in iteration 1 see the pre-increment value and agree that the PR is fresh: total=0 AND UNKNOWN.
+  #
+  # Two wrong versions preceded this one. Incrementing on both calls (reviewer-11) and then incrementing on the
+  # first call (reviewer-15) both left the two reads disagreeing, so the rollup had already "flipped" healthy
+  # while the state was still UNKNOWN - and the total==0 branch was never actually exercised, while the demo
+  # looked like it passed. A test double that silently tests something narrower than it claims is worse than
+  # no double at all.
+  counter="${STUB_COUNT:-/tmp/gh-stub-count}"
+  n=$(( $(cat "$counter" 2>/dev/null || echo 0) ))
+  case "$*" in *statusCheckRollup*) echo $((n + 1)) > "$counter";; esac
+  if [[ $n -lt 1 ]]; then state="UNKNOWN"; rollup="[]"; fi
+fi
+
+case "$*" in
+  *"repo view"*)                 echo "phineasfritsch/scenic_drive" ;;
+  *"pr view"*headRefName*)       echo "${STUB_HEAD_REF:-tmp/stub-no-task}" ;;
+  *"contents/queue/done"*)       printf '%s\n' "${STUB_DONE_NAMES:-}" ;;
+  *"pr view"*mergeStateStatus*)  echo "$state" ;;
+  *"pr view"*statusCheckRollup*) echo "$rollup" ;;
+  *"pr view"*state*)             echo "MERGED" ;;
+  *"pr merge"*)                  echo "stub: would merge" ;;
+  *) echo "gh-stub: unhandled: $*" >&2; exit 2 ;;
+esac
