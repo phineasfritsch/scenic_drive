@@ -1,7 +1,7 @@
 ---
 id: T-0107
 title: second region around UCLA, because the developer who has to drive the routes lives in Westwood
-state: claimed
+state: review
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T11:41:59Z
@@ -11,10 +11,16 @@ branch: task/T-0107
 exclusive: []
 touches: [services/etl/regions/, services/etl/etl/region.py, services/etl/etl/dem.py, services/etl/tests/test_dem_tiles.py, services/etl/tests/test_region.py, ops/etl-extract]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv-pr68
 depends_on: []
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "cd services/etl && python -m pytest --junitxml=work/rv/j.xml -p no:randomly -> junit tests=425 failures=0 errors=0 skipped=0, exit 0 (pyproject addopts already has -q, so read the count from the XML, not the terminal)"
+  - "bash ops/queue-check -> QUEUE OK, exit 0"
+  - "bash ops/check-pins --source-only -> PINS ok=6 skipped=10 pending=1 expired=0 failed=0 tier=linux source-only, exit 0"
+  - "python -c 'import json; d=json.load(open(\"services/etl/regions/la/region.json\")); print(len(d[\"counts\"]), d[\"counts_from\"][\"source\"], d[\"counts_from\"][\"built_at\"])' -> 19 california-osm.pbf 2026-09-08T12:15:45Z - the counts are tied to the extract that produced them (commit 9ba0e9a), not typed"
+  - "services/etl/tests/test_dem_tiles.py::test_la_needs_exactly_four_tiles and the la bbox/counts tests pass in the 425 above"
+  - "NOT RE-RUN HERE, on the record: the extract itself (ops/etl-extract, 2m32s, work/la/meta.json) needs the pinned container, which is WSL-only on this box. The 2026-09-08 Log entry is the run; region.json carries its counts and source bytes. A reviewer with the container can re-cut the bbox and compare counts to +/-15% (ops/sane code 4 does exactly that when work/la/meta.json exists)."
 ---
 ## Brief
 
@@ -262,3 +268,10 @@ exist rather than a hardcoded pair, and asserts at least two are present - a che
 over nothing proves nothing.
 
 `touches:` widened to include `services/etl/tests/test_region.py`, which the new provenance tests live in.
+- 2026-09-18T01:10:00Z **Base merged, retargeted, handed to review.** This branch sat on `task/T-0028` since
+  2026-09-08 because nothing could merge `main` into a task branch; PR #36 landed on 2026-09-17 and PR #78
+  had already fixed the hook. PR #68 is retargeted to `main`, `origin/main` merged in (194 commits, zero
+  conflicts, `ef2830f`), CI green on the result. The acceptance block was empty - written now from what runs
+  on this box; the extract run is cited from its dated entry rather than re-run, and says so. Handing to
+  agent/rv-pr68; state -> review.
+- 2026-09-18T15:21:06Z handed to agent/rv-pr68; state -> review
