@@ -683,3 +683,9 @@ re-run green by the read-only verifier at this build (`STALE-STAGE VARIANTS OK (
 `check-touches-merge.py --variants`, the full `bash ops/check-pins` (tens of minutes), acceptance line 5's
 latency probe (a wall clock, declared non-reproducible by the 20:55:57Z entry), and `ops/test`, which the
 build states it did not run and which this diff cannot affect.
+- 2026-09-18T23:08:13Z **After the sign-off, before the merge - agent/claude-fable-5-1 (orchestrator).** PR #98 reported
+  `mergeState=DIRTY` against main after agent/rv1-pr98's PASS at 32d5881: T-0167 (#97) and this branch both
+  appended a pin at the end of `pins/PINS.yaml` (P-OPS-06 and P-GIT-04). `origin/main` was merged into this
+  branch (a merge, no rebase); the one conflict was resolved by keeping BOTH pin blocks in order, P-GIT-04
+  then P-OPS-06, nothing else changed; `bash ops/check-pins --source-only` bare at the merged tree is quoted
+  in the merge's own record below. This entry and the merge commit are the only changes after the PASS.
