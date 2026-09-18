@@ -14,7 +14,15 @@ pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/check-pins]
-acceptance: []
+acceptance:
+  - "swift test --scratch-path .build/T0151 --filter SkylineRouteTests -> 8 tests: the helper against one degree of latitude and against a zero-distance NaN; seven pins; the seven literals; the Cañada leg slice; the per-leg order; the spacing bound; the bound needs the mid pin; the handoff URL. Ends `Test run with 8 tests in 1 suite passed`, exit 0"
+  - "swift test --scratch-path .build/T0151 -> `Test run with 258 tests in 33 suites passed`, exit 0 (the whole root package, including HandoffSourceTests whose allow-list this change had to be argued onto)"
+  - "RED, by name: the same --filter run with the mid-Cañada pin deleted from SkylineRoute.waypoints -> `Test no gap on the 280 -> Cañada -> 92 leg is wider than the bound recorded an issue at SkylineRouteTests.swift:192:9: Expectation failed: (widest -> 9681.899324888309) < (Self.canadaLegMaxSpacingMeters -> 6000.0)` and `Test run with 8 tests in 1 suite failed after 0.005 seconds with 6 issues`. The pin was put back; no part of the demonstration is in the commit"
+  - "gh workflow run ios-compile.yml --ref task/T-0151 -> run 35394012179, conclusion success, ONE dispatch, first try. gh run view 35394012179 --log contains `simulator-build build for the iOS Simulator 2026-09-18T20:56:21.0158350Z ** BUILD SUCCEEDED **`, and above it `Compiling SkylineRoute.swift` (target Handoff) and `Compiling SkylineHandoff.swift ... (in target FeatureScenicHome from project ScenicApp)`, so both changed Swift files were compiled and not merely present"
+  - "wc -l on the four touched Swift files -> 150 Sources/Handoff/SkylineRoute.swift, 226 Tests/HandoffTests/SkylineRouteTests.swift, 184 Tests/HandoffTests/HandoffSourceTests.swift, 78 apps/ios/.../SkylineHandoff.swift; all under CLAUDE.md's 300-line cap, one type per file, filename == type name"
+  - "gh pr checks (this branch's PR) -> filled in by the final commit, read ONCE as the task text instructs; see the last Log entry"
+  - "NOT RUN, on the record: `bash ops/check-pins` and `bash ops/test` were not run locally - the task text forbids it on this box (the default swift scratch path does not build in a worktree here), and `gh pr checks` is what reads them instead. No pin in pins/PINS.yaml is touched or added by this change (pins_affected: []), so nothing here is enforced by check-pins; the spacing bound is enforced by a test in the suite ops/test runs"
+  - "NOT RUN, on the record: nothing here has been on a device or in a simulator at runtime. ios-compile COMPILES for the iOS Simulator and runs no test; no Apple test target exists to run (apps/ios/Packages/ScenicApp/Package.swift says why). Nobody has driven this route. Whether Apple Maps in fact refuses the Edgewood Road shortcut given these seven pins is NOT demonstrated by anything in this PR - the test measures pin spacing, which is the proxy this repository can check"
 ---
 ## Brief
 
@@ -147,3 +155,43 @@ Depends on T-0141 (PR #88) landing; do not open a second PR on the same file whi
   type under `Sources/Handoff` is refused until somebody argues for it - so the argument is written into
   that list beside the entry rather than the entry being slipped in. `SkylineRoute` names no type the list
   did not already allow. Full suite after that: `√ Test run with 258 tests in 33 suites passed`.
+- 2026-09-18T20:54:57Z-20:56:39Z **ios-compile, one dispatch, green first try.** `gh workflow run
+  ios-compile.yml --ref task/T-0151` at 47f9f64 -> run **35394012179**, conclusion **success**. From
+  `gh run view 35394012179 --log`:
+
+      simulator-build	build for the iOS Simulator	2026-09-18T20:56:21.0158350Z ** BUILD SUCCEEDED **
+
+  The log carries `Compiling SkylineRoute.swift` (target `Handoff`, six lines across the two
+  architectures) and `SwiftCompile normal arm64 Compiling\ SkylineHandoff.swift
+  /Users/runner/work/scenic_drive/scenic_drive/apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/SkylineHandoff.swift
+  (in target 'FeatureScenicHome' from project 'ScenicApp')`, so the Apple side of this change was compiled
+  and not merely carried along. A grep for `error:` over the 1682-line log matches nothing. This is a
+  COMPILE and nothing more: the job runs no test, and no Apple test target exists for it to run.
+- 2026-09-18T20:57:05Z **Acceptance re-run, bare, exit codes captured.** `swift test --scratch-path
+  .build/T0151 --filter SkylineRouteTests` -> `√ Test run with 8 tests in 1 suite passed after 0.003
+  seconds`, exit 0. `swift test --scratch-path .build/T0151` -> `√ Test run with 258 tests in 33 suites
+  passed after 0.325 seconds`, exit 0. Neither was piped into anything before its status was read.
+
+  **STILL OPEN.**
+
+  1. **The bound is a proxy and is named as one.** What the product needs is "Apple Maps cannot leave
+     Cañada Road at Edgewood and rejoin CA-92 off 280". What the test checks is "no consecutive pair on
+     the Woodside -> CA-92 leg is more than 6000 m apart". The second implies a pin between Edgewood Road
+     and CA-92 only because the pins are where they are; it is not the same statement, and no test in this
+     repository can make the first one without a router. The 6000 m is a product choice, argued beside the
+     constant, not a measurement.
+  2. **Nothing has been driven, and nothing has run on a device.** ios-compile compiles; it does not
+     launch. Whether Apple Maps honours seven waypoints in this order on a real phone is unproven here.
+  3. **No pin covers any of this.** `pins_affected: []` is unchanged: the spacing bound and the
+     reverse-geocode rule live in a test, not in `pins/PINS.yaml`. A future task could pin "every
+     coordinate literal under `Sources/Handoff` has a way id beside it", which would be a structural
+     check; this task did not, because the rule it would encode ("the comment names the road the pin is
+     on") is exactly the kind of property CLAUDE.md forbids anchoring on a comment.
+  4. **`SkylineHandoff.destination` and `.waypoints` became computed properties** (`static var`, forwarding
+     to `SkylineRoute`) where they were `static let`. Behaviourally identical for two immutable constants;
+     noted because it is a diff a reviewer will see and it is not load-bearing.
+  5. **Bicycle Sunday's schedule is still unverified** - see ruling 6. Anyone testing the handoff on a
+     Sunday morning should check San Mateo County Parks before touching a coordinate.
+  6. **Untouched on purpose:** both `Package.swift` files (serial-only), `apps/ios/Packages/ScenicApp/Tests/`
+     (does not exist; it stays in `touches:` as the Brief wrote it, unused), `pins/`, and the four
+     coordinates carried over from T-0141, which were re-verified but not moved.
