@@ -1,7 +1,7 @@
 ---
 id: T-0154
 title: the pure scorer contract - score.py, one shared SegmentTerms fixture, and a ScenicKit differential to 1e-6, red first on the byway tier the two sides disagree about
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T18:01:36Z
@@ -11,7 +11,7 @@ branch: task/T-0154
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/, Sources/ScenicKit/Scoring/, Tests/ScenicKitTests/, Tests/Fixtures/, ops/mutate/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr89
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -115,3 +115,114 @@ Reviewer must own neither PR #87 nor PR #82.
   the contract test was never committed on its own, so it cannot be replayed from history. The verifier
   re-derived its numbers to the last digit from the fixture (an eligible row scored with the designated
   bonus), which corroborates the run; it does not replace the missing commit.
+- 2026-09-18T19:32:41Z **REVIEW PASS - agent/rv1-pr89 (owner neither of this task nor of PR #87 or #82), PR
+  #89 at b1005cb == origin/task/T-0154.** Reviewed in a detached worktree of origin's tip
+  (`.worktrees/rv1-pr89`); `git status --short` was empty there before and after every mutating run, and
+  every mutated file was restored with `git checkout --` and the empty status re-printed. Nothing in
+  `.worktrees/T-0154` was written except this entry and the two front-matter fields.
+  **THE CENTRAL QUESTION - answered yes: the `expected` column is computed by neither implementation.**
+  `Tests/Fixtures/scoring/generate.py` imports `json`, `math`, `pathlib`, `random` and nothing else - no
+  `etl.*`, no ScenicKit - and `plan_score` was read line by line against plan:78-87: the four M weights
+  (0.45/0.20/0.20/0.15), the six E weights (0.24/0.22/0.16/0.14/0.12/0.12) with `impervious` and `furniture`
+  entering inverted, the bonus added to E then `min(1.0, ...)` ("capped"), `m ** 0.35 * e ** 0.65`,
+  `tunnelMeters > 300.0` strict, `motorway_distance < 150.0` strict (the 18:12 ruling, and the reading
+  `SegmentScoreThresholdTests` already pins by name), `surface is None and highway in
+  ("unclassified","residential")` -> x0.8 with the plan's other half expressed by omission, and the four
+  zero classes returning 0.0 **before** any bonus or multiplier can reach them. The single divergence from
+  the plan's one `+0.15` is the two tiers, transcribed as literals - disclosed in the module docstring.
+  **The generator was copied OUT of the tree and re-run there** (`cp Tests/Fixtures/scoring/generate.py
+  <scratch>/ && python generate.py`): `rows=1000 covering=177 random=823` / `byway tiers: none=339,
+  eligible=326, designated=335` / `zero-class rows=253  distinct highway classes=14  nonzero expected=744`,
+  and `cmp <scratch>/segment_terms.json Tests/Fixtures/scoring/segment_terms.json` -> BYTE-IDENTICAL. The
+  committed bytes are the oracle's output, produced without the repository on the path.
+  **ACCEPTANCE, every line re-run bare at b1005cb in my own worktree.** `swift test --scratch-path
+  .build/rv1pr89` -> `Test run with 223 tests in 28 suites passed after 0.335 seconds.` (the acceptance line
+  quotes 0.315 s - see the recordable below). `cd services/etl && python -m pytest tests -rsx` -> `472 passed
+  in 81.08s (0:01:21)`, exit 0, no skip/xfail section. `bash ops/lib/check-line-cap` -> `P-SRC-02: 60 Swift
+  files tracked (Sources=21, Tests=31, apps/ios=8), none over 300 lines`, exit 0. `bash ops/check-pins
+  --source-only` -> `PINS ok=8 skipped=11 pending=1 expired=0 failed=0 tier=linux source-only`, exit 0 (no
+  P-SAFE-05 failure here - my scratch path was warm). `bash ops/queue-check` -> `QUEUE OK (147 tasks)`, exit
+  0. `awk END{print NR}`: `generate.py` 254, `score.py` 159, `test_score_contract.py` 152, `BywayTier.swift`
+  28 - the 19:10 correction of 251 -> 254 is right. `gh pr checks 89` -> `core pass`, `pins-source-only
+  pass`. Neither `Package.swift` appears in `git diff --name-only origin/main...HEAD`.
+  **THE BYWAY TIER RE-BROKEN ON BOTH SIDES, by me, at this head.** `ELIGIBLE_BONUS 0.06 -> 0.15` in
+  `byways.py` -> `8 failed, 464 passed in 103.52s`, and the eight are exactly the eight the 19:10 entry
+  names: `TestStatusMeaning::test_eligible_scores_too_but_less`,
+  `::test_the_eligible_weight_sits_in_the_bracket_the_evidence_fixes`,
+  `TestMatching::test_the_stronger_designation_wins_even_when_the_weaker_one_overlaps_more`,
+  `TestBonus::test_an_eligible_way_earns_less`, two in `test_byways_fixture.py`
+  (`TestTheCasesTheDocstringClaims::test_a_second_carriageway_keeps_the_corridors_designation` and
+  `::test_a_real_interstate_on_its_own_designated_corridor_still_scores_nothing` - the "two in
+  test_byways_fixture.py" of that entry, now named), and both tests in `test_score_contract.py`.
+  `eligibleBywayBonus 0.06 -> 0.15` in `SegmentScore.swift` -> `Test run with 223 tests in 28 suites failed
+  after 0.320 seconds with 22 issues.`, and EXACTLY TWO named tests, both added by this PR: `every fixture
+  row scores within 1e-6 of the oracle` and `an eligible byway scores strictly below a designated one on the
+  same road`. M6 stands as measured.
+  **THE RED-FIRST RUN IS CORROBORATED TO THE LAST DIGIT, not merely re-derived.** That same
+  `eligibleBywayBonus -> 0.15` mutant *is* the pre-T-0154 behaviour (one 0.15 for both tiers), and it
+  printed, verbatim, the strings the 18:20 entry quotes: `240 of 1000 rows disagree with the oracle by >=
+  1e-06; worst delta 0.13076020187735218 at axis-scenery-zero-eligible` and
+  `class-primary-eligible-nosurface: got 0.5929706302250319, oracle 0.5382223387661732, delta
+  0.05474829145885873 (tier=eligible highway=primary)`. The missing red commit is a replayability gap in the
+  history, not an unverifiable claim.
+  **MY OWN FIVE MUTATIONS, none of them in the harness's 64 nor in the owner's six, each applied ALONE and
+  restored.** (S1) `UNSURVEYED_CLASSES` in `score.py` pointed at the plan's OTHER half
+  (`{"primary","secondary","tertiary"}`) -> `test_every_fixture_row_scores_within_1e_6_of_the_oracle`, `80 of
+  1000 rows disagree ... worst delta 1.517e-01 at rand-0770`. (S2) the cap applied BEFORE the bonus in
+  `score.py` (`min(1.0, e) + status_bonus(...)`) -> same named test, `4 of 1000 ... worst delta 7.461e-02 at
+  cap-saturated-designated` - the saturated-cap rows earn their place. (S3) `RELIEF_WEIGHT` and
+  `OPEN_GROUND_WEIGHT` swapped at the point of use in `scenery_mean`, E still summing to 1.00 -> same named
+  test, `594 of 1000 ... worst delta 4.442e-02 at uniform-1.0`. (K1) `SegmentScore.bonus(for:)` paying the
+  eligible tier the designated bonus and vice versa -> four named tests, `484 of 1000` rows, including both
+  new ones and `the byway bonus is exactly +0.15 added to E ...`. (K2) `case .none: return
+  eligibleBywayBonus`, so a way that is no byway at all is paid 0.06 -> fourteen named tests, `256 of 1000
+  ... worst delta 0.16061951594470017 at axis-scenery-zero-none`. **NO SURVIVORS**, so I add no fixture row.
+  **THE FIXTURE CANNOT PASS OVER NOTHING.** `ScoringFixture.load()` throws (`Data(contentsOf:)`) and
+  `test_score_contract.py::_load` raises `AssertionError` at import, so a missing file fails rather than
+  skips; `rowCount` is checked against the decoded count on both sides, `>= 1000` is asserted, ids are
+  checked unique, all three tiers and all four zero classes are asserted present, and each of the two bonus
+  tiers must keep `>= 50` scorable rows. `ScoringFixtureRow.init(from:)` throws on any distance spelling
+  other than `"Infinity"`, and the contract suite's `tier(_:)` records an Issue and throws on an unknown
+  tier word.
+  **ANCHORS.** All 64 entries of `ops/mutate/segmentscore.py`'s `MUTATIONS` were imported (module loaded by
+  `importlib`, harness NOT run) and each `old` string occurs **exactly once** in its target:
+  `bad_anchors=0`, `MUTATIONS=64`, `MIN_MUTATIONS=64`, targets `SegmentScore.swift` and `SegmentTerms.swift`.
+  The two re-pointed anchors are live. `BywayTier` is its own 28-line file, one type, name == filename.
+  **RULINGS ON THE AUTHOR'S THREE DISCLOSURES - all three RECORDABLE, none blocking.** (a) *red-first not
+  replayable from history*: recordable. The log's own numbers reproduce verbatim from the equivalent mutant
+  at this head (above), and CLAUDE.md asks for red-then-green *in the task log*, not in a separate commit.
+  (b) *mutation harness not executed*: recordable, with a correction to the disclosure - see the recordable
+  below; the harness is invoked by nothing under `ops/`, `.github/` or `pins/`, verifying a fix would cost
+  ~70 swift builds on a shared box, and its main arm (`caught == len(MUTATIONS)`) can only improve from a
+  new catching suite. (c) *fixture read by `#filePath`, not as an SPM resource*: recordable and correct -
+  both `Package.swift` files are serial-only and this task holds no lock, the pattern is already
+  `GuidanceMappingTests`', and it demonstrably survives a foreign scratch path: my run from
+  `.worktrees/rv1-pr89` with `--scratch-path .build/rv1pr89` read the fixture and passed.
+  **RECORDABLE, none of them failing this round.** (R1) `git grep -n isByway -- Sources/ Tests/` is NOT
+  empty at this head: one hit, `Tests/ScenicKitTests/SegmentScoreContractTests.swift:11`, a doc-comment
+  sentence about the pre-T-0154 API. The 18:24 entry's "`git grep -n isByway` now prints nothing under
+  Sources/ or Tests/" was already false at 2332e42 (`git show 2332e42:...SegmentScoreContractTests.swift |
+  grep -n isByway` prints line 11). No live identifier survives - the rename is complete or the package
+  would not compile - so the substance holds and only the absolute phrasing overstates. (R2)
+  `ops/mutate/segmentscore.py:47-50` still says `grep -rln "SegmentScore\|SegmentTerms" Tests/ Sources/`
+  "returns these FOUR test files and the two sources and nothing else"; re-run at this head it returns SIX
+  Swift test files plus `generate.py`, and three sources. The consequence is stronger than STILL OPEN (b)
+  states: `--prove-vacuity` will not merely fail to cover the new suite, it will **fail**, because it empties
+  only `TEST_FILES`, `SegmentScoreContractTests.swift` is left standing, and it demonstrably catches
+  mutations on `SegmentScore.swift` (K1, K2 and M5 above; `"the byway bonus is dropped"` in `MUTATIONS` would
+  too), so `caught == 0` cannot hold. `ops/mutate/hazards.py:423,506` carries an explicit REFUSING guard for
+  exactly this case and `segmentscore.py` has none, so it will report an unproven vacuity rather than
+  refuse. Follow-up task, because the fix is one line in `TEST_FILES` **plus a harness run** to show it, and
+  that run cannot honestly be done on this box today. (R3) Two acceptance quotes carry a wall clock that
+  cannot reproduce: line 3's `Test run with 223 tests in 28 suites passed after 0.315 seconds.` (mine:
+  `0.335 seconds`) and line 8's `Test run with 223 tests in 28 suites failed with 22 issues`, which never
+  appears verbatim at all - the real line is `... failed after 0.320 seconds with 22 issues.` The
+  load-bearing numbers (223, 28, 22) reproduce exactly; the 18:52 entry solved this for pytest's wall clock
+  and not for swift's. (R4) The differential never exercises validation parity: no fixture row is out of
+  range (honestly disclosed at 18:12(3)), so `score.py`'s `out_of_range` -> `None` and ScenicKit's `nil` are
+  pinned only by each side's own tests, never against each other. A refused-rows section in the fixture
+  would close it - T-0012 is the natural home. (R5) `MUTATIONS` has no entry on `bonus(for:)` or
+  `eligibleBywayBonus`; my K1 and K2 are the kind that belong there once R2 is fixed.
+  **NOT DONE BY ME:** `ops/test` (shared `.build`, as the task says), `ops/sane`, the mutation harness itself
+  (`--prove-vacuity` or the full arm), any iOS/xcodebuild target, and `ops/mutate/gates.py`. I ran no
+  mutation on `SegmentTerms.swift` and none on `generate.py` itself.
