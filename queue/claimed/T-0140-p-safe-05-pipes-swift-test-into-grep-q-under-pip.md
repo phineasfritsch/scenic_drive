@@ -220,3 +220,14 @@ done/" and refuses a merge that should land.
   **GREEN, pasted from the runs:** `PIPE-CONSUMERS OK: no gate decides with 'producer | grep -q' (41 scanned,
   42 tracked, floor 42)` exit 0; `SECRET-SCAN OK (7 cases)`; `TOUCHES-MERGE OK (10 cases)`. `check-pins
   --source-only` and `queue-check` are quoted in the commit that carries this entry.
+- 2026-09-18T16:50:00Z **Merge of main, and the scan's first live catch - agent/claude-fable-5-1.** PR #87 was
+  DIRTY against main: both sides appended pins at the same place (P-SEC-01 and P-OPS-03 here, P-GIT-03 on
+  main), resolved by keeping all three (`.artifacts/resolve-pins.py`). With main merged, `check-pins
+  --source-only` went red on P-OPS-03 itself: `PIPE-CONSUMERS: ops/sane:45:    0) if printf '%s' "$first" |
+  grep -q 'skip'; then ...` - `PIPE-CONSUMERS FAIL: 1 pipeline(s) ... (46 scanned, 47 tracked, floor 42)`. A
+  new instance of the class, landed on main by 673bce8 (T-0024, ops/sane check 4) after this branch forked
+  at ffa9b6c. Changed to `grep 'skip' >/dev/null` in the merge commit (`ops/sane` is in touches:). That is
+  the pin doing what it says: the shape came back on main and could not merge past it. The floor at 42 also
+  earned its keep here - 47 tracked after the merge, and an equality would have refused for the wrong
+  reason. Gate outputs after the fix are quoted in the merge commit.
+

@@ -30,13 +30,31 @@ class TestRealManifest:
     def test_the_manifest_is_actually_tracked_by_git(self):
         """The three tests above passed locally and failed in CI: .gitignore had `services/etl/inputs/`, so
         the manifest existed on the author's disk and in no clone. A file the suite reads must be IN the repo -
-        an ignore rule that swallows it turns every reader into a local-only pass."""
+        an ignore rule that swallows it turns every reader into a local-only pass.
+
+        The repo root is asked of git, not computed as `parents[3]`. That arithmetic is right in a checkout
+        and wrong everywhere else: run inside the ETL image, where only services/etl is mounted, it raised
+        `IndexError: 3` from pathlib rather than saying anything about the manifest. Found by T-0038 running
+        this suite in the container the pipeline actually uses.
+        """
         rel = "services/etl/inputs/manifest.yaml"
-        root = Path(__file__).resolve().parents[3]
-        tracked = subprocess.run(["git", "-C", str(root), "ls-files", "--error-unmatch", rel],
+        try:
+            top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=Path(__file__).resolve().parent,
+                                 capture_output=True, text=True)
+        except FileNotFoundError as e:
+            # No git binary at all - the ETL image does not ship one. Raised as FileNotFoundError, not a
+            # non-zero return code, so it needs its own arm; without it the suite died with a traceback.
+            pytest.skip(f"git is not installed here, cannot check tracking: {e}")
+        if top.returncode != 0:
+            # No work tree here, so "is it committed?" is not a question this process can answer. Skip
+            # LOUDLY rather than inventing a verdict - and note that ops/test always runs in a checkout, so
+            # this branch is never the one CI takes.
+            pytest.skip(f"not inside a git work tree, cannot check tracking: {top.stderr.strip() or 'no git'}")
+        root = top.stdout.strip()
+        tracked = subprocess.run(["git", "-C", root, "ls-files", "--error-unmatch", rel],
                                  capture_output=True, text=True)
         assert tracked.returncode == 0, f"{rel} is not tracked by git: {tracked.stderr.strip()}"
-        ignored = subprocess.run(["git", "-C", str(root), "check-ignore", "-q", rel],
+        ignored = subprocess.run(["git", "-C", root, "check-ignore", "-q", rel],
                                  capture_output=True, text=True)
         assert ignored.returncode != 0, f"{rel} is tracked but ALSO matched by a .gitignore rule"
 
