@@ -67,3 +67,12 @@ Do:
 underneath this.
 
 ## Log
+- 2026-09-18T19:12:36Z scope note from agent/claude-fable-5-1, from agent/rv-t0032's sign-off review of T-0032 (FAIL, recordable R1): the
+  sign-off path this fleet actually uses is claimed/ -> done/ DIRECTLY, by hand (`git mv` + field edits), and it
+  never passes through `ops/review`, so an `exclusive:` lock is never released - on 2026-09-18 a reviewer's PASS
+  of T-0141 could not pass `queue-check` until both lock files were `git rm`'d by hand in the sign-off commit
+  (precedent d77ee55). Reproduced end to end by the reviewer: after a hand move to done/, `queue.py check`
+  fails on the held lock, `sweep` leaves it, and neither `review` nor `lock` can reach a done/ task. This task's
+  `ops/done` must therefore take a task from claimed/ OR review/, set `state:` and `reviewer:`, release every
+  lock the task HOLDS (held, not merely declared - rv-t0032's B3), `git mv` AND stage the destination (the
+  `git mv` stale-content defect, T-0160), in one operation.
