@@ -1,7 +1,7 @@
 ---
 id: T-0116
 title: ScenicKit Budget: the lambda bisection that makes the extra-time budget a ceiling instead of a hope
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: d217767a
 claimed_at: 2026-09-08T13:32:03Z
@@ -11,7 +11,7 @@ branch: task/T-0116
 exclusive: []
 touches: [Sources/ScenicKit/Budget/, Tests/ScenicKitTests/, ops/mutate/, .gitignore]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv9b-pr71
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -706,3 +706,66 @@ public initializer and `extraTime` had never been handed a number the search its
   (need 0) and MISSED=66 of 66`; `restored: 2e420d88, 4b3c09f7, c0db374c`; `git status --short` empty after.
   The prediction happened to be right; the order was wrong, and this line is where that is said.
 
+- 2026-09-18T17:00:00Z ROUND 9 - agent/rv9b-pr71 reviewing PR #71 at `39b9ed9`: **PASS.** Own throwaway
+  worktrees, detached at the PR head, removed at the end; every subject and suite hashed against
+  `git show <sha>:<path>` before measuring and after every mutating run (2e420d88 / 4b3c09f7 / c0db374c,
+  test suites unchanged). PR head == `origin/task/T-0116` == `.worktrees/T-0116` HEAD, so F-R8-1 is closed by
+  observation and not by the Log's word for it. **All nine acceptance lines reproduce character for
+  character**, each exit code taken from the process and never through a pipe: `swift test --scratch-path
+  .build-T0116` -> `Test run with 56 tests in 8 suites passed`, exit 0; `python ops/mutate/budget.py` ->
+  `caught by a named test: 66 of 66   (trapped 0, compile-only 0, MISSED 0, skipped 0)`, exit 0, with
+  `subjects compared with git show HEAD: 3 of 3 match`, all four EQUIVALENT mutants MISSED and the KNOWN-GAP
+  arm empty; `--prove-vacuity` -> `VACUITY PROOF OK: with no tests present, caught=0 (need 0) and MISSED=66
+  of 66`, exit 0; `--prove-floor`, `--prove-dirty`, `--prove-blind` all OK, exit 0; and the three RED lines
+  by the procedure each names - the four-line stand-in into `prove_blind` -> `BLIND PROOF FAILED:
+  differs=False, names every uncompared subject=False, subprocess restored=True`, exit 1; the sentinel
+  present -> `REFUSING: ...budget-mutation-in-flight exists...`, exit 2, with `.build-mutate-budget` NOT
+  created; the floor one-liner verbatim -> `FLOOR PROOF FAILED: emptied -> refused=True, one deleted ->
+  refused=False, real -> accepted=True`, exit 1.
+- 2026-09-18T17:00:00Z **F-R8-4 re-broken, and the round-8 fixture demonstrated LOAD-BEARING rather than
+  taken from the entry that claims it.** All three round-8 mutations applied by hand to a pristine copy, one
+  at a time, the failing test read by NAME: `usedBudget ? min(duration, ceiling) : duration`,
+  `usedBudget ? min(duration - fastest, ceiling - fastest) : duration - fastest` and
+  `min(duration - fastest, ceiling)` each `exit=1` failing `the outcome stores the duration it was given,
+  never the ceiling` - the test the `overAndUsed` fixture lives in, and no other. Then the converse, in a
+  third worktree with `BudgetOutcomeTests.swift` reverted to `b1f4c67` (the 11 lines the round-8 commit
+  added, and no @Test, which is why the count stays 56): control green, and **all three SURVIVE all 56
+  tests**, `exit=0 FAILED: (none)`. The Log's *"survived all 56"* is therefore a measurement here too, and
+  the new assertions witness what they claim.
+- 2026-09-18T17:00:00Z **Six mutations nobody wrote, on LambdaSearch and BudgetOutcome: no survivors.**
+  Control green on pristine (56/56), red under each mutation alone, restored and re-hashed after each.
+  `while evaluations <= maxEvaluations` -> `the default search spends exactly the evaluations it is
+  configured for` (and 11 more); `lambda: hi` in place of `lambda: winner.lambda` -> `the returned duration
+  is the one the router gave for the returned lambda, not an estimate` (and 11 more);
+  `monotonicityViolated: false` -> `a violation among the sampled lambdas is reported` and `a violation lying
+  entirely between two over-ceiling samples is still reported`; `usedBudget: winner.duration > fastest` ->
+  `usedBudget is true at exactly half the budget and false just under it` (and 3 more); `extraTime` as
+  `ceiling - fastest` -> `extraTime keeps the fraction of a second the route was bought at` (and 2 more);
+  the monotonicity scan calling a TIE a violation -> `a non-monotone router cannot breach the ceiling, even
+  when the dip is never sampled`. Every one of the twelve mutations run this round is killed by an
+  assertion, not by an exit code.
+- 2026-09-18T17:00:00Z **Harness attacked at the three claims the --prove-* modes make, read from what they
+  do and not from what they say.** `MIN_MUTATIONS = 66` is a literal and is the exact composed length -
+  `len(_CORE) 39 + len(BOUNDARY_MUTATIONS) 27 = len(MUTATIONS) 66`, `MIN_EQUIVALENT = 4 == len(EQUIVALENT)` -
+  so deleting one entry from EITHER file refuses, which the floor's middle arm demonstrates on a
+  `BOUNDARY_MUTATIONS` entry. Empty population: `budget.MUTATIONS=[]` -> `POPULATION FLOOR: MUTATIONS has 0,
+  floor is 66`, **exit 2 and no scratch directory created**, so the refusal costs no build. Stale anchor: the
+  shipped driver with one entry whose `old` is not in the subject (builds stubbed, EQUIVALENT emptied, so
+  nothing is written to disk) -> `SKIP ... anchor not found - harness is stale`, `caught by a named test: 0
+  of 1 (... skipped 1)`, **exit 1** - SKIP is its own bucket and never folded into MISSED, which is what
+  makes a stale population fail loudly instead of reading as a clean sheet.
+- 2026-09-18T17:00:00Z **The record.** Every number in rounds 7, 8 and the 16:30 entry matches a command or a
+  commit: `MIN_MUTATIONS` 55 -> 63 in `b1f4c67` and 63 -> 66 in `d621877` (`git log -L45,45`), eight
+  `budget_boundaries.py` entries in the first and three in the second, `b1f4c67` touching the task file zero
+  times (which is F-R8-3 itself), and the fixtures the entries describe present as described
+  (`overCeiling.extraTime(overFastest: 1800) == 3200`, `overAndUsed` 6000 / 4200, `1801` over `1800.5 ==
+  0.5`, `everyFieldIsStoredAsGiven` pinning lambda 9 and -1, evaluations 20 and 0). The late entry is dated
+  as late and says so in its first line. **No dated entry was edited in any of the three commits**: `d621877`
+  deletes exactly three lines from the task file and all three are acceptance lines being renumbered;
+  `39b9ed9` is +9 -0, a pure append. Two observations, neither blocking and neither a finding: the round-8
+  entry is stamped `04:30:00Z` against a commit at `15:59Z` and the 16:30 entry `16:30:00Z` against a commit
+  at `16:22Z` - this file rounds its stamps to the half hour throughout, and no claim rests on either; and
+  `LambdaSearchTests.swift` is now at exactly 300 lines, which passes `ops/lib/check-line-cap` (`-gt 300`)
+  with zero headroom, so the next test added there forces a split.
+- 2026-09-18T17:00:00Z Nothing in the PR was changed by this review; `git status --short` in
+  `.worktrees/T-0116` was empty before this transition and this commit moves the task file alone.
