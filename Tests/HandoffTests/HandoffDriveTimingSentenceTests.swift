@@ -30,41 +30,52 @@ struct HandoffDriveTimingSentenceTests {
     static let roads = "Sunset Boulevard west, PCH north, Topanga Canyon Boulevard up."
     static let straightLine = "About 29 miles as the crow flies, pin to pin. The roads are longer."
 
+    /// Whether a rendered sentence carries a figure. A digit is the only part of "nobody has timed this
+    /// drive" a machine can decide; the words are the reviewer's.
+    static func carriesADigit(_ sentence: String) -> Bool {
+        for character in sentence where character.isNumber {
+            return true
+        }
+        return false
+    }
+
     // MARK: - The words
 
     @Test("the home sentence carries no digit, for every drive", arguments: HandoffDrive.allCases)
     func theHomeSentenceCarriesNoNumber(drive: HandoffDrive) {
         let sentence = drive.timingSentence
-        #expect(!sentence.contains(where: { $0.isNumber }),
-                "a figure nobody in this repository has measured: \(sentence)")
+        let digits = Self.carriesADigit(sentence)
+        #expect(digits == false, "a figure nobody in this repository has measured: \(sentence)")
     }
 
     @Test("the failure card's sentence carries no digit, for every drive",
           arguments: HandoffDrive.allCases)
     func theCardSentenceCarriesNoNumber(drive: HandoffDrive) {
         let sentence = drive.failureTimingSentence
-        #expect(!sentence.contains(where: { $0.isNumber }),
-                "a figure nobody in this repository has measured: \(sentence)")
+        let digits = Self.carriesADigit(sentence)
+        #expect(digits == false, "a figure nobody in this repository has measured: \(sentence)")
     }
 
     @Test("the card's sentence is no drive's home sentence", arguments: HandoffDrive.allCases)
     func theCardSentenceIsNotAHomeSentence(drive: HandoffDrive) {
         let card = drive.failureTimingSentence
         #expect(card != drive.timingSentence, "both surfaces say the same thing: \(card)")
-        for other in HandoffDrive.allCases {
-            #expect(card != other.timingSentence,
-                    "the failure card says \(other)'s home sentence: \(card)")
+        var clash = ""
+        for other in HandoffDrive.allCases where other.timingSentence == card {
+            clash = other.rawValue
         }
+        #expect(clash == "", "the failure card says \(clash)'s home sentence: \(card)")
     }
 
     @Test("the promise of a real time lives on the home surface and never on the card",
           arguments: HandoffDrive.allCases)
     func theCardSentenceMakesNoTimePromise(drive: HandoffDrive) {
-        #expect(drive.timingSentence.contains(HandoffDrive.realTimePromise),
-                "the home sentence never says where the real number comes from: \(drive.timingSentence)")
-        #expect(!drive.failureTimingSentence.contains(HandoffDrive.realTimePromise),
-                "the card promises a time from the app that just refused to open: "
-                    + drive.failureTimingSentence)
+        let home = drive.timingSentence
+        let card = drive.failureTimingSentence
+        let homePromises = home.contains(HandoffDrive.realTimePromise)
+        let cardPromises = card.contains(HandoffDrive.realTimePromise)
+        #expect(homePromises == true, "the home sentence never says where the number comes from: \(home)")
+        #expect(cardPromises == false, "the card promises a time from the app that refused to open: \(card)")
     }
 
     // MARK: - The paste, composed the way the card composes it
@@ -80,9 +91,10 @@ struct HandoffDriveTimingSentenceTests {
                                              timing: drive.timingSentence)
         let lines = payload.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         let opened = try drive.directions.url().absoluteString
+        let first = try #require(lines.first)
+        let last = try #require(lines.last)
         #expect(lines.count == 4, "got \(lines)")
-        #expect(lines.first == opened, "the paste opens with \(lines.first ?? "nothing"), not \(opened)")
-        #expect(lines.last == drive.timingSentence,
-                "the paste ends with \(lines.last ?? "nothing"), not this drive's home sentence")
+        #expect(first == opened, "the paste opens with \(first), not \(opened)")
+        #expect(last == drive.timingSentence, "the paste ends with \(last), not this drive's sentence")
     }
 }
