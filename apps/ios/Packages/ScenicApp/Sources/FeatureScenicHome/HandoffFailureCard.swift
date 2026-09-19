@@ -50,15 +50,29 @@ struct HandoffFailureCard: View {
     /// UI test finds one `home.error.copy` either way.
     @State private var hasCopied = false
 
-    /// What the Copy button puts on the clipboard: the roads, the straight line, the timing line, one
-    /// per line, in the order the screen shows them.
+    /// This surface's OWN timing sentence.
     ///
-    /// The timing line travels with the distance on purpose. A paste has no screen above it to carry
-    /// the qualification, and a bare "112 km" in a message is read as an hour and a half - the
-    /// unmeasured claim this app refuses to make. The strings are `DriveFacts`' own, so what is pasted
-    /// and what is rendered cannot drift apart.
+    /// `DriveFacts.timing(for:)` ends "Apple Maps gives you the real time when it opens", which is
+    /// exactly the promise this card cannot keep: it is on screen because Apple Maps did not open. So
+    /// the two surfaces say different things, and the one sentence that served both is gone.
+    static let timingNote = "Apple Maps did not open, so nothing here can promise a time."
+
+    /// What the Copy button puts on the clipboard: THE URL FIRST, then the roads, the straight line
+    /// and the timing sentence, one per line.
+    ///
+    /// The whole body is one call to `HandoffDrive.clipboardPayload`, which builds the URL from the
+    /// same `AppleMapsDirections` `SkylineHandoff.open(` leaves through - the pasted link and the
+    /// tapped link are one construction over one drive, and `HandoffDriveClipboardPayloadTests` is
+    /// what holds the order on Linux, where this file has no compiler and no test bundle.
+    ///
+    /// The paste carries the HOME screen's timing sentence, not `timingNote`: it travels to somebody
+    /// who will open Maps themselves from the first line, and "Apple Maps did not open" would be this
+    /// phone's failure reported as theirs. The distance never travels without it - a bare distance in
+    /// a message is read as an ETA.
     var clipboardText: String {
-        [roadList, DriveFacts.straightLine(for: drive), DriveFacts.timing].joined(separator: "\n")
+        drive.clipboardPayload(roadList: roadList,
+                               straightLine: DriveFacts.straightLine(for: drive),
+                               timing: DriveFacts.timing(for: drive))
     }
 
     var body: some View {
@@ -74,6 +88,12 @@ struct HandoffFailureCard: View {
                 .foregroundStyle(DesignTokens.fg)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("home.error.route")
+
+            Text(Self.timingNote)
+                .font(.subheadline)
+                .foregroundStyle(DesignTokens.fgMuted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("home.error.timing")
 
             HStack(spacing: 12) {
                 copyButton
@@ -98,7 +118,10 @@ struct HandoffFailureCard: View {
             Clipboard.copy(clipboardText)
             hasCopied = true
         } label: {
-            Text(hasCopied ? "Copied" : "Copy the roads")
+            // NAMES THE PAYLOAD (T-0202). "Copy the roads" was true of three lines of prose and is
+            // false of a payload whose first line is the Apple Maps link; a reader who is told what
+            // lands on the clipboard knows where to paste it.
+            Text(hasCopied ? "Copied" : "Copy link + roads")
                 .font(.headline)
                 .foregroundStyle(DesignTokens.onPrimary)
                 .fixedSize(horizontal: false, vertical: true)

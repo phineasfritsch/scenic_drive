@@ -114,10 +114,11 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
                                roadList: String,
                                straightLine: String,
                                timing: String) -> String {
-        var lines: [String] = [roadList, straightLine, timing]
+        var lines: [String] = []
         if let mapsURL {
             lines.append(mapsURL.absoluteString)
         }
+        lines.append(contentsOf: [roadList, straightLine, timing])
         return lines.joined(separator: "\n")
     }
 }

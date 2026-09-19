@@ -39,12 +39,32 @@ struct DriveFacts: View {
     /// `StraightLineDistanceTests` and `SantaMonicaMountainsChainTests` are what refuse a pin that
     /// moves more than a kilometre without the number being looked at again.
     static func straightLine(for drive: HandoffDrive) -> String {
-        "Straight line through the pins: \(StraightLineDistance.wholeKilometers(for: drive)) km. The roads are longer."
+        "About \(StraightLineDistance.wholeMiles(for: drive)) miles as the crow flies, pin to pin. The roads are longer."
     }
 
-    /// The honest timing line, verbatim. A string, never a number, and the same sentence for both
-    /// drives: nobody has timed either.
-    static let timing = "No timing in this build."
+    /// What KIND of drive this is, in words, per drive - and where the real time comes from.
+    ///
+    /// NO NUMBER. Nobody has driven either route and nothing in this repository has timed one, so a
+    /// figure here would be invented. What can be said honestly is the shape of the outing, which is
+    /// the question a reader with 25 minutes is actually asking, and that the answer with minutes in
+    /// it arrives one tap away in Apple Maps.
+    ///
+    /// Per drive, because the two are not the same outing: the Peninsula loop's straight line is more
+    /// than twice the LA loop's (112 km of chain against 47), so whatever the LA loop is, that one is
+    /// longer. The comparison is the only claim made and it is a comparison of measured lines, not of
+    /// clocks.
+    ///
+    /// The failure card does NOT render this sentence: its second half promises a time from an app
+    /// that just refused to open. `HandoffFailureCard.timingNote` is that surface's own sentence.
+    static func timing(for drive: HandoffDrive) -> String {
+        switch drive {
+        case .santaMonicaMountains:
+            return "Plan an afternoon, not a commute. Apple Maps gives you the real time when it opens."
+        case .skyline:
+            return "Plan a long afternoon, not a commute - this one runs further than the LA loop. "
+                + "Apple Maps gives you the real time when it opens."
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -54,7 +74,7 @@ struct DriveFacts: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("home.distance")
 
-            Text(Self.timing)
+            Text(Self.timing(for: drive))
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)

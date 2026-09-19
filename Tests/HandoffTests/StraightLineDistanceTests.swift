@@ -43,7 +43,7 @@ struct StraightLineDistanceTests {
     /// 69.76 international miles - so the two figures cannot be measurements of different chains.
     /// Typed out beside the kilometre literal rather than converted from it: a test that computes the
     /// number it is pinning is pinning nothing.
-    static let straightLineMiles = 70
+    static let straightLineMiles = 69
 
     /// The same measurement before the floor, to a metre. The band is one metre and not one kilometre:
     /// it is here to catch a change in the arithmetic (a different radius, a different formula) that

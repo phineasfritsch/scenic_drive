@@ -39,7 +39,7 @@ struct SantaMonicaMountainsChainTests {
     /// miles over the same `expectedPoints` and the same metres as `straightLineKilometers` -
     /// 47_445.124 m is 29.48 international miles. Typed out beside the kilometre literal, not
     /// converted from it.
-    static let straightLineMiles = 30
+    static let straightLineMiles = 29
 
     /// The same measurement before the floor, to a metre. The band is one metre, not one kilometre:
     /// it catches a change in the arithmetic (a different radius, a different formula) that the
