@@ -176,3 +176,96 @@ LA terrain: without this it gets zeroed terrain and a green suite.
   tests, m3 by `test_a_nan_point_is_none_rather_than_a_refusal`, m4 by
   `test_the_inputs_directory_is_the_resolvers_answer` / `test_the_oracle_kmz_lives_in_the_resolved_directory`,
   m5 by the `str(path) in str(e.value)` assertion each refusal test carries.
+- 2026-09-18 ACCEPTANCE BLOCK RE-RUN AND RE-QUOTED IN FULL at the final pre-review commit, from
+  `.worktrees/T-0189` on `task/T-0189`, every command bare (no pipe to swallow an exit status).
+
+  **(1) dem.py, landcover.py, oracle.py and extract.py resolve their inputs directory through
+  `fetch.resolve_inputs_dir`, never `ROOT / "inputs"`; RED BY NAME first.**
+  RED (before the modules were touched, quoted in full in the entry above): 8 of the 16 failures are this
+  half - `test_the_inputs_directory_is_never_inside_a_worktree[etl.dem|etl.landcover|etl.extract]`,
+  `test_the_oracle_kmz_is_never_inside_a_worktree`,
+  `test_the_inputs_directory_is_the_resolvers_answer[etl.dem|etl.landcover|etl.extract]` and
+  `test_the_oracle_kmz_lives_in_the_resolved_directory`; plus the three end-to-end ones,
+  `test_dem_samples_a_tile_that_is_not_under_its_own_root` (`assert [None] == [123.0]` - the Brief's "red
+  today (None)"), `test_landcover_samples_a_raster_that_is_not_under_its_own_root` (`assert [None] == [10]`)
+  and `test_extract_defaults_its_source_to_the_shared_directory`, whose failure named
+  `.worktrees/T-0189/services/etl/inputs/california-osm.pbf` - a directory the extract has never been in.
+  GREEN now. `cd services/etl && python -m pytest tests/test_inputs_dir_consumers.py tests/test_dem.py
+  tests/test_landcover_sampling.py tests/test_inputs_dir.py tests/test_oracle_report.py
+  tests/test_oracle_select.py -rs` -> exit 0:
+  ```
+  ........................................................................ [ 69%]
+  ................................                                         [100%]
+  104 passed in 3.23s
+  ```
+  `tests/test_inputs_dir.py` is in that selection on purpose: T-0177's own resolver tests still pass
+  unchanged, so this task moved the CONSUMERS and not the rule.
+
+  **(2) a missing tile or land-cover raster is a REFUSAL that names the path, never a silent None list; the
+  "absent means absent" semantics for a point outside every served region stay as they are (T-0142) and are
+  asserted separately.**
+  RED (quoted above): `Failed: DID NOT RAISE FileNotFoundError` five times -
+  `test_dem_refuses_a_tile_that_is_not_on_disk`, `test_dems_whole_sample_refuses_too`,
+  `test_landcover_refuses_a_raster_that_is_not_on_disk`, plus the two existing tests rewritten in place,
+  `tests/test_dem.py::TestSampling::test_a_missing_tile_file_is_a_refusal_naming_the_path` and
+  `tests/test_landcover_sampling.py::TestWhereItLooksForATile::test_a_missing_tile_file_is_a_refusal_naming_the_path`.
+  GREEN now, in the 104-passed run above. The refusals as they read:
+  `dem: tile n38w123 is missing at <resolved>/3dep-n38w123.tif - run ops/etl-fetch-inputs` and
+  `landcover: tile N36W123 is missing at <resolved>/worldcover-n36w123.tif - run ops/etl-fetch-inputs`;
+  each test asserts `str(path) in str(e.value)`, so dropping the path from either message is a failure.
+  The separate half PASSED BEFORE AND AFTER, which is the point: `TestAbsenceThatIsGeographyStaysAbsence`
+  - `test_a_point_no_region_serves_is_none_and_never_reaches_gdal` (`dem.sample([(0.0, 0.0), (10.0, 10.0)])
+  == [None, None]` with `runner.calls == []`) and `test_a_nan_point_is_none_rather_than_a_refusal` for both
+  dem and landcover. Two of the three tests that passed in the red run are these.
+
+  **(3) `cd services/etl && python -m pytest tests -rs` -> count line and zero skips at the final commit.**
+  Bare, exit 0:
+  ```
+  ........................................................................ [ 95%]
+  ...................................................                      [100%]
+  1059 passed in 111.64s (0:01:51)
+  ```
+  Zero skips: `grep -c "SKIPPED\|short test summary"` over that output -> `0`, i.e. `-rs` printed no
+  short-summary section at all. Where 1059 comes from, derived from the quoted runs rather than asserted:
+  the red selection collected 19 (16 failed + 3 passed) and was `tests/test_inputs_dir_consumers.py` plus
+  two named tests, so the new file contributes 17 collected tests (its two three-way parametrisations count
+  as three each). The two rewritten tests are REPLACEMENTS, not additions - nothing was deleted - so the
+  suite went 1042 -> 1059, +17, 0 removed.
+
+  OTHER GATES at this commit. `bash ops/lib/check-line-cap` -> exit 0,
+  `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines` - it covers
+  Swift only (T-0058 is the open task for Python), so every touched Python file is measured by hand here:
+  `wc -l` -> `209 etl/dem.py`, `283 etl/landcover.py`, `189 etl/oracle.py`, `204 etl/extract.py`,
+  `173 tests/test_inputs_dir_consumers.py`, `237 tests/test_dem.py`, `155 tests/test_landcover_sampling.py`
+  - largest 283, under the 300-line cap. dem.py is 209 against T-0142's 258 on its own branch; the change
+  is small on purpose (R7).
+  `bash ops/queue-check` -> exit 0, `QUEUE OK (183 tasks)`.
+  `bash ops/check-pins --source-only` -> exit 0,
+  `PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only`. Run against the source as
+  committed; the only change after it was this Log append, which touches no source file.
+  `bash ops/test` and a full `bash ops/check-pins` were NOT run - out of scope for this task per its
+  instructions, and the Linux/iOS halves are untouched by it. `state: claimed` and `reviewer: null` stand.
+
+- 2026-09-18 STILL OPEN, for the reviewer and for whoever merges.
+  1. **MERGE ORDER WITH PR #106 (T-0142).** T-0142's dem.py is not on main. A three-way trial merge
+     (`git merge-file -p ours base theirs`, base = main 3911650) leaves EXACTLY ONE conflict in dem.py, the
+     two adjacent import lines - ours `from . import fetch`, theirs `from . import region as rg` - and the
+     resolution is to KEEP BOTH. Everything else merges clean: this task's `INPUTS` paragraph and
+     `sample_tile` refusal on one side, T-0142's `UNSERVED`/`tiles_for_region`/`served_tiles`/`tiles=`
+     thread on the other. Merging either PR first is fine; the second one merged resolves that hunk.
+     T-0142's `tests/test_dem_tiles.py:160`
+     (`dem.sample([(34.07, -118.45)], runner=None, tiles=frozenset()) == [None]`) is the
+     no-tile-covers-this-point path and stays green under this change - it is NOT the missing-file path.
+  2. **`queue/README.md` now contradicts the code.** Its "Still per-worktree" paragraph (lines ~117-120)
+     says `etl/extract.py`, `etl/dem.py`, `etl/landcover.py` and `etl/oracle.py` each compute their own
+     `ROOT / "inputs"` and tells the reader to pass `ops/etl-extract --input <main checkout>/...`. That is
+     false as of this commit and the workaround is no longer needed. `queue/README.md` is outside this
+     task's `touches:` and was left alone deliberately; it needs a one-paragraph follow-up.
+  3. **`ops/etl-extract` still execs inside the current checkout.** Only the INPUTS resolution moved, not
+     the wrapper, so the `--input` escape hatch keeps working for anyone who wants a different payload.
+     Nothing depends on the old default any more, but the wrapper was not in `touches:` either.
+  4. **No payload was fetched or sampled by this task.** Every test here writes `b"not really a tiff"` and
+     injects the runner (R5), so nothing in this change has been exercised against a real 3DEP tile or the
+     1.2 GB California extract. T-0168 is the task that will do that, and it is the first real test of
+     whether the resolved directory is the one the payloads are actually in on this box.
+  5. **`landcover.py` is at 283 of 300 lines.** The next change to it should expect to split the file.
