@@ -1,0 +1,592 @@
+---
+id: T-0213
+title: services/routing - the first REAL tagwriter PBF through GraphHopper 11.0: the canyon window imported, the TagParser proved on real scenic_score tags, /info's hash recorded, ops/deploy-routing created (T-0209's index-free half)
+state: done
+owner: agent/claude-opus-5
+owner_session: null
+claimed_at: 2026-09-19T11:47:06Z
+lease_expires_at: 2026-09-19T17:47:06Z
+worktree: .worktrees/T-0213
+branch: task/T-0213
+exclusive: [routing-config]
+touches: [services/routing/, ops/deploy-routing]
+pins_affected: []
+reviewer: agent/rv1-pr117
+depends_on: [T-0168, T-0031]
+verify: [ops/test, ops/check-pins]
+acceptance:
+  - "the digest-pinned GraphHopper 11.0 image (services/routing/Dockerfile) imports the REAL canyon-window tagged PBF (MAIN checkout, read-only: services/etl/work/la/window-tagged-1.osm.pbf, sha256 06046be0...0090, 12,402 ways, 11,740 scored) through WSL, foreground: the import log's way/edge counts quoted AS THE STAGE LANDS, SCENIC_EV present, and a probe that the encoded value carries REAL scores - three named ways read back from the graph (Topanga Canyon Boulevard 74344132 -> 8, a gated way -> 0, a way with no scenic_score tag -> the ruled default), RED first with the parser's tag key misspelled, then green; T-0031 only ever imported SYNTHETIC way_id % 11 tags"
+  - "one routed request inside the window (PCH at Topanga -> Topanga near Old Topanga) at lambda 0 and lambda 8 with both durations quoted - NO monotonicity or bite claim is made over a 12,402-way window whose scores T-0207/T-0208 will move; this is a smoke graph and the Log says so"
+  - "ops/deploy-routing (100755): new dir + atomic symlink flip + restart, keeps N-1, REFUSES without the box credentials naming the env vars, and refuses unless HEAD is on origin - rehearsed against a local temp dir with the transcript quoted; the VPS half recorded as blocked on the human, never implied"
+  - "cd services/routing && python -m pytest tests -rs count line; bash ops/lib/check-exec-bits, check-line-cap, queue-check bare; config.yml changes (if any) ruled - it is a serial file and this task holds it"
+---
+## Brief
+
+From the 04:13 panel (grounded): the joint between tagwriter's real bytes and GraphHopper's TagParser has never
+been exercised - T-0031's Vermont slice imported synthetic tags. T-0209 (the LA graph) waits on T-0207 and T-0208
+because they move scores; the import MECHANICS quote no score and can be proved now over the existing canyon
+window. T-0209 then depends on this and keeps only the whole-LA import, T(lambda) over LA pairs and the rat-run
+measurement.
+
+## Log
+- 2026-09-19T11:43:44Z filed in ready/ by agent/claude-fable-5-1 (04:13 panel; grounded 8 of 14 - only the grounded items applied). Not started.
+- 2026-09-19T11:47:06Z claimed by agent/claude-opus-5; lease until 2026-09-19T17:47:06Z
+- 2026-09-19T11:52:44Z RULINGS, before any code (author rule). Read first: this task file, services/routing/
+  entire (Dockerfile, config.yml, pom.xml, ScenicRouterMain.java 123, ScenicScoreImportRegistry.java 24,
+  ScenicScoreParser.java 42, profiles/*.json, build-slice.sh, README.md, tests/*), T-0031's Log (R4, the
+  container command lines, the Vermont counts) and T-0168's contract. Input verified where it lies, read-only,
+  in the MAIN checkout:
+
+      $ sha256sum services/etl/work/la/window-tagged-1.osm.pbf
+      06046be00d336f2f976a31676ce452d2f35fabba15f63d437be3043d909a0090 *services/etl/work/la/window-tagged-1.osm.pbf
+
+  and its own read-back (services/etl/work/la/window-readback.osm.xml, osmium 1.16.0) counted by this session:
+  ways 12402, scored 11740, refused 0, score histogram 0:5975 1:758 2:1677 3:1397 4:926 5:693 6:245 7:65 8:4.
+  That matches the task file's 12,402 / 11,740 exactly, so the acceptance block's numbers are the artifact's.
+
+  (R1) HOW A SECOND INPUT IS IMPORTED WITHOUT DISTURBING THE VERMONT SLICE. build-slice.sh is not
+  parameterised for this: steps 1-3 are the SYNTHETIC tagger and step 5 hard-codes work/graph-cache. Ruled:
+  ONE recipe, extracted - a new sibling `services/routing/import-graph.sh <input.pbf> <graph-dir>` carries the
+  single `docker run ... --mode import` command line, and build-slice.sh step 5 is replaced by a call to it.
+  So there is exactly one import recipe in the tree and the Vermont path exercises the same lines the LA
+  window does. The Vermont graph-cache in the MAIN checkout is never touched: every output of this task lands
+  under THIS worktree's gitignored services/routing/work/.
+
+  (R2) THE PROBE - how a test reads an encoded value back for a NAMED OSM way. GraphHopper does not index by
+  way id, and a snapped short route proves only "some edge near this point", not way 74344132: the snap can
+  land on a neighbour and the test still passes. Ruled: GraphHopper 11 ships the `osm_way_id` encoded value;
+  `osm_way_id` joins graph.encoded_values in config.yml (the serial file this task holds), and
+  ScenicRouterMain - THE SHIPPING ENTRY POINT, the same main() that runs the import - gains `--mode probe
+  --probe-ways <id,id,...>`, which walks getBaseGraph().getAllEdges() and prints, per requested way id, the
+  edge count and the distinct scenic_score values the import actually encoded. The binding is way id ->
+  score, both read out of the built graph, with no coordinate in the loop. Cost of carrying osm_way_id in the
+  shipping config: 31 bits per edge in the graph and nothing at query time; it is also what makes any future
+  "why did this edge score that" answerable, so it stays in the shipped config rather than a probe-only one -
+  the profile and config under test must be the ones that ship (T-0031's rule).
+  THE DEFAULT FOR A WAY WITH NO scenic_score TAG. ScenicScoreParser.parse today: null/blank -> 0, <=0 -> 0,
+  unparsable -> 0, >10 -> clamped to 10 (source, not paraphrase: lines 32-41). So a way with no tag is
+  encoded 0, which in profiles/car_scenic_request.json falls in the `low` band - i.e. indistinguishable from
+  a motorway that was scored 0 on the merits. For a T-0168 `scenic_refused=1` way (refused carries NO
+  scenic_score) that is "refused reads as dull 0 silently", and it is WRONG as a long-run semantic: refused
+  is no evidence, and no evidence is not a zero score. Ruled OUT OF SCOPE here and recorded for T-0209:
+  fixing it means a widened encoded value (a sentinel, e.g. 4 bits 0..10 plus a separate scenic_known flag)
+  and a matching band rule in profiles/*.json - and the profiles are NOT this task's lock. This task changes
+  no semantics; it proves the joint. Also load-bearing for this window: refused=0 here (counted above), so
+  nothing in this import is affected by the ruling either way.
+
+  (R3) THE THREE PROBE WAYS, picked from the real read-back, not invented:
+    - 74344132 Topanga Canyon Boulevard, highway=primary, scenic_score=8 (scenic_score_unit 0.7722) - one of
+      only 4 ways at 8 in the whole window.
+    - 10715427, highway=track, scenic_score=0 with scenic_gate=track - a GATED way. It is imported (config's
+      import.osm.ignored_highways names footway, cycleway, path, pedestrian, steps - not track), gated by the
+      PROFILE, so it must be present in the graph carrying 0.
+    - no highway way in this window lacks scenic_score: scored 11740 of 12402 and refused 0, so the 662
+      unscored ways are all NOT-A-ROAD (e.g. way 4883641, tags `natural`, `source` only - T-0168 leaves those
+      untouched). Ruled honestly: the third probe is way 4883641 asserted ABSENT from the routable graph
+      (edges=0) - a real property of the import, not a score - and the ruled no-tag default (0) is instead
+      demonstrated by the RED run below, where the parser's key no longer matches any tag and EVERY probed
+      way, Topanga included, reads 0. That is the default exercised over the real graph rather than asserted
+      in prose.
+
+  (R4) ops/deploy-routing's CONTRACT and its rehearsal. Contract: (1) refuses unless HEAD is reachable on
+  origin (ops/deploy's own rule, same `git branch -r --contains`); (2) refuses unless the named box
+  credentials are in the environment - SCENIC_ROUTING_HOST, SCENIC_ROUTING_USER, SCENIC_ROUTING_KEY,
+  SCENIC_ROUTING_ROOT - naming each missing one; (3) uploads the graph to a NEW release dir
+  <root>/releases/<utc>-<sha>, never into the live one; (4) flips <root>/current by writing a fresh symlink
+  beside it and `mv -T` over the old one, which is atomic on one filesystem (ln -sfn is NOT: it unlinks
+  first); (5) restarts the service; (6) prunes to N-1 == keeps the 2 newest releases, so the previous one is
+  there to flip back to. REHEARSAL WITHOUT A VPS: the script's only privileged verbs are `remote` (ssh) and
+  `send` (rsync). With SCENIC_ROUTING_REHEARSE=<dir> set, `remote` runs the same command line under `bash -c`
+  and `send` is `cp -r`, against a local temp dir under work/; the restart command comes from
+  SCENIC_ROUTING_RESTART_CMD so the rehearsal can pass `echo`. Same code path, same flip, same prune - only
+  the transport is swapped, and the transcript of two consecutive rehearsed deploys (flip + N-1 prune) is
+  quoted in this Log. The VPS half is BLOCKED ON THE HUMAN (no host, no key in this session) and is recorded
+  as such; nothing in this task claims a deployed router.
+
+  (R5) DISAGREEMENT WITH THE ACCEPTANCE BLOCK, ruled now rather than at review: the block asks for "/info's
+  hash recorded". There is no HTTP surface in services/routing - T-0031 R4 ruled the Dropwizard `server:`
+  section out of that slice and this task does not add one (it is T-0209's serving half). /info is therefore
+  not reachable and no /info hash exists to record. Ruled: what IS recorded is the graph's own identity as
+  GraphHopper writes it - services/routing/work/graph-la-window/properties in full (it carries the encoded
+  value list, the import date and the datareader file) plus its sha256 - which is the fact /info would report.
+  Recorded as an acceptance wording correction, not as a met item.
+- 2026-09-19T11:56:30Z RED BY NAME, on the real input. `services/routing/work/red-build.sh` (scratch, work/ is
+  gitignored) copies Dockerfile, config.yml, profiles/ and plugins/ and misspells the parser's TAG KEY in the
+  COPY only - the committed source is never edited:
+
+      29:        scenicScore.setInt(false, edgeId, edgeIntAccess, parse(way.getTag(KEY + "_typo", "")));
+
+  The encoded value still exists and the import still succeeds - which is the whole point: this is the defect
+  that leaves every other check green. Red import (image scenic-routing:t0213-red, the same
+  window-tagged-1.osm.pbf, sha256 quoted by import-graph.sh as 06046be0...0090):
+
+      pass1 - finished, processed ways: 12,402, accepted ways: 11,740, way nodes: 131,312, relations: 76
+      pass2 - finished, processed ways: 12,402, way nodes: 131,312, nodes with tags: 3,577, ignored barriers at junctions: 11
+      Finished reading OSM file: /data/window-tagged-1.osm.pbf, nodes: 21,137, edges: 24,057, zero distance edges: 1,644
+      GraphHopper - nodes: 21,137, edges: 24,057
+      SCENIC_EV present=true bits=4 max=10
+
+  Red probe over that graph:
+
+      PROBE way=74344132 edges=2 scenic_score=0
+      PROBE way=10715427 edges=1 scenic_score=0
+      PROBE way=4883641 edges=0 scenic_score=-
+
+  and the test, pointed at the red image and red graph by SCENIC_ROUTING_IMAGE / SCENIC_ROUTING_GRAPH:
+
+      FAILED tests/test_scenic_score_readback.py::test_named_way_carries_its_real_scenic_score
+      AssertionError: way 74344132 carries scenic_score=8 in window-tagged-1.osm.pbf but the graph encoded [0]
+      over its 2 edge(s). A parser reading the wrong tag key encodes the no-tag default 0 here while the
+      import, the encoded value and every routed test stay green.
+      1 failed, 2 passed in 5.81s
+
+  Stated rather than hidden: only the Topanga assertion goes red. The gated way and the not-a-road way read
+  the same under the misspelling (0 is both their real value and the default, and a not-a-road way has no
+  edge either way), so those two are not red-demonstrated by this mutation - they are demonstrated by the
+  numbers themselves being present in the green run below. This is also R3's no-tag default (0) exercised on
+  the real graph rather than asserted in prose: with no tag matching, all 11,740 scored ways take it.
+
+- 2026-09-19T11:58:40Z GREEN, the REAL import, foreground, counts quoted as the stage landed. Image rebuilt
+  from the committed source as `scenic-routing:t0213` (tag bumped from t0031 with config.yml: a graph built
+  under the new graph.encoded_values cannot be loaded by an image carrying the old list, and the Dockerfile's
+  own rule is that a moving tag is a silent change - so the tag moves with the config, and the existing
+  Vermont slice - image scenic-routing:t0031 and the MAIN checkout's services/routing/work/graph-cache - is
+  left exactly as it was. build-slice.sh and test_lambda_monotone.py move to t0213 together; re-running
+  build-slice.sh re-imports Vermont under the new config.)
+
+      06046be00d336f2f976a31676ce452d2f35fabba15f63d437be3043d909a0090  .../services/etl/work/la/window-tagged-1.osm.pbf
+      == import: scenic-routing:t0213 -> .../services/routing/work/graph-la-window ==
+      pass1 - finished, processed ways: 12,402, accepted ways: 11,740, way nodes: 131,312, relations: 76
+      pass2 - finished, processed ways: 12,402, way nodes: 131,312, nodes with tags: 3,577, ignored barriers at junctions: 11
+      Finished reading OSM file: /data/window-tagged-1.osm.pbf, nodes: 21,137, edges: 24,057, zero distance edges: 1,644
+      PrepareRoutingSubnetworks - car_scenic - Marked 24720 subnetworks (biggest: 323 edges) -> 1 components(s) remain (smallest: 21645, biggest: 21645 edges), total marked edges: 1261
+      GraphHopper - nodes: 21,137, edges: 24,057
+      SCENIC_EV present=true bits=4 max=10
+      GRAPH nodes=21137 edges=24057
+
+  accepted ways 11,740 is the artifact's own scored-way count, which is the cleanest single corroboration
+  available that the routable set and the scored set are the same ways.
+
+  THE GRAPH'S IDENTITY (R5: there is no /info in this slice; this is what /info would report), from
+  services/routing/work/graph-la-window/properties, sha256
+  170bfe37bda146a51821f74fa53d9a42084e1cb3db27e2841205fe432c20b188:
+
+      datareader.data.date=1970-01-01T00:00:00Z
+      profiles=car_fast|-421433575,car_scenic|1913116034
+      graph.em.version=4
+      graph.em.bytes_for_flags=12
+      graph.encoded_values=[... "name":"scenic_score","bits":4,"max_storable_value":15,"max_value":8 ...
+                            ... "name":"osm_way_id","bits":31,"max_value":1558336363 ...]
+
+  `scenic_score` max_value=8 is the graph itself agreeing with the read-back histogram: the highest score
+  anywhere in this window is 8, and 4 ways carry it.
+
+- 2026-09-19T11:59:20Z GREEN PROBE, the shipped image over the real graph:
+
+      PROBE way=74344132 edges=2 scenic_score=8      Topanga Canyon Boulevard, tagged 8
+      PROBE way=10715427 edges=1 scenic_score=0      highway=track, scenic_gate=track, tagged 0 - IMPORTED
+      PROBE way=4883641 edges=0 scenic_score=-       natural=..., no highway, no score - never a road edge
+
+      $ cd services/routing && python -m pytest tests/test_scenic_score_readback.py -rs
+      3 passed in 5.25s
+
+  This is the joint T-0031 could not close: real tagwriter bytes -> ScenicScoreParser -> the built graph,
+  read back per NAMED way id.
+
+- 2026-09-19T12:00:10Z ONE ROUTED REQUEST inside the window, PCH at Topanga -> Topanga near Old Topanga, over
+  the same graph, lambda 0 and lambda 8 (models substituted from the committed profiles/scenic_lambda_bands.json
+  into profiles/car_scenic_request.json, work/models-la/):
+
+      ROUTE profile=car_fast   model=-              time_ms=507242 distance_m=8121.6
+      ROUTE profile=car_scenic model=lambda-0.json  time_ms=507242 distance_m=8121.6
+      ROUTE profile=car_scenic model=lambda-8.json  time_ms=507242 distance_m=8121.6
+
+  NO monotonicity claim and NO bite claim is made from this. It is a SMOKE graph: the scores in it are
+  T-0207's and T-0208's to move (residential/service escaping the anti-rat-run clause, and the window
+  fixture re-record), so any T(lambda) shape measured here measures a number that is about to change. What
+  this request proves is that the graph routes and that a per-request custom model referencing scenic_score
+  loads and is accepted against it. For the record, and explicitly NOT as a property: the two durations are
+  identical on this pair, which is what one expects when the direct route is already the scenic one - Topanga
+  Canyon Boulevard is scored 8, i.e. in the never-penalized `high` band at every lambda. T-0209 owns T(lambda)
+  over LA pairs.
+- 2026-09-19T12:04:50Z ops/deploy-routing (82 lines, committed 100755), its REFUSALS and its REHEARSAL.
+  Refusals, each run bare:
+
+      $ bash ops/deploy-routing /tmp/nope
+      DEPLOY-ROUTING REFUSED: /tmp/nope is not a built graph (no 'edges' file) - import it first with services/routing/import-graph.sh
+      exit=1
+      $ bash ops/deploy-routing services/routing/work/graph-la-window          # HEAD 57b5247, already on origin
+      DEPLOY-ROUTING REFUSED: the routing box credentials are not set: SCENIC_ROUTING_HOST SCENIC_ROUTING_USER SCENIC_ROUTING_KEY SCENIC_ROUTING_ROOT
+      exit=1
+      $ bash ops/deploy-routing services/routing/work/graph-la-window          # after committing 6999e52, before pushing it
+      DEPLOY-ROUTING REFUSED: HEAD 6999e52ed49548f912e173588e5b031f53c1b7ab is not on origin - push first
+      exit=1
+
+  Both refusals were seen RED in the sense that matters: each was produced by the real condition (an
+  unpushed commit; an environment without the credentials), not by a flag.
+
+  REHEARSAL, and an honest note about where it had to run. The flip is `ln -sfn` + `mv -T`, and the Windows
+  checkout cannot create a symbolic link at all (`ln: failed to create symbolic link ...: Operation not
+  permitted`, with MSYS=winsymlinks:nativestrict set), so rehearsing the flip in git-bash would rehearse
+  nothing. Inside WSL the script cannot resolve THIS worktree's repository root (the .git file holds a
+  Windows path - `fatal: not a git repository: .../C:/Users/...`), so the rehearsal ran in WSL with the MAIN
+  checkout as the repository root and the worktree's graph and rehearsal root as its arguments: real Linux
+  symlinks, real `mv -T`, the same script, and the sha in the release name is therefore main's f8d9447
+  rather than this branch's. Three consecutive deploys, output with the root elided:
+
+      === rehearsal 1 ===
+      REHEARSAL: no box, no ssh, no rsync - root is the local directory <root>
+      == upload -> <root>/releases/20260919T120445Z-f8d9447 ==
+      edgekv_keys
+      edgekv_vals
+      edges
+      == atomic flip ==
+      == restart ==
+      [stub] systemctl restart scenic-routing
+      == prune to the 2 newest releases ==
+      DEPLOY-ROUTING OK sha=f8d9447b0a0e16b7947422f5587fca72d35be793 live=<root>/releases/20260919T120445Z-f8d9447
+      releases kept:
+      20260919T120445Z-f8d9447
+      exit=0
+      ... second deploy ...
+      DEPLOY-ROUTING OK sha=f8d9447... live=<root>/releases/20260919T120447Z-f8d9447
+      releases kept:
+      20260919T120445Z-f8d9447
+      20260919T120447Z-f8d9447
+      ... third deploy ...
+      DEPLOY-ROUTING OK sha=f8d9447... live=<root>/releases/20260919T120449Z-f8d9447
+      releases kept:
+      20260919T120447Z-f8d9447
+      20260919T120449Z-f8d9447
+      exit=0
+
+  N-1 is visible in the third: the oldest release is gone, the previous one is still on disk to flip back
+  to, and `current` resolves to the newest. THE VPS HALF IS BLOCKED ON THE HUMAN: there is no host, no user
+  and no key in this session, nothing was deployed anywhere, and `ssh`/`rsync` have never been executed by
+  this script - only their rehearsal substitutes. T-0209's serving half owns the real box, the Dropwizard
+  `server:` section and /info.
+
+- 2026-09-19T12:07:10Z FINAL PRE-REVIEW COMMIT - the whole acceptance block re-run bare and re-quoted.
+
+      $ cd services/routing && python -m pytest tests -rs
+      9 passed, 3 skipped in 5.27s
+      SKIPPED [3] tests/test_lambda_monotone.py:127,138,167: no graph at ...work/graph-cache; build it with:
+        bash services/routing/build-slice.sh
+
+    Which tests need a container, and whether they ran: the three new readback tests
+    (test_named_way_carries_its_real_scenic_score, test_gated_way_is_imported_and_carries_zero,
+    test_a_way_with_no_scenic_score_is_not_a_road_and_never_reaches_the_graph) each need the image and a
+    built graph, and they RAN - they are three of the 9 passed, against scenic-routing:t0213 and
+    work/graph-la-window. The 3 SKIPS are test_lambda_monotone.py's routed Vermont tests: that graph is the
+    MAIN checkout's, deliberately not rebuilt here (R1 - the Vermont slice is not disturbed), so they skip
+    with their reason. The remaining 6 are the static profile/band tests, which need nothing.
+
+      $ python ops/lib/check-mutate-population.py
+      P-PROC-06: 71 modules, 22 covered by 10 populations, 25 allowlisted, 0 added by this branch
+      P-PROC-06: every added module is covered or allowlisted; the floor of 22 holds
+      exit=0
+      (no new numeric module: this task adds a bash script, a pytest file and a probe mode on an existing
+      Java entry point - nothing under services/etl/etl/ or Sources/.)
+
+      $ bash ops/lib/check-exec-bits
+      P-OPS-01: 78 files, 23 required present, all modes correct
+      exit=0        (ops/deploy-routing committed 100755 via git update-index --chmod=+x; so is
+                     services/routing/import-graph.sh, which is not under ops/ but is invoked by name.)
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 83 Swift files tracked (Sources=27, Tests=38, apps/ios=18), none over 300 lines
+      exit=0
+
+      $ bash ops/queue-check
+      QUEUE OK (208 tasks)
+      exit=0
+
+      $ bash ops/check-pins --source-only
+      PINS ok=13 skipped=15 pending=1 expired=0 failed=0 tier=linux source-only
+      exit=0
+
+      $ wc -l  (every touched file, measured at this commit)
+        82 ops/deploy-routing
+        36 services/routing/import-graph.sh
+        37 services/routing/config.yml
+        52 services/routing/build-slice.sh
+        24 services/routing/Dockerfile
+        42 services/routing/README.md
+       144 services/routing/tests/test_scenic_score_readback.py
+       174 services/routing/tests/test_lambda_monotone.py
+       166 services/routing/plugins/.../ScenicRouterMain.java
+       211 queue/claimed/T-0213-...md      (this file, before this entry)
+
+    CONFIG.YML, the serial file this task holds (acceptance item 4): one change, ruled at R2 - `osm_way_id`
+    added to graph.encoded_values, with the reason written beside it. Nothing else in the file moved. The
+    consequence is recorded in README.md and in the 11:58:40Z entry: the image tag moves with the config
+    (scenic-routing:t0213), because a graph carries the encoded-value list it was built with.
+
+  ACCEPTANCE, item by item:
+    1. MET. Digest-pinned GraphHopper 11.0 image, the REAL window-tagged-1.osm.pbf (sha256 verified
+       06046be0...0090, 12,402 ways / 11,740 accepted), counts and SCENIC_EV quoted as the stage landed, and
+       the three named ways read back - 74344132 -> 8, gated 10715427 -> 0, 4883641 -> no edge - RED first
+       with the parser's tag key misspelled (Topanga read 0), then green.
+    2. MET. One routed request at lambda 0 and lambda 8, both durations quoted, and NO monotonicity or bite
+       claim made; the 12:00:10Z entry says in so many words that this is a smoke graph whose scores T-0207
+       and T-0208 will move.
+    3. MET as far as a session without a box can take it: ops/deploy-routing exists, is 100755, refuses on
+       all three conditions with the transcripts above, and its flip/restart/prune were rehearsed three
+       times against a local directory. The VPS half is recorded as blocked on the human and is not implied
+       anywhere.
+    4. MET, re-quoted above.
+    5. NOT MET AS WRITTEN, ruled at R5 before any code: "/info's hash recorded" - there is no HTTP surface
+       in this slice, so instead the graph's own `properties` (what /info would report) is quoted in full
+       with its sha256 170bfe37...b188.
+
+  STILL OPEN (for T-0209 and the panel, not for this PR):
+    - The VPS: no host, no key, nothing deployed. ops/deploy-routing has never touched a real box.
+    - No HTTP surface: no Dropwizard `server:` block, no /info, no /route.
+    - The refused-reads-as-0 semantic (R2): a `scenic_refused=1` way encodes 0 and lands in the penalized
+      `low` band, indistinguishable from a way scored 0 on the merits. refused=0 in this window so nothing
+      here is affected, but the LA-wide import will have refused ways. Fixing it touches profiles/*.json,
+      which this task does not hold.
+    - T(lambda) over LA pairs, the rat-run measurement and the whole-LA import stay with T-0209, behind
+      T-0207 and T-0208.
+    - The rehearsal could not run with this worktree as the repository root (WSL cannot read a Windows
+      worktree's .git file); that is a box property, not a script property, but it means the exact
+      invocation a future deploy will use from this checkout has been exercised only through git-bash's
+      refusal paths.
+
+- 2026-09-19T12:40:00Z PRE-REVIEW MUTANT PASS, its three findings RULED before the fixing code was run
+  (author rule). The pass is right on all three and none of them is argued with:
+
+  (S1, BLOCKING, accepted as demonstrated) tests/test_scenic_score_readback.py probed a PRE-BUILT graph
+  directory. Nothing bound that directory to the image under test, so the misspelled-key image passed every
+  assertion when it was pointed at a copy of the green graph. RULED: the fixture now IMPORTS
+  services/etl/work/la/window-tagged-1.osm.pbf with IMAGE into a fresh tempfile.mkdtemp() directory under
+  services/routing/work/ and removes it afterwards; SCENIC_ROUTING_GRAPH is GONE, so there is no way to hand
+  this test a graph somebody else built. The input's sha256 is COMPARED against the typed literal
+  06046be0...0090 (not printed): the expected scores are literals read out of window-readback.osm.xml, which
+  describes that exact file, so a different input is a failed test, not a different number.
+
+  (S2, BLOCKING-class, accepted) two probe points (0 and the window's maximum 8) cannot distinguish the real
+  parser from `value >= 5 ? 8 : 0`, and nothing ran the Java at all (-DskipTests). RULED, both halves:
+  (a) ONE NAMED, ROUTABLE way per score 1..8, way id + score typed as literals with the road's name beside
+  each, picked out of the real read-back XML (highest node count per score among named, non-ignored highways):
+      1 1073769540 Civic Center Way (tertiary) · 2 13452810 Malibu Road · 3 13418694 Rambla Vista
+      4 13295089 Encinal Canyon Road · 5 149210418 Corral Canyon Road · 6 246767080 Mulholland Highway
+      7 221164472 Latigo Canyon Road · 8 74344132 Topanga Canyon Boulevard
+  all eleven ways (these eight plus the gated track and the not-a-road way) are probed in ONE container call.
+  (b) ScenicScoreParserTest.java (JUnit 5, junit-jupiter 5.10.2 and maven-surefire-plugin 3.2.5 both PINNED
+  in the pom like every other coordinate) covers ScenicScoreParser.parse - the shipping symbol handleWayTags
+  calls - over 0..10 each, null/blank/whitespace-only, <=0, garbage, the >10 clamp, and the two rulings the
+  finding asked for: '7.0' is GARBAGE -> 0 (the ETL writes integers; a decimal is a writer defect, not a 7)
+  and ' 7 ' is 7 (parse() already trims; osmium and hand edits leave padding). It RUNS IN THE IMAGE BUILD:
+  the Dockerfile's `mvn -B -DskipTests package` became `mvn -B package`, so an image with a broken parser is
+  never produced rather than being caught later - a dedicated `mvn test` stage would have let the untested
+  jar exist.
+
+  (S3, non-blocking, accepted) ops/deploy-routing had no test. RULED: services/routing/tests/
+  test_deploy_routing_rehearsal.py + deploy_rehearsal_driver.sh - the driver builds a THROWAWAY git repo
+  under mktemp -d with a bare origin and a fake built graph, runs the script bare for each refusal and three
+  rehearsed deploys, and the pytest asserts the three refusals BY THEIR TEXT (not a built graph / the four
+  credential names / "is not on origin - push first"), the flip (`current` IS a symlink and resolves to the
+  newest release, with the graph reachable through it) and N-1 (exactly 2 releases after three deploys, the
+  oldest pruned). No graph is imported. WSL: on a box without it the test FAILS BY NAME with a message
+  saying the flip cannot be rehearsed without a POSIX filesystem; SCENIC_DEPLOY_REHEARSAL_SKIP=1 is the
+  explicit opt-out and its skip reason says the deploy script is NOT being checked. Chosen over a silent
+  skip because a silent skip is exactly how this script got shipped untested.
+
+  RECORDED, NOT FIXED (as instructed): a `scenic_refused=1` way encodes 0 and is indistinguishable from a way
+  scored 0 on the merits - T-0209's, R2 above, and refused=0 in this window.
+
+- 2026-09-19T12:43:35Z S2b RED BY NAME. work/red-java-build.sh (scratch) copies the plugin and replaces
+  parse()'s body with the finding's own mutant, `return value >= 5 ? 8 : 0;`. The image build refuses:
+
+      [ERROR]   ScenicScoreParserTest.everyValueInTheContractsRangeSurvivesUnchanged:22 scenic_score=7 is
+                inside the contract's 0..10 and must round-trip exactly ==> expected: <7> but was: <8>
+      [ERROR]   ScenicScoreParserTest.surroundingWhitespaceIsTrimmedNotRejected:56 ' 7 ' is a 7 ==> expected: <7> but was: <8>
+      [ERROR] Tests run: 30, Failures: 14, Errors: 0, Skipped: 0
+      [INFO] BUILD FAILURE
+      ERROR: process "/bin/sh -c mvn -B package" did not complete successfully: exit code: 1
+      EXIT=1
+
+  GREEN, the committed source, same command (`docker build -t scenic-routing:t0213 services/routing`):
+
+      [INFO] Running com.scenicdrive.routing.ScenicScoreParserTest
+      [INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.604 s
+      [INFO] BUILD SUCCESS
+      naming to docker.io/library/scenic-routing:t0213
+      EXIT=0
+
+- 2026-09-19T12:47:00Z S1 RED THROUGH THE TEST, with the author's own red recipe. work/red-build.sh (the
+  misspelled `way.getTag(KEY + "_typo", "")`) built scenic-routing:t0213-red - and its JUnit stage passed
+  30/30, which is the point: the misspelling is in handleWayTags, so only an import can catch it. Then the
+  READ-BACK TEST ITSELF, pointed at that image with nothing else changed (no graph to hand it any more):
+
+      $ SCENIC_ROUTING_IMAGE=scenic-routing:t0213-red python -m pytest tests/test_scenic_score_readback.py -rs
+      AssertionError: way 74344132 (Topanga Canyon Boulevard) carries scenic_score=8 in
+      services/etl/work/la/window-tagged-1.osm.pbf but the graph imported with scenic-routing:t0213-red
+      encoded [0] over its 2 edge(s)
+      8 failed, 2 passed in 12.90s
+
+  All EIGHT scores go red now, not just the 8 - the mutant pass's S1 and S2 in one transcript. GREEN, the
+  shipped image, the fixture's own import of the real PBF (sha256 compared, not printed) and one probe call:
+
+      SCENIC_EV present=true bits=4 max=10
+      PROBE way=1073769540 edges=8  scenic_score=1     Civic Center Way
+      PROBE way=13452810   edges=19 scenic_score=2     Malibu Road
+      PROBE way=13418694   edges=7  scenic_score=3     Rambla Vista
+      PROBE way=13295089   edges=23 scenic_score=4     Encinal Canyon Road
+      PROBE way=149210418  edges=17 scenic_score=5     Corral Canyon Road
+      PROBE way=246767080  edges=21 scenic_score=6     Mulholland Highway
+      PROBE way=221164472  edges=27 scenic_score=7     Latigo Canyon Road
+      PROBE way=74344132   edges=2  scenic_score=8     Topanga Canyon Boulevard
+      PROBE way=10715427   edges=1  scenic_score=0     highway=track, scenic_gate=track - IMPORTED
+      PROBE way=4883641    edges=0  scenic_score=-     natural=..., no highway - never a road edge
+      10 passed in 12.83s
+
+- 2026-09-19T12:44:00Z S3 RED THEN GREEN. Green first run: `python -m pytest tests/test_deploy_routing_
+  rehearsal.py -rs` -> 6 passed in 21.75s. Then TWO mutations applied to a copy of ops/deploy-routing in the
+  worktree (`KEEP=3`, and the credentials refusal reduced to "the routing box credentials are not set" with
+  ${missing[*]} dropped), the file restored afterwards (`git status --short` clean for it):
+
+      AssertionError: the credentials refusal does not name SCENIC_ROUTING_HOST: DEPLOY-ROUTING REFUSED:
+      the routing box credentials are not set
+      AssertionError: after three deploys 3 releases are on disk, not 2:
+      ['20260919T124223Z-4b52cd9', '20260919T124224Z-4b52cd9', '20260919T124225Z-4b52cd9']
+      2 failed, 4 passed in 13.94s
+
+- 2026-09-19T12:52:00Z FINAL PRE-REVIEW COMMIT for the mutant-pass fixes: the acceptance block re-run bare
+  and re-quoted. `bash ops/test` and the full `bash ops/check-pins` were NOT run in this session (out of
+  scope for this fixing pass, per its instruction); `ops/check-pins --source-only` was skipped locally and
+  is stated as skipped, not as green. CI on PR #117 runs them.
+
+      $ cd services/routing && python -m pytest tests -rs
+      22 passed, 3 skipped in 16.00s
+      SKIPPED [3] tests/test_lambda_monotone.py:127,138,167: no graph at ...work/graph-cache
+
+    WHICH TESTS RAN IN THE CONTAINER: the 10 read-back tests (8 parametrized scores + the gated way + the
+    not-a-road way) built their own graph from the real PBF with scenic-routing:t0213 and probed it - one
+    import, one probe, session-scoped. The 6 deploy-rehearsal tests ran through WSL but touch no container.
+    The 6 static profile/band tests need nothing. The 3 skips are test_lambda_monotone.py's Vermont graph,
+    which R1 deliberately does not rebuild here.
+
+      $ (the image rebuild's test stage)
+      [INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0 - com.scenicdrive.routing.ScenicScoreParserTest
+
+      $ python ops/lib/check-mutate-population.py
+      P-PROC-06: 71 modules, 22 covered by 10 populations, 25 allowlisted, 0 added by this branch
+      P-PROC-06: every added module is covered or allowlisted; the floor of 22 holds
+      exit=0   (still no new numeric module: a JUnit test, a pytest, a bash driver.)
+
+      $ bash ops/lib/check-exec-bits
+      P-OPS-01: 78 files, 23 required present, all modes correct
+      exit=0   (deploy_rehearsal_driver.sh is not under ops/ and is invoked as `bash <path>`, so it stays
+                100644 - P-OPS-01's data-file rule.)
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 83 Swift files tracked (Sources=27, Tests=38, apps/ios=18), none over 300 lines
+      exit=0
+
+      $ bash ops/queue-check
+      QUEUE OK (208 tasks)
+      exit=0
+
+      $ wc -l   (every file this commit touches, measured at this commit)
+        27 services/routing/Dockerfile
+        85 services/routing/plugins/scenic-score-parser/pom.xml
+        67 services/routing/plugins/.../ScenicScoreParserTest.java
+       203 services/routing/tests/test_scenic_score_readback.py
+       121 services/routing/tests/test_deploy_routing_rehearsal.py
+        71 services/routing/tests/deploy_rehearsal_driver.sh
+       354 queue/claimed/T-0213-...md      (this file, before this entry)
+
+    config.yml is NOT touched by this commit; the serial-file ruling at R2 stands unchanged. ops/deploy-routing
+    is NOT touched either - it gained a test, not an edit.
+
+  STILL OPEN after this pass (unchanged from the list above, plus):
+    - The read-back test needs docker AND the gitignored input PBF, so it skips on a checkout that has
+      neither; CI does not run it. What CI does run now is the image build's JUnit stage, whenever the image
+      is built.
+    - `value >= 5 ? 8 : 0` is dead as a survivor, but the Java has no mutation POPULATION under ops/mutate/:
+      P-PROC-06 does not range over Java and this task adds no numeric module under Sources/ or
+      services/etl/etl/. Recorded for whoever widens P-PROC-06 to the plugin.
+
+- 2026-09-19T12:57:36Z - REVIEW PASS (agent/rv1-pr117, reviewer != owner agent/claude-opus-5). PR #117, head
+  bb2e7425d99399229050f42484d6791875d3a6eb == origin/task/T-0213, reviewed in a detached worktree
+  .worktrees/rv1-pr117. Every claim below names its command.
+
+  SCOPE. `git diff --stat main...origin/task/T-0213` -> 14 files, 1151+/14-: ops/deploy-routing (82),
+  services/routing/{Dockerfile,README.md,build-slice.sh,config.yml,import-graph.sh}, the plugin pom.xml,
+  ScenicRouterMain.java (+45/-1), ScenicScoreParserTest.java (67), tests/{deploy_rehearsal_driver.sh 71,
+  test_deploy_routing_rehearsal.py 121, test_scenic_score_readback.py 203, test_lambda_monotone.py +1/-1} and
+  the task file. NO services/routing/profiles/*.json in the diff - the serial file this task does NOT hold is
+  untouched. config.yml's functional change is the one line
+  `graph.encoded_values: ... scenic_score, osm_way_id` - the serial file this task DOES hold, one line.
+  `wc -l` of the added files matches the fixer's quoted numbers exactly (82 / 36 / 203 / 121 / 71 / 166 / 67);
+  the 300-line cap holds everywhere (max 203).
+
+  GATES. `git ls-files -s` -> ops/deploy-routing 100755, services/routing/import-graph.sh 100755
+  (tests/deploy_rehearsal_driver.sh is 100644 and is invoked as `bash DRIVER`, not exec'd - outside the
+  ops//.githooks/ exec rule). `bash ops/queue-check` -> `QUEUE OK (208 tasks)`.
+  `python ops/lib/check-mutate-population.py` -> `P-PROC-06: every added module is covered or allowlisted; the
+  floor of 22 holds`. There is no ops/check-line-cap in this tree; the cap was checked by wc -l. As instructed,
+  `ops/test` and the full `ops/check-pins` were NOT run here and `--source-only` was skipped locally.
+
+  THE SUITE RAN, IT DID NOT SKIP. `cd services/routing && python -m pytest tests -rs` ->
+  `22 passed, 3 skipped in 34.60s`; the only skips are test_lambda_monotone.py's three (no work/graph-cache in
+  this worktree). All ten read-back tests RAN: the session fixture imported the real PBF itself with the image
+  under test, and its stdout carries `SCENIC_EV present=true bits=4 max=10` and
+  `GRAPH nodes=21137 edges=24057` - the counts the PR claims, reproduced in the reviewer's own run.
+
+  RE-DERIVATION from the MAIN checkout's services/etl/work/la/window-readback.osm.xml (read-only, by grep of
+  the way's own tag block): way 13418694 `name=Rambla Vista scenic_score=3`, way 221164472
+  `name=Latigo Canyon Road scenic_score=7`; also way 10715427 `highway=track scenic_gate=track
+  scenic_score=0` and way 4883641 (no highway, no scenic_score). The probe answered
+  `PROBE way=13418694 edges=7 scenic_score=3`, `PROBE way=221164472 edges=27 scenic_score=7`,
+  `PROBE way=10715427 edges=1 scenic_score=0`, `PROBE way=4883641 edges=0 scenic_score=-`. The typed literals
+  are the artifact's, not the scorer's.
+
+  THREE REVIEWER MUTANTS, all RED - no wrong-input graph, no mis-encoding parser and no vacuous pass gets
+  green past this file.
+    M1 (wrong input, i.e. the fixture's sha256 comparison defeated): ran the read-back file with
+    SCENIC_ROUTING_PBF pointed at window-readback.osm.xml ->
+    `AssertionError: ... is sha256 b2446f56... , not the artifact these literals were read out of
+    (06046be00d336f2f976a31676ce452d2f35fabba15f63d437be3043d909a0090)`. RED before any container starts. The
+    digest is COMPARED, not printed. A wrong input is refused twice over: even with the comparison deleted, the
+    per-way literals are ids of THIS window.
+    M2 (a way split across edges that disagree; does the probe assert ALL edges, or a max?): ScenicRouterMain's
+    probe() accumulates a TreeSet of every distinct value over the way's edges and prints them comma-joined,
+    and the test asserts `scores == [score]` (a list, not a max). Fed the shipped `_parse_probe` the line
+    `PROBE way=221164472 edges=27 scenic_score=3,7` -> parsed `(27, [3, 7])`, assertion `scores == [7]` ->
+    False. RED. This is not theoretical coverage: the probed ways carry 2..27 edges each (Latigo 27, Encinal
+    23, Mulholland 21), so the all-edges-agree path is exercised on real multi-edge ways.
+    M3 (config.yml's osm_way_id dropped - does anything refuse, or does every way silently read edges=0 and
+    the suite pass vacuously?): a vacuous pass is impossible - every per-score test asserts `edges > 0` before
+    it looks at the value, and the gated-track test does too. Fed `_parse_probe` the line
+    `PROBE way=221164472 edges=0 scenic_score=-` -> `(0, [])`, `edges > 0` -> False, RED. Independently, the
+    probe binds the value by name (`getIntEncodedValue("osm_way_id")`) and would throw, failing the fixture's
+    `assert result.returncode == 0`. Not run against a rebuilt image: config.yml is baked into the image by the
+    Dockerfile, so the mutant needs an image rebuild, which is outside this review's two-container budget -
+    ruled from the source and from the two RED parse results above, and said so rather than implied.
+    Also flipped one typed literal in the test itself (score 7 -> 6 for Latigo Canyon Road) and re-ran:
+    `1 failed, 9 passed in 18.53s`, FAILED ...[score6_1]. The assertions bind to what the freshly imported
+    graph actually encodes. `git checkout --` restored it; `git status --short` empty.
+
+  S1 REPLAY. Not replayed against the misspelled-key image (it would be a third container run). It did not
+  need to be: S1's finding was that the fixture probed a pre-built graph bound to nothing, and the fixture now
+  imports with IMAGE into a fresh `tempfile.mkdtemp(prefix="graph-readback-", dir=services/routing/work)` and
+  removes it in `finally`; `grep -rn SCENIC_ROUTING_GRAPH services/routing` -> no hits, so no graph can be
+  handed to the test at all. The reviewer's own run proves the binding empirically: the graph under assertion
+  was built during the run, by the image under test, and its import counts appear in the test's stdout.
+
+  RECORDABLE, NOT BLOCKING.
+    R1. osm_way_id costs 31 bits per edge and is ruled in the Log (R2 ruling, and the properties readout
+    `"name":"osm_way_id","bits":31,"max_value":1558336363`) with the reason it ships rather than living in a
+    probe-only config. Ruled, quoted, accepted.
+    R2. The read-back test needs docker AND the gitignored PBF, so CI does not run it; what CI exercises is
+    the image build's JUnit stage (the Dockerfile no longer passes -DskipTests). Already STILL OPEN in the
+    Log; carried, not re-litigated.
+    R3. The Java plugin has no mutation population under ops/mutate/. P-PROC-06 does not range over Java and
+    this task adds no numeric module under Sources/ or services/etl/etl/, so the rule is not breached; already
+    recorded in the Log for whoever widens P-PROC-06.
+
+  BLOCKING FINDINGS: none. The task file moves queue/claimed/ -> queue/done/ and queue/LOCKS/routing-config.lock
+  is removed in this same commit - the exclusive routing-config hold is released. Not merged by the reviewer.

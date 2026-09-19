@@ -7,6 +7,8 @@ import com.graphhopper.GraphHopper;
 import com.graphhopper.GraphHopperConfig;
 import com.graphhopper.ResponsePath;
 import com.graphhopper.jackson.Jackson;
+import com.graphhopper.routing.ev.IntEncodedValue;
+import com.graphhopper.routing.util.AllEdgesIterator;
 import com.graphhopper.util.CustomModel;
 import com.graphhopper.util.shapes.GHPoint;
 import org.yaml.snakeyaml.Yaml;
@@ -19,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.stream.Stream;
 
 /**
@@ -29,8 +32,13 @@ import java.util.stream.Stream;
  *   --config /app/config.yml --graph /graph [--osm /data/x.pbf] --mode import
  *   --config /app/config.yml --graph /graph --mode route --from LAT,LON --to LAT,LON
  *       --fast-profile car_fast --scenic-profile car_scenic --models /models
+ *   --config /app/config.yml --graph /graph --mode probe --probe-ways 74344132,10715427
  */
 public final class ScenicRouterMain {
+
+    /** GraphHopper's own encoded value, named in config.yml's graph.encoded_values so --mode probe can bind
+     *  an encoded scenic_score to the OSM way it came from. */
+    public static final String OSM_WAY_ID = "osm_way_id";
 
     public static void main(String[] args) throws Exception {
         Map<String, String> cli = parseArgs(args);
@@ -50,7 +58,12 @@ public final class ScenicRouterMain {
                     + " bits=" + ScenicScoreParser.BITS + " max=" + ScenicScoreParser.MAX);
             System.out.println("GRAPH nodes=" + hopper.getBaseGraph().getNodes()
                     + " edges=" + hopper.getBaseGraph().getEdges());
-            if (!"route".equals(cli.getOrDefault("--mode", "route"))) return;
+            String mode = cli.getOrDefault("--mode", "route");
+            if ("probe".equals(mode)) {
+                probe(hopper, required(cli, "--probe-ways"));
+                return;
+            }
+            if (!"route".equals(mode)) return;
             route(hopper, required(cli, "--fast-profile"), point(required(cli, "--from")),
                     point(required(cli, "--to")), null, "-");
             for (Path model : modelFiles(Path.of(required(cli, "--models")))) {
@@ -74,6 +87,37 @@ public final class ScenicRouterMain {
         ResponsePath best = response.getBest();
         System.out.printf(Locale.ROOT, "ROUTE profile=%s model=%s time_ms=%d distance_m=%.1f%n",
                 profile, label, best.getTime(), best.getDistance());
+    }
+
+    /**
+     * Reads back, for each NAMED OSM way, what the import actually encoded. GraphHopper does not index by way
+     * id, so osm_way_id (config.yml's graph.encoded_values) is carried on every edge and the whole edge set is
+     * walked once: way id -> scenic_score, out of the built graph, with no coordinate and no snap in the loop.
+     * A way that reached no edge prints edges=0, which is the honest answer for a way the import dropped.
+     */
+    private static void probe(GraphHopper hopper, String wayIds) {
+        IntEncodedValue wayIdValue = hopper.getEncodingManager().getIntEncodedValue(OSM_WAY_ID);
+        IntEncodedValue scoreValue = hopper.getEncodingManager().getIntEncodedValue(ScenicScoreParser.KEY);
+        Map<Integer, Integer> edgeCounts = new LinkedHashMap<>();
+        Map<Integer, TreeSet<Integer>> scores = new LinkedHashMap<>();
+        for (String raw : wayIds.split(",")) {
+            int wayId = Integer.parseInt(raw.trim());
+            edgeCounts.put(wayId, 0);
+            scores.put(wayId, new TreeSet<>());
+        }
+        AllEdgesIterator edges = hopper.getBaseGraph().getAllEdges();
+        while (edges.next()) {
+            int wayId = edges.get(wayIdValue);
+            if (!edgeCounts.containsKey(wayId)) continue;
+            edgeCounts.put(wayId, edgeCounts.get(wayId) + 1);
+            scores.get(wayId).add(edges.get(scoreValue));
+        }
+        for (Map.Entry<Integer, Integer> entry : edgeCounts.entrySet()) {
+            TreeSet<Integer> seen = scores.get(entry.getKey());
+            String encoded = seen.isEmpty() ? "-" : seen.stream().map(String::valueOf).reduce((a, b) -> a + "," + b).get();
+            System.out.println("PROBE way=" + entry.getKey() + " edges=" + entry.getValue()
+                    + " scenic_score=" + encoded);
+        }
     }
 
     private static GraphHopperConfig readConfig(Path configPath) throws Exception {

@@ -32,7 +32,7 @@ BITE_FLOOR = 0.05
 FROM_POINT = "44.4759,-73.2121"
 TO_POINT = "43.6106,-72.9726"
 
-IMAGE = "scenic-routing:t0031"
+IMAGE = "scenic-routing:t0213"
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ROUTING = REPO_ROOT / "services" / "routing"
 WORK = ROUTING / "work"

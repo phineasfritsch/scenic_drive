@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Ships a BUILT graph to the routing box and flips it live. Same shape as ops/deploy (the Worker): it refuses
+# rather than guesses, and it prints what is live when it is done.
+#
+#   ops/deploy-routing services/routing/work/graph-la-window
+#
+# Refusals, in this order:
+#   1. the argument is not a built graph (no `edges` file in it)
+#   2. HEAD is not reachable on origin - a deploy of unpushed code has no version anyone else can check out
+#   3. the box credentials are not in the environment, and the refusal NAMES the missing ones:
+#        SCENIC_ROUTING_HOST  SCENIC_ROUTING_USER  SCENIC_ROUTING_KEY  SCENIC_ROUTING_ROOT
+#
+# What it does on the box: uploads into a NEW release directory (never over the live one), flips
+# <root>/current by writing a fresh symlink beside it and `mv -T`-ing it over the old one - atomic on one
+# filesystem, which `ln -sfn` is not because it unlinks first - restarts the service, then prunes to the
+# KEEP newest releases so the previous one is always there to flip back to.
+#
+# REHEARSAL WITHOUT A BOX: SCENIC_ROUTING_REHEARSE=<local dir> swaps the two privileged verbs - `remote`
+# becomes `bash -c` and `send` becomes `cp -r` - against that directory. Every other line, including the
+# flip, the restart command and the prune, is the same code. SCENIC_ROUTING_RESTART_CMD overrides the
+# systemctl line (a rehearsal passes `echo restart`).
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+KEEP=2
+REHEARSE="${SCENIC_ROUTING_REHEARSE:-}"
+RESTART_CMD="${SCENIC_ROUTING_RESTART_CMD:-sudo systemctl restart scenic-routing}"
+
+refuse() { echo "DEPLOY-ROUTING REFUSED: $*" >&2; exit 1; }
+
+graph="${1:-}"
+[[ -n "$graph" ]] || refuse "usage: ops/deploy-routing <graph-dir>"
+[[ -f "$graph/edges" ]] || refuse "$graph is not a built graph (no 'edges' file) - import it first with services/routing/import-graph.sh"
+
+sha="$(git rev-parse HEAD)"
+if ! git branch -r --contains "$sha" 2>/dev/null | grep "origin/" >/dev/null; then
+  refuse "HEAD $sha is not on origin - push first"
+fi
+
+if [[ -n "$REHEARSE" ]]; then
+  root="$REHEARSE"
+  mkdir -p "$root"
+  echo "REHEARSAL: no box, no ssh, no rsync - root is the local directory $root"
+else
+  missing=()
+  for name in SCENIC_ROUTING_HOST SCENIC_ROUTING_USER SCENIC_ROUTING_KEY SCENIC_ROUTING_ROOT; do
+    [[ -n "${!name:-}" ]] || missing+=("$name")
+  done
+  [[ ${#missing[@]} -eq 0 ]] || refuse "the routing box credentials are not set: ${missing[*]}"
+  root="$SCENIC_ROUTING_ROOT"
+fi
+
+remote() {
+  if [[ -n "$REHEARSE" ]]; then bash -c "$1"
+  else ssh -i "$SCENIC_ROUTING_KEY" "$SCENIC_ROUTING_USER@$SCENIC_ROUTING_HOST" "$1"; fi
+}
+
+send() {  # $1 local directory, $2 destination directory
+  if [[ -n "$REHEARSE" ]]; then mkdir -p "$2" && cp -r "$1/." "$2/"
+  else rsync -a --delete -e "ssh -i $SCENIC_ROUTING_KEY" "$1/" "$SCENIC_ROUTING_USER@$SCENIC_ROUTING_HOST:$2/"; fi
+}
+
+release="$root/releases/$(date -u +%Y%m%dT%H%M%SZ)-${sha:0:7}"
+echo "== upload -> $release =="
+remote "mkdir -p '$release'"
+send "$graph" "$release/graph"
+remote "ls -1 '$release/graph' | head -3"
+
+echo "== atomic flip =="
+remote "ln -sfn '$release' '$root/.current.new' && mv -T '$root/.current.new' '$root/current'"
+live="$(remote "readlink '$root/current'")"
+[[ "$live" == "$release" ]] || { echo "DEPLOY-ROUTING FAILED: current points at '$live', not '$release'" >&2; exit 1; }
+
+echo "== restart =="
+remote "$RESTART_CMD"
+
+echo "== prune to the $KEEP newest releases =="
+remote "ls -1d '$root'/releases/*/ | sort | head -n -$KEEP | xargs -r rm -rf"
+
+echo "DEPLOY-ROUTING OK sha=$sha live=$live"
+echo "releases kept:"
+remote "ls -1 '$root/releases'"
