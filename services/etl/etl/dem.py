@@ -17,10 +17,17 @@ import subprocess
 from collections.abc import Collection
 from pathlib import Path
 
+from . import fetch
 from . import region as rg
 
 ROOT = Path(__file__).resolve().parents[1]
-INPUTS = ROOT / "inputs"
+# The 3DEP tiles are fetched payloads, and the payloads live in ONE directory shared by every worktree:
+# `SCENIC_ETL_INPUTS`, else the MAIN checkout's services/etl/inputs (fetch.resolve_inputs_dir, T-0177).
+# `ROOT / "inputs"` was this module's own copy of the pre-T-0177 rule, so a run from `.worktrees/<id>/`
+# looked in a directory the LA tiles have never been in and reported no elevation for every point.
+# Resolved ONCE at import, the way `fetch.DEST` is, so the directory is one value rather than a decision
+# repeated per call; a test that needs another one patches `INPUTS` or reloads with the variable set.
+INPUTS = fetch.resolve_inputs_dir(ROOT)
 
 # The eight tiles the sfbay bbox needs, checked by hand when sfbay was the only region. It is the GOLDEN SET
 # for the derivation (`test_the_sfbay_golden_set_is_exactly_what_the_derivation_serves`) and no longer what
@@ -204,10 +211,16 @@ def parse_values(text: str, expected: int) -> list[float | None]:
 
 def sample_tile(name: str, points: list[tuple[float, float]],
                 runner=None) -> list[float | None]:
-    """Elevation for points that all fall in one tile. `runner` is injectable so tests need no GDAL."""
+    """Elevation for points that all fall in one tile. `runner` is injectable so tests need no GDAL.
+
+    A tile we serve and do not HAVE is a REFUSAL naming the path, never `[None] * len(points)`: nothing
+    downstream can tell that value from ocean, so a run whose inputs directory was empty scored real
+    mountain roads as flat ground and stayed green. A point that no region serves never reaches here -
+    `group_by_tile` leaves it None - and that absence is geography, which no fetch can fix.
+    """
     path = tile_path(name)
     if not path.is_file():
-        return [None] * len(points)
+        raise FileNotFoundError(f"dem: tile {name} is missing at {path} - run ops/etl-fetch-inputs")
     stdin = "".join(f"{lon} {lat}\n" for lat, lon in points)
     argv = ["gdallocationinfo", "-valonly", "-wgs84", str(path)]
     run = runner or (lambda a, s: subprocess.run(a, input=s, capture_output=True, text=True, check=False))

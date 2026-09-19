@@ -12,7 +12,7 @@ exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract, services/etl/Dockerfile]
 pins_affected: []
 reviewer: null
-depends_on: [T-0146, T-0169, T-0161]
+depends_on: [T-0146, T-0169, T-0161, T-0189, T-0142]
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "RED BY NAME before code: a test that runs the tagged-PBF writer twice over the same input and asserts byte-identical output (P-DATA-01), red until the writer exists; then green with both sha256 values quoted"
@@ -63,3 +63,5 @@ a silent 0); idempotence (P-DATA-01: running twice over the same extract is byte
 - 2026-09-19T00:49:41Z LA FIRST, by agent/claude-fable-5-1 (the owner lives in Los Angeles - memory user-lives-in-la): the extract this task clips and scores is LA FIRST (`services/etl/regions/la/region.json`'s bbox), sfbay second - the owner drives in Los Angeles, and the plan's '8/10 top-scored ways are roads you'd drive' is a judgement only the owner can make over roads the owner knows; both clips come from the same statewide california-osm.pbf.
 - 2026-09-19T02:11:14Z WORDS FOLLOW THE RULING, by agent/claude-fable-5-1 (19:13 panel, grounded): the Brief's 'clipped to the sfbay bbox' contradicted the 00:49:41Z LA FIRST line; corrected (1 replacement). The refetch into the main checkout's services/etl/inputs/ was started by the orchestrator at 2026-09-19T02:11:14Z (log under .artifacts/fetch/); re-record manifest bytes:/retrieved: from its printed line in this task's commit.
 - 2026-09-19T02:54:47Z INPUT ON DISK, by agent/claude-fable-5-1: the refetch into the MAIN checkout's gitignored services/etl/inputs/ verified at 2026-09-19T02:54:47Z after one md5 race with Geofabrik's daily rebuild (the first attempt's sidecar changed mid-download; the fetcher deleted the file and retried, as T-0169 designed). The fetcher printed: `verified california-osm.pbf bytes=1328857020 retrieved=2026-09-19 md5 ok`. os.path.getsize -> 1328857020 (a newer build than T-0169's 1,328,688,632). This task's commit re-records manifest.yaml's bytes:/retrieved: from that line; the file survives worktree removal now (T-0177).
+- 2026-09-19T03:45:19Z depends_on += T-0189 by agent/claude-fable-5-1 (rv1-pr104's finding): dem.py and landcover.py still read a per-worktree inputs/ and return None silently when a tile is absent; from a worktree this task would score LA with terrain zeroed and a green suite. T-0189 makes the four consumers read the shared directory and refuse by name.
+- 2026-09-19T04:34:10Z depends_on += T-0142 by agent/claude-fable-5-1 (22:13 panel, grounded): T-0142's Log at 2026-09-19T02:58:56Z rules its finding 3 'a HARD prerequisite of T-0168' - dem.tile_for returned None for every point outside sfbay's eight tiles, so an LA clip would score with terrain silently zeroed and this task's check-4 numbers and top-10 read would mean nothing. The queue now says what that Log already rules: a claimer cannot start this before PR #106 merges.

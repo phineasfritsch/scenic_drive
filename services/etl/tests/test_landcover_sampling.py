@@ -52,11 +52,15 @@ class TestWhereItLooksForATile:
     def test_the_tile_name_is_lower_cased_for_the_file_but_not_for_the_tile(self):
         assert lc.tile_path("N36W123").name == "worldcover-n36w123.tif"
 
-    def test_a_missing_tile_file_is_a_miss_rather_than_a_crash(self, monkeypatch, tmp_path):
-        """The western tile is 4 MB of mostly ocean and easy to forget to fetch. Absent data is None."""
+    def test_a_missing_tile_file_is_a_refusal_naming_the_path(self, monkeypatch, tmp_path):
+        """The western tile is 4 MB of mostly ocean and easy to forget to fetch - which is exactly why the
+        old `continue` was wrong: it left None, the same value an ocean cell produces, and the fractions
+        came out of whatever was fetched (T-0189). A point with no tile NAME is still None."""
         monkeypatch.setattr(lc, "INPUTS", tmp_path)
         runner = fake_runner("10\n")
-        assert lc.sample_codes([(37.5, -122.5)], runner=runner) == [None]
+        with pytest.raises(FileNotFoundError) as e:
+            lc.sample_codes([(37.5, -122.5)], runner=runner)
+        assert str(tmp_path / "worldcover-n36w123.tif") in str(e.value), str(e.value)
         assert runner.calls == [], "gdal was called for a tile that is not there"
 
     def test_a_point_with_no_tile_name_never_reaches_gdal(self, tiles):

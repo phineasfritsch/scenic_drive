@@ -91,6 +91,37 @@ queue/LOCKS/     one file per exclusive resource: "<task-id> <owner> <iso-time>"
 `routing-profiles` (services/routing/profiles, config.yml) · `scenic-index` (ETL, graph import, tiles, corpus publish) ·
 `curated` (curated.yaml) · `floors` (pins/floor_*.txt) · `prod` (deploys, publishes, ASC build number, device builds).
 
+## ETL inputs live in ONE directory, outside `.worktrees/`
+
+`services/etl/etl/fetch.py` used to put the fetched payloads in `<this checkout>/services/etl/inputs`, so every
+worktree had its own copy and `git worktree remove --force` deleted it. T-0169 fetched and verified the California
+extract into `.worktrees/T-0169/services/etl/inputs/` and lost it the hour PR #99 merged; the payloads are
+gitignored, so git could not give them back. `fetch.resolve_inputs_dir` decides the directory now:
+
+| where you are | inputs directory |
+|---|---|
+| `SCENIC_ETL_INPUTS` set (any checkout) | that path, verbatim |
+| `<root>/.worktrees/<name>/services/etl` | `<root>/services/etl/inputs` — the **main checkout's** |
+| a plain checkout | its own `services/etl/inputs` |
+
+Not a symlink farm: nothing is created or linked, the resolver only computes a path. Both are gitignored
+(`.gitignore`: `services/etl/inputs/*`), so a payload that lands in the main checkout never shows up in
+`git status` there. Only the payloads are shared — `manifest.yaml` is tracked and stays in **your** checkout, so
+a task that edits its own manifest fetches against that edit.
+
+`ops/etl-fetch-inputs --verify-only` prints `inputs directory: <path>` as its first line, then, for each input
+that is on disk and passes, `verified NAME bytes=N retrieved=DATE MODE ok`; an input that is absent prints
+`not on disk at <path>` and the run exits 1. That run is the acceptance for any task that consumes an input:
+quote the line, do not re-download. It never downloads and never deletes.
+
+Since T-0189 (PR #108) `etl/extract.py`, `etl/dem.py`, `etl/landcover.py` and `etl/oracle.py` resolve their inputs
+directory through `fetch.resolve_inputs_dir` at import time, so `SCENIC_ETL_INPUTS` and the worktree rule reach all
+four, and a tile or raster missing from that directory is a `FileNotFoundError` naming the path, never a silent
+`None`. Still per-checkout on purpose: `oracle.pinned_digest`'s manifest default and `extract.WORK` (a task editing
+its own manifest is checked against that edit; two worktrees extracting different region edits must not share one
+work directory). `ops/etl-extract` still execs `etl.extract` inside the current checkout; `--input <path>` remains
+the explicit override.
+
 ## Task file
 
 See `_schema/task.md`. `touches:` is a flow list of path prefixes. `acceptance:` is the list of demonstrations the

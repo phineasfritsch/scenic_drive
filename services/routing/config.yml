@@ -1,0 +1,32 @@
+# The router's configuration, read by ScenicRouterMain today and by the served GraphHopper in this task's
+# second half - one file, so a profile the test exercises is the profile that ships. The Dropwizard `server:`
+# section arrives with the HTTP surface; nothing here exercises one yet, so none is written.
+#
+# scenic_score is in graph.encoded_values, which is the whole reason the import needs our ImportRegistry:
+# GraphHopper's own registry does not know the name and the import fails without it.
+graphhopper:
+  graph.location: /graph
+  datareader.file: ""
+
+  graph.encoded_values: car_access, car_average_speed, road_class, road_access, surface, scenic_score
+
+  # GraphHopper 11 refuses to start without this key. It drops ways a car can never use from the graph; it is
+  # NOT a scenic gate and it names no motorway or trunk - those carry scenic_score 0 and are penalized by the
+  # per-request model, never hard-excluded.
+  import.osm.ignored_highways: footway, cycleway, path, pedestrian, steps
+
+  # Contraction hierarchies stay OFF: every request carries its own custom model (the lambda penalty), and a
+  # per-request custom model is only legal on a flexible query. Neither profiles_ch nor profiles_lm is listed.
+  custom_models.directory: /app/profiles
+
+  profiles:
+    # car_fast: the fastest route under the SAFETY gates alone. Problem A's T_fast, and the value lambda=0
+    # must reproduce.
+    - name: car_fast
+      weighting: custom
+      custom_model_files: [car_scenic_base.json]
+    # car_scenic: same graph, same gates; the scenic penalty arrives per request as a custom model so that one
+    # graph serves every lambda the bisection asks for.
+    - name: car_scenic
+      weighting: custom
+      custom_model_files: [car_scenic_base.json]

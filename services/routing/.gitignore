@@ -1,0 +1,4 @@
+# Everything this slice builds: the tagged PBF, the graph-cache, the generated per-request models and the
+# scratch scripts. The inputs are manifest-pinned and the outputs are reproducible from them, so none of it
+# is committed - same rule as services/etl/work/.
+work/

@@ -35,6 +35,10 @@ __pycache__/
 # The payloads are R2-published and never committed - but manifest.yaml IS the record of what we fetch,
 # its checksum and its licence, and three tests read it. Ignoring the whole directory made it invisible to
 # git while every local run stayed green, and CI failed 3 tests with no name attached. Ignore the payloads.
+#
+# This is THE inputs directory: from a `.worktrees/<id>/` checkout `etl.fetch` resolves the payloads to the
+# MAIN checkout's copy of this path (fetch.resolve_inputs_dir, queue/README.md), so a payload fetched in a
+# worktree lands here and survives `git worktree remove --force`. Both sides of that mapping are this rule.
 services/etl/inputs/*
 !services/etl/inputs/manifest.yaml
 services/etl/work/

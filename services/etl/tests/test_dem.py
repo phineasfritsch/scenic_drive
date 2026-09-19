@@ -108,9 +108,14 @@ class TestParsingValues:
 
 
 class TestSampling:
-    def test_a_missing_tile_file_yields_misses_rather_than_raising(self, monkeypatch, tmp_path):
+    def test_a_missing_tile_file_is_a_refusal_naming_the_path(self, monkeypatch, tmp_path):
+        """It used to be `[None] * len(points)`. A tile we claim to serve and do not have on disk is a fetch
+        that did not happen, and returning absence for it zeroes real terrain in a run that stays green
+        (T-0189). A point no region serves is still None - see `test_inputs_dir_consumers.py`."""
         monkeypatch.setattr(dem, "INPUTS", tmp_path)
-        assert dem.sample_tile("n38w123", [(37.5, -122.5)]) == [None]
+        with pytest.raises(FileNotFoundError) as e:
+            dem.sample_tile("n38w123", [(37.5, -122.5)])
+        assert str(tmp_path / "3dep-n38w123.tif") in str(e.value), str(e.value)
 
     def test_coordinates_are_written_lon_then_lat(self, monkeypatch, tmp_path):
         """gdallocationinfo -wgs84 wants x y, i.e. lon lat. Swapping them samples the wrong hemisphere and

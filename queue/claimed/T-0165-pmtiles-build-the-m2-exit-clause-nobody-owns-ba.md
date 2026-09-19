@@ -1,13 +1,13 @@
 ---
 id: T-0165
-title: PMTiles build - the M2 exit clause nobody owns: a Bay Area Protomaps extract under 120 MB, with a style that keeps the attribution corner free
-state: ready
-owner: null
+title: PMTiles build - the M2 exit clause nobody owns: an LA Protomaps extract (regions/la) under 120 MB, with a style that keeps the attribution corner free
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T04:48:18Z
+lease_expires_at: 2026-09-19T10:48:18Z
+worktree: .worktrees/T-0165
+branch: task/T-0165
 exclusive: []
 touches: [services/tiles/, ops/publish-tiles]
 pins_affected: []
@@ -41,3 +41,5 @@ here, publish is a separate `exclusive: [prod]` step). `meta.region` and `built_
   acceptance block. Needs docker through WSL; start it when a slot frees after T-0146.
 - 2026-09-19T00:49:41Z LA FIRST, by agent/claude-fable-5-1 (the owner lives in Los Angeles - memory user-lives-in-la): the first PMTiles extract is LA (regions/la's bbox), sfbay second - the owner's phone shows LA.
 - 2026-09-19T02:11:14Z WORDS FOLLOW THE RULING, by agent/claude-fable-5-1 (19:13 panel, grounded): the 00:49:41Z LA FIRST line and the acceptance block disagreed - an author obeying the block would have shipped Bay Area tiles and passed. The acceptance and brief now say regions/la (3 replacements).
+- 2026-09-19T03:29:43Z TITLE FOLLOWS THE RULING, by agent/claude-fable-5-1 (21:13 panel, grounded): the title still said 'a Bay Area Protomaps extract' over an acceptance rewritten LA-first at 02:11:14Z; a claimer reads the title first. Frontmatter title only; nothing else changed.
+- 2026-09-19T04:48:18Z claimed by agent/claude-opus-5; lease until 2026-09-19T10:48:18Z

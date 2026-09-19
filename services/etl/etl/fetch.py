@@ -6,6 +6,9 @@
   python -m etl.fetch --record-digest NAME   fetch NAME, print its sha256, and refuse to proceed further
   python -m etl.fetch --verify-only          re-check what is on disk; download nothing, delete nothing
 
+The payloads land in ONE directory shared by every worktree - `SCENIC_ETL_INPUTS`, else the MAIN checkout's
+services/etl/inputs/ (see resolve_inputs_dir, and queue/README.md). --verify-only names it on its first line.
+
 Every entry that verifies prints one machine-readable line, `verified NAME bytes=N retrieved=DATE MODE ok`,
 so that the manifest's `bytes:` and `retrieved:` are COPIED from a verification that happened rather than read
 off whatever file was lying on disk (T-0169).
@@ -22,6 +25,7 @@ import hashlib
 import os
 import sys
 import urllib.request
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,9 +33,41 @@ from . import manifest as mf
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "inputs" / "manifest.yaml"
-DEST = ROOT / "inputs"
+INPUTS_ENV = "SCENIC_ETL_INPUTS"
+WORKTREES = ".worktrees"
 UA = "scenic-drive-etl/1 (+https://github.com/phineasfritsch/scenic_drive)"
 CHUNK = 1 << 20
+
+
+def resolve_inputs_dir(etl_root: Path, env: Mapping[str, str] | None = None) -> Path:
+    """The ONE directory the fetched payloads live in, shared by every worktree.
+
+    `DEST = ROOT / "inputs"` was per-worktree: T-0169 fetched and verified the California extract into
+    `.worktrees/T-0169/services/etl/inputs/`, the worktree was removed with `--force` the hour PR #99 merged,
+    and the deliverable went with it. The payloads are gitignored, so git could not give them back.
+
+    `SCENIC_ETL_INPUTS` wins, so a box that keeps the extract on another disk says so once. Otherwise a path
+    under `<root>/.worktrees/<name>/` maps to `<root>/services/etl/inputs` - the main checkout's directory,
+    which outlives every worktree - and a plain checkout maps to its own. Resolving creates nothing and links
+    nothing: not a symlink farm, because this tree is developed on Windows where a symlink needs a privilege
+    an ordinary agent does not have.
+
+    Only the PAYLOADS are shared. `MANIFEST` stays in this checkout: manifest.yaml is tracked, and a task that
+    edits its own manifest must fetch against that edit rather than against the main checkout's copy.
+    """
+    e = os.environ if env is None else env
+    override = (e.get(INPUTS_ENV) or "").strip()
+    if override:
+        return Path(override)
+    root = etl_root.resolve()
+    parts = root.parts
+    for i in range(len(parts) - 1, 0, -1):
+        if parts[i] == WORKTREES and i + 1 < len(parts):
+            return Path(*parts[:i], "services", "etl", "inputs")
+    return root / "inputs"
+
+
+DEST = resolve_inputs_dir(ROOT)
 
 
 def today_utc() -> str:
@@ -128,6 +164,7 @@ def verify_only(selected: list[mf.Input]) -> int:
     60-byte sidecar in the same shape as a real mismatch, so deleting here would throw away a 1.3 GB download
     over a transient DNS failure. It reports and exits 1 instead.
     """
+    print(f"inputs directory: {DEST}")
     failures = 0
     for i in selected:
         dest = DEST / i.name

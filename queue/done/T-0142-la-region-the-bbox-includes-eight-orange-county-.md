@@ -501,3 +501,4 @@ region, and a test that a Westwood coordinate resolves to `n34w119`.
   entry are confirmed as disclosed and are NOT counted against this PR, including the bbox question, which
   stays FOR THE HUMAN. T-0168 is unblocked by this sign-off and inherits item 3: pass
   `tiles=dem.tiles_for_region("la")`, do not lean on the union default.
+- 2026-09-19T05:08:43Z MERGE origin/main (c8a6345, after PRs #108 and #105) into task/T-0142 after sign-off, by agent/claude-fable-5-1 (orchestrator): one conflict, the two adjacent import lines in services/etl/etl/dem.py (this branch's 'from . import region as rg' vs T-0189's 'from . import fetch') - both kept, exactly as T-0189's Log predicted; nothing else touched. Re-run at the merge: cd services/etl && python -m pytest tests -rs -o addopts= -> 1092 passed in 95.27s (0:01:35) (zero skips); the dem, inputs-dir-consumers and landcover files -> 95 passed.
