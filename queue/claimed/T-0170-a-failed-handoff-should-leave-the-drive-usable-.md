@@ -25,6 +25,7 @@ acceptance:
   - "THE SURFACE, measured. grep -rn accessibilityIdentifier(\"home. over the feature target -> DriveFacts 47 home.distance, 53 home.timing; HandoffFailureCard 65 home.error, 71 home.error.route, 107 home.error.copy, 126 home.error.retry; ScenicHomeScreen 94 home.title, 104 home.route, 112 home.caption, 141 home.openInAppleMaps - ten, no duplicates. grep -rn 'minHeight: 44' -> HandoffFailureCard 100 and 119 (both new buttons) plus ScenicHomeScreen 133. grep -rn for a six-digit hex or an ad-hoc Color( over the feature target -> no output, exit 1 (DesignTokens only). grep -rn for .system(size: or a numeric size: -> no output, exit 1 (no point size anywhere). The new files' text styles: DriveFacts 44/50 .subheadline; HandoffFailureCard 62 .footnote, 68 .subheadline, 97/116 .headline - Dynamic Type styles only. grep -rn UIPasteboard over every .swift in the tree -> DesignSystem/Clipboard.swift only (line 23 the statement, 7/10/19 its doc), so the root package still never sees UIKit"
   - "git status --porcelain -> no output, exit 0. git diff --name-only b45efd0 -- '*.swift' -> no output, exit 0: nothing Swift changed after run 35425137026 compiled b45efd0; the record commit carries the task file only"
   - "NOT RUN, on the record: bash ops/test and the full bash ops/check-pins (out of scope for this session by the task's own instruction; the Linux gates are covered by the suite above and by gh pr checks on the PR). NOT DONE, on the record: nothing has rendered any of this - no simulator, no device, no snapshot, no screenshot. Every claim about how the failure card looks, how the two buttons behave at accessibility sizes, and whether the Copy button's 'Copied' label is legible is a reading of code. The clipboard has never been written to on a real device"
+  - "POST-MERGE, RE-MEASURED ON THE MERGED HEAD (the owner's pre-review fix, after PR #101 landed on main as c4fa6e7). git merge --no-edit origin/main -> merge commit c7e20c7, 31 files changed, NO conflict, exit 0 - the merge-tree prediction held. ONE semantic fix, the one STILL OPEN (b) named: merged ScenicHomeScreen.swift:74 `onRetry: { handoff() }` re-pointed at the gated path -> commit 034edf2. THE COMPILER, ONE DISPATCH ON THE MERGED HEAD, green first time: gh workflow run ios-compile.yml --ref task/T-0170 -> run 35427349115 on headSha 034edf2a3f46dc4c93675f39ce20b76fc5fc51ec; gh run view 35427349115 --json status,conclusion,headSha -> {status: completed, conclusion: success, headSha: 034edf2a3f46dc4c93675f39ce20b76fc5fc51ec}. gh run view 35427349115 --log -> 2252 lines, line 2195 '** BUILD SUCCEEDED **'; grep -c ' error:' over that log -> 0. Both branches' types compiled together in FeatureScenicHome: line 1740 'Compiling DriveFacts.swift, GatedHandoffButton.swift', 1742 'Compiling HandoffFailureCard.swift, SafetyDisclaimer.swift', 1758 'Compiling ScenicHomeScreen.swift, SkylineHandoff.swift'; 1339/1347 Clipboard.swift and 1553/1569 StraightLineDistance.swift on both architectures. Toolchain: line 51 DEVELOPER_DIR /Applications/Xcode_26.3.app, line 119 'Build version 17C529'. swift test --scratch-path .build/T0170 --filter HandoffTests -> 'Test run with 51 tests in 8 suites passed after 0.071 seconds', exit 0. bash ops/lib/check-safety-disclaimer -> exit 0: SkylineHandoff.open( called once (GatedHandoffButton.swift line 81), dominated by the guard at line 76; GatedHandoffButton( constructed once, in ScenicHomeScreen.swift, passing the acknowledgement through with no ': true'; onBlocked() at line 77 before the return at line 78; and BY OCCURRENCE over the app tree isSafetyDisclaimerAcknowledged at GatedHandoffButton.swift(2) ScenicHomeScreen.swift(4), the key at ScenicHomeScreen.swift(1) - the tracked set, unchanged by this edit. bash ops/lib/check-safety-disclaimer --prove-red -> 'prove-red: 13/13 mutations refused by name', exit 0, among them 'a second call site in the app shell' and 'a second button beside the real one' - the two rows that would have gone green on a retry wired around the gate. bash ops/lib/check-line-cap -> 'P-SRC-02: 78 Swift files tracked (Sources=27, Tests=38, apps/ios=13), none over 300 lines', exit 0. bash ops/queue-check -> 'QUEUE OK (196 tasks)', exit 0. bash ops/check-pins --source-only -> 'PINS ok=13 skipped=14 pending=1 expired=0 failed=0 tier=linux source-only', exit 0 (ok=12 -> 13: P-SAFE-03 is on main now). wc -l RE-MEASURED after the correction (T-0162's rule): 230 ScenicHomeScreen.swift (was 199: +5 merged in from #101's rewrite, +26 this fix), 104 GatedHandoffButton.swift (was 86 on #101), 128 HandoffFailureCard.swift, 57 DriveFacts.swift, 25 Clipboard.swift, 52 StraightLineDistance.swift, 123 StraightLineDistanceTests.swift, 194 HandoffSourceTests.swift. git diff --name-only 034edf2 -- '*.swift' -> no output, exit 0: no Swift file moved after run 35427349115 compiled it. git diff c7e20c7 034edf2 -- apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ | grep -c 'Conditions change|safety.disclaimer.acknowledged' -> 0: no disclaimer string and no store key is in the fix's diff"
 ---
 ## Brief
 
@@ -184,3 +185,48 @@ claimed, and honours the type's rule when labelled as such - it lands here with 
   (113 vs 112)" does not generalise: rounded-to-NEAREST leaves the shipping literal at 112 (the chain is 112.268 km)
   and is killed only by the synthetic floor test ("1999 m of chain is 1 km and never 2", :97). Killed, by one test,
   not by the typed literal - recorded so the population's killers name the right test.
+- 2026-09-19T06:52:47Z (M1) THE MERGE, run and not predicted any longer. PR #101 (T-0153) landed on main as `c4fa6e7`
+  (`git merge-base --is-ancestor f9bd412 origin/main` -> true), so `git merge --no-edit origin/main` in this worktree:
+  merge commit `c7e20c7`, 31 files changed, **no conflict**, exit 0. The `git merge-tree` reading in the 05:38 entry and
+  in acceptance row 7 held exactly - both branches' edits land in `ScenicHomeScreen.swift`, and no textual resolution was
+  needed anywhere. The merge is committed ALONE, by itself, and the semantic fix below is a second commit on top: the
+  merge commit's tree is reproducible by anyone re-running that one command, and folding a hand edit into it would hide
+  the only judgement call of this session inside a commit a reviewer can regenerate mechanically.
+- 2026-09-19T06:52:47Z (M2) THE RETRY, RULED - STILL OPEN (b) is CLOSED by commit `034edf2`. The disagreement to settle
+  was not whether the merged line compiles (it does not: `handoff()` no longer exists on the screen, exactly as R1a
+  predicted) but WHERE the retry re-enters. Read on the merged tree: `GatedHandoffButton.swift` holds the app's only
+  `SkylineHandoff.open(`, inside the Button's action, behind `guard isSafetyDisclaimerAcknowledged else { onBlocked();
+  return }`; `ScenicHomeScreen.swift` owns the `@AppStorage` and builds that button once. Three candidates, and the
+  check decides between them because `ops/lib/check-safety-disclaimer` counts, by occurrence over every `*.swift` under
+  `apps/ios`: `SkylineHandoff.open(` once in `GatedHandoffButton.swift`; `GatedHandoffButton(` once, in the screen;
+  `isSafetyDisclaimerAcknowledged` at GatedHandoffButton.swift(2) ScenicHomeScreen.swift(4); the key once.
+  (i) REJECTED - the card opens the handoff itself: a second `SkylineHandoff.open(` call site, refused by the check and,
+  worse, a way out of the app reachable only after a failure with the acknowledgement nowhere in front of it. The gate
+  would hold on the first tap and not on the second. (ii) REJECTED - a second `GatedHandoffButton` inside the card, or a
+  re-check of the flag on the screen: both move a tracked count (`GatedHandoffButton(` to two; the identifier to five on
+  the screen) and the check refuses them by name - `--prove-red` rows 'a second button beside the real one' and 'a second
+  call site in the app shell' exist for precisely this. (iii) TAKEN - **call the same guarded function the button calls**.
+  `GatedHandoffButton`'s action body is given a name, `attempt()`, and the Button's action becomes `{ attempt() }`; the
+  screen builds the button once in a `private var gatedHandoff: GatedHandoffButton` and uses that one value twice - as
+  the view in the bottom stack, and as `onRetry: { gatedHandoff.attempt() }` on the card. The retry therefore runs the
+  same `guard`, the same `onBlocked()`, the same `onFailure()` as the first tap; it is one function, not a copy of one.
+  No new type (one type per file holds), no second call site, and every count the check makes is unchanged - it printed
+  them: GatedHandoffButton.swift(2) ScenicHomeScreen.swift(4), key(1). Closure literals on both sides, never the method
+  reference `action: attempt`, for the Swift 6 isolation reason R1a already gave. No disclaimer string is touched:
+  `git diff c7e20c7 034edf2 -- <the feature dir> | grep -c 'Conditions change|safety.disclaimer.acknowledged'` -> 0.
+- 2026-09-19T06:52:47Z (M3) MEASURED ON THE MERGED HEAD, all of it, and re-quoted in the new acceptance row above:
+  merge `c7e20c7` clean / fix `034edf2`; the single `ios-compile` dispatch **35427349115** on headSha `034edf2`,
+  `status=completed conclusion=success`, 2252 log lines, line 2195 `** BUILD SUCCEEDED **`, `grep -c ' error:'` -> **0**,
+  with `ScenicHomeScreen.swift` (1758) and `GatedHandoffButton.swift` (1740) compiled in the same target on the same
+  run; `swift test --scratch-path .build/T0170 --filter HandoffTests` -> 51 tests in 8 suites passed, exit 0;
+  `bash ops/lib/check-safety-disclaimer` green and `--prove-red` 13/13 refused by name; `bash ops/lib/check-line-cap`
+  78 files, none over 300; `bash ops/queue-check` QUEUE OK (196 tasks); `bash ops/check-pins --source-only`
+  `PINS ok=13 skipped=14 pending=1 expired=0 failed=0 tier=linux source-only` (exit 0); `wc -l` re-measured on every file this task now writes (230 / 104 / 128 / 57 / 25 / 52 /
+  123 / 194 - the two that moved are named with their before-values in the row). `git diff --name-only 034edf2 --
+  '*.swift'` is empty, so every number here is measured on the bytes run 35427349115 built.
+- 2026-09-19T06:52:47Z STILL OPEN after this session - (b) removed, the rest carried forward unchanged: (a) the
+  `ops/mutate/handoff.py` population for `StraightLineDistance` is filed as **T-0199** and is not in this PR; (c) nothing
+  asserts the new identifiers (no test target in `ScenicApp`); (d) the Copy button's label is one-way for the life of the
+  card; (e) the number omits the leg from the user to pin 1. And still, on the record: **nothing has rendered any of
+  this** - no simulator, no device, no snapshot. That a retry after a failure now reaches the acknowledgement gate is a
+  call-graph fact the check decides and the compiler accepts; nobody has tapped it.
