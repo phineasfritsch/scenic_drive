@@ -68,7 +68,17 @@ MUTANTS = (
 )
 
 
+# The literal floor, in the shape ops/mutate/ populations carry. Without it a table emptied - by a bad merge,
+# or by somebody deleting the row that caught them - prints "0/0 mutants refused by name" and exits 0, which
+# is a green over nothing (PR #94's shape). Raise it when rows are added; never lower it to make a run pass.
+MUTANT_FLOOR = 5
+
+
 def main() -> int:
+    if len(MUTANTS) < MUTANT_FLOOR:
+        print(f"P-DATA-03 (corpus half): --prove-red carries {len(MUTANTS)} mutants, below the floor of "
+              f"{MUTANT_FLOOR}. A table that has lost rows must never read as 'every mutant refused'.")
+        return 1
     if not CHECKER.is_file():
         print(f"P-DATA-03 (corpus half): {CHECKER} is missing; there is nothing to mutate")
         return 1

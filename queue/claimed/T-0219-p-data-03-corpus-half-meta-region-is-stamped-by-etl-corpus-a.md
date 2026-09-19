@@ -179,3 +179,61 @@ The tiles half of P-DATA-03 is asserted by check-pmtiles-provenance.py since #11
   docstring said the same. Both became false the moment this checker landed, and a pin whose own output
   contradicts its text is worse than one that says nothing. The paragraph and the printed line now name
   ops/lib/check-corpus-provenance.py. It is inside touches: [ops/lib/] and its four verdicts are unchanged.
+- 2026-09-19T21:44:06Z FINAL PRE-REVIEW COMMIT. `git fetch origin && git merge --no-edit origin/main` ran as
+  the LAST step before this entry: origin/main was 89753a1 (T-0229 filed, queue/LOCKS/root-package.lock
+  added), the merge is 96ad82b, no conflict and nothing of T-0208's on services/etl/etl/ had landed, so both
+  sides are kept as they stand. THE WHOLE ACCEPTANCE BLOCK, RE-RUN BARE ON THE MERGED HEAD (author rule; the
+  numbers below are from that head, not carried forward from the pre-merge run):
+    1. python ops/lib/check-corpus-provenance.py                       exit 0
+         P-DATA-03 (corpus half): ... over 6 corpora built in process by etl.corpus.build, against region 'la'
+         read from services/etl/regions/la/region.json:
+           a fresh region-la corpus: accepted
+           stamped 40 days ago: refused, named 'older than 30 days (P-DATA-03)'
+           stamped region 'bay': refused, named "meta.region is 'bay'"
+           no meta.region at all: refused, named 'meta.region is None'
+           no meta.built_at at all: refused, named 'meta.built_at is missing'
+           stamped 2 days in the future: refused, named 'is in the future by more than'
+           the real artefact was not checked: $SCENIC_LA_CORPUS is unset (a corpus is a build product and does
+           not exist in CI)
+    2. the same, SCENIC_LA_CORPUS=services/etl/work/t0206/la-union-corpus.sqlite   exit 0
+           la-union-corpus.sqlite: accepted - region=la bytes=19906560 built_at=2026-09-18T00:00:00Z
+       The real artefact is ACCEPTED, not refused: one day old, region la, both read read-only off the file.
+    3. python ops/lib/check-corpus-provenance.py --prove-red           exit 0, 5/5 mutants refused by name
+           the region comparison deleted -> "stamped region 'bay'"
+           an absent region key defaults to the expected value (T-0197 B4) -> 'no meta.region at all'
+           the 30-day comparison flipped -> 'stamped 40 days ago'
+           an absent built_at treated as fresh -> 'no meta.built_at at all'
+           the future-skew limb deleted -> 'stamped 2 days in the future'
+    4. cd services/etl && python -m pytest tests -rs -o addopts=       1312 passed in 83.38s, ZERO skipped
+       (__pycache__ purged under services/etl first)
+    5. PYTHON=python bash ops/check-pins --source-only                 exit 0
+           PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only
+    5b. P-DATA-03's own assertion, bare, exactly as pins.py -c runs it  exit 0, both halves, ending
+           the real artefact was not checked: $SCENIC_LA_CORPUS is unset ...
+        (R8 stands: --source-only cannot run an `anchor: artifact` pin, so 5 proves PINS.yaml still parses
+        with no duplicate id and 5b is where the corpus half is actually seen running on tier=linux.)
+    6. python ops/lib/check-mutate-population.py                       exit 0
+           P-PROC-06: every added module is covered or allowlisted; the floor of 25 holds
+    7. bash ops/lib/check-line-cap   P-SRC-02: 92 Swift files (Sources=29, Tests=42, apps/ios=21), none over 300
+    8. bash ops/lib/check-exec-bits  P-OPS-01: 87 files, 23 required present, all modes correct
+    9. PYTHON=python bash ops/queue-check                              QUEUE OK (222 tasks)
+   10. wc -l, re-measured on the merged head after the (b) correction below: 299
+       ops/lib/check-corpus-provenance.py, 122 ops/lib/check-corpus-provenance-mutations.py, 148
+       ops/lib/check-pmtiles-provenance.py, 132 services/etl/tests/test_corpus_provenance.py, 296
+       pins/PINS.yaml, 238 queue/claimed/T-0219-....md
+       (the task file carries this entry; every source file is under the 300-line cap)
+   11. git merge-base --is-ancestor origin/main HEAD                   exit 0
+  WHAT A REVIEWER SHOULD PROBE FIRST, said plainly rather than left to be found: (a) `_root()` walks parents
+  then the cwd - a mutant copy in a temp directory depends on the cwd limb, and a checkout nested inside
+  another repo could in principle resolve the wrong root; it fail-closes when neither carries both markers.
+  (b) The prove-red table sits in a sibling and the checker's --prove-red only shells to it; a DELETED sibling
+  is a refusal (tested by hand). Writing that sentence exposed a real hole and it was CLOSED rather than
+  filed, before the push: a sibling whose MUTANTS tuple was emptied printed "0/0 mutants refused by name" and
+  exited 0 - a green over nothing, PR #94's shape - because the table had no floor, the one thing every
+  ops/mutate/ population carries. `MUTANT_FLOOR = 5` now guards it, seen RED by cutting a copy of the table to
+  two rows: "P-DATA-03 (corpus half): --prove-red carries 2 mutants, below the floor of 5. A table that has
+  lost rows must never read as 'every mutant refused'." exit 1; and green again at 5/5. P-DATA-03's text
+  names the floor. The acceptance block above was re-run after this correction, since it touches two measured
+  files: prove-red 5/5 exit 0, pytest 1312 passed 0 skipped, --source-only PINS ok=15 skipped=16 pending=1
+  expired=0 failed=0 exit 0, and ops/lib/check-corpus-provenance-mutations.py is now 122 lines, not 112.
+  Everything else in the block is unchanged and was re-confirmed at the same head.
