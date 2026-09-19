@@ -1,32 +1,43 @@
 #!/usr/bin/env bash
 # P-ATTR-01's STRUCTURAL half: the Protomaps credit is the plan's string, it is what the protomaps arm of
-# MapStyle.attributionText returns, the demo arm returns the demo credit, nothing outside MapAdapter names a
-# protomaps case, the LA basemap is mounted, and the footer is handed a resolved style's attributionText
-# rather than a string somebody typed. A source check on a box with no Apple toolchain (ruling R2), which
-# decides four things and refuses to pretend it decides more:
+# MapStyle.attributionText returns, the demo arm returns the demo credit verbatim, nothing outside MapAdapter
+# names a protomaps case, the LA basemap is mounted, the footer is handed the SAME resolved style the map is
+# mounted with, and that footer is not hidden from accessibility. A source check on a box with no Apple
+# toolchain (ruling R2), which decides five things and refuses to pretend it decides more:
 #   (a) THE ARM, not a count. Inside `public var attributionText: String`, the first line carrying code
 #       after `case .protomapsLALight, .protomapsLADark:` is exactly `return MapStyle.protomapsAttribution`,
 #       and the first after `case .maplibreDemoTiles:` is exactly `return MapStyle.demoAttribution`.
 #       T-0195's mutant pass found every recorded grep blind to the arms trading places.
-#   (b) THE LITERAL, as a WHITELIST. The declaration carries the plan's string verbatim, and that string
-#       occurs in code exactly once over the whole app tree - so a credit typed at a call site, which is
-#       right even over a blank map, is refused by name rather than counted as a second correct line.
+#   (b) THE TWO DECLARATIONS, as a WHITELIST OF WHOLE LINES. Every line naming `static let
+#       protomapsAttribution` or `static let demoAttribution` anywhere under apps/ios is exactly one of the
+#       two approved declarations, compared TRIMMED and WHOLE; and the plan's string occurs in code exactly
+#       once over the tree. The pre-review mutant pass (2026-09-19, A2/A3) got both past a prefix and a
+#       substring match: the demo credit set to a near-spelling of the Protomaps line, and the Protomaps
+#       declaration keeping the literal and appending ` + " · Natural Earth"`. The demo credit may never
+#       name OpenStreetMap contributors: the demo tiles carry no OpenStreetMap data.
 #   (c) THE protomapsLA WHITELIST. Every occurrence of the identifier under apps/ios, counted with
 #       multiplicity, against a tracked set typed here; and every occurrence OUTSIDE Sources/MapAdapter/ has
 #       to sit on a `case .` pattern line. A feature target that NAMES a protomaps case builds a style
 #       without asking `BasemapResolver` whether the archive is on the device, which is how the Protomaps
 #       credit ends up over an empty map; one that MATCHES it reads the resolver's answer, which is what
 #       `DriveCopy.mapCaption(for:style:)` does (ruling R0).
-#   (d) THE MOUNT AND THE FOOTER'S ARGUMENT. `BasemapResolver.losAngeles(` occurs exactly once, in
-#       FeatureScenicHome/DriveBasemap.swift - without it the credit sits on no surface at all - and every
-#       `AttributionFooter(` construction is read by its ARGUMENT LIST, which must hand `text:` a value
-#       ending in `.attributionText` and carrying no `"`. rv1-pr112's recorded fourth grep is NOT lifted:
-#       it matched a doc comment, and CLAUDE.md forbids anchoring on one.
+#   (d) THE MOUNT, AND ONE RESOLVED VALUE FOR BOTH HALVES. `BasemapResolver.losAngeles(` occurs exactly
+#       once, in FeatureScenicHome/DriveBasemap.swift - without it the credit sits on no surface at all -
+#       `DriveBasemap.resolve(` occurs exactly once, and every `AttributionFooter(` construction is read by
+#       its ARGUMENT LIST, which must hand `text:` a LOCAL BINDING's `.attributionText` carrying no `"` -
+#       the same binding the map is mounted with (`styleURL: <binding>.url`, once). A5 of the mutant pass
+#       took the credit from a SECOND `DriveBasemap.resolve(...)` call while the map kept the first.
+#   (e) THE FOOTER IS NOT HIDDEN. Every occurrence of `accessibilityHidden` in DesignSystem/
+#       AttributionFooter.swift and at the mount screen is `accessibilityHidden(false)`, and there is at
+#       least one in the footer - acceptance bullet 2's own limb. `.accessibilityHidden(true)` is a licence
+#       breach that renders identically in every screenshot (A7).
 #
 # WHAT IT CANNOT SEE: whether the footer RENDERS, at which sheet detents, whether something is drawn over
 # it, contrast, Dynamic Type, or whether the tiles on screen are the ones the credit names - an XCUITest in
-# a simulator owns those (T-0180). Also unseen: `/* */` comments, Swift outside apps/ios, and any spelling
-# that reaches a case without naming the identifier.
+# a simulator owns those (T-0180). Also unseen: `MapStyle.url` - which document each case actually hands the
+# renderer, so a `url` arm swapped to the demo style is green here (A6); `/* */` comments; Swift outside
+# apps/ios; and any spelling that reaches a case without naming the identifier, e.g. `MapStyle.allCases[0]`
+# (A4 - `MapStyle(rawValue: "protomapsLALight")` IS refused, because (c) counts inside string literals too).
 #
 #   bash ops/lib/check-map-attribution                 # the tracked tree
 #   bash ops/lib/check-map-attribution --app-tree DIR  # a copy of apps/ios (the mutation table hands one)
@@ -34,12 +45,22 @@
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
+LIB="ops/lib/check-map-attribution-lib"
+if [[ ! -f "$LIB" ]]; then
+  echo "P-ATTR-01: $LIB is missing; the check cannot read Swift source without its readers."
+  exit 1
+fi
+. "$LIB"
+
 DEFAULT_APP_TREE="apps/ios"
 ADAPTER_REL="Packages/ScenicApp/Sources/MapAdapter"
 FEATURE_REL="Packages/ScenicApp/Sources/FeatureScenicHome"
+DESIGN_REL="Packages/ScenicApp/Sources/DesignSystem"
 CREDIT="© OpenStreetMap contributors · Protomaps"
+CREDIT_IDENT="static let protomapsAttribution"
 CREDIT_DECL="public static let protomapsAttribution = \"$CREDIT\""
-DEMO_DECL="public static let demoAttribution = \""
+DEMO_IDENT="static let demoAttribution"
+DEMO_DECL="public static let demoAttribution = \"© MapLibre · Natural Earth\""
 PROTOMAPS_IDENT="protomapsLA"
 # Typed literals in the scan's own path order, raised deliberately the day a target legitimately grows one
 # more (the shape P-SAFE-03's whitelist uses, T-0153 ruling R4-B): a derived expectation moves whenever the
@@ -69,36 +90,9 @@ fail() {
   exit 1
 }
 
-# Every reader strips `//` to end of line and a trailing CR (the authoring box is Windows). CLAUDE.md: never
-# anchor on a comment. `grep -c`, never `-q`/`-l`, on either side of a pipe (P-OPS-03).
+# `grep -c`, never `-q`/`-l`, on either side of a pipe (P-OPS-03).
 code_of() { sed -e 's/\r$//' -e 's|//.*||' "$1"; }
 count_fixed_in() { code_of "$2" | grep -c -F -e "$1" || true; }
-
-# One "relative/path(count)" per line, by occurrence, over the whole app tree - ONE awk over every file
-# rather than one per file, because this box forks slowly enough that per-file pipelines turn a check into a
-# two-minute wait and a --prove-red table into a quarter of an hour.
-occurrences_with_multiplicity() {
-  local needle="$1"
-  shift
-  awk -v needle="$needle" -v root="$APP_TREE/" '
-    {
-      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
-      if (!(FILENAME in seen)) { seen[FILENAME] = 1; order[++m] = FILENAME }
-      s = code
-      while ((i = index(s, needle)) > 0) { c[FILENAME]++; s = substr(s, i + length(needle)) }
-    }
-    END {
-      for (j = 1; j <= m; j++) {
-        f = order[j]
-        if (c[f] > 0) {
-          rel = f
-          if (index(f, root) == 1) rel = substr(f, length(root) + 1)
-          printf "%s(%d)\n", rel, c[f]
-        }
-      }
-    }
-  ' "$@"
-}
 
 require_tracked_occurrences() {
   local needle="$1" kind="$2" expected="$3"
@@ -115,58 +109,6 @@ require_tracked_occurrences() {
     "${why[@]}"
 }
 
-# (a). Prints "<protomaps case line> <0|1 its arm returns protomapsAttribution> <demo case line> <0|1 its arm
-# returns demoAttribution>", read only INSIDE attributionText - `url` switches over the same three cases.
-arm_verdict() {
-  awk '
-    {
-      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
-      if (start == 0) { if (index(code, "public var attributionText: String") > 0) start = NR; next }
-      if (want != "") {
-        if (code ~ /[^ \t]/) {
-          line = code; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
-          if (want == "p" && line == "return MapStyle.protomapsAttribution") pok = 1
-          if (want == "d" && line == "return MapStyle.demoAttribution") dok = 1
-          want = ""
-        } else next
-      }
-      if (pline == 0 && index(code, "case .protomapsLALight, .protomapsLADark:") > 0) { pline = NR; want = "p"; next }
-      if (dline == 0 && index(code, "case .maplibreDemoTiles:") > 0) { dline = NR; want = "d"; next }
-    }
-    END { printf "%d %d %d %d\n", pline+0, pok+0, dline+0, dok+0 }
-  ' "$1"
-}
-
-# (d). The argument list of every `AttributionFooter(` construction in a file, //-stripped, one per line:
-# from the open paren to the paren that closes it, by depth, so a construction spanning lines is read whole.
-footer_args() {
-  awk '
-    {
-      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
-      while (1) {
-        if (started == 0) {
-          i = index(code, "AttributionFooter(")
-          if (i == 0) break
-          started = 1; depth = 0; out = ""
-          code = substr(code, i + length("AttributionFooter("))
-        }
-        n = length(code); k = 1; done = 0
-        for (; k <= n; k++) {
-          ch = substr(code, k, 1)
-          if (ch == "(") depth++
-          else if (ch == ")") {
-            if (depth == 0) { print out; started = 0; done = 1; break }
-            depth--
-          }
-          out = out ch
-        }
-        if (done == 0) { out = out " "; break }
-        code = substr(code, k + 1)
-      }
-    }
-  ' "$1"
-}
-
 run_check() {
   [[ -d "$APP_TREE" ]] || fail "no such directory: $APP_TREE" \
     "The pin's population is the app tree; a missing tree must never read as 'the credit is on the surface'."
@@ -175,10 +117,11 @@ run_check() {
   local appearance="$APP_TREE/$ADAPTER_REL/MapAppearance.swift"
   local basemap="$APP_TREE/$FEATURE_REL/DriveBasemap.swift"
   local screen="$APP_TREE/$FEATURE_REL/ScenicHomeScreen.swift"
+  local footer="$APP_TREE/$DESIGN_REL/AttributionFooter.swift"
   local f
-  for f in "$map_style" "$appearance" "$basemap" "$screen"; do
+  for f in "$map_style" "$appearance" "$basemap" "$screen" "$footer"; do
     [[ -f "$f" ]] || fail "missing file: $f" \
-      "(a)-(d) name these four files. A tree without them is a refusal, never a pass."
+      "(a)-(e) name these five files. A tree without them is a refusal, never a pass."
   done
 
   local files=()
@@ -205,15 +148,16 @@ run_check() {
     "MapLibre's demo tiles carry no OpenStreetMap data and are not served by Protomaps: the plan's credit" \
     "under them credits two parties for country polygons neither drew - on every device without la.pmtiles."
 
-  # ------------------------------------------------------------------ (b) the LITERAL
-  local decl demo
-  decl="$(count_fixed_in "$CREDIT_DECL" "$map_style")"
-  [[ "$decl" -eq 1 ]] || fail "the plan's credit literal is not declared verbatim in $map_style (found $decl)." \
-    "Expected exactly: $CREDIT_DECL" \
-    "CLAUDE.md states the string: Attribution (\`$CREDIT\`) is visible on every map surface at every detent."
-  demo="$(count_fixed_in "$DEMO_DECL" "$map_style")"
-  [[ "$demo" -eq 1 ]] || fail "no \`$DEMO_DECL...\` declaration in $map_style (found $demo)." \
-    "The demo arm returns it; without the declaration there is no second credit to return."
+  # ------------------------------------------------------------------ (b) the TWO DECLARATIONS
+  require_one_declaration "$CREDIT_IDENT" "$CREDIT_DECL" "the credit literal is not declared verbatim" \
+    "CLAUDE.md states the string: Attribution (\`$CREDIT\`) is visible on every map surface at every detent." \
+    -- "${files[@]}"
+  require_one_declaration "$DEMO_IDENT" "$DEMO_DECL" "the demo credit declaration is not verbatim" \
+    "The demo tiles are MapLibre's, drawing Natural Earth country polygons: no OpenStreetMap data and no" \
+    "Protomaps service. A demo credit naming OpenStreetMap contributors is a false credit on every device" \
+    "without la.pmtiles and on the Skyline drive always - and it is invisible to a grep for the plan's" \
+    "string, which is still declared once and still correct where it is." \
+    -- "${files[@]}"
   require_tracked_occurrences "$CREDIT" "credit literal" "$CREDIT_SET" \
     "A credit string typed at a call site is right even over a blank map, so it is the one anchor that must" \
     "never be trusted alone: the string has to come from the RESOLVED style and from nowhere else." \
@@ -253,8 +197,12 @@ run_check() {
   require_tracked_occurrences "AttributionFooter(" "footer construction" "$FOOTER_SET" \
     "Every map surface carries the credit; a second footer somewhere else is a second string to keep true." \
     -- "${files[@]}"
+  require_tracked_occurrences "DriveBasemap.resolve(" "resolve call" "$FOOTER_SET" \
+    "ONE resolve per screen, held in state: a second call is a second answer, and the credit then names" \
+    "tiles the renderer never got (mutant pass A5 - the footer resolved again, the map kept the first)." \
+    -- "${files[@]}"
 
-  local args=() seen_args=0
+  local args=() seen_args=0 recv=""
   mapfile -t args < <(footer_args "$screen")
   for a in "${args[@]}"; do
     seen_args=$((seen_args + 1))
@@ -269,19 +217,58 @@ run_check() {
         "Read from the construction's own argument list. Both halves of what is on screen - the tiles and" \
         "the credit - must come from the one MapStyle value BasemapResolver returned." ;;
     esac
+    recv="${a#*text:}"; recv="${recv%%.attributionText*}"
+    recv="${recv#"${recv%%[![:space:]]*}"}"; recv="${recv%"${recv##*[![:space:]]}"}"
   done
   [[ "$seen_args" -eq 1 ]] || fail \
     "read $seen_args AttributionFooter( argument list(s) in $screen, expected 1." \
     "A construction the argument reader cannot parse must refuse, not pass unread."
+  [[ "$recv" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || fail \
+    "the footer's credit does not come from a local binding: \`${recv:-<empty>}\`.attributionText" \
+    "The text argument has to read <binding>.attributionText, where <binding> is the same value the map" \
+    "is mounted with. An expression there resolves the style a SECOND time (mutant pass A5)."
+  local mounted styles
+  mounted="$(count_fixed_in "styleURL: $recv.url" "$screen")"
+  styles="$(count_fixed_in "styleURL:" "$screen")"
+  [[ "$mounted" -eq 1 && "$styles" -eq 1 ]] || fail \
+    "the map is not mounted with the same resolved value the credit came from: \`styleURL: $recv.url\`" \
+    "occurs $mounted time(s) in $screen and \`styleURL:\` occurs $styles time(s), expected 1 and 1." \
+    "The tiles and the credit are two halves of one fact: the footer reads $recv.attributionText, so the" \
+    "renderer has to be handed $recv.url and nothing else."
+
+  # ------------------------------------------------------------------ (e) NOT HIDDEN from accessibility
+  local all_h ok_h
+  for f in "$footer" "$screen"; do
+    read -r all_h ok_h <<<"$(hidden_counts "$f")"
+    [[ "$all_h" -eq "$ok_h" ]] || fail \
+      "$f hides something from accessibility: $all_h \`accessibilityHidden\` occurrence(s), $ok_h of them" \
+      "\`accessibilityHidden(false)\`. Every occurrence must be \`(false)\` - a WHITELIST, so \`(true)\`," \
+      "an interpolated argument and any other spelling are refused by name rather than blacklisted." \
+      "A screen reader user is entitled to the same credit line as everybody else: ODbL's credit is not" \
+      "satisfied by a footer that renders and is hidden from VoiceOver, and the screenshot is identical."
+    if [[ "$f" == "$footer" ]]; then
+      [[ "$ok_h" -ge 1 ]] || fail \
+        "$footer never states \`accessibilityHidden(false)\`." \
+        "Acceptance bullet 2 asks this check to assert that AttributionFooter is not accessibilityHidden." \
+        "The explicit \`false\` is what makes its removal a visible deletion in a diff; left to the default," \
+        "nothing here can tell 'not hidden' from 'nobody said'."
+    fi
+  done
 
   echo "P-ATTR-01: over $an .swift file(s) under $APP_TREE, // stripped:"
   echo "  attributionText's protomaps arm (line $pline) returns MapStyle.protomapsAttribution and its demo"
-  echo "  arm (line $dline) returns MapStyle.demoAttribution; the declaration is verbatim"
-  echo "  \"$CREDIT\", occurring in code at $CREDIT_SET only;"
+  echo "  arm (line $dline) returns MapStyle.demoAttribution; the two declarations are verbatim, whole line:"
+  echo "    $CREDIT_DECL"
+  echo "    $DEMO_DECL"
+  echo "  the plan's string occurs in code at $CREDIT_SET only;"
   echo "  $PROTOMAPS_IDENT at $PROTOMAPS_SET, and every occurrence outside $ADAPTER_REL/ is a \`case .\` pattern;"
-  echo "  the mount at $MOUNT_SET; the footer at $FOOTER_SET, built with: ${args[0]}"
+  echo "  the mount at $MOUNT_SET; one DriveBasemap.resolve( at $FOOTER_SET; the footer at $FOOTER_SET, built"
+  echo "  with: ${args[0]} - and the map with styleURL: $recv.url, the same binding;"
+  echo "  every accessibilityHidden in $DESIGN_REL/AttributionFooter.swift and in the mount screen is (false)."
   echo "  Not checked here: rendering, the detents, contrast, Dynamic Type, or that the tiles on screen are"
-  echo "  the ones this credit names - XCUITest (T-0180) owns those."
+  echo "  the ones this credit names - XCUITest (T-0180) owns those. Nor MapStyle.url: which style DOCUMENT"
+  echo "  each case hands the renderer is unseen (A6), as is any spelling that reaches a case without naming"
+  echo "  protomapsLA - e.g. MapStyle.allCases[0] (A4) - and any Swift outside $APP_TREE."
 }
 
 MUTATIONS="ops/lib/check-map-attribution-mutations"

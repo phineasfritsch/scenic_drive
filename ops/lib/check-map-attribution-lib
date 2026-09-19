@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# P-ATTR-01's SOURCE READERS, sourced by ops/lib/check-map-attribution.
+#
+# One file, one concern - the same split ops/lib/check-safety-disclaimer-lib made, for the same reason: the
+# check itself is at CLAUDE.md's 300-line cap and the pre-review mutant pass (2026-09-19, survivors A2/A3/
+# A5/A7) bought four more anchors. Nothing here decides anything; every function READS Swift source and
+# prints what it found, and the check's `fail` calls are all in the check. Every reader strips `//` to end
+# of line and a trailing CR (the authoring box is Windows) - CLAUDE.md: never anchor on a comment.
+#
+# $APP_TREE is read by occurrences_with_multiplicity for its relative-path printing; the check sets it.
+
+# One "relative/path(count)" per line, by occurrence, over the whole app tree - ONE awk over every file
+# rather than one per file, because this box forks slowly enough that per-file pipelines turn a check into a
+# two-minute wait and a --prove-red table into a quarter of an hour.
+occurrences_with_multiplicity() {
+  local needle="$1"
+  shift
+  awk -v needle="$needle" -v root="$APP_TREE/" '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      if (!(FILENAME in seen)) { seen[FILENAME] = 1; order[++m] = FILENAME }
+      s = code
+      while ((i = index(s, needle)) > 0) { c[FILENAME]++; s = substr(s, i + length(needle)) }
+    }
+    END {
+      for (j = 1; j <= m; j++) {
+        f = order[j]
+        if (c[f] > 0) {
+          rel = f
+          if (index(f, root) == 1) rel = substr(f, length(root) + 1)
+          printf "%s(%d)\n", rel, c[f]
+        }
+      }
+    }
+  ' "$@"
+}
+
+# (a). Prints "<protomaps case line> <0|1 its arm returns protomapsAttribution> <demo case line> <0|1 its arm
+# returns demoAttribution>", read only INSIDE attributionText - `url` switches over the same three cases.
+arm_verdict() {
+  awk '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      if (start == 0) { if (index(code, "public var attributionText: String") > 0) start = NR; next }
+      if (want != "") {
+        if (code ~ /[^ \t]/) {
+          line = code; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+          if (want == "p" && line == "return MapStyle.protomapsAttribution") pok = 1
+          if (want == "d" && line == "return MapStyle.demoAttribution") dok = 1
+          want = ""
+        } else next
+      }
+      if (pline == 0 && index(code, "case .protomapsLALight, .protomapsLADark:") > 0) { pline = NR; want = "p"; next }
+      if (dline == 0 && index(code, "case .maplibreDemoTiles:") > 0) { dline = NR; want = "d"; next }
+    }
+    END { printf "%d %d %d %d\n", pline+0, pok+0, dline+0, dok+0 }
+  ' "$1"
+}
+
+# (b). Every line NAMING a declaration identifier, "path:line:<trimmed code>", over the files handed in.
+# The check compares each one for WHOLE-LINE equality against the one approved declaration: the mutant pass
+# set demoAttribution to a near-spelling of the Protomaps credit (A2) and appended to the Protomaps
+# declaration (A3), and a prefix or substring match was green on both.
+decl_lines() {
+  local needle="$1"
+  shift
+  awk -v needle="$needle" -v root="$APP_TREE/" '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      if (index(code, needle) == 0) next
+      line = code; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      rel = FILENAME
+      if (index(FILENAME, root) == 1) rel = substr(FILENAME, length(root) + 1)
+      printf "%s:%d:%s\n", rel, FNR, line
+    }
+  ' "$@"
+}
+
+# (b). Exactly one declaration names the identifier over the files handed in, and that whole trimmed line
+# IS the approved one. `fail` belongs to the check that sources this file: every refusal is worded there.
+require_one_declaration() {
+  local ident="$1" approved="$2" headline="$3"
+  shift 3
+  local why=()
+  while [[ $# -gt 0 && "$1" != "--" ]]; do why+=("$1"); shift; done
+  [[ "${1:-}" == "--" ]] && shift
+  local found=()
+  mapfile -t found < <(decl_lines "$ident" "$@")
+  [[ "${#found[@]}" -eq 1 ]] || fail \
+    "$headline: \`$ident\` is declared ${#found[@]} time(s) under $APP_TREE, expected 1." \
+    "${found[@]:-<nowhere>}" "${why[@]}"
+  local where="${found[0]%%:*}" rest="${found[0]#*:}"
+  local line="${rest#*:}"
+  [[ "$line" == "$approved" ]] || fail \
+    "$headline in $where:${rest%%:*}" \
+    "  found:    $line" \
+    "  approved: $approved" \
+    "The WHOLE trimmed line is compared, not a prefix and not a substring: a declaration that keeps the" \
+    "approved text and appends to it, or replaces its value with a near-spelling, changes what is on the" \
+    "screen while every count and every prefix match stays green (mutant pass A2/A3)." \
+    "${why[@]}"
+}
+
+# (e). "<occurrences of accessibilityHidden> <occurrences of accessibilityHidden(false)>" in one file.
+# A WHITELIST: the two numbers are equal and the first is non-zero, so `.accessibilityHidden(true)` and any
+# other spelling of the argument are refused by name rather than blacklisted (A7).
+hidden_counts() {
+  awk '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      s = code
+      while ((i = index(s, "accessibilityHidden")) > 0) { all++; s = substr(s, i + 19) }
+      s = code
+      while ((i = index(s, "accessibilityHidden(false)")) > 0) { ok++; s = substr(s, i + 26) }
+    }
+    END { printf "%d %d\n", all+0, ok+0 }
+  ' "$1"
+}
+
+# (d). The argument list of every `AttributionFooter(` construction in a file, //-stripped, one per line:
+# from the open paren to the paren that closes it, by depth, so a construction spanning lines is read whole.
+footer_args() {
+  awk '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      while (1) {
+        if (started == 0) {
+          i = index(code, "AttributionFooter(")
+          if (i == 0) break
+          started = 1; depth = 0; out = ""
+          code = substr(code, i + length("AttributionFooter("))
+        }
+        n = length(code); k = 1; done = 0
+        for (; k <= n; k++) {
+          ch = substr(code, k, 1)
+          if (ch == "(") depth++
+          else if (ch == ")") {
+            if (depth == 0) { print out; started = 0; done = 1; break }
+            depth--
+          }
+          out = out ch
+        }
+        if (done == 0) { out = out " "; break }
+        code = substr(code, k + 1)
+      }
+    }
+  ' "$1"
+}

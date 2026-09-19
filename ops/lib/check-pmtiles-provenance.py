@@ -22,9 +22,13 @@ THE REAL ARTIFACT. When `SCENIC_LA_PMTILES` names a file, the same command is ru
 that is the pin over the real build, on the one box that has it. Set and naming nothing is a REFUSAL, never
 a skip (the rule `services/tiles/tests/test_check_pmtiles_cli.py` already states for itself).
 
-THE CORPUS HALF IS NOT HERE. P-DATA-03 also speaks about the corpus manifest, which has no region field to
-read today; T-0205 owns it and the pin's own text says so. This file asserts the tiles half only and says
-which half it is - a pin that quietly covers one of two populations is worse than one that names the gap.
+THE CORPUS HALF IS NOT HERE, AND IT IS NOW UNOWNED. P-DATA-03 also speaks about the corpus. `etl.corpus`
+DOES stamp one - `services/etl/etl/corpus.py`, `writer.set_meta("region", region)` - but nothing anywhere
+reads that value back against the active region, and T-0205, which the pin's text named as the task that
+would grow this assertion's second half, merged as PR #116 writing `meta.surface_coverage` (P-DATA-04)
+instead. No open task owns the corpus region comparison; one has to be filed. This file asserts the tiles
+half only and says which half it is - a pin that quietly covers one of two populations is worse than one
+that names the gap.
 
     python ops/lib/check-pmtiles-provenance.py
 """
@@ -80,11 +84,25 @@ def main() -> int:
         return refuse(f"the tests' PMTiles writer is unavailable: {exc}",
                       "services/tiles/tests/test_pmtiles_budget.py owns write_pmtiles/good_metadata.")
 
+    def unstamped_region(built_at: str) -> dict:
+        """An archive the recipe never stamped at all: the region key is ABSENT, not wrong.
+
+        The wrong-region fixture below cannot catch a comparison that defaults the missing key to the
+        expected value (`meta.get("region", region)`): with no region stamped, that reads 'la' and the
+        archive is ACCEPTED - the whole failure this pin exists for, from an archive nobody stamped.
+        The pre-review mutant pass of 2026-09-19 (B4) survived both this check and all 69 tests in
+        services/tiles/tests with exactly that mutation.
+        """
+        meta = good_metadata(built_at=built_at)
+        meta.pop("region")
+        return meta
+
     cases = [
         ("a fresh region-la archive", good_metadata(built_at=stamp(0.001)), 0, "PMTILES OK"),
         ("stamped 40 days ago", good_metadata(built_at=stamp(40)), 1, "older than 30 days (P-DATA-03)"),
         ("stamped region 'bay'", good_metadata(built_at=stamp(0.001), region="bay"), 1,
          "meta.region is 'bay'"),
+        ("no meta.region at all", unstamped_region(stamp(0.001)), 1, "meta.region is None"),
     ]
 
     failures: list[str] = []
@@ -123,7 +141,9 @@ def main() -> int:
           f"{len(cases)} in-process fixtures:")
     for line in lines:
         print(line)
-    print("  The corpus half is T-0205's: no manifest carries a region field yet (see the pin's text).")
+    print("  The corpus half is UNASSERTED and UNOWNED: etl.corpus stamps meta.region (corpus.py, "
+          "set_meta(\"region\", ...)) and nothing reads it back against the active region; T-0205 merged "
+          "as PR #116 writing meta.surface_coverage instead, so a task for it still has to be filed.")
     return 0
 
 

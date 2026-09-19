@@ -18,6 +18,16 @@
 #     occurrence over the whole tree and not only declared.
 #   8 the footer handed some other resolved string - (d)'s argument-list reader; row 7 is green on it.
 #
+# Rows 9-12 are the pre-review mutant pass of 2026-09-19 (survivors A2, A3, A5, A7), each of which was
+# EXIT 0 against rows 1-8:
+#   9 the demo credit set to a near-spelling of the Protomaps line and 10 the Protomaps declaration keeping
+#     the plan's string and appending to it - (b)'s WHOLE-LINE whitelist; a prefix and a substring match
+#     were both green on them, with the plan's literal still occurring exactly once.
+#  11 the footer hidden from accessibility - (e); acceptance bullet 2's own limb, and a screenshot cannot
+#     tell the two apart.
+#  12 the footer's credit taken from a SECOND DriveBasemap.resolve( while the map keeps the first - (d)'s
+#     one-resolved-value anchor; the argument still ends in .attributionText, which is why row 8 is green.
+#
 #   ROW = label | file under the apps/ios copy | sed script | substring the refusal must contain
 # `|` is the field separator, so a sed script carries no pipe.
 set -uo pipefail
@@ -27,6 +37,7 @@ CHECK="ops/lib/check-map-attribution"
 APP_TREE="apps/ios"
 MA="Packages/ScenicApp/Sources/MapAdapter"
 FS="Packages/ScenicApp/Sources/FeatureScenicHome"
+DS="Packages/ScenicApp/Sources/DesignSystem"
 
 [[ -f "$CHECK" ]] || { echo "P-ATTR-01: $CHECK is missing; the table has nothing to prove red."; exit 1; }
 [[ -d "$APP_TREE/$MA" ]] || { echo "P-ATTR-01: $APP_TREE/$MA is missing; nothing to mutate."; exit 1; }
@@ -40,6 +51,10 @@ rows=(
   "the LA basemap unmounted|$FS/DriveBasemap.swift|s/return BasemapResolver.losAngeles(appearance: appearance)/return .maplibreDemoTiles/|mount BasemapResolver.losAngeles( occurs outside its tracked set"
   "a literal credit typed at the footer|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: style.attributionText)/AttributionFooter(text: \"© OpenStreetMap contributors · Protomaps\")/|credit literal © OpenStreetMap contributors · Protomaps occurs outside its tracked set"
   "the footer handed some other string|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: style.attributionText)/AttributionFooter(text: DriveCopy.mapCaption(for: selectedDrive, style: style))/|is not a style's attributionText"
+  "the demo credit set to the Protomaps line|$MA/MapStyle.swift|s/demoAttribution = \"© MapLibre · Natural Earth\"/demoAttribution = \"© OpenStreetMap contributors, Protomaps\"/|the demo credit declaration is not verbatim"
+  "the Protomaps declaration appended to|$MA/MapStyle.swift|s/protomapsAttribution = \"© OpenStreetMap contributors · Protomaps\"/protomapsAttribution = \"© OpenStreetMap contributors · Protomaps\" + \" · Natural Earth\"/|the credit literal is not declared verbatim"
+  "the footer hidden from accessibility|$DS/AttributionFooter.swift|s/.accessibilityHidden(false)/.accessibilityHidden(true)/|hides something from accessibility"
+  "the credit from a second resolve|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: style.attributionText)/AttributionFooter(text: DriveBasemap.resolve(for: selectedDrive, appearance: .light).attributionText)/|resolve call DriveBasemap.resolve( occurs outside its tracked set"
 )
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.
