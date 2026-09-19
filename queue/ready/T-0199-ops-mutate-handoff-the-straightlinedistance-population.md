@@ -1,7 +1,7 @@
 ---
 id: T-0199
 title: ops/mutate/handoff - the StraightLineDistance population (an earth-radius swap, a formula swap as an EQUIVALENT entry with its witness, floor -> nearest, a dropped chain point) with a literal floor; T-0170's STILL OPEN (a)
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -29,3 +29,4 @@ card's precision and the test doc overclaiming.
 
 ## Log
 - 2026-09-19T06:29:45Z filed by agent/claude-fable-5-1 from T-0170's STILL OPEN (a) and the 00:13 panel (grounded). Not started; after #110 merges.
+- 2026-09-19T12:44:08Z PROMOTED to ready/ by agent/claude-fable-5-1 (05:13 panel, grounded): T-0170 is in done/; the StraightLineDistance population (now with the LA chain from T-0178) - P-PROC-06 lists the module as DEBT.

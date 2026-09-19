@@ -45,7 +45,9 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
 - The author rule: rule every disagreement between plan, Brief, code and reality in the Log before writing code;
   at the final pre-review commit re-run and re-quote the whole acceptance block. A correction commit that touches
   a measured file re-measures it (T-0162's `wc -l` 239 vs 242 cost a review round). Close the read-only
-  verifier's findings before the review is bought.
+  verifier's findings before the review is bought. The final pre-review commit merges `origin/main` first and
+  re-runs the acceptance block on the merged head; a sign-off bought on a tree older than main's gate set is not
+  a sign-off (PR #115 was signed off, then refused at merge on P-PROC-06).
 - An acceptance predicate over real data is written AFTER the population it ranges over has been measured: the
   filer quotes the measurement (window, way count, the rows the predicate turns on) in the Brief; a predicate over
   a population nobody has looked at is filed as a measurement task, not an acceptance (T-0168's 8/10 could not
