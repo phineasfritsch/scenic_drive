@@ -12,7 +12,7 @@ exclusive: [services/routing/profiles/car_scenic_request.json]
 touches: [services/routing/, services/api/src/customModel.ts]
 pins_affected: []
 reviewer: null
-depends_on: [T-0031]
+depends_on: [T-0209]
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "services/routing/profiles/car_scenic_request.json carries every priority clause services/api/src/customModel.ts's buildCustomModel emits, in order: the ${high}/${mid}/${low} band clauses AND 'road_class == RESIDENTIAL && scenic_score < 7 -> 0.5' (plan line 108); the closure clause stays the Worker's own and is named in the test as the deliberate difference; RED BY NAME first: a container-free test in tests/test_profiles_static.py that reads the TS clause list off buildCustomModel's source (anchored on the identifiers buildCustomModel / scenicBandMultipliers / MULTIPLIER_DECIMALS, never on a comment) and the JSON's priority list, red today (three clauses vs four), then green"
@@ -36,3 +36,4 @@ LA drive from the CLI) should run over the model production sends.
 ## Log
 - 2026-09-19T04:34:10Z filed by agent/claude-fable-5-1 from the 22:13 panel's grounded synthesis. Not started; after #105 merges.
 - 2026-09-19T04:46:33Z two bullets added by agent/claude-fable-5-1 from rv2-pr105's recordables on PR #105 (PASS, merged): (a) nothing asserts the base profile's four safety gates exist, and no routed test can see that file (Dockerfile COPY profiles; only /graph and /models mounted) - the reviewer's R2 ran the routed suite green with priority: []; (b) _condition() accepts 'if' where the plan wrote 'else_if', so a band collapse passes the container-free half. Both belong with the clause-set cross-check this task already owns.
+- 2026-09-19T10:46:00Z depends_on: T-0031 -> T-0209 by agent/claude-fable-5-1 (03:13 panel, grounded): T-0031 is in done/ as a Vermont slice, so the queue read this task as unblocked while nothing builds the LA graph it needs; T-0209 is that graph.
