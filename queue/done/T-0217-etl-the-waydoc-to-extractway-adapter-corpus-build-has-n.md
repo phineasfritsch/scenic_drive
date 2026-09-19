@@ -1,7 +1,7 @@
 ---
 id: T-0217
 title: etl - the waydoc -> ExtractWay adapter: corpus.build has no committed path from a real extract (three shapes, no converter), so nothing in CI has ever fed it real ways
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T17:00:29Z
@@ -11,7 +11,7 @@ branch: task/T-0217
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/, ops/mutate/, ops/lib/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr122
 depends_on: [T-0206]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -440,3 +440,90 @@ The throwaway is preserved at services/etl/work/t0206/ in the main checkout for 
   gitignored and in no CI clone): it stays a Log measurement, quoted above with the two commands the
   reviewer re-derives it with, and the committed end of the path is the slice's corpus build (16 ways).
   U3 `--prove-vacuity` re-run above, over 27. No finding of the pass is left open.
+- 2026-09-19T18:37:27Z REVIEW PASS by agent/rv1-pr122 (reviewer; not the owner, not the fixer). PR #122,
+  head 16eb1af == origin/task/T-0217, reviewed in .worktrees/rv1-pr122 detached at that sha.
+  `git merge-base --is-ancestor origin/main HEAD` -> 0 (origin/main 85c0a2a is contained). CI on the head:
+  core pass, pins-source-only pass.
+
+  DIFF vs main, 8 files, +1301 -19: extractadapter.py (204, new), accessrule.py (39, new), assemble.py
+  (the access rule moved OUT and re-exported, nothing else), test_extractadapter.py (299, new),
+  tests/fixtures/canyon_adapter_slice.json (30, new), ops/mutate/extractadapter.py (304, new),
+  ops/lib/check-mutate-population.py (+6: DRIVERS and COVERED_FLOOR), the task file. normalise.py is
+  untouched, as claimed.
+
+  RE-RUN BARE in my own worktree:
+    $ python -m pytest -o addopts= -q        1303 passed in 243.43s (0 skipped)          exit 0
+    $ python ops/mutate/extractadapter.py    MUTATIONS: 27 caught, 0 missed, 0 skipped, of 27
+                                             MUTATE OK  caught=27/27 equivalent_caught=0 exit 0
+    $ python ops/mutate/extractadapter.py --prove-vacuity
+                                             VACUITY: 0 caught, 27 missed, 0 skipped, of 27
+                                             VACUITY PROVED                              exit 0
+    $ python ops/lib/check-mutate-population.py
+                                             P-PROC-06: every added module is covered or allowlisted;
+                                             the floor of 25 holds                       exit 0
+    $ bash ops/lib/check-line-cap   P-SRC-02: 92 Swift files tracked, none over 300 lines exit 0
+    $ bash ops/lib/check-exec-bits  P-OPS-01: 85 files, 23 required present, all modes correct  exit 0
+    $ bash ops/queue-check          QUEUE OK (215 tasks)                                  exit 0
+    $ wc -l   39 accessrule.py · 204 extractadapter.py · 287 assemble.py · 299
+              test_extractadapter.py · 304 ops/mutate/extractadapter.py - the owner's numbers, re-measured
+              on the merged head. ops/**/*.py are 100644.
+
+  RE-DERIVED NATIVELY (no container): the COMMITTED adapter over the MAIN checkout's
+  services/etl/work/la/window-doc.json into a scratch path, then corpus.build on that extract.
+    ADAPT ways=11740 skipped_class=0 skipped_short=0 access_blocked=5022 surface_unknown=2308
+          surface_unpaved=170 surface_paved=9262
+    CORPUS ways=11740 segments=24205 bytes=6135808 region=la
+  T-0206's 11,740 / 24,205 / 6,135,808 EXACTLY. Diffed against services/etl/work/t0206/window-extract.json:
+  the same 11,740 ids, 168 rows differ, and the differing FIELDS are exactly {access_ok: 162, oneway: 6}
+  and nothing else. All 6 oneway rows carry junction=roundabout (338438553, 1350088920, 1350088931,
+  1350089636, 1350090325, 1350091206). On all 162 access rows the committed adapter's value equals
+  accessrule.access_refused over the way's own tags (162/162) and assemble.gate_reason's GATE_NO_ACCESS
+  agrees with the predicate (162/162). The claimed 162 / 6 is confirmed by field.
+
+  THE PRE-REVIEW PASS'S TWO SURVIVORS, replayed through the shipped population and red BY NAME:
+    "reverse the nodes of every `oneway=-1` row while the flag stays -1"
+        <- test_the_nodes_are_the_documents_coordinates_in_document_order_on_every_row
+    "disable the short-way guard, so a one-node way reaches a reader that refuses the whole document"
+        <- test_the_whole_slice_is_accepted_by_the_reader_corpus_build_uses (the runner prints the first
+           failure; test_a_one_node_way_is_skipped_by_count_and_never_reaches_the_reader is the named one)
+
+  THE assemble.py MOVE, JUDGED. assemble.CLOSED_ACCESS IS accessrule.CLOSED_ACCESS by identity and the
+  suite asserts it; the Swift parity pin test_the_gate_sets_are_the_ones_scenickit_gates_on reads
+  assemble.CLOSED_ACCESS against the `closedAccess` DECLARATION in Sources/ScenicKit/Gates/Gates.swift and
+  is green inside the 1303. gate_reason's rule ORDER survives the refactor: a private dirt road still
+  answers unpaved_surface (test_a_private_dirt_road_is_refused_although_gate_reason_answers_unpaved_surface
+  green), and the population's "answer the access rule FIRST in gate_reason" mutant is caught by that very
+  test. motor_vehicle=private is refused by neither side - Gates.swift:161 is `tags["motor_vehicle"] ==
+  "no"` alone, accessrule.MOTOR_VEHICLE_REFUSED is "no" - so there is no drift in either direction.
+
+  MY OWN THREE MUTANTS, none of them in the shipped population, run over tests/test_extractadapter.py +
+  tests/test_assemble.py with __pycache__ purged and 1.1 s of settle either side:
+    RM1 swap lat/lon on every node (geometry silently wrong)            CAUGHT (3 tests)
+    RM2 answer junction=roundabout BEFORE the explicit oneway value     SURVIVED (95 passed)
+    RM3 count the OPEN ways as `access_blocked` on the count line       SURVIVED (95 passed)
+
+  RECORDABLE, not blocking - neither survivor lets a way the router or the corpus must refuse ship as
+  open, and neither makes geometry wrong:
+  r1 ruling R2's "an explicit `oneway` value is FINAL" is not bound by any assertion: moving the
+     `junction=roundabout` implication ABOVE the three value branches keeps the suite green, because the
+     slice's two roundabouts are `oneway=yes` and untagged. I MEASURED the population before calling it a
+     gap: ways with junction=roundabout AND oneway in {no, -1, false, 0, reverse} are 0 of 11,740
+     (work/la/window-doc.json) and 0 of 23,474 (work/la-grid/grid-b-doc.json) - 63 roundabouts, 35 of them
+     with an explicit oneway, every one forward. No real way is wrong today; the ORDER is simply unbound,
+     and one more slice row would bind it.
+  r2 the ADAPT count line's `access_blocked` field has no independent expectation. The suite asserts
+     ways=16, skipped_class=2 and skipped_short=1 as literals and cross-checks surface_unpaved against the
+     loaded rows, but the COUNT_NAMES loop in
+     test_the_surface_tag_travels_raw_and_the_three_states_are_counted_not_claimed compares the printed
+     line to the same dict that printed it. Inverting the accumulator leaves 95 tests green, so the
+     access_blocked=5022 this Log quotes could be wrong with CI green. No corpus row is affected.
+  Also checked and clean, so that nobody re-opens it: `access` and `motor_vehicle` values in both real
+  documents carry no odd case and no surrounding whitespace (0 of 35,214 ways), so the predicate's exact
+  comparison - which is Gates.swift's own - has no real row it gets wrong; and every `way_id` in both
+  documents is already an int, so the `int(row["way_id"])` coercion is never load-bearing on real data.
+
+  VERDICT PASS. state claimed -> done, reviewer agent/rv1-pr122, queue/claimed/ -> queue/done/. I do not
+  merge. STILL OPEN, carried unchanged from the owner's ruling and the PR body: check-mutate-population.py's
+  DRIVERS/COVERED_FLOOR and services/etl/etl/assemble.py collide with T-0208, which has not merged;
+  origin/main was merged into this branch as the last step before the push with no conflict, and if T-0208
+  lands first the merge keeps both sides.
