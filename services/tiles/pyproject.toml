@@ -1,0 +1,12 @@
+[project]
+name = "scenic-tiles"
+version = "0.0.0"
+requires-python = ">=3.10"
+
+# Run directly: `python -m pytest services/tiles/tests -q`. ops/test's python tier is gated on
+# services/etl/pyproject.toml and does not see this directory, so these tests are NOT in the floor
+# today - see T-0165's R8 ruling. Wiring the tier is a task that touches ops/test.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
