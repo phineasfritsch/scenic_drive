@@ -1,0 +1,5 @@
+# The built PMTiles archive, its sidecar and the metadata scratch. 60 MB of it, reproducible from
+# build-la.sh, so none of it is committed - same rule as services/routing/work/ and services/etl/work/.
+# Note WHERE it lives: the MAIN checkout's services/tiles/work/, never a worktree's, because
+# `git worktree remove` deletes a worktree's ignored files with it.
+work/

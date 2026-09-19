@@ -1,0 +1,194 @@
+{
+  "version": 8,
+  "name": "Scenic Drive light",
+  "metadata": {
+    "scenic:appearance": "light",
+    "scenic:attribution_owner": "DesignSystem.AttributionFooter",
+    "scenic:archive": "la.pmtiles"
+  },
+  "sources": {
+    "protomaps": {
+      "type": "vector",
+      "url": "pmtiles://la.pmtiles"
+    },
+    "route": {
+      "type": "geojson",
+      "data": {
+        "type": "FeatureCollection",
+        "features": []
+      }
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#FFF7ED"
+      }
+    },
+    {
+      "id": "earth",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "earth",
+      "paint": {
+        "fill-color": "#FFF7ED"
+      }
+    },
+    {
+      "id": "landcover",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landcover",
+      "paint": {
+        "fill-color": "#15803D",
+        "fill-opacity": 0.22
+      }
+    },
+    {
+      "id": "landuse-green",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": "#15803D",
+        "fill-opacity": 0.35
+      },
+      "filter": ["match", ["get", "pmap:kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], true, false]
+    },
+    {
+      "id": "landuse-built",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": "#FCEAE1",
+        "fill-opacity": 0.6
+      },
+      "filter": ["match", ["get", "pmap:kind"], ["park", "forest", "nature_reserve", "wood", "grass", "scrub", "cemetery"], false, true]
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "#64748B"
+      }
+    },
+    {
+      "id": "buildings",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "buildings",
+      "paint": {
+        "fill-color": "#FCEAE1",
+        "fill-opacity": 0.9
+      },
+      "minzoom": 13
+    },
+    {
+      "id": "roads-minor",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.4, 14, 2.0],
+        "line-opacity": 0.55
+      },
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "filter": ["match", ["get", "pmap:kind"], ["highway", "major_road"], false, true]
+    },
+    {
+      "id": "roads-major",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 14, 4.0],
+        "line-opacity": 0.85
+      },
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "filter": ["==", ["get", "pmap:kind"], "major_road"]
+    },
+    {
+      "id": "roads-motorway",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "paint": {
+        "line-color": "#B45309",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.8, 14, 5.0]
+      },
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "filter": ["==", ["get", "pmap:kind"], "highway"]
+    },
+    {
+      "id": "boundaries",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "boundaries",
+      "paint": {
+        "line-color": "#64748B",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.5, 10, 1.2],
+        "line-opacity": 0.5
+      },
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      }
+    },
+    {
+      "id": "route-casing",
+      "type": "line",
+      "source": "route",
+      "paint": {
+        "line-color": "#FFFFFF",
+        "line-width": 10
+      },
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      }
+    },
+    {
+      "id": "route-line",
+      "type": "line",
+      "source": "route",
+      "paint": {
+        "line-color": "#2563EB",
+        "line-width": 6
+      },
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      }
+    },
+    {
+      "id": "route-scenic",
+      "type": "line",
+      "source": "route",
+      "filter": ["==", ["get", "scenic"], true],
+      "paint": {
+        "line-color": "#15803D",
+        "line-width": 6
+      },
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      }
+    }
+  ]
+}

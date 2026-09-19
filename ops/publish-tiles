@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Publish the built PMTiles artifact, its sidecar and the two styles to Cloudflare R2.
+#
+#   ops/publish-tiles [--artifact PATH] [--prefix tiles/v1]
+#
+# IT REFUSES WITHOUT THE HUMAN'S CREDENTIALS, and refuses without the prod lock. Nothing here has ever
+# published: T-0165 built and measured the artifact and does NOT hold `exclusive: [prod]`, so this script
+# was written and demonstrated refusing, which is the only state a publish script should be in until a
+# task that owns prod runs it.
+#
+# The four env vars are the human's to supply and are never written into the tree (the pre-commit hook
+# greps for secrets, and this file must stay greppable-clean):
+#   CLOUDFLARE_ACCOUNT_ID  R2_ACCESS_KEY_ID  R2_SECRET_ACCESS_KEY  R2_BUCKET
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+PMTILES_IMAGE=protomaps/go-pmtiles@sha256:06574f01f55a78f78f887bc7ebf729a5c093c0d6e17d9876300cfcb0758b59d3
+ARTIFACT="services/tiles/work/la.pmtiles"
+PREFIX="tiles/v1"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --artifact) ARTIFACT="$2"; shift 2 ;;
+    --prefix) PREFIX="$2"; shift 2 ;;
+    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    *) echo "PUBLISH REFUSED: unknown argument $1"; exit 2 ;;
+  esac
+done
+
+# Credentials first, so the refusal a credential-less run gets is the one about credentials.
+missing=()
+for var in CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+  if [ -z "${!var:-}" ]; then missing+=("$var"); fi
+done
+if [ ${#missing[@]} -gt 0 ]; then
+  echo "PUBLISH REFUSED: ${#missing[@]} credential(s) not set: ${missing[*]}"
+  echo "  These are the human's Cloudflare credentials. They are never committed and never defaulted."
+  exit 1
+fi
+
+if [ ! -f queue/LOCKS/prod.lock ]; then
+  echo "PUBLISH REFUSED: queue/LOCKS/prod.lock not held (claim a task with exclusive: [prod])"
+  echo "  Publishes are serial and the task holding the lock is the one accountable for what is live."
+  exit 1
+fi
+
+SIDECAR="$ARTIFACT.json"
+for f in "$ARTIFACT" "$SIDECAR" services/tiles/styles/scenic-light.json services/tiles/styles/scenic-dark.json; do
+  [ -f "$f" ] || { echo "PUBLISH REFUSED: $f does not exist - run services/tiles/build-la.sh first"; exit 1; }
+done
+
+# The sidecar's sha256 is the only thing standing between "the build I measured" and "whatever is in
+# work/ right now". Publishing a file whose digest disagrees with its own record is how a region ships
+# tiles nobody checked.
+recorded="$("${PYTHON:-python3}" -c "import json,sys; print(json.load(open(sys.argv[1]))['sha256'])" "$SIDECAR")"
+actual="$(sha256sum "$ARTIFACT" | cut -d' ' -f1)"
+if [ "$recorded" != "$actual" ]; then
+  echo "PUBLISH REFUSED: $ARTIFACT sha256 $actual does not match the sidecar's $recorded"
+  echo "  Rebuild with services/tiles/build-la.sh, which rewrites both together."
+  exit 1
+fi
+
+"${PYTHON:-python3}" services/tiles/check_pmtiles.py "$ARTIFACT" \
+  --region-json "services/etl/regions/$("${PYTHON:-python3}" -c \
+    "import json,sys; print(json.load(open(sys.argv[1]))['region'])" "$SIDECAR")/region.json"
+
+ENDPOINT="https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
+BUCKET_URL="s3://$R2_BUCKET?endpoint=$ENDPOINT&region=auto&s3ForcePathStyle=true"
+echo "publishing $(basename "$ARTIFACT") to $R2_BUCKET/$PREFIX/"
+
+# The archive goes up with the pinned image's own uploader: it writes the parts in the order a range
+# reader expects, which a plain PUT of a 60 MB file does not guarantee on a resumed transfer.
+AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
+docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
+  -v "$(cd "$(dirname "$ARTIFACT")" && pwd)":/w "$PMTILES_IMAGE" \
+  upload "/w/$(basename "$ARTIFACT")" "$PREFIX/$(basename "$ARTIFACT")" --bucket="$BUCKET_URL"
+
+# The three small JSON files are ordinary S3 PUTs, signed by curl itself - no extra tool to pin.
+for f in "$SIDECAR" services/tiles/styles/scenic-light.json services/tiles/styles/scenic-dark.json; do
+  curl -fsS -X PUT --aws-sigv4 "aws:amz:auto:s3" \
+    --user "$R2_ACCESS_KEY_ID:$R2_SECRET_ACCESS_KEY" \
+    -H "Content-Type: application/json" \
+    --upload-file "$f" "$ENDPOINT/$R2_BUCKET/$PREFIX/$(basename "$f")"
+  echo "PUT $PREFIX/$(basename "$f")"
+done
+
+echo "PUBLISHED $PREFIX/$(basename "$ARTIFACT") sha256=$actual"
