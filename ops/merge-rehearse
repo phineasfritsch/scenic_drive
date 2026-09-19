@@ -1,0 +1,604 @@
+#!/usr/bin/env bash
+# Merge every open PR's branch into a throwaway, in dependency order, and run the gates after each.
+#
+#   ops/merge-rehearse            rehearse the whole open backlog, cumulatively, in dependency order
+#   ops/merge-rehearse --pairwise merge each branch into main ALONE - "does this branch break main by itself"
+#   ops/merge-rehearse --quiet    only report conflicts, gate failures and dropped tasks
+#
+# RUN BOTH. They find different things, and each is blind where the other sees:
+#
+#   cumulative  finds collisions BETWEEN branches - the ADD/ADD on gh-stub-for-merge-tests, the line-cap
+#               failure where the Dockerfile chain meets T-0058 - which no single branch can produce. But it
+#               is order-dependent in two directions. A defect that a LATER branch happens to clean up is
+#               never reported: T-0042 and T-0046 each reintroduce queue/ready/T-0032 and T-0033, and the
+#               cumulative run called both clean because T-0032 and T-0033 had already merged and taken those
+#               paths with them. And a defect that is NOT cleaned up is re-reported against every branch that
+#               follows it: T-0024 reintroduced a duplicate T-0033 and the run then blamed T-0025 for it.
+#               Six branches broke main on their own; the cumulative run named four, two of them wrongly.
+#   pairwise    finds "this branch alone breaks main", which is the question a reviewer is actually asking
+#               and the only one whose answer does not depend on what else merged first. It cannot see a
+#               cross-branch collision at all, because it never has two branches in the tree at once.
+#
+# WHY THIS EXISTS. A whole class of defect here is invisible to per-branch CI by construction: every branch
+# passes its own gates and the MERGED tree fails. Nothing else in the repo can see it. The first run of this,
+# against thirty open branches, found four in one pass:
+#
+#   ADD/ADD conflict on ops/lib/gh-stub-for-merge-tests across T-0022, T-0044 and T-0049
+#   all thirty branches duplicated their own task file - main says claimed/, the branch says review/, and
+#     `queue-check` passes on each separately while failing on the merge
+#   check-line-cap fails on services/etl/tests/test_dockerfile.py (436 lines) where the Dockerfile chain meets
+#     T-0058 - a file no single branch could see, because it is not on the chain the check lives on and the
+#     chain it IS on had no Python cap to trip
+#   check-exec-bits fails once T-0036 lands, exactly as T-0041 predicted
+#
+# and it nearly caught a fifth: a rename/delete conflict where git paired a deleted task file with T-0034 by
+# content similarity, so the suggested resolution would have silently dropped a filed task. Hence the task
+# census below - a dropped task file is invisible to `queue-check`, which only complains about ids it can see.
+#
+# THOSE FOUR ARE HISTORY, NOT STANDING FACTS, and two have already stopped being true - which is why they are
+# dated and why nothing in this tool is keyed on them. Re-measured 2026-09-08 while reviewing PR #55, and
+# again here: T-0022, T-0044 and T-0049 now carry the IDENTICAL blob e00393e for the gh-stub at 100755, and
+# `git merge-tree --write-tree origin/task/T-0022 origin/task/T-0049` exits 0; today's ADD/ADD is task/T-0021
+# (blob 0002d21) against that group. And test_dockerfile.py is 226 lines on task/T-0062 and absent everywhere
+# else, so the line-cap row went with it. A worked example frozen into a header stops being evidence the
+# moment the tree moves; run the tool for the current answer.
+#
+# WHAT IT DELIBERATELY DOES NOT RUN. `ops/test` - swift, vitest and the ETL pytest tier would dominate the
+# runtime by an order of magnitude, and this tool is about structural collisions between diffs, not about
+# whether the suites pass. Run `ops/test` on the merged result once, at the end, if you want that too.
+#
+# It NEVER pushes. It is NOT read-only, and the header used to say it never touches an existing worktree,
+# which was wrong in the one way that matters: it deletes and recreates one FIXED scratch worktree
+# ($ROOT/../wt/_rehearsal) and the branch tmp/merge-rehearse, on every path including the early exits. Two
+# runs therefore destroy each other's tree, and a run whose tree is deleted underneath it answers every
+# remaining question from a directory that is no longer there. Nothing else in the tree is written.
+set -uo pipefail
+# Not `git rev-parse --show-toplevel`: from WSL against a Windows worktree that prints a path no Linux shell
+# can use, and without `set -e` the failure is silent (T-0055).
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -d ops && -d queue ]] || { echo "$(pwd) is not the repo root"; exit 2; }
+ROOT="$(pwd)"
+
+QUIET=0
+PAIRWISE=0
+for a in "$@"; do
+  case "$a" in
+    --quiet) QUIET=1 ;;
+    --pairwise) PAIRWISE=1 ;;
+    *) echo "unknown argument: $a"; exit 2 ;;
+  esac
+done
+
+command -v gh >/dev/null 2>&1 || { echo "gh is not on PATH; the merge order comes from the open PRs"; exit 2; }
+
+SCRATCH="$ROOT/../wt/_rehearsal"
+BRANCH="tmp/merge-rehearse"
+LOCK="$ROOT/.artifacts/merge-rehearse.lock"
+
+# ONE RUN AT A TIME, because $SCRATCH is a fixed path and this script's first act is to delete it. A second
+# invocation removes the first one's worktree mid-run, and the first then answers every remaining question
+# from a directory that is no longer a worktree. That is not hypothetical: on 2026-09-08 a copy of this
+# script was started while a real run was in flight, and from that moment every remaining branch reported
+# `UNRESOLVABLE: no origin/task/NNNN` for refs that exist. The run printed
+# `10 of 55 merged, 12 conflicts, 3 gate failures, 33 unresolvable` and none of it was true.
+#
+# `set -o noclobber` + `>` is the shell's compare-and-swap: it fails if the file exists. A lock file left by
+# a killed run is stale, so it names the pid and says how to clear it rather than blocking forever.
+mkdir -p "$(dirname "$LOCK")"
+if ! (set -o noclobber; printf 'pid=%s started=%s\n' "$$" "$(date -u +%FT%TZ)" > "$LOCK") 2>/dev/null; then
+  echo "REHEARSAL REFUSED: another run holds $LOCK"
+  sed 's/^/  /' "$LOCK" 2>/dev/null
+  echo "  This tool deletes and recreates one fixed scratch worktree, so two runs destroy each other's."
+  echo "  If that run is dead, remove the lock file and try again."
+  exit 2
+fi
+
+cleanup() {
+  cd "$ROOT" || return
+  git worktree remove --force "$SCRATCH" >/dev/null 2>&1
+  git branch -D "$BRANCH" >/dev/null 2>&1
+  rm -f "$LOCK"
+}
+trap cleanup EXIT
+
+# ---------------------------------------------------------------- the order, from the PRs themselves
+# Hard-coding it would be wrong the moment somebody opens a PR - which is exactly when a rehearsal matters
+# most. Topologically sorted so a base merges before anything stacked on it; a child subsumes its parents, so
+# this is belt and braces, and its real purpose is to surface each conflict at the smallest possible step
+# rather than in one giant merge at the end.
+# FETCH FIRST. Both derived rules below ask git about `origin/<branch>`, and the fetch that creates those refs
+# used to run ninety lines further down - so the branch opened since your last fetch had no ref, was skipped by
+# a silent `continue` in both rules, got no edge and no message, and then merged unordered. Measured: in a
+# checkout whose origin/task/* refs were not present, the derivation block added 0 edges and printed not one
+# `ordering:` line; the same block over the same edge list after the fetch derived 5, including the three that
+# order T-0063, T-0070 and T-0082. Refs before anything reasons about refs.
+if ! git fetch -q origin 2>/dev/null; then
+  echo "REHEARSAL REFUSED: git fetch origin failed, so every ref this run would reason about may be stale."
+  echo "  A rehearsal of last week's refs, printed as today's, is the confident wrong answer this tool exists"
+  echo "  to prevent - so it is not run at all."
+  exit 2
+fi
+
+# A `gh` that is INSTALLED and cannot ANSWER - expired token, offline, API 5xx - is not the same fact as "no
+# open PRs", and the difference is the entire result. `2>/dev/null` swallowed the message and `mapfile`
+# discards the exit status of the process it reads, so a 502 printed `no open PRs to rehearse` and exited 0:
+# a clean bill of health from a run that rehearsed nothing, on the one path that exits before the completeness
+# assertion at the bottom can see it. The command runs on its own line so its status can be read.
+gh_err="$(mktemp 2>/dev/null || echo "$ROOT/.artifacts/merge-rehearse-gh.err")"
+gh_out="$(gh pr list --state open --limit 200 --json headRefName,baseRefName \
+  --template '{{range .}}{{.headRefName}} {{.baseRefName}}{{"\n"}}{{end}}' 2>"$gh_err")"
+gh_rc=$?
+if [[ $gh_rc -ne 0 ]]; then
+  echo "REHEARSAL REFUSED: gh exited $gh_rc. The merge order comes from the open PRs, so this is not"
+  echo "  'there are no open PRs' - it is 'I do not know what the open PRs are'."
+  sed 's/^/  /' "$gh_err" 2>/dev/null
+  rm -f "$gh_err"
+  exit 2
+fi
+rm -f "$gh_err"
+mapfile -t EDGES < <(printf '%s\n' "$gh_out" | grep -E '^[^[:space:]]+[[:space:]]+[^[:space:]]+$')
+gh_lines=$(printf '%s\n' "$gh_out" | grep -c .)
+if [[ ${#EDGES[@]} -lt $gh_lines ]]; then
+  echo "REHEARSAL REFUSED: gh returned $gh_lines line(s) and only ${#EDGES[@]} parse as 'head base'. A"
+  echo "  partially understood PR list would silently drop branches from the run."
+  exit 2
+fi
+[[ ${#EDGES[@]} -gt 0 ]] || { echo "no open PRs to rehearse"; exit 0; }
+
+# ---------------------------------------------------------------- a branch with no PR is still a branch
+# The list above comes from `gh pr list`, so a ref that is ahead of main WITHOUT an open PR was never
+# rehearsed and never counted. On 2026-09-08 that was ELEVEN refs - up to 59 commits each, ten of them
+# holding a task in queue/claimed/ on their own head - while this tool printed "37 of 41 merged, 0 gate
+# failures" and that number was published as merge readiness of the backlog. The count was right; the noun
+# attached to it was wrong. A branch merges into main whether or not anybody opened a pull request for it.
+#
+# PRs still supply the ORDERING - `baseRefName` is the only place that says what is stacked on what - and
+# they are the only source of CI state. They must not decide what gets rehearsed.
+PR_HEADS="$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u)"
+n_pr=$(printf '%s\n' "$PR_HEADS" | grep -c .)
+n_extra=0
+while IFS= read -r ref; do
+  [[ -n "$ref" ]] || continue
+  b="${ref#refs/remotes/origin/}"
+  printf '%s\n' "$PR_HEADS" | grep -qx "$b" && continue
+  ahead="$(git rev-list --count "origin/main..$ref" 2>/dev/null || echo 0)"
+  [[ "$ahead" -gt 0 ]] || continue
+  EDGES+=("$b main")
+  n_extra=$((n_extra + 1))
+  if [[ $QUIET -eq 0 ]]; then
+    echo "no-PR branch: $b ($ahead commit(s)) - rehearsed here, but it has NO CI result anywhere"
+  fi
+done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*')
+
+# Vacuity guard for the ENUMERATION, which is the part that was wrong.
+#
+# The first version of this guard was ITSELF vacuous, which is worth leaving written down. It compared the
+# unique heads in EDGES against the unique PR heads - but EDGES *starts* as the PR list, so that count can
+# never fall below it. Pointing the ref query at an empty namespace added nothing, the guard passed, and the
+# tool rehearsed 44 branches while printing a total. A guard whose expected value comes from the thing it
+# checks: the defect this whole task is about, written into the check for it. It was found by demanding a
+# red run rather than reasoning about it, which is the only reason it is not still here.
+#
+# Compare like with like instead: refs under the same namespace are a SUPERSET of the PR heads in it, by
+# construction, because every open PR head is a branch that exists. Count them independently.
+n_task_refs=$(git for-each-ref --format='%(refname)' 'refs/remotes/origin/task/*' | grep -c .)
+n_task_pr=$(printf '%s\n' "$PR_HEADS" | grep -c '^task/')
+if [[ "$n_task_refs" -lt "$n_task_pr" ]]; then
+  echo "REHEARSAL REFUSED: git lists $n_task_refs ref(s) under refs/remotes/origin/task/ but GitHub reports"
+  echo "  $n_task_pr open PR head(s) in that namespace. Every PR head is a branch, so the ref query lost"
+  echo "  some - fetch, or fix the pattern. Rehearsing a subset while printing a total is the defect this"
+  echo "  guard exists for, not a smaller run."
+  exit 2
+fi
+n_all=$(printf '%s\n' "${EDGES[@]}" | awk '{print $1}' | sort -u | grep -c .)
+if [[ $QUIET -eq 0 ]]; then
+  echo "branches: $n_all to rehearse = $n_pr with an open PR + $n_extra with none"
+fi
+
+# ---------------------------------------------------------------- ordering constraints PR bases cannot express
+# Some branches must merge in an order their PR bases do not imply, because one changes a RULE that the other's
+# content is only correct under. A constraint is just another edge - "X after Y" is the same shape as "X is
+# based on Y" - so the sort needs no special case, only the extra pairs.
+#
+# Everything that adds an ops/lib/*.py must merge AFTER task/T-0036.
+#   T-0036 reclassifies ops/lib/*.py from script (100755) to data (100644), because they are only ever invoked
+#   as `"$PY" ops/lib/x.py`. Any branch that ADDS such a file has to pick a mode, and whichever it picks, ONE
+#   of the two orders fails: at 100644 it is correct after T-0036 and wrong before it; at 100755, correct
+#   before and wrong after. There is no mode that is right in both orders, so this is only fixable by
+#   ordering. Measured both ways in a throwaway - T-0021 first gives "classify-checks.py (script, should be
+#   100755, is 100644)"; T-0036 first gives "25 files, 20 required present, all modes correct".
+#
+# Derived, not listed. The first version of this hard-coded `task/T-0021 task/T-0036` from the one branch that
+# had been measured; `--pairwise` then found task/T-0049 failing identically on ops/lib/merge_reason_cap_assert.py,
+# which the hard-coded pair said nothing about. A constraint written down covers the instances its author
+# happened to know; a derived one covers the branch that opens tomorrow.
+#
+# Self-limiting on purpose: once T-0036 merges, the rule is on main, no open PR head is T-0036, and this adds
+# nothing. It must not become a permanent special case for a branch that no longer exists.
+#
+# ---------------------------------------------------------------- one pass over the branches, for both rules
+# ONE diff per branch, answering every question both rules ask. It was one diff per ORDERED PAIR (~1,100
+# subprocesses for 34 open PRs), then two per branch plus a third for the rule above - three traversals asking
+# the same question three ways, and the traversal is the cost: a three-dot diff against origin/main is seconds
+# on this checkout, so the derivation phase was minutes of subprocesses before a single branch merged.
+#
+# `--no-renames` on purpose, and it is not a detail. With rename detection on, `git mv a b` is one R entry and
+# neither an A nor a D, so a file moved INTO ops/lib/*.py would dodge the rule above and a rename OUT of a path
+# another branch modifies - which conflicts exactly the way a delete does - would be invisible to the rule
+# below. A rename is a delete and an add to every question asked here. (The old form got the first case right
+# by accident: a pathspec defeats git's rename pairing. The second case it got wrong.)
+declare -A DEL TOUCH ADDPY ADDQ
+noref=0
+for e in "${EDGES[@]}"; do
+  h="${e%% *}"
+  [[ -n "${DEL[$h]+x}" ]] && continue
+  if ! git rev-parse --verify -q "origin/$h" >/dev/null 2>&1; then
+    # LOUD, not a silent `continue`. This branch gets no derived edge at all, so whatever the rules below
+    # would have said about it is simply not said - and that is a fact about the run, not a detail of it.
+    echo "ordering: NO local ref origin/$h - it gets no derived edge and its position is unconstrained"
+    noref=$((noref + 1))
+    continue
+  fi
+  ns="$(git diff --no-renames --name-status "origin/main...origin/$h" 2>/dev/null)"
+  DEL[$h]="$(printf '%s\n' "$ns" | awk -F'\t' '$1=="D"{print $2}' | sort -u)"
+  TOUCH[$h]="$(printf '%s\n' "$ns" | awk -F'\t' '$1=="M"{print $2}' | sort -u)"
+  # `ops|.githooks/**.py`, not `ops/lib/*.py`. The rule was keyed on the directory the branch that motivated
+  # it happened to write in, while T-0036's classification line is `$4 ~ /\.(json|txt|md|py)$/` over
+  # `git ls-files -s ops .githooks` - EVERY .py under either. A branch adding .githooks/lease_check.py at
+  # 100755 is clean on main, fails after T-0036, and got no edge (reviewer of PR #55, reported as narrower
+  # than a finding). The rule now covers what the rule it is about covers.
+  ADDPY[$h]="$(printf '%s\n' "$ns" | awk -F'\t' '$1=="A" && $2 ~ /^(ops|\.githooks)\/.*\.py$/{print $2}' | sort -u)"
+  ADDQ[$h]="$(printf '%s\n' "$ns" | awk -F'\t' '$1=="A" && $2 ~ /^queue\//{print $2}' | sort -u)"
+done
+
+# Sorted, because `"${!DEL[@]}"` is bash's hash order: the same backlog printed its constraints in a different
+# order on every run, which makes two transcripts impossible to compare and a log entry impossible to trust.
+mapfile -t HEADS < <(printf '%s\n' "${!DEL[@]}" | grep . | sort)
+
+if printf '%s\n' "${EDGES[@]}" | grep -q '^task/T-0036 '; then
+  for h in "${HEADS[@]}"; do
+    [[ "$h" == "task/T-0036" ]] && continue
+    [[ -n "${ADDPY[$h]}" ]] || continue
+    EDGES+=("$h task/T-0036")
+    pyfiles="$(printf '%s' "${ADDPY[$h]}" | tr '\n' ' ')"
+    [[ $QUIET -eq 0 ]] && echo "ordering: $h adds ${pyfiles% } - a .py under ops/ or .githooks/, whose mode" \
+      "T-0036 reclassifies, so it must follow task/T-0036"
+  done
+fi
+
+# A branch that DELETES a file which another open branch MODIFIES must merge after it. Otherwise the delete
+# lands first and every branch that touched that file hits the same delete/modify conflict, resolved by hand,
+# once each, identically. The other way round, the deleting branch sees the final content and resolves it once.
+# Found by doing it wrong: task/T-0071 replaces pins/floor_linux.txt with one floor per tier while fifteen open
+# branches raise that file from 50 to 76 - fifteen conflicts merged first, one merged last. And that one is the
+# moment somebody must set the per-tier floor for the suite those branches added, so the conflict is not noise
+# to schedule away, it is a question, put in front of the person who can answer it.
+# The diffs it needs were collected in the single pass above.
+for h in "${HEADS[@]}"; do
+  [[ -n "${DEL[$h]}" ]] || continue
+  for o in "${HEADS[@]}"; do
+    [[ "$o" == "$h" ]] && continue
+    both="$(comm -12 <(printf '%s\n' "${DEL[$h]}") <(printf '%s\n' "${TOUCH[$o]}") | tr '\n' ' ')"
+    if [[ -n "${both// }" ]]; then
+      EDGES+=("$h $o")
+      [[ $QUIET -eq 0 ]] && echo "ordering: $h deletes ${both% }, which $o modifies - $h must follow it"
+    fi
+  done
+done
+
+SORT_OUT="$("${PYTHON:-$(command -v python3 || command -v python)}" - "${EDGES[@]}" <<'PYEOF'
+import sys
+pairs = [tuple(a.split()[:2]) for a in sys.argv[1:] if a.strip()]
+pairs = [p for p in pairs if len(p) == 2]
+heads = {h for h, _ in pairs}
+# A LIST of bases per head, not one. A head has exactly one PR base but can carry extra ordering constraints
+# on top of it, and `{h: b for h, b in pairs}` silently kept only the last: adding "T-0049 after T-0036" that
+# way discarded T-0049's real base, task/T-0044, and the stack it stands on went with it.
+base = {}
+for h, b in pairs:
+    base.setdefault(h, []).append(b)
+out, seen, cycles = [], set(), []
+
+def visit(h, stack, path):
+    if h in seen or h not in heads:
+        return
+    if h in stack:
+        # A cycle CANNOT happen through PR bases - and every derived edge above is one the PR bases know
+        # nothing about, so it can and does: T-0063 is based on T-0082 is based on T-0070, while the
+        # delete/modify rule derives "T-0082 after T-0063" and "T-0070 after T-0082". Returning here breaks
+        # the cycle by discarding one side of it, which is the only thing a topological sort can do - but
+        # discarding it SILENTLY, after the rule has already printed "X must follow Y" to the operator, is
+        # the tool announcing a constraint and then quietly not obeying it. Record it instead.
+        cycles.append("CYCLE: " + " -> ".join(path + [h]))
+        return
+    stack.add(h)
+    path.append(h)
+    for b in base.get(h, []):
+        visit(b, stack, path)
+    path.pop()
+    stack.discard(h)
+    seen.add(h)
+    out.append(h)
+
+for h in sorted(heads):
+    visit(h, set(), [])
+# Every edge, checked against the order actually produced. This is the assertion the tool never made: three
+# of the twenty-one constraints one real run announced were violated by the order that same run then used,
+# and nothing said so.
+pos = {h: i for i, h in enumerate(out)}
+violated = ["NOT HONOURED: %s was told to follow %s, and merges at row %d against row %d"
+            % (h, b, pos[h] + 1, pos[b] + 1)
+            for h, b in pairs if h in pos and b in pos and pos[h] < pos[b]]
+print("\n".join(out))
+print("---CONSTRAINTS-NOT-HONOURED---")
+print("\n".join(sorted(set(cycles)) + sorted(set(violated))))
+PYEOF
+)"
+SORT_OUT="${SORT_OUT//$'\r'/}"
+ORDER="${SORT_OUT%%---CONSTRAINTS-NOT-HONOURED---*}"
+BROKEN="${SORT_OUT#*---CONSTRAINTS-NOT-HONOURED---}"
+[[ "$SORT_OUT" == *---CONSTRAINTS-NOT-HONOURED---* ]] || {
+  echo "REHEARSAL REFUSED: the topological sort produced no constraint report, so its own output could not"
+  echo "  be checked against the constraints it was given. That check is not optional here."
+  exit 2; }
+ordervio=$(printf '%s\n' "$BROKEN" | grep -c .)
+if [[ $ordervio -gt 0 ]]; then
+  echo "ORDERING CONSTRAINTS NOT HONOURED ($ordervio):"
+  printf '%s\n' "$BROKEN" | grep . | sed 's/^/  /'
+  echo "  These were announced above as constraints and then not obeyed - the sort can only break a cycle by"
+  echo "  dropping one side of it. Rows at or after the earliest of them are in an order this tool itself"
+  echo "  says is wrong, so read them as 'these branches collide', not as 'this branch is at fault'."
+fi
+
+# ONE notion of "main". `git fetch` does not move the local branch, so the scratch worktree used to start from
+# LOCAL main while every derived edge above was computed against ORIGIN/main - two different trees in one run,
+# and nothing in the output said which. Local main was two commits behind origin/main during the review that
+# found it. A rehearsal is about what happens when these branches meet the main everybody else has.
+MAINREF=origin/main
+git rev-parse --verify -q "$MAINREF" >/dev/null 2>&1 || MAINREF=main
+git worktree remove --force "$SCRATCH" >/dev/null 2>&1
+git branch -D "$BRANCH" >/dev/null 2>&1
+git worktree add -q -b "$BRANCH" "$SCRATCH" "$MAINREF" || { echo "cannot create the scratch worktree"; exit 2; }
+cd "$SCRATCH" || exit 2
+
+# The task-id census, before anything merges. A dropped task file is silent otherwise.
+#
+# The tree is read in its own statement so that its exit status can be read. `x="$(git ls-tree ... | grep ...)"`
+# is a PIPELINE and `$?` is grep's, so when the scratch worktree was removed underneath a run, `git ls-tree`
+# failed, the pipeline succeeded, the id set came out EMPTY - and the empty set was published as a
+# measurement: 93 task ids, every task in the repository, printed as TASKS DROPPED BY A MERGE, not one of
+# them dropped, plus a gate failure in the headline number. Reproduced here at will:
+#
+#   $ cd $gone && rmdir $gone
+#   $ after_ids="$(git ls-tree -r --name-only HEAD | grep -oE 'T-[0-9]{4}' | sort -u)"
+#   fatal: Unable to read current working directory: No such file or directory
+#   TASKS DROPPED BY A MERGE: T-0001 T-0002 ... (71 ids, the whole tree)
+#
+# So: a non-zero status is refusal, and so is an EMPTY tree listing, which is what "I could not look" looks
+# like when git fails quietly. "The tree contains no task files" and "I could not read the tree" are different
+# facts and this must never again answer the second with the first.
+census_ids() {
+  local tree rc n
+  tree="$(git ls-tree -r --name-only HEAD)"; rc=$?
+  n=$(printf '%s\n' "$tree" | grep -c .)
+  [[ $rc -eq 0 && $n -gt 0 ]] || return 3
+  printf '%s\n' "$tree" | grep -oE 'T-[0-9]{4}' | sort -u
+}
+if ! before_ids="$(census_ids)"; then
+  echo "CENSUS UNAVAILABLE at the base: git could not read the scratch worktree, so this run cannot tell a"
+  echo "  dropped task file from an unreadable tree. Refusing rather than rehearsing blind."
+  exit 2
+fi
+n_before=$(printf '%s\n' "$before_ids" | grep -c .)
+if [[ $n_before -eq 0 ]]; then
+  echo "CENSUS VACUOUS: no task ids at $MAINREF, so the census could not report a dropped task whatever"
+  echo "  happened during the run. A check that inspected nothing must fail, not pass."
+  exit 2
+fi
+# Ids the branches that merge will FILE. The census compared against the base only, so a task a branch files
+# and its own merge resolution then drops - the exact scenario the census was added for - was invisible: the
+# id is not in before_ids, so `comm -23` never looks for it. Accumulated per successfully merged branch.
+filed_ids=""
+
+# Every gate this tool runs lives in ops/lib/rehearse-gates. Deliberately NOT ops/test: the swift, vitest and
+# pytest tiers dominate the runtime by an order of magnitude and this tool is about structural collisions
+# between diffs.
+#
+# It is a script and not a function here because it must be RUNNABLE: the reviewer who proved that the
+# function it replaces ignored the exit code of every check it called had to copy the function into a file to
+# demonstrate it, and a copy is not the thing. `bash ops/lib/rehearse-gates` in any tree, exit 0/1/3.
+#
+# From THIS checkout, on purpose. The harness must be identical for every row of a run, while the CHECKS it
+# invokes are read out of the merged tree, because the merged tree's own checks running over the merged tree
+# is the thing under test.
+GATES="$ROOT/ops/lib/rehearse-gates"
+[[ -f "$GATES" ]] || { echo "missing $GATES - the gate harness is not in this checkout"; exit 2; }
+
+# Sets gates_out and gates_rc; ABORTS the run on exit 3, which means the tree could not be measured. That is
+# not a gate failure and must never be counted as one, because a check that could not run is not evidence of
+# anything - not of a clean tree, and not of a broken one.
+run_gates() {
+  gates_out="$(bash "$GATES" 2>&1)"
+  gates_rc=$?
+  if [[ $gates_rc -ne 0 && $gates_rc -ne 1 ]]; then
+    echo "REHEARSAL ABORTED: the gate harness could not measure the tree (exit $gates_rc):"
+    printf '%s\n' "$gates_out" | sed 's/^/  /'
+    echo "  Nothing below this line would be a measurement; discard the whole run, not the rows after it."
+    exit 2
+  fi
+}
+
+# Pin the base to one SHA for the whole run. `git reset --hard main` re-reads the ref every iteration, and
+# main moves - a queue claim pushes straight to it. A run where the first rows were measured against one base
+# and the last against another is not a comparable set of results, and the drift is invisible in the output.
+BASE="$(git rev-parse "$MAINREF" 2>/dev/null)"
+[[ -n "$BASE" ]] || { echo "cannot resolve $MAINREF in the scratch worktree"; exit 2; }
+mode=cumulative; [[ $PAIRWISE -eq 1 ]] && mode=pairwise
+# Printed in BOTH modes. Only --pairwise ever named its base, so a cumulative run - the mode whose entire
+# argument is that its rows depend on what they started from - printed no base at all.
+echo "BASE: $mode, from $MAINREF at $(git rev-parse --short "$BASE")"
+localmain="$(git rev-parse -q --verify main 2>/dev/null || true)"
+if [[ -n "$localmain" && "$localmain" != "$BASE" ]]; then
+  echo "  (local main is $(git rev-parse --short "$localmain"), which is NOT what this run measures)"
+fi
+
+if [[ $PAIRWISE -eq 1 ]]; then
+  echo "PAIRWISE: each branch merged into that base alone. Cross-branch collisions are invisible here."
+  run_gates
+  # main's own gates must be clean or every row inherits its failure and the run says nothing.
+  if [[ $gates_rc -eq 1 ]]; then
+    echo "main itself fails its gates, so a pairwise result cannot be attributed to any branch:"
+    printf '%s\n' "$gates_out" | sed 's/^/  /'
+    exit 2
+  fi
+fi
+
+merged=0; conflicts=0; gatefails=0; unresolved=0
+prev_bad=""
+for b in $ORDER; do
+  # In pairwise mode every branch starts from the SAME base, so a failure is caused by THAT branch alone -
+  # which is true only if the reset actually happened. Unchecked, a failed reset leaves the previous branch
+  # in the tree and the row is then a cumulative result wearing a pairwise label.
+  if [[ $PAIRWISE -eq 1 ]] && ! { git reset -q --hard "$BASE" && git clean -qfd; }; then
+    echo "REHEARSAL ABORTED: could not reset the scratch worktree to the base before $b, so this row and"
+    echo "  every row after it would be measured against a tree of unknown content."
+    exit 2
+  fi
+  # Strip the CR. The order comes from a python heredoc, and on git-bash its stdout carries CRLF - so every
+  # entry arrived with a trailing carriage return, `git rev-parse` failed on it, and the loop skipped it.
+  # The tool then reported "0 conflicts, 0 gate failures" having merged ONE branch out of thirty-one: a clean
+  # bill of health from a run that did almost nothing. That is precisely the failure this tool exists to
+  # catch, occurring inside the tool, which is why an unresolvable branch is now LOUD and never a silent
+  # continue. (The plan's own words: "CRLF and NTFS break every ops/* script". This is what that looks like.)
+  b="${b%$'\r'}"
+  [[ -n "$b" ]] || continue
+  if ! git rev-parse --verify -q "origin/$b" >/dev/null 2>&1; then
+    # THREE answers, not two. "git said no" and "git could not answer" are different facts, and the second
+    # one is what happened when this worktree was deleted mid-run: 33 healthy refs were reported missing.
+    # `git rev-parse --git-dir` is the cheapest question that separates them.
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+      echo "REHEARSAL ABORTED: this is no longer a git worktree, so every remaining answer would be a"
+      echo "  guess. The scratch worktree was removed while the run was in flight - almost certainly a"
+      echo "  second rehearsal, which the lock at the top now prevents. Nothing below this line is a"
+      echo "  measurement; discard the whole run rather than the rows after it."
+      exit 2
+    fi
+    printf '%-22s UNRESOLVABLE: no origin/%s\n' "$b" "$b"
+    unresolved=$((unresolved + 1))
+    continue
+  fi
+  mout="$(git merge --no-edit "origin/$b" 2>&1)"
+  mrc=$?
+  if [[ $mrc -ne 0 ]]; then
+    # `git diff --diff-filter=U` reports NOTHING for a modify/delete conflict - there is no blob on one side
+    # to diff - so the two conflicts in the run that motivated the delete/modify rule printed "CONFLICT: see
+    # git status", and the next line aborted the merge and the trap then deleted the worktree: an instruction
+    # to go and look at something the tool had already destroyed. `git ls-files -u` names a path unmerged at
+    # ANY stage, and git's own CONFLICT lines say which KIND, which is the part nobody can reconstruct once
+    # the tree is gone.
+    files="$(git ls-files -u | awk '{print $4}' | sort -u | tr '\n' ' ')"
+    kinds="$(printf '%s\n' "$mout" | grep -E '^(CONFLICT|error:|fatal:)')"
+    if [[ -z "${files// }" && -z "$kinds" ]]; then
+      echo "REHEARSAL ABORTED: git merge origin/$b failed with no unmerged path and no CONFLICT line, so"
+      echo "  this is an error in the merge, not two branches disagreeing. The tree's state is unknown from"
+      echo "  here and every row after it would be unattributable:"
+      printf '%s\n' "$mout" | sed 's/^/  /'
+      exit 2
+    fi
+    printf '%-22s CONFLICT: %s\n' "$b" "${files:-(no unmerged path - see the lines below)}"
+    printf '%s\n' "$kinds" | grep . | sed 's/^/    /'
+    git merge --abort >/dev/null 2>&1
+    conflicts=$((conflicts + 1))
+    continue
+  fi
+  merged=$((merged + 1))
+  filed_ids="$filed_ids"$'\n'"$(printf '%s\n' "${ADDQ[$b]:-}" | grep -oE 'T-[0-9]{4}' | sort -u)"
+
+  run_gates
+  bad="$gates_out"
+
+  if [[ $gates_rc -eq 1 ]]; then
+    # Cumulative mode carries every unrepaired failure forward, so without this the run blames each branch
+    # for whatever the branches before it left behind - it named T-0025 for a duplicate T-0033 that T-0024
+    # introduced. Only a failure this branch actually ADDED is a finding against this branch.
+    #
+    # The comparison is over the SET of findings, and it was over ONE LINE of it: `tail -1` of queue-check.
+    # Measured, in a tree where a branch added a brand-new duplicate task id - the defect this tool exists
+    # to catch - on top of an inherited one:
+    #   STATE A (inherited only) -> queue-check: ... T-0021 ...: in review/ without a reviewer
+    #   STATE B (A + a NEW duplicate T-0014) -> queue-check: ... T-0021 ...: in review/ without a reviewer
+    # Byte-identical, so B printed "(INHERITED, unchanged by this branch)" and incremented nothing. Under-
+    # blame is the same defect as over-blame, in the direction that loses the finding.
+    if [[ $PAIRWISE -eq 1 ]]; then
+      new_bad="$bad"
+    else
+      new_bad="$(comm -13 <(printf '%s\n' "$prev_bad" | grep . | sort) <(printf '%s\n' "$bad" | grep . | sort))"
+    fi
+    n_new=$(printf '%s\n' "$new_bad" | grep -c .)
+    if [[ $n_new -eq 0 ]]; then
+      printf '%-22s merged, gates fail (INHERITED, unchanged by this branch)\n' "$b"
+    else
+      printf '%-22s merged, GATES FAIL | %s\n' "$b" "$(printf '%s\n' "$new_bad" | grep -m1 .)"
+      printf '%s\n' "$new_bad" | grep . | tail -n +2 | head -8 | sed 's/^/                       | /'
+      [[ $n_new -gt 9 ]] && printf '                       | ... and %d more\n' "$((n_new - 9))"
+      gatefails=$((gatefails + 1))
+    fi
+  elif [[ $QUIET -eq 0 ]]; then
+    printf '%-22s merged, gates clean\n' "$b"
+  fi
+  prev_bad="$bad"
+done
+
+echo
+# Census again. Anything present before and absent now was dropped by a merge resolution. Cumulative only:
+# in pairwise mode the tree holds one branch, so an id missing from it means "that branch has not filed it
+# yet", which is the normal state and not a finding.
+if [[ $PAIRWISE -eq 0 ]]; then
+  if ! after_ids="$(census_ids)"; then
+    echo "CENSUS UNAVAILABLE: git could not read the scratch worktree at the end of the run, so every id"
+    echo "  would look dropped. This is where 93 fabricated 'dropped tasks' came from, and the empty answer"
+    echo "  is now a refusal instead of a finding. The rows above stand; the census did not run."
+    exit 2
+  fi
+  n_after=$(printf '%s\n' "$after_ids" | grep -c .)
+  # Expected = what was at the base PLUS what the branches that merged filed on their way in.
+  expected="$(printf '%s\n%s\n' "$before_ids" "$filed_ids" | grep . | sort -u)"
+  n_expected=$(printf '%s\n' "$expected" | grep -c .)
+  dropped="$(comm -23 <(printf '%s\n' "$expected") <(printf '%s\n' "$after_ids") | tr '\n' ' ')"
+  if [[ -n "${dropped// }" ]]; then
+    echo "TASKS DROPPED BY A MERGE: $dropped"
+    echo "  A task file that disappears is invisible to queue-check, which only reports ids it can see."
+    echo "  Compared $n_expected expected id(s) = $n_before at $MAINREF + $((n_expected - n_before)) new"
+    echo "  one(s) filed by branches that merged, against $n_after present in the merged tree."
+    gatefails=$((gatefails + 1))
+  elif [[ $QUIET -eq 0 ]]; then
+    # Printed even when it finds nothing, so that "no dropped tasks" is visibly the result of a comparison
+    # that had something to compare rather than of one that looked at an empty set.
+    echo "census: none dropped. $n_expected id(s) expected = $n_before at $MAINREF plus"
+    echo "  $((n_expected - n_before)) newly filed by branches that merged; $n_after present in the merged tree."
+  fi
+fi
+# A rehearsal that merged almost nothing must never read as a clean rehearsal. `merged` is compared against
+# the number of branches actually asked for, because "0 conflicts" over an empty loop is the shape of report
+# this whole repo exists to distrust - and is exactly what this tool reported before the CR bug above was
+# found.
+want=$(printf '%s\n' $ORDER | sed 's/\r$//' | grep -c .)
+mode=cumulative; [[ $PAIRWISE -eq 1 ]] && mode=pairwise
+echo "REHEARSAL ($mode): $merged of $want merged, $conflicts conflicts, $gatefails gate failures, $unresolved unresolvable"
+if [[ ${n_extra:-0} -gt 0 ]]; then
+  echo "  $want branches = $n_pr with an open PR + $n_extra with none. The ones with no PR have no CI"
+  echo "  result anywhere, so a clean row for them says only that they MERGE, not that they pass."
+fi
+[[ $PAIRWISE -eq 1 ]] || echo "  Run --pairwise too: a defect a later branch cleans up is silent here."
+if [[ $merged -eq 0 || $((merged + conflicts + unresolved)) -lt $want ]]; then
+  echo "  INCOMPLETE: $want branches were requested and only $((merged + conflicts + unresolved)) were accounted for."
+  exit 2
+fi
+if [[ $ordervio -gt 0 ]]; then
+  echo "  $ordervio ordering constraint(s) were announced and NOT honoured (listed at the top). The run is"
+  echo "  not clean while the order it used contradicts the order it derived."
+fi
+if [[ $noref -gt 0 ]]; then
+  echo "  $noref branch(es) had no local ref at derivation time and were ordered by nothing."
+fi
+[[ $conflicts -eq 0 && $gatefails -eq 0 && $unresolved -eq 0 && $ordervio -eq 0 ]] || exit 1
