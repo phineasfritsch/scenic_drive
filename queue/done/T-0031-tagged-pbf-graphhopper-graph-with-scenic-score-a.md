@@ -1,7 +1,7 @@
 ---
 id: T-0031
 title: Tagged PBF -> GraphHopper graph with scenic_score as an encoded value, deployed to the VPS
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T01:02:14Z
@@ -11,7 +11,7 @@ branch: task/T-0031
 exclusive: []
 touches: [services/etl/, services/routing/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-pr105
 depends_on: [T-0168]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -486,3 +486,69 @@ That is the property the whole budget search depends on, and it is cheap to chec
   by the pass - its single allowed container run went to the mutant - so it rests on the fixer's run and on
   rv1-pr105's identical five durations at 7b7401a; the round-2 reviewer runs the routed line at this head as its
   own control.
+- 2026-09-19T04:41:42Z REVIEW PASS of PR #105 at cb9f763 by agent/rv2-pr105 (round 2; reviewer, not the owner, not
+  rv1-pr105, not the fixer, not the orchestrator). Reviewed in .worktrees/rv2-pr105, detached at cb9f763 and
+  removed at the end; nothing written in .worktrees/T-0031 but this entry and the queue move.
+  THE DIFF SINCE ROUND 1. `git diff 7b7401a..cb9f763 --stat` -> 3 files, 390 insertions, 0 deletions: this
+  task file (+216), tests/test_lambda_monotone.py (+33), tests/test_profiles_static.py (+141, new). No
+  profile, config, Java, pom or Dockerfile byte differs in the range, so round 1's image and graph-cache
+  still answer for the routed numbers, and the task-file diff is append-only (0 deletions anywhere).
+  CONTROL, the routed acceptance line run ONCE at this head against the existing WSL image and a copy of the
+  graph-cache (no rebuild, no re-import), `cd services/routing && python -m pytest tests -rs -s`:
+    T(lambda) ms: lambda=0: 5945246, lambda=1: 6015807, lambda=2: 6908455, lambda=4: 7664327, lambda=8: 8491177
+    car_fast: 5945246 ms / 107153.8 m   lambda=0: 5945246 ms / 107153.8 m
+    9 passed in 28.38s
+  - the Log's five durations and rv1-pr105's, to the millisecond and the metre, with no skip section.
+  GATES, bare: `bash ops/lib/check-line-cap` -> "P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37,
+  apps/ios=8), none over 300 lines" EXIT 0; `bash ops/queue-check` -> "QUEUE OK (175 tasks)" EXIT 0;
+  `bash ops/check-pins --source-only` -> "PINS ok=11 skipped=13 pending=1 expired=0 failed=0 tier=linux
+  source-only" EXIT 0. `git ls-files services/routing | xargs wc -l` -> 838 total over 18 files, every number
+  the 04:01:08Z entry quotes, test_lambda_monotone.py 174 and test_profiles_static.py 141 included, none over
+  the cap. `gh pr checks 105` -> core pass, pins-source-only pass, which (per the 04:08:26Z correction)
+  executes neither of these test files.
+  ROUND 1'S THREE MUTANTS REPLAYED, each alone on the clean worktree, STATIC runs only - none of them needs a
+  container any more - `git status --short` empty after every restore:
+    B1 `scenic_score >= 7` -> `>= 0` in car_scenic_request.json: FAILED
+       test_profiles_static.py::test_request_model_bands_are_the_plan_thresholds ("band thresholds are [0, 4],
+       the plan's are [7, 4]"), 1 failed 4 passed in 0.98s. The round-1 BLOCKING is closed.
+    M1 both penalized bands grown with lambda (mid 1,1.5,2,3,5 / low 1,2,3,5,9): FAILED
+       ::test_band_table_matches_the_plan_literals and ::test_band_multipliers_never_grow_with_lambda,
+       2 failed 3 passed.
+    M3 a fourth rule `road_class == MOTORWAY || road_class == TRUNK -> multiply_by 0`: FAILED
+       ::test_no_profile_hard_excludes_motorway_or_trunk (and the rule-count assertion), 2 failed 3 passed.
+       The invariant no longer rests on ConnectionNotFoundException.
+  TWO MUTANTS OF MY OWN, named by neither file, both aimed at "can the per-request model be dead or inverted
+  with the suite green?":
+    R1 CAUGHT, and it is the new test earning its place. car_scenic_request.json's second band written `"if"`
+       instead of `"else_if"` - one word, thresholds still [7, 4], placeholders, else band and rule count all
+       intact, so tests/test_profiles_static.py is GREEN (5 passed). The `else` then binds to the second
+       `if`: the >= 7 band loses its immunity and the three-band model collapses to two. Routed, lambda=8
+       drops to 6001242 ms against lambda=0's 5945246 (+0.94%) and ::test_lambda_penalty_bites goes red BY
+       NAME ("short of the +5% (6242508 ms) this asserts"), 1 failed 8 passed in 31.42s. RECORDABLE, not
+       blocking: the kill needs a container, and the container-free half cannot see a band-structure collapse
+       because `_condition()` accepts `if` wherever the plan wrote `else_if`.
+    R2 SURVIVOR, recordable. car_scenic_base.json's unpaved gate deleted -> static 5 passed; then ALL FOUR
+       safety gates deleted (`"priority": []` - no car_access, no private/no access, no unpaved, no track) ->
+       static 5 passed AND the full routed suite 9 passed in 22.23s with the five durations unchanged to the
+       millisecond. Unchanged is the proof: Dockerfile:21 `COPY profiles /app/profiles` bakes the base profile
+       into the image and the container mounts only /graph and /models, so the on-disk car_scenic_base.json is
+       read by no routed test, and nothing in this PR asserts that the safety gates EXIST - the static file
+       checks only the negative (no MOTORWAY/TRUNK gate). Not blocking under this round's rule: the
+       per-request lambda model is neither dead nor inverted by it. The cheap close is three lines in
+       test_profiles_static.py pinning `!car_access`, `road_access == PRIVATE || road_access == NO`, the
+       surface list and `road_class == TRACK`; the honest close is that base-profile changes stay invisible
+       until the image is rebuilt, which belongs with ops/test-routing (plan line 199).
+  BITE_FLOOR = 0.05 JUDGED. The ruling IS in the Log, at R7 of the 04:01:08Z entry: 8491177 vs 5945246 is
+  +42.8% on this fixture, 5% is an order of magnitude below that, the router is deterministic over a fixed
+  graph. The shape does the one job it must - refuse a constant - and R1 shows it refusing +0.94%. RECORDABLE
+  either way, as the fix's own STILL OPEN says first: a floor ruled on one fixture is a floor on Vermont. The
+  shape that survives plan line 209's twenty goldens is a floor per fixture (or one derived from each
+  fixture's own measured spread); the first region whose scenic detour is honestly cheaper than 5% must
+  re-rule it in the Log, never delete it.
+  RECORDABLE, none of these fails the round: (a) R2. (b) R1's blind spot in the container-free half.
+  (c) the plan's per-request block (plan:108) carries `{ "if": "road_class == RESIDENTIAL && scenic_score < 7",
+  "multiply_by": "0.5" }`, the anti rat-run rule, and this slice's car_scenic_request.json has three rules and
+  no residential rule; test_profiles_static.py's `len(rules) == 3` now pins that omission, so whoever adds the
+  rule (plan:218's no-rat-run property, human gate #1) edits the test in the same commit. Against the plan's
+  profile block, not against this PR. (d) T-0168, T-0182 and ops/test-routing stay open and the Log names them.
+  VERDICT: PASS. state claimed -> done, reviewer agent/rv2-pr105, queue/claimed/ -> queue/done/. Not merged.
