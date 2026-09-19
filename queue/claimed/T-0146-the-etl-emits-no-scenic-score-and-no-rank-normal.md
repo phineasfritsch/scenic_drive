@@ -397,3 +397,97 @@ Unblocks T-0029 (rank-order) and P-PROD-01. Depends on T-0024..T-0027 leaving qu
   was. Every other STILL OPEN bullet of the 23:45:11Z entry is untouched and still open, the three literal
   fixture fields included: this tripwire pins that the two predicates are ONE object, and says nothing about
   the hand-typed `sinuosity` column, which still has to be regenerated from `way_sinuosity` when #94 lands.
+- 2026-09-19T02:18:41Z THE SWAP IS DONE: T-0161 LANDED AND THE TEMPORARY PREDICATE COPY IS DELETED, by
+  agent/claude-opus-5 (fixer for the owner). `git fetch origin && git merge --no-edit origin/main` - a MERGE,
+  not a rebase - brings PR #94 in: origin/main is `c6a7a45` (Merge pull request #94 from
+  phineasfritsch/task/T-0161) and the merge commit on this branch is `232fef3`. No conflict, in the task file
+  or anywhere else. `services/etl/etl/sinuosity.py` (83 lines) is now on the branch, with `CLOSED_ENDPOINT_M =
+  10.0` at its line 46, `endpoint_gap_m` at 62 and `is_closed_way` at 68 - the module ruling R3 was waiting for.
+
+  RED 8 - THE TRIPWIRE FIRED ON THE REAL MERGE. At `232fef3`, `__pycache__` purged, BEFORE any module edit.
+  This is the red that RED 7's `.artifacts/` copy anticipated, now on the head itself:
+    cd services/etl && python -m pytest tests/test_assemble.py -rs
+    1 failed, 14 passed in 0.61s
+    FAILED tests/test_assemble.py::test_the_temporary_predicate_copy_must_be_deleted_the_day_t_0161_lands
+    E       AssertionError: T-0161 landed: do the one-line swap in assemble.py
+    E       assert (<function is_closed_way at 0x0000010FDB53AB00> is <function is_closed_way at 0x0000010FDB558AF0>)
+    E        +  where <function is_closed_way at 0x0000010FDB53AB00> = assemble.is_closed_way
+    E        +  and <function is_closed_way at 0x0000010FDB558AF0> = <module 'etl.sinuosity' from
+    E              '...\.worktrees\T-0146\services\etl\etl\sinuosity.py'>.is_closed_way
+  The other 14 pass, so the tripwire is the only thing the merge turned red, and it named the fix.
+
+  THE SWAP. `etl/assemble.py` now carries `from .sinuosity import CLOSED_ENDPOINT_M, endpoint_gap_m,
+  is_closed_way` and its own `CLOSED_ENDPOINT_M = 10.0`, `endpoint_gap_m` and `is_closed_way` are DELETED -
+  eleven lines out, one import in. `endpoint_gap_m` is public on `sinuosity`, so no local helper survives;
+  `MIN_COORDINATES` stays because `coordinates()` still uses it for the row-level check, and `snap.length_m`
+  stays because `record_from_row` passes it to `furniture.furniture_per_km`. An `__all__` names the three
+  re-exported objects, so a reader of `assemble.CLOSED_ENDPOINT_M` can see it is `sinuosity`'s object and not
+  a second copy. The R3 paragraph of the module docstring is rewritten to the state that now exists. Behaviour
+  is unchanged by construction: `sinuosity_declined=is_closed_way(coords)` is the same call against the same
+  10.0 m and the same `snap` length model, which is what the fixture's ranks pin.
+
+  ACCEPTANCE BLOCK RE-RUN AT THIS COMMIT, renumbered; every gate bare, never piped into `tail`/`head`/`grep`
+  before a `&&`. The measured files are final at this commit; the only edit after these runs is this Log
+  entry's own text, which no gate reads except `ops/queue-check`, re-run after it.
+
+  ACCEPTANCE 1 - the closed-loop RED then green, both runs quoted: the 23:39:52Z entry's RED 1 and the
+  23:45:11Z entry's ACCEPTANCE 1 stand - no rank moved here. The acceptance line's tail, "the predicate is
+  `sinuosity.is_closed_way` once T-0161 is on main", is now literally true, and its "swapped in one line
+  (STILL OPEN names it)" is spent: RED 8 above is the red by name, green after the swap:
+    cd services/etl && python -m pytest tests/test_assemble.py -rs
+    15 passed in 0.33s
+  No `short test summary info` section, so zero skips.
+
+  ACCEPTANCE 2 - the four `ops/sane` check-4 gates, each red by name first: unchanged, RED 2 through RED 6 in
+  the 23:39:52Z entry. No gate code changed here; all four gate tests are among the 15 above.
+
+  ACCEPTANCE 3 - the whole ETL suite and the `wc -l` figures, RE-MEASURED at this commit:
+    cd services/etl && python -m pytest tests -rs
+    985 passed in 55.58s
+  849 on this branch before the merge; the +136 are T-0161's own tests arriving with it (`test_sinuosity.py`,
+  `test_proximity.py`, `test_proximity_bends.py`, `test_proximity_interior.py`), not new here. No `short test
+  summary info` section, so zero skips.
+    wc -l services/etl/etl/assemble.py services/etl/tests/test_assemble.py \
+          services/etl/tests/fixtures/assembly_fixture.json services/etl/etl/sinuosity.py
+      250 services/etl/etl/assemble.py
+      281 services/etl/tests/test_assemble.py
+       92 services/etl/tests/fixtures/assembly_fixture.json
+       83 services/etl/etl/sinuosity.py
+      706 total
+  `assemble.py` is 261 -> 250 (-11), under the 300-line cap. `test_assemble.py` and the fixture are untouched
+  by this correction and re-measured anyway; `sinuosity.py` is quoted because the swap now depends on it.
+
+  THE OTHER GATES, bare:
+    bash ops/lib/check-line-cap
+    P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines
+    check-line-cap exit=0
+
+    bash ops/queue-check
+    QUEUE OK (175 tasks)
+    queue-check exit=0
+
+    bash ops/check-pins --source-only
+    PINS ok=11 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only
+    check-pins exit=0
+  169 -> 175 tasks and skipped=12 -> 13 are the merge's, not this change's.
+
+  `ops/test` and the full `ops/check-pins` were NOT run, as instructed for this correction; `--source-only`
+  was.
+
+  THE 23:45:11Z ENTRY'S FIRST STILL OPEN BULLET IS CLOSED - by this dated line, not by an edit to it. "THE
+  ONE-LINE SWAP ... Nothing enforces that swap today: the constant is duplicated, and a change to T-0161's
+  10.0 would not be noticed here" no longer describes the tree: there is ONE `CLOSED_ENDPOINT_M` under
+  `services/etl/`, `sinuosity`'s, `assemble` imports it, and
+  `test_the_temporary_predicate_copy_must_be_deleted_the_day_t_0161_lands` now asserts that identity for real
+  instead of returning on `ImportError`. `test_the_closed_way_predicate_uses_the_same_constant_as_the_
+  sinuosity_producer` keeps its 10.0 literal: with one definition left it pins the VALUE, and the tripwire
+  pins that only one object carries it.
+
+  STILL OPEN, none of it fixed here - every bullet of the 23:45:11Z entry except the swap stands as written,
+  and the merge makes one of them due:
+  * THE THREE LITERAL FIXTURE FIELDS, NOW ACTIONABLE. `sinuosity`, `tunnel_meters` and
+    `meters_to_nearest_motorway` are still hand-typed into `assembly_fixture.json` and `LITERAL_FIELDS` still
+    names them, although `sinuosity.way_sinuosity` and `proximity` are on the branch as of `232fef3`.
+    Regenerating the fixture's `sinuosity` column from `way_sinuosity` over the same coordinates re-derives
+    the hand-typed ranks in `test_assemble.py`, so it is a fixture change with its own red - not this
+    correction, which is the one swap the tripwire named. It belongs to T-0168 or a follow-up task.

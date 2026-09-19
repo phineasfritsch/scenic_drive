@@ -26,10 +26,10 @@ THE CLOSED-WAY PREDICATE IS TEMPORARY AND IS ONE LINE (ruling R3). `sinuosity.wa
 FLOOR for a closed way - the same 1.0 a straight two-node way gets - so a roundabout left in the sinuosity
 ranking population is scored as the region's straightest road, and thousands of them move every other way's
 rank (way_record.py's docstring; T-0146's 21:23:07Z note). The assembler must therefore set
-`sinuosity_declined` itself. `sinuosity.is_closed_way` does not exist on main, so `CLOSED_ENDPOINT_M` and
-`is_closed_way` below are the same constant, the same `<=` and the same length model as
-`origin/task/T-0161:services/etl/etl/sinuosity.py`. When that lands, both are deleted and replaced by
-`from .sinuosity import is_closed_way`.
+`sinuosity_declined` itself. T-0161 (PR #94) has landed on main, so the temporary copy of the predicate this
+module carried is DELETED and `CLOSED_ENDPOINT_M`, `endpoint_gap_m` and `is_closed_way` are imported from
+`.sinuosity` - one definition of the closed-way predicate in the tree, which is what
+`test_the_temporary_predicate_copy_must_be_deleted_the_day_t_0161_lands` asserts by object identity.
 
 THE COLUMN IS `score` AND NOT `scenic_score` (ruling R4). `Sources/ScenicKit/Scoring/ScoredEdge.swift:15`
 reserves `scenic_score` for the `0...10` encoded value the router reads. This table carries `score.score`'s
@@ -63,12 +63,14 @@ import sys
 
 from . import byways, curvature, furniture, landcover, score, speedfit, terrain
 from .normalise import normalise_region
+from .sinuosity import CLOSED_ENDPOINT_M, endpoint_gap_m, is_closed_way
 from .snap import length_m
 from .way_record import POI_ABSENT_FLAG, SINUOSITY_DECLINED_FLAG, WayRecord
 
-# Ruling R3: the same constant as `sinuosity.CLOSED_ENDPOINT_M` on origin/task/T-0161. The width of a road
-# junction, not a tolerance on the arithmetic.
-CLOSED_ENDPOINT_M = 10.0
+# Ruling R3, after T-0161: the closed-way predicate has ONE definition in the tree, `sinuosity`'s, and this
+# module re-exports it rather than owning a second. `CLOSED_ENDPOINT_M` and `endpoint_gap_m` are deliberately
+# bound here - `assemble.CLOSED_ENDPOINT_M` is `sinuosity.CLOSED_ENDPOINT_M`, by identity, and the tests say so.
+__all__ = ["CLOSED_ENDPOINT_M", "endpoint_gap_m", "is_closed_way"]
 
 # Gates.swift:80-82, verbatim. Positive evidence only: no surface tag is NOT unpaved.
 UNPAVED_SURFACES = frozenset({"gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel"})
@@ -94,19 +96,6 @@ INFINITY = "Infinity"
 
 MIN_COORDINATES = 2
 LANDCOVER_TERMS = ("canopy", "impervious", "water")
-
-
-def endpoint_gap_m(coords: list) -> float:
-    """Metres between the way's first and last coordinate, on `snap`'s spherical model."""
-    if len(coords) < MIN_COORDINATES:
-        raise ValueError("endpoint_gap_m: needs at least %d coordinates, got %d"
-                         % (MIN_COORDINATES, len(coords)))
-    return length_m([coords[0], coords[-1]])
-
-
-def is_closed_way(coords: list) -> bool:
-    """Whether the way's two ends are the same place - exactly, or within `CLOSED_ENDPOINT_M`."""
-    return endpoint_gap_m(coords) <= CLOSED_ENDPOINT_M
 
 
 def gate_reason(tags: dict) -> str | None:
