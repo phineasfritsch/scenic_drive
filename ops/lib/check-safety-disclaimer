@@ -10,14 +10,22 @@
 #         persistent sentence itself are present, in the files that must carry them
 #   (iii) the call graph: SkylineHandoff.open( is reached from exactly one place, that place is dominated by
 #         `guard isSafetyDisclaimerAcknowledged else`, and the button that holds it is built in exactly one
-#         place with the acknowledgement passed through
+#         place with the acknowledgement passed through - and the BLOCKED path is wired end to end: the
+#         guard's else block calls onBlocked() before returning, the screen's onBlocked: closure sets
+#         isShowingDisclaimer, and a .sheet is bound to that flag
 #
-# WHAT IT CANNOT SEE, stated here because a check that hides its blind spots is worse than none: whether the
-# sheet ever renders, whether accepting it writes the store, whether @AppStorage reads back what it wrote,
-# whether the line is on screen or behind the map, contrast, Dynamic Type, or the 44 pt target. Those need a
-# simulator and an XCUITest, and this package has no test target (see apps/ios/Packages/ScenicApp/Package.swift).
-# Brace counting strips `//` to end of line before counting, so a brace inside a string that follows `//` on
-# the same line is miscounted, and `/* */` is not parsed at all.
+# THE SEVENTH BLIND SPOT, CLOSED 2026-09-19: (iii) used to stop at the guard, so replacing the screen's
+# `onBlocked: { isShowingDisclaimer = true }` with `onBlocked: { }` left all six mutations green while the
+# first tap did nothing and the disclaimer never appeared - a liveness hole in a safety pin. The two screen
+# anchors and the onBlocked() requirement inside the guard's block close it.
+#
+# WHAT IT STILL CANNOT SEE, because a check that hides its blind spots is worse than none: whether the sheet
+# ever renders, whether a tap reaches the button at all, whether the sheet's accept button writes the
+# @AppStorage flag, whether @AppStorage reads it back, whether the line is on screen or behind the map,
+# contrast, Dynamic Type, the 44 pt target. The anchors prove the blocked path is WIRED, never that it RUNS;
+# a simulator and an XCUITest own the rest, and this package has no test target (see ScenicApp/Package.swift).
+# Brace counting strips `//` to end of line first, so a brace inside a string that follows `//` on the same
+# line is miscounted, and `/* */` is not parsed at all.
 #
 # Every anchor below is an identifier, a file name or a string literal the user reads. Never a comment
 # (CLAUDE.md): comments get stripped, and a gate anchored on one is green over deleted code.
@@ -27,7 +35,8 @@
 #
 #   bash ops/lib/check-safety-disclaimer                 # the tracked tree
 #   bash ops/lib/check-safety-disclaimer --sources DIR   # any copy of Sources/FeatureScenicHome
-#   bash ops/lib/check-safety-disclaimer --prove-red     # six mutations, each refused by name
+#   bash ops/lib/check-safety-disclaimer --prove-red     # seven mutations, each refused by name
+#                                                        # (the table: ops/lib/check-safety-disclaimer-mutations)
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -194,14 +203,20 @@ run_check() {
       if (guard_line == 0 && code ~ ("guard[ \t]+" ack "[ \t]+else")) { guard_line = NR; guard_depth = d }
       if (call_line == 0 && index(code, "SkylineHandoff.open(") > 0) { call_line = NR; call_depth = d }
       if (guard_line > 0 && call_line == 0 && NR > guard_line && d < guard_depth) { escaped = NR }
+      # The blocked path, inside the guard`s else block: onBlocked() must come before the block`s return,
+      # or the refused tap is silent and nothing ever presents the disclaimer.
+      if (guard_line > 0 && NR > guard_line && ret_line == 0) {
+        if (blocked_line == 0 && index(code, "onBlocked()") > 0) { blocked_line = NR }
+        if (code ~ /(^|[^A-Za-z0-9_])return([^A-Za-z0-9_]|$)/) { ret_line = NR }
+      }
       opens = gsub(/\{/, "{", code)
       closes = gsub(/\}/, "}", code)
       depth += opens - closes
     }
-    END { printf "%d %d %d %d %d\n", guard_line+0, guard_depth+0, call_line+0, call_depth+0, escaped+0 }
+    END { printf "%d %d %d %d %d %d %d\n", guard_line+0, guard_depth+0, call_line+0, call_depth+0, escaped+0, blocked_line+0, ret_line+0 }
   ' "$gated")"
-  local guard_line guard_depth call_line call_depth escaped
-  read -r guard_line guard_depth call_line call_depth escaped <<<"$verdict"
+  local guard_line guard_depth call_line call_depth escaped blocked_line ret_line
+  read -r guard_line guard_depth call_line call_depth escaped blocked_line ret_line <<<"$verdict"
 
   [[ "$guard_line" -gt 0 ]] || fail "no \`guard $ACK_IDENT else\` in $gated." \
     "The handoff call site is not dominated by the acknowledgement; the first tap would leave for Apple Maps" \
@@ -234,74 +249,51 @@ run_check() {
     "A literal there (\`: true\`) is a guard wired to a constant, which is the shape this repository exists" \
     "to catch. The exact pass-through spelling is what makes that visible to a source-level check."
 
+  # The blocked path, on the screen's side. Without these two, `onBlocked: { }` passes every anchor above
+  # while the first tap does nothing and the disclaimer is never presented: a gate that refuses the handoff
+  # and offers the user no way through it is a liveness hole in a safety pin.
+  local wiring=("onBlocked: { isShowingDisclaimer = true }" 'isPresented: $isShowingDisclaimer')
+  for needle in "${wiring[@]}"; do
+    local w
+    w="$(count_fixed_in "$needle" "$screen")"
+    [[ "$w" -ge 1 ]] || fail "the blocked tap is not wired to the sheet in $screen: \`$needle\` absent." \
+      "GatedHandoffButton's guard calls onBlocked() on a refused tap; the screen must turn that into a" \
+      "presentation (\`onBlocked: { isShowingDisclaimer = true }\`) and bind a sheet to the same flag" \
+      "(\`.sheet(isPresented: \$isShowingDisclaimer)\`). With either gone the first tap is silent."
+  done
+
+  [[ "$ret_line" -gt 0 ]] || fail "the \`guard $ACK_IDENT else\` block in $gated has no \`return\`." \
+    "A guard body that falls through is not a gate."
+  [[ "$blocked_line" -gt 0 && "$blocked_line" -lt "$ret_line" ]] || fail \
+    "no \`onBlocked()\` between the guard at line $guard_line and its return at line $ret_line in $gated." \
+    "The refused tap has to hand the screen something to present, or the user taps a dead button forever."
+
   echo "P-SAFE-03: $n Swift file(s) under $sources; SafetyDisclaimer declared once in its own file;"
   echo "  home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in"
   echo "  SafetyDisclaimer.swift, the persistent line present, @AppStorage(\"$STORAGE_KEY\") on device;"
   echo "  SkylineHandoff.open( called once (GatedHandoffButton.swift line $call_line), dominated by the"
   echo "  guard at line $guard_line; the button is built once, in ScenicHomeScreen.swift, with $ACK_IDENT"
-  echo "  passed through. Not checked here: rendering, taps, contrast, Dynamic Type, 44 pt - XCUITest owns those."
+  echo "  passed through; the blocked tap is wired - onBlocked() at line $blocked_line before the return at"
+  echo "  line $ret_line, \`onBlocked: { isShowingDisclaimer = true }\` and a sheet bound to that flag on the"
+  echo "  screen. Not checked here: rendering, taps, that accepting the sheet writes the flag, contrast,"
+  echo "  Dynamic Type, 44 pt - XCUITest owns those."
 }
 
 # ------------------------------------------------------------------------------------------------ red
-# Each row mutates ONE structural fact in a throwaway copy and requires this check to refuse AND to name the
-# reason. A check nobody has seen refuse is a check nobody has tested (CLAUDE.md).
-prove_red() {
-  # Not `local`: the EXIT trap fires after the function's frame is gone, and a local here left the trap
-  # reading an unbound variable under `set -u` - printed after the table, and the temp tree never removed.
-  work="$(mktemp -d)"
-  trap 'rm -rf "$work"' EXIT
-
-  local rows=(
-    "the SafetyDisclaimer type renamed|SafetyDisclaimer.swift|s/struct SafetyDisclaimer:/struct SafetyNotice:/|no SafetyDisclaimer declaration"
-    "the home.disclaimer identifier removed|ScenicHomeScreen.swift|s/\"home.disclaimer\"/\"home.sheet\"/|home.disclaimer\" absent"
-    "the acknowledgement guard removed|GatedHandoffButton.swift|s/guard isSafetyDisclaimerAcknowledged else {/do {/|no \`guard isSafetyDisclaimerAcknowledged else\`"
-    "the persistent conditions line removed|ScenicHomeScreen.swift|s/Conditions change. Verify locally./Have a nice drive./|is not in"
-    "the acknowledgement no longer passed to the button|ScenicHomeScreen.swift|s/isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged/isSafetyDisclaimerAcknowledged: true/|does not pass"
-    "the on-device store key changed|ScenicHomeScreen.swift|s/safety.disclaimer.acknowledged.v1/whatever/|no @AppStorage"
-  )
-
-  local pass=0 total=0
-  printf '%-52s %-8s %s\n' "MUTATION" "EXIT" "REASON NAMED"
-  for row in "${rows[@]}"; do
-    total=$((total + 1))
-    local label="${row%%|*}" rest="${row#*|}"
-    local file="${rest%%|*}"; rest="${rest#*|}"
-    local script="${rest%%|*}"
-    local expect="${rest##*|}"
-
-    local dir="$work/m$total"
-    rm -rf "$dir"
-    cp -R "$DEFAULT_SOURCES" "$dir"
-    sed -i -e "$script" "$dir/$file"
-
-    local out status
-    out="$(bash "$0" --sources "$dir" 2>&1)"
-    status=$?
-
-    local named="no"
-    if [[ "$out" == *"$expect"* ]]; then
-      named="yes"
-    fi
-    printf '%-52s %-8s %s\n' "$label" "$status" "$named"
-    if [[ "$status" -ne 0 && "$named" == "yes" ]]; then
-      pass=$((pass + 1))
-    else
-      echo "  UNREFUSED or UNNAMED. Expected a non-zero exit naming: $expect"
-      echo "$out" | sed -e 's/^/  | /'
-    fi
-  done
-
-  echo "prove-red: $pass/$total mutations refused by name"
-  [[ "$pass" -eq "$total" ]] || exit 1
-}
+# The mutation population lives in ops/lib/check-safety-disclaimer-mutations - one file, one concern, and
+# this one stays under 300 lines. Each row there mutates ONE structural fact in a throwaway copy and requires
+# this check to refuse AND to name the reason: a check nobody has seen refuse is untested (CLAUDE.md).
+MUTATIONS="ops/lib/check-safety-disclaimer-mutations"
 
 if [[ "$PROVE_RED" -eq 1 ]]; then
+  [[ -f "$MUTATIONS" ]] || fail "$MUTATIONS is missing; --prove-red has no table to run."
+  # A table run against an already-red tree would print refusals that prove nothing about the mutations.
   run_check "$SOURCES" "$REQUIRE_TRACKED" >/dev/null || {
     echo "P-SAFE-03: --prove-red refuses to run against a tree that is already red."
     run_check "$SOURCES" "$REQUIRE_TRACKED"
     exit 1
   }
-  prove_red
+  exec bash "$MUTATIONS"
 else
   run_check "$SOURCES" "$REQUIRE_TRACKED"
 fi

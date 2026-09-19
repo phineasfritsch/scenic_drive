@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# P-SAFE-03's mutation population: the table that proves ops/lib/check-safety-disclaimer red.
+#
+# One file, one concern. It lives beside the check rather than inside it because the check crossed 300 lines
+# when the seventh mutation was added (CLAUDE.md's cap is written for Swift and Python and `check-line-cap`
+# scans *.swift only, but a 330-line gate nobody can hold in their head is the thing the cap exists to stop).
+#
+# Each row mutates ONE structural fact in a throwaway copy of the feature sources, re-runs the check against
+# that copy, and requires it to refuse AND to name the reason. A check nobody has seen refuse is a check
+# nobody has tested (CLAUDE.md). A row that exits 0, or exits non-zero without naming its expected reason,
+# fails the table and the table's exit status is 1.
+#
+# Reached through `bash ops/lib/check-safety-disclaimer --prove-red`, which first refuses to run a table
+# against a tree that is already red. Running this file directly does the same work without that guard.
+#
+#   ROW = label | file under the sources copy | sed script | substring the refusal must contain
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+CHECK="ops/lib/check-safety-disclaimer"
+SOURCES="apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome"
+
+[[ -f "$CHECK" ]] || { echo "P-SAFE-03: $CHECK is missing; the table has nothing to prove red."; exit 1; }
+[[ -d "$SOURCES" ]] || { echo "P-SAFE-03: $SOURCES is missing; the table has nothing to mutate."; exit 1; }
+
+rows=(
+  "the SafetyDisclaimer type renamed|SafetyDisclaimer.swift|s/struct SafetyDisclaimer:/struct SafetyNotice:/|no SafetyDisclaimer declaration"
+  "the home.disclaimer identifier removed|ScenicHomeScreen.swift|s/\"home.disclaimer\"/\"home.sheet\"/|home.disclaimer\" absent"
+  "the acknowledgement guard removed|GatedHandoffButton.swift|s/guard isSafetyDisclaimerAcknowledged else {/do {/|no \`guard isSafetyDisclaimerAcknowledged else\`"
+  "the persistent conditions line removed|ScenicHomeScreen.swift|s/Conditions change. Verify locally./Have a nice drive./|is not in"
+  "the acknowledgement no longer passed to the button|ScenicHomeScreen.swift|s/isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged/isSafetyDisclaimerAcknowledged: true/|does not pass"
+  "the on-device store key changed|ScenicHomeScreen.swift|s/safety.disclaimer.acknowledged.v1/whatever/|no @AppStorage"
+  "the blocked tap no longer presents the disclaimer|ScenicHomeScreen.swift|s/onBlocked: { isShowingDisclaimer = true }/onBlocked: { }/|onBlocked"
+)
+
+# Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone, and a local
+# here left the trap reading an unbound variable under `set -u` - printed after the table, temp tree kept.
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+pass=0
+total=0
+printf '%-52s %-8s %s\n' "MUTATION" "EXIT" "REASON NAMED"
+for row in "${rows[@]}"; do
+  total=$((total + 1))
+  label="${row%%|*}"; rest="${row#*|}"
+  file="${rest%%|*}"; rest="${rest#*|}"
+  script="${rest%%|*}"
+  expect="${rest##*|}"
+
+  dir="$work/m$total"
+  rm -rf "$dir"
+  cp -R "$SOURCES" "$dir"
+  sed -i -e "$script" "$dir/$file"
+
+  out="$(bash "$CHECK" --sources "$dir" 2>&1)"
+  status=$?
+
+  named="no"
+  if [[ "$out" == *"$expect"* ]]; then
+    named="yes"
+  fi
+  printf '%-52s %-8s %s\n' "$label" "$status" "$named"
+  if [[ "$status" -ne 0 && "$named" == "yes" ]]; then
+    pass=$((pass + 1))
+  else
+    echo "  UNREFUSED or UNNAMED. Expected a non-zero exit naming: $expect"
+    echo "$out" | sed -e 's/^/  | /'
+  fi
+done
+
+echo "prove-red: $pass/$total mutations refused by name"
+[[ "$pass" -eq "$total" ]] || exit 1
