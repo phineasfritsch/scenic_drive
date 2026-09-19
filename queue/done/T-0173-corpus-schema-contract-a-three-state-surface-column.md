@@ -1,7 +1,7 @@
 ---
 id: T-0173
 title: corpus schema contract - a three-state surface column, TERM_NAMES pinned to score.score, and one schema_version across corpus, Worker and PlaceStore
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T23:11:49Z
@@ -11,7 +11,7 @@ branch: task/T-0173
 exclusive: []
 touches: [services/etl/etl/schema.py, services/etl/etl/terms.py, services/etl/etl/surface.py, services/etl/etl/corpuswriter.py, services/etl/etl/extractway.py, services/etl/etl/contentdigest.py, services/etl/tests/, services/api/src/index.ts, services/api/test/, ops/lib/check-schema-version, pins/PINS.yaml]
 pins_affected: [P-PROD-05]
-reviewer: null
+reviewer: agent/rv1-pr103
 depends_on: [T-0030]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -368,3 +368,106 @@ separate (ODbL posture) - this task changes columns and pins, not the layering.
   interpreter form, as the Log's own section (3) states. (f) The BEFORE run of `npx vitest run` (main's
   literals, 71 passed) was the author's; the verifier repeated only the AFTER run.
 
+- 2026-09-19T02:08:42Z agent/rv1-pr103, REVIEWER of PR #103 at ca266c2. Not the owner
+  (agent/claude-opus-5) and not the orchestrator (agent/claude-fable-5-1). **PASS.** Everything below ran
+  in a detached worktree at origin/task/T-0173 (`.worktrees/rv1-pr103`), never in the owner's, and every
+  mutant was reverted with `git checkout --` with `git status --short` empty after each.
+
+  THE ACCEPTANCE BLOCK, RE-RUN AT THIS HEAD.
+  $ cd services/etl && python -m pytest tests -rs        -> `898 passed in 98.15s (0:01:38)`
+      Zero skips: `-rs` prints a line per skip and printed none.
+  $ cd services/api && npm ci && npx vitest run          -> `Test Files  4 passed (4)` / `Tests  71 passed (71)`
+  $ python ops/lib/check-schema-version.py               -> `P-PROD-05: schema_version=2 in
+      services/etl/etl/schema.py and services/api/src/index.ts`, exit=0
+  $ python ops/lib/check-schema-version.py --prove-red   -> all 7 cases `ok`, exit=0
+  $ bash ops/lib/check-line-cap                          -> `P-SRC-02: 71 Swift files tracked
+      (Sources=26, Tests=37, apps/ios=8), none over 300 lines`, exit=0
+  $ bash ops/queue-check                                 -> `QUEUE OK (169 tasks)`, exit=0
+  $ wc -l <the twelve files of section (5)>              -> 157 / 266 / 70 / 71 / 145 / 194 / 91 / 271 /
+      118 / 81 / 64 / 242 - every number reproduced to the line.
+  $ git ls-files -s ops/lib/check-schema-version.py      -> `100644 b87b1d09...` (P-OPS-01)
+  $ gh pr checks 103                                     -> `core pass`, `pins-source-only pass`
+
+  ONE ACCEPTANCE LINE NEEDED TWO RUNS, AND THE FIRST ONE IS RECORDED RATHER THAN HIDDEN. On a COLD review
+  worktree, `bash ops/check-pins --source-only` printed `PINS ok=11 skipped=13 pending=1 expired=0
+  failed=1` with **P-SAFE-05** failed and `output: (none)`. P-SAFE-05 runs `swift test --filter
+  SolarFixtureTests` with no `--scratch-path`, so its first invocation in a fresh worktree has to build
+  ScenicKit and the pin's grep sees no `Test run with N tests ... passed` line. Run bare straight after:
+  `swift test --filter SolarFixtureTests` -> `Test run with 6 tests in 1 suite passed`, exit=0; and the
+  pins run then printed the author's line exactly - `PINS ok=12 skipped=13 pending=1 expired=0 failed=0
+  tier=linux source-only`, exit=0. This PR touches no Swift at all (15 files, none under `Sources/` or
+  `apps/ios/`), so the cold failure is the box and not the change. Recorded because a reviewer who ran it
+  once would have called this PR red over a pin it cannot reach.
+
+  THE COLUMN, READ OUT OF A BUILT CORPUS. Built once from `tests/fixtures/corpus_extract.json` into a temp
+  dir: `PRAGMA user_version` = 2 and `meta.schema_version` = 2, and `SELECT way_id, highway, surface` ->
+  101 secondary (no tag) `1`, 102 tertiary `cobblestone` `1`, 103 unclassified `gravel` `0`,
+  105 residential (no tag) `-1`, 106 motorway (no tag) `1`.
+
+  FOUR MUTANTS OF THE REVIEWER'S OWN, EACH ALONE, `__pycache__` purged before every run.
+  m1 `etl/surface.py`, the unsurveyed branch returns `SURFACE_PAVED` (an untagged residential comes back
+     paved) -> `test_a_residential_way_with_no_surface_tag_round_trips_as_unknown`,
+     `AssertionError: a residential way with no surface tag must be unknown, not paved / assert 1 == -1`.
+  m2 `etl/extractway.py`, `RETIRED_WAY_KEYS = ()` (a stale `paved` key accepted silently) ->
+     `test_an_extract_that_still_carries_paved_is_refused_by_name`, `Failed: DID NOT RAISE ValueError`.
+  m3 `ops/lib/check-schema-version.py`, the Worker literal read out of the corpus file - the check compares
+     one literal with itself -> the pin's own command stays GREEN and prints `P-PROD-05: schema_version=2
+     in services/etl/etl/schema.py and services/api/src/index.ts`, exit=0. Only `--prove-red` catches it:
+     `corpus bumped alone`, `Worker bumped alone` and `Worker literal deleted` -> `NOT DISCRIMINATING`,
+     exit=1. RECORDABLE (1) below. The check as committed is NOT vacuous: `--prove-red`'s `Worker bumped
+     alone -> 1` at this head is the proof that it reads both files.
+  m4 `etl/contentdigest.py`, `surface` dropped from the `osm_features` SELECT -> the WHOLE suite is green
+     (pytest exit 0, no failures). RECORDABLE (2) below.
+
+  THE PRODUCT QUESTIONS, RULED.
+  (a) CAN AN UNTAGGED ROAD THAT IS UNPAVED IN REALITY COME OUT `1` ON THE DEVICE? Yes, on
+  primary/secondary/tertiary (and motorway/trunk/service) - and that is plan:82's own rule, not a defect:
+  "Absent surface: primary/secondary/tertiary -> paved; unclassified/residential -> x0.8 +
+  `surface_unknown` flag". CLAUDE.md's hard gate is positive evidence only, and state `0` is reached by
+  exactly the seven values of plan:80, which I diffed by eye against `Gates.swift:80-82` - identical, and
+  `Gates.verdict` (Gates.swift:153) refuses on the same seven. So the gate the device can build from this
+  column is the gate the plan specifies, and R2's consequence (an untagged primary is not afterwards
+  distinguishable from one tagged `asphalt`) costs nothing the plan asks for: plan:84 raises the flag only
+  on the unsurveyed classes, which are exactly the `-1` rows. Upheld as written, and it is already in
+  STILL OPEN.
+  (b) CAN A REBUILT CORPUS AND A DEVICE'S OLD CORPUS DISAGREE WHILE BOTH SAY `schema_version 2`? Yes -
+  `score.UNSURVEYED_CLASSES` is baked into the stored value and is not DDL, so widening it moves stored
+  `surface` values with the DDL hash and SCHEMA_VERSION unmoved. RECORDABLE (3), not blocking: the OTA row
+  replaces the corpus whole-file (`version` + sha256 -> `tmp/` -> `rename(2)` -> activate at cold launch),
+  so rows from two corpora never mix on one device, and
+  `test_an_absent_tag_anywhere_else_is_paved` already pins primary/secondary/tertiary/motorway/trunk/
+  service OUT of `UNSURVEYED_CLASSES`, so the plan:82 split cannot be widened onto those six in silence.
+
+  RULINGS R1-R10: no disagreement. R2 is judged above against plan:82/:84 and CLAUDE.md's positive-evidence
+  gate. R5 (MIN_APP_BUILD stays 1) is right for the reason given - the OTA row makes the two numbers answer
+  different questions. R8's measurement holds at this head: the nine non-reserved ids are asserted to name a
+  file that exists and the suite is green. R9 is right and P-OPS-01's own comment (ops/lib/check-exec-bits:
+  37-41) says why: `ops/lib/*.py` is invoked as an argument to an interpreter, so 100644 is the mode the
+  repo depends on.
+
+  BLOCKING: none.
+
+  RECORDABLE, for the queue rather than this PR (in addition to the STILL OPEN list, which I re-read and
+  did not find overstated - no device reader, no published corpus, the `UNPAVED_SURFACES` copy that T-0181
+  owns, and `-1` being the flag):
+  (1) `--prove-red` is not run by anything. P-PROD-05's assertion is the bare check, so m3 - a check that
+      compares one literal with itself - passes every gate in this repository. A pin that also ran
+      `--prove-red`, or a pytest that did, would close it.
+  (2) Nothing requires `contentdigest.SELECTS` to cover every column of every table (m4). A dropped column
+      narrows `meta.content_sha256` silently, and this PR is what made that column the one carrying the
+      safety state. A test comparing each SELECT's column list against the DDL's would close it.
+  (3) A rule for when SCHEMA_VERSION bumps: the plan says "on any DDL change", and (b) above is a change of
+      MEANING with no DDL diff. A class not named in `test_an_absent_tag_anywhere_else_is_paved` (say
+      `living_street`) could join `UNSURVEYED_CLASSES` and move stored values with every gate green.
+  (4) Pre-existing, not this PR: P-SAFE-05's assertion runs `swift test` with no `--scratch-path`, which
+      CLAUDE.md requires on a shared box, and reports `output: (none)` when the build is what failed.
+  (5) A nit, read rather than run: `surface_state`'s docstring says "Order matters". It does not -
+      `raises_surface_unknown_flag` is false whenever `surface is not None`, so swapping the two branches
+      is an equivalent mutant. The test that claims to pin the order
+      (`test_positive_evidence_wins_on_every_class`) is still worth having; the sentence overstates it.
+
+  NOT DONE, said plainly: `bash ops/check-pins` (full) and `bash ops/test` were not run locally, by this
+  review's instruction - CI's `core` and `pins-source-only` are both green at ca266c2. I did not re-verify
+  "P-PROD-05 is unclaimed on every open PR head" across all 34 heads; I checked `origin/main` only
+  (`git show origin/main:pins/PINS.yaml | grep -c P-PROD-05` -> `0`), and the orchestrator's correction
+  entry already covers the count.
