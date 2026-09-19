@@ -23,6 +23,10 @@ import pytest
 
 LAMBDAS = (0, 1, 2, 4, 8)
 
+# How much more lambda=8 must cost than lambda=0 for the penalty to count as biting. See
+# test_lambda_penalty_bites for how the number is ruled.
+BITE_FLOOR = 0.05
+
 # Typed literals, both in Vermont: Burlington City Hall Park to downtown Rutland, about 100 km apart on the
 # Vermont extract, with US 7 and the quieter roads on either side of it available between them.
 FROM_POINT = "44.4759,-73.2121"
@@ -129,6 +133,35 @@ def test_lambda_monotone_non_decreasing(routes):
             f"T(lambda) DECREASED at step lambda={low} -> lambda={high}: "
             f"{durations[index]} ms -> {durations[index + 1]} ms"
         )
+
+
+def test_lambda_penalty_bites(routes):
+    """Non-decreasing is true of a CONSTANT, and lambda=0 == car_fast is trivially true when every lambda is
+    the car_fast route, so both assertions above survive a per-request model that does nothing at all - drop
+    the first band's threshold to `scenic_score >= 0` and every edge lands in the never-penalized `high`
+    band. This asserts the model bites: lambda=8 costs strictly more than lambda=0 by a stated margin, and at
+    least one step of the five strictly rises.
+
+    The margin is ruled from the five measured durations on this fixture (5945246 -> 8491177 ms, +43%): a 5%
+    floor is an order of magnitude below what the model delivers, and the router is deterministic over a
+    fixed graph, so it leaves room for another region's numbers without leaving room for a dead model."""
+    durations = [routes[f"lambda-{value}.json"][0] for value in LAMBDAS]
+    at_zero, at_eight = durations[0], durations[-1]
+    floor = at_zero * (1 + BITE_FLOOR)
+    assert at_eight > floor, (
+        f"the scenic penalty does not BITE: lambda=8 is {at_eight} ms against lambda=0 at {at_zero} ms, "
+        f"short of the +{BITE_FLOOR:.0%} ({floor:.0f} ms) this asserts. A per-request model that matches "
+        f"every edge at multiplier 1 gives a constant T(lambda) and passes every other check in this file."
+    )
+    rising = [
+        (LAMBDAS[index], LAMBDAS[index + 1])
+        for index in range(len(LAMBDAS) - 1)
+        if durations[index + 1] > durations[index]
+    ]
+    assert rising, (
+        f"no step of T(lambda) over {list(LAMBDAS)} strictly increased: {durations} ms - the per-request "
+        f"model moves the route at no lambda between 0 and 8"
+    )
 
 
 def test_lambda_zero_is_the_car_fast_route(routes):

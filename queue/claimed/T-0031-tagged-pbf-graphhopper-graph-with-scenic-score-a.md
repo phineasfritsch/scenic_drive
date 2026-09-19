@@ -270,3 +270,180 @@ That is the property the whole budget search depends on, and it is cheap to chec
   the docker image is absent, so CI's core job passes with `1 passed / 2 skipped` and never checks the property;
   the real gate is `ops/test-routing` (plan line 199: container + goldens), which this slice leaves unwritten and
   names as open.
+- 2026-09-19T03:34:33Z REVIEW FAIL of PR #105 at 7b7401a by agent/rv1-pr105 (reviewer, not the owner and not the
+  orchestrator). Reviewed in .worktrees/rv1-pr105, removed at the end; nothing written in .worktrees/T-0031.
+  RE-RUN AT THIS HEAD. The routed acceptance line, once, reusing the existing WSL image and a COPY of the
+  graph-cache (no image rebuild, no re-import): `cd services/routing && python -m pytest tests -rs -s` ->
+    T(lambda) ms: lambda=0: 5945246, lambda=1: 6015807, lambda=2: 6908455, lambda=4: 7664327, lambda=8: 8491177
+    car_fast: 5945246 ms / 107153.8 m   lambda=0: 5945246 ms / 107153.8 m
+    3 passed in 25.30s
+  identical to the Log's GREEN, no skip section. `bash ops/check-pins --source-only` ->
+  `PINS ok=11 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only` EXIT 0, the quoted line exactly.
+  `wc -l` re-measured: 122 / 42 / 24 / 141 / 67 / 32 - the 02:47:15Z numbers are right. `gh pr checks 105`:
+  core pass, pins-source-only pass. Only PR #105 touches services/routing, so the serial-only files needed no
+  lock. The band table RE-DONE by hand at 6 dp: lambda=2 mid 1/2 = 0.5 and low 1/3 = 0.333333; lambda=8 mid
+  1/5 = 0.2 and low 1/9 = 0.111111 - the file's five rows are the plan's numbers. R4 and R5 upheld.
+  BLOCKING, one. The thresholds in profiles/car_scenic_request.json are load-bearing and nothing checks them.
+  Mutant, alone, control green: `"scenic_score >= 7"` -> `"scenic_score >= 0"` puts every edge in the `high`
+  band, whose multiplier is "1" at every lambda, so the per-request model does nothing - and the suite is
+  green, `3 passed in 25.16s`, with
+    T(lambda) ms: lambda=0: 5945246, lambda=1: 5945246, lambda=2: 5945246, lambda=4: 5945246, lambda=8: 5945246
+  No NAMED test red: the band test never reads this file's expressions, a constant IS non-decreasing, and
+  lambda=0 == car_fast is then trivially true. A second mutant sharpens it: growing BOTH penalized bands with
+  lambda (mid 1,1.5,2,3,5 and low 1,2,3,5,9 - the Brief's inversion applied to both bands, not one) leaves both
+  routed tests green at 5945246, 6366659, 6636548, 6657975, 7708833; only the literal table test goes red. So
+  at this head the routed property distinguishes neither a dead model nor an inverted one from the plan's.
+  One assertion closes it - that the penalty bites, e.g. T(8) > T(0) - demonstrated red under the mutant above
+  and green restored.
+  A third mutant, for the record, was CAUGHT: hard-excluding motorway/trunk in the request model (the invariant
+  CLAUDE.md forbids optimizing away) makes Burlington->Rutland unroutable -
+  `ConnectionNotFoundException`, `1 passed, 2 errors`. Caught by unroutability, not by a named assertion.
+  RECORDABLE: A3's "nothing in the diff mentions rsync, a symlink, a VPS or a region" is loose (README.md and
+  Dockerfile both mention them, to say they are not here) - the substance holds; the parser's no-tag and
+  clamp-at-10 branches are not merely untested but unreachable on this fixture (way_id % 11 never exceeds 10,
+  and the tagger tags every highway way); scenic_lambda_bands.json is a test fixture living in the image's
+  custom-model directory; and pins/PINS.yaml P-ROUTE-01 (`pending: T-0135`) loses its stated reason once
+  services/routing exists - the release now has one anchor, pom.xml's `<graphhopper.version>11.0</graphhopper.version>`.
+- 2026-09-19T04:01:08Z FIX for the review FAIL of PR #105, by agent/claude-opus-5 (OWNER and FIXER; the reviewer's entry is
+  directly above, verbatim, appended before any code was written). ONE blocking finding, B1, plus the two
+  recordables the reviewer asked to be carried.
+
+  REPRODUCED FIRST, the reviewer's mutant alone, in .worktrees/T-0031 at 7b7401a: in
+  profiles/car_scenic_request.json `"scenic_score >= 7"` -> `"scenic_score >= 0"`, nothing else
+  (`git diff --stat`: 1 file changed, 1 insertion(+), 1 deletion(-)), then
+    cd services/routing && python -m pytest tests -rs -s
+    T(lambda) ms: lambda=0: 5945246, lambda=1: 5945246, lambda=2: 5945246, lambda=4: 5945246, lambda=8: 5945246
+    car_fast: 5945246 ms / 107153.8 m   lambda=0: 5945246 ms / 107153.8 m
+    3 passed in 27.50s
+  The constant table, the whole suite green, no skip section: confirmed exactly as reported. Restored with
+  `git checkout -- services/routing/profiles/car_scenic_request.json`; `git status --short` shows no profile.
+
+  RULINGS BEFORE CODE (the author rule), all four:
+  R6 THE PROFILES' VALUES DO NOT CHANGE. B1 is a hole in the TESTS, not in the model: the thresholds 7 and 4
+     and the five-row table are the plan's numbers, and the reviewer re-derived the table at 6 dp and upheld
+     it. The fix is assertions plus one new test file. No profile, no config, no Java, no Dockerfile, no
+     image rebuild and no re-import.
+  R7 THE MARGIN. "the penalty bites" needs a number, not a bare `>`, which a 1 ms difference would satisfy.
+     Ruled from the five measured durations on this fixture: 8491177 vs 5945246 is +42.8%. BITE_FLOOR = 0.05
+     (5%) - an order of magnitude of headroom below what the model delivers, and the router is deterministic
+     over a fixed graph (the five integers reproduce run to run, three sessions now), so the floor survives
+     another region without admitting a dead model.
+  R8 WHERE THE CHECKS LIVE. The band thresholds, the table's digits and the motorway/trunk invariant are
+     properties of FILES, and they must not sit behind the docker skip - which is every CI runner this repo
+     has. They go in a new container-free tests/test_profiles_static.py, one concern (the shipped profiles
+     and config read as files). The bite assertion is a property of the routed durations, so it belongs in
+     tests/test_lambda_monotone.py beside the monotonicity it strengthens.
+  R9 ANCHORS. The invariant check anchors on the profiles' own expression strings and on config.yml's
+     `import.osm.ignored_highways` key - identifiers and a config key, never a comment (CLAUDE.md).
+
+  WHAT CHANGED, two files, both under services/routing/tests/:
+  - tests/test_lambda_monotone.py 141 -> 174 lines: `BITE_FLOOR = 0.05` and `test_lambda_penalty_bites` -
+    T(lambda=8) strictly above T(lambda=0) by that floor, the message naming both lambdas and both
+    durations, and at least one of the five steps strictly rising.
+  - tests/test_profiles_static.py, NEW, 141 lines, no container and no graph, so it runs in CI where the
+    routed tests skip: the three bands' thresholds are exactly [7, 4] read off `scenic_score >= N` with the
+    ${high}/${mid}/${low} placeholders and the else band; the five lambdas are present; the table matches
+    TYPED LITERALS (deliberately not a second re-computation of the formula -
+    test_band_multipliers_match_the_plan already checks it against `1/(1+0.5*lambda)`, so this one checks
+    the digits the file actually carries); every band's multiplier is non-increasing across 0,1,2,4,8;
+    neither profile gates on MOTORWAY or TRUNK; config.yml's import.osm.ignored_highways names neither.
+
+  RED BY NAME, each mutant alone, each restored with `git checkout --` and `git status --short` checked
+  after it:
+  (a) B1's own mutant (`scenic_score >= 0`), whole suite, `python -m pytest tests -rs -s --tb=line -rf`:
+        FAILED tests/test_lambda_monotone.py::test_lambda_penalty_bites
+        FAILED tests/test_profiles_static.py::test_request_model_bands_are_the_plan_thresholds
+        2 failed, 7 passed in 34.43s
+      AssertionError: the scenic penalty does not BITE: lambda=8 is 5945246 ms against lambda=0 at 5945246
+      ms, short of the +5% (6242508 ms) this asserts. A per-request model that matches every edge at
+      multiplier 1 gives a constant T(lambda) and passes every other check in this file.
+      AssertionError: car_scenic_request.json: band thresholds are [0, 4], the plan's are [7, 4]. A first
+      threshold of 0 puts every edge in the never-penalized band and the whole per-request model dies with
+      every routed test still green.
+  (b) M1, the reviewer's generalisation of this Log's own 02:10:09Z disclosure - BOTH penalized bands grown
+      with lambda (mid 1, 1.5, 2, 3, 5 and low 1, 2, 3, 5, 9), container-free run:
+        FAILED tests/test_profiles_static.py::test_band_table_matches_the_plan_literals
+        FAILED tests/test_profiles_static.py::test_band_multipliers_never_grow_with_lambda
+      AssertionError: scenic_lambda_bands.json: the mid band's multiplier GREW from lambda=0 (1.0) to
+      lambda=1 (1.5) - a larger lambda must never make a band cheaper
+      RECORDED as the reviewer asked: this Log had measured only the ONE-band inversion and reported it as
+      not red on the property; the reviewer measured both bands inverted and got T(lambda) = 5945246,
+      6366659, 6636548, 6657975, 7708833 with BOTH routed tests green. So the routed property tells neither
+      a dead model nor an inverted one from the plan's - only the table's digits do, and now two named
+      tests read them.
+  (c) M3, the CLAUDE.md invariant, attacked twice, each alone, each container-free:
+      a fourth rule `{ "if": "road_class == MOTORWAY || road_class == TRUNK", "multiply_by": "0" }` in
+      profiles/car_scenic_base.json ->
+        FAILED tests/test_profiles_static.py::test_no_profile_hard_excludes_motorway_or_trunk
+        AssertionError: car_scenic_base.json gates on 'road_class == MOTORWAY || road_class == TRUNK':
+        motorway and trunk are penalized by the band model, never hard-excluded. Hard gates are safety only
+        - unpaved, private/no access, track.
+      and `import.osm.ignored_highways: motorway, trunk, footway, ...` in config.yml ->
+        FAILED tests/test_profiles_static.py::test_ignored_highways_keeps_motorway_and_trunk
+        AssertionError: config.yml drops ['motorway', 'trunk'] at import: motorway and trunk must reach the
+        graph and be penalized there (scenic_score 0), never hard-excluded.
+      RECORDED: before this commit the invariant was guarded on this fixture only by Burlington->Rutland
+      becoming unroutable (the reviewer's ConnectionNotFoundException, `1 passed, 2 errors`) - an accident
+      of the pair chosen, not an assertion. Both new checks need no container, so they hold on every fixture
+      and in CI.
+
+  ACCEPTANCE RE-RUN at this final commit, the whole block, each line answered by a command re-run now.
+
+  A1 "the digest-pinned GraphHopper image imports ... vermont-osm.pbf (45,880,330 bytes == manifest.yaml) in
+     WSL with the scenic_score TagParser plugin and the car_scenic_base profile; the import log's way/edge
+     counts quoted" - MET, unchanged by this commit and deliberately NOT re-imported: no profile, config,
+     Java, pom or Dockerfile byte changed, so the graph-cache and both images are the same artifacts the
+     02:10:09Z entry and the reviewer both ran against. `ls -l` on the input now: 45880330 bytes, the
+     manifest's own `bytes:`. The import log's counts stand as quoted there (processed ways: 434,265,
+     accepted ways: 126,856; nodes: 212,912, edges: 240,968; `SCENIC_EV present=true bits=4 max=10`), and
+     the wording correction ruled at R3 (our image, built from digest-pinned maven/temurin bases, not a
+     published GraphHopper image) still applies.
+
+  A2 "RED BY NAME: T(lambda) non-decreasing over {0,1,2,4,8} on every fixture (plan line 215) - red with a
+     deliberately inverted band multiplier, then green; the five durations per fixture printed and quoted" -
+     MET, and materially stronger than at 7b7401a: the property no longer passes on a constant. Green,
+     `cd services/routing && python -m pytest tests -rs -s`:
+       .T(lambda) ms: lambda=0: 5945246, lambda=1: 6015807, lambda=2: 6908455, lambda=4: 7664327, lambda=8: 8491177
+       ..car_fast: 5945246 ms / 107153.8 m   lambda=0: 5945246 ms / 107153.8 m
+       ......
+       9 passed in 33.29s
+     5945246 <= 6015807 <= 6908455 <= 7664327 <= 8491177, identical to the 02:47:15Z GREEN and to the
+     reviewer's own re-run at this head; lambda=8 is +42.8% over lambda=0; lambda=0 reproduces car_fast to
+     the millisecond and the metre. 9 = 3 routed tests (monotone, bites, lambda=0 == car_fast) + 6 that need
+     no container. "every fixture" is still one fixture here; see STILL OPEN.
+
+  A3 "the second half (the Bay Area graph, rsync, the atomic symlink flip, N-1 kept) stays behind T-0168 and
+     is not claimed by this slice" - MET, with the reviewer's correction taken: the 02:47:15Z sentence
+     "Nothing in the diff mentions rsync, a symlink, a VPS or a region" is LOOSE and is withdrawn -
+     README.md carries the row "Serving, rsync, symlink flip, LA and Bay Area graphs | Not here." and the
+     Dockerfile says "the VPS in this task's second half has 4 GB for everything"; both mention them to say
+     they are not here. The substance holds: none of the second half is implemented, `depends_on: [T-0168]`,
+     `state: claimed` and `reviewer: null` are untouched, and this commit adds only tests.
+
+  GATES, run bare at this commit (no pipe; the exit status is the command's own):
+    bash ops/lib/check-line-cap  -> P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines   EXIT 0
+    bash ops/queue-check         -> QUEUE OK (175 tasks)   EXIT 0
+    bash ops/check-pins --source-only -> PINS ok=11 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only   EXIT 0
+  `wc -l` re-measured over every tracked file of services/routing at this commit, not just the changed ones:
+    .dockerignore 4, .gitignore 4, Dockerfile 24, Dockerfile.tagger 18, README.md 23, build-slice.sh 56,
+    config.yml 32, pom.xml 72, ScenicRouterMain.java 122, ScenicScoreImportRegistry.java 24,
+    ScenicScoreParser.java 42, car_scenic_base.json 12, car_scenic_request.json 7,
+    scenic_lambda_bands.json 7, pyproject.toml 9, test_lambda_monotone.py 174,
+    test_profiles_static.py 141, synthetic_scenic_tags.py 67 - 838 total, none over the 300-line cap.
+
+  STILL OPEN, plainly, after this fix:
+  - The routed tests still SKIP without docker, so CI still never runs the T(lambda) property itself;
+    `ops/test-routing` (plan line 199: container + 20 goldens) is still unwritten and ops/ is outside this
+    task's touches:. What CI gained here is the FILES (thresholds, table, invariant), not the ROUTE.
+  - The bite floor is one number ruled on one fixture: 5% comes from Vermont's +42.8%. A region whose
+    scenic detour is genuinely cheaper than 5% needs the floor re-ruled in the Log, not deleted.
+  - Unchanged from 02:10:09Z: the scores are SYNTHETIC (way id % 11); Vermont only, one pair, one direction;
+    no VPS, rsync, symlink flip, N-1 or `/info` hash; no HTTP surface; no Java unit test for
+    ScenicScoreParser.parse; this pytest is still outside the `ops/test` count.
+  - The reviewer's remaining recordables, for the tasks that own them: the parser's no-tag and clamp-at-10
+    branches are UNREACHABLE on this fixture (way_id % 11 never exceeds 10, and the tagger tags every
+    highway way), not merely untested; scenic_lambda_bands.json is a five-row fixture living in the shipped
+    custom-model directory (/app/profiles in the image) and could be named or placed as one;
+    pins/PINS.yaml P-ROUTE-01's `pending: T-0135` reason ("services/routing/ does not exist yet") expires
+    when this merges, with pom.xml's `<graphhopper.version>11.0</graphhopper.version>` the single release
+    anchor - pins/ is outside this task's touches:, so not this PR's job.
