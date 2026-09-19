@@ -118,11 +118,21 @@ struct HandoffSourceTests {
         // type this list did not already allow: `Coordinate` and the numeric literals, nothing else.
         // This check went red on the move, by name, which is the list doing its job - the argument for
         // the new file happened here before the suite went green again.
-        "AppleMapsDirections", "HandoffError", "Mode", "SkylineRoute",
+        //
+        // `StraightLineDistance` is T-0170's chain arithmetic: the drive's pins summed with
+        // `ScenicKit.Geo`, floored to whole kilometres, so the home screen can show one measured
+        // number. It names `Coordinate`, `Geo`, `SkylineRoute`, `Array`, `Double` and `Int` and
+        // nothing else. This check went red on it by name, along with `Geo` below, which is the list
+        // doing its job a second time.
+        "AppleMapsDirections", "HandoffError", "Mode", "SkylineRoute", "StraightLineDistance",
         // modules
         "Foundation", "ScenicKit",
         // ScenicKit
-        "Coordinate",
+        //
+        // `Geo` is the great-circle arithmetic (`distanceMeters`, `initialBearingDegrees`). It is
+        // pure `Foundation` trigonometry on `Double`s with no locale and no formatting anywhere in
+        // it, which is the property this list exists to protect.
+        "Coordinate", "Geo",
         // Swift, locale-free by construction
         "Array", "Bool", "Character", "Double", "Int", "Self", "String", "Substring",
         "CaseIterable", "Comparable", "CustomStringConvertible", "Equatable", "Error", "Hashable", "Sendable",

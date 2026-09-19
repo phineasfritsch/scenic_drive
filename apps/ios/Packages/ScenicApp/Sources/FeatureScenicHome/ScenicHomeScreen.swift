@@ -54,12 +54,10 @@ public struct ScenicHomeScreen: View {
 
                 VStack(spacing: 12) {
                     if let handoffFailure {
-                        Text(handoffFailure)
-                            .font(.footnote)
-                            .foregroundStyle(DesignTokens.destructive)
-                            .multilineTextAlignment(.center)
+                        HandoffFailureCard(message: handoffFailure,
+                                           roadList: Copy.route,
+                                           onRetry: { handoff() })
                             .padding(.horizontal, 16)
-                            .accessibilityIdentifier("home.error")
                     }
 
                     openInAppleMaps
@@ -104,6 +102,8 @@ public struct ScenicHomeScreen: View {
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("home.route")
+
+            DriveFacts()
 
             Text(Copy.mapCaption)
                 .font(.subheadline)
