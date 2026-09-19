@@ -50,10 +50,21 @@ from __future__ import annotations
 import hashlib
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+# A stale .pyc of the population file is a FALSE VERDICT, not a slow start. CPython reuses a cached module
+# whose source mtime and size still match to the second, and the HEAD guard below reads the file from DISK,
+# so a population edited and restored inside one second imports as the edited one while every guard reports
+# the tree clean. Measured here during T-0199: MIN_MUTATIONS taken 10 -> 11 -> 10 inside a second left the
+# next run refusing at a floor of 11 that was in no file. It is the same defect as the __pycache__ purge in
+# ops/mutate/scenic_tags.py, one level further in - there it is the SUBJECT that goes stale, here it is the
+# harness. So: no bytecode is written, and none is read.
+sys.dont_write_bytecode = True
+shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_errors=True)
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
 SUBJECT_MODULES = ("Sources/Handoff/StraightLineDistance.swift",)
