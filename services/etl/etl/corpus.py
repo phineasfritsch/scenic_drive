@@ -29,9 +29,10 @@ from .segmenter import Segmenter
 # plan:283's M2 exit clause, "corpus <60 MB", as ONE literal the emitter enforces on itself. MiB rather
 # than MB by T-0206 ruling R3: the plan does not distinguish, this task's acceptance line says 60 MiB, and
 # MiB is the looser of the two readings, so the ceiling never refuses a corpus the plan's cell allowed.
-# Measured against real LA data in T-0206: 46,231 real ways -> 19,906,560 B, 430.59 B per way, which over
-# the clip's 560,208 filtered ways extrapolates to 241,224,000 B - 3.83x this budget, with terms, places
-# and FTS still empty. The number below is the ceiling, NOT a claim that LA fits under it.
+# T-0206 measured real LA against this ceiling and the full clip is several times over it; the measurement
+# and its arithmetic live in that task's Log, which is the one place they are kept true. The number below
+# is the ceiling, NOT a claim that LA fits under it. (T-0206 R10: no hand-carried extrapolation is copied
+# here - CLAUDE.md, nothing is anchored on a comment.)
 CORPUS_BUDGET_BYTES = 60 * 1024 * 1024
 
 BUDGET_EXIT = 3
@@ -75,7 +76,11 @@ def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
     """Build one corpus. Returns the report `main` prints; raises on any refusal.
 
     `budget_bytes` defaults to the one literal above and exists as a parameter so the refusal is provable
-    without a 60 MiB fixture in git (T-0206 ruling R6)."""
+    without a 60 MiB fixture in git (T-0206 ruling R6). It is never optional: `None` is refused here
+    (T-0206 R7) so that "unlimited" cannot be spelled by any caller, including a CLI default."""
+    if budget_bytes is None:
+        raise TypeError("budget_bytes=None is not 'unlimited': every corpus is weighed against a budget "
+                        f"(plan:283, 'corpus <60 MB'; the default is {CORPUS_BUDGET_BYTES} bytes)")
     extract_region, ways = load_extract(input_path)
     region = region or extract_region
     segmenter = Segmenter()
@@ -138,9 +143,11 @@ def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
 
     import os
     size = os.path.getsize(out_path)
-    if size > budget_bytes:
+    # T-0206 R8: `>=`, not `>`. plan:283 says "corpus <60 MB" - strictly less - so a corpus of exactly the
+    # budget is refused.
+    if size >= budget_bytes:
         raise CorpusTooLargeError(
-            f"{out_path}: the corpus is {size} bytes, over the budget of {budget_bytes} bytes "
+            f"{out_path}: the corpus is {size} bytes, not under the budget of {budget_bytes} bytes "
             f"(plan:283, 'corpus <60 MB'). The file is LEFT ON DISK so the overage can be inspected.")
 
     return {

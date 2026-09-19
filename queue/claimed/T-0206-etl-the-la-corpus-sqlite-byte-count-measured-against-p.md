@@ -253,3 +253,86 @@ so and no LA corpus byte count exists anywhere in queue/ or services/etl. The em
   R12 - the 12:58:42Z acceptance block measured this task file at 164 lines; it was 196 at HEAD 3fd7865.
   That measurement is superseded; `wc -l` on all three touched files is re-taken at the final commit below
   (CLAUDE.md: a correction commit that touches a measured file re-measures it).
+- 2026-09-19T13:12:48Z FINAL PRE-REVIEW COMMIT #2, by agent/claude-opus-5 (owner), on the MERGED head
+  (merge commit 3282afc, `git merge-base --is-ancestor origin/main HEAD` now exits 0). This entry
+  supersedes the 12:58:42Z acceptance block in full; that block was measured on a tree six commits behind
+  origin/main and carried two wrong numbers (241,224,000 B and "164 this task file").
+
+  RED FIRST, BY NAME, on the shipped code, before etl/corpus.py moved (R7 (ii) and R8):
+      FAILED tests/test_corpus_budget.py::test_build_refuses_an_unlimited_budget
+      FAILED tests/test_corpus_budget.py::test_a_corpus_of_exactly_the_budget_is_refused
+      2 failed, 10 passed in 4.06s
+  (the first on `TypeError: '>' not supported between instances of 'int' and 'NoneType'` raised by the
+  comparison rather than by a named refusal; the second on `DID NOT RAISE CorpusTooLargeError` - the
+  shipped `>` let a corpus of exactly the budget through.) Then `budget_bytes is None -> TypeError` and
+  `size >= budget_bytes` went into etl/corpus.py. Green: `12 passed in 2.83s`.
+
+  AND THE OTHER FIVE NEW CASES SEEN RED AGAINST THE THREE MUTANTS THEY EXIST FOR - a check that has never
+  been seen red is untested, and these five pass against the shipped code by construction, so the only
+  honest red is the mutant. Driver services/etl/work/t0206_kill.py (gitignored; each mutant alone on
+  etl/corpus.py in this worktree, every `__pycache__` under services/etl purged before each run, 1.1 s
+  before and after each restore, file restored byte-for-byte):
+      BASELINE 12 passed in 2.42s
+      M1 tie '>=' -> '>' -> 1 failed, 11 passed
+          FAILED tests/test_corpus_budget.py::test_a_corpus_of_exactly_the_budget_is_refused
+      M3b CLI default -> None -> 2 failed, 10 passed
+          FAILED tests/test_corpus_budget.py::test_the_cli_default_budget_is_the_literal_on_the_shipping_parser
+          FAILED tests/test_corpus_budget.py::test_the_cli_builds_and_prints_the_bytes_under_the_default_budget
+      M4 BUDGET_EXIT 3 -> 2 -> 1 failed, 11 passed
+          FAILED tests/test_corpus_budget.py::test_the_cli_exits_non_zero_over_the_budget
+      RESTORED 12 passed in 2.40s
+  All three survivors of the pre-review pass are now DEAD, and M3b dies twice over: the parser assertion
+  catches the default itself, and the no-flag subprocess run exits non-zero because `build` refuses None
+  before it writes anything. `git status --short` clean of etl/corpus.py after the driver.
+
+  THE WHOLE ACCEPTANCE BLOCK, RE-RUN AND RE-QUOTED ON THE MERGED HEAD.
+    * acceptance 1, the measured byte count (unchanged, the artefacts are the same files):
+      `stat -c %s work/la-union-corpus.sqlite` -> 19906560 over ways=46231 segments=79764; the canyon
+      window alone 6135808 over ways=11740 segments=24205.
+    * acceptance 1, the extrapolation, RE-DERIVED WITH PYTHON ON THIS HEAD (R10, correcting 12:50:07Z and
+      12:58:42Z): 19,906,560 / 46,231 = 430.5890 B per way; 560,208 x 430.5890 = **241,219,402 B** =
+      230.04 MiB = 241.22 MB; / 62,914,560 = **3.834x**. (Multiplying the rounded 430.59 gives
+      241,219,963 B; the old 241,224,000 B matches neither.) THE VERDICT IS UNCHANGED: the full LA clip is
+      about 3.8x over plan:283's ceiling, and it is a FLOOR - terms_osm, terms_raster, places, curated and
+      FTS are all still empty.
+    * acceptance 1, the emitter's check over REAL DATA, on the merged head, at the ruled boundary - the
+      46,231-way LA union extract through the shipping CLI, budget EXACTLY the built size:
+          CORPUS REFUSED work/tie-demo.sqlite: the corpus is 19906560 bytes, not under the budget of
+          19906560 bytes (plan:283, 'corpus <60 MB'). The file is LEFT ON DISK so the overage can be
+          inspected.
+          exit=3 ; stat -c %s work/tie-demo.sqlite -> 19906560     (R4 held: the file is still there)
+      and one byte above it, the same corpus BUILT:
+          CORPUS region=la ways=46231 segments=79764 collisions=0
+          CORPUS bytes=19906560 budget=19906561
+          CORPUS content_sha256=04d5582d25e6cb61a107e299afbc550ce53d5f74684f1ffe716c4a77e180e9e2
+          exit=0 ; stat -c %s work/tie-demo2.sqlite -> 19906560
+      The content_sha256 is bit-for-bit the one M2 recorded at 12:50:07Z, so the boundary moved and the
+      corpus did not. Under the real default (62,914,560 B) this same corpus still passes - today's
+      largest real LA population is under the ceiling the full clip fails by 3.8x, and that asymmetry is
+      the finding.
+    * acceptance 2: `cd services/etl && python -m pytest tests -rs -o addopts=` on the merged head ->
+      `1205 passed in 102.24s (0:01:42)`, ZERO skips (-rs printed no skip section), every `__pycache__`
+      under services/etl purged first. (1199 -> 1205: the six new cases below.)
+    * the budget file alone: `python -m pytest tests/test_corpus_budget.py -o addopts= -q` ->
+      `12 passed in 2.87s` (6 at 12:54:38Z + 6 new: the parser default, the None refusal, the tie, the
+      tie-1, the tie+1 and the CLI at one byte under the built size; the seventh change is the exact
+      `returncode == corpus.BUDGET_EXIT == 3` inside the existing CLI test).
+    * `python ops/lib/check-mutate-population.py` -> "P-PROC-06: every added module is covered or
+      allowlisted; the floor of 23 holds" (R11: corpus.py is ALLOWLISTED, not DEBT, so no population is
+      added or narrowed here).
+    * `bash ops/lib/check-line-cap` -> "P-SRC-02: 90 Swift files tracked (Sources=29, Tests=40,
+      apps/ios=21), none over 300 lines".
+    * `bash ops/lib/check-exec-bits` -> "P-OPS-01: 79 files, 23 required present, all modes correct"
+      (79, not the 12:58:42Z block's 78: origin/main's merge brought ops/deploy-routing).
+    * `bash ops/queue-check` -> "QUEUE OK (208 tasks)". `state: claimed` and `reviewer: null` untouched.
+    * `wc -l` on every touched file, AFTER this entry was written: 217 services/etl/etl/corpus.py, 160
+      services/etl/tests/test_corpus_budget.py, 338 this task file. The two source files are under the
+      300-line cap; the cap is a source rule (`ops/lib/check-line-cap` counts Swift, and the Python cap
+      T-0058 filed reads services/etl/etl/ and services/etl/tests/) and a queue task file is a dated
+      append-only record, not a type - the 12:58:42Z block's "all under the 300-line cap" was already
+      loose about that at 196 lines and is corrected here rather than obeyed by deleting history.
+  NOT RUN LOCALLY AND SAID SO, per the brief: `bash ops/test`, the full `bash ops/check-pins` and
+  `--source-only`. CI on the PR is their place.
+  STILL OPEN, carried into the PR body: the three items in the 12:58:42Z entry are unchanged (LA is 3.8x
+  over and this task shrinks nothing; no real-extract adapter ships; the budget is checked at the END of
+  the build). Nothing in this entry addresses any of them - they are the finding, not a defect of it.

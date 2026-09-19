@@ -3,7 +3,7 @@
 THE DEFECT (T-0206). The M2 exit row has carried "corpus <60 MB" since the plan and nothing in this tree
 ever weighed a corpus: T-0030's Log line 255 says "CORPUS SIZE IS UNMEASURED" in as many words. T-0206
 measured it - 46,231 real LA ways (the canyon window plus both grid halves) build a 19,906,560 B corpus,
-430.59 B per way, which over the clip's 560,208 filtered ways extrapolates to 241,224,000 B, 3.83x the
+430.5890 B per way, which over the clip's 560,208 filtered ways extrapolates to 241,219,402 B, 3.834x the
 budget - and the emitter still had no opinion about its own size. An emitter that cannot refuse its own
 output leaves the ceiling to whoever notices the download, which on this project is the user.
 
@@ -84,9 +84,71 @@ def test_the_cli_exits_non_zero_over_the_budget(tmp_path):
     out = tmp_path / "cli-over.sqlite"
     done = _run_cli(["--input", str(EXTRACT), "--out", str(out), "--built-at", BUILT_AT,
                      "--budget-bytes", str(TINY_BUDGET)])
-    assert done.returncode != 0, done.stdout
+    # T-0206 R9: not `!= 0`. 2 is already --built-at's refusal, so a bare non-zero cannot tell a pipeline
+    # "over budget" from "bad stamp"; R4 chose 3 for exactly that reason.
+    assert done.returncode == corpus.BUDGET_EXIT, done.stdout
+    assert corpus.BUDGET_EXIT == 3
     assert str(TINY_BUDGET) in done.stderr
     assert out.exists()
+
+
+def test_the_cli_default_budget_is_the_literal_on_the_shipping_parser():
+    """T-0206 R7 (i). `inspect.signature(build)` does NOT bind the CLI: argparse's own default is a second,
+    independent place the ceiling is spelled, and a pipeline runs `python -m etl.corpus` with no flag. Read
+    it back out of the shipping parser over an argv with the required arguments only."""
+    parsed = corpus.parse_args(["--input", "x.json", "--out", "y.sqlite", "--built-at", BUILT_AT])
+    assert parsed.budget_bytes is corpus.CORPUS_BUDGET_BYTES
+    assert parsed.budget_bytes == SIXTY_MIB
+
+
+def test_build_refuses_an_unlimited_budget(tmp_path):
+    """T-0206 R7 (ii): `None` is not "unlimited". With this refusal a None default anywhere - argparse's or
+    the signature's - makes the no-flag CLI run exit non-zero instead of shipping an unweighed corpus. The
+    refusal happens before anything is written: nothing is built that nobody weighed."""
+    out = tmp_path / "unlimited.sqlite"
+    with pytest.raises(TypeError) as excinfo:
+        corpus.build(EXTRACT, out, BUILT_AT, budget_bytes=None)
+    assert "budget_bytes" in str(excinfo.value)
+    assert not out.exists()
+
+
+def _built_size(tmp_path, name="probe.sqlite"):
+    out = tmp_path / name
+    corpus.build(EXTRACT, out, BUILT_AT)
+    return out.stat().st_size
+
+
+def test_a_corpus_of_exactly_the_budget_is_refused(tmp_path):
+    """T-0206 R8: plan:283 says "corpus <60 MB", strictly less, so the tie refuses."""
+    size = _built_size(tmp_path)
+    out = tmp_path / "tie.sqlite"
+    with pytest.raises(corpus.CorpusTooLargeError):
+        corpus.build(EXTRACT, out, BUILT_AT, budget_bytes=size)
+
+
+def test_a_corpus_one_byte_over_the_budget_is_refused(tmp_path):
+    size = _built_size(tmp_path)
+    out = tmp_path / "over-by-one.sqlite"
+    with pytest.raises(corpus.CorpusTooLargeError):
+        corpus.build(EXTRACT, out, BUILT_AT, budget_bytes=size - 1)
+
+
+def test_a_corpus_one_byte_under_the_budget_is_built(tmp_path):
+    size = _built_size(tmp_path)
+    out = tmp_path / "under-by-one.sqlite"
+    report = corpus.build(EXTRACT, out, BUILT_AT, budget_bytes=size + 1)
+    assert report["bytes"] == size
+    assert report["budget_bytes"] == size + 1
+
+
+def test_the_cli_refuses_one_byte_under_the_built_size(tmp_path):
+    """The CLI half of R8's boundary, through the shipping subprocess and the shipping exit code."""
+    size = _built_size(tmp_path)
+    out = tmp_path / "cli-tie.sqlite"
+    done = _run_cli(["--input", str(EXTRACT), "--out", str(out), "--built-at", BUILT_AT,
+                     "--budget-bytes", str(size - 1)])
+    assert done.returncode == corpus.BUDGET_EXIT, done.stdout
+    assert str(size - 1) in done.stderr
 
 
 def test_the_cli_builds_and_prints_the_bytes_under_the_default_budget(tmp_path):
@@ -94,3 +156,5 @@ def test_the_cli_builds_and_prints_the_bytes_under_the_default_budget(tmp_path):
     done = _run_cli(["--input", str(EXTRACT), "--out", str(out), "--built-at", BUILT_AT])
     assert done.returncode == 0, done.stderr
     assert f"CORPUS bytes={out.stat().st_size} budget={SIXTY_MIB}" in done.stdout
+    # The comparison actually ran against that printed budget: the default path both reports and passes.
+    assert out.stat().st_size < SIXTY_MIB
