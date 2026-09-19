@@ -1,7 +1,7 @@
 ---
 id: T-0178
 title: the owner drives in LA - a second hard-coded handoff drive (Sunset / PCH / Topanga / Mulholland) selectable on the home screen, pins Nominatim-verified like Skyline's
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T07:47:40Z
@@ -11,7 +11,7 @@ branch: task/T-0178
 exclusive: []
 touches: [Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr115
 depends_on: [T-0153, T-0170]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -342,3 +342,64 @@ streets; the Mulholland side streets). Do NOT touch SkylineRoute.swift or its te
   run this: `la.pmtiles` is 63 MB and gitignored, so every run anywhere - including run 35436962939 - takes
   the demo fallback, and the Protomaps caption has never been on a screen.
   state: claimed and reviewer: null are untouched - the owner never signs off its own task.
+- 2026-09-19T11:34:00Z REVIEW PASS of PR #115 by agent/rv1-pr115 (not the owner), on a detached
+  worktree at fb2f2b839eca84d09043ed2ffb6fb4e42d62af7b == origin/task/T-0178.
+
+  SCOPE. `git diff --stat main...fb2f2b8` -> 15 files, 1359 insertions, 65 deletions: Sources/Handoff
+  (HandoffDrive 71, SantaMonicaMountainsRoute 182, StraightLineDistance), Tests/HandoffTests (the two
+  new suites + HandoffSourceTests), FeatureScenicHome (DriveBasemap 42 new, DriveCopy 81, DriveFacts,
+  DriveSelector 68, GatedHandoffButton, HandoffFailureCard, ScenicHomeScreen 281, SkylineHandoff) and
+  the task file. SkylineRoute.swift and its tests UNTOUCHED, MapAdapter UNTOUCHED, no serial file.
+  Every `wc -l` in the 10:25:36Z acceptance block re-measured by the reviewer and equal.
+
+  RE-DERIVED, not read. Three of the ten literals reverse-geocoded again by the reviewer
+  (nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17, own descriptive User-Agent, 1.2 s apart):
+  pin 4 -> way 675540508 "Pacific Coast Highway" highway/trunk, 34.0401096/-118.5792999; pin 5 ->
+  way 667514947 "North Topanga Canyon Boulevard" highway/primary, 34.0931194/-118.6018208; pin 8 ->
+  way 1533792498 "Mulholland Drive" highway/secondary, 34.1320831/-118.4532098. Way id, name, class
+  and returned point match each literal's comment exactly. A reviewer's own haversine over the ten
+  literals: 47445.1 m = 47.45 km, so "~47 km" and the shown 47 hold; leg 4->6 = 9733.0 m, the exact
+  figure pin 5's comment quotes. All nine pins and the destination are inside
+  services/etl/regions/la/region.json's bbox (min_lon -119.0, min_lat 33.7, max_lon -117.85,
+  max_lat 34.45), computed by the reviewer from that file.
+
+  BARE COMMANDS. `swift test --scratch-path .build/rv1-pr115 --filter HandoffTests` -> "Test run with
+  71 tests in 10 suites passed after 0.072 seconds." `bash ops/lib/check-safety-disclaimer` -> exit 0,
+  SkylineHandoff.open( called once (GatedHandoffButton.swift line 87) dominated by the guard at line
+  82, GatedHandoffButton( constructed once, isSafetyDisclaimerAcknowledged written once at line 138 -
+  every anchor count unchanged; the only moved numbers are inventories (9 files under FeatureScenicHome,
+  21 under apps/ios). `bash ops/lib/check-line-cap` -> "P-SRC-02: 90 Swift files tracked (Sources=29,
+  Tests=40, apps/ios=21), none over 300 lines". `bash ops/queue-check` -> "QUEUE OK (201 tasks)".
+  `gh run view 35436962939` -> conclusion success, headSha 76a0444c7af1270b9158d7a61962d77203a44ed6,
+  and `git diff --name-only 76a0444..fb2f2b8 -- "*.swift"` is EMPTY, so the compiled sha is this head's
+  Swift.
+
+  THREE REVIEWER MUTANTS on the Linux side, each restored with `git checkout --` and `git status
+  --short` empty after: (1) `HandoffDrive.santaMonicaMountains` mapped to SkylineRoute's destination
+  and waypoints -> KILLED, "each drive maps to its own route, and the default is the LA drive" failed
+  with 3 issues; (2) pin 5 moved ~1.5 km south off CA-27 onto the Topanga village streets -> KILLED by
+  six tests, including "nine pins still build a handoff URL" and "the whole-kilometre figure is the
+  number the LA drive shows"; (3) `defaultDrive` flipped to `.skyline` -> KILLED by the same mapping
+  test. The mapping test binds the accessors the app actually reads - `SkylineHandoff.destination(for:)`
+  and `waypoints(for:)` forward straight to them and `directions(for:)` builds the URL from them - not
+  a table against itself.
+
+  READ-ONLY UI, at file:line. One door: `SkylineHandoff.open(` occurs once in the app, at
+  GatedHandoffButton.swift:87, and takes the drive as a value - no sibling entry point. No location
+  read: `grep -rn CoreLocation apps/ios Sources` hits only comments plus the pre-existing MapAdapter
+  boundary (MapView.swift:1, on main before this branch); nothing new reads a position, and
+  HandoffDrive.defaultDrive:50 is unconditional. Picker: DriveSelector.swift:34-35 carries
+  home.drive.la and home.drive.skyline, :52 is `minHeight: 44` with the label inside the frame, and
+  :50/:55/:59 are DesignTokens only. R6: DriveBasemap.swift:34-40 switches the STYLE over the drive
+  (losAngeles for LA, demo for Skyline); ScenicHomeScreen.swift:126 gives AttributionFooter
+  `style.attributionText` and :215 gives the caption the same resolved `style`, and DriveCopy.swift:72
+  switches over MapStyle, so a false credit and a blank map under the Protomaps credit are both
+  unreachable - the credit travels inside the MapStyle (MapStyle.swift:97). The resolve is NOT in a
+  property initialiser: `style` is @State seeded with the demo case (ScenicHomeScreen.swift:50) and
+  `resolveBasemap()` runs only from .task/.onChange (:133-135).
+
+  NOT BLOCKING, recorded: the owner's (a)-(g) stand, in particular (f)/(g) - nothing in this tree can
+  execute DriveBasemap.resolve and no device has rendered the Protomaps caption; and the two DriveCopy
+  road lines are human-written text that no test ties to the pins.
+
+  NOT DONE by this review: ops/test, the full ops/check-pins and any iOS render.
