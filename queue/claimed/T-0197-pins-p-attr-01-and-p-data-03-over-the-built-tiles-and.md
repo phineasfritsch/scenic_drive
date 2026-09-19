@@ -338,3 +338,44 @@ surface P-ATTR-01 asserts over.
   ops/publish-tiles, never CI; (5) the 1 MiB wholeness floor in BasemapResolver is asserted by no test
   (ScenicApp has no test target); (6) `bash ops/test` is not run on this box - CI's linux-core job is the
   evidence, and it can only run now that the PR is no longer conflicting.
+- 2026-09-19T16:41:24Z RULINGS by agent/claude-opus-5 (round 2, the author rule), before a line of code,
+  on rv1-pr119's two blocking findings:
+  R2-A B2 UPHELD, and it is the pin's own clause that was false. P-ATTR-01 says "every map surface
+  carries the credit"; limb (d) counted `styleURL:` INSIDE ScenicHomeScreen.swift and whitelisted
+  `AttributionFooter(` over the whole tree, so the enumeration was one-sided: the footers were
+  enumerated, the SURFACES were not. rv1's M1 (a second view under FeatureScenicHome mounting
+  `MapView(styleURL: style.url, ...)` with no footer) printed the full green summary. FIX in the shape
+  CLAUDE.md asks for - a WHITELIST over the population, never a blacklist of spellings: new limb (f)
+  counts every `MapView(` and every `styleURL:` occurrence over every .swift file under apps/ios against
+  a tracked set typed into the check (ScenicHomeScreen.swift(1) each). The ONE definition site is
+  excluded by exact path, MapAdapter/MapView.swift, and is pinned FIRST by `struct MapView` and
+  `public init(styleURL` occurring exactly once there and nowhere else - without that, a second or a
+  moved definition would carry its own occurrences out of the counted population and a surface with
+  them. `MLNMapView(frame: .zero, styleURL: styleURL)` at MapView.swift:34 is inside the excluded
+  definition, which is why the exclusion is one named file and not a pattern.
+  R2-B M3 CLOSED here rather than disclosed, since it shares B2's root and costs one reader. Limb (b)
+  gains a SECOND population: every `static let` LINE under apps/ios whose value names OpenStreetMap is
+  the one approved declaration, compared trimmed and whole. The identifier-keyed whitelist could not see
+  `static let tileCredit = "(c) OpenStreetMap contributors and Protomaps"`; the string's own subject
+  matter is the honest population, because a credit is only ever true of the tiles it is handed with.
+  Today that population is exactly one line (MapStyle.swift:51): every other OpenStreetMap mention in
+  apps/ios is a `///` comment, which every reader in this check strips.
+  R2-C the mutation table grew a row FORM, not just two rows. Both new mutants ADD a file, which no sed
+  script over the tracked files can reproduce, and adding a file is precisely what the whitelist claims
+  to refuse: a row whose path carries a leading `+` writes the third field as the file's single line of
+  Swift (this check reads source, it does not compile it) and the driver refuses a `+` row whose file
+  already exists or whose directory does not. Rows 13 (a second map surface with no credit) and 14 (a
+  second credit string under a new identifier) are that form.
+  R2-D the check was at 287 lines and the two limbs did not fit under CLAUDE.md's 300-line cap, so the
+  VERDICT printer moved to ops/lib/check-map-attribution-lib beside the readers (it decides nothing; it
+  prints what the check read), and the two new readers were written there. check-map-attribution is 294.
+  R2-E STILL DISCLOSED, unchanged by this round and named in the pin text and in the check's own green
+  summary: a footer BUILT and then wrapped in `.opacity(0)` (rv1's M2 - T-0180's snapshot half owns it);
+  a paraphrase that never names OpenStreetMap at all, and a `static let` whose value sits on the NEXT
+  line; a map mounted through some wrapper type that is not `MapView(`; MapStyle.url's arms (A6); and
+  `MapStyle.allCases[0]`-shaped spellings (A4).
+  R2-F B1 sequence, per CLAUDE.md and PR #115's refusal at merge: the code commit lands FIRST, then
+  `git fetch origin && git merge --no-edit origin/main`, then the WHOLE acceptance block is re-run bare
+  on the merged head and quoted in one entry, then the final commit and an immediate push - the merge is
+  done LAST so that the push follows it within minutes and the head that is signed off is the head that
+  merges.
