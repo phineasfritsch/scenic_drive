@@ -1,5 +1,6 @@
 {
  "meta": {
+  "malformed_under_the_hardened_oracle": "grid-a 1, grid-b 14 (T-0204 R5, still-open 6): ways whose scenic_score_unit quantises to one more than the scenic_score beside it. None is in the top 25.",
   "produced_by": "etl.scenecheck.top, T-0204's hardened build, 2026-09-19",
   "read_back_from": ".worktrees/T-0204/services/etl/work/la/grid-{a,b}-readback.osm.xml",
   "scored": 34523,
@@ -1125,6 +1126,7 @@
     "way_id": 721210117
    }
   ],
+  "seam_merge": "R2's rule: osmium extract completes every way crossing -118.45, so a way in both clips is scored twice; the merged ranking is the UNION KEYED BY way_id and an overlapping way is taken at the MAX of its two scenic_score_unit values, so the seam can never make T-0204's predicate true by a choice of the author. 190 ways overlap, 160 disagree (seam_disagreements).",
   "ways": 35126,
   "window": "the mixed grid window (T-0204): --bbox -118.55,33.98,-118.35,34.15, clipped in two at -118.45 (grid-a, grid-b) and merged over the union by way_id"
  },

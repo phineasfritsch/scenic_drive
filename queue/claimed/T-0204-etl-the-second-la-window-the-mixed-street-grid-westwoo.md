@@ -273,3 +273,116 @@ scenic-index lock (one container run at a time).
       bash ops/check-pins --source-only -> quoted in the commit that follows
       wc -l: scenecheck.py 215, test_scenecheck.py 217, test_window_ranking.py 60, scenic_tags.py 300,
         this task file 136 before this block
+- 2026-09-19T10:07:37Z THE ORCHESTRATOR'S RULING ON THE REFUTATION, received from agent/claude-fable-5-1 (the
+  filer of this task) and recorded VERBATIM before any code was written, as the author rule requires:
+  "The acceptance predicate was mis-specified by its filer: the bbox it named contains canyon-rim road. The
+  finding stands as written and is not hidden. The committed test becomes the WHITELIST form of the same
+  fact (CLAUDE.md: anchor on a whitelist): the ONLY grid-window ways at or above the canyon window's tenth
+  score are the ridge segments named in a typed allowlist - today exactly ways 518410361 and 787842196,
+  both named Mulholland Drive - and any OTHER way reaching the bound (a Westwood, Brentwood or Bel Air
+  street, a fire road) is RED by name. The bound is pinned to way 1237332026 Fernwood Pacific Drive at
+  0.7284. The product findings are filed: T-0207 (three residential hillside streets and two service fire
+  roads reach scenic_score 7 and escape the plan's anti-rat-run clause) and T-0208 (scores are
+  window-relative: 160 of 190 seam ways differ)."
+  WHAT I CHANGED UNDER IT, and what I did not: the measured numbers, the fixtures and the two named
+  offenders are untouched - the refutation is still asserted, way by way. What changed is its FORM: a test
+  that was red on main (hiding any later regression under an already-red name) becomes a whitelist that is
+  green today and names the way on the day a third road reaches the bound. `ops/test` and CI core go green
+  with this commit for that reason and no other.
+- 2026-09-19T10:07:37Z R5 THE UNIT IS PART OF THE CONTRACT, ruled by agent/claude-opus-5 before code, on the pre-review
+  mutant pass's survivors. The predicate this whole task turns on is read on `scenic_score_unit`, and that
+  number had NO contract: `top()` did `float(tags.get(KEY_UNIT, detail) or 0.0)`, which ranks a way whose
+  unit is ABSENT on its integer (silently, off by a factor of ten), raises ValueError on `abc`, and sorts a
+  `nan` wherever the sort leaves it - every comparison against NaN being False. So `classify` - the ONE
+  place a way is judged, both halves asking it - now names a way MALFORMED (CHECK4 malformed=N, exit 4,
+  never a traceback out of `top()` or `main()`) when its unit is missing on a scored way, is not a real
+  ASCII number, is outside 0..1, or does NOT quantise to the integer beside it. The quantiser is IMPORTED
+  AND CALLED (`tagwriter.quantise(unit) != value`), never restated: a second copy of the rounding is how
+  the writer and the checker agree with each other while both are wrong about a road.
+  THE POPULATION: seven new mutations in `ops/mutate/scenic_tags.py`, floor 28 -> 35, and the runner hit
+  the 300-line cap, so the table moved to `ops/mutate/scenic_tags_mutations.py` the way
+  `geometry_mutations.py` is split out of `geometry.py` - the runner is the protocol, that file is the
+  evidence. `tests/test_scenecheck_unit.py` is the third file the harness empties for `--prove-vacuity`.
+  ONE EQUIVALENT with a witness, not prose: the NaN guard in `unit_or_none` cannot change what this module
+  answers today, because `classify` asks the range next and `not 0.0 <= nan <= 1.0` is True either way; it
+  is kept so the parser never hands a NaN to a future caller. It is an EQUIVALENT entry and must go MISSED.
+- 2026-09-19T10:07:37Z THE BOUNDARIES AND THE BINDING, as tests over the SHIPPING symbols (`scenecheck.counts`, `.top`,
+  `.main`), never a helper: the integer at 11 and -1 (an off-by-one bound is the bound a 42 never tests)
+  and at 10 and 0 the other way; the non-ASCII digit guard on BOTH halves (`int("\u0667")` is 7 and
+  `float("\u0660.\u0665")` is 0.5 to Python); and `test_the_fixture_row_is_the_shape_the_shipping_oracle_produces`,
+  which runs `etl.scenecheck.top` over a COMMITTED read-back
+  (`tests/fixtures/window_readback_sample.osm.xml`, four real canyon ways with their own 198 nodes and
+  their shipped `scenic_*` tags, cut out of `window-readback.osm.xml`, 23,794 B) and requires the rows to
+  carry exactly the fixtures' fields, contiguous ranks, descending units, `malformed=0`, and the same
+  values the canyon fixture holds for the ways they share. The fixtures can no longer drift away from what
+  the oracle produces without a test saying so.
+- 2026-09-19T10:07:37Z THE WHITELIST TEST, RED FOUR WAYS THEN GREEN (`services/etl/work/reddemo.py`, under the
+  gitignored work dir; caches purged and 1.1 s slept between runs so no stale .pyc reports a false colour):
+      GREEN BEFORE                                                     10 passed
+      RED 1  the bound read from canyon row 0 instead of its tenth     2 failed - assert 74344132 == 1237332026
+             FAILED test_the_bound_is_the_canyon_windows_tenth_way_by_the_unit_and_its_measured_value
+      RED 2  the grid fixture stored sorted by way_id                  1 failed - assert [7, 8, 11, 25, ...] == [1, 2, 3, ...]
+             FAILED test_each_fixture_is_twenty_five_rows_ranked_contiguously_and_descending_by_the_unit[grid]
+      RED 3  the two offender rows deleted from the grid fixture       2 failed - assert 23 == 25; assert set() == {518410361, 787842196}
+      RED 4  Crescent Drive (residential) raised above the bound       1 failed - Extra items in the left set: 13419334
+             FAILED test_the_only_grid_ways_reaching_the_bound_are_the_named_ridge_segments
+      GREEN AFTER                                                      10 passed
+  A TIE AT THE BOUND IS NOT BELOW, pinned by a fixture and not by prose: `tests/fixtures/grid_tie_top25.json`
+  is the grid's 25 rows with the two allowlisted Mulhollands lowered 0.05 and way 44327906 set EXACTLY to
+  0.7284; `test_a_tie_at_the_bound_counts_as_not_below` requires that row to be an offender, which is the
+  `>=` R3 ruled and not `>`.
+  THE SEAM-MERGE RULE that built `grid_top25.json` is now recorded in the fixture's own `meta.seam_merge` -
+  the merged ranking is the UNION KEYED BY way_id and an overlapping way is taken at the MAX of its two
+  clips, so the seam can never make this task's predicate true by a choice of mine - and
+  `test_the_seam_merge_rule_is_recorded_and_the_rows_obey_it` checks every seam row in the fixture against
+  `max(grid_a, grid_b)`.
+- 2026-09-19T10:07:37Z THE REAL READ-BACKS RE-RUN THROUGH THE HARDENED CHECKER, no container, `python -m etl.scenecheck
+  <file> --top 10` on each of the three shipped read-back XMLs (grid-a and grid-b from this worktree's
+  gitignored work dir, the canyon window's from the MAIN checkout, both read-only):
+      grid-a-readback.osm.xml   CHECK4 null_score=0 gated_scored=0 malformed=1  scored=11238 refused=0 not_a_road=212
+      grid-b-readback.osm.xml   CHECK4 null_score=0 gated_scored=0 malformed=14 scored=23460 refused=0 not_a_road=413
+      window-readback.osm.xml   CHECK4 null_score=0 gated_scored=0 malformed=2  scored=11738 refused=0 not_a_road=662
+  MALFORMED IS NOT 0 ON REAL DATA, and that is A FINDING, reported and not smoothed (STILL OPEN 6 below).
+  All 17 are ONE shape - `scenic_score_unit` quantises to exactly one MORE than the `scenic_score` beside
+  it, and every unit involved ends in `5` at the fourth decimal:
+      way 170301018  scenic_score=0: scenic_score_unit=0.0500 quantises to 1, not the 0 beside it  (grid-a)
+      way 13332407   scenic_score=5: scenic_score_unit=0.5500 quantises to 6, not the 5 beside it  (grid-b)
+      way 13359647   scenic_score=1: scenic_score_unit=0.1500 quantises to 2, not the 1 beside it  (canyon)
+      way 1280073443 scenic_score=2: scenic_score_unit=0.2500 quantises to 3, not the 2 beside it  (canyon)
+      ... 14 of the 17 in grid-b, one in grid-a, two in the canyon window; every one named on stderr.
+  THE CAUSE, from `tagwriter.tags_for_row` and not from a story: the integer is `quantise(row["score"])`
+  off the UNROUNDED score and the unit is `fixed(row["score"])` at four decimals, so a score just under a
+  `.x5` boundary (0.54999...) ships as a `5` beside a `0.5500`. The two tags are one fact written twice at
+  two precisions, and 17 of 46,436 scored ways disagree. NOT FIXED HERE: fixing it changes bytes the whole
+  window run is measured on and needs its own container re-run, which this task's acceptance does not cover
+  and which would re-open every count above. The ranking is unaffected - none of the 17 is in either top
+  25, and all sit at units 0.05..0.55. `ops/sane` check 4 over these three files now exits 4, correctly:
+  the oracle is stricter than the writer, which is what an independent oracle is for.
+- 2026-09-19T10:07:37Z STILL OPEN after this commit, amending nothing above (1-5 stand as written):
+  6. THE WRITER'S TWO TAGS DISAGREE AT THE `.x5` BOUNDARY: 17 real ways carry a `scenic_score` that is not
+     `quantise(scenic_score_unit)`. Found by R5's new rule, named on stderr, unfixed - it belongs to
+     `tagwriter`, needs a container re-run, and is a task of its own.
+- 2026-09-19T10:28:56Z THE ACCEPTANCE BLOCK, re-run BARE at this final pre-review commit and re-quoted whole (the
+  author rule; the 09:25:57Z block above stands as the record of the run that produced the fixtures, and
+  every line below was re-run after the whitelist and R5 landed):
+      python ops/mutate/scenic_tags.py -> BASELINE exit=0, 35 mutations, floor 35 / MUTATIONS: 35 caught,
+        0 missed, 0 skipped, of 35 / EQUIVALENT: 0 caught, 3 missed, 0 skipped, of 3 /
+        MUTATE OK  caught=35/35 equivalent_caught=0
+      python ops/mutate/scenic_tags.py --prove-vacuity -> VACUITY: 0 caught, 35 missed, 0 skipped, of 35 /
+        VACUITY PROVED
+      cd services/etl && python -m pytest tests -rs -o addopts= -> 1170 passed in 88.55s - ZERO FAILURES,
+        ZERO SKIPS. The refutation is no longer carried as a red test: it is
+        test_the_only_grid_ways_reaching_the_bound_are_the_named_ridge_segments, green, naming both ways.
+      bash ops/lib/check-line-cap -> P-SRC-02: 78 Swift files tracked (Sources=27, Tests=38, apps/ios=13),
+        none over 300 lines
+      bash ops/lib/check-exec-bits -> P-OPS-01: 74 files, 23 required present, all modes correct
+        (74 and not 73: ops/mutate/scenic_tags_mutations.py, a module and not a script, 100644 exactly as
+        ops/mutate/geometry_mutations.py is)
+      bash ops/queue-check -> QUEUE OK (199 tasks)
+      bash ops/check-pins --source-only -> PINS ok=13 skipped=14 pending=1 expired=0 failed=0 tier=linux
+        source-only (exit 0)
+      python -m etl.scenecheck <the three real read-backs> --top 10 -> quoted in full in the entry above;
+        malformed 1 / 14 / 2, which is still-open 6 and not a green
+      wc -l (re-measured at this commit, the T-0162 rule): scenic_tags.py 179, scenic_tags_mutations.py 186,
+        scenecheck.py 254, test_scenecheck.py 231, test_scenecheck_unit.py 173, test_window_ranking.py 173,
+        this task file 364 before this block

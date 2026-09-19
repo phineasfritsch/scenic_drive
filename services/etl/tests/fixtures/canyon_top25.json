@@ -1,5 +1,6 @@
 {
  "meta": {
+  "malformed_under_the_hardened_oracle": "2 (T-0204 R5, still-open 6): ways 13359647 and 1280073443, whose scenic_score_unit quantises to one more than the scenic_score beside it. Neither is in the top 25; CHECK4 over window-readback.osm.xml is null_score=0 gated_scored=0 malformed=2.",
   "produced_by": "etl.scenecheck.top, T-0204's hardened build, 2026-09-19",
   "read_back_from": "services/etl/work/la/window-readback.osm.xml (MAIN checkout, T-0168's run)",
   "scored": 11740,

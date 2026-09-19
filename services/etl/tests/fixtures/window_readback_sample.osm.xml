@@ -1,0 +1,495 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version="0.6" generator="osmium/1.14.0">
+<node id="122434711" version="5" lat="34.1138844" lon="-118.5913555"/>
+<node id="122441975" version="4" lat="34.0961256" lon="-118.6141824"/>
+<node id="122441988" version="5" lat="34.0983349" lon="-118.6173042"/>
+<node id="122463576" version="3" lat="34.099654" lon="-118.61807"/>
+<node id="122465290" version="5" lat="34.1018502" lon="-118.6212635"/>
+<node id="122614580" version="7" lat="34.1158005" lon="-118.5920483"/>
+<node id="122680574" version="8" lat="34.1413813" lon="-118.60765"/>
+<node id="122766077" version="5" lat="34.096983" lon="-118.615553"/>
+<node id="122902422" version="8" lat="34.118154" lon="-118.592158"/>
+<node id="123042781" version="5" lat="34.1232591" lon="-118.5908443"/>
+<node id="123042784" version="3" lat="34.1233559" lon="-118.5899146"/>
+<node id="123042787" version="3" lat="34.1235568" lon="-118.5892008"/>
+<node id="123042788" version="3" lat="34.1237509" lon="-118.5884351"/>
+<node id="123042790" version="3" lat="34.124003" lon="-118.5878631"/>
+<node id="123042792" version="3" lat="34.1240872" lon="-118.5875168"/>
+<node id="123042799" version="3" lat="34.1243109" lon="-118.5870485"/>
+<node id="123042802" version="4" lat="34.1244765" lon="-118.5869084"/>
+<node id="123042806" version="4" lat="34.1245814" lon="-118.5866063"/>
+<node id="123042809" version="5" lat="34.1245209" lon="-118.5858657"/>
+<node id="123042812" version="5" lat="34.1245084" lon="-118.5856386"/>
+<node id="123042815" version="5" lat="34.124542" lon="-118.5852395"/>
+<node id="123042817" version="5" lat="34.1245991" lon="-118.5850089"/>
+<node id="123042822" version="3" lat="34.125168" lon="-118.5842729"/>
+<node id="123042825" version="4" lat="34.1252025" lon="-118.5841425"/>
+<node id="123042827" version="5" lat="34.1251698" lon="-118.5839256"/>
+<node id="123042829" version="5" lat="34.1252723" lon="-118.583031"/>
+<node id="123042831" version="6" lat="34.1253326" lon="-118.5828262"/>
+<node id="123110969" version="7" lat="34.1161891" lon="-118.5920831"/>
+<node id="123151411" version="5" lat="34.1171452" lon="-118.5921844"/>
+<node id="123268164" version="7" lat="34.1427484" lon="-118.6055762"/>
+<node id="123351447" version="6" lat="34.1133141" lon="-118.5905816"/>
+<node id="123351449" version="6" lat="34.1134508" lon="-118.5906822"/>
+<node id="123351454" version="7" lat="34.1135488" lon="-118.5908123"/>
+<node id="123351459" version="4" lat="34.1137281" lon="-118.5911033"/>
+<node id="123351461" version="4" lat="34.113792" lon="-118.5912063"/>
+<node id="123351464" version="6" lat="34.1139743" lon="-118.5914863"/>
+<node id="123351466" version="7" lat="34.1140361" lon="-118.5915612"/>
+<node id="123351473" version="6" lat="34.1142826" lon="-118.5917785"/>
+<node id="123351477" version="5" lat="34.1146644" lon="-118.5919208"/>
+<node id="123351478" version="5" lat="34.1153503" lon="-118.591998"/>
+<node id="123351479" version="5" lat="34.1166585" lon="-118.5921264"/>
+<node id="123351481" version="6" lat="34.1176769" lon="-118.5922472"/>
+<node id="123351484" version="6" lat="34.1178503" lon="-118.5922402"/>
+<node id="123351486" version="7" lat="34.1180251" lon="-118.5922083"/>
+<node id="123493934" version="5" lat="34.0935702" lon="-118.609992"/>
+<node id="123493938" version="4" lat="34.0936787" lon="-118.6101356"/>
+<node id="123493945" version="5" lat="34.0938562" lon="-118.6105718"/>
+<node id="123493957" version="5" lat="34.0941054" lon="-118.6114838"/>
+<node id="123493966" version="5" lat="34.0945119" lon="-118.6118722"/>
+<node id="123493983" version="4" lat="34.0955792" lon="-118.6129848"/>
+<node id="123493997" version="4" lat="34.0961789" lon="-118.6143527"/>
+<node id="123494017" version="4" lat="34.0967531" lon="-118.6150675"/>
+<node id="123494028" version="4" lat="34.0971507" lon="-118.6160599"/>
+<node id="123494035" version="4" lat="34.0972773" lon="-118.6163255"/>
+<node id="123494050" version="4" lat="34.0979525" lon="-118.6169531"/>
+<node id="123494055" version="4" lat="34.0986932" lon="-118.6173662"/>
+<node id="123494063" version="3" lat="34.099046" lon="-118.617558"/>
+<node id="123494076" version="4" lat="34.1001058" lon="-118.6185691"/>
+<node id="123494079" version="4" lat="34.1001913" lon="-118.6186778"/>
+<node id="123494082" version="4" lat="34.1003956" lon="-118.6191646"/>
+<node id="123494085" version="4" lat="34.1005" lon="-118.6196823"/>
+<node id="123494088" version="4" lat="34.1006344" lon="-118.6201181"/>
+<node id="123494092" version="4" lat="34.1008098" lon="-118.6204279"/>
+<node id="123494095" version="4" lat="34.1009853" lon="-118.6206237"/>
+<node id="123494098" version="4" lat="34.1012141" lon="-118.6208302"/>
+<node id="123494100" version="4" lat="34.1014917" lon="-118.6210395"/>
+<node id="123494102" version="5" lat="34.1020552" lon="-118.6213095"/>
+<node id="452304213" version="1" lat="34.1400107" lon="-118.6026491"/>
+<node id="597544258" version="2" lat="34.0932673" lon="-118.6097562"/>
+<node id="1536968150" version="2" lat="34.1403248" lon="-118.6026837"/>
+<node id="1536968151" version="2" lat="34.1409035" lon="-118.6030639"/>
+<node id="1832597060" version="2" lat="34.1134204" lon="-118.5906515"/>
+<node id="1832597063" version="2" lat="34.1144305" lon="-118.5918606"/>
+<node id="1832597103" version="2" lat="34.1233227" lon="-118.5906844"/>
+<node id="1832597120" version="1" lat="34.1404702" lon="-118.6027253"/>
+<node id="1832597122" version="2" lat="34.1406423" lon="-118.6028259"/>
+<node id="1832597126" version="2" lat="34.1406356" lon="-118.6047538"/>
+<node id="1832597131" version="2" lat="34.1406509" lon="-118.6045761"/>
+<node id="1832597132" version="2" lat="34.1407493" lon="-118.6043695"/>
+<node id="1832597133" version="2" lat="34.1409812" lon="-118.6061988"/>
+<node id="1832597135" version="2" lat="34.1408508" lon="-118.6042965"/>
+<node id="1832597152" version="3" lat="34.1410855" lon="-118.6042433"/>
+<node id="1832597156" version="2" lat="34.1410833" lon="-118.6031888"/>
+<node id="1832597158" version="2" lat="34.1412789" lon="-118.6042793"/>
+<node id="1832597161" version="1" lat="34.1413899" lon="-118.6042891"/>
+<node id="1832597163" version="2" lat="34.1414691" lon="-118.6079134"/>
+<node id="1832597173" version="2" lat="34.1415444" lon="-118.6064592"/>
+<node id="1832597175" version="2" lat="34.14161" lon="-118.6034123"/>
+<node id="1832597177" version="2" lat="34.1415891" lon="-118.6067847"/>
+<node id="1832597180" version="1" lat="34.1415826" lon="-118.60577"/>
+<node id="1832597182" version="2" lat="34.1416108" lon="-118.6041846"/>
+<node id="1832597183" version="2" lat="34.1416268" lon="-118.6081157"/>
+<node id="1832597184" version="1" lat="34.1416421" lon="-118.6055506"/>
+<node id="1832597185" version="1" lat="34.1416445" lon="-118.6069028"/>
+<node id="1832597189" version="2" lat="34.1417288" lon="-118.6081649"/>
+<node id="1832597190" version="2" lat="34.1417539" lon="-118.6036556"/>
+<node id="1832597203" version="2" lat="34.1417541" lon="-118.6039181"/>
+<node id="1832597207" version="2" lat="34.1417135" lon="-118.6070114"/>
+<node id="1832597209" version="2" lat="34.1417739" lon="-118.6053829"/>
+<node id="1832597215" version="1" lat="34.1419129" lon="-118.6052989"/>
+<node id="1832597217" version="2" lat="34.1419234" lon="-118.6081461"/>
+<node id="1832597219" version="2" lat="34.1420327" lon="-118.6074259"/>
+<node id="1832597220" version="2" lat="34.1420554" lon="-118.6080292"/>
+<node id="1832597223" version="2" lat="34.1421577" lon="-118.6053085"/>
+<node id="1832597226" version="2" lat="34.1421386" lon="-118.6076974"/>
+<node id="1832597228" version="1" lat="34.142279" lon="-118.6053492"/>
+<node id="1832597230" version="2" lat="34.1426138" lon="-118.6054939"/>
+<node id="1987936937" version="2" lat="34.1406561" lon="-118.6049333"/>
+<node id="1987936938" version="2" lat="34.140968" lon="-118.6042524"/>
+<node id="1987936939" version="2" lat="34.1414958" lon="-118.6033368"/>
+<node id="1987936940" version="2" lat="34.1415414" lon="-118.6080318"/>
+<node id="1987936941" version="1" lat="34.1415103" lon="-118.6042542"/>
+<node id="1987936942" version="2" lat="34.1416953" lon="-118.6035104"/>
+<node id="1987936943" version="2" lat="34.1416953" lon="-118.6040698"/>
+<node id="1987936944" version="1" lat="34.1417678" lon="-118.6037775"/>
+<node id="1987936945" version="2" lat="34.1418387" lon="-118.6081703"/>
+<node id="1987936946" version="2" lat="34.1421111" lon="-118.6075753"/>
+<node id="1987936947" version="2" lat="34.1421052" lon="-118.6079377"/>
+<node id="2639106677" version="2" lat="34.0940396" lon="-118.6113169"/>
+<node id="2639106679" version="2" lat="34.094279" lon="-118.6117056"/>
+<node id="2639106680" version="2" lat="34.0947872" lon="-118.6120297"/>
+<node id="2639106682" version="2" lat="34.0950251" lon="-118.612234"/>
+<node id="2639106684" version="1" lat="34.0957935" lon="-118.6133093"/>
+<node id="2639106687" version="1" lat="34.0959846" lon="-118.6137425"/>
+<node id="2639106688" version="1" lat="34.0962977" lon="-118.6146558"/>
+<node id="2639106690" version="1" lat="34.0964221" lon="-118.6148087"/>
+<node id="2639106692" version="1" lat="34.096883" lon="-118.6152566"/>
+<node id="2639106694" version="1" lat="34.0974127" lon="-118.6165159"/>
+<node id="2639106695" version="1" lat="34.098229" lon="-118.6172468"/>
+<node id="2639106699" version="1" lat="34.1003268" lon="-118.6189554"/>
+<node id="2639106700" version="1" lat="34.1007055" lon="-118.620271"/>
+<node id="2872292003" version="3" lat="34.1248502" lon="-118.5847238"/>
+<node id="4984159768" version="2" lat="34.1234041" lon="-118.5895632"/>
+<node id="5828329923" version="2" lat="34.1252843" lon="-118.5834812"/>
+<node id="5828329926" version="2" lat="34.1245773" lon="-118.5850658"/>
+<node id="5828329927" version="2" lat="34.1245327" lon="-118.5862096"/>
+<node id="5828329928" version="2" lat="34.1245454" lon="-118.5867883"/>
+<node id="5828329934" version="1" lat="34.1236939" lon="-118.5887216"/>
+<node id="5828329935" version="1" lat="34.1235904" lon="-118.5889548"/>
+<node id="5828329936" version="1" lat="34.1233774" lon="-118.5901431"/>
+<node id="6250784988" version="1" lat="34.1424847" lon="-118.6054321"/>
+<node id="6250784989" version="1" lat="34.1420243" lon="-118.6052894"/>
+<node id="6250784990" version="1" lat="34.1415507" lon="-118.6066026"/>
+<node id="6250784991" version="1" lat="34.1421389" lon="-118.6078024"/>
+<node id="6250784992" version="1" lat="34.1419863" lon="-118.6081077"/>
+<node id="6250784993" version="1" lat="34.1414144" lon="-118.6077724"/>
+<node id="6373324060" version="1" lat="34.0965733" lon="-118.6149269"/>
+<node id="6501266727" version="1" lat="34.1406913" lon="-118.6044524"/>
+<node id="6782275779" version="1" lat="34.0937861" lon="-118.6103754"/>
+<node id="6782275780" version="1" lat="34.0942012" lon="-118.6116158"/>
+<node id="6904024515" version="1" lat="34.1141522" lon="-118.5916785"/>
+<node id="6904024516" version="1" lat="34.1143533" lon="-118.5918225"/>
+<node id="6904024517" version="1" lat="34.1145072" lon="-118.5918881"/>
+<node id="6904024518" version="1" lat="34.1145795" lon="-118.5919066"/>
+<node id="6904024519" version="1" lat="34.1148604" lon="-118.5919437"/>
+<node id="6904037163" version="1" lat="34.1133864" lon="-118.5906252"/>
+<node id="6904037164" version="1" lat="34.113351" lon="-118.5906017"/>
+<node id="6906249392" version="1" lat="34.1245033" lon="-118.5868737"/>
+<node id="6906249393" version="1" lat="34.1245284" lon="-118.5868294"/>
+<node id="6906249394" version="1" lat="34.1245647" lon="-118.5867167"/>
+<node id="6906249395" version="1" lat="34.1245768" lon="-118.5866556"/>
+<node id="6906249396" version="1" lat="34.1245802" lon="-118.586536"/>
+<node id="6906249397" version="1" lat="34.1245719" lon="-118.5864467"/>
+<node id="6906249398" version="1" lat="34.1245238" lon="-118.5861215"/>
+<node id="6906249399" version="1" lat="34.1244999" lon="-118.5855098"/>
+<node id="6906249400" version="1" lat="34.1245004" lon="-118.5854516"/>
+<node id="6906249401" version="1" lat="34.1245077" lon="-118.5853779"/>
+<node id="6906249402" version="1" lat="34.1246286" lon="-118.5849581"/>
+<node id="6906249403" version="1" lat="34.124665" lon="-118.5849127"/>
+<node id="6906249404" version="1" lat="34.1247167" lon="-118.5848611"/>
+<node id="6906249405" version="1" lat="34.1247995" lon="-118.5847865"/>
+<node id="6906249406" version="1" lat="34.1248264" lon="-118.5847553"/>
+<node id="6906249407" version="1" lat="34.1251845" lon="-118.584239"/>
+<node id="6906249408" version="1" lat="34.1251965" lon="-118.5841902"/>
+<node id="6906249409" version="1" lat="34.1252016" lon="-118.5841034"/>
+<node id="6906249410" version="1" lat="34.1251634" lon="-118.5838643"/>
+<node id="6906249411" version="1" lat="34.1251677" lon="-118.583808"/>
+<node id="6906249412" version="1" lat="34.1251795" lon="-118.583753"/>
+<node id="6906249413" version="1" lat="34.125197" lon="-118.5836886"/>
+<node id="6906249414" version="1" lat="34.1252335" lon="-118.5836027"/>
+<node id="6906249415" version="1" lat="34.1252688" lon="-118.5835246"/>
+<node id="6906249416" version="1" lat="34.1252958" lon="-118.5834271"/>
+<node id="6906249417" version="1" lat="34.1253024" lon="-118.5833493"/>
+<node id="6906249418" version="1" lat="34.1252984" lon="-118.5832897"/>
+<node id="6906249419" version="1" lat="34.1252829" lon="-118.5831844"/>
+<node id="6906249420" version="1" lat="34.1252724" lon="-118.5830888"/>
+<node id="6906249421" version="1" lat="34.1252846" lon="-118.5829687"/>
+<node id="6906249422" version="2" lat="34.1253056" lon="-118.5829036"/>
+<node id="6906249423" version="1" lat="34.1253926" lon="-118.5827403"/>
+<node id="6906249424" version="1" lat="34.1254429" lon="-118.5826713"/>
+<node id="6919525496" version="1" lat="34.1132731" lon="-118.5905658"/>
+<node id="6919525497" version="1" lat="34.1134906" lon="-118.5907281"/>
+<node id="6919525498" version="1" lat="34.1135209" lon="-118.5907706"/>
+<node id="7783088597" version="1" lat="34.1233689" lon="-118.5902267"/>
+<node id="8602923675" version="1" lat="34.0975084" lon="-118.6165926"/>
+<node id="10599658294" version="1" lat="34.1254718" lon="-118.5826343"/>
+<node id="11671543745" version="1" lat="34.102381" lon="-118.6213473"/>
+<node id="11671543751" version="1" lat="34.1016815" lon="-118.6211742"/>
+<way id="1165966476" version="3" timestamp="2024-02-09T00:53:54Z">
+    <nd ref="6919525496" />
+    <nd ref="123351447" />
+    <nd ref="6904037164" />
+    <nd ref="6904037163" />
+    <nd ref="1832597060" />
+    <nd ref="123351449" />
+    <nd ref="6919525497" />
+    <nd ref="6919525498" />
+    <nd ref="123351454" />
+    <nd ref="123351459" />
+    <nd ref="123351461" />
+    <nd ref="122434711" />
+    <nd ref="123351464" />
+    <nd ref="123351466" />
+    <nd ref="6904024515" />
+    <nd ref="123351473" />
+    <nd ref="6904024516" />
+    <nd ref="1832597063" />
+    <nd ref="6904024517" />
+    <nd ref="6904024518" />
+    <nd ref="123351477" />
+    <nd ref="6904024519" />
+    <nd ref="123351478" />
+    <nd ref="122614580" />
+    <nd ref="123110969" />
+    <nd ref="123351479" />
+    <nd ref="123151411" />
+    <nd ref="123351481" />
+    <nd ref="123351484" />
+    <nd ref="123351486" />
+    <nd ref="122902422" />
+    <tag k="highway" v="primary" />
+    <tag k="maxspeed" v="40 mph" />
+    <tag k="name" v="North Topanga Canyon Boulevard" />
+    <tag k="oneway" v="no" />
+    <tag k="ref" v="CA 27" />
+    <tag k="surface" v="asphalt" />
+    <tag k="tiger:cfcc" v="A31" />
+    <tag k="tiger:county" v="Los Angeles, CA" />
+    <tag k="tiger:name_base" v="Topanga Canyon" />
+    <tag k="tiger:name_base_1" v="State Highway 27" />
+    <tag k="tiger:name_direction_prefix" v="N" />
+    <tag k="tiger:name_type" v="Blvd" />
+    <tag k="tiger:reviewed" v="no" />
+    <tag k="scenic_score" v="7" />
+    <tag k="scenic_score_unit" v="0.7116" />
+    <tag k="scenic_curvature" v="0.7891" />
+    <tag k="scenic_elevation_gain" v="0.9301" />
+    <tag k="scenic_speed_fit" v="0.9843" />
+    <tag k="scenic_sinuosity" v="0.5528" />
+    <tag k="scenic_canopy" v="0.8452" />
+    <tag k="scenic_relief" v="0.8849" />
+    <tag k="scenic_impervious" v="0.1469" />
+    <tag k="scenic_points_of_interest" v="0.0000" />
+    <tag k="scenic_water" v="0.0000" />
+    <tag k="scenic_furniture" v="0.4595" />
+    <tag k="scenic_flags" v="points_of_interest_absent" />
+  </way>
+<way id="1255479697" version="1" timestamp="2024-02-28T05:39:54Z">
+    <nd ref="597544258" />
+    <nd ref="123493934" />
+    <nd ref="123493938" />
+    <nd ref="6782275779" />
+    <nd ref="123493945" />
+    <nd ref="2639106677" />
+    <nd ref="123493957" />
+    <nd ref="6782275780" />
+    <nd ref="2639106679" />
+    <nd ref="123493966" />
+    <nd ref="2639106680" />
+    <nd ref="2639106682" />
+    <nd ref="123493983" />
+    <nd ref="2639106684" />
+    <nd ref="2639106687" />
+    <nd ref="122441975" />
+    <nd ref="123493997" />
+    <nd ref="2639106688" />
+    <nd ref="2639106690" />
+    <nd ref="6373324060" />
+    <nd ref="123494017" />
+    <nd ref="2639106692" />
+    <nd ref="122766077" />
+    <nd ref="123494028" />
+    <nd ref="123494035" />
+    <nd ref="2639106694" />
+    <nd ref="8602923675" />
+    <nd ref="123494050" />
+    <nd ref="2639106695" />
+    <nd ref="122441988" />
+    <nd ref="123494055" />
+    <nd ref="123494063" />
+    <nd ref="122463576" />
+    <nd ref="123494076" />
+    <nd ref="123494079" />
+    <nd ref="2639106699" />
+    <nd ref="123494082" />
+    <nd ref="123494085" />
+    <nd ref="123494088" />
+    <nd ref="2639106700" />
+    <nd ref="123494092" />
+    <nd ref="123494095" />
+    <nd ref="123494098" />
+    <nd ref="123494100" />
+    <nd ref="11671543751" />
+    <nd ref="122465290" />
+    <nd ref="123494102" />
+    <nd ref="11671543745" />
+    <tag k="highway" v="secondary" />
+    <tag k="lanes" v="2" />
+    <tag k="name" v="Old Topanga Canyon Road" />
+    <tag k="surface" v="asphalt" />
+    <tag k="tiger:cfcc" v="A31" />
+    <tag k="tiger:county" v="Los Angeles, CA" />
+    <tag k="tiger:name_base" v="Old Topanga Canyon" />
+    <tag k="tiger:name_type" v="Rd" />
+    <tag k="scenic_score" v="7" />
+    <tag k="scenic_score_unit" v="0.7275" />
+    <tag k="scenic_curvature" v="0.9630" />
+    <tag k="scenic_elevation_gain" v="0.9641" />
+    <tag k="scenic_speed_fit" v="0.8750" />
+    <tag k="scenic_sinuosity" v="0.5358" />
+    <tag k="scenic_canopy" v="0.9826" />
+    <tag k="scenic_relief" v="0.8949" />
+    <tag k="scenic_impervious" v="0.0094" />
+    <tag k="scenic_points_of_interest" v="0.0000" />
+    <tag k="scenic_water" v="0.0000" />
+    <tag k="scenic_furniture" v="0.4595" />
+    <tag k="scenic_flags" v="points_of_interest_absent" />
+  </way>
+<way id="38311860" version="28" timestamp="2024-02-09T01:02:40Z">
+    <nd ref="452304213" />
+    <nd ref="1536968150" />
+    <nd ref="1832597120" />
+    <nd ref="1832597122" />
+    <nd ref="1536968151" />
+    <nd ref="1832597156" />
+    <nd ref="1987936939" />
+    <nd ref="1832597175" />
+    <nd ref="1987936942" />
+    <nd ref="1832597190" />
+    <nd ref="1987936944" />
+    <nd ref="1832597203" />
+    <nd ref="1987936943" />
+    <nd ref="1832597182" />
+    <nd ref="1987936941" />
+    <nd ref="1832597161" />
+    <nd ref="1832597158" />
+    <nd ref="1832597152" />
+    <nd ref="1987936938" />
+    <nd ref="1832597135" />
+    <nd ref="1832597132" />
+    <nd ref="6501266727" />
+    <nd ref="1832597131" />
+    <nd ref="1832597126" />
+    <nd ref="1987936937" />
+    <nd ref="1832597133" />
+    <nd ref="122680574" />
+    <nd ref="6250784993" />
+    <nd ref="1832597163" />
+    <nd ref="1987936940" />
+    <nd ref="1832597183" />
+    <nd ref="1832597189" />
+    <nd ref="1987936945" />
+    <nd ref="1832597217" />
+    <nd ref="6250784992" />
+    <nd ref="1832597220" />
+    <nd ref="1987936947" />
+    <nd ref="6250784991" />
+    <nd ref="1832597226" />
+    <nd ref="1987936946" />
+    <nd ref="1832597219" />
+    <nd ref="1832597207" />
+    <nd ref="1832597185" />
+    <nd ref="1832597177" />
+    <nd ref="6250784990" />
+    <nd ref="1832597173" />
+    <nd ref="1832597180" />
+    <nd ref="1832597184" />
+    <nd ref="1832597209" />
+    <nd ref="1832597215" />
+    <nd ref="6250784989" />
+    <nd ref="1832597223" />
+    <nd ref="1832597228" />
+    <nd ref="6250784988" />
+    <nd ref="1832597230" />
+    <nd ref="123268164" />
+    <tag k="highway" v="primary" />
+    <tag k="lanes" v="2" />
+    <tag k="maxspeed" v="40 mph" />
+    <tag k="name" v="Topanga Canyon Boulevard" />
+    <tag k="oneway" v="no" />
+    <tag k="ref" v="CA 27" />
+    <tag k="surface" v="asphalt" />
+    <tag k="scenic_score" v="7" />
+    <tag k="scenic_score_unit" v="0.7401" />
+    <tag k="scenic_curvature" v="0.9768" />
+    <tag k="scenic_elevation_gain" v="0.6708" />
+    <tag k="scenic_speed_fit" v="0.9843" />
+    <tag k="scenic_sinuosity" v="0.9712" />
+    <tag k="scenic_canopy" v="0.7520" />
+    <tag k="scenic_relief" v="0.9574" />
+    <tag k="scenic_impervious" v="0.1017" />
+    <tag k="scenic_points_of_interest" v="0.0000" />
+    <tag k="scenic_water" v="0.0000" />
+    <tag k="scenic_furniture" v="0.4595" />
+    <tag k="scenic_flags" v="points_of_interest_absent" />
+  </way>
+<way id="1137058886" version="1" timestamp="2023-02-01T19:06:39Z">
+    <nd ref="123042781" />
+    <nd ref="1832597103" />
+    <nd ref="7783088597" />
+    <nd ref="5828329936" />
+    <nd ref="123042784" />
+    <nd ref="4984159768" />
+    <nd ref="123042787" />
+    <nd ref="5828329935" />
+    <nd ref="5828329934" />
+    <nd ref="123042788" />
+    <nd ref="123042790" />
+    <nd ref="123042792" />
+    <nd ref="123042799" />
+    <nd ref="123042802" />
+    <nd ref="6906249392" />
+    <nd ref="6906249393" />
+    <nd ref="5828329928" />
+    <nd ref="6906249394" />
+    <nd ref="6906249395" />
+    <nd ref="123042806" />
+    <nd ref="6906249396" />
+    <nd ref="6906249397" />
+    <nd ref="5828329927" />
+    <nd ref="6906249398" />
+    <nd ref="123042809" />
+    <nd ref="123042812" />
+    <nd ref="6906249399" />
+    <nd ref="6906249400" />
+    <nd ref="6906249401" />
+    <nd ref="123042815" />
+    <nd ref="5828329926" />
+    <nd ref="123042817" />
+    <nd ref="6906249402" />
+    <nd ref="6906249403" />
+    <nd ref="6906249404" />
+    <nd ref="6906249405" />
+    <nd ref="6906249406" />
+    <nd ref="2872292003" />
+    <nd ref="123042822" />
+    <nd ref="6906249407" />
+    <nd ref="6906249408" />
+    <nd ref="123042825" />
+    <nd ref="6906249409" />
+    <nd ref="123042827" />
+    <nd ref="6906249410" />
+    <nd ref="6906249411" />
+    <nd ref="6906249412" />
+    <nd ref="6906249413" />
+    <nd ref="6906249414" />
+    <nd ref="6906249415" />
+    <nd ref="5828329923" />
+    <nd ref="6906249416" />
+    <nd ref="6906249417" />
+    <nd ref="6906249418" />
+    <nd ref="6906249419" />
+    <nd ref="6906249420" />
+    <nd ref="123042829" />
+    <nd ref="6906249421" />
+    <nd ref="6906249422" />
+    <nd ref="123042831" />
+    <nd ref="6906249423" />
+    <nd ref="6906249424" />
+    <nd ref="10599658294" />
+    <tag k="highway" v="residential" />
+    <tag k="lanes" v="2" />
+    <tag k="name" v="Santa Maria Road" />
+    <tag k="surface" v="asphalt" />
+    <tag k="tiger:cfcc" v="A41" />
+    <tag k="tiger:county" v="Los Angeles, CA" />
+    <tag k="tiger:name_base" v="Santa Maria" />
+    <tag k="tiger:name_type" v="Rd" />
+    <tag k="scenic_score" v="7" />
+    <tag k="scenic_score_unit" v="0.6980" />
+    <tag k="scenic_curvature" v="0.9732" />
+    <tag k="scenic_elevation_gain" v="0.9870" />
+    <tag k="scenic_speed_fit" v="0.3750" />
+    <tag k="scenic_sinuosity" v="0.5199" />
+    <tag k="scenic_canopy" v="0.9080" />
+    <tag k="scenic_relief" v="0.9850" />
+    <tag k="scenic_impervious" v="0.0363" />
+    <tag k="scenic_points_of_interest" v="0.0000" />
+    <tag k="scenic_water" v="0.0000" />
+    <tag k="scenic_furniture" v="0.4595" />
+    <tag k="scenic_flags" v="points_of_interest_absent" />
+  </way>
+</osm>

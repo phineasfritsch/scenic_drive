@@ -5,8 +5,9 @@ THE THREE CLAUSES (the plan's check 4, ruling R8 in T-0168's log; the third from
     null_score     ways that SHOULD carry a score and do not - a `highway` way that is neither
                    `scenic_refused` nor scored. Must be 0.
     gated_scored   ways the safety gates refuse, or motorway/trunk, carrying a score ABOVE 0. Must be 0.
-    malformed      ways whose `scenic_score` is not an integer the router can hold, or that claim to be
-                   refused AND scored at once. Must be 0.
+    malformed      ways whose `scenic_score` is not an integer the router can hold, whose
+                   `scenic_score_unit` is missing, not a number, outside 0..1 or does not quantise to the
+                   integer beside it, or that claim to be refused AND scored at once. Must be 0.
 
 Any one above zero exits 4 - `ops/sane`'s reserved code for corpus and graph bounds - and the numbers are
 printed either way, because "the check passed" is not evidence and a count is.
@@ -51,6 +52,10 @@ COUNT_NAMES = ("null_score", "gated_scored", "malformed", "scored", "refused", "
 REFUSAL_EXIT = 4
 TOP_DEFAULT = 10
 COORDINATE_PRECISION = 5
+# The unit score's own bounds. `score.score` produces 0..1 and refuses anything else; this is the oracle
+# saying so over the bytes that ship, the way the integer's bounds are said with `tagwriter`'s own numbers.
+UNIT_MIN = 0.0
+UNIT_MAX = 1.0
 
 # The five things a way in the read-back file can be. Exactly one of them, decided in one place.
 NOT_A_ROAD = "not_a_road"
@@ -75,11 +80,34 @@ def integer_or_none(raw) -> int | None:
     return int(text) if digits.isascii() and digits.isdigit() else None
 
 
+def unit_or_none(raw) -> float | None:
+    """A tag value as the 0..1 unit score, or None if it is not a real number. Never raises.
+
+    ASCII only, for the reason `integer_or_none` is: `float("٠.٥")` is 0.5 to Python and is not the
+    byte sequence any producer of this file is allowed to write. NaN is not a number either - and a NaN that
+    reached the ranking would compare false against every bound, so it would sort wherever the sort put it.
+    """
+    text = str(raw).strip()
+    if not text.isascii():
+        return None
+    try:
+        number = float(text)
+    except ValueError:
+        return None
+    return None if number != number else number
+
+
 def classify(way_id: int, tags: dict) -> tuple:
     """What this way is, as one of the five kinds, with a detail.
 
     The detail is the integer score for `scored`, the reason for `malformed`, and None otherwise. Both
     `counts` and `top` take their answer from here, so they cannot disagree about a road.
+
+    THE UNIT IS PART OF THE CONTRACT (T-0204 R5), because the unit is the number the ranking - and this
+    task's whole predicate - is read on. A scored way carries `scenic_score_unit`, it is a real number in
+    0..1, and `tagwriter.quantise` of it IS the integer beside it. The quantiser is IMPORTED and called,
+    never restated here: a second copy of the rounding is how the writer and the checker agree with each
+    other while both are wrong about a road.
     """
     if not tags.get(HIGHWAY):
         return (NOT_A_ROAD, None)
@@ -96,6 +124,17 @@ def classify(way_id: int, tags: dict) -> tuple:
     if not tagwriter.SCORE_MIN <= value <= tagwriter.SCORE_MAX:
         return (MALFORMED, "outside the %d..%d the router holds"
                 % (tagwriter.SCORE_MIN, tagwriter.SCORE_MAX))
+    raw_unit = tags.get(tagwriter.KEY_UNIT)
+    if raw_unit is None:
+        return (MALFORMED, "scored with no %s - the ranking is read on the unit" % tagwriter.KEY_UNIT)
+    unit = unit_or_none(raw_unit)
+    if unit is None:
+        return (MALFORMED, "%s=%s is not a number" % (tagwriter.KEY_UNIT, raw_unit))
+    if not UNIT_MIN <= unit <= UNIT_MAX:
+        return (MALFORMED, "%s=%s is outside %g..%g" % (tagwriter.KEY_UNIT, raw_unit, UNIT_MIN, UNIT_MAX))
+    if tagwriter.quantise(unit) != value:
+        return (MALFORMED, "%s=%s quantises to %d, not the %d beside it"
+                % (tagwriter.KEY_UNIT, raw_unit, tagwriter.quantise(unit), value))
     return (SCORED, value)
 
 
@@ -169,7 +208,7 @@ def top(path, limit: int = TOP_DEFAULT) -> list:
         kind, detail = classify(way_id, tags)
         if kind != SCORED:
             continue
-        unit = float(tags.get(tagwriter.KEY_UNIT, detail) or 0.0)
+        unit = unit_or_none(tags[tagwriter.KEY_UNIT])
         lat, lon = middle(coords)
         rows.append({"way_id": way_id, "name": tags.get(NAME) or "", "highway": tags[HIGHWAY],
                      "lat": lat, "lon": lon, "scenic_score": detail, "scenic_score_unit": unit})

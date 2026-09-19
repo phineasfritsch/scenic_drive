@@ -1,0 +1,261 @@
+{
+ "meta": {
+  "derived_from": "services/etl/tests/fixtures/grid_top25.json",
+  "produced_by": "derived from grid_top25.json by T-0204's pre-review fixer - NOT a measurement",
+  "the_rule_it_pins": "a tie is NOT below: the comparison is `>= bound` is an offender, not `> bound`",
+  "tie_way_id": 44327906,
+  "what_it_is": "the grid window's 25 rows with the two allowlisted Mulholland ridge segments lowered 0.05 and way 44327906 set EXACTLY to the canyon window's tenth, 0.7284, so a TIE at the bound is a row the predicate has to rule on"
+ },
+ "rows": [
+  {
+   "highway": "secondary",
+   "lat": 34.1296596,
+   "lon": -118.4998398,
+   "name": "Mulholland Drive",
+   "rank": 1,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7284,
+   "way_id": 44327906
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1113595,
+   "lon": -118.3828132,
+   "name": "Crescent Drive",
+   "rank": 2,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7228,
+   "way_id": 13419334
+  },
+  {
+   "highway": "service",
+   "lat": 34.080065,
+   "lon": -118.5151432,
+   "name": "Sullivan Fire Road",
+   "rank": 3,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7227,
+   "way_id": 632613339
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1263936,
+   "lon": -118.4151307,
+   "name": "Mulholland Drive",
+   "rank": 4,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7226,
+   "way_id": 518410363
+  },
+  {
+   "highway": "service",
+   "lat": 34.0674501,
+   "lon": -118.5068254,
+   "name": "Sullivan Ridge Fire Road",
+   "rank": 5,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7215,
+   "way_id": 13290126
+  },
+  {
+   "highway": "unclassified",
+   "lat": 34.1259038,
+   "lon": -118.409856,
+   "name": "Franklin Canyon Drive",
+   "rank": 6,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7203,
+   "way_id": 13292286
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1086501,
+   "lon": -118.4487033,
+   "name": "Scenario Lane",
+   "rank": 7,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7201,
+   "way_id": 13379402
+  },
+  {
+   "highway": "residential",
+   "lat": 34.0712424,
+   "lon": -118.4942736,
+   "name": "Oakmont Street",
+   "rank": 8,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7189,
+   "way_id": 121304178
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1336279,
+   "lon": -118.4518827,
+   "name": "Beverly Glen Terrace",
+   "rank": 9,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7133,
+   "way_id": 13293766
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.1052697,
+   "lon": -118.5031927,
+   "name": "Mandeville Canyon Road",
+   "rank": 10,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7125,
+   "way_id": 13377650
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1133732,
+   "lon": -118.3804527,
+   "name": "Crescent Drive",
+   "rank": 11,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7121,
+   "way_id": 13419340
+  },
+  {
+   "highway": "service",
+   "lat": 34.0678878,
+   "lon": -118.5021595,
+   "name": "",
+   "rank": 12,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7118,
+   "way_id": 721642253
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1311342,
+   "lon": -118.4273289,
+   "name": "Mulholland Drive",
+   "rank": 13,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.71,
+   "way_id": 159524496
+  },
+  {
+   "highway": "service",
+   "lat": 34.0873105,
+   "lon": -118.448008,
+   "name": "",
+   "rank": 14,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7098,
+   "way_id": 386470272
+  },
+  {
+   "highway": "service",
+   "lat": 34.1242529,
+   "lon": -118.4248136,
+   "name": "",
+   "rank": 15,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7097,
+   "way_id": 822134900
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1220407,
+   "lon": -118.4275889,
+   "name": "Hutton Drive",
+   "rank": 16,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7086,
+   "way_id": 13361783
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1133671,
+   "lon": -118.3735867,
+   "name": "Laurel Canyon Boulevard",
+   "rank": 17,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7081,
+   "way_id": 399262414
+  },
+  {
+   "highway": "service",
+   "lat": 34.0533203,
+   "lon": -118.5092459,
+   "name": "Will Rogers State Park Road",
+   "rank": 18,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7079,
+   "way_id": 121254098
+  },
+  {
+   "highway": "residential",
+   "lat": 34.0913577,
+   "lon": -118.4221952,
+   "name": "Tower Road",
+   "rank": 19,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7064,
+   "way_id": 13312044
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1301122,
+   "lon": -118.4641816,
+   "name": "Mulholland Drive",
+   "rank": 20,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7064,
+   "way_id": 405362186
+  },
+  {
+   "highway": "service",
+   "lat": 34.1014135,
+   "lon": -118.4552866,
+   "name": "",
+   "rank": 21,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7057,
+   "way_id": 581817596
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1283035,
+   "lon": -118.4653262,
+   "name": "Antelo View Drive",
+   "rank": 22,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7049,
+   "way_id": 13326228
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1316406,
+   "lon": -118.411984,
+   "name": "Coldwater Canyon Lane",
+   "rank": 23,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7046,
+   "way_id": 13304980
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1290126,
+   "lon": -118.4141874,
+   "name": "Mulholland Drive",
+   "rank": 24,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.6861,
+   "way_id": 518410361
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1218964,
+   "lon": -118.3916787,
+   "name": "Mulholland Drive",
+   "rank": 25,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.6799,
+   "way_id": 787842196
+  }
+ ]
+}

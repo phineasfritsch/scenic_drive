@@ -45,7 +45,7 @@ def test_a_road_with_no_score_is_counted_as_a_number_and_refuses(tmp_path):
 
 def test_a_motorway_with_a_score_above_zero_is_counted_as_a_number_and_refuses(tmp_path):
     """Clause two, the class half: motorway and trunk score 0 - that is the invariant, not an opinion."""
-    path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="3"))])
+    path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="3", scenic_score_unit="0.3000"))])
     counts = scenecheck.counts(path)
     assert counts["gated_scored"] == 1
     assert scenecheck.main([str(path)]) == 4
@@ -76,7 +76,7 @@ def test_a_motorway_at_the_smallest_score_above_zero_is_counted_and_refuses(tmp_
     checker that only objected above 1 - or above 2, or 5 - would count every one of them and still let a
     shipped PBF through with a motorway at 1. The smallest violation is the one that has to be counted.
     """
-    path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="1"))])
+    path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="1", scenic_score_unit="0.1000"))])
     assert scenecheck.counts(path)["gated_scored"] == 1
     assert scenecheck.main([str(path)]) == 4
 
@@ -84,7 +84,8 @@ def test_a_motorway_at_the_smallest_score_above_zero_is_counted_and_refuses(tmp_
 def test_a_private_way_at_the_smallest_score_above_zero_is_counted_and_refuses(tmp_path):
     """The gate half of the same boundary: `access=private` at 1 is a violation, not a rounding artefact."""
     path = osm(tmp_path, [(1, scored()),
-                          (2, scored(highway="residential", access="private", scenic_score="1"))])
+                          (2, scored(highway="residential", access="private", scenic_score="1",
+                                 scenic_score_unit="0.1000"))])
     assert scenecheck.counts(path)["gated_scored"] == 1
     assert scenecheck.main([str(path)]) == 4
 
@@ -92,7 +93,8 @@ def test_a_private_way_at_the_smallest_score_above_zero_is_counted_and_refuses(t
 def test_a_gated_way_scored_zero_is_not_a_violation(tmp_path):
     """The gates force 0.0; 0 is what a refused-for-safety road is allowed to carry."""
     path = osm(tmp_path, [(1, scored()),
-                          (2, scored(highway="track", scenic_score="0", scenic_gate="track"))])
+                          (2, scored(highway="track", scenic_score="0", scenic_score_unit="0.0000",
+                                 scenic_gate="track"))])
     assert scenecheck.counts(path)["gated_scored"] == 0
     assert scenecheck.main([str(path)]) == 0
 
@@ -116,7 +118,7 @@ def test_a_way_with_no_highway_tag_is_counted_as_neither(tmp_path):
 
 
 def test_a_clean_file_reports_both_clauses_zero_and_exits_zero(tmp_path, capsys):
-    path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="0"))])
+    path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="0", scenic_score_unit="0.0000"))])
     assert scenecheck.main([str(path)]) == 0
     assert capsys.readouterr().out.splitlines()[0] == \
         "CHECK4 null_score=0 gated_scored=0 malformed=0 scored=2 refused=0 not_a_road=0"
@@ -152,13 +154,20 @@ def test_the_gate_rules_are_the_assemblys_own_and_not_a_second_copy(tmp_path):
 # The writer clamps to 0..10; the CHECKER reads the bytes that ship and may not assume the writer wrote them.
 
 
-def test_a_score_above_the_range_the_router_holds_is_malformed_and_does_not_rank(tmp_path):
-    """A tertiary tagged 42 was counted as `scored` and ranked #1 in the read the owner makes."""
+def test_a_score_above_the_range_the_router_holds_is_malformed_and_does_not_rank(tmp_path, capsys):
+    """A tertiary tagged 42 was counted as `scored` and ranked #1 in the read the owner makes.
+
+    The REASON is asserted, not only the count: T-0204 R5's unit clause would also call this way malformed
+    (no unit in 0..1 quantises to 42), so the count alone cannot tell the range clause from its neighbour,
+    and a checker that had lost the range clause would still print a 1 here. The way is named for what is
+    actually wrong with it.
+    """
     path = osm(tmp_path, [(1, scored()), (2, scored(name="Overbright Street", scenic_score="42"))])
     found = scenecheck.counts(path)
     assert (found["malformed"], found["scored"]) == (1, 1)
     assert [row["way_id"] for row in scenecheck.top(path, 5)] == [1]
     assert scenecheck.main([str(path)]) == 4
+    assert "way 2 scenic_score=42: outside the 0..10 the router holds" in capsys.readouterr().err
 
 
 def test_a_negative_score_is_malformed_and_does_not_slip_past_the_gate_clause(tmp_path):
@@ -202,10 +211,15 @@ def test_the_range_is_the_writers_own_and_not_a_second_copy(tmp_path, monkeypatc
 
     An int cannot be asserted with `is` the way `gate_reason` is (0 and 10 are interned), so the binding is
     demonstrated the only way that means anything: move the writer's bound and the checker moves with it.
+
+    The quantiser moves with them (T-0204 R5): the unit below is 0.12, which is a score of 12 only in a
+    writer that scales by 100, so both of the writer's numbers have to be the writer's own for this way to
+    stop being malformed.
     """
-    path = osm(tmp_path, [(1, scored(scenic_score="12", scenic_score_unit="1.2000"))])
+    path = osm(tmp_path, [(1, scored(scenic_score="12", scenic_score_unit="0.1200"))])
     assert scenecheck.counts(path)["malformed"] == 1
     monkeypatch.setattr(tagwriter, "SCORE_MAX", 42)
+    monkeypatch.setattr(tagwriter, "SCORE_SCALE", 100)
     assert scenecheck.counts(path)["malformed"] == 0
 
 
