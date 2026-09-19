@@ -24,6 +24,9 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SRC = ROOT / "Sources" / "ScenicKit" / "Loop" / "RetraceDetector.swift"
+
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
+SUBJECT_MODULES = ("Sources/ScenicKit/Loop/RetraceDetector.swift",)
 # BOTH suites, because --prove-vacuity has to empty every test that could catch a mutation. When the grid
 # tests were split into their own file to stay under the 300-line cap, the proof kept emptying only the
 # first one and correctly reported FAILED with 7 mutations still caught - the proof caught the split before

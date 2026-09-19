@@ -60,6 +60,13 @@ jobs:
           apt-get install -y -q --no-install-recommends git ca-certificates curl python3 python3-pytest python3-yaml libsqlite3-dev sqlite3 >/dev/null
           git --version && python3 --version && python3 -m pytest --version && python3 -c "import yaml; print('PyYAML ' + yaml.__version__)" && swift --version | head -1
       - uses: actions/checkout@v4
+        with:
+          # P-PROC-06 asks `git merge-base origin/main HEAD` what this branch ADDS. checkout@v4's default is
+          # depth 1 - a clone with no merge base with anything - so that pin refused (exit 2) on every pull
+          # request run until this line landed. A check never mutates the repository it reads, so the gate
+          # does not fetch its own base; the clone is made deep here, in the job that runs ops/check-pins.
+          # pins-source-only SKIPS this pin (anchor: process), so its checkout stays shallow and fast.
+          fetch-depth: 0
       - name: git safety + hooks
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"

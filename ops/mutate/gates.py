@@ -46,6 +46,11 @@ from gates_tree import HARNESS, discover_test_files, not_at_head  # noqa: E402
 
 SUBJECTS = (GATES, DECISION, REASON, CONSIDERED)
 
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
+SUBJECT_MODULES = ("Sources/ScenicKit/Gates/Gates.swift", "Sources/ScenicKit/Gates/GateDecision.swift",
+                   "Sources/ScenicKit/Gates/GateReason.swift",
+                   "Sources/ScenicKit/Gates/ConsideredTags.swift")
+
 # Inside `.build/`, which .gitignore already covers. As `.build-mutate-gates` it left an untracked directory
 # behind after every run, and ops/lib/check-worktrees only reports untracked paths inside the task's
 # `touches:`, so nothing complained. Raised on the first review of PR #82.

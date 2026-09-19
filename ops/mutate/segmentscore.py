@@ -39,6 +39,10 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCORE = ROOT / "Sources" / "ScenicKit" / "Scoring" / "SegmentScore.swift"
 TERMS = ROOT / "Sources" / "ScenicKit" / "Scoring" / "SegmentTerms.swift"
+
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
+SUBJECT_MODULES = ("Sources/ScenicKit/Scoring/SegmentScore.swift",
+                   "Sources/ScenicKit/Scoring/SegmentTerms.swift")
 # Under .artifacts/, which .gitignore covers. `.build-mutate-segmentscore` did NOT match .gitignore's
 # `.build/`, so every run left an untracked directory behind and `ops/sane` then counted this worktree as
 # dirty - a harness that reports on a tree it has itself made un-sane.
