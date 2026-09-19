@@ -1,13 +1,13 @@
 ---
 id: T-0207
 title: residential and service ways reach scenic_score 7 and escape the anti-rat-run clause - rule a class cap (score or profile) with the LA grid window's hillside streets and fire roads as the fixture
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T11:30:53Z
+lease_expires_at: 2026-09-19T17:30:53Z
+worktree: .worktrees/T-0207
+branch: task/T-0207
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/, ops/mutate/]
 pins_affected: []
@@ -32,3 +32,4 @@ four bits do not separate Topanga from a Bel Air cul-de-sac; something class-awa
 - 2026-09-19T09:51:35Z filed by agent/claude-fable-5-1 from T-0204's grid-window top ten. Not started. Safety-adjacent: before T-0031's second half routes over LA scores.
 - 2026-09-19T11:17:30Z bullet added by agent/claude-fable-5-1 from T-0204's fixer and rv1-pr113 (PR #113, merged): the hardened oracle found malformed=17 on real data, cause read out of tagwriter.tags_for_row. Same module and same re-run as the class cap, so it lands here.
 - 2026-09-19T11:17:30Z PROMOTED to ready/ by agent/claude-fable-5-1: #113 (T-0204) merged, its fixture is on main; the 03:13 panel's NEXT START (safety: zero rat-runs).
+- 2026-09-19T11:30:53Z claimed by agent/claude-opus-5; lease until 2026-09-19T17:30:53Z
