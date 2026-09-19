@@ -22,6 +22,9 @@ import SwiftUI
 /// reason (`HandoffFailureCard.clipboardText`): a distance with no qualification beside it is read as
 /// an ETA.
 ///
+/// The sentence itself is `HandoffDrive.timingSentence`, per drive, in the Linux target that has a test
+/// bundle - this view renders it and owns no copy of it (T-0210, and the pre-review mutant pass's M3a).
+///
 /// Text styles only, no point size, so both lines grow with Dynamic Type; `fixedSize` vertically so
 /// the largest accessibility sizes wrap instead of truncating. `fgMuted` is the token for secondary
 /// lines under a title, which is what these are - `primary` is a button fill and never a sentence on
@@ -42,30 +45,6 @@ struct DriveFacts: View {
         "About \(StraightLineDistance.wholeMiles(for: drive)) miles as the crow flies, pin to pin. The roads are longer."
     }
 
-    /// What KIND of drive this is, in words, per drive - and where the real time comes from.
-    ///
-    /// NO NUMBER. Nobody has driven either route and nothing in this repository has timed one, so a
-    /// figure here would be invented. What can be said honestly is the shape of the outing, which is
-    /// the question a reader with 25 minutes is actually asking, and that the answer with minutes in
-    /// it arrives one tap away in Apple Maps.
-    ///
-    /// Per drive, because the two are not the same outing: the Peninsula loop's straight line is more
-    /// than twice the LA loop's (112 km of chain against 47), so whatever the LA loop is, that one is
-    /// longer. The comparison is the only claim made and it is a comparison of measured lines, not of
-    /// clocks.
-    ///
-    /// The failure card does NOT render this sentence: its second half promises a time from an app
-    /// that just refused to open. `HandoffFailureCard.timingNote` is that surface's own sentence.
-    static func timing(for drive: HandoffDrive) -> String {
-        switch drive {
-        case .santaMonicaMountains:
-            return "Plan an afternoon, not a commute. Apple Maps gives you the real time when it opens."
-        case .skyline:
-            return "Plan a long afternoon, not a commute - this one runs further than the LA loop. "
-                + "Apple Maps gives you the real time when it opens."
-        }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(Self.straightLine(for: drive))
@@ -74,7 +53,10 @@ struct DriveFacts: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("home.distance")
 
-            Text(Self.timing(for: drive))
+            // The sentence is `HandoffDrive.timingSentence`, not a literal here: this target has no test
+            // bundle and no compiler on the authoring box, and a number typed into a literal on this side
+            // ships with every gate green. `Handoff` has a test bundle; the words live there.
+            Text(drive.timingSentence)
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)

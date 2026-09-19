@@ -50,13 +50,6 @@ struct HandoffFailureCard: View {
     /// UI test finds one `home.error.copy` either way.
     @State private var hasCopied = false
 
-    /// This surface's OWN timing sentence.
-    ///
-    /// `DriveFacts.timing(for:)` ends "Apple Maps gives you the real time when it opens", which is
-    /// exactly the promise this card cannot keep: it is on screen because Apple Maps did not open. So
-    /// the two surfaces say different things, and the one sentence that served both is gone.
-    static let timingNote = "Apple Maps did not open, so nothing here can promise a time."
-
     /// What the Copy button puts on the clipboard: THE URL FIRST, then the roads, the straight line
     /// and the timing sentence, one per line.
     ///
@@ -65,14 +58,20 @@ struct HandoffFailureCard: View {
     /// tapped link are one construction over one drive, and `HandoffDriveClipboardPayloadTests` is
     /// what holds the order on Linux, where this file has no compiler and no test bundle.
     ///
-    /// The paste carries the HOME screen's timing sentence, not `timingNote`: it travels to somebody
-    /// who will open Maps themselves from the first line, and "Apple Maps did not open" would be this
-    /// phone's failure reported as theirs. The distance never travels without it - a bare distance in
-    /// a message is read as an ETA.
+    /// The paste carries the HOME screen's sentence, `drive.timingSentence`, not the card's own: it
+    /// travels to somebody who will open Maps themselves from the first line, and "Apple Maps did not
+    /// open" would be this phone's failure reported as theirs. The distance never travels without it -
+    /// a bare distance in a message is read as an ETA.
+    ///
+    /// Every argument is read off `drive`, the selected drive this card was handed. Passing a hard-coded
+    /// case to any of them - `HandoffDrive.skyline.clipboardPayload(`, `DriveFacts.straightLine(for:
+    /// .santaMonicaMountains)` - compiles, renders, and ships the wrong drive's link under the right
+    /// drive's roads; that is the pre-review mutant pass's M1a, and `ops/lib/check-drive-copy` is what
+    /// refuses it, because no test in this repository can see this file.
     var clipboardText: String {
         drive.clipboardPayload(roadList: roadList,
                                straightLine: DriveFacts.straightLine(for: drive),
-                               timing: DriveFacts.timing(for: drive))
+                               timing: drive.timingSentence)
     }
 
     var body: some View {
@@ -89,7 +88,10 @@ struct HandoffFailureCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("home.error.route")
 
-            Text(Self.timingNote)
+            // THIS SURFACE'S OWN SENTENCE, from `Handoff`: `timingSentence` ends in a promise this card
+            // cannot keep - it is on screen because Apple Maps did not open. The two sentences are
+            // properties of HandoffDrive and HandoffDriveTimingSentenceTests requires them to differ.
+            Text(drive.failureTimingSentence)
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)

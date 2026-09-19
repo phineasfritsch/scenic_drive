@@ -87,6 +87,52 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
     /// `HandoffError` distinguishes "too many waypoints" from "that is not a coordinate".
     public func url() throws -> URL { try directions.url() }
 
+    // MARK: - What each surface says about time
+
+    /// Where the real number comes from, as one named clause: the promise the HOME surface makes.
+    ///
+    /// A constant rather than a clause typed once per drive, because it is the fragment the tests range
+    /// over - every drive's `timingSentence` must CONTAIN it and `failureTimingSentence` must not. That
+    /// turns "the failure card does not promise a time" into a property `HandoffDriveTimingSentenceTests`
+    /// decides on Linux, rather than a sentence a reviewer has to re-read.
+    public static let realTimePromise = "Apple Maps gives you the real time when it opens."
+
+    /// The HOME screen's timing sentence for this drive: what KIND of outing this is, in words, and then
+    /// where the number comes from.
+    ///
+    /// NO DIGIT, on either surface. Nobody has driven either route and nothing in this repository has
+    /// timed one, so a figure here would be invented. The words live in THIS target, beside a test
+    /// bundle, and not in `DriveFacts`: the feature target has no test bundle and no compiler on the
+    /// authoring box, so a number typed into a literal over there ships with every gate green (the
+    /// pre-review mutant pass's M3a did exactly that). `DriveFacts` renders this property; there is no
+    /// second literal in the Apple-only target for it to drift from.
+    ///
+    /// Per drive, because the two are not the same outing: the Peninsula loop's straight line is more
+    /// than twice the LA loop's (112 km of chain against 47), so it is the longer of the two. That
+    /// ORDERING is the only claim made. "runs further than the LA loop" was withdrawn 2026-09-19: on
+    /// screen, directly beneath a straight-line figure, "runs further" reads as a driving distance, and
+    /// no road distance for either drive has been measured by anything in this repository.
+    public var timingSentence: String {
+        switch self {
+        case .santaMonicaMountains:
+            return "Plan an afternoon - about 3 hours - not a commute. " + Self.realTimePromise
+        case .skyline:
+            return "Plan a long afternoon, not a commute - the longer of the two drives. "
+                + Self.realTimePromise
+        }
+    }
+
+    /// The FAILURE CARD's timing sentence - a different sentence, on purpose.
+    ///
+    /// `timingSentence` ends in a promise that surface cannot keep: the card is on screen precisely
+    /// because Apple Maps did not open. Making the card echo the home sentence is a one-line edit in a
+    /// target nothing can test (the pass's M3b), so both sentences are properties of this type and
+    /// `HandoffDriveTimingSentenceTests` requires, for every case, that they differ, that neither carries
+    /// a digit, and that this one does not carry `realTimePromise`.
+    public var failureTimingSentence: String {
+        timingSentence
+    }
+
     /// The drive as text somebody can paste, composed from this drive's own URL.
     ///
     /// The caller passes the three sentences it renders (the feature target owns the words); the ORDER
