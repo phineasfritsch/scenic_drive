@@ -33,3 +33,133 @@ four bits do not separate Topanga from a Bel Air cul-de-sac; something class-awa
 - 2026-09-19T11:17:30Z bullet added by agent/claude-fable-5-1 from T-0204's fixer and rv1-pr113 (PR #113, merged): the hardened oracle found malformed=17 on real data, cause read out of tagwriter.tags_for_row. Same module and same re-run as the class cap, so it lands here.
 - 2026-09-19T11:17:30Z PROMOTED to ready/ by agent/claude-fable-5-1: #113 (T-0204) merged, its fixture is on main; the 03:13 panel's NEXT START (safety: zero rat-runs).
 - 2026-09-19T11:30:53Z claimed by agent/claude-opus-5; lease until 2026-09-19T17:30:53Z
+- 2026-09-19T11:38:11Z MEASURED FIRST by agent/claude-opus-5, before any predicate, over the three real
+  scored tables in the MAIN checkout (`services/etl/work/la/window-scored.json`,
+  `services/etl/work/la-grid/grid-{a,b}-scored.json`; throwaway reader `services/etl/work/measure_T0207.py`,
+  gitignored). Populations: canyon 11,740 · grid-a 11,239 · grid-b 23,474 = **46,453 scored rows**. Per class,
+  over all three, `n / max unit / ways quantising to >= 7 / ways >= 4`:
+
+      service        24020  0.7227  ge7=109  ge4=2972
+      residential     9901  0.7228  ge7=131  ge4=3383
+      secondary       3677  0.7367  ge7=42   ge4=664
+      primary         2750  0.7722  ge7=11   ge4=235
+      tertiary        2371  0.7563  ge7=33   ge4=463
+      track           1154  0.0000  ge7=0    ge4=0     (gated: assemble.GATE_TRACK -> GATE_SCORE)
+      motorway_link    635  0.0000  ge7=0    ge4=0
+      unclassified     570  0.7203  ge7=5    ge4=102
+      motorway         501  0.0000  ge7=0    ge4=0
+      trunk            474  0.0000  ge7=0    ge4=0
+      primary_link     189  0.5649  ge7=0    ge4=51
+      secondary_link   132  0.5952  ge7=0    ge4=34
+      tertiary_link     42  0.4546  ge7=0    ge4=6
+      trunk_link        24  0.0000  ge7=0    ge4=0
+      living_street     11  0.5805  ge7=0    ge4=2
+      footway            2  0.0000  ge7=0    ge4=0
+
+  So **240 of the 46,453 ways that reach the router's high band are residential or service** (131 + 109), and
+  five more are unclassified. Top five of each offending class by unit, by name:
+
+      residential  0.7228 13419334 Crescent Drive · 0.7201 13379402 Scenario Lane · 0.7189 121304178 Oakmont
+                   Street · 0.7133 13293766 Beverly Glen Terrace · 0.7121 13419340 Crescent Drive
+      service      0.7227 632613339 Sullivan Fire Road · 0.7215 13290126 Sullivan Ridge Fire Road ·
+                   0.7118 721642253 (unnamed) · 0.7098 386470272 (unnamed) · 0.7097 822134900 (unnamed)
+      unclassified 0.7203 13292286 Franklin Canyon Drive · 0.7141 13437453 Ramera Motorway ·
+                   0.6925 13292289 Franklin Canyon Drive · 0.6878 24561984 Lake Drive ·
+                   0.6636 435695311 Temescal Canyon Road
+      living_street max 0.5805 over 11 ways - NONE reaches 7, and none reaches 6
+      track         all 1154 already 0.0 (gated, safety - not this task's business)
+
+  The quantise mismatch (R2) measured on the same three tables with the same reader: canyon 2, grid-a 1,
+  grid-b 14 = **17 of 46,453**, every one of them a row whose unrounded score is a hair under a `.x5`
+  fourth-decimal boundary that the unit's `%.4f` rounds UP: way 13332407 (Yoakum Drive) 0.5499510668 ->
+  `scenic_score=5` beside `scenic_score_unit=0.5500`, way 13377783 0.4499826450 -> 4 beside 0.4500, way
+  13359647 0.1499689499 -> 1 beside 0.1500, way 170301018 0.0499647216 -> 0 beside 0.0500.
+- 2026-09-19T11:38:11Z RULED by agent/claude-opus-5, before code.
+
+  **R1 WHERE THE CAP LIVES: `assemble.scored_row`, beside the gate - NOT `score.py`, NOT the quantiser, NOT
+  the profile.** The plan's block is `road_class == RESIDENTIAL && scenic_score < 7 -> 0.5`: the demotion is
+  written to fire on a residential way that is NOT in the high band, so a residential way that reaches 7
+  collects `bands.high` and escapes the anti-rat-run clause entirely. 131 real residential ways do exactly
+  that. Of the three candidates the task names:
+
+  - (b) a ceiling at quantisation is REFUSED: `tagwriter` writes `scenic_score` and `scenic_score_unit` from
+    one number and T-0204's hardened oracle requires `quantise(unit) == score`; a ceiling applied to the
+    integer alone ships 6 beside 0.7228 and is malformed on its face. R2 below makes that clause tighter, not
+    looser.
+  - (c) changing only the routing clause is REFUSED as this task's fix, because `services/routing/profiles/*.json`
+    and `services/api/src/customModel.ts` are serial/other files (T-0190/T-0209) and because the corpus would
+    still SAY a Bel Air cul-de-sac is a 7. RECORDED FOR T-0190/T-0209 anyway (below), because the profile
+    clause is still too narrow.
+  - (a) a class factor in `score.py` is REFUSED for two reasons. First, parity: `score.score` is the symbol
+    `services/etl/tests/test_assemble.py::test_gate_scenickit_parity_to_1e_6_over_the_shared_scoring_fixture`
+    drives through `assemble.score_record` against the same 1000-row hand-transcribed fixture
+    `Tests/ScenicKitTests/SegmentScoreContractTests.swift` reads, and `Sources/ScenicKit/Scoring/SegmentScore.swift`
+    is that formula and nothing else. A class factor there is a Swift change too, and P-PROD-01's statement
+    ("one fixture set through all three") is what makes the two implementations one. Second, a MULTIPLIER
+    cannot bound anything by construction: `score.score` returns up to 1.0, so any factor >= 0.65 still
+    permits a 7 and any factor below it is a number chosen to fit today's maximum.
+
+  So the cap is a CEILING (`min`) on the table's `score`, applied in `assemble.scored_row` AFTER
+  `score_record` has run - exactly where and why the safety gate already forces `GATE_SCORE` (assemble.py's
+  own ruling: "score.py:29-31 puts them in ScenicKit.Gates and out of the scorer ... So a gate here forces
+  `score` to GATE_SCORE AFTER the scorer has run"). PARITY IS THEREFORE UNTOUCHED: `score.py` and
+  `SegmentScore.swift` keep the identical formula, the parity gate drives `score_record` which is upstream of
+  the ceiling, and NO Swift change is required by this task. What ScenicKit consumes downstream is
+  `ScoredEdge.scenic_score`, the 0..10 column the corpus ships, so the ceiling reaches the router and the app
+  through the data, which is where a corpus policy belongs. STILL OPEN if `SegmentScore` is ever made a
+  PRODUCER of the shipped column rather than the formula's oracle: the ceiling moves with it.
+
+  **WHAT THE CAP IS, per class** (`assemble.CLASS_SCORE_CEILING`):
+
+      residential    0.6499   living_street  0.6499   service  0.0
+
+  0.6499 is the largest value the tag can carry at its four decimals that `tagwriter.quantise` sends BELOW
+  the router's high band: `quantise(0.6499) = floor(6.499 + 0.5) = 6`, and 0.6500 would be 7. It is bound to
+  the quantiser by a test rather than asserted in prose. `living_street` is capped although not one of its 11
+  ways reaches 6 today: the class is the plan's rat-run class by meaning, and a cap that only exists where the
+  data already complies is a cap that has never been red - the fixture row drives it.
+
+  **SERVICE: zero-class, not a cap** (T-0168 STILL OPEN 3, 312,645 LA ways). A `highway=service` way is a
+  driveway, a parking aisle, a fire road or an alley: it is never a scenic DRIVE, and the measurement agrees -
+  the five highest-scoring named ones are two fire roads and three unnamed stubs. Capping service at 0.6499
+  would leave 559 of them at 6 and 2,972 at or above 4, collecting `bands.mid` with NO demotion clause of any
+  kind (the Worker's clause names RESIDENTIAL only), which is the same defect one band down. So service scores
+  0.0, for the same reason and with the same consequence as a motorway: **penalized, not excluded** - the
+  invariant holds, a service way stays routable, a park entrance or a driveway is still drivable to a
+  destination on it, it is simply never a reason to lengthen a drive. This is expressed as a ceiling of 0.0 in
+  the same table rather than as a new member of `byways.SCENIC_ZERO_CLASSES`, because that set lives inside
+  `score.score` and is parity-bound (see R1), and because the two facts are different: motorway/trunk are the
+  plan's zero classes, service is this corpus's.
+
+  **UNCLASSIFIED: NOT capped, ruled explicitly.** GraphHopper's `road_class` for `highway=unclassified` is not
+  RESIDENTIAL, the plan's rat-run clause never named it, and the measurement says it is not a rat-run class
+  here: 5 of 570 reach 7 and the top of them are Franklin Canyon Drive and Temescal Canyon Road - genuine
+  named canyon drives, the roads this product exists to find. Capping it would delete rank 8 of the grid
+  window's top ten to buy nothing. Franklin Canyon Drive 13292286 is asserted UNCHANGED at 7 in the test, so
+  an agent who later extends the ceiling table over `unclassified` turns it red by name.
+
+  **A GENUINELY SCENIC RESIDENTIAL ROAD, ruled honestly.** It exists - Crescent Drive really is pretty, and
+  0.7228 is not a measurement error. The owner's bar is ZERO rat-runs: one cut-through past a school and the
+  app is deleted. A residential street is therefore never routed onto FOR BEAUTY, and the cap says so out
+  loud: a residential way can still carry up to 6, still be routed through when it is the way to the
+  destination, and still be demoted by the profile's 0.5 clause for a detour. What it loses is the ability to
+  be the REASON for a detour. That is the trade, taken deliberately, and it is the safety-conservative
+  direction.
+
+  **RECORDED FOR T-0190/T-0209** (the profiles and the Worker, not mine): the anti-rat-run clause is
+  `road_class == RESIDENTIAL` only. With this cap no residential way reaches 7 so the clause now always fires
+  on them, but LIVING_STREET and SERVICE have no demotion clause at all in `customModel.ts:219`. The corpus
+  answer here (service 0.0, living_street <= 6) makes that gap harmless today; the clause should still name
+  all three, and the band thresholds (`scenic_score >= 7` / `>= 4`) must stay where they are or 0.6499 stops
+  meaning what it means - a second anchor for the same number, which is why the test binds the ceiling to
+  `tagwriter.quantise` and to the literal 7.
+
+  **R2 THE QUANTISE MISMATCH.** `tagwriter.tags_for_row` computes `quantise(row["score"])` from the UNROUNDED
+  score and `fixed(row["score"])` at four decimals from the same source, so the two tags are derived from two
+  different numbers and disagree whenever rounding to four decimals crosses a `.x5` boundary - 17 real ways.
+  FIX: the unit STRING is produced first and the integer is quantised from the number that string carries
+  (`quantise(float(unit))`), so the way ships ONE number written twice and the oracle's `quantise(unit) ==
+  score` clause is true by construction rather than by luck. Read-back row 13332407 (Yoakum Drive,
+  residential, 0.5499510668) is the boundary fixture: 5 today, 6 after. It is also residential, and 0.5499 is
+  below the ceiling, so the two rulings are independent on that row and the fixture proves both.
+

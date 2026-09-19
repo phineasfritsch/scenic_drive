@@ -1,0 +1,237 @@
+{
+  "meta": {
+    "produced_by": "services/etl/work/build_fixture_T0207.py (T-0207), 2026-09-19",
+    "read_from": [
+      "services/etl/work/la/window-{doc,scored}.json",
+      "services/etl/work/la-grid/grid-{a,b}-{doc,scored}.json - the MAIN checkout's real artefacts, T-0204's run"
+    ],
+    "recorded_score": "`score` exactly as T-0204's assembly wrote it, BEFORE T-0207's class ceiling. The tests re-derive it through assemble.score_record from the terms here and refuse any drift, so this file cannot claim a number the scorer disowns.",
+    "scored_populations": {
+      "canyon": 11740,
+      "grid-a": 11239,
+      "grid-b": 23474
+    }
+  },
+  "rows": [
+    {
+      "byway_status": null,
+      "highway": "residential",
+      "name": "Crescent Drive",
+      "recorded_score": 0.7228119895589408,
+      "surface": "asphalt",
+      "terms": {
+        "canopy": 0.888135593220339,
+        "curvature": 0.9951325874372302,
+        "elevation_gain": 0.9880847502422694,
+        "furniture": 0.2814289489912783,
+        "impervious": 0.10508474576271186,
+        "points_of_interest": 0.0,
+        "relief": 0.9715663818165801,
+        "sinuosity": 0.9618477607801451,
+        "speed_fit": 0.375,
+        "water": 0.0
+      },
+      "way_id": 13419334,
+      "why": "offender: the grid window's highest residential",
+      "window": "grid-b"
+    },
+    {
+      "byway_status": null,
+      "highway": "service",
+      "name": "Sullivan Fire Road",
+      "recorded_score": 0.7226769874120684,
+      "surface": "paved",
+      "terms": {
+        "canopy": 0.9929378531073446,
+        "curvature": 0.9960512868159435,
+        "elevation_gain": 0.9933568707609403,
+        "furniture": 0.29764006317941094,
+        "impervious": 0.007062146892655367,
+        "points_of_interest": 0.0,
+        "relief": 0.9780265725169562,
+        "sinuosity": 0.8451925904145839,
+        "speed_fit": 0.0,
+        "water": 0.0
+      },
+      "way_id": 632613339,
+      "why": "offender: the highest service way, a fire road",
+      "window": "grid-a"
+    },
+    {
+      "byway_status": null,
+      "highway": "service",
+      "name": "Sullivan Ridge Fire Road",
+      "recorded_score": 0.7215474049234125,
+      "surface": "paved",
+      "terms": {
+        "canopy": 0.9681194511702986,
+        "curvature": 0.999024435566292,
+        "elevation_gain": 0.9975378611911178,
+        "furniture": 0.29764006317941094,
+        "impervious": 0.027037933817594836,
+        "points_of_interest": 0.0,
+        "relief": 0.9941001579485274,
+        "sinuosity": 0.8854748603351955,
+        "speed_fit": 0.0,
+        "water": 0.0
+      },
+      "way_id": 13290126,
+      "why": "offender: the second fire road",
+      "window": "grid-a"
+    },
+    {
+      "byway_status": null,
+      "highway": "residential",
+      "name": "Scenario Lane",
+      "recorded_score": 0.7201138289330123,
+      "surface": "asphalt",
+      "terms": {
+        "canopy": 0.8488700564971752,
+        "curvature": 0.9921372566293719,
+        "elevation_gain": 0.9942516077878601,
+        "furniture": 0.2814289489912783,
+        "impervious": 0.1172316384180791,
+        "points_of_interest": 0.0,
+        "relief": 0.9913443749449388,
+        "sinuosity": 0.9492304848176735,
+        "speed_fit": 0.375,
+        "water": 0.03389830508474576
+      },
+      "way_id": 13379402,
+      "why": "offender: residential",
+      "window": "grid-b"
+    },
+    {
+      "byway_status": null,
+      "highway": "residential",
+      "name": "Oakmont Street",
+      "recorded_score": 0.71892477703659,
+      "surface": "asphalt",
+      "terms": {
+        "canopy": 0.879472693032015,
+        "curvature": 0.9903837220105919,
+        "elevation_gain": 0.9662268884140109,
+        "furniture": 0.29764006317941094,
+        "impervious": 0.12052730696798493,
+        "points_of_interest": 0.0,
+        "relief": 0.9835083155254112,
+        "sinuosity": 0.9797608546505929,
+        "speed_fit": 0.375,
+        "water": 0.0
+      },
+      "way_id": 121304178,
+      "why": "offender: residential",
+      "window": "grid-a"
+    },
+    {
+      "byway_status": null,
+      "highway": "secondary",
+      "name": "Mulholland Drive",
+      "recorded_score": 0.7360888849969671,
+      "surface": "asphalt",
+      "terms": {
+        "canopy": 0.9096045197740112,
+        "curvature": 0.9050083693066691,
+        "elevation_gain": 0.9509955070037882,
+        "furniture": 0.2814289489912783,
+        "impervious": 0.07627118644067797,
+        "points_of_interest": 0.0,
+        "relief": 0.9203374152057088,
+        "sinuosity": 0.9487220964089291,
+        "speed_fit": 0.875,
+        "water": 0.0
+      },
+      "way_id": 518410361,
+      "why": "control: the grid window's rank 1, secondary - MUST NOT MOVE",
+      "window": "grid-b"
+    },
+    {
+      "byway_status": "E",
+      "highway": "primary",
+      "name": "Topanga Canyon Boulevard",
+      "recorded_score": 0.7721812994600965,
+      "surface": "asphalt",
+      "terms": {
+        "canopy": 0.8894774011299436,
+        "curvature": 0.9863924608067641,
+        "elevation_gain": 0.996521049850273,
+        "furniture": 0.4594856438259644,
+        "impervious": 0.048375706214689264,
+        "points_of_interest": 0.0,
+        "relief": 0.986480535494099,
+        "sinuosity": 0.6802103695429582,
+        "speed_fit": 0.8144880000000001,
+        "water": 0.0
+      },
+      "way_id": 74344132,
+      "why": "control: the canyon window's rank 1, primary, ELIGIBLE byway - MUST NOT MOVE",
+      "window": "canyon"
+    },
+    {
+      "byway_status": null,
+      "highway": "unclassified",
+      "name": "Franklin Canyon Drive",
+      "recorded_score": 0.720312579392273,
+      "surface": "asphalt",
+      "terms": {
+        "canopy": 0.9531880548829701,
+        "curvature": 0.9958814201391948,
+        "elevation_gain": 0.9945159016826711,
+        "furniture": 0.2814289489912783,
+        "impervious": 0.04600484261501211,
+        "points_of_interest": 0.0,
+        "relief": 0.9910360320676592,
+        "sinuosity": 0.9488607477931321,
+        "speed_fit": 0.0,
+        "water": 0.0
+      },
+      "way_id": 13292286,
+      "why": "control: unclassified, ruled NOT capped - MUST NOT MOVE",
+      "window": "grid-b"
+    },
+    {
+      "byway_status": null,
+      "highway": "residential",
+      "name": "Yoakum Drive",
+      "recorded_score": 0.5499510668172981,
+      "surface": null,
+      "terms": {
+        "canopy": 0.9459241323648103,
+        "curvature": 0.9622720465157255,
+        "elevation_gain": 0.3619504889437054,
+        "furniture": 0.2814289489912783,
+        "impervious": 0.05004035512510089,
+        "points_of_interest": 0.0,
+        "relief": 0.9964981058937539,
+        "sinuosity": 0.7504506169986597,
+        "speed_fit": 0.375,
+        "water": 0.0
+      },
+      "way_id": 13332407,
+      "why": "R2 boundary: 0.5499510668, whose unit rounds up across the .x5 boundary",
+      "window": "grid-b"
+    },
+    {
+      "byway_status": null,
+      "highway": "living_street",
+      "name": "Crescent Drive's terms as a living_street",
+      "recorded_score": null,
+      "surface": "asphalt",
+      "terms": {
+        "canopy": 0.888135593220339,
+        "curvature": 0.9951325874372302,
+        "elevation_gain": 0.9880847502422694,
+        "furniture": 0.2814289489912783,
+        "impervious": 0.10508474576271186,
+        "points_of_interest": 0.0,
+        "relief": 0.9715663818165801,
+        "sinuosity": 0.9618477607801451,
+        "speed_fit": 0.375,
+        "water": 0.0
+      },
+      "way_id": 999999999999,
+      "why": "synthetic: no real living_street in the three windows reaches 6, so the class's ceiling would never be exercised by real data; this row is way 13419334's own terms with the CLASS changed (the only input the ceiling reads) under an unused way id",
+      "window": "synthetic"
+    }
+  ]
+}
