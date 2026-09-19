@@ -1,7 +1,7 @@
 ---
 id: T-0170
 title: a failed handoff should leave the drive usable - a copyable list of the roads, not only Try again
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T05:30:24Z
@@ -11,7 +11,7 @@ branch: task/T-0170
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, Sources/Handoff/, Tests/HandoffTests/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr110
 depends_on: [T-0152]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -230,3 +230,61 @@ claimed, and honours the type's rule when labelled as such - it lands here with 
   card; (e) the number omits the leg from the user to pin 1. And still, on the record: **nothing has rendered any of
   this** - no simulator, no device, no snapshot. That a retry after a failure now reaches the acknowledgement gate is a
   call-graph fact the check decides and the compiler accepts; nobody has tapped it.
+- 2026-09-19T07:40:29Z REVIEW PASS by agent/rv1-pr110 on PR #110 at 819d54b (origin/task/T-0170), in a detached worktree
+  (.worktrees/rv1-pr110) removed afterwards. The acceptance block re-run BARE, not read: `swift test --scratch-path
+  .build/rv1-pr110 --filter HandoffTests` -> 'Test run with 51 tests in 8 suites passed after 0.158 seconds', exit 0;
+  `bash ops/lib/check-safety-disclaimer` exit 0 with the tracked set identical to the row it quotes - `SkylineHandoff.open(`
+  once (GatedHandoffButton.swift line 81) dominated by the guard at line 76, `GatedHandoffButton(` constructed once in
+  ScenicHomeScreen.swift with no `: true`, `isSafetyDisclaimerAcknowledged` at GatedHandoffButton.swift(2)
+  ScenicHomeScreen.swift(4), the key at ScenicHomeScreen.swift(1); `bash ops/lib/check-safety-disclaimer --prove-red` ->
+  'prove-red: 13/13 mutations refused by name', exit 0; `bash ops/lib/check-line-cap` -> 'P-SRC-02: 78 Swift files tracked
+  (Sources=27, Tests=38, apps/ios=13), none over 300 lines', exit 0; `bash ops/queue-check` -> 'QUEUE OK (196 tasks)',
+  exit 0; `bash ops/check-pins --source-only` -> 'PINS ok=13 skipped=14 pending=1 expired=0 failed=0 tier=linux
+  source-only', exit 0 (run twice, the second time on a tree with every mutant restored, identical both times). All eight
+  `wc -l` identical to the re-measured row: 52 StraightLineDistance.swift, 123 StraightLineDistanceTests.swift, 194
+  HandoffSourceTests.swift, 25 Clipboard.swift, 57 DriveFacts.swift, 128 HandoffFailureCard.swift, 230
+  ScenicHomeScreen.swift, 104 GatedHandoffButton.swift. THE 112 RE-DERIVED BY HAND and not read: a python haversine on
+  R = 6_371_008.8 over the eight literals in SkylineRoute.swift -> legs 34401.374 / 5271.360 / 4417.869 / 3984.708 /
+  12369.033 / 2887.584 / 48936.165, total 112268.093 m, floored 112 - the owner's figure to the millimetre; the same sum
+  without the destination is 63, which is what M2 printed. `git diff $(git merge-base origin/main HEAD)...HEAD --stat` is
+  the four touched directories plus this file, and the task-file diff removes only the `touches:` line and the three
+  superseded acceptance rows - the Log is append-only. ios-compile run 35427349115 read once by id ->
+  {status: completed, conclusion: success, headSha: 034edf2a3f46dc4c93675f39ce20b76fc5fc51ec}, and
+  `git diff --name-only 034edf2 819d54b` is this task file alone, so the bytes that compiled are the Swift under review.
+- 2026-09-19T07:40:29Z THE REVIEWER'S THREE MUTANTS, aimed at "can the failure path bypass the safety gate, or can the number
+  on screen be wrong, with everything green?" Each applied on the detached worktree and restored with `git checkout --`;
+  `git status --short` empty after each.
+  (RM1) THE RETRY WIRED AROUND THE GATE. `onRetry: { gatedHandoff.attempt() }` -> `onRetry: { try? SkylineHandoff.open() }`
+  in ScenicHomeScreen.swift. CAUGHT BY NAME: `bash ops/lib/check-safety-disclaimer` exit 1 - 'SkylineHandoff.open( must be
+  called exactly once, from apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/GatedHandoffButton.swift; found:
+  GatedHandoffButton.swift(1) ScenicHomeScreen.swift(1) ... A second call site is a second door and only one is behind the
+  disclaimer'. The failure path cannot reach Apple Maps un-acknowledged without the check refusing by name.
+  (RM2) A WRONG NUMBER ON SCREEN. `DriveFacts.straightLine`'s interpolation replaced by the literal '121 km'. SURVIVOR:
+  51/51 green, check-safety-disclaimer exit 0, check-line-cap exit 0, and `grep -rn skylineRouteWholeKilometers` over
+  every .swift outside Sources/ finds only StraightLineDistanceTests.swift:81 - nothing on the Linux side ties the
+  screen's text to the pinned computation. RULED RECORDABLE, not blocking, and the ruling is the shipped code's shape:
+  `DriveFacts` INTERPOLATES `StraightLineDistance.skylineRouteWholeKilometers`, so no shipped path can drift from the
+  pinned 112; a wrong number takes an author deleting that interpolation, which is a visible diff, not a silent drift.
+  What the survivor demonstrates is STILL OPEN (c) - no test target in `ScenicApp` (T-0180) - and nothing narrower. The
+  cheap anchor that would kill it is an identifier-level source check that `DriveFacts` names
+  `StraightLineDistance.skylineRouteWholeKilometers`; recorded here for T-0180 to take.
+  (RM3) THE PASTE LOSES THE CAVEAT. `clipboardText`'s `[roadList, DriveFacts.straightLine, DriveFacts.timing]` ->
+  `[roadList, DriveFacts.straightLine]` - exactly the regression R4 rules against ("a bare 112 km pasted into a message is
+  read as an hour and a half"). SURVIVOR: 51/51 green, and `grep -rn 'DriveFacts.timing|home.timing'` over Sources, Tests,
+  ops and pins -> no output, exit 1. R4's ruling is pinned NOWHERE. RECORDABLE, same root as (c)/T-0180: it is neither a
+  gate bypass nor a wrong number on screen, and it is the paste rather than the render.
+- 2026-09-19T07:40:29Z THE MERGE, JUDGED, and the decision. The retry is the SAME guarded call and not a copy of one:
+  `ScenicHomeScreen` builds `GatedHandoffButton` once in `private var gatedHandoff` and the card's `onRetry` calls
+  `attempt()` on that value, so a retry runs the same `guard isSafetyDisclaimerAcknowledged else { onBlocked(); return }`
+  that dominates the app's only `SkylineHandoff.open(` - one gate, read on the merged tree and confirmed by the check's own
+  counts. The acknowledgement is read fresh on each retry (the property is computed), and it is only ever written `= true`,
+  so no path shows the card with a stale acknowledgement. `git diff c7e20c7 034edf2` is two files (57 insertions, 26
+  deletions) and carries no disclaimer string and no store key; the check prints the persistent line, `home.disclaimer`,
+  `home.conditions`, `home.disclaimer.accept` and the `@AppStorage` key once - the merge left the disclaimer intact.
+  THIRD RECORDABLE, doc only: `GatedHandoffButton.Copy.handoffFailed`'s comment still reads "there is no copy-the-route
+  affordance here yet to point the reader at (T-0170)", which this PR makes false; a comment, so nothing anchors on it.
+  NOT DONE by this review, on the record: nothing rendered (no simulator, no device, no screenshot - this box has none);
+  the ios-compile log itself was not re-read, the run was read once by id as instructed, so '** BUILD SUCCEEDED **' at log
+  line 2195 and the ' error:' count of 0 stay the owner's quotes with `conclusion: success` as the machine-checked
+  equivalent; `bash ops/test` and the full `bash ops/check-pins` were not run, out of scope by instruction.
+  PASS - zero blocking findings, three recordables. PR #110 is signed off; queue/claimed/ -> queue/done/.
