@@ -229,3 +229,17 @@ $ git ls-files -s ops/etl-fetch-inputs ops/etl-extract .gitignore
   shared path; no caller was audited here.
 - **Nothing garbage-collects the old per-worktree copies.** The 2026-09-08 hardlinked set in `.worktrees/T-0028`
   and `.worktrees/T-0107` is untouched (R7) and still occupies the disk it occupied before this task.
+- 2026-09-19T03:13:28Z **Record corrections from the read-only verification of this build, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier ran the eight resolver tests by name, broke the resolver on a copy
+  (two named reds), ran the whole suite (`842 passed`, zero skips), matched `wc -l` 292/77 and found the tree
+  clean at c8c2c71 with CI green; these are text.** (a) The acceptance re-run's `git ls-files -s ops/etl-fetch-inputs
+  ops/etl-extract .gitignore` line quotes blobs f6703fa (.gitignore) and bb01509 (ops/etl-fetch-inputs); at
+  HEAD those files are c42d885 and 1360a28 - the quoted blobs are the PRE-edit ones, so that one command ran
+  before the edits were staged, not "at this commit"; the mode claim (100755/100755/100644) holds either way.
+  (b) STILL OPEN (1) was true at the commit and is stale now: the orchestrator's background refetch put
+  `california-osm.pbf` (1,328,857,020 bytes, verified `md5 ok`) and the four LA 3DEP tiles into the shared
+  directory after this branch was cut; `bash ops/etl-fetch-inputs --verify-only` from this worktree now names
+  the main checkout's inputs/ and prints the verified line - the acceptance's second bullet is met by the shared
+  directory this task built, not by anything this task downloaded. (c) The red-first run (`7 failed, 1 passed`)
+  and the MANIFEST mutant (`1 failed, 7 passed`) are the author's; the verifier demonstrated red with its own
+  resolver mutant instead.
