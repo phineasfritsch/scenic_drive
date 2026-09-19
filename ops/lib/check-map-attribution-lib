@@ -1,0 +1,248 @@
+#!/usr/bin/env bash
+# P-ATTR-01's SOURCE READERS, sourced by ops/lib/check-map-attribution.
+#
+# One file, one concern - the same split ops/lib/check-safety-disclaimer-lib made, for the same reason: the
+# check itself is at CLAUDE.md's 300-line cap and the pre-review mutant pass (2026-09-19, survivors A2/A3/
+# A5/A7) bought four more anchors. Nothing here decides anything; every function READS Swift source and
+# prints what it found, and the check's `fail` calls are all in the check. Every reader strips `//` to end
+# of line and a trailing CR (the authoring box is Windows) - CLAUDE.md: never anchor on a comment.
+#
+# $APP_TREE is read by occurrences_with_multiplicity for its relative-path printing; the check sets it.
+
+# One "relative/path(count)" per line, by occurrence, over the whole app tree - ONE awk over every file
+# rather than one per file, because this box forks slowly enough that per-file pipelines turn a check into a
+# two-minute wait and a --prove-red table into a quarter of an hour.
+occurrences_with_multiplicity() {
+  local needle="$1"
+  shift
+  awk -v needle="$needle" -v root="$APP_TREE/" '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      if (!(FILENAME in seen)) { seen[FILENAME] = 1; order[++m] = FILENAME }
+      s = code
+      while ((i = index(s, needle)) > 0) { c[FILENAME]++; s = substr(s, i + length(needle)) }
+    }
+    END {
+      for (j = 1; j <= m; j++) {
+        f = order[j]
+        if (c[f] > 0) {
+          rel = f
+          if (index(f, root) == 1) rel = substr(f, length(root) + 1)
+          printf "%s(%d)\n", rel, c[f]
+        }
+      }
+    }
+  ' "$@"
+}
+
+# (a). Prints "<protomaps case line> <0|1 its arm returns protomapsAttribution> <demo case line> <0|1 its arm
+# returns demoAttribution>", read only INSIDE attributionText - `url` switches over the same three cases.
+arm_verdict() {
+  awk '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      if (start == 0) { if (index(code, "public var attributionText: String") > 0) start = NR; next }
+      if (want != "") {
+        if (code ~ /[^ \t]/) {
+          line = code; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+          if (want == "p" && line == "return MapStyle.protomapsAttribution") pok = 1
+          if (want == "d" && line == "return MapStyle.demoAttribution") dok = 1
+          want = ""
+        } else next
+      }
+      if (pline == 0 && index(code, "case .protomapsLALight, .protomapsLADark:") > 0) { pline = NR; want = "p"; next }
+      if (dline == 0 && index(code, "case .maplibreDemoTiles:") > 0) { dline = NR; want = "d"; next }
+    }
+    END { printf "%d %d %d %d\n", pline+0, pok+0, dline+0, dok+0 }
+  ' "$1"
+}
+
+# (b). Every line NAMING a declaration identifier, "path:line:<trimmed code>", over the files handed in.
+# The check compares each one for WHOLE-LINE equality against the one approved declaration: the mutant pass
+# set demoAttribution to a near-spelling of the Protomaps credit (A2) and appended to the Protomaps
+# declaration (A3), and a prefix or substring match was green on both.
+decl_lines() {
+  local needle="$1"
+  shift
+  awk -v needle="$needle" -v root="$APP_TREE/" '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      if (index(code, needle) == 0) next
+      line = code; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      rel = FILENAME
+      if (index(FILENAME, root) == 1) rel = substr(FILENAME, length(root) + 1)
+      printf "%s:%d:%s\n", rel, FNR, line
+    }
+  ' "$@"
+}
+
+# (b). Exactly one declaration names the identifier over the files handed in, and that whole trimmed line
+# IS the approved one. `fail` belongs to the check that sources this file: every refusal is worded there.
+require_one_declaration() {
+  local ident="$1" approved="$2" headline="$3"
+  shift 3
+  local why=()
+  while [[ $# -gt 0 && "$1" != "--" ]]; do why+=("$1"); shift; done
+  [[ "${1:-}" == "--" ]] && shift
+  local found=()
+  mapfile -t found < <(decl_lines "$ident" "$@")
+  [[ "${#found[@]}" -eq 1 ]] || fail \
+    "$headline: \`$ident\` is declared ${#found[@]} time(s) under $APP_TREE, expected 1." \
+    "${found[@]:-<nowhere>}" "${why[@]}"
+  local where="${found[0]%%:*}" rest="${found[0]#*:}"
+  local line="${rest#*:}"
+  [[ "$line" == "$approved" ]] || fail \
+    "$headline in $where:${rest%%:*}" \
+    "  found:    $line" \
+    "  approved: $approved" \
+    "The WHOLE trimmed line is compared, not a prefix and not a substring: a declaration that keeps the" \
+    "approved text and appends to it, or replaces its value with a near-spelling, changes what is on the" \
+    "screen while every count and every prefix match stays green (mutant pass A2/A3)." \
+    "${why[@]}"
+}
+
+# (e). "<occurrences of accessibilityHidden> <occurrences of accessibilityHidden(false)>" in one file.
+# A WHITELIST: the two numbers are equal and the first is non-zero, so `.accessibilityHidden(true)` and any
+# other spelling of the argument are refused by name rather than blacklisted (A7).
+hidden_counts() {
+  awk '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      s = code
+      while ((i = index(s, "accessibilityHidden")) > 0) { all++; s = substr(s, i + 19) }
+      s = code
+      while ((i = index(s, "accessibilityHidden(false)")) > 0) { ok++; s = substr(s, i + 26) }
+    }
+    END { printf "%d %d\n", all+0, ok+0 }
+  ' "$1"
+}
+
+# (d). The argument list of every `AttributionFooter(` construction in a file, //-stripped, one per line:
+# from the open paren to the paren that closes it, by depth, so a construction spanning lines is read whole.
+footer_args() {
+  awk '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      while (1) {
+        if (started == 0) {
+          i = index(code, "AttributionFooter(")
+          if (i == 0) break
+          started = 1; depth = 0; out = ""
+          code = substr(code, i + length("AttributionFooter("))
+        }
+        n = length(code); k = 1; done = 0
+        for (; k <= n; k++) {
+          ch = substr(code, k, 1)
+          if (ch == "(") depth++
+          else if (ch == ")") {
+            if (depth == 0) { print out; started = 0; done = 1; break }
+            depth--
+          }
+          out = out ch
+        }
+        if (done == 0) { out = out " "; break }
+        code = substr(code, k + 1)
+      }
+    }
+  ' "$1"
+}
+
+# (b). Every `static let` line whose value names OpenStreetMap, "path:line:<trimmed code>", over the files
+# handed in. The identifier-keyed whitelist above is blind to a credit declared under a NEW name: rv1 of
+# PR #119 (M3) added `public static let tileCredit = "(c) OpenStreetMap contributors and Protomaps"` in a
+# second MapAdapter file and every limb stayed green. A credit string is only ever true of the tiles it is
+# handed with, so this population is the STRING's own subject matter rather than a list of identifiers.
+osm_decl_lines() {
+  awk -v root="$APP_TREE/" '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      if (index(code, "static let") == 0 || index(code, "OpenStreetMap") == 0) next
+      line = code; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      rel = FILENAME
+      if (index(FILENAME, root) == 1) rel = substr(FILENAME, length(root) + 1)
+      printf "%s:%d:%s\n", rel, FNR, line
+    }
+  ' "$@"
+}
+
+# (b). That population is exactly the ONE approved declaration, compared TRIMMED and WHOLE.
+require_osm_credit_whitelist() {
+  local approved="$1"
+  shift
+  [[ "${1:-}" == "--" ]] && shift
+  local found=()
+  mapfile -t found < <(osm_decl_lines "$@")
+  local line=""
+  if [[ "${#found[@]}" -eq 1 ]]; then line="${found[0]#*:}"; line="${line#*:}"; fi
+  [[ "$line" == "$approved" ]] || fail \
+    "a \`static let\` naming OpenStreetMap outside the one approved credit declaration (found ${#found[@]}):" \
+    "${found[@]:-<nowhere>}" \
+    "  approved: $approved" \
+    "The population is every \`static let\` line under $APP_TREE whose value names OpenStreetMap, // stripped" \
+    "- a WHITELIST, so a second credit under a NEW identifier and a paraphrase of the plan's string are both" \
+    "refused by name (rv1 of PR #119, M3: \`static let tileCredit = \"(c) OpenStreetMap contributors and" \
+    "Protomaps\"\`, which the identifier-keyed whitelist never saw). Only the tiles' own licence decides what" \
+    "may credit OpenStreetMap, and exactly one line in this app is allowed to say it."
+}
+
+# (f). THE MAP SURFACES, as a WHITELIST over the app tree, plus the ONE definition site it excludes.
+# What makes a surface a MAP surface is a `MapView(` construction handed a `styleURL:`; what makes it a
+# LEGAL one is the footer beside it. Limb (d) says "every map surface carries the credit" but counted
+# `styleURL:` inside ScenicHomeScreen.swift alone, so rv1 of PR #119 (B2/M1) added a second view under
+# FeatureScenicHome mounting `MapView(styleURL: style.url, ...)` with no AttributionFooter and the check
+# printed its full green summary. Both needles are now counted by occurrence over every .swift file under
+# the tree except MapAdapter/MapView.swift - the definition, which is pinned here FIRST, so that a second
+# definition or a moved one cannot carry its own occurrences out of the counted population unseen.
+require_map_mounts() {
+  local defn="$1" defn_rel="$2" expected="$3"
+  shift 3
+  [[ "${1:-}" == "--" ]] && shift
+  local all=("$@") rest=() f
+  for f in "$@"; do [[ "$f" == "$defn" ]] || rest+=("$f"); done
+  local needle seen=()
+  for needle in "struct MapView" "public init(styleURL"; do
+    mapfile -t seen < <(occurrences_with_multiplicity "$needle" "${all[@]}")
+    [[ "${seen[*]}" == "$defn_rel(1)" ]] || fail \
+      "the map view definition \`$needle\` is not the one site $defn_rel(1); found: ${seen[*]:-none}" \
+      "The mount whitelist below skips exactly one file - the definition - so the definition is pinned" \
+      "first. A second \`struct MapView\`, or the definition moved, would carry its own \`MapView(\` and" \
+      "\`styleURL:\` occurrences out of the counted population, and a new map surface with them."
+  done
+  for needle in "MapView(" "styleURL:"; do
+    mapfile -t seen < <(occurrences_with_multiplicity "$needle" "${rest[@]}")
+    [[ "${seen[*]}" == "$expected" ]] || fail \
+      "a map mount outside its tracked set: \`$needle\` at ${seen[*]:-none}, tracked $expected" \
+      "Counted by OCCURRENCE over every .swift file under $APP_TREE except the definition $defn_rel," \
+      "// stripped. This is a WHITELIST: a SECOND map surface - a view mounting \`MapView(styleURL:" \
+      "style.url)\` with no AttributionFooter beside it - is refused BY NAME here instead of passing" \
+      "unseen, which is what P-ATTR-01 did until rv1 of PR #119 found it (B2). Every map surface" \
+      "carries the credit, so every mount site is typed into this check beside the footer set."
+  done
+}
+
+# THE VERDICT, printed by the check once every limb holds - and the blind spots, so nobody reads more into
+# a green than is there. It sits here rather than in the check for the same reason the readers do: the
+# check is at CLAUDE.md's 300-line cap. Everything it names is a global the check typed or a reading the
+# check hands in; like everything else in this file, it decides nothing.
+print_verdict() {
+  local an="$1" pline="$2" dline="$3" built="$4" recv="$5"
+  echo "P-ATTR-01: over $an .swift file(s) under $APP_TREE, // stripped:"
+  echo "  attributionText's protomaps arm (line $pline) returns MapStyle.protomapsAttribution and its demo"
+  echo "  arm (line $dline) returns MapStyle.demoAttribution; the two declarations are verbatim, whole line:"
+  echo "    $CREDIT_DECL"
+  echo "    $DEMO_DECL"
+  echo "  the plan's string occurs in code at $CREDIT_SET only, and every \`static let\` naming OpenStreetMap"
+  echo "  anywhere under the tree is that same one declaration;"
+  echo "  $PROTOMAPS_IDENT at $PROTOMAPS_SET, and every occurrence outside $ADAPTER_REL/ is a \`case .\` pattern;"
+  echo "  the mount at $MOUNT_SET; one DriveBasemap.resolve( at $FOOTER_SET; the footer at $FOOTER_SET, built"
+  echo "  with: $built - and the map with styleURL: $recv.url, the same binding;"
+  echo "  every MapView( and every styleURL: over the tree is at $SURFACE_SET, outside the one definition"
+  echo "  $MAPVIEW_REL, which declares struct MapView and public init(styleURL once each;"
+  echo "  every accessibilityHidden in $DESIGN_REL/AttributionFooter.swift and in the mount screen is (false)."
+  echo "  Not checked here: rendering, the detents, contrast, Dynamic Type, or that the tiles on screen are"
+  echo "  the ones this credit names - XCUITest (T-0180) owns those. Nor MapStyle.url: which style DOCUMENT"
+  echo "  each case hands the renderer is unseen (A6), as is any spelling that reaches a case without naming"
+  echo "  protomapsLA - e.g. MapStyle.allCases[0] (A4); a credit paraphrase that never names OpenStreetMap or"
+  echo "  whose \`static let\` carries its value on the NEXT line; a map mounted through some wrapper that is"
+  echo "  not MapView( ; and any Swift outside $APP_TREE."
+}
