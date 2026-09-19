@@ -12,8 +12,8 @@
   license: ODbL-1.0
   attribution: OpenStreetMap contributors
   purpose: base road network and POIs for the Bay Area extract
-  bytes: 1328688632
-  retrieved: 2026-09-18
+  bytes: 1328857020
+  retrieved: 2026-09-19
   consumed_by: T-0024
   notes: Geofabrik rebuilds this DAILY, so a pinned sha256 would break the fetcher every day and teach everyone to bypass it. The publisher's .md5 sidecar is the verification.
 
@@ -209,6 +209,25 @@
   bytes: 4056438
   retrieved: 2026-09-07
   consumed_by: T-0027
+
+# The one WorldCover tile the la bbox needs, derived by landcover.tile_for from the region's own bbox rather
+# than typed: both corners of -119.0,33.7,-117.85,34.45 answer N33W120, because these tiles are 3x3 degrees
+# named by their SOUTH-WEST corner, so N33W120 covers lat 33-36, lon -120..-117 - the whole LA box and then
+# some. Same dataset, same licence and same 10 m resolution as the two sfbay tiles above; nothing new was
+# decided here except which square. Until this was pinned, canopy, impervious and water - 0.40 of E between
+# them - had no raster over the one region the developer can drive, and the assembly refuses a row whose
+# land-cover buffer has no valid sample rather than scoring it green with no vegetation term.
+
+- name: worldcover-n33w120.tif
+  url: https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_N33W120_Map.tif
+  verify: sha256
+  sha256: 61e0909a51e2e76a6f153599316753370be937d0ce150261d023006a80613385
+  license: CC-BY-4.0
+  attribution: ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data
+  purpose: "land cover for lat 33-36, lon -120..-117: the whole Greater Los Angeles bbox - the Santa Monica Mountains, the Malibu coast, the basin and the San Gabriels"
+  bytes: 101202142
+  retrieved: 2026-09-19
+  consumed_by: T-0168
 
 # Designated scenic byways - the score's second external oracle, after Curvature. Both are ArcGIS /query
 # pulls rather than published files, so their stability was MEASURED rather than assumed: two consecutive

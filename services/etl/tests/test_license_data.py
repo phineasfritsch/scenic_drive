@@ -68,7 +68,7 @@ class TestEveryAttributionLicenceCarriesItsCredit:
         import json
         recorded = json.loads(FIXTURE.read_text(encoding="utf-8"))["licence"]
         worldcover = [i for i in inputs() if i.name.startswith("worldcover-")]
-        assert len(worldcover) == 2, [i.name for i in worldcover]
+        assert len(worldcover) == 3, [i.name for i in worldcover]
         for item in worldcover:
             assert item.license == "CC-BY-4.0"
             assert item.attribution in recorded, (item.name, item.attribution, recorded)
