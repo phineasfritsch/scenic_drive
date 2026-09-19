@@ -1,7 +1,7 @@
 ---
 id: T-0177
 title: ETL inputs survive worktree removal - one shared gitignored inputs directory outside .worktrees/, and the fetcher and the extract read it
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T01:02:12Z
@@ -11,7 +11,7 @@ branch: task/T-0177
 exclusive: []
 touches: [services/etl/etl/fetch.py, services/etl/etl/manifest.py, services/etl/tests/, ops/etl-fetch-inputs, ops/etl-extract, .gitignore, queue/README.md]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr104
 depends_on: [T-0169]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -243,3 +243,106 @@ $ git ls-files -s ops/etl-fetch-inputs ops/etl-extract .gitignore
   directory this task built, not by anything this task downloaded. (c) The red-first run (`7 failed, 1 passed`)
   and the MANIFEST mutant (`1 failed, 7 passed`) are the author's; the verifier demonstrated red with its own
   resolver mutant instead.
+
+### 2026-09-19T03:39:34Z agent/rv1-pr104 — REVIEW PASS, PR #104
+
+Reviewed at 68985f7 (`git rev-parse origin/task/T-0177` == the PR's headRefOid) from `.worktrees/rv1-pr104`,
+a detached worktree of my own. Nothing in the PR was changed; every mutant below was applied in MY worktree,
+alone, and reverted with `git checkout --` (`git status --short` empty after each).
+
+**Acceptance re-run at this head.**
+
+1. MET. From `.worktrees/rv1-pr104`, downloading nothing:
+
+```
+$ bash ops/etl-fetch-inputs --verify-only --only vermont-curvature.kmz; echo "EXIT=$?"
+vermont-curvature.kmz: not on disk at C:\Users\phineasf\Documents\GitHub\scenic_drive\services\etl\inputs\vermont-curvature.kmz (--verify-only never downloads)
+VERIFY FAILED: 1 input(s)
+inputs directory: C:\Users\phineasf\Documents\GitHub\scenic_drive\services\etl\inputs
+EXIT=1
+```
+
+   The directory named is the MAIN checkout's, never `.worktrees/rv1-pr104/services/etl/inputs`.
+2. NOT re-run by me over a `verified ...` entry, and I say so rather than quote the author's: the one entry
+   whose payload is on disk and in THIS branch's manifest is `california-osm.pbf`, whose `upstream-md5` mode
+   fetches Geofabrik's sidecar over the network, and downloading was out of scope for this review. What I did
+   check is that the shared directory holds the payloads the correction entry claims: `ls -la
+   C:/Users/phineasf/Documents/GitHub/scenic_drive/services/etl/inputs/` -> `california-osm.pbf` 1328857020
+   bytes + four LA 3DEP tiles + `manifest.yaml`. The main checkout's manifest has no `3dep-n34w119.tif` entry
+   (`no such entry`, EXIT=2), so those four tiles are not verifiable through `--verify-only` from any manifest
+   in this tree today - recorded below, not charged to this task.
+3. MET. `__pycache__` purged first:
+
+```
+$ cd services/etl && python -m pytest tests -rs
+842 passed in 144.43s (0:02:24)
+```
+
+   `-rs` printed no skip section. Also bare at this head: `wc -l` -> `292 services/etl/etl/fetch.py`,
+   `77 services/etl/tests/test_inputs_dir.py`; `bash ops/queue-check` -> `QUEUE OK (175 tasks)` EXIT=0;
+   `git ls-files -s` -> `.gitignore` 100644 c42d885, `ops/etl-fetch-inputs` 100755 1360a28, `ops/etl-extract`
+   100755 ad4f7f3 (the pre-existing blob: R3's "byte-for-byte unchanged" holds at HEAD, not only in the Log).
+
+**Two expectations re-done by hand.** Typed out, not read back from the resolver: `C:/x/.worktrees/T-9999/
+services/etl` must give `C:\x\services\etl\inputs` and the plain `C:/x/services/etl` must give
+`C:\x\services\etl\inputs`. Both matched. Four more hand-typed cases in the same probe: deeper layout
+`C:/x/.worktrees/T-9999/a/b` -> `C:\x\services\etl\inputs` (matched), env var set -> verbatim (matched), env
+var `"   "` -> the mapping (matched), and the two DIVERGENCES recorded below.
+
+**Four mutants nobody wrote, each alone; control at this head is `842 passed`.**
+
+- A — `for i in range(len(parts) - 1, 0, -1)` (rightmost `.worktrees`) -> `for i in range(1, len(parts))`
+  (leftmost). WHOLE SUITE STILL GREEN, `PYTEST_EXIT=0`, no named test red, while the answer for
+  `C:/x/.worktrees/A/.worktrees/B/services/etl` changes from `C:\x\.worktrees\A\services\etl\inputs` to
+  `C:\x\services\etl\inputs`. Which `.worktrees` segment wins is unpinned. Recordable, not blocking: see below.
+- B — `(e.get(INPUTS_ENV) or "").strip()` -> `e.get(INPUTS_ENV) or ""`. KILLED BY NAME:
+  `FAILED tests/test_inputs_dir.py::TestResolveInputsDir::test_a_blank_env_var_is_not_an_override`,
+  `PYTEST_EXIT=1`. That guard passes over something real.
+- C — `ap.add_argument("--manifest", default=str(MANIFEST))` -> `default=str(DEST / "manifest.yaml")`, i.e. the
+  CLI reads the manifest from the SHARED directory while the constant stays put. WHOLE SUITE STILL GREEN,
+  `PYTEST_EXIT=0`. R2 ("a task editing its manifest must fetch against THAT edit") is guarded on the constant
+  `fetch.MANIFEST` only, not on the path `main()` actually opens. Recordable; the value at this head is right.
+- D — `DEST = resolve_inputs_dir(ROOT)` -> `DEST = ROOT / "inputs"`, the exact T-0169 defect. Exactly one named
+  red, `test_dest_is_never_inside_a_worktree`, and it is red only because the suite ran from a `.worktrees/`
+  path: its assertion is `".worktrees" not in fetch.DEST.parts`, which in a plain checkout (CI runs
+  `bash ops/test` on `/home/runner/work/scenic_drive/scenic_drive`) is true with the defect restored. The
+  wiring line is therefore covered only when someone runs the suite from inside a worktree. Recordable.
+
+**Rulings.** R1, R2, R4, R5, R6, R7 accepted as written. R3 (`ops/etl-extract` and the four consumer modules
+left alone) — ACCEPTED, and it is the right call: `touches:` does not name `extract.py`/`dem.py`/
+`landcover.py`/`oracle.py`, `.githooks/pre-commit` would reject them, and CLAUDE.md's "Stage explicit paths"
+is not negotiable for a convenience. But the disclosure understates the failure shape, which is the product
+question this review was asked: a CLIP from a worktree is safe — `etl/extract.py` line 164-167 prints
+`extract: <path> is missing - run ops/etl-fetch-inputs first` and returns 2, naming the path it wanted — while
+SAMPLING from a worktree is not: `dem.sample_tile` returns `[None] * len(points)` when the tile file is absent
+and `landcover.sample_codes` does `if not path or not path.is_file(): continue`. Neither raises, neither names
+a path, and neither takes an `--input` or reads `SCENIC_ETL_INPUTS`. The four LA 3DEP tiles exist today ONLY in
+the main checkout's shared directory, so terrain sampling run from any worktree returns all-None elevations
+silently. Answer to the question asked: the follow-up task is NOT required before T-0168 clips LA (T-0168's R4
+already points the extract at the main checkout, and extract refuses loudly if anyone forgets), but it IS
+required before any dem/landcover sampling runs from a worktree — T-0142 (LA terrain) is claimed now.
+
+**BLOCKING: none.** RECORDABLE, in order:
+
+1. Nested worktrees resolve INSIDE a worktree. `C:/x/.worktrees/A/.worktrees/B/services/etl` ->
+   `C:\x\.worktrees\A\services\etl\inputs`, which contradicts the docstring's "the main checkout's directory,
+   which outlives every worktree". Not blocking: every one of the 92 worktrees on this box is flat under the
+   main checkout, and the payload still survives removal of the CURRENT worktree. Mutant A shows nothing pins
+   it. Same root cause as (2).
+2. A `.worktrees` segment ABOVE the checkout also triggers the mapping:
+   `C:/home/.worktrees/scenic_drive/services/etl` -> `C:\home\services\etl\inputs`, outside the repo entirely.
+   The rule keys on a segment NAME anywhere in the path; `git rev-parse --git-common-dir` knows the real answer.
+3. A relative `SCENIC_ETL_INPUTS` is honoured relative to the CWD the wrapper `cd`s into
+   (`<checkout>/services/etl`), so `SCENIC_ETL_INPUTS=inputs` silently restores the per-worktree behaviour.
+   Untested; an absolute-path requirement would be one line.
+4. `test_verify_only_names_the_directory_it_verified_against` asserts the line is `in` stdout; `queue/README.md`
+   and the module docstring say "first line". The position is not pinned.
+5. `queue/README.md`'s table row says `SCENIC_ETL_INPUTS set (any checkout)` and omits the blank-is-not-an-
+   override rule that the PR body states and mutant B guards.
+6. STILL OPEN (2) says the four modules "still compute `ROOT / "inputs"`" and gives the `--input` workaround,
+   which exists only for `extract.py`. It should say that `dem`/`landcover` fail SILENTLY (see R3 above).
+7. The four LA 3DEP tiles in the shared directory are in no manifest in this tree, so `--verify-only` cannot
+   speak for them. Pre-existing, from the orchestrator's refetch; named here so it is not lost.
+
+Not got to: `bash ops/test`, full `bash ops/check-pins` and any download were out of scope per the review
+brief; `gh pr checks 104` run once at the end.
