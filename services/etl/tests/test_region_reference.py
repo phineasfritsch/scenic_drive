@@ -85,7 +85,7 @@ def test_the_table_is_sorted_and_its_digest_is_over_the_values_not_the_file():
     expected = hashlib.sha256(json.dumps(table, sort_keys=True,
                                          separators=(",", ":")).encode("utf-8")).hexdigest()
     assert region_reference.digest(table) == expected
-    assert region_reference.counts(table)["curvature"] == 2
+    assert region_reference.counts(table) == {"curvature": 2, "relief": 1}
 
 
 def test_the_table_round_trips_through_the_file_the_run_writes(tmp_path):
@@ -103,3 +103,24 @@ def test_a_reference_the_normaliser_would_refuse_is_refused_here_too():
     assert normalise.reference_refusals(region_reference.table_of({"curvature": {1: 1.0}})) == []
     with pytest.raises(ValueError):
         region_reference.dump({"not_a_term": [1.0]}, None)
+
+
+def test_a_reference_file_that_cannot_be_ranked_against_is_refused_on_the_way_in(tmp_path):
+    """Refused where it is READ too: a four-hour region pass must not start against an empty curve."""
+    path = tmp_path / "bad.json"
+    path.write_text(json.dumps({"curvature": []}), encoding="utf-8")
+    with pytest.raises(ValueError):
+        region_reference.load(path)
+
+
+def test_the_reference_must_be_sorted_before_it_is_bisected():
+    """`normalise_region` sorts each term itself, so a caller's order cannot change a rank.
+
+    `bisect` over an unsorted list returns a confident wrong answer rather than raising, which is the
+    quietest way this whole design could have failed.
+    """
+    records = [record(1, curvature=5.0), record(2, curvature=1.0)]
+    ordered = normalise.normalise_region(records, {"curvature": [1.0, 2.0, 3.0, 9.0]})
+    jumbled = normalise.normalise_region(records, {"curvature": [9.0, 1.0, 3.0, 2.0]})
+    assert [row.curvature for row in jumbled] == [row.curvature for row in ordered]
+    assert len({row.curvature for row in ordered}) == 2, "the two ways must not share a rank here"

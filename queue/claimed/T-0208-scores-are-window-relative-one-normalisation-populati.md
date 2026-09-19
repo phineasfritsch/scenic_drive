@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-20T01:26:13Z
 worktree: .worktrees/T-0208
 branch: task/T-0208
 exclusive: [scenic-index]
-touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract, ops/mutate/]
+touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract, ops/mutate/, ops/lib/check-mutate-population.py]
 pins_affected: []
 reviewer: null
 depends_on: [T-0204, T-0207]
@@ -157,3 +157,11 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   the same shape and the same order of magnitude as T-0204's measured 0.6988/0.7022 and 0.6308/0.6372. With
   the merged reference both are ONE number.
   LINE COUNTS after the change: assemble.py 299, normalise.py 256, region_reference.py 109, waydoc.py 288.
+- 2026-09-19T18:55:00Z TOUCHES AMENDED by agent/claude-opus-5 (owner): `ops/lib/check-mutate-population.py`
+  added. The task text requires this population to be REGISTERED in that file's DRIVERS and COVERED_FLOOR,
+  and the original `touches:` did not name it, so the pre-commit hook would have refused the registration
+  the acceptance asks for. Nothing else in `ops/lib/` is touched. `services/etl/etl/waydoc.py` is NOT added
+  to any SUBJECT_MODULES: it is in P-PROC-06's allowlist as wiring (T-0168's closing ruling), and the check
+  refuses an allowlist entry for a module a population also covers. R1b's selection rule is guarded by
+  `tests/test_motorway_source.py` instead, whose whitelist clause -
+  `test_a_non_motorway_in_the_region_file_is_not_measured_to` - is the one that matters.
