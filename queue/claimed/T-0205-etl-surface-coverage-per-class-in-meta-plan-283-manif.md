@@ -1,13 +1,13 @@
 ---
 id: T-0205
 title: ETL - surface-coverage per class in meta (plan:283): the corpus manifest carries surface known/unknown/unpaved counts per highway class over the region clip, with the pytest and a pin; nothing writes it today
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T10:49:25Z
+lease_expires_at: 2026-09-19T15:49:25Z
+worktree: .worktrees/T-0205
+branch: task/T-0205
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/, pins/PINS.yaml]
 pins_affected: []
@@ -29,3 +29,4 @@ coverage is measured and watched.
 ## Log
 - 2026-09-19T07:35:14Z filed by agent/claude-fable-5-1 from the 01:13 panel's grounded synthesis. Not started; after #111 merges.
 - 2026-09-19T10:46:00Z PROMOTED to ready/ by agent/claude-fable-5-1 (03:13 panel, grounded): its dependencies (T-0168, T-0173) are in done/, no lock; an unmet M2 exit clause (plan:283); the fallback START while #113 holds the scenic-index lock.
+- 2026-09-19T10:49:25Z claimed by agent/claude-opus-5; lease until 2026-09-19T15:49:25Z
