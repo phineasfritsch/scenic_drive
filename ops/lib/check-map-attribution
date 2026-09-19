@@ -1,40 +1,32 @@
 #!/usr/bin/env bash
 # P-ATTR-01's STRUCTURAL half: the Protomaps credit is the plan's string, it is what the protomaps arm of
 # MapStyle.attributionText returns, the demo arm returns the demo credit, nothing outside MapAdapter names a
-# protomaps case, the LA basemap is mounted, and the footer on the screen is handed a resolved style's
-# attributionText rather than a string somebody typed.
-#
-# This is a source check on a box with no Apple toolchain (T-0197 ruling R2). It decides four things and
-# refuses to pretend it decides more:
-#
+# protomaps case, the LA basemap is mounted, and the footer is handed a resolved style's attributionText
+# rather than a string somebody typed. A source check on a box with no Apple toolchain (ruling R2), which
+# decides four things and refuses to pretend it decides more:
 #   (a) THE ARM, not a count. Inside `public var attributionText: String`, the first line carrying code
 #       after `case .protomapsLALight, .protomapsLADark:` is exactly `return MapStyle.protomapsAttribution`,
 #       and the first after `case .maplibreDemoTiles:` is exactly `return MapStyle.demoAttribution`.
-#       T-0195's mutant pass found every recorded grep for this blind to the two arms trading places: both
-#       identifiers are still present, both counts unchanged, and the demo map now carries the Protomaps
-#       credit over country polygons with no OpenStreetMap data on it.
+#       T-0195's mutant pass found every recorded grep blind to the arms trading places.
 #   (b) THE LITERAL, as a WHITELIST. The declaration carries the plan's string verbatim, and that string
-#       occurs in code exactly once over the whole app tree - so a credit typed at a call site (which is
-#       right even over a blank map, and is therefore the one anchor that must never be trusted alone) is
-#       refused by name rather than counted as a second correct-looking line.
+#       occurs in code exactly once over the whole app tree - so a credit typed at a call site, which is
+#       right even over a blank map, is refused by name rather than counted as a second correct line.
 #   (c) THE protomapsLA WHITELIST. Every occurrence of the identifier under apps/ios, counted with
 #       multiplicity, against a tracked set typed here; and every occurrence OUTSIDE Sources/MapAdapter/ has
 #       to sit on a `case .` pattern line. A feature target that NAMES a protomaps case builds a style
 #       without asking `BasemapResolver` whether the archive is on the device, which is how the Protomaps
-#       credit ends up over an empty map; a feature target that MATCHES one is reading the resolver's
-#       answer, which is what `DriveCopy.mapCaption(for:style:)` does (T-0197 ruling R0).
+#       credit ends up over an empty map; one that MATCHES it reads the resolver's answer, which is what
+#       `DriveCopy.mapCaption(for:style:)` does (ruling R0).
 #   (d) THE MOUNT AND THE FOOTER'S ARGUMENT. `BasemapResolver.losAngeles(` occurs exactly once, in
-#       FeatureScenicHome/DriveBasemap.swift - the credit exists on no surface at all without it (T-0195's
-#       mutant pass) - and every `AttributionFooter(` construction is read by its ARGUMENT LIST, which must
-#       hand `text:` a value ending in `.attributionText` and carrying no `"`. The recorded fourth grep from
-#       rv1-pr112 is NOT lifted: it matched a doc comment on MapStyle.swift and CLAUDE.md forbids anchoring
-#       on a comment, so this reads the call site instead.
+#       FeatureScenicHome/DriveBasemap.swift - without it the credit sits on no surface at all - and every
+#       `AttributionFooter(` construction is read by its ARGUMENT LIST, which must hand `text:` a value
+#       ending in `.attributionText` and carrying no `"`. rv1-pr112's recorded fourth grep is NOT lifted:
+#       it matched a doc comment, and CLAUDE.md forbids anchoring on one.
 #
-# WHAT IT CANNOT SEE: whether the footer RENDERS, whether it is visible at every sheet detent, whether
-# something is drawn on top of it, contrast, Dynamic Type, or whether the tiles on screen are the ones the
-# credit names. Those are an XCUITest in a simulator and there is no test target in ScenicApp/Package.swift;
-# that half of P-ATTR-01 is T-0180's. Also unseen: `/* */` comments (only `//` is stripped), Swift outside
-# apps/ios, and any spelling that reaches a case without the identifier in the source.
+# WHAT IT CANNOT SEE: whether the footer RENDERS, at which sheet detents, whether something is drawn over
+# it, contrast, Dynamic Type, or whether the tiles on screen are the ones the credit names - an XCUITest in
+# a simulator owns those (T-0180). Also unseen: `/* */` comments, Swift outside apps/ios, and any spelling
+# that reaches a case without naming the identifier.
 #
 #   bash ops/lib/check-map-attribution                 # the tracked tree
 #   bash ops/lib/check-map-attribution --app-tree DIR  # a copy of apps/ios (the mutation table hands one)
@@ -204,15 +196,14 @@ run_check() {
   [[ "$pok" -eq 1 ]] || fail \
     "the protomaps arm at line $pline of $map_style does not return MapStyle.protomapsAttribution." \
     "The first line carrying code after that \`case\` must read exactly \`return MapStyle.protomapsAttribution\`." \
-    "Swapping the two arms leaves every identifier present and every count unchanged (T-0195's mutant pass)" \
-    "while the LA basemap is credited to MapLibre and Natural Earth."
+    "Swapping the arms leaves every identifier and every count unchanged (T-0195's mutant pass) while the" \
+    "LA basemap is credited to MapLibre and Natural Earth."
   [[ "$dline" -gt 0 ]] || fail "no \`case .maplibreDemoTiles:\` inside attributionText in $map_style." \
     "The fallback needs its own credit, or the demo tiles inherit somebody else's."
   [[ "$dok" -eq 1 ]] || fail \
     "the demo arm at line $dline of $map_style does not return MapStyle.demoAttribution." \
     "MapLibre's demo tiles carry no OpenStreetMap data and are not served by Protomaps: the plan's credit" \
-    "under them credits two parties for country polygons neither of them drew, on every device without" \
-    "la.pmtiles - which is every ios-compile run and every phone before the owner copies the archive in."
+    "under them credits two parties for country polygons neither drew - on every device without la.pmtiles."
 
   # ------------------------------------------------------------------ (b) the LITERAL
   local decl demo
@@ -286,11 +277,11 @@ run_check() {
   echo "P-ATTR-01: over $an .swift file(s) under $APP_TREE, // stripped:"
   echo "  attributionText's protomaps arm (line $pline) returns MapStyle.protomapsAttribution and its demo"
   echo "  arm (line $dline) returns MapStyle.demoAttribution; the declaration is verbatim"
-  echo "  \"$CREDIT\" and that literal occurs in code at $CREDIT_SET only;"
+  echo "  \"$CREDIT\", occurring in code at $CREDIT_SET only;"
   echo "  $PROTOMAPS_IDENT at $PROTOMAPS_SET, and every occurrence outside $ADAPTER_REL/ is a \`case .\` pattern;"
   echo "  the mount at $MOUNT_SET; the footer at $FOOTER_SET, built with: ${args[0]}"
-  echo "  Not checked here: whether the footer renders, at which detents, contrast, Dynamic Type, or that"
-  echo "  the tiles on screen are the ones this credit names - XCUITest (T-0180) owns those."
+  echo "  Not checked here: rendering, the detents, contrast, Dynamic Type, or that the tiles on screen are"
+  echo "  the ones this credit names - XCUITest (T-0180) owns those."
 }
 
 MUTATIONS="ops/lib/check-map-attribution-mutations"

@@ -103,3 +103,79 @@ surface P-ATTR-01 asserts over.
   R5 SCOPE - `bash ops/check-pins --source-only` is NOT run on this box: it drives a long swift build here.
   CI's pins-source-only job on the PR is the evidence, quoted from `gh pr checks`. The two new assertions
   are run VERBATIM and bare at the final commit instead.
+- 2026-09-19T12:45:00Z RED FIRST, by name, before green (agent/claude-opus-5). Every new check was seen
+  refuse before it was seen pass:
+  P-ATTR-01 - `bash ops/lib/check-map-attribution --prove-red`, 8 mutations of a throwaway copy of apps/ios,
+  8/8 refused BY NAME: both credit arms swapped and the demo arm alone returning the Protomaps credit (each
+  named "does not return MapStyle.protomapsAttribution" / "...demoAttribution", with every identifier and
+  every count unchanged - the arms are what moved); the plan's string edited ("credit literal is not
+  declared verbatim"); a feature file naming a protomaps case ("identifier protomapsLA occurs outside its
+  tracked set"); the caption reaching the case without a `case .` pattern, COUNT UNCHANGED at DriveCopy(2)
+  ("protomapsLA is NAMED outside Packages/ScenicApp/Sources/MapAdapter/ on 1 line(s)" - the count arm is
+  green on this row, which is why the pattern anchor exists); the mount deleted ("mount
+  BasemapResolver.losAngeles( occurs outside its tracked set"); a literal credit typed at the footer
+  ("credit literal © OpenStreetMap contributors · Protomaps occurs outside its tracked set"); and the footer
+  handed a different resolved string ("is not a style's attributionText"). The table also refuses to run
+  against an already-red tree, and refuses any row whose sed matched nothing ("THE MUTATION CHANGED
+  NOTHING") - a row that mutates nothing proves nothing.
+  P-DATA-03 - seen red twice by disabling ONE limb of the shipping checker at a time, then restored:
+  with the region comparison off, "P-DATA-03: the region/freshness limbs of the shipping checker do not
+  decide: stamped region 'bay': exit 0 (expected 1) and the output did not name "meta.region is 'bay'""
+  (exit 1); with the age comparison off, "stamped 40 days ago: exit 0 (expected 1) and the output did not
+  name 'older than 30 days (P-DATA-03)'" (exit 1).
+  The drift test - seen red on the TRACKED files, then restored: one flipped hex digit in
+  ScenicLightStyle.swift ("At index 568 diff: b'0' != b'D'", test_the_embedded_literal_is_byte_equal...
+  [light-ScenicLightStyle] FAILED), and MapAppearance's two styleJSON arms swapped, with both literals still
+  byte-equal to their files ("{'light': 'return ScenicLightStyle.json'} != {'light': 'return
+  ScenicDarkStyle.json'}", test_each_appearance_returns_its_own_style FAILED).
+- 2026-09-19T12:47:00Z ios-compile, the compiler proof for the Swift under apps/ios (this box has no Mac).
+  ONE dispatch on the final code commit bf9a6f3: run 35442667891, headSha
+  bf9a6f39c5924294c5576778518386214ccac97c, status completed, conclusion success; `gh run view --log` has
+  one "** BUILD SUCCEEDED **" (simulator-build, 12:24:19Z) and a ' error:' count of 0. Only comments in
+  ops/lib/check-map-attribution changed after that commit (309 -> 300 lines, CLAUDE.md's cap); no Swift byte
+  moved, so no second dispatch was bought.
+- 2026-09-19T12:50:00Z FINAL PRE-REVIEW ACCEPTANCE, re-run bare and re-quoted whole (the author rule):
+  - `bash ops/lib/check-map-attribution` -> exit 0: "over 21 .swift file(s) under apps/ios, // stripped:
+    attributionText's protomaps arm (line 99) returns MapStyle.protomapsAttribution and its demo arm (line
+    101) returns MapStyle.demoAttribution; the declaration is verbatim "© OpenStreetMap contributors ·
+    Protomaps", occurring in code at .../MapStyle.swift(1) only; protomapsLA at .../DriveCopy.swift(2)
+    .../MapAppearance.swift(2) .../MapStyle.swift(6), and every occurrence outside .../MapAdapter/ is a
+    `case .` pattern; the mount at .../DriveBasemap.swift(1); the footer at .../ScenicHomeScreen.swift(1),
+    built with: text: style.attributionText".
+  - `bash ops/lib/check-map-attribution --prove-red` -> exit 0: "prove-red: 8/8 mutations refused by name".
+  - `python -m pytest services/tiles/tests` -> "69 passed in 2.78s" (58 before this task, 11 added by
+    test_embedded_style_identity.py).
+  - P-ATTR-01's assertion verbatim, `bash ops/lib/check-map-attribution` -> exit 0 (quoted above).
+  - P-DATA-03's assertion verbatim -> exit 0: "services/tiles/check_pmtiles.py, run as build-la.sh step 6
+    runs it, over 3 in-process fixtures: a fresh region-la archive: exit 0, named 'PMTILES OK' / stamped 40
+    days ago: exit 1, named 'older than 30 days (P-DATA-03)' / stamped region 'bay': exit 1, named
+    "meta.region is 'bay'"". With SCENIC_LA_PMTILES pointed at the real build it also printed "la.pmtiles:
+    exit 0 - PMTILES OK: la.pmtiles region=la bytes=63520949 zoom=0-14 tiles=2549
+    bounds=(-119.000000,33.700000,-117.850000,34.450000)". NOTE for the reviewer: with PYTHON unset this
+    box's `python3` is a Store stub with no pytest and the check REFUSES fail-closed by name ("the tests'
+    PMTiles writer is unavailable: No module named 'pytest'"), which is the right direction; it was run as
+    `PYTHON=python`. CI's image installs python3-pytest (.github/workflows/linux-core.yml).
+  - `python ops/lib/check-mutate-population.py` -> exit 0: "73 modules, 22 covered by 10 populations, 27
+    allowlisted, 0 added by this branch ... the floor of 22 holds". CONFIRMED: no module was added under
+    services/etl/etl/ or Sources/, and apps/ios is outside that check's roots, so no mutation population is
+    owed by this task.
+  - `bash ops/lib/check-safety-disclaimer` -> exit 0, counts UNCHANGED (FeatureScenicHome was not touched):
+    "isSafetyDisclaimerAcknowledged at .../GatedHandoffButton.swift(2) .../ScenicHomeScreen.swift(4), the
+    key at .../ScenicHomeScreen.swift(1)".
+  - `bash ops/lib/check-line-cap` -> exit 0: "90 Swift files tracked (Sources=29, Tests=40, apps/ios=21),
+    none over 300 lines". `bash ops/lib/check-exec-bits` -> exit 0: "80 files, 23 required present, all
+    modes correct" (check-map-attribution and -mutations 100755, check-pmtiles-provenance.py 100644).
+    `bash ops/queue-check` -> exit 0.
+  - `wc -l` on every touched file: ops/lib/check-map-attribution 300, ops/lib/check-map-attribution-
+    mutations 84, ops/lib/check-pmtiles-provenance.py 131, services/tiles/tests/test_embedded_style_
+    identity.py 138, pins/PINS.yaml 287, MapAdapter/BasemapResolver.swift 125,
+    MapAdapter/ScenicStyleDocument.swift 92.
+  - `grep -rn "import MapLibre" apps/ios` -> MapView.swift:2 only (line 7 is the doc comment naming it).
+  - PINS.yaml ids: 31, all unique (read through ops/lib/pins.py's own loader).
+  - NOT RUN HERE (ruling R5): `bash ops/check-pins --source-only` and `bash ops/test` - both drive a long
+    swift build on this Windows box. CI's pins-source-only and linux-core jobs on the PR are the evidence.
+  STILL OPEN, for the reviewer and for whoever files next: (1) P-DATA-03's CORPUS half - T-0205; (2)
+  P-ATTR-01's XCUITest half (the footer visible at every sheet detent) - T-0180; (3) the real artifact is
+  only checked where SCENIC_LA_PMTILES is set, which is this box and ops/publish-tiles, never CI; (4) the
+  1 MiB wholeness floor in BasemapResolver is asserted by no test - there is no test target in ScenicApp,
+  so ios-compile is the only thing that reads that code at all.
