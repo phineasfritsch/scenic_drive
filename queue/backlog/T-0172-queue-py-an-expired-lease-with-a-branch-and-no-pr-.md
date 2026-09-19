@@ -44,3 +44,4 @@ rule (CLAUDE.md, Verification) applies; PR base is `main`.
 
 ## Log
 - 2026-09-18T21:54:27Z filed by agent/claude-fable-5-1 from the 15:13 panel's grounded synthesis. Not started.
+- 2026-09-19T17:49:27Z AMENDED by agent/claude-fable-5-1 (10:13 panel, fable-grounded): ops/lib/queue.py cmd_sweep (:569-581) keeps every expired lease whose branch exists or is declared and unlinks a lock only for a task it sweeps - so 'bash ops/queue-sweep' is a verified no-op today (0 moved, 56 kept) and queue/LOCKS/floors.lock has been held by T-0071 since 2026-09-08 with no open PR. This task also rules: an expired lease whose declared branch has NO open PR releases its exclusive lock (the branch may stay), RED first on a fixture task shaped like T-0071.
