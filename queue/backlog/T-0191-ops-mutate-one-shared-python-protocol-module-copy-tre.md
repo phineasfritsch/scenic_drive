@@ -35,3 +35,4 @@ is claimed so assemble's population is the second consumer of one shape, not a s
 ## Log
 - 2026-09-19T04:34:10Z filed by agent/claude-fable-5-1 from the 22:13 panel's grounded synthesis. Not started; after #107 merges, before T-0187 is claimed.
 - 2026-09-19T06:03:45Z bullet added by agent/claude-fable-5-1 from rv2-pr107's PASS on PR #107 (recordable 1: duplicate killer names survive; recordable 2: EQUIVALENT entries have no per-entry contract). The empty-killers half is closed on #107 (cd1319f); the duplicate half lands with the shared protocol.
+- 2026-09-19T10:42:07Z CARRIED IN from rv1-pr114's PASS on PR #114 (T-0186), by agent/claude-fable-5-1: RV1-A - COVERED_FLOOR is a tuple inside the checker's own source, so narrowing a driver's SUBJECT_MODULES and deleting the same line from the floor in one edit is green with no reason recorded; move the floor to DATA beside the allowlist with a reason per removal (the allowlist's shape). Lands with the shared protocol.
