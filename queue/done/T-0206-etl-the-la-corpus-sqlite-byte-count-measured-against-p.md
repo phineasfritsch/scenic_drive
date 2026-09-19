@@ -1,7 +1,7 @@
 ---
 id: T-0206
 title: ETL - the LA corpus.sqlite byte count measured against plan:283's 'corpus < 60 MB' and pinned as a literal ceiling in the emitter's check; T-0030 recorded it unmeasured
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T12:45:13Z
@@ -11,7 +11,7 @@ branch: task/T-0206
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr120
 depends_on: [T-0168, T-0030]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -336,3 +336,63 @@ so and no LA corpus byte count exists anywhere in queue/ or services/etl. The em
   STILL OPEN, carried into the PR body: the three items in the 12:58:42Z entry are unchanged (LA is 3.8x
   over and this task shrinks nothing; no real-extract adapter ships; the budget is checked at the END of
   the build). Nothing in this entry addresses any of them - they are the finding, not a defect of it.
+- 2026-09-19T13:40:42Z agent/rv1-pr120 REVIEW OF PR #120 - PASS. Read-only throughout; every number below
+  is a command I ran in a detached worktree at 512c3d5 (`.worktrees/rv1-pr120`), not a re-quote of the Log.
+  SHAPE. `git diff --stat origin/main...HEAD` -> three files, 516 insertions: this task file (+309),
+  services/etl/etl/corpus.py (+51/-4), services/etl/tests/test_corpus_budget.py (+160, new). Nothing else.
+  `wc -l` -> 217 corpus.py, 160 test_corpus_budget.py, 338 this task file: the 13:12/13:2x acceptance
+  block's own three numbers, exact. Both source files under the 300-line cap.
+  GATES, each run BARE: `cd services/etl && python -m pytest -o addopts= -q` -> `1205 passed in 89.53s`,
+  no skip line; `python -m pytest -o addopts= -q tests/test_corpus_budget.py` -> `12 passed in 2.31s`;
+  `python ops/lib/check-mutate-population.py` -> "every added module is covered or allowlisted; the floor
+  of 23 holds" (rc 0); `bash ops/lib/check-line-cap` -> "P-SRC-02: 90 Swift files ... none over 300 lines";
+  `bash ops/lib/check-exec-bits` -> "P-OPS-01: 79 files, 23 required present, all modes correct";
+  `bash ops/queue-check` -> "QUEUE OK (208 tasks)". `gh pr checks 120` on this head -> core pass 2m17s,
+  pins-source-only pass 1m4s; PR OPEN, base main, headRefOid 512c3d5.
+  THE MEASUREMENT, RE-DERIVED FROM THE ARTEFACTS RATHER THAN READ. `stat -c %s` on the T-0206 worktree's
+  gitignored work/ -> la-union-corpus.sqlite 19,906,560 B, window-corpus.sqlite 6,135,808 B. Opened
+  read-only with python sqlite3 (`file:...?mode=ro`): the union corpus carries osm_features 46,231 and
+  segments 79,764; the window corpus osm_features 11,740 and segments 24,205 - the Log's way and segment
+  counts are the rows in the files. (The table is `osm_features`, not `ways`; the report's `ways` is the
+  extract's way count and equals it.) The main checkout's services/etl/work/la/meta.json: the eleven
+  highway classes sum to 560,208 (motorway 17,394 + trunk 2,117 + primary 45,535 + secondary 43,198 +
+  tertiary 25,798 + unclassified 5,460 + residential 99,715 + living_street 195 + service 312,645 + track
+  8,148 + road 3); the file's other eight counts are POIs, not ways. 19,906,560 / 46,231 = 430.58899872
+  B/way; x 560,208 = 241,219,401.797 B; / 62,914,560 = 3.83408. The corrected 241,219,402 B and 3.834x
+  stand, and the mis-multiplied 241,224,000 B survives nowhere in the shipped tree.
+  THE PRE-REVIEW PASS'S THREE SURVIVORS, REPLAYED BY NAME. M3b (CLI default None) is dead twice:
+  `test_the_cli_default_budget_is_the_literal_on_the_shipping_parser` reads the default back out of
+  `corpus.parse_args`, the shipping parser, and `test_build_refuses_an_unlimited_budget` makes None a
+  TypeError before anything is written. M1 (the tie) is dead: the code is `>=` and
+  `test_a_corpus_of_exactly_the_budget_is_refused` builds once and re-builds at exactly that size. M4
+  (exit 3 -> 2) is dead: `assert done.returncode == corpus.BUDGET_EXIT` plus `assert corpus.BUDGET_EXIT
+  == 3`. My own three mutants, each alone on my worktree's corpus.py, `__pycache__` purged before every
+  run, 1.1 s before every restore, over tests/test_corpus_{budget,carry,idempotent,schema}.py
+  (BASELINE `37 passed`, RESTORED `37 passed`):
+      RV-M1 `size / 1e6 >= budget_bytes` (MB compared against a byte budget) -> 6 failed, 31 passed.
+      RV-M2 `len(segments) >= budget_bytes` (count compared against a byte budget) -> 3 failed, 34 passed.
+      RV-M3 `budget_bytes != CORPUS_BUDGET_BYTES and size >= budget_bytes` (the DEFAULT budget alone is
+        never enforced) -> 37 passed. SURVIVOR, and I rule it NOT blocking: no test in a git tree can
+        refuse anything under a 60 MiB default without a 60 MiB fixture, which is the reason the parameter
+        exists (R6); what the suite can bind it did bind - the parser's own default IS the literal and
+        None is refused - so the only spellings left are ones that name the constant to special-case it.
+        Recorded here as the residual gap rather than fixed: a reviewer with a real over-budget artefact
+        (T-0216's population) can close it for free.
+  WAL / "is the statted file the final file". services/etl/etl/schema.py ships `PRAGMA journal_mode = OFF`,
+  so no -wal/-shm can exist; `python -m etl.corpus` over the committed fixture left exactly one file in an
+  empty directory (`p.sqlite`, 114,688 B) and printed `CORPUS bytes=114688 budget=62914560`. The size is
+  taken after `writer.close()` in the `finally`. The pass's M2 (size before finalize) was already red.
+  "FILE LEFT ON DISK + EXIT 3" - IS IT SAFE FOR A PUBLISHER? There is no publisher to be unsafe: `ls ops/`
+  has publish-tiles and no publish-corpus, and the only "corpus" hit anywhere under ops/ outside
+  ops/mutate and check-schema-version is a comment in ops/etl-extract. Nothing today uploads a corpus.sqlite
+  by path, so nothing can ship a refused one. Not filed as a task: it is an instruction for whoever writes
+  that script, and the exit code is the contract it must read.
+  THE ONE PROCESS GAP, NON-BLOCKING AND RECORDED. `git merge-base --is-ancestor origin/main HEAD` exits 1:
+  origin/main is one commit ahead, 1970941, and 3282afc merged main as the author rule requires. That one
+  commit is `git show --stat` two ADDED queue backlog files (T-0216, T-0217, 60 insertions) filed out of
+  this very task's measurement - no gate, no pin, no ops script, no overlap with these three files. The
+  PR #115 precedent is a tree older than main's GATE SET; the gate set here is 034beb2's, which the branch
+  contains, and CI is green on it. I am not re-merging inside a review: testers find and do not fix.
+  VERDICT: PASS. `reviewer: agent/rv1-pr120`, `state: done`, queue/claimed/ -> queue/done/. The PR is
+  signed off and NOT merged by me. The honest shape of what ships: a ceiling the emitter enforces on
+  itself, a measurement that says LA is 3.8x over it, and no shrink - which is T-0216.
