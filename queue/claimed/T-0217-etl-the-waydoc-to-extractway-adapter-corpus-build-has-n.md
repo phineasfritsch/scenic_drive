@@ -159,3 +159,66 @@ The throwaway is preserved at services/etl/work/t0206/ in the main checkout for 
   so `bytes` is expected to be 6,135,808 exactly; `content_sha256` is expected to DIFFER from T-0206's, and
   that difference is the point. Measured differently from this prediction, the difference gets its own Log
   line before the PR is opened.
+- 2026-09-19T17:25:59Z BUILT by agent/claude-opus-5 (owner). Each stage quoted as it landed.
+
+  CORRECTION TO R3, one sentence of it. R3 says adding lines to `assemble.py` "refuses the merged head at
+  `ops/lib/check-line-cap`". That script's population is `git ls-files 'Sources/**/*.swift'
+  'Tests/**/*.swift' 'apps/ios/**/*.swift'` - Swift only - so the 300-line cap on a PYTHON module is
+  CLAUDE.md's File discipline rule, carried by review and by the `wc -l` in the acceptance block, not by
+  that script. The RULING does not move: 299 + 4 is over the cap either way, and the rule moving out of
+  `assemble.py` is what keeps the merged file under it. Ruled here rather than by editing R3, because the
+  Log is append-only.
+
+  RED FIRST, before either module existed (cwd services/etl, every __pycache__ purged):
+      $ python -m pytest tests/test_extractadapter.py -rs -o addopts=
+      ERROR collecting tests/test_extractadapter.py
+      E   ImportError: cannot import name 'accessrule' from 'etl'
+      1 error in 1.23s
+  GREEN, with etl/accessrule.py and etl/extractadapter.py in the tree: `78 passed in 0.62s`, and the whole
+  ETL suite `1301 passed in 65.42s`. assemble.py 293 -> 287 lines (R3), so T-0208's 299 merges to 293.
+
+  THE POPULATION, on the committed tree (ops/mutate/extractadapter.py, 25 mutations, floor 25):
+      $ python ops/mutate/extractadapter.py
+      BASELINE exit=0, 25 mutations, floor 25
+      MUTATIONS: 25 caught, 0 missed, 0 skipped, of 25
+      EQUIVALENT: 0 caught, 3 missed, 0 skipped, of 3
+      MUTATE OK  caught=25/25 equivalent_caught=0
+      $ python ops/mutate/extractadapter.py --prove-vacuity
+      VACUITY: 0 caught, 25 missed, 0 skipped, of 25
+      VACUITY PROVED
+  Every mutation was caught by a NAMED test; the two the acceptance turns on:
+    "derive access_ok from `gate_reason != GATE_NO_ACCESS`, which grants a private dirt road access"
+        <- test_a_private_dirt_road_is_refused_although_gate_reason_answers_unpaved_surface
+    "skip the out-of-table ways in SILENCE - the count line reads 0 and two roads vanish"
+        <- test_a_class_outside_the_table_is_skipped_by_count_and_never_judged
+      $ python ops/lib/check-mutate-population.py
+      P-PROC-06: 76 modules, 26 covered by 12 populations, 27 allowlisted, 2 added by this branch
+      P-PROC-06: every added module is covered or allowlisted; the floor of 25 holds
+
+  THE CANYON WINDOW, END TO END THROUGH THE COMMITTED PATH (cwd services/etl; the documents are the main
+  checkout's gitignored work/ dir, read-only; outputs to work/t0217/):
+      $ python -m etl.extractadapter --input work/la/window-doc.json --out work/t0217/window-extract.json \
+          --region la
+      ADAPT ways=11740 skipped_class=0 skipped_short=0 access_blocked=5022 surface_unknown=2308 \
+      surface_unpaved=170 surface_paved=9262
+      real 0m5.181s
+      $ python -m etl.corpus --input work/t0217/window-extract.json --out work/t0217/window-corpus.sqlite \
+          --built-at 2026-09-18T00:00:00Z
+      CORPUS region=la ways=11740 segments=24205 collisions=0
+      CORPUS bytes=6135808 budget=62914560
+      CORPUS content_sha256=a642b4ebca9263ae8d06d35481f68d1cabf64bdbf0c43fcf37cfa020251eb876
+      CORPUS file_sha256=47cb679b9e55a4cfbd5ebe45f8ea3395b8fce76d3dd3c8aeb8454fcd5caa5fc1
+      real 0m13.082s ; stat -c %s -> 6135808
+  ways / segments / bytes are T-0206's 11,740 / 24,205 / 6,135,808 EXACTLY. `content_sha256` differs from
+  T-0206's 97047605... as R7 predicted, and the difference is measured row by row against that run's own
+  extract (work/t0206/window-extract.json, reference only, never imported):
+      $ python services/etl/work/t0217/diff_extracts.py
+      ways: mine=11740 theirs=11740 only_mine=0 only_theirs=0
+      differing rows per field: {'access_ok': 162, 'oneway': 6}
+      access_ok (access, motor_vehicle, theirs, mine):  ('customers', None, 0, 1) 85 |
+        (None, 'private', 0, 1) 54 | ('destination', None, 1, 0) 22 | (None, 'permit', 0, 1) 1
+      oneway (oneway, junction, theirs, mine):  (None, 'roundabout', 0, 1) 6
+  Four fields - cls, highway, name, surface, nodes - differ on ZERO rows, no way is added or dropped, and
+  the 168 rows that move are exactly the two columns R7 predicted before the run: the throwaway's one
+  over-wide list read against both keys (85 + 54 + 1 ways it refused that `Gates.verdict` allows, 22 it
+  allowed that `Gates.verdict` refuses) and the roundabouts tagged with no `oneway` key.
