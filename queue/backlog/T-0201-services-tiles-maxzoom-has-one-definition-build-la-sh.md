@@ -16,6 +16,7 @@ depends_on: [T-0165]
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "build-la.sh's MAXZOOM default derives from check_pmtiles.MIN_MAXZOOM (python -c, the BUDGET_BYTES precedent at build-la.sh:52); --maxzoom stays as the deliberate override and the checker's --min-maxzoom must be passed alongside it or the recipe refuses by name; a test mirroring test_the_build_recipe_reads_the_budget_out_of_this_module forbids a bare MAXZOOM=<digits> literal - RED first, then green"
+  - "test_style_tokens.py::test_the_build_recipe_checks_the_styles_against_the_archive reads only the recipe's NON-comment lines (rv2-pr109's survivor: a commented-out step 7 satisfies the substring test today and the suite stays green) - RED first with step 7 commented out, then green; the same non-comment rule for the new MAXZOOM test"
   - "python -m pytest services/tiles/tests count line; bash -n services/tiles/build-la.sh"
 ---
 ## Brief
@@ -28,3 +29,4 @@ If #109 is still open when this is read, the round-2 reviewer records it and the
 
 ## Log
 - 2026-09-19T06:29:45Z filed by agent/claude-fable-5-1 from the 00:13 panel's grounded synthesis. Not started; after #109 merges unless its reviewer folds it in.
+- 2026-09-19T06:51:50Z bullet added by agent/claude-fable-5-1 from rv2-pr109's PASS on PR #109 (recordable 1): the recipe-text assertion is satisfied by a commented-out invocation; CLAUDE.md forbids anchoring on comments. Lands with the one-definition MAXZOOM test in the same file.
