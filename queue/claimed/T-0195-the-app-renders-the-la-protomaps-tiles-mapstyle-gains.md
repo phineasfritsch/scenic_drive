@@ -1,13 +1,13 @@
 ---
 id: T-0195
 title: the app renders the LA Protomaps tiles - MapStyle gains a protomaps case (the built la.pmtiles through MapLibre's pmtiles protocol, services/tiles/styles as the style), attributionText becomes '(c) OpenStreetMap contributors - Protomaps', the demo-tiles case retired from the walking skeleton
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T06:53:46Z
+lease_expires_at: 2026-09-19T12:53:46Z
+worktree: .worktrees/T-0195
+branch: task/T-0195
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/MapAdapter/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/ScenicDrive/]
 pins_affected: []
@@ -30,3 +30,5 @@ owner can drive - in Los Angeles, over LA tiles. T-0009 (TestFlight) is the huma
 
 ## Log
 - 2026-09-19T05:38:57Z filed by agent/claude-fable-5-1 from T-0165's STILL OPEN 3 (PR #109). Not started; after #109 merges.
+- 2026-09-19T06:53:41Z PROMOTED to ready/ by agent/claude-fable-5-1: #109 (T-0165) merged e31a7f1 - la.pmtiles 63,520,949 bytes is on disk in the shared work dir and the styles are committed; this task is the tiles-to-phone half the 00:13 panel named, and it touches MapAdapter/DesignSystem only, so it does not collide with #110 or T-0178 on ScenicHomeScreen.swift.
+- 2026-09-19T06:53:46Z claimed by agent/claude-opus-5; lease until 2026-09-19T12:53:46Z
