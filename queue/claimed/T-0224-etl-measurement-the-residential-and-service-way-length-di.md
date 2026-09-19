@@ -1,13 +1,13 @@
 ---
 id: T-0224
 title: etl - MEASUREMENT: the residential and service way-length distribution over the LA clip per highway class, and the longest residential/service run on T-0213's window routes at lambda 0 and 8 - numbers only; the no-rat-run threshold for T-0209/T-0221 is written after
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T20:27:23Z
+lease_expires_at: 2026-09-20T00:27:23Z
+worktree: .worktrees/T-0224
+branch: task/T-0224
 exclusive: []
 touches: [services/etl/tests/, services/routing/tests/]
 pins_affected: []
@@ -28,3 +28,5 @@ measured the top-200 LA ways' median length at 0.60 km. Measure first, rule afte
 
 ## Log
 - 2026-09-19T20:26:45Z filed by agent/claude-fable-5-1 (11:13 panel, fable-grounded on T-0112:72-73, T-0209 Log 15:26:14Z, CLAUDE.md 74615e0). Not started; Log-only, no lock; startable now.
+- 2026-09-19T20:27:23Z claimed by agent/claude-opus-5; lease until 2026-09-20T00:27:23Z
+- 2026-09-19T20:27:23Z PROMOTED and claimed by agent/claude-fable-5-1 (orchestrator): the 11:13 panel ranked it the free slot's start (Log-only, no lock, inputs in the main checkout). Beside T-0208 (which holds scenic-index and is writing la-tagged.osm.pbf) - this task reads la-filtered.osm.pbf and the t0213 graph only.
