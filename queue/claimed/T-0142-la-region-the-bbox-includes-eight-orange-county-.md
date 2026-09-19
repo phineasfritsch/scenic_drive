@@ -163,3 +163,85 @@ region, and a test that a Westwood coordinate resolves to `n34w119`.
   `python -m etl.fetch --record-digest` was NOT run for any of the four - nothing was re-downloaded, and no
   digest in this commit was typed from anywhere but that log. `retrieved: 2026-09-19` is the UTC day of the
   download. Nothing outside the gitignored inputs directory holds the .tif files.
+- 2026-09-19T03:20:00Z ACCEPTANCE BLOCK RE-RUN AND RE-QUOTED AT THE FINAL COMMIT (`8a23671`, the only
+  commit carrying source; this entry is the second and touches no measured file).
+  **Bullet 1, LA TERRAIN - met.** `dem.tile_for` resolves through `dem.tiles_for_region(region_id)`, which is
+  `dem.tiles_for_bbox` of the region's own bbox minus `UNSERVED`; the sfbay `TILES` constant is no longer in
+  the decision. Quoted from the committed tree:
+  ```
+  tiles_for_region('la')   = ['n34w118', 'n34w119', 'n35w118', 'n35w119']
+  tiles_for_region('sfbay')= ['n37w122', 'n37w123', 'n38w122', 'n38w123', 'n38w124', 'n39w122', 'n39w123', 'n39w124']
+  TILES == sfbay derivation: True
+  tile_for(34.07,-118.45) la active = n35w119
+  tile_for(34.07,-118.45) no region = n35w119
+  ```
+  The four manifest entries, read back through `etl.manifest.parse` rather than off the diff:
+  ```
+  3dep-n34w118.tif  sha256  f3b96b70480986170627b6d888be39775353de475e5e6d07823fcfe51869177e  bytes=351919765  retrieved=2026-09-19  by=T-0142
+  3dep-n34w119.tif  sha256  d550d73b3884ccf16d9ca30c286c2d205905a4e35292324a2b38726896bd1f00  bytes=77566808   retrieved=2026-09-19  by=T-0142
+  3dep-n35w118.tif  sha256  7e660831c5b6a2a6b7ded4215886df8ad393f4303500086880350cd94badf986  bytes=422435036  retrieved=2026-09-19  by=T-0142
+  3dep-n35w119.tif  sha256  28fb065b1f33a57bee117377c65558e004488b97d5c61ec4f13c763b9b837afb  bytes=454839551  retrieved=2026-09-19  by=T-0142
+  manifest validate_all: []
+  ```
+  AND THE FOUR DIGESTS WERE VERIFIED AGAINST THE FILES, not merely transcribed - the repo's own verifier,
+  run read-only from the main checkout against THIS branch's manifest
+  (`python -m etl.fetch --verify-only --manifest <worktree>/services/etl/inputs/manifest.yaml --only 3dep-nXXwYYY.tif`,
+  exit 0 four times; `git status` in the main checkout empty afterwards):
+  ```
+  3dep-n34w118.tif: verified (sha256)   verified 3dep-n34w118.tif bytes=351919765 retrieved=2026-09-19 sha256 ok
+  3dep-n34w119.tif: verified (sha256)   verified 3dep-n34w119.tif bytes=77566808 retrieved=2026-09-19 sha256 ok
+  3dep-n35w118.tif: verified (sha256)   verified 3dep-n35w118.tif bytes=422435036 retrieved=2026-09-19 sha256 ok
+  3dep-n35w119.tif: verified (sha256)   verified 3dep-n35w119.tif bytes=454839551 retrieved=2026-09-19 sha256 ok
+  ```
+  The sfbay eight are untouched: `test_the_sfbay_eight_are_untouched` asserts each is still present,
+  64-hex and `consumed_by: T-0026`, and the manifest diff is four added entries plus one comment block.
+  **Bullet 2, region.json - met.** `_comment_bbox` now says the box TAKES IN northern Orange County, names
+  Anaheim and Santa Ana with the coordinates the reviewer measured and the other six cities by name, and
+  its EXCLUDES sentence no longer claims the county. `_comment_counties` names Orange as a clipped
+  neighbour that is not a sliver. `_comment_dem` no longer says the tiles are unpinned. Red first, by name
+  (`test_the_bbox_comment_does_not_claim_to_exclude_cities_the_box_contains`, quoted verbatim in the
+  03:06 entry), green now.
+  **Bullet 3, the counts - met by not moving.** The bbox did NOT move, so no re-record is owed. Proven
+  rather than asserted: `git diff 6d6e2e7 HEAD -- services/etl/regions/la/region.json` filtered to lines
+  that are not `_comment` is EMPTY - `bbox`, `counts` and `counts_from` are byte-identical to origin/main.
+  The DEM tile list re-derived by `dem.tiles_for_bbox` is quoted above (the four).
+  Gates at this commit, run bare:
+  ```
+  cd services/etl && python -m pytest tests -rs   ->  1042 passed in 132.43s (0:02:12)   SUITE_EXIT=0   (skipped=0)
+  bash ops/lib/check-line-cap  ->  P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines   LINECAP_EXIT=0
+  bash ops/queue-check         ->  QUEUE OK (179 tasks)                                  QUEUECHECK_EXIT=0
+  bash ops/check-pins --source-only -> PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only  PINS_EXIT=0
+  wc -l: services/etl/etl/dem.py 258 | services/etl/tests/test_dem_tiles.py 206 | services/etl/inputs/manifest.yaml 241 | services/etl/regions/la/region.json 45
+  ```
+  `ops/test` and full `ops/check-pins` were NOT run here (other authors hold other worktrees on this box;
+  the orchestrator's instruction). The ETL suite ran on the Windows checkout, not in the pinned image -
+  `tests/test_manifest.py`'s two attribution guards skip inside the container and did not skip here.
+- 2026-09-19T03:21:00Z STILL OPEN, in the order they matter.
+  **1. FOR THE HUMAN - the commute question, unchanged and now the only thing holding the bbox.** Does the
+  owner's drive cross -117.85 (east, past Angeles Crest's far end into San Bernardino) or 33.70 (south, past
+  Palos Verdes)? Until that is answered the south-east corner stays where the counts were measured, and the
+  file now SAYS it holds Anaheim, Santa Ana, Fullerton, Buena Park, Garden Grove, Westminster, Seal Beach
+  and La Habra instead of claiming it excludes them. If the answer moves the box: re-run the extract for the
+  counts (`counts_from` will refuse the old ones), and re-derive the tiles - cutting east of -118.0 or north
+  of 34.0 would drop `n34w118`, and `tiles_for_region` will do that automatically while the manifest entry
+  stays, which is harmless but worth noticing.
+  **2. "LA has terrain" means the tile resolution and the pinned inputs, NOT a sampled elevation.** Nothing
+  has read a GeoTIFF for LA: `gdallocationinfo` lives in the pinned ETL image, the .tif files are in the
+  gitignored inputs directory of the main checkout only (see [[T-0177]]), and no pipeline calls
+  `dem.sample*` yet. What this task can honestly claim is that the four tiles are pinned and verifiable and
+  that every LA point now RESOLVES to one. The first real LA elevation number is T-0168's.
+  **3. No production caller passes `tiles=` because there is no production caller (R1).** When T-0168 wires
+  the clip it should pass `tiles=dem.tiles_for_region("la")` to mean "this region only"; if it forgets, the
+  default is every region we serve, so LA still gets its terrain - that is R2's whole point, not an excuse
+  to forget.
+  **4. Finding 2 of PR #68's review is NOT closed** (R7): `counts_from.source` still reads
+  `california-osm.pbf`, which is the manifest's own name for the file whose url is `california-latest.osm.pbf`.
+  Making `CountsFrom.problems()` require a source the manifest knows is a validator change that every region
+  load runs through and wants its own red test; it needs its own task.
+  **5. `dem.py` has no mutation population under `ops/mutate/`** (R8), and `ops/mutate/` is outside this
+  task's `touches:`. The module predates the rule; the functions added here are set arithmetic rather than
+  scoring, but the boundary cases (`<` versus `<=` on a bbox edge, ceil versus floor in the tile name) are
+  exactly what a population would catch and `tests/test_dem_tiles.py` currently catches by hand.
+  **6. Untouched from the Brief's "also on the record"**: no `curated.yaml` for la, `ops/sane` code 4 still
+  cannot run for la (no `work/la/meta.json` on this box), and `.artifacts/record-provenance.py` is still
+  gitignored.
