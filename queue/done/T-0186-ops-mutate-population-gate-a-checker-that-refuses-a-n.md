@@ -1,7 +1,7 @@
 ---
 id: T-0186
 title: ops/mutate population gate - a checker that refuses a new numeric module under services/etl/etl/ or Sources/ with no ops/mutate population, pinned; red on assemble.py and sinuosity.py first
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T08:09:33Z
@@ -11,7 +11,7 @@ branch: task/T-0186
 exclusive: []
 touches: [ops/mutate/, ops/lib/, pins/PINS.yaml, services/etl/tests/, .github/workflows/linux-core.yml]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr114
 depends_on: [T-0176, T-0146]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -295,3 +295,54 @@ blocking class to a fix pass in flight.
   origin/main, so a module added on a branch stacked on another task branch is seen once that base reaches
   main. (4) services/etl/mutate/byway_route_key.py is a population outside ops/mutate/ (09:57 ruling); moving
   it belongs to its own task.
+- 2026-09-19T11:05:00Z REVIEW PASS by agent/rv1-pr114 (round 1, harness PR #114). Judged on a detached
+  worktree at 87739e7 (.worktrees/rv1-pr114), `git status --short` empty after every mutant.
+  CI, read once: `gh pr checks 114` -> `core pass 2m15s`, `pins-source-only pass 1m4s`. B0's fix is proved
+  by the green `core` job itself: the run that was red with "P-PROC-06: no merge base with origin/main or
+  main" is green with `fetch-depth: 0` on the `core` checkout only, and the refusal text now names the cause.
+  RE-RUN BARE on the review worktree, all matching the Log's final block: the gate EXIT=0 ("71 modules, 22
+  covered by 10 populations, 25 allowlisted, 0 added by this branch ... the floor of 22 holds", 24 DEBT);
+  `--prove-red` EXIT=0 "all 13 cases behaved as stated"; `bash ops/lib/check-line-cap` EXIT=0 (P-SRC-02, 78
+  Swift files); `bash ops/lib/check-exec-bits` EXIT=0 (P-OPS-01, 76 files, 23 required, all modes correct);
+  `bash ops/queue-check` EXIT=0 (QUEUE OK, 199 tasks); `python ops/mutate/geometry.py` EXIT=0 (12 mutations
+  over 6 classes, floor 12, 4 equivalent); `python ops/mutate/scenic_tags.py` EXIT=0 (caught=25/25); `wc -l`
+  294 / 207 / 30 as measured; `git ls-tree HEAD` 100644 on all three, matching ops/lib's other .py gates.
+  `--source-only` NOT re-run here - CI's pins-source-only is the evidence, and P-PROC-06 is anchor: process
+  and skipped by it anyway.
+  SURVIVOR REPLAY of the pass's five findings, on the review worktree: S1 - retrace.py's SUBJECT_MODULES
+  widened to ScoredEdge.swift with the basename placed ONLY in a `#` comment of the driver -> EXIT=2, "which
+  no mutation in the retrace* population targets. A declaration is not coverage". The comment is stripped,
+  so the gate does not anchor on one (CLAUDE.md). S2 - `added_modules()` replaced by `return []` -> both
+  real-git arms go NOT DISCRIMINATING, EXIT=1, "The check is not a check." S3/S4 - the moved-in module and
+  the subpackage module are cases 13 and 6 of the shipped table and both `ok`.
+  ALLOWLIST READ against five modules rather than its reasons: checkbounds.py (compares meta.json, `max(rc,
+  code)` only), terms.py (no arithmetic at all), BywayTier.swift (a 28-line three-state enum; the weights it
+  names live in SegmentTerms.swift, which segmentscore.py covers), counts.py (`DEFAULT_TOLERANCE = 0.15`,
+  `pct = (got - want) / want * 100`) and oracle_select.py (`SQUASH_RADIUS_M = 30.0`, `GEOMETRY_TOL_M = 1.0`,
+  `CELL_DEG = 0.0005`, a proximity grid). The last two DO arithmetic; both reasons are honest under the
+  allowlist's stated test - a number reaching score, route or tags - and neither number leaves the build
+  gate or the oracle report. No module that reaches score, route or tags is allowlisted: score.py,
+  curvature.py, normalise.py, terrain.py, dem.py, landcover.py and assemble.py are all in the DEBT table,
+  where R4 iii put them. The BLOCKING condition - a new numeric module shipping with no population while the
+  gate is green - does not hold: this branch adds no module under either root (0 added).
+  TWO REVIEWER MUTANTS SURVIVED, both RECORDABLE and neither blocking; filed rather than fixed here, under
+  CLAUDE.md's harness two-round cap.
+  RV1-A COVERED_FLOOR IS IN THE CHECKER'S OWN SOURCE. Narrowing `ops/mutate/segmentscore.py`'s
+  SUBJECT_MODULES to drop SegmentTerms.swift AND deleting that one line from COVERED_FLOOR in
+  ops/lib/check-mutate-population.py, in the same edit, leaves the gate green: "21 covered by 10 populations
+  ... the floor of 21 holds", EXIT=0 - while segmentscore.py still mutates SegmentTerms.swift, so the
+  declaration and the population now disagree and nothing says so. The gate's own refusal text asks for
+  exactly this ("take the module out of COVERED_FLOOR in the same commit that removes the mutations, with
+  the reason"), but unlike the allowlist - DATA, one reason per entry, re-read on every widening - the floor
+  is code with no reason field and is not a serial-only file. The asymmetry is the finding: the widening
+  side of the ledger is reasoned data, the narrowing side is a tuple anyone can shorten.
+  RV1-B A DUPLICATE KEY IN THE ALLOWLIST JSON SHADOWS A REASONED ENTRY. `json.loads` keeps the LAST value
+  for a repeated key; a diff that adds `"services/etl/etl/schema.py": "ok"` above the existing reasoned
+  entry runs green (EXIT=0, still "25 allowlisted") with the gate honouring one reason and the reviewer
+  reading the other. Mechanically harmless today - the surviving value must still be non-empty, name a real
+  module and not be covered - but the allowlist's whole load-bearing property is that a human reads the
+  reason the gate uses. `object_pairs_hook` refusing a repeat is the one-line close.
+  NOT REACHED, said rather than implied: `bash ops/test` and the full `bash ops/check-pins` were out of
+  scope for this review; the eight non-geometry, non-scenic_tags drivers were not run (they need Swift); the
+  DEBT backlog itself is unchanged and the Log's STILL OPEN (1)-(4) carry forward as filed.
+  Signed off: queue/claimed/ -> queue/done/. Not merged by the reviewer.
