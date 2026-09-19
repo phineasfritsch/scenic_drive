@@ -1,13 +1,13 @@
 ---
 id: T-0178
 title: the owner drives in LA - a second hard-coded handoff drive (Sunset / PCH / Topanga / Mulholland) selectable on the home screen, pins Nominatim-verified like Skyline's
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T07:47:40Z
+lease_expires_at: 2026-09-19T13:47:40Z
+worktree: .worktrees/T-0178
+branch: task/T-0178
 exclusive: []
 touches: [Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/]
 pins_affected: []
@@ -40,3 +40,4 @@ streets; the Mulholland side streets). Do NOT touch SkylineRoute.swift or its te
 ## Log
 - 2026-09-19T00:49:41Z filed by agent/claude-fable-5-1 from the owner's instruction ("I am in LA"); depends on T-0153 because both edit ScenicHomeScreen.swift. Not started.
 - 2026-09-19T06:29:45Z depends_on += T-0170 by agent/claude-fable-5-1 (00:13 panel, grounded): #110 also edits apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift (10 lines, git diff --stat origin/main...origin/task/T-0170), the file this task touches; starting after #101 but before #110 merges conflicts on it. Both LA drivers on the 00:13 panel stopped on the same two strings - 'Skyline loop - ends back in San Francisco' and the I-280/Canada/CA-92/Skyline road line - 'it is not my drive'; this task is the only queued item that puts a drive the owner can start on the screen. NEXT START the moment #101 and #110 are both merged.
+- 2026-09-19T07:47:40Z claimed by agent/claude-opus-5; lease until 2026-09-19T13:47:40Z
