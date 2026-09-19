@@ -1,0 +1,21 @@
+# The LA PMTiles archive lives here for a device build, and is NEVER committed.
+#
+# `BasemapResolver` (step 1 of its resolution order) reads `la.pmtiles` out of the app bundle, and
+# `apps/ios/ScenicDrive/` is an Xcode 26 buildable folder, so a file dropped in here is in the target.
+# It is 63,520,949 bytes - `services/tiles/work/la.pmtiles.json` carries its sha256, region and
+# maxzoom - which is why it is ignored twice: the repository root's `.gitignore` already has
+# `*.pmtiles` tree-wide, and this file repeats it where the file is actually put.
+#
+# The owner's step before a device build, from the MAIN checkout (never a worktree - `git worktree
+# remove` deletes a worktree's ignored files with it):
+#
+#     cp services/tiles/work/la.pmtiles apps/ios/ScenicDrive/Tiles/la.pmtiles
+#
+# Without it the app resolves to Application Support (M4's download sheet, not written yet) and then
+# to MapLibre's demo tiles under MapLibre's own credit. Nothing fails; the map is simply not LA.
+#
+# This file is also why the folder exists in a fresh checkout: an empty directory is not a thing git
+# stores, and a buildable folder that is not on disk has nothing to synchronize. Xcode's synchronized
+# folders skip hidden files, so this one is not copied into the app bundle.
+*.pmtiles
+*.pmtiles.json
