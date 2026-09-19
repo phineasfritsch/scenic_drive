@@ -1,0 +1,291 @@
+#!/usr/bin/env bash
+# THE SELECTED DRIVE IS THE DRIVE THAT TRAVELS: a structural check over the Apple-only feature target, in
+# the shape of ops/lib/check-safety-disclaimer (P-SAFE-03) and for the same reason - `FeatureScenicHome`
+# has NO TEST BUNDLE (apps/ios/Packages/ScenicApp/Package.swift says so in its own words) and there is no
+# Apple toolchain on the authoring box, so nothing else in this repository can read a line of it.
+#
+# WHY IT EXISTS. The pre-review mutant pass on PR #121 (.artifacts/signoffs/copy-four-mutant-pass.md) ran
+# four one-token mutations of the shipping views and every gate stayed green - `linux-core`, `ios-compile`
+# and `check-safety-disclaimer` all exit 0 while the app ships the WRONG DRIVE:
+#
+#   M1a  HandoffFailureCard.clipboardText  drive.clipboardPayload( -> HandoffDrive.skyline.clipboardPayload(
+#        The LA card copies the Bay Area link, above the LA roads and the LA miles. The Linux suite calls
+#        clipboardPayload on a drive the TEST chooses, so it cannot see which drive the CARD passes.
+#   M1c  SkylineHandoff.directions(for:)   drive.directions -> HandoffDrive.skyline.directions
+#        The button opens Skyline while the card copies LA - T-0202's defect, in the other direction.
+#   M3a/M3b were closed by moving the words into `Sources/Handoff` (HandoffDrive.timingSentence /
+#        .failureTimingSentence, bound by Tests/HandoffTests/HandoffDriveTimingSentenceTests.swift). Rows
+#        4 and 5 below are what stops them walking back into this target as a fresh literal.
+#
+# WHAT IT DECIDES, and it refuses to pretend it decides more:
+#
+#   (i)   every occurrence of `clipboardPayload(` under the app tree is at the one tracked site, AND every
+#         one of them is spelled `drive.clipboardPayload(` - the receiver is the selected drive
+#   (ii)  every occurrence of `.directions` under the app tree is at the one tracked site, AND every one is
+#         spelled `drive.directions` - SkylineHandoff forwards the drive it was handed
+#   (iii) every occurrence of the case identifiers `.skyline` / `.santaMonicaMountains` is at a tracked
+#         SELECTOR site (the switches that map a drive to its basemap and its words, and the two picker
+#         rows). A hard-coded case anywhere else - in the card, in the handoff - is refused by name.
+#   (iv)  the two timing sentences are RENDERED, not re-typed: `.timingSentence` at the two tracked sites
+#         and `.failureTimingSentence` at the one, so a literal typed back into this target (which no test
+#         can read) shows up as a count that moved
+#
+# EVERY ANCHOR IS A WHITELIST over an identifier: any other count in any file is refused, whatever the
+# spelling (CLAUDE.md - PR #101 bought four review rounds one blacklisted spelling at a time). The counts
+# are typed literals at the call site, not derived from what was just read, so a change that both adds an
+# occurrence and satisfies some other anchor cannot pass silently; they are raised deliberately the day
+# the screen legitimately grows one more. Nothing here is anchored on a comment: `//` is stripped before
+# anything is counted, and so is every "..." string literal, so `identifier: "home.drive.skyline"` is not
+# read as a case reference.
+#
+# WHAT IT CANNOT SEE, so nobody reads more into a green than is there: whether either view renders at all,
+# what the sentences SAY (Tests/HandoffTests owns that: no digit, the two differ, the promise only on the
+# home surface), whether the copy button is reachable, Dynamic Type, the 44 pt target - an XCUITest owns
+# those and does not exist yet (T-0180). A drive reached without naming a case (`HandoffDrive.allCases[0]`,
+# a stored property assigned elsewhere, a helper that returns one) names no identifier this counts, and a
+# line carrying an escaped quote inside a string literal confuses the literal stripper. Swift outside the
+# app tree is unscanned - `Sources/Handoff` is the Linux half and has tests.
+#
+#   bash ops/lib/check-drive-copy                 # the tracked tree
+#   bash ops/lib/check-drive-copy --sources DIR --app-tree DIR   # a throwaway copy
+#   bash ops/lib/check-drive-copy --prove-red     # seven mutations, each refused by name
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+DEFAULT_SOURCES="apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome"
+DEFAULT_APP_TREE="apps/ios"
+MIN_APP_FILES=4
+
+SOURCES="$DEFAULT_SOURCES"
+APP_TREE=""
+REQUIRE_TRACKED=1
+PROVE_RED=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --sources) SOURCES="${2:-}"; REQUIRE_TRACKED=0; shift 2 ;;
+    --app-tree) APP_TREE="${2:-}"; shift 2 ;;
+    --prove-red) PROVE_RED=1; shift ;;
+    *) echo "check-drive-copy: unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+SOURCES="${SOURCES%/}"
+if [[ -z "$APP_TREE" ]]; then
+  if [[ "$REQUIRE_TRACKED" -eq 1 ]]; then APP_TREE="$DEFAULT_APP_TREE"; else APP_TREE="$SOURCES"; fi
+fi
+APP_TREE="${APP_TREE%/}"
+
+fail() {
+  echo "drive-copy: $1"
+  shift
+  for extra in "$@"; do echo "  $extra"; done
+  exit 1
+}
+
+# Code only: CR stripped, `//` to end of line stripped, then every "..." string literal emptied. A comment
+# is not an anchor and a string is not a call site.
+code_of() {
+  sed -e 's/\r$//' -e 's|//.*||' -e 's/"[^"]*"//g' "$1"
+}
+
+count_occurrences_in() {
+  code_of "$2" | awk -v needle="$1" '
+    { s = $0; while ((i = index(s, needle)) > 0) { n++; s = substr(s, i + length(needle)) } }
+    END { print n + 0 }'
+}
+
+# One "path(count)" per line, by OCCURRENCE - one line may carry two.
+occurrences_with_multiplicity() {
+  local needle="$1" f c
+  shift
+  for f in "$@"; do
+    c="$(count_occurrences_in "$needle" "$f")"
+    [[ "$c" -eq 0 ]] || printf '%s(%s)\n' "$f" "$c"
+  done
+}
+
+# THE WHITELIST: needle, what to call it, the tracked set, the why lines, `--`, then the files. Call it
+# BARE - `fail` exits. The `--` is what lets a refusal carry more than one line of why.
+require_tracked() {
+  local needle="$1" kind="$2" expected="$3"
+  shift 3
+  local why=()
+  while [[ $# -gt 0 && "$1" != "--" ]]; do why+=("$1"); shift; done
+  [[ "${1:-}" == "--" ]] && shift
+  local seen=() an="$#"
+  mapfile -t seen < <(occurrences_with_multiplicity "$needle" "$@")
+  [[ "${seen[*]}" == "$expected" ]] || fail \
+    "the $kind $needle occurs outside its tracked set; found: ${seen[*]:-none}" \
+    "Tracked set: $expected. Counted by OCCURRENCE over all $an .swift file(s) under $APP_TREE, with //" \
+    "and string literals stripped. This is a WHITELIST: any other count in any file is refused by name," \
+    "whatever the spelling." \
+    "${why[@]}"
+}
+
+run_check() {
+  local sources="$1" require_tracked="$2" app_tree="$3"
+
+  [[ -d "$sources" ]] || fail "no such directory: $sources" \
+    "The population is the feature sources; a missing tree must never read as 'the right drive travels'."
+  [[ -d "$app_tree" ]] || fail "no such directory: $app_tree" \
+    "Every count is decided over the app tree; a missing tree is a refusal, never a pass."
+
+  local card="$sources/HandoffFailureCard.swift"
+  local handoff="$sources/SkylineHandoff.swift"
+  local facts="$sources/DriveFacts.swift"
+  local basemap="$sources/DriveBasemap.swift"
+  local words="$sources/DriveCopy.swift"
+  local picker="$sources/DriveSelector.swift"
+
+  local f
+  for f in "$card" "$handoff" "$facts" "$basemap" "$words" "$picker"; do
+    [[ -f "$f" ]] || fail "missing file: $f" \
+      "Every tracked count below names this file; a tree without it is a check with no population."
+  done
+  if [[ "$require_tracked" -eq 1 ]]; then
+    for f in "$card" "$handoff" "$facts" "$basemap" "$words" "$picker"; do
+      [[ -n "$(git ls-files -- "$f")" ]] || fail "not tracked by git: $f" \
+        "This is a property of the committed tree, not of somebody's working directory."
+    done
+  fi
+
+  local app_files=()
+  mapfile -t app_files < <(find "$app_tree" -type f -name '*.swift' | LC_ALL=C sort)
+  local an="${#app_files[@]}"
+  [[ "$an" -ge "$MIN_APP_FILES" ]] || fail \
+    "only $an .swift file(s) under $app_tree (expected >= $MIN_APP_FILES)." \
+    "A scan that enumerated nothing must not read as 'every call names the selected drive'."
+  local covered=0
+  for f in "${app_files[@]}"; do [[ "$f" == "$card" ]] && covered=1; done
+  [[ "$covered" -eq 1 ]] || fail "the scan of $app_tree does not contain $card." \
+    "The app tree has to cover the feature sources, or the counts are decided over the wrong files."
+
+  # ------------------------------------------------- (i) the clipboard is built from the SELECTED drive
+  require_tracked "clipboardPayload(" "call" "$card(1)" \
+    "A second paste built anywhere else is a second payload nothing compares to the one the button opens." \
+    -- "${app_files[@]}"
+  require_tracked "drive.clipboardPayload(" "call on the selected drive" "$card(1)" \
+    "Same site, same count, and the RECEIVER read: HandoffDrive.skyline.clipboardPayload( type-checks," \
+    "renders, and copies the Bay Area link onto the LA card (M1a). The Linux suite calls this method on a" \
+    "drive the test chooses, so only the source can say which drive the card passes." \
+    -- "${app_files[@]}"
+
+  # ------------------------------------------------------ (ii) the handoff forwards the SELECTED drive
+  require_tracked ".directions" "request builder" "$handoff(1)" \
+    "HandoffDrive.directions is THE ONE URL BUILDER; a second AppleMapsDirections built in this target is" \
+    "the drift T-0202 was filed for." \
+    -- "${app_files[@]}"
+  require_tracked "drive.directions" "request builder on the selected drive" "$handoff(1)" \
+    "HandoffDrive.skyline.directions here opens Skyline while the card copies LA (M1c), and no test in" \
+    "this repository can reach an Apple-only enum." \
+    -- "${app_files[@]}"
+
+  # ----------------------------------------------------- (iii) a case is named at a SELECTOR site only
+  local cases="$basemap(1) $words(3) $picker(1)"
+  require_tracked ".skyline" "drive case" "$cases" \
+    "The basemap switch, the three DriveCopy switches, the picker row. Everywhere else the drive arrives" \
+    "as a VALUE; a case typed into the card or the handoff is a surface that ignores the selection." \
+    -- "${app_files[@]}"
+  require_tracked ".santaMonicaMountains" "drive case" "$cases" \
+    "Same sites, same counts: the two cases are selected together or the screen disagrees with itself." \
+    -- "${app_files[@]}"
+
+  # ------------------------------------------ (iv) the words are RENDERED from Handoff, never re-typed
+  require_tracked ".timingSentence" "home timing sentence" "$facts(1) $card(1)" \
+    "DriveFacts renders it; HandoffFailureCard.clipboardText pastes it. The sentence itself lives in" \
+    "Sources/Handoff, where HandoffDriveTimingSentenceTests reads it - a literal typed back into this" \
+    "target is a number or a promise nothing can check (M3a)." \
+    -- "${app_files[@]}"
+  require_tracked ".failureTimingSentence" "failure-card timing sentence" "$card(1)" \
+    "The card's own sentence, from the same tested type: made equal to the home sentence it promises a" \
+    "real time from an app that just refused to open (M3b)." \
+    -- "${app_files[@]}"
+
+  echo "drive-copy: over the $an .swift file(s) under $app_tree -"
+  echo "  clipboardPayload( at $card(1), every occurrence spelled drive.clipboardPayload(;"
+  echo "  .directions at $handoff(1), every occurrence spelled drive.directions;"
+  echo "  the drive cases .skyline and .santaMonicaMountains each at $cases and nowhere else;"
+  echo "  .timingSentence at $facts(1) $card(1), .failureTimingSentence at $card(1)."
+  echo "  Not checked here: rendering, what the sentences say (Tests/HandoffTests), taps, Dynamic Type."
+}
+
+# ------------------------------------------------------------------------------------------------ red
+# ROW = label | file under the app-tree copy | sed script | substring the refusal must contain
+# `|` is the field separator, so a script is spelled with `/` delimiters and carries no pipe.
+rows=(
+  "M1a the card copies a hard-coded drive|FS/HandoffFailureCard.swift|s/drive\.clipboardPayload(/HandoffDrive.skyline.clipboardPayload(/|drive.clipboardPayload( occurs outside its tracked set"
+  "M1c the handoff opens a hard-coded drive|FS/SkylineHandoff.swift|s/drive\.directions/HandoffDrive.skyline.directions/|drive.directions occurs outside its tracked set"
+  "the card reads a hard-coded case beside the selected drive|FS/HandoffFailureCard.swift|s/DriveFacts\.straightLine(for: drive)/DriveFacts.straightLine(for: .santaMonicaMountains)/|drive case .santaMonicaMountains occurs outside its tracked set"
+  "a second paste built beside the card's|FS/HandoffFailureCard.swift|s/^    var body: some View {$/    var stray: String { HandoffDrive.skyline.clipboardPayload(roadList: r, straightLine: s, timing: t) }\n&/|call clipboardPayload( occurs outside its tracked set"
+  "the failure card grows its own timing literal again|FS/HandoffFailureCard.swift|s/Text(drive\.failureTimingSentence)/Text(localNote)/|failureTimingSentence occurs outside its tracked set"
+  "the home screen stops rendering the shipping sentence|FS/DriveFacts.swift|s/Text(drive\.timingSentence)/Text(localNote)/|timingSentence occurs outside its tracked set"
+)
+
+prove_red() {
+  local check="ops/lib/check-drive-copy"
+  local fs="Packages/ScenicApp/Sources/FeatureScenicHome"
+  [[ -d "$DEFAULT_APP_TREE/$fs" ]] || fail "$DEFAULT_APP_TREE/$fs is missing; nothing to mutate."
+
+  # A table run against an already-red tree would print refusals that prove nothing about the mutations.
+  if ! ( run_check "$SOURCES" "$REQUIRE_TRACKED" "$APP_TREE" >/dev/null ); then
+    echo "drive-copy: --prove-red refuses to run against a tree that is already red."
+    run_check "$SOURCES" "$REQUIRE_TRACKED" "$APP_TREE"
+    exit 1
+  fi
+
+  local pass=0 total=0 row label file script expect dir out status named
+  printf '%-58s %-6s %s\n' "MUTATION" "EXIT" "REASON NAMED"
+  for row in "${rows[@]}"; do
+    total=$((total + 1))
+    label="${row%%|*}"; row="${row#*|}"
+    file="${row%%|*}"; row="${row#*|}"
+    script="${row%%|*}"
+    expect="${row##*|}"
+    file="${file/FS/$fs}"
+
+    dir="$WORK/m$total"
+    rm -rf "$dir"
+    cp -R "$DEFAULT_APP_TREE" "$dir"
+    [[ -f "$dir/$file" ]] || fail "no such file in the copy: $file ($label)"
+    sed -i -e "$script" "$dir/$file"
+
+    out="$(bash "$check" --sources "$dir/$fs" --app-tree "$dir" 2>&1)"
+    status=$?
+    named="no"; [[ "$out" == *"$expect"* ]] && named="yes"
+    printf '%-58s %-6s %s\n' "$label" "$status" "$named"
+    if [[ "$status" -ne 0 && "$named" == "yes" ]]; then
+      pass=$((pass + 1))
+    else
+      echo "  UNREFUSED or UNNAMED. Expected a non-zero exit naming: $expect"
+      echo "$out" | sed -e 's/^/  | /'
+    fi
+  done
+
+  # FAIL-CLOSED, which no sed script can express: an empty tree is a refusal, never a pass.
+  total=$((total + 1))
+  mkdir -p "$WORK/empty/$fs"
+  out="$(bash "$check" --sources "$WORK/empty/$fs" --app-tree "$WORK/empty" 2>&1)"
+  status=$?
+  named="no"; [[ "$out" == *"missing file"* ]] && named="yes"
+  printf '%-58s %-6s %s\n' "an emptied feature tree" "$status" "$named"
+  if [[ "$status" -ne 0 && "$named" == "yes" ]]; then
+    pass=$((pass + 1))
+  else
+    echo "  UNREFUSED or UNNAMED. Expected a non-zero exit naming: missing file"
+    echo "$out" | sed -e 's/^/  | /'
+  fi
+
+  echo "prove-red: $pass/$total mutations refused by name"
+  [[ "$pass" -eq "$total" ]] || exit 1
+}
+
+# Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.
+WORK=""
+if [[ "$PROVE_RED" -eq 1 ]]; then
+  WORK="$(mktemp -d)"
+  trap 'rm -rf "$WORK"' EXIT
+  prove_red
+else
+  run_check "$SOURCES" "$REQUIRE_TRACKED" "$APP_TREE"
+fi

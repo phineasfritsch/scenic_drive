@@ -102,6 +102,54 @@ struct HandoffSourceTests {
         return found
     }
 
+    /// The line with every `"…"` string literal emptied, so the allow-list reads CODE and not prose.
+    ///
+    /// RULED 2026-09-19 (T-0202/T-0210, the pre-review mutant pass). `HandoffDrive` now owns the two
+    /// sentences the screens render - the home surface's `timingSentence` and the failure card's
+    /// `failureTimingSentence` - because the Apple-only target that used to own them has no test bundle
+    /// and a number typed into a literal there ships with every gate green (M3a). Those sentences are
+    /// English: "Plan an afternoon…", "Apple Maps gives you the real time when it opens." Tokenising them
+    /// made this check red on `Plan`, `Apple` and `Maps` (linux-core run 35456872113, four issues), which
+    /// is this check doing exactly what it says - and saying the wrong thing, because none of the three is
+    /// a type this module depends on.
+    ///
+    /// A capitalised word inside a double-quoted literal is DATA. What the list exists to close is the set
+    /// of types the shipping source NAMES, and the one way a string reaches a type - by name, through
+    /// `NSClassFromString` or a `Bundle` lookup - still spells a capitalised identifier in the code, where
+    /// this scan still sees it. Every string in this module before today was a lowercase URL component
+    /// (`maps.apple.com`, `waypoint`, `driving`), so nothing that was ever covered stops being covered.
+    ///
+    /// Per LINE, and quote by quote: `shippingSource` strips whole-line comments only, so a trailing
+    /// comment carrying an odd `"` would otherwise swallow the next line of real code. Blind to a `"""`
+    /// multi-line literal, of which this module has none; `stringLiteralsAreNotTypeReferences` is what
+    /// holds the code half of this rule.
+    static func outsideStringLiterals(_ code: String) -> String {
+        var out = ""
+        for line in code.split(separator: "\n", omittingEmptySubsequences: false) {
+            var inString = false
+            var escaped = false
+            for character in line {
+                if escaped {
+                    escaped = false
+                    continue
+                }
+                if inString && character == "\\" {
+                    escaped = true
+                    continue
+                }
+                if character == "\"" {
+                    inString = !inString
+                    continue
+                }
+                if inString == false {
+                    out.append(character)
+                }
+            }
+            out.append("\n")
+        }
+        return out
+    }
+
     /// Every type this module is allowed to name, transcribed by hand from the source files.
     ///
     /// Two groups. The Swift value types (`Array`, `Bool`, `Double`, `Int`, `String`, ...) are pre-argued:
@@ -176,12 +224,33 @@ struct HandoffSourceTests {
         #expect(Set(files.map(\.0)) == (try Self.swiftFilesByHand(under: Self.sourceRoot)),
                 "the scan missed part of Sources/Handoff; it saw \(files.map(\.0))")
         for (name, code) in files {
-            let tokens = code.split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "_") })
+            let named = Self.outsideStringLiterals(code)
+            let tokens = named.split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "_") })
             for token in tokens where token.first?.isUppercase == true {
                 #expect(Self.allowedTypes.contains(String(token)),
                         "\(name) names the type \(token), which is not on the Handoff allow-list")
             }
         }
+    }
+
+    @Test("the type scan reads code, and the words inside a string literal are not type references")
+    func stringLiteralsAreNotTypeReferences() {
+        // The half of the string-literal ruling that has to stay true: a type named in CODE is still
+        // named, on the same line as a sentence that mentions Apple Maps. Without this, "strip the
+        // strings" could quietly become "strip the line" and the allow-list would go blind in silence.
+        let code = "let note = \"Plan an afternoon. Apple Maps knows.\"\nlet f = NumberFormatter()\n"
+        let named = Self.outsideStringLiterals(code)
+        #expect(named.contains("NumberFormatter"), "the scan lost a type in code: \(named)")
+        #expect(named.contains("note"), "the scan lost the declaration: \(named)")
+        #expect(!named.contains("Apple"), "a word in a sentence is read as a type: \(named)")
+        #expect(!named.contains("Plan"), "a word in a sentence is read as a type: \(named)")
+
+        // An escaped quote inside a literal does not end it, and a trailing comment's odd quote stops at
+        // its own line instead of swallowing the next one.
+        let tricky = "let q = \"say \\\" now\"\nlet Kept = 1 // it's \"odd\n let Also = 2\n"
+        let keptNamed = Self.outsideStringLiterals(tricky)
+        #expect(keptNamed.contains("Kept"), "an escaped quote ate the code after it: \(keptNamed)")
+        #expect(keptNamed.contains("Also"), "a trailing comment's quote ate the next line: \(keptNamed)")
     }
 
     @Test("the shipping source uses none of the lowercase locale-sensitive spellings")

@@ -52,7 +52,12 @@ enum DriveCopy {
     /// the full name is the title directly above.
     static func shortName(for drive: HandoffDrive) -> String {
         switch drive {
-        case .skyline: return "Bay Area"
+        // NAMES ITS PLACE (T-0212). "Bay Area" beside "Los Angeles" read to an LA driver as somebody
+        // else's bookmark left in the app; "SF Peninsula" is unmistakably a drive somewhere else
+        // rather than a mistake about where the reader is. The picker cannot instead HIDE it: which
+        // drive is local is a question about the reader's position, and this app reads none
+        // (HandoffDrive.defaultDrive).
+        case .skyline: return "SF Peninsula"
         case .santaMonicaMountains: return "Los Angeles"
         }
     }
