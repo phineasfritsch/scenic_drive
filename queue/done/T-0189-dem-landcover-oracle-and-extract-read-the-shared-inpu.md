@@ -1,7 +1,7 @@
 ---
 id: T-0189
 title: dem, landcover, oracle and extract read the shared inputs directory - the silent None from a per-worktree path is a refusal by name
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T03:45:22Z
@@ -11,7 +11,7 @@ branch: task/T-0189
 exclusive: []
 touches: [services/etl/etl/dem.py, services/etl/etl/landcover.py, services/etl/etl/oracle.py, services/etl/etl/extract.py, services/etl/tests/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr108
 depends_on: [T-0177]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -269,3 +269,105 @@ LA terrain: without this it gets zeroed terrain and a green suite.
      1.2 GB California extract. T-0168 is the task that will do that, and it is the first real test of
      whether the resolved directory is the one the payloads are actually in on this box.
   5. **`landcover.py` is at 283 of 300 lines.** The next change to it should expect to split the file.
+- 2026-09-19T04:40:25Z REVIEW PASS by agent/rv1-pr108 (reviewer, not the owner). PR #108, head 2f0b6da,
+  base main, from a detached worktree `.worktrees/rv1-pr108` at that sha. No blocking finding; three
+  recordables below. Nothing in the branch was changed by this review.
+
+  **Shape.** `git diff main...2f0b6da --stat` -> 8 files, 471 insertions, 14 deletions: the four etl modules
+  (dem 20, extract 6, landcover 22, oracle 8), three test files (test_inputs_dir_consumers.py 173 new,
+  test_dem.py 9, test_landcover_sampling.py 10) and the task file. The task-file diff is APPEND-ONLY:
+  `git diff main...2f0b6da -- queue/ | grep -c "^-[^-]"` -> `0`, `--stat` -> `237 +++...`, 34 -> 271 lines.
+
+  **Acceptance re-run, bare, in this worktree.** `cd services/etl && python -m pytest tests -rs -o addopts=`
+  -> `1059 passed in 107.41s (0:01:47)`, exit 0, no short-summary section, i.e. zero skips - the Log's
+  count line reproduced exactly. The author's red-by-name trio,
+  `python -m pytest tests/test_inputs_dir_consumers.py
+  tests/test_dem.py::TestSampling::test_a_missing_tile_file_is_a_refusal_naming_the_path
+  "tests/test_landcover_sampling.py::TestWhereItLooksForATile::test_a_missing_tile_file_is_a_refusal_naming_the_path"
+  -rs -o addopts=` -> `19 passed in 1.23s`, which is the 16+3 of the red run, so the new file's 17 collected
+  tests are the +17 the Log derives. `bash ops/lib/check-line-cap` -> exit 0,
+  `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines`.
+  `bash ops/queue-check` -> exit 0, `QUEUE OK (183 tasks)`. `bash ops/check-pins --source-only` -> exit 0,
+  `PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only`. Every `wc -l` the Log quotes
+  re-measured and identical: `209 etl/dem.py`, `283 etl/landcover.py`, `189 etl/oracle.py`,
+  `204 etl/extract.py`, `173 tests/test_inputs_dir_consumers.py`, `237 tests/test_dem.py`,
+  `155 tests/test_landcover_sampling.py`.
+
+  **Five mutants of the reviewer's own**, each applied ALONE by literal replacement and restored with
+  `git checkout --` (`git status --short` empty after each), run against
+  `tests/test_inputs_dir_consumers.py tests/test_dem.py tests/test_landcover_sampling.py`, baseline
+  `75 passed`. The product question was "from a worktree, can LA terrain be sampled as zero/None with the
+  suite green?".
+  1. `reload_with_inputs` made a NO-OP (`return module` instead of `importlib.reload(module)`) -> KILLED,
+     `3 failed`: `test_dem_samples_a_tile_that_is_not_under_its_own_root`,
+     `test_landcover_samples_a_raster_that_is_not_under_its_own_root`,
+     `test_extract_defaults_its_source_to_the_shared_directory`. The fixture guards itself; a fixture that
+     stopped reloading takes its own tests red rather than passing vacuously (R1's corollary holds).
+  2. `landcover`'s refusal branch widened back to the pre-task `path = tile_path(name) if name else None;
+     if not path or not path.is_file(): continue` -> KILLED, `2 failed`:
+     `test_landcover_refuses_a_raster_that_is_not_on_disk` and
+     `test_landcover_sampling.py::TestWhereItLooksForATile::test_a_missing_tile_file_is_a_refusal_naming_the_path`.
+     `test_a_nan_point_is_none_rather_than_a_refusal` stayed GREEN under it, so R2's two halves really are
+     separable and the geography half does not ride on the refusal branch.
+  3. dem's refusal message with the path REMOVED (`f"dem: tile {name} is missing - run ops/etl-fetch-inputs"`)
+     -> KILLED, `3 failed`: `test_dem_refuses_a_tile_that_is_not_on_disk`, `test_dems_whole_sample_refuses_too`,
+     `test_dem.py::TestSampling::test_a_missing_tile_file_is_a_refusal_naming_the_path`. "names the path" is
+     an assertion, not a wish.
+  4. `oracle.KMZ = ROOT / "inputs" / "vermont-curvature.kmz"` (per-checkout again; the pre-review pass
+     mutated only dem and landcover) -> KILLED HERE, `2 failed`:
+     `test_the_oracle_kmz_is_never_inside_a_worktree`, `test_the_oracle_kmz_lives_in_the_resolved_directory`.
+     RECORDABLE (a): the pass's OBSERVATION extended and measured. A plain-checkout copy of `services/etl`
+     at `.artifacts/rv1-plain/` (no `.worktrees` component, so `resolve_inputs_dir` returns `ROOT/"inputs"`
+     - CI's layout) runs the same mutant `75 passed`: a SURVIVOR in CI. The equivalent mutant on `extract`
+     was run in that same plain copy and is KILLED there, `1 failed`
+     (`test_extract_defaults_its_source_to_the_shared_directory`), and dem/landcover have the same
+     env-planting tests. `oracle.KMZ` is the one of the four with NO `reload_with_inputs` test, so it is
+     the one whose resolver binding CI cannot see. Not blocking - in a plain checkout the two expressions
+     are the same directory, so the mutant is equivalent there and differs only in a worktree, where it is
+     red by name - but a fourth `reload_with_inputs` case for oracle would close it.
+  5. `oracle.pinned_digest`'s default moved to the shared directory
+     (`path = manifest or (fetch.resolve_inputs_dir(ROOT) / "manifest.yaml")`, i.e. R3's line deleted)
+     -> SURVIVOR: `python -m pytest tests/test_inputs_dir_consumers.py tests/test_dem.py
+     tests/test_landcover_sampling.py tests/test_oracle_report.py tests/test_oracle_select.py
+     tests/test_inputs_dir.py -o addopts= -q` -> `104 passed`, from the worktree. RECORDABLE (b):
+     `test_the_oracles_manifest_stays_in_this_checkout` asserts
+     `pinned_digest(name) == pinned_digest(name, oracle.ROOT / "inputs" / "manifest.yaml")`, a comparison of
+     two DIGESTS, so it can only go red when the two manifest files differ in CONTENT - which is exactly the
+     case R3 exists for and exactly the case no test creates. T-0177's own pin is anchored on the PATH
+     (`test_inputs_dir.py:68`, `assert fetch.MANIFEST == fetch.ROOT / "inputs" / "manifest.yaml"`) and
+     would be red under the same edit. The oracle pin should be anchored the same way, or plant two
+     different manifests. R3's RULING is right and matches T-0177's R2; it is the check for it that has
+     never been seen red.
+
+  **R1 judged, against the next consumer rather than in the abstract.** Import-time binding is the right
+  call and it fires for T-0168. From this worktree, with `SCENIC_ETL_INPUTS` unset,
+  `python -c "from etl import dem, landcover, extract, oracle, fetch; print(...)"` gives
+  `dem.INPUTS`, `landcover.INPUTS`, `extract.INPUTS` and `fetch.DEST` all
+  `C:/Users/phineasf/Documents/GitHub/scenic_drive/services/etl/inputs`, `oracle.KMZ` that directory's
+  `vermont-curvature.kmz`, while `extract.WORK` and `fetch.MANIFEST` stay under
+  `.worktrees/rv1-pr108/services/etl` - R3's line exactly. `ls` of the resolved directory:
+  `3dep-n34w118.tif 3dep-n34w119.tif 3dep-n35w118.tif 3dep-n35w119.tif california-osm.pbf manifest.yaml`,
+  so the four LA tiles and the extract are where the resolver points. Per-call resolution would indeed have
+  silently bypassed the 19 `monkeypatch.setattr(module, "INPUTS", ...)` tests; R1's reason is the real one.
+  RECORDABLE (c), the cost of the choice: a process that sets `SCENIC_ETL_INPUTS` AFTER importing `etl.dem`
+  gets the old directory with no error and nothing says so. Low risk (the variable is a box-level setting)
+  and cheaper than the alternative, but it is a second thing only the convention protects.
+
+  **The product question, answered.** From a worktree, an LA point STILL comes back a silent `None` on this
+  branch - and not for the reason this task fixes. `python -c "from etl import dem; print(dem.tile_for(34.07,
+  -118.45)); print(dem.group_by_tile([(34.07,-118.45)])); print(dem.sample([(34.07,-118.45)], runner=...))"`
+  -> `None`, `{None: [0]}`, `[None]`: `dem.TILES` is still sfbay's eight, so LA is the no-tile-covers-this-
+  point path (R2's second half), which this task deliberately preserves and PR #106 (T-0142) is the task
+  that changes. That is correct scoping, not a defect - the Log's STILL OPEN 4 says as much - but it means
+  merging #108 alone does NOT make LA sampling work, and main commit 712f3b0 has already made T-0142 a hard
+  prerequisite of T-0168.
+
+  **Not findings, confirmed as the Log describes them.** STILL OPEN 1: `queue/README.md:117-120`'s "Still
+  per-worktree" paragraph reads as quoted and is now false - outside `touches:`, a follow-up. STILL OPEN 2/3
+  likewise. One merge note for whoever merges: `origin/main` has moved past the 3911650 this PR measured
+  against (db2b93a merged PR #102 / T-0146, adding `services/etl/etl/assemble.py`,
+  `tests/test_assemble.py`, `tests/test_assemble_wiring.py` and a fixture - new files only, no overlap with
+  the four modules), so the post-merge suite count will exceed 1059.
+
+  **Sign-off.** `git status --short` in `.worktrees/rv1-pr108` empty, HEAD == `origin/task/T-0189` ==
+  2f0b6da. `reviewer: agent/rv1-pr108`, `state: done`, `git mv` to `queue/done/`.
