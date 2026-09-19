@@ -11,6 +11,10 @@ let package = Package(
     products: [
         .library(name: "ScenicKit", targets: ["ScenicKit"]),
         .library(name: "Handoff", targets: ["Handoff"]),
+        // `ops/plan <O> <D> <B>`, the plan's M3 exit. An executable so that the CLI half is the SAME
+        // bisection and the SAME scoring the app runs (T-0182, ruling R1): a python re-implementation
+        // would be a second bisection, and the one that would drift is the one holding the ceiling.
+        .executable(name: "scenic-plan", targets: ["ScenicPlanCLI"]),
     ],
     targets: [
         .target(
@@ -31,6 +35,15 @@ let package = Package(
             name: "Handoff",
             dependencies: ["ScenicKit"],
             path: "Sources/Handoff",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // The CLI. Linux-only like everything else here: Foundation, FoundationNetworking behind a
+        // `canImport` for URLSession's Linux home, ScenicKit for the engine and Handoff for the URL.
+        // It holds no routing logic of its own - argument parsing, one HTTP transport, and printing.
+        .executableTarget(
+            name: "ScenicPlanCLI",
+            dependencies: ["ScenicKit", "Handoff"],
+            path: "Sources/ScenicPlanCLI",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(

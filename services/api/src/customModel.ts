@@ -48,11 +48,19 @@ export type CustomModelRefusal =
 
 /** Thrown by the builder. Never returned, never swallowed, never turned into a clamp. */
 export class CustomModelError extends Error {
-  constructor(
-    public readonly reason: CustomModelRefusal,
-    message: string,
-  ) {
+  /**
+   * Assigned in the constructor rather than declared as a `public readonly` PARAMETER PROPERTY, which is
+   * the one piece of TypeScript in this file that cannot be erased by removing types: node's strip-only
+   * mode refuses it (`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`), so `node src/customModel.ts` could not run and
+   * the module's output could not be recorded without a bundler. T-0182 records exactly that output as the
+   * golden its Swift port of `buildCustomModel` is held to, so this module has to be runnable by plain
+   * node. Same field, same visibility, same value; the only thing that changed is where it is written.
+   */
+  readonly reason: CustomModelRefusal;
+
+  constructor(reason: CustomModelRefusal, message: string) {
     super(message);
+    this.reason = reason;
     this.name = "CustomModelError";
   }
 }

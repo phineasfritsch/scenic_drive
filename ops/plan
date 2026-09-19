@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# ops/plan <origin lat,lon> <destination lat,lon> <extra-minutes> (--router <url> | --recorded <dir>)
+#
+# The plan's M3 exit: an Apple Maps URL plus the per-edge table, driven from the CLI with no phone in the
+# loop. This file is a WRAPPER and nothing else - every decision it could make is a decision that would
+# then exist twice, once here in bash and once in the engine the app runs. The engine is
+# Sources/ScenicPlanCLI (product `scenic-plan`), which is ScenicKit's bisection, ScenicKit's scoring and
+# Handoff's URL builder.
+#
+# Arguments are passed straight through, including --help, so the usage line a user sees is the CLI's own.
+#
+# --scratch-path is not optional on this box: CLAUDE.md requires every `swift build/test` on a shared
+# machine to pass its own, or two agents share a .build and corrupt each other's module cache.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ $# -eq 0 ]]; then
+  # No arguments is not an error state worth a stack trace; it is somebody asking what this takes.
+  echo "usage: ops/plan <origin lat,lon> <destination lat,lon> <extra-minutes> (--router <url> | --recorded <dir>) [--max-evaluations N]"
+  echo "example: ops/plan 34.0392,-118.5836 34.0944,-118.6019 25 --router http://127.0.0.1:8989"
+  exit 2
+fi
+
+# SCENIC_PLAN_SCRATCH lets a second agent on this box point at its own scratch path, which CLAUDE.md
+# requires of every `swift build` here; the default is one directory under the repo, and .gitignore's
+# `.build/` already covers it.
+scratch="${SCENIC_PLAN_SCRATCH:-$here/.build/plan}"
+
+# `swift run` prints its own build chatter on stdout, which would land in the middle of a plan. The build
+# is done first, with its output on stderr, so stdout carries the report and nothing else.
+swift build --scratch-path "$scratch" --product scenic-plan >&2
+
+# The binary is located by asking SwiftPM, not by assuming `debug/`: on the Windows checkout SwiftPM
+# cannot create the `debug` symlink (it says so, and then the assumed path does not exist), and the
+# platform suffix in the real path is not ours to guess.
+bin="$(swift build --scratch-path "$scratch" --product scenic-plan --show-bin-path)"
+exe="$bin/scenic-plan"
+[[ -f "$exe" ]] || exe="$exe.exe"
+exec "$exe" "$@"
