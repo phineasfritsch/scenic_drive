@@ -127,6 +127,53 @@
   retrieved: 2026-09-07
   consumed_by: T-0026
 
+# The four tiles the la bbox needs, derived by dem.tiles_for_bbox from the region's own bbox rather than
+# typed (tests/test_dem_tiles.py::test_la_needs_exactly_four_tiles), and now what dem.tiles_for_region('la')
+# resolves to. Unlike sfbay there is no ocean-only tile to leave out: n34w119 looks like it should be one
+# (Santa Monica Bay) but carries Palos Verdes and the Malibu coast. Until these were pinned, every LA point
+# had no tile and the terrain terms of the scenic score were silently zero over the one region the
+# developer can drive.
+
+- name: 3dep-n35w119.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n35w119/USGS_13_n35w119.tif
+  verify: sha256
+  sha256: 28fb065b1f33a57bee117377c65558e004488b97d5c61ec4f13c763b9b837afb
+  license: US-PD-17USC105
+  purpose: "elevation for lat 34-35, lon -119..-118: the Santa Monica Mountains and the Malibu coast - Mulholland, Latigo, Decker - plus Westwood, where the developer lives, and the west San Fernando Valley"
+  bytes: 454839551
+  retrieved: 2026-09-19
+  consumed_by: T-0142
+
+- name: 3dep-n35w118.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n35w118/USGS_13_n35w118.tif
+  verify: sha256
+  sha256: 7e660831c5b6a2a6b7ded4215886df8ad393f4303500086880350cd94badf986
+  license: US-PD-17USC105
+  purpose: "elevation for lat 34-35, lon -118..-117: the San Gabriel Mountains - Angeles Crest, Mt Wilson, the crest the bbox reaches 34.45 to clear - and the east basin below them"
+  bytes: 422435036
+  retrieved: 2026-09-19
+  consumed_by: T-0142
+
+- name: 3dep-n34w118.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n34w118/USGS_13_n34w118.tif
+  verify: sha256
+  sha256: f3b96b70480986170627b6d888be39775353de475e5e6d07823fcfe51869177e
+  license: US-PD-17USC105
+  purpose: "elevation for lat 33-34, lon -118..-117: the south basin, Long Beach, and the northern Orange County flats the bbox reaches - the part of the box that is arterial grid rather than terrain"
+  bytes: 351919765
+  retrieved: 2026-09-19
+  consumed_by: T-0142
+
+- name: 3dep-n34w119.tif
+  url: https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n34w119/USGS_13_n34w119.tif
+  verify: sha256
+  sha256: d550d73b3884ccf16d9ca30c286c2d205905a4e35292324a2b38726896bd1f00
+  license: US-PD-17USC105
+  purpose: "elevation for lat 33-34, lon -119..-118: the Palos Verdes peninsula and the south bay coast. 77 MB against its neighbours' 350-450 because most of the square is Santa Monica Bay, not because it is empty"
+  bytes: 77566808
+  retrieved: 2026-09-19
+  consumed_by: T-0142
+
 # ESA WorldCover 2021 v200, 10 m land cover. Replaces the USFS Tree Canopy Cover and NLCD impervious layers
 # the plan originally named: MRLC's S3 now refuses all anonymous access (403, Requester Pays), their landing
 # pages carry no download link, and retrieval needs the interactive viewer or an authenticated order. There
