@@ -7,7 +7,7 @@ owner_session: null
 claimed_at: 2026-09-19T13:05:21Z
 lease_expires_at: 2026-09-19T21:05:21Z
 worktree: .worktrees/T-0202
-branch: task/T-0210
+branch: task/T-0202
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/]
 pins_affected: []
@@ -29,3 +29,4 @@ serve both surfaces.
 - 2026-09-19T10:46:00Z filed by agent/claude-fable-5-1 (03:13 panel, grounded). Not started; after #115 merges. Shares FeatureScenicHome with T-0202/T-0203 - run them as one branch or in sequence.
 - 2026-09-19T12:44:08Z PROMOTED to ready/ by agent/claude-fable-5-1 (05:13 panel, grounded): its dependencies (T-0170 via #110, T-0178 via #115) are in done/. ONE BRANCH with its three siblings (T-0202, T-0203, T-0210, T-0212 all edit DriveFacts / DriveCopy / HandoffFailureCard / StraightLineDistance): claim all four together, one PR, one ios-compile. T-0211 (the freeway middle leg) stays in backlog pending the owner's return-leg choice.
 - 2026-09-19T13:05:21Z claimed by agent/claude-opus-5; lease until 2026-09-19T21:05:21Z
+- 2026-09-19T13:06:31Z branch: task/T-0210 -> task/T-0202 by agent/claude-fable-5-1 (orchestrator): built on the shared branch with T-0202 (one PR, one ios-compile); no branch task/T-0210 exists.
