@@ -1,7 +1,7 @@
 ---
 id: T-0211
 title: SantaMonicaMountainsRoute - rule the 101/405 middle leg: a surface return (Ventura/Sepulveda to Mulholland), a Malibu Canyon out-and-back, or copy that names the freeway as the price of unpaved Mulholland; pins re-verified
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -26,3 +26,4 @@ owner's judgement decides between the candidates; the agent measures them.
 
 ## Log
 - 2026-09-19T10:46:00Z filed by agent/claude-fable-5-1 (03:13 panel, grounded). Not started; after #115 merges. FOR THE HUMAN: which return would you actually drive?
+- 2026-09-19T17:49:27Z PROMOTED to ready/ by agent/claude-fable-5-1 (10:13 panel, fable-grounded): #121 merged; both LA drivers on the 10:13 panel stop at the same string - 'the 101 and 405 back over the pass' in the middle of the only LA drive (DriveCopy.swift road line, from T-0178) - and it is line 2 of what they paste to a friend. Acceptance line 1 is the AGENT's measurement of the three return candidates; the owner's choice is the ruling AFTER the measurement, not the precondition. Touches collide with T-0199 (Tests/HandoffTests) until it lands - start after T-0199.
