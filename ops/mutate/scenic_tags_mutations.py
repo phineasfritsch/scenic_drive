@@ -12,6 +12,16 @@ comment** (CLAUDE.md): comments get stripped and a mutation anchored on one dies
 
 T-0204 R5 adds the seven at the bottom of MUTATIONS: the unit score - the number this task's whole
 predicate is read on, and the number that had no contract at all until the oracle grew one.
+
+T-0207 adds `assemble.py` as a THIRD subject and nine mutations, floor 35 -> 44. R1 puts the class ceiling
+there - the number that decides what `tagwriter` then writes for a residential, living_street or service
+way - and R2 makes the integer and the unit one number in `tags_for_row`. A module that computes a number
+ships a population, and the number the tags carry is now computed in two files, so both are subjects.
+
+T-0207 R3 adds four more, floor 44 -> 48: the ceiling CONDITIONED ON AN INPUT. The pre-review mutant pass
+ran two of them unwritten and both SURVIVED - `and value < 0.75` and `and record.byway_status is None` - so
+the class is now shipped whole, one mutation per input `scored_row` can read (the score's magnitude, the
+byway status, a term, the surface), rather than one spelling at a time (PR #101's precedent).
 """
 from __future__ import annotations
 
@@ -21,11 +31,17 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 ETL = ROOT / "services" / "etl"
 TAGWRITER = ETL / "etl" / "tagwriter.py"
 SCENECHECK = ETL / "etl" / "scenecheck.py"
+ASSEMBLE = ETL / "etl" / "assemble.py"
 TAGWRITER_TESTS = ETL / "tests" / "test_tagwriter.py"
 SCENECHECK_TESTS = ETL / "tests" / "test_scenecheck.py"
 SCENECHECK_UNIT_TESTS = ETL / "tests" / "test_scenecheck_unit.py"
-EMPTIED = (TAGWRITER_TESTS, SCENECHECK_TESTS, SCENECHECK_UNIT_TESTS)
-SUBJECTS = (TAGWRITER, SCENECHECK)
+CLASS_CAP_TESTS = ETL / "tests" / "test_class_cap.py"
+ASSEMBLE_TESTS = ETL / "tests" / "test_assemble.py"
+ASSEMBLE_WIRING_TESTS = ETL / "tests" / "test_assemble_wiring.py"
+COUNTS_TESTS = ETL / "tests" / "test_counts.py"
+EMPTIED = (TAGWRITER_TESTS, SCENECHECK_TESTS, SCENECHECK_UNIT_TESTS, CLASS_CAP_TESTS, ASSEMBLE_TESTS,
+           ASSEMBLE_WIRING_TESTS, COUNTS_TESTS)
+SUBJECTS = (TAGWRITER, SCENECHECK, ASSEMBLE)
 
 # Anchors reused by more than one mutation, verbatim from the subjects.
 QUANTISE = "    scaled = math.floor(number * SCORE_SCALE + 0.5)"
@@ -63,6 +79,19 @@ UNIT_QUANTISES = "    if tagwriter.quantise(unit) != value:"
 UNIT_PARSE = "    try:\n        number = float(text)\n    except ValueError:\n        return None"
 UNIT_NAN = "    return None if number != number else number"
 UNIT_ASCII = "    if not text.isascii():\n        return None"
+# T-0207 R2: the two tags are ONE number. The unit string is made first and the integer is quantised from
+# what it carries, so `scenecheck`'s `quantise(unit) == score` clause holds by construction.
+ONE_NUMBER = ("    unit = fixed(row[\"score\"])\n"
+              "    out = {KEY_SCORE: str(quantise(float(unit))), KEY_UNIT: unit}")
+# T-0207 R1: the class ceiling, in the assembly beside the safety gate - the plan's anti-rat-run clause
+# only demotes a RESIDENTIAL way scoring BELOW 7, so a capped class must never reach 7.
+CEILING_TABLE = "CLASS_SCORE_CEILING = {\"residential\": 0.6499, \"living_street\": 0.6499, \"service\": 0.0}"
+CEILING_LOOKUP = "    ceiling = CLASS_SCORE_CEILING.get(record.highway)"
+CEILING_MIN = "        value = min(value, ceiling)"
+# T-0207 R3: the guard the ceiling is applied under. The pre-review mutant pass found that it can be
+# CONDITIONED ON AN INPUT with nothing going red, so the four inputs `scored_row` can read on its way here -
+# the score's magnitude, the byway status, a term and the surface - are one mutation class of their own.
+CEILING_GUARD = "    if ceiling is not None and value is not None:"
 
 MUTATIONS = [
     # --- the quantisation, ruling R1 of T-0168 -------------------------------------------------------
@@ -161,6 +190,46 @@ MUTATIONS = [
      UNIT_ASCII, "    if False:\n        return None"),
     ("accept a non-ASCII digit in the integer - `int(\"\\u0667\")` is 7 to Python", SCENECHECK,
      INTEGER_OR_NONE, "    return int(text) if digits.isdigit() else None"),
+
+    # --- T-0207 R2: one number, written twice ---------------------------------------------------------
+    ("quantise the UNROUNDED score beside a unit rounded to four decimals - the shipped defect, 17 of "
+     "46,436 real ways", TAGWRITER, ONE_NUMBER,
+     "    unit = fixed(row[\"score\"])\n"
+     "    out = {KEY_SCORE: str(quantise(row[\"score\"])), KEY_UNIT: unit}"),
+    ("re-derive the unit from the integer, so the tag no longer carries the score", TAGWRITER, ONE_NUMBER,
+     "    unit = fixed(row[\"score\"])\n"
+     "    out = {KEY_SCORE: str(quantise(float(unit))), KEY_UNIT: fixed(quantise(float(unit)) / 10.0)}"),
+
+    # --- T-0207 R1: the class ceiling ------------------------------------------------------------------
+    ("drop the ceiling, so a Bel Air cul-de-sac is a 7 again and the rat-run clause never fires",
+     ASSEMBLE, CEILING_MIN, "        value = max(value, 0.0)"),
+    ("raise the ceiling BY one step of the tag's precision, onto the band itself", ASSEMBLE, CEILING_TABLE,
+     "CLASS_SCORE_CEILING = {\"residential\": 0.65, \"living_street\": 0.65, \"service\": 0.0}"),
+    ("cap a service way instead of zeroing it - 559 fire roads and parking aisles keep a 6", ASSEMBLE,
+     CEILING_TABLE,
+     "CLASS_SCORE_CEILING = {\"residential\": 0.6499, \"living_street\": 0.6499, \"service\": 0.6499}"),
+    ("forget residential, which is the class the plan's clause names", ASSEMBLE, CEILING_TABLE,
+     "CLASS_SCORE_CEILING = {\"living_street\": 0.6499, \"service\": 0.0}"),
+    ("forget living_street, the class no real row exercises", ASSEMBLE, CEILING_TABLE,
+     "CLASS_SCORE_CEILING = {\"residential\": 0.6499, \"service\": 0.0}"),
+    ("cap unclassified too, which deletes Franklin Canyon Drive from the top ten", ASSEMBLE, CEILING_TABLE,
+     "CLASS_SCORE_CEILING = {\"residential\": 0.6499, \"living_street\": 0.6499, \"service\": 0.0,\n"
+     "                       \"unclassified\": 0.6499}"),
+    ("read the ceiling off the gate reason instead of the class, so it never finds one", ASSEMBLE,
+     CEILING_LOOKUP, "    ceiling = CLASS_SCORE_CEILING.get(reason)"),
+
+    # --- T-0207 R3: the ceiling CONDITIONED ON AN INPUT. The two the pre-review pass found survived, and
+    # the other two inputs of the same class. Each demotes some rows and lets others through, which is why a
+    # fixture of five ways all at 0.72, no byway and one surface could not see any of them.
+    ("demote only the sevens - a residential at raw 1.0 ships 10 (pre-review survivor M2)", ASSEMBLE,
+     CEILING_GUARD, "    if ceiling is not None and value is not None and value < 0.75:"),
+    ("no ceiling on a way that matched a byway - a residential stub in Topanga ships 10 (survivor M5)",
+     ASSEMBLE, CEILING_GUARD,
+     "    if ceiling is not None and value is not None and record.byway_status is None:"),
+    ("condition the ceiling on a TERM, so a cul-de-sac under full canopy keeps its 7", ASSEMBLE,
+     CEILING_GUARD, "    if ceiling is not None and value is not None and record.canopy < 0.9:"),
+    ("condition the ceiling on the SURFACE, so every asphalt rat-run escapes it", ASSEMBLE, CEILING_GUARD,
+     "    if ceiling is not None and value is not None and record.surface != \"asphalt\":"),
 ]
 
 # Cannot change behaviour, so anything but MISSED is a FAILURE. Each has a witness in its name.
@@ -183,4 +252,4 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 35
+MIN_MUTATIONS = 48
