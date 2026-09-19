@@ -173,3 +173,59 @@ measured the top-200 LA ways' median length at 0.60 km. Measure first, rule afte
   beside `--mode route`'s four fields and `--mode probe`'s `PROBE way=<id> edges=<n> scenic_score=<csv>`.
   None of them carries road_class, a per-edge distance, or the routed edge sequence, so no run - not even a
   bound on one - can be honestly read out of this image.
+
+- 2026-09-19T20:41:05Z ACCEPTANCE BLOCK RE-RUN on the merged head (author rule). `git fetch origin` +
+  `git merge --no-edit origin/main` = "Already up to date"; origin/main 2fce36b IS an ancestor of HEAD
+  71ac862 (`git merge-base --is-ancestor origin/main HEAD`), working tree clean. Whole block re-quoted:
+
+  A1 "over the MAIN checkout's services/etl/work/la/la-filtered.osm.pbf (560,208 filtered ways; T-0112's
+  osmium-export shape): per highway class the way-length distribution (count, median, p90, max, the share
+  over 800 m) quoted in the Log; residential and service first" - MET. STAGE 1 above: 19 classes, 564,329
+  linestring ways measured, residential/living_street/service the first three rows, reconciled to
+  meta.json's 560,208 with the 38-way polygon gap named. Script
+  services/etl/tests/measure_way_lengths.py (`wc -l` 186), the exact command in its docstring and in the
+  STAGE 1 entry.
+
+  A2 "over T-0213's window graph (services/routing/work/t0213/graph-la-window, image scenic-routing:t0213,
+  its pytest harness): for the routed pair at lambda 0 and 8, the longest residential/service RUN
+  (consecutive edges of one class, in m, way ids) quoted; no threshold asserted - the Log ends with the
+  numbers T-0209's ruling will read" - PARTLY MET, and the gap is the finding, not an omission. The pair was
+  routed on that graph at lambda 0 and lambda 8 (STAGE 2: 526739 ms / 8230.4 m at both, car_fast identical)
+  and every number the harness emits is quoted. The RUN is NOT quoted because the image emits no path
+  details - ruled in R1 before the code, demonstrated in STAGE 2. No threshold is asserted anywhere.
+  Script services/routing/tests/measure_runs.py (`wc -l` 193).
+
+  A3 "nothing under services/etl/etl/ or services/routing/ changes; a measurement script, if committed,
+  lives under tests/ with the command that produced each number; queue-check bare" - MET.
+  `git diff --stat origin/main -- services/etl/etl/ services/routing/ ':!services/routing/tests/'` is EMPTY.
+  Both scripts live under tests/ and carry their command. `bash ops/queue-check` -> `QUEUE OK (219 tasks)`,
+  exit 0, bare. `bash ops/lib/check-exec-bits` -> `P-OPS-01: 85 files, 23 required present, all modes
+  correct`, exit 0; both new scripts are 100644, as data/test files there must be. Per the task, neither
+  `ops/test` nor the full `ops/check-pins` was run.
+
+- 2026-09-19T20:41:05Z THE NUMBERS, with no threshold anywhere in this task:
+
+  LA clip (la-filtered.osm.pbf, 564,329 linestring ways, haversine sum, R = 6_371_008.8 m):
+      class           count    median m   p90 m    max m     over 800 m
+      residential     99,715      170.7   584.7    7088.9    4,821  (4.83%)
+      living_street      195       52.2   218.0     965.7        1  (0.51%)
+      service        312,619       59.9   190.8   10162.4    1,497  (0.48%)
+      the three combined 412,529   71.1   309.5   10162.4    6,319  (1.53%)
+      for contrast: tertiary 25,380 / 59.5 / 515.5 / 15463.0 / 1,246 (4.91%);
+      track 8,136 / 221.2 / 1172.4 / 16020.7 / 1,280 (15.73%)
+
+  T-0213's window (window-tagged-1.osm.pbf, 12,113 linestring ways - the bytes graph-la-window was built
+  from):
+      residential      2,562      140.7   616.3    4036.1      158  (6.17%)
+      living_street        4      132.3   310.0     310.0        0  (0.00%)
+      service          6,817       69.5   216.6    3688.7       33  (0.48%)
+      the three combined 9,383     78.5   320.1    4036.1      191  (2.04%)
+
+  The routed pair on that graph (21,137 nodes / 24,057 edges), PCH at Topanga -> Topanga near Old Topanga:
+      car_fast          526739 ms   8230.4 m
+      lambda-0.json     526739 ms   8230.4 m
+      lambda-8.json     526739 ms   8230.4 m
+      (T-0213 recorded 507242 ms / 8121.6 m on its own spelling of the same pair; +108.8 m here)
+      longest residential/service run: NOT MEASURED - the image emits no path details (R1, STAGE 2)
+
+  T-0209's ruling reads these.
