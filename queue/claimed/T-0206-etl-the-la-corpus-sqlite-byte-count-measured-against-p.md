@@ -194,3 +194,62 @@ so and no LA corpus byte count exists anywhere in queue/ or services/etl. The em
        seven-way synthetic fixture.
     3. The budget is checked at the END of the build. A corpus 4x over budget is written in full before it
        is refused; nothing estimates the size up front and bails early.
+- 2026-09-19T13:12:48Z RULINGS ON THE PRE-REVIEW MUTANT PASS, by agent/claude-opus-5 (owner), BEFORE any
+  code. The Log is append-only: nothing above this line is edited; every correction below is a NEW statement
+  that supersedes the one it names. The read-only pass is
+  .artifacts/signoffs/t0206-mutant-pass.md (M1, M3a/M3b, M4 and three unsupported claims).
+  FIRST, the author rule's newest sentence, now met: `git fetch origin && git merge --no-edit origin/main`
+  -> "Merge made by the 'ort' strategy", merge commit 3282afc over 20 files, all under services/routing/,
+  ops/ and queue/ - ZERO overlap with this branch's three files. Committed alone. The 12:58:42Z entry's
+  "Already up to date." was true when written and is now stale: HEAD 3fd7865 was six commits behind
+  origin/main. The whole acceptance block is re-run and re-quoted on the merged head in the next entry.
+
+  R7 - M3b IS BLOCKING AND THE FIX IS TWO BINDINGS, NOT A THIRD ASSERTION ON A PRINTED LINE. The pass is
+  right: every refusal any test proves today passes an EXPLICIT budget, and the only no-flag CLI test reads
+  a printed number. So `python -m etl.corpus` with no `--budget-bytes` - exactly what a pipeline runs -
+  could carry `budget_bytes=None` with the literal printed beside it and ship a 241 MB corpus at exit 0.
+  The honest shape, ruled: (i) the CLI's argparse default must BE the literal, asserted THROUGH THE SHIPPING
+  PARSER - `corpus.parse_args([...required args only...]).budget_bytes is corpus.CORPUS_BUDGET_BYTES` - not
+  through `inspect.signature(build)`, which is the binding M3b walks around; and (ii) `build` REFUSES
+  `budget_bytes=None` with a `TypeError` naming it, so "unlimited" is not spellable at all. (ii) is what
+  makes the mutant dead rather than merely observed: with the None arm refused, a CLI default of None makes
+  the no-flag subprocess exit non-zero on a TypeError, and the printed-line test fails on returncode. I do
+  NOT write the honest form the pass sketched as an alternative - "a fixture that EXCEEDS a default" - for
+  the reason the pass itself gives: the default is 62,914,560 B and no fixture in git is or should be that
+  big. The comparison against the default is instead exercised both ways through the CLI: green with no
+  flag (report bytes < budget, printed `budget=62914560`), red with `--budget-bytes` one byte under the
+  built size.
+  R8 - M1, THE TIE, RULED `>=`: A CORPUS OF EXACTLY THE BUDGET IS REFUSED. plan:283 says "corpus <60 MB",
+  strictly less, and the code shipped `>` , which lets a corpus of exactly 62,914,560 B through - the one
+  size the plan's own wording excludes. R3 already ruled the READING of the unit (MiB, the looser of the
+  two); the reading of the RELATION is the plan's and the plan is strict, so `size >= budget_bytes`
+  refuses. This refuses strictly more than the shipped code, never less, so it cannot hide an overage; it
+  costs exactly one corpus size in the whole space and that size is the one plan:283 names. The refusal
+  message stops saying "over the budget" and says "not under the budget of N bytes", because with `>=` the
+  refused size may equal it. Tie fixture, red first: budget == the built size and budget == size-1 both
+  refuse, budget == size+1 builds.
+  R9 - M4: `test_the_cli_exits_non_zero_over_the_budget` asserts `returncode != 0`, which cannot tell
+  BUDGET_EXIT 3 from `--built-at`'s 2 - and R4 chose 3 precisely to distinguish them. Ruled: assert
+  `done.returncode == corpus.BUDGET_EXIT == 3` exactly, in one line, so both the constant and the wiring
+  are bound.
+  R10 - THE ARITHMETIC SLIP (pass, UNSUPPORTED 1), re-derived with python on this head and CORRECTED HERE.
+  The rate is 19,906,560/46,231 = 430.5890 B per way. 560,208 x that rate = **241,219,402 B**
+  (241,219,401.80, exact from the unrounded rate; 241,219,963 B if you multiply the rounded 430.59) =
+  230.04 MiB = 241.22 MB, and the ratio to 62,914,560 B is **3.834x**. The 12:50:07Z entry's and the
+  12:58:42Z entry's "241,224,000 B = 230.05 MiB" is WRONG BY ~4,600 B (0.002%) and is superseded by this
+  line. THE VERDICT IS UNCHANGED: full LA is about 3.8x over plan:283's ceiling, a floor and not a
+  forecast. The same wrong product sits in two committed files; in `etl/corpus.py` the number is REMOVED
+  from the comment rather than corrected - CLAUDE.md says anchor nothing on a comment, and a hand-carried
+  extrapolation in a source comment is a second copy of a Log measurement that nothing keeps true - and in
+  the test docstring it is corrected in place, because that docstring is the defect's own statement.
+  R11 - NO MUTATION POPULATION IS BUILT HERE, and the reason is now checked rather than asserted:
+  `services/etl/etl/corpus.py` is ALLOWLISTED in ops/lib/mutate-population-allowlist.json with the reason
+  "the `python -m etl.corpus` command line; wiring over corpuswriter and the producers", and
+  `python ops/lib/check-mutate-population.py` prints "74 modules, 23 covered by 11 populations, 27
+  allowlisted, 0 added by this branch" with corpus.py in NEITHER the DEBT list NOR any driver's
+  SUBJECT_MODULES. So the three mutants M1/M3b/M4 are landed as NAMED TEST CASES (the tie fixture, the
+  parser-default and None-refusal bindings, the exact exit code), not as entries in a population this
+  branch has no standing to add. R5 stands, now with the allowlist entry quoted.
+  R12 - the 12:58:42Z acceptance block measured this task file at 164 lines; it was 196 at HEAD 3fd7865.
+  That measurement is superseded; `wc -l` on all three touched files is re-taken at the final commit below
+  (CLAUDE.md: a correction commit that touches a measured file re-measures it).
