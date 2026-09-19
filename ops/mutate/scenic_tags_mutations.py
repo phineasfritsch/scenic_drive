@@ -17,6 +17,11 @@ T-0207 adds `assemble.py` as a THIRD subject and nine mutations, floor 35 -> 44.
 there - the number that decides what `tagwriter` then writes for a residential, living_street or service
 way - and R2 makes the integer and the unit one number in `tags_for_row`. A module that computes a number
 ships a population, and the number the tags carry is now computed in two files, so both are subjects.
+
+T-0207 R3 adds four more, floor 44 -> 48: the ceiling CONDITIONED ON AN INPUT. The pre-review mutant pass
+ran two of them unwritten and both SURVIVED - `and value < 0.75` and `and record.byway_status is None` - so
+the class is now shipped whole, one mutation per input `scored_row` can read (the score's magnitude, the
+byway status, a term, the surface), rather than one spelling at a time (PR #101's precedent).
 """
 from __future__ import annotations
 
@@ -83,6 +88,10 @@ ONE_NUMBER = ("    unit = fixed(row[\"score\"])\n"
 CEILING_TABLE = "CLASS_SCORE_CEILING = {\"residential\": 0.6499, \"living_street\": 0.6499, \"service\": 0.0}"
 CEILING_LOOKUP = "    ceiling = CLASS_SCORE_CEILING.get(record.highway)"
 CEILING_MIN = "        value = min(value, ceiling)"
+# T-0207 R3: the guard the ceiling is applied under. The pre-review mutant pass found that it can be
+# CONDITIONED ON AN INPUT with nothing going red, so the four inputs `scored_row` can read on its way here -
+# the score's magnitude, the byway status, a term and the surface - are one mutation class of their own.
+CEILING_GUARD = "    if ceiling is not None and value is not None:"
 
 MUTATIONS = [
     # --- the quantisation, ruling R1 of T-0168 -------------------------------------------------------
@@ -208,6 +217,19 @@ MUTATIONS = [
      "                       \"unclassified\": 0.6499}"),
     ("read the ceiling off the gate reason instead of the class, so it never finds one", ASSEMBLE,
      CEILING_LOOKUP, "    ceiling = CLASS_SCORE_CEILING.get(reason)"),
+
+    # --- T-0207 R3: the ceiling CONDITIONED ON AN INPUT. The two the pre-review pass found survived, and
+    # the other two inputs of the same class. Each demotes some rows and lets others through, which is why a
+    # fixture of five ways all at 0.72, no byway and one surface could not see any of them.
+    ("demote only the sevens - a residential at raw 1.0 ships 10 (pre-review survivor M2)", ASSEMBLE,
+     CEILING_GUARD, "    if ceiling is not None and value is not None and value < 0.75:"),
+    ("no ceiling on a way that matched a byway - a residential stub in Topanga ships 10 (survivor M5)",
+     ASSEMBLE, CEILING_GUARD,
+     "    if ceiling is not None and value is not None and record.byway_status is None:"),
+    ("condition the ceiling on a TERM, so a cul-de-sac under full canopy keeps its 7", ASSEMBLE,
+     CEILING_GUARD, "    if ceiling is not None and value is not None and record.canopy < 0.9:"),
+    ("condition the ceiling on the SURFACE, so every asphalt rat-run escapes it", ASSEMBLE, CEILING_GUARD,
+     "    if ceiling is not None and value is not None and record.surface != \"asphalt\":"),
 ]
 
 # Cannot change behaviour, so anything but MISSED is a FAILURE. Each has a witness in its name.
@@ -230,4 +252,4 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 44
+MIN_MUTATIONS = 48

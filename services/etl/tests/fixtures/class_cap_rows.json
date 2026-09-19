@@ -217,6 +217,7 @@
       "name": "Crescent Drive's terms as a living_street",
       "recorded_score": null,
       "surface": "asphalt",
+      "synthetic": true,
       "terms": {
         "canopy": 0.888135593220339,
         "curvature": 0.9951325874372302,
@@ -231,6 +232,52 @@
       },
       "way_id": 999999999999,
       "why": "synthetic: no real living_street in the three windows reaches 6, so the class's ceiling would never be exercised by real data; this row is way 13419334's own terms with the CLASS changed (the only input the ceiling reads) under an unused way id",
+      "window": "synthetic"
+    },
+    {
+      "byway_status": null,
+      "highway": "residential",
+      "name": "every ranked term at the value the scorer rewards",
+      "recorded_score": 1.0,
+      "surface": "asphalt",
+      "synthetic": true,
+      "terms": {
+        "canopy": 1.0,
+        "curvature": 1.0,
+        "elevation_gain": 1.0,
+        "furniture": 0.0,
+        "impervious": 0.0,
+        "points_of_interest": 1.0,
+        "relief": 1.0,
+        "sinuosity": 1.0,
+        "speed_fit": 1.0,
+        "water": 1.0
+      },
+      "way_id": 999999999998,
+      "why": "synthetic (R3): every ranked term at the END score.score rewards - furniture and impervious are penalties, so their maximum is 0.0 - which is raw score 1.0, the largest input the ceiling can ever be handed. No real LA way is here; the row exists so a ceiling conditioned on the score's MAGNITUDE (`and value < 0.75`) ships a 10 and is seen.",
+      "window": "synthetic"
+    },
+    {
+      "byway_status": null,
+      "highway": "residential",
+      "name": "every ranked term at 1.0",
+      "recorded_score": 0.8077298313366432,
+      "surface": "asphalt",
+      "synthetic": true,
+      "terms": {
+        "canopy": 1.0,
+        "curvature": 1.0,
+        "elevation_gain": 1.0,
+        "furniture": 1.0,
+        "impervious": 1.0,
+        "points_of_interest": 1.0,
+        "relief": 1.0,
+        "sinuosity": 1.0,
+        "speed_fit": 1.0,
+        "water": 1.0
+      },
+      "way_id": 999999999997,
+      "why": "synthetic (R3): every term literally at 1.0, penalties included - raw score 0.8077, the 0.75+ row. Distinct from way 999999999998 on purpose: a ceiling conditioned on a TERM (`and record.canopy < 0.9`) must fail on a row whose terms are all at the top, not only on a row whose score is.",
       "window": "synthetic"
     }
   ]

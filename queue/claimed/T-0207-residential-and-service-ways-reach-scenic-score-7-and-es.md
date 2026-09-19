@@ -306,3 +306,99 @@ four bits do not separate Topanga from a Bel Air cul-de-sac; something class-awa
 
   `assemble.py` is 293 of the 300-line cap: the next agent to touch it splits it rather than squeezing.
   `state: claimed` and `reviewer: null` are untouched; the Log is appended to and nothing above it is edited.
+- 2026-09-19T13:08:13Z MERGED origin/main (#115, #116) into task/T-0207 by agent/claude-opus-5, merge
+  commit f76fe98, no conflict: main's `surfacecoverage.py` is a new module and `ops/lib/check-mutate-population.py`
+  and `ops/mutate/scenic_tags*.py` came back unchanged on main's side. The acceptance block below is re-run on
+  the MERGED head, not on e05bd89.
+- 2026-09-19T13:08:13Z **R3 THE CEILING IS UNCONDITIONAL**, ruled by agent/claude-opus-5 after the pre-review
+  mutant pass, which ran three unwritten mutants and found TWO BLOCKING SURVIVORS of ONE class: the ceiling in
+  `assemble.scored_row` can be CONDITIONED ON AN INPUT and nothing goes red.
+
+      M2  `if ceiling is not None and value is not None:` -> `... and value < 0.75:`   (demote the 7s only)
+          zero test_class_cap.py reds; a residential, a living_street and a service row at raw 1.0 each ship
+          scenic_score=10.
+      M5  `... and record.byway_status is None:`   (no ceiling on a way that matched a byway)
+          zero reds; a residential stub geometrically matched to Topanga Canyon Boulevard - an ELIGIBLE byway
+          in the canyon window, so a real match, not a hypothetical - ships 10.
+
+  CAUSE, not spelling: every capped-class fixture row carried the SAME shape of input - score 0.72-0.73, no
+  byway status, surface `asphalt` or `paved`, terms from one real street. A fixture that does not span the
+  inputs cannot see a condition on one. RULING: the ceiling holds for its classes on EVERY input
+  `scored_row` can read on its way to it, and that is proved through the SHIPPING path
+  (`assemble.scored_row` -> `tagwriter.tags_for_row`), never at the ceiling's own line. The code is NOT
+  changed - it was already unconditional - so this ruling is spent entirely on evidence:
+
+  1. `services/etl/tests/fixtures/class_cap_rows.json` gains TWO synthetic rows, each `"synthetic": true`
+     with its reason in its own `why` field (never in a comment): way 999999999998, every ranked term at the
+     end `score.score` REWARDS - furniture and impervious are penalties, so their maximum is 0.0 - which is
+     raw score **1.0**, the largest input the ceiling can ever be handed; and way 999999999997, every term
+     literally at 1.0, penalties included, raw score **0.8077298313366432**, the 0.75+ row. Both are
+     re-derived through `assemble.score_record` by the fixture's own drift test. The existing living_street
+     row is labelled `"synthetic": true` as well, and `test_every_fixture_row_is_a_real_way_or_says_it_is_synthetic`
+     holds 9 real / 3 synthetic and binds the label to the row's `window` field.
+  2. `test_the_ceiling_is_unconditional_over_every_input_scored_row_reads` runs the MATRIX: 4 rows (the real
+     Crescent Drive profile, the living_street row, raw 1.0, every-term-1.0) x 3 byway statuses (None,
+     `byways.ELIGIBLE`, `byways.DESIGNATED` - read from the module, not spelled as literals) x 3 surfaces
+     (None, asphalt, paved) = 36 cases, each shipped as residential, as living_street, as service and as the
+     UNCAPPED CONTROL tertiary: 144 shipped rows. residential/living_street never reach 7, service is exactly
+     `0` beside `0.0000`, and the tertiary control ships `uncapped_integer(row)` on every one of the 36 - the
+     assertion that keeps this a cap on rat-runs and not a cap on scenery. NON-VACUITY is asserted, not
+     assumed: all 36 control rows reach 7 without a ceiling, so a capped class staying below it means something.
+  3. `ops/mutate/scenic_tags_mutations.py` ships the CLASS, not the two spellings: the two survivors by name
+     plus the other two inputs of the same kind (a TERM - `and record.canopy < 0.9`; the SURFACE -
+     `and record.surface != "asphalt"`). Floor **44 -> 48**.
+
+  RED FIRST, by name, each of the four applied to `services/etl/etl/assemble.py` with `__pycache__` purged and
+  1.1 s of settle either side (throwaway `services/etl/work/red_T0207.py`, gitignored), then restored:
+
+      demote only the sevens (M2)          exit=1  test_the_ceiling_is_unconditional_over_every_input_scored_row_reads
+                                                   (+ test_no_capped_class_way_reaches_the_routers_high_band)
+      no ceiling on a matched byway (M5)   exit=1  test_the_ceiling_is_unconditional_over_every_input_scored_row_reads
+                                                   - THE ONLY RED. M5 is invisible to every other test in the file.
+      condition on a TERM                  exit=1  test_the_ceiling_is_unconditional... (+ 4 others)
+      condition on the SURFACE             exit=1  test_the_ceiling_is_unconditional... (+ 5 others)
+
+  Pristine: `tests/test_class_cap.py` 18 passed after each restore.
+- 2026-09-19T13:08:13Z **THE PASS'S UNSUPPORTED NOTE, measured rather than asserted** (agent/claude-opus-5;
+  throwaway `services/etl/work/diff_T0207.py` and `diff2_T0207.py`, gitignored; both read the MAIN checkout's
+  OLD scored tables and this worktree's NEW ones, 46,453 rows, way ids identical on all three windows).
+  WHAT ELSE DIFFERS between the old and the new real tables besides the ceiling - the honest answer is NOT
+  "the 17 integers of R2". Ways whose shipped `scenic_score_unit` string changed, by class:
+
+      class            n      unit_moved  int_moved  int_moved_with_unit_unchanged
+      service        24020       15412      15339          0
+      residential     9901        1952        154          6
+      secondary       3677         778          7          4
+      primary         2750         592          4          1
+      tertiary        2371         503          2          0
+      unclassified     570         100          3          0
+      primary_link     189          23          0          0
+      secondary_link   132          16          0          0
+      tertiary_link     42          10          0          0
+      track/motorway/motorway_link/trunk/trunk_link/living_street/footway  0  0  0
+      TOTAL          46453       19386      15509         11
+
+  THE CEILING explains the capped classes (service 15,412 zeroed, residential 1,952 pulled to 0.6499,
+  living_street 0 - no real one was ever above it). R2's one-number fix explains the LAST column: 11 ways
+  whose integer moved with the unit byte-identical. It is 11 and not 17 because 6 of the 17 boundary ways
+  ALSO had their unit move (inference from 17 - 11 = 6, not measured separately), for the third reason:
+  **2,022 ways of UNCAPPED classes moved their unit although no ceiling can touch them - the CURVATURE term
+  moved under them** (778 secondary + 592 primary + 503 tertiary + 100 unclassified + 49 of the three link
+  classes). Per term, over all three windows:
+  `curvature` moved on 39,612 of 46,453 rows (max delta 0.4504), `furniture` on 375 (max 0.000186), and
+  elevation_gain, speed_fit, sinuosity, canopy, relief, impervious, water, points_of_interest on **0**.
+  The curvature column's MEAN is identical old vs new and its distinct-value count is 8,478 vs 8,477 in the
+  canyon window, so this is a rank-normalised term whose ranking shifted, not a new formula.
+  NOT THIS BRANCH: `git diff bcb7000..HEAD -- curvature.py normalise.py way_record.py geom.py snap.py
+  sinuosity.py assemble.py` is `assemble.py | 20 ++` and nothing else - the ceiling, this task's own twenty
+  lines. And the pipeline at the merged head is DETERMINISTIC and reproduces the owner's new tables exactly:
+  `python -m etl.assemble --input <MAIN>/work/la/window-doc.json` run TWICE
+  (`ASSEMBLE ways=11740 zero_class=386 gated=5589 sinuosity_declined=619 points_of_interest_absent=11740
+  null_score=0`, both runs) differs from run 2 on **0** ways' curvature and from the owner's new
+  `window-scored.json` on **0** ways' curvature - and from the OLD main-checkout table on **8,929**.
+  So the OLD tables were not produced by the committed producers this head carries, and they are a valid
+  baseline for the CLASS comparison (which ways are residential/service, which reached 7) and NOT for a
+  byte comparison of any uncapped way's unit. STILL OPEN 5, filed rather than hidden: name the build that
+  wrote `services/etl/work/la*/`'s scored tables on 2026-09-18, or re-run all three windows from the
+  committed head before any future task quotes those files as a baseline. Nothing in this task's acceptance
+  depends on them: the three top tens and CHECK4 below are read off the NEW read-backs only.

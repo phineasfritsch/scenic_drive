@@ -11,7 +11,7 @@ T-0204 hardens the second. R1 (rv1-pr111's recordables): the checker states the 
 over the bytes that ship, a third clause `malformed` counts what breaks it, and `classify` is the ONE
 place a way is judged, so `counts` and `top` cannot differ about a road. R5: the UNIT - the number the
 window predicate is read on - must be present, a real ASCII number, inside 0..1, and must quantise to
-the integer beside it through `tagwriter.quantise` itself. Floor 25 -> 28 -> 35 -> 44.
+the integer beside it through `tagwriter.quantise` itself. Floor 25 -> 28 -> 35 -> 44 -> 48.
 
 T-0207 adds the third: `etl/assemble.py` computes the number the tags carry (R1's class ceiling, beside
 the safety gate), so it joins the population the writer of those tags is already in.

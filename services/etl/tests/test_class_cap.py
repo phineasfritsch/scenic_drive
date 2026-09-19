@@ -13,10 +13,20 @@ that puts the bytes on the way. Not `score.score` (the ceiling is deliberately N
 integer read below is the one `tagwriter` writes, parsed back out of the tag dict it returns.
 
 THE ROWS ARE REAL. `fixtures/class_cap_rows.json` carries the nine real ways' own terms, recorded from the
-three windows, plus ONE synthetic row (way 999999999999) whose reason is written in its own `why` field: no real
-living_street in 46,453 ways reaches 6, so the class's ceiling would never be exercised by real data. Every
-recorded score is re-derived here through `assemble.score_record`, so the fixture cannot drift into claiming
-a number the scorer disowns.
+three windows, plus THREE synthetic rows, each marked `"synthetic": true` with its reason in its own `why`
+field: way 999999999999 (no real living_street in 46,453 ways reaches 6, so the class's ceiling would never be
+exercised by real data) and, from ruling R3, way 999999999998 (raw score 1.0) and way 999999999997 (every term
+at 1.0). Every recorded score is re-derived here through `assemble.score_record`, so the fixture cannot drift
+into claiming a number the scorer disowns.
+
+R3, THE CEILING IS UNCONDITIONAL. The pre-review mutant pass put two survivors on this file, one class: the
+ceiling can be CONDITIONED ON AN INPUT and no test goes red - `and value < 0.75` demotes only the sevens while
+a residential row at raw 1.0 ships 10, and `and record.byway_status is None` lets a residential way that
+geometrically matched Topanga Canyon Boulevard ship 10. No fixture row carried a byway status or a score above
+0.73, so nothing saw either. `test_the_ceiling_is_unconditional_over_every_input_scored_row_reads` now spans
+all four inputs the function can read on its way to the ceiling - the score's magnitude, the byway status, the
+terms and the surface - with the UNCAPPED control (the same inputs as a tertiary) asserted to still ship its
+real value on every one of them.
 
 THE CONTROLS ARE THE POINT. Mulholland Drive (secondary), Topanga Canyon Boulevard (primary, an ELIGIBLE
 byway) and Franklin Canyon Drive (unclassified, ruled NOT capped) are asserted UNCHANGED, to the byte of
@@ -29,7 +39,7 @@ import pathlib
 
 import pytest
 
-from etl import assemble, tagwriter, way_record
+from etl import assemble, byways, tagwriter, way_record
 
 FIXTURE = pathlib.Path(__file__).resolve().parent / "fixtures" / "class_cap_rows.json"
 
@@ -47,6 +57,18 @@ UNCHANGED = {518410361: (7, "0.7361"), 74344132: (8, "0.7722"), 13292286: (7, "0
 SYNTHETIC_WAY = 999999999999
 BOUNDARY_WAY = 13332407
 BOUNDARY_UNIT = "0.5500"
+
+# R3's matrix. The four inputs `assemble.scored_row` reads on its way to the ceiling, spanned: the rows carry
+# the score's magnitude (0.7228 real, 0.8077 every term at 1.0, 1.0 every ranked term at the end the scorer
+# rewards), and the class, the byway status and the surface are varied over them here. The statuses come from
+# `byways` itself, so a status the matcher learns tomorrow cannot be missed by a literal in a test.
+SPANNING_ROWS = (13419334, 999999999999, 999999999998, 999999999997)
+BYWAY_STATUSES = (None, byways.ELIGIBLE, byways.DESIGNATED)
+SURFACES = (None, "asphalt", "paved")
+CONTROL_CLASS = "tertiary"
+SERVICE_UNIT = "0.0000"
+REAL_ROWS = 9
+SYNTHETIC_ROWS = 3
 
 
 def rows() -> list:
@@ -98,7 +120,7 @@ def test_the_fixture_rows_are_the_scores_the_shipping_scorer_still_produces():
             "way %d: the scorer now says %r, the fixture recorded %r" % (row["way_id"], got,
                                                                          row["recorded_score"]))
         checked += 1
-    assert checked == 9, checked
+    assert checked == REAL_ROWS + SYNTHETIC_ROWS - 1, checked  # the living_street row records no score
 
 
 def test_no_capped_class_way_reaches_the_routers_high_band():
@@ -183,6 +205,51 @@ def test_the_integer_and_the_unit_are_one_number_on_the_boundary_row():
     assert tags[tagwriter.KEY_UNIT] == BOUNDARY_UNIT, described(row, tags)
     assert integer_of(tags) == tagwriter.quantise(float(BOUNDARY_UNIT)), described(row, tags)
     assert integer_of(tags) == 6, described(row, tags)
+
+
+def spanning_cases() -> list:
+    """Every combination of the R3 matrix, as rows in the fixture's own shape."""
+    base = by_id()
+    return [dict(base[way_id], byway_status=status, surface=surface)
+            for way_id in SPANNING_ROWS for status in BYWAY_STATUSES for surface in SURFACES]
+
+
+def uncapped_integer(row: dict) -> int:
+    """What the way would ship with no ceiling at all: the shipping quantiser on the shipping score."""
+    return tagwriter.quantise(float(tagwriter.fixed(assemble.score_record(record_for(row)))))
+
+
+def test_the_ceiling_is_unconditional_over_every_input_scored_row_reads():
+    """R3, by name. A ceiling conditioned on the score, a byway, a term or the surface ships one of these."""
+    escaped, reached_band = [], 0
+    for case in spanning_cases():
+        for highway in CAPPED_CLASSES:
+            row = dict(case, highway=highway)
+            tags = shipped(row)
+            if highway == "service":
+                if (integer_of(tags), tags[tagwriter.KEY_UNIT]) != (0, SERVICE_UNIT):
+                    escaped.append(described(row, tags))
+            elif integer_of(tags) >= ROUTER_HIGH_BAND:
+                escaped.append(described(row, tags))
+        control = dict(case, highway=CONTROL_CLASS)
+        tags = shipped(control)
+        if integer_of(tags) != uncapped_integer(control):
+            escaped.append("the UNCAPPED control moved: " + described(control, tags))
+        reached_band += integer_of(tags) >= ROUTER_HIGH_BAND
+    assert escaped == [], "%d row(s) of the R3 matrix: %s" % (len(escaped), "; ".join(escaped))
+    assert reached_band == len(spanning_cases()), (
+        "the matrix is vacuous: only %d of %d control rows reach %d without a ceiling, so a capped class "
+        "staying below it proves nothing" % (reached_band, len(spanning_cases()), ROUTER_HIGH_BAND))
+
+
+def test_every_fixture_row_is_a_real_way_or_says_it_is_synthetic():
+    """A synthetic row is labelled in the fixture and says why, in its own field - not in a comment."""
+    for row in rows():
+        assert row.get("synthetic", False) == (row["window"] == "synthetic"), row["way_id"]
+        if row.get("synthetic", False):
+            assert row["why"].startswith("synthetic"), (row["way_id"], row["why"])
+    marked = [row["way_id"] for row in rows() if row.get("synthetic", False)]
+    assert (len(rows()) - len(marked), len(marked)) == (REAL_ROWS, SYNTHETIC_ROWS), marked
 
 
 def test_every_row_ships_an_integer_that_is_the_quantisation_of_the_unit_beside_it():
