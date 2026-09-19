@@ -258,3 +258,83 @@ surface P-ATTR-01 asserts over.
   R6-UNSUPPORTED-4 (R3's minimumArchiveBytes drift) NOT TAKEN: the pass files it non-blocking, the author
   already discloses it as STILL OPEN 4, and it belongs to a task that can add a test target or a reader -
   it is restated in STILL OPEN below rather than half-closed here.
+- 2026-09-19T13:29:56Z RED FIRST for the four new anchors, then green (a check nobody has seen refuse is a
+  check nobody has tested). `bash ops/lib/check-map-attribution --prove-red` is now TWELVE rows and prints
+  "prove-red: 12/12 mutations refused by name"; the four added rows, each EXIT 1 with the reason NAMED, and
+  each EXIT 0 before this commit:
+  "the demo credit set to the Protomaps line" (MapStyle.swift, demoAttribution := "© OpenStreetMap
+  contributors, Protomaps") -> "the demo credit declaration is not verbatim";
+  "the Protomaps declaration appended to" (... = "© OpenStreetMap contributors · Protomaps" + " · Natural
+  Earth") -> "the credit literal is not declared verbatim";
+  "the footer hidden from accessibility" (DesignSystem/AttributionFooter.swift, (false) -> (true)) ->
+  "hides something from accessibility";
+  "the credit from a second resolve" (ScenicHomeScreen.swift, AttributionFooter(text: DriveBasemap.resolve(
+  for: selectedDrive, appearance: .light).attributionText)) -> "resolve call DriveBasemap.resolve( occurs
+  outside its tracked set".
+  B4, red then green on the SHIPPING entry point: with the mutant the pass wrote - services/tiles/
+  check_pmtiles.py `meta.get("region")` -> `meta.get("region", region)` - `python ops/lib/check-pmtiles-
+  provenance.py` exits 1: "no meta.region at all: exit 0 (expected 1) and the output did not name
+  'meta.region is None'; it said: PMTILES OK: case3.pmtiles region=la bytes=1048834 zoom=0-14 tiles=256".
+  The mutation was made with sed on the worktree, restored with `git checkout --`, __pycache__ purged and
+  1.2 s slept before the green re-run; `git status --short` is empty.
+- 2026-09-19T13:29:56Z FINAL PRE-REVIEW ACCEPTANCE, re-run BARE on the MERGED head (a55f433 + this branch's
+  two commits), re-quoted whole (the author rule):
+  - `bash ops/check-pins --source-only` -> exit 0: "PINS ok=15 skipped=16 pending=1 expired=0 failed=0
+    tier=linux source-only". This SUPERSEDES ruling R5: the CI evidence R5 named never existed, because the
+    PR was conflicting. Run here, on this box, on the merged head.
+  - `bash ops/lib/check-map-attribution` -> exit 0: "over 21 .swift file(s) under apps/ios, // stripped:
+    attributionText's protomaps arm (line 99) returns MapStyle.protomapsAttribution and its demo arm (line
+    101) returns MapStyle.demoAttribution; the two declarations are verbatim, whole line: `public static
+    let protomapsAttribution = "© OpenStreetMap contributors · Protomaps"` / `public static let
+    demoAttribution = "© MapLibre · Natural Earth"`; the plan's string occurs in code at .../MapStyle.
+    swift(1) only; protomapsLA at .../DriveCopy.swift(2) .../MapAppearance.swift(2) .../MapStyle.swift(6),
+    and every occurrence outside .../MapAdapter/ is a `case .` pattern; the mount at .../DriveBasemap.
+    swift(1); one DriveBasemap.resolve( at .../ScenicHomeScreen.swift(1); the footer at .../
+    ScenicHomeScreen.swift(1), built with: text: style.attributionText - and the map with styleURL:
+    style.url, the same binding; every accessibilityHidden in .../DesignSystem/AttributionFooter.swift and
+    in the mount screen is (false). Not checked here: rendering, the detents, contrast, Dynamic Type, or
+    that the tiles on screen are the ones this credit names - XCUITest (T-0180) owns those. Nor
+    MapStyle.url ... (A6), as is any spelling that reaches a case without naming protomapsLA - e.g.
+    MapStyle.allCases[0] (A4) - and any Swift outside apps/ios."
+  - `bash ops/lib/check-map-attribution --prove-red` -> exit 0: "prove-red: 12/12 mutations refused by
+    name" (every row EXIT 1, REASON NAMED yes).
+  - `python ops/lib/check-pmtiles-provenance.py` -> exit 0, FOUR fixtures: "a fresh region-la archive: exit
+    0, named 'PMTILES OK' / stamped 40 days ago: exit 1, named 'older than 30 days (P-DATA-03)' / stamped
+    region 'bay': exit 1, named "meta.region is 'bay'" / no meta.region at all: exit 1, named 'meta.region
+    is None'", plus "The corpus half is UNASSERTED and UNOWNED: etl.corpus stamps meta.region (corpus.py,
+    set_meta("region", ...)) and nothing reads it back against the active region; T-0205 merged as PR #116
+    writing meta.surface_coverage instead, so a task for it still has to be filed."
+    With SCENIC_LA_PMTILES=C:/Users/phineasf/Documents/GitHub/scenic_drive/services/tiles/work/la.pmtiles
+    -> exit 0 and additionally "la.pmtiles: exit 0 - PMTILES OK: la.pmtiles region=la bytes=63520949
+    zoom=0-14 tiles=2549 bounds=(-119.000000,33.700000,-117.850000,34.450000)".
+  - `python -m pytest services/tiles/tests` -> "69 passed in 6.47s" (__pycache__ purged first);
+    `python -m pytest services/tiles/tests/test_embedded_style_identity.py` -> "11 passed in 0.07s".
+  - `python ops/lib/check-mutate-population.py` -> exit 0: "P-PROC-06: every added module is covered or
+    allowlisted; the floor of 23 holds" - no allowlist entry owed (ops/lib and services/tiles are outside
+    that gate's roots, which are services/etl/etl/ and Sources/).
+  - `bash ops/lib/check-safety-disclaimer` -> exit 0, counts UNCHANGED: "isSafetyDisclaimerAcknowledged at
+    .../GatedHandoffButton.swift(2) .../ScenicHomeScreen.swift(4), the key at .../ScenicHomeScreen.
+    swift(1)".
+  - `bash ops/lib/check-line-cap` -> exit 0: "P-SRC-02: 90 Swift files tracked (Sources=29, Tests=40,
+    apps/ios=21), none over 300 lines". `bash ops/lib/check-exec-bits` -> exit 0: "P-OPS-01: 82 files, 23
+    required present, all modes correct" (check-map-attribution, -lib and -mutations 100755,
+    check-pmtiles-provenance.py 100644). `bash ops/queue-check` -> exit 0: "QUEUE OK (208 tasks)".
+  - `wc -l` on every touched file, RE-MEASURED after the merge and the fix: ops/lib/check-map-attribution
+    287 (was 300; the readers moved out), ops/lib/check-map-attribution-lib 148 (new), ops/lib/check-map-
+    attribution-mutations 99, ops/lib/check-pmtiles-provenance.py 151, pins/PINS.yaml 296,
+    services/tiles/tests/test_embedded_style_identity.py 138, MapAdapter/BasemapResolver.swift 125,
+    MapAdapter/ScenicStyleDocument.swift 92. None over the 300-line cap.
+  - PINS.yaml through ops/lib/pins.py's own loader: 32 ids, 32 unique; P-ATTR-01 assertion "bash
+    ops/lib/check-map-attribution" runs_on [linux]; P-DATA-03 assertion the provenance checker.
+  - ios-compile: `git diff --stat f53a664 HEAD -- apps/ios` is EMPTY - no Swift byte moved in the merge or
+    in either commit - so run 35442667891 (headSha bf9a6f3, conclusion success, one "** BUILD SUCCEEDED **",
+    ` error:` count 0) still stands for this Swift tree and NO second dispatch was bought.
+  STILL OPEN: (1) P-DATA-03's CORPUS half is UNASSERTED and UNOWNED - etl.corpus stamps meta.region and
+  nothing reads it back; T-0205 merged as #116 writing meta.surface_coverage, so the orchestrator must FILE
+  a task for the corpus region comparison; (2) P-ATTR-01's XCUITest half - T-0180, anchor `attribution.
+  footer`, snapshot `home-attribution-footer` at max detent, both themes, AX5 (plan line 239); no reference
+  image recorded here; (3) MapStyle.url (A6) and `MapStyle.allCases[0]`-shaped spellings (A4) are disclosed,
+  not closed; (4) the real artifact is only checked where SCENIC_LA_PMTILES is set - this box and
+  ops/publish-tiles, never CI; (5) the 1 MiB wholeness floor in BasemapResolver is asserted by no test
+  (ScenicApp has no test target); (6) `bash ops/test` is not run on this box - CI's linux-core job is the
+  evidence, and it can only run now that the PR is no longer conflicting.
