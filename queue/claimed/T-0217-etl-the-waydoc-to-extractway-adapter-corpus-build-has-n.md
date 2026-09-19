@@ -222,3 +222,55 @@ The throwaway is preserved at services/etl/work/t0206/ in the main checkout for 
   the 168 rows that move are exactly the two columns R7 predicted before the run: the throwaway's one
   over-wide list read against both keys (85 + 54 + 1 ways it refused that `Gates.verdict` allows, 22 it
   allowed that `Gates.verdict` refuses) and the roundabouts tagged with no `oneway` key.
+- 2026-09-19T17:33:04Z ACCEPTANCE BLOCK, whole, re-run bare by agent/claude-opus-5 (owner) on the MERGED
+  head. `git fetch origin && git merge --no-edit origin/main` -> "Already up to date" (origin/main is still
+  d4abda0; T-0208 has not landed, so the `DRIVERS` line is uncontested at this commit and the merge that
+  resolves it, if T-0208 lands first, keeps both entries).
+  Typo in the 17:25:59Z entry, corrected here rather than in place because the Log is append-only: the
+  fields that differ on zero rows are FIVE - cls, highway, name, surface, nodes - not "four".
+
+      $ cd services/etl && python -m pytest tests -rs -o addopts=
+      1301 passed in 147.00s (0:02:27)                                      exit 0, ZERO skips
+      $ python ops/mutate/extractadapter.py
+      BASELINE exit=0, 25 mutations, floor 25
+      MUTATIONS: 25 caught, 0 missed, 0 skipped, of 25
+      EQUIVALENT: 0 caught, 3 missed, 0 skipped, of 3
+      MUTATE OK  caught=25/25 equivalent_caught=0                           exit 0
+      $ python ops/mutate/extractadapter.py --prove-vacuity
+      VACUITY: 0 caught, 25 missed, 0 skipped, of 25
+      VACUITY PROVED                                                        exit 0
+      $ python ops/lib/check-mutate-population.py
+      P-PROC-06: 76 modules, 26 covered by 12 populations, 27 allowlisted, 2 added by this branch
+      P-PROC-06: every added module is covered or allowlisted; the floor of 25 holds      exit 0
+      $ python -m etl.extractadapter --input work/la/window-doc.json \
+          --out work/t0217/window-extract.json --region la
+      ADAPT ways=11740 skipped_class=0 skipped_short=0 access_blocked=5022 surface_unknown=2308 \
+      surface_unpaved=170 surface_paved=9262                                exit 0
+      $ python -m etl.corpus --input work/t0217/window-extract.json \
+          --out work/t0217/window-corpus.sqlite --built-at 2026-09-18T00:00:00Z
+      CORPUS region=la ways=11740 segments=24205 collisions=0
+      CORPUS bytes=6135808 budget=62914560
+      CORPUS content_sha256=a642b4ebca9263ae8d06d35481f68d1cabf64bdbf0c43fcf37cfa020251eb876
+      CORPUS file_sha256=47cb679b9e55a4cfbd5ebe45f8ea3395b8fce76d3dd3c8aeb8454fcd5caa5fc1     exit 0
+      stat -c %s work/t0217/window-corpus.sqlite -> 6135808
+      sha256sum -> 47cb679b9e55a4cfbd5ebe45f8ea3395b8fce76d3dd3c8aeb8454fcd5caa5fc1
+      (byte-identical to the 17:25:59Z run of the same input: the second build is P-DATA-01's own claim,
+      made here for free.)
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 90 Swift files tracked (Sources=29, Tests=40, apps/ios=21), none over 300 lines   exit 0
+      $ bash ops/lib/check-exec-bits
+      P-OPS-01: 84 files, 23 required present, all modes correct            exit 0
+      $ bash ops/queue-check
+      QUEUE OK (213 tasks)                                                  exit 0
+      $ wc -l  (every file this branch touches)
+       39 services/etl/etl/accessrule.py           204 services/etl/etl/extractadapter.py
+      287 services/etl/etl/assemble.py             253 services/etl/tests/test_extractadapter.py
+       29 services/etl/tests/fixtures/canyon_adapter_slice.json
+      294 ops/mutate/extractadapter.py             296 ops/lib/check-mutate-population.py
+      224 queue/claimed/T-0217-etl-the-waydoc-to-extractway-adapter-corpus-build-has-n.md
+      (every source file under the 300-line cap; assemble.py went 293 -> 287, which is the headroom R3 was
+      about - T-0208's 299 merges to 293.)
+      $ git merge-base --is-ancestor origin/main HEAD ; echo $?
+      0
+      $ git status --short
+      (empty)
