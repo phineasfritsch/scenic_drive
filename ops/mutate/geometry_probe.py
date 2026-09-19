@@ -12,6 +12,14 @@ what goes on `sys.path`, so `from etl import proximity` resolves there. Run it w
 measures nothing - it refuses, because a fingerprint taken over the wrong tree would compare a mutant
 against itself and call every mutation equivalent.
 
+THE FIRST LINE IS THE ROOT THAT WAS MEASURED, and it is hashed with the values (rv1-pr107 on PR #107).
+Refusing the no-argument call was never enough: pointed at `services/etl` this program printed the pristine
+values and the BASELINE digest with no complaint, so a runner handed the worktree instead of the copy would
+read every mutant as IDENTICAL and every EQUIVALENT entry would pass over a tree with no mutation in it. With
+the root inside the digest that arm fails CLOSED - a fingerprint taken over `services/etl` cannot equal a
+baseline taken over `.build-mutate-geometry/etl` whatever the module answers, so it reads DIFFERS and the
+witness refuses rather than agreeing.
+
 Every value is written with `repr`, at full precision, never rounded: the comparison is on BYTES. A refusal
 is a value too - `ValueError: way_sinuosity: needs at least 2 coordinates, got 1` is as much a fact about
 the module as a number is, and a mutant that turns a refusal into a default must not read as equivalent.
@@ -40,6 +48,27 @@ def value(fn) -> str:
         return repr(fn())
     except Exception as exc:                                  # noqa: BLE001 - a refusal is a value here
         return "%s: %s" % (type(exc).__name__, exc)
+
+
+def root_identity(root: pathlib.Path) -> str:
+    """Line one: WHICH tree these values came from, written relative to the repository root.
+
+    Not a digest of the three subject sources. A content digest is the wrong instrument for this: the tree
+    this line exists to catch is `services/etl`, which is PRISTINE by construction, so its content digest IS
+    the baseline's - it would fold in exactly the bytes that make a worktree-pointed probe read IDENTICAL,
+    and a witness that agrees with the mistake it is meant to expose is not a witness. A location cannot be
+    confused that way.
+
+    Relative, with forward slashes, never the absolute path: the digest has to be the same number in every
+    checkout, because a reviewer quoting this table line for line from their own worktree is how round 1 was
+    reviewed. A root outside the repository keeps its full path - it is a different tree and says so.
+    """
+    repo = pathlib.Path(__file__).resolve().parents[2]
+    try:
+        name = root.relative_to(repo).as_posix()
+    except ValueError:
+        name = root.as_posix()
+    return "%-64s %-28s %s" % ("MEASURED ROOT", "tree", name)
 
 
 def coords_of(case, key="coordinates"):
@@ -111,7 +140,7 @@ def main(argv) -> int:
     if not (root / "etl" / "proximity.py").exists():
         sys.stdout.write("REFUSED: %s is not a services/etl tree\n" % root)
         return 2
-    sys.stdout.write("\n".join(measure(root)) + "\n")
+    sys.stdout.write("\n".join([root_identity(root)] + measure(root)) + "\n")
     return 0
 
 

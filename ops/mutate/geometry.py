@@ -22,12 +22,20 @@ WHAT IS MUTATED, AND WHERE: never the worktree. See geometry_tree.py - `services
 gitignored .build-mutate-geometry/, one textual mutation is written into the COPY, pytest runs there, and
 `git status` over services/etl is untouched by a full sweep. There is no restore step to race with.
 
-THE FLOOR IS TWO-SIDED, and that is this file's one addition to budget.py's protocol. A count alone would
+THE FLOOR IS THREE-SIDED, and that is this file's one addition to budget.py's protocol. A count alone would
 not have stopped any of the four review rounds PR #94 bought: each round's population was complete by its
 own count and empty on the next axis of the segment-pair matrix. So `REQUIRED_CLASSES` in
 geometry_mutations.py is a literal list of the six classes and every one of them must be populated - a
 population that has lost its last banded-subset entry REFUSES, naming the class, instead of reporting a
 clean sheet over five sixths of the failure space.
+
+AND A THIRD SIDE, bought by agent/rv1-pr107 on PR #107: an entry whose `killers` list is EMPTY. `red_by_name`
+returns `[]` and the sweep's guard is `len(red) != len(killers)`, so `0 == 0` and the mutant prints as killed
+by the test that names it. The quiet trim is realistic - a renamed or flaky killer deleted and `[]` left
+behind - and it leaves the entry applied, its fingerprint moved, tests red, and NOTHING required to catch it.
+`population_ok` refuses such an entry BY NAME before any pytest runs, and `--prove-floor`'s fourth refusal arm
+empties one entry's killers with the count still at 12 and all six classes still populated: the arm neither
+of the other two can see.
 """
 from __future__ import annotations
 
@@ -59,7 +67,12 @@ def population_ok() -> bool:
     """The floor, two-sided. `every mutation was caught` is satisfied by an EMPTY list - 0 of 0, exit 0, the
     cleanest sheet this file can print - so a count is a floor. A count is not enough on its own here: four
     review rounds of PR #94 each had a complete population by its own count and nothing at all on the next
-    axis, so every class in REQUIRED_CLASSES must be populated too, and a missing one is named."""
+    axis, so every class in REQUIRED_CLASSES must be populated too, and a missing one is named.
+
+    And an entry that names NO killer is refused by name. `red_by_name([], failed)` is `[]` while the sweep
+    asks `len(red) != len(killers)` - `0 == 0` - so an emptied `killers` list reads as "killed by the test
+    that names it" over a mutant that nothing is required to catch (rv1-pr107 on PR #107). This is the only
+    place that refuses it: a second guard inside the sweep could never be seen red once this one exists."""
     bad = []
     if len(MUTATIONS) < MIN_MUTATIONS:
         bad.append("MUTATIONS has %d, floor is %d" % (len(MUTATIONS), MIN_MUTATIONS))
@@ -73,15 +86,20 @@ def population_ok() -> bool:
         if m[0] not in REQUIRED_CLASSES:
             bad.append("mutation '%s' is in class '%s', which is not one of the declared classes"
                        % (m[1], m[0]))
+        if not m[5]:
+            bad.append("%s names no killer - a mutation nobody is required to catch is not a measurement"
+                       % m[1])
     for b in bad:
         sys.stdout.write("POPULATION FLOOR: %s. A shrunken population must never read as a clean sheet.\n" % b)
     return not bad
 
 
 def prove_floor() -> int:
-    """`--prove-floor`: demonstrate the floor instead of asserting it, at no pytest cost. FOUR arms, because
-    they are four different claims - emptied, one entry short (the quiet trim a slack floor never sees), one
-    CLASS deleted (the shape this harness exists for), and the real population, which must pass."""
+    """`--prove-floor`: demonstrate the floor instead of asserting it, at no pytest cost. FIVE claims, four
+    of them refusals - emptied; one entry short (the quiet trim a slack floor never sees); one CLASS deleted
+    but TRADED, so the count is still at the floor (the shape this harness exists for); one entry's KILLERS
+    emptied, with the count AND every class still at the floor (rv1-pr107's blocking finding, the arm the
+    other two cannot see); and the real population, which must pass."""
     global MUTATIONS, EQUIVALENT
     real = (list(MUTATIONS), list(EQUIVALENT))
     dropped = REQUIRED_CLASSES[-1]
@@ -105,19 +123,32 @@ def prove_floor() -> int:
         sys.stdout.write("with class '%s' traded for copies of '%s', population still %d:\n"
                          % (dropped, kept[0][0], len(MUTATIONS)))
         refused_class = not population_ok()
+
+        # Nothing is deleted here at all: the last entry keeps its class, its anchor and its place, and
+        # only the NAMES of the tests that must go red are taken away. The count reads 12 and all six
+        # classes are present, so neither arm above objects - and before this floor the sweep printed the
+        # mutant with `named red: []` and signed the clean two-line verdict (rv1-pr107 on PR #107).
+        emptied = real[0][-1]
+        MUTATIONS = list(real[0][:-1]) + [emptied[:5] + ([],)]
+        EQUIVALENT = real[1]
+        sys.stdout.write("with the killers of '%s' emptied, population still %d over %d classes:\n"
+                         % (emptied[1], len(MUTATIONS), len({m[0] for m in MUTATIONS})))
+        refused_killers = not population_ok()
     finally:
         MUTATIONS, EQUIVALENT = real
     sys.stdout.write("with the real population (%d mutations over %d classes, %d equivalent):\n"
                      % (len(MUTATIONS), len({m[0] for m in MUTATIONS}), len(EQUIVALENT)))
     restored = population_ok()
-    ok = refused_empty and refused_short and refused_class and restored
+    ok = refused_empty and refused_short and refused_class and refused_killers and restored
     sys.stdout.write("FLOOR PROOF %s: emptied -> refused=%s, one deleted -> refused=%s, class '%s' deleted "
-                     "-> refused=%s, real -> accepted=%s\n"
+                     "-> refused=%s, killers emptied -> refused=%s, real -> accepted=%s\n"
                      "  (without the count arm an emptied population reads 0 of 0 and exits 0; without the\n"
                      "   class arm a population complete by its own count can be empty on a whole axis of\n"
-                     "   the segment-pair matrix, which is the review round PR #94 bought four times)\n"
+                     "   the segment-pair matrix, which is the review round PR #94 bought four times;\n"
+                     "   without the killer arm an entry that names no test is 0 red of 0 named, which the\n"
+                     "   sweep prints as killed by the test that names it)\n"
                      % ("OK" if ok else "FAILED", refused_empty, refused_short, dropped, refused_class,
-                        restored))
+                        refused_killers, restored))
     return 0 if ok else 1
 
 

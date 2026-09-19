@@ -11,16 +11,18 @@ WHY A CLASS FIELD, which budget_mutations.py does not have. PR #94 went FOUR rev
 segment-pair matrix survives with nothing red" - refiled each round with a new X: single segment, then
 collinear, then interior-interior, and a fifth axis (a banded window) recorded in the PASS entry rather
 than bought as a round. Counting entries would not have stopped any of those rounds: each round's
-population was complete by its own count and empty on the next axis. So the floor here is two-sided - a
-literal count AND a literal list of CLASSES, every one of which must be populated - and `REQUIRED_CLASSES`
-is the reviewer's must-enumerate list as much as the fixer's brief.
+population was complete by its own count and empty on the next axis. So the floor here is three-sided - a
+literal count, a literal list of CLASSES every one of which must be populated, and a non-empty `killers` list
+on every entry - and `REQUIRED_CLASSES` is the reviewer's must-enumerate list as much as the fixer's brief.
 
 Each entry is `(class, label, rel, old, new, killers)`. `old` must appear EXACTLY ONCE in the pristine file
 or the run refuses: a stale anchor is never silently a pass. **Anchor on code, never on a comment**
 (CLAUDE.md) - comments get stripped and a mutation anchored on one dies quietly. `killers` names the tests
 that must go red; a mutation caught by some other test is reported as a failure, because that other test is
 not the check the label claims exists. A parametrised killer is named WITHOUT its `[case]` suffix and the
-runner matches every parametrisation of it.
+runner matches every parametrisation of it. An EMPTY `killers` list is refused by the floor, by name, before
+any pytest runs: 0 named red of 0 named is the guard `len(red) != len(killers)` satisfied vacuously, and a
+mutation nobody is required to catch is not a measurement (rv1-pr107 on PR #107).
 """
 from __future__ import annotations
 

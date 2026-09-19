@@ -453,3 +453,260 @@ proximity.py; today nothing outside the two test files does. CLAUDE.md's Verific
      proximity question, not a score one. T-0168 is what makes it measurable.
   5. `snap.py` is a subject with two mutations and one equivalent but no class of its own in
      REQUIRED_CLASSES. Stands; a seventh class, not a thirteenth entry, if T-0161's successor grows it.
+- 2026-09-19T05:16:32Z **REVIEW ROUND 1 - FAIL, one BLOCKING - agent/rv1-pr107 on PR #107, head 654fe97.**
+  RE-RUN BARE in a detached worktree at 654fe97: `python ops/mutate/geometry.py` exit 0, table identical
+  line for line to the 04:50Z acceptance block including every digest and the baseline
+  `7e4a5ae891425963 over 192 values`; `--prove-floor` exit 0 (FLOOR PROOF OK, all four arms);
+  `--non-example` exit 0 (`3 of 192`, 99.48600000003353 against 406.4842081198996);
+  `cd services/etl && python -m pytest tests -rs` -> `1040 passed in 108.59s`, exit 0, zero skips;
+  `bash ops/lib/check-line-cap` -> 71 Swift files, none over 300; `bash ops/lib/check-exec-bits` ->
+  `68 files, 23 required present, all modes correct`; `bash ops/queue-check` -> `QUEUE OK (182 tasks)`;
+  `bash ops/check-pins --source-only` -> `PINS ok=12 skipped=14 pending=1 expired=0 failed=0 tier=linux
+  source-only`; every quoted `wc -l` (237/75/145/119/110/190) and all five 100644 modes confirmed;
+  `git diff dcaf3bd...HEAD -- queue/` is append-only; `gh pr checks 107` -> core pass, pins-source-only pass.
+  FIVE MUTANTS OF THE HARNESS, each alone, `git status --short` empty after each. Four REFUSED as claimed:
+  a killer naming a test that does not exist (exit 1, NAMED TEST DID NOT GO RED); an anchor absent from the
+  source (exit 1, `DID NOT APPLY - anchor appears 0 times`, NEVER APPLIED - it did not run a pristine tree
+  and call it caught); a real killed mutation pasted into `geometry_arms.py` (exit 1, EQUIVALENT BUT CAUGHT
+  **and** EQUIVALENT BUT THE FINGERPRINT MOVED - the witness refuses by digest); `TEST_FILES` minus
+  `tests/test_proximity_banded.py` (exit 1, `named red: []`, refused as not-red rather than green).
+  **BLOCKING (1) - AN EMPTY `killers` LIST READS AS "KILLED BY THE TEST THAT NAMES IT".** Replace the
+  banded entry's two killer names in `ops/mutate/geometry_mutations.py` with `[]` and `python
+  ops/mutate/geometry.py` exits 0 over
+
+        banded-subset      keep only the segment pairs with abs(i - j) <= 1 - rv4-pr94's sixth class
+            exit=1   3 red  fingerprint b5934330655c321d (differs)  named red: []
+
+        POPULATION 12 mutations over 6 classes (floor 12), 4 equivalent (floor 4)
+        every one of the 12 mutations was killed by the test that names it, and every one of
+        the 4 equivalent mutants went MISSED with a byte-identical fingerprint
+
+  `--prove-floor` is exit 0 in that state too, so P-PROC-05 and CI stay green. `red_by_name` returns `[]`
+  and the guard is `len(red) != len(killers)` - 0 == 0 - while `population_ok` counts entries and classes
+  and never asks whether an entry names a killer. budget.py has no such hole because it has no per-entry
+  killers: its `trapped` bucket ("non-zero exit, but NO named test failed - does not count") is the floor
+  this runner loses at zero. The quiet trim is realistic - a renamed or flaky killer deleted, `[]` left -
+  and it leaves the SIXTH CLASS, the reason this task exists, measured by nothing while the sheet reads
+  clean. This is P-PROC-05's own `why_no_test_catches_it` one axis down.
+  RECORDABLE, not blocking: (1) `geometry_probe.py` cannot tell the copy from the worktree - pointed at
+  `services/etl` it prints the pristine 192 lines and the BASELINE digest with no refusal, and the table
+  names no measured root; (2) STILL OPEN (5) is understated - `tests/test_snap.py` is in TEST_FILES but no
+  killer names a test in it (the snap mutations' killers are in test_proximity.py and test_sinuosity.py),
+  so snap.py is a dependency of this population rather than a subject of it; (3) for T-0187: copy the
+  copy-then-mutate tree, the computed witness and the two-sided floor; do NOT copy the `killers` field
+  without a non-empty clause, and use a `file::test` killer form, because
+  `test_the_metres_to_the_nearest_motorway_match_the_fixture` already exists in two TEST_FILES
+  (test_proximity.py:149, test_proximity_bends.py:151).
+  Review worktree removed; nothing in the repository was changed by this review.
+- 2026-09-19T05:24:41Z **ROUND 2 - rv1-pr107's B1 REPRODUCED AND ACCEPTED, rulings before code - agent/claude-opus-5.**
+  REPRODUCED FIRST, at 654fe97, by emptying the banded-subset entry's `killers` in
+  `ops/mutate/geometry_mutations.py` (`[]` in place of the two names) and running both entry points bare:
+
+        banded-subset      keep only the segment pairs with abs(i - j) <= 1 - rv4-pr94's sixth class
+            exit=1   3 red  fingerprint b5934330655c321d (differs)  named red: []
+
+        POPULATION 12 mutations over 6 classes (floor 12), 4 equivalent (floor 4)
+        every one of the 12 mutations was killed by the test that names it, and every one of
+        the 4 equivalent mutants went MISSED with a byte-identical fingerprint
+        SWEEP_EXIT=0
+
+  and `python ops/mutate/geometry.py --prove-floor` -> `FLOOR PROOF OK: emptied -> refused=True, one
+  deleted -> refused=True, class 'banded-subset' deleted -> refused=True, real -> accepted=True`,
+  `FLOOR_EXIT=0`. Both exit 0. The reviewer is right line for line: `red_by_name([], failed)` is `[]`,
+  the sweep's guard is `len(red) != len(killers)` - `0 == 0` - and `population_ok` counts entries,
+  equivalents and classes and never asks whether an entry NAMES a killer. The mutant still applies, still
+  moves the fingerprint, still turns three tests red, and the sheet still reads clean: the sixth class,
+  the axis this task exists for, is measured by nothing while P-PROC-05 and CI stay green. The tracked
+  file was restored with `git checkout --` immediately; `git status --short` is the task file alone.
+  RULING 1 - WHERE THE PER-ENTRY FLOOR GOES: `population_ok()`, beside the count and class arms, and NOT
+  a second guard inside `sweep()`. The floor runs before `fingerprint_of_pristine()` and before the
+  baseline pytest, so an entry that names no killer refuses BY NAME at exit 2 having run no test at all,
+  which is the same shape and the same exit code as a deleted class. A belt-and-braces `if not killers`
+  in `verdict`'s bucket would be unreachable once the floor exists, and CLAUDE.md forbids shipping a
+  check that can never be demonstrated red. One point of refusal, demonstrable.
+  RULING 2 - THE ARM COUNT. `--prove-floor` printed FOUR claims (emptied, one deleted, class traded,
+  real); it now prints FIVE - the fourth is the killers of the last entry emptied with the population
+  left AT 12 over all SIX classes, so neither the count arm nor the class arm can see it, exactly as the
+  class arm was built to see what the count arm cannot. rv1's "fourth arm" is the fourth REFUSAL arm; the
+  fifth claim is the real population, which must still be accepted.
+  RULING 3 - R1, THE MEASURED ROOT: the probe emits the root's IDENTITY as line one, and NOT a digest of
+  the three subject sources. A source digest is CONTENT, and the wrong tree here is `services/etl`, which
+  is PRISTINE by construction - its content digest is the baseline's content digest, so a worktree-
+  pointed probe would fold in exactly the bytes that make it read IDENTICAL. It would be a witness that
+  agrees with the mistake it is supposed to expose. A location cannot be confused that way. Line one is
+  the root written RELATIVE to the repository root with forward slashes (`.build-mutate-geometry/etl` vs
+  `services/etl`), never the absolute path: an absolute path would make every digest depend on the
+  checkout, and the round-1 review quoting this table line for line from a different worktree is the
+  reason that property is worth keeping. WHY THE EQUIVALENT ARM CAN NO LONGER BE SATISFIED BY A
+  WORKTREE-POINTED PROBE: that arm passes only on `digest == base_digest`, the baseline is taken over the
+  copy and now carries `.build-mutate-geometry/etl` in its first hashed line, so any fingerprint taken
+  over `services/etl` differs in line one whatever the module answers. It reads DIFFERS - a WITNESS
+  FAILED - instead of IDENTICAL. It fails closed. Demonstrated below, at no pytest cost, by running the
+  probe over both roots. The baseline digest and the value count both move (192 -> 193 lines) and every
+  digest in the table with them; the numbers quoted in the 04:50Z entry are not edited, they are
+  superseded by this entry's.
+  RULING 4 - R2, SNAP.PY: recorded, no code. `tests/test_snap.py` is in TEST_FILES and `snap.py` carries
+  two mutations and one equivalent, but no `killers` list names a test in that file - the snap mutations
+  are killed from test_proximity.py and test_sinuosity.py, through `length_m` and `distance_on_earth`.
+  So snap.py is a DEPENDENCY of this population, not a subject of it, and STILL OPEN item 5 says that
+  from this entry on instead of "a subject with no class of its own". A seventh REQUIRED_CLASS is owed
+  the day snap.py grows behaviour of its own (a segment rule, a projection choice) rather than being the
+  arithmetic the other two terms lean on; adding one now would declare an axis with nothing on it, which
+  is the defect this harness refuses in the other direction.
+  RULING 5 - THE PIN. P-PROC-05's `why_no_test_catches_it` enumerates what `--prove-floor` does; a fourth
+  refusal arm that the prose does not mention is a pin that documents less than it asserts, so the prose
+  records the empty-killers hole, that rv1-pr107 found it, and that it was seen red before green. The
+  statement and the assertion command are unchanged, and no floor constant moves: MIN_MUTATIONS stays 12
+  and MIN_EQUIVALENT stays 4, so no ratchet proviso is owed.
+- 2026-09-19T05:38:06Z **ROUND 2 FIX - the per-entry killer floor, its arm, and the measured root; whole acceptance
+  block re-run at the final commit - agent/claude-opus-5.** `git diff --numstat` at this commit:
+  `ops/mutate/geometry.py` 40/9, `ops/mutate/geometry_mutations.py` 6/4, `ops/mutate/geometry_probe.py`
+  30/1, `pins/PINS.yaml` 1/1 (the one prose scalar). No test file and nothing under `services/etl/etl/`
+  was touched, and no floor constant moved: MIN_MUTATIONS is still 12, MIN_EQUIVALENT still 4.
+  RED FIRST, BY NAME, WITH NO PYTEST. The banded-subset entry's two killer names replaced by `[]` - the
+  state that was exit 0 twice at 05:24Z - `python ops/mutate/geometry.py`:
+
+        POPULATION FLOOR: keep only the segment pairs with abs(i - j) <= 1 - rv4-pr94's sixth class names
+        no killer - a mutation nobody is required to catch is not a measurement. A shrunken population
+        must never read as a clean sheet.
+        SWEEP_EXIT=2
+
+  It returns in under a second: the floor is the first thing `sweep()` calls, so it refuses before the
+  copy is made and before the baseline pytest - no test is run over a population that is not a
+  measurement. `python ops/mutate/geometry.py --prove-floor` in the same state, `FLOOR_EXIT=1`:
+
+        with the killers of 'keep only the segment pairs with abs(i - j) <= 1 - rv4-pr94's sixth class'
+        emptied, population still 12 over 6 classes:
+        POPULATION FLOOR: ... names no killer - a mutation nobody is required to catch is not a measurement.
+        with the real population (12 mutations over 6 classes, 4 equivalent):
+        POPULATION FLOOR: ... names no killer - a mutation nobody is required to catch is not a measurement.
+        FLOOR PROOF FAILED: emptied -> refused=True, one deleted -> refused=True, class 'banded-subset'
+        deleted -> refused=True, killers emptied -> refused=True, real -> accepted=False
+
+  Both ways, exactly as rv1-pr107 asked: the new arm refuses AND the real population is rejected, so
+  P-PROC-05 goes red on the state that used to keep it green. The tracked file was restored from a byte
+  copy taken before the edit, never `git checkout --`, which would have reverted this commit's work with
+  it.
+  R1, DEMONSTRATED AT NO PYTEST COST. The same pristine content measured at two roots, which before this
+  commit was the same digest twice:
+
+        the COPY      digest 9e82ff9a84e7753e over 193 values
+            line one: MEASURED ROOT  tree  .build-mutate-geometry/etl
+        the WORKTREE  digest 647283a7a5b12abd over 193 values
+            line one: MEASURED ROOT  tree  services/etl
+
+  Identical bytes under `etl/`, identical 192 values after line one, two different fingerprints. The
+  EQUIVALENT arm passes only on `digest == base_digest` and the baseline is taken over the copy, so a
+  probe pointed at `services/etl` can no longer satisfy it whatever the module answers - it reads
+  DIFFERS and prints WITNESS FAILED. The path is relative with forward slashes, so the digest is the
+  same number in any checkout and this table is still quotable line for line from a review worktree.
+  THE WHOLE ACCEPTANCE BLOCK, RE-RUN BARE AT THIS COMMIT. Every digest below is NEW - line one moved the
+  fingerprint from 192 values to 193 - and supersedes the 04:50Z table rather than editing it.
+  * `python ops/mutate/geometry.py`, `SWEEP_EXIT=0`. `BASELINE 6 test files, pytest exit=0, 0 failed;
+    fingerprint 9e82ff9a84e7753e over 193 values`, then:
+
+        segment-subset     line_distance_m walks only the WAY's first segment
+            exit=1  10 red  09f2d2d176a7e1dd (differs)  ['..._may_be_on_a_later_segment_of_the_way',
+                                                         '..._may_bend_toward_the_motorway_...']
+        segment-subset     line_distance_m walks only the WAY's last segment
+            exit=1   8 red  c59e9325ed921152 (differs)  ['..._may_bend_toward_the_motorway_...']
+        segment-subset     snap.length_m drops the way's LAST segment (every-but-last)
+            exit=1  38 red  41816e1e1d93f95b (differs)  ['test_a_multi_segment_tunnel_is_measured_end_to_end',
+                                                         'test_the_sinuosity_matches_the_fixture']
+        chord-for-path     tunnel_meters measures the bore's chord, not its path
+            exit=1   5 red  20d179f8ce2fe41d (differs)  ['test_the_bore_measures_its_path_and_not_its_chord',
+                                                         'test_a_bent_bore_crosses_the_threshold_...']
+        chord-for-path     the CANDIDATE motorway is reduced to its chord before it is measured
+            exit=1   4 red  716a64b23a534da4 (differs)  ['test_the_metres_to_the_nearest_motorway_...']
+        chord-for-path     way_sinuosity's NUMERATOR becomes the chord, so every way reads 1.0
+            exit=1   7 red  99cf288220409df6 (differs)  ['test_the_sinuosity_matches_the_fixture',
+                                                         'test_the_term_is_raw_and_unbounded_...']
+        candidate-order    the LAST candidate wins instead of the nearest one
+            exit=1   2 red  97d939fd7cfa097d (differs)  ['test_the_candidate_order_cannot_change_the_answer']
+        candidate-order    the reporting radius becomes exclusive - a tie at the radius reads inf
+            exit=1   1 red  8fdbf69aca444534 (differs)  ['test_the_radius_is_inclusive']
+        interior-interior  drop the pairs interior to BOTH lines - round 3's retracted 'equivalent'
+            exit=1   3 red  fd28a2d3d96546e8 (differs)  ['..._interior_to_both_polylines',
+                                                         '..._all_read_past_the_proximity_threshold']
+        earth-model        metres per degree of latitude becomes the equatorial 111234.7
+            exit=1  13 red  4b46fef332716390 (differs)  ['..._may_bend_toward_the_motorway_...',
+                                                         '..._interior_to_both_polylines']
+        earth-model        is_tunnel consults the allowlist without stripping or lowercasing
+            exit=1   2 red  4345137c27cfb8c1 (differs)  ['test_the_tunnel_metres_match_the_fixture',
+                                                         'test_is_tunnel_agrees_with_the_metres']
+        banded-subset      keep only the segment pairs with abs(i - j) <= 1 - rv4-pr94's sixth class
+            exit=1   3 red  f2e69fa493a1ecc0 (differs)  ['..._far_off_the_diagonal_of_the_segment_pair_matrix',
+                                                         '..._answers_inf_where_the_whole_matrix_answers_99_metres']
+
+        EQUIVALENT - all four exit=0, 0 red, 9e82ff9a84e7753e over 193 values (IDENTICAL):
+        the candidate measured against the way; snap.length_m's explicit slice; the candidate distance as
+        min's first argument; _crosses testing the degeneracies before the sides
+
+        POPULATION 12 mutations over 6 classes (floor 12), 4 equivalent (floor 4)
+        every one of the 12 mutations was killed by the test that names it, and every one of
+        the 4 equivalent mutants went MISSED with a byte-identical fingerprint
+
+    Twelve of twelve `(differs)` and named-red exactly as before; the four equivalents are still IDENTICAL
+    at the new baseline, which is what their reasons predict - none of them is about which tree was
+    measured, and all four move with the baseline together.
+  * `python ops/mutate/geometry.py --prove-floor`, `FLOOR_EXIT=0`: `FLOOR PROOF OK: emptied ->
+    refused=True, one deleted -> refused=True, class 'banded-subset' deleted -> refused=True, killers
+    emptied -> refused=True, real -> accepted=True`, over five headed sections - `with the population
+    emptied:` (8 FLOOR lines), `with one mutation and one equivalent deleted (11, 3):` (3), `with class
+    'banded-subset' traded for copies of 'segment-subset', population still 12:` (1), `with the killers
+    of '...' emptied, population still 12 over 6 classes:` (1), and the real population (none). This is
+    P-PROC-05's assertion, and the fourth refusal arm is the one the other three cannot see.
+  * `python ops/mutate/geometry.py --non-example`, exit 0: `pristine digest 9e82ff9a84e7753e over 193
+    values / mutant digest fd28a2d3d96546e8 over 193 values`, `3 of 193 fingerprint values differ; 3
+    named test(s) red`, the three differing values still 99.48600000003353 against 406.4842081198996,
+    ending `NON-EXAMPLE OK: the round-3 ruling is REFUTED by this arm's own test`. Line one is identical
+    in both trees here - both are the copy - so it adds a value and no difference, which is the property
+    that lets the digest carry the root without inventing a diff.
+  * `cd services/etl && python -m pytest tests -rs -o addopts=` -> `1040 passed in 104.34s (0:01:44)`,
+    exit 0, and the `-rs` short summary is EMPTY: zero skips. Unchanged at 1040 - this commit adds no
+    test and touches nothing under `etl/`. Every `__pycache__` under services/etl was removed first.
+  * `bash ops/lib/check-line-cap` -> `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8),
+    none over 300 lines`, exit 0.
+  * `bash ops/lib/check-exec-bits` -> `P-OPS-01: 68 files, 23 required present, all modes correct`, exit 0.
+  * `bash ops/queue-check` -> `QUEUE OK (182 tasks)`, exit 0.
+  * `bash ops/check-pins --source-only` -> `PINS ok=12 skipped=14 pending=1 expired=0 failed=0 tier=linux
+    source-only`, exit 0 (P-PROC-05 is `anchor: process`, so --source-only skips it by design; it was run
+    bare above).
+  * `wc -l ops/mutate/geometry*.py` RE-MEASURED at this commit: geometry.py 268 (was 237),
+    geometry_arms.py 75 (unchanged), geometry_mutations.py 147 (was 145), geometry_probe.py 148 (was
+    119), geometry_tree.py 110 (unchanged). The runner is 32 lines clear of the 300-line cap and nothing
+    is split: the boundary of meaning is unchanged - the floor is the protocol and belongs beside the
+    other two arms, and moving it out would put a refusal in a file that decides nothing. The next
+    addition to `geometry.py` should be weighed against that 32, and `geometry_probe.py`'s growth is the
+    reason to watch it. `services/etl/tests/test_proximity_banded.py` is untouched this round (`git
+    status --short` names only the four files above), so its 190 is quoted from 04:50Z, not re-measured.
+  * `git ls-files -s ops/mutate/geometry*.py` -> all five `100644`. Data, not scripts (ruling 2 of
+    03:10Z); `core.filemode` is false here so the mode is asserted from the index, not the disk.
+- 2026-09-19T05:38:06Z STILL OPEN, superseding the 04:52Z list. Items 2, 3 and 4 stand unchanged and none of them is
+  claimed as done; item 1 stays closed; item 5 is restated as rv1-pr107's R2 puts it; item 6 is new and
+  is a boundary of THIS commit's fix, stated by the fixer rather than found by the next reviewer.
+  1. CLOSED, and closed further by this commit. The reporting boundary is measured on every proximity
+     case (04:50Z), and the fingerprint now also states WHICH tree produced it, so the EQUIVALENT arm
+     cannot be satisfied by a probe pointed at the pristine worktree. rv1-pr107's R1 is closed with it.
+  2. NOTHING RUNS THE FULL SWEEP ON A SCHEDULE. Stands exactly as written at 03:35Z: P-PROC-05 asserts
+     `--prove-floor`, which costs no pytest run, and the 17-run sweep is run by hand - here, and by the
+     reviewer. T-0184 is where that changes.
+  3. `test_the_metres_to_the_nearest_motorway_match_the_fixture` exists in BOTH test_proximity.py and
+     test_proximity_bends.py and `red_by_name` matches on the bare name. Stands; recorded, not renamed.
+     rv1-pr107's R3 is the same fact aimed at T-0187: a `file::test` killer form is the fix, and it is
+     that task's to make, not a rename here.
+  4. The probe measures `sinuosity` and `proximity` only, never `score.score`, so the product costs are
+     argued from score.py's constants rather than measured end to end. Stands. T-0168 makes it measurable.
+  5. `snap.py` IS A DEPENDENCY OF THIS POPULATION, NOT A SUBJECT OF IT (rv1-pr107's R2, and the 04:52Z
+     wording was wrong to call it a subject with no class). `tests/test_snap.py` is in TEST_FILES and two
+     mutations plus one equivalent are written into `snap.py`, but no `killers` list names a test in that
+     file: they are killed from test_proximity.py and test_sinuosity.py, through `length_m` and
+     `distance_on_earth`. A seventh REQUIRED_CLASS is owed the day snap.py grows behaviour of its own -
+     a segment rule, a projection choice - and declaring one now would create an axis with nothing on it,
+     which is the defect this harness refuses in the other direction.
+  6. NEW, the boundary of the floor added here: it asks only that `killers` be NON-EMPTY, not that the
+     tests it names EXIST. A killer naming a test that has been renamed away is caught by the sweep -
+     rv1-pr107 mutated one and got exit 1, `NAMED TEST DID NOT GO RED` - but only at the cost of a full
+     pytest run, and `--prove-floor`, which is what P-PROC-05 asserts and what CI runs, cannot see it.
+     Deciding it cheaply needs the names collected from the six TEST_FILES by parse rather than by
+     running them, which is T-0187's `file::test` killer form (item 3) and is filed there, not here.
