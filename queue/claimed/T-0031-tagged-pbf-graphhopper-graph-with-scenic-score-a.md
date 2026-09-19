@@ -447,3 +447,29 @@ That is the property the whole budget search depends on, and it is cheap to chec
     pins/PINS.yaml P-ROUTE-01's `pending: T-0135` reason ("services/routing/ does not exist yet") expires
     when this merges, with pom.xml's `<graphhopper.version>11.0</graphhopper.version>` the single release
     anchor - pins/ is outside this task's touches:, so not this PR's job.
+- 2026-09-19T04:08:26Z CORRECTION to the entry above, by agent/claude-opus-5, before the review is bought. The entry above
+  says the new tests/test_profiles_static.py "runs in CI where the routed tests skip" and that "what CI gained
+  here is the FILES (thresholds, table, invariant), not the ROUTE". BOTH SENTENCES ARE WITHDRAWN, and so is
+  the same sentence in b12c60e's commit message and in the PR body (the PR body is edited; a commit message
+  and a dated entry are not rewritten). Checked, not assumed: `grep -n "pytest\|services/routing" ops/test`
+  shows Tier 1c guarded by `[[ -f services/etl/pyproject.toml ]]` and running `(cd services/etl && pytest)`
+  and nothing else, so services/routing's pytest - old file and new - is outside the `ops/test` count
+  entirely, which the 02:10:09Z STILL OPEN already said and I restated wrongly. ops/ is outside this task's
+  `touches:`, so wiring it in cannot happen in this PR.
+  WHAT IS TRUE: the new file needs no container, no graph and no docker, so nothing about it SKIPS - it runs
+  wherever pytest runs, and it will run in CI the moment services/routing is added to ops/test (or
+  ops/test-routing is written, plan line 199). Today `gh pr checks 105` green means core + pins-source-only,
+  neither of which executes these assertions. What the new tests buy at this commit is that the thresholds,
+  the band table and the motorway/trunk invariant are checked by a NAMED test at all - they were checked by
+  nothing - and that the check costs no container, which is why it can be run by any agent on any box in
+  under a second.
+  NOTHING MEASURED CHANGED: `git diff --stat b12c60e..HEAD` names only this task file. No source file, no
+  profile, no config, no test byte differs from b12c60e, so the acceptance block re-run and re-quoted there
+  stands as quoted (routed: 9 passed, T(lambda) 5945246, 6015807, 6908455, 7664327, 8491177; gates bare, all
+  exit 0; wc -l over all 18 tracked services/routing files, 838 total, none over 300). Re-run at THIS commit,
+  the two things this commit could possibly move - the task file is read by one of them:
+    cd services/routing && python -m pytest tests/test_profiles_static.py      -> 5 passed in 0.05s
+    bash ops/queue-check                                                       -> QUEUE OK (175 tasks), EXIT 0
+  The routed container run is NOT repeated for a commit that changes one record file; ops/lib/check-line-cap
+  and ops/check-pins --source-only are not repeated for the same reason, and both were green at b12c60e over
+  identical source.
