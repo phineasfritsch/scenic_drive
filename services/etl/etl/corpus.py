@@ -26,6 +26,22 @@ from .extractway import load_extract
 from .segmenter import Segmenter
 
 
+# plan:283's M2 exit clause, "corpus <60 MB", as ONE literal the emitter enforces on itself. MiB rather
+# than MB by T-0206 ruling R3: the plan does not distinguish, this task's acceptance line says 60 MiB, and
+# MiB is the looser of the two readings, so the ceiling never refuses a corpus the plan's cell allowed.
+# Measured against real LA data in T-0206: 46,231 real ways -> 19,906,560 B, 430.59 B per way, which over
+# the clip's 560,208 filtered ways extrapolates to 241,224,000 B - 3.83x this budget, with terms, places
+# and FTS still empty. The number below is the ceiling, NOT a claim that LA fits under it.
+CORPUS_BUDGET_BYTES = 60 * 1024 * 1024
+
+BUDGET_EXIT = 3
+
+
+class CorpusTooLargeError(RuntimeError):
+    """The finished corpus is over budget. The FILE IS LEFT ON DISK (T-0206 ruling R4): the exit code is
+    what stops a pipeline, the bytes are what a human needs to find the overage."""
+
+
 def compact_built_at(built_at: str) -> str:
     """2026-09-18T00:00:00Z -> 20260918T000000Z. The default corpus_version: derived from an input, so it is
     an input, so two builds of the same extract agree on it."""
@@ -55,8 +71,11 @@ def load_curated(path) -> list:
 
 
 def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
-          corpus_version=None, region=None) -> dict:
-    """Build one corpus. Returns the report `main` prints; raises on any refusal."""
+          corpus_version=None, region=None, budget_bytes: int = CORPUS_BUDGET_BYTES) -> dict:
+    """Build one corpus. Returns the report `main` prints; raises on any refusal.
+
+    `budget_bytes` defaults to the one literal above and exists as a parameter so the refusal is provable
+    without a 60 MiB fixture in git (T-0206 ruling R6)."""
     extract_region, ways = load_extract(input_path)
     region = region or extract_region
     segmenter = Segmenter()
@@ -117,8 +136,17 @@ def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
     finally:
         writer.close()
 
+    import os
+    size = os.path.getsize(out_path)
+    if size > budget_bytes:
+        raise CorpusTooLargeError(
+            f"{out_path}: the corpus is {size} bytes, over the budget of {budget_bytes} bytes "
+            f"(plan:283, 'corpus <60 MB'). The file is LEFT ON DISK so the overage can be inspected.")
+
     return {
         "region": region,
+        "bytes": size,
+        "budget_bytes": budget_bytes,
         "ways": len(ways),
         "segments": len(segments),
         "collisions": writer.collisions,
@@ -147,6 +175,8 @@ def parse_args(argv=None):
     parser.add_argument("--curated", default=None, help="curated.yaml; absent file means no curated rows")
     parser.add_argument("--corpus-version", default=None, help="default: --built-at compacted")
     parser.add_argument("--region", default=None, help="default: the extract's own region")
+    parser.add_argument("--budget-bytes", type=int, default=CORPUS_BUDGET_BYTES, metavar="N",
+                        help=f"refuse a corpus over N bytes; default {CORPUS_BUDGET_BYTES} (60 MiB)")
     return parser.parse_args(argv)
 
 
@@ -157,10 +187,16 @@ def main(argv=None) -> int:
     except ValueError:
         print(f"--built-at must be YYYY-MM-DDTHH:MM:SSZ, got {args.built_at!r}", file=sys.stderr)
         return 2
-    report = build(args.input, args.out, args.built_at, previous=args.previous,
-                   curated_path=args.curated, corpus_version=args.corpus_version, region=args.region)
+    try:
+        report = build(args.input, args.out, args.built_at, previous=args.previous,
+                       curated_path=args.curated, corpus_version=args.corpus_version,
+                       region=args.region, budget_bytes=args.budget_bytes)
+    except CorpusTooLargeError as too_large:
+        print(f"CORPUS REFUSED {too_large}", file=sys.stderr)
+        return BUDGET_EXIT
     print(f"CORPUS region={report['region']} ways={report['ways']} segments={report['segments']} "
           f"collisions={report['collisions']}")
+    print(f"CORPUS bytes={report['bytes']} budget={report['budget_bytes']}")
     print(f"CORPUS content_sha256={report['content_sha256']}")
     print(f"CORPUS file_sha256={report['file_sha256']}")
     if report["previous_ids"]:
