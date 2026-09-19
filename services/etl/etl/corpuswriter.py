@@ -55,12 +55,12 @@ class CorpusWriter:
 
     def write_features(self, ways: list) -> None:
         rows = sorted(
-            (w.way_id, w.cls, w.highway, w.name, w.paved, w.access_ok, w.oneway,
+            (w.way_id, w.cls, w.highway, w.name, w.surface_state, w.access_ok, w.oneway,
              w.node_count, w.length_mm, w.geom_sha256)
             for w in ways
         )
         self.conn.executemany(
-            "INSERT INTO osm_features (way_id, cls, highway, name, paved, access_ok, oneway, node_count, "
+            "INSERT INTO osm_features (way_id, cls, highway, name, surface, access_ok, oneway, node_count, "
             "length_mm, geom_sha256) VALUES (?,?,?,?,?,?,?,?,?,?)", rows)
 
     def assign_id(self, segment, taken: set) -> int:

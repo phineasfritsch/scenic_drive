@@ -21,7 +21,11 @@ const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...extra },
   });
 
-export const SCHEMA_VERSION = 0;
+// The corpus schema this Worker speaks for. ONE value with services/etl/etl/schema.py's SCHEMA_VERSION:
+// a device downloads a corpus only when the two agree (plan, Runtime lifecycles / OTA), and there is no
+// compiler between a Python literal and this one. ops/lib/check-schema-version reads both and refuses on
+// disagreement; P-PROD-05 is what runs it. Bumping this alone is exactly the defect it guards.
+export const SCHEMA_VERSION = 2;
 
 async function dbUp(env: Env): Promise<boolean> {
   try {

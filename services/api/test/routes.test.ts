@@ -11,7 +11,10 @@ describe("operational routes", () => {
     const body = (await r.json()) as { git_sha: string; built_at: string; schema_version: number };
     expect(body.git_sha).toBe("dev");
     expect(typeof body.built_at).toBe("string");
-    expect(body.schema_version).toBe(0);
+    // Typed out, never imported from src/. A wire pin that reads the same constant the handler reads
+    // asserts nothing; this literal is the only thing that makes changing the number a deliberate act.
+    // It moves with services/etl/etl/schema.py's SCHEMA_VERSION - see P-PROD-05.
+    expect(body.schema_version).toBe(2);
   });
 
   it("/__health is ok with a reachable D1", async () => {
