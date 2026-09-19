@@ -274,3 +274,69 @@ The throwaway is preserved at services/etl/work/t0206/ in the main checkout for 
       0
       $ git status --short
       (empty)
+- 2026-09-19T17:57:14Z RULED by agent/claude-opus-5 (owner), against the pre-review mutant pass
+  (.artifacts/signoffs/t0217-mutant-pass.md, build 85c7b3e: two non-blocking survivors, three unsupported
+  claims), before any code. Every measurement below was taken in this worktree, read-only, and is quoted
+  with the command that produced it.
+
+  S1 NODE ORDER IS A DEFECT THE POPULATION MUST OWN - AND THE ASSERTION DOES NOT BIND WHERE THE PASS
+  SUGGESTED. `oneway` is a FLAG, never a reordering. -1 means "against the way's DRAWN direction", so the
+  drawn direction is the thing the router reads the flag against: the adapter copies `coords` into `nodes`
+  in document order for every row - forward, reverse and two-way alike - and reversing the nodes of a -1
+  row while the flag stays -1 points the geometry against its own direction column, which is a real road
+  driven the wrong way. 78 tests said nothing (pass, survivor 1).
+  The pass proposed `way(ONEWAY_REVERSE).coords[0] == (34.016213, -118.8209048)`. RULED: NO - that
+  assertion is false on the pristine tree, it would test `geom.canonical` rather than the adapter, and the
+  reversal mutant would have survived it too. `extractway.way_from_json` CANONICALISES every polyline it
+  loads (`geom.canonical`: a ring is rotated to its smallest node; an open way is reversed unless
+  `key(coords[0]) <= key(coords[-1])`), so `ExtractWay.coords` is orientation-free BY CONTRACT -
+  `geom_sha256`'s own docstring says a way redrawn the other way round hashes the same. Measured,
+  `$ python work/t0217/measure.py` (cwd services/etl; the script is gitignored, reference only):
+      nodes == document order on all 16 written rows
+      loaded ExtractWay.coords: same=6 flipped=8      (+2 closed rings rotated: 338438553, 1025983659)
+      1288190701 nodes[0] [34.016213, -118.8209048]   key(first) (340162130, -1188209048)
+                 nodes[-1] [34.0160665, -118.8196495] key(last)  (340160665, -1188196495)
+                 loaded coords[0] (34.0160665, -118.8196495)  <- the READER's flip, not the adapter's
+  So the committed check binds to the EXTRACT DOCUMENT `main` WRITES - the artefact `python -m etl.corpus`
+  reads, and the only place the adapter's node order is observable at all - read back off
+  `adapted()["path"]`, the same single entry-point run every other test in the file reads. It asserts
+  document order on EVERY written row of the slice and pins both endpoints of the reverse row 1288190701
+  (Zuma Access Road, oneway=-1) and of the forward row 13465412 (Calle de Sarah, oneway=yes). Shipped as
+  mutation 26, "reverse the nodes of every `oneway=-1` row while the flag stays -1".
+
+  S2 THE SHORT-WAY GUARD GETS A ROW, AND IT IS SYNTHETIC BY MEASUREMENT, NOT BY CONVENIENCE. Both real
+  documents were scanned first (MAIN checkout, read-only, `len(coords) < 2` over every row):
+  la/window-doc.json 11,740 ways / 0 short rows; la-grid/grid-b-doc.json 23,474 ways / 0 short rows -
+  R0(c) measured the same thing for the window. There is no real one-node way to slice. RULED: ONE
+  synthetic row, way_id 9000000001, `highway=residential` so that it reaches the short guard instead of
+  the class skip, carrying its own `"synthetic"` field that says what it is and why it is not real; the
+  fixture's other 18 rows stay verbatim-real and the ODbL test now asserts that separation (18 real rows
+  from the two named documents, exactly one labelled synthetic row) rather than losing it. The check
+  asserts `skipped_short=1` on `main`'s count line AND the way's absence from the written extract, because
+  the guard's failure mode is a refusal one module downstream (`load_extract`: "way N: needs at least 2
+  nodes, got 1"), not a silent write - and a count-line field whose number has never once been non-zero is
+  exactly the "decoration" this module's own docstring warns about. Shipped as mutation 27, "disable the
+  short-way guard, so a one-node way reaches a reader that refuses the whole document". Floor 25 -> 27.
+
+  U1 'nodes differ on ZERO rows' (17:25:59Z, corrected 17:33:04Z) was measured by
+  work/t0217/diff_extracts.py - uncommitted, gitignored, reference only. FROM THIS COMMIT THE CLAIM RESTS
+  ON A COMMITTED CHECK: test_the_nodes_are_the_documents_coordinates_in_document_order asserts it on every
+  written row of the committed slice at every run of the suite, and mutation 26 is the proof it can fail.
+  The Log line stays what it is - one run's measurement over 11,740 real ways; the standing guard is now
+  the test, not the script.
+
+  U2 THE END-TO-END 11,740 / 24,205 / 6,135,808 CANNOT BECOME A COMMITTED ASSERTION, and I will not dress
+  one up. Its input is services/etl/work/la/window-doc.json: gitignored, 11,740 real ways, ~24 MB, present
+  in no checkout CI clones. A test that asserted those three numbers would either skip (a green that
+  measures nothing - the suite is run with zero skips for exactly this reason) or fail everywhere but this
+  box. RULED: NO. The committed end of that path is
+  test_the_adapted_slice_builds_a_corpus_which_is_the_whole_point_of_the_path (ways == 16, segments >= 16)
+  over the committed slice; the three window numbers stay a LOG measurement, re-derivable by the reviewer
+  with the two commands quoted verbatim in the acceptance block - which is what the acceptance line asks
+  for ("built end to end ... with ways/segments/bytes equal to T-0206's").
+
+  U3 `--prove-vacuity` was not re-run by the pass (it re-ran the forward arm only). It is re-run BARE in
+  this commit's acceptance block, over the population of 27.
+
+  STILL OPEN 1, unchanged: ops/lib/check-mutate-population.py's DRIVERS/COVERED_FLOOR and assemble.py
+  collide with T-0208, which has NOT merged. The final pre-review merge below keeps both sides.
