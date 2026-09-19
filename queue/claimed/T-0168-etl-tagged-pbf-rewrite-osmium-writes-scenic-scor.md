@@ -335,3 +335,91 @@ a silent 0); idempotence (P-DATA-01: running twice over the same extract is byte
       Nothing is over the 300-line cap. `ops/etl-extract` and `services/etl/Dockerfile` are in `touches:` and were
       NOT changed: the Dockerfile stays pinned because R6 rules PyOsmium out, and ops/etl-extract's own defect (F5)
       is recorded, not patched.
+- 2026-09-19T07:04:53Z THE PRE-REVIEW MUTANT PASS: three mutations nobody had written down, run against the
+  committed tests before the review was bought, by agent/claude-opus-5 (the owner). ONE BLOCKING SURVIVOR and
+  two of one non-blocking class. All three fixed in commit 31512ef and all three now IN the population, so
+  the next run of `ops/mutate/scenic_tags.py` keeps them killed.
+  M1 BLOCKING - `scenecheck.counts`'s second clause `if value > 0 and is_gated(tags)` mutated to `value > 1`:
+  26 passed over tests/test_tagwriter.py + tests/test_scenecheck.py, nothing red. A read-back file carrying a
+  motorway at `scenic_score=1` and an `access=private` residential at 1 printed `gated_scored=0` and exited 0
+  - a PBF violating the motorway/trunk/private clause of check 4 would have passed GREEN. The defect was in
+  the FIXTURES, not the code: every gated way in them carries 3 (the motorway) or 7 (private, gravel, track),
+  so the population's own `> 5` mutant was being killed by the 3 alone and nothing tested the boundary the
+  clause states. R8 says `> 0`; the tests now say it too, at the smallest score above zero.
+  M4 / M4b - `test_the_writer_is_byte_identical_over_two_runs_of_the_same_input` ran BOTH writes in ONE
+  interpreter, so both shared one hash seed: `tagwriter.write` emitting ways in `sorted(held, key=hash(id))`
+  order passed 26, and so did `tags_for_row`'s `FLAG_SEPARATOR.join(set(flags))`. Measured, not reasoned:
+  under PYTHONHASHSEED=0..4 the six fixture ways sort into five different orders and none of them is input
+  order, and the two-flag row joins both ways round (seeds 0,1,3 one order; 2,4 the other).
+  WHY CROSS-PROCESS IS THE RIGHT SHAPE, ruled: P-DATA-01 is a property of the BYTES THAT SHIP, and the
+  evidence it exists for is two container invocations fifteen minutes apart (the 06:05:31Z real-run entry) -
+  two different processes, two different hash seeds. A test that takes both writes from one process cannot
+  see any order chosen by `hash`, and therefore agrees with itself while the file disagrees with tomorrow's
+  run. So the second write is now a child interpreter (`subprocess`, `PYTHONHASHSEED` 0..4, the same
+  `table()` imported from this module so the two tables cannot drift), and the table carries a row with TWO
+  flags, because one flag cannot show the order a set would have chosen for it.
+  RED BY NAME, then green, each on the pristine tree (scratch driver in the gitignored services/etl/work/):
+    `emit the ways in hash order instead of input order` ->
+      FAILED tests/test_tagwriter.py::test_the_writer_is_byte_identical_over_two_runs_of_the_same_input
+    `join the flags out of a set, which has no order` ->
+      FAILED tests/test_tagwriter.py::test_the_writer_is_byte_identical_over_two_runs_of_the_same_input
+    `only object to a gated way scoring above 1` ->
+      FAILED tests/test_scenecheck.py::test_a_motorway_at_the_smallest_score_above_zero_is_counted_and_refuses
+      FAILED tests/test_scenecheck.py::test_a_private_way_at_the_smallest_score_above_zero_is_counted_and_refuses
+    PRISTINE -> `28 passed`, no failures.
+  `MIN_MUTATIONS` 22 -> 25. NO PRODUCTION MODULE CHANGED: `tagwriter.py` (156) and `scenecheck.py` (151) are
+  byte-for-byte what 4c5d02a had; this commit is two test files and the population.
+- 2026-09-19T07:04:53Z THE ACCEPTANCE BLOCK RE-RUN AT THE FINAL PRE-REVIEW COMMIT (the author rule), bare and
+  quoted, by agent/claude-opus-5. Everything below was measured against the tree of commit 31512ef; this
+  entry is the only thing added after it, and the mutation harness's own `assert_pristine` compares its
+  subjects, both emptied test files and itself to `git show HEAD:` - none of them is this file.
+  (M) `python ops/mutate/scenic_tags.py`, bare, exit 0:
+      `BASELINE exit=0, 25 mutations, floor 25`
+      `MUTATIONS: 25 caught, 0 missed, 0 skipped, of 25`
+      `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2`
+      `MUTATE OK  caught=25/25 equivalent_caught=0`
+      The three new ones, killed by the tests this commit adds and by name:
+      `caught  emit the ways in hash order instead of input order  <- tests/test_tagwriter.py::test_the_writer_is_byte_identical_over_two_runs_of_the_same_input`
+      `caught  join the flags out of a set, which has no order  <- tests/test_tagwriter.py::test_the_writer_is_byte_identical_over_two_runs_of_the_same_input`
+      `caught  only object to a gated way scoring above 1  <- tests/test_scenecheck.py::test_a_motorway_at_the_smallest_score_above_zero_is_counted_and_refuses`
+      `python ops/mutate/scenic_tags.py --prove-vacuity`, exit 0: `VACUITY: 0 caught, 25 missed, 0 skipped,
+      of 25`, `VACUITY PROVED`, every mutation `exit 5` - no tests ran - and `git status --short` empty after
+      the restore.
+  (1) P-DATA-01 over the REAL extract, re-measured rather than assumed, because a correction that touches a
+      measured file re-measures it. A THIRD tag pass over `work/la/window.osm.xml`, in a fresh
+      `scenic-etl:latest` container (osmium 1.16.0), 18.647s: `WRITE ways=12402 scored=11740 refused=0
+      gated=5589 not_a_road=662`, then `osmium cat` to PBF:
+        06046be00d336f2f976a31676ce452d2f35fabba15f63d437be3043d909a0090  work/la/window-tagged-3.osm.pbf
+        06046be00d336f2f976a31676ce452d2f35fabba15f63d437be3043d909a0090  work/la/window-tagged-1.osm.pbf
+        06046be00d336f2f976a31676ce452d2f35fabba15f63d437be3043d909a0090  work/la/window-tagged-2.osm.pbf
+      THE WRITER'S BYTES DID NOT CHANGE - the fix is in the tests, and the three digests are equal to each
+      other and to the 06:05:31Z run's, three container invocations now instead of two.
+  (4) `python3 -m etl.scenecheck work/la/window-readback.osm.xml --top 10` over the file that ships:
+      `CHECK4 null_score=0 gated_scored=0 scored=11740 refused=0 not_a_road=662`, `SCENECHECK EXIT 0`, and
+      the ranked ten identical to the 06:05:31Z print, Topanga 1-3, Stunt Road 4, Piuma 9, Fernwood 10. THE
+      JUDGEMENT IS STILL THE OWNER'S.
+  (6) `cd services/etl && python -m pytest tests -rs -o addopts=` -> `1136 passed in 105.29s (0:01:45)`, no
+      `-rs` skip section at all, zero skips (1134 + the two new scenecheck boundary tests). Gates, each bare:
+      `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines` (exit 0);
+      `P-OPS-01: 64 files, 23 required present, all modes correct` (exit 0); `QUEUE OK (186 tasks)` (exit 0);
+      `PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only` (exit 0). `wc -l` on every
+      touched file, re-measured HERE and not carried forward:
+        210 services/etl/tests/test_tagwriter.py   148 services/etl/tests/test_scenecheck.py
+        275 ops/mutate/scenic_tags.py              156 services/etl/etl/tagwriter.py
+        151 services/etl/etl/scenecheck.py         111 services/etl/etl/osmxml.py
+        257 services/etl/etl/waydoc.py              77 services/etl/tests/test_osmxml.py
+        118 services/etl/tests/test_waydoc.py      296 services/etl/tests/test_dem_tiles.py
+        112 services/etl/tests/test_license_data.py  53 services/etl/tests/fixtures/scenic_clip.osm.xml
+        260 services/etl/inputs/manifest.yaml      337 queue/claimed/T-0168-...md (this file, before this entry)
+      Nothing is over the 300-line cap; `ops/mutate/scenic_tags.py` grew 248 -> 275 and stays one file, so the
+      population table is NOT split out. Acceptance (2), (3) and (5) are measurements of inputs and of a run
+      this commit does not touch and are quoted whole in the 06:20:44Z entry; nothing in this commit changes
+      an input, a count line or the ranking, and (1) and (4) above re-measure the two that could have moved.
+- 2026-09-19T07:04:53Z STILL OPEN, updated by agent/claude-opus-5 (items 1-6 stand as the 06:20:44Z entry and
+  the PR body state them; nothing here closes one). ADDED:
+  7. THE TWO NON-NUMERIC MODULES STILL SHIP NO POPULATION, and the mutant pass is why that is now worth
+     re-stating: `osmxml.py` was ruled a stream copy and `waydoc.py` wiring, and both rulings stand - but
+     every one of the three survivors above lived in how the TESTS were written, not in the arithmetic, and
+     `osmxml.Writer` is where the byte order those tests are about is actually produced. P-DATA-01 now pins
+     it from the outside, across processes, at fixture scale plus three real-extract container runs; CI has
+     no extract and cannot run the second half. A population for `osmxml.py` is a later task, not this one.

@@ -69,6 +69,26 @@ def test_a_track_with_a_score_above_zero_is_counted_and_refuses(tmp_path):
     assert scenecheck.main([str(path)]) == 4
 
 
+def test_a_motorway_at_the_smallest_score_above_zero_is_counted_and_refuses(tmp_path):
+    """The clause is `> 0`, not `> a threshold`, and 1 is the score that says so.
+
+    Every other gated fixture in this file carries 3 (the motorway) or 7 (private, gravel, track), so a
+    checker that only objected above 1 - or above 2, or 5 - would count every one of them and still let a
+    shipped PBF through with a motorway at 1. The smallest violation is the one that has to be counted.
+    """
+    path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="1"))])
+    assert scenecheck.counts(path)["gated_scored"] == 1
+    assert scenecheck.main([str(path)]) == 4
+
+
+def test_a_private_way_at_the_smallest_score_above_zero_is_counted_and_refuses(tmp_path):
+    """The gate half of the same boundary: `access=private` at 1 is a violation, not a rounding artefact."""
+    path = osm(tmp_path, [(1, scored()),
+                          (2, scored(highway="residential", access="private", scenic_score="1"))])
+    assert scenecheck.counts(path)["gated_scored"] == 1
+    assert scenecheck.main([str(path)]) == 4
+
+
 def test_a_gated_way_scored_zero_is_not_a_violation(tmp_path):
     """The gates force 0.0; 0 is what a refused-for-safety road is allowed to carry."""
     path = osm(tmp_path, [(1, scored()),

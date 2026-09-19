@@ -52,6 +52,12 @@ CLAMP = "    return max(SCORE_MIN, min(SCORE_MAX, scaled))"
 NOT_A_ROAD = "    if not tags.get(HIGHWAY):\n        counts[\"not_a_road\"] += 1\n        return"
 GATE_TAG = "    if row.get(\"gate_reason\"):\n        out[KEY_GATE] = row[\"gate_reason\"]"
 NULL_ROW = "        if row.get(\"score\") is None:"
+FLAGS_JOIN = "        out[KEY_FLAGS] = FLAG_SEPARATOR.join(flags)"
+WRITE_LOOP = ("    with osmxml.Writer(out) as writer:\n"
+              "        for elem in osmxml.iter_top_level(source):\n"
+              "            if elem.tag == osmxml.WAY:\n"
+              "                _tag_way(elem, scored, refused, counts, seen)\n"
+              "            writer.write(elem)")
 MISSING = "    missing = sorted((set(scored) | set(refused)) - seen)"
 NEITHER = "    raise ValueError(\"way %d carries highway=%s and is in neither the scored table nor the "
 CHECK_NOT_A_ROAD = "        if not tags.get(HIGHWAY):\n            found[\"not_a_road\"] += 1\n            continue"
@@ -91,9 +97,30 @@ MUTATIONS = [
      "        if row.get(\"gate_reason\"):\n            counts[\"gated\"] += 1",
      "        if False:\n            counts[\"gated\"] += 1"),
 
+    # --- the order of the shipped bytes, ruling R3 (P-DATA-01) --------------------------------------------
+    # Both are invisible to two writes inside ONE interpreter: one hash seed makes the pair agree with each
+    # other and disagree with the next process. The P-DATA-01 test writes its second file in a child.
+    ("emit the ways in hash order instead of input order", TAGWRITER, WRITE_LOOP,
+     "    held = []\n"
+     "    with osmxml.Writer(out) as writer:\n"
+     "        for elem in osmxml.iter_top_level(source):\n"
+     "            if elem.tag == osmxml.WAY:\n"
+     "                _tag_way(elem, scored, refused, counts, seen)\n"
+     "                held.append(__import__(\"copy\").deepcopy(elem))\n"
+     "                continue\n"
+     "            writer.write(elem)\n"
+     "        for elem in sorted(held, key=lambda way: hash(way.get(\"id\"))):\n"
+     "            writer.write(elem)"),
+    ("join the flags out of a set, which has no order", TAGWRITER, FLAGS_JOIN,
+     "        out[KEY_FLAGS] = FLAG_SEPARATOR.join(set(flags))"),
+
     # --- check 4's two clauses --------------------------------------------------------------------------
     ("only object to a gated way scoring above 5", SCENECHECK, CHECK_GATED,
      "        if value > 5 and is_gated(tags):"),
+    # The clause is `> 0`. Every gated fixture carried 3 or 7, so `> 1` passed 26 tests: a shipped PBF with
+    # a motorway at 1 printed gated_scored=0 and exited 0.
+    ("only object to a gated way scoring above 1", SCENECHECK, CHECK_GATED,
+     "        if value > 1 and is_gated(tags):"),
     ("forget that motorway and trunk are a clause of their own", SCENECHECK, IS_GATED,
      "    return gate_reason(tags) is not None"),
     ("forget the safety gates, keeping only the zero classes", SCENECHECK, IS_GATED,
@@ -124,7 +151,7 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 22
+MIN_MUTATIONS = 25
 PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q",
           str(TAGWRITER_TESTS), str(SCENECHECK_TESTS)]
 # Past the filesystem's timestamp granularity, so a mutation always lands rather than hitting a stale .pyc.

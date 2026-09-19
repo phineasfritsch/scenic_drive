@@ -8,13 +8,24 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import pathlib
+import subprocess
+import sys
 
 import pytest
 
 from etl import score, tagwriter
 
 FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "scenic_clip.osm.xml"
+ETL_ROOT = pathlib.Path(__file__).resolve().parents[1]
+# Five seeds because a two-element set and a six-way permutation both have to move across them.
+HASH_SEEDS = ("0", "1", "2", "3", "4")
+# The child re-imports THIS module for the table, so there is one table and never a copy that drifts.
+CHILD = ("import sys; sys.path.insert(0, sys.argv[1]);"
+         "from tests.test_tagwriter import table, refused;"
+         "from etl import tagwriter;"
+         "tagwriter.write(sys.argv[2], sys.argv[3], table(), refused())")
 SCENIC_WAY = 101
 MOTORWAY = 102
 PRIVATE_WAY = 103
@@ -37,7 +48,9 @@ def row(way_id: int, highway: str, value, gate_reason=None, flags=()) -> dict:
 def table() -> list:
     return [row(SCENIC_WAY, "tertiary", 0.6543, flags=["points_of_interest_absent"]),
             row(MOTORWAY, "motorway", 0.0),
-            row(PRIVATE_WAY, "residential", 0.0, gate_reason="no_access"),
+            # TWO flags on purpose: one flag cannot show the order a set would have chosen for them.
+            row(PRIVATE_WAY, "residential", 0.0, gate_reason="no_access",
+                flags=["sinuosity_declined", "points_of_interest_absent"]),
             row(TRACK_WAY, "track", 0.0, gate_reason="track")]
 
 
@@ -61,13 +74,33 @@ def tags_of(text: str, way_id: int) -> dict:
     raise AssertionError("way %d is not in the written document" % way_id)
 
 
+def sha256_of(path: pathlib.Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def written_under_seed(out: pathlib.Path, seed: str) -> str:
+    """Write the same input again in a FRESH interpreter whose hash seed is `seed`, and digest it."""
+    env = dict(os.environ, PYTHONHASHSEED=seed)
+    done = subprocess.run([sys.executable, "-c", CHILD, str(ETL_ROOT), str(FIXTURE), str(out)],
+                          cwd=str(ETL_ROOT), env=env, capture_output=True, text=True)
+    assert done.returncode == 0, "the child writer failed under PYTHONHASHSEED=%s:\n%s" % (seed, done.stderr)
+    return sha256_of(out)
+
+
 def test_the_writer_is_byte_identical_over_two_runs_of_the_same_input(tmp_path):
-    """P-DATA-01. Run the tag pass twice over one input; the bytes must be the same bytes."""
+    """P-DATA-01. The second run is a SEPARATE INTERPRETER, under a different PYTHONHASHSEED.
+
+    Two writes inside one process share one hash seed, so every defect that lets `hash` choose an order -
+    `sorted(ways, key=hash)`, `FLAG_SEPARATOR.join(set(flags))` - makes the two runs agree with each other
+    and disagree with tomorrow's. The property is about the shipped bytes, and the evidence it exists for
+    was two container invocations fifteen minutes apart (the real-run entry in T-0168's log), so the test
+    has that shape: one write here, one in a child, digests equal across five seeds.
+    """
     first, _ = written(tmp_path / "a")
-    second, _ = written(tmp_path / "b")
-    a = hashlib.sha256(first.read_bytes()).hexdigest()
-    b = hashlib.sha256(second.read_bytes()).hexdigest()
-    assert a == b, "two runs of the tag pass over one input differ: %s vs %s" % (a, b)
+    a = sha256_of(first)
+    for seed in HASH_SEEDS:
+        b = written_under_seed(tmp_path / ("seed-" + seed) / "tagged.osm.xml", seed)
+        assert a == b, "the tag pass is not byte-identical under PYTHONHASHSEED=%s: %s vs %s" % (seed, a, b)
 
 
 def test_the_score_is_round_half_up_of_the_unit_score_times_ten():
