@@ -34,6 +34,22 @@ public enum BasemapResolver {
     /// The path under Application Support that step 2 looks at. M4's download sheet writes here.
     public static let applicationSupportPath = "tiles/la.pmtiles"
 
+    /// The byte floor an archive must clear before `archiveURL` will call it the LA archive.
+    ///
+    /// **Existence is not wholeness.** A file at the right path is what `Bundle.url(forResource:…)` and
+    /// `fileExists(atPath:)` answer about, and a half-copied or interrupted download is at the right path
+    /// too: the Protomaps style would resolve, the credit would go on screen, and the renderer would be
+    /// handed an archive whose header it cannot read.
+    ///
+    /// The number is `MIN_BYTES` from `services/tiles/check_pmtiles.py` - 1 MiB - and deliberately NOT the
+    /// 63,520,949 bytes the current build measures (`services/tiles/work/la.pmtiles.json`). That checker
+    /// states the reason in its own words: *"a floor set near the real size refuses the first legitimate
+    /// smaller region and gets lowered in a hurry by whoever hits it, which is how a floor stops meaning
+    /// anything"*. A rebuild with a re-cut bbox, a re-pinned planet build or a second, smaller region are
+    /// all legitimate and all smaller; a truncation is orders of magnitude smaller than this. One number
+    /// for one fact, named here so the two languages cannot drift apart silently.
+    public static let minimumArchiveBytes = 1_048_576
+
     /// The basemap for Los Angeles: the Protomaps style if the archive is on this device, the demo
     /// basemap if it is not.
     ///
@@ -56,20 +72,24 @@ public enum BasemapResolver {
         return appearance.protomapsStyle
     }
 
-    /// Steps 1 and 2 of the order above: where `la.pmtiles` is on this device, or `nil`.
+    /// Steps 1 and 2 of the order above: where a WHOLE `la.pmtiles` is on this device, or `nil`.
     ///
     /// The bundle lookups need no existence check - `Bundle.url(forResource:…)` returns `nil` for a
     /// resource that was not copied in. The Application Support path does need one, because building a
-    /// URL under a directory says nothing about whether anything was ever downloaded to it.
+    /// URL under a directory says nothing about whether anything was ever downloaded to it. Every
+    /// candidate, from either source, then has to clear `minimumArchiveBytes`: a copy that died halfway
+    /// through - `cp` interrupted, a download resumed into the same name, a file the system purged the
+    /// body of - is at the right path and is not a map.
     public static func archiveURL(in bundle: Bundle = .main) -> URL? {
         if let bundled = bundle.url(
             forResource: archiveName,
             withExtension: archiveExtension,
             subdirectory: bundleSubdirectory
-        ) {
+        ), isWhole(bundled) {
             return bundled
         }
-        if let flattened = bundle.url(forResource: archiveName, withExtension: archiveExtension) {
+        if let flattened = bundle.url(forResource: archiveName, withExtension: archiveExtension),
+           isWhole(flattened) {
             return flattened
         }
         let fileManager = FileManager.default
@@ -83,6 +103,23 @@ public enum BasemapResolver {
         guard fileManager.fileExists(atPath: downloaded.path(percentEncoded: false)) else {
             return nil
         }
+        guard isWhole(downloaded) else {
+            return nil
+        }
         return downloaded
+    }
+
+    /// Whether the file at `url` is big enough to be the archive rather than the start of one.
+    ///
+    /// Unreadable size reads as NOT whole: the demo basemap with its own credit is the honest answer to
+    /// "this device has no usable LA archive", and a question we cannot answer must never resolve to the
+    /// Protomaps credit. This is the only thing the app checks about the archive's content - the header,
+    /// the bounds, the zoom and the tile count are `services/tiles/check_pmtiles.py`'s, on the box that
+    /// built it, before it is ever copied to a phone.
+    static func isWhole(_ url: URL) -> Bool {
+        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize else {
+            return false
+        }
+        return size >= minimumArchiveBytes
     }
 }
