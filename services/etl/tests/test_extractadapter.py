@@ -50,6 +50,10 @@ PERMIT = 799554704               # access=permit
 NO_ACCESS = 426254440            # access=no
 # The two ways T-0206's throwaway skipped, of 23,474: both highway=footway, Universal CityWalk Hollywood.
 OUTSIDE_THE_TABLE = (1211805282, 1211805283)
+# The slice's ONE synthetic row, labelled `synthetic` in the fixture itself: one coordinate. Neither real
+# document carries a row under two coordinates (0 of 11,740 and 0 of 23,474), so `skipped_short` - a field
+# of main's own count line - had no real row it could ever be seen red on (task Log, S2).
+SHORT_SYNTHETIC = 9000000001
 
 _RUN: dict = {}
 
@@ -86,15 +90,19 @@ def test_the_slice_is_real_odbl_data_and_says_which_document_each_way_came_from(
     doc = json.loads(SLICE.read_text(encoding="utf-8"))
     assert "ODbL" in doc["licence"] and "OpenStreetMap" in doc["licence"], doc.get("licence")
     assert doc["dropped_keys"], "the fixture must name what was dropped, not drop it in silence"
-    assert {row["source"] for row in doc["ways"]} == {"la/window-doc.json", "la-grid/grid-b-doc.json"}
-    assert len(doc["ways"]) == 18
+    real = [row for row in doc["ways"] if "synthetic" not in row]
+    synthetic = [row for row in doc["ways"] if "synthetic" in row]
+    assert {row["source"] for row in real} == {"la/window-doc.json", "la-grid/grid-b-doc.json"}
+    assert len(real) == 18 and len(doc["ways"]) == 19
+    assert [row["way_id"] for row in synthetic] == [SHORT_SYNTHETIC]
+    assert synthetic[0]["synthetic"], "a row that is not a real way says so in its own field"
 
 
 def test_the_whole_slice_is_accepted_by_the_reader_corpus_build_uses():
     run = adapted()
     assert run["code"] == 0
     assert run["region"] == "la"
-    # 18 real ways in, the two out-of-table ways skipped, 16 through to the corpus reader.
+    # 18 real ways and one synthetic short row in; two out-of-table and one short skipped; 16 through.
     assert len(run["ways"]) == 16, sorted(run["ways"])
 
 
@@ -251,3 +259,41 @@ def test_the_adapted_slice_builds_a_corpus_which_is_the_whole_point_of_the_path(
     report = corpus.build(adapted()["path"], tmp_path / "slice.sqlite", "2026-09-18T00:00:00Z")
     assert report["ways"] == 16 and report["segments"] >= 16
     assert report["region"] == "la"
+
+
+def test_the_nodes_are_the_documents_coordinates_in_document_order_on_every_row():
+    """`oneway` is a FLAG, never a reordering: -1 means against the way's DRAWN direction, so the drawn
+    direction has to survive the conversion or the router reads the flag against the wrong geometry.
+
+    Read off the EXTRACT `main` WROTE - the artefact `python -m etl.corpus` reads, and the only place this
+    order is observable - never off `ExtractWay.coords`, which `geom.canonical` has already oriented: the
+    reader flips 8 of these 16 rows, 1288190701 among them, so an assertion there tests the READER (S1)."""
+    doc = json.loads(SLICE.read_text(encoding="utf-8"))
+    drawn = {row["way_id"]: [[float(lat), float(lon)] for lat, lon in row["coords"]]
+             for row in doc["ways"]}
+    written = json.loads(pathlib.Path(adapted()["path"]).read_text(encoding="utf-8"))
+    assert len(written["ways"]) == 16
+    for row in written["ways"]:
+        assert row["nodes"] == drawn[row["id"]], "way %d: the nodes are not the document's" % row["id"]
+    reverse = next(row for row in written["ways"] if row["id"] == ONEWAY_REVERSE)
+    assert reverse["oneway"] == -1, "the flag and the geometry are read together or neither means anything"
+    assert reverse["nodes"][0] == [34.016213, -118.8209048]
+    assert reverse["nodes"][-1] == [34.0160665, -118.8196495]
+    forward = next(row for row in written["ways"] if row["id"] == ONEWAY_FORWARD)
+    assert forward["oneway"] == 1
+    assert forward["nodes"][0] == [34.0772684, -118.5523092]
+    assert forward["nodes"][-1] == [34.0771741, -118.5521751]
+
+
+def test_a_one_node_way_is_skipped_by_count_and_never_reaches_the_reader():
+    """`skipped_short` had never once been non-zero (S2). With the guard gone the failure mode is a
+    refusal one module downstream - `load_extract` refuses the WHOLE document, "way 9000000001: needs at
+    least 2 nodes, got 1" - not a silent write, so the count AND the absence are both asserted."""
+    row = next(r for r in json.loads(SLICE.read_text(encoding="utf-8"))["ways"]
+               if r["way_id"] == SHORT_SYNTHETIC)
+    assert len(row["coords"]) == 1 and row["synthetic"]
+    assert row["tags"]["highway"] in extractadapter.HIGHWAY_TO_CLS, "it must reach the short guard"
+    assert "skipped_short=1" in adapted()["stdout"], adapted()["stdout"]
+    assert SHORT_SYNTHETIC not in adapted()["ways"]
+    written = json.loads(pathlib.Path(adapted()["path"]).read_text(encoding="utf-8"))
+    assert SHORT_SYNTHETIC not in [row["id"] for row in written["ways"]]

@@ -6,7 +6,9 @@ the hazard strip and the device router read - and `extractadapter` decides the c
 surface tag of every way that reaches `corpus.build`. They are numbers about roads, and CLAUDE.md's
 Verification section and P-PROC-06 both say a module like that ships a population with a literal floor in
 the same PR. T-0206's measurement adapter had none, and its access list refused 139 ways of the canyon
-window that ScenicKit routes while letting through the 22 it refuses.
+window that ScenicKit routes while letting through the 22 it refuses. Mutations 26 and 27 - the node
+order of a `oneway=-1` row, and the short-way guard - are this PR's pre-review mutant pass's two survivors,
+promoted here with the two checks that catch them (task Log, S1 and S2).
 
 THE CONTRACT is ops/mutate/surfacecoverage.py's and ops/mutate/scenic_tags.py's, kept identically:
 
@@ -80,6 +82,9 @@ SURFACE_COUNT = ('        counts[SURFACE_COUNTS[surface_state(highway=way["highw
                  'surface=way.get(SURFACE_KEY))]] += 1')
 REGION_REFUSAL = ('    raise ValueError("the document names no region and --region was not given: a corpus '
                   'whose region is "\n                     "guessed is a corpus nobody can serve")')
+NODES = '           "nodes": [[float(lat), float(lon)] for lat, lon in coords]}'
+SHORT_SKIP = ('        if len(coords) < MIN_COORDINATES:\n            counts["skipped_short"] += 1\n'
+              '            continue')
 
 MUTATIONS = [
     # --- the access rule: the one predicate both the gate and the corpus column ask -----------------------
@@ -134,6 +139,9 @@ MUTATIONS = [
      "    return TWO_WAY"),
     ("default an untagged way to one-way instead of two-way", ADAPTER, IMPLICATION,
      "    if tags.get(JUNCTION_KEY) == ROUNDABOUT:\n        return FORWARD\n    return FORWARD"),
+    ("reverse the nodes of every `oneway=-1` row while the flag stays -1 - a real road's geometry laid "
+     "against its own direction column", ADAPTER, NODES,
+     NODES.replace("coords]}", "(coords[::-1] if oneway_flag(tags) == REVERSE else coords)]}")),
 
     # --- class, skip and refusal -------------------------------------------------------------------------
     ("let a class outside WAY_CLASSES through to a reader that refuses the whole document", ADAPTER,
@@ -149,6 +157,8 @@ MUTATIONS = [
      DUPLICATE, "        if False and way_id in seen:"),
     ("guess a region rather than refusing a document that names none", ADAPTER, REGION_REFUSAL,
      '    return "la"'),
+    ("disable the short-way guard, so a one-node way reaches a reader that refuses the whole document",
+     ADAPTER, SHORT_SKIP, SHORT_SKIP.replace("if len", "if False and len")),
 
     # --- what travels to the corpus ----------------------------------------------------------------------
     ("drop the name, so every way reaches the corpus anonymous", ADAPTER, NAME_PASS,
@@ -179,7 +189,7 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 25
+MIN_MUTATIONS = 27
 PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", str(ADAPTER_TESTS)]
 # Past the filesystem's timestamp granularity, so a mutation always lands rather than hitting a stale .pyc.
 SETTLE_S = 1.1
