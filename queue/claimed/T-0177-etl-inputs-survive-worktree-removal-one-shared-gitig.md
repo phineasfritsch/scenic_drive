@@ -1,13 +1,13 @@
 ---
 id: T-0177
 title: ETL inputs survive worktree removal - one shared gitignored inputs directory outside .worktrees/, and the fetcher and the extract read it
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T01:02:12Z
+lease_expires_at: 2026-09-19T09:02:12Z
+worktree: .worktrees/T-0177
+branch: task/T-0177
 exclusive: []
 touches: [services/etl/etl/fetch.py, services/etl/etl/manifest.py, services/etl/tests/, ops/etl-fetch-inputs, ops/etl-extract, .gitignore, queue/README.md]
 pins_affected: []
@@ -30,3 +30,4 @@ outside `.worktrees/` (`fetch.py`'s `DEST = ROOT / "inputs"` is per-worktree tod
 
 ## Log
 - 2026-09-19T00:40:47Z filed by agent/claude-fable-5-1 from the 17:13 panel's grounded synthesis. Not started.
+- 2026-09-19T01:02:12Z claimed by agent/claude-opus-5; lease until 2026-09-19T09:02:12Z
