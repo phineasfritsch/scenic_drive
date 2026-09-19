@@ -114,10 +114,13 @@ that is on disk and passes, `verified NAME bytes=N retrieved=DATE MODE ok`; an i
 `not on disk at <path>` and the run exits 1. That run is the acceptance for any task that consumes an input:
 quote the line, do not re-download. It never downloads and never deletes.
 
-Still per-worktree: `etl/extract.py`, `etl/dem.py`, `etl/landcover.py` and `etl/oracle.py` each compute their own
-`ROOT / "inputs"`, and `ops/etl-extract` execs `etl.extract` inside the current checkout. `SCENIC_ETL_INPUTS`
-reaches `etl.fetch` only. Until those modules move to the resolver, name the shared copy on the command line —
-`ops/etl-extract --input <main checkout>/services/etl/inputs/california-osm.pbf`.
+Since T-0189 (PR #108) `etl/extract.py`, `etl/dem.py`, `etl/landcover.py` and `etl/oracle.py` resolve their inputs
+directory through `fetch.resolve_inputs_dir` at import time, so `SCENIC_ETL_INPUTS` and the worktree rule reach all
+four, and a tile or raster missing from that directory is a `FileNotFoundError` naming the path, never a silent
+`None`. Still per-checkout on purpose: `oracle.pinned_digest`'s manifest default and `extract.WORK` (a task editing
+its own manifest is checked against that edit; two worktrees extracting different region edits must not share one
+work directory). `ops/etl-extract` still execs `etl.extract` inside the current checkout; `--input <path>` remains
+the explicit override.
 
 ## Task file
 
