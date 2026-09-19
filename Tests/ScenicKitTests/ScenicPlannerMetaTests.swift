@@ -109,6 +109,27 @@ struct ScenicPlannerMetaTests {
         }
     }
 
+    @Test("a route with no way ids is refused, not waved through as different")
+    func aRouteWithoutWayIdsIsRefused() throws {
+        // A graph built without `osm_way_id` in graph.encoded_values answers with no such detail, and the
+        // difference measure then has nothing to compare. Two empty sets score 1.0 - "the same ways" - so
+        // the plan is refused. Scoring an unmeasurable pair 0.0 would make every route on such a graph
+        // pass the actually-different guard, which is the vacuous green this suite exists to prevent.
+        let bare = RoutePath(durationMilliseconds: 1_800_000, distanceMeters: 8000,
+                             coordinates: [Coordinate(latitude: 34, longitude: -118),
+                                           Coordinate(latitude: 34.1, longitude: -118.1)],
+                             details: [:])
+        let planner = ScenicPlanner(
+            source: StubRouter(fastestPath: bare,
+                               scenicPaths: [LambdaCustomModel.multiplier(0): bare]),
+            solve: Self.stubSolver(answering: 0)
+        )
+        #expect(throws: PlanFailure.notActuallyDifferent(overlap: 1.0,
+                                                        maximum: RouteDifference.maximumOverlap)) {
+            try planner.plan(from: Self.origin, to: Self.destination, budget: Self.budget)
+        }
+    }
+
     // MARK: - the control, without which both tests above pass on a planner that refuses everything
 
     @Test("a different route inside the ceiling is planned, through the real bisection")

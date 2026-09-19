@@ -64,8 +64,8 @@ ALLOWLIST_FILE = "ops/lib/mutate-population-allowlist.json"
 # to keep true, and a module in a subpackage is a module (T-0186 S4).
 MODULE_ROOTS = (("services/etl/etl", ".py", True), ("Sources", ".swift", True))
 
-DRIVERS = ("budget.py", "gates.py", "geometry.py", "guidance.py", "handoff.py", "hazards.py", "retrace.py",
-           "routescore.py", "scenic_tags.py", "segmentscore.py", "surfacecoverage.py")
+DRIVERS = ("budget.py", "gates.py", "geometry.py", "guidance.py", "handoff.py", "hazards.py", "plan.py",
+           "retrace.py", "routescore.py", "scenic_tags.py", "segmentscore.py", "surfacecoverage.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
@@ -77,6 +77,10 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Budget/LambdaSearch.swift", "Sources/ScenicKit/Gates/ConsideredTags.swift",
     "Sources/ScenicKit/Gates/GateDecision.swift", "Sources/ScenicKit/Gates/GateReason.swift",
     "Sources/ScenicKit/Gates/Gates.swift", "Sources/ScenicKit/Guidance/GuidanceMapping.swift",
+    "Sources/ScenicKit/Plan/LambdaCustomModel.swift", "Sources/ScenicKit/Plan/PlanTable.swift",
+    "Sources/ScenicKit/Plan/PlanWaypoints.swift", "Sources/ScenicKit/Plan/RouteDifference.swift",
+    "Sources/ScenicKit/Plan/RoutePath.swift", "Sources/ScenicKit/Plan/ScenicPlan.swift",
+    "Sources/ScenicKit/Plan/ScenicPlanner.swift",
     "Sources/ScenicKit/Guidance/GuidanceSign.swift", "Sources/ScenicKit/Hazards/HazardFlag.swift",
     "Sources/ScenicKit/Hazards/HazardStrip.swift", "Sources/ScenicKit/Loop/RetraceDetector.swift",
     "Sources/ScenicKit/Scoring/RouteScore.swift", "Sources/ScenicKit/Scoring/SegmentScore.swift",
