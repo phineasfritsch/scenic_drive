@@ -1,6 +1,6 @@
 {
   "generator": "hand-written for T-0146; NOT generated, NOT sampled from a real extract",
-  "note": "Eight synthetic ways, one per case the assembly has to get right. No way_id here is a claim about a real road and no coordinate is a real place. A real extract (osmium, DEM tiles, real tags) is T-0168; this document is the fixture half of the assembly, per T-0146's 2026-09-18T20:57:28Z scope cut.",
+  "note": "Ten synthetic ways, one per case the assembly has to get right. No way_id here is a claim about a real road and no coordinate is a real place. A real extract (osmium, DEM tiles, real tags) is T-0168; this document is the fixture half of the assembly, per T-0146's 2026-09-18T20:57:28Z scope cut.",
   "consumer": "services/etl/etl/assemble.py, through assemble.assemble()",
   "literal_fields": ["sinuosity", "tunnel_meters", "meters_to_nearest_motorway"],
   "literal_fields_note": "Typed by hand because no module under services/etl/etl/ produces them on main: sinuosity.py and proximity.py are on PR #94 (T-0161). Every OTHER field of every record below is computed by a producer from the raw inputs in the row - see produced_fields.",
@@ -16,7 +16,8 @@
     "byway_status": "byways.match(coords, byways, way_ref=tags.ref)['status']",
     "sinuosity_declined": "assemble.is_closed_way(coords) - the endpoint gap against CLOSED_ENDPOINT_M"
   },
-  "sinuosity_note": "The six scorable ways carry 1.0, 1.02, 1.15, 1.30, 1.45 and 1.80. The 1.0 is way 800000005's, the closed loop, and it is sinuosity.CLOSED_WAY_SINUOSITY - the FLOOR a closed way is handed, not a measurement. It is the smallest value in the region on purpose: left in the ranking population that loop is the region's straightest road, which is what T-0146's first acceptance line is about.",
+  "elevation_note": "elevation_gain and relief are two DIFFERENT numbers off one profile, and until ways 800000009 and 800000010 arrived four of the six ranked ways held the same rank in both - so reading one term off the other's producer moved only two scores and no test saw it (PR #102's review, M1). 800000009 is a sawtooth (gain 48.0, relief 12.0) and 800000010 a long descent (gain 3.0, relief 150.0): with them in the population every way's gain rank and relief rank differ, which is what tests/test_assemble_wiring.py asserts as a table.",
+  "sinuosity_note": "The eight scorable ways carry 1.0, 1.02, 1.15, 1.25, 1.30, 1.45, 1.60 and 1.80. The 1.0 is way 800000005's, the closed loop, and it is sinuosity.CLOSED_WAY_SINUOSITY - the FLOOR a closed way is handed, not a measurement. It is the smallest value in the region on purpose: left in the ranking population that loop is the region's straightest road, which is what T-0146's first acceptance line is about.",
   "byways": [
     {"name": "Fixture Scenic Corridor", "status": "OD", "source": "fixture", "routes": ["1"],
      "geometry": [[37.16, -122.0], [37.1602, -121.9995], [37.16, -121.999], [37.1598, -121.9985], [37.16, -121.998], [37.1602, -121.9975], [37.16, -121.997]]}
@@ -87,6 +88,22 @@
      "landcover_codes": [30, 30, 10, 10, 10, 30, 30, 50, 80, 30],
      "furniture_nodes": [{"traffic_calming": "hump"}],
      "sinuosity": 1.45,
-     "meters_to_nearest_motorway": 90.0}
+     "meters_to_nearest_motorway": 90.0},
+
+    {"way_id": 800000009, "case": "motor_vehicle=no on an otherwise ordinary paved residential street - Gates.swift:161 refuses it as .noAccess, the second half of the access rule. Its profile is the sawtooth: much climbing, almost no range.",
+     "tags": {"highway": "residential", "motor_vehicle": "no", "surface": "asphalt", "maxspeed": "25 mph"},
+     "coords": [[37.18, -122.0], [37.1802, -121.9995], [37.18, -121.999], [37.1798, -121.9985], [37.18, -121.998]],
+     "elevation_profile": [100.0, 112.0, 100.0, 112.0, 100.0, 112.0, 100.0, 112.0],
+     "landcover_codes": [10, 10, 30, 30, 30, 10, 10, 50, 50, 30],
+     "furniture_nodes": [{"highway": "stop"}],
+     "sinuosity": 1.6},
+
+    {"way_id": 800000010, "case": "a long descent: almost no climbing and the region's largest range, the reverse of way 800000009. The two of them are what stop elevation_gain and relief from sharing a rank ladder.",
+     "tags": {"highway": "tertiary", "surface": "asphalt", "maxspeed": "45 mph"},
+     "coords": [[37.19, -122.0], [37.1902, -121.9992], [37.19, -121.9984], [37.1898, -121.9976], [37.19, -121.9968]],
+     "elevation_profile": [400.0, 380.0, 355.0, 358.0, 330.0, 310.0, 290.0, 250.0],
+     "landcover_codes": [10, 10, 10, 20, 20, 10, 30, 30, 90, 10],
+     "furniture_nodes": [],
+     "sinuosity": 1.25}
   ]
 }

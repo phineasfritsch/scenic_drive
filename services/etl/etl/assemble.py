@@ -35,15 +35,24 @@ THE COLUMN IS `score` AND NOT `scenic_score` (ruling R4). `Sources/ScenicKit/Sco
 reserves `scenic_score` for the `0...10` encoded value the router reads. This table carries `score.score`'s
 own 0..1 number under `score.score`'s own name; the 0..10 column is T-0168's.
 
-THE GATES ARE THREE, DELIBERATELY, AND THEY ARE NOT THE SCORER'S (ruling R5). CLAUDE.md: "Hard gates are
-safety only: unpaved (positive evidence), private/no access, track." `score.py:29-31` puts them in
-`ScenicKit.Gates` and out of the scorer, and nothing under `services/etl/etl/` gated on tags before this
-module. So a gate here forces `score` to `GATE_SCORE` AFTER the scorer has run and records `gate_reason`,
-and `Sources/ScenicKit/Gates/Gates.swift`'s five FURTHER rules - tracktype, smoothness, a locked barrier, a
-ford, a refused service value - are NOT implemented here. A second full gate in Python is how two answers
-for one road reach the corpus. `test_assemble.py` pins the two sets below against the literals in
-`Gates.swift` and the three reason names against `GateReason.swift`'s cases, so they cannot drift apart in
-silence.
+THE GATES ARE CLAUDE.md'S THREE, WHICH ARE FOUR BRANCHES (ruling R5, corrected for PR #102's review).
+CLAUDE.md: "Hard gates are safety only: unpaved (positive evidence), private/no access, track."
+`score.py:29-31` puts them in `ScenicKit.Gates` and out of the scorer, and nothing under
+`services/etl/etl/` gated on tags before this module. So a gate here forces `score` to `GATE_SCORE` AFTER
+the scorer has run and records `gate_reason`. THREE REASONS, FOUR RULES: "private/no access" is written in
+`Gates.verdict` as two branches that return the one `GateReason.noAccess` - `access` in `closedAccess`
+(Gates.swift:160) and `motor_vehicle = no` (Gates.swift:161) - which is what `GateReason.swift:31` names in
+a single case. This module ported only the first until PR #102's review found the second missing, and a way
+tagged `motor_vehicle=no` reached the corpus scored.
+
+`Gates.verdict` has NINE refusal branches. FOUR are ported here. The FIVE that are not - `tracktype` at
+grade3 or worse, `smoothness` worse than intermediate, a locked barrier, a ford, a refused `service` value
+- are deliberately absent: a second full gate in Python is how two answers for one road reach the corpus,
+and T-0146's scope is CLAUDE.md's three. That is a count, not an adjective: `test_assemble_wiring.py`
+counts the branches in `Gates.swift` itself and asserts four ported plus five unported against it, and it
+asserts each unported rule is still allowed here, so porting or adding one without moving the count is red.
+`test_assemble.py` pins the two sets below against the literals in `Gates.swift` and the three reason names
+against `GateReason.swift`'s cases, so they cannot drift apart in silence.
 
 A MOTORWAY IS NOT GATED (ruling R7). It scores 0.0 by class inside `score.score` (score.py:139) and stays
 routable - the freeway-shoulders design needs both at once. Its `gate_reason` is None, and the test says so
@@ -77,6 +86,12 @@ UNPAVED_SURFACES = frozenset({"gravel", "dirt", "ground", "sand", "unpaved", "co
 # Gates.swift:89, verbatim.
 CLOSED_ACCESS = frozenset({"private", "no", "permit", "destination"})
 TRACK_HIGHWAY = "track"
+# Gates.swift:161, the other half of the `noAccess` rule. One value, not a set: `motor_vehicle=destination`
+# and `=permit` are NOT refused there, and widening this to `CLOSED_ACCESS` would refuse roads ScenicKit
+# routes - a gate that is stricter in the corpus than in the router is the same drift in the other
+# direction.
+MOTOR_VEHICLE_KEY = "motor_vehicle"
+MOTOR_VEHICLE_REFUSED = "no"
 
 # The snake_case of the `GateReason` cases these three rules refuse with (GateReason.swift:23, :26, :32).
 GATE_UNPAVED_SURFACE = "unpaved_surface"
@@ -99,7 +114,13 @@ LANDCOVER_TERMS = ("canopy", "impervious", "water")
 
 
 def gate_reason(tags: dict) -> str | None:
-    """Why this way is refused for SAFETY, by name, or None. Three rules, in `Gates.verdict`'s order."""
+    """Why this way is refused for SAFETY, by name, or None. FOUR rules, in `Gates.verdict`'s order.
+
+    Four rules and three reasons: the last two are the two halves of ScenicKit's `noAccess`, and the order
+    between them is `Gates.verdict`'s own (:160 then :161). It is not observable - both answer
+    `GATE_NO_ACCESS` - and it is kept anyway, because `ops/route-autopsy` reads whichever reason fires
+    first and the day a fifth rule lands between them the order stops being cosmetic.
+    """
     surface = tags.get("surface")
     if surface is not None and surface in UNPAVED_SURFACES:
         return GATE_UNPAVED_SURFACE
@@ -107,6 +128,8 @@ def gate_reason(tags: dict) -> str | None:
         return GATE_TRACK
     access = tags.get("access")
     if access is not None and access in CLOSED_ACCESS:
+        return GATE_NO_ACCESS
+    if tags.get(MOTOR_VEHICLE_KEY) == MOTOR_VEHICLE_REFUSED:
         return GATE_NO_ACCESS
     return None
 

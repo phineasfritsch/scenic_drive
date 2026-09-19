@@ -14,6 +14,10 @@ transcribed by hand from plan:78-87 by neither scorer, and that file is what the
 `assemble.score_record` - the record -> `score_kwargs()` -> `score.score` seam this module tests.
 `Tests/ScenicKitTests/SegmentScoreContractTests.swift` asserts the same rows of the same file at the same
 tolerance, which is what makes it parity and not a self-comparison.
+
+THE RANKED HALF OF THE WIRING IS `tests/test_assemble_wiring.py`: nothing in THIS file can see a RANKED
+term read off the wrong producer, because every assertion here is made after `normalise_region` turned
+those five into ranks, and a rank keeps no trace of the number it came from (PR #102's review, B1).
 """
 from __future__ import annotations
 
@@ -43,12 +47,17 @@ LOOP = 800000005
 STRAIGHT = 800000006
 SECONDARY = 800000007
 UNSURVEYED = 800000008
+NO_MOTOR_VEHICLE = 800000009
+DESCENT = 800000010
 
-# The five ways that ANSWERED sinuosity, in the order their literals sort: 1.02, 1.15, 1.30, 1.45, 1.80.
-# The mid-rank formula over a population of five (normalise.py's docstring), typed out:
-#   (0 + 0.5*1)/5 = 0.1   (1 + 0.5*1)/5 = 0.3   (2 + 0.5*1)/5 = 0.5   (3 + 0.5*1)/5 = 0.7
-#   (4 + 0.5*1)/5 = 0.9
-ANSWERING_SINUOSITY_RANKS = {STRAIGHT: 0.1, UNPAVED: 0.3, PRIVATE: 0.5, UNSURVEYED: 0.7, SECONDARY: 0.9}
+# The seven ways that ANSWERED sinuosity, in the order their literals sort: 1.02, 1.15, 1.25, 1.30, 1.45,
+# 1.60, 1.80. The mid-rank formula over a population of seven (normalise.py's docstring) is (i + 0.5*1)/7,
+# typed as the division it is rather than as a transcribed decimal, because sevenths do not terminate. The
+# population is seven and not ten: the two zero classes are EXCLUDED (normalise.py:33) and the closed loop
+# DECLINED. Ways 800000009 and 800000010 joined it in the fix for PR #102's review, which is why these are
+# no longer the fifths the 23:45:11Z entry recorded.
+ANSWERING_SINUOSITY_RANKS = {STRAIGHT: 0.5 / 7, UNPAVED: 1.5 / 7, DESCENT: 2.5 / 7, PRIVATE: 3.5 / 7,
+                             UNSURVEYED: 4.5 / 7, NO_MOTOR_VEHICLE: 5.5 / 7, SECONDARY: 6.5 / 7}
 
 # The great-circle arc of 0.00005 deg of latitude on the sphere `distance_on_earth` uses
 # (curvature.RAD_EARTH_M = 6373000), transcribed here rather than measured: 0.00005 * pi/180 * 6373000
@@ -94,7 +103,7 @@ def test_gate_no_row_has_a_null_score():
     """`ops/sane` check 4, first assertion. A NULL in this column is the corpus saying 'unknown'."""
     null = sorted(row["way_id"] for row in TABLE if row["score"] is None)
     assert null == [], "rows with a NULL score: %s" % null
-    assert len(TABLE) == len(DOCUMENT["ways"]) == 8
+    assert len(TABLE) == len(DOCUMENT["ways"]) == 10
 
 
 def test_gate_motorway_and_trunk_score_exactly_zero_and_are_not_gated():
@@ -179,7 +188,7 @@ def test_the_closed_loop_declines_sinuosity_instead_of_ranking_as_the_straightes
     loop = BY_WAY[LOOP]
     assert loop["terms"]["sinuosity"] == way_record.DECLINED_RANK, (
         "way %d holds sinuosity=%r and scores %r: that is a RANK, so the loop is in the population and is "
-        "the region's straightest road (the lowest rank in a population of six is (0 + 0.5*1)/6)"
+        "the region's straightest road (the lowest rank in a population of eight is (0 + 0.5*1)/8)"
         % (LOOP, loop["terms"]["sinuosity"], loop["score"]))
     assert loop["terms"]["sinuosity"] == 0.0
     assert way_record.SINUOSITY_DECLINED_FLAG in loop["flags"], loop["flags"]
@@ -187,11 +196,12 @@ def test_the_closed_loop_declines_sinuosity_instead_of_ranking_as_the_straightes
     assert way_record.SINUOSITY_DECLINED_FLAG not in BY_WAY[STRAIGHT]["flags"]
 
 
-def test_the_answering_ways_take_the_ranks_of_a_population_of_five():
-    """The loop's absence from the population is visible in the other five ranks, not only in its own.
+def test_the_answering_ways_take_the_ranks_of_a_population_of_seven():
+    """The loop's absence from the population is visible in the other seven ranks, not only in its own.
 
-    With the loop counted in, the population is six and these five are 0.25, 0.4166666666666667,
-    0.5833333333333334, 0.75 and 0.9166666666666666. Every one of them moves.
+    With the loop counted in, the population is eight, the loop's 1.0 sorts below all seven, and every one
+    of these moves up one place: 1.5/8, 2.5/8, 3.5/8, 4.5/8, 5.5/8, 6.5/8 and 7.5/8 - that is 0.1875,
+    0.3125, 0.4375, 0.5625, 0.6875, 0.8125 and 0.9375, none of which is a seventh.
     """
     got = {way_id: BY_WAY[way_id]["terms"]["sinuosity"] for way_id in ANSWERING_SINUOSITY_RANKS}
     assert got == pytest.approx(ANSWERING_SINUOSITY_RANKS, abs=1e-12), got
@@ -241,7 +251,11 @@ def test_the_gate_sets_are_the_ones_scenickit_gates_on():
 
 
 def test_the_mapped_terms_are_what_their_producers_return():
-    """The wiring, per field: a term read off the wrong producer is invisible once it is a rank."""
+    """The wiring for the four MAPPED terms only, which arrive as values and are never ranked.
+
+    The RANKED five are `tests/test_assemble_wiring.py`'s, on the RAW record; this docstring used to claim
+    a hazard this test cannot see (PR #102's review, B1).
+    """
     for way_id, expected in EXPECTED_SPEED_FIT.items():
         assert BY_WAY[way_id]["terms"]["speed_fit"] == pytest.approx(expected, abs=1e-12), way_id
     for way_id, expected in EXPECTED_LANDCOVER.items():
@@ -258,9 +272,13 @@ def test_the_byway_overlay_reaches_exactly_the_way_it_overlaps():
 
 
 def test_the_count_line_names_every_absence():
-    """Eight ways, two zero classes, two gated, one declined sinuosity, no `points_of_interest` anywhere."""
-    assert assemble.count_line(TABLE) == ("ASSEMBLE ways=8 zero_class=2 gated=2 "
-                                          "sinuosity_declined=1 points_of_interest_absent=8 null_score=0")
+    """Ten ways, two zero classes, THREE gated, one declined sinuosity, no `points_of_interest` anywhere.
+
+    The third gate is way 800000009's `motor_vehicle=no` (Gates.swift:161): `gated=2` is what dropping it
+    would read as.
+    """
+    assert assemble.count_line(TABLE) == ("ASSEMBLE ways=10 zero_class=2 gated=3 "
+                                          "sinuosity_declined=1 points_of_interest_absent=10 null_score=0")
 
 
 def test_the_cli_writes_the_table_and_prints_the_counts(tmp_path, capsys):
