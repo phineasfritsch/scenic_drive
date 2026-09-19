@@ -237,3 +237,29 @@ proximity.py; today nothing outside the two test files does. CLAUDE.md's Verific
      TEST_FILES, but snap.py has no class of its own in REQUIRED_CLASSES: its mutations sit in
      segment-subset and earth-model, which are about the matrix, not about overlap. If T-0161's successor
      grows snap.py, that is a seventh class and not a thirteenth entry.
+- 2026-09-19T04:05Z PR #107 opened on 5eb3df6 (`gh pr checks 107` -> `no checks reported on the
+  'task/T-0176' branch`), and GitHub reported it CONFLICTING: origin/main had moved four commits past the
+  29f2a06 this worktree branched from. ONE conflict, textual and positional - main's P-PROD-05 (T-0173,
+  PR #103) and this branch's P-PROC-05 were both appended at the tail of pins/PINS.yaml. Merged
+  origin/main (dcaf3bd) in rather than leaving the reviewer a branch that cannot be merged; resolved by
+  keeping BOTH pins, and the ids are still unique (27 parsed, no duplicate). P-PROC-05 is still free on
+  the new main - P-PROD-05 is a different id.
+  RE-MEASURED, because the merge touches services/etl (T-0173 landed surface.py, terms.py, schema.py,
+  contentdigest.py and two suites there) and pins/PINS.yaml, and a correction commit that touches a
+  measured file re-measures it:
+  * `python ops/mutate/geometry.py` -> exit 0, the same table, baseline fingerprint UNCHANGED
+    (`e92225a056e1d2b1 over 175 values`) - T-0173's work does not touch the three subjects or the
+    geometry fixtures - and the same closing two lines: *every one of the 12 mutations was killed by the
+    test that names it, and every one of the 4 equivalent mutants went MISSED with a byte-identical
+    fingerprint*.
+  * `cd services/etl && python -m pytest tests -rs` -> `1040 passed in 79.94s (0:01:19)`, exit 0, zero
+    skips. 976 at 5eb3df6; the 64 new tests are main's, not this branch's.
+  * `bash ops/check-pins --source-only` -> `PINS ok=12 skipped=14 pending=1 expired=0 failed=0
+    tier=linux source-only`, exit 0. ok went 11 -> 12 because main's P-PROD-05 is `anchor: source` and
+    now runs; skipped is unchanged at 14, which is where P-PROC-05 sits (`anchor: process`).
+  * `bash ops/lib/check-line-cap` -> `71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none
+    over 300 lines`; `bash ops/lib/check-exec-bits` -> `68 files, 23 required present, all modes
+    correct` (67 -> 68: main's ops/lib/check-schema-version.py); `bash ops/queue-check` -> `QUEUE OK
+    (182 tasks)` (175 -> 182: main's seven new task files).
+  * `wc -l` unchanged: geometry.py 237, geometry_arms.py 75, geometry_mutations.py 145,
+    geometry_probe.py 88, geometry_tree.py 110, test_proximity_banded.py 190.

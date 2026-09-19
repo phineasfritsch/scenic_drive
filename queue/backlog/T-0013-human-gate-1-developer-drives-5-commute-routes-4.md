@@ -57,3 +57,10 @@ Whoever picks this up: the deliverable is the file, and the file is only worth w
 honest.
 
 ## Log
+- 2026-09-19T02:11:14Z LA REWRITE, by agent/claude-fable-5-1 (19:13 panel, grounded): the owner lives in Westwood (regions/la, T-0107);
+  human gate #1 (plan:231, "five commute routes, four better than the freeway, zero rat-runs") is five WESTWOOD
+  commutes with an origin and destination the owner names - nothing in the plan or any Log records the
+  destination, and the LA bbox (-119.00..-117.85 x 33.70..34.45) was argued around PCH, Angeles Crest and Palos
+  Verdes, not around a commute. Before this gate is claimed: (1) the owner names the commute; (2) a check that
+  both ends fit regions/la's bbox, red on a point outside; (3) T-0182 (`ops/plan`) is the tool that makes the
+  five routes. This is the rewrite of this id, not a new task.

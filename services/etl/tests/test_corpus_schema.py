@@ -13,12 +13,14 @@ to point at. See the task Log, ruling R6.
 """
 from __future__ import annotations
 
+import inspect
 import pathlib
+import re
 import sqlite3
 
 import pytest
 
-from etl import corpus, schema
+from etl import corpus, schema, score
 from etl.corpuswriter import CorpusWriter
 from etl.segid import natural_id, place_id
 
@@ -30,6 +32,10 @@ BUILT_AT = "2026-09-18T00:00:00Z"
 # Changing ANY column, table, index or CHECK moves the hash and fails here until a new version is added.
 DDL_SHA256_BY_VERSION = {
     1: "aeca01498f1f945f70b00175717ee7fd8ede4b7b243ebc16f273143ef331da3e",
+    # 2 (T-0173): osm_features.paved INTEGER CHECK (paved IN (0,1)) became
+    #             osm_features.surface INTEGER CHECK (surface IN (-1,0,1)). One column, one hash, one bump.
+    #             Version 1 stays listed: a version ever shipped is never removed from this table.
+    2: "c7a0463730a03b61e5a1800415aac2d4c4a6dd5384416d690e45f2cf80e2e5c8",
 }
 
 # FNV-1a 64 over way_id big-endian 8 bytes || bucket big-endian 4 bytes, masked to 63 bits.
@@ -169,3 +175,97 @@ def test_meta_carries_every_required_key_and_the_attribution(tmp_path):
     assert len(meta["content_sha256"]) == 64
     assert f"osm_features={schema.ODBL_LICENSE}" in meta["table_licenses"]
     assert f"terms_raster={schema.OWN_LICENSE}" in meta["table_licenses"]
+
+
+# The three states, typed out rather than imported from the module under test. -1 is the FLAG score.py:116
+# raises, not "no tag": an absent tag on a class OUTSIDE score.UNSURVEYED_CLASSES is paved (T-0173 ruling R2).
+UNKNOWN, UNPAVED, PAVED = -1, 0, 1
+
+# One way per branch of the rule, from tests/fixtures/corpus_extract.json:
+#   105 residential, no `surface` key        -> the absent tag on an unsurveyed class     -> -1
+#   103 unclassified, surface=gravel         -> positive evidence, unsurveyed class loses -> 0
+#   101 secondary,   no `surface` key        -> the complement, "expressed by omission"   -> 1
+#   102 tertiary,    surface=cobblestone     -> a present tag that is not unpaved         -> 1
+#   106 motorway,    no `surface` key        -> scores 0 and is still PAVED and routable  -> 1
+EXPECTED_SURFACE_STATE = {101: PAVED, 102: PAVED, 103: UNPAVED, 105: UNKNOWN, 106: PAVED}
+
+
+def test_a_residential_way_with_no_surface_tag_round_trips_as_unknown(tmp_path):
+    """The brief's defect 1. A two-valued `paved` column cannot carry the UNSURVEYED state, so a residential
+    way with no surface tag came back indistinguishable from a surveyed asphalt one - and score.py:116 plus
+    the plan's hazard strip both need to tell them apart on the device."""
+    conn = _built(tmp_path)
+    try:
+        states = dict(conn.execute(
+            "SELECT way_id, surface FROM osm_features WHERE way_id IN (101,102,103,105,106)"))
+    finally:
+        conn.close()
+    assert states[105] == UNKNOWN, "a residential way with no surface tag must be unknown, not paved"
+    assert states == EXPECTED_SURFACE_STATE
+
+
+def test_the_surface_column_refuses_a_fourth_state(tmp_path):
+    """The domain is a CHECK, not a convention. Without it, -2 or 2 is storable and every reader downstream
+    has to guess what it meant."""
+    conn = sqlite3.connect(":memory:")
+    try:
+        schema.apply_schema(conn)
+        for bad in (-2, 2, 7):
+            with pytest.raises(sqlite3.IntegrityError):
+                conn.execute(
+                    "INSERT INTO osm_features (way_id, cls, highway, name, surface, access_ok, oneway, "
+                    "node_count, length_mm, geom_sha256) VALUES (1,'residential','residential',NULL,?,"
+                    "1,0,2,1000,zeroblob(32))", (bad,))
+    finally:
+        conn.close()
+
+
+def test_every_term_name_except_byway_is_a_parameter_of_score_score():
+    """TERM_NAMES IS the on-device score contract (schema.py rule 6: the score is recomputed from terms_* at
+    query time), so a name in it that `score.score` does not accept is a term the device cannot spend.
+
+    `byway` is the one exception and it is an exception for a reason, not a carve-out: it is not a 0..1 term
+    at all. `score.score` takes `byway_status`, Caltrans's own string, and `byways.status_bonus` turns it
+    into the bonus applied to E - so the corpus stores the bonus under its own term id and the parameter it
+    corresponds to is spelled differently on purpose.
+    """
+    keywords = set(inspect.signature(score.score).parameters)
+    names = set(schema.TERM_NAMES.values())
+    assert "byway" in names
+    assert (names - {"byway"}) <= keywords, sorted(names - {"byway"} - keywords)
+    # And the other direction: every 0..1 term the scorer takes has an id, or the corpus cannot carry it.
+    assert set(score.UNIT_TERMS) <= names, sorted(set(score.UNIT_TERMS) - names)
+
+
+def test_the_reserved_terms_name_their_producer_task_and_every_other_term_names_a_module():
+    """RESERVED is typed out here as well as in etl/terms.py. Rebuilding it from the module under test would
+    pass after any edit to that module, which is the one thing this assertion must not do.
+
+    The second half is what keeps the list honest: the nine non-reserved terms each name a file that has to
+    exist. The day T-0161 lands `sinuosity`, this test is red until the entry leaves RESERVED.
+    """
+    assert schema.RESERVED == {2: "T-0161", 107: "T-0164"}
+    assert set(schema.RESERVED) <= set(schema.TERM_NAMES)
+    etl_root = pathlib.Path(__file__).resolve().parents[1]
+    for term_id, producer in sorted(schema.PRODUCERS.items()):
+        assert term_id in schema.TERM_NAMES, term_id
+        if term_id in schema.RESERVED:
+            assert producer == schema.RESERVED[term_id]
+            assert re.fullmatch(r"T-\d{4}|none filed", producer), (term_id, producer)
+        else:
+            assert (etl_root / producer).is_file(), f"{schema.TERM_NAMES[term_id]}: {producer} is missing"
+    assert set(schema.PRODUCERS) == set(schema.TERM_NAMES)
+
+
+def test_the_term_families_follow_the_odbl_split_and_the_ids_are_stable():
+    """Ids are a permanent on-device contract, so they are pinned as literals here. Family is the ODbL line
+    and nothing else: `points_of_interest` is Commons photo density (plan:89), not OSM, so it may not sit in
+    the half CorpusWriter.add_term exists to protect."""
+    assert schema.TERM_NAMES == {
+        1: "curvature", 2: "sinuosity", 3: "speed_fit", 4: "furniture",
+        101: "elevation_gain", 102: "relief", 103: "canopy", 104: "impervious", 105: "byway",
+        106: "water", 107: "points_of_interest",
+    }
+    assert schema.OSM_TERM_IDS == {1, 2, 3, 4}
+    assert schema.RASTER_TERM_IDS == {101, 102, 103, 104, 105, 106, 107}
+    assert schema.OSM_TERM_IDS.isdisjoint(schema.RASTER_TERM_IDS)
