@@ -1,7 +1,7 @@
 ---
 id: T-0195
 title: the app renders the LA Protomaps tiles - MapStyle gains a protomaps case (the built la.pmtiles through MapLibre's pmtiles protocol, services/tiles/styles as the style), attributionText becomes '(c) OpenStreetMap contributors - Protomaps', the demo-tiles case retired from the walking skeleton
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T06:53:46Z
@@ -11,7 +11,7 @@ branch: task/T-0195
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/MapAdapter/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/ScenicDrive/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr112
 depends_on: [T-0165]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -343,3 +343,82 @@ owner can drive - in Los Angeles, over LA tiles. T-0009 (TestFlight) is the huma
   two protomaps cases are public RawRepresentable cases whose url is a Caches path with no existence check, so
   a caller bypassing BasemapResolver gets a URL to a file that may not exist. Recorded here and on T-0197; the
   reviewer judges whether the direct-case path should refuse (an internal initializer) in this PR.**
+- 2026-09-19T08:05:21Z **REVIEW PASS by agent/rv1-pr112 (reviewer, not the owner) - PR #112, head 8eceeb4, base main.**
+  Reviewed on a detached worktree at 8eceeb4 (`.worktrees/rv1-pr112`, removed after). Nothing fixed here; every
+  finding below is recordable and named for a later task.
+
+      $ git diff main...8eceeb4 --stat
+      ... MapAdapter/{BasemapResolver,MapAppearance,MapStyle,ScenicDarkStyle,ScenicLightStyle,ScenicStyleDocument}.swift
+      ... apps/ios/ScenicDrive/Tiles/.gitignore | 21 ++ ; the task file | 311 ++ ; 8 files, 1069 insertions(+), 25 deletions(-)
+      $ git diff --name-only main...8eceeb4 | grep -E "Package.swift|pbxproj|Package.resolved"     # empty, exit 1
+      $ git diff main...8eceeb4 -- <task file> | grep -c "^-[^-]"                                   # 0 (append-only)
+      $ git diff --name-only d442f37..8eceeb4                                                       # the task file only
+      $ gh run view 35428810018 --json status,conclusion,headSha
+      completed success d442f37555f3c2ba6ef89df72389dc99ffa250d3       (read by id once; no Swift moved since)
+
+  **Gates, bare.** `bash ops/lib/check-line-cap` -> `P-SRC-02: 78 Swift files tracked (Sources=26, Tests=37,
+  apps/ios=15), none over 300 lines`, exit 0. `bash ops/queue-check` -> `QUEUE OK (196 tasks)`, exit 0.
+  `bash ops/check-pins --source-only` -> `PINS ok=13 skipped=14 pending=1 expired=0 failed=0 tier=linux
+  source-only`, exit 0. `grep -rn "import MapLibre" apps/ios` -> `MapView.swift:2` and its own doc line, nothing
+  else. `git ls-files -s apps/ios/ScenicDrive/Tiles/.gitignore` -> `100644`; it ignores `*.pmtiles` and
+  `*.pmtiles.json` and keeps itself. Every `wc -l` the Log quotes re-measured and equal (88/50/105/221/221/83).
+
+  **R4 re-derived by the reviewer, not read from the Log.** A python extractor pulled the bytes between
+  `public static let json = #"""` and `"""#` out of each Swift file and compared them with the JSON:
+
+      literal 4563 bytes sha256 b1b3435c638e124d == services/tiles/styles/scenic-light.json  (4563, same sha)
+      literal 4591 bytes sha256 29a090cf12d7f9fa == services/tiles/styles/scenic-dark.json   (4591, same sha)
+      placeholder "url": "pmtiles://la.pmtiles" = 1 in each literal and 1 in each JSON; 0 CR bytes on either side
+
+  Stronger than the Log claims: the JSON files carry **no** trailing newline, so the literals are byte-identical,
+  not "byte-equal bar the trailing newline". **R1 re-derived:** `gh api ... platform/ios/CHANGELOG.md` - the
+  `pmtiles://` URL-scheme line (#2882) is line 269, between `## 6.10.0` (266) and `## 6.9.0` (273); the pin is
+  `exact: "6.31.0"` at `apps/ios/Packages/ScenicApp/Package.swift:45`, heading line 5. Both hold.
+
+  **THREE MUTANTS OF THE REVIEWER'S OWN** (read + structural; no Swift compiler on this box), each applied to the
+  worktree, run against every check the repository can bring to bear (`check-line-cap`, `queue-check`, the
+  byte-equality extractor, R3's four recorded greps, the `import MapLibre` structural check), then
+  `git checkout --` restored with `git status --short` empty:
+  - **(a) `.atomic` dropped** from `ScenicStyleDocument.materialize`'s write (`ScenicStyleDocument.swift:80`):
+    SURVIVOR, every check byte-identical to baseline. It matters more than it looks: this Log already records
+    that SwiftUI may re-run a screen's property initialiser, so two overlapping non-atomic writes to the one
+    caches path hand the renderer a truncated style - a parse error under the Protomaps credit. Recordable with
+    the idempotent-skip note the owner already left for the call-site task.
+  - **(b) the Application Support existence guard deleted** (`BasemapResolver.swift:79-82`): SURVIVOR. The wider
+    point the mutant exposes is in the shipped tree: **`archiveURL` asks "does it exist", never "is it whole"**.
+    `Bundle.url(forResource:)` answers yes for a 0-byte `la.pmtiles`, `fileExists` likewise, and
+    `materialize` never opens the archive - so an interrupted 63 MB `cp` (the owner's documented step) yields
+    `.protomapsLALight` and puts `© OpenStreetMap contributors · Protomaps` over tiles MapLibre cannot read.
+    The material for a floor is already committed: `services/tiles/work/la.pmtiles.json` carries the byte count
+    and the sha256. NOT blocking in round 1 - `grep -rn "BasemapResolver\|losAngeles" apps/ios` outside
+    `Sources/MapAdapter/` is **empty**, and `ScenicHomeScreen.swift:35` still mounts `.maplibreDemoTiles` with
+    `AttributionFooter(text: style.attributionText)` at `:93`, so the credit the shipped tree actually draws is
+    the true one. Recorded for whoever wires the call site (T-0178) and for T-0197.
+  - **(c) `MapAppearance.styleJSON`'s light/dark arms swapped** (`MapAppearance.swift:23-28`): SURVIVOR,
+    including against the byte-equality test recorded for T-0201 - that test compares each literal with its JSON
+    and never looks at which literal an appearance picks. Consequence is not a false credit (both arms are
+    Protomaps tiles under the right string) but the materialised document is mis-named on the device
+    (`scenic-dark.json` holding the light style), which is what a support bundle is read from. One arm-anchored
+    assertion in T-0201's drift test closes it.
+
+  **Two more recordables.** (1) The fourth P-ATTR-01 assertion recorded in R3 -
+  `grep -rn 'AttributionFooter(' apps/ios/Packages/ScenicApp/Sources | grep -v 'style.attributionText'  # empty` -
+  is **already red** on this tree and on main: it matches `MapStyle.swift:92`, a doc comment. T-0197 must not
+  lift it verbatim (CLAUDE.md: never anchor a pin on a comment) - it wants the mount sites, not the string.
+  (2) **R4's shape is right; keep the literal.** A `resources:` declaration would edit the serial
+  `apps/ios/Packages/ScenicApp/Package.swift` and buy nothing the drift test does not. But nothing committed
+  sees these files today: `grep -rln "protomapsAttribution\|ScenicLightStyle\|BasemapResolver\|MapStyle" ops pins
+  services` is empty. The drift test is the whole guard and it is still uncommitted (STILL OPEN 3).
+  **R2, what the tree can and cannot answer:** `project.pbxproj` declares `ScenicDrive` as a
+  `PBXFileSystemSynchronizedRootGroup` for the app target with `membershipExceptions = (Info.plist,)`, so a file
+  dropped into `apps/ios/ScenicDrive/Tiles/` does get target membership - that much is verifiable here. Whether
+  Xcode preserves the `Tiles/` subdirectory in the bundle or flattens it is not, and the resolver hedges both;
+  whether Xcode copies a 63 MB unknown-type file at all can only be answered by a device build (T-0009).
+
+  **Verdict: PASS.** No BLOCKING finding: the shipped tree produces no false credit on any surface (no surface
+  calls the resolver yet) and no wrong source under the Protomaps credit. The P-ATTR-01 gap - nothing in the
+  repository refuses a swapped credit - is T-0197's by prior record, not a finding against this PR. STILL OPEN
+  1-4 stand as the PR states them: the home-screen one-liner (T-0178), P-ATTR-01 unfiled (T-0197), the drift test
+  uncommitted (T-0197/T-0201), no device has drawn these tiles (T-0009). Not done by this review: `ops/test` and
+  the full `ops/check-pins` (forbidden to this session), and no Swift was compiled here - run 35428810018 is the
+  only compiler proof and it exercised fallback branch (c). `queue/claimed/` -> `queue/done/`.
