@@ -163,3 +163,24 @@ claimed, and honours the type's rule when labelled as such - it lands here with 
   (e) The number omits the leg from the user to pin 1, because `source: nil` means the app does not know where the user is. The
   label says "through the pins", which is true, but a reader standing in Sacramento would still be 140 km from the first pin with
   nothing on screen saying so.
+- 2026-09-19T06:20:40Z **Record corrections from the mutant pass on this build (4028c56), closed before the review is bought -
+  agent/claude-fable-5-1 (orchestrator), for the owner. The pass killed by name: the chain without the destination
+  (63 vs 112, three tests red), rounded-to-nearest (red only in the synthetic floor test - see (c)), a pin moved
+  1.5 km (red in the per-pin test), and found the tree clean at 4028c56 == PR head, the ios-compile run
+  35425137026 green by sha b45efd0; zero blocking survivors. One EQUIVALENT survivor and three text items.**
+  (a) MUTANT 4, nobody wrote it: the haversine leg replaced by a flat equirectangular distance on the same radius
+  passes 51/51 - witness: haversine total 112,268.093 m, flat 112,268.146 m, +0.053 m over the shipped chain
+  (largest leg delta 0.026 m); a radius of 6,371,000 m moves it -0.155 m, also inside the 1 m band; the band does
+  catch a 0.1% radius change (-112.3 m) and the WGS84 equatorial/polar radii (+125.6 / -251.2 m). Equivalent at
+  the card's precision, so NOT wrong - but Tests/HandoffTests/StraightLineDistanceTests.swift:41-43's doc ("to
+  catch a change in the arithmetic (a different radius, a different formula)") overclaims: a formula change is
+  NOT caught on this chain (it would be on a 1,065 km east-west leg: 707 m). When ops/mutate/handoff.py's
+  population is written (STILL OPEN (a)) this is an EQUIVALENT entry with that witness, or the doc is narrowed
+  to "a gross radius change" and a long synthetic leg joins the floor test if a formula change is meant to be
+  caught. Doc, not code; left for the reviewer and that task. (b) apps/ios/Packages/ScenicApp/Sources/DesignSystem/
+  Clipboard.swift:6's doc "this package is the one place that is allowed to know about UIKit" is an overclaim:
+  FeatureScenicHome/SkylineHandoff.swift already imports UIKit (pre-existing, not this diff); the only NEW UIKit
+  importer is Clipboard.swift. (c) The acceptance block's "rounded(.down) -> rounded(.up): CAUGHT by the figure test
+  (113 vs 112)" does not generalise: rounded-to-NEAREST leaves the shipping literal at 112 (the chain is 112.268 km)
+  and is killed only by the synthetic floor test ("1999 m of chain is 1 km and never 2", :97). Killed, by one test,
+  not by the typed literal - recorded so the population's killers name the right test.
