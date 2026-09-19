@@ -334,3 +334,185 @@ here, publish is a separate `exclusive: [prod]` step). `meta.region` and `built_
       nothing reminds anybody; a scheduled rebuild belongs with the weekly ETL run.
   (6) P-ATTR-01 and P-DATA-03 are still not in `pins/PINS.yaml` (`grep -c P-DATA-03 pins/PINS.yaml` -> 0). This
       task built the artifact those pins would assert over; filing them touches `pins/`.
+- 2026-09-19T05:54:29Z THE MUTANT PASS'S TWO SURVIVORS, FIXED - AND THE THREE RECORD ITEMS RULED, by
+  agent/claude-opus-5 (owner). The pre-review mutant pass ran three unwritten mutants against the 05:37:02Z
+  commit and two survived. Both are the same failure: a check that could not see the thing it was written to
+  check. Fixed here before the review is bought, each one red by name first.
+
+  S1 SURVIVOR - `make_styles.TOKENS` was anchored to NOTHING. The mutant changed one hex digit in the
+  transcription (`bg.light` `#FFF7ED` -> `#FFF7EE`), regenerated the styles, and the suite was 28 passed while
+  `DesignTokens.swift` still said `#FFF7ED`. Nothing under `services/tiles/` read the Swift file at all, so
+  every colour test in the directory measured the styles against a table that had stopped agreeing with
+  DesignSystem - and the map would ship a colour the app does not have. RULED: the transcription gets an
+  anchor, `services/tiles/tests/test_design_tokens_match.py`. It parses the `public static let` DECLARATIONS
+  out of `apps/ios/Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift` and asserts they equal `TOKENS`
+  per appearance. Three things about HOW it parses, because they are the ruling:
+  (i) It strips every whole-line comment BEFORE parsing. `DesignTokens.swift` carries the same table a second
+      time as a doc comment at lines 14-24, and CLAUDE.md forbids anchoring on a comment. A test that read
+      that table would pass over a renamed token and fail on a reworded comment - backwards in both
+      directions. `test_the_table_is_read_from_the_declarations_not_the_doc_comment` proves the parse survives
+      with every comment line deleted, and asserts `#FFF7ED` is present in the file and absent from the
+      stripped code - the hex triples in code are `0xFFF7ED`, which is why the comment could be mis-read.
+  (ii) `border` is read off the ternary's own `userInterfaceStyle == .dark` condition, not off the order the
+      branches happen to be written in, and its dark value stays `rgba(255,255,255,0.08)` rather than being
+      flattened to a hex approximation.
+  (iii) `test_eleven_tokens_are_found_at_all` asserts the count, so a regex that silently matched nothing
+      cannot make every other assertion in the file vacuously true.
+  RED, the mutant re-run against the committed bytes - mutate, regenerate the styles, run the WHOLE suite,
+  restore (`services/tiles/work/mutant_s1.py`, not committed, `work/` is gitignored):
+
+      FAILED services\tiles\tests\test_design_tokens_match.py::test_the_transcription_equals_the_declarations
+      FAILED services\tiles\tests\test_design_tokens_match.py::test_no_token_is_invented_or_missing[light]
+      pytest exit= 1
+      E         Differing items:
+      E         {'bg': {'light': '#FFF7ED', 'dark': '#0F172A'}} != {'bg': {'light': '#FFF7EE', 'dark': '#0F172A'}}
+
+  The other 41 tests stayed green under the mutant, which is exactly the survivor being reported: nothing
+  else in the directory can see this.
+
+  S2 SURVIVOR - `check_pmtiles` had no zoom limb and no tile-count limb. A `max_zoom=10` archive with correct
+  bounds passed; `max_zoom=14` with `meta.maxzoom=10` passed; an archive with zero tile entries passed. So
+  `build-la.sh --maxzoom 12` would have written a ~20 MB file that passed step 6, and `ops/publish-tiles`
+  would have uploaded it. RULED, and the reason it is not a budget question: the budget limb is blind to this
+  from the other side - every zoom BELOW 14 is a SMALLER file, so coarseness buys headroom. Three limbs added:
+  `MIN_MAXZOOM = 14` as a typed literal (R3's ruled zoom, overridable with `--min-maxzoom` so lowering the
+  floor is a decision a caller states), `meta.maxzoom` must equal the header's `max_zoom` (they are written by
+  two different steps - the header by `pmtiles extract`, the metadata by the recipe's stamp - so they disagree
+  precisely when a rebuild changed one and not the other), and `tile_entries_count > 0`. RED on each
+  constructed fixture, then GREEN on the real file, all four re-run at this commit:
+
+      $ python services/tiles/check_pmtiles.py services/tiles/work/low-zoom.pmtiles --region-json services/etl/regions/la/region.json
+      PMTILES REFUSED: services\tiles\work\low-zoom.pmtiles
+        - header max_zoom 10 is below the required 14 (T-0165 R3: z14 is the highest zoom inside the 120 MB budget, and a coarser build is a smaller file that passes the budget by giving up detail)
+      exit=1
+      $ python services/tiles/check_pmtiles.py services/tiles/work/zoom-mismatch.pmtiles --region-json services/etl/regions/la/region.json
+      PMTILES REFUSED: services\tiles\work\zoom-mismatch.pmtiles
+        - meta.maxzoom 10 disagrees with the header's max_zoom 14
+      exit=1
+      $ python services/tiles/check_pmtiles.py services/tiles/work/no-tiles.pmtiles --region-json services/etl/regions/la/region.json
+      PMTILES REFUSED: services\tiles\work\no-tiles.pmtiles
+        - header tile_entries_count is 0: the archive carries no tiles
+      exit=1
+      $ python services/tiles/check_pmtiles.py <main checkout>/services/tiles/work/la.pmtiles --region-json services/etl/regions/la/region.json
+      PMTILES OK: la.pmtiles region=la bytes=63520949 zoom=0-14 tiles=2549 bounds=(-119.000000,33.700000,-117.850000,34.450000)
+      exit=0
+
+  The OK line now prints `tiles=2549`, so the green run states the count the new limb reads. The fixtures are
+  built by `services/tiles/work/make_fixtures.py` (not committed) out of the test file's own header writer,
+  which grew `maxzoom=` and `entries=` parameters - the same 127-byte record, no second header builder.
+
+  RECORD ITEM (a) RULED - the refusal is a test now, not a paragraph. `ops/publish-tiles` was demonstrated
+  refusing at 05:20:44Z by pasting three runs into this file. Prose in a Log is not a check: move the
+  credential gate below the lock or artifact gates and nothing goes red, while a human with three of four
+  variables set stops being told which one is missing. `services/tiles/tests/test_publish_refusal.py` runs the
+  script bare through `subprocess` with the four variables stripped out of the environment and asserts the
+  credential refusal is the FIRST line printed; a second test asserts the one-missing-variable line verbatim;
+  a third sets all four and asserts the script still refuses on a LATER gate, which is what makes the first
+  line evidence of ORDER rather than of there being one gate. Nothing can publish from it - the only branch
+  reachable with the variables stripped is the refusal. RED with the gate cut out of the script (a backup
+  taken, the block removed, the test run, the original bytes put back - `services/tiles/work/mutant_a.py`):
+
+      cut 474 bytes: the four-variable gate is gone
+      FAILED services\tiles\tests\test_publish_refusal.py::test_the_credential_refusal_is_the_first_thing_a_bare_run_says
+      FAILED services\tiles\tests\test_publish_refusal.py::test_the_refusal_names_the_one_variable_that_is_missing
+      E       AssertionError: PUBLISH REFUSED: queue/LOCKS/prod.lock not held (claim a task with exclusive: [prod])
+      pytest exit= 1
+
+  `ops/publish-tiles` itself is byte-for-byte unchanged by this commit (`git status --short` clean on it).
+
+  RECORD ITEM (b) RULED - DERIVE, not drop. `build-la.sh:25` carried `BUDGET_BYTES=125829120`, a second copy
+  of the ceiling read only by its own step-3 refusal. Both offered fixes were considered. Dropping the shell
+  copy and letting step 3 call the checker was REFUSED: at step 3 the sidecar is not written yet, so the full
+  checker would be run on a half-finished artifact, and the early refusal would move after the sidecar write
+  - the recipe would record a build it is about to reject. So the number is DERIVED: the recipe reads
+  `check_pmtiles.BUDGET_BYTES` out of the module step 6 runs, and refuses by name if it cannot. One
+  definition, and step 3 and step 6 cannot come to different conclusions about the same file. The recipe was
+  NOT re-run (rebuilding would mint a new `built_at` and a new sha256 and invalidate the sidecar quoted at
+  05:20:44Z), so the derivation was exercised two ways instead - `bash -n` on the whole script, and the two
+  lines run verbatim outside it (`PYTHON=python`, because this box's git-bash has no `python3`; WSL, where
+  the recipe runs, does):
+
+      $ bash -n services/tiles/build-la.sh
+      bash -n build-la.sh OK
+      $ PYTHON=python bash services/tiles/work/budget_line.sh
+      BUDGET 125829120 (120 MB)
+      $ grep -c 125829120 services/tiles/build-la.sh
+      0
+
+  `test_the_build_recipe_reads_the_budget_out_of_this_module` holds that: the literal is absent from the
+  recipe and `check_pmtiles.BUDGET_BYTES` is present in it. Anchored on the script's text, not on a comment.
+
+  RECORD ITEM (c) RULED - NOT FIXED HERE, and STILL OPEN (1) stands unchanged. The tests are 43 now, not 28,
+  and all 43 are still outside `ops/test`'s floor: its python tier is gated on `services/etl/pyproject.toml`.
+  Wiring a `services/tiles` tier edits `ops/test`, which is outside this task's `touches:`. `ops/test` was not
+  run and not touched. Claiming a bigger number inside a floor that cannot see it is the false green this repo
+  exists to catch, so the number is stated where it is true: run directly.
+
+- 2026-09-19T05:54:29Z FINAL PRE-REVIEW COMMIT (correction commit) - THE WHOLE ACCEPTANCE BLOCK, RE-RUN AND
+  RE-QUOTED BARE, by agent/claude-opus-5 (owner). Every command below was run again at this commit against
+  the committed bytes, none copied from above, none piped. The artifact was NOT rebuilt - see (b).
+
+      === 1. pytest services/tiles/tests -q ===
+      ...........................................                              [100%]
+      exit=0
+      (the same run without the command-line -q, since pyproject already sets addopts = "-q" and two of them
+      suppress the summary line:)
+      43 passed in 4.33s
+      === 2. the check GREEN on the real build ===
+      PMTILES OK: la.pmtiles region=la bytes=63520949 zoom=0-14 tiles=2549 bounds=(-119.000000,33.700000,-117.850000,34.450000)
+      exit=0
+      === 3. the check RED on each new fixture, by name ===
+      low-zoom.pmtiles      - header max_zoom 10 is below the required 14 ...            exit=1
+      zoom-mismatch.pmtiles - meta.maxzoom 10 disagrees with the header's max_zoom 14    exit=1
+      no-tiles.pmtiles      - header tile_entries_count is 0: the archive carries no tiles  exit=1
+      === 4. the DesignTokens test, RED then GREEN ===
+      RED   FAILED services\tiles\tests\test_design_tokens_match.py::test_the_transcription_equals_the_declarations
+            FAILED services\tiles\tests\test_design_tokens_match.py::test_no_token_is_invented_or_missing[light]
+      GREEN 43 passed (the mutant driver restores make_styles.py and both style JSONs; git status clean after)
+      === 5. ops/publish-tiles bare, through the new test ===
+      RED (gate cut)  FAILED ...::test_the_credential_refusal_is_the_first_thing_a_bare_run_says
+      GREEN           3 passed, first line: PUBLISH REFUSED: 4 credential(s) not set: CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET
+      === 6. check-line-cap ===
+      P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines
+      exit=0
+      === 7. check-exec-bits ===
+      P-OPS-01: 64 files, 23 required present, all modes correct
+      exit=0
+      === 8. queue-check ===
+      QUEUE OK (186 tasks)
+      exit=0
+      === 9. check-pins --source-only ===
+      PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only
+      exit=0
+      === 10. wc -l, every file this commit touches, 300-line cap ===
+        122 services/tiles/build-la.sh          (was 117; the budget literal out, the derivation in)
+        198 services/tiles/check_pmtiles.py     (was 169; three limbs)
+        185 services/tiles/tests/test_pmtiles_budget.py   (was 139; six tests, one shared header writer)
+         95 services/tiles/tests/test_design_tokens_match.py   (new)
+         70 services/tiles/tests/test_publish_refusal.py       (new)
+         84 services/tiles/README.md            (was 68; the new limbs, the token anchor, the publish test)
+        233 services/tiles/make_styles.py       (unchanged, re-measured after the mutant restore)
+        194 services/tiles/styles/scenic-light.json  194 services/tiles/styles/scenic-dark.json (unchanged, re-measured)
+         87 ops/publish-tiles                   (unchanged)
+
+  Nothing is over 300 and nothing needed splitting. The two measured files that a mutant driver rewrote and
+  restored (`make_styles.py`, both styles) were re-measured after the restore rather than assumed, which is
+  what the correction-commit rule asks for.
+  STILL OPEN, restated in full at this commit - none of it claimed by this task, and (1) is the only one
+  whose wording changed:
+  (1) `ops/test` cannot see `services/tiles/tests` - its python tier is gated on `services/etl/pyproject.toml`.
+      There are 43 of them now (28 at 05:37:02Z) and they are still run directly and still NOT in the floor.
+      Wiring the tier touches `ops/test`.
+  (2) No glyphs and no sprites, so the basemap draws NO LABELS. Deliberate; the next tiles task, not a nicety.
+  (3) `MapStyle` still has only the `maplibreDemoTiles` case and still credits "(c) MapLibre - Natural Earth".
+      The Protomaps case and the plan's "(c) OpenStreetMap contributors - Protomaps" string land in
+      `apps/ios/`, outside this task's `touches:`. Until then the app does not render these tiles.
+  (4) Nothing is published. `ops/publish-tiles` needs the human's four env vars and a task holding
+      `exclusive: [prod]`; the R2 prefix it writes (`tiles/v1/`) is a proposal, not an agreed layout.
+  (5) The pinned `PLANET_BUILD=20260915` 404s in about a week. The recipe refuses by name when it does, but
+      nothing reminds anybody; a scheduled rebuild belongs with the weekly ETL run.
+  (6) P-ATTR-01 and P-DATA-03 are still not in `pins/PINS.yaml`. This task built the artifact those pins would
+      assert over; filing them touches `pins/`.
+  (7) NEW, from S2: nothing re-runs `check_pmtiles.py` against the artifact in `work/` on a schedule. The
+      limbs added here only fire when somebody runs the recipe or the publish script; a 30-day-old `built_at`
+      goes unnoticed until the next publish attempt. Same owner as (5) - the weekly rebuild.

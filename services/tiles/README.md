@@ -37,10 +37,17 @@ worktree's ignored files with it. `--out` overrides. Nothing built is committed.
     python -m pytest services/tiles/tests -q
     python services/tiles/check_pmtiles.py <file.pmtiles> --region-json services/etl/regions/la/region.json
 
-`check_pmtiles.py` refuses an archive whose header bounds do not cover the region bbox, whose size exceeds
-120 MB, whose `meta.region` is not the region's id, or whose `built_at` is over 30 days old (P-DATA-03). It
-parses the 127-byte v3 header itself rather than shelling out to the image, so it runs where there is no
-docker and so a wrong-bounds fixture can be constructed in-process.
+`check_pmtiles.py` refuses an archive whose header bounds do not cover the region bbox, whose header
+`max_zoom` is below the ruled 14 (`--min-maxzoom`), whose header `max_zoom` and `meta.maxzoom` disagree,
+which carries no tile entries at all, whose size exceeds 120 MB, whose `meta.region` is not the region's
+id, or whose `built_at` is over 30 days old (P-DATA-03). It parses the 127-byte v3 header itself rather
+than shelling out to the image, so it runs where there is no docker and so every one of those fixtures can
+be constructed in-process.
+
+The zoom floor is the limb the budget cannot supply: every zoom *below* 14 is a **smaller** file, so
+`build-la.sh --maxzoom 12` writes a ~20 MB archive that fits the ceiling while the map goes soft two zoom
+levels early. The 120 MB ceiling itself has one definition, `check_pmtiles.BUDGET_BYTES`, which the recipe
+reads at step 3 rather than keeping a second copy of the number.
 
 These tests are **not** in `ops/test`'s floor: its python tier is gated on `services/etl/pyproject.toml`
 and does not know this directory exists. Wiring that tier is a task that touches `ops/test`.
@@ -50,6 +57,11 @@ and does not know this directory exists. Wiring that tier is a task that touches
 `make_styles.py` emits `styles/scenic-light.json` and `styles/scenic-dark.json` from one layer spec plus
 the DesignTokens table, so the two appearances cannot drift. Every colour in either file is a token value
 of that appearance, and `tests/test_style_tokens.py` asserts it.
+
+`make_styles.TOKENS` is a transcription, so `tests/test_design_tokens_match.py` anchors it: it parses the
+`public static let` declarations out of `DesignSystem/DesignTokens.swift` — never the doc-comment table
+above them — and asserts the transcription equals them per appearance. Without it, editing a hex digit in
+`TOKENS` and regenerating moves the whole suite with it and ships a colour the app does not have.
 
 The **lower-right corner is reserved for attribution** by contributing nothing to it: no source declares
 `attribution`, so the renderer's own control draws nothing, and there is no `symbol` layer, so no label can
@@ -66,3 +78,7 @@ to the on-device file URL after the first-run download.
 `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`, without
 `queue/LOCKS/prod.lock`, and when the artifact's sha256 disagrees with its sidecar. It has never run: R2 is
 the human's account and a publish needs a task holding `exclusive: [prod]`.
+
+That refusal is a test, not a paragraph: `tests/test_publish_refusal.py` runs the script bare with the four
+variables stripped from the environment and asserts the credential refusal is the **first** line it prints.
+Move the credential gate below the lock or artifact gates and the test goes red.

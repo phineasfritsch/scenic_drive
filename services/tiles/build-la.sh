@@ -21,15 +21,14 @@ PLANET_BUILD=20260915
 PMTILES_IMAGE=protomaps/go-pmtiles@sha256:06574f01f55a78f78f887bc7ebf729a5c093c0d6e17d9876300cfcb0758b59d3
 # Ruled by measurement against the 120 MB M2 exit ceiling: z15 would be 197 MB, z14 is 64 MB, z13 is 20 MB.
 MAXZOOM=14
-# 120 MB as the plan writes it: 120 * 1024 * 1024.
-BUDGET_BYTES=125829120
 REGION_ID=la
 
 usage() {
   echo "usage: build-la.sh [--out PATH] [--build YYYYMMDD] [--maxzoom N]"
   echo "  --out      output .pmtiles path (default: <main checkout>/services/tiles/work/$REGION_ID.pmtiles)"
   echo "  --build    Protomaps planet build date (default: $PLANET_BUILD)"
-  echo "  --maxzoom  max zoom (default: $MAXZOOM; above 14 the LA bbox exceeds the 120 MB budget)"
+  echo "  --maxzoom  max zoom (default: $MAXZOOM; above 14 the LA bbox exceeds the 120 MB budget, and"
+  echo "             below 14 step 6 refuses the result - the checker carries that floor)"
 }
 
 OUT=""
@@ -46,6 +45,12 @@ done
 TILES="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$TILES/../.." && pwd)"
 REGION_JSON="$ROOT/services/etl/regions/$REGION_ID/region.json"
+
+# The 120 MB M2 ceiling has exactly ONE definition and it is the checker's, because step 3 and step 6 must
+# refuse the same file. A second copy of the number here is a copy that drifts silently the day the ceiling
+# moves, so it is read out of the module step 6 runs.
+BUDGET_BYTES="$(cd "$TILES" && "${PYTHON:-python3}" -c 'import check_pmtiles; print(check_pmtiles.BUDGET_BYTES)')"
+[ -n "$BUDGET_BYTES" ] || { echo "BUILD REFUSED: could not read the budget out of $TILES/check_pmtiles.py"; exit 1; }
 
 # The main checkout, derived from this script's own path rather than from git: `git rev-parse` is unreliable
 # against the Windows worktree from inside WSL, and this substitution needs no tooling at all.

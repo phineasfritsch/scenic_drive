@@ -1,4 +1,4 @@
-"""Refuse a PMTiles artifact that does not cover its region, or does not fit the 120 MB budget.
+"""Refuse a PMTiles artifact that does not cover its region, is too coarse, is empty, or misses the budget.
 
 Run it on the built file (`build-la.sh` step 6 does) or by hand:
 
@@ -30,6 +30,10 @@ SPEC_VERSION = 3
 BUDGET_BYTES = 125_829_120
 # P-DATA-03: built_at under 30 days.
 MAX_AGE_DAYS = 30
+# T-0165 R3 ruled maxzoom 14 by measurement (z15 is 197 MB, over the ceiling; z13 is 20 MB and needlessly
+# coarse). The budget limb alone cannot see this: every zoom BELOW 14 is smaller, so `--maxzoom 12` yields a
+# 20 MB archive that passes the budget while the map goes soft two zoom levels early. This is that floor.
+MIN_MAXZOOM = 14
 # Internal-compression enum from the PMTiles v3 spec; only these two are produced by go-pmtiles today.
 COMPRESSION_NONE = 1
 COMPRESSION_GZIP = 2
@@ -93,7 +97,7 @@ def bbox_from_region(region_json: Path) -> tuple[float, float, float, float]:
 
 def check(path: Path, bbox: tuple[float, float, float, float], *, region: str | None = None,
           budget: int = BUDGET_BYTES, max_age_days: int = MAX_AGE_DAYS,
-          now: datetime | None = None) -> list[str]:
+          min_maxzoom: int = MIN_MAXZOOM, now: datetime | None = None) -> list[str]:
     """Every failure, named. Empty list = the artifact is publishable."""
     failures: list[str] = []
     try:
@@ -112,6 +116,18 @@ def check(path: Path, bbox: tuple[float, float, float, float], *, region: str | 
                                    header["max_lat"], min_lon, min_lat, max_lon, max_lat)
         )
 
+    if header["max_zoom"] < min_maxzoom:
+        failures.append(
+            f"header max_zoom {header['max_zoom']} is below the required {min_maxzoom} "
+            "(T-0165 R3: z14 is the highest zoom inside the 120 MB budget, and a coarser build is a "
+            "smaller file that passes the budget by giving up detail)"
+        )
+
+    # A directory-less archive is the failure mode a size check cannot see from the other side: an extract
+    # that wrote a header and no tiles is small, in-bounds, correctly stamped, and draws nothing at all.
+    if header["tile_entries_count"] == 0:
+        failures.append("header tile_entries_count is 0: the archive carries no tiles")
+
     size = path.stat().st_size
     if size > budget:
         failures.append(f"{size} bytes exceeds the {budget}-byte budget by {size - budget}")
@@ -124,6 +140,16 @@ def check(path: Path, bbox: tuple[float, float, float, float], *, region: str | 
 
     if region is not None and meta.get("region") != region:
         failures.append(f"meta.region is {meta.get('region')!r}, expected {region!r} (P-DATA-03)")
+
+    # The two zooms are written by different steps - the header by `pmtiles extract`, the metadata by the
+    # recipe's own stamp - so they disagree exactly when a rebuild changed one and not the other, and the
+    # sidecar and the app's download sheet believe the metadata.
+    if meta.get("maxzoom") is None:
+        failures.append("meta.maxzoom is missing (the recipe stamps it beside region and built_at)")
+    elif int(meta["maxzoom"]) != header["max_zoom"]:
+        failures.append(
+            f"meta.maxzoom {meta['maxzoom']} disagrees with the header's max_zoom {header['max_zoom']}"
+        )
 
     stamp = meta.get("built_at")
     if not stamp:
@@ -147,20 +173,23 @@ def main(argv: list[str] | None = None) -> int:
                         help="the region file the bbox is READ from, never typed")
     parser.add_argument("--budget-bytes", type=int, default=BUDGET_BYTES)
     parser.add_argument("--max-age-days", type=int, default=MAX_AGE_DAYS)
+    parser.add_argument("--min-maxzoom", type=int, default=MIN_MAXZOOM,
+                        help=f"refuse an archive coarser than this max zoom (default {MIN_MAXZOOM})")
     args = parser.parse_args(argv)
 
     region = json.loads(args.region_json.read_text(encoding="utf-8"))
     failures = check(args.archive, bbox_from_region(args.region_json), region=region["id"],
-                     budget=args.budget_bytes, max_age_days=args.max_age_days)
+                     budget=args.budget_bytes, max_age_days=args.max_age_days,
+                     min_maxzoom=args.min_maxzoom)
     if failures:
         print(f"PMTILES REFUSED: {args.archive}")
         for failure in failures:
             print(f"  - {failure}")
         return 1
     header = parse_header(args.archive)
-    print("PMTILES OK: {} region={} bytes={} zoom={}-{} bounds=({:.6f},{:.6f},{:.6f},{:.6f})".format(
+    print("PMTILES OK: {} region={} bytes={} zoom={}-{} tiles={} bounds=({:.6f},{:.6f},{:.6f},{:.6f})".format(
         args.archive.name, region["id"], args.archive.stat().st_size,
-        header["min_zoom"], header["max_zoom"],
+        header["min_zoom"], header["max_zoom"], header["tile_entries_count"],
         header["min_lon"], header["min_lat"], header["max_lon"], header["max_lat"]))
     return 0
 

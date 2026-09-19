@@ -19,14 +19,16 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from check_pmtiles import BUDGET_BYTES, bbox_from_region, check, parse_header, read_metadata  # noqa: E402
+from check_pmtiles import (  # noqa: E402
+    BUDGET_BYTES, MIN_MAXZOOM, bbox_from_region, check, parse_header, read_metadata,
+)
 
 LA_BBOX = (-119.0, 33.7, -117.85, 34.45)
 NOW = datetime(2026, 9, 19, 5, 0, tzinfo=timezone.utc)
 
 
 def write_pmtiles(path: Path, bounds: tuple[float, float, float, float], metadata: dict,
-                  *, padding: int = 0, version: int = 3) -> Path:
+                  *, padding: int = 0, version: int = 3, maxzoom: int = 14, entries: int = 1) -> Path:
     """A minimal but structurally real PMTiles v3 archive: header, gzip metadata, then filler tile data."""
     blob = gzip.compress(json.dumps(metadata).encode("utf-8"))
     meta_offset = 127
@@ -38,9 +40,9 @@ def write_pmtiles(path: Path, bounds: tuple[float, float, float, float], metadat
         meta_offset, len(blob),     # json metadata offset, length
         0, 0,                       # leaf directories offset, length
         data_offset, padding,       # tile data offset, length
-        1, 1, 1,                    # addressed, entries, contents
+        entries, entries, entries,  # addressed, entries, contents
     )
-    header += struct.pack("<6B", 1, 2, 2, 1, 0, 14)  # clustered, gzip, gzip, mvt, minzoom, maxzoom
+    header += struct.pack("<6B", 1, 2, 2, 1, 0, maxzoom)  # clustered, gzip, gzip, mvt, minzoom, maxzoom
     header += struct.pack("<4i", *(round(v * 1e7) for v in bounds))
     header += struct.pack("<B2i", 0, round((bounds[0] + bounds[2]) / 2 * 1e7),
                           round((bounds[1] + bounds[3]) / 2 * 1e7))
@@ -132,6 +134,50 @@ def test_refuses_something_that_is_not_pmtiles(tmp_path: Path) -> None:
 def test_refuses_a_v4_archive(tmp_path: Path) -> None:
     future = write_pmtiles(tmp_path / "v4.pmtiles", LA_BBOX, good_metadata(), version=4)
     assert any("spec version 4" in f for f in check(future, LA_BBOX, region="la", now=NOW))
+
+
+def test_refuses_an_archive_coarser_than_the_ruled_maxzoom(tmp_path: Path) -> None:
+    """R3 ruled z14 BY MEASUREMENT. Every zoom below it is a smaller file, so the budget limb is blind to
+    this one from the other side: `build-la.sh --maxzoom 12` writes a ~20 MB archive that fits the ceiling
+    and hands the driver a map that goes soft two zoom levels early."""
+    coarse = write_pmtiles(tmp_path / "z10.pmtiles", LA_BBOX, good_metadata(maxzoom=10), maxzoom=10)
+    failures = check(coarse, LA_BBOX, region="la", now=NOW)
+    assert any("max_zoom 10 is below the required 14" in f for f in failures), failures
+    # Lowering the floor is a decision a caller has to state, not a default it can drift into.
+    assert check(coarse, LA_BBOX, region="la", min_maxzoom=10, now=NOW) == []
+
+
+def test_the_zoom_floor_is_the_zoom_r3_ruled() -> None:
+    assert MIN_MAXZOOM == 14
+
+
+def test_refuses_a_header_and_metadata_that_disagree_about_maxzoom(tmp_path: Path) -> None:
+    """Written by two different steps - the header by `pmtiles extract`, the metadata by the recipe's own
+    stamp - so they disagree exactly when a rebuild changed one and not the other."""
+    split = write_pmtiles(tmp_path / "split.pmtiles", LA_BBOX, good_metadata(maxzoom=10), maxzoom=14)
+    assert any("meta.maxzoom 10 disagrees with the header's max_zoom 14" in f
+               for f in check(split, LA_BBOX, region="la", now=NOW))
+
+
+def test_refuses_a_missing_meta_maxzoom(tmp_path: Path) -> None:
+    meta = good_metadata()
+    del meta["maxzoom"]
+    nozoom = write_pmtiles(tmp_path / "nozoom.pmtiles", LA_BBOX, meta)
+    assert any("meta.maxzoom is missing" in f for f in check(nozoom, LA_BBOX, region="la", now=NOW))
+
+
+def test_refuses_an_archive_with_no_tiles_in_it(tmp_path: Path) -> None:
+    """In bounds, inside the budget, correctly stamped - and it draws nothing at all."""
+    empty = write_pmtiles(tmp_path / "empty.pmtiles", LA_BBOX, good_metadata(), entries=0)
+    assert any("carries no tiles" in f for f in check(empty, LA_BBOX, region="la", now=NOW))
+
+
+def test_the_build_recipe_reads_the_budget_out_of_this_module() -> None:
+    """One definition of the ceiling. Step 3 and step 6 must refuse the same file, and a second copy of the
+    number in the shell is a copy that drifts the day the ceiling moves."""
+    recipe = (Path(__file__).resolve().parents[1] / "build-la.sh").read_text(encoding="utf-8")
+    assert str(BUDGET_BYTES) not in recipe, "build-la.sh carries its own copy of the budget literal"
+    assert "check_pmtiles.BUDGET_BYTES" in recipe
 
 
 def test_the_bbox_is_read_from_the_region_file_not_typed() -> None:
