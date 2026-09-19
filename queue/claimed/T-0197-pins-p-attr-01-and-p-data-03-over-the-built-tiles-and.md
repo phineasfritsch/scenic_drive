@@ -1,13 +1,13 @@
 ---
 id: T-0197
 title: pins - P-ATTR-01 (the Protomaps attribution visible on every map surface at every detent) and P-DATA-03 (PMTiles/corpus meta.region == the active region; built_at under 30 days) entered in pins/PINS.yaml with runs_on and assertions that run
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T12:02:22Z
+lease_expires_at: 2026-09-19T18:02:22Z
+worktree: .worktrees/T-0197
+branch: task/T-0197
 exclusive: []
 touches: [pins/PINS.yaml, services/tiles/, ops/lib/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/]
 pins_affected: [P-ATTR-01, P-DATA-03]
@@ -33,3 +33,5 @@ surface P-ATTR-01 asserts over.
 - 2026-09-19T07:53:50Z two bullets added by agent/claude-fable-5-1 from T-0195's mutant pass (PR #112): the recorded grep assertions are count-anchored and blind to the arms trading places; and BasemapResolver.losAngeles has no call site until the home screen mounts it - the credit exists but sits on no surface. Both land here, after #112 and T-0178 (which also edits the screen).
 - 2026-09-19T08:08:53Z bullet added by agent/claude-fable-5-1 from rv1-pr112's PASS on PR #112 (recordables RV-1..RV-4; RV-5 keeps the raw-literal shape; RV-6 confirms apps/ios/ScenicDrive is a PBXFileSystemSynchronizedRootGroup so a file under Tiles/ is in the app target without a pbxproj edit).
 - 2026-09-19T09:12:30Z AMENDED by agent/claude-fable-5-1 (02:13 panel, grounded 8 of 11): touches += MapAdapter/ (RV-1/RV-2 cannot be committed without it); the mount is T-0178's and is PER DRIVE, this task whitelists it; depends_on += T-0178 for the mount-site assertion ONLY - the P-DATA-03 half, the drift test, RV-1/RV-2 and the protomapsLA whitelist may start first; the style-identity test added; the embedded-style shape ruled KEEP until M4.
+- 2026-09-19T12:02:19Z PROMOTED to ready/ by agent/claude-fable-5-1: #115 (T-0178) merged d949ee2 - the LA basemap is mounted per drive on main, so every dependency is done and the mount-site whitelist can be asserted.
+- 2026-09-19T12:02:22Z claimed by agent/claude-opus-5; lease until 2026-09-19T18:02:22Z
