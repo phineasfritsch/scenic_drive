@@ -71,6 +71,7 @@ import pathlib
 import sys
 
 from . import byways, curvature, furniture, landcover, region_reference, score, speedfit, terrain
+from .accessrule import CLOSED_ACCESS, MOTOR_VEHICLE_KEY, MOTOR_VEHICLE_REFUSED, access_refused
 from .normalise import normalise_region
 from .sinuosity import CLOSED_ENDPOINT_M, endpoint_gap_m, is_closed_way
 from .snap import length_m
@@ -79,19 +80,15 @@ from .way_record import POI_ABSENT_FLAG, SINUOSITY_DECLINED_FLAG, WayRecord
 # Ruling R3, after T-0161: the closed-way predicate has ONE definition in the tree, `sinuosity`'s, and this
 # module re-exports it rather than owning a second. `CLOSED_ENDPOINT_M` and `endpoint_gap_m` are deliberately
 # bound here - `assemble.CLOSED_ENDPOINT_M` is `sinuosity.CLOSED_ENDPOINT_M`, by identity, and the tests say so.
-__all__ = ["CLOSED_ENDPOINT_M", "endpoint_gap_m", "is_closed_way"]
+# T-0217 ruling R3 does the same for the ACCESS rule: `accessrule.access_refused` is the one definition of
+# `Gates.verdict`'s two `noAccess` branches, `gate_reason` calls it, and the corpus's `access_ok` column
+# asks it directly - `assemble.CLOSED_ACCESS` IS `accessrule.CLOSED_ACCESS`, by identity.
+__all__ = ["CLOSED_ACCESS", "CLOSED_ENDPOINT_M", "MOTOR_VEHICLE_KEY", "MOTOR_VEHICLE_REFUSED",
+           "access_refused", "endpoint_gap_m", "is_closed_way"]
 
 # Gates.swift:80-82, verbatim. Positive evidence only: no surface tag is NOT unpaved.
 UNPAVED_SURFACES = frozenset({"gravel", "dirt", "ground", "sand", "unpaved", "compacted", "fine_gravel"})
-# Gates.swift:89, verbatim.
-CLOSED_ACCESS = frozenset({"private", "no", "permit", "destination"})
 TRACK_HIGHWAY = "track"
-# Gates.swift:161, the other half of the `noAccess` rule. One value, not a set: `motor_vehicle=destination`
-# and `=permit` are NOT refused there, and widening this to `CLOSED_ACCESS` would refuse roads ScenicKit
-# routes - a gate that is stricter in the corpus than in the router is the same drift in the other
-# direction.
-MOTOR_VEHICLE_KEY = "motor_vehicle"
-MOTOR_VEHICLE_REFUSED = "no"
 
 # The snake_case of the `GateReason` cases these three rules refuse with (GateReason.swift:23, :26, :32).
 GATE_UNPAVED_SURFACE = "unpaved_surface"
@@ -133,20 +130,17 @@ LANDCOVER_TERMS = ("canopy", "impervious", "water")
 def gate_reason(tags: dict) -> str | None:
     """Why this way is refused for SAFETY, by name, or None. FOUR rules, in `Gates.verdict`'s order.
 
-    Four rules and three reasons: the last two are the two halves of ScenicKit's `noAccess`, and the order
-    between them is `Gates.verdict`'s own (:160 then :161). It is not observable - both answer
-    `GATE_NO_ACCESS` - and it is kept anyway, because `ops/route-autopsy` reads whichever reason fires
-    first and the day a fifth rule lands between them the order stops being cosmetic.
+    Four rules and three reasons: the last two are the two halves of ScenicKit's `noAccess` and are now
+    `accessrule.access_refused`, the one definition the corpus's `access_ok` column asks as well (T-0217
+    R3). This function still returns the FIRST rule that fires, so nothing may derive "may the public
+    drive here" from its answer: a private dirt road answers `unpaved_surface`. Ask the predicate.
     """
     surface = tags.get("surface")
     if surface is not None and surface in UNPAVED_SURFACES:
         return GATE_UNPAVED_SURFACE
     if tags.get("highway") == TRACK_HIGHWAY:
         return GATE_TRACK
-    access = tags.get("access")
-    if access is not None and access in CLOSED_ACCESS:
-        return GATE_NO_ACCESS
-    if tags.get(MOTOR_VEHICLE_KEY) == MOTOR_VEHICLE_REFUSED:
+    if access_refused(tags):
         return GATE_NO_ACCESS
     return None
 

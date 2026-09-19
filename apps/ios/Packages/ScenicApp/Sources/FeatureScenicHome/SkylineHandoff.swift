@@ -46,11 +46,13 @@ public enum SkylineHandoff {
     /// The selected route as a handoff request. `driving`, and no `avoid` - see `AppleMapsDirections`:
     /// asking Apple to avoid highways would throw away the freeway baseline that gets you to the
     /// pretty part of either drive.
+    /// FORWARDED, not rebuilt (T-0202): `HandoffDrive.directions` is the one place the request is
+    /// constructed, so the URL this button opens and the URL the failure card puts on the clipboard
+    /// (`HandoffDrive.clipboardPayload`) are the same construction over the same drive. Building a
+    /// second `AppleMapsDirections` here would put that property back out of reach of every test - a
+    /// feature target has no test bundle, and `Sources/Handoff` has `HandoffDriveClipboardPayloadTests`.
     public static func directions(for drive: HandoffDrive) -> AppleMapsDirections {
-        AppleMapsDirections(source: nil,
-                            destination: drive.destination,
-                            waypoints: drive.waypoints,
-                            mode: .driving)
+        drive.directions
     }
 
     /// The `maps.apple.com/directions` URL, or the refusal `Handoff` raises.

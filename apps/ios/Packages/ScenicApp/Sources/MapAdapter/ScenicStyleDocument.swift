@@ -67,6 +67,15 @@ public enum ScenicStyleDocument {
             with: "pmtiles://" + archiveURL.absoluteString
         )
         let url = documentURL(for: appearance)
+        let data = Data(document.utf8)
+        // IDEMPOTENT: nothing is written when the file already IS this document. `BasemapResolver` is
+        // called once per selection change and once per appearance change, and SwiftUI may re-run the
+        // surrounding work more often than that, so the common case is re-materialising bytes that are
+        // already on disk. Skipping it keeps the file the renderer may still be reading in place instead
+        // of replacing it, and makes a resolve that changes nothing cost one read.
+        if let existing = try? Data(contentsOf: url), existing == data {
+            return url
+        }
         do {
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(),
@@ -74,7 +83,7 @@ public enum ScenicStyleDocument {
             )
             // Atomic: a half-written style is a parse error in the renderer, and the app would have no
             // way to tell that from a style that legitimately failed to load.
-            try Data(document.utf8).write(to: url, options: .atomic)
+            try data.write(to: url, options: .atomic)
         } catch {
             return nil
         }

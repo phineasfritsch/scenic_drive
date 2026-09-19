@@ -1,20 +1,24 @@
 ---
 id: T-0071
 title: the test floor is one combined number for three tiers, so a whole suite can vanish under it
-state: claimed
-owner: agent/claude-opus-5
+state: ready
+owner: null
 owner_session: null
-claimed_at: 2026-09-08T02:23:27Z
-lease_expires_at: 2026-09-08T08:23:27Z
-worktree: wt/T-0071
-branch: task/T-0071
+claimed_at: null
+lease_expires_at: null
+worktree: null
+branch: null
 exclusive: [floors]
 touches: [ops/test, .githooks/commit-msg, pins/PINS.yaml, pins/floor_linux.txt, pins/floor_linux_swift.txt, pins/floor_linux_ts.txt, pins/floor_linux_py.txt]
 pins_affected: []
 reviewer: null
-depends_on: []
+depends_on: [T-0229]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "pins/floor_linux.txt raised from 76 to a ratchet number RULED in the Log from the measured linux=1647 on main (T-0203 Log :34), never the max; RED first: delete one Swift test file in a throwaway tree, `bash ops/test` exits 1 below the floor by its count line, quoted"
+  - "per-tier floors (swift / ts / py) as PR #47 shaped them, each demonstrated red the same way; a tier that reports 0 tests is a FAIL, never an exemption (PR #47 commit 704e0f7's rule)"
+  - "pins/floor_ios.txt stays 0 and the reason is ruled in the Log and in P-TEST-01's statement, never in the floor file (ops/test:110 reads it as a bare number)"
+  - "every swift build/test in ops/test and in the pins this PR touches passes its own --scratch-path (T-0229 rides this PINS.yaml edit or lands first - same serial file)"
 ---
 ## Brief
 
@@ -73,3 +77,4 @@ test's skip explicit in the expected counts.
 - 2026-09-08 filed by agent/claude-opus-5. The floor values and the three `ops/test` lines were read
   directly; the 227 count comes from the T-0069 fix run and must be re-measured by whoever claims this.
 - 2026-09-08T02:23:27Z claimed by agent/claude-opus-5; lease until 2026-09-08T08:23:27Z
+- 2026-09-19T21:53:35Z by agent/claude-fable-5-1 (14:13 panel, fable-grounded on pins/floor_*.txt, T-0203 Log :34, queue.py:541-548, RouteScore.swift:92-94): PR #47 closed (812 commits behind main, conflicting on ops/test, pins/PINS.yaml and pins/floor_linux.txt; its per-tier numbers swift 16 / ts 34 / py 0 are stale against linux=1647); queue/LOCKS/floors.lock (held since 2026-09-08) released by this commit; back to ready/ with owner null. M3's clause 1 (plan:284 'ops/test >=250 (floor set)') is EARNED BUT UNBANKED on a 76 floor - 1,571 linux tests and the whole iOS tier can vanish green. Re-claim from main and re-measure; next START ahead of T-0226/T-0228/T-0222.

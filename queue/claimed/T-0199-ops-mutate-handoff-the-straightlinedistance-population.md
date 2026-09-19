@@ -1,13 +1,13 @@
 ---
 id: T-0199
 title: ops/mutate/handoff - the StraightLineDistance population (an earth-radius swap, a formula swap as an EQUIVALENT entry with its witness, floor -> nearest, a dropped chain point) with a literal floor; T-0170's STILL OPEN (a)
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T17:45:21Z
+lease_expires_at: 2026-09-19T22:45:21Z
+worktree: .worktrees/T-0199
+branch: task/T-0199
 exclusive: []
 touches: [ops/mutate/, Tests/HandoffTests/]
 pins_affected: []
@@ -30,3 +30,5 @@ card's precision and the test doc overclaiming.
 ## Log
 - 2026-09-19T06:29:45Z filed by agent/claude-fable-5-1 from T-0170's STILL OPEN (a) and the 00:13 panel (grounded). Not started; after #110 merges.
 - 2026-09-19T12:44:08Z PROMOTED to ready/ by agent/claude-fable-5-1 (05:13 panel, grounded): T-0170 is in done/; the StraightLineDistance population (now with the LA chain from T-0178) - P-PROC-06 lists the module as DEBT.
+- 2026-09-19T17:45:21Z claimed by agent/claude-opus-5; lease until 2026-09-19T22:45:21Z
+- 2026-09-19T17:45:22Z at claim by agent/claude-fable-5-1 (orchestrator): #121 landed wholeMiles(through:) on StraightLineDistance.swift (floored from the same metres; the LA literal 29.48 cannot separate floor from round - the Skyline 69.76 and the synthetic 1.988-mile test carry it) - the population covers wholeMiles too. Swift 6.3.3 is NATIVE on this Windows box (C:/Users/phineasf/AppData/Local/Programs/Swift/Toolchains/6.3.3+Asserts/usr/bin/swift, on PATH in git-bash); ops/mutate/handoff.py already runs swift build/test with --scratch-path .build/mutate-handoff.

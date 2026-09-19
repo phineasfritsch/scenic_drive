@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# P-ATTR-01's mutation population: the table that proves ops/lib/check-map-attribution red.
+#
+# One file, one concern - the same split check-safety-disclaimer-mutations made, for the same reason (the
+# 300-line cap). Each row mutates ONE structural fact in a throwaway copy of apps/ios, re-runs the check
+# against that copy with --app-tree, and requires it to refuse AND to name the reason. A check nobody has
+# seen refuse is a check nobody has tested (CLAUDE.md). One row per anchor, and two of the rows exist
+# because a sibling anchor is green on them:
+#
+#   1 both arms swapped and 2 the demo arm alone - every identifier still present, every count unchanged;
+#     only (a), which reads the line AFTER the case, is red on either (T-0195's mutant pass).
+#   3 the plan's string edited at the declaration - (b)'s verbatim declaration.
+#   4 a feature file NAMING a protomaps case - (c)'s count whitelist.
+#   5 the same case reached without a `case .` pattern, with the count UNCHANGED - (c)'s pattern anchor
+#     alone; the whitelist counts two occurrences either way.
+#   6 the mount deleted - (d); the credit is still correct and sits on no surface.
+#   7 a literal credit string typed at the footer - (b)'s whitelist, which is why the literal is tracked by
+#     occurrence over the whole tree and not only declared.
+#   8 the footer handed some other resolved string - (d)'s argument-list reader; row 7 is green on it.
+#
+# Rows 9-12 are the pre-review mutant pass of 2026-09-19 (survivors A2, A3, A5, A7), each of which was
+# EXIT 0 against rows 1-8:
+#   9 the demo credit set to a near-spelling of the Protomaps line and 10 the Protomaps declaration keeping
+#     the plan's string and appending to it - (b)'s WHOLE-LINE whitelist; a prefix and a substring match
+#     were both green on them, with the plan's literal still occurring exactly once.
+#  11 the footer hidden from accessibility - (e); acceptance bullet 2's own limb, and a screenshot cannot
+#     tell the two apart.
+#  12 the footer's credit taken from a SECOND DriveBasemap.resolve( while the map keeps the first - (d)'s
+#     one-resolved-value anchor; the argument still ends in .attributionText, which is why row 8 is green.
+#
+# Rows 13-14 are rv1 of PR #119 (B2 blocking, M3 recordable), both EXIT 0 against rows 1-12 and both of
+# which ADD a file rather than editing one - a `+` on the row's path, with the third field the file's one
+# line of Swift (this check reads source, it does not compile it):
+#  13 a second view under FeatureScenicHome mounting MapView(styleURL: style.url) with NO footer - (f)'s
+#     whitelist over every map mount. The footer set, the resolve, the mount and every identifier count are
+#     untouched by it, which is why rows 1-12 are green while a real map surface ships with no credit.
+#  14 a second, paraphrased credit under a NEW identifier in another MapAdapter file - (b)'s OpenStreetMap
+#     population; the identifier-keyed whitelist and the plan's exact literal are both green on it.
+#
+#   ROW = label | file under the apps/ios copy (`+` = the row ADDS it) | sed script or the added file's
+#         single line | substring the refusal must contain
+# `|` is the field separator, so a sed script carries no pipe.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+CHECK="ops/lib/check-map-attribution"
+APP_TREE="apps/ios"
+MA="Packages/ScenicApp/Sources/MapAdapter"
+FS="Packages/ScenicApp/Sources/FeatureScenicHome"
+DS="Packages/ScenicApp/Sources/DesignSystem"
+
+[[ -f "$CHECK" ]] || { echo "P-ATTR-01: $CHECK is missing; the table has nothing to prove red."; exit 1; }
+[[ -d "$APP_TREE/$MA" ]] || { echo "P-ATTR-01: $APP_TREE/$MA is missing; nothing to mutate."; exit 1; }
+
+rows=(
+  "both credit arms swapped|$MA/MapStyle.swift|s/return MapStyle.protomapsAttribution/return MapStyle.swapped/;s/return MapStyle.demoAttribution/return MapStyle.protomapsAttribution/;s/return MapStyle.swapped/return MapStyle.demoAttribution/|does not return MapStyle.protomapsAttribution"
+  "the demo arm returns the Protomaps credit|$MA/MapStyle.swift|s/return MapStyle.demoAttribution/return MapStyle.protomapsAttribution/|does not return MapStyle.demoAttribution"
+  "the plan's credit string edited|$MA/MapStyle.swift|s/protomapsAttribution = \"© OpenStreetMap contributors · Protomaps\"/protomapsAttribution = \"© OpenStreetMap · Protomaps\"/|credit literal is not declared verbatim"
+  "a feature file names a protomaps case|$FS/DriveBasemap.swift|s/return BasemapResolver.losAngeles(appearance: appearance)/return MapStyle.protomapsLALight/|identifier protomapsLA occurs outside its tracked set"
+  "the caption reaches the case without a pattern|$FS/DriveCopy.swift|s/case .protomapsLALight, .protomapsLADark:/case let s where [MapStyle.protomapsLALight, MapStyle.protomapsLADark].contains(s):/|protomapsLA is NAMED outside"
+  "the LA basemap unmounted|$FS/DriveBasemap.swift|s/return BasemapResolver.losAngeles(appearance: appearance)/return .maplibreDemoTiles/|mount BasemapResolver.losAngeles( occurs outside its tracked set"
+  "a literal credit typed at the footer|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: style.attributionText)/AttributionFooter(text: \"© OpenStreetMap contributors · Protomaps\")/|credit literal © OpenStreetMap contributors · Protomaps occurs outside its tracked set"
+  "the footer handed some other string|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: style.attributionText)/AttributionFooter(text: DriveCopy.mapCaption(for: selectedDrive, style: style))/|is not a style's attributionText"
+  "the demo credit set to the Protomaps line|$MA/MapStyle.swift|s/demoAttribution = \"© MapLibre · Natural Earth\"/demoAttribution = \"© OpenStreetMap contributors, Protomaps\"/|the demo credit declaration is not verbatim"
+  "the Protomaps declaration appended to|$MA/MapStyle.swift|s/protomapsAttribution = \"© OpenStreetMap contributors · Protomaps\"/protomapsAttribution = \"© OpenStreetMap contributors · Protomaps\" + \" · Natural Earth\"/|the credit literal is not declared verbatim"
+  "the footer hidden from accessibility|$DS/AttributionFooter.swift|s/.accessibilityHidden(false)/.accessibilityHidden(true)/|hides something from accessibility"
+  "the credit from a second resolve|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: style.attributionText)/AttributionFooter(text: DriveBasemap.resolve(for: selectedDrive, appearance: .light).attributionText)/|resolve call DriveBasemap.resolve( occurs outside its tracked set"
+  "a second map surface with no credit|+$FS/DriveRoutePreview.swift|public struct DriveRoutePreview: View { let style: MapStyle; public var body: some View { MapView(styleURL: style.url, centerLatitude: 34.1, centerLongitude: -118.4, zoomLevel: 11) } }|a map mount outside its tracked set"
+  "a second credit string under a new identifier|+$MA/MapCredit.swift|extension MapStyle { public static let tileCredit = \"(c) OpenStreetMap contributors and Protomaps\" }|naming OpenStreetMap outside the one approved credit declaration"
+)
+
+# Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+pass=0
+total=0
+printf '%-48s %-6s %s\n' "MUTATION" "EXIT" "REASON NAMED"
+for row in "${rows[@]}"; do
+  total=$((total + 1))
+  label="${row%%|*}"; rest="${row#*|}"
+  file="${rest%%|*}"; rest="${rest#*|}"
+  script="${rest%%|*}"
+  expect="${rest##*|}"
+
+  dir="$work/m$total"
+  rm -rf "$dir"
+  cp -R "$APP_TREE" "$dir"
+  if [[ "$file" == +* ]]; then
+    # The row ADDS a surface. A new file is the shape rv1 of PR #119 used, and no sed script over the
+    # tracked files can reproduce it: what it proves is that the WHITELIST enumerates the population, so
+    # the file that was never typed into the check is the one that has to be refused.
+    file="${file#+}"
+    [[ -d "$dir/$(dirname "$file")" ]] || { echo "  NO SUCH DIRECTORY in the copy: $file"; exit 1; }
+    [[ -e "$dir/$file" ]] && { echo "  THE ROW ADDS A FILE THAT EXISTS: $file"; echo "$label"; exit 1; }
+    printf '%s\n' "$script" > "$dir/$file"
+  else
+    [[ -f "$dir/$file" ]] || { echo "  NO SUCH FILE in the copy: $file"; echo "$label"; exit 1; }
+    sed -i -e "$script" "$dir/$file"
+    if ! cmp -s "$APP_TREE/$file" "$dir/$file"; then :; else
+      echo "  THE MUTATION CHANGED NOTHING: $label"
+      echo "  A row whose sed matched no line proves nothing; the anchor it targets has moved."
+      exit 1
+    fi
+  fi
+
+  out="$(bash "$CHECK" --app-tree "$dir" 2>&1)"
+  status=$?
+  named="no"
+  [[ "$out" == *"$expect"* ]] && named="yes"
+  printf '%-48s %-6s %s\n' "$label" "$status" "$named"
+  if [[ "$status" -ne 0 && "$named" == "yes" ]]; then
+    pass=$((pass + 1))
+  else
+    echo "  UNREFUSED or UNNAMED. Expected a non-zero exit naming: $expect"
+    echo "$out" | sed -e 's/^/  | /'
+  fi
+done
+
+echo "prove-red: $pass/$total mutations refused by name"
+[[ "$pass" -eq "$total" ]] || exit 1
