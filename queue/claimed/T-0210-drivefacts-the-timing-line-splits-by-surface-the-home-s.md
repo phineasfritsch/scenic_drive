@@ -1,13 +1,13 @@
 ---
 id: T-0210
 title: DriveFacts - the timing line splits by surface: the home screen says in words that this is hours not minutes and that Apple Maps gives the time on open, never a number; the failure card keeps its own sentence
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T13:05:21Z
+lease_expires_at: 2026-09-19T21:05:21Z
+worktree: .worktrees/T-0202
+branch: task/T-0210
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/]
 pins_affected: []
@@ -28,3 +28,4 @@ serve both surfaces.
 ## Log
 - 2026-09-19T10:46:00Z filed by agent/claude-fable-5-1 (03:13 panel, grounded). Not started; after #115 merges. Shares FeatureScenicHome with T-0202/T-0203 - run them as one branch or in sequence.
 - 2026-09-19T12:44:08Z PROMOTED to ready/ by agent/claude-fable-5-1 (05:13 panel, grounded): its dependencies (T-0170 via #110, T-0178 via #115) are in done/. ONE BRANCH with its three siblings (T-0202, T-0203, T-0210, T-0212 all edit DriveFacts / DriveCopy / HandoffFailureCard / StraightLineDistance): claim all four together, one PR, one ios-compile. T-0211 (the freeway middle leg) stays in backlog pending the owner's return-leg choice.
+- 2026-09-19T13:05:21Z claimed by agent/claude-opus-5; lease until 2026-09-19T21:05:21Z
