@@ -238,9 +238,10 @@ That is the property the whole budget search depends on, and it is cheap to chec
     bash ops/lib/check-line-cap  -> P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines   EXIT 0
     bash ops/queue-check         -> QUEUE OK (175 tasks)   EXIT 0
     bash ops/check-pins --source-only -> PINS ok=11 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only   EXIT 0
-      (started 2026-09-19T02:12Z over this tree and took ~35 min on this box; the only files written after it
-      started are services/routing/README.md and this task file, neither of which any pin anchors on. A second
-      run is in flight and its result is appended below if it lands before the PR.)
+      (started 2026-09-19T02:12Z over this tree, ~35 min on this box; the only files written after it started
+      are services/routing/README.md and this task file, neither of which any pin anchors on. A confirmation
+      re-run launched at 02:53Z had NOT finished when PR #105 was opened and was not waited for - so the quoted
+      line is the 02:12Z run, not a post-commit one. CI runs the same gate as `pins-source-only` on the PR.)
   The new files' own lengths, `wc -l`: ScenicRouterMain.java 122, ScenicScoreParser.java 42,
   ScenicScoreImportRegistry.java 24, test_lambda_monotone.py 141, synthetic_scenic_tags.py 67,
   config.yml 32, Dockerfile 24, Dockerfile.tagger 18 - all under the 300-line cap.
