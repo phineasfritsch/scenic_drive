@@ -379,3 +379,64 @@ surface P-ATTR-01 asserts over.
   on the merged head and quoted in one entry, then the final commit and an immediate push - the merge is
   done LAST so that the push follows it within minutes and the head that is signed off is the head that
   merges.
+- 2026-09-19T16:46:47Z round-2 FIX by agent/claude-opus-5, rv1-pr119's B1 and B2 both closed; the WHOLE
+  acceptance block re-run BARE on the merged head (`git merge --no-edit origin/main` -> cf78838, clean,
+  no conflict in pins/PINS.yaml; the three commits rv1 named - 88a5142 (#117), 034beb2, 1970941 - plus
+  #118 and #120 and the 06:13 queue panel are now under this branch):
+  - B2 CLOSED. `bash ops/lib/check-map-attribution` -> exit 0 over 21 .swift files, now naming limb (f):
+    "every MapView( and every styleURL: over the tree is at .../ScenicHomeScreen.swift(1), outside the
+    one definition .../MapAdapter/MapView.swift, which declares struct MapView and public init(styleURL
+    once each", and limb (b)'s second population: "the plan's string occurs in code at .../MapStyle.
+    swift(1) only, and every `static let` naming OpenStreetMap anywhere under the tree is that same one
+    declaration".
+  - `bash ops/lib/check-map-attribution --prove-red` -> exit 0, "prove-red: 14/14 mutations refused by
+    name", every row EXIT 1 and REASON NAMED yes, including the two new ones: "a second map surface with
+    no credit" (rv1's M1/B2 - a new file under FeatureScenicHome mounting MapView(styleURL: style.url,
+    ...) with no footer, refused naming "a map mount outside its tracked set") and "a second credit
+    string under a new identifier" (rv1's M3, refused naming "naming OpenStreetMap outside the one
+    approved credit declaration"). Both were EXIT 0 before this commit; rows 1-12 are still green on
+    them, which is why they are rows of their own.
+  - `python ops/lib/check-pmtiles-provenance.py` -> exit 0 over four in-process fixtures (PMTILES OK;
+    'older than 30 days (P-DATA-03)'; "meta.region is 'bay'"; 'meta.region is None'), and with
+    SCENIC_LA_PMTILES set to services/tiles/work/la.pmtiles also "la.pmtiles: exit 0 - PMTILES OK:
+    la.pmtiles region=la bytes=63520949 zoom=0-14 tiles=2549 bounds=(-119.000000,33.700000,
+    -117.850000,34.450000)".
+  - `python -m pytest services/tiles/tests` -> exit 0, "69 passed in 1.30s"; the style-identity test
+    `python -m pytest services/tiles/tests/test_embedded_style_identity.py` -> exit 0, "11 passed in
+    0.03s". (Both run WITHOUT a -q of my own: the repo's addopts already carries one and a second
+    suppresses the count line entirely - the first run printed dots and no total.)
+  - `bash ops/check-pins --source-only` -> exit 0, "PINS ok=15 skipped=16 pending=1 expired=0 failed=0
+    tier=linux source-only". PINS.yaml: 32 ids, 32 unique.
+  - `bash ops/lib/check-safety-disclaimer` -> exit 0, P-SAFE-03's counts UNCHANGED over the merged tree
+    (isSafetyDisclaimerAcknowledged GatedHandoffButton.swift(2) ScenicHomeScreen.swift(4), the key (1),
+    SkylineHandoff.open( once at line 87 dominated by the guard at line 82).
+  - `bash ops/lib/check-line-cap` -> exit 0, "P-SRC-02: 90 Swift files tracked (Sources=29, Tests=40,
+    apps/ios=21), none over 300 lines". `bash ops/lib/check-exec-bits` -> exit 0, "P-OPS-01: 83 files,
+    23 required present, all modes correct" (83, not 82: main's new ops/deploy-routing).
+  - `python ops/lib/check-mutate-population.py` -> exit 0, "P-PROC-06: 74 modules, 24 covered by 11
+    populations, 27 allowlisted, 0 added by this branch ... the floor of 23 holds" - no allowlist entry
+    owed (ops/lib and services/tiles are outside its roots). `bash ops/queue-check` -> exit 0, "QUEUE OK
+    (211 tasks)" (208 before the merge).
+  - `wc -l` RE-MEASURED on every touched file at this head: ops/lib/check-map-attribution 294 (was 287;
+    the cap is 300, which is why the verdict printer moved to the lib), ops/lib/check-map-attribution-lib
+    248 (was 148), ops/lib/check-map-attribution-mutations 121 (was 99), ops/lib/check-pmtiles-
+    provenance.py 151, pins/PINS.yaml 296, services/tiles/tests/test_embedded_style_identity.py 138,
+    MapAdapter/BasemapResolver.swift 125, MapAdapter/ScenicStyleDocument.swift 92. None over the cap.
+  - ios-compile: `git diff --stat 571942d HEAD -- apps/ios` is EMPTY - no Swift byte moved in this fix or
+    in the merge - so run 35442667891 (headSha bf9a6f3, conclusion success) still stands for this Swift
+    tree and NO second dispatch was bought, exactly as rv1 recorded.
+  RECORDABLES from rv1, answered: M2 (a footer BUILT and then wrapped in `.opacity(0)`) stays a
+  DISCLOSED blind spot, now named in the pin text and in the check's green summary, owned by T-0180's
+  snapshot half. M3 is CLOSED, not disclosed (limb (b)'s OpenStreetMap population, row 14). P-DATA-03's
+  corpus half and P-ATTR-01's XCUITest half are unchanged and still need FILED tasks, not a round.
+  BasemapResolver's minimumArchiveBytes/isWhole still has no executable test: ScenicApp declares no test
+  targets and no Apple toolchain exists on this box.
+  STILL OPEN, unchanged: (1) P-DATA-03's CORPUS half - UNASSERTED and UNOWNED; the orchestrator must file
+  it; (2) P-ATTR-01's XCUITest half (T-0180: `attribution.footer`, `home-attribution-footer` at max
+  detent, both themes, AX5); no reference image here - CLAUDE.md allows one only on a human-initiated
+  commit reviewed by a different agent; (3) MapStyle.url (A6) and `MapStyle.allCases[0]`-shaped spellings
+  (A4), plus this round's three new disclosures: a credit paraphrase that never names OpenStreetMap, a
+  `static let` whose value sits on the NEXT line, and a map mounted through a wrapper that is not
+  `MapView(`; (4) the real artifact is only checked where SCENIC_LA_PMTILES is set - this box and
+  ops/publish-tiles, never CI; (5) the 1 MiB wholeness floor in BasemapResolver is asserted by no test;
+  (6) `bash ops/test` is not run on this box - CI's linux-core job is the evidence.
