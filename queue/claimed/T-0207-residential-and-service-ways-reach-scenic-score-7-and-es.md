@@ -402,3 +402,63 @@ four bits do not separate Topanga from a Bel Air cul-de-sac; something class-awa
   wrote `services/etl/work/la*/`'s scored tables on 2026-09-18, or re-run all three windows from the
   committed head before any future task quotes those files as a baseline. Nothing in this task's acceptance
   depends on them: the three top tens and CHECK4 below are read off the NEW read-backs only.
+- 2026-09-19T13:26:59Z FINAL PRE-REVIEW ACCEPTANCE, the WHOLE block
+  re-run BARE on the MERGED head (6dba48a, whose parent is the merge f76fe98 of origin/main at 907949b),
+  by agent/claude-opus-5. The only thing the commit after this one adds is this block.
+
+      cd services/etl && python -m pytest tests -rs -o addopts=
+        -> 1211 passed in 77.63s (0:01:17)      zero skips, the -rs section is empty  (1186 -> 1211: R3's
+           two new tests, the 18 in test_class_cap.py, and main's test_surfacecoverage.py from #116)
+      python ops/mutate/scenic_tags.py
+        -> BASELINE exit=0, 48 mutations, floor 48
+           MUTATIONS: 48 caught, 0 missed, 0 skipped, of 48
+           EQUIVALENT: 0 caught, 3 missed, 0 skipped, of 3
+           MUTATE OK  caught=48/48 equivalent_caught=0                      (exit 0)
+           the four new ones, BY NAME:
+             demote only the sevens - a residential at raw 1.0 ships 10 (pre-review survivor M2)
+               <- test_class_cap.py::test_no_capped_class_way_reaches_the_routers_high_band
+             no ceiling on a way that matched a byway - a residential stub in Topanga ships 10 (survivor M5)
+               <- test_class_cap.py::test_the_ceiling_is_unconditional_over_every_input_scored_row_reads
+             condition the ceiling on a TERM, so a cul-de-sac under full canopy keeps its 7
+               <- test_class_cap.py::test_no_capped_class_way_reaches_the_routers_high_band
+             condition the ceiling on the SURFACE, so every asphalt rat-run escapes it
+               <- test_class_cap.py::test_no_capped_class_way_reaches_the_routers_high_band
+           (the harness reports the FIRST red; the R3 matrix test is red on all four, and on M5 it is the
+            only red in the file - demonstrated one at a time in the 13:08:13Z entry above.)
+      python ops/mutate/scenic_tags.py --prove-vacuity
+        -> VACUITY: 0 caught, 48 missed, 0 skipped, of 48 / VACUITY PROVED  (exit 0)
+      python ops/lib/check-mutate-population.py
+        -> P-PROC-06: 74 modules, 24 covered by 11 populations, 27 allowlisted, 0 added by this branch
+           P-PROC-06: every added module is covered or allowlisted; the floor of 23 holds   (exit 0)
+      python -m etl.scenecheck, natively, over the three NEW read-backs of this branch's own re-tag:
+        -> CHECK4 null_score=0 gated_scored=0 malformed=0 scored=11740 refused=0 not_a_road=662   (canyon)
+        -> CHECK4 null_score=0 gated_scored=0 malformed=0 scored=11239 refused=0 not_a_road=212   (grid-a)
+        -> CHECK4 null_score=0 gated_scored=0 malformed=0 scored=23474 refused=0 not_a_road=413   (grid-b)
+           malformed=0 on all three; each exit 0.
+      python work/band_T0207.py   (one screen, gitignored; reads the shipped tags of the same three files)
+        -> BAND scanned=33932 residential=9901(max 6) living_street=11(max 6) service=24020(max 0)
+           BAND offenders=0                                                  (exit 0)
+           NO residential or living_street way is at scenic_score >= 7 and NO service way is above 0,
+           on the bytes, over all three windows.
+      bash ops/lib/check-line-cap
+        -> P-SRC-02: 90 Swift files tracked (Sources=29, Tests=40, apps/ios=21), none over 300 lines (exit 0)
+      bash ops/lib/check-exec-bits
+        -> P-OPS-01: 78 files, 23 required present, all modes correct        (exit 0)
+      bash ops/queue-check
+        -> QUEUE OK (208 tasks)                                              (exit 0)
+
+  `ops/check-pins --source-only` and `bash ops/test` were NOT run here and are NOT claimed - the session's
+  instructions skip them locally; CI on PR #118 runs the full set. No Swift changed, so no `swift test`.
+
+  `wc -l` on every touched file, re-measured at this head (the three unchanged ones re-measured too, because
+  a correction commit that touches a measured file re-measures it):
+
+      293  services/etl/etl/assemble.py            (unchanged by R3 - the ceiling was already unconditional;
+                                                    still 7 lines under the cap, so the next agent splits it)
+      165  services/etl/etl/tagwriter.py           (unchanged by R3)
+      262  services/etl/tests/test_class_cap.py    (195 -> 262)
+      284  services/etl/tests/fixtures/class_cap_rows.json  (237 -> 284)
+      186  ops/mutate/scenic_tags.py               (186, one docstring line)
+      255  ops/mutate/scenic_tags_mutations.py     (233 -> 255)
+
+  `state: claimed` and `reviewer: null` are untouched; the Log is appended to and nothing above it is edited.
