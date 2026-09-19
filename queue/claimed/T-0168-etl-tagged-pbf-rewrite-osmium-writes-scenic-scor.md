@@ -276,3 +276,62 @@ a silent 0); idempotence (P-DATA-01: running twice over the same extract is byte
      is re-recorded to 3 in this commit, deliberately, and the licence assertions around it are untouched.
   F5 STILL OPEN, unfixed here and named in the PR: `extract.Osmium.rel()` cannot see the shared inputs directory from
      a worktree (R7). The run mounts it read-only at the worktree's own path inside the container instead.
+- 2026-09-19T06:20:44Z THE MUTATION POPULATION, by agent/claude-opus-5. `ops/mutate/scenic_tags.py` is the harness AND
+  the population for the two numeric modules this task adds (the closing ruling above: osmxml is a stream copy and
+  waydoc is wiring; tagwriter computes the R1 quantisation and scenecheck computes check 4's two clauses). 22
+  mutations, `MIN_MUTATIONS = 22` so deleting one refuses the run, plus 2 EQUIVALENT asserted the other way round:
+    `MUTATIONS: 22 caught, 0 missed, 0 skipped, of 22`
+    `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2`
+    `MUTATE OK  caught=22/22 equivalent_caught=0`
+  THE VACUITY ARM CAUGHT ITS OWN HARNESS, which is the point of having one. Its first run reported
+  `VACUITY: 21 caught, 1 missed, 0 skipped, of 22` with both test files EMPTIED - impossible, and the cause was
+  `arm()` restoring every guarded file after each mutation, so the emptied tests came back after the first one. Fixed
+  in commit afec6b5 (restore the SUBJECT files only); re-run: `VACUITY: 0 caught, 22 missed, 0 skipped, of 22`,
+  `VACUITY PROVED`, every mutation `exit 5` - no tests ran. A harness whose clean sheet could not fail was worth
+  nothing for the twenty minutes it existed, and it is recorded rather than quietly corrected.
+- 2026-09-19T06:20:44Z THE ACCEPTANCE BLOCK, re-run bare at the final pre-review commit and re-quoted whole, by
+  agent/claude-opus-5 (the author rule):
+  (1) "RED BY NAME before code ... byte-identical (P-DATA-01) ... then green with both sha256 values quoted" -
+      RED, against four docstring-only stubs, before any of the four modules had a function: `41 failed in 1.92s`,
+      including `tests/test_tagwriter.py::test_the_writer_is_byte_identical_over_two_runs_of_the_same_input`.
+      GREEN: `42 passed in 1.27s` over the same four files, `1134 passed in 79.03s` over the whole suite, and over
+      the REAL extract, from two separate container invocations 15 minutes apart:
+        06046be00d336f2f976a31676ce452d2f35fabba15f63d437be3043d909a0090  work/la/window-tagged-1.osm.pbf
+        06046be00d336f2f976a31676ce452d2f35fabba15f63d437be3043d909a0090  work/la/window-tagged-2.osm.pbf
+  (2) "the manifest line re-recorded the same day as the fetch" - the fetcher printed
+      `verified california-osm.pbf bytes=1328857020 retrieved=2026-09-19 md5 ok` (this task's 02:54:47Z entry), and
+      services/etl/inputs/manifest.yaml in THIS commit carries `  bytes: 1328857020` and `  retrieved: 2026-09-19`
+      on that entry. The file was not re-fetched to produce a fresher line: Geofabrik rebuilds daily and a failed
+      md5 makes the fetcher delete the 1.3 GB payload. Same-day fetches with their own lines:
+      `verified byways-caltrans.geojson bytes=8764515 retrieved=2026-09-19 sha256 ok`,
+      `verified byways-fhwa.geojson bytes=29545684 retrieved=2026-09-19 sha256 ok`, and
+      `worldcover-n33w120.tif sha256: 61e0909a51e2e76a6f153599316753370be937d0ce150261d023006a80613385`
+      (101,202,142 B), all three recorded in the manifest in this commit.
+  (3) "`osmium fileinfo -e` over the output PBF ... the count of ways carrying scenic_score equals the way count the
+      assembler scored" - `Number of nodes: 155208 / Number of ways: 12402 / Number of relations: 76`, bounding box
+      (-119.0186574,33.9490449,-118.3400603,34.172355), 1,670,643 B. `WRITE ways=12402 scored=11740 refused=0
+      gated=5589 not_a_road=662` against `ASSEMBLE ways=11740 ... null_score=0`: 11,740 = 11,740.
+  (4) "the two `ops/sane` check-4 clauses printed as NUMBERS by a check that refuses on either" -
+      `CHECK4 null_score=0 gated_scored=0 scored=11740 refused=0 not_a_road=662`, exit 0, over the tagged PBF read
+      back with `osmium cat`. RED BY NAME first, one fixture per clause:
+      `tests/test_scenecheck.py::test_a_road_with_no_score_is_counted_as_a_number_and_refuses` and
+      `tests/test_scenecheck.py::test_a_motorway_with_a_score_above_zero_is_counted_as_a_number_and_refuses`,
+      plus the private, unpaved and track halves of the gate clause.
+  (5) "the ranked top-10 ... the judgement is not made by the agent" - printed verbatim in the 06:05:31Z entry and
+      reproduced identically by the re-run at 06:15:17. THE JUDGEMENT IS THE OWNER'S.
+  (6) "`cd services/etl && python -m pytest tests -rs` -> count line and zero skips; every wc -l re-measured" -
+      `1134 passed in 79.03s (0:01:19)`, no `-rs` skip section at all, zero skips. Gates, each run bare:
+      `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines` (exit 0);
+      `P-OPS-01: 64 files, 23 required present, all modes correct` (exit 0); `QUEUE OK (186 tasks)` (exit 0);
+      `PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only` (exit 0).
+      `wc -l` on every touched file, re-measured here:
+        111 services/etl/etl/osmxml.py          156 services/etl/etl/tagwriter.py
+        151 services/etl/etl/scenecheck.py      257 services/etl/etl/waydoc.py
+         77 services/etl/tests/test_osmxml.py   177 services/etl/tests/test_tagwriter.py
+        128 services/etl/tests/test_scenecheck.py  118 services/etl/tests/test_waydoc.py
+        296 services/etl/tests/test_dem_tiles.py   112 services/etl/tests/test_license_data.py
+         53 services/etl/tests/fixtures/scenic_clip.osm.xml   248 ops/mutate/scenic_tags.py
+        260 services/etl/inputs/manifest.yaml   278 queue/claimed/T-0168-...md (this file, before this entry)
+      Nothing is over the 300-line cap. `ops/etl-extract` and `services/etl/Dockerfile` are in `touches:` and were
+      NOT changed: the Dockerfile stays pinned because R6 rules PyOsmium out, and ops/etl-extract's own defect (F5)
+      is recorded, not patched.
