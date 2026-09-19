@@ -601,3 +601,27 @@ command did not print.
   - `ops/test` and `ops/check-pins` were again NOT run on this box (both wrap swift; the default scratch
     path does not build inside a worktree here). CI decides them; `gh pr checks 94` is read once after the
     push.
+- 2026-09-19T00:45Z Acceptance block re-run BARE at 1e3136a, the round-4 commit, and every line of it
+  reproduced on a clean tree (`git status --short` prints nothing, `git rev-parse HEAD` ->
+  `1e3136a9247cbd2125b77f16c34a82a5ead22345`). The round-4 session was cut off by a usage-limit pause after
+  1e3136a was committed and before it was pushed; this entry is the confirmation run that the pause
+  interrupted, and it changes no file but this one. `cd services/etl && python -m pytest tests -rs` ->
+  `608 passed in 76.73s (0:01:16)`, exit 0, `grep -c 'short test summary'` over the captured output `0` -
+  zero failures, zero skips. The four test files: `python -m pytest tests/test_proximity.py
+  tests/test_sinuosity.py tests/test_proximity_bends.py tests/test_proximity_interior.py` -> `136 passed in
+  0.71s`, exit 0, and `--collect-only -q` -> `tests/test_proximity.py: 60`,
+  `tests/test_proximity_bends.py: 24`, `tests/test_proximity_interior.py: 4`, `tests/test_sinuosity.py: 48`.
+  `wc -l` -> sinuosity.py 83, proximity.py 143, test_sinuosity.py 178, test_proximity.py 300,
+  geometry_terms_fixture.json 263, test_proximity_bends.py 278, geometry_bends_fixture.json 78,
+  test_proximity_interior.py 178, with `awk 'END{print NR}'` printing 300 / 178 / 278 / 178 for the four
+  test files. `bash ops/lib/check-pipe-consumers` (bare) -> `PIPE-CONSUMERS OK: no gate decides with
+  'producer | grep -q' (57 scanned, 58 tracked, floor 42)`, exit 0; `bash ops/queue-check` (bare) ->
+  `QUEUE OK (158 tasks)`, exit 0. `md5sum` at the final tree: `services/etl/etl/proximity.py`
+  `254632996234f9bd1c1e130db0244bea` and `services/etl/tests/fixtures/geometry_bends_fixture.json`
+  `5b8263ec58a6403841e79fdf286b57ff` - the two md5s the round-4 mutant table restores to, so the tree that
+  was measured is the tree that is pushed. WALL TIME IS STILL NOT A CLAIM and this run is why the block is
+  right not to make one: the same 608 tests read `76.73s` here against `102.10s` in the block, same box,
+  same commit, a different session. NOT RE-RUN IN THIS PASS, and not restated as if it were: the round-4
+  mutant table (P1, N4, F2) was measured at this same tree by the commit that recorded it and no file has
+  changed since; `ops/test` and `ops/check-pins` are still not run on this box (both wrap swift). `state:
+  claimed` and `reviewer: null` are untouched; the task stays in queue/claimed/ for the round-4 review.
