@@ -305,3 +305,99 @@ review; T-0152 (copy) touches the same file - sequence them, do not stack them.
      box can measure them.
   6. `ops/lib/check-safety-disclaimer` is 307 lines. No gate caps a bash script; it is over the number
      CLAUDE.md names for Swift and Python and that is recorded rather than hidden.
+- 2026-09-19T01:12:38Z THE SEVENTH BLIND SPOT, closed by agent/claude-opus-5 before the review was bought, on the
+  hourly panel's grounded synthesis. `ops/lib/check-safety-disclaimer` could not see the BLOCKED path: every
+  anchor stopped at the guard. `GatedHandoffButton.swift`'s guard calls `onBlocked()`, wired on the screen as
+  `onBlocked: { isShowingDisclaimer = true }` with `.sheet(isPresented: $isShowingDisclaimer)`; replacing that
+  closure with `{ }` left all six mutations green while the first tap did NOTHING and the disclaimer never
+  appeared. A gate that refuses the handoff and offers no way through it is a liveness hole in a safety pin.
+  Three new anchors, all identifiers or fixed strings over //-stripped code: `onBlocked()` between the guard
+  and its `return` in `GatedHandoffButton.swift` (the awk that decides dominance now also decides the guard
+  body is not silent), and `onBlocked: { isShowingDisclaimer = true }` + `isPresented: $isShowingDisclaimer`
+  on `ScenicHomeScreen.swift`. No Swift was touched, so ios-compile run 35405951245 on `d975dfb` stands.
+
+  RED FIRST, each refusal named, against copies of the feature sources with one mutation applied (the tracked
+  tree was untouched; `.redtmp/` removed afterwards):
+
+      $ sed -i -e 's/onBlocked: { isShowingDisclaimer = true }/onBlocked: { }/' .redtmp/blocked-dead/ScenicHomeScreen.swift
+      $ bash ops/lib/check-safety-disclaimer --sources .redtmp/blocked-dead
+      P-SAFE-03: the blocked tap is not wired to the sheet in .redtmp/blocked-dead/ScenicHomeScreen.swift: `onBlocked: { isShowingDisclaimer = true }` absent.
+        GatedHandoffButton's guard calls onBlocked() on a refused tap; the screen must turn that into a
+        presentation (`onBlocked: { isShowingDisclaimer = true }`) and bind a sheet to the same flag
+        (`.sheet(isPresented: $isShowingDisclaimer)`). With either gone the first tap is silent.
+      exit=1
+
+      $ sed -i -e 's/\.sheet(isPresented: \$isShowingDisclaimer)/.sheet(isPresented: .constant(false))/' .redtmp/sheet-unbound/ScenicHomeScreen.swift
+      $ bash ops/lib/check-safety-disclaimer --sources .redtmp/sheet-unbound
+      P-SAFE-03: the blocked tap is not wired to the sheet in .redtmp/sheet-unbound/ScenicHomeScreen.swift: `isPresented: $isShowingDisclaimer` absent.
+      exit=1
+
+      $ sed -i -e 's/^                onBlocked()$//' .redtmp/guard-silent/GatedHandoffButton.swift
+      $ bash ops/lib/check-safety-disclaimer --sources .redtmp/guard-silent
+      P-SAFE-03: no `onBlocked()` between the guard at line 46 and its return at line 48 in .redtmp/guard-silent/GatedHandoffButton.swift.
+        The refused tap has to hand the screen something to present, or the user taps a dead button forever.
+      exit=1
+
+  The mutation table moved to `ops/lib/check-safety-disclaimer-mutations` (new file, committed 100755 with
+  `git update-index --chmod=+x`, P-OPS-01): one file, one concern, and the check comes DOWN to 299 lines from
+  the 307 recorded at 23:27, rather than past 330. `--prove-red` now runs that file and row 7 is
+  `the blocked tap no longer presents the disclaimer`. `pins/PINS.yaml` P-SAFE-03's `why_no_test_catches_it`
+  names the new anchors and says `--prove-red refuses seven mutations by name`; the check's header lists the
+  seventh blind spot as closed and states what it STILL cannot see (rendering, a tap reaching the button, that
+  the sheet's accept writes the @AppStorage flag - the anchors prove the blocked path is WIRED, never that it
+  RUNS).
+
+- 2026-09-19T01:12:38Z ACCEPTANCE BLOCK, the lines this change touches, re-run at the final commit by
+  agent/claude-opus-5. Code head `e5726d8`. Lines (2) and (3) are unchanged and their 23:37 runs stand -
+  no Swift file was edited, so the quoted ios-compile run 35405951245 on `d975dfb` still describes this tree.
+
+  **(1) P-SAFE-03's assertion, green, and the mutation table.**
+
+      $ bash ops/lib/check-safety-disclaimer
+      P-SAFE-03: 4 Swift file(s) under apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome; SafetyDisclaimer declared once in its own file;
+        home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in
+        SafetyDisclaimer.swift, the persistent line present, @AppStorage("safety.disclaimer.acknowledged.v1") on device;
+        SkylineHandoff.open( called once (GatedHandoffButton.swift line 51), dominated by the
+        guard at line 46; the button is built once, in ScenicHomeScreen.swift, with isSafetyDisclaimerAcknowledged
+        passed through; the blocked tap is wired - onBlocked() at line 47 before the return at
+        line 48, `onBlocked: { isShowingDisclaimer = true }` and a sheet bound to that flag on the
+        screen. Not checked here: rendering, taps, that accepting the sheet writes the flag, contrast,
+        Dynamic Type, 44 pt - XCUITest owns those.
+      exit=0
+
+      $ bash ops/lib/check-safety-disclaimer --prove-red
+      MUTATION                                             EXIT     REASON NAMED
+      the SafetyDisclaimer type renamed                    1        yes
+      the home.disclaimer identifier removed               1        yes
+      the acknowledgement guard removed                    1        yes
+      the persistent conditions line removed               1        yes
+      the acknowledgement no longer passed to the button   1        yes
+      the on-device store key changed                      1        yes
+      the blocked tap no longer presents the disclaimer    1        yes
+      prove-red: 7/7 mutations refused by name
+      exit=0
+
+  **(4) The gates, bare.**
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 73 Swift files tracked (Sources=26, Tests=37, apps/ios=10), none over 300 lines
+      exit=0
+
+      $ bash ops/queue-check
+      QUEUE OK (169 tasks)
+      exit=0
+
+      $ bash ops/check-pins --source-only
+      PINS ok=12 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only
+      exit=0
+
+  Sizes, re-measured (`wc -l`, the T-0162 lesson - a correction commit re-measures what it changed):
+  `ops/lib/check-safety-disclaimer` 299, `ops/lib/check-safety-disclaimer-mutations` 73. The four Swift files
+  are byte-identical to `d975dfb`.
+
+  STILL OPEN, unchanged and now with one item retired: items 1-5 of the 23:37 block stand (nothing rendered,
+  the acknowledgement never tapped, no XCUITest, no `SafetyDisclaimerDisplaying`, the 44 pt / Dynamic Type /
+  contrast arguments unmeasured). Item 6 (the check over 300 lines) is closed: 299 and 73 in two files. New:
+  the three anchors added here prove the blocked path is WIRED and nothing more - that a tap presents the
+  sheet, and that accepting it writes the flag, remain XCUITest's, and `ops/lib/check-safety-disclaimer-mutations`
+  has itself never been seen to pass a mutation it should have refused, only the seven rows it carries.
