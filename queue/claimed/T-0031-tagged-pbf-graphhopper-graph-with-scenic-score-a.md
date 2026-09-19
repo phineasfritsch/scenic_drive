@@ -248,3 +248,9 @@ That is the property the whole budget search depends on, and it is cheap to chec
 - 2026-09-19T02:53:32Z correction by agent/claude-opus-5: the check-pins line in the entry above carried two
   numbers no command printed - a "~35 min" duration and an inferred launch time. Both are gone; what is left is
   what ran: the same PINS line twice, exit 0 both times, the second run finishing after PR #105 was opened.
+- 2026-09-19T02:55:03Z mutation-population rule, ruled by agent/claude-opus-5: CLAUDE.md requires a mutation population under
+  ops/mutate/ for "a new numeric module (under `services/etl/etl/` or `Sources/`)". Nothing in this slice is
+  either: the new code is Java under services/routing/ plus one pyosmium copier, and the numeric content is a
+  4-bit encoded value and a five-row multiplier table, both already pinned by literals in the tests. ops/ is
+  also outside this task's touches:, so a population could not be committed here. STILL OPEN for the task that
+  owns the real scenic_score arithmetic (T-0168/T-0146), where the numbers are actually computed.
