@@ -1,7 +1,7 @@
 ---
 id: T-0142
 title: LA region: the bbox includes eight Orange County cities the comment says it excludes; counts_from names a source the Log did not fetch; dem.tile_for still gates on TILES so la has no elevation
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T02:59:00Z
@@ -11,7 +11,7 @@ branch: task/T-0142
 exclusive: []
 touches: [services/etl/regions/la/, services/etl/etl/dem.py, services/etl/tests/, services/etl/inputs/manifest.yaml]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-pr106
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -421,3 +421,83 @@ region, and a test that a Westwood coordinate resolves to `n34w119`.
   (b) The fixer's own second mutant (the subtraction on the wrong side, eight red by name) was not re-run by the
   pass; it rests on the fixer's run. (c) The wall-clock figures (120.27 s / 106.56 s) were not reproduced; the
   counts were. Nothing else moved.
+- 2026-09-19T05:02:19Z REVIEW **PASS** (round 2) by agent/rv2-pr106 on PR #106 at `60868c1`. Reviewed in a
+  detached worktree `.worktrees/rv2-pr106` at that sha, removed at the end; the sign-off commit below is the
+  only thing this reviewer wrote to `.worktrees/T-0142`.
+  **Scope of the round-2 diff.** `git diff 3f9a220..60868c1 --stat` -> `services/etl/etl/dem.py | 23 +-`,
+  `services/etl/tests/test_dem_tiles.py | 78 +-`, this task file `| 176 +`, `3 files changed, 271
+  insertions(+), 6 deletions(-)` - nothing else touched. The task-file half is append-only:
+  `git diff 3f9a220..60868c1 -- queue/claimed/T-0142*.md | grep -cE '^-[^-]'` -> `0` deleted lines.
+  **Every number the Log quotes re-run and TRUE.** `python -m pytest tests -rs -o addopts=` ->
+  `1045 passed in 116.38s (0:01:56)`, exit 0, no SKIPPED line in `-rs` output;
+  `python -m pytest tests/test_dem_tiles.py -rs -o addopts=` -> `20 passed in 0.62s`;
+  `bash ops/lib/check-line-cap` -> `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none
+  over 300 lines`, exit 0; `bash ops/queue-check` -> `QUEUE OK (179 tasks)`, exit 0;
+  `bash ops/check-pins --source-only` -> `PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux
+  source-only`, exit 0; `wc -l` -> `273 services/etl/etl/dem.py`, `280 services/etl/tests/test_dem_tiles.py`,
+  `241 services/etl/inputs/manifest.yaml`, `45 services/etl/regions/la/region.json`, exactly as quoted.
+  `gh pr checks 106` -> `core pass 1m55s`, `pins-source-only pass 1m22s`; `gh pr view 106` -> OPEN, base
+  `main` (not stacked), head `60868c1d42ac1c08a1814ef974ca4f0b371c15f6` == `origin/task/T-0142`.
+  **The derivation re-done BY HAND before the code was asked.** From regions/la/region.json's own bbox
+  (-119.0, 33.7, -117.85, 34.45): latitude rows 33 and 34 qualify and 35 does not (`lat < hi_lat` is
+  `35 < 34.45`, false); longitude columns -119 and -118 qualify and -117 does not (`lon < hi_lon` is
+  `-117 < -117.85`, false); `tile_name(lat+1, lon)` over those four squares gives n34w119, n34w118, n35w119,
+  n35w118. `UNSERVED` = {n37w124} removes none of them, so the active set is the four typed `LA_TILES`. The
+  four probe points by the same ceil rule: (34.35,-117.86) -> n35w118, (34.1289,-118.4043) -> n35w119,
+  (33.7445,-118.3870) -> n34w119, (33.8366,-117.9143) -> n34w118 - each in the active set, none None. The
+  module agrees line for line: `tiles_for_bbox` = the four, `tiles_for_region('la')` = the four,
+  `tiles_for_region('sfbay') == dem.TILES` True, `served_tiles()` = 12 tiles.
+  **B1 re-applied on the worktree and RED BY NAME.** `UNSERVED` widened to
+  `frozenset({"n37w124", "n35w118"})`, `__pycache__` purged, `python -m pytest tests/test_dem_tiles.py
+  -o addopts=` -> `2 failed, 18 passed in 0.82s`, the two failures being
+  `FAILED tests/test_dem_tiles.py::test_the_la_active_tile_set_is_exactly_the_four_typed_tiles` and
+  `FAILED tests/test_dem_tiles.py::test_every_la_tile_carries_a_point_the_region_exists_for` - the exact two
+  checks round 1 asked for. Restored with `git checkout --`, `git status --short` empty.
+  **TWO MUTANTS OF MY OWN, neither written by the pre-review pass, both aimed at "can LA terrain come back
+  absent or wrong with the suite green?" - both CAUGHT.**
+  M1, the coordinated edit the typed literal invites: `UNSERVED` widened to
+  `frozenset({"n37w124", "n34w118"})` AND `LA_TILES` edited in the same breath to
+  `{"n34w119", "n35w118", "n35w119"}`, so the equality test and the manifest loop both agree with the
+  shrunken code. `python -m pytest tests/test_dem_tiles.py -o addopts=` -> `1 failed, 19 passed in 0.70s`,
+  `FAILED ...::test_every_la_tile_carries_a_point_the_region_exists_for` at
+  `assert {t for t, _lat, _lon, _w in LA_POINT_PER_TILE} == LA_TILES` -> `AssertionError: one witness per
+  tile, no more, no less`. Worth naming precisely: with the literal edited to match, the equality test and
+  the manifest test BOTH go green, and `LA_POINT_PER_TILE` is the only thing left holding the line. That one
+  assertion is load-bearing, not decoration.
+  M2, the bbox itself rather than the tile set: `regions/la/region.json` `min_lat` 33.7 -> 33.9 (Palos Verdes
+  at 33.7445 now outside the box) with `counts_from.bbox` moved in step so `region.py`'s cross-check cannot
+  be what catches it, and chosen so the derived tile set does NOT change (row 33 still qualifies).
+  `python -m pytest tests -o addopts=` -> `3 failed, 1042 passed in 118.74s`:
+  `test_the_la_bbox_covers_ucla_and_the_santa_monicas`, `test_the_bbox_comment_does_not_claim_to_exclude
+  _cities_the_box_contains` and the new `test_every_la_tile_carries_a_point_the_region_exists_for` (at
+  `the Palos Verdes peninsula ... is outside the la bbox - the box moved, re-argue this point`). So the ANSWER
+  to round 2's open question is: the bbox is pinned in its own right, at four corners' worth of points plus
+  the two pre-existing comment/coverage checks, and T-0168's clip inherits that - not just the tile set.
+  Restored; `git status --short` empty after each.
+  **ONE SURVIVOR, RECORDABLE not blocking - the `st_mtime_ns` half of `_cache_key` is correct and untested.**
+  M3: `stamps = tuple((i, (base / i / "region.json").stat().st_mtime_ns) for i in region_ids(root))` ->
+  `stamps = tuple((i,) for i in region_ids(root))` (region ids kept, mtimes dropped).
+  `python -m pytest tests -o addopts=` -> `1045 passed in 92.30s`, ZERO failures.
+  `test_served_tiles_notices_a_region_added_after_its_first_call` adds a region, which changes the id tuple,
+  so the ids alone already carry it; the docstring's other half - "or moving a bbox" - has no check. Under the
+  mutant, one region whose bbox moves in-process: `served_tiles` -> `['n34w118','n34w119','n35w118','n35w119']`
+  while `tiles_for_region` -> `['n35w118','n35w119']`, `agree: False`; at HEAD the same script prints
+  `agree: True`, so the CODE is right and only the CHECK is missing. NOT blocking: it takes a region.json
+  rewritten inside one process, which nothing in this tree does, and the caught direction here is a stale
+  WIDER set (a tile we no longer serve), not absence - absence needs the box to widen mid-process. One more
+  line in that same test (rewrite `west`'s bbox, assert the answer moves) would close it; T-0168's
+  neighbourhood.
+  **Recordable, the shape question: which file should own the four names.** `LA_TILES` in the test is the
+  right owner as things stand. region.json's `_comment_dem` already names the same four in prose, and
+  CLAUDE.md forbids anchoring a test on a comment, so that prose is not a candidate; a real `dem` block in
+  region.json would be a data anchor, but it would put a DERIVED value in the file the derivation reads and
+  hand `tiles_for_region` a second source of truth to disagree with. The duplication that remains is the
+  price of a literal not derived from the value under test, and M1 shows the per-tile witnesses are what make
+  the literal cost something to edit. If a second region ever needs the same treatment, the shape to reach for
+  is one witness table keyed by region, not a second copy of this pair.
+  **NOT run here, and why**: `ops/test` and the full `ops/check-pins` (other authors hold worktrees on this
+  box; the orchestrator's instruction) - `--source-only` was run once, above. The ETL suite ran on the Windows
+  checkout, not in the pinned image. No LA GeoTIFF was sampled here either: STILL OPEN items 1-5 of the 04:30
+  entry are confirmed as disclosed and are NOT counted against this PR, including the bbox question, which
+  stays FOR THE HUMAN. T-0168 is unblocked by this sign-off and inherits item 3: pass
+  `tiles=dem.tiles_for_region("la")`, do not lean on the union default.
