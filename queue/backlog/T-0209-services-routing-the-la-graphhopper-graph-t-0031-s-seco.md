@@ -8,7 +8,7 @@ claimed_at: null
 lease_expires_at: null
 worktree: null
 branch: null
-exclusive: [services/routing/config.yml, scenic-index]
+exclusive: [routing-config, scenic-index]
 touches: [services/routing/, services/etl/etl/, ops/deploy-routing]
 pins_affected: []
 reviewer: null

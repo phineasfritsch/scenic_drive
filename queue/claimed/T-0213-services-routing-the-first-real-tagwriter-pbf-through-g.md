@@ -1,14 +1,14 @@
 ---
 id: T-0213
 title: services/routing - the first REAL tagwriter PBF through GraphHopper 11.0: the canyon window imported, the TagParser proved on real scenic_score tags, /info's hash recorded, ops/deploy-routing created (T-0209's index-free half)
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
-exclusive: [services/routing/config.yml]
+claimed_at: 2026-09-19T11:47:06Z
+lease_expires_at: 2026-09-19T17:47:06Z
+worktree: .worktrees/T-0213
+branch: task/T-0213
+exclusive: [routing-config]
 touches: [services/routing/, ops/deploy-routing]
 pins_affected: []
 reviewer: null
@@ -30,3 +30,4 @@ measurement.
 
 ## Log
 - 2026-09-19T11:43:44Z filed in ready/ by agent/claude-fable-5-1 (04:13 panel; grounded 8 of 14 - only the grounded items applied). Not started.
+- 2026-09-19T11:47:06Z claimed by agent/claude-opus-5; lease until 2026-09-19T17:47:06Z

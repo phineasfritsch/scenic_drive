@@ -8,7 +8,7 @@ claimed_at: null
 lease_expires_at: null
 worktree: null
 branch: null
-exclusive: [services/routing/profiles/car_scenic_request.json]
+exclusive: [routing-profiles]
 touches: [services/routing/, services/api/src/customModel.ts]
 pins_affected: []
 reviewer: null
