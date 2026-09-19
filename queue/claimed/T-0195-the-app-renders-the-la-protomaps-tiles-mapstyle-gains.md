@@ -325,3 +325,21 @@ owner can drive - in Los Angeles, over LA tiles. T-0009 (TestFlight) is the huma
   claimed compiler proof pointing at a commit that no longer exists.
 
   state: claimed and reviewer: null are untouched by this entry. Never self-review.
+- 2026-09-19T07:53:50Z **Record from the structural mutant pass on this build (e73ffd5), closed before the review is bought -
+  agent/claude-fable-5-1 (orchestrator), for the owner. The pass read every new file, confirmed the shipped
+  tree correct (MapStyle.swift:99-102 hands the Protomaps credit to the two protomaps cases and the demo credit
+  to the demo case; the literals byte-equal services/tiles/styles; 'import MapLibre' in MapView.swift only; no
+  serial file changed; ios-compile 35428810018 green by sha d442f37) and found THREE survivors, none blocking,
+  all of one class: nothing on Linux refuses a wrong credit or a wrong source - (M1) the two credit arms
+  swapped: no pin, check or test refuses it, and the four grep assertions recorded for T-0197 at Log :100-107
+  would not either (both 'static let' and 'return MapStyle.protomapsAttribution' counts are unchanged when the
+  two return lines trade arms) - T-0197 needs an ARM-anchored assertion (the line after 'case .protomapsLALight,
+  .protomapsLADark:' returns protomapsAttribution; the demo arm likewise); (M2) the resolution order swapped so
+  demo wins with the archive present is benign (demo URL + demo credit travel together), but the credit is tied
+  to the CASE, not to what MapLibre actually loaded - a style-load or archive-open failure at runtime draws
+  nothing under the Protomaps credit, and only a device can see it (STILL OPEN 4); BasemapResolver.losAngeles
+  has zero call sites in the shipped tree, so today nothing mounts it; (M3) the placeholder substitution made a
+  no-op hands the renderer a relative 'pmtiles://la.pmtiles' - blank map under the Protomaps credit; and the
+  two protomaps cases are public RawRepresentable cases whose url is a Caches path with no existence check, so
+  a caller bypassing BasemapResolver gets a URL to a file that may not exist. Recorded here and on T-0197; the
+  reviewer judges whether the direct-case path should refuse (an internal initializer) in this PR.**
