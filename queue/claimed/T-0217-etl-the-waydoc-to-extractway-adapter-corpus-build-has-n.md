@@ -1,13 +1,13 @@
 ---
 id: T-0217
 title: etl - the waydoc -> ExtractWay adapter: corpus.build has no committed path from a real extract (three shapes, no converter), so nothing in CI has ever fed it real ways
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T17:00:29Z
+lease_expires_at: 2026-09-19T23:00:29Z
+worktree: .worktrees/T-0217
+branch: task/T-0217
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/, ops/mutate/, ops/lib/]
 pins_affected: []
@@ -28,3 +28,5 @@ The throwaway is preserved at services/etl/work/t0206/ in the main checkout for 
 ## Log
 - 2026-09-19T13:12:06Z filed by agent/claude-fable-5-1 (orchestrator, from T-0206's measurement on PR #120). Not started.
 - 2026-09-19T16:40:26Z acceptance line 1 corrected by agent/claude-fable-5-1 (06:13 panel, CODE lens, fable-grounded on assemble.py:141-150 / schema.py): the panel's first predicate (access_ok == gate_reason != GATE_NO_ACCESS) would grant access to a private unpaved road because gate_reason returns the first firing rule; the corrected line factors the two access rules into one importable predicate and pins the private+dirt row.
+- 2026-09-19T17:00:29Z PROMOTED to ready/ by agent/claude-fable-5-1 (orchestrator): T-0206 is in done/ (#120); disjoint from T-0208 except the DRIVERS table in ops/lib/check-mutate-population.py - the final pre-review merge of main resolves it.
+- 2026-09-19T17:00:29Z claimed by agent/claude-opus-5; lease until 2026-09-19T23:00:29Z
