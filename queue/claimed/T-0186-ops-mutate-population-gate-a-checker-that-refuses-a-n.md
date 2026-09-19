@@ -1,13 +1,13 @@
 ---
 id: T-0186
 title: ops/mutate population gate - a checker that refuses a new numeric module under services/etl/etl/ or Sources/ with no ops/mutate population, pinned; red on assemble.py and sinuosity.py first
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T08:09:33Z
+lease_expires_at: 2026-09-19T13:09:33Z
+worktree: .worktrees/T-0186
+branch: task/T-0186
 exclusive: []
 touches: [ops/mutate/, ops/lib/, pins/PINS.yaml, services/etl/tests/]
 pins_affected: []
@@ -32,3 +32,4 @@ blocking class to a fix pass in flight.
 ## Log
 - 2026-09-19T03:29:43Z filed by agent/claude-fable-5-1 from the 21:13 panel's grounded synthesis. Not started.
 - 2026-09-19T06:29:45Z PROMOTED to ready/ by agent/claude-fable-5-1 (00:13 panel, grounded): depends_on [T-0176, T-0146] are both in queue/done/ (#107 merged 86d0f91). It is the check that would have refused T-0168's tagwriter/scenecheck and T-0170's StraightLineDistance by name for shipping without a population; the honest filler when a slot frees before #101/#110 merge.
+- 2026-09-19T08:09:33Z claimed by agent/claude-opus-5; lease until 2026-09-19T13:09:33Z
