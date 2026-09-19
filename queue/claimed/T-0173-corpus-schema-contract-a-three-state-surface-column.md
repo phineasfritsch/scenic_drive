@@ -16,7 +16,7 @@ depends_on: [T-0030]
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "services/etl/etl/schema.py: `paved INTEGER NOT NULL CHECK (paved IN (0,1))` becomes a three-state `surface` column (-1 no surface tag, 0 unpaved, 1 paved) with the DDL hash and SCHEMA_VERSION bumped together; RED by name first: a fixture way with no surface tag round-trips through the corpus as 'unknown', not 'paved'"
-  - "a test asserting every TERM_NAMES value except `byway` is a parameter of score.score (inspect.signature - the pin test_way_record.py already uses on score_kwargs), red today on `elev_gain`, green after the rename; the five score terms with no producer (speed_fit, sinuosity, points_of_interest, water, furniture) listed as RESERVED with their producer task"
+  - "a test asserting every TERM_NAMES value except `byway` is a parameter of score.score (inspect.signature - the pin test_way_record.py already uses on score_kwargs), red today on `elev_gain`, green after the rename; every score term with no producer module in the tree listed as RESERVED with its producer task (two at this head - sinuosity: T-0161, points_of_interest: T-0164 - the filing's five was wrong: speedfit.py, furniture.py and landcover.py exist), and every other term id asserted to name a producer file that exists"
   - "pins/PINS.yaml pins P-PROD-05 on Linux: corpus SCHEMA_VERSION == services/api/src/index.ts SCHEMA_VERSION (routes.test.ts pins it on the wire), red today (1 vs 0), green after they agree; PlaceStore.schemaVersion joins the assertion when T-0175 lands"
 ---
 ## Brief
@@ -352,3 +352,19 @@ separate (ODbL posture) - this task changes columns and pins, not the layering.
   same file and touches neither the front matter nor the task's shape, so the run above is the run that
   covers it. `state: claimed` and `reviewer: null` are unchanged: the reviewer is not the owner and this
   task is not signed off by writing it.
+- 2026-09-19T01:11:44Z **Record corrections from the read-only verification of this build, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier reproduced the three RED tests by name, the check and its
+  --prove-red (7 cases), SCHEMA_VERSION 2 in both literals and the wire test, the corpus build, the whole suite
+  and the clean tree at 3cf21b8; these are text.** (a) Acceptance bullet 2 was the ORCHESTRATOR's error: it
+  listed five producerless terms; three of them have producer modules on main, and ruling R8 (RESERVED =
+  {2: T-0161, 107: T-0164}) is grounded. The bullet is amended above to say what R8 says, so the block and the
+  tree agree - the ruling stood, the filing moved. (b) "verified unclaimed ... on all 30 open PR heads": `gh pr
+  list --state open --limit 100` shows 34 open PRs; every other head greps P-PROD-05 = 0, so the claim holds
+  and the count does not. (c) RED 2 cites `elev_gain` at origin/main's schema.py:193; it is line 194 (193 is
+  `1: "curvature"`). (d) STILL OPEN (1) says "Sources/ has ScenicKit, Handoff, Telemetry only"; `ls Sources` is
+  Handoff and ScenicKit, and the root Package.swift declares those two targets - no Telemetry target exists;
+  the load-bearing half (no PlaceStore, no PlaceStore.schemaVersion) stands. (e) R9's summary says every
+  quoted run and the pin assertion use `python ops/lib/check-schema-version.py`; the pin uses P-GIT-02's
+  interpreter form, as the Log's own section (3) states. (f) The BEFORE run of `npx vitest run` (main's
+  literals, 71 passed) was the author's; the verifier repeated only the AFTER run.
+
