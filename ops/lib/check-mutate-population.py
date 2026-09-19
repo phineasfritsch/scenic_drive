@@ -64,12 +64,14 @@ ALLOWLIST_FILE = "ops/lib/mutate-population-allowlist.json"
 # to keep true, and a module in a subpackage is a module (T-0186 S4).
 MODULE_ROOTS = (("services/etl/etl", ".py", True), ("Sources", ".swift", True))
 
-DRIVERS = ("budget.py", "gates.py", "geometry.py", "guidance.py", "handoff.py", "hazards.py", "retrace.py",
-           "routescore.py", "scenic_tags.py", "segmentscore.py", "surfacecoverage.py")
+DRIVERS = ("budget.py", "extractadapter.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
+           "hazards.py", "retrace.py", "routescore.py", "scenic_tags.py", "segmentscore.py",
+           "surfacecoverage.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
+    "services/etl/etl/accessrule.py", "services/etl/etl/extractadapter.py",
     "services/etl/etl/proximity.py", "services/etl/etl/scenecheck.py", "services/etl/etl/sinuosity.py",
     "services/etl/etl/snap.py", "services/etl/etl/surfacecoverage.py", "services/etl/etl/tagwriter.py",
     "Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift",
