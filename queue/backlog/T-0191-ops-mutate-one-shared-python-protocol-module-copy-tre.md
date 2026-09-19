@@ -18,6 +18,7 @@ acceptance:
   - "one module under ops/mutate/ (rule its name in the Log) holding what geometry_tree.py holds today - the COPY under a gitignored .build-mutate-* path, the __pycache__ purge, the pytest run, the JUnit/red-by-name verdict, the probe digest call - imported by ops/mutate/geometry.py; geometry_tree.py either becomes that module or is deleted; the geometry runner's table byte-identical before and after (quote both)"
   - "--prove-vacuity and --prove-dirty ported from budget.py to the Python protocol: the suites emptied must report every mutation MISSED (never killed); a subject that differs from git show HEAD: must be refused by name; each demonstrated RED first (a copy where the proof is skipped), then green; P-PROC-05's assertion widened to run all three proofs"
   - "ops/mutate/geometry.py's docstring names the files that exist (five today, or the count after this task); an ops/mutate/README.md or the module docstring states the shape T-0187 (assemble) and every ETL term population must follow, in under 40 lines"
+  - "the per-entry contract in the shared protocol: an entry whose killers list is empty OR holds duplicate names is refused by name before any pytest (rv2-pr107 found the duplicate half surviving: two copies of one killer satisfy len(red) == len(killers) with one distinct test); EQUIVALENT entries need a non-empty reason; each RED first on a copy, then green; a --prove-floor arm for the duplicate"
   - "python ops/mutate/geometry.py bare, --prove-floor, --prove-vacuity, --prove-dirty, --non-example all exit 0 and quoted; cd services/etl && python -m pytest tests -rs count line and zero skips; bash ops/check-pins --source-only, bash ops/lib/check-line-cap, bash ops/lib/check-exec-bits, bash ops/queue-check bare; every ops/mutate/*.py under 300 lines"
 ---
 ## Brief
@@ -33,3 +34,4 @@ is claimed so assemble's population is the second consumer of one shape, not a s
 
 ## Log
 - 2026-09-19T04:34:10Z filed by agent/claude-fable-5-1 from the 22:13 panel's grounded synthesis. Not started; after #107 merges, before T-0187 is claimed.
+- 2026-09-19T06:03:45Z bullet added by agent/claude-fable-5-1 from rv2-pr107's PASS on PR #107 (recordable 1: duplicate killer names survive; recordable 2: EQUIVALENT entries have no per-entry contract). The empty-killers half is closed on #107 (cd1319f); the duplicate half lands with the shared protocol.

@@ -1,17 +1,15 @@
 import DesignSystem
-import Handoff
 import MapAdapter
-import OSLog
 import ScenicKit
 import SwiftUI
 
 /// The walking skeleton's only screen: the drive named, a map that says what it is, a truthful credit
-/// line, and one button that leaves.
+/// line, a line about conditions that never leaves, and one gated button.
 ///
 /// M1.5 exists to prove the seam, not the product - MapLibre draws on a real phone, `DesignSystem`
 /// renders on both appearances, and `Handoff` produces a URL Apple Maps accepts. Every real surface
 /// (plan sheet, route preview, hazard strip) arrives in M4 and replaces the middle of this file; the
-/// map, the footer and the handoff at the edges are the parts that stay.
+/// map, the footer, the disclaimer and the handoff at the edges are the parts that stay.
 ///
 /// The title and the road list name the drive `SkylineHandoff.waypoints` describes, but neither is
 /// derived from it: that type holds coordinates, and no name and no road names. Changing the drive,
@@ -19,20 +17,37 @@ import SwiftUI
 ///
 /// No duration anywhere on this screen. Nobody has driven this route or measured it, and a number
 /// nobody measured is the kind of claim this repository exists to catch.
+///
+/// ## The safety gate (P-SAFE-03)
+///
+/// CLAUDE.md's product invariant: *"The safety disclaimer gates the first plan and stays visible on the
+/// route screen."* There is no route screen yet (plan M4), so both halves land here, on the only screen
+/// there is: the first tap on the handoff opens `SafetyDisclaimer` instead of leaving, and
+/// `Copy.conditions` is on screen at every size, always. Accepting records the acknowledgement and
+/// dismisses; it does not also leave for Apple Maps, because leaving the app is worth a second,
+/// deliberate tap.
+///
+/// The guard itself is inside `GatedHandoffButton` - see that type for why the gate has a name instead of
+/// being twenty inline lines, and `ops/lib/check-safety-disclaimer` for what a source-level check can and
+/// cannot decide about it.
 public struct ScenicHomeScreen: View {
     /// The placeholder basemap. Named once so the style and the credit below cannot drift apart.
     private let style = MapStyle.maplibreDemoTiles
+
+    /// Whether the safety disclaimer has been accepted on THIS DEVICE. `@AppStorage` is `UserDefaults`:
+    /// no account, no server, nothing leaves the phone, and nothing to migrate. The key is versioned so
+    /// that changing what the user is asked to acknowledge can ask again rather than inherit a stale yes.
+    @AppStorage("safety.disclaimer.acknowledged.v1")
+    private var isSafetyDisclaimerAcknowledged = false
+
+    /// Whether the disclaimer sheet is up. Separate from the acknowledgement: the flag above is what the
+    /// user has agreed to and survives the app, this is where the sheet is right now and does not.
+    @State private var isShowingDisclaimer = false
 
     /// Whatever `Handoff` refused, if it refused. Kept so the button can say what went wrong instead
     /// of doing nothing when tapped - a dead button is the failure mode that gets shipped, because it
     /// looks identical to a working one in a screenshot.
     @State private var handoffFailure: String?
-
-    /// Where the reason goes when the user gets the sentence. Subsystem is the app's
-    /// `PRODUCT_BUNDLE_IDENTIFIER` from `apps/ios/ScenicDrive.xcodeproj/project.pbxproj`; the category
-    /// is this screen, so a log predicate can pick out this seam without matching the whole app.
-    private static let log = Logger(subsystem: "com.phineasfritsch.scenicdrive",
-                                    category: "ScenicHomeScreen")
 
     public init() {}
 
@@ -60,16 +75,31 @@ public struct ScenicHomeScreen: View {
                             .padding(.horizontal, 16)
                     }
 
-                    openInAppleMaps
+                    conditions
+
+                    GatedHandoffButton(
+                        isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,
+                        onBlocked: { isShowingDisclaimer = true },
+                        onFailure: { handoffFailure = $0 }
+                    )
+                    .padding(.horizontal, 16)
 
                     // The credit for the tiles actually on screen, asked of the style itself. This is
                     // NOT the plan's `© OpenStreetMap contributors · Protomaps` line, because these are
-                    // not those tiles - see `MapStyle.attributionText`.
+                    // not those tiles - see `MapStyle.attributionText`. Last in the stack, so nothing
+                    // above it can sit on the lower-right corner it owns.
                     AttributionFooter(text: style.attributionText)
                 }
             }
         }
         .background(DesignTokens.bg)
+        .sheet(isPresented: $isShowingDisclaimer) {
+            SafetyDisclaimer(onAccept: {
+                isSafetyDisclaimerAcknowledged = true
+                isShowingDisclaimer = false
+            })
+            .accessibilityIdentifier("home.disclaimer")
+        }
     }
 
     /// The drive's name, the roads it runs, and the one caption, in a band on `bg` above the map
@@ -117,53 +147,40 @@ public struct ScenicHomeScreen: View {
         .padding(.bottom, 12)
     }
 
-    /// The handoff button.
+    /// The persistent conditions line - the plan's risk table, verbatim, as the mitigation for *sedan
+    /// onto dirt/gated/closed road*. Always on screen, whatever the disclaimer has been told.
     ///
-    /// `primary` fill with `onPrimary` text, never `primary` as text on `bg` (`DesignTokens`).
-    /// `minHeight: 44` is the floor from the plan's target size, and the label is inside the frame
-    /// rather than the frame being sized to the label, so it stays a 44 pt target at the smallest
-    /// Dynamic Type setting too.
-    private var openInAppleMaps: some View {
-        Button {
-            handoff()
-        } label: {
-            Text("Open in Apple Maps")
-                .font(.headline)
-                .foregroundStyle(DesignTokens.onPrimary)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(DesignTokens.primary)
-                )
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 16)
-        .accessibilityIdentifier("home.openInAppleMaps")
-    }
-
-    /// Builds the URL and leaves, or puts a sentence the user can act on on screen.
+    /// Directly above the button and above the attribution, never on top of either: it is a sibling in
+    /// the same bottom stack, and the footer is the last element in it, so the lower-right corner stays
+    /// the attribution's. `fgMuted` is the secondary-text token, and it carries the same opaque `surface`
+    /// chip and `border` hairline `AttributionFooter` carries, for the reason that type states - muted
+    /// text over a basemap has to bring its own ground, because the tiles underneath are not a token and
+    /// their contrast is not stated anywhere.
     ///
-    /// Two destinations for one failure, on purpose. The screen gets `Copy.handoffFailed` - what broke
-    /// and what to do. The raw error goes to `Logger`, where it keeps its type and its associated
-    /// values.
-    ///
-    /// This replaces `String(describing: error)` on screen, whose defence was that rewriting the
-    /// message is how the real reason stops reaching anybody. That held only while the on-screen
-    /// string was the only record of the failure. It is not one any more, and a Swift type name was
-    /// never a sentence the reader could act on.
-    private func handoff() {
-        do {
-            try SkylineHandoff.open()
-            handoffFailure = nil
-        } catch {
-            // `.public`: `HandoffError` carries a coordinate pair or a waypoint count, and the
-            // coordinates in it are this file's hard-coded route, never the user's location -
-            // `SkylineHandoff.directions()` passes `source: nil` precisely so the app never holds one.
-            // Redacting it would log a failure with the reason removed, which is the same defect as
-            // showing the type name instead of the sentence.
-            Self.log.error("SkylineHandoff.open() refused: \(String(describing: error), privacy: .public)")
-            handoffFailure = Copy.handoffFailed
-        }
+    /// A text style, not a point size, so it grows with Dynamic Type; `fixedSize` vertically so the
+    /// largest accessibility sizes wrap rather than truncate a safety sentence.
+    private var conditions: some View {
+        Text(Copy.conditions)
+            .font(.footnote)
+            .foregroundStyle(DesignTokens.fgMuted)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(DesignTokens.surface.opacity(0.85))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(DesignTokens.border, lineWidth: 1)
+                    )
+            )
+            .padding(.horizontal, 16)
+            .accessibilityIdentifier("home.conditions")
+            // NEVER hidden from accessibility, stated explicitly rather than left to the default so that
+            // removing it is a visible deletion in a diff. A screen reader user is entitled to the same
+            // safety line as everybody else.
+            .accessibilityHidden(false)
     }
 
     /// Every user-visible string on this screen, in one place.
@@ -174,10 +191,11 @@ public struct ScenicHomeScreen: View {
     /// Nested rather than a second file-scope type so the file still declares one type and still
     /// matches its own name.
     private enum Copy {
-        /// The drive, named by the road it is about and by where it puts you back. See the type's
-        /// note: a literal, not a rendering of the waypoints. No duration in it - see the type's note
-        /// for why there is none anywhere on this screen.
-        static let title = "Skyline loop · ends back in San Francisco"
+        /// The drive, named by the road it is about and by where it both starts and ends. See the type's
+        /// note: a literal, not a rendering of the waypoints - `SkylineRoute` is SF to SF, and this line
+        /// says so because the round trip is the thing a reader has to know before tapping. No duration
+        /// in it - see the type's note for why there is none anywhere on this screen.
+        static let title = "Skyline loop · starts and ends in San Francisco"
 
         /// The roads, in the order the drive takes them - the one line on this screen that says where
         /// you would actually be, while the map says nothing. Also a literal (the type's note). T-0170
@@ -187,13 +205,13 @@ public struct ScenicHomeScreen: View {
 
         /// What is under the header. `MapStyle.maplibreDemoTiles` draws country polygons and nothing at
         /// the scale of this drive, and the route is not drawn on it at all (M4 draws it), so there is
-        /// not a road on screen to follow. First sentence: what the map is not. Second: what to do
-        /// instead, pointing at the button directly below it.
+        /// not a road on screen to follow. First clause: what this build is. Then what the map is not,
+        /// and what to do instead, pointing at the button directly below it.
         static let mapCaption =
-            "This map doesn't show roads yet. Tap below and the drive opens in Apple Maps."
+            "Preview build: one fixed Bay Area drive. The map doesn't show roads yet - tap below and it opens in Apple Maps."
 
-        /// Shown when `Handoff` refuses. What failed, then what to do, and nothing this screen cannot
-        /// back up: there is no copy-the-route affordance here to point the reader at.
-        static let handoffFailed = "Couldn't open Apple Maps. Try again."
+        /// The persistent safety line, from the plan's risk table, word for word. The same sentence the
+        /// disclaimer ends on, so the line the user keeps seeing is the line they agreed to.
+        static let conditions = "Conditions change. Verify locally."
     }
 }

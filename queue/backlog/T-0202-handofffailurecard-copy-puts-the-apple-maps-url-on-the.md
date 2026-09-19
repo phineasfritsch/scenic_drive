@@ -1,0 +1,29 @@
+---
+id: T-0202
+title: HandoffFailureCard - Copy puts the Apple Maps URL from SkylineHandoff.directions() on the clipboard beside the road list, and the button's label says what it copies
+state: backlog
+owner: null
+owner_session: null
+claimed_at: null
+lease_expires_at: null
+worktree: null
+branch: null
+exclusive: []
+touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/]
+pins_affected: []
+reviewer: null
+depends_on: [T-0170]
+verify: [ops/test, ops/check-pins]
+acceptance:
+  - "the clipboard payload on a failed handoff is the maps.apple.com URL SkylineHandoff.directions() builds, THEN the road list, the straight-line line and the timing line (the URL first: pasted into Messages or Notes it is the tappable thing); the button label names the payload ('Copy the drive' or better - rule the words with both drivers' quotes in the Log: DRIVER ONE 'paste it where?', DRIVER TWO 'Copy to Notes'); identifiers unchanged; ios-compile dispatch green with the run id quoted"
+  - "the payload is a DriveFacts/HandoffFailureCard static a Linux-free structural check can read, so the URL and the rendered card cannot drift; bash ops/lib/check-line-cap and bash ops/queue-check bare"
+---
+## Brief
+
+From the 00:13 panel's two LA drivers (grounded): on a failed handoff 'Copy the roads' (HandoffFailureCard.swift:96)
+copies three lines of prose (:56) - DRIVER ONE: 'paste it where?'; DRIVER TWO presses Try again twice and quits.
+The URL the app already builds is the one payload a friend can tap from a text message. Relabelling alone
+(DRIVER TWO's 'Copy to Notes') would mislabel a prose payload; the payload changes first.
+
+## Log
+- 2026-09-19T06:29:45Z filed by agent/claude-fable-5-1 from the 00:13 panel's grounded synthesis (DRIVER ONE-3, DRIVER TWO-3). Not started; after #110 merges.

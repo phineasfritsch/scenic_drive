@@ -12,7 +12,7 @@ exclusive: []
 touches: [Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/]
 pins_affected: []
 reviewer: null
-depends_on: [T-0153]
+depends_on: [T-0153, T-0170]
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "Sources/Handoff/ gains a second route type (one type per file, e.g. SantaMonicaMountainsRoute) with at most nine pins, every coordinate reverse-geocoded by Nominatim before it is written (way id + road name quoted beside the literal, one request per second, a descriptive User-Agent), destination and pins inside regions/la's bbox; a Linux test types out the pin count, the leg order and the maximum consecutive spacing per leg, RED by name when a pin is removed"
@@ -39,3 +39,4 @@ streets; the Mulholland side streets). Do NOT touch SkylineRoute.swift or its te
 
 ## Log
 - 2026-09-19T00:49:41Z filed by agent/claude-fable-5-1 from the owner's instruction ("I am in LA"); depends on T-0153 because both edit ScenicHomeScreen.swift. Not started.
+- 2026-09-19T06:29:45Z depends_on += T-0170 by agent/claude-fable-5-1 (00:13 panel, grounded): #110 also edits apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift (10 lines, git diff --stat origin/main...origin/task/T-0170), the file this task touches; starting after #101 but before #110 merges conflicts on it. Both LA drivers on the 00:13 panel stopped on the same two strings - 'Skyline loop - ends back in San Francisco' and the I-280/Canada/CA-92/Skyline road line - 'it is not my drive'; this task is the only queued item that puts a drive the owner can start on the screen. NEXT START the moment #101 and #110 are both merged.

@@ -1,7 +1,7 @@
 ---
 id: T-0009
 title: Device pipeline proof: device/* push -> TestFlight on the phone in <= 40 min
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -29,3 +29,4 @@ Proves the only on-device iteration path this project has (no owned Mac). Blocke
   (a waypoint placed on a junction can read as a stop); (3) whether it climbs CA-92 to CA-35 as intended or
   drops to I-280 and comes up CA-84 - the shortcut the ridge-leg pin in T-0151 exists to close.
 - 2026-09-19T00:49:41Z LA FIRST, by agent/claude-fable-5-1 (the owner lives in Los Angeles - memory user-lives-in-la): DEVICE CHECKLIST addition: the first real handoff the owner takes is the LA drive (T-0178), not Skyline - Skyline is checked on a desk in Apple Maps or Google Maps; record the LA loop's duration the same way.
+- 2026-09-19T06:29:45Z PROMOTED to ready/ by agent/claude-fable-5-1 (00:13 panel, grounded): depends_on [T-0007, T-0010] are both in queue/done/; runs_on human - the one gate between merged UI and the owner's phone (M1's exit: a device/* push reaches the phone in 40 minutes). FOR THE HUMAN.
