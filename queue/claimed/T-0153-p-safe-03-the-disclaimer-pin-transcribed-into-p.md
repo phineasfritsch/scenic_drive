@@ -681,3 +681,226 @@ review; T-0152 (copy) touches the same file - sequence them, do not stack them.
   construction of `GatedHandoffButton(` inside `GatedHandoffButton.swift` itself, which is where a #Preview
   would legitimately put one - stated in the header rather than closed, because closing it would refuse the
   preview this feature will want.
+
+- 2026-09-19T04:28:48Z REVIEW FAIL (round 2) by agent/rv2-pr101 (not the owner, not rv1-pr101, not the
+  fixer). PR #101, head a9c109f, base main. Reviewed in a detached worktree at a9c109f, removed after.
+
+  THE THREE ROUND-1 HOLES ARE CLOSED. Re-applied on copies of apps/ios, each refused BY NAME, exit 1:
+  B1 (`= false` -> `= true`) "the acknowledgement does not default to false ... (@AppStorage line 40)";
+  B2 both ways - a new `Extras/BypassButton.swift` one directory DOWN inside the feature target, and a new
+  `ScenicDrive/Extra/ShellBypass.swift` in a SUBdirectory of the shell, neither of which row 9 covers -
+  "SkylineHandoff.open( must be called exactly once ... Counted over all 11 .swift file(s)"; B3 (a second
+  `GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, ...)` in the SAME file) "GatedHandoffButton(
+  must be constructed exactly once ... found: .../ScenicHomeScreen.swift(2)".
+
+  EVERY ACCEPTANCE NUMBER REPRODUCES at a9c109f: the bare check exit 0 with the 03:45 paragraph verbatim;
+  `--prove-red` 10/10 refused by name, exit 0; `wc -l` 293 / 189 / 83 and `git ls-files -s` 100755 / 100755
+  / 100755; `bash ops/lib/check-line-cap` "P-SRC-02: 73 Swift files tracked (Sources=26, Tests=37,
+  apps/ios=10), none over 300 lines"; `bash ops/queue-check` "QUEUE OK (169 tasks)"; `bash ops/check-pins
+  --source-only` "PINS ok=12 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only"; all exit 0.
+  `git diff --name-only d975dfb a9c109f -- 'apps/ios/**/*.swift'` empty and run 35405951245 headSha
+  d975dfb conclusion success, so that ios-compile still describes this tree. `gh pr checks 101`: core pass,
+  pins-source-only pass. The diff is ops/lib (three files) + pins/PINS.yaml + this file only, no Swift, and
+  this file's diff is append-only (280 added, 0 removed). The three-file split is sound: the lib is SOURCED
+  after an explicit missing-file refusal, never executed, and 100755 is right for bash under ops/
+  (P-OPS-01). R5 correctly still open, not claimed.
+
+  BLOCKING, B4 - every WRITE to the acknowledgement is unanchored, and the open direction is not in the
+  ten rows. B1 anchored the DECLARED default; nothing anchors who may SET the flag.
+  `grep -rn -F 'isSafetyDisclaimerAcknowledged = true' apps/ios/` is one line today, ScenicHomeScreen.swift
+  :100, inside `SafetyDisclaimer(onAccept:`. The check never counts that string and never reads where it
+  sits, so a second write on the same screen opens the gate with P-SAFE-03 green:
+
+      $ sed -i -e 's/^        .background(DesignTokens.bg)$/        .background(DesignTokens.bg)\n        .onAppear { isSafetyDisclaimerAcknowledged = true }/' <copy>/ScenicHomeScreen.swift
+      $ bash ops/lib/check-safety-disclaimer --sources <copy>/<FS> --app-tree <copy>
+      P-SAFE-03: 4 Swift file(s) ... @AppStorage("safety.disclaimer.acknowledged.v1") at line 40 with
+        `private var isSafetyDisclaimerAcknowledged = false` under it; ... SkylineHandoff.open( called
+        once (GatedHandoffButton.swift line 51), dominated by the guard at line 46;
+      exit=0
+
+  @AppStorage sets nonmutating, so that line compiles and writes true to UserDefaults the moment the only
+  screen appears; the button is then constructed with true from the real pass-through, the guard passes and
+  the FIRST tap leaves for Apple Maps with the sheet never presented, on every launch. That is this pin's
+  statement false with its own assertion green - the same defect B1 was, in the pin's own words "an
+  acknowledgement nobody gave", reached by an assignment instead of a default. The 03:45 entry says this
+  region "fails CLOSED"; it fails closed in one direction (RV2-M3: delete line 100, exit 0, nobody is ever
+  recorded) and OPEN in this one, and only the closed half is disclosed anywhere. Closing it needs no new
+  machinery: `occurrences_by_file "isSafetyDisclaimerAcknowledged = true"` over the app tree must be exactly
+  `ScenicHomeScreen.swift(1)` and a depth walk must place that line inside the `onAccept` block - both
+  readers are already in ops/lib/check-safety-disclaimer-lib, green on HEAD, red on the mutant. Wanted: an
+  eleventh row, the anchor in (iii), the PINS.yaml sentence, and the STILL OPEN R1 wording corrected.
+
+  RECORDABLE, not asked for here. (a) The recursive population has no test carve-out: a legitimate
+  apps/ios/ScenicDriveUITests/HandoffUITests.swift naming `SkylineHandoff.open(` is refused by name. It
+  fails CLOSED, an XCUITest proper would drive XCUIApplication instead, but T-0180's half and the unit-test
+  target ScenicApp/Package.swift promises would trip it - carve `*Tests/` out there, or name the exclusion
+  in the pin. (b) `ack_default_verdict` refuses the equally legal one-line spelling `@AppStorage("...")
+  private var isSafetyDisclaimerAcknowledged = false`; fails closed and the refusal names the expected
+  line. (c) RV2-M2, the guard block's `return` deleted, is REFUSED ("A guard body that falls through is not
+  a gate") - the guard half holds. state stays `claimed`; nothing in the tree was changed by this review.
+
+- 2026-09-19T04:42:24Z FIX (round 3) by agent/claude-opus-5, the owner, on rv2-pr101's B4. PR #101, head a9c109f.
+  Ruled before code, the author rule.
+
+  B4 IS ACCEPTED AS BLOCKING AND REPRODUCES. On a throwaway copy of apps/ios, the reviewer's shape, one
+  line added after `.background(DesignTokens.bg)` in ScenicHomeScreen.swift:
+
+      $ sed -i -e 's|\.background(DesignTokens\.bg)|.background(DesignTokens.bg)\n        .onAppear { isSafetyDisclaimerAcknowledged = true }|' <copy>/<FS>/ScenicHomeScreen.swift
+      $ grep -n -F 'isSafetyDisclaimerAcknowledged = true' <copy>/<FS>/ScenicHomeScreen.swift
+      98:        .onAppear { isSafetyDisclaimerAcknowledged = true }
+      101:                isSafetyDisclaimerAcknowledged = true
+      $ bash ops/lib/check-safety-disclaimer --sources <copy>/<FS> --app-tree <copy>
+      P-SAFE-03: 4 Swift file(s) under ... @AppStorage("safety.disclaimer.acknowledged.v1")
+        at line 40 with `private var isSafetyDisclaimerAcknowledged = false` under it; ... SkylineHandoff.open(
+        called once (GatedHandoffButton.swift line 51), dominated by the guard at line 46; ...
+      exit=0
+
+  Two writes to the acknowledgement on the only screen, and the pin is green. @AppStorage's setter is
+  nonmutating, so that line compiles; it writes true to UserDefaults the moment the screen appears; the
+  button is then built with true through the REAL pass-through, so B3's argument-list anchor sees nothing
+  wrong; the guard passes; the first tap of every launch leaves for Apple Maps with the sheet never
+  presented. That is this pin's statement false with its own assertion green - B1's defect ("an
+  acknowledgement nobody gave") reached by an assignment instead of a default. B1 anchored the DECLARED
+  default and nothing anchored the ASSIGNMENT, so the whole write region was unread: the check never
+  counted the string and never read where it sat.
+
+  THE 03:45:49Z ENTRY'S R1 SENTENCE IS CORRECTED HERE, in this new line rather than by editing that one
+  (never edit dated record output). It reads that the accept closure's write "is still unanchored -
+  disclosed by the pin, and it fails CLOSED". Half right, and the wrong half is the one that matters. The
+  region fails CLOSED in the delete direction (rv2's R-B: drop line 100 and nobody is ever recorded, which
+  traps the user behind the sheet and lets nobody drive ungated) and fails OPEN in the write direction
+  (B4). Only the closed half was disclosed, in the pin and in that entry, so the pin's blind-spot list was
+  itself wrong. Both directions are anchored by this commit, and both are what the eleventh row and the
+  count assertion hold red.
+
+  WHAT CLOSES IT, one anchor in two parts, both readers already proven on HEAD: (1) `isSafetyDisclaimer
+  Acknowledged = true` counted by OCCURRENCE over every *.swift under the app tree (the B3/B2 reader,
+  occurrences_by_file) must be EXACTLY `ScenicHomeScreen.swift(1)` - two writes refuse (B4, fails open),
+  zero writes refuse (R-B, fails closed); (2) a gate_verdict-style brace-depth walk must place that one
+  line INSIDE the `SafetyDisclaimer(onAccept: {` block, so moving the single write out to `.onAppear`
+  refuses by name even though the count is still one. Ordering ruled: this sits AFTER (iii)'s
+  ack_default_verdict, because the row-8 mutant (`private var ... = true`) contains the write needle as a
+  substring and must keep refusing by "does not default to false", the reason that names its actual defect.
+
+  R-A (rv2's recordable (a)), the `*Tests/` carve-out in the recursive population: RULED NOT TAKEN HERE,
+  recorded for T-0180. It is one line in app_swift_files, but it is one line that OPENS the population: any
+  directory whose name ends in Tests would stop being scanned for a second `SkylineHandoff.open(` call
+  site, and nothing in apps/ios is excluded from the app target by name today - the shell target compiles
+  whatever is under its folder. The present behaviour refuses a legitimate XCUITest BY NAME, which costs a
+  refusal a human reads and never a false green. The pin's assertion is not allowed to get looser in a
+  round-3 fix to a fails-open finding; T-0180 owns the carve-out together with the XCUITest that needs it.
+  R-B is closed here, not deferred: it is the same count assertion, read in the other direction.
+
+  Line cap, ruled before writing: the check is 293 lines and the cap is 300, so the new READER
+  (ack_write_verdict) and the assertion that calls fail (require_ack_write, beside require_feature_files,
+  which is the precedent for a refusal living in the lib) both go in ops/lib/check-safety-disclaimer-lib.
+  The check keeps the five-line call site, the B4 entry in its header and one line of the green paragraph.
+  require_ack_write is called BARE, never through a command substitution: `fail` exits, and inside `$( )`
+  it exits the subshell with the refusal captured instead of printed - the bug the --prove-red probe
+  already paid for once, on this same file.
+
+- 2026-09-19T05:06:38Z FIX (round 3) by agent/claude-opus-5, the owner: B4 CLOSED, the whole acceptance
+  block re-run and re-quoted at the final pre-review commit (the author rule). Diff: ops/lib (three files)
+  + pins/PINS.yaml + this file. No Swift, so run 35405951245 still describes this tree.
+
+  WHAT CHANGED. (1) ops/lib/check-safety-disclaimer-lib gains two functions beside the B1 reader:
+  `ack_write_verdict`, a gate_verdict-style depth walk printing "<line the opener's block opens on> <line
+  of the first write> <inside 0|1>", and `require_ack_write`, the assertion, beside `require_feature_files`
+  which is the precedent for a refusal living in the lib. It is called BARE from the check, never through
+  `$( )`, for the reason the --prove-red probe already paid for. (2) The check requires
+  `isSafetyDisclaimerAcknowledged = true` EXACTLY ONCE over every *.swift under the app tree, in
+  ScenicHomeScreen.swift, at a line the depth walk places inside `SafetyDisclaimer(onAccept: {`; it sits
+  after (iii)'s ack_default_verdict so row 8 keeps refusing by "does not default to false". (3) An eleventh
+  table row, "the acknowledgement written outside the accept closure": it MOVES the single write up to an
+  `.onAppear`, leaving the count at one, so it is red by the depth walk ALONE. (4) P-SAFE-03 gains anchor
+  (d) and its WHAT IT CANNOT SEE sentence no longer claims the write is unseen - it now says only that
+  whether that write RUNS is unseen, and records that the earlier reading was wrong in the open direction.
+
+  A NEW BLIND SPOT, DISCLOSED NOT HIDDEN: a write on the opener's OWN line - the one-line spelling
+  `SafetyDisclaimer(onAccept: { isSafetyDisclaimerAcknowledged = true })` - reads as outside and is
+  refused. It fails CLOSED and the refusal names the expected shape, the same trade ack_default_verdict
+  already makes for the one-line @AppStorage spelling (rv2's recordable (b)). Stated in the lib above the
+  reader.
+
+      $ bash ops/lib/check-safety-disclaimer
+      P-SAFE-03: 4 Swift file(s) under apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome; SafetyDisclaimer declared once in its own file;
+        home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in
+        SafetyDisclaimer.swift, the persistent line present, @AppStorage("safety.disclaimer.acknowledged.v1")
+        at line 40 with `private var isSafetyDisclaimerAcknowledged = false` under it;
+        over the 10 .swift file(s) under apps/ios, SkylineHandoff.open( called once
+        (GatedHandoffButton.swift line 51), dominated by the guard at line 46;
+        GatedHandoffButton( constructed once, in ScenicHomeScreen.swift, passing isSafetyDisclaimerAcknowledged
+        through with no `: true` in its argument list; the blocked tap is wired - onBlocked() at line
+        47 before the return at line 48, `onBlocked: { isShowingDisclaimer = true }`
+        and a sheet bound to that flag on the screen; `isSafetyDisclaimerAcknowledged = true` written exactly once, at
+        line 100, inside the SafetyDisclaimer(onAccept: { block opening at line 99.
+        Not checked here: rendering, taps, whether that write RUNS, contrast, Dynamic Type, 44 pt.
+      exit=0
+
+      $ bash ops/lib/check-safety-disclaimer --prove-red
+      MUTATION                                             EXIT     REASON NAMED
+      the SafetyDisclaimer type renamed                    1        yes
+      the home.disclaimer identifier removed               1        yes
+      the acknowledgement guard removed                    1        yes
+      the persistent conditions line removed               1        yes
+      the acknowledgement no longer passed to the button   1        yes
+      the on-device store key changed                      1        yes
+      the blocked tap no longer presents the disclaimer    1        yes
+      the acknowledgement defaults to true                 1        yes
+      a second call site in the app shell                  1        yes
+      a second button beside the real one                  1        yes
+      the acknowledgement written outside the accept closure 1        yes
+      prove-red: 11/11 mutations refused by name
+      exit=0
+
+      $ bash .artifacts/b4-both-directions.sh        # rv2's B4, and R-B, on throwaway copies of apps/ios
+      === B4, the reviewer's shape: .onAppear added BESIDE the real write ===
+      98:        .onAppear { isSafetyDisclaimerAcknowledged = true }
+      101:                isSafetyDisclaimerAcknowledged = true
+      P-SAFE-03: `isSafetyDisclaimerAcknowledged = true` must be written exactly once, in <copy>/add/<FS>/ScenicHomeScreen.swift; found: <copy>/add/<FS>/ScenicHomeScreen.swift(2)
+        Counted by occurrence over all 10 .swift file(s) under <copy>/add. A second write sets the
+        acknowledgement with nobody having accepted anything - @AppStorage's setter is nonmutating, so an
+        `.onAppear` one is enough and the first tap leaves un-acknowledged. None at all, and accepting
+        the disclaimer records nobody: the user is asked again on every launch and never gets through.
+      exit=1
+
+      === R-B, the other direction: the one write DELETED ===
+      0
+      P-SAFE-03: `isSafetyDisclaimerAcknowledged = true` must be written exactly once, in <copy>/del/<FS>/ScenicHomeScreen.swift; found: none
+        Counted by occurrence over all 10 .swift file(s) under <copy>/del. ...
+      exit=1
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 73 Swift files tracked (Sources=26, Tests=37, apps/ios=10), none over 300 lines
+      exit=0
+
+      $ bash ops/queue-check
+      QUEUE OK (169 tasks)
+      exit=0
+
+      $ bash ops/check-pins --source-only
+      PINS ok=12 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only
+      exit=0
+
+  The same exit 0 the 04:28 review reproduced on B4's mutant is now exit 1, naming the file and the count;
+  the MOVE shape, which the count cannot catch, is exit 1 naming "is written outside the accept closure".
+
+  Sizes, re-measured at THIS commit (`wc -l`, the T-0162 lesson): `ops/lib/check-safety-disclaimer` 299
+  (was 293; the reader and its refusal went to the lib per the ruling above, and six lines of narrative
+  that the pin already carries were compressed to keep the file under the 300-line cap - anything further
+  added to it goes to the lib), `ops/lib/check-safety-disclaimer-lib` 253 (was 189),
+  `ops/lib/check-safety-disclaimer-mutations` 89 (was 83). Modes, `git ls-files -s`: 100755, 100755,
+  100755 - all three files already tracked executable, no new file under ops/, so no
+  `git update-index --chmod=+x` was needed (P-OPS-01).
+
+  STILL OPEN, carried unchanged from 03:45 and 04:28 except where this entry corrects them: nothing on
+  this screen has been rendered, the acknowledgement has never been tapped, there is no XCUITest, there is
+  no `SafetyDisclaimerDisplaying` protocol, and the 44 pt / Dynamic Type / contrast arguments are
+  unmeasured. R1 is SUPERSEDED by the correction above - the write region was failing OPEN, not merely
+  unanchored-and-closed, and both directions are anchored as of this commit; what remains of R1 is only
+  that no test can make that write RUN, which is T-0180's XCUITest. R2 (`runs_on: [linux, mac]` buys
+  nothing today) and R3 (`/* */` unparsed) stand as recorded. R5, the table's own "UNREFUSED or UNNAMED"
+  branch, has still never been seen to fire; eleven rows red by name is that branch not firing. NEW, from
+  rv2 and recorded for T-0180, not fixed here: R-A, the `*Tests/` carve-out in the recursive population -
+  ruled not taken, with reasons, in the 04:42 entry. The table now copies apps/ios eleven times and takes
+  ~7 minutes on the Windows box, which is T-0184's problem when it puts every `--prove-red` table in CI.

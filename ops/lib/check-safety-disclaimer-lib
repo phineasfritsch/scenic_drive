@@ -124,6 +124,70 @@ ack_default_verdict() {
   ' "$1"
 }
 
+# Where the one WRITE to the acknowledgement sits (PR #101's finding B4, agent/rv2-pr101). Prints three
+# numbers: "<line the opener's block opens on> <line of the first write> <0|1, the write is inside it>".
+# Depth is counted exactly as gate_verdict counts it - CR stripped, `//` stripped, `{` and `}` per line -
+# and the opener's block is open from the line after the opener until depth falls back below the depth the
+# opener's own line left behind. A write ON the opener's line reads as OUTSIDE (ok stays 0): fail-closed,
+# and the one-line spelling `SafetyDisclaimer(onAccept: { ack = true })` is refused by name rather than
+# silently blessed, the same trade ack_default_verdict makes above.
+ack_write_verdict() {
+  awk -v opener="$2" -v needle="$3" '
+    {
+      code = $0
+      sub(/\r$/, "", code)
+      sub(/\/\/.*$/, "", code)
+      d = depth
+      if (open_line == 0 && index(code, opener) > 0) { opening = 1 }
+      if (write_line == 0 && index(code, needle) > 0) {
+        write_line = NR
+        if (open_line > 0 && inside == 1 && d >= body_depth) ok = 1
+      }
+      opens = gsub(/\{/, "{", code)
+      closes = gsub(/\}/, "}", code)
+      depth += opens - closes
+      if (opening == 1) { open_line = NR; body_depth = depth; inside = 1; opening = 0 }
+      else if (inside == 1 && depth < body_depth) { inside = 0 }
+    }
+    END { printf "%d %d %d\n", open_line+0, write_line+0, ok+0 }
+  ' "$1"
+}
+
+# WHO MAY WRITE THE ACKNOWLEDGEMENT (PR #101's finding B4). ack_default_verdict above anchors the DECLARED
+# default; this anchors the ASSIGNMENT, which nothing read at all. @AppStorage's setter is nonmutating, so
+# `.onAppear { isSafetyDisclaimerAcknowledged = true }` anywhere on the screen compiles and writes true to
+# UserDefaults the moment that screen appears: the button is then built with true through the real
+# pass-through, B3's argument-list anchor sees nothing wrong, the guard passes, and the FIRST tap of every
+# launch leaves for Apple Maps with the sheet never presented - B1's defect reached by an assignment
+# instead of a default. So the write is required EXACTLY ONCE over the whole app tree, in the screen, at a
+# line brace depth places INSIDE the accept closure. Two writes fail OPEN and are refused; zero writes fail
+# CLOSED (accepting the sheet would record nobody, trapping the user behind it) and are refused too.
+#
+# Sets ACK_ACCEPT_LINE / ACK_WRITE_LINE for the caller's green paragraph. Call it BARE: `fail` exits, and
+# inside `$( )` it would exit only the subshell with its refusal captured instead of printed - the bug the
+# --prove-red probe in the check already paid for once.
+require_ack_write() {
+  local screen="$1" needle="$2" opener="$3" app_tree="$4"
+  shift 4
+  local writes=() an="$#" inside
+  mapfile -t writes < <(occurrences_by_file "$needle" "" "$@")
+  if [[ "${#writes[@]}" -ne 1 || "${writes[0]}" != "$screen(1)" ]]; then
+    fail "\`$needle\` must be written exactly once, in $screen; found: ${writes[*]:-none}" \
+      "Counted by occurrence over all $an .swift file(s) under $app_tree. A second write sets the" \
+      "acknowledgement with nobody having accepted anything - @AppStorage's setter is nonmutating, so an" \
+      "\`.onAppear\` one is enough and the first tap leaves un-acknowledged. None at all, and accepting" \
+      "the disclaimer records nobody: the user is asked again on every launch and never gets through."
+  fi
+  read -r ACK_ACCEPT_LINE ACK_WRITE_LINE inside <<<"$(ack_write_verdict "$screen" "$opener" "$needle")"
+  [[ "$ACK_ACCEPT_LINE" -gt 0 ]] || fail "no \`$opener\` block in $screen." \
+    "The one write has to sit inside the closure the disclaimer's accept button runs, or the gate opens" \
+    "for a reason that is not somebody accepting it."
+  [[ "$inside" -eq 1 ]] || fail \
+    "the acknowledgement at line $ACK_WRITE_LINE is written outside the accept closure in $screen." \
+    "\`$opener\` opens its block at line $ACK_ACCEPT_LINE, and brace depth puts that write before it or" \
+    "after it closed. Only accepting the disclaimer may record an acknowledgement (PR #101, finding B4)."
+}
+
 # The gate, read off GatedHandoffButton.swift in one pass. Prints seven numbers:
 #
 #   guard_line guard_depth call_line call_depth escaped blocked_line ret_line

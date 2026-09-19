@@ -18,6 +18,11 @@
 # Reached through `bash ops/lib/check-safety-disclaimer --prove-red`, which first refuses to run a table
 # against a tree that is already red. Running this file directly does the same work without that guard.
 #
+# Row 11 is the only one whose sed script carries TWO commands: it MOVES the single write to the
+# acknowledgement out of `SafetyDisclaimer(onAccept: {` and up to an `.onAppear` on the same screen, which
+# keeps the occurrence count at one and is refused by the brace-depth half of the B4 anchor alone. `|` is
+# the field separator here, so a script must be spelled with `/` delimiters and no pipe in it.
+#
 #   ROW = label | file under the apps/ios copy | sed script | substring the refusal must contain
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -40,6 +45,7 @@ rows=(
   "the acknowledgement defaults to true|$FS/ScenicHomeScreen.swift|s/private var isSafetyDisclaimerAcknowledged = false/private var isSafetyDisclaimerAcknowledged = true/|does not default to false"
   "a second call site in the app shell|ScenicDrive/ScenicDriveApp.swift|s/ScenicHomeScreen()/ScenicHomeScreen().onAppear { try? SkylineHandoff.open() }/|must be called exactly once"
   "a second button beside the real one|$FS/ScenicHomeScreen.swift|s/^                    conditions$/                    conditions\n                    GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, onBlocked: { }, onFailure: { _ in })/|constructed exactly once"
+  "the acknowledgement written outside the accept closure|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .onAppear { isSafetyDisclaimerAcknowledged = true }/;/^                isSafetyDisclaimerAcknowledged = true$/d|is written outside the accept closure"
 )
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone, and a local
