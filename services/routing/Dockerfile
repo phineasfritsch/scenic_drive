@@ -13,7 +13,10 @@ FROM maven:3.9-eclipse-temurin-21@sha256:c2a2c58516d160f43b50f12baa427ca86989e0b
 WORKDIR /src
 COPY plugins/scenic-score-parser/pom.xml /src/pom.xml
 COPY plugins/scenic-score-parser/src /src/src
-RUN --mount=type=cache,target=/root/.m2 mvn -B -DskipTests package
+# NOT -DskipTests: ScenicScoreParserTest runs here, so an image whose parser has lost the contract (the
+# no-tag default, the clamp, garbage, the whole 0..10 range) is never built at all. The read-back test in
+# services/routing/tests can only observe the scores the canyon window contains.
+RUN --mount=type=cache,target=/root/.m2 mvn -B package
 
 FROM eclipse-temurin:21-jre@sha256:49e21e16e3c86eb7816a44a67549910ed090fbeb40c29c525d58bf5e02e91b0f
 COPY --from=build /src/target/scenic-router.jar /app/scenic-router.jar

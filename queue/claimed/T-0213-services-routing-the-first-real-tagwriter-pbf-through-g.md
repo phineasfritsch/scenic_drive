@@ -352,3 +352,159 @@ measurement.
       worktree's .git file); that is a box property, not a script property, but it means the exact
       invocation a future deploy will use from this checkout has been exercised only through git-bash's
       refusal paths.
+
+- 2026-09-19T12:40:00Z PRE-REVIEW MUTANT PASS, its three findings RULED before the fixing code was run
+  (author rule). The pass is right on all three and none of them is argued with:
+
+  (S1, BLOCKING, accepted as demonstrated) tests/test_scenic_score_readback.py probed a PRE-BUILT graph
+  directory. Nothing bound that directory to the image under test, so the misspelled-key image passed every
+  assertion when it was pointed at a copy of the green graph. RULED: the fixture now IMPORTS
+  services/etl/work/la/window-tagged-1.osm.pbf with IMAGE into a fresh tempfile.mkdtemp() directory under
+  services/routing/work/ and removes it afterwards; SCENIC_ROUTING_GRAPH is GONE, so there is no way to hand
+  this test a graph somebody else built. The input's sha256 is COMPARED against the typed literal
+  06046be0...0090 (not printed): the expected scores are literals read out of window-readback.osm.xml, which
+  describes that exact file, so a different input is a failed test, not a different number.
+
+  (S2, BLOCKING-class, accepted) two probe points (0 and the window's maximum 8) cannot distinguish the real
+  parser from `value >= 5 ? 8 : 0`, and nothing ran the Java at all (-DskipTests). RULED, both halves:
+  (a) ONE NAMED, ROUTABLE way per score 1..8, way id + score typed as literals with the road's name beside
+  each, picked out of the real read-back XML (highest node count per score among named, non-ignored highways):
+      1 1073769540 Civic Center Way (tertiary) · 2 13452810 Malibu Road · 3 13418694 Rambla Vista
+      4 13295089 Encinal Canyon Road · 5 149210418 Corral Canyon Road · 6 246767080 Mulholland Highway
+      7 221164472 Latigo Canyon Road · 8 74344132 Topanga Canyon Boulevard
+  all eleven ways (these eight plus the gated track and the not-a-road way) are probed in ONE container call.
+  (b) ScenicScoreParserTest.java (JUnit 5, junit-jupiter 5.10.2 and maven-surefire-plugin 3.2.5 both PINNED
+  in the pom like every other coordinate) covers ScenicScoreParser.parse - the shipping symbol handleWayTags
+  calls - over 0..10 each, null/blank/whitespace-only, <=0, garbage, the >10 clamp, and the two rulings the
+  finding asked for: '7.0' is GARBAGE -> 0 (the ETL writes integers; a decimal is a writer defect, not a 7)
+  and ' 7 ' is 7 (parse() already trims; osmium and hand edits leave padding). It RUNS IN THE IMAGE BUILD:
+  the Dockerfile's `mvn -B -DskipTests package` became `mvn -B package`, so an image with a broken parser is
+  never produced rather than being caught later - a dedicated `mvn test` stage would have let the untested
+  jar exist.
+
+  (S3, non-blocking, accepted) ops/deploy-routing had no test. RULED: services/routing/tests/
+  test_deploy_routing_rehearsal.py + deploy_rehearsal_driver.sh - the driver builds a THROWAWAY git repo
+  under mktemp -d with a bare origin and a fake built graph, runs the script bare for each refusal and three
+  rehearsed deploys, and the pytest asserts the three refusals BY THEIR TEXT (not a built graph / the four
+  credential names / "is not on origin - push first"), the flip (`current` IS a symlink and resolves to the
+  newest release, with the graph reachable through it) and N-1 (exactly 2 releases after three deploys, the
+  oldest pruned). No graph is imported. WSL: on a box without it the test FAILS BY NAME with a message
+  saying the flip cannot be rehearsed without a POSIX filesystem; SCENIC_DEPLOY_REHEARSAL_SKIP=1 is the
+  explicit opt-out and its skip reason says the deploy script is NOT being checked. Chosen over a silent
+  skip because a silent skip is exactly how this script got shipped untested.
+
+  RECORDED, NOT FIXED (as instructed): a `scenic_refused=1` way encodes 0 and is indistinguishable from a way
+  scored 0 on the merits - T-0209's, R2 above, and refused=0 in this window.
+
+- 2026-09-19T12:43:35Z S2b RED BY NAME. work/red-java-build.sh (scratch) copies the plugin and replaces
+  parse()'s body with the finding's own mutant, `return value >= 5 ? 8 : 0;`. The image build refuses:
+
+      [ERROR]   ScenicScoreParserTest.everyValueInTheContractsRangeSurvivesUnchanged:22 scenic_score=7 is
+                inside the contract's 0..10 and must round-trip exactly ==> expected: <7> but was: <8>
+      [ERROR]   ScenicScoreParserTest.surroundingWhitespaceIsTrimmedNotRejected:56 ' 7 ' is a 7 ==> expected: <7> but was: <8>
+      [ERROR] Tests run: 30, Failures: 14, Errors: 0, Skipped: 0
+      [INFO] BUILD FAILURE
+      ERROR: process "/bin/sh -c mvn -B package" did not complete successfully: exit code: 1
+      EXIT=1
+
+  GREEN, the committed source, same command (`docker build -t scenic-routing:t0213 services/routing`):
+
+      [INFO] Running com.scenicdrive.routing.ScenicScoreParserTest
+      [INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.604 s
+      [INFO] BUILD SUCCESS
+      naming to docker.io/library/scenic-routing:t0213
+      EXIT=0
+
+- 2026-09-19T12:47:00Z S1 RED THROUGH THE TEST, with the author's own red recipe. work/red-build.sh (the
+  misspelled `way.getTag(KEY + "_typo", "")`) built scenic-routing:t0213-red - and its JUnit stage passed
+  30/30, which is the point: the misspelling is in handleWayTags, so only an import can catch it. Then the
+  READ-BACK TEST ITSELF, pointed at that image with nothing else changed (no graph to hand it any more):
+
+      $ SCENIC_ROUTING_IMAGE=scenic-routing:t0213-red python -m pytest tests/test_scenic_score_readback.py -rs
+      AssertionError: way 74344132 (Topanga Canyon Boulevard) carries scenic_score=8 in
+      services/etl/work/la/window-tagged-1.osm.pbf but the graph imported with scenic-routing:t0213-red
+      encoded [0] over its 2 edge(s)
+      8 failed, 2 passed in 12.90s
+
+  All EIGHT scores go red now, not just the 8 - the mutant pass's S1 and S2 in one transcript. GREEN, the
+  shipped image, the fixture's own import of the real PBF (sha256 compared, not printed) and one probe call:
+
+      SCENIC_EV present=true bits=4 max=10
+      PROBE way=1073769540 edges=8  scenic_score=1     Civic Center Way
+      PROBE way=13452810   edges=19 scenic_score=2     Malibu Road
+      PROBE way=13418694   edges=7  scenic_score=3     Rambla Vista
+      PROBE way=13295089   edges=23 scenic_score=4     Encinal Canyon Road
+      PROBE way=149210418  edges=17 scenic_score=5     Corral Canyon Road
+      PROBE way=246767080  edges=21 scenic_score=6     Mulholland Highway
+      PROBE way=221164472  edges=27 scenic_score=7     Latigo Canyon Road
+      PROBE way=74344132   edges=2  scenic_score=8     Topanga Canyon Boulevard
+      PROBE way=10715427   edges=1  scenic_score=0     highway=track, scenic_gate=track - IMPORTED
+      PROBE way=4883641    edges=0  scenic_score=-     natural=..., no highway - never a road edge
+      10 passed in 12.83s
+
+- 2026-09-19T12:44:00Z S3 RED THEN GREEN. Green first run: `python -m pytest tests/test_deploy_routing_
+  rehearsal.py -rs` -> 6 passed in 21.75s. Then TWO mutations applied to a copy of ops/deploy-routing in the
+  worktree (`KEEP=3`, and the credentials refusal reduced to "the routing box credentials are not set" with
+  ${missing[*]} dropped), the file restored afterwards (`git status --short` clean for it):
+
+      AssertionError: the credentials refusal does not name SCENIC_ROUTING_HOST: DEPLOY-ROUTING REFUSED:
+      the routing box credentials are not set
+      AssertionError: after three deploys 3 releases are on disk, not 2:
+      ['20260919T124223Z-4b52cd9', '20260919T124224Z-4b52cd9', '20260919T124225Z-4b52cd9']
+      2 failed, 4 passed in 13.94s
+
+- 2026-09-19T12:52:00Z FINAL PRE-REVIEW COMMIT for the mutant-pass fixes: the acceptance block re-run bare
+  and re-quoted. `bash ops/test` and the full `bash ops/check-pins` were NOT run in this session (out of
+  scope for this fixing pass, per its instruction); `ops/check-pins --source-only` was skipped locally and
+  is stated as skipped, not as green. CI on PR #117 runs them.
+
+      $ cd services/routing && python -m pytest tests -rs
+      22 passed, 3 skipped in 16.00s
+      SKIPPED [3] tests/test_lambda_monotone.py:127,138,167: no graph at ...work/graph-cache
+
+    WHICH TESTS RAN IN THE CONTAINER: the 10 read-back tests (8 parametrized scores + the gated way + the
+    not-a-road way) built their own graph from the real PBF with scenic-routing:t0213 and probed it - one
+    import, one probe, session-scoped. The 6 deploy-rehearsal tests ran through WSL but touch no container.
+    The 6 static profile/band tests need nothing. The 3 skips are test_lambda_monotone.py's Vermont graph,
+    which R1 deliberately does not rebuild here.
+
+      $ (the image rebuild's test stage)
+      [INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0 - com.scenicdrive.routing.ScenicScoreParserTest
+
+      $ python ops/lib/check-mutate-population.py
+      P-PROC-06: 71 modules, 22 covered by 10 populations, 25 allowlisted, 0 added by this branch
+      P-PROC-06: every added module is covered or allowlisted; the floor of 22 holds
+      exit=0   (still no new numeric module: a JUnit test, a pytest, a bash driver.)
+
+      $ bash ops/lib/check-exec-bits
+      P-OPS-01: 78 files, 23 required present, all modes correct
+      exit=0   (deploy_rehearsal_driver.sh is not under ops/ and is invoked as `bash <path>`, so it stays
+                100644 - P-OPS-01's data-file rule.)
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 83 Swift files tracked (Sources=27, Tests=38, apps/ios=18), none over 300 lines
+      exit=0
+
+      $ bash ops/queue-check
+      QUEUE OK (208 tasks)
+      exit=0
+
+      $ wc -l   (every file this commit touches, measured at this commit)
+        27 services/routing/Dockerfile
+        85 services/routing/plugins/scenic-score-parser/pom.xml
+        67 services/routing/plugins/.../ScenicScoreParserTest.java
+       203 services/routing/tests/test_scenic_score_readback.py
+       121 services/routing/tests/test_deploy_routing_rehearsal.py
+        71 services/routing/tests/deploy_rehearsal_driver.sh
+       354 queue/claimed/T-0213-...md      (this file, before this entry)
+
+    config.yml is NOT touched by this commit; the serial-file ruling at R2 stands unchanged. ops/deploy-routing
+    is NOT touched either - it gained a test, not an edit.
+
+  STILL OPEN after this pass (unchanged from the list above, plus):
+    - The read-back test needs docker AND the gitignored input PBF, so it skips on a checkout that has
+      neither; CI does not run it. What CI does run now is the image build's JUnit stage, whenever the image
+      is built.
+    - `value >= 5 ? 8 : 0` is dead as a survivor, but the Java has no mutation POPULATION under ops/mutate/:
+      P-PROC-06 does not range over Java and this task adds no numeric module under Sources/ or
+      services/etl/etl/. Recorded for whoever widens P-PROC-06 to the plugin.
