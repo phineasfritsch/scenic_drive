@@ -30,6 +30,19 @@ deliberate: the defect this watches - the tag lost in the pipeline, an extract r
 ordinary OSM editing between two rebuilds of one region moves it by a point or two. MIN_CLASS_WAYS is the
 other half: under 25 ways one way moves the fraction by over four points, so a small class is printed and
 never refused on.
+
+THE REQUIRED CLASSES ARE A WHITELIST (ruling S3). Comparing only the classes that happen to be present is a
+check that passes over `{}`, over a table whose classes were all relabelled upstream, and over a table of
+nothing but four-way classes - three tables where nothing was judged at all. So every key of BASELINES must
+be PRESENT with at least MIN_CLASS_WAYS ways or the check refuses BY NAME, and a large class no baseline
+names is reported on stderr rather than refused (it is a relabel or a class worth measuring; either wants a
+human). A genuinely small region is therefore REFUSED and there is no flag to lower this: these baselines
+are one region's measurement, so a region without the classes they name is not a region they can speak
+about, and its recourse is its own measured baseline set, not an escape hatch.
+
+THE BOUNDARY (ruling S4). A class whose fraction is EXACTLY its baseline PASSES: the baseline is a floor and
+a floor is an allowed value, the margin is 25% so nothing real sits on it, and `fraction < baseline` reads
+the way the refusal is worded.
 """
 from __future__ import annotations
 
@@ -64,6 +77,9 @@ BASELINES = {
     "unclassified": 0.103,
 }
 MIN_CLASS_WAYS = 25
+# R3's margin, named so the test that recomputes BASELINES from the measurement reads the RULE from here
+# and only the NUMBERS from the fixture.
+BASELINE_MARGIN = 0.75
 
 REFUSAL_EXIT = 1
 
@@ -130,6 +146,34 @@ def refusals(table: dict) -> list:
     return out
 
 
+def required_missing(table: dict) -> list:
+    """The WHITELIST (ruling S3): every baselined class must be in the table, big enough to be judged.
+
+    Named one by one, because "3 classes missing" tells an operator nothing about which pipeline stage ate
+    them. This is what makes an empty or relabelled table a refusal rather than a clean sheet.
+    """
+    out = []
+    for cls in sorted(BASELINES):
+        row = table.get(cls)
+        if row is None:
+            out.append("class %s is missing from the table - every baselined class must be measured" % cls)
+        elif row[TOTAL] < MIN_CLASS_WAYS:
+            out.append("class %s has only %d ways, under MIN_CLASS_WAYS=%d - too few to judge"
+                       % (cls, row[TOTAL], MIN_CLASS_WAYS))
+    return out
+
+
+def unknown_classes(table: dict) -> list:
+    """Large classes no baseline names: reported, never refused. A relabel, or a class worth measuring."""
+    return [cls for cls in sorted(table)
+            if cls not in BASELINES and table[cls][TOTAL] >= MIN_CLASS_WAYS]
+
+
+def verdict(table: dict) -> list:
+    """Everything that refuses this table: the missing classes first, then the collapsed ones."""
+    return required_missing(table) + refusals(table)
+
+
 def report_lines(table: dict) -> list:
     """The numbers, printed. Every class, whether or not it has a baseline - the ones with none say so."""
     lines = []
@@ -174,7 +218,9 @@ def main(argv: list | None = None) -> int:
     table = from_corpus(args.corpus) if args.corpus else from_table_file(args.table)
     for line in report_lines(table):
         print(line)
-    bad = refusals(table)
+    for cls in unknown_classes(table):
+        print("SURFACE UNKNOWN CLASS %s (%d ways, no baseline)" % (cls, table[cls][TOTAL]), file=sys.stderr)
+    bad = verdict(table)
     for line in bad:
         print("SURFACE REFUSED %s" % line, file=sys.stderr)
     print("SURFACE classes=%d refused=%d" % (len(table), len(bad)))

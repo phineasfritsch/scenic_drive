@@ -8,7 +8,10 @@ table, and nothing recomputes the coverage it is checking.
 from __future__ import annotations
 
 import json
+import math
 import pathlib
+import subprocess
+import sys
 
 import pytest
 
@@ -103,11 +106,60 @@ def test_every_baseline_is_met_by_the_window_it_was_measured_from():
         assert table[cls]["total"] >= surfacecoverage.MIN_CLASS_WAYS, cls
 
 
-def test_a_class_under_the_minimum_count_is_printed_and_never_refused(capsys):
-    """Ruling R3: below 25 ways one way moves the fraction by over four points, so it is not a verdict."""
+def test_a_class_under_the_minimum_count_gets_no_fraction_verdict(capsys):
+    """Ruling R3: below 25 ways one way moves the fraction by over four points, so it is not a verdict.
+
+    It is still REFUSED - by name, as a class too small to judge (ruling S3) - which is a different sentence
+    from "its coverage collapsed", and the two must not be confused.
+    """
     small = {"residential": {"known": 0, "unknown": 5, "unpaved": 0, "total": 5}}
     assert surfacecoverage.refusals(small) == []
-    assert surfacecoverage.main(["--table", _write(small, capsys)]) == 0
+    assert surfacecoverage.main(["--table", _write(small, capsys)]) == 1
+    assert "residential has only 5 ways" in capsys.readouterr().err
+
+
+def test_baselines_are_exactly_the_measurement_times_the_ruled_margin():
+    """Ruling S2. `"motorway": 0.593` -> `0.001` used to pass every test in this file: nothing bound the
+    literals to the population they are supposed to be 75% of. Here the RULE (the margin, the floor, the
+    truncation) comes from the module and every NUMBER comes from the committed measurement."""
+    table = surfacecoverage.from_table_file(LA_WINDOW)
+    expected = {}
+    for cls, row in table.items():
+        if row["total"] >= surfacecoverage.MIN_CLASS_WAYS:
+            scaled = (row["known"] / row["total"]) * surfacecoverage.BASELINE_MARGIN
+            expected[cls] = math.floor(scaled * 1000) / 1000
+    assert surfacecoverage.BASELINES == expected
+    assert set(surfacecoverage.BASELINES) == set(expected)
+
+
+def test_the_check_refuses_a_table_where_nothing_was_judged(capsys):
+    """Ruling S3, the three shapes that were green on pristine code: no classes at all, every class
+    relabelled upstream, and a table of nothing but classes too small to have a verdict."""
+    window = surfacecoverage.from_table_file(LA_WINDOW)
+    relabelled = {"road_%s" % cls: row for cls, row in window.items()}
+    tiny = {cls: {"known": 2, "unknown": 2, "unpaved": 0, "total": 4} for cls in surfacecoverage.BASELINES}
+    for table in ({}, relabelled, tiny):
+        assert surfacecoverage.main(["--table", _write(table, capsys)]) == 1
+        assert "residential" in capsys.readouterr().err
+
+
+def test_a_large_class_with_no_baseline_is_reported_by_name(capsys):
+    table = surfacecoverage.from_table_file(LA_WINDOW)
+    table["busway"] = {"known": 40, "unknown": 10, "unpaved": 0, "total": 50}
+    assert surfacecoverage.main(["--table", _write(table, capsys)]) == 0
+    assert "SURFACE UNKNOWN CLASS busway" in capsys.readouterr().err
+
+
+def test_a_class_exactly_at_its_baseline_passes():
+    """Ruling S4: the baseline is a floor, and a floor is an allowed value."""
+    row = {"known": 91, "unknown": 909, "unpaved": 0, "total": 1000}
+    assert surfacecoverage.known_fraction(row) == surfacecoverage.BASELINES["residential"]
+    assert surfacecoverage.refusals({"residential": row}) == []
+
+
+def test_a_class_one_way_below_its_baseline_is_refused():
+    row = {"known": 90, "unknown": 910, "unpaved": 0, "total": 1000}
+    assert [r.split(":")[0] for r in surfacecoverage.refusals({"residential": row})] == ["residential"]
 
 
 def test_a_class_at_the_minimum_count_is_refused(capsys):
@@ -147,6 +199,59 @@ def test_a_corpus_without_the_key_is_a_refusal_not_an_empty_verdict(tmp_path):
     conn.close()
     with pytest.raises(ValueError):
         surfacecoverage.from_corpus(path)
+
+
+# --- the --corpus form, over a corpus corpus.build really built (ruling S1) ------------------------------
+# Ten (cls, highway) pairs: exactly the classes BASELINES names, which is what the whitelist requires of any
+# table the check gives a verdict on. 25 ways each, the MIN_CLASS_WAYS floor.
+BASELINED_CLASSES = (("motorway", "motorway"), ("motorway", "motorway_link"), ("primary", "primary"),
+                     ("residential", "residential"), ("secondary", "secondary"), ("service", "service"),
+                     ("tertiary", "tertiary"), ("track", "track"), ("trunk", "trunk"),
+                     ("unclassified", "unclassified"))
+ETL_DIR = FIXTURES.parent.parent
+
+
+def _write_extract(path: pathlib.Path, residential_known: int) -> None:
+    ways = []
+    for index, (cls, highway) in enumerate(BASELINED_CLASSES):
+        known = residential_known if highway == "residential" else 20
+        for seq in range(surfacecoverage.MIN_CLASS_WAYS):
+            lat = 34.0 + index * 0.01 + seq * 0.0002
+            way = {"id": len(ways) + 1, "cls": cls, "highway": highway, "access_ok": 1, "oneway": 0,
+                   "nodes": [[round(lat, 6), -118.0], [round(lat, 6), -117.998]]}
+            if seq < known:
+                way["surface"] = "asphalt"
+            ways.append(way)
+    path.write_text(json.dumps({"region": "fixture", "ways": ways}), encoding="utf-8", newline="\n")
+
+
+def _built_corpus(tmp_path, name: str, residential_known: int) -> pathlib.Path:
+    extract = tmp_path / ("%s.json" % name)
+    _write_extract(extract, residential_known)
+    out = tmp_path / ("%s.sqlite" % name)
+    corpus.build(str(extract), str(out), BUILT_AT)
+    return out
+
+
+def _run_on_corpus(path: pathlib.Path):
+    """The module as the pipeline runs it: a subprocess, so `__main__`'s sys.exit(main()) is covered too."""
+    return subprocess.run([sys.executable, "-m", "etl.surfacecoverage", "--corpus", str(path)],
+                          cwd=str(ETL_DIR), capture_output=True, text=True)
+
+
+def test_the_corpus_form_refuses_a_built_corpus_whose_residential_coverage_collapsed(tmp_path):
+    """RED BY NAME over the path a build actually runs (ruling S1): every other check test goes through
+    --table, and `bad = refusals(table) if args.table else []` survived because of it."""
+    done = _run_on_corpus(_built_corpus(tmp_path, "collapsed", residential_known=0))
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "residential" in done.stderr
+    assert "below the baseline" in done.stderr
+
+
+def test_the_corpus_form_passes_a_built_corpus_whose_classes_are_all_covered(tmp_path):
+    done = _run_on_corpus(_built_corpus(tmp_path, "healthy", residential_known=20))
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "refused=0" in done.stdout
 
 
 _TMP = []

@@ -54,6 +54,10 @@ ENCODE = '    return json.dumps(table, sort_keys=True, separators=(",", ":"))'
 NO_KEY = '        raise ValueError("%s: meta carries no %s" % (path, META_KEY))'
 VERDICT = "    return REFUSAL_EXIT if bad else 0"
 TOTAL_COUNT = "        row[TOTAL] += 1"
+REQUIRED_LOOP = "    out = []\n    for cls in sorted(BASELINES):"
+TOO_FEW = "        elif row[TOTAL] < MIN_CLASS_WAYS:"
+UNKNOWN_CLASSES = ("    return [cls for cls in sorted(table)\n"
+                   "            if cls not in BASELINES and table[cls][TOTAL] >= MIN_CLASS_WAYS]")
 
 MUTATIONS = [
     # --- which bucket a way falls in (the three-state rule the coverage question turns on) ---------------
@@ -97,6 +101,22 @@ MUTATIONS = [
     ("write the meta value in dict order, so two builds of one extract differ (P-DATA-01)", COVERAGE,
      ENCODE, '    return json.dumps(table, sort_keys=False, separators=(",", ":"))'),
     ("treat a corpus with no coverage key as a corpus with no classes", COVERAGE, NO_KEY, "        return {}"),
+
+    # --- the rules the pre-review mutant pass added (S1-S4), one mutant per new rule ---------------------
+    ("check nothing at all when the source is a built corpus - the --corpus path no test ran (S1)",
+     COVERAGE, "    bad = verdict(table)", "    bad = verdict(table) if args.table else []"),
+    ("set the motorway baseline to a number no collapse could ever fall under (S2)", COVERAGE,
+     '    "motorway": 0.593,', '    "motorway": 0.001,'),
+    ("add a baseline no measurement produced, so the key set drifts from the population (S2)", COVERAGE,
+     '    "unclassified": 0.103,', '    "unclassified": 0.103,\n    "living_street": 0.001,'),
+    ("pass a table with no required class in it - the empty and the relabelled table (S3)", COVERAGE,
+     REQUIRED_LOOP, "    return []\n" + REQUIRED_LOOP),
+    ("judge a class of four ways rather than refusing it as too small to judge (S3)", COVERAGE,
+     TOO_FEW, "        elif False:"),
+    ("say nothing about a large class no baseline names, so a relabel passes unremarked (S3)", COVERAGE,
+     UNKNOWN_CLASSES, "    return []"),
+    ("refuse a class sitting exactly on its baseline, the boundary ruled the other way (S4)", COVERAGE,
+     COMPARE, "        if fraction <= baseline:"),
 ]
 
 # Cannot change behaviour, so anything but MISSED is a FAILURE. Each has its witness in the name.
@@ -111,7 +131,7 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 18
+MIN_MUTATIONS = 25
 PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", str(COVERAGE_TESTS)]
 # Past the filesystem's timestamp granularity, so a mutation always lands rather than hitting a stale .pyc.
 SETTLE_S = 1.1

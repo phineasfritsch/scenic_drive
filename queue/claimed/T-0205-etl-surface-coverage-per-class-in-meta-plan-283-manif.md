@@ -142,3 +142,113 @@ coverage is measured and watched.
   per class rather than to widen the margin; (ii) `ops/sane` itself is not edited here - the plan's check-4
   clause is now a runnable check with a pin, and wiring it into `ops/sane`'s exit-code ladder belongs with
   the sane-check work (its serial file and its exit-order test), not in an ETL PR.
+- 2026-09-19T11:31:11Z RULINGS on the pre-review mutant pass's four survivors and the orchestrator's pin-id
+  collision, written BEFORE the code that closes them. All five close in one commit.
+  S0 THE PIN ID IS TAKEN, and this is a CORRECTION to the 2026-09-19T11:40:00Z entry above and to every
+  earlier line that says P-DATA-03 (those entries are dated and stay as written): P-DATA-03 is the plan's
+  "PMTiles/corpus meta.region == active region, built_at < 30 d" - services/tiles/check_pmtiles.py,
+  tile_meta.py and services/tiles/README.md have used that id by name since T-0165, and queue task T-0197 is
+  filed to ENTER it in pins/PINS.yaml. This task's pin is renamed to P-DATA-04, which is free: the only
+  P-DATA ids on origin/main are P-DATA-01 and P-DATA-02, and a scan of every origin ref's pins/PINS.yaml
+  (`git grep "id: P-DATA-0" <ref> -- pins/PINS.yaml` over all 60 remote heads, including the open PRs 113,
+  115, 116) returns P-DATA-02 as the highest. The rename touches pins/PINS.yaml only: no source file, test
+  or assertion here ever spelled the id.
+  S1 THE --corpus PATH WAS BOUND BY NOTHING. `python -m etl.surfacecoverage --corpus <collapsed corpus>`
+  exited 0 with 16 tests passing, because every check test went through `--table`; the mutant
+  `bad = refusals(table) if args.table else []` survived. The path that a build actually runs was the one
+  path no test ran. FIX: a test that builds a REAL corpus with `corpus.build` - the shipping entry point,
+  not a helper - from an extract carrying all ten baseline classes, and runs the module as a SUBPROCESS
+  (`sys.executable -m etl.surfacecoverage --corpus <file>`), asserting exit 1 and the class named on stderr
+  for a below-baseline residential and exit 0 for an above-baseline one. Subprocess, not `main(argv)`, so
+  the `__main__` block's `sys.exit(main())` is covered too. The extract is GENERATED in the test rather than
+  committed: 250-plus ways of real geometry through `load_extract` and the segmenter is a real corpus either
+  way, and two 40 KB blobs of synthetic JSON in tests/fixtures/ would be data nobody can check by eye.
+  S2 NOTHING BOUND BASELINES TO THE MEASUREMENT. `"motorway": 0.593` -> `0.001` passed: the only test over
+  the literals asserted `baseline > 0.0` and `fraction >= baseline`, which any small number satisfies. FIX:
+  test_baselines_are_exactly_the_measurement_times_the_ruled_margin recomputes the whole dict from the
+  committed measurement fixture with R3's rule - known/total x 0.75 truncated to three decimals, for every
+  class with total >= MIN_CLASS_WAYS - and asserts `BASELINES == recomputed`, key set included. The margin
+  and the floor are read from the module, so the test cannot drift from the rule it enforces; the NUMBERS
+  come only from the fixture.
+  S3 THE CHECK WAS GREEN OVER A TABLE WHERE NOTHING WAS JUDGED. On pristine code `{}` exited 0, a table with
+  every class relabelled `road_<cls>` exited 0, and a table of nothing but tiny classes exited 0 - because
+  `refusals` only ever looked at classes that were present AND large AND in BASELINES. A check whose verdict
+  is "nothing to say" must not print a pass. FIX: a WHITELIST, `required_missing`: every key of BASELINES
+  must be present in the table with `total >= MIN_CLASS_WAYS`, or the check refuses BY NAME - "class
+  residential is missing from the table" / "class motorway has only 9 ways, under MIN_CLASS_WAYS=25". It is
+  a whitelist over the identifiers the baselines already name, never a blacklist of shapes a bad table might
+  take (CLAUDE.md). A class the table carries that no baseline names is REPORTED, not refused:
+  `SURFACE UNKNOWN CLASS <cls>` on stderr for any such class at or over MIN_CLASS_WAYS, because an unknown
+  large class is either a relabel upstream or a new OSM class worth a measured baseline, and both want a
+  human, while `living_street` at 4 ways is neither.
+  WHAT A GENUINELY SMALL REGION DOES: IT IS REFUSED, and there is no flag. Ruled against a
+  `--allow-missing-classes` escape on the ground that a flag which turns a refusal into a pass is the exact
+  move the 25% margin and MIN_CLASS_WAYS exist to make unnecessary, and the first build that trips it will
+  be run with the flag rather than fixed. The baselines are ONE region's measurement (the STILL OPEN note
+  above says so); a region with no motorway or under 25 residential ways is not a region these numbers can
+  speak about, and the honest recourse is to measure that region and ship its own baseline set under its own
+  ruling - not to let it pass unmeasured. The refusal says which classes and how many ways, so the operator
+  is told exactly that.
+  S4 THE BOUNDARY, `<` vs `<=`. RULED: a class whose fraction is EXACTLY its baseline PASSES. The comparison
+  stays `fraction < baseline`. The baseline is a floor, and a floor is a value that is allowed; the margin
+  is already 25%, so nothing real sits on the boundary, and the rule that reads the way it is written -
+  "below the baseline is refused" - is the one a reader will assume. Asserted both ways:
+  test_a_class_exactly_at_its_baseline_passes (91 known of 1000 residential ways, 0.091 exactly) and
+  test_a_class_one_way_below_its_baseline_is_refused (90 of 1000).
+  EVERY new rule gets its mutant: `bad = refusals(table) if args.table else []` (S1), motorway 0.593 ->
+  0.001 and an extra BASELINES key (S2), `required_missing` returning [] and its MIN_CLASS_WAYS arm dropped
+  and the unknown-class report silenced (S3), `fraction <= baseline` (S4). MIN_MUTATIONS rises 18 -> 25.
+  KNOWN_MISSED stays [] and stays a true claim.
+- 2026-09-19T11:31:11Z ACCEPTANCE BLOCK, re-run BARE at the final pre-review commit of the hardening (the
+  amend that carries this entry changes only this task file, which nothing below measures except its own
+  `wc -l`, given after it). The earlier acceptance block at 11:40:00Z stands as it was run; this one
+  supersedes it.
+  * the CHECK, `--table`, over the committed real measurement: `SURFACE classes=15 refused=0`, exit 0, with
+    `SURFACE secondary_link ... no baseline (class is not in BASELINES)` and `SURFACE living_street ...
+    no baseline (class is not in BASELINES)` printed and neither refused nor reported (both under
+    MIN_CLASS_WAYS). Over the committed below-baseline table: exit 1, `SURFACE REFUSED residential: surface
+    coverage 0.0234 is below the baseline 0.091 (60 known of 2562 ways)`.
+  * the CHECK, `--corpus`, over a corpus `python -m etl.corpus` really built from the committed seven-way
+    extract (`CORPUS region=fixture ways=7 segments=79 collisions=0`): exit 1, `SURFACE classes=5 refused=10`,
+    naming each one - `SURFACE REFUSED class motorway has only 1 ways, under MIN_CLASS_WAYS=25 - too few to
+    judge`, `SURFACE REFUSED class motorway_link is missing from the table - every baselined class must be
+    measured`, and the same for primary, residential, secondary, service, tertiary, track, trunk,
+    unclassified. On pristine code before this commit that corpus exited 0 (S3). Over the two corpora the
+    tests build from a ten-class extract (250 ways): the collapsed one exits 1 naming residential below its
+    baseline, the covered one exits 0 with `refused=0`.
+  * P-DATA-04's assertion, run bare as check-pins runs it (both `--table` fixtures and a corpus built in a
+    mktemp dir): exit 0.
+  * `cd services/etl && python -m pytest tests -rs -o addopts=` -> `1165 passed in 75.86s`, zero skips
+    (test_surfacecoverage.py contributes 23, up from 16).
+  * `python ops/mutate/surfacecoverage.py` -> `BASELINE exit=0, 25 mutations, floor 25` /
+    `MUTATIONS: 25 caught, 0 missed, 0 skipped, of 25` / `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2` /
+    `MUTATE OK  caught=25/25 equivalent_caught=0`. `--prove-vacuity` -> `VACUITY: 0 caught, 25 missed,
+    0 skipped, of 25` / `VACUITY PROVED`. KNOWN_MISSED is still [] and still a true claim.
+  * `python ops/lib/check-mutate-population.py` -> `P-PROC-06: 72 modules, 23 covered by 11 populations,
+    25 allowlisted, 1 added by this branch` / `every added module is covered or allowlisted; the floor of 23
+    holds`, exit 0. (The "1 added" is surfacecoverage.py itself, covered.)
+  * `bash ops/lib/check-line-cap` -> `P-SRC-02: 83 Swift files tracked ... none over 300 lines`, exit 0.
+  * `bash ops/lib/check-exec-bits` -> `P-OPS-01: 77 files, 23 required present, all modes correct`, exit 0.
+  * `bash ops/queue-check` -> `QUEUE OK (205 tasks)`, exit 0.
+  * `bash ops/check-pins --source-only` -> quoted in the PR body.
+  * `wc -l` on every file this commit touches: services/etl/etl/surfacecoverage.py 231,
+    services/etl/tests/test_surfacecoverage.py 267, ops/mutate/surfacecoverage.py 246, pins/PINS.yaml 278,
+    and this task file 242 after this entry. All under the 300 cap; ops/lib/check-mutate-population.py is
+    unchanged at 294 (the registration it needed landed in the first commit).
+  STILL OPEN, for the reviewer: (i) and (ii) from the 11:40:00Z block stand unchanged - one window's
+  baselines, and `ops/sane`'s check-4 wiring belongs with the sane-check work; (iii) NEW: the required-class
+  whitelist makes this check a statement about a FULL region build, so the first small-region build will be
+  refused by name and will want its own measured baseline set under its own ruling - that is the ruled
+  behaviour (S3), not an oversight, and the refusal says which classes and how many ways.
+- 2026-09-19T11:55:27Z P-OPS-03 CAUGHT THE NEW ASSERTION, and this is the record. The first spelling of
+  P-DATA-04's added `--corpus` clause ended `... --corpus "$T/c.sqlite" 2>&1 >/dev/null | grep -q 'SURFACE
+  REFUSED class residential'`, which passed when run by hand and FAILED under `ops/check-pins --source-only`:
+  `ops/lib/check-pipe-consumers` names it by file and line, because a gate that decides with
+  `producer | grep -q` throws the producer's exit status away and reports the grep's. Rewritten with no pipe
+  at all: the check's stderr goes to `"$T/err"`, the refusal itself is asserted as `! "$P" -m
+  etl.surfacecoverage --corpus ...` (exit non-zero REQUIRED), and `grep -q ... "$T/err"` then reads a file.
+  Re-run bare: the assertion exits 0, and `bash ops/lib/check-pipe-consumers` -> `PIPE-CONSUMERS OK: no gate
+  decides with 'producer | grep -q' (77 scanned, 78 tracked, floor 42)`, exit 0. Nothing else in the
+  acceptance block above is affected - pins/PINS.yaml is the only file this correction touches, and it is not
+  a file any measurement there ranges over except its own `wc -l`, re-measured here: pins/PINS.yaml 278 and
+  this task file 254 at the final commit. Every other number in the 11:31:11Z block stands as run.
