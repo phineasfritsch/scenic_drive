@@ -82,7 +82,7 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Plan/LambdaCustomModel.swift", "Sources/ScenicKit/Plan/PlanTable.swift",
     "Sources/ScenicKit/Plan/PlanWaypoints.swift", "Sources/ScenicKit/Plan/RouteDifference.swift",
     "Sources/ScenicKit/Plan/RoutePath.swift", "Sources/ScenicKit/Plan/ScenicPlan.swift",
-    "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+    "Sources/ScenicKit/Plan/ScenicPlanner.swift", "Sources/ScenicPlanCLI/PlanArguments.swift",
     "Sources/ScenicKit/Guidance/GuidanceSign.swift", "Sources/ScenicKit/Hazards/HazardFlag.swift",
     "Sources/ScenicKit/Hazards/HazardStrip.swift", "Sources/ScenicKit/Loop/RetraceDetector.swift",
     "Sources/ScenicKit/Scoring/RouteScore.swift", "Sources/ScenicKit/Scoring/SegmentScore.swift",

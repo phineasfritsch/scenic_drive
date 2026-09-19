@@ -130,6 +130,31 @@ struct ScenicPlannerMetaTests {
         }
     }
 
+    @Test("a route exactly on the ceiling is planned; one second over is refused")
+    func theCeilingIsInclusiveToTheSecond() throws {
+        // WHERE the ceiling guard's boundary is, in ScenicPlanner.plan itself. LambdaSearch has its own
+        // boundary test, but the planner's guard is a SECOND net over a different value - the chosen
+        // route's own duration, re-read from the route - and `<=` there could become `<` with every test
+        // still green: the mutant only refuses more, so it shows up as a drive the tool declined to plan
+        // and never as a breach. A ceiling the user is not allowed to reach is not the ceiling they were
+        // promised, so both sides of it are asserted here, one second apart.
+        let ceiling = Self.fastestSeconds + Self.budget
+        let onTheCeiling = ScenicPlanner(
+            source: Self.router(scenicAt: 8, seconds: ceiling, ways: [7, 8, 9, 10]),
+            solve: Self.stubSolver(answering: 8)
+        )
+        let plan = try onTheCeiling.plan(from: Self.origin, to: Self.destination, budget: Self.budget)
+        #expect(plan.outcome.duration == ceiling)
+
+        let overByOneSecond = ScenicPlanner(
+            source: Self.router(scenicAt: 8, seconds: ceiling + 1, ways: [7, 8, 9, 10]),
+            solve: Self.stubSolver(answering: 8)
+        )
+        #expect(throws: PlanFailure.budgetCeilingBreached(returned: ceiling + 1, ceiling: ceiling)) {
+            try overByOneSecond.plan(from: Self.origin, to: Self.destination, budget: Self.budget)
+        }
+    }
+
     // MARK: - the control, without which both tests above pass on a planner that refuses everything
 
     @Test("a different route inside the ceiling is planned, through the real bisection")

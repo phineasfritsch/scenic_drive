@@ -47,6 +47,12 @@ public struct GraphHopperRouteSource: RouteSource {
     /// it does the table stops apportioning seconds by metres.
     public static let details = ["scenic_score", "road_class", "osm_way_id"]
 
+    /// The encoded values a request body may never name, the same two as customModel.ts's
+    /// `FORBIDDEN_ENCODED_VALUES`. They are the unpaved and access safety gates, they live in
+    /// car_scenic_base.json on the server, and a per-request body that can NAME one is a body that can
+    /// relax it.
+    public static let forbiddenEncodedValues = ["road_access", "surface"]
+
     public let baseURL: URL
     public let fastProfile: String
     public let scenicProfile: String
@@ -97,7 +103,27 @@ public struct GraphHopperRouteSource: RouteSource {
         return "{\n" + lines.joined(separator: ",\n") + "\n}"
     }
 
+    /// Refuses a body that names a safety gate, and is the FIRST thing every request passes through.
+    ///
+    /// The Worker's `rejectCustomModel` does this to bodies clients send it; this is the same refusal on
+    /// the same property, here, where this tool is the client. Without it the property "the bytes on the
+    /// wire never name `road_access` or `surface`" rests entirely on tests of `LambdaCustomModel`, so one
+    /// clause added to that template would ship a request that can relax an unpaved-road gate with
+    /// nothing at the request path to stop it. Both `fastest` and `scenic` reach the socket only through
+    /// `send`, so this is the one place that covers every request rather than every current CALLER.
+    ///
+    /// Over-refusing costs one request and a loud message; under-refusing routes somebody down a private
+    /// dirt track, which is why the comparison is over the whole body, case-insensitively, substring and
+    /// not word - `"road_access_x"` is refused too, exactly as the Worker refuses it.
+    static func refuseSafetyGates(in body: String) throws {
+        let text = body.lowercased()
+        for value in Self.forbiddenEncodedValues where text.contains(value) {
+            throw PlanFailure.modelTouchesSafetyGate(value)
+        }
+    }
+
     func send(_ body: String) throws -> Data {
+        try Self.refuseSafetyGates(in: body)
         var request = URLRequest(url: baseURL.appendingPathComponent("route"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

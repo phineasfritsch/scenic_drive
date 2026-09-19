@@ -28,6 +28,14 @@ public enum PlanFailure: Error, Equatable, Sendable {
     /// The recorded router has no response for this lambda, and inventing one would make the fixture a stub.
     case noRecordedResponse(lambda: Double)
 
+    /// The request body names a safety gate (`road_access`, `surface`), refused before it is sent.
+    ///
+    /// The unpaved and access gates live in car_scenic_base.json on the server, where a per-request body
+    /// cannot reach them. A body that NAMES one is a body that can relax one, so the request is refused
+    /// rather than sent and inspected afterwards - the same rule, and the same two names, as the Worker's
+    /// `rejectCustomModel`. The value carried is the gate that was named.
+    case modelTouchesSafetyGate(String)
+
     /// Lambda is outside the bisection's bracket. Never clamped - the same rule the Worker's
     /// `buildCustomModel` states: a clamp turns "the caller has a bug" into "the route is quietly not the
     /// one that was asked for".
@@ -48,6 +56,9 @@ extension PlanFailure: CustomStringConvertible {
                 + "and a scenic route must overlap by less than \(maximum)"
         case let .noRecordedResponse(lambda):
             return "no recorded response at lambda \(lambda)"
+        case let .modelTouchesSafetyGate(value):
+            return "the request body names the safety gate \(value), which lives on the server and may "
+                + "never be sent per request"
         case let .lambdaOutOfRange(lambda):
             return "lambda \(lambda) is outside [0, \(LambdaSearch.maxLambda)]"
         }

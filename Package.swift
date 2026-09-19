@@ -46,6 +46,18 @@ let package = Package(
             path: "Sources/ScenicPlanCLI",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
+        // The CLI's own tests. They exist because T-0182's pre-review pass found that the one line in this
+        // tool that converts the minutes a user types into the seconds the ceiling is computed from could
+        // be changed to `* 3600` - a 25-HOUR ceiling - with all 315 tests green: no test target named
+        // ScenicPlanCLI, so nothing could bind to it. A test target on an EXECUTABLE target is legal from
+        // SwiftPM 5.5 and is the smaller of the two fixes; the other was moving the CLI's types into a
+        // library, which would have made the tested symbol a different symbol from the shipped one.
+        .testTarget(
+            name: "ScenicPlanCLITests",
+            dependencies: ["ScenicPlanCLI", "ScenicKit", "Handoff"],
+            path: "Tests/ScenicPlanCLITests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
         .testTarget(
             name: "HandoffTests",
             dependencies: ["Handoff", "ScenicKit"],

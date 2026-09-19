@@ -3,7 +3,8 @@
 CLAUDE.md, Verification: *a new numeric module under Sources/ ships its mutation population under
 ops/mutate/ with a literal floor*. T-0182 adds six numeric modules - the Jaccard difference, the band
 multipliers, the table's interval arithmetic, the waypoint spacing, the ceiling and difference guards, and
-the report's own number formatting - and this is their population.
+the report's own number formatting - and this is their population. The CLI's minutes -> seconds conversion
+joined them at the pre-review fix: it is arithmetic on the shipping path and it moves the ceiling.
 
 WHAT COUNTS. A mutation is CAUGHT only when a named test records an issue. A non-zero exit with no named
 failure is a TRAP and does not count; a mutation that does not compile is COMPILE-ONLY and does not count,
@@ -31,7 +32,12 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-# The modules this population covers, read as TEXT by ops/lib/check-mutate-population.py.
+# The modules this population covers, read as TEXT by ops/lib/check-mutate-population.py - which reads the
+# declaration with a regex, so nothing goes INSIDE these parentheses but paths.
+#
+# The last of them is the CLI's minutes-to-seconds conversion, which was allowlisted with a reason that
+# named the arithmetic and then excused it; multiplying by 3600 there shipped a 25-hour ceiling with every
+# test green, so the entry is withdrawn and the module is a subject here (T-0182 R8).
 SUBJECT_MODULES = (
     "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
     "Sources/ScenicKit/Plan/PlanTable.swift",
@@ -40,15 +46,19 @@ SUBJECT_MODULES = (
     "Sources/ScenicKit/Plan/RoutePath.swift",
     "Sources/ScenicKit/Plan/ScenicPlan.swift",
     "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+    "Sources/ScenicPlanCLI/PlanArguments.swift",
 )
 
 TEST_FILES = (
     "Tests/ScenicKitTests/ScenicPlannerMetaTests.swift",
     "Tests/ScenicKitTests/LambdaCustomModelParityTests.swift",
     "Tests/HandoffTests/ScenicPlanGoldenTests.swift",
+    "Tests/ScenicPlanCLITests/PlanCLIBudgetTests.swift",
+    "Tests/ScenicPlanCLITests/PlanCLIRequestBodyTests.swift",
 )
 
-SUITES = "ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenTests"
+SUITES = ("ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenTests"
+          "|PlanCLIBudgetTests|PlanCLIRequestBodyTests")
 SCRATCH = os.environ.get("SCENIC_MUTATE_SCRATCH", ".build-mutate-plan")
 
 MIN_MUTATIONS = 10
@@ -86,6 +96,11 @@ MUTATIONS = [
      "let ceiling = fastest.duration + budget", "let ceiling = fastest.duration + budget * 2"),
     ("planner/actually-different-guard-always-passes", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
      "guard overlap < RouteDifference.maximumOverlap else {", "guard true else {"),
+    ("planner/ceiling-refuses-a-route-exactly-on-it", "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+     "guard chosen.duration <= ceiling else {", "guard chosen.duration < ceiling else {"),
+    ("budget/minutes-are-multiplied-into-hours", "Sources/ScenicPlanCLI/PlanArguments.swift",
+     "public var budget: TimeInterval { budgetMinutes * 60 }",
+     "public var budget: TimeInterval { budgetMinutes * 3600 }"),
     ("decode/geojson-lon-lat-read-in-app-order", "Sources/ScenicKit/Plan/RoutePath.swift",
      "return Coordinate(latitude: position[1], longitude: position[0])",
      "return Coordinate(latitude: position[0], longitude: position[1])"),

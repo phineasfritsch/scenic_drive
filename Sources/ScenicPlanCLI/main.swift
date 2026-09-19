@@ -1,5 +1,4 @@
 import Foundation
-import Handoff
 import ScenicKit
 
 // `ops/plan <O> <D> <B>` - the plan's M3 exit, and the only way to drive this engine without a phone.
@@ -46,23 +45,10 @@ do {
     fail("ops/plan: \(error)\n\(PlanArguments.usage)", 2)
 }
 
-let source: RouteSource
-switch arguments.router {
-case let .http(url):
-    source = GraphHopperRouteSource(baseURL: url)
-case let .recorded(directory):
-    source = RecordedRouteSource(directory: directory)
-}
-
 do {
-    let planner = ScenicPlanner(source: source, maxEvaluations: arguments.maxEvaluations)
-    let plan = try planner.plan(from: arguments.origin, to: arguments.destination,
-                                budget: arguments.budget)
-    print("ROUTER \(source.describedSource)")
-    for line in plan.report() { print(line) }
-    let url = try AppleMapsDirections(source: plan.origin, destination: plan.destination,
-                                      waypoints: plan.waypoints).url()
-    print("URL \(url.absoluteString)")
+    // The run itself is PlanCommand.run - a function a test can call with the arguments a person types.
+    // This file is only what a process can do and a test cannot enter: printing and exit codes.
+    for line in try PlanCommand.run(arguments) { print(line) }
 } catch let failure as PlanFailure {
     // Not a crash and not a plan. The engine looked at what the router returned and refused to print a
     // drive it cannot stand behind, which is the product state the plan calls honest failure.
