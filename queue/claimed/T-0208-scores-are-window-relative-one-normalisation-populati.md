@@ -204,3 +204,38 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   list is non-empty, that every entry's two values are equal, and that a way of that list which is also in
   the 25 rows carries that same value - so the fact being pinned is the one this task bought, measured over
   a population the fixture names.
+- 2026-09-19T21:29:46Z PASS 1 WAS NOT COMPLETE, AND THE REFERENCE IS WHAT FOUND IT. Quoted as it landed.
+  The resume note this session inherited said all 125 quarter-tile documents were in `/fast/docs`, and
+  `ls /fast/docs | wc -l` was 125 while `wc -l work/tilelist.txt` was 125. A COINCIDENCE: 27 of those
+  documents are the whole tiles in `work/done.txt`, which are NOT in `tilelist.txt`, so 27 of the
+  tilelist's own tiles had no document at all. Nothing in the tree said so. What said so was the first
+  reference built over those 125 documents:
+      `REFERENCE docs=125 ways=410111 unique=386884 curvature=386884 ... sinuosity=371759`
+      `REFERENCE sha256 7d6f74caa173beb5b367727f6123cbaf3ce008ad46e479cccdedde8b6f7c32fe  bytes 22285328  1544s`
+  410,111 documented ways against the clip's own 560,208 is 73% of the region, and "the reference from the
+  whole clip is the non-negotiable part". `comm` over the document names against `tilelist.txt` + `done.txt`
+  named the 27 exactly: t08q0-3 · t16b · t25b · t28q2-3 · t33 · t35q0-3 · t36q0-3 · t37q0-3 · t44q0-3 ·
+  t45 · t54. A REFERENCE THAT IS SHORT OF ITS REGION CANNOT BE SEEN IN ANY OF ITS OWN NUMBERS - it is a
+  smaller curve, not a broken one - which is why the count is quoted against the clip's own way count and
+  not merely recorded.
+  PASS 1C, `work/pass1c.sh` over `work/tilelist-missing.txt`, nine tiles at a time, same resume-by-file-
+  presence rule, 27 tiles in 3 rounds of ~11 min. Its container was removed before its stdout was copied
+  out (my error; `work/count_missing.py` recomputes the same numbers from the documents the stage wrote
+  rather than retyping them from memory):
+      `PASS1C 27 tiles, 164285 ways, 0 refused` - t08q0 3133 · t08q1 7111 · t08q2 4817 · t08q3 6382 ·
+      t16b 10868 · t25b 10574 · t28q2 6059 · t28q3 5031 · t33 10278 · t35q0 3094 · t35q1 5910 ·
+      t35q2 6271 · t35q3 6197 · t36q0 6044 · t36q1 4773 · t36q2 4695 · t36q3 4113 · t37q0 5545 ·
+      t37q1 6046 · t37q2 4740 · t37q3 4813 · t44q0 5729 · t44q1 6323 · t44q2 2739 · t44q3 4880 ·
+      t45 10290 · t54 7830. `PASS1C END 152 docs`.
+  THE REFERENCE, over all 152 documents - the count line this task's second acceptance clause asks for:
+      `REFERENCE docs=152 ways=574396 unique=540793 curvature=540793 elevation_gain=540793
+       furniture=540793 relief=540793 sinuosity=519764`
+      `REFERENCE sha256 68863987ca325a42913d2534f1fbcc2d8a2292467125e93606425197ae2aa059  bytes 31385367  458s`
+  574,396 documented rows over 152 tiles against the clip's own 560,208 ways: the tile edges complete
+  14,188 ways into two tiles each (2.5%), and 540,793 of the region's ways are IN the curve. The 19,415
+  that are not are the zero classes R2 keeps out of it (`meta.json` counts motorway 17,394 + trunk 2,117
+  = 19,511 before their links and before the ways `waydoc` calls not_a_road). `sinuosity` is 21,029 short
+  of the other four: those are T-0161's closed ways, which decline THAT term and no other (R2).
+  `work/pass2_reference.py` was rewritten to a `multiprocessing.Pool(9)` over `Pool.imap`, which yields in
+  the order it was given, so SORTED TILE ORDER - and therefore first-tile-wins - is unchanged by the
+  parallelism: 1,544 s serial over 125 documents became 458 s over 152.
