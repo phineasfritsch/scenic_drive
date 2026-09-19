@@ -68,4 +68,56 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
 
     /// The pins in driving order, then the destination - the chain `StraightLineDistance` measures.
     public var chain: [Coordinate] { waypoints + [destination] }
+
+    /// This drive as a handoff request: `driving`, no `avoid`, and `source: nil` - "wherever you are",
+    /// which is why this app asks for no location permission (`AppleMapsDirections`).
+    ///
+    /// THE ONE URL BUILDER. `SkylineHandoff.directions(for:)` forwards here, so the URL the button
+    /// opens and the URL the clipboard carries are one construction over one drive. A second
+    /// `AppleMapsDirections(...)` built beside the copy button would be exactly the drift T-0202 was
+    /// filed for: a payload that says one drive while the tap takes another.
+    public var directions: AppleMapsDirections {
+        AppleMapsDirections(source: nil,
+                            destination: destination,
+                            waypoints: waypoints,
+                            mode: .driving)
+    }
+
+    /// The `maps.apple.com/directions` URL for this drive, or the refusal `Handoff` raises -
+    /// `HandoffError` distinguishes "too many waypoints" from "that is not a coordinate".
+    public func url() throws -> URL { try directions.url() }
+
+    /// The drive as text somebody can paste, composed from this drive's own URL.
+    ///
+    /// The caller passes the three sentences it renders (the feature target owns the words); the ORDER
+    /// is decided here, in a Linux target with a test bundle, because the order is the property T-0202
+    /// is about and an Apple-only target has nothing that can check it.
+    public func clipboardPayload(roadList: String, straightLine: String, timing: String) -> String {
+        Self.payload(mapsURL: try? url(),
+                     roadList: roadList,
+                     straightLine: straightLine,
+                     timing: timing)
+    }
+
+    /// THE PAYLOAD, AND ITS ORDER: the `maps.apple.com` URL FIRST, then the roads, the straight line
+    /// and the timing sentence, one per line.
+    ///
+    /// The URL leads because a paste into Messages or Notes makes its first line the tappable thing -
+    /// the whole answer to "paste it where?". The other three follow in the order the screen shows
+    /// them, and the timing sentence travels with the distance because a bare distance in a message is
+    /// read as an ETA.
+    ///
+    /// `mapsURL` is optional rather than thrown: when the URL cannot be built there is still a drive
+    /// worth pasting, and a refusal here would hand the reader an empty clipboard on the one screen
+    /// that exists because something already failed.
+    public static func payload(mapsURL: URL?,
+                               roadList: String,
+                               straightLine: String,
+                               timing: String) -> String {
+        var lines: [String] = [roadList, straightLine, timing]
+        if let mapsURL {
+            lines.append(mapsURL.absoluteString)
+        }
+        return lines.joined(separator: "\n")
+    }
 }
