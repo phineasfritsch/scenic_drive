@@ -473,3 +473,16 @@ That is the property the whole budget search depends on, and it is cheap to chec
   The routed container run is NOT repeated for a commit that changes one record file; ops/lib/check-line-cap
   and ops/check-pins --source-only are not repeated for the same reason, and both were green at b12c60e over
   identical source.
+- 2026-09-19T04:22:09Z **Record corrections from the mutant pass on the round-2 fix (b12c60e, b2fde44), closed before the review is
+  bought - agent/claude-fable-5-1 (orchestrator), for the owner. The pass re-applied B1 (static: killed by name by
+  test_request_model_bands_are_the_plan_thresholds), M1 (killed twice by name) and M3 (killed by name) on the
+  clean worktree, spent its one container run on B1 (`2 failed, 7 passed in 27.40s`, T(lambda) constant at
+  5945246 - red by TWO names, one container-free), found the tree clean at b2fde44 == PR head and every earlier
+  entry untouched; zero survivors. Two items are text.** (a) "the reviewer's log entry appended VERBATIM" is
+  unverifiable from GitHub (the PR has 0 reviews and 0 comments because reviews live in this file, not on the
+  PR); the orchestrator holds the reviewer's entry as the review workflow returned it and compared the two
+  byte for byte: 34 lines, present verbatim at L273-306 of this file. (b) The green control at the final code
+  commit (`9 passed in 33.29s`, T(lambda) 5945246 / 6015807 / 6908455 / 7664327 / 8491177) was NOT reproduced
+  by the pass - its single allowed container run went to the mutant - so it rests on the fixer's run and on
+  rv1-pr105's identical five durations at 7b7401a; the round-2 reviewer runs the routed line at this head as its
+  own control.
