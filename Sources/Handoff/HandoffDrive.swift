@@ -115,7 +115,7 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
     public var timingSentence: String {
         switch self {
         case .santaMonicaMountains:
-            return "Plan an afternoon - about 3 hours - not a commute. " + Self.realTimePromise
+            return "Plan an afternoon, not a commute. " + Self.realTimePromise
         case .skyline:
             return "Plan a long afternoon, not a commute - the longer of the two drives. "
                 + Self.realTimePromise
@@ -130,7 +130,7 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
     /// `HandoffDriveTimingSentenceTests` requires, for every case, that they differ, that neither carries
     /// a digit, and that this one does not carry `realTimePromise`.
     public var failureTimingSentence: String {
-        timingSentence
+        "Apple Maps did not open, so nothing here can promise a time."
     }
 
     /// The drive as text somebody can paste, composed from this drive's own URL.
