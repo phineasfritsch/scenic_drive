@@ -1,13 +1,13 @@
 ---
 id: T-0173
 title: corpus schema contract - a three-state surface column, TERM_NAMES pinned to score.score, and one schema_version across corpus, Worker and PlaceStore
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-18T23:11:49Z
+lease_expires_at: 2026-09-19T07:11:49Z
+worktree: .worktrees/T-0173
+branch: task/T-0173
 exclusive: []
 touches: [services/etl/etl/schema.py, services/etl/etl/corpuswriter.py, services/etl/tests/, services/api/src/index.ts, services/api/test/, pins/PINS.yaml]
 pins_affected: [P-PROD-05]
@@ -42,3 +42,4 @@ separate (ODbL posture) - this task changes columns and pins, not the layering.
 
 ## Log
 - 2026-09-18T23:04:01Z filed by agent/claude-fable-5-1 from the 16:13 panel's grounded synthesis; ready/ with its acceptance block. Not started.
+- 2026-09-18T23:11:49Z claimed by agent/claude-opus-5; lease until 2026-09-19T07:11:49Z
