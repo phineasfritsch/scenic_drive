@@ -22,11 +22,15 @@ import time
 from pathlib import Path
 
 from . import counts as ct
+from . import fetch
 from . import region as rg
 from . import tagfilter as tf
 
 ROOT = Path(__file__).resolve().parents[1]
-INPUTS = ROOT / "inputs"
+# The source .pbf is a fetched payload: one directory, shared by every worktree (T-0177). `WORK` stays
+# per-checkout on purpose - a work directory is this run's output, not a 1.2 GB download to be reused, and
+# two worktrees extracting different region.json edits into one `work/sfbay` would overwrite each other.
+INPUTS = fetch.resolve_inputs_dir(ROOT)
 WORK = ROOT / "work"
 IMAGE = "scenic-etl"
 SOURCE_PBF = "california-osm.pbf"
