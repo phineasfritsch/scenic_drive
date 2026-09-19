@@ -1,0 +1,7 @@
+{
+  "priority": [
+    { "if": "scenic_score >= 7", "multiply_by": "${high}" },
+    { "else_if": "scenic_score >= 4", "multiply_by": "${mid}" },
+    { "else": "", "multiply_by": "${low}" }
+  ]
+}
