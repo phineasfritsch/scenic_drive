@@ -174,8 +174,10 @@ def prove_floor() -> int:
     cases = [
         ("an empty population", [], SUBJECT_MODULES),
         ("one mutation", MUTATIONS[:1], SUBJECT_MODULES),
+        # PlanFailure.swift is allowlisted rather than populated, so nothing in the table names it - which
+        # is exactly the shape of the defect this arm refuses: a module declared into coverage.
         ("a subject nothing mutates", MUTATIONS,
-         SUBJECT_MODULES + ("Sources/ScenicKit/Plan/RoutePath.swift",)),
+         SUBJECT_MODULES + ("Sources/ScenicKit/Plan/PlanFailure.swift",)),
         ("the shipped table", MUTATIONS, SUBJECT_MODULES),
     ]
     failures = 0
@@ -194,8 +196,11 @@ def main(argv) -> int:
         return prove_floor()
     selected = MUTATIONS
     if "--only" in argv:
-        needle = argv[argv.index("--only") + 1]
-        selected = [m for m in MUTATIONS if needle in m[0]]
+        # A comma-separated list of name fragments. The whole table is one run of tens of minutes on this
+        # box, and a run that has to be abandoned halfway reports nothing at all; a slice reports its own
+        # verdicts and the Log carries both halves.
+        needles = argv[argv.index("--only") + 1].split(",")
+        selected = [m for m in MUTATIONS if any(n in m[0] for n in needles)]
     problem = floor_problem(MUTATIONS, SUBJECT_MODULES)
     if problem is not None:
         sys.stdout.write("REFUSING: %s\nA harness that examines nothing exits 0 and proves nothing.\n"
