@@ -1,4 +1,5 @@
 import DesignSystem
+import Handoff
 import OSLog
 import SwiftUI
 
@@ -24,6 +25,11 @@ struct GatedHandoffButton: View {
     /// Whether the safety disclaimer has already been accepted on this device. Owned by
     /// `ScenicHomeScreen`; see the `@AppStorage` key there.
     let isSafetyDisclaimerAcknowledged: Bool
+
+    /// Which drive this tap hands over. A VALUE carried through the one door, not a second door: see
+    /// `SkylineHandoff.open(_:)` for why a per-drive entry point would be a second door with one lock.
+    /// Nothing about the gate below depends on it - the guard runs first for every drive there is.
+    let drive: HandoffDrive
 
     /// Called on a tap that the gate stopped. The screen presents the disclaimer.
     let onBlocked: () -> Void
@@ -78,7 +84,7 @@ struct GatedHandoffButton: View {
             return
         }
         do {
-            try SkylineHandoff.open()
+            try SkylineHandoff.open(drive)
             onFailure(nil)
         } catch {
             // `.public`: `HandoffError` carries a coordinate pair or a waypoint count, and the

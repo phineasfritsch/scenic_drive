@@ -1,4 +1,5 @@
 import DesignSystem
+import Handoff
 import MapAdapter
 import ScenicKit
 import SwiftUI
@@ -11,9 +12,17 @@ import SwiftUI
 /// (plan sheet, route preview, hazard strip) arrives in M4 and replaces the middle of this file; the
 /// map, the footer, the disclaimer and the handoff at the edges are the parts that stay.
 ///
-/// The title and the road list name the drive `SkylineHandoff.waypoints` describes, but neither is
-/// derived from it: that type holds coordinates, and no name and no road names. Changing the drive,
-/// renaming it and rewriting the road list are three edits, and nothing but review ties them together.
+/// The title and the road list name the drive `SkylineHandoff.waypoints(for:)` describes, but neither
+/// is derived from it: the route types hold coordinates, and no name and no road names. Changing a
+/// drive, renaming it and rewriting its road list are three edits, and nothing but review ties them
+/// together - see `DriveCopy`, which is where all three live for both drives.
+///
+/// ## Two drives, one screen (T-0178)
+///
+/// `selectedDrive` is the one value the title, the road line, the distance, the map centre, the
+/// caption and the handoff URL all read. The LA drive is the default and the Skyline loop is one 44 pt
+/// tap away; `HandoffDrive.defaultDrive` carries the ruling for why that default is unconditional and
+/// why no locale and no location is consulted to pick it.
 ///
 /// No duration anywhere on this screen. Nobody has driven this route or measured it, and a number
 /// nobody measured is the kind of claim this repository exists to catch.
@@ -49,6 +58,21 @@ public struct ScenicHomeScreen: View {
     /// looks identical to a working one in a screenshot.
     @State private var handoffFailure: String?
 
+    /// Which drive is on screen. The title, the road line, the distance, the map centre, the caption
+    /// and the handoff URL all read this one value, which is why they cannot come apart.
+    ///
+    /// `HandoffDrive.defaultDrive` and NOT a locale or a location test - see that property for the
+    /// ruling. `Locale.current.region` is a country (`US`) and there is no identifier for Southern
+    /// California; a last-known coarse position would need a CoreLocation authorization this app has
+    /// never asked for and must not. So the plan's 5.1.1(iv) "nothing is known" case is the only case:
+    /// the owner in Westwood opens the app on the LA drive with no permission prompt, and a friend who
+    /// has denied Location sees exactly the same screen, because nothing here reads a location.
+    ///
+    /// `@State` and not `@AppStorage`: the acknowledgement is a thing the user agreed to and has to
+    /// survive the app, while which drive is showing is where you are right now. A relaunch is back on
+    /// the default, which is the owner's drive.
+    @State private var selectedDrive = HandoffDrive.defaultDrive
+
     public init() {}
 
     public var body: some View {
@@ -58,11 +82,13 @@ public struct ScenicHomeScreen: View {
             ZStack(alignment: .bottom) {
                 MapView(
                     styleURL: style.url,
-                    // Centred on the Bay Area by reusing the route's own destination rather than a fresh
-                    // pair of digits: San Francisco at zoom 8.5 frames the city, the Peninsula and the
-                    // ridge this drive runs along. One verified coordinate, one place it lives.
-                    centerLatitude: SkylineHandoff.destination.latitude,
-                    centerLongitude: SkylineHandoff.destination.longitude,
+                    // Centred by reusing the SELECTED route's own destination rather than a fresh pair
+                    // of digits: San Francisco frames the city, the Peninsula and the ridge; Westwood
+                    // frames the Santa Monica Mountains, the coast and the Valley. One verified
+                    // coordinate per drive, one place each lives, and the map cannot sit over the Bay
+                    // while the title names an LA loop.
+                    centerLatitude: SkylineHandoff.destination(for: selectedDrive).latitude,
+                    centerLongitude: SkylineHandoff.destination(for: selectedDrive).longitude,
                     zoomLevel: 8.5
                 )
                 .ignoresSafeArea()
@@ -70,7 +96,8 @@ public struct ScenicHomeScreen: View {
                 VStack(spacing: 12) {
                     if let handoffFailure {
                         HandoffFailureCard(message: handoffFailure,
-                                           roadList: Copy.route,
+                                           roadList: DriveCopy.route(for: selectedDrive),
+                                           drive: selectedDrive,
                                            onRetry: { gatedHandoff.attempt() })
                             .padding(.horizontal, 16)
                     }
@@ -110,6 +137,7 @@ public struct ScenicHomeScreen: View {
     private var gatedHandoff: GatedHandoffButton {
         GatedHandoffButton(
             isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,
+            drive: selectedDrive,
             onBlocked: { isShowingDisclaimer = true },
             onFailure: { handoffFailure = $0 }
         )
@@ -128,7 +156,12 @@ public struct ScenicHomeScreen: View {
     /// there is no 44 pt target to keep.
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(Copy.title)
+            // Above the title, because it changes what the title says. Padding-free here: the band's
+            // own horizontal padding is the one below.
+            DriveSelector(selection: $selectedDrive)
+                .padding(.bottom, 4)
+
+            Text(DriveCopy.title(for: selectedDrive))
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundStyle(DesignTokens.fg)
@@ -136,7 +169,7 @@ public struct ScenicHomeScreen: View {
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("home.title")
 
-            Text(Copy.route)
+            Text(DriveCopy.route(for: selectedDrive))
                 .font(.subheadline)
                 // `fgMuted`, and the same muted pair for the caption below: both are secondary lines
                 // under the title, and `primary` is a button fill, never a sentence on `bg`
@@ -146,9 +179,9 @@ public struct ScenicHomeScreen: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("home.route")
 
-            DriveFacts()
+            DriveFacts(drive: selectedDrive)
 
-            Text(Copy.mapCaption)
+            Text(DriveCopy.mapCaption(for: selectedDrive))
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -203,28 +236,15 @@ public struct ScenicHomeScreen: View {
     /// later extraction stays mechanical - each `static let` becomes a key and no call site moves.
     /// Nested rather than a second file-scope type so the file still declares one type and still
     /// matches its own name.
+    /// The strings that belong to the SCREEN rather than to a drive. The title, the road line and the
+    /// map caption moved to `DriveCopy` when there were two drives to say them about, because those
+    /// three have to change together with the selection and this one must not change at all.
     private enum Copy {
-        /// The drive, named by the road it is about and by where it both starts and ends. See the type's
-        /// note: a literal, not a rendering of the waypoints - `SkylineRoute` is SF to SF, and this line
-        /// says so because the round trip is the thing a reader has to know before tapping. No duration
-        /// in it - see the type's note for why there is none anywhere on this screen.
-        static let title = "Skyline loop · starts and ends in San Francisco"
-
-        /// The roads, in the order the drive takes them - the one line on this screen that says where
-        /// you would actually be, while the map says nothing. Also a literal (the type's note). T-0170
-        /// reuses this line: when a handoff fails, the roads are what a user can still act on.
-        static let route =
-            "I-280 south, Cañada Road north, CA-92 west, Skyline Boulevard south, then back to the city."
-
-        /// What is under the header. `MapStyle.maplibreDemoTiles` draws country polygons and nothing at
-        /// the scale of this drive, and the route is not drawn on it at all (M4 draws it), so there is
-        /// not a road on screen to follow. First clause: what this build is. Then what the map is not,
-        /// and what to do instead, pointing at the button directly below it.
-        static let mapCaption =
-            "Preview build: one fixed Bay Area drive. The map doesn't show roads yet - tap below and it opens in Apple Maps."
-
         /// The persistent safety line, from the plan's risk table, word for word. The same sentence the
-        /// disclaimer ends on, so the line the user keeps seeing is the line they agreed to.
+        /// disclaimer ends on, so the line the user keeps seeing is the line they agreed to. It is the
+        /// same for both drives on purpose: conditions change on a ridge in San Mateo County and in
+        /// Topanga Canyon alike, and a per-drive safety line would be a line somebody could edit away
+        /// one drive at a time.
         static let conditions = "Conditions change. Verify locally."
     }
 }
