@@ -15,10 +15,21 @@ against itself and call every mutation equivalent.
 Every value is written with `repr`, at full precision, never rounded: the comparison is on BYTES. A refusal
 is a value too - `ValueError: way_sinuosity: needs at least 2 coordinates, got 1` is as much a fact about
 the module as a number is, and a mutant that turns a refusal into a default must not read as equivalent.
+
+THE REPORTING BOUNDARY IS NOT A FIXTURE COORDINATE. `meters_to_nearest_motorway` ends on `nearest if
+nearest <= radius_m else math.inf`, and no fixture case's nearest approach sits at MOTORWAY_SEARCH_RADIUS_M,
+so for one release of this harness the `<=`-for-`<` mutant printed `(IDENTICAL)`: the witness could not see
+the module's boundary at all, and a false equivalence wrong ONLY there would have passed it. A fixture case
+tuned to land on 1000.0 exactly IS reachable - the projection quantises `px - ax` at ~1.9e-9 m, so 8191
+consecutive doubles of one longitude offset give exactly 1000.0 - and is the wrong fix: it buys ONE value in
+ONE case, and it decays silently the day the rounding moves. `at_its_own_radius` below asks instead for each
+case's own answer back at its own answer, where `nearest <= radius_m` is the identity `x <= x`: the boundary
+is exercised BY CONSTRUCTION on every proximity case, on every run, with no literal anywhere.
 """
 from __future__ import annotations
 
 import json
+import math
 import pathlib
 import sys
 
@@ -37,6 +48,24 @@ def coords_of(case, key="coordinates"):
 
 def emit(out: list[str], name: str, label: str, fn) -> None:
     out.append("%-64s %-28s %s" % (name, label, value(fn)))
+
+
+def at_its_own_radius(proximity, coords, lines) -> float:
+    """`meters_to_nearest_motorway` asked a second time with its OWN unbounded answer as the radius.
+
+    The first call passes `math.inf`, which no radius test can reject, so the answer is the nearest approach
+    itself; the second passes that answer back as `radius_m`. In a pristine tree the comparison is the
+    identity `x <= x` and the distance is reported; under a mutant that makes the radius EXCLUSIVE it is
+    `x < x`, which is false for every float, and the same case reports `math.inf`. Neither call depends on
+    a coordinate landing on a particular number, so this holds for every case in every fixture - and for
+    any case added later - rather than for one tuned literal.
+
+    The unbounded call is unaffected by that mutation (`x < inf` and `x <= inf` agree for every non-inf x,
+    and both answer inf when there is no candidate at all), so the radius handed to the second call is the
+    same number in both trees and the two digests are compared over the same question.
+    """
+    answer = proximity.meters_to_nearest_motorway(coords, lines, radius_m=math.inf)
+    return proximity.meters_to_nearest_motorway(coords, lines, radius_m=answer)
 
 
 def measure(root: pathlib.Path) -> list[str]:
@@ -66,6 +95,8 @@ def measure(root: pathlib.Path) -> list[str]:
                     lines = [[(lat, lon) for lat, lon in line] for line in case["motorways"]]
                     emit(out, name, "meters_to_nearest_motorway",
                          lambda c=coords, m=lines: proximity.meters_to_nearest_motorway(c, m))
+                    emit(out, name, "meters_at_its_own_radius",
+                         lambda c=coords, m=lines: at_its_own_radius(proximity, c, m))
                     for i, line in enumerate(lines):
                         emit(out, name, "line_distance_m[%d]" % i,
                              lambda c=coords, ln=line: proximity.line_distance_m(c, ln))

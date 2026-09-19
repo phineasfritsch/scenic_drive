@@ -280,3 +280,176 @@ proximity.py; today nothing outside the two test files does. CLAUDE.md's Verific
   branch's only test addition against merge-base dcaf3bd being test_proximity_banded.py (4 tests); 976 was not
   re-measured. (d) "Four of the six new files existed as untracked work-in-progress in the worktree when I
   started" is not verifiable from the committed tree and is not load-bearing.
+- 2026-09-19T04:40Z RULING ON THE BOUNDARY HOLE (STILL OPEN 1 of the 03:35Z list), BEFORE ANY CODE, on the
+  two shapes offered for closing it: (A) a fixture case in `geometry_bends_fixture.json` whose nearest
+  approach is EXACTLY `MOTORWAY_SEARCH_RADIUS_M`, or (B) a boundary probe in `geometry_probe.py` - for every
+  proximity case, after the unbounded answer, ask `meters_to_nearest_motorway` again with that answer as
+  `radius_m`, so the pristine tree reports the distance (`nearest <= radius_m` holds as an identity) and an
+  exclusive mutant reports `inf`. THE RULING IS B, and it is not because A is impossible.
+  IS AN EXACT 1000.0 REACHABLE IN FLOATING POINT? YES - measured before ruling, because "unreachable" would
+  have been the convenient answer. `snap.point_to_segment_m` projects to metres FIRST (`px = p[1] * kx`), so
+  at lon -118 the operands are ~1.09e7 m and the difference `px - ax` is quantised at ULP(1.09e7) =
+  1.862645149230957e-09 m - ten thousand times coarser than ULP(1000.0) = 1.1368683772161603e-13 - which is
+  why a whole BAND of coordinates lands on the boundary rather than a knife edge. A throwaway bisection over
+  the doubles (in the gitignored `.build-mutate-geometry/`, not committed) found it: a way
+  (34.00,-118.00)-(34.01,-118.00) against the same pair offset east by 0.010836228509198522 deg gives
+  `line_distance_m` -> `1000.0` exactly; 8191 consecutive doubles of that offset give the same value; and it
+  survives `cos(radians(34.005))` moved +-3 ULP (kx 92283.02994450173 through 92283.02994450182, distance
+  1000.0 at every one). So A needs no tolerance and would not be faking one. It is still the wrong shape.
+  WHY B, on four grounds, none of them "A is hard":
+  1. COVERAGE. A exercises the reporting boundary at ONE value in ONE case. B exercises it on EVERY
+     proximity case - 17 of them across both geometry fixtures, crossing pairs at 0.0 included - at that
+     case's OWN answer. The hole named at 03:35Z is about the EQUIVALENT arm, and a false equivalence wrong
+     only at the boundary can be wrong at any distance, not only at 1000.0.
+  2. NO HAND-TUNED COORDINATE, which is what the fixture would have to carry. 0.010836228509198522 is a
+     17-significant-digit literal found by bisecting the doubles; it is a fact about the rounding of this
+     projection, not about geometry, while every other case in that file is a geometry with `workings`
+     stating what it means. Its consumers compare with `abs=` tolerances, so no test in the suite could see
+     the exactness - only the probe could.
+  3. SILENT DECAY, which is this repository's signature defect. If that literal ever stopped landing exactly
+     on the boundary - a different libm, a re-association of the arithmetic in `point_to_segment_m`, a
+     projection constant moved - the table would go quietly back to `(IDENTICAL)` and no gate would go red.
+     Under B nothing can silently un-exercise the boundary: the radius IS the answer, whatever the answer
+     becomes, and the identity `x <= x` is not a property of any libm.
+  4. THE BLINDNESS IS THE WITNESS'S, SO THE FIX BELONGS TO THE WITNESS. A would add a case to the fixture
+     population - a record of geometry shared by four suites - to repair an instrument. B touches
+     `ops/mutate/geometry_probe.py` and nothing else: no new fixture case, no new parametrised test id, no
+     interaction with that file's `TestFixtureShape` collinearity guard.
+  WHAT B DOES NOT BUY, stated rather than implied: it passes its own radius, so it says nothing about the
+  VALUE of `MOTORWAY_SEARCH_RADIUS_M`. That constant is measured by the existing default-radius emit (a
+  mutant that moves it changes the answer for any case that straddles the new value) and by
+  `test_proximity.py`'s structural assertion that the radius stays clear of score.py's 150 m. That is
+  unchanged by this edit, and it is not the hole 03:35Z named.
+  CONSEQUENCES ACCEPTED: the baseline fingerprint and the value count MOVE (one new line per proximity
+  case), so every digest quoted in the 03:30Z and 04:05Z tables is superseded by the re-run below; and the
+  radius mutation's row must turn from `(IDENTICAL)` to `(differs)` while still being killed by
+  `test_the_radius_is_inclusive`, which is the check this edit exists to buy.
+- 2026-09-19T04:45Z RED BY NAME FIRST, then green. THE EDIT IS ONE FILE: `ops/mutate/geometry_probe.py`
+  gains `at_its_own_radius` and one `emit` per proximity case. Nothing under `etl/` is touched, no fixture
+  case is added, and `git diff --stat` at this commit is `ops/mutate/geometry_probe.py | 31 +++` plus this
+  task file.
+  (a) THE WITNESS WAS BLIND, AND THE SAME MUTANT THROUGH BOTH PROBES SAYS SO. The exclusive-radius edit
+  applied to a copy and fingerprinted twice - once through `git show HEAD:ops/mutate/geometry_probe.py`,
+  once through this working tree's - with no pytest in it at all:
+
+        HEAD's probe (the hole): pristine e92225a056e1d2b1 over 175 values | exclusive-radius mutant e92225a056e1d2b1 over 175 -> IDENTICAL - the witness is blind
+        this tree's probe      : pristine 7e4a5ae891425963 over 192 values | exclusive-radius mutant db4462b2c31aec4e over 192 -> differs
+
+  16 of the 192 values move - every motorway case except `no_motorways_at_all`, whose unbounded answer is
+  already `inf` and for which `inf < inf` and `inf <= inf` agree. 192 = 175 + one line for each of the 17
+  proximity cases in the two geometry fixtures.
+  (b) THE ARM ITSELF, RED, WITH THE FALSE EQUIVALENCE THE HOLE WOULD HAVE WAVED THROUGH. A fifth EQUIVALENT
+  entry claiming exactly the ruling this hole made possible - *the reporting radius is exclusive, "no case
+  sits on it anyway"* - added to `geometry_arms.py` in the worktree, `python ops/mutate/geometry.py`,
+  exit 1:
+
+        equivalent         RED DEMO ONLY - the reporting radius is exclusive, 'no case sits on it anyway'
+            exit=1   1 red  fingerprint db4462b2c31aec4e over 192 values (DIFFERS)
+            WITNESS FAILED: The false equivalence the blind witness would have waved through
+
+        POPULATION 12 mutations over 6 classes (floor 12), 5 equivalent (floor 4)
+        EQUIVALENT BUT CAUGHT - a test with an opinion about how the code is WRITTEN:
+            ("RED DEMO ONLY - the reporting radius is exclusive, 'no case sits on it anyway'", ['test_the_radius_is_inclusive'])
+        EQUIVALENT BUT THE FINGERPRINT MOVED - the ruling is false, like round 3's:
+            RED DEMO ONLY - the reporting radius is exclusive, 'no case sits on it anyway'
+
+  Under HEAD's probe that same entry would have printed `(IDENTICAL)` on the witness arm - (a) is the
+  measurement. The entry was then REMOVED: it is a demonstration, not a population member, and
+  `geometry_arms.py` is byte-identical to HEAD at this commit (`git status --short` -> two paths, neither
+  of them that file).
+- 2026-09-19T04:50Z ACCEPTANCE, RE-RUN BARE AND RE-QUOTED WHOLE AT THE FINAL CODE COMMIT. The baseline
+  fingerprint and the value count MOVED with this edit, so every digest in the 03:30Z A3 table and in the
+  04:05Z re-measurement is superseded by the table below; the 04:22Z verifier's line-for-line match is
+  against the old probe and is superseded with them. `python ops/mutate/geometry.py`, exit 0, whole output:
+
+        BASELINE  6 test files, pytest exit=0, 0 failed; fingerprint 7e4a5ae891425963 over 192 values
+
+        MUTATIONS - each must be killed BY THE TEST THAT NAMES IT
+        segment-subset     line_distance_m walks only the WAY's first segment
+            exit=1  10 red  fingerprint 69771d6ccb375ac6 (differs)  named red: ['test_the_nearest_approach_may_be_on_a_later_segment_of_the_way', 'test_the_way_may_bend_toward_the_motorway_between_its_end_nodes']
+        segment-subset     line_distance_m walks only the WAY's last segment
+            exit=1   8 red  fingerprint 2a1354986781a5db (differs)  named red: ['test_the_way_may_bend_toward_the_motorway_between_its_end_nodes']
+        segment-subset     snap.length_m drops the way's LAST segment (every-but-last)
+            exit=1  38 red  fingerprint 296f09518bae04c4 (differs)  named red: ['test_a_multi_segment_tunnel_is_measured_end_to_end', 'test_the_sinuosity_matches_the_fixture']
+        chord-for-path     tunnel_meters measures the bore's chord, not its path
+            exit=1   5 red  fingerprint 7ca2f9b8fbea0706 (differs)  named red: ['test_the_bore_measures_its_path_and_not_its_chord', 'test_a_bent_bore_crosses_the_threshold_only_along_its_path']
+        chord-for-path     the CANDIDATE motorway is reduced to its chord before it is measured
+            exit=1   4 red  fingerprint 7a7706edf3ce2528 (differs)  named red: ['test_the_metres_to_the_nearest_motorway_match_the_fixture']
+        chord-for-path     way_sinuosity's NUMERATOR becomes the chord, so every way reads 1.0
+            exit=1   7 red  fingerprint 5bccddfad2c85ebf (differs)  named red: ['test_the_sinuosity_matches_the_fixture', 'test_the_term_is_raw_and_unbounded_not_a_0_to_1_score']
+        candidate-order    the LAST candidate wins instead of the nearest one
+            exit=1   2 red  fingerprint d0cc0b3703a2ebdb (differs)  named red: ['test_the_candidate_order_cannot_change_the_answer']
+        candidate-order    the reporting radius becomes exclusive - a tie at the radius reads inf
+            exit=1   1 red  fingerprint db4462b2c31aec4e (differs)  named red: ['test_the_radius_is_inclusive']
+        interior-interior  drop the pairs interior to BOTH lines - round 3's retracted 'equivalent'
+            exit=1   3 red  fingerprint 87f3b02e2332c7c8 (differs)  named red: ['test_the_nearest_approach_may_need_a_segment_interior_to_both_polylines', 'test_the_pairs_that_touch_an_end_segment_all_read_past_the_proximity_threshold']
+        earth-model        metres per degree of latitude becomes the equatorial 111234.7
+            exit=1  13 red  fingerprint 5d425b46a1f0ea4a (differs)  named red: ['test_the_way_may_bend_toward_the_motorway_between_its_end_nodes', 'test_the_nearest_approach_may_need_a_segment_interior_to_both_polylines']
+        earth-model        is_tunnel consults the allowlist without stripping or lowercasing
+            exit=1   2 red  fingerprint 8a84e385ed83e609 (differs)  named red: ['test_the_tunnel_metres_match_the_fixture', 'test_is_tunnel_agrees_with_the_metres']
+        banded-subset      keep only the segment pairs with abs(i - j) <= 1 - rv4-pr94's sixth class
+            exit=1   3 red  fingerprint b5934330655c321d (differs)  named red: ['test_the_minimum_can_sit_far_off_the_diagonal_of_the_segment_pair_matrix', 'test_the_banded_window_answers_inf_where_the_whole_matrix_answers_99_metres']
+
+        EQUIVALENT - must go MISSED, with a digest identical to the pristine one
+        equivalent         measure the candidate against the way instead of the way against the candidate
+            exit=0   0 red  fingerprint 7e4a5ae891425963 over 192 values (IDENTICAL)
+        equivalent         snap.length_m pairs the coordinates with an explicit slice instead of relying on zip
+            exit=0   0 red  fingerprint 7e4a5ae891425963 over 192 values (IDENTICAL)
+        equivalent         the candidate distance is the first argument of min rather than the second
+            exit=0   0 red  fingerprint 7e4a5ae891425963 over 192 values (IDENTICAL)
+        equivalent         _crosses tests the degeneracies before the sides rather than after
+            exit=0   0 red  fingerprint 7e4a5ae891425963 over 192 values (IDENTICAL)
+
+        POPULATION 12 mutations over 6 classes (floor 12), 4 equivalent (floor 4)
+        every one of the 12 mutations was killed by the test that names it, and every one of
+        the 4 equivalent mutants went MISSED with a byte-identical fingerprint
+
+  TWELVE OF TWELVE NOW `(differs)`: the radius row is the one that read `(IDENTICAL)` at 03:30Z and 04:05Z
+  and it is `db4462b2c31aec4e (differs)`, still killed by `test_the_radius_is_inclusive` and by nothing
+  else. ALL FOUR EQUIVALENT ENTRIES STILL COME BACK IDENTICAL, at the new baseline `7e4a5ae891425963` -
+  none of the four became visible when 17 boundary questions were added, which is what their reasons
+  predict (a symmetry, zip's truncation rule, min's commutativity, the order of pure conjuncts: none of
+  them is about the radius comparison).
+  * `python ops/mutate/geometry.py --prove-floor`, exit 0 - all four arms unchanged by this edit:
+    `FLOOR PROOF OK: emptied -> refused=True, one deleted -> refused=True, class 'banded-subset' deleted
+    -> refused=True, real -> accepted=True`, over `with the population emptied:` (8 FLOOR lines),
+    `with one mutation and one equivalent deleted (11, 3):` (3 lines), and `with class 'banded-subset'
+    traded for copies of 'segment-subset', population still 12:` (the one `no mutation left in class`
+    line). This is P-PROC-05's assertion.
+  * `python ops/mutate/geometry.py --non-example`, exit 0: `pristine digest 7e4a5ae891425963 over 192
+    values / mutant digest 87f3b02e2332c7c8 over 192 values`, `3 of 192 fingerprint values differ; 3 named
+    test(s) red`, ending `NON-EXAMPLE OK: the round-3 ruling is REFUTED by this arm's own test`. It was
+    2 of 175 before; the third differing value is the new `meters_at_its_own_radius` line for
+    `nearest_approach_interior_to_both_polylines`, 99.48600000003353 against 406.4842081198996 - the same
+    two numbers the entry's reason quotes.
+  * `cd services/etl && python -m pytest tests -rs` -> `1040 passed in 106.53s (0:01:46)`, exit 0, and the
+    `-rs` short summary is EMPTY: zero skips. Unchanged at 1040 - this edit adds no test and touches
+    nothing under `etl/`. Every `__pycache__` under services/etl was removed before the run.
+  * `bash ops/lib/check-line-cap` -> `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8),
+    none over 300 lines`, exit 0.
+  * `bash ops/lib/check-exec-bits` -> `P-OPS-01: 68 files, 23 required present, all modes correct`, exit 0.
+  * `bash ops/queue-check` -> `QUEUE OK (182 tasks)`, exit 0.
+  * `bash ops/check-pins --source-only` -> `PINS ok=12 skipped=14 pending=1 expired=0 failed=0 tier=linux
+    source-only`, exit 0 (P-PROC-05 is `anchor: process`, so --source-only skips it by design).
+  * `wc -l ops/mutate/geometry*.py`: geometry.py 237, geometry_arms.py 75, geometry_mutations.py 145,
+    geometry_probe.py 119, geometry_tree.py 110 - and services/etl/tests/test_proximity_banded.py 190.
+    geometry_probe.py is the only one that moved (88 -> 119) and it is 181 lines clear of the 300-line
+    cap, so nothing is split. `git ls-files -s ops/mutate/geometry*.py` -> all five 100644 (ruling 2).
+- 2026-09-19T04:52Z STILL OPEN, superseding the 03:35Z list. Item 1 is CLOSED; the other four stand
+  unchanged and none of them is claimed as done.
+  1. CLOSED by this commit. The boundary is no longer a coordinate that has to land on 1000.0: the probe
+     asks each proximity case for its own answer back at its own answer, `<=` is the identity `x <= x`
+     there, and the exclusive mutant answers `inf` on 16 of the 17 cases. Measured both ways at 04:45Z (a)
+     and demonstrated on the arm itself at 04:45Z (b). What is NOT closed and never was part of item 1:
+     the probe says nothing about the VALUE of `MOTORWAY_SEARCH_RADIUS_M`, which the default-radius emit
+     and `test_proximity.py`'s structural assertion carry between them.
+  2. NOTHING RUNS THE FULL SWEEP ON A SCHEDULE. Stands exactly as written at 03:35Z: P-PROC-05 asserts
+     `--prove-floor`, and the 17-run sweep is run by hand, here and by the reviewer. T-0184 is where that
+     changes.
+  3. `test_the_metres_to_the_nearest_motorway_match_the_fixture` exists in BOTH test_proximity.py and
+     test_proximity_bends.py and `red_by_name` matches on the bare name. Stands; recorded, not renamed.
+  4. The probe measures `sinuosity` and `proximity` only, never `score.score`, so the product costs are
+     argued from score.py's constants rather than measured end to end. Stands - this edit adds a
+     proximity question, not a score one. T-0168 is what makes it measurable.
+  5. `snap.py` is a subject with two mutations and one equivalent but no class of its own in
+     REQUIRED_CLASSES. Stands; a seventh class, not a thirteenth entry, if T-0161's successor grows it.
