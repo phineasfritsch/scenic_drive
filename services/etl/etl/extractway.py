@@ -17,9 +17,16 @@ import json
 from dataclasses import dataclass
 
 from . import geom
+from .surface import surface_state
 from .tagfilter import WAY_CLASSES
 
-REQUIRED_WAY_KEYS = ("id", "cls", "highway", "paved", "access_ok", "oneway", "nodes")
+REQUIRED_WAY_KEYS = ("id", "cls", "highway", "access_ok", "oneway", "nodes")
+
+# `surface` is OPTIONAL and carries the RAW OSM tag value; absent means the way has no surface tag, which is
+# a fact the three-state column needs (etl/surface.py). `paved` was the key here until T-0173 and is now a
+# REFUSAL rather than an ignored leftover: an extract still carrying `paved: 0` would otherwise lose the one
+# bit that says "unpaved", because an absent `surface` on a secondary is PAVED by the rule.
+RETIRED_WAY_KEYS = ("paved",)
 
 
 @dataclass(frozen=True)
@@ -30,10 +37,15 @@ class ExtractWay:
     cls: str
     highway: str
     name: str | None
-    paved: int
+    surface: str | None
     access_ok: int
     oneway: int
     coords: tuple
+
+    @property
+    def surface_state(self) -> int:
+        """-1 unknown / 0 unpaved / 1 paved, by the one rule in etl/surface.py, which calls score.py's."""
+        return surface_state(highway=self.highway, surface=self.surface)
 
     @property
     def node_count(self) -> int:
@@ -58,6 +70,12 @@ def _require(raw: dict, path: str) -> None:
     missing = [k for k in REQUIRED_WAY_KEYS if k not in raw]
     if missing:
         raise ValueError(f"{path}: way {raw.get('id', '?')} is missing {', '.join(missing)}")
+    retired = [k for k in RETIRED_WAY_KEYS if k in raw]
+    if retired:
+        raise ValueError(
+            f"{path}: way {raw.get('id', '?')} carries retired key(s) {', '.join(retired)}: the corpus "
+            f"stores a three-state `surface` since schema_version 2, so an extract built against `paved` "
+            f"would silently turn every unpaved way into a paved one. Rebuild the extract.")
 
 
 def _flag(value, field: str, allowed: tuple, path: str, way_id) -> int:
@@ -92,12 +110,16 @@ def way_from_json(raw: dict, path: str) -> ExtractWay:
     name = raw.get("name")
     if name is not None and not isinstance(name, str):
         raise ValueError(f"{path}: way {way_id}: name must be a string or absent, got {name!r}")
+    surface = raw.get("surface")
+    if surface is not None and (not isinstance(surface, str) or not surface):
+        raise ValueError(
+            f"{path}: way {way_id}: surface must be a non-empty OSM tag value or absent, got {surface!r}")
     return ExtractWay(
         way_id=way_id,
         cls=cls,
         highway=highway,
         name=name,
-        paved=_flag(raw["paved"], "paved", (0, 1), path, way_id),
+        surface=surface,
         access_ok=_flag(raw["access_ok"], "access_ok", (0, 1), path, way_id),
         oneway=_flag(raw["oneway"], "oneway", (-1, 0, 1), path, way_id),
         coords=tuple(canon),

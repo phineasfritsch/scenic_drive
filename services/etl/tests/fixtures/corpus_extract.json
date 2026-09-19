@@ -109,8 +109,7 @@
      -122.5863279
     ]
    ],
-   "oneway": 0,
-   "paved": 1
+   "oneway": 0
   },
   {
    "access_ok": 1,
@@ -221,7 +220,7 @@
     ]
    ],
    "oneway": 0,
-   "paved": 1
+   "surface": "cobblestone"
   },
   {
    "access_ok": 1,
@@ -332,7 +331,7 @@
     ]
    ],
    "oneway": 0,
-   "paved": 1
+   "surface": "gravel"
   },
   {
    "access_ok": 1,
@@ -442,8 +441,7 @@
      -122.5863223
     ]
    ],
-   "oneway": 0,
-   "paved": 1
+   "oneway": 0
   },
   {
    "access_ok": 1,
@@ -553,8 +551,7 @@
      -122.5863204
     ]
    ],
-   "oneway": 0,
-   "paved": 1
+   "oneway": 0
   },
   {
    "access_ok": 1,
@@ -664,8 +661,7 @@
      -122.5863186
     ]
    ],
-   "oneway": 0,
-   "paved": 1
+   "oneway": 0
   },
   {
    "access_ok": 1,
@@ -743,8 +739,7 @@
      -122.59
     ]
    ],
-   "oneway": 0,
-   "paved": 1
+   "oneway": 0
   }
  ]
 }

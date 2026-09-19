@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-19T07:11:49Z
 worktree: .worktrees/T-0173
 branch: task/T-0173
 exclusive: []
-touches: [services/etl/etl/schema.py, services/etl/etl/corpuswriter.py, services/etl/tests/, services/api/src/index.ts, services/api/test/, pins/PINS.yaml]
+touches: [services/etl/etl/schema.py, services/etl/etl/terms.py, services/etl/etl/surface.py, services/etl/etl/corpuswriter.py, services/etl/etl/extractway.py, services/etl/etl/contentdigest.py, services/etl/tests/, services/api/src/index.ts, services/api/test/, ops/lib/check-schema-version, pins/PINS.yaml]
 pins_affected: [P-PROD-05]
 reviewer: null
 depends_on: [T-0030]
@@ -43,3 +43,312 @@ separate (ODbL posture) - this task changes columns and pins, not the layering.
 ## Log
 - 2026-09-18T23:04:01Z filed by agent/claude-fable-5-1 from the 16:13 panel's grounded synthesis; ready/ with its acceptance block. Not started.
 - 2026-09-18T23:11:49Z claimed by agent/claude-opus-5; lease until 2026-09-19T07:11:49Z
+
+- 2026-09-18T23:30Z agent/claude-opus-5, OWNER and AUTHOR. Rulings, all of them before a line of code, on the
+  tree at 95393f3. Pointers are file:line at that commit.
+
+  R1. THE ENCODING IS `surface INTEGER NOT NULL CHECK (surface IN (-1,0,1))`, NOT A TEXT ENUM.
+  Both are CHECK-enforceable, so the constraint does not decide it. Three things do. (a) The column one line
+  above it in the same table already answers a three-valued question that way - `oneway INTEGER NOT NULL
+  CHECK (oneway IN (-1,0,1))` (schema.py:79). Two encodings for the same shape in one table is how a reader
+  binding columns by position gets one of them wrong, and schema.py rule 8's whole design is a device reader
+  that reads native integers with no conversion. (b) The device's question is `surface == -1` - one integer
+  compare per segment on the hazard strip's hot path (plan, "Runtime lifecycles"/hazards; HazardFlag.swift:51
+  `surfaceUnknown(km:)`), against three string comparisons. (c) It is one byte per way against six to nine,
+  over every way in the region. Rejected alternative: keeping `paved` and adding a separate
+  `surface_unknown INTEGER` flag column - two columns that can disagree (paved=1 AND surface_unknown=1 is
+  representable and meaningless), where one column with three states cannot.
+
+  R2. WHAT -1 MEANS, AND THE RULE IS SCORE.PY'S, IMPORTED, NOT RESTATED.
+  score.py:116 is the rule, verbatim: `return surface is None and highway in UNSURVEYED_CLASSES`, with
+  score.py:69 `UNSURVEYED_CLASSES = frozenset({"unclassified", "residential"})`. So:
+      surface tag present and in the unpaved set   -> 0  unpaved   (positive evidence, CLAUDE.md's gate)
+      surface tag absent and highway unsurveyed    -> -1 unknown   (score.py:116 is true for this way)
+      anything else                                -> 1  paved
+  "Anything else" is deliberate and is ruled here so nobody adds a fourth state later: a present tag that is
+  not in the unpaved set (`cobblestone`, `sett`, `asphalt`) is PAVED, because Gates.swift refuses only
+  positive unpaved evidence (Gates.swift:153) and score.py flags only an absent tag; and an absent tag on
+  primary/secondary/tertiary is PAVED, because score.py:67-68 says in those words that the plan's other half
+  "is this set's complement and is expressed by omission".
+  `etl/surface.py:surface_state` therefore CALLS `score.raises_surface_unknown_flag` rather than repeating
+  its condition. If score.py's rule moves, the column moves with it; a copy would let the corpus and the
+  scorer disagree with both files internally consistent, which is the failure the brief's defect 1 names.
+  CONSEQUENCE, STATED RATHER THAN HIDDEN: -1 is the FLAG, not the raw fact. A primary with no surface tag is
+  stored as 1, and the corpus cannot afterwards tell it from a primary tagged `asphalt`. Nothing needs that
+  distinction today (the score treats them identically and the flag does not fire for either). The
+  alternative - -1 means "no tag at all", device derives the flag from (surface, highway) - was rejected
+  because it puts score.py:116 on the device as a second implementation, which is exactly what this task was
+  told not to create. Recorded under STILL OPEN.
+
+  R3. THE UNPAVED SET IS MIRRORED FROM SWIFT BY COPY, AND SAYS SO.
+  score.py has no unpaved set on purpose - score.py:29-32 says the safety gates "live in the GraphHopper
+  profile and in `ScenicKit.Gates`, never here". So there is nothing in the ETL to import: the set is the
+  plan's line 80 list, already typed out once at Sources/ScenicKit/Gates/Gates.swift:80-82
+  (`unpavedSurfaces`), and `etl/surface.py:UNPAVED_SURFACES` is a second copy across a language boundary.
+  That is a real defect and it is not mine to close here: P-PROD-01 ("one fixture set through all three") is
+  the pin for it and its assertion is still `TODO` (PINS.yaml:121). What this task does about it is what it
+  can: the Python set is asserted against the seven values typed out in the test, and the test names the
+  Swift file and the line, so a widening on one side is one grep from the other. STILL OPEN.
+
+  R4. `paved` LEAVES THE EXTRACT CONTRACT AND ITS PRESENCE IS A REFUSAL.
+  extractway.py:22 requires `paved` and extractway.py:100 validates it to (0,1). The new key is `surface`,
+  OPTIONAL, carrying the raw OSM tag value (absent = no tag), which is what the three-state rule needs.
+  A stale extract that still carries `paved` is REFUSED by name rather than ignored: silently dropping it
+  would turn every `paved: 0` way - the unpaved ones, the safety case - into state 1, because an absent
+  `surface` on a secondary is paved by R2. Fail-closed, with the file and the way id in the message.
+
+  R5. THE DDL HASH AND SCHEMA_VERSION MOVE TOGETHER: 1 -> 2. `MIN_APP_BUILD` DOES NOT MOVE.
+  schema.py rule 1 and test_corpus_schema.py's DDL_SHA256_BY_VERSION are the mechanism; one column changed
+  is a DDL change, so `SCHEMA_VERSION = 2` and version 2 gets its own row in that table with version 1 kept
+  ("one entry per version ever shipped"). The OTA cost of the bump is zero TODAY and only today: no corpus
+  has been published to R2 and no device reader exists (`Sources/` holds ScenicKit, Handoff, Telemetry; no
+  PlaceStore target). That is the entire reason this is one slice now instead of a migration later, and it
+  is the brief's own argument.
+  `MIN_APP_BUILD` stays 1 and is deliberately NOT coupled to SCHEMA_VERSION. The plan's OTA row makes them
+  answer different questions - `schema_version == PlaceStore.schemaVersion && min_app_build <= build` - the
+  first "can this reader parse this file", the second "is this app build allowed this file". No app build
+  exists to be a floor, so 1 ("every build") is the only honest value; any other number would be a
+  constraint invented against nothing. It becomes load-bearing with the first TestFlight build that reads a
+  corpus, which is T-0175's business, not this task's.
+
+  R6. THE SINGLE SOURCE OF schema_version IS NOT A FILE. IT IS TWO TYPED LITERALS AND A CHECK THAT REFUSES
+  ON DISAGREEMENT.
+  A shared JSON read by both was considered and rejected. The Worker cannot read `services/etl/` - it is
+  bundled by wrangler out of `services/api/` - so "shared" would mean a generated or copied file, i.e. a
+  third place for the value to be stale in. Worse, it would delete the property that matters: the Worker's
+  version is pinned ON THE WIRE by routes.test.ts:14 `expect(body.schema_version).toBe(0)`, a literal typed
+  out by a human, and a test that imports the same constant the handler imports asserts nothing at all.
+  So both literals stay typed at their own site, `services/etl/etl/schema.py:SCHEMA_VERSION` and
+  `services/api/src/index.ts:SCHEMA_VERSION`, and `ops/lib/check-schema-version` reads the two literals as
+  TEXT and refuses on disagreement. The pin is the anchor, exactly as the brief's defect 3 says. The Worker
+  goes 0 -> 2 in this same commit with routes.test.ts's wire literal typed out to match.
+
+  R7. `elev_gain` -> `elevation_gain`, AND THE TERM TABLE MOVES OUT OF schema.py.
+  TERM_NAMES is the on-device score contract (schema.py rule 6: the score is recomputed from terms_* at
+  query time), so every name in it must be a keyword `score.score` accepts. `elev_gain` (schema.py:193) is
+  not: score.py:119-122 spells it `elevation_gain`. The rename is free - `term_defs` CONTENT changes, its
+  DDL does not, so this does not touch the hash on its own.
+  TERM_NAMES also has to stop being six ids where the score has ten. The five missing terms get ids now,
+  because a term id is a permanent on-device contract and allocating them under time pressure next to a
+  producer is how two of them end up with the same number. Family follows the ODbL split and nothing else -
+  `osm` means "derived from OSM alone", `raster` means "not derived from OSM" (the name is historical; the
+  table it selects is `terms_raster`, licensed OWN_LICENSE). So: 2 sinuosity, 3 speed_fit, 4 furniture are
+  `osm` (geometry and OSM tags); 106 water and 107 points_of_interest are `raster` (NLCD, and Wikimedia
+  Commons photo density - plan:89 - which is emphatically not OSM and would otherwise land in the ODbL half
+  that CorpusWriter.add_term exists to protect).
+  schema.py is 257 lines and the DDL note plus an eleven-row table with producers pushes it over 300, so the
+  table moves to `etl/terms.py` and schema.py re-exports the four names corpuswriter.py already reads
+  through it. Permitted by this task's own instruction ("split the term table into its own module").
+
+  R8. RESERVED IS MEASURED, AND THE ACCEPTANCE BLOCK'S LIST OF FIVE IS OUT OF DATE. A DISAGREEMENT, RULED.
+  The acceptance names "the five score terms with no producer (speed_fit, sinuosity, points_of_interest,
+  water, furniture)". Measured on 95393f3, three of those five have a producer module in the tree:
+  `etl/speedfit.py` (T-0162, merged), `etl/furniture.py`, and `water` inside `etl/landcover.py`
+  (landcover.py:38,58 - T-0027). Two do not: `sinuosity` (T-0161, PR #94, open) and `points_of_interest`
+  (T-0164, filed, queue/backlog - way_record.py:55 already says so in `DEFERRED_TERMS`). Producers for the
+  rest: curvature etl/curvature.py, elevation_gain and relief etl/terrain.py, canopy and impervious
+  etl/landcover.py, byway etl/byways.py.
+  "No producer" cannot mean "no rows in a corpus yet", because that is all eleven of them - T-0030 ships
+  zero term rows and T-0146 is the assembler, in flight. So RESERVED means: no producer module exists, and
+  the entry names the task that will write one. Typed out as a literal in `etl/terms.py` AND typed out again
+  in the test, because a test that rebuilds the set from the module under test passes after any edit to it.
+  RESERVED = {2: "T-0161", 107: "T-0164"}. Neither of the two is `none filed`.
+  The test also asserts the OTHER NINE point at a file that exists, which is what makes RESERVED
+  self-correcting rather than decorative: the day T-0161 lands `sinuosity`, that test is red until the entry
+  moves out of RESERVED.
+
+  R9. `ops/lib/check-schema-version` IS PYTHON AND IS INVOKED AS PYTHON, NOT AS `bash`.
+  This task's instruction says "100644 python" and later quotes the acceptance run as
+  `bash ops/lib/check-schema-version`. Those two cannot both be obeyed - bash would read a python file as a
+  shell script. The 100644 half is the one with a gate behind it: P-OPS-01 (ops/lib/check-exec-bits:36-44)
+  requires ops/lib python to stay 100644 precisely because every call site invokes it as an argument to an
+  interpreter, and the pin style this task names, P-GIT-02 (PINS.yaml:208), is
+  `"${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/<script>`. So the pin assertion and every
+  quoted run in this task use the interpreter form, and the acceptance line is re-quoted below as
+  `python ops/lib/check-schema-version` rather than silently reported as a `bash` run that never happened.
+
+  R10. `touches:` WIDENED, BY THE AUTHOR, WITH THE REASON.
+  The filed list could not build the acceptance it asks for. A three-state column that "round-trips through
+  the corpus" is derived in `etl/extractway.py` (not listed), selected by name in `etl/contentdigest.py:34`
+  (not listed - the content digest's own column list), and the check the third bullet requires is a new file
+  under `ops/lib/` (not listed). Added: extractway.py, contentdigest.py, terms.py, surface.py and
+  `ops/lib/check-schema-version`. Not added, and not touched: anything under `services/etl/etl/assemble.py`
+  or `tests/fixtures/assembly_fixture.json` (T-0146) or `apps/ios/` (T-0153).
+
+- 2026-09-19T00:35Z agent/claude-opus-5. THE REDS, BY NAME. Each one runs on a throwaway copy of
+  services/etl under .artifacts/T-0173-red/ (gitignored) with ONE line mutated back to the pre-T-0173
+  behaviour; the worktree's own tree was never mutated, and __pycache__ was purged before the runs. The
+  driver is .artifacts/T-0173-red/reds.py and is deliberately NOT committed: it mutates the tree, it does
+  not check it, and a committed mutation script is one `git checkout` from being someone's source of truth.
+
+  RED 1a - acceptance bullet 1, the "comes back paved" half. Mutation in etl/surface.py, one line:
+      -        return SURFACE_UNKNOWN
+      +        return SURFACE_PAVED  # pre-T-0173: there was no unknown state
+  $ cd .artifacts/T-0173-red/A1-unknown-comes-back-paved && python -m pytest tests/test_corpus_schema.py::test_a_residential_way_with_no_surface_tag_round_trips_as_unknown -rs
+      F                                                                        [100%]
+      ================================== FAILURES ===================================
+      ______ test_a_residential_way_with_no_surface_tag_round_trips_as_unknown ______
+      >       assert states[105] == UNKNOWN, "a residential way with no surface tag must be unknown, not paved"
+      E       AssertionError: a residential way with no surface tag must be unknown, not paved
+      E       assert 1 == -1
+      tests\test_corpus_schema.py:203: AssertionError
+      1 failed in 0.96s
+      exit=1
+
+  RED 1b - the same bullet's other half, "or the DDL CHECK refuses". Mutation in etl/schema.py, one line,
+  the two-valued domain origin/main's `paved` column had:
+      -  surface     INTEGER NOT NULL CHECK (surface   IN (-1,0,1)),
+      +  surface     INTEGER NOT NULL CHECK (surface   IN (0,1)),
+  $ cd .artifacts/T-0173-red/A2-ddl-check-refuses && python -m pytest tests/test_corpus_schema.py::test_a_residential_way_with_no_surface_tag_round_trips_as_unknown -rs
+      F                                                                        [100%]
+      ______ test_a_residential_way_with_no_surface_tag_round_trips_as_unknown ______
+      >       conn = _built(tmp_path)
+      tests\test_corpus_schema.py:197:
+      etl\corpus.py:69: in build
+          writer.write_features(ways)
+      >       self.conn.executemany(
+              "INSERT INTO osm_features (way_id, cls, highway, name, surface, access_ok, oneway, node_count, "
+              "length_mm, geom_sha256) VALUES (?,?,?,?,?,?,?,?,?,?)", rows)
+      E       sqlite3.IntegrityError: CHECK constraint failed: surface   IN (0,1)
+      etl\corpuswriter.py:62: IntegrityError
+      1 failed in 0.84s
+      exit=1
+  Both halves matter and neither subsumes the other: 1a is the silent one (a wrong value, a green suite),
+  1b is the loud one. The column change without the derivation change is 1b; the derivation change without
+  the column change is 1a.
+
+  RED 2 - acceptance bullet 2, red on `elev_gain`. Mutation in etl/terms.py, one line, the name
+  origin/main's schema.py:193 carried:
+      -    101: "elevation_gain",
+      +    101: "elev_gain",
+  $ cd .artifacts/T-0173-red/B-elev-gain && python -m pytest tests/test_corpus_schema.py::test_every_term_name_except_byway_is_a_parameter_of_score_score -rs
+      F                                                                        [100%]
+      _______ test_every_term_name_except_byway_is_a_parameter_of_score_score _______
+      >       assert (names - {"byway"}) <= keywords, sorted(names - {"byway"} - keywords)
+      E       AssertionError: ['elev_gain']
+      E       assert {'canopy', 'c...nterest', ...} <= {'byway_statu...highway', ...}
+      E         Extra items in the left set:
+      E         'elev_gain'
+      tests\test_corpus_schema.py:235: AssertionError
+      1 failed in 0.52s
+      exit=1
+
+  RED 3 - acceptance bullet 3, the pin's own check, twice: on origin/main's two values, and on this branch
+  at the moment the corpus had been bumped and the Worker had not. Both runs are the real check against a
+  root assembled from `git show 95393f3:<file>` under .artifacts/T-0173-red/sv/.
+  $ python ops/lib/check-schema-version.py --root <origin/main's schema.py and index.ts>
+      P-PROD-05: schema_version disagrees - services/etl/etl/schema.py says 1, services/api/src/index.ts says 0.
+        A device downloads a corpus only when the two agree (plan, Runtime lifecycles / OTA).
+        Fix: bump both in one commit, and type the new value into services/api/test/routes.test.ts.
+      exit=1
+  $ python ops/lib/check-schema-version.py --root <this branch's schema.py, origin/main's index.ts>
+      P-PROD-05: schema_version disagrees - services/etl/etl/schema.py says 2, services/api/src/index.ts says 0.
+      exit=1
+  The second run is the one that says the pin is not a tautology: the check is red on the tree this task
+  produced, right up until the Worker moves with it. Its other five discriminations are `--prove-red`,
+  re-quoted whole below.
+
+- 2026-09-19T00:48Z agent/claude-opus-5. THE ACCEPTANCE BLOCK, RE-RUN AND RE-QUOTED WHOLE at the tree of
+  this commit. Every gate run bare - not through a pipe, which swallows the exit status. `bash
+  ops/check-pins` (full) and `bash ops/test` were NOT run locally, per this task's instruction.
+
+  (1) the whole ETL suite, __pycache__ purged first:
+  $ cd services/etl && python -m pytest tests -rs
+      ..................................                                       [100%]
+      898 passed in 80.14s (0:01:20)
+  898 passed, and ZERO skips: `-rs` prints a short summary line per skip and there is none.
+
+  (2) the Worker suite, before and after the wire literal moved - green on both sides, which is the point
+  (the bump is deliberate, not a repair):
+  $ cd services/api && npx vitest run   # origin/main's index.ts and routes.test.ts, both 0
+      Test Files  4 passed (4)
+           Tests  71 passed (71)
+  $ cd services/api && npx vitest run   # this branch: SCHEMA_VERSION 2, wire literal typed out as 2
+      Test Files  4 passed (4)
+           Tests  71 passed (71)
+
+  (3) the new check and its red table. Quoted as `python`, not `bash`, for the reason ruled in R9: the file
+  is 100644 python and P-GIT-02's interpreter style is what the pin assertion uses.
+  $ python ops/lib/check-schema-version.py
+      P-PROD-05: schema_version=2 in services/etl/etl/schema.py and services/api/src/index.ts
+      exit=0
+  $ python ops/lib/check-schema-version.py --prove-red
+      P-PROD-05 --prove-red: 7 cases against a copy of the tree at .worktrees/T-0173
+        case                                   expect  got  verdict
+        control: the tree as committed              0    0  ok
+        corpus bumped alone                         1    1  ok
+        Worker bumped alone                         1    1  ok
+        P-PROD-05 deleted from PINS.yaml            2    2  ok
+        corpus literal deleted                      2    2  ok
+        Worker literal deleted                      2    2  ok
+        corpus literal duplicated                   2    2  ok
+      P-PROD-05 --prove-red: all 7 cases behaved as stated
+      exit=0
+
+  (4) the repository gates:
+  $ bash ops/check-pins --source-only
+      PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only
+      exit=0
+  $ bash ops/lib/check-line-cap
+      P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines
+      exit=0
+  $ bash ops/queue-check
+      QUEUE OK (169 tasks)
+      exit=0
+
+  (5) the 300-line cap, by hand, because check-line-cap counts Swift only (T-0058 is the open task for
+  that and it is not this task's):
+  $ wc -l <every file this commit touches>
+        157 ops/lib/check-schema-version.py
+        266 services/etl/etl/schema.py
+         70 services/etl/etl/surface.py
+         71 services/etl/etl/terms.py
+        145 services/etl/etl/extractway.py
+        194 services/etl/etl/corpuswriter.py
+         91 services/etl/etl/contentdigest.py
+        271 services/etl/tests/test_corpus_schema.py
+        118 services/etl/tests/test_surface_state.py
+         81 services/api/src/index.ts
+         64 services/api/test/routes.test.ts
+        242 pins/PINS.yaml
+  schema.py was 257 and is 266 because the term table left it for terms.py (R7); without that split the DDL
+  note plus an eleven-row table with producers would have carried it past 300.
+
+  (6) the mode of the new script, which P-OPS-01 requires to stay 100644 (ops/lib python is invoked as an
+  argument to an interpreter, never executed):
+  $ git ls-files -s ops/lib/check-schema-version.py
+      100644 b87b1d090f437798e6c4196af544032fb2819ec4 0	ops/lib/check-schema-version.py
+
+  P-PROD-05 is unclaimed on origin/main and on every one of the 30 open PR heads: each head's PINS.yaml
+  greps to `P-PROD-01` and nothing else in the P-PROD-* range, so this id collides with nobody in flight.
+
+  STILL OPEN, named rather than implied:
+  - NO DEVICE READER EXISTS. `Sources/` holds ScenicKit, Handoff and Telemetry; there is no PlaceStore
+    target and no `PlaceStore.schemaVersion`. P-PROD-05 therefore asserts two of the three values it names.
+    T-0175 is the task that lands the reader, and the third value joins the equality there.
+  - NO CORPUS HAS BEEN PUBLISHED. The OTA cost of SCHEMA_VERSION 1 -> 2 is zero because nothing has been
+    written to R2 and nothing on a phone can be invalidated. That is true TODAY and is the whole reason
+    this slice exists now; after the first publish the same change is a migration.
+  - THE UNPAVED SET IS A COPY ACROSS A LANGUAGE BOUNDARY. `etl/surface.py:UNPAVED_SURFACES` mirrors
+    Sources/ScenicKit/Gates/Gates.swift:80-82 by hand. score.py holds no gate list on purpose, so there was
+    nothing to import. P-PROD-01 ("one fixture set through all three") is the pin for this and its
+    assertion is still TODO; until then the defence is seven literals in one place each, asserted value by
+    value on both sides, with the test naming the Swift file and line.
+  - THE SURFACE RULE ITSELF IS NOT COPIED: `surface_state` CALLS `score.raises_surface_unknown_flag`. What
+    is copied is only the unpaved VALUE SET above.
+  - -1 IS THE FLAG, NOT THE RAW FACT (R2). A primary with no surface tag stores as 1 and the corpus cannot
+    afterwards tell it from one tagged `asphalt`. No consumer needs the distinction today.
+  - `MIN_APP_BUILD` STAYS 1 and is uncoupled from SCHEMA_VERSION (R5). It becomes load-bearing with the
+    first app build that reads a corpus - T-0175's business.
+  - RESERVED IS SELF-CORRECTING ONLY WHEN THE SUITE RUNS: the day T-0161 lands `sinuosity`,
+    test_the_reserved_terms_name_their_producer_task_and_every_other_term_names_a_module goes red until the
+    entry moves out of RESERVED. That is intended, and it is the reason the list is typed out twice.
+  - TERM ROWS ARE STILL ZERO. T-0030 ships none and T-0146 (in flight) is the assembler that first fills
+    terms_osm / terms_raster. This task changes the vocabulary and the columns, not the layering.
+
+- 2026-09-19T00:55Z agent/claude-opus-5. One gate reads the file the entry above changed: `ops/queue-check`
+  parses this task's front matter. It was re-run AFTER that entry was appended, at the exact tree of this
+  commit - `bash ops/queue-check` -> `QUEUE OK (169 tasks)`, exit=0. This closing line adds Log prose to the
+  same file and touches neither the front matter nor the task's shape, so the run above is the run that
+  covers it. `state: claimed` and `reviewer: null` are unchanged: the reviewer is not the owner and this
+  task is not signed off by writing it.

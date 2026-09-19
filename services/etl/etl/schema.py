@@ -39,7 +39,23 @@ import hashlib
 import re
 import sqlite3
 
-SCHEMA_VERSION = 1
+# Re-exported on purpose: `schema.TERM_NAMES` and `schema.TERM_FAMILIES` are what corpuswriter.py and the
+# suite read, and the vocabulary is part of the artifact's shape. The table itself lives in terms.py because
+# this file has a 300-line cap and the DDL is what it is for. F401 is the point of the import.
+from .terms import (  # noqa: F401
+    OSM_TERM_IDS,
+    PRODUCERS,
+    RASTER_TERM_IDS,
+    RESERVED,
+    TERM_FAMILIES,
+    TERM_NAMES,
+)
+
+SCHEMA_VERSION = 2
+# Deliberately NOT moved with SCHEMA_VERSION. The plan's OTA row makes them answer different questions -
+# `schema_version == PlaceStore.schemaVersion && min_app_build <= build` - the first "can this reader parse
+# this file", the second "is this app build allowed this file". No app build reads a corpus yet, so 1
+# ("every build") is the only honest floor; any other number would be a constraint invented against nothing.
 MIN_APP_BUILD = 1
 # Derived, never typed as a decimal: three independent designs each typed a DIFFERENT wrong literal for it.
 APPLICATION_ID = int.from_bytes(b"SCNC", "big")
@@ -74,7 +90,7 @@ DDL = (
   cls         TEXT    NOT NULL,
   highway     TEXT    NOT NULL,
   name        TEXT,
-  paved       INTEGER NOT NULL CHECK (paved     IN (0,1)),
+  surface     INTEGER NOT NULL CHECK (surface   IN (-1,0,1)),
   access_ok   INTEGER NOT NULL CHECK (access_ok IN (0,1)),
   oneway      INTEGER NOT NULL CHECK (oneway    IN (-1,0,1)),
   node_count  INTEGER NOT NULL CHECK (node_count >= 2),
@@ -185,21 +201,14 @@ TABLE_LICENSES = {t: ODBL_LICENSE for t in ODBL_TABLES}
 TABLE_LICENSES.update({t: OWN_LICENSE for t in OWN_TABLES})
 TABLE_LICENSES.update({t: OWN_LICENSE for t in BOTH_TABLES})
 
-# Term ids. The two frozensets are DISJOINT and CorpusWriter.add_term refuses a term_id outside its family:
-# a family appearing in both sets is exactly how the ODbL separation quietly dies.
-# T-0030 ships ZERO rows in both tables. The producers are a follow-up (T-C); landcover and byways were in
-# review with constants moving on the day this was written, and importing them would have been half-wiring.
-TERM_NAMES = {
-    1: "curvature",     # etl/curvature.py, T-0025. Computed from OSM geometry alone -> ODbL.
-    101: "elev_gain",   # 3DEP, T-0026
-    102: "relief",      # 3DEP, T-0026
-    103: "canopy",      # USFS/MRLC tree canopy - RESERVED, producer not written
-    104: "impervious",  # MRLC NLCD impervious  - RESERVED, producer not written
-    105: "byway",       # FHWA/Caltrans overlay - RESERVED, producer not written
-}
-OSM_TERM_IDS = frozenset(k for k in TERM_NAMES if k < 100)
-RASTER_TERM_IDS = frozenset(k for k in TERM_NAMES if k >= 100)
-TERM_FAMILIES = {"osm": OSM_TERM_IDS, "raster": RASTER_TERM_IDS}
+# Term ids, their families and their producers are `etl/terms.py` (T-0173). They are re-exported here and
+# not moved behind a new import, because `schema.TERM_NAMES` / `schema.TERM_FAMILIES` are what corpuswriter
+# and the suite already read and the vocabulary genuinely is part of the artifact's shape. The two frozensets
+# are DISJOINT and CorpusWriter.add_term refuses a term_id outside its family: a term id appearing in both
+# sets is exactly how the ODbL separation quietly dies.
+# T-0030 ships ZERO rows in both tables; T-0146 is the assembler that first fills them.
+# The names are imported at the top of this module: OSM_TERM_IDS, RASTER_TERM_IDS, TERM_FAMILIES,
+# TERM_NAMES, PRODUCERS, RESERVED.
 
 COUNT_KEYS = (
     "osm_features", "segments", "places", "terms_osm", "terms_raster", "term_defs", "curated",

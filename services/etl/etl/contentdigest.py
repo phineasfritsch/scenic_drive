@@ -31,7 +31,7 @@ NULL = "\x00"
 # One SELECT per table, tables in DDL order. Every one is ordered by its primary key.
 SELECTS = (
     ("osm_features",
-     "SELECT way_id, cls, highway, name, paved, access_ok, oneway, node_count, length_mm, geom_sha256 "
+     "SELECT way_id, cls, highway, name, surface, access_ok, oneway, node_count, length_mm, geom_sha256 "
      "FROM osm_features ORDER BY way_id"),
     ("segments",
      "SELECT segment_id, way_id, bucket, offset_mm, length_mm, min_lon_e7, min_lat_e7, max_lon_e7, "
