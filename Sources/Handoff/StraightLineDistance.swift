@@ -49,4 +49,30 @@ public enum StraightLineDistance {
 
     /// The number the home screen shows: `skylineRoutePoints`, floored to whole kilometres.
     public static var skylineRouteWholeKilometers: Int { wholeKilometers(through: skylineRoutePoints) }
+
+    /// The LA drive as a chain: the nine pins in driving order, then Westwood.
+    ///
+    /// A SECOND pair beside the Skyline pair rather than a rewrite of it. The Skyline chain, its
+    /// floored literal and `StraightLineDistanceTests` are load-bearing on a drive that ships today;
+    /// re-spelling them as `chain(for:)` would re-measure a number under a suite that was not asked
+    /// to re-measure it. Both pairs read their pins from the route types, so there is still exactly
+    /// one home per coordinate.
+    public static let santaMonicaMountainsRoutePoints: [Coordinate] =
+        SantaMonicaMountainsRoute.waypoints + [SantaMonicaMountainsRoute.destination]
+
+    /// The LA drive in whole kilometres, floored, the way the Skyline figure is.
+    public static var santaMonicaMountainsRouteWholeKilometers: Int {
+        wholeKilometers(through: santaMonicaMountainsRoutePoints)
+    }
+
+    /// The figure for whichever drive the screen is showing.
+    ///
+    /// The one place a `HandoffDrive` becomes a distance, so the number under the road list and the
+    /// number that travels into the clipboard cannot come from different drives.
+    public static func wholeKilometers(for drive: HandoffDrive) -> Int {
+        switch drive {
+        case .skyline: return skylineRouteWholeKilometers
+        case .santaMonicaMountains: return santaMonicaMountainsRouteWholeKilometers
+        }
+    }
 }

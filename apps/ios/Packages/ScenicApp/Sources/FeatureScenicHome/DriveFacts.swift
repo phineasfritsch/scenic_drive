@@ -27,20 +27,28 @@ import SwiftUI
 /// lines under a title, which is what these are - `primary` is a button fill and never a sentence on
 /// `bg` (`DesignTokens`).
 struct DriveFacts: View {
-    /// The straight line, in whole kilometres, computed at first use from `SkylineRoute`'s own pins.
-    ///
-    /// Interpolated rather than written out: if a pin moves, this line moves with it, and
-    /// `StraightLineDistanceTests` is what refuses a pin that moves more than a kilometre without the
-    /// number being looked at again.
-    static let straightLine =
-        "Straight line through the pins: \(StraightLineDistance.skylineRouteWholeKilometers) km. The roads are longer."
+    /// Which drive's number this is. `ScenicHomeScreen` owns the selection.
+    let drive: HandoffDrive
 
-    /// The honest timing line, verbatim. A string, never a number.
+    /// The straight line, in whole kilometres, computed at first use from the SELECTED drive's own
+    /// pins - 112 km for the Skyline loop, 47 km for the Santa Monica Mountains loop.
+    ///
+    /// A function of the drive rather than a stored string, because the selection changes while the
+    /// screen is up and a `static let` would hold whichever drive was default when the type was first
+    /// touched. Interpolated rather than written out: if a pin moves, this line moves with it, and
+    /// `StraightLineDistanceTests` and `SantaMonicaMountainsChainTests` are what refuse a pin that
+    /// moves more than a kilometre without the number being looked at again.
+    static func straightLine(for drive: HandoffDrive) -> String {
+        "Straight line through the pins: \(StraightLineDistance.wholeKilometers(for: drive)) km. The roads are longer."
+    }
+
+    /// The honest timing line, verbatim. A string, never a number, and the same sentence for both
+    /// drives: nobody has timed either.
     static let timing = "No timing in this build."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(Self.straightLine)
+            Text(Self.straightLine(for: drive))
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)

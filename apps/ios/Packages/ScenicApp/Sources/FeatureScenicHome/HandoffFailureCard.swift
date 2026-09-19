@@ -1,4 +1,5 @@
 import DesignSystem
+import Handoff
 import SwiftUI
 
 /// What a failed handoff leaves on screen: what broke, the roads the drive runs, and two things to do
@@ -33,8 +34,12 @@ struct HandoffFailureCard: View {
     /// What broke, in a sentence the reader can act on. `ScenicHomeScreen` supplies it.
     let message: String
 
-    /// The drive in words - the same road list the header shows.
+    /// The drive in words - the same road list the header shows, for the same selected drive.
     let roadList: String
+
+    /// Which drive failed. Only the distance line needs it, and it is passed rather than re-derived so
+    /// that the roads in this card and the kilometres under them cannot come from different drives.
+    let drive: HandoffDrive
 
     /// Try again. The owner's handoff, whatever the owner's handoff is today.
     let onRetry: () -> Void
@@ -53,7 +58,7 @@ struct HandoffFailureCard: View {
     /// unmeasured claim this app refuses to make. The strings are `DriveFacts`' own, so what is pasted
     /// and what is rendered cannot drift apart.
     var clipboardText: String {
-        [roadList, DriveFacts.straightLine, DriveFacts.timing].joined(separator: "\n")
+        [roadList, DriveFacts.straightLine(for: drive), DriveFacts.timing].joined(separator: "\n")
     }
 
     var body: some View {
