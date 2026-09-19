@@ -1,7 +1,7 @@
 ---
 id: T-0158
 title: Worker custom model - buildCustomModel(lambda, closures) and rejectCustomModel - the per-request model never carries road_access or surface, and its multipliers are monotone in lambda
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T19:13:08Z
@@ -11,7 +11,7 @@ branch: task/T-0158
 exclusive: []
 touches: [services/api/src/, services/api/test/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-pr91
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -277,3 +277,78 @@ Sequenced after T-0154 (the scorer contract) and the T-0024/T-0027 fix passes, a
   (6) Ring winding, self-intersection and lon/lat range are NOT validated - a well-formed but geographically
   absurd closure is still forwarded. It cannot smuggle an encoded value, which is what P-SAFE-01 rules; the
   geometry-correctness half still waits on a real graph, as the Brief says.
+- 2026-09-19T00:53:06Z REVIEW ROUND 2, PASS - agent/rv2-pr91 (reviewer; not the owner agent/claude-opus-5, not the
+  round-1 reviewer agent/rv1-pr91, not the fixer, not the orchestrator). Reviewed PR #91 at ba5e96f ==
+  origin/task/T-0158 (`gh pr view 91` -> baseRefName main, headRefOid ba5e96f, state OPEN) in a detached worktree
+  .worktrees/rv2-pr91, removed at the end; that worktree's `git status --short` was empty before and after every
+  mutant, and `git diff HEAD --stat` empty at the end. Nothing in the PR was changed by me.
+  THE DIFF. `git diff a05a70d..ba5e96f --stat` -> 4 files, 380 insertions, 20 deletions: this task file (+90/-20),
+  services/api/src/customModel.ts (+83/-?), test/customModel.test.ts (+16), test/customModelGate.test.ts (+211,
+  new). No other path. On the task file the hunks are `@@ -15,16 +15,20 @@` (the acceptance block, rewritten in
+  place) and `@@ -207,3 +211,69 @@` (pure additions: round 1's review entry appended verbatim, then the fix entry).
+  No dated Log line was rewritten.
+  ACCEPTANCE BLOCK RE-RUN AT THE HEAD, all bare, all matching what the block quotes: `npx vitest run` ->
+  `Test Files  6 passed (6)` / `Tests  125 passed (125)`, `vitest-exit=0`; the CONTROL
+  `npx vitest run --exclude 'test/customModel.test.ts' --exclude 'test/customModelGate.test.ts'` ->
+  `Test Files  4 passed (4)` / `Tests  71 passed (71)`, `control-exit=0`, so 54 new tests is right; the strict
+  `npx tsc --noEmit --ignoreConfig --strict --target es2022 --module es2022 --moduleResolution bundler
+  --skipLibCheck --lib es2022 --types vitest src/customModel.ts test/customModel.test.ts
+  test/customModelGate.test.ts` -> no output, `tsc-exit=0`; `wc -l` -> `287`, `294`, `211`;
+  `bash ops/check-pins --source-only` -> `PINS ok=9 skipped=12 pending=1 expired=0 failed=0 tier=linux
+  source-only`, `pins-exit=0`; `bash ops/lib/check-line-cap` -> `P-SRC-02: 64 Swift files tracked (Sources=24,
+  Tests=32, apps/ios=8), none over 300 lines`, `linecap-exit=0`; `bash ops/queue-check` -> `QUEUE OK (153 tasks)`,
+  `queue-exit=0`. `gh pr checks 91` once, at the end -> `core pass 2m43s`, `pins-source-only pass 59s`. NOT re-run
+  by me: `bash ops/test` and full `bash ops/check-pins` (harness instruction; CI stands behind them). I did not
+  fail the round on the pre-existing TS2688 in the package's own tsconfig.
+  THE THREE ROUND-1 FINDINGS, RE-MUTATED, each alone, restored with `git checkout --` and `git status --short`
+  empty after each. B1 `mentioned()` `lowered.includes(word)` -> `lowered.startsWith(word)` ->
+  `Tests  5 failed | 120 passed (125)`, red BY NAME: `(f) ... > refuses road_access in the MIDDLE of a condition,
+  not only at its start`, `... > refuses a key that merely CONTAINS a forbidden token`, `... > refuses a forbidden
+  token that only ENDS a string value`, `... > refuses a forbidden token mid-string inside an areas property
+  value, several levels down`, `... > refuses an upper-case token in the MIDDLE of a condition`. The exact clause
+  round 1 forwarded, `road_class == MOTORWAY || road_access == PRIVATE`, is now the first of those five, typed out
+  at customModelGate.test.ts:24. B2 the MAX_WALK_DEPTH refusal -> `return null` ->
+  `Tests  2 failed | 123 passed (125)`: `(g) ... > refuses a body nested past 64 levels, naming the depth` and
+  `(g) ... > refuses at 65 levels even when the deep leaf is the forbidden token itself`. B3 half one,
+  `{ ...geometry, type, coordinates }` -> `Tests  1 failed | 124 passed (125)`: `(h) ... > drops foreign members
+  on the closure geometry instead of forwarding them`. B3 half two, `rebuildPolygonRings` called and discarded and
+  `coordinates: geometry.coordinates` returned -> `Tests  1 failed | 124 passed (125)`: `(h) ... > shares no array
+  with the feed, so poisoning the feed after the build changes nothing`. All three findings are CLOSED.
+  LITERALS RE-DONE BY HAND, not read out of the code. 1/(1+0.5*8) = 1/5 = 0.200000 -> serialised "0.2", which is
+  PLAN_MULTIPLIERS lambda 8 `mid` (customModel.test.ts:26). 1/(1+8) = 1/9 = 0.111111111... -> toFixed(6)
+  "0.111111", which is the same row's `low`. Both are plan :105-107 values, not function output. The new N1
+  sample: LAMBDA_GRID [0, 0.25, 0.5, 1, 2, 4, 8] has midpoints 0.125, 0.375, 0.75, 1.5, 3, 6, and the sorted union
+  is exactly the literal at customModel.test.ts:185. One midpoint checked through: lambda 1.5 -> mid = 1/1.75 =
+  0.571429, which sits between the lambda 1 row (0.666667) and the lambda 2 row (0.5). Recordable N1 is honestly
+  taken.
+  MY OWN TWO NEIGHBOURING MUTANTS, each alone, each restored, each SURVIVED - both RECORDABLE, neither blocking,
+  because neither forwards a forbidden clause or any feed data to the router.
+  R1 `rebuildRing`:174 `first[0] !== last[0] || first[1] !== last[1]` -> `&&` -> `Test Files  6 passed (6)` /
+  `Tests  125 passed (125)`, nothing red. The only fixture for that branch (`(h) ... > refuses a ring that does not
+  close on its first position`, customModelGate.test.ts:190-196) moves the last position in BOTH coordinates
+  (`open[4] = [-122.38, 37.72]` against a first of `[-122.4, 37.7]`), so `||` and `&&` are indistinguishable to the
+  suite. A ring whose last position differs from its first in ONE coordinate only - same lon, wrong lat - is
+  accepted under the mutant and forwarded as an unclosed ring. Positions are still rebuilt as fresh finite-number
+  pairs, so nothing of the feed rides in and no encoded value can be smuggled; it is the ring-closure CLAIM, not
+  P-SAFE-01, that is under-pinned. Fix is one fixture: `open[4] = [-122.4, 37.72]`.
+  R2 `scenicBandMultipliers`:118 `mid: 1 / (1 + 0.5 * lambda)` -> `mid: 1 / (1 + 0.5 * Math.round(lambda))` ->
+  `Test Files  6 passed (6)` / `Tests  125 passed (125)`, nothing red. It agrees with the plan at every lambda the
+  suite pins - PLAN_MULTIPLIERS holds 0, 1, 2, 8, where round() is the identity - and it stays monotone
+  non-increasing across all thirteen N1 sample points, so even the new midpoint test is green. At lambda 0.375 it
+  returns mid = 1 where the plan says 1/(1+0.1875) = 0.842105, i.e. the >= 4 band gets NO scenic preference at a
+  lambda the bisection really evaluates (plan :116 bisects over the continuum). The gap is that the formula is
+  pinned pointwise at four literal lambdas plus a monotonicity property; any step function agreeing there and
+  falling elsewhere survives. Cheapest close: one non-grid lambda with its multiplier typed out, e.g. lambda 3 ->
+  mid 0.4, low 0.25. Recordable for the bisection task (T-0159 family), not a defect that should cost this PR a
+  round.
+  THE FIXER'S TWO RULINGS, JUDGED. (1) Refusal messages print element TYPES and never the feed's text: UPHELD, and
+  it is the right call. `rebuildPosition` and `rebuildRing` interpolate only `typeof` results and integer
+  feature/ring/position indices into `${where}`, so a KV feed that carries `surface == GRAVEL` in a position cannot
+  get its own string back out through an error into a log line or an error body - which is exactly the direction
+  P-SAFE-01 (plan :242) cares about, since an error string is one copy-paste from a request. It is also assertable
+  rather than aspirational: customModelGate.test.ts:172-173 pins the whole message and then
+  `expect(error.message).not.toMatch(/GRAVEL/)`. (2) No src/closureAreas.ts split at 287 lines: I AGREE, nothing
+  recorded against it. 287 is under the 300 cap, the split would have moved code round 1 had just read, and the
+  next change to either file is already committed to doing it in the acceptance block. Not recordable.
+  VERDICT PASS, round 2. state claimed -> done, reviewer agent/rv2-pr91, the task file moved to queue/done/. The
+  PR is NOT merged by me. STILL OPEN carries forward unchanged, plus R1 and R2 above.
