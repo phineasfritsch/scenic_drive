@@ -4,8 +4,12 @@
 WHY THESE TWO AND NOT THE OTHER TWO (T-0168's log, the closing ruling). `etl/osmxml.py` is a stream copy and
 `etl/waydoc.py` is wiring over producers that carry their own numbers; neither computes one. These two do:
 `tagwriter.quantise` is the R1 quantisation - round-half-up of the 0..1 score times ten, clamped to the four
-bits GraphHopper holds it in - and `scenecheck.counts` is `ops/sane` check 4's two clauses as numbers. A
+bits GraphHopper holds it in - and `scenecheck.counts` is `ops/sane` check 4's clauses as numbers. A
 module that computes a number ships a population (CLAUDE.md, Verification).
+
+T-0204 hardens the second (ruling R1, from rv1-pr111's recordables): the checker states the 0..10 integer
+contract over the bytes that ship, a third clause `malformed` counts what breaks it, and `classify` is the
+ONE place a way is judged, so `counts` and `top` cannot differ about a road. Three mutations, floor 25->28.
 
 THE CONTRACT, the same one ops/mutate/gates_corpus.py and its runner keep:
 
@@ -60,11 +64,19 @@ WRITE_LOOP = ("    with osmxml.Writer(out) as writer:\n"
               "            writer.write(elem)")
 MISSING = "    missing = sorted((set(scored) | set(refused)) - seen)"
 NEITHER = "    raise ValueError(\"way %d carries highway=%s and is in neither the scored table nor the "
-CHECK_NOT_A_ROAD = "        if not tags.get(HIGHWAY):\n            found[\"not_a_road\"] += 1\n            continue"
-CHECK_REFUSED = "        if tags.get(tagwriter.KEY_REFUSED):\n            found[\"refused\"] += 1\n            continue"
-CHECK_GATED = "        if value > 0 and is_gated(tags):"
+CHECK_NOT_A_ROAD = "    if not tags.get(HIGHWAY):\n        return (NOT_A_ROAD, None)"
+CHECK_REFUSED = "        return (REFUSED, None) if refused else (NULL_SCORE, None)"
+CHECK_GATED = "        elif kind == SCORED and detail > 0 and is_gated(tags):"
+# T-0204: the read-back oracle's own contract (ruling R1) - the range, the ranking's source of truth,
+# and the parse that used to raise.
+CHECK_RANGE = "    if not tagwriter.SCORE_MIN <= value <= tagwriter.SCORE_MAX:"
+TOP_KIND = ("        kind, detail = classify(way_id, tags)\n"
+            "        if kind != SCORED:\n"
+            "            continue")
+INTEGER_OR_NONE = "    return int(text) if digits.isascii() and digits.isdigit() else None"
 IS_GATED = "    return tags.get(HIGHWAY) in ZERO_CLASSES or gate_reason(tags) is not None"
-REFUSES = "    return found[\"null_score\"] > 0 or found[\"gated_scored\"] > 0"
+REFUSES = ("    return found[\"null_score\"] > 0 or found[\"gated_scored\"] > 0"
+           " or found[\"malformed\"] > 0")
 SORT = "    rows.sort(key=lambda r: (-r[\"scenic_score\"], -r[\"scenic_score_unit\"], r[\"way_id\"]))"
 MIDDLE = "    return coords[len(coords) // 2]"
 
@@ -116,21 +128,34 @@ MUTATIONS = [
 
     # --- check 4's two clauses --------------------------------------------------------------------------
     ("only object to a gated way scoring above 5", SCENECHECK, CHECK_GATED,
-     "        if value > 5 and is_gated(tags):"),
+     "        elif kind == SCORED and detail > 5 and is_gated(tags):"),
     # The clause is `> 0`. Every gated fixture carried 3 or 7, so `> 1` passed 26 tests: a shipped PBF with
     # a motorway at 1 printed gated_scored=0 and exited 0.
     ("only object to a gated way scoring above 1", SCENECHECK, CHECK_GATED,
-     "        if value > 1 and is_gated(tags):"),
+     "        elif kind == SCORED and detail > 1 and is_gated(tags):"),
     ("forget that motorway and trunk are a clause of their own", SCENECHECK, IS_GATED,
      "    return gate_reason(tags) is not None"),
     ("forget the safety gates, keeping only the zero classes", SCENECHECK, IS_GATED,
      "    return tags.get(HIGHWAY) in ZERO_CLASSES"),
     ("count a refused way as a hole in the scores", SCENECHECK, CHECK_REFUSED,
-     "        if False:\n            found[\"refused\"] += 1\n            continue"),
+     "        return (NULL_SCORE, None)"),
     ("mistake the name tag for the highway tag when deciding what a road is", SCENECHECK,
      CHECK_NOT_A_ROAD,
-     "        if not tags.get(NAME):\n            found[\"not_a_road\"] += 1\n            continue"),
+     "    if not tags.get(NAME):\n        return (NOT_A_ROAD, None)"),
     ("refuse on the first clause only", SCENECHECK, REFUSES, "    return found[\"null_score\"] > 0"),
+
+    # --- T-0204 R1: the third clause, and the two halves that must give one answer -------------------
+    # Each was demonstrated red on a hand-built read-back file before the hardening existed.
+    ("accept a score outside the 0..10 the router can hold - a tertiary at 42 ranks #1", SCENECHECK,
+     CHECK_RANGE, "    if False:"),
+    ("let the ranking decide for itself instead of asking classify - the two halves drift apart",
+     SCENECHECK, TOP_KIND,
+     "        raw = tags.get(tagwriter.KEY_SCORE)\n"
+     "        if raw is None:\n"
+     "            continue\n"
+     "        detail = int(raw)"),
+    ("let a non-integer score raise instead of naming the way - a crash is not a refusal", SCENECHECK,
+     INTEGER_OR_NONE, "    return int(text)"),
     ("report the failure with a zero exit code", SCENECHECK, "REFUSAL_EXIT = 4", "REFUSAL_EXIT = 0"),
     ("rank the ways from worst to best", SCENECHECK, SORT,
      "    rows.sort(key=lambda r: (r[\"scenic_score\"], r[\"scenic_score_unit\"], r[\"way_id\"]))"),
@@ -151,7 +176,7 @@ EQUIVALENT = [
 # promoted into MUTATIONS. Empty is a claim, not an omission.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 25
+MIN_MUTATIONS = 28
 PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q",
           str(TAGWRITER_TESTS), str(SCENECHECK_TESTS)]
 # Past the filesystem's timestamp granularity, so a mutation always lands rather than hitting a stale .pyc.

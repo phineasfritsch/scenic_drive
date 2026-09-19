@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pathlib
 
-from etl import assemble, byways, scenecheck
+from etl import assemble, byways, scenecheck, tagwriter
 
 NODES = [(21, 34.0100, -118.70000), (22, 34.0110, -118.69900), (23, 34.0200, -118.69000)]
 
@@ -119,7 +119,7 @@ def test_a_clean_file_reports_both_clauses_zero_and_exits_zero(tmp_path, capsys)
     path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="0"))])
     assert scenecheck.main([str(path)]) == 0
     assert capsys.readouterr().out.splitlines()[0] == \
-        "CHECK4 null_score=0 gated_scored=0 scored=2 refused=0 not_a_road=0"
+        "CHECK4 null_score=0 gated_scored=0 malformed=0 scored=2 refused=0 not_a_road=0"
 
 
 def test_the_top_ten_ranks_by_score_and_names_each_way_its_class_and_one_coordinate(tmp_path):
@@ -146,3 +146,72 @@ def test_the_gate_rules_are_the_assemblys_own_and_not_a_second_copy(tmp_path):
     """Two copies of a gate is how two answers for one road reach the corpus."""
     assert scenecheck.gate_reason is assemble.gate_reason
     assert scenecheck.ZERO_CLASSES is byways.SCENIC_ZERO_CLASSES
+
+
+# --- T-0204: the read-back oracle's own contract (rv1-pr111's three recordables, ruling R1) ---------------
+# The writer clamps to 0..10; the CHECKER reads the bytes that ship and may not assume the writer wrote them.
+
+
+def test_a_score_above_the_range_the_router_holds_is_malformed_and_does_not_rank(tmp_path):
+    """A tertiary tagged 42 was counted as `scored` and ranked #1 in the read the owner makes."""
+    path = osm(tmp_path, [(1, scored()), (2, scored(name="Overbright Street", scenic_score="42"))])
+    found = scenecheck.counts(path)
+    assert (found["malformed"], found["scored"]) == (1, 1)
+    assert [row["way_id"] for row in scenecheck.top(path, 5)] == [1]
+    assert scenecheck.main([str(path)]) == 4
+
+
+def test_a_negative_score_is_malformed_and_does_not_slip_past_the_gate_clause(tmp_path):
+    """A motorway at -3 cleared clause 2, because `-3 > 0` is false - the gate saw nothing to object to."""
+    path = osm(tmp_path, [(1, scored()), (2, scored(highway="motorway", scenic_score="-3"))])
+    found = scenecheck.counts(path)
+    assert (found["malformed"], found["gated_scored"], found["scored"]) == (1, 0, 1)
+    assert scenecheck.main([str(path)]) == 4
+
+
+def test_a_non_integer_score_names_the_way_instead_of_raising(tmp_path, capsys):
+    """`int('7.5')` was a ValueError out of the oracle: a crash is not a refusal, and it names nothing."""
+    path = osm(tmp_path, [(1, scored()), (2, scored(scenic_score="7.5")),
+                          (3, scored(scenic_score="abc"))])
+    found = scenecheck.counts(path)
+    assert found["malformed"] == 2
+    assert scenecheck.main([str(path)]) == 4
+    err = capsys.readouterr().err
+    assert "way 2 scenic_score=7.5" in err
+    assert "way 3 scenic_score=abc" in err
+
+
+def test_a_way_that_is_both_refused_and_scored_gets_one_answer_from_both_halves(tmp_path):
+    """Two halves, two answers: `counts` called it refused and skipped it while `top` ranked it.
+
+    Ruling R2 of T-0168 says a refused way carries NO score, so a way carrying both is neither refused nor
+    scored - it is malformed, in the counts and in the ranking, because both ask the same `classify`.
+    """
+    path = osm(tmp_path, [(1, scored()),
+                          (2, scored(name="Contradiction Road", scenic_score="9",
+                                     scenic_score_unit="0.9900", scenic_refused="1",
+                                     scenic_refused_why="dem: no elevation sample"))])
+    found = scenecheck.counts(path)
+    assert (found["malformed"], found["refused"], found["scored"]) == (1, 0, 1)
+    assert [row["way_id"] for row in scenecheck.top(path, 5)] == [1]
+    assert scenecheck.main([str(path)]) == 4
+
+
+def test_the_range_is_the_writers_own_and_not_a_second_copy(tmp_path, monkeypatch):
+    """The bounds are READ FROM `tagwriter` at call time, not copied into this module.
+
+    An int cannot be asserted with `is` the way `gate_reason` is (0 and 10 are interned), so the binding is
+    demonstrated the only way that means anything: move the writer's bound and the checker moves with it.
+    """
+    path = osm(tmp_path, [(1, scored(scenic_score="12", scenic_score_unit="1.2000"))])
+    assert scenecheck.counts(path)["malformed"] == 1
+    monkeypatch.setattr(tagwriter, "SCORE_MAX", 42)
+    assert scenecheck.counts(path)["malformed"] == 0
+
+
+def test_the_third_clause_is_printed_as_a_number_on_the_same_line(tmp_path, capsys):
+    """`malformed` is a CHECK4 clause, so it is a number on the line whether or not it is zero."""
+    path = osm(tmp_path, [(1, scored()), (2, scored(scenic_score="99"))])
+    assert scenecheck.main([str(path), "--top", "0"]) == 4
+    assert capsys.readouterr().out.splitlines()[0] == \
+        "CHECK4 null_score=0 gated_scored=0 malformed=1 scored=1 refused=0 not_a_road=0"
