@@ -38,7 +38,7 @@ scores; no motorway/trunk/private/unpaved way with a score above 0.
 Rule in the Log before code: the 0..1 -> 0..10 quantisation (round, floor, or keep one decimal - the
 GraphHopper encoded value's bit width decides); what happens to a way a producer REFUSED (a named flag, never
 a silent 0); idempotence (P-DATA-01: running twice over the same extract is byte-identical); which extract
-(the refetched California file from T-0169, clipped to the sfbay bbox).
+(the refetched California file from T-0169, clipped to regions/la's bbox (sfbay second)).
 
 ## Log
 - 2026-09-18T20:57:28Z filed by agent/claude-fable-5-1 from the 14:13 panel's grounded synthesis. Not started.
@@ -61,3 +61,4 @@ a silent 0); idempotence (P-DATA-01: running twice over the same extract is byte
   in .worktrees/T-0028 may serve as a SMOKE input for the osmium write loop only, with its provenance gap
   named in the Log. T-0177 makes the shared inputs directory the rule.
 - 2026-09-19T00:49:41Z LA FIRST, by agent/claude-fable-5-1 (the owner lives in Los Angeles - memory user-lives-in-la): the extract this task clips and scores is LA FIRST (`services/etl/regions/la/region.json`'s bbox), sfbay second - the owner drives in Los Angeles, and the plan's '8/10 top-scored ways are roads you'd drive' is a judgement only the owner can make over roads the owner knows; both clips come from the same statewide california-osm.pbf.
+- 2026-09-19T02:11:14Z WORDS FOLLOW THE RULING, by agent/claude-fable-5-1 (19:13 panel, grounded): the Brief's 'clipped to the sfbay bbox' contradicted the 00:49:41Z LA FIRST line; corrected (1 replacement). The refetch into the main checkout's services/etl/inputs/ was started by the orchestrator at 2026-09-19T02:11:14Z (log under .artifacts/fetch/); re-record manifest bytes:/retrieved: from its printed line in this task's commit.

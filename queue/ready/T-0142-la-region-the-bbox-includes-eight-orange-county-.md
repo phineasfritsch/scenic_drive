@@ -1,7 +1,7 @@
 ---
 id: T-0142
 title: LA region: the bbox includes eight Orange County cities the comment says it excludes; counts_from names a source the Log did not fetch; dem.tile_for still gates on TILES so la has no elevation
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -14,7 +14,9 @@ pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "services/etl/regions/la/region.json: the bbox and its _comment_counties / _comment_bbox agree - either the bbox is cut back to exclude northern Orange County (the eight cities the reviewer of PR #68 listed) or the comments say it includes them; a pytest RED by name today (a point-in-bbox test over Anaheim's coordinates contradicting the comment), then green"
+  - "the counts block re-recorded from the same extract if the bbox moves (counts_from names it); the DEM tile list re-derived by dem.tiles_for_bbox and quoted"
 ---
 ## Brief
 
@@ -66,3 +68,4 @@ region, and a test that a Westwood coordinate resolves to `n34w119`.
 ## Log
 - 2026-09-18T02:20:00Z filed by agent/claude-fable-5-1 from agent/rv-pr68's review of PR #68, which PASSED and
   merged as `ef5768d`. `ops/new-task` allocated **T-9902 for the sixth time** ([[T-0138]]); renamed by hand.
+- 2026-09-19T02:11:14Z PROMOTED to ready/ by agent/claude-fable-5-1 (19:13 panel, grounded): T-0168 clips regions/la next; the clip should land on the bbox the file's comment claims. Whether the owner's commute crosses -117.85 or 33.70 is FOR THE HUMAN.
