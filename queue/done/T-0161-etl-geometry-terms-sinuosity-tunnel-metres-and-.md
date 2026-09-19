@@ -1,7 +1,7 @@
 ---
 id: T-0161
 title: ETL geometry terms - sinuosity, tunnel metres and metres to the nearest motorway, from way geometry alone
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T19:52:32Z
@@ -11,7 +11,7 @@ branch: task/T-0161
 exclusive: []
 touches: [services/etl/etl/sinuosity.py, services/etl/etl/proximity.py, services/etl/tests/test_sinuosity.py, services/etl/tests/test_proximity.py, services/etl/tests/test_proximity_bends.py, services/etl/tests/test_proximity_interior.py, services/etl/tests/fixtures/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv4-pr94
 depends_on: [T-0154]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -638,4 +638,76 @@ command did not print.
   `services/etl/tests/test_proximity_interior.py` in 1e3136a, disclosed there as a ruled scope addition - it is
   the one front-matter change outside the acceptance block. (d) N4 and F2 in the round-4 table are 1e3136a's
   runs; neither the resumed fixer nor the verifier repeated them.
-
+- 2026-09-19T01:13:11Z REVIEW ROUND 4 - PASS, by agent/rv4-pr94 (not the owner, not rv1/rv2/rv3, not a
+  fixer, not the orchestrator). Reviewed 41d7663 in a detached worktree (.worktrees/rv4-pr94, removed at the
+  end); nothing was written in .worktrees/T-0161 but this entry and the two front-matter fields. Run under
+  the 17:13 panel's last-round ruling: PASS if a check now exists that could tell for the classes found.
+  SCOPE. `git diff c0dfe1a..41d7663 --stat` is three paths and no more - this task file, the fixture
+  `services/etl/tests/fixtures/geometry_bends_fixture.json` (one motorway case and one sentence of `note`)
+  and `services/etl/tests/test_proximity_interior.py` (178 +, new) - `3 files changed, 354 insertions(+), 7
+  deletions(-)`. No code file is in the diff; `md5sum` at this head gives `services/etl/etl/proximity.py`
+  `254632996234f9bd1c1e130db0244bea` and the fixture `5b8263ec58a6403841e79fdf286b57ff`, the two the round-4
+  mutant table restores to. The dated entries are separated: `grep -c '^- 20'` -> `24` and a grep for a dated
+  stamp with anything before it -> `0`, so no entry is glued onto another's last line any more.
+  ROUND 3's BLOCKING FINDING IS CLOSED. rv3's P1 re-applied ALONE to `proximity.py` at this head
+  (`line_distance_m` keeping only `if i in (0, n - 1) or j in (0, m - 1)`), `services/etl/etl/__pycache__`
+  purged before every pytest run, 1.1 s slept before each write, the original bytes written back and the md5
+  re-read: `3 failed, 133 passed`, exit 1, red BY NAME with exactly the three names the block claims -
+  `tests/test_proximity_interior.py::TestNearestApproachInteriorToBothPolylines::test_the_nearest_approach_may_need_a_segment_interior_to_both_polylines`,
+  `tests/test_proximity_interior.py::TestNearestApproachInteriorToBothPolylines::test_the_pairs_that_touch_an_end_segment_all_read_past_the_proximity_threshold`
+  and `tests/test_proximity_bends.py::TestNearestApproachOffTheChord::test_the_metres_to_the_nearest_motorway_match_the_fixture[nearest_approach_interior_to_both_polylines]`.
+  Control on the same four files was green and `git status --short` was empty after the restore.
+  ACCEPTANCE BLOCK RE-RUN AT 41d7663, every line reproduced. `cd services/etl && python -m pytest tests -rs`
+  -> `608 passed in 85.91s (0:01:25)`, exit 0, `grep -c 'short test summary'` over the captured output `0` -
+  zero failures, zero skips. The four test files -> `136 passed in 1.29s`, exit 0; `--collect-only -q` ->
+  `tests/test_proximity.py: 60`, `tests/test_proximity_bends.py: 24`, `tests/test_proximity_interior.py: 4`,
+  `tests/test_sinuosity.py: 48`. `wc -l` in the block's own order -> sinuosity.py 83, proximity.py 143,
+  test_sinuosity.py 178, test_proximity.py 300, geometry_terms_fixture.json 263, test_proximity_bends.py 278,
+  geometry_bends_fixture.json 78, test_proximity_interior.py 178, and `awk 'END{print NR}'` -> 300 / 178 /
+  278 / 178 for the four test files. `bash ops/lib/check-pipe-consumers` bare -> `PIPE-CONSUMERS OK: no gate
+  decides with 'producer | grep -q' (57 scanned, 58 tracked, floor 42)`, exit 0. `bash ops/queue-check` bare
+  -> `QUEUE OK (158 tasks)`, exit 0. `git status --short` empty at 41d7663. Wall time is still not a claim
+  and this is its third reading: `85.91s` here against `76.73s` and `102.10s` in the record, same box, same
+  commit.
+  ARITHMETIC RE-DONE WITHOUT THE MODULE, in a calculator that imports nothing from `etl/` and writes the flat
+  projection out itself: `0.0009 * 110540 = 99.486`; the whole per-pair matrix of the new case, row for row,
+  `i=0 [2069.787581, 2083.699146, 3701.099603]`, `i=1 [406.484208, 99.486, 888.62916]`, `i=2 [888.62916,
+  99.486, 406.484208]`, `i=3 [3701.099603, 2083.699146, 2069.787581]`; `argmin ALL = 99.48600000003353`
+  attained at `[(1, 1), (2, 1)]` and nowhere else, both of them interior x interior; the retained-pair
+  `406.4842081198996` as the foot of the perpendicular from the motorway's n1 onto the way's s1 at
+  `t = 0.7211147242319178`; and both chords past the radius at `2210.8000000002794` and `2310.286000000313`.
+  Every figure the fixture types out, independently.
+  MY OWN MUTANTS, each applied ALONE and restored byte-for-byte (md5 back to
+  `254632996234f9bd1c1e130db0244bea` and `git status --short` empty after each), aimed at the product
+  question - can a wrong metre value reach `score.py`, in either direction. M1, `segment_distance_m` keeping
+  only the CANDIDATE endpoint terms, `min(point_to_segment_m(c, a, b), point_to_segment_m(d, a, b))`: the
+  untried mirror of round 3's N3, and the half that carries the new case's 99.486 -> `10 failed`, red by name
+  across all three proximity files including both new interior tests. M2, `_crosses` dropping its second
+  straddle test so two segments whose infinite lines separate read 0.0 m and a scenic road takes a SPURIOUS
+  x0.7 -> `8 failed`, red by name including
+  `tests/test_proximity_bends.py::TestNearestApproachOffTheChord::test_the_bending_polyline_reduced_to_its_chord_loses_the_encounter[nearest_approach_interior_to_both_polylines]`.
+  Both killed.
+  ONE RECORDABLE - A SIXTH GEOMETRY CLASS, for queue/ready/T-0176, NOT BLOCKING under this round's ruling.
+  M3, a BANDED subset of the segment-pair matrix: `line_distance_m` keeping only `if abs(i - j) <= 1`, the
+  shape a "monotone sweep" pruning would have. It SURVIVES - `136 passed` on the four test files and
+  `608 passed` on the whole suite, exit 0, nothing red. It is none of the five classes the round-4 fix claims
+  to cover: it KEEPS the interior-interior pairs, which is exactly why the new case cannot see it (that
+  case's minimum sits at (1,1) and (2,1), both on or next to the diagonal); it keeps the first and last
+  segments, so it is not the segment-subset class either; and it is not the chord, not the candidate order
+  and not a normalisation. Witness, computed with my own flat metric and no module: the way
+  `[(37.480,-122.040),(37.4805,-122.030),(37.480,-122.020),(37.4805,-122.010),(37.480,-122.000)]` against the
+  2-node motorway `[(37.4809,-122.0055),(37.4809,-122.0045)]` has column j=0 equal to
+  `[2164.7493, 1284.7685, 399.9755, 68.9527]`, a true minimum of `68.95267627751733` m at `(i=3, j=0)` -
+  inside score.MOTORWAY_PROXIMITY_M = 150.0, x0.7 - while the band keeps only i in {0, 1} and answers
+  `1284.7685` m, past MOTORWAY_SEARCH_RADIUS_M = 1000.0, so `meters_to_nearest_motorway` reports `math.inf`
+  and the way keeps a scenic score 1/0.7 = 43% higher than plan:85 gives it. No fixture reaches
+  `|i - j| >= 2` at all: the motorway cases are 3-vs-2, 4-vs-2, 3-vs-3 and the new 5-vs-4, and every one of
+  their minima is on or next to the diagonal. T-0176 should carry this as "banded / diagonal-window subset of
+  the segment-pair matrix", with the witness above, and give it a literal floor in the committed mutation
+  population. It is a hole in the POPULATION, not a wrong value in the shipped code: `proximity.py` is
+  unchanged since round 1 and answers `99.48600000003353` correctly here, as it has for four rounds.
+  NOT RUN HERE, and not restated as if it were: `ops/test` and `ops/check-pins` (both wrap swift; not run on
+  this box, exactly as the block says), and the round-4 table's N4 and F2, which were measured at 1e3136a by
+  the commit that recorded them and whose files have not changed since. `gh pr checks 94` read once ->
+  `core pass 2m21s`, `pins-source-only pass 54s`; `gh pr view 94` -> `base=main`, so nothing is stacked
+  behind a task branch. PR #94 is signed off; it is not merged by me.
