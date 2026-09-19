@@ -208,6 +208,21 @@ def test_the_closed_way_predicate_uses_the_same_constant_as_the_sinuosity_produc
         assemble.endpoint_gap_m([(37.0, -122.0)])
 
 
+def test_the_temporary_predicate_copy_must_be_deleted_the_day_t_0161_lands():
+    """The literal above pins 10.0 on ONE side. This dies the day `etl.sinuosity` exists and the two differ.
+
+    No `pytest.skip`: the suite is skip-free and stays that way, so on main - where T-0161 (PR #94) has not
+    landed and there is no `etl.sinuosity` - this returns and asserts nothing, by name.
+    """
+    try:
+        from etl import sinuosity
+    except ImportError:
+        return
+    assert (assemble.is_closed_way is sinuosity.is_closed_way
+            and assemble.CLOSED_ENDPOINT_M is sinuosity.CLOSED_ENDPOINT_M), (
+        "T-0161 landed: do the one-line swap in assemble.py")
+
+
 def _swift_set(name: str) -> set:
     text = GATES_SWIFT.read_text(encoding="utf-8")
     match = re.search(r"let %s: Set<String> = \[(.*?)\]" % name, text, re.S)

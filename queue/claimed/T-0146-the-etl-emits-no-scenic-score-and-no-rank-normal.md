@@ -320,3 +320,80 @@ Unblocks T-0029 (rank-order) and P-PROD-01. Depends on T-0024..T-0027 leaving qu
     the fixture. Nothing checks those literals against the producers on PR #94, and when T-0161 lands the
     fixture's sinuosity column should be regenerated from `way_sinuosity` over the same coordinates - at
     which point the hand-typed ranks in `test_assemble.py` have to be re-derived.
+- 2026-09-19T01:03:54Z THE TEMPORARY PREDICATE COPY NOW HAS A TRIPWIRE, by agent/claude-opus-5 (fixer for the
+  owner, from the hourly panel's grounded synthesis, before the review is bought). Six lines of test, no module
+  code. `test_the_temporary_predicate_copy_must_be_deleted_the_day_t_0161_lands` sits next to the literal
+  assertion in `tests/test_assemble.py`: it imports `etl.sinuosity` in a `try` and RETURNS on `ImportError` -
+  it does NOT `pytest.skip`, so the suite stays skip-free and `-rs` keeps printing no summary section - and,
+  once that module exists, asserts `assemble.is_closed_way is sinuosity.is_closed_way and
+  assemble.CLOSED_ENDPOINT_M is sinuosity.CLOSED_ENDPOINT_M` with the message `T-0161 landed: do the one-line
+  swap in assemble.py`. This closes the first STILL OPEN bullet of the 23:45:11Z entry ("Nothing enforces that
+  swap today: the constant is duplicated, and a change to T-0161's 10.0 would not be noticed here") - that
+  entry is not edited; this one corrects it. Until #94 lands the assertion is unreachable by construction, so
+  the literal assertion in `test_the_closed_way_predicate_uses_the_same_constant_as_the_sinuosity_producer`
+  stays: it pins 10.0 on the one side that exists today.
+
+  RED 7 - THE DAY T-0161 LANDS. Demonstrated on a COPY under `.artifacts/` (gitignored, deleted after the
+  run), never on the head: `services/etl` copied whole, plus `Sources/ScenicKit/Gates/Gates.swift`,
+  `GateReason.swift` and `Tests/Fixtures/scoring/segment_terms.json` at the same relative depth so the test
+  module's `ROOT = HERE.parents[2]` still resolves, and `etl/sinuosity.py` taken VERBATIM from the branch
+  (`git show origin/task/T-0161:services/etl/etl/sinuosity.py`, 83 lines, `CLOSED_ENDPOINT_M = 10.0` and
+  `is_closed_way` at its lines 46 and 68) - the state after #94 merges, not a hand-written imitation.
+  `__pycache__` purged before the run. `1 failed, 14 passed in 0.75s`:
+    FAILED tests/test_assemble.py::test_the_temporary_predicate_copy_must_be_deleted_the_day_t_0161_lands
+    E       AssertionError: T-0161 landed: do the one-line swap in assemble.py
+    E       assert (<function is_closed_way at 0x0000022718C51F30> is <function is_closed_way at 0x0000022718C53F40>)
+    E        +  where <function is_closed_way at 0x0000022718C51F30> = assemble.is_closed_way
+    E        +  and   <function is_closed_way at 0x0000022718C53F40> = <module 'etl.sinuosity' from
+    E              '...\.artifacts\T-0146-red\services\etl\etl\sinuosity.py'>.is_closed_way
+  The other 14 tests pass in that copy, so the tripwire is the only thing that turns red when the module
+  arrives - and it names the swap rather than reporting a rank that moved. GREEN at the head with the copy
+  deleted, `__pycache__` purged and `ls etl/sinuosity.py` printing `No such file or directory`:
+    cd services/etl && python -m pytest tests/test_assemble.py -rs
+    15 passed in 0.37s
+
+  ACCEPTANCE BLOCK RE-RUN AT THIS COMMIT, renumbered; the 23:45:11Z block's runs stand except where re-quoted
+  here. Every gate bare, never piped into `tail`/`head`/`grep` before a `&&`. The measured files are final at
+  this commit; the only edit after these runs is this Log entry's own text, which no gate reads except
+  `ops/queue-check`, re-run after it.
+
+  ACCEPTANCE 1 - the closed-loop RED then green, both runs quoted: unchanged, the 23:39:52Z entry's RED 1 and
+  the 23:45:11Z entry's ACCEPTANCE 1. TOUCHED here only in this line's tail - "the predicate is
+  `sinuosity.is_closed_way` once T-0161 is on main and, until then, the assembler's own endpoint-gap check
+  with the same 10 m constant, swapped in one line (STILL OPEN names it)" - which is now enforced by a test
+  that fails the day the swap is due: RED 7 above, red by name over the post-#94 module, green at the head.
+  Re-run at this commit, bare:
+    cd services/etl && python -m pytest tests/test_assemble.py -rs
+    15 passed in 0.37s
+  14 before this change. No `short test summary info` section, so zero skips.
+
+  ACCEPTANCE 2 - the four `ops/sane` check-4 gates, each red by name first: unchanged, RED 2 through RED 6 in
+  the 23:39:52Z entry with the Swift half quoted there. No module code changed here; all four gate tests are
+  among the 15 above.
+
+  ACCEPTANCE 3 - the whole ETL suite and the `wc -l` figures, RE-MEASURED at this commit:
+    cd services/etl && python -m pytest tests -rs
+    849 passed in 81.43s (0:01:21)
+  848 before this change, +1 for the new test. No `short test summary info` section, so zero skips (`-rs`
+  would list them; `-r` reports are what pyproject's `-q` suppresses otherwise).
+    wc -l services/etl/etl/assemble.py services/etl/tests/test_assemble.py services/etl/tests/fixtures/assembly_fixture.json
+      261 services/etl/etl/assemble.py
+      281 services/etl/tests/test_assemble.py
+       92 services/etl/tests/fixtures/assembly_fixture.json
+      634 total
+  `test_assemble.py` is 266 -> 281 (+15), still under the 300-line cap; the other two are untouched and
+  re-measured anyway.
+
+  THE OTHER GATES, bare:
+    bash ops/check-pins --source-only
+    PINS ok=11 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only
+    check-pins exit=0
+
+    bash ops/queue-check
+    QUEUE OK (169 tasks)
+    queue-check exit=0
+
+  `ops/test` and the full `ops/check-pins` were NOT run, as instructed for this correction; `--source-only`
+  was. Every other STILL OPEN bullet of the 23:45:11Z entry is untouched and still open, the three literal
+  fixture fields included: this tripwire pins that the two predicates are ONE object, and says nothing about
+  the hand-typed `sinuosity` column, which still has to be regenerated from `way_sinuosity` when #94 lands.
