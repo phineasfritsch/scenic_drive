@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-19T13:47:40Z
 worktree: .worktrees/T-0178
 branch: task/T-0178
 exclusive: []
-touches: [Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/]
+touches: [Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, ops/lib/mutate-population-allowlist.json]
 pins_affected: []
 reviewer: agent/rv1-pr115
 depends_on: [T-0153, T-0170]
@@ -403,3 +403,107 @@ streets; the Mulholland side streets). Do NOT touch SkylineRoute.swift or its te
   road lines are human-written text that no test ties to the pins.
 
   NOT DONE by this review: ops/test, the full ops/check-pins and any iOS render.
+
+### 2026-09-19T11:29:47Z — owner/fixer: P-PROC-06 refuses this branch at merge; RULING before any edit
+
+PR #115 was signed off by agent/rv1-pr115 and then REFUSED at merge: CI's core job is red on P-PROC-06,
+the population gate that landed on main in PR #114 (T-0186) AFTER this branch was cut. Merged
+`origin/main` into `task/T-0178` (clean, no conflict; pre-merge head f8a7586, merge commit head below),
+then ran the gate bare:
+
+    $ python ops/lib/check-mutate-population.py
+    P-PROC-06: 73 modules, 22 covered by 10 populations, 25 allowlisted, 2 added by this branch
+    ...
+    P-PROC-06: module(s) added by this branch with no mutation population:
+      Sources/Handoff/HandoffDrive.swift
+      Sources/Handoff/SantaMonicaMountainsRoute.swift
+      CLAUDE.md, Verification: a new numeric module ships its mutation population under ops/mutate/
+      with a literal floor.
+      Either add a driver to ops/mutate that names it in SUBJECT_MODULES, or - if it computes no
+      number reaching score, route or tags - add it to ops/lib/mutate-population-allowlist.json with
+      the reason.
+
+The refusal is correct and is about this branch's two new files. Ruled module by module, by READING each,
+against CLAUDE.md's "a new NUMERIC module ships its mutation population":
+
+**Sources/Handoff/SantaMonicaMountainsRoute.swift — ALLOWLIST, not a population.** The whole file is
+`public static let destination` and `public static let waypoints: [Coordinate]`: nine `Coordinate(...)`
+literals and one more, each reverse-geocoded and quoted beside itself. There is no operator in the file.
+It computes nothing; it is a typed table of literals whose correctness is provenance (the Nominatim
+reverse result quoted per pin) and whose ordering property is held by `SantaMonicaMountainsRouteTests`,
+which types all nine out again. A mutation population over it would be a population over `git diff` —
+every mutant is "change a literal", every mutant is killed by the test that re-types the same literal,
+and the floor would measure the transcription, not a computation.
+
+**How main classifies `SkylineRoute.swift`, the module this one is the twin of.** It is NOT allowlisted
+and NOT covered: the gate prints it under `DEBT (informational, never red): 26 existing module(s) with
+no population and no allowlist entry`, beside `StraightLineDistance.swift`, `Geo.swift`, `score.py` and
+the rest. So main has not *ruled* SkylineRoute either way — it is pre-existing debt the gate reports and
+never fails on. SantaMonicaMountainsRoute is the same KIND of module (same shape, same discipline, its
+doc comment says so), but it cannot ride on that: DEBT is a grandfather clause keyed on "existed before
+this branch", and a module added by this branch must be ruled explicitly. This entry is that ruling, and
+it is the honest one for both files — SkylineRoute's debt line is, on this reading, an allowlist entry
+nobody has written; writing it is not this task's to do, because CLAUDE.md forbids touching
+SkylineRoute.swift here and the gate does not ask.
+
+**Sources/Handoff/HandoffDrive.swift — ALLOWLIST, not a population.** A two-case `String` enum plus
+`defaultDrive`, and three members that are pure `switch self` forwards to the two route types
+(`destination`, `waypoints`) and one concatenation (`chain = waypoints + [destination]`). No arithmetic:
+it selects an array, it does not compute a number. The one property worth breaking is the MAPPING — case
+to route — and that is already bound by a named test on the shipping symbols the app reads
+(`SantaMonicaMountainsChainTests.eachDriveMapsToItsOwnRoute`, plus `defaultDrive` and the case count);
+the reviewer's mutant (1) above cross-mapped it and it went KILLED. A mutate driver would re-buy that
+same kill through a slower door.
+
+**Sources/Handoff/StraightLineDistance.swift is the numeric part of this chain, and it is NOT mine to
+write here.** It is the haversine that turns a `chain` into the whole-kilometre figure the LA drive
+shows on screen — a number that reaches the screen, so it does get a population. It is pre-existing
+(gate DEBT, not added by this branch, so the gate stays green without it) and it belongs to the filed
+task T-0199. No population for it is written on this branch.
+
+So: no `ops/mutate/handoff.py` change. Its `SUBJECT_MODULES` stays
+`("Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift")` — the two modules
+in `Sources/Handoff` that do compute (a URL's encoding and cap, and the error mapping) — and its floors
+(`MIN_MUTATIONS = 30`, `MIN_EQUIVALENT = 1`, `MIN_TEST_FILES = 3`) are untouched. Extending it with two
+literal-table modules would inflate a population with mutants that are diffs, which is exactly the
+"equivalent mutant ruled in prose" failure CLAUDE.md names. Widening `touches:` by
+`ops/lib/mutate-population-allowlist.json` only; `ops/mutate/` is NOT edited.
+
+RE-RUN AFTER THE TWO ALLOWLIST ENTRIES, every command bare, same session:
+
+    $ python ops/lib/check-mutate-population.py
+    P-PROC-06: 73 modules, 22 covered by 10 populations, 27 allowlisted, 2 added by this branch
+      DEBT (informational, never red): 24 existing module(s) with no population and no allowlist entry
+    P-PROC-06: every added module is covered or allowlisted; the floor of 22 holds
+    (exit 0; allowlisted 25 -> 27, DEBT 26 -> 24, the floor of 22 populations-covered UNCHANGED - no
+     module moved out of a population)
+
+    $ swift test --scratch-path .build/T0178 --filter HandoffTests
+    Test run with 71 tests in 10 suites passed after 0.093 seconds.
+    (including "The Santa Monica Mountains chain, the region and the number" and "The Skyline route's
+     pins")
+
+    $ bash ops/lib/check-safety-disclaimer
+    P-SAFE-03: 9 Swift file(s) under .../FeatureScenicHome; ... over the 21 .swift file(s) under
+    apps/ios, SkylineHandoff.open( called once (GatedHandoffButton.swift line 87), dominated by the
+    guard at line 82; ... `isSafetyDisclaimerAcknowledged = true` written exactly once, at line 138
+    (exit 0; every count identical to the sign-off run - 9, 21, line 87, line 82, line 138)
+
+    $ bash ops/lib/check-line-cap
+    P-SRC-02: 90 Swift files tracked (Sources=29, Tests=40, apps/ios=21), none over 300 lines
+    $ bash ops/lib/check-exec-bits
+    P-OPS-01: 76 files, 23 required present, all modes correct
+    $ bash ops/queue-check
+    QUEUE OK (205 tasks)
+    (205, up from 201: main's four new backlog tasks arrived in the merge)
+
+`ops/mutate/handoff.py` was NOT edited, so `python ops/mutate/handoff.py` is not re-run here; its last
+run stands in the entries above and its floors are untouched.
+
+NO SWIFT UNDER apps/ios CHANGED, by measurement: `git diff --name-only f8a7586..HEAD --
+"apps/ios/**/*.swift"` over the whole range from the pre-merge head through the merge to this head is
+EMPTY - the merge brought no apps/ios Swift and I wrote none - so the ios-compile proof quoted at
+sign-off (run 35436962939, headSha 76a0444) still describes this head's Apple-side Swift byte for byte.
+This fix touches two files: `ops/lib/mutate-population-allowlist.json` and this task file. The task
+stays in `queue/done/`, `state: done` and `reviewer: agent/rv1-pr115` untouched; the `touches:` header
+is widened by the allowlist path only.
