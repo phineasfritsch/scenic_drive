@@ -239,3 +239,100 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   `work/pass2_reference.py` was rewritten to a `multiprocessing.Pool(9)` over `Pool.imap`, which yields in
   the order it was given, so SORTED TILE ORDER - and therefore first-tile-wins - is unchanged by the
   parallelism: 1,544 s serial over 125 documents became 458 s over 152.
+- 2026-09-19T21:59:24Z THE WHOLE-LA RUN, every stage's count line quoted as it landed. Each is one
+  foreground container call of the digest-pinned `scenic-etl:latest` through `work/run_stage.sh`, except
+  pass 2, which is the chunk loop and ran as one detached driver (`work/pass2.sh`, log kept at
+  `work/pass2.log`).
+  PASS 2, `python -m etl.assemble --reference /fast/la-reference.json` per tile, ten at a time, 27-76 s a
+  tile: `PASS2 SWEEP END 152 scored of 152 docs`. Totalled over the 152 `ASSEMBLE` lines:
+      `PASS2 TOTALS ways=574396 zero_class=20286 gated=106117 sinuosity_declined=21414
+       points_of_interest_absent=574396 null_score=0`
+  (those are per-tile sums, so a seam way is counted in both its tiles; the merge below deduplicates.)
+  MERGE + THE SEAM RE-MEASURE, `work/pass3_merge.py`, first-tile-in-sorted-order wins:
+      `MERGE tiles=152 ways=560304 seam_ways=13946 seam_differ=0 refused=0 52s`
+      `MERGE ASSEMBLE ways=560304 zero_class=19511 gated=103989 sinuosity_declined=21297
+       points_of_interest_absent=560304 null_score=0`
+  13,946 WAYS ARE DOCUMENTED IN TWO TILES AND 0 OF THEM DISAGREE. T-0204's measurement was 160 of 190 on
+  one seam. `zero_class=19511` is exactly the region motorway set R1b cut (`Number of ways: 19511`), which
+  is the independent check that `population_of` dropped the four zero classes and nothing else.
+  TAGWRITER over the whole `la-filtered.osm.pbf` (577,026,283 B as XML), 3m51s:
+      `WRITE ways=565874 scored=560304 refused=0 gated=103989 not_a_road=5570`
+  565,874 - 5,570 = 560,304: every road way in the clip carries a score and none was refused.
+  CHECK4 over an `osmium cat` READ-BACK of the PBF, 1m17s:
+      `CHECK4 null_score=0 gated_scored=0 malformed=0 scored=560304 refused=0 not_a_road=5570`
+  malformed=0 over the whole region - T-0204's windows carried 2 and 15.
+  T-0207's CLASS CEILING, re-measured over that same read-back (`work/ceiling.py`), 6m30s:
+      `CEILING residential_or_living_street_at_7_or_above=0 service_above_0=0  (key scenic_score)`
+      service 312,645 ways max_score=0 · residential 99,715 max 6 · living_street 195 max 6 ·
+      primary 43,815 max 9 · secondary 42,237 max 8 · tertiary 25,380 max 8 · unclassified 5,460 max 8 ·
+      motorway 7,486 max 0 · motorway_link 9,908 max 0 · trunk 1,939 max 0 (7,486+9,908+1,939+178 trunk_link
+      = the 19,511 zero-class ways: PENALISED AND IN THE CORPUS, never excluded).
+  THE ARTIFACT: `services/etl/work/la/la-tagged.osm.pbf`, sha256
+  `648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39`, 45,914,107 bytes, copied to the MAIN
+  checkout and re-hashed there to the same digest. T-0209 imports this and scores nothing.
+- 2026-09-19T21:59:24Z THE THREE WINDOWS, cut OUT OF THE SHIPPED ARTIFACT with `osmium extract` and read
+  back with `osmium cat`, ranked by `etl.scenecheck.top` (`work/windows.sh`, `work/windows_top.py`). The
+  ASSEMBLE count line of each window's own population is quoted BESIDE its top ten (11:13 panel), because
+  a top ten that moved has to be attributable to the population: gated ways ARE ranked (`score.py:29-32`
+  applies `GATE_SCORE` after the rank) and `population_of` excludes only `is_zero_class`.
+      whole region  `MERGED ASSEMBLE ways=560304 zero_class=19511 gated=103989 null_score=0`
+      canyon  -118.95,33.98,-118.55,34.15
+        `WINDOW canyon  ASSEMBLE ways=11740 zero_class=386 gated=5589 sinuosity_declined=619 null_score=0`
+        `WINDOW canyon  CHECK4 null_score=0 gated_scored=0 malformed=0 scored=11740 refused=0 not_a_road=662`
+      grid-a  -118.55,33.98,-118.45,34.15
+        `WINDOW grid-a  ASSEMBLE ways=11239 zero_class=476 gated=1927 sinuosity_declined=575 null_score=0`
+        `WINDOW grid-a  CHECK4 null_score=0 gated_scored=0 malformed=0 scored=11239 refused=0 not_a_road=212`
+      grid-b  -118.45,33.98,-118.35,34.15
+        `WINDOW grid-b  ASSEMBLE ways=23474 zero_class=772 gated=3696 sinuosity_declined=1074 null_score=0`
+        `WINDOW grid-b  CHECK4 null_score=0 gated_scored=0 malformed=0 scored=23474 refused=0 not_a_road=413`
+  THE SEAM, MEASURED ON THE ARTIFACT ITSELF: `SEAM overlapping=190 differ=0` - the same 190 ways T-0204
+  found in both halves of the grid window, and NOT ONE of them differs. The two ways the Brief named:
+      `NAMED way 1533792498 Mulholland Drive      a=0.6952 b=0.6952`   (T-0204: 0.6988 vs 0.7022)
+      `NAMED way 399301293  West Sunset Boulevard a=0.6203 b=0.6203`   (T-0204: 0.6308 vs 0.6372)
+  THE TOP TENS, new beside old (old = `git show HEAD:` the fixtures this commit replaces):
+      CANYON   new                                             old
+       1 667514937 N Topanga Canyon Blvd  0.8012        74344132   Topanga Canyon Blvd     0.7722
+       2 74344113  Topanga Canyon Blvd    0.7965        74344113   Topanga Canyon Blvd     0.7697
+       3 74344132  Topanga Canyon Blvd    0.7891        667514937  N Topanga Canyon Blvd   0.7679
+       4 38311860  Topanga Canyon Blvd    0.7704        358703394  Stunt Road              0.7563
+       5 358703394 Stunt Road             0.7691        456361801  N Topanga Canyon Blvd   0.7464
+       6 1165966476 N Topanga Canyon Blvd 0.7660        38311860   Topanga Canyon Blvd     0.7401
+       7 204589613 N Topanga Canyon Blvd  0.7655        1079750100 Old Topanga Canyon Rd   0.7367
+       8 1255479697 Old Topanga Canyon Rd 0.7648        46752395   Old Topanga Canyon Rd   0.7314
+       9 456361801 N Topanga Canyon Blvd  0.7637        13346012   Piuma Road              0.7306
+      10 13409451  S Topanga Canyon Blvd  0.7594        1237332026 Fernwood Pacific Drive  0.7284
+      GRID     new                                             old
+       1 518410361 Mulholland Drive       0.7325        518410361  Mulholland Drive        0.7361
+       2 518410363 Mulholland Drive       0.7236        787842196  Mulholland Drive        0.7299
+       3 787842196 Mulholland Drive       0.7218        44327906   Mulholland Drive        0.7261
+       4 44327906  Mulholland Drive       0.7206        13419334   Crescent Drive (resid.) 0.7228
+       5 13292286  Franklin Canyon Drive  0.7128        632613339  Sullivan Fire Rd (serv.) 0.7227
+       6 399262414 Laurel Canyon Blvd     0.7034        518410363  Mulholland Drive        0.7226
+       7 159524496 Mulholland Drive       0.7026        13290126   Sullivan Ridge FR (serv.) 0.7215
+       8 405362186 Mulholland Drive       0.7020        13292286   Franklin Canyon Drive   0.7203
+       9 518410359 Mulholland Drive       0.7009        13379402   Scenario Lane (resid.)  0.7201
+      10 13377650  Mandeville Canyon Rd   0.6991        121304178  Oakmont Street (resid.) 0.7189
+  TWO THINGS TO SAY PLAINLY. (a) The old grid top ten held a residential street and two service fire
+  roads at 0.72; T-0207's ceiling caps residential at 0.6499 and service at 0.0, so those fixtures were
+  older than the ceiling and this re-record is also the first time the grid window's top ten obeys it.
+  (b) THE RIDGE ALLOWLIST IS NOW EMPTY. `RIDGE_ALLOWLIST` held ways 518410361 and 787842196 because they
+  reached the canyon window's tenth (0.7284). Both are STILL the grid window's best roads - ranks 1 and 3,
+  the crest is still inside the bbox - but the canyon window's tenth is now 0.7594 (way 13409451, South
+  Topanga Canyon Boulevard) and the grid window's best is 0.7325, so NO grid way reaches the bound and the
+  allowlist shrinks to nothing. It was re-derived from the measurement and not re-ranked to keep a way in
+  it (R4). An empty whitelist can pass over nothing, so `test_the_two_mulholland_ridge_segments_are_still_
+  the_grid_windows_best_and_are_now_below_the_bound` names both ways and asserts exactly that, and
+  `test_the_read_finds_a_way_that_reaches_the_bound` requires the same read to find all ten when they are
+  raised over the bound.
+  THE FIXTURES, all four re-recorded in THIS ONE COMMIT (R4): `canyon_top25.json` (6,497 B),
+  `grid_top25.json` (36,806 B, carrying `seam_ways` - all 190 with both halves' units - and
+  `seam_differ: 0`), `grid_tie_top25.json` (6,607 B, DERIVED: the grid window's best way RAISED onto the
+  bound, because under the region reference nothing has to be lowered to make a tie), and
+  `window_readback_sample.osm.xml` (71,718 B, four real ways cut with `osmium getid -r` out of the canyon
+  window's own read-back: `SAMPLE CHECK4 null_score=0 gated_scored=0 malformed=0 scored=4 ... rows=4`,
+  ways 667514937 · 358703394 · 13409451 · 1237330475, one of them the bound way itself).
+  `test_window_ranking.py` re-derived in the same commit: BOUND_WAY_ID 1237332026 -> 13409451, BOUND_NAME
+  "Fernwood Pacific Drive" -> "South Topanga Canyon Boulevard", BOUND_UNIT 0.7284 -> 0.7594,
+  RIDGE_ALLOWLIST {518410361, 787842196} -> {}, and `test_the_seam_merge_rule_is_recorded_and_the_rows_
+  obey_it` -> `test_the_seam_ways_are_recorded_and_every_one_of_them_carries_ONE_score` (R8), which pins
+  `len(seam_ways) == 190` so it cannot pass over an empty list. 222 lines. Suite: `1242 passed`.
