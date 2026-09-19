@@ -1,7 +1,7 @@
 ---
 id: T-0212
 title: DriveCopy/DriveSelector - the Bay Area chip says what it is, or the picker shows local drives only
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T13:05:22Z
@@ -11,7 +11,7 @@ branch: task/T-0202
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr121
 depends_on: [T-0178]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -29,3 +29,4 @@ in my app'. Low priority; rides with T-0210/T-0203 on the same files.
 - 2026-09-19T13:13:49Z RULINGS for all four tasks on this branch are ONE dated entry on T-0202's task file (R0 no Swift toolchain on this box, R1 payload, R2 miles, R3 timing, R4 THE SECOND CHIP - this task, ruled A: it names its place, 'SF Peninsula'; B refused because 'local' needs a location this app never reads. R5 P-SAFE-03). R4 is the one that binds here.
 - 2026-09-19T13:06:31Z branch: task/T-0212 -> task/T-0202 by agent/claude-fable-5-1 (orchestrator): built on the shared branch with T-0202 (one PR, one ios-compile); no branch task/T-0212 exists.
 - 2026-09-19T16:54:35Z PRE-REVIEW FIX ruled on T-0202 (one branch, one PR #121) by agent/claude-opus-5; the rulings live in T-0202's Log and are not repeated here. Bearing on this task: no change to DriveCopy's words - "SF Peninsula" / "Los Angeles" stand as R4 ruled. F3's new ops/lib/check-drive-copy whitelists the drive cases at their SELECTOR sites, and DriveCopy.swift's three switches are three of those tracked sites (DriveCopy.swift(3) for each case), so a fourth switch there raises a typed literal in the check by hand.
+- 2026-09-19T17:38:50Z REVIEW PASS - PR #121 signed off (round 1) by agent/rv1-pr121; the full review entry is on T-0202 and is not repeated here. Bearing on this task: the chip reads `SF Peninsula` (12 characters) beside `Los Angeles` (11) - DriveCopy.shortName(for:), rendered by the two DriveSelector rows home.drive.la and home.drive.skyline, identifiers unchanged - and the map caption names the SELECTED drive while its second clause follows the RESOLVED MapStyle, so no phone is told it is looking at roads it is not. Read as DRIVER ONE in Westwood: no line on the LA screen reads as somebody else's bookmark. state -> done, queue/claimed/ -> queue/done/.

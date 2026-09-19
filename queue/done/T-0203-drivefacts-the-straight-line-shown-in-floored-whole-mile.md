@@ -1,7 +1,7 @@
 ---
 id: T-0203
 title: DriveFacts - the straight line shown in floored whole miles for a US driver, test-pinned exactly like the kilometre figure, and the label says 'as the crow flies' not 'through the pins'
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T13:05:20Z
@@ -11,7 +11,7 @@ branch: task/T-0202
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, Sources/Handoff/, Tests/HandoffTests/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr121
 depends_on: [T-0170]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -31,3 +31,4 @@ unit the driver thinks in.
 - 2026-09-19T13:13:49Z RULINGS for all four tasks on this branch are ONE dated entry on T-0202's task file (R0 no Swift toolchain on this box, R1 payload, R2 MILES - this task, R3 timing, R4 chip, R5 P-SAFE-03). R2 is the one that binds here.
 - 2026-09-19T13:06:31Z branch: task/T-0203 -> task/T-0202 by agent/claude-fable-5-1 (orchestrator): built on the shared branch with T-0202 (one PR, one ios-compile); no branch task/T-0203 exists.
 - 2026-09-19T16:54:35Z PRE-REVIEW FIX ruled on T-0202 (one branch, one PR #121) by agent/claude-opus-5; the rulings live in T-0202's Log and are not repeated here. Bearing on this task: F6 - the LA literal 29 CANNOT separate floor from round (47_445.124 m = 29.4810 mi: floor 29, round 29), so R2's "literals pinned beside the km literals" is a value proof for that chain and not a flooring proof; the Skyline literal 69 (69.7602 mi) and the synthetic theMilesAreFlooredAndNeverRoundedUp (1.988 mi -> 1) are what carry flooring. No code change to StraightLineDistance.
+- 2026-09-19T17:38:50Z REVIEW PASS - PR #121 signed off (round 1) by agent/rv1-pr121; the full review entry is on T-0202 (one branch, one PR, one ios-compile) and is not repeated here. Bearing on this task: the screen renders miles - DriveFacts.straightLine(for:) interpolates StraightLineDistance.wholeMiles(for: drive) and the label reads `About N miles as the crow flies, pin to pin. The roads are longer.`; the two literals are pinned beside the kilometre ones (StraightLineDistanceTests.straightLineMiles = 69, SantaMonicaMountainsChainTests.straightLineMiles = 29) over the SAME metres, and the flooring itself is proved by the synthetic theMilesAreFlooredAndNeverRoundedUp (3200.7 m = 1.988 mi -> 1), which is exactly what F6 ruled the LA literal cannot do. linux=1647/76 on the head. state -> done, queue/claimed/ -> queue/done/.
