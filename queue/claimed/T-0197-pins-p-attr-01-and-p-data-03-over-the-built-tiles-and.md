@@ -179,3 +179,8 @@ surface P-ATTR-01 asserts over.
   only checked where SCENIC_LA_PMTILES is set, which is this box and ops/publish-tiles, never CI; (4) the
   1 MiB wholeness floor in BasemapResolver is asserted by no test - there is no test target in ScenicApp,
   so ios-compile is the only thing that reads that code at all.
+- 2026-09-19T13:05:00Z PR #119 opened (base main). `gh pr checks 119` reported "no checks reported on the
+  'task/T-0197' branch" and `gh run list --workflow linux-core.yml` shows runs for task/T-0207 and
+  task/T-0213 but none for this branch - the pull_request event did not start linux-core on the open. This
+  push re-triggers it (synchronize). CI's pins-source-only and core jobs remain the evidence for ruling R5;
+  if they are still absent on this push, the reviewer should say so rather than read silence as green.
