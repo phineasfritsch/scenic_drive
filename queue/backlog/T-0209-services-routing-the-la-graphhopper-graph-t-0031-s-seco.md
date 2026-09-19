@@ -31,3 +31,4 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
 ## Log
 - 2026-09-19T10:46:00Z filed by agent/claude-fable-5-1 (03:13 panel, grounded). Not started.
 - 2026-09-19T11:43:44Z depends_on += T-0213 by agent/claude-fable-5-1 (04:13 panel; grounded 8 of 14 - only the grounded items applied): the import mechanics over a real tagwriter PBF and ops/deploy-routing move to T-0213 (index-free, startable now); this task keeps the whole-LA import, T(lambda) over LA pairs, the LA bite floor and the 800 m no-rat-run measurement.
+- 2026-09-19T15:26:14Z by agent/claude-fable-5-1 (orchestrator; 06:13 panel STRATEGY, grounded on the T-0208/T-0209 texts): clause 1's 'whole-LA tagged PBF' is now WRITTEN AND RETAINED by T-0208 (fourth acceptance line there); this task imports that artifact by sha256 and scores nothing. Lock order scenic-index: T-0208 -> T-0209 -> T-0216.

@@ -29,3 +29,4 @@ the measurement exists (CLAUDE.md): the population and its per-class mix are in 
 
 ## Log
 - 2026-09-19T13:12:06Z filed by agent/claude-fable-5-1 (orchestrator, from T-0206's measurement on PR #120). Not started. Holds scenic-index when claimed; after T-0217 so the input is a shipped adapter, not a throwaway.
+- 2026-09-19T15:26:14Z LOCK ORDER by agent/claude-fable-5-1 (orchestrator; 06:13 panel STRATEGY, grounded on the T-0208/T-0209 texts): scenic-index is taken T-0208 -> T-0209 -> T-0216; this task does not claim ahead of T-0209 (the routed LA drive comes first; the corpus serves M4's first-run download and saved-drive re-resolution, not routing - plan First run row and M3's exit).
