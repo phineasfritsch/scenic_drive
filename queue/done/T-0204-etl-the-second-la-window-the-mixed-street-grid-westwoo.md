@@ -1,7 +1,7 @@
 ---
 id: T-0204
 title: ETL - the second LA window: the mixed street grid (Westwood/Brentwood/Santa Monica, -118.55,33.98,-118.35,34.15) scored through the same tagwriter + scenecheck path; acceptance: the grid's top ten rank BELOW the canyon window's, or the index is wrong
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T07:50:16Z
@@ -11,7 +11,7 @@ branch: task/T-0204
 exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract, ops/mutate/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr113
 depends_on: [T-0168]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -386,3 +386,45 @@ scenic-index lock (one container run at a time).
       wc -l (re-measured at this commit, the T-0162 rule): scenic_tags.py 179, scenic_tags_mutations.py 186,
         scenecheck.py 254, test_scenecheck.py 231, test_scenecheck_unit.py 173, test_window_ranking.py 173,
         this task file 364 before this block
+- 2026-09-19T11:02:00Z REVIEW PASS by agent/rv1-pr113 on PR #113 at head 28e61e5 (== origin/task/T-0204), in a
+  detached worktree .worktrees/rv1-pr113 at that sha. Everything below is a command I ran and output I read.
+  THE GATES, bare: cd services/etl && python -m pytest tests -rs -o addopts= -q -> 1170 passed in 89.59s (zero
+  failures, zero skips; -rs printed no skip summary). python ops/mutate/scenic_tags.py -> MUTATIONS: 35 caught,
+  0 missed, 0 skipped, of 35 / EQUIVALENT: 0 caught, 3 missed, 0 skipped, of 3 / MUTATE OK caught=35/35
+  equivalent_caught=0. --prove-vacuity -> VACUITY: 0 caught, 35 missed, 0 skipped, of 35 / VACUITY PROVED.
+  bash ops/lib/check-line-cap -> P-SRC-02: 78 Swift files tracked, none over 300 lines. bash
+  ops/lib/check-exec-bits -> P-OPS-01: 74 files, 23 required present, all modes correct. bash ops/queue-check ->
+  QUEUE OK (199 tasks). wc -l re-measured independently: scenecheck.py 254, test_scenecheck.py 231,
+  test_scenecheck_unit.py 173, test_window_ranking.py 173, scenic_tags.py 179, scenic_tags_mutations.py 186 -
+  every number the 10:28:56Z block quotes, confirmed.
+  THE THREE REAL READ-BACKS, re-run with python -m etl.scenecheck <file> --top 10 (grid-a and grid-b read-only
+  from .worktrees/T-0204/services/etl/work/la/, the canyon window's from the MAIN checkout): CHECK4 malformed=1
+  scored=11238 / malformed=14 scored=23460 / malformed=2 scored=11738, null_score=0 and gated_scored=0 on all
+  three - the Log's numbers exactly, including still-open 6. The canyon top ten ends way 1237332026 Fernwood
+  Pacific Drive 7 (0.7284), the bound the whitelist is read against; the union of the two grid clips' top tens
+  under the MAX seam rule is the Log's merged grid top ten, 518410361 at 0.7361 and 787842196 at 0.7299 first.
+  MUTANTS ON THE REVIEW WORKTREE, each restored with git checkout -- and git status --short empty after: the
+  pre-review pass's four survivors REPLAYED - bound read from canyon row 0 -> 2 failed, named; grid fixture
+  sorted by way_id -> test_each_fixture_is_twenty_five_rows_ranked_contiguously_and_descending_by_the_unit[grid];
+  the two offender rows deleted -> 2 failed including
+  test_the_only_grid_ways_reaching_the_bound_are_the_named_ridge_segments; Crescent Drive (residential) raised
+  above the bound -> that same test, by name. THREE OF MY OWN, all RED: top() sorted ASCENDING -> 3 failed
+  (test_the_fixture_row_is_the_shape_the_shipping_oracle_produces and two more); the quantise contradiction
+  compared to ITSELF -> test_a_unit_that_does_not_quantise_to_the_integer_beside_it_is_malformed and
+  test_the_quantisation_is_the_writers_own_and_not_a_second_copy; the committed read-back sample made MALFORMED
+  (way 38311860 unit 0.7401 -> 0.9401 beside scenic_score 7) ->
+  test_the_fixture_row_is_the_shape_the_shipping_oracle_produces, on the malformed==0 assertion. A FOURTH of my
+  own: an allowlisted way RENAMED in the fixture (518410361 -> "Sullivan Fire Road") -> red, so the whitelist is
+  read on id AND name. Neither a wrong ranking nor a malformed read-back passes green.
+  THE RULING, judged: the whitelist form is an HONEST RESTATEMENT of the refutation, not a way to make a red
+  test green. The two ways are still asserted by id and by value (the fixture rows are untouched), the bound is
+  pinned to way 1237332026 at 0.7284, and a third way at the bound - or a renamed allowlisted one - is red BY
+  NAME, which the red-4 replay demonstrates. The refutation is on the PR's title line, in the ruling quoted
+  verbatim at 10:07:37Z before any code, and in the test file's own header; the PR body says the ORIGINAL
+  acceptance is false in its first sentence. The Log is append-only (the only deletion anywhere under queue/ in
+  the whole diff is the touches: line, widened at 07:53:05Z with its reason). Still-open 6 is reported, not
+  smoothed, and reproduced above. NOTHING BLOCKING. Findings recorded for later tasks, none blocking: the
+  whitelist reads the committed fixture, so it binds a re-run only through
+  test_the_fixture_row_is_the_shape_the_shipping_oracle_produces (shape, not the window's values) - a fresh
+  container run of either window is unmeasured until a task re-records the fixtures; and grid-a's own top ten
+  holds three unnamed service ways, which is inherited F1 and T-0207's subject.
