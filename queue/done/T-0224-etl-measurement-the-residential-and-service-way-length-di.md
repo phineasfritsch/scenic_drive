@@ -1,7 +1,7 @@
 ---
 id: T-0224
 title: etl - MEASUREMENT: the residential and service way-length distribution over the LA clip per highway class, and the longest residential/service run on T-0213's window routes at lambda 0 and 8 - numbers only; the no-rat-run threshold for T-0209/T-0221 is written after
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T20:27:23Z
@@ -11,7 +11,7 @@ branch: task/T-0224
 exclusive: []
 touches: [services/etl/tests/, services/routing/tests/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr123
 depends_on: [T-0213]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -229,3 +229,69 @@ measured the top-200 LA ways' median length at 0.60 km. Measure first, rule afte
       longest residential/service run: NOT MEASURED - the image emits no path details (R1, STAGE 2)
 
   T-0209's ruling reads these.
+
+- 2026-09-19T20:58:47Z REVIEW PASS by agent/rv1-pr123 (reviewer, never the owner), PR #123, over a detached
+  worktree .worktrees/rv1-pr123 at 966324c == origin/task/T-0224.
+
+  RE-DERIVED by the author's own command, the one in measure_way_lengths.py's docstring (the pinned
+  scenic-etl image, `osmium export ... -f geojsonseq --geometry-types=linestring --add-unique-id=type_id |
+  python3 measure_way_lengths.py`, this reviewer's own checkout of the script, the MAIN checkout's
+  la-filtered.osm.pbf). The whole table came back identical, so the two rows the numbers check did not
+  touch reproduce at 0.00 % deviation:
+
+      tertiary    25,380   median 59.5 m   p90 515.5 m   max 15463.0 m   n>800m 1,246 (4.91%)  w221164472
+      service    312,619   median 59.9 m   p90 190.8 m   max 10162.4 m   n>800m 1,497 (0.48%)  w27208618
+
+  and with them FEATURES read=564,329 measured=564,329 non-linestring=0 under-2-nodes=0, and
+  ALL CLASSES 564,329 / 68.2 / 322.4 / 133307.8 / 11,229 (1.99%).
+
+  READ, not only run. haversine_m puts both latitudes AND the longitude difference through math.radians
+  before the sine terms, and line_length_m feeds it (previous lat, previous lon, lat, lon) in that order -
+  the arguments are not transposed. A closed way is counted ONCE: --geometry-types=linestring is what the
+  38 area-tagged closed ways fall out of (named in STAGE 1's reconciliation), and a closed LINESTRING's
+  repeated final node is one traversal of the loop, not two. The 0x1e record separator is removed twice
+  over - str.strip(), which treats 0x1e as whitespace, then lstrip(RECORD_SEPARATOR) - and read=564,329
+  with non-linestring=0 shows nothing was lost to it. p90 is stated NEAREST-RANK in the docstring, in R4
+  and in the printed header, and nearest_rank() is the ceil(fraction*n)-th smallest clamped at rank 1 -
+  definition and code agree. The routed pair's coordinates are IN THIS LOG as numbers
+  (34.0387,-118.5836 -> 34.0938,-118.6045, STAGE 2), which is exactly what T-0213 left in prose and what
+  cost this task R2.
+
+  NO THRESHOLD ANYWHERE. `grep -rn threshold` over both scripts and this task file returns only prose
+  disclaimers and the one print label; the only comparison against LONG_WAY_M in either script is the share
+  column's `sum(1 for value in values if value > LONG_WAY_M)`. No assert, no exit code and no gate turns
+  on 800 m.
+
+  GATES on 966324c. `git diff --stat origin/main...HEAD` = exactly three paths - services/etl/tests/
+  measure_way_lengths.py (186), services/routing/tests/measure_runs.py (193) and this task file - nothing
+  under services/etl/etl/ or services/routing/ outside tests/. `ops/queue-check` bare: QUEUE OK (219
+  tasks). `ops/lib/check-exec-bits`: P-OPS-01: 85 files, 23 required present, all modes correct; both .py
+  committed 100644. `gh pr checks 123`: core pass, pins-source-only pass, both bound to 966324c.
+  .worktrees/T-0224 clean and at origin/task/T-0224.
+
+  RECORDABLE 1, the finding, already owned: the longest residential/service RUN is UNMEASURED and stays so
+  until the routing image emits path details. A2 is partly met, and the gap is demonstrated (the unknown
+  --mode run loads the same graph and prints nothing about the route) rather than asserted away. Owned:
+  origin/main 28d7745 gave T-0209 its path-details clause for exactly this reason. Nothing new to file.
+
+  RECORDABLE 2: 38 closed ways that osmium export emits as polygons (service -26, track -12) never reach
+  this measurement. 564,329 measured - 4,159 untagged/footway/steps = 560,170 = meta.json's 560,208 - 38.
+  Any predicate later written over these rows inherits that 38-way blind spot.
+
+  RECORDABLE 3, wording, weighed and LEFT AS IT IS: the print label long_way_threshold_m=800 and the
+  constant LONG_WAY_M name the share column's cut-point with the word an acceptance would use, and no
+  assert reads either. Not worth a review round, and not renamed here: that label is quoted verbatim
+  inside two dated STAGE entries above, so a rename now would either desynchronize the committed script
+  from the dated record or edit it, which CLAUDE.md forbids. Whoever next re-runs this script may rename
+  it to long_way_share_cut_m in the same commit as a fresh output block.
+
+  RECORDABLE 4, not blocking, for whoever merges: the acceptance block was re-run at 20:41:05Z on
+  origin/main 2fce36b, and origin/main has since moved to 28d7745, so `git merge-base --is-ancestor
+  origin/main HEAD` is FALSE on 966324c. Those two commits touch four files, all queue/backlog/*.md
+  (T-0209, T-0221, T-0227, T-0228), and no pin, ops script, CLAUDE.md or source file: main's GATE SET is
+  identical to the one this sign-off was bought on, and P-PROC-06 ranges over services/etl/etl/ and
+  Sources/, not a script under tests/. Merge on a fresh merge; if anything under pins/ or ops/ lands
+  first, the acceptance block is re-run before the merge.
+
+  VERDICT PASS. Nothing in this branch changed but this Log entry and the two frontmatter fields - testers
+  find and do not fix.
