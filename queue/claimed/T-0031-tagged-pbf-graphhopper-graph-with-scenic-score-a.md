@@ -254,3 +254,19 @@ That is the property the whole budget search depends on, and it is cheap to chec
   4-bit encoded value and a five-row multiplier table, both already pinned by literals in the tests. ops/ is
   also outside this task's touches:, so a population could not be committed here. STILL OPEN for the task that
   owns the real scenic_score arithmetic (T-0168/T-0146), where the numbers are actually computed.
+- 2026-09-19T03:13:28Z **Record corrections from the read-only verification of this slice, closed before review - agent/claude-fable-5-1
+  (orchestrator), for the owner. The verifier found both images in WSL with RepoDigests matching the Dockerfile
+  FROM lines and the Log verbatim, the pom pinned to graphhopper 11.0, ran the slice's test ONCE (`3 passed in
+  18.66s`, no skip section - the container ran) with the five durations identical to the Log's GREEN and the
+  PR body and non-decreasing, and found the tree clean at 2f48373 with CI green; these are text.** (a) The
+  02:10:09Z entry quotes the tagger's line `TAGGED ways=434265 tagged=161240 stamp=SYNTHETIC-T-0031-wayid-mod-11`;
+  the only surviving output (`services/routing/work/build-slice.log`) says "kept existing vermont-scenic.osm.pbf"
+  and carries the header stamp, not that line - the tagged PBF is real (46,171,990 bytes), `tagged=161240` rests
+  on the author's word. (b) R4's "verified against the 11.0 jar with javap this session" quotes no javap output;
+  ScenicRouterMain.java calls `hopper.setImportRegistry` and the import succeeded, which is the evidence that
+  exists. (c) The two RED runs (attempt 1 not red on the property; attempt 2 red by name) were not repeated by
+  the verifier - their message format matches tests/test_lambda_monotone.py exactly. (d) DESIGN CAVEAT for
+  STILL OPEN, not a false claim: tests/test_lambda_monotone.py skips the two routed tests when the graph-cache or
+  the docker image is absent, so CI's core job passes with `1 passed / 2 skipped` and never checks the property;
+  the real gate is `ops/test-routing` (plan line 199: container + goldens), which this slice leaves unwritten and
+  names as open.
