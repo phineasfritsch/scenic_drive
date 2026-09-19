@@ -1,7 +1,7 @@
 ---
 id: T-0168
 title: ETL tagged-PBF rewrite - osmium writes scenic_score 0..10 and its terms onto ways, in the container, over a real extract
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T05:16:14Z
@@ -11,7 +11,7 @@ branch: task/T-0168
 exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract, services/etl/Dockerfile, services/etl/inputs/manifest.yaml, ops/mutate/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr111
 depends_on: [T-0146, T-0169, T-0161, T-0189, T-0142]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -423,3 +423,83 @@ a silent 0); idempotence (P-DATA-01: running twice over the same extract is byte
      `osmxml.Writer` is where the byte order those tests are about is actually produced. P-DATA-01 now pins
      it from the outside, across processes, at fixture scale plus three real-extract container runs; CI has
      no extract and cannot run the second half. A population for `osmxml.py` is a later task, not this one.
+- 2026-09-19T07:41:11Z REVIEW PASS by agent/rv1-pr111 (reviewer, not the owner; PR #111, head 26fdba0, base main).
+  The whole acceptance block re-run on a detached worktree at 26fdba0 (.worktrees/rv1-pr111), every command bare,
+  nothing fixed - testers find and do not fix. WHAT AGREED WITH THE LOG, command by command:
+    `cd services/etl && python -m pytest tests -rs -o addopts=` -> `1136 passed in 129.47s (0:02:09)`, no `-rs`
+      skip section at all, zero skips.
+    `python ops/mutate/scenic_tags.py` -> `BASELINE exit=0, 25 mutations, floor 25`, `MUTATIONS: 25 caught,
+      0 missed, 0 skipped, of 25`, `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2`, `MUTATE OK
+      caught=25/25 equivalent_caught=0`; every line names the test that killed it.
+    `python -m etl.scenecheck work/la/window-readback.osm.xml --top 10` over a COPY of the owner's read-back ->
+      `CHECK4 null_score=0 gated_scored=0 scored=11740 refused=0 not_a_road=662`, exit 0, and the ranked ten
+      identical to the 06:05:31Z and 07:04:53Z prints (Topanga 1-3, Stunt Road 4, Piuma 9, Fernwood 10).
+      THE JUDGEMENT IS THE OWNER'S AND THIS REVIEW DOES NOT MAKE IT.
+    `sha256sum window-tagged-1.osm.pbf window-tagged-2.osm.pbf` in the owner's work dir -> both
+      `06046be00d336f2f976a31676ce452d2f35fabba15f63d437be3043d909a0090`, equal to each other and to the Log.
+    `bash ops/lib/check-line-cap` -> `P-SRC-02: 71 Swift files tracked ... none over 300 lines` (exit 0);
+      `bash ops/lib/check-exec-bits` -> `P-OPS-01: 64 files, 23 required present, all modes correct` (exit 0);
+      `bash ops/queue-check` -> `QUEUE OK (186 tasks)` (exit 0); `bash ops/check-pins --source-only` ->
+      `PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only` (exit 0).
+    `wc -l`, every number the 07:04:53Z entry quotes, re-measured on the reviewer's worktree: 210 test_tagwriter.py,
+      148 test_scenecheck.py, 275 ops/mutate/scenic_tags.py, 156 tagwriter.py, 151 scenecheck.py, 111 osmxml.py,
+      257 waydoc.py, 77 test_osmxml.py, 118 test_waydoc.py, 296 test_dem_tiles.py, 112 test_license_data.py,
+      53 fixtures/scenic_clip.osm.xml, 260 inputs/manifest.yaml. All 13 agree; nothing over the 300-line cap.
+    `bash ops/etl-fetch-inputs --verify-only` from the worktree (it never downloads) -> `verified
+      california-osm.pbf bytes=1328857020 retrieved=2026-09-19 md5 ok`, `verified worldcover-n33w120.tif
+      bytes=101202142 retrieved=2026-09-19 sha256 ok`, both byways `sha256 ok`. The 12 it reports missing are
+      sfbay 3dep/worldcover tiles that were never on this box, not anything this PR records.
+    R1 RE-DERIVED BY HAND off `work/la/window-scored.json`, against the tag actually in the read-back:
+      way 74344132 score=0.772181 x10=7.721813 floor(x+0.5)=8 -> PBF `scenic_score=8` `unit=0.7722`;
+      way 456361801 score=0.746355 -> 7, `unit=0.7464`; the closest row in the whole window to a true half,
+      way 591295532 score=0.450001 (|frac-0.5| = 7.2e-06) -> 5. No row in the real window lands exactly on
+      .x5, so the half-up boundary is carried by the unit tests (0.05 -> 1, 0.65 -> 7) and by the
+      half-to-even mutant, not by the extract.
+  THREE MUTANTS OF THE REVIEWER'S OWN, aimed at "can a wrong score reach the PBF, or a violating PBF pass
+  check-4, with the suite green?", each on the detached worktree, `git checkout --` restore and
+  `git status --short` empty after each:
+    M-A the quantiser applied to a TERM instead of the score (`quantise(terms["curvature"])`) -> CAUGHT,
+      3 failed / 41 passed: test_a_scored_way_carries_the_integer_the_unit_score_and_every_term,
+      test_a_motorway_is_scored_zero_and_not_refused, test_the_cli_writes_the_table_and_prints_the_count_line.
+    M-B `scenic_score` written as the unit float string (`fixed(row["score"])`, i.e. "0.6543") instead of the
+      int -> CAUGHT, the same three tests: they assert the exact string "7", so the int type IS pinned at the
+      writer.
+    M-C `byways.SCENIC_ZERO_CLASSES` narrowed to {motorway, trunk}, dropping the two `_link` classes ->
+      CAUGHT, 12 failed / 1124 passed (test_score_contract, test_way_records_fixture). Under that mutant a
+      hand-built read-back carrying `motorway_link` at 9 and `trunk_link` at 8 dropped from `gated_scored=3`
+      to `gated_scored=1`, so the `_link` half of check-4's second clause is real and anchored - by identity
+      through `scenecheck.ZERO_CLASSES is byways.SCENIC_ZERO_CLASSES`, not by scenecheck's own fixtures.
+    NO SURVIVOR. No BLOCKING finding: nothing found lets the writer put a wrong score in the PBF, or a PBF
+    violating either clause pass check-4, with the suite green.
+  RECORDABLE, not blocking, none of them fixed here (a probe file is a hand-built read-back, not anything
+  `tagwriter` can emit):
+    R-a CHECK-4 NEVER ASSERTS THE 0..10 RANGE OR THE INT TYPE ON READ-BACK. `python -m etl.scenecheck` over a
+      hand-built file printed `CHECK4 null_score=0 gated_scored=3 scored=5 ...` while `highway=tertiary
+      scenic_score=42` counted as plain `scored` and `highway=motorway scenic_score=-3` cleared the second
+      clause outright (`value > 0` is false at -3) and was ranked. The writer's clamp is what keeps 0..10 true
+      and it is tested twice plus a mutant; the independent oracle over the shipped bytes is not.
+    R-b THE TWO HALVES OF `scenecheck` DISAGREE ABOUT A REFUSED WAY. `counts` takes `scenic_refused` as
+      authoritative and `continue`s before it looks at the score, so a `highway=motorway` carrying BOTH
+      `scenic_refused=1` and `scenic_score=9` passed clause 2, while `top` ranked that same way #2 at 9.
+      `tagwriter` cannot produce it (both-scored-and-refused raises, `add_tags` refuses a duplicate key), so
+      this is the oracle's shape, not the data's.
+    R-c A NON-INTEGER TAG VALUE IS A TRACEBACK, NOT A NUMBER. `scenic_score="0.77"` on a read-back ->
+      `ValueError: invalid literal for int() with base 10: '0.77'`, exit 1, no CHECK4 line at all. Loud, but
+      `ops/sane` reserves 4 for this check and a malformed file gets an undifferentiated 1.
+    R-d THE SCORED WINDOW IS RECORDED IN PROSE ONLY (R7/STILL OPEN 2). `work/la/meta.json` carries the region
+      bbox `-119.0,33.7,-117.85,34.45`, not the window `-118.95,33.98,-118.55,34.15`; `scenecheck` prints no
+      bbox; `osmium fileinfo`'s bbox is the window plus the ways that cross it. A later reader holding
+      `window-tagged-1.osm.pbf` and `meta.json` would take it for the whole LA box. The PR body and the Log
+      are honest about it - nothing beside the artefact is.
+    R-e A WITNESS FOR STILL OPEN 3 (service ways), found by accident in the re-derivation above: way
+      591295532, `highway=service`, no name, ships `scenic_score=5` in the read-back.
+    R-f P-DATA-01 IS PINNED CROSS-PROCESS BUT WITHIN ONE INTERPRETER VERSION - host 3.10 fixture runs and
+      3.12 container runs each agree with themselves; no check compares the two. `ET.tostring`'s attribute
+      order has been document order since 3.8, so this is a note, not a doubt.
+    R-g R6 (osmium cat stream copy, no PyOsmium) IS RULED CORRECTLY. Verified against the tree rather than
+      the prose: `services/etl/Dockerfile` installs osmium-tool, python3-pytest and python3-yaml and no
+      pyosmium, so a PyOsmium writer could not be imported by the host suite and the byte-identical test
+      would have had to skip on the one property the rewrite exists to have.
+  KNOWN, NOT FINDINGS, and untouched by this review: STILL OPEN 1-7 as the 07:04:53Z entry and the PR body
+  state them. NOT DONE BY THIS REVIEW: `ops/test` and the full `ops/check-pins` were out of scope and were
+  not run; no PBF was rebuilt and the 312 MB extract was not touched; the merge is not mine to make.
