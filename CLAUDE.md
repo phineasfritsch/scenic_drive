@@ -34,6 +34,8 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
 - New scripts under `ops/` or `.githooks/` must be committed executable: `git update-index --chmod=+x <path>`.
   `core.filemode` is false on the Windows checkout, so git will not notice on its own and CI (`bash ops/x`) stays
   green while direct invocation breaks. Pin P-OPS-01 enforces it; data files there stay 100644.
+- Never wait with a bare foreground `sleep` - the agent harness refuses it. Wait once with
+  `python -c "import time; time.sleep(N)"`; never poll in a loop, never use `date` as a clock.
 - Every `xcodebuild` passes `-derivedDataPath` under the worktree. Every `swift build/test` on a shared box
   uses its own `--scratch-path`.
 
@@ -45,9 +47,10 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
 - The author rule: rule every disagreement between plan, Brief, code and reality in the Log before writing code;
   at the final pre-review commit re-run and re-quote the whole acceptance block. A correction commit that touches
   a measured file re-measures it (T-0162's `wc -l` 239 vs 242 cost a review round). Close the read-only
-  verifier's findings before the review is bought. The final pre-review commit merges `origin/main` first and
-  re-runs the acceptance block on the merged head; a sign-off bought on a tree older than main's gate set is not
-  a sign-off (PR #115 was signed off, then refused at merge on P-PROC-06).
+  verifier's findings before the review is bought. The final pre-review commit runs `git fetch origin` and merges
+  `origin/main` as the LAST step before the push - re-run the acceptance block on the merged head, then push within
+  minutes; a sign-off bought on a tree older than main's gate set is not a sign-off (PR #115 was refused at merge
+  on P-PROC-06; PR #119 merged main first, spent 40 minutes, and main moved three times before its push).
 - An acceptance predicate over real data is written AFTER the population it ranges over has been measured: the
   filer quotes the measurement (window, way count, the rows the predicate turns on) in the Brief; a predicate over
   a population nobody has looked at is filed as a measurement task, not an acceptance (T-0168's 8/10 could not
