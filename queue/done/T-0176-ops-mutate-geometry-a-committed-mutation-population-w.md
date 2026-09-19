@@ -1,7 +1,7 @@
 ---
 id: T-0176
 title: ops/mutate/geometry - a committed mutation population with a floor for the ETL geometry terms (sinuosity.py, proximity.py); EQUIVALENT rulings carry a witness
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T01:59:25Z
@@ -11,7 +11,7 @@ branch: task/T-0176
 exclusive: []
 touches: [ops/mutate/, services/etl/tests/, pins/PINS.yaml]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-pr107
 depends_on: [T-0161]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -710,3 +710,70 @@ proximity.py; today nothing outside the two test files does. CLAUDE.md's Verific
      pytest run, and `--prove-floor`, which is what P-PROC-05 asserts and what CI runs, cannot see it.
      Deciding it cheaply needs the names collected from the six TEST_FILES by parse rather than by
      running them, which is T-0187's `file::test` killer form (item 3) and is filed there, not here.
+- 2026-09-19T05:58:56Z **REVIEW ROUND 2 - PASS - agent/rv2-pr107 on PR #107, head cd1319f (654fe97..cd1319f).**
+  Read-only detached worktree `.worktrees/rv2-pr107` at cd1319f; `git status --short` there empty before and after
+  every mutant, and the worktree removed at the end. Not the owner, not rv1-pr107, not the fixer.
+  * SCOPE OF THE DIFF. `git diff 654fe97..HEAD --stat` -> `ops/mutate/geometry.py | 49 +-`,
+    `ops/mutate/geometry_mutations.py | 10 +-`, `ops/mutate/geometry_probe.py | 31 +-`, `pins/PINS.yaml | 2 +-`,
+    this task file `| 257 +++`. Nothing else. The task-file diff is APPEND-ONLY: `git diff 654fe97..cd1319f
+    --numstat -- 'queue/**'` -> `257 0`, and `git diff 654fe97..cd1319f -- 'queue/**' | grep -c '^-[^-]'` -> `0`.
+    rv1-pr107's 05:16:32Z FAIL entry stands ahead of the fixer's 05:24:41Z and 05:38:06Z entries; no earlier line
+    was rewritten.
+  * B1 IS CLOSED, AND CLOSED BY NAME. Re-applied rv1's B1 on the worktree - the banded-subset entry's `killers`
+    -> `[]` - and ran `python ops/mutate/geometry.py` bare. The WHOLE output is one line, exit 2:
+    `POPULATION FLOOR: keep only the segment pairs with abs(i - j) <= 1 - rv4-pr94's sixth class names no killer -
+    a mutation nobody is required to catch is not a measurement. A shrunken population must never read as a clean
+    sheet.` There is no `BASELINE` line, so NO pytest ran: the refusal is `population_ok()` at the top of
+    `sweep()`, before the copy is built. `python ops/mutate/geometry.py --prove-floor` in the same state -> exit 1,
+    `FLOOR PROOF FAILED: emptied -> refused=True, one deleted -> refused=True, class 'banded-subset' deleted ->
+    refused=True, killers emptied -> refused=True, real -> accepted=False` - the new arm refuses AND the real
+    population is rejected, both directions as rv1 asked. Restored with `git checkout --`; `git status --short`
+    empty.
+  * NOTHING REGRESSED. `python ops/mutate/geometry.py` bare on the untouched tree -> exit 0: `BASELINE 6 test
+    files, pytest exit=0, 0 failed; fingerprint 9e82ff9a84e7753e over 193 values`; all 12 mutations `exit=1 ...
+    (differs)`, each with a non-empty `named red: [...]` naming its own killers; all four EQUIVALENT rows
+    `exit=0   0 red  fingerprint 9e82ff9a84e7753e over 193 values (IDENTICAL)`; closing `POPULATION 12 mutations
+    over 6 classes (floor 12), 4 equivalent (floor 4)` and `every one of the 12 mutations was killed by the test
+    that names it`. `--prove-floor` -> exit 0, `FLOOR PROOF OK` with all four refusals True and `real ->
+    accepted=True`. `--non-example` -> exit 0, `3 of 193 fingerprint values differ; 3 named test(s) red`,
+    `NON-EXAMPLE OK: the round-3 ruling is REFUTED by this arm's own test`.
+  * THE GATES, BARE. `cd services/etl && python -m pytest tests -rs -o addopts=` -> `1040 passed in 72.66s
+    (0:01:12)`, exit 0, `-rs` short summary EMPTY (zero skips); every `__pycache__` under services/etl purged
+    first. `bash ops/lib/check-line-cap` -> `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8),
+    none over 300 lines`, exit 0. `bash ops/lib/check-exec-bits` -> `P-OPS-01: 68 files, 23 required present, all
+    modes correct`, exit 0. `bash ops/queue-check` -> `QUEUE OK (182 tasks)`, exit 0. `bash ops/check-pins
+    --source-only` (run once) -> `PINS ok=12 skipped=14 pending=1 expired=0 failed=0 tier=linux source-only`,
+    exit 0.
+  * THE MEASURED NUMBERS ARE THE LOG'S NUMBERS. `wc -l ops/mutate/geometry*.py` -> geometry.py 268,
+    geometry_arms.py 75, geometry_mutations.py 147, geometry_probe.py 148, geometry_tree.py 110 - every one equal
+    to the 05:38:06Z re-quote, and 268 is 32 lines clear of the cap. `git ls-files -s ops/mutate/geometry*.py` ->
+    all five `100644`.
+  * rv1's R1, PROBE PROVENANCE: CLOSED, and closed the right way round. The no-argument call still refuses
+    (`REFUSED: usage: geometry_probe.py <services/etl to measure>`, exit 2). Pointed at the WORKTREE the probe
+    does not refuse - it FINGERPRINTS DIFFERENTLY, which is the stronger fix: line one is now
+    `MEASURED ROOT ... tree  services/etl` against `MEASURED ROOT ... tree  .build-mutate-geometry/etl`, and
+    `fingerprint()` in geometry_tree.py hashes the WHOLE stdout (`hashlib.sha256(out.encode("utf-8"))`), so a
+    worktree-pointed fingerprint can never equal a baseline taken over the copy - sha256 of the two probe outputs
+    measured here: `607ad1cb...` against `77cf9410...`. The docstring's ruling that a CONTENT digest would have
+    been the wrong instrument is correct: `services/etl` is pristine by construction, so its content digest IS the
+    baseline's. rv1's R2 is recorded above by the owner, not a finding of mine.
+  * MY OWN MUTANT, the per-entry contract one notch past B1: a killers list with one REAL name DUPLICATED -
+    banded-subset's two names replaced by two copies of
+    `test_the_minimum_can_sit_far_off_the_diagonal_of_the_segment_pair_matrix`. IT SURVIVES: `python
+    ops/mutate/geometry.py` -> exit 0 with the clean two-line verdict, `--prove-floor` -> exit 0. RECORDABLE, NOT
+    BLOCKING, and the reason is in the population itself: `red_by_name` returns one element per KILLER
+    (`[k for k in killers if ...]`), so a duplicated name matches twice and the sweep's `len(red) != len(killers)`
+    is satisfied by ONE distinct test - but a one-killer entry is LEGAL by design (four entries name exactly one),
+    so reducing a two-name contract to one distinct name is a legal state reached by a cosmetic route, not an
+    unmeasured mutant: this mutation is still killed by a test that names it, and nothing reads as caught that is
+    not. The residual is real and smaller: `named red: ['A', 'A']` overstates the evidence, and the second named
+    check (`test_the_banded_window_answers_inf_where_the_whole_matrix_answers_99_metres`) can leave the contract
+    without a word. A `len(set(killers)) == len(killers)` clause in `population_ok` closes it; recorded here for a
+    follow-up rather than bought as a round.
+    Two neighbouring shapes weighed and NOT findings. (a) `red_by_name`'s match is `f == k or (f or
+    "").startswith(k + "[")` - EXACT or parametrised, so a killer that is a SUBSTRING or a bare prefix of a longer
+    test name matches nothing and the entry fails CLOSED as `CAUGHT, BUT NOT BY THE TEST THAT NAMES IT`. (b) An
+    EQUIVALENT entry with an empty `reason` is only ever read on the failure path (`WITNESS FAILED: %s`), so it
+    degrades a message on a run that is already exit 1; it never buys a clean verdict.
+  * VERDICT: PASS, no blocking finding. queue/claimed/ -> queue/done/, reviewer agent/rv2-pr107. Not merged: a
+    reviewer signs off, the merge is somebody else's step.
