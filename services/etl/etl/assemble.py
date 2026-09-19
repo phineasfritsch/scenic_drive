@@ -70,7 +70,7 @@ import math
 import pathlib
 import sys
 
-from . import byways, curvature, furniture, landcover, score, speedfit, terrain
+from . import byways, curvature, furniture, landcover, region_reference, score, speedfit, terrain
 from .normalise import normalise_region
 from .sinuosity import CLOSED_ENDPOINT_M, endpoint_gap_m, is_closed_way
 from .snap import length_m
@@ -239,16 +239,21 @@ def scored_row(record: WayRecord, tags: dict) -> dict:
             "terms": unit_terms(record), "flags": list(record.flags())}
 
 
-def assemble(document: dict) -> list:
+def assemble(document: dict, reference: dict | None = None) -> list:
     """Every way of one region: producers -> `normalise_region` -> `score.score` -> the table.
 
     The whole region at once, because a rank is a statement about a population: a row that cannot be built
     refuses the run rather than being dropped, which would move every other way's rank by 1/n.
+
+    `reference` is `etl.region_reference`'s table - the WHOLE region's ranking population. Without it each
+    clip is ranked against itself, and T-0204 measured what that costs: 160 of the 190 ways on one seam
+    carried two different scores. None means the clip's own population, which is what a self-contained
+    document wants and what every caller got before T-0208.
     """
     rows = list(document["ways"])
     byway_entries = list(document.get("byways") or [])
     records = [record_from_row(row, byway_entries) for row in rows]
-    normalised = normalise_region(records)
+    normalised = normalise_region(records, reference)
     return [scored_row(record, dict(row.get("tags") or {}))
             for row, record in zip(rows, normalised)]
 
@@ -281,9 +286,10 @@ def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m etl.assemble", description=__doc__.splitlines()[0])
     parser.add_argument("--input", required=True, help="a way-record JSON document")
     parser.add_argument("--out", required=True, help="where to write the scored table")
+    parser.add_argument("--reference", default=None, help="the region reference from etl.region_reference")
     args = parser.parse_args(argv)
     document = json.loads(pathlib.Path(args.input).read_text(encoding="utf-8"))
-    table = assemble(document)
+    table = assemble(document, None if args.reference is None else region_reference.load(args.reference))
     pathlib.Path(args.out).write_text(json.dumps({"rows": table}, indent=2) + "\n", encoding="utf-8")
     print(count_line(table))
     return 0

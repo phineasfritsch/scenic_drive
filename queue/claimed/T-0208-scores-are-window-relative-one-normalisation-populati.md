@@ -99,3 +99,61 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   sorts each reference term ONCE and ranks with `bisect`; the two are proved identical over a fixture, RED by
   name first. Both new/changed numeric modules ship in ONE population, `ops/mutate/normalise.py`, whose
   SUBJECT_MODULES names `normalise.py` and `region_reference.py`.
+- 2026-09-19T17:26:00Z STAGE 1, EXTRACT, in the pinned `scenic-etl:latest` through WSL
+  (`docker run --rm -v "$PWD:/w"` from the MAIN checkout, so the worktree and the shared `services/etl/inputs`
+  are both visible; the worktree is `/w/.worktrees/T-0208/services/etl`). Quoted as it landed.
+  THE REGION MOTORWAY SET (R1b), one `osmium tags-filter la-filtered.osm.pbf w/highway=motorway,motorway_link,
+  trunk,trunk_link` - the four classes `proximity.MOTORWAY_CLASSES` names - then `osmium cat` to XML:
+      `Number of ways: 19511` / `Number of nodes: 75897`, bbox (-119.0110416,33.695739,-117.8407146,34.4666531)
+      work/la-motorways.osm.xml 22,086,577 B
+  THE TILE GRID, `osmium extract -c` over `la-filtered.osm.pbf`: ten columns by six rows of the region bbox
+  -119.0,33.7,-117.85,34.45, so 0.115 deg by 0.125 deg a tile. SIXTY EXTRACTS IN ONE CONFIG WAS OOM-KILLED
+  (`Killed`, the kernel, after 70 s) - osmium holds every extract's buffers for the complete_ways strategy - so
+  the cut is SIX CONFIGS, one per row, 2m26s for all six. 48 of the 60 tiles hold ways; the twelve empty ones
+  are ocean and desert. Clip ways over the 60 tiles: 572,366 against the file's own 560,208, so the tile edges
+  complete 12,158 ways into two tiles each - 2.1%, and the population the seam re-measure ranges over.
+  THE FIRST CHUNK, MEASURED IN THE FOREGROUND BEFORE THE LOOP WAS SIZED (R5): tile t05,
+      `WAYDOC ways=9831 refused=0 not_a_road=104 byways=865 byways_no_route_key=793`   real 3m25.227s
+  = 205 s for 9,831 ways, 20.9 ms a way with the motorway-set parse and the `osmium cat` in it. EIGHT MINUTES
+  IS THEREFORE ABOUT 23,000 WAYS, so every tile above 22,000 clip ways is cut in half by longitude: nine tiles
+  (t09 31,303 · t15 27,167 · t16 24,478 · t17 27,405 · t18 26,581 · t19 24,773 · t25 23,320 · t26 29,566 ·
+  t27 24,886) became eighteen halves, the largest 16,168 (t09b), 1m39s for both split configs. The loop is
+  62 TILES, the largest 21,484 clip ways (t35) - a projected 7.5 minutes, under the ceiling.
+  THE LOOP is one background driver, `work/pass1.sh`, `docker run -d` with its stdout in `work/pass1.log`,
+  six tiles at a time (`xargs -P 6`) on the 16-core box. Resume is by file presence: `[ -s work/docs/<t>-doc.json ]`
+  skips a tile, which is why the very first line of the log is `SKIP t05 (doc present)`.
+- 2026-09-19T18:05:00Z RED BY NAME, THEN GREEN - each on the pristine tree, quoted from the run.
+  1. `tests/test_motorway_source.py` (R1b), before `motorway_source` existed:
+     `2 failed, 1 passed` - `TypeError: build() got an unexpected keyword argument 'motorway_source'` on
+     `test_the_motorway_distance_is_measured_to_the_supplied_region_set_not_to_the_clips_own_ways` and
+     `test_a_non_motorway_in_the_region_file_is_not_measured_to`. The third,
+     `test_the_clip_answers_zero_because_the_clip_contains_the_motorway`, passed then and passes now: it pins
+     the behaviour being replaced. GREEN after: `13 passed` with `tests/test_waydoc.py` beside it.
+  2. `tests/test_region_reference.py`, before `etl/region_reference.py` existed:
+     `ImportError: cannot import name 'region_reference' from 'etl'` - 1 error during collection. With the
+     module present but no bisect ranker, the two that matter went RED BY NAME (the import is inside the test
+     body exactly so that they can):
+     `test_the_bisect_rank_equals_ranks_against_value_for_value` and
+     `test_the_bisect_rank_is_not_vacuous_and_separates_the_probes` - `3 failed, 5 passed` (the third failure
+     was my own test reading a dict's keys where it meant its values, corrected in the same commit).
+     GREEN after `ranks_against_sorted`: `46 passed` with `tests/test_normalise.py` beside it.
+  3. `tests/test_seam_one_score.py` (R3), before `assemble.assemble` took a reference:
+     `2 failed, 2 passed` - `TypeError: assemble() takes 1 positional argument but 2 were given` on
+     `test_a_way_in_two_overlapping_windows_takes_one_score_against_the_region_reference` and
+     `test_the_two_named_ways_are_the_ones_the_measurement_named`. The two that PASSED are the ones that make
+     the red mean something: `test_the_two_windows_really_do_overlap_on_the_named_seam_ways` and
+     `test_without_a_region_reference_the_same_ways_take_two_scores`. GREEN after: `26 passed` with
+     `test_assemble.py` and `test_assemble_wiring.py` beside it.
+  THE SEAM FIXTURES ARE T-0204's OWN ROWS. Both ways the Brief names are among the 92 seam rows that are
+  byte-identical in grid-a-doc.json and grid-b-doc.json - `named way 1533792498: IDENTICAL name=Mulholland
+  Drive`, `named way 399301293: IDENTICAL name=West Sunset Boulevard` - so the two windows in the fixture
+  disagree about NOTHING except their populations. The nine private ways of each window are chosen to make
+  that difference bite: window a takes the grid-a-only ways with the HIGHEST curvature, window b the
+  grid-b-only ways with the LOWEST. THE FIRST CUT TOOK THE NINE SMALLEST ROWS IN EACH CLIP AND BOTH WINDOWS
+  THEN RANKED THE SHARED WAYS IDENTICALLY - a fixture that cannot show the defect cannot show the fix, and
+  `test_without_a_region_reference...` is what caught it. On the fixture as shipped, without a reference:
+      way 1533792498 Mulholland Drive       window a 0.6634  window b 0.6683
+      way 399301293  West Sunset Boulevard  window a 0.5693  window b 0.5826
+  the same shape and the same order of magnitude as T-0204's measured 0.6988/0.7022 and 0.6308/0.6372. With
+  the merged reference both are ONE number.
+  LINE COUNTS after the change: assemble.py 299, normalise.py 256, region_reference.py 109, waydoc.py 288.
