@@ -209,3 +209,146 @@ measurement.
   identical on this pair, which is what one expects when the direct route is already the scenic one - Topanga
   Canyon Boulevard is scored 8, i.e. in the never-penalized `high` band at every lambda. T-0209 owns T(lambda)
   over LA pairs.
+- 2026-09-19T12:04:50Z ops/deploy-routing (82 lines, committed 100755), its REFUSALS and its REHEARSAL.
+  Refusals, each run bare:
+
+      $ bash ops/deploy-routing /tmp/nope
+      DEPLOY-ROUTING REFUSED: /tmp/nope is not a built graph (no 'edges' file) - import it first with services/routing/import-graph.sh
+      exit=1
+      $ bash ops/deploy-routing services/routing/work/graph-la-window          # HEAD 57b5247, already on origin
+      DEPLOY-ROUTING REFUSED: the routing box credentials are not set: SCENIC_ROUTING_HOST SCENIC_ROUTING_USER SCENIC_ROUTING_KEY SCENIC_ROUTING_ROOT
+      exit=1
+      $ bash ops/deploy-routing services/routing/work/graph-la-window          # after committing 6999e52, before pushing it
+      DEPLOY-ROUTING REFUSED: HEAD 6999e52ed49548f912e173588e5b031f53c1b7ab is not on origin - push first
+      exit=1
+
+  Both refusals were seen RED in the sense that matters: each was produced by the real condition (an
+  unpushed commit; an environment without the credentials), not by a flag.
+
+  REHEARSAL, and an honest note about where it had to run. The flip is `ln -sfn` + `mv -T`, and the Windows
+  checkout cannot create a symbolic link at all (`ln: failed to create symbolic link ...: Operation not
+  permitted`, with MSYS=winsymlinks:nativestrict set), so rehearsing the flip in git-bash would rehearse
+  nothing. Inside WSL the script cannot resolve THIS worktree's repository root (the .git file holds a
+  Windows path - `fatal: not a git repository: .../C:/Users/...`), so the rehearsal ran in WSL with the MAIN
+  checkout as the repository root and the worktree's graph and rehearsal root as its arguments: real Linux
+  symlinks, real `mv -T`, the same script, and the sha in the release name is therefore main's f8d9447
+  rather than this branch's. Three consecutive deploys, output with the root elided:
+
+      === rehearsal 1 ===
+      REHEARSAL: no box, no ssh, no rsync - root is the local directory <root>
+      == upload -> <root>/releases/20260919T120445Z-f8d9447 ==
+      edgekv_keys
+      edgekv_vals
+      edges
+      == atomic flip ==
+      == restart ==
+      [stub] systemctl restart scenic-routing
+      == prune to the 2 newest releases ==
+      DEPLOY-ROUTING OK sha=f8d9447b0a0e16b7947422f5587fca72d35be793 live=<root>/releases/20260919T120445Z-f8d9447
+      releases kept:
+      20260919T120445Z-f8d9447
+      exit=0
+      ... second deploy ...
+      DEPLOY-ROUTING OK sha=f8d9447... live=<root>/releases/20260919T120447Z-f8d9447
+      releases kept:
+      20260919T120445Z-f8d9447
+      20260919T120447Z-f8d9447
+      ... third deploy ...
+      DEPLOY-ROUTING OK sha=f8d9447... live=<root>/releases/20260919T120449Z-f8d9447
+      releases kept:
+      20260919T120447Z-f8d9447
+      20260919T120449Z-f8d9447
+      exit=0
+
+  N-1 is visible in the third: the oldest release is gone, the previous one is still on disk to flip back
+  to, and `current` resolves to the newest. THE VPS HALF IS BLOCKED ON THE HUMAN: there is no host, no user
+  and no key in this session, nothing was deployed anywhere, and `ssh`/`rsync` have never been executed by
+  this script - only their rehearsal substitutes. T-0209's serving half owns the real box, the Dropwizard
+  `server:` section and /info.
+
+- 2026-09-19T12:07:10Z FINAL PRE-REVIEW COMMIT - the whole acceptance block re-run bare and re-quoted.
+
+      $ cd services/routing && python -m pytest tests -rs
+      9 passed, 3 skipped in 5.27s
+      SKIPPED [3] tests/test_lambda_monotone.py:127,138,167: no graph at ...work/graph-cache; build it with:
+        bash services/routing/build-slice.sh
+
+    Which tests need a container, and whether they ran: the three new readback tests
+    (test_named_way_carries_its_real_scenic_score, test_gated_way_is_imported_and_carries_zero,
+    test_a_way_with_no_scenic_score_is_not_a_road_and_never_reaches_the_graph) each need the image and a
+    built graph, and they RAN - they are three of the 9 passed, against scenic-routing:t0213 and
+    work/graph-la-window. The 3 SKIPS are test_lambda_monotone.py's routed Vermont tests: that graph is the
+    MAIN checkout's, deliberately not rebuilt here (R1 - the Vermont slice is not disturbed), so they skip
+    with their reason. The remaining 6 are the static profile/band tests, which need nothing.
+
+      $ python ops/lib/check-mutate-population.py
+      P-PROC-06: 71 modules, 22 covered by 10 populations, 25 allowlisted, 0 added by this branch
+      P-PROC-06: every added module is covered or allowlisted; the floor of 22 holds
+      exit=0
+      (no new numeric module: this task adds a bash script, a pytest file and a probe mode on an existing
+      Java entry point - nothing under services/etl/etl/ or Sources/.)
+
+      $ bash ops/lib/check-exec-bits
+      P-OPS-01: 78 files, 23 required present, all modes correct
+      exit=0        (ops/deploy-routing committed 100755 via git update-index --chmod=+x; so is
+                     services/routing/import-graph.sh, which is not under ops/ but is invoked by name.)
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 83 Swift files tracked (Sources=27, Tests=38, apps/ios=18), none over 300 lines
+      exit=0
+
+      $ bash ops/queue-check
+      QUEUE OK (208 tasks)
+      exit=0
+
+      $ bash ops/check-pins --source-only
+      PINS ok=13 skipped=15 pending=1 expired=0 failed=0 tier=linux source-only
+      exit=0
+
+      $ wc -l  (every touched file, measured at this commit)
+        82 ops/deploy-routing
+        36 services/routing/import-graph.sh
+        37 services/routing/config.yml
+        52 services/routing/build-slice.sh
+        24 services/routing/Dockerfile
+        42 services/routing/README.md
+       144 services/routing/tests/test_scenic_score_readback.py
+       174 services/routing/tests/test_lambda_monotone.py
+       166 services/routing/plugins/.../ScenicRouterMain.java
+       211 queue/claimed/T-0213-...md      (this file, before this entry)
+
+    CONFIG.YML, the serial file this task holds (acceptance item 4): one change, ruled at R2 - `osm_way_id`
+    added to graph.encoded_values, with the reason written beside it. Nothing else in the file moved. The
+    consequence is recorded in README.md and in the 11:58:40Z entry: the image tag moves with the config
+    (scenic-routing:t0213), because a graph carries the encoded-value list it was built with.
+
+  ACCEPTANCE, item by item:
+    1. MET. Digest-pinned GraphHopper 11.0 image, the REAL window-tagged-1.osm.pbf (sha256 verified
+       06046be0...0090, 12,402 ways / 11,740 accepted), counts and SCENIC_EV quoted as the stage landed, and
+       the three named ways read back - 74344132 -> 8, gated 10715427 -> 0, 4883641 -> no edge - RED first
+       with the parser's tag key misspelled (Topanga read 0), then green.
+    2. MET. One routed request at lambda 0 and lambda 8, both durations quoted, and NO monotonicity or bite
+       claim made; the 12:00:10Z entry says in so many words that this is a smoke graph whose scores T-0207
+       and T-0208 will move.
+    3. MET as far as a session without a box can take it: ops/deploy-routing exists, is 100755, refuses on
+       all three conditions with the transcripts above, and its flip/restart/prune were rehearsed three
+       times against a local directory. The VPS half is recorded as blocked on the human and is not implied
+       anywhere.
+    4. MET, re-quoted above.
+    5. NOT MET AS WRITTEN, ruled at R5 before any code: "/info's hash recorded" - there is no HTTP surface
+       in this slice, so instead the graph's own `properties` (what /info would report) is quoted in full
+       with its sha256 170bfe37...b188.
+
+  STILL OPEN (for T-0209 and the panel, not for this PR):
+    - The VPS: no host, no key, nothing deployed. ops/deploy-routing has never touched a real box.
+    - No HTTP surface: no Dropwizard `server:` block, no /info, no /route.
+    - The refused-reads-as-0 semantic (R2): a `scenic_refused=1` way encodes 0 and lands in the penalized
+      `low` band, indistinguishable from a way scored 0 on the merits. refused=0 in this window so nothing
+      here is affected, but the LA-wide import will have refused ways. Fixing it touches profiles/*.json,
+      which this task does not hold.
+    - T(lambda) over LA pairs, the rat-run measurement and the whole-LA import stay with T-0209, behind
+      T-0207 and T-0208.
+    - The rehearsal could not run with this worktree as the repository root (WSL cannot read a Windows
+      worktree's .git file); that is a box property, not a script property, but it means the exact
+      invocation a future deploy will use from this checkout has been exercised only through git-bash's
+      refusal paths.
