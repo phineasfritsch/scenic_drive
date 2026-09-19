@@ -545,3 +545,151 @@ the owner names - nothing in the plan or any Log records it (FOR THE HUMAN).
       two or three - the file's own layout, no content removed and nothing reflowed, so it is not the squeeze
       CLAUDE.md forbids. The DEBT stands unchanged: the next line that file gains is a refusal, and the fix
       is moving the allowlist reader or the DEBT table into a sibling under ops/lib, not compressing it.
+- 2026-09-19T21:53:56Z THE ACCEPTANCE BLOCK, WHOLE, RE-RUN ON THE MERGED HEAD after the pre-review fix, by
+  agent/claude-opus-5. `git fetch origin` and `git merge --no-edit origin/main` were the LAST steps before
+  the push. main was 89753a1 ("queue: T-0229 ... filed from T-0182's Log"), eleven commits on from the
+  20:54 block's 6f20c12. ONE conflict, and it is a good one to record: queue/LOCKS/root-package.lock,
+  add/add, SAME task and SAME owner on both sides with different timestamps - this branch wrote
+  `T-0182 agent/claude-opus-5 2026-09-19T20:29:55Z` at 5c1923e, and the orchestrator wrote
+  `... 2026-09-19T21:20:08Z` on main at 7585e39 for the same reason (the exclusive was declared before
+  ops/claim ever wrote the file). MAIN'S LINE WINS: main holds the lock register, and the PASS that releases
+  it releases main's. ops/lib/check-mutate-population.py did NOT conflict this time (main has not touched it
+  since the 20:54 merge); both sides' DRIVERS and COVERED_FLOOR entries from that merge are intact and this
+  commit adds one more floor entry to them.
+
+      $ swift build --scratch-path .build/T0182
+      Build complete! (8.93s)                                              exit 0
+
+      $ swift test --scratch-path .build/T0182
+      Test run with 321 tests in 44 suites passed after 0.343 seconds.     exit 0
+      (315 at the 20:54 block plus this commit's 6: two in "ops/plan budget", three in "ops/plan request
+      body", one in the meta-tests; 44 suites is 42 plus the two new ones)
+
+      $ swift test --scratch-path .build/T0182 --filter "ScenicPlannerMetaTests|ScenicPlanGoldenTests|LambdaCustomModelParityTests|PlanCLIBudgetTests|PlanCLIRequestBodyTests"
+      Suite "Scenic planner meta-tests" passed after 0.004 seconds.
+      Suite "Lambda custom model parity" passed after 0.007 seconds.
+      Suite "ops/plan request body" passed after 0.011 seconds.
+      Suite "Scenic plan golden" passed after 0.058 seconds.
+      Suite "ops/plan budget" passed after 0.059 seconds.
+      Test run with 22 tests in 5 suites passed after 0.060 seconds.       exit 0
+      THE FOUR ADDED BY THE FIX, BY NAME - "25 extra minutes on the command line is 1500 seconds of
+      budget", "the ceiling ops/plan prints is the fastest route plus the minutes asked for", "the bytes on
+      the wire never name a safety gate, at any lambda", "the model the body embeds is LambdaCustomModel's
+      own bytes", "a body naming a safety gate is refused before any request is sent", and in the
+      meta-tests "a route exactly on the ceiling is planned; one second over is refused". Each was seen
+      red, by name, in the 21:35 entry above.
+
+      $ bash ops/plan
+      usage: ops/plan <origin lat,lon> <destination lat,lon> <extra-minutes> (--router <url> | --recorded <dir>) [--max-evaluations N]
+      example: ops/plan 34.0392,-118.5836 34.0944,-118.6019 25 --router http://127.0.0.1:8989
+                                                                           exit 2
+
+      $ SCENIC_PLAN_SCRATCH=.build/T0182 bash ops/plan 34.0944,-118.6013 34.0365,-118.6870 25 --recorded Tests/Fixtures/t0182/plan-pair
+      ROUTER recorded plan-pair
+      PLAN origin=34.09440,-118.60130 destination=34.03650,-118.68700 budget=25m00s
+      LAMBDA 7.75 evaluations=6 used-budget=true monotonicity-violated=false
+      ETA fastest=17m56s returned=37m33s ceiling=42m56s distance=33068.9m
+      OVERLAP jaccard=0.112 required<0.600
+      TABLE rows=58 columns=way,highway,scenic_score,metres,seconds
+      WAYPOINTS 9 of max 9
+      URL https://maps.apple.com/directions?source=34.09440,-118.60130&...&mode=driving   exit 0
+      67 lines of stdout, the SAME 67 as the 20:54 block - the run now goes through PlanCommand.run and
+      prints the same bytes. `ceiling=42m56s` is the line the new budget test reads: 17m56s + the 25
+      minutes asked for, and the returned 37m33s is inside it.
+
+      $ SCENIC_MUTATE_SCRATCH=.build/T0182 python ops/mutate/plan.py --only difference/,custom-model/,table/
+      population 19 mutations over 8 modules (running 8 selected)
+      caught 8 of 8   trapped 0   compile-only 0   MISSED 0   skipped 0    exit 0
+      $ SCENIC_MUTATE_SCRATCH=.build/T0182 python ops/mutate/plan.py --only waypoints/,planner/,decode/,report/,budget/
+      population 19 mutations over 8 modules (running 11 selected)
+      CAUGHT  planner/ceiling-refuses-a-route-exactly-on-it   a named test failed (exit=1)
+      CAUGHT  budget/minutes-are-multiplied-into-hours        a named test failed (exit=1)
+      caught 11 of 11   trapped 0   compile-only 0   MISSED 0   skipped 0  exit 0
+      19 of 19 CAUGHT, each by a named test, no TRAP, no COMPILE-ONLY, no SKIP. In HALVES, as the 20:54
+      block ran them and for the same reason: the whole table is one run of minutes on this box and a run
+      abandoned halfway reports nothing - and a driver killed mid-mutation leaves the tree mutated, which
+      is the one state this repository must never measure from. `git status --short` was empty after each
+      half. The two new names are the pass's two survivors.
+
+      $ python ops/mutate/plan.py --prove-floor
+      an empty population          REFUSED   0 mutations, expected at least 10
+      one mutation                 REFUSED   1 mutations, expected at least 10
+      a subject nothing mutates    REFUSED   Sources/ScenicKit/Plan/PlanFailure.swift is declared a subject and mutated by nothing
+      the shipped table            accepted                                exit 0
+      (the flag is --prove-floor; there is no --prove-vacuity in this driver, and the third arm IS the
+      vacuity arm - a module declared into coverage that nothing mutates)
+
+      $ python ops/lib/check-mutate-population.py
+      P-PROC-06: 90 modules, 34 covered by 13 populations, 33 allowlisted, 14 added by this branch
+      P-PROC-06: every added module is covered or allowlisted; the floor of 33 holds   exit 0
+      (32 -> 33: PlanArguments.swift left the allowlist for the population, and PlanCommand.swift entered
+      the allowlist with its reason, so the allowlist count is unchanged at 33 and the floor rose by one)
+
+      $ bash ops/check-pins --source-only            (run ALONE - no swift build beside it: that is what
+                                                      made P-SAFE-05 fail open once this session)
+      PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only          exit 0
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 111 Swift files tracked (Sources=43, Tests=47, apps/ios=21), none over 300 lines   exit 0
+      (108 -> 111: PlanCommand.swift and the two CLI test files)
+
+      $ bash ops/lib/check-exec-bits
+      P-OPS-01: 87 files, 23 required present, all modes correct                         exit 0
+
+      $ bash ops/queue-check
+      QUEUE OK (222 tasks)                                                               exit 0
+
+      $ git merge-base --is-ancestor origin/main HEAD ; echo $?
+      0
+
+      $ wc -l <every file this branch touches>   (git diff --name-only origin/main HEAD, 42 paths)
+          68 Package.swift
+          93 Sources/ScenicKit/Plan/LambdaCustomModel.swift
+          66 Sources/ScenicKit/Plan/PlanFailure.swift
+         130 Sources/ScenicKit/Plan/PlanTable.swift
+          39 Sources/ScenicKit/Plan/PlanWaypoints.swift
+          55 Sources/ScenicKit/Plan/RecordedRouteSource.swift
+          53 Sources/ScenicKit/Plan/RouteDifference.swift
+         138 Sources/ScenicKit/Plan/RoutePath.swift
+          26 Sources/ScenicKit/Plan/RouteSource.swift
+         107 Sources/ScenicKit/Plan/ScenicPlan.swift
+         102 Sources/ScenicKit/Plan/ScenicPlanner.swift
+         154 Sources/ScenicPlanCLI/GraphHopperRouteSource.swift
+         107 Sources/ScenicPlanCLI/PlanArguments.swift
+          44 Sources/ScenicPlanCLI/PlanCommand.swift
+          58 Sources/ScenicPlanCLI/main.swift
+          11 Tests/Fixtures/custom-model/PROVENANCE.txt
+          20 Tests/Fixtures/custom-model/lambda-0.json
+          20 Tests/Fixtures/custom-model/lambda-1.json
+          20 Tests/Fixtures/custom-model/lambda-2.5.json
+          20 Tests/Fixtures/custom-model/lambda-7.75.json
+          20 Tests/Fixtures/custom-model/lambda-8.json
+         214 Tests/Fixtures/t0182-recorder/Recorder.java
+          32 Tests/Fixtures/t0182/plan-pair/fastest.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-0.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-4.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-6.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-7.5.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-7.75.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-7.json
+          32 Tests/Fixtures/t0182/t0213-pair/fastest.json
+          32 Tests/Fixtures/t0182/t0213-pair/lambda-0.json
+         142 Tests/HandoffTests/ScenicPlanGoldenTests.swift
+          91 Tests/ScenicKitTests/LambdaCustomModelParityTests.swift
+         181 Tests/ScenicKitTests/ScenicPlannerMetaTests.swift
+          54 Tests/ScenicPlanCLITests/PlanCLIBudgetTests.swift
+          83 Tests/ScenicPlanCLITests/PlanCLIRequestBodyTests.swift
+         300 ops/lib/check-mutate-population.py
+          38 ops/lib/mutate-population-allowlist.json
+         243 ops/mutate/plan.py
+          40 ops/plan
+         295 services/api/src/customModel.ts
+         695 queue/claimed/T-0182-ops-plan-o-d-b-the-m3-cli-exit-an-apple-maps-url-a.md (this file, as
+             committed with this entry - the one measured file this commit changes, re-measured here)
+      queue/LOCKS/root-package.lock is no longer in the diff against origin/main: main carries the same
+      line now, which is the conflict above, resolved. The files this fix changed are the four Swift
+      sources, the two new test files, Package.swift and the three population files; the rest are the
+      20:54 block's numbers, unchanged and re-measured rather than copied.
+
+  `git status --short` is empty. The read-only verifier's four findings are closed, each red first.
+  Pushing now.
