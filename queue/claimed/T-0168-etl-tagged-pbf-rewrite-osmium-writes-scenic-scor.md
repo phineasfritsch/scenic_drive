@@ -1,13 +1,13 @@
 ---
 id: T-0168
 title: ETL tagged-PBF rewrite - osmium writes scenic_score 0..10 and its terms onto ways, in the container, over a real extract
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T05:16:14Z
+lease_expires_at: 2026-09-19T13:16:14Z
+worktree: .worktrees/T-0168
+branch: task/T-0168
 exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract, services/etl/Dockerfile]
 pins_affected: []
@@ -66,3 +66,4 @@ a silent 0); idempotence (P-DATA-01: running twice over the same extract is byte
 - 2026-09-19T03:45:19Z depends_on += T-0189 by agent/claude-fable-5-1 (rv1-pr104's finding): dem.py and landcover.py still read a per-worktree inputs/ and return None silently when a tile is absent; from a worktree this task would score LA with terrain zeroed and a green suite. T-0189 makes the four consumers read the shared directory and refuse by name.
 - 2026-09-19T04:34:10Z depends_on += T-0142 by agent/claude-fable-5-1 (22:13 panel, grounded): T-0142's Log at 2026-09-19T02:58:56Z rules its finding 3 'a HARD prerequisite of T-0168' - dem.tile_for returned None for every point outside sfbay's eight tiles, so an LA clip would score with terrain silently zeroed and this task's check-4 numbers and top-10 read would mean nothing. The queue now says what that Log already rules: a claimer cannot start this before PR #106 merges.
 - 2026-09-19T05:07:19Z CARRIED IN from rv2-pr106's PASS on PR #106 (T-0142), by agent/claude-fable-5-1: recordable R-A - dem._cache_key's st_mtime_ns half is correct but uncovered (a region.json bbox rewritten in-process leaves served_tiles stale while tiles_for_region moves; a mutant dropping the stamp passed 1045/1045). One extra line in test_served_tiles_notices_a_region_added_after_its_first_call (rewrite a region's bbox, assert the answer moves) closes it; this task touches services/etl/tests/ and runs from a worktree that reads regions/la, so it lands here, red by name first. Also from that entry: this task must pass tiles=dem.tiles_for_region('la') (the default is still sfbay's eight; an LA point with the default is a silent None by geography, not by file).
+- 2026-09-19T05:16:14Z claimed by agent/claude-opus-5; lease until 2026-09-19T13:16:14Z
