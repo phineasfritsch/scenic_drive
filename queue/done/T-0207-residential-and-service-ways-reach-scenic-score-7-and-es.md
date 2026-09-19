@@ -1,7 +1,7 @@
 ---
 id: T-0207
 title: residential and service ways reach scenic_score 7 and escape the anti-rat-run clause - rule a class cap (score or profile) with the LA grid window's hillside streets and fire roads as the fixture
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T11:30:53Z
@@ -11,7 +11,7 @@ branch: task/T-0207
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/, ops/mutate/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr118
 depends_on: [T-0204]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -462,3 +462,92 @@ four bits do not separate Topanga from a Bel Air cul-de-sac; something class-awa
       255  ops/mutate/scenic_tags_mutations.py     (233 -> 255)
 
   `state: claimed` and `reviewer: null` are untouched; the Log is appended to and nothing above it is edited.
+
+- 2026-09-19T13:51:41Z REVIEW PASS, agent/rv1-pr118, PR #118 at head 285c959 (base main, MERGEABLE).
+  Independent worktree `.worktrees/rv1-pr118` at that sha; mutants applied there, `git checkout --` restored,
+  `git status --short` empty after each. `ops/check-pins --source-only` and `bash ops/test` were NOT run
+  locally (session instruction); `gh pr checks 118` -> `core pass 2m20s` / `pins-source-only pass 1m18s`
+  on 285c959 itself.
+
+  DIFF vs main is the seven files the task claims and nothing else (`git diff --stat origin/main...HEAD`):
+  ops/mutate/scenic_tags.py 8, ops/mutate/scenic_tags_mutations.py 75, the task file 429,
+  services/etl/etl/assemble.py 20, services/etl/etl/tagwriter.py 11, tests/fixtures/class_cap_rows.json 284,
+  tests/test_class_cap.py 262. NO Swift, NO routing profile JSON, NO committed `*_top25.json` re-record.
+  `wc -l` re-measured in my worktree matches the final block way for way (293 / 165 / 262 / 186 / 255 / 284).
+
+  GATES RE-RUN BARE, all reproduced: `cd services/etl && python -m pytest tests -rs -o addopts=` ->
+  **1211 passed in 80.59s**, zero skips; `python ops/mutate/scenic_tags.py` -> `MUTATE OK caught=48/48
+  equivalent_caught=0`; `--prove-vacuity` -> `VACUITY PROVED` (0/48); `python ops/lib/check-mutate-population.py`
+  -> `P-PROC-06: ... the floor of 23 holds`; `python -m etl.scenecheck` over COPIES of the owner's three NEW
+  read-backs -> `CHECK4 null_score=0 gated_scored=0 malformed=0 scored=11740/11239/23474 refused=0
+  not_a_road=662/212/413`, identical to the claim; `bash ops/queue-check` -> `QUEUE OK (208 tasks)`;
+  `tests/test_window_ranking.py` 10 passed with T-0204's whitelist intact
+  (`RIDGE_ALLOWLIST = {518410361, 787842196}` and the BOUND row still asserted, not relaxed).
+
+  RE-DERIVED, not taken on trust. `tagwriter.quantise(0.6499) = 6`, `quantise(0.6500) = 7`, and through the
+  shipping spelling `quantise(float(fixed(0.6499))) = 6` / `fixed(0.65)='0.6500' -> 7`. Over the MAIN
+  checkout's three scored tables (46,453 rows, read-only): ways whose unit quantises to >= 7 are
+  **residential 131 + service 109 + living_street 0 = 240**, exactly the measurement the Brief ranges over.
+  Over the owner's NEW tables: **0 / 0 / 0**, and **0** ways of the zero/capped classes carry a score above 0
+  (old: 15,412 service ways did).
+
+  THREE MUTANTS OF MY OWN, all CAUGHT (each red by name, then restored):
+    - drop `living_street` from `CLASS_SCORE_CEILING` -> 4 red, incl.
+      `test_a_living_street_is_capped_although_no_real_one_reaches_six`.
+    - `min(value, ceiling)` -> `value = ceiling` (every residential pinned AT the ceiling) -> 2 red, incl.
+      `test_assemble.py::test_gate_private_and_unpaved_ways_score_exactly_zero` - which is also the answer to
+      "could the ceiling be read before the gate": a gated residential is pinned at exactly 0.0.
+    - ceiling `0.6499` -> `0.65` (one four-decimal unit over the boundary) -> 7 red, incl. the two named
+      offenders Crescent Drive and Oakmont Street and the quantiser-bound boundary test.
+  THE TWO PRE-REVIEW SURVIVORS REPLAYED: `and value < 0.75` -> red
+  `test_no_capped_class_way_reaches_the_routers_high_band` + `test_the_ceiling_is_unconditional_...`;
+  `and record.byway_status is None` -> red `test_the_ceiling_is_unconditional_over_every_input_scored_row_reads`
+  alone. R3's ruling is upheld: the survivors were a fixture gap, not a code gap, and the file now spans it.
+  EXACT-MATCH question closed on the data: the three windows' `highway` census is
+  service 24020, residential 9901, secondary 3677, primary 2750, tertiary 2371, track 1154, motorway_link 635,
+  unclassified 570, motorway 501, trunk 474, primary_link 189, secondary_link 132, tertiary_link 42,
+  trunk_link 24, living_street 11, footway 2 - one spelling per class, no case variant, no `residential_link`
+  or `service_link`, so the exact dict lookup cannot be slipped past in this corpus.
+
+  NO BLOCKING FINDING. Nothing reaches >= 7 in a capped class, nothing in a zero class is above 0, no
+  uncapped road is demoted by this diff, and the Swift parity contract is untouched (no Swift file in the
+  diff; `test_gate_scenickit_parity_to_1e_6_over_the_shared_scoring_fixture` green).
+
+  RECORDABLE 1 (process, not gate drift). `git merge-base --is-ancestor origin/main HEAD` is FALSE at review
+  time: main advanced to 1970941 at 06:12:13-07:00, fifteen minutes before the final commit 285c959 at
+  06:27:00-07:00, so the "merge origin/main first" re-run of 13:26:59Z was made against 907949b. I ruled it
+  not a re-buy: `git diff <merge-base> origin/main -- pins/ ops/ .githooks/` is `ops/deploy-routing` ALONE -
+  no pin, no hook, no `ops/test`, no `ops/check-pins` changed, so the gate set this sign-off was bought under
+  is main's gate set, and PR #115's P-PROC-06 failure mode cannot recur. I also merged origin/main in my own
+  throwaway worktree and re-ran the queue gate there: `QUEUE OK (210 tasks)`, so main's four newly claimed and
+  two newly filed tasks do not collide with this task file's move.
+
+  RECORDABLE 2 (the service=0 ruling, judged against the plan). The plan's service clause is a GATE over
+  `service in {driveway, parking_aisle, ...}`; zeroing EVERY `highway=service` way is wider, and the Log rules
+  it openly with the measurement (24,020 service ways; a 0.6499 cap would leave 559 at 6 and 2,972 at or above
+  4 collecting `bands.mid` with no demotion clause of any kind, `customModel.ts:219` naming RESIDENTIAL only).
+  The invariant holds - the ways stay in the table and stay routable, penalized, not excluded. What the ruling
+  does NOT name is its own hardest case: **way 121254098 `Will Rogers State Park Road`, `highway=service`,
+  0.7079 in the old grid-a top ten - the Log quotes that line - is 0.0 in the new tables**, and grid-a/grid-b
+  hold at least three more service ways carrying that same name (0.6278, 0.5882, 0.6105), plus a residential
+  one pulled 0.6703 -> 0.6499. The prose "the five highest-scoring named ones are two fire roads and three
+  unnamed stubs" is not true of this window: a real state-park road is the third named one. Not blocking - a
+  park road is an access road to a destination, not a through-drive, and 0.0 costs it nothing but the right to
+  lengthen someone else's drive - but the next agent to open the routing clause (T-0190/T-0209) should rule
+  named park/forest service roads by name rather than inherit them from this class sweep.
+
+  RECORDABLE 3 (extends the owner's honest STILL OPEN 5, not a new defect). I measured the old-vs-new drift
+  independently over the 46,263 uncapped-class rows: 2,007 ship a different unit string and **13 ship a
+  different INTEGER** (primary 4, secondary 4, unclassified 3, tertiary 2; e.g. 406467552 primary 3 -> 2,
+  978301883 unclassified 4 -> 3), max |delta score| 0.0399. **0 of the 13 touch the >= 7 band in either
+  direction**, and this diff cannot produce them (assemble.py's only change is the three-line ceiling keyed on
+  three classes; tagwriter does not write the scored table), which is exactly the curvature-drift cause the
+  owner proved and filed. The 13 integer moves are a number the Log did not quote; they belong to STILL OPEN 5.
+
+  RECORDABLE 4. The ceiling is a `min`, so 1,952 residential ways now sit at exactly 0.6499 and are tied:
+  rank information inside the residential class above the ceiling is gone from the shipped column. That is
+  inherent to a ceiling and is what the ruling asks for; it is recorded so that a future "best residential
+  street" surface does not read the shipped column for an order that no longer exists.
+
+  DECISION: PASS. `state: claimed -> done`, `reviewer: null -> agent/rv1-pr118`,
+  `queue/claimed/ -> queue/done/`. Not merged by me.
