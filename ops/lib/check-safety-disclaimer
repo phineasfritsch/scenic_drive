@@ -2,61 +2,49 @@
 # P-SAFE-03's assertion: the handoff on the home screen is gated by a SafetyDisclaimer acknowledgement, and
 # the persistent "Conditions change. Verify locally." line is on the screen.
 #
-# This is a STRUCTURAL check over Swift SOURCE on a box with no Apple toolchain. It decides four things and
+# This is a STRUCTURAL check over Swift SOURCE on a box with no Apple toolchain. It decides five things and
 # refuses to pretend it decides any more (T-0153 ruling R5, and the pin's why_no_test_catches_it):
 #
 #   (i)   a type named SafetyDisclaimer is declared, once, in SafetyDisclaimer.swift
 #   (ii)  the identifiers home.disclaimer / home.disclaimer.accept / home.conditions and the persistent
 #         sentence itself are present, in the files that must carry them
-#   (iii) the acknowledgement is stored on the device under the versioned @AppStorage key, and the property
-#         that key decorates DEFAULTS TO FALSE
+#   (iii) the acknowledgement is stored on the device under the versioned @AppStorage key, the property
+#         that key decorates DEFAULTS TO FALSE, and its one write sits inside the accept closure
 #   (iv)  the call graph, over EVERY *.swift under apps/ios: SkylineHandoff.open( at exactly one occurrence
-#         in exactly one file, GatedHandoffButton.swift, dominated by `guard isSafetyDisclaimerAcknowledged
-#         else`; GatedHandoffButton( at exactly one occurrence in exactly one file, ScenicHomeScreen.swift,
-#         whose argument list passes the acknowledgement through and carries no `: true`; and the BLOCKED
-#         path wired end to end - onBlocked() before the guard block's return, the screen's onBlocked:
-#         closure setting isShowingDisclaimer, and a .sheet bound to that flag
+#         in GatedHandoffButton.swift, dominated by `guard isSafetyDisclaimerAcknowledged else`;
+#         GatedHandoffButton( at exactly one occurrence, in ScenicHomeScreen.swift, whose argument list
+#         passes the acknowledgement through and carries no `: true`; and the BLOCKED path wired end to end
+#         - onBlocked() before the guard block's return, onBlocked: setting isShowingDisclaimer, a .sheet
+#   (v)   a WHITELIST over the app tree: the identifier isSafetyDisclaimerAcknowledged and the literal
+#         store key occur exactly as many times as the tracked set says, in exactly those files
 #
-# THE SEVENTH BLIND SPOT, CLOSED 2026-09-19: (iv) used to stop at the guard, so `onBlocked: { }` on the
-# screen left all six mutations green while the first tap did nothing and the disclaimer never appeared.
+# SIX BLIND SPOTS CLOSED 2026-09-19, one found here and five by PR #101's three reviews (B1-B3
+# agent/rv1-pr101, B4 agent/rv2-pr101, B5 agent/rv3-pr101). Every one failed OPEN - exit 0 over a tree
+# whose FIRST tap could leave for Apple Maps un-acknowledged. Rows 7-13 hold them red; the full account
+# of each is in pins/PINS.yaml P-SAFE-03, the document a pin is read from (T-0153 ruling R4-F):
 #
-# FOUR MORE, CLOSED 2026-09-19 FROM PR #101's REVIEWS (B1-B3 agent/rv1-pr101, B4 agent/rv2-pr101). All
-# four failed OPEN: each left this check at exit 0 over a tree whose FIRST tap could leave for Apple Maps
-# un-acknowledged - the pin's own statement false with its own assertion green. Rows 8-11 hold them red.
-#
-#   B1  the @AppStorage DEFAULT was unanchored, so `private var isSafetyDisclaimerAcknowledged = true`
-#       passed: on a fresh install nothing is stored, the property yields its DECLARED default and the
-#       guard is satisfied. (iii) now requires that whole declaration, as a fixed string, on the first
-#       line carrying code after the @AppStorage line.
-#   B2  the population was one directory at -maxdepth 1 while SkylineHandoff is public and exported, so a
-#       call a directory down, or in apps/ios/ScenicDrive/ (the shell imports this product), escaped and
-#       the check printed "called once" over a tree calling it twice. (iv) now walks all of apps/ios.
-#   B3  GatedHandoffButton( was counted per FILE and the pass-through anchor was `-ge 1`, so a second
-#       `GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, ...)` beside the real one passed. (iv)
-#       now counts occurrences and reads that one construction's argument list.
-#   B4  every WRITE to the acknowledgement was unanchored. B1 anchored the DECLARED default; @AppStorage's
-#       setter is nonmutating, so `.onAppear { isSafetyDisclaimerAcknowledged = true }` on the screen wrote
-#       true the moment it appeared, with this check green. (iii) now requires that assignment exactly
-#       once, in ScenicHomeScreen.swift, inside `SafetyDisclaimer(onAccept: {` - see require_ack_write.
+#   B0 (iv) stopped at the guard, so `onBlocked: { }` left the first tap silent -> the BLOCKED path
+#   B1 the @AppStorage DEFAULT unanchored, `= true` an acknowledgement nobody gave -> (iii)
+#   B2 the call-site scan one directory deep at -maxdepth 1 -> (iv), all of apps/ios, recursively
+#   B3 GatedHandoffButton( counted per FILE, the pass-through `-ge 1` -> (iv), by occurrence, args read
+#   B4 every WRITE unanchored: `.onAppear { ack = true }` wrote true, green -> require_ack_write
+#   B5 B4 was a BLACKLIST of ONE spelling: `.onAppear { ack.toggle() }` beside the real write left the
+#      count at one and the check GREEN over a screen with two writers -> (v)
 #
 # WHAT IT STILL CANNOT SEE, because a check that hides its blind spots is worse than none: whether the
 # sheet renders, whether a tap reaches the button, whether the accept closure's write ever RUNS, whether
-# @AppStorage reads it back, whether the line is on screen or behind the map, contrast, Dynamic Type, the
-# 44 pt target - the anchors prove the blocked path is WIRED, never that it RUNS, and a simulator and an
-# XCUITest own those (this package has no test target; see ScenicApp/Package.swift). Also: Swift OUTSIDE
-# apps/ios is not scanned; a second GatedHandoffButton( inside GatedHandoffButton.swift itself is not
-# counted, because a #Preview belongs there; and `//` is stripped to end of line before braces are
-# counted, so a brace inside a string after `//` is miscounted and `/* */` is not parsed at all.
-#
-# Every anchor below is an identifier, a file name or a string literal the user reads. Never a comment
-# (CLAUDE.md): comments get stripped, and a gate anchored on one is green over deleted code. Fail-closed,
-# the P-SRC-02 / P-OPS-01 lesson: a missing directory, a truncated file set or a scan that enumerated
-# nothing is a REFUSAL - a scan that scanned nothing must not read as OK.
+# @AppStorage reads it back, whether the line is on screen, contrast, Dynamic Type, the 44 pt target - a
+# simulator and an XCUITest own those (no test target; see ScenicApp/Package.swift). Also: Swift outside
+# apps/ios is unscanned; a second GatedHandoffButton( inside its own file is not counted (a #Preview
+# belongs there); `//` is stripped before braces are counted and `/* */` is not parsed; and (v) reads
+# LITERAL spellings, so a key assembled from a constant or an interpolation is unseen. Every anchor below
+# is an identifier, a file name or a literal the user reads, never a comment (CLAUDE.md); fail-closed
+# (P-SRC-02 / P-OPS-01), a scan that enumerated nothing is a REFUSAL.
 #
 #   bash ops/lib/check-safety-disclaimer                 # the tracked tree
 #   bash ops/lib/check-safety-disclaimer --sources DIR   # any copy of Sources/FeatureScenicHome
 #                                        --app-tree DIR  # ... with a copy of apps/ios as its call graph
-#   bash ops/lib/check-safety-disclaimer --prove-red     # eleven mutations, each refused by name
+#   bash ops/lib/check-safety-disclaimer --prove-red     # thirteen mutations, each refused by name
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -101,9 +89,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# The tracked tree's call graph is all of apps/ios. A bare copy of the feature sources is scanned as its
-# own app tree, which is what a reproduction on one directory wants; the table hands us a copy of apps/ios
-# and says so with --app-tree, which is how row 9 (a call site in the shell target) can be red at all.
+# The tracked tree's call graph is all of apps/ios. A bare copy of the feature sources is scanned as its own
+# app tree, which a reproduction on one directory wants; the table hands us a copy of apps/ios with
+# --app-tree, which is how row 9 (a call site in the shell target) can be red at all.
 SOURCES="${SOURCES%/}"
 if [[ -z "$APP_TREE" ]]; then
   if [[ "$REQUIRE_TRACKED" -eq 1 ]]; then APP_TREE="$DEFAULT_APP_TREE"; else APP_TREE="$SOURCES"; fi
@@ -189,8 +177,7 @@ run_check() {
   [[ "$covered" -eq 1 ]] || fail "the scan of $app_tree does not contain $gated." \
     "The app tree has to cover the feature sources, or the call graph is decided over the wrong files."
 
-  # (iii, continued), here because it is decided over the app tree: WHO MAY WRITE the acknowledgement.
-  # PR #101's finding B4 - exactly one `$ACK_IDENT = true`, in the screen, inside the accept closure.
+  # (iii, continued), decided over the app tree: WHERE the one `$ACK_IDENT = true` sits (PR #101, B4).
   require_ack_write "$screen" "$ACK_IDENT = true" "SafetyDisclaimer(onAccept: {" \
     "$app_tree" "${app_files[@]}"
 
@@ -263,6 +250,19 @@ run_check() {
     "no \`onBlocked()\` between the guard at line $guard_line and its return at line $ret_line in $gated." \
     "The refused tap has to hand the screen something to present, or the user taps a dead button forever."
 
+  # ----------------------------------------- (v) WHO CAN REACH THE FLAG AT ALL: whitelists, by occurrence
+  # PR #101's B5. LAST, because rows 3, 5 and 10 move these counts as a side effect and each exists to
+  # prove a DIFFERENT refusal by name; the counts are typed literals in the scan's own path order, raised
+  # deliberately the day the screen legitimately grows one more (T-0153 rulings R4-B and R4-E).
+  local ack_set="$gated(2) $screen(4)" key_set="$screen(1)"
+  require_tracked_occurrences "$ACK_IDENT" "identifier" "$app_tree" "$ack_set" \
+    "Those six: on the screen the @AppStorage declaration, the argument label and the value of the" \
+    "pass-through, the write in the accept closure; in the button the property and the guard's read." \
+    -- "${app_files[@]}"
+  require_tracked_occurrences "$STORAGE_KEY" "store key" "$app_tree" "$key_set" \
+    "@AppStorage is a UserDefaults wrapper: UserDefaults.standard.set(true, forKey:) on this key writes" \
+    "the same store without naming the identifier once, and the whitelist above cannot see it." \
+    -- "${app_files[@]}"
   echo "P-SAFE-03: $n Swift file(s) under $sources; SafetyDisclaimer declared once in its own file;"
   echo "  home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in"
   echo "  SafetyDisclaimer.swift, the persistent line present, @AppStorage(\"$STORAGE_KEY\")"
@@ -273,14 +273,15 @@ run_check() {
   echo "  through with no \`: true\` in its argument list; the blocked tap is wired - onBlocked() at line"
   echo "  $blocked_line before the return at line $ret_line, \`onBlocked: { isShowingDisclaimer = true }\`"
   echo "  and a sheet bound to that flag on the screen; \`$ACK_IDENT = true\` written exactly once, at"
-  echo "  line $ACK_WRITE_LINE, inside the SafetyDisclaimer(onAccept: { block opening at line $ACK_ACCEPT_LINE."
+  echo "  line $ACK_WRITE_LINE, inside the SafetyDisclaimer(onAccept: { block opening at line $ACK_ACCEPT_LINE;"
+  echo "  and by occurrence over the app tree, $ACK_IDENT at $ack_set, the key at $key_set."
   echo "  Not checked here: rendering, taps, whether that write RUNS, contrast, Dynamic Type, 44 pt."
 }
 
 # ------------------------------------------------------------------------------------------------ red
-# The mutation population lives in ops/lib/check-safety-disclaimer-mutations - one file, one concern, and
-# this one stays under 300 lines. Each row there mutates ONE structural fact in a throwaway copy and requires
-# this check to refuse AND to name the reason: a check nobody has seen refuse is untested (CLAUDE.md).
+# The mutation population lives in ops/lib/check-safety-disclaimer-mutations - one file, one concern. Each
+# row there mutates ONE structural fact in a throwaway copy and requires this check to refuse AND to name
+# the reason: a check nobody has seen refuse is untested (CLAUDE.md).
 MUTATIONS="ops/lib/check-safety-disclaimer-mutations"
 
 if [[ "$PROVE_RED" -eq 1 ]]; then

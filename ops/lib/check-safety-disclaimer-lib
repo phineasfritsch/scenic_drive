@@ -188,6 +188,51 @@ require_ack_write() {
     "after it closed. Only accepting the disclaimer may record an acknowledgement (PR #101, finding B4)."
 }
 
+# How many times a needle occurs in a file's CODE - every OCCURRENCE, not every matching LINE, which is all
+# `count_fixed_in`'s `grep -c` can say: `isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged` is
+# one line carrying two, and a whitelist built on line counts cannot see a second writer appended to a line
+# that is already anchored. index()/substr(), not a word boundary, so a longer identifier CONTAINING the
+# needle also counts and is refused - fail-closed, the direction every reading here leans.
+count_occurrences_in() {
+  code_of "$2" | awk -v needle="$1" '
+    { s = $0; while ((i = index(s, needle)) > 0) { n++; s = substr(s, i + length(needle)) } }
+    END { print n + 0 }'
+}
+
+# One "path(count)" per line over the given files, by occurrence - the shape occurrences_by_file prints.
+occurrences_with_multiplicity() {
+  local needle="$1" f c
+  shift
+  for f in "$@"; do
+    c="$(count_occurrences_in "$needle" "$f")"
+    [[ "$c" -eq 0 ]] || printf '%s(%s)\n' "$f" "$c"
+  done
+}
+
+# A WHITELIST over a needle's occurrences in the app tree (PR #101's finding B5, agent/rv3-pr101).
+# require_ack_write above is a BLACKLIST with one entry, the literal `<ack> = true`, so
+# `.onAppear { isSafetyDisclaimerAcknowledged.toggle() }` beside the real write left the count at one, the
+# depth walk still found the real write, and the check was GREEN over a screen with two writers. Spellings
+# of "writes a Bool" have no end - `.toggle()`, `= !false`, `self.` prefixed, a helper the closure calls -
+# and every one of them must MENTION the flag, so the whitelist is over the identifier and the per-file
+# counts are typed literals at the call site (T-0153 ruling R4-B), raised deliberately the day the feature
+# grows one more. The refusal prints what it saw beside the tracked set. Call it BARE: `fail` exits.
+require_tracked_occurrences() {
+  local needle="$1" kind="$2" app_tree="$3" expected="$4"
+  shift 4
+  local why=()
+  while [[ $# -gt 0 && "$1" != "--" ]]; do why+=("$1"); shift; done
+  [[ "${1:-}" == "--" ]] && shift
+  local seen=() an="$#"
+  mapfile -t seen < <(occurrences_with_multiplicity "$needle" "$@")
+  [[ "${seen[*]}" == "$expected" ]] || fail \
+    "the $kind $needle occurs outside its tracked set in the app tree; found: ${seen[*]:-none}" \
+    "Tracked set: $expected. Counted by OCCURRENCE - one line may carry two - over all $an .swift file(s)" \
+    "under $app_tree with // stripped. This is a WHITELIST: any other count in any file is refused by" \
+    "name, whatever the spelling, which is the only shape that holds when the spellings are unbounded." \
+    "${why[@]}"
+}
+
 # The gate, read off GatedHandoffButton.swift in one pass. Prints seven numbers:
 #
 #   guard_line guard_depth call_line call_depth escaped blocked_line ret_line

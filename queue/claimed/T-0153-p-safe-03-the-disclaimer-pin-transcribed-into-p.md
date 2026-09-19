@@ -904,3 +904,290 @@ review; T-0152 (copy) touches the same file - sequence them, do not stack them.
   rv2 and recorded for T-0180, not fixed here: R-A, the `*Tests/` carve-out in the recursive population -
   ruled not taken, with reasons, in the 04:42 entry. The table now copies apps/ios eleven times and takes
   ~7 minutes on the Windows box, which is T-0184's problem when it puts every `--prove-red` table in CI.
+- 2026-09-19T05:19:47Z REVIEW FAIL (round 3) by agent/rv3-pr101 (not the owner, not rv1/rv2-pr101, not the
+  fixer, not the orchestrator). PR #101, head 84754ed, base main. Reviewed in a detached worktree at that
+  sha, `git status --short` empty there throughout; mutants on throwaway copies of apps/ios under the
+  gitignored .artifacts/; the worktree removed after.
+
+  B4 IS CLOSED IN BOTH DIRECTIONS. Re-applied on copies of apps/ios, each refused BY NAME, exit 1:
+  rv2's B4 (`.onAppear { isSafetyDisclaimerAcknowledged = true }` after `.background(DesignTokens.bg)`,
+  writes at 98 and 101) "`isSafetyDisclaimerAcknowledged = true` must be written exactly once, in
+  .../ScenicHomeScreen.swift; found: .../ScenicHomeScreen.swift(2) ... Counted by occurrence over all 10
+  .swift file(s)"; rv2's R-B (line 100's write deleted) the same assertion, "found: none". The MOVE shape
+  the count cannot catch is table row 11, red by the depth walk alone.
+
+  NOTHING REGRESSED. The diff is ops/lib (three files) + pins/PINS.yaml + this file, `--name-status` all M,
+  no Swift, so run 35405951245 still describes this tree; this file's `--numstat` is "223 0", append-only,
+  with rv2's 56-line 04:28:48Z entry verbatim at lines 685-740 ahead of the 04:42 and 05:06 entries at 742.
+  Re-run at 84754ed: the bare check exit 0 with the 05:06 paragraph verbatim ("written exactly once, at
+  line 100, inside the SafetyDisclaimer(onAccept: { block opening at line 99"); `--prove-red` 11/11 refused
+  by name, exit 0, row 11 "the acknowledgement written outside the accept closure 1 yes"; `wc -l` 299 / 253
+  / 89 and `git ls-files -s` 100755 / 100755 / 100755, matching the Log's re-measured numbers (T-0162);
+  `bash ops/lib/check-line-cap` "P-SRC-02: 73 Swift files tracked (Sources=26, Tests=37, apps/ios=10), none
+  over 300 lines"; `bash ops/queue-check` "QUEUE OK (169 tasks)"; `gh pr checks 101` core pass,
+  pins-source-only pass (run 35423086176). `bash ops/check-pins --source-only` was started once in the
+  worktree and DID NOT FINISH - it drives a `swift build` and was still running after ~12 minutes, so no
+  local source-only result is claimed here; CI's pins-source-only job on this head is the evidence.
+
+  BLOCKING, B5 - the B4 anchor is a BLACKLIST on one literal spelling of the write, not a reading of the
+  write region. `require_ack_write` counts the FIXED string `isSafetyDisclaimerAcknowledged = true` and
+  requires exactly ScenicHomeScreen.swift(1). `.toggle()`, the idiomatic Swift spelling for flipping a
+  Bool, is not that string, so a second writer is invisible, the count stays one, the depth walk still
+  finds the real write inside the accept closure, and the check is GREEN:
+
+      $ perl -0pi -e 's/^        \.background\(DesignTokens\.bg\)$/        .background(DesignTokens.bg)\n        .onAppear { isSafetyDisclaimerAcknowledged.toggle() }/m' <copy>/<FS>/ScenicHomeScreen.swift
+      $ grep -n -F isSafetyDisclaimerAcknowledged <copy>/<FS>/ScenicHomeScreen.swift
+      98:        .onAppear { isSafetyDisclaimerAcknowledged.toggle() }
+      101:                isSafetyDisclaimerAcknowledged = true
+      $ bash ops/lib/check-safety-disclaimer --sources <copy>/<FS> --app-tree <copy>
+      P-SAFE-03: 4 Swift file(s) ... `private var isSafetyDisclaimerAcknowledged = false` under it; ...
+        `isSafetyDisclaimerAcknowledged = true` written exactly once, at line 101, inside the
+        SafetyDisclaimer(onAccept: { block opening at line 100.
+      exit=0
+
+  Fresh install: the declared default is false and B1's anchor holds; the screen appears; `.onAppear`
+  toggles the flag; @AppStorage's setter is nonmutating, so that write lands in UserDefaults and
+  re-evaluates the body; the button is built with true through the REAL pass-through so B3 sees nothing
+  wrong; the guard at GatedHandoffButton.swift:46 passes; the first tap calls SkylineHandoff.open( at line
+  51 and leaves for Apple Maps with the sheet never presented. This pin's statement false with its own
+  assertion green - B4 unchanged, one token later - and the green paragraph prints "written exactly once"
+  over a screen with two writers. It also falsifies the sentence this commit ADDED to the blind-spot list,
+  "that it EXISTS, exactly once, and that nothing else on the screen writes the flag is anchored by (d)":
+  something else does write it and (d) does not see it, which is the list over-claiming in the one place
+  whose purpose is that nobody reads more into a green than is there.
+
+  WHAT CLOSES IT, cheaply: the identifier occurs six times in all of apps/ios and one is a comment -
+  GatedHandoffButton.swift 17 (comment) / 26 / 46 and ScenicHomeScreen.swift 41 / 83 / 100. Replace the
+  blacklist with a WHITELIST over the bare identifier, // stripped: exactly three occurrences in
+  ScenicHomeScreen.swift (declaration, pass-through, the one write) and two in GatedHandoffButton.swift, so
+  any new occurrence in any spelling refuses by name - `.toggle()`, `= !false`, `= 1 == 1`, `self.`
+  prefixed, a helper the closure calls, all one count. A twelfth row holds it red. NAMED, NOT TESTED HERE,
+  so the fix does not stop one token short again: `UserDefaults.standard.set(true, forKey:
+  "safety.disclaimer.acknowledged.v1")` writes the same store without naming the identifier at all.
+
+  RECORDABLE, not blocking. (R-C) The acceptance block's third quoted command,
+  `bash .artifacts/b4-both-directions.sh`, is untracked (`git ls-files .artifacts` empty), so no reviewer
+  can re-run it from the PR; I reproduced both directions myself and got the same two refusals, so the
+  claim stands - quote the two `--sources/--app-tree` invocations directly next time, or make R-B a row.
+  (R-D) ops/lib/check-safety-disclaimer is 299 lines against the 300-line cap and ops/lib/check-line-cap
+  counts Swift only, so the fixer's "anything further goes to the lib" ruling is the whole guard; nothing
+  mechanical holds it. (R-A) stands as ruled, carried to T-0180. state stays `claimed`; nothing in the tree
+  was changed by this review.
+
+- 2026-09-19T05:35:27Z RULINGS (round 4) by agent/claude-opus-5, the owner, on rv3-pr101's B5, BEFORE any
+  code. PR #101, head 84754ed. B5 REPRODUCED FIRST, on a throwaway copy of apps/ios under the gitignored
+  .artifacts/, with the check handed that copy by `--sources`/`--app-tree` - never an untracked script
+  (rv3's R-C):
+
+      $ cp -R apps/ios .artifacts/b5/ios
+      $ sed -i -e 's/^        .background(DesignTokens.bg)$/&\n        .onAppear { isSafetyDisclaimerAcknowledged.toggle() }/' \
+          .artifacts/b5/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift
+      $ grep -n -F isSafetyDisclaimerAcknowledged .artifacts/b5/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift
+      41:    private var isSafetyDisclaimerAcknowledged = false
+      83:                        isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,
+      98:        .onAppear { isSafetyDisclaimerAcknowledged.toggle() }
+      101:                isSafetyDisclaimerAcknowledged = true
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/b5/ios/Packages/ScenicApp/Sources/FeatureScenicHome --app-tree .artifacts/b5/ios
+      P-SAFE-03: 4 Swift file(s) under .artifacts/b5/ios/...; ... `isSafetyDisclaimerAcknowledged = true`
+        written exactly once, at line 101, inside the SafetyDisclaimer(onAccept: { block opening at line 100.
+      exit=0
+
+  Two writers on the screen, the green paragraph printing "written exactly once", and the first tap of a
+  fresh install leaving for Apple Maps with the sheet never shown. B5 is upheld in full and is the fifth
+  finding on this PR that fails OPEN. rv3 is right about the shape of the mistake, and the shape is the
+  ruling: (d) is a BLACKLIST with one entry. Four rounds of this pin have each extended a blacklist by the
+  one spelling the last reviewer thought of - `= true` beside the real write, then `= true` moved out of the
+  closure - and a blacklist of spellings for "writes a Bool" has no end: `.toggle()`, `= !false`, `= 1 == 1`,
+  `self.`-prefixed, `$flag.wrappedValue = true`, a helper the closure calls. R4-A, RULED: the anchor
+  becomes a WHITELIST over the one thing every spelling must share - the identifier itself - and the count
+  is the shape, because a write the check cannot see is a write that never mentions the flag.
+
+  R4-B, the per-file counts: TYPED LITERALS in the check, the T-0142 shape, not derived from the anchors
+  already read. Derivation is the tempting half-measure and it is the same defect again. To derive "the
+  screen carries four" the check would need one rule per legitimate occurrence - the declaration
+  ack_default_verdict already found, the two halves of the pass-through button_args already read, the write
+  require_ack_write already located - which is a whitelist wearing a derivation's clothes, longer than the
+  two literals and with one more thing to get wrong in each rule; and its expected number MOVES whenever an
+  anchor moves, so a change that both adds an occurrence and satisfies some anchor passes silently, which
+  is the failure mode being closed here. A literal is a number a human decided, that a reviewer reads in
+  the diff, and that the day FeatureScenicHome legitimately grows a fifth occurrence somebody has to raise
+  deliberately in a commit. The refusal prints the whole file(count) list beside the tracked set, so the
+  literal is never a riddle.
+
+  R4-C, the tracked numbers themselves: ScenicHomeScreen.swift(4) and GatedHandoffButton.swift(2), counted
+  by OCCURRENCE WITH MULTIPLICITY, not by matching line. This DISAGREES with rv3's enumeration and with the
+  round-4 brief, both of which say the screen carries three - they count `grep`'s matching lines, and line
+  83, `isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged`, is one line carrying two. The
+  disagreement is ruled for the stronger reading, before code, because a per-LINE count cannot see a second
+  writer appended to a line that is already anchored: a single line spelling the pass-through and then
+  `, onTap: { isSafetyDisclaimerAcknowledged = true }` after it carries three occurrences, leaves the LINE
+  count at three, and is exactly B5 one token further along. Four is the count of things the identifier does on that
+  screen: the @AppStorage declaration, the argument label, the value passed, the write inside onAccept; two
+  is the button's stored property and the guard's read. The comment at GatedHandoffButton.swift:17 that
+  mentions the identifier is not among them and must not be, because `//` is stripped before counting -
+  CLAUDE.md, never anchor on a comment, and here a comment that WAS counted would let a writer be smuggled
+  in by deleting a word of prose.
+
+  R4-D, the store KEY, which rv3 named and explicitly did not test: the identifier whitelist is blind to
+  `UserDefaults.standard.set(true, forKey: "safety.disclaimer.acknowledged.v1")`, which writes the same
+  store through the same key without naming the identifier once. @AppStorage is a UserDefaults wrapper;
+  that line makes the guard pass on the next body evaluation exactly as `.onAppear` did. So the literal
+  key is whitelisted too: exactly one occurrence over the whole app tree, the @AppStorage declaration on
+  the screen. Not fixing this in the same commit would be stopping one token short for the fifth time.
+
+  R4-E, ordering, and why the table does not have to change: both whitelists run LAST in run_check, after
+  the call-graph, the argument list and the blocked path. Rows 3, 5 and 10 mutate the identifier's counts
+  as a side effect (the guard deleted is 2 -> 1; the pass-through turned into `: true` is 4 -> 3; a second
+  button is 4 -> 5), and each of those rows exists to prove a DIFFERENT refusal by name. Running the
+  whitelists last leaves every earlier row refused by its own reason and the two new rows refused by the
+  new ones. Row 11's MOVE keeps the count at four, so it stays red by the depth walk alone, which is why
+  require_ack_write is kept and not replaced: the whitelist says nothing about WHERE the one write sits.
+
+  R4-F, the 300-line cap on ops/lib/check-safety-disclaimer (rv3's R-D, and the 05:06 entry's own "anything
+  further added to it goes to the lib"): the two readers and the assertion go to -lib as ruled, and in
+  addition the check's header paragraphs recounting findings B1-B4 are compressed to a five-line index of
+  which anchor closes which finding. The full account of every one of them is in pins/PINS.yaml P-SAFE-03's
+  why_no_test_catches_it, which is the load-bearing document a pin is read from; a duplicate narrative in a
+  comment is the copy that goes stale, and it is not an anchor. -lib takes the new readers and stays under
+  the cap; if it crosses 300 the split is by meaning - readers of source in one file, assertions in another
+  - and this entry says so in advance so the next fixer does not invent a split under time pressure.
+
+  NOT TAKEN, again and deliberately: rv2's R-A (a `*Tests/` carve-out in the recursive population) stays as
+  ruled in the 04:42 entry and goes to T-0180. This commit is ops/lib (three files) + pins/PINS.yaml + this
+  file. No Swift, so run 35405951245 still describes this tree, and ios-compile is not dispatched.
+
+- 2026-09-19T06:08:17Z FIX (round 4) by agent/claude-opus-5, the owner (agent/rv3-pr101 found and did not fix):
+  B5 CLOSED, the acceptance block re-run and re-quoted at the final pre-review commit (the author rule).
+  Diff: ops/lib (three files) + pins/PINS.yaml + this file. `--name-status` all M, no Swift, so run
+  35405951245 still describes this tree and ios-compile is not dispatched.
+
+  WHAT CHANGED. (1) ops/lib/check-safety-disclaimer-lib gains `count_occurrences_in` (index()/substr() in
+  awk over //-stripped code: every OCCURRENCE, not every matching LINE, which is all `grep -c` can say),
+  `occurrences_with_multiplicity`, and the assertion `require_tracked_occurrences`, which compares the
+  file(count) list it saw against a tracked set and refuses by name on anything else. (2) The check gains
+  (v): the identifier at GatedHandoffButton.swift(2) ScenicHomeScreen.swift(4) and the literal store key at
+  ScenicHomeScreen.swift(1), both over every *.swift under the app tree, both LAST in run_check so rows 3,
+  5 and 10 - which move these counts as a side effect - keep being refused by their own reasons (ruling
+  R4-E). require_ack_write is KEPT: the whitelist says nothing about WHERE the one write sits, which is
+  row 11. (3) Two table rows, 12 and 13, each adding a second writer BESIDE the real one: `.toggle()`,
+  which (d) cannot see, and `UserDefaults.standard.set(true, forKey:)` on the key, which never names the
+  identifier. (4) P-SAFE-03 gains (e) and (f), records that both new rows are red by the new anchor ALONE,
+  and WITHDRAWS the sentence added at 05:06 claiming (d) anchored that nothing else on the screen writes
+  the flag - (d) reads one spelling, which is what B5 proved. (5) The check's B1-B4 narrative is compressed
+  to a six-line index under the 300-line cap (ruling R4-F); the account it duplicated is in the pin.
+
+  RED FIRST, on throwaway copies of apps/ios under the gitignored .artifacts/, the check handed both
+  halves explicitly and no script in between (rv3's R-C). Each of these was exit 0 before this commit -
+  the first is rv3's own reproduction, quoted in the 05:35 ruling above.
+
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/b5a/ios/Packages/ScenicApp/Sources/FeatureScenicHome --app-tree .artifacts/b5a/ios
+      P-SAFE-03: the identifier isSafetyDisclaimerAcknowledged occurs outside its tracked set in the app tree; found: .artifacts/b5a/ios/.../GatedHandoffButton.swift(2) .artifacts/b5a/ios/.../ScenicHomeScreen.swift(5)
+        Tracked set: .artifacts/b5a/ios/.../GatedHandoffButton.swift(2) .artifacts/b5a/ios/.../ScenicHomeScreen.swift(4). Counted by OCCURRENCE - one line may carry two - over all 10 .swift file(s)
+        under .artifacts/b5a/ios with // stripped. This is a WHITELIST: any other count in any file is refused by
+        name, whatever the spelling, which is the only shape that holds when the spellings are unbounded.
+        Those six: on the screen the @AppStorage declaration, the argument label and the value of the
+        pass-through, the write in the accept closure; in the button the property and the guard's read.
+      exit=1
+
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/b5b/ios/Packages/ScenicApp/Sources/FeatureScenicHome --app-tree .artifacts/b5b/ios
+      P-SAFE-03: the store key safety.disclaimer.acknowledged.v1 occurs outside its tracked set in the app tree; found: .artifacts/b5b/ios/.../ScenicHomeScreen.swift(2)
+        Tracked set: .artifacts/b5b/ios/.../ScenicHomeScreen.swift(1). Counted by OCCURRENCE - one line may carry two - over all 10 .swift file(s)
+        under .artifacts/b5b/ios with // stripped. This is a WHITELIST: any other count in any file is refused by
+        name, whatever the spelling, which is the only shape that holds when the spellings are unbounded.
+        @AppStorage is a UserDefaults wrapper: UserDefaults.standard.set(true, forKey:) on this key writes
+        the same store without naming the identifier once, and the whitelist above cannot see it.
+      exit=1
+
+  The `.../` above elides only the copy's Packages/ScenicApp/Sources/FeatureScenicHome; the mutants were
+  made with one sed each on `.background(DesignTokens.bg)`, exactly as rows 12 and 13 spell them, and both
+  are in the table now so no reviewer has to take a transcript's word for it.
+
+  THEN GREEN, the whole acceptance block at the final commit.
+
+      $ bash ops/lib/check-safety-disclaimer
+      P-SAFE-03: 4 Swift file(s) under apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome; SafetyDisclaimer declared once in its own file;
+        home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in
+        SafetyDisclaimer.swift, the persistent line present, @AppStorage("safety.disclaimer.acknowledged.v1")
+        at line 40 with `private var isSafetyDisclaimerAcknowledged = false` under it;
+        over the 10 .swift file(s) under apps/ios, SkylineHandoff.open( called once
+        (GatedHandoffButton.swift line 51), dominated by the guard at line 46;
+        GatedHandoffButton( constructed once, in ScenicHomeScreen.swift, passing isSafetyDisclaimerAcknowledged
+        through with no `: true` in its argument list; the blocked tap is wired - onBlocked() at line
+        47 before the return at line 48, `onBlocked: { isShowingDisclaimer = true }`
+        and a sheet bound to that flag on the screen; `isSafetyDisclaimerAcknowledged = true` written exactly once, at
+        line 100, inside the SafetyDisclaimer(onAccept: { block opening at line 99;
+        and by occurrence over the app tree, isSafetyDisclaimerAcknowledged at apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/GatedHandoffButton.swift(2) apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift(4), the key at apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift(1).
+        Not checked here: rendering, taps, whether that write RUNS, contrast, Dynamic Type, 44 pt.
+      exit=0
+
+      $ bash ops/lib/check-safety-disclaimer --prove-red
+      MUTATION                                             EXIT     REASON NAMED
+      the SafetyDisclaimer type renamed                    1        yes
+      the home.disclaimer identifier removed               1        yes
+      the acknowledgement guard removed                    1        yes
+      the persistent conditions line removed               1        yes
+      the acknowledgement no longer passed to the button   1        yes
+      the on-device store key changed                      1        yes
+      the blocked tap no longer presents the disclaimer    1        yes
+      the acknowledgement defaults to true                 1        yes
+      a second call site in the app shell                  1        yes
+      a second button beside the real one                  1        yes
+      the acknowledgement written outside the accept closure 1        yes
+      a second writer spelled .toggle()                    1        yes
+      a second writer through UserDefaults and the key     1        yes
+      prove-red: 13/13 mutations refused by name
+      exit=0
+
+      $ git ls-files -s ops/lib/check-safety-disclaimer*
+      100755 e5d5c4d2b704429e8a2c6d0b4df780b0f549f68c 0	ops/lib/check-safety-disclaimer
+      100755 35c559b28746ad1fdaf7ecf76f8d52298e85310e 0	ops/lib/check-safety-disclaimer-lib
+      100755 c9772f9266b44aa6c17ed035b66215cea3e77d0a 0	ops/lib/check-safety-disclaimer-mutations
+
+      $ wc -l ops/lib/check-safety-disclaimer ops/lib/check-safety-disclaimer-lib ops/lib/check-safety-disclaimer-mutations
+        300 ops/lib/check-safety-disclaimer
+        298 ops/lib/check-safety-disclaimer-lib
+         96 ops/lib/check-safety-disclaimer-mutations
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 73 Swift files tracked (Sources=26, Tests=37, apps/ios=10), none over 300 lines
+      exit=0
+
+      $ bash ops/queue-check
+      QUEUE OK (169 tasks)
+      exit=0
+
+      $ bash ops/check-pins --source-only
+      PINS ok=12 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only
+      exit=0
+
+  That last one was started ONCE, bare, and took roughly fifteen minutes to return - it drives a
+  `swift build`, which is why rv3 abandoned it at ~12 and claimed no local verdict. It did finish here,
+  and it is quoted because it finished; the 12 ok include P-SAFE-03 through its own assertion, the bare
+  check above.
+
+  SIZES, re-measured at THIS commit (`wc -l`, the T-0162 lesson): check-safety-disclaimer 300 (was 299),
+  -lib 298 (was 253), -mutations 96 (was 89). The check sits exactly ON the 300-line cap and -lib two under
+  it, which is honest but has no headroom and nothing mechanical holds either (rv3's R-D stands, unfixed).
+  Ruling R4-F says in advance where the next line goes: readers of Swift source stay in -lib, assertions
+  move to a third file, and the split is by that boundary and not by whatever is convenient. Modes are
+  unchanged 100755 on all three, no new file under ops/, so no `git update-index --chmod=+x` (P-OPS-01).
+
+  ACCEPTANCE LINES 2 AND 3 ARE NOT RE-MEASURED AND DO NOT NEED TO BE: this commit touches no file they are
+  measured over. `git diff --name-status` for it is five M lines - ops/lib (three), pins/PINS.yaml, this
+  file - and no *.swift, no *.xcstrings, no project.pbxproj. The disclaimer's identifiers, the persistent
+  line, the 16:13 panel strings and the ios-compile run 35405951245 stand exactly as quoted in the 05:06
+  entry. The rule is that a correction commit re-measures a file it TOUCHES; inventing a fresh grep over a
+  file this diff does not contain would be evidence about a tree, not about this change.
+
+  STILL OPEN, carried from 05:06 except where this entry corrects it: nothing on this screen has been
+  rendered, the acknowledgement has never been tapped, there is no XCUITest, there is no
+  `SafetyDisclaimerDisplaying` protocol, and the 44 pt / Dynamic Type / contrast arguments are unmeasured.
+  R1 stays as corrected at 05:06. R2 and R3 stand. R5 - the table's own "UNREFUSED or UNNAMED" branch - has
+  still never been seen to fire, and thirteen rows red by name is that branch not firing, not a test of it.
+  NEW AND NOT FIXED HERE, stated so the next reviewer does not have to find it: (e) and (f) read LITERAL
+  spellings, so a key assembled from a named constant, a string interpolation or a computed suite name, a
+  write from a target outside apps/ios, or an acknowledgement recorded under a second key this pin has
+  never heard of, are all unseen - this is in the pin's WHAT IT CANNOT SEE and in the check's header, and
+  it is the honest boundary of a source check, not a promise for a later round. rv2's R-A (the `*Tests/`
+  carve-out) stays not taken, for T-0180. The table now copies apps/ios thirteen times, which is T-0184's
+  problem when it puts every `--prove-red` in CI.
