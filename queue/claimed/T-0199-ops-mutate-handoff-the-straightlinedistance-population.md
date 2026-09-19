@@ -200,3 +200,64 @@ card's precision and the test doc overclaiming.
   a new driver rather than a widening still holds - the split keeps this runner at 508 lines across two files
   against handoff.py's 603 in one - but the cap is written for every file, this one is over it, and a reviewer
   should read that here rather than discover it.
+- 2026-09-19T21:54:53Z RULING by agent/claude-opus-5 (owner) on the pre-review mutant pass
+  (.artifacts/signoffs/t0199-mutant-pass.md - solid, ONE survivor, PROBE 11) and on the 300-line cap,
+  before the commit that closes them.
+  (R6) PROBE 11 - the double floor at the ENTRY POINT - IS NOT CONSTRUCTIBLE AS A KILLED MUTATION, and is
+  filed as EQUIVALENT with the domain enumeration as its witness. The pass's verdict line, quoted:
+  `MISSED        PROBE 11: wholeMiles(for:) derived from the floored wholeKilometers(for:) exit=0  no test
+  objected`. The instruction was to bind a test to `wholeMiles(for:)` over a chain the test CONSTRUCTS.
+  Measured before writing anything: `wholeMiles(for drive: HandoffDrive)` takes a `HandoffDrive`, and
+  `HandoffDrive` is `enum HandoffDrive: String, CaseIterable` with exactly TWO cases whose `chain` is
+  `waypoints + [destination]` read from `SkylineRoute`/`SantaMonicaMountainsRoute` `static let`s. There is
+  no case to construct, no chain parameter and no injection point, so a test cannot hand that entry point
+  4 km of anything. The bands named in the instruction are real and I recomputed them - 3_700 m = 2.2991 mi
+  -> 2 against floor(3 km) x 0.621371 = 1.8641 -> 1; 1_650 m = 1.0253 -> 1 against floor(1 km) x 0.621371 =
+  0.6214 -> 0 - but they are bands on `wholeMiles(through:)`, the HELPER, which is population entry 9 and is
+  already killed BY NAME over the 4_999.331 m chain `theMilesComeFromTheMetresAndNotFromTheFlooredKilometres`
+  constructs (3 mi against the double floor's 2). The named fallback does not exist either: there is no
+  `ops/plan` in this tree (`ls ops/`: agent-preflight, api-url, check-pins, claim, deploy, deploy-routing,
+  etl-*, lib, lock, merge, mutate, new-task, prod-read, publish-tiles, queue-check, queue-next, queue-sweep,
+  review, sane, score-review, test), and the card is
+  `apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/DriveFacts.swift:45`, an Apple-only target that the
+  Linux package's `HandoffTests` cannot import and this box cannot build. So the two shipped drives ARE the
+  entry point's whole input domain, both agree either way (Skyline 112_268.093 m -> 69.7602 -> 69 vs
+  floor(112.268 km) = 112 -> 69.5936 -> 69; LA 47_445.124 m -> 29.4810 -> 29 vs 47 -> 29.2044 -> 29), and
+  the honest filing is an EQUIVALENT entry whose witness is that exhaustion - NOT a MUTATIONS entry with a
+  killer softened until it passes. The witness states the margin, because a domain equivalence is not an
+  arithmetic one and must not be filed as permanent: 268.1 m off the Skyline chain puts floor(km) at 111 ->
+  68.9722 -> 68 against the metres' 69, and 445.1 m off the LA chain puts it at 46 -> 28.5831 -> 28 against
+  29. The tripwire is written, not promised: the new test ranges over `HandoffDrive.allCases` comparing this
+  entry point with each drive's OWN metres, so the day a pin moves that far or a third drive lands, this
+  EQUIVALENT entry stops reporting MISSED and the arm FAILS the run until it is ruled again. Recorded
+  plainly: the double floor AT `wholeMiles(for:)` is unkillable today. That is the gap, it is in the
+  population as a witnessed entry and in this Log, and it is not being reported as covered.
+  (R7) The pass's OTHER finding, which is the one that buys a mutation: the entry point had no mutation at
+  all. Entries 1-10 each edit a helper (`meters`, `wholeKilometers(through:)`, `wholeMiles(through:)`,
+  `skylineRoutePoints`) or a dependency (`Geo.swift`, `SkylineRoute.swift`); nothing in the population
+  edited the body of the symbol `DriveFacts` renders, so a rewrite of `wholeMiles(for:)` was measured by
+  nobody. MUTATION 11: `wholeMiles(through: drive.chain)` -> `wholeMiles(through: HandoffDrive.skyline.chain)`
+  - the entry point measuring the Skyline chain whatever drive it is handed, which is T-0202's drift (a
+  figure that names one drive while the tap takes another) and renders 69 miles of somebody else's drive on
+  the LA screen. Its killers, both named: the new
+  `every drive's miles are that drive's own chain, floored from that drive's metres` and the standing
+  `the whole-mile figure is the number the LA drive renders, from the same metres`. MIN_MUTATIONS 10 -> 11
+  and MIN_EQUIVALENT 1 -> 2, the REAL counts and not round numbers under them (R4's rule), and `--prove-floor`
+  gains an eighth arm demonstrating the raised EQUIVALENT floor refusing.
+  (R8) THE CAP: `wc -l ops/mutate/straightline.py` = 354 against CLAUDE.md's 300. Ruled SPLIT, not exempt.
+  The exemption argument exists and I am naming it rather than leaning on it: every ops/mutate driver is
+  over the cap today, handoff.py at 603. A precedent for a violation is not a licence, and this repo's own
+  answer to a runner that outgrew the cap is a family split - budget.py beside budget_arms.py,
+  budget_boundaries.py, budget_paths.py and budget_tree.py; geometry.py beside geometry_arms.py and
+  geometry_tree.py; scenic_tags.py beside scenic_tags_mutations.py. So the MUTANT RUNNER moves out:
+  `FAIL_LINE`, `failing_test_names`, `empty_suite`, `head_bytes`, `not_at_head`, `build`, `test`, `run_all`,
+  `SCRATCH`, `FILTER` go to `ops/mutate/straightline_run.py`, and straightline.py keeps the CLI, the floors
+  and the proof arms - the part that decides whether a run is ALLOWED to happen. The population is untouched
+  by the split; the only semantic change is that `HARNESS` gains the third file, so the runner is compared
+  with `git show HEAD:` before a run like the other two (a runner edited on disk is precisely the false
+  verdict that guard exists for). The family is still ONE driver to the gate: check-mutate-population.py:125
+  globs `ops/mutate/<stem>*.py` for `driver_code`, and its DRIVERS whitelist refuses only files carrying a
+  `__main__` block - straightline_run.py has none, exactly as straightline_mutations.py has none. Measured
+  after: straightline.py 242, straightline_run.py 149, straightline_mutations.py 197,
+  Tests/HandoffTests/StraightLineDistanceTests.swift 237 (was 208) - every one under 300, and the new file
+  is 100644 like every other ops/mutate/*.py (it is imported, never invoked).
