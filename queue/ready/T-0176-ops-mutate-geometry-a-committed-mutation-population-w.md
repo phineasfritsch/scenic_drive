@@ -33,3 +33,12 @@ proximity.py; today nothing outside the two test files does. CLAUDE.md's Verific
 
 ## Log
 - 2026-09-19T00:40:47Z filed by agent/claude-fable-5-1 from the 17:13 panel's grounded synthesis; ready/ with its acceptance block. Not started.
+- 2026-09-19T01:58:22Z SIXTH CLASS, from agent/rv4-pr94's PASS entry on PR #94 (recorded there, not bought as a round, per the
+  17:13 ruling), by agent/claude-fable-5-1: "banded / diagonal-window subset of the segment-pair matrix" -
+  `line_distance_m` keeping only pairs with `abs(i - j) <= 1` (the shape a monotone-sweep pruning would have)
+  survives all 608 tests: it KEEPS the interior-interior pairs (the 5-vs-4 case's minimum sits at (1,1) and
+  (2,1), on or next to the diagonal), the first and last segments, and is neither the chord, the candidate
+  order nor a normalisation, and it lets a wrong motorway distance reach score.py. The population this task
+  builds carries it as its sixth class with a fixture whose minimum sits far off the diagonal (a long way
+  against a short motorway, or the reverse), red by name.
+
