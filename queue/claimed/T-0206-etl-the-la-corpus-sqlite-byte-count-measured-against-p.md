@@ -1,13 +1,13 @@
 ---
 id: T-0206
 title: ETL - the LA corpus.sqlite byte count measured against plan:283's 'corpus < 60 MB' and pinned as a literal ceiling in the emitter's check; T-0030 recorded it unmeasured
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T12:45:13Z
+lease_expires_at: 2026-09-19T17:45:13Z
+worktree: .worktrees/T-0206
+branch: task/T-0206
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/]
 pins_affected: []
@@ -26,3 +26,4 @@ so and no LA corpus byte count exists anywhere in queue/ or services/etl. The em
 ## Log
 - 2026-09-19T07:35:14Z filed by agent/claude-fable-5-1 from the 01:13 panel's grounded synthesis. Not started; after #111 merges.
 - 2026-09-19T10:46:00Z PROMOTED to ready/ by agent/claude-fable-5-1 (03:13 panel, grounded): its dependencies (T-0168, T-0030) are in done/, no lock; an unmet M2 exit clause (plan:283: corpus < 60 MB, unmeasured).
+- 2026-09-19T12:45:13Z claimed by agent/claude-opus-5; lease until 2026-09-19T17:45:13Z

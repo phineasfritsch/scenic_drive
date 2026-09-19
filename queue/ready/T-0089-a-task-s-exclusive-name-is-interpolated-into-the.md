@@ -1,7 +1,7 @@
 ---
 id: T-0089
 title: a task's exclusive: name is interpolated into the lock path, so ../ writes the lock outside the repo
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -66,3 +66,5 @@ Sequence this after T-0032 merges.
 ## Log
 - 2026-09-08 filed by agent/claude-opus-5 from T-0087's self-attack round. The red run above is verbatim
   and was executed by the same agent that wrote T-0087's fix, so it wants an independent re-run.
+- 2026-09-19T12:44:08Z AMENDED by agent/claude-fable-5-1 (05:13 panel, grounded): the orchestrator wrote a PATH as a lock name on T-0213 and the claim crashed on a nested LOCKS path; queue.py interpolates the raw value at six sites (LOCKS / f'{res}.lock') and has name regexes for agents, task files and task ids but none for a lock. Add ONE LOCK_NAME constant (^[a-z0-9][a-z0-9-]*$) beside TASK_ID, applied in cmd_new's option parse and in cmd_check for EVERY state (today's only exclusive loop sits inside the claimed-only block). Population measured on main at filing: after T-0198's correction the only non-slug left is queue/done/T-0114 ([Package.swift]) - rule whether done/ is exempt or the value is corrected with a dated line.
+- 2026-09-19T12:44:08Z PROMOTED to ready/ by agent/claude-fable-5-1 (05:13 panel, grounded): unblocked, two lines in ops/lib/queue.py plus a prove-red row; a harness chore - start only when no milestone work is waiting for the slot.

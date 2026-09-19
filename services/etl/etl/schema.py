@@ -220,6 +220,10 @@ REQUIRED_META_KEYS = frozenset({
     "schema_version", "min_app_build", "corpus_version", "region", "bbox", "built_at",
     "attribution", "odbl_notice", "table_licenses", "sqlite_version", "content_sha256",
     "build_complete", "carry_rate", "previous_content_sha256",
+    # T-0205 ruling R2: a key, not a column - adding it is not DDL and SCHEMA_VERSION does not move. Listed
+    # here so CorpusWriter.finalize REFUSES a corpus that forgot to write it, which is the integrity rule 1
+    # above says REQUIRED_META_KEYS exists to recover. Its value is etl/surfacecoverage.py's table.
+    "surface_coverage",
 }) | REQUIRED_COUNT_KEYS
 
 # Excluded from meta.content_sha256: everything that is a property of THIS build rather than of its content.

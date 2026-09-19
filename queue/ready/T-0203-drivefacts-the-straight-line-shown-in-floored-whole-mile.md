@@ -1,7 +1,7 @@
 ---
 id: T-0203
 title: DriveFacts - the straight line shown in floored whole miles for a US driver, test-pinned exactly like the kilometre figure, and the label says 'as the crow flies' not 'through the pins'
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -26,3 +26,4 @@ unit the driver thinks in.
 
 ## Log
 - 2026-09-19T06:29:45Z filed by agent/claude-fable-5-1 from the 00:13 panel's grounded synthesis (DRIVER TWO-3). Not started; after #110 merges.
+- 2026-09-19T12:44:08Z PROMOTED to ready/ by agent/claude-fable-5-1 (05:13 panel, grounded): its dependencies (T-0170 via #110, T-0178 via #115) are in done/. ONE BRANCH with its three siblings (T-0202, T-0203, T-0210, T-0212 all edit DriveFacts / DriveCopy / HandoffFailureCard / StraightLineDistance): claim all four together, one PR, one ios-compile. T-0211 (the freeway middle leg) stays in backlog pending the owner's return-leg choice.

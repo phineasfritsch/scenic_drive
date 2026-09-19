@@ -8,7 +8,7 @@ claimed_at: null
 lease_expires_at: null
 worktree: null
 branch: null
-exclusive: [pins/floor_linux.txt]
+exclusive: [floors]
 touches: [ops/test, ops/lib/, pins/]
 pins_affected: []
 reviewer: null
@@ -27,3 +27,4 @@ pins-source-only. A regression in either directory is invisible to the one comma
 
 ## Log
 - 2026-09-19T05:38:57Z filed by agent/claude-fable-5-1 from T-0165's STILL OPEN 1 (PR #109) and rv2-pr105's recordable on PR #105. Not started.
+- 2026-09-19T12:44:08Z exclusive: a lock name is a SLUG, by agent/claude-fable-5-1 (05:13 panel, grounded): [pins/floor_linux.txt] -> [floors] (the name queue/LOCKS/ already uses). queue/LOCKS/floors.lock has been held by the stale claimed task T-0071 since 2026-09-08 and must be released (queue-sweep, or T-0071's owner) before this task can claim it.
