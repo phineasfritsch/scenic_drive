@@ -20,7 +20,7 @@ import argparse
 import datetime as _dt
 import sys
 
-from . import contentdigest, corpusmatch, schema
+from . import contentdigest, corpusmatch, schema, surfacecoverage
 from .corpuswriter import CorpusWriter
 from .extractway import load_extract
 from .segmenter import Segmenter
@@ -101,6 +101,9 @@ def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
             f"{t}={schema.TABLE_LICENSES[t]}" for t in sorted(schema.TABLE_LICENSES)))
         writer.set_meta("sqlite_version", _sqlite_version())
         writer.set_meta("carry_rate", carry_rate)
+        # T-0205 ruling R1: the per-class surface coverage is computed ONCE, here, over the extract's own
+        # ways (their RAW surface tag), and the check re-reads this value rather than recounting anything.
+        writer.set_meta(surfacecoverage.META_KEY, surfacecoverage.encode(surfacecoverage.coverage(ways)))
         writer.set_meta("previous_content_sha256", previous_digest)
         writer.write_counts({
             "closed_ways": sum(1 for w in ways if w.is_closed),
