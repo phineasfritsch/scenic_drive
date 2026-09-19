@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version="0.6" generator="osmium/1.16.0">
+  <bounds minlat="34.0000" minlon="-118.8000" maxlat="34.1000" maxlon="-118.6000"/>
+  <node id="11" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0100" lon="-118.7000"/>
+  <node id="12" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0110" lon="-118.6990"/>
+  <node id="13" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0125" lon="-118.6975">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="14" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0200" lon="-118.6900"/>
+  <node id="15" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0300" lon="-118.6800"/>
+  <node id="16" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0400" lon="-118.6700"/>
+  <node id="17" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0500" lon="-118.6600"/>
+  <node id="18" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0600" lon="-118.6500"/>
+  <way id="101" version="2" timestamp="2025-01-02T03:04:05Z">
+    <nd ref="11"/>
+    <nd ref="12"/>
+    <nd ref="13"/>
+    <nd ref="14"/>
+    <tag k="highway" v="tertiary"/>
+    <tag k="name" v="Latigo Canyon Road"/>
+  </way>
+  <way id="102" version="1" timestamp="2025-01-02T03:04:05Z">
+    <nd ref="14"/>
+    <nd ref="15"/>
+    <tag k="highway" v="motorway"/>
+    <tag k="ref" v="US 101"/>
+  </way>
+  <way id="103" version="1" timestamp="2025-01-02T03:04:05Z">
+    <nd ref="15"/>
+    <nd ref="16"/>
+    <tag k="highway" v="residential"/>
+    <tag k="access" v="private"/>
+  </way>
+  <way id="104" version="1" timestamp="2025-01-02T03:04:05Z">
+    <nd ref="16"/>
+    <nd ref="17"/>
+    <tag k="highway" v="track"/>
+  </way>
+  <way id="105" version="1" timestamp="2025-01-02T03:04:05Z">
+    <nd ref="17"/>
+    <nd ref="18"/>
+    <tag k="highway" v="unclassified"/>
+    <tag k="name" v="No Elevation Lane"/>
+  </way>
+  <way id="106" version="1" timestamp="2025-01-02T03:04:05Z">
+    <nd ref="11"/>
+    <nd ref="12"/>
+    <nd ref="18"/>
+    <nd ref="11"/>
+    <tag k="leisure" v="park"/>
+    <tag k="name" v="Malibu Creek State Park"/>
+  </way>
+</osm>

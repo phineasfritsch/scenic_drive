@@ -7,6 +7,7 @@ Absent, not wrong, which is the shape that does not announce itself.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -197,6 +198,21 @@ def test_served_tiles_notices_a_region_added_after_its_first_call(tmp_path):
     assert dem.region_ids(tmp_path) == ["east", "west"]
     assert dem.served_tiles(root=tmp_path) == {"n45w100", "n45w101"}, \
         "served_tiles answered from its cache while region_ids already saw the new region"
+
+    # The OTHER half of `_cache_key`, carried in from rv2-pr106's PASS on PR #106: a region.json REWRITTEN
+    # in place. `region_ids` cannot see that - the same regions exist - so the `st_mtime_ns` stamp is the
+    # only thing that makes it a different key. A mutant dropping the stamp passed 1045/1045 tests.
+    # The mtime is set explicitly rather than trusted: two writes inside one system clock tick carry the
+    # same timestamp on this box's filesystem, and a test that depends on that is a flake, not a check.
+    moved = tmp_path / "east" / "region.json"
+    moved.write_text(json.dumps({
+        "id": "east", "name": "east", "counties": ["nowhere"],
+        "bbox": {"min_lon": -98.9, "min_lat": 44.1, "max_lon": -98.6, "max_lat": 44.3},
+    }), encoding="utf-8")
+    later = moved.stat().st_mtime_ns + 1_000_000_000
+    os.utime(moved, ns=(later, later))
+    assert dem.served_tiles(root=tmp_path) == {"n45w099", "n45w101"}, \
+        "served_tiles answered from its cache while the region's own bbox had moved under it"
 
 
 def test_the_sfbay_golden_set_is_exactly_what_the_derivation_serves():
