@@ -1,7 +1,7 @@
 ---
 id: T-0205
 title: ETL - surface-coverage per class in meta (plan:283): the corpus manifest carries surface known/unknown/unpaved counts per highway class over the region clip, with the pytest and a pin; nothing writes it today
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T10:49:25Z
@@ -11,7 +11,7 @@ branch: task/T-0205
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/, pins/PINS.yaml, ops/mutate/, ops/lib/check-mutate-population.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr116
 depends_on: [T-0168, T-0173]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -252,3 +252,48 @@ coverage is measured and watched.
   acceptance block above is affected - pins/PINS.yaml is the only file this correction touches, and it is not
   a file any measurement there ranges over except its own `wc -l`, re-measured here: pins/PINS.yaml 278 and
   this task file 254 at the final commit. Every other number in the 11:31:11Z block stands as run.
+- 2026-09-19T12:09:16Z REVIEW PASS by agent/rv1-pr116 (not the owner, not the fixer), PR #116 at
+  756d157b1d48f9be879d5b2d1c3575d248a8416d, reviewed in a detached worktree .worktrees/rv1-pr116. Every
+  number below was re-run BARE by the reviewer, not quoted from this file.
+  * diff vs origin/main: 10 files, +1170/-4 (surfacecoverage.py 231, test_surfacecoverage.py 267,
+    ops/mutate/surfacecoverage.py 246, two fixtures, corpus.py +3, schema.py +4, PINS.yaml +9,
+    check-mutate-population.py +2 lines of registration). `wc -l` re-measured: pins/PINS.yaml 278, this
+    task file 254 before this entry - both match the 11:55:27Z re-measurement.
+  * THE MEASUREMENT RE-DERIVED INDEPENDENTLY by the reviewer from services/etl/work/la/window-doc.json
+    (read-only, main checkout) with a script of its own: 11,740 ways, per-class known/unknown/unpaved/total
+    EQUAL to tests/fixtures/surface_coverage_la_window.json byte for byte (MATCH). All ten baselines
+    recomputed by the ruled rule (fraction x 0.75, truncated to three decimals) and equal to BASELINES:
+    service 0.039308->0.029, residential 0.122170->0.091, track 0.018219->0.013, tertiary 0.293103->0.219,
+    secondary 0.382671->0.287, trunk 0.326693->0.245, primary 0.502762->0.377, unclassified 0.138298->0.103,
+    motorway_link 0.424658->0.318, motorway 0.791667->0.593.
+  * `cd services/etl && python -m pytest -o addopts= -q` -> `1165 passed in 101.52s`, zero skips.
+  * check over both fixtures: la_window -> `SURFACE classes=15 refused=0`, exit 0; below_baseline -> exit 1,
+    `SURFACE REFUSED residential: surface coverage 0.0234 is below the baseline 0.091 (60 known of 2562
+    ways)`.
+  * `python ops/mutate/surfacecoverage.py` -> `MUTATIONS: 25 caught, 0 missed, 0 skipped, of 25` /
+    `MUTATE OK  caught=25/25`; `--prove-vacuity` -> `VACUITY: 0 caught, 25 missed` / `VACUITY PROVED`.
+    `python ops/lib/check-mutate-population.py` -> `P-PROC-06: ... the floor of 23 holds`, exit 0.
+    `python ops/lib/check-schema-version.py` -> `P-PROD-05: schema_version=2 in services/etl/etl/schema.py
+    and services/api/src/index.ts`, exit 0. `bash ops/lib/check-line-cap`, `bash ops/lib/check-exec-bits`,
+    `bash ops/queue-check` -> `QUEUE OK (205 tasks)`, all exit 0.
+  * THE PASS'S FOUR NAMED SURVIVORS replayed: the `{}` table and a table with every class relabelled both
+    exit 1 with 10 classes named (`class X is missing from the table`); the motorway-baseline-0.001 and
+    `--corpus`-short-circuit mutations are lines 106-112 of ops/mutate/surfacecoverage.py and are inside the
+    25 caught.
+  * THREE REVIEWER MUTANTS, applied on the reviewer's own worktree and restored (`git status --short` empty
+    after each): (1) corpus.build writing the table from the three-state COLUMN's semantics instead of the
+    raw tag - CAUGHT RED BY NAME by test_an_untagged_motorway_is_unknown_and_not_known and
+    test_corpus_meta_carries_the_surface_coverage_table_per_class; (2) the whitelist satisfied by
+    total>=MIN_CLASS_WAYS with the buckets not summing - REFUSED at decode, exit 1,
+    `surface_coverage[living_street]: known+unknown+unpaved != total`, and the same table made to sum with
+    known=0 is refused by name in all 10 classes; (3) `surface_coverage` added to DIGEST_EXCLUDED_META -
+    CAUGHT by test_the_meta_key_is_required_so_a_corpus_cannot_ship_without_it, so the content digest
+    provably covers the new key (no committed content_sha256 golden exists to re-record).
+  * NO PIN ID COLLISION: P-DATA-04 is the only new id, PINS.yaml holds 30 ids with no duplicate, and
+    P-DATA-03 appears only in services/tiles (check_pmtiles.py, tile_meta.py, README.md, test_tile_meta.py),
+    never in pins/PINS.yaml on this branch.
+  NO BLOCKING FINDINGS. The three still-open items the fixer records are ruled behaviour or other tasks'
+  work (one window's baselines pending T-0204/T-0209; ops/sane check-4 wiring is the sane-check task; a
+  small region refused by name is S3's ruling), and none of them lets a collapsed table pass green.
+  NOT DONE BY THIS REVIEW: `bash ops/test` and the full `bash ops/check-pins` were not run (harness rule);
+  P-DATA-04's assertion was exercised through its two fixture halves rather than through check-pins.
