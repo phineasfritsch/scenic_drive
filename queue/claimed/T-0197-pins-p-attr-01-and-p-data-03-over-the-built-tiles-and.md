@@ -184,3 +184,77 @@ surface P-ATTR-01 asserts over.
   task/T-0213 but none for this branch - the pull_request event did not start linux-core on the open. This
   push re-triggers it (synchronize). CI's pins-source-only and core jobs remain the evidence for ruling R5;
   if they are still absent on this push, the reviewer should say so rather than read silence as green.
+- 2026-09-19T13:10:38Z MERGED origin/main into task/T-0197 (a55f433), before any correction, because the
+  final pre-review commit merges origin/main first and re-runs the acceptance block on the merged head
+  (CLAUDE.md, Verification). PR #119 was mergeStateStatus DIRTY / CONFLICTING, which is WHY no CI job ever
+  ran on it - GitHub starts no pull_request workflow on a conflicting PR - so ruling R5's evidence never
+  existed. ONE conflict, pins/PINS.yaml: main gained P-DATA-04 (#116, T-0205) where this branch adds
+  P-DATA-03 and P-ATTR-01. Resolved by keeping BOTH sides, each entry with its own owner/added tail; 32 pin
+  ids, 0 duplicated; PINS.yaml re-measured at 296 lines (was 287 - the author rule: a correction that
+  touches a measured file re-measures it). `python ops/lib/check-mutate-population.py` on the merged head:
+  exit 0, "P-PROC-06: every added module is covered or allowlisted; the floor of 23 holds" - CONFIRMED no
+  allowlist entry is owed: check-pmtiles-provenance.py and check-map-attribution-lib are under ops/lib/,
+  and that gate's roots are services/etl/etl/ and Sources/ only; services/tiles is outside them too.
+- 2026-09-19T13:10:38Z RULINGS R6 on the pre-review mutant pass (.artifacts/signoffs/t0197-mutant-pass.md,
+  7 survivors + 4 unsupported), before the code that closes them:
+  R6-A2/A3 BLOCKING, ONE root cause, ACCEPTED AND FIXED. (b) matched the two credit declarations by PREFIX
+  (`public static let demoAttribution = "`) and by SUBSTRING (`grep -c -F` on the line), so the demo credit
+  could be set to `© OpenStreetMap contributors, Protomaps` and the Protomaps declaration could keep the
+  plan's literal and append `+ " · Natural Earth"`, both EXIT 0 and both printing "the declaration is
+  verbatim". FIX: a WHITELIST OF EXACTLY TWO WHOLE LINES - every line under apps/ios naming
+  `static let protomapsAttribution` or `static let demoAttribution` (there is one of each, and the count is
+  asserted) is compared TRIMMED AND WHOLE against its one approved declaration. On the plan question the
+  mutant pass raises: the plan and CLAUDE.md state ONE string, `© OpenStreetMap contributors · Protomaps`,
+  for the Protomaps tiles and say nothing about the demo tiles; MapStyle.swift's own verified note (the
+  demo TileJSON's attribution is a single space, the polygons are Natural Earth) is the evidence that the
+  demo tiles carry no OpenStreetMap data. RULED: the demo credit must NEVER contain "OpenStreetMap
+  contributors"; the whole-line equality is the mechanical anchor and the refusal text says why.
+  R6-A7 BLOCKING, ACCEPTED AND IMPLEMENTED. Acceptance bullet 2's accessibilityHidden limb was neither
+  implemented nor ruled - `grep -c accessibilityHidden` was 0 in the check, the table and PINS.yaml. New
+  limb (e), a WHITELIST: every occurrence of the identifier `accessibilityHidden` in DesignSystem/
+  AttributionFooter.swift and in the mount screen must be `accessibilityHidden(false)` (counted with
+  multiplicity, // stripped), and the footer must carry at least one - so `(true)`, an interpolated
+  argument and any other spelling are refused by name rather than blacklisted. Both sites are already
+  `(false)` today (AttributionFooter.swift:67, ScenicHomeScreen.swift:260); the check now says so.
+  R6-A5 ACCEPTED AS BLOCKING AND FIXED. (d) read only that the text argument ended in `.attributionText`,
+  so the credit could come from a SECOND `DriveBasemap.resolve(...)` while the renderer kept the first.
+  FIX, anchored on identifiers at the mount site: `DriveBasemap.resolve(` occurs exactly once over apps/ios
+  (ScenicHomeScreen.swift(1)); the footer's text argument must read `<binding>.attributionText` where
+  <binding> is a bare local identifier; and `styleURL: <that same binding>.url` occurs exactly once in the
+  screen, with `styleURL:` occurring exactly once. The screen holds ONE resolved value in @State (`style`)
+  and hands `style.url` to MapView and `style.attributionText` to the footer, so both halves are read off
+  the one binding.
+  R6-A6 RULED DISCLOSURE, not closed. Reusing arm_verdict on `public var url: URL` does not fit: the check
+  was at exactly 300 lines, `url`'s three arms have a different shape from attributionText's two (two
+  single cases, not one combined), and A2/A3/A5/A7 are the blocking work. `MapStyle.url` is now named
+  explicitly in WHAT IT CANNOT SEE in BOTH the check's green output and the P-ATTR-01 pin text: a `url` arm
+  swapped to the demo style document under the Protomaps credit is green here and belongs to T-0180's
+  XCUITest half ("whether the tiles on screen are the ones the credit names").
+  R6-A4 DISCLOSURE ONLY, as the pass says. The header's sentence - any spelling that reaches a case without
+  naming the identifier, e.g. `MapStyle.allCases[0]`, plus `/* */` comments and Swift outside apps/ios - is
+  now in the pin text AND in the green output, with the true half stated: `MapStyle(rawValue:
+  "protomapsLALight")` IS refused, because (c) counts the identifier inside string literals too.
+  R6-B4 ACCEPTED AND FIXED, bound to the shipping entry point. ops/lib/check-pmtiles-provenance.py gains a
+  FOURTH in-process fixture - `good_metadata()` with the region key POPPED - which the shipping checker
+  (`python services/tiles/check_pmtiles.py`, the command build-la.sh step 6 and ops/publish-tiles run) must
+  REFUSE naming `meta.region is None`. Red first with the pass's own mutant, then green (quoted below).
+  R6-UNSUPPORTED-1 (R5's evidence does not exist) SUSTAINED. R5 cited CI jobs that never ran, because the
+  PR was CONFLICTING. R5 is hereby SUPERSEDED: `bash ops/check-pins --source-only` is run ONCE, locally, on
+  the merged head, and its summary line is quoted in the acceptance block below. A pin's evidence is a
+  command someone ran, never a job someone expected.
+  R6-UNSUPPORTED-2 ACCEPTED. P-ATTR-01 now names the XCUITest anchor the footer really carries -
+  `.accessibilityIdentifier("attribution.footer")`, AttributionFooter.swift:62 - and the snapshot name
+  T-0180 will assert over, `home-attribution-footer` at each sheet detent. No reference image exists today
+  and none is recorded here: CLAUDE.md allows a snapshot reference to be recorded only by a human-initiated
+  commit reviewed by a different agent.
+  R6-UNSUPPORTED-3 ACCEPTED AND CORRECTED. P-DATA-03's text said T-0205 "is the task that writes one".
+  T-0205 has MERGED (PR #116) and wrote meta.surface_coverage / P-DATA-04, not a region assertion. The
+  measured state of the tree today: `etl.corpus` DOES stamp the field (services/etl/etl/corpus.py,
+  `writer.set_meta("region", region)`) and NOTHING anywhere reads it back against the active region
+  (grep over ops/, services/etl/tests/ and services/api: the only hits are a waydoc fixture assertion and
+  this file). RULED: the corpus half of P-DATA-03 is UNASSERTED and UNOWNED - NO open task owns it, and the
+  orchestrator must file one. Said in the pin text and printed by the check's own green output, so the gap
+  travels with the pin instead of living in a task file.
+  R6-UNSUPPORTED-4 (R3's minimumArchiveBytes drift) NOT TAKEN: the pass files it non-blocking, the author
+  already discloses it as STILL OPEN 4, and it belongs to a task that can add a test target or a reader -
+  it is restated in STILL OPEN below rather than half-closed here.
