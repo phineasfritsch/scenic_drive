@@ -1,7 +1,7 @@
 ---
 id: T-0146
 title: the ETL emits no scenic_score and no rank-normalised terms, so ScenicKit's SegmentTerms has no producer
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T23:04:04Z
@@ -11,7 +11,7 @@ branch: task/T-0146
 exclusive: []
 touches: [services/etl/etl/, services/etl/tests/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-pr102
 depends_on: [T-0154, T-0024, T-0025, T-0026, T-0027, T-0162, T-0163]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -854,3 +854,153 @@ Unblocks T-0029 (rank-order) and P-PROD-01. Depends on T-0024..T-0027 leaving qu
     What is NOT done is a rule about it - nothing stops the next agent typing a fifteen-digit metre at
     `rel=1e-12` in a new file, and the only thing that catches it is a red CI run, which is what happened
     here. That belongs with the `ops/mutate` bullet below, on the same panel.
+- 2026-09-19T04:16:58Z REVIEW PASS (round 2) by agent/rv2-pr102, the reviewer - not the owner
+  (agent/claude-opus-5), not agent/rv1-pr102, not a fixer, not the orchestrator. Reviewed at baae41d ==
+  origin/task/T-0146 in a detached worktree (.worktrees/rv2-pr102, removed at the end); `git status --short`
+  empty there before, between and after every mutant, and `git rev-parse HEAD` = baae41d throughout.
+  `gh pr view 102` -> baseRefName `main`, headRefOid baae41d, OPEN, not a draft. `gh pr checks 102`, once:
+    core              pass  2m17s
+    pins-source-only  pass  1m24s
+
+  THE DIFF THE FIX PASS MADE. `git diff eff7f3c..baae41d --numstat`:
+    363 0   queue/claimed/T-0146-...md          (one hunk, `@@ -491,3 +491,366 @@`: APPEND-ONLY, no deletion)
+     33 10  services/etl/etl/assemble.py
+     20 3   services/etl/tests/fixtures/assembly_fixture.json
+     34 16  services/etl/tests/test_assemble.py
+    229 0   services/etl/tests/test_assemble_wiring.py
+  Four services/etl files and the task file, nothing else; `git diff --name-only origin/main...baae41d`
+  adds no Swift file, no pin and no queue task. Two commits: 38e9e45 then the CI-red correction baae41d.
+
+  THE THREE ROUND-1 MUTANTS RE-APPLIED, EACH ALONE, on the review worktree, `__pycache__` purged before
+  every run, 1.2 s before each restore, `git checkout --` after each; `services/etl/etl/assemble.py` md5
+  30ff6f8946debfcf112279e063124678 before AND after all five mutants, `git status --short` empty between.
+  ALL THREE NOW FAIL BY NAME, where two of them were green at eff7f3c.
+    M1 `elevation_gain=terrain.relief(profile)` + `relief=terrain.elevation_gain(profile)` (mutant md5
+       5b736ffefd76ec82f3b027d44879199a):
+       FAILED tests/test_assemble_wiring.py::test_the_ranked_terms_are_the_raw_numbers_their_producers_returned
+       FAILED tests/test_assemble_wiring.py::test_the_gain_and_relief_ladders_are_not_one_ladder
+       2 failed, 20 passed in 0.40s        (`15 passed` at eff7f3c - BLOCKING 1 is closed)
+    M2 the track branch widened to `in (TRACK_HIGHWAY, "motorway")`:
+       FAILED tests/test_assemble.py::test_gate_motorway_and_trunk_score_exactly_zero_and_are_not_gated
+       FAILED tests/test_assemble.py::test_the_count_line_names_every_absence
+         `+ ASSEMBLE ways=10 zero_class=2 gated=4 ...`
+       2 failed, 20 passed in 1.05s        (CLAUDE.md's penalise-not-exclude invariant is still pinned twice)
+    M3 `DEFAULT_MOTORWAY_DISTANCE_M = 0.0`:
+       FAILED tests/test_assemble_wiring.py::test_the_restated_distance_defaults_are_score_pys_own
+       FAILED tests/test_assemble_wiring.py::test_a_row_that_omits_a_distance_field_takes_the_restated_default
+       2 failed, 20 passed in 0.85s        (`15 passed` at eff7f3c - BLOCKING 2 is closed)
+  BLOCKING 3 needs no mutant, only the call the review made: `assemble.gate_reason({'highway':
+  'residential', 'motor_vehicle': 'no', 'surface': 'asphalt'})` is now `no_access`, and way 800000009
+  carries the tag on a real row, so the gate reaches the table and the count line (`gated=3`).
+
+  TWO MUTANTS OF MY OWN, aimed at what round 2 could still miss. Both die.
+    R1 THE WIDENED TOLERANCE. `curvature=curvature.way_curvature(coords, way_id) * 1.01` - a wrong
+       curvature one percent off, the exact thing a centimetre-wide pin could start admitting:
+       FAILED tests/test_assemble_wiring.py::test_the_ranked_terms_are_the_raw_numbers_their_producers_returned
+         Obtained: 480.84258470688405   Expected: 476.08176703651884 +/- 0.01
+       1 failed, 21 passed in 0.54s. It misses by 4.76 m, 476 times the tolerance. The widening did not
+       open a hole.
+    R2 THE GATE ON THE WRONG TAG KEY. `MOTOR_VEHICLE_KEY = "access"` - the rule kept, keyed one line up,
+       where the `closedAccess` branch already answers and the new branch is dead:
+       FAILED tests/test_assemble.py::test_the_count_line_names_every_absence
+       FAILED tests/test_assemble_wiring.py::test_motor_vehicle_no_is_refused_as_no_access_the_way_gates_swift_refuses_it
+         `None = assemble.gate_reason({'highway': 'residential', 'motor_vehicle': 'no', ...})`
+       2 failed, 20 passed in 0.75s. The port is pinned on the KEY and on a row, not only on a reason name.
+
+  TWO TYPED VALUES RE-DONE BY HAND, from the fixture and from the Swift, not from the Log.
+    * way 800000007's profile in `assembly_fixture.json` is [300.0, 318.0, 341.0, 329.0, 356.0, 378.0,
+      361.0, 392.0]. Steps +18 +23 -12 +27 +22 -17 +31; `terrain.elevation_gain` (terrain.py:85) sums the
+      positive steps STRICTLY above NOISE_FLOOR_M = 0.5, so 18+23+27+22+31 = 121.0. `terrain.relief`
+      (terrain.py:112) is max-min over any 1 km window and eight samples at a 25 m step span 175 m, one
+      window: 392 - 300 = 92.0. Both literals CORRECT as typed.
+    * `grep -n "return \.refused(" Sources/ScenicKit/Gates/Gates.swift` -> 9 lines, at :154 :156 :157 :158
+      :160 :161 :166 :169 :172, and the same grep with every `//`-prefixed line dropped is also 9, so no
+      doc comment inflates the count and `_swift_verdict_branches()`'s 9 is the code's own. 4 ported +
+      5 unported == 9 is ARITHMETIC OVER A COUNTED NUMBER now, not prose, and the five unported rules are
+      asserted as behaviour (allowed here) rather than described. The "five further rules" sentence is TRUE
+      at this head, which it was not at eff7f3c.
+
+  THE ACCEPTANCE BLOCK RE-RUN AT THIS HEAD, every gate bare, never piped into `tail`/`head` before a `&&`.
+    cd services/etl && python -m pytest tests -rs
+    992 passed in 74.09s (0:01:14)                 no `short test summary info` section, so zero skips
+    cd services/etl && python -m pytest tests/test_assemble.py tests/test_assemble_wiring.py -rs
+    22 passed in 0.96s
+    cd services/etl && python -m etl.assemble --input tests/fixtures/assembly_fixture.json --out <scratch>
+    ASSEMBLE ways=10 zero_class=2 gated=3 sinuosity_declined=1 points_of_interest_absent=10 null_score=0
+    wc -l -> 273 assemble.py / 299 test_assemble.py / 229 test_assemble_wiring.py /
+             109 assembly_fixture.json / 83 sinuosity.py
+    bash ops/lib/check-line-cap
+    P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines
+    check-line-cap exit=0
+    bash ops/queue-check
+    QUEUE OK (175 tasks)
+    queue-check exit=0
+  EVERY NUMBER IN THE 03:42:27Z ENTRY REPRODUCED. Nothing in it was false.
+
+  ONE DISAGREEMENT, RULED, AND IT IS NOT THE PR'S. `bash ops/check-pins --source-only` in MY fresh
+  detached worktree returned `PINS ok=10 skipped=13 pending=1 expired=0 failed=1 tier=linux source-only`,
+  exit 1, failing P-SAFE-05 with `output: (none)`. It is an artifact of the worktree and not a property of
+  baae41d, on four counts, and it is recorded rather than quietly re-run: the PR touches no Swift file and
+  no solar fixture (`git diff --name-only origin/main...baae41d` is the task file plus four
+  `services/etl/` files); both halves of the assertion that READ the tree pass here - `grep -c 'Naval
+  Observatory' Tests/Fixtures/solar/oracle.json` -> 1 and `grep -c 'SolarFixture(name:'
+  Tests/ScenicKitTests/SolarFixtures.swift` -> 35, which is >= 20; the failing half is `swift test --filter
+  SolarFixtureTests`, which the pin runs WITHOUT a `--scratch-path` in a worktree that has no `.build`,
+  exactly the shared-box hazard CLAUDE.md's last File-discipline bullet names; and CI's `pins-source-only`
+  is green at this head. The pin is not weakened and the PR does not touch it - but a pin that cannot be
+  run from a fresh worktree on this box is a check whose red is not readable, and that is RECORDABLE below.
+
+  THE CI-RED CORRECTION'S RULING (baae41d), JUDGED: WIDENING THE TOLERANCE WAS RIGHT, and reshaping the
+  fixture to avoid the ~22 m segment would have been worse.
+  * The arithmetic holds. `distance_on_earth` is the spherical law of cosines (curvature.py:31-48). For a
+    segment of d metres on R = 6373000, 1 - cos(d/R) ~ d^2/2R^2; at d = 22 that is 6e-12, about 1.5 orders
+    of magnitude above the double epsilon of 1.0. `acos` near 1 amplifies an absolute error e in its
+    argument to e/sqrt(2(1-cos)) radians, so one ulp of 1.0 (2.2e-16) becomes ~6.4e-11 rad, and times R
+    that is ~0.4 mm - the same order as the 0.6 mm the fixer measured between this box and CI's glibc.
+    The entry's diagnosis is reproducible from the formula, not a story told after a red run.
+  * It is not the 22 m segment's fault in any way a fixture edit could fix. Every segment of every way in
+    this document is 20-50 m, because they are synthetic road segments; at 49.6 m the same expression still
+    carries ~0.2 mm of platform freedom. The four ~49.6 m arms happened to agree bit-for-bit across the two
+    libms at 38e9e45 - that is luck, not a property, and a fixture tuned until today's two C libraries
+    agree is a pin on today's two C libraries.
+  * The 22 m segment is load-bearing for a DIFFERENT acceptance line. It is the closing segment of way
+    800000005, the closed loop, and its endpoint gap is what puts it under `CLOSED_ENDPOINT_M` so
+    `is_closed_way` fires and `sinuosity_declined` is 1. Lengthening it to dodge an ulp would move the
+    first acceptance item of this task and re-derive every rank in two files, to buy nothing.
+  * The repository already ruled this once: `CLOSED_LOOP_ENDPOINT_GAP_M = 1e-3` in `test_assemble.py`
+    exists for the same reason and has been through CI green. The correction follows the precedent rather
+    than inventing a policy, and it names the measurement in the file instead of leaving it in a CI log.
+  * A widened tolerance is only defensible if the pin still kills what it is for, and that is asserted
+    rather than assumed: the fixer's RED 5 and RED 6, and my own R1 above - a curvature one percent wrong
+    misses a centimetre-wide pin by 4.76 m.
+  * Inverting the furniture rate back into `snap.length_m` before comparing is the better half of the
+    correction: a tolerance on a nodes-per-km RATE is a number a reader cannot check, and a centimetre on
+    a length is.
+
+  RECORDABLE, not blocking - a round-2 finding is blocking only if it lets a wrong value reach `score.py`
+  with no test red, and none of these does:
+  * THE TOLERANCE'S FLAKE MARGIN IS NOT THE MARGIN THE COMMENT CLAIMS. `LENGTH_TOLERANCE_M = 1e-2` is
+    ABSOLUTE and is used for two quantities of different magnitude and unit: a 132.14 m length and a 476.08
+    "metres of way times a band weight" curvature. Against a MUTANT the comment's "four orders of
+    magnitude" is true (R1 missed by 476x). Against the PLATFORM the margin is much smaller on the
+    curvature side: 4.5 ppm over 297.55 m of way is ~1.3 mm, times the 1.6 weight ~2.1 mm, about 5x inside
+    a centimetre rather than four orders. The pin is correct and CI is green; the comment overstates one
+    of the two margins it names.
+  * P-SAFE-05 CANNOT BE RUN FROM A FRESH WORKTREE ON THIS BOX. Its assertion shells out to `swift test`
+    with no `--scratch-path`, so `ops/check-pins --source-only` reports `failed=1` with `output: (none)`
+    for an unrelated reason and a reviewer has to prove the negative by hand, as above. Not this task's.
+  * The fixer's own STILL OPEN list is accurate and I re-read every item: the `ops/mutate` population for
+    `assemble.py` is still unruled (four demonstrated mutants are not a population with a floor - the
+    fix's own bullet, and T-0187 is filed for assemble's committed mutation table); the three literal
+    fixture fields are now two rows larger; `test_gate_every_term_is_in_the_unit_interval` still can only
+    catch a non-number; `metres()`'s `INFINITY` branch is still unobservable; R10's refusals are still
+    uneven. The round-1 RECORDABLE about the near-degenerate elevation axis was TAKEN, not deferred, and
+    `test_the_gain_and_relief_ladders_are_not_one_ladder` asserts no way holds one rank in both terms.
+  * T-0188 (the five unported `Gates.verdict` rules, blocking T-0168's corpus write) and T-0187 are
+    already filed. They are not findings against this PR.
+
+  NOT DONE, as instructed: `ops/test` and the full `ops/check-pins` were not run; `--source-only` was, once,
+  and its one red is ruled above. `gh pr checks 102` was run once. No mutant was left on disk and no file
+  outside this one was changed by this review. The PR is NOT merged by this entry.
+
+  SIGNED OFF. `reviewer: agent/rv2-pr102`, `state: done`, `queue/claimed/` -> `queue/done/` by `git mv`.
