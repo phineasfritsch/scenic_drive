@@ -26,8 +26,14 @@ import sys
 import zipfile
 from pathlib import Path
 
+from . import fetch
+
 ROOT = Path(__file__).resolve().parents[1]
-KMZ = ROOT / "inputs" / "vermont-curvature.kmz"
+# The KMZ is a fetched PAYLOAD, so it comes from the one directory every worktree shares
+# (`fetch.resolve_inputs_dir`, T-0177). `pinned_digest` below deliberately does NOT move: manifest.yaml is
+# tracked, and a task that edits its own manifest must be checked against THAT edit rather than against the
+# main checkout's copy. Only the payloads are shared.
+KMZ = fetch.resolve_inputs_dir(ROOT) / "vermont-curvature.kmz"
 
 # The brief's 2%. Defined ONCE, here, because it was defined twice: `oracle_report.py` carried its own copy
 # and no test imported that module, so sweeping it to 0.5 printed `fixture 400/400 = 100.000%` with the whole

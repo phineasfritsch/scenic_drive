@@ -231,7 +231,12 @@ def summarise(coords: list[tuple[float, float]], codes_per_point: list[list[int 
 from pathlib import Path  # noqa: E402
 import subprocess  # noqa: E402
 
-INPUTS = Path(__file__).resolve().parents[1] / "inputs"
+from . import fetch  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[1]
+# The WorldCover rasters are fetched payloads: one directory, shared by every worktree. See
+# `fetch.resolve_inputs_dir` and queue/README.md. Resolved at import, as `dem.INPUTS` and `fetch.DEST` are.
+INPUTS = fetch.resolve_inputs_dir(ROOT)
 
 
 def tile_path(name: str) -> Path:
@@ -239,15 +244,24 @@ def tile_path(name: str) -> Path:
 
 
 def sample_codes(points: list[tuple[float, float]], runner=None) -> list[int | None]:
-    """WorldCover class code per point, in the order given. Points with no tile come back as None."""
+    """WorldCover class code per point, in the order given. Points with no tile come back as None.
+
+    A raster we NAME and do not have is a refusal naming the path; the old `continue` left None, which is
+    the same value an ocean cell produces, so the canopy and impervious fractions came out of whatever
+    happened to be fetched and nothing said so. A point with no tile NAME (NaN) stays None: there is no
+    path to name and nothing to fetch.
+    """
     groups: dict[str, list[int]] = {}
     for i, (lat, lon) in enumerate(points):
         groups.setdefault(tile_for(lat, lon), []).append(i)
     out: list[int | None] = [None] * len(points)
     for name, indices in groups.items():
-        path = tile_path(name) if name else None
-        if not path or not path.is_file():
+        if not name:
             continue
+        path = tile_path(name)
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"landcover: tile {name} is missing at {path} - run ops/etl-fetch-inputs")
         stdin = "".join(f"{points[i][1]} {points[i][0]}\n" for i in indices)
         argv = ["gdallocationinfo", "-valonly", "-wgs84", str(path)]
         run = runner or (lambda a, s: subprocess.run(a, input=s, capture_output=True, text=True, check=False))
