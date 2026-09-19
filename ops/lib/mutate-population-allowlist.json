@@ -1,0 +1,30 @@
+{
+  "_": "P-PROC-06's allowlist: modules that compute no number reaching score, route or tags, so CLAUDE.md's 'a new numeric module ships its mutation population' does not apply. ONE REASON PER ENTRY, read from the module. ops/lib/check-mutate-population.py refuses an empty reason, an entry for a module a population also covers, and an entry naming a file that does not exist. It cannot tell numeric from non-numeric - that is a reading, recorded in T-0186's Log and re-read by a reviewer on every widening of this file.",
+  "modules": {
+    "services/etl/etl/__init__.py": "empty package marker; no code",
+    "services/etl/etl/byway_source.py": "parses the two byway pulls into the entry shape byways.match consumes; shapes records, computes nothing",
+    "services/etl/etl/checkbounds.py": "compares a built extract's meta.json with region.json and never builds; its numbers gate a build, they reach no score, route or tag",
+    "services/etl/etl/contentdigest.py": "a sha256 over what the corpus says; a digest of bytes, not a quantity",
+    "services/etl/etl/corpus.py": "the `python -m etl.corpus` command line; wiring over corpuswriter and the producers",
+    "services/etl/etl/corpuswriter.py": "writes corpus.sqlite deterministically; it stores the numbers others computed",
+    "services/etl/etl/counts.py": "per-class object counts out of osmium fileinfo; the bounds make a silent drop loud and stop there",
+    "services/etl/etl/extract.py": "drives osmium to cut the region and filter tags; a subprocess pipeline",
+    "services/etl/etl/extractway.py": "reads the committed JSON extract into ExtractWay rows",
+    "services/etl/etl/fetch.py": "fetches the manifest's inputs and verifies every byte; no arithmetic leaves it",
+    "services/etl/etl/manifest.py": "the table of external inputs, their verification mode and their licence",
+    "services/etl/etl/oracle.py": "builds the Curvature oracle fixture from somebody else's published output; the oracle is the CHECK on a number, not a number we ship",
+    "services/etl/etl/oracle_report.py": "reports the oracle's agreement figures with the platform that produced them; a report, consumed by humans",
+    "services/etl/etl/oracle_select.py": "the three conditions deciding which oracle ways are comparable; selection, not measurement",
+    "services/etl/etl/osmxml.py": "a stream copy between `osmium cat` and the tag pass (T-0168's closing ruling, quoted in ops/mutate/scenic_tags.py)",
+    "services/etl/etl/region.py": "a region is a bbox, a name and the recorded shape of the last extract",
+    "services/etl/etl/review_sheet.py": "renders a page of Street View links with a verdict control for a human",
+    "services/etl/etl/schema.py": "the corpus DDL and SCHEMA_VERSION; the version that would matter is already pinned by P-PROD-05 (ops/lib/check-schema-version.py)",
+    "services/etl/etl/streetview.py": "turns coordinates and a heading into a URL a human clicks",
+    "services/etl/etl/tagfilter.py": "the osmium tags-filter expressions the extract keeps",
+    "services/etl/etl/terms.py": "the term vocabulary - ids, ODbL family, producer - the on-device score contract as data",
+    "services/etl/etl/waydoc.py": "wiring over producers that carry their own numbers (T-0168's closing ruling, quoted in ops/mutate/scenic_tags.py)",
+    "Sources/ScenicKit/Model/Coordinate.swift": "a WGS-84 latitude/longitude pair; Foundation-only so ScenicKit builds on Linux",
+    "Sources/ScenicKit/Scoring/BywayTier.swift": "a three-state enum naming how a way is designated; the weight that uses it lives in SegmentTerms.swift, which ops/mutate/segmentscore.py covers",
+    "Sources/ScenicKit/Guidance/GuidanceManeuver.swift": "the maneuver vocabulary as an enum; the mapping that assigns it is GuidanceMapping.swift, which ops/mutate/guidance.py covers"
+  }
+}

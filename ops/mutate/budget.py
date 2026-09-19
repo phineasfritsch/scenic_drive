@@ -39,6 +39,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from budget_arms import EQUIVALENT, KNOWN_MISSED, MIN_EQUIVALENT
 from budget_mutations import MIN_MUTATIONS, MUTATIONS
 from budget_paths import ROOT, SUBJECTS
+
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06). The gate
+# reads this tuple as text; the Path objects above are what the run actually mutates.
+SUBJECT_MODULES = ("Sources/ScenicKit/Budget/LambdaSearch.swift",
+                   "Sources/ScenicKit/Budget/BudgetError.swift",
+                   "Sources/ScenicKit/Budget/BudgetOutcome.swift")
 from budget_tree import (SENTINEL, SENTINEL_MESSAGE, TEST_FILES, differs_from_head, prove_blind,
                          prove_dirty, unanswerable)
 
