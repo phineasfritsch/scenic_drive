@@ -507,3 +507,104 @@ sign-off (run 35436962939, headSha 76a0444) still describes this head's Apple-si
 This fix touches two files: `ops/lib/mutate-population-allowlist.json` and this task file. The task
 stays in `queue/done/`, `state: done` and `reviewer: agent/rv1-pr115` untouched; the `touches:` header
 is widened by the allowlist path only.
+
+### 2026-09-19T11:46:30Z — agent/rv2-pr115: narrow re-review of the post-sign-off fix — PASS
+
+Scope: ONLY what changed since agent/rv1-pr115's sign-off commit `f8a7586`, minus the merge of main.
+`git log --oneline origin/task/T-0178` gives `f8a7586` (sign-off) -> `4e23910` (merge of origin/main)
+-> `0dcb0d9` (the fix). So the reviewed change is `git diff 4e23910..0dcb0d9`:
+
+    $ git diff 4e23910..0dcb0d9 --raw
+    :100644 100644 dc90524 419864e M  ops/lib/mutate-population-allowlist.json
+    :100644 100644 6bbdb76 4899360 M  queue/done/T-0178-the-owner-drives-in-la-a-second-hard-coded-handof.md
+
+Two files, two lines of JSON and one Log entry plus a widened `touches:` header. No source, no test, no
+`ops/mutate/` driver and no gate script changed; both modes stay 100644. Review worktree
+`.worktrees/rv2-pr115`, detached at 0dcb0d9.
+
+**The gate, bare.**
+
+    $ python ops/lib/check-mutate-population.py
+    P-PROC-06: 73 modules, 22 covered by 10 populations, 27 allowlisted, 2 added by this branch
+      DEBT (informational, never red): 24 existing module(s) with no population and no allowlist entry
+      ... Sources/Handoff/SkylineRoute.swift, Sources/Handoff/StraightLineDistance.swift, ...
+    P-PROC-06: every added module is covered or allowlisted; the floor of 22 holds
+    exit=0
+
+Identical to the numbers the fixer quotes; the floor of 22 populations-covered is unchanged, so no
+module was moved out of a population to buy this green.
+
+**The gate proved RED against this branch's own file (mutant, on the review worktree).** Deleted the
+`Sources/Handoff/HandoffDrive.swift` line from `ops/lib/mutate-population-allowlist.json` and re-ran:
+
+    P-PROC-06: module(s) added by this branch with no mutation population:
+      Sources/Handoff/HandoffDrive.swift
+      Either add a driver to ops/mutate that names it in SUBJECT_MODULES, or - if it computes no
+      number reaching score, route or tags - add it to ops/lib/mutate-population-allowlist.json ...
+
+KILLED. `git checkout -- ops/lib/mutate-population-allowlist.json`; `git status --short` empty. So the
+green above is bound to these two entries and is not a green the checker would print regardless.
+
+**The numeric-or-not ruling, judged by opening both files, not by reading the reason.**
+
+- `Sources/Handoff/SantaMonicaMountainsRoute.swift` (182 lines) — CONFIRMED a table. The only
+  executable content is `public static let destination = Coordinate(...)` and
+  `public static let waypoints: [Coordinate] = [ ... ]` with nine `Coordinate(latitude:longitude:)`
+  literals. There is no arithmetic operator, no comparison, no function body in the file; everything
+  else is doc comment and the per-pin reverse-geocode provenance. Ten literals, which is what the
+  allowlist reason says. A population here would mutate literals that
+  `SantaMonicaMountainsRouteTests` re-types; the reason is accurate and the ALLOWLIST ruling is right.
+- `Sources/Handoff/HandoffDrive.swift` — CONFIRMED non-numeric. Two cases, `defaultDrive`, two
+  `switch self` forwards (`destination`, `waypoints`) that return the route types' own statics, and
+  `chain = waypoints + [destination]`, an array concatenation. Nothing in the file computes a number.
+  Its one breakable property is the case->route mapping, and that is bound on the SHIPPING symbols,
+  not on a helper or on the table itself:
+
+    $ grep -n ... Tests/HandoffTests/SantaMonicaMountainsChainTests.swift
+    150: #expect(HandoffDrive.skyline.waypoints == SkylineRoute.waypoints)
+    152: #expect(HandoffDrive.santaMonicaMountains.waypoints == SantaMonicaMountainsRoute.waypoints)
+    154: #expect(HandoffDrive.santaMonicaMountains.chain == StraightLineDistance.santaMonicaMountainsRoutePoints)
+    160: #expect(HandoffDrive.defaultDrive == .santaMonicaMountains, ...)
+    161: #expect(HandoffDrive.allCases.count == 2, ...)
+
+  in `func eachDriveMapsToItsOwnRoute()`. A cross-mapped enum fails there.
+
+Neither file computes a number that reaches a score, a route or a tag, so neither is a module CLAUDE.md
+asks for a population from. NOT BLOCKING. No population was written or extended on this commit, so
+there was no population to run bare.
+
+**Nothing regressed.**
+
+    $ swift test --scratch-path .build/rv2-pr115 --filter HandoffTests
+    Test run with 71 tests in 10 suites passed after 0.113 seconds.
+    (including "The Santa Monica Mountains chain, the region and the number", "The Santa Monica
+     Mountains route's pins", "The Skyline route's ridge leg", "Handoff shipping source")
+
+    $ bash ops/lib/check-safety-disclaimer
+    P-SAFE-03: 9 Swift file(s) under .../FeatureScenicHome; over the 21 .swift file(s) under apps/ios,
+    SkylineHandoff.open( called once (GatedHandoffButton.swift line 87), dominated by the guard at
+    line 82; ... `isSafetyDisclaimerAcknowledged = true` written exactly once, at line 138
+    exit=0
+    (9, 21, 87, 82, 138 - every count identical to the sign-off run and to the fixer's re-run)
+
+    $ bash ops/queue-check
+    QUEUE OK (208 tasks)
+    (208, not the fixer's 205: three more backlog tasks landed on main since; queue-check is run
+     against the main checkout, which is ahead of this branch)
+
+    $ gh pr checks 115
+    core             pass  2m1s
+    pins-source-only pass  1m4s
+
+**Recordable, not blocking (the fixer raised both and I agree with both).** (1)
+`Sources/Handoff/SkylineRoute.swift` is the twin of the file ruled here and sits in the gate's DEBT
+list with no allowlist entry; writing it is forbidden by this task's Brief and the gate does not ask,
+so it should be filed as its own task. (2) `Sources/Handoff/StraightLineDistance.swift` is the
+haversine whose whole-kilometre figure reaches the screen and it has no population; the fixer points
+at task T-0199 for it, which I did not open.
+
+NOT DONE by this re-review: `ops/test`, the full `ops/check-pins`, any iOS render, any re-check of the
+work rv1-pr115 already signed off (the nine pins' provenance, the URL shape, the screen), and I did not
+verify that task T-0199 exists or that it names StraightLineDistance.
+
+VERDICT: PASS. The task stays in `queue/done/`; `reviewer:` stays `agent/rv1-pr115`. Not merged by me.
