@@ -145,9 +145,13 @@ public enum SantaMonicaMountainsRoute {
         // 7. Topanga Canyon Boulevard in Woodland Hills, at the Ventura Boulevard end - the turn onto
         //    the freeway baseline (US-101 east, I-405 south over the Sepulveda Pass).
         //
-        //    THE SHORTCUT THIS PIN CLOSES. It is the pin that forbids Dirt Mulholland as a way from
-        //    the crest to pin 8: an unpaved crest track is exactly the hard safety gate the product
-        //    refuses to route onto, and a path taking it does not reach a pin down in the Valley.
+        //    THE SHORTCUT THIS PIN CLOSES. It is the pin that forbids the crest track locally called
+        //    Dirt Mulholland as a way from the crest to pin 8: a path taking it does not reach a pin
+        //    down in the Valley, and that - not the surface - is what this pin decides. STILL
+        //    UNVERIFIED, and therefore not relied on: that track's `surface` tags. `out tags;` over
+        //    the Mulholland name gateway-timed out (HTTP 504) on two bboxes in this session and has
+        //    not been retried since, so "unpaved" is local knowledge here, not a query result, and
+        //    the pin is chosen against the missing shared node (see the type note) instead.
         //    Reverse 34.16801, -118.60576
         //      -> way 401296501, name "Topanga Canyon Boulevard", highway/primary,
         //         "Topanga Canyon Boulevard, Woodland Hills, ... Los Angeles, Los Angeles County,

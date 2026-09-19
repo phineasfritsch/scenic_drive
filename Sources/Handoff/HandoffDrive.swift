@@ -18,7 +18,11 @@ import ScenicKit
 ///
 /// Both routes' coordinates live here (`SkylineRoute`, `SantaMonicaMountainsRoute`), in a Linux target
 /// with a test target beside it. A selector in an Apple-only target with no test bundle could map a
-/// case to the wrong array and nothing on this box could tell. `HandoffDriveTests` checks the mapping.
+/// case to the wrong array and nothing on this box could tell. `SantaMonicaMountainsChainTests`
+/// checks the mapping - `eachDriveMapsToItsOwnRoute`, plus the case count and
+/// `defaultDrive` beside it. There is no `HandoffDriveTests` suite; this doc line named one that was
+/// never written until 2026-09-19, which is how a reader was told a mapping was covered by a file
+/// that did not exist.
 public enum HandoffDrive: String, CaseIterable, Sendable {
     /// The walking skeleton's Bay Area loop: `SkylineRoute`.
     case skyline

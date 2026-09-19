@@ -262,3 +262,23 @@ streets; the Mulholland side streets). Do NOT touch SkylineRoute.swift or its te
   DriveSelector.swift 68, DriveFacts.swift 65, GatedHandoffButton.swift 110, HandoffFailureCard.swift 133,
   ScenicHomeScreen.swift 250, SkylineHandoff.swift 90.
   state: claimed and reviewer: null are untouched - the owner never signs off its own task.
+- 2026-09-19T09:55:04Z R6 (orchestrator, from the 02:13 panel), ruled BEFORE the code below. PR #112 put
+  the LA Protomaps basemap on main (`MapAdapter.BasemapResolver.losAngeles()` returns a `MapStyle` whose
+  `url` and `attributionText` travel together; with no `la.pmtiles` on the device it returns the demo case
+  with the demo credit) and NOTHING mounts it: `ScenicHomeScreen` still read `MapStyle.maplibreDemoTiles`.
+  THE MOUNT IS PER DRIVE. The LA drive resolves `BasemapResolver.losAngeles()`; the Skyline drive KEEPS the
+  demo case, because the LA archive covers -119.0,33.7,-117.85,34.45 only and the Skyline map is centred on
+  the Peninsula - a global mount would draw an empty map under the Protomaps credit. The map caption and the
+  `AttributionFooter` follow the RESOLVED style, never the selection: when the resolver falls back to demo
+  tiles the caption says the map does not show roads yet and the credit is MapLibre's.
+  HOW THE RESOLVE IS KEPT OFF THE BODY'S HOT PATH, ruled: `BasemapResolver.losAngeles` is not a lookup - on
+  the success path it MATERIALISES a style document into the caches directory and touches the bundle and the
+  file system. SwiftUI re-runs `body` whenever anything it reads changes and may re-run a `View`'s property
+  initialisers as it rebuilds the value, so neither is a call site. The resolved value is `@State` (`style`,
+  initialised to the demo case) and `resolveBasemap()` runs from exactly three modifiers - `.task` (first
+  appearance), `.onChange(of: selectedDrive)` and `.onChange(of: colorScheme)`. Those are the only three
+  inputs the answer has: which drive, is the archive there, light or dark.
+  THE CAPTION WORDS, ruled. The demo case keeps the existing sentence verbatim. The Protomaps case is
+  "Preview build: two fixed drives, <name> selected. The map shows Los Angeles roads, but not this drive's
+  line yet - tap below and it opens in Apple Maps." - it may claim roads, because those tiles have them, and
+  it may not claim the drive, because no route line is drawn for either drive until M4.

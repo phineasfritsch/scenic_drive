@@ -1,5 +1,6 @@
 import Foundation
 import Handoff
+import MapAdapter
 
 /// Every user-visible string that belongs to a DRIVE rather than to the screen: its name, its roads,
 /// its selector label, and the caption under the map.
@@ -56,11 +57,25 @@ enum DriveCopy {
         }
     }
 
-    /// What is under the header. The basemap draws country polygons and nothing at the scale of either
-    /// drive, and no route is drawn on it at all (M4 draws it), so there is not a road on screen to
-    /// follow. First clause: what this build is, naming the drive selected, so the caption cannot say
-    /// "Bay Area" over the LA loop. Then what the map is not, and what to do instead.
-    static func mapCaption(for drive: HandoffDrive) -> String {
-        "Preview build: two fixed drives, \(shortName(for: drive)) selected. The map doesn't show roads yet - tap below and it opens in Apple Maps."
+    /// What is under the header. First clause: what this build is, naming the drive selected, so the
+    /// caption cannot say "Bay Area" over the LA loop. Then what the map underneath actually is.
+    ///
+    /// THE CAPTION FOLLOWS THE RESOLVED STYLE, NEVER THE SELECTION. Selecting the LA drive does not
+    /// mean LA tiles are on screen: `BasemapResolver` falls back to `.maplibreDemoTiles` on every
+    /// device without `la.pmtiles`, which is every ios-compile run and every phone before the owner
+    /// copies the archive in. A caption keyed on the selection would tell that phone it is looking at
+    /// roads while it looks at country polygons - the same lie as a credit line keyed on the selection,
+    /// which is why `AttributionFooter` reads the same resolved value. Both halves of "what is on
+    /// screen" come from the `MapStyle` that was actually resolved.
+    ///
+    /// Neither case promises a route line: nothing draws one for either drive yet (M4 draws it).
+    static func mapCaption(for drive: HandoffDrive, style: MapStyle) -> String {
+        let preamble = "Preview build: two fixed drives, \(shortName(for: drive)) selected."
+        switch style {
+        case .protomapsLALight, .protomapsLADark:
+            return "\(preamble) The map shows Los Angeles roads, but not this drive's line yet - tap below and it opens in Apple Maps."
+        case .maplibreDemoTiles:
+            return "\(preamble) The map doesn't show roads yet - tap below and it opens in Apple Maps."
+        }
     }
 }

@@ -40,8 +40,18 @@ import SwiftUI
 /// being twenty inline lines, and `ops/lib/check-safety-disclaimer` for what a source-level check can and
 /// cannot decide about it.
 public struct ScenicHomeScreen: View {
-    /// The placeholder basemap. Named once so the style and the credit below cannot drift apart.
-    private let style = MapStyle.maplibreDemoTiles
+    /// The basemap ACTUALLY on screen, named once so the tiles, the caption and the credit below
+    /// cannot drift apart. It starts on the demo case and is replaced by `resolveBasemap()`.
+    ///
+    /// `@State`, and resolved from `.task`/`.onChange` rather than here or in `body`:
+    /// `DriveBasemap.resolve` materialises a style document and touches the file system, and SwiftUI
+    /// re-runs `body` - and may re-run a property initialiser - as often as it likes. One resolve per
+    /// selection change and per appearance change, which is what those two modifiers buy.
+    @State private var style = MapStyle.maplibreDemoTiles
+
+    /// The appearance the map is drawn for. SwiftUI's `ColorScheme` is converted to `MapAppearance` at
+    /// this boundary: `MapAdapter` does not know about SwiftUI's environment (see `MapAppearance`).
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Whether the safety disclaimer has been accepted on THIS DEVICE. `@AppStorage` is `UserDefaults`:
     /// no account, no server, nothing leaves the phone, and nothing to migrate. The key is versioned so
@@ -107,15 +117,22 @@ public struct ScenicHomeScreen: View {
                     gatedHandoff
                         .padding(.horizontal, 16)
 
-                    // The credit for the tiles actually on screen, asked of the style itself. This is
-                    // NOT the plan's `© OpenStreetMap contributors · Protomaps` line, because these are
-                    // not those tiles - see `MapStyle.attributionText`. Last in the stack, so nothing
-                    // above it can sit on the lower-right corner it owns.
+                    // The credit for the tiles actually on screen, asked of the RESOLVED style itself
+                    // and never of the selection: on a device with `la.pmtiles` this is the plan's
+                    // `© OpenStreetMap contributors · Protomaps` line, and on every device without it
+                    // the same value carries MapLibre's credit for the demo tiles it is drawing - see
+                    // `MapStyle.attributionText`. Last in the stack, so nothing above it can sit on the
+                    // lower-right corner it owns.
                     AttributionFooter(text: style.attributionText)
                 }
             }
         }
         .background(DesignTokens.bg)
+        // The three moments the answer can change, and the only three: first appearance, a new drive,
+        // and light/dark. Never in `body` and never in a property initialiser - see `style`.
+        .task { resolveBasemap() }
+        .onChange(of: selectedDrive) { resolveBasemap() }
+        .onChange(of: colorScheme) { resolveBasemap() }
         .sheet(isPresented: $isShowingDisclaimer) {
             SafetyDisclaimer(onAccept: {
                 isSafetyDisclaimerAcknowledged = true
@@ -123,6 +140,18 @@ public struct ScenicHomeScreen: View {
             })
             .accessibilityIdentifier("home.disclaimer")
         }
+    }
+
+    /// Ask `DriveBasemap` which tiles this drive can have on this device, and keep the answer.
+    ///
+    /// The LA drive gets the Protomaps basemap when `la.pmtiles` is on the phone and the demo tiles
+    /// when it is not; the Skyline drive keeps the demo tiles, because the LA archive covers
+    /// `-119.0,33.7,-117.85,34.45` and the Peninsula is not in it - see `DriveBasemap`.
+    private func resolveBasemap() {
+        style = DriveBasemap.resolve(
+            for: selectedDrive,
+            appearance: colorScheme == .dark ? .dark : .light
+        )
     }
 
     /// The one way out of this app, built in exactly one place.
@@ -181,7 +210,9 @@ public struct ScenicHomeScreen: View {
 
             DriveFacts(drive: selectedDrive)
 
-            Text(DriveCopy.mapCaption(for: selectedDrive))
+            // The resolved style, not the selection: the caption says what is under the map, and on a
+            // device with no LA archive that is the demo basemap whichever drive is selected.
+            Text(DriveCopy.mapCaption(for: selectedDrive, style: style))
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)
