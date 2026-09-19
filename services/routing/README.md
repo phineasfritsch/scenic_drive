@@ -11,6 +11,25 @@ direction the budget search can bisect on.
 `work/graph-cache/`. The pytest skips with a reason when that graph or the image is missing, so it is safe
 on a box without docker. Everything it writes lands in `work/`, which is ignored.
 
+T-0213 added the second, REAL input and the one import recipe both paths use:
+
+    bash services/routing/import-graph.sh <tagged.osm.pbf> <graph-dir> [image]
+    docker run ... scenic-routing:t0213 --config /app/config.yml --graph /graph --mode probe --probe-ways 74344132
+
+`--mode probe` walks the built graph and prints `PROBE way=<osm way id> edges=<n> scenic_score=<v>`, which is
+how `tests/test_scenic_score_readback.py` checks a NAMED way's real score instead of a snapped coordinate's.
+It needs `osm_way_id` in `config.yml`'s `graph.encoded_values`, which is why it is there.
+
+**The image tag moves with `config.yml`.** A graph carries the encoded-value list it was built with, so an
+image whose config names a different list cannot load it: `scenic-routing:t0031` is the T-0031 config and the
+Vermont graph built under it, `scenic-routing:t0213` adds `osm_way_id`. Changing `graph.encoded_values` means
+re-importing every graph and bumping the tag - never reusing one.
+
+`ops/deploy-routing <graph-dir>` ships a built graph to the routing box (new release dir, atomic symlink
+flip, restart, the 2 newest releases kept). It refuses without `SCENIC_ROUTING_HOST`, `SCENIC_ROUTING_USER`,
+`SCENIC_ROUTING_KEY`, `SCENIC_ROUTING_ROOT`, and refuses unless HEAD is on origin.
+`SCENIC_ROUTING_REHEARSE=<dir>` runs the same code against a local directory - no ssh, no rsync, no box.
+
 ## What is real and what is a stand-in
 
 | Piece | Status |

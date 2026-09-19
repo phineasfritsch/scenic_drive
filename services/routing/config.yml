@@ -8,7 +8,12 @@ graphhopper:
   graph.location: /graph
   datareader.file: ""
 
-  graph.encoded_values: car_access, car_average_speed, road_class, road_access, surface, scenic_score
+  # osm_way_id is GraphHopper's own encoded value (DefaultImportRegistry knows it; our ImportRegistry only
+  # adds scenic_score). It is here so that a value read back out of the built graph can be bound to a NAMED
+  # OSM way - `--mode probe --probe-ways 74344132` walks the edges and answers way id -> scenic_score with no
+  # coordinate and no snap in the loop. It costs 31 bits per edge in the graph and nothing at query time, and
+  # it ships rather than living in a probe-only config: the config under test has to be the config that ships.
+  graph.encoded_values: car_access, car_average_speed, road_class, road_access, surface, scenic_score, osm_way_id
 
   # GraphHopper 11 refuses to start without this key. It drops ways a car can never use from the graph; it is
   # NOT a scenic gate and it names no motorway or trunk - those carry scenic_score 0 and are penalized by the

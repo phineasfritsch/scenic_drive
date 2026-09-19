@@ -6,14 +6,17 @@
 # Both stages are pinned BY DIGEST for the reason services/etl/Dockerfile gives: a tag moves, and a moving
 # toolchain is a silent change no diff shows.
 #
-#   docker build -t scenic-routing:t0031 services/routing
-#   docker run --rm scenic-routing:t0031 --config /app/config.yml --graph /graph --mode import --osm /data/x.pbf
+#   docker build -t scenic-routing:t0213 services/routing
+#   docker run --rm scenic-routing:t0213 --config /app/config.yml --graph /graph --mode import --osm /data/x.pbf
 #
 FROM maven:3.9-eclipse-temurin-21@sha256:c2a2c58516d160f43b50f12baa427ca86989e0bc942609e04aff61da5d9a7d74 AS build
 WORKDIR /src
 COPY plugins/scenic-score-parser/pom.xml /src/pom.xml
 COPY plugins/scenic-score-parser/src /src/src
-RUN --mount=type=cache,target=/root/.m2 mvn -B -DskipTests package
+# NOT -DskipTests: ScenicScoreParserTest runs here, so an image whose parser has lost the contract (the
+# no-tag default, the clamp, garbage, the whole 0..10 range) is never built at all. The read-back test in
+# services/routing/tests can only observe the scores the canyon window contains.
+RUN --mount=type=cache,target=/root/.m2 mvn -B package
 
 FROM eclipse-temurin:21-jre@sha256:49e21e16e3c86eb7816a44a67549910ed090fbeb40c29c525d58bf5e02e91b0f
 COPY --from=build /src/target/scenic-router.jar /app/scenic-router.jar
