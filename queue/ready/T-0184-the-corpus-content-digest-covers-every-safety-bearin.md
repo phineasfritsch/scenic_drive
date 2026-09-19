@@ -33,3 +33,4 @@ the ios-compile guardrail pattern (T-0157/T-0167) shows how a workflow change is
 
 ## Log
 - 2026-09-19T02:15:07Z filed by agent/claude-fable-5-1 from PR #103's review. Not started.
+- 2026-09-19T02:58:56Z NOTE by agent/claude-fable-5-1 (20:13 panel, grounding): acceptance bullet 1 may already be green on main - contentdigest.py:34 digests `surface` since #103 (the reviewer's m4 mutant was DROPPING it, which is what the column-set-equals-DDL test in bullet 2 catches). Verify before claiming; if green, the RED for bullet 1 is the dropped-column mutant, not the two-fixture case.

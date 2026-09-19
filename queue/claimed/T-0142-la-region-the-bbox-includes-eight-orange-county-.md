@@ -1,20 +1,21 @@
 ---
 id: T-0142
 title: LA region: the bbox includes eight Orange County cities the comment says it excludes; counts_from names a source the Log did not fetch; dem.tile_for still gates on TILES so la has no elevation
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T02:59:00Z
+lease_expires_at: 2026-09-19T10:59:00Z
+worktree: .worktrees/T-0142
+branch: task/T-0142
 exclusive: []
-touches: [services/etl/regions/la/, services/etl/etl/dem.py, services/etl/tests/]
+touches: [services/etl/regions/la/, services/etl/etl/dem.py, services/etl/tests/, services/etl/inputs/manifest.yaml]
 pins_affected: []
 reviewer: null
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
+  - "LA TERRAIN (the 20:13 panel's miss, grounded): dem.tile_for resolves through dem.tiles_for_bbox of the ACTIVE region, not the sfbay TILES constant - a test that tile_for(34.07, -118.45) with la active returns 'n35w119' (RED today: dem.py returns None; tests/test_dem_tiles.py already pins tile_name for UCLA), and services/etl/inputs/manifest.yaml carries entries with sha256 lines for 3dep-n34w118.tif, 3dep-n34w119.tif, 3dep-n35w118.tif, 3dep-n35w119.tif (the digest recorded by `python -m etl.fetch --record-digest NAME` or by hashing the file the orchestrator pre-downloaded into the shared inputs/, and quoted); the sfbay eight are untouched"
   - "services/etl/regions/la/region.json: the bbox and its _comment_counties / _comment_bbox agree - either the bbox is cut back to exclude northern Orange County (the eight cities the reviewer of PR #68 listed) or the comments say it includes them; a pytest RED by name today (a point-in-bbox test over Anaheim's coordinates contradicting the comment), then green"
   - "the counts block re-recorded from the same extract if the bbox moves (counts_from names it); the DEM tile list re-derived by dem.tiles_for_bbox and quoted"
 ---
@@ -69,3 +70,13 @@ region, and a test that a Westwood coordinate resolves to `n34w119`.
 - 2026-09-18T02:20:00Z filed by agent/claude-fable-5-1 from agent/rv-pr68's review of PR #68, which PASSED and
   merged as `ef5768d`. `ops/new-task` allocated **T-9902 for the sixth time** ([[T-0138]]); renamed by hand.
 - 2026-09-19T02:11:14Z PROMOTED to ready/ by agent/claude-fable-5-1 (19:13 panel, grounded): T-0168 clips regions/la next; the clip should land on the bbox the file's comment claims. Whether the owner's commute crosses -117.85 or 33.70 is FOR THE HUMAN.
+- 2026-09-19T02:58:56Z RE-SCOPED by agent/claude-fable-5-1 (20:13 panel, STRATEGY F1 + grounding): finding 3 is a HARD prerequisite of
+  T-0168, not a nicety - `dem.tile_for` (dem.py:90) returns None for every point outside sfbay's eight tiles, so
+  a regions/la clip would score with terrain silently zeroed and T-0168's check-4 numbers and top-10 read would
+  mean nothing. New first acceptance bullet above; `services/etl/inputs/manifest.yaml` added to touches. Two
+  corrections to the brief's section 3: the Westwood/UCLA tile is n35w119 (tests/test_dem_tiles.py:47), not
+  n34w119; and the bbox itself does NOT move in this task - finding 1 is the COMMENT fix only, until the owner
+  answers where they commute (FOR THE HUMAN). The four LA tiles were started downloading into the main
+  checkout's shared services/etl/inputs/ by the orchestrator at 2026-09-19T02:58:56Z (log under .artifacts/fetch/); hash what is
+  there rather than re-downloading, and say which you did.
+- 2026-09-19T02:59:00Z claimed by agent/claude-opus-5; lease until 2026-09-19T10:59:00Z

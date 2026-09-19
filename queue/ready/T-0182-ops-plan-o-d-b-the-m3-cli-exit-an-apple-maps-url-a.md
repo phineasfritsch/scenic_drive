@@ -1,7 +1,7 @@
 ---
 id: T-0182
 title: ops/plan <O> <D> <B> - the M3 CLI exit: an Apple Maps URL and the per-edge term table for an LA origin and destination against the served LA graph
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -31,3 +31,4 @@ the owner names - nothing in the plan or any Log records it (FOR THE HUMAN).
 
 ## Log
 - 2026-09-19T02:11:14Z filed by agent/claude-fable-5-1 from the 19:13 panel's grounded synthesis. Not started; behind T-0031's second half.
+- 2026-09-19T02:58:56Z PROMOTED to ready/ by agent/claude-fable-5-1 (20:13 panel, grounded): T-0116 and T-0158 are merged and T-0031's first slice is PR #105; the terminal task of the LA CLI path was the only link still in backlog/.
