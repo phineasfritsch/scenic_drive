@@ -1,0 +1,4 @@
+# work/ holds the tagged PBF and the graph-cache - tens of megabytes that no image stage copies. Without this
+# every `docker build` here would upload the whole graph as build context.
+work/
+tests/

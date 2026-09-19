@@ -1,0 +1,18 @@
+# syntax=docker/dockerfile:1
+# SYNTHETIC scenic_score tagger. Vermont carries no scenic_score tags and T-0168 owns the real writer; this
+# image exists so the FIRST SLICE can prove the encoded value and the custom model over a real extract.
+#
+#   docker build -f services/routing/Dockerfile.tagger -t scenic-tagger:t0031 services/routing
+#
+# Digest-pinned like every other image in this repository. pyosmium is pinned by version because the wheel is
+# what does the work.
+FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+# The pyosmium wheel links against expat and bz2, and python:3.12-slim ships neither: without them the wheel
+# installs and `import osmium` dies with "libexpat.so.1: cannot open shared object file".
+RUN apt-get update -q \
+ && apt-get install -y -q --no-install-recommends libexpat1 libbz2-1.0 \
+ && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir osmium==3.7.0
+COPY tools/synthetic_scenic_tags.py /app/synthetic_scenic_tags.py
+WORKDIR /w
+ENTRYPOINT ["python", "/app/synthetic_scenic_tags.py"]
