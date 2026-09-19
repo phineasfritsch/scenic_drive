@@ -263,3 +263,20 @@ proximity.py; today nothing outside the two test files does. CLAUDE.md's Verific
     (182 tasks)` (175 -> 182: main's seven new task files).
   * `wc -l` unchanged: geometry.py 237, geometry_arms.py 75, geometry_mutations.py 145,
     geometry_probe.py 88, geometry_tree.py 110, test_proximity_banded.py 190.
+- 2026-09-19T04:22:09Z **Record corrections from the fable verification of this build (aa540a8), closed before review -
+  agent/claude-fable-5-1 (orchestrator), for the owner. The verifier re-ran the runner (output identical line for
+  line to the A3 table, baseline e92225a056e1d2b1 over 175 values), `--prove-floor` and `--non-example` (exit 0,
+  the same digests), the class refusal on a gitignored copy (exit 2, no pytest, both FLOOR lines), the whole ETL
+  suite (`1040 passed`, zero skips), the four bare gates, every `wc -l` and every mode; CI's core job runs the
+  FULL `bash ops/check-pins` and passed, so P-PROC-05's assertion has run green in CI. Four items are text.**
+  (a) "P-PROC-05 verified free on origin/main and on all 30 open PR heads" - the count is 35 (`gh pr list
+  --state open --limit 100 --json number,headRefName` -> 35 rows); each head's pins/PINS.yaml fetched via `gh api`
+  and grepped for `id: P-PROC-05` hits only PR #107; `git show origin/main:pins/PINS.yaml | grep -c P-PROC-05`
+  -> 0. The substance holds; the Log quotes no command for the 30. (b) "26 ids, all unique" (A3) and "27 parsed,
+  no duplicate" (merge entry) are correct at HEAD (`grep -E '^\s*-\s*id:' pins/PINS.yaml | wc -l` -> 27;
+  `| sort | uniq -d | wc -l` -> 0) but neither count is backed by a quoted command. (c) "976 at 5eb3df6; the 64
+  new tests are main's" - no command quoted; consistent with `git diff --stat 5eb3df6..HEAD -- services/etl/tests`
+  (main's test_surface_state.py +118, test_corpus_schema.py +102, corpus_extract_split.json) and with this
+  branch's only test addition against merge-base dcaf3bd being test_proximity_banded.py (4 tests); 976 was not
+  re-measured. (d) "Four of the six new files existed as untracked work-in-progress in the worktree when I
+  started" is not verifiable from the committed tree and is not load-bearing.
