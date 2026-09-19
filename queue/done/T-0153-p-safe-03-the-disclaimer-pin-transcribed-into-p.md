@@ -1,7 +1,7 @@
 ---
 id: T-0153
 title: P-SAFE-03, the disclaimer pin, transcribed into PINS.yaml with a real assertion, and a persistent "Conditions change. Verify locally." line on the home screen before a second TestFlight tester
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-18T23:04:05Z
@@ -11,7 +11,7 @@ branch: task/T-0153
 exclusive: []
 touches: [pins/PINS.yaml, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, ops/lib/]
 pins_affected: [P-SAFE-03]
-reviewer: null
+reviewer: agent/rv4-pr101
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -1191,3 +1191,83 @@ review; T-0152 (copy) touches the same file - sequence them, do not stack them.
   it is the honest boundary of a source check, not a promise for a later round. rv2's R-A (the `*Tests/`
   carve-out) stays not taken, for T-0180. The table now copies apps/ios thirteen times, which is T-0184's
   problem when it puts every `--prove-red` in CI.
+- 2026-09-19T06:25:10Z REVIEW PASS (round 4, bought under CLAUDE.md's P-SAFE fail-OPEN carve-out) by
+  agent/rv4-pr101 (not the owner, not rv1/rv2/rv3-pr101, not the fixer, not the orchestrator). PR #101,
+  head b0f70bc, base main. Reviewed in a detached worktree at that sha, `git status --short` empty there
+  throughout; every mutant on a throwaway copy of apps/ios under the gitignored .artifacts/, the check
+  handed each copy by `--sources`/`--app-tree` and no script in between (rv3's R-C); worktree removed after.
+
+  B5 IS CLOSED, AND CLOSED AS A WHITELIST, NOT AS ONE MORE BLACKLIST ENTRY. rv3's own mutant re-applied:
+
+      $ bash ops/lib/check-safety-disclaimer --sources <copy>/<FS> --app-tree <copy>   # .onAppear { isSafetyDisclaimerAcknowledged.toggle() } after .background(DesignTokens.bg)
+      P-SAFE-03: the identifier isSafetyDisclaimerAcknowledged occurs outside its tracked set in the app
+        tree; found: <copy>/<FS>/GatedHandoffButton.swift(2) <copy>/<FS>/ScenicHomeScreen.swift(5)
+        Tracked set: ... GatedHandoffButton.swift(2) ... ScenicHomeScreen.swift(4). Counted by OCCURRENCE -
+        one line may carry two - over all 10 .swift file(s) ... This is a WHITELIST: any other count in any
+        file is refused by name, whatever the spelling ...
+      exit=1
+
+  MY OWN, THREE SPELLINGS THE THIRTEEN ROWS DO NOT NAME. Two refuse, one survives and is the boundary the
+  pin already declares:
+
+    M1, the projected value - `.onAppear { $isSafetyDisclaimerAcknowledged.wrappedValue = true }`, which
+    (d) cannot see because it is not the literal `<ack> = true`: REFUSED by (e) by name, exit 1, the same
+    ScenicHomeScreen.swift(5) against a tracked (4). `$` prefixed or not, the occurrence is counted.
+
+    M2, the store key through a named constant - `static let acknowledged = "safety.disclaimer.acknowledged.v1"`
+    in a new apps/ios/ScenicDrive/AckShim.swift with `UserDefaults.standard.set(true, forKey: AckKeys.acknowledged)`
+    called from `.onAppear`, naming the identifier nowhere: REFUSED by (f) by name, exit 1 - "the store key
+    safety.disclaimer.acknowledged.v1 occurs outside its tracked set in the app tree; found:
+    ...ScenicHomeScreen.swift(1) ...ScenicDrive/AckShim.swift(1) ... over all 11 .swift file(s)". A constant
+    is not a hiding place while the constant still spells the key.
+
+    M3, THE SURVIVOR, DISCLOSED: the same shim with the key assembled -
+    `static let acknowledged = "safety.disclaimer" + ".acknowledged" + ".v1"`. Neither literal is in the
+    source, so (e) and (f) are both blind and the check is GREEN, exit 0, printing "the key at
+    ...ScenicHomeScreen.swift(1)" over a tree whose first appear writes the same UserDefaults key. This is
+    NOT a new hole: the pin's WHAT IT CANNOT SEE names it in advance - "any spelling that reaches the store
+    without either literal in the source: a key assembled from a named constant, a string interpolation or a
+    computed suite name". Recordable under the round cap, filed, not fixed here (R-F below).
+
+    M4, for completeness - a SECOND @AppStorage of the same key in apps/ios/ScenicDrive/AckShim.swift:
+    REFUSED, exit 1, by (d) first ("must be written exactly once ... found: ScenicHomeScreen.swift(1)
+    ScenicDrive/AckShim.swift(1)"), with (e) and (f) behind it.
+
+  NOTHING REGRESSED. `git diff 84754ed..HEAD --stat`: ops/lib/check-safety-disclaimer, -lib, -mutations,
+  pins/PINS.yaml and this file, `--name-status` all M, no Swift, so run 35405951245 still describes this
+  tree and ios-compile was not dispatched. This file's `--numstat` is "287 0", append-only, with rv3's
+  05:19:47Z FAIL entry ahead of the owner's 05:35:27Z rulings and 06:08:17Z fix. Re-run at b0f70bc, bare:
+
+      $ bash ops/lib/check-safety-disclaimer          -> exit 0, the 06:08 paragraph verbatim, ending
+        "and by occurrence over the app tree, isSafetyDisclaimerAcknowledged at ...GatedHandoffButton.swift(2)
+        ...ScenicHomeScreen.swift(4), the key at ...ScenicHomeScreen.swift(1)."
+      $ bash ops/lib/check-safety-disclaimer --prove-red
+        ... a second writer spelled .toggle()                    1        yes
+            a second writer through UserDefaults and the key     1        yes
+            prove-red: 13/13 mutations refused by name
+      exit=0
+      $ wc -l ops/lib/check-safety-disclaimer ops/lib/check-safety-disclaimer-lib ops/lib/check-safety-disclaimer-mutations
+        300 / 298 / 96 - the three numbers the 06:08 entry re-measured, confirmed
+      $ bash ops/lib/check-line-cap   -> "P-SRC-02: 73 Swift files tracked (Sources=26, Tests=37, apps/ios=10), none over 300 lines", exit 0
+      $ bash ops/queue-check          -> "QUEUE OK (169 tasks)", exit 0
+      $ gh pr checks 101              -> core pass, pins-source-only pass (run 35425811241), head b0f70bc, base main
+
+  `bash ops/check-pins --source-only` was started once here and had not returned when this entry was
+  written; it drives a `swift build` and the 06:08 entry measured ~15 minutes for it. No local verdict is
+  claimed from it - CI's pins-source-only on this head is the evidence, as above.
+
+  RECORDABLE, not blocking, the cap applies - filed, not fixed on this PR:
+  (R-E, NEW) the 06:08 acceptance block's `git ls-files -s ops/lib/check-safety-disclaimer*` quotes the
+  PARENT commit's blobs - e5d5c4d / 35c559b / c9772f9 are the three blobs at 84754ed (`git log --all
+  --find-object=e5d5c4d` names 84754ed and b0f70bc); this commit carries b2a6182 / 08bbc36 / c32e17b
+  (`git ls-tree b0f70bc ops/lib/`). The load-bearing property is TRUE - all three are mode 100755 at HEAD,
+  no new file under ops/, P-OPS-01 satisfied - and the `wc -l` beside it WAS re-measured, so this is a stale
+  quote and not a false claim. It is still the T-0162 shape the author rule names: a measured file was
+  touched after it was measured. Quote `git ls-tree <sha> ops/lib/` next time, which cannot go stale.
+  (R-F, NEW) M3 above: a witness for the pin's own declared blind spot, so that the next reader of a green
+  P-SAFE-03 has the reproduction and not only the prose - an assembled key opens the gate with the check at
+  exit 0. Both go to a follow-up task with rv2's R-A (the `*Tests/` carve-out, T-0180) and rv3's R-D (the
+  check at exactly 300 lines with nothing mechanical holding it).
+
+  state: claimed -> done, reviewer: agent/rv4-pr101, queue/claimed/ -> queue/done/. Nothing else in the tree
+  was changed by this review.
