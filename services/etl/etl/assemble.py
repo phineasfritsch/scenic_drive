@@ -101,6 +101,23 @@ GATE_REASONS = (GATE_UNPAVED_SURFACE, GATE_TRACK, GATE_NO_ACCESS)
 # What a refused way scores. Not None: the driver is not being told the road is unknown.
 GATE_SCORE = 0.0
 
+# T-0207 R1: THE CLASS CEILING. The plan's anti-rat-run clause is `road_class == RESIDENTIAL &&
+# scenic_score < 7 -> 0.5` (services/api/src/customModel.ts), so a residential way that REACHES 7 is never
+# demoted at all - and 131 residential and 109 service ways of the three measured LA windows (46,453 scored
+# ways) do reach it. The owner's bar is zero rat-runs, so a way of these classes is never a REASON to
+# lengthen a drive. 0.6499 is the largest value the four-decimal `scenic_score_unit` tag can carry that
+# `tagwriter.quantise` sends below the band (floor(6.499 + 0.5) = 6); 0.6500 is a 7. A service way -
+# driveway, parking aisle, alley, fire road - is not a DRIVE at all and carries 0.0, for the same reason and
+# with the same consequence as a motorway: penalized, NOT excluded. `unclassified` is deliberately absent:
+# Franklin Canyon Drive and Temescal Canyon Road are real drives and GraphHopper's road_class for them is
+# not RESIDENTIAL.
+#
+# WHY HERE AND NOT IN `score.py`. Same reason the safety gate is here: `score.score` is the plan's formula
+# and is held byte-for-byte against `Sources/ScenicKit/Scoring/SegmentScore.swift` through the 1000-row
+# parity fixture that `score_record` drives. This is a corpus policy about a ROAD CLASS, not a term of the
+# formula, and a multiplier inside the formula could not bound anything by construction anyway.
+CLASS_SCORE_CEILING = {"residential": 0.6499, "living_street": 0.6499, "service": 0.0}
+
 # The three fields no module under services/etl/etl/ produces yet (ruling R2). Read from the row as typed.
 LITERAL_FIELDS = ("sinuosity", "tunnel_meters", "meters_to_nearest_motorway")
 # score.py's own defaults (score.py:121-122), restated where a row may leave the field out.
@@ -214,6 +231,9 @@ def scored_row(record: WayRecord, tags: dict) -> dict:
     value = score_record(record)
     if reason is not None and value is not None:
         value = GATE_SCORE
+    ceiling = CLASS_SCORE_CEILING.get(record.highway)
+    if ceiling is not None and value is not None:
+        value = min(value, ceiling)
     return {"way_id": record.way_id, "highway": record.highway, "score": value,
             "gate_reason": reason, "terms_state": record.terms_state,
             "terms": unit_terms(record), "flags": list(record.flags())}

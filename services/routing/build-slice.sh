@@ -44,13 +44,9 @@ echo "== 3. the stamp in the artifact's own header =="
 docker run --rm -v "$WORK":/w -w /w scenic-etl:latest osmium fileinfo "$(basename "$TAGGED")"
 
 echo "== 4. router image =="
-docker build -t scenic-routing:t0031 "$ROUTING"
+docker build -t scenic-routing:t0213 "$ROUTING"
 
 echo "== 5. import =="
-rm -rf "$GRAPH"
-mkdir -p "$GRAPH"
-docker run --rm -e JAVA_TOOL_OPTIONS=-Xmx6g \
-  -v "$WORK":/data -v "$GRAPH":/graph \
-  scenic-routing:t0031 --config /app/config.yml --graph /graph --mode import \
-  --osm "/data/$(basename "$TAGGED")"
-ls -l "$GRAPH"
+# T-0213 extracted the import command line into import-graph.sh so the LA window and Vermont share one
+# recipe. This step is that script with Vermont's two arguments.
+bash "$ROUTING/import-graph.sh" "$TAGGED" "$GRAPH"

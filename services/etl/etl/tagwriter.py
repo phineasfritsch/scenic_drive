@@ -5,6 +5,14 @@ THE QUANTISATION (ruling R1 in T-0168's log). `scenic_score` is `round-half-up(s
 and not `round`, which is half-to-even and would send 0.65 and 0.75 in opposite directions. The 0..1 value
 travels beside it as `scenic_score_unit` so nothing downstream re-derives it from the integer.
 
+ONE NUMBER, WRITTEN TWICE (ruling R2 in T-0207's log). The integer is quantised from the number the UNIT
+TAG CARRIES - `quantise(float(fixed(score)))` - and not from the unrounded score. Quantising the unrounded
+score while rounding the unit to four decimals derives the two tags from two different numbers, and they
+disagree whenever the fourth decimal rounds UP across a `.x5` boundary: 17 of 46,436 real LA ways shipped
+that way, e.g. way 13332407 at 0.5499510668, `scenic_score=5` beside `scenic_score_unit=0.5500`. T-0204's
+hardened oracle (`scenecheck.classify`) requires `quantise(unit) == score`; deriving both from the unit
+string makes that clause true by construction instead of by luck.
+
 A REFUSAL IS NEVER A SILENT 0 (ruling R2). 0 is a real score - it is what a motorway honestly carries
 (CLAUDE.md, "Motorway/trunk ways carry scenic_score = 0 ... penalized, not hard-excluded"). A way whose
 producer could not answer carries `scenic_refused=1` and `scenic_refused_why`, and NO `scenic_score`. A row
@@ -64,7 +72,8 @@ def fixed(value: float) -> str:
 
 def tags_for_row(row: dict) -> dict:
     """The tags a SCORED way carries, in the one order they are always written in."""
-    out = {KEY_SCORE: str(quantise(row["score"])), KEY_UNIT: fixed(row["score"])}
+    unit = fixed(row["score"])
+    out = {KEY_SCORE: str(quantise(float(unit))), KEY_UNIT: unit}
     terms = row.get("terms") or {}
     for name in score.UNIT_TERMS:
         out[PREFIX + name] = fixed(terms[name])
