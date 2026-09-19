@@ -46,6 +46,9 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
   with a literal floor; an "equivalent mutant" ruling is an EQUIVALENT entry with a witness, never prose in a
   task file (PR #94 bought four review rounds one mutant class at a time).
 - Testers find and do not fix. Fixers open PRs. The reviewer of a task is never its owner (`ops/queue-check`).
+- Harness/ops PRs get two review rounds; after that the remaining finding is filed as its own task and the PR
+  merges with the gap recorded in the Log - UNLESS the finding is a `P-SAFE-*` pin failing OPEN, which buys a
+  round every time (a check that has never been seen red is untested; PR #101's B4/B5 is the precedent).
 - Snapshot references are re-recorded only by a human-initiated commit reviewed by a different agent.
 
 ## Product invariants you must not "optimize away"
