@@ -25,7 +25,11 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
   per-package `*.xcstrings`, `services/etl/regions/*/curated.yaml`, `pins/floor_*.txt`.
 - Never `git add -A`. Stage explicit paths. The pre-commit hook rejects paths outside your task's `touches:`.
 - Never anchor a pin, a test, or a guard on a comment. Comments get stripped. Anchor on identifiers, built
-  artifacts, config files, API fields or DB constraints.
+  artifacts, config files, API fields or DB constraints. Anchor a guard on a WHITELIST - every occurrence of
+  the identifier must be at an approved site - never on a blacklist of spellings of the bad write (PR #101
+  bought four rounds one spelling at a time). A test named for a defect binds to the shipping symbol - the
+  entry point production runs - never to a helper, a literal, the module's own table, or a symbol no entry
+  point calls (PR #109's main() was called by nothing; its source-layer guard compared a table to itself).
 - No secrets in the tree: no `sk.`-style tokens, `.p8`, `.p12`, `.netrc`, `.env`. The hook greps for them.
 - New scripts under `ops/` or `.githooks/` must be committed executable: `git update-index --chmod=+x <path>`.
   `core.filemode` is false on the Windows checkout, so git will not notice on its own and CI (`bash ops/x`) stays
