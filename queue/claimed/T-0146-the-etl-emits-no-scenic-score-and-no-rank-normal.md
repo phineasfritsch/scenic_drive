@@ -756,3 +756,101 @@ Unblocks T-0029 (rank-order) and P-PROD-01. Depends on T-0024..T-0027 leaving qu
     `coords` / `landcover_codes` / `elevation_profile` / `sinuosity`). None of the three is touched here.
   * The fixture is still hand-written and synthetic. No real extract (T-0168), no `points_of_interest`
     (T-0164), no 0..10 `scenic_score` column (T-0168/T-0171), and the `UNPAVED_SURFACES` copy is T-0181.
+
+- 2026-09-19T03:42:27Z FIX (round 2, same fixer, agent/claude-opus-5, owner) - CI at 38e9e45 went RED and the failure was
+  mine, in the pin the 03:30:00Z entry had just added. `gh pr checks 102` at that head:
+    pins-source-only  pass  1m16s
+    core              fail  2m2s
+  and the job's own lines:
+    TESTS linux=1442/76 ios=skipped failed=1 skipped=0
+    FAIL: 1 failing test(s):
+      - tests.test_assemble_wiring.test_the_ranked_terms_are_the_raw_numbers_their_producers_returned
+        - AssertionError: 22.702814667400517
+  Recorded rather than amended: the 03:30:00Z entry's acceptance block was true on this Windows worktree and
+  was NOT true on CI, and "it passed locally" is the claim this repository exists to contradict.
+
+  WHAT IT WAS - a real defect in the pin, not a flake, and not a disagreement with the review. The furniture
+  literal was compared at `rel=1e-12`, and the number it compared was derived from `snap.length_m`, which is
+  `distance_on_earth`, which is the spherical LAW OF COSINES with the Curvature project's quirks included
+  (curvature.py:31-48). Over one of the loop's ~22 m segments that expression computes a cosine within an ulp
+  of 1 and then takes its arccosine, so a SUB-ULP difference between two platforms' `sin`/`cos` is amplified
+  into the sixth significant digit of the metre. Measured, both ways: the loop is 132.14281164945845 m here
+  and 3 * 1000 / 22.702814667400517 = 132.1422 m on CI's glibc - 0.6 mm over 132 m. At `rel=1e-12` that test
+  was asserting the C library, not the producer. `test_assemble.py` already knew this and says so:
+  `CLOSED_LOOP_GAP_TOLERANCE_M = 1e-3` sits next to `CLOSED_LOOP_ENDPOINT_GAP_M` for the same reason, and that
+  literal has been through CI green.
+
+  THE CORRECTION, in `services/etl/tests/test_assemble_wiring.py` and nothing else (216 -> 229 lines).
+  `LENGTH_TOLERANCE_M = 1e-2`, a centimetre, named once and used for both metre-valued literals, with the
+  measurement above typed beside it so the next reader does not have to re-discover it from a CI log:
+    * `curvature` is metres of way times a band weight, so a centimetre is the same statement there.
+    * `furniture` is now INVERTED back into the length it was divided by - `3 * 1000 / rate` - and compared
+      to `LOOP_LENGTH_M` in metres. `furniture_per_km` is nodes / km and nothing else, so three nodes over
+      the rate IS `snap.length_m`, and the comparison is now a length against a length rather than a rate
+      against a rate, which is what makes the tolerance mean something a reader can check.
+    * the `elevation_gain`, `relief`, rank and count literals are exact arithmetic over integers and halves
+      in the fixture and carry NO tolerance. They are not `distance_on_earth`'s, and they were green on CI.
+  A centimetre is four orders of magnitude tighter than any wrong producer's answer, which is the only thing
+  this pin is for - and that is asserted rather than assumed:
+
+  RED AGAIN AT THE WIDENED TOLERANCE, because a tolerance that stops catching the mutant is exactly how a pin
+  dies quietly. Each mutant alone, `assemble.py` md5 30ff6f8946debfcf112279e063124678 before and after both:
+    RED 5 - M1 re-applied (`elevation_gain=terrain.relief(profile)` + `relief=terrain.elevation_gain(profile)`,
+      mutant md5 5b736ffefd76ec82f3b027d44879199a):
+      cd services/etl && python -m pytest tests/test_assemble_wiring.py -rf --tb=no
+      FAILED tests/test_assemble_wiring.py::test_the_ranked_terms_are_the_raw_numbers_their_producers_returned
+      FAILED tests/test_assemble_wiring.py::test_the_gain_and_relief_ladders_are_not_one_ladder
+      2 failed, 5 passed in 0.28s
+    RED 6 - the curvature half of the same hole, which the 03:30:00Z entry demonstrated only by argument:
+      `curvature=min(1.0, rate)` - the furniture rate read into the curvature field (mutant md5
+      727503627915da6203e08d4a5e5018b6):
+      FAILED tests/test_assemble_wiring.py::test_the_ranked_terms_are_the_raw_numbers_their_producers_returned
+      1 failed, 6 passed in 0.29s
+
+  ACCEPTANCE BLOCK RE-RUN AT THIS COMMIT, whole, every gate bare. The measured files are final; the only edit
+  after these runs is this Log entry's own text, and `ops/queue-check` - the one gate that reads it - was
+  re-run after the append.
+    cd services/etl && python -m pytest tests -rs
+    992 passed in 135.85s (0:02:15)
+  No `short test summary info` section, so zero skips. 985 -> 992 is the seven tests in
+  `test_assemble_wiring.py`; the correction added no test, it changed how two literals are compared.
+    cd services/etl && python -m pytest tests/test_assemble.py tests/test_assemble_wiring.py -rs
+    22 passed in 0.35s
+    wc -l services/etl/etl/assemble.py services/etl/tests/test_assemble.py \
+          services/etl/tests/test_assemble_wiring.py services/etl/tests/fixtures/assembly_fixture.json \
+          services/etl/etl/sinuosity.py
+      273 services/etl/etl/assemble.py
+      299 services/etl/tests/test_assemble.py
+      229 services/etl/tests/test_assemble_wiring.py
+      109 services/etl/tests/fixtures/assembly_fixture.json
+       83 services/etl/etl/sinuosity.py
+      993 total
+  Only `test_assemble_wiring.py` moved, 216 -> 229; the other four are re-measured and unchanged.
+    cd services/etl && python -m etl.assemble --input tests/fixtures/assembly_fixture.json --out <scratch>
+    ASSEMBLE ways=10 zero_class=2 gated=3 sinuosity_declined=1 points_of_interest_absent=10 null_score=0
+
+    bash ops/lib/check-line-cap
+    P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines
+    check-line-cap exit=0
+
+    bash ops/queue-check
+    QUEUE OK (175 tasks)
+    queue-check exit=0
+
+    bash ops/check-pins --source-only
+    PINS ok=11 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only
+    check-pins exit=0
+  `ops/test` and the full `ops/check-pins` were NOT run locally, as instructed; CI runs `ops/test` and is the
+  measurement that matters for this entry.
+
+  EVERYTHING ELSE IN THE 03:30:00Z ENTRY STANDS as written - the three blocking findings, their reproductions,
+  RED 1 through RED 4, the two fixture rows and every re-derived rank. No source file other than
+  `test_assemble_wiring.py` changed in this round, and no number in it moved.
+
+  STILL OPEN - the four bullets of the 03:30:00Z entry, unchanged, plus one this round earned:
+  * NO OTHER LITERAL IN THIS PR IS `distance_on_earth`'s, checked by reading the two test files rather than
+    by running CI again: `CLOSED_LOOP_ENDPOINT_GAP_M` is, and it already carries a millimetre; everything
+    else typed in either file is exact arithmetic over fixture integers, a mid-rank fraction, or a count.
+    What is NOT done is a rule about it - nothing stops the next agent typing a fifteen-digit metre at
+    `rel=1e-12` in a new file, and the only thing that catches it is a red CI run, which is what happened
+    here. That belongs with the `ops/mutate` bullet below, on the same panel.

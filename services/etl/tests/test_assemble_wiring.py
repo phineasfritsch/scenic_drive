@@ -76,6 +76,16 @@ RAW_RELIEF = {SECONDARY: 92.0, NO_MOTOR_VEHICLE: 12.0, DESCENT: 150.0, STRAIGHT:
 # and the last digit of the recorded value is the order the six products are summed in, not a disagreement.
 SECONDARY_CURVATURE = 476.08176703651884
 
+# WHAT THESE TWO LITERALS PIN IS THE METRE, and they are compared to one centimetre for a reason this
+# repository has already met once: `distance_on_earth` is the spherical LAW OF COSINES, quirks included
+# (curvature.py:31-48), which over a 20-50 m segment computes a cosine within an ulp of 1 and then takes its
+# arccosine, so a sub-ulp difference between two platforms' `sin`/`cos` lands in the sixth significant digit
+# of the answer. Measured, not feared: the loop's length below read 132.14281164945845 m on the Windows
+# worktree and 132.1422 m on CI's glibc at the first push of this file, 0.6 mm over 132 m, and the run went
+# red at `rel=1e-12`. `test_assemble.py` pins `CLOSED_LOOP_ENDPOINT_GAP_M` to a millimetre for the same
+# reason. A centimetre is still four orders of magnitude tighter than any wrong producer's answer.
+LENGTH_TOLERANCE_M = 1e-2
+
 # `furniture.furniture_per_km` is nodes / km and nothing else. Way 800000005 carries three furniture nodes -
 # `traffic_calming=table`, `highway=crossing`, `highway=street_lamp`, all three in `furniture.py`'s sets -
 # over `snap.length_m` of its seven coordinates, 132.14281164945845 m, recorded once from that call:
@@ -127,9 +137,12 @@ def test_the_ranked_terms_are_the_raw_numbers_their_producers_returned():
     for way_id, expected in RAW_RELIEF.items():
         assert RAW[way_id].relief == expected, (
             "way %d: relief is %r, terrain.relief says %r" % (way_id, RAW[way_id].relief, expected))
-    assert RAW[SECONDARY].curvature == pytest.approx(SECONDARY_CURVATURE, rel=1e-12), RAW[SECONDARY].curvature
-    assert RAW[LOOP].furniture == pytest.approx(
-        LOOP_FURNITURE_NODES / (LOOP_LENGTH_M / 1000.0), rel=1e-12), RAW[LOOP].furniture
+    assert RAW[SECONDARY].curvature == pytest.approx(
+        SECONDARY_CURVATURE, abs=LENGTH_TOLERANCE_M), RAW[SECONDARY].curvature
+    # The rate inverted back into the length it was divided by, because that is the metre being pinned:
+    # `furniture_per_km` is nodes / km and nothing else, so three nodes over this rate IS `snap.length_m`.
+    implied_length_m = LOOP_FURNITURE_NODES * 1000.0 / RAW[LOOP].furniture
+    assert implied_length_m == pytest.approx(LOOP_LENGTH_M, abs=LENGTH_TOLERANCE_M), implied_length_m
     # sinuosity is the fifth ranked term and the only one READ rather than produced (LITERAL_FIELDS).
     assert RAW[SECONDARY].sinuosity == 1.8, RAW[SECONDARY].sinuosity
 
