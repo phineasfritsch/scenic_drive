@@ -33,6 +33,68 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
 - Every `xcodebuild` passes `-derivedDataPath` under the worktree. Every `swift build/test` on a shared box
   uses its own `--scratch-path`.
 
+## The checkout is on NTFS, and that is a rule, not an accident
+The plan's Dev box row says *"Repo in WSL2 ext4 home, never `/mnt/c`  |  CRLF and NTFS break every `ops/*`
+script"*. The repo is at `C:/Users/phineasf/Documents/GitHub/scenic_drive` — NTFS, reached from WSL as
+`/mnt/c/...`. **Until the owner runs the migration, NTFS is the operative reality and these rules bind.**
+Moving the checkout invalidates every `worktree:` path in every claimed task file and needs a ~2.5 GB re-fetch,
+so it is an owner-run migration, not an agent task (T-0060). Do not file this again; add evidence to T-0060.
+
+- **Never `git rev-parse --show-toplevel` in anything under `ops/` or `.githooks/`.** A Windows worktree's
+  `.git` file says `gitdir: C:/...`, which WSL's git cannot follow, so it fails — and without `set -e` it fails
+  *silently* and the script continues in whatever directory it started in (T-0025). Resolve the root from
+  `${BASH_SOURCE[0]}` and assert a marker file.
+  **This rule is written ahead of the tree: it binds new and edited code, and the existing violations are still
+  there.** As of 2026-09-08 `git grep -n show-toplevel origin/main -- ops .githooks` returns 15 hits — every one
+  of them live code under `ops/`, none under `.githooks/` — and the same 15 on the branch that added this
+  paragraph. The fix is unmerged and split across two independent branches, neither an ancestor of the other:
+  `task/T-0055` (the wrappers' `cd`; 7 live sites left) and `task/T-0077` (how a wrapper locates its module;
+  3 live sites left, its other 13 hits being comment lines). After **both** land, three live call sites survive
+  that neither task touches and no queue task covers — `ops/lib/check-exec-bits:12`, `ops/lib/check-line-cap:15`
+  and `ops/merge:16`, each the identical `cd "$(git rev-parse --show-toplevel)"`. Fix them in whatever task next
+  touches those files, and re-run the grep rather than trusting this count.
+- **A python heredoc's stdout carries CRLF.** Strip `\r` before comparing or `rev-parse`-ing anything that came
+  out of one. `ops/merge-rehearse` reported *"0 conflicts, 0 gate failures"* having merged one branch of
+  thirty-one, because every branch name arrived as `task/T-0014\r` and the loop skipped it silently.
+- **Write scripts to a file before running them.** Inline shell quoting here eats backslash escapes: three
+  separate attempts to patch a script through a heredoc left literal control bytes in it.
+- **MSYS rewrites POSIX-looking literals in argv.** `/bin/true` becomes a Windows path with a space in it, so
+  the command fails for the wrong reason and reads as *"the guard caught it"*. Use `MSYS_NO_PATHCONV=1` when a
+  payload contains a leading-slash token.
+- **`python3` and `python` may be different installations.** Here `python3` is 3.14.5 with no pytest and
+  `python` is 3.10.11 with it, so `ops/test` runs an interpreter that cannot run the suite and blames the
+  suite (T-0076). Pass `PYTHON=$(command -v python)` until that lands.
+- **`/tmp` is not the same directory to bash and to python here.** git-bash maps `/tmp` into its own
+  install; a python child resolves the same literal as `C:\tmp`, which does not exist. Scratch files go
+  in a gitignored directory inside the repo (`.artifacts/`, `services/etl/work/`), never `/tmp`.
+- **Never edit a script while it is executing.** Bash reads scripts incrementally from a byte offset, so the
+  running process breaks with what looks like a syntax error in a file that is fine.
+- **Never `git reset --hard` in a worktree with uncommitted work.** Use `--soft` plus
+  `git checkout HEAD -- <path>`. A `--hard` here discarded an hour of edits across four files.
+
+## The caller's environment is an attack surface, and a denylist will not hold it
+A check that reads the repo through `git` or runs through an interpreter is steered by whoever invokes it.
+Three of these were executed against already-hardened scripts, with **no edit to any tracked file**:
+
+- `GIT_CONFIG_PARAMETERS='core.excludesFile=...'` turned `ops/sane` from `SANE FAIL exit 2` into
+  `SANE OK exit 0` with the offending file still on disk. It is the one `GIT_CONFIG_*` name a fifteen-name
+  unset list missed, and it is the mechanism `git -c` itself uses. (Windows-form path required; the `/c/...`
+  msys form is silently ignored by git.)
+- A twelve-line `sitecustomize.py` on `PYTHONPATH` — `site` imports it from `sys.path` at startup — produced
+  `PINS ok=99 ... failed=0` and `QUEUE OK (999 tasks)`, with zero pins loaded and zero assertions run.
+- A fifteen-line script named `git` earlier on `PATH`, filtering `git status` and `git ls-files`, hid a
+  tracked file from every checker and every pin assertion at once.
+
+So: **deriving the repo root from `${BASH_SOURCE[0]}` fixes the working directory and nothing else.** When you
+write or review a check, assume the caller controls `PATH`, every `GIT_*` and every `PYTHON*` variable, and ask
+what your check still proves. Prefer an allowlisted environment (`env -i` plus the few names actually needed)
+and absolute paths to `git` and the interpreter, over unsetting names somebody has to keep remembering — a
+denylist loses to the next name, and this repo has already lost that game **three ways in one file** (T-0086).
+All three evasions above went around the defences in `ops/lib/boot.sh` — its fifteen-name `unset` list, which
+`GIT_CONFIG_PARAMETERS` is not in, and its `find_spec` interpreter probe, which `sitecustomize.py` runs inside;
+`PATH` it never touches. That is the only file under `ops/` carrying either a denylist or a probe, so "three
+files" would have been three chances to notice. There was one.
+
 ## Verification
 - `ops/test` — one command, prints `TESTS linux=N/F ios=N/F`, exits non-zero if failing or below floor.
 - `ops/sane` — is the state sane; distinct exit codes; never mutates.
