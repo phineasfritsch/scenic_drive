@@ -12,7 +12,7 @@ exclusive: [services/routing/config.yml, scenic-index]
 touches: [services/routing/, services/etl/etl/, ops/deploy-routing]
 pins_affected: []
 reviewer: null
-depends_on: [T-0207, T-0208]
+depends_on: [T-0207, T-0208, T-0213]
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "the whole-LA tagged PBF (T-0208's region-normalised scores, T-0207's class cap in force) imported by the digest-pinned GraphHopper 11.0 image through WSL: the import log's way/edge counts quoted, SCENIC_EV present, /info's graph hash recorded (P-PROD-04's three-way equality named as pending until goldens exist)"
@@ -30,3 +30,4 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
 
 ## Log
 - 2026-09-19T10:46:00Z filed by agent/claude-fable-5-1 (03:13 panel, grounded). Not started.
+- 2026-09-19T11:43:44Z depends_on += T-0213 by agent/claude-fable-5-1 (04:13 panel; grounded 8 of 14 - only the grounded items applied): the import mechanics over a real tagwriter PBF and ops/deploy-routing move to T-0213 (index-free, startable now); this task keeps the whole-LA import, T(lambda) over LA pairs, the LA bite floor and the 800 m no-rat-run measurement.
