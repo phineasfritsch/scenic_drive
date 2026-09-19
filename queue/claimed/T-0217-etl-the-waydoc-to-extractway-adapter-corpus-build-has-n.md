@@ -340,3 +340,103 @@ The throwaway is preserved at services/etl/work/t0206/ in the main checkout for 
 
   STILL OPEN 1, unchanged: ops/lib/check-mutate-population.py's DRIVERS/COVERED_FLOOR and assemble.py
   collide with T-0208, which has NOT merged. The final pre-review merge below keeps both sides.
+- 2026-09-19T18:14:30Z ACCEPTANCE BLOCK, whole, re-run BARE by agent/claude-opus-5 (owner) on the MERGED
+  head, after the two checks S1/S2 landed (adfd1e0). `git fetch origin && git merge --no-edit origin/main`
+  -> merge commit 4a656d0 over origin/main 85c0a2a (PR #121's Handoff/DriveCopy work, ops/lib/check-drive-copy,
+  CLAUDE.md's new sleep rule, and queue moves): NO conflict - T-0208 has still not landed, so
+  ops/lib/check-mutate-population.py's DRIVERS/COVERED_FLOOR and assemble.py were uncontested and nothing
+  had to be kept from both sides. STILL OPEN 1 therefore stands exactly as filed.
+
+  RED THEN GREEN, the two checks this commit adds, with the SHIPPED mutant text read out of
+  ops/mutate/extractadapter.py's own MUTATIONS list by name (cwd services/etl, `-o addopts=`, every
+  `__pycache__` purged and 1.1 s settled on both sides of each mutation; tree restored and verified):
+      $ python work/t0217/redgreen.py          (gitignored, reference only)
+      MUTATIONS shipped: 27, floor 27
+      === RED: reverse the nodes of every `oneway=-1` row while the flag stays -1 ...
+          exit 1  1 failed, 79 passed in 1.31s
+          FAILED tests/test_extractadapter.py::test_the_nodes_are_the_documents_coordinates_in_document_
+                 order_on_every_row
+      === RED: disable the short-way guard, so a one-node way reaches a reader that refuses the whole
+               document
+          exit 1  16 failed, 64 passed in 2.50s
+          FAILED ...::test_a_one_node_way_is_skipped_by_count_and_never_reaches_the_reader   (+15 others)
+      === GREEN: the restored tree
+          exit 0  80 passed in 1.35s  failed=[]
+  Said plainly, because the population's one-line attribution below does not say it: mutation 27 is caught
+  by SIXTEEN tests, and the runner prints the first (`test_the_whole_slice_is_accepted_by_the_reader_
+  corpus_build_uses`). What makes the branch reachable at all is the synthetic row; what asserts the
+  COUNTED number rather than the downstream refusal is the S2 check, and it is in that list of sixteen.
+  A silent-count variant (`counts["skipped_short"] += 0`, the analogue of the shipped class-skip silence
+  mutant) would be caught by the S2 check ALONE; it is not shipped here because this commit's ruling moved
+  the floor 25 -> 27 for the pass's two survivors, and it is recorded as the next promotion.
+
+      $ cd services/etl && python -m pytest tests -rs -o addopts=
+      collected 1303 items
+      1303 passed in 143.27s (0:02:23)                                      exit 0, ZERO skips
+      (1301 -> 1303: the two checks above. No test was renamed, moved or removed.)
+      $ python ops/mutate/extractadapter.py
+      BASELINE exit=0, 27 mutations, floor 27
+      MUTATIONS: 27 caught, 0 missed, 0 skipped, of 27
+      EQUIVALENT: 0 caught, 3 missed, 0 skipped, of 3
+      MUTATE OK  caught=27/27 equivalent_caught=0                           exit 0
+      the two new ones, by name:
+        "reverse the nodes of every `oneway=-1` row while the flag stays -1 - a real road's geometry laid
+         against its own direction column"
+            <- test_the_nodes_are_the_documents_coordinates_in_document_order_on_every_row
+        "disable the short-way guard, so a one-node way reaches a reader that refuses the whole document"
+            <- test_the_whole_slice_is_accepted_by_the_reader_corpus_build_uses  (first of 16; see above)
+      $ python ops/mutate/extractadapter.py --prove-vacuity                  (U3, re-run here)
+      VACUITY: 0 caught, 27 missed, 0 skipped, of 27
+      VACUITY PROVED                                                         exit 0
+      $ python ops/lib/check-mutate-population.py
+      P-PROC-06: 76 modules, 26 covered by 12 populations, 27 allowlisted, 2 added by this branch
+      P-PROC-06: every added module is covered or allowlisted; the floor of 25 holds      exit 0
+      (that 25 is len(COVERED_FLOOR) - the module floor - and is untouched by this commit; the POPULATION
+      floor is MIN_MUTATIONS, 25 -> 27. The DEBT list it prints is informational and never red.)
+      $ python -m etl.extractadapter --input <main checkout>/services/etl/work/la/window-doc.json \
+          --out work/t0217/window-extract.json --region la
+      ADAPT ways=11740 skipped_class=0 skipped_short=0 access_blocked=5022 surface_unknown=2308 \
+      surface_unpaved=170 surface_paved=9262                                 exit 0
+      $ python -m etl.corpus --input work/t0217/window-extract.json \
+          --out work/t0217/window-corpus.sqlite --built-at 2026-09-18T00:00:00Z
+      CORPUS region=la ways=11740 segments=24205 collisions=0
+      CORPUS bytes=6135808 budget=62914560
+      CORPUS content_sha256=a642b4ebca9263ae8d06d35481f68d1cabf64bdbf0c43fcf37cfa020251eb876
+      CORPUS file_sha256=47cb679b9e55a4cfbd5ebe45f8ea3395b8fce76d3dd3c8aeb8454fcd5caa5fc1     exit 0
+      stat -c %s work/t0217/window-corpus.sqlite -> 6135808
+      sha256sum -> 47cb679b9e55a4cfbd5ebe45f8ea3395b8fce76d3dd3c8aeb8454fcd5caa5fc1 (3rd identical build)
+      ways / segments / bytes are T-0206's 11,740 / 24,205 / 6,135,808 EXACTLY, and both sha256s are
+      byte-identical to the 17:25:59Z and 17:33:04Z runs: the synthetic slice row and the two new checks
+      move NOTHING in the shipping path - they are a fixture row and two assertions.
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 92 Swift files tracked (Sources=29, Tests=42, apps/ios=21), none over 300 lines   exit 0
+      $ bash ops/lib/check-exec-bits
+      P-OPS-01: 85 files, 23 required present, all modes correct             exit 0
+      $ bash ops/queue-check
+      QUEUE OK (215 tasks)                                                   exit 0
+      $ wc -l  (every file this branch touches, re-measured on the merged head)
+       39 services/etl/etl/accessrule.py           204 services/etl/etl/extractadapter.py
+      287 services/etl/etl/assemble.py             299 services/etl/tests/test_extractadapter.py
+       30 services/etl/tests/fixtures/canyon_adapter_slice.json   (29 -> 30, the synthetic row)
+      304 ops/mutate/extractadapter.py             296 ops/lib/check-mutate-population.py
+      342 queue/claimed/T-0217-etl-the-waydoc-to-extractway-adapter-corpus-build-has-n.md
+      Every SOURCE and TEST file is under the 300-line cap (253 -> 299 for the suite: 1 line of headroom,
+      and the next check in it goes in a second file rather than over the cap). ops/mutate/extractadapter.py
+      is 294 -> 304: a population is a table of anchors, not a type, and the cap is not applied to them in
+      this repo - `ops/lib/check-line-cap` covers Swift only (T-0058 is the open task for the rest) and the
+      committed siblings are guidance.py 302, budget.py 305, routescore.py 445, retrace.py 548, handoff.py
+      603, hazards.py 602, segmentscore.py 646. Stated rather than hidden.
+      $ git ls-files -s ops/mutate/extractadapter.py ops/lib/check-mutate-population.py
+      100644 ... ops/lib/check-mutate-population.py     100644 ... ops/mutate/extractadapter.py
+      $ git merge-base --is-ancestor origin/main HEAD ; echo $?
+      0
+      $ git status --short
+      (empty)
+
+  THE PASS'S THREE UNSUPPORTED CLAIMS, closed: U1 'nodes differ on zero rows' now rests on
+  test_the_nodes_are_the_documents_coordinates_in_document_order_on_every_row, committed, with mutation 26
+  as the proof it can fail - the gitignored diff_extracts.py is reference only and nothing depends on it.
+  U2 the end-to-end 11,740 / 24,205 / 6,135,808 CANNOT become a committed assertion (its input is
+  gitignored and in no CI clone): it stays a Log measurement, quoted above with the two commands the
+  reviewer re-derives it with, and the committed end of the path is the slice's corpus build (16 ways).
+  U3 `--prove-vacuity` re-run above, over 27. No finding of the pass is left open.
