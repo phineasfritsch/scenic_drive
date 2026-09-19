@@ -146,3 +146,182 @@ owner can drive - in Los Angeles, over LA tiles. T-0009 (TestFlight) is the huma
   OpenStreetMap contributors · Protomaps` line") becomes wrong on a device that has the archive and should
   go with it. `DesignSystem/` needs no change at all: `AttributionFooter` already takes its text from the
   style, which is why the Protomaps string reaches it the moment that one line changes.
+
+- 2026-09-19T07:19:30Z BUILT by agent/claude-opus-5 (owner/author). Six files under `touches:`, no serial file,
+  no `exclusive:` taken, `DesignSystem/` unchanged (R5's last paragraph says why).
+
+      apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapStyle.swift            105 lines (was 56)
+      apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapAppearance.swift        50 lines (new)
+      apps/ios/Packages/ScenicApp/Sources/MapAdapter/ScenicStyleDocument.swift  83 lines (new)
+      apps/ios/Packages/ScenicApp/Sources/MapAdapter/BasemapResolver.swift      88 lines (new)
+      apps/ios/Packages/ScenicApp/Sources/MapAdapter/ScenicLightStyle.swift    221 lines (new, generated)
+      apps/ios/Packages/ScenicApp/Sources/MapAdapter/ScenicDarkStyle.swift     221 lines (new, generated)
+      apps/ios/ScenicDrive/Tiles/.gitignore                                     21 lines (new, 100644 data)
+
+  `MapStyle` gains **two** protomaps cases, `protomapsLALight` and `protomapsLADark`, not one. Ruled, since
+  the acceptance says "a protomaps case": the enum is `String`-raw-valued and `CaseIterable`, and an
+  associated value would take both away; the two generated styles are two documents at two paths, so `url`
+  cannot answer for "protomaps" without knowing which appearance - and giving `url` an argument would let a
+  caller take a URL without the matching credit, which is the one thing this type exists to prevent. The
+  acceptance's own words ("light/dark by appearance") are what two cases spell in a raw-value enum.
+
+  **RED FIRST, twice, both named.**
+
+  (1) The embedded-style byte-equality property - R4's check, recorded for `services/tiles/tests` under
+  T-0197/T-0201, run here from a throwaway script under `DerivedData/` (gitignored; not committed, because
+  `ops/` and `services/` are outside `touches:`):
+
+      $ python DerivedData/T-0195-tools/embedded_styles.py check     # before the files existed
+      DRIFT ScenicLightStyle.swift: missing
+      DRIFT ScenicDarkStyle.swift: missing
+      EMBEDDED-STYLES failed=2
+      exit=1
+
+      $ python DerivedData/T-0195-tools/embedded_styles.py gen
+      $ python DerivedData/T-0195-tools/embedded_styles.py check
+      OK    ScenicLightStyle.json == scenic-light.json (4563 bytes)
+      OK    ScenicDarkStyle.json == scenic-dark.json (4591 bytes)
+      EMBEDDED-STYLES failed=0
+      exit=0
+
+  A missing file is a weak red, so the real failure mode - drift - was demonstrated too: one hex digit
+  changed in the Swift copy (`#FFF7ED` -> `#FFF7EE`, the `background` layer's paint):
+
+      DRIFT ScenicLightStyle.json != scenic-light.json
+            line 27: json='        "background-color": "#FFF7ED"' swift='        "background-color": "#FFF7EE"'
+      EMBEDDED-STYLES failed=1
+      exit=1
+
+  then regenerated and green again. That is exactly what a `make_styles.py` run that forgets this copy looks
+  like, which is why the assertion is written out for T-0197/T-0201 rather than left as a promise.
+
+  (2) `bash ops/lib/check-line-cap` (P-SRC-02), red by name on a real file - 220 filler lines appended to
+  `BasemapResolver.swift`:
+
+      P-SRC-02: file(s) over the 300-line cap:
+        apps/ios/Packages/ScenicApp/Sources/MapAdapter/BasemapResolver.swift (308 lines)
+      red_exit=1
+
+  **Worth recording, because it cost a first attempt:** the same 308-line file produced
+  `P-SRC-02: 73 Swift files tracked ... none over 300 lines`, exit 0, while it was still **untracked**. The
+  check reads `git ls-files` by design (its own header: "so untracked build junk is never counted and the
+  check matches what is actually committed"), so a new file is exempt from the cap until it is staged. The
+  red above is the run after `git add`. Nothing to fix - but an agent who writes a 400-line file, runs this
+  check green and commits has been told OK by a check that could not see the file.
+
+  After restoring the file (88 lines):
+
+      P-SRC-02: 78 Swift files tracked (Sources=26, Tests=37, apps/ios=15), none over 300 lines
+      green_exit=0
+
+  `apps/ios` went 10 -> 15: the five new Swift files are in the population, under the cap, and counted.
+
+  **THE COMPILER. ios-compile run 35428810018, dispatched ONCE, green first time.**
+
+      $ gh workflow run ios-compile.yml --ref task/T-0195
+      $ gh run view 35428810018 --json status,conclusion,headSha
+      completed success d442f37555f3c2ba6ef89df72389dc99ffa250d3      <- this branch's commit
+
+      $ gh run view 35428810018 --log > ios-compile.log   # 660,477 bytes
+      $ grep -c '\*\* BUILD SUCCEEDED \*\*' ios-compile.log   -> 1
+      $ grep -c ' error:' ios-compile.log                     -> 0
+      simulator-build  build for the iOS Simulator  2026-09-19T07:16:33.8136920Z ** BUILD SUCCEEDED **
+
+  The one warning in the build step is `appintentsmetadataprocessor ... No AppIntents.framework
+  dependency found`, which is the toolchain and not this code. **What that run did and did not prove:**
+  the five new files compile under Swift 6 language mode against MapLibre 6.31.0 and link into the app,
+  and the app still builds with the resolution order in it. The runner has no `la.pmtiles` and no way to
+  get one, so it necessarily exercised branch (c) - `BasemapResolver.archiveURL` returned nil and the
+  resolver returned `.maplibreDemoTiles`. Nothing on any machine has yet rendered the LA tiles; the first
+  proof of that is the owner's device build (STILL OPEN 4).
+
+  **Handed to T-0197, whose acceptance already asks for exactly this.** `queue/backlog/T-0197-...md`
+  (`depends_on: [T-0165, T-0195]`) says P-ATTR-01's assertion, until T-0180's XCUITest exists, is "the
+  structural check that MapStyle's attributionText for the protomaps case is the plan's string and that
+  AttributionFooter is not accessibilityHidden ... demonstrated red first". Both anchors now exist as
+  identifiers rather than as prose: `MapStyle.protomapsAttribution` (with `attributionText` returning it for
+  both protomaps cases) and `AttributionFooter`'s `.accessibilityIdentifier("attribution.footer")` /
+  `.accessibilityHidden(false)`, which T-0141 already wrote as explicit stated values for this reason. The
+  four assertions written out in R3 are the ones to lift.
+
+  **Handed to T-0201/T-0197: the embedded-style drift test.** It belongs under `services/tiles/tests`
+  (outside this task's `touches:`), and the script that demonstrated it here was deliberately not committed
+  for the same reason. Red is free: change a hex digit in either Swift file, or regenerate the JSON without
+  the Swift.
+
+  **THE WHOLE ACCEPTANCE BLOCK, RE-RUN BARE AT THE FINAL PRE-REVIEW COMMIT** (2026-09-19T07:39Z; the only
+  change to the tree after these runs is this Log entry).
+
+  A1 - *"MapStyle has a protomaps case whose style is one of services/tiles/styles/*.json (light/dark by
+  appearance) and whose source is the LA PMTiles ... attributionText for that case is exactly the plan's
+  string and a Linux-free test in the Apple package or a structural check pins it"*: `protomapsLALight` /
+  `protomapsLADark` (R1 on two cases above), each `url` the materialised copy of the matching generated
+  style, each source the archive `BasemapResolver` found, each `attributionText`
+  `MapStyle.protomapsAttribution`. How the file reaches the device is R2, sized and quoted
+  (63,520,949 bytes); how MapLibre reads it is R1 (native `pmtiles://` since 6.10.0, pin 6.31.0 - and so
+  `Package.resolved` does NOT change and no `exclusive:` was taken). The check is structural and greppable
+  by identifier; T-0197 owns turning it into P-ATTR-01, and its acceptance already asks for exactly it.
+
+      $ grep -c 'public static let protomapsAttribution = "© OpenStreetMap contributors · Protomaps"' \
+            apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapStyle.swift
+      1
+      $ grep -c 'return MapStyle.protomapsAttribution' \
+            apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapStyle.swift
+      1        # one `return` serving both protomaps cases in a single `case a, b:` arm
+
+  A2 - *"the home screen's map surface uses the protomaps case; AttributionFooter shows the Protomaps
+  string at every detent; ios-compile dispatch green with the run id quoted; no MapLibre import outside
+  MapAdapter"*: **HALF MET, AND SAID SO.** The home screen is `FeatureScenicHome`, which is outside this
+  task's `touches:` and owned by T-0178 / PR #110; editing it here is the collision the promotion note
+  says this task avoids. The one-line change is written out above and repeated in the PR as STILL OPEN 1,
+  and `AttributionFooter` needs no change to show the string once it lands. The rest is met:
+
+      $ gh run view 35428810018 --json status,conclusion,headSha
+      completed success d442f37555f3c2ba6ef89df72389dc99ffa250d3
+      $ grep -c '\*\* BUILD SUCCEEDED \*\*' ios-compile.log -> 1 ; grep -c ' error:' -> 0
+
+      $ grep -rn "import MapLibre" apps/ios
+      apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapView.swift:2:import MapLibre
+      apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapView.swift:7:/// **The only `import MapLibre` ...
+
+  One import, in MapAdapter, unchanged by five new files in that target.
+
+  A3 - *"the demo-tiles case stays only if something still needs it - say what, or delete it"*: it stays,
+  and what needs it is every device and every CI runner without a 63 MB archive - R5, and the ios-compile
+  run above is the witness, since that runner took branch (c) to reach BUILD SUCCEEDED. Its
+  `© MapLibre · Natural Earth` string stays with it, now as `MapStyle.demoAttribution`.
+
+  A4 - *"bash ops/lib/check-line-cap and bash ops/queue-check bare at the final commit"*, plus
+  `ops/check-pins --source-only` once:
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 78 Swift files tracked (Sources=26, Tests=37, apps/ios=15), none over 300 lines
+      exit 0
+      $ bash ops/queue-check
+      QUEUE OK (196 tasks)
+      exit 0
+      $ bash ops/check-pins --source-only
+      PINS ok=13 skipped=14 pending=1 expired=0 failed=0 tier=linux source-only
+      exit 0
+
+      $ wc -l apps/ios/Packages/ScenicApp/Sources/MapAdapter/*.swift
+         88 BasemapResolver.swift      50 MapAppearance.swift        105 MapStyle.swift
+         66 MapView.swift (untouched) 221 ScenicDarkStyle.swift      221 ScenicLightStyle.swift
+         83 ScenicStyleDocument.swift  834 total
+      $ python DerivedData/T-0195-tools/embedded_styles.py check
+      OK ScenicLightStyle (4563 bytes) / OK ScenicDarkStyle (4591 bytes) / failed=0, exit 0
+
+  `ops/test` is in `verify:` and was NOT run: this session's environment forbids it, and it could only
+  report the Linux tier, which nothing here touches (no file outside `apps/ios/` changed). Recorded as a
+  gap rather than implied by silence; the reviewer's own run is the one that counts.
+
+  STILL OPEN, all five, are in the PR body: the home-screen line (T-0178), P-ATTR-01 unfiled (T-0197), the
+  embedded-style drift test uncommitted (T-0197/T-0201), no device has drawn these tiles (T-0009), and
+  appearance is a defaulted parameter not yet wired to `colorScheme` (same file T-0178 owns). One more,
+  found while writing and not fixed here because the compiler proof above is bound to this exact tree:
+  `BasemapResolver.losAngeles()` rewrites the style document on every call, and SwiftUI may call a screen's
+  property initialiser repeatedly - the write is ~4.5 KB and atomic, but an idempotent skip (compare bytes
+  first) belongs in whichever task wires the call site. Changing it after a green run would leave the
+  claimed compiler proof pointing at a commit that no longer exists.
+
+  state: claimed and reviewer: null are untouched by this entry. Never self-review.
