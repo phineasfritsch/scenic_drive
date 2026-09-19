@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- The REGION's motorway set, as `osmium tags-filter` cuts it: a file of its own, not the clip.
+     T-0208 R1b. Way 9201 is a motorway ~390 m from `scenic_clip.osm.xml`'s way 101; way 9202 is a
+     residential way laid exactly on way 101's first node. A reader that measured to every way in this
+     file instead of to its MOTORWAYS would answer 0.0 for way 101 and be caught by name. -->
+<osm version="0.6" generator="osmium/1.16.0">
+  <bounds minlat="34.0000" minlon="-118.8000" maxlat="34.1000" maxlon="-118.6000"/>
+  <node id="9101" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0135" lon="-118.7000"/>
+  <node id="9102" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0145" lon="-118.6990"/>
+  <node id="9103" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0100" lon="-118.7000"/>
+  <node id="9104" version="1" timestamp="2025-01-02T03:04:05Z" lat="34.0105" lon="-118.6995"/>
+  <way id="9201" version="1" timestamp="2025-01-02T03:04:05Z">
+    <nd ref="9101"/>
+    <nd ref="9102"/>
+    <tag k="highway" v="motorway"/>
+    <tag k="ref" v="I 405"/>
+  </way>
+  <way id="9202" version="1" timestamp="2025-01-02T03:04:05Z">
+    <nd ref="9103"/>
+    <nd ref="9104"/>
+    <tag k="highway" v="residential"/>
+    <tag k="name" v="Not A Motorway Street"/>
+  </way>
+</osm>
