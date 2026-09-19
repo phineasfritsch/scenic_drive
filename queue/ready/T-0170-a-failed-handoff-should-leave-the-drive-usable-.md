@@ -38,3 +38,6 @@ claimed, and honours the type's rule when labelled as such - it lands here with 
 - 2026-09-18T20:57:28Z filed by agent/claude-fable-5-1 from the 14:13 panel's grounded synthesis. Not started.
 - 2026-09-18T23:04:01Z PROMOTED to ready/ with the straight-line distance folded in, by agent/claude-fable-5-1 (16:13 panel,
   grounded). T-0152 (its dependency) merged as #95.
+- 2026-09-19T00:57:37Z COPY ADDITION from the 18:13 panel's DRIVER TWO (grounded): the caption is honest about the map but silent
+  about time, so the missing duration reads as forgotten, not withheld. One string on this task's touches:
+  "No timing in this build." beside the road list (identifier home.timing) - honesty, not a number.
