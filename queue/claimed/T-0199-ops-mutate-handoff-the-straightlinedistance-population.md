@@ -114,3 +114,89 @@ card's precision and the test doc overclaiming.
   `swift test --scratch-path .build/T0199 --filter HandoffTests` with the two new tests in place: "Test run with 86 tests
   in 12 suites passed after 0.102 seconds", exit 0 (84 before; the two added are the long east-west leg and the miles that
   do not come from the floored kilometres).
+- 2026-09-19T21:26:00Z the acceptance block, whole, on the merged head, and the ruling on a main that moved under
+  it (agent/claude-opus-5, owner). The session that filed R1-R5 and the 18:09Z RED/GREEN pairs died on a usage
+  limit inside this block; nothing below is re-derived from its stdout - every line is from a run made after the
+  resume, on a merged head.
+  (M1) THE MERGE. `git fetch origin && git merge --no-edit origin/main`, three times, because main moved under the
+  block twice. The FIRST merge (#122, T-0217 extractadapter) carried one CONTENT CONFLICT, in
+  ops/lib/check-mutate-population.py: main had added "extractadapter.py" to DRIVERS, this branch "straightline.py".
+  Resolved as the union, alphabetical, 13 names, neither side dropped. COVERED_FLOOR auto-merged (main's
+  accessrule.py and extractadapter.py beside this branch's StraightLineDistance.swift), and the floor is computed
+  from it, so the gate now reads 26 and NOT the 24 quoted at 18:09Z: 23 + main's two + this branch's one. That
+  restated floor is the number the merged head prints. Merge commits 259da45, cc04100, 9bfe1bf, 8c3521f.
+  (M2) THE BLOCK, BARE, on 9bfe1bf (its merge of origin/main 28d7745), in order, each exit quoted:
+    python ops/mutate/straightline.py
+      caught by the test that names it: 10 of 10   (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)
+      MUTATE OK  caught=10/10 equivalent_caught=0                                                       exit 0
+    python ops/mutate/straightline.py --prove-vacuity
+      VACUITY PROOF OK: with the 12 test file(s) emptied, caught=0 (need 0) and MISSED=10 of 10          exit 0
+    python ops/mutate/straightline.py --prove-floor
+      FLOOR PROOF OK: 7 of 7 arms refused and the control did not                                       exit 0
+    swift test --scratch-path .build/T0199 --filter HandoffTests
+      Test run with 86 tests in 12 suites passed after 0.095 seconds                                    exit 0
+    python ops/lib/check-mutate-population.py
+      P-PROC-06: every added module is covered or allowlisted; the floor of 26 holds                    exit 0
+    bash ops/check-pins --source-only
+      PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only                         exit 0
+    bash ops/lib/check-line-cap
+      P-SRC-02: 92 Swift files tracked (Sources=29, Tests=42, apps/ios=21), none over 300 lines         exit 0
+    bash ops/lib/check-exec-bits
+      P-OPS-01: 87 files, 23 required present, all modes correct                                        exit 0
+    bash ops/queue-check
+      QUEUE OK (221 tasks)                                                                              exit 0
+  (M3) THE PER-MUTATION DETAIL, printed in full by the run on merge head 259da45 and reprinted in its closing
+  counts by the 9bfe1bf re-run (same population, same three pristine md5s):
+    population  mutations=10 (floor 10)  equivalent=1 (floor 1)  subject=StraightLineDistance.swift  test files=12
+    dependencies mutated, never declared: Geo.swift, SkylineRoute.swift
+    pristine StraightLineDistance.swift md5 8413b2c95c79dc4cedd40cb452da40bb == HEAD
+    pristine Geo.swift md5 8107f142ef73e0a759a0e7fe089ead4d == HEAD
+    pristine SkylineRoute.swift md5 11aab6adad7e703e6e83290cdc1362c8 == HEAD
+    BASELINE    --filter HandoffTests   exit=0
+    caught  the earth radius 0.1% too large      by: a 1,065 km east-west leg pins the formula and the mile constant | the figure is floored, not rounded: 1999 m of chain is 1 km and never 2 | the whole-kilometre figure is the number the card shows | the miles come from the metres, not from the floored kilometres | the whole-kilometre figure is the number the LA drive shows
+    caught  the earth radius 0.1% too small      by: a 1,065 km east-west leg pins the formula and the mile constant | the whole-kilometre figure is the number the card shows | the whole-kilometre figure is the number the LA drive shows
+    caught  the kilometre figure rounds to nearest instead of flooring   by: the figure is floored, not rounded: 1999 m of chain is 1 km and never 2 | a 1,065 km east-west leg pins the formula and the mile constant | the miles come from the metres, not from the floored kilometres
+    caught  the mile figure rounds to nearest instead of flooring        by: the whole-mile figure is the number the screen renders, from the same metres | a 1,065 km east-west leg pins the formula and the mile constant | the miles are floored too: 1.99 miles of chain is 1 mile and never 2
+    caught  the destination falls off the end of the shipped chain       by: the whole-kilometre figure is the number the LA drive shows | the distance accessor reports each drive's own figure | each drive maps to its own route, and the default is the LA drive | every point is within a kilometre of where this suite thinks it is | the whole-mile figure is the number the screen renders, from the same metres | the chain is the shipped pins in driving order, then the destination | the whole-kilometre figure is the number the card shows
+    caught  pin 1 moved 1.7 km off the I-280 on-ramp                     by: seven pins still build a handoff URL | every point is within a kilometre of where this suite thinks it is | every pin is the coordinate the reverse geocode returned | the whole-kilometre figure is the number the card shows | the whole-mile figure is the number the screen renders, from the same metres | the distance accessor reports each drive's own figure | the whole-kilometre figure is the number the LA drive shows | the chain is the shipped pins in driving order, then the destination
+    caught  the metres-to-miles constant 1% too large                    by: a 1,065 km east-west leg pins the formula and the mile constant
+    caught  the metres-to-miles constant 1% too small                    by: the miles are floored too: 1.99 miles of chain is 1 mile and never 2 | the whole-mile figure is the number the screen renders, from the same metres | a 1,065 km east-west leg pins the formula and the mile constant
+    caught  the miles derived from the floored kilometres instead of the metres   by: the miles come from the metres, not from the floored kilometres
+    caught  the flat equirectangular formula on the same radius          by: a 1,065 km east-west leg pins the formula and the mile constant
+    MISSED  the two-point guard spelled >= 2 instead of > 1   exit=0  no test objected   <- the EQUIVALENT entry;
+      anything but MISSED there is a FAILURE, and its witness is arithmetic (over Int, `n > 1` and `n >= 2` are the
+      same predicate, so no chain separates them).
+  R3 held under measurement, not under argument: the flat-formula mutant is CAUGHT, by name, by the long east-west
+  leg, so it is a MUTATION and not the EQUIVALENT entry the Brief offered; entries 7 and 9 are caught by the two
+  tests added for them. 10 of 10 by the named killer, 0 wrong-killer, 0 trapped, 0 compile-only, 0 MISSED.
+  (M4) THE ANCESTOR RULING. `git merge-base --is-ancestor origin/main HEAD` exited 1 after the cc04100 block and
+  again after the 9bfe1bf block: the block takes ~13 minutes (two mutation passes, eleven swift builds each) and
+  other sessions pushed queue commits inside every one of those windows. Chasing it by re-running the whole block
+  is unbounded, so it was ruled by MEASURING the delta instead of asserting it. Merged once more - 8c3521f, over
+  origin/main 7585e39 - and:
+    git diff --name-only 9bfe1bf HEAD
+      queue/LOCKS/root-package.lock
+      queue/claimed/T-0219-p-data-03-corpus-half-meta-region-is-stamped-by-etl-corpus-a.md
+      queue/claimed/T-0224-etl-measurement-the-residential-and-service-way-length-di.md
+      queue/done/T-0224-etl-measurement-the-residential-and-service-way-length-di.md
+      services/etl/tests/measure_way_lengths.py
+      services/routing/tests/measure_runs.py
+  No gate, no pin file, no Sources/ file and no services/etl/etl/ module: not one input of the mutation stages or
+  of the Handoff suite moved, and services/etl/tests/ is outside check-mutate-population's MODULE_ROOTS. The five
+  checks that DO read the tree were re-run bare on 8c3521f and printed the same lines as (M2) - PINS ok=15
+  skipped=16 pending=1 expired=0 failed=0; P-PROC-06 floor of 26 holds; P-SRC-02 92 Swift files, none over 300;
+  P-OPS-01 87 files, 23 required present, all modes correct; QUEUE OK (221 tasks) - and there
+  `git merge-base --is-ancestor origin/main HEAD` exits 0. The push follows this commit.
+  (M5) wc -l, every touched file, on 8c3521f (the task file measured before this entry was appended):
+    354 ops/mutate/straightline.py
+    154 ops/mutate/straightline_mutations.py
+    208 Tests/HandoffTests/StraightLineDistanceTests.swift
+    297 ops/lib/check-mutate-population.py
+    116 queue/claimed/T-0199-ops-mutate-handoff-the-straightlinedistance-population.md
+  `git ls-files -s` on the three ops files: 100644 each, which is what the task's instruction and P-OPS-01 require
+  of an ops/**/*.py that is not on the required-executable list.
+  RECORDED, not buried: straightline.py is 354 lines, over CLAUDE.md's 300-line cap. The mechanical gate quoted
+  above (P-SRC-02) counts Swift files only and no ops/mutate driver is under 300 (handoff.py 603). R1's reason for
+  a new driver rather than a widening still holds - the split keeps this runner at 508 lines across two files
+  against handoff.py's 603 in one - but the cap is written for every file, this one is over it, and a reviewer
+  should read that here rather than discover it.
