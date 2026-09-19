@@ -20,7 +20,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from check_pmtiles import (  # noqa: E402
-    BUDGET_BYTES, MIN_MAXZOOM, bbox_from_region, check, parse_header, read_metadata,
+    BUDGET_BYTES, MAX_FUTURE_SKEW, MIN_BYTES, MIN_MAXZOOM, MIN_TILE_ENTRIES,
+    bbox_from_region, check, parse_header, read_metadata,
 )
 
 LA_BBOX = (-119.0, 33.7, -117.85, 34.45)
@@ -28,8 +29,13 @@ NOW = datetime(2026, 9, 19, 5, 0, tzinfo=timezone.utc)
 
 
 def write_pmtiles(path: Path, bounds: tuple[float, float, float, float], metadata: dict,
-                  *, padding: int = 0, version: int = 3, maxzoom: int = 14, entries: int = 1) -> Path:
-    """A minimal but structurally real PMTiles v3 archive: header, gzip metadata, then filler tile data."""
+                  *, padding: int = MIN_BYTES, version: int = 3, maxzoom: int = 14,
+                  entries: int = MIN_TILE_ENTRIES) -> Path:
+    """A minimal but structurally real PMTiles v3 archive: header, gzip metadata, then filler tile data.
+
+    The two defaults sit ON the floors `check` now carries, so a fixture written for some other limb is not
+    silently refused by the size or entry floor and every test below keeps the subject it was written for.
+    """
     blob = gzip.compress(json.dumps(metadata).encode("utf-8"))
     meta_offset = 127
     data_offset = meta_offset + len(blob)
@@ -183,3 +189,43 @@ def test_the_build_recipe_reads_the_budget_out_of_this_module() -> None:
 def test_the_bbox_is_read_from_the_region_file_not_typed() -> None:
     region = Path(__file__).resolve().parents[3] / "services/etl/regions/la/region.json"
     assert bbox_from_region(region) == LA_BBOX
+
+
+# rv1-pr109 R1 and R2: two limbs that could not fail. The age limb only looked backwards, and the tile limb
+# was `== 0`, so a stamp from 2099 and a 330-byte stub with three entries in it were both publishable.
+
+
+@pytest.mark.parametrize("stamp", ["2099-01-01T00:00:00Z", "2099-01-01T00:00:00"])
+def test_refuses_a_build_stamped_in_the_future(tmp_path: Path, stamp: str) -> None:
+    """Both spellings: the recipe writes the Z, and a stamp typed without an offset is UTC here too - which
+    used to raise on the comparison instead of refusing, and a traceback is not a refusal."""
+    ahead = write_pmtiles(tmp_path / "ahead.pmtiles", LA_BBOX, good_metadata(built_at=stamp))
+    failures = check(ahead, LA_BBOX, region="la", now=NOW)
+    assert any("is in the future" in f for f in failures), failures
+
+
+def test_a_stamp_a_few_minutes_ahead_is_inside_the_skew_tolerance(tmp_path: Path) -> None:
+    """Two hosts whose clocks differ by seconds must not fail the build; that is what the tolerance is for."""
+    soon = (NOW + timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fresh = write_pmtiles(tmp_path / "soon.pmtiles", LA_BBOX, good_metadata(built_at=soon))
+    assert check(fresh, LA_BBOX, region="la", now=NOW) == []
+
+
+def test_the_future_skew_tolerance_is_the_one_hour_ruled() -> None:
+    assert MAX_FUTURE_SKEW == timedelta(hours=1)
+
+
+def test_refuses_a_truncated_archive(tmp_path: Path) -> None:
+    """In bounds, correctly stamped, z14 in both places, three entries - and 330 bytes of it. Before the
+    floors this returned no failures at all, so a half-written extract published as a basemap."""
+    stub = write_pmtiles(tmp_path / "stub.pmtiles", LA_BBOX, good_metadata(), padding=0, entries=3)
+    assert stub.stat().st_size < 1000, stub.stat().st_size
+    failures = check(stub, LA_BBOX, region="la", now=NOW)
+    assert any(f"tile_entries_count 3 is below the floor of {MIN_TILE_ENTRIES}" in f for f in failures), failures
+    assert any(f"is below the {MIN_BYTES}-byte floor" in f for f in failures), failures
+
+
+def test_the_floors_are_the_ones_ruled_off_the_measured_build() -> None:
+    """2549 entries and 63,520,949 bytes were measured; the floors are stated, not derived at runtime."""
+    assert MIN_TILE_ENTRIES == 256
+    assert MIN_BYTES == 1024 * 1024

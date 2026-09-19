@@ -34,6 +34,22 @@ MAX_AGE_DAYS = 30
 # coarse). The budget limb alone cannot see this: every zoom BELOW 14 is smaller, so `--maxzoom 12` yields a
 # 20 MB archive that passes the budget while the map goes soft two zoom levels early. This is that floor.
 MIN_MAXZOOM = 14
+# rv1-pr109 R2. `tile_entries_count == 0` was the only tile limb, so a 330-byte truncation carrying three
+# entries - right bounds, right stamp, inside the budget - came back publishable. The measured LA build
+# carries 2549 entries, and this floor is an order of magnitude under it (2549/10 = 254.9, rounded up to a
+# power of two): far enough below that a re-pinned planet build or a bbox nudged by a tenth of a degree
+# cannot trip it, far enough above 3 that a truncated or half-written archive cannot pass.
+MIN_TILE_ENTRIES = 256
+# The same failure measured in bytes. Deliberately NOT one order of magnitude under the measured
+# 63,520,949 but about sixty: a byte floor's job is to catch a truncation or an interrupted download, not to
+# track the size of the build. A floor set near the real size refuses the first legitimate smaller region
+# and gets lowered in a hurry by whoever hits it, which is how a floor stops meaning anything.
+MIN_BYTES = 1_048_576
+# rv1-pr109 R1. The age limb was one-sided, so `built_at` in 2099 passed it. The recipe stamps built_at at
+# step 1 and runs this check at step 6 on the SAME clock minutes later; across two hosts the only legitimate
+# gap is NTP drift, which is seconds. One hour is three orders of magnitude under MAX_AGE_DAYS, so it cannot
+# mask a stale build, and it still refuses every wrong-DATE stamp - a year typed wrong, a host set ahead.
+MAX_FUTURE_SKEW = timedelta(hours=1)
 # Internal-compression enum from the PMTiles v3 spec; only these two are produced by go-pmtiles today.
 COMPRESSION_NONE = 1
 COMPRESSION_GZIP = 2
@@ -97,8 +113,14 @@ def bbox_from_region(region_json: Path) -> tuple[float, float, float, float]:
 
 def check(path: Path, bbox: tuple[float, float, float, float], *, region: str | None = None,
           budget: int = BUDGET_BYTES, max_age_days: int = MAX_AGE_DAYS,
-          min_maxzoom: int = MIN_MAXZOOM, now: datetime | None = None) -> list[str]:
-    """Every failure, named. Empty list = the artifact is publishable."""
+          min_maxzoom: int = MIN_MAXZOOM, min_entries: int = MIN_TILE_ENTRIES,
+          min_bytes: int = MIN_BYTES, max_future_skew: timedelta = MAX_FUTURE_SKEW,
+          now: datetime | None = None) -> list[str]:
+    """Every failure, named. Empty list = the artifact is publishable.
+
+    The floors are parameters rather than constants read from the module body so a second region can state
+    its own numbers instead of inheriting the ones measured off the LA build.
+    """
     failures: list[str] = []
     try:
         header = parse_header(path)
@@ -125,12 +147,23 @@ def check(path: Path, bbox: tuple[float, float, float, float], *, region: str | 
 
     # A directory-less archive is the failure mode a size check cannot see from the other side: an extract
     # that wrote a header and no tiles is small, in-bounds, correctly stamped, and draws nothing at all.
-    if header["tile_entries_count"] == 0:
+    entries = header["tile_entries_count"]
+    if entries == 0:
         failures.append("header tile_entries_count is 0: the archive carries no tiles")
+    elif entries < min_entries:
+        failures.append(
+            f"header tile_entries_count {entries} is below the floor of {min_entries} "
+            "(the measured LA build carries 2549): the archive is truncated or was cut to a sliver"
+        )
 
     size = path.stat().st_size
     if size > budget:
         failures.append(f"{size} bytes exceeds the {budget}-byte budget by {size - budget}")
+    elif size < min_bytes:
+        failures.append(
+            f"{size} bytes is below the {min_bytes}-byte floor: a metro extract at z14 is tens of "
+            "megabytes, so this is a truncation or an interrupted download, not a map"
+        )
 
     try:
         meta = read_metadata(path)
@@ -161,8 +194,17 @@ def check(path: Path, bbox: tuple[float, float, float, float], *, region: str | 
             failures.append(f"meta.built_at {stamp!r} is not an ISO-8601 timestamp (P-DATA-03)")
         else:
             reference = now or datetime.now(timezone.utc)
+            # A stamp written without an offset is UTC here: the recipe writes `date -u`, and comparing a
+            # naive datetime against an aware one raises instead of refusing, which is not a refusal.
+            if built.tzinfo is None:
+                built = built.replace(tzinfo=timezone.utc)
             if built < reference - timedelta(days=max_age_days):
                 failures.append(f"meta.built_at {stamp} is older than {max_age_days} days (P-DATA-03)")
+            elif built > reference + max_future_skew:
+                failures.append(
+                    f"meta.built_at {stamp} is in the future by more than the {max_future_skew} skew "
+                    "tolerance: an age limb that only looks backwards passes a stamp from 2099"
+                )
     return failures
 
 

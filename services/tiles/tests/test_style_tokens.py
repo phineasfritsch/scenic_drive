@@ -8,6 +8,7 @@ a human eye does not catch in a diff of hex triples.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -15,11 +16,22 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from check_pmtiles import read_metadata  # noqa: E402
 from make_styles import SOURCE_LAYERS, TOKENS, dumps, style  # noqa: E402
+from test_pmtiles_budget import LA_BBOX, good_metadata, write_pmtiles  # noqa: E402
 
 STYLES_DIR = Path(__file__).resolve().parents[1] / "styles"
 APPEARANCES = ("light", "dark")
+ARCHIVE_ENV = "SCENIC_LA_PMTILES"
+# The vector layers the BUILT archive carries, read off `pmtiles show --metadata` on the LA extract and
+# typed HERE rather than imported from make_styles. That is the whole point of rv1-pr109 B2: asserting
+# `source-layer in make_styles.SOURCE_LAYERS` proves only that the module agrees with itself, so adding
+# "waters" to the tuple and pointing the water fill at it left every test green while
+# `make_styles.py --check --archive` refused. The anchor has to live outside the module under test.
+ARCHIVE_VECTOR_LAYERS = ("boundaries", "buildings", "earth", "landcover", "landuse", "places", "pois",
+                         "roads", "water")
 # Anything that looks like a colour literal anywhere in the file, not only where we expect one: a colour
 # hidden inside an expression is still a colour on screen.
 COLOUR_LITERAL = re.compile(r"^(#[0-9A-Fa-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\))$")
@@ -90,12 +102,48 @@ def test_nothing_claims_the_lower_right_corner(appearance: str) -> None:
     assert document["metadata"]["scenic:attribution_owner"] == "DesignSystem.AttributionFooter"
 
 
+def archive_layer_subjects(tmp_path: Path) -> list[tuple[str, set[str]]]:
+    """The layer names an ARCHIVE declares, per subject.
+
+    The fixture is the primary subject and always runs, so this test never depends on a 63 MB file being on
+    the box. The real build is a second subject named by $SCENIC_LA_PMTILES; when that variable is set the
+    file MUST be there - this asserts rather than skipping, because a green that is really an absence is the
+    defect this whole task keeps finding.
+    """
+    meta = good_metadata(vector_layers=[{"id": name} for name in ARCHIVE_VECTOR_LAYERS])
+    fixture = write_pmtiles(tmp_path / "layers.pmtiles", LA_BBOX, meta)
+    subjects = [("fixture", {layer["id"] for layer in read_metadata(fixture)["vector_layers"]})]
+    named = os.environ.get(ARCHIVE_ENV)
+    if named:
+        real = Path(named)
+        assert real.is_file(), f"{ARCHIVE_ENV}={named} names no file"
+        subjects.append((real.name, {layer["id"] for layer in read_metadata(real)["vector_layers"]}))
+    return subjects
+
+
 @pytest.mark.parametrize("appearance", APPEARANCES)
-def test_every_source_layer_exists_in_the_archive(appearance: str) -> None:
-    """Anchored on the built archive's vector_layers, quoted in T-0165's Log - not on a guessed schema."""
-    for layer in load(appearance)["layers"]:
-        if "source-layer" in layer:
-            assert layer["source-layer"] in SOURCE_LAYERS, layer["id"]
+def test_every_source_layer_exists_in_the_archive(appearance: str, tmp_path: Path) -> None:
+    """Every source-layer a committed style names is declared by the archive that has to draw it."""
+    for subject, have in archive_layer_subjects(tmp_path):
+        named = [layer["source-layer"] for layer in load(appearance)["layers"] if "source-layer" in layer]
+        assert named, "a style naming no source-layer would pass this vacuously"
+        missing = sorted({name for name in named if name not in have})
+        assert missing == [], f"{subject}: {appearance} names source-layer(s) the archive has not got: {missing}"
+
+
+def test_the_generators_source_layer_table_is_the_archives(tmp_path: Path) -> None:
+    """`SOURCE_LAYERS` is a transcription of the archive's vector_layers, so it is checked against them."""
+    for subject, have in archive_layer_subjects(tmp_path):
+        assert sorted(set(SOURCE_LAYERS) - have) == [], f"{subject}: not in the archive"
+
+
+def test_the_build_recipe_checks_the_styles_against_the_archive() -> None:
+    """`make_styles.py --check --archive` is the only executable anchor between the typed table and a real
+    archive, and until rv1-pr109 B2 nothing ran it - not this recipe, not ops/publish-tiles, not the suite.
+    Anchored on the invocation, which is executed, never on a comment, which gets stripped."""
+    recipe = (Path(__file__).resolve().parents[1] / "build-la.sh").read_text(encoding="utf-8")
+    assert "make_styles.py" in recipe, "the recipe never runs the style generator"
+    assert "--check --archive" in recipe, "the recipe never checks the styles against the archive it built"
 
 
 @pytest.mark.parametrize("appearance", APPEARANCES)

@@ -516,3 +516,203 @@ here, publish is a separate `exclusive: [prod]` step). `meta.region` and `built_
   (7) NEW, from S2: nothing re-runs `check_pmtiles.py` against the artifact in `work/` on a schedule. The
       limbs added here only fire when somebody runs the recipe or the publish script; a 30-day-old `built_at`
       goes unnoticed until the next publish attempt. Same owner as (5) - the weekly rebuild.
+- 2026-09-19T06:14:44Z REVIEW FAIL - PR #109, by agent/rv1-pr109 (reviewer, not the owner). Reviewed at
+  936b259bc8aa38c325f7ee98583ce4395fe2262d in a detached worktree; `git status --short` empty after every
+  mutant; worktree removed; nothing in the tree, the queue or the PR changed.
+  SCOPE, re-derived off the merge-base (f4dae24) because df0c235 is the wrong base: 15 files, 2192
+  insertions, 0 deletions, all inside `touches: [services/tiles/, ops/publish-tiles]` plus this task file,
+  whose diff is append-only (0 removed lines). Modes 100755 on ops/publish-tiles and build-la.sh, 100644 on
+  the rest.
+  ACCEPTANCE BLOCK RE-RUN BARE AND MATCHED: 43 passed in 3.27s; `PMTILES OK: la.pmtiles region=la
+  bytes=63520949 zoom=0-14 tiles=2549 bounds=(-119.000000,33.700000,-117.850000,34.450000)` exit=0;
+  stat 63520949 and sha256 3b711c79...ae2b5a0a both equal to the sidecar; one `pmtiles show` through the
+  pinned digest agreeing field for field (bounds, zoom 0-14, entries 2549, region la, built_at
+  2026-09-19T05:02:38Z); the region bbox re-derived by hand from region.json (-119.0,33.7,-117.85,34.45)
+  and covered with zero slack on all four edges; `PUBLISH REFUSED: 4 credential(s) not set: ...` first and
+  exit 1; check-line-cap, check-exec-bits, queue-check (186 tasks), check-pins --source-only (ok=12
+  skipped=13 pending=1 expired=0 failed=0) all green; every quoted `wc -l` identical. CI on #109: core pass,
+  pins-source-only pass.
+  S1 AND S2 RE-APPLIED, RED BY NAME: one hex digit in TOKENS + regenerate ->
+  test_the_transcription_equals_the_declarations and test_no_token_is_invented_or_missing[light]; a
+  max_zoom=10 fixture through the shipped CLI -> `header max_zoom 10 is below the required 14` exit=1.
+  THREE MUTANTS OF MY OWN, TWO BLOCKING SURVIVORS:
+  (B1) check_pmtiles.py:181 - replacing `bbox_from_region(args.region_json)` with the bbox as a literal
+  leaves all 43 tests green. `test_the_bbox_is_read_from_the_region_file_not_typed` asserts on the helper,
+  not on main(), and NOTHING in the suite calls main() at all. With region.json's max_lon corrected to
+  -117.5 (a T-0142-shaped edit) the mutated checker prints PMTILES OK exit=0 on an archive the shipped
+  checker refuses with `do not cover the region bbox (-119.0,33.7,-117.5,34.45)` exit=1. A tile set cut to
+  a stale box passes the publish gate green.
+  (B2) make_styles.py:59 with test_style_tokens.py:93 - adding "waters" to SOURCE_LAYERS and pointing the
+  water layer at it regenerates both styles and leaves all 43 tests green, while
+  `make_styles.py --check --archive la.pmtiles` says `archive is missing source-layer(s): ['waters']`
+  exit=1. The guard is circular: the test asserts against the module's own typed tuple, and the one
+  executable anchor to the archive's vector_layers is invoked by nothing - not build-la.sh, not
+  ops/publish-tiles, not a test - although R6 cites it as the reason the layer names are not invented. It
+  is the S1 defect (an unanchored transcription) left in place on the sibling table.
+  RECORDABLE, not blocking: a future `built_at` passes the age limb (`built_at=2099-01-01` -> check() ==
+  []) and the shipped stamp is already ahead of this box's clock; the tile-count limb is entries==0 only,
+  so a 330-byte archive with 3 entries, right bounds and right stamp returns []; tile_meta.py (116 lines)
+  has no test, so a hardcoded region or built_at there survives the suite; the archive's OWN metadata
+  carries `attribution <a href=...>&copy; OpenStreetMap</a>`, so R6's "the renderer's control renders
+  empty" needs MapAdapter to disable the control and does not follow from the style (apps/ios, outside
+  touches - for T-0195); R6 vs @protomaps/basemaps and R1's six-day retention both judged SOUND as ruled.
+  `pytest ... -q` prints no count because pyproject already sets addopts="-q".
+  STILL OPEN 1-7 are known and were not re-litigated. reviewer: null and state: claimed left untouched.
+- 2026-09-19T06:22:10Z ROUND-2 RULINGS by agent/claude-opus-5 (owner), before any code, on rv1-pr109's two
+  BLOCKING findings and its four recordables. Both findings are ACCEPTED as stated and not argued: in each
+  case the test named for the defect asserts on something other than the thing that can break, which is the
+  S1 defect (an unanchored transcription) a second and a third time. The rulings below are about the SHAPE of
+  the fix, because each one has a choice in it that the reviewer left to the owner.
+  (B1) ACCEPTED. `check_pmtiles.main()` is the only entry point `build-la.sh` step 6 and `ops/publish-tiles`
+  line 63 call, and nothing in the suite calls it; `test_the_bbox_is_read_from_the_region_file_not_typed`
+  proves only that `bbox_from_region` can read a file. FIX: a subprocess test that runs the shipped CLI end to
+  end - `python check_pmtiles.py <archive> --region-json <region.json>` - and asserts on stdout and the exit
+  code, so main()'s wiring of the region file into check() is the subject. The RED subject is a fixture
+  archive cut to the LA bounds against a tmp region.json whose `max_lon` is WIDER (-117.5, the T-0142 shape):
+  the shipped CLI must print `PMTILES REFUSED` naming `(-119.0,33.7,-117.5,34.45)` and exit 1, which the
+  literal-bbox mutant cannot do.
+  (B1, the skip question) RULED: THE DOCUMENTED ENV VAR, `SCENIC_LA_PMTILES`, not the recipe's default path.
+  The in-process fixture is the PRIMARY subject and it always runs, so the test named for the defect never
+  depends on a 63 MB file being on the box. The real artifact is a SECOND SUBJECT of the same test, taken from
+  `$SCENIC_LA_PMTILES` when it is set, and when it is set the test asserts `.is_file()` before it runs -
+  a set-but-wrong path FAILS by name, it does not skip. No `pytest.skip`, no `skipif`, no empty parametrize
+  anywhere in the new file: the suite must never report a green that is really an absence. The recipe's
+  default path (`<main checkout>/services/tiles/work/la.pmtiles`) is rejected as the guard because that
+  directory is gitignored and empty on CI and on every fresh clone, and a test that fails there is a test
+  somebody deletes within the week - which would cost more than it buys. STILL OPEN (7) already owns the
+  "nothing re-runs the checker against `work/` on a schedule" half, and this is the same gap, not a new one.
+  (B2) ACCEPTED, and the circularity is exactly as described: `test_every_source_layer_exists_in_the_archive`
+  asserts `layer['source-layer'] in SOURCE_LAYERS`, the typed tuple inside the module under test, so the
+  tuple and the styles are two transcriptions checked against each other and against nothing. FIX, two parts.
+  (a) The test reads `vector_layers` out of an ARCHIVE and asserts every committed style's source-layers are
+  in it. The archive is a fixture built in-process whose metadata carries the nine layer ids typed IN THE
+  TEST - the anchor moves out of the module under test, which is the whole point - and, when
+  `$SCENIC_LA_PMTILES` is set, the real `la.pmtiles` as a second subject under the same rule.
+  (b) `build-la.sh` gains step 7 running `make_styles.py --check --archive`, so the recipe refuses a style the
+  archive it just built cannot draw, and a test asserts the recipe carries that invocation. That assertion is
+  anchored on the command string `make_styles.py --check --archive`, an executable line, never on a comment.
+  (R1) RECORDED AND FIXED. A future `built_at` passes the age limb because the limb is one-sided. The upper
+  bound gets a literal skew tolerance, RULED at 1 hour (`MAX_FUTURE_SKEW = timedelta(hours=1)`): the recipe
+  stamps `built_at` at step 1 and the check runs at step 6 on the SAME clock minutes later, and across two
+  hosts the only legitimate gap is NTP drift, which is seconds. One hour is three orders of magnitude under
+  the 30-day staleness floor, so it cannot mask a stale build, and it still refuses every wrong-DATE stamp -
+  a year typed wrong, a host set to next month - which is what the limb is for.
+  (R2) RECORDED AND FIXED. `tile_entries_count == 0` is the only tile limb, so a 330-byte truncation with
+  entries=3 returns []. Two typed floors, both stated as parameters of `check()` so another region can state
+  its own rather than inherit LA's. `MIN_TILE_ENTRIES = 256`: the real build measures 2549 entries, and 256 is
+  an order of magnitude below it (2549/10 = 254.9, rounded up to a power of two) - far enough under that a
+  re-pinned planet build or a bbox nudged by a tenth of a degree cannot trip it, and far enough over 3 that a
+  truncated or half-written archive is refused. `MIN_BYTES = 1_048_576` (1 MiB): deliberately NOT an order of
+  magnitude under the measured 63,520,949 but about sixty, because a byte floor's job is to catch a
+  truncation or a half-finished download, not to track the size of the build - a floor set near the real size
+  is a floor that refuses the first legitimate smaller region and gets lowered in a hurry by whoever hits it.
+  (R3) RECORDED AND FIXED. `tile_meta.py` (116 lines) has no test at all, so a hardcoded region or built_at in
+  the stamp survives the suite. A new `tests/test_tile_meta.py` drives both subcommands and asserts region,
+  built_at, bbox, maxzoom and source_build appear in BOTH the merged metadata dict and the sidecar, and that
+  the sidecar's `bytes` and `sha256` equal the file's own - measured with a second, independent hashlib pass
+  over the bytes, not by calling `sha256_of` back.
+  (R4, the attribution recordable) RULED SOUND and NOT FIXED HERE, unchanged from the earlier ruling: the
+  archive's own metadata carries a `attribution` string, so making the renderer's control draw nothing needs
+  `MapAdapter` to disable it, and `apps/ios/` is outside this task's `touches:`. It is T-0195's, and STILL
+  OPEN (3) already names that boundary.
+  FILE SHAPE, ruled before writing: the CLI tests do not go into `test_pmtiles_budget.py`. That file is 185
+  lines of `check()`-limb tests and the new work would put it near the 300 cap with two kinds of test in it.
+  The boundary of meaning is the subject: `test_pmtiles_budget.py` keeps the limbs of the FUNCTION, and a new
+  `tests/test_check_pmtiles_cli.py` owns the COMMAND the recipe and the publish script actually run.
+  `write_pmtiles`'s `entries` and `padding` defaults move up to the new floors so the existing limb tests keep
+  their subjects unchanged rather than being edited one by one to dodge a floor they are not about.
+  Every one of the five new checks is demonstrated RED first - B1 under the reviewer's own `sed` literal-bbox
+  mutant, B2 under the reviewer's own "waters" mutant, R1/R2/R3 on fixtures - and quoted by name in the entry
+  at the final commit.
+- 2026-09-19T06:34:36Z ROUND-2 FIX by agent/claude-opus-5 (owner), one commit closing rv1-pr109's two BLOCKING findings
+  and all three recordables. Every new assertion was seen RED first, by name, under a mutant of the defect it
+  exists for, and the tree was restored BYTE FOR BYTE after each one: the driver snapshots every file a
+  mutant can touch before the run and compares the copy-back with `filecmp.cmp(shallow=False)`, printing the
+  comparison. It does not restore with `git checkout --`, which would have thrown away the uncommitted work.
+  WHAT CHANGED, and nothing else: `check_pmtiles.py` (the two floors, the future-stamp limb, the naive-stamp
+  normalisation, the floors as parameters), `build-la.sh` (step 7), `tests/test_pmtiles_budget.py` (the two
+  fixture defaults moved onto the floors, six new limb tests), `tests/test_style_tokens.py` (the circular
+  source-layer test replaced by an archive-anchored one, plus the table and the recipe), and two new files,
+  `tests/test_check_pmtiles_cli.py` and `tests/test_tile_meta.py`. 43 tests -> 58 (15 new ids).
+  RED THEN GREEN, quoted from the driver (`services/tiles/work/red_driver.py`, gitignored):
+  (M1, B1) `main()` carries the bbox as a literal instead of reading region.json ->
+    FAILED test_check_pmtiles_cli.py::test_the_cli_reads_the_bbox_from_the_region_file_it_is_given
+    1 failed, 2 passed. Restored byte for byte: YES.
+  (M2, B2) "waters" added to SOURCE_LAYERS and used by the water fill, both styles regenerated ->
+    FAILED test_style_tokens.py::test_every_source_layer_exists_in_the_archive[light]
+    FAILED test_style_tokens.py::test_every_source_layer_exists_in_the_archive[dark]
+    FAILED test_style_tokens.py::test_the_generators_source_layer_table_is_the_archives
+    3 failed, 14 passed. Restored byte for byte: YES (make_styles.py AND both style files).
+  (M3, B2) the recipe stops running `make_styles.py --check --archive` ->
+    FAILED test_style_tokens.py::test_the_build_recipe_checks_the_styles_against_the_archive
+    1 failed, 16 passed. Restored byte for byte: YES.
+  (M4, R1) the age limb looks backwards only, as it did ->
+    FAILED test_pmtiles_budget.py::test_refuses_a_build_stamped_in_the_future[2099-01-01T00:00:00Z]
+    FAILED test_pmtiles_budget.py::test_refuses_a_build_stamped_in_the_future[2099-01-01T00:00:00]
+    2 failed, 23 passed. Restored byte for byte: YES.
+  (M5, R2) neither floor fires, as neither did ->
+    FAILED test_pmtiles_budget.py::test_refuses_a_truncated_archive
+    1 failed, 24 passed. Restored byte for byte: YES.
+  (M6, R3) the stamp hardcodes its region instead of reading the argument ->
+    FAILED test_tile_meta.py::test_merge_stamps_the_arguments_into_the_source_metadata
+    1 failed, 3 passed. Restored byte for byte: YES.
+  THE SKIP QUESTION, as ruled at 06:22:10Z and as built: there is no `pytest.skip`, no `skipif` and no empty
+  parametrize anywhere in `services/tiles/tests`. The fixture is the primary subject of both archive-anchored
+  tests and always runs; the real build is a second subject named by `$SCENIC_LA_PMTILES`, and when that
+  variable is set the test asserts `.is_file()` first, so a set-but-wrong path FAILS by name. Both runs are
+  quoted below: 58 passed with the variable unset, 58 passed with it pointing at the built artifact - which
+  is the run in which the shipped CLI and the real `vector_layers` are the subjects.
+  ACCEPTANCE BLOCK RE-RUN BARE AT THIS COMMIT, every line quoted from the command:
+  - `python -m pytest services/tiles/tests` -> `58 passed in 3.92s`, exit 0. With
+    `SCENIC_LA_PMTILES=<main checkout>/services/tiles/work/la.pmtiles` -> `58 passed in 10.87s`, exit 0.
+  - `python services/tiles/check_pmtiles.py <main>/services/tiles/work/la.pmtiles --region-json
+    services/etl/regions/la/region.json` -> `PMTILES OK: la.pmtiles region=la bytes=63520949 zoom=0-14
+    tiles=2549 bounds=(-119.000000,33.700000,-117.850000,34.450000)`, exit 0. The artifact is untouched by
+    this round: 63,520,949 bytes, 2549 entries, the same numbers the floors were ruled from.
+  - `python services/tiles/make_styles.py --check --archive <main>/services/tiles/work/la.pmtiles` ->
+    `make_styles: all 9 source-layers present in la.pmtiles`, exit 0. This is step 7, and it is the first
+    round in which anything runs it.
+  - `bash -n services/tiles/build-la.sh` exit 0; `bash services/tiles/build-la.sh --help` prints the usage
+    and exits 0. NO REBUILD: the extract, its sidecar and its digest are the ones measured at 05:02:38Z.
+  - `bash ops/lib/check-line-cap` -> `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8),
+    none over 300 lines`, exit 0. It reads Swift only (T-0058), so the Python cap is measured by hand below.
+  - `bash ops/lib/check-exec-bits` -> `P-OPS-01: 64 files, 23 required present, all modes correct`, exit 0.
+  - `bash ops/queue-check` -> `QUEUE OK (186 tasks)`, exit 0.
+  - `bash ops/check-pins --source-only` -> `PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux
+    source-only`, exit 0. Run once, on this tree.
+  - `git status --short` after the commit: empty.
+  WC -L ON EVERY TOUCHED FILE, re-measured at this commit and not carried forward from the last entry:
+        240 services/tiles/check_pmtiles.py   (198 before; the floors, the future limb and their rulings)
+        128 services/tiles/build-la.sh        (122 before; step 7)
+        231 services/tiles/tests/test_pmtiles_budget.py     (185 before)
+        172 services/tiles/tests/test_style_tokens.py       (124 before)
+         99 services/tiles/tests/test_check_pmtiles_cli.py  (new)
+         87 services/tiles/tests/test_tile_meta.py          (new)
+        233 services/tiles/make_styles.py     (unchanged, re-measured after M2 restored it)
+        116 services/tiles/tile_meta.py       (unchanged, re-measured after M6 restored it)
+         95 services/tiles/tests/test_design_tokens_match.py   70 services/tiles/tests/test_publish_refusal.py
+         87 ops/publish-tiles                 (unchanged this round)
+  Nothing is over 300. The CLI tests were NOT added to `test_pmtiles_budget.py`: that file is the limbs of
+  the function and would have landed near the cap carrying two kinds of test, so the new file owns the
+  command the recipe and the publish script actually run - the split ruled at 06:22:10Z, along the subject.
+  STILL OPEN, restated in full at this commit - none of it claimed by this task, and (1) and (7) are the
+  only ones whose wording changed:
+  (1) `ops/test` cannot see `services/tiles/tests` - its python tier is gated on `services/etl/pyproject.toml`.
+      There are 58 of them now (43 at 06:14:44Z) and they are still run directly and still NOT in the floor.
+      Wiring the tier touches `ops/test`. T-0198 is filed for it.
+  (2) No glyphs and no sprites, so the basemap draws NO LABELS. Deliberate; the next tiles task, not a nicety.
+  (3) `MapStyle` still has only the `maplibreDemoTiles` case and still credits "(c) MapLibre - Natural Earth".
+      The Protomaps case and the plan's "(c) OpenStreetMap contributors - Protomaps" string land in
+      `apps/ios/`, outside this task's `touches:`. Until then the app does not render these tiles. T-0195.
+  (4) Nothing is published. `ops/publish-tiles` needs the human's four env vars and a task holding
+      `exclusive: [prod]`; the R2 prefix it writes (`tiles/v1/`) is a proposal, not an agreed layout.
+  (5) The pinned `PLANET_BUILD=20260915` 404s in about a week. The recipe refuses by name when it does, but
+      nothing reminds anybody; a scheduled rebuild belongs with the weekly ETL run.
+  (6) P-ATTR-01 and P-DATA-03 are still not in `pins/PINS.yaml`. This task built the artifact those pins would
+      assert over; filing them touches `pins/`. T-0197.
+  (7) REWORDED: nothing runs the checker or the new style-vs-archive check against the artifact in `work/` on
+      a schedule, and nothing sets `$SCENIC_LA_PMTILES` in CI. The limbs added here - both floors, the future
+      stamp, the source-layers - fire when somebody runs the recipe, runs the publish script, or exports that
+      variable before the suite. A `built_at` going 30 days old still goes unnoticed until the next publish
+      attempt. Same owner as (5), the weekly rebuild, and it is the reason the real artifact is a second
+      subject rather than a required one.

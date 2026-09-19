@@ -120,3 +120,9 @@ docker run --rm -v "$WORK":/w "$PMTILES_IMAGE" show "/w/$BASE"
 
 echo "== 6. the check =="
 python3 "$TILES/check_pmtiles.py" "$OUT" --region-json "$REGION_JSON"
+
+# The committed styles name source-layers; this archive either carries them or draws nothing where they are
+# named. Until now nothing executed that comparison - not this recipe, not ops/publish-tiles, not the suite -
+# so the layer names were one transcription checked against another (rv1-pr109 B2).
+echo "== 7. the styles against the archive they will draw =="
+python3 "$TILES/make_styles.py" --check --archive "$OUT"
