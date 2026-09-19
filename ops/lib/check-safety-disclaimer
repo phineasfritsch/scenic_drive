@@ -2,51 +2,77 @@
 # P-SAFE-03's assertion: the handoff on the home screen is gated by a SafetyDisclaimer acknowledgement, and
 # the persistent "Conditions change. Verify locally." line is on the screen.
 #
-# This is a STRUCTURAL check over Swift SOURCE on a box with no Apple toolchain. It decides three things and
-# refuses to pretend it decides any more than that (T-0153 ruling R5, and the pin's why_no_test_catches_it):
+# This is a STRUCTURAL check over Swift SOURCE on a box with no Apple toolchain. It decides four things and
+# refuses to pretend it decides any more (T-0153 ruling R5, and the pin's why_no_test_catches_it):
 #
 #   (i)   a type named SafetyDisclaimer is declared, once, in SafetyDisclaimer.swift
-#   (ii)  the accessibility identifiers home.disclaimer / home.disclaimer.accept / home.conditions and the
-#         persistent sentence itself are present, in the files that must carry them
-#   (iii) the call graph: SkylineHandoff.open( is reached from exactly one place, that place is dominated by
-#         `guard isSafetyDisclaimerAcknowledged else`, and the button that holds it is built in exactly one
-#         place with the acknowledgement passed through - and the BLOCKED path is wired end to end: the
-#         guard's else block calls onBlocked() before returning, the screen's onBlocked: closure sets
-#         isShowingDisclaimer, and a .sheet is bound to that flag
+#   (ii)  the identifiers home.disclaimer / home.disclaimer.accept / home.conditions and the persistent
+#         sentence itself are present, in the files that must carry them
+#   (iii) the acknowledgement is stored on the device under the versioned @AppStorage key, and the property
+#         that key decorates DEFAULTS TO FALSE
+#   (iv)  the call graph, over EVERY *.swift under apps/ios: SkylineHandoff.open( at exactly one occurrence
+#         in exactly one file, GatedHandoffButton.swift, dominated by `guard isSafetyDisclaimerAcknowledged
+#         else`; GatedHandoffButton( at exactly one occurrence in exactly one file, ScenicHomeScreen.swift,
+#         whose argument list passes the acknowledgement through and carries no `: true`; and the BLOCKED
+#         path wired end to end - onBlocked() before the guard block's return, the screen's onBlocked:
+#         closure setting isShowingDisclaimer, and a .sheet bound to that flag
 #
-# THE SEVENTH BLIND SPOT, CLOSED 2026-09-19: (iii) used to stop at the guard, so replacing the screen's
-# `onBlocked: { isShowingDisclaimer = true }` with `onBlocked: { }` left all six mutations green while the
-# first tap did nothing and the disclaimer never appeared - a liveness hole in a safety pin. The two screen
-# anchors and the onBlocked() requirement inside the guard's block close it.
+# THE SEVENTH BLIND SPOT, CLOSED 2026-09-19: (iv) used to stop at the guard, so `onBlocked: { }` on the
+# screen left all six mutations green while the first tap did nothing and the disclaimer never appeared.
 #
-# WHAT IT STILL CANNOT SEE, because a check that hides its blind spots is worse than none: whether the sheet
-# ever renders, whether a tap reaches the button at all, whether the sheet's accept button writes the
-# @AppStorage flag, whether @AppStorage reads it back, whether the line is on screen or behind the map,
-# contrast, Dynamic Type, the 44 pt target. The anchors prove the blocked path is WIRED, never that it RUNS;
-# a simulator and an XCUITest own the rest, and this package has no test target (see ScenicApp/Package.swift).
-# Brace counting strips `//` to end of line first, so a brace inside a string that follows `//` on the same
-# line is miscounted, and `/* */` is not parsed at all.
+# THREE MORE, CLOSED 2026-09-19 FROM PR #101's REVIEW (agent/rv1-pr101). All three failed OPEN: each left
+# this check at exit 0 over a tree whose FIRST tap could leave for Apple Maps un-acknowledged - the pin's
+# own statement false with its own assertion green. Rows 8, 9 and 10 of the table hold them red.
+#
+#   B1  the @AppStorage DEFAULT was unanchored, so `private var isSafetyDisclaimerAcknowledged = true`
+#       passed: on a fresh install nothing is stored, the property yields its DECLARED default and the
+#       guard is already satisfied. (iii) now requires the whole declaration, as a fixed string, on the
+#       first line carrying code after the @AppStorage line.
+#   B2  the population was one directory at -maxdepth 1 while SkylineHandoff is public and exported, so a
+#       call a directory down, or in apps/ios/ScenicDrive/ (the shell imports this product), escaped and
+#       the check printed "called once" over a tree calling it twice. (iv) now walks all of apps/ios.
+#   B3  GatedHandoffButton( was counted per FILE and the pass-through anchor was `-ge 1`, so a second
+#       `GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, ...)` beside the real one passed. (iv)
+#       now counts occurrences and reads that one construction's argument list.
+#
+# WHAT IT STILL CANNOT SEE, because a check that hides its blind spots is worse than none: whether the
+# sheet renders, whether a tap reaches the button, whether accepting writes the @AppStorage flag, whether
+# @AppStorage reads it back, whether the line is on screen or behind the map, contrast, Dynamic Type, the
+# 44 pt target - the anchors prove the blocked path is WIRED, never that it RUNS, and a simulator and an
+# XCUITest own those (this package has no test target; see ScenicApp/Package.swift). Also: Swift OUTSIDE
+# apps/ios is not scanned; a second GatedHandoffButton( inside GatedHandoffButton.swift itself is not
+# counted, because a #Preview belongs there; and `//` is stripped to end of line before braces are
+# counted, so a brace inside a string after `//` is miscounted and `/* */` is not parsed at all.
 #
 # Every anchor below is an identifier, a file name or a string literal the user reads. Never a comment
-# (CLAUDE.md): comments get stripped, and a gate anchored on one is green over deleted code.
-#
-# Fail-closed, the P-SRC-02 / P-OPS-01 lesson: a missing directory, a truncated file set, or a grep that
-# enumerated nothing is a REFUSAL, never a pass. A scan that scanned nothing must not read as OK.
+# (CLAUDE.md): comments get stripped, and a gate anchored on one is green over deleted code. Fail-closed,
+# the P-SRC-02 / P-OPS-01 lesson: a missing directory, a truncated file set or a scan that enumerated
+# nothing is a REFUSAL - a scan that scanned nothing must not read as OK.
 #
 #   bash ops/lib/check-safety-disclaimer                 # the tracked tree
 #   bash ops/lib/check-safety-disclaimer --sources DIR   # any copy of Sources/FeatureScenicHome
-#   bash ops/lib/check-safety-disclaimer --prove-red     # seven mutations, each refused by name
+#                                        --app-tree DIR  # ... with a copy of apps/ios as its call graph
+#   bash ops/lib/check-safety-disclaimer --prove-red     # ten mutations, each refused by name
 #                                                        # (the table: ops/lib/check-safety-disclaimer-mutations)
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
+LIB="ops/lib/check-safety-disclaimer-lib"
+if [[ ! -f "$LIB" ]]; then
+  echo "P-SAFE-03: $LIB is missing; the check cannot read Swift source without its readers."
+  exit 1
+fi
+. "$LIB"
+
 DEFAULT_SOURCES="apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome"
+DEFAULT_APP_TREE="apps/ios"
 ACK_IDENT="isSafetyDisclaimerAcknowledged"
 STORAGE_KEY="safety.disclaimer.acknowledged.v1"
 CONDITIONS_TEXT="Conditions change. Verify locally."
 MIN_FILES=4
 
 SOURCES="$DEFAULT_SOURCES"
+APP_TREE=""
 REQUIRE_TRACKED=1
 PROVE_RED=0
 
@@ -55,6 +81,10 @@ while [[ $# -gt 0 ]]; do
     --sources)
       SOURCES="${2:-}"
       REQUIRE_TRACKED=0
+      shift 2
+      ;;
+    --app-tree)
+      APP_TREE="${2:-}"
       shift 2
       ;;
     --prove-red)
@@ -68,44 +98,26 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-fail() {
-  echo "P-SAFE-03: $1"
-  shift
-  for extra in "$@"; do
-    echo "  $extra"
-  done
-  exit 1
-}
-
-# Every anchor is counted over CODE, with `//` to end of line removed first. CLAUDE.md: never anchor a pin on
-# a comment - and a check that counted a doc comment mentioning `SkylineHandoff.open(` as a call site would be
-# anchored on one by accident, which is the same defect wearing a different hat.
-#
-# `grep -c`, never `grep -q` or `grep -l`, on either side of a pipe (P-OPS-03): -c reads its input to the end,
-# so the producer never takes a SIGPIPE and the verdict is not a race. Neither helper ever returns non-zero
-# for "no match"; the caller compares the count.
-code_of() {
-  sed -e 's|//.*||' "$1"
-}
-
-count_in() {
-  local pattern="$1" file="$2"
-  code_of "$file" | grep -c -E -e "$pattern" || true
-}
-
-count_fixed_in() {
-  local needle="$1" file="$2"
-  code_of "$file" | grep -c -F -e "$needle" || true
-}
+# The tracked tree's call graph is all of apps/ios. A bare copy of the feature sources is scanned as its
+# own app tree, which is what a reproduction on one directory wants; the mutation table hands us a copy of
+# apps/ios and says so with --app-tree, which is how row 9 (a second call site in the shell target) can be
+# red at all.
+SOURCES="${SOURCES%/}"
+if [[ -z "$APP_TREE" ]]; then
+  if [[ "$REQUIRE_TRACKED" -eq 1 ]]; then APP_TREE="$DEFAULT_APP_TREE"; else APP_TREE="$SOURCES"; fi
+fi
+APP_TREE="${APP_TREE%/}"
 
 run_check() {
-  local sources="$1" require_tracked="$2"
+  local sources="$1" require_tracked="$2" app_tree="$3"
 
   [[ -d "$sources" ]] || fail "no such directory: $sources" \
     "The pin's population is the feature sources; a missing tree must never read as 'the gate is in place'."
+  [[ -d "$app_tree" ]] || fail "no such directory: $app_tree" \
+    "(iv) is decided over every *.swift under the app tree; a missing tree is a refusal, never a pass."
 
   local files=()
-  mapfile -t files < <(find "$sources" -maxdepth 1 -name '*.swift' | sort)
+  mapfile -t files < <(find "$sources" -maxdepth 1 -name '*.swift' | LC_ALL=C sort)
   local n="${#files[@]}"
 
   local screen="$sources/ScenicHomeScreen.swift"
@@ -113,30 +125,9 @@ run_check() {
   local gated="$sources/GatedHandoffButton.swift"
   local handoff="$sources/SkylineHandoff.swift"
 
-  # Named files first, population floor second: a tree missing the disclaimer should be refused by the name
-  # of the file it is missing, not by a count that says nothing about which one.
-  local required=("$screen" "$disclaimer" "$gated" "$handoff")
-  for f in "${required[@]}"; do
-    [[ -f "$f" ]] || fail "missing file: $f" \
-      "(i)/(iii) name these files; one type per file, filename == type name (CLAUDE.md)." \
-      "Population under $sources: $n .swift file(s)."
-  done
-
-  if [[ "$n" -lt "$MIN_FILES" ]]; then
-    fail "only $n .swift file(s) under $sources (expected >= $MIN_FILES)." \
-      "An emptied or truncated feature target must not read as a gated handoff."
-  fi
-
-  # The tracked-tree run additionally requires each file to be COMMITTED. An untracked SafetyDisclaimer.swift
-  # sitting in a working tree would otherwise turn the pin green on code that is not in the repository.
-  if [[ "$require_tracked" -eq 1 ]]; then
-    for f in "${required[@]}"; do
-      local tracked
-      tracked="$(git ls-files -- "$f")"
-      [[ -n "$tracked" ]] || fail "not tracked by git: $f" \
-        "The pin is a property of the committed tree, not of somebody's working directory."
-    done
-  fi
+  # Named files, then the floor, then - on a tracked-tree run - that each of them is committed.
+  require_feature_files "$sources" "$n" "$require_tracked" "$MIN_FILES" \
+    "$screen" "$disclaimer" "$gated" "$handoff"
 
   # ---------------------------------------------------------------- (i) the type, once, in its own file
   local decl_re='^[[:space:]]*(public[[:space:]]+)?(struct|final[[:space:]]+class|class|enum)[[:space:]]+SafetyDisclaimer[[:space:]]*[:{]'
@@ -146,16 +137,10 @@ run_check() {
     "Acceptance line 2: the first handoff is gated by a disclaimer type. No type, no gate."
 
   local elsewhere=()
-  for f in "${files[@]}"; do
-    [[ "$f" == "$disclaimer" ]] && continue
-    local c
-    c="$(count_in "$decl_re" "$f")"
-    [[ "$c" -eq 0 ]] || elsewhere+=("$f")
-  done
-  if [[ ${#elsewhere[@]} -gt 0 ]]; then
-    fail "SafetyDisclaimer is declared outside its own file: ${elsewhere[*]}" \
-      "One type per file, filename == type name (CLAUDE.md)."
-  fi
+  mapfile -t elsewhere < <(files_matching "$decl_re" "$disclaimer" "${files[@]}")
+  [[ "${#elsewhere[@]}" -eq 0 ]] || fail \
+    "SafetyDisclaimer is declared outside its own file: ${elsewhere[*]}" \
+    "One type per file, filename == type name (CLAUDE.md)."
 
   # ---------------------------------------------------------------- (ii) the identifiers and the sentence
   local ids=("\"home.disclaimer\"|$screen" "\"home.conditions\"|$screen" "\"home.disclaimer.accept\"|$disclaimer")
@@ -172,51 +157,50 @@ run_check() {
   [[ "$cond" -ge 1 ]] || fail "the persistent line \"$CONDITIONS_TEXT\" is not in $screen." \
     "The plan's risk table names it verbatim as the mitigation for a sedan on a dirt road."
 
+  # ------------------------------------------------- (iii) stored on the device, and defaulting to FALSE
   local store
   store="$(count_fixed_in "@AppStorage(\"$STORAGE_KEY\")" "$screen")"
   [[ "$store" -ge 1 ]] || fail "no @AppStorage(\"$STORAGE_KEY\") in $screen." \
     "Acknowledged ONCE and stored ON DEVICE (acceptance line 2): no account, no server."
 
-  # ---------------------------------------------------------------- (iii) the call graph
-  local callers=()
-  for f in "${files[@]}"; do
-    [[ "$f" == "$handoff" ]] && continue
-    local c
-    c="$(count_fixed_in "SkylineHandoff.open(" "$f")"
-    [[ "$c" -eq 0 ]] || callers+=("$f($c)")
+  local ack_decl="private var $ACK_IDENT = false"
+  local store_line default_ok
+  read -r store_line default_ok \
+    <<<"$(ack_default_verdict "$screen" "@AppStorage(\"$STORAGE_KEY\")" "$ack_decl")"
+  [[ "$default_ok" -eq 1 ]] || fail \
+    "the acknowledgement does not default to false in $screen (@AppStorage line $store_line)." \
+    "The line after the key must read exactly \`$ack_decl\`. @AppStorage yields its DECLARED DEFAULT when" \
+    "nothing is stored, which is every fresh install - so \`= true\` ships a first tap that leaves for" \
+    "Apple Maps having shown nobody the disclaimer, with this check green (PR #101, finding B1)."
+
+  # ---------------------------------------------------------------- (iv) the call graph, over apps/ios
+  local app_files=()
+  mapfile -t app_files < <(app_swift_files "$app_tree")
+  local an="${#app_files[@]}"
+  [[ "$an" -ge "$MIN_FILES" ]] || fail \
+    "only $an .swift file(s) under $app_tree (expected >= $MIN_FILES)." \
+    "A call-site scan that enumerated nothing must not read as 'called from exactly one place'."
+  local covered=0
+  for f in "${app_files[@]}"; do
+    [[ "$f" == "$gated" ]] && covered=1
   done
+  [[ "$covered" -eq 1 ]] || fail "the scan of $app_tree does not contain $gated." \
+    "The app tree has to cover the feature sources, or the call graph is decided over the wrong files."
+
+  local callers=()
+  mapfile -t callers < <(occurrences_by_file "SkylineHandoff.open(" "$handoff" "${app_files[@]}")
   if [[ "${#callers[@]}" -ne 1 || "${callers[0]}" != "$gated(1)" ]]; then
     fail "SkylineHandoff.open( must be called exactly once, from $gated; found: ${callers[*]:-none}" \
-      "A second call site is a second door, and only one of them is behind the disclaimer."
+      "Counted over all $an .swift file(s) under $app_tree. A second call site is a second door, and only" \
+      "one of them is behind the disclaimer - including one a directory down or in the app shell, which" \
+      "imports this feature's product (PR #101, finding B2)."
   fi
 
-  # Dominance: the guard line precedes the call, and between them the brace depth never returns BELOW the
-  # guard's own depth - so the call is still inside the block the guard protects. `guard <ack> else` is
-  # required in that exact positive spelling, which is why `guard !ack`, `ack == false` and a deleted guard
-  # all read as absent rather than as a gate.
-  local verdict
-  verdict="$(awk -v ack="$ACK_IDENT" '
-    {
-      code = $0
-      sub(/\/\/.*$/, "", code)
-      d = depth
-      if (guard_line == 0 && code ~ ("guard[ \t]+" ack "[ \t]+else")) { guard_line = NR; guard_depth = d }
-      if (call_line == 0 && index(code, "SkylineHandoff.open(") > 0) { call_line = NR; call_depth = d }
-      if (guard_line > 0 && call_line == 0 && NR > guard_line && d < guard_depth) { escaped = NR }
-      # The blocked path, inside the guard`s else block: onBlocked() must come before the block`s return,
-      # or the refused tap is silent and nothing ever presents the disclaimer.
-      if (guard_line > 0 && NR > guard_line && ret_line == 0) {
-        if (blocked_line == 0 && index(code, "onBlocked()") > 0) { blocked_line = NR }
-        if (code ~ /(^|[^A-Za-z0-9_])return([^A-Za-z0-9_]|$)/) { ret_line = NR }
-      }
-      opens = gsub(/\{/, "{", code)
-      closes = gsub(/\}/, "}", code)
-      depth += opens - closes
-    }
-    END { printf "%d %d %d %d %d %d %d\n", guard_line+0, guard_depth+0, call_line+0, call_depth+0, escaped+0, blocked_line+0, ret_line+0 }
-  ' "$gated")"
+  # Dominance and the blocked path, read off the one file that holds the gate (see gate_verdict in the lib
+  # for what the seven numbers mean and why the guard's spelling has to be the positive one).
   local guard_line guard_depth call_line call_depth escaped blocked_line ret_line
-  read -r guard_line guard_depth call_line call_depth escaped blocked_line ret_line <<<"$verdict"
+  read -r guard_line guard_depth call_line call_depth escaped blocked_line ret_line \
+    <<<"$(gate_verdict "$gated" "$ACK_IDENT")"
 
   [[ "$guard_line" -gt 0 ]] || fail "no \`guard $ACK_IDENT else\` in $gated." \
     "The handoff call site is not dominated by the acknowledgement; the first tap would leave for Apple Maps" \
@@ -230,24 +214,30 @@ run_check() {
   [[ "$call_depth" -ge "$guard_depth" ]] || fail \
     "the call at line $call_line sits at brace depth $call_depth, outside the guard's depth $guard_depth."
 
+  # The button, by OCCURRENCE and not by file: a second construction beside the real one, in the same file,
+  # is exactly the shape that passed before PR #101's review (finding B3).
   local built=()
-  for f in "${files[@]}"; do
-    [[ "$f" == "$gated" ]] && continue
-    local c
-    c="$(count_fixed_in "GatedHandoffButton(" "$f")"
-    [[ "$c" -eq 0 ]] || built+=("$f")
-  done
-  if [[ "${#built[@]}" -ne 1 || "${built[0]}" != "$screen" ]]; then
-    fail "GatedHandoffButton( must be built in exactly one file, $screen; found: ${built[*]:-none}" \
-      "Every other way onto the map's one button would bypass the guard inside it."
+  mapfile -t built < <(occurrences_by_file "GatedHandoffButton(" "$gated" "${app_files[@]}")
+  if [[ "${#built[@]}" -ne 1 || "${built[0]}" != "$screen(1)" ]]; then
+    fail "GatedHandoffButton( must be constructed exactly once, in $screen; found: ${built[*]:-none}" \
+      "Counted by occurrence over all $an .swift file(s) under $app_tree. Every other way onto the map's" \
+      "one button would bypass the guard inside it."
   fi
 
-  local passthrough
-  passthrough="$(count_in "$ACK_IDENT:[[:space:]]*$ACK_IDENT" "$screen")"
-  [[ "$passthrough" -ge 1 ]] || fail \
-    "$screen does not pass $ACK_IDENT into GatedHandoffButton( as \`$ACK_IDENT: $ACK_IDENT\`." \
-    "A literal there (\`: true\`) is a guard wired to a constant, which is the shape this repository exists" \
-    "to catch. The exact pass-through spelling is what makes that visible to a source-level check."
+  local args
+  args="$(button_args "$screen")"
+  case "$args" in
+    *"$ACK_IDENT: $ACK_IDENT"*) ;;
+    *) fail "$screen does not pass $ACK_IDENT into GatedHandoffButton( as \`$ACK_IDENT: $ACK_IDENT\`." \
+         "Read from the construction's own argument list: ${args:-<empty>}" \
+         "A literal there (\`: true\`) is a guard wired to a constant, which is the shape this repository" \
+         "exists to catch. The exact pass-through spelling is what makes that visible to a source check." ;;
+  esac
+  case "$args" in
+    *": true"*) fail "GatedHandoffButton('s argument list in $screen carries a literal \`: true\`." \
+         "Argument list: $args" \
+         "An acknowledgement constant passed beside the real one is the same gate wired open." ;;
+  esac
 
   # The blocked path, on the screen's side. Without these two, `onBlocked: { }` passes every anchor above
   # while the first tap does nothing and the disclaimer is never presented: a gate that refuses the handoff
@@ -270,13 +260,15 @@ run_check() {
 
   echo "P-SAFE-03: $n Swift file(s) under $sources; SafetyDisclaimer declared once in its own file;"
   echo "  home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in"
-  echo "  SafetyDisclaimer.swift, the persistent line present, @AppStorage(\"$STORAGE_KEY\") on device;"
-  echo "  SkylineHandoff.open( called once (GatedHandoffButton.swift line $call_line), dominated by the"
-  echo "  guard at line $guard_line; the button is built once, in ScenicHomeScreen.swift, with $ACK_IDENT"
-  echo "  passed through; the blocked tap is wired - onBlocked() at line $blocked_line before the return at"
-  echo "  line $ret_line, \`onBlocked: { isShowingDisclaimer = true }\` and a sheet bound to that flag on the"
-  echo "  screen. Not checked here: rendering, taps, that accepting the sheet writes the flag, contrast,"
-  echo "  Dynamic Type, 44 pt - XCUITest owns those."
+  echo "  SafetyDisclaimer.swift, the persistent line present, @AppStorage(\"$STORAGE_KEY\")"
+  echo "  at line $store_line with \`$ack_decl\` under it;"
+  echo "  over the $an .swift file(s) under $app_tree, SkylineHandoff.open( called once"
+  echo "  (GatedHandoffButton.swift line $call_line), dominated by the guard at line $guard_line;"
+  echo "  GatedHandoffButton( constructed once, in ScenicHomeScreen.swift, passing $ACK_IDENT"
+  echo "  through with no \`: true\` in its argument list; the blocked tap is wired - onBlocked() at line"
+  echo "  $blocked_line before the return at line $ret_line, \`onBlocked: { isShowingDisclaimer = true }\`"
+  echo "  and a sheet bound to that flag on the screen. Not checked here: rendering, taps, that accepting"
+  echo "  the sheet writes the flag, contrast, Dynamic Type, 44 pt - XCUITest owns those."
 }
 
 # ------------------------------------------------------------------------------------------------ red
@@ -288,12 +280,14 @@ MUTATIONS="ops/lib/check-safety-disclaimer-mutations"
 if [[ "$PROVE_RED" -eq 1 ]]; then
   [[ -f "$MUTATIONS" ]] || fail "$MUTATIONS is missing; --prove-red has no table to run."
   # A table run against an already-red tree would print refusals that prove nothing about the mutations.
-  run_check "$SOURCES" "$REQUIRE_TRACKED" >/dev/null || {
+  # The probe runs in a SUBSHELL because `fail` exits: called directly, its exit 1 ended the script with the
+  # reason swallowed by >/dev/null, so this guard was silent - seen red and fixed here, 2026-09-19.
+  if ! ( run_check "$SOURCES" "$REQUIRE_TRACKED" "$APP_TREE" >/dev/null ); then
     echo "P-SAFE-03: --prove-red refuses to run against a tree that is already red."
-    run_check "$SOURCES" "$REQUIRE_TRACKED"
+    run_check "$SOURCES" "$REQUIRE_TRACKED" "$APP_TREE"
     exit 1
-  }
+  fi
   exec bash "$MUTATIONS"
 else
-  run_check "$SOURCES" "$REQUIRE_TRACKED"
+  run_check "$SOURCES" "$REQUIRE_TRACKED" "$APP_TREE"
 fi

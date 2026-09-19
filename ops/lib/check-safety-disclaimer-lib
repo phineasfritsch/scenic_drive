@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# P-SAFE-03's source readers: HOW a fact is read out of Swift source. One file, one concern - which facts
+# the pin asserts is ops/lib/check-safety-disclaimer's business, and the mutation table that proves those
+# refusals is ops/lib/check-safety-disclaimer-mutations'.
+#
+# Sourced (`. ops/lib/check-safety-disclaimer-lib`), never executed: `fail` exits its caller. It is a bash
+# script under ops/, so it is committed 100755 like every other one (P-OPS-01; only .py/.json/.txt/.md
+# under ops/ are 100644).
+#
+# Every reader strips `//` to end of line first and a trailing CR second - the authoring box is Windows and
+# a \r on the end of a declaration would make a fixed-string anchor miss the line it is looking at.
+# CLAUDE.md: never anchor a pin on a comment. A reader that counted a doc comment mentioning
+# `SkylineHandoff.open(` as a call site would be anchored on one by accident, which is the same defect
+# wearing a different hat. `/* */` is NOT parsed - see the check's blind-spot list.
+#
+# `grep -c`, never `grep -q` or `grep -l`, on either side of a pipe (P-OPS-03): -c reads its input to the
+# end, so the producer never takes a SIGPIPE and the verdict is not a race. Neither counter ever returns
+# non-zero for "no match"; the caller compares the count.
+
+fail() {
+  echo "P-SAFE-03: $1"
+  shift
+  for extra in "$@"; do
+    echo "  $extra"
+  done
+  exit 1
+}
+
+code_of() {
+  sed -e 's/\r$//' -e 's|//.*||' "$1"
+}
+
+count_in() {
+  local pattern="$1" file="$2"
+  code_of "$file" | grep -c -E -e "$pattern" || true
+}
+
+count_fixed_in() {
+  local needle="$1" file="$2"
+  code_of "$file" | grep -c -F -e "$needle" || true
+}
+
+# The feature sources' population, fail-closed. The four named files FIRST, so a tree missing the
+# disclaimer is refused by the name of the file it is missing rather than by a count that says nothing
+# about which one; then the floor, so an emptied target cannot read as a gated handoff; then, on a
+# tracked-tree run, that each of the four is COMMITTED - an untracked SafetyDisclaimer.swift sitting in
+# somebody's working directory must never turn the pin green on code that is not in the repository.
+require_feature_files() {
+  local sources="$1" n="$2" require_tracked="$3" min="$4"
+  shift 4
+  local f tracked
+  for f in "$@"; do
+    [[ -f "$f" ]] || fail "missing file: $f" \
+      "(i)/(iv) name these files; one type per file, filename == type name (CLAUDE.md)." \
+      "Population under $sources: $n .swift file(s)."
+  done
+  [[ "$n" -ge "$min" ]] || fail "only $n .swift file(s) under $sources (expected >= $min)." \
+    "An emptied or truncated feature target must not read as a gated handoff."
+  [[ "$require_tracked" -eq 1 ]] || return 0
+  for f in "$@"; do
+    tracked="$(git ls-files -- "$f")"
+    [[ -n "$tracked" ]] || fail "not tracked by git: $f" \
+      "The pin is a property of the committed tree, not of somebody's working directory."
+  done
+}
+
+# The population the call graph is decided over: EVERY *.swift under the app tree, RECURSIVELY.
+#
+# PR #101's finding B2: this used to be `find "$sources" -maxdepth 1`, one directory. `SkylineHandoff` is a
+# public enum exported from the FeatureScenicHome library product, so a second call site one directory down
+# (Package.swift declares `path: "Sources/FeatureScenicHome"` with no `sources:` list, so a subdirectory
+# compiles) or over in apps/ios/ScenicDrive/ (the shell target already imports the product) was invisible,
+# and the check printed "called once" over a tree that called it twice. Recursion is the population the
+# pin's statement already implied.
+app_swift_files() {
+  find "$1" -type f -name '*.swift' | LC_ALL=C sort
+}
+
+# Which of the given files carry a fixed needle, and how many times each: one "path(count)" per line, with
+# the file at $2 skipped (a type's own file is not a call site or a construction of itself). The caller
+# compares the whole list against the single entry it will accept, so a refusal can name the tree it
+# actually saw - "found: a(1) b(2)" - instead of only failing a count. Occurrences, not files, since
+# PR #101's finding B3: a second construction beside the real one is in the same file as the real one.
+occurrences_by_file() {
+  local needle="$1" skip="$2" f c
+  shift 2
+  for f in "$@"; do
+    [[ "$f" == "$skip" ]] && continue
+    c="$(count_fixed_in "$needle" "$f")"
+    [[ "$c" -eq 0 ]] || printf '%s(%s)\n' "$f" "$c"
+  done
+}
+
+# The same over an extended regex, naming only the files: which of them declare the type.
+files_matching() {
+  local pattern="$1" skip="$2" f c
+  shift 2
+  for f in "$@"; do
+    [[ "$f" == "$skip" ]] && continue
+    c="$(count_in "$pattern" "$f")"
+    [[ "$c" -eq 0 ]] || printf '%s\n' "$f"
+  done
+}
+
+# The @AppStorage default (PR #101's finding B1). Prints "<line of the @AppStorage key> <0|1>", where the
+# second field is 1 only if the next line that carries any code at all is EXACTLY the declaration asked
+# for. `= true` there is an acknowledgement nobody gave: on a fresh install nothing is stored, the property
+# yields its declared default, and the guard downstream passes on the very first tap.
+ack_default_verdict() {
+  awk -v key="$2" -v decl="$3" '
+    {
+      code = $0
+      sub(/\r$/, "", code)
+      sub(/\/\/.*$/, "", code)
+      if (store > 0 && want == 1 && code ~ /[^ \t]/) {
+        want = 0
+        sub(/^[ \t]+/, "", code)
+        sub(/[ \t]+$/, "", code)
+        if (code == decl) ok = 1
+      }
+      if (store == 0 && index(code, key) > 0) { store = NR; want = 1 }
+    }
+    END { printf "%d %d\n", store + 0, ok + 0 }
+  ' "$1"
+}
+
+# The gate, read off GatedHandoffButton.swift in one pass. Prints seven numbers:
+#
+#   guard_line guard_depth call_line call_depth escaped blocked_line ret_line
+#
+# Dominance is guard_line < call_line with escaped == 0 and call_depth >= guard_depth: the guard precedes
+# the call and the brace depth never returns BELOW the guard's own between them, so the call is still
+# inside the block the guard protects. `guard <ack> else` is required in that exact POSITIVE spelling,
+# which is why `guard !ack`, `ack == false` and a deleted guard all read as absent rather than as a gate.
+# blocked_line/ret_line are the blocked path inside the else block: onBlocked() must come before the
+# block's return, or a refused tap is silent and nothing ever presents the disclaimer.
+gate_verdict() {
+  awk -v ack="$2" '
+    {
+      code = $0
+      sub(/\r$/, "", code)
+      sub(/\/\/.*$/, "", code)
+      d = depth
+      if (guard_line == 0 && code ~ ("guard[ \t]+" ack "[ \t]+else")) { guard_line = NR; guard_depth = d }
+      if (call_line == 0 && index(code, "SkylineHandoff.open(") > 0) { call_line = NR; call_depth = d }
+      if (guard_line > 0 && call_line == 0 && NR > guard_line && d < guard_depth) { escaped = NR }
+      if (guard_line > 0 && NR > guard_line && ret_line == 0) {
+        if (blocked_line == 0 && index(code, "onBlocked()") > 0) { blocked_line = NR }
+        if (code ~ /(^|[^A-Za-z0-9_])return([^A-Za-z0-9_]|$)/) { ret_line = NR }
+      }
+      opens = gsub(/\{/, "{", code)
+      closes = gsub(/\}/, "}", code)
+      depth += opens - closes
+    }
+    END { printf "%d %d %d %d %d %d %d\n", guard_line+0, guard_depth+0, call_line+0, call_depth+0, escaped+0, blocked_line+0, ret_line+0 }
+  ' "$1"
+}
+
+# The argument list of the FIRST `GatedHandoffButton(` construction in a file, //-stripped and joined onto
+# one line: from that open paren to the paren that closes it, by depth. The construction in the tree spans
+# four lines, so a reader that looked only at the line the identifier is on would read no arguments at all
+# and could not tell `isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged` from `: true`.
+button_args() {
+  awk -v needle="GatedHandoffButton(" '
+    {
+      code = $0
+      sub(/\r$/, "", code)
+      sub(/\/\/.*$/, "", code)
+      if (started == 0) {
+        i = index(code, needle)
+        if (i == 0) next
+        started = 1
+        code = substr(code, i + length(needle))
+      }
+      n = length(code)
+      for (k = 1; k <= n; k++) {
+        ch = substr(code, k, 1)
+        if (ch == "(") depth++
+        else if (ch == ")") {
+          if (depth == 0) { printf "%s", out; exit }
+          depth--
+        }
+        out = out ch
+      }
+      out = out " "
+    }
+    END { printf "%s", out }
+  ' "$1"
+}

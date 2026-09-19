@@ -401,3 +401,283 @@ review; T-0152 (copy) touches the same file - sequence them, do not stack them.
   the three anchors added here prove the blocked path is WIRED and nothing more - that a tap presents the
   sheet, and that accepting it writes the flag, remain XCUITest's, and `ops/lib/check-safety-disclaimer-mutations`
   has itself never been seen to pass a mutation it should have refused, only the seven rows it carries.
+
+- 2026-09-19T02:59:10Z REVIEW FAIL by agent/rv1-pr101 (not the owner, not the fixer). PR #101, head 4c0f7fc,
+  base main. Every acceptance number re-run in a detached worktree at 4c0f7fc and every one of them
+  reproduces: `bash ops/lib/check-safety-disclaimer` exit 0 with the 01:12 paragraph verbatim; `--prove-red`
+  7/7 refused by name, exit 0; `bash ops/lib/check-line-cap` "P-SRC-02: 73 Swift files tracked (Sources=26,
+  Tests=37, apps/ios=10), none over 300 lines" exit 0; `bash ops/queue-check` "QUEUE OK (169 tasks)" exit 0;
+  `bash ops/check-pins --source-only` "PINS ok=12 skipped=12 pending=1 expired=0 failed=0 tier=linux
+  source-only" exit 0; `wc -l` 299 and 73, both 100755; ios-compile 35405951245 conclusion success on
+  headSha d975dfb, log line 2156 `** BUILD SUCCEEDED **`, `grep -c -F ' error:'` 0; the title's middle dot is
+  `302 267` under `od -c`. `git diff --name-only d975dfb 4c0f7fc -- 'apps/ios/**/*.swift'` is empty, so that
+  run does describe this tree. Rulings R1-R4 and R6-R8 upheld; R6 verified against `ops/lib/pins.py`
+  (pending is handled at lines 126-138, the assertion only runs at 141-147, so `pending:` would indeed have
+  silenced it).
+
+  THE PRODUCT QUESTION, answered against the tree: a build CAN ship with the handoff reachable un-acknowledged
+  and P-SAFE-03 green. Three mutants of the reviewer's own, on copies and on one untracked file in the
+  reviewer's worktree, all restored, `git status --short` empty after each:
+
+  B1 - the @AppStorage DEFAULT is not anchored. The check greps `@AppStorage("safety.disclaimer.acknowledged.v1")`
+  (lines 175-178) and nothing about the initial value on the next line.
+
+      $ sed -i -e 's/private var isSafetyDisclaimerAcknowledged = false/private var isSafetyDisclaimerAcknowledged = true/' <copy>/ScenicHomeScreen.swift
+      $ bash ops/lib/check-safety-disclaimer --sources <copy>
+      P-SAFE-03: 4 Swift file(s) ... @AppStorage("safety.disclaimer.acknowledged.v1") on device; ...
+      exit=0
+
+  On a fresh install nothing is stored, @AppStorage yields the declared default, the guard passes and the
+  FIRST tap opens Apple Maps having shown nobody the sheet. That is the pin's statement ("unreachable without
+  a SafetyDisclaimer acknowledgement stored on the device") false with the assertion green, and it is not what
+  "whether accepting writes the store" discloses - that disclosure is about a runtime round-trip, this is a
+  literal three tokens from an anchor the check already reads.
+
+  B2 - the call-site anchor scans one directory at `-maxdepth 1` (line 108) while `public enum SkylineHandoff`
+  is exported from the `FeatureScenicHome` library product. Against the TRACKED tree, with
+  `apps/ios/ScenicDrive/DriveNowButton.swift` added (one `try? SkylineHandoff.open()`, in the shell target
+  that already imports the product):
+
+      $ bash ops/lib/check-safety-disclaimer
+      P-SAFE-03: ... SkylineHandoff.open( called once (GatedHandoffButton.swift line 51) ...
+      exit=0
+
+  It had just scanned 4 of the 10 tracked Swift files under apps/ios and printed a sentence that was false of
+  the tree. Same hole one level down: `Package.swift` declares `path: "Sources/FeatureScenicHome"` with no
+  `sources:` list, so `Sources/FeatureScenicHome/Debug/QuickDriveButton.swift` compiles and is invisible.
+
+  B3 - `GatedHandoffButton(` is counted per FILE, not per construction (lines 233-243; `built+=("$f")` ignores
+  the count) and the pass-through anchor is `-ge 1`. Adding a second button beside the real one:
+
+      $ grep -c 'GatedHandoffButton(' <copy>/ScenicHomeScreen.swift
+      2
+      $ bash ops/lib/check-safety-disclaimer --sources <copy>
+      P-SAFE-03: ... the button is built once, in ScenicHomeScreen.swift, with isSafetyDisclaimerAcknowledged passed through; ...
+      exit=0
+
+  where the second is `GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, onBlocked: { }, onFailure: ...)`.
+  Row 5 of the table catches REPLACING the pass-through; it does not catch ADDING one.
+
+  Correctly refused, for the record: the guard inverted (`guard !ack`) reads as absent and is named by row 3;
+  a second call site in a SIBLING top-level file is named; a second button in ANOTHER file is named; the
+  conditions line removed is named. The key read but never written is not caught and does not need to be - it
+  fails closed.
+
+  The Swift in this PR is correct and the tree as committed is gated; B1-B3 are holes in the guard, not bugs
+  in the app. But acceptance line 1's deliverable is the assertion and the pin's statement is absolute, and
+  this is the same class as the seventh blind spot the owner closed himself at 01:12 - except these three fail
+  OPEN. Each is a few lines plus a mutation row: anchor `= false` on the declaration; enumerate the call site
+  over `git ls-files 'apps/ios/**/*.swift'` rather than one directory at maxdepth 1; require the count of
+  `GatedHandoffButton(` to equal the count of `isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged`.
+  Recorded and not blocking: the accept closure is unanchored but fails closed (T-0180's); `runs_on: [linux,
+  mac]` buys nothing today; `/* */` is unparsed (self-disclosed); the 01:12 block re-ran lines (1) and (4) and
+  argued (2)/(3) stand, which the reviewer verified independently; and the mutations file's own
+  "UNREFUSED or UNNAMED" branch has never been seen to fire.
+
+- 2026-09-19T03:35:00Z FIX by agent/claude-opus-5 (the owner; agent/rv1-pr101 found and did not fix) for the
+  three blocking findings above. All three were in `ops/lib/check-safety-disclaimer`, all three failed OPEN,
+  and each one is the pin's own statement - "the handoff on the home screen is unreachable without a
+  SafetyDisclaimer acknowledgement stored on the device" - false with its own assertion at exit 0. No Swift
+  was touched in this pass.
+
+  REPRODUCED FIRST, on copies under `.artifacts/red/` (gitignored), the tracked tree untouched and the
+  copies removed afterwards. Three greens that should have been red:
+
+      $ cp -R apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome .artifacts/red/b1
+      $ sed -i -e 's/private var isSafetyDisclaimerAcknowledged = false/private var isSafetyDisclaimerAcknowledged = true/' .artifacts/red/b1/ScenicHomeScreen.swift
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red/b1
+      P-SAFE-03: 4 Swift file(s) under .artifacts/red/b1; SafetyDisclaimer declared once in its own file;
+        home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in
+        SafetyDisclaimer.swift, the persistent line present, @AppStorage("safety.disclaimer.acknowledged.v1") on device;
+      exit=0
+
+      $ cp -R apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome .artifacts/red/b2sub && mkdir -p .artifacts/red/b2sub/Debug
+      $ cp .artifacts/redsrc/QuickDriveButton.swift .artifacts/red/b2sub/Debug/QuickDriveButton.swift   # one `try? SkylineHandoff.open()`
+      $ grep -c -F 'SkylineHandoff.open(' .artifacts/red/b2sub/Debug/QuickDriveButton.swift
+      1
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red/b2sub
+        SkylineHandoff.open( called once (GatedHandoffButton.swift line 51), dominated by the
+        guard at line 46; the button is built once, in ScenicHomeScreen.swift, with isSafetyDisclaimerAcknowledged
+      exit=0
+
+      $ cp -R apps/ios .artifacts/red/b2tree
+      $ sed -i -e 's/ScenicHomeScreen()/ScenicHomeScreen().onAppear { try? SkylineHandoff.open() }/' .artifacts/red/b2tree/ScenicDrive/ScenicDriveApp.swift
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red/b2tree/Packages/ScenicApp/Sources/FeatureScenicHome
+        SkylineHandoff.open( called once (GatedHandoffButton.swift line 51), dominated by the
+        guard at line 46; the button is built once, in ScenicHomeScreen.swift, with isSafetyDisclaimerAcknowledged
+      exit=0
+
+      $ cp -R apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome .artifacts/red/b3
+      $ sed -i -e 's|^                    conditions$|                    conditions\n                    GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, onBlocked: { }, onFailure: { _ in })|' .artifacts/red/b3/ScenicHomeScreen.swift
+      $ grep -c -F 'GatedHandoffButton(' .artifacts/red/b3/ScenicHomeScreen.swift
+      2
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red/b3
+        guard at line 46; the button is built once, in ScenicHomeScreen.swift, with isSafetyDisclaimerAcknowledged
+        passed through; the blocked tap is wired - onBlocked() at line 47 before the return at
+      exit=0
+
+  WHAT CHANGED. Three anchors, all fixed strings or identifiers over //-stripped code, none on a comment:
+
+  (B1) the @AppStorage DEFAULT. `ack_default_verdict` finds the `@AppStorage("safety.disclaimer.acknowledged.v1")`
+  line and requires the FIRST line carrying any code after it to read exactly
+  `private var isSafetyDisclaimerAcknowledged = false`. @AppStorage yields its declared default whenever
+  nothing is stored, which is every fresh install, so `= true` was an acknowledgement nobody gave.
+
+  (B2) the population. The call graph is now decided over EVERY `*.swift` under `apps/ios`, recursively -
+  the Packages sources, `apps/ios/ScenicDrive/`, and anything else that appears there - instead of one
+  directory at `-maxdepth 1`. The tracked run scans 10 files where it used to scan 4. A copy is scanned as
+  its own app tree unless `--app-tree DIR` names one, which is how the table hands the check a copy of the
+  whole of `apps/ios` (row 9).
+
+  (B3) occurrences, not files. `occurrences_by_file` returns `path(count)`, and `SkylineHandoff.open(` must
+  be one occurrence in one file (`GatedHandoffButton.swift`) and `GatedHandoffButton(` one occurrence in one
+  file (`ScenicHomeScreen.swift`). `button_args` then reads that one construction's argument list across its
+  four lines and requires `isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged` in it and no
+  `: true` anywhere in it.
+
+  The readers moved to `ops/lib/check-safety-disclaimer-lib` (new file, committed 100755 with
+  `git update-index --chmod=+x`, P-OPS-01) so the check stays under the 300-line cap: one concern each -
+  the lib is HOW a fact is read out of Swift source, the check is WHICH facts P-SAFE-03 asserts, the
+  mutations file is the table that proves the refusals. `wc -l`: `ops/lib/check-safety-disclaimer` 293
+  (from 299), `ops/lib/check-safety-disclaimer-lib` 189, `ops/lib/check-safety-disclaimer-mutations` 83
+  (from 73). The header's blind-spot list now also states that Swift OUTSIDE `apps/ios` is not scanned and
+  that a second `GatedHandoffButton(` inside `GatedHandoffButton.swift` itself is not counted (a #Preview
+  belongs there). `pins/PINS.yaml` P-SAFE-03's `why_no_test_catches_it` names the three new anchors and says
+  ten rows.
+
+  RED, BY NAME. The table is three rows longer and each new row was seen red by the refusal it is named for
+  (full runs quoted in the acceptance block below; these are the refusal texts):
+
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red/b1                                   # row 8's shape
+      P-SAFE-03: the acknowledgement does not default to false in .artifacts/red/b1/ScenicHomeScreen.swift (@AppStorage line 40).
+        The line after the key must read exactly `private var isSafetyDisclaimerAcknowledged = false`. @AppStorage yields its DECLARED DEFAULT when
+        nothing is stored, which is every fresh install - so `= true` ships a first tap that leaves for
+        Apple Maps having shown nobody the disclaimer, with this check green (PR #101, finding B1).
+      exit=1
+
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red/b2tree/Packages/ScenicApp/Sources/FeatureScenicHome --app-tree .artifacts/red/b2tree   # row 9's shape
+      P-SAFE-03: SkylineHandoff.open( must be called exactly once, from .artifacts/red/b2tree/Packages/ScenicApp/Sources/FeatureScenicHome/GatedHandoffButton.swift; found: .artifacts/red/b2tree/Packages/ScenicApp/Sources/FeatureScenicHome/GatedHandoffButton.swift(1) .artifacts/red/b2tree/ScenicDrive/ScenicDriveApp.swift(1)
+        Counted over all 10 .swift file(s) under .artifacts/red/b2tree. A second call site is a second door, and only
+        one of them is behind the disclaimer - including one a directory down or in the app shell, which
+        imports this feature's product (PR #101, finding B2).
+      exit=1
+
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red/b2sub                                # the same hole one directory down
+      P-SAFE-03: SkylineHandoff.open( must be called exactly once, from .artifacts/red/b2sub/GatedHandoffButton.swift; found: .artifacts/red/b2sub/Debug/QuickDriveButton.swift(1) .artifacts/red/b2sub/GatedHandoffButton.swift(1)
+        Counted over all 5 .swift file(s) under .artifacts/red/b2sub. A second call site is a second door, and only
+      exit=1
+
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red/b3                                   # row 10's shape
+      P-SAFE-03: GatedHandoffButton( must be constructed exactly once, in .artifacts/red/b3/ScenicHomeScreen.swift; found: .artifacts/red/b3/ScenicHomeScreen.swift(2)
+        Counted by occurrence over all 4 .swift file(s) under .artifacts/red/b3. Every other way onto the map's
+        one button would bypass the guard inside it.
+      exit=1
+
+  FOUND WHILE FIXING, AND FIXED: `--prove-red`'s own guard against running the table over an already-red
+  tree was SILENT. `run_check ... >/dev/null || { echo ...; }` called `fail`, and `fail` exits, so the
+  script ended with status 1 and the reason swallowed by the redirect - the `||` branch never ran. Seen red
+  and then green on a copy with `SafetyDisclaimer.swift` deleted (the probe now runs in a subshell):
+
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red2/already-red --prove-red   # before
+      exit=1
+
+      $ bash ops/lib/check-safety-disclaimer --sources .artifacts/red2/already-red --prove-red   # after
+      P-SAFE-03: --prove-red refuses to run against a tree that is already red.
+      P-SAFE-03: missing file: .artifacts/red2/already-red/SafetyDisclaimer.swift
+        (i)/(iv) name these files; one type per file, filename == type name (CLAUDE.md).
+        Population under .artifacts/red2/already-red: 3 .swift file(s).
+      exit=1
+
+  It is pre-existing - the reviewed head at `4c0f7fc` has it - and it fails closed (a red tree still exits
+  non-zero), so it was never a wrong verdict, only an unreadable one. It is in this commit because it is
+  three tokens in the file being fixed and because a guard nobody can see fire is the thing this task is
+  about. The acceptance block below was re-run after it.
+
+  The reviewer's R5 is NOT closed and is not claimed to be: the table's own "UNREFUSED or UNNAMED" branch
+  still has not been seen to fire. The three reproductions above were run against copies with the check
+  invoked directly, not through the table, so nothing here exercised that branch. It stays in STILL OPEN.
+
+- 2026-09-19T03:45:49Z ACCEPTANCE BLOCK, all four lines, re-run at the final commit by agent/claude-opus-5.
+  The reviewer's R4 asked for the WHOLE block rather than an argument that two lines stand; this is that.
+
+  **(1) P-SAFE-03's assertion, green, and the mutation table.**
+
+      $ bash ops/lib/check-safety-disclaimer
+      P-SAFE-03: 4 Swift file(s) under apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome; SafetyDisclaimer declared once in its own file;
+        home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in
+        SafetyDisclaimer.swift, the persistent line present, @AppStorage("safety.disclaimer.acknowledged.v1")
+        at line 40 with `private var isSafetyDisclaimerAcknowledged = false` under it;
+        over the 10 .swift file(s) under apps/ios, SkylineHandoff.open( called once
+        (GatedHandoffButton.swift line 51), dominated by the guard at line 46;
+        GatedHandoffButton( constructed once, in ScenicHomeScreen.swift, passing isSafetyDisclaimerAcknowledged
+        through with no `: true` in its argument list; the blocked tap is wired - onBlocked() at line
+        47 before the return at line 48, `onBlocked: { isShowingDisclaimer = true }`
+        and a sheet bound to that flag on the screen. Not checked here: rendering, taps, that accepting
+        the sheet writes the flag, contrast, Dynamic Type, 44 pt - XCUITest owns those.
+      exit=0
+
+      $ bash ops/lib/check-safety-disclaimer --prove-red
+      MUTATION                                             EXIT     REASON NAMED
+      the SafetyDisclaimer type renamed                    1        yes
+      the home.disclaimer identifier removed               1        yes
+      the acknowledgement guard removed                    1        yes
+      the persistent conditions line removed               1        yes
+      the acknowledgement no longer passed to the button   1        yes
+      the on-device store key changed                      1        yes
+      the blocked tap no longer presents the disclaimer    1        yes
+      the acknowledgement defaults to true                 1        yes
+      a second call site in the app shell                  1        yes
+      a second button beside the real one                  1        yes
+      prove-red: 10/10 mutations refused by name
+      exit=0
+
+  **(2) The gate itself, and the compile.** No Swift file was edited in this pass and none was edited in the
+  one before it: `git diff --name-only d975dfb -- apps/ios` is EMPTY at this commit, so ios-compile run
+  35405951245 (conclusion success, headSha `d975dfb`, log line 2156 `** BUILD SUCCEEDED **`, `grep -c -F
+  ' error:'` 0, quoted at 23:37 and re-verified by the reviewer at 02:59) describes this tree's Swift
+  exactly. The identifiers `home.disclaimer` / `home.disclaimer.accept` / `home.conditions`, the
+  on-device-only `@AppStorage` key and the 44 pt minimum height are the same four files. `gh pr checks 101`
+  is quoted in the PR body.
+
+  **(3) The 16:13 panel drivers' round-3 strings, verbatim.**
+
+      $ grep -c -F 'Skyline loop · starts and ends in San Francisco' apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift
+      1
+      $ grep -c -F "Preview build: one fixed Bay Area drive. The map doesn't show roads yet - tap below and it opens in Apple Maps." apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift
+      1
+
+  **(4) The gates, bare.**
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 73 Swift files tracked (Sources=26, Tests=37, apps/ios=10), none over 300 lines
+      exit=0
+
+      $ bash ops/queue-check
+      QUEUE OK (169 tasks)
+      exit=0
+
+      $ bash ops/check-pins --source-only
+      PINS ok=12 skipped=12 pending=1 expired=0 failed=0 tier=linux source-only
+      exit=0
+
+  Sizes, re-measured at this commit (`wc -l`, the T-0162 lesson): `ops/lib/check-safety-disclaimer` 293,
+  `ops/lib/check-safety-disclaimer-lib` 189, `ops/lib/check-safety-disclaimer-mutations` 83. Modes:
+  100755, 100755, 100755 (`git ls-files -s`).
+
+  STILL OPEN. Items 1-5 of the 23:37 block stand, unchanged: nothing on this screen has been rendered, the
+  acknowledgement has never been tapped, there is no XCUITest, there is no `SafetyDisclaimerDisplaying`
+  protocol, and the 44 pt / Dynamic Type / contrast arguments are unmeasured. Carried from the review as
+  recordable and NOT fixed here: R1, the accept closure that writes the @AppStorage flag
+  (`ScenicHomeScreen.swift` lines 99-102) is still unanchored - disclosed by the pin, and it fails CLOSED
+  (a user who is never recorded is trapped behind the sheet, nobody drives ungated); it is T-0180's
+  XCUITest, not this PR's. R2, `runs_on: [linux, mac]` buys nothing today, since the assertion is a bash
+  source check that behaves identically in both tiers - left as the plan writes it, noted so nobody reads a
+  mac run as covering the XCUITest half. R3, `/* */` is still unparsed and a `/*`-commented-out guard would
+  still be counted; not reachable today, and the check's header says so. R5, the table's own
+  "UNREFUSED or UNNAMED" branch, has still never been seen to fire - the three new rows are red by name,
+  which is the branch NOT firing. New with this pass: the table now
+  copies the whole of `apps/ios` ten times and takes ~6 minutes on the Windows box (up from ~1), which is
+  T-0184's problem when it puts every `--prove-red` table in CI; and the check still cannot see a second
+  construction of `GatedHandoffButton(` inside `GatedHandoffButton.swift` itself, which is where a #Preview
+  would legitimately put one - stated in the header rather than closed, because closing it would refuse the
+  preview this feature will want.
