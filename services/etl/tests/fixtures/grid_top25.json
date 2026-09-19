@@ -1,0 +1,1383 @@
+{
+ "meta": {
+  "produced_by": "etl.scenecheck.top, T-0204's hardened build, 2026-09-19",
+  "read_back_from": ".worktrees/T-0204/services/etl/work/la/grid-{a,b}-readback.osm.xml",
+  "scored": 34523,
+  "seam_disagreements": [
+   {
+    "grid_a": 0.6988,
+    "grid_b": 0.7022,
+    "highway": "secondary",
+    "name": "Mulholland Drive",
+    "way_id": 1533792498
+   },
+   {
+    "grid_a": 0.687,
+    "grid_b": 0.6888,
+    "highway": "residential",
+    "name": "Bel Air Road",
+    "way_id": 13290032
+   },
+   {
+    "grid_a": 0.6798,
+    "grid_b": 0.683,
+    "highway": "residential",
+    "name": "Stone Canyon Road",
+    "way_id": 225322766
+   },
+   {
+    "grid_a": 0.6746,
+    "grid_b": 0.6779,
+    "highway": "residential",
+    "name": "Round Valley Drive",
+    "way_id": 13278980
+   },
+   {
+    "grid_a": 0.6575,
+    "grid_b": 0.6605,
+    "highway": "residential",
+    "name": "Knobhill Drive",
+    "way_id": 13351056
+   },
+   {
+    "grid_a": 0.653,
+    "grid_b": 0.6553,
+    "highway": "residential",
+    "name": "Deervale Drive",
+    "way_id": 13410352
+   },
+   {
+    "grid_a": 0.6401,
+    "grid_b": 0.6435,
+    "highway": "secondary",
+    "name": "Beverly Glen Boulevard",
+    "way_id": 44330145
+   },
+   {
+    "grid_a": 0.6308,
+    "grid_b": 0.6372,
+    "highway": "secondary",
+    "name": "West Sunset Boulevard",
+    "way_id": 399301293
+   },
+   {
+    "grid_a": 0.6278,
+    "grid_b": 0.6347,
+    "highway": "residential",
+    "name": "Longview Valley Road",
+    "way_id": 13441195
+   },
+   {
+    "grid_a": 0.6053,
+    "grid_b": 0.6133,
+    "highway": "residential",
+    "name": "Valley Vista Boulevard",
+    "way_id": 517794918
+   },
+   {
+    "grid_a": 0.5796,
+    "grid_b": 0.591,
+    "highway": "service",
+    "name": "",
+    "way_id": 724310897
+   },
+   {
+    "grid_a": 0.5696,
+    "grid_b": 0.58,
+    "highway": "service",
+    "name": "",
+    "way_id": 1474950894
+   },
+   {
+    "grid_a": 0.5662,
+    "grid_b": 0.5768,
+    "highway": "service",
+    "name": "",
+    "way_id": 386471449
+   },
+   {
+    "grid_a": 0.5619,
+    "grid_b": 0.5646,
+    "highway": "residential",
+    "name": "Sarbonne Road",
+    "way_id": 13421124
+   },
+   {
+    "grid_a": 0.5513,
+    "grid_b": 0.5532,
+    "highway": "residential",
+    "name": "Chalon Road",
+    "way_id": 13421123
+   },
+   {
+    "grid_a": 0.5297,
+    "grid_b": 0.5332,
+    "highway": "residential",
+    "name": "Bellagio Road",
+    "way_id": 13385918
+   },
+   {
+    "grid_a": 0.5266,
+    "grid_b": 0.5323,
+    "highway": "residential",
+    "name": "Vestone Way",
+    "way_id": 27294481
+   },
+   {
+    "grid_a": 0.5041,
+    "grid_b": 0.5167,
+    "highway": "service",
+    "name": "",
+    "way_id": 958032573
+   },
+   {
+    "grid_a": 0.494,
+    "grid_b": 0.5032,
+    "highway": "secondary",
+    "name": "Beverly Glen Boulevard",
+    "way_id": 1391863896
+   },
+   {
+    "grid_a": 0.4783,
+    "grid_b": 0.4825,
+    "highway": "residential",
+    "name": "De Neve Drive",
+    "way_id": 55783709
+   },
+   {
+    "grid_a": 0.4555,
+    "grid_b": 0.4681,
+    "highway": "service",
+    "name": "Promenade Way",
+    "way_id": 904014316
+   },
+   {
+    "grid_a": 0.4569,
+    "grid_b": 0.4656,
+    "highway": "tertiary",
+    "name": "Gayley Avenue",
+    "way_id": 159609868
+   },
+   {
+    "grid_a": 0.4541,
+    "grid_b": 0.4621,
+    "highway": "residential",
+    "name": "North Perugia Way",
+    "way_id": 13309768
+   },
+   {
+    "grid_a": 0.4555,
+    "grid_b": 0.4607,
+    "highway": "unclassified",
+    "name": "De Neve Drive",
+    "way_id": 13304001
+   },
+   {
+    "grid_a": 0.4489,
+    "grid_b": 0.4555,
+    "highway": "residential",
+    "name": "Somma Way",
+    "way_id": 13437117
+   },
+   {
+    "grid_a": 0.441,
+    "grid_b": 0.4482,
+    "highway": "residential",
+    "name": "Levering Avenue",
+    "way_id": 13385032
+   },
+   {
+    "grid_a": 0.4226,
+    "grid_b": 0.4367,
+    "highway": "tertiary",
+    "name": "Veteran Avenue",
+    "way_id": 1363305493
+   },
+   {
+    "grid_a": 0.419,
+    "grid_b": 0.4275,
+    "highway": "residential",
+    "name": "Strathmore Drive",
+    "way_id": 13410615
+   },
+   {
+    "grid_a": 0.4026,
+    "grid_b": 0.4159,
+    "highway": "residential",
+    "name": "Greenleaf Street",
+    "way_id": 13450265
+   },
+   {
+    "grid_a": 0.4,
+    "grid_b": 0.4097,
+    "highway": "service",
+    "name": "",
+    "way_id": 56238751
+   },
+   {
+    "grid_a": 0.3896,
+    "grid_b": 0.399,
+    "highway": "residential",
+    "name": "Landfair Avenue",
+    "way_id": 159610147
+   },
+   {
+    "grid_a": 0.3686,
+    "grid_b": 0.3826,
+    "highway": "service",
+    "name": "",
+    "way_id": 721191714
+   },
+   {
+    "grid_a": 0.3655,
+    "grid_b": 0.3808,
+    "highway": "tertiary",
+    "name": "Weyburn Drive",
+    "way_id": 780809854
+   },
+   {
+    "grid_a": 0.3551,
+    "grid_b": 0.371,
+    "highway": "tertiary",
+    "name": "Ocean Park Boulevard",
+    "way_id": 158763418
+   },
+   {
+    "grid_a": 0.3541,
+    "grid_b": 0.3688,
+    "highway": "service",
+    "name": "",
+    "way_id": 488537019
+   },
+   {
+    "grid_a": 0.3579,
+    "grid_b": 0.3677,
+    "highway": "unclassified",
+    "name": "Meuse Avenue",
+    "way_id": 442839741
+   },
+   {
+    "grid_a": 0.3503,
+    "grid_b": 0.3657,
+    "highway": "service",
+    "name": "",
+    "way_id": 18803312
+   },
+   {
+    "grid_a": 0.3431,
+    "grid_b": 0.36,
+    "highway": "service",
+    "name": "",
+    "way_id": 256671923
+   },
+   {
+    "grid_a": 0.3382,
+    "grid_b": 0.3537,
+    "highway": "service",
+    "name": "",
+    "way_id": 488537015
+   },
+   {
+    "grid_a": 0.3342,
+    "grid_b": 0.3483,
+    "highway": "service",
+    "name": "",
+    "way_id": 488537018
+   },
+   {
+    "grid_a": 0.3316,
+    "grid_b": 0.3436,
+    "highway": "primary",
+    "name": "Wilshire Boulevard",
+    "way_id": 168367855
+   },
+   {
+    "grid_a": 0.3309,
+    "grid_b": 0.3416,
+    "highway": "tertiary",
+    "name": "Rose Avenue",
+    "way_id": 165838927
+   },
+   {
+    "grid_a": 0.3283,
+    "grid_b": 0.3381,
+    "highway": "service",
+    "name": "Weyburn Place",
+    "way_id": 30876274
+   },
+   {
+    "grid_a": 0.315,
+    "grid_b": 0.3275,
+    "highway": "residential",
+    "name": "Corinth Avenue",
+    "way_id": 13411117
+   },
+   {
+    "grid_a": 0.3114,
+    "grid_b": 0.3272,
+    "highway": "unclassified",
+    "name": "Stoner Avenue",
+    "way_id": 1175153082
+   },
+   {
+    "grid_a": 0.2188,
+    "grid_b": 0.3268,
+    "highway": "residential",
+    "name": "34th Street",
+    "way_id": 13335426
+   },
+   {
+    "grid_a": 0.3173,
+    "grid_b": 0.3261,
+    "highway": "residential",
+    "name": "Morningside Way",
+    "way_id": 165838932
+   },
+   {
+    "grid_a": 0.3083,
+    "grid_b": 0.3221,
+    "highway": "residential",
+    "name": "Oxford Avenue",
+    "way_id": 242952698
+   },
+   {
+    "grid_a": 0.31,
+    "grid_b": 0.3219,
+    "highway": "residential",
+    "name": "Butler Avenue",
+    "way_id": 13322356
+   },
+   {
+    "grid_a": 0.3101,
+    "grid_b": 0.3182,
+    "highway": "service",
+    "name": "",
+    "way_id": 253505154
+   },
+   {
+    "grid_a": 0.3051,
+    "grid_b": 0.3168,
+    "highway": "residential",
+    "name": "Benefit Street",
+    "way_id": 13394654
+   },
+   {
+    "grid_a": 0.2987,
+    "grid_b": 0.3159,
+    "highway": "tertiary",
+    "name": "Palms Boulevard",
+    "way_id": 1134617658
+   },
+   {
+    "grid_a": 0.2986,
+    "grid_b": 0.3143,
+    "highway": "service",
+    "name": "",
+    "way_id": 488537020
+   },
+   {
+    "grid_a": 0.2924,
+    "grid_b": 0.3123,
+    "highway": "residential",
+    "name": "Glyndon Avenue",
+    "way_id": 13380240
+   },
+   {
+    "grid_a": 0.2045,
+    "grid_b": 0.3115,
+    "highway": "service",
+    "name": "Venice Place North",
+    "way_id": 44035039
+   },
+   {
+    "grid_a": 0.2937,
+    "grid_b": 0.3112,
+    "highway": "residential",
+    "name": "Lucille Avenue",
+    "way_id": 13372917
+   },
+   {
+    "grid_a": 0.2988,
+    "grid_b": 0.3096,
+    "highway": "residential",
+    "name": "Appleton Way",
+    "way_id": 165838919
+   },
+   {
+    "grid_a": 0.2897,
+    "grid_b": 0.2993,
+    "highway": "residential",
+    "name": "Warren Avenue",
+    "way_id": 165838925
+   },
+   {
+    "grid_a": 0.1971,
+    "grid_b": 0.2986,
+    "highway": "service",
+    "name": "",
+    "way_id": 56239819
+   },
+   {
+    "grid_a": 0.2926,
+    "grid_b": 0.2983,
+    "highway": "unclassified",
+    "name": "Dowlen Drive",
+    "way_id": 607246635
+   },
+   {
+    "grid_a": 0.2745,
+    "grid_b": 0.2949,
+    "highway": "tertiary",
+    "name": "Admiralty Way",
+    "way_id": 384982206
+   },
+   {
+    "grid_a": 0.2821,
+    "grid_b": 0.2935,
+    "highway": "tertiary",
+    "name": "Admiralty Way",
+    "way_id": 398202483
+   },
+   {
+    "grid_a": 0.271,
+    "grid_b": 0.2921,
+    "highway": "service",
+    "name": "Burrell Place",
+    "way_id": 1196070896
+   },
+   {
+    "grid_a": 0.2791,
+    "grid_b": 0.2915,
+    "highway": "residential",
+    "name": "Stanwood Drive",
+    "way_id": 165838939
+   },
+   {
+    "grid_a": 0.2765,
+    "grid_b": 0.2867,
+    "highway": "residential",
+    "name": "Barry Avenue",
+    "way_id": 989395227
+   },
+   {
+    "grid_a": 0.2706,
+    "grid_b": 0.2849,
+    "highway": "residential",
+    "name": "Federal Avenue",
+    "way_id": 1319995450
+   },
+   {
+    "grid_a": 0.275,
+    "grid_b": 0.2827,
+    "highway": "unclassified",
+    "name": "Meuse Avenue",
+    "way_id": 1363305494
+   },
+   {
+    "grid_a": 0.2695,
+    "grid_b": 0.2816,
+    "highway": "residential",
+    "name": "Colby Avenue",
+    "way_id": 1364204896
+   },
+   {
+    "grid_a": 0.3854,
+    "grid_b": 0.2809,
+    "highway": "service",
+    "name": "",
+    "way_id": 579191710
+   },
+   {
+    "grid_a": 0.2671,
+    "grid_b": 0.2808,
+    "highway": "residential",
+    "name": "Howard Street",
+    "way_id": 13467232
+   },
+   {
+    "grid_a": 0.2612,
+    "grid_b": 0.2745,
+    "highway": "residential",
+    "name": "Nebraska Avenue",
+    "way_id": 814295693
+   },
+   {
+    "grid_a": 0.2566,
+    "grid_b": 0.2734,
+    "highway": "primary",
+    "name": "Venice Boulevard",
+    "way_id": 398194376
+   },
+   {
+    "grid_a": 0.2531,
+    "grid_b": 0.273,
+    "highway": "service",
+    "name": "Weyburn Terrace",
+    "way_id": 13414169
+   },
+   {
+    "grid_a": 0.2636,
+    "grid_b": 0.2717,
+    "highway": "residential",
+    "name": "Dewey Street",
+    "way_id": 13341649
+   },
+   {
+    "grid_a": 0.255,
+    "grid_b": 0.2705,
+    "highway": "residential",
+    "name": "Rosewood Avenue",
+    "way_id": 165838915
+   },
+   {
+    "grid_a": 0.2544,
+    "grid_b": 0.2696,
+    "highway": "tertiary",
+    "name": "South Barrington Avenue",
+    "way_id": 923261500
+   },
+   {
+    "grid_a": 0.2579,
+    "grid_b": 0.2695,
+    "highway": "primary",
+    "name": "Wilshire Boulevard",
+    "way_id": 607194243
+   },
+   {
+    "grid_a": 0.1787,
+    "grid_b": 0.2688,
+    "highway": "residential",
+    "name": "Victoria Avenue",
+    "way_id": 165880114
+   },
+   {
+    "grid_a": 0.2502,
+    "grid_b": 0.2651,
+    "highway": "unclassified",
+    "name": "Granville Avenue",
+    "way_id": 775777734
+   },
+   {
+    "grid_a": 0.2501,
+    "grid_b": 0.2632,
+    "highway": "residential",
+    "name": "Maplewood Avenue",
+    "way_id": 13317082
+   },
+   {
+    "grid_a": 0.2509,
+    "grid_b": 0.2632,
+    "highway": "service",
+    "name": "Wellesley Court",
+    "way_id": 13395408
+   },
+   {
+    "grid_a": 0.2429,
+    "grid_b": 0.263,
+    "highway": "tertiary",
+    "name": "Walgrove Avenue",
+    "way_id": 607283887
+   },
+   {
+    "grid_a": 0.2472,
+    "grid_b": 0.2624,
+    "highway": "service",
+    "name": "",
+    "way_id": 13278075
+   },
+   {
+    "grid_a": 0.2457,
+    "grid_b": 0.2623,
+    "highway": "primary",
+    "name": "Venice Boulevard",
+    "way_id": 398196394
+   },
+   {
+    "grid_a": 0.245,
+    "grid_b": 0.2614,
+    "highway": "service",
+    "name": "",
+    "way_id": 847404471
+   },
+   {
+    "grid_a": 0.2462,
+    "grid_b": 0.2611,
+    "highway": "tertiary",
+    "name": "Airport Avenue",
+    "way_id": 81344446
+   },
+   {
+    "grid_a": 0.2448,
+    "grid_b": 0.2587,
+    "highway": "service",
+    "name": "",
+    "way_id": 56005549
+   },
+   {
+    "grid_a": 0.2408,
+    "grid_b": 0.2565,
+    "highway": "service",
+    "name": "",
+    "way_id": 56239732
+   },
+   {
+    "grid_a": 0.2366,
+    "grid_b": 0.2562,
+    "highway": "tertiary",
+    "name": "Ocean Park Boulevard",
+    "way_id": 220407168
+   },
+   {
+    "grid_a": 0.2391,
+    "grid_b": 0.2551,
+    "highway": "service",
+    "name": "",
+    "way_id": 797789490
+   },
+   {
+    "grid_a": 0.2323,
+    "grid_b": 0.2521,
+    "highway": "service",
+    "name": "",
+    "way_id": 905689502
+   },
+   {
+    "grid_a": 0.3396,
+    "grid_b": 0.2494,
+    "highway": "service",
+    "name": "",
+    "way_id": 579191712
+   },
+   {
+    "grid_a": 0.2283,
+    "grid_b": 0.2415,
+    "highway": "service",
+    "name": "",
+    "way_id": 1001676072
+   },
+   {
+    "grid_a": 0.2154,
+    "grid_b": 0.2385,
+    "highway": "service",
+    "name": "",
+    "way_id": 940208416
+   },
+   {
+    "grid_a": 0.2184,
+    "grid_b": 0.2366,
+    "highway": "service",
+    "name": "",
+    "way_id": 56238735
+   },
+   {
+    "grid_a": 0.2159,
+    "grid_b": 0.2347,
+    "highway": "tertiary",
+    "name": "Weyburn Drive",
+    "way_id": 1055615126
+   },
+   {
+    "grid_a": 0.2226,
+    "grid_b": 0.2331,
+    "highway": "secondary",
+    "name": "South Sepulveda Boulevard",
+    "way_id": 1127869298
+   },
+   {
+    "grid_a": 0.2076,
+    "grid_b": 0.2306,
+    "highway": "service",
+    "name": "",
+    "way_id": 719700763
+   },
+   {
+    "grid_a": 0.2159,
+    "grid_b": 0.2291,
+    "highway": "residential",
+    "name": "Dickson Street",
+    "way_id": 13458853
+   },
+   {
+    "grid_a": 0.2112,
+    "grid_b": 0.2285,
+    "highway": "residential",
+    "name": "Ashwood Avenue",
+    "way_id": 13341929
+   },
+   {
+    "grid_a": 0.2098,
+    "grid_b": 0.2263,
+    "highway": "service",
+    "name": "",
+    "way_id": 56005796
+   },
+   {
+    "grid_a": 0.2074,
+    "grid_b": 0.2258,
+    "highway": "service",
+    "name": "",
+    "way_id": 56238736
+   },
+   {
+    "grid_a": 0.2015,
+    "grid_b": 0.2208,
+    "highway": "service",
+    "name": "",
+    "way_id": 56238954
+   },
+   {
+    "grid_a": 0.2028,
+    "grid_b": 0.2205,
+    "highway": "service",
+    "name": "",
+    "way_id": 376265425
+   },
+   {
+    "grid_a": 0.2057,
+    "grid_b": 0.2203,
+    "highway": "unclassified",
+    "name": "Mississippi Avenue",
+    "way_id": 1212812049
+   },
+   {
+    "grid_a": 0.2948,
+    "grid_b": 0.2184,
+    "highway": "tertiary",
+    "name": "Ohio Avenue",
+    "way_id": 136915192
+   },
+   {
+    "grid_a": 0.2096,
+    "grid_b": 0.2173,
+    "highway": "unclassified",
+    "name": "Saint Mihiel Avenue",
+    "way_id": 133611714
+   },
+   {
+    "grid_a": 0.1968,
+    "grid_b": 0.2164,
+    "highway": "service",
+    "name": "",
+    "way_id": 56238966
+   },
+   {
+    "grid_a": 0.1988,
+    "grid_b": 0.2161,
+    "highway": "service",
+    "name": "",
+    "way_id": 1146770747
+   },
+   {
+    "grid_a": 0.2027,
+    "grid_b": 0.2139,
+    "highway": "tertiary",
+    "name": "South Centinela Avenue",
+    "way_id": 181418923
+   },
+   {
+    "grid_a": 0.2915,
+    "grid_b": 0.2125,
+    "highway": "residential",
+    "name": "Iowa Avenue",
+    "way_id": 13470049
+   },
+   {
+    "grid_a": 0.2868,
+    "grid_b": 0.2098,
+    "highway": "residential",
+    "name": "Missouri Avenue",
+    "way_id": 899319780
+   },
+   {
+    "grid_a": 0.1889,
+    "grid_b": 0.2079,
+    "highway": "service",
+    "name": "",
+    "way_id": 56238737
+   },
+   {
+    "grid_a": 0.2846,
+    "grid_b": 0.2071,
+    "highway": "tertiary",
+    "name": "Sawtelle Boulevard",
+    "way_id": 159156103
+   },
+   {
+    "grid_a": 0.1956,
+    "grid_b": 0.2062,
+    "highway": "service",
+    "name": "",
+    "way_id": 52808147
+   },
+   {
+    "grid_a": 0.1906,
+    "grid_b": 0.204,
+    "highway": "service",
+    "name": "",
+    "way_id": 579147431
+   },
+   {
+    "grid_a": 0.1823,
+    "grid_b": 0.2019,
+    "highway": "service",
+    "name": "",
+    "way_id": 56238964
+   },
+   {
+    "grid_a": 0.1864,
+    "grid_b": 0.2008,
+    "highway": "residential",
+    "name": "Louella Avenue",
+    "way_id": 13441802
+   },
+   {
+    "grid_a": 0.1793,
+    "grid_b": 0.2,
+    "highway": "service",
+    "name": "",
+    "way_id": 1112154782
+   },
+   {
+    "grid_a": 0.1833,
+    "grid_b": 0.1995,
+    "highway": "residential",
+    "name": "Carlton Way",
+    "way_id": 165838917
+   },
+   {
+    "grid_a": 0.1824,
+    "grid_b": 0.199,
+    "highway": "residential",
+    "name": "Redwood Avenue",
+    "way_id": 13442008
+   },
+   {
+    "grid_a": 0.1769,
+    "grid_b": 0.1962,
+    "highway": "service",
+    "name": "",
+    "way_id": 735180406
+   },
+   {
+    "grid_a": 0.1754,
+    "grid_b": 0.1952,
+    "highway": "residential",
+    "name": "Exposition Boulevard",
+    "way_id": 524964279
+   },
+   {
+    "grid_a": 0.2678,
+    "grid_b": 0.1948,
+    "highway": "residential",
+    "name": "La Grange Avenue",
+    "way_id": 13350434
+   },
+   {
+    "grid_a": 0.1789,
+    "grid_b": 0.1939,
+    "highway": "service",
+    "name": "",
+    "way_id": 720119092
+   },
+   {
+    "grid_a": 0.1716,
+    "grid_b": 0.1878,
+    "highway": "service",
+    "name": "",
+    "way_id": 589137196
+   },
+   {
+    "grid_a": 0.1697,
+    "grid_b": 0.1863,
+    "highway": "residential",
+    "name": "Glencoe Avenue",
+    "way_id": 13317420
+   },
+   {
+    "grid_a": 0.174,
+    "grid_b": 0.1858,
+    "highway": "service",
+    "name": "",
+    "way_id": 253505153
+   },
+   {
+    "grid_a": 0.1702,
+    "grid_b": 0.1854,
+    "highway": "residential",
+    "name": "Walnut Avenue",
+    "way_id": 160685865
+   },
+   {
+    "grid_a": 0.1747,
+    "grid_b": 0.1843,
+    "highway": "residential",
+    "name": "Van Buren Avenue",
+    "way_id": 13403740
+   },
+   {
+    "grid_a": 0.2441,
+    "grid_b": 0.1837,
+    "highway": "secondary",
+    "name": "Washington Boulevard",
+    "way_id": 382843816
+   },
+   {
+    "grid_a": 0.1659,
+    "grid_b": 0.1819,
+    "highway": "residential",
+    "name": "Thatcher Avenue",
+    "way_id": 13340513
+   },
+   {
+    "grid_a": 0.1658,
+    "grid_b": 0.1799,
+    "highway": "service",
+    "name": "",
+    "way_id": 56239820
+   },
+   {
+    "grid_a": 0.163,
+    "grid_b": 0.1783,
+    "highway": "service",
+    "name": "",
+    "way_id": 589137197
+   },
+   {
+    "grid_a": 0.1561,
+    "grid_b": 0.1774,
+    "highway": "primary",
+    "name": "West Olympic Boulevard",
+    "way_id": 404975243
+   },
+   {
+    "grid_a": 0.1614,
+    "grid_b": 0.1773,
+    "highway": "residential",
+    "name": "Appleton Way",
+    "way_id": 13296029
+   },
+   {
+    "grid_a": 0.1639,
+    "grid_b": 0.1748,
+    "highway": "service",
+    "name": "",
+    "way_id": 1500160436
+   },
+   {
+    "grid_a": 0.1539,
+    "grid_b": 0.174,
+    "highway": "residential",
+    "name": "Tennessee Avenue",
+    "way_id": 1549804957
+   },
+   {
+    "grid_a": 0.1531,
+    "grid_b": 0.1698,
+    "highway": "primary",
+    "name": "Santa Monica Boulevard",
+    "way_id": 384322390
+   },
+   {
+    "grid_a": 0.1487,
+    "grid_b": 0.1672,
+    "highway": "service",
+    "name": "",
+    "way_id": 56239730
+   },
+   {
+    "grid_a": 0.1557,
+    "grid_b": 0.1667,
+    "highway": "service",
+    "name": "",
+    "way_id": 56005913
+   },
+   {
+    "grid_a": 0.1502,
+    "grid_b": 0.161,
+    "highway": "service",
+    "name": "",
+    "way_id": 993806904
+   },
+   {
+    "grid_a": 0.1448,
+    "grid_b": 0.1601,
+    "highway": "secondary",
+    "name": "South Bundy Drive",
+    "way_id": 579112966
+   },
+   {
+    "grid_a": 0.1487,
+    "grid_b": 0.1562,
+    "highway": "service",
+    "name": "",
+    "way_id": 722465961
+   },
+   {
+    "grid_a": 0.1403,
+    "grid_b": 0.1528,
+    "highway": "service",
+    "name": "",
+    "way_id": 56239821
+   },
+   {
+    "grid_a": 0.1341,
+    "grid_b": 0.1504,
+    "highway": "residential",
+    "name": "Penmar Avenue",
+    "way_id": 160684853
+   },
+   {
+    "grid_a": 0.1383,
+    "grid_b": 0.1456,
+    "highway": "service",
+    "name": "",
+    "way_id": 1500160437
+   },
+   {
+    "grid_a": 0.1258,
+    "grid_b": 0.1417,
+    "highway": "service",
+    "name": "",
+    "way_id": 722465960
+   },
+   {
+    "grid_a": 0.1797,
+    "grid_b": 0.1378,
+    "highway": "service",
+    "name": "",
+    "way_id": 56239828
+   },
+   {
+    "grid_a": 0.1747,
+    "grid_b": 0.1311,
+    "highway": "residential",
+    "name": "Harrison Avenue",
+    "way_id": 13378813
+   },
+   {
+    "grid_a": 0.1736,
+    "grid_b": 0.1304,
+    "highway": "residential",
+    "name": "Grant Avenue",
+    "way_id": 13452273
+   },
+   {
+    "grid_a": 0.1216,
+    "grid_b": 0.1273,
+    "highway": "service",
+    "name": "",
+    "way_id": 1122494892
+   },
+   {
+    "grid_a": 0.1081,
+    "grid_b": 0.1195,
+    "highway": "residential",
+    "name": "Tennessee Place",
+    "way_id": 158712318
+   },
+   {
+    "grid_a": 0.1012,
+    "grid_b": 0.1144,
+    "highway": "secondary",
+    "name": "West Pico Boulevard",
+    "way_id": 398240064
+   },
+   {
+    "grid_a": 0.0994,
+    "grid_b": 0.1134,
+    "highway": "residential",
+    "name": "South Westgate Avenue",
+    "way_id": 1549804961
+   },
+   {
+    "grid_a": 0.0955,
+    "grid_b": 0.111,
+    "highway": "service",
+    "name": "",
+    "way_id": 1151407676
+   },
+   {
+    "grid_a": 0.1028,
+    "grid_b": 0.1083,
+    "highway": "service",
+    "name": "",
+    "way_id": 1392312813
+   },
+   {
+    "grid_a": 0.0821,
+    "grid_b": 0.0911,
+    "highway": "residential",
+    "name": "Pearl Street",
+    "way_id": 688437642
+   },
+   {
+    "grid_a": 0.0783,
+    "grid_b": 0.0882,
+    "highway": "service",
+    "name": "",
+    "way_id": 1392312812
+   },
+   {
+    "grid_a": 0.0641,
+    "grid_b": 0.0677,
+    "highway": "service",
+    "name": "",
+    "way_id": 721210117
+   }
+  ],
+  "ways": 35126,
+  "window": "the mixed grid window (T-0204): --bbox -118.55,33.98,-118.35,34.15, clipped in two at -118.45 (grid-a, grid-b) and merged over the union by way_id"
+ },
+ "rows": [
+  {
+   "highway": "secondary",
+   "lat": 34.1290126,
+   "lon": -118.4141874,
+   "name": "Mulholland Drive",
+   "rank": 1,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7361,
+   "way_id": 518410361
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1218964,
+   "lon": -118.3916787,
+   "name": "Mulholland Drive",
+   "rank": 2,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7299,
+   "way_id": 787842196
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1296596,
+   "lon": -118.4998398,
+   "name": "Mulholland Drive",
+   "rank": 3,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7261,
+   "way_id": 44327906
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1113595,
+   "lon": -118.3828132,
+   "name": "Crescent Drive",
+   "rank": 4,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7228,
+   "way_id": 13419334
+  },
+  {
+   "highway": "service",
+   "lat": 34.080065,
+   "lon": -118.5151432,
+   "name": "Sullivan Fire Road",
+   "rank": 5,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7227,
+   "way_id": 632613339
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1263936,
+   "lon": -118.4151307,
+   "name": "Mulholland Drive",
+   "rank": 6,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7226,
+   "way_id": 518410363
+  },
+  {
+   "highway": "service",
+   "lat": 34.0674501,
+   "lon": -118.5068254,
+   "name": "Sullivan Ridge Fire Road",
+   "rank": 7,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7215,
+   "way_id": 13290126
+  },
+  {
+   "highway": "unclassified",
+   "lat": 34.1259038,
+   "lon": -118.409856,
+   "name": "Franklin Canyon Drive",
+   "rank": 8,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7203,
+   "way_id": 13292286
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1086501,
+   "lon": -118.4487033,
+   "name": "Scenario Lane",
+   "rank": 9,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7201,
+   "way_id": 13379402
+  },
+  {
+   "highway": "residential",
+   "lat": 34.0712424,
+   "lon": -118.4942736,
+   "name": "Oakmont Street",
+   "rank": 10,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7189,
+   "way_id": 121304178
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1336279,
+   "lon": -118.4518827,
+   "name": "Beverly Glen Terrace",
+   "rank": 11,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7133,
+   "way_id": 13293766
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.1052697,
+   "lon": -118.5031927,
+   "name": "Mandeville Canyon Road",
+   "rank": 12,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7125,
+   "way_id": 13377650
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1133732,
+   "lon": -118.3804527,
+   "name": "Crescent Drive",
+   "rank": 13,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7121,
+   "way_id": 13419340
+  },
+  {
+   "highway": "service",
+   "lat": 34.0678878,
+   "lon": -118.5021595,
+   "name": "",
+   "rank": 14,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7118,
+   "way_id": 721642253
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1311342,
+   "lon": -118.4273289,
+   "name": "Mulholland Drive",
+   "rank": 15,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.71,
+   "way_id": 159524496
+  },
+  {
+   "highway": "service",
+   "lat": 34.0873105,
+   "lon": -118.448008,
+   "name": "",
+   "rank": 16,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7098,
+   "way_id": 386470272
+  },
+  {
+   "highway": "service",
+   "lat": 34.1242529,
+   "lon": -118.4248136,
+   "name": "",
+   "rank": 17,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7097,
+   "way_id": 822134900
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1220407,
+   "lon": -118.4275889,
+   "name": "Hutton Drive",
+   "rank": 18,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7086,
+   "way_id": 13361783
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1133671,
+   "lon": -118.3735867,
+   "name": "Laurel Canyon Boulevard",
+   "rank": 19,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7081,
+   "way_id": 399262414
+  },
+  {
+   "highway": "service",
+   "lat": 34.0533203,
+   "lon": -118.5092459,
+   "name": "Will Rogers State Park Road",
+   "rank": 20,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7079,
+   "way_id": 121254098
+  },
+  {
+   "highway": "residential",
+   "lat": 34.0913577,
+   "lon": -118.4221952,
+   "name": "Tower Road",
+   "rank": 21,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7064,
+   "way_id": 13312044
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1301122,
+   "lon": -118.4641816,
+   "name": "Mulholland Drive",
+   "rank": 22,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7064,
+   "way_id": 405362186
+  },
+  {
+   "highway": "service",
+   "lat": 34.1014135,
+   "lon": -118.4552866,
+   "name": "",
+   "rank": 23,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7057,
+   "way_id": 581817596
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1283035,
+   "lon": -118.4653262,
+   "name": "Antelo View Drive",
+   "rank": 24,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7049,
+   "way_id": 13326228
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1316406,
+   "lon": -118.411984,
+   "name": "Coldwater Canyon Lane",
+   "rank": 25,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7046,
+   "way_id": 13304980
+  }
+ ]
+}

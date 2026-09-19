@@ -134,3 +134,142 @@ scenic-index lock (one container run at a time).
   `etl.extract` at all - it clips with `osmium extract` directly out of the MAIN checkout's `la-filtered.osm.pbf`,
   mounted read-only at /src - so the defect is not hit; it is still there, still unfixed, and still named.
   NOT INHERITED, because this run cannot reach it: T-0168's F4 (the licence count) was a one-time re-record.
+- 2026-09-19T09:25:57Z SESSION RESTART, declared. An earlier run of this task was cut off mid-container-run. What
+  survived and is KEPT: the four rulings above, the commit abfef68 (the R1 hardening of `scenecheck`, its three
+  mutations and the floor 25 -> 28), and the clipped PBFs under this worktree's own
+  `.worktrees/T-0204/services/etl/work/la/`. What did NOT survive: the stdout of the grid-a `waydoc`/`assemble`
+  steps. Rather than quote numbers I could not see, EVERY stage below was RE-RUN in this session and every count
+  line here is from output I read. The work dir is this worktree's own; the MAIN checkout's
+  `services/etl/work/la/` and `services/etl/inputs/` were mounted READ-ONLY (`:ro`) and nothing was written there.
+- 2026-09-19T09:25:57Z THE R1 HARDENING, red then green. The three mutations R1 ruled are in
+  `ops/mutate/scenic_tags.py` and each one is a way the hardened checker can be broken; each is CAUGHT by the test
+  written for it, and `--prove-vacuity` shows each one MISSED when the test files are emptied - that is the red:
+      caught  accept a score outside the 0..10 the router can hold - a tertiary at 42 ranks #1
+                <- tests/test_scenecheck.py::test_a_score_above_the_range_the_router_holds_is_malformed_and_does_not_rank
+      caught  let the ranking decide for itself instead of asking classify - the two halves drift apart
+                <- tests/test_scenecheck.py::test_a_score_above_the_range_the_router_holds_is_malformed_and_does_not_rank
+      caught  let a non-integer score raise instead of naming the way - a crash is not a refusal
+                <- tests/test_scenecheck.py::test_a_non_integer_score_names_the_way_instead_of_raising
+  `MUTATIONS: 28 caught, 0 missed, 0 skipped, of 28` / `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2` /
+  `MUTATE OK  caught=28/28 equivalent_caught=0`; `VACUITY: 0 caught, 28 missed, 0 skipped, of 28` / `VACUITY PROVED`.
+  `scenecheck.py` is 215 lines, under the 300 cap, so R1's split did not fire.
+- 2026-09-19T09:25:57Z THE GRID RUN, in the pinned `scenic-etl:latest` through WSL, every step FOREGROUND and timed
+  (`services/etl/work/run-clip.sh`, `run-step.sh`, `emit_fixtures.py` - all under the gitignored work dir).
+  THE CLIP (R2): `osmium extract --bbox -118.55,33.98,-118.35,34.15` off the MAIN checkout's
+  `la-filtered.osm.pbf` -> **35,126 ways / 205,193 nodes / 26 relations**, past R2's ~25,000 bound, so the run SPLIT
+  at -118.45 into grid-a (11,451 ways / 75,752 nodes) and grid-b (23,887 ways / 135,023 nodes). Outputs are under
+  `.worktrees/T-0204/services/etl/work/la/`.
+  grid-a `-118.55,33.98,-118.45,34.15`:
+      WAYDOC ways=11239 refused=0 not_a_road=212 byways=865 byways_no_route_key=793      real 2m17.880s
+      ASSEMBLE ways=11239 zero_class=476 gated=1927 sinuosity_declined=575 points_of_interest_absent=11239 null_score=0
+                                                                                        real 0m42.148s
+      WRITE ways=11451 scored=11239 refused=0 gated=1927 not_a_road=212                  real 0m11.839s / 0m13.451s
+      sha256 08f15f95b57f26cdfdf98bed27bd6a01fd0b21948831940137fd5d388da1bc54  grid-a-tagged-1.osm.pbf
+      sha256 08f15f95b57f26cdfdf98bed27bd6a01fd0b21948831940137fd5d388da1bc54  grid-a-tagged-2.osm.pbf  (identical)
+      osmium fileinfo -e: nodes 75752, ways 11451, relations 14, bbox (-118.5883364,33.9768257,-118.3400603,34.1597259)
+      CHECK4 null_score=0 gated_scored=0 malformed=0 scored=11239 refused=0 not_a_road=212   exit 0
+  grid-b `-118.45,33.98,-118.35,34.15`:
+      WAYDOC ways=23474 refused=0 not_a_road=413 byways=865 byways_no_route_key=793      real 5m27.528s
+      ASSEMBLE ways=23474 zero_class=772 gated=3696 sinuosity_declined=1074 points_of_interest_absent=23474 null_score=0
+                                                                                        real 0m51.981s
+      WRITE ways=23887 scored=23474 refused=0 gated=3696 not_a_road=413                  real 0m16.940s / 0m20.670s
+      sha256 115ec2943101091d2872544e4ad850589d15e6f4005995fb6403b2ba0eec4d2c  grid-b-tagged-1.osm.pbf
+      sha256 115ec2943101091d2872544e4ad850589d15e6f4005995fb6403b2ba0eec4d2c  grid-b-tagged-2.osm.pbf  (identical)
+      osmium fileinfo -e: nodes 135023, ways 23887, relations 14, bbox (-118.5883364,33.9597942,-118.3176785,34.1576638)
+      CHECK4 null_score=0 gated_scored=0 malformed=0 scored=23474 refused=0 not_a_road=413   exit 0
+  R2's assemble bound was set from T-0168's 3m33.557s for 11,740 rows; the assembler measured 42s and 52s here
+  (3.7 ms/row, not 18.2), so grid-b never came near the 600 s cap and the second split at -118.40 did not fire.
+  THE GATES, as a number and not smoothed (inherited F2): 1,927/11,239 = 17.1% of grid-a and 3,696/23,474 = 15.7%
+  of grid-b are gated; `points_of_interest_absent` is every row in both, which is inherited F3.
+- 2026-09-19T09:25:57Z THE SEAM, measured rather than assumed (R2 said it would be). The union over `way_id` is
+  **34,523 scored ways**, 190 of them in BOTH clips, and **160 of those 190 carry DIFFERENT scores in the two
+  clips** - grid-b's value is the higher one in every case I printed:
+      way 1533792498 Mulholland Drive (secondary):   grid-a 0.6988 vs grid-b 0.7022
+      way 225322766  Stone Canyon Road (residential): grid-a 0.6798 vs grid-b 0.6830
+      way 399301293  West Sunset Boulevard (secondary): grid-a 0.6308 vs grid-b 0.6372
+      way 958032573  (service):                      grid-a 0.5041 vs grid-b 0.5167
+  So a way's score DEPENDS ON THE WINDOW IT WAS SCORED IN, by up to ~0.013 unit here. `osmium extract` completes
+  every way that crosses the boundary, so this is not truncated geometry - it is a term computed against the
+  clip's own population. NOT FIXED here (it is not this task's acceptance and fixing it changes the index): it is
+  STILL OPEN 4 below, and the merged fixture takes the HIGHER of the two values for an overlapping way so that the
+  seam can never make this task's predicate true by a choice of mine.
+- 2026-09-19T09:25:57Z THE COMPARISON (R3): **THE PREDICATE IS FALSE. T-0204 FAILS ITS OWN ACCEPTANCE, and that
+  refutation is this task's deliverable.** `C10`, re-read from the shipped canyon read-back rather than copied from
+  prose, is way 1237332026 Fernwood Pacific Drive at **0.7284** - exactly the number R3 ruled. Two ways in the grid
+  window's top ten are NOT below it:
+      way 518410361 Mulholland Drive (secondary) 0.7361   - above C10 by 0.0077
+      way 787842196 Mulholland Drive (secondary) 0.7299   - above C10 by 0.0015
+  WHY, from the scored rows and not from a story: both are Mulholland Drive, and this window's northern edge
+  (34.15) runs along the Santa Monica Mountains crest, so the "mixed street grid" bbox the Brief chose CONTAINS
+  ridge road. The disconfirmation the Brief hoped for - "Wilshire, Sunset through Brentwood, or a Westwood
+  residential grid outranks Topanga" - DID NOT HAPPEN: no Westwood, Century City, Culver City or Mar Vista grid
+  way is anywhere in either clip's top 25, and the best flat-grid way in the whole window is West Sunset Boulevard
+  at 0.6372, 0.09 below C10. What outranks Fernwood Pacific is other canyon-rim road. The index is not shown wrong
+  by this window; the ACCEPTANCE as written is shown false, because the window is not the pure street grid the
+  Brief assumed it was. The honest verdict is BOTH, and the test stays red until a task re-rules it with a window
+  that is measured before its acceptance is written.
+  `tests/test_window_ranking.py::test_the_grid_windows_top_ten_ranks_below_the_canyon_windows` therefore FAILS on
+  the committed fixtures, by design and in the open. RED FIRST, as R3 ruled, on the swapped fixtures (the canyon
+  read as the grid): `10 of the grid window's top ten are not below the canyon window's tenth (0.7189, Oakmont
+  Street)`. And NOT VACUOUS: `test_the_predicate_can_hold` passes the same `outranking()` over a window shifted
+  0.2 below, so the red is a fact about the data, not about the test.
+  Fixtures: `services/etl/tests/fixtures/canyon_top25.json` and `grid_top25.json`, top 25 rows each, exactly the
+  fields `scenecheck.top` produces, each with a `meta` naming its window, its read-back file, its way counts and
+  the run that made it; the grid's `meta` carries the 160 seam disagreements. The 7 MB and 14.7 MB scored tables
+  are not committed.
+- 2026-09-19T09:25:57Z THE SECOND READ FOR THE OWNER - the grid window's top ten beside the canyon's. THE
+  JUDGEMENT IS THE OWNER'S; what follows is the list, with every `highway=service` row named as R4 requires.
+      THE GRID WINDOW (-118.55,33.98,-118.35,34.15), 34,523 scored ways:
+       1  518410361  Mulholland Drive          secondary    34.12901,-118.41419  7 (0.7361)
+       2  787842196  Mulholland Drive          secondary    34.12190,-118.39168  7 (0.7299)
+       3  44327906   Mulholland Drive          secondary    34.12966,-118.49984  7 (0.7261)
+       4  13419334   Crescent Drive            residential  34.11136,-118.38281  7 (0.7228)
+       5  632613339  Sullivan Fire Road        SERVICE      34.08006,-118.51514  7 (0.7227)
+       6  518410363  Mulholland Drive          secondary    34.12639,-118.41513  7 (0.7226)
+       7  13290126   Sullivan Ridge Fire Road  SERVICE      34.06745,-118.50683  7 (0.7215)
+       8  13292286   Franklin Canyon Drive     unclassified 34.12590,-118.40986  7 (0.7203)
+       9  13379402   Scenario Lane             residential  34.10865,-118.44870  7 (0.7201)
+      10  121304178  Oakmont Street            residential  34.07124,-118.49427  7 (0.7189)
+      THE CANYON WINDOW (T-0168, -118.75,34.02,-118.55,34.15), 11,740 scored ways:
+       1  74344132   Topanga Canyon Boulevard        primary   34.07333,-118.58840  8 (0.7722)
+       2  74344113   Topanga Canyon Boulevard        primary   34.05578,-118.58240  8 (0.7697)
+       3  667514937  North Topanga Canyon Boulevard  primary   34.10243,-118.59144  8 (0.7679)
+       4  358703394  Stunt Road                      tertiary  34.08832,-118.66132  8 (0.7563)
+       5  456361801  North Topanga Canyon Boulevard  primary   34.12122,-118.59311  7 (0.7464)
+       6  38311860   Topanga Canyon Boulevard        primary   34.14147,-118.60791  7 (0.7401)
+       7  1079750100 Old Topanga Canyon Road         secondary 34.12402,-118.63121  7 (0.7367)
+       8  46752395   Old Topanga Canyon Road         secondary 34.10879,-118.62923  7 (0.7314)
+       9  13346012   Piuma Road                      tertiary  34.07117,-118.69433  7 (0.7306)
+      10  1237332026 Fernwood Pacific Drive          tertiary  34.08117,-118.60260  7 (0.7284)
+  TWO of the grid's ten are `highway=service` fire roads (rows 5 and 7) - inherited F1, named as ruled: they are
+  dirt/paved fire roads above Brentwood, and whether the owner would DRIVE them is exactly the judgement no agent
+  makes here. The canyon window's ten carry four 8s; the grid window's ten carry none. Quantised to the 0..10 the
+  router holds, EVERY row of both lists is a 7 or an 8 - which is itself worth the owner's eye: the four bits do
+  not separate Topanga from a Brentwood residential street, only the unit score does.
+- 2026-09-19T09:25:57Z STILL OPEN after this task (named, not fixed):
+  1. THE ACCEPTANCE IS REFUTED: the grid window's top ten do NOT all rank below the canyon window's tenth (two
+     Mulholland Drive segments, above). `test_window_ranking.py` is RED on `main` until a task rules on it. The
+     two candidate rulings - "the index is wrong" and "the bbox was not a street grid" - are both live, and this
+     task does not get to pick, because its own author chose the bbox.
+  2. THE SEAM: a way scored in two overlapping clips gets two different scores (160 of 190 overlaps). The score is
+     window-relative. Nothing downstream knows that.
+  3. INHERITED F1: `highway=service` ranks with roads; two fire roads are in the grid's top ten.
+  4. INHERITED F3: `points_of_interest_absent` on every way in both windows (T-0164 has not landed) - the two
+     rankings are missing the SAME term, which is what makes the comparison fair AND provisional.
+  5. INHERITED F5: `extract.Osmium.rel()` still cannot see the shared inputs directory from a worktree. This run
+     did not call `etl.extract`, so it did not hit it.
+- 2026-09-19T09:25:57Z THE ACCEPTANCE BLOCK, re-run bare at the final pre-review commit and re-quoted:
+      python ops/mutate/scenic_tags.py -> MUTATIONS: 28 caught, 0 missed, 0 skipped, of 28 / EQUIVALENT: 0 caught,
+        2 missed, 0 skipped, of 2 / MUTATE OK  caught=28/28 equivalent_caught=0 (floor 28)
+      python ops/mutate/scenic_tags.py --prove-vacuity -> VACUITY: 0 caught, 28 missed, 0 skipped, of 28 /
+        VACUITY PROVED
+      cd services/etl && python -m pytest tests -rs -o addopts= -> 1 failed, 1149 passed in 80.35s - ZERO SKIPS.
+        The one failure is `test_the_grid_windows_top_ten_ranks_below_the_canyon_windows`, this task's finding.
+        `ops/test` and CI are RED on this branch for that reason and no other.
+      bash ops/lib/check-line-cap -> P-SRC-02: 78 Swift files tracked (Sources=27, Tests=38, apps/ios=13), none
+        over 300 lines
+      bash ops/lib/check-exec-bits -> P-OPS-01: 73 files, 23 required present, all modes correct
+      bash ops/queue-check -> QUEUE OK (199 tasks)
+      bash ops/check-pins --source-only -> quoted in the commit that follows
+      wc -l: scenecheck.py 215, test_scenecheck.py 217, test_window_ranking.py 60, scenic_tags.py 300,
+        this task file 136 before this block

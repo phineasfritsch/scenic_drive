@@ -1,0 +1,261 @@
+{
+ "meta": {
+  "produced_by": "etl.scenecheck.top, T-0204's hardened build, 2026-09-19",
+  "read_back_from": "services/etl/work/la/window-readback.osm.xml (MAIN checkout, T-0168's run)",
+  "scored": 11740,
+  "ways": 12402,
+  "window": "the canyon window (T-0168): --bbox -118.75,34.02,-118.55,34.15"
+ },
+ "rows": [
+  {
+   "highway": "primary",
+   "lat": 34.0733268,
+   "lon": -118.5884029,
+   "name": "Topanga Canyon Boulevard",
+   "rank": 1,
+   "scenic_score": 8,
+   "scenic_score_unit": 0.7722,
+   "way_id": 74344132
+  },
+  {
+   "highway": "primary",
+   "lat": 34.0557846,
+   "lon": -118.5823976,
+   "name": "Topanga Canyon Boulevard",
+   "rank": 2,
+   "scenic_score": 8,
+   "scenic_score_unit": 0.7697,
+   "way_id": 74344113
+  },
+  {
+   "highway": "primary",
+   "lat": 34.1024253,
+   "lon": -118.5914448,
+   "name": "North Topanga Canyon Boulevard",
+   "rank": 3,
+   "scenic_score": 8,
+   "scenic_score_unit": 0.7679,
+   "way_id": 667514937
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0883214,
+   "lon": -118.6613178,
+   "name": "Stunt Road",
+   "rank": 4,
+   "scenic_score": 8,
+   "scenic_score_unit": 0.7563,
+   "way_id": 358703394
+  },
+  {
+   "highway": "primary",
+   "lat": 34.1212223,
+   "lon": -118.5931073,
+   "name": "North Topanga Canyon Boulevard",
+   "rank": 5,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7464,
+   "way_id": 456361801
+  },
+  {
+   "highway": "primary",
+   "lat": 34.1414691,
+   "lon": -118.6079134,
+   "name": "Topanga Canyon Boulevard",
+   "rank": 6,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7401,
+   "way_id": 38311860
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1240165,
+   "lon": -118.6312084,
+   "name": "Old Topanga Canyon Road",
+   "rank": 7,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7367,
+   "way_id": 1079750100
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1087854,
+   "lon": -118.6292296,
+   "name": "Old Topanga Canyon Road",
+   "rank": 8,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7314,
+   "way_id": 46752395
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0711706,
+   "lon": -118.69433,
+   "name": "Piuma Road",
+   "rank": 9,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7306,
+   "way_id": 13346012
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0811692,
+   "lon": -118.6025958,
+   "name": "Fernwood Pacific Drive",
+   "rank": 10,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7284,
+   "way_id": 1237332026
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0745121,
+   "lon": -118.6482813,
+   "name": "Schueren Road",
+   "rank": 11,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7282,
+   "way_id": 73323873
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.0972773,
+   "lon": -118.6163255,
+   "name": "Old Topanga Canyon Road",
+   "rank": 12,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7275,
+   "way_id": 1255479697
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0530375,
+   "lon": -118.638669,
+   "name": "Las Flores Canyon Road",
+   "rank": 13,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7212,
+   "way_id": 73172482
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0752561,
+   "lon": -118.6071393,
+   "name": "Tuna Canyon Road",
+   "rank": 14,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7178,
+   "way_id": 13471164
+  },
+  {
+   "highway": "primary",
+   "lat": 34.128102,
+   "lon": -118.600086,
+   "name": "Topanga Canyon Boulevard",
+   "rank": 15,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7176,
+   "way_id": 38311861
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0787057,
+   "lon": -118.6040414,
+   "name": "Fernwood Pacific Drive",
+   "rank": 16,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7176,
+   "way_id": 74335626
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0715729,
+   "lon": -118.6052438,
+   "name": "Tuna Canyon Road",
+   "rank": 17,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7173,
+   "way_id": 1237330475
+  },
+  {
+   "highway": "unclassified",
+   "lat": 34.0625543,
+   "lon": -118.7883291,
+   "name": "Ramera Motorway",
+   "rank": 18,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7141,
+   "way_id": 13437453
+  },
+  {
+   "highway": "primary",
+   "lat": 34.1142826,
+   "lon": -118.5917785,
+   "name": "North Topanga Canyon Boulevard",
+   "rank": 19,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7116,
+   "way_id": 1165966476
+  },
+  {
+   "highway": "secondary",
+   "lat": 34.1262423,
+   "lon": -118.63801,
+   "name": "Old Topanga Canyon Road",
+   "rank": 20,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7067,
+   "way_id": 687272275
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.1005551,
+   "lon": -118.6541034,
+   "name": "Stunt Road",
+   "rank": 21,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7036,
+   "way_id": 73329060
+  },
+  {
+   "highway": "primary",
+   "lat": 34.063322,
+   "lon": -118.6962401,
+   "name": "South Malibu Canyon Road",
+   "rank": 22,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.7031,
+   "way_id": 42775099
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0566725,
+   "lon": -118.6520386,
+   "name": "Rambla Pacifico",
+   "rank": 23,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.6986,
+   "way_id": 73172486
+  },
+  {
+   "highway": "tertiary",
+   "lat": 34.0792507,
+   "lon": -118.6328864,
+   "name": "Saddle Peak Road",
+   "rank": 24,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.6981,
+   "way_id": 791536999
+  },
+  {
+   "highway": "residential",
+   "lat": 34.1245991,
+   "lon": -118.5850089,
+   "name": "Santa Maria Road",
+   "rank": 25,
+   "scenic_score": 7,
+   "scenic_score_unit": 0.698,
+   "way_id": 1137058886
+  }
+ ]
+}
