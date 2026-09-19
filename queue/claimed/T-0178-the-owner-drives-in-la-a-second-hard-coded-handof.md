@@ -282,3 +282,63 @@ streets; the Mulholland side streets). Do NOT touch SkylineRoute.swift or its te
   "Preview build: two fixed drives, <name> selected. The map shows Los Angeles roads, but not this drive's
   line yet - tap below and it opens in Apple Maps." - it may claim roads, because those tiles have them, and
   it may not claim the drive, because no route line is drawn for either drive until M4.
+- 2026-09-19T10:25:36Z R6 BUILT and the ACCEPTANCE BLOCK RE-RUN BARE AND QUOTED WHOLE by
+  agent/claude-opus-5 (the author rule; a correction commit that touches a measured file re-measures it,
+  so every `wc -l` below is re-measured and `check-line-cap`'s file counts moved with the new file).
+  First `git fetch origin && git merge --no-edit origin/main` - #112 merged, no conflict, MapAdapter is
+  not this task's to edit and was not edited (merge commit 37cbdb8). Code commit 76a0444.
+
+  WHAT LANDED, in FeatureScenicHome only. `DriveBasemap.swift` (42, new) - `resolve(for:appearance:)`,
+  `BasemapResolver.losAngeles(appearance:)` for `.santaMonicaMountains` and `.maplibreDemoTiles` for
+  `.skyline`, with the bbox reason written where the switch is. `ScenicHomeScreen` - `style` is now
+  `@State` seeded with the demo case plus `@Environment(\.colorScheme)`, `resolveBasemap()` called from
+  `.task`, `.onChange(of: selectedDrive)` and `.onChange(of: colorScheme)`; `MapView(styleURL:)` and
+  `AttributionFooter(text:)` read that one resolved value, as they already did, so the credit follows the
+  tiles by construction. `DriveCopy.mapCaption(for:style:)` switches over the RESOLVED style: the demo
+  sentence is unchanged, the Protomaps sentence is the R6 wording. DOC ITEMS: `HandoffDrive`'s note named
+  `HandoffDriveTests`, a suite that has never existed - corrected to
+  `SantaMonicaMountainsChainTests.eachDriveMapsToItsOwnRoute`; pin 7's comment in
+  `SantaMonicaMountainsRoute` asserted an unpaved crest track as fact - it now records that those `surface`
+  tags are STILL UNVERIFIED (Overpass 504 twice, not retried) and that the pin is chosen against the
+  missing shared node, which is what the type note already said.
+
+    swift test --scratch-path .build/T0178 --filter HandoffTests
+      -> "Test run with 71 tests in 10 suites passed after 0.068 seconds." (unchanged; no Swift API changed
+         in the Linux targets - both edits there are documentation)
+    gh run view 35436962939 --json status,conclusion,headSha
+      -> {"conclusion":"success","headSha":"76a0444c7af1270b9158d7a61962d77203a44ed6","status":"completed"}
+      -> gh run view 35436962939 --log: "** BUILD SUCCEEDED **" x1, ` error:` count 0. ONE dispatch; green
+         first time. This is the run for the code; the entry you are reading adds no code.
+    bash ops/lib/check-safety-disclaimer -> exit 0, every anchor count unchanged:
+      SkylineHandoff.open( once (GatedHandoffButton.swift line 87) dominated by the guard at line 82;
+      GatedHandoffButton( once in ScenicHomeScreen.swift, the acknowledgement passed through, no `: true`;
+      isSafetyDisclaimerAcknowledged at GatedHandoffButton.swift(2) ScenicHomeScreen.swift(4);
+      the key safety.disclaimer.acknowledged.v1 at ScenicHomeScreen.swift(1);
+      `@AppStorage(...)` now reported at line 59 (was 49) - the declaration moved down the file, the count
+      did not. The ONE number in its report that did change is its inventory line, "9 Swift file(s) under
+      .../FeatureScenicHome" (was 8): `DriveBasemap.swift` is the ninth. That is a count of files, not of
+      anchors, and it moves whenever the feature gains a file.
+    bash ops/lib/check-safety-disclaimer --prove-red -> "prove-red: 13/13 mutations refused by name"
+    bash ops/lib/check-line-cap
+      -> "P-SRC-02: 90 Swift files tracked (Sources=29, Tests=40, apps/ios=21), none over 300 lines"
+         (84/15 before: +5 apps/ios from #112's MapAdapter files arriving in the merge, +1 DriveBasemap)
+    bash ops/queue-check -> "QUEUE OK (201 tasks)"
+    bash ops/check-pins --source-only
+      -> "PINS ok=13 skipped=14 pending=1 expired=0 failed=0 tier=linux source-only"
+
+  wc -l, RE-MEASURED, every touched Swift file: SantaMonicaMountainsRoute.swift 182 (was 178),
+  HandoffDrive.swift 71 (was 67), StraightLineDistance.swift 78, SantaMonicaMountainsRouteTests.swift 265,
+  SantaMonicaMountainsChainTests.swift 169, HandoffSourceTests.swift 201, DriveBasemap.swift 42 (new),
+  DriveCopy.swift 81 (was 66), DriveSelector.swift 68, DriveFacts.swift 65, GatedHandoffButton.swift 110,
+  HandoffFailureCard.swift 133, ScenicHomeScreen.swift 281 (was 250, cap 300 - the new views went in their
+  own file for that reason), SkylineHandoff.swift 90.
+
+  STILL OPEN, carried and added to: (a) the Brief's "25 spare minutes" against its own ~70 km road list;
+  (b) Dirt Mulholland's `surface` tags unverified - now recorded where the pin is, not only here;
+  (c) the selection is `@State` and is not persisted; (d) no route line for either drive (M4); (e) no
+  XCUITest for the picker; (f) NEW - nothing in this tree can execute `DriveBasemap.resolve`: the ScenicApp
+  package has no test target, so that the LA drive takes the Protomaps case on a device with the archive,
+  and the Skyline drive never does, is proved by the compiler and by reading only. (g) NEW - no device has
+  run this: `la.pmtiles` is 63 MB and gitignored, so every run anywhere - including run 35436962939 - takes
+  the demo fallback, and the Protomaps caption has never been on a screen.
+  state: claimed and reviewer: null are untouched - the owner never signs off its own task.
