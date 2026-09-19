@@ -1,13 +1,13 @@
 ---
 id: T-0176
 title: ops/mutate/geometry - a committed mutation population with a floor for the ETL geometry terms (sinuosity.py, proximity.py); EQUIVALENT rulings carry a witness
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T01:59:25Z
+lease_expires_at: 2026-09-19T09:59:25Z
+worktree: .worktrees/T-0176
+branch: task/T-0176
 exclusive: []
 touches: [ops/mutate/, services/etl/tests/, pins/PINS.yaml]
 pins_affected: []
@@ -41,4 +41,4 @@ proximity.py; today nothing outside the two test files does. CLAUDE.md's Verific
   order nor a normalisation, and it lets a wrong motorway distance reach score.py. The population this task
   builds carries it as its sixth class with a fixture whose minimum sits far off the diagonal (a long way
   against a short motorway, or the reverse), red by name.
-
+- 2026-09-19T01:59:25Z claimed by agent/claude-opus-5; lease until 2026-09-19T09:59:25Z
