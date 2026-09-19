@@ -90,3 +90,27 @@ card's precision and the test doc overclaiming.
   loses that module. straightline_mutations.py has no `__main__` block and is read as part of the straightline* family by
   `driver_code`, exactly as scenic_tags_mutations.py is. That file is under ops/lib/, outside this task's original
   `touches:`, so `touches:` gains `ops/lib/` in the commit that carries this entry, BEFORE the gate change is staged.
+- 2026-09-19T18:09Z the cheap checks, RED then GREEN, quoted as they landed (agent/claude-opus-5).
+  `python ops/mutate/straightline.py --prove-floor` -> seven arms refused and the control did not, exit 0:
+    FLOOR ARM   MUTATIONS emptied - a clean sheet over nothing           MUTATIONS holds 0 entries, below the floor of 10
+    FLOOR ARM   MUTATIONS one short of the floor                         MUTATIONS holds 9 entries, below the floor of 10
+    FLOOR ARM   the floor raised to 11 against a population of 10        MUTATIONS holds 10 entries, below the floor of 11
+    FLOOR ARM   EQUIVALENT emptied                                       EQUIVALENT holds 0 entries, below the floor of 1
+    FLOOR ARM   one entry's killers emptied - 0 red of 0 named           these entries name no killer: the earth radius 0.1% too large. ...
+    FLOOR ARM   every mutation of the declared subject removed           MUTATIONS holds 4 entries, below the floor of 10
+    FLOOR ARM   TESTS globbed down to nothing - vacuity would empty nothing TESTS globbed 0 files from HandoffTests, below the floor of 1
+    FLOOR ARM   CONTROL: unpatched                                       no refusal, as required
+    FLOOR PROOF OK: 7 of 7 arms refused and the control did not
+  RED A, the floor against the SHIPPED population and not a patched one - `MIN_MUTATIONS = 10` edited to `11` on disk,
+  `python ops/mutate/straightline.py` -> "REFUSING TO RUN: MUTATIONS holds 10 entries, below the floor of 11", exit 2, no
+  build attempted; restored to 10 (`150:MIN_MUTATIONS = 10`) and the run proceeds.
+  RED B, the registration - "straightline.py" removed from DRIVERS in ops/lib/check-mutate-population.py,
+  `python ops/lib/check-mutate-population.py` -> "P-PROC-06: ops/mutate: runnable driver(s) in neither DRIVERS nor PROBES:
+  straightline.py. Classify a new driver; never ignore one.", exit 2; restored and GREEN: "P-PROC-06: 74 modules, 25
+  covered by 12 populations, 27 allowlisted, 0 added by this branch ... every added module is covered or allowlisted; the
+  floor of 24 holds" (23 -> 24, and Sources/Handoff/StraightLineDistance.swift has left the 23-entry DEBT list, which is
+  now 22 and still names Geo.swift and SkylineRoute.swift - the two dependencies this population mutates and, correctly,
+  does not claim).
+  `swift test --scratch-path .build/T0199 --filter HandoffTests` with the two new tests in place: "Test run with 86 tests
+  in 12 suites passed after 0.102 seconds", exit 0 (84 before; the two added are the long east-west leg and the miles that
+  do not come from the floored kilometres).

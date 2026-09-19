@@ -46,9 +46,27 @@ struct StraightLineDistanceTests {
     static let straightLineMiles = 69
 
     /// The same measurement before the floor, to a metre. The band is one metre and not one kilometre:
-    /// it is here to catch a change in the arithmetic (a different radius, a different formula) that
-    /// the floored integer would swallow, not to allow a pin to move.
+    /// it is here to catch a change in the RADIUS that the floored integer would swallow, not to allow
+    /// a pin to move.
+    ///
+    /// It does NOT catch a change of FORMULA, and the earlier claim that it did was measured false: a
+    /// flat equirectangular formula on the same radius totals 112_268.146 m over this chain, 0.053 m
+    /// from the haversine and well inside this band. These legs are short and mostly north-south, which
+    /// is precisely where the two formulas agree. `aLongEastWestLegPinsTheFormulaAndTheMileConstant` is
+    /// where they do not, and it is what stands behind the formula.
     static let straightLineMeters = 112_268.093
+
+    /// A LONG EAST-WEST LEG, and why a synthetic one has to exist. Twelve degrees of longitude at
+    /// latitude 37 is 1_064_944.819 m by the shipped haversine. Over that leg the flat formula above is
+    /// 1_065_652.075 m - 707.256 m out, and 662 miles against 661 - so one leg the drive does not
+    /// contain is what lets the suite tell the arithmetic apart. It is also the only chain here long
+    /// enough for a 1 % error in the metres-to-miles constant to cross a whole mile: 1 % of 661 miles is
+    /// six and a half of them, while 1 % of the card's 69.76 miles is still 69.
+    static let longLegWest = Coordinate(latitude: 37.00000, longitude: -122.00000)
+    static let longLegEast = Coordinate(latitude: 37.00000, longitude: -110.00000)
+    static let longLegMeters = 1_064_944.819
+    static let longLegKilometers = 1_064
+    static let longLegMiles = 661
 
     /// THE PER-POINT BOUND. No point in the shipped chain may be further than this from the literal
     /// this suite types out for it. This is the "more than a kilometre" rule, expressed where it can
@@ -116,6 +134,40 @@ struct StraightLineDistanceTests {
         #expect(StraightLineDistance.wholeMiles(through: [a, b]) == 1)
         #expect(StraightLineDistance.wholeMiles(through: []) == 0)
         #expect(StraightLineDistance.wholeMiles(through: [a]) == 0)
+    }
+
+    @Test("a 1,065 km east-west leg pins the formula and the mile constant")
+    func aLongEastWestLegPinsTheFormulaAndTheMileConstant() {
+        // T-0199. Three mutants walked through the shipped chain untouched: a flat equirectangular
+        // formula on the same radius (0.053 m over 112 km of short, mostly north-south legs) and the
+        // metres-to-miles constant 1 % either way (69.07 and 70.46 miles, both still floored to 69 next
+        // to a 69.76 that floors to 69). On this leg the same three are 707 m and six miles. The chain
+        // is synthetic on purpose: the drive has no leg long enough to separate them, and a number the
+        // screen renders should not be pinned only where its arithmetic happens not to matter.
+        let leg = [Self.longLegWest, Self.longLegEast]
+        let metres = StraightLineDistance.meters(through: leg)
+        #expect(abs(metres - Self.longLegMeters) <= 1, "got \(metres) m, pinned \(Self.longLegMeters) m")
+        #expect(StraightLineDistance.wholeKilometers(through: leg) == Self.longLegKilometers,
+                "got \(StraightLineDistance.wholeKilometers(through: leg)) km from \(metres) m")
+        #expect(StraightLineDistance.wholeMiles(through: leg) == Self.longLegMiles,
+                "got \(StraightLineDistance.wholeMiles(through: leg)) mi from \(metres) m")
+    }
+
+    @Test("the miles come from the metres, not from the floored kilometres")
+    func theMilesComeFromTheMetresAndNotFromTheFlooredKilometres() {
+        // T-0199. `wholeMiles(through:)`'s type note says the miles are not converted from the whole
+        // kilometres, "that would floor twice and lose up to a mile" - and nothing measured it. Every
+        // chain the suite pinned agreed either way: 112 km * 0.621371 is 69.59 -> 69, 47 km is 29.20 ->
+        // 29, and the 1.99-mile synthetic is 3.107 -> 3. This is a length where the two disagree.
+        // 0.04496 degrees of latitude on a meridian is 4_999.331 m: 3.1064 miles, so the figure is 3.
+        // Floor the kilometres first and 4 km * 0.621371 is 2.4855 -> 2, a mile lost to a second floor.
+        let a = Coordinate(latitude: 37.00000, longitude: -122.00000)
+        let b = Coordinate(latitude: 37.04496, longitude: -122.00000)
+        let metres = StraightLineDistance.meters(through: [a, b])
+        #expect(metres > 4_900 && metres < 5_000, "got \(metres) m")
+        #expect(StraightLineDistance.wholeKilometers(through: [a, b]) == 4)
+        #expect(StraightLineDistance.wholeMiles(through: [a, b]) == 3,
+                "got \(StraightLineDistance.wholeMiles(through: [a, b])) mi from \(metres) m")
     }
 
     @Test("the figure is floored, not rounded: 1999 m of chain is 1 km and never 2")
