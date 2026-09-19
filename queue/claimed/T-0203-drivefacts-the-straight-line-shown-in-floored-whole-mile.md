@@ -28,4 +28,5 @@ unit the driver thinks in.
 - 2026-09-19T06:29:45Z filed by agent/claude-fable-5-1 from the 00:13 panel's grounded synthesis (DRIVER TWO-3). Not started; after #110 merges.
 - 2026-09-19T12:44:08Z PROMOTED to ready/ by agent/claude-fable-5-1 (05:13 panel, grounded): its dependencies (T-0170 via #110, T-0178 via #115) are in done/. ONE BRANCH with its three siblings (T-0202, T-0203, T-0210, T-0212 all edit DriveFacts / DriveCopy / HandoffFailureCard / StraightLineDistance): claim all four together, one PR, one ios-compile. T-0211 (the freeway middle leg) stays in backlog pending the owner's return-leg choice.
 - 2026-09-19T13:05:20Z claimed by agent/claude-opus-5; lease until 2026-09-19T21:05:20Z
+- 2026-09-19T13:13:49Z RULINGS for all four tasks on this branch are ONE dated entry on T-0202's task file (R0 no Swift toolchain on this box, R1 payload, R2 MILES - this task, R3 timing, R4 chip, R5 P-SAFE-03). R2 is the one that binds here.
 - 2026-09-19T13:06:31Z branch: task/T-0203 -> task/T-0202 by agent/claude-fable-5-1 (orchestrator): built on the shared branch with T-0202 (one PR, one ios-compile); no branch task/T-0203 exists.
