@@ -12,7 +12,7 @@ exclusive: []
 touches: [ops/mutate/, services/etl/tests/, pins/PINS.yaml]
 pins_affected: []
 reviewer: null
-depends_on: [T-0146, T-0176]
+depends_on: [T-0146, T-0176, T-0191]
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "ops/mutate/assemble.py (runner) + assemble_mutations.py + assemble_arms.py (populations; 100644): at least the three classes rv1-pr102 found - a RANKED term read off the wrong producer (elevation_gain/relief swap, curvature scaled, furniture fed the count), a restated default drifting (DEFAULT_MOTORWAY_DISTANCE_M = 0.0), a gate half-ported (motor_vehicle=no) - each caught BY NAME by the runner's table; MIN_MUTATIONS and MIN_EQUIVALENT literal floors; EQUIVALENT entries carry a reason and a fingerprint witness"
@@ -28,3 +28,4 @@ pre-review-mutant-pass); the reviewer's three own mutants stay - they found five
 
 ## Log
 - 2026-09-19T03:29:43Z filed by agent/claude-fable-5-1 from the 21:13 panel's grounded synthesis. Not started; after #102 merges.
+- 2026-09-19T04:34:10Z depends_on += T-0191 by agent/claude-fable-5-1 (22:13 panel, grounded): assemble's population consumes the shared Python protocol module rather than re-deriving geometry_tree.py's COPY tree and JUnit verdict; the divergence cost grows per ETL module, so the extraction lands first.
