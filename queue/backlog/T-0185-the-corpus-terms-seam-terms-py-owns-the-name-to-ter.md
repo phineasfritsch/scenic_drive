@@ -12,7 +12,7 @@ exclusive: []
 touches: [services/etl/etl/terms.py, services/etl/etl/corpuswriter.py, services/etl/etl/corpus.py, services/etl/etl/assemble.py, services/etl/tests/]
 pins_affected: [P-DATA-01]
 reviewer: null
-depends_on: [T-0146, T-0173]
+depends_on: [T-0146, T-0173, T-0188]
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "terms.py exports the inverse map name -> (term_id, family) for every score.score unit term, with 105 `byway` documented as the exception (a status-bonus string on the scorer side, a 0..1 row on the device side - rule how it is stored); a test that the inverse round-trips TERM_NAMES and that every RANKED/MAPPED term of way_record has an id, RED by name on a missing one"
@@ -33,3 +33,4 @@ two-answers-for-one-road failure score.py and terms.py were written to prevent. 
 
 ## Log
 - 2026-09-19T02:58:56Z filed by agent/claude-fable-5-1 from the 20:13 panel's grounded synthesis. Not started.
+- 2026-09-19T03:29:43Z depends_on += T-0188 by agent/claude-fable-5-1 (21:13 panel): the corpus the device reads must carry every gate ScenicKit refuses on (P-PROD-01) before its first terms row is written.
