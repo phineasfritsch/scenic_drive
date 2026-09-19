@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Mutation coverage for pins/PINS.yaml: inject the violation each pin's own `statement` names, in a throwaway
+# worktree, and require the assertion to go RED. See ops/lib/pins_mutation.py for why reading an assertion
+# cannot answer whether it can fail, and why this is a separate entry point rather than `ops/check-pins
+# --mutate`: check-pins runs on every push and must never write to the tree it checks.
+#
+#   ops/pins-mutation                     every pin that runs on this tier  (the gate; floors apply)
+#   ops/pins-mutation --pin P-SRC-01      one pin, a probe - floors do NOT apply
+#   ops/pins-mutation --list              enumerate the injections, run nothing
+#   ops/pins-mutation --keep              leave the demo worktree behind for inspection
+#
+# NOT wired into ops/test or ops/check-pins: a full run creates a worktree and re-runs `swift test` once per
+# P-SAFE-05 case, which is minutes. It belongs in CI on its own job.
+set -uo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || { echo "cannot reach the repo root"; exit 2; }
+[[ -d ops && -f pins/PINS.yaml ]] || { echo "$(pwd) is not the repo root"; exit 2; }
+exec "${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/pins_mutation.py "$@"
