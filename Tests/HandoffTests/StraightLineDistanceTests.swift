@@ -38,6 +38,13 @@ struct StraightLineDistanceTests {
     /// `StraightLineDistance.wholeKilometers(through:)`. An integer, so it is pinned exactly.
     static let straightLineKilometers = 112
 
+    /// THE NUMBER ON THE SCREEN, in the unit the screen renders (T-0203). Floored whole miles over
+    /// the same `expectedPoints` and the same metres as `straightLineKilometers` - 112_268.093 m is
+    /// 69.76 international miles - so the two figures cannot be measurements of different chains.
+    /// Typed out beside the kilometre literal rather than converted from it: a test that computes the
+    /// number it is pinning is pinning nothing.
+    static let straightLineMiles = 69
+
     /// The same measurement before the floor, to a metre. The band is one metre and not one kilometre:
     /// it is here to catch a change in the arithmetic (a different radius, a different formula) that
     /// the floored integer would swallow, not to allow a pin to move.
@@ -83,6 +90,32 @@ struct StraightLineDistanceTests {
         let metres = StraightLineDistance.meters(through: StraightLineDistance.skylineRoutePoints)
         #expect(abs(metres - Self.straightLineMeters) <= 1,
                 "got \(metres) m, pinned \(Self.straightLineMeters) m")
+    }
+
+    @Test("the whole-mile figure is the number the screen renders, from the same metres")
+    func theWholeMileFigureIsTheNumberTheScreenRenders() {
+        let miles = StraightLineDistance.wholeMiles(for: .skyline)
+        #expect(miles == Self.straightLineMiles, "got \(miles) mi")
+        #expect(StraightLineDistance.wholeMiles(through: StraightLineDistance.skylineRoutePoints) == miles,
+                "the drive's chain and the shipped chain give different miles")
+        // ONE COMPUTATION, TWO RENDERINGS: both figures floor the same metres, so a change to the
+        // arithmetic moves both or neither. A mile is 1_609.344 m exactly.
+        let metres = StraightLineDistance.meters(through: StraightLineDistance.skylineRoutePoints)
+        #expect(Int((metres / 1_609.344).rounded(.down)) == miles, "got \(metres) m")
+        #expect(StraightLineDistance.wholeKilometers(for: .skyline) == Self.straightLineKilometers)
+    }
+
+    @Test("the miles are floored too: 1.99 miles of chain is 1 mile and never 2")
+    func theMilesAreFlooredAndNeverRoundedUp() {
+        // 0.02878 degrees of latitude on a meridian is 3200.7 m - 1.988 miles. A round-half-up would
+        // print 2 miles, which would be most of a mile nobody measured.
+        let a = Coordinate(latitude: 37.00000, longitude: -122.00000)
+        let b = Coordinate(latitude: 37.02878, longitude: -122.00000)
+        let metres = StraightLineDistance.meters(through: [a, b])
+        #expect(metres > 3_100 && metres < 3_219, "got \(metres) m")
+        #expect(StraightLineDistance.wholeMiles(through: [a, b]) == 1)
+        #expect(StraightLineDistance.wholeMiles(through: []) == 0)
+        #expect(StraightLineDistance.wholeMiles(through: [a]) == 0)
     }
 
     @Test("the figure is floored, not rounded: 1999 m of chain is 1 km and never 2")

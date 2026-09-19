@@ -35,6 +35,12 @@ struct SantaMonicaMountainsChainTests {
     /// pinned exactly.
     static let straightLineKilometers = 47
 
+    /// THE NUMBER ON THE SCREEN for the owner's drive, in the unit it renders (T-0203). Floored whole
+    /// miles over the same `expectedPoints` and the same metres as `straightLineKilometers` -
+    /// 47_445.124 m is 29.48 international miles. Typed out beside the kilometre literal, not
+    /// converted from it.
+    static let straightLineMiles = 29
+
     /// The same measurement before the floor, to a metre. The band is one metre, not one kilometre:
     /// it catches a change in the arithmetic (a different radius, a different formula) that the
     /// floored integer would swallow. It is `ScenicKit.Geo`'s haversine, the same code that gives
@@ -79,6 +85,21 @@ struct SantaMonicaMountainsChainTests {
         #expect(StraightLineDistance.skylineRouteWholeKilometers == 112,
                 "the Skyline figure moved to \(StraightLineDistance.skylineRouteWholeKilometers) km")
         #expect(kilometres != StraightLineDistance.skylineRouteWholeKilometers)
+    }
+
+    @Test("the whole-mile figure is the number the LA drive renders, from the same metres")
+    func theWholeMileFigureIsTheNumberTheScreenRenders() {
+        let miles = StraightLineDistance.wholeMiles(for: .santaMonicaMountains)
+        #expect(miles == Self.straightLineMiles, "got \(miles) mi")
+        #expect(StraightLineDistance.wholeMiles(through: StraightLineDistance.santaMonicaMountainsRoutePoints)
+                == miles, "the drive's chain and the shipped chain give different miles")
+        // ONE COMPUTATION, TWO RENDERINGS: the same metres the kilometre figure floors, floored by
+        // the exact mile.
+        let metres = StraightLineDistance.meters(through: StraightLineDistance.santaMonicaMountainsRoutePoints)
+        #expect(Int((metres / 1_609.344).rounded(.down)) == miles, "got \(metres) m")
+        // And the two drives are still two drives in miles as well as in kilometres.
+        #expect(StraightLineDistance.wholeMiles(for: .skyline) != miles,
+                "both drives render \(miles) miles")
     }
 
     // MARK: - The region

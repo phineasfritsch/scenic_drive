@@ -22,6 +22,9 @@ import SwiftUI
 /// reason (`HandoffFailureCard.clipboardText`): a distance with no qualification beside it is read as
 /// an ETA.
 ///
+/// The sentence itself is `HandoffDrive.timingSentence`, per drive, in the Linux target that has a test
+/// bundle - this view renders it and owns no copy of it (T-0210, and the pre-review mutant pass's M3a).
+///
 /// Text styles only, no point size, so both lines grow with Dynamic Type; `fixedSize` vertically so
 /// the largest accessibility sizes wrap instead of truncating. `fgMuted` is the token for secondary
 /// lines under a title, which is what these are - `primary` is a button fill and never a sentence on
@@ -39,12 +42,8 @@ struct DriveFacts: View {
     /// `StraightLineDistanceTests` and `SantaMonicaMountainsChainTests` are what refuse a pin that
     /// moves more than a kilometre without the number being looked at again.
     static func straightLine(for drive: HandoffDrive) -> String {
-        "Straight line through the pins: \(StraightLineDistance.wholeKilometers(for: drive)) km. The roads are longer."
+        "About \(StraightLineDistance.wholeMiles(for: drive)) miles as the crow flies, pin to pin. The roads are longer."
     }
-
-    /// The honest timing line, verbatim. A string, never a number, and the same sentence for both
-    /// drives: nobody has timed either.
-    static let timing = "No timing in this build."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -54,7 +53,10 @@ struct DriveFacts: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("home.distance")
 
-            Text(Self.timing)
+            // The sentence is `HandoffDrive.timingSentence`, not a literal here: this target has no test
+            // bundle and no compiler on the authoring box, and a number typed into a literal on this side
+            // ships with every gate green. `Handoff` has a test bundle; the words live there.
+            Text(drive.timingSentence)
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)

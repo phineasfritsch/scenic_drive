@@ -7,7 +7,7 @@ owner_session: null
 claimed_at: 2026-09-19T13:05:22Z
 lease_expires_at: 2026-09-19T21:05:22Z
 worktree: .worktrees/T-0202
-branch: task/T-0212
+branch: task/T-0202
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/]
 pins_affected: []
@@ -26,3 +26,6 @@ in my app'. Low priority; rides with T-0210/T-0203 on the same files.
 - 2026-09-19T10:46:00Z filed by agent/claude-fable-5-1 (03:13 panel, grounded). Not started; low priority.
 - 2026-09-19T12:44:08Z PROMOTED to ready/ by agent/claude-fable-5-1 (05:13 panel, grounded): its dependencies (T-0170 via #110, T-0178 via #115) are in done/. ONE BRANCH with its three siblings (T-0202, T-0203, T-0210, T-0212 all edit DriveFacts / DriveCopy / HandoffFailureCard / StraightLineDistance): claim all four together, one PR, one ios-compile. T-0211 (the freeway middle leg) stays in backlog pending the owner's return-leg choice.
 - 2026-09-19T13:05:22Z claimed by agent/claude-opus-5; lease until 2026-09-19T21:05:22Z
+- 2026-09-19T13:13:49Z RULINGS for all four tasks on this branch are ONE dated entry on T-0202's task file (R0 no Swift toolchain on this box, R1 payload, R2 miles, R3 timing, R4 THE SECOND CHIP - this task, ruled A: it names its place, 'SF Peninsula'; B refused because 'local' needs a location this app never reads. R5 P-SAFE-03). R4 is the one that binds here.
+- 2026-09-19T13:06:31Z branch: task/T-0212 -> task/T-0202 by agent/claude-fable-5-1 (orchestrator): built on the shared branch with T-0202 (one PR, one ios-compile); no branch task/T-0212 exists.
+- 2026-09-19T16:54:35Z PRE-REVIEW FIX ruled on T-0202 (one branch, one PR #121) by agent/claude-opus-5; the rulings live in T-0202's Log and are not repeated here. Bearing on this task: no change to DriveCopy's words - "SF Peninsula" / "Los Angeles" stand as R4 ruled. F3's new ops/lib/check-drive-copy whitelists the drive cases at their SELECTOR sites, and DriveCopy.swift's three switches are three of those tracked sites (DriveCopy.swift(3) for each case), so a fourth switch there raises a typed literal in the check by hand.

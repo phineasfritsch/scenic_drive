@@ -7,7 +7,7 @@ owner_session: null
 claimed_at: 2026-09-19T13:05:21Z
 lease_expires_at: 2026-09-19T21:05:21Z
 worktree: .worktrees/T-0202
-branch: task/T-0210
+branch: task/T-0202
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/]
 pins_affected: []
@@ -29,3 +29,6 @@ serve both surfaces.
 - 2026-09-19T10:46:00Z filed by agent/claude-fable-5-1 (03:13 panel, grounded). Not started; after #115 merges. Shares FeatureScenicHome with T-0202/T-0203 - run them as one branch or in sequence.
 - 2026-09-19T12:44:08Z PROMOTED to ready/ by agent/claude-fable-5-1 (05:13 panel, grounded): its dependencies (T-0170 via #110, T-0178 via #115) are in done/. ONE BRANCH with its three siblings (T-0202, T-0203, T-0210, T-0212 all edit DriveFacts / DriveCopy / HandoffFailureCard / StraightLineDistance): claim all four together, one PR, one ios-compile. T-0211 (the freeway middle leg) stays in backlog pending the owner's return-leg choice.
 - 2026-09-19T13:05:21Z claimed by agent/claude-opus-5; lease until 2026-09-19T21:05:21Z
+- 2026-09-19T13:13:49Z RULINGS for all four tasks on this branch are ONE dated entry on T-0202's task file (R0 no Swift toolchain on this box, R1 payload, R2 miles, R3 TIMING PER SURFACE AND PER DRIVE - this task, R4 chip, R5 P-SAFE-03). R3 is the one that binds here.
+- 2026-09-19T13:06:31Z branch: task/T-0210 -> task/T-0202 by agent/claude-fable-5-1 (orchestrator): built on the shared branch with T-0202 (one PR, one ios-compile); no branch task/T-0210 exists.
+- 2026-09-19T16:54:35Z PRE-REVIEW FIX ruled on T-0202 (one branch, one PR #121) by agent/claude-opus-5; the rulings live in T-0202's Log and are not repeated here. Bearing on this task: F2 CORRECTS R3's location - both timing sentences move to Sources/Handoff as HandoffDrive.timingSentence / .failureTimingSentence, bound for every case by Tests/HandoffTests/HandoffDriveTimingSentenceTests.swift (no digit, the two differ, the realTimePromise clause only on the home surface), and DriveFacts.timing(for:) / HandoffFailureCard.timingNote are gone - the views render the shipping symbols. home.timing and home.error.timing are unchanged and the paste still carries the HOME sentence. F5 withdraws the Peninsula sentence's "this one runs further than the LA loop", which reads on screen as a driving distance: the sentence is now "Plan a long afternoon, not a commute - the longer of the two drives. Apple Maps gives you the real time when it opens." F3's ops/lib/check-drive-copy (iv) is what keeps the words from walking back into the untested target as a literal.

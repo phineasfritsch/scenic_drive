@@ -40,6 +40,19 @@ public enum StraightLineDistance {
         Int((meters(through: points) / 1_000).rounded(.down))
     }
 
+    /// The chain in whole miles, floored, from the SAME metres the kilometre figure floors.
+    ///
+    /// ONE COMPUTATION, TWO RENDERINGS. The miles are not converted from the whole kilometres - that
+    /// would floor twice and lose up to a mile - and they are not measured over a second chain. Both
+    /// figures are `meters(through:)` divided by a constant and rounded `.down`, for the same reason
+    /// the kilometre figure is floored: the one direction a number on this screen may be wrong in is
+    /// the modest one.
+    ///
+    /// 1_609.344 m is the international mile, exactly, by definition.
+    public static func wholeMiles(through points: [Coordinate]) -> Int {
+        Int((meters(through: points) / 1_609.344).rounded(.down))
+    }
+
     /// The shipped drive as a chain: the seven pins in driving order, then the destination.
     ///
     /// Read from `SkylineRoute`, never re-typed: the pins have one home and their provenance lives
@@ -74,5 +87,15 @@ public enum StraightLineDistance {
         case .skyline: return skylineRouteWholeKilometers
         case .santaMonicaMountains: return santaMonicaMountainsRouteWholeKilometers
         }
+    }
+
+    /// THE NUMBER THE HOME SCREEN RENDERS, in the unit a US driver thinks in.
+    ///
+    /// Over `drive.chain`, which is the pins-then-destination array both kilometre accessors measure,
+    /// so the miles on the screen and the kilometres the suites pin are the same line through the same
+    /// pins - checked, not asserted: `StraightLineDistanceTests` and `SantaMonicaMountainsChainTests`
+    /// pin both figures side by side over the same metres.
+    public static func wholeMiles(for drive: HandoffDrive) -> Int {
+        wholeMiles(through: drive.chain)
     }
 }
