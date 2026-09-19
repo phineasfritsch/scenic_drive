@@ -76,6 +76,9 @@ SRC = SRC_DIR / "AppleMapsDirections.swift"
 ERR = SRC_DIR / "HandoffError.swift"
 SUBJECTS = [SRC, ERR]
 
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
+SUBJECT_MODULES = ("Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift")
+
 TEST_DIR = ROOT / "Tests" / "HandoffTests"
 # GLOBBED, not listed. The hardcoded list was three files; the suite has since split to six, and a reviewer
 # showed that a file outside the list still catches mutations during `--prove-vacuity`, which made the proof

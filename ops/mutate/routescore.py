@@ -31,6 +31,10 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SRC = ROOT / "Sources" / "ScenicKit" / "Scoring" / "RouteScore.swift"
+
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
+SUBJECT_MODULES = ("Sources/ScenicKit/Scoring/RouteScore.swift",)
+
 TESTS = (ROOT / "Tests" / "ScenicKitTests" / "RouteScoreTests.swift",
          ROOT / "Tests" / "ScenicKitTests" / "RouteScoreBoundaryTests.swift",
          ROOT / "Tests" / "ScenicKitTests" / "RouteScoreWitnessTests.swift")

@@ -46,6 +46,12 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
   at the final pre-review commit re-run and re-quote the whole acceptance block. A correction commit that touches
   a measured file re-measures it (T-0162's `wc -l` 239 vs 242 cost a review round). Close the read-only
   verifier's findings before the review is bought.
+- An acceptance predicate over real data is written AFTER the population it ranges over has been measured: the
+  filer quotes the measurement (window, way count, the rows the predicate turns on) in the Brief; a predicate over
+  a population nobody has looked at is filed as a measurement task, not an acceptance (T-0168's 8/10 could not
+  fail inside one massif; T-0204's bbox edge ran along the Mulholland crest and cost a container run).
+- Quote each container stage's count lines into the Log as the stage lands, not at the final commit: a session
+  restart keeps the worktree and loses stdout (T-0204 re-ran every stage; T-0178 re-geocoded ten literals).
 - A new numeric module (under `services/etl/etl/` or `Sources/`) ships its mutation population under `ops/mutate/`
   with a literal floor; an "equivalent mutant" ruling is an EQUIVALENT entry with a witness, never prose in a
   task file (PR #94 bought four review rounds one mutant class at a time).

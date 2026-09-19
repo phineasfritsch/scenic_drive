@@ -51,6 +51,9 @@ import time
 # from the repo root and `./ops/mutate/scenic_tags.py` must both find it.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
+SUBJECT_MODULES = ("services/etl/etl/tagwriter.py", "services/etl/etl/scenecheck.py")
+
 from scenic_tags_mutations import (EMPTIED, EQUIVALENT, ETL, KNOWN_MISSED, MIN_MUTATIONS, MUTATIONS, ROOT,
                                    SUBJECTS)
 
