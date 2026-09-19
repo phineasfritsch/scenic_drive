@@ -162,4 +162,147 @@ four bits do not separate Topanga from a Bel Air cul-de-sac; something class-awa
   score` clause is true by construction rather than by luck. Read-back row 13332407 (Yoakum Drive,
   residential, 0.5499510668) is the boundary fixture: 5 today, 6 after. It is also residential, and 0.5499 is
   below the ceiling, so the two rulings are independent on that row and the fixture proves both.
+- 2026-09-19T12:04:50Z RED THEN GREEN, and the real re-run, by agent/claude-opus-5. Count lines quoted as
+  each stage landed.
 
+  RED FIRST, by name, before a line of the fix, `services/etl/tests/test_class_cap.py` over the shipping
+  path `assemble.scored_row -> tagwriter.tags_for_row`: **11 failed, 5 passed in 0.60s**. The eleven were
+  `test_no_capped_class_way_reaches_the_routers_high_band` (five real ways ship 7), the five
+  `test_each_measured_offender_was_a_seven_and_now_is_not[Crescent Drive|Sullivan Fire Road|Sullivan Ridge
+  Fire Road|Scenario Lane|Oakmont Street]`, `test_a_service_way_scores_zero_like_a_motorway_and_is_not_excluded`,
+  `test_a_living_street_is_capped_although_no_real_one_reaches_six`,
+  `test_the_ceiling_is_the_boundary_of_the_high_band_read_through_the_shipping_quantiser` (AttributeError:
+  no `CLASS_SCORE_CEILING`), `test_the_integer_and_the_unit_are_one_number_on_the_boundary_row` (5 != 6) and
+  `test_every_row_ships_an_integer_that_is_the_quantisation_of_the_unit_beside_it` ("Yoakum Drive
+  (residential, way 13332407) ships scenic_score=5 beside 0.5500"). GREEN after: **16 passed in 0.30s**.
+
+  Whole suite: `cd services/etl && python -m pytest tests -rs -o addopts=` -> **1186 passed in 80.31s**, zero
+  skips (the `-rs` section is empty).
+
+  MUTATION POPULATION, `python ops/mutate/scenic_tags.py`, floor 35 -> 44 with `assemble.py` added as a third
+  subject: **MUTATIONS: 44 caught, 0 missed, 0 skipped, of 44 / EQUIVALENT: 0 caught, 3 missed, 0 skipped, of
+  3 / MUTATE OK caught=44/44 equivalent_caught=0**. The nine new ones and their catchers:
+  `quantise the UNROUNDED score ...` <- test_class_cap.py::test_the_integer_and_the_unit_are_one_number_on_the_boundary_row;
+  `re-derive the unit from the integer ...` <- test_tagwriter.py::test_a_scored_way_carries_the_integer_the_unit_score_and_every_term;
+  `drop the ceiling ...`, `raise the ceiling BY one step ...`, `forget residential ...`, `forget
+  living_street ...`, `read the ceiling off the gate reason ...` <-
+  test_class_cap.py::test_no_capped_class_way_reaches_the_routers_high_band; `cap a service way instead of
+  zeroing it ...` <- test_class_cap.py::test_a_service_way_scores_zero_like_a_motorway_and_is_not_excluded;
+  `cap unclassified too ...` <- test_class_cap.py::test_the_scenic_roads_do_not_move[13292286].
+  `python ops/mutate/scenic_tags.py --prove-vacuity` -> **VACUITY: 0 caught, 44 missed, 0 skipped, of 44 /
+  VACUITY PROVED**.
+
+  THE THREE REAL WINDOWS RE-TAGGED with the new code, natively for `assemble`/`tagwriter` and through the
+  pinned container for `osmium cat` (inputs read-only from the MAIN checkout, outputs under this worktree's
+  gitignored `services/etl/work/`):
+
+      ASSEMBLE ways=11740 zero_class=386 gated=5589 sinuosity_declined=619 points_of_interest_absent=11740 null_score=0
+      WRITE ways=12402 scored=11740 refused=0 gated=5589 not_a_road=662      (canyon, twice, byte-identical)
+      sha256 472b2a34f292f61f69afdb30ba8a43ecd7d7d50f88b317682f7b8972aaf78da1  window-tagged-{1,2}.osm.xml
+      CHECK4 null_score=0 gated_scored=0 malformed=0 scored=11740 refused=0 not_a_road=662
+
+      ASSEMBLE ways=11239 zero_class=476 gated=1927 sinuosity_declined=575 points_of_interest_absent=11239 null_score=0
+      WRITE ways=11451 scored=11239 refused=0 gated=1927 not_a_road=212      (grid-a, twice, byte-identical)
+      sha256 09dca32904457ad9d14f63a8f95d3b35f34fa9506066b37518a1f1193a4b2057  grid-a-tagged-{1,2}.osm.xml
+      CHECK4 null_score=0 gated_scored=0 malformed=0 scored=11239 refused=0 not_a_road=212
+
+      ASSEMBLE ways=23474 zero_class=772 gated=3696 sinuosity_declined=1074 points_of_interest_absent=23474 null_score=0
+      WRITE ways=23887 scored=23474 refused=0 gated=3696 not_a_road=413      (grid-b, twice, byte-identical)
+      sha256 03245c2954b9952e7aed189cad1933f2e16332c364da4a6d276ff7e5d90b7108  grid-b-tagged-{1,2}.osm.xml
+      CHECK4 null_score=0 gated_scored=0 malformed=0 scored=23474 refused=0 not_a_road=413
+
+  **malformed=0 on ALL THREE** - the 17 are gone, measured on the shipped bytes and not on the table.
+
+  THE TOP TENS, new beside old (`python -m etl.scenecheck <readback> --top 10`):
+
+      CANYON - IDENTICAL, all ten ways, all ten integers, all ten units:
+        1 74344132 Topanga Canyon Boulevard primary 8 (0.7722) - 2 74344113 Topanga 8 (0.7697)
+        3 667514937 North Topanga 8 (0.7679) - 4 358703394 Stunt Road 8 (0.7563)
+        5 456361801 North Topanga 7 (0.7464) - 6 38311860 Topanga 7 (0.7401)
+        7 1079750100 Old Topanga Canyon Road 7 (0.7367) - 8 46752395 Old Topanga 7 (0.7314)
+        9 13346012 Piuma Road 7 (0.7306) - 10 1237332026 Fernwood Pacific Drive 7 (0.7284)
+
+      GRID-A  old: 44327906 Mulholland 0.7261 - 632613339 Sullivan Fire Road 0.7227 - 13290126 Sullivan
+        Ridge Fire Road 0.7215 - 121304178 Oakmont Street 0.7189 - 13293766 Beverly Glen Terrace 0.7133 -
+        13377650 Mandeville Canyon Road 0.7125 - 721642253 (service) 0.7118 - 121254098 Will Rogers State
+        Park Road 0.7079 - 405362186 Mulholland 0.7064 - 581817596 (service) 0.7057
+      GRID-A  new: 1 44327906 Mulholland secondary 7 (0.7261) - 2 13377650 Mandeville Canyon Road tertiary
+        7 (0.7125) - 3 405362186 Mulholland 7 (0.7064) - 4 1533792498 Mulholland 7 (0.6988) - 5 13377647
+        Mandeville Canyon Road 7 (0.6688) - 6 399156621 West Sunset Boulevard 7 (0.6669) - 7 435695311
+        Temescal Canyon Road unclassified 7 (0.6636) - 8 13313778 Chautauqua Boulevard 7 (0.6541) -
+        9 13278980 Round Valley Drive residential 6 (0.6499) - 10 13278983 Round Valley Drive 6 (0.6499)
+
+      GRID-B  old: 518410361 Mulholland 0.7361 - 787842196 Mulholland 0.7299 - 13419334 Crescent Drive
+        0.7228 - 518410363 Mulholland 0.7226 - 13292286 Franklin Canyon Drive 0.7203 - 13379402 Scenario
+        Lane 0.7201 - 13419340 Crescent Drive 0.7121 - 159524496 Mulholland 0.7100 - 386470272 (service)
+        0.7098 - 822134900 (service) 0.7097
+      GRID-B  new: 1 518410361 Mulholland 7 (0.7361) - 2 787842196 Mulholland 7 (0.7299) - 3 518410363
+        Mulholland 7 (0.7226) - 4 13292286 Franklin Canyon Drive unclassified 7 (0.7203) - 5 159524496
+        Mulholland 7 (0.7100) - 6 399262414 Laurel Canyon Boulevard 7 (0.7081) - 7 1533792498 Mulholland
+        7 (0.7022) - 8 518410359 Mulholland 7 (0.7013) - 9 38555783 Laurel Canyon Boulevard 7 (0.6994) -
+        10 1174237703 West Sunset Boulevard 7 (0.6975)
+
+  Every residential street and every fire road is out of both grid top tens; Mulholland, Topanga, Stunt,
+  Piuma, Fernwood Pacific, Mandeville Canyon and Franklin Canyon Drive are all where they were.
+
+  THE FIXTURES ARE NOT RE-RECORDED, ruled. `grid_top25.json` and `canyon_top25.json` are T-0204's dated
+  recording of ITS run ("produced_by: etl.scenecheck.top, T-0204's hardened build"), the ranking tests in
+  `tests/test_window_ranking.py` read only those committed files, and none of them requires a new recording:
+  the whole suite is green above. The whitelist test keeps its two Mulholland ids untouched, and it is TRUE
+  on the NEW read-backs as well - the only merged grid ways at or above the canyon bound 0.7284 are 518410361
+  (0.7361) and 787842196 (0.7299), checked against `scenecheck.top(grid-{a,b}-readback, 25)` from this run.
+  A re-recording is a snapshot reference, which CLAUDE.md reserves for a human-initiated commit reviewed by a
+  different agent; the new numbers are in this Log and in the PR body instead.
+
+  STILL OPEN, recorded rather than hidden:
+  1. The profile/Worker clause (`customModel.ts:219`) names RESIDENTIAL only. With the cap that is harmless -
+     service is 0 and living_street cannot reach 7 - but LIVING_STREET and SERVICE have no demotion of their
+     own. T-0190/T-0209.
+  2. `unclassified` is uncapped by ruling. 5 of 570 reach 7 and today they are canyon drives; the class is
+     watched by `test_the_scenic_roads_do_not_move[13292286]` in one direction only.
+  3. P-PROD-01's assertion is still `TODO` (pending T-0012), so parity is held by
+     `test_gate_scenickit_parity_to_1e_6_over_the_shared_scoring_fixture` and not by a pin. This task keeps
+     the ceiling OUT of `score.py` precisely so that gate stays true; if `SegmentScore.swift` is ever made a
+     producer of the shipped 0..10 column, the ceiling must move with it.
+  4. The corpus itself is not re-published here: these three windows are the evidence, not the shipped LA
+     graph. Whoever re-runs the region pays the re-tag.
+- 2026-09-19T12:04:50Z FINAL PRE-REVIEW ACCEPTANCE, re-run bare by agent/claude-opus-5 over the code as it
+  is committed (the only thing this commit adds on top of e05bd89, which every number below was produced
+  against, is this Log - no subject, test, fixture or population file changed after the runs):
+
+      cd services/etl && python -m pytest tests -rs -o addopts=
+        -> 1186 passed in 99.86s (0:01:39)        zero skips, the -rs section is empty
+      python ops/mutate/scenic_tags.py
+        -> MUTATIONS: 44 caught, 0 missed, 0 skipped, of 44
+           EQUIVALENT: 0 caught, 3 missed, 0 skipped, of 3
+           MUTATE OK  caught=44/44 equivalent_caught=0            (exit 0)
+      python ops/mutate/scenic_tags.py --prove-vacuity
+        -> VACUITY: 0 caught, 44 missed, 0 skipped, of 44 / VACUITY PROVED   (exit 0)
+      python ops/lib/check-mutate-population.py
+        -> P-PROC-06: 71 modules, 23 covered by 10 populations, 25 allowlisted, 0 added by this branch
+           P-PROC-06: every added module is covered or allowlisted; the floor of 22 holds   (exit 0)
+           [22 -> 23 covered: services/etl/etl/assemble.py leaves the DEBT list, 24 -> 23]
+      bash ops/lib/check-line-cap
+        -> P-SRC-02: 83 Swift files tracked (Sources=27, Tests=38, apps/ios=18), none over 300 lines (exit 0)
+      bash ops/lib/check-exec-bits
+        -> P-OPS-01: 77 files, 23 required present, all modes correct   (exit 0)
+      bash ops/queue-check
+        -> QUEUE OK (205 tasks)   (exit 0)
+
+  No Swift changed, so `swift test --filter ScenicKitTests` was NOT run and is not claimed: the ceiling is
+  deliberately outside `score.py` and `SegmentScore.swift` is byte-for-byte what it was on main (R1).
+
+  `wc -l` on every touched file, at this commit:
+
+      293  services/etl/etl/assemble.py
+      165  services/etl/etl/tagwriter.py
+      195  services/etl/tests/test_class_cap.py
+      237  services/etl/tests/fixtures/class_cap_rows.json
+      186  ops/mutate/scenic_tags.py
+      233  ops/mutate/scenic_tags_mutations.py
+      (the task file's own `wc -l` is deliberately NOT quoted: this block lives in it, so any number
+       written here is wrong the moment it is written. It carries no 300-line cap - `ops/lib/check-line-cap`
+       counts tracked Swift - and it is above 300.)
+
+  `assemble.py` is 293 of the 300-line cap: the next agent to touch it splits it rather than squeezing.
+  `state: claimed` and `reviewer: null` are untouched; the Log is appended to and nothing above it is edited.
