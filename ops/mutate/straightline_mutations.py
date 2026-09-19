@@ -46,6 +46,19 @@ Measured against the suite as T-0199 found it, not assumed:
 The rule is that a survivor buys a test, not a softer entry. `aLongEastWestLegPinsTheFormulaAndTheMileConstant`
 and `theMilesComeFromTheMetresAndNotFromTheFlooredKilometres` are those tests, and they are the `killers` of
 entries 7, 8, 9 and 10 below.
+
+## The eleventh entry, and the one mutant no test at that entry point can kill
+
+T-0199's pre-review mutant pass ran an eleventh mutation that is not a variant of any entry above: the same
+double floor placed at the ENTRY POINT, `wholeMiles(for: drive)` taken from `wholeKilometers(for: drive)`,
+and the whole suite stayed green. Two separate facts came out of that, and they are filed separately.
+
+  * The entry point had NO mutation at all - entries 1-10 edit a helper or a dependency, and
+    `wholeMiles(for:)` is the symbol `DriveFacts` renders. Entry 11 below mutates it.
+  * The surviving mutant itself is in EQUIVALENT, with the enumeration of the entry point's whole input
+    domain as its witness, because `HandoffDrive` is a closed two-case enum and both shipped drives floor
+    to the same mile either way. It is NOT filed in MUTATIONS with a softened killer: there is no input at
+    that entry point to name a killer over, which is a different thing from a test nobody wrote.
 """
 from __future__ import annotations
 
@@ -74,6 +87,10 @@ CHAIN = ("    public static let skylineRoutePoints: [Coordinate] = "
          "SkylineRoute.waypoints + [SkylineRoute.destination]")
 PIN_ONE = "Coordinate(latitude: 37.70526, longitude: -122.47165)"
 TWO_POINT_GUARD = "guard points.count > 1 else { return 0 }"
+# The ENTRY POINT production runs: FeatureScenicHome/DriveFacts.swift:45 calls `wholeMiles(for:)`, never
+# the helper under it. The body is one line and this spelling of it occurs once; the doc block above names
+# `drive.chain` in prose, and CLAUDE.md forbids anchoring on a comment in any case.
+ENTRY_MILES = "        wholeMiles(through: drive.chain)"
 
 # Killer display names, spelled once each. These are the strings inside @Test("...").
 CARD_KM = "the whole-kilometre figure is the number the card shows"
@@ -84,6 +101,8 @@ CHAIN_IS_PINS = "the chain is the shipped pins in driving order, then the destin
 PER_POINT = "every point is within a kilometre of where this suite thinks it is"
 LONG_LEG = "a 1,065 km east-west leg pins the formula and the mile constant"
 NOT_FROM_KM = "the miles come from the metres, not from the floored kilometres"
+OWN_CHAIN = "every drive's miles are that drive's own chain, floored from that drive's metres"
+LA_SCREEN_MI = "the whole-mile figure is the number the LA drive renders, from the same metres"
 
 MUTATIONS = [
     # 1-2. The radius, both directions. 6_371_008.8 * 1.001 and * 0.999. The card's 112_268.093 m moves to
@@ -129,6 +148,13 @@ MUTATIONS = [
     ("the flat equirectangular formula on the same radius", GEO, HAVERSINE,
      "        let x = dLon * cos((lat1 + lat2) / 2)\n"
      "        return earthRadiusMeters * sqrt(x * x + dLat * dLat)", [LONG_LEG]),
+
+    # 11. THE ENTRY POINT, which entries 1-10 never touched: every one of them edits a helper or a
+    # dependency, and `wholeMiles(for:)` is the symbol production calls. The mutant hands every drive the
+    # Skyline chain - the drift T-0202 was filed for, a figure that names one drive while the tap takes
+    # another - so the LA screen renders 69 miles of somebody else's drive.
+    ("the entry point measures the Skyline chain whatever drive it is handed", SUBJECT, ENTRY_MILES,
+     "        wholeMiles(through: HandoffDrive.skyline.chain)", [OWN_CHAIN, LA_SCREEN_MI]),
 ]
 
 # Mutants that provably cannot change behaviour, asserted the other way round: anything but MISSED fails.
@@ -142,13 +168,30 @@ EQUIVALENT = [
      "synthetic, that the two spellings disagree about, so there is no input to write a test on. The "
      "guard's behaviour is pinned instead by the empty-and-single-point assertions in "
      "theFigureIsFlooredAndNeverRoundedUp and theMilesAreFlooredAndNeverRoundedUp."),
+
+    ("the entry point floored twice: the miles taken from that drive's floored kilometres", SUBJECT,
+     ENTRY_MILES,
+     "        Int((Double(wholeKilometers(for: drive)) * 0.621371).rounded(.down))",
+     "`wholeMiles(for:)` ranges over `HandoffDrive`, a closed two-case enum whose chains are `static "
+     "let`s on the route types, so the domain this mutant can be fed is exhaustible and was exhausted: "
+     "Skyline 112_268.093 m -> 69.7602 mi -> 69, while floor(112.268 km) = 112 -> 69.5936 -> 69; LA "
+     "47_445.124 m -> 29.4810 -> 29, while 47 -> 29.2044 -> 29. Both cases agree, so there is no input "
+     "to write a killer over - not a weaker test, none. The HELPER form of the same double floor is "
+     "MUTATIONS entry 9, killed by `the miles come from the metres, not from the floored kilometres` "
+     "over a 4_999.331 m chain the test constructs, and that construction is exactly what this entry "
+     "point does not accept. The equivalence is the DOMAIN's and not the arithmetic's, so it is not "
+     "permanent and is not left unwatched: 268.1 m off the Skyline chain would put floor(km) at 111 -> "
+     "68.97 -> 68 against the metres' 69, and `every drive's miles are that drive's own chain, floored "
+     "from that drive's metres` ranges over allCases comparing this entry point with each drive's own "
+     "metres - so the day a pin moves that far or a third drive lands, this entry stops reporting MISSED "
+     "and the EQUIVALENT arm FAILS the run until it is ruled again."),
 ]
 
 # The floor. THE REAL COUNT, not a round number under it: gates.py records a floor of 18 against a
 # population of 21 letting a reviewer delete three mutations and still read a clean sheet. Adding a
 # mutation means editing this number, which lives in the same file so the diff shows both halves.
-MIN_MUTATIONS = 10
-MIN_EQUIVALENT = 1
+MIN_MUTATIONS = 11
+MIN_EQUIVALENT = 2
 # Not a completeness floor: the suite may split. It refuses one thing - a glob that matched nothing, which
 # would make --prove-vacuity empty nothing and prove nothing.
 MIN_TEST_FILES = 1

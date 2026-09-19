@@ -205,4 +205,33 @@ struct StraightLineDistanceTests {
         #expect(StraightLineDistance.wholeKilometers(through: drifted) == Self.straightLineKilometers,
                 "the floored figure moved to \(StraightLineDistance.wholeKilometers(through: drifted)) km")
     }
+
+    /// THE ENTRY POINT, which is the symbol the screen renders: `wholeMiles(for:)`, not the helper under
+    /// it. `DriveFacts` calls this one, and until T-0199's pre-review pass no mutation edited its body -
+    /// every entry in the population edits a helper or a dependency, and the two literals above pin the
+    /// two shipped figures without ever asking whether the figure a drive gets is measured over THAT
+    /// drive's chain.
+    ///
+    /// Over `allCases` and re-derived from each drive's own metres rather than named drive by named
+    /// drive: the case count is asserted so that the day a third drive lands this test grows with the
+    /// enum instead of quietly covering two cases of three. That same range is the tripwire on the
+    /// EQUIVALENT entry in `ops/mutate/straightline_mutations.py` which rules the double floor AT this
+    /// entry point unkillable - unkillable only while the domain is two drives that floor to the same
+    /// mile either way, and this is the test that stops being green about it when one of them moves.
+    @Test("every drive's miles are that drive's own chain, floored from that drive's metres")
+    func everyDrivesMilesAreThatDrivesOwnChain() {
+        #expect(HandoffDrive.allCases.count == 2, "the domain wholeMiles(for:) ranges over has changed")
+        for drive in HandoffDrive.allCases {
+            let metres = StraightLineDistance.meters(through: drive.chain)
+            let rendered = StraightLineDistance.wholeMiles(for: drive)
+            #expect(rendered == Int((metres / 1_609.344).rounded(.down)),
+                    "\(drive.rawValue) renders \(rendered) mi over \(metres) m of its own chain")
+            #expect(rendered == StraightLineDistance.wholeMiles(through: drive.chain),
+                    "\(drive.rawValue): the entry point and the helper disagree")
+        }
+        // And the loop is not comparing one drive with itself: two drives, two figures.
+        #expect(StraightLineDistance.wholeMiles(for: .skyline)
+                != StraightLineDistance.wholeMiles(for: .santaMonicaMountains),
+                "both drives render the same miles, so a drive swapped here would be invisible")
+    }
 }
