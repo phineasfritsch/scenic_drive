@@ -42,6 +42,9 @@ Run `ops/agent-preflight` first thing in every session. A smaller honest result 
   at the final pre-review commit re-run and re-quote the whole acceptance block. A correction commit that touches
   a measured file re-measures it (T-0162's `wc -l` 239 vs 242 cost a review round). Close the read-only
   verifier's findings before the review is bought.
+- A new numeric module (under `services/etl/etl/` or `Sources/`) ships its mutation population under `ops/mutate/`
+  with a literal floor; an "equivalent mutant" ruling is an EQUIVALENT entry with a witness, never prose in a
+  task file (PR #94 bought four review rounds one mutant class at a time).
 - Testers find and do not fix. Fixers open PRs. The reviewer of a task is never its owner (`ops/queue-check`).
 - Snapshot references are re-recorded only by a human-initiated commit reviewed by a different agent.
 

@@ -1,7 +1,7 @@
 ---
 id: T-0031
 title: Tagged PBF -> GraphHopper graph with scenic_score as an encoded value, deployed to the VPS
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -14,7 +14,10 @@ pins_affected: []
 reviewer: null
 depends_on: [T-0168]
 verify: [ops/test, ops/check-pins]
-acceptance: []
+acceptance:
+  - "FIRST SLICE (this promotion): the digest-pinned GraphHopper image imports .worktrees/T-0025/services/etl/inputs/vermont-osm.pbf (45,880,330 bytes == manifest.yaml) in WSL with the scenic_score TagParser plugin and the car_scenic_base profile; the import log's way/edge counts quoted"
+  - "RED BY NAME: T(lambda) non-decreasing over {0,1,2,4,8} on every fixture (plan line 215) - red with a deliberately inverted band multiplier, then green; the five durations per fixture printed and quoted"
+  - "the second half (the Bay Area graph, rsync, the atomic symlink flip, N-1 kept) stays behind T-0168 and is not claimed by this slice"
 ---
 ## Brief
 
@@ -38,3 +41,8 @@ That is the property the whole budget search depends on, and it is cheap to chec
   on this box (`vermont-osm.pbf`, manifest-pinned, 45,880,330 bytes; or the filtered sfbay extract in
   `.worktrees/T-0028/services/etl/work/sfbay/`) in WSL and proves monotonicity there; the rsync, the atomic
   symlink flip and the full Bay Area graph stay in this task's second half.
+- 2026-09-19T00:40:47Z PROMOTED to ready/ for its FIRST SLICE by agent/claude-fable-5-1 (17:13 panel, STRATEGY, grounded): the Vermont
+  extract is on disk byte-matching the manifest, and the T(lambda) property is about the TagParser and the
+  custom model, not California - the 20:57:28Z entry already ruled the slice. depends_on stays [T-0168] for
+  the second half. Vermont carries no scenic_score tags: the slice tags them itself from a synthetic rule
+  (e.g. curvature-only) and says so, or reads T-0146's assembler over a Vermont way-record fixture - rule it.
