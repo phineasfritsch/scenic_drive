@@ -245,3 +245,168 @@ region, and a test that a Westwood coordinate resolves to `n34w119`.
   **6. Untouched from the Brief's "also on the record"**: no `curated.yaml` for la, `ops/sane` code 4 still
   cannot run for la (no `work/la/meta.json` on this box), and `.artifacts/record-provenance.py` is still
   gitignored.
+- 2026-09-19T03:55:04Z REVIEW **FAIL** (round 1) by agent/rv1-pr106 on PR #106 at `3f9a220`. Reviewed in a
+  detached worktree at that sha and removed it; nothing written to `.worktrees/T-0142`, nothing pushed, the
+  task file untouched.
+  **Every quoted number re-run and TRUE.** `tests/test_dem_tiles.py -rs` -> 17 passed; whole suite
+  `python -m pytest tests -rs` -> `1042 passed in 98.10s`, exit 0, `grep -c SKIPPED` = 0;
+  `wc -l` -> 258 / 206 / 241 / 45, exactly as quoted; `bash ops/lib/check-line-cap` -> `P-SRC-02: 71 Swift
+  files tracked ... none over 300 lines`, exit 0; `bash ops/queue-check` -> `QUEUE OK (179 tasks)`, exit 0;
+  `tiles_for_region('la')` = the four, `tiles_for_region('sfbay') == TILES` True, `tile_for(34.07,-118.45)`
+  = `n35w119` with la active and with no region. `git diff origin/main -- regions/la/region.json` changes
+  three keys and all three are `_comment_` — R4 holds, the box did not move. Two typed values re-done from
+  scratch: the four LA tiles re-derived BY HAND from the bbox corners' ceils (rows [34,35] x columns
+  [118,119]) and equal to `tiles_for_region('la')`; and `sha256sum services/etl/inputs/3dep-n34w119.tif` =
+  `d550d73b3884ccf16d9ca30c286c2d205905a4e35292324a2b38726896bd1f00` with 77566808 bytes, identical to the
+  manifest entry. R1 verified at this head: outside dem.py and its tests the only hit is `landcover.py`'s own
+  unrelated `tile_for`, and `terrain.py` imports `math` and `.curvature` only — the sampler has no production
+  caller, so the seam was indeed decided rather than discovered, and the chosen one is right for T-0168.
+  R1-R8 all agreed; no ruling disputed.
+  **BLOCKING B1 - the LA active tile set is unpinned, so a check this PR adds can pass over nothing.**
+  `test_the_manifest_pins_every_tile_la_needs` puts its whole body inside
+  `for tile in sorted(dem.tiles_for_region("la")):`, so its scope is the value under test: shrink that set and
+  it iterates fewer and passes; empty it and it iterates zero and passes. Acceptance bullet 1 names four
+  literal tiles; the check that carries it names none. `test_la_needs_exactly_four_tiles` pins
+  `tiles_for_bbox(*LA)` — the arithmetic BEFORE `- UNSERVED`, against a bbox typed in the test rather than read
+  from region.json. sfbay's active set is pinned by equality (`tiles_for_region("sfbay") == TILES`); la's is
+  not pinned at all. Reproduction, run twice and restored: change `UNSERVED` (dem.py:39) to
+  `frozenset({"n37w124", "n35w118"})` -> `python -m pytest tests -q` exits 0 with ZERO failures, while
+  `tiles_for_region('la')` = `['n34w118','n34w119','n35w119']` and
+  `tile_for(34.35,-117.86, tiles=tiles_for_region('la'))` = `None` — Angeles Crest east of Red Box, the roads
+  the bbox reaches -117.85 expressly to include, silently without elevation. This is the gap the pre-review
+  mutant pass named ("the eastern column's presence is pinned only at the derivation level") and the 03:20 /
+  03:21 entries do not answer it; CLAUDE.md's author rule asks for the verifier's findings closed before the
+  review is bought. Fix is two lines in a file this PR owns:
+  `assert dem.tiles_for_region("la") == {"n34w118","n34w119","n35w118","n35w119"}` and a `tile_for`-level
+  assertion for an eastern point (`dem.tile_for(34.35,-117.86, tiles=dem.tiles_for_region("la")) == "n35w118"`,
+  verified to hold at this head) — both demonstrated red with the one-line `UNSERVED` widening, then green.
+  Two further mutants of mine were CAUGHT and are recorded as evidence the rest of the seam is pinned:
+  `tile_for` re-consulting `TILES` fails three tests (`..._westwood_point...`, `..._naming_no_region...`,
+  `..._grouping_and_sampling...`); `tiles_for_bbox`'s far edges `<` -> `<=` fails
+  `test_a_bbox_touching_a_border_does_not_claim_the_next_square` and — worth knowing — changes NEITHER the la
+  nor the sfbay derived set, because neither bbox has an integer far edge, so that synthetic border test
+  carries the whole class alone.
+  **R2 judged against the absence-vs-wrong-region question and UPHELD.** `tile_for(37.78,-122.42)` with no
+  `tiles=` returns `n38w123` where `tiles=tiles_for_region('la')` returns `None`, but a 3DEP tile is a global
+  grid square picked from the point's own lat/lon, so the union default can return a right value where a
+  region-scoped call would return absence — never a wrong one. Against main it is strictly better. Recordable
+  consequence only: the old implicit "not in my region" signal is gone, so T-0168 must pass
+  `tiles=dem.tiles_for_region("la")` rather than rely on the default.
+  **RECORDABLE**: `served_tiles`' cache is never invalidated — demonstrated stale across a regions/ change on
+  a tmp root while `region_ids` already saw the new region — and nothing pins its behaviour; the new import
+  `from collections.abc import Collection, Iterable` (dem.py:17) leaves `Iterable` unused and no lint config
+  catches it; `tile_for`'s default branch takes no `root`, so it can only be exercised against the live
+  regions/ tree; the manifest test checks 64-hex, not bytes (right call — the .tif files are gitignored — but
+  a pointer to `python -m etl.fetch --verify-only` in the manifest comment would save the next reviewer a hop).
+  Disclosed gaps in STILL OPEN were confirmed and are NOT counted against the PR: nothing has sampled an LA
+  GeoTIFF, finding 2 deferred per R7, no `ops/mutate/` population per R8, the commute question still FOR THE
+  HUMAN. CI at this sha: `core` pass 2m1s, `pins-source-only` pass 57s.
+- 2026-09-19T04:30:00Z FIX for B1 (review round 1) by agent/claude-opus-5 acting for the owner, in
+  `.worktrees/T-0142` on `task/T-0142`, PR #106. B1 accepted as stated, not argued; both recordables taken.
+  **REPRODUCED FIRST, and it is exactly what the review says it is.** `UNSERVED` (dem.py:39) widened to
+  `frozenset({"n37w124", "n35w118"})`, nothing else touched, `__pycache__` purged: the whole ETL suite
+  `python -m pytest tests -rs` exits 0 with every test a dot and not one F, and
+  `tests/test_dem_tiles.py -rs` -> `17 passed in 0.23s`, green. At that same moment
+  `tiles_for_region('la')` = `['n34w118','n34w119','n35w119']` — three — and
+  `tile_for(34.35,-117.86, tiles=tiles_for_region('la'))` = `None`: Angeles Crest east of Red Box, the
+  reason the box reaches -117.85 at all, with no elevation and nothing red anywhere. Mutant restored by
+  writing the original bytes back; `md5sum services/etl/etl/dem.py` = `8c6e7b50c1564d8495a8c6b7c6437c08`,
+  the pre-mutation digest, and `git status --porcelain` empty before any fix was written.
+  **WHAT CHANGED** — tests first, then two small code changes; only `services/etl/etl/dem.py` and
+  `services/etl/tests/test_dem_tiles.py`.
+  1. `LA_TILES = {"n34w118","n34w119","n35w118","n35w119"}`, typed in the test file, and
+     `test_the_la_active_tile_set_is_exactly_the_four_typed_tiles` asserting
+     `dem.tiles_for_region("la") == LA_TILES` — the equality sfbay already had and LA had nowhere.
+  2. `test_every_la_tile_carries_a_point_the_region_exists_for`: one point per square, each asserted inside
+     the recorded bbox and asserted to resolve to its own tile with la active —
+     n35w118 (34.35,-117.86) Angeles Crest Highway (SR-2) east of Red Box, toward Dawson Saddle;
+     n35w119 (34.1289,-118.4043) Mulholland Drive at Coldwater Canyon;
+     n34w119 (33.7445,-118.3870) the Palos Verdes peninsula, which Palos Verdes Drive rings;
+     n34w118 (33.8366,-117.9143) Anaheim — honestly a CITY point and not a road: nothing in this tree
+     records a road coordinate in that square, and inventing one to dress the test up is the exact move
+     `OC_CITIES_INSIDE_THE_BOX` already refuses. The other three coordinates are already recorded here
+     (`test_the_la_bbox_covers_ucla_and_the_santa_monicas`, the OC cities); the first is the point the
+     review names. The test also pins one witness per tile and no more, so a name cannot enter `LA_TILES`
+     without a point standing on it.
+  3. `test_the_manifest_pins_every_tile_la_needs` now iterates `sorted(LA_TILES)`, not
+     `sorted(dem.tiles_for_region("la"))`: its scope is no longer the value under test. It stays green under
+     the `UNSERVED` mutant, correctly — it pins four manifest entries; the active set is pinned by (1).
+  4. R1 taken rather than dropped: `dem._cache_key(root)` is the resolved root plus
+     `(region_id, region.json st_mtime_ns)` for every region, and `served_tiles` keys `_SERVED_CACHE` on it.
+     Cost is one `stat` per region per call — bounded by the number of regions, not by the number of points,
+     so `group_by_tile`'s per-point pattern is unaffected and the reason the cache exists survives.
+     `test_served_tiles_notices_a_region_added_after_its_first_call` writes one region into a tmp root, asks,
+     writes a second, asks again, and also asserts `region_ids` saw it — on the Dakota plains (n45w101,
+     n45w100) deliberately, so a mutant on `UNSERVED` or on the la bbox cannot move this check's answer.
+  5. R2 taken: `Iterable` dropped from the `collections.abc` import; `Collection` is the only one used.
+  **RED BY NAME, THEN GREEN.** `__pycache__` purged before every run, 1.2 s before every restore, every
+  mutant restored by writing the original bytes back and the digest checked:
+  ```
+  MUTANT A (the review's)  dem.py:39  UNSERVED: frozenset({"n37w124"}) -> frozenset({"n37w124","n35w118"})
+    .........FFF...  ->  exactly two, by name:
+    FAILED tests/test_dem_tiles.py::test_the_la_active_tile_set_is_exactly_the_four_typed_tiles
+    FAILED tests/test_dem_tiles.py::test_every_la_tile_carries_a_point_the_region_exists_for
+    E AssertionError: Angeles Crest Highway (SR-2) east of Red Box, toward Dawson Saddle (34.35,-117.86)
+      has no elevation: n35w118 is not in LA's active set
+      assert None == 'n35w118'  where None = dem.tile_for(34.35, -117.86,
+      tiles=frozenset({'n34w118', 'n34w119', 'n35w119'}))
+  MUTANT B (mine, a neighbour)  dem.py  tiles_for_region: `tiles_for_bbox(...) - UNSERVED`
+                                                       -> `UNSERVED - tiles_for_bbox(...)`
+    .........FFFFFFFF...  ->  eight, by name: test_a_westwood_point_resolves_to_its_tile_when_la_is_active,
+    test_the_la_active_tile_set_is_exactly_the_four_typed_tiles,
+    test_every_la_tile_carries_a_point_the_region_exists_for,
+    test_served_tiles_notices_a_region_added_after_its_first_call,
+    test_the_sfbay_golden_set_is_exactly_what_the_derivation_serves,
+    test_naming_no_region_no_longer_means_sfbay, test_absence_is_still_absence_outside_the_active_region,
+    test_grouping_and_sampling_carry_the_active_region_through
+  AT HEAD, both restored:  20 passed in 0.38s  (17 before this round)
+  md5sum services/etl/etl/dem.py = 08792c47510738334c458ce703b20d68 (the fixed file, stable across both
+  restores; 8c6e7b50c1564d8495a8c6b7c6437c08 was the pre-fix file each mutant was restored to)
+  ```
+  **Ruling, recorded rather than run:** the other neighbour the instruction offered — `tiles_for_region`
+  subtracting `UNSERVED` TWICE — is an EQUIVALENT mutant, because set difference is idempotent
+  (`(S - U) - U == S - U`); it cannot be shown red by any test and is not claimed as one caught. The
+  wrong-side subtraction above is the non-equivalent neighbour and is the one demonstrated.
+  **ACCEPTANCE BLOCK, whole, re-run at the final commit content** (this entry included; the only file that
+  changed after the suite ran is this task file, and `ops/queue-check` re-ran over it):
+  ```
+  cd services/etl && python -m pytest tests -rs  ->  1045 passed in 120.27s (0:02:00)  SUITE_EXIT=0  (skipped=0)
+  bash ops/lib/check-line-cap  ->  P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over 300 lines   LINECAP_EXIT=0
+  bash ops/queue-check         ->  QUEUE OK (179 tasks)                                  QUEUECHECK_EXIT=0
+  bash ops/check-pins --source-only -> PINS ok=12 skipped=13 pending=1 expired=0 failed=0 tier=linux source-only  PINS_EXIT=0
+  wc -l: services/etl/etl/dem.py 273 | services/etl/tests/test_dem_tiles.py 280 | services/etl/inputs/manifest.yaml 241 | services/etl/regions/la/region.json 45
+  ```
+  The same block run once before this entry was appended gave the same numbers - 1045, zero skips, four
+  exit 0s, the same four `wc -l` counts - at 106.56s wall; the only difference between the two runs is
+  elapsed time, and the quoted run is the later one, over the tree this commit contains.
+  1042 -> 1045 is the three new checks and nothing else; 258 -> 273 and 206 -> 280 are this round's edits,
+  both files still under the 300-line cap, so no second test file was needed. `ops/test` and full
+  `ops/check-pins` were NOT run here, same as the previous entry and for the same reason (other authors hold
+  other worktrees on this box; the orchestrator's instruction). The ETL suite ran on the Windows checkout,
+  not in the pinned image.
+  **Derivation, re-quoted at this head:**
+  ```
+  tiles_for_bbox(*LA) = ['n34w118','n34w119','n35w118','n35w119']      UNSERVED = ['n37w124']
+  tiles_for_region('la') = the same four, == the typed LA_TILES literals: True
+  tiles_for_region('sfbay') == dem.TILES: True          served_tiles() with no region = 12 tiles
+  tile_for with la active: (34.35,-117.86) -> n35w118    (34.1289,-118.4043) -> n35w119
+                           (33.7445,-118.3870) -> n34w119  (33.8366,-117.9143) -> n34w118
+  ```
+  **STILL OPEN after this round.**
+  1. FOR THE HUMAN, unchanged and still the only thing holding the bbox: does the owner's drive cross
+     -117.85 east or 33.70 south? If the answer moves the box, the counts are re-recorded from a new extract
+     and the four tiles are re-derived; `LA_TILES` and `LA_POINT_PER_TILE` are then edited WITH the box, by
+     hand, on purpose — that is the cost of typing them and it is the point of typing them.
+  2. "LA has terrain" still means tile resolution and pinned inputs, NOT a sampled elevation: nothing has
+     read an LA GeoTIFF, and the first real LA elevation number is T-0168's.
+  3. T-0168 must pass `tiles=dem.tiles_for_region("la")` to mean "this region only" (the review's R2
+     consequence); the union default will otherwise answer for every region we serve.
+  4. NOT taken this round, deliberately: the reviewer's two remaining recordables — `tile_for`'s default
+     branch takes no `root`, so it can still only be exercised against the live regions/ tree (a signature
+     change with callers, not a log line), and the manifest comment has no pointer to
+     `python -m etl.fetch --verify-only` (re-touching `inputs/manifest.yaml` would re-measure a file this
+     block already quotes, for a comment). Both belong in T-0168's neighbourhood; neither is load-bearing.
+  5. Unchanged from 03:21: finding 2 of PR #68 (R7, `counts_from.source` naming `california-osm.pbf`) is
+     still open and wants its own task; `dem.py` still has no `ops/mutate/` population (R8) and `ops/mutate/`
+     is outside this task's `touches:` — the two mutants above were run by hand and are recorded, not
+     populated; no `curated.yaml` for la; `ops/sane` code 4 still cannot run for la on this box.

@@ -33,6 +33,21 @@ OC_CITIES_INSIDE_THE_BOX = [
     ("Santa Ana", 33.7455, -117.8677),
 ]
 
+# LA's ACTIVE tile set, typed here rather than derived, because a check whose scope is the value under test
+# passes over whatever that value shrinks to. Widening `dem.UNSERVED` by one name used to leave the whole
+# suite green with LA down to three tiles; these four literals are what stops that.
+LA_TILES = {"n34w118", "n34w119", "n35w118", "n35w119"}
+
+# One point per LA tile, so no square is pinned only by the arithmetic that produced it. Every coordinate is
+# already recorded in this tree - the bbox test below, or agent/rv-pr68's measured OC cities - except the
+# first, which is the point PR #106's review names; none is invented to make this test pass.
+LA_POINT_PER_TILE = [
+    ("n35w118", 34.35, -117.86, "Angeles Crest Highway (SR-2) east of Red Box, toward Dawson Saddle"),
+    ("n35w119", 34.1289, -118.4043, "Mulholland Drive at Coldwater Canyon"),
+    ("n34w119", 33.7445, -118.3870, "the Palos Verdes peninsula, which Palos Verdes Drive rings"),
+    ("n34w118", 33.8366, -117.9143, "Anaheim: a city point, not a road - nothing here records a road there"),
+]
+
 
 def test_derivation_reproduces_the_hand_typed_sfbay_list():
     """The oracle for a derivation is the list somebody already checked by hand.
@@ -131,6 +146,59 @@ def test_a_westwood_point_resolves_to_its_tile_when_la_is_active():
     assert dem.tile_for(34.07, -118.45, tiles=dem.tiles_for_region("la")) == "n35w119"
 
 
+def test_the_la_active_tile_set_is_exactly_the_four_typed_tiles():
+    """sfbay's active set is pinned by equality; LA's was pinned by nothing.
+
+    `tiles_for_bbox(*LA)` pins the arithmetic BEFORE `- UNSERVED`, and the manifest check used to iterate
+    `tiles_for_region("la")`, which is the value under test - shrink it and it iterates fewer and passes,
+    empty it and it iterates nothing and passes. This is the equality that closes that: four typed names
+    against what `tile_for` actually gates LA on.
+    """
+    assert dem.tiles_for_region("la") == LA_TILES
+
+
+def test_every_la_tile_carries_a_point_the_region_exists_for():
+    """Set equality alone would not catch a tile that resolves for nobody, so each square is witnessed.
+
+    n35w118 is the one the reviewer's mutant removed: Angeles Crest east of Red Box, which is why the bbox
+    reaches -117.85 at all. A point with no tile is None, and None means no elevation - the terrain terms of
+    the scenic score silently absent over exactly the roads this region was drawn to carry.
+    """
+    box = rg.load("la").bbox
+    active = dem.tiles_for_region("la")
+    assert {t for t, _lat, _lon, _w in LA_POINT_PER_TILE} == LA_TILES, "one witness per tile, no more, no less"
+    for tile, lat, lon, where in LA_POINT_PER_TILE:
+        assert box.min_lon <= lon <= box.max_lon and box.min_lat <= lat <= box.max_lat, \
+            f"{where} ({lat},{lon}) is outside the la bbox - the box moved, re-argue this point"
+        assert dem.tile_for(lat, lon, tiles=active) == tile, \
+            f"{where} ({lat},{lon}) has no elevation: {tile} is not in LA's active set"
+
+
+def test_served_tiles_notices_a_region_added_after_its_first_call(tmp_path):
+    """The cache was keyed on the regions root alone, so a root's first answer was its only answer.
+
+    `region_ids` saw a region added mid-process and `served_tiles` did not - two functions in this module
+    disagreeing about which regions exist, with the stale one deciding whether a point gets elevation.
+
+    Deliberately on the Dakota plains, not in California: this check is about the cache, so its answer must
+    not move when a mutant edits `UNSERVED` or a region's bbox.
+    """
+    def write(region_id: str, min_lon: float, max_lon: float) -> None:
+        d = tmp_path / region_id
+        d.mkdir()
+        (d / "region.json").write_text(json.dumps({
+            "id": region_id, "name": region_id, "counties": ["nowhere"],
+            "bbox": {"min_lon": min_lon, "min_lat": 44.1, "max_lon": max_lon, "max_lat": 44.3},
+        }), encoding="utf-8")
+
+    write("west", -100.5, -100.2)
+    assert dem.served_tiles(root=tmp_path) == {"n45w101"}
+    write("east", -99.9, -99.6)
+    assert dem.region_ids(tmp_path) == ["east", "west"]
+    assert dem.served_tiles(root=tmp_path) == {"n45w100", "n45w101"}, \
+        "served_tiles answered from its cache while region_ids already saw the new region"
+
+
 def test_the_sfbay_golden_set_is_exactly_what_the_derivation_serves():
     """TILES stays as the hand-checked sfbay list, but it is no longer what `tile_for` gates on. Pinning the
     two against each other is what stops the derivation drifting away from the list somebody verified."""
@@ -162,9 +230,15 @@ def test_grouping_and_sampling_carry_the_active_region_through():
 
 def test_the_manifest_pins_every_tile_la_needs():
     """A derived tile set with nothing behind it is still no elevation: the file has to be fetchable and
-    verifiable. Each of LA's four needs an entry pinned by sha256, like sfbay's eight."""
+    verifiable. Each of LA's four needs an entry pinned by sha256, like sfbay's eight.
+
+    Iterates the FOUR TYPED NAMES, not `tiles_for_region("la")`. Iterating the function's own value made
+    this loop's scope the value under test: a shrunken set iterated fewer tiles and passed, an empty one
+    checked nothing and passed. `test_the_la_active_tile_set_is_exactly_the_four_typed_tiles` is what ties
+    these names back to what `tile_for` gates on.
+    """
     entries = {i.name: i for i in mf.parse(MANIFEST.read_text(encoding="utf-8"))}
-    for tile in sorted(dem.tiles_for_region("la")):
+    for tile in sorted(LA_TILES):
         entry = entries.get(f"3dep-{tile}.tif")
         assert entry is not None, f"3dep-{tile}.tif is not in inputs/manifest.yaml"
         assert entry.verify == "sha256", f"{entry.name} is not pinned by digest"

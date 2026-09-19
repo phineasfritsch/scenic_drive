@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import math
 import subprocess
-from collections.abc import Collection, Iterable
+from collections.abc import Collection
 from pathlib import Path
 
 from . import region as rg
@@ -103,6 +103,19 @@ def region_ids(root: Path | None = None) -> list[str]:
     return sorted(p.name for p in base.iterdir() if (p / "region.json").is_file()) if base.is_dir() else []
 
 
+def _cache_key(root: Path | None = None) -> tuple:
+    """The regions root plus every region.json's identity and mtime.
+
+    Keying on the root ALONE made the cache permanently stale for that root: adding a region, or moving a
+    bbox, left `served_tiles` answering from the first call of the process while `region_ids` already saw the
+    new one - two functions in this module disagreeing about which regions exist. The stamps make a changed
+    tree a different key, so the answer is recomputed instead of being wrong.
+    """
+    base = root or rg.REGIONS
+    stamps = tuple((i, (base / i / "region.json").stat().st_mtime_ns) for i in region_ids(root))
+    return (str(base.resolve()), stamps)
+
+
 def served_tiles(root: Path | None = None) -> frozenset[str]:
     """Every tile every region we serve needs - the answer when the caller names no region.
 
@@ -112,9 +125,11 @@ def served_tiles(root: Path | None = None) -> frozenset[str]:
     and a caller that means "only this region" says so by passing `tiles`.
 
     Cached because `group_by_tile` asks per point and a region.json read per point would be thousands of
-    file reads per way. Keyed by root so a test with its own regions directory is not served the real one.
+    file reads per way. Keyed by `_cache_key`, so a test with its own regions directory is not served the
+    real one AND a tree that changed under us is not served the old answer. The cost is one `stat` per
+    region per call, which is bounded by the number of regions, not by the number of points.
     """
-    key = str((root or rg.REGIONS).resolve())
+    key = _cache_key(root)
     hit = _SERVED_CACHE.get(key)
     if hit is None:
         hit = frozenset().union(*[tiles_for_region(i, root=root) for i in region_ids(root)])
@@ -122,7 +137,7 @@ def served_tiles(root: Path | None = None) -> frozenset[str]:
     return hit
 
 
-_SERVED_CACHE: dict[str, frozenset[str]] = {}
+_SERVED_CACHE: dict[tuple, frozenset[str]] = {}
 
 
 def tile_for(lat: float, lon: float, tiles: Collection[str] | None = None) -> str | None:
