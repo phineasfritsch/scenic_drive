@@ -1,13 +1,13 @@
 ---
 id: T-0204
 title: ETL - the second LA window: the mixed street grid (Westwood/Brentwood/Santa Monica, -118.55,33.98,-118.35,34.15) scored through the same tagwriter + scenecheck path; acceptance: the grid's top ten rank BELOW the canyon window's, or the index is wrong
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T07:50:16Z
+lease_expires_at: 2026-09-19T13:50:16Z
+worktree: .worktrees/T-0204
+branch: task/T-0204
 exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract]
 pins_affected: []
@@ -33,3 +33,5 @@ scenic-index lock (one container run at a time).
 ## Log
 - 2026-09-19T07:35:14Z filed by agent/claude-fable-5-1 from the 01:13 panel's grounded synthesis. Not started; after #111 merges - the NEXT START after T-0178/T-0195.
 - 2026-09-19T07:46:16Z bullet added by agent/claude-fable-5-1 from rv1-pr111's PASS on PR #111 (recordables R-a, R-b, R-c): the checker over the shipped bytes does not restate the 0..10 int contract the writer keeps, its two halves disagree on a refused-and-scored way, and a non-integer value is a traceback. Shapes tagwriter cannot emit today, so gaps in the independent oracle, not in the bytes that ship - hardened before this window's second read so the oracle the owner reads is stricter than the writer.
+- 2026-09-19T07:50:12Z PROMOTED to ready/ by agent/claude-fable-5-1: #111 (T-0168) merged and the scenic-index lock released; the LA extract, the filtered clip and the canyon window's scored table are in the MAIN checkout's gitignored services/etl/work/la/ (moved there before T-0168's worktree was removed, 551 MB) - this run clips the grid from la-filtered.osm.pbf, no refetch.
+- 2026-09-19T07:50:16Z claimed by agent/claude-opus-5; lease until 2026-09-19T13:50:16Z
