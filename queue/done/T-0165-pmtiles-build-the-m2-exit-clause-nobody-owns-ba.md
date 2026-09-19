@@ -1,7 +1,7 @@
 ---
 id: T-0165
 title: PMTiles build - the M2 exit clause nobody owns: an LA Protomaps extract (regions/la) under 120 MB, with a style that keeps the attribution corner free
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T04:48:18Z
@@ -11,7 +11,7 @@ branch: task/T-0165
 exclusive: []
 touches: [services/tiles/, ops/publish-tiles]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-pr109
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -716,3 +716,60 @@ here, publish is a separate `exclusive: [prod]` step). `meta.region` and `built_
       variable before the suite. A `built_at` going 30 days old still goes unnoticed until the next publish
       attempt. Same owner as (5), the weekly rebuild, and it is the reason the real artifact is a second
       subject rather than a required one.
+- 2026-09-19T06:45:16Z REVIEW PASS - PR #109 round 2, by agent/rv2-pr109 (reviewer, not the owner, not
+  rv1-pr109). Reviewed at a3a697adda6766a8f5add5feac35e17f46122de4 in a detached worktree
+  (.worktrees/rv2-pr109); `git status --short` empty after every mutant; worktree removed; nothing in the
+  tree, the queue or the PR changed by the review itself.
+  SCOPE `git diff 936b259..HEAD --stat`: 7 files, 539 insertions, 11 deletions - `services/tiles/`
+  (build-la.sh, check_pmtiles.py, tests/test_pmtiles_budget.py, tests/test_style_tokens.py and the two new
+  test files) plus this task file, all inside `touches: [services/tiles/, ops/publish-tiles]`. The task-file
+  diff is append-only: `git diff 936b259..HEAD -- queue/ | grep -c '^-[^-]'` -> 0, and rv1-pr109's 06:14:44Z
+  entry stands before the owner's 06:22:10Z rulings and 06:34:36Z fix. `git ls-files -s ops/publish-tiles
+  services/tiles/build-la.sh` -> 100755 on both. ops/publish-tiles is unchanged this round.
+  (B1) CLOSED. rv1's own mutant re-applied at the call site in `main()` - `bbox_from_region(args.region_json)`
+  replaced by `(-119.0, 33.7, -117.85, 34.45)` -> FAILED
+  test_check_pmtiles_cli.py::test_the_cli_reads_the_bbox_from_the_region_file_it_is_given, `1 failed, 2
+  passed`, exit 1. The CLI is now the subject: the test runs the shipped file in a subprocess and the refusal
+  names the box that came out of the region file.
+  (B2) CLOSED. rv1's own "waters" mutant re-applied - `"waters"` added to SOURCE_LAYERS and the water fill
+  pointed at it, both styles regenerated (`make_styles.py` exit 0) -> FAILED
+  test_style_tokens.py::test_every_source_layer_exists_in_the_archive[light], [dark] and
+  test_the_generators_source_layer_table_is_the_archives, `3 failed, 14 passed`, exit 1. The anchor now lives
+  outside the module under test: the layer ids are read out of an archive's `vector_layers`.
+  (R1) RED on a fixture: the future-stamp limb removed -> FAILED test_refuses_a_build_stamped_in_the_future
+  [2099-01-01T00:00:00Z] and [2099-01-01T00:00:00], `2 failed, 23 passed`, exit 1.
+  (R2) RED on a fixture: both truncation floors removed -> FAILED test_refuses_a_truncated_archive,
+  `1 failed, 24 passed`, exit 1.
+  (R3) RED on a fixture: `_provenance` hardcodes `"region": "la"` -> FAILED
+  test_merge_stamps_the_arguments_into_the_source_metadata, `1 failed, 3 passed`, exit 1.
+  Every mutant restored with `git checkout --`, `__pycache__` purged and 1.1s slept between runs (a .pyc
+  keeps whole-second mtimes); `git status --short` printed empty after each of the six.
+  NOTHING REGRESSED, every line quoted from the command, run bare: `python -m pytest services/tiles/tests` ->
+  `58 passed in 3.45s` exit 0 (43 at 06:14:44Z, 15 new ids); with
+  `SCENIC_LA_PMTILES=<main checkout>/services/tiles/work/la.pmtiles` -> `58 passed in 13.02s` exit 0. The
+  real artifact is untouched, 63520949 bytes: `python services/tiles/check_pmtiles.py <main>/services/tiles/
+  work/la.pmtiles --region-json services/etl/regions/la/region.json` -> `PMTILES OK: la.pmtiles region=la
+  bytes=63520949 zoom=0-14 tiles=2549 bounds=(-119.000000,33.700000,-117.850000,34.450000)` exit 0, and step
+  7 on the same file -> `make_styles: all 9 source-layers present in la.pmtiles` exit 0. `bash
+  ops/lib/check-line-cap` -> `P-SRC-02: 71 Swift files tracked (Sources=26, Tests=37, apps/ios=8), none over
+  300 lines` exit 0; `bash ops/lib/check-exec-bits` -> `P-OPS-01: 64 files, 23 required present, all modes
+  correct` exit 0; `bash ops/queue-check` -> `QUEUE OK (186 tasks)` exit 0. Every `wc -l` the 06:34:36Z entry
+  quotes re-measured on this tree and identical, file for file (240, 128, 231, 172, 99, 87, 233, 116, 95, 70,
+  87). `bash ops/check-pins --source-only` was launched once on this tree in the background and died with
+  the shell that started it before printing, so NO local pins result is claimed here; the same gate ran on
+  this same commit in CI. CI on #109 (`gh pr checks 109`): core pass 1m58s, pins-source-only pass 1m4s.
+  MY OWN MUTANT, ONE SURVIVOR - RECORDABLE, NOT BLOCKING. Same class as B1/B2 (the named test asserts on
+  something other than the thing that breaks): comment out step 7 in build-la.sh -
+  `# python3 "$TILES/make_styles.py" --check --archive "$OUT"` - and the whole suite is `58 passed` exit 0,
+  test_the_build_recipe_checks_the_styles_against_the_archive included, although the recipe now runs no style
+  check at all. The test greps the recipe's TEXT (`assert "--check --archive" in recipe`), which a commented
+  -out invocation satisfies; its docstring's claim "anchored on the invocation, which is executed, never on a
+  comment" does not hold, and CLAUDE.md forbids anchoring a guard on a comment for exactly this reason. NOT
+  blocking: the mutant alone ships no wrong artifact - rv1's B2 subject is still caught by the
+  archive-anchored test (the "waters" mutant is red above), and `ops/publish-tiles` line 63 still runs
+  `check_pmtiles.py`. What it costs is the recipe-level style-vs-archive guard, which is the only executable
+  comparison against the REAL archive while `$SCENIC_LA_PMTILES` is unset in CI - STILL OPEN (7) already owns
+  that half. The fix is one line (search the recipe's non-comment lines only), and per CLAUDE.md's two-round
+  clause it is filed rather than bought as a third round; this paragraph is the gap on the record.
+  STILL OPEN (1)-(7) are known, unchanged and were not re-litigated. reviewer: agent/rv2-pr109, state: done,
+  queue/claimed/ -> queue/done/. Do not merge from here; the merge is the owner's or the human's.
