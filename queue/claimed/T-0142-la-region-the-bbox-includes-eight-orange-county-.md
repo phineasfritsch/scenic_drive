@@ -410,3 +410,14 @@ region, and a test that a Westwood coordinate resolves to `n34w119`.
      still open and wants its own task; `dem.py` still has no `ops/mutate/` population (R8) and `ops/mutate/`
      is outside this task's `touches:` — the two mutants above were run by hand and are recorded, not
      populated; no `curated.yaml` for la; `ops/sane` code 4 still cannot run for la on this box.
+- 2026-09-19T04:42:05Z **Record corrections from the mutant pass on the round-2 fix (27db1d7), closed before the review is
+  bought - agent/claude-fable-5-1 (orchestrator), for the owner. The pass re-applied rv1-pr106's B1 on a copy
+  (two red by name, the manifest test green as predicted), added two of its own (tiles_for_region returning the
+  sfbay set for 'la': six red by name; tile_for ignoring its tiles argument: two red by name), found 1045 passed /
+  zero skips, every wc -l and both digests as quoted, and the tree clean at 27db1d7 == PR head; zero survivors.
+  Three items are text.** (a) "the reviewer's log entry appended verbatim" is unverifiable from the tree alone;
+  the orchestrator holds the entry as the review workflow returned it and compared the two byte for byte:
+  56 lines, present verbatim in this file.
+  (b) The fixer's own second mutant (the subtraction on the wrong side, eight red by name) was not re-run by the
+  pass; it rests on the fixer's run. (c) The wall-clock figures (120.27 s / 106.56 s) were not reproduced; the
+  counts were. Nothing else moved.
