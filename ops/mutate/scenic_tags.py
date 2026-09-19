@@ -176,7 +176,14 @@ def restore(originals: dict) -> None:
         path.write_text(text, encoding="utf-8", newline="\n")
 
 
-def arm(population: list, originals: dict, expect_caught: bool, label: str) -> tuple:
+def arm(population: list, subjects: dict, expect_caught: bool, label: str) -> tuple:
+    """Run one population. `subjects` is the SUBJECT files only.
+
+    Only the subjects, deliberately: the first version restored every guarded file after each mutation,
+    which in `--prove-vacuity` put the emptied test files BACK after the first mutation and reported
+    21 of 22 caught with no tests present. The proof caught its own harness, which is the whole reason it
+    exists - a vacuity arm that cannot fail proves nothing.
+    """
     caught = missed = skipped = 0
     for name, path, old, new in population:
         if not apply(path, old, new):
@@ -184,7 +191,7 @@ def arm(population: list, originals: dict, expect_caught: bool, label: str) -> t
             skipped += 1
             continue
         code, failed = run_tests()
-        restore(originals)
+        restore(subjects)
         if failed:
             caught += 1
             print("  caught      %s  <- %s" % (name, failed[0]))
@@ -207,11 +214,12 @@ def main(argv: list | None = None) -> int:
         return 1
     assert_pristine(GUARDED)
     originals = {path: path.read_text(encoding="utf-8") for path in SUBJECTS + EMPTIED}
+    subjects = {path: originals[path] for path in SUBJECTS}
 
     if args.prove_vacuity:
         for path in EMPTIED:
             path.write_text("", encoding="utf-8", newline="\n")
-        caught, missed, skipped = arm(MUTATIONS, originals, False, "VACUITY")
+        caught, missed, skipped = arm(MUTATIONS, subjects, False, "VACUITY")
         restore(originals)
         assert_pristine(GUARDED)
         ok = caught == 0 and skipped == 0 and missed == len(MUTATIONS)
@@ -223,11 +231,11 @@ def main(argv: list | None = None) -> int:
         print("BASELINE is not green: exit %d, %s" % (code, failed), file=sys.stderr)
         return 1
     print("BASELINE exit=0, %d mutations, floor %d" % (len(MUTATIONS), MIN_MUTATIONS))
-    caught, missed, skipped = arm(MUTATIONS, originals, True, "MUTATIONS")
-    eq_caught, _eq_missed, eq_skipped = arm(EQUIVALENT, originals, False, "EQUIVALENT")
+    caught, missed, skipped = arm(MUTATIONS, subjects, True, "MUTATIONS")
+    eq_caught, _eq_missed, eq_skipped = arm(EQUIVALENT, subjects, False, "EQUIVALENT")
     km_caught = km_skipped = 0
     if KNOWN_MISSED:
-        km_caught, _km_missed, km_skipped = arm(KNOWN_MISSED, originals, False, "KNOWN_MISSED")
+        km_caught, _km_missed, km_skipped = arm(KNOWN_MISSED, subjects, False, "KNOWN_MISSED")
     assert_pristine(GUARDED)
     ok = (caught == len(MUTATIONS) and skipped == 0 and eq_caught == 0 and eq_skipped == 0
           and km_caught == 0 and km_skipped == 0)
