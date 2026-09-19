@@ -1,13 +1,13 @@
 ---
 id: T-0170
 title: a failed handoff should leave the drive usable - a copyable list of the roads, not only Try again
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-19T05:30:24Z
+lease_expires_at: 2026-09-19T10:30:24Z
+worktree: .worktrees/T-0170
+branch: task/T-0170
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/]
 pins_affected: []
@@ -41,3 +41,4 @@ claimed, and honours the type's rule when labelled as such - it lands here with 
 - 2026-09-19T00:57:37Z COPY ADDITION from the 18:13 panel's DRIVER TWO (grounded): the caption is honest about the map but silent
   about time, so the missing duration reads as forgotten, not withheld. One string on this task's touches:
   "No timing in this build." beside the road list (identifier home.timing) - honesty, not a number.
+- 2026-09-19T05:30:24Z claimed by agent/claude-opus-5; lease until 2026-09-19T10:30:24Z
