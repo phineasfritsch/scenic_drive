@@ -1,7 +1,7 @@
 ---
 id: T-0197
 title: pins - P-ATTR-01 (the Protomaps attribution visible on every map surface at every detent) and P-DATA-03 (PMTiles/corpus meta.region == the active region; built_at under 30 days) entered in pins/PINS.yaml with runs_on and assertions that run
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T12:02:22Z
@@ -11,7 +11,7 @@ branch: task/T-0197
 exclusive: []
 touches: [pins/PINS.yaml, services/tiles/, ops/lib/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/]
 pins_affected: [P-ATTR-01, P-DATA-03]
-reviewer: null
+reviewer: agent/rv2-pr119
 depends_on: [T-0165, T-0195, T-0178]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -440,3 +440,88 @@ surface P-ATTR-01 asserts over.
   `MapView(`; (4) the real artifact is only checked where SCENIC_LA_PMTILES is set - this box and
   ops/publish-tiles, never CI; (5) the 1 MiB wholeness floor in BasemapResolver is asserted by no test;
   (6) `bash ops/test` is not run on this box - CI's linux-core job is the evidence.
+
+### 2026-09-19T16:55:02Z - review round 2, agent/rv2-pr119: PASS - PR #119 signed off
+
+Reviewed at head 0388446700d65c1a16de23994d841c144afcd00c in a detached worktree at that sha
+(.worktrees/rv2-pr119, removed; `git status --short` empty in it throughout and in the main checkout).
+Nothing in the tree was changed by this review - testers find and do not fix.
+
+rv1-pr119 B1 CLOSED. `git fetch origin && git merge-base --is-ancestor origin/main HEAD` exits 0 at the
+moment of the check; origin/main is a43c569 and has NOT moved since the push, so the merged head under
+review carries main's whole gate set (cf78838 merged it, 0388446 re-ran the acceptance block on it).
+`gh pr view 119`: base=main, MERGEABLE, headRefOid 0388446.
+
+rv1-pr119 B2 CLOSED, and closed in the shape CLAUDE.md asks for. P-ATTR-01 gains limb (f): every
+`MapView(` and every `styleURL:` occurrence over every .swift file under apps/ios is at a site typed
+into the check - ScenicHomeScreen.swift(1) each - outside the one definition site MapAdapter/
+MapView.swift, which is pinned FIRST by `struct MapView` and `public init(styleURL` occurring exactly
+once, there and nowhere else. A WHITELIST over the population, not a blacklist of spellings. rv1's M1
+is replayed BY NAME as row 13 of --prove-red ("a second map surface with no credit", EXIT 1, reason
+named); M3 is closed as row 14 through limb (b)'s second population (every `static let` LINE under
+apps/ios whose value names OpenStreetMap is the one approved declaration).
+
+Bare at this head: `ops/lib/check-map-attribution` exit 0 over 21 .swift files, its summary naming the
+surface whitelist and the definition site; `--prove-red` 14/14 refused by name; check-pmtiles-
+provenance.py exit 0 over four in-process fixtures (the fourth naming `meta.region is None`), printing
+its own corpus-half gap; `python -m pytest services/tiles/tests -q` 69 tests, EXIT 0, no failures (the
+__pycache__ trees purged first; this pytest prints no trailing summary line on this box, so the count
+is the 69 progress dots at [100%] - the same reading rv1 recorded); check-safety-disclaimer exit 0 with
+P-SAFE-03's counts unchanged (isSafetyDisclaimerAcknowledged GatedHandoffButton.swift(2)
+ScenicHomeScreen.swift(4), the key (1)); `ops/check-pins --source-only` PINS ok=15 skipped=16 pending=1
+expired=0 failed=0; check-line-cap 90 Swift files, none over 300; check-exec-bits 83 files, 23 required,
+all modes correct; queue-check QUEUE OK (211 tasks); `wc -l` check-map-attribution 294, -lib 248,
+-mutations 121, check-pmtiles-provenance.py 151, scenic_tags.py 186, scenic_tags_mutations.py 255.
+`gh pr checks 119`: core pass 2m15s and pins-source-only pass 1m23s, run 35456079699, whose headSha is
+0388446 and whose conclusion is success - green on the exact head reviewed. ios-compile: `git diff
+--stat bf9a6f3 0388446 -- apps/ios` is EMPTY, so run 35442667891 still stands and no dispatch was bought.
+
+OWN ATTACK - four mutants on copies of apps/ios under the gitignored .build-rv2/ of the review worktree,
+driver .build-rv2/mutate.py, discarded with it. Three refused, one survived.
+ (1a) a SECOND bare `MapView(styleURL: style.url, ...)` added to ScenicHomeScreen.swift with no second
+      footer, the check UNCHANGED: EXIT 1, named - `styleURL:` occurs 2 time(s), expected 1.
+ (1b) the same tree against a copy of the check with SURFACE_SET raised to ScenicHomeScreen.swift(2):
+      still EXIT 1, same reason. So limb (f)'s count is not decorative and it is not the only guard on
+      the mount screen - limb (d)'s per-screen `styleURL:`==1 refuses a second mount there independently,
+      and (f) is what refuses one in any OTHER file (rv1's M1).
+ (2a) a wrapper view `MapSurface(styleURL:)` in DesignSystem forwarding to `MapView(styleURL:...)`,
+      mounted by a new FeatureScenicHome/RoutePreviewScreen.swift with no footer: EXIT 1, and refused by
+      the DEFINITION anchor, not the mount count - "`public init(styleURL` is not the one site
+      MapAdapter/MapView.swift(1); found: DesignSystem/MapSurface.swift(1) MapAdapter/MapView.swift(1)".
+      Pinning the definition first is doing real work: it closes the DesignSystem wrapper route.
+ (2b) SURVIVOR, DISCLOSED. A second renderer-mounting type declared INSIDE the one excluded file,
+      MapAdapter/MapView.swift - `public struct MapPanel: UIViewRepresentable { public let url: URL ...
+      MLNMapView(frame: .zero, styleURL: url) }` - mounted at a new FeatureScenicHome/
+      RoutePreviewScreen.swift as `MapPanel(url: style.url)` with no AttributionFooter: EXIT 0, the full
+      green summary over 22 files. Neither anchor of the definition site moves (`struct MapView` and
+      `public init(styleURL` each stay at one, because `struct MapPanel` and `init(url:` are different
+      spellings), and the call site carries neither `MapView(` nor `styleURL:`. This is a real map
+      surface on the Protomaps tiles with no credit line - but it is the blind spot the pin now
+      DISCLOSES BY NAME, in its own text and in the check's printed green summary: "a map mounted
+      through some wrapper that is not MapView(". Per the standing rule it is therefore RECORDABLE, not
+      blocking: what is blocking every round is a false or hidden credit passing green that the pin text
+      does NOT disclose, which is what rv1's B2 was and this is not. It is worth its own task all the
+      same, because the exclusion's stated justification ("a second `struct MapView`, or the definition
+      moved, would carry its own occurrences out of the counted population") pins against a second
+      MapView and not against a second map-mounting TYPE in that file; the cheap shape is to count
+      `MLNMapView(` over the tree against a tracked set (today MapView.swift(1)), or to pin
+      UIViewRepresentable conformances under MapAdapter. FILE IT AS ITS OWN TASK, beside T-0180.
+
+RECORDABLE, carried forward, none blocking and none a P-SAFE-* pin failing open:
+ - (2b) above: the second map-mounting type inside the excluded definition file. New task.
+ - P-DATA-03's CORPUS half is UNASSERTED and UNOWNED - etl.corpus stamps meta.region and nothing reads
+   it back against the active region; the check prints this itself. The ORCHESTRATOR must FILE a task;
+   it is not a review round, and this PR does not wait on it.
+ - P-ATTR-01's XCUITest half - T-0180 (`attribution.footer`, `home-attribution-footer` at max detent,
+   both themes, AX5). No reference image here: CLAUDE.md allows one only on a human-initiated commit
+   reviewed by a different agent.
+ - The blind spots the pin already names: the footer at `.opacity(0)` (rv1's M2, T-0180's half),
+   MapStyle.url's arms (A6), `MapStyle.allCases[0]`-shaped spellings (A4), `/* */` comments, Swift
+   outside apps/ios, a credit paraphrase that never names OpenStreetMap, a `static let` whose value sits
+   on the NEXT line.
+ - BasemapResolver's minimumArchiveBytes/isWhole has no executable test anywhere (ScenicApp declares no
+   test targets, no Apple toolchain on this box) - same T-0180 bucket.
+
+Per CLAUDE.md, a harness/pins PR merges after two review rounds with any remaining NON-safety finding
+filed as its own task and recorded here. Round 2 found no gate red and no undisclosed false credit.
+PASS. PR #119 is signed off; queue/claimed/ -> queue/done/. I did not merge it.
