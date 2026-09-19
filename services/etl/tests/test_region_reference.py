@@ -105,6 +105,22 @@ def test_a_reference_the_normaliser_would_refuse_is_refused_here_too():
         region_reference.dump({"not_a_term": [1.0]}, None)
 
 
+def test_the_same_values_under_a_different_key_order_are_the_SAME_reference():
+    """The digest names the POPULATION, so the order the terms were inserted in cannot change it.
+
+    `table_of` builds its keys in `RANKED_TERMS` order and `load` builds them in whatever order the file
+    lists them. A digest taken over insertion order would call one reference two, and the sha256 the Log
+    quotes would then identify the writer rather than the population it is supposed to name. Asserted on
+    `sinuosity`/`furniture` deliberately: they are the one adjacent pair whose `RANKED_TERMS` order is not
+    their sorted order, so a table of curvature and relief cannot see this at all.
+    """
+    built = region_reference.table_of({"sinuosity": {1: 1.0}, "furniture": {2: 2.0}})
+    assert list(built) == ["sinuosity", "furniture"], "RANKED_TERMS order, which is not sorted order"
+    reordered = {term: list(values) for term, values in sorted(built.items())}
+    assert list(reordered) == ["furniture", "sinuosity"]
+    assert region_reference.digest(reordered) == region_reference.digest(built)
+
+
 def test_a_reference_file_that_cannot_be_ranked_against_is_refused_on_the_way_in(tmp_path):
     """Refused where it is READ too: a four-hour region pass must not start against an empty curve."""
     path = tmp_path / "bad.json"
