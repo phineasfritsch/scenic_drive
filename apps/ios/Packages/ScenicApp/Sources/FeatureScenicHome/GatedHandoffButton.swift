@@ -40,25 +40,11 @@ struct GatedHandoffButton: View {
 
     var body: some View {
         Button {
-            // The gate. A `guard` rather than an `if`, so there is no branch after it in which the
-            // handoff is still reachable, and so the acknowledgement reads positively: `guard !ack` and
-            // `ack == false` are not this spelling and P-SAFE-03 refuses them as an absent gate.
-            guard isSafetyDisclaimerAcknowledged else {
-                onBlocked()
-                return
-            }
-            do {
-                try SkylineHandoff.open()
-                onFailure(nil)
-            } catch {
-                // `.public`: `HandoffError` carries a coordinate pair or a waypoint count, and the
-                // coordinates in it are the hard-coded route, never the user's location -
-                // `SkylineHandoff.directions()` passes `source: nil` precisely so the app never holds one.
-                // Redacting it would log a failure with the reason removed, which is the same defect as
-                // showing the user a Swift type name instead of a sentence.
-                Self.log.error("handoff refused: \(String(describing: error), privacy: .public)")
-                onFailure(Copy.handoffFailed)
-            }
+            // A closure literal and not the method reference `action: attempt`: under Swift 6 a
+            // `@MainActor` method reference does not convert to a nonisolated `() -> Void`, while a
+            // non-`@Sendable` literal inherits this view's isolation. The same spelling is used by the
+            // screen's retry, for the same reason.
+            attempt()
         } label: {
             Text(Copy.label)
                 .font(.headline)
@@ -71,6 +57,38 @@ struct GatedHandoffButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("home.openInAppleMaps")
+    }
+
+    /// One tap's worth of behaviour, with a name, so that it can be reached from somewhere other than
+    /// this button's own label.
+    ///
+    /// `HandoffFailureCard`'s *Try again* calls exactly this, on the value `ScenicHomeScreen` builds
+    /// once. The alternative - a retry that opened the handoff itself - would be a second way out of
+    /// the app, reached only after a failure, with the acknowledgement nowhere in front of it; the gate
+    /// would then hold on the first tap and not on the second, which is the shape of hole P-SAFE-03
+    /// exists to refuse. Extracting the action changes nothing the check decides: the guard still
+    /// dominates the one `SkylineHandoff.open(` in this file, and the screen still constructs this type
+    /// in one place.
+    func attempt() {
+        // The gate. A `guard` rather than an `if`, so there is no branch after it in which the
+        // handoff is still reachable, and so the acknowledgement reads positively: `guard !ack` and
+        // `ack == false` are not this spelling and P-SAFE-03 refuses them as an absent gate.
+        guard isSafetyDisclaimerAcknowledged else {
+            onBlocked()
+            return
+        }
+        do {
+            try SkylineHandoff.open()
+            onFailure(nil)
+        } catch {
+            // `.public`: `HandoffError` carries a coordinate pair or a waypoint count, and the
+            // coordinates in it are the hard-coded route, never the user's location -
+            // `SkylineHandoff.directions()` passes `source: nil` precisely so the app never holds one.
+            // Redacting it would log a failure with the reason removed, which is the same defect as
+            // showing the user a Swift type name instead of a sentence.
+            Self.log.error("handoff refused: \(String(describing: error), privacy: .public)")
+            onFailure(Copy.handoffFailed)
+        }
     }
 
     /// The button's own strings. Nested rather than a second file-scope type so the file still declares

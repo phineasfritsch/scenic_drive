@@ -69,22 +69,16 @@ public struct ScenicHomeScreen: View {
 
                 VStack(spacing: 12) {
                     if let handoffFailure {
-                        Text(handoffFailure)
-                            .font(.footnote)
-                            .foregroundStyle(DesignTokens.destructive)
-                            .multilineTextAlignment(.center)
+                        HandoffFailureCard(message: handoffFailure,
+                                           roadList: Copy.route,
+                                           onRetry: { gatedHandoff.attempt() })
                             .padding(.horizontal, 16)
-                            .accessibilityIdentifier("home.error")
                     }
 
                     conditions
 
-                    GatedHandoffButton(
-                        isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,
-                        onBlocked: { isShowingDisclaimer = true },
-                        onFailure: { handoffFailure = $0 }
-                    )
-                    .padding(.horizontal, 16)
+                    gatedHandoff
+                        .padding(.horizontal, 16)
 
                     // The credit for the tiles actually on screen, asked of the style itself. This is
                     // NOT the plan's `© OpenStreetMap contributors · Protomaps` line, because these are
@@ -102,6 +96,23 @@ public struct ScenicHomeScreen: View {
             })
             .accessibilityIdentifier("home.disclaimer")
         }
+    }
+
+    /// The one way out of this app, built in exactly one place.
+    ///
+    /// A named property rather than an expression inside `body` because two things need it: the button
+    /// itself, at the bottom of the stack, and the *Try again* on `HandoffFailureCard`, which calls
+    /// `attempt()` on this same value. T-0170's card deliberately does not own the retry - see its
+    /// `onRetry` - so that a retry after a failure goes through the acknowledgement gate exactly as the
+    /// first tap does. One construction, one guard, one `SkylineHandoff.open(` in the app; that triple
+    /// is what `ops/lib/check-safety-disclaimer` (P-SAFE-03) decides, and it is what this property keeps
+    /// true while two call sites share the behaviour.
+    private var gatedHandoff: GatedHandoffButton {
+        GatedHandoffButton(
+            isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,
+            onBlocked: { isShowingDisclaimer = true },
+            onFailure: { handoffFailure = $0 }
+        )
     }
 
     /// The drive's name, the roads it runs, and the one caption, in a band on `bg` above the map
@@ -134,6 +145,8 @@ public struct ScenicHomeScreen: View {
                 .foregroundStyle(DesignTokens.fgMuted)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("home.route")
+
+            DriveFacts()
 
             Text(Copy.mapCaption)
                 .font(.subheadline)
