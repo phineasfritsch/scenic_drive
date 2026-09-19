@@ -6,8 +6,8 @@
 # Both stages are pinned BY DIGEST for the reason services/etl/Dockerfile gives: a tag moves, and a moving
 # toolchain is a silent change no diff shows.
 #
-#   docker build -t scenic-routing:t0031 services/routing
-#   docker run --rm scenic-routing:t0031 --config /app/config.yml --graph /graph --mode import --osm /data/x.pbf
+#   docker build -t scenic-routing:t0213 services/routing
+#   docker run --rm scenic-routing:t0213 --config /app/config.yml --graph /graph --mode import --osm /data/x.pbf
 #
 FROM maven:3.9-eclipse-temurin-21@sha256:c2a2c58516d160f43b50f12baa427ca86989e0bc942609e04aff61da5d9a7d74 AS build
 WORKDIR /src
