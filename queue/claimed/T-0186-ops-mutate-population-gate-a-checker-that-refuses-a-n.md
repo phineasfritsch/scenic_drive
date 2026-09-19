@@ -128,3 +128,52 @@ blocking class to a fix pass in flight.
   TRACEBACK out of an ops entry point (T-0087's class). The import moved inside `prove_red` and a missing
   sibling is now this gate's own refusal, exit 2 with a sentence. The measured line count above was re-taken
   after that correction (282, not the 278 the pre-correction file had).
+- 2026-09-19T09:55Z FINAL PRE-REVIEW COMMIT. The whole acceptance block re-run BARE on this tree at 270c8a7
+  and re-quoted, nothing piped into a gate's exit status (the `gate | tail && next` trap):
+      $ python ops/lib/check-mutate-population.py                                        EXIT=0
+      P-PROC-06: 71 modules, 22 covered by 10 populations, 25 allowlisted, 0 added by this branch
+        DEBT (informational, never red): 24 existing module(s) with no population and no allowlist entry
+      P-PROC-06: every added module is covered or allowlisted; the floor of 22 holds
+      $ python ops/lib/check-mutate-population.py --prove-red                             EXIT=0
+      P-PROC-06 --prove-red: 8 cases against a copy of the tree at ...\.worktrees\T-0186
+        case                                         expect  got  verdict
+        control: the tree as committed                    0    0  ok
+        a population file deleted (geometry.py)           2    2  ok
+        a driver narrows SUBJECT_MODULES                  1    1  ok
+        a new module added with no population             1    1  ok
+        a new module that IS allowlisted                  0    0  ok
+        the allowlist widened to a covered module         2    2  ok
+        an allowlist entry with no reason                 2    2  ok
+        P-PROC-06 deleted from PINS.yaml                  2    2  ok
+      P-PROC-06 --prove-red: all 8 cases behaved as stated
+      $ bash ops/check-pins --source-only                                                 EXIT=0
+      PINS ok=13 skipped=15 pending=1 expired=0 failed=0 tier=linux source-only
+      $ bash ops/lib/check-line-cap                                                       EXIT=0
+      P-SRC-02: 78 Swift files tracked (Sources=27, Tests=38, apps/ios=13), none over 300 lines
+      $ bash ops/lib/check-exec-bits                                                      EXIT=0
+      P-OPS-01: 76 files, 23 required present, all modes correct
+      $ bash ops/queue-check                                                              EXIT=0
+      QUEUE OK (199 tasks)
+      $ git ls-files -s <the three new files>
+      100644 ops/lib/check-mutate-population.py   100644 ops/lib/mutate-population-allowlist.json
+      100644 ops/lib/mutate_population_red.py         (all three DATA to check-exec-bits: .py and .json
+                                                       under ops/ are 100644 and invoked as an argument to
+                                                       an interpreter, never as ./path - T-0176's ruling)
+      $ awk 'END{print NR}'   282 / 79 / 30 lines - all three under the 300-line cap
+  P-PROC-06 is anchor: process, so `--source-only` SKIPS it (15 skipped) rather than running it; the
+  assertion above is the evidence, exactly as P-PROC-05's --prove-floor is for its pin.
+  The two drivers that gained SUBJECT_MODULES and run on this box still pass, after the commit (both compare
+  their subjects to `git show HEAD:`, which is why they are run here and not before it):
+      $ python ops/mutate/scenic_tags.py    EXIT=0   MUTATE OK  caught=25/25 equivalent_caught=0
+      $ python ops/mutate/geometry.py       EXIT=0   POPULATION 12 mutations over 6 classes (floor 12),
+                                                     4 equivalent (floor 4); every one killed by the test
+                                                     that names it
+  STILL OPEN, for the reviewer rather than hidden: (1) the 24 DEBT modules have no population - score.py,
+  normalise.py, curvature.py, terrain.py, dem.py, landcover.py, assemble.py and the rest, plus
+  StraightLineDistance.swift which is already T-0199. This gate makes the list printable and stops it
+  growing; it does not shrink it, and one task per module is the honest way to. (2) The gate cannot decide
+  numeric vs non-numeric: adding `score.py` to the allowlist with a plausible reason passes, and only a
+  reviewer reading the diff of a 25-entry data file catches it (ruling R5). (3) The added-module set is a
+  git diff against the merge base with origin/main, so a module added on a stacked branch whose base is
+  another task branch is only seen once that base reaches main (T-0113's tower, the same blind spot every
+  diff-scoped gate here has).
