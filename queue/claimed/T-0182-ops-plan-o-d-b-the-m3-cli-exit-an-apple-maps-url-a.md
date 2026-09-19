@@ -324,3 +324,127 @@ the owner names - nothing in the plan or any Log records it (FOR THE HUMAN).
       CLAUDE.md, so it is stated here in full rather than as a re-run. The underlying wart is real and is a
       RECORDABLE: P-SAFE-05's assertion runs `swift test` with NO `--scratch-path`, which CLAUDE.md requires
       of every swift build on this shared box, so the pin is racy against any other agent building here.
+- 2026-09-19T20:54:04Z THE ACCEPTANCE BLOCK, WHOLE, ON THE MERGED HEAD, by agent/claude-opus-5. `git fetch origin` and
+  `git merge --no-edit origin/main` were the LAST steps before the push, and main moved WHILE they ran: the
+  first merge took 2fce36b (T-0217's extractadapter work, T-0224 claimed) and conflicted in
+  ops/lib/check-mutate-population.py - main added `extractadapter.py` to DRIVERS, this branch added
+  `plan.py`, and the resolution is the UNION of the two, alphabetical, with both sides' COVERED_FLOOR
+  entries kept (the floor reads 32 now, was 30 on main and 30+plan's 7 here). `git merge-base --is-ancestor`
+  then still exited 1, because origin/main had become 6f20c12 (T-0227, T-0228 filed) in the minutes since
+  the fetch - the PR #119 lesson, live - so it was fetched and merged again. HEAD's second parent is
+  6f20c12 and the block below was measured after that merge, not before.
+
+      $ swift build --scratch-path .build/T0182
+      Build complete! (1.83s)                                             exit 0
+      (the root package including the new executable target ScenicPlanCLI / product scenic-plan)
+
+      $ swift test --scratch-path .build/T0182
+      Test run with 315 tests in 42 suites passed after 0.345 seconds.    exit 0
+      (the whole Linux suite; main's own linux-core count at 1303/0 is xcodebuild's, not this one -
+      315 here is swift-testing's test count, and it LOSES nothing: 299 on the branch point plus this
+      task's 16)
+
+      $ swift test --scratch-path .build/T0182 --filter "ScenicPlannerMetaTests|ScenicPlanGoldenTests|LambdaCustomModelParityTests"
+      Suite "Scenic planner meta-tests" passed after 0.003 seconds.
+      Suite "Lambda custom model parity" passed after 0.008 seconds.
+      Suite "Scenic plan golden" passed after 0.075 seconds.
+      Test run with 16 tests in 3 suites passed after 0.076 seconds.      exit 0
+      THE META-TESTS BY NAME - "a solver that answers lambda 0 fails actually different", "a solver that
+      answers lambda 8 fails the budget ceiling", "a route with no way ids is refused, not waved through as
+      different", "a different route inside the ceiling is planned, through the real bisection". Red-first
+      for the first three is quoted in the entry above, each guard removed from ScenicPlanner.plan.
+      THE GOLDEN BY NAME - Suite "Scenic plan golden": "the recorded canyon pair plans at lambda 7.75
+      inside the ceiling", "the report says what the run said", "the table is one row per road under one
+      score, over the real path details", "the handoff URL pins nine decision points along the recorded
+      route", "the pin cap ScenicKit picks by is the cap Handoff enforces", "T-0213's own pair is refused
+      because the canyon has one road", "an unrecorded lambda is refused rather than answered with a
+      neighbour".
+
+      $ bash ops/plan
+      usage: ops/plan <origin lat,lon> <destination lat,lon> <extra-minutes> (--router <url> | --recorded <dir>) [--max-evaluations N]
+      example: ops/plan 34.0392,-118.5836 34.0944,-118.6019 25 --router http://127.0.0.1:8989
+                                                                          exit 2
+
+      $ SCENIC_PLAN_SCRATCH=.build/T0182 bash ops/plan 34.0944,-118.6013 34.0365,-118.6870 25 --recorded Tests/Fixtures/t0182/plan-pair
+      ROUTER recorded plan-pair
+      PLAN origin=34.09440,-118.60130 destination=34.03650,-118.68700 budget=25m00s
+      LAMBDA 7.75 evaluations=6 used-budget=true monotonicity-violated=false
+      ETA fastest=17m56s returned=37m33s ceiling=42m56s distance=33068.9m
+      OVERLAP jaccard=0.112 required<0.600
+      TABLE rows=58 columns=way,highway,scenic_score,metres,seconds
+      WAYPOINTS 9 of max 9
+      URL https://maps.apple.com/directions?source=34.09440,-118.60130&...&mode=driving   exit 0
+      (67 lines of stdout, identical to the 18:30 recording above, re-run here on the merged head: the
+      ceiling holds with 5m23s to spare and the returned route shares 11% of its edges with the fastest)
+
+      $ python ops/lib/check-mutate-population.py
+      P-PROC-06: every added module is covered or allowlisted; the floor of 32 holds   exit 0
+
+      $ bash ops/check-pins --source-only
+      PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only         exit 0
+      (the Linux compile gate over Package.swift and P-SRC-01's import ban over Sources/, which now reads
+      Sources/ScenicPlanCLI as well; P-PLAT-01's iOS("18.4") grep is among the 15)
+
+      $ bash ops/lib/check-line-cap
+      P-SRC-02: 108 Swift files tracked (Sources=42, Tests=45, apps/ios=21), none over 300 lines   exit 0
+
+      $ bash ops/lib/check-exec-bits
+      P-OPS-01: 87 files, 23 required present, all modes correct                        exit 0
+      (ops/plan is 100755 in the index - `git ls-files -s ops/plan` - and ops/mutate/plan.py is 100644)
+
+      $ bash ops/queue-check
+      QUEUE OK (221 tasks)                                                              exit 0
+
+      $ git merge-base --is-ancestor origin/main HEAD ; echo $?
+      0
+
+      $ wc -l <every file this branch touches>   (git diff --name-only origin/main HEAD, 40 paths)
+          56 Package.swift
+          93 Sources/ScenicKit/Plan/LambdaCustomModel.swift
+          55 Sources/ScenicKit/Plan/PlanFailure.swift
+         130 Sources/ScenicKit/Plan/PlanTable.swift
+          39 Sources/ScenicKit/Plan/PlanWaypoints.swift
+          55 Sources/ScenicKit/Plan/RecordedRouteSource.swift
+          53 Sources/ScenicKit/Plan/RouteDifference.swift
+         138 Sources/ScenicKit/Plan/RoutePath.swift
+          26 Sources/ScenicKit/Plan/RouteSource.swift
+         107 Sources/ScenicKit/Plan/ScenicPlan.swift
+         102 Sources/ScenicKit/Plan/ScenicPlanner.swift
+         128 Sources/ScenicPlanCLI/GraphHopperRouteSource.swift
+         107 Sources/ScenicPlanCLI/PlanArguments.swift
+          72 Sources/ScenicPlanCLI/main.swift
+          11 Tests/Fixtures/custom-model/PROVENANCE.txt
+          20 Tests/Fixtures/custom-model/lambda-0.json
+          20 Tests/Fixtures/custom-model/lambda-1.json
+          20 Tests/Fixtures/custom-model/lambda-2.5.json
+          20 Tests/Fixtures/custom-model/lambda-7.75.json
+          20 Tests/Fixtures/custom-model/lambda-8.json
+         214 Tests/Fixtures/t0182-recorder/Recorder.java
+          32 Tests/Fixtures/t0182/plan-pair/fastest.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-0.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-4.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-6.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-7.5.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-7.75.json
+          32 Tests/Fixtures/t0182/plan-pair/lambda-7.json
+          32 Tests/Fixtures/t0182/t0213-pair/fastest.json
+          32 Tests/Fixtures/t0182/t0213-pair/lambda-0.json
+         142 Tests/HandoffTests/ScenicPlanGoldenTests.swift
+          91 Tests/ScenicKitTests/LambdaCustomModelParityTests.swift
+         156 Tests/ScenicKitTests/ScenicPlannerMetaTests.swift
+         300 ops/lib/check-mutate-population.py
+          38 ops/lib/mutate-population-allowlist.json
+         228 ops/mutate/plan.py
+          40 ops/plan
+           1 queue/LOCKS/root-package.lock
+         295 services/api/src/customModel.ts
+             450 queue/claimed/T-0182-ops-plan-o-d-b-the-m3-cli-exit-an-apple-maps-url-a.md (this
+      file, as committed with this entry - the one measured file this commit changes, re-measured here)
+
+  ONE THING THE BLOCK SAYS THAT NOBODY SHOULD READ PAST: ops/lib/check-mutate-population.py is now EXACTLY
+  300 lines - the cap, not over it: 296 on origin/main, 298 on this branch before the merge, 300 merged,
+  because the union keeps both sides' COVERED_FLOOR entries and a DRIVERS tuple that wraps to three lines.
+  It is green today and the next line added to that file is a refusal; a RECORDABLE for whoever touches it
+  next, not a defect of this branch.
+
+  `git status --short` is empty. Pushing now.
