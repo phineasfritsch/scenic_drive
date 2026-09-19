@@ -69,6 +69,11 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 STRIP = ROOT / "Sources" / "ScenicKit" / "Hazards" / "HazardStrip.swift"
 FLAG = ROOT / "Sources" / "ScenicKit" / "Hazards" / "HazardFlag.swift"
+
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
+SUBJECT_MODULES = ("Sources/ScenicKit/Hazards/HazardStrip.swift",
+                   "Sources/ScenicKit/Hazards/HazardFlag.swift")
+
 TESTS = ROOT / "Tests" / "ScenicKitTests" / "HazardStripTests.swift"
 OMISSION_TESTS = ROOT / "Tests" / "ScenicKitTests" / "HazardStripOmissionTests.swift"
 # Every test file `--prove-vacuity` empties. `subject_test_files()` greps for the real set each run and the

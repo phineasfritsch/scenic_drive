@@ -44,6 +44,9 @@ TAGWRITER_TESTS = ETL / "tests" / "test_tagwriter.py"
 SCENECHECK_TESTS = ETL / "tests" / "test_scenecheck.py"
 EMPTIED = (TAGWRITER_TESTS, SCENECHECK_TESTS)
 SUBJECTS = (TAGWRITER, SCENECHECK)
+
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
+SUBJECT_MODULES = ("services/etl/etl/tagwriter.py", "services/etl/etl/scenecheck.py")
 GUARDED = SUBJECTS + EMPTIED + (pathlib.Path(__file__).resolve(),)
 
 # Anchors reused by more than one mutation, verbatim from the subjects.

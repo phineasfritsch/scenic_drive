@@ -36,6 +36,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SIGN = ROOT / "Sources" / "ScenicKit" / "Guidance" / "GuidanceSign.swift"
 MAP = ROOT / "Sources" / "ScenicKit" / "Guidance" / "GuidanceMapping.swift"
 TESTS = ROOT / "Tests" / "ScenicKitTests" / "GuidanceMappingTests.swift"
+
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
+SUBJECT_MODULES = ("Sources/ScenicKit/Guidance/GuidanceSign.swift",
+                   "Sources/ScenicKit/Guidance/GuidanceMapping.swift")
 SCRATCH = ".artifacts/mutate-guidance"   # under .artifacts/, which .gitignore covers; .build-mutate-guidance did not
 
 EMPTY_SUITE = ('import Testing\n'

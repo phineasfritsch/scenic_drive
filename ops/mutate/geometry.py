@@ -51,6 +51,12 @@ from geometry_mutations import (INDEXED, MIN_MUTATIONS, MUTATIONS, PAIR_LOOP, PR
                                 TEST_FILES)
 from geometry_tree import COPY, apply, fingerprint, fingerprint_of_pristine, run_tests
 
+# What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06). The three
+# subjects were stated only in this file's docstring, which a gate may not anchor on (CLAUDE.md, T-0186 R3);
+# geometry_mutations.py holds them as paths relative to the COPY the run builds.
+SUBJECT_MODULES = ("services/etl/etl/sinuosity.py", "services/etl/etl/proximity.py",
+                   "services/etl/etl/snap.py")
+
 # Round 3's ruling, kept out of MUTATIONS' way so `--non-example` can run the exact edit that was written
 # into the PR #94 task file as settled fact. It is also in MUTATIONS, in the interior-interior class.
 NON_EXAMPLE = ("round 3: drop the pairs interior to both polylines - 'equivalent in the plane'",
