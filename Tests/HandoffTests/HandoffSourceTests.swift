@@ -124,7 +124,14 @@ struct HandoffSourceTests {
         // number. It names `Coordinate`, `Geo`, `SkylineRoute`, `Array`, `Double` and `Int` and
         // nothing else. This check went red on it by name, along with `Geo` below, which is the list
         // doing its job a second time.
-        "AppleMapsDirections", "HandoffError", "Mode", "SkylineRoute", "StraightLineDistance",
+        //
+        // `SantaMonicaMountainsRoute` is T-0178's LA drive - the owner's loop, Sunset to PCH to
+        // Topanga to Mulholland to Westwood - held the way `SkylineRoute` holds the Bay Area one. It
+        // names `Coordinate` and numeric literals and nothing else. `HandoffDrive` is which of the
+        // two the screen is showing; it names both route types, `Coordinate`, `Array`, `String`,
+        // `CaseIterable` and `Sendable`. This check went red on both by name before it went green.
+        "AppleMapsDirections", "HandoffDrive", "HandoffError", "Mode", "SantaMonicaMountainsRoute",
+        "SkylineRoute", "StraightLineDistance",
         // modules
         "Foundation", "ScenicKit",
         // ScenicKit
