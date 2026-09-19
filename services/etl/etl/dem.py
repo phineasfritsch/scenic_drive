@@ -14,12 +14,17 @@ from __future__ import annotations
 
 import math
 import subprocess
+from collections.abc import Collection, Iterable
 from pathlib import Path
+
+from . import region as rg
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUTS = ROOT / "inputs"
 
-# The eight tiles the sfbay bbox needs. n37w124 is deliberately absent: it is entirely ocean and USGS
+# The eight tiles the sfbay bbox needs, checked by hand when sfbay was the only region. It is the GOLDEN SET
+# for the derivation (`test_the_sfbay_golden_set_is_exactly_what_the_derivation_serves`) and no longer what
+# `tile_for` gates on - see `tiles_for_region`. n37w124 is deliberately absent: it is entirely ocean and USGS
 # returns 404 for it. A point there has NO elevation, which is not the same as 0 m - zero is sea level, a
 # real elevation, and would flatten every coastal way's relief.
 TILES = frozenset({
@@ -27,6 +32,11 @@ TILES = frozenset({
     "n38w122", "n38w123", "n38w124",
     "n39w122", "n39w123", "n39w124",
 })
+
+# Tiles a bbox legitimately touches that nobody serves. USGS 404s n37w124 because it is entirely ocean;
+# `tiles_for_bbox` cannot know that and says so, so the judgement lives here, once, with its reason - not
+# once per region in a hand-typed list, which is the defect this module already has a docstring about.
+UNSERVED = frozenset({"n37w124"})
 
 
 def tile_name(lat: float, lon: float) -> str:
@@ -42,10 +52,10 @@ def tile_name(lat: float, lon: float) -> str:
 def tiles_for_bbox(min_lon: float, min_lat: float, max_lon: float, max_lat: float) -> frozenset[str]:
     """Every 3DEP tile a bbox touches, derived rather than typed.
 
-    TILES above is a module constant listing sfbay's eight, so `tile_for` returns None for every point in
-    any other region and every elevation there is absent - not wrong, ABSENT, which silently zeroes the
-    terrain terms of the scenic score. A second region ([[T-0107]]) therefore cannot work until the tile set
-    comes from the region's own bbox, and a hand-typed list for each new region is the same defect deferred.
+    TILES above listed sfbay's eight and `tile_for` GATED on it, so `tile_for` returned None for every point
+    in any other region and every elevation there was absent - not wrong, ABSENT, which silently zeroes the
+    terrain terms of the scenic score. [[T-0142]] wired this derivation into that decision via
+    `tiles_for_region`; a hand-typed list for each new region would have been the same defect deferred.
 
     Walks the integer squares the bbox spans rather than sampling its corners: a bbox wider than one degree
     has interior squares that no corner is in, and a corner-only implementation would miss them and look
@@ -77,33 +87,80 @@ NODATA_BELOW_M = -1000.0
 IMPLAUSIBLE_ABOVE_M = 5000.0
 
 
-def tile_for(lat: float, lon: float) -> str | None:
+def tiles_for_region(region_id: str, root: Path | None = None) -> frozenset[str]:
+    """The tiles one region actually has: derived from ITS OWN bbox, minus the ones nobody serves.
+
+    This is what "the active region" means to `tile_for`. It reads the region's bbox out of
+    regions/<id>/region.json rather than taking four numbers, so a bbox that moves moves the tile set with
+    it and the two cannot drift apart - which is the same failure `counts_from` exists to stop.
+    """
+    b = rg.load(region_id, root=root).bbox
+    return tiles_for_bbox(b.min_lon, b.min_lat, b.max_lon, b.max_lat) - UNSERVED
+
+
+def region_ids(root: Path | None = None) -> list[str]:
+    base = root or rg.REGIONS
+    return sorted(p.name for p in base.iterdir() if (p / "region.json").is_file()) if base.is_dir() else []
+
+
+def served_tiles(root: Path | None = None) -> frozenset[str]:
+    """Every tile every region we serve needs - the answer when the caller names no region.
+
+    The old default was sfbay's constant, so a pipeline run over any other region got no tile for any point
+    and scored real roads as flat ground. A default that can produce silent absence is the defect, so the
+    default is now the union: a caller that forgets to name its region gets that region's terrain anyway,
+    and a caller that means "only this region" says so by passing `tiles`.
+
+    Cached because `group_by_tile` asks per point and a region.json read per point would be thousands of
+    file reads per way. Keyed by root so a test with its own regions directory is not served the real one.
+    """
+    key = str((root or rg.REGIONS).resolve())
+    hit = _SERVED_CACHE.get(key)
+    if hit is None:
+        hit = frozenset().union(*[tiles_for_region(i, root=root) for i in region_ids(root)])
+        _SERVED_CACHE[key] = hit
+    return hit
+
+
+_SERVED_CACHE: dict[str, frozenset[str]] = {}
+
+
+def tile_for(lat: float, lon: float, tiles: Collection[str] | None = None) -> str | None:
     """The 3DEP tile covering a point, or None if we do not have one.
 
     A tile nXXwYYY covers latitude [XX-1, XX] and longitude [-YYY, -YYY+1], so the name comes from the
     NORTH-WEST corner: ceil the latitude, ceil the absolute longitude. Getting this backwards produces a
     name that exists, for the wrong square, and every elevation is then plausibly wrong rather than missing.
+
+    `tiles` is the ACTIVE region's set, normally `tiles_for_region(region_id)`; `None` means every region we
+    serve. Either way the flag semantics are unchanged: a point with no tile is None, which is absence, and
+    absence is never 0 m.
     """
     if lat != lat or lon != lon:          # NaN
         return None
     name = f"n{math.ceil(lat):02d}w{math.ceil(abs(lon)):03d}"
-    return name if name in TILES else None
+    have = served_tiles() if tiles is None else tiles
+    return name if name in have else None
 
 
 def tile_path(name: str) -> Path:
     return INPUTS / f"3dep-{name}.tif"
 
 
-def group_by_tile(points: list[tuple[float, float]]) -> dict[str | None, list[int]]:
+def group_by_tile(points: list[tuple[float, float]],
+                  tiles: Collection[str] | None = None) -> dict[str | None, list[int]]:
     """Point indices grouped by the tile that covers them, preserving order within each group.
 
     Indices rather than coordinates, because the caller needs to put the answers back in the original order -
     a sampler that returns values in tile order and lets someone else line them up is a sampler that will
     eventually line them up wrong.
+
+    The active tile set is resolved ONCE here rather than per point: `served_tiles` reads region.json.
     """
+    have = served_tiles() if tiles is None else tiles
     groups: dict[str | None, list[int]] = {}
     for i, (lat, lon) in enumerate(points):
-        groups.setdefault(tile_for(lat, lon), []).append(i)
+        groups.setdefault(tile_for(lat, lon, have), []).append(i)
     return groups
 
 
@@ -145,10 +202,15 @@ def sample_tile(name: str, points: list[tuple[float, float]],
     return parse_values(proc.stdout, len(points))
 
 
-def sample(points: list[tuple[float, float]], runner=None) -> list[float | None]:
-    """Elevation for every point, in the order given. Points with no tile come back as None."""
+def sample(points: list[tuple[float, float]], runner=None,
+           tiles: Collection[str] | None = None) -> list[float | None]:
+    """Elevation for every point, in the order given. Points with no tile come back as None.
+
+    `tiles` is the active region's set; see `tile_for`. It has to be threaded all the way down here, because
+    a region-aware `tile_for` that the pipeline's actual entry point cannot reach is a fix on paper only.
+    """
     out: list[float | None] = [None] * len(points)
-    for name, indices in group_by_tile(points).items():
+    for name, indices in group_by_tile(points, tiles=tiles).items():
         if name is None:
             continue
         values = sample_tile(name, [points[i] for i in indices], runner=runner)
@@ -173,7 +235,8 @@ def neighbourhood(lat: float, lon: float) -> list[tuple[float, float]]:
             for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
 
 
-def sample_smoothed(points: list[tuple[float, float]], runner=None) -> list[float | None]:
+def sample_smoothed(points: list[tuple[float, float]], runner=None,
+                    tiles: Collection[str] | None = None) -> list[float | None]:
     """Elevation with the 3x3 smoothing the brief asks for, applied at sample time.
 
     `terrain.smooth3x3` smooths a GRID; this is the same operation for scattered points, which is what a road
@@ -187,7 +250,7 @@ def sample_smoothed(points: list[tuple[float, float]], runner=None) -> list[floa
     expanded: list[tuple[float, float]] = []
     for lat, lon in points:
         expanded.extend(neighbourhood(lat, lon))
-    values = sample(expanded, runner=runner)
+    values = sample(expanded, runner=runner, tiles=tiles)
     out: list[float | None] = []
     for i in range(len(points)):
         window = [v for v in values[i * 9:(i + 1) * 9] if v is not None]
