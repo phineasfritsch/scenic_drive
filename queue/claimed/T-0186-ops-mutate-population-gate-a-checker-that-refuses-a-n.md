@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-19T13:09:33Z
 worktree: .worktrees/T-0186
 branch: task/T-0186
 exclusive: []
-touches: [ops/mutate/, ops/lib/, pins/PINS.yaml, services/etl/tests/]
+touches: [ops/mutate/, ops/lib/, pins/PINS.yaml, services/etl/tests/, .github/workflows/linux-core.yml]
 pins_affected: []
 reviewer: null
 depends_on: [T-0176, T-0146]
@@ -177,3 +177,121 @@ blocking class to a fix pass in flight.
   git diff against the merge base with origin/main, so a module added on a stacked branch whose base is
   another task branch is only seen once that base reaches main (T-0113's tower, the same blind spot every
   diff-scoped gate here has).
+- 2026-09-19T09:57:22Z PRE-REVIEW MUTANT PASS - five findings, ruled here BEFORE the code that closes them.
+  B0 THE GATE CANNOT BE GREEN ON ANY PULL REQUEST, and CI says so: the `core` job on PR #114 is RED with
+  `P-PROC-06: no merge base with origin/main or main`. `.github/workflows/linux-core.yml` checks out at
+  actions/checkout@v4's default depth 1 in both jobs; a one-commit clone has no merge base with anything, so
+  `added_modules()` refuses (exit 2) on every PR run, forever. The fix is `fetch-depth: 0` on the checkout of
+  the job that RUNS ops/check-pins - the `core` job - and nothing else: pins-source-only skips this pin
+  (anchor: process), so deepening its checkout would buy nothing and slow every push. REJECTED alternative:
+  the gate fetching its own base (`git fetch --deepen` / `git fetch origin main`) when the merge base is
+  missing. A check never mutates the repo it is reading - that is ops/sane's rule and the reason this gate
+  reads every driver as TEXT rather than importing it; a checker that writes refs would also turn a red
+  network into a green gate. Instead the refusal NAMES the fix ("shallow clone: set fetch-depth: 0"), so the
+  next clone that lands here is fixed at its source rather than worked around inside the check. This WIDENS
+  touches: to `.github/workflows/linux-core.yml` - one line in one job, the smallest change that gives the
+  gate the merge base it already refuses without.
+  S1 A DECLARATION IS NOT COVERAGE. `SUBJECT_MODULES` is bound to nothing: appending one string to any
+  driver's tuple covers a brand-new numeric module with ZERO mutations written and the gate goes green - the
+  exact dishonesty the allowlist's `reason` field exists to expose, available for free on the other side of
+  the ledger. FIX: every declared subject must also be TARGETED. The subject's repo-relative path, or its
+  basename, must occur in the CODE of the driver's own family (`ops/mutate/<stem>*.py`) with COMMENTS,
+  DOCSTRINGS and the `SUBJECT_MODULES` declaration itself removed - comments and docstrings because CLAUDE.md
+  forbids anchoring on them, the declaration because it is the claim under test. Measured on this tree first:
+  all 22 subjects are targeted after stripping, 21 by basename in a mutation table (geometry_mutations.py,
+  budget_paths.py, gates_corpus.py) and the rest in the driver's own mutation text; geometry_probe.py is
+  excluded from geometry.py's family for PROBES' original reason. Still TEXTUAL - no driver is imported.
+  S2 THE DIFF ARM HAS NEVER BEEN SEEN RED. All 8 --prove-red cases pass `--added`, so `added_modules()` is
+  never executed by the proof: `return []` in it passes all 8 while the gate stops seeing anything. B0 is the
+  same blindness in production - a live arm nothing proves. FIX: `ops/lib/mutate_population_git.py`, three
+  cases that run the REAL git arm in a throwaway `git clone --no-hardlinks` under the gitignored
+  `.build-mutate-population/`, with a real commit on top: one RED (an uncovered module added), one GREEN (the
+  same module added together with its allowlist entry).
+  S3 A MOVE IS AN R, NOT AN A. A module moved INTO a root from outside it (services/etl/mutate/, apps/, a
+  scratch dir) is a rename to git, and `--diff-filter=A --name-only` never names the destination, so the
+  cheapest way past this gate is to write the module elsewhere and move it. FIX: `--no-renames` on the diff,
+  and the third git-arm case moves `services/etl/mutate/byway_route_key.py` into `services/etl/etl/` and
+  must refuse it by name.
+  S4 SUBPACKAGES. `services/etl/etl` was globbed non-recursively on ruling R2's "there are no subpackages",
+  which is true TODAY and is not a property anyone maintains; `Sources/` is already recursive. FIX: recursive
+  both sides, with a case that adds `services/etl/etl/sub/deep.py` and must refuse it (non-recursive, that
+  module is not even in `known` and the gate reports a clean sheet).
+  RECORDED, NOT FIXED. `services/etl/mutate/byway_route_key.py` is a population-shaped file OUTSIDE
+  ops/mutate/ while `services/etl/etl/byway_route_key.py` is listed as DEBT - i.e. as having no population.
+  Ruled: it is a MUTATION POPULATION in the wrong directory, not a module of the ETL package. It is not under
+  `services/etl/etl/`, so it is not a subject this gate knows, and it declares no `SUBJECT_MODULES`, so it
+  cannot be read as coverage either; CLAUDE.md says a population lives under `ops/mutate/`. Moving it is a
+  real edit to a file this task does not own and would silently change what the DEBT table says, so it is
+  NOT done here: it stays DEBT and the move is STILL OPEN (4) for its own task. This gate is why the
+  contradiction is visible at all.
+- 2026-09-19T10:12:00Z THE FIVE CLOSED IN ONE COMMIT, each arm RED BEFORE GREEN. `.build-t0186/
+  prove_discrimination.py` (gitignored scratch) backs each fix out of the SOURCE one at a time and runs the
+  shipped `--prove-red`; the case that binds the arm goes NOT DISCRIMINATING and the proof exits 1:
+      S1 targeting removed          a driver DECLARES a module it never mutates       2  0  NOT DISCRIMINATING
+      S2 added_modules returns []   git arm: a module added, uncovered                1  0  NOT DISCRIMINATING
+                                    git arm: a module MOVED in from outside a root    1  0  NOT DISCRIMINATING
+      S3 --no-renames removed       git arm: a module MOVED in from outside a root    1  0  NOT DISCRIMINATING
+      S4 etl/ not recursive         a new module in a SUBPACKAGE of a root            1  0  NOT DISCRIMINATING
+      each of the four: "P-PROC-06 --prove-red: N case(s) did not behave as stated. The check is not a
+      check." EXIT=1, then restored EXIT=0.
+  B0's red is CI itself: `core` on PR #114 failed with `P-PROC-06: no merge base with origin/main or main`
+  before `fetch-depth: 0`, which is the one-line change to `.github/workflows/linux-core.yml` (touches
+  widened above, 09:57 ruling); the refusal now names the cause - "On CI this means a shallow clone: set
+  fetch-depth: 0 on the checkout of the job that runs ops/check-pins. This check never fetches for itself -
+  it does not write to the repository it reads."
+  WHAT MOVED, and why it is a split of meaning and not a line-count dodge: the `--prove-red` RUNNER moved out
+  of the gate into ops/lib/mutate_population_red.py, which now holds both populations and runs them - and
+  runs them through `gate.main`, the gate's own shipping entry point, never a helper (CLAUDE.md: a test named
+  for a defect binds to the shipping symbol). The gate keeps a nine-line `prove_red` that imports the harness
+  INSIDE the function, so a missing sibling stays this gate's refusal rather than a traceback (T-0087).
+  FINAL PRE-REVIEW COMMIT - the whole acceptance block re-run BARE on this tree, nothing piped into a gate's
+  exit status, and re-measured after the corrections (T-0162's rule):
+      $ python ops/lib/check-mutate-population.py                                        EXIT=0
+      P-PROC-06: 71 modules, 22 covered by 10 populations, 25 allowlisted, 0 added by this branch
+        DEBT (informational, never red): 24 existing module(s) with no population and no allowlist entry
+      P-PROC-06: every added module is covered or allowlisted; the floor of 22 holds
+      $ python ops/lib/check-mutate-population.py --prove-red                             EXIT=0
+      P-PROC-06 --prove-red: 10 sandbox + 3 real-git cases at ...\.worktrees\T-0186
+        case                                             expect  got  verdict
+        control: the tree as committed                        0    0  ok
+        a population file deleted (geometry.py)               2    2  ok
+        a driver narrows SUBJECT_MODULES                      1    1  ok
+        a new module added with no population                 1    1  ok
+        a new module that IS allowlisted                      0    0  ok
+        a new module in a SUBPACKAGE of a root                1    1  ok
+        a driver DECLARES a module it never mutates           2    2  ok
+        the allowlist widened to a covered module             2    2  ok
+        an allowlist entry with no reason                     2    2  ok
+        P-PROC-06 deleted from PINS.yaml                      2    2  ok
+        git arm: a module added, uncovered                    1    1  ok
+        git arm: a module added WITH its allowlist entry      0    0  ok
+        git arm: a module MOVED in from outside a root        1    1  ok
+      P-PROC-06 --prove-red: all 13 cases behaved as stated
+      $ bash ops/lib/check-line-cap                                                       EXIT=0
+      P-SRC-02: 78 Swift files tracked (Sources=27, Tests=38, apps/ios=13), none over 300 lines
+      $ bash ops/lib/check-exec-bits                                                      EXIT=0
+      P-OPS-01: 76 files, 23 required present, all modes correct
+      $ bash ops/queue-check                                                              EXIT=0
+      QUEUE OK (199 tasks)
+      $ bash ops/check-pins --source-only                                                 EXIT=0
+      PINS ok=13 skipped=15 pending=1 expired=0 failed=0 tier=linux source-only
+      (P-PROC-06 is anchor: process, so --source-only SKIPS it - the 13-case table above is its evidence,
+       and CI's `core` job, green for the first time on this PR, is the other half.)
+      $ awk 'END{print NR}'   294 (check-mutate-population.py) / 207 (mutate_population_red.py) / 30
+                              (mutate-population-allowlist.json) - all three under the 300-line cap; the
+                              gate is 294 because the runner moved OUT as it gained the S1 reader, and the
+                              next edit to it splits rather than squeezes
+      $ git ls-files -s   100644 all three, DATA to check-exec-bits, invoked as an argument to an interpreter
+      $ python ops/mutate/scenic_tags.py    EXIT=0   MUTATE OK  caught=25/25 equivalent_caught=0
+      $ python ops/mutate/geometry.py       EXIT=0   POPULATION 12 mutations over 6 classes (floor 12),
+                                                     4 equivalent (floor 4); every one killed by the test
+                                                     that names it
+      (no driver and no subject changed in this commit, so both were run before it rather than after.)
+  STILL OPEN, carried forward and added to: (1) the 24 DEBT modules still have no population; this gate makes
+  the list printable and stops it growing. (2) numeric-vs-not stays a REVIEWER READING - adding score.py to
+  the allowlist with a plausible reason passes, and only the diff of a data file with a reason per entry
+  catches it (ruling R5); S1 closes the other half of that hole, the driver side, where a name could be
+  claimed with no mutation behind it. (3) the added-module set is still a diff against the merge base with
+  origin/main, so a module added on a branch stacked on another task branch is seen once that base reaches
+  main. (4) services/etl/mutate/byway_route_key.py is a population outside ops/mutate/ (09:57 ruling); moving
+  it belongs to its own task.

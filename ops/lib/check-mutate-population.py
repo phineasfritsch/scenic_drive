@@ -10,8 +10,10 @@ merged through four review rounds without one, assemble.py shipped without one, 
 Sources/Handoff/StraightLineDistance.swift shipped without one and became T-0199.
 
 THREE QUESTIONS, THREE CONSEQUENCES (T-0186, ruling R4).
-  1. Does a module this PR ADDS have a population? `git diff --diff-filter=A` against the merge base with
-     origin/main. No population and no allowlist entry -> REFUSE by name, exit 1. This is the gate.
+  1. Does a module this PR ADDS have a population? `git diff --diff-filter=A --no-renames` against the merge
+     base with origin/main. No population and no allowlist entry -> REFUSE by name, exit 1. This is the gate.
+     `--no-renames` because a module MOVED into a root from outside it is an R, whose destination a bare
+     --diff-filter=A never names; and the missing-merge-base refusal NAMES the shallow clone that causes it.
   2. Has a population NARROWED? COVERED_FLOOR is the literal list of the modules some driver declares today.
      A driver that drops a path from SUBJECT_MODULES -> exit 1, even with an empty diff. P-PROC-05's lesson
      one level up: a COUNT of populations reads clean while the one that mattered is gone.
@@ -20,11 +22,13 @@ THREE QUESTIONS, THREE CONSEQUENCES (T-0186, ruling R4).
 
 HOW COVERAGE IS DECLARED (ruling R3). Every population driver carries `SUBJECT_MODULES`, a literal tuple of
 repo-relative paths, read here as TEXT - never imported, because importing a driver executes its population.
-Before this task the subjects were stated ten different ways and geometry.py stated its three in a DOCSTRING,
-which CLAUDE.md forbids a guard from anchoring on. DRIVERS below is a WHITELIST: any other ops/mutate/*.py
-with a `__main__` block is a refusal until it is classified, and geometry_probe.py is exempt by name with its
-reason rather than declaring geometry.py's subjects - a probe that declared them would keep the coverage
-looking intact after geometry.py was deleted, which is the defect this gate exists to catch.
+DRIVERS below is a WHITELIST: any other ops/mutate/*.py with a `__main__` block is a refusal until it is
+classified, and geometry_probe.py is exempt by name rather than declaring geometry.py's subjects - a probe
+that declared them would keep the coverage looking intact after geometry.py was deleted.
+AND A DECLARATION IS NOT COVERAGE (T-0186 S1): appending one string to SUBJECT_MODULES would otherwise cover
+a brand-new numeric module with zero mutations written. So every declared subject must also be TARGETED - its
+path or its basename must occur in the CODE of that driver's family, ops/mutate/<stem>*.py with comments,
+docstrings and the declaration itself removed, those being exactly the places a name sits unmutated.
 
 WHAT IT CANNOT DO. It cannot tell a numeric module from a non-numeric one; that reading is in T-0186's Log
 and in the reason beside every allowlist entry. It refuses the mechanical shadows of a bad widening: a reason
@@ -44,7 +48,7 @@ import pathlib
 import re
 import subprocess
 import sys
-import tempfile
+import tokenize
 
 # The mutation table lives beside this file, not on the caller's sys.path (T-0055's rule for every ops/lib
 # entry point): `python ops/lib/check-mutate-population.py` from the repo root must find it.
@@ -55,8 +59,10 @@ PINS_FILE = "pins/PINS.yaml"
 MUTATE_DIR = "ops/mutate"
 ALLOWLIST_FILE = "ops/lib/mutate-population-allowlist.json"
 
-# (root, suffix, recursive). Sources/ is BOTH root targets - ScenicKit and Handoff (ruling R2).
-MODULE_ROOTS = (("services/etl/etl", ".py", False), ("Sources", ".swift", True))
+# (root, suffix, recursive). Sources/ is BOTH root targets - ScenicKit and Handoff (ruling R2). Both roots
+# are RECURSIVE: "services/etl/etl has no subpackages" was true the day R2 was written and is nobody's job
+# to keep true, and a module in a subpackage is a module (T-0186 S4).
+MODULE_ROOTS = (("services/etl/etl", ".py", True), ("Sources", ".swift", True))
 
 DRIVERS = ("budget.py", "gates.py", "geometry.py", "guidance.py", "handoff.py", "hazards.py", "retrace.py",
            "routescore.py", "scenic_tags.py", "segmentscore.py")
@@ -108,6 +114,24 @@ def modules(root: pathlib.Path) -> list[str]:
     return sorted(found)
 
 
+def driver_code(root: pathlib.Path, name: str, declaration: str) -> str:
+    """The CODE of one driver's family: every ops/mutate/<stem>*.py that is not a probe, with comments,
+    docstrings and the SUBJECT_MODULES declaration itself dropped. Comments and docstrings because CLAUDE.md
+    forbids anchoring on them; the declaration because it is the claim under test (T-0186 S1)."""
+    kept: list[str] = []
+    for path in sorted((root / MUTATE_DIR).glob(name[:-len('.py')] + "*.py")):
+        if path.name in PROBES:
+            continue
+        text = _read(root, f"{MUTATE_DIR}/{path.name}").replace(declaration, "")
+        try:
+            kept += [t.string for t in tokenize.generate_tokens(io.StringIO(text).readline)
+                     if t.type != tokenize.COMMENT and not t.string.startswith(('"""', "'''"))]
+        except (tokenize.TokenError, IndentationError, SyntaxError) as exc:
+            raise Refusal(f"{MUTATE_DIR}/{path.name} does not tokenize, so what it targets cannot be "
+                          f"read: {exc}") from exc
+    return "\n".join(kept)
+
+
 def declared(root: pathlib.Path, known: set[str]) -> dict[str, list[str]]:
     """{driver filename: the modules it declares}. Whitelist-checked; every claim must name a real module."""
     present = sorted(p.name for p in (root / MUTATE_DIR).glob("*.py"))
@@ -134,6 +158,12 @@ def declared(root: pathlib.Path, known: set[str]) -> dict[str, list[str]]:
         if unknown:
             raise Refusal(f"{MUTATE_DIR}/{name}: SUBJECT_MODULES names {', '.join(unknown)}, which is not a "
                           f"module under {' or '.join(r for r, _, _ in MODULE_ROOTS)}")
+        code = driver_code(root, name, match.group(0))
+        untargeted = [p for p in paths if p not in code and p.rsplit("/", 1)[-1] not in code]
+        if untargeted:
+            raise Refusal(f"{MUTATE_DIR}/{name}: SUBJECT_MODULES names {', '.join(untargeted)}, which no "
+                          f"mutation in the {name[:-len('.py')]}* population targets. A declaration is not "
+                          f"coverage (T-0186 S1): mutate the module, or drop the claim")
         out[name] = paths
     return out
 
@@ -174,8 +204,13 @@ def added_modules(root: pathlib.Path, known: set[str]) -> list[str]:
             base = git("merge-base", ref, "HEAD")
             break
     if not base:
-        raise Refusal("no merge base with origin/main or main; the added-module set cannot be computed")
-    names = git("diff", "--diff-filter=A", "--name-only", base, "HEAD").splitlines()
+        raise Refusal("no merge base with origin/main or main; the added-module set cannot be computed. "
+                      "On CI this means a shallow clone: set fetch-depth: 0 on the checkout of the job that "
+                      "runs ops/check-pins. This check never fetches for itself - it does not write to the "
+                      "repository it reads")
+    # --no-renames: a module moved in from outside the roots is an R, and its destination is never named by
+    # a bare --diff-filter=A. Moving a file in was the cheapest way past this gate (T-0186 S3).
+    names = git("diff", "--diff-filter=A", "--no-renames", "--name-only", base, "HEAD").splitlines()
     return sorted(n.strip() for n in names if n.strip() in known)
 
 
@@ -228,39 +263,16 @@ def check(root: pathlib.Path, added: list[str] | None = None) -> int:
 def prove_red(root: pathlib.Path) -> int:
     """Each case is a way this gate stops being a gate. A check never seen red is untested (CLAUDE.md).
 
-    The table is imported HERE rather than at module scope so a missing sibling is this gate's own refusal -
-    exit 2 with a sentence - instead of an ImportError traceback out of an ops entry point (T-0087).
+    The harness - the sandbox population, the real-git population, and the runner over both - is
+    ops/lib/mutate_population_red.py, which runs THIS module's shipping entry point, `main`, against every
+    tree it builds. It is imported HERE rather than at module scope so a missing sibling is this gate's own
+    refusal - exit 2 with a sentence - instead of an ImportError traceback out of an ops entry point (T-0087).
     """
     try:
-        from mutate_population_red import CASES as RED_CASES
-        from mutate_population_red import apply_mutation, build_sandbox, pin_deleted_case
+        from mutate_population_red import run_proof
     except ImportError as exc:
         raise Refusal(f"--prove-red: ops/lib/mutate_population_red.py is not importable: {exc}") from exc
-    CASES = RED_CASES + (pin_deleted_case(PIN_ID, PINS_FILE),)
-    known = modules(root)
-    bad = 0
-    print(f"{PIN_ID} --prove-red: {len(CASES)} cases against a copy of the tree at {root}")
-    print(f"  {'case':<44} {'expect':>6} {'got':>4}  verdict")
-    for name, edits, added, expected in CASES:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp = pathlib.Path(tmpdir)
-            build_sandbox(root, tmp, known, (PINS_FILE, ALLOWLIST_FILE), MUTATE_DIR)
-            try:
-                for kind, target, arg in edits:
-                    apply_mutation(tmp, kind, target, arg, ALLOWLIST_FILE)
-            except ValueError as exc:
-                raise Refusal(f"--prove-red: {exc}") from exc
-            sink = io.StringIO()
-            with contextlib.redirect_stdout(sink):
-                got = main(["--root", str(tmp), "--added", *added])
-        ok = got == expected
-        bad += 0 if ok else 1
-        print(f"  {name:<44} {expected:>6} {got:>4}  {'ok' if ok else 'NOT DISCRIMINATING'}")
-    if bad:
-        print(f"{PIN_ID} --prove-red: {bad} case(s) did not behave as stated. The check is not a check.")
-        return 1
-    print(f"{PIN_ID} --prove-red: all {len(CASES)} cases behaved as stated")
-    return 0
+    return run_proof(root, sys.modules[__name__])
 
 
 def main(argv=None) -> int:
