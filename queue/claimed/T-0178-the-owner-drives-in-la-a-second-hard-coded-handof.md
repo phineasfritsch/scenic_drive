@@ -234,3 +234,31 @@ streets; the Mulholland side streets). Do NOT touch SkylineRoute.swift or its te
   of a drive. (e) No XCUITest proves the picker is tappable or that a row's 44 pt target holds - this
   package has no test target and this tree has never been on a device; the compiler is the only proof
   the UI half has.
+- 2026-09-19T09:33:00Z ACCEPTANCE BLOCK, re-run BARE at the final pre-review commit by agent/claude-opus-5,
+  quoted whole (the author rule). The code commit is 7b06049; this entry adds no code, so the
+  ios-compile proof below is for the tree the reviewer reads.
+
+    swift test --scratch-path .build/T0178 --filter HandoffTests
+      -> "Test run with 71 tests in 10 suites passed after 0.084 seconds." (was 55 before this task)
+    gh run view 35434325610 --json status,conclusion,headSha
+      -> {"conclusion":"success","headSha":"7b06049bac47692a22b4c1601964ab82f55a0f74","status":"completed"}
+      -> gh run view 35434325610 --log: "** BUILD SUCCEEDED **" x1 (simulator-build, 09:19:09Z),
+         ` error:` count 0. ONE dispatch, per the ENV rule; it was green first time.
+    bash ops/lib/check-safety-disclaimer -> exit 0, every count unchanged:
+      SkylineHandoff.open( once (GatedHandoffButton.swift line 87) dominated by the guard at line 82;
+      GatedHandoffButton( once in ScenicHomeScreen.swift, the acknowledgement passed through, no `: true`;
+      isSafetyDisclaimerAcknowledged at GatedHandoffButton.swift(2) ScenicHomeScreen.swift(4);
+      the key safety.disclaimer.acknowledged.v1 at ScenicHomeScreen.swift(1)
+    bash ops/lib/check-safety-disclaimer --prove-red -> "prove-red: 13/13 mutations refused by name"
+    bash ops/lib/check-line-cap
+      -> "P-SRC-02: 84 Swift files tracked (Sources=29, Tests=40, apps/ios=15), none over 300 lines"
+    bash ops/queue-check -> "QUEUE OK (199 tasks)"
+    bash ops/check-pins --source-only
+      -> "PINS ok=13 skipped=14 pending=1 expired=0 failed=0 tier=linux source-only"
+
+  wc -l, every touched Swift file: SantaMonicaMountainsRoute.swift 178, HandoffDrive.swift 67,
+  StraightLineDistance.swift 78, SantaMonicaMountainsRouteTests.swift 265,
+  SantaMonicaMountainsChainTests.swift 169, HandoffSourceTests.swift 201, DriveCopy.swift 66,
+  DriveSelector.swift 68, DriveFacts.swift 65, GatedHandoffButton.swift 110, HandoffFailureCard.swift 133,
+  ScenicHomeScreen.swift 250, SkylineHandoff.swift 90.
+  state: claimed and reviewer: null are untouched - the owner never signs off its own task.
