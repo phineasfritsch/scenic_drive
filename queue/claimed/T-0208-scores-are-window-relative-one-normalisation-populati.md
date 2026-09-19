@@ -165,3 +165,42 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   refuses an allowlist entry for a module a population also covers. R1b's selection rule is guarded by
   `tests/test_motorway_source.py` instead, whose whitelist clause -
   `test_a_non_motorway_in_the_region_file_is_not_measured_to` - is the one that matters.
+- 2026-09-19T20:51:04Z THE RANKING'S MUTATION POPULATION, red then green, quoted from the runs.
+  `ops/mutate/normalise.py` + `ops/mutate/normalise_mutations.py`, `SUBJECT_MODULES =
+  ("services/etl/etl/normalise.py", "services/etl/etl/region_reference.py")`, `MIN_MUTATIONS = 18`,
+  registered in `ops/lib/check-mutate-population.py` DRIVERS and COVERED_FLOOR (both modules).
+  FIRST RUN, on commit cbc52bb: `MUTATIONS: 17 caught, 1 missed, 0 skipped, of 18` - `MUTATE FAILED
+  caught=17/18`. THE SURVIVOR, by name: `the digest is taken over the dict's insertion order rather than a
+  canonical one (exit 0)`. It is NOT equivalent and was not filed as one: `table_of` builds its keys in
+  `RANKED_TERMS` order and `load` builds them in the order the FILE lists them, so under `sort_keys=False`
+  one population reached by the two paths would carry two names and the sha256 this Log quotes would
+  identify the writer instead of the population. It survived because the only table the digest test ranged
+  over held `curvature` and `relief`, which sort the same way under `RANKED_TERMS` as under `sorted()` - a
+  predicate that could not see what it was written to see. `test_the_same_values_under_a_different_key_order_are_the_SAME_reference`
+  ranges over `sinuosity`/`furniture`, the one adjacent pair whose `RANKED_TERMS` order is not their sorted
+  order, and asserts both halves of that (commit 5dfbfb8). SECOND RUN: `MUTATIONS: 18 caught, 0 missed,
+  0 skipped, of 18` / `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2` / `MUTATE OK  caught=18/18
+  equivalent_caught=0`; `--prove-vacuity`: `VACUITY: 0 caught, 18 missed, 0 skipped, of 18` / `VACUITY
+  PROVED`. The two EQUIVALENT entries carry their witnesses in `normalise_mutations.py` (the bisect ranker
+  has no accumulator, so iteration order cannot change its dict; `raw_values` and `load` both coerce before
+  `table_of` can see a value).
+  `ops/lib/check-exec-bits` refused `ops/mutate/normalise.py` at 100755 - under `ops/mutate/` a driver is
+  DATA, run as `python ops/mutate/<name>.py`, and every other driver there is 100644. Fixed to 100644;
+  `P-OPS-01: 81 files, 23 required present, all modes correct`.
+- 2026-09-19T20:51:04Z (R7) A DISAGREEMENT BETWEEN A FIXTURE'S RECORD AND THE DATA, ruled before the
+  re-record. `canyon_top25.json` meta says the canyon window is `--bbox -118.75,34.02,-118.55,34.15`;
+  `services/etl/work/la/window-doc.json` meta says `-118.95,33.98,-118.55,34.15`. MEASURED, over the
+  145,972 coordinates of that document's 11,740 ways: `lat 34.0027..34.1724  lon -118.9683..-118.5139`.
+  A clip at -118.75 cannot hold a node at -118.9683, and 0.0183 deg west of -118.95 is exactly the
+  `complete_ways` overhang R1b already measured. THE FIXTURE'S RECORDED BBOX IS WRONG and always was; the
+  window is `-118.95,33.98,-118.55,34.15`, which is what the re-record cuts and what its meta will say.
+  The 11,740-way count the task text names is the one thing both records agree on and it is the document's
+  own way count.
+  (R8) `test_the_seam_merge_rule_is_recorded_and_the_rows_obey_it` IS RE-DERIVED, not deleted. T-0204's
+  rule - an overlapping way is taken at the MAX of its two clips - existed to arbitrate a disagreement
+  that this task removes, and a meta whose `seam_disagreements` list is empty would leave that test passing
+  over nothing (the vacuity R4 named). The re-recorded `grid_top25.json` carries `seam_ways`: EVERY way
+  read back in both halves of the grid window, with BOTH halves' `scenic_score_unit`. The test asserts the
+  list is non-empty, that every entry's two values are equal, and that a way of that list which is also in
+  the 25 rows carries that same value - so the fact being pinned is the one this task bought, measured over
+  a population the fixture names.
