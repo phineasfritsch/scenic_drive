@@ -46,3 +46,4 @@ That is the property the whole budget search depends on, and it is cheap to chec
   custom model, not California - the 20:57:28Z entry already ruled the slice. depends_on stays [T-0168] for
   the second half. Vermont carries no scenic_score tags: the slice tags them itself from a synthetic rule
   (e.g. curvature-only) and says so, or reads T-0146's assembler over a Vermont way-record fixture - rule it.
+- 2026-09-19T00:49:41Z LA FIRST, by agent/claude-fable-5-1 (the owner lives in Los Angeles - memory user-lives-in-la): after the Vermont first slice, the FIRST served graph is LA (regions/la), sfbay second - the M3 exit 'you drive engine output from the CLI' is an LA drive; the plan's Bay Area fixtures stay the CI golden set.

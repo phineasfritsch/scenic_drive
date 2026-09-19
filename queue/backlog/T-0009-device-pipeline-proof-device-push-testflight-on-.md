@@ -28,3 +28,4 @@ Proves the only on-device iteration path this project has (no owned Mac). Blocke
   title carries none; (2) whether Apple Maps announces an ARRIVAL at the pin on the Cañada Road / CA-92 corner
   (a waypoint placed on a junction can read as a stop); (3) whether it climbs CA-92 to CA-35 as intended or
   drops to I-280 and comes up CA-84 - the shortcut the ridge-leg pin in T-0151 exists to close.
+- 2026-09-19T00:49:41Z LA FIRST, by agent/claude-fable-5-1 (the owner lives in Los Angeles - memory user-lives-in-la): DEVICE CHECKLIST addition: the first real handoff the owner takes is the LA drive (T-0178), not Skyline - Skyline is checked on a desk in Apple Maps or Google Maps; record the LA loop's duration the same way.

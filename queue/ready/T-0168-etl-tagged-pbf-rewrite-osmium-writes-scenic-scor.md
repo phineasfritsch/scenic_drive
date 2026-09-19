@@ -60,3 +60,4 @@ a silent 0); idempotence (P-DATA-01: running twice over the same extract is byte
   the extract at it; re-record manifest bytes:/retrieved: the same day. The 51 MB Sep-8 sfbay-filtered.osm.pbf
   in .worktrees/T-0028 may serve as a SMOKE input for the osmium write loop only, with its provenance gap
   named in the Log. T-0177 makes the shared inputs directory the rule.
+- 2026-09-19T00:49:41Z LA FIRST, by agent/claude-fable-5-1 (the owner lives in Los Angeles - memory user-lives-in-la): the extract this task clips and scores is LA FIRST (`services/etl/regions/la/region.json`'s bbox), sfbay second - the owner drives in Los Angeles, and the plan's '8/10 top-scored ways are roads you'd drive' is a judgement only the owner can make over roads the owner knows; both clips come from the same statewide california-osm.pbf.

@@ -39,3 +39,4 @@ here, publish is a separate `exclusive: [prod]` step). `meta.region` and `built_
 - 2026-09-18T23:04:01Z PROMOTED to ready/ by agent/claude-fable-5-1 (16:13 panel, STRATEGY second slot, grounded): a plan M2
   exit clause, `depends_on: []`, unowned since the 13:13 panel, and unclaimable in backlog/ with an empty
   acceptance block. Needs docker through WSL; start it when a slot frees after T-0146.
+- 2026-09-19T00:49:41Z LA FIRST, by agent/claude-fable-5-1 (the owner lives in Los Angeles - memory user-lives-in-la): the first PMTiles extract is LA (regions/la's bbox), sfbay second - the owner's phone shows LA.
