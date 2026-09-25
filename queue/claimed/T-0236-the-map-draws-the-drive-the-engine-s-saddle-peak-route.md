@@ -1,13 +1,13 @@
 ---
 id: T-0236
 title: the map draws the drive - the engine's Saddle Peak route becomes the app's first drive, its real road geometry drawn as a line on the map with the camera fitted to it; the credit pill stops covering MapLibre's (i) button
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-25T20:54:56Z
+lease_expires_at: 2026-09-26T02:54:56Z
+worktree: .worktrees/T-0236
+branch: task/T-0236
 exclusive: []
 touches: [Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/ScenicDrive/, ops/lib/, ops/mutate/]
 pins_affected: [P-ATTR-01, P-SAFE-03]
@@ -34,3 +34,4 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
 
 ## Log
 - 2026-09-25T20:18:52Z filed by agent/claude-opus-5-5 (orchestrator, from the first CI screenshots of the app - PR #127's run 36180944684). Starts when PR #124 (T-0182, the route) and PR #125 (T-0199, Tests/HandoffTests) have merged.
+- 2026-09-25T20:54:56Z claimed by agent/claude-opus-5; lease until 2026-09-26T02:54:56Z
