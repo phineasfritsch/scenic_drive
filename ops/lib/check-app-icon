@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+# T-0234's assertion: the app has an icon, Xcode is told to use it, and the launch screen flashes a colour
+# the app actually owns. Six facts, none of them anchored on a comment:
+#
+#   (a) THE SETTING, IN BOTH CONFIGURATIONS. `ASSETCATALOG_COMPILER_APPICON_NAME` is read out of every
+#       XCBuildConfiguration body that carries `INFOPLIST_FILE = ScenicDrive/Info.plist;` - the app target's
+#       two, Debug and Release. Both must have it and there must be exactly two of them. The half-edit this
+#       exists for is the classic one: the setting added to Debug, the Release archive shipping blank.
+#       Occurrences are also counted over the WHOLE pbxproj as a whitelist (2, no more): a third copy in the
+#       project-level configuration would be a second, competing answer.
+#   (b) THE CATALOG IS CARRIED BY THE BUILDABLE FOLDER, NOT BY HAND. `PBXFileSystemSynchronizedRootGroup`
+#       with `path = ScenicDrive;` exists and the target lists `fileSystemSynchronizedGroups`, and the string
+#       `xcassets` occurs ZERO times in the pbxproj. A hand-added PBXFileReference/PBXBuildFile for the
+#       catalog is a second membership beside the folder's, which is how a catalog ends up in the product
+#       twice or not at all.
+#   (c) THE SET EXISTS AND ITS NAME IS THE SETTING'S VALUE. Whatever (a) read out of the pbxproj has to be
+#       the name of a `<value>.appiconset` directory inside the catalog. Asserting `AppIcon.appiconset`
+#       exists while the build setting says something else is two green halves and no icon.
+#   (d) CONTENTS.JSON IS THE XCODE 26 SINGLE-SIZE iOS ICON. Exactly one image entry; idiom `universal`,
+#       platform `ios`, size `1024x1024`; its `filename` is a file that is actually in the directory; and the
+#       directory holds NOTHING ELSE (a whitelist: Contents.json plus the one named file), so a stale
+#       second PNG cannot sit there being nobody's.
+#   (e) THE PNG ITSELF, read from its IHDR rather than believed. PNG signature, `IHDR` at offset 12, width
+#       and height both 1024, and colour type 2 - truecolour, NO ALPHA. App Store Connect rejects an icon
+#       with an alpha channel, and nothing on this box compiles the catalog, so the bytes are the only
+#       evidence available before the icon is in front of a reviewer.
+#   (f) THE LAUNCH COLOUR IS REAL. Info.plist's `UILaunchScreen` dict names a `UIColorName`, and that name
+#       is a `<name>.colorset` directory with a Contents.json in the same catalog. iOS resolves that key by
+#       NAME against the asset catalog; a name nothing defines launches BLACK, which reads as a crash.
+#
+# WHAT IT CANNOT SEE, stated rather than hidden: whether the drawing is any good or legible at 40 pt; that
+# the pixels are the DesignTokens hexes (it reads the IHDR, not the image data); whether the colorset's
+# components are the bg token; and whether actool accepts any of it - only the ios-compile workflow answers
+# that last one.
+#
+#   bash ops/lib/check-app-icon                 # the tracked tree
+#   bash ops/lib/check-app-icon --app-tree DIR  # a copy of apps/ios (the mutation table hands one)
+#   bash ops/lib/check-app-icon --prove-red     # the mutations, each refused by name
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+DEFAULT_APP_TREE="apps/ios"
+PBX_REL="ScenicDrive.xcodeproj/project.pbxproj"
+PLIST_REL="ScenicDrive/Info.plist"
+CATALOG_REL="ScenicDrive/Assets.xcassets"
+SETTING_KEY="ASSETCATALOG_COMPILER_APPICON_NAME"
+INFOPLIST_SETTING="INFOPLIST_FILE = ScenicDrive/Info.plist;"
+SYNC_GROUP_PATH="path = ScenicDrive;"
+EXPECT_CONFIGS=2
+EXPECT_SIZE="1024x1024"
+EXPECT_PX=1024
+EXPECT_IDIOM="universal"
+EXPECT_PLATFORM="ios"
+EXPECT_COLORTYPE=2
+PNG_SIG="137 80 78 71 13 10 26 10"
+IHDR_TAG="73 72 68 82"
+
+APP_TREE="$DEFAULT_APP_TREE"
+PROVE_RED=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --app-tree) APP_TREE="${2:-}"; shift 2 ;;
+    --prove-red) PROVE_RED=1; shift ;;
+    *) echo "check-app-icon: unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+APP_TREE="${APP_TREE%/}"
+
+fail() {
+  echo "check-app-icon: $1"
+  shift
+  for extra in "$@"; do echo "  $extra"; done
+  exit 1
+}
+
+# `grep -c`, never -q/-l on either side of a pipe (P-OPS-03).
+count_fixed_in() { sed -e 's/\r$//' "$2" | grep -c -F -e "$1" || true; }
+bytes_at() { od -An -v -tu1 -j "$2" -N "$3" "$1" | tr -d '\r' | tr '\n' ' ' | tr -s ' ' | sed -e 's/^ //' -e 's/ $//'; }
+# One string field out of a small Contents.json, whitespace-insensitive, every occurrence on its own line.
+json_strings() { tr -d ' \t\r\n' < "$1" | grep -o "\"$2\":\"[^\"]*\"" | sed -e 's/.*:"//' -e 's/"$//'; }
+
+run_check() {
+  [[ -d "$APP_TREE" ]] || fail "no such directory: $APP_TREE" \
+    "The population is the app tree; a missing tree must never read as 'the app has an icon'."
+
+  local pbx="$APP_TREE/$PBX_REL" plist="$APP_TREE/$PLIST_REL" catalog="$APP_TREE/$CATALOG_REL"
+  local f
+  for f in "$pbx" "$plist"; do
+    [[ -f "$f" ]] || fail "missing file: $f" \
+      "(a), (b) and (f) are decided over these two; a tree without them is a refusal, never a pass."
+  done
+
+  # ------------------------------------------------------------------ (a) THE SETTING, BOTH CONFIGS
+  local n_cfg k_cfg
+  read -r n_cfg k_cfg <<<"$(awk -v want="$INFOPLIST_SETTING" -v key="$SETTING_KEY" '
+    { line = $0; sub(/\r$/, "", line) }
+    line ~ /isa = XCBuildConfiguration;/ { inblk = 1; info = 0; icon = 0; next }
+    inblk && index(line, want) { info = 1 }
+    inblk && index(line, key)  { icon = 1 }
+    inblk && line ~ /^[ \t]*name = (Debug|Release);[ \t]*$/ {
+      if (info) { n++; if (icon) k++ }
+      inblk = 0
+    }
+    END { printf "%d %d\n", n, k }
+  ' "$pbx")"
+  [[ "$n_cfg" -eq "$EXPECT_CONFIGS" ]] || fail \
+    "read $n_cfg app-target build configuration(s) in $pbx, expected $EXPECT_CONFIGS." \
+    "A configuration is one whose body carries \`$INFOPLIST_SETTING\`. If that stops being true the" \
+    "count below ranges over the wrong population and 'the setting is in both' means nothing."
+  [[ "$k_cfg" -eq "$EXPECT_CONFIGS" ]] || fail \
+    "$SETTING_KEY is set in $k_cfg of $n_cfg build configuration(s)." \
+    "Xcode reads this per configuration. Set in Debug alone, the simulator shows an icon and every" \
+    "Release archive ships the blank white placeholder - the half-edit this arm exists for."
+  local total_setting
+  total_setting="$(count_fixed_in "$SETTING_KEY" "$pbx")"
+  [[ "$total_setting" -eq "$EXPECT_CONFIGS" ]] || fail \
+    "$SETTING_KEY occurs $total_setting time(s) in $pbx, expected exactly $EXPECT_CONFIGS." \
+    "A WHITELIST, not a floor: a third copy (project-level configuration, another target) is a second" \
+    "answer to the same question, and which one wins is not decided here."
+  local values icon_name
+  values="$(sed -e 's/\r$//' "$pbx" | grep -o "$SETTING_KEY = [^;]*;" | sed -e "s/.*= //" -e 's/;$//' \
+            | tr -d '"' | LC_ALL=C sort -u | tr '\n' ' ' | sed -e 's/ $//')"
+  [[ "$values" != *" "* && -n "$values" ]] || fail \
+    "$SETTING_KEY has more than one value in $pbx: $values" \
+    "Two configurations naming two different icon sets is not an icon, it is two."
+  icon_name="$values"
+
+  # ------------------------------------------------------------------ (b) CARRIED BY THE BUILDABLE FOLDER
+  local sync_groups sync_path hand_refs
+  sync_groups="$(count_fixed_in "fileSystemSynchronizedGroups = (" "$pbx")"
+  sync_path="$(count_fixed_in "$SYNC_GROUP_PATH" "$pbx")"
+  [[ "$sync_groups" -ge 1 && "$sync_path" -ge 1 ]] || fail \
+    "the app target does not sync apps/ios/ScenicDrive/ as a buildable folder:" \
+    "\`fileSystemSynchronizedGroups = (\` x$sync_groups, \`$SYNC_GROUP_PATH\` x$sync_path in $pbx." \
+    "That group is what puts the catalog in the target. Without it nothing adds the icon to the product" \
+    "and every assertion below is about a directory the build never reads."
+  hand_refs="$(count_fixed_in "xcassets" "$pbx")"
+  [[ "$hand_refs" -eq 0 ]] || fail \
+    "the catalog is referenced by hand in $pbx: \`xcassets\` occurs $hand_refs time(s), expected 0." \
+    "Xcode 26 buildable folders carry every file under the folder. A PBXFileReference beside that is a" \
+    "second membership for one file, and CLAUDE.md keeps this file to about ten edits ever."
+
+  # ------------------------------------------------------------------ (c) THE SET IS THE SETTING'S VALUE
+  [[ -d "$catalog" ]] || fail "no asset catalog at $catalog" \
+    "$SETTING_KEY names a set inside the app's catalog; with no catalog it names nothing."
+  local set_dir="$catalog/$icon_name.appiconset"
+  [[ -d "$set_dir" ]] || fail "no $icon_name.appiconset at $set_dir" \
+    "$SETTING_KEY = $icon_name in both configurations, so that is the set actool is told to compile." \
+    "Asserting some other set exists while the setting names this one is two green halves and no icon."
+  local set_json="$set_dir/Contents.json"
+  [[ -f "$set_json" ]] || fail "no Contents.json in $set_dir" \
+    "A directory of PNGs with no Contents.json is not an icon set; actool compiles the manifest."
+  [[ -f "$catalog/Contents.json" ]] || fail "no Contents.json at the catalog root: $catalog/Contents.json" \
+    "Every .xcassets carries one; without it the bundle is a folder Xcode declines to treat as a catalog."
+
+  # ------------------------------------------------------------------ (d) THE SINGLE-SIZE MANIFEST
+  local sizes idioms platforms filenames
+  sizes="$(json_strings "$set_json" size)"
+  idioms="$(json_strings "$set_json" idiom)"
+  platforms="$(json_strings "$set_json" platform)"
+  filenames="$(json_strings "$set_json" filename)"
+  local n_img
+  n_img="$(printf '%s\n' "$sizes" | grep -c . || true)"
+  [[ "$n_img" -eq 1 ]] || fail \
+    "$set_json declares $n_img sized image entr(ies), expected exactly 1." \
+    "Ruling R3: the Xcode 26 iOS app icon is ONE 1024x1024 universal image and actool derives the rest." \
+    "A multi-size set here would make every assertion below a sample of a population nobody typed out."
+  [[ "$sizes" == "$EXPECT_SIZE" ]] || fail \
+    "$set_json declares size ${sizes:-<none>}, expected $EXPECT_SIZE." \
+    "The single-size entry IS the 1024 marketing icon; any other size string is the legacy set's shape."
+  [[ "$idioms" == "$EXPECT_IDIOM" ]] || fail \
+    "$set_json declares idiom ${idioms:-<none>}, expected $EXPECT_IDIOM."
+  [[ "$platforms" == "$EXPECT_PLATFORM" ]] || fail \
+    "$set_json declares platform ${platforms:-<none>}, expected $EXPECT_PLATFORM." \
+    "Without \`platform\` the single-size entry is not the iOS icon and the target builds with none."
+  [[ -n "$filenames" ]] || fail "$set_json names no filename." \
+    "An entry with no file is an empty slot: Xcode builds it, ships no icon, and warns at most."
+  local png="$set_dir/$filenames"
+  [[ -f "$png" ]] || fail "$set_json names a file that is not in the set: $filenames" \
+    "The manifest and the directory have to agree; they are edited separately and drift silently."
+  local extra=() base
+  for f in "$set_dir"/*; do
+    base="$(basename "$f")"
+    case "$base" in Contents.json|"$filenames") ;; *) extra+=("$base") ;; esac
+  done
+  [[ "${#extra[@]}" -eq 0 ]] || fail \
+    "$set_dir holds ${#extra[@]} file(s) Contents.json does not name: ${extra[*]}" \
+    "A WHITELIST over the directory: Contents.json and the one named image, nothing else. A stale PNG" \
+    "left beside the real one is a second source of truth for a generated file."
+
+  # ------------------------------------------------------------------ (e) THE PNG'S OWN HEADER
+  local sig tag w1 w2 w3 w4 h1 h2 h3 h4 width height ctype
+  sig="$(bytes_at "$png" 0 8)"
+  [[ "$sig" == "$PNG_SIG" ]] || fail "$png is not a PNG: first 8 bytes are [$sig], expected [$PNG_SIG]."
+  tag="$(bytes_at "$png" 12 4)"
+  [[ "$tag" == "$IHDR_TAG" ]] || fail "$png has no IHDR at offset 12: [$tag], expected [$IHDR_TAG]." \
+    "Width, height and colour type are read from that chunk; without it nothing below was measured."
+  read -r w1 w2 w3 w4 h1 h2 h3 h4 <<<"$(bytes_at "$png" 16 8)"
+  width=$(( (w1 << 24) + (w2 << 16) + (w3 << 8) + w4 ))
+  height=$(( (h1 << 24) + (h2 << 16) + (h3 << 8) + h4 ))
+  [[ "$width" -eq "$EXPECT_PX" && "$height" -eq "$EXPECT_PX" ]] || fail \
+    "$png is ${width}x${height}, expected ${EXPECT_PX}x${EXPECT_PX}." \
+    "Contents.json says $EXPECT_SIZE. actool scales a smaller source up and every device size ships soft." \
+    "Read from the IHDR, so a manifest that claims 1024 over a 512 file is refused rather than believed."
+  read -r ctype <<<"$(bytes_at "$png" 25 1)"
+  [[ "$ctype" -eq "$EXPECT_COLORTYPE" ]] || fail \
+    "$png declares PNG colour type $ctype, expected $EXPECT_COLORTYPE (truecolour, no alpha channel)." \
+    "App Store Connect rejects an app icon that carries an alpha channel, and nothing on this box" \
+    "compiles the catalog - the IHDR is the only evidence there is before a reviewer sees it."
+
+  # ------------------------------------------------------------------ (f) THE LAUNCH COLOUR IS REAL
+  local launch_name
+  launch_name="$(tr -d ' \t\r\n' < "$plist" | grep -o '<key>UIColorName</key><string>[^<]*</string>' \
+                 | sed -e 's/.*<string>//' -e 's|</string>||')"
+  [[ -n "$launch_name" ]] || fail "$plist names no UIColorName under UILaunchScreen." \
+    "An empty <dict/> launches system white in light and system black in dark - neither is a colour this" \
+    "app owns, so the first frame flashes something DesignTokens never declared (ruling R5)."
+  local colorset="$catalog/$launch_name.colorset"
+  [[ -d "$colorset" && -f "$colorset/Contents.json" ]] || fail \
+    "UILaunchScreen names $launch_name but there is no colour set named $launch_name in $catalog." \
+    "iOS resolves UIColorName BY NAME against the app's asset catalog - the plist cannot carry a hex." \
+    "A name nothing defines launches black, which every user reads as a crash on a warm-ground app."
+
+  echo "check-app-icon: OK $icon_name.appiconset -> $filenames ${width}x${height} colour type $ctype," \
+       "$SETTING_KEY = $icon_name in $k_cfg/$n_cfg configuration(s), launch colour $launch_name."
+}
+
+# ---------------------------------------------------------------------- the mutation table
+#   ROW = label | shell command over $dir, the copy of apps/ios | substring the refusal must contain
+# `|` is the field separator, so no command may contain one. $dir is written \$dir and expanded by eval.
+prove_red() {
+  local rows=(
+    "the AppIcon.appiconset missing|rm -rf \$dir/$CATALOG_REL/AppIcon.appiconset|no AppIcon.appiconset"
+    "Contents.json names a file that is not there|sed -i s/AppIcon.png/AppIcon-1024.png/ \$dir/$CATALOG_REL/AppIcon.appiconset/Contents.json|names a file that is not in the set"
+    "a stale second PNG left in the set|cp \$dir/$CATALOG_REL/AppIcon.appiconset/AppIcon.png \$dir/$CATALOG_REL/AppIcon.appiconset/AppIcon-old.png|file(s) Contents.json does not name"
+    "the declared size is not 1024x1024|sed -i s/1024x1024/60x60/ \$dir/$CATALOG_REL/AppIcon.appiconset/Contents.json|declares size 60x60"
+    "the PNG is 512x512|python ops/lib/make-app-icon.py --size 512 --out \$dir/$CATALOG_REL/AppIcon.appiconset/AppIcon.png|is 512x512, expected 1024x1024"
+    "the PNG carries an alpha channel|python -c \"import sys; from PIL import Image; p = sys.argv[1]; Image.open(p).convert('RGBA').save(p)\" \$dir/$CATALOG_REL/AppIcon.appiconset/AppIcon.png|colour type 6, expected 2"
+    "the setting absent from ONE configuration|sed -i 0,/$SETTING_KEY/{/$SETTING_KEY/d} \$dir/$PBX_REL|is set in 1 of 2 build configuration(s)"
+    "the setting absent from BOTH configurations|sed -i /$SETTING_KEY/d \$dir/$PBX_REL|is set in 0 of 2 build configuration(s)"
+    "the launch colour names a set nobody added|sed -i s/LaunchBackground/CanyonSky/ \$dir/$PLIST_REL|no colour set named CanyonSky"
+    "UILaunchScreen carries no UIColorName|sed -i s/UIColorName/UILaunchScreenName/ \$dir/$PLIST_REL|names no UIColorName"
+  )
+  # Not `local`, not inside the loop: the EXIT trap fires after the frame is gone (the bug
+  # check-safety-disclaimer-mutations already paid for once).
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+
+  local pass=0 total=0 row label cmd expect out status dir
+  printf '%-48s %-6s %s\n' "MUTATION" "EXIT" "REASON NAMED"
+  for row in "${rows[@]}"; do
+    total=$((total + 1))
+    label="${row%%|*}"; cmd="${row#*|}"; expect="${cmd##*|}"; cmd="${cmd%|*}"
+    dir="$work/m$total"
+    rm -rf "$dir"
+    cp -R "$DEFAULT_APP_TREE" "$dir"
+    eval "$cmd" >/dev/null 2>&1 || { echo "  MUTATION COMMAND FAILED: $label"; exit 1; }
+    out="$(bash "$0" --app-tree "$dir" 2>&1)"
+    status=$?
+    if [[ "$status" -ne 0 && "$out" == *"$expect"* ]]; then
+      pass=$((pass + 1))
+      printf '%-48s %-6s %s\n' "${label:0:48}" "$status RED" "$expect"
+    else
+      printf '%-48s %-6s %s\n' "${label:0:48}" "$status" "NOT NAMED - expected: $expect"
+      echo "$out" | sed -e 's/^/      /'
+    fi
+  done
+  echo "check-app-icon --prove-red: $pass/$total mutations refused by name"
+  [[ "$pass" -eq "$total" ]] || exit 1
+}
+
+if [[ "$PROVE_RED" -eq 1 ]]; then
+  # A table run against an already-red tree prints refusals that prove nothing. The probe runs in a SUBSHELL
+  # because `fail` exits.
+  if ! ( run_check >/dev/null ); then
+    echo "check-app-icon: --prove-red refuses to run against a tree that is already red."
+    run_check
+    exit 1
+  fi
+  prove_red
+else
+  run_check
+fi
