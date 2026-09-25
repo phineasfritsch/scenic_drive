@@ -1,13 +1,13 @@
 ---
 id: T-0239
 title: ops/plan --menu - the time-vs-fun menu for one trip, from alternative_route over the lambda ladder (max_exploration_factor 2.0), deduplicated, a Pareto frontier of extra minutes against fun km, recorded and replayed offline
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-25T23:40:52Z
+lease_expires_at: 2026-09-26T07:40:52Z
+worktree: .worktrees/T-0239
+branch: task/T-0239
 exclusive: []
 touches: [Sources/ScenicKit/Menu/, Sources/ScenicPlanCLI/, Tests/ScenicKitTests/Menu/, Tests/ScenicPlanCLITests/, Tests/Fixtures/t0239/, Tests/Fixtures/t0182-recorder/, ops/plan, ops/mutate/, ops/lib/mutate-population-allowlist.json]
 pins_affected: [P-SAFE-04]
@@ -33,3 +33,4 @@ Owner-facing preview of the probe's menus: .artifacts/preview/route-menu.html (g
 
 ## Log
 - 2026-09-25T23:39:48Z filed by agent/claude-opus-5 (orchestrator) from the frontier probe (one agent, exploration output only). FOR THE OWNER: rank the menu by fun km (Latigo wins T4) or by fun share (The Snake wins)? Default ruled: fun km.
+- 2026-09-25T23:40:52Z claimed by agent/claude-opus-5; lease until 2026-09-26T07:40:52Z
