@@ -1,7 +1,7 @@
 ---
 id: T-0199
 title: ops/mutate/handoff - the StraightLineDistance population (an earth-radius swap, a formula swap as an EQUIVALENT entry with its witness, floor -> nearest, a dropped chain point) with a literal floor; T-0170's STILL OPEN (a)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T17:45:21Z
@@ -11,7 +11,7 @@ branch: task/T-0199
 exclusive: []
 touches: [ops/mutate/, Tests/HandoffTests/, ops/lib/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr125
 depends_on: [T-0170]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -261,3 +261,102 @@ card's precision and the test doc overclaiming.
   after: straightline.py 242, straightline_run.py 149, straightline_mutations.py 197,
   Tests/HandoffTests/StraightLineDistanceTests.swift 237 (was 208) - every one under 300, and the new file
   is 100644 like every other ops/mutate/*.py (it is imported, never invoked).
+- 2026-09-25T20:19:12Z REVIEW PASS by agent/rv1-pr125 (reviewer; not the owner agent/claude-opus-5 and not
+  its fixer), on PR #125 at 9e8c682 == origin/task/T-0199, from a detached sibling worktree
+  .worktrees/rv1-pr125. Every claim below is a command I ran and the line it printed.
+  THE TREE. `git status --short` in .worktrees/T-0199: empty. `git diff origin/main...HEAD --stat`: 6 files,
+  903 insertions, 4 deletions - ops/mutate/straightline.py 242, ops/mutate/straightline_mutations.py 197,
+  ops/mutate/straightline_run.py 149, Tests/HandoffTests/StraightLineDistanceTests.swift +85,
+  ops/lib/check-mutate-population.py +3-1, this task file +231. NO Sources/ change, which is the population
+  restoring what it mutates; and the interrupted fixer's killed run committed nothing - not one of the twelve
+  Tests/HandoffTests files appears in the diff as emptied.
+  THE ACCEPTANCE BLOCK, re-run bare by the reviewer on 9e8c682:
+    `python ops/mutate/straightline.py` -> `caught by the test that names it: 11 of 11   (wrong killer 0,
+      trapped 0, compile-only 0, MISSED 0, skipped 0)` and `MUTATE OK  caught=11/11 equivalent_caught=0`,
+      exit 0. Both EQUIVALENT entries were applied, built, tested and MISSED. `restored, md5
+      StraightLineDistance.swift 8413b2c95c79dc4cedd40cb452da40bb, Geo.swift
+      8107f142ef73e0a759a0e7fe089ead4d, SkylineRoute.swift 11aab6adad7e703e6e83290cdc1362c8` - the same three
+      md5s the run printed as pristine == HEAD before the first build.
+    `python ops/mutate/straightline.py --prove-vacuity` -> `VACUITY PROOF OK: with the 12 test file(s)
+      emptied, caught=0 (need 0) and MISSED=11 of 11`, exit 0; `git status --short` after: empty.
+    `python ops/mutate/straightline.py --prove-floor` -> `FLOOR PROOF OK: 8 of 8 arms refused and the control
+      did not`, exit 0.
+    `swift test --scratch-path .build/rv1-pr125 --filter HandoffTests` -> `Test run with 87 tests in 12 suites
+      passed after 0.114 seconds`, exit 0.
+    `python ops/lib/check-mutate-population.py` -> `P-PROC-06: every added module is covered or allowlisted;
+      the floor of 26 holds`, exit 0.
+    `bash ops/check-pins --source-only`, alone -> `PINS ok=15 skipped=16 pending=1 expired=0 failed=0
+      tier=linux source-only`, exit 0.
+    `bash ops/lib/check-line-cap` -> `P-SRC-02: 92 Swift files tracked (Sources=29, Tests=42, apps/ios=21),
+      none over 300 lines`, exit 0; `wc -l` on the family: 242, 149, 197 - each under the cap the R8 split was
+      ruled against, with the budget.py / geometry.py / scenic_tags.py precedent named in that ruling.
+    `bash ops/lib/check-exec-bits` -> `P-OPS-01: 88 files, 23 required present, all modes correct`, exit 0;
+      `git ls-files -s` gives all three new files 100644, the mode every ops/mutate/*.py carries, handoff.py
+      included - they are run as `python ops/mutate/<file>`, never as `./<file>`.
+    `bash ops/queue-check` -> `QUEUE OK (225 tasks)`, exit 0. `gh pr checks 125` -> core pass 2m21s,
+      pins-source-only pass 57s.
+  THREE REVIEW MUTANTS, run by me rather than read out of this Log, each restored with `git status --short`
+  empty afterwards:
+  (1) DUPLICATE PADDING. A verbatim copy of MUTATIONS[0] appended and the floor raised to match:
+      `ARM A  duplicate of entry 1 appended, floor raised to 12 over 12 entries (11 distinct): NO REFUSAL -
+      the floor accepted it`. `population_floor` counts ENTRIES, never distinct mutant texts, so the literal
+      floor can be raised with a copy and the run still prints MUTATE OK over eleven distinct measurements.
+      Not introduced here - `grep -n "duplicate\|len(set" ops/mutate/*.py ops/lib/check-mutate-population.py`
+      finds no de-duplication in any of the twelve drivers - and this PR ships 11 distinct entries, so it is
+      RECORDABLE and not blocking. It should be one task over the whole ops/mutate family (every driver's
+      `population_floor`, plus ops/lib/check-mutate-population.py, which cannot see inside a table either).
+  (2) THE EQUIVALENT ENTRIES, both directions. The witness is not prose the driver prints and forgets: each
+      entry is applied, built and run, and `eq_ok = len(eq["missed"]) == len(EQUIVALENT)` requires MISSED to
+      be COMPLETE - this run, both MISSED, `equivalent_caught=0`. The other direction: MUTATIONS entry 4
+      (`.rounded(.down)` -> `.rounded()`, a mutant the suite demonstrably kills) filed under EQUIVALENT with a
+      witness that is a lie -> `caught  PROBE: the mile figure rounds to nearest, filed as EQUIVALENT  by: the
+      miles are floored too: 1.99 miles of chain is 1 mile and never 2 | ...`, so `len(eq['missed'])` is 0
+      against 1 and the driver prints EQUIVALENT ARM FAILED / MUTATE FAILED. A false equivalence ruling cannot
+      buy a green run.
+  (3) THE 1,065 KM EAST-WEST LEG asserts through the shipping symbols with the SHIPPED constant, not a literal
+      metre count beside a literal mile count from one arithmetic: `meters(through:)` is pinned to
+      1_064_944.819 m +-1 and the mile figure is asserted SEPARATELY through `wholeMiles(through:)`, which
+      divides by the subject's own 1_609.344. The proof that the mile assertion is load-bearing is in the run
+      and not in the comment: `the metres-to-miles constant 1% too large` is caught by that test ALONE while
+      the metre literal stays satisfied, and `the flat equirectangular formula on the same radius` is caught by
+      that test alone too. The ENTRY POINT `wholeMiles(for:)` is bound by `every drive's miles are that drive's
+      own chain, floored from that drive's metres`, which is one of MUTATION 11's two killers - so the suite
+      binds the symbol production runs (DriveFacts.swift:45) and not only the helper under it.
+  THE GATE MUTANT, three arms on the registration this PR adds, each restored (`git status: clean`):
+      SUBJECT_MODULES retargeted to Sources/Handoff/HandoffError.swift -> exit 2, `SUBJECT_MODULES names
+      Sources/Handoff/HandoffError.swift, which no mutation in the straightline* population targets. A
+      declaration is not coverage`; `"straightline.py"` dropped from DRIVERS -> exit 2, `runnable driver(s) in
+      neither DRIVERS nor PROBES: straightline.py. Classify a new driver; never ignore one.`; control -> exit
+      0, floor of 26. THE THIRD ARM IS A FINDING: deleting the `Sources/Handoff/StraightLineDistance.swift`
+      line from COVERED_FLOOR while the driver still declares it -> exit 0, `the floor of 25 holds`. The floor
+      is a subset check, so the floor list can be shortened silently; what it catches is a DRIVER dropping a
+      subject, which arm 1 shows it does catch. RECORDABLE against ops/lib/check-mutate-population.py (T-0186's
+      gate, not this PR's code): require every declared subject to appear in COVERED_FLOOR.
+  COMPILE-FAILURE DISCIPLINE, judged. ops/mutate/straightline_run.py sorts one mutation into six mutually
+  exclusive buckets: a mutant that does not compile is `compile_only`, "a fact about Swift, not about these
+  tests - DOES NOT COUNT", printed apart from `caught` in the summary and excluded from
+  `ok = len(caught) == len(MUTATIONS)`; `trapped` is a non-zero exit with no NAMED failure; `wrong_killer` is a
+  kill by a test the entry does not name; `skipped` is a stale anchor. `build()` is retried once before a
+  compile failure is believed, and FAIL_LINE is ASCII-only - which is handoff.py's first defect (the U+00D7
+  glyph mis-decoding on this console, every real catch reading as compile-only) fixed at the root rather than
+  inherited. This run: compile-only 0, trapped 0, wrong killer 0, skipped 0.
+  TWO MORE FINDINGS, NEITHER BLOCKING, recorded so they are not lost:
+  (a) `--prove-floor` arm 7, `every mutation of the declared subject removed`, refuses on the COUNT clause and
+      not the subject clause: `MUTATIONS holds 4 entries, below the floor of 11`. The subject clause has
+      therefore never been seen red by the shipped proof, and the same wrong-reason line is quoted in the
+      18:09Z entry above. I made it red: eleven well-formed entries, none editing the subject ->
+      `no MUTATIONS entry edits StraightLineDistance.swift, the one path SUBJECT_MODULES declares`. The clause
+      works; the ARM should pad to the floor with dependency entries so it demonstrates what it names.
+      RECORDABLE against ops/mutate/straightline.py.
+  (b) THE AUTHOR RULE's re-quote. The whole acceptance block was last quoted at dc70fee (21:26Z, "10/10 and 86
+      tests"), before MUTATION 11, the three-file split and the two new tests landed in 3c2e7ca and d5a67ce;
+      the 21:54:53Z ruling re-measures `wc -l` but not the block. The usage-limit interruption is the reason
+      and the gap is real. It is closed by measurement and not by trust: the whole block is re-run above, by
+      the reviewer, on the head being signed off.
+  MAIN MOVED UNDER THE BRANCH. `git merge-base --is-ancestor origin/main HEAD` exits 1.
+  `git log --oneline HEAD..origin/main`: fd786f6 (T-0234 filed) and 5df0b35 (T-0233 filed);
+  `git diff --stat HEAD...origin/main`: 3 files, 71 insertions - two queue/claimed task files and
+  queue/LOCKS/xcodeproj.lock. Nothing under ops/, pins/, .githooks/, Sources/ or Tests/, so the gate set this
+  sign-off was bought on IS main's gate set, P-PROC-06's own population gate included (I ran it). That is the
+  difference from PR #115, which predated a gate. The orchestrator merges origin/main before merging.
+  VERDICT: PASS. state claimed -> done, reviewer agent/rv1-pr125, the file moved with `git mv` to queue/done/.
