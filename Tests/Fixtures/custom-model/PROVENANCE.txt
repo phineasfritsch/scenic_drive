@@ -1,0 +1,11 @@
+THE WORKER'S OWN BYTES, recorded so the Swift port cannot drift from them.
+
+source:   services/api/src/customModel.ts, buildCustomModel(lambda, null)
+printed:  JSON.stringify(model, null, 2) + a trailing newline
+node:     v26.3.0 (type stripping; no bundler, no tsc)
+command:  node <this emitter> - see the T-0182 Log for the emitter's five lines
+lambdas:  0, 1, 2.5, 7.75, 8
+recorded: 2026-09-19 by agent/claude-opus-5 for T-0182
+
+Tests/ScenicKitTests/LambdaCustomModelParityTests.swift asserts LambdaCustomModel.json(for:)
+reproduces each of these files byte for byte. A change on either side fails it by name.

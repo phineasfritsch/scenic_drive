@@ -46,9 +46,27 @@ struct StraightLineDistanceTests {
     static let straightLineMiles = 69
 
     /// The same measurement before the floor, to a metre. The band is one metre and not one kilometre:
-    /// it is here to catch a change in the arithmetic (a different radius, a different formula) that
-    /// the floored integer would swallow, not to allow a pin to move.
+    /// it is here to catch a change in the RADIUS that the floored integer would swallow, not to allow
+    /// a pin to move.
+    ///
+    /// It does NOT catch a change of FORMULA, and the earlier claim that it did was measured false: a
+    /// flat equirectangular formula on the same radius totals 112_268.146 m over this chain, 0.053 m
+    /// from the haversine and well inside this band. These legs are short and mostly north-south, which
+    /// is precisely where the two formulas agree. `aLongEastWestLegPinsTheFormulaAndTheMileConstant` is
+    /// where they do not, and it is what stands behind the formula.
     static let straightLineMeters = 112_268.093
+
+    /// A LONG EAST-WEST LEG, and why a synthetic one has to exist. Twelve degrees of longitude at
+    /// latitude 37 is 1_064_944.819 m by the shipped haversine. Over that leg the flat formula above is
+    /// 1_065_652.075 m - 707.256 m out, and 662 miles against 661 - so one leg the drive does not
+    /// contain is what lets the suite tell the arithmetic apart. It is also the only chain here long
+    /// enough for a 1 % error in the metres-to-miles constant to cross a whole mile: 1 % of 661 miles is
+    /// six and a half of them, while 1 % of the card's 69.76 miles is still 69.
+    static let longLegWest = Coordinate(latitude: 37.00000, longitude: -122.00000)
+    static let longLegEast = Coordinate(latitude: 37.00000, longitude: -110.00000)
+    static let longLegMeters = 1_064_944.819
+    static let longLegKilometers = 1_064
+    static let longLegMiles = 661
 
     /// THE PER-POINT BOUND. No point in the shipped chain may be further than this from the literal
     /// this suite types out for it. This is the "more than a kilometre" rule, expressed where it can
@@ -118,6 +136,40 @@ struct StraightLineDistanceTests {
         #expect(StraightLineDistance.wholeMiles(through: [a]) == 0)
     }
 
+    @Test("a 1,065 km east-west leg pins the formula and the mile constant")
+    func aLongEastWestLegPinsTheFormulaAndTheMileConstant() {
+        // T-0199. Three mutants walked through the shipped chain untouched: a flat equirectangular
+        // formula on the same radius (0.053 m over 112 km of short, mostly north-south legs) and the
+        // metres-to-miles constant 1 % either way (69.07 and 70.46 miles, both still floored to 69 next
+        // to a 69.76 that floors to 69). On this leg the same three are 707 m and six miles. The chain
+        // is synthetic on purpose: the drive has no leg long enough to separate them, and a number the
+        // screen renders should not be pinned only where its arithmetic happens not to matter.
+        let leg = [Self.longLegWest, Self.longLegEast]
+        let metres = StraightLineDistance.meters(through: leg)
+        #expect(abs(metres - Self.longLegMeters) <= 1, "got \(metres) m, pinned \(Self.longLegMeters) m")
+        #expect(StraightLineDistance.wholeKilometers(through: leg) == Self.longLegKilometers,
+                "got \(StraightLineDistance.wholeKilometers(through: leg)) km from \(metres) m")
+        #expect(StraightLineDistance.wholeMiles(through: leg) == Self.longLegMiles,
+                "got \(StraightLineDistance.wholeMiles(through: leg)) mi from \(metres) m")
+    }
+
+    @Test("the miles come from the metres, not from the floored kilometres")
+    func theMilesComeFromTheMetresAndNotFromTheFlooredKilometres() {
+        // T-0199. `wholeMiles(through:)`'s type note says the miles are not converted from the whole
+        // kilometres, "that would floor twice and lose up to a mile" - and nothing measured it. Every
+        // chain the suite pinned agreed either way: 112 km * 0.621371 is 69.59 -> 69, 47 km is 29.20 ->
+        // 29, and the 1.99-mile synthetic is 3.107 -> 3. This is a length where the two disagree.
+        // 0.04496 degrees of latitude on a meridian is 4_999.331 m: 3.1064 miles, so the figure is 3.
+        // Floor the kilometres first and 4 km * 0.621371 is 2.4855 -> 2, a mile lost to a second floor.
+        let a = Coordinate(latitude: 37.00000, longitude: -122.00000)
+        let b = Coordinate(latitude: 37.04496, longitude: -122.00000)
+        let metres = StraightLineDistance.meters(through: [a, b])
+        #expect(metres > 4_900 && metres < 5_000, "got \(metres) m")
+        #expect(StraightLineDistance.wholeKilometers(through: [a, b]) == 4)
+        #expect(StraightLineDistance.wholeMiles(through: [a, b]) == 3,
+                "got \(StraightLineDistance.wholeMiles(through: [a, b])) mi from \(metres) m")
+    }
+
     @Test("the figure is floored, not rounded: 1999 m of chain is 1 km and never 2")
     func theFigureIsFlooredAndNeverRoundedUp() {
         // Two points ~1999 m apart on a meridian: 0.01797 degrees of latitude is 1998.9 m at this
@@ -152,5 +204,34 @@ struct StraightLineDistanceTests {
                 "the total moved \(abs(metres - Self.straightLineMeters)) m, which a kilometre band WOULD catch")
         #expect(StraightLineDistance.wholeKilometers(through: drifted) == Self.straightLineKilometers,
                 "the floored figure moved to \(StraightLineDistance.wholeKilometers(through: drifted)) km")
+    }
+
+    /// THE ENTRY POINT, which is the symbol the screen renders: `wholeMiles(for:)`, not the helper under
+    /// it. `DriveFacts` calls this one, and until T-0199's pre-review pass no mutation edited its body -
+    /// every entry in the population edits a helper or a dependency, and the two literals above pin the
+    /// two shipped figures without ever asking whether the figure a drive gets is measured over THAT
+    /// drive's chain.
+    ///
+    /// Over `allCases` and re-derived from each drive's own metres rather than named drive by named
+    /// drive: the case count is asserted so that the day a third drive lands this test grows with the
+    /// enum instead of quietly covering two cases of three. That same range is the tripwire on the
+    /// EQUIVALENT entry in `ops/mutate/straightline_mutations.py` which rules the double floor AT this
+    /// entry point unkillable - unkillable only while the domain is two drives that floor to the same
+    /// mile either way, and this is the test that stops being green about it when one of them moves.
+    @Test("every drive's miles are that drive's own chain, floored from that drive's metres")
+    func everyDrivesMilesAreThatDrivesOwnChain() {
+        #expect(HandoffDrive.allCases.count == 2, "the domain wholeMiles(for:) ranges over has changed")
+        for drive in HandoffDrive.allCases {
+            let metres = StraightLineDistance.meters(through: drive.chain)
+            let rendered = StraightLineDistance.wholeMiles(for: drive)
+            #expect(rendered == Int((metres / 1_609.344).rounded(.down)),
+                    "\(drive.rawValue) renders \(rendered) mi over \(metres) m of its own chain")
+            #expect(rendered == StraightLineDistance.wholeMiles(through: drive.chain),
+                    "\(drive.rawValue): the entry point and the helper disagree")
+        }
+        // And the loop is not comparing one drive with itself: two drives, two figures.
+        #expect(StraightLineDistance.wholeMiles(for: .skyline)
+                != StraightLineDistance.wholeMiles(for: .santaMonicaMountains),
+                "both drives render the same miles, so a drive swapped here would be invisible")
     }
 }

@@ -22,7 +22,7 @@ THREE QUESTIONS, THREE CONSEQUENCES (T-0186, ruling R4).
 
 HOW COVERAGE IS DECLARED (ruling R3). Every population driver carries `SUBJECT_MODULES`, a literal tuple of
 repo-relative paths, read here as TEXT - never imported, because importing a driver executes its population.
-DRIVERS below is a WHITELIST: any other ops/mutate/*.py with a `__main__` block is a refusal until it is
+DRIVERS (mutate_population_table.py) is a WHITELIST: any other ops/mutate/*.py with a `__main__` block is a refusal until it is
 classified, and geometry_probe.py is exempt by name rather than declaring geometry.py's subjects - a probe
 that declared them would keep the coverage looking intact after geometry.py was deleted.
 AND A DECLARATION IS NOT COVERAGE (T-0186 S1): appending one string to SUBJECT_MODULES would otherwise cover
@@ -63,29 +63,14 @@ ALLOWLIST_FILE = "ops/lib/mutate-population-allowlist.json"
 # are RECURSIVE: "services/etl/etl has no subpackages" was true the day R2 was written and is nobody's job
 # to keep true, and a module in a subpackage is a module (T-0186 S4).
 MODULE_ROOTS = (("services/etl/etl", ".py", True), ("Sources", ".swift", True))
-
-DRIVERS = ("budget.py", "extractadapter.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
-           "hazards.py", "normalise.py", "retrace.py", "routescore.py", "scenic_tags.py",
-           "segmentscore.py", "surfacecoverage.py")
-PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
-
-# The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
-COVERED_FLOOR = (
-    "services/etl/etl/accessrule.py", "services/etl/etl/extractadapter.py",
-    "services/etl/etl/normalise.py", "services/etl/etl/proximity.py",
-    "services/etl/etl/region_reference.py", "services/etl/etl/scenecheck.py",
-    "services/etl/etl/sinuosity.py",
-    "services/etl/etl/snap.py", "services/etl/etl/surfacecoverage.py", "services/etl/etl/tagwriter.py",
-    "Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift",
-    "Sources/ScenicKit/Budget/BudgetError.swift", "Sources/ScenicKit/Budget/BudgetOutcome.swift",
-    "Sources/ScenicKit/Budget/LambdaSearch.swift", "Sources/ScenicKit/Gates/ConsideredTags.swift",
-    "Sources/ScenicKit/Gates/GateDecision.swift", "Sources/ScenicKit/Gates/GateReason.swift",
-    "Sources/ScenicKit/Gates/Gates.swift", "Sources/ScenicKit/Guidance/GuidanceMapping.swift",
-    "Sources/ScenicKit/Guidance/GuidanceSign.swift", "Sources/ScenicKit/Hazards/HazardFlag.swift",
-    "Sources/ScenicKit/Hazards/HazardStrip.swift", "Sources/ScenicKit/Loop/RetraceDetector.swift",
-    "Sources/ScenicKit/Scoring/RouteScore.swift", "Sources/ScenicKit/Scoring/SegmentScore.swift",
-    "Sources/ScenicKit/Scoring/SegmentTerms.swift",
-)
+# DRIVERS (the whitelist), PROBES and COVERED_FLOOR (the literal floor, ruling R4 ii) are DATA and live in
+# ops/lib/mutate_population_table.py beside this file (T-0208: the merged tables took this gate past the
+# 300-line cap). A missing sibling is this gate's own refusal, exit 2 with a sentence, never a traceback.
+try:
+    from mutate_population_table import COVERED_FLOOR, DRIVERS, PROBES
+except ImportError as exc:
+    print(f"{PIN_ID}: ops/lib/mutate_population_table.py is not importable: {exc}")
+    raise SystemExit(2) from exc
 
 DECL_RE = re.compile(r"^SUBJECT_MODULES\s*=\s*\(([^)]*)\)", re.M)
 STRING_RE = re.compile(r"[\"']([^\"']+)[\"']")

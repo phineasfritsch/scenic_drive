@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-20T01:26:13Z
 worktree: .worktrees/T-0208
 branch: task/T-0208
 exclusive: [scenic-index]
-touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract, ops/mutate/, ops/lib/check-mutate-population.py]
+touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract, ops/mutate/, ops/lib/check-mutate-population.py, ops/lib/mutate_population_table.py]
 pins_affected: []
 reviewer: null
 depends_on: [T-0204, T-0207]
@@ -336,3 +336,23 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   RIDGE_ALLOWLIST {518410361, 787842196} -> {}, and `test_the_seam_merge_rule_is_recorded_and_the_rows_
   obey_it` -> `test_the_seam_ways_are_recorded_and_every_one_of_them_carries_ONE_score` (R8), which pins
   `len(seam_ways) == 190` so it cannot pass over an empty list. 222 lines. Suite: `1242 passed`.
+- 2026-09-25T21:08:06Z (R9) THE MERGE OF origin/main RULED by agent/claude-opus-5 (owner), resuming after the
+  2026-09-19 usage-limit stop. `git fetch origin && git merge --no-edit origin/main` (006c798, PRs #119-#128)
+  onto b519a88: ONE conflict, `ops/lib/check-mutate-population.py` DRIVERS - main added `plan.py` and
+  `straightline.py`, this branch `normalise.py`. RESOLVED AS THE UNION, 15 drivers. COVERED_FLOOR merged
+  without a conflict to the union: main's 34 plus `normalise.py` and `region_reference.py`, 36. The union
+  took the gate to 302 lines against the 300-line cap (main left it at exactly 300), so the three DATA
+  tables - DRIVERS, PROBES, COVERED_FLOOR - MOVED, content unchanged, into a sibling
+  `ops/lib/mutate_population_table.py` (100644, importable beside the gate exactly as
+  `mutate_population_red.py` is). The gate imports them at module scope and a missing sibling is the gate's
+  own refusal, not a traceback - SEEN RED: with the sibling moved aside, `P-PROC-06:
+  ops/lib/mutate_population_table.py is not importable: No module named 'mutate_population_table'`, exit 2;
+  restored, exit 0. TOUCHES AMENDED: `ops/lib/mutate_population_table.py` added, nothing else in ops/lib/.
+  `services/etl/etl/assemble.py` merged WITHOUT a conflict and carries BOTH #122's
+  `from .accessrule import ...` (the access rules re-exported) and this branch's `region_reference` import
+  and `--reference` plumbing.
+  `--prove-red` BEFORE THE MERGE COMMIT read `git arm: ... 1 2 NOT DISCRIMINATING` on all three real-git
+  cases: the git arm CLONES THE COMMITTED HEAD (`git clone root`), which was still pre-merge b519a88 and
+  lacks main's `plan.py`/`straightline.py` drivers the merged table names, so every clone was a
+  fail-closed exit 2. Main's own checkout reads `all 13 cases behaved as stated`. It is re-run on the
+  committed merge below and quoted there; an uncommitted merge is not the tree the gate is proved on.
