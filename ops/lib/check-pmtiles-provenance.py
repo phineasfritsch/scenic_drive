@@ -22,13 +22,11 @@ THE REAL ARTIFACT. When `SCENIC_LA_PMTILES` names a file, the same command is ru
 that is the pin over the real build, on the one box that has it. Set and naming nothing is a REFUSAL, never
 a skip (the rule `services/tiles/tests/test_check_pmtiles_cli.py` already states for itself).
 
-THE CORPUS HALF IS NOT HERE, AND IT IS NOW UNOWNED. P-DATA-03 also speaks about the corpus. `etl.corpus`
-DOES stamp one - `services/etl/etl/corpus.py`, `writer.set_meta("region", region)` - but nothing anywhere
-reads that value back against the active region, and T-0205, which the pin's text named as the task that
-would grow this assertion's second half, merged as PR #116 writing `meta.surface_coverage` (P-DATA-04)
-instead. No open task owns the corpus region comparison; one has to be filed. This file asserts the tiles
-half only and says which half it is - a pin that quietly covers one of two populations is worse than one
-that names the gap.
+THE CORPUS HALF IS ITS OWN CHECK, and it exists now (T-0219). P-DATA-03 also speaks about the corpus:
+`etl.corpus` stamps one - `services/etl/etl/corpus.py`, `writer.set_meta("region", region)` - and until
+T-0219 nothing read that value back against the active region. `ops/lib/check-corpus-provenance.py` does,
+and P-DATA-03's assertion runs BOTH files. This one still asserts the tiles half only and says which half it
+is: a pin that quietly covers one of two populations is worse than one that names its halves.
 
     python ops/lib/check-pmtiles-provenance.py
 """
@@ -141,9 +139,8 @@ def main() -> int:
           f"{len(cases)} in-process fixtures:")
     for line in lines:
         print(line)
-    print("  The corpus half is UNASSERTED and UNOWNED: etl.corpus stamps meta.region (corpus.py, "
-          "set_meta(\"region\", ...)) and nothing reads it back against the active region; T-0205 merged "
-          "as PR #116 writing meta.surface_coverage instead, so a task for it still has to be filed.")
+    print("  This is the TILES half. The corpus half is ops/lib/check-corpus-provenance.py (T-0219), which "
+          "P-DATA-03's assertion runs after this one; between them the pin covers both populations.")
     return 0
 
 
