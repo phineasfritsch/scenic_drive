@@ -1,22 +1,22 @@
-"""The guardrails on .github/workflows/ios-compile.yml, read as DATA (T-0157).
+"""The guardrails on the two macOS workflows - .github/workflows/ios-compile.yml (T-0157) and ios-screenshot.yml
+(T-0235) - read as DATA, under one set of rules and one action allowlist.
 
-That workflow runs on a macOS runner. It is safe to have in the tree only while it is dispatch-only, read-only,
-time-boxed, on the standard runner label, and unable to go green without compiling: a `push:` trigger added in
-passing would put a macOS build on every commit of every branch, beside the Linux CI the fleet depends on.
-
-Three review rounds each found a door the previous version did not watch - a job-level `permissions:` (it
-REPLACES the workflow-level block), a step-level `shell:` and `continue-on-error`, `set +o pipefail` inside the
-script, `if: false` on the build step (a skipped build is a green job that compiled nothing). Enumerating
-doors is an arms race. So this check does two things: it names the dangerous edits it knows (good messages),
-(T-0167 opened exactly one of those doors on purpose: the plan's iOS 26 SDK can only be selected with
+Each runs on a macOS runner and is safe in the tree only while it is dispatch-only, read-only, time-boxed, on the
+standard runner label, and unable to go green without doing its work: a `push:` trigger added in passing would
+put a macOS build on every commit of every branch, beside the Linux CI the fleet depends on. Three review rounds
+each found a door the previous version did not watch - a job-level `permissions:` (it REPLACES the workflow-level
+block), a step-level `shell:` and `continue-on-error`, `set +o pipefail` inside the script, `if: false` on the
+build step (a skipped build is a green job that compiled nothing). Enumerating doors is an arms race. So this
+check names the dangerous edits it knows (good messages), and then compares the WHOLE parsed workflow with the
+structure pinned for it - EXPECTED below; the screenshot job's in ios_screenshot_pinned.py, data moved out of this
+file by the 300-line cap - after normalising the spellings GitHub treats as identical, and names the first path
+that differs. T-0167 opened exactly one door on purpose: the plan's iOS 26 SDK can only be selected with
 DEVELOPER_DIR. One key, at the job level, at one pinned path; a second key, another value, and `env:` at the
-workflow or step level are each still refused BY NAME.)
-and then it compares the WHOLE parsed workflow with the structure pinned below (EXPECTED), after normalising
-the few spellings GitHub treats as identical, and names the first path that differs. Changing what this job
-is - any key, anywhere - means changing this file, deliberately, under review.
+workflow or step level are each still refused BY NAME. Changing what either job is - any key, anywhere - means
+changing a pinned structure, deliberately, under review.
 
-    python ops/lib/check-ios-compile-guardrails.py [path]        exit 0 ok, 1 a guardrail is gone, 2 cannot tell
-    python ops/lib/check-ios-compile-guardrails.py --prove-red   every guardrail seen red on a mutated copy
+    python ops/lib/check-ios-compile-guardrails.py [path]        both workflows, or one: exit 0 ok, 1 a guardrail is gone, 2 cannot tell
+    python ops/lib/check-ios-compile-guardrails.py --prove-red   every guardrail seen red on a mutated copy of each
 """
 import pathlib
 import sys
@@ -27,6 +27,7 @@ try:
 except ImportError:  # "I could not ask" is not "the answer is yes"
     print("IOS-COMPILE-GUARDRAILS REFUSING: PyYAML is not importable, so the workflow cannot be read as data")
     sys.exit(2)
+import ios_screenshot_pinned as shot  # the second workflow's pinned DATA (T-0235); this directory is sys.path[0]
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/ios-compile.yml"
@@ -34,6 +35,7 @@ ALLOWED_RUNNERS = {"macos-15"}
 ALLOWED_USES = {"actions/checkout@v4", "actions/upload-artifact@v4"}
 MAX_TIMEOUT_MINUTES = 30
 BUILD_STEP = "build for the iOS Simulator"
+UNSKIPPABLE = {BUILD_STEP} | shot.UNSKIPPABLE
 # The ONE environment variable this workflow is allowed, at the job level and nowhere else (T-0167): the plan
 # needs the iOS 26 SDK, the image defaults to 16.4, and DEVELOPER_DIR is the only selector. By exact path - a
 # glob would silently fall back to the default the day 26.3 leaves the image.
@@ -76,6 +78,7 @@ EXPECTED = {
         ],
     }},
 }
+SHOT_EXPECTED = shot.expected(JOB_ENV)
 
 
 def normalise(doc):
@@ -157,8 +160,8 @@ def named_problems(doc, raw):
             out.append(f"jobs.{name}.timeout-minutes: must be an integer in 1..{MAX_TIMEOUT_MINUTES}, found {t!r}")
         for i, s in enumerate(job.get("steps") or []):
             where = f"jobs.{name}.steps[{i}]"
-            if s.get("name") == BUILD_STEP and "if" in s:
-                out.append(f"{where}.if: a build step that can be SKIPPED is a green job that compiled nothing (found {s['if']!r})")
+            if s.get("name") in UNSKIPPABLE and "if" in s:
+                out.append(f"{where}.if: a work step that can be SKIPPED ({s['name']!r}) is a green job that did nothing (found {s['if']!r})")
             if "env" in s:
                 out.append(f"{where}.env: no step carries its own environment - the one variable this workflow sets is {JOB_ENV} at the job level (found {s['env']!r})")
             if "shell" in s and s["shell"] != "bash":
@@ -170,7 +173,7 @@ def named_problems(doc, raw):
     return out
 
 
-def check(path):
+def check(path, expected=EXPECTED):
     """(exit code, lines). 0 ok, 1 a guardrail is gone, 2 cannot tell."""
     try:
         raw = path.read_text(encoding="utf-8")
@@ -182,7 +185,7 @@ def check(path):
     try:
         doc = normalise(doc)
         found = named_problems(doc, raw)
-        diff = first_difference(EXPECTED, doc)
+        diff = first_difference(expected, doc)
     except Exception as e:  # a shape this check did not expect is "cannot tell", never a verdict
         return 2, [f"IOS-COMPILE-GUARDRAILS REFUSING: {path.name} has a shape this check cannot judge: {type(e).__name__}"]
     if diff and not found:
@@ -190,7 +193,7 @@ def check(path):
     lines = [f"IOS-COMPILE-GUARDRAILS: {p}" for p in found]
     if found:
         return 1, lines + [f"IOS-COMPILE-GUARDRAILS FAIL: {len(found)} guardrail(s) gone in {path.name}"]
-    return 0, [f"IOS-COMPILE-GUARDRAILS OK: {path.name} equals the pinned workflow: dispatch-only, contents: read, {sorted(ALLOWED_RUNNERS)}, time-boxed, one job-level env key ({sorted(JOB_ENV)[0]}={JOB_ENV['DEVELOPER_DIR']}), and a build that cannot be skipped or fail green"]
+    return 0, [f"IOS-COMPILE-GUARDRAILS OK: {path.name} equals the pinned workflow: dispatch-only, contents: read, {sorted(ALLOWED_RUNNERS)}, time-boxed, one job-level env key ({sorted(JOB_ENV)[0]}={JOB_ENV['DEVELOPER_DIR']}), and work steps that cannot be skipped or fail green"]
 
 
 # (what it breaks, exact text in the shipped workflow, replacement). --prove-red applies each ALONE to a copy
@@ -204,11 +207,7 @@ TOOL = "      - name: toolchain\n        run: |\n          xcodebuild -version\n
 ENVLINE = "      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer\n"
 OTHER_XCODE = "      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer\n"
 GUARD = '          test -d "$DEVELOPER_DIR" || { echo "ios-compile: $DEVELOPER_DIR is not on this image"; exit 1; }\n'
-
-
-def after(anchor, line):
-    return anchor.replace("\n        run: |\n", f"\n        {line}\n        run: |\n")
-
+after = shot.after
 
 MUTATIONS = [
     ("a push trigger added", "on:\n  workflow_dispatch:\n", "on:\n  workflow_dispatch:\n  push:\n    branches: [main]\n"),
@@ -253,43 +252,48 @@ STILL_GREEN = [
     ("runs-on as a one-element list", "    runs-on: macos-15\n", "    runs-on: [macos-15]\n"),
     ("a comment added", "name: ios-compile\n", "# a comment changes nothing that runs\nname: ios-compile\n"),
 ]
+SUBJECTS = ((WORKFLOW, EXPECTED, MUTATIONS, STILL_GREEN), (shot.WORKFLOW, SHOT_EXPECTED, shot.MUTATIONS, shot.STILL_GREEN))
 
 
 def prove_red():
-    if not WORKFLOW.is_file():
-        print(f"PROVE-RED REFUSING: {WORKFLOW} does not exist")
-        return 2
-    src = WORKFLOW.read_text(encoding="utf-8")
     unexpected = 0
     with tempfile.TemporaryDirectory() as d:
-        for want, label, table in ((1, "red", MUTATIONS), (0, "green", STILL_GREEN)):
-            for name, old, new in table:
-                if src.count(old) != 1:
-                    print(f"PROVE-RED REFUSING: the mutation '{name}' does not apply exactly once - its anchor is stale")
-                    return 2
-                p = pathlib.Path(d) / "ios-compile.yml"
-                p.write_text(src.replace(old, new, 1), encoding="utf-8", newline="\n")
-                rc, lines = check(p)
-                unexpected += rc != want
-                print(f"[{label if rc == want else 'NOT ' + label.upper()} rc={rc}] {name}: {lines[0] if lines else ''}")
+        for wf, expected, mutations, still_green in SUBJECTS:
+            if not wf.is_file():
+                print(f"PROVE-RED REFUSING: {wf} does not exist")
+                return 2
+            src = wf.read_text(encoding="utf-8")
+            for want, label, table in ((1, "red", mutations), (0, "green", still_green)):
+                for name, old, new in table:
+                    if src.count(old) != 1:
+                        print(f"PROVE-RED REFUSING: {wf.name}: the mutation '{name}' does not apply exactly once - its anchor is stale")
+                        return 2
+                    p = pathlib.Path(d) / wf.name
+                    p.write_text(src.replace(old, new, 1), encoding="utf-8", newline="\n")
+                    rc, lines = check(p, expected)
+                    unexpected += rc != want
+                    print(f"[{label if rc == want else 'NOT ' + label.upper()} rc={rc}] {wf.name}: {name}: {lines[0] if lines else ''}")
+            rc, lines = check(wf, expected)
+            unexpected += rc != 0
+            print(f"[{'green' if rc == 0 else 'NOT GREEN'} rc={rc}] the shipped file: {lines[-1]}")
         p = pathlib.Path(d) / "not-yaml.yml"
         p.write_text("on: [unclosed\n", encoding="utf-8")
         rc, lines = check(p)
         unexpected += rc != 2
         print(f"[{'refused' if rc == 2 else 'NOT REFUSED'} rc={rc}] unreadable YAML: {lines[0]}")
-    rc, lines = check(WORKFLOW)
-    unexpected += rc != 0
-    print(f"[{'green' if rc == 0 else 'NOT GREEN'} rc={rc}] the shipped file: {lines[-1]}")
-    print(f"PROVE-RED {'OK' if not unexpected else 'FAILED'}: {len(MUTATIONS)} mutations red, {len(STILL_GREEN)} legitimate spellings green, {unexpected} unexpected result(s)")
+    reds, greens = sum(len(s[2]) for s in SUBJECTS), sum(len(s[3]) for s in SUBJECTS)
+    print(f"PROVE-RED {'OK' if not unexpected else 'FAILED'}: {reds} mutations red, {greens} legitimate spellings green over {len(SUBJECTS)} workflows, {unexpected} unexpected result(s)")
     return 0 if not unexpected else 1
 
 
 def main(argv):
     if len(argv) > 1 and argv[1] == "--prove-red":
         return prove_red()
-    rc, lines = check(pathlib.Path(argv[1]) if len(argv) > 1 else WORKFLOW)
-    print("\n".join(lines))
-    return rc
+    one = pathlib.Path(argv[1]) if len(argv) > 1 else None
+    targets = [(one, SHOT_EXPECTED if one.name == shot.WORKFLOW.name else EXPECTED)] if one else [s[:2] for s in SUBJECTS]
+    results = [check(wf, want) for wf, want in targets]
+    print("\n".join(line for _, lines in results for line in lines))
+    return max(rc for rc, _ in results)
 
 
 if __name__ == "__main__":
