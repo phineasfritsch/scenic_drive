@@ -1,7 +1,7 @@
 ---
 id: T-0219
 title: P-DATA-03 corpus half - meta.region is stamped by etl.corpus and read back by nothing: the reader against the active region, in the same shape as the tiles half (check-pmtiles-provenance.py), red first
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T21:05:25Z
@@ -11,7 +11,7 @@ branch: task/T-0219
 exclusive: []
 touches: [ops/lib/, services/etl/etl/, services/etl/tests/, pins/PINS.yaml]
 pins_affected: [P-DATA-03]
-reviewer: null
+reviewer: agent/rv1-pr126
 depends_on: [T-0197]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -237,3 +237,117 @@ The tiles half of P-DATA-03 is asserted by check-pmtiles-provenance.py since #11
   files: prove-red 5/5 exit 0, pytest 1312 passed 0 skipped, --source-only PINS ok=15 skipped=16 pending=1
   expired=0 failed=0 exit 0, and ops/lib/check-corpus-provenance-mutations.py is now 122 lines, not 112.
   Everything else in the block is unchanged and was re-confirmed at the same head.
+- 2026-09-25T19:31:11Z REVIEW PASS by agent/rv1-pr126 (reviewer; not the owner). PR #126, head 450cae3 ==
+  origin/task/T-0219, reviewed in a detached sibling worktree (.worktrees/rv1-pr126, removed after). Round 1,
+  no round 2: no BLOCKING finding. NO PRE-REVIEW MUTANT PASS RAN on this branch (it died on a model usage
+  limit), so this review ran FIVE mutants of its own, one of them a GATE mutant, in place of the missing one.
+
+  DIFF. 6 files, +772/-13: ops/lib/check-corpus-provenance.py (299, new, 100644),
+  ops/lib/check-corpus-provenance-mutations.py (122, new, 100644),
+  services/etl/tests/test_corpus_provenance.py (132, new), ops/lib/check-pmtiles-provenance.py (+17/-13,
+  the declared out-of-scope correction), pins/PINS.yaml (+6/-2), the task file. `git ls-files -s` shows both
+  new ops/lib/*.py at 100644, which is what P-OPS-01 requires of data files there.
+
+  GATES, run bare on 450cae3 in this reviewer's worktree, each quoted:
+    python ops/lib/check-corpus-provenance.py                 exit 0, all six verdicts printed, ending "the
+      real artefact was not checked: $SCENIC_LA_CORPUS is unset"
+    SCENIC_LA_CORPUS=<t0206/la-union-corpus.sqlite> same       exit 0, "la-union-corpus.sqlite: accepted -
+      region=la bytes=19906560 built_at=2026-09-18T00:00:00Z". THE 30-DAY ARITHMETIC RE-CHECKED AT TODAY'S
+      DATE, not the author's: today is 2026-09-25, the stamp is 7 days old, well inside MAX_AGE_DAYS=30, and
+      the file is still 19,906,560 bytes after two reads - the read-only URI did not touch it.
+    python ops/lib/check-corpus-provenance.py --prove-red      exit 0, "5/5 mutants refused by name", each
+      row printing its exit 1 and the fixture it named
+    PYTHON=python bash ops/check-pins --source-only            exit 0, PINS ok=15 skipped=16 pending=1
+      expired=0 failed=0 tier=linux source-only
+    P-DATA-03's OWN assertion, bare, as pins.py runs it        exit 0 under PYTHON=python; both halves print,
+      the tiles half now ending "This is the TILES half. The corpus half is
+      ops/lib/check-corpus-provenance.py (T-0219)". "UNASSERTED and UNOWNED" is gone from the tree (grep, 0
+      hits under *.py and *.yaml).
+    cd services/etl && python -m pytest tests -rs -o addopts=  1312 passed in 458.73s, ZERO skipped
+      (__pycache__ purged first)
+    python ops/lib/check-mutate-population.py                  exit 0, "76 modules, 26 covered by 12
+      populations, 27 allowlisted, 0 added by this branch ... the floor of 25 holds"
+    bash ops/lib/check-line-cap                                P-SRC-02: 92 Swift files, none over 300
+    bash ops/lib/check-exec-bits                               P-OPS-01: 87 files, 23 required present
+    PYTHON=python bash ops/queue-check                         QUEUE OK (222 tasks)
+    gh pr checks 126                                           core pass 2m19s, pins-source-only pass 1m14s
+    wc -l                                                      299 / 122 / 132, all under the 300-line cap
+  PINS.yaml: 32 ids, none duplicated (`grep "^- id:" | sort | uniq -d` empty); P-DATA-03 carries no `pending:`
+  key. NO MODULE WAS ADDED under services/etl/etl/ or Sources/, so no ops/mutate/ population is due - the
+  author's R1 reasoning VERIFIED against the code and not taken on its word: check-mutate-population.py:65
+  reads `MODULE_ROOTS = (("services/etl/etl", ".py", True), ("Sources", ".swift", True))`, and ops/lib is
+  under neither; the run itself prints "0 added by this branch".
+
+  BOX CONDITION VERIFIED HONEST, not papered over. The author's entry at 21:13:26Z says the bare assertion
+  fails here on the TILES half with "No module named 'pytest'" because `command -v python3` resolves to the
+  WindowsApps 3.14 shim. Reproduced exactly: `command -v python3` ->
+  /c/Users/.../AppData/Local/Microsoft/WindowsApps/python3, `python3 -c "import sys;print(sys.version)"` ->
+  3.14.5, and the bare assertion exits 1 naming the tiles half's writer; with PYTHON=python it exits 0. The
+  failure is in check-pmtiles-provenance.py, which this branch did not touch functionally, and the assertion's
+  own ${PYTHON:-...} hook is the documented route. CI runs one interpreter (linux-core.yml installs
+  python3-pytest from apt) and does not see it.
+
+  THE CORPUS HALF IS ACTUALLY REACHED BY ops/check-pins - checked by reading the code, not the Log.
+  ops/lib/pins.py:117-118 is `if source_only and p.get("anchor") != "source": skipped += 1`, and P-DATA-03 is
+  `anchor: artifact`, so --source-only SKIPS it; the author's R8 states exactly that and is correct. What runs
+  it is the FULL `bash ops/check-pins`, and .github/workflows/linux-core.yml:85-86 runs precisely that inside
+  the pinned swift image - so the corpus half executes in CI on every push, and `gh pr checks 126` shows that
+  job (core) passing. services/etl/tests/test_corpus_provenance.py is a second, independent route to the same
+  command as a subprocess at its real path, including --prove-red.
+
+  FIVE MUTANTS, run by this reviewer on copies or with `git checkout --` restore; `git status --short` was
+  empty after each and is empty now.
+    M1 GATE - P-DATA-03's command pointed at a region the fixtures do not control. `--region sfbay` (the only
+      other regions/ directory; its region.json id is "sfbay"): exit 0 with the fixture table still green,
+      because every fixture is BUILT relative to whichever region is active, so the limbs go on deciding. It
+      is NOT a silent pass over a wrong-region corpus: with SCENIC_LA_CORPUS set it exits 1 naming "the real
+      artefact ... was REFUSED: meta.region is 'la', expected 'sfbay' (P-DATA-03)". NOT BLOCKING - nothing
+      wrong-region or stale gets through green - but nothing binds the pin's command string to `la` either;
+      RECORDED below.
+    M2 THE READ PATH - is meta.region read from the table corpus.build STAMPS, or from one the fixture
+      harness writes? Mutated the shipping stamp itself, services/etl/etl/corpus.py:119
+      `writer.set_meta("region", region)` -> `"marin"`: the check went RED naming "a fresh region-la corpus:
+      REFUSED but must be accepted; it said: meta.region is 'marin', expected 'la'". CAUGHT - the reader is
+      bound to the shipping stamp. Restored with `git checkout --`, __pycache__ purged, 1.2 s slept.
+    M3 THE AGE LIMB'S CLOCK - does the fixture freeze time or ride the wall clock? Both sides ride it
+      (`stamp_days_ago` off `datetime.now(timezone.utc)`, `reference = now or datetime.now(timezone.utc)`),
+      so a 40-day-old corpus is refused at the moment the check runs on any day - today's run stamped the
+      fresh fixture 2026-09-25T19:26:19Z, six days after the author's, and all six verdicts held. Two mutants
+      on copies: `reference = built` (compared against the corpus's OWN built_at) -> exit 1, "stamped 40 days
+      ago: accepted", "stamped 2 days in the future: accepted"; `reference` hard-coded to the author's run
+      date 2026-09-19 -> exit 1, "a fresh region-la corpus: REFUSED but must be accepted". BOTH CAUGHT.
+    M4 THE MUTANT_FLOOR GUARD - copied the table, dropped three of the five rows. With the floor intact:
+      exit 1, "--prove-red carries 2 mutants, below the floor of 5. A table that has lost rows must never
+      read as 'every mutant refused'." With `if len(MUTANTS) < MUTANT_FLOOR:` disabled: exit 0, "2/2 mutants
+      refused by name" - a green over nothing. The guard the 450cae3 correction added is load-bearing and
+      present. CAUGHT.
+    M5 SCENIC_LA_CORPUS NAMING SOMETHING THAT IS NOT A CORPUS - refusal by name or a traceback? A zero-byte
+      file: exit 1, "meta is unreadable (no such table: meta): this is not a corpus". A PMTiles-shaped binary:
+      exit 1, "meta is unreadable (file is not a database): this is not a corpus". The same file through
+      `--corpus`: exit 1, "CORPUS REFUSED". A path that does not exist: exit 1, "names no file (set and absent
+      is a refusal, never a skip)". No traceback in any of the four. CAUGHT.
+  ZERO SURVIVORS that let a wrong-region or stale corpus pass green, and no limb that ops/check-pins never
+  reaches. NO BLOCKING FINDING.
+
+  RECORDABLE, none blocking, each named with the task that should own it:
+    (a) Neither half checks that an artefact's CONTENT is the region it claims - a corpus stamped `la` whose
+        ways are all in Marin passes. T-0233 ALREADY OWNS THIS (filed on main as 5df0b35 from this build);
+        the checker's own docstring and P-DATA-03's text both name the gap. Nothing to file.
+    (b) M1's residue: nothing in the tree binds P-DATA-03's assertion string to `--region la`. The assertion
+        passes no --region and the default is `la`, so the shipped form is right, and the pytest exercises
+        that default; but an edit to PINS.yaml adding `--region sfbay` is green in CI and only goes red on the
+        box that has the artefact. Wants its own task if anyone wants the pin's own argument pinned - it is
+        not T-0233's subject.
+    (c) ops/lib/check-line-cap counts SWIFT files only ("92 Swift files tracked (Sources=29, Tests=42,
+        apps/ios=21)"). CLAUDE.md's 300-line cap is stated for every file, and no gate enforces it over .py -
+        which is why ops/lib/check-corpus-provenance.py sitting at 299 is a hand-held margin, not a held one.
+        PRE-EXISTING, not this PR's; wants its own task.
+    (d) Item 10 of the final acceptance block measures the task file at 238 lines; `wc -l` on the pushed head
+        reads 239. A one-line drift on the only self-referential measurement in the block (T-0162's shape,
+        which cost a round there). Every other measured number re-checked exactly: 299, 122, 148, 132, 296.
+    (e) HEAD is 2 commits behind origin/main (969e082, 5df0b35), so `git merge-base --is-ancestor origin/main
+        HEAD` now exits 1 where the author recorded exit 0 at 96ad82b. `git diff HEAD...origin/main` is
+        queue/LOCKS/floors.lock and six queue task files ONLY - nothing under pins/, ops/ or .github/ - so
+        main's GATE SET has not moved since the merge this sign-off was bought on. The orchestrator merges.
+
+  DISPOSITION: PASS. queue/claimed/ -> queue/done/, reviewer: agent/rv1-pr126, state: done. Not merged here.
