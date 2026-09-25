@@ -537,3 +537,41 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   listed only the five files this round edits. assemble.py and waydoc.py were not among them, so both were
   restored. The two files, whole: `pytest tests/test_seam_one_score.py tests/test_motorway_source.py
   -o addopts=` = `11 passed`. The driver runs next, on the COMMITTED tree, because it refuses a dirty one.
+- 2026-09-25T23:52:39Z (R10) THE ACCEPTANCE BLOCK, RE-RUN BARE ON THE MERGED HEAD 694ef87.
+  THE MERGE. The code commit is 0fa13f7. Then `git fetch origin`: origin/main had moved to 86ac9d5, and
+  `git merge-base --is-ancestor origin/main HEAD` exited 1. `git merge --no-edit origin/main` made 694ef87.
+  It brought in two backlog task files, T-0237 and T-0238, and no conflict.
+  Every Python run below purged every `__pycache__` under services/etl first.
+  PYTEST, `cd services/etl && python -m pytest tests -rs -o addopts=`: `1335 passed in 223.77s (0:03:43)`,
+  exit 0. That is 1331 plus this round's 4. `-rs` printed no SKIPPED line, so there were zero skips.
+  THE NEW TESTS BY NAME, `-v`, `4 passed`, exit 0:
+  - `test_the_cli_with_a_region_reference_gives_a_way_in_two_windows_one_score PASSED`
+  - `test_the_cli_without_a_reference_ranks_one_self_contained_window_against_itself PASSED`
+  - `test_the_cli_measures_to_the_region_motorway_file_it_is_given PASSED`
+  - `test_the_cli_without_a_motorway_file_measures_to_the_clips_own_motorways PASSED`
+  `python ops/mutate/normalise.py`, exit 0:
+  - `BASELINE exit=0, 22 mutations, floor 22`
+  - B1 caught: `python -m etl.assemble drops --reference, so every tile is ranked against itself again
+    (rv1-t0208 B1)  <- tests/test_seam_one_score.py::test_the_cli_with_a_region_reference_gives_a_way_in_two_windows_one_score`
+  - B2 caught: `python -m etl.waydoc drops --motorways, so the clip's own motorways are measured to (rv1-t0208
+    B2)  <- tests/test_motorway_source.py::test_the_cli_measures_to_the_region_motorway_file_it_is_given`
+  - The two mirrors were caught by the two without-flag tests.
+  - `MUTATIONS: 22 caught, 0 missed, 0 skipped, of 22` / `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2` /
+    `MUTATE OK  caught=22/22 equivalent_caught=0`
+  `python ops/mutate/normalise.py --prove-vacuity`: `VACUITY: 0 caught, 22 missed, 0 skipped, of 22` /
+  `VACUITY PROVED`, exit 0. `git status --short` was empty after both driver runs.
+  `python ops/lib/check-mutate-population.py`, exit 0:
+  - `P-PROC-06: 91 modules, 37 covered by 15 populations, 33 allowlisted, 1 added by this branch`
+  - `P-PROC-06: every added module is covered or allowlisted; the floor of 36 holds`
+  These are the same totals as 22:43:08Z. waydoc.py is still allowlisted and still declared by no population.
+  `bash ops/lib/check-line-cap`: `P-SRC-02: 111 Swift files tracked (Sources=43, Tests=47, apps/ios=21), none
+  over 300 lines`, exit 0. `bash ops/lib/check-exec-bits`: `P-OPS-01: 98 files, 23 required present, all modes
+  correct`, exit 0. `bash ops/queue-check`: `QUEUE OK (231 tasks)`, exit 0.
+  `wc -l`, re-measured because this round touched these files: test_seam_one_score.py 143,
+  test_motorway_source.py 103, ops/mutate/normalise_mutations.py 148, ops/mutate/normalise.py 173.
+  Unchanged and quoted for the cap: assemble.py 293, waydoc.py 288.
+  `git ls-files -s`: both ops/mutate files are 100644.
+  THE ARTIFACT IS UNTOUCHED. `git diff --stat 34db62c HEAD -- services/etl/etl/` is empty: no module changed
+  this round. The main checkout's `sha256sum services/etl/work/la/la-tagged.osm.pbf` =
+  `648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39`, and `stat -c %s` = `45914107`. That is
+  the digest and byte count 21:59:24Z quoted, so acceptance lines 2 and 3 stand as quoted there.
