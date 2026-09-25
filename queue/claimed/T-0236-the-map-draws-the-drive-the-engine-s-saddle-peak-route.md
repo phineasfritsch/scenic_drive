@@ -180,3 +180,37 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   white / dark fill - no (i) blue). The MapLibre logo stays at the bottom-left. The (i) was moved, never hidden.
   Pre-existing and not this task's: the dark screenshot's GROUND is still the light demo style (the demo tiles have
   one style; the LA archive has both) - the header, chips, pill and line are dark-mode.
+- 2026-09-25T22:50:39Z ACCEPTANCE, re-run whole and bare at the final pre-review head (agent/claude-opus-5), after
+  `git fetch origin && git merge --no-edit origin/main` ("Already up to date": origin/main 006c798 has not moved since
+  the claim). HEAD a71fd570c26275ab8ee9307d413e41c452d45c5f.
+  - `git merge-base --is-ancestor origin/main HEAD` exit 0.
+  - `swift test --scratch-path .build/T0236` (whole suite) exit 0: "Test run with 334 tests in 46 suites passed"
+    (HandoffTests alone: "104 tests in 15 suites passed").
+  - `bash ops/lib/check-map-attribution` exit 0; `--prove-red` exit 0, "prove-red: 14/14 mutations refused by name".
+  - `bash ops/lib/check-drive-copy` exit 0, "the drive cases .saddlePeak, .skyline and .santaMonicaMountains each at
+    DriveBasemap.swift(1) DriveCopy.swift(4) DriveSelector.swift(1) and nowhere else"; `--prove-red` exit 0,
+    "prove-red: 8/8 mutations refused by name".
+  - `bash ops/lib/check-safety-disclaimer` exit 0, "SkylineHandoff.open( called once" (GatedHandoffButton.swift line
+    87, guard at 82) - P-SAFE-03's counts unchanged.
+  - `python ops/lib/check-mutate-population.py` exit 0, "91 modules, 35 covered by 14 populations, 34 allowlisted, 1
+    added by this branch" / "every added module is covered or allowlisted; the floor of 34 holds".
+  - `python ops/lib/make-route-geojson.py` twice: "1393 points -> 483 points at Douglas-Peucker tolerance 5 m", sha256
+    c945cbe8da3c3a96f77ea08b7eda93a931bc680af21bd966fbad2237553051db both runs, tree unchanged after.
+  - `bash ops/lib/check-line-cap` exit 0, "117 Swift files tracked (Sources=44, Tests=49, apps/ios=24), none over 300
+    lines"; `bash ops/lib/check-exec-bits` exit 0, "96 files, 23 required present, all modes correct";
+    `bash ops/queue-check` exit 0, "QUEUE OK (229 tasks)".
+  - `wc -l`, every file the branch touches: HandoffDrive.swift 207, SaddlePeakRoute.swift 61,
+    StraightLineDistance.swift 102, HandoffSourceTests.swift 270, SaddlePeakGeometryTests.swift 146,
+    SaddlePeakRouteTests.swift 85, SantaMonicaMountainsChainTests.swift 191, StraightLineDistanceTests.swift 237,
+    DriveBasemap.swift 44, DriveCopy.swift 107, DriveRoute.swift 30, DriveSelector.swift 70, ScenicHomeScreen.swift
+    288, MapRoute.swift 67, MapRouteCoordinator.swift 129, MapView.swift 84, saddle-peak.geojson 493,
+    check-drive-copy 295, make-route-geojson.py 161, mutate-population-allowlist.json 39, straightline_mutations.py
+    198, this file 182 before this entry.
+  - macOS runs: ios-compile 36195286205 and ios-screenshot 36196721558, both success on 0eb5a0f. Every commit since
+    touches no file the app compiles except two doc-comment lines in HandoffDrive.swift (6c69ad7); ios-compile is
+    dispatched once more on the pushed head and its run id is quoted in the PR body, since a Log entry naming it would
+    itself move the head.
+  - `git status --short` empty.
+  STILL OPEN, recorded not hidden: the loop's freeway middle leg (T-0211) is untouched; the dark screenshot's ground
+  is the one-style demo map on CI; the line has not been seen over the LA archive (no archive on CI) - on a phone
+  with the archive the caption's LA arm says "over Los Angeles roads".
