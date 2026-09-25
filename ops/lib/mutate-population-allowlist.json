@@ -27,6 +27,12 @@
     "Sources/Handoff/SantaMonicaMountainsRoute.swift": "the LA drive's ten reverse-geocoded coordinate literals and nothing else - no operator in the file; a typed table whose correctness is the Nominatim provenance quoted beside each pin and whose order is re-typed by SantaMonicaMountainsRouteTests, so every mutant would be a diff of a literal (the distance over these pins is computed by StraightLineDistance.swift, which task T-0199 populates)",
     "Sources/ScenicKit/Model/Coordinate.swift": "a WGS-84 latitude/longitude pair; Foundation-only so ScenicKit builds on Linux",
     "Sources/ScenicKit/Scoring/BywayTier.swift": "a three-state enum naming how a way is designated; the weight that uses it lives in SegmentTerms.swift, which ops/mutate/segmentscore.py covers",
-    "Sources/ScenicKit/Guidance/GuidanceManeuver.swift": "the maneuver vocabulary as an enum; the mapping that assigns it is GuidanceMapping.swift, which ops/mutate/guidance.py covers"
+    "Sources/ScenicKit/Guidance/GuidanceManeuver.swift": "the maneuver vocabulary as an enum; the mapping that assigns it is GuidanceMapping.swift, which ops/mutate/guidance.py covers",
+    "Sources/ScenicKit/Plan/PlanFailure.swift": "the closed enum of reasons a plan is refused, plus its descriptions; the thresholds it reports are computed in RouteDifference.swift and ScenicPlanner.swift, which ops/mutate/plan.py covers",
+    "Sources/ScenicKit/Plan/RouteSource.swift": "a protocol - two method signatures and a description; no body, no arithmetic",
+    "Sources/ScenicKit/Plan/RecordedRouteSource.swift": "reads a recorded response off disk by file name and refuses a lambda it has not got; its one piece of formatting is delegated to LambdaCustomModel.multiplier, which ops/mutate/plan.py mutates",
+    "Sources/ScenicPlanCLI/main.swift": "the CLI entry point: parse, call ScenicPlanner, print, choose an exit code; every number on the screen is computed in ScenicKit/Plan, which ops/mutate/plan.py covers",
+    "Sources/ScenicPlanCLI/PlanCommand.swift": "the run of ops/plan between the arguments and the terminal: it picks the RouteSource the flags named, calls ScenicPlanner.plan and joins the lines ScenicPlan.report produced; no operator in the file, and the budget it passes through is mutated as PlanArguments.swift",
+    "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift": "one HTTP transport: it builds a request body out of the model LambdaCustomModel emits and hands the response to RoutePath.decode, both of which ops/mutate/plan.py covers; its one guard is a string refusal over the forbidden encoded values, asserted through send() by PlanCLIRequestBodyTests"
   }
 }

@@ -1,0 +1,20 @@
+{
+  "priority": [
+    {
+      "if": "scenic_score >= 7",
+      "multiply_by": "1"
+    },
+    {
+      "else_if": "scenic_score >= 4",
+      "multiply_by": "0.666667"
+    },
+    {
+      "else": "",
+      "multiply_by": "0.5"
+    },
+    {
+      "if": "road_class == RESIDENTIAL && scenic_score < 7",
+      "multiply_by": "0.5"
+    }
+  ]
+}
