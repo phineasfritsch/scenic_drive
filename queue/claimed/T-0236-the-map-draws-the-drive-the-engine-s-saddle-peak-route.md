@@ -110,3 +110,40 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   becomes basemap(1) words(4) picker(1) for all THREE cases (the caption switch names every case once), moved in the
   same commit as the source. MapAdapter is Apple-only and outside P-PROC-06's roots; its bbox arithmetic is none - it
   READS the committed `bbox`.
+- 2026-09-25T22:27:14Z RESUMED after a usage limit (agent/claude-opus-5). The previous session stopped with R1-R6
+  written and the code UNCOMMITTED; nothing was discarded. Checkpoint commit 0eb5a0f ("T-0236: checkpoint - resumed
+  after a usage limit") holds it exactly as found, 22 files. What was verified from here, in order:
+  RED BY NAME. Tests and code were both on disk, so RED was demonstrated by putting the shipping symbols back to the
+  wrong values (a gitignored driver under .build/, sources restored byte-for-byte after, `git status` empty) and
+  running `swift test --scratch-path .build/T0236 --filter HandoffTests`:
+  run A - defaultDrive = .santaMonicaMountains, `case saddlePeak` declared after the loop, pin 9's longitude
+  -118.70790 -> -118.70890, destination longitude -118.68700 -> -118.68800 - "Test run with 104 tests in 15 suites
+  failed ... with 11 issues": `the handoff URL is T-0182's URL without the source` (:48), `the nine pins, the
+  destination and the origin are ops/plan's, exactly` (:38 :39 :41 :42), `the straight line through the pins is 17
+  km, 10 miles` (:74, the chain), `Saddle Peak is the default and first of three drives` (:56 defaultDrive ->
+  .santaMonicaMountains, :58 allCases.first -> .skyline), `each drive maps to its own route, and the default is the
+  Saddle Peak drive` (SantaMonicaMountainsChainTests:182), `every pin the handoff carries lies on the drawn line, in
+  driving order` (best -> 83.49 m > 10.0), `the drawn line starts at the drive's origin and ends at the destination
+  the URL carries` (end -> 86.65 m > 10.0). The geometry binding is red on a pin moved off the line AND on a moved
+  destination, each by name and by metres.
+  run B - geometryResource "saddle-peak" -> "saddle-peak-v2" - "failed ... with 5 issues": `only the Saddle Peak
+  drive names a route geometry resource` (:63), the three geometry tests (file doesn't exist, Code=260), and `every
+  drive that names a line ships its file; the loop and the Peninsula name none` (:142).
+  The case COUNT (== 3) cannot be driven red by a compiling mutation - removing the case removes the symbol the new
+  tests name; against origin/main 006c798's sources the new test files do not compile (`HandoffDrive` has no member
+  `saddlePeak`), which is the red that assertion had.
+  GREEN: "Test run with 104 tests in 15 suites passed". make-route-geojson.py run twice: "1393 points -> 483 points
+  at Douglas-Peucker tolerance 5 m", sha256 c945cbe8da3c3a96f77ea08b7eda93a931bc680af21bd966fbad2237553051db both
+  times, `git status` empty after (the committed file IS the script's output). check-drive-copy exit 0 (".saddlePeak,
+  .skyline and .santaMonicaMountains each at DriveBasemap.swift(1) DriveCopy.swift(4) DriveSelector.swift(1)");
+  --prove-red "8/8 mutations refused by name" including the new row `the card reads the THIRD case hard-coded
+  (T-0236)`. check-map-attribution exit 0 (every MapView( and styleURL: at ScenicHomeScreen.swift(1) outside the one
+  definition); --prove-red "14/14 mutations refused by name". check-safety-disclaimer exit 0 (SkylineHandoff.open( once, GatedHandoffButton.swift line 87, guard at
+  82 - counts unchanged). check-mutate-population exit 0 ("91 modules, 35 covered by 14 populations, 34 allowlisted,
+  1 added by this branch ... the floor of 34 holds").
+  IOS-COMPILE dispatch 1 of 3: run 36195286205 on 0eb5a0f2d083bec7ab19d34095c761601473338a - success. The resource
+  line: `CpResource .../ScenicDrive.app/saddle-peak.geojson .../apps/ios/ScenicDrive/Routes/saddle-peak.geojson`,
+  then `** BUILD SUCCEEDED **`. The buildable folder FLATTENS Routes/ into the bundle root, so
+  `MapRoute.bundled`'s second lookup (`name.ext` at the root) is the one that finds it on this Xcode - the first
+  (`subdirectory/name.ext`) is kept for a build that keeps the folder, as BasemapResolver does for the archive.
+  IOS-SCREENSHOT dispatch 1 of 3: run 36196721558 on 0eb5a0f, in progress.
