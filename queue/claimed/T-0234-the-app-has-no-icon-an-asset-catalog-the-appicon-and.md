@@ -38,3 +38,173 @@ diff is two lines.
 ## Log
 - 2026-09-25T19:08:12Z filed by agent/claude-opus-5[1m] (orchestrator, measured on main: find over apps/ios returns no .xcassets, grep -c 'AppIcon|ASSETCATALOG' project.pbxproj = 0). Not started; independent of PRs #124/#125/#126 (different files entirely).
 - 2026-09-25T19:08:27Z claimed by agent/claude-opus-5; lease until 2026-09-26T00:08:27Z
+- 2026-09-25T19:18:31Z rulings by agent/claude-opus-5 (owner), before any code. Verified the Brief's measurements on
+  the branch head fd786f6 == origin/main, `git status --short` empty: `find apps/ios -name "*.xcassets"` prints
+  nothing, `grep -c "AppIcon\|ASSETCATALOG" apps/ios/ScenicDrive.xcodeproj/project.pbxproj` = 0, and
+  `grep -c xcassets` on the pbxproj = 0 as well.
+
+  DISAGREEMENT RULED FIRST (Brief vs DesignTokens.swift). The Brief calls the palette "the plan's token table"
+  and lists five light hexes. DesignTokens.swift is the authority the acceptance line points at, and it declares
+  ELEVEN tokens in BOTH appearances. The Brief's five are a subset, quoted correctly (`bg #FFF7ED`,
+  `primary #EA580C`, `scenic #15803D`, `route #2563EB`, `fg #0F172A` all match the file). I rule that the legal
+  palette is every value DesignTokens.swift declares - light AND dark columns, since the file's own doc comment
+  prints both as one table and both are compiled into the shipping tokens - not only the Brief's five. Nothing
+  below is invented: every hex is quoted from that file, with the token and the column named.
+
+  (R1) THE GENERATOR: `ops/make-app-icon.py`, 100644 (CLAUDE.md: ops/**/*.py are invoked as `python ops/lib/x.py`,
+  never `./x.py`, and P-OPS-01/check-exec-bits requires data-mode 100644 for them). PIL 12.3.0 is on this box
+  (`python -c "import PIL; print(PIL.__version__)"` -> 12.3.0), so PIL rather than a hand-rolled zlib writer: a
+  stdlib PNG writer would have to re-implement supersampled polygon rasterisation to get a legible ridge edge,
+  and the thing that must be deterministic is the BYTES, which PIL gives us if we pin the knobs. DETERMINISM,
+  named: (a) PIL's PNG encoder writes no tIME chunk and no text chunks unless a `pnginfo` is handed to it, and
+  none is - so no timestamp reaches the file; (b) `optimize=False, compress_level=9` pins zlib's strategy instead
+  of letting PIL's optimiser pick a filter set; (c) every coordinate is a literal or an integer/float expression
+  over literals - no RNG, no clock, no dict-iteration order, no environment read; (d) the supersample is a fixed
+  4x draw at 4096x4096 reduced once with `Image.LANCZOS`, a pure function of the pixels. Proof obligation for the
+  acceptance block: run it twice on the committed tree, quote sha256 both times, and `git status --short` empty
+  after the second run. The script's own docstring carries its command line (acceptance line 4).
+
+  (R2) THE DRAWING, in words before a pixel is drawn. Subject: a Los Angeles canyon road climbing toward layered
+  ridges under a warm late sky - the Santa Monica Mountains read, which is what this product plans drives through.
+  Flat vector shapes, full-bleed square, no rounding (iOS masks the superellipse itself), RGB with NO alpha
+  channel (Apple rejects an app icon that carries one), no text, no photograph. Explicitly NOT Apple trade dress:
+  no pin, no beige map field, no chevron, no compass, no road sign. Five elements, each named to its token and
+  column:
+    - sky, full bleed                      `bg` light        #FFF7ED
+    - sun disc, upper left of centre       `primary` light   #EA580C
+    - far ridge (haze)                     `fgMuted` dark    #94A3B8
+    - middle ridge (sunlit slope)          `hazard` light    #B45309
+    - near ridge / foreground hill         `scenic` light    #15803D
+    - the road: ribbon                     `surface` light   #FFFFFF
+    - the road: casing either side         `route` light     #2563EB
+  The road is the app's own route line construction - the plan's "6 pt stroke over a 2 pt casing" - so the one
+  moving element in the icon is drawn in the colour the app draws a route in. It enters at the bottom edge wide,
+  bends once, and narrows to a point where it meets the near ridge's silhouette, which is the whole of the
+  perspective: no vanishing-point grid, nothing that needs to survive a 40 pt reduction. LEGIBILITY AT 40 pt
+  (120 px at @3x, a 0.117 scale): every element is a large flat area with a hard edge against a contrasting
+  neighbour; the smallest feature is the road's far end at 46 px (5.4 px at @3x) and the casing at 18 px per side
+  (2.1 px) - a visible dark edge, not a detail that dissolves.
+
+  (R3) Contents.json: the Xcode 26 SINGLE-SIZE iOS app icon - one entry, `"idiom": "universal"`,
+  `"platform": "ios"`, `"size": "1024x1024"`, `"filename": "AppIcon.png"`. Not the legacy multi-size set,
+  because: since Xcode 14 actool derives every device size from the single 1024 source, so the legacy set's 13+
+  files are 13 more artefacts the generator must emit byte-identically and 13 more rows for a check to range
+  over, while carrying no information the 1024 does not already carry; and a single source makes the check's
+  predicate total - "the one image in the set is 1024x1024" ranges over the whole population, where the same
+  predicate over a 13-file set would be a sample unless every row were typed out.
+
+  (R4) THE pbxproj EDIT is EXACTLY `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;` inserted into the two
+  XCBuildConfiguration bodies that carry `INFOPLIST_FILE = ScenicDrive/Info.plist;` (the app target's Debug at
+  :198 and Release at :219), in the settings' existing alphabetical position, immediately before
+  `CODE_SIGN_STYLE`. Nothing else: two added lines, zero removed. Quoted in full below when it lands. The CATALOG
+  ITSELF GETS NO FILE REFERENCE: `PBXFileSystemSynchronizedRootGroup` 369DA5D7 at :28 has `path = ScenicDrive;`
+  and the target at :81 lists it under `fileSystemSynchronizedGroups`, so every file under apps/ios/ScenicDrive/
+  is a member by folder. Its only `membershipExceptions` entry (:20-22) is `Info.plist`, which is consumed by
+  INFOPLIST_FILE rather than copied - so Assets.xcassets is NOT excepted and is compiled by actool. The check
+  asserts both halves mechanically: the synchronized root group with that path exists, and `xcassets` occurs 0
+  times in the pbxproj (a hand-added file reference would be a second, competing membership).
+
+  (R5) UILaunchScreen's BACKGROUND COLOUR. `UILaunchScreen` is `<dict/>` today - empty - so the launch screen is
+  system white in light and system black in dark, and the first frame the app paints is `DesignTokens.bg`
+  (#FFF7ED light / #0F172A dark). That flash is a colour the app never uses, which is the defect. iOS reads the
+  colour by NAME ONLY: the `UILaunchScreen` dict's `UIColorName` key takes the name of a colour SET in the app's
+  asset catalog - the plist has no way to carry a hex - so I rule that the catalog gains
+  `Assets.xcassets/LaunchBackground.colorset`, with `#FFF7ED` universal and `#0F172A` under a
+  `luminosity/dark` appearance: DesignTokens.bg's two values verbatim, so the launch frame and the first painted
+  frame are the same colour in both appearances. Info.plist's `UILaunchScreen` becomes
+  `<dict><key>UIColorName</key><string>LaunchBackground</string></dict>`. The half-edit this invites - the plist
+  naming a colour set nobody added, which launches BLACK and looks like a crash - is a mutation row.
+
+  (R6, the check) `ops/lib/check-app-icon`, 100755, `--app-tree DIR` to point at a copy of apps/ios and
+  `--prove-red` for its own table, the shape ops/lib/check-map-attribution uses. The table's guard is the same
+  one: it refuses to run against a tree that is already red, in a subshell so `fail`'s exit does not take the
+  table with it. Eight rows, each refused BY NAME. Anchors are the catalog directory, Contents.json's own JSON
+  fields, the PNG's IHDR bytes, the pbxproj build-setting key and Info.plist's UIColorName - no comment is load
+  bearing anywhere in it. WHAT IT CANNOT SEE, stated rather than hidden: whether the drawing is any good, whether
+  it is legible at 40 pt, whether the hexes in the PNG are the tokens (it reads dimensions and colour type from
+  IHDR, not pixels), and whether actool accepts the catalog - only ios-compile answers that last one, which is
+  why this task dispatches it and greps the run log for the asset-catalog step.
+- 2026-09-25T19:34:10Z build by agent/claude-opus-5 (owner). RED FIRST, then green.
+
+  R1 AMENDED, and the disagreement that forced it: my ruling put the generator at `ops/make-app-icon.py`, and
+  acceptance line 1 only says "under ops/". This task's `touches:` is `[apps/ios/ScenicDrive/,
+  apps/ios/ScenicDrive.xcodeproj/, ops/lib/]`, and `.githooks/pre-commit` check 3 refuses any staged path
+  outside it (`queue/*` is the one standing exception, :178). `ops/make-app-icon.py` is outside `ops/lib/`, so
+  the commit would have been refused. I rule the generator to `ops/lib/make-app-icon.py` rather than widening
+  `touches:` in my own task file mid-task: it satisfies "under ops/", it sits beside the check whose mutation
+  table calls it, and P-OPS-01/check-exec-bits already types `ops/lib/*.py` as 100644 data invoked as
+  `python ops/lib/x.py` - which is exactly how the docstring's command line and the table invoke it. Mode
+  confirmed 100644, not 100755.
+
+  THE CHECK, RED ON THE REAL TREE BEFORE ANYTHING WAS DRAWN (`bash ops/lib/check-app-icon`, exit 1):
+      check-app-icon: ASSETCATALOG_COMPILER_APPICON_NAME is set in 0 of 2 build configuration(s).
+        Xcode reads this per configuration. Set in Debug alone, the simulator shows an icon and every
+        Release archive ships the blank white placeholder - the half-edit this arm exists for.
+  A free red: there was no icon, no catalog and no setting at fd786f6.
+
+  THEN GREEN, on the finished tree (`bash ops/lib/check-app-icon`, exit 0):
+      check-app-icon: OK AppIcon.appiconset -> AppIcon.png 1024x1024 colour type 2,
+      ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon in 2/2 configuration(s), launch colour LaunchBackground.
+
+  THE MUTATION TABLE (`bash ops/lib/check-app-icon --prove-red`, exit 0) - ten arms, each refused BY NAME on a
+  throwaway copy of apps/ios, the table first refusing to run at all against a tree that is already red:
+      MUTATION                                         EXIT   REASON NAMED
+      the AppIcon.appiconset missing                   1 RED  no AppIcon.appiconset
+      Contents.json names a file that is not there     1 RED  names a file that is not in the set
+      a stale second PNG left in the set               1 RED  file(s) Contents.json does not name
+      the declared size is not 1024x1024               1 RED  declares size 60x60
+      the PNG is 512x512                               1 RED  is 512x512, expected 1024x1024
+      the PNG carries an alpha channel                 1 RED  colour type 6, expected 2
+      the setting absent from ONE configuration        1 RED  is set in 1 of 2 build configuration(s)
+      the setting absent from BOTH configurations      1 RED  is set in 0 of 2 build configuration(s)
+      the launch colour names a set nobody added       1 RED  no colour set named CanyonSky
+      UILaunchScreen carries no UIColorName            1 RED  names no UIColorName
+      check-app-icon --prove-red: 10/10 mutations refused by name
+  The four arms acceptance line 3 names are rows 1, 2, 5 and 7/8; rows 3, 4, 6, 9 and 10 are the arms the
+  other assertions would otherwise have never been seen refuse.
+
+  THE pbxproj DIFF IN FULL (`git diff apps/ios/ScenicDrive.xcodeproj/project.pbxproj`) - two added lines, zero
+  removed, alphabetical position, nothing else touched in a SERIAL file:
+      @@ -198,6 +198,7 @@
+        021E08FBC5F542BA86886883 /* Debug */ = {
+        	isa = XCBuildConfiguration;
+        	buildSettings = {
+      +		ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+        		CODE_SIGN_STYLE = Automatic;
+        		CURRENT_PROJECT_VERSION = 1;
+        		GENERATE_INFOPLIST_FILE = NO;
+      @@ -219,6 +220,7 @@
+        2EF794759BE674921051C9E2 /* Release */ = {
+        	isa = XCBuildConfiguration;
+        	buildSettings = {
+      +		ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+        		CODE_SIGN_STYLE = Automatic;
+        		CURRENT_PROJECT_VERSION = 1;
+        		GENERATE_INFOPLIST_FILE = NO;
+  `git diff --stat` on it: `apps/ios/ScenicDrive.xcodeproj/project.pbxproj | 2 +`.
+
+  WHICH MECHANISM CARRIES THE CATALOG, AND HOW I VERIFIED IT (acceptance line 2). No file reference was added
+  by hand and none is needed: `PBXFileSystemSynchronizedRootGroup` 369DA5D7103E54591C5C8791 at project.pbxproj:28
+  has `path = ScenicDrive;`, and the ScenicDrive target at :81 lists it under `fileSystemSynchronizedGroups`, so
+  every file under apps/ios/ScenicDrive/ is a target member by folder. I read its exceptions rather than assuming
+  there were none: the single `PBXFileSystemSynchronizedBuildFileExceptionSet` at :18-24 has exactly one
+  `membershipExceptions` entry, `Info.plist` - consumed by INFOPLIST_FILE, not copied - so Assets.xcassets is NOT
+  excepted and actool compiles it. Mechanically: `grep -c xcassets apps/ios/ScenicDrive.xcodeproj/project.pbxproj`
+  = 0 before AND after this commit, which is arm (b) of the check and the thing that would go red if anyone later
+  added a competing PBXFileReference.
+
+  THE LAUNCH COLOUR (R5), made real: Info.plist's `UILaunchScreen` went from `<dict/>` to
+  `<dict><key>UIColorName</key><string>LaunchBackground</string></dict>` (+4 -1), and
+  `Assets.xcassets/LaunchBackground.colorset/Contents.json` declares `#FFF7ED` universal and `#0F172A` under
+  `luminosity/dark` - DesignTokens.bg's two columns verbatim, so the launch frame and the first painted frame
+  are the same colour in both appearances. Arm (f) of the check reads the plist's name and requires a colorset
+  of that name in the catalog; rows 9 and 10 of the table are the two ways that half-edit happens.
+
+  THE DRAWING AS BUILT, two corrections to R2's geometry made after looking at the rendered 1024 (a drawing
+  ruled in words still has to be looked at): the road's ribbon now STARTS at y = 1.14, off the bottom edge, so
+  its square start cap cannot notch the lower-left corner the way the first render did; and its tip ends at
+  y = 0.710 rather than 0.695, 46 of 1024 pixels below the 0.665 saddle in RIDGE_NEAR, so the 18 px casing
+  cannot poke through the green silhouette into the ridge above it. Half-width at the start is 115 px (230 px
+  of road). No colour changed: the seven values are still `bg` light #FFF7ED, `primary` light #EA580C,
+  `fgMuted` dark #94A3B8, `hazard` light #B45309, `scenic` light #15803D, `surface` light #FFFFFF and `route`
+  light #2563EB, each quoted in the generator's TOKENS table beside its token name and column.
