@@ -1,7 +1,7 @@
 ---
 id: T-0234
 title: the app has no icon - an asset catalog, the AppIcon, and the one build setting that makes Xcode use it; the launch screen's colour comes from the same tokens
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-25T19:08:27Z
@@ -11,7 +11,7 @@ branch: task/T-0234
 exclusive: [xcodeproj]
 touches: [apps/ios/ScenicDrive/, apps/ios/ScenicDrive.xcodeproj/, ops/lib/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-icon
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -339,3 +339,67 @@ diff is two lines.
   file, so no other count needs re-measuring. The generator, the catalog, the PNG, the pbxproj and Info.plist
   are byte-identical to the tree ios-compile built at a96da6f; the only commits after it are this Log entry and
   the merge of origin/main that precedes the push.
+- 2026-09-25T20:21:38Z review PASS by agent/rv1-icon (not the owner; reviewed origin/task/T-0234 = 380e9d6 in a
+  detached worktree .worktrees/rv1-icon, removed after). `git merge-base --is-ancestor origin/main HEAD` exit 0.
+  Diff vs main is nine paths and NOTHING under Sources/ or apps/ios/Packages/: the catalog (AppIcon.appiconset
+  Contents.json + AppIcon.png + the catalog root Contents.json + LaunchBackground.colorset), Info.plist's three
+  changed lines, exactly two added pbxproj lines (one per configuration, both `ASSETCATALOG_COMPILER_APPICON_NAME
+  = AppIcon;`), ops/lib/make-app-icon.py, ops/lib/check-app-icon, and this file. All inside `touches:`.
+
+  RE-RUN BARE ON 380e9d6. `bash ops/lib/check-app-icon` exit 0, same OK line the author quoted. `--prove-red`
+  exit 0, 10/10 refused by name, `git status --short` empty after. The generator re-run in place
+  (`python ops/lib/make-app-icon.py --out <the committed path>`) left sha256
+  f7baaa4d103224b3108e1b85cfc93c039f345dff1324f9c08a8c481c86a87546 unchanged before and after and the worktree
+  empty - deterministic as claimed. `bash ops/lib/check-line-cap` exit 0 (92 Swift files, none over 300).
+  `bash ops/lib/check-exec-bits` exit 0 (89 files, 23 required present); `git ls-tree HEAD` reads 100755 for
+  ops/lib/check-app-icon and 100644 for ops/lib/make-app-icon.py. `bash ops/queue-check` QUEUE OK (228 tasks).
+  `gh pr checks 128`: core pass, pins-source-only pass. ios-compile run 36181376100 conclusion SUCCESS on
+  headSha a96da6f, and `git diff --name-status a96da6f..380e9d6 -- apps/ios Sources Package.swift
+  Package.resolved` is EMPTY, so the compiler saw these exact iOS bytes. From its log: actool was invoked with
+  `--app-icon AppIcon` (the build setting reaching the tool, not just sitting in the file), produced
+  Assets.car, `note: Emplaced .../ScenicDrive.app/AppIcon60x60@2x.png` and `AppIcon76x76@2x~ipad.png`, and
+  `** BUILD SUCCEEDED **`.
+
+  I LOOKED AT THE ICON, not only at its header. Opened with PIL and rendered at 384 px and at 40x40. It is a
+  flat poster: cream sky, a round orange sun disc left of centre, a slate-blue far range, a burnt-orange sunlit
+  middle ridge, a deep green foreground hill, and a white road entering wide at the bottom edge, bending once
+  and narrowing to a point where it crests the green saddle, carrying a thin blue casing either side. It reads
+  as a scenic drive, not a generic gradient - the road is the subject and it is unmistakably a road.
+  DOMINANT COLOURS by share of the 1024x1024: #FFF7ED 39.78%, #15803D 23.02%, #B45309 13.43%, #94A3B8 12.08%,
+  #EA580C 4.74%, #FFFFFF 3.66%, #2563EB 0.91% - 97.62% in seven values, the remaining 2.38% spread over 1702
+  LANCZOS blend colours none of which reaches 0.05%. EVERY ONE of the seven is a value DesignTokens.swift
+  declares: bg.light, scenic.light, hazard.light, fgMuted.DARK, primary.light, surface.light/onPrimary.light,
+  route.light. No colour from nowhere. Two of them (hazard, fgMuted-dark) are outside the five the Brief names;
+  the acceptance line points at DesignTokens.swift rather than at the Brief's five, the author ruled that
+  disagreement in the Log before writing code, and I agree with the ruling - a static icon has no appearance,
+  so a dark-column value in it is a palette choice and not a token misuse. Recorded as a note, not a finding.
+  40 PT VERDICT: legible. Resized to 40x40 with LANCZOS, the sun stays a round disc, the three ridge bands stay
+  separated by hue rather than by luminance alone, and the road still reads as a road that bends and narrows.
+  Nothing turns to mud. The blue casing collapses to about one pixel and reads as a dark edge on the white road
+  rather than as a second colour - that is the only element that loses its identity, and the road does not.
+  The iOS squircle mask takes cream at the top corners and green at the bottom corners; no content is clipped.
+
+  MY OWN THREE MUTANTS, on the review worktree, `git checkout --` restore and `git status --short` empty after
+  each. (1) DELETE THE PNG, LEAVE Contents.json: refused by name, exit 1, "Contents.json names a file that is
+  not in the set: AppIcon.png". (2) THE HALF-EDIT, two ways. Removing the LAST occurrence (Release, the arm the
+  author's own table does not run - theirs deletes the first) is refused: "is set in 1 of 2 build
+  configuration(s)". Then the sneaky version: Release's line deleted AND a duplicate added inside Debug, so the
+  file still carries exactly two occurrences and `grep -c` returns 2. The check still refuses, by the same
+  name - it reads each XCBuildConfiguration body separately and COUNTS the configurations, it does not grep
+  once. (3) GATE, and it found something: `prove_red` ends `[[ "$pass" -eq "$total" ]] || exit 1`, which is a
+  ratio and not a floor. Cutting the `rows=(` table to its first row prints "check-app-icon --prove-red: 1/1
+  mutations refused by name" and exits 0. The table cannot be redirected at a friendly fixture (`--prove-red`
+  always copies `$DEFAULT_APP_TREE`), so the hole is the missing literal row count alone.
+
+  NOT BLOCKING, and here is the ruling. `grep -rn check-app-icon` over ops/, pins/, .github/ and queue/ hits
+  nothing but this task file: the check is in no pin (`pins_affected: []`, which the author declared), not in
+  ops/test, not in ops/sane, not in any workflow. Nothing runs it, so nothing is being kept green by a table
+  that could shrink - there is no false green to buy. Per this review's own instruction that is RECORDABLE and
+  T-0228 owns registration; the floor belongs with it, because a floor on a check nobody invokes protects
+  nothing. Two RECORDABLE items leave with this PASS: (a) `--prove-red` has no literal floor on its row count
+  (reproduce: cut `rows=(` to one row, run `bash ops/lib/check-app-icon --prove-red`, exit 0 at 1/1); (b) the
+  author's own open item, that nothing here proves the launch screen RENDERS LaunchBackground - actool compiles
+  the colour set and never names it - which T-0235 (ios-screenshot) is the place for.
+
+  NO BLOCKING FINDINGS. The exclusive lock on [xcodeproj] is released in this commit: queue/LOCKS/xcodeproj.lock
+  deleted, the task file moved queue/claimed/ -> queue/done/, `bash ops/queue-check` re-run bare after the move.
