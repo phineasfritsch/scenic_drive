@@ -208,3 +208,87 @@ diff is two lines.
   of road). No colour changed: the seven values are still `bg` light #FFF7ED, `primary` light #EA580C,
   `fgMuted` dark #94A3B8, `hazard` light #B45309, `scenic` light #15803D, `surface` light #FFFFFF and `route`
   light #2563EB, each quoted in the generator's TOKENS table beside its token name and column.
+- 2026-09-25T19:52:41Z ACCEPTANCE BLOCK, re-run bare and in full by agent/claude-opus-5 (owner) on the merged
+  head. `git fetch origin && git merge --no-edit origin/main` ran FIRST and is re-run as the last step before
+  the push: the merge was `Merge made by the 'ort' strategy`, one file, +37, `queue/claimed/T-0235-ios-
+  screenshot-a-dispatch-only-job-that-boots-a-simulat.md` - a queue file only, nothing this task measures.
+  Merge commit 5530148. `git merge-base --is-ancestor origin/main HEAD` exit 0.
+
+      $ bash ops/lib/check-app-icon                                                          # exit 0
+      check-app-icon: OK AppIcon.appiconset -> AppIcon.png 1024x1024 colour type 2,
+      ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon in 2/2 configuration(s), launch colour LaunchBackground.
+
+      $ bash ops/lib/check-app-icon --prove-red                                              # exit 0
+      MUTATION                                         EXIT   REASON NAMED
+      the AppIcon.appiconset missing                   1 RED  no AppIcon.appiconset
+      Contents.json names a file that is not there     1 RED  names a file that is not in the set
+      a stale second PNG left in the set               1 RED  file(s) Contents.json does not name
+      the declared size is not 1024x1024               1 RED  declares size 60x60
+      the PNG is 512x512                               1 RED  is 512x512, expected 1024x1024
+      the PNG carries an alpha channel                 1 RED  colour type 6, expected 2
+      the setting absent from ONE configuration        1 RED  is set in 1 of 2 build configuration(s)
+      the setting absent from BOTH configurations      1 RED  is set in 0 of 2 build configuration(s)
+      the launch colour names a set nobody added       1 RED  no colour set named CanyonSky
+      UILaunchScreen carries no UIColorName            1 RED  names no UIColorName
+      check-app-icon --prove-red: 10/10 mutations refused by name
+      COUNT: 10/10. The table takes about two minutes because each row copies the whole of apps/ios.
+
+      $ python ops/lib/make-app-icon.py                                                      # run 1
+      make-app-icon: wrote apps/ios/ScenicDrive/Assets.xcassets/AppIcon.appiconset/AppIcon.png at
+      1024x1024 (RGB, compress_level=9)
+      $ sha256sum apps/ios/ScenicDrive/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+      f7baaa4d103224b3108e1b85cfc93c039f345dff1324f9c08a8c481c86a87546
+      $ git status --short                                                                   # 0 lines
+
+      $ python ops/lib/make-app-icon.py                                                      # run 2
+      make-app-icon: wrote apps/ios/ScenicDrive/Assets.xcassets/AppIcon.appiconset/AppIcon.png at
+      1024x1024 (RGB, compress_level=9)
+      $ sha256sum apps/ios/ScenicDrive/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+      f7baaa4d103224b3108e1b85cfc93c039f345dff1324f9c08a8c481c86a87546
+      $ git status --short                                                                   # 0 lines
+      DETERMINISM: the same sha256 twice, over the COMMITTED file, and an empty `git status --short` after
+      each - so re-running the generator on the committed tree is a no-op at the byte level (R1's obligation).
+
+      $ python -c "from PIL import Image; im = Image.open('.../AppIcon.png'); print(im.size, im.mode, im.format)"
+      (1024, 1024) RGB PNG
+      Read back through PIL as well as out of the IHDR by the check: 1024x1024, mode RGB (no alpha).
+
+      $ bash ops/lib/check-line-cap                                                          # exit 0
+      P-SRC-02: 92 Swift files tracked (Sources=29, Tests=42, apps/ios=21), none over 300 lines
+
+      $ bash ops/lib/check-exec-bits                                                         # exit 0
+      P-OPS-01: 87 files, 23 required present, all modes correct
+      (ops/lib/check-app-icon committed 100755 via `git update-index --chmod=+x`; ops/lib/make-app-icon.py
+      committed 100644, the mode this pin requires of ops/**/*.py. `git ls-files -s` confirms both.)
+
+      $ bash ops/queue-check                                                                 # exit 0
+      QUEUE OK (228 tasks)
+
+      $ git merge-base --is-ancestor origin/main HEAD; echo $?
+      0
+
+      $ wc -l  # every touched TEXT file
+        283 ops/lib/check-app-icon
+        154 ops/lib/make-app-icon.py
+          6 apps/ios/ScenicDrive/Assets.xcassets/Contents.json
+         14 apps/ios/ScenicDrive/Assets.xcassets/AppIcon.appiconset/Contents.json
+         38 apps/ios/ScenicDrive/Assets.xcassets/LaunchBackground.colorset/Contents.json
+         44 apps/ios/ScenicDrive/Info.plist
+        280 apps/ios/ScenicDrive.xcodeproj/project.pbxproj
+        210 queue/claimed/T-0234-the-app-has-no-icon-an-asset-catalog-the-appicon-and.md
+       1029 total
+      The 210 is this file as committed at 5530148, the head the block above was measured on; appending this
+      entry grows it, so the final count is re-measured in the ios-compile entry below rather than left stale
+      (T-0162's 239-vs-242 is the precedent). Nothing else in the list is touched again after this commit.
+
+      $ stat -c "%s bytes  %n" .../AppIcon.png        # the PNG is BINARY - bytes and sha256, not wc -l
+      44347 bytes  apps/ios/ScenicDrive/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+      $ sha256sum .../AppIcon.png
+      f7baaa4d103224b3108e1b85cfc93c039f345dff1324f9c08a8c481c86a87546
+
+      $ git status --short                                                                   # 0 lines
+
+  NOT RUN, deliberately and on instruction: `bash ops/test` and the full `bash ops/check-pins`. This task adds
+  no Swift and no pin; `ops/lib/check-app-icon` is not registered in pins/PINS.yaml (`pins_affected: []`), so
+  check-pins would not run it either way. STILL OPEN after this commit: the ios-compile evidence, which is the
+  only thing on the planet that can say actool accepted the catalog - dispatched next, on this pushed head.
