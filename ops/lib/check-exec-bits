@@ -16,7 +16,8 @@ REQUIRED=(ops/test ops/sane ops/check-pins ops/queue-check ops/queue-sweep ops/c
           ops/merge ops/deploy ops/prod-read ops/agent-preflight ops/new-task .githooks/pre-commit
           .githooks/commit-msg
           ops/lib/junit_count.py ops/lib/pins.py ops/lib/queue.py ops/lib/ro_grammar.py ops/lib/ro_cases.json
-          ops/lib/classify-checks.py ops/lib/gh-stub-for-merge-tests ops/lib/check-failure-naming)
+          ops/lib/classify-checks.py ops/lib/gh-stub-for-merge-tests ops/lib/check-failure-naming
+          ops/lib/tmpdir.sh ops/lib/check-tmpdir-guard ops/mutate/lock_lifecycle.py)
 
 n="$(git ls-files ops .githooks | wc -l | tr -d '[:space:]')"
 if [[ "$n" -lt "$MIN_FILES" ]]; then
@@ -34,20 +35,58 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   exit 1
 fi
 
-# Data files stay 100644; everything else under ops/ and .githooks/ is a script and stays 100755 -
-# except ops/lib/*.py, which is also 100644: every call site (ops/check-pins, ops/claim, ops/lock,
-# ops/new-task, ops/queue-check, ops/queue-next, ops/queue-sweep, ops/prod-read, ops/test, and ops/merge:70
-# for classify-checks.py) invokes it as `"$PY" ops/lib/x.py` / `exec "$PYTHON" .../ops/lib/x.py`, i.e. as an
-# argument to an interpreter, never as `./ops/lib/x.py`. The exec bit does nothing there, so asserting 100755
-# would assert a mode the repo does not actually depend on.
+# Data files stay 100644; everything else under ops/ and .githooks/ is a script and stays 100755 - except two
+# kinds of file that an interpreter READS rather than the kernel EXECUTES, which are also 100644:
+#
+#   *.py  - every call site (ops/check-pins, ops/claim, ops/lock, ops/new-task, ops/queue-check,
+#           ops/queue-next, ops/queue-sweep, ops/prod-read, ops/test, and ops/merge:70 for
+#           classify-checks.py) invokes it as `"$PY" ops/lib/x.py` / `exec "$PYTHON" .../ops/lib/x.py`,
+#           i.e. as an argument to an interpreter, never as `./ops/lib/x.py`.
+#
+#   *.sh  - a SOURCED shell library: the same category, reached by `source` instead of by an interpreter
+#           named on the command line. ops/lib/tmpdir.sh is the only one today; `git grep -n 'tmpdir\.sh'`
+#           finds every call site and all of them are a `source`. `source` needs the READ bit and never the
+#           exec bit. Nothing globs `ops/lib/*` and runs the matches (the checks are named one by one), and
+#           no `./`, `bash ` or `exec ` form of the path exists anywhere in the tree.
+#
+#           The call sites are deliberately NOT listed here by line number. The first version of this note
+#           did, and reviewer-pr79 (F5) then found that the form it was quoting -
+#           `source "$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh"` - was itself the bug: placed after the cd to
+#           the repo root it stops resolving from any other cwd, silently, leaving TMP empty one line above
+#           an `rm -rf "$TMP/queue"`. A comment that pins line numbers goes stale on the first edit and
+#           reads as endorsement of whatever it quoted. ops/lib/check-tmpdir-guard asserts the behaviour.
+#
+# In both cases the exec bit does nothing, so asserting 100755 would assert a mode the repo does not actually
+# depend on - the opposite of what this pin is for. What the pin protects is DIRECT invocation (`./ops/x`,
+# queue/README.md step 1, Xcode Cloud's ci_scripts); only there does a missing +x hurt.
+#
+# The .sh exemption is bounded so it cannot silently become a hole. A sourced library needs no shebang and
+# ops/lib/tmpdir.sh has none, so any *.sh here that HAS one is a file somebody intends to execute and must not
+# sit in the data bucket unexamined. That is checked below against the committed blob - the mode under
+# assertion is the committed one, so the content it is judged against must be too.
 bad="$(git ls-files -s ops .githooks | awk '
-  $4 ~ /\.(json|txt|md|py)$/ || $4 == "ops/api-url" { if ($1 != "100644") print $4 " (data, should be 100644, is " $1 ")"; next }
+  $4 ~ /\.(json|txt|md|py|sh)$/ || $4 == "ops/api-url" { if ($1 != "100644") print $4 " (data, should be 100644, is " $1 ")"; next }
   $1 != "100755" { print $4 " (script, should be 100755, is " $1 ")" }
 ')"
 if [[ -n "$bad" ]]; then
   echo "P-OPS-01: wrong git file mode:"
   printf '  %s\n' "$bad"
   echo "  Fix with: git update-index --chmod=+x <path>   (or --chmod=-x for data files)"
+  exit 1
+fi
+
+# Bound on the *.sh exemption above: .sh here means "sourced library", and a sourced library has no shebang.
+shebanged=""
+while read -r _mode hash _stage path; do
+  case "$path" in *.sh) ;; *) continue ;; esac
+  [[ "$(git cat-file blob "$hash" 2>/dev/null | head -c 2)" == '#!' ]] && shebanged="$shebanged $path"
+done < <(git ls-files -s ops .githooks)
+if [[ -n "$shebanged" ]]; then
+  echo "P-OPS-01: *.sh under ops/ and .githooks/ is the sourced-library extension, but has a shebang:"
+  echo "  ${shebanged# }"
+  echo "  A sourced file needs the read bit, not the exec bit, and the .sh data-bucket exemption assumes that."
+  echo "  Either drop the shebang (it really is sourced), or rename it without .sh - then it is a command"
+  echo "  and must be 100755 like every other script here."
   exit 1
 fi
 

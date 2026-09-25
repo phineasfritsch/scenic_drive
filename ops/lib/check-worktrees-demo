@@ -13,17 +13,38 @@
 #   bash ops/lib/check-worktrees-demo          run every case
 #   bash ops/lib/check-worktrees-demo -v       also print the check's own output for each case
 set -uo pipefail
-CW="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/check-worktrees"
+LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CW="$LIB/check-worktrees"
 [[ -f "$CW" ]] || { echo "demo: cannot find $CW"; exit 2; }
 VERBOSE=0; [[ "${1:-}" == "-v" ]] && VERBOSE=1
 
-ROOT="$(mktemp -d)" || { echo "demo: mktemp failed"; exit 2; }
-trap 'rm -rf "$ROOT"' EXIT
+# NOT `$(mktemp -d)`. T-0124's PR body asserted that this file's temp paths "never reach a Windows
+# interpreter. Checked, not assumed." They reach Windows GIT, which is the same class of interpreter:
+# `git init -b main "$ROOT/repo"` with ROOT=/tmp/tmp.X builds the fixture at C:\tmp\tmp.X\repo whenever MSYS
+# path conversion is off, and the `cd "$ROOT/repo"` below then cannot reach it. Measured (reviewer-pr79 F6):
+# MSYS_NO_PATHCONV=1 bash ops/lib/check-worktrees-demo -> "DEMO: 5 ok, 14 failed", every line
+# "cd: /tmp/tmp.QfGKU5bgVv/repo: No such file or directory" - and the run had reparented the LIVE repo,
+# because the fixture's `git remote add` / `git commit` / `git worktree add` ran in whatever directory the
+# failed cd left behind. The helper returns a form both bash and git resolve the same way.
+# shellcheck source=ops/lib/tmpdir.sh
+source "$LIB/tmpdir.sh" || { echo "demo: cannot source $LIB/tmpdir.sh"; exit 2; }
+ROOT="$(portable_mktemp_d)" || { echo "demo: mktemp failed"; exit 2; }
+[[ -n "$ROOT" ]] || { echo "demo: portable_mktemp_d returned an empty path"; exit 2; }
+ROOT_POSIX="$(portable_posix_path "$ROOT")"
+trap 'rm -rf "$ROOT_POSIX"' EXIT
 pass=0; failed=0
 
 run() {  # run <label> <expect-rc> [args...] - runs the check inside the fixture, compares exit code
   local label="$1" want="$2"; shift 2
   local out rc
+  # The fixture must exist before an exit code from inside it means anything. `(cd missing && bash "$CW")`
+  # exits 1 WITHOUT RUNNING THE CHECK, and 1 is exactly the code every RED case here wants - so five cases
+  # printed `ok` off a crashed cd, immediately above the `saw` line that contradicted them (reviewer-pr79
+  # F6). A demo that reports success when its subject never ran is the defect this whole file exists for.
+  if [[ ! -d "$ROOT/repo/.git" ]]; then
+    printf 'FAIL  %-46s fixture missing at %s - the check never ran\n' "$label" "$ROOT/repo"
+    failed=$((failed + 1)); LAST=""; return
+  fi
   out="$(cd "$ROOT/repo" && bash "$CW" "$@" 2>&1)"; rc=$?
   if [[ $rc -eq $want ]]; then printf 'ok    %-46s exit=%s\n' "$label" "$rc"; pass=$((pass + 1))
   else printf 'FAIL  %-46s exit=%s (wanted %s)\n' "$label" "$rc" "$want"; failed=$((failed + 1)); fi
@@ -39,7 +60,9 @@ saw() {  # saw <label> <substring> - the exit code alone does not prove WHICH st
 git init -q --bare "$ROOT/origin.git"
 git init -q -b main "$ROOT/repo"
 mkdir -p "$ROOT/nohooks"
-cd "$ROOT/repo"
+# Guarded, and the guard is the point: an unguarded `cd` here is what let every later git command in this
+# section - remote add, commit, push, branch, worktree add - run against the LIVE repository instead.
+cd "$ROOT/repo" || { echo "demo: cannot enter the fixture at $ROOT/repo; refusing to run git anywhere else"; exit 2; }
 git config user.email demo@example.invalid; git config user.name demo
 git config core.hooksPath "$ROOT/nohooks"
 git config commit.gpgsign false

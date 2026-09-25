@@ -23,24 +23,60 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.." || { echo "cannot reach the repo root"
 [[ -f ops/lib/queue.py ]] || { echo "$(pwd) is not the repo root (no ops/lib/queue.py)"; exit 2; }
 
 PY="${PYTHON:-$(command -v python3 || command -v python)}"
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+# Repo-root-relative, and the status is checked. NOT `$(dirname "${BASH_SOURCE[0]}")/tmpdir.sh`: line 22 has
+# already cd'd, so a relative BASH_SOURCE (`cd ops && bash lib/check-lock-lifecycle`) no longer resolves, and
+# with no `set -e` the failure was silent - TMP="" and the next line became `rm -rf "/queue" "/ops" "/.git"`.
+# shellcheck source=ops/lib/tmpdir.sh
+source ops/lib/tmpdir.sh || { echo "cannot source ops/lib/tmpdir.sh from $(pwd)"; exit 2; }
+TMP="$(portable_mktemp_d)" || { echo "cannot make a temp directory"; exit 2; }
+[[ -n "$TMP" ]] || { echo "portable_mktemp_d returned an empty path; refusing to rm -rf from /"; exit 2; }
+trap 'rm -rf "$(portable_posix_path "$TMP")"' EXIT
 fail=0
 Q="$TMP/ops/lib/queue.py"
 
 reset_repo() {
-  rm -rf "$TMP/queue" "$TMP/ops"
+  rm -rf "$TMP/queue" "$TMP/ops" "$TMP/.git"
   mkdir -p "$TMP/ops/lib" "$TMP/queue"/{backlog,ready,claimed,review,blocked,done,LOCKS}
   cp ops/lib/queue.py "$Q"
+
+  # A REAL git repo with a main branch, because cmd_review rehearses the merge: it reads `main` to decide
+  # whether merging this branch would leave two copies of the task file. Against a bare directory it
+  # refuses with "cannot read main", which is fail-closed and correct - and which made cases 3 and 4 of
+  # this check fail the first time it ever ran on the Windows box, after the mktemp path was fixed.
+  #
+  # MAIN MUST ACTUALLY TRACK queue/. The first version of this fixture ran `git add -A` before any task file
+  # existed, so main's tree held only ops/lib/queue.py; `_would_duplicate_on_merge` iterates
+  # `git ls-tree -r --name-only main queue/`, which returned ZERO paths, so its loop body never executed and
+  # it returned [] no matter what. Deleting the rehearsal outright produced byte-identical output - the
+  # fixture proved that cmd_review can get PAST the rehearsal, not that the rehearsal works (reviewer-pr79
+  # F4). So: .gitkeep in every state dir, plus one committed task that is NOT the subject of any case, so
+  # the loop body runs and the `/{tid}-` filter is exercised in the negative direction too. Case 8 exercises
+  # it in the positive direction.
+  local d
+  for d in backlog ready claimed review blocked done LOCKS; do : > "$TMP/queue/$d/.gitkeep"; done
+  make_task T-9200 "" ready
+  (
+    cd "$TMP" || exit 1
+    git init -q -b main
+    git config user.email "probe@example.invalid"
+    git config user.name "probe"
+    git config commit.gpgsign false
+    git add -A >/dev/null 2>&1
+    git -c core.hooksPath=/dev/null commit -q -m "fixture base" --allow-empty
+    git checkout -q -b task/T-9999
+  )
 }
 
 # $1 = id, $2 = exclusive list body (e.g. "scenic-index"), $3 = state dir
+# The title and the brief both carry the id: the fixture now holds more than one task at a time, and
+# cmd_check reports "N tasks share one title" / "N tasks share one brief" (T-0070's duplicate guard) for
+# identical ones. A fixture that trips an unrelated guard is a fixture that hides its own subject.
 make_task() {
   local id="$1" excl="$2" dir="${3:-ready}"
-  { printf -- '---\nid: %s\ntitle: demo\nstate: %s\nowner: agent/alice\nowner_session: null\n' "$id" "$dir"
+  { printf -- '---\nid: %s\ntitle: demo %s\nstate: %s\nowner: agent/alice\nowner_session: null\n' "$id" "$id" "$dir"
     printf -- 'claimed_at: null\nlease_expires_at: null\nworktree: null\nbranch: null\n'
     printf -- 'exclusive: [%s]\ntouches: [ops/]\npins_affected: []\nreviewer: null\ndepends_on: []\n' "$excl"
-    printf -- 'verify: [ops/test]\nacceptance: []\n---\n## Brief\n\nA real sentence, so the brief guard passes.\n\n## Log\n'
+    printf -- 'verify: [ops/test]\nacceptance: []\n---\n## Brief\n\nA real sentence about %s, so the brief guard passes.\n\n## Log\n' "$id"
   } > "$TMP/queue/$dir/$id-demo.md"
 }
 
@@ -81,10 +117,23 @@ elif [[ ! -f "$TMP/queue/review/T-9102-demo.md" ]]; then
   bad "review did not move the task"
 else
   out="$("$PY" "$Q" check 2>&1)"
-  if grep -q "^QUEUE OK" <<<"$out"; then
-    say "ok: review releases the lock, moves the task, and queue-check is clean"
+  # The property THIS check owns is the lock, not the whole queue's health. Demanding a bare `QUEUE OK` here
+  # also demanded that the fixture clear cmd_check's MIN_TASKS floor of 40, which a fixture of a handful of
+  # tasks cannot - so this case failed for a reason that belongs to T-0091 (claimed by another agent), and
+  # check-lock-lifecycle's exit code was a constant 1 whether the subject was healthy or broken: baseline,
+  # "lock never released" and "self-review accepted" were indistinguishable to any gate (reviewer-pr79 F3).
+  #
+  # So: every problem cmd_check reports must be gone EXCEPT the floor, whose text is written out here by
+  # hand as the single exemption. Any other problem line, including a new one, still fails this case. The
+  # verdict line is required first, so a crashed cmd_check cannot pass by printing no problems at all.
+  residual="$(grep '^ - ' <<<"$out" | grep -v 'floor is 40')"
+  if ! grep -qE '^(QUEUE OK|QUEUE CHECK FAIL)' <<<"$out"; then
+    bad "queue-check did not reach a verdict after review: $(head -2 <<<"$out")"
+  elif [[ -n "$residual" ]]; then
+    bad "queue-check reported a problem other than the MIN_TASKS floor after review:"
+    printf '    %s\n' "$residual"
   else
-    bad "queue-check not clean after review: $(head -2 <<<"$out")"
+    say "ok: review releases the lock, moves the task, and queue-check reports nothing but the known floor"
   fi
 fi
 
@@ -136,6 +185,57 @@ if [[ $rc -ne 0 ]] && grep -q "not claimed/" <<<"$out"; then
   say "ok: a task already in done/ cannot be handed to review"
 else
   bad "review accepted a task that was not claimed (rc=$rc): $out"
+fi
+
+# ---------------------------------------------------------------- 8. the merge rehearsal, driven POSITIVE
+# Cases 3-7 all take the rehearsal's empty branch. Nothing took the non-empty one, so `_would_duplicate_on_merge`
+# could be replaced by `return []` without changing a byte of this check's output (reviewer-pr79 F4).
+#
+# The real shape: `ops/claim` moves ready/ -> claimed/ ON MAIN, and a stacked worktree is cut from a base
+# that predates that commit. The branch then writes its own copy at the same path - an independent add that
+# shares no history with main's, so git keeps BOTH and queue-check fails only on the merged tree. Eleven
+# branches were repaired by hand for this (T-0063), and cmd_review must refuse before anything moves.
+reset_repo
+(
+  cd "$TMP" || exit 1
+  git checkout -q main
+  mkdir -p queue/claimed
+  printf -- '---\nid: T-9107\ntitle: demo T-9107\nstate: claimed\n---\n## Brief\n\nmain copy.\n' \
+    > queue/claimed/T-9107-demo.md
+  git add queue/claimed/T-9107-demo.md >/dev/null 2>&1
+  git -c core.hooksPath=/dev/null commit -q -m "main claims T-9107"
+  git checkout -q task/T-9999
+)
+make_task T-9107 ""
+"$PY" "$Q" claim T-9107 --owner agent/alice >/dev/null 2>&1
+out="$("$PY" "$Q" review T-9107 --reviewer agent/bob 2>&1)"; rc=$?
+if [[ $rc -ne 0 ]] \
+   && grep -q "main holds this task where this branch cannot delete it" <<<"$out" \
+   && grep -q "queue/claimed/T-9107-demo.md" <<<"$out" \
+   && [[ -f "$TMP/queue/claimed/T-9107-demo.md" ]] \
+   && [[ ! -f "$TMP/queue/review/T-9107-demo.md" ]]; then
+  say "ok: review refuses when merging would leave two copies of the task file, and nothing moves"
+else
+  bad "the merge rehearsal did not refuse a duplicate main holds (rc=$rc): $out"
+fi
+
+# ---------------------------------------------------------------- 9. the rehearsal cannot answer -> refuse
+# The other half of the rehearsal: `_would_duplicate_on_merge` returns None when git cannot read main, and
+# cmd_review must REFUSE rather than treat "no answer" as "no duplicate". This is the behaviour the previous
+# fixture accidentally depended on - it had no git at all, so cases 3 and 4 were failing on it - and nothing
+# asserted it, so turning the refusal into a shrug would have gone unnoticed.
+reset_repo
+rm -rf "$TMP/.git"
+make_task T-9108 ""
+"$PY" "$Q" claim T-9108 --owner agent/alice >/dev/null 2>&1
+out="$("$PY" "$Q" review T-9108 --reviewer agent/bob 2>&1)"; rc=$?
+if [[ $rc -ne 0 ]] \
+   && grep -q "cannot read main" <<<"$out" \
+   && [[ -f "$TMP/queue/claimed/T-9108-demo.md" ]] \
+   && [[ ! -f "$TMP/queue/review/T-9108-demo.md" ]]; then
+  say "ok: review refuses when git cannot read main, instead of reading silence as 'no duplicate'"
+else
+  bad "review did not fail closed when main was unreadable (rc=$rc): $out"
 fi
 
 if [[ $fail -ne 0 ]]; then
