@@ -292,3 +292,50 @@ diff is two lines.
   no Swift and no pin; `ops/lib/check-app-icon` is not registered in pins/PINS.yaml (`pins_affected: []`), so
   check-pins would not run it either way. STILL OPEN after this commit: the ios-compile evidence, which is the
   only thing on the planet that can say actool accepted the catalog - dispatched next, on this pushed head.
+- 2026-09-25T20:05:18Z ios-compile evidence by agent/claude-opus-5 (owner). Dispatched ONCE on the pushed head,
+  never re-run.
+
+      run id    36181376100     https://github.com/phineasfritsch/scenic_drive/actions/runs/36181376100
+      status    completed
+      conclusion success
+      headSha   a96da6fa3a3aa06da6b1d5e35815feeabc78c203   == the head that was pushed, `git rev-parse HEAD`
+
+  THE CATALOG ACTUALLY COMPILED - this is the point of the dispatch, since no Apple toolchain exists on the
+  box this was authored on and `ops/lib/check-app-icon` explicitly cannot see whether actool accepts anything.
+  From `gh run view 36181376100 --log` (2399 lines), the asset-catalog step, quoted:
+
+      2026-09-25T19:44:40.4759110Z     /Applications/Xcode_26.3.app/Contents/Developer/usr/bin/actool
+      .../apps/ios/ScenicDrive/Assets.xcassets --compile .../Debug-iphonesimulator/ScenicDrive.app
+      ... --app-icon AppIcon --compress-pngs ... --platform iphonesimulator
+      --bundle-identifier com.phineasfritsch.scenicdrive ...
+
+      2026-09-25T19:45:04.9369370Z note: Emplaced .../Debug-iphonesimulator/ScenicDrive.app/AppIcon60x60@2x.png
+        (in target 'ScenicDrive' from project 'ScenicDrive' at path '.../apps/ios/ScenicDrive.xcodeproj')
+      2026-09-25T19:45:04.9378180Z note: Emplaced .../Debug-iphonesimulator/ScenicDrive.app/AppIcon76x76@2x~ipad.png
+
+      2026-09-25T19:45:05.0934230Z ** BUILD SUCCEEDED **
+
+  Four things are proved by those lines that nothing local could prove. (1) `--app-icon AppIcon` is actool
+  reading ASSETCATALOG_COMPILER_APPICON_NAME out of the build configuration: the setting is not just present in
+  the file, it reached the tool. (2) actool was handed `apps/ios/ScenicDrive/Assets.xcassets` although no file
+  reference for it exists anywhere in project.pbxproj - the `PBXFileSystemSynchronizedRootGroup` really is what
+  carries the catalog into the target (acceptance line 2's "say which mechanism and how you verified it",
+  verified by the compiler rather than by reading the file). (3) `Emplaced .../ScenicDrive.app/AppIcon60x60@2x.png`
+  is the icon IN THE BUILT PRODUCT, derived by actool from the single 1024 source - ruling R3's claim that the
+  legacy multi-size set is redundant, demonstrated rather than asserted. (4) `grep -ic "warning:"` over the
+  whole log is 3 and NONE of the three matches icon, asset, color or catalog: the catalog compiled clean, with
+  no "unassigned children" or missing-idiom warning.
+
+  WHAT THIS RUN STILL DOES NOT PROVE, stated rather than glossed: that the launch screen renders
+  LaunchBackground (actool compiles the colour set and never prints its name; only a booted simulator sees the
+  first frame - T-0235 was filed on main mid-task for exactly that job), that the drawing is legible at 40 pt,
+  and that App Store Connect accepts the icon - the alpha-channel arm of the check is the local stand-in for
+  the last of those.
+
+  THE TASK FILE'S OWN `wc -l` is the one measurement that cannot be written into itself without going stale
+  (T-0162). It is re-measured from the committed object after this entry lands - `git show HEAD:queue/claimed/
+  T-0234-the-app-has-no-icon-an-asset-catalog-the-appicon-and.md | wc -l` - and quoted in the PR body. Every
+  other touched file is unchanged since the acceptance block above: no correction commit has touched a measured
+  file, so no other count needs re-measuring. The generator, the catalog, the PNG, the pbxproj and Info.plist
+  are byte-identical to the tree ios-compile built at a96da6f; the only commits after it are this Log entry and
+  the merge of origin/main that precedes the push.
