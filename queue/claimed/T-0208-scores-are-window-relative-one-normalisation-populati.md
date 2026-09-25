@@ -463,3 +463,77 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   Canyon and grid-b have no tie at the tenth. (c) The ways, zero_class, gated, sinuosity_declined and
   null_score counts under each table equal the 21:59:24Z entry's (that entry did not print
   points_of_interest_absent), so these tables are the artifact T-0209 imports, not a re-run.
+- 2026-09-25T23:33:36Z (R10) ROUND 2 RULED by agent/claude-opus-5 (owner), before any code, on rv1-t0208's
+  FAIL (.artifacts/signoffs/rv1-t0208-verdict.md, read in full). B1 and B2 ACCEPTED as written. R1 is recorded
+  below and not done here. R2-R5 are noted and change no code.
+  (B1) ACCEPTED: the shipping symbol is `assemble.main`, not `assemble.assemble`. Pass 2 ran
+  `python3 -m etl.assemble --input <tile>-doc.json --out ... --reference /fast/la-reference.json` on all 152
+  tiles, and `python -m etl.assemble` runs `main()`. So R3's "the entry point python -m etl.assemble runs" named
+  the wrong symbol, and so did test_seam_one_score.py's "WHAT THIS FILE BINDS TO" paragraph. That docstring is
+  corrected in the same commit. It is a test file's prose, not the Log, so this is not a history edit.
+  THE FIX: two tests in test_seam_one_score.py that call `assemble.main` itself.
+  (i) The WITH-REFERENCE path. seam_window_a/b are copied into tmp_path. The reference is written by
+  `region_reference.dump` over the same union `reference_over` builds, which is the file pass 2 read. Then
+  `main(['--input', doc, '--out', out, '--reference', ref])` runs for each window. The test asserts that every
+  shared way has ONE score, and names T-0204's two ways in the shared set.
+  (ii) The WITHOUT-REFERENCE path, which is legitimate for one self-contained document. `main` without the
+  flag must equal `assemble.assemble(doc)` for each window, and Mulholland still takes two scores. That binds
+  both of the flag's paths through the shipping symbol.
+  (B2) ACCEPTED, the same gap one layer down. Pass 1 ran `python3 -m etl.waydoc ... --motorways
+  work/la-motorways.osm.xml`, and the test bound only `waydoc.build(motorway_source=...)`.
+  THE FIX: two tests in test_motorway_source.py that call `waydoc.main` itself.
+  (i) With `--motorways region_motorways.osm.xml`, way 101's distance must equal `build`'s region-set answer
+  and lie past `score.MOTORWAY_PROXIMITY_M`.
+  (ii) Without the flag, it must equal the clip's own answer, 0.0.
+  The CLI has no seam for the DEM or the landcover sampler, and the distance does not depend on either. So
+  `dem.tiles_for_region`, `dem.sample_smoothed` and `waydoc.default_landcover` are stubbed with pytest's
+  monkeypatch at the module attributes `build` reads at call time. `--no-byways` is passed because the byway
+  overlay is not the motorway set and reads a real inputs file.
+  THE POPULATION: four named mutants go into ops/mutate/normalise_mutations.py, two per flag.
+  (1) The reviewer's B1 mutant: `table = assemble(document)`.
+  (2) Its mirror: a reference loaded when none was given.
+  (3) The reviewer's B2 mutant: `motorway_source=None)`.
+  (4) Its mirror: `pathlib.Path(args.motorways)` read unconditionally.
+  MIN_MUTATIONS goes from 18 to 22. waydoc.py joins SUBJECTS, the files the driver restores and guards against
+  HEAD, and test_motorway_source.py joins EMPTIED, so `--prove-vacuity` still covers all 22. waydoc.py is NOT
+  added to SUBJECT_MODULES. It is allowlisted as wiring (ops/lib/mutate-population-allowlist.json), and
+  P-PROC-06 refuses an allowlist entry for a module a population declares. Mutating a wiring line from a
+  population that does not claim the module is what this file already does for assemble.py. The comments that
+  say "two layers" and "the single line" are corrected to three layers and to the lines named.
+  Each of the four is to be seen RED BY NAME, applied from the population entry itself, before the commit.
+  (R1) RECORDED, NOT DONE HERE: the pipeline scripts that built la-tagged.osm.pbf live only in this worktree's
+  gitignored services/etl/work/: pass1.sh, pass1c.sh, pass2_reference.py, pass2.sh, pass3_merge.py,
+  run_stage.sh, windows.sh, windows_top.py and handover_*.py. The first-tile-wins merge of scored rows and the
+  seam_differ count exist only in pass3_merge.py. `touches:` names ops/etl-extract, but this branch never
+  touched it. So the artifact cannot be rebuilt from the tree. THE ORCHESTRATOR FILES A TASK to commit the
+  region driver under ops/ or etl/, with a test through its entry point.
+  (R2, R3) The reviewer's reconciliations are recorded here as the later notes they ask for. The dated
+  21:29:46Z entry is left unedited.
+  - R2: 560,304 unique ways per the MERGE line, and 96 scored ways fall outside meta.json's per-class sum.
+  - R3: 268 zero-class ways must also have declined sinuosity for 519,764 to reconcile.
+  Neither was re-measured in this round. (R4) belongs to T-0207. (R5) noted: the floor lives in
+  normalise_mutations.py.
+- 2026-09-25T23:36:38Z (R10) RED BY NAME, THEN GREEN, quoted from the run.
+  HOW IT WAS RUN: `python services/etl/work/r2_red_green.py`, a gitignored helper. It imports MUTATIONS from
+  ops/mutate/normalise_mutations.py and applies each of the four `python -m etl.` entries from the population
+  entry itself, never from a retyped string. Before each run it purges every `__pycache__` and sleeps 1.1 s.
+  It runs the four new CLI tests by node id, sleeps 1.1 s, restores and purges.
+  - PRISTINE-BEFORE `exit=0`, `4 passed`.
+  - B1: `MUTANT [assemble.py] python -m etl.assemble drops --reference, so every tile is ranked against itself
+    again (rv1-t0208 B1)  exit=1`. Result:
+    `FAILED tests/test_seam_one_score.py::test_the_cli_with_a_region_reference_gives_a_way_in_two_windows_one_score`,
+    `1 failed, 3 passed`.
+  - Its mirror: `MUTANT [assemble.py] python -m etl.assemble loads a reference that was never given, so one
+    self-contained window cannot run  exit=1`. Result: `FAILED tests/test_seam_one_score.py::
+    test_the_cli_without_a_reference_ranks_one_self_contained_window_against_itself`, `1 failed, 3 passed`.
+  - B2: `MUTANT [waydoc.py] python -m etl.waydoc drops --motorways, so the clip's own motorways are measured to
+    (rv1-t0208 B2)  exit=1`. Result: `FAILED tests/test_motorway_source.py::
+    test_the_cli_measures_to_the_region_motorway_file_it_is_given`, `1 failed, 3 passed`.
+  - Its mirror: `MUTANT [waydoc.py] python -m etl.waydoc reads a motorway file that was never given, so a
+    self-contained clip cannot run  exit=1`. Result: `FAILED tests/test_motorway_source.py::
+    test_the_cli_without_a_motorway_file_measures_to_the_clips_own_motorways`, `1 failed, 3 passed`.
+  - PRISTINE-AFTER `exit=0`, `4 passed`.
+  Each mutant turns exactly the test written for it red, and no other. After the helper, `git status --short`
+  listed only the five files this round edits. assemble.py and waydoc.py were not among them, so both were
+  restored. The two files, whole: `pytest tests/test_seam_one_score.py tests/test_motorway_source.py
+  -o addopts=` = `11 passed`. The driver runs next, on the COMMITTED tree, because it refuses a dirty one.

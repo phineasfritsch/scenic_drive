@@ -10,9 +10,14 @@ it is the same defect one layer down, a per-way term computed against whatever l
 So `waydoc.build` takes the motorway geometry from a file of its own when one is given. The default is
 unchanged - the clip's own ways - because every other caller and every other test measures a self-contained
 fixture, and a required argument would be a migration this task does not need.
+
+THE SHIPPING SYMBOL is `waydoc.main`: the region build's first pass ran `python -m etl.waydoc ...
+--motorways work/la-motorways.osm.xml`, and a test that stopped at `build` stayed green while `main` dropped
+the flag (rv1-t0208 B2). The two CLI tests below bind both of the flag's paths through `main` itself.
 """
 from __future__ import annotations
 
+import json
 import pathlib
 
 from etl import score, waydoc
@@ -45,13 +50,41 @@ def distance_of(document: dict, way_id: int) -> float:
     return {row["way_id"]: row for row in document["ways"]}[way_id]["meters_to_nearest_motorway"]
 
 
+def cli_document(tmp_path: pathlib.Path, monkeypatch, *flags) -> dict:
+    """`python -m etl.waydoc` as pass 1 ran it, with the DEM and landcover samplers stubbed.
+
+    `main` has no argument for either sampler and the motorway distance depends on neither, so they are
+    replaced at the module attributes `build` reads at call time. `--no-byways` because the byway overlay
+    reads a real inputs file and is not the motorway set.
+    """
+    monkeypatch.setattr(waydoc.dem, "tiles_for_region", lambda region_id: frozenset())
+    monkeypatch.setattr(waydoc.dem, "sample_smoothed", lambda points, tiles=None: elevation(points))
+    monkeypatch.setattr(waydoc, "default_landcover", landcover)
+    out = tmp_path / "clip-doc.json"
+    argv = ["--input", str(CLIP), "--region", "la", "--out", str(out), "--no-byways"] + list(flags)
+    assert waydoc.main(argv) == 0
+    return json.loads(out.read_text(encoding="utf-8"))
+
+
+def test_the_cli_measures_to_the_region_motorway_file_it_is_given(tmp_path, monkeypatch):
+    """THE SEAM, through the shipping entry point: `main --motorways` answers the region set's distance."""
+    written = distance_of(cli_document(tmp_path, monkeypatch, "--motorways", str(REGION_MOTORWAYS)), CANYON_WAY)
+    assert written == distance_of(build(motorway_source=REGION_MOTORWAYS), CANYON_WAY)
+    assert score.MOTORWAY_PROXIMITY_M < written < NEAR_HORIZON_M
+
+
+def test_the_cli_without_a_motorway_file_measures_to_the_clips_own_motorways(tmp_path, monkeypatch):
+    """The flag's OTHER path: no `--motorways` is the clip's own set, right for one self-contained clip."""
+    assert distance_of(cli_document(tmp_path, monkeypatch), CANYON_WAY) == 0.0
+
+
 def test_the_clip_answers_zero_because_the_clip_contains_the_motorway():
     """The behaviour being replaced, pinned so the change is visible rather than assumed."""
     assert distance_of(build(), CANYON_WAY) == 0.0
 
 
 def test_the_motorway_distance_is_measured_to_the_supplied_region_set_not_to_the_clips_own_ways():
-    """THE SEAM: with a region motorway file, the clip's own motorway 102 is not what is measured to.
+    """THE SEAM one layer down: with a region motorway file, the clip's own motorway 102 is not measured to.
 
     The region file's only motorway is ~390 m away, so way 101 moves from 0.0 to the far side of
     `score.MOTORWAY_PROXIMITY_M` - which is the boundary the whole x0.7 multiplier turns on.

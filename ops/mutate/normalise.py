@@ -5,8 +5,10 @@ WHY THESE. `normalise.py` turns five unbounded producer outputs into the 0..1 te
 the mean of - it computes the number, and it sat in P-PROC-06's DEBT list with no population at all.
 T-0208 adds `region_reference.py`, which decides WHICH ways are in the curve a rank is taken against; that
 is the same number one step earlier, and getting it wrong is exactly the defect T-0204 measured (160 of 190
-ways on one clip seam carried two different scores). `assemble.py` is mutated for the single line that hands
-the reference on, and stays declared in `scenic_tags.py`'s SUBJECT_MODULES rather than in this file's.
+ways on one clip seam carried two different scores). `assemble.py` is mutated for the lines that hand the
+reference on - the library call and the `--reference` CLI line - and stays declared in `scenic_tags.py`'s
+SUBJECT_MODULES rather than in this file's; `waydoc.py` is mutated for its `--motorways` CLI line and stays
+allowlisted as wiring (rv1-t0208 B1, B2).
 
 THE CONTRACT, the same one ops/mutate/scenic_tags.py and its runner keep:
 

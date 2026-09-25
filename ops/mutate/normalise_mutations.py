@@ -6,8 +6,10 @@ the protocol - what a verdict is and what refuses - and this file is the evidenc
 WHY THESE MODULES. `normalise.py` computes the rank every scored term is made of and sat in P-PROC-06's DEBT
 list with no population at all. `region_reference.py` is T-0208's new module: it decides WHICH ways are in
 the curve a rank is taken against, which is the same number one step earlier. `assemble.py` is mutated here
-too - for the one line that passes the reference on - but is declared in `scenic_tags.py`'s SUBJECT_MODULES,
-not in this one, so P-PROC-06 sees one declaration per module.
+too - for the library line that passes the reference on and the CLI line that reads `--reference` - but is
+declared in `scenic_tags.py`'s SUBJECT_MODULES, not in this one, so P-PROC-06 sees one declaration per module.
+`waydoc.py` is mutated for its CLI line that reads `--motorways` (rv1-t0208 B2) and is declared by no
+population: P-PROC-06 allowlists it as wiring, and it refuses an allowlist entry a population also declares.
 
 Each entry is `(name, file, old, new)`. `old` must appear VERBATIM in the pristine file or the run reports
 SKIP and FAILS. **Anchor on code, never on a comment** (CLAUDE.md): comments get stripped and a mutation
@@ -24,12 +26,14 @@ ETL = ROOT / "services" / "etl"
 NORMALISE = ETL / "etl" / "normalise.py"
 REFERENCE = ETL / "etl" / "region_reference.py"
 ASSEMBLE = ETL / "etl" / "assemble.py"
+WAYDOC = ETL / "etl" / "waydoc.py"
 NORMALISE_TESTS = ETL / "tests" / "test_normalise.py"
 REFERENCE_TESTS = ETL / "tests" / "test_region_reference.py"
 SEAM_TESTS = ETL / "tests" / "test_seam_one_score.py"
 WAY_RECORD_TESTS = ETL / "tests" / "test_way_records_fixture.py"
-EMPTIED = (NORMALISE_TESTS, REFERENCE_TESTS, SEAM_TESTS, WAY_RECORD_TESTS)
-SUBJECTS = (NORMALISE, REFERENCE, ASSEMBLE)
+MOTORWAY_TESTS = ETL / "tests" / "test_motorway_source.py"
+EMPTIED = (NORMALISE_TESTS, REFERENCE_TESTS, SEAM_TESTS, WAY_RECORD_TESTS, MOTORWAY_TESTS)
+SUBJECTS = (NORMALISE, REFERENCE, ASSEMBLE, WAYDOC)
 
 # Anchors reused by more than one mutation, verbatim from the subjects.
 CHOOSE_REFERENCE = "            ranks[term] = ranks_against_sorted(values, sorted(reference[term]))"
@@ -62,13 +66,27 @@ LOAD_REFUSES = ("    problems = reference_refusals(table)\n"
                 "        raise ValueError(\"reference refused: %s\" % \"; \".join(problems))\n"
                 "    return {term: [float(value) for value in values] for term, values in table.items()}")
 PASS_REFERENCE = "    normalised = normalise_region(records, reference)"
+# The two CLI lines the region build's passes actually ran (rv1-t0208 B1, B2).
+CLI_REFERENCE = ("    table = assemble(document, None if args.reference is None else "
+                 "region_reference.load(args.reference))")
+CLI_MOTORWAYS = "                     motorway_source=None if args.motorways is None else pathlib.Path(args.motorways))"
 
 MUTATIONS = [
-    # THE REFERENCE IGNORED - the defect this task exists to end, at each of the two layers that can drop it.
+    # THE REFERENCE IGNORED - the defect this task exists to end, at each of the three layers that can drop
+    # it: the normaliser, the library call that hands it on, and the CLI that reads it off the command line.
     ("rank against the clip's own population even when a reference was supplied", NORMALISE,
      CHOOSE_REFERENCE, "            ranks[term] = percentile_ranks(values)"),
     ("assemble drops the reference on the floor instead of handing it to the normaliser", ASSEMBLE,
      PASS_REFERENCE, "    normalised = normalise_region(records)"),
+    ("python -m etl.assemble drops --reference, so every tile is ranked against itself again (rv1-t0208 B1)",
+     ASSEMBLE, CLI_REFERENCE, "    table = assemble(document)"),
+    ("python -m etl.assemble loads a reference that was never given, so one self-contained window cannot run",
+     ASSEMBLE, CLI_REFERENCE, "    table = assemble(document, region_reference.load(args.reference))"),
+    # THE REGION MOTORWAY SET (R1b) - the same defect one layer down, at the CLI the first pass ran.
+    ("python -m etl.waydoc drops --motorways, so the clip's own motorways are measured to (rv1-t0208 B2)",
+     WAYDOC, CLI_MOTORWAYS, "                     motorway_source=None)"),
+    ("python -m etl.waydoc reads a motorway file that was never given, so a self-contained clip cannot run",
+     WAYDOC, CLI_MOTORWAYS, "                     motorway_source=pathlib.Path(args.motorways))"),
     # THE SORTED REFERENCE. `bisect` over an unsorted list answers confidently and wrongly.
     ("bisect the reference in the order the caller sent it", NORMALISE,
      CHOOSE_REFERENCE, "            ranks[term] = ranks_against_sorted(values, list(reference[term]))"),
@@ -127,4 +145,4 @@ EQUIVALENT = [
 # Asserted the other way round: each must still go MISSED, and a gap that CLOSES fails the run.
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 18
+MIN_MUTATIONS = 22

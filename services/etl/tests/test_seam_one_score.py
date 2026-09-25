@@ -10,11 +10,15 @@ a clip boundary, so the 190 ways on the -118.45 seam were scored in BOTH halves 
 Not truncated geometry: the rows are identical. `normalise_region` ranks a way against WHATEVER ELSE LANDED
 IN THE SAME CLIP, and half a city is a different curve from the other half.
 
-WHAT THIS FILE BINDS TO. `assemble.assemble` - the symbol `python -m etl.assemble` runs, which is what the
-region build runs - over two documents cut from T-0204's OWN grid-a and grid-b docs. The three shared ways
-are taken from the 92 seam rows that are BYTE-IDENTICAL in both, so the two windows disagree about nothing
-except their populations; the other nine ways in each window are that clip's own, so the populations really
-do differ. Both of T-0204's named ways are in the 92 and both are in the fixture, by id.
+WHAT THIS FILE BINDS TO. `assemble.main` - the entry point `python -m etl.assemble` runs, and the one the
+region build's second pass ran on all 152 tiles with `--reference` - through a document on disk, a reference
+file written by `region_reference.dump`, and the scored table it writes (rv1-t0208 B1: a test that stopped
+at `assemble.assemble` stayed green while `main` dropped the flag). The library-level tests below it pin
+the same property one layer down. The fixtures are two documents cut from T-0204's OWN grid-a and grid-b
+docs. The three shared ways are taken from the 92 seam rows that are BYTE-IDENTICAL in both, so the two
+windows disagree about nothing except their populations; the other nine ways in each window are that clip's
+own, so the populations really do differ. Both of T-0204's named ways are in the 92 and both are in the
+fixture, by id.
 
 The reference is built the way the region run builds it - `region_reference.raw_values` over the records
 `assemble.record_from_row` produces, merged by `way_id` - so this test exercises the composition that ships,
@@ -24,6 +28,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import shutil
 
 from etl import assemble, region_reference
 
@@ -58,6 +63,42 @@ def shared_ids(left: dict, right: dict) -> list:
     return sorted(set(left) & set(right))
 
 
+def cli_scores(tmp_path: pathlib.Path, window: pathlib.Path, *flags) -> dict:
+    """`python -m etl.assemble` as pass 2 ran it: a document on disk in, the scored table on disk out."""
+    source = tmp_path / window.name
+    shutil.copyfile(window, source)
+    out = tmp_path / (window.stem + "-scores.json")
+    assert assemble.main(["--input", str(source), "--out", str(out)] + list(flags)) == 0
+    rows = json.loads(out.read_text(encoding="utf-8"))["rows"]
+    return {row["way_id"]: row["score"] for row in rows}
+
+
+def test_the_cli_with_a_region_reference_gives_a_way_in_two_windows_one_score(tmp_path):
+    """THE FIX, through the shipping entry point: `main --reference` on each window, one score per shared way."""
+    reference = tmp_path / "la-reference.json"
+    region_reference.dump(reference_over(document(WINDOW_A), document(WINDOW_B)), reference)
+    a = cli_scores(tmp_path, WINDOW_A, "--reference", str(reference))
+    b = cli_scores(tmp_path, WINDOW_B, "--reference", str(reference))
+    shared = shared_ids(a, b)
+    assert MULHOLLAND in shared and WEST_SUNSET in shared, "the CLI tables lost the named seam ways"
+    differing = {way_id: (a[way_id], b[way_id]) for way_id in shared if a[way_id] != b[way_id]}
+    assert differing == {}, (
+        "python -m etl.assemble --reference still gives a way in two windows two scores: %s" % differing)
+
+
+def test_the_cli_without_a_reference_ranks_one_self_contained_window_against_itself(tmp_path):
+    """The flag's OTHER path: no `--reference` is the per-window ranking, right for one self-contained document.
+
+    Equal to the library's no-reference answer, window by window, and - the same fixtures, so not vacuous -
+    Mulholland still takes two scores, which is what the flag exists to end.
+    """
+    a = cli_scores(tmp_path, WINDOW_A)
+    b = cli_scores(tmp_path, WINDOW_B)
+    assert a == scores(document(WINDOW_A))
+    assert b == scores(document(WINDOW_B))
+    assert a[MULHOLLAND] != b[MULHOLLAND]
+
+
 def test_the_two_windows_really_do_overlap_on_the_named_seam_ways():
     """The fixture's own shape: a test about a seam needs a seam, and these are T-0204's ways by id."""
     left, right = document(WINDOW_A), document(WINDOW_B)
@@ -69,7 +110,7 @@ def test_the_two_windows_really_do_overlap_on_the_named_seam_ways():
 
 
 def test_a_way_in_two_overlapping_windows_takes_one_score_against_the_region_reference():
-    """THE FIX, as a property of the shipping entry point: one reference, one score, every shared way."""
+    """THE FIX one layer down, at `assemble.assemble`: one reference, one score, every shared way."""
     left, right = document(WINDOW_A), document(WINDOW_B)
     reference = reference_over(left, right)
     a, b = scores(left, reference), scores(right, reference)
