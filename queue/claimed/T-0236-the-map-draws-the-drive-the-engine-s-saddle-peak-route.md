@@ -147,3 +147,36 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   `MapRoute.bundled`'s second lookup (`name.ext` at the root) is the one that finds it on this Xcode - the first
   (`subdirectory/name.ext`) is kept for a build that keeps the folder, as BasemapResolver does for the archive.
   IOS-SCREENSHOT dispatch 1 of 3: run 36196721558 on 0eb5a0f, in progress.
+- 2026-09-25T22:37:10Z SCREENSHOTS (agent/claude-opus-5). ios-screenshot dispatch 1 of 3: run 36196721558 on
+  0eb5a0f2d083bec7ab19d34095c761601473338a - success (iPhone simulator, 1206 x 2622 px at 3x). Artifact
+  `ios-screenshots` downloaded into the MAIN checkout's gitignored .artifacts/screens/ and renamed home-light-T0236.png
+  (sha256 d079e0931ce463d9b661e9a7b63d0af1d8e69fef640630fc6007a0c8e23d6f12) and home-dark-T0236.png (f485655c09860dd5
+  95fa1005efc2bdb188e26cdd60a21ae0d23100f7351ddc1b); PR #127's home-light.png / home-dark.png stay beside them. Not
+  committed. Read by eye and measured with PIL (a gitignored .build/ script; numbers in pt = px / 3):
+  CHIP ROW: "Saddle Peak" filled in the accent (selected, first), then "Westwood loop", then "SF Peninsula" - the
+  R1 order and words. TITLE "Saddle Peak · Topanga to Malibu over the mountains" over two lines; then the R5 road
+  list, "About 10 miles as the crow flies, pin to pin. The roads are longer.", the timing sentence ("A slow mountain
+  afternoon, not a shortcut - the coast road is the quick way. Apple Maps gives you the real time when it opens."),
+  and the caption "Preview build: three fixed drives, Saddle Peak selected. The line is the route the engine chose
+  over Saddle Peak instead of PCH; the map under it shows no roads yet." - the demo-tiles arm, which is TRUE here:
+  CI has no LA archive, so the ground is the MapLibre demo's Natural Earth land and sea.
+  THE LINE: drawn, in both. Light: 39,623 px of exactly (37, 99, 235) = #2563EB, the light `route` token, on a white
+  (`surface`) casing. Dark: 39,625 px of exactly (59, 130, 246) = #3B82F6, the dark `route` token, on a dark casing -
+  the colour follows the trait collection, it is not one blue for both. It runs as the fixture does: it starts at the
+  top-RIGHT (Topanga village, the north-east corner of the bbox), drops south down the canyon, winds WEST along the
+  Saddle Peak / Schueren / Piuma ridge in visible switchbacks, reaches the left edge at Malibu Canyon Road, descends
+  SOUTH and ends turning EAST (Civic Center Way) just above the demo coastline - the Natural Earth coast is coarse at
+  this zoom, so the sea edge is not the real beach; nothing was drawn between pins in a straight line.
+  THE CAMERA frames the whole route: the map's top edge is at 456 pt (the header text ends above it), the map is 418
+  pt tall; the line spans x 69-332 pt and y 507-640 pt - 69 / 70 pt clear of the left / right edges (centred), 50
+  pt below the map's top (the 48 pt top inset plus the casing), 234 pt above the screen's bottom = the 200 pt bottom
+  inset plus MapLibre's own 34 pt safe-area content inset. It is a HEIGHT-limited fit (133 pt of line in the 170 pt
+  left between the insets would not grow wider than 263 of the 354 pt available). Nothing of the line is under the
+  conditions chip (it starts ~694 pt, 54 pt below the line's lowest pixel), the button or the credit pill.
+  THE (i): at the map's top-left, 10-31 pt from its left edge and 10-31 pt below its top (8 pt margins + the button's
+  own inset), clear of the header, the line and every other control, in both screenshots. The credit pill ("© MapLibre
+  · Natural Earth", the demo credit - TRUE, P-ATTR-01) sits alone at the bottom-right; the corner under it, where PR
+  #127's screenshots had the (i) covered, now holds only sea and the pill (top colours (216, 242, 255) and the pill's
+  white / dark fill - no (i) blue). The MapLibre logo stays at the bottom-left. The (i) was moved, never hidden.
+  Pre-existing and not this task's: the dark screenshot's GROUND is still the light demo style (the demo tiles have
+  one style; the LA archive has both) - the header, chips, pill and line are dark-mode.
