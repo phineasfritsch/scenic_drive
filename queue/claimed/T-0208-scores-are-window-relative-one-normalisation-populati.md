@@ -356,3 +356,110 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   lacks main's `plan.py`/`straightline.py` drivers the merged table names, so every clone was a
   fail-closed exit 2. Main's own checkout reads `all 13 cases behaved as stated`. It is re-run on the
   committed merge below and quoted there; an uncommitted merge is not the tree the gate is proved on.
+- 2026-09-25T22:43:08Z THE ACCEPTANCE BLOCK, RE-RUN BARE ON THE MERGED HEAD 6c96af0, and the 8/10 hand-over.
+  `git fetch origin` first: origin/main is still 006c798, the commit R9 merged, and
+  `git merge-base --is-ancestor origin/main HEAD` exits 0, so no second merge was taken. Every line below is
+  quoted from a run on this head, with every `__pycache__` under services/etl purged before each Python run.
+  PYTEST, `cd services/etl && python -m pytest tests -rs -o addopts=`: `1331 passed in 198.18s (0:03:18)`,
+  exit 0, and `-rs` printed NO skip line - zero skips. (1242 before the merge, at 21:59:24Z; the other 89 are
+  main's.) THE SEAM TEST BY NAME, `tests/test_seam_one_score.py`: `4 passed`, among them
+  `test_a_way_in_two_overlapping_windows_takes_one_score_against_the_region_reference PASSED` and
+  `test_without_a_region_reference_the_same_ways_take_two_scores PASSED`.
+  `python ops/mutate/normalise.py`: `MUTATIONS: 18 caught, 0 missed, 0 skipped, of 18` /
+  `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2` / `MUTATE OK  caught=18/18 equivalent_caught=0`, exit 0.
+  `python ops/mutate/normalise.py --prove-vacuity` (its one flag, read from its argparse first):
+  `VACUITY: 0 caught, 18 missed, 0 skipped, of 18` / `VACUITY PROVED`, exit 0.
+  `python ops/mutate/scenic_tags.py`: `MUTATIONS: 48 caught, 0 missed, 0 skipped, of 48` /
+  `EQUIVALENT: 0 caught, 3 missed, 0 skipped, of 3` / `MUTATE OK  caught=48/48 equivalent_caught=0`, exit 0.
+  `python ops/mutate/extractadapter.py` (main's, #122, on this merged head): `MUTATIONS: 27 caught, 0 missed,
+  0 skipped, of 27` / `EQUIVALENT: 0 caught, 3 missed, 0 skipped, of 3` / `MUTATE OK  caught=27/27
+  equivalent_caught=0`, exit 0. `git status --short` empty after each driver restored its subjects.
+  `python ops/lib/check-mutate-population.py`: `P-PROC-06: 91 modules, 37 covered by 15 populations,
+  33 allowlisted, 1 added by this branch` / `P-PROC-06: every added module is covered or allowlisted; the
+  floor of 36 holds`, exit 0. `--prove-red` ON THE COMMITTED MERGE, the re-run R9 promised: `P-PROC-06
+  --prove-red: all 13 cases behaved as stated`, exit 0 - the three git-arm cases that read NOT DISCRIMINATING
+  on the pre-merge b519a88 clone now read `1 1 ok`, `0 0 ok`, `1 1 ok`.
+  THE ARTIFACT, re-hashed in the MAIN checkout: `sha256sum services/etl/work/la/la-tagged.osm.pbf` =
+  `648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39`, `stat -c %s` = `45914107` - the digest
+  and the byte count 21:59:24Z quoted, unchanged.
+  `bash ops/lib/check-line-cap`: `P-SRC-02: 111 Swift files tracked (Sources=43, Tests=47, apps/ios=21), none
+  over 300 lines`, exit 0 (Swift only; the Python this branch touches is measured by `wc -l` next).
+  `bash ops/lib/check-exec-bits`: `P-OPS-01: 98 files, 23 required present, all modes correct`, exit 0.
+  `bash ops/queue-check`: `QUEUE OK (229 tasks)`, exit 0.
+  `wc -l`, every non-fixture file in `git diff --name-only origin/main...HEAD`:
+      ops/lib/check-mutate-population.py 283 · ops/lib/mutate_population_table.py 37 ·
+      ops/mutate/normalise.py 171 · ops/mutate/normalise_mutations.py 130 ·
+      services/etl/etl/assemble.py 293 · services/etl/etl/normalise.py 256 ·
+      services/etl/etl/region_reference.py 109 · services/etl/etl/waydoc.py 288 ·
+      services/etl/tests/test_motorway_source.py 70 · test_region_reference.py 142 ·
+      test_seam_one_score.py 102 · test_window_ranking.py 222.
+  assemble.py is 293, not the 299 the 18:05 entry quoted: #122 moved the access rules out into
+  `accessrule.py`, and the merge kept both that import and this branch's `--reference` plumbing.
+  THE 8/10 HAND-OVER. Each window's top ten, read OFF THE SHIPPED ARTIFACT: the `osmium cat` read-backs of
+  the three windows cut out of `la-tagged.osm.pbf` (21:59:24Z), ranked by `etl.scenecheck.top` and ordered
+  (score desc, unit desc, way_id asc) by `work/handover_top.py`. It ran against the COMMITTED HEAD's `etl`
+  package (`git archive 6c96af0 services/etl/etl`, bound first by `work/handover_run.py`) because the
+  worktree's `etl/` was being mutated by `scenic_tags.py` at the time. Its first line re-derives the region:
+  `MERGED ASSEMBLE ways=560304 zero_class=19511 gated=103989 sinuosity_declined=21297
+  points_of_interest_absent=560304 null_score=0` - the 21:59:24Z line, byte for byte. REGION = this
+  task's region-normalised unit and the 0-10 tag written into the PBF; OLD = the pre-T-0208 window-relative
+  unit (canyon_top25.json; grid_top25.json, with its seam_disagreements for each half's own value), `-` where
+  no old top-25 named the way.
+      CANYON  -118.95,33.98,-118.55,34.15
+       #  way         name                             highway       tag  region  old
+       1  667514937   North Topanga Canyon Boulevard   primary        8   0.8012  0.7679
+       2  74344113    Topanga Canyon Boulevard         primary        8   0.7965  0.7697
+       3  74344132    Topanga Canyon Boulevard         primary        8   0.7891  0.7722
+       4  38311860    Topanga Canyon Boulevard         primary        8   0.7704  0.7401
+       5  358703394   Stunt Road                       tertiary       8   0.7691  0.7563
+       6  1165966476  North Topanga Canyon Boulevard   primary        8   0.7660  0.7116
+       7  204589613   North Topanga Canyon Boulevard   primary        8   0.7655  -
+       8  1255479697  Old Topanga Canyon Road          secondary      8   0.7648  0.7275
+       9  456361801   North Topanga Canyon Boulevard   primary        8   0.7637  0.7464
+      10  13409451    South Topanga Canyon Boulevard   primary        8   0.7594  -
+      `WINDOW canyon ASSEMBLE ways=11740 zero_class=386 gated=5589 sinuosity_declined=619
+       points_of_interest_absent=11740 null_score=0`
+      GRID-A  -118.55,33.98,-118.45,34.15
+       #  way         name                             highway       tag  region  old
+       1  44327906    Mulholland Drive                 secondary      7   0.7206  0.7261
+       2  405362186   Mulholland Drive                 secondary      7   0.7020  0.7064
+       3  13377650    Mandeville Canyon Road           tertiary       7   0.6991  0.7125
+       4  1533792498  Mulholland Drive                 secondary      7   0.6952  0.6988
+       5  435695311   Temescal Canyon Road             unclassified   7   0.6672  -
+       6  399156621   West Sunset Boulevard            secondary      7   0.6661  -
+       7  13377647    Mandeville Canyon Road           tertiary       7   0.6595  -
+       8  13278980    Round Valley Drive               residential    6   0.6499  0.6746
+       9  13278983    Round Valley Drive               residential    6   0.6499  -
+      10  13285888    Rivers Road                      residential    6   0.6499  -
+      `WINDOW grid-a ASSEMBLE ways=11239 zero_class=476 gated=1927 sinuosity_declined=575
+       points_of_interest_absent=11239 null_score=0`
+      GRID-B  -118.45,33.98,-118.35,34.15
+       #  way         name                             highway       tag  region  old
+       1  518410361   Mulholland Drive                 secondary      7   0.7325  0.7361
+       2  518410363   Mulholland Drive                 secondary      7   0.7236  0.7226
+       3  787842196   Mulholland Drive                 secondary      7   0.7218  0.7299
+       4  13292286    Franklin Canyon Drive            unclassified   7   0.7128  0.7203
+       5  399262414   Laurel Canyon Boulevard          secondary      7   0.7034  0.7081
+       6  159524496   Mulholland Drive                 secondary      7   0.7026  0.7100
+       7  518410359   Mulholland Drive                 secondary      7   0.7009  -
+       8  1533792498  Mulholland Drive                 secondary      7   0.6952  0.7022
+       9  38555783    Laurel Canyon Boulevard          secondary      7   0.6928  -
+      10  518410362   Mulholland Drive                 secondary      7   0.6922  -
+      `WINDOW grid-b ASSEMBLE ways=23474 zero_class=772 gated=3696 sinuosity_declined=1074
+       points_of_interest_absent=23474 null_score=0`
+  THREE THINGS THE OWNER SHOULD KNOW BEFORE ANSWERING "HOW MANY OF THESE TEN WOULD YOU DRIVE". (a) Way
+  1533792498, Mulholland Drive, is in BOTH grid tables - grid-a #4 and grid-b #8 - at ONE value, 0.6952,
+  where the old windows gave it 0.6988 and 0.7022: the seam fix, visible in the hand-over itself. (b) Grid-a
+  #8-#10 are residential ways sitting AT T-0207's residential ceiling, 0.6499 (tag 6): they are TIED, and
+  a tie is ordered by way_id, so WHICH residential street is 8th, 9th or 10th is not a scenic claim.
+  MEASURED over the same read-back (`work/handover_ties.py`, same HEAD package):
+      `TIES grid-a tenth_unit=0.6499 tied_at_tenth=31 above_tenth=7 classes={'residential': 31}`
+      `TIES grid-a distinct_names=30 first=Round Valley Drive, Rivers Road, Bel Air Road, Beverly Glen
+       Terrace, Rivas Canyon Road, Mango Way, Antelo View Drive, Mulholland Place`
+      `TIES canyon tenth_unit=0.7594 tied_at_tenth=1 above_tenth=9` · `TIES grid-b tenth_unit=0.6922
+       tied_at_tenth=1 above_tenth=9`
+  so grid-a has SEVEN ranked roads above the ceiling and then 31 residential ways (30 streets) tied on it;
+  the owner's answer for grid-a is really about #1-#7 plus "a Bel Air / Brentwood hillside residential".
+  Canyon and grid-b have no tie at the tenth. (c) The ways, zero_class, gated, sinuosity_declined and
+  null_score counts under each table equal the 21:59:24Z entry's (that entry did not print
+  points_of_interest_absent), so these tables are the artifact T-0209 imports, not a re-run.
