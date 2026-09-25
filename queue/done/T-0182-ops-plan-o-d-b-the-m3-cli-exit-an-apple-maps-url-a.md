@@ -1,7 +1,7 @@
 ---
 id: T-0182
 title: ops/plan <O> <D> <B> - the M3 CLI exit: an Apple Maps URL and the per-edge term table for an LA origin and destination against the served LA graph
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T17:53:17Z
@@ -11,7 +11,7 @@ branch: task/T-0182
 exclusive: [root-package]
 touches: [ops/plan, ops/lib/, ops/mutate/, Sources/, Package.swift, services/api/src/, Tests/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-pr124
 depends_on: [T-0116, T-0158]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -693,3 +693,137 @@ the owner names - nothing in the plan or any Log records it (FOR THE HUMAN).
 
   `git status --short` is empty. The read-only verifier's four findings are closed, each red first.
   Pushing now.
+- 2026-09-25T20:30:12Z REVIEW PASS by agent/rv1-pr124 (reviewer; not the owner agent/claude-opus-5, not its fixer).
+  Reviewed in a detached sibling worktree at .worktrees/rv1-pr124 on 7de49bf == origin/task/T-0182, base main,
+  scratch path .build/rv1-pr124. Every claim below names the command and quotes its output.
+
+  SHAPE. `git diff --stat main...7de49bf`: `42 files changed, 3328 insertions(+), 8 deletions(-)`. NOTHING under
+  apps/ios: `git diff --name-only main...HEAD | grep -c '^apps/ios'` -> `0`. No Apple-only import under Sources/:
+  `grep -rnE 'import (CoreLocation|MapKit|UIKit|SwiftUI|MapLibre|Ferrostar)' Sources/` -> no match. URLSession's
+  Linux home is behind the guard, in the CLI target only: `Sources/ScenicPlanCLI/GraphHopperRouteSource.swift:4:
+  #if canImport(FoundationNetworking)` / `:5: import FoundationNetworking` / `:135: URLSession.shared.dataTask`,
+  and no other file under Sources/ names URLSession. The platform floor survives the Package.swift edit:
+  `grep -n 'iOS("18.4")' pins/PINS.yaml` -> `58:  assertion: "grep -q 'iOS(\"18.4\")' Package.swift"`, and
+  `bash ops/check-pins --source-only` runs that assertion green (below). Sizes: no file over the cap -
+  `bash ops/lib/check-line-cap` -> `P-SRC-02: 111 Swift files tracked (Sources=43, Tests=47, apps/ios=21), none
+  over 300 lines`, exit 0; the largest files this branch adds are `ops/lib/check-mutate-population.py` 300,
+  `services/api/src/customModel.ts` 295, `ops/mutate/plan.py` 243 (`wc -l`). Modes:
+  `bash ops/lib/check-exec-bits` -> `P-OPS-01: 87 files, 23 required present, all modes correct`, exit 0;
+  `git ls-files -s ops/plan` -> `100755`, `ops/mutate/plan.py` -> `100644`, which is what the other twelve
+  drivers under ops/mutate/ carry.
+
+  BARE GATES. `swift build --scratch-path .build/rv1-pr124` -> `Build complete! (40.44s)`.
+  `swift test --scratch-path .build/rv1-pr124` -> `Test run with 321 tests in 44 suites passed after 1.015
+  seconds.` `bash ops/queue-check` -> `QUEUE OK (222 tasks)`, exit 0. `bash ops/check-pins --source-only`, run
+  ALONE with no concurrent swift -> `PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only`,
+  exit 0. `python ops/lib/check-mutate-population.py` -> `P-PROC-06: 90 modules, 34 covered by 13 populations,
+  33 allowlisted, 14 added by this branch` / `every added module is covered or allowlisted; the floor of 33
+  holds`, exit 0. `gh pr checks 124` -> `core pass 2m1s` / `pins-source-only pass 2m1s`.
+
+  THE CLI, RUN. `bash ops/plan` with no arguments prints the usage line and exits 2 (`EXIT=2`). The recorded run,
+  `bash ops/plan 34.0944,-118.6013 34.0365,-118.687 25 --recorded Tests/Fixtures/t0182/plan-pair`, exits 0 and
+  prints `ROUTER recorded plan-pair` / `PLAN origin=34.09440,-118.60130 destination=34.03650,-118.68700
+  budget=25m00s` / `LAMBDA 7.75 evaluations=6 used-budget=true monotonicity-violated=false` /
+  `ETA fastest=17m56s returned=37m33s ceiling=42m56s distance=33068.9m` /
+  `OVERLAP jaccard=0.112 required<0.600` / `TABLE rows=58 columns=way,highway,scenic_score,metres,seconds` /
+  58 rows / `WAYPOINTS 9 of max 9` / the maps.apple.com URL with nine waypoints. The ceiling holds on the face of
+  it: 17m56s + 25m00s = 42m56s and the returned 37m33s is under it. The second pair refuses rather than
+  answering with a neighbour: `bash ops/plan 34.0392,-118.5836 34.0944,-118.6019 25 --recorded
+  Tests/Fixtures/t0182/t0213-pair` -> `ops/plan REFUSED: no recorded response at lambda 4.0`, exit 3.
+
+  THE DEVIATION IS DISCLOSED, as R4 ruled and as this review was told to check. Every fixture's own envelope
+  carries it: `Tests/Fixtures/t0182/plan-pair/fastest.json` field `recorded.envelope` reads `written by
+  Tests/Fixtures/t0182-recorder/Recorder.java, NOT by graphhopper-web: this slice of the router has no HTTP
+  surface (T-0209 owns it). Every NUMBER below is GraphHopper 11.0's over the real graph.`, beside
+  `image: scenic-routing:t0213`, `image_id: sha256:ff123b2f...ba11`, `jar_sha256: 7931f599...fe43`,
+  `graph_properties_sha256: 170bfe37bda146a51821f74fa53d9a42084e1cb3db27e2841205fe432c20b188` and
+  `window_pbf_sha256: 06046be0...0090` - the same graph properties sha256 T-0213 recorded. The same field is on
+  `t0213-pair/fastest.json`. The Log states it too, in R4 and in the golden's own header comment
+  (Tests/HandoffTests/ScenicPlanGoldenTests.swift:13-15).
+
+  THE OWNER'S POPULATION, RE-RUN TWICE BY THE REVIEWER on this tree, cold and then warm:
+  `python ops/mutate/plan.py` -> `population 19 mutations over 8 modules` ... `caught 19 of 19   trapped 0
+  compile-only 0   MISSED 0   skipped 0`, exit 0, both times, with every line CAUGHT including
+  `planner/ceiling-guard-always-passes`, `planner/ceiling-is-twice-the-budget`,
+  `planner/ceiling-refuses-a-route-exactly-on-it`, `budget/minutes-are-multiplied-into-hours`,
+  `difference/intersection-becomes-union` and `difference/empty-sets-read-as-different`.
+  `python ops/mutate/plan.py --prove-floor` -> `an empty population REFUSED 0 mutations, expected at least 10` /
+  `one mutation REFUSED 1 mutations, expected at least 10` / `a subject nothing mutates REFUSED
+  Sources/ScenicKit/Plan/PlanFailure.swift is declared a subject and mutated by nothing` / `the shipped table
+  accepted`, exit 0.
+
+  THREE MUTANTS OF THE REVIEWER'S OWN, none of them in the owner's table, run on .worktrees/rv1-pr124 and
+  restored with `git checkout --` (`git status --short` empty after each). ALL THREE CAUGHT; no survivor.
+
+  M1, THE GATE MUTANT - the gate's frame, not the code. In ONE edit to ops/mutate/plan.py:
+  `MIN_MUTATIONS = 10` -> `19` (so no count arm can see it) AND
+  `"Sources/ScenicKit/Plan/RouteDifference.swift",` deleted from SUBJECT_MODULES. The driver's own
+  `--prove-floor` is BLIND to this: it prints `the shipped table accepted` with 19 mutations against a floor of
+  19, exit 0 - the narrowing is invisible from inside the driver. The whitelist outside it refuses:
+  `python ops/lib/check-mutate-population.py` -> exit 1, `P-PROC-06: POPULATION FLOOR - module(s) that had a
+  population and no longer do:` / `  Sources/ScenicKit/Plan/RouteDifference.swift` / `A population is not
+  retired by narrowing SUBJECT_MODULES.` That is P-PROC-06's floor arm doing exactly the job its own text
+  claims, seen red here by a hand that did not write it.
+
+  M2 - RouteDifference.overlap's DENOMINATOR swapped: `Double(union.count)` -> `Double(a.count)`, which makes a
+  scenic route that is a strict SUPERSET of the fastest one read as different (intersection/|A| < 1 whenever A
+  is bigger). CAUGHT, by name, over the real recording: `× Test "the report says what the run said" recorded an
+  issue at ScenicPlanGoldenTests.swift:63:9: Expectation failed: (lines[3] -> "OVERLAP jaccard=0.207
+  required<0.600") == "OVERLAP jaccard=0.112 required<0.600"` / `× Test run with 321 tests in 44 suites failed
+  after 0.512 seconds with 1 issue.` The golden binds to the Jaccard NUMBER, not only to the URL.
+
+  M3 - THE GOLDEN EDITED SO THE RETURNED ETA EXCEEDS fastest + budget: in
+  Tests/Fixtures/t0182/plan-pair/lambda-7.75.json, `"time": 2253369` -> `"time": 2900000` (48m20s against a
+  ceiling of 2575693 ms = 42m56s). The question this mutant was set to answer - does the golden fail, or does it
+  only check the URL - is answered twice over. The ENGINE never prints a plan over the ceiling: it re-bisects
+  onto a route it measured as feasible, and the golden dies on the numbers:
+  `× Test "the report says what the run said" recorded an issue at ScenicPlanGoldenTests.swift:61:9: Expectation
+  failed: (lines[1] -> "LAMBDA 7.50 evaluations=6 used-budget=true monotonicity-violated=false") == "LAMBDA 7.75
+  ..."` and `× Test "the recorded canyon pair plans at lambda 7.75 inside the ceiling" recorded an issue at
+  ScenicPlanGoldenTests.swift:48:9: Expectation failed: (plan.outcome.lambda -> 7.5) == 7.75`, `× Test run with
+  321 tests in 44 suites failed after 0.556 seconds with 2 issues.` NO mutant of mine, and none of the owner's
+  nineteen, produced a tree that prints a plan over the ceiling or sends a model naming a safety gate with
+  everything green. The safety-gate refusal is on the wire path and is a runtime throw, not a comment:
+  `Sources/ScenicPlanCLI/GraphHopperRouteSource.swift:54: public static let forbiddenEncodedValues =
+  ["road_access", "surface"]` and `:121: throw PlanFailure.modelTouchesSafetyGate(value)`, with
+  PlanFailure.modelTouchesSafetyGate a real case (PlanFailure.swift:37).
+
+  RECORDED, NOT BLOCKING - each named with the task that should own it.
+  (1) HONEST FAILURE IS UNWIRED, and the Log has it backwards. `grep -rn '0.45' Sources/` finds
+  `Sources/ScenicKit/Scoring/RouteScore.swift:92: public static let honestFailureThreshold = 0.45` and NO other
+  file under Sources/ reads it; PlanFailure's seven cases (PlanFailure.swift:6-42) contain no honest-failure
+  case at all. So a score-8 Topanga corridor that the product should be able to call "not much pretty here" can
+  only ever come back as notActuallyDifferent or as a plan. T-0230 owns wiring it; this review does not hold the
+  PR for it, but the Log's framing of that refusal as the honest-failure path is wrong today and this entry says
+  so on the record.
+  (2) JACCARD IS OVER WAY IDS, NOT AN EDGE SET. plan:216 says edge-set; RouteDifference.wayIds reads the
+  `osm_way_id` path detail (RouteDifference.swift:41). RULED SOUND, and ruled here rather than left implied:
+  GraphHopper edge ids are positions in a built graph and move on every re-import, so an edge-set measure could
+  not be compared across two builds of the same window, while way ids survive it; the threshold 0.6 is unchanged
+  and the type's own header states the substitution. The empty-set case returns 1.0 - "not different", a refusal
+  - which is the non-vacuous direction.
+  (3) THE MODEL PARITY IS ONE-DIRECTIONAL. `grep -rln 'custom-model' services/api/` -> no match: the five
+  Tests/Fixtures/custom-model/lambda-*.json are read by the Swift side alone
+  (Tests/ScenicKitTests/LambdaCustomModelParityTests.swift). A change to
+  services/api/src/customModel.ts's buildCustomModel breaks the Swift parity test and nothing on the Worker
+  side, and nothing on the Worker side would tell you WHY. T-0231 owns closing that seam. The only Worker edit
+  on this branch is the CustomModelError parameter-property rewrite (same field, same `readonly`, same value,
+  assigned in the body so node's strip-only mode can run the module) - `gh pr checks 124` has `core pass`.
+  (4) ORIGIN/MAIN IS NOT AN ANCESTOR OF THE REVIEWED HEAD. `git merge-base --is-ancestor origin/main 7de49bf`
+  exits non-zero: main has moved two commits since this branch's last merge (394f0b6), 969e082 and 5df0b35.
+  `git diff --name-only $(git merge-base origin/main 7de49bf)..origin/main` is SEVEN files, all of them queue
+  bookkeeping - queue/LOCKS/floors.lock and six task files under queue/backlog/ and queue/ready/ - and nothing
+  under ops/, pins/, Sources/, services/ or Tests/. The gate set this sign-off was bought on IS main's current
+  gate set, so CLAUDE.md's rule is satisfied in substance; the drift is recorded here because it is real and the
+  orchestrator merges, not this reviewer.
+  (5) `ops/mutate/plan.py` SILENTLY IGNORES AN UNKNOWN FLAG. `python ops/mutate/plan.py --prove-vacuity` (the
+  spelling this review was handed; the driver's flag is `--prove-floor`) does not refuse - argv is scanned for
+  known flags only (plan.py:120-128), so it fell through to a full fifteen-minute mutation run that looks like
+  a vacuity proof and is not one. It exits 0 with `caught 19 of 19`, which is a true statement about a different
+  question. Small, real, and the same shape as the defects this repository keeps filing; worth its own task
+  against ops/mutate/*.py as a class rather than this one driver.
+
+  VERDICT: PASS. PR #124 is signed off. state claimed -> done, reviewer agent/rv1-pr124,
+  queue/claimed/ -> queue/done/, and queue/LOCKS/root-package.lock is deleted in this same commit - the
+  exclusive [root-package] lock this task took in c29b494 is released on the sign-off. The reviewer's worktree
+  .worktrees/rv1-pr124 is removed. The merge is the orchestrator's.
