@@ -33,7 +33,9 @@ enum DriveBasemap {
     /// and every phone without the copied archive gets (see `BasemapResolver`).
     static func resolve(for drive: HandoffDrive, appearance: MapAppearance) -> MapStyle {
         switch drive {
-        case .santaMonicaMountains:
+        // Saddle Peak is inside the LA archive's box too (its line's bbox is -118.70856,34.03519 to
+        // -118.59958,34.09435), so it asks the same resolver the loop does.
+        case .saddlePeak, .santaMonicaMountains:
             return BasemapResolver.losAngeles(appearance: appearance)
         case .skyline:
             return .maplibreDemoTiles

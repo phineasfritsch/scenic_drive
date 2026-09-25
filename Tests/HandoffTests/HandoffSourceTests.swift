@@ -178,7 +178,7 @@ struct HandoffSourceTests {
         // names `Coordinate` and numeric literals and nothing else. `HandoffDrive` is which of the
         // two the screen is showing; it names both route types, `Coordinate`, `Array`, `String`,
         // `CaseIterable` and `Sendable`. This check went red on both by name before it went green.
-        "AppleMapsDirections", "HandoffDrive", "HandoffError", "Mode", "SantaMonicaMountainsRoute",
+        "AppleMapsDirections", "HandoffDrive", "HandoffError", "Mode", "SantaMonicaMountainsRoute", "SaddlePeakRoute",
         "SkylineRoute", "StraightLineDistance",
         // modules
         "Foundation", "ScenicKit",

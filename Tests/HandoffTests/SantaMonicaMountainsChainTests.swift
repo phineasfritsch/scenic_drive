@@ -166,7 +166,7 @@ struct SantaMonicaMountainsChainTests {
 
     // MARK: - The selector the screen holds
 
-    @Test("each drive maps to its own route, and the default is the LA drive")
+    @Test("each drive maps to its own route, and the default is the Saddle Peak drive")
     func eachDriveMapsToItsOwnRoute() {
         #expect(HandoffDrive.skyline.waypoints == SkylineRoute.waypoints)
         #expect(HandoffDrive.skyline.destination == SkylineRoute.destination)
@@ -178,8 +178,9 @@ struct SantaMonicaMountainsChainTests {
         // The ruling, as an assertion: nothing is known at launch, so the owner's drive is what the
         // screen opens on. See `HandoffDrive.defaultDrive` for why the condition in the acceptance
         // line cannot be evaluated at all.
-        #expect(HandoffDrive.defaultDrive == .santaMonicaMountains, "got \(HandoffDrive.defaultDrive)")
-        #expect(HandoffDrive.allCases.count == 2, "got \(HandoffDrive.allCases)")
+        // Superseded by T-0236: the engine's Saddle Peak drive is the default, the LA loop the second row.
+        #expect(HandoffDrive.defaultDrive == .saddlePeak, "got \(HandoffDrive.defaultDrive)")
+        #expect(HandoffDrive.allCases.count == 3, "got \(HandoffDrive.allCases)")
     }
 
     @Test("the distance accessor reports each drive's own figure")

@@ -220,7 +220,7 @@ struct StraightLineDistanceTests {
     /// mile either way, and this is the test that stops being green about it when one of them moves.
     @Test("every drive's miles are that drive's own chain, floored from that drive's metres")
     func everyDrivesMilesAreThatDrivesOwnChain() {
-        #expect(HandoffDrive.allCases.count == 2, "the domain wholeMiles(for:) ranges over has changed")
+        #expect(HandoffDrive.allCases.count == 3, "the domain wholeMiles(for:) ranges over has changed")
         for drive in HandoffDrive.allCases {
             let metres = StraightLineDistance.meters(through: drive.chain)
             let rendered = StraightLineDistance.wholeMiles(for: drive)
@@ -229,9 +229,9 @@ struct StraightLineDistanceTests {
             #expect(rendered == StraightLineDistance.wholeMiles(through: drive.chain),
                     "\(drive.rawValue): the entry point and the helper disagree")
         }
-        // And the loop is not comparing one drive with itself: two drives, two figures.
-        #expect(StraightLineDistance.wholeMiles(for: .skyline)
-                != StraightLineDistance.wholeMiles(for: .santaMonicaMountains),
-                "both drives render the same miles, so a drive swapped here would be invisible")
+        // And the loop is not comparing one drive with itself: three drives, three figures.
+        let figures = HandoffDrive.allCases.map { StraightLineDistance.wholeMiles(for: $0) }
+        #expect(Set(figures).count == HandoffDrive.allCases.count,
+                "two drives render the same miles (\(figures)), so a drive swapped here would be invisible")
     }
 }

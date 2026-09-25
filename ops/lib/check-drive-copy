@@ -182,9 +182,12 @@ run_check() {
     -- "${app_files[@]}"
 
   # ----------------------------------------------------- (iii) a case is named at a SELECTOR site only
-  local cases="$basemap(1) $words(3) $picker(1)"
+  local cases="$basemap(1) $words(4) $picker(1)"
+  require_tracked ".saddlePeak" "drive case" "$cases" \
+    "The third case (T-0236) at the same selector sites as the other two, and nowhere else." \
+    -- "${app_files[@]}"
   require_tracked ".skyline" "drive case" "$cases" \
-    "The basemap switch, the three DriveCopy switches, the picker row. Everywhere else the drive arrives" \
+    "The basemap switch, the four DriveCopy switches, the picker row. Everywhere else the drive arrives" \
     "as a VALUE; a case typed into the card or the handoff is a surface that ignores the selection." \
     -- "${app_files[@]}"
   require_tracked ".santaMonicaMountains" "drive case" "$cases" \
@@ -205,7 +208,7 @@ run_check() {
   echo "drive-copy: over the $an .swift file(s) under $app_tree -"
   echo "  clipboardPayload( at $card(1), every occurrence spelled drive.clipboardPayload(;"
   echo "  .directions at $handoff(1), every occurrence spelled drive.directions;"
-  echo "  the drive cases .skyline and .santaMonicaMountains each at $cases and nowhere else;"
+  echo "  the drive cases .saddlePeak, .skyline and .santaMonicaMountains each at $cases and nowhere else;"
   echo "  .timingSentence at $facts(1) $card(1), .failureTimingSentence at $card(1)."
   echo "  Not checked here: rendering, what the sentences say (Tests/HandoffTests), taps, Dynamic Type."
 }
@@ -218,6 +221,7 @@ rows=(
   "M1c the handoff opens a hard-coded drive|FS/SkylineHandoff.swift|s/drive\.directions/HandoffDrive.skyline.directions/|drive.directions occurs outside its tracked set"
   "the card reads a hard-coded case beside the selected drive|FS/HandoffFailureCard.swift|s/DriveFacts\.straightLine(for: drive)/DriveFacts.straightLine(for: .santaMonicaMountains)/|drive case .santaMonicaMountains occurs outside its tracked set"
   "a second paste built beside the card's|FS/HandoffFailureCard.swift|s/^    var body: some View {$/    var stray: String { HandoffDrive.skyline.clipboardPayload(roadList: r, straightLine: s, timing: t) }\n&/|call clipboardPayload( occurs outside its tracked set"
+  "the card reads the THIRD case hard-coded (T-0236)|FS/HandoffFailureCard.swift|s/DriveFacts\.straightLine(for: drive)/DriveFacts.straightLine(for: .saddlePeak)/|drive case .saddlePeak occurs outside its tracked set"
   "the failure card grows its own timing literal again|FS/HandoffFailureCard.swift|s/Text(drive\.failureTimingSentence)/Text(localNote)/|failureTimingSentence occurs outside its tracked set"
   "the home screen stops rendering the shipping sentence|FS/DriveFacts.swift|s/Text(drive\.timingSentence)/Text(localNote)/|timingSentence occurs outside its tracked set"
 )
