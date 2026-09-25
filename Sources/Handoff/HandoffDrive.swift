@@ -1,7 +1,7 @@
 import Foundation
 import ScenicKit
 
-/// Which of the two hard-coded drives the screen is showing and the button would hand over.
+/// Which of the three hard-coded drives the screen is showing and the button would hand over.
 ///
 /// ## Why a type and not a second handoff
 ///
@@ -16,7 +16,7 @@ import ScenicKit
 ///
 /// ## Why it lives in `Handoff` and not in the screen
 ///
-/// Both routes' coordinates live here (`SkylineRoute`, `SantaMonicaMountainsRoute`), in a Linux target
+/// Every route's coordinates live here (`SaddlePeakRoute`, `SkylineRoute`, `SantaMonicaMountainsRoute`), in a Linux target
 /// with a test target beside it. A selector in an Apple-only target with no test bundle could map a
 /// case to the wrong array and nothing on this box could tell. `SantaMonicaMountainsChainTests`
 /// checks the mapping - `eachDriveMapsToItsOwnRoute`, plus the case count and
