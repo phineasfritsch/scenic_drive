@@ -222,3 +222,59 @@ relationship' failure.
     - The Worker's served model changes on its next deploy (distance_influence 0, the minor clause, the band
       ladder); ops/plan emits it now. Service ways all score 0 (T-0207), so their cost rose from 1+l to 1+2l -
       a preference, never a gate; a destination on a service road is still reachable.
+- 2026-09-26T10:10:43Z agent/claude-opus-5 (owner): PRE-REVIEW MUTANT PASS - three survivors, each BLOCKING, closed (commit
+  3af07c2). Rulings before code:
+    B1 (the pass's B2): TRUE - scenic(from:to:lambda:) sent json(for:) and no test drove it (the verbatim test built
+       its own 7.75 model). RULED: bind to the shipping entry point, not a new helper. GraphHopperRouteSource gains
+       an internal transport seam `post` (nil = URLSession, every production run; send() still refuses the safety
+       gates FIRST, then hands the body over), and PlanCLIRequestBodyTests
+       .theScenicRequestCarriesTheLambdaModelWithDistanceInfluenceZero drives scenic() at every lambda step of 0.1
+       in 0..8: parsed distance_influence 0, profile car_scenic, embedded model == LambdaCustomModel.json(for:
+       lambda) byte for byte. The allowlist reason for GraphHopperRouteSource.swift ("builds a request body ...
+       both of which ops/mutate/plan.py covers") was false by this survivor: the entry leaves
+       ops/lib/mutate-population-allowlist.json and the module becomes a plan.py subject.
+    B2 (mutant C): TRUE. RULED: all three witnesses. The class set is read from LambdaCustomModel.minorCondition's
+       road_class atoms (the static literal is gone; the other three tests in the suite read the derived set too);
+       every recorded row's minor-ness must equal "has a numeric scenic_score" (route_la_pairs.py fills it for its
+       MINOR_CLASSES only); the measured longest run is pinned, 174.815 m ending on way 723963657.
+    B3 (A2-ts): TRUE, and PROVENANCE.txt's "A change on either side fails it by name" was false - the golden is a
+       recording and never re-runs node. RULED: services/api/test/customModelMinorClause.test.ts (new, because
+       customModel.test.ts is at 299 lines) types out 1/(1+2l) and 1/(1+l) as serialised at every step of 0.1 in
+       0..8 and asserts the minor / dullest cost ratio strictly rises; PROVENANCE.txt and LambdaCustomModel's doc
+       comment now say the Swift side fails the golden and the TypeScript side fails vitest.
+    Touches widened in this header: ops/lib/mutate-population-allowlist.json,
+       services/api/test/customModelMinorClause.test.ts.
+  RED - each mutant applied to 3af07c2 by .build/t0244/redgreen_b123.py and restored (git status clean after):
+    cli/scenic-request-ignores-lambda (json(for: 8)): "scenic(from:to:lambda:) sends distance_influence 0 and
+       LambdaCustomModel.json(for: lambda), at every step" recorded an issue at PlanCLIRequestBodyTests.swift:84:13:
+       Expectation failed: embedded == (try LambdaCustomModel.json... - exit 1.
+    cli/scenic-request-changes-distance-influence (0 -> 30 on the wire): the same test, :81:13 Expectation failed:
+       ((model["distance_influence"] as? NSNumber)... and :84:13 - exit 1.
+    oracle/rat-run-class-set-drops-service (mutant C, .dropFirst().dropLast()): "Santa Monica -> Topanga at lambda
+       8, as routed over the whole-LA graph, has no rat-run over 800 m" failed with 6 issues - :97:13 (minor ->
+       false) == ((Int(row[4]) != nil)) x4, :107:9 abs(longest.metres - 174.815) -> 155.769, :108:9 longest.way ->
+       "384819177". The 800 m expectation alone stays green on it (19.0 m), as the pass found.
+    A2-ts ((9 / 17) * bandMultiplier(bandSlope(0), lambda) for lambda >= 4, in customModel.ts): vitest "Test Files
+       1 failed | 6 passed (7)", "Tests 2 failed | 123 passed (125)" - "minor at lambda 4: expected '0.105882' to
+       be '0.111111'", "minor / dullest cost at lambda 4.1: expected 1.888888888888889 to be greater than
+       1.888895185206173". The 123 pre-existing tests stay green on it, as the pass found.
+  GREEN (pristine): "Test run with 13 tests in 3 suites passed" (PlanCLIRequestBodyTests | LambdaCustomModelRatRunTests
+    | LambdaCustomModelParityTests); vitest "Test Files 7 passed (7)", "Tests 125 passed (125)".
+  POPULATION: ops/mutate/plan.py MIN_MUTATIONS 24 -> 27, SUBJECT_MODULES + Sources/ScenicPlanCLI/
+    GraphHopperRouteSource.swift. `--only cli/scenic-request,oracle/rat-run`: "population 27 mutations over 9
+    modules", CAUGHT x3, "caught 3 of 3 trapped 0 compile-only 0 MISSED 0 skipped 0". `--only custom-model/` (the
+    mutants whose catchers this commit touched): "caught 8 of 8 trapped 0 compile-only 0 MISSED 0 skipped 0". The
+    other 16 were not re-run here; their anchors and their catching tests are untouched. --prove-floor: empty /
+    one mutation / unmutated subject REFUSED, the shipped table accepted, exit 0. check-mutate-population.py:
+    "P-PROC-06: 93 modules, 38 covered by 15 populations, 34 allowlisted, 0 added by this branch ... the floor of
+    36 holds", exit 0.
+  NOT IN A POPULATION: A2-ts. No mutation harness covers services/api/src (CLAUDE.md's population rule names
+    services/etl/etl/ and Sources/); the mutant is recorded here by name with its red and green. A vitest-driven
+    population for customModel.ts is STILL OPEN - a harness task, not this model's.
+  GATES on 3af07c2: check-line-cap "P-SRC-02: 122 Swift files tracked (Sources=45, Tests=53, apps/ios=24), none
+    over 300 lines"; check-exec-bits "P-OPS-01: 100 files, 23 required present, all modes correct"; queue-check
+    "QUEUE OK (237 tasks)". Line counts: GraphHopperRouteSource.swift 160, PlanCLIRequestBodyTests.swift 109,
+    LambdaCustomModelRatRunTests.swift 110, LambdaCustomModel.swift 117, ops/mutate/plan.py 270,
+    customModelMinorClause.test.ts 41, customModel.test.ts 299, customModel.ts 299. Acceptance clauses 1-3 as
+    quoted in the previous entry: unchanged by this commit (no model byte, fixture or route moved; the parity
+    golden and the recorded route are green above).
