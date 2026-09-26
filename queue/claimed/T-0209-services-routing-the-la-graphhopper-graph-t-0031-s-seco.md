@@ -217,3 +217,67 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
 
   `properties` carries the import date, so a RE-import produces a different digest by construction: T-0221
   opens THIS directory, it does not rebuild it. P-PROD-04's three-way equality stays PENDING (no golden exists).
+- 2026-09-26T01:28:46Z STAGES 4 AND 5 LANDED - the three pairs routed at car_fast and lambda {0,1,2,4,8} on the whole-LA
+  graph, with path details (numbers only; the rulings follow in the next entry). One container run per pair:
+
+      $ python services/routing/tools/route_la_pairs.py      # image scenic-routing:t0209, heap -Xmx6g,
+        # graph/models/raw output under the MAIN checkout's services/routing/work/t0209/ (graph-la, models, routes)
+      GRAPH_DIGEST sha256=eb43090a0de52432756d5b6f98a0dad0f568838f8272ff339042344e920d18eb   (the stage-3 graph)
+      PAIR westwood-malibu from=34.0669,-118.4399 to=34.0356,-118.6894
+        ROUTE -              time_ms= 1667261 min=  27.79 distance_m=  26776.4 edges=308
+        ROUTE lambda-0.json  time_ms= 1667261 min=  27.79 distance_m=  26776.4 edges=308
+        ROUTE lambda-1.json  time_ms= 1667261 min=  27.79 distance_m=  26776.4 edges=308
+        ROUTE lambda-2.json  time_ms= 1667261 min=  27.79 distance_m=  26776.4 edges=308
+        ROUTE lambda-4.json  time_ms= 1667261 min=  27.79 distance_m=  26776.4 edges=308
+        ROUTE lambda-8.json  time_ms= 3341893 min=  55.70 distance_m=  52301.5 edges=399
+        T_NONDECREASING westwood-malibu True T=[1667261, 1667261, 1667261, 1667261, 3341893]
+        W0 westwood-malibu seconds+30/km=[2470.55, 2470.55, 2470.55, 2470.55, 4910.94]
+        BITE westwood-malibu T0=1667261 T8=3341893 spread=+100.44%
+        RUNS (all six routes)  residential=0.0m living_street=0.0m service=0.0m mixed=0.0m minor_total=0.0m
+      PAIR westwood-woodland-hills from=34.0669,-118.4399 to=34.1684,-118.6058
+        ROUTE -              time_ms= 1208634 min=  20.14 distance_m=  28057.6 edges=163
+        ROUTE lambda-0.json  time_ms= 1208634 min=  20.14 distance_m=  28057.6 edges=163
+        ROUTE lambda-1.json  time_ms= 1201286 min=  20.02 distance_m=  28386.3 edges=139
+        ROUTE lambda-2.json  time_ms= 1589597 min=  26.49 distance_m=  27907.3 edges=231
+        ROUTE lambda-4.json  time_ms= 1589597 min=  26.49 distance_m=  27907.3 edges=231
+        ROUTE lambda-8.json  time_ms= 1589597 min=  26.49 distance_m=  27907.3 edges=231
+        T_NONDECREASING westwood-woodland-hills False T=[1208634, 1201286, 1589597, 1589597, 1589597]
+        W0 westwood-woodland-hills seconds+30/km=[2050.36, 2052.88, 2426.82, 2426.82, 2426.82]
+        BITE westwood-woodland-hills T0=1208634 T8=1589597 spread=+31.52%
+        RUNS (all six routes)  residential=0.0m living_street=0.0m service=52.3m[1087155744,1087155743] mixed=52.3m['service'] minor_total=52.3m
+      PAIR santa-monica-topanga from=34.0195,-118.4912 to=34.0676,-118.5957
+        ROUTE -              time_ms= 1213650 min=  20.23 distance_m=  19299.9 edges=169
+        ROUTE lambda-0.json  time_ms= 1213650 min=  20.23 distance_m=  19299.9 edges=169
+        ROUTE lambda-1.json  time_ms= 1213650 min=  20.23 distance_m=  19299.9 edges=169
+        ROUTE lambda-2.json  time_ms= 1213650 min=  20.23 distance_m=  19299.9 edges=169
+        ROUTE lambda-4.json  time_ms= 1213650 min=  20.23 distance_m=  19299.9 edges=169
+        ROUTE lambda-8.json  time_ms= 1274240 min=  21.24 distance_m=  19601.5 edges=178
+        T_NONDECREASING santa-monica-topanga True T=[1213650, 1213650, 1213650, 1213650, 1274240]
+        W0 santa-monica-topanga seconds+30/km=[1792.65, 1792.65, 1792.65, 1792.65, 1862.28(+res)]
+        BITE santa-monica-topanga T0=1213650 T8=1274240 spread=+4.99%
+        RUNS -  .. lambda-4 residential=0.0m living_street=0.0m service=174.8m[723963657] mixed=174.8m['service'][723963657] minor_total=223.6m
+        RUNS lambda-8.json  residential=813.9m[121941230,384819177] living_street=0.0m service=174.8m[723963657] mixed=813.9m['residential'][121941230,384819177] minor_total=1037.5m
+      SUMMARY monotone=2/3 bites=westwood-malibu:+100.44%,westwood-woodland-hills:+31.52%,santa-monica-topanga:+4.99%
+      SUMMARY longest_mixed_minor_run westwood-malibu 0.0m model=- classes=[] ways=[]
+      SUMMARY longest_mixed_minor_run westwood-woodland-hills 52.3m model=- classes=['service'] ways=[1087155744,1087155743]
+      SUMMARY longest_mixed_minor_run santa-monica-topanga 813.9m model=lambda-8.json classes=['residential'] ways=[121941230,384819177]
+      RUN_WAY_SCORE way=121941230 edges=15 scenic_score=4
+      RUN_WAY_SCORE way=384819177 edges=1 scenic_score=2
+      RUN_WAY_SCORE way=723963657 edges=1 scenic_score=0
+      RUN_WAY_SCORE way=1087155743 edges=1 scenic_score=0
+      RUN_WAY_SCORE way=1087155744 edges=2 scenic_score=0
+
+  (RUNS rows that are identical across routes are folded onto one line here; route-la-pairs.txt has all 18.)
+  REPLAYED: the whole run was executed twice (the second added the RUN_WAY_SCORE probe); the three raw
+  route-details outputs are byte-identical between runs (`cmp` silent on all three; routes-run1/ kept). The
+  first run's table is the one above minus the W0 and RUN_WAY_SCORE lines.
+  What the run ways ARE, read out of the tagged PBF (T-0208's artifact, read-only):
+
+      $ wsl -e bash -lc "docker run --rm -v .../services/etl/work/la:/data:ro scenic-etl:t0038 osmium getid /data/la-tagged.osm.pbf w121941230 w384819177 w723963657 w1087155744 w1087155743 -f opl"
+      w121941230  highway=residential name=7th Street maxspeed=30 mph lanes=2 surface=asphalt scenic_score=4 (unit 0.3950)
+      w384819177  highway=residential name=7th Street lanes=2 scenic_score=2 (unit 0.1960)
+      w723963657  highway=service (no name) scenic_score=0
+      w1087155743 highway=service (no name) scenic_score=0
+      w1087155744 highway=service (no name) scenic_score=0
+
+  The graph's encoded scores equal the PBF's tags on all five ways (4, 2, 0, 0, 0).

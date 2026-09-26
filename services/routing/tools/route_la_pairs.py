@@ -17,6 +17,7 @@ defines a run), with metres, way ids and classes. It asserts nothing: the Log ru
 """
 
 import argparse
+import json
 import hashlib
 import shutil
 import subprocess
@@ -79,6 +80,27 @@ def route_pair(args, name, origin, destination):
     return parse(raw.read_text(encoding="utf-8"))
 
 
+RUN_WAYS = set()  # every way id of every longest run reported, probed for its encoded scenic_score at the end
+
+
+def probe_run_ways(args):
+    """One `--mode probe` over the ways of the reported runs: the score the GRAPH encoded for each (the
+    emitted model's anti-rat-run clause multiplies RESIDENTIAL by 0.5 only when scenic_score < 7)."""
+    raw = args.out / "probe-run-ways.txt"
+    if not args.reuse:
+        ways = ",".join(str(way) for way in sorted(RUN_WAYS))
+        result = shell(
+            f"docker run --rm -e JAVA_TOOL_OPTIONS={args.heap} -v {wsl_path(args.graph)}:/graph {args.image} "
+            f"--config /app/config.yml --graph /graph --mode probe --probe-ways {ways}"
+        )
+        if result.returncode != 0:
+            raise SystemExit(f"probe exited {result.returncode}\n{result.stdout[-3000:]}\n{result.stderr[-3000:]}")
+        raw.write_text(result.stdout, encoding="utf-8", newline="\n")
+    for line in raw.read_text(encoding="utf-8").splitlines():
+        if line.startswith("PROBE "):
+            print("RUN_WAY_SCORE " + line[len("PROBE "):])
+
+
 def ways_text(ways, limit=12):
     shown = ",".join(str(way) for way in ways[:limit])
     return shown + (f",+{len(ways) - limit} more" if len(ways) > limit else "")
@@ -98,6 +120,16 @@ def report_pair(name, origin, destination, routes):
     monotone = all(a <= b for a, b in zip(times, times[1:]))
     spread = (times[-1] - times[0]) / times[0]
     print(f"  T_NONDECREASING {name} {monotone} T={times}")
+    # What the weighting actually minimises at lambda 0 when every edge's priority is 1: seconds plus
+    # distance_influence (profiles/car_scenic_base.json) per km. Exact for a route with no RESIDENTIAL edge
+    # (the emitted model halves a low-score residential edge's priority at every lambda); marked otherwise.
+    influence = json.loads((ROUTING / "profiles" / "car_scenic_base.json").read_text(encoding="utf-8"))["distance_influence"]
+    base = []
+    for label in LAMBDAS:
+        route = by_model[label]
+        exact = not any(edge["road_class"] == "residential" for edge in route["edges"])
+        base.append(f"{route['time_ms'] / 1000 + influence * route['distance_m'] / 1000:.2f}{'' if exact else '(+res)'}")
+    print(f"  W0 {name} seconds+{influence}/km=[{', '.join(base)}]")
     print(f"  BITE {name} T0={times[0]} T8={times[-1]} spread={spread * 100:+.2f}%")
     worst = []
     for label in ("-",) + LAMBDAS:
@@ -106,6 +138,7 @@ def report_pair(name, origin, destination, routes):
         parts = []
         for road_class in MINOR_CLASSES:
             run = longest_run(edges, (road_class,))
+            RUN_WAYS.update(run["ways"])
             parts.append(f"{road_class}={run['m']:.1f}m[{ways_text(run['ways'])}]")
         mixed = longest_run(edges, MINOR_CLASSES)
         total = sum(metres.get(c, 0.0) for c in MINOR_CLASSES)
@@ -137,6 +170,8 @@ def main():
     for name, _, _, (metres, label, run) in summary:
         print(f"SUMMARY longest_mixed_minor_run {name} {metres:.1f}m model={label} classes={run['classes']} "
               f"ways=[{ways_text(run['ways'], 40)}]")
+    if RUN_WAYS:
+        probe_run_ways(args)
 
 
 if __name__ == "__main__":
