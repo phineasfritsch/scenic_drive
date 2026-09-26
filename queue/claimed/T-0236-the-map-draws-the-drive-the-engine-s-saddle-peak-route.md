@@ -374,3 +374,12 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   passed". wc -l: check-map-attribution 286, -lib 300, -sites 94, -mutations 136. No Swift changed (R3-4), so no
   ios-compile or simulator run is owed this round. FOR THE ORCHESTRATOR (unchanged): P-ATTR-01's PINS.yaml statement
   widening is filed on T-0238; the pill's wrap between "©" and "OpenStreetMap" is deferred to T-0237.
+- 2026-09-26T01:58:30Z ROUND 3 AT THE MERGED HEAD (agent/claude-opus-5). git fetch origin; git merge origin/main at
+  dc58864 -> e59879c (main brought queue/ files for T-0237 and T-0238 only). Re-run bare on e59879c:
+  check-map-attribution exit 0, "(9, // stripped) is one of the 9 approved whole lines"; --prove-red "prove-red:
+  21/21 mutations refused by name", exit 0; swift test --scratch-path .build/T0236 "Test run with 338 tests in 47
+  suites passed"; check-line-cap "P-SRC-02: 119 Swift files tracked (Sources=45, Tests=50, apps/ios=24), none over
+  300 lines"; check-exec-bits "P-OPS-01: 100 files, 23 required present, all modes correct"; queue-check "QUEUE OK
+  (235 tasks)". This entry is the only change after that run; no measured file moved. check-drive-copy untouched,
+  its --prove-red not re-run. STILL OPEN: P-ATTR-01's PINS.yaml statement (T-0238), the pill's wrap (T-0237), T-0211,
+  and what (g) cannot see (the VALUE of routeGeometryCredit, owned by the Linux Handoff test; Swift outside apps/ios).
