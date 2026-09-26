@@ -1,13 +1,13 @@
 ---
 id: T-0237
 title: Home is map-first - the map fills the screen, the drive card becomes a bottom sheet with detents, the chips float over the map; attribution and the conditions line visible at every detent; re-shot
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-26T03:29:17Z
+lease_expires_at: 2026-09-26T13:29:17Z
+worktree: .worktrees/T-0237
+branch: task/T-0237
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapView.swift, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift, apps/ios/ScenicDriveUITests/, .github/workflows/ios-screenshot.yml, ops/lib/check-map-attribution, ops/lib/check-drive-copy, Sources/Handoff/, Tests/HandoffTests/]
 pins_affected: [P-ATTR-01, P-SAFE-03]
@@ -32,3 +32,5 @@ anyone sees, so its words are unhurried and few. No thrill words.
 ## Log
 - 2026-09-25T23:35:28Z filed by agent/claude-opus-5 (orchestrator) from the T-0236 round-1 screenshot. Promote to ready/ when PR #130 merges (touches overlap FeatureScenicHome and check-map-attribution).
 - 2026-09-26T01:30:07Z added by agent/claude-opus-5 (orchestrator): the pill-wrap cosmetic from rv2-t0236's recordable (3), deferred here because this task re-shoots the screen.
+- 2026-09-26T03:28:46Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): PR #130 merged (T-0236, c1dc1e8) - the route line, CreditLine.composed and check-map-attribution limb (g) are on main.
+- 2026-09-26T03:29:17Z claimed by agent/claude-opus-5; lease until 2026-09-26T13:29:17Z

@@ -84,6 +84,7 @@ public enum StraightLineDistance {
     /// number that travels into the clipboard cannot come from different drives.
     public static func wholeKilometers(for drive: HandoffDrive) -> Int {
         switch drive {
+        case .saddlePeak: return wholeKilometers(through: HandoffDrive.saddlePeak.chain)
         case .skyline: return skylineRouteWholeKilometers
         case .santaMonicaMountains: return santaMonicaMountainsRouteWholeKilometers
         }

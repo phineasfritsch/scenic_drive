@@ -37,6 +37,18 @@
 #  14 a second, paraphrased credit under a NEW identifier in another MapAdapter file - (b)'s OpenStreetMap
 #     population; the identifier-keyed whitelist and the plan's exact literal are both green on it.
 #
+#  15-17 rv1-t0236 B1: the footer back to the style's credit alone, the composed credit handed `routeData: nil`,
+#      and MapView( handed `route: nil` while the footer credits `route` - the drawn line's data credit is on the
+#      surface, taken from the same value the map draws.
+#  18-20 rv2-t0236 B1-r2: the VALUE between (d)'s two ends - MapRoute.bundled forwarding the demo credit (M4a),
+#      DriveRoute.resolve binding the credit to the resource name (M4b), and a NEW file building a MapRoute with
+#      the demo credit - each EXIT 0 against rows 1-17; (g)'s whole-line whitelist refuses all three by name.
+#  21  the same new file with a `"https://..."` literal before the credit: EXIT 0 against (g) while (g) cut `//`
+#      to end of line inside a string.
+#  22-24 rv3-t0236 B1-r3: R1 a `"` inside a /* */ comment, R2 a raw string #"\"#, R3 a string inside an
+#      interpolation "\("//")" - each hides a credit binding behind a `//` inside a string; each EXIT 0 against
+#      round 3's reader, which toggled string state on every quote. (g) now cuts nothing inside a line: it drops
+#      only lines STARTING with `//` (and holding no backslash) and compares every other line whole.
 #   ROW = label | file under the apps/ios copy (`+` = the row ADDS it) | sed script or the added file's
 #         single line | substring the refusal must contain
 # `|` is the field separator, so a sed script carries no pipe.
@@ -59,14 +71,24 @@ rows=(
   "a feature file names a protomaps case|$FS/DriveBasemap.swift|s/return BasemapResolver.losAngeles(appearance: appearance)/return MapStyle.protomapsLALight/|identifier protomapsLA occurs outside its tracked set"
   "the caption reaches the case without a pattern|$FS/DriveCopy.swift|s/case .protomapsLALight, .protomapsLADark:/case let s where [MapStyle.protomapsLALight, MapStyle.protomapsLADark].contains(s):/|protomapsLA is NAMED outside"
   "the LA basemap unmounted|$FS/DriveBasemap.swift|s/return BasemapResolver.losAngeles(appearance: appearance)/return .maplibreDemoTiles/|mount BasemapResolver.losAngeles( occurs outside its tracked set"
-  "a literal credit typed at the footer|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: style.attributionText)/AttributionFooter(text: \"© OpenStreetMap contributors · Protomaps\")/|credit literal © OpenStreetMap contributors · Protomaps occurs outside its tracked set"
-  "the footer handed some other string|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: style.attributionText)/AttributionFooter(text: DriveCopy.mapCaption(for: selectedDrive, style: style))/|is not a style's attributionText"
+  "a literal credit typed at the footer|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))/AttributionFooter(text: \"© OpenStreetMap contributors · Protomaps\")/|credit literal © OpenStreetMap contributors · Protomaps occurs outside its tracked set"
+  "the footer handed some other string|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))/AttributionFooter(text: DriveCopy.mapCaption(for: selectedDrive, style: style))/|is not the composed credit"
   "the demo credit set to the Protomaps line|$MA/MapStyle.swift|s/demoAttribution = \"© MapLibre · Natural Earth\"/demoAttribution = \"© OpenStreetMap contributors, Protomaps\"/|the demo credit declaration is not verbatim"
   "the Protomaps declaration appended to|$MA/MapStyle.swift|s/protomapsAttribution = \"© OpenStreetMap contributors · Protomaps\"/protomapsAttribution = \"© OpenStreetMap contributors · Protomaps\" + \" · Natural Earth\"/|the credit literal is not declared verbatim"
   "the footer hidden from accessibility|$DS/AttributionFooter.swift|s/.accessibilityHidden(false)/.accessibilityHidden(true)/|hides something from accessibility"
-  "the credit from a second resolve|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: style.attributionText)/AttributionFooter(text: DriveBasemap.resolve(for: selectedDrive, appearance: .light).attributionText)/|resolve call DriveBasemap.resolve( occurs outside its tracked set"
+  "the credit from a second resolve|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))/AttributionFooter(text: DriveBasemap.resolve(for: selectedDrive, appearance: .light).attributionText)/|resolve call DriveBasemap.resolve( occurs outside its tracked set"
   "a second map surface with no credit|+$FS/DriveRoutePreview.swift|public struct DriveRoutePreview: View { let style: MapStyle; public var body: some View { MapView(styleURL: style.url, centerLatitude: 34.1, centerLongitude: -118.4, zoomLevel: 11) } }|a map mount outside its tracked set"
   "a second credit string under a new identifier|+$MA/MapCredit.swift|extension MapStyle { public static let tileCredit = \"(c) OpenStreetMap contributors and Protomaps\" }|naming OpenStreetMap outside the one approved credit declaration"
+  "the footer back to the style's credit alone|$FS/ScenicHomeScreen.swift|s/AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))/AttributionFooter(text: style.attributionText)/|is not the composed credit"
+  "the composed credit handed no route credit|$FS/ScenicHomeScreen.swift|s/routeData: route?.dataCredit)/routeData: nil)/|is not the composed credit"
+  "the map not handed the route the footer credits|$FS/ScenicHomeScreen.swift|s/^\( *\)route: route$/\1route: nil/|the map is not handed the route the credit names"
+  "M4a the bundled route forwards the demo credit|$MA/MapRoute.swift|s/return MapRoute(geoJSON: data, dataCredit: dataCredit,/return MapRoute(geoJSON: data, dataCredit: MapStyle.demoAttribution,/|a credit site outside its approved whole lines"
+  "M4b the drive's credit bound to its resource name|$FS/DriveRoute.swift|s/dataCredit: credit,/dataCredit: name,/|a credit site outside its approved whole lines"
+  "a new file building a route with the demo credit|+$FS/DriveRouteDemo.swift|extension DriveRoute { static func demo() -> MapRoute? { MapRoute.bundled(named: \"saddle-peak\", subdirectory: nil, withExtension: \"geojson\", dataCredit: MapStyle.demoAttribution, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "a new file hiding the demo credit behind a // in a string|+$FS/DriveRouteNote.swift|extension DriveRoute { static let note = \"https://protomaps.com\"; static func demo() -> MapRoute? { MapRoute.bundled(named: \"saddle-peak\", subdirectory: nil, withExtension: \"geojson\", dataCredit: MapStyle.demoAttribution, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "R1 a quote in a block comment hides the credit|+$MA/MapRouteDemo.swift|extension MapRoute { static func demo(data: Data) -> MapRoute? { /* \" */ _ = \"//\"; let dataCredit = MapStyle.demoAttribution; return MapRoute(geoJSON: data, dataCredit: dataCredit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "R2 a raw string hides a second credit binding|+$FS/DriveRouteRaw.swift|extension DriveRoute { static func demo(name: String) -> MapRoute? { _ = #\"\\\"# + \"//\"; let credit = name; return MapRoute.bundled(named: name, subdirectory: nil, withExtension: \"geojson\", dataCredit: credit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "R3 an interpolation hides the credit bound to the resource|+$FS/DriveRouteInterp.swift|extension DriveRoute { static func demo(for drive: HandoffDrive) -> MapRoute? { _ = \"\\(\"//\")\"; guard let name = drive.routeGeometryResource, let credit = drive.routeGeometryResource else { return nil }; return MapRoute.bundled(named: name, subdirectory: nil, withExtension: \"geojson\", dataCredit: credit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
 )
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.

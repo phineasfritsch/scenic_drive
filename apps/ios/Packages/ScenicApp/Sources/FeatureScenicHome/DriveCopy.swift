@@ -29,6 +29,8 @@ enum DriveCopy {
     /// know before tapping.
     static func title(for drive: HandoffDrive) -> String {
         switch drive {
+        case .saddlePeak:
+            return "Saddle Peak · Topanga to Malibu over the mountains"
         case .skyline:
             return "Skyline loop · starts and ends in San Francisco"
         case .santaMonicaMountains:
@@ -41,6 +43,8 @@ enum DriveCopy {
     /// when the handoff fails the roads are what a reader can still act on.
     static func route(for drive: HandoffDrive) -> String {
         switch drive {
+        case .saddlePeak:
+            return "From wherever you are to Fernwood Pacific Drive, then Tuna Canyon Road, Saddle Peak Road, Schueren Road, Piuma Road, down Malibu Canyon Road to Civic Center Way."
         case .skyline:
             return "I-280 south, Cañada Road north, CA-92 west, Skyline Boulevard south, then back to the city."
         case .santaMonicaMountains:
@@ -57,8 +61,12 @@ enum DriveCopy {
         // rather than a mistake about where the reader is. The picker cannot instead HIDE it: which
         // drive is local is a question about the reader's position, and this app reads none
         // (HandoffDrive.defaultDrive).
+        //
+        // "Westwood loop", not "Los Angeles" (T-0236): Saddle Peak is in Los Angeles too, and a chip that
+        // called only the loop "Los Angeles" would say the other one is not. Each chip names its PLACE.
+        case .saddlePeak: return "Saddle Peak"
         case .skyline: return "SF Peninsula"
-        case .santaMonicaMountains: return "Los Angeles"
+        case .santaMonicaMountains: return "Westwood loop"
         }
     }
 
@@ -73,14 +81,27 @@ enum DriveCopy {
     /// which is why `AttributionFooter` reads the same resolved value. Both halves of "what is on
     /// screen" come from the `MapStyle` that was actually resolved.
     ///
-    /// Neither case promises a route line: nothing draws one for either drive yet (M4 draws it).
+    /// THE LINE (T-0236). Only the Saddle Peak drive has one - the engine's recorded road geometry, drawn by
+    /// `DriveRoute` - so only its caption says a line is there, and says what it is. The loop and the
+    /// Peninsula draw none and keep their sentences; the preamble's count moved from two drives to three
+    /// because the old number became false.
     static func mapCaption(for drive: HandoffDrive, style: MapStyle) -> String {
-        let preamble = "Preview build: two fixed drives, \(shortName(for: drive)) selected."
+        let preamble = "Preview build: three fixed drives, \(shortName(for: drive)) selected."
+        let onLosAngelesRoads: Bool
         switch style {
         case .protomapsLALight, .protomapsLADark:
-            return "\(preamble) The map shows Los Angeles roads, but not this drive's line yet - tap below and it opens in Apple Maps."
+            onLosAngelesRoads = true
         case .maplibreDemoTiles:
-            return "\(preamble) The map doesn't show roads yet - tap below and it opens in Apple Maps."
+            onLosAngelesRoads = false
+        }
+        switch drive {
+        case .saddlePeak:
+            let ground = onLosAngelesRoads ? ", over Los Angeles roads." : "; the map under it shows no roads yet."
+            return "\(preamble) The line is the route the engine chose over Saddle Peak instead of PCH\(ground)"
+        case .santaMonicaMountains, .skyline:
+            return onLosAngelesRoads
+                ? "\(preamble) The map shows Los Angeles roads, but not this drive's line yet - tap below and it opens in Apple Maps."
+                : "\(preamble) The map doesn't show roads yet - tap below and it opens in Apple Maps."
         }
     }
 }
