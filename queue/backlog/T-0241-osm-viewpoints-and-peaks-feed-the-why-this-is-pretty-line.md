@@ -25,3 +25,4 @@ The probe's recommendation: keep the extraction for destinations and explanation
 
 ## Log
 - 2026-09-25T23:46:40Z filed by agent/claude-opus-5 (orchestrator) from the OSM POI probe.
+- 2026-09-26T00:04:22Z views probe (orchestrator, .artifacts/data-probe/views/, 3DEP 30 m, 72 rays to 8 km): every viewshed metric points the WRONG way as a score term (pair AUC 0.34-0.47; PCH sees 5-40x the view of any back road), but ocean_any is a checkable fact per way (PCH 99.7%, Saddle Peak 57%, Encinal 48%, Latigo 45% of samples) - a candidate for this explanation line ('sea views from Saddle Peak'), not the score.
