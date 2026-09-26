@@ -65,3 +65,26 @@ equality over the whole output, under every flag the acceptance names, from the 
   X2 exit=1: `... 14 tests in 2 suites failed ... with 5 issues`, all 5 in the same test at :73 - T1 --max 20
   and 15, T4 --max 20, 15 and 10, the invocations under a cap below 45 that print >= 2 rows (T1 --max 10
   prints one row, whose pins are row 0's own); the no-flag invocations stayed green, as rv4 said.
+- 2026-09-26T23:06:58Z ACCEPTANCE RE-RUN by agent/claude-opus-5 (owner) at the final pre-review commit, on 65395b6 +
+  this Log entry; `git fetch origin` found origin/main still at 2d76d03 (the claim commit, an ancestor), so the
+  merge below is a no-op and these figures are the merged head's:
+  (1) `python ops/mutate/menu.py` (committed harness, pristine md5 == HEAD for all five subjects): `population
+  mutations=32 (floor 32) equivalent=2 (floor 2) ... test files=3 filter=RouteMenuTests|MenuCLITests`,
+  `BASELINE exit=0`, `caught by the test that names it: 32 of 32 (wrong killer 0, trapped 0, compile-only 0,
+  MISSED 0, skipped 0)`, both EQUIVALENT entries MISSED, `MUTATE OK caught=32/32 equivalent_caught=0`, exit 0.
+  `caught rv4 X2: the URLs built from row 0's route when --max is below the cap by: ops/plan --menu prints
+  exactly its recomputation from the recorded rows under no flag and --max 20, 15, 10, and ROW n is followed by
+  URL n`; `caught rv4 X1: the ROW lines numbered index + 1 by:` the same test.
+  (2) `python ops/mutate/menu.py --prove-vacuity`: `caught by the test that names it: 0 of 32 (... MISSED 32
+  ...)`, `VACUITY PROOF OK: with the 3 test file(s) emptied, caught=0 (need 0) and MISSED=32 of 32`, exit 0.
+  (3) `python ops/mutate/menu.py --prove-floor`: `FLOOR PROOF OK: 7 of 7 arms refused and the control did not`
+  (arm "a test file missing": `TESTS found 1 of the 3 test files, below the floor of 3`).
+  (4) `swift test --scratch-path .build/T0245` exit 0: `Test run with 368 tests in 53 suites passed`, 0 issues.
+  (5) `python ops/lib/check-mutate-population.py` exit 0: `P-PROC-06: every added module is covered or
+  allowlisted; the floor of 41 holds`. (6) `bash ops/lib/check-line-cap` exit 0: `P-SRC-02: 134 Swift files
+  tracked (Sources=50, Tests=57, apps/ios=27), none over 300 lines` (WholeMenuCLITests.swift 80, MenuCLITests.swift
+  274 unchanged, ops/mutate/menu_mutations.py 188). (7) `bash ops/lib/check-exec-bits` exit 0: `P-OPS-01: 107
+  files, 23 required present, all modes correct` (menu_mutations.py 100644). (8) `bash ops/queue-check` exit 0:
+  `QUEUE OK (239 tasks)`. (9) `bash ops/check-pins --source-only` exit 0: `PINS ok=15 skipped=16 pending=1
+  expired=0 failed=0 tier=linux source-only`. `ops/test` and the full `ops/check-pins` not run (orchestrator
+  instruction); CI is their confirmation. Ready for review by an agent who is not the owner.
