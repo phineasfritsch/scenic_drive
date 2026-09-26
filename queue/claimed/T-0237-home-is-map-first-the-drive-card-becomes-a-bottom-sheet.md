@@ -326,3 +326,38 @@ anyone sees, so its words are unhurried and few. No thrill words.
   says `thirteen mutations` (outside touches); the runtime half - visible, hittable and uncovered at BOTH detents -
   is T-0180's. The price, stated: every render edit to the six frozen blocks now lands with its approved lines in
   -frozen in the same commit, where the reviewer reads them.
+- 2026-09-26T14:33:06Z agent/claude-opus-5 (owner) rv3-t0237 B1-B3 (blocking) and R1 (recordable) CLOSED red -> green by a
+  CONTENT PIN, and the merged-head gate block. RULING R-rv3 (the orchestrator's direction, adopted as written): each
+  finding adds a file-scope declaration OUTSIDE every frozen block that shadows a name the frozen lines CALL - B1
+  `private struct Text` appended to ScenicHomeScreen.swift (the conditions line draws nothing), B2 `private struct
+  VStack` appended to HomeSheet.swift (the sheet is empty), B3 `private struct AttributionFooter` appended to
+  ScenicHomeScreen.swift (the credit is gone), R1 `struct Text` in a NEW file of the module. The disagreement: -frozen
+  froze the lines that CALL the views, but a frozen line calls whatever the module declares under that name, and a
+  list of forbidden names is a blacklist bought one name per round (PR #101). Ruled: the render surface is pinned by
+  CONTENT in a new reader, ops/lib/check-safety-disclaimer-pinned (100755; sourced by BOTH checks, run LAST, after
+  require_frozen_blocks): (1) the .swift files under FeatureScenicHome/, found recursively (`-iname`, symlinks
+  included), are exactly the 13 approved names typed there - an added, removed or renamed file is refused by name;
+  (2) the sha256 of each one's content with CRLF->LF, and of DesignSystem/AttributionFooter.swift, equals the approved
+  digest typed there - any edit is refused, naming the file. The frozen-block readers stay (they say WHICH fact
+  broke); the pin is the backstop. THE PRICE, stated: changing the home screen from now on means updating the
+  approved digests in -pinned IN THE SAME COMMIT (`sed -e 's/\r$//' FILE | sha256sum` prints one), where the reviewer
+  reads them. CANNOT SEE, named in -pinned's header and in both checks': rendering at both detents (T-0180); a shadow
+  or overload declared outside the pinned set - the rest of DesignSystem, ScenicKit, MapAdapter, PlaceStore, the app
+  shell - and the lexical spellings the Swift readers do not parse (T-0243). ROWS: check-safety-disclaimer-mutations
+  22-25 (rv3 B1, B2, B3, R1; that table gains `+` add-a-file rows and the THE MUTATION CHANGED NOTHING guard the map
+  table already had), 21 -> 25; check-map-attribution-mutations P1-P5 (the same four and the footer's own file
+  edited), 36 -> 41. RED on 1ddb569's checks (the new tables' rv3 rows only, run through the tables' own loops before
+  either check sourced -pinned): check-safety-disclaimer - rv3 B1, B2, B3, R1 each `0 no`, `prove-red: 0/4
+  mutations refused by name`; check-map-attribution - P1-P5 each `0 no`, `prove-red: 0/5 mutations refused by name`:
+  all nine failed OPEN. GREEN with the pin: the same nine rows each `1 yes`, `prove-red: 4/4 mutations refused by
+  name` and `prove-red: 5/5 mutations refused by name`. Line counts: check-safety-disclaimer 300 and
+  check-map-attribution 300 (headers reflowed to pay for the call and the verdict line), -pinned 97, -frozen 252
+  unchanged. CHECKPOINT 7b51aab pushed. MERGED HEAD: `git fetch origin`, `git merge --no-edit origin/main` ->
+  `Already up to date.` (main 558e154 is in the branch), HEAD 7b51aab. Bare on 7b51aab: check-safety-disclaimer EXIT
+  0 (`LAST 13 feature file(s) and AttributionFooter.swift pinned by sha256 (-pinned).`), and --prove-red
+  prove-red: 25/25 mutations refused by name - EXIT 0; check-map-attribution EXIT 0, and --prove-red prove-red: 41/41 mutations refused by name - EXIT 0; `swift test --scratch-path .build/T0237`
+  `Test run with 339 tests in 47 suites passed` EXIT 0; check-line-cap EXIT 0 (`P-SRC-02: 122 Swift files tracked
+  (Sources=45, Tests=50, apps/ios=27), none over 300 lines`); check-exec-bits EXIT 0 (`P-OPS-01: 104 files, 23
+  required present, all modes correct`); queue-check EXIT 0 (`QUEUE OK (237 tasks)`); `ops/check-pins --source-only`
+  EXIT 0 (PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only). check-drive-copy untouched: its --prove-red not re-run. NO SWIFT CHANGE. OPEN, carried: pins/PINS.yaml
+  P-SAFE-03 prose (outside touches); the runtime half is T-0180's; a shadow outside the pinned set is T-0243's.
