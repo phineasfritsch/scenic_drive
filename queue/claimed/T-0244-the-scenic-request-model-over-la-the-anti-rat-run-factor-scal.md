@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-26T17:45:04Z
 worktree: .worktrees/T-0244
 branch: task/T-0244
 exclusive: []
-touches: [Sources/ScenicKit/Budget/, Sources/ScenicKit/Routing/, Tests/ScenicKitTests/, Sources/ScenicPlanCLI/, Tests/ScenicPlanCLITests/, services/routing/tools/route_la_pairs.py, services/routing/tests/]
+touches: [Sources/ScenicKit/Budget/, Sources/ScenicKit/Routing/, Tests/ScenicKitTests/, Sources/ScenicPlanCLI/, Tests/ScenicPlanCLITests/, services/routing/tools/route_la_pairs.py, services/routing/tests/, Sources/ScenicKit/Plan/, services/api/src/customModel.ts, services/api/test/customModel.test.ts, Tests/Fixtures/custom-model/, Tests/Fixtures/t0244/, ops/mutate/plan.py]
 pins_affected: [P-SAFE-04]
 reviewer: null
 depends_on: [T-0209]
@@ -30,3 +30,32 @@ relationship' failure.
 - 2026-09-26T03:11:50Z filed by agent/claude-opus-5 (orchestrator) from T-0209's clauses 4-5 and its STILL OPEN 1-3.
 - 2026-09-26T07:44:31Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0209 merged (PR #131, a2cf7ef); the whole-LA graph is at services/routing/work/t0209/graph-la in the main checkout and route_la_pairs.py / the route-details mode are on main.
 - 2026-09-26T07:45:04Z claimed by agent/claude-opus-5; lease until 2026-09-26T17:45:04Z
+- 2026-09-26T08:03:38Z DISAGREEMENTS RULED BEFORE ANY MODEL CODE, and the measurement plan (agent/claude-opus-5).
+  (D1) WHERE THE MODEL LIVES. touches: named Sources/ScenicKit/Budget/ and Sources/ScenicKit/Routing/; the
+  per-request model is Sources/ScenicKit/Plan/LambdaCustomModel.swift (Routing/ does not exist). And it is a PORT:
+  its doc and LambdaCustomModelParityTests hold it BYTE FOR BYTE to services/api/src/customModel.ts's
+  buildCustomModel through the node-printed golden Tests/Fixtures/custom-model/ (T-0182). Changing the Swift copy
+  alone fails that test by name and - worse - makes ops/plan and the Worker send different models, the drift the
+  golden exists to stop. RULED: touches += Sources/ScenicKit/Plan/, services/api/src/customModel.ts,
+  services/api/test/customModel.test.ts, Tests/Fixtures/custom-model/ (re-recorded from node on the changed
+  Worker source with the command quoted - these files are the Worker's printed bytes, a parity golden, not a
+  rendered snapshot reference, and the reviewer re-runs the emitter to check them), Tests/Fixtures/t0244/ (the
+  recorded route), ops/mutate/plan.py (LambdaCustomModel is already a subject of that population). No
+  profiles/*.json or config.yml edit: the base profile keeps distance_influence 30 for car_fast.
+  (D2) THE GRAPH is never opened in place: services/routing/work/t0209/graph-la (78 MB) was copied to the MAIN
+  checkout's gitignored services/routing/work/t0244/graph-la; every run below mounts the copy, and each run's
+  GRAPH_DIGEST line must equal T-0209's eb43090a...18eb or the run does not count.
+  (D3) ops/plan --emit-model on this Windows box prints CRLF; each emitted file is piped through tr -d '\r'. With
+  that, the emitted CURRENT model at lambda {0,1,2,4,8} reproduces T-0209's R5 sha256 prefixes exactly (a3ca54ce5d14
+  2ea18dc1b15f 3fcf7e6af6f2 8dccac165a8c 38fbbb3f8994), so family `cur` below IS T-0209's model.
+  (D4) route_la_pairs.py hard-coded the five lambda files. It now groups every <family>-<lambda>.json in the
+  models dir and reports each family as `PAIR <pair>/<family>` (one container run per pair still), takes W0's
+  distance_influence from the model file when the model sets one, and records a --fixture route. The T-0209
+  call shape (LAMBDAS, report_pair(name, origin, destination, routes)) is kept; its tests pass unchanged.
+  MEASUREMENT 1 (run1, models1/, ladder {0,0.5,1,2,3,4,5,6,7,8}), three families before any ruling:
+    cur   - T-0209's model as emitted today (bands 1 / (1+0.5l)^-1 / (1+l)^-1, RESIDENTIAL && <7 x0.5, base di 30)
+    lin   - candidate: FIRST clause `(road_class == RESIDENTIAL || road_class == LIVING_STREET || road_class ==
+            SERVICE) && scenic_score < 7` -> 1/(1+2l), then >=7 -> 1, >=4 -> 1/(1+0.5l), else 1/(1+l);
+            "distance_influence": 0 in the request model
+    score - candidate: the same minor clause and di 0, then one band per integer score s <= 6: 1/(1 + l(7-s)/7)
+  (candidate files from the gitignored work/t0244/cands.py; the clause text above is the whole of it).
