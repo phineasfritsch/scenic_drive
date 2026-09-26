@@ -307,3 +307,22 @@ anyone sees, so its words are unhurried and few. No thrill words.
   detents) is T-0180's (main 558e154). Both checks exit 0 on the tree. CHECKPOINT pushed before the red and green
   tables finish (each row copies apps/ios and re-runs a check that takes about two minutes on this box); they are
   quoted in the next entry. NO SWIFT CHANGE.
+- 2026-09-26T12:21:49Z agent/claude-opus-5 (owner) rv2-t0237 B1-B3 CLOSED red -> green, and the merged-head gate block.
+  RED on 822069c's checks (`git archive 822069c ops apps/ios` into a scratch repo; the new rows only, run by the
+  new tables against the OLD checks): check-safety-disclaimer - rv2 B1 `0 no`, rv2 B2 `0 no`, rv2 B3 `0 no`, `#if`
+  around HomeSheet `0 no`, the result-builder attribute above conditions `0 no` (`prove-red: 0/5 mutations refused
+  by name`, table exit 1); check-map-attribution - H11 `0 no`, H12 `0 no` (`prove-red: 0/2 mutations refused by
+  name`, table exit 1). Each exited 0 with the old check's green verdict printed under it: all seven failed OPEN.
+  GREEN on 02485da (the checkpoint): check-safety-disclaimer --prove-red `prove-red: 21/21 mutations refused by
+  name`, the five new rows `1 yes`, each naming `a frozen render block changed`. MERGED HEAD: `git fetch origin`
+  (main 558e154: one queue file, T-0180's both-detents clause), `git merge --no-edit origin/main` -> 7dade97;
+  `git diff --quiet 02485da 7dade97 -- ops apps` exit 0. Bare on 7dade97: check-map-attribution EXIT 0, and
+  --prove-red `prove-red: 36/36 mutations refused by name` EXIT 0 (H11, H12 `1 yes`); check-safety-disclaimer
+  EXIT 0, and --prove-red `prove-red: 21/21 mutations refused by name` EXIT 0; `swift test --scratch-path
+  .build/T0237` `Test run with 339 tests in 47 suites passed` EXIT 0; check-line-cap EXIT 0; check-exec-bits EXIT
+  0; queue-check EXIT 0; `ops/check-pins --source-only` EXIT 0 (`P-SRC-02: 122 Swift files tracked (Sources=45,
+  Tests=50, apps/ios=27), none over 300 lines`; `P-OPS-01: 103 files, 23 required present, all modes correct`).
+  check-drive-copy untouched: its --prove-red not re-run. OPEN, carried: pins/PINS.yaml P-SAFE-03 prose still
+  says `thirteen mutations` (outside touches); the runtime half - visible, hittable and uncovered at BOTH detents -
+  is T-0180's. The price, stated: every render edit to the six frozen blocks now lands with its approved lines in
+  -frozen in the same commit, where the reviewer reads them.
