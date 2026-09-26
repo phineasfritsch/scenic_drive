@@ -1,13 +1,13 @@
 ---
 id: T-0246
 title: the home sheet shows the menu - extra-minutes chips for the Saddle Peak trip (Fastest / +12 min / +17 min) from ops/plan --menu's rows, each redrawing the map line and handing its own route to Apple Maps
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-26T18:40:45Z
+lease_expires_at: 2026-09-27T04:40:45Z
+worktree: .worktrees/T-0246
+branch: task/T-0246
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/ScenicDrive/Routes/, Sources/Handoff/, Tests/HandoffTests/, ops/lib/make-route-geojson.py, ops/lib/make-menu-bundle.py, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, ops/lib/check-drive-copy, .github/workflows/ios-screenshot.yml]
 pins_affected: [P-ATTR-01, P-SAFE-03, P-SAFE-04]
@@ -30,3 +30,4 @@ is the owner-seen reference for the numbers.
 ## Log
 - 2026-09-26T18:35:40Z filed by agent/claude-opus-5 (orchestrator) after PR #133 (T-0237, map-first home) merged. Starts when PR #132 (T-0239) merges.
 - 2026-09-26T18:40:29Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): PR #132 (T-0239) merged - ops/plan --menu and Tests/Fixtures/t0239/topanga-malibu are on main.
+- 2026-09-26T18:40:45Z claimed by agent/claude-opus-5; lease until 2026-09-27T04:40:45Z
