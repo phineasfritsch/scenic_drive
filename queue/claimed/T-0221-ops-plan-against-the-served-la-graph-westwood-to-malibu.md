@@ -97,3 +97,58 @@ drive the owner takes. Order: T-0208 -> T-0209 -> this.
   4:b471285b42fe 6:b6cbb7e1971a 7:5962f42b13a6 7.5:63390aa52faa 7.75:7585c320d15b); lambdas 0, 2, 3, 3.25, 3.5,
   4, 6 and 7 `cmp`-equal T-0244's run2 files (work/t0244/models2), and 7.75 `cmp`-equals the node-printed golden
   Tests/Fixtures/custom-model/lambda-7.75.json - the model ops/plan sends IS the Worker's.
+- 2026-09-26T16:33:41Z STAGE B LANDED - the three recordings (agent/claude-opus-5). The recorder run finished at
+  15:45Z (stage-b.log's mtime); the session that ran it restarted before this entry, so the count lines are
+  quoted now from the gitignored main-checkout services/routing/work/t0221/stage-b.log, unedited.
+  `wsl -e bash services/routing/work/t0221/stage-b.sh` - the committed recorder over the graph COPY, image
+  scenic-routing:t0209 as the JVM, /app/config.yml, `--models models/` (the ten ops/plan --emit-model files of
+  stage A) plus car_fast; exit 0 (`stage-b exit 0`):
+      PROVENANCE image_id=sha256:349ad6f584a19718d7c44900b13da5aced8650b53330776bc054f41da3b885dc jar_sha256=ab2c7eea902c8244fc9945a6b0134c1c66b188a0339a0c78b247b5cf7c9c0848 graph_digest=eb43090a0de52432756d5b6f98a0dad0f568838f8272ff339042344e920d18eb
+      graph car|RAM_STORE ... edges: 1,194,924(47MB), nodes: 951,816(11MB), bounds: -119.0609263,-117.7641001,33.6832753,34.4920674
+      PAIR westwood-malibu 34.0669,-118.4399 -> 34.0356,-118.6894
+      ROUTE profile=car_fast model=- time_ms=1667261 distance_m=26776.4 points=511 way_runs=144
+      ROUTE profile=car_scenic model=lambda-0.json time_ms=1623696 distance_m=31140.2 points=558 way_runs=181
+      ROUTE profile=car_scenic model=lambda-2.json time_ms=1667261 distance_m=26776.4 points=511 way_runs=144
+      ROUTE profile=car_scenic model=lambda-3.25.json time_ms=1904238 distance_m=29214.7 points=690 way_runs=166
+      ROUTE profile=car_scenic model=lambda-3.5.json time_ms=3578870 distance_m=54739.8 points=1855 way_runs=184
+      ROUTE profile=car_scenic model=lambda-3.json time_ms=1667261 distance_m=26776.4 points=511 way_runs=144
+      ROUTE profile=car_scenic model=lambda-4.json time_ms=3578870 distance_m=54739.8 points=1855 way_runs=184
+      ROUTE profile=car_scenic model=lambda-6.json time_ms=3710979 distance_m=56683.2 points=2000 way_runs=233
+      ROUTE profile=car_scenic model=lambda-7.5.json time_ms=3710979 distance_m=56683.2 points=2000 way_runs=233
+      ROUTE profile=car_scenic model=lambda-7.75.json time_ms=3710979 distance_m=56683.2 points=2000 way_runs=233
+      ROUTE profile=car_scenic model=lambda-7.json time_ms=3710979 distance_m=56683.2 points=2000 way_runs=233
+      PAIR westwood-woodland-hills 34.0669,-118.4399 -> 34.1684,-118.6058
+      ROUTE profile=car_fast model=- time_ms=1208634 distance_m=28057.6 points=380 way_runs=131
+      ROUTE profile=car_scenic model=lambda-0.json time_ms=1201267 distance_m=28482.8 points=380 way_runs=127
+      ROUTE profile=car_scenic model=lambda-2.json time_ms=1589578 distance_m=28003.8 points=507 way_runs=166
+      ROUTE profile=car_scenic model=lambda-3.25.json time_ms=1876472 distance_m=29922.0 points=658 way_runs=166
+      ROUTE profile=car_scenic model=lambda-3.5.json time_ms=2305902 distance_m=30333.0 points=752 way_runs=195
+      ROUTE profile=car_scenic model=lambda-3.json time_ms=1876472 distance_m=29922.0 points=658 way_runs=166
+      ROUTE profile=car_scenic model=lambda-4.json time_ms=2305902 distance_m=30333.0 points=752 way_runs=195
+      ROUTE profile=car_scenic model=lambda-6.json time_ms=2305902 distance_m=30333.0 points=752 way_runs=195
+      ROUTE profile=car_scenic model=lambda-7.5.json time_ms=2305902 distance_m=30333.0 points=752 way_runs=195
+      ROUTE profile=car_scenic model=lambda-7.75.json time_ms=2305902 distance_m=30333.0 points=752 way_runs=195
+      ROUTE profile=car_scenic model=lambda-7.json time_ms=2305902 distance_m=30333.0 points=752 way_runs=195
+      PAIR santa-monica-topanga 34.0195,-118.4912 -> 34.0676,-118.5957
+      ROUTE profile=car_fast model=- time_ms=1213650 distance_m=19299.9 points=652 way_runs=100
+      ROUTE profile=car_scenic model=lambda-0.json time_ms=1213650 distance_m=19299.9 points=652 way_runs=100
+      ROUTE profile=car_scenic model=lambda-2.json time_ms=1213650 distance_m=19299.9 points=652 way_runs=100
+      ROUTE profile=car_scenic model=lambda-3.25.json time_ms=1213650 distance_m=19299.9 points=652 way_runs=100
+      ROUTE profile=car_scenic model=lambda-3.5.json time_ms=1213650 distance_m=19299.9 points=652 way_runs=100
+      ROUTE profile=car_scenic model=lambda-3.json time_ms=1213650 distance_m=19299.9 points=652 way_runs=100
+      ROUTE profile=car_scenic model=lambda-4.json time_ms=1346010 distance_m=20358.6 points=674 way_runs=86
+      ROUTE profile=car_scenic model=lambda-6.json time_ms=1346010 distance_m=20358.6 points=674 way_runs=86
+      ROUTE profile=car_scenic model=lambda-7.5.json time_ms=1346010 distance_m=20358.6 points=674 way_runs=86
+      ROUTE profile=car_scenic model=lambda-7.75.json time_ms=1346010 distance_m=20358.6 points=674 way_runs=86
+      ROUTE profile=car_scenic model=lambda-7.json time_ms=1346010 distance_m=20358.6 points=674 way_runs=86
+      STAGE B DONE
+  (each ROUTE line is followed in the log by its `WROTE <file> <bytes>` line, 33 in all, 14,306 to 61,037 bytes.)
+  Against R3's prediction: westwood-malibu's lambda-4 (59.65 min) is over its 52.79 min ceiling as T-0244 run2
+  said, so the bisection is 0, 4, 2, 3, 3.5, 3.25; the other two never break the ceiling, 0, 4, 6, 7, 7.5, 7.75.
+  THE COMMITTED FIXTURES (Tests/Fixtures/t0221/<pair>/) keep fastest.json plus exactly those six lambdas per pair
+  - westwood-malibu 0 2 3 3.25 3.5 4; westwood-woodland-hills and santa-monica-topanga 0 4 6 7 7.5 7.75 - each
+  file `cmp`-equal to its rec/<pair>/ original (a loop of `cmp -s` printed no DIFF). Every file's `recorded`
+  header carries image_id, jar_sha256 and graph_digest eb43090a...18eb (R2).
+  Two facts these numbers state that the plan below inherits: on westwood-malibu lambda 2 and 3 ARE the fastest
+  route (26776.4 m, 1667261 ms, the same 144 way runs), and lambda 0 on car_scenic is 43.6 s FASTER than
+  car_fast (1623696 < 1667261 ms; the same shape T-0209 measured on Woodland Hills, 1201267 < 1208634 ms here).
