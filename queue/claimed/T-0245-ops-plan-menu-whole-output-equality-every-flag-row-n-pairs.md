@@ -28,3 +28,40 @@ equality over the whole output, under every flag the acceptance names, from the 
 - 2026-09-26T18:19:17Z filed by agent/claude-opus-5 (orchestrator) from rv4-t0239's B1-B2.
 - 2026-09-26T20:43:24Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0239 merged (PR #132, 94b5d06).
 - 2026-09-26T20:43:47Z claimed by agent/claude-opus-5; lease until 2026-09-27T04:43:47Z
+- 2026-09-26T21:09:18Z RULINGS by agent/claude-opus-5 (owner), before the first commit:
+  R1 THE RECOMPUTATION. `MenuCommand.run` formats its `ROUTER` and `URL` lines inline - there is no formatter
+  to call - so the test types those two formats itself from T-0239's quoted output (`ROUTER recorded <dir>`,
+  `URL <n> waypoints=<k> <url>`). Everything else comes from committed builders, none of them MenuCommand's:
+  the menu is rebuilt from `RecordedAlternatives.load(directory:ladder: RouteMenu.ladder, origin:,
+  destination:)` and `RouteMenu(fastest:candidates:maxMinutes:)` with the flag's literal cap (45 for no flag,
+  then 20, 15, 10) - not `MenuCommand.menu`; the endpoints are parsed from the trip literals - not taken from
+  `MenuArguments`; the header is `RouteMenu.header()`, each ROW is `MenuRow.line(n)` with the test's own n,
+  each URL `AppleMapsDirections(source:destination:waypoints: PlanWaypoints.decisionPoints(table:path:))`.
+  The whole printed output is compared to the whole recomputation as ONE string (`joined(separator: "\n")`).
+  `MenuRow.line` takes the number as an argument, so a numbering fault inside it would sit on both sides: the
+  pairing is also asserted on the printed lines alone - after the two header lines they alternate `ROW n` /
+  `URL n` with n the position (the first two fields of each line).
+  R2 THE FILE. MenuCLITests.swift is 274 lines, so the test is `Tests/ScenicPlanCLITests/WholeMenuCLITests.swift`
+  (80 lines). ops/mutate/menu_run.py (not in `touches:`) filters `RouteMenuTests|MenuCLITests` as a regex, so
+  the suite's type name contains `MenuCLITests`. It names nothing from MenuCLITests.swift, because
+  `menu.py --prove-vacuity` replaces that file with an empty suite and this one must still compile; it joins
+  `TEST_FILES` (MIN_TEST_FILES 2 -> 3) so the vacuity proof empties it too.
+  R3 "ONE TEST PER INVOCATION" is one `@Test` iterating the 8 invocations (4 flags x 2 trips), each `#expect`
+  labelled `<trip> [<flags>]` - the shape of every MenuCLITests test; a parameterized `@Test`'s issue line is
+  a shape menu_run.py's FAIL_LINE has not been measured on.
+  R4 THE SURVIVORS' SPELLING. queue/done/T-0239 names X1 and X2 but does not spell them; spelled here on
+  MenuCommand.swift and entered by name as MUTATIONS 31-32 (MIN_MUTATIONS 30 -> 32), killer the new test:
+  X2 `PlanWaypoints.decisionPoints(table: row.table, path: row.path)` ->
+  `PlanWaypoints.decisionPoints(table: (arguments.maxMinutes < RouteMenu.capMinutes ? menu.rows[0] : row).table, path: (arguments.maxMinutes < RouteMenu.capMinutes ? menu.rows[0] : row).path)`;
+  X1 `lines.append(row.line(index))` -> `lines.append(row.line(index + 1))`.
+- 2026-09-26T21:09:18Z RED THEN GREEN by agent/claude-opus-5, `swift test --scratch-path .build/T0245 --filter
+  "MenuCLITests"` (both CLI suites, 14 tests), one mutant at a time on MenuCommand.swift, restored by
+  `git checkout` after each:
+  GREEN before (new suite alone): `Test run with 1 test in 1 suite passed`.
+  X1 exit=1: `Test run with 14 tests in 2 suites failed ... with 16 issues`, every issue in
+  "ops/plan --menu prints exactly its recomputation from the recorded rows under no flag and --max 20, 15, 10,
+  and ROW n is followed by URL n" - 8 at WholeMenuCLITests.swift:73 (whole output) and 8 at :76 (ROW n / URL n),
+  one per invocation; the 13 MenuCLITests tests passed on it (rv4's survivor reproduced).
+  X2 exit=1: `... 14 tests in 2 suites failed ... with 5 issues`, all 5 in the same test at :73 - T1 --max 20
+  and 15, T4 --max 20, 15 and 10, the invocations under a cap below 45 that print >= 2 rows (T1 --max 10
+  prints one row, whose pins are row 0's own); the no-flag invocations stayed green, as rv4 said.
