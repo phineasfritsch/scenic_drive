@@ -77,7 +77,26 @@ rows=(
   "rv3 B2 a file-private VStack empties the sheet|$FS/HomeSheet.swift|\$a private struct VStack<Content: View>: View { init(alignment: HorizontalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> Content) {}; var body: some View { EmptyView() } }|HomeSheet.swift content changed"
   "rv3 B3 a file-private AttributionFooter drops it|$FS/ScenicHomeScreen.swift|\$a private struct AttributionFooter: View { init<T>(text: T) {}; var body: some View { EmptyView() } }|ScenicHomeScreen.swift content changed"
   "rv3 R1 a Text shadow in a new file of the module|+$FS/Shadow.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadow.swift"
+  # Rows 26-29 are rv4-t0237: -pinned listed `-iname '*.swift'`, and find neither lists nor enters a link, so a
+  # directory LINK holding Shadow.swift was compiled and never seen (`@` makes one: the third field is the
+  # Shadow.swift it holds); a non-Swift file and an empty subdirectory (`+` with a trailing `/`) were never seen
+  # either; `=` writes a mode-120000 (symlink) entry into the copy's index, the third field being its target.
+  "rv4 a directory link holding Shadow.swift|@$FS/Shadows|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadows"
+  "rv4 a plain non-Swift file added|+$FS/notes.txt|Conditions change. Verify locally.|added notes.txt"
+  "rv4 an empty subdirectory added|+$FS/Extras/|-|added Extras"
+  "rv4 a symlink committed to the index|=$FS/Shadow.swift|../Shadows/Shadow.swift|committed as a symlink"
 )
+
+# row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
+# rather than links, and `mklink /J` needs no privilege), a symlink elsewhere - then proven to be a link that
+# reaches the Shadow.swift it holds, or the row cannot run.
+row_link() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) MSYS_NO_PATHCONV=1 cmd /c mklink /J "$(cygpath -w "$2")" "$(cygpath -w "$1")" >/dev/null ;;
+    *) ln -s "$1" "$2" ;;
+  esac
+  [[ -L "$2" && -f "$2/Shadow.swift" ]]
+}
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone, and a local
 # here left the trap reading an unbound variable under `set -u` - printed after the table, temp tree kept.
@@ -97,10 +116,19 @@ for row in "${rows[@]}"; do
   dir="$work/m$total"
   rm -rf "$dir"
   cp -R "$APP_TREE" "$dir"
-  if [[ "$file" == +* ]]; then
-    file="${file#+}"
+  # Each copy is its own git work tree: -pinned reads the index under the feature directory and refuses a tree
+  # outside one, so an empty index is what every row but the `=` row runs over.
+  git init -q "$dir" || { echo "  CANNOT git init the copy: $label"; exit 1; }
+  if [[ "$file" == [+@=]* ]]; then
+    kind="${file:0:1}"; file="${file#?}"
     [[ -d "$dir/$(dirname "$file")" && ! -e "$dir/$file" ]] || { echo "  CANNOT ADD in the copy: $file"; echo "$label"; exit 1; }
-    printf '%s\n' "$script" > "$dir/$file"
+    case "$kind" in
+      +) if [[ "$file" == */ ]]; then mkdir "$dir/$file"; else printf '%s\n' "$script" > "$dir/$file"; fi ;;
+      @) mkdir "$work/t$total" && printf '%s\n' "$script" > "$work/t$total/Shadow.swift" && \
+           row_link "$work/t$total" "$dir/$file" || { echo "  CANNOT LINK in the copy: $label"; exit 1; } ;;
+      =) blob="$(printf '%s' "$script" | git -C "$dir" hash-object -w --stdin)" && \
+           git -C "$dir" update-index --add --cacheinfo "120000,$blob,$file" || { echo "  CANNOT INDEX: $label"; exit 1; } ;;
+    esac
   else
     [[ -f "$dir/$file" ]] || { echo "  NO SUCH FILE in the copy: $file"; echo "$label"; exit 1; }
     sed -i -e "$script" "$dir/$file"

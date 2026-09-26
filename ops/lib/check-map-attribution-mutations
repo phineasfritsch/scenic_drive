@@ -117,7 +117,26 @@ rows=(
   "P3 rv3 B3 a file-private AttributionFooter|$FS/ScenicHomeScreen.swift|\$a private struct AttributionFooter: View { init<T>(text: T) {}; var body: some View { EmptyView() } }|ScenicHomeScreen.swift content changed"
   "P4 rv3 R1 a Text shadow in a new file|+$FS/Shadow.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadow.swift"
   "P5 the footer's own file edited|$DS/AttributionFooter.swift|\$a extension AttributionFooter { static let pinnedProbe = 0 }|AttributionFooter.swift content changed"
+  # L1-L4: rv4-t0237. -pinned listed `-iname '*.swift'`, and find neither lists nor enters a link, so a directory
+  # LINK holding Shadow.swift was compiled and never seen (`@` makes one: the third field is the Shadow.swift it
+  # holds); a non-Swift file and an empty subdirectory (`+` with a trailing `/`) were never seen either; `=` writes
+  # a mode-120000 (symlink) entry into the copy's index, the third field being its target.
+  "L1 rv4 a directory link holding Shadow.swift|@$FS/Shadows|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadows"
+  "L2 rv4 a plain non-Swift file added|+$FS/notes.txt|a note beside the sources|added notes.txt"
+  "L3 rv4 an empty subdirectory added|+$FS/Extras/|-|added Extras"
+  "L4 rv4 a symlink committed to the index|=$FS/Shadow.swift|../Shadows/Shadow.swift|committed as a symlink"
 )
+
+# row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
+# rather than links, and `mklink /J` needs no privilege), a symlink elsewhere - then proven to be a link that
+# reaches the Shadow.swift it holds, or the row cannot run.
+row_link() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) MSYS_NO_PATHCONV=1 cmd /c mklink /J "$(cygpath -w "$2")" "$(cygpath -w "$1")" >/dev/null ;;
+    *) ln -s "$1" "$2" ;;
+  esac
+  [[ -L "$2" && -f "$2/Shadow.swift" ]]
+}
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.
 work="$(mktemp -d)"
@@ -136,14 +155,24 @@ for row in "${rows[@]}"; do
   dir="$work/m$total"
   rm -rf "$dir"
   cp -R "$APP_TREE" "$dir"
-  if [[ "$file" == +* ]]; then
+  # Each copy is its own git work tree: -pinned reads the index under the feature directory and refuses a tree
+  # outside one, so an empty index is what every row but the `=` row runs over.
+  git init -q "$dir" || { echo "  CANNOT git init the copy: $label"; exit 1; }
+  if [[ "$file" == [+@=]* ]]; then
     # The row ADDS a surface. A new file is the shape rv1 of PR #119 used, and no sed script over the
     # tracked files can reproduce it: what it proves is that the WHITELIST enumerates the population, so
     # the file that was never typed into the check is the one that has to be refused.
-    file="${file#+}"
+    # `@` adds a directory link, `=` a mode-120000 index entry (rv4-t0237).
+    kind="${file:0:1}"; file="${file#?}"
     [[ -d "$dir/$(dirname "$file")" ]] || { echo "  NO SUCH DIRECTORY in the copy: $file"; exit 1; }
     [[ -e "$dir/$file" ]] && { echo "  THE ROW ADDS A FILE THAT EXISTS: $file"; echo "$label"; exit 1; }
-    printf '%s\n' "$script" > "$dir/$file"
+    case "$kind" in
+      +) if [[ "$file" == */ ]]; then mkdir "$dir/$file"; else printf '%s\n' "$script" > "$dir/$file"; fi ;;
+      @) mkdir "$work/t$total" && printf '%s\n' "$script" > "$work/t$total/Shadow.swift" && \
+           row_link "$work/t$total" "$dir/$file" || { echo "  CANNOT LINK in the copy: $label"; exit 1; } ;;
+      =) blob="$(printf '%s' "$script" | git -C "$dir" hash-object -w --stdin)" && \
+           git -C "$dir" update-index --add --cacheinfo "120000,$blob,$file" || { echo "  CANNOT INDEX: $label"; exit 1; } ;;
+    esac
   else
     [[ -f "$dir/$file" ]] || { echo "  NO SUCH FILE in the copy: $file"; echo "$label"; exit 1; }
     sed -i -e "$script" "$dir/$file"

@@ -11,9 +11,14 @@
 # gone; R1 declared `struct Text: View {...}` in a NEW file of the module. Swift resolves the module's own type
 # before SwiftUI's, so every name a frozen line calls is a door, and a list of forbidden declarations is a blacklist
 # bought one name per round (PR #101). So the surface is pinned by CONTENT, as two WHITELISTS:
-#   (1) THE FILE SET. The .swift files under FeatureScenicHome/, found RECURSIVELY (SwiftPM compiles every one,
-#       at any depth, a symlink included), are exactly the approved names below: an added file, a removed file
-#       and a rename are each refused by name.
+#   (1) THE FILE SET. EVERY entry under FeatureScenicHome/ - `find . -mindepth 1`, no name filter, any depth, any
+#       extension, any kind - is exactly the approved names below, and each is a REGULAR FILE. rv4-t0237: the
+#       set was once `-iname '*.swift'`, and find neither lists nor enters a link, so a directory link (a
+#       junction here, `ln -s` elsewhere) holding a Shadow.swift was invisible while SwiftPM compiles it. So an
+#       added entry (a file of any name, a directory, a link) is refused by name, a missing or renamed one too,
+#       and an entry that is not a regular file (a link, even one NAMED like an approved file) is refused by name.
+#       The git index under the directory holds no mode-120000 entry (a committed symlink checks out as a plain
+#       file where core.symlinks is false), and a tree outside a git work tree is refused, never skipped.
 #   (2) THE BYTES. Each of those files, and DesignSystem/AttributionFooter.swift, hashes to its approved digest
 #       below: sha256 of the content with CRLF normalized to LF (the Windows checkout and CI hash alike). Any
 #       edit, a comment or a blank line included, is refused, naming the file.
@@ -63,8 +68,11 @@ require_pinned_surface() {
   [[ -d "$dir" ]] || fail "$PINNED_REASON: no such directory: $dir" \
     "The pinned set is FeatureScenicHome and its footer; a missing tree is a refusal, never a pass."
 
-  local found=() approved=() spec
-  mapfile -t found < <(cd "$dir" && find . -iname '*.swift' ! -type d | sed -e 's|^\./||' | LC_ALL=C sort)
+  # Every entry, NO name filter (a filter runs before the whitelist and hides what it does not match), no link
+  # followed or entered: the link itself is an entry, and (ii) refuses it by name.
+  local found=() nonreg=() approved=() spec
+  mapfile -t found < <(cd "$dir" && find . -mindepth 1 | sed -e 's|^\./||' | LC_ALL=C sort)
+  mapfile -t nonreg < <(cd "$dir" && find . -mindepth 1 ! -type f | sed -e 's|^\./||' | LC_ALL=C sort)
   for spec in "${PINNED_FEATURE[@]}"; do approved+=("${spec%% *}"); done
   local added missing
   added="$(LC_ALL=C comm -23 <(printf '%s\n' "${found[@]}") <(printf '%s\n' "${approved[@]}" | LC_ALL=C sort) \
@@ -74,11 +82,24 @@ require_pinned_surface() {
   local set_errs=()
   [[ -z "$added" ]] || set_errs+=("added ${added% }")
   [[ -z "$missing" ]] || set_errs+=("missing ${missing% }")
+  [[ "${#nonreg[@]}" -eq 0 ]] || set_errs+=("not a regular file ${nonreg[*]}")
   [[ "${#set_errs[@]}" -eq 0 ]] || fail \
     "$PINNED_REASON: FeatureScenicHome's file set is not the approved one: ${set_errs[*]}." \
-    "Found ${#found[@]} .swift file(s) under $dir; approved ${#approved[@]}, typed in ops/lib/check-safety-disclaimer-pinned." \
+    "Found ${#found[@]} entr(ies) under $dir; approved ${#approved[@]} regular files, typed in ops/lib/check-safety-disclaimer-pinned." \
     "A new file in the module can declare \`struct Text\`, \`VStack\` or \`AttributionFooter\` and every frozen line" \
-    "then calls IT (rv3-t0237 R1). A file added, removed or renamed is approved there, in the same commit."
+    "then calls IT (rv3-t0237 R1); a directory link holding one is compiled and never listed (rv4-t0237). Any" \
+    "entry that is not an approved regular file is refused by name; a file added, removed or renamed is approved there."
+
+  # The index: a committed symlink checks out as a plain file where core.symlinks is false, so the checkout alone
+  # cannot show it. No work tree (or no readable index) is a refusal - a limb that skips fails open.
+  local links
+  [[ "$(git -C "$dir" rev-parse --is-inside-work-tree 2>/dev/null)" == "true" ]] && \
+    links="$(git -C "$dir" ls-files -s -- . 2>/dev/null)" || fail \
+    "$PINNED_REASON: $dir is not inside a git work tree, so its index cannot be read." \
+    "The pinned set refuses a mode-120000 (symlink) index entry, and an unread index is a refusal, never a pass."
+  links="$(printf '%s\n' "$links" | sed -n -e 's/^120000 [0-9a-f]* [0-9]*\t//p' | tr '\n' ' ')"
+  [[ -z "$links" ]] || fail "$PINNED_REASON: committed as a symlink ${links% } (git index mode 120000 under $dir)." \
+    "A committed link can reach sources outside the pinned set; only regular files are approved (rv4-t0237)."
 
   local bad=() name want got
   for spec in "${PINNED_FEATURE[@]}"; do
