@@ -32,6 +32,8 @@ import java.util.stream.Stream;
  *   --config /app/config.yml --graph /graph [--osm /data/x.pbf] --mode import
  *   --config /app/config.yml --graph /graph --mode route --from LAT,LON --to LAT,LON
  *       --fast-profile car_fast --scenic-profile car_scenic --models /models
+ *   --mode route-details (same arguments as route): each ROUTE line is followed by its EDGE rows
+ *       (road_class, osm_way_id, distance_m per edge - RouteDetailsPrinter)
  *   --config /app/config.yml --graph /graph --mode probe --probe-ways 74344132,10715427
  */
 public final class ScenicRouterMain {
@@ -63,13 +65,20 @@ public final class ScenicRouterMain {
                 probe(hopper, required(cli, "--probe-ways"));
                 return;
             }
-            if (!"route".equals(mode)) return;
+            if ("import".equals(mode)) return;
+            // An unknown mode used to fall through to a silent exit 0 - T-0224's `--mode details` printed
+            // nothing and looked like a route with no rows. It is an error now.
+            boolean details = "route-details".equals(mode);
+            if (!details && !"route".equals(mode)) {
+                throw new IllegalArgumentException("unknown --mode " + mode
+                        + " (import, route, route-details, probe)");
+            }
             route(hopper, required(cli, "--fast-profile"), point(required(cli, "--from")),
-                    point(required(cli, "--to")), null, "-");
+                    point(required(cli, "--to")), null, "-", details);
             for (Path model : modelFiles(Path.of(required(cli, "--models")))) {
                 CustomModel requestModel = Jackson.newObjectMapper().readValue(model.toFile(), CustomModel.class);
                 route(hopper, required(cli, "--scenic-profile"), point(required(cli, "--from")),
-                        point(required(cli, "--to")), requestModel, model.getFileName().toString());
+                        point(required(cli, "--to")), requestModel, model.getFileName().toString(), details);
             }
         } finally {
             hopper.close();
@@ -77,9 +86,10 @@ public final class ScenicRouterMain {
     }
 
     private static void route(GraphHopper hopper, String profile, GHPoint from, GHPoint to,
-                              CustomModel requestModel, String label) {
+                              CustomModel requestModel, String label, boolean details) {
         GHRequest request = new GHRequest(from, to).setProfile(profile);
         request.putHint("ch.disable", true);
+        if (details) request.setPathDetails(RouteDetailsPrinter.DETAILS);
         if (requestModel != null) request.setCustomModel(requestModel);
         GHResponse response = hopper.route(request);
         if (response.hasErrors()) throw new IllegalStateException("profile=" + profile + " model=" + label
@@ -87,6 +97,7 @@ public final class ScenicRouterMain {
         ResponsePath best = response.getBest();
         System.out.printf(Locale.ROOT, "ROUTE profile=%s model=%s time_ms=%d distance_m=%.1f%n",
                 profile, label, best.getTime(), best.getDistance());
+        if (details) RouteDetailsPrinter.print(label, best);
     }
 
     /**

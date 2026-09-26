@@ -134,3 +134,35 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
   output, models and logs -> MAIN checkout services/routing/work/t0209/; nothing under .worktrees/T-0209/.../work
   except the test's own temp window graph, which it deletes. services/routing/work/t0213/ and .artifacts/routes/
   (T-0239's) are not touched.
+- 2026-09-26T01:10:19Z CLAUSE 1 - RED, then GREEN, before any LA run (R1). Code: RouteDetailsPrinter.java (new, 74
+  lines), ScenicRouterMain.java (166 -> 177: `--mode route-details`, route(..., details) sets
+  RouteDetailsPrinter.DETAILS on the GHRequest and prints the rows after the ROUTE line; an unknown --mode now
+  throws), tests/test_route_details.py (121), tools/route_details.py (91: parse + runs, the parser the test and
+  the LA measurement share), tools/geocode_la_places.py (51, R4's provenance), README.md (+6).
+  RED - the same test file, pointed at main's image, which has no route-details mode:
+
+      $ cd services/routing && SCENIC_ROUTING_IMAGE=scenic-routing:t0213 python -m pytest tests/test_route_details.py -rs
+      SCENIC_EV present=true bits=4 max=10
+      GRAPH nodes=21137 edges=24057
+      E       AssertionError: scenic-routing:t0213 --mode route-details printed routes []
+      E       AssertionError: scenic-routing:t0213 printed no ROUTE line for --mode route-details   (x3)
+      4 failed in 113.94s (0:01:53)
+
+  (the window import itself succeeded - nodes 21,137 / edges 24,057, T-0213's counts - and main() then exited 0
+  printing nothing, which is the T-0224 blocker reproduced by name.)
+  IMAGE scenic-routing:t0209 built from this branch in WSL (`docker build -t scenic-routing:t0209
+  services/routing`): ScenicScoreParserTest `Tests run: 30, Failures: 0, Errors: 0, Skipped: 0`, BUILD SUCCESS,
+  image id sha256:8adaf54d179fde6338055044f2356e8e7c526a6643dcedeedaf10e507d83f8f3.
+  GREEN - the same file, default image:
+
+      $ cd services/routing && python -m pytest tests/test_route_details.py -rs -s
+      (the test prints the LAST 6000 characters of stdout, so the car_fast ROUTE line is cut off above these)
+      EDGE model=- seq=53 road_class=primary osm_way_id=13404086 distance_m=7.634
+      EDGE model=- seq=54 road_class=primary osm_way_id=13404086 distance_m=156.099
+      EDGE model=- seq=55 road_class=primary osm_way_id=832312534 distance_m=65.753
+      ...
+      ROUTE profile=car_scenic model=lambda-8.json time_ms=526739 distance_m=8230.4
+      (its EDGE rows follow; the four tests assert over BOTH routes)
+      4 passed in 26.37s
+
+  526739 ms / 8230.4 m is T-0224's number for this typed pair, reproduced on a graph the test imported itself.
