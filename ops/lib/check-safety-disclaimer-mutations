@@ -44,7 +44,7 @@ rows=(
   "the blocked tap no longer presents the disclaimer|$FS/ScenicHomeScreen.swift|s/onBlocked: { isShowingDisclaimer = true }/onBlocked: { }/|onBlocked"
   "the acknowledgement defaults to true|$FS/ScenicHomeScreen.swift|s/private var isSafetyDisclaimerAcknowledged = false/private var isSafetyDisclaimerAcknowledged = true/|does not default to false"
   "a second call site in the app shell|ScenicDrive/ScenicDriveApp.swift|s/ScenicHomeScreen()/ScenicHomeScreen().onAppear { try? SkylineHandoff.open() }/|must be called exactly once"
-  "a second button beside the real one|$FS/ScenicHomeScreen.swift|s/^                    conditions$/                    conditions\n                    GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, onBlocked: { }, onFailure: { _ in })/|constructed exactly once"
+  "a second button beside the real one|$FS/ScenicHomeScreen.swift|s/^        conditions$/        conditions\n        GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, onBlocked: { }, onFailure: { _ in })/|constructed exactly once"
   "the acknowledgement written outside the accept closure|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .onAppear { isSafetyDisclaimerAcknowledged = true }/;/^                isSafetyDisclaimerAcknowledged = true$/d|is written outside the accept closure"
   # Rows 12 and 13 are PR #101's finding B5 (agent/rv3-pr101) and the half of it rv3 named but did not
   # test. Both ADD a second writer BESIDE the real one and leave every earlier anchor satisfied - row 12
@@ -53,7 +53,50 @@ rows=(
   # because of a whitelist: the identifier's tracked counts, and the store key's one tracked place.
   "a second writer spelled .toggle()|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .onAppear { isSafetyDisclaimerAcknowledged.toggle() }/|identifier isSafetyDisclaimerAcknowledged occurs outside its tracked set"
   "a second writer through UserDefaults and the key|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .onAppear { UserDefaults.standard.set(true, forKey: \"safety.disclaimer.acknowledged.v1\") }/|store key safety.disclaimer.acknowledged.v1 occurs outside its tracked set"
+  # Rows 14-16 are rv1-t0237's finding B2: since T-0237 the line is mounted in the home SHEET, and WHERE decides
+  # whether it is on screen at the collapsed detent. Each keeps the literal and home.conditions in the file, so
+  # (ii) is green on all three; each is red only because of check-safety-disclaimer-sheet's whole-line whitelist.
+  "the conditions line removed from the collapsed sheet|$FS/ScenicHomeScreen.swift|/^        conditions$/d|the conditions line is not in the collapsed sheet"
+  "the conditions line moved to medium|$FS/ScenicHomeScreen.swift|/^        conditions$/d;s/^        DriveDetails(drive: selectedDrive.*$/        VStack {\n            conditions\n    &\n        }/|the conditions line is not in the collapsed sheet"
+  "the conditions line shown only at medium|$FS/ScenicHomeScreen.swift|s/^        conditions$/        if sheetDetent == .medium {\n            conditions\n        }/|the conditions line is not in the collapsed sheet"
+  # Rows 17-19 are rv2-t0237's B1-B3: each hides the line at the COLLAPSED detent with sheetSummary untouched, so
+  # rows 1-16's anchors are all green on them; each is red only because check-safety-disclaimer-frozen's blocks are
+  # whole-line whitelists - HomeSheet's struct, the conditions view, and the screen's body.
+  "rv2 B1 HomeSheet draws its summary only at medium|$FS/HomeSheet.swift|/^                summary()$/d;s/^                if detent == .medium {$/&\n                    summary()/|a frozen render block changed"
+  "rv2 B2 the conditions view faded at collapsed|$FS/ScenicHomeScreen.swift|s/^            .accessibilityHidden(false)$/&\n            .opacity(sheetDetent == .collapsed ? 0 : 1)/|a frozen render block changed"
+  "rv2 B3 the sheet covered at collapsed|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .overlay(alignment: .bottom) { if sheetDetent == .collapsed { DesignTokens.bg.frame(height: 400) } }/|a frozen render block changed"
+  # Rows 20-21 are the fences around the frozen blocks: an #if that could compile an unfrozen twin, and an attribute
+  # (a result builder, which rewrites a block) above a frozen declaration. Each block's own lines are untouched.
+  "an #if around HomeSheet (an unfrozen twin)|$FS/HomeSheet.swift|s/^struct HomeSheet<.*$/#if DEBUG\n&/;\$s/\$/\n#endif/|a frozen render block changed"
+  "a result-builder attribute above conditions|$FS/ScenicHomeScreen.swift|s/^    private var conditions: some View {$/    @HiddenBuilder\n&/|a frozen render block changed"
+  # Rows 22-25 are rv3-t0237's B1-B3 and R1: a file-scope declaration OUTSIDE every frozen block shadows a name the
+  # frozen lines call - Text, VStack, AttributionFooter - appended to a file (B1-B3) or in a NEW file of the module
+  # (R1; a `+` on the path, the third field then the added file's one line of Swift). Rows 1-21's anchors and the
+  # frozen blocks are green on all four; each is red only because check-safety-disclaimer-pinned pins the content.
+  "rv3 B1 a file-private Text shadows the line|$FS/ScenicHomeScreen.swift|\$a private struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|ScenicHomeScreen.swift content changed"
+  "rv3 B2 a file-private VStack empties the sheet|$FS/HomeSheet.swift|\$a private struct VStack<Content: View>: View { init(alignment: HorizontalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> Content) {}; var body: some View { EmptyView() } }|HomeSheet.swift content changed"
+  "rv3 B3 a file-private AttributionFooter drops it|$FS/ScenicHomeScreen.swift|\$a private struct AttributionFooter: View { init<T>(text: T) {}; var body: some View { EmptyView() } }|ScenicHomeScreen.swift content changed"
+  "rv3 R1 a Text shadow in a new file of the module|+$FS/Shadow.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadow.swift"
+  # Rows 26-29 are rv4-t0237: -pinned listed `-iname '*.swift'`, and find neither lists nor enters a link, so a
+  # directory LINK holding Shadow.swift was compiled and never seen (`@` makes one: the third field is the
+  # Shadow.swift it holds); a non-Swift file and an empty subdirectory (`+` with a trailing `/`) were never seen
+  # either; `=` writes a mode-120000 (symlink) entry into the copy's index, the third field being its target.
+  "rv4 a directory link holding Shadow.swift|@$FS/Shadows|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadows"
+  "rv4 a plain non-Swift file added|+$FS/notes.txt|Conditions change. Verify locally.|added notes.txt"
+  "rv4 an empty subdirectory added|+$FS/Extras/|-|added Extras"
+  "rv4 a symlink committed to the index|=$FS/Shadow.swift|../Shadows/Shadow.swift|committed as a symlink"
 )
+
+# row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
+# rather than links, and `mklink /J` needs no privilege), a symlink elsewhere - then proven to be a link that
+# reaches the Shadow.swift it holds, or the row cannot run.
+row_link() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) MSYS_NO_PATHCONV=1 cmd /c mklink /J "$(cygpath -w "$2")" "$(cygpath -w "$1")" >/dev/null ;;
+    *) ln -s "$1" "$2" ;;
+  esac
+  [[ -L "$2" && -f "$2/Shadow.swift" ]]
+}
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone, and a local
 # here left the trap reading an unbound variable under `set -u` - printed after the table, temp tree kept.
@@ -73,8 +116,24 @@ for row in "${rows[@]}"; do
   dir="$work/m$total"
   rm -rf "$dir"
   cp -R "$APP_TREE" "$dir"
-  [[ -f "$dir/$file" ]] || { echo "  NO SUCH FILE in the copy: $file"; echo "$label"; exit 1; }
-  sed -i -e "$script" "$dir/$file"
+  # Each copy is its own git work tree: -pinned reads the index under the feature directory and refuses a tree
+  # outside one, so an empty index is what every row but the `=` row runs over.
+  git init -q "$dir" || { echo "  CANNOT git init the copy: $label"; exit 1; }
+  if [[ "$file" == [+@=]* ]]; then
+    kind="${file:0:1}"; file="${file#?}"
+    [[ -d "$dir/$(dirname "$file")" && ! -e "$dir/$file" ]] || { echo "  CANNOT ADD in the copy: $file"; echo "$label"; exit 1; }
+    case "$kind" in
+      +) if [[ "$file" == */ ]]; then mkdir "$dir/$file"; else printf '%s\n' "$script" > "$dir/$file"; fi ;;
+      @) mkdir "$work/t$total" && printf '%s\n' "$script" > "$work/t$total/Shadow.swift" && \
+           row_link "$work/t$total" "$dir/$file" || { echo "  CANNOT LINK in the copy: $label"; exit 1; } ;;
+      =) blob="$(printf '%s' "$script" | git -C "$dir" hash-object -w --stdin)" && \
+           git -C "$dir" update-index --add --cacheinfo "120000,$blob,$file" || { echo "  CANNOT INDEX: $label"; exit 1; } ;;
+    esac
+  else
+    [[ -f "$dir/$file" ]] || { echo "  NO SUCH FILE in the copy: $file"; echo "$label"; exit 1; }
+    sed -i -e "$script" "$dir/$file"
+    cmp -s "$APP_TREE/$file" "$dir/$file" && { echo "  THE MUTATION CHANGED NOTHING: $label"; exit 1; }
+  fi
 
   out="$(bash "$CHECK" --sources "$dir/$FS" --app-tree "$dir" 2>&1)"
   status=$?

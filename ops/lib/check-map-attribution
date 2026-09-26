@@ -3,7 +3,7 @@
 # MapStyle.attributionText returns, the demo arm returns the demo credit verbatim, nothing outside MapAdapter
 # names a protomaps case, the LA basemap is mounted, the footer is handed the SAME resolved style the map is
 # mounted with, and that footer is not hidden from accessibility. A source check on a box with no Apple
-# toolchain (ruling R2), which decides seven things and refuses to pretend it decides more:
+# toolchain (ruling R2), which decides eight things and refuses to pretend it decides more:
 #   (a) THE ARM, not a count. Inside `public var attributionText: String`, the first line carrying code
 #       after `case .protomapsLALight, .protomapsLADark:` is exactly `return MapStyle.protomapsAttribution`,
 #       and the first after `case .maplibreDemoTiles:` is exactly `return MapStyle.demoAttribution`.
@@ -49,6 +49,12 @@
 #       approved lines, compared TRIMMED and WHOLE with its file. (d) reads the credit's two ENDS; rv2-t0236 set
 #       the VALUE between them to the demo credit in MapRoute.bundled (M4a) and to the resource name in
 #       DriveRoute.resolve (M4b), and (a)-(f) stayed green.
+#   (h) THE CREDIT ABOVE THE SHEET (ops/lib/check-map-attribution-sheet, T-0237): the pill and HomeSheet are the
+#       approved five-line mount, pill first; one HomeSheet; the one presentation is the disclaimer sheet.
+#       Then the render blocks - HomeSheet, the screen's body and its modifier chain - FROZEN whole (-frozen, rv2
+#       B3); LAST the surface PINNED by content (ops/lib/check-safety-disclaimer-pinned, rv3-t0237): the file set
+#       of FeatureScenicHome, each file's sha256 and AttributionFooter.swift's - a home-screen edit updates those
+#       digests in the SAME commit. Rendering at both detents is T-0180's; a shadow outside the set is T-0243's.
 #
 # WHAT IT CANNOT SEE: whether the footer RENDERS, at which sheet detents, whether something is drawn over
 # it, contrast, Dynamic Type, or whether the tiles on screen are the ones the credit names - an XCUITest in
@@ -56,9 +62,8 @@
 # renderer, so a `url` arm swapped to the demo style is green here (A6); `/* */` comments; Swift outside
 # apps/ios; a credit paraphrase that never names OpenStreetMap and a `static let` whose value sits on the
 # NEXT line; a map mounted through some wrapper type that is not `MapView(`; whether a footer that IS built
-# is visible - `.opacity(0)` beside it is green here (rv1-pr119's M2, T-0180's half); and any spelling that
-# reaches a case without naming the identifier, e.g. `MapStyle.allCases[0]`
-# (A4 - `MapStyle(rawValue: "protomapsLALight")` IS refused, because (c) counts inside string literals too).
+# is visible - `.opacity(0)` beside it is green here (rv1-pr119's M2, T-0180's half); any spelling reaching a case
+# unnamed, e.g. `MapStyle.allCases[0]` (A4; `MapStyle(rawValue: "protomapsLALight")` IS refused: (c) reads strings).
 #
 #   bash ops/lib/check-map-attribution                 # the tracked tree
 #   bash ops/lib/check-map-attribution --app-tree DIR  # a copy of apps/ios (the mutation table hands one)
@@ -68,7 +73,8 @@ cd "$(git rev-parse --show-toplevel)"
 
 LIB="ops/lib/check-map-attribution-lib"
 SITES="ops/lib/check-map-attribution-sites"
-for L in "$LIB" "$SITES"; do
+SHEET="ops/lib/check-map-attribution-sheet"
+for L in "$LIB" "$SITES" "$SHEET" ops/lib/check-safety-disclaimer-{frozen,pinned}; do
   if [[ ! -f "$L" ]]; then
     echo "P-ATTR-01: $L is missing; the check cannot read Swift source without its readers."
     exit 1
@@ -266,8 +272,16 @@ run_check() {
   # ------------------------------------------------------------------ (g) THE DRAWN LINE'S CREDIT, whole lines
   require_credit_sites -- "${files[@]}"
 
+  # ------------------------------------------------------------------ (h) THE CREDIT ABOVE THE SHEET
+  require_sheet_mount "$screen" -- "${files[@]}"
+  require_frozen_blocks "$APP_TREE/$FEATURE_REL" "$APP_TREE"
+  require_pinned_surface "$APP_TREE/$FEATURE_REL"
+
   print_verdict "$an" "$pline" "$dline" "$FOOTER_ARG" "$recv" "$FOOTER_ROUTE"
   print_credit_sites_verdict
+  print_sheet_verdict
+  echo "  Then HomeSheet, the screen's body, chips, sheetDetails, conditions and the app shell frozen whole; LAST"
+  echo "  $PINNED_FILES FeatureScenicHome file(s) and AttributionFooter.swift pinned by sha256 (-pinned)."
 }
 
 MUTATIONS="ops/lib/check-map-attribution-mutations"

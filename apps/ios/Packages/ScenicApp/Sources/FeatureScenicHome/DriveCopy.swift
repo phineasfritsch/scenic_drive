@@ -30,11 +30,11 @@ enum DriveCopy {
     static func title(for drive: HandoffDrive) -> String {
         switch drive {
         case .saddlePeak:
-            return "Saddle Peak · Topanga to Malibu over the mountains"
+            return "Saddle Peak · Topanga to Malibu"
         case .skyline:
-            return "Skyline loop · starts and ends in San Francisco"
+            return "Skyline loop · SF and back"
         case .santaMonicaMountains:
-            return "Santa Monica Mountains loop · starts and ends in Westwood"
+            return "Westwood loop · coast and back"
         }
     }
 
@@ -86,7 +86,7 @@ enum DriveCopy {
     /// Peninsula draw none and keep their sentences; the preamble's count moved from two drives to three
     /// because the old number became false.
     static func mapCaption(for drive: HandoffDrive, style: MapStyle) -> String {
-        let preamble = "Preview build: three fixed drives, \(shortName(for: drive)) selected."
+        let preamble = "Preview build."
         let onLosAngelesRoads: Bool
         switch style {
         case .protomapsLALight, .protomapsLADark:

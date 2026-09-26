@@ -49,6 +49,10 @@
 #      interpolation "\("//")" - each hides a credit binding behind a `//` inside a string; each EXIT 0 against
 #      round 3's reader, which toggled string state on every quote. (g) now cuts nothing inside a line: it drops
 #      only lines STARTING with `//` (and holding no backslash) and compares every other line whole.
+#  25-32 T-0237 limb (h), THE CREDIT ABOVE THE SHEET: H1 the pill moved into the sheet, H2 a ZStack, H3 an offset
+#      pulling the sheet up, H4 the pill below the sheet, H5 a negative spacing, H6 the drive card as a system
+#      sheet with detents, H7 a second HomeSheet in a new file, H8 an opacity on the pill - each EXIT 0 against
+#      limbs (a)-(g), which read what the credit SAYS and never where it sits relative to the sheet.
 #   ROW = label | file under the apps/ios copy (`+` = the row ADDS it) | sed script or the added file's
 #         single line | substring the refusal must contain
 # `|` is the field separator, so a sed script carries no pipe.
@@ -89,7 +93,50 @@ rows=(
   "R1 a quote in a block comment hides the credit|+$MA/MapRouteDemo.swift|extension MapRoute { static func demo(data: Data) -> MapRoute? { /* \" */ _ = \"//\"; let dataCredit = MapStyle.demoAttribution; return MapRoute(geoJSON: data, dataCredit: dataCredit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
   "R2 a raw string hides a second credit binding|+$FS/DriveRouteRaw.swift|extension DriveRoute { static func demo(name: String) -> MapRoute? { _ = #\"\\\"# + \"//\"; let credit = name; return MapRoute.bundled(named: name, subdirectory: nil, withExtension: \"geojson\", dataCredit: credit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
   "R3 an interpolation hides the credit bound to the resource|+$FS/DriveRouteInterp.swift|extension DriveRoute { static func demo(for drive: HandoffDrive) -> MapRoute? { _ = \"\\(\"//\")\"; guard let name = drive.routeGeometryResource, let credit = drive.routeGeometryResource else { return nil }; return MapRoute.bundled(named: name, subdirectory: nil, withExtension: \"geojson\", dataCredit: credit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "H1 the credit moved into the sheet's summary|$FS/ScenicHomeScreen.swift|/^ *AttributionFooter(text: CreditLine/d;s/^\(        \)conditions$/\1AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))\n\1conditions/|the credit is not mounted directly above the sheet"
+  "H2 the sheet drawn over the credit in a ZStack|$FS/ScenicHomeScreen.swift|s/^                VStack(spacing: 0) {$/                ZStack(alignment: .bottom) {/|the credit is not mounted directly above the sheet"
+  "H3 the sheet pulled up over the credit|$FS/ScenicHomeScreen.swift|s/^\( *\)\(HomeSheet(detent: .*\)$/\1\2\n\1    .offset(y: -60)/|the credit is not mounted directly above the sheet"
+  "H4 the credit below the sheet|$FS/ScenicHomeScreen.swift|/AttributionFooter(text: CreditLine/{h;d};/HomeSheet(detent:/{p;x}|the credit is not mounted directly above the sheet"
+  "H5 a negative spacing slides the sheet over the credit|$FS/ScenicHomeScreen.swift|s/^                VStack(spacing: 0) {$/                VStack(spacing: -52) {/|the credit is not mounted directly above the sheet"
+  "H6 the drive card as a system sheet with detents|$FS/ScenicHomeScreen.swift|s/^\( *\)\.task { resolveBasemap() }$/&\n\1.sheet(isPresented: .constant(true)) { sheetDetails.presentationDetents([.height(220), .medium]) }/|a presentation over the map outside its approved site"
+  "H7 a second HomeSheet laid over the map|+$FS/DriveOverlay.swift|struct DriveOverlay: View { @State var d = HomeSheetDetent.collapsed; var body: some View { HomeSheet(detent: \$d, summary: { Text(\"x\") }, details: { Text(\"y\") }) } }|HomeSheet( occurs outside its tracked set"
+  "H8 the credit faded out above the sheet|$FS/ScenicHomeScreen.swift|s/^\( *\)\(AttributionFooter(text: CreditLine.*\)$/\1\2\n\1    .opacity(0)/|the credit is not mounted directly above the sheet"
+  "H9 the credit and sheet shown only at medium (rv1-t0237 B1)|$FS/ScenicHomeScreen.swift|s/^\(                \)\(VStack(spacing: 0) {\)$/\1if sheetDetent == .medium {\n\1\2/;s/^\( *\)\(\.onGeometryChange(for: CGFloat.self) { .*creditBandTop = .*\)$/\1\2\n\1}/|the credit is not mounted directly above the sheet"
+  "H10 the whole overlay stack shown only at medium|$FS/ScenicHomeScreen.swift|s/^            VStack(spacing: 0) {$/            if sheetDetent == .medium {\n&/;s/^\( *\)\(\.onGeometryChange(for: CGFloat.self) { .*creditBandTop = .*\)$/\1\2\n\1}/|the credit is not mounted directly above the sheet"
+  # H11-H12: rv2-t0237's B3 (a cover laid on the ZStack after the approved block's last line) and the blind spot
+  # the -sheet header named (HomeSheet's ground moved up over the pill). Limbs (a)-(h) are green on both; each is
+  # red only because check-safety-disclaimer-frozen's blocks are whole-line whitelists.
+  "H11 rv2 B3 an overlay covers sheet and credit|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .overlay(alignment: .bottom) { if sheetDetent == .collapsed { DesignTokens.bg.frame(height: 400) } }/|a frozen render block changed"
+  "H12 HomeSheet's ground offset over the credit|$FS/HomeSheet.swift|s/^\( *\)\.ignoresSafeArea(edges: .bottom)$/&\n\1.offset(y: -60)/|a frozen render block changed"
+  # P1-P5: rv3-t0237's B1-B3 and R1, and the footer's own file. A file-scope declaration OUTSIDE every frozen block
+  # shadows a name the frozen lines call (Text, VStack, AttributionFooter), in a pinned file or a NEW file of the
+  # module. Limbs (a)-(h) and the frozen blocks are green on each; each is red only because
+  # check-safety-disclaimer-pinned pins FeatureScenicHome's file set and every digest, and AttributionFooter.swift's.
+  "P1 rv3 B1 a file-private Text shadows a label|$FS/ScenicHomeScreen.swift|\$a private struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|ScenicHomeScreen.swift content changed"
+  "P2 rv3 B2 a file-private VStack empties the sheet|$FS/HomeSheet.swift|\$a private struct VStack<Content: View>: View { init(alignment: HorizontalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> Content) {}; var body: some View { EmptyView() } }|HomeSheet.swift content changed"
+  "P3 rv3 B3 a file-private AttributionFooter|$FS/ScenicHomeScreen.swift|\$a private struct AttributionFooter: View { init<T>(text: T) {}; var body: some View { EmptyView() } }|ScenicHomeScreen.swift content changed"
+  "P4 rv3 R1 a Text shadow in a new file|+$FS/Shadow.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadow.swift"
+  "P5 the footer's own file edited|$DS/AttributionFooter.swift|\$a extension AttributionFooter { static let pinnedProbe = 0 }|AttributionFooter.swift content changed"
+  # L1-L4: rv4-t0237. -pinned listed `-iname '*.swift'`, and find neither lists nor enters a link, so a directory
+  # LINK holding Shadow.swift was compiled and never seen (`@` makes one: the third field is the Shadow.swift it
+  # holds); a non-Swift file and an empty subdirectory (`+` with a trailing `/`) were never seen either; `=` writes
+  # a mode-120000 (symlink) entry into the copy's index, the third field being its target.
+  "L1 rv4 a directory link holding Shadow.swift|@$FS/Shadows|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadows"
+  "L2 rv4 a plain non-Swift file added|+$FS/notes.txt|a note beside the sources|added notes.txt"
+  "L3 rv4 an empty subdirectory added|+$FS/Extras/|-|added Extras"
+  "L4 rv4 a symlink committed to the index|=$FS/Shadow.swift|../Shadows/Shadow.swift|committed as a symlink"
 )
+
+# row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
+# rather than links, and `mklink /J` needs no privilege), a symlink elsewhere - then proven to be a link that
+# reaches the Shadow.swift it holds, or the row cannot run.
+row_link() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) MSYS_NO_PATHCONV=1 cmd /c mklink /J "$(cygpath -w "$2")" "$(cygpath -w "$1")" >/dev/null ;;
+    *) ln -s "$1" "$2" ;;
+  esac
+  [[ -L "$2" && -f "$2/Shadow.swift" ]]
+}
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.
 work="$(mktemp -d)"
@@ -108,14 +155,24 @@ for row in "${rows[@]}"; do
   dir="$work/m$total"
   rm -rf "$dir"
   cp -R "$APP_TREE" "$dir"
-  if [[ "$file" == +* ]]; then
+  # Each copy is its own git work tree: -pinned reads the index under the feature directory and refuses a tree
+  # outside one, so an empty index is what every row but the `=` row runs over.
+  git init -q "$dir" || { echo "  CANNOT git init the copy: $label"; exit 1; }
+  if [[ "$file" == [+@=]* ]]; then
     # The row ADDS a surface. A new file is the shape rv1 of PR #119 used, and no sed script over the
     # tracked files can reproduce it: what it proves is that the WHITELIST enumerates the population, so
     # the file that was never typed into the check is the one that has to be refused.
-    file="${file#+}"
+    # `@` adds a directory link, `=` a mode-120000 index entry (rv4-t0237).
+    kind="${file:0:1}"; file="${file#?}"
     [[ -d "$dir/$(dirname "$file")" ]] || { echo "  NO SUCH DIRECTORY in the copy: $file"; exit 1; }
     [[ -e "$dir/$file" ]] && { echo "  THE ROW ADDS A FILE THAT EXISTS: $file"; echo "$label"; exit 1; }
-    printf '%s\n' "$script" > "$dir/$file"
+    case "$kind" in
+      +) if [[ "$file" == */ ]]; then mkdir "$dir/$file"; else printf '%s\n' "$script" > "$dir/$file"; fi ;;
+      @) mkdir "$work/t$total" && printf '%s\n' "$script" > "$work/t$total/Shadow.swift" && \
+           row_link "$work/t$total" "$dir/$file" || { echo "  CANNOT LINK in the copy: $label"; exit 1; } ;;
+      =) blob="$(printf '%s' "$script" | git -C "$dir" hash-object -w --stdin)" && \
+           git -C "$dir" update-index --add --cacheinfo "120000,$blob,$file" || { echo "  CANNOT INDEX: $label"; exit 1; } ;;
+    esac
   else
     [[ -f "$dir/$file" ]] || { echo "  NO SUCH FILE in the copy: $file"; echo "$label"; exit 1; }
     sed -i -e "$script" "$dir/$file"

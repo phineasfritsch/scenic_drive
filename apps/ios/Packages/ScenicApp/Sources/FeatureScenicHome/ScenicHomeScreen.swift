@@ -4,138 +4,108 @@ import MapAdapter
 import ScenicKit
 import SwiftUI
 
-/// The walking skeleton's only screen: the drive named, a map that says what it is, a truthful credit
-/// line, a line about conditions that never leaves, and one gated button.
+/// The walking skeleton's only screen, map-first (T-0237): the map fills the screen, the drive chips float over it
+/// below the status bar, and a sheet that cannot be dismissed carries the drive - the title, a line about
+/// conditions that never leaves, and one gated button, with the roads and the timing one detent up.
 ///
-/// M1.5 exists to prove the seam, not the product - MapLibre draws on a real phone, `DesignSystem`
-/// renders on both appearances, and `Handoff` produces a URL Apple Maps accepts. Every real surface
-/// (plan sheet, route preview, hazard strip) arrives in M4 and replaces the middle of this file; the
-/// map, the footer, the disclaimer and the handoff at the edges are the parts that stay.
+/// M1.5 exists to prove the seam, not the product - MapLibre draws on a real phone, `DesignSystem` renders on both
+/// appearances, and `Handoff` produces a URL Apple Maps accepts. The map, the credit, the disclaimer and the handoff
+/// are the parts that stay when the real surfaces (plan sheet, route preview, hazard strip) arrive in M4.
 ///
-/// The title and the road list name the drive `SkylineHandoff.waypoints(for:)` describes, but neither
-/// is derived from it: the route types hold coordinates, and no name and no road names. Changing a
-/// drive, renaming it and rewriting its road list are three edits, and nothing but review ties them
-/// together - see `DriveCopy`, which is where all three live for both drives.
+/// ## The credit sits on the map, above the sheet, at every detent (P-ATTR-01)
 ///
-/// ## Two drives, one screen (T-0178)
+/// The credit pill and `HomeSheet` are the only two children of one `VStack(spacing: 0)`, pill first: the pill is
+/// laid out on the map directly above the sheet's top edge whatever the detent and in the middle of a drag, in the
+/// lower-right corner the plan reserves for attribution. Limb (h) of `ops/lib/check-map-attribution` reads those
+/// lines whole. Why an overlay and not a system sheet is `HomeSheet`'s note (ruling R1 in T-0237's Log).
 ///
-/// `selectedDrive` is the one value the title, the road line, the distance, the map centre, the
-/// caption and the handoff URL all read. Saddle Peak is the default (T-0236), the loop and the Skyline
-/// drive each one 44 pt tap away; `HandoffDrive.defaultDrive` carries the ruling for why that default is unconditional and
-/// why no locale and no location is consulted to pick it.
+/// ## The camera follows the detent
 ///
-/// No duration anywhere on this screen. Nobody has driven this route or measured it, and a number
-/// nobody measured is the kind of claim this repository exists to catch.
+/// The chip band's bottom and the credit band's top are measured in the window's coordinates and handed to
+/// `MapView` as the two edges the map is covered past; its camera fits the drawn line between them, and MapLibre's
+/// logo and (i) move with them, so the whole route, the logo and the (i) stay on uncovered map at both detents.
+///
+/// ## Three drives, one screen (T-0178, T-0236)
+///
+/// `selectedDrive` is the one value the title, the road line, the distance, the map centre, the caption and the
+/// handoff URL all read. Saddle Peak is the default; `HandoffDrive.defaultDrive` carries the ruling for why that
+/// default is unconditional and why no locale and no location is consulted to pick it. No duration anywhere:
+/// nobody has measured one, and a number nobody measured is the kind of claim this repository exists to catch.
 ///
 /// ## The safety gate (P-SAFE-03)
 ///
-/// CLAUDE.md's product invariant: *"The safety disclaimer gates the first plan and stays visible on the
-/// route screen."* There is no route screen yet (plan M4), so both halves land here, on the only screen
-/// there is: the first tap on the handoff opens `SafetyDisclaimer` instead of leaving, and
-/// `Copy.conditions` is on screen at every size, always. Accepting records the acknowledgement and
-/// dismisses; it does not also leave for Apple Maps, because leaving the app is worth a second,
-/// deliberate tap.
-///
-/// The guard itself is inside `GatedHandoffButton` - see that type for why the gate has a name instead of
-/// being twenty inline lines, and `ops/lib/check-safety-disclaimer` for what a source-level check can and
-/// cannot decide about it.
+/// CLAUDE.md: *"The safety disclaimer gates the first plan and stays visible on the route screen."* Both halves land
+/// here: the first tap on the handoff opens `SafetyDisclaimer` instead of leaving, and `Copy.conditions` is in the
+/// sheet at both detents, always. The guard itself is inside `GatedHandoffButton`; `ops/lib/check-safety-disclaimer`
+/// says what a source-level check can and cannot decide about it.
 public struct ScenicHomeScreen: View {
-    /// The basemap ACTUALLY on screen, named once so the tiles, the caption and the credit below
-    /// cannot drift apart. It starts on the demo case and is replaced by `resolveBasemap()`.
-    ///
-    /// `@State`, and resolved from `.task`/`.onChange` rather than here or in `body`:
-    /// `DriveBasemap.resolve` materialises a style document and touches the file system, and SwiftUI
-    /// re-runs `body` - and may re-run a property initialiser - as often as it likes. One resolve per
-    /// selection change and per appearance change, which is what those two modifiers buy.
+    /// The basemap ACTUALLY on screen, named once so the tiles, the caption and the credit cannot drift apart.
+    /// Resolved from `.task`/`.onChange`, never in `body`: `DriveBasemap.resolve` touches the file system.
     @State private var style = MapStyle.maplibreDemoTiles
 
-    /// The selected drive's road line, or `nil` (T-0236). `@State` and resolved beside `style`, for the
-    /// same reason: `DriveRoute.resolve` reads a file from the bundle.
+    /// The selected drive's road line, or `nil` (T-0236), resolved beside `style` for the same reason.
     @State private var route: MapRoute?
 
-    /// The appearance the map is drawn for. SwiftUI's `ColorScheme` is converted to `MapAppearance` at
-    /// this boundary: `MapAdapter` does not know about SwiftUI's environment (see `MapAppearance`).
+    /// SwiftUI's `ColorScheme`, converted to `MapAppearance` at this boundary (`MapAdapter` knows no environment).
     @Environment(\.colorScheme) private var colorScheme
 
-    /// Whether the safety disclaimer has been accepted on THIS DEVICE. `@AppStorage` is `UserDefaults`:
-    /// no account, no server, nothing leaves the phone, and nothing to migrate. The key is versioned so
-    /// that changing what the user is asked to acknowledge can ask again rather than inherit a stale yes.
+    /// Whether the safety disclaimer has been accepted on THIS DEVICE: `UserDefaults`, nothing leaves the phone.
+    /// The key is versioned so that changing what the user is asked to acknowledge can ask again.
     @AppStorage("safety.disclaimer.acknowledged.v1")
     private var isSafetyDisclaimerAcknowledged = false
 
-    /// Whether the disclaimer sheet is up. Separate from the acknowledgement: the flag above is what the
-    /// user has agreed to and survives the app, this is where the sheet is right now and does not.
+    /// Whether the disclaimer sheet is up - where the sheet is right now, not what the user agreed to.
     @State private var isShowingDisclaimer = false
 
-    /// Whatever `Handoff` refused, if it refused. Kept so the button can say what went wrong instead
-    /// of doing nothing when tapped - a dead button is the failure mode that gets shipped, because it
-    /// looks identical to a working one in a screenshot.
+    /// Whatever `Handoff` refused, if it refused, so the button can say what went wrong.
     @State private var handoffFailure: String?
 
-    /// Which drive is on screen. The title, the road line, the distance, the map centre, the caption
-    /// and the handoff URL all read this one value, which is why they cannot come apart.
-    ///
-    /// `HandoffDrive.defaultDrive` and NOT a locale or a location test - see that property for the
-    /// ruling. `Locale.current.region` is a country (`US`) and there is no identifier for Southern
-    /// California; a last-known coarse position would need a CoreLocation authorization this app has
-    /// never asked for and must not. So the plan's 5.1.1(iv) "nothing is known" case is the only case:
-    /// the owner in Westwood opens the app on the LA drive with no permission prompt, and a friend who
-    /// has denied Location sees exactly the same screen, because nothing here reads a location.
-    ///
-    /// `@State` and not `@AppStorage`: the acknowledgement is a thing the user agreed to and has to
-    /// survive the app, while which drive is showing is where you are right now. A relaunch is back on
-    /// the default, which is the owner's drive.
+    /// Which drive is on screen. `@State`, not `@AppStorage`: a relaunch is back on the default, the owner's drive.
     @State private var selectedDrive = HandoffDrive.defaultDrive
+
+    /// How much of the drive the sheet shows. A launch argument can pick the first one (`HomeSheetDetent`).
+    @State private var sheetDetent = HomeSheetDetent.atLaunch
+
+    /// The chip band's bottom edge and the credit band's top edge, in window points - the two edges `MapView`
+    /// converts into its own. Zero until measured, and the map then treats nothing as covered. The map's own height
+    /// is NOT measured here: SwiftUI reports the safe-area height for a view that ignores the safe area.
+    @State private var chipBandBottom: CGFloat = 0
+    @State private var creditBandTop: CGFloat = 0
 
     public init() {}
 
     public var body: some View {
-        VStack(spacing: 0) {
-            header
+        ZStack(alignment: .top) {
+            MapView(
+                styleURL: style.url,
+                // Centred on the SELECTED route's own destination: one verified coordinate per drive.
+                centerLatitude: SkylineHandoff.destination(for: selectedDrive).latitude,
+                centerLongitude: SkylineHandoff.destination(for: selectedDrive).longitude,
+                zoomLevel: 8.5,
+                coveredAboveY: chipBandBottom,
+                coveredBelowY: creditBandTop,
+                // With a line, the camera fits it between the two covered edges; without one, the centre above.
+                route: route
+            )
+            .ignoresSafeArea()
 
-            ZStack(alignment: .bottom) {
-                MapView(
-                    styleURL: style.url,
-                    // Centred by reusing the SELECTED route's own destination rather than a fresh pair
-                    // of digits: San Francisco frames the city, the Peninsula and the ridge; Westwood
-                    // frames the Santa Monica Mountains, the coast and the Valley. One verified
-                    // coordinate per drive, one place each lives, and the map cannot sit over the Bay
-                    // while the title names an LA loop.
-                    centerLatitude: SkylineHandoff.destination(for: selectedDrive).latitude,
-                    centerLongitude: SkylineHandoff.destination(for: selectedDrive).longitude,
-                    zoomLevel: 8.5,
-                    // With a line, the camera fits it; without one, the centre above (`MapView`).
-                    route: route
-                )
-                .ignoresSafeArea()
+            VStack(spacing: 0) {
+                chips
 
-                VStack(spacing: 12) {
-                    if let handoffFailure {
-                        HandoffFailureCard(message: handoffFailure,
-                                           roadList: DriveCopy.route(for: selectedDrive),
-                                           drive: selectedDrive,
-                                           onRetry: { gatedHandoff.attempt() })
-                            .padding(.horizontal, 16)
-                    }
+                Spacer(minLength: 0)
 
-                    conditions
-
-                    gatedHandoff
-                        .padding(.horizontal, 16)
-
-                    // The credit for everything drawn: the RESOLVED style's credit for the tiles (the
-                    // plan's line with `la.pmtiles`, MapLibre's for the demo tiles without it - see
-                    // `MapStyle.attributionText`), then the drawn line's data credit, composed once from
-                    // the same `style` and `route` the map is handed. The line is OpenStreetMap data over
-                    // either basemap, and MapLibre's (i) cannot credit a shape source (rv1-t0236 B1).
-                    // Last in the stack, so nothing above it can sit on the lower-right corner it owns.
+                // The credit for everything drawn - the RESOLVED style's credit for the tiles, then the drawn line's
+                // data credit, composed from the same `style` and `route` the map is handed - directly above the
+                // sheet. Nothing between them, nothing over either: limb (h) of check-map-attribution.
+                VStack(spacing: 0) {
                     AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))
+                    HomeSheet(detent: $sheetDetent, summary: { sheetSummary }, details: { sheetDetails })
                 }
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { creditBandTop = $0 }
             }
         }
         .background(DesignTokens.bg)
-        // The three moments the answer can change, and the only three: first appearance, a new drive,
-        // and light/dark. Never in `body` and never in a property initialiser - see `style`.
+        // The three moments the answer can change, and the only three: first appearance, a new drive, light/dark.
         .task { resolveBasemap() }
         .onChange(of: selectedDrive) { resolveBasemap() }
         .onChange(of: colorScheme) { resolveBasemap() }
@@ -148,11 +118,8 @@ public struct ScenicHomeScreen: View {
         }
     }
 
-    /// Ask `DriveBasemap` which tiles this drive can have on this device, and keep the answer.
-    ///
-    /// The LA drive gets the Protomaps basemap when `la.pmtiles` is on the phone and the demo tiles
-    /// when it is not; the Skyline drive keeps the demo tiles, because the LA archive covers
-    /// `-119.0,33.7,-117.85,34.45` and the Peninsula is not in it - see `DriveBasemap`.
+    /// Ask `DriveBasemap` which tiles this drive can have on this device, and keep the answer: the LA drives get the
+    /// Protomaps basemap when `la.pmtiles` is on the phone and the demo tiles when it is not (see `DriveBasemap`).
     private func resolveBasemap() {
         route = DriveRoute.resolve(for: selectedDrive)
         style = DriveBasemap.resolve(
@@ -161,15 +128,10 @@ public struct ScenicHomeScreen: View {
         )
     }
 
-    /// The one way out of this app, built in exactly one place.
-    ///
-    /// A named property rather than an expression inside `body` because two things need it: the button
-    /// itself, at the bottom of the stack, and the *Try again* on `HandoffFailureCard`, which calls
-    /// `attempt()` on this same value. T-0170's card deliberately does not own the retry - see its
-    /// `onRetry` - so that a retry after a failure goes through the acknowledgement gate exactly as the
-    /// first tap does. One construction, one guard, one `SkylineHandoff.open(` in the app; that triple
-    /// is what `ops/lib/check-safety-disclaimer` (P-SAFE-03) decides, and it is what this property keeps
-    /// true while two call sites share the behaviour.
+    /// The one way out of this app, built in exactly one place. Named, because two things need it: the button in
+    /// the sheet and the *Try again* on `HandoffFailureCard`, whose retry goes through the same acknowledgement
+    /// gate as the first tap. One construction, one guard, one `SkylineHandoff.open(` in the app - the triple
+    /// `ops/lib/check-safety-disclaimer` (P-SAFE-03) decides.
     private var gatedHandoff: GatedHandoffButton {
         GatedHandoffButton(
             isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,
@@ -179,110 +141,74 @@ public struct ScenicHomeScreen: View {
         )
     }
 
-    /// The drive's name, the roads it runs, and the one caption, in a band on `bg` above the map
-    /// rather than over it.
-    ///
-    /// Deliberately not an overlay. `DesignTokens` states its contrast against `bg` and `surface`, and
-    /// a basemap is neither - `AttributionFooter` carries its own opaque chip for exactly that reason.
-    /// On `bg`, `fg` and `fgMuted` are the pairs the token table was written for, no new token is
-    /// needed, and a band across the top cannot reach the lower-right corner the attribution owns.
-    ///
-    /// Type styles only, no point sizes, so every line grows with Dynamic Type; `fixedSize` vertically
-    /// so the largest accessibility sizes wrap instead of truncating. Nothing here is tappable, so
-    /// there is no 44 pt target to keep.
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Above the title, because it changes what the title says. Padding-free here: the band's
-            // own horizontal padding is the one below.
-            DriveSelector(selection: $selectedDrive)
-                .padding(.bottom, 4)
-
-            Text(DriveCopy.title(for: selectedDrive))
-                .font(.title2)
-                .fontWeight(.semibold)
-                .foregroundStyle(DesignTokens.fg)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("home.title")
-
-            Text(DriveCopy.route(for: selectedDrive))
-                .font(.subheadline)
-                // `fgMuted`, and the same muted pair for the caption below: both are secondary lines
-                // under the title, and `primary` is a button fill, never a sentence on `bg`
-                // (`DesignTokens`). Same text style for both, because the roads are the longer and
-                // more useful of the two and shrinking them would be the wrong way round.
-                .foregroundStyle(DesignTokens.fgMuted)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("home.route")
-
-            DriveFacts(drive: selectedDrive)
-
-            // The resolved style, not the selection: the caption says what is under the map, and on a
-            // device with no LA archive that is the demo basemap whichever drive is selected.
-            Text(DriveCopy.mapCaption(for: selectedDrive, style: style))
-                .font(.subheadline)
-                .foregroundStyle(DesignTokens.fgMuted)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("home.caption")
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
+    /// The three drives, floating over the map below the status bar. Each chip carries its own opaque ground
+    /// (`primary` or `surface`); the band under them is a material with a `border` hairline, so the row reads as one
+    /// control over either basemap, in either appearance. Every chip is 44 pt tall (`DriveSelector`).
+    private var chips: some View {
+        DriveSelector(selection: $selectedDrive)
+            .padding(6)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(DesignTokens.border, lineWidth: 1)
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 4)
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { chipBandBottom = $0 }
     }
 
-    /// The persistent conditions line - the plan's risk table, verbatim, as the mitigation for *sedan
-    /// onto dirt/gated/closed road*. Always on screen, whatever the disclaimer has been told.
+    /// The collapsed sheet: the drive's name and where it goes, a failure card if the handoff refused, the
+    /// conditions line, the button. Short, because it is the first thing anyone sees.
+    @ViewBuilder
+    private var sheetSummary: some View {
+        Text(DriveCopy.title(for: selectedDrive))
+            .font(.title3)
+            .fontWeight(.semibold)
+            .foregroundStyle(DesignTokens.fg)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("home.title")
+
+        if let handoffFailure {
+            HandoffFailureCard(message: handoffFailure,
+                               roadList: DriveCopy.route(for: selectedDrive),
+                               drive: selectedDrive,
+                               onRetry: { gatedHandoff.attempt() })
+        }
+
+        conditions
+
+        gatedHandoff
+    }
+
+    /// What `medium` adds. The caption reads the resolved `style`: it says what is under the map, and on a device
+    /// with no LA archive that is the demo basemap whichever drive is selected.
+    private var sheetDetails: some View {
+        DriveDetails(drive: selectedDrive, caption: DriveCopy.mapCaption(for: selectedDrive, style: style))
+    }
+
+    /// The persistent conditions line - the plan's risk table, verbatim, as the mitigation for *sedan onto
+    /// dirt/gated/closed road*. In the sheet's collapsed part, so it is on screen at both detents, directly above
+    /// the button, whatever the disclaimer has been told. On the sheet's `bg`, where `fgMuted` is a stated pair.
     ///
-    /// Directly above the button and above the attribution, never on top of either: it is a sibling in
-    /// the same bottom stack, and the footer is the last element in it, so the lower-right corner stays
-    /// the attribution's. `fgMuted` is the secondary-text token, and it carries the same opaque `surface`
-    /// chip and `border` hairline `AttributionFooter` carries, for the reason that type states - muted
-    /// text over a basemap has to bring its own ground, because the tiles underneath are not a token and
-    /// their contrast is not stated anywhere.
-    ///
-    /// A text style, not a point size, so it grows with Dynamic Type; `fixedSize` vertically so the
-    /// largest accessibility sizes wrap rather than truncate a safety sentence.
+    /// A text style, so it grows with Dynamic Type; `fixedSize` vertically so the largest sizes wrap rather than
+    /// truncate a safety sentence - and the collapsed sheet is as tall as its content, so it grows with it.
     private var conditions: some View {
         Text(Copy.conditions)
             .font(.footnote)
             .foregroundStyle(DesignTokens.fgMuted)
-            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(DesignTokens.surface.opacity(0.85))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(DesignTokens.border, lineWidth: 1)
-                    )
-            )
-            .padding(.horizontal, 16)
             .accessibilityIdentifier("home.conditions")
-            // NEVER hidden from accessibility, stated explicitly rather than left to the default so that
-            // removing it is a visible deletion in a diff. A screen reader user is entitled to the same
-            // safety line as everybody else.
+            // NEVER hidden from accessibility, stated explicitly so that removing it is a visible deletion.
             .accessibilityHidden(false)
     }
 
-    /// Every user-visible string on this screen, in one place.
-    ///
-    /// A private nested enum, not an `.xcstrings` catalog: string catalogs are serial-only (CLAUDE.md)
-    /// and there is one language today, so a catalog would be a fleet-wide lock held for nothing. The
-    /// later extraction stays mechanical - each `static let` becomes a key and no call site moves.
-    /// Nested rather than a second file-scope type so the file still declares one type and still
-    /// matches its own name.
-    /// The strings that belong to the SCREEN rather than to a drive. The title, the road line and the
-    /// map caption moved to `DriveCopy` when there were two drives to say them about, because those
-    /// three have to change together with the selection and this one must not change at all.
+    /// The strings that belong to the SCREEN rather than to a drive. A private nested enum, not an `.xcstrings`
+    /// catalog: catalogs are serial-only (CLAUDE.md) and there is one language today.
     private enum Copy {
-        /// The persistent safety line, from the plan's risk table, word for word. The same sentence the
-        /// disclaimer ends on, so the line the user keeps seeing is the line they agreed to. It is the
-        /// same for both drives on purpose: conditions change on a ridge in San Mateo County and in
-        /// Topanga Canyon alike, and a per-drive safety line would be a line somebody could edit away
-        /// one drive at a time.
+        /// The persistent safety line, from the plan's risk table, word for word - the same sentence the disclaimer
+        /// ends on, and the same for every drive, so nobody can edit it away one drive at a time.
         static let conditions = "Conditions change. Verify locally."
     }
 }

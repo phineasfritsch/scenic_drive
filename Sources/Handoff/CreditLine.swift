@@ -16,29 +16,40 @@ import Foundation
 /// passes `CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit)` and nothing else
 /// (P-ATTR-01's check whitelists that one form). The parties are joined with the separator the plan's own credit
 /// uses, and a party the basemap already names is not repeated - over the LA Protomaps tiles, whose credit already
-/// names OpenStreetMap contributors, the line adds nothing and the plan's string stands unchanged.
+/// names OpenStreetMap contributors, the line adds nothing and the plan's words stand unchanged.
+///
+/// ## Why no party can break across lines (T-0237)
+///
+/// T-0236 round 2's pill wrapped '... Natural Earth · ©' / 'OpenStreetMap contributors': the copyright sign on one
+/// line and the party it credits on the next. A line breaks only at a breakable space, so every space INSIDE a
+/// party - after the ©, and between the words of a name - is `noBreakSpace`, and the separator's two spaces are the
+/// only places the pill can wrap. A screen reader reads the no-break space as a space.
 public enum CreditLine {
     /// Between two credited parties, as in the plan's `© OpenStreetMap contributors · Protomaps`.
     public static let separator = " · "
 
-    /// The basemap's credit, then every party of `routeData` the basemap does not already name.
+    /// U+00A0, what joins the words inside one party.
+    public static let noBreakSpace = "\u{00A0}"
+
+    /// The basemap's credit, then every party of `routeData` the basemap does not already name, each party
+    /// `unbroken(_:)`.
     ///
-    /// `nil` route data - a drive that draws no line - returns `basemap` unchanged, character for character, and
-    /// so does route data whose every party the basemap already names.
+    /// `nil` route data - a drive that draws no line - returns the basemap's own words, and so does route data whose
+    /// every party the basemap already names: the same words, in the same order, each party's inner spaces
+    /// non-breaking.
     public static func composed(basemap: String, routeData: String?) -> String {
-        guard let routeData else {
-            return basemap
-        }
         let base = parties(of: basemap)
         var seen = Set(base.map(identity(of:)))
         var added: [String] = []
-        for party in parties(of: routeData) where seen.insert(identity(of: party)).inserted {
+        for party in parties(of: routeData ?? "") where seen.insert(identity(of: party)).inserted {
             added.append(party)
         }
-        guard !added.isEmpty else {
-            return basemap
-        }
-        return (base + added).joined(separator: separator)
+        return (base + added).map(unbroken(_:)).joined(separator: separator)
+    }
+
+    /// One party with every space made non-breaking, so no line break can fall inside it.
+    static func unbroken(_ party: String) -> String {
+        party.replacingOccurrences(of: " ", with: noBreakSpace)
     }
 
     /// A credit's parties, trimmed, empty pieces dropped.

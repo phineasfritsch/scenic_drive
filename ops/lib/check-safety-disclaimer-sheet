@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# P-SAFE-03, the route-screen half at EVERY DETENT (T-0237, rv1-t0237 B2): the persistent conditions line is in the
+# COLLAPSED part of the home sheet, so it is on screen whatever the detent. Sourced by ops/lib/check-safety-disclaimer
+# beside -lib (the check is at CLAUDE.md's 300-line cap); one role, this assertion. It uses -lib's `fail`.
+#
+# Before T-0237 the line was a child of the screen's one scroll view and (ii) - the literal and home.conditions
+# somewhere in the file - was enough. The sheet made WHERE it is mounted load-bearing: deleted from sheetSummary,
+# moved into sheetDetails (medium only), or wrapped in `if sheetDetent == .medium {`, the literal and the identifier
+# are still in the file and (ii) stayed green - failing OPEN at the collapsed detent, the one everyone sees first.
+#
+# What it decides, as WHITELISTS over ScenicHomeScreen.swift, whole lines (only lines whose trimmed text STARTS
+# with // are dropped; nothing is cut inside a line, no string state - the reader of check-map-attribution-sheet):
+#   (s1) the whole line `conditions` occurs exactly once in the screen;
+#   (s2) the kept lines from `private var sheetSummary: some View {` to the next declaration are EXACTLY the
+#        approved block below - so that one `conditions` is inside sheetSummary, at its top level, with no wrapper
+#        and no modifier on it. A whole block, not a brace-depth walk: depth over whole lines is moved by a brace
+#        in a trailing comment or a string, and reading those needs string state. Every edit to sheetSummary edits
+#        this list, deliberately;
+#   (s3) the one HomeSheet( line, binding sheetSummary to the SUMMARY slot, occurs exactly once. Limb (h) of
+#        check-map-attribution binds the same line (SHEET_MOUNT); it is repeated so this pin stands on its own.
+#
+# WHAT IT CANNOT SEE: anything that renders - T-0180's both-detents runtime clause (main 558e154). HomeSheet.swift's
+# drawing and the `conditions` view's own modifiers (rv2-t0237 B1/B2) are frozen whole by -frozen, run last.
+SUMMARY_OPEN="private var sheetSummary: some View {"
+SUMMARY_MOUNT="HomeSheet(detent: \$sheetDetent, summary: { sheetSummary }, details: { sheetDetails })"
+SUMMARY_BLOCK=(
+  "$SUMMARY_OPEN"
+  "Text(DriveCopy.title(for: selectedDrive))"
+  ".font(.title3)"
+  ".fontWeight(.semibold)"
+  ".foregroundStyle(DesignTokens.fg)"
+  ".fixedSize(horizontal: false, vertical: true)"
+  ".accessibilityAddTraits(.isHeader)"
+  ".accessibilityIdentifier(\"home.title\")"
+  ""
+  "if let handoffFailure {"
+  "HandoffFailureCard(message: handoffFailure,"
+  "roadList: DriveCopy.route(for: selectedDrive),"
+  "drive: selectedDrive,"
+  "onRetry: { gatedHandoff.attempt() })"
+  "}"
+  ""
+  "conditions"
+  ""
+  "gatedHandoff"
+  "}"
+  ""
+  "private var sheetDetails: some View {"
+)
+
+# Every line of one file that can hold code, trimmed, trailing CR stripped; blank lines kept (they are compared).
+summary_code_lines() {
+  awk '
+    {
+      line = $0; sub(/\r$/, "", line); sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      if (substr(line, 1, 2) == "//" && index(line, "\\") == 0) next
+      print line
+    }
+  ' "$1"
+}
+
+require_conditions_in_summary() {
+  local screen="$1" kept=() i at=-1 n_open=0 n_cond=0 n_mount=0
+  mapfile -t kept < <(summary_code_lines "$screen")
+  for i in "${!kept[@]}"; do
+    case "${kept[$i]}" in
+      "$SUMMARY_OPEN") n_open=$((n_open + 1)); at="$i" ;;
+      "conditions") n_cond=$((n_cond + 1)) ;;
+      "$SUMMARY_MOUNT") n_mount=$((n_mount + 1)) ;;
+    esac
+  done
+
+  local bad=() j got
+  [[ "$n_cond" -eq 1 ]] || bad+=("the whole line \`conditions\` occurs $n_cond time(s), expected exactly 1")
+  [[ "$n_mount" -eq 1 ]] || bad+=("the whole line \`$SUMMARY_MOUNT\` occurs $n_mount time(s), expected exactly 1")
+  if [[ "$n_open" -ne 1 ]]; then
+    bad+=("the whole line \`$SUMMARY_OPEN\` occurs $n_open time(s), expected exactly 1")
+  else
+    # `-` not `:-`: a blank line is an approved line, and `:-` would read it as the end of the file.
+    for j in "${!SUMMARY_BLOCK[@]}"; do
+      got="${kept[$((at + j))]-<end of file>}"
+      [[ "$got" == "${SUMMARY_BLOCK[$j]}" ]] && continue
+      bad+=("sheetSummary line $((j + 1)) of ${#SUMMARY_BLOCK[@]}: approved \`${SUMMARY_BLOCK[$j]}\`, found \`$got\`")
+      break
+    done
+  fi
+  [[ "${#bad[@]}" -eq 0 ]] || fail "the conditions line is not in the collapsed sheet in $screen:" \
+    "${bad[@]}" \
+    "The persistent line has to be on screen at EVERY detent, so it is the whole line \`conditions\`, once, at" \
+    "the top level of sheetSummary - the part HomeSheet draws collapsed and expanded - and sheetSummary is bound to" \
+    "the summary slot. Deleted, moved to sheetDetails (medium only), wrapped in an \`if\`, or given a modifier, the" \
+    "literal and home.conditions are still in the file and (ii) alone would stay green (rv1-t0237, finding B2)."
+}

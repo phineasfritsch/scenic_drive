@@ -31,29 +31,26 @@
 #   B5 B4 was a BLACKLIST of ONE spelling: `.onAppear { ack.toggle() }` beside the real write left the
 #      count at one and the check GREEN over a screen with two writers -> (v)
 #
-# WHAT IT STILL CANNOT SEE, because a check that hides its blind spots is worse than none: whether the
-# sheet renders, whether a tap reaches the button, whether the accept closure's write ever RUNS, whether
-# @AppStorage reads it back, whether the line is on screen, contrast, Dynamic Type, the 44 pt target - a
-# simulator and an XCUITest own those (no test target; see ScenicApp/Package.swift). Also: Swift outside
-# apps/ios is unscanned; a second GatedHandoffButton( inside its own file is not counted (a #Preview
-# belongs there); `//` is stripped before braces are counted and `/* */` is not parsed; and (v) reads
-# LITERAL spellings, so a key assembled from a constant or an interpolation is unseen. Every anchor below
-# is an identifier, a file name or a literal the user reads, never a comment (CLAUDE.md); fail-closed
-# (P-SRC-02 / P-OPS-01), a scan that enumerated nothing is a REFUSAL.
+# WHAT IT STILL CANNOT SEE, because a check that hides its blind spots is worse than none: whether the sheet
+# renders, whether a tap reaches the button, whether the accept closure's write ever RUNS, whether @AppStorage
+# reads it back; whether the line is VISIBLE, HITTABLE and UNCOVERED at both detents (T-0180's runtime clause),
+# contrast, Dynamic Type, the 44 pt target. (vi) freezes the render blocks as whole-line whitelists (-frozen,
+# rv2-t0237 B1-B3); (vii), LAST, pins FeatureScenicHome's file set, each file's sha256 and AttributionFooter.swift's
+# (-pinned, rv3-t0237) - a home-screen edit updates those digests in the SAME commit. Unseen: a shadow or overload in
+# another module or the app shell (T-0243); Swift outside apps/ios; a second GatedHandoffButton( in its own file (a
+# #Preview); `/* */`; a key assembled from a constant or an interpolation ((v) reads LITERAL spellings). Every anchor
+# is an identifier, a file name or a literal the user reads, never a comment (CLAUDE.md); fail-closed: empty REFUSES.
 #
 #   bash ops/lib/check-safety-disclaimer                 # the tracked tree
-#   bash ops/lib/check-safety-disclaimer --sources DIR   # any copy of Sources/FeatureScenicHome
-#                                        --app-tree DIR  # ... with a copy of apps/ios as its call graph
-#   bash ops/lib/check-safety-disclaimer --prove-red     # thirteen mutations, each refused by name
+#   bash ops/lib/check-safety-disclaimer --sources DIR [--app-tree DIR]  # copies of FeatureScenicHome [, apps/ios]
+#   bash ops/lib/check-safety-disclaimer --prove-red     # twenty-five mutations, each refused by name
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-LIB="ops/lib/check-safety-disclaimer-lib"
-if [[ ! -f "$LIB" ]]; then
-  echo "P-SAFE-03: $LIB is missing; the check cannot read Swift source without its readers."
-  exit 1
-fi
-. "$LIB"
+for LIB in ops/lib/check-safety-disclaimer-{lib,sheet,frozen,pinned}; do
+  [[ -f "$LIB" ]] || { echo "P-SAFE-03: $LIB is missing; the check cannot read Swift source without its readers."; exit 1; }
+  . "$LIB"
+done
 
 DEFAULT_SOURCES="apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome"
 DEFAULT_APP_TREE="apps/ios"
@@ -249,11 +246,11 @@ run_check() {
   [[ "$blocked_line" -gt 0 && "$blocked_line" -lt "$ret_line" ]] || fail \
     "no \`onBlocked()\` between the guard at line $guard_line and its return at line $ret_line in $gated." \
     "The refused tap has to hand the screen something to present, or the user taps a dead button forever."
+  require_conditions_in_summary "$screen"
 
   # ----------------------------------------- (v) WHO CAN REACH THE FLAG AT ALL: whitelists, by occurrence
-  # PR #101's B5. LAST, because rows 3, 5 and 10 move these counts as a side effect and each exists to
-  # prove a DIFFERENT refusal by name; the counts are typed literals in the scan's own path order, raised
-  # deliberately the day the screen legitimately grows one more (T-0153 rulings R4-B and R4-E).
+  # PR #101's B5. After (iv), because rows 3, 5 and 10 move these counts as a side effect and each proves a
+  # DIFFERENT refusal by name; the counts are typed literals in scan path order (T-0153 rulings R4-B, R4-E).
   local ack_set="$gated(2) $screen(4)" key_set="$screen(1)"
   require_tracked_occurrences "$ACK_IDENT" "identifier" "$app_tree" "$ack_set" \
     "Those six: on the screen the @AppStorage declaration, the argument label and the value of the" \
@@ -263,9 +260,12 @@ run_check() {
     "@AppStorage is a UserDefaults wrapper: UserDefaults.standard.set(true, forKey:) on this key writes" \
     "the same store without naming the identifier once, and the whitelist above cannot see it." \
     -- "${app_files[@]}"
+  require_frozen_blocks "$sources" "$app_tree"
+  require_pinned_surface "$sources"
   echo "P-SAFE-03: $n Swift file(s) under $sources; SafetyDisclaimer declared once in its own file;"
   echo "  home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in"
   echo "  SafetyDisclaimer.swift, the persistent line present, @AppStorage(\"$STORAGE_KEY\")"
+  echo "  (the whole line \`conditions\` once, at the top of sheetSummary, the collapsed part of HomeSheet),"
   echo "  at line $store_line with \`$ack_decl\` under it;"
   echo "  over the $an .swift file(s) under $app_tree, SkylineHandoff.open( called once"
   echo "  (GatedHandoffButton.swift line $call_line), dominated by the guard at line $guard_line;"
@@ -275,13 +275,13 @@ run_check() {
   echo "  and a sheet bound to that flag on the screen; \`$ACK_IDENT = true\` written exactly once, at"
   echo "  line $ACK_WRITE_LINE, inside the SafetyDisclaimer(onAccept: { block opening at line $ACK_ACCEPT_LINE;"
   echo "  and by occurrence over the app tree, $ACK_IDENT at $ack_set, the key at $key_set."
-  echo "  Not checked here: rendering, taps, whether that write RUNS, contrast, Dynamic Type, 44 pt."
+  echo "  Frozen whole (-frozen); LAST $PINNED_FILES feature file(s) and AttributionFooter.swift pinned by sha256 (-pinned)."
+  echo "  Not checked here: rendering (T-0180), taps, whether that write RUNS, contrast, Dynamic Type, 44 pt."
 }
 
 # ------------------------------------------------------------------------------------------------ red
-# The mutation population lives in ops/lib/check-safety-disclaimer-mutations - one file, one concern. Each
-# row there mutates ONE structural fact in a throwaway copy and requires this check to refuse AND to name
-# the reason: a check nobody has seen refuse is untested (CLAUDE.md).
+# The mutation population lives in ops/lib/check-safety-disclaimer-mutations: each row mutates ONE fact in a
+# throwaway copy and requires this check to refuse AND name the reason (a check never seen red is untested).
 MUTATIONS="ops/lib/check-safety-disclaimer-mutations"
 
 if [[ "$PROVE_RED" -eq 1 ]]; then
