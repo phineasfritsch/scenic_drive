@@ -575,3 +575,28 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
   this round. The main checkout's `sha256sum services/etl/work/la/la-tagged.osm.pbf` =
   `648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39`, and `stat -c %s` = `45914107`. That is
   the digest and byte count 21:59:24Z quoted, so acceptance lines 2 and 3 stand as quoted there.
+- 2026-09-26T00:07:57Z (R10) MAIN MOVED TWICE WHILE THE BLOCK RAN. It was re-run on the newer head. When the
+  23:52:39Z entry was committed (b20f254) and pushed, `git fetch origin` showed origin/main at a80b994, and
+  `--is-ancestor` exited 1. The push itself was fine. What was wrong was pushing without first checking the
+  ancestry exit code.
+  THE SECOND MERGE. The new commits were a80b994, 07739aa and 2073166: four queue/ files and nothing else.
+  `git merge --no-edit origin/main` made be18d91. `git diff --stat 694ef87 be18d91 -- . ':!queue'` is empty.
+  Even so, the whole block was re-run bare on be18d91:
+  - PYTEST: `1335 passed in 294.05s (0:04:54)`, exit 0, and zero SKIPPED lines.
+  - The four new tests by name: `4 passed`, 4 PASSED lines, exit 0.
+  - `python ops/mutate/normalise.py`: `BASELINE exit=0, 22 mutations, floor 22` /
+    `MUTATIONS: 22 caught, 0 missed, 0 skipped, of 22` / `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2` /
+    `MUTATE OK  caught=22/22 equivalent_caught=0`, exit 0.
+  - `--prove-vacuity`: `VACUITY: 0 caught, 22 missed, 0 skipped, of 22` / `VACUITY PROVED`, exit 0.
+  - P-PROC-06: the same two lines as 23:52:39Z, exit 0.
+  - P-SRC-02: the same line, exit 0. P-OPS-01: the same line, exit 0.
+  - `QUEUE OK (234 tasks)`, exit 0.
+  - `wc -l` gave the same six numbers, and `git status --short` was empty.
+  THE THIRD MERGE. By the time that run finished, origin/main was at 5d1e260. That is one queue/ line, a Log
+  line on T-0241. Merging it made 294f3f1, and `git diff --stat be18d91 294f3f1 -- . ':!queue'` is empty. The
+  two gates that read queue/ or the merge base were re-run on 294f3f1:
+  - `QUEUE OK (234 tasks)`, exit 0.
+  - `P-PROC-06: 91 modules, 37 covered by 15 populations, 33 allowlisted, 1 added by this branch` /
+    `... the floor of 36 holds`, exit 0.
+  The code, tests, population and gates are byte-identical to be18d91, where everything above ran. So the
+  pushed head is 294f3f1 plus this entry.
