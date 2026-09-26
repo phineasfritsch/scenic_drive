@@ -1,7 +1,7 @@
 ---
 id: T-0239
 title: ops/plan --menu - the time-vs-fun menu for one trip, from alternative_route over the lambda ladder (max_exploration_factor 2.0), deduplicated, a Pareto frontier of extra minutes against fun km, recorded and replayed offline
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-25T23:40:52Z
@@ -11,7 +11,7 @@ branch: task/T-0239
 exclusive: []
 touches: [Sources/ScenicKit/Menu/, Sources/ScenicPlanCLI/, Tests/ScenicKitTests/Menu/, Tests/ScenicPlanCLITests/, Tests/Fixtures/t0239/, Tests/Fixtures/t0182-recorder/, ops/plan, ops/mutate/, ops/lib/mutate-population-allowlist.json, ops/lib/check-mutate-population.py, ops/lib/mutate_population_table.py]
 pins_affected: [P-SAFE-04]
-reviewer: null
+reviewer: agent/rv5-t0239
 depends_on: [T-0182]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -193,3 +193,14 @@ Owner-facing preview of the probe's menus: .artifacts/preview/route-menu.html (g
     - The default T1 run (no `--max`) still prints `candidates=25 distinct=6 rows=3`.
   Measured: MenuCLITests.swift 274, menu_mutations.py 177. Unchanged since the last entry: RecordedAlternatives.swift 102, RouteMenuTests.swift 101, RouteMenu.swift 96, MenuRow.swift 87, MenuArguments.swift 72, MenuCommand.swift 35, menu.py 175, menu_run.py 112.
 - 2026-09-26T18:19:17Z ORCHESTRATOR RULING (agent/claude-opus-5, orchestrator hat): PR #132 merges with rv4-t0239's B1 (the equality oracle runs only without --max) and B2 (ROW n not tied to URL n) recorded as the gap, under CLAUDE.md's review-rounds rule - four rounds were spent on the menu URL (r1 own-route, r2 orientation, r3 a dropped waypoint, r4 flags and numbering); neither finding is a P-SAFE pin (every ceiling mutant was caught by name in rounds 2-4, P-SAFE-04 holds). Both are filed as T-0245 on main (7672e13) with rv4's reproductions. A sign-off reviewer who is not the owner, a fixer or rv1-rv4 checks this ruling and transitions the task.
+- 2026-09-26T18:35:31Z REVIEW PASS (sign-off) by agent/rv5-t0239 - not the owner, not a fixer, not rv1-rv4; no new mutants written. On origin/task/T-0239:
+  (1) head = 7c9e7ea; `git merge-base --is-ancestor origin/main origin/task/T-0239` exit=0.
+  (2) the newest Log entry is the orchestrator ruling of 2026-09-26T18:19:17Z: merge with rv4-t0239's B1-B2 recorded as the gap, neither a P-SAFE pin.
+  (3) `git show origin/main:queue/backlog/T-0245-ops-plan-menu-whole-output-equality-every-flag-row-n-pairs.md` names both survivors (X2: decision points from row 0 only when --max is below the cap; X1: ROW lines numbered index + 1).
+  (4) in a detached worktree at 7c9e7ea, `swift test --scratch-path .build/rv5-t0239 --filter "RouteMenuTests|MenuCLITests"`, one mutant at a time:
+    - rv3-A (`waypoints: Array(waypoints.dropLast())).url()` in MenuCommand.swift) exit=1, 12 issues: "every row prints exactly AppleMapsDirections over its own decision points, and waypoints= counts its pins" red at MenuCLITests.swift:269.
+    - rv2 M2 (source and destination swapped in MenuCommand.swift) exit=1, 18 issues: "every row's URL runs from the trip's origin to its destination, its waypoints in route order" red, and the exact-URL test red.
+    - restored (git diff empty), unmutated exit=0: `Test run with 18 tests in 2 suites passed`.
+  (5) P-SAFE-04: `--filter "everyRowIsInsideItsOwnCeiling|maxTwentyPrintsNothingAboveTwenty"` exit=0; "ops/plan --menu --max 20 prints no row above +20" and "every menu row keeps ETA within fastest plus its displayed extra minutes" both passed (2 tests in 1 suite). A first filter on the display names matched 0 tests (swift-testing filters on the function name); that run is not counted.
+  (6) `bash ops/queue-check` exit=0 `QUEUE OK (238 tasks)`; `bash ops/check-pins --source-only` exit=0 `PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only`; `gh pr checks 132`: core pass, pins-source-only pass.
+  GAP RECORDED: rv4-t0239's B1 (the equality oracle runs only without --max) and B2 (ROW n not tied to URL n) remain open. They are filed as T-0245 on main (7672e13). Under CLAUDE.md's review-rounds rule, PR #132 merges with them recorded. state: done, queue/claimed/ -> queue/done/. The reviewer does not merge.
