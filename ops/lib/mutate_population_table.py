@@ -9,7 +9,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
 DRIVERS = ("budget.py", "extractadapter.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
-           "hazards.py", "normalise.py", "plan.py", "retrace.py", "routescore.py", "scenic_tags.py",
+           "hazards.py", "menu.py", "normalise.py", "plan.py", "retrace.py", "routescore.py", "scenic_tags.py",
            "segmentscore.py", "straightline.py", "surfacecoverage.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
 
@@ -34,4 +34,7 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Hazards/HazardStrip.swift", "Sources/ScenicKit/Loop/RetraceDetector.swift",
     "Sources/ScenicKit/Scoring/RouteScore.swift", "Sources/ScenicKit/Scoring/SegmentScore.swift",
     "Sources/ScenicKit/Scoring/SegmentTerms.swift",
+    "Sources/ScenicKit/Menu/RouteMenu.swift", "Sources/ScenicKit/Menu/MenuRow.swift",
+    "Sources/ScenicPlanCLI/MenuArguments.swift", "Sources/ScenicPlanCLI/MenuCommand.swift",
+    "Sources/ScenicKit/Menu/RecordedAlternatives.swift",
 )

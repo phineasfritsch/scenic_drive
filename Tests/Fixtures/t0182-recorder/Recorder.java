@@ -46,10 +46,21 @@ import java.util.stream.Stream;
  *       --models /models --out /out --provenance "image=scenic-routing:t0213;jar_sha256=..."
  *
  * Without --out it routes and prints one summary line per model, which is how a pair is chosen.
+ *
+ * `--alternatives on` (T-0239, rulings R1 and R7) records the MENU's population instead: beside the plain
+ * fastest.json it writes alternatives-fastest.json (car_fast) and alternatives-<model>.json (car_scenic per
+ * model), each carrying EVERY path alternative_route returned under ALTERNATIVE_HINTS in `paths[]`, and every
+ * file in that mode also asks for the `street_name` detail so a menu row can name its roads from the graph.
  */
 public final class Recorder {
 
     private static final List<String> DETAILS = List.of("scenic_score", "road_class", "osm_way_id");
+    private static final List<String> WITH_NAMES = List.of("scenic_score", "road_class", "osm_way_id",
+            "street_name");
+    /** T-0239's R1, fixed here and written into every header recorded under it. */
+    private static final Object[][] ALTERNATIVE_HINTS = {
+            {"alternative_route.max_paths", 4}, {"alternative_route.max_weight_factor", 2.0},
+            {"alternative_route.max_share_factor", 0.7}, {"alternative_route.max_exploration_factor", 2.0}};
 
     public static void main(String[] args) throws Exception {
         Map<String, String> cli = parseArgs(args);
@@ -67,13 +78,21 @@ public final class Recorder {
             String out = cli.get("--out");
             if (out != null) Files.createDirectories(Path.of(out));
             String provenance = cli.getOrDefault("--provenance", "");
+            boolean alternatives = "on".equals(cli.get("--alternatives"));
+            List<String> details = alternatives ? WITH_NAMES : DETAILS;
 
-            record(hopper, "car_fast", from, to, null, "-", out, "fastest.json", provenance);
+            record(hopper, "car_fast", from, to, null, "-", out, "fastest.json", provenance, details, false);
+            if (alternatives) {
+                record(hopper, "car_fast", from, to, null, "-", out, "alternatives-fastest.json", provenance,
+                        details, true);
+            }
             for (Path model : modelFiles(Path.of(required(cli, "--models")))) {
                 CustomModel requestModel = Jackson.newObjectMapper()
                         .readValue(model.toFile(), CustomModel.class);
                 String name = model.getFileName().toString();
-                record(hopper, "car_scenic", from, to, requestModel, name, out, name, provenance);
+                String file = alternatives ? "alternatives-" + name : name;
+                record(hopper, "car_scenic", from, to, requestModel, name, out, file, provenance, details,
+                        alternatives);
             }
         } finally {
             hopper.close();
@@ -82,31 +101,40 @@ public final class Recorder {
 
     private static void record(GraphHopper hopper, String profile, GHPoint from, GHPoint to,
                                CustomModel requestModel, String label, String out, String file,
-                               String provenance) throws Exception {
+                               String provenance, List<String> details, boolean alternatives)
+            throws Exception {
         GHRequest request = new GHRequest(from, to).setProfile(profile);
         request.putHint("ch.disable", true);
         request.putHint("instructions", false);
-        request.setPathDetails(DETAILS);
+        request.setPathDetails(details);
+        if (alternatives) {
+            request.setAlgorithm("alternative_route");
+            for (Object[] hint : ALTERNATIVE_HINTS) request.putHint((String) hint[0], hint[1]);
+        }
         if (requestModel != null) request.setCustomModel(requestModel);
         GHResponse response = hopper.route(request);
         if (response.hasErrors()) {
             throw new IllegalStateException("profile=" + profile + " model=" + label
                     + " errors=" + response.getErrors());
         }
-        ResponsePath best = response.getBest();
-        List<PathDetail> ways = best.getPathDetails().getOrDefault("osm_way_id", List.of());
-        System.out.printf(Locale.ROOT, "ROUTE profile=%s model=%s time_ms=%d distance_m=%.1f points=%d "
-                        + "way_runs=%d%n", profile, label, best.getTime(), best.getDistance(),
-                best.getPoints().size(), ways.size());
+        List<ResponsePath> paths = alternatives ? response.getAll() : List.of(response.getBest());
+        for (int index = 0; index < paths.size(); index++) {
+            ResponsePath best = paths.get(index);
+            List<PathDetail> ways = best.getPathDetails().getOrDefault("osm_way_id", List.of());
+            System.out.printf(Locale.ROOT, "ROUTE profile=%s model=%s path=%d time_ms=%d distance_m=%.1f "
+                            + "points=%d way_runs=%d%n", profile, label, index, best.getTime(),
+                    best.getDistance(), best.getPoints().size(), ways.size());
+        }
         if (out == null) return;
-        String json = json(best, profile, from, to, label, provenance);
+        String json = json(paths, profile, from, to, label, provenance, details, alternatives);
         Files.writeString(Path.of(out, file), json, StandardCharsets.UTF_8);
         System.out.println("WROTE " + file + " " + json.getBytes(StandardCharsets.UTF_8).length + " bytes");
     }
 
     /** The documented response shape, plus a `recorded` header this repository's fixtures carry. */
-    private static String json(ResponsePath best, String profile, GHPoint from, GHPoint to,
-                               String model, String provenance) {
+    private static String json(List<ResponsePath> paths, String profile, GHPoint from, GHPoint to,
+                               String model, String provenance, List<String> details,
+                               boolean alternatives) {
         StringBuilder out = new StringBuilder();
         out.append("{\n  \"recorded\": {");
         out.append("\n    \"envelope\": \"written by Tests/Fixtures/t0182-recorder/Recorder.java, NOT by ")
@@ -116,14 +144,29 @@ public final class Recorder {
         out.append(",\n    \"model\": \"").append(model).append('"');
         out.append(",\n    \"from\": \"").append(from.lat).append(',').append(from.lon).append('"');
         out.append(",\n    \"to\": \"").append(to.lat).append(',').append(to.lon).append('"');
-        out.append(",\n    \"details\": \"").append(String.join(",", DETAILS)).append('"');
+        out.append(",\n    \"details\": \"").append(String.join(",", details)).append('"');
+        if (alternatives) {
+            out.append(",\n    \"algorithm\": \"alternative_route");
+            for (Object[] hint : ALTERNATIVE_HINTS) out.append(';').append(hint[0]).append('=').append(hint[1]);
+            out.append('"');
+        }
         for (String field : provenance.split(";")) {
             int split = field.indexOf('=');
             if (split <= 0) continue;
             out.append(",\n    \"").append(field, 0, split).append("\": \"")
                     .append(field.substring(split + 1)).append('"');
         }
-        out.append("\n  },\n  \"paths\": [\n    {\n");
+        out.append("\n  },\n  \"paths\": [\n");
+        for (int index = 0; index < paths.size(); index++) {
+            if (index > 0) out.append(",\n");
+            path(out, paths.get(index));
+        }
+        out.append("\n  ]\n}\n");
+        return out.toString();
+    }
+
+    private static void path(StringBuilder out, ResponsePath best) {
+        out.append("    {\n");
         out.append("      \"distance\": ").append(number(best.getDistance())).append(",\n");
         out.append("      \"time\": ").append(best.getTime()).append(",\n");
         out.append("      \"points_encoded\": false,\n");
@@ -143,8 +186,7 @@ public final class Recorder {
             }
             out.append(']').append(index == keys.size() - 1 ? "\n" : ",\n");
         }
-        out.append("      }\n    }\n  ]\n}\n");
-        return out.toString();
+        out.append("      }\n    }");
     }
 
     /** Six decimals, which is the precision GraphHopper's own API publishes geometry at. */
