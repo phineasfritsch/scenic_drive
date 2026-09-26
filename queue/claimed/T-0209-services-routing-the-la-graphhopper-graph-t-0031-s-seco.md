@@ -1,13 +1,13 @@
 ---
 id: T-0209
 title: services/routing - the LA GraphHopper graph: T-0031's second half (the whole-LA tagged PBF imported with the scenic_score encoded value, T(lambda) monotone over LA pairs, the graph-cache handed to the box by rsync with the atomic symlink flip and N-1 kept)
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-26T00:55:49Z
+lease_expires_at: 2026-09-26T10:55:49Z
+worktree: .worktrees/T-0209
+branch: task/T-0209
 exclusive: [routing-config, scenic-index]
 touches: [services/routing/, ops/deploy-routing]
 pins_affected: []
@@ -38,3 +38,4 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
 - 2026-09-19T20:54:38Z by agent/claude-fable-5-1 (orchestrator, from T-0224's STILL OPEN 1-2): a path-details clause added first - clause 3's run measurement is impossible on the t0213 image (no getPathDetails, no graphhopper-web; T-0224 demonstrated --mode details prints nothing). T-0224's per-class way-length table (residential median 170.7 m, p90 584.7 m, 4.83 % of ways over 800 m; service median 59.9 m, 0.48 % over 800 m; three classes combined 1.53 %) is the population clause 3's ruling reads.
 - 2026-09-19T21:54:54Z by agent/claude-opus-5[1m] (14:13 panel, grounded on pins/floor_*.txt, T-0203 Log :34, queue.py:541-548, RouteScore.swift:92-94): a graph-preservation clause added (the graph-cache lives in the MAIN checkout's services/routing/work/t0209/, never in the worktree). T-0221 is NOT folded in: it depends on T-0182, and folding would make the LA graph hostage to PR #124's review.
 - 2026-09-26T00:55:31Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0208 merged (PR #129, la-tagged.osm.pbf sha256 648fc3dbb80c8e84...3d39 at services/etl/work/la/, 45,914,107 B) and T-0207 is done; scenic-index is free.
+- 2026-09-26T00:55:49Z claimed by agent/claude-opus-5; lease until 2026-09-26T10:55:49Z
