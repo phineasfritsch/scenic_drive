@@ -329,3 +329,31 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   STILL OPEN: P-ATTR-01's statement in pins/PINS.yaml (outside touches:) still says "the basemap credit" - the
   orchestrator widens it to the drawn route's data credit; the wrap breaks between "©" and "OpenStreetMap" (cosmetic,
   the text is whole); T-0211, the dark demo ground and the line over the LA archive as round 1 recorded them.
+- 2026-09-26T01:32:38Z ROUND 3 RULING, before any code (agent/claude-opus-5), on rv2-t0236 B1-r2 (BLOCKING). AGREED: limb (d)
+  reads the two ENDS of the drawn line's credit - the footer's `routeData: <r>?.dataCredit` and the map's `route: <r>`
+  - and never the value <r> holds; the review reproduced exit 0 on 3ba3fa2 for M4a (MapRoute.bundled's `return
+  MapRoute(geoJSON: data, dataCredit: dataCredit,` -> `dataCredit: MapStyle.demoAttribution,`) and M4b (DriveRoute.
+  resolve's `dataCredit: credit,` -> `dataCredit: name,`). R3-1, the limb: (g), a WHITELIST OF WHOLE LINES over the
+  credit's path. Its population is every line of every .swift file under apps/ios, // stripped, whose code names
+  `dataCredit`, `routeGeometryCredit` (the Handoff field DriveRoute binds the credit from; declared in Sources/Handoff,
+  outside apps/ios) or the WORD `credit` (DriveRoute's local binding, so a re-binding or a shadow of it in any file is
+  in the population too). MEASURED on 3ba3fa2 before the list was typed (grep -rn over apps/ios, // stripped): 9
+  lines - DriveRoute.swift 2 (the guard binding `credit` from drive.routeGeometryCredit; `dataCredit: credit,`),
+  ScenicHomeScreen.swift 1 (the footer), MapRoute.swift 6 (the stored property, init?'s signature, its isEmpty guard,
+  its assignment, bundled's parameter, bundled's return); the word `credit` occurs in code nowhere else. Each is
+  compared TRIMMED and WHOLE as `<path under apps/ios>: <line>`, in scan order, against those 9 typed lines; an
+  unapproved line, an approved line not found and a changed one are refused by name ("a credit site outside its
+  approved whole lines"). R3-2, where it lives: a NEW file ops/lib/check-map-attribution-sites (the approved list, its
+  reader, its refusal and its verdict line - one role, limb (g)), sourced by the check beside -lib, which is at the
+  300-line cap; committed 100755 like its two siblings (sourced, with a shebang). R3-3, --prove-red: three rows - M4a,
+  M4b, and a NEW file under FeatureScenicHome whose one line builds MapRoute.bundled(... dataCredit:
+  MapStyle.demoAttribution ...) - each required to exit 1 naming that reason. R3-4, NO Swift change: the defect is in
+  the check, not in what ships - on 3ba3fa2 DriveRoute binds `credit` from drive.routeGeometryCredit and
+  MapRoute.bundled forwards it unchanged, which is exactly what (g) approves - so no ios-compile or simulator re-run is
+  owed; round 2's screenshots stand for the unchanged Swift. (g) STILL CANNOT SEE, recorded rather than claimed: the
+  VALUE of routeGeometryCredit (Sources/Handoff, pinned by the Linux test `a drive has a data credit exactly when it
+  draws a line, and that credit names OpenStreetMap`), a credit carried under an identifier that names none of the
+  three needles (MapRoute's `let` can only be set by an initializer, which names it), and Swift outside apps/ios.
+  FOR THE ORCHESTRATOR: P-ATTR-01's statement in pins/PINS.yaml (widening "the basemap credit" to the drawn route's
+  data credit) is filed on T-0238; the pill's wrap between "©" and "OpenStreetMap" is deferred to T-0237 (the
+  map-first redesign re-shoots the screen). check-drive-copy is not touched this round; its --prove-red is not re-run.

@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# P-ATTR-01 limb (g): THE DRAWN LINE'S CREDIT, AS A WHITELIST OF WHOLE LINES. Sourced by
+# ops/lib/check-map-attribution beside -lib, which is at CLAUDE.md's 300-line cap; this file has one role, this
+# limb: the approved lines, the reader that enumerates the population, the refusal and the verdict line.
+#
+# Limb (d) reads both ENDS of the route credit - the footer's `routeData: <r>?.dataCredit` and the map's
+# `route: <r>` - and never the VALUE <r> carries. rv2-t0236 (B1-r2) set that value to the demo credit inside
+# MapRoute.bundled (M4a) and to the geometry resource's NAME inside DriveRoute.resolve (M4b), and every limb
+# stayed green. The population here is every code line (// stripped, trailing CR stripped) of every .swift file
+# under the app tree that names `dataCredit`, `routeGeometryCredit` - the Handoff field DriveRoute binds the
+# credit from - or the WORD `credit`, that binding, so a re-binding or a shadow of it in any file is counted
+# too. Each is compared TRIMMED and WHOLE, with its file, against the lines typed below, in scan order (paths
+# LC_ALL=C sorted, lines in file order). A new site, a missing one and a changed one are refused by name; a
+# prefix or a substring match is never enough (the mutant pass's A2/A3 lesson, the same as limb (b)).
+#
+# Typed, not derived: raised deliberately, in the same commit as the Swift, the day the credit's path grows a
+# line. `$0` below is Swift's closure argument, escaped so bash does not expand it.
+CREDIT_SITES=(
+  "Packages/ScenicApp/Sources/FeatureScenicHome/DriveRoute.swift: guard let name = drive.routeGeometryResource, let credit = drive.routeGeometryCredit else {"
+  "Packages/ScenicApp/Sources/FeatureScenicHome/DriveRoute.swift: dataCredit: credit,"
+  "Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift: AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))"
+  "Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift: public let dataCredit: String"
+  "Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift: public init?(geoJSON: Data, dataCredit: String, lineColor: Color, casingColor: Color) {"
+  "Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift: box.allSatisfy({ \$0.isFinite }), !dataCredit.isEmpty else {"
+  "Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift: self.dataCredit = dataCredit"
+  "Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift: dataCredit: String,"
+  "Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift: return MapRoute(geoJSON: data, dataCredit: dataCredit, lineColor: lineColor, casingColor: casingColor)"
+)
+
+# The population, one "<line number>\t<path under the tree>: <trimmed code>" per line, in scan order. The key
+# compared is what follows the tab, so a line moving inside its file is not a finding and a line changing is.
+credit_site_lines() {
+  awk -v root="$APP_TREE/" '
+    {
+      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      if (index(code, "dataCredit") == 0 && index(code, "routeGeometryCredit") == 0 &&
+          code !~ /(^|[^A-Za-z0-9_])credit([^A-Za-z0-9_]|$)/) next
+      line = code; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      rel = FILENAME
+      if (index(FILENAME, root) == 1) rel = substr(FILENAME, length(root) + 1)
+      printf "%d\t%s: %s\n", FNR, rel, line
+    }
+  ' "$@"
+}
+
+# Sorted, one per line, and NOTHING for an empty list (a bare `printf '%s\n'` would hand comm one empty line).
+sorted_lines() { [[ $# -gt 0 ]] && printf '%s\n' "$@" | LC_ALL=C sort; }
+
+# (g). The population IS the approved list, in order, whole line for whole line. `fail` is the check's.
+require_credit_sites() {
+  [[ "${1:-}" == "--" ]] && shift
+  local raw=() found=() r
+  mapfile -t raw < <(credit_site_lines "$@")
+  for r in "${raw[@]}"; do found+=("${r#*$'\t'}"); done
+  CREDIT_SITES_FOUND="${#found[@]}"
+  [[ "${#found[@]}" -gt 0 && "$(printf '%s\n' "${found[@]}")" == "$(printf '%s\n' "${CREDIT_SITES[@]}")" ]] && return 0
+  local unapproved=() unmatched=()
+  mapfile -t unapproved < <(LC_ALL=C comm -23 <(sorted_lines "${found[@]}") <(sorted_lines "${CREDIT_SITES[@]}"))
+  mapfile -t unmatched < <(LC_ALL=C comm -13 <(sorted_lines "${found[@]}") <(sorted_lines "${CREDIT_SITES[@]}"))
+  local shown=() u
+  for u in "${unapproved[@]}"; do shown+=("  unapproved: $u"); done
+  for u in "${unmatched[@]}"; do shown+=("  approved, not found: $u"); done
+  [[ "${#shown[@]}" -gt 0 ]] || shown+=("  the same lines in a different order - the approved list is in scan order")
+  fail "a credit site outside its approved whole lines: ${#found[@]} line(s) under $APP_TREE name the route's" \
+    "data credit, ${#CREDIT_SITES[@]} approved; ${#unapproved[@]} unapproved, ${#unmatched[@]} approved line(s) not found." \
+    "${shown[@]}" \
+    "The population is every line naming dataCredit, routeGeometryCredit or the word credit, // stripped, and" \
+    "each is compared TRIMMED and WHOLE with its file. Limb (d) guards the credit's two ENDS - the footer reads" \
+    "<route>?.dataCredit and the map draws <route> - so the VALUE between them is guarded here: the drive's" \
+    "routeGeometryCredit, bound in DriveRoute.resolve and forwarded unchanged by MapRoute.bundled. rv2-t0236" \
+    "set it to the demo credit in MapRoute.bundled (M4a) and to the resource name in DriveRoute (M4b), and" \
+    "every other limb stayed green while the footer credited the wrong party for the line on the map."
+}
+
+print_credit_sites_verdict() {
+  echo "P-ATTR-01 (g): every line under $APP_TREE naming dataCredit, routeGeometryCredit or the word credit"
+  echo "  ($CREDIT_SITES_FOUND, // stripped) is one of the ${#CREDIT_SITES[@]} approved whole lines, in order: the drive's"
+  echo "  routeGeometryCredit bound in DriveRoute.resolve, forwarded unchanged by MapRoute.bundled, read by the footer."
+  echo "  Not checked here: the VALUE of routeGeometryCredit (Sources/Handoff, the Linux tests own it)."
+}

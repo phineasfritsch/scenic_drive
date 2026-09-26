@@ -3,7 +3,7 @@
 # MapStyle.attributionText returns, the demo arm returns the demo credit verbatim, nothing outside MapAdapter
 # names a protomaps case, the LA basemap is mounted, the footer is handed the SAME resolved style the map is
 # mounted with, and that footer is not hidden from accessibility. A source check on a box with no Apple
-# toolchain (ruling R2), which decides six things and refuses to pretend it decides more:
+# toolchain (ruling R2), which decides seven things and refuses to pretend it decides more:
 #   (a) THE ARM, not a count. Inside `public var attributionText: String`, the first line carrying code
 #       after `case .protomapsLALight, .protomapsLADark:` is exactly `return MapStyle.protomapsAttribution`,
 #       and the first after `case .maplibreDemoTiles:` is exactly `return MapStyle.demoAttribution`.
@@ -44,6 +44,11 @@
 #       `MapView(styleURL: style.url, ...)` in a SECOND file under FeatureScenicHome with no footer and
 #       every limb above stayed green, because (d) counted `styleURL:` inside the mount screen alone: the
 #       clause "every map surface carries the credit" was being asserted over one screen.
+#   (g) THE DRAWN LINE'S CREDIT, as a WHITELIST OF WHOLE LINES (ops/lib/check-map-attribution-sites). Every
+#       line under apps/ios naming `dataCredit`, `routeGeometryCredit` or the word `credit` is one of the typed
+#       approved lines, compared TRIMMED and WHOLE with its file. (d) reads the credit's two ENDS; rv2-t0236 set
+#       the VALUE between them to the demo credit in MapRoute.bundled (M4a) and to the resource name in
+#       DriveRoute.resolve (M4b), and (a)-(f) stayed green.
 #
 # WHAT IT CANNOT SEE: whether the footer RENDERS, at which sheet detents, whether something is drawn over
 # it, contrast, Dynamic Type, or whether the tiles on screen are the ones the credit names - an XCUITest in
@@ -62,11 +67,14 @@ set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 LIB="ops/lib/check-map-attribution-lib"
-if [[ ! -f "$LIB" ]]; then
-  echo "P-ATTR-01: $LIB is missing; the check cannot read Swift source without its readers."
-  exit 1
-fi
-. "$LIB"
+SITES="ops/lib/check-map-attribution-sites"
+for L in "$LIB" "$SITES"; do
+  if [[ ! -f "$L" ]]; then
+    echo "P-ATTR-01: $L is missing; the check cannot read Swift source without its readers."
+    exit 1
+  fi
+  . "$L"
+done
 
 DEFAULT_APP_TREE="apps/ios"
 ADAPTER_REL="Packages/ScenicApp/Sources/MapAdapter"
@@ -255,7 +263,11 @@ run_check() {
   # ------------------------------------------------------------------ (f) EVERY MAP SURFACE
   require_map_mounts "$APP_TREE/$MAPVIEW_REL" "$MAPVIEW_REL" "$SURFACE_SET" -- "${files[@]}"
 
+  # ------------------------------------------------------------------ (g) THE DRAWN LINE'S CREDIT, whole lines
+  require_credit_sites -- "${files[@]}"
+
   print_verdict "$an" "$pline" "$dline" "$FOOTER_ARG" "$recv" "$FOOTER_ROUTE"
+  print_credit_sites_verdict
 }
 
 MUTATIONS="ops/lib/check-map-attribution-mutations"
