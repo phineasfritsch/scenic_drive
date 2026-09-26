@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import Handoff
 import ScenicKit
 @testable import ScenicPlanCLI
 
@@ -240,6 +241,33 @@ struct MenuCLITests {
                 }
                 #expect(along.count >= 2, "\(trip.0) row \(index): \(along.count) waypoints")
                 #expect(zip(along, along.dropFirst()).allSatisfy { $0 < $1 }, "\(trip.0) row \(index): \(along)")
+            }
+        }
+    }
+
+    /// rv3-A: a URL built on all but the last decision point printed `waypoints=9` over 8 pins and passed every
+    /// test above. This closes the class instead of one property a round: each printed URL must EQUAL the
+    /// committed builder over the committed pins, both computed here from the recorded row, and its
+    /// `waypoints=` must count the `waypoint` pins that URL carries.
+    @Test("every row prints exactly AppleMapsDirections over its own decision points, and waypoints= counts its pins")
+    func everyURLIsItsRowsHandoff() throws {
+        for trip in Self.trips {
+            let arguments = try Self.arguments(trip)
+            let rows = try MenuCommand.menu(arguments).rows
+            let urls = try MenuCommand.run(arguments).filter { $0.hasPrefix("URL ") }
+            let origin = try #require(Self.coordinate(trip.1)), destination = try #require(Self.coordinate(trip.2))
+            #expect(urls.count == rows.count && rows.count >= 3, "\(trip.0)")
+            for (index, line) in zip(rows.indices, urls) {
+                let pins = PlanWaypoints.decisionPoints(table: rows[index].table, path: rows[index].path)
+                let expected = try AppleMapsDirections(source: origin, destination: destination,
+                                                       waypoints: pins).url()
+                let fields = line.split(separator: " ").map(String.init)
+                let carried = (URLComponents(string: fields.last ?? "")?.queryItems ?? [])
+                    .filter { $0.name == "waypoint" }
+                #expect(fields.count == 4 && fields[0] == "URL" && fields[1] == "\(index)", "\(line)")
+                #expect(fields.last == expected.absoluteString, "\(trip.0) row \(index): \(line)")
+                #expect(fields.count == 4 && fields[2] == "waypoints=\(carried.count)",
+                        "\(trip.0) row \(index): \(carried.count) pins in \(line)")
             }
         }
     }

@@ -72,6 +72,8 @@ PINS = "PlanWaypoints.decisionPoints(table: row.table, path: row.path)"
 ENDS = "AppleMapsDirections(source: arguments.origin, destination: arguments.destination,"
 ORDER = "waypoints: waypoints).url()"
 IN_ORDER = "every row's URL runs from the trip's origin to its destination, its waypoints in route order"
+EXACT_URL = ("every row prints exactly AppleMapsDirections over its own decision points, and waypoints= "
+             "counts its pins")
 
 MUTATIONS = [
     # 1. The rule inverted - the red-first arm of acceptance 2: T1 [0.0, 7.1], T4 [0.0, 9.1, 10.5].
@@ -127,7 +129,7 @@ MUTATIONS = [
      'guard !field("from").isEmpty, !field("to").isEmpty else {', [OTHER_TRIP]),
     # 23. rv1 B1: every row handed off on the FASTEST route's pins - 13 of 13 tests passed on it.
     ("the URLs built from row 0's route", CMD, PINS,
-     "PlanWaypoints.decisionPoints(table: menu.rows[0].table, path: menu.rows[0].path)", [OWN_URL]),
+     "PlanWaypoints.decisionPoints(table: menu.rows[0].table, path: menu.rows[0].path)", [OWN_URL, EXACT_URL]),
     # 24-26. rv1 B2: the algorithm half of M3's header check, whole and each side alone.
     ("the recording's algorithm not read", READER, IDENTITY,
      "guard said == expected, alternatives || !alternatives else {", [ALGORITHM]),
@@ -142,8 +144,14 @@ MUTATIONS = [
      "milliseconds <= 6_000 ? 0 : (milliseconds + 5_999) / 6_000", [FIRST_TENTH]),
     # 28-29. rv2 M2 and M3: the URL's ends swapped and its pins reversed - the 16 menu tests before rv2 passed on each.
     ("the row URL's source and destination swapped", CMD, ENDS,
-     "AppleMapsDirections(source: arguments.destination, destination: arguments.origin,", [IN_ORDER]),
-    ("the row URL's waypoints reversed", CMD, ORDER, "waypoints: waypoints.reversed()).url()", [IN_ORDER]),
+     "AppleMapsDirections(source: arguments.destination, destination: arguments.origin,",
+     [IN_ORDER, EXACT_URL]),
+    ("the row URL's waypoints reversed", CMD, ORDER, "waypoints: waypoints.reversed()).url()",
+     [IN_ORDER, EXACT_URL]),
+    # 30. rv3-A: the last decision point dropped - every row printed waypoints=9 over 8 pins, and every menu
+    # test before rv3 passed on it.
+    ("the row URL's last waypoint dropped", CMD, ORDER, "waypoints: Array(waypoints.dropLast())).url()",
+     [EXACT_URL]),
 ]
 
 # `(name, path, old, new, witness)`: anything but MISSED fails the run.
@@ -164,6 +172,6 @@ EQUIVALENT = [
 ]
 
 # Literal floors: the real counts. Adding a mutation means editing this number in the same diff.
-MIN_MUTATIONS = 29
+MIN_MUTATIONS = 30
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 2
