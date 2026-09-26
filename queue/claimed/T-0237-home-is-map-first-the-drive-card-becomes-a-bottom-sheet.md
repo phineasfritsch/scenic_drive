@@ -256,3 +256,34 @@ anyone sees, so its words are unhurried and few. No thrill words.
   touched, so no ios-compile or screenshot this round. check-drive-copy untouched: its --prove-red not re-run.
   OPEN: pins/PINS.yaml P-SAFE-03 prose still says `thirteen mutations` (outside touches). NEXT, the last step:
   `git fetch origin` + merge origin/main, the gates re-run bare on the merged head, then the push.
+- 2026-09-26T10:19:21Z agent/claude-opus-5 (owner) RULING on rv2-t0237 (round 2 FAIL, PR #133) BEFORE code. All three
+  BLOCKING findings are P-SAFE-03 / P-ATTR-01 failing OPEN, confirmed by reading 822069c: B1 (HomeSheet.swift,
+  `summary()` moved under `if detent == .medium {`) - check-safety-disclaimer reads sheetSummary's block and the
+  mount line, never HomeSheet's body; B2 (`.opacity(sheetDetent == .collapsed ? 0 : 1)` after
+  `.accessibilityHidden(false)` in `private var conditions`) - (s2) freezes sheetSummary, not the view it names;
+  B3 (`.overlay(alignment: .bottom) { if sheetDetent == .collapsed { DesignTokens.bg.frame(height: 400) } }` after
+  the ZStack's `.background(DesignTokens.bg)`) - limb (h)'s approved block ENDS at that line. R-rv2-1 (the
+  orchestrator's direction, adopted): stop chasing spellings. The render blocks are FROZEN as whole-line
+  whitelists in ONE new reader, ops/lib/check-safety-disclaimer-frozen (named under a `touches:` prefix; 100755
+  like its siblings), sourced by BOTH checks - an overlay over the sheet hides the conditions line (P-SAFE-03) as
+  well as the credit (P-ATTR-01), so each pin runs every block. Each block is read from its declaration (a whole
+  line occurring exactly once) to its matching close by counting { and } on whole lines, no string state (a brace
+  in a literal or a trailing comment is a changed line and refused anyway), and compared line by line with the
+  approved list typed into the reader; only lines whose trimmed text starts with // are dropped. R-rv2-2 (the
+  blocks, each a SUPERSET of what the direction names, ruled here so nobody reads it as scope creep): (1) the whole
+  `struct HomeSheet<Summary: View, Details: View>: View {` - `grabber` and the drag are drawn inside `var body`,
+  and a frame on the grabber pushes the summary off screen as surely as B1; (2) `private var conditions`; (3) the
+  whole `public var body` of ScenicHomeScreen - it opens with the ZStack and closes after the modifier chain
+  (.background, .task, .onChange x2, the one .sheet), so declaration-to-close is exactly the direction's range plus
+  two braces; plus `private var chips` and `private var sheetDetails` (siblings in the same stacks: a fixed height
+  on either pushes the credit/sheet stack off screen) and the app shell's `struct ScenicDriveApp: App {` (a cover
+  on `ScenicHomeScreen()` there hides everything). sheetSummary stays frozen by (s2). R-rv2-3 (ordering): `fail`
+  exits, so the freeze runs LAST in each check - after (v) in check-safety-disclaimer (rows 12-13 edit the body
+  and must keep their own names) and at the end of limb (h) in check-map-attribution - and rows 1-16 / 1-34 keep
+  their reasons. check-safety-disclaimer is at 300 lines: its call costs one line, paid by tightening its CANNOT
+  SEE header. R-rv2-4 (rows): check-safety-disclaimer --prove-red gains rv2's B1, B2 and B3 (B3's cover hides the
+  conditions line too), 16 -> 19; check-map-attribution --prove-red gains B3 and an `.offset(y: -60)` on
+  HomeSheet's ground (the blind spot its -sheet header named), 34 -> 36. Each is shown UNREFUSED on 822069c's checks
+  and refused by name after. R-rv2-5 (the runtime half): visible, hittable and not covered at BOTH detents is not
+  a source property; it is filed on T-0180 (main 558e154, the both-detents runtime clause), and every CANNOT SEE
+  header touched says so. NO SWIFT CHANGE: the screen is right; the defects are in the gates.
