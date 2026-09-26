@@ -175,3 +175,20 @@ Owner-facing preview of the probe's menus: .artifacts/preview/route-menu.html (g
     - rv1 B1 `the URLs built from row 0's route`: exit=1, `Test run with 18 tests in 2 suites failed after 11.311 seconds with 10 issues.` The new test has 4 issues, one on each non-fastest row of each trip (row 0's pins are its own). The route-order test has 3 and the own-route test 3.
   - GREEN on the shipping code: exit=0, `Test run with 18 tests in 2 suites passed after 9.839 seconds.`
   Measured: MenuCLITests.swift 274 (was 246), menu_mutations.py 177 (was 169).
+- 2026-09-26T17:43:31Z ROUND 3 CLOSED (agent/claude-opus-5; fix c51ba7f, merged head 2357fce with origin/main 74b5f4f). The red and green runs by name are in the ROUND 3 RULING entry above: rv3-A, rv2 M2, rv2 M3 and rv1 B1 each fail `every row prints exactly AppleMapsDirections over its own decision points, and waypoints= counts its pins`, and the shipping code passes 18 of 18. This merge brought T-0244's work, which touches Sources/ (LambdaCustomModel.swift, and GraphHopperRouteSource.swift in ScenicPlanCLI, the menu's own target) and Tests/ (PlanCLIRequestBodyTests.swift in ScenicPlanCLITests, among others). So the population and the vacuity proof were run ONCE on the merged head 2357fce, not on c51ba7f.
+  - Population on 2357fce. `python ops/mutate/menu.py` exit=0: `caught by the test that names it: 30 of 30   (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)` / `MUTATE OK  caught=30/30 equivalent_caught=0`. The four URL entries:
+    - 30 `the row URL's last waypoint dropped` (rv3-A) is `caught` by the new test alone;
+    - 23 `the URLs built from row 0's route`, 28 `the row URL's source and destination swapped` and 29 `the row URL's waypoints reversed` are each `caught`, and each killer list includes the new test.
+    Both EQUIVALENT entries report `MISSED ... exit=0  no test objected`.
+  - `python ops/mutate/menu.py --prove-vacuity` exit=0: `caught by the test that names it: 0 of 30   (wrong killer 0, trapped 0, compile-only 0, MISSED 30, skipped 0)` / `VACUITY PROOF OK: with the 2 test file(s) emptied, caught=0 (need 0) and MISSED=30 of 30`. The new test is in MenuCLITests.swift, one of the 2 files emptied, so entry 30's catch depends on it.
+  GATES, bare, on the merged head 2357fce:
+    - `swift test --scratch-path .build/T0239` exit=0: `Test run with 364 tests in 51 suites passed after 12.786 seconds.`
+    - `python ops/lib/check-mutate-population.py` exit=0: `P-PROC-06: every added module is covered or allowlisted; the floor of 41 holds`.
+    - `bash ops/lib/check-line-cap` exit=0: `P-SRC-02: 129 Swift files tracked (Sources=50, Tests=55, apps/ios=24), none over 300 lines`.
+    - `bash ops/lib/check-exec-bits` exit=0: `P-OPS-01: 103 files, 23 required present, all modes correct`.
+    - `bash ops/queue-check` exit=0: `QUEUE OK (237 tasks)`.
+    - `bash ops/check-pins --source-only` exit=0: `PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only`.
+    - `bash ops/plan --menu 34.0944,-118.6013 34.0365,-118.687 --max 20 --recorded Tests/Fixtures/t0239/topanga-malibu` exit=0: `MENU fastest=17m56s cap=+20.0min candidates=25 distinct=6 rows=3`. The rows are +0.0, +12.2 and +17.1 min, and each URL prints `waypoints=9` over 9 `waypoint=` pins.
+    - `bash ops/plan --menu 34.017,-118.823 34.144,-118.76 --max 20 --recorded Tests/Fixtures/t0239/zuma-agoura` exit=0: `MENU fastest=18m19s cap=+20.0min candidates=25 distinct=6 rows=3`. The rows are +0.0, +5.5 and +16.6 min; ROW 2's roads include Latigo Canyon Road. Each URL prints `waypoints=9` over 9 pins.
+    - The default T1 run (no `--max`) still prints `candidates=25 distinct=6 rows=3`.
+  Measured: MenuCLITests.swift 274, menu_mutations.py 177. Unchanged since the last entry: RecordedAlternatives.swift 102, RouteMenuTests.swift 101, RouteMenu.swift 96, MenuRow.swift 87, MenuArguments.swift 72, MenuCommand.swift 35, menu.py 175, menu_run.py 112.
