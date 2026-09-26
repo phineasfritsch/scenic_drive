@@ -361,3 +361,35 @@ anyone sees, so its words are unhurried and few. No thrill words.
   required present, all modes correct`); queue-check EXIT 0 (`QUEUE OK (237 tasks)`); `ops/check-pins --source-only`
   EXIT 0 (PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only). check-drive-copy untouched: its --prove-red not re-run. NO SWIFT CHANGE. OPEN, carried: pins/PINS.yaml
   P-SAFE-03 prose (outside touches); the runtime half is T-0180's; a shadow outside the pinned set is T-0243's.
+- 2026-09-26T15:35:34Z agent/claude-opus-5 (owner) RULING on rv4-t0237 (round 4 FAIL, PR #133) BEFORE code. BLOCKING
+  ACCEPTED as filed: -pinned listed the set with `find . -iname '*.swift' ! -type d`, which neither lists nor enters a
+  link, and the name filter ran BEFORE the whitelist, so a directory link inside FeatureScenicHome/ holding a
+  Shadow.swift was invisible while SwiftPM compiles it. MEASURED on this box before code (a throwaway tree under
+  mktemp: A.swift plus a junction `Linked` made by `MSYS_NO_PATHCONV=1 cmd /c mklink /J`, holding Shadow.swift): the
+  old find printed `./A.swift` only; `find . -mindepth 1` printed `./A.swift` and `./Linked`; `find . -mindepth 1 !
+  -type f` printed `./Linked`; `[[ -L Linked ]]` true; `Linked/Shadow.swift` readable - git-bash sees a junction as a
+  symlink and find does not follow it, exactly as filed. RULINGS. R-rv4-1 (the reviewer's fix, adopted): the set is
+  `find . -mindepth 1` with NO name filter - every entry at any depth, any extension, any kind - and it must equal
+  exactly the 13 approved names; an entry outside them is refused by name (`added <name>`), a file, a directory or a
+  link alike. R-rv4-2: every entry must be a regular file - `find . -mindepth 1 ! -type f` must print nothing; a link
+  (even one NAMED like an approved file), a directory or any other entry is refused by name (`not a regular file
+  <name>`). R-rv4-3: the git index - `git -C DIR ls-files -s -- .` - holds no entry of mode 120000 under the feature
+  directory; one is refused by name (`committed as a symlink <path>`), so a committed symlink that checks out as a
+  plain file on this box (core.symlinks false) is refused too. DISAGREEMENT RULED: the tables' throwaway copies live
+  under mktemp, outside any git work tree, so the index limb has no index there. It does NOT skip (a skip is a limb
+  that fails open): DIR outside a git work tree, or `git ls-files` failing, is REFUSED (`not inside a git work
+  tree`); both tables `git init -q` each copy, so every row runs the limb over an empty index, and the index row
+  writes its 120000 entry with `git update-index --add --cacheinfo`. Every real invocation - the worktree, the main
+  checkout, CI's checkout - is inside one. CONSEQUENCE, recorded: an untracked stray file in FeatureScenicHome/
+  (`.DS_Store`, an editor swap file) is now refused by name; the remedy is to delete it, never to approve it.
+  R-rv4-4 (rows, both tables, all via -pinned): a directory LINK holding Shadow.swift (row kind `@`: the target is made
+  outside the copy, the link picked by platform - `cmd /c mklink /J` with MSYS_NO_PATHCONV=1 on MINGW/MSYS/CYGWIN,
+  `ln -s` elsewhere - and the row refuses to run unless the link exists and Shadow.swift is readable through it); a
+  plain non-Swift file `notes.txt` (the `+` kind); an empty subdirectory `Extras` (the `+` kind, a trailing `/`
+  meaning mkdir); and an index entry of mode 120000 (row kind `=`). The first three are to be seen RED against
+  a75d029's -pinned (the check exits 0 on each - UNREFUSED) and GREEN after; the index row has no a75d029 limb to
+  pass, so it is shown red there too and green after. Tables: check-safety-disclaimer-mutations 25 -> 29,
+  check-map-attribution-mutations 41 -> 45. NOT CHANGED, by instruction (both files are AT 300 lines):
+  check-safety-disclaimer's usage comment still says `twenty-five mutations`; a stale prose count in a comment, no
+  check reads it. WHAT THIS STILL CANNOT SEE is -pinned's header list, unchanged: rendering, a shadow outside the
+  pinned set, a SwiftPM or Xcode setting that adds sources from elsewhere.
