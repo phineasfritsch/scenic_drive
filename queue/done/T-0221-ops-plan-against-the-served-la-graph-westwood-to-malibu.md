@@ -1,7 +1,7 @@
 ---
 id: T-0221
 title: ops/plan against the served LA graph: Westwood -> Malibu (T-0209's first named pair) - the URL and the per-edge table quoted in the Log, the owner drives it (plan:284's exit)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-26T15:21:08Z
@@ -11,7 +11,7 @@ branch: task/T-0221
 exclusive: []
 touches: [ops/plan, ops/lib/, Tests/Fixtures/t0221/, Tests/ScenicPlanCLITests/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-t0221
 depends_on: [T-0182, T-0209, T-0244]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -299,3 +299,36 @@ drive the owner takes. Order: T-0208 -> T-0209 -> this.
      none is added.
   NOT CLAIMED: nobody has driven these routes yet; the ETAs are GraphHopper's estimates with no traffic data; the
   drive itself (plan:284's exit) is the owner's.
+- 2026-09-26T18:07:53Z REVIEW PASS by agent/rv1-t0221 (reviewer; owner agent/claude-opus-5) of PR #135 at a165bb08d94c.
+  NOT re-recorded (no container run): every check below reads the committed fixtures and the replay of them.
+  REPLAYS (worktree .worktrees/rv1-t0221, `SCENIC_PLAN_SCRATCH=.build/rv1 bash ops/plan <O> <D> 25 --recorded
+  Tests/Fixtures/t0221/<pair>`, exit 0 x3): stdout sha256 f8f1a5c1e726d668 / 1a6d816d375506b4 / fe48c0e125717b27,
+  byte-identical to the main checkout's plan-<pair>.txt; every ROUTER, PLAN, LAMBDA, ETA, OVERLAP, WAYPOINTS and
+  URL line the Log quotes occurs in the replay verbatim (Woodland Hills' and Topanga's ROUTER/PLAN lines are not
+  quoted, not wrong); the first and last table rows quoted in STAGE C equal the replay's; 9 waypoints each.
+  P-SAFE-04 over the fixtures' raw paths[0].time: westwood-malibu 1904.238 <= 1667.261 + 1500 = 3167.261 s;
+  westwood-woodland-hills 2305.902 <= 2708.634 s; santa-monica-topanga 1346.010 <= 2713.650 s; each printed
+  ceiling equals fastest + 25m00s.
+  LONGEST RESIDENTIAL/LIVING_STREET/SERVICE RUN, recomputed twice - from the replay's table rows, and independently
+  from each chosen fixture's geometry (haversine) with its road_class and osm_way_id details: westwood-malibu
+  none and westwood-woodland-hills none (no such edge on either route); santa-monica-topanga 174.9 m on way
+  723963657 score 0, then 48.8 m on 819770629/819770631/819770628 and 19.0 m on 384819177 score 2. All < 800 m:
+  no rat-run against T-0209 V3's threshold.
+  GRAPH_DIGEST over the copy services/routing/work/t0221/graph-la (read only, R2's definition) = eb43090a0de52432
+  756d5b6f98a0dad0f568838f8272ff339042344e920d18eb, its eight per-file lines equal STAGE A's; every fixture's
+  recorded.graph_digest equals it; every fixture's paths[0].time equals its STAGE B ROUTE line.
+  MUTANTS on PlanCLILARecordingTests (each applied, run with --filter, restored; `git status --short` empty after):
+      MA the URL built from the FASTEST route's points (ScenicPlanner's waypoints) -> RED, 3 issues (line 146, x3)
+      MB the budget read as 26 min (PlanArguments.budget) -> RED, 6 issues (lines 127 and 129)
+      MC ScenicPlanner's own ceiling + 60 s -> GREEN on this suite, and equivalent on these recordings: no visited
+         candidate lies in (fastest + 1500, fastest + 1560] (westwood-malibu's over-ceiling routes are 3578.870 s
+         against 3227.261 s; the other two peak at 2305.902 s and 1346.010 s). RED in the whole suite
+         (ScenicPlannerMetaTests.swift:106 and :153), so the general ceiling is guarded, as STAGE D says.
+  GATES, bare: swift test --scratch-path .build/rv1 -> `Test run with 348 tests in 50 suites passed`;
+  ops/lib/check-line-cap exit 0 (123 Swift files, none over 300); ops/queue-check `QUEUE OK (237 tasks)`;
+  ops/check-pins --source-only exit 0 on its first run, `PINS ok=15 skipped=16 pending=1 expired=0 failed=0`;
+  gh pr checks 135: core pass, pins-source-only pass; origin/main 74b5f4f is an ancestor of the head.
+  RECORDED, NOT BLOCKING: (1) the acceptance's "per-edge table ... quoted in the Log" is met by the summary lines
+  and the first and last rows; the full tables are in gitignored files, and the replay above reproduces them
+  byte for byte from the committed fixtures. (2) STAGE B's count lines were quoted after a session restart, from
+  the unedited log, as that entry says. (3) Nobody has driven the routes yet, and the ETAs have no traffic data.
