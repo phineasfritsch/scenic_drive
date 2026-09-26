@@ -91,18 +91,25 @@ export interface CustomModelAreas {
 }
 
 export interface CustomModel {
+  /** T-0244 (b): 0, so at lambda 0 the weight is the route's seconds and T(lambda) is non-decreasing. */
+  distance_influence: number;
   priority: CustomModelClause[];
   areas?: CustomModelAreas;
 }
 
-/** The three scenic_score bands of plan :105-107, as numbers. */
-export interface ScenicBandMultipliers {
-  /** scenic_score >= 7 */
-  high: number;
-  /** scenic_score >= 4 */
-  mid: number;
-  /** everything else, motorway included - penalised, never excluded */
-  low: number;
+/** plan :105's high band: a road scored at or above this is never penalised. T-0244 (a): a minor edge scored
+ * below it (a rat-run candidate) costs 1 + MINOR_SLOPE * lambda against 1 + lambda for the dullest arterial -
+ * the FIRST branch of the chain, so it replaces the band and 1/p stays linear in lambda. T-0244 (c): one band
+ * per integer score below it, slope (HIGH_BAND - s) / HIGH_BAND (score 0, motorway included: penalised, never
+ * excluded). */
+export const HIGH_BAND = 7;
+export const MINOR_SLOPE = 2;
+export const MINOR_CONDITION =
+  "(road_class == RESIDENTIAL || road_class == LIVING_STREET || road_class == SERVICE) && scenic_score < 7";
+export const BAND_LADDER = [6, 5, 4, 3, 2, 1, 0] as const;
+
+export function bandSlope(score: number): number {
+  return score >= HIGH_BAND ? 0 : (HIGH_BAND - score) / HIGH_BAND;
 }
 
 function assertLambda(lambda: number): void {
@@ -117,13 +124,10 @@ function assertLambda(lambda: number): void {
   }
 }
 
-/**
- * plan :105-107. lambda = 0 leaves every band at 1, which is what makes lambda = 0 the fastest route and
- * the bisection's lower bracket. Rising lambda only ever pushes a band down.
- */
-export function scenicBandMultipliers(lambda: number): ScenicBandMultipliers {
+/** 1 / (1 + slope * lambda): every band is 1 at lambda 0 (the fastest route, the bisection's lower bracket). */
+export function bandMultiplier(slope: number, lambda: number): number {
   assertLambda(lambda);
-  return { high: 1, mid: 1 / (1 + 0.5 * lambda), low: 1 / (1 + lambda) };
+  return 1 / (1 + slope * lambda);
 }
 
 /** GraphHopper wants multiply_by as a string. Trailing zeros are dropped so 1 stays "1" (plan :105). */
@@ -216,23 +220,23 @@ function closureGeometry(feature: ClosurePolygon | undefined, index: number): Cl
  * refused by name (`closure_ring_not_closed`, `closure_position_not_numeric`), never silently repaired.
  */
 export function buildCustomModel(lambda: number, closures: ClosureCollection | null): CustomModel {
-  const bands = scenicBandMultipliers(lambda);
+  assertLambda(lambda);
   const geometries = closureGeometries(closures);
 
   const priority: CustomModelClause[] = [
-    { if: "scenic_score >= 7", multiply_by: formatMultiplier(bands.high) },
-    { else_if: "scenic_score >= 4", multiply_by: formatMultiplier(bands.mid) },
-    { else: "", multiply_by: formatMultiplier(bands.low) },
-    // anti rat-run, plan :108
-    { if: "road_class == RESIDENTIAL && scenic_score < 7", multiply_by: "0.5" },
+    { if: MINOR_CONDITION, multiply_by: formatMultiplier(bandMultiplier(MINOR_SLOPE, lambda)) }, // plan :108
+    ...[HIGH_BAND, ...BAND_LADDER.filter((s) => s > 0)].map((s) => ({ else_if: `scenic_score >= ${s}`,
+      multiply_by: formatMultiplier(bandMultiplier(bandSlope(s), lambda)) })),
+    { else: "", multiply_by: formatMultiplier(bandMultiplier(bandSlope(0), lambda)) },
   ];
 
-  if (geometries.length === 0) return { priority };
+  if (geometries.length === 0) return { distance_influence: 0, priority };
 
   const ids = geometries.map((_, index) => `closure_${index + 1}`);
   priority.push({ if: ids.map((id) => `in_${id}`).join(" || "), multiply_by: "0" });
 
   return {
+    distance_influence: 0,
     priority,
     areas: {
       type: "FeatureCollection",

@@ -46,22 +46,26 @@ SUBJECT_MODULES = (
     "Sources/ScenicKit/Plan/RoutePath.swift",
     "Sources/ScenicKit/Plan/ScenicPlan.swift",
     "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+    "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
     "Sources/ScenicPlanCLI/PlanArguments.swift",
 )
 
 TEST_FILES = (
     "Tests/ScenicKitTests/ScenicPlannerMetaTests.swift",
     "Tests/ScenicKitTests/LambdaCustomModelParityTests.swift",
+    "Tests/ScenicKitTests/LambdaCustomModelRatRunTests.swift",
+    "Tests/ScenicKitTests/CustomModelChain.swift",
+    "Tests/ScenicKitTests/PlanCeilingOverLATests.swift",
     "Tests/HandoffTests/ScenicPlanGoldenTests.swift",
     "Tests/ScenicPlanCLITests/PlanCLIBudgetTests.swift",
     "Tests/ScenicPlanCLITests/PlanCLIRequestBodyTests.swift",
 )
 
 SUITES = ("ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenTests"
-          "|PlanCLIBudgetTests|PlanCLIRequestBodyTests")
+          "|PlanCLIBudgetTests|PlanCLIRequestBodyTests|LambdaCustomModelRatRunTests|PlanCeilingOverLATests")
 SCRATCH = os.environ.get("SCENIC_MUTATE_SCRATCH", ".build-mutate-plan")
 
-MIN_MUTATIONS = 10
+MIN_MUTATIONS = 31
 
 # name, module, old, new
 MUTATIONS = [
@@ -72,13 +76,48 @@ MUTATIONS = [
     ("difference/intersection-becomes-union", "Sources/ScenicKit/Plan/RouteDifference.swift",
      "return Double(a.intersection(b).count) / Double(union.count)",
      "return Double(a.union(b).count) / Double(union.count)"),
-    ("custom-model/mid-band-takes-the-low-band-curve", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
-     "return (1, 1 / (1 + 0.5 * lambda), 1 / (1 + lambda))",
-     "return (1, 1 / (1 + lambda), 1 / (1 + lambda))"),
+    # T-0244: the per-request model's three rulings - (a) the minor clause, (b) distance_influence 0, (c) the ladder.
+    ("custom-model/band-ignores-lambda", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     "return 1 / (1 + slope * lambda)", "return 1 / (1 + slope)"),
+    ("custom-model/minor-slope-no-steeper-than-the-dullest-band", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     "public static let minorSlope = 2.0", "public static let minorSlope = 1.0"),
+    ("custom-model/minor-clause-residential-only", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     '"(road_class == RESIDENTIAL || road_class == LIVING_STREET || road_class == SERVICE) && scenic_score < 7"',
+     '"road_class == RESIDENTIAL && scenic_score < 7"'),
+    ("custom-model/distance-influence-back-to-the-base", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     '"distance_influence": 0,', '"distance_influence": 30,'),
+    ("custom-model/ladder-collapses-to-two-bands", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     "public static let ladder = [6, 5, 4, 3, 2, 1, 0]", "public static let ladder = [4, 0]"),
+    ("custom-model/slope-steeper-by-one-step", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     "Double(highBand - score) / Double(highBand)", "Double(highBand - score) / Double(highBand - 1)"),
     ("custom-model/four-decimals-instead-of-six", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
      "public static let multiplierDecimals = 6", "public static let multiplierDecimals = 4"),
     ("custom-model/trailing-zeros-survive", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
      'while digits.hasSuffix("0") { digits.removeLast() }', "// trailing zeros kept"),
+    # T-0244 pre-review B1: the bytes scenic(from:to:lambda:) - the entry point ops/plan runs - puts on the wire.
+    ("cli/scenic-request-ignores-lambda", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "let model = try LambdaCustomModel.json(for: lambda)", "let model = try LambdaCustomModel.json(for: 8)"),
+    ("cli/scenic-request-changes-distance-influence", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "let model = try LambdaCustomModel.json(for: lambda)",
+     'let model = try LambdaCustomModel.json(for: lambda)'
+     '.replacingOccurrences(of: "\\"distance_influence\\": 0", with: "\\"distance_influence\\": 30")'),
+    # T-0244 round 1 B1 (P-SAFE-04): fastest(from:to:) is the baseline the budget is a ceiling over.
+    ("cli/fastest-request-uses-the-scenic-profile", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "profile: fastProfile, model: nil", "profile: scenicProfile, model: nil"),
+    ("cli/fastest-request-carries-a-custom-model", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "profile: fastProfile, model: nil", "profile: fastProfile, model: try LambdaCustomModel.json(for: 0)"),
+    # T-0244 round 2 B1-points (P-SAFE-04): the baseline and the scenic leg are the SAME trip, origin first.
+    ("cli/fastest-request-swaps-origin-and-destination", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "try send(body(origin, destination, profile: fastProfile, model: nil))",
+     "try send(body(destination, origin, profile: fastProfile, model: nil))"),
+    ("cli/scenic-request-swaps-origin-and-destination", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "let body = body(origin, destination, profile: scenicProfile, model: model)",
+     "let body = body(destination, origin, profile: scenicProfile, model: model)"),
+    # T-0244 pre-review B2 (mutant C): the recorded route's class set narrowed in the test's own derivation;
+    # the numeric scenic_score column and the measured 174.815 m run are the witnesses that must object.
+    ("oracle/rat-run-class-set-drops-service", "Tests/ScenicKitTests/LambdaCustomModelRatRunTests.swift",
+     '.components(separatedBy: "road_class == ").dropFirst()',
+     '.components(separatedBy: "road_class == ").dropFirst().dropLast()'),
     ("table/detail-runs-match-at-both-ends", "Sources/ScenicKit/Plan/PlanTable.swift",
      "for run in runs where run.from <= index && index < run.to { return run.value }",
      "for run in runs where run.from <= index && index <= run.to { return run.value }"),
