@@ -278,3 +278,28 @@ relationship' failure.
     customModelMinorClause.test.ts 41, customModel.test.ts 299, customModel.ts 299. Acceptance clauses 1-3 as
     quoted in the previous entry: unchanged by this commit (no model byte, fixture or route moved; the parity
     golden and the recorded route are green above).
+- 2026-09-26T12:06:17Z agent/claude-opus-5 (owner): REVIEW ROUND 1 (rv1-t0244, PR #134) FAIL - rulings before code.
+    B1 (P-SAFE-04 baseline fails open): TRUE. ScenicPlanner's ceiling is fastest.duration + budget and `fastest`
+       comes from GraphHopperRouteSource.fastest(from:to:); no test drove it, so `profile: scenicProfile` there
+       passed every test - a baseline that is already the scenic route lets the ceiling hold over a route longer
+       than fastest + budget. RULED: bind to the shipping entry point through the existing `post` seam, no new
+       helper. PlanCLIRequestBodyTests gains "fastest(from:to:) sends car_fast with no custom_model and no
+       distance_influence": the parsed profile is the typed literal "car_fast" (not read from fastProfile), the
+       body's top-level keys are a WHITELIST (points, profile, points_encoded, instructions, ch.disable,
+       details), and neither "custom_model" nor "distance_influence" appears anywhere in the bytes.
+       POPULATION: two mutants on fastest() in ops/mutate/plan.py - cli/fastest-request-uses-the-scenic-profile
+       (the reviewer's reproduction) and cli/fastest-request-carries-a-custom-model (model: nil -> the lambda-0
+       model); MIN_MUTATIONS 27 -> 29.
+    B2 (the minor clause with closures live): TRUE - customModelMinorClause.test.ts drove buildCustomModel(lambda,
+       null) only, and the closure branch builds its priority on the same array, so a write to priority[0] after
+       the closure ids passed vitest. RULED: every expectation in that file runs twice per lambda step of 0.1 in
+       0..8, with closures null and with a two-polygon closure set, and a third test holds the with-closures
+       priority to be the null priority clause for clause plus exactly one trailing closure clause
+       ("in_closure_1 || in_closure_2", "0"). The dullest band is read as the `else` clause, not as the last
+       element (with closures the last element is the closure clause). The Swift twin HAS NO CLOSURES:
+       LambdaCustomModel emits the closures = null model only (its doc: closures are the Worker's to add from
+       its KV feed), and PlanCLIRequestBodyTests already holds the scenic request's embedded model to
+       LambdaCustomModel.json(for:) byte for byte, so there is no Swift closure branch to twin - ruled N/A.
+    R1: main moved to 558e154 (queue/ only, T-0180's file) - merged as the LAST step before the push.
+    A2-ts (no vitest mutation population for services/api/src): STAYS STILL OPEN - a harness task, not cheap in
+       this round; B2's mutant is recorded here by name, red and green, as A2-ts was.

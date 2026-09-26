@@ -85,6 +85,28 @@ struct PlanCLIRequestBodyTests {
         }
     }
 
+    /// T-0244 round 1 B1 (P-SAFE-04): the ceiling is fastest.duration + budget, so the fastest request is the
+    /// baseline the budget is a ceiling OVER. A fastest() that asked for the scenic profile, or carried a
+    /// per-request model, would raise that baseline and let a route past fastest + budget through. Driven
+    /// through the transport seam: the typed-out fast profile, a whitelist of keys, and no model at all.
+    @Test("fastest(from:to:) sends car_fast with no custom_model and no distance_influence")
+    func theFastestRequestIsTheBareFastProfile() throws {
+        var source = Self.source
+        source.post = { body in throw PlanFailure.routerRefused(body) }
+        var sent: String?
+        do {
+            _ = try source.fastest(from: Self.origin, to: Self.destination)
+        } catch PlanFailure.routerRefused(let body) {
+            sent = body
+        }
+        let body = try #require(sent, "fastest() reached no transport")
+        let request = try #require(try JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
+        #expect(request["profile"] as? String == "car_fast")
+        #expect(Set(request.keys) == ["points", "profile", "points_encoded", "instructions", "ch.disable", "details"])
+        #expect(!body.contains("custom_model"))
+        #expect(!body.contains("distance_influence"))
+    }
+
     @Test("a body naming a safety gate is refused before any request is sent")
     func aBodyNamingASafetyGateIsRefusedBeforeSending() throws {
         let relaxed = """

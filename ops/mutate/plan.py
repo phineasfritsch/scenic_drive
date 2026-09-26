@@ -65,7 +65,7 @@ SUITES = ("ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenT
           "|PlanCLIBudgetTests|PlanCLIRequestBodyTests|LambdaCustomModelRatRunTests|PlanCeilingOverLATests")
 SCRATCH = os.environ.get("SCENIC_MUTATE_SCRATCH", ".build-mutate-plan")
 
-MIN_MUTATIONS = 27
+MIN_MUTATIONS = 29
 
 # name, module, old, new
 MUTATIONS = [
@@ -101,6 +101,11 @@ MUTATIONS = [
      "let model = try LambdaCustomModel.json(for: lambda)",
      'let model = try LambdaCustomModel.json(for: lambda)'
      '.replacingOccurrences(of: "\\"distance_influence\\": 0", with: "\\"distance_influence\\": 30")'),
+    # T-0244 round 1 B1 (P-SAFE-04): fastest(from:to:) is the baseline the budget is a ceiling over.
+    ("cli/fastest-request-uses-the-scenic-profile", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "profile: fastProfile, model: nil", "profile: scenicProfile, model: nil"),
+    ("cli/fastest-request-carries-a-custom-model", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "profile: fastProfile, model: nil", "profile: fastProfile, model: try LambdaCustomModel.json(for: 0)"),
     # T-0244 pre-review B2 (mutant C): the recorded route's class set narrowed in the test's own derivation;
     # the numeric scenic_score column and the measured 174.815 m run are the witnesses that must object.
     ("oracle/rat-run-class-set-drops-service", "Tests/ScenicKitTests/LambdaCustomModelRatRunTests.swift",
