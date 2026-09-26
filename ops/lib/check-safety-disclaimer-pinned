@@ -41,18 +41,19 @@ PINNED_FOOTER_REL="../DesignSystem/AttributionFooter.swift"
 # name digest - FeatureScenicHome's approved file set, in C sort order, and each file's approved content.
 PINNED_FEATURE=(
   'DriveBasemap.swift 2bd28e278bcff56eee61f86b2c4504cc0a8dabfe9497f421952da1b1bb8505be'
-  'DriveCopy.swift bdf20422dd0d42214f1838f8e54385c0a5653db3ca7249dd5ed4dda8a73b9b82'
-  'DriveDetails.swift 168c5d981faf34da3cafd8fc28bd29626b1c59a6d61d317075a6e818d05af1e0'
+  'DriveCopy.swift 3a35deca6bb63815dacb5975c0c7e5846774d74a5f08dbda8bad8449de09c08e'
+  'DriveDetails.swift 9bf22e384eff9fb8910de7e7263298e88394d3af298833b2c9bb325ca3990530'
+  'DriveMenuChips.swift d5f9c2015b1b9d7095d2c864f0b750cfa6ce1a16b2ddf1334a28ecc7ce0adf57'
   'DriveFacts.swift bdd9511bac9d73e4d3abc3fccacb68e7153bba2742155f4248558259f5ce1ae9'
-  'DriveRoute.swift 95601203fe2129a823affa1e11d10a23432f7a2b48a0a035e36420ddf8e74585'
+  'DriveRoute.swift 5a64c9b70b228ae194d6ceb67eb7bcabe016f33daaa253561378659bf0a94cd8'
   'DriveSelector.swift ce63eea4128a64116e5f8daff2692225e12efe297d8d1a80eb9ed614306ce21e'
-  'GatedHandoffButton.swift 29207c221720db734649f29bee827520f0df269818c8ae11398d6ffbde3c9bfd'
-  'HandoffFailureCard.swift 62ea118d014d3cab0fc4e82e66692d7f5cfc4389da98616040cc7ab82a3422b7'
+  'GatedHandoffButton.swift cdf4c35c3847d1a2df4eb5384838020ca42bf6bbc6f353ef3005710da66f252d'
+  'HandoffFailureCard.swift 94f62ec7d65e7c97b65c77bee5c128b63125b48f8998e0365b1aa73ccef4cb14'
   'HomeSheet.swift fda5e599a9c3b09203de6fc835e47cd3592cb91864518e9226d6e35204b9154e'
   'HomeSheetDetent.swift 8f6a8eeaec6829a1b415408db5ea34d787d657919fc0f363189eb34c0e39e63e'
   'SafetyDisclaimer.swift 7c33cdcf91aa074bf3916fda95c680e9e8d50ee131d5016f5912281a72384421'
-  'ScenicHomeScreen.swift a18df5c85969a766bb9c552794256f4cd23f96925485b6baa605bdce4025c9d6'
-  'SkylineHandoff.swift bbc94de1b8005446d4e10ae17ad1a7c7695b371a24e157d0d746a6d5521bb965'
+  'ScenicHomeScreen.swift d0f8489c638273a24bfa63ba76e332643c75b4dbf8be51f5f069b585a19322aa'
+  'SkylineHandoff.swift ecf0b3344c6ba799d44b295395af45f7654a9298146e3591098678563cac3d65'
 )
 PINNED_FOOTER_DIGEST='8f07bec7abe9690183813b79af08d404add796088bf497781b560d7e4bc7c0b7'
 
