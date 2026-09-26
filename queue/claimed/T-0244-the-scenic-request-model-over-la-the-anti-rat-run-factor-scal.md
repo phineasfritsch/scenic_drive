@@ -1,13 +1,13 @@
 ---
 id: T-0244
 title: the scenic request model over LA - the anti-rat-run factor scales with lambda (7th Street, Santa Monica at lambda 8), T(lambda) monotone (distance_influence), and a lambda ladder that moves the route before lambda 8
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-26T07:45:04Z
+lease_expires_at: 2026-09-26T17:45:04Z
+worktree: .worktrees/T-0244
+branch: task/T-0244
 exclusive: []
 touches: [Sources/ScenicKit/Budget/, Sources/ScenicKit/Routing/, Tests/ScenicKitTests/, Sources/ScenicPlanCLI/, Tests/ScenicPlanCLITests/, services/routing/tools/route_la_pairs.py, services/routing/tests/]
 pins_affected: [P-SAFE-04]
@@ -28,3 +28,5 @@ relationship' failure.
 
 ## Log
 - 2026-09-26T03:11:50Z filed by agent/claude-opus-5 (orchestrator) from T-0209's clauses 4-5 and its STILL OPEN 1-3.
+- 2026-09-26T07:44:31Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0209 merged (PR #131, a2cf7ef); the whole-LA graph is at services/routing/work/t0209/graph-la in the main checkout and route_la_pairs.py / the route-details mode are on main.
+- 2026-09-26T07:45:04Z claimed by agent/claude-opus-5; lease until 2026-09-26T17:45:04Z
