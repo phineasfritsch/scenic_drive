@@ -23,7 +23,11 @@ public struct AttributionFooter: View {
 
     public var body: some View {
         HStack(spacing: 0) {
-            Spacer(minLength: 0)
+            // The lower-LEFT corner is the renderer's: MapLibre draws its logo there, measured at 9-94 pt
+            // from the map's left edge on T-0236's round-2 screenshots, where the composed credit (basemap
+            // plus the drawn line's OpenStreetMap credit) grew to the full width and sat on the logo. The
+            // pill never grows into that corner - it wraps onto a second line instead (no `lineLimit`).
+            Spacer(minLength: 104)
             Text(text)
                 .font(.footnote)
                 // `fgMuted`, not `fg`: attribution is secondary text and must not compete with the

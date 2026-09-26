@@ -290,3 +290,17 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   mutations refused by name". check-drive-copy exit 0; --prove-red "8/8 mutations refused by name".
   check-mutate-population "every added module is covered or allowlisted; the floor of 34 holds". check-exec-bits "96
   files, 23 required present, all modes correct". Line cap and wc -l re-measured at the final pre-review head.
+- 2026-09-26T00:23:55Z ROUND 2 macOS RUNS, first pair (agent/claude-opus-5). Pushed b3bd63889cea90aa874ba5397672ef0be1a231f8.
+  ios-compile dispatch 1 of 2: run 36203482867 on b3bd638 - success. ios-screenshot dispatch 1 of 2: run 36204050341
+  on b3bd638 - success; downloaded into the MAIN checkout's gitignored .artifacts/screens/ as home-light-T0236-r2a.png
+  (sha256 034937447279d633fd2e763aa4322cb006a1d3485e7e1e05dee30f5a4f77b18e) / home-dark-T0236-r2a.png (10f535030ddf8edb
+  33631402641082dd977da2037e743c671cf8817d0c906f77), 1206 x 2622 px each. Not committed. READ: the pill says, exactly,
+  "© MapLibre · Natural Earth · © OpenStreetMap contributors" in both - B1's credit is on the surface. The line, its
+  casing, the camera fit and the (i) at the map's top-left are as round 1 described; the road list reads "From
+  wherever you are to Fernwood Pacific Drive, then Tuna Canyon Road, ..." (R5). NEW DEFECT, found here and not left:
+  the longer credit made the pill FULL WIDTH on one line, and its left end sits on MapLibre's logo (bottom-left, the
+  logo's outline visible through the 0.85 surface at 9-94 pt from the left edge) - the same class of defect round 1
+  fixed for the (i). RULED: the lower-left corner is the renderer's; `AttributionFooter`'s leading spacer gets a
+  104 pt minimum (the logo's measured right edge 94 pt + 10), so the pill wraps onto a second line instead of
+  covering the logo - it has no lineLimit, so nothing is truncated. DesignSystem is in touches; no check anchors on
+  the spacer. Second dispatch of each workflow on the fixed head follows; that pair is named -r2.
