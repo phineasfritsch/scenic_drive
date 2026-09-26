@@ -1,7 +1,7 @@
 ---
 id: T-0245
 title: ops/plan --menu - the full-equality oracle covers the WHOLE printed output under every flag the acceptance uses (none, --max 20, 15, 10), and ROW n is paired with URL n
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-26T20:43:47Z
@@ -11,7 +11,7 @@ branch: task/T-0245
 exclusive: []
 touches: [Tests/ScenicPlanCLITests/, ops/mutate/menu_mutations.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-t0245
 depends_on: [T-0239]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -88,3 +88,28 @@ equality over the whole output, under every flag the acceptance names, from the 
   `QUEUE OK (239 tasks)`. (9) `bash ops/check-pins --source-only` exit 0: `PINS ok=15 skipped=16 pending=1
   expired=0 failed=0 tier=linux source-only`. `ops/test` and the full `ops/check-pins` not run (orchestrator
   instruction); CI is their confirmation. Ready for review by an agent who is not the owner.
+- 2026-09-26T23:46:13Z REVIEW PASS by agent/rv1-t0245 (reviewer, not the owner) on PR #137, head 16b3692
+  (origin/task/T-0245; `git merge-base --is-ancestor origin/main origin/task/T-0245` exit 0, origin/main 2d76d03).
+  Worktree .worktrees/rv1-t0245, `swift test --scratch-path .build/rv1-t0245`: exit 0, `Test run with 368 tests
+  in 53 suites passed`. Filtered `--filter "RouteMenuTests|MenuCLITests"` (19 tests in 3 suites, WholeMenuCLITests
+  included) green before and after; one mutant at a time on Sources/ScenicPlanCLI/MenuCommand.swift, restored by
+  `git checkout` after each (final `git status --short` empty):
+  X1 (author, `row.line(index + 1)`) exit 1, 16 issues: 8 at WholeMenuCLITests.swift:73, 8 at :76 - replayed.
+  X2 (author, pins from menu.rows[0] when --max < cap) exit 1, 5 issues, all at :73 - replayed.
+  R1 (reviewer, `maxMinutes: arguments.maxMinutes == 10 ? 10.5 : arguments.maxMinutes` - the cap line under
+  --max 10 only) exit 1, 2 issues at :73. R2 (reviewer, the last ROW line drops its last character - a road
+  name - under --max 15 only) exit 1, 2 issues at :73. R3 (reviewer, `waypoints=` one short on rows after row 0
+  under --max 20 only) exit 1, 2 issues at :73. Every issue on every mutant is in the new test; no survivor.
+  Oracle independence: the expected side calls neither MenuCommand.menu nor MenuCommand.run - RouteMenu is built
+  from RecordedAlternatives.load with RouteMenu.ladder and the literal cap (45 with no flag), the endpoints are
+  parsed from the trip literals, the ROUTER and URL formats are typed in the test, and ROW n / URL n pairing is
+  asserted on the printed lines alone; the builders it shares (RouteMenu.header, MenuRow.line,
+  PlanWaypoints.decisionPoints, AppleMapsDirections) are what MenuCommand delegates to, as the acceptance names.
+  The defect test binds to the shipping symbol: main.swift prints `MenuCommand.run(menuArguments)`.
+  Gates, bare: `python ops/lib/check-mutate-population.py` exit 0 (`the floor of 41 holds`, 0 added by this
+  branch); `bash ops/lib/check-line-cap` exit 0 (`134 Swift files ... none over 300 lines`; WholeMenuCLITests.swift
+  80, MenuCLITests.swift 274, menu_mutations.py 188); `bash ops/queue-check` exit 0 (`QUEUE OK (239 tasks)`);
+  `bash ops/check-pins --source-only` exit 0 (`PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux
+  source-only`); `gh pr checks 137`: core pass, pins-source-only pass. menu_mutations.py is 100644. The
+  mutation population and --prove-vacuity were not re-run (the owner's 23:06:58Z figures stand: 32 of 32, 0 of 32).
+  Signed off: queue/claimed/ -> queue/done/.
