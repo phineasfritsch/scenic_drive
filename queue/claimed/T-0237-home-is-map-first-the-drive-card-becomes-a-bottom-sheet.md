@@ -236,3 +236,23 @@ anyone sees, so its words are unhurried and few. No thrill words.
   R-rv1-4 B3: row 10 re-anchored on the new whole line (8 spaces + `conditions`), refused by name.
   NO SWIFT CHANGE: the screen is right at both detents (round-1 PNGs); the defects are in the gates. Still unseen
   by source: HomeSheet.swift drawing its summary at both detents, and the `conditions` view's own modifiers.
+- 2026-09-26T08:58:51Z agent/claude-opus-5 (owner) rv1-t0237 B1-B3 CLOSED in 9a51604 (ruling 651b760), each RED -> GREEN,
+  bare, exit codes captured without a pipe. B1: the reviewer's wrap (`if sheetDetent == .medium {` at 100, `}`
+  after 104) -> 8ae11de exit 0, 9a51604 exit 1 `P-ATTR-01: the credit is not mounted directly above the sheet in
+  .../ScenicHomeScreen.swift.` with `found:    if sheetDetent == .medium {` against `approved: ` blank. B2 removed
+  (line 179 deleted) -> exit 0, then exit 1 `P-SAFE-03: the conditions line is not in the collapsed sheet in
+  .../ScenicHomeScreen.swift:` / `the whole line `conditions` occurs 0 time(s), expected exactly 1`; B2 moved into
+  sheetDetails in a VStack -> exit 0, then exit 1, same reason, `sheetSummary line 17 of 22: approved
+  `conditions`, found ``. B3: `check-safety-disclaimer --prove-red` on 8ae11de `prove-red: 12/13 mutations refused
+  by name` (row 10 `0 no`), on 9a51604 `prove-red: 16/16 mutations refused by name` (row 10 `1 yes`, rows 14-16
+  each `1 yes`). The new reader's missing-file refusal seen red: file moved aside -> exit 1 `P-SAFE-03:
+  ops/lib/check-safety-disclaimer-sheet is missing; the check cannot read Swift source without its readers.`
+  `check-map-attribution --prove-red` on 9a51604: `prove-red: 34/34 mutations refused by name` (H9 and H10 each `1 yes`). Unmutated tree: both
+  checks exit 0. `wc -l`: check-safety-disclaimer 300, -mutations 102, -sheet 93 (new, 100755),
+  check-map-attribution-sheet 131, -mutations 157. rv1 recordable 6, `bash ops/check-pins --source-only` on
+  9a51604: `PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only` (exit 0); check-line-cap
+  `P-SRC-02: 122 Swift files tracked (Sources=45, Tests=50, apps/ios=27), none over 300 lines`; check-exec-bits
+  `P-OPS-01: 102 files, 23 required present, all modes correct`; queue-check `QUEUE OK (237 tasks)`. No Swift
+  touched, so no ios-compile or screenshot this round. check-drive-copy untouched: its --prove-red not re-run.
+  OPEN: pins/PINS.yaml P-SAFE-03 prose still says `thirteen mutations` (outside touches). NEXT, the last step:
+  `git fetch origin` + merge origin/main, the gates re-run bare on the merged head, then the push.
