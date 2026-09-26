@@ -62,7 +62,8 @@ public enum RecordedAlternatives {
         let alternatives = name != fastestFileName
         guard said == expected, field("algorithm").hasPrefix("alternative_route") == alternatives else {
             throw PlanFailure.malformedResponse("\(name) is a recording of \(said.joined(separator: " ")) "
-                + "[\(field("algorithm"))], not of \(expected.joined(separator: " "))")
+                + "[\(field("algorithm"))], not of \(expected.joined(separator: " ")) "
+                + "[\(alternatives ? "alternative_route" : "no alternative_route")]")
         }
         guard near(field("from"), origin), near(field("to"), destination) else {
             throw PlanFailure.malformedResponse("\(name) was recorded from \(field("from")) to \(field("to")), "

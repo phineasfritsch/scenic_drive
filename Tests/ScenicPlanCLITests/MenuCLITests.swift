@@ -147,4 +147,64 @@ struct MenuCLITests {
         try files.copyItem(at: copy.appendingPathComponent(RecordedAlternatives.fileName(forLambda: 4)), to: eight)
         #expect(throws: PlanFailure.self) { try MenuCommand.run(arguments) }
     }
+
+    /// The `waypoint` pins of a printed `URL <index> waypoints=<n> <url>` line.
+    static func stops(_ line: String) -> [Coordinate] {
+        let url = line.split(separator: " ").last.map(String.init) ?? ""
+        return (URLComponents(string: url)?.queryItems ?? []).filter { $0.name == "waypoint" }.compactMap {
+            let pair = ($0.value ?? "").split(separator: ",").compactMap { Double($0) }
+            return pair.count == 2 ? Coordinate(latitude: pair[0], longitude: pair[1]) : nil
+        }
+    }
+
+    /// rv1 B1: a URL built from another row's route passed every test above. The Latigo row is found by the
+    /// road its printed line names, and its pins are measured against that row's recorded Latigo vertices.
+    @Test("each row's Apple Maps URL is its own route's: pairwise distinct, and T4's Latigo URL stops on Latigo Canyon Road")
+    func eachRowHandsOffItsOwnRoute() throws {
+        for trip in Self.trips {
+            let urls = try MenuCommand.run(try Self.arguments(trip)).filter { $0.hasPrefix("URL ") }
+                .map { $0.split(separator: " ").last.map(String.init) ?? "" }
+            #expect(urls.count >= 3 && Set(urls).count == urls.count, "\(trip.0) \(urls)")
+        }
+        let arguments = try Self.arguments(Self.trips[1])
+        let lines = try MenuCommand.run(arguments)
+        let index = try #require(lines.filter { $0.hasPrefix("ROW ") }.firstIndex { $0.contains("Latigo Canyon Road") })
+        let path = try MenuCommand.menu(arguments).rows[index].path
+        let latigo = (path.details["street_name"] ?? []).filter { $0.value.text == "Latigo Canyon Road" }
+            .flatMap { path.coordinates[$0.from...min($0.to, path.coordinates.count - 1)] }
+        let url = try #require(lines.first { $0.hasPrefix("URL \(index) ") })
+        let nearest = Self.stops(url).flatMap { stop in latigo.map { Geo.distanceMeters(stop, $0) } }.min()
+        #expect(latigo.count >= 2 && (nearest ?? .infinity) <= 300, "row \(index): nearest pin \(String(describing: nearest)) m")
+    }
+
+    /// rv1 B2: an alternatives file must say `alternative_route` and fastest.json must not. Each refusal is a
+    /// `PlanFailure` - exit 3 in main.swift - naming the algorithm it found and the one it expected.
+    @Test("a recording whose algorithm is not its file's is refused, naming the algorithm")
+    func anotherAlgorithmIsRefused() throws {
+        let files = FileManager.default, trip = Self.trips[0]
+        let cases = [
+            (RecordedAlternatives.fileName(forLambda: 4), "\"algorithm\": \"[^\"]*\"", "\"algorithm\": \"astarbi\"",
+             "[astarbi], not of car_scenic lambda-4.json [alternative_route]"),
+            (RecordedAlternatives.fastestFileName, "\"model\": \"-\",", "\"model\": \"-\", \"algorithm\": \"alternative_route\",",
+             "[alternative_route], not of car_fast - [no alternative_route]"),
+        ]
+        for (name, pattern, replacement, named) in cases {
+            let copy = files.temporaryDirectory.appendingPathComponent("t0239-algorithm-\(UUID().uuidString)")
+            try files.copyItem(at: URL(fileURLWithPath: Self.fixture(trip.0)), to: copy)
+            defer { try? files.removeItem(at: copy) }
+            let arguments = try MenuArguments.parse([trip.1, trip.2, "--recorded", copy.path])
+            #expect(try MenuCommand.run(arguments).count > 2)
+            let file = copy.appendingPathComponent(name)
+            let text = try String(contentsOf: file, encoding: .utf8)
+            let edited = text.replacingOccurrences(of: pattern, with: replacement, options: .regularExpression)
+            #expect(edited != text, "\(name)")
+            try edited.write(to: file, atomically: true, encoding: .utf8)
+            do {
+                _ = try MenuCommand.run(arguments)
+                Issue.record("\(name) with its algorithm changed was replayed")
+            } catch let failure as PlanFailure {
+                #expect("\(failure)".contains(named), "\(failure)")
+            }
+        }
+    }
 }

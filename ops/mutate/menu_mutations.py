@@ -63,6 +63,12 @@ COUNTS = "ops/plan --menu reads every rung: candidates=25 distinct=6 on both tri
 MOST_FUN = "a slower route must add 2 fun km over the most fun km of every quicker row, not the highest share"
 OTHER_TRIP = "a recording of another trip is refused, not replayed under these endpoints"
 OTHER_RUNG = "a rung whose file carries another rung's recording is refused"
+OWN_URL = ("each row's Apple Maps URL is its own route's: pairwise distinct, and T4's Latigo URL stops on "
+           "Latigo Canyon Road")
+ALGORITHM = "a recording whose algorithm is not its file's is refused, naming the algorithm"
+FIRST_TENTH = "a route 1 ms over the fastest prints +0.1 min, and 6_001 ms over prints +0.2"
+
+PINS = "PlanWaypoints.decisionPoints(table: row.table, path: row.path)"
 
 MUTATIONS = [
     # 1. The rule inverted - the red-first arm of acceptance 2: T1 [0.0, 7.1], T4 [0.0, 9.1, 10.5].
@@ -116,6 +122,21 @@ MUTATIONS = [
      [OTHER_RUNG]),
     ("a recording's endpoints not read", READER, ENDPOINTS,
      'guard !field("from").isEmpty, !field("to").isEmpty else {', [OTHER_TRIP]),
+    # 23. rv1 B1: every row handed off on the FASTEST route's pins - 13 of 13 tests passed on it.
+    ("the URLs built from row 0's route", CMD, PINS,
+     "PlanWaypoints.decisionPoints(table: menu.rows[0].table, path: menu.rows[0].path)", [OWN_URL]),
+    # 24-26. rv1 B2: the algorithm half of M3's header check, whole and each side alone.
+    ("the recording's algorithm not read", READER, IDENTITY,
+     "guard said == expected, alternatives || !alternatives else {", [ALGORITHM]),
+    ("an alternatives file's algorithm not read", READER, IDENTITY,
+     'guard said == expected, alternatives || !field("algorithm").hasPrefix("alternative_route") else {',
+     [ALGORITHM]),
+    ("fastest.json's algorithm not read", READER, IDENTITY,
+     'guard said == expected, !alternatives || field("algorithm").hasPrefix("alternative_route") else {',
+     [ALGORITHM]),
+    # 27. rv1 R3: the first tenth of a minute printed as +0.0 - no recorded row is within 6 s of the fastest.
+    ("the first tenth of a minute rounded to zero", ROW, CEIL,
+     "milliseconds <= 6_000 ? 0 : (milliseconds + 5_999) / 6_000", [FIRST_TENTH]),
 ]
 
 # `(name, path, old, new, witness)`: anything but MISSED fails the run.
@@ -136,6 +157,6 @@ EQUIVALENT = [
 ]
 
 # Literal floors: the real counts. Adding a mutation means editing this number in the same diff.
-MIN_MUTATIONS = 22
+MIN_MUTATIONS = 27
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 2

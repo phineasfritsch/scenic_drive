@@ -35,6 +35,17 @@ struct RouteMenuTests {
                                              destination: trip.2)
     }
 
+    /// rv1 R3: no recorded row lands within a tenth of a minute of the fastest, so the first tenth is pinned
+    /// here, on the init RouteMenu runs for every row and the ROW line MenuCommand.run prints.
+    @Test("a route 1 ms over the fastest prints +0.1 min, and 6_001 ms over prints +0.2")
+    func theFirstTenthRoundsUp() throws {
+        let path = try Self.recorded("topanga-malibu").fastest
+        for (over, printed) in [(0, "+0.0"), (1, "+0.1"), (6_000, "+0.1"), (6_001, "+0.2")] {
+            let row = MenuRow(path: path, fastestMilliseconds: path.durationMilliseconds - over)
+            #expect(row.line(1).hasPrefix("ROW 1 extra=\(printed)min "), "\(over) ms: \(row.line(1))")
+        }
+    }
+
     static func menu(_ trip: String) throws -> RouteMenu {
         let pool = try recorded(trip)
         return RouteMenu(fastest: pool.fastest, candidates: pool.candidates)
