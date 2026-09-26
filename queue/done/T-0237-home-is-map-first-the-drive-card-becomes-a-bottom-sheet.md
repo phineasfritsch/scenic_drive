@@ -1,7 +1,7 @@
 ---
 id: T-0237
 title: Home is map-first - the map fills the screen, the drive card becomes a bottom sheet with detents, the chips float over the map; attribution and the conditions line visible at every detent; re-shot
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-26T03:29:17Z
@@ -11,7 +11,7 @@ branch: task/T-0237
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapView.swift, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift, apps/ios/ScenicDriveUITests/, .github/workflows/ios-screenshot.yml, ops/lib/ios_screenshot_pinned.py, ops/lib/check-map-attribution, ops/lib/check-drive-copy, ops/lib/check-safety-disclaimer, Sources/Handoff/, Tests/HandoffTests/]
 pins_affected: [P-ATTR-01, P-SAFE-03]
-reviewer: null
+reviewer: agent/rv5-t0237
 depends_on: [T-0236]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -416,3 +416,35 @@ anyone sees, so its words are unhurried and few. No thrill words.
   NO SWIFT CHANGE; swift test not re-run. OPEN, carried: check-safety-disclaimer's usage comment still says
   `twenty-five mutations` (the file is at 300); pins/PINS.yaml P-SAFE-03 prose (outside touches); rendering is
   T-0180's; a shadow outside the pinned set, or a SwiftPM/Xcode setting that adds sources from elsewhere, is T-0243's.
+- 2026-09-26T18:30:20Z agent/rv5-t0237 (reviewer, round 5 of PR #133) REVIEW PASS on 218736d (== origin/task/T-0237;
+  `git merge-base --is-ancestor origin/main origin/task/T-0237` EXIT 0). SCOPE: only the file-set enumeration of
+  ops/lib/check-safety-disclaimer-pinned; rounds 1-4 closed the frozen blocks, the content pin and shadowing inside the
+  pinned set. Reproductions in a detached worktree .worktrees/rv5-t0237 at 218736d, each run against
+  check-safety-disclaimer bare, check-safety-disclaimer `--sources <FeatureScenicHome> --app-tree apps/ios`, and
+  check-map-attribution bare, then removed. The planted file in each is Shadow.swift declaring `struct Text: View`
+  whose body is `EmptyView()` (rv3's R1 shape).
+  J1 (rv4's replay): `MSYS_NO_PATHCONV=1 cmd /c mklink /J FeatureScenicHome\Shadows .artifacts\rv5-t0237\target`
+  (`dir /AL` shows `<JUNCTION> Shadows`; `find -printf %y` prints `l`; `ls Shadows/` prints Shadow.swift). All three
+  EXIT 1: `FeatureScenicHome's file set is not the approved one: added Shadows not a regular file Shadows.` and
+  `Found 14 entr(ies)`. Junction removed with `cmd /c rmdir`, target intact.
+  A2 (a nested plain directory Nested/Shadow.swift): all three EXIT 1: `added Nested Nested/Shadow.swift not a regular
+  file Nested.` and `Found 15 entr(ies)`.
+  A3 (a regular file whose NAME is a newline followed by DriveCopy.swift, holding the shadow; find prints an empty line
+  and a second DriveCopy.swift, and all 13 approved files stay byte-identical): check-safety-disclaimer, both modes,
+  EXIT 1 `added DriveCopy.swift.` and `Found 15 entr(ies)` - comm keeps the duplicate, so a split name cannot hide
+  behind an approved one; check-map-attribution EXIT 1, but by an EARLIER limb: awk dies opening the second half of
+  the split name (`cannot open file ... DriveCopy.swift ... for reading`) and the limb reports `the credit literal is
+  not declared verbatim ... declared 0 time(s)` - it fails closed, with the wrong reason (recordable R1).
+  No compiled-and-unlisted survivor. Before and after: all three EXIT 0 (`LAST 13 feature file(s) and
+  AttributionFooter.swift pinned by sha256 (-pinned).`); `git status --short --ignored` under FeatureScenicHome empty.
+  Bare on 218736d in .worktrees/T-0237 (status empty): ops/lib/check-line-cap EXIT 0 (`P-SRC-02: 125 Swift files
+  tracked (Sources=45, Tests=53, apps/ios=27), none over 300 lines`); queue-check EXIT 0 (`QUEUE OK (237 tasks)`);
+  `ops/check-pins --source-only` EXIT 0 (`PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux
+  source-only`); `gh pr checks 133`: core pass, pins-source-only pass. The full --prove-red was not re-run (the
+  owner's 29/29 and 45/45 on 7f12b03 are quoted above).
+  RECORDABLE, not blocking: (R1) check-map-attribution's earlier limb reads its .swift list one line per name, so a
+  newline in a file name crashes awk and is reported as a missing credit literal - refused, wrong reason; the pinned
+  limb it never reaches would have named it. (R2) Out of scope and carried: other modules, .xcstrings, a SwiftPM or
+  Xcode setting that adds sources (T-0243), rendering (T-0180); the `twenty-five mutations` usage comment and the
+  PINS.yaml P-SAFE-03 prose, as the owner recorded. reviewer: agent/rv5-t0237; state -> done; queue/claimed/ ->
+  queue/done/.
