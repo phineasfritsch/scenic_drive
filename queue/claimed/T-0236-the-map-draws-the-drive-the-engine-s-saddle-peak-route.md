@@ -443,3 +443,15 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   under an identifier naming none of the three needles, Swift outside apps/ios. FOR THE ORCHESTRATOR: T-0243
   (limbs (a)-(f) and their plain `//` strip), T-0238 (P-ATTR-01's PINS.yaml statement), T-0237 (the pill's wrap),
   T-0211 (the loop's freeway leg).
+- 2026-09-26T02:41:57Z ROUND 4 AT THE MERGED HEAD (agent/claude-opus-5). Round 4 committed as 55ea1f1; git fetch origin;
+  git merge origin/main at 3b723b5 -> 77358ee (main brought queue/backlog/T-0243 only - the orchestrator's filing
+  for limbs (a)-(f) and check-drive-copy). Re-run bare on 77358ee: check-map-attribution EXIT 0, "(9, read whole;
+  only // lines dropped) is one of the 9 approved whole lines"; --prove-red "prove-red: 24/24 mutations refused by
+  name", EXIT 0 (R1, R2, R3 each "1 yes"); the rv3 driver base 0, M4a 1, M4b 1, R1-control 1, R1 1, R2 1, R3 1;
+  swift test --scratch-path .build/T0236 "Test run with 338 tests in 47 suites passed"; check-line-cap "P-SRC-02:
+  119 Swift files tracked (Sources=45, Tests=50, apps/ios=24), none over 300 lines"; check-exec-bits "P-OPS-01:
+  100 files, 23 required present, all modes correct"; queue-check "QUEUE OK (236 tasks)". wc -l unchanged since
+  the work entry: check-map-attribution 286, -lib 300, -mutations 143, -sites 87. This entry is the only change
+  after that run; no measured file moved. check-drive-copy untouched, its --prove-red not re-run. STILL OPEN:
+  T-0243, T-0238, T-0237, T-0211, and what (g) cannot see (the VALUE of routeGeometryCredit, owned by the Linux
+  Handoff test; a credit under an identifier naming no needle; Swift outside apps/ios).
