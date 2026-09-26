@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-26T13:29:17Z
 worktree: .worktrees/T-0237
 branch: task/T-0237
 exclusive: []
-touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapView.swift, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift, apps/ios/ScenicDriveUITests/, .github/workflows/ios-screenshot.yml, ops/lib/ios_screenshot_pinned.py, ops/lib/check-map-attribution, ops/lib/check-drive-copy, Sources/Handoff/, Tests/HandoffTests/]
+touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapView.swift, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift, apps/ios/ScenicDriveUITests/, .github/workflows/ios-screenshot.yml, ops/lib/ios_screenshot_pinned.py, ops/lib/check-map-attribution, ops/lib/check-drive-copy, ops/lib/check-safety-disclaimer, Sources/Handoff/, Tests/HandoffTests/]
 pins_affected: [P-ATTR-01, P-SAFE-03]
 reviewer: null
 depends_on: [T-0236]
@@ -202,3 +202,37 @@ anyone sees, so its words are unhurried and few. No thrill words.
   and the map above it is interactive; the chips are on a material band below the status bar in both themes;
   the chips, grabber and button are each >= 44 pt. 4 ios-compile and ios-screenshot green on the same head
   96ead41, four PNGs, described above. 5 the pill wraps only at the separator (NBSP, red first by name, 9fed536).
+- 2026-09-26T08:23:59Z agent/claude-opus-5 (owner) RULING before code, round-1 FAIL on PR #133 (rv1-t0237 B1-B3),
+  on 8ae11de == origin/task/T-0237. The three reproductions, re-run here on 8ae11de: B1 (`if sheetDetent ==
+  .medium {` wrapped around the mount, lines 100/104) -> `bash ops/lib/check-map-attribution` exit 0; B2 line 179
+  `conditions` deleted -> `check-safety-disclaimer` exit 0, and moved into sheetDetails inside a VStack -> exit 0;
+  B3 is quoted from the table run in the next entry. All three fail OPEN; B2 is a P-SAFE-* pin failing open.
+  R-rv1-1 TOUCHES WIDENED: B2 and B3 live in P-SAFE-03's gate (ops/lib/check-safety-disclaimer, its -lib and its
+  -mutations table), outside this task's touches, which named check-map-attribution and check-drive-copy only.
+  This PR moved the line P-SAFE-03 reads (pins_affected already lists P-SAFE-03) and broke row 10 by re-indenting
+  it, so the repair belongs here, not in a follow-up: touches gains `ops/lib/check-safety-disclaimer` (a prefix:
+  the check, -mutations, and one new sourced reader). No claimed task touches those paths (T-0184 names them and
+  is in ready/, unclaimed). pins/PINS.yaml's P-SAFE-03 prose says `thirteen mutations`; it is outside touches and
+  stays stale this round - recorded open, not fixed.
+  R-rv1-2 B1: limb (h)'s whitelist grows OUTWARD to the enclosing whole lines - before the mount the outer stack's
+  opening five (`VStack(spacing: 0) {`, `chips`, blank, `Spacer(minLength: 0)`, blank; the //-lines between are
+  dropped as before), after it the exact closes `}`, `}`, `.background(DesignTokens.bg)` (outer VStack, ZStack,
+  the ZStack's first modifier). A wrapper opened anywhere between the outer stack and the mount, or closed anywhere
+  between the mount and `.background`, adds a whole line the list does not have and is refused; the old "next line
+  starts with }" test is gone. Blank lines are compared whole (the reader still drops only //-lines). New row H9:
+  the reviewer's conditional wrap, which must be refused by name.
+  R-rv1-3 B2: check-safety-disclaimer is at 300 lines, so the new reader is a sourced file,
+  ops/lib/check-safety-disclaimer-sheet (100755 like -lib), loaded through the same missing-file refusal. It
+  decides three WHITELISTS over the screen, whole lines, only //-lines dropped: the line `conditions` occurs
+  exactly once; the whole block from `private var sheetSummary: some View {` to the next declaration `private var
+  sheetDetails: some View {` equals the approved lines (so the one `conditions` is inside sheetSummary, at its top
+  level, with no modifier or wrapper); and `HomeSheet(detent: $sheetDetent, summary: { sheetSummary }, details: {
+  sheetDetails })` occurs exactly once - CONFIRMED that limb (h) binds the same line (SHEET_MOUNT[2] in
+  check-map-attribution-sheet), repeated here so P-SAFE-03 does not lean on another pin's gate. Whole block, not
+  a brace-depth walk: depth over whole lines is moved by a brace in a trailing comment or a string, and reading
+  those needs string state, which is the fail-open reader rv3-t0236 refused; the cost is that every edit to
+  sheetSummary edits the list, deliberately. It runs after (iv) and before (v), so rows 1-13 keep their names.
+  Rows 14-16: the line removed, moved to medium, wrapped in `if sheetDetent == .medium {`.
+  R-rv1-4 B3: row 10 re-anchored on the new whole line (8 spaces + `conditions`), refused by name.
+  NO SWIFT CHANGE: the screen is right at both detents (round-1 PNGs); the defects are in the gates. Still unseen
+  by source: HomeSheet.swift drawing its summary at both detents, and the `conditions` view's own modifiers.
