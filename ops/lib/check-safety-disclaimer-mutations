@@ -59,6 +59,16 @@ rows=(
   "the conditions line removed from the collapsed sheet|$FS/ScenicHomeScreen.swift|/^        conditions$/d|the conditions line is not in the collapsed sheet"
   "the conditions line moved to medium|$FS/ScenicHomeScreen.swift|/^        conditions$/d;s/^        DriveDetails(drive: selectedDrive.*$/        VStack {\n            conditions\n    &\n        }/|the conditions line is not in the collapsed sheet"
   "the conditions line shown only at medium|$FS/ScenicHomeScreen.swift|s/^        conditions$/        if sheetDetent == .medium {\n            conditions\n        }/|the conditions line is not in the collapsed sheet"
+  # Rows 17-19 are rv2-t0237's B1-B3: each hides the line at the COLLAPSED detent with sheetSummary untouched, so
+  # rows 1-16's anchors are all green on them; each is red only because check-safety-disclaimer-frozen's blocks are
+  # whole-line whitelists - HomeSheet's struct, the conditions view, and the screen's body.
+  "rv2 B1 HomeSheet draws its summary only at medium|$FS/HomeSheet.swift|/^                summary()$/d;s/^                if detent == .medium {$/&\n                    summary()/|a frozen render block changed"
+  "rv2 B2 the conditions view faded at collapsed|$FS/ScenicHomeScreen.swift|s/^            .accessibilityHidden(false)$/&\n            .opacity(sheetDetent == .collapsed ? 0 : 1)/|a frozen render block changed"
+  "rv2 B3 the sheet covered at collapsed|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .overlay(alignment: .bottom) { if sheetDetent == .collapsed { DesignTokens.bg.frame(height: 400) } }/|a frozen render block changed"
+  # Rows 20-21 are the fences around the frozen blocks: an #if that could compile an unfrozen twin, and an attribute
+  # (a result builder, which rewrites a block) above a frozen declaration. Each block's own lines are untouched.
+  "an #if around HomeSheet (an unfrozen twin)|$FS/HomeSheet.swift|s/^struct HomeSheet<.*$/#if DEBUG\n&/;\$s/\$/\n#endif/|a frozen render block changed"
+  "a result-builder attribute above conditions|$FS/ScenicHomeScreen.swift|s/^    private var conditions: some View {$/    @HiddenBuilder\n&/|a frozen render block changed"
 )
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone, and a local

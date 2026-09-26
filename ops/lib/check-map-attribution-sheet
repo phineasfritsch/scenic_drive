@@ -23,9 +23,9 @@
 # line is compared or counted WHOLE, trailing comments and string literals included - so a mention in a trailing
 # comment or a literal is an extra occurrence, and is refused rather than ignored.
 #
-# WHAT IT CANNOT SEE: HomeSheet's own drawing - an `.offset` or a negative padding INSIDE HomeSheet.swift that moves
-# its ground above its frame; `.opacity(0)`/`.hidden()` on the pill inside AttributionFooter.swift; the order of the
-# ZStack beyond "after MapView("; and anything that renders. The screenshots at both detents own those (T-0237's Log).
+# WHAT IT CANNOT SEE: `.opacity(0)`/`.hidden()` on the pill inside AttributionFooter.swift, and anything that renders -
+# T-0180's both-detents runtime clause (main 558e154). HomeSheet's own drawing (an `.offset` on its ground) and the
+# ZStack's order are frozen whole by ops/lib/check-safety-disclaimer-frozen, run last (rv2-t0237).
 SHEET_REL="Packages/ScenicApp/Sources/FeatureScenicHome/HomeSheet.swift"
 SHEET_SCREEN_REL="Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift"
 SHEET_MOUNT=(
@@ -127,5 +127,5 @@ require_sheet_mount() {
 print_sheet_verdict() {
   echo "P-ATTR-01 (h): HomeSheet declared at $SHEET_REL(1), built at $SHEET_SCREEN_REL(1), directly under"
   echo "  the pill in the approved whole-line block after MapView(; the only presentation is \`$SHEET_PRESENTATION\`."
-  echo "  Not checked here: HomeSheet's own drawing and anything that renders (the screenshots own those)."
+  echo "  Not checked here: anything that renders - T-0180's both-detents runtime clause (main 558e154)."
 }

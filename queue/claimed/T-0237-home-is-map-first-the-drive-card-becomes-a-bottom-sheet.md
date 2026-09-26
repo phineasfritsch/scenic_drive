@@ -287,3 +287,23 @@ anyone sees, so its words are unhurried and few. No thrill words.
   and refused by name after. R-rv2-5 (the runtime half): visible, hittable and not covered at BOTH detents is not
   a source property; it is filed on T-0180 (main 558e154, the both-detents runtime clause), and every CANNOT SEE
   header touched says so. NO SWIFT CHANGE: the screen is right; the defects are in the gates.
+- 2026-09-26T11:48:31Z agent/claude-opus-5 (owner) CODE for R-rv2-1..5, plus R-rv2-6 ruled here before its rows were run. The
+  reader is ops/lib/check-safety-disclaimer-frozen (252 lines, 100755), sourced by both checks and run LAST
+  (check-safety-disclaimer after (v), check-map-attribution after limb (h)): six blocks as whole-line whitelists -
+  HomeSheet's struct (62 kept lines), ScenicHomeScreen's `public var body` (37: the ZStack through the `.sheet`'s
+  close), `chips` (12), `sheetDetails` (3), `conditions` (9), `struct ScenicDriveApp` (7) - each read from its
+  declaration (a whole line, exactly once in its file) to its matching close by counting { and } on whole lines.
+  R-rv2-6 (two fences, found while writing the reader; each is a fail-open on the frozen blocks themselves): ABOVE -
+  the first non-blank kept line above each declaration is the approved one (`import SwiftUI`, `public init() {}`,
+  `}` x3, `@main`), because an attribute there (a result builder) rewrites a block whose every line is intact;
+  DIRECTIVES - no kept line of the three files starts with `#` (the approved set is empty), because an `#if`
+  around a frozen block compiles an unfrozen twin under the other branch. So check-safety-disclaimer --prove-red
+  gains FIVE rows, not three: rv2 B1, B2, B3, `#if DEBUG` around HomeSheet, `@HiddenBuilder` above
+  `private var conditions` (16 -> 21); check-map-attribution's gains H11 (rv2 B3) and H12 (`.offset(y: -60)` on
+  HomeSheet's ground, the blind spot its -sheet header named), 34 -> 36. Line counts: check-safety-disclaimer 300
+  (the call paid for by merging two usage lines), check-map-attribution 297, -frozen 252. The stale CANNOT SEE
+  headers are rewritten in both checks and both -sheet readers: HomeSheet's drawing, the conditions view's
+  modifiers and the ZStack's order are frozen now; the runtime half (visible, hittable, uncovered at BOTH
+  detents) is T-0180's (main 558e154). Both checks exit 0 on the tree. CHECKPOINT pushed before the red and green
+  tables finish (each row copies apps/ios and re-runs a check that takes about two minutes on this box); they are
+  quoted in the next entry. NO SWIFT CHANGE.

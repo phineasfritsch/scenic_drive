@@ -51,6 +51,8 @@
 #       DriveRoute.resolve (M4b), and (a)-(f) stayed green.
 #   (h) THE CREDIT ABOVE THE SHEET (ops/lib/check-map-attribution-sheet, T-0237): the pill and HomeSheet are the
 #       approved five-line mount, pill first; one HomeSheet; the one presentation is the disclaimer sheet.
+#       LAST, the render blocks - HomeSheet, the screen's body with its modifier chain - FROZEN as whole-line
+#       whitelists (ops/lib/check-safety-disclaimer-frozen, rv2-t0237 B3); rendering at both detents is T-0180's.
 #
 # WHAT IT CANNOT SEE: whether the footer RENDERS, at which sheet detents, whether something is drawn over
 # it, contrast, Dynamic Type, or whether the tiles on screen are the ones the credit names - an XCUITest in
@@ -71,7 +73,7 @@ cd "$(git rev-parse --show-toplevel)"
 LIB="ops/lib/check-map-attribution-lib"
 SITES="ops/lib/check-map-attribution-sites"
 SHEET="ops/lib/check-map-attribution-sheet"
-for L in "$LIB" "$SITES" "$SHEET"; do
+for L in "$LIB" "$SITES" "$SHEET" ops/lib/check-safety-disclaimer-frozen; do
   if [[ ! -f "$L" ]]; then
     echo "P-ATTR-01: $L is missing; the check cannot read Swift source without its readers."
     exit 1
@@ -271,10 +273,12 @@ run_check() {
 
   # ------------------------------------------------------------------ (h) THE CREDIT ABOVE THE SHEET
   require_sheet_mount "$screen" -- "${files[@]}"
+  require_frozen_blocks "$APP_TREE/$FEATURE_REL" "$APP_TREE"
 
   print_verdict "$an" "$pline" "$dline" "$FOOTER_ARG" "$recv" "$FOOTER_ROUTE"
   print_credit_sites_verdict
   print_sheet_verdict
+  echo "  LAST: HomeSheet, the screen's body, chips, sheetDetails, conditions and the app shell frozen whole."
 }
 
 MUTATIONS="ops/lib/check-map-attribution-mutations"

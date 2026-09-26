@@ -103,6 +103,11 @@ rows=(
   "H8 the credit faded out above the sheet|$FS/ScenicHomeScreen.swift|s/^\( *\)\(AttributionFooter(text: CreditLine.*\)$/\1\2\n\1    .opacity(0)/|the credit is not mounted directly above the sheet"
   "H9 the credit and sheet shown only at medium (rv1-t0237 B1)|$FS/ScenicHomeScreen.swift|s/^\(                \)\(VStack(spacing: 0) {\)$/\1if sheetDetent == .medium {\n\1\2/;s/^\( *\)\(\.onGeometryChange(for: CGFloat.self) { .*creditBandTop = .*\)$/\1\2\n\1}/|the credit is not mounted directly above the sheet"
   "H10 the whole overlay stack shown only at medium|$FS/ScenicHomeScreen.swift|s/^            VStack(spacing: 0) {$/            if sheetDetent == .medium {\n&/;s/^\( *\)\(\.onGeometryChange(for: CGFloat.self) { .*creditBandTop = .*\)$/\1\2\n\1}/|the credit is not mounted directly above the sheet"
+  # H11-H12: rv2-t0237's B3 (a cover laid on the ZStack after the approved block's last line) and the blind spot
+  # the -sheet header named (HomeSheet's ground moved up over the pill). Limbs (a)-(h) are green on both; each is
+  # red only because check-safety-disclaimer-frozen's blocks are whole-line whitelists.
+  "H11 rv2 B3 an overlay covers sheet and credit|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .overlay(alignment: .bottom) { if sheetDetent == .collapsed { DesignTokens.bg.frame(height: 400) } }/|a frozen render block changed"
+  "H12 HomeSheet's ground offset over the credit|$FS/HomeSheet.swift|s/^\( *\)\.ignoresSafeArea(edges: .bottom)$/&\n\1.offset(y: -60)/|a frozen render block changed"
 )
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.

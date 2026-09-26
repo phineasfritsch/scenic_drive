@@ -19,8 +19,8 @@
 #   (s3) the one HomeSheet( line, binding sheetSummary to the SUMMARY slot, occurs exactly once. Limb (h) of
 #        check-map-attribution binds the same line (SHEET_MOUNT); it is repeated so this pin stands on its own.
 #
-# WHAT IT CANNOT SEE: HomeSheet.swift drawing its summary slot at both detents; modifiers inside the `conditions`
-# view's own declaration (an opacity there); anything that renders. The screenshots at both detents own those.
+# WHAT IT CANNOT SEE: anything that renders - T-0180's both-detents runtime clause (main 558e154). HomeSheet.swift's
+# drawing and the `conditions` view's own modifiers (rv2-t0237 B1/B2) are frozen whole by -frozen, run last.
 SUMMARY_OPEN="private var sheetSummary: some View {"
 SUMMARY_MOUNT="HomeSheet(detent: \$sheetDetent, summary: { sheetSummary }, details: { sheetDetails })"
 SUMMARY_BLOCK=(

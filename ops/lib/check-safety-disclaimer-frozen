@@ -1,0 +1,252 @@
+#!/usr/bin/env bash
+# P-SAFE-03 and P-ATTR-01, THE FROZEN RENDER BLOCKS (T-0237, rv2-t0237 B1-B3). Sourced by BOTH
+# ops/lib/check-safety-disclaimer and ops/lib/check-map-attribution and run LAST in each; it uses the caller's `fail`.
+#
+# Round 2 of PR #133 hid the conditions line and the credit at the COLLAPSED detent three ways, each green on every
+# anchor both checks had: B1 moved `summary()` under HomeSheet's `if detent == .medium {`; B2 put
+# `.opacity(sheetDetent == .collapsed ? 0 : 1)` on the `conditions` view; B3 laid an `.overlay` over the screen's
+# ZStack after the approved mount. Chasing spellings buys a round per spelling (PR #101), so the blocks that draw
+# the sheet, the line and the credit are FROZEN as whole-line WHITELISTS: ANY edit inside one is refused until its
+# approved list below is edited in the same commit, deliberately (fail closed). An overlay over the sheet hides the
+# conditions line (P-SAFE-03) as surely as the credit (P-ATTR-01), so both pins run every block.
+#
+# Each block is read from its declaration - a whole line that must occur exactly once in its file - to its
+# matching close, by counting { and } on whole lines with no string state (a brace in a literal or a trailing
+# comment is a changed line, refused anyway), and compared line by line with its approved list. Lines are
+# trimmed, a trailing CR stripped, blank lines kept and compared; only a line whose trimmed text STARTS with //
+# is dropped. Two fences around each block, both whitelists:
+#   ABOVE      the first non-blank kept line above the declaration is the approved one (an `}` or an import): an
+#              attribute there - a result builder, which may rewrite the whole block - is refused;
+#   DIRECTIVES no kept line of the three files starts with `#`: an `#if` around a frozen block can compile an
+#              unfrozen twin instead. The approved set is EMPTY; a `#Preview` added here is added below first.
+#
+# The blocks (a superset of the direction, ruled in T-0237's Log as R-rv2-2): HomeSheet.swift's whole struct;
+# ScenicHomeScreen.swift's `public var body` (the ZStack and its whole modifier chain), `chips`, `sheetDetails`
+# and `conditions`; the app shell's `struct ScenicDriveApp`. sheetSummary is frozen by -sheet's (s2).
+#
+# WHAT IT CANNOT SEE: whether any of it RENDERS - visible, hittable and not covered at BOTH detents is a runtime
+# property, filed on T-0180 (main 558e154, its both-detents runtime clause); a modifier these blocks call
+# (`.background`, `.overlay`) overloaded by an extension elsewhere in the module; what the views they name
+# (DriveSelector, DriveDetails, AttributionFooter, GatedHandoffButton, SafetyDisclaimer) draw inside themselves;
+# `/* */` comments.
+FROZEN_REASON="a frozen render block changed"
+FROZEN_DIRECTIVES=()
+
+FROZEN_HOME_SHEET=(
+  'struct HomeSheet<Summary: View, Details: View>: View {'
+  '@Binding var detent: HomeSheetDetent'
+  '@ViewBuilder let summary: () -> Summary'
+  '@ViewBuilder let details: () -> Details'
+  ''
+  'private static var dragThreshold: CGFloat { 40 }'
+  ''
+  'var body: some View {'
+  'VStack(alignment: .leading, spacing: 0) {'
+  'grabber'
+  ''
+  'VStack(alignment: .leading, spacing: 12) {'
+  'summary()'
+  'if detent == .medium {'
+  'details()'
+  '.transition(.opacity)'
+  '}'
+  '}'
+  '.padding(.horizontal, 16)'
+  '.padding(.bottom, 12)'
+  '}'
+  '.frame(maxWidth: .infinity, alignment: .leading)'
+  '.background {'
+  'UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20, style: .continuous)'
+  '.fill(DesignTokens.bg)'
+  '.overlay('
+  'UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20, style: .continuous)'
+  '.stroke(DesignTokens.border, lineWidth: 1)'
+  ')'
+  '.shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: -2)'
+  '.ignoresSafeArea(edges: .bottom)'
+  '}'
+  '.contentShape(Rectangle())'
+  '.gesture(drag)'
+  '.accessibilityElement(children: .contain)'
+  '.accessibilityIdentifier("home.sheet")'
+  '}'
+  ''
+  'private var grabber: some View {'
+  'Button {'
+  'withAnimation(.snappy) { detent = detent.toggled }'
+  '} label: {'
+  'Capsule()'
+  '.fill(DesignTokens.fgMuted.opacity(0.5))'
+  '.frame(width: 36, height: 5)'
+  '.frame(maxWidth: .infinity, minHeight: 44)'
+  '.contentShape(Rectangle())'
+  '}'
+  '.buttonStyle(.plain)'
+  '.accessibilityLabel(detent == .medium ? "Show less about this drive" : "Show more about this drive")'
+  '.accessibilityIdentifier("home.sheet.grabber")'
+  '}'
+  ''
+  'private var drag: some Gesture {'
+  'DragGesture(minimumDistance: 12)'
+  '.onEnded { value in'
+  'let rise = -value.translation.height'
+  'guard abs(rise) > Self.dragThreshold else { return }'
+  'withAnimation(.snappy) { detent = rise > 0 ? .medium : .collapsed }'
+  '}'
+  '}'
+  '}'
+)
+FROZEN_SCREEN_BODY=(
+  'public var body: some View {'
+  'ZStack(alignment: .top) {'
+  'MapView('
+  'styleURL: style.url,'
+  'centerLatitude: SkylineHandoff.destination(for: selectedDrive).latitude,'
+  'centerLongitude: SkylineHandoff.destination(for: selectedDrive).longitude,'
+  'zoomLevel: 8.5,'
+  'coveredAboveY: chipBandBottom,'
+  'coveredBelowY: creditBandTop,'
+  'route: route'
+  ')'
+  '.ignoresSafeArea()'
+  ''
+  'VStack(spacing: 0) {'
+  'chips'
+  ''
+  'Spacer(minLength: 0)'
+  ''
+  'VStack(spacing: 0) {'
+  'AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))'
+  'HomeSheet(detent: $sheetDetent, summary: { sheetSummary }, details: { sheetDetails })'
+  '}'
+  '.onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { creditBandTop = $0 }'
+  '}'
+  '}'
+  '.background(DesignTokens.bg)'
+  '.task { resolveBasemap() }'
+  '.onChange(of: selectedDrive) { resolveBasemap() }'
+  '.onChange(of: colorScheme) { resolveBasemap() }'
+  '.sheet(isPresented: $isShowingDisclaimer) {'
+  'SafetyDisclaimer(onAccept: {'
+  'isSafetyDisclaimerAcknowledged = true'
+  'isShowingDisclaimer = false'
+  '})'
+  '.accessibilityIdentifier("home.disclaimer")'
+  '}'
+  '}'
+)
+FROZEN_CHIPS=(
+  'private var chips: some View {'
+  'DriveSelector(selection: $selectedDrive)'
+  '.padding(6)'
+  '.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))'
+  '.overlay('
+  'RoundedRectangle(cornerRadius: 18, style: .continuous)'
+  '.strokeBorder(DesignTokens.border, lineWidth: 1)'
+  ')'
+  '.padding(.horizontal, 12)'
+  '.padding(.top, 4)'
+  '.onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { chipBandBottom = $0 }'
+  '}'
+)
+FROZEN_SHEET_DETAILS=(
+  'private var sheetDetails: some View {'
+  'DriveDetails(drive: selectedDrive, caption: DriveCopy.mapCaption(for: selectedDrive, style: style))'
+  '}'
+)
+FROZEN_CONDITIONS=(
+  'private var conditions: some View {'
+  'Text(Copy.conditions)'
+  '.font(.footnote)'
+  '.foregroundStyle(DesignTokens.fgMuted)'
+  '.frame(maxWidth: .infinity, alignment: .leading)'
+  '.fixedSize(horizontal: false, vertical: true)'
+  '.accessibilityIdentifier("home.conditions")'
+  '.accessibilityHidden(false)'
+  '}'
+)
+FROZEN_APP_SHELL=(
+  'struct ScenicDriveApp: App {'
+  'var body: some Scene {'
+  'WindowGroup {'
+  'ScenicHomeScreen()'
+  '}'
+  '}'
+  '}'
+)
+
+# Every line of one file that can hold code: trailing CR stripped, trimmed, blank lines kept; only a line whose
+# trimmed text STARTS with // is dropped.
+frozen_code_lines() {
+  awk '{ line = $0; sub(/\r$/, "", line); sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+         if (substr(line, 1, 2) == "//") next; print line }' "$1"
+}
+
+# frozen_block FILE LABEL ARRAY ABOVE: one reason appended to FROZEN_BAD when the block is not its approved list.
+frozen_block() {
+  local file="$1" label="$2" above="$4" ob='{' cb='}'
+  local -n want="$3"
+  if [[ ! -f "$file" ]]; then FROZEN_BAD+=("$label: no such file $file"); return; fi
+  local kept=() i at=-1 n=0
+  mapfile -t kept < <(frozen_code_lines "$file")
+  for i in "${!kept[@]}"; do
+    [[ "${kept[$i]}" == "${want[0]}" ]] || continue
+    n=$((n + 1)); at="$i"
+  done
+  if [[ "$n" -ne 1 ]]; then
+    FROZEN_BAD+=("$label: the whole line \`${want[0]}\` occurs $n time(s) in $file, expected exactly 1"); return
+  fi
+  local up="<start of file>" k
+  for ((k = at - 1; k >= 0; k--)); do [[ -n "${kept[$k]}" ]] && { up="${kept[$k]}"; break; }; done
+  if [[ "$up" != "$above" ]]; then
+    FROZEN_BAD+=("$label: the line above \`${want[0]}\` is \`$up\`, approved \`$above\` (an attribute there rewrites the block)")
+    return
+  fi
+  local got=() depth=0 j o c line
+  for ((j = at; j < ${#kept[@]}; j++)); do
+    line="${kept[$j]}"; got+=("$line")
+    o="${line//[!$ob]/}"; c="${line//[!$cb]/}"
+    depth=$((depth + ${#o} - ${#c}))
+    [[ "$depth" -gt 0 ]] || break
+  done
+  if [[ "$depth" -gt 0 ]]; then
+    FROZEN_BAD+=("$label: \`${want[0]}\` never closes in $file (braces counted on whole lines)"); return
+  fi
+  for j in "${!want[@]}"; do
+    [[ "${got[$j]-<end of block>}" == "${want[$j]}" ]] && continue
+    FROZEN_BAD+=("$label line $((j + 1)) of ${#want[@]} in $file: approved \`${want[$j]}\`, found \`${got[$j]-<end of block>}\`")
+    return
+  done
+  [[ "${#got[@]}" -eq "${#want[@]}" ]] || \
+    FROZEN_BAD+=("$label in $file: ${#got[@]} lines, approved ${#want[@]}; the first unapproved is \`${got[${#want[@]}]}\`")
+}
+
+# frozen_directives FILE: every kept line starting with `#` must be an approved "basename|line" entry (none are).
+frozen_directives() {
+  local file="$1" line ok d
+  while IFS= read -r line; do
+    [[ "$line" == "#"* ]] || continue
+    ok=0
+    for d in "${FROZEN_DIRECTIVES[@]}"; do [[ "$d" == "${file##*/}|$line" ]] && ok=1; done
+    [[ "$ok" -eq 1 ]] || FROZEN_BAD+=("${file##*/}: the line \`$line\` - a directive in a frozen file, none approved")
+  done < <(frozen_code_lines "$file")
+}
+
+# require_frozen_blocks FEATURE_DIR APP_TREE: the six blocks and the directive fence, or `fail` naming each break.
+require_frozen_blocks() {
+  local feature="$1" app_tree="$2" f
+  local sheet="$feature/HomeSheet.swift" screen="$feature/ScenicHomeScreen.swift"
+  local shell="$app_tree/ScenicDrive/ScenicDriveApp.swift"
+  FROZEN_BAD=()
+  frozen_block "$sheet" "HomeSheet's struct" FROZEN_HOME_SHEET "import SwiftUI"
+  frozen_block "$screen" "ScenicHomeScreen's body (the ZStack and its modifier chain)" FROZEN_SCREEN_BODY "public init() {}"
+  frozen_block "$screen" "ScenicHomeScreen's chips" FROZEN_CHIPS "}"
+  frozen_block "$screen" "ScenicHomeScreen's sheetDetails" FROZEN_SHEET_DETAILS "}"
+  frozen_block "$screen" "ScenicHomeScreen's conditions" FROZEN_CONDITIONS "}"
+  frozen_block "$shell" "the app shell ScenicDriveApp" FROZEN_APP_SHELL "@main"
+  for f in "$sheet" "$screen" "$shell"; do [[ -f "$f" ]] && frozen_directives "$f"; done
+  [[ "${#FROZEN_BAD[@]}" -eq 0 ]] || fail "$FROZEN_REASON:" "${FROZEN_BAD[@]}" \
+    "These blocks draw the sheet, the conditions line and the credit at BOTH detents; each is a whole-line whitelist" \
+    "(ops/lib/check-safety-disclaimer-frozen). An edit inside one - a wrapper, a modifier, an overlay, a moved line -" \
+    "is refused until the approved list is edited in the same commit, where a reviewer reads it (rv2-t0237 B1-B3)."
+}

@@ -31,24 +31,23 @@
 #   B5 B4 was a BLACKLIST of ONE spelling: `.onAppear { ack.toggle() }` beside the real write left the
 #      count at one and the check GREEN over a screen with two writers -> (v)
 #
-# WHAT IT STILL CANNOT SEE, because a check that hides its blind spots is worse than none: whether the
-# sheet renders, whether a tap reaches the button, whether the accept closure's write ever RUNS, whether
-# @AppStorage reads it back, whether the line is on screen, contrast, Dynamic Type, the 44 pt target - a
-# simulator and an XCUITest own those (no test target; see ScenicApp/Package.swift). Also: Swift outside
-# apps/ios is unscanned; a second GatedHandoffButton( inside its own file is not counted (a #Preview
-# belongs there); `//` is stripped before braces are counted and `/* */` is not parsed; and (v) reads
-# LITERAL spellings, so a key assembled from a constant or an interpolation is unseen. Every anchor below
-# is an identifier, a file name or a literal the user reads, never a comment (CLAUDE.md); fail-closed
-# (P-SRC-02 / P-OPS-01), a scan that enumerated nothing is a REFUSAL.
+# WHAT IT STILL CANNOT SEE, because a check that hides its blind spots is worse than none: whether the sheet
+# renders, whether a tap reaches the button, whether the accept closure's write ever RUNS, whether @AppStorage
+# reads it back; whether the line is VISIBLE, HITTABLE and UNCOVERED at both detents - T-0180's runtime clause
+# (main 558e154) - contrast, Dynamic Type, the 44 pt target. (vi), run LAST, freezes the render blocks as
+# whole-line whitelists (ops/lib/check-safety-disclaimer-frozen, rv2-t0237 B1-B3). Also: Swift outside apps/ios
+# is unscanned; a second GatedHandoffButton( inside its own file is not counted (a #Preview belongs there); `//`
+# is stripped before braces are counted and `/* */` is not parsed; (v) reads LITERAL spellings, so a key
+# assembled from a constant or an interpolation is unseen. Every anchor below is an identifier, a file name or a
+# literal the user reads, never a comment (CLAUDE.md); fail-closed (P-SRC-02 / P-OPS-01), an empty scan REFUSES.
 #
 #   bash ops/lib/check-safety-disclaimer                 # the tracked tree
-#   bash ops/lib/check-safety-disclaimer --sources DIR   # any copy of Sources/FeatureScenicHome
-#                                        --app-tree DIR  # ... with a copy of apps/ios as its call graph
-#   bash ops/lib/check-safety-disclaimer --prove-red     # sixteen mutations, each refused by name
+#   bash ops/lib/check-safety-disclaimer --sources DIR [--app-tree DIR]  # copies of FeatureScenicHome [, apps/ios]
+#   bash ops/lib/check-safety-disclaimer --prove-red     # twenty-one mutations, each refused by name
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-for LIB in ops/lib/check-safety-disclaimer-lib ops/lib/check-safety-disclaimer-sheet; do
+for LIB in ops/lib/check-safety-disclaimer-lib ops/lib/check-safety-disclaimer-sheet ops/lib/check-safety-disclaimer-frozen; do
   [[ -f "$LIB" ]] || { echo "P-SAFE-03: $LIB is missing; the check cannot read Swift source without its readers."; exit 1; }
   . "$LIB"
 done
@@ -262,6 +261,7 @@ run_check() {
     "@AppStorage is a UserDefaults wrapper: UserDefaults.standard.set(true, forKey:) on this key writes" \
     "the same store without naming the identifier once, and the whitelist above cannot see it." \
     -- "${app_files[@]}"
+  require_frozen_blocks "$sources" "$app_tree"
   echo "P-SAFE-03: $n Swift file(s) under $sources; SafetyDisclaimer declared once in its own file;"
   echo "  home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in"
   echo "  SafetyDisclaimer.swift, the persistent line present, @AppStorage(\"$STORAGE_KEY\")"
@@ -275,7 +275,7 @@ run_check() {
   echo "  and a sheet bound to that flag on the screen; \`$ACK_IDENT = true\` written exactly once, at"
   echo "  line $ACK_WRITE_LINE, inside the SafetyDisclaimer(onAccept: { block opening at line $ACK_ACCEPT_LINE;"
   echo "  and by occurrence over the app tree, $ACK_IDENT at $ack_set, the key at $key_set."
-  echo "  Not checked here: rendering, taps, whether that write RUNS, contrast, Dynamic Type, 44 pt."
+  echo "  The render blocks frozen whole (-frozen). Not checked here: rendering (T-0180), taps, whether that write RUNS, contrast, Dynamic Type, 44 pt."
 }
 
 # ------------------------------------------------------------------------------------------------ red
