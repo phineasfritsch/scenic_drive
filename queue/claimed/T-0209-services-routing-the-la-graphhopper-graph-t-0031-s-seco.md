@@ -340,3 +340,69 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
       3 failed, 3 passed in 0.42s
 
   restored byte-for-byte (`git diff --stat` empty) -> `6 passed in 0.08s`.
+- 2026-09-26T01:41:13Z FINAL PRE-REVIEW COMMIT - origin/main (dc58864) merged into this branch FIRST (a895867), then every
+  gate re-run bare on the merged head and the acceptance block re-quoted.
+
+      $ cd services/routing && SCENIC_ROUTING_IMAGE=scenic-routing:t0209 python -m pytest tests -rs
+      SKIPPED [1] tests\test_lambda_monotone.py:127: no graph at ...\.worktrees\T-0209\services\routing\work\graph-cache
+      SKIPPED [1] tests\test_lambda_monotone.py:138: (same)
+      SKIPPED [1] tests\test_lambda_monotone.py:167: (same)
+      32 passed, 3 skipped in 100.51s (0:01:40)
+
+    The 32 include this task's 4 route-details tests (their own window import with scenic-routing:t0209, the
+    shipping ENTRYPOINT through docker) and 6 run-arithmetic tests, and T-0213's 10 read-back tests pointed at
+    scenic-routing:t0209 - so the new jar's import and --mode probe paths (an unknown --mode now throws; import
+    now returns explicitly) were exercised, not assumed. The 3 skips are the Vermont slice's, as in T-0213.
+
+      $ bash ops/lib/check-line-cap          P-SRC-02: 111 Swift files tracked (...), none over 300 lines      exit=0
+      $ bash ops/lib/check-exec-bits         P-OPS-01: 98 files, 23 required present, all modes correct       exit=0
+      $ bash ops/queue-check                 QUEUE OK (235 tasks)                                             exit=0
+      $ bash ops/check-pins --source-only    PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only   exit=0
+      $ python ops/lib/check-mutate-population.py   P-PROC-06: every added module is covered or allowlisted; the floor of 36 holds   exit=0
+        (no numeric module under services/etl/etl/ or Sources/ is added: the run arithmetic lives in
+        services/routing/tools/ and is covered by tests/test_route_details_runs.py, shown red on a mutant in V5.)
+
+      $ wc -l  (every touched file, at this commit)
+        74 RouteDetailsPrinter.java   177 ScenicRouterMain.java   121 tests/test_route_details.py
+        62 tests/test_route_details_runs.py   91 tools/route_details.py   178 tools/route_la_pairs.py
+        51 tools/geocode_la_places.py   48 README.md      (all Python/Java under 300; tools/ files are 100644:
+        they are run with `python`, not by name)
+    config.yml and profiles/*.json: NOT changed (R2). ops/deploy-routing: NOT changed, NOT run (R9).
+
+  ACCEPTANCE, item by item:
+    1. PATH DETAILS - MET. `--mode route-details` on the ENTRYPOINT prints road_class / osm_way_id / distance per
+       edge from GraphHopper's own path details; RED on scenic-routing:t0213 (mode absent: 4 failed), GREEN on
+       scenic-routing:t0209 (4 passed), both before any LA run. Pair coordinates typed (R4; the test's window
+       pair is T-0224's 34.0387,-118.5836 -> 34.0938,-118.6045, reproduced at 526739 ms / 8230.4 m).
+    2. GRAPH-CACHE IN THE MAIN CHECKOUT - MET, with the /info wording corrected (R6): path
+       services/routing/work/t0209/graph-la in the MAIN checkout; there is no /info in this slice, so the graph's
+       identity is GRAPH_DIGEST eb43090a0de52432756d5b6f98a0dad0f568838f8272ff339042344e920d18eb (per-file
+       manifest quoted) plus properties sha256 fb29845262227854ee5a08c99e7a20bdb550240773b9d13c726262eba91e5839.
+    3. THE WHOLE-LA IMPORT - MET. la-tagged.osm.pbf sha256 648fc3db...3d39 verified, digest-pinned GraphHopper
+       11.0 through WSL: processed ways 565,874, accepted 560,210, nodes 951,816, edges 1,194,924, zero-distance
+       edges 70,743, 3 components remain; SCENIC_EV present=true; graph hash recorded as in 2; P-PROD-04's
+       three-way equality PENDING (no golden exists).
+    4. T(lambda) NON-DECREASING AND THE BITE - FAILS ON ONE PAIR. Five durations per pair quoted (STAGES 4 AND 5).
+       Non-decreasing on westwood-malibu and santa-monica-topanga; NOT on westwood-woodland-hills (T(1) is 7,348
+       ms below T(0)) - V1 shows this follows from the model (W0, not T, is what lambda orders) and verifies W0
+       non-decreasing on that pair. The bite MEETS the re-ruled LA floor (V2: T(8) >= 1.025 x T(0); measured
+       +100.44 %, +31.52 %, +4.99 %).
+    5. RUNS AND THE RAT-RUN RULING - FAILS. Runs measured and quoted for all 18 routes; threshold ruled after
+       the measurement (V3: > 800 m of residential/living_street/service edges all scored < 7). One route breaks
+       it: santa-monica-topanga at lambda 8, 813.9 m of 7th Street, ways 121941230 (score 4) and 384819177
+       (score 2) - named, not hidden (V4).
+    6. THE VPS HALF - RECORDED AS BLOCKED on the human's box credentials (R9): SCENIC_ROUTING_HOST/USER/KEY/ROOT
+       are absent from this session's environment; nothing was rsynced, flipped or deployed, and nothing here
+       implies otherwise.
+
+  STILL OPEN (to be filed; none of it is fixed by this PR):
+    - Clause 4's monotonicity: T is not what the weighting orders; the per-request model keeps distance_influence
+      30 s/km. Either set it to 0 in the scenic request model or restate the property on W0 (V1). Worker and
+      ScenicKit (LambdaCustomModel) own the model - outside this task's touches.
+    - Clause 5's rat-run: T-0207's anti-rat-run factor is a constant x0.5 while the bands scale with lambda, so at
+      lambda 8 a score-4 residential costs 10 vs 9 for a low-band arterial (V4). Same owners.
+    - On two of three pairs lambda 0..4 return the identical route and only lambda 8 moves it (V2): the LA lambda
+      grid is a step for the budget bisection.
+    - The VPS: no host, no key, no serving surface (/info, /route) - ops/deploy-routing has never touched a box.
+    - The refused-reads-as-0 semantic (T-0213 R2, R10 here) - unchanged.
+    - accepted ways 560,210 vs the filtered clip's 560,208: +2, recorded, not reconciled.
