@@ -262,3 +262,40 @@ drive the owner takes. Order: T-0208 -> T-0209 -> this.
      Lincoln, Montana and 4th Street to San Vicente, down Entrada Drive and Channel Road to PCH, then Topanga
      Canyon Boulevard, Fernwood Pacific Drive and Tuna Canyon Road: 22 min 26 s, about 2 minutes more than the
      fastest way (20 min 14 s by the California Incline); from PCH on, the two are the same road.
+- 2026-09-26T17:24:37Z FINAL PRE-REVIEW - the acceptance block re-quoted on the merged head (agent/claude-opus-5).
+  `git fetch origin && git merge --no-edit origin/main` -> `Already up to date.` (origin/main is 74b5f4f, the
+  claim commit, an ancestor of HEAD). Re-run bare at 4831a16:
+      swift test --scratch-path .build/T0221 -> exit 0, `Test run with 348 tests in 50 suites passed` (XCTest: `Executed 0 tests`)
+      bash ops/plan <O> <D> 25 --recorded Tests/Fixtures/t0221/<pair>, x3 -> exit 0 each, stdout `cmp`-IDENTICAL to stage C's (sha256 f8f1a5c1e726d668 / 1a6d816d375506b4 / fe48c0e125717b27)
+      bash ops/lib/check-line-cap -> exit 0, `P-SRC-02: 123 Swift files tracked (Sources=45, Tests=54, apps/ios=24), none over 300 lines`
+      bash ops/lib/check-exec-bits -> exit 0, `P-OPS-01: 100 files, 23 required present, all modes correct`
+      bash ops/queue-check -> exit 0, `QUEUE OK (237 tasks)`
+      bash ops/check-pins --source-only, FIRST run -> exit 1, `PINS ok=14 skipped=16 pending=1 expired=0 failed=1 tier=linux source-only`
+          - P-SAFE-05 (its `swift test --filter SolarFixtureTests` into the worktree's DEFAULT .build, cold; output `(none)`)
+      swift test --filter SolarFixtureTests (that assertion's command, bare, right after) -> exit 0, `Test run with 6 tests in 1 suite passed`
+      bash ops/check-pins --source-only, SECOND run -> exit 0, `PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only`
+  This branch touches no solar source, test or fixture. The first run's cause is NOT established (the box was
+  running two other pins/mutation jobs at the time); it is recorded here, not explained away.
+  Not run, per the orchestrator: `bash ops/test` and the full `bash ops/check-pins` (this task's verify: list);
+  CI runs its Linux tier on the PR.
+  ACCEPTANCE, re-quoted:
+  (A1) "ops/plan run once against the served LA graph (T-0209's import of T-0208's whole-LA tagged PBF; /info's
+  graph hash quoted) for Westwood -> Malibu at +25: the Apple Maps URL (<= 9 waypoints), the fastest ETA, the
+  returned ETA (<= fastest + 25 min, asserted), the per-edge table and the lambda chosen quoted in the Log; the
+  longest residential/service run on the returned route quoted (m, way ids) against T-0209's ruled threshold"
+     MET AS RULED (R1, R2): "served" is T-0209's graph reached in-process by the committed recorder and replayed
+     by `ops/plan --recorded`; the hash is GRAPH_DIGEST eb43090a...18eb, because no /info exists. STAGE C (1):
+     the URL with 9 waypoints; fastest 27m47s; returned 31m44s <= ceiling 52m47s, ASSERTED by
+     PlanCLILARecordingTests over the raw 1904.238 <= 1667.261 + 1500 s (seen red by mutant M1); lambda 3.25;
+     the table's summary lines quoted, the full 166-row table in plan-westwood-malibu.txt; longest
+     residential/living_street/service run NONE (0 m), against T-0209 V3's 800 m / score < 7 threshold.
+  (A2) "the same for T-0209's other two pairs (Westwood -> Woodland Hills, Santa Monica -> Topanga) with the three
+  URLs handed to the owner in one FOR THE HUMAN block - the owner's own commute pair is T-0013's (M4), added here
+  only when the owner names it"
+     MET: STAGE C (2) Woodland Hills - 9 waypoints, fastest 20m09s, returned 38m26s <= 45m09s, lambda 7.75,
+     longest minor run NONE; (3) Topanga - 9 waypoints, fastest 20m14s, returned 22m26s <= 45m14s, lambda 7.75,
+     longest minor run 174.9 m (way 723963657, service, score 0) < 800 m, not a rat-run. Both asserted by the same
+     test. The three URLs are in the one FOR THE HUMAN entry (16:54:13Z). The owner has not named a commute pair;
+     none is added.
+  NOT CLAIMED: nobody has driven these routes yet; the ETAs are GraphHopper's estimates with no traffic data; the
+  drive itself (plan:284's exit) is the owner's.
