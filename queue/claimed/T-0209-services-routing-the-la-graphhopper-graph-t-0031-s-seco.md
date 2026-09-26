@@ -39,3 +39,98 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
 - 2026-09-19T21:54:54Z by agent/claude-opus-5[1m] (14:13 panel, grounded on pins/floor_*.txt, T-0203 Log :34, queue.py:541-548, RouteScore.swift:92-94): a graph-preservation clause added (the graph-cache lives in the MAIN checkout's services/routing/work/t0209/, never in the worktree). T-0221 is NOT folded in: it depends on T-0182, and folding would make the LA graph hostage to PR #124's review.
 - 2026-09-26T00:55:31Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0208 merged (PR #129, la-tagged.osm.pbf sha256 648fc3dbb80c8e84...3d39 at services/etl/work/la/, 45,914,107 B) and T-0207 is done; scenic-index is free.
 - 2026-09-26T00:55:49Z claimed by agent/claude-opus-5; lease until 2026-09-26T10:55:49Z
+- 2026-09-26T01:04:07Z RULINGS, before any code (author rule), by agent/claude-opus-5. Read first: this file (six
+  acceptance lines, every Brief/Log entry), T-0213's Log (import recipe, R2 probe, R5 no-/info, the refused-
+  reads-as-0 note left for this task), T-0224's Log (the per-class table, the typed pair, R1 "no path details"),
+  services/routing/ entire (ScenicRouterMain.java 166, import-graph.sh, Dockerfile, config.yml, profiles/*.json,
+  tests/*), Sources/ScenicPlanCLI/main.swift (`--emit-model`). INPUT verified where it lies, read-only, MAIN
+  checkout:
+
+      $ sha256sum services/etl/work/la/la-tagged.osm.pbf
+      648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39 *services/etl/work/la/la-tagged.osm.pbf
+      -rw-r--r-- 45914107 bytes
+
+  which is the promoted artifact (648fc3dbb80c8e84...3d39, 45,914,107 B) byte for byte.
+
+  (R1) THE PATH-DETAILS MODE (clause 1). `--mode route-details` on ScenicRouterMain - the image ENTRYPOINT, the
+  same main() that imports - takes route's arguments and, after each `ROUTE profile= model= time_ms= distance_m=`
+  line, prints one row per routed edge:
+      EDGE model=<label> seq=<i> road_class=<rc> osm_way_id=<id> distance_m=<3 decimals>
+  The rows are GraphHopper's OWN path details (GHRequest.setPathDetails(road_class, osm_way_id, distance) -
+  the same `details=` the served /route answers), not a second walk of the graph: `distance` is emitted once
+  per edge, road_class/osm_way_id are point intervals aligned to each edge by its first point. New type
+  RouteDetailsPrinter.java (one type per file). No graphhopper-web: the details live in graphhopper-core, so the
+  shaded jar needs no new dependency (T-0224 R1 read the missing web jar as the blocker; it is not - the missing
+  CALL was). Also ruled: an UNKNOWN --mode becomes an IllegalArgumentException; today it falls through to a
+  silent exit 0, which is exactly how T-0224's `--mode details` looked like a route with no rows.
+  THE TEST: services/routing/tests/test_route_details.py. It imports the canyon window
+  (services/etl/work/la/window-tagged-1.osm.pbf, sha256 compared to 06046be0...0090 - T-0213's S1 rule: the
+  test builds its own graph with the image under test, never a pre-built one) and routes T-0224's TYPED pair
+  34.0387,-118.5836 -> 34.0938,-118.6045 with --mode route-details, car_fast plus one lambda-8 model. Asserts per
+  ROUTE: at least one EDGE row; the rows' distance_m sums to the ROUTE's distance_m within 0.5 m; every
+  road_class is one of GraphHopper's RoadClass names; every osm_way_id > 0; the rows are seq 0..n-1 in order.
+  RED = the mode absent: SCENIC_ROUTING_IMAGE=scenic-routing:t0213 (main's jar, no route-details) - then GREEN on
+  scenic-routing:t0209. Both BEFORE any LA run is measured.
+
+  (R2) IMAGE TAG scenic-routing:t0209, built from this branch (`docker build -t scenic-routing:t0209
+  services/routing` in WSL). config.yml and profiles/*.json are NOT edited (this task holds routing-config but
+  needs no change: road_class and osm_way_id are already in graph.encoded_values), so a t0209 graph has t0213's
+  format. The image is passed explicitly as import-graph.sh's third argument; no default elsewhere moves (the
+  existing tests name the image their own red/green was recorded against).
+
+  (R3) HEAP: -Xmx6g for the import (import-graph.sh's own JAVA_TOOL_OPTIONS; WSL has 15 GB, 14 GB free, 12
+  cores; input 45.9 MB) and -Xmx6g for every routed run (the whole graph is loaded into RAM_STORE).
+
+  (R4) THE PAIRS, geocoded ONCE each with Nominatim, 1.1 s apart, by services/routing/tools/geocode_la_places.py
+  (first hit, rounded to 4 decimals):
+
+      PLACE Westwood lat=34.0669 lon=-118.4399 osm=node/3833103042 display=Westwood, Los Angeles, Los Angeles County, California, 90095, United States
+      PLACE Malibu lat=34.0356 lon=-118.6894 osm=relation/3492156 display=Malibu, Los Angeles County, California, 90265, United States
+      PLACE Woodland Hills lat=34.1684 lon=-118.6058 osm=node/150946719 display=Woodland Hills, Woodland Hills-Warner Center Neighborhood Council District, Los Angeles, Los Angeles County, California, 91364, United States
+      PLACE Santa Monica lat=34.0195 lon=-118.4912 osm=relation/3353288 display=Santa Monica, Los Angeles County, California, United States
+      PLACE Topanga lat=34.0676 lon=-118.5957 osm=relation/10993757 display=Topanga, Los Angeles County, California, 90290, United States
+
+  Typed pairs (the literals services/routing/tools/route_la_pairs.py carries):
+      westwood-malibu          34.0669,-118.4399 -> 34.0356,-118.6894
+      westwood-woodland-hills  34.0669,-118.4399 -> 34.1684,-118.6058
+      santa-monica-topanga     34.0195,-118.4912 -> 34.0676,-118.5957
+  A relation's point is Nominatim's centroid, not a road; GraphHopper snaps each to the nearest routable edge.
+
+  (R5) LAMBDA SET {0,1,2,4,8}; each model is `ops/plan --emit-model <lambda>` byte for byte (ScenicKit's
+  LambdaCustomModel - the Worker's model, the bytes the engine sends), written to work/t0209/models/lambda-<l>.json
+  (MAIN checkout), sha256 prefixes 0:a3ca54ce5d14 1:2ea18dc1b15f 2:3fcf7e6af6f2 4:8dccac165a8c 8:38fbbb3f8994.
+  (The first background `swift build --scratch-path .build/t0209` exited 1 on a Windows index-store "permission
+  denied"; ops/plan's own foreground build then succeeded and every emit exited 0.) DISAGREEMENT RULED: these
+  are NOT T-0213's models (profiles/car_scenic_request.json + scenic_lambda_bands.json). The emitted model
+  carries T-0207's anti-rat-run clause `road_class == RESIDENTIAL && scenic_score < 7 -> multiply_by 0.5` at
+  EVERY lambda, lambda 0 included. So lambda 0 is not car_fast by construction; car_fast is quoted beside the
+  five and the bite is measured lambda 0 -> 8 (both carry the clause, so the spread is the scenic penalty's).
+  The emitted model is ruled the right one: it is what the product sends.
+
+  (R6) THE GRAPH HASH. There is no /info (T-0213 R5: no HTTP surface in services/routing, and this task adds
+  none). Recorded instead, as T-0213 did: the graph dir's `properties` in part + its sha256, AND a whole-graph
+  digest = sha256 of the `sha256sum` manifest of every file in the graph dir in sorted name order (the exact
+  command quoted with the value), so T-0221 can prove it opened the same bytes. P-PROD-04's three-way
+  equality is PENDING until goldens exist - no golden is recorded here.
+
+  (R7) THE BITE FLOOR is NOT set now. It is ruled from the measured spread over the three pairs, after the
+  runs, never copied from Vermont's 5%.
+
+  (R8) THE RAT-RUN THRESHOLD is NOT set now. Per route per lambda the measurement reports the longest run of
+  each class (residential, living_street, service; a run = consecutive EDGE rows of one class, T-0224's
+  definition) with its metres and way ids, plus the longest mixed residential/living_street/service run. The
+  threshold is ruled after, from that and T-0224's table (residential median 170.7 m, p90 584.7 m, 4.83 % over
+  800 m; service median 59.9 m, p90 190.8 m, 0.48 % over 800 m). A run the ruling names a rat-run FAILS this
+  task and is reported by way id.
+
+  (R9) THE VPS HALF (clause 6). `env | grep -c SCENIC_ROUTING_` = 0: none of SCENIC_ROUTING_HOST/USER/KEY/ROOT is
+  set in this session. Recorded as BLOCKED ON THE HUMAN'S BOX CREDENTIALS; they were neither asked for nor
+  searched for; ops/deploy-routing is not run against any box and nothing is deployed.
+
+  (R10) CARRIED FROM T-0213 R2, not fixed here: a scenic_refused=1 way encodes 0 (the `low` band). Fixing it
+  touches the profiles and the encoded value; this task changes neither, so it stays STILL OPEN.
+
+  (R11) WHERE THINGS LIVE: graph -> MAIN checkout services/routing/work/t0209/graph-la (clause 2); raw route
+  output, models and logs -> MAIN checkout services/routing/work/t0209/; nothing under .worktrees/T-0209/.../work
+  except the test's own temp window graph, which it deletes. services/routing/work/t0213/ and .artifacts/routes/
+  (T-0239's) are not touched.
