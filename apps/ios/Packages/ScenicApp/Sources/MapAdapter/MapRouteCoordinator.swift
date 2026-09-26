@@ -26,6 +26,12 @@ import UIKit
 ///
 /// ## The covered edges (T-0237, R5/R6)
 ///
+/// `MapView` hands over the chrome's two edges in WINDOW coordinates and UIKit converts them into this view's
+/// (`convert(_:from: nil)`), so the covered heights come from the frame MapLibre actually draws in - never from a
+/// height SwiftUI reported, which for a view that ignores the safe area is the safe-area height (the second
+/// screenshots' fits were 96 pt short at the bottom, 62 + 34, from exactly that). Until the view is in a window
+/// nothing is converted and nothing is placed or fitted; the next rendered frame asks again.
+///
 /// The fit padding is each covered edge plus `margin`, and it is the WHOLE padding: MapLibre 6.31 adds its
 /// `contentInset` to every fit's padding (MLNMapView.mm, `setVisibleCoordinates:`) and by default sets that inset to
 /// the safe area, so `MapView` zeroes it and turns the adjustment off. The ornaments hang from the TOP covered edge:
@@ -39,7 +45,13 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
         case center(latitude: Double, longitude: Double, zoom: Double)
     }
 
-    /// How far the floating chrome covers the map from its top and bottom edges, in points (`MapView`).
+    /// The floating chrome's edges in window coordinates, as `MapView` measured them; zero is "not measured".
+    struct Chrome: Equatable {
+        var aboveY: CGFloat
+        var belowY: CGFloat
+    }
+
+    /// How far the floating chrome covers the map from its top and bottom edges, in this view's points.
     struct Covered: Equatable {
         var top: CGFloat
         var bottom: CGFloat
@@ -59,12 +71,12 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
     private var route: MapRoute?
     private var paintedStyle: UIUserInterfaceStyle?
     private var target: Target?
-    private var covered = Covered(top: 0, bottom: 0)
+    private var chrome = Chrome(aboveY: 0, belowY: 0)
     private var appliedTarget: Target?
     private var appliedCovered: Covered?
 
     /// The one entry point `MapView` calls, from `makeUIView` and from every `updateUIView`.
-    func update(_ mapView: MLNMapView, route: MapRoute?, target: Target, covered: Covered) {
+    func update(_ mapView: MLNMapView, route: MapRoute?, target: Target, chrome: Chrome) {
         if route != self.route || mapView.traitCollection.userInterfaceStyle != paintedStyle {
             self.route = route
             if let style = mapView.style {
@@ -72,7 +84,7 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
             }
         }
         self.target = target
-        self.covered = covered
+        self.chrome = chrome
         placeOrnaments(mapView)
         applyCamera(mapView)
     }
@@ -90,6 +102,7 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
     /// The logo top-left, the (i) top-right and the compass under it, all just below the chips: margins from the
     /// safe area the ornaments are anchored to. Set only when they change - this runs on every rendered frame.
     private func placeOrnaments(_ mapView: MLNMapView) {
+        guard let covered = coveredEdges(in: mapView) else { return }
         let safe = mapView.safeAreaInsets
         let top = CGPoint(x: 8, y: max(8, covered.top - safe.top + 8))
         let compass = CGPoint(x: 8, y: top.y + Self.compassDrop)
@@ -104,8 +117,20 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
         }
     }
 
+    /// The chrome's edges converted into this view's coordinates, as covered heights from its top and bottom edges;
+    /// `nil` until the view is in a window, where no conversion means anything yet.
+    private func coveredEdges(in mapView: MLNMapView) -> Covered? {
+        guard mapView.window != nil else { return nil }
+        let top = chrome.aboveY > 0 ? mapView.convert(CGPoint(x: 0, y: chrome.aboveY), from: nil).y : 0
+        let below = chrome.belowY > 0
+            ? mapView.convert(CGPoint(x: 0, y: chrome.belowY), from: nil).y
+            : mapView.bounds.height
+        return Covered(top: max(0, top), bottom: max(0, mapView.bounds.height - below))
+    }
+
     private func applyCamera(_ mapView: MLNMapView) {
-        guard let target, target != appliedTarget || covered != appliedCovered else { return }
+        guard let target, let covered = coveredEdges(in: mapView),
+              target != appliedTarget || covered != appliedCovered else { return }
         let animated = appliedTarget != nil
         switch target {
         case let .fit(west, south, east, north):

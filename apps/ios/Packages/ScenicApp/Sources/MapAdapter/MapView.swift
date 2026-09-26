@@ -14,11 +14,13 @@ import SwiftUI
 ///
 /// ## Covered edges (T-0237)
 ///
-/// The map is full-bleed under floating chrome: `obscuredTop` is how far down from the map's top edge the chips
-/// cover it, `obscuredBottom` how far up from its bottom edge the credit band and the sheet do, both in points of
-/// this view. The camera fits the drive's line between them, and MapLibre's logo and (i) are kept on the uncovered
-/// map - see `MapRouteCoordinator`. Zero means "nothing covers this edge", which is what a caller that measures
-/// nothing gets.
+/// The map is full-bleed under floating chrome: `coveredAboveY` is the window y of the chips' bottom edge (the map
+/// above it is covered), `coveredBelowY` the window y of the credit band's top edge (the map below it is covered by
+/// the credit and the sheet). WINDOW coordinates, converted to this view's by UIKit in `MapRouteCoordinator`: a
+/// height SwiftUI reports for a view that ignores the safe area is the safe-area height, not the drawn one (the
+/// second screenshots' medium fit was 96 pt short at the bottom from exactly that). The camera fits the drive's line
+/// between the two edges, and MapLibre's logo and (i) are kept on the uncovered map. Zero means "not measured,
+/// nothing covered", which is what a caller that measures nothing gets.
 public struct MapView: UIViewRepresentable {
     /// The style JSON to render. See `MapStyle` for what is actually behind it today.
     public let styleURL: URL
@@ -28,9 +30,10 @@ public struct MapView: UIViewRepresentable {
     public let centerLongitude: Double
     public let zoomLevel: Double
 
-    /// How far the floating chrome covers the map from its top and its bottom edge, in points.
-    public let obscuredTop: CGFloat
-    public let obscuredBottom: CGFloat
+    /// The window y of the floating chrome's edges: the map above `coveredAboveY` and below `coveredBelowY` is
+    /// covered. Zero is "not measured".
+    public let coveredAboveY: CGFloat
+    public let coveredBelowY: CGFloat
 
     /// The drive's road line, or `nil` for a drive with no recorded geometry (T-0236). With a route the camera
     /// fits the line's box; without one it is the centre and zoom above, exactly as before.
@@ -40,15 +43,15 @@ public struct MapView: UIViewRepresentable {
                 centerLatitude: Double,
                 centerLongitude: Double,
                 zoomLevel: Double,
-                obscuredTop: CGFloat = 0,
-                obscuredBottom: CGFloat = 0,
+                coveredAboveY: CGFloat = 0,
+                coveredBelowY: CGFloat = 0,
                 route: MapRoute? = nil) {
         self.styleURL = styleURL
         self.centerLatitude = centerLatitude
         self.centerLongitude = centerLongitude
         self.zoomLevel = zoomLevel
-        self.obscuredTop = obscuredTop
-        self.obscuredBottom = obscuredBottom
+        self.coveredAboveY = coveredAboveY
+        self.coveredBelowY = coveredBelowY
         self.route = route
     }
 
@@ -83,7 +86,7 @@ public struct MapView: UIViewRepresentable {
         mapView.automaticallyAdjustsContentInset = false
         mapView.contentInset = .zero
 
-        context.coordinator.update(mapView, route: route, target: cameraTarget, covered: covered)
+        context.coordinator.update(mapView, route: route, target: cameraTarget, chrome: chrome)
         return mapView
     }
 
@@ -91,11 +94,11 @@ public struct MapView: UIViewRepresentable {
         if uiView.styleURL != styleURL {
             uiView.styleURL = styleURL
         }
-        context.coordinator.update(uiView, route: route, target: cameraTarget, covered: covered)
+        context.coordinator.update(uiView, route: route, target: cameraTarget, chrome: chrome)
     }
 
-    private var covered: MapRouteCoordinator.Covered {
-        MapRouteCoordinator.Covered(top: max(0, obscuredTop), bottom: max(0, obscuredBottom))
+    private var chrome: MapRouteCoordinator.Chrome {
+        MapRouteCoordinator.Chrome(aboveY: max(0, coveredAboveY), belowY: max(0, coveredBelowY))
     }
 
     private var cameraTarget: MapRouteCoordinator.Target {

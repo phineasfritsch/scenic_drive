@@ -135,3 +135,32 @@ anyone sees, so its words are unhurried and few. No thrill words.
   assumption that MapLibre adds it back. Correction to R5: MapView sets `automaticallyAdjustsContentInset = false`
   and `contentInset = .zero` (the setter exists in 6.31, MLNMapView.mm:1441), and the fit padding is exactly each
   covered edge + 24 pt. No guard reads either; the round-2 screenshots are the check.
+- 2026-09-26T06:46:29Z SHOT, ROUND 2, by agent/claude-opus-5 (owner): ios-compile.yml run 36217861418 on 31c4985
+  `{"conclusion":"success"}` (second dispatch); ios-screenshot.yml run 36224025703 on the SAME head 31c4985
+  `{"conclusion":"success","headSha":"31c4985ea80b...","status":"completed"}` (second dispatch), downloaded as
+  .artifacts/screens/home-{light,dark}-T0237-{collapsed,medium}.png (round 1 kept in .artifacts/screens/T0237-r1/).
+  DESCRIBED (pt = px / 3): all four - the map full-bleed under the status bar; the chips on a material band ~50-121
+  pt (pale in light, dark olive in dark), Saddle Peak selected (orange), the others on `surface`; the MapLibre
+  LOGO now visible top-left just under the band (~133-150 pt) and the (i) top-right level with it - the round-1
+  logo failure is fixed; the credit pill lower-right on the map directly above the sheet, two lines
+  `© MapLibre · Natural Earth ·` / `© OpenStreetMap contributors`, wrapped AT THE SEPARATOR (acceptance 5 seen
+  again); the sheet: grabber, `Saddle Peak · Topanga to Malibu` on one line, `Conditions change. Verify locally.`
+  in fgMuted, the orange `Open in Apple Maps` (~33 pt band + padding, 44+ pt target). Collapsed: pill ~623-660 pt,
+  sheet from ~676 pt (~198 pt tall). Medium: pill ~365-410 pt, sheet from ~418 pt with the road list (4 lines), the
+  crow-flies line, the timing sentence and `Preview build. The line is the route ...` (3 lines). Dark: sheet on navy
+  `bg`, title white, conditions muted, button orange with navy text, pill on dark `surface` - all legible.
+  FAILED, MEASURED (a PIL scan for the route colour (37,99,235), gitignored .artifacts/measure_t0237.py): the route
+  box is x 21-380, y 301-539 pt collapsed and x 21-380, y 173-410 pt medium - the SAME zoom at both detents, and
+  IDENTICAL to round 1's boxes, so round 1's Log reading "(~312 pt)" was an eyeball error and the contentInset
+  change of 31c4985 moved nothing. At medium the route's lower-left end reaches 410 pt, below the pill's top (~365
+  pt, beside it, not under it) and 8 pt above the sheet: R5's "the whole route between the chips and the credit
+  pill" does not hold. ROOT CAUSE, from the numbers: both boxes' centres (420, 291.5) sit exactly where a fit with
+  a bottom padding 96 pt (= 62 + 34, the two safe-area insets) too small puts them - `mapHeight`, read by
+  `onGeometryChange` OUTSIDE `.ignoresSafeArea()`, is the safe-area height 778, not the drawn 874, so
+  `obscuredBottom = mapHeight - creditBandTop` was 96 pt short; at medium the open band (145-437 pt) was taller
+  than the route, so the width decided the zoom at both detents. FIX (this commit): no SwiftUI height is measured.
+  `MapView(coveredAboveY:coveredBelowY:)` takes the chip band's bottom and the credit band's top in WINDOW
+  coordinates, and `MapRouteCoordinator.coveredEdges(in:)` converts them with UIKit's `convert(_:from: nil)` into
+  the MLNMapView's own frame (nil until it is in a window). A stub typecheck of the extracted coordinator code
+  (swiftc, Windows) printed `Covered(top: 121.5, bottom: 509.0)` for (121.5, 365) and a logo margin y 67.5 (the
+  same as round 2's, which landed). Expected at medium: the route zoomed out into 145-341 pt, wholly above the pill.

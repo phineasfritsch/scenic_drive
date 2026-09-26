@@ -66,9 +66,9 @@ public struct ScenicHomeScreen: View {
     /// How much of the drive the sheet shows. A launch argument can pick the first one (`HomeSheetDetent`).
     @State private var sheetDetent = HomeSheetDetent.atLaunch
 
-    /// The map's full height, the chip band's bottom edge and the credit band's top edge, in window points. Zero
-    /// until measured, and the map then treats nothing as covered.
-    @State private var mapHeight: CGFloat = 0
+    /// The chip band's bottom edge and the credit band's top edge, in window points - the two edges `MapView`
+    /// converts into its own. Zero until measured, and the map then treats nothing as covered. The map's own height
+    /// is NOT measured here: SwiftUI reports the safe-area height for a view that ignores the safe area.
     @State private var chipBandBottom: CGFloat = 0
     @State private var creditBandTop: CGFloat = 0
 
@@ -82,13 +82,12 @@ public struct ScenicHomeScreen: View {
                 centerLatitude: SkylineHandoff.destination(for: selectedDrive).latitude,
                 centerLongitude: SkylineHandoff.destination(for: selectedDrive).longitude,
                 zoomLevel: 8.5,
-                obscuredTop: chipBandBottom,
-                obscuredBottom: mapObscuredBottom,
+                coveredAboveY: chipBandBottom,
+                coveredBelowY: creditBandTop,
                 // With a line, the camera fits it between the two covered edges; without one, the centre above.
                 route: route
             )
             .ignoresSafeArea()
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
 
             VStack(spacing: 0) {
                 chips
@@ -117,11 +116,6 @@ public struct ScenicHomeScreen: View {
             })
             .accessibilityIdentifier("home.disclaimer")
         }
-    }
-
-    /// How far up from the map's bottom edge the credit band and the sheet cover it; zero until both are measured.
-    private var mapObscuredBottom: CGFloat {
-        creditBandTop > 0 && mapHeight > creditBandTop ? mapHeight - creditBandTop : 0
     }
 
     /// Ask `DriveBasemap` which tiles this drive can have on this device, and keep the answer: the LA drives get the
