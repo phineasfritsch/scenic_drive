@@ -26,19 +26,24 @@ public struct MapRoute: Equatable, Sendable {
     /// The `route` token, and the casing under it.
     public let lineColor: Color
     public let casingColor: Color
+    /// What this line's DATA must be credited as - required, so no route is drawn without its credit. The
+    /// footer shows it after the basemap's (`CreditLine.composed`): MLNShapeSource takes no attribution, so
+    /// MapLibre's (i) sheet cannot carry it and the footer is the credit of record (rv1-t0236 B1).
+    public let dataCredit: String
 
     /// The plan's Tokens row: a 6 pt line over a 2 pt casing on each side.
     public static let lineWidth = 6.0
     public static let casingWidth = 2.0
 
-    /// A route from GeoJSON bytes, or `nil` when the bytes carry no four-number `bbox`.
-    public init?(geoJSON: Data, lineColor: Color, casingColor: Color) {
+    /// A route from GeoJSON bytes, or `nil` when the bytes carry no four-number `bbox` or the credit is empty.
+    public init?(geoJSON: Data, dataCredit: String, lineColor: Color, casingColor: Color) {
         guard let doc = try? JSONSerialization.jsonObject(with: geoJSON) as? [String: Any],
               let box = doc["bbox"] as? [Double], box.count == 4,
-              box.allSatisfy({ $0.isFinite }) else {
+              box.allSatisfy({ $0.isFinite }), !dataCredit.isEmpty else {
             return nil
         }
         self.geoJSON = geoJSON
+        self.dataCredit = dataCredit
         self.west = box[0]
         self.south = box[1]
         self.east = box[2]
@@ -54,6 +59,7 @@ public struct MapRoute: Equatable, Sendable {
     public static func bundled(named name: String,
                                subdirectory: String,
                                withExtension ext: String,
+                               dataCredit: String,
                                lineColor: Color,
                                casingColor: Color,
                                bundle: Bundle = .main) -> MapRoute? {
@@ -62,6 +68,6 @@ public struct MapRoute: Equatable, Sendable {
         guard let url, let data = try? Data(contentsOf: url) else {
             return nil
         }
-        return MapRoute(geoJSON: data, lineColor: lineColor, casingColor: casingColor)
+        return MapRoute(geoJSON: data, dataCredit: dataCredit, lineColor: lineColor, casingColor: casingColor)
     }
 }

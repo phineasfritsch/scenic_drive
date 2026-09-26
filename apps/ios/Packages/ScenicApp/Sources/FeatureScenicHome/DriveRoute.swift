@@ -16,14 +16,16 @@ import MapAdapter
 /// It reads a file from the bundle. `ScenicHomeScreen` holds the answer in `@State` and asks once per
 /// selection change and once per appearance change, beside `DriveBasemap.resolve` and for the same reason.
 enum DriveRoute {
-    /// The bundled line for `drive`, in `DesignTokens.route` over a `DesignTokens.surface` casing.
+    /// The bundled line for `drive`, in `DesignTokens.route` over a `DesignTokens.surface` casing, carrying the
+    /// drive's data credit for the footer - a drive that names a line and no credit draws none.
     static func resolve(for drive: HandoffDrive) -> MapRoute? {
-        guard let name = drive.routeGeometryResource else {
+        guard let name = drive.routeGeometryResource, let credit = drive.routeGeometryCredit else {
             return nil
         }
         return MapRoute.bundled(named: name,
                                 subdirectory: HandoffDrive.routeGeometrySubdirectory,
                                 withExtension: HandoffDrive.routeGeometryExtension,
+                                dataCredit: credit,
                                 lineColor: DesignTokens.route,
                                 casingColor: DesignTokens.surface)
     }

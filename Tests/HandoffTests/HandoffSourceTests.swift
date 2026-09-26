@@ -180,6 +180,10 @@ struct HandoffSourceTests {
         // `CaseIterable` and `Sendable`. This check went red on both by name before it went green.
         "AppleMapsDirections", "HandoffDrive", "HandoffError", "Mode", "SantaMonicaMountainsRoute", "SaddlePeakRoute",
         "SkylineRoute", "StraightLineDistance",
+        // `CreditLine` is T-0236's footer composition (rv1-t0236 B1): two credit strings split on the plan's
+        // separator and joined, a party the basemap already names skipped - `String`, `Set` and `Array`, no
+        // number and no locale. This check went red on it and on `Set` by name before it went green.
+        "CreditLine",
         // modules
         "Foundation", "ScenicKit",
         // ScenicKit
@@ -189,7 +193,7 @@ struct HandoffSourceTests {
         // it, which is the property this list exists to protect.
         "Coordinate", "Geo",
         // Swift, locale-free by construction
-        "Array", "Bool", "Character", "Double", "Int", "Self", "String", "Substring",
+        "Array", "Bool", "Character", "Double", "Int", "Self", "Set", "String", "Substring",
         "CaseIterable", "Comparable", "CustomStringConvertible", "Equatable", "Error", "Hashable", "Sendable",
         // Foundation, each one argued for
         "URL", "URLComponents", "URLQueryItem",

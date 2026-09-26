@@ -27,9 +27,11 @@
 #   (d) THE MOUNT, AND ONE RESOLVED VALUE FOR BOTH HALVES. `BasemapResolver.losAngeles(` occurs exactly
 #       once, in FeatureScenicHome/DriveBasemap.swift - without it the credit sits on no surface at all -
 #       `DriveBasemap.resolve(` occurs exactly once, and every `AttributionFooter(` construction is read by
-#       its ARGUMENT LIST, which must hand `text:` a LOCAL BINDING's `.attributionText` carrying no `"` -
-#       the same binding the map is mounted with (`styleURL: <binding>.url`, once). A5 of the mutant pass
-#       took the credit from a SECOND `DriveBasemap.resolve(...)` call while the map kept the first.
+#       its ARGUMENT LIST, whose ONE approved form is `text: CreditLine.composed(basemap: <b>.attributionText,
+#       routeData: <r>?.dataCredit)` - <b> the binding the map is mounted with (`styleURL: <b>.url`, once),
+#       <r> the binding the one MapView( is handed as `route: <r>`. A5 of the mutant pass took the credit
+#       from a SECOND `DriveBasemap.resolve(...)` while the map kept the first; rv1-t0236 B1 drew OpenStreetMap
+#       geometry under the style's credit alone, which names MapLibre and Natural Earth without la.pmtiles.
 #   (e) THE FOOTER IS NOT HIDDEN. Every occurrence of `accessibilityHidden` in DesignSystem/
 #       AttributionFooter.swift and at the mount screen is `accessibilityHidden(false)`, and there is at
 #       least one in the footer - acceptance bullet 2's own limb. `.accessibilityHidden(true)` is a licence
@@ -219,31 +221,8 @@ run_check() {
     "tiles the renderer never got (mutant pass A5 - the footer resolved again, the map kept the first)." \
     -- "${files[@]}"
 
-  local args=() seen_args=0 recv=""
-  mapfile -t args < <(footer_args "$screen")
-  for a in "${args[@]}"; do
-    seen_args=$((seen_args + 1))
-    case "$a" in
-      *'"'*) fail "AttributionFooter( in $screen is handed a string literal: $a" \
-        "The credit has to be asked of the resolved style (\`style.attributionText\`). A literal there is" \
-        "right on a device with la.pmtiles and a lie on every device without it." ;;
-    esac
-    case "$a" in
-      *"text:"*".attributionText"*) ;;
-      *) fail "AttributionFooter('s text argument in $screen is not a style's attributionText: ${a:-<empty>}" \
-        "Read from the construction's own argument list. Both halves of what is on screen - the tiles and" \
-        "the credit - must come from the one MapStyle value BasemapResolver returned." ;;
-    esac
-    recv="${a#*text:}"; recv="${recv%%.attributionText*}"
-    recv="${recv#"${recv%%[![:space:]]*}"}"; recv="${recv%"${recv##*[![:space:]]}"}"
-  done
-  [[ "$seen_args" -eq 1 ]] || fail \
-    "read $seen_args AttributionFooter( argument list(s) in $screen, expected 1." \
-    "A construction the argument reader cannot parse must refuse, not pass unread."
-  [[ "$recv" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || fail \
-    "the footer's credit does not come from a local binding: \`${recv:-<empty>}\`.attributionText" \
-    "The text argument has to read <binding>.attributionText, where <binding> is the same value the map" \
-    "is mounted with. An expression there resolves the style a SECOND time (mutant pass A5)."
+  require_composed_footer "$screen"
+  local recv="$FOOTER_STYLE"
   local mounted styles
   mounted="$(count_fixed_in "styleURL: $recv.url" "$screen")"
   styles="$(count_fixed_in "styleURL:" "$screen")"
@@ -252,6 +231,7 @@ run_check() {
     "occurs $mounted time(s) in $screen and \`styleURL:\` occurs $styles time(s), expected 1 and 1." \
     "The tiles and the credit are two halves of one fact: the footer reads $recv.attributionText, so the" \
     "renderer has to be handed $recv.url and nothing else."
+  require_route_mount "$screen" "$FOOTER_ROUTE"
 
   # ------------------------------------------------------------------ (e) NOT HIDDEN from accessibility
   local all_h ok_h
@@ -275,7 +255,7 @@ run_check() {
   # ------------------------------------------------------------------ (f) EVERY MAP SURFACE
   require_map_mounts "$APP_TREE/$MAPVIEW_REL" "$MAPVIEW_REL" "$SURFACE_SET" -- "${files[@]}"
 
-  print_verdict "$an" "$pline" "$dline" "${args[0]}" "$recv"
+  print_verdict "$an" "$pline" "$dline" "$FOOTER_ARG" "$recv" "$FOOTER_ROUTE"
 }
 
 MUTATIONS="ops/lib/check-map-attribution-mutations"

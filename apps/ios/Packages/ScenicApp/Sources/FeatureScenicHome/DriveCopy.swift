@@ -44,7 +44,7 @@ enum DriveCopy {
     static func route(for drive: HandoffDrive) -> String {
         switch drive {
         case .saddlePeak:
-            return "Entrada Road and Topanga Canyon Boulevard out of the village, Fernwood Pacific Drive, Tuna Canyon Road, Saddle Peak Road, Schueren Road, Piuma Road, down Malibu Canyon Road to Civic Center Way."
+            return "From wherever you are to Fernwood Pacific Drive, then Tuna Canyon Road, Saddle Peak Road, Schueren Road, Piuma Road, down Malibu Canyon Road to Civic Center Way."
         case .skyline:
             return "I-280 south, Cañada Road north, CA-92 west, Skyline Boulevard south, then back to the city."
         case .santaMonicaMountains:

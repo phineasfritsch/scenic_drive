@@ -123,13 +123,13 @@ public struct ScenicHomeScreen: View {
                     gatedHandoff
                         .padding(.horizontal, 16)
 
-                    // The credit for the tiles actually on screen, asked of the RESOLVED style itself
-                    // and never of the selection: on a device with `la.pmtiles` this is the plan's
-                    // `© OpenStreetMap contributors · Protomaps` line, and on every device without it
-                    // the same value carries MapLibre's credit for the demo tiles it is drawing - see
-                    // `MapStyle.attributionText`. Last in the stack, so nothing above it can sit on the
-                    // lower-right corner it owns.
-                    AttributionFooter(text: style.attributionText)
+                    // The credit for everything drawn: the RESOLVED style's credit for the tiles (the
+                    // plan's line with `la.pmtiles`, MapLibre's for the demo tiles without it - see
+                    // `MapStyle.attributionText`), then the drawn line's data credit, composed once from
+                    // the same `style` and `route` the map is handed. The line is OpenStreetMap data over
+                    // either basemap, and MapLibre's (i) cannot credit a shape source (rv1-t0236 B1).
+                    // Last in the stack, so nothing above it can sit on the lower-right corner it owns.
+                    AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))
                 }
             }
         }

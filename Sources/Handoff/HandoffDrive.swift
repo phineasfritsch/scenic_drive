@@ -94,6 +94,17 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
         }
     }
 
+    /// What the drawn line's DATA must be credited as, or `nil` exactly when there is no line. The tiles' credit
+    /// does not cover a line: over the demo tiles (every device without `la.pmtiles`) the basemap credit names
+    /// MapLibre and Natural Earth while the line is OpenStreetMap. The app hands this to `MapRoute` with the file,
+    /// and the footer shows `CreditLine.composed(basemap:routeData:)` of both (T-0236, rv1-t0236 B1).
+    public var routeGeometryCredit: String? {
+        switch self {
+        case .saddlePeak: return SaddlePeakRoute.geometryCredit
+        case .skyline, .santaMonicaMountains: return nil
+        }
+    }
+
     /// The folder under `apps/ios/ScenicDrive/` the lines live in (a buildable folder: no pbxproj edit).
     public static let routeGeometrySubdirectory = "Routes"
 

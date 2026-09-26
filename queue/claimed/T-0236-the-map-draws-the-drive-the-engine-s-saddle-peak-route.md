@@ -214,3 +214,79 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   STILL OPEN, recorded not hidden: the loop's freeway middle leg (T-0211) is untouched; the dark screenshot's ground
   is the one-style demo map on CI; the line has not been seen over the LA archive (no archive on CI) - on a phone
   with the archive the caption's LA arm says "over Los Angeles roads".
+- 2026-09-25T23:37:21Z ROUND 1 FAIL RULED, before any code (agent/claude-opus-5). rv1-t0236 B1 (BLOCKING): the Saddle
+  Peak line is GraphHopper over OpenStreetMap (the fixture's details carry osm_way_id), and the only credit on the
+  surface was the basemap's, so on every device without la.pmtiles - every CI run - the pill said "© MapLibre ·
+  Natural Earth" over OpenStreetMap-derived geometry. ACCEPTED in full. Round 1's screenshot entry called that pill
+  "TRUE, P-ATTR-01"; it was true of the tiles and false of the surface - P-ATTR-01 covers the basemap credit only, and
+  I read its green as the surface's.
+  (F1) THE CREDIT TRAVELS WITH THE GEOMETRY, as MapStyle's travels with its URL. `SaddlePeakRoute.geometryCredit` =
+  "© OpenStreetMap contributors"; `HandoffDrive.routeGeometryCredit: String?` forwards it beside
+  `routeGeometryResource` (nil for the loop and the Peninsula, which draw nothing). `MapRoute.dataCredit: String`
+  (MapAdapter) is NON-optional and a required init argument, so no MapRoute exists without its credit, and
+  `DriveRoute.resolve` draws no line for a drive that names a resource and no credit. Declared in Sources/Handoff and
+  passed in, not declared under apps/ios: P-ATTR-01 (b)'s second population refuses any `static let` under apps/ios
+  whose value names OpenStreetMap other than the one approved declaration - the same shape as the token colours.
+  (F2) ONE COMPOSED VALUE, ONE FUNCTION. `CreditLine.composed(basemap:routeData:)` (new, Sources/Handoff, Foundation
+  only): nil route data returns the basemap credit unchanged; otherwise the route credit's " · " segments are
+  appended after the basemap's, each skipped when the basemap already carries it (compared ignoring a leading © and
+  whitespace), and a fully duplicated route credit returns the basemap credit unchanged. Demo tiles + Saddle Peak ->
+  "© MapLibre · Natural Earth · © OpenStreetMap contributors"; LA tiles + Saddle Peak -> "© OpenStreetMap contributors
+  · Protomaps", OpenStreetMap once. The screen's ONE `AttributionFooter(` is handed
+  `CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit)` - the `style` the map is mounted
+  with and the `route` MapView( is handed. No wrapper in FeatureScenicHome: the function the screen calls is the
+  function the Linux test calls. AttributionFooter has no lineLimit (it wraps, never truncates), so the longer demo
+  line wraps rather than losing a term.
+  (F3) THE (i) SHEET. MLNShapeSource's options (clustering, zoom range, simplification tolerance, wrap/clip, line
+  metrics) carry no attribution key; `attributionHTMLString` / `attributionInfos` belong to MLNTileSource, and a
+  GeoJSON shape source is not a tile source. The line's credit cannot reach MapLibre's (i) sheet, so the footer is the
+  credit of record on every map surface. Stated from MapLibre's public API - this box has no Apple SDK to read the
+  header, and the screenshot's pill is what decides the surface.
+  (F4) THE GATE. check-map-attribution limb (d) becomes a WHITELIST of ONE form: the footer's text argument,
+  whitespace-squashed, is exactly `text: CreditLine.composed(basemap: <b>.attributionText, routeData: <r>?.dataCredit)`,
+  with <b> mounted as `styleURL: <b>.url` (unchanged) and the one MapView( construction's argument list carrying
+  `route: <r>` with the SAME <r>; any other form is refused by name. New --prove-red rows: the footer back to
+  `style.attributionText`; the composed call handed `routeData: nil`; MapView( handed `route: nil` while the footer
+  credits `route`. Rows whose sed anchored on `AttributionFooter(text: style.attributionText)` are re-anchored on the
+  new argument. The composer's BODY is Swift under Sources/Handoff, outside the check's app tree: a composer that
+  drops the route inside `CreditLine.composed` is shown red by swift test (CreditLineTests), not by the source check.
+  pins/PINS.yaml is NOT in this task's touches, so P-ATTR-01's statement ("The basemap credit on the home screen ...")
+  is left for the orchestrator to widen to the drawn route's data credit; its assertion (`bash
+  ops/lib/check-map-attribution`) already runs the new limb.
+  (F5) THE TEST. Tests/HandoffTests/CreditLineTests.swift binds to the shipping symbols - `CreditLine.composed` and
+  `HandoffDrive.routeGeometryCredit` over `HandoffDrive.allCases` - and READS the two style credits from MapStyle.swift's
+  approved declarations by identifier (`static let demoAttribution = `, `static let protomapsAttribution = `), so it
+  cannot hold a stale copy. It asserts: Saddle Peak on the demo credit contains OpenStreetMap; on the LA credit it
+  names OpenStreetMap exactly once and equals the LA credit; a drive with no route equals each style credit unchanged;
+  a drive has a credit iff it names a geometry resource, and every credit names OpenStreetMap contributors.
+  (F6) R5, copy-only, taken in the same commit. The road list began "Entrada Road and Topanga Canyon Boulevard out of
+  the village" - true of the DRAWN line (its first point is on Entrada Road, way 13388359) and false of the HANDOFF
+  (`source: nil`: Apple Maps starts wherever the driver is and routes to pin 1 on Fernwood Pacific Drive). The card
+  shows the same sentence when the handoff fails, so it has to be true of the handoff: "From wherever you are to
+  Fernwood Pacific Drive, then Tuna Canyon Road, Saddle Peak Road, Schueren Road, Piuma Road, down Malibu Canyon Road
+  to Civic Center Way." Digit-free; check-drive-copy reads case sites, not this text.
+- 2026-09-26T00:01:49Z ROUND 2 BUILT, red then green (agent/claude-opus-5). F1-F6 as ruled. Files: Sources/Handoff/
+  CreditLine.swift (new), SaddlePeakRoute.swift (`geometryCredit`), HandoffDrive.swift (`routeGeometryCredit`),
+  MapAdapter/MapRoute.swift (`dataCredit`, required), FeatureScenicHome/DriveRoute.swift, ScenicHomeScreen.swift (the
+  footer), DriveCopy.swift (R5), ops/lib/check-map-attribution, -lib, -mutations, ops/lib/mutate-population-allowlist.json
+  (CreditLine allowlisted with a reason: string composition, no number, no threshold), Tests/HandoffTests/
+  CreditLineTests.swift (new), HandoffSourceTests.swift (its type allow-list).
+  RED. (1) HandoffSourceTests' allow-list went red by name on the new source before anything was added to it: `every
+  capitalised identifier in the shipping source is on the allow-list` on "CreditLine" and on "Set" ("108 tests in 16
+  suites failed ... with 2 issues"); both added, the argument beside them. (2) Three mutants of the SHIPPING symbols,
+  each run with `swift test --scratch-path .build/T0236 --filter CreditLine` and restored byte-for-byte (a gitignored
+  .build/ driver): the composer returning `basemap` (drops the route credit) - exit 1, "4 tests in 1 suite failed ...
+  with 3 issues", red `over the demo tiles the Saddle Peak pill names OpenStreetMap after the basemap's own credit`;
+  the composer inserting the route's party raw instead of by identity (repeats a party the basemap names) - exit 1, 2
+  issues, red `over the LA Protomaps tiles the Saddle Peak pill names OpenStreetMap exactly once`; `routeGeometryCredit`
+  for .saddlePeak -> nil - exit 1, 4 issues, red `a drive has a data credit exactly when it draws a line, and that
+  credit names OpenStreetMap` and the demo-tiles test. (3) check-map-attribution --prove-red, the three new rows: `the
+  footer back to the style's credit alone` (round 1's own footer), `the composed credit handed no route credit` and
+  `the map not handed the route the footer credits` - each exit 1, each naming its reason ("is not the composed
+  credit" twice, "the map is not handed the route the credit names").
+  GREEN. `swift test --scratch-path .build/T0236 --filter HandoffTests`: "Test run with 108 tests in 16 suites passed".
+  check-map-attribution exit 0 ("built with: text: CreditLine.composed(basemap: style.attributionText, routeData:
+  route?.dataCredit) - and the map with styleURL: style.url and route: route, the same bindings"); --prove-red "17/17
+  mutations refused by name". check-drive-copy exit 0; --prove-red "8/8 mutations refused by name".
+  check-mutate-population "every added module is covered or allowlisted; the floor of 34 holds". check-exec-bits "96
+  files, 23 required present, all modes correct". Line cap and wc -l re-measured at the final pre-review head.

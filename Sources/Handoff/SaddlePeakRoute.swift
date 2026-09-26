@@ -58,4 +58,9 @@ public enum SaddlePeakRoute {
 
     /// The bundled line's resource name (`HandoffDrive.routeGeometryResource` forwards here).
     public static let geometryResource = "saddle-peak"
+
+    /// What the drawn line must be credited as (`HandoffDrive.routeGeometryCredit` forwards here). The line is the
+    /// recorded GraphHopper path over OpenStreetMap - the fixture's `details` carry an `osm_way_id` on every edge -
+    /// so it is OpenStreetMap data whatever basemap it is drawn over (rv1-t0236 B1).
+    public static let geometryCredit = "© OpenStreetMap contributors"
 }
