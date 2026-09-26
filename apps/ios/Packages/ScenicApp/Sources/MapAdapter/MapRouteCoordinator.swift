@@ -26,11 +26,11 @@ import UIKit
 ///
 /// ## The covered edges (T-0237, R5/R6)
 ///
-/// The fit padding is each covered edge plus `margin`, LESS the map's own `contentInset`: MapLibre 6.31 adds
-/// `contentInset` to every fit's padding (MLNMapView.mm, `setVisibleCoordinates:`), and by default that inset is
-/// the safe area. The ornaments are anchored to the safe area (`mgl_safeTopAnchor`/`mgl_safeBottomAnchor`), so their
-/// margins are the covered edges less `safeAreaInsets`. Both insets are read when the camera is applied, from the
-/// view itself, so nothing here assumes a device.
+/// The fit padding is each covered edge plus `margin`, and it is the WHOLE padding: MapLibre 6.31 adds its
+/// `contentInset` to every fit's padding (MLNMapView.mm, `setVisibleCoordinates:`) and by default sets that inset to
+/// the safe area, so `MapView` zeroes it and turns the adjustment off. The ornaments hang from the TOP covered edge:
+/// they are anchored to the safe area (`mgl_safeTopAnchor`), so their margins are that edge less
+/// `safeAreaInsets.top`, read from the view itself when they are placed - nothing here assumes a device.
 @MainActor
 public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDelegate {
     /// What the camera should show. Equatable, so "the same target again" is a comparison, not a guess.
@@ -52,10 +52,9 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
     /// The clear space a fit leaves between the line and each covered edge, and at the sides.
     static let margin: CGFloat = 24
 
-    /// Where the logo's bottom edge sits, measured DOWN from the top of the bottom covered band - the credit
-    /// band, whose pill is at least 44 pt tall plus 8 below it, so a ~23 pt logo is beside the pill and above
-    /// the sheet.
-    static let logoDrop: CGFloat = 40
+    /// The (i) and the compass share the top-right corner under the chips; the compass (shown only when the map
+    /// is rotated) sits one tap target below the (i).
+    static let compassDrop: CGFloat = 44
 
     private var route: MapRoute?
     private var paintedStyle: UIUserInterfaceStyle?
@@ -88,20 +87,20 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
         applyCamera(mapView)
     }
 
-    /// The (i) and the compass just below the chips, the logo in the credit band: margins from the safe area the
-    /// ornaments are anchored to. Set only when they change - this runs on every rendered frame.
+    /// The logo top-left, the (i) top-right and the compass under it, all just below the chips: margins from the
+    /// safe area the ornaments are anchored to. Set only when they change - this runs on every rendered frame.
     private func placeOrnaments(_ mapView: MLNMapView) {
         let safe = mapView.safeAreaInsets
         let top = CGPoint(x: 8, y: max(8, covered.top - safe.top + 8))
-        let logo = CGPoint(x: 8, y: max(8, covered.bottom - safe.bottom - Self.logoDrop))
+        let compass = CGPoint(x: 8, y: top.y + Self.compassDrop)
+        if mapView.logoViewMargins != top {
+            mapView.logoViewMargins = top
+        }
         if mapView.attributionButtonMargins != top {
             mapView.attributionButtonMargins = top
         }
-        if mapView.compassViewMargins != top {
-            mapView.compassViewMargins = top
-        }
-        if mapView.logoViewMargins != logo {
-            mapView.logoViewMargins = logo
+        if mapView.compassViewMargins != compass {
+            mapView.compassViewMargins = compass
         }
     }
 
@@ -112,14 +111,13 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
         case let .fit(west, south, east, north):
             // Not laid out yet: the next rendered frame asks again.
             guard mapView.bounds.width > 0, mapView.bounds.height > 0 else { return }
-            let inset = mapView.contentInset
-            let padding = UIEdgeInsets(top: max(0, covered.top - inset.top) + Self.margin,
+            let padding = UIEdgeInsets(top: covered.top + Self.margin,
                                        left: Self.margin,
-                                       bottom: max(0, covered.bottom - inset.bottom) + Self.margin,
+                                       bottom: covered.bottom + Self.margin,
                                        right: Self.margin)
             // Covered edges that leave no map between them (a sheet measured before the map was) wait for the
             // next frame rather than hand MapLibre a padding taller than the view.
-            let open = mapView.bounds.height - padding.top - padding.bottom - inset.top - inset.bottom
+            let open = mapView.bounds.height - padding.top - padding.bottom
             guard open > Self.margin else { return }
             let bounds = MLNCoordinateBounds(
                 sw: CLLocationCoordinate2D(latitude: south, longitude: west),

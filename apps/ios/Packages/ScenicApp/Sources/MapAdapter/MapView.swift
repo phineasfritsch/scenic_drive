@@ -67,12 +67,21 @@ public struct MapView: UIViewRepresentable {
         mapView.attributionButton.isHidden = false
         mapView.logoView.isHidden = false
 
-        // MOVED, NEVER HIDDEN (T-0236 R4, T-0237 R6). The (i) top-left and the compass top-right, both below the
-        // chips; the logo bottom-left, in the band beside the pill, above the sheet. The margins follow the two
-        // covered edges and are set by the coordinator, which knows the safe area they are measured from.
-        mapView.attributionButtonPosition = .topLeft
+        // MOVED, NEVER HIDDEN (T-0236 R4, T-0237 R6 as corrected). All three hang from the TOP covered edge, just
+        // below the chips: the logo top-left, the (i) top-right, the compass under the (i). The first screenshots put
+        // the logo at the bottom-left with margins from the bottom covered edge and it was on none of the four
+        // PNGs, while the (i), placed from the top edge, landed exactly where it was sent - so every ornament uses
+        // the edge that was seen to work. The margins are set by the coordinator, which knows the safe area.
+        mapView.logoViewPosition = .topLeft
+        mapView.attributionButtonPosition = .topRight
         mapView.compassViewPosition = .topRight
-        mapView.logoViewPosition = .bottomLeft
+
+        // The fit padding the coordinator hands MapLibre is the WHOLE padding: MapLibre adds `contentInset` to it,
+        // and by default sets that inset to the safe area. Zero and not adjusted, so the covered edges measured in
+        // SwiftUI are the only insets the camera sees (the first screenshots' medium detent fit a route taller than
+        // the uncovered map, with the inset subtracted and not added back).
+        mapView.automaticallyAdjustsContentInset = false
+        mapView.contentInset = .zero
 
         context.coordinator.update(mapView, route: route, target: cameraTarget, covered: covered)
         return mapView

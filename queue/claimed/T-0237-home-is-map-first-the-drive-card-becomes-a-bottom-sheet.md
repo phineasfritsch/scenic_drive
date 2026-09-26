@@ -94,3 +94,44 @@ anyone sees, so its words are unhurried and few. No thrill words.
   home-<look>-<detent>.png; downloaded as home-<look>-T0237-<detent>.png. No UI test is written: there is no UI
   test target (apps/ios/ScenicDriveUITests does not exist; T-0180 owns the first XCUITest), and the launch
   argument is the whole selection mechanism.
+- 2026-09-26T04:13:10Z BUILT by agent/claude-opus-5 (owner). RED FIRST (R7), Linux, by name: `swift test
+  --scratch-path .build-t0237 --filter CreditLine` with the new test and the old composed -> `× Test "the credit
+  pill never breaks a party across lines: every space inside a party is non-breaking" recorded an issue ...
+  Expectation failed: !((party → "© MapLibre").contains(" ") → true)` and `(Self.occurrences(of: "©", in: pill) →
+  2) == (Self.occurrences(of: "©" + Self.noBreakSpace, in: pill) → 0)` (13 issues, the other 4 tests passing);
+  after CreditLine.composed's `unbroken(_:)`: `√ Test run with 5 tests in 1 suite passed` (commit 9fed536).
+  UI + guards (commit 3ab5a77): HomeSheet, HomeSheetDetent, DriveDetails, ScenicHomeScreen (220 lines),
+  MapView/MapRouteCoordinator (covered edges), DriveCopy titles + preamble; `bash ops/lib/check-map-attribution` ->
+  exit 0 with `P-ATTR-01 (h): HomeSheet declared at .../HomeSheet.swift(1), built at .../ScenicHomeScreen.swift(1),
+  directly under the pill in the approved five-line mount after MapView(; the only presentation is
+  `.sheet(isPresented: $isShowingDisclaimer) {`.`; check-safety-disclaimer exit 0 (isSafetyDisclaimerAcknowledged
+  at GatedHandoffButton.swift(2) ScenicHomeScreen.swift(4), unchanged); check-drive-copy exit 0, unchanged (no
+  count moved, R3); `python ops/lib/check-ios-compile-guardrails.py` -> `ios-screenshot.yml equals the pinned
+  workflow`, and --prove-red -> `PROVE-RED OK: 66 mutations red, 6 legitimate spellings green over 2 workflows`.
+  ios-compile.yml run 36216670577 on 3ab5a77: `{"conclusion":"success","headSha":"3ab5a770d63d...","status":
+  "completed"}` - first dispatch. ios-screenshot.yml run 36217144027 dispatched on the SAME head 3ab5a77.
+- 2026-09-26T04:25:48Z SHOT, ROUND 1, by agent/claude-opus-5 (owner): run 36217144027 on 3ab5a77 `{"conclusion":
+  "success","headSha":"3ab5a770d63d...","status":"completed"}`, artifact ios-screenshots = home-{light,dark}-
+  {collapsed,medium}.png (1206x2622 each), kept in the main checkout as .artifacts/screens/home-*-T0237-*.png.
+  `bash ops/lib/check-map-attribution --prove-red` (background, logged) -> `prove-red: 32/32 mutations refused by
+  name`, H1-H8 each `1 yes`. DESCRIBED (pt = px / 3): light collapsed - map full-bleed under the status bar; chips on
+  a pale material band ~50-93 pt, Saddle Peak selected; (i) top-left at ~100 pt, just under the band; the route
+  fills the width between ~210 and ~405 pt, clear of the chips and of the pill; the credit pill lower-right on the
+  map, ~475-510 pt, two lines `© MapLibre · Natural Earth ·` / `© OpenStreetMap contributors` - it wraps AT THE
+  SEPARATOR, no party broken (acceptance 5 seen); the sheet from ~516 pt (~200 pt tall with the home indicator):
+  grabber, `Saddle Peak · Topanga to Malibu` on one line, `Conditions change. Verify locally.`, the orange `Open in
+  Apple Maps` (~33 pt text band, 44+ pt target). Light medium - the same sheet from ~320 pt adds the road list (4
+  lines), the crow-flies line, the timing sentence and the `Preview build. The line is the route ...` caption; the
+  pill rides up to ~280-313 pt, still on the map above the sheet; the route refit to ~130-310 pt. Dark collapsed /
+  medium - the same geometry; the sheet on navy `bg`, fg white, conditions line muted, button orange with navy
+  text; the chip band dark over the (light) demo tiles; the pill on dark `surface`, legible. Credit and conditions
+  line visible in all four.
+  FAILED, fixed before round 2: (1) MapLibre's LOGO is on none of the four PNGs (a pixel scan of the credit band's
+  left half, 1850-2060 px, finds no dark pixel) - it was placed bottom-left with margins from the bottom covered
+  edge, while the (i), placed from the TOP edge, landed exactly under the chips. Correction to R6: every ornament
+  hangs from the top covered edge - the logo top-left, the (i) top-right, the compass 44 pt under the (i).
+  (2) At medium the route's lower-left end dips to ~312 pt, level with the pill (beside it, not under it, above
+  the sheet): the fit had less padding than the uncovered map allows, because R5 subtracted `contentInset` on the
+  assumption that MapLibre adds it back. Correction to R5: MapView sets `automaticallyAdjustsContentInset = false`
+  and `contentInset = .zero` (the setter exists in 6.31, MLNMapView.mm:1441), and the fit padding is exactly each
+  covered edge + 24 pt. No guard reads either; the round-2 screenshots are the check.
