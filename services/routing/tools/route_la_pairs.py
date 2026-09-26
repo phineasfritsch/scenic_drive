@@ -109,7 +109,12 @@ def probe_run_ways(args):
     """One `--mode probe` over the ways of the reported runs: the score the GRAPH encoded for each.
     -> {way id: scenic_score}."""
     raw = args.out / "probe-run-ways.txt"
-    if not args.reuse:
+    probed = set()
+    if raw.is_file():
+        probed = {int(line.split()[1][len("way="):]) for line in raw.read_text(encoding="utf-8").splitlines()
+                  if line.startswith("PROBE ")}
+    # --reuse re-reads a probe only when it covers every way asked for now (a --fixture asks for more ways).
+    if not args.reuse or not RUN_WAYS <= probed:
         ways = ",".join(str(way) for way in sorted(RUN_WAYS))
         result = shell(
             f"docker run --rm -e JAVA_TOOL_OPTIONS={args.heap} -v {wsl_path(args.graph)}:/graph {args.image} "
@@ -191,7 +196,7 @@ def write_fixture(args, route, pair, label, scores):
     """The recorded route a Linux test reads without a container: one row per edge, the minor-class edges
     carrying the graph's encoded scenic_score ("-" on every other class, which the rat-run rule never reads)."""
     args.fixture_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"{pair}-{label[:-len('.json')]}"
+    stem = f"{pair}-lambda-{label[:-len('.json')].rpartition('-')[2]}"
     rows = ["seq\troad_class\tosm_way_id\tdistance_m\tscenic_score"]
     for edge in route["edges"]:
         score = scores[edge["way"]] if edge["road_class"] in MINOR_CLASSES else "-"
@@ -209,7 +214,8 @@ def main():
     parser.add_argument("--image", default="scenic-routing:t0209")
     parser.add_argument("--heap", default="-Xmx6g")
     parser.add_argument("--reuse", action="store_true", help="re-report from --out without running docker")
-    parser.add_argument("--fixture", help="PAIR:MODELFILE - record that route's edges under --fixture-dir")
+    parser.add_argument("--fixture", action="append", default=[],
+                        help="PAIR:MODELFILE (repeatable) - record that route's edges under --fixture-dir")
     parser.add_argument("--fixture-dir", type=Path)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -219,24 +225,23 @@ def main():
     print("".join("  " + line for line in manifest.splitlines(keepends=True)), end="")
     grouped = families(args.models)
     summary = []
-    fixture_route = None
+    fixture_routes = []
     for name, origin, destination in PAIRS:
         routes = route_pair(args, name, origin, destination)
         for family, labels in grouped.items():
             summary.append((f"{name}/{family}",) + report_pair(f"{name}/{family}", origin, destination, routes,
                                                                labels=labels, models_dir=args.models))
-        if args.fixture and args.fixture.split(":", 1)[0] == name:
-            label = args.fixture.split(":", 1)[1]
-            fixture_route = (name, label, next(r for r in routes if r["model"] == label))
-            RUN_WAYS.update(e["way"] for e in fixture_route[2]["edges"] if e["road_class"] in MINOR_CLASSES)
+        for label in [f.split(":", 1)[1] for f in args.fixture if f.split(":", 1)[0] == name]:
+            fixture_routes.append((name, label, next(r for r in routes if r["model"] == label)))
+            RUN_WAYS.update(e["way"] for e in fixture_routes[-1][2]["edges"] if e["road_class"] in MINOR_CLASSES)
     print(f"SUMMARY monotone={sum(1 for s in summary if s[1])}/{len(summary)} "
           f"bites={','.join(f'{s[0]}:{s[2] * 100:+.2f}%' for s in summary)}")
     for name, _, _, (metres, label, run) in summary:
         print(f"SUMMARY longest_mixed_minor_run {name} {metres:.1f}m model={label} classes={run['classes']} "
               f"ways=[{ways_text(run['ways'], 40)}]")
     scores = probe_run_ways(args) if RUN_WAYS else {}
-    if fixture_route is not None:
-        write_fixture(args, fixture_route[2], fixture_route[0], fixture_route[1], scores)
+    for name, label, route in fixture_routes:
+        write_fixture(args, route, name, label, scores)
 
 
 if __name__ == "__main__":

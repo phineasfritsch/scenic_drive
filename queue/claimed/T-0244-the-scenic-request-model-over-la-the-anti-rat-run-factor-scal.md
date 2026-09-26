@@ -59,3 +59,75 @@ relationship' failure.
             "distance_influence": 0 in the request model
     score - candidate: the same minor clause and di 0, then one band per integer score s <= 6: 1/(1 + l(7-s)/7)
   (candidate files from the gitignored work/t0244/cands.py; the clause text above is the whole of it).
+- 2026-09-26T08:12:37Z MEASUREMENT 1 LANDED, then RULINGS (a) (b) (c) and the predicates (agent/claude-opus-5).
+  `python services/routing/tools/route_la_pairs.py --graph work/t0244/graph-la --models work/t0244/models1 --out
+  work/t0244/routes1` (image scenic-routing:t0209), exit 0. GRAPH_DIGEST sha256=eb43090a0de52432756d5b6f98a0dad0
+  f568838f8272ff339042344e920d18eb (= T-0209's). SUMMARY monotone=8/9. Minutes per lambda over the ladder
+  (0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8); T in ms where the order is in question:
+    westwood-malibu          car_fast 27.79
+      cur    27.79 at 0..6, 55.70 at 7, 8                                        T non-decreasing True
+      lin    27.06, then 27.79 at 0.5..4, 55.70 at 5..8                            True
+      score  27.06, then 27.79 at 0.5..3, 59.65 at 4, 5, 61.85 at 6..8               True
+    westwood-woodland-hills  car_fast 20.14
+      cur    20.14, 20.02 at 0.5, 1, 26.49 at 2..8   False: T(0.5) 1,201,286 < T(0) 1,208,634 (T-0209 V1, again)
+      lin    20.02 at 0..2, 26.49 at 3..5, 27.75 at 6..8                           True
+      score  20.02 at 0, 0.5, 1, 26.49 at 2, 31.27 at 3, 38.43 at 4..8              True
+    santa-monica-topanga     car_fast 20.23
+      cur    20.23 at 0..5, 21.24 at 6..8                                          True
+      lin    20.23 at EVERY lambda (spread +0.00 %)                                True
+      score  20.23 at 0..3, 22.43 at 4..8 (spread +10.91 %)                         True
+  RUNS: `SUMMARY longest_mixed_minor_run santa-monica-topanga/cur 813.9m model=cur-6.json classes=['residential']
+  ways=[121941230,384819177]` - 7th Street appears from lambda 6, not only at 8. lin and score: the longest mixed
+  minor run on every route at every lambda is 174.8 m on santa-monica-topanga (service 723963657, score 0, the
+  car_fast route's own), 52.3 m on westwood-woodland-hills (service 1087155744,1087155743), 0.0 m on westwood-malibu.
+  GraphHopper 11 HONOURS a per-request distance_influence (measured, not read): at lambda 0 lin/score (di 0) return
+  27.06 min on westwood-malibu and 20.02 on westwood-woodland-hills where cur-0 / car_fast (di 30) return 27.79 /
+  20.14; no refusal, and the route moved.
+  (a) ANTI-RAT-RUN FORM - RULED: the minor clause `(road_class == RESIDENTIAL || road_class == LIVING_STREET ||
+  road_class == SERVICE) && scenic_score < 7` -> 1/(1+2l) is the FIRST branch of the band chain, so it REPLACES
+  the band instead of multiplying it. A minor edge costs 1+2l against 1+l for the dullest (score 0) arterial: the
+  ratio is 1 at l=0, 1.5 at 1, 1.89 at 8 and RISES with lambda, where cur's fell from 2 to 1.11 (10 vs 9 at l=8,
+  T-0209 V4). Not "x0.5 times the 1/(1+l) band factor on top of the band": that makes a minor edge's 1/p quadratic
+  (2(1+0.5l)(1+l) = 90 for a score-4 residential at l=8, a 10x detour incentive) and keeps a lambda-0 halving that
+  breaks (b). Not the step-4 zero-area repair: a second request per plan and an area per rat-run, carried on the
+  Worker's closure channel for a preference; the model fix removed 7th Street on the measured pair in one
+  request. Three classes, not RESIDENTIAL alone: V3's rat-run is residential/living_street/service, and service
+  ways all score 0 (T-0207's cap) so the old clause never touched them. `< 7` holds for every such way under
+  T-0207's caps (6, 6, 0) and is kept as the plan's own exemption.
+  (b) MONOTONE T - RULED: "distance_influence": 0 in the scenic REQUEST model; the base profile keeps 30, so
+  car_fast is unchanged and no profiles/*.json is edited. With (a) and (c) EVERY clause multiplies by 1/(1+c l),
+  c >= 0 fixed per edge, so at l=0 every priority is 1 and weight(R, l) = T(R) + l S(R) exactly; T-0209 V1's
+  exchange argument then gives T non-decreasing and S non-increasing in lambda (not only W0), and T(0) is the least
+  T over the gated graph, so T(0) <= T(car_fast): lambda 0 is inside the ceiling at every budget >= 0 - the floor
+  LambdaSearch's doc assumes, now true by construction (measured: 27.06 <= 27.79, 20.02 <= 20.14, 20.23 = 20.23).
+  P-SAFE-04 stays where it is enforced (ScenicPlanner's guard on the chosen route's own duration); a test by name
+  drives the REAL bisection over the measured step table at every whole-minute budget 0..40.
+  (c) THE LADDER - RULED: a finer lambda ladder does not help (cur over ten lambdas has two routes on
+  westwood-malibu; the bisection already samples continuous lambda to 0.05). A smoother band does: ADOPTED `score`,
+  one band per integer score 0..6 with slope (7-s)/7 (score >= 7 unpenalised, score 0 keeps 1/(1+l), minor 2).
+  Against lin it moves santa-monica-topanga at l=4 (lin never moves it), gives westwood-woodland-hills four routes
+  (20.02, 26.49, 31.27, 38.43) and moves westwood-malibu at 4 instead of 5. The constant is LambdaCustomModel's
+  band ladder (the slope per score). No GraphHopper value expression in multiply_by: scenic_score is an integer
+  0..10, so one constant clause per score IS the continuous map, with no dependency on that grammar.
+  WHAT IT DOES NOT GIVE: westwood-malibu a route between 27.8 and 55.7 min. Over all 30 models the pair returns
+  only {27.06, 27.79, 55.70, 59.65, 61.85}. With weight T + l S the returnable routes are the lower convex hull of
+  (S, T), and none of three band shapes puts a route inside the gap. The final run adds 3.25/3.5/3.75 across
+  score's flip interval; if it finds none, clause 3's "route between" FAILS on that pair and is recorded, never
+  re-worded (a between-route is an alternatives question - T-0239's menu - not a penalty-shape one).
+  PREDICATES, written after the measurement above:
+    P1 (clause 1) - the santa-monica-topanga lambda-8 route routed with the branch's `ops/plan --emit-model 8` has no
+       maximal run of residential/living_street/service edges, each scored < 7, over 800 m: LambdaCustomModelRatRunTests
+       over Tests/Fixtures/t0244/santa-monica-topanga-lambda-8.{edges.tsv,model.json}, whose model bytes must equal
+       LambdaCustomModel.json(for: 8) + "\n" (the recording is bound to the shipping model). RED FIRST on the cur-8
+       recording (813.9 m), recorded 08:09 by `route_la_pairs.py --reuse ... --fixture santa-monica-topanga:cur-8.json`.
+    P2 (clause 2) - T non-decreasing over the whole ladder on all three pairs in the final run; by name: the emitted
+       model sets distance_influence 0 and multiplies by "1" everywhere at l=0; P-SAFE-04 over the real bisection.
+    P3 (clause 3) - per pair, some l <= 4 returns a route different from l=0's; durations quoted; westwood-malibu's
+       between-route judged from the final run.
+  FIXTURE RULED: Tests/Fixtures/t0244/ (route_la_pairs --fixture: route-details edges + probed scenic_score per
+  minor edge, 179 rows), not the t0182-recorder: that records GraphHopper HTTP responses, services/routing serves
+  none (T-0213 R5), and the rat-run predicate needs road_class and scenic_score per EDGE.
+  TEST BINDING: the model tests read LambdaCustomModel.json(for:) - the bytes GraphHopperRouteSource sends and
+  --emit-model prints - through a clause-chain evaluator in the test target (GraphHopper's semantics: an
+  if/else_if/else chain applies its first matching clause, separate chains multiply), so they compile against
+  today's model and go RED by name.
