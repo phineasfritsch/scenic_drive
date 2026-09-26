@@ -2,7 +2,8 @@
 #
 # WHY IT EXISTS (T-0235): the owner has no Mac, and ios-compile.yml proves only that the tree builds. This job
 # boots an iOS 26 simulator, installs and launches the app, and uploads PNGs of its first screen - the home
-# screen - in light and dark as ONE artifact, `ios-screenshots`, so the app can be SEEN. It proves nothing about
+# screen - in light and dark, at both of its sheet detents (T-0237: `-homeDetent collapsed|medium`, a launch
+# argument), as ONE artifact, `ios-screenshots`, so the app can be SEEN. It proves nothing about
 # signing or TestFlight (T-0009). The runner needs network: the demo style is remote. apps/ios/ScenicDrive/Tiles/
 # la.pmtiles is gitignored, so CI draws the MapLibre demo tiles and credits them as such - BasemapResolver's
 # fallback, not a defect.
@@ -113,15 +114,17 @@ jobs:
           }
           for LOOK in light dark; do
             xcrun simctl ui "$UDID" appearance "$LOOK"
-            LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE")
-            echo "$LAUNCHED"
-            PID=${LAUNCHED##*: }
-            case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac
-            sleep "$SETTLE"
-            alive "$PID" "${SETTLE}s after the $LOOK launch"
-            xcrun simctl io "$UDID" screenshot --type=png "$SHOTS/home-$LOOK.png"
-            alive "$PID" "after the $LOOK screenshot"
-            xcrun simctl terminate "$UDID" "$BUNDLE"
+            for DETENT in collapsed medium; do
+              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT")
+              echo "$LAUNCHED"
+              PID=${LAUNCHED##*: }
+              case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac
+              sleep "$SETTLE"
+              alive "$PID" "${SETTLE}s after the $LOOK $DETENT launch"
+              xcrun simctl io "$UDID" screenshot --type=png "$SHOTS/home-$LOOK-$DETENT.png"
+              alive "$PID" "after the $LOOK $DETENT screenshot"
+              xcrun simctl terminate "$UDID" "$BUNDLE"
+            done
           done
           ls -l "$SHOTS"
 

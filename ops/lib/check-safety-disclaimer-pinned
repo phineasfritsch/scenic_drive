@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# P-SAFE-03 and P-ATTR-01, THE PINNED RENDER SURFACE (T-0237, rv3-t0237 B1-B3 and R1). Sourced by BOTH
+# ops/lib/check-safety-disclaimer and ops/lib/check-map-attribution and run LAST in each, after -frozen; it uses
+# the caller's `fail`.
+#
+# Round 3 of PR #133 hid the line, the sheet and the credit WITHOUT touching one frozen line: a file-scope
+# declaration OUTSIDE the frozen blocks shadows a name the frozen lines CALL. B1 appended `private struct Text: View
+# { init<S>(_ content: S) {} ... EmptyView() }` to ScenicHomeScreen.swift, so the conditions line draws nothing; B2
+# appended `private struct VStack<Content: View>: View {...}` to HomeSheet.swift, so the sheet is empty; B3 appended
+# `private struct AttributionFooter: View { init<T>(text: T) {} ... }` to ScenicHomeScreen.swift, so the credit is
+# gone; R1 declared `struct Text: View {...}` in a NEW file of the module. Swift resolves the module's own type
+# before SwiftUI's, so every name a frozen line calls is a door, and a list of forbidden declarations is a blacklist
+# bought one name per round (PR #101). So the surface is pinned by CONTENT, as two WHITELISTS:
+#   (1) THE FILE SET. EVERY entry under FeatureScenicHome/ - `find . -mindepth 1`, no name filter, any depth, any
+#       extension, any kind - is exactly the approved names below, and each is a REGULAR FILE. rv4-t0237: the
+#       set was once `-iname '*.swift'`, and find neither lists nor enters a link, so a directory link (a
+#       junction here, `ln -s` elsewhere) holding a Shadow.swift was invisible while SwiftPM compiles it. So an
+#       added entry (a file of any name, a directory, a link) is refused by name, a missing or renamed one too,
+#       and an entry that is not a regular file (a link, even one NAMED like an approved file) is refused by name.
+#       The git index under the directory holds no mode-120000 entry (a committed symlink checks out as a plain
+#       file where core.symlinks is false), and a tree outside a git work tree is refused, never skipped.
+#   (2) THE BYTES. Each of those files, and DesignSystem/AttributionFooter.swift, hashes to its approved digest
+#       below: sha256 of the content with CRLF normalized to LF (the Windows checkout and CI hash alike). Any
+#       edit, a comment or a blank line included, is refused, naming the file.
+# The frozen blocks (-frozen) and every anchor before them stay: they say WHICH fact broke. This is the backstop
+# that says a byte moved at all, so no declaration anywhere in the module can go unseen.
+#
+# CHANGING THE HOME SCREEN FROM NOW ON MEANS UPDATING THE APPROVED DIGESTS BELOW IN THE SAME COMMIT, deliberately,
+# with the reason in the task's Log - `sed -e 's/\r$//' FILE | sha256sum` prints the new one. A digest raised
+# without reading the diff it approves is the only way through this pin, and it is a visible line in review.
+#
+# WHAT IT CANNOT SEE: whether any of it RENDERS - visible, hittable and uncovered at BOTH detents is a runtime
+# property, T-0180's both-detents clause (main 558e154); a shadow or an overload declared OUTSIDE the pinned set -
+# the rest of DesignSystem, ScenicKit, MapAdapter, PlaceStore, the app shell ScenicDrive/ (whose ScenicDriveApp
+# block -frozen freezes, and no more), a SwiftPM or Xcode setting that adds sources - and the lexical spellings the
+# Swift readers do not parse (T-0243); what SwiftUI itself draws. It proves the bytes are the reviewed bytes; it
+# cannot prove the reviewed bytes are right, which is every other limb's job and the reviewer's.
+PINNED_REASON="the pinned render surface changed"
+PINNED_FOOTER_REL="../DesignSystem/AttributionFooter.swift"
+
+# name digest - FeatureScenicHome's approved file set, in C sort order, and each file's approved content.
+PINNED_FEATURE=(
+  'DriveBasemap.swift 2bd28e278bcff56eee61f86b2c4504cc0a8dabfe9497f421952da1b1bb8505be'
+  'DriveCopy.swift bdf20422dd0d42214f1838f8e54385c0a5653db3ca7249dd5ed4dda8a73b9b82'
+  'DriveDetails.swift 168c5d981faf34da3cafd8fc28bd29626b1c59a6d61d317075a6e818d05af1e0'
+  'DriveFacts.swift bdd9511bac9d73e4d3abc3fccacb68e7153bba2742155f4248558259f5ce1ae9'
+  'DriveRoute.swift 95601203fe2129a823affa1e11d10a23432f7a2b48a0a035e36420ddf8e74585'
+  'DriveSelector.swift ce63eea4128a64116e5f8daff2692225e12efe297d8d1a80eb9ed614306ce21e'
+  'GatedHandoffButton.swift 29207c221720db734649f29bee827520f0df269818c8ae11398d6ffbde3c9bfd'
+  'HandoffFailureCard.swift 62ea118d014d3cab0fc4e82e66692d7f5cfc4389da98616040cc7ab82a3422b7'
+  'HomeSheet.swift fda5e599a9c3b09203de6fc835e47cd3592cb91864518e9226d6e35204b9154e'
+  'HomeSheetDetent.swift 8f6a8eeaec6829a1b415408db5ea34d787d657919fc0f363189eb34c0e39e63e'
+  'SafetyDisclaimer.swift 7c33cdcf91aa074bf3916fda95c680e9e8d50ee131d5016f5912281a72384421'
+  'ScenicHomeScreen.swift a18df5c85969a766bb9c552794256f4cd23f96925485b6baa605bdce4025c9d6'
+  'SkylineHandoff.swift bbc94de1b8005446d4e10ae17ad1a7c7695b371a24e157d0d746a6d5521bb965'
+)
+PINNED_FOOTER_DIGEST='8f07bec7abe9690183813b79af08d404add796088bf497781b560d7e4bc7c0b7'
+
+# pinned_digest FILE: sha256 of FILE with CRLF normalized to LF; "missing" when FILE is not a readable file.
+pinned_digest() {
+  [[ -f "$1" && -r "$1" ]] || { echo "missing"; return 0; }
+  sed -e 's/\r$//' "$1" | sha256sum | cut -c1-64
+}
+
+# require_pinned_surface FEATURE_DIR: the file set, then every digest, or `fail` naming each break at once.
+require_pinned_surface() {
+  local dir="${1%/}"
+  [[ -d "$dir" ]] || fail "$PINNED_REASON: no such directory: $dir" \
+    "The pinned set is FeatureScenicHome and its footer; a missing tree is a refusal, never a pass."
+
+  # Every entry, NO name filter (a filter runs before the whitelist and hides what it does not match), no link
+  # followed or entered: the link itself is an entry, and (ii) refuses it by name.
+  local found=() nonreg=() approved=() spec
+  mapfile -t found < <(cd "$dir" && find . -mindepth 1 | sed -e 's|^\./||' | LC_ALL=C sort)
+  mapfile -t nonreg < <(cd "$dir" && find . -mindepth 1 ! -type f | sed -e 's|^\./||' | LC_ALL=C sort)
+  for spec in "${PINNED_FEATURE[@]}"; do approved+=("${spec%% *}"); done
+  local added missing
+  added="$(LC_ALL=C comm -23 <(printf '%s\n' "${found[@]}") <(printf '%s\n' "${approved[@]}" | LC_ALL=C sort) \
+    | sed -e '/^$/d' | tr '\n' ' ')"
+  missing="$(LC_ALL=C comm -13 <(printf '%s\n' "${found[@]}") <(printf '%s\n' "${approved[@]}" | LC_ALL=C sort) \
+    | sed -e '/^$/d' | tr '\n' ' ')"
+  local set_errs=()
+  [[ -z "$added" ]] || set_errs+=("added ${added% }")
+  [[ -z "$missing" ]] || set_errs+=("missing ${missing% }")
+  [[ "${#nonreg[@]}" -eq 0 ]] || set_errs+=("not a regular file ${nonreg[*]}")
+  [[ "${#set_errs[@]}" -eq 0 ]] || fail \
+    "$PINNED_REASON: FeatureScenicHome's file set is not the approved one: ${set_errs[*]}." \
+    "Found ${#found[@]} entr(ies) under $dir; approved ${#approved[@]} regular files, typed in ops/lib/check-safety-disclaimer-pinned." \
+    "A new file in the module can declare \`struct Text\`, \`VStack\` or \`AttributionFooter\` and every frozen line" \
+    "then calls IT (rv3-t0237 R1); a directory link holding one is compiled and never listed (rv4-t0237). Any" \
+    "entry that is not an approved regular file is refused by name; a file added, removed or renamed is approved there."
+
+  # The index: a committed symlink checks out as a plain file where core.symlinks is false, so the checkout alone
+  # cannot show it. No work tree (or no readable index) is a refusal - a limb that skips fails open.
+  local links
+  [[ "$(git -C "$dir" rev-parse --is-inside-work-tree 2>/dev/null)" == "true" ]] && \
+    links="$(git -C "$dir" ls-files -s -- . 2>/dev/null)" || fail \
+    "$PINNED_REASON: $dir is not inside a git work tree, so its index cannot be read." \
+    "The pinned set refuses a mode-120000 (symlink) index entry, and an unread index is a refusal, never a pass."
+  links="$(printf '%s\n' "$links" | sed -n -e 's/^120000 [0-9a-f]* [0-9]*\t//p' | tr '\n' ' ')"
+  [[ -z "$links" ]] || fail "$PINNED_REASON: committed as a symlink ${links% } (git index mode 120000 under $dir)." \
+    "A committed link can reach sources outside the pinned set; only regular files are approved (rv4-t0237)."
+
+  local bad=() name want got
+  for spec in "${PINNED_FEATURE[@]}"; do
+    name="${spec%% *}"; want="${spec##* }"
+    got="$(pinned_digest "$dir/$name")"
+    [[ "$got" == "$want" ]] || bad+=("$name content changed (sha256 $got, approved $want)")
+  done
+  got="$(pinned_digest "$dir/$PINNED_FOOTER_REL")"
+  [[ "$got" == "$PINNED_FOOTER_DIGEST" ]] || \
+    bad+=("AttributionFooter.swift content changed (sha256 $got, approved $PINNED_FOOTER_DIGEST)")
+  [[ "${#bad[@]}" -eq 0 ]] || fail "$PINNED_REASON: ${bad[0]}" "${bad[@]:1}" \
+    "Every byte of FeatureScenicHome and of DesignSystem/AttributionFooter.swift is pinned (rv3-t0237 B1-B3: a" \
+    "file-scope \`private struct Text\`, \`VStack\` or \`AttributionFooter\` outside every frozen block blanked the" \
+    "line, the sheet or the credit). Approve an edit by typing its new digest in the same commit, deliberately."
+  PINNED_FILES="${#found[@]}"
+}

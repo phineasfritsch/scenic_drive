@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# P-ATTR-01 limb (h): THE CREDIT SITS ON THE MAP, DIRECTLY ABOVE THE SHEET, AT EVERY DETENT (T-0237). Sourced by
+# ops/lib/check-map-attribution beside -lib (at CLAUDE.md's 300-line cap) and -sites; one role, this limb.
+#
+# The home screen is map-first: the drive is carried by an OVERLAY sheet, `HomeSheet`, and the credit pill and that
+# sheet are the only two children of one `VStack(spacing: 0)`, pill first - so the pill is laid out on the map above
+# the sheet's top edge whatever the detent (T-0237 ruling R1). What this limb decides, as WHITELISTS:
+#   (h1) `struct HomeSheet` is declared once, in FeatureScenicHome/HomeSheet.swift, and `HomeSheet(` is constructed
+#        once, in ScenicHomeScreen.swift - a second sheet laid over the map anywhere else is refused by name;
+#   (h2) THE MOUNT is the approved WHOLE lines below, consecutive, around the one AttributionFooter( line, inside
+#        the approved enclosing lines - the outer stack's opening before it, the exact closes up to the ZStack's
+#        `.background(` after it (rv1-t0237 B1: a `}` after the mount could close an `if` wrapped round it):
+#        nothing between the pill and the sheet, nothing modifying either of them alone, no wrapper round the
+#        pair, no spacing but 0, and the pill FIRST;
+#   (h3) the mount comes after the one `MapView(` line of the screen, so the stack is drawn above the map;
+#   (h4) every PRESENTATION in the app tree - `.sheet(`, `.fullScreenCover(`, `.popover(`, `.inspector(`, and any
+#        `presentationDetents` - is the one approved line `.sheet(isPresented: $isShowingDisclaimer) {` in the screen
+#        (P-SAFE-03's gate). A drive card presented as a system sheet with detents is drawn in its own window over
+#        the map and over the pill, which is the shape the overlay exists to avoid.
+#
+# FAIL-CLOSED READER (the lesson of rv3-t0236 B1-r3, and the rule for every change to these files): nothing is cut
+# inside a line. A line is dropped only when its trimmed text STARTS with `//` and holds no backslash; every other
+# line is compared or counted WHOLE, trailing comments and string literals included - so a mention in a trailing
+# comment or a literal is an extra occurrence, and is refused rather than ignored.
+#
+# WHAT IT CANNOT SEE: `.opacity(0)`/`.hidden()` on the pill inside AttributionFooter.swift, and anything that renders -
+# T-0180's both-detents runtime clause (main 558e154). HomeSheet's own drawing (an `.offset` on its ground) and the
+# ZStack's order are frozen whole by ops/lib/check-safety-disclaimer-frozen, run last (rv2-t0237).
+SHEET_REL="Packages/ScenicApp/Sources/FeatureScenicHome/HomeSheet.swift"
+SHEET_SCREEN_REL="Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift"
+SHEET_MOUNT=(
+  "VStack(spacing: 0) {"
+  "AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))"
+  "HomeSheet(detent: \$sheetDetent, summary: { sheetSummary }, details: { sheetDetails })"
+  "}"
+  ".onGeometryChange(for: CGFloat.self) { \$0.frame(in: .global).minY } action: { creditBandTop = \$0 }"
+)
+# The enclosing whole lines, blank ones included: the outer stack opens, the chips, the spacer; after the mount the
+# outer stack closes, the ZStack closes, and its first modifier. A wrapper round the mount adds a line to one side.
+SHEET_OPEN=("VStack(spacing: 0) {" "chips" "" "Spacer(minLength: 0)" "")
+SHEET_CLOSE=("}" "}" ".background(DesignTokens.bg)")
+SHEET_PRESENTATION='.sheet(isPresented: $isShowingDisclaimer) {'
+SHEET_PRESENTERS=(".sheet(" ".fullScreenCover(" ".popover(" ".inspector(" "presentationDetents")
+
+# Every line of one file that can hold code, "<line number>\t<trimmed line>", trailing CR stripped.
+sheet_code_lines() {
+  awk '
+    {
+      line = $0; sub(/\r$/, "", line); sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      if (substr(line, 1, 2) == "//" && index(line, "\\") == 0) next
+      printf "%d\t%s\n", FNR, line
+    }
+  ' "$1"
+}
+
+# "<path under the tree>(<count>)" for each file with at least one occurrence, by OCCURRENCE, whole lines.
+sheet_occurrences() {
+  local needle="$1" f c
+  shift
+  for f in "$@"; do
+    c="$(sheet_code_lines "$f" | awk -v needle="$needle" '
+      { s = $0; sub(/^[0-9]+\t/, "", s); while ((i = index(s, needle)) > 0) { n++; s = substr(s, i + length(needle)) } }
+      END { print n + 0 }')"
+    [[ "$c" -eq 0 ]] || printf '%s(%s)\n' "${f#"$APP_TREE"/}" "$c"
+  done
+}
+
+require_sheet_mount() {
+  local screen="$1"
+  shift
+  [[ "${1:-}" == "--" ]] && shift
+  local seen=() needle
+  for needle in "struct HomeSheet" "HomeSheet("; do
+    local want="$SHEET_SCREEN_REL(1)"
+    [[ "$needle" == "struct HomeSheet" ]] && want="$SHEET_REL(1)"
+    mapfile -t seen < <(sheet_occurrences "$needle" "$@")
+    [[ "${seen[*]}" == "$want" ]] || fail \
+      "$needle occurs outside its tracked set; found: ${seen[*]:-none}, tracked $want" \
+      "Counted by OCCURRENCE over every .swift file under $APP_TREE, whole lines (only // lines dropped). ONE" \
+      "sheet, mounted once, directly under the credit pill: a second HomeSheet laid over the map elsewhere, or a" \
+      "second type of that name, is a sheet this limb never read the position of."
+  done
+
+  local kept=() i at=-1 mapat=-1
+  mapfile -t kept < <(sheet_code_lines "$screen" | cut -f2-)
+  for i in "${!kept[@]}"; do
+    [[ "${kept[$i]}" == "${SHEET_MOUNT[1]}" ]] && { [[ "$at" -eq -1 ]] && at="$i" || at=-2; }
+    [[ "${kept[$i]}" == *"MapView("* && "$mapat" -eq -1 ]] && mapat="$i"
+  done
+  # `-` not `:-` below: a blank line is an approved line, and `:-` would read it as the end of the file.
+  local block=("${SHEET_OPEN[@]}" "${SHEET_MOUNT[@]}" "${SHEET_CLOSE[@]}")
+  local start=$((at - 1 - ${#SHEET_OPEN[@]})) got=() j
+  if [[ "$at" -ge 0 && "$start" -ge 0 ]]; then
+    for j in "${!block[@]}"; do got+=("${kept[$((start + j))]-<end of file>}"); done
+  fi
+  if [[ "$at" -lt 0 || "$start" -lt 0 || "$(printf '%s\n' "${got[@]}")" != "$(printf '%s\n' "${block[@]}")" ]]; then
+    local shown=() k
+    for k in "${!block[@]}"; do shown+=("  approved: ${block[$k]}" "  found:    ${got[$k]-<none>}"); done
+    fail "the credit is not mounted directly above the sheet in $screen." \
+      "${shown[@]}" \
+      "The approved block is the ${#block[@]} WHOLE lines above, consecutive (only // lines dropped): the outer" \
+      "stack's opening, the five-line mount round the one footer line, then the closes up to the ZStack's" \
+      ".background(. Pill first, spacing 0, nothing between them, nothing on either alone and nothing round the" \
+      "pair: a ZStack, an offset or negative spacing, the pill after the sheet or inside it, an opacity on the" \
+      "pill, or an \`if\` round the mount each puts the credit UNDER the sheet or off the map at some detent."
+  fi
+  [[ "$mapat" -ge 0 && "$mapat" -lt "$start" ]] || fail \
+    "the credit and the sheet are not drawn above the map in $screen: MapView( is not before the mount." \
+    "In the screen's ZStack a later child draws over an earlier one; the map has to come first."
+
+  local p sites=() line
+  for p in "${SHEET_PRESENTERS[@]}"; do
+    mapfile -t seen < <(sheet_occurrences "$p" "$@")
+    local want=""
+    [[ "$p" == ".sheet(" ]] && want="$SHEET_SCREEN_REL(1)"
+    [[ "${seen[*]}" == "$want" ]] || sites+=("$p at ${seen[*]:-none}, tracked ${want:-nowhere}")
+  done
+  line="$(sheet_code_lines "$screen" | cut -f2- | grep -c -F -x -e "$SHEET_PRESENTATION" || true)"
+  [[ "$line" -eq 1 ]] || sites+=("the approved line \`$SHEET_PRESENTATION\` occurs $line time(s) in $screen, expected 1")
+  [[ "${#sites[@]}" -eq 0 ]] || fail "a presentation over the map outside its approved site:" \
+    "${sites[@]}" \
+    "Every presentation in the app tree is the one safety-disclaimer sheet (P-SAFE-03). A drive card presented as" \
+    "a system sheet - with presentationDetents or without - is drawn in its own window over the map and the pill."
+  SHEET_MOUNT_LINE="$at"
+}
+
+print_sheet_verdict() {
+  echo "P-ATTR-01 (h): HomeSheet declared at $SHEET_REL(1), built at $SHEET_SCREEN_REL(1), directly under"
+  echo "  the pill in the approved whole-line block after MapView(; the only presentation is \`$SHEET_PRESENTATION\`."
+  echo "  Not checked here: anything that renders - T-0180's both-detents runtime clause (main 558e154)."
+}
