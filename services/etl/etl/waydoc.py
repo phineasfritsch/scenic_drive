@@ -172,9 +172,36 @@ def row_for(way: dict, coords: list, node_tags: dict, profile: list, codes: list
             "meters_to_nearest_motorway": INFINITY if math.isinf(distance) else distance}
 
 
+def motorway_lines(source) -> list:
+    """The motorway geometry proximity is measured to, read from a file of its OWN (T-0208 R1b).
+
+    `meters_to_nearest_motorway` is the one producer input that is computed against the OTHER WAYS IN THE
+    CLIP rather than against the way itself, so it is window-relative in exactly the way a rank is: over
+    T-0204's two real docs 98 of the 190 completed seam ways carry a different distance in the two clips and
+    15 of them cross `score.MOTORWAY_PROXIMITY_M`. Handed the region's whole motorway set - one
+    `osmium tags-filter` - every chunk of a region answers the same number for the same road.
+
+    `proximity.is_motorway`, not "every way in the file": the caller passes a cut, and a cut that let a
+    residential way in would silently put a x0.7 multiplier on its neighbours.
+    """
+    nodes, _node_tags, ways = geometry(source)
+    out = []
+    for way in ways:
+        if not proximity.is_motorway(way["tags"]):
+            continue
+        coords = [nodes[ref] for ref in way["refs"] if ref in nodes]
+        if len(coords) >= MIN_COORDINATES:
+            out.append((coords, bbox_of(coords)))
+    return out
+
+
 def build(source, *, region_id: str, byway_entries=(), elevation=None, landcover=None,
-          meta: dict | None = None, progress=None) -> dict:
-    """The clip at `source` as the document `etl.assemble` reads. Pure wiring over the producers."""
+          meta: dict | None = None, progress=None, motorway_source=None) -> dict:
+    """The clip at `source` as the document `etl.assemble` reads. Pure wiring over the producers.
+
+    `motorway_source` is the region's motorway set (see `motorway_lines`); the default, None, measures to
+    the clip's own motorways, which is what every self-contained caller and fixture wants.
+    """
     nodes, node_tags, ways = geometry(source)
     tiles = dem.tiles_for_region(region_id)
     sample_elevation = elevation or (lambda points: dem.sample_smoothed(points, tiles=tiles))
@@ -195,8 +222,9 @@ def build(source, *, region_id: str, byway_entries=(), elevation=None, landcover
         else:
             roads.append((way, coords))
 
-    motorways = [(coords, bbox_of(coords)) for way, coords in roads
-                 if proximity.is_motorway(way["tags"])]
+    motorways = (motorway_lines(motorway_source) if motorway_source is not None
+                 else [(coords, bbox_of(coords)) for way, coords in roads
+                       if proximity.is_motorway(way["tags"])])
     kept_byways, no_route_key = keep_byways(list(byway_entries))
 
     rows: list = []
@@ -236,6 +264,8 @@ def main(argv: list | None = None) -> int:
     parser.add_argument("--window", default="", help="the bbox this clip was cut with, for the meta")
     parser.add_argument("--out", required=True, help="where to write the assembly document")
     parser.add_argument("--no-byways", action="store_true", help="build without the byway overlay")
+    parser.add_argument("--motorways", default=None,
+                        help="the REGION's motorway set as OSM XML; default is the clip's own ways")
     args = parser.parse_args(argv)
 
     entries = [] if args.no_byways else byway_source.load(INPUTS)
@@ -247,7 +277,8 @@ def main(argv: list | None = None) -> int:
 
     document = build(pathlib.Path(args.input), region_id=args.region, byway_entries=entries,
                      meta={"window": args.window, "source": pathlib.Path(args.input).name,
-                           "inputs": str(INPUTS)}, progress=progress)
+                           "inputs": str(INPUTS), "motorways": args.motorways or ""}, progress=progress,
+                     motorway_source=None if args.motorways is None else pathlib.Path(args.motorways))
     pathlib.Path(args.out).write_text(json.dumps(document) + "\n", encoding="utf-8", newline="\n")
     print(count_line(document["counts"]))
     return 0

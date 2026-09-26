@@ -1,25 +1,30 @@
-"""T-0204: which ways reach the canyon window's tenth score - as a WHITELIST, over the measured fixtures.
+"""T-0204/T-0208: which ways reach the canyon window's tenth score - as a WHITELIST, over the fixtures.
 
-THE HISTORY, because this file is the record of a refutation. T-0204's acceptance said "every one of the
-grid window's top ten scores BELOW the canyon window's tenth (0.7284)". That predicate is FALSE on the real
-data, and the run that measured it shipped it red: two Mulholland Drive ridge segments (ways 518410361 at
-0.7361 and 787842196 at 0.7299) sit inside the grid bbox because its northern edge (34.15) runs along the
-Santa Monica Mountains crest, so the "mixed street grid" window CONTAINS canyon-rim road.
-
-THE ORCHESTRATOR'S RULING (agent/claude-fable-5-1, the filer of the task, quoted in the task Log): the
-acceptance was mis-specified by its filer, the finding stands as written and is not hidden, and the test
+THE HISTORY, because this file is the record of a refutation AND of its repair. T-0204's acceptance said
+"every one of the grid window's top ten scores BELOW the canyon window's tenth". That predicate was FALSE
+on T-0204's data: two Mulholland Drive ridge segments (ways 518410361 and 787842196) sit inside the grid
+bbox because its northern edge (34.15) runs along the Santa Monica Mountains crest, so the "mixed street
+grid" window CONTAINS canyon-rim road. The orchestrator ruled that the finding stands and that the test
 becomes the WHITELIST form of the same fact - CLAUDE.md, "anchor a guard on a WHITELIST ... never on a
-blacklist". The ONLY grid-window ways at or above the canyon window's tenth are the ridge segments named in
-`RIDGE_ALLOWLIST`; ANY other way that reaches the bound - a Westwood, Brentwood or Bel Air street, a fire
-road, a newly re-scored Mulholland segment - turns this file RED BY NAME. The refutation is therefore
-still asserted (the two ways are named, in the open, and no third one may join them quietly) and the suite
-is green, so a later regression is visible instead of being hidden under a test that was already red.
+blacklist" - and `RIDGE_ALLOWLIST` named the two ways so that no third could join them quietly.
+
+WHAT T-0208 CHANGED, and why the allowlist is now EMPTY. Every score T-0204 ranked was computed against
+the ways that happened to land in its own clip; T-0208 ranks the whole region against ONE reference. Under
+it the two ridge segments are still the grid window's two best roads - they have not been re-ranked away,
+and `test_the_two_mulholland_ridge_segments_...` names them and asserts exactly that - but neither reaches
+the canyon window's tenth any more. The allowlist therefore SHRINKS TO NOTHING. It was re-derived from the
+measurement, never re-ranked to keep a way in it (T-0208 R4), and `RIDGE_ALLOWLIST` is kept as the shape
+this guard has so that a way climbing back over the bound is a named failure rather than a silent one.
+
+AN EMPTY WHITELIST IS A PREDICATE THAT CAN PASS OVER NOTHING, so two other tests carry its weight:
+`test_the_read_finds_a_way_that_reaches_the_bound` raises the grid rows over the bound and requires all
+ten to be found, and `test_a_tie_at_the_bound_counts_as_not_below` requires the tie fixture's one raised
+way to be found. The read is shown to work in both directions before it is believed when it finds nothing.
 
 WHAT IS PINNED, all of it on identifiers and measured numbers and none of it on a comment: the bound's WAY
-ID and its value; the allowlist's IDS AND NAMES; 25 rows per fixture with contiguous ranks in descending
-unit order; a TIE at the bound counting as NOT below; and the SHAPE of a fixture row tied to the shipping
-symbol `etl.scenecheck.top` over a committed read-back, so these fixtures cannot drift away from what the
-oracle actually produces.
+ID and its value; the two ridge ids and names; 25 rows per fixture with contiguous ranks in descending unit
+order; a TIE at the bound counting as NOT below; the 190 seam ways and their agreement; and the SHAPE of a
+fixture row tied to the shipping symbol `etl.scenecheck.top` over a committed read-back.
 
 THE RANKING IS BY `scenic_score_unit`, NEVER BY POSITION IN THE FILE: every read below sorts. A fixture
 re-recorded in another order, or sorted by way id, cannot make the predicate true.
@@ -44,14 +49,25 @@ FIXTURE_ROWS = 25
 UNIT = "scenic_score_unit"
 ROW_FIELDS = {"way_id", "name", "highway", "lat", "lon", "scenic_score", UNIT, "rank"}
 
-# The canyon window's tenth row, measured: way 1237332026, Fernwood Pacific Drive, 0.7284.
-BOUND_WAY_ID = 1237332026
-BOUND_NAME = "Fernwood Pacific Drive"
-BOUND_UNIT = 0.7284
+# The canyon window's tenth row, measured over la-tagged.osm.pbf: way 13409451, 0.7594.
+# T-0204 measured 1237332026 Fernwood Pacific Drive 0.7284 against its own clip's population.
+BOUND_WAY_ID = 13409451
+BOUND_NAME = "South Topanga Canyon Boulevard"
+BOUND_UNIT = 0.7594
 
-# THE WHITELIST. Every way allowed to reach the bound, by id AND by name. Today exactly the two ridge
-# segments the run found; anything else at or above the bound is a failure that names the way.
-RIDGE_ALLOWLIST = {518410361: "Mulholland Drive", 787842196: "Mulholland Drive"}
+# THE WHITELIST. Every way allowed to reach the bound, by id AND by name. Under the region reference that
+# is NO WAY AT ALL; anything at or above the bound is a failure that names the way.
+RIDGE_ALLOWLIST: dict = {}
+
+# The two ways the allowlist used to hold: still the grid window's best, now below the bound. Measured.
+RIDGE_WAYS = {518410361: "Mulholland Drive", 787842196: "Mulholland Drive"}
+RIDGE_BEST_UNIT = 0.7325
+
+# The seam T-0208 exists for: the ways `osmium extract` completes into BOTH halves of the grid window.
+SEAM_WAYS = 190
+# The two the Brief named, with the one score each now carries in both halves (T-0204: 0.6988 vs 0.7022
+# and 0.6308 vs 0.6372).
+NAMED_SEAM = {1533792498: 0.6952, 399301293: 0.6203}
 
 EXACT = 1e-9
 
@@ -100,19 +116,34 @@ def test_the_bound_is_the_canyon_windows_tenth_way_by_the_unit_and_its_measured_
     assert abs(row[UNIT] - BOUND_UNIT) < EXACT
 
 
-def test_the_only_grid_ways_reaching_the_bound_are_the_named_ridge_segments():
-    """THE WHITELIST. Any other way at or above 0.7284 is red, by id and by name.
+def test_no_grid_way_reaches_the_bound_except_the_allowlisted_ones():
+    """THE WHITELIST. Any way at or above 0.7594 is red, by id and by name.
 
-    This is the refutation of T-0204's acceptance, kept asserted rather than kept red: the two ways that
-    outrank Fernwood Pacific are named here, and a third one - or a Westwood street, or a fire road -
-    cannot join them without this test saying which way it is.
+    T-0204's refutation is kept asserted rather than kept red, and under one region normalisation
+    population the allowlist it needed is empty: no way of the mixed grid window reaches the canyon
+    window's tenth. A Westwood street, a fire road, or a re-scored Mulholland segment climbing over the
+    bound cannot happen without this test saying which way it is.
     """
     offenders = at_or_above(load(GRID)["rows"], BOUND_UNIT)
     assert {row["way_id"] for row in offenders} == set(RIDGE_ALLOWLIST), (
         "the grid window's ways at or above the canyon window's tenth (%.4f, %s) are no longer exactly "
-        "the allowlisted ridge segments: %s" % (BOUND_UNIT, BOUND_NAME, named(offenders)))
+        "the allowlisted ways: %s" % (BOUND_UNIT, BOUND_NAME, named(offenders)))
     assert {row["way_id"]: row["name"] for row in offenders} == RIDGE_ALLOWLIST, (
         "an allowlisted way id is not the road it was allowed for: %s" % named(offenders))
+
+
+def test_the_two_mulholland_ridge_segments_are_still_the_grid_windows_best_and_are_now_below_the_bound():
+    """The allowlist shrank because the SCORES moved, not because the ways were ranked away.
+
+    Both ways T-0204 named are still in the grid window's top ten - the crest is still inside the bbox and
+    it is still the best road in it - and both are now strictly below the canyon window's tenth. If a
+    future change drops them out of the window, or pushes them back over the bound, this names them.
+    """
+    rows = ranked(load(GRID)["rows"])[:TOP_TEN]
+    found = {row["way_id"]: row for row in rows if row["way_id"] in RIDGE_WAYS}
+    assert {way_id: row["name"] for way_id, row in found.items()} == RIDGE_WAYS, named(rows)
+    assert all(row[UNIT] < BOUND_UNIT for row in found.values()), named(list(found.values()))
+    assert abs(max(row[UNIT] for row in found.values()) - RIDGE_BEST_UNIT) < EXACT
 
 
 def test_the_bound_the_whitelist_is_read_against_is_the_canyon_fixtures_own_tenth():
@@ -131,32 +162,50 @@ def test_a_tie_at_the_bound_counts_as_not_below():
     assert [row["way_id"] for row in offenders] == [way_id], named(offenders)
 
 
-def test_the_predicate_can_hold():
-    """Not vacuous: the same read finds nothing on a window whose ten really are all below the bound."""
+def test_the_read_finds_a_way_that_reaches_the_bound():
+    """Not vacuous: the same read that finds nothing on the grid finds all ten when they are over it.
+
+    The allowlist is empty, so `test_no_grid_way_reaches_the_bound_...` is a predicate about an empty set
+    and would pass over a read that can never find anything. This is the direction that proves it can.
+    """
+    over = [dict(row, **{UNIT: round(row[UNIT] + 0.2, 4)}) for row in load(GRID)["rows"]]
+    assert len(at_or_above(over, BOUND_UNIT)) == TOP_TEN
     below = [dict(row, **{UNIT: round(row[UNIT] - 0.2, 4)}) for row in load(GRID)["rows"]]
     assert at_or_above(below, BOUND_UNIT) == []
 
 
-def test_the_seam_merge_rule_is_recorded_and_the_rows_obey_it():
-    """R2's rule: an overlapping way is taken at the MAX of its two clips, never at the author's choice."""
+def test_the_seam_ways_are_recorded_and_every_one_of_them_carries_ONE_score():
+    """T-0208's whole point, over the population the fixture names rather than over a rule's wording.
+
+    `osmium extract` completes every way crossing -118.45, so the grid window's two halves are read back
+    with 190 ways in common. T-0204 measured 160 of them carrying DIFFERENT scores and had to arbitrate
+    with a MAX; under one region reference there is nothing to arbitrate. `seam_ways` records all 190 with
+    BOTH halves' units - an empty list would make this test pass over nothing, so its length is pinned.
+    """
     grid = load(GRID)
-    assert "max" in grid["meta"]["seam_merge"].lower()
+    seam = grid["meta"]["seam_ways"]
+    assert len(seam) == SEAM_WAYS
+    assert grid["meta"]["seam_differ"] == 0
+    assert [entry for entry in seam if entry["grid_a"] != entry["grid_b"]] == []
     rows = {row["way_id"]: row for row in grid["rows"]}
-    checked = 0
-    for seam in grid["meta"]["seam_disagreements"]:
-        row = rows.get(seam["way_id"])
+    for entry in seam:
+        row = rows.get(entry["way_id"])
         if row is not None:
-            assert abs(row[UNIT] - max(seam["grid_a"], seam["grid_b"])) < EXACT, seam
-            checked += 1
-    assert checked == len([s for s in grid["meta"]["seam_disagreements"] if s["way_id"] in rows])
+            assert abs(row[UNIT] - entry["grid_a"]) < EXACT, entry
+    measured = {entry["way_id"]: entry for entry in seam if entry["way_id"] in NAMED_SEAM}
+    assert set(measured) == set(NAMED_SEAM), "the two ways the Brief named are not on the seam any more"
+    for way_id, expected in NAMED_SEAM.items():
+        assert abs(measured[way_id]["grid_a"] - expected) < EXACT, measured[way_id]
+        assert abs(measured[way_id]["grid_b"] - expected) < EXACT, measured[way_id]
 
 
 def test_the_fixture_row_is_the_shape_the_shipping_oracle_produces(tmp_path):
     """BINDING: the fixtures are what `etl.scenecheck.top` - the symbol `ops/sane` runs - produces.
 
-    Over a COMMITTED READ-BACK cut from the canyon window's own `window-readback.osm.xml` (four real ways
-    with their own nodes and their shipped `scenic_*` tags), not over a hand-written table. A fixture whose
-    fields drifted from the oracle's would make every assertion above a statement about a JSON file.
+    Over a COMMITTED READ-BACK cut from the canyon window's own read-back of `la-tagged.osm.pbf` (four
+    real ways with their own nodes and their shipped `scenic_*` tags), not over a hand-written table. A
+    fixture whose fields drifted from the oracle's would make every assertion above a statement about a
+    JSON file.
     """
     rows = scenecheck.top(SAMPLE, TOP_TEN)
     assert rows, "the committed read-back sample ranks nothing"
