@@ -393,3 +393,26 @@ anyone sees, so its words are unhurried and few. No thrill words.
   check-safety-disclaimer's usage comment still says `twenty-five mutations`; a stale prose count in a comment, no
   check reads it. WHAT THIS STILL CANNOT SEE is -pinned's header list, unchanged: rendering, a shadow outside the
   pinned set, a SwiftPM or Xcode setting that adds sources from elsewhere.
+- 2026-09-26T17:40:33Z agent/claude-opus-5 (owner) rv4-t0237 CLOSED red->green, per the 15:35:34Z ruling (R-rv4-1..4),
+  in d9e7a8e: ops/lib/check-safety-disclaimer-pinned (118 lines) - `find . -mindepth 1`, no name filter, must equal
+  exactly the 13 approved names (`added <name>` / `missing <name>`); `find . -mindepth 1 ! -type f` must print nothing
+  (`not a regular file <name>`); `git -C DIR ls-files -s -- .` must hold no mode-120000 entry (`committed as a symlink
+  <path>`), and DIR outside a git work tree is refused, never skipped. Both -mutations tables (155 and 200 lines)
+  `git init -q` each copy and carry four rv4 rows: `@` a directory link `Shadows` holding Shadow.swift (row_link picks
+  `MSYS_NO_PATHCONV=1 cmd /c mklink /J` on MINGW/MSYS/CYGWIN, `ln -s` elsewhere, and the row refuses to run unless
+  `[[ -L link && -f link/Shadow.swift ]]`), `+` notes.txt, `+` an empty `Extras/`, `=` a mode-120000 index entry.
+  RED on a75d029's -pinned (only the rv4 rows, -pinned swapped to `git show a75d029:` and restored, cmp equal): both
+  tables `prove-red: 0/4 mutations refused by name`, EXIT 1 - every row exit 0, UNREFUSED (check-safety-disclaimer
+  printed `13 Swift file(s) under .../m1/.../FeatureScenicHome` with the junction in place). GREEN on the fixed
+  -pinned, same rows: both tables `prove-red: 4/4 mutations refused by name`, EXIT 0, every row exit 1 and named.
+  MERGED LAST: `git fetch origin && git merge --no-edit origin/main` -> 7f12b03 (main 74b5f4f, T-0244; nothing under
+  apps/ios or the two checks' files changed). Bare on 7f12b03: check-safety-disclaimer EXIT 0 (`LAST 13 feature
+  file(s) and AttributionFooter.swift pinned by sha256 (-pinned).`), --prove-red `prove-red: 29/29 mutations refused
+  by name` EXIT 0; check-map-attribution EXIT 0, --prove-red `prove-red: 45/45 mutations refused by name` EXIT 0;
+  check-line-cap EXIT 0 (`P-SRC-02: 125 Swift files tracked (Sources=45, Tests=53, apps/ios=27), none over 300
+  lines`); check-exec-bits EXIT 0 (`P-OPS-01: 104 files, 23 required present, all modes correct`); queue-check EXIT 0
+  (`QUEUE OK (237 tasks)`); `ops/check-pins --source-only` EXIT 0 (PINS ok=15 skipped=16 pending=1 expired=0
+  failed=0 tier=linux source-only). check-safety-disclaimer and check-map-attribution stay at 300 lines, untouched.
+  NO SWIFT CHANGE; swift test not re-run. OPEN, carried: check-safety-disclaimer's usage comment still says
+  `twenty-five mutations` (the file is at 300); pins/PINS.yaml P-SAFE-03 prose (outside touches); rendering is
+  T-0180's; a shadow outside the pinned set, or a SwiftPM/Xcode setting that adds sources from elsewhere, is T-0243's.
