@@ -1,13 +1,13 @@
 ---
 id: T-0245
 title: ops/plan --menu - the full-equality oracle covers the WHOLE printed output under every flag the acceptance uses (none, --max 20, 15, 10), and ROW n is paired with URL n
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-26T20:43:47Z
+lease_expires_at: 2026-09-27T04:43:47Z
+worktree: .worktrees/T-0245
+branch: task/T-0245
 exclusive: []
 touches: [Tests/ScenicPlanCLITests/, ops/mutate/menu_mutations.py]
 pins_affected: []
@@ -27,3 +27,4 @@ equality over the whole output, under every flag the acceptance names, from the 
 ## Log
 - 2026-09-26T18:19:17Z filed by agent/claude-opus-5 (orchestrator) from rv4-t0239's B1-B2.
 - 2026-09-26T20:43:24Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0239 merged (PR #132, 94b5d06).
+- 2026-09-26T20:43:47Z claimed by agent/claude-opus-5; lease until 2026-09-27T04:43:47Z
