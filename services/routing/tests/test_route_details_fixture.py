@@ -1,19 +1,22 @@
-"""rv1-t0209 B1 and B2: the EDGE rows against an oracle that is not the path details, and an unknown --mode.
+"""rv1-t0209 B1 and B2, rv2-t0209 B1-r2: the EDGE rows against an oracle that is not the path details, and an
+unknown --mode.
 
 test_route_details.py checks the EDGE rows against the path details they were printed from, so a printer that
 aligns road_class and osm_way_id to the NEIGHBOURING edge (rv1's MA: `getLast() < point` for `<= point` in
 RouteDetailsPrinter.covering) moves both together and passes every one of its tests. Here the oracle is typed by
 hand: tests/fixtures/two-ways.osm has way A (900001, secondary) split into two edges by a spur at its middle node,
-and way B (900002, tertiary) as one edge, each edge with a pillar node. A's first node to B's last node has
-exactly one simple path, so every route prints A, A, B - and each way's EDGE metres are that way's own length,
-measured here from the file's coordinates, never from a route.
+way B (900002, tertiary) as one edge, and way C (900004, tertiary - B's class) as one edge continuing from B's
+last node, each edge with a pillar node. A's first node to C's last node has exactly one simple path, so every
+route prints A, A, B, C - and each way's EDGE metres are that way's own length, measured here from the file's
+coordinates, never from a route. B and C share one road_class interval, so a printer that reads the way id
+through the road_class cursor (rv2's MC: `ways.get(classIndex)` for `ways.get(wayIndex)`) prints B on C's row.
 
 The rest of the file is a 15 x 15 residential lattice reached only through the spur: GraphHopper 11 marks every
 component under prepare.min_network_size (200, which config.yml does not override) as a subnetwork nothing
 snaps to, and the config under test is the config that ships (T-0209 Log, ruling on rv1 B1/B2).
 
 The graph is imported by the image under test into a fresh temp directory, and every run goes through the
-image's ENTRYPOINT main(). RED (T-0209 Log): MA and MB, built through the shipping Dockerfile.
+image's ENTRYPOINT main(). RED (T-0209 Log): MA, MB and MC, built through the shipping Dockerfile.
 """
 
 import math
@@ -34,8 +37,9 @@ ROUTING = Path(__file__).resolve().parents[1]
 FIXTURE = ROUTING / "tests" / "fixtures" / "two-ways.osm"
 WAY_A = 900001
 WAY_B = 900002
-# The edges of the one path from A's first node to B's last, in order - typed, not read from any output.
-EXPECTED_WAYS = [WAY_A, WAY_A, WAY_B]
+WAY_C = 900004
+# The edges of the one path from A's first node to C's last, in order - typed, not read from any output.
+EXPECTED_WAYS = [WAY_A, WAY_A, WAY_B, WAY_C]
 EARTH_RADIUS_M = 6371000.0  # GraphHopper's DistanceCalcEarth.R
 
 
@@ -86,7 +90,7 @@ def fixture_graph():
             return _shell(
                 f"docker run --rm -e JAVA_TOOL_OPTIONS=-Xmx1g -v {_wsl_path(graph)}:/graph "
                 f"-v {_wsl_path(models)}:/models:ro {IMAGE} --config /app/config.yml --graph /graph "
-                f"--mode {mode} --from {_point(ways[WAY_A][0][0])} --to {_point(ways[WAY_B][0][-1])} "
+                f"--mode {mode} --from {_point(ways[WAY_A][0][0])} --to {_point(ways[WAY_C][0][-1])} "
                 f"--fast-profile car_fast --scenic-profile car_scenic --models /models"
             )
 
@@ -111,11 +115,15 @@ def routed(fixture_graph):
 
 
 def test_the_fixture_is_the_oracle_this_file_types():
-    """A and B are distinct classes, and B is not A's continuation, so a row credited to the wrong way shows."""
+    """A and B are distinct classes, B and C one class, and each way starts where the one before it ends, so a row
+    credited to the wrong way shows - across a class boundary (MA) and inside one class interval (MC)."""
     ways = _fixture_ways()
-    assert (ways[WAY_A][1], ways[WAY_B][1]) == ("secondary", "tertiary")
+    assert (ways[WAY_A][1], ways[WAY_B][1], ways[WAY_C][1]) == ("secondary", "tertiary", "tertiary")
     assert ways[WAY_A][0][-1] == ways[WAY_B][0][0], "B must start where A ends"
-    assert len(ways[WAY_A][0]) == 5 and len(ways[WAY_B][0]) == 3, "A is two edges with pillars, B one edge with one"
+    assert ways[WAY_B][0][-1] == ways[WAY_C][0][0], "C must start where B ends"
+    assert len(ways[WAY_A][0]) == 5 and len(ways[WAY_B][0]) == 3 and len(ways[WAY_C][0]) == 3, (
+        "A is two edges with pillars, B and C one edge with one each"
+    )
 
 
 def test_edge_rows_name_the_way_and_class_of_each_fixture_edge_in_order(routed):
@@ -132,7 +140,7 @@ def test_edge_rows_name_the_way_and_class_of_each_fixture_edge_in_order(routed):
 def test_each_fixture_way_prints_its_own_length_in_metres(routed):
     ways = _fixture_ways()
     for route in routed:
-        for way in (WAY_A, WAY_B):
+        for way in (WAY_A, WAY_B, WAY_C):
             printed = sum(edge["m"] for edge in route["edges"] if edge["way"] == way)
             own = _length(ways[way][0])
             assert abs(printed - own) <= 0.5, (

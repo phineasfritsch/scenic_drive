@@ -602,3 +602,56 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
   services/routing under work/ with exactly one line changed (the apply script asserts the old text occurs once
   and prints the diff), through the shipping Dockerfile in WSL, run, then removed with docker rmi.
   scenic-routing:t0209 is rebuilt from this head through the same Dockerfile for the GREEN run.
+- 2026-09-26T06:56:40Z rv2-t0209 B1-r2 closed, RED then GREEN (agent/claude-opus-5, owner). Files:
+  services/routing/tests/fixtures/two-ways.osm (61 lines, +3 -0: nodes 8 and 9, way 900004; sha256
+  254d0ba3...f8f8) and services/routing/tests/test_route_details_fixture.py (157 lines, 4 tests; WAY_C = 900004,
+  EXPECTED_WAYS [A, A, B, C], the route ends at C's last node, the per-way metres loop covers A, B and C, the
+  oracle test asserts B and C share tertiary and C starts where B ends). No Java, Dockerfile, config.yml or
+  profile changed, so the three LA route-details outputs are not re-run.
+  The fixture graph as the head image imports it, measured: `GRAPH nodes=230 edges=425` - one tower node (9) and
+  one edge (C) more than round 1's 229/424, as ruled. C = 220.490 m by the test's haversine; the route A-start ->
+  C-end is 908.2 m, 60066 ms on all three ROUTEs (car_fast, lambda-0.json, lambda-8.json).
+  Mutants, each a copy of services/routing under work/mut2-*/ with one line changed (work/apply_mutants_rv2.py
+  asserts the old text occurs exactly once; diff -r of src shows one changed line each, and Dockerfile,
+  config.yml, profiles and pom.xml compare identical), built through the shipping Dockerfile in WSL:
+    MC RouteDetailsPrinter.print line 41: `ways.get(wayIndex).getValue()` -> `ways.get(classIndex).getValue()`
+       scenic-routing:t0209-mc sha256:6d4db0c4ba50...
+    MA RouteDetailsPrinter.covering line 54: `getLast() <= point) index++;` -> `getLast() < point) index++;`
+       scenic-routing:t0209-ma sha256:ba8e8dd8c0f3...
+  RED, MC:
+    $ SCENIC_ROUTING_IMAGE=scenic-routing:t0209-mc python -m pytest tests/test_route_details_fixture.py -rA -s
+    EDGE model=- seq=0 road_class=secondary osm_way_id=900001 distance_m=228.384
+    EDGE model=- seq=1 road_class=secondary osm_way_id=900001 distance_m=215.478
+    EDGE model=- seq=2 road_class=tertiary osm_way_id=900002 distance_m=243.881
+    EDGE model=- seq=3 road_class=tertiary osm_way_id=900002 distance_m=220.490
+    E   AssertionError: model=-: EDGE rows [(900001, 'secondary'), (900001, 'secondary'), (900002, 'tertiary'),
+        (900002, 'tertiary')], the fixture's one path is [..., (900002, 'tertiary'), (900004, 'tertiary')]
+    E   AssertionError: model=-: way 900002's EDGE rows sum to 464.371 m, its own length is 243.881 m
+    FAILED test_edge_rows_name_the_way_and_class_of_each_fixture_edge_in_order
+    FAILED test_each_fixture_way_prints_its_own_length_in_metres
+    2 failed, 2 passed in 92.13s
+  RED, MA (rv1's mutant, still killed by the extended fixture):
+    $ SCENIC_ROUTING_IMAGE=scenic-routing:t0209-ma python -m pytest tests/test_route_details_fixture.py -rA -s
+    EDGE model=- seq=2 road_class=secondary osm_way_id=900001 distance_m=243.881
+    EDGE model=- seq=3 road_class=tertiary osm_way_id=900002 distance_m=220.490
+    E   AssertionError: model=-: EDGE rows [(900001, 'secondary'), (900001, 'secondary'), (900001, 'secondary'),
+        (900002, 'tertiary')], the fixture's one path is [...]
+    E   AssertionError: model=-: way 900001's EDGE rows sum to 687.743 m, its own length is 443.862 m
+    FAILED test_edge_rows_name_the_way_and_class_of_each_fixture_edge_in_order
+    FAILED test_each_fixture_way_prints_its_own_length_in_metres
+    2 failed, 2 passed in 99.84s
+  $ docker rmi scenic-routing:t0209-mc scenic-routing:t0209-ma -> both Untagged and Deleted; work/mut2-* removed.
+  GREEN: scenic-routing:t0209 REBUILT from this head through the shipping Dockerfile (docker build -q -t
+  scenic-routing:t0209 .): before sha256:03707be60f4f..., after sha256:67502cfffb56... - the id moved again with
+  no Dockerfile input changed (the jar layer is rebuilt, not reused, as in round 1), so every routing result from
+  here on is quoted against 67502cfffb56.
+    $ SCENIC_ROUTING_IMAGE=scenic-routing:t0209 python -m pytest tests/test_route_details_fixture.py -rA -s
+    EDGE model=- seq=0 road_class=secondary osm_way_id=900001 distance_m=228.384
+    EDGE model=- seq=1 road_class=secondary osm_way_id=900001 distance_m=215.478
+    EDGE model=- seq=2 road_class=tertiary osm_way_id=900002 distance_m=243.881
+    EDGE model=- seq=3 road_class=tertiary osm_way_id=900004 distance_m=220.490
+    (lambda-0.json and lambda-8.json print the same four rows)
+    4 passed in 80.21s
+  The whole routing suite, check-line-cap, check-exec-bits, queue-check and check-pins --source-only are re-run
+  bare on the head after origin/main is merged, as the LAST step before the push; their lines are quoted in the
+  PR, not back-dated into this entry. Acceptance items 4 and 5 still FAIL as the B3 ruling records.
