@@ -1,19 +1,40 @@
 {
+  "distance_influence": 0,
   "priority": [
     {
-      "if": "scenic_score >= 7",
+      "if": "(road_class == RESIDENTIAL || road_class == LIVING_STREET || road_class == SERVICE) && scenic_score < 7",
+      "multiply_by": "0.333333"
+    },
+    {
+      "else_if": "scenic_score >= 7",
       "multiply_by": "1"
     },
     {
+      "else_if": "scenic_score >= 6",
+      "multiply_by": "0.875"
+    },
+    {
+      "else_if": "scenic_score >= 5",
+      "multiply_by": "0.777778"
+    },
+    {
       "else_if": "scenic_score >= 4",
-      "multiply_by": "0.666667"
+      "multiply_by": "0.7"
+    },
+    {
+      "else_if": "scenic_score >= 3",
+      "multiply_by": "0.636364"
+    },
+    {
+      "else_if": "scenic_score >= 2",
+      "multiply_by": "0.583333"
+    },
+    {
+      "else_if": "scenic_score >= 1",
+      "multiply_by": "0.538462"
     },
     {
       "else": "",
-      "multiply_by": "0.5"
-    },
-    {
-      "if": "road_class == RESIDENTIAL && scenic_score < 7",
       "multiply_by": "0.5"
     }
   ]

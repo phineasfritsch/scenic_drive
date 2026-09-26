@@ -63,7 +63,7 @@ struct LambdaCustomModelParityTests {
         #expect(throws: PlanFailure.lambdaOutOfRange(-0.5)) { try LambdaCustomModel.json(for: -0.5) }
         // NaN is matched by TYPE, not by value: `PlanFailure` is Equatable and NaN != NaN, so an
         // expectation spelled with the payload fails against the very error it asked for.
-        #expect(throws: PlanFailure.self) { try LambdaCustomModel.bands(.nan) }
+        #expect(throws: PlanFailure.self) { try LambdaCustomModel.band(slope: 1, lambda: .nan) }
     }
 
     @Test("multipliers are printed the way JavaScript prints them")
@@ -78,14 +78,22 @@ struct LambdaCustomModelParityTests {
 
     @Test("the bands only ever fall, and never below the high band")
     func bandsFallWithLambda() throws {
-        var previous = try LambdaCustomModel.bands(0)
+        // Every band of the ladder, the high band and the minor clause, over every tenth of the bracket.
+        let slopes = [LambdaCustomModel.minorSlope] + (0...10).map(LambdaCustomModel.slope)
+        var previous = try slopes.map { try LambdaCustomModel.band(slope: $0, lambda: 0) }
+        #expect(previous.allSatisfy { $0 == 1 })       // lambda 0: every band is 1
         for tenths in 1...80 {
-            let band = try LambdaCustomModel.bands(Double(tenths) / 10)
-            #expect(band.high == 1)                 // a high-scoring road is never penalised, at any lambda
-            #expect(band.mid <= previous.mid)
-            #expect(band.low <= previous.low)
-            #expect(band.low <= band.mid)           // dull is always penalised at least as hard as middling
-            previous = band
+            let lambda = Double(tenths) / 10
+            let bands = try slopes.map { try LambdaCustomModel.band(slope: $0, lambda: lambda) }
+            for index in bands.indices { #expect(bands[index] <= previous[index]) }
+            // A high-scoring road is never penalised, at any lambda (scores 7...10 are slopes[8...11]).
+            #expect(bands[8...].allSatisfy { $0 == 1 })
+            // Duller is always penalised at least as hard: score s-1 at or below score s, and the minor
+            // clause at or below the dullest arterial (score 0, slopes[1]).
+            for score in 1...10 { #expect(bands[score] <= bands[score + 1]) }
+            #expect(bands[0] <= bands[1])
+            #expect(bands[1] > 0)                       // penalised, never excluded
+            previous = bands
         }
     }
 }
