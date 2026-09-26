@@ -352,3 +352,36 @@ relationship' failure.
   the transport seam and asserts they send the same points in the same order. Both swaps enter ops/mutate/plan.py
   by name (cli/fastest-request-swaps-origin-and-destination, cli/scenic-request-swaps-origin-and-destination) and
   MIN_MUTATIONS rises 29 -> 31. No Sources/ byte moves: the shipping code is right; the tests could not see it.
+- 2026-09-26T14:28:50Z agent/claude-opus-5 (owner) - round 2 B1-points CLOSED (2528cd4), red and green by name.
+  GREEN (pristine, `swift test --filter PlanCLIRequestBodyTests`): "Test run with 6 tests in 1 suite passed".
+  RED, the reviewer's reproduction (fastest(): `body(destination, origin, profile: fastProfile, model: nil)`),
+    exit 1: "fastest(from:to:) sends car_fast with no custom_model and no distance_influence" failed at :142
+    "(Self.points(request) -> [[-118.687, 34.0365], [-118.6013, 34.0944]]) =="; "fastest(from:to:) and
+    scenic(from:to:lambda:) send the same points, origin first" failed with 2 issues (:154 fastest != scenic,
+    :155 fastest != typed). The scenic test passed - it drives scenic() only.
+  RED, the same swap in scenic() (`body(destination, origin, profile: scenicProfile, model: model)`), exit 1:
+    "scenic(from:to:lambda:) sends distance_influence 0 and LambdaCustomModel.json(for: lambda), at every step"
+    failed with 81 issues (one per lambda step, :111); "fastest(from:to:) and scenic(from:to:lambda:) send the
+    same points, origin first" failed with 2 issues (:154, :156). The fastest test passed - it drives fastest()
+    only. Source restored by `git checkout --` after each; the tree was the three touched files only.
+  GATES on 2528cd4, bare; `git fetch origin && git merge --no-edit origin/main` -> "Already up to date" (origin/main
+    558e154, `git merge-base --is-ancestor origin/main HEAD` exit 0): swift test --scratch-path .build/T0244 "Test
+    run with 346 tests in 49 suites passed", exit 0; plan.py --only cli/ "population 31 mutations over 9 modules
+    ... (running 6 selected)", "caught 6 of 6 trapped 0 compile-only 0 MISSED 0 skipped 0", exit 0 - CAUGHT
+    cli/fastest-request-swaps-origin-and-destination and cli/scenic-request-swaps-origin-and-destination;
+    --prove-floor: empty / one mutation / unmutated subject REFUSED ("expected at least 31"), the shipped table
+    accepted, exit 0; check-mutate-population.py "P-PROC-06: every added module is covered or allowlisted; the
+    floor of 36 holds", exit 0; check-line-cap "P-SRC-02: 122 Swift files tracked (Sources=45, Tests=53,
+    apps/ios=24), none over 300 lines", exit 0; check-exec-bits "P-OPS-01: 100 files, 23 required present, all
+    modes correct", exit 0; queue-check "QUEUE OK (237 tasks)", exit 0; check-pins --source-only "PINS ok=15
+    skipped=16 pending=1 expired=0 failed=0 tier=linux source-only", exit 0.
+    Line counts: PlanCLIRequestBodyTests.swift 180 (was 131), ops/mutate/plan.py 282 (was 275);
+    GraphHopperRouteSource.swift untouched, 160.
+  ACCEPTANCE, re-run on 2528cd4 (no model byte, fixture, route or Sources/ byte moved in this round):
+    1. MET - "Santa Monica -> Topanga at lambda 8, as routed over the whole-LA graph, has no rat-run over 800 m"
+       passed inside the 346; Suite "Lambda custom model parity" passed.
+    2. MET - Suite "Lambda custom model: rat-runs, monotone T, the band ladder" passed; P-SAFE-04's BASELINE is
+       now held by value: fastest() and scenic() send the same typed origin-first points, cli/*-swaps-* caught.
+    3. MET on the measured pairs - PlanCeilingOverLATests inside the 346 passed.
+  The full 31-mutant table was not re-run (~17 min); only cli/ rows moved, and they ran. STILL OPEN: A2-ts -
+    no vitest mutation population over services/api/src (unchanged, a harness task).
