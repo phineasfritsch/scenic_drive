@@ -304,3 +304,28 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   104 pt minimum (the logo's measured right edge 94 pt + 10), so the pill wraps onto a second line instead of
   covering the logo - it has no lineLimit, so nothing is truncated. DesignSystem is in touches; no check anchors on
   the spacer. Second dispatch of each workflow on the fixed head follows; that pair is named -r2.
+- 2026-09-26T00:44:51Z ROUND 2 SCREENSHOTS AND ACCEPTANCE, final pre-review head (agent/claude-opus-5). ios-compile
+  dispatch 2 of 2: run 36204762256 on 6fc18e05f402b759c01973e97948a7581e8c7537 - success. ios-screenshot dispatch 2 of
+  2: run 36205326414 on the SAME head - success; home-light-T0236-r2.png (sha256 c91d2c71d8444241ae053cf2be644d92454a38
+  f9ecaa17eabd4b63c1e3f5829d) / home-dark-T0236-r2.png (77be9ed1695add26d005670df3f40ecfac554704c1e9e822e5dce0cdbd664ea3)
+  in the MAIN checkout's .artifacts/screens/, 1206 x 2622 px, not committed. READ with PIL and by eye: the pill says,
+  exactly, "© MapLibre · Natural Earth · © OpenStreetMap contributors", wrapped onto two trailing-aligned lines
+  ("© MapLibre · Natural Earth · ©" / "OpenStreetMap contributors") at the bottom-right, its left edge ~181 pt from the
+  map's left, clear of the MapLibre logo (fully visible, bottom-left, right edge ~94 pt) - both themes. THE LINE is
+  unchanged from round 1: 39,623 px of exactly #2563EB (light) and 39,625 px of #3B82F6 (dark), the same counts, the
+  same Topanga -> Saddle Peak -> Piuma -> Malibu Canyon shape and camera fit. THE (i) is at the map's top-left, as in
+  round 1. Road list "From wherever you are to Fernwood Pacific Drive, then ..." (R5).
+  ACCEPTANCE, bare, after `git fetch origin && git merge --no-edit origin/main` (main had moved to 5d1e260, queue files
+  only; merge cabf8ce): `git merge-base --is-ancestor origin/main HEAD` exit 0; `swift test --scratch-path .build/T0236`
+  "Test run with 338 tests in 47 suites passed"; `--filter HandoffTests` "108 tests in 16 suites passed";
+  check-map-attribution exit 0, --prove-red "17/17 mutations refused by name"; check-drive-copy exit 0, --prove-red
+  "8/8 mutations refused by name"; check-safety-disclaimer exit 0; check-line-cap "119 Swift files tracked
+  (Sources=45, Tests=50, apps/ios=24), none over 300 lines"; check-exec-bits "96 files, 23 required present, all modes
+  correct"; check-mutate-population "every added module is covered or allowlisted; the floor of 34 holds"; queue-check
+  "QUEUE OK (234 tasks)". wc -l: CreditLine.swift 60, HandoffDrive.swift 218, SaddlePeakRoute.swift 66,
+  CreditLineTests.swift 73, HandoffSourceTests.swift 274, MapRoute.swift 73, DriveRoute.swift 32, ScenicHomeScreen.swift
+  288, DriveCopy.swift 107, AttributionFooter.swift 73, check-map-attribution 274, check-map-attribution-lib 300 (303
+  when first measured here - trimmed by three comment lines before this entry), check-map-attribution-mutations 127.
+  STILL OPEN: P-ATTR-01's statement in pins/PINS.yaml (outside touches:) still says "the basemap credit" - the
+  orchestrator widens it to the drawn route's data credit; the wrap breaks between "©" and "OpenStreetMap" (cosmetic,
+  the text is whole); T-0211, the dark demo ground and the line over the LA archive as round 1 recorded them.

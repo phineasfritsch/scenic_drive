@@ -225,14 +225,11 @@ require_map_mounts() {
 # a green than is there. It sits here rather than in the check for the same reason the readers do: the
 # check is at CLAUDE.md's 300-line cap. Everything it names is a global the check typed or a reading the
 # check hands in; like everything else in this file, it decides nothing.
-# (d), rv1-t0236 B1. Collapse an argument list read across lines to one spacing, so the whitelist below is one
-# spelling rather than one per line layout.
+# (d), rv1-t0236 B1. One spacing for an argument list read across lines: one whitelisted spelling, any layout.
 squash_args() { tr -s ' \t' '  ' | sed -e 's/^ //' -e 's/ $//' -e 's/( /(/g' -e 's/ )/)/g'; }
-
-# (d), rv1-t0236 B1. The ONE form the footer's text may take, read from the construction's own argument list: the
-# composed credit of the resolved style AND the drawn route. A WHITELIST of one spelling, so the style's credit
-# alone, a literal, some other string and a route credit dropped to nil are all refused by the same rule. Sets
-# FOOTER_ARG, FOOTER_STYLE and FOOTER_ROUTE for the check; `fail` is the check's.
+# The ONE form the footer's text may take, from the construction's own argument list: the composed credit of the
+# resolved style AND the drawn route - a WHITELIST of one spelling, so the style's credit alone, a literal, any
+# other string and a route credit dropped to nil are refused by one rule. Sets FOOTER_ARG/_STYLE/_ROUTE.
 require_composed_footer() {
   local screen="$1" a n=0
   local re='^text: CreditLine\.composed\(basemap: ([A-Za-z_][A-Za-z0-9_]*)\.attributionText, routeData: ([A-Za-z_][A-Za-z0-9_]*)\?\.dataCredit\)$'
