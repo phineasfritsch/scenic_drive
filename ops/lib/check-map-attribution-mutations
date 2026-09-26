@@ -44,7 +44,11 @@
 #      DriveRoute.resolve binding the credit to the resource name (M4b), and a NEW file building a MapRoute with
 #      the demo credit - each EXIT 0 against rows 1-17; (g)'s whole-line whitelist refuses all three by name.
 #  21  the same new file with a `"https://..."` literal before the credit: EXIT 0 against (g) while (g) cut `//`
-#      to end of line inside a string; (g) now cuts `//` outside string literals only.
+#      to end of line inside a string.
+#  22-24 rv3-t0236 B1-r3: R1 a `"` inside a /* */ comment, R2 a raw string #"\"#, R3 a string inside an
+#      interpolation "\("//")" - each hides a credit binding behind a `//` inside a string; each EXIT 0 against
+#      round 3's reader, which toggled string state on every quote. (g) now cuts nothing inside a line: it drops
+#      only lines STARTING with `//` (and holding no backslash) and compares every other line whole.
 #   ROW = label | file under the apps/ios copy (`+` = the row ADDS it) | sed script or the added file's
 #         single line | substring the refusal must contain
 # `|` is the field separator, so a sed script carries no pipe.
@@ -82,6 +86,9 @@ rows=(
   "M4b the drive's credit bound to its resource name|$FS/DriveRoute.swift|s/dataCredit: credit,/dataCredit: name,/|a credit site outside its approved whole lines"
   "a new file building a route with the demo credit|+$FS/DriveRouteDemo.swift|extension DriveRoute { static func demo() -> MapRoute? { MapRoute.bundled(named: \"saddle-peak\", subdirectory: nil, withExtension: \"geojson\", dataCredit: MapStyle.demoAttribution, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
   "a new file hiding the demo credit behind a // in a string|+$FS/DriveRouteNote.swift|extension DriveRoute { static let note = \"https://protomaps.com\"; static func demo() -> MapRoute? { MapRoute.bundled(named: \"saddle-peak\", subdirectory: nil, withExtension: \"geojson\", dataCredit: MapStyle.demoAttribution, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "R1 a quote in a block comment hides the credit|+$MA/MapRouteDemo.swift|extension MapRoute { static func demo(data: Data) -> MapRoute? { /* \" */ _ = \"//\"; let dataCredit = MapStyle.demoAttribution; return MapRoute(geoJSON: data, dataCredit: dataCredit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "R2 a raw string hides a second credit binding|+$FS/DriveRouteRaw.swift|extension DriveRoute { static func demo(name: String) -> MapRoute? { _ = #\"\\\"# + \"//\"; let credit = name; return MapRoute.bundled(named: name, subdirectory: nil, withExtension: \"geojson\", dataCredit: credit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "R3 an interpolation hides the credit bound to the resource|+$FS/DriveRouteInterp.swift|extension DriveRoute { static func demo(for drive: HandoffDrive) -> MapRoute? { _ = \"\\(\"//\")\"; guard let name = drive.routeGeometryResource, let credit = drive.routeGeometryResource else { return nil }; return MapRoute.bundled(named: name, subdirectory: nil, withExtension: \"geojson\", dataCredit: credit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
 )
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.

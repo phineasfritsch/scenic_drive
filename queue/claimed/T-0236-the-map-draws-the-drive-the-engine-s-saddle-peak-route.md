@@ -383,3 +383,63 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   (235 tasks)". This entry is the only change after that run; no measured file moved. check-drive-copy untouched,
   its --prove-red not re-run. STILL OPEN: P-ATTR-01's PINS.yaml statement (T-0238), the pill's wrap (T-0237), T-0211,
   and what (g) cannot see (the VALUE of routeGeometryCredit, owned by the Linux Handoff test; Swift outside apps/ios).
+- 2026-09-26T02:21:47Z ROUND 4 RULING (agent/claude-opus-5), rv3-t0236 B1-r3, written before any code. THE FINDING, AGREED:
+  limb (g)'s whitelist holds only if its reader lists every line that names a needle, and the round-3 reader was a
+  Swift lexer in miniature - it toggled string state on every `"` and cut at the first `//` outside a string. The
+  reviewer compiled three shapes it misreads (.artifacts/rv3-t0236/syntax.swift, swiftc): R1 a `"` inside a /* */
+  block comment, R2 a raw string #"\"# (the backslash is no escape there), R3 a string inside an interpolation
+  "\("//")". Each makes it cut a REAL line of code at a `//` inside a string, so the credit rebinding after it left
+  the population. REPRODUCED on 4646c34 with the reviewer's driver copied to .artifacts/rv3-t0236/drive.py: base
+  EXIT 0, M4a 1, M4b 1, R1-control 1, R1 0, R2 0, R3 0. RULED - FAIL-CLOSED, the reviewer's direction, adopted: (g)
+  stops cutting `//` inside a line at all. It drops ONLY a line whose trimmed text STARTS with `//`, and compares
+  EVERY other line that names dataCredit, routeGeometryCredit or the word credit WHOLE - trailing comment and
+  block-comment text included - against the approved list. One tightening beyond the direction, ruled here: a
+  `//`-leading line is dropped only when it holds NO backslash. A `//`-leading line holds no code EXCEPT inside a
+  multi-line string literal, where an interpolation `\(...)` (or `\#(...)` in a raw one) runs code on that line;
+  any backslash keeps the line in the population. WHY THIS CLOSES THE CLASS AND NOT A SPELLING: the reader no
+  longer models Swift lexing, so there is no string/comment state left for a fourth shape (nested /* */, """
+  literals, ## raw delimiters, regex literals) to desynchronize; a line that can hold code is never shortened, so
+  whatever it binds is in the population. The error direction flips: a misread now OVER-counts - refused by name,
+  and a human deletes the comment or types the line - where it under-counted and stayed green. CONSEQUENCE, RULED:
+  a commented-out copy of an approved line inside /* */, or an approved line with a trailing `//` note, is now a
+  population member; it counts as an unapproved extra or an out-of-order duplicate and is REFUSED. The fix is to
+  delete the comment or type its line into CREDIT_SITES in the same commit. RE-MEASURED with this reader before
+  typing anything (awk over every .swift under apps/ios, LC_ALL=C path order): 9 lines - the SAME 9 approved whole
+  lines in the same order (DriveRoute.swift:22,28; ScenicHomeScreen.swift:132; MapRoute.swift:32,39,42,46,62,71);
+  no approved line carries a trailing comment and no block-comment text names a needle. 43 needle-naming lines
+  start with `//` (// and /// comments) and are dropped; 0 of those 43 hold a backslash, so the tightening moves
+  nothing today. CREDIT_SITES stays at 9, unchanged. --PROVE-RED gains rows 22-24: R1, R2, R3, each a NEW file
+  under FeatureScenicHome whose one line hides a credit binding behind that shape (the `+` row form of rows 13, 14,
+  20 and 21 - printf writes it byte for byte, where a sed script would eat R2's backslash), each required to exit 1
+  naming "a credit site outside its approved whole lines", each shown unrefused against the round-3 reader first.
+  The reviewer's in-place driver is re-run after. OUT OF SCOPE, FOR THE ORCHESTRATOR: limbs (a)-(f) in
+  check-map-attribution and -lib keep their plain sub(/\/\/.*$/) strip, which under-counts the same way (a
+  "https://" literal ahead of a needle hides it); the orchestrator files T-0243 for them. -lib is at the 300-line
+  cap, one reason it is not widened in this round.
+- 2026-09-26T02:35:20Z ROUND 4 WORK (agent/claude-opus-5). RED FIRST: rows 22-24 were added to
+  ops/lib/check-map-attribution-mutations and --prove-red run against round 3's reader (4646c34's -sites,
+  .artifacts/r4-prove-red-before.log): "R1 a quote in a block comment hides the credit 0 no", "R2 a raw string
+  hides a second credit binding 0 no", "R3 an interpolation hides the credit bound to the resource 0 no",
+  "prove-red: 21/24 mutations refused by name", EXIT 1. The reviewer's driver on 4646c34: base 0, M4a 1, M4b 1,
+  R1-control 1, R1 0, R2 0, R3 0. THE READER (ops/lib/check-map-attribution-sites): the uncommented() lexer is
+  deleted; a line is trimmed and dropped only when it starts with `//` and holds no backslash, every other line
+  naming a needle is compared whole; the refusal and the verdict line say so. GREEN: bare check-map-attribution
+  EXIT 0, "(9, read whole; only // lines dropped) is one of the 9 approved whole lines" - CREDIT_SITES unchanged at
+  9, as the ruling measured; --prove-red "prove-red: 24/24 mutations refused by name", EXIT 0, rows 22-24 each
+  "1 yes"; the driver: base 0, M4a 1, M4b 1, R1-control 1, R1 1, R2 1, R3 1, each R refused "a credit site outside
+  its approved whole lines: 10 line(s) ... 1 unapproved, 0 approved line(s) not found" (in R3 the guard commented
+  out inside /* */ is now a population member standing where the approved guard line stood; the rebinding under it
+  is the one unapproved line - the ruled consequence, seen). THE BACKSLASH RULE, SEEN RED
+  (.artifacts/r4-backslash-demo.py): a new file whose """ literal holds a `//`-leading line
+  `// \(MapRoute.bundled(... dataCredit: MapStyle.demoAttribution ...)?.dataCredit ?? "")` - EXIT 1 "unapproved:
+  Packages/ScenicApp/Sources/FeatureScenicHome/DriveRouteBlurb.swift: // \(MapRoute.bundled(..." with the rule,
+  EXIT 0 with the rule removed (every `//`-leading line dropped; the file restored after). swiftc witness
+  .artifacts/r4bs/witness.swift - a `//`-leading line inside a """ literal carrying
+  `\({ credit = "(c) MapLibre - Natural Earth"; return "" }())` - compiled exit 0 and printed "credit after the
+  blurb: (c) MapLibre - Natural Earth": code does run on such a line, so the rule is owed. It is not a --prove-red
+  row: the table's `+` form writes ONE line and this shape needs three. wc -l: check-map-attribution 286, -lib 300,
+  -mutations 143, -sites 87. No Swift changed, so no ios-compile or simulator run is owed. STILL NOT SEEN BY (g),
+  recorded rather than claimed: the VALUE of routeGeometryCredit (the Linux Handoff test owns it), a credit carried
+  under an identifier naming none of the three needles, Swift outside apps/ios. FOR THE ORCHESTRATOR: T-0243
+  (limbs (a)-(f) and their plain `//` strip), T-0238 (P-ATTR-01's PINS.yaml statement), T-0237 (the pill's wrap),
+  T-0211 (the loop's freeway leg).

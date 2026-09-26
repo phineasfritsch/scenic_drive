@@ -6,7 +6,7 @@
 # Limb (d) reads both ENDS of the route credit - the footer's `routeData: <r>?.dataCredit` and the map's
 # `route: <r>` - and never the VALUE <r> carries. rv2-t0236 (B1-r2) set that value to the demo credit inside
 # MapRoute.bundled (M4a) and to the geometry resource's NAME inside DriveRoute.resolve (M4b), and every limb
-# stayed green. The population here is every code line (// stripped, trailing CR stripped) of every .swift file
+# stayed green. The population here is every line that can hold code (trailing CR stripped) of every .swift file
 # under the app tree that names `dataCredit`, `routeGeometryCredit` - the Handoff field DriveRoute binds the
 # credit from - or the WORD `credit`, that binding, so a re-binding or a shadow of it in any file is counted
 # too. Each is compared TRIMMED and WHOLE, with its file, against the lines typed below, in scan order (paths
@@ -27,29 +27,21 @@ CREDIT_SITES=(
   "Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift: return MapRoute(geoJSON: data, dataCredit: dataCredit, lineColor: lineColor, casingColor: casingColor)"
 )
 
-# The population, one "<line number>\t<path under the tree>: <trimmed code>" per line, in scan order. The key
+# The population, one "<line number>\t<path under the tree>: <trimmed line>" per line, in scan order. The key
 # compared is what follows the tab, so a line moving inside its file is not a finding and a line changing is.
-# `//` is cut OUTSIDE a string literal only: the lib's plain `sub(/\/\/.*$/...)` read `"https://..."; <credit
-# line>` as a comment from the `//` on, and the round-3 mutant pass hid a new file's demo credit behind exactly
-# that (row 21). A `\` inside a string escapes the next character, so `"\""` does not end the literal.
+# FAIL-CLOSED (rv3-t0236 B1-r3): nothing is cut INSIDE a line. Round 3's reader toggled string state on every
+# quote and cut the first `//` outside one, and a `"` in a /* */ comment, a raw string #"\"# and an interpolated
+# "\("//")" each made it cut real code at a `//` inside a string. A line is dropped only when its trimmed text
+# STARTS with `//` and holds no backslash - such a line holds no code (a backslash could open an interpolation
+# inside a multi-line string literal, so it keeps the line). Every other line is compared WHOLE, trailing and
+# block-comment text included, so a commented-out copy of an approved line is an extra, and is refused.
 credit_site_lines() {
   awk -v root="$APP_TREE/" '
-    function uncommented(s,    out, i, n, ch, instr) {
-      out = ""; instr = 0; n = length(s)
-      for (i = 1; i <= n; i++) {
-        ch = substr(s, i, 1)
-        if (instr && ch == "\\") { out = out ch substr(s, i + 1, 1); i++; continue }
-        if (ch == "\"") instr = !instr
-        else if (!instr && ch == "/" && substr(s, i + 1, 1) == "/") break
-        out = out ch
-      }
-      return out
-    }
     {
-      code = $0; sub(/\r$/, "", code); code = uncommented(code)
-      if (index(code, "dataCredit") == 0 && index(code, "routeGeometryCredit") == 0 &&
-          code !~ /(^|[^A-Za-z0-9_])credit([^A-Za-z0-9_]|$)/) next
-      line = code; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      line = $0; sub(/\r$/, "", line); sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      if (substr(line, 1, 2) == "//" && index(line, "\\") == 0) next
+      if (index(line, "dataCredit") == 0 && index(line, "routeGeometryCredit") == 0 &&
+          line !~ /(^|[^A-Za-z0-9_])credit([^A-Za-z0-9_]|$)/) next
       rel = FILENAME
       if (index(FILENAME, root) == 1) rel = substr(FILENAME, length(root) + 1)
       printf "%d\t%s: %s\n", FNR, rel, line
@@ -78,7 +70,8 @@ require_credit_sites() {
   fail "a credit site outside its approved whole lines: ${#found[@]} line(s) under $APP_TREE name the route's" \
     "data credit, ${#CREDIT_SITES[@]} approved; ${#unapproved[@]} unapproved, ${#unmatched[@]} approved line(s) not found." \
     "${shown[@]}" \
-    "The population is every line naming dataCredit, routeGeometryCredit or the word credit, // stripped, and" \
+    "The population is every line naming dataCredit, routeGeometryCredit or the word credit, cut nowhere - only" \
+    "a line STARTING with // is dropped, so a trailing or /* */ comment naming one is refused too - and" \
     "each is compared TRIMMED and WHOLE with its file. Limb (d) guards the credit's two ENDS - the footer reads" \
     "<route>?.dataCredit and the map draws <route> - so the VALUE between them is guarded here: the drive's" \
     "routeGeometryCredit, bound in DriveRoute.resolve and forwarded unchanged by MapRoute.bundled. rv2-t0236" \
@@ -88,7 +81,7 @@ require_credit_sites() {
 
 print_credit_sites_verdict() {
   echo "P-ATTR-01 (g): every line under $APP_TREE naming dataCredit, routeGeometryCredit or the word credit"
-  echo "  ($CREDIT_SITES_FOUND, // stripped) is one of the ${#CREDIT_SITES[@]} approved whole lines, in order: the drive's"
+  echo "  ($CREDIT_SITES_FOUND, read whole; only // lines dropped) is one of the ${#CREDIT_SITES[@]} approved whole lines, in order: the drive's"
   echo "  routeGeometryCredit bound in DriveRoute.resolve, forwarded unchanged by MapRoute.bundled, read by the footer."
   echo "  Not checked here: the VALUE of routeGeometryCredit (Sources/Handoff, the Linux tests own it)."
 }
