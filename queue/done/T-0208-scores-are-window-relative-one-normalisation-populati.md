@@ -1,7 +1,7 @@
 ---
 id: T-0208
 title: scores are window-relative - one normalisation population per REGION: the LA clip scored in chunks against a single reference so a way's score does not depend on which window it was clipped into
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-19T15:26:13Z
@@ -11,7 +11,7 @@ branch: task/T-0208
 exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, ops/etl-extract, ops/mutate/, ops/lib/check-mutate-population.py, ops/lib/mutate_population_table.py]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0208
 depends_on: [T-0204, T-0207]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -600,3 +600,54 @@ normalise_region already takes a 'reference' population (T-0163) - the run never
     `... the floor of 36 holds`, exit 0.
   The code, tests, population and gates are byte-identical to be18d91, where everything above ran. So the
   pushed head is 294f3f1 plus this entry.
+- 2026-09-26T00:46:50Z REVIEW ROUND 2 by agent/rv2-t0208 (not the owner, not the fixer) on 8e416f1 ==
+  origin/task/T-0208, in the detached worktree .worktrees/rv2-t0208. VERDICT: PASS.
+  THE TWO SURVIVORS, REPLAYED. rv1-t0208's mutants (5) and (6) were re-applied by the reviewer's own driver
+  (.artifacts/rv2-t0208/driver.py, gitignored). It retypes them from the verdict and does not import them from
+  the population. Each mutant ran once in the full suite, `cd services/etl && python -m pytest tests -rfsE -q
+  -o addopts=`. Every `__pycache__` was purged before each run, and there was a python-sleep of 1.1 s before
+  `git checkout --`. `git status --short` was empty after each restore.
+  - PRISTINE: `1335 passed in 214.87s (0:03:34)`, exit 0. No SKIPPED line was printed, so there were zero skips.
+  - (5) `table = assemble(document)` in assemble.main: exit 1, `1 failed, 1334 passed`,
+    `FAILED tests/test_seam_one_score.py::test_the_cli_with_a_region_reference_gives_a_way_in_two_windows_one_score`.
+  - (6) `motorway_source=None)` in waydoc.main: exit 1, `1 failed, 1334 passed`,
+    `FAILED tests/test_motorway_source.py::test_the_cli_measures_to_the_region_motorway_file_it_is_given`.
+  Both new tests call `assemble.main([...])` and `waydoc.main([...])` themselves, through files on disk. The
+  reference file is written by `region_reference.dump`. Neither test stops at a helper.
+  TWO REVIEWER MUTANTS ON THE CLI LAYER. Neither is in the population, and both ran in the full suite.
+  - rv2-A: assemble.main parses `--reference` and loads it, so a bad file still refuses. It then ranks against
+    `region_reference.table_of(region_reference.raw_values([record_from_row(row, []) for row in
+    document["ways"]]))`, which is the tile's own population passed in as if it were the reference.
+    RED: exit 1, `1 failed, 1334 passed`,
+    `FAILED tests/test_seam_one_score.py::test_the_cli_with_a_region_reference_gives_a_way_in_two_windows_one_score`.
+  - rv2-B: waydoc.main parses `--motorways` and then measures to `pathlib.Path(args.input)`, the clip itself.
+    RED: exit 1, `1 failed, 1334 passed`,
+    `FAILED tests/test_motorway_source.py::test_the_cli_measures_to_the_region_motorway_file_it_is_given`.
+  THE POPULATION, RUN BARE.
+  - `python ops/mutate/normalise.py`: `BASELINE exit=0, 22 mutations, floor 22`.
+  - B1 caught `<- tests/test_seam_one_score.py::test_the_cli_with_a_region_reference_gives_a_way_in_two_windows_one_score`.
+  - B2 caught `<- tests/test_motorway_source.py::test_the_cli_measures_to_the_region_motorway_file_it_is_given`.
+  - `MUTATIONS: 22 caught, 0 missed, 0 skipped, of 22` / `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2` /
+    `MUTATE OK  caught=22/22 equivalent_caught=0`.
+  - `--prove-vacuity`: `VACUITY: 0 caught, 22 missed, 0 skipped, of 22` / `VACUITY PROVED`, exit 0.
+  THE GATES, RUN BARE.
+  - `python ops/lib/check-mutate-population.py`: `P-PROC-06: 91 modules, 37 covered by 15 populations, 33
+    allowlisted, 1 added by this branch` / `P-PROC-06: every added module is covered or allowlisted; the floor
+    of 36 holds`, exit 0.
+  - `bash ops/lib/check-line-cap`: `P-SRC-02: 111 Swift files tracked (Sources=43, Tests=47, apps/ios=21), none
+    over 300 lines`, exit 0.
+  - `bash ops/queue-check`: `QUEUE OK (234 tasks)`, exit 0.
+  - `gh pr checks 129`: core pass, pins-source-only pass.
+  - `git merge-base --is-ancestor origin/main HEAD`: exit 0, with origin/main at 5d1e260 after a fresh fetch.
+  - `wc -l` matches the owner's 23:52:39Z entry: test_seam_one_score.py 143, test_motorway_source.py 103,
+    normalise_mutations.py 148, normalise.py 173, assemble.py 293, waydoc.py 288.
+  - Both ops/mutate files are 100644.
+  RECORDED, NOT BLOCKING: (R1) the region driver that built la-tagged.osm.pbf is still only in the gitignored
+  services/etl/work/ (pass1*.sh, pass2*, pass3_merge.py and the rest), so the artifact cannot be rebuilt from
+  the tree. As ruled in R10, the orchestrator files that task. The new CLI tests bind the entry points those
+  scripts call, but not the scripts themselves. Until that task lands, the first-tile-wins merge of scored rows
+  and the seam_differ count have no committed guard.
+  VERDICT: PASS. PR #129 is signed off. state claimed -> done, reviewer agent/rv2-t0208, queue/claimed/ ->
+  queue/done/. queue/LOCKS/scenic-index.lock is deleted in this same commit, which releases the exclusive
+  [scenic-index] lock. The reviewer's worktree .worktrees/rv2-t0208 is removed. The merge is the
+  orchestrator's.
