@@ -164,3 +164,41 @@ anyone sees, so its words are unhurried and few. No thrill words.
   the MLNMapView's own frame (nil until it is in a window). A stub typecheck of the extracted coordinator code
   (swiftc, Windows) printed `Covered(top: 121.5, bottom: 509.0)` for (121.5, 365) and a logo margin y 67.5 (the
   same as round 2's, which landed). Expected at medium: the route zoomed out into 145-341 pt, wholly above the pill.
+- 2026-09-26T07:34:55Z SHOT, ROUND 3, and the ACCEPTANCE BLOCK re-run, by agent/claude-opus-5 (owner), on 96ead41.
+  ios-compile.yml run 36225144393 on 96ead41 `{"conclusion":"success","headSha":"96ead418fa83...","status":
+  "completed"}` (third dispatch, the last); ios-screenshot.yml run 36225665243 on the SAME head 96ead41
+  `{"conclusion":"success","headSha":"96ead418fa83...","status":"completed"}` (third dispatch, the last),
+  downloaded as .artifacts/screens/home-{light,dark}-T0237-{collapsed,medium}.png (round 2 kept in
+  .artifacts/screens/T0237-r2/). MEASURED (the route-colour scan, pt = px / 3): route box light collapsed x 21-380,
+  y 253-491 (centre 372; the open band 145-600 predicts 373); light medium x 50-352, y 143-343 - ZOOMED OUT to fit
+  the band 145-341, its lowest point 22 pt above the pill's top; dark collapsed y 269-491, dark medium y 156-343
+  (the dark casing is not in the scan colour). The R5 fix holds at both detents.
+  DESCRIBED, all four: the map full-bleed under the status bar; the chips on a material band ~50-121 pt (pale in
+  light, dark olive in dark), Saddle Peak selected in orange, Westwood loop and SF Peninsula on `surface`; the
+  MapLibre logo top-left just under the band (~133-151 pt), the (i) top-right level with it - both on the map,
+  neither under the chips or the sheet. COLLAPSED: the route across the upper-middle map, clear of the band and
+  the pill; the credit pill lower-right on the map ~624-668 pt, two lines `© MapLibre · Natural Earth ·` /
+  `© OpenStreetMap contributors`, wrapped at the separator with no party broken (acceptance 5); the sheet from
+  ~676 pt (~198 pt tall): grabber, `Saddle Peak · Topanga to Malibu` on one line, `Conditions change. Verify
+  locally.` in fgMuted, the orange `Open in Apple Maps` full-width (~33 pt of text band inside a 44+ pt button).
+  MEDIUM: the route smaller, 143-343 pt, above the coast; the pill ~365-410 pt, still on the map directly above the
+  sheet; the sheet from ~418 pt with the same title, conditions line and button, then the road list (4 lines),
+  `About 10 miles as the crow flies ...`, `A slow mountain afternoon, not a shortcut ...` and `Preview build. The
+  line is the route ...` (3 lines, footnote). DARK: the same geometry; the sheet on navy `bg`, title white,
+  conditions muted, button orange with navy text; the pill on dark `surface`, legible over the light demo tiles.
+  The credit and the conditions line are visible and unobscured in all four.
+  GATES, bare, on 96ead41 (origin/main 4368aeb is its ancestor; `git fetch origin` at 07:34Z: main has not moved):
+  `swift test --scratch-path .build-t0237` -> `√ Test run with 339 tests in 47 suites passed` (exit 0);
+  `bash ops/lib/check-map-attribution` exit 0 (limb (h) quoted above); `--prove-red` -> `prove-red: 32/32
+  mutations refused by name`, H1-H8 each `1 yes` (exit 0); `bash ops/lib/check-drive-copy` exit 0 (not touched,
+  so no --prove-red); `check-safety-disclaimer` exit 0; `check-line-cap` -> `P-SRC-02: 122 Swift files tracked
+  (Sources=45, Tests=50, apps/ios=27), none over 300 lines`; `check-exec-bits` -> `P-OPS-01: 101 files, 23 required
+  present, all modes correct`; `ops/queue-check` -> `QUEUE OK (237 tasks)`; `check-ios-compile-guardrails.py` ->
+  both workflows `equals the pinned workflow`; `bash ops/check-pins --source-only` -> `PINS ok=15 skipped=16
+  pending=1 expired=0 failed=0 tier=linux source-only`. This entry is the only change after 96ead41.
+  ACCEPTANCE: 1 ruled (R1-R10, 03:40Z, before code; R5/R6 corrected in the round-1 and round-2 entries). 2 the
+  credit and the conditions line are seen at both detents in both themes; limb (h) binds the mount, and its
+  --prove-red refuses the credit hidden behind the sheet (H1-H8). 3 an overlay sheet (R1): nothing dismisses it,
+  and the map above it is interactive; the chips are on a material band below the status bar in both themes;
+  the chips, grabber and button are each >= 44 pt. 4 ios-compile and ios-screenshot green on the same head
+  96ead41, four PNGs, described above. 5 the pill wraps only at the separator (NBSP, red first by name, 9fed536).
