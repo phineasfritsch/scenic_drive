@@ -74,10 +74,15 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 SRC_DIR = ROOT / "Sources" / "Handoff"
 SRC = SRC_DIR / "AppleMapsDirections.swift"
 ERR = SRC_DIR / "HandoffError.swift"
-SUBJECTS = [SRC, ERR]
+# T-0246: the menu the home sheet shows. DriveMenuRow rounds a row's extra minutes UP for its chip (P-SAFE-04)
+# and prints its good-road km in integer tenths; DriveMenu picks the selected row and draws the others muted.
+MENU = SRC_DIR / "DriveMenu.swift"
+MENU_ROW = SRC_DIR / "DriveMenuRow.swift"
+SUBJECTS = [SRC, ERR, MENU, MENU_ROW]
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
-SUBJECT_MODULES = ("Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift")
+SUBJECT_MODULES = ("Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift",
+                   "Sources/Handoff/DriveMenu.swift", "Sources/Handoff/DriveMenuRow.swift")
 
 TEST_DIR = ROOT / "Tests" / "HandoffTests"
 # GLOBBED, not listed. The hardcoded list was three files; the suite has since split to six, and a reviewer
@@ -91,7 +96,7 @@ TESTS = sorted(TEST_DIR.glob("*.swift"))
 SCRATCH = ".build/mutate-handoff"
 
 # Floors. Each one is the population below which this harness is not measuring the module it names.
-MIN_MUTATIONS = 30
+MIN_MUTATIONS = 36
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 3
 
@@ -306,6 +311,29 @@ MUTATIONS = [
      [(LOCALE_HELPER, None, LOCALE_HELPER_BODY),
       (SRC, RETURN_LINE,
        'return (negative ? "-" : "") + String(whole) + localeDecimalPoint() + digits')]),
+
+    # T-0246's menu. Killed through the whole suite: SaddlePeakMenuBundleTests reads the committed bundle.
+    ("chip minutes rounded to the nearest minute, not up (P-SAFE-04)",
+     [(MENU_ROW, "        Int(extraMinutes.rounded(.up))", "        Int(extraMinutes.rounded())")]),
+
+    ("chip minutes rounded down",
+     [(MENU_ROW, "        Int(extraMinutes.rounded(.up))", "        Int(extraMinutes.rounded(.down))")]),
+
+    ("the Fastest arm dropped: the zero row reads +0 min",
+     [(MENU_ROW, '        displayedMinutes == 0 ? "Fastest" : "+\\(displayedMinutes) min"',
+       '        "+\\(displayedMinutes) min"')]),
+
+    ("good-road km whole part divided by 100",
+     [(MENU_ROW, '        return "\\(tenths / 10).\\(tenths % 10) km good road"',
+       '        return "\\(tenths / 100).\\(tenths % 10) km good road"')]),
+
+    ("no selection falls back to the first row, not the menu's default",
+     [(MENU, "        guard let selected, rows.indices.contains(selected) else { return defaultRow }",
+       "        guard let selected, rows.indices.contains(selected) else { return 0 }")]),
+
+    ("the muted lines are the selected row instead of the others",
+     [(MENU, "        return collection(of: rows.indices.filter { $0 != chosen }.map { rows[$0] })",
+       "        return collection(of: rows.indices.filter { $0 == chosen }.map { rows[$0] })")]),
 ]
 
 # Mutations that provably CANNOT change behaviour, and must therefore be MISSED.
