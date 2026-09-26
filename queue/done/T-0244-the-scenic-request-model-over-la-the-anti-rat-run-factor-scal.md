@@ -1,7 +1,7 @@
 ---
 id: T-0244
 title: the scenic request model over LA - the anti-rat-run factor scales with lambda (7th Street, Santa Monica at lambda 8), T(lambda) monotone (distance_influence), and a lambda ladder that moves the route before lambda 8
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-26T07:45:04Z
@@ -11,7 +11,7 @@ branch: task/T-0244
 exclusive: []
 touches: [Sources/ScenicKit/Budget/, Sources/ScenicKit/Routing/, Tests/ScenicKitTests/, Sources/ScenicPlanCLI/, Tests/ScenicPlanCLITests/, services/routing/tools/route_la_pairs.py, services/routing/tests/, Sources/ScenicKit/Plan/, services/api/src/customModel.ts, services/api/test/customModel.test.ts, Tests/Fixtures/custom-model/, Tests/Fixtures/t0244/, ops/mutate/plan.py, ops/lib/mutate-population-allowlist.json, services/api/test/customModelMinorClause.test.ts]
 pins_affected: [P-SAFE-04]
-reviewer: null
+reviewer: agent/rv3-t0244
 depends_on: [T-0209]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -385,3 +385,34 @@ relationship' failure.
     3. MET on the measured pairs - PlanCeilingOverLATests inside the 346 passed.
   The full 31-mutant table was not re-run (~17 min); only cli/ rows moved, and they ran. STILL OPEN: A2-ts -
     no vitest mutation population over services/api/src (unchanged, a harness task).
+- 2026-09-26T15:14:36Z agent/rv3-t0244 - REVIEW round 3 of PR #134 on ad3be83 (origin/task/T-0244 == this worktree's HEAD,
+  `git status --short` empty): PASS. Not the owner, not the fixer, not rv1/rv2.
+  REPLAY, swift test --scratch-path .build/rv3-t0244 --filter PlanCLIRequestBodyTests, source restored after each:
+    fastest() `body(destination, origin, profile: fastProfile, model: nil)`, exit 1, RED by name: "fastest(from:to:)
+    sends car_fast with no custom_model and no distance_influence" at :142; "fastest(from:to:) and
+    scenic(from:to:lambda:) send the same points, origin first" at :154 and :155 - "Test run with 6 tests in 1 suite
+    failed ... with 3 issues".
+    scenic() `body(destination, origin, profile: scenicProfile, model: model)`, exit 1, RED by name:
+    "scenic(from:to:lambda:) sends distance_influence 0 and LambdaCustomModel.json(for: lambda), at every step" at
+    :111 (one issue per lambda step); "fastest(from:to:) and scenic(from:to:lambda:) send the same points, origin
+    first" at :154 and :156.
+  OWN MUTANT, unnamed in plan.py, P-SAFE-04 at the shipping entry point main.swift calls:
+    Sources/ScenicPlanCLI/PlanCommand.swift `budget: arguments.budget)` -> `budget: arguments.budget * 2)`, full
+    swift test, exit 1, RED by name: "the ceiling ops/plan prints is the fastest route plus the minutes asked for"
+    at PlanCLIBudgetTests.swift:48 (ceiling=1h07m56s against 42m56s) and :52 (budget=50m00s against 25m00s) -
+    "Test run with 346 tests in 49 suites failed ... with 2 issues". CAUGHT; no survivor.
+  GATES, bare, on ad3be83: swift test "Test run with 346 tests in 49 suites passed", exit 0; vitest (services/api,
+    after npm ci) "Test Files 7 passed (7)", "Tests 126 passed (126)", exit 0; plan.py --only cli/ "population 31
+    mutations over 9 modules ... (running 6 selected)", "caught 6 of 6 trapped 0 compile-only 0 MISSED 0
+    skipped 0", exit 0 - cli/fastest-request-swaps-origin-and-destination and
+    cli/scenic-request-swaps-origin-and-destination CAUGHT; check-mutate-population.py "P-PROC-06: every added
+    module is covered or allowlisted; the floor of 36 holds", exit 0; check-line-cap "P-SRC-02: 122 Swift files
+    tracked (Sources=45, Tests=53, apps/ios=24), none over 300 lines", exit 0; queue-check "QUEUE OK (237 tasks)",
+    exit 0; check-pins --source-only "PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only",
+    exit 0; gh pr checks 134: core pass, pins-source-only pass; `git merge-base --is-ancestor origin/main
+    origin/task/T-0244` exit 0 (origin/main 558e154).
+  The first full swift test on a cold scratch path stopped on a Windows index-store "permission denied" (error:
+    fatalError, the build environment on a box shared with other agents; no test ran); the bare re-run passed.
+  RECORDABLE, not blocking: A2-ts unchanged (no vitest mutation population over services/api/src, a harness task);
+    the full 31-row plan.py table was not re-run this round (only the cli/ rows moved, and all 6 ran).
+  VERDICT: PASS - reviewer agent/rv3-t0244, state done, queue/claimed/ -> queue/done/. Not merged.
