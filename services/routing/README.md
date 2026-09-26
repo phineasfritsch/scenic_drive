@@ -20,6 +20,12 @@ T-0213 added the second, REAL input and the one import recipe both paths use:
 how `tests/test_scenic_score_readback.py` checks a NAMED way's real score instead of a snapped coordinate's.
 It needs `osm_way_id` in `config.yml`'s `graph.encoded_values`, which is why it is there.
 
+T-0209 added `--mode route-details` (image `scenic-routing:t0209`, same config, so the graph format is
+unchanged): route's arguments, and after each `ROUTE` line one `EDGE model= seq= road_class= osm_way_id=
+distance_m=` row per routed edge, from GraphHopper's own path details. `tools/route_details.py` reads it;
+`tools/route_la_pairs.py` measures T(lambda) and the residential/service runs over the LA graph with it. An
+unknown `--mode` is now an error instead of a silent exit 0.
+
 **The image tag moves with `config.yml`.** A graph carries the encoded-value list it was built with, so an
 image whose config names a different list cannot load it: `scenic-routing:t0031` is the T-0031 config and the
 Vermont graph built under it, `scenic-routing:t0213` adds `osm_way_id`. Changing `graph.encoded_values` means
