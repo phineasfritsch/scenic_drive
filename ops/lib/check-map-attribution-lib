@@ -119,16 +119,16 @@ hidden_counts() {
 
 # (d). The argument list of every `AttributionFooter(` construction in a file, //-stripped, one per line:
 # from the open paren to the paren that closes it, by depth, so a construction spanning lines is read whole.
-footer_args() {
-  awk '
+call_args() {
+  awk -v callee="$1" '
     {
       code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
       while (1) {
         if (started == 0) {
-          i = index(code, "AttributionFooter(")
+          i = index(code, callee)
           if (i == 0) break
           started = 1; depth = 0; out = ""
-          code = substr(code, i + length("AttributionFooter("))
+          code = substr(code, i + length(callee))
         }
         n = length(code); k = 1; done = 0
         for (; k <= n; k++) {
@@ -144,8 +144,9 @@ footer_args() {
         code = substr(code, k + 1)
       }
     }
-  ' "$1"
+  ' "$2"
 }
+footer_args() { call_args "AttributionFooter(" "$1"; }
 
 # (b). Every `static let` line whose value names OpenStreetMap, "path:line:<trimmed code>", over the files
 # handed in. The identifier-keyed whitelist above is blind to a credit declared under a NEW name: rv1 of
@@ -224,8 +225,59 @@ require_map_mounts() {
 # a green than is there. It sits here rather than in the check for the same reason the readers do: the
 # check is at CLAUDE.md's 300-line cap. Everything it names is a global the check typed or a reading the
 # check hands in; like everything else in this file, it decides nothing.
+# (d), rv1-t0236 B1. One spacing for an argument list read across lines: one whitelisted spelling, any layout.
+squash_args() { tr -s ' \t' '  ' | sed -e 's/^ //' -e 's/ $//' -e 's/( /(/g' -e 's/ )/)/g'; }
+# The ONE form the footer's text may take, from the construction's own argument list: the composed credit of the
+# resolved style AND the drawn route - a WHITELIST of one spelling, so the style's credit alone, a literal, any
+# other string and a route credit dropped to nil are refused by one rule. Sets FOOTER_ARG/_STYLE/_ROUTE.
+require_composed_footer() {
+  local screen="$1" a n=0
+  local re='^text: CreditLine\.composed\(basemap: ([A-Za-z_][A-Za-z0-9_]*)\.attributionText, routeData: ([A-Za-z_][A-Za-z0-9_]*)\?\.dataCredit\)$'
+  FOOTER_ARG="" FOOTER_STYLE="" FOOTER_ROUTE=""
+  while IFS= read -r a; do
+    n=$((n + 1))
+    case "$a" in
+      *'"'*) fail "AttributionFooter( in $screen is handed a string literal: $a" \
+        "The credit has to be asked of the resolved style and the drawn route. A literal there is right on" \
+        "one device and a lie on every other." ;;
+    esac
+    a="$(printf '%s' "$a" | squash_args)"
+    [[ "$a" =~ $re ]] || fail \
+      "AttributionFooter('s text argument in $screen is not the composed credit: ${a:-<empty>}" \
+      "The ONE approved form is text: CreditLine.composed(basemap: <style>.attributionText, routeData:" \
+      "<route>?.dataCredit) - the resolved style's credit for the tiles AND the drawn line's data credit." \
+      "The style's credit alone left the Saddle Peak line, OpenStreetMap data, credited to MapLibre and" \
+      "Natural Earth on every device without la.pmtiles (rv1-t0236 B1); a local binding for each half is" \
+      "what lets the mount be checked against the same two values."
+    FOOTER_ARG="$a"; FOOTER_STYLE="${BASH_REMATCH[1]}"; FOOTER_ROUTE="${BASH_REMATCH[2]}"
+  done < <(footer_args "$screen")
+  [[ "$n" -eq 1 ]] || fail \
+    "read $n AttributionFooter( argument list(s) in $screen, expected 1." \
+    "A construction the argument reader cannot parse must refuse, not pass unread."
+}
+
+# (d), rv1-t0236 B1. The credit names the route the map DRAWS: the one MapView( construction in the screen is
+# handed `route: <r>`, once, with the binding the footer's composed credit reads - so the footer cannot credit a
+# line the renderer was not given, nor the renderer draw a line the footer does not credit.
+require_route_mount() {
+  local screen="$1" route="$2" a n=0 hits
+  while IFS= read -r a; do
+    n=$((n + 1))
+    a="$(printf '%s' "$a" | squash_args)"
+    hits="$(printf '%s\n' "$a" | grep -o -E '(^|[(,] ?)route: [^,]*' | sed -e 's/^.*route: //' -e 's/ *$//')"
+    [[ "$hits" == "$route" ]] || fail \
+      "the map is not handed the route the credit names: MapView( in $screen passes route: ${hits:-<none>}," \
+      "while the footer's composed credit reads $route?.dataCredit." \
+      "One value for both halves, as for the style: the line the renderer draws and the line the footer" \
+      "credits have to be the same binding, handed once."
+  done < <(call_args "MapView(" "$screen")
+  [[ "$n" -eq 1 ]] || fail \
+    "read $n MapView( argument list(s) in $screen, expected 1." \
+    "A construction the argument reader cannot parse must refuse, not pass unread."
+}
+
 print_verdict() {
-  local an="$1" pline="$2" dline="$3" built="$4" recv="$5"
+  local an="$1" pline="$2" dline="$3" built="$4" recv="$5" route="${6:-}"
   echo "P-ATTR-01: over $an .swift file(s) under $APP_TREE, // stripped:"
   echo "  attributionText's protomaps arm (line $pline) returns MapStyle.protomapsAttribution and its demo"
   echo "  arm (line $dline) returns MapStyle.demoAttribution; the two declarations are verbatim, whole line:"
@@ -235,7 +287,7 @@ print_verdict() {
   echo "  anywhere under the tree is that same one declaration;"
   echo "  $PROTOMAPS_IDENT at $PROTOMAPS_SET, and every occurrence outside $ADAPTER_REL/ is a \`case .\` pattern;"
   echo "  the mount at $MOUNT_SET; one DriveBasemap.resolve( at $FOOTER_SET; the footer at $FOOTER_SET, built"
-  echo "  with: $built - and the map with styleURL: $recv.url, the same binding;"
+  echo "  with: $built - and the map with styleURL: $recv.url and route: $route, the same bindings;"
   echo "  every MapView( and every styleURL: over the tree is at $SURFACE_SET, outside the one definition"
   echo "  $MAPVIEW_REL, which declares struct MapView and public init(styleURL once each;"
   echo "  every accessibilityHidden in $DESIGN_REL/AttributionFooter.swift and in the mount screen is (false)."

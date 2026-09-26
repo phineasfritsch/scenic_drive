@@ -1,7 +1,7 @@
 import Foundation
 import ScenicKit
 
-/// Which of the two hard-coded drives the screen is showing and the button would hand over.
+/// Which of the three hard-coded drives the screen is showing and the button would hand over.
 ///
 /// ## Why a type and not a second handoff
 ///
@@ -16,7 +16,7 @@ import ScenicKit
 ///
 /// ## Why it lives in `Handoff` and not in the screen
 ///
-/// Both routes' coordinates live here (`SkylineRoute`, `SantaMonicaMountainsRoute`), in a Linux target
+/// Every route's coordinates live here (`SaddlePeakRoute`, `SkylineRoute`, `SantaMonicaMountainsRoute`), in a Linux target
 /// with a test target beside it. A selector in an Apple-only target with no test bundle could map a
 /// case to the wrong array and nothing on this box could tell. `SantaMonicaMountainsChainTests`
 /// checks the mapping - `eachDriveMapsToItsOwnRoute`, plus the case count and
@@ -24,6 +24,10 @@ import ScenicKit
 /// never written until 2026-09-19, which is how a reader was told a mapping was covered by a file
 /// that did not exist.
 public enum HandoffDrive: String, CaseIterable, Sendable {
+    /// The engine's drive, Topanga to Malibu over Saddle Peak: `SaddlePeakRoute` (T-0236). Declared first
+    /// because it is the default and the first row of the picker.
+    case saddlePeak
+
     /// The walking skeleton's Bay Area loop: `SkylineRoute`.
     case skyline
 
@@ -47,11 +51,18 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
     /// permission prompt of any kind. A friend who has denied Location sees exactly the same screen,
     /// because nothing here reads a location to decide - a denial changes nothing - and the Skyline
     /// drive is one 44 pt tap away.
-    public static let defaultDrive: HandoffDrive = .santaMonicaMountains
+    ///
+    /// SUPERSEDED 2026-09-25 (T-0236), in a new paragraph rather than by rewriting the one above, whose
+    /// reasoning about locale and location still holds word for word: the default is now `.saddlePeak`. It is
+    /// the only drive the app can DRAW - the engine made it and its recorded road geometry ships with the app
+    /// (`routeGeometryResource`) - and it is in Los Angeles too, so the owner in Westwood still opens on a local
+    /// drive with no permission prompt. The Westwood loop is the second row and the Peninsula the third.
+    public static let defaultDrive: HandoffDrive = .saddlePeak
 
     /// Where this drive ends.
     public var destination: Coordinate {
         switch self {
+        case .saddlePeak: return SaddlePeakRoute.destination
         case .skyline: return SkylineRoute.destination
         case .santaMonicaMountains: return SantaMonicaMountainsRoute.destination
         }
@@ -61,10 +72,44 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
     /// one home and their provenance lives beside them there.
     public var waypoints: [Coordinate] {
         switch self {
+        case .saddlePeak: return SaddlePeakRoute.waypoints
         case .skyline: return SkylineRoute.waypoints
         case .santaMonicaMountains: return SantaMonicaMountainsRoute.waypoints
         }
     }
+
+    // MARK: - The drawn line
+
+    /// The bundled GeoJSON this drive's line is drawn from, by resource NAME, or `nil` for a drive with no
+    /// recorded road geometry - the loop and the Peninsula are human-chosen pins, and a line between pins
+    /// would cross the mountains, so they draw none.
+    ///
+    /// A name and not a URL: this target is Linux Foundation and knows no bundle. The app resolves
+    /// `routeGeometrySubdirectory`/`name`.`routeGeometryExtension` through `Bundle.main`, and
+    /// `SaddlePeakGeometryTests` builds the SAME path under `apps/ios/ScenicDrive` from the same three symbols.
+    public var routeGeometryResource: String? {
+        switch self {
+        case .saddlePeak: return SaddlePeakRoute.geometryResource
+        case .skyline, .santaMonicaMountains: return nil
+        }
+    }
+
+    /// What the drawn line's DATA must be credited as, or `nil` exactly when there is no line. The tiles' credit
+    /// does not cover a line: over the demo tiles (every device without `la.pmtiles`) the basemap credit names
+    /// MapLibre and Natural Earth while the line is OpenStreetMap. The app hands this to `MapRoute` with the file,
+    /// and the footer shows `CreditLine.composed(basemap:routeData:)` of both (T-0236, rv1-t0236 B1).
+    public var routeGeometryCredit: String? {
+        switch self {
+        case .saddlePeak: return SaddlePeakRoute.geometryCredit
+        case .skyline, .santaMonicaMountains: return nil
+        }
+    }
+
+    /// The folder under `apps/ios/ScenicDrive/` the lines live in (a buildable folder: no pbxproj edit).
+    public static let routeGeometrySubdirectory = "Routes"
+
+    /// The lines' file extension, as `ops/lib/make-route-geojson.py` writes them.
+    public static let routeGeometryExtension = "geojson"
 
     /// The pins in driving order, then the destination - the chain `StraightLineDistance` measures.
     public var chain: [Coordinate] { waypoints + [destination] }
@@ -114,10 +159,13 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
     /// no road distance for either drive has been measured by anything in this repository.
     public var timingSentence: String {
         switch self {
+        case .saddlePeak:
+            return "A slow mountain afternoon, not a shortcut - the coast road is the quick way. "
+                + Self.realTimePromise
         case .santaMonicaMountains:
             return "Plan an afternoon, not a commute. " + Self.realTimePromise
         case .skyline:
-            return "Plan a long afternoon, not a commute - the longer of the two drives. "
+            return "Plan a long afternoon, not a commute - the longest of the three drives. "
                 + Self.realTimePromise
         }
     }
