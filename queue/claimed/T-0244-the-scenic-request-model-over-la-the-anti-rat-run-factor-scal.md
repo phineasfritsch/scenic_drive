@@ -303,3 +303,41 @@ relationship' failure.
     R1: main moved to 558e154 (queue/ only, T-0180's file) - merged as the LAST step before the push.
     A2-ts (no vitest mutation population for services/api/src): STAYS STILL OPEN - a harness task, not cheap in
        this round; B2's mutant is recorded here by name, red and green, as A2-ts was.
+- 2026-09-26T12:47:44Z agent/claude-opus-5 (owner): ROUND 1 B1-B2 CLOSED (commit f35322d), red and green by name.
+  RED - each reviewer reproduction applied by .build/t0244/redgreen_r1.py and restored (git status clean after):
+    B1 (fastest(): profile: fastProfile -> profile: scenicProfile): "fastest(from:to:) sends car_fast with no
+       custom_model and no distance_influence" recorded an issue at PlanCLIRequestBodyTests.swift:104:9:
+       Expectation failed: (request["profile"] as? String -> "car_scenic") == "car_fast"; "Test run with 5 tests
+       in 1 suite failed ... with 1 issue", exit 1.
+    B1b (fastest(): model: nil -> model: try LambdaCustomModel.json(for: 0)): the same test, :105:9 (the key
+       whitelist), :106:9 (custom_model), :107:9 (distance_influence) - 3 issues, exit 1.
+    B2 (customModel.ts, after the closure ids: priority[0] = { if: MINOR_CONDITION, multiply_by: "1" }): vitest
+       "Test Files 1 failed | 6 passed (7)", "Tests 3 failed | 123 passed (126)" - all three in
+       customModelMinorClause.test.ts: "two closures, minor at lambda 0.1: expected '1' to be '0.833333'";
+       "two closures, minor / dullest cost at lambda 0.1: expected 0.909091 to be greater than 1"; "with closures
+       live is the no-closure priority clause for clause ...": "lambda 0.1: expected [...] to deeply equal [...]".
+  GREEN (pristine): "Test run with 5 tests in 1 suite passed" (PlanCLIRequestBodyTests); vitest "Test Files 7
+    passed (7)", "Tests 126 passed (126)"; full swift "Test run with 345 tests in 49 suites passed".
+  POPULATION: `SCENIC_MUTATE_SCRATCH=.build/T0244 python ops/mutate/plan.py` on f35322d (the whole table) ->
+    "population 29 mutations over 9 modules", "caught 29 of 29   trapped 0   compile-only 0   MISSED 0
+    skipped 0", exit 0 - cli/fastest-request-uses-the-scenic-profile and cli/fastest-request-carries-a-custom-
+    model CAUGHT.
+  MERGED origin/main 558e154 (4f011e8; `git diff --stat f35322d 4f011e8`: T-0180's queue file only, 2 insertions).
+  GATES on 4f011e8, bare: swift test --scratch-path .build/T0244 "Test run with 345 tests in 49 suites passed",
+    exit 0; vitest "Test Files 7 passed (7)", "Tests 126 passed (126)", exit 0; plan.py --only cli/ "caught 4 of
+    4 trapped 0 compile-only 0 MISSED 0 skipped 0", exit 0 (the full table ran on f35322d, whose Sources/,
+    Tests/ and ops/ are byte-identical to 4f011e8); --prove-floor: empty / one mutation / unmutated subject
+    REFUSED ("expected at least 29"), the shipped table accepted, exit 0; check-mutate-population.py "P-PROC-06:
+    every added module is covered or allowlisted; the floor of 36 holds", exit 0; check-line-cap "P-SRC-02: 122
+    Swift files tracked (Sources=45, Tests=53, apps/ios=24), none over 300 lines"; check-exec-bits "P-OPS-01:
+    100 files, 23 required present, all modes correct"; queue-check "QUEUE OK (237 tasks)"; check-pins
+    --source-only "PINS ok=15 skipped=16 pending=1 expired=0 failed=0 tier=linux source-only", exit 0.
+    Line counts: PlanCLIRequestBodyTests.swift 131, customModelMinorClause.test.ts 71, ops/mutate/plan.py 275;
+    customModel.ts and customModel.test.ts untouched at 299 / 299; GraphHopperRouteSource.swift untouched, 160.
+  ACCEPTANCE, re-run on 4f011e8 (no model byte, fixture or route moved in this round):
+    1. MET - "Santa Monica -> Topanga at lambda 8, as routed over the whole-LA graph, has no rat-run over 800 m"
+       passed; Suite "Lambda custom model parity" passed (the emitted model byte for byte).
+    2. MET - Suite "Lambda custom model: rat-runs, monotone T, the band ladder" passed; P-SAFE-04 now holds its
+       BASELINE too: fastest() sends car_fast with no model (B1 above), planner/ceiling-* and cli/fastest-* caught.
+    3. MET on the measured pairs - PlanCeilingOverLATests inside the 345 passed (planned[20] == 1,904.238).
+  STILL OPEN: A2-ts - no vitest mutation population over services/api/src (unchanged, a harness task).
