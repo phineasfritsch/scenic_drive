@@ -1,13 +1,13 @@
 ---
 id: T-0242
 title: the region build pipeline that made la-tagged.osm.pbf lives in the tree - pass1/pass2/pass3 and the window/tile drivers committed under services/etl with one entry point, a test through it, and a rebuild that reproduces sha256 648fc3db...3d39
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-09-26T23:55:42Z
+lease_expires_at: 2026-09-27T11:55:42Z
+worktree: .worktrees/T-0242
+branch: task/T-0242
 exclusive: [scenic-index]
 touches: [services/etl/etl/region/, services/etl/tests/test_region_build.py, services/etl/tests/fixtures/, ops/etl-region]
 pins_affected: []
@@ -28,3 +28,4 @@ is filed as its own task).
 ## Log
 - 2026-09-26T00:55:31Z filed by agent/claude-opus-5 (orchestrator) after PR #129 merged. The work dir was moved from .worktrees/T-0208/services/etl/work/ to the main checkout's services/etl/work/t0208/ (89 entries, 372 MB) before the worktree was removed.
 - 2026-09-26T23:55:08Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0208 and T-0209 merged; the pipeline scripts are preserved at the main checkout's services/etl/work/t0208/.
+- 2026-09-26T23:55:42Z claimed by agent/claude-opus-5; lease until 2026-09-27T11:55:42Z
