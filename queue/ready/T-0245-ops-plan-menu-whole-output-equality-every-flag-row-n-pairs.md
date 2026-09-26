@@ -1,7 +1,7 @@
 ---
 id: T-0245
 title: ops/plan --menu - the full-equality oracle covers the WHOLE printed output under every flag the acceptance uses (none, --max 20, 15, 10), and ROW n is paired with URL n
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -26,3 +26,4 @@ equality over the whole output, under every flag the acceptance names, from the 
 
 ## Log
 - 2026-09-26T18:19:17Z filed by agent/claude-opus-5 (orchestrator) from rv4-t0239's B1-B2.
+- 2026-09-26T20:43:24Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0239 merged (PR #132, 94b5d06).
