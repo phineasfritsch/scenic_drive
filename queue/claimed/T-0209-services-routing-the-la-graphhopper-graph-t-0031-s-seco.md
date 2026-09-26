@@ -281,3 +281,62 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
       w1087155744 highway=service (no name) scenic_score=0
 
   The graph's encoded scores equal the PBF's tags on all five ways (4, 2, 0, 0, 0).
+- 2026-09-26T01:30:38Z RULINGS FROM THE MEASUREMENT (R7, R8), written after the numbers above, and the verdicts they give.
+
+  (V1) T(lambda) IS NOT NON-DECREASING ON WESTWOOD -> WOODLAND HILLS - clause 4 FAILS on that pair and is not
+  re-worded. T(0) = 1,208,634 ms, T(1) = 1,201,286 ms: lambda 1 returns a route 7,348 ms (0.61 %) FASTER and
+  328.7 m longer. Why, from the measured numbers and the model, not asserted: GraphHopper minimises WEIGHT,
+  Sum(t_i / p_i) + distance_influence x km (car_scenic_base.json: 30 s/km), never T. The emitted bands are exactly
+  linear in lambda in 1/p (mid 1/p = 1 + lambda/2: 1, 1.5, 2, 3, 5; low 1/p = 1 + lambda: 1, 2, 3, 5, 9), so weight
+  = W0(route) + lambda x S(route) with W0 = Sum(t_i x r_i) + 30 x km (r_i = 2 on a residential edge scored < 7 -
+  the emitted clause - else 1). For two lambdas l < l' with optimal routes R, R', adding the two optimality
+  inequalities gives (l' - l)(S(R') - S(R)) <= 0, so S falls and W0 RISES with lambda: the model guarantees W0
+  non-decreasing, NOT T. The measurement agrees exactly where it can be checked with no residential edge in
+  play: W0 on this pair = 2050.36, 2052.88, 2426.82, 2426.82, 2426.82 - non-decreasing while T dips. At lambda 0
+  the 20.14-min route wins on the 30 s/km term (2050.36 < 2052.88 for the 20.02-min route). So T-monotonicity
+  can fail on real LA data by construction whenever distance_influence > 0; ScenicKit's BudgetOutcome already
+  carries `monotonicityViolated` for exactly this. RULED: reported as a FAIL of clause 4 on 1 of 3 pairs; the
+  fix (distance_influence 0 in the per-request model, or stating the property on W0) is a Worker/ScenicKit model
+  change outside this task's touches - STILL OPEN, to be filed.
+
+  (V2) THE LA BITE FLOOR, re-ruled from the measured spread (never Vermont's 5 %): T(8) >= 1.025 x T(0) on every
+  named pair. Measured: westwood-malibu +100.44 %, westwood-woodland-hills +31.52 %, santa-monica-topanga
+  +4.99 %. 2.5 % is half the smallest measured bite and about 4x the largest non-scenic swing measured (the -0.61 %
+  distance-influence swap in V1), so a floor there separates "the scenic penalty moved the route" from
+  "the objective's distance term reshuffled two near-equal routes". Vermont's 5 % copied would have FAILED
+  santa-monica-topanga by 0.01 pp - the reason the brief forbids copying it. All three pairs clear 2.5 %: the
+  penalty BITES. Observed, not ruled: on two pairs lambda 0..4 return the IDENTICAL route and only lambda 8
+  moves it (Westwood -> Malibu doubles, 27.79 -> 55.70 min), so on LA the grid is a step; a bisection over it
+  has one scenic option on those pairs.
+
+  (V3) THE RAT-RUN THRESHOLD, ruled from the 18 measured routes and T-0224's table:
+    A RAT-RUN is a maximal run of consecutive residential / living_street / service edges, every one scored
+    scenic_score < 7, longer than 800 m, on any returned route at any lambda.
+  Why 800 m: T-0224 measured 95.17 % of LA residential WAYS at or under 800 m (4.83 % over; p90 584.7 m, median
+  170.7 m) and 99.52 % of service ways (0.48 % over; p90 190.8 m). A run over 800 m is therefore longer than
+  about 19 of 20 whole residential ways - it is not explained by one ordinary way's geometry, which is the
+  failure mode of a threshold at p90 (it would flag 1 in 10 single ways by length alone). The measured runs
+  do not argue for a looser number: 17 of 18 routes carry 0 m of residential, and the service runs are 52.3 m
+  and 174.8 m (both under service p90) - the arterial network served every pair at every lambda <= 4. Why the
+  score < 7 qualifier: it is the emitted model's own exemption (`road_class == RESIDENTIAL && scenic_score < 7`),
+  so a residential way the scorer rates high is a scenic road, not a rat-run, under the same line.
+
+  (V4) VERDICT - ONE RAT-RUN, CLAUSE 5 FAILS: santa-monica-topanga at lambda 8, 813.9 m of highway=residential
+  7th Street (Santa Monica), ways 121941230 (scenic_score 4, 15 edges) and 384819177 (scenic_score 2, 1 edge) -
+  both < 7, run 813.9 m > 800 m. It exists ONLY at lambda 8: car_fast and lambda 0..4 carry 0 m residential on
+  that pair. Mechanism, from the emitted model: the anti-rat-run factor is a constant x0.5 while the bands grow
+  with lambda, so a score-4 residential edge costs 1/(0.2 x 0.5) = 10 s per second driven at lambda 8 against 9
+  for a low-band (score < 4) arterial - the clause's relative bite shrinks from 2x at lambda 0 to 1.11x at
+  lambda 8. No other run on any route reaches 800 m. STILL OPEN, to be filed: the clause should scale with
+  lambda (or gate the residential band) - a Worker/ScenicKit model change outside this task's touches.
+
+  (V5) THE RUN ARITHMETIC IS TESTED. tests/test_route_details_runs.py (no docker): parse + runs + longest_run +
+  class_metres over typed rows. Written after tools/route_details.py, so it is shown red on a MUTANT instead of
+  on absence: the trailing-run flush in runs() deleted from the working copy ->
+
+      FAILED tests/test_route_details_runs.py::test_a_run_joins_consecutive_edges_of_one_class_across_ways
+      FAILED tests/test_route_details_runs.py::test_a_run_that_ends_the_route_is_counted
+      FAILED tests/test_route_details_runs.py::test_longest_run_per_class_and_mixed
+      3 failed, 3 passed in 0.42s
+
+  restored byte-for-byte (`git diff --stat` empty) -> `6 passed in 0.08s`.
