@@ -72,3 +72,28 @@ drive the owner takes. Order: T-0208 -> T-0209 -> this.
   exactly; the printed URL line EQUALS "URL " + AppleMapsDirections(source: O, destination: D, waypoints: the
   plan's decision points).url() AND the literal quoted in this Log; waypoints <= 9. Seen RED by a mutant before
   it is called green.
+- 2026-09-26T15:41:41Z STAGE A LANDED - the graph copy, its digest, the jar, the recorder, the models (agent/claude-opus-5).
+  `wsl -e bash services/routing/work/t0221/stage-a.sh` (main checkout, gitignored; exit 0):
+      IMAGE scenic-routing:t0209 sha256:349ad6f584a19718d7c44900b13da5aced8650b53330776bc054f41da3b885dc
+      9358b40710ff04bf6e287c08795af9e0fc4e7e6f68cb9fb0266debf716b092ae  edgekv_keys
+      678fdf7f4e194d8b0387012aff2ebd8b8d3cce6f2d0b14227bded36883709766  edgekv_vals
+      0d17354d11436e32479d92d84e7037aa7dbe5924ebbe754f4ae36b49e2d60b66  edges
+      9e6c1e3872b75c0a6bc710485dd80727bb87e80e78b1f005bdac42e671ec92cb  geometry
+      747b818a0ff193e8fb1ed1c6369643fbd734c99d545d6b10cc97a951583637a0  location_index
+      04bacbc54e155cac2ec119fdce485ac585534735321b98e558f78d3b62c963d1  nodes
+      fb29845262227854ee5a08c99e7a20bdb550240773b9d13c726262eba91e5839  properties
+      786867b0a998feefdf942193ef4d9619c499790481fb5050dd4bc80d3c5d53bb  properties.txt
+      GRAPH_DIGEST sha256=eb43090a0de52432756d5b6f98a0dad0f568838f8272ff339042344e920d18eb
+      ab2c7eea902c8244fc9945a6b0134c1c66b188a0339a0c78b247b5cf7c9c0848  scenic-router.jar
+      d158304021aa56f2d178dd902958ee0f03a0d96a49746e041c24830fb983483c  Tests/Fixtures/t0182-recorder/Recorder.java
+      -rwxrwxrwx 12974 Recorder.class
+      STAGE A DONE
+  GRAPH_DIGEST over the COPY (services/routing/work/t0221/graph-la) = T-0209's eb43090a...18eb to the byte, the
+  per-file manifest line for line (R2 met). The jar is `docker run --rm --entrypoint cat scenic-routing:t0209
+  /app/scenic-router.jar`; the recorder compiled with `javac -cp scenic-router.jar` in
+  maven:3.9-eclipse-temurin-21@sha256:c2a2c585...a7d74 (services/routing/Dockerfile's own builder pin).
+  MODELS: `SCENIC_PLAN_SCRATCH=.build/T0221 bash ops/plan --emit-model <l> | tr -d '\r'` for the ten lambdas of
+  R3 (sha256 prefixes 0:54eb5b269914 2:c8932f734c2a 3:aaa34ea8dde2 3.25:be14e120d2b3 3.5:0941838ac56a
+  4:b471285b42fe 6:b6cbb7e1971a 7:5962f42b13a6 7.5:63390aa52faa 7.75:7585c320d15b); lambdas 0, 2, 3, 3.25, 3.5,
+  4, 6 and 7 `cmp`-equal T-0244's run2 files (work/t0244/models2), and 7.75 `cmp`-equals the node-printed golden
+  Tests/Fixtures/custom-model/lambda-7.75.json - the model ops/plan sends IS the Worker's.
