@@ -35,5 +35,6 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Scoring/RouteScore.swift", "Sources/ScenicKit/Scoring/SegmentScore.swift",
     "Sources/ScenicKit/Scoring/SegmentTerms.swift",
     "Sources/ScenicKit/Menu/RouteMenu.swift", "Sources/ScenicKit/Menu/MenuRow.swift",
-    "Sources/ScenicPlanCLI/MenuArguments.swift",
+    "Sources/ScenicPlanCLI/MenuArguments.swift", "Sources/ScenicPlanCLI/MenuCommand.swift",
+    "Sources/ScenicKit/Menu/RecordedAlternatives.swift",
 )

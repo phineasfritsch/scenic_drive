@@ -13,7 +13,9 @@ public enum MenuCommand {
 
     /// The menu `run` prints, from the recording `--recorded` names, under the cap `--max` set.
     public static func menu(_ arguments: MenuArguments) throws -> RouteMenu {
-        let recorded = try RecordedAlternatives.load(directory: arguments.recorded, ladder: RouteMenu.ladder)
+        let recorded = try RecordedAlternatives.load(directory: arguments.recorded, ladder: RouteMenu.ladder,
+                                                     origin: arguments.origin,
+                                                     destination: arguments.destination)
         return RouteMenu(fastest: recorded.fastest, candidates: recorded.candidates,
                          maxMinutes: arguments.maxMinutes)
     }

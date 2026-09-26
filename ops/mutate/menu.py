@@ -31,7 +31,8 @@ shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_er
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
 SUBJECT_MODULES = ("Sources/ScenicKit/Menu/RouteMenu.swift", "Sources/ScenicKit/Menu/MenuRow.swift",
-                   "Sources/ScenicPlanCLI/MenuArguments.swift")
+                   "Sources/ScenicPlanCLI/MenuArguments.swift", "Sources/ScenicPlanCLI/MenuCommand.swift",
+                   "Sources/ScenicKit/Menu/RecordedAlternatives.swift")
 
 from menu_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)

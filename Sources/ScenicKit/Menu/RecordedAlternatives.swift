@@ -11,7 +11,9 @@ import Foundation
 ///
 /// Like `RecordedRouteSource`, it refuses rather than interpolates: a rung with no recording is
 /// `PlanFailure.noRecordedResponse`, because a menu built from a ladder nobody recorded is a menu of routes
-/// no router ever returned.
+/// no router ever returned. And it reads what each file SAYS it is: the recorder writes the request it made
+/// into the `recorded` header (profile, model, algorithm, from, to), and a file whose header names another
+/// rung, profile or trip than the one asked for is refused (`checkHeader`).
 public enum RecordedAlternatives {
 
     public static let fastestFileName = RecordedRouteSource.fastestFileName
@@ -23,15 +25,57 @@ public enum RecordedAlternatives {
         "alternatives-lambda-\(LambdaCustomModel.multiplier(lambda)).json"
     }
 
-    /// The reference path, and every recorded alternative in ladder order (car_fast's first).
-    public static func load(directory: URL, ladder: [Double]) throws
-        -> (fastest: RoutePath, candidates: [RoutePath]) {
-        let fastest = try RoutePath.decode(try contents(directory, fastestFileName, lambda: nil))
-        var candidates = try decodeAll(try contents(directory, fastestAlternativesFileName, lambda: nil))
+    /// Two decimal places, rounded: the precision the server is ever sent (CLAUDE.md), so a recording made
+    /// from a rounded endpoint still replays and a recording of another trip never does.
+    public static let endpointTolerance = 0.005
+
+    /// The reference path, and every recorded alternative in ladder order (car_fast's first) - each file
+    /// refused unless its `recorded` header says it is the request its name stands for, on this trip.
+    public static func load(directory: URL, ladder: [Double], origin: Coordinate, destination: Coordinate)
+        throws -> (fastest: RoutePath, candidates: [RoutePath]) {
+        func read(_ name: String, _ lambda: Double?) throws -> Data {
+            let data = try contents(directory, name, lambda: lambda)
+            try checkHeader(data, name, lambda: lambda, origin: origin, destination: destination)
+            return data
+        }
+        let fastest = try RoutePath.decode(try read(fastestFileName, nil))
+        var candidates = try decodeAll(try read(fastestAlternativesFileName, nil))
         for lambda in ladder {
-            candidates += try decodeAll(try contents(directory, fileName(forLambda: lambda), lambda: lambda))
+            candidates += try decodeAll(try read(fileName(forLambda: lambda), lambda))
         }
         return (fastest, candidates)
+    }
+
+    /// A file whose header names another profile or rung than its file name stands for, or another trip than
+    /// the one asked for, is `PlanFailure.malformedResponse`: replaying it would print another request's
+    /// routes under this request's endpoints and hand them to Apple Maps.
+    static func checkHeader(_ data: Data, _ name: String, lambda: Double?, origin: Coordinate,
+                            destination: Coordinate) throws {
+        let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        guard let header = root?["recorded"] as? [String: Any] else {
+            throw PlanFailure.malformedResponse("\(name) carries no `recorded` header")
+        }
+        let field = { (key: String) -> String in header[key] as? String ?? "" }
+        let said = [field("profile"), field("model")]
+        let expected = lambda.map { ["car_scenic", "lambda-\(LambdaCustomModel.multiplier($0)).json"] }
+            ?? ["car_fast", "-"]
+        let alternatives = name != fastestFileName
+        guard said == expected, field("algorithm").hasPrefix("alternative_route") == alternatives else {
+            throw PlanFailure.malformedResponse("\(name) is a recording of \(said.joined(separator: " ")) "
+                + "[\(field("algorithm"))], not of \(expected.joined(separator: " "))")
+        }
+        guard near(field("from"), origin), near(field("to"), destination) else {
+            throw PlanFailure.malformedResponse("\(name) was recorded from \(field("from")) to \(field("to")), "
+                + "not from \(origin.latitude),\(origin.longitude) to "
+                + "\(destination.latitude),\(destination.longitude)")
+        }
+    }
+
+    /// `"lat,lon"` within `endpointTolerance` of `asked` on both axes.
+    static func near(_ recorded: String, _ asked: Coordinate) -> Bool {
+        let parts = recorded.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        return parts.count == 2 && abs(parts[0] - asked.latitude) <= endpointTolerance
+            && abs(parts[1] - asked.longitude) <= endpointTolerance
     }
 
     /// Every entry of `paths[]`, each decoded by `RoutePath.decode` itself - re-wrapped as a one-path body -

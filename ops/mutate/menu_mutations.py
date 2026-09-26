@@ -1,5 +1,5 @@
-"""The mutation population for T-0239's menu: Sources/ScenicKit/Menu/RouteMenu.swift, MenuRow.swift and
-Sources/ScenicPlanCLI/MenuArguments.swift. The driver is menu.py and the runner menu_run.py.
+"""The mutation population for T-0239's menu: Sources/ScenicKit/Menu/RouteMenu.swift, MenuRow.swift,
+RecordedAlternatives.swift and Sources/ScenicPlanCLI/MenuArguments.swift, MenuCommand.swift. The driver is menu.py and the runner menu_run.py.
 
 ## What the acceptance names, and where each lives
 
@@ -26,7 +26,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 MENU = ROOT / "Sources" / "ScenicKit" / "Menu" / "RouteMenu.swift"
 ROW = ROOT / "Sources" / "ScenicKit" / "Menu" / "MenuRow.swift"
 ARGS = ROOT / "Sources" / "ScenicPlanCLI" / "MenuArguments.swift"
-SUBJECTS = (MENU, ROW, ARGS)
+CMD = ROOT / "Sources" / "ScenicPlanCLI" / "MenuCommand.swift"
+READER = ROOT / "Sources" / "ScenicKit" / "Menu" / "RecordedAlternatives.swift"
+SUBJECTS = (MENU, ROW, ARGS, CMD, READER)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "Menu" / "RouteMenuTests.swift",
@@ -45,6 +47,10 @@ CEIL = "milliseconds <= 0 ? 0 : (milliseconds + 5_999) / 6_000"
 MAX_GUARD = "guard minutes <= RouteMenu.capMinutes else {"
 MAX_POSITIVE = "minutes.isFinite, minutes > 0 else {"
 MAX_SET = "                maxMinutes = minutes\n"
+BEST = "guard let best = rows.map(\\.funMeters).max() else {"
+LADDER = "ladder: RouteMenu.ladder,"
+IDENTITY = 'guard said == expected, field("algorithm").hasPrefix("alternative_route") == alternatives else {'
+ENDPOINTS = 'guard near(field("from"), origin), near(field("to"), destination) else {'
 
 T1 = "Topanga to Malibu: the menu rows to 0.1 min and 0.1 fun km"
 T4 = "Zuma to Agoura: the menu rows to 0.1, and Latigo Canyon Road is on it"
@@ -52,6 +58,11 @@ DISTINCT = "alternative_route over the ladder yields 6 distinct routes per trip 
 CEILING = "every menu row keeps ETA within fastest plus its displayed extra minutes"
 MAX_CUT = "--max below a row drops that row and keeps every quicker one"
 REFUSED = "--max above 45 and --router are refused by name"
+BOUNDARY = "--max 0.1 below a row's displayed extra drops that row, and --max at it keeps it"
+COUNTS = "ops/plan --menu reads every rung: candidates=25 distinct=6 on both trips"
+MOST_FUN = "a slower route must add 2 fun km over the most fun km of every quicker row, not the highest share"
+OTHER_TRIP = "a recording of another trip is refused, not replayed under these endpoints"
+OTHER_RUNG = "a rung whose file carries another rung's recording is refused"
 
 MUTATIONS = [
     # 1. The rule inverted - the red-first arm of acceptance 2: T1 [0.0, 7.1], T4 [0.0, 9.1, 10.5].
@@ -87,6 +98,24 @@ MUTATIONS = [
     ("--max 0 accepted", ARGS, MAX_POSITIVE, "minutes.isFinite, minutes >= 0 else {", [REFUSED]),
     ("--max parsed and dropped", ARGS, MAX_SET, "                maxMinutes = RouteMenu.capMinutes\n",
      [MAX_CUT]),
+    # 17-18. The pre-review pass's M2a: slack in the cap. --max 15 / --max 10 leave >= 2.0 min before the next
+    # row, so only the boundary test sees it; 100 ms is caught because T1's +17.1 row is 63 ms past 17.0.
+    ("the cap a minute loose", MENU, LIMIT,
+     "let limit = quickest + Int((minutes * 60_000).rounded(.down)) + 60_000", [BOUNDARY]),
+    ("the cap 100 ms loose", MENU, LIMIT, "let limit = quickest + Int((minutes * 60_000).rounded(.down)) + 100",
+     [BOUNDARY]),
+    # 19. M1a: the SHIPPING load drops lambda 8 - candidates=21. Killed on MenuCommand.run's header.
+    ("the shipping menu drops the ladder's top rung", CMD, LADDER, "ladder: Array(RouteMenu.ladder.dropLast()),",
+     [COUNTS]),
+    # 20. M2c: the step measured from the highest-SHARE quicker row (T4's Snake), not the most fun km.
+    ("the frontier steps from the highest-share quicker row", MENU, BEST,
+     "guard let best = rows.max(by: { $0.funShare < $1.funShare })?.funMeters else {", [MOST_FUN]),
+    # 21-22. M3: the reader checks the recorded header - the rung (model) and the trip (from/to).
+    ("a recording's model header not read", READER, IDENTITY,
+     'guard said[0] == expected[0], field("algorithm").hasPrefix("alternative_route") == alternatives else {',
+     [OTHER_RUNG]),
+    ("a recording's endpoints not read", READER, ENDPOINTS,
+     'guard !field("from").isEmpty, !field("to").isEmpty else {', [OTHER_TRIP]),
 ]
 
 # `(name, path, old, new, witness)`: anything but MISSED fails the run.
@@ -107,6 +136,6 @@ EQUIVALENT = [
 ]
 
 # Literal floors: the real counts. Adding a mutation means editing this number in the same diff.
-MIN_MUTATIONS = 16
+MIN_MUTATIONS = 22
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 2

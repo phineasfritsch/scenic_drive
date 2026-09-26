@@ -97,4 +97,54 @@ struct MenuCLITests {
             }
         }
     }
+
+    /// P-SAFE-04 at the boundary. `--max 15` and `--max 10` sit 2.0 and 6.6 minutes under the next row, so a
+    /// cap that let 1.9 minutes through passed them. 0.1 below each row's displayed extra must drop that row
+    /// and nothing quicker, and exactly at it must keep it (T1's +17.1 row is 1_020_063 ms: 63 ms past 17.0).
+    @Test("--max 0.1 below a row's displayed extra drops that row, and --max at it keeps it")
+    func maxAtTheBoundary() throws {
+        for trip in Self.trips {
+            let rows = try MenuCommand.menu(try Self.arguments(trip)).rows.map(\.extraMinutes)
+            #expect(rows.count >= 3, "\(trip.0)")
+            for (index, extra) in rows.enumerated().dropFirst() {
+                let at = ScenicPlan.fixed(extra, 1), below = ScenicPlan.fixed(extra - 0.1, 1)
+                let kept = Self.printedExtras(try MenuCommand.run(try Self.arguments(trip, ["--max", at])))
+                #expect(kept == Array(rows.prefix(index + 1)), "\(trip.0) --max \(at)")
+                let cut = Self.printedExtras(try MenuCommand.run(try Self.arguments(trip, ["--max", below])))
+                #expect(cut == Array(rows.prefix(index)), "\(trip.0) --max \(below)")
+            }
+        }
+    }
+
+    /// The counts come from the SHIPPING load (`MenuCommand.menu`'s own ladder), so a rung the CLI stops
+    /// reading shows here: 25 recorded paths per trip (fastest.json + 4 alternatives x 6 requests).
+    @Test("ops/plan --menu reads every rung: candidates=25 distinct=6 on both trips")
+    func headerCountsEveryRung() throws {
+        for trip in Self.trips {
+            let lines = try MenuCommand.run(try Self.arguments(trip))
+            let header = try #require(lines.first { $0.hasPrefix("MENU ") })
+            #expect(header.contains(" candidates=25 distinct=6 "), "\(header)")
+        }
+    }
+
+    @Test("a recording of another trip is refused, not replayed under these endpoints")
+    func anotherTripIsRefused() throws {
+        let swapped = ("topanga-malibu", Self.trips[1].1, Self.trips[1].2)
+        #expect(throws: PlanFailure.self) { try MenuCommand.run(try Self.arguments(swapped)) }
+    }
+
+    @Test("a rung whose file carries another rung's recording is refused")
+    func anotherRungIsRefused() throws {
+        let files = FileManager.default
+        let copy = files.temporaryDirectory.appendingPathComponent("t0239-rung-\(UUID().uuidString)")
+        try files.copyItem(at: URL(fileURLWithPath: Self.fixture("topanga-malibu")), to: copy)
+        defer { try? files.removeItem(at: copy) }
+        let trip = Self.trips[0]
+        let arguments = try MenuArguments.parse([trip.1, trip.2, "--recorded", copy.path])
+        #expect(try MenuCommand.run(arguments).count > 2)
+        let eight = copy.appendingPathComponent(RecordedAlternatives.fileName(forLambda: 8))
+        try files.removeItem(at: eight)
+        try files.copyItem(at: copy.appendingPathComponent(RecordedAlternatives.fileName(forLambda: 4)), to: eight)
+        #expect(throws: PlanFailure.self) { try MenuCommand.run(arguments) }
+    }
 }
