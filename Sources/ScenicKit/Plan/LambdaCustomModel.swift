@@ -9,7 +9,9 @@ import Foundation
 /// does not shell to node. A port of an arithmetic function is safe only if something holds the two copies
 /// together, so the parity is a GOLDEN: the bytes node prints from customModel.ts are committed under
 /// Tests/Fixtures/custom-model/ and a test asserts this type reproduces them exactly at several lambdas.
-/// A drift in either direction fails that test by name.
+/// A Swift-side drift fails that test by name. The golden is a recording and never re-runs node, so a
+/// TypeScript-side drift is caught by services/api's vitest suites (customModelMinorClause.test.ts types
+/// out the minor clause and the dullest band at every lambda step of 0.1), and here once re-recorded.
 ///
 /// ## What is deliberately absent
 ///

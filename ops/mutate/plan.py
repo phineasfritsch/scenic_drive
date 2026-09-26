@@ -46,6 +46,7 @@ SUBJECT_MODULES = (
     "Sources/ScenicKit/Plan/RoutePath.swift",
     "Sources/ScenicKit/Plan/ScenicPlan.swift",
     "Sources/ScenicKit/Plan/ScenicPlanner.swift",
+    "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
     "Sources/ScenicPlanCLI/PlanArguments.swift",
 )
 
@@ -64,7 +65,7 @@ SUITES = ("ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenT
           "|PlanCLIBudgetTests|PlanCLIRequestBodyTests|LambdaCustomModelRatRunTests|PlanCeilingOverLATests")
 SCRATCH = os.environ.get("SCENIC_MUTATE_SCRATCH", ".build-mutate-plan")
 
-MIN_MUTATIONS = 24
+MIN_MUTATIONS = 27
 
 # name, module, old, new
 MUTATIONS = [
@@ -93,6 +94,18 @@ MUTATIONS = [
      "public static let multiplierDecimals = 6", "public static let multiplierDecimals = 4"),
     ("custom-model/trailing-zeros-survive", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
      'while digits.hasSuffix("0") { digits.removeLast() }', "// trailing zeros kept"),
+    # T-0244 pre-review B1: the bytes scenic(from:to:lambda:) - the entry point ops/plan runs - puts on the wire.
+    ("cli/scenic-request-ignores-lambda", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "let model = try LambdaCustomModel.json(for: lambda)", "let model = try LambdaCustomModel.json(for: 8)"),
+    ("cli/scenic-request-changes-distance-influence", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "let model = try LambdaCustomModel.json(for: lambda)",
+     'let model = try LambdaCustomModel.json(for: lambda)'
+     '.replacingOccurrences(of: "\\"distance_influence\\": 0", with: "\\"distance_influence\\": 30")'),
+    # T-0244 pre-review B2 (mutant C): the recorded route's class set narrowed in the test's own derivation;
+    # the numeric scenic_score column and the measured 174.815 m run are the witnesses that must object.
+    ("oracle/rat-run-class-set-drops-service", "Tests/ScenicKitTests/LambdaCustomModelRatRunTests.swift",
+     '.components(separatedBy: "road_class == ").dropFirst()',
+     '.components(separatedBy: "road_class == ").dropFirst().dropLast()'),
     ("table/detail-runs-match-at-both-ends", "Sources/ScenicKit/Plan/PlanTable.swift",
      "for run in runs where run.from <= index && index < run.to { return run.value }",
      "for run in runs where run.from <= index && index <= run.to { return run.value }"),

@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-26T17:45:04Z
 worktree: .worktrees/T-0244
 branch: task/T-0244
 exclusive: []
-touches: [Sources/ScenicKit/Budget/, Sources/ScenicKit/Routing/, Tests/ScenicKitTests/, Sources/ScenicPlanCLI/, Tests/ScenicPlanCLITests/, services/routing/tools/route_la_pairs.py, services/routing/tests/, Sources/ScenicKit/Plan/, services/api/src/customModel.ts, services/api/test/customModel.test.ts, Tests/Fixtures/custom-model/, Tests/Fixtures/t0244/, ops/mutate/plan.py]
+touches: [Sources/ScenicKit/Budget/, Sources/ScenicKit/Routing/, Tests/ScenicKitTests/, Sources/ScenicPlanCLI/, Tests/ScenicPlanCLITests/, services/routing/tools/route_la_pairs.py, services/routing/tests/, Sources/ScenicKit/Plan/, services/api/src/customModel.ts, services/api/test/customModel.test.ts, Tests/Fixtures/custom-model/, Tests/Fixtures/t0244/, ops/mutate/plan.py, ops/lib/mutate-population-allowlist.json, services/api/test/customModelMinorClause.test.ts]
 pins_affected: [P-SAFE-04]
 reviewer: null
 depends_on: [T-0209]

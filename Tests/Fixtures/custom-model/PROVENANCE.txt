@@ -13,4 +13,8 @@ re-recorded: 2026-09-26 by agent/claude-opus-5 for T-0244 (distance_influence 0,
 recorded: 2026-09-19 by agent/claude-opus-5 for T-0182
 
 Tests/ScenicKitTests/LambdaCustomModelParityTests.swift asserts LambdaCustomModel.json(for:)
-reproduces each of these files byte for byte. A change on either side fails it by name.
+reproduces each of these files byte for byte. A change on the Swift side fails it by name. It does NOT
+re-run the TypeScript: a TypeScript-side change fails it only once these files are re-recorded, and until
+then is caught by services/api/test/customModelMinorClause.test.ts (the minor clause and the dullest band,
+typed out, at every lambda step of 0.1 from 0 to 8) and customModel.test.ts's hand-evaluated grid.
+(Corrected 2026-09-26 for T-0244's pre-review B3: the sentence it replaces claimed either side.)

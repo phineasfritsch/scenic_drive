@@ -12,7 +12,12 @@ import Testing
 @Suite("Lambda custom model: rat-runs, monotone T, the band ladder")
 struct LambdaCustomModelRatRunTests {
 
-    static let minorClasses = ["residential", "living_street", "service"]
+    /// The minor classes, read from the SHIPPING clause's `road_class == X` atoms, not typed out here: a test
+    /// literal is an oracle nothing else checks (T-0244 pre-review mutant C dropped `service` from it and the
+    /// recorded route stayed green at 19.0 m).
+    static let minorClasses: [String] = LambdaCustomModel.minorCondition
+        .components(separatedBy: "road_class == ").dropFirst()
+        .map { atom in String(atom.prefix { $0.isLetter || $0 == "_" }).lowercased() }
 
     static func chain(_ lambda: Double) throws -> CustomModelChain {
         try CustomModelChain(json: LambdaCustomModel.json(for: lambda))
@@ -84,16 +89,22 @@ struct LambdaCustomModelRatRunTests {
             .split(separator: "\n").dropFirst().map { $0.split(separator: "\t").map(String.init) }
         #expect(rows.count > 100, "the recording is a whole route, not a stub")
         var run = 0.0
-        var longest = 0.0
+        var longest = (metres: 0.0, way: "")
         for row in rows {
             let minor = Self.minorClasses.contains(row[1])
-            if minor, let score = Int(row[4]), score < 7, let metres = Double(row[3]) {
+            // route_la_pairs.py fills scenic_score for exactly its MINOR_CLASSES rows - a second, independent
+            // source for the class set, so a narrowed set cannot quietly shorten every run.
+            #expect(minor == (Int(row[4]) != nil), "row \(row[0]) \(row[1]) way \(row[2]) score '\(row[4])'")
+            if minor, let score = Int(row[4]), score < LambdaCustomModel.highBand, let metres = Double(row[3]) {
                 run += metres
-                longest = max(longest, run)
+                if run > longest.metres { longest = (run, row[2]) }
             } else {
                 run = 0
             }
         }
-        #expect(longest <= 800, "a \(longest) m run of minor roads scored below 7")
+        #expect(longest.metres <= 800, "a \(longest.metres) m run of minor roads scored below 7")
+        // The third witness: the run measured on this recording (T-0244 run2), 174.815 m on service way 723963657.
+        #expect(abs(longest.metres - 174.815) < 0.001, "longest minor run \(longest.metres) m, measured 174.815")
+        #expect(longest.way == "723963657", "longest minor run ends on way \(longest.way)")
     }
 }
