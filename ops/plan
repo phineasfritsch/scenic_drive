@@ -18,6 +18,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [[ $# -eq 0 ]]; then
   # No arguments is not an error state worth a stack trace; it is somebody asking what this takes.
   echo "usage: ops/plan <origin lat,lon> <destination lat,lon> <extra-minutes> (--router <url> | --recorded <dir>) [--max-evaluations N]"
+  echo "       ops/plan --menu <origin lat,lon> <destination lat,lon> [--max <minutes, at most 45>] --recorded <dir>"
   echo "example: ops/plan 34.0392,-118.5836 34.0944,-118.6019 25 --router http://127.0.0.1:8989"
   exit 2
 fi

@@ -36,6 +36,22 @@ if rawArguments.first == "--emit-model" {
     }
 }
 
+// `ops/plan --menu <O> <D> [--max N] --recorded <dir>` prints the time-versus-fun menu for one trip
+// (T-0239): MenuCommand.run, with main.swift's exit codes.
+if rawArguments.first == "--menu" {
+    do {
+        let menuArguments = try MenuArguments.parse(Array(rawArguments.dropFirst()))
+        for line in try MenuCommand.run(menuArguments) { print(line) }
+        exit(0)
+    } catch let failure as PlanArguments.Failure {
+        fail("ops/plan: \(failure)\n\(MenuArguments.usage)", 2)
+    } catch let failure as PlanFailure {
+        fail("ops/plan REFUSED: \(failure)", 3)
+    } catch {
+        fail("ops/plan: \(error)", 4)
+    }
+}
+
 let arguments: PlanArguments
 do {
     arguments = try PlanArguments.parse(rawArguments)
