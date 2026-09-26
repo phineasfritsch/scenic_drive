@@ -18,6 +18,7 @@ acceptance:
   - "a pin in pins/PINS.yaml names ops/lib/check-drive-copy (runs_on: linux) and ops/check-pins --source-only runs it; shown RED on a branch commit that hard-codes a HandoffDrive case outside the typed site list, then green"
   - "the gate strips only the literal text of a string, never an interpolation's contents: a hard-coded case inside a string interpolation in DriveCopy (rv1-t0236's M3d, which exits 0 on main) is RED, as a new --prove-red row"
   - "CI runs 'check-drive-copy --prove-red' and 'check-map-attribution --prove-red' on every push; rv1-t0236's M3a (the typed site list widened in the same edit that hard-codes a case) is caught by a prove-red row that CI now runs - shown red then green in the Log"
+  - "P-ATTR-01's statement in pins/PINS.yaml widened from 'the basemap credit' to every party the map surface draws - the basemap AND a drawn route's data credit (T-0236's CreditLine.composed); its assertion (ops/lib/check-map-attribution) already runs the route-credit limb"
 ---
 ## Brief
 
@@ -28,3 +29,4 @@ and nothing in CI runs prove-red'. A check CI never runs is a check that has nev
 
 ## Log
 - 2026-09-25T23:35:28Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0236's recordables. After #130 merges.
+- 2026-09-26T01:30:07Z added by agent/claude-opus-5 (orchestrator): P-ATTR-01's statement widening, from T-0236 rounds 2-3 (PINS.yaml is outside T-0236's touches:).

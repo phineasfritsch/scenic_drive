@@ -19,6 +19,7 @@ acceptance:
   - "attribution: the composed map credit (T-0236 round 2) is visible and unobscured at EVERY detent in both themes - check-map-attribution binds the new mount (whitelist, identifier-anchored) and its --prove-red gains a row that hides the credit behind the sheet; the safety line 'Conditions change. Verify locally.' stays visible at every detent (P-SAFE-03's route-screen half)"
   - "the sheet cannot be dismissed (interactiveDismissDisabled) and the map stays interactive above it (presentationBackgroundInteraction); the chips sit over the map below the status bar with a legible background in both themes; every tap target >= 44 pt"
   - "ios-compile green on the head; ios-screenshot green on the SAME head producing light + dark at the collapsed AND medium detents (a launch argument selects the detent - four PNGs), downloaded to the main checkout's .artifacts/screens/home-*-T0237-*.png and DESCRIBED in the Log: where the route sits, the credit, the conditions line, the button"
+  - "the credit pill never breaks a party across lines (T-0236 round 2's pill wrapped '... Natural Earth · ©' / 'OpenStreetMap contributors'): a non-breaking space after each copyright sign in the composed credit, or a layout that keeps each party whole - seen in the re-shot screenshots"
 ---
 ## Brief
 
@@ -30,3 +31,4 @@ anyone sees, so its words are unhurried and few. No thrill words.
 
 ## Log
 - 2026-09-25T23:35:28Z filed by agent/claude-opus-5 (orchestrator) from the T-0236 round-1 screenshot. Promote to ready/ when PR #130 merges (touches overlap FeatureScenicHome and check-map-attribution).
+- 2026-09-26T01:30:07Z added by agent/claude-opus-5 (orchestrator): the pill-wrap cosmetic from rv2-t0236's recordable (3), deferred here because this task re-shoots the screen.
