@@ -52,16 +52,19 @@ SUBJECT_MODULES = (
 TEST_FILES = (
     "Tests/ScenicKitTests/ScenicPlannerMetaTests.swift",
     "Tests/ScenicKitTests/LambdaCustomModelParityTests.swift",
+    "Tests/ScenicKitTests/LambdaCustomModelRatRunTests.swift",
+    "Tests/ScenicKitTests/CustomModelChain.swift",
+    "Tests/ScenicKitTests/PlanCeilingOverLATests.swift",
     "Tests/HandoffTests/ScenicPlanGoldenTests.swift",
     "Tests/ScenicPlanCLITests/PlanCLIBudgetTests.swift",
     "Tests/ScenicPlanCLITests/PlanCLIRequestBodyTests.swift",
 )
 
 SUITES = ("ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenTests"
-          "|PlanCLIBudgetTests|PlanCLIRequestBodyTests")
+          "|PlanCLIBudgetTests|PlanCLIRequestBodyTests|LambdaCustomModelRatRunTests|PlanCeilingOverLATests")
 SCRATCH = os.environ.get("SCENIC_MUTATE_SCRATCH", ".build-mutate-plan")
 
-MIN_MUTATIONS = 10
+MIN_MUTATIONS = 24
 
 # name, module, old, new
 MUTATIONS = [
@@ -72,9 +75,20 @@ MUTATIONS = [
     ("difference/intersection-becomes-union", "Sources/ScenicKit/Plan/RouteDifference.swift",
      "return Double(a.intersection(b).count) / Double(union.count)",
      "return Double(a.union(b).count) / Double(union.count)"),
-    ("custom-model/mid-band-takes-the-low-band-curve", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
-     "return (1, 1 / (1 + 0.5 * lambda), 1 / (1 + lambda))",
-     "return (1, 1 / (1 + lambda), 1 / (1 + lambda))"),
+    # T-0244: the per-request model's three rulings - (a) the minor clause, (b) distance_influence 0, (c) the ladder.
+    ("custom-model/band-ignores-lambda", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     "return 1 / (1 + slope * lambda)", "return 1 / (1 + slope)"),
+    ("custom-model/minor-slope-no-steeper-than-the-dullest-band", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     "public static let minorSlope = 2.0", "public static let minorSlope = 1.0"),
+    ("custom-model/minor-clause-residential-only", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     '"(road_class == RESIDENTIAL || road_class == LIVING_STREET || road_class == SERVICE) && scenic_score < 7"',
+     '"road_class == RESIDENTIAL && scenic_score < 7"'),
+    ("custom-model/distance-influence-back-to-the-base", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     '"distance_influence": 0,', '"distance_influence": 30,'),
+    ("custom-model/ladder-collapses-to-two-bands", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     "public static let ladder = [6, 5, 4, 3, 2, 1, 0]", "public static let ladder = [4, 0]"),
+    ("custom-model/slope-steeper-by-one-step", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
+     "Double(highBand - score) / Double(highBand)", "Double(highBand - score) / Double(highBand - 1)"),
     ("custom-model/four-decimals-instead-of-six", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
      "public static let multiplierDecimals = 6", "public static let multiplierDecimals = 4"),
     ("custom-model/trailing-zeros-survive", "Sources/ScenicKit/Plan/LambdaCustomModel.swift",
