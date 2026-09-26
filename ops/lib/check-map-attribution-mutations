@@ -49,6 +49,10 @@
 #      interpolation "\("//")" - each hides a credit binding behind a `//` inside a string; each EXIT 0 against
 #      round 3's reader, which toggled string state on every quote. (g) now cuts nothing inside a line: it drops
 #      only lines STARTING with `//` (and holding no backslash) and compares every other line whole.
+#  25-32 T-0237 limb (h), THE CREDIT ABOVE THE SHEET: H1 the pill moved into the sheet, H2 a ZStack, H3 an offset
+#      pulling the sheet up, H4 the pill below the sheet, H5 a negative spacing, H6 the drive card as a system
+#      sheet with detents, H7 a second HomeSheet in a new file, H8 an opacity on the pill - each EXIT 0 against
+#      limbs (a)-(g), which read what the credit SAYS and never where it sits relative to the sheet.
 #   ROW = label | file under the apps/ios copy (`+` = the row ADDS it) | sed script or the added file's
 #         single line | substring the refusal must contain
 # `|` is the field separator, so a sed script carries no pipe.
@@ -89,6 +93,14 @@ rows=(
   "R1 a quote in a block comment hides the credit|+$MA/MapRouteDemo.swift|extension MapRoute { static func demo(data: Data) -> MapRoute? { /* \" */ _ = \"//\"; let dataCredit = MapStyle.demoAttribution; return MapRoute(geoJSON: data, dataCredit: dataCredit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
   "R2 a raw string hides a second credit binding|+$FS/DriveRouteRaw.swift|extension DriveRoute { static func demo(name: String) -> MapRoute? { _ = #\"\\\"# + \"//\"; let credit = name; return MapRoute.bundled(named: name, subdirectory: nil, withExtension: \"geojson\", dataCredit: credit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
   "R3 an interpolation hides the credit bound to the resource|+$FS/DriveRouteInterp.swift|extension DriveRoute { static func demo(for drive: HandoffDrive) -> MapRoute? { _ = \"\\(\"//\")\"; guard let name = drive.routeGeometryResource, let credit = drive.routeGeometryResource else { return nil }; return MapRoute.bundled(named: name, subdirectory: nil, withExtension: \"geojson\", dataCredit: credit, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "H1 the credit moved into the sheet's summary|$FS/ScenicHomeScreen.swift|/^ *AttributionFooter(text: CreditLine/d;s/^\(        \)conditions$/\1AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))\n\1conditions/|the credit is not mounted directly above the sheet"
+  "H2 the sheet drawn over the credit in a ZStack|$FS/ScenicHomeScreen.swift|s/^                VStack(spacing: 0) {$/                ZStack(alignment: .bottom) {/|the credit is not mounted directly above the sheet"
+  "H3 the sheet pulled up over the credit|$FS/ScenicHomeScreen.swift|s/^\( *\)\(HomeSheet(detent: .*\)$/\1\2\n\1    .offset(y: -60)/|the credit is not mounted directly above the sheet"
+  "H4 the credit below the sheet|$FS/ScenicHomeScreen.swift|/AttributionFooter(text: CreditLine/{h;d};/HomeSheet(detent:/{p;x}|the credit is not mounted directly above the sheet"
+  "H5 a negative spacing slides the sheet over the credit|$FS/ScenicHomeScreen.swift|s/^                VStack(spacing: 0) {$/                VStack(spacing: -52) {/|the credit is not mounted directly above the sheet"
+  "H6 the drive card as a system sheet with detents|$FS/ScenicHomeScreen.swift|s/^\( *\)\.task { resolveBasemap() }$/&\n\1.sheet(isPresented: .constant(true)) { sheetDetails.presentationDetents([.height(220), .medium]) }/|a presentation over the map outside its approved site"
+  "H7 a second HomeSheet laid over the map|+$FS/DriveOverlay.swift|struct DriveOverlay: View { @State var d = HomeSheetDetent.collapsed; var body: some View { HomeSheet(detent: \$d, summary: { Text(\"x\") }, details: { Text(\"y\") }) } }|HomeSheet( occurs outside its tracked set"
+  "H8 the credit faded out above the sheet|$FS/ScenicHomeScreen.swift|s/^\( *\)\(AttributionFooter(text: CreditLine.*\)$/\1\2\n\1    .opacity(0)/|the credit is not mounted directly above the sheet"
 )
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.

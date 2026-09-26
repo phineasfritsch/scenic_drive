@@ -11,6 +11,14 @@ import SwiftUI
 /// It takes latitude and longitude as plain `Double`s rather than a `ScenicKit.Coordinate`, because
 /// `MapAdapter` depends on MapLibre and nothing else. Bridging to `CLLocationCoordinate2D` happens
 /// here, at the boundary, so CoreLocation never appears in the Linux-buildable core.
+///
+/// ## Covered edges (T-0237)
+///
+/// The map is full-bleed under floating chrome: `obscuredTop` is how far down from the map's top edge the chips
+/// cover it, `obscuredBottom` how far up from its bottom edge the credit band and the sheet do, both in points of
+/// this view. The camera fits the drive's line between them, and MapLibre's logo and (i) are kept on the uncovered
+/// map - see `MapRouteCoordinator`. Zero means "nothing covers this edge", which is what a caller that measures
+/// nothing gets.
 public struct MapView: UIViewRepresentable {
     /// The style JSON to render. See `MapStyle` for what is actually behind it today.
     public let styleURL: URL
@@ -20,6 +28,10 @@ public struct MapView: UIViewRepresentable {
     public let centerLongitude: Double
     public let zoomLevel: Double
 
+    /// How far the floating chrome covers the map from its top and its bottom edge, in points.
+    public let obscuredTop: CGFloat
+    public let obscuredBottom: CGFloat
+
     /// The drive's road line, or `nil` for a drive with no recorded geometry (T-0236). With a route the camera
     /// fits the line's box; without one it is the centre and zoom above, exactly as before.
     public let route: MapRoute?
@@ -28,11 +40,15 @@ public struct MapView: UIViewRepresentable {
                 centerLatitude: Double,
                 centerLongitude: Double,
                 zoomLevel: Double,
+                obscuredTop: CGFloat = 0,
+                obscuredBottom: CGFloat = 0,
                 route: MapRoute? = nil) {
         self.styleURL = styleURL
         self.centerLatitude = centerLatitude
         self.centerLongitude = centerLongitude
         self.zoomLevel = zoomLevel
+        self.obscuredTop = obscuredTop
+        self.obscuredBottom = obscuredBottom
         self.route = route
     }
 
@@ -51,30 +67,28 @@ public struct MapView: UIViewRepresentable {
         mapView.attributionButton.isHidden = false
         mapView.logoView.isHidden = false
 
-        // MOVED, NEVER HIDDEN (T-0236, R4). At its default bottom-right the (i) sat under the credit pill
-        // in the first screenshots (PR #127) - present, and untappable. The map's top-left corner is the one
-        // nothing else uses: the header band is above it, the compass takes the top-right when the map is
-        // rotated, the MapLibre logo the bottom-left and the credit pill the bottom-right.
+        // MOVED, NEVER HIDDEN (T-0236 R4, T-0237 R6). The (i) top-left and the compass top-right, both below the
+        // chips; the logo bottom-left, in the band beside the pill, above the sheet. The margins follow the two
+        // covered edges and are set by the coordinator, which knows the safe area they are measured from.
         mapView.attributionButtonPosition = .topLeft
-        mapView.attributionButtonMargins = CGPoint(x: 8, y: 8)
+        mapView.compassViewPosition = .topRight
+        mapView.logoViewPosition = .bottomLeft
 
-        context.coordinator.update(mapView, route: route, target: cameraTarget)
+        context.coordinator.update(mapView, route: route, target: cameraTarget, covered: covered)
         return mapView
     }
 
-    /// Reconciles the style, the line and the camera TARGET.
-    ///
-    /// SwiftUI calls this on every body re-evaluation of every ancestor. The coordinator applies a camera
-    /// target only when it differs from the last one it applied, so a redraw never snaps the map back
-    /// mid-pan; a new selection is a new target and moves it once.
     public func updateUIView(_ uiView: MLNMapView, context: Context) {
         if uiView.styleURL != styleURL {
             uiView.styleURL = styleURL
         }
-        context.coordinator.update(uiView, route: route, target: cameraTarget)
+        context.coordinator.update(uiView, route: route, target: cameraTarget, covered: covered)
     }
 
-    /// Fit the route's box when there is a route; otherwise today's centre and zoom.
+    private var covered: MapRouteCoordinator.Covered {
+        MapRouteCoordinator.Covered(top: max(0, obscuredTop), bottom: max(0, obscuredBottom))
+    }
+
     private var cameraTarget: MapRouteCoordinator.Target {
         if let route {
             return .fit(west: route.west, south: route.south, east: route.east, north: route.north)

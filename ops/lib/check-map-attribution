@@ -3,7 +3,7 @@
 # MapStyle.attributionText returns, the demo arm returns the demo credit verbatim, nothing outside MapAdapter
 # names a protomaps case, the LA basemap is mounted, the footer is handed the SAME resolved style the map is
 # mounted with, and that footer is not hidden from accessibility. A source check on a box with no Apple
-# toolchain (ruling R2), which decides seven things and refuses to pretend it decides more:
+# toolchain (ruling R2), which decides eight things and refuses to pretend it decides more:
 #   (a) THE ARM, not a count. Inside `public var attributionText: String`, the first line carrying code
 #       after `case .protomapsLALight, .protomapsLADark:` is exactly `return MapStyle.protomapsAttribution`,
 #       and the first after `case .maplibreDemoTiles:` is exactly `return MapStyle.demoAttribution`.
@@ -49,6 +49,8 @@
 #       approved lines, compared TRIMMED and WHOLE with its file. (d) reads the credit's two ENDS; rv2-t0236 set
 #       the VALUE between them to the demo credit in MapRoute.bundled (M4a) and to the resource name in
 #       DriveRoute.resolve (M4b), and (a)-(f) stayed green.
+#   (h) THE CREDIT ABOVE THE SHEET (ops/lib/check-map-attribution-sheet, T-0237): the pill and HomeSheet are the
+#       approved five-line mount, pill first; one HomeSheet; the one presentation is the disclaimer sheet.
 #
 # WHAT IT CANNOT SEE: whether the footer RENDERS, at which sheet detents, whether something is drawn over
 # it, contrast, Dynamic Type, or whether the tiles on screen are the ones the credit names - an XCUITest in
@@ -68,7 +70,8 @@ cd "$(git rev-parse --show-toplevel)"
 
 LIB="ops/lib/check-map-attribution-lib"
 SITES="ops/lib/check-map-attribution-sites"
-for L in "$LIB" "$SITES"; do
+SHEET="ops/lib/check-map-attribution-sheet"
+for L in "$LIB" "$SITES" "$SHEET"; do
   if [[ ! -f "$L" ]]; then
     echo "P-ATTR-01: $L is missing; the check cannot read Swift source without its readers."
     exit 1
@@ -266,8 +269,12 @@ run_check() {
   # ------------------------------------------------------------------ (g) THE DRAWN LINE'S CREDIT, whole lines
   require_credit_sites -- "${files[@]}"
 
+  # ------------------------------------------------------------------ (h) THE CREDIT ABOVE THE SHEET
+  require_sheet_mount "$screen" -- "${files[@]}"
+
   print_verdict "$an" "$pline" "$dline" "$FOOTER_ARG" "$recv" "$FOOTER_ROUTE"
   print_credit_sites_verdict
+  print_sheet_verdict
 }
 
 MUTATIONS="ops/lib/check-map-attribution-mutations"
