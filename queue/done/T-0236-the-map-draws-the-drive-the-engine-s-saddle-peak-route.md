@@ -1,7 +1,7 @@
 ---
 id: T-0236
 title: the map draws the drive - the engine's Saddle Peak route becomes the app's first drive, its real road geometry drawn as a line on the map with the camera fitted to it; the credit pill stops covering MapLibre's (i) button
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-25T20:54:56Z
@@ -11,7 +11,7 @@ branch: task/T-0236
 exclusive: []
 touches: [Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/MapAdapter/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/ScenicDrive/, ops/lib/, ops/mutate/]
 pins_affected: [P-ATTR-01, P-SAFE-03]
-reviewer: null
+reviewer: agent/rv5-t0236
 depends_on: [T-0182, T-0199]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -456,3 +456,24 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   T-0243, T-0238, T-0237, T-0211, and what (g) cannot see (the VALUE of routeGeometryCredit, owned by the Linux
   Handoff test; a credit under an identifier naming no needle; Swift outside apps/ios).
 - 2026-09-26T03:08:57Z ORCHESTRATOR RULING (agent/claude-opus-5, orchestrator hat): PR #130 merges with rv4-t0236's B1-r4 recorded as the gap, under CLAUDE.md's review-rounds rule - four rounds were spent on limb (g)'s reader (r2 B1-r2 the unguarded middle of the credit chain, r3 B1-r3 three lexer escapes, r4 B1-r4 a bare CR ending a // comment for Swift but not for awk); the finding is P-ATTR-01, not a P-SAFE pin, and the shipping Swift is correct (the pill names OpenStreetMap on every drawn route, screenshots home-*-T0236-r2.png, run 36205326414). B1-r4 is filed as T-0243's bare-CR clause on main (109a4d4) with rv4's driver .artifacts/rv4-t0236/attack.py. A sign-off reviewer who is not the owner, a fixer or an earlier reviewer checks this ruling and transitions the task.
+- 2026-09-26T03:20:37Z REVIEW PASS - SIGN-OFF (agent/rv5-t0236; not the owner, a fixer or rv1-rv4). Checked the
+  orchestrator ruling of 03:08:57Z; no new attack round was run. (1) origin/task/T-0236 = d9ea71a, the head
+  reviewed; git merge-base --is-ancestor origin/main (109a4d4) origin/task/T-0236 exit 0. (2) The newest Log entry
+  is the orchestrator ruling to merge with rv4-t0236's B1-r4 recorded. The finding is against pins/PINS.yaml
+  `id: P-ATTR-01`, not a P-SAFE-* pin (P-SAFE-03/05/06 are separate ids), so CLAUDE.md's review-rounds rule applies
+  and no fifth round is owed. (3) B1-r4 is filed: origin/main:queue/backlog/T-0243-ops-lib-swift-readers-fail-
+  closed-limbs-a-f-of-check-map-at.md, acceptance line 21 "a Swift file under apps/ios that contains a CR byte
+  (0x0D) is REFUSED by every Swift-reading limb, fail closed - rv4-t0236's B1-r4 ... (driver
+  .artifacts/rv4-t0236/attack.py in the main checkout ...", its Log 2026-09-26T03:07:54Z, commit 109a4d4. (4) In a
+  detached worktree .worktrees/rv5-t0236 at d9ea71a (removed afterwards): bash ops/lib/check-map-attribution
+  EXIT 0; --prove-red EXIT 0, "prove-red: 24/24 mutations refused by name" (R1, R2, R3 each "1 yes"); rv3's
+  .artifacts/rv3-t0236/drive.py copied in and run: base EXIT 0, M4a 1, M4b 1, R1-control 1, R1 1, R2 1, R3 1, so
+  rounds 2-4's closed findings stay closed. (5) git diff --name-only 6fc18e0 origin/task/T-0236 names ops/lib/,
+  ops/mutate/, queue/ and services/etl/ (the last from merging main) - nothing under apps/, Sources/ or
+  Package.swift - so home-light-T0236-r2.png and home-dark-T0236-r2.png (run 36205326414 on 6fc18e0) stand for
+  this head. (6) bash ops/queue-check "QUEUE OK (236 tasks)"; gh pr checks 130: core pass, pins-source-only pass.
+  THE GAP, RECORDED AND NOT CLOSED: B1-r4 - a bare CR ends a // comment for Swift's lexer but not an awk record, so
+  limb (g) can drop a line of code as a comment line - stays open as T-0243's bare-CR clause; T-0238, T-0237,
+  T-0211 and what limb (g) cannot see stay open as the owner's round-4 entry lists them. No lock file under
+  queue/LOCKS/ belongs to T-0236 (routing-config.lock and scenic-index.lock do not name it). state: done,
+  reviewer: agent/rv5-t0236, queue/claimed/ -> queue/done/. PR #130 is not merged by this review.
