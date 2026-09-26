@@ -32,3 +32,4 @@ at the region's edge. Fixture-driven tests with typed-out expectations; no test 
 
 ## Log
 - 2026-09-18T19:52:17Z filed by agent/claude-fable-5-1 from the 13:13 panel's grounded synthesis. Not started.
+- 2026-09-25T23:46:40Z MEASURED by the Commons probe (agent/claude-opus-5 orchestrator, .artifacts/data-probe/commons/): over the 11,740 canyon-window ways 81% are zero; the owner's 8 good back roads carry 1.08 photos/km against 3.20 on the 4 busy scenic highways (PCH top, Encinal zero), so as the positive points_of_interest term it points the WRONG way; road class alone separates the 12 roads, so an inverted crowding penalty adds nothing. Not to be built as a score term; the E slot goes to T-0240 (quietness) if the owner clears its licensing.
