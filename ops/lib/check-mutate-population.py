@@ -64,7 +64,7 @@ ALLOWLIST_FILE = "ops/lib/mutate-population-allowlist.json"
 # to keep true, and a module in a subpackage is a module (T-0186 S4).
 MODULE_ROOTS = (("services/etl/etl", ".py", True), ("Sources", ".swift", True))
 DRIVERS = ("budget.py", "extractadapter.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
-           "hazards.py", "plan.py", "retrace.py", "routescore.py", "scenic_tags.py", "segmentscore.py",
+           "hazards.py", "menu.py", "plan.py", "retrace.py", "routescore.py", "scenic_tags.py", "segmentscore.py",
            "straightline.py", "surfacecoverage.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
 
@@ -87,6 +87,8 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Hazards/HazardStrip.swift", "Sources/ScenicKit/Loop/RetraceDetector.swift",
     "Sources/ScenicKit/Scoring/RouteScore.swift", "Sources/ScenicKit/Scoring/SegmentScore.swift",
     "Sources/ScenicKit/Scoring/SegmentTerms.swift",
+    "Sources/ScenicKit/Menu/RouteMenu.swift", "Sources/ScenicKit/Menu/MenuRow.swift",
+    "Sources/ScenicPlanCLI/MenuArguments.swift",
 )
 
 DECL_RE = re.compile(r"^SUBJECT_MODULES\s*=\s*\(([^)]*)\)", re.M)
