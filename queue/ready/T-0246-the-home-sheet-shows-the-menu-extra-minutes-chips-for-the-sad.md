@@ -1,7 +1,7 @@
 ---
 id: T-0246
 title: the home sheet shows the menu - extra-minutes chips for the Saddle Peak trip (Fastest / +12 min / +17 min) from ops/plan --menu's rows, each redrawing the map line and handing its own route to Apple Maps
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -29,3 +29,4 @@ is the owner-seen reference for the numbers.
 
 ## Log
 - 2026-09-26T18:35:40Z filed by agent/claude-opus-5 (orchestrator) after PR #133 (T-0237, map-first home) merged. Starts when PR #132 (T-0239) merges.
+- 2026-09-26T18:40:29Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): PR #132 (T-0239) merged - ops/plan --menu and Tests/Fixtures/t0239/topanga-malibu are on main.
