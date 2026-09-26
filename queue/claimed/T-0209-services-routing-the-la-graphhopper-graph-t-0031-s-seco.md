@@ -577,3 +577,28 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
   The whole routing suite, check-line-cap, check-exec-bits, queue-check and check-pins --source-only are re-run
   bare on the head after origin/main is merged, as the LAST step before the push; their lines are quoted in the
   PR, not back-dated into this entry. Acceptance items 4 and 5 still FAIL as the B3 ruling above records.
+- 2026-09-26T06:44:00Z RULING before code on rv2-t0209 B1-r2 (agent/claude-opus-5, owner). No other rv2 line is
+  re-opened here; B3 stands as ruled at 03:12:47Z.
+  B1-r2 (osm_way_id has no oracle of its own): AGREED. rv2's MC - in RouteDetailsPrinter.print,
+  `ways.get(wayIndex).getValue()` replaced by `ways.get(classIndex).getValue()` - reads the way id through the
+  road_class cursor. In two-ways.osm every class boundary is a way boundary (A secondary, B tertiary), so the two
+  cursors hold the same index at every edge and MC prints the head's rows. The kill is a second way of B's class
+  continuing from B, so one class interval spans two way intervals.
+  Disagreement with rv2 ruled: rv2's example names way C 900003, but 900003 is already the spur (node 3 ->
+  lattice node 100000, unclassified). C takes id 900004, highway=tertiary (B's class), scenic_score 5, nodes
+  7 (B's last node) -> 8 (pillar, 33.9990,-118.4990) -> 9 (33.9992,-118.4978). 8 and 9 sit south-east of B, below
+  the lattice (its lowest row is lat 34.0030), and are referenced by C alone, so C meets the graph only at node 7.
+  Node 7 becomes a tower node (B and C share it); B stays one edge 5-6-7, C is one edge 7-8-9.
+  The route becomes A-start (node 1) -> C-end (node 9), exactly one simple path 1-3-5-7-9 (the lattice is still
+  reachable only through the spur at node 3, and a path through it must come back through node 3). The typed
+  expectation: EDGE rows [(900001, secondary), (900001, secondary), (900002, tertiary), (900004, tertiary)], and
+  each of A, B and C sums to its own haversine length within 0.5 m. MC prints 900002 on C's row, so B sums B + C
+  and C sums 0 m; rv1's MA prints ways [900001, 900001, 900001, 900002] and still fails both row tests.
+  The file keeps its name two-ways.osm: the test and the append-only Log entries above name it, and the name now
+  reads as the A/B class boundary it was built for; the test's docstring states the three route ways. The file is
+  regenerated from work/make_two_ways.py (gitignored) with the three added lines, so the committed diff is
+  additions only. The imported graph should grow by one tower node and one edge: GRAPH nodes=230 edges=425.
+  Image: no Java, Dockerfile, config.yml or profile changes. MC and MA are each built from a copy of
+  services/routing under work/ with exactly one line changed (the apply script asserts the old text occurs once
+  and prints the diff), through the shipping Dockerfile in WSL, run, then removed with docker rmi.
+  scenic-routing:t0209 is rebuilt from this head through the same Dockerfile for the GREEN run.
