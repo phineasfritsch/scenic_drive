@@ -7,9 +7,11 @@
 # the sheet's top edge whatever the detent (T-0237 ruling R1). What this limb decides, as WHITELISTS:
 #   (h1) `struct HomeSheet` is declared once, in FeatureScenicHome/HomeSheet.swift, and `HomeSheet(` is constructed
 #        once, in ScenicHomeScreen.swift - a second sheet laid over the map anywhere else is refused by name;
-#   (h2) THE MOUNT is the approved WHOLE lines below, consecutive, around the one AttributionFooter( line, and the
-#        line after them closes the enclosing stack (starts with `}`): nothing between the pill and the sheet,
-#        nothing modifying either of them alone, no spacing but 0, and the pill FIRST;
+#   (h2) THE MOUNT is the approved WHOLE lines below, consecutive, around the one AttributionFooter( line, inside
+#        the approved enclosing lines - the outer stack's opening before it, the exact closes up to the ZStack's
+#        `.background(` after it (rv1-t0237 B1: a `}` after the mount could close an `if` wrapped round it):
+#        nothing between the pill and the sheet, nothing modifying either of them alone, no wrapper round the
+#        pair, no spacing but 0, and the pill FIRST;
 #   (h3) the mount comes after the one `MapView(` line of the screen, so the stack is drawn above the map;
 #   (h4) every PRESENTATION in the app tree - `.sheet(`, `.fullScreenCover(`, `.popover(`, `.inspector(`, and any
 #        `presentationDetents` - is the one approved line `.sheet(isPresented: $isShowingDisclaimer) {` in the screen
@@ -33,6 +35,10 @@ SHEET_MOUNT=(
   "}"
   ".onGeometryChange(for: CGFloat.self) { \$0.frame(in: .global).minY } action: { creditBandTop = \$0 }"
 )
+# The enclosing whole lines, blank ones included: the outer stack opens, the chips, the spacer; after the mount the
+# outer stack closes, the ZStack closes, and its first modifier. A wrapper round the mount adds a line to one side.
+SHEET_OPEN=("VStack(spacing: 0) {" "chips" "" "Spacer(minLength: 0)" "")
+SHEET_CLOSE=("}" "}" ".background(DesignTokens.bg)")
 SHEET_PRESENTATION='.sheet(isPresented: $isShowingDisclaimer) {'
 SHEET_PRESENTERS=(".sheet(" ".fullScreenCover(" ".popover(" ".inspector(" "presentationDetents")
 
@@ -81,23 +87,24 @@ require_sheet_mount() {
     [[ "${kept[$i]}" == "${SHEET_MOUNT[1]}" ]] && { [[ "$at" -eq -1 ]] && at="$i" || at=-2; }
     [[ "${kept[$i]}" == *"MapView("* && "$mapat" -eq -1 ]] && mapat="$i"
   done
-  local got=() j
-  if [[ "$at" -ge 1 ]]; then
-    for j in 0 1 2 3 4; do got+=("${kept[$((at - 1 + j))]:-<end of file>}"); done
+  # `-` not `:-` below: a blank line is an approved line, and `:-` would read it as the end of the file.
+  local block=("${SHEET_OPEN[@]}" "${SHEET_MOUNT[@]}" "${SHEET_CLOSE[@]}")
+  local start=$((at - 1 - ${#SHEET_OPEN[@]})) got=() j
+  if [[ "$at" -ge 0 && "$start" -ge 0 ]]; then
+    for j in "${!block[@]}"; do got+=("${kept[$((start + j))]-<end of file>}"); done
   fi
-  local after="${kept[$((at + 4))]:-}"
-  if [[ "$at" -lt 1 || "$(printf '%s\n' "${got[@]}")" != "$(printf '%s\n' "${SHEET_MOUNT[@]}")" || "$after" != "}"* ]]; then
+  if [[ "$at" -lt 0 || "$start" -lt 0 || "$(printf '%s\n' "${got[@]}")" != "$(printf '%s\n' "${block[@]}")" ]]; then
     local shown=() k
-    for k in "${!SHEET_MOUNT[@]}"; do shown+=("  approved: ${SHEET_MOUNT[$k]}" "  found:    ${got[$k]:-<none>}"); done
+    for k in "${!block[@]}"; do shown+=("  approved: ${block[$k]}" "  found:    ${got[$k]-<none>}"); done
     fail "the credit is not mounted directly above the sheet in $screen." \
       "${shown[@]}" \
-      "  then a line starting with }: ${after:-<none>}" \
-      "The approved mount is the five WHOLE lines above, consecutive (only // lines dropped), around the one" \
-      "footer line, and then the enclosing stack closes. Pill first, spacing 0, nothing between them and nothing" \
-      "on either alone: a ZStack, an offset or negative spacing, the pill after the sheet or inside it, or an" \
-      "opacity on the pill each puts the credit UNDER the sheet or off the map - invisible to limbs (a)-(g)."
+      "The approved block is the ${#block[@]} WHOLE lines above, consecutive (only // lines dropped): the outer" \
+      "stack's opening, the five-line mount round the one footer line, then the closes up to the ZStack's" \
+      ".background(. Pill first, spacing 0, nothing between them, nothing on either alone and nothing round the" \
+      "pair: a ZStack, an offset or negative spacing, the pill after the sheet or inside it, an opacity on the" \
+      "pill, or an \`if\` round the mount each puts the credit UNDER the sheet or off the map at some detent."
   fi
-  [[ "$mapat" -ge 0 && "$mapat" -lt "$((at - 1))" ]] || fail \
+  [[ "$mapat" -ge 0 && "$mapat" -lt "$start" ]] || fail \
     "the credit and the sheet are not drawn above the map in $screen: MapView( is not before the mount." \
     "In the screen's ZStack a later child draws over an earlier one; the map has to come first."
 
@@ -119,6 +126,6 @@ require_sheet_mount() {
 
 print_sheet_verdict() {
   echo "P-ATTR-01 (h): HomeSheet declared at $SHEET_REL(1), built at $SHEET_SCREEN_REL(1), directly under"
-  echo "  the pill in the approved five-line mount after MapView(; the only presentation is \`$SHEET_PRESENTATION\`."
+  echo "  the pill in the approved whole-line block after MapView(; the only presentation is \`$SHEET_PRESENTATION\`."
   echo "  Not checked here: HomeSheet's own drawing and anything that renders (the screenshots own those)."
 }

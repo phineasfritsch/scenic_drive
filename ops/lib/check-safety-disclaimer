@@ -44,16 +44,14 @@
 #   bash ops/lib/check-safety-disclaimer                 # the tracked tree
 #   bash ops/lib/check-safety-disclaimer --sources DIR   # any copy of Sources/FeatureScenicHome
 #                                        --app-tree DIR  # ... with a copy of apps/ios as its call graph
-#   bash ops/lib/check-safety-disclaimer --prove-red     # thirteen mutations, each refused by name
+#   bash ops/lib/check-safety-disclaimer --prove-red     # sixteen mutations, each refused by name
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-LIB="ops/lib/check-safety-disclaimer-lib"
-if [[ ! -f "$LIB" ]]; then
-  echo "P-SAFE-03: $LIB is missing; the check cannot read Swift source without its readers."
-  exit 1
-fi
-. "$LIB"
+for LIB in ops/lib/check-safety-disclaimer-lib ops/lib/check-safety-disclaimer-sheet; do
+  [[ -f "$LIB" ]] || { echo "P-SAFE-03: $LIB is missing; the check cannot read Swift source without its readers."; exit 1; }
+  . "$LIB"
+done
 
 DEFAULT_SOURCES="apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome"
 DEFAULT_APP_TREE="apps/ios"
@@ -249,6 +247,7 @@ run_check() {
   [[ "$blocked_line" -gt 0 && "$blocked_line" -lt "$ret_line" ]] || fail \
     "no \`onBlocked()\` between the guard at line $guard_line and its return at line $ret_line in $gated." \
     "The refused tap has to hand the screen something to present, or the user taps a dead button forever."
+  require_conditions_in_summary "$screen"
 
   # ----------------------------------------- (v) WHO CAN REACH THE FLAG AT ALL: whitelists, by occurrence
   # PR #101's B5. LAST, because rows 3, 5 and 10 move these counts as a side effect and each exists to
@@ -266,6 +265,7 @@ run_check() {
   echo "P-SAFE-03: $n Swift file(s) under $sources; SafetyDisclaimer declared once in its own file;"
   echo "  home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in"
   echo "  SafetyDisclaimer.swift, the persistent line present, @AppStorage(\"$STORAGE_KEY\")"
+  echo "  (the whole line \`conditions\` once, at the top of sheetSummary, the collapsed part of HomeSheet),"
   echo "  at line $store_line with \`$ack_decl\` under it;"
   echo "  over the $an .swift file(s) under $app_tree, SkylineHandoff.open( called once"
   echo "  (GatedHandoffButton.swift line $call_line), dominated by the guard at line $guard_line;"
