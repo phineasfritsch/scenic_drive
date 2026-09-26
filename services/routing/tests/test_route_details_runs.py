@@ -8,6 +8,7 @@ the end of a route, or summed over the wrong class would move that verdict witho
 import pytest
 
 from tools.route_details import MINOR_CLASSES, class_metres, longest_run, parse, runs
+from tools.route_la_pairs import LAMBDAS, report_pair
 
 OUTPUT = """SCENIC_EV present=true bits=4 max=10
 ROUTE profile=car_scenic model=lambda-8.json time_ms=60000 distance_m=1070.0
@@ -56,6 +57,34 @@ def test_longest_run_per_class_and_mixed():
     assert [(run["m"], run["classes"]) for run in mixed] == [
         (850.0, ["residential"]), (70.0, ["residential", "service"])]
     assert longest_run(_edges(), ("living_street",)) == {"m": 0.0, "ways": [], "classes": [], "edges": 0}
+
+
+# The longest run in METRES is the one with the fewest edges: three 10 m service edges, then one 500 m edge.
+FEW_LONG = (("service", 11, 10.0), ("service", 12, 10.0), ("service", 13, 10.0), ("primary", 20, 100.0),
+            ("service", 21, 500.0))
+
+
+def _six_routes(rows):
+    """car_fast and the five lambdas, each over `rows` - the shape route_la_pairs.report_pair refuses without."""
+    text = ""
+    for profile, model in (("car_fast", "-"),) + tuple(("car_scenic", label) for label in LAMBDAS):
+        text += f"ROUTE profile={profile} model={model} time_ms=60000 distance_m=630.0\n"
+        text += "".join(f"EDGE model={model} seq={seq} road_class={road_class} osm_way_id={way} distance_m={m:.3f}\n"
+                        for seq, (road_class, way, m) in enumerate(rows))
+    return parse(text)
+
+
+def test_the_reported_longest_run_is_longest_in_metres_not_in_edges(capsys):
+    """The Log's runs verdict is read off report_pair's RUNS lines (route_la_pairs --reuse). A longest run chosen
+    by edge count prints the 30 m run here, as it printed 48.8 m for Santa Monica -> Topanga's 174.8 m."""
+    routes = _six_routes(FEW_LONG)
+    _, _, (worst_m, _, worst) = report_pair("few-long", "0,0", "1,1", routes)
+    lines = [line.strip() for line in capsys.readouterr().out.splitlines() if line.strip().startswith("RUNS")]
+    assert len(lines) == 6, lines
+    for line in lines:
+        assert "service=500.0m[21]" in line and "mixed=500.0m['service'][21]" in line, line
+    assert (worst_m, worst["ways"]) == (500.0, [21])
+    assert longest_run(routes[0]["edges"], ("service",)) == {"m": 500.0, "ways": [21], "classes": ["service"], "edges": 1}
 
 
 def test_class_metres_sums_every_edge():

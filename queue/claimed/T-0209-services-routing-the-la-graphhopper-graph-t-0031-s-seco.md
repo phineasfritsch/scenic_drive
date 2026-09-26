@@ -406,3 +406,91 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
     - The VPS: no host, no key, no serving surface (/info, /route) - ops/deploy-routing has never touched a box.
     - The refused-reads-as-0 semantic (T-0213 R2, R10 here) - unchanged.
     - accepted ways 560,210 vs the filtered clip's 560,208: +2, recorded, not reconciled.
+- 2026-09-26T02:28:24Z PRE-REVIEW MUTANT PASS - three survivors, all BLOCKING, closed by three tests, each RED on its
+  mutant and GREEN on the branch. No Java, tool, config.yml or profiles/*.json byte changed: only the two test
+  files (tests/test_route_details.py 121 -> 184 lines, tests/test_route_details_runs.py 62 -> 91), so
+  scenic-routing:t0209 (8adaf54d179f) is still this branch's image.
+
+  RULINGS BEFORE ANY PREDICATE (the pass's own mutant diffs went with its removed worktree, so each mutant is
+  RECONSTRUCTED from its reported signature; sources, sed lines and build log under the MAIN checkout's
+  services/routing/work/t0209/mutants/, images built as scenic-routing:t0209-m1/-m2/-m2b and removed after):
+    m1   RouteDetailsPrinter: `covering(ways, wayIndex, edge.getLast(), ...)` - osm_way_id aligned by the edge's
+         LAST point, road_class still by its first. Reproduces the reported signature: way 456361103 printed as
+         service and as trunk on the canyon pair.
+    m2   ScenicRouterMain: every file in --models reads `modelFiles(...).get(0)` - the first file's model under
+         every file's label. Reproduces the reported signature (all lambdas = lambda-0's time).
+    m2b  ScenicRouterMain: every model file routed with `null` request model. A second reading of "the model
+         loop"; built so the kill does not depend on which one the pass wrote.
+    m3   tools/route_details.longest_run: `if run["edges"] > best["edges"]` (edge count, not metres).
+  R-S1 (the population rule overturns the handed M2 kill as written). The handed kill was "lambda-0 equals
+  car_fast and lambda-8 differs" on a measured pair. MEASURED on the test's own typed canyon pair, t0209 image,
+  window graph imported fresh (work/t0209/measure_canyon_l0_l8.py, output work/t0209/canyon-l0-l8.txt):
+
+      GRAPH nodes=21137 edges=24057
+      ROUTE profile=car_fast model=- time_ms=526739 distance_m=8230.4
+      ROUTE profile=car_scenic model=lambda-0.json time_ms=526739 distance_m=8230.4
+      ROUTE profile=car_scenic model=lambda-8.json time_ms=526739 distance_m=8230.4
+      VS_CAR_FAST lambda-8.json ... same_way_sequence=True
+
+  lambda-8 does NOT differ there, so "lambda-8 differs" cannot be written on the typed pair. RULED: a second pair
+  on the SAME window graph, chosen from a measurement (work/t0209/measure_canyon_pairs.py, log
+  measure-canyon-pairs.log): a 3x3 grid inside the import's own bounds (-118.9663074,-118.5138948,
+  34.0026669,34.172355), all 36 pairs, `--mode route`, lambda-0 + lambda-8 from the committed T-0213 template.
+  8 of 36 exit 1 (every pair touching the grid centre 34.0875,-118.7401 - no road to snap to); of the 28 routed,
+  28/28 have lambda-0 == car_fast (time and distance) and 20/28 have lambda-8 slower (+4.47 % .. +73.58 %), 8 at
+  +0.00 %. Chosen, the largest spread:
+
+      PAIR 34.0366,-118.7401 -> 34.0875,-118.6044 car_fast=1449345/23971.0 l0=1449345/23971.0 l8=2515815/36423.7 l0_is_fast=True l8_spread=+73.58%
+
+  R-S2 (the M1 kill's population). MEASURED before the predicate, per route: ways printed with more than one
+  road_class, and ways whose edges come back after another way. Canyon typed pair (3 routes: 60 edges, 26 ways,
+  26 stretches each) and the 18 saved LA routes (routes/*.txt; 139..399 edges, 83..165 ways, stretches == ways
+  on every one): multi_class={} and revisited=[] on 21 of 21. The predicate is asserted on the typed pair only
+  (the loop pair's routes were not in that population).
+
+  THE TESTS (shipping symbols: the image's ENTRYPOINT main() through docker for M1/M2; for M3 the report the Log's
+  runs verdict is read from, route_la_pairs.report_pair, which main() calls under --reuse):
+    - test_route_details.py::test_each_osm_way_prints_one_road_class_in_one_unbroken_stretch (M1)
+    - test_route_details.py::test_every_model_file_routes_its_own_model (M2) - the fixture now loads lambda-0.json
+      AND lambda-8.json, routes the typed pair and the loop pair over one imported window graph;
+      test_route_details_mode_exists_and_prints_both_routes is renamed ..._prints_every_route (three ROUTEs).
+    - test_route_details_runs.py::test_the_reported_longest_run_is_longest_in_metres_not_in_edges (M3) - three
+      10 m service edges, then one 500 m edge; all six RUNS lines must read service=500.0m[21].
+
+  RED, then GREEN (full logs work/t0209/survivors-<tag>.log):
+
+      $ cd services/routing && SCENIC_ROUTING_IMAGE=scenic-routing:t0209-m1 python -m pytest tests/test_route_details.py -rA -s
+      FAILED tests/test_route_details.py::test_each_osm_way_prints_one_road_class_in_one_unbroken_stretch
+      E   AssertionError: model=-: osm_way_id printed with more than one road_class: {456361103: ['service', 'trunk'], 398142769: ['primary', 'trunk']}
+      (the other 5 PASSED - the edge-sum, seq, road_class-name and way > 0 checks cannot see it, as the pass said)
+
+      $ ... SCENIC_ROUTING_IMAGE=scenic-routing:t0209-m2 ...
+      ROUTE profile=car_fast model=- time_ms=1449345 distance_m=23971.0
+      ROUTE profile=car_scenic model=lambda-0.json time_ms=1449345 distance_m=23971.0
+      ROUTE profile=car_scenic model=lambda-8.json time_ms=1449345 distance_m=23971.0
+      FAILED tests/test_route_details.py::test_every_model_file_routes_its_own_model
+      E   AssertionError: lambda-8 routed 1449345 ms / 23971.0 m, car_fast 1449345 ms - measured 2515815 ms against 1449345 ms; lambda-8.json was not the model routed under its label
+      (the other 5 PASSED)
+
+      $ ... SCENIC_ROUTING_IMAGE=scenic-routing:t0209-m2b ...
+      (identical ROUTE lines: the car_scenic profile with no request model routes car_fast's 1449345 ms here)
+      FAILED tests/test_route_details.py::test_every_model_file_routes_its_own_model   (same assertion; other 5 PASSED)
+
+      $ ... SCENIC_ROUTING_IMAGE=scenic-routing:t0209 ...   (the branch's image)
+      ROUTE profile=car_fast model=- time_ms=526739 distance_m=8230.4
+      ROUTE profile=car_scenic model=lambda-0.json time_ms=526739 distance_m=8230.4
+      ROUTE profile=car_scenic model=lambda-8.json time_ms=526739 distance_m=8230.4
+      ROUTE profile=car_fast model=- time_ms=1449345 distance_m=23971.0
+      ROUTE profile=car_scenic model=lambda-0.json time_ms=1449345 distance_m=23971.0
+      ROUTE profile=car_scenic model=lambda-8.json time_ms=2515815 distance_m=36423.7
+      6 PASSED, pytest exit=0
+
+      $ (m3 applied with sed to tools/route_details.py, __pycache__ purged) python -m pytest tests/test_route_details_runs.py -rA
+      E   AssertionError: RUNS -              residential=0.0m[] living_street=0.0m[] service=30.0m[11,12,13] mixed=30.0m['service'][11,12,13] minor_total=530.0m
+      FAILED tests/test_route_details_runs.py::test_the_reported_longest_run_is_longest_in_metres_not_in_edges
+      (the other 6 PASSED)
+      $ git checkout -- tools/route_details.py (diff lines 0), __pycache__ purged, 1.1 s -> 7 PASSED
+
+  Not changed by this entry: acceptance items 4 and 5 still FAIL as the final pre-review entry names them, and
+  every STILL OPEN line there stands. The gates are re-run bare on the head after origin/main is merged, as the
+  LAST step before the push; their lines are quoted in the PR, not back-dated into this entry.
