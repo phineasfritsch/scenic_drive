@@ -172,3 +172,53 @@ relationship' failure.
   27.8 and 55.7. The sub-ladder found what the integer ladder could not - measurement 1's "not between" held
   only for the lambdas it sampled. PlanCeilingOverLATests now carries that step: a +20 min budget plans the
   1,904.238 s route through the real bisection (evaluations 0, 4, 2, 3, 3.5, 3.25).
+- 2026-09-26T08:52:30Z POPULATION, GATES, and THE ACCEPTANCE BLOCK RE-QUOTED (agent/claude-opus-5).
+  POPULATION (commit 154ec34): ops/mutate/plan.py - the old mid-band mutant's anchor (the three-band tuple) is
+  gone, so it is replaced by six model mutants, one or more per ruling: band-ignores-lambda,
+  minor-slope-no-steeper-than-the-dullest-band, minor-clause-residential-only (a); distance-influence-back-to-the-
+  base (b); ladder-collapses-to-two-bands, slope-steeper-by-one-step (c). MIN_MUTATIONS 10 -> 24; SUITES and
+  TEST_FILES gain LambdaCustomModelRatRunTests, CustomModelChain, PlanCeilingOverLATests. `SCENIC_MUTATE_SCRATCH=
+  .build/T0244 python ops/mutate/plan.py` -> "caught 24 of 24   trapped 0   compile-only 0   MISSED 0   skipped 0",
+  exit 0. `--prove-floor`: an empty population REFUSED, one mutation REFUSED, a subject nothing mutates REFUSED,
+  the shipped table accepted. `python ops/lib/check-mutate-population.py` -> "P-PROC-06: every added module is
+  covered or allowlisted; the floor of 36 holds".
+  300-LINE CAP: customModel.ts and customModel.test.ts were 295 / 294 on main and 316 / 306 after the change - over
+  the cap CLAUDE.md sets for every file although ops/lib/check-line-cap counts .swift only; trimmed to 299 / 299
+  (commit ced96bc), goldens re-checked exact with cmp, vitest Tests 123 passed (123) (two band tests merged).
+  GATES on ced96bc (`git fetch origin` + `git merge --no-edit origin/main`: "Already up to date", origin/main
+  4fc05a4): route tests `pytest tests/test_route_details_runs.py` 7 passed (and test_route_details.py with it,
+  exit 0); check-exec-bits "P-OPS-01: 100 files, 23 required present, all modes correct"; check-line-cap "P-SRC-02:
+  122 Swift files tracked (Sources=45, Tests=53, apps/ios=24), none over 300 lines"; `bash ops/queue-check` "QUEUE
+  OK (237 tasks)". Line counts: LambdaCustomModel.swift 115, CustomModelChain.swift 103,
+  LambdaCustomModelRatRunTests.swift 99, PlanCeilingOverLATests.swift 69, LambdaCustomModelParityTests.swift 99,
+  route_la_pairs.py 248, ops/mutate/plan.py 257.
+  ACCEPTANCE:
+    1. MET. Ruled (a) at 08:12:37Z before any model code. Santa Monica -> Topanga at lambda 8 with the branch's
+       emitted model (run2): longest mixed residential/living_street/service run 174.8 m (service 723963657, score
+       0); residential 19.0 m (384819177, score 2); 7th Street's way 121941230 absent from every route at every
+       lambda. "Santa Monica -> Topanga at lambda 8, as routed over the whole-LA graph, has no rat-run over 800 m"
+       RED on the cur-8 recording (813.92 m, 63cb33b), GREEN on the branch recording (bda0801), which it binds to
+       LambdaCustomModel.json(for: 8) byte for byte.
+    2. MET. Ruled (b): "distance_influence": 0 in the request model, every clause 1/(1+c l), so weight = T + l S.
+       T over {0, 1, 2, 4, 8} (run2, ms): westwood-malibu 1,623,696 / 1,667,261 / 1,667,261 / 3,578,870 /
+       3,710,979; westwood-woodland-hills 1,201,267 / 1,201,267 / 1,589,578 / 2,305,902 / 2,305,902;
+       santa-monica-topanga 1,213,650 / 1,213,650 / 1,213,650 / 1,346,010 / 1,346,010 - non-decreasing on 3 of 3,
+       and over all 13 ladder lambdas. P-SAFE-04: "every plan's ETA <= fastest + budget at every whole-minute
+       budget 0..40 over the LA steps" green; planner/ceiling-* mutants caught.
+    3. MET on the measured pairs, with the window recorded. Ruled (c): the smoother band (one per score), not a
+       ladder constant. The route moves before lambda 8 on 3 of 3 pairs (westwood-malibu at 3.25, westwood-
+       woodland-hills at 2, santa-monica-topanga at 3.75 - under T-0209's model two pairs sat still through 4).
+       westwood-malibu has a route between: 31.74 min at lambda 3.25 (27.79 at 3, 59.65 at 3.5), and a +20 min
+       budget plans it through the real bisection (PlanCeilingOverLATests: planned[20] == 1,904.238; the six
+       default evaluations 0, 4, 2, 3, 3.5, 3.25 are the same for every budget from +4 to +31 min).
+  STILL OPEN (recorded, not fixed here):
+    - The westwood-malibu between-route lives in a narrow lambda window (in at 3.25; out at 3 and 3.5). The
+      bisection lands in it because its fixed sequence visits 3.25; a pair whose window falls between the
+      bisection's samples would be skipped. A search that looks for route CHANGES, or T-0239's alternatives
+      menu, is the fix - not this model.
+    - `npx tsc --noEmit -p services/api` stops locally on "Cannot find type definition file for
+      '@cloudflare/workers-types/2023-07-01'" (environment: npm ci's tree on this box); vitest is 123/123. CI is
+      the witness for the typecheck.
+    - The Worker's served model changes on its next deploy (distance_influence 0, the minor clause, the band
+      ladder); ops/plan emits it now. Service ways all score 0 (T-0207), so their cost rose from 1+l to 1+2l -
+      a preference, never a gate; a destination on a service road is still reachable.
