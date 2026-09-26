@@ -31,14 +31,16 @@ struct DriveSelector: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            row(for: .saddlePeak, identifier: "home.drive.saddlePeak")
             row(for: .santaMonicaMountains, identifier: "home.drive.la")
             row(for: .skyline, identifier: "home.drive.skyline")
         }
         .accessibilityIdentifier("home.drivePicker")
     }
 
-    /// One row. The LA drive is written first because it is the default (`HandoffDrive.defaultDrive`)
-    /// and the owner's; reading order is the one signal a row's position carries.
+    /// One row. Saddle Peak is written first because it is the default (`HandoffDrive.defaultDrive`,
+    /// T-0236), then the Westwood loop, then the Peninsula; reading order is the one signal a row's
+    /// position carries.
     private func row(for drive: HandoffDrive, identifier: String) -> some View {
         let isSelected = selection == drive
         return Button {

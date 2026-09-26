@@ -172,10 +172,11 @@ EQUIVALENT = [
     ("the entry point floored twice: the miles taken from that drive's floored kilometres", SUBJECT,
      ENTRY_MILES,
      "        Int((Double(wholeKilometers(for: drive)) * 0.621371).rounded(.down))",
-     "`wholeMiles(for:)` ranges over `HandoffDrive`, a closed two-case enum whose chains are `static "
+     "`wholeMiles(for:)` ranges over `HandoffDrive`, a closed three-case enum whose chains are `static "
      "let`s on the route types, so the domain this mutant can be fed is exhaustible and was exhausted: "
      "Skyline 112_268.093 m -> 69.7602 mi -> 69, while floor(112.268 km) = 112 -> 69.5936 -> 69; LA "
-     "47_445.124 m -> 29.4810 -> 29, while 47 -> 29.2044 -> 29. Both cases agree, so there is no input "
+     "47_445.124 m -> 29.4810 -> 29, while 47 -> 29.2044 -> 29; Saddle Peak (T-0236) 17_362.496 m -> "
+     "10.7885 -> 10, while 17 -> 10.5633 -> 10. All three cases agree, so there is no input "
      "to write a killer over - not a weaker test, none. The HELPER form of the same double floor is "
      "MUTATIONS entry 9, killed by `the miles come from the metres, not from the floored kilometres` "
      "over a 4_999.331 m chain the test constructs, and that construction is exactly what this entry "

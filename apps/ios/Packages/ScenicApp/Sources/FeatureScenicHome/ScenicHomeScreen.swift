@@ -20,8 +20,8 @@ import SwiftUI
 /// ## Two drives, one screen (T-0178)
 ///
 /// `selectedDrive` is the one value the title, the road line, the distance, the map centre, the
-/// caption and the handoff URL all read. The LA drive is the default and the Skyline loop is one 44 pt
-/// tap away; `HandoffDrive.defaultDrive` carries the ruling for why that default is unconditional and
+/// caption and the handoff URL all read. Saddle Peak is the default (T-0236), the loop and the Skyline
+/// drive each one 44 pt tap away; `HandoffDrive.defaultDrive` carries the ruling for why that default is unconditional and
 /// why no locale and no location is consulted to pick it.
 ///
 /// No duration anywhere on this screen. Nobody has driven this route or measured it, and a number
@@ -48,6 +48,10 @@ public struct ScenicHomeScreen: View {
     /// re-runs `body` - and may re-run a property initialiser - as often as it likes. One resolve per
     /// selection change and per appearance change, which is what those two modifiers buy.
     @State private var style = MapStyle.maplibreDemoTiles
+
+    /// The selected drive's road line, or `nil` (T-0236). `@State` and resolved beside `style`, for the
+    /// same reason: `DriveRoute.resolve` reads a file from the bundle.
+    @State private var route: MapRoute?
 
     /// The appearance the map is drawn for. SwiftUI's `ColorScheme` is converted to `MapAppearance` at
     /// this boundary: `MapAdapter` does not know about SwiftUI's environment (see `MapAppearance`).
@@ -99,7 +103,9 @@ public struct ScenicHomeScreen: View {
                     // while the title names an LA loop.
                     centerLatitude: SkylineHandoff.destination(for: selectedDrive).latitude,
                     centerLongitude: SkylineHandoff.destination(for: selectedDrive).longitude,
-                    zoomLevel: 8.5
+                    zoomLevel: 8.5,
+                    // With a line, the camera fits it; without one, the centre above (`MapView`).
+                    route: route
                 )
                 .ignoresSafeArea()
 
@@ -117,13 +123,13 @@ public struct ScenicHomeScreen: View {
                     gatedHandoff
                         .padding(.horizontal, 16)
 
-                    // The credit for the tiles actually on screen, asked of the RESOLVED style itself
-                    // and never of the selection: on a device with `la.pmtiles` this is the plan's
-                    // `© OpenStreetMap contributors · Protomaps` line, and on every device without it
-                    // the same value carries MapLibre's credit for the demo tiles it is drawing - see
-                    // `MapStyle.attributionText`. Last in the stack, so nothing above it can sit on the
-                    // lower-right corner it owns.
-                    AttributionFooter(text: style.attributionText)
+                    // The credit for everything drawn: the RESOLVED style's credit for the tiles (the
+                    // plan's line with `la.pmtiles`, MapLibre's for the demo tiles without it - see
+                    // `MapStyle.attributionText`), then the drawn line's data credit, composed once from
+                    // the same `style` and `route` the map is handed. The line is OpenStreetMap data over
+                    // either basemap, and MapLibre's (i) cannot credit a shape source (rv1-t0236 B1).
+                    // Last in the stack, so nothing above it can sit on the lower-right corner it owns.
+                    AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))
                 }
             }
         }
@@ -148,6 +154,7 @@ public struct ScenicHomeScreen: View {
     /// when it is not; the Skyline drive keeps the demo tiles, because the LA archive covers
     /// `-119.0,33.7,-117.85,34.45` and the Peninsula is not in it - see `DriveBasemap`.
     private func resolveBasemap() {
+        route = DriveRoute.resolve(for: selectedDrive)
         style = DriveBasemap.resolve(
             for: selectedDrive,
             appearance: colorScheme == .dark ? .dark : .light
