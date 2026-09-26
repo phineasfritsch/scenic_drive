@@ -29,10 +29,24 @@ CREDIT_SITES=(
 
 # The population, one "<line number>\t<path under the tree>: <trimmed code>" per line, in scan order. The key
 # compared is what follows the tab, so a line moving inside its file is not a finding and a line changing is.
+# `//` is cut OUTSIDE a string literal only: the lib's plain `sub(/\/\/.*$/...)` read `"https://..."; <credit
+# line>` as a comment from the `//` on, and the round-3 mutant pass hid a new file's demo credit behind exactly
+# that (row 21). A `\` inside a string escapes the next character, so `"\""` does not end the literal.
 credit_site_lines() {
   awk -v root="$APP_TREE/" '
+    function uncommented(s,    out, i, n, ch, instr) {
+      out = ""; instr = 0; n = length(s)
+      for (i = 1; i <= n; i++) {
+        ch = substr(s, i, 1)
+        if (instr && ch == "\\") { out = out ch substr(s, i + 1, 1); i++; continue }
+        if (ch == "\"") instr = !instr
+        else if (!instr && ch == "/" && substr(s, i + 1, 1) == "/") break
+        out = out ch
+      }
+      return out
+    }
     {
-      code = $0; sub(/\r$/, "", code); sub(/\/\/.*$/, "", code)
+      code = $0; sub(/\r$/, "", code); code = uncommented(code)
       if (index(code, "dataCredit") == 0 && index(code, "routeGeometryCredit") == 0 &&
           code !~ /(^|[^A-Za-z0-9_])credit([^A-Za-z0-9_]|$)/) next
       line = code; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)

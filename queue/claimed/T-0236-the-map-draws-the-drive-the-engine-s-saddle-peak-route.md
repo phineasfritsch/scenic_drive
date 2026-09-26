@@ -357,3 +357,20 @@ The loop's freeway middle leg (T-0211) is untouched here and still owed; the loo
   FOR THE ORCHESTRATOR: P-ATTR-01's statement in pins/PINS.yaml (widening "the basemap credit" to the drawn route's
   data credit) is filed on T-0238; the pill's wrap between "©" and "OpenStreetMap" is deferred to T-0237 (the
   map-first redesign re-shoots the screen). check-drive-copy is not touched this round; its --prove-red is not re-run.
+- 2026-09-26T01:51:44Z ROUND 3 WORK (agent/claude-opus-5). The session holding R3-1..R3-4 was stopped by a usage limit
+  with the work uncommitted; it is checkpointed as d9f0911 (explicit paths; -sites staged 100755). RED THEN GREEN,
+  quoted from .artifacts/t0236-r3-demo.sh (one copy of apps/ios per row, the check run with --app-tree):
+  against 3ba3fa2's check (-lib unchanged since): baseline exit=0; M4a exit=0; M4b exit=0; a new file building
+  MapRoute.bundled(... dataCredit: MapStyle.demoAttribution ...) exit=0 - the review's reproduction, all unrefused.
+  Against d9f0911 (limb (g)): baseline exit=0 ("(9, // stripped) is one of the 9 approved whole lines"); M4a, M4b and
+  the new file each exit=1 "a credit site outside its approved whole lines". R3-5, found by the same demo before the
+  review could: the SAME new file with `static let note = "https://protomaps.com";` ahead of the credit exit=0 against
+  d9f0911, because (g) cut `//` to end of line INSIDE the string literal and the whole credit call vanished from the
+  population. RULED: (g)'s reader cuts `//` outside string literals only (a `\` inside a literal escapes the next
+  character); -lib's readers keep their plain strip (not this finding; -lib is at the cap). After: that row exit=1 by
+  name, baseline still exit=0 with 9 of 9, and it is --prove-red row 21. --prove-red: 21/21 mutations refused by name
+  (rows 18-21 M4a, M4b, the new file, the new file behind a `//` literal: each EXIT 1, REASON NAMED yes). Bare
+  check-map-attribution exit 0. swift test --scratch-path .build/T0236: "Test run with 338 tests in 47 suites
+  passed". wc -l: check-map-attribution 286, -lib 300, -sites 94, -mutations 136. No Swift changed (R3-4), so no
+  ios-compile or simulator run is owed this round. FOR THE ORCHESTRATOR (unchanged): P-ATTR-01's PINS.yaml statement
+  widening is filed on T-0238; the pill's wrap between "©" and "OpenStreetMap" is deferred to T-0237.

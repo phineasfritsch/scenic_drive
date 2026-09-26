@@ -43,6 +43,8 @@
 #  18-20 rv2-t0236 B1-r2: the VALUE between (d)'s two ends - MapRoute.bundled forwarding the demo credit (M4a),
 #      DriveRoute.resolve binding the credit to the resource name (M4b), and a NEW file building a MapRoute with
 #      the demo credit - each EXIT 0 against rows 1-17; (g)'s whole-line whitelist refuses all three by name.
+#  21  the same new file with a `"https://..."` literal before the credit: EXIT 0 against (g) while (g) cut `//`
+#      to end of line inside a string; (g) now cuts `//` outside string literals only.
 #   ROW = label | file under the apps/ios copy (`+` = the row ADDS it) | sed script or the added file's
 #         single line | substring the refusal must contain
 # `|` is the field separator, so a sed script carries no pipe.
@@ -79,6 +81,7 @@ rows=(
   "M4a the bundled route forwards the demo credit|$MA/MapRoute.swift|s/return MapRoute(geoJSON: data, dataCredit: dataCredit,/return MapRoute(geoJSON: data, dataCredit: MapStyle.demoAttribution,/|a credit site outside its approved whole lines"
   "M4b the drive's credit bound to its resource name|$FS/DriveRoute.swift|s/dataCredit: credit,/dataCredit: name,/|a credit site outside its approved whole lines"
   "a new file building a route with the demo credit|+$FS/DriveRouteDemo.swift|extension DriveRoute { static func demo() -> MapRoute? { MapRoute.bundled(named: \"saddle-peak\", subdirectory: nil, withExtension: \"geojson\", dataCredit: MapStyle.demoAttribution, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
+  "a new file hiding the demo credit behind a // in a string|+$FS/DriveRouteNote.swift|extension DriveRoute { static let note = \"https://protomaps.com\"; static func demo() -> MapRoute? { MapRoute.bundled(named: \"saddle-peak\", subdirectory: nil, withExtension: \"geojson\", dataCredit: MapStyle.demoAttribution, lineColor: .blue, casingColor: .white) } }|a credit site outside its approved whole lines"
 )
 
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone.
