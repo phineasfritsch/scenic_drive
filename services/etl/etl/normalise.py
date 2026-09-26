@@ -62,6 +62,7 @@ module adds none of its own.
 """
 from __future__ import annotations
 
+import bisect
 import math
 
 from .way_record import DECLINED_RANK, RANKED_TERMS, RAW, WayRecord
@@ -117,6 +118,30 @@ def ranks_against(values: dict, reference: list) -> dict:
         value = values[way_id]
         below = sum(1 for other in reference if other < value)
         equal = sum(1 for other in reference if other == value) + 1
+        out[way_id] = (below + 0.5 * equal) / population
+    return out
+
+
+def ranks_against_sorted(values: dict, reference: list) -> dict:
+    """`ranks_against` over a reference that is already SORTED ASCENDING - the same numbers, in log time.
+
+    `ranks_against` scans the whole reference for every way. Over the LA region's reference - about 550,000
+    values a term - that is 3e11 comparisons a term, which is not slow, it is never. `bisect_left` is the
+    count of reference values strictly BELOW the way's value and `bisect_right - bisect_left` the count
+    EQUAL to it, which are exactly the two numbers the linear scan counts, so the arithmetic below is
+    `ranks_against`'s arithmetic character for character: the way itself is counted into the equal group
+    (`+ 1`) and the divisor is `len(reference) + 1`.
+
+    The two are held together by a test, not by this paragraph: `tests/test_region_reference.py::
+    test_the_bisect_rank_equals_ranks_against_value_for_value` compares them EXACTLY over a population with
+    ties, a probe below every reference value, one above every one, and probes equal to the extremes.
+    """
+    population = len(reference) + 1
+    out: dict = {}
+    for way_id in ranked_order(values):
+        value = values[way_id]
+        below = bisect.bisect_left(reference, value)
+        equal = bisect.bisect_right(reference, value) - below + 1
         out[way_id] = (below + 0.5 * equal) / population
     return out
 
@@ -207,7 +232,7 @@ def normalise_region(records: list, reference: dict | None = None) -> list:
     for term in RANKED_TERMS:
         values = {record.way_id: getattr(record, term) for record in answering(term, population)}
         if reference is not None and term in reference:
-            ranks[term] = ranks_against(values, list(reference[term]))
+            ranks[term] = ranks_against_sorted(values, sorted(reference[term]))
         else:
             ranks[term] = percentile_ranks(values)
     out = []
