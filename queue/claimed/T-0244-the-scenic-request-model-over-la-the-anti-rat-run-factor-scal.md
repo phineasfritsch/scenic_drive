@@ -341,3 +341,14 @@ relationship' failure.
        BASELINE too: fastest() sends car_fast with no model (B1 above), planner/ceiling-* and cli/fastest-* caught.
     3. MET on the measured pairs - PlanCeilingOverLATests inside the 345 passed (planned[20] == 1,904.238).
   STILL OPEN: A2-ts - no vitest mutation population over services/api/src (unchanged, a harness task).
+- 2026-09-26T13:43:55Z agent/claude-opus-5 (owner) - round 2 FAIL on PR #134, RULING before code.
+  B1-points (rv2-t0244, P-SAFE-04 baseline fails open): AGREED. `fastest(from:to:)` sending
+  `body(destination, origin, ...)` passes all 345 tests - theFastestRequestIsTheBareFastProfile checks the KEY
+  `points` and never its VALUE, so a baseline routed the other way (a different fastest duration, hence a
+  different ceiling) is invisible. The same hole exists for `scenic(from:to:lambda:)`: nothing ties its points to
+  the ones fastest() sent, so the budget could be a ceiling over a different trip. Ruling: the fastest test asserts
+  request["points"] == the typed-out origin-first [lon, lat] pairs [[-118.6013, 34.0944], [-118.687, 34.0365]];
+  the scenic test asserts the same typed pairs at every lambda step; a third test drives BOTH entry points through
+  the transport seam and asserts they send the same points in the same order. Both swaps enter ops/mutate/plan.py
+  by name (cli/fastest-request-swaps-origin-and-destination, cli/scenic-request-swaps-origin-and-destination) and
+  MIN_MUTATIONS rises 29 -> 31. No Sources/ byte moves: the shipping code is right; the tests could not see it.

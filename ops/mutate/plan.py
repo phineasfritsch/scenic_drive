@@ -65,7 +65,7 @@ SUITES = ("ScenicPlannerMetaTests|LambdaCustomModelParityTests|ScenicPlanGoldenT
           "|PlanCLIBudgetTests|PlanCLIRequestBodyTests|LambdaCustomModelRatRunTests|PlanCeilingOverLATests")
 SCRATCH = os.environ.get("SCENIC_MUTATE_SCRATCH", ".build-mutate-plan")
 
-MIN_MUTATIONS = 29
+MIN_MUTATIONS = 31
 
 # name, module, old, new
 MUTATIONS = [
@@ -106,6 +106,13 @@ MUTATIONS = [
      "profile: fastProfile, model: nil", "profile: scenicProfile, model: nil"),
     ("cli/fastest-request-carries-a-custom-model", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
      "profile: fastProfile, model: nil", "profile: fastProfile, model: try LambdaCustomModel.json(for: 0)"),
+    # T-0244 round 2 B1-points (P-SAFE-04): the baseline and the scenic leg are the SAME trip, origin first.
+    ("cli/fastest-request-swaps-origin-and-destination", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "try send(body(origin, destination, profile: fastProfile, model: nil))",
+     "try send(body(destination, origin, profile: fastProfile, model: nil))"),
+    ("cli/scenic-request-swaps-origin-and-destination", "Sources/ScenicPlanCLI/GraphHopperRouteSource.swift",
+     "let body = body(origin, destination, profile: scenicProfile, model: model)",
+     "let body = body(destination, origin, profile: scenicProfile, model: model)"),
     # T-0244 pre-review B2 (mutant C): the recorded route's class set narrowed in the test's own derivation;
     # the numeric scenic_score column and the measured 174.815 m run are the witnesses that must object.
     ("oracle/rat-run-class-set-drops-service", "Tests/ScenicKitTests/LambdaCustomModelRatRunTests.swift",

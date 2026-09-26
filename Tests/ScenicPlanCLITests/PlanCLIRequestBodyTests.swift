@@ -30,6 +30,37 @@ struct PlanCLIRequestBodyTests {
     static let origin = Coordinate(latitude: 34.0944, longitude: -118.6013)
     static let destination = Coordinate(latitude: 34.0365, longitude: -118.6870)
 
+    /// T-0244 round 2 B1-points: `origin` and `destination` above, TYPED OUT rather than read back through them -
+    /// GraphHopper's `points` is origin first, each pair [longitude, latitude].
+    static let typedPoints: [[Double]] = [[-118.6013, 34.0944], [-118.687, 34.0365]]
+
+    /// The `points` array of a decoded request, as numbers; nil if it is missing or not an array of pairs.
+    static func points(_ request: [String: Any]) -> [[Double]]? {
+        guard let pairs = request["points"] as? [Any] else { return nil }
+        var decoded: [[Double]] = []
+        for pair in pairs {
+            guard let values = pair as? [Any] else { return nil }
+            let numbers = values.compactMap { ($0 as? NSNumber)?.doubleValue }
+            guard numbers.count == values.count else { return nil }
+            decoded.append(numbers)
+        }
+        return decoded
+    }
+
+    /// The body `send` would have put on the wire, caught at the transport seam.
+    static func sentRequest(_ call: (GraphHopperRouteSource) throws -> RoutePath) throws -> [String: Any] {
+        var source = Self.source
+        source.post = { body in throw PlanFailure.routerRefused(body) }
+        var sent: String?
+        do {
+            _ = try call(source)
+        } catch PlanFailure.routerRefused(let body) {
+            sent = body
+        }
+        let body = try #require(sent, "the entry point reached no transport")
+        return try #require(try JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
+    }
+
     @Test("the bytes on the wire never name a safety gate, at any lambda")
     func theRequestBodyNeverNamesASafetyGate() throws {
         for tenths in 0...80 {
@@ -77,6 +108,7 @@ struct PlanCLIRequestBodyTests {
             let body = try #require(sent, "scenic() at lambda \(lambda) reached no transport")
             let request = try #require(try JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
             #expect(request["profile"] as? String == "car_scenic", "lambda \(lambda)")
+            #expect(Self.points(request) == Self.typedPoints, "lambda \(lambda)")
             let model = try #require(request["custom_model"] as? [String: Any], "lambda \(lambda)")
             #expect((model["distance_influence"] as? NSNumber)?.doubleValue == 0, "lambda \(lambda)")
             let inserted = try #require(body.range(of: "  \"custom_model\": "))
@@ -105,6 +137,23 @@ struct PlanCLIRequestBodyTests {
         #expect(Set(request.keys) == ["points", "profile", "points_encoded", "instructions", "ch.disable", "details"])
         #expect(!body.contains("custom_model"))
         #expect(!body.contains("distance_influence"))
+        // Round 2 B1-points: the KEY was checked and its VALUE was not - a baseline routed destination -> origin
+        // is a different fastest duration, hence a different ceiling. Origin first, [lon, lat], typed out.
+        #expect(Self.points(request) == Self.typedPoints)
+    }
+
+    /// T-0244 round 2 B1-points (P-SAFE-04): the budget is a ceiling over fastest(from:to:) only if scenic()
+    /// asks for the SAME trip. Both shipping entry points, driven through the transport seam, must send one
+    /// `points` array - the typed origin-first pairs, in that order.
+    @Test("fastest(from:to:) and scenic(from:to:lambda:) send the same points, origin first")
+    func fastestAndScenicSendTheSameTripOriginFirst() throws {
+        let fastest = try Self.sentRequest { try $0.fastest(from: Self.origin, to: Self.destination) }
+        let scenic = try Self.sentRequest { try $0.scenic(from: Self.origin, to: Self.destination, lambda: 4) }
+        let fastestPoints = try #require(Self.points(fastest), "fastest() sent no points array")
+        let scenicPoints = try #require(Self.points(scenic), "scenic() sent no points array")
+        #expect(fastestPoints == scenicPoints)
+        #expect(fastestPoints == Self.typedPoints)
+        #expect(scenicPoints == Self.typedPoints)
     }
 
     @Test("a body naming a safety gate is refused before any request is sent")
