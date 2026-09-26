@@ -58,6 +58,11 @@ public struct GraphHopperRouteSource: RouteSource {
     public let scenicProfile: String
     public let timeout: TimeInterval
 
+    /// Where `send` hands a body that passed the refusal; nil is URLSession, which is every production run.
+    /// A test sets it to read the bytes `scenic(from:to:lambda:)` - the entry point ops/plan runs - puts on
+    /// the wire (T-0244 pre-review B1: a test of `body` alone never saw what `scenic` hands it).
+    var post: ((String) throws -> Data)?
+
     public init(baseURL: URL, fastProfile: String = "car_fast",
                 scenicProfile: String = "car_scenic", timeout: TimeInterval = 30) {
         self.baseURL = baseURL
@@ -124,6 +129,7 @@ public struct GraphHopperRouteSource: RouteSource {
 
     func send(_ body: String) throws -> Data {
         try Self.refuseSafetyGates(in: body)
+        if let post { return try post(body) }
         var request = URLRequest(url: baseURL.appendingPathComponent("route"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
