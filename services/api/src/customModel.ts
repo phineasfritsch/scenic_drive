@@ -97,26 +97,17 @@ export interface CustomModel {
   areas?: CustomModelAreas;
 }
 
-/** plan :105's high band: a road scored at or above this is never penalised, at any lambda. */
+/** plan :105's high band: a road scored at or above this is never penalised. T-0244 (a): a minor edge scored
+ * below it (a rat-run candidate) costs 1 + MINOR_SLOPE * lambda against 1 + lambda for the dullest arterial -
+ * the FIRST branch of the chain, so it replaces the band and 1/p stays linear in lambda. T-0244 (c): one band
+ * per integer score below it, slope (HIGH_BAND - s) / HIGH_BAND (score 0, motorway included: penalised, never
+ * excluded). */
 export const HIGH_BAND = 7;
-
-/**
- * T-0244 (a): a residential / living_street / service edge scored below HIGH_BAND - a rat-run candidate -
- * costs 1 + MINOR_SLOPE * lambda, against 1 + lambda for the dullest (score 0) arterial. The clause is the
- * FIRST branch of the band chain, so it replaces the band rather than multiplying it: 1/p stays linear in lambda.
- */
 export const MINOR_SLOPE = 2;
 export const MINOR_CONDITION =
   "(road_class == RESIDENTIAL || road_class == LIVING_STREET || road_class == SERVICE) && scenic_score < 7";
-
-/**
- * T-0244 (c): the band ladder - one band per integer scenic_score below HIGH_BAND, highest first, each with
- * penalty slope (HIGH_BAND - s) / HIGH_BAND: 1/7 for score 6 up to 1 for score 0 (motorway included -
- * penalised, never excluded). scenic_score is an integer, so this IS the continuous map.
- */
 export const BAND_LADDER = [6, 5, 4, 3, 2, 1, 0] as const;
 
-/** The penalty slope of a road scored `score`: 0 at or above HIGH_BAND. */
 export function bandSlope(score: number): number {
   return score >= HIGH_BAND ? 0 : (HIGH_BAND - score) / HIGH_BAND;
 }
@@ -133,11 +124,7 @@ function assertLambda(lambda: number): void {
   }
 }
 
-/**
- * The priority of a band with penalty `slope` at `lambda`: 1 / (1 + slope * lambda). lambda = 0 leaves every
- * band at 1, which is what makes lambda = 0 the fastest route and the bisection's lower bracket. Rising
- * lambda only ever pushes a band down, and a slope-0 band never moves.
- */
+/** 1 / (1 + slope * lambda): every band is 1 at lambda 0 (the fastest route, the bisection's lower bracket). */
 export function bandMultiplier(slope: number, lambda: number): number {
   assertLambda(lambda);
   return 1 / (1 + slope * lambda);
@@ -237,13 +224,9 @@ export function buildCustomModel(lambda: number, closures: ClosureCollection | n
   const geometries = closureGeometries(closures);
 
   const priority: CustomModelClause[] = [
-    // anti rat-run, plan :108, scaled with lambda (T-0244 (a))
-    { if: MINOR_CONDITION, multiply_by: formatMultiplier(bandMultiplier(MINOR_SLOPE, lambda)) },
-    { else_if: `scenic_score >= ${HIGH_BAND}`, multiply_by: formatMultiplier(bandMultiplier(bandSlope(HIGH_BAND), lambda)) },
-    ...BAND_LADDER.filter((score) => score > 0).map((score) => ({
-      else_if: `scenic_score >= ${score}`,
-      multiply_by: formatMultiplier(bandMultiplier(bandSlope(score), lambda)),
-    })),
+    { if: MINOR_CONDITION, multiply_by: formatMultiplier(bandMultiplier(MINOR_SLOPE, lambda)) }, // plan :108
+    ...[HIGH_BAND, ...BAND_LADDER.filter((s) => s > 0)].map((s) => ({ else_if: `scenic_score >= ${s}`,
+      multiply_by: formatMultiplier(bandMultiplier(bandSlope(s), lambda)) })),
     { else: "", multiply_by: formatMultiplier(bandMultiplier(bandSlope(0), lambda)) },
   ];
 

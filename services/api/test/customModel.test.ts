@@ -23,10 +23,7 @@ import {
  */
 const LAMBDA_GRID = [0, 0.25, 0.5, 1, 2, 4, 8];
 
-/**
- * T-0244's model, evaluated BY HAND as it is serialised: the minor clause 1/(1+2l), then one band per score
- * (>= 7, 6, 5, 4, 3, 2, 1, else) at 1/(1 + l(7-s)/7) - at l = 1 that is 1, 7/8, 7/9, 7/10, 7/11, 7/12, 7/13, 1/2.
- */
+/** T-0244's model BY HAND, as serialised: minor 1/(1+2l), then bands >= 7, 6..1, else at 1/(1 + l(7-s)/7). */
 const PLAN_MULTIPLIERS = [
   { lambda: 0, minor: "1", bands: ["1", "1", "1", "1", "1", "1", "1", "1"] },
   { lambda: 1, minor: "0.333333", bands: ["1", "0.875", "0.777778", "0.7", "0.636364", "0.583333", "0.538462", "0.5"] },
@@ -171,15 +168,11 @@ describe("(c) the band multipliers are monotone non-increasing in lambda", () =>
     expect(bandSlope(4)).toBeCloseTo(3 / 7, 12);
   });
 
-  it("every band is exactly 1 at lambda 0", () => {
+  it("every band is exactly 1 at lambda 0, and a high band (scenic_score >= 7) at every lambda", () => {
     for (const slope of SLOPES) expect(bandMultiplier(slope, 0)).toBe(1);
-  });
-
-  it("a high band (scenic_score >= 7) is 1 at every lambda on the grid", () => {
     for (const lambda of LAMBDA_GRID) for (const score of [7, 8, 9, 10]) expect(bandMultiplier(bandSlope(score), lambda)).toBe(1);
   });
 
-  // Review round 1, recordable N1 (T-0182): sample each interval's midpoint as well as the grid.
   it("every band stays monotone non-increasing across the grid and its interval midpoints", () => {
     const sampled = [...LAMBDA_GRID];
     for (let i = 1; i < LAMBDA_GRID.length; i += 1) sampled.push((LAMBDA_GRID[i - 1]! + LAMBDA_GRID[i]!) / 2);
