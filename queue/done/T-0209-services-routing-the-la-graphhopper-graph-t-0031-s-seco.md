@@ -1,7 +1,7 @@
 ---
 id: T-0209
 title: services/routing - the LA GraphHopper graph: T-0031's second half (the whole-LA tagged PBF imported with the scenic_score encoded value, T(lambda) monotone over LA pairs, the graph-cache handed to the box by rsync with the atomic symlink flip and N-1 kept)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-26T00:55:49Z
@@ -11,7 +11,7 @@ branch: task/T-0209
 exclusive: [routing-config, scenic-index]
 touches: [services/routing/, ops/deploy-routing]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv3-t0209
 depends_on: [T-0207, T-0208, T-0213]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -655,3 +655,45 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
   The whole routing suite, check-line-cap, check-exec-bits, queue-check and check-pins --source-only are re-run
   bare on the head after origin/main is merged, as the LAST step before the push; their lines are quoted in the
   PR, not back-dated into this entry. Acceptance items 4 and 5 still FAIL as the B3 ruling records.
+- 2026-09-26T07:37:40Z REVIEW round 3 PASS (agent/rv3-t0209; not the owner, the fixer, rv1 or rv2) on 001c5c6 =
+  origin/task/T-0209; origin/main 4368aeb is an ancestor (git merge-base --is-ancestor origin/main HEAD exit 0).
+  Every run went through the image ENTRYPOINT. Each mutant is a copy of services/routing under work/rv3-<m>/ with one
+  statement changed (the old text asserted to occur exactly once; Dockerfile, config.yml, pom.xml and profiles/
+  compared identical), built in WSL through the shipping Dockerfile, then
+  `SCENIC_ROUTING_IMAGE=scenic-routing:rv3-<m> python -m pytest tests/test_route_details_fixture.py -rA -s`:
+    MA RouteDetailsPrinter.covering `getLast() <= point) index++;` -> `getLast() < point) index++;`
+       scenic-routing:rv3-ma sha256:6282495e76e5... rows [900001, 900001, 900001, 900002]; way 900001's EDGE rows
+       sum to 687.743 m, its own length is 443.862 m.
+       FAILED test_edge_rows_name_the_way_and_class_of_each_fixture_edge_in_order
+       FAILED test_each_fixture_way_prints_its_own_length_in_metres - 2 failed, 2 passed
+    MB ScenicRouterMain.main: the `throw new IllegalArgumentException("unknown --mode " ...)` statement -> `return;`
+       scenic-routing:rv3-mb sha256:b2fdcfbaab1b... "scenic-routing:rv3-mb --mode details exited 0"
+       FAILED test_an_unknown_mode_exits_non_zero_and_names_the_mode - 1 failed, 3 passed
+    MC RouteDetailsPrinter.print `ways.get(wayIndex).getValue()` -> `ways.get(classIndex).getValue()`
+       scenic-routing:rv3-mc sha256:698cfe3c5e1e... seq=3 printed osm_way_id=900002; way 900002's EDGE rows sum to
+       464.371 m, its own length is 243.881 m.
+       FAILED test_edge_rows_name_the_way_and_class_of_each_fixture_edge_in_order
+       FAILED test_each_fixture_way_prints_its_own_length_in_metres - 2 failed, 2 passed
+    MD (rv3's own; the fixture does not name it) RouteDetailsPrinter.print, the distance column read from the
+       previous edge: `((Number) edge.getValue())` -> `((Number) edges.get(Math.max(seq - 1, 0)).getValue())`
+       scenic-routing:rv3-md sha256:ebbc552e4547... rows 228.384, 228.384, 215.478, 243.881 m with the ways and
+       classes right; way 900001's EDGE rows sum to 456.768 m, its own length is 443.862 m.
+       FAILED test_each_fixture_way_prints_its_own_length_in_metres - 1 failed, 3 passed
+  docker rmi scenic-routing:rv3-ma scenic-routing:rv3-mb scenic-routing:rv3-mc scenic-routing:rv3-md: 4 Untagged,
+  4 Deleted, exit 0.
+  GREEN: scenic-routing:t0209 rebuilt from 001c5c6 in a clean review worktree through the shipping Dockerfile
+  (before sha256:67502cfffb56..., after sha256:349ad6f584a1...); the routing suite bare against it
+  (`python -m pytest tests -rA` in services/routing): 39 passed, 3 skipped, exit 0 - route_details 6,
+  route_details_fixture 4 (A, A, B, C rows 228.384 / 215.478 / 243.881 / 220.490 m), route_details_runs 7,
+  scenic_score_readback 10, deploy_routing_rehearsal 6, profiles_static 5, lambda_monotone 1 passed and 3 skipped
+  (no work/graph-cache in the review worktree).
+  Bare on 001c5c6: ops/lib/check-line-cap exit 0 (P-SRC-02: 119 Swift files, none over 300 lines);
+  ops/lib/check-exec-bits exit 0 (P-OPS-01); bash ops/check-pins --source-only exit 0 (PINS ok=15 skipped=16
+  pending=1 expired=0 failed=0); bash ops/queue-check QUEUE OK (237 tasks); gh pr checks 131: core pass,
+  pins-source-only pass.
+  rv2's B1-r2 is closed: MC turns two fixture tests RED by name, and MA, MB and MD are RED too. Acceptance clauses
+  4 (T(lambda) over the LA pairs) and 5 (the residential/service runs and the no-rat-run ruling) are CLOSED AS FAIL
+  under the orchestrator ruling (B3, 2026-09-26T03:12:47Z; rv2 confirmed it): this task does not meet them, and the
+  work is carried by T-0244 (the scenic request model over LA). Sign-off: state done, reviewer agent/rv3-t0209,
+  queue/claimed/ -> queue/done/, and queue/LOCKS/routing-config.lock and queue/LOCKS/scenic-index.lock are
+  released in the same commit. The reviewer does not merge PR #131.
