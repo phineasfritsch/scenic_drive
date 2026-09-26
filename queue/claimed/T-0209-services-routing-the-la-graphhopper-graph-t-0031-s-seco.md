@@ -166,3 +166,54 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
       4 passed in 26.37s
 
   526739 ms / 8230.4 m is T-0224's number for this typed pair, reproduced on a graph the test imported itself.
+- 2026-09-26T01:16:34Z STAGE 3 LANDED - the whole-LA import (clauses 2 and 3), counts quoted as the stage landed.
+  Command (WSL, foreground inside the background job, redirect INSIDE WSL):
+
+      wsl -e bash -lc "cd /mnt/c/Users/phineasf/Documents/GitHub/scenic_drive/.worktrees/T-0209 && bash services/routing/import-graph.sh /mnt/c/Users/phineasf/Documents/GitHub/scenic_drive/services/etl/work/la/la-tagged.osm.pbf /mnt/c/Users/phineasf/Documents/GitHub/scenic_drive/services/routing/work/t0209/graph-la scenic-routing:t0209 > .../work/t0209/import-la.log 2>&1"
+
+  Honest note: the FIRST import (01:06-01:10Z) had its log redirected on the Windows side of `wsl -e`, and
+  stdout and stderr clobbered each other in the file (the pass1/pass2 lines were overwritten; kept as
+  work/t0209/import-la-clobbered.log). Its end state was the same `GRAPH nodes=951816 edges=1194924`, but a count
+  that cannot be quoted from its own log is not quoted: the import was RE-RUN with the redirect inside WSL, and
+  every number below is from that second log and that second graph.
+
+      == input ==
+      -rwxrwxrwx 1 phineas phineas 45914107 Sep 19 14:55 .../services/etl/work/la/la-tagged.osm.pbf
+      648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39  .../services/etl/work/la/la-tagged.osm.pbf
+      == import: scenic-routing:t0209 -> .../services/routing/work/t0209/graph-la ==
+      GraphHopper - version 11.0|2025-10-14T14:28:00Z (9,24,7,5,2,9)
+      pass1 - finished, processed ways: 565,874, accepted ways: 560,210, way nodes: 2,563,043, relations: 311, totalMB:640, usedMB:326
+      pass2 - finished, processed ways: 565,874, way nodes: 2,563,043, nodes with tags: 320,541, node tag capacity: 4,202,496, ignored barriers at junctions: 290
+      Finished reading OSM file. pass1: 14s,  pass2: 43s,  total: 58s
+      Finished reading OSM file: /data/la-tagged.osm.pbf, nodes: 951,816, edges: 1,194,924, zero distance edges: 70,743
+      PrepareRoutingSubnetworks - car_scenic - Marked 690371 subnetworks (biggest: 354 edges) -> 3 components(s) remain (smallest: 446, biggest: 1676529 edges), total marked edges: 18529
+      PrepareRoutingSubnetworks - car_fast - Marked 690371 subnetworks (biggest: 354 edges) -> 3 components(s) remain (smallest: 446, biggest: 1676529 edges), total marked edges: 18529
+      GraphHopper - nodes: 951,816, edges: 1,194,924
+      GraphHopper - flushing graph car|RAM_STORE|... bounds: -119.0609263,-117.7641001,33.6832753,34.4920674 ...
+      SCENIC_EV present=true bits=4 max=10
+      GRAPH nodes=951816 edges=1194924
+      exit=0
+
+  accepted ways 560,210 against the filtered clip's 560,208 (T-0224 Brief): +2, not reconciled here - the
+  tagged PBF is T-0208's artifact, not la-filtered.osm.pbf, and 2 of 565,874 is recorded rather than explained.
+  The graph's encoded values, from graph-la/properties.txt: `scenic_score bits:4 max_storable_value:15
+  max_value:9` (the highest score the LA import encoded is 9) and `osm_way_id bits:31 max_value:1560236183`;
+  `profiles=car_fast|-421433575,car_scenic|1913116034` (identical to T-0213's window: same config, same profiles);
+  `datareader.import.date=2026-09-26T01:13:59Z`.
+
+  THE GRAPH'S IDENTITY (R6 - there is no /info; this is what T-0221 compares). Path: MAIN checkout
+  services/routing/work/t0209/graph-la (never under .worktrees/). Digest = sha256 of the manifest below
+  (`<sha256>  <name>\n` per file, files sorted by name), computed by tools/route_la_pairs.py graph_digest():
+
+      GRAPH_DIGEST sha256=eb43090a0de52432756d5b6f98a0dad0f568838f8272ff339042344e920d18eb
+      9358b40710ff04bf6e287c08795af9e0fc4e7e6f68cb9fb0266debf716b092ae  edgekv_keys
+      678fdf7f4e194d8b0387012aff2ebd8b8d3cce6f2d0b14227bded36883709766  edgekv_vals
+      0d17354d11436e32479d92d84e7037aa7dbe5924ebbe754f4ae36b49e2d60b66  edges
+      9e6c1e3872b75c0a6bc710485dd80727bb87e80e78b1f005bdac42e671ec92cb  geometry
+      747b818a0ff193e8fb1ed1c6369643fbd734c99d545d6b10cc97a951583637a0  location_index
+      04bacbc54e155cac2ec119fdce485ac585534735321b98e558f78d3b62c963d1  nodes
+      fb29845262227854ee5a08c99e7a20bdb550240773b9d13c726262eba91e5839  properties
+      786867b0a998feefdf942193ef4d9619c499790481fb5050dd4bc80d3c5d53bb  properties.txt
+
+  `properties` carries the import date, so a RE-import produces a different digest by construction: T-0221
+  opens THIS directory, it does not rebuild it. P-PROD-04's three-way equality stays PENDING (no golden exists).
