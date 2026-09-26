@@ -495,3 +495,85 @@ moves scores) -> T-0208 (one region-wide normalisation) -> the whole-LA PBF -> t
   every STILL OPEN line there stands. The gates are re-run bare on the head after origin/main is merged, as the
   LAST step before the push; their lines are quoted in the PR, not back-dated into this entry.
 - 2026-09-26T03:12:47Z ORCHESTRATOR RULING on rv1-t0209 B3 (agent/claude-opus-5, orchestrator hat): clauses 4 and 5 were measured and FAILED honestly - T(1) < T(0) on Westwood -> Woodland Hills (1,201,286 < 1,208,634 ms) and a 813.9 m residential rat-run on 7th Street, Santa Monica at lambda 8 (ways 121941230, 384819177). Both are defects of the per-request scenic model (distance_influence 30 s/km; T-0207's residential x0.5 constant while the bands scale with lambda), not of this graph, and both sit outside this task's touches:. Filed as T-0244 on main (be9a045) with these numbers as its measured population; T-0221 (the owner's first LA drive) now depends on T-0244, so no LA route reaches the owner through this model. This task closes WITH clauses 4 and 5 recorded as FAIL once rv1's B1 (edge alignment) and B2 (unknown --mode) are closed; its deliverables - the path-details mode, the whole-LA graph at services/routing/work/t0209/graph-la (GRAPH_DIGEST eb43090a...18eb), the measurements - stand.
+- 2026-09-26T03:21:26Z RULING before code on rv1-t0209 B1 and B2 (agent/claude-opus-5, owner). B3 is ruled above and
+  is not re-opened here.
+  B1 (edge alignment has no oracle outside the details): AGREED. Every alignment assertion in
+  test_route_details.py reads the EDGE rows against the same path details they were made from, so rv1's MA - in
+  RouteDetailsPrinter.covering, `intervals.get(index).getLast() <= point) index++;` replaced by
+  `intervals.get(index).getLast() < point) index++;` - shifts road_class and osm_way_id together by one edge at
+  every way boundary and every existing test still passes. The kill is an oracle typed by hand:
+  services/routing/tests/fixtures/two-ways.osm, an OSM XML file whose way A (id 900001, highway=secondary) is two
+  edges (its middle node is a junction because a spur way meets it there) and whose way B (id 900002,
+  highway=tertiary) is one edge, both carrying pillar nodes so an edge is more than two route points. The test
+  (tests/test_route_details_fixture.py) has the image under test import that file into a fresh temp graph, routes
+  A's first node to B's last node through the ENTRYPOINT with --mode route-details, and asserts for every ROUTE:
+  the EDGE ways are [900001, 900001, 900002], the classes [secondary, secondary, tertiary], and each way's summed
+  EDGE metres equal that way's own haversine length (R = 6371000 m, GraphHopper's DistanceCalcEarth) computed
+  from the fixture's coordinates, within 0.5 m. MA prints [900001, 900001, 900001] and credits B's metres to A.
+  Disagreement with the Brief ruled: "hand-typed" holds for A, B and the spur. GraphHopper 11 marks every
+  component under prepare.min_network_size (default 200, which config.yml does not override) as a subnetwork
+  that nothing snaps to, so a five-node file routes nothing under the SHIPPING config. The file therefore also
+  carries a 15 x 15 residential lattice (225 nodes, 420 edges, ways 910000-910029) reached only through the
+  spur at A's middle node; it cannot shorten A-start -> B-end, which has exactly one simple path. The lattice
+  rows are written by a loop once and committed as data; the test reads the file and derives nothing from any
+  route. The ruled alternative - a test-only config with min_network_size 0 - is refused: the config under test
+  is the config that ships.
+  B2 (the unknown --mode error has no test): AGREED. rv1's MB is the fall-through e5ddfaa removed: in
+  ScenicRouterMain.main, `throw new IllegalArgumentException("unknown --mode " + mode + " (import, route,
+  route-details, probe)");` replaced by `return;`, so `--mode details` exits 0 printing nothing. The kill runs
+  `--mode details` through the ENTRYPOINT and asserts a non-zero exit, `unknown --mode details` in stderr and no
+  ROUTE line. Disagreement with rv1 ruled: rv1 said "against the window graph"; the test runs against the
+  fixture graph instead. The mode check sits after importOrLoad in the same main(), so either graph reaches it,
+  and the fixture graph needs no read-only PBF - the window graph would SKIP this test in any checkout without
+  services/etl/work/la/window-tagged-1.osm.pbf.
+  Image: no file the Dockerfile copies (plugins/, config.yml, profiles/) changed after e5ddfaa, the commit
+  scenic-routing:t0209 (sha256:8adaf54d179f...) was built from. It is rebuilt from this head through the
+  shipping Dockerfile anyway; the image id before and after is quoted with the GREEN run. MA and MB are built
+  from a copy of services/routing under the gitignored work/ with the one line changed, through the same
+  Dockerfile in WSL, run, then removed with docker rmi. No Java changes in this round, so the three LA
+  route-details outputs are not re-run.
+- 2026-09-26T03:37:27Z rv1-t0209 B1 and B2 closed, RED then GREEN (agent/claude-opus-5, owner). Files:
+  services/routing/tests/fixtures/two-ways.osm (58 lines, sha256 e40caf32...9de7) and
+  services/routing/tests/test_route_details_fixture.py (149 lines, 4 tests). No Java, Dockerfile, config.yml or
+  profile changed, so the three LA route-details outputs are not re-run.
+  The fixture graph as the image imports it: `GRAPH nodes=229 edges=424` - the 4 tower nodes of A/B/spur plus 225
+  lattice nodes (A's and B's pillars are not towers), 420 lattice edges plus A's 2, B's 1 and the spur's 1.
+  A = 443.862 m, B = 243.881 m by haversine over the file's coordinates; route A-start -> B-end 687.7 m.
+  Mutants, each a copy of services/routing under work/ with one line changed (work/apply_mutants.py asserts the
+  old text occurs exactly once), built through the shipping Dockerfile in WSL:
+    MA RouteDetailsPrinter.covering: `getLast() <= point) index++;` -> `getLast() < point) index++;`
+       scenic-routing:t0209-ma sha256:236b35d5a725...
+    MB ScenicRouterMain.main: `throw new IllegalArgumentException("unknown --mode " + mode + " (import, route,
+       route-details, probe)");` -> `return;`   scenic-routing:t0209-mb sha256:6ab2aad01e81...
+  RED, MA:
+    $ SCENIC_ROUTING_IMAGE=scenic-routing:t0209-ma python -m pytest tests/test_route_details_fixture.py -rA -s
+    EDGE model=- seq=0 road_class=secondary osm_way_id=900001 distance_m=228.384
+    EDGE model=- seq=1 road_class=secondary osm_way_id=900001 distance_m=215.478
+    EDGE model=- seq=2 road_class=secondary osm_way_id=900001 distance_m=243.881
+    E   AssertionError: model=-: EDGE rows [(900001, 'secondary'), (900001, 'secondary'), (900001, 'secondary')],
+        the fixture's one path is [(900001, 'secondary'), (900001, 'secondary'), (900002, 'tertiary')]
+    E   AssertionError: model=-: way 900001's EDGE rows sum to 687.743 m, its own length is 443.862 m
+    FAILED test_edge_rows_name_the_way_and_class_of_each_fixture_edge_in_order
+    FAILED test_each_fixture_way_prints_its_own_length_in_metres
+    2 failed, 2 passed in 117.59s
+  RED, MB:
+    $ SCENIC_ROUTING_IMAGE=scenic-routing:t0209-mb python -m pytest tests/test_route_details_fixture.py -rA
+    E   AssertionError: scenic-routing:t0209-mb --mode details exited 0:
+    E     SCENIC_EV present=true bits=4 max=10
+    E     GRAPH nodes=229 edges=424
+    FAILED test_an_unknown_mode_exits_non_zero_and_names_the_mode
+    1 failed, 3 passed in 91.11s
+  $ docker rmi scenic-routing:t0209-ma scenic-routing:t0209-mb -> both Untagged and Deleted; work/mut-* removed.
+  GREEN: scenic-routing:t0209 REBUILT from this head through the shipping Dockerfile (docker build -q -t
+  scenic-routing:t0209 .): before sha256:8adaf54d179f..., after sha256:03707be60f4f... - the id moved although no
+  input the Dockerfile copies changed since e5ddfaa (the jar layer was rebuilt, not reused from cache), so every
+  routing result from here on is quoted against 03707be60f4f.
+    $ SCENIC_ROUTING_IMAGE=scenic-routing:t0209 python -m pytest tests/test_route_details_fixture.py -rA -s
+    EDGE model=- seq=0 road_class=secondary osm_way_id=900001 distance_m=228.384
+    EDGE model=- seq=1 road_class=secondary osm_way_id=900001 distance_m=215.478
+    EDGE model=- seq=2 road_class=tertiary osm_way_id=900002 distance_m=243.881
+    (lambda-0.json and lambda-8.json print the same three rows; all three ROUTEs 44191 ms / 687.7 m)
+    4 passed in 94.29s
+  The whole routing suite, check-line-cap, check-exec-bits, queue-check and check-pins --source-only are re-run
+  bare on the head after origin/main is merged, as the LAST step before the push; their lines are quoted in the
+  PR, not back-dated into this entry. Acceptance items 4 and 5 still FAIL as the B3 ruling above records.
