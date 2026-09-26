@@ -131,3 +131,44 @@ relationship' failure.
   --emit-model prints - through a clause-chain evaluator in the test target (GraphHopper's semantics: an
   if/else_if/else chain applies its first matching clause, separate chains multiply), so they compile against
   today's model and go RED by name.
+- 2026-09-26T08:27:32Z RED -> CODE -> GREEN, and MEASUREMENT 2 (the branch's own models) LANDED (agent/claude-opus-5).
+  RED (commit 63cb33b, `swift test --scratch-path .build/T0244 --filter "LambdaCustomModelRatRunTests|
+  PlanCeilingOverLATests"`, exit 1) - every model test red BY NAME against today's bytes:
+    x "residential at lambda 8: a minor road below 7 costs 1 + 2 lambda, ..." :25 cost(residential, 4) != 1/0.058824; :34 (ratio -> 1.0), (ratio -> 0.95..)
+    x "the request model sets distance_influence 0 and is the identity at lambda 0" :48 distanceInfluence == 0
+    x "the band ladder: one band per integer score below 7, ..." :61 (seven.scoreThresholds -> [7, 4]) == [7, 6, 5, 4, 3, 2, 1]
+    x "Santa Monica -> Topanga at lambda 8, as routed over the whole-LA graph, has no rat-run over 800 m" :97 (longest -> 813.9249999999998) <= 800
+  (the P-SAFE-04 test's own first run failed on MY expectation planned[40] == 3,578.87: 61.85 min fits a +40 budget,
+  3,710.979 <= 4,067.261 - corrected before the commit; it is a property that must hold today, not a red.)
+  CODE: customModel.ts (HIGH_BAND 7, MINOR_SLOPE 2, MINOR_CONDITION, BAND_LADDER [6..0], bandSlope, bandMultiplier,
+  "distance_influence": 0 first in the model, the closure clause now priority[9]) and its Swift port
+  (LambdaCustomModel.highBand / minorSlope / minorCondition / ladder / slope / band(slope:lambda:)). The golden
+  Tests/Fixtures/custom-model/lambda-{0,1,2.5,7.75,8}.json re-recorded from node v26.3.0 on the changed Worker
+  source (PROVENANCE.txt quotes the two-line emitter); LambdaCustomModelParityTests reproduces all five byte for
+  byte. customModel.test.ts re-typed BY HAND for the new model (clause shape at lambda 1: minor 0.333333, then 1,
+  0.875, 0.777778, 0.7, 0.636364, 0.583333, 0.538462, 0.5): `npx vitest run` Test Files 6 passed (6), Tests 124
+  passed (124). GREEN: `swift test --scratch-path .build/T0244` -> "Test run with 343 tests in 49 suites passed".
+  MEASUREMENT 2: `ops/plan --emit-model <l> | tr -d '\r'` from THIS branch into work/t0244/models2 (sha256
+  prefixes 0:54eb5b269914 1:161a42f5c31a 2:c8932f734c2a 4:b471285b42fe 8:233588b52920; lambda-8 == the golden
+  lambda-8.json, cmp), ladder {0, 0.5, 1, 2, 3, 3.25, 3.5, 3.75, 4, 5, 6, 7, 8}, then
+  `route_la_pairs.py --graph work/t0244/graph-la --models work/t0244/models2 --out work/t0244/routes2 --fixture
+  santa-monica-topanga:lambda-8.json --fixture-dir Tests/Fixtures/t0244`, exit 0. GRAPH_DIGEST
+  sha256=eb43090a0de52432756d5b6f98a0dad0f568838f8272ff339042344e920d18eb. SUMMARY monotone=3/3.
+    westwood-malibu          car_fast 27.79  T=[1623696, 1667261, 1667261, 1667261, 1667261, 1904238, 3578870,
+      3578870, 3578870, 3578870, 3710979, 3710979, 3710979] - min 27.06 | 27.79 at 0.5..3 | 31.74 at 3.25 |
+      59.65 at 3.5..5 | 61.85 at 6..8. T non-decreasing True. BITE +128.55 %.
+    westwood-woodland-hills  car_fast 20.14  T=[1201267, 1201267, 1201267, 1589578, 1876472, 1876472, 2305902 x7]
+      - 20.02 at 0..1 | 26.49 at 2 | 31.27 at 3, 3.25 | 38.43 at 3.5..8. True. BITE +91.96 %.
+    santa-monica-topanga     car_fast 20.23  T=[1213650 x7, 1346010 x6] - 20.23 at 0..3.5 | 22.43 at 3.75..8.
+      True. BITE +10.91 %.
+  RUNS: longest mixed minor run over every route at every lambda: westwood-malibu 0.0 m; westwood-woodland-hills
+  52.3 m (service 1087155744,1087155743, car_fast's); santa-monica-topanga 174.8 m (service 723963657, score 0).
+  santa-monica-topanga lambda-8: `residential=19.0m[384819177] ... service=174.8m[723963657] mixed=174.8m
+  minor_total=242.6m` - way 121941230 (7th Street, score 4, 15 edges) is GONE; 19.0 m of 384819177 (score 2) is
+  all the residential left. FIXTURE santa-monica-topanga-lambda-8 edges=182 time_ms=1346010 distance_m=20358.6
+  (its minor rows: service 819770629/819770631/819770628 at score 0 (48.8 m), residential 384819177 score 2
+  (19.0 m), service 723963657 score 0 (174.8 m)); LambdaCustomModelRatRunTests' recorded-route test is GREEN on it.
+  CLAUSE 3's between-route EXISTS: westwood-malibu at lambda 3.25 is 31.74 min (29,214.7 m, 346 edges), between
+  27.8 and 55.7. The sub-ladder found what the integer ladder could not - measurement 1's "not between" held
+  only for the lambdas it sampled. PlanCeilingOverLATests now carries that step: a +20 min budget plans the
+  1,904.238 s route through the real bisection (evaluations 0, 4, 2, 3, 3.5, 3.25).

@@ -5,9 +5,9 @@ import Testing
 /// P-SAFE-04 over the LA measurement: the extra-time budget is a CEILING - a returned plan's ETA is at most
 /// fastest + budget, at every budget, through the REAL bisection (`ScenicPlanner`'s default solver).
 ///
-/// The router here answers T-0244's measured Westwood -> Malibu step table (run1, the adopted per-score band):
-/// 1,623,696 ms below lambda 0.5, 1,667,261 ms to 4, 3,578,870 ms to 6, 3,710,979 ms from 6, with car_fast at
-/// 1,667,261 ms. A step table is the adversarial case: the bisection brackets a cliff it cannot see across.
+/// The router here answers T-0244's measured Westwood -> Malibu step table (run2, the branch's emitted model):
+/// 1,623,696 ms below lambda 0.5, 1,667,261 ms to 3.25, 1,904,238 ms to 3.5, 3,578,870 ms to 6, 3,710,979 ms from 6, car_fast
+/// at 1,667,261 ms. A step table is the adversarial case: the bisection brackets a cliff it cannot see across.
 @Suite("P-SAFE-04: every plan's ETA <= fastest + budget over the measured LA steps")
 struct PlanCeilingOverLATests {
 
@@ -21,7 +21,8 @@ struct PlanCeilingOverLATests {
         func scenic(from origin: Coordinate, to destination: Coordinate, lambda: Double) throws -> RoutePath {
             switch lambda {
             case ..<0.5: return Self.path(milliseconds: 1_623_696, ways: [1, 2, 3, 5])
-            case ..<4: return Self.path(milliseconds: 1_667_261, ways: [1, 2, 3, 4])
+            case ..<3.25: return Self.path(milliseconds: 1_667_261, ways: [1, 2, 3, 4])
+            case ..<3.5: return Self.path(milliseconds: 1_904_238, ways: [31, 32, 33, 34])
             case ..<6: return Self.path(milliseconds: 3_578_870, ways: [11, 12, 13, 14])
             default: return Self.path(milliseconds: 3_710_979, ways: [21, 22, 23, 24])
             }
@@ -57,7 +58,10 @@ struct PlanCeilingOverLATests {
             } catch is BudgetError {
             }
         }
-        // Not vacuous: from +32 min the 59.65-min route fits (3,578.87 <= 1,667.261 + 1,920) and is planned.
+        // Not vacuous. Clause 3: a +20 min budget plans the 31.74-min route BETWEEN 27.8 and 55.7 - the default
+        // six evaluations visit 0, 4, 2, 3, 3.5, 3.25 and the last one lands in it.
+        #expect(planned[20] == 1_904.238)
+        // From +32 min the 59.65-min route fits (3,578.87 <= 1,667.261 + 1,920) and is planned.
         #expect(planned[32] == 3_578.87)
         #expect(planned[40] == 3_710.979)   // from +35 min the 61.85-min route fits too
         #expect(planned.keys.filter { $0 < 32 }.allSatisfy { planned[$0]! <= 1_667.261 + Double($0 * 60) })

@@ -5,25 +5,33 @@ import {
   LAMBDA_MAX,
   MAX_CLOSURE_POLYGONS,
   rejectCustomModel,
-  scenicBandMultipliers,
+  bandMultiplier,
+  bandSlope,
+  BAND_LADDER,
+  HIGH_BAND,
+  MINOR_CONDITION,
+  MINOR_SLOPE,
   type ClosureCollection,
   type ClosurePolygon,
 } from "../src/customModel";
 
 /**
  * Every expected value below is TYPED OUT from the plan's "GraphHopper profiles" block (:105-110), not
- * computed from buildCustomModel or scenicBandMultipliers. A test that derives its expectation from the
+ * computed from buildCustomModel or bandMultiplier. A test that derives its expectation from the
  * function under test passes for every implementation of it, including the broken ones - that is the
  * defect this repository exists to catch (see test/ro.test.ts on MAX_SQL_LENGTH).
  */
 const LAMBDA_GRID = [0, 0.25, 0.5, 1, 2, 4, 8];
 
-/** 1 / (1 + 0.5*lambda) and 1 / (1 + lambda), evaluated by hand, as they are serialised. */
+/**
+ * T-0244's model, evaluated BY HAND as it is serialised: the minor clause 1/(1+2l), then one band per score
+ * (>= 7, 6, 5, 4, 3, 2, 1, else) at 1/(1 + l(7-s)/7) - at l = 1 that is 1, 7/8, 7/9, 7/10, 7/11, 7/12, 7/13, 1/2.
+ */
 const PLAN_MULTIPLIERS = [
-  { lambda: 0, high: "1", mid: "1", low: "1" },
-  { lambda: 1, high: "1", mid: "0.666667", low: "0.5" },
-  { lambda: 2, high: "1", mid: "0.5", low: "0.333333" },
-  { lambda: 8, high: "1", mid: "0.2", low: "0.111111" },
+  { lambda: 0, minor: "1", bands: ["1", "1", "1", "1", "1", "1", "1", "1"] },
+  { lambda: 1, minor: "0.333333", bands: ["1", "0.875", "0.777778", "0.7", "0.636364", "0.583333", "0.538462", "0.5"] },
+  { lambda: 2, minor: "0.2", bands: ["1", "0.777778", "0.636364", "0.538462", "0.466667", "0.411765", "0.368421", "0.333333"] },
+  { lambda: 8, minor: "0.058824", bands: ["1", "0.466667", "0.304348", "0.225806", "0.179487", "0.148936", "0.127273", "0.111111"] },
 ];
 
 function square(lon: number, lat: number): ClosurePolygon {
@@ -64,18 +72,28 @@ describe("(a) the built model never names a safety encoded value", () => {
 
   it("emits the plan's clause shape: if / else_if / else with string multiply_by", () => {
     const model = buildCustomModel(1, null);
+    expect(model.distance_influence).toBe(0);
     expect(model.priority).toEqual([
-      { if: "scenic_score >= 7", multiply_by: "1" },
-      { else_if: "scenic_score >= 4", multiply_by: "0.666667" },
+      {
+        if: "(road_class == RESIDENTIAL || road_class == LIVING_STREET || road_class == SERVICE) && scenic_score < 7",
+        multiply_by: "0.333333",
+      },
+      { else_if: "scenic_score >= 7", multiply_by: "1" },
+      { else_if: "scenic_score >= 6", multiply_by: "0.875" },
+      { else_if: "scenic_score >= 5", multiply_by: "0.777778" },
+      { else_if: "scenic_score >= 4", multiply_by: "0.7" },
+      { else_if: "scenic_score >= 3", multiply_by: "0.636364" },
+      { else_if: "scenic_score >= 2", multiply_by: "0.583333" },
+      { else_if: "scenic_score >= 1", multiply_by: "0.538462" },
       { else: "", multiply_by: "0.5" },
-      { if: "road_class == RESIDENTIAL && scenic_score < 7", multiply_by: "0.5" },
     ]);
     expect(model.areas).toBeUndefined();
   });
 
   it("keys areas the way the closure clause references them", () => {
     const model = buildCustomModel(2, closures(2));
-    expect(model.priority[4]).toEqual({ if: "in_closure_1 || in_closure_2", multiply_by: "0" });
+    expect(model.priority[9]).toEqual({ if: "in_closure_1 || in_closure_2", multiply_by: "0" });
+    expect(model.distance_influence).toBe(0);
     expect(model.areas!.type).toBe("FeatureCollection");
     expect(model.areas!.features.map((f) => f.id)).toEqual(["closure_1", "closure_2"]);
     expect(model.areas!.features.map((f) => f.geometry.type)).toEqual(["Polygon", "Polygon"]);
@@ -139,30 +157,46 @@ describe("(b) rejectCustomModel refuses a request-supplied model that touches th
 });
 
 describe("(c) the band multipliers are monotone non-increasing in lambda", () => {
+  const SLOPES = [MINOR_SLOPE, ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(bandSlope)];
+
+  it("the constants are the ruled ones: high band 7, minor slope 2, one band per score 6..0", () => {
+    expect(HIGH_BAND).toBe(7);
+    expect(MINOR_SLOPE).toBe(2);
+    expect([...BAND_LADDER]).toEqual([6, 5, 4, 3, 2, 1, 0]);
+    expect(MINOR_CONDITION).toBe(
+      "(road_class == RESIDENTIAL || road_class == LIVING_STREET || road_class == SERVICE) && scenic_score < 7",
+    );
+    expect([7, 8, 10].map(bandSlope)).toEqual([0, 0, 0]);
+    expect(bandSlope(0)).toBe(1);
+    expect(bandSlope(4)).toBeCloseTo(3 / 7, 12);
+  });
+
   it("every band is exactly 1 at lambda 0", () => {
-    const m = scenicBandMultipliers(0);
-    expect(m.high).toBe(1);
-    expect(m.mid).toBe(1);
-    expect(m.low).toBe(1);
+    for (const slope of SLOPES) expect(bandMultiplier(slope, 0)).toBe(1);
   });
 
-  it("high band (scenic_score >= 7) is 1 at every lambda on the grid", () => {
-    for (const lambda of LAMBDA_GRID) expect(scenicBandMultipliers(lambda).high).toBe(1);
+  it("a high band (scenic_score >= 7) is 1 at every lambda on the grid", () => {
+    for (const lambda of LAMBDA_GRID) for (const score of [7, 8, 9, 10]) expect(bandMultiplier(bandSlope(score), lambda)).toBe(1);
   });
 
-  it("mid band (scenic_score >= 4) is monotone non-increasing over the grid", () => {
-    for (let i = 1; i < LAMBDA_GRID.length; i += 1) {
-      const previous = scenicBandMultipliers(LAMBDA_GRID[i - 1]!).mid;
-      const current = scenicBandMultipliers(LAMBDA_GRID[i]!).mid;
-      expect(current).toBeLessThanOrEqual(previous);
+  // Review round 1, recordable N1 (T-0182): sample each interval's midpoint as well as the grid.
+  it("every band stays monotone non-increasing across the grid and its interval midpoints", () => {
+    const sampled = [...LAMBDA_GRID];
+    for (let i = 1; i < LAMBDA_GRID.length; i += 1) sampled.push((LAMBDA_GRID[i - 1]! + LAMBDA_GRID[i]!) / 2);
+    sampled.sort((a, b) => a - b);
+    expect(sampled).toEqual([0, 0.125, 0.25, 0.375, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8]);
+    for (let i = 1; i < sampled.length; i += 1) {
+      for (const slope of SLOPES) {
+        expect(bandMultiplier(slope, sampled[i]!)).toBeLessThanOrEqual(bandMultiplier(slope, sampled[i - 1]!));
+      }
     }
   });
 
-  it("low band (else) is monotone non-increasing over the grid", () => {
-    for (let i = 1; i < LAMBDA_GRID.length; i += 1) {
-      const previous = scenicBandMultipliers(LAMBDA_GRID[i - 1]!).low;
-      const current = scenicBandMultipliers(LAMBDA_GRID[i]!).low;
-      expect(current).toBeLessThanOrEqual(previous);
+  it("duller is penalised at least as hard, the minor clause hardest, and nothing is excluded", () => {
+    for (const lambda of LAMBDA_GRID) {
+      const bands = SLOPES.map((slope) => bandMultiplier(slope, lambda));
+      for (let i = 1; i < bands.length; i += 1) expect(bands[i - 1]!).toBeLessThanOrEqual(bands[i]!);
+      expect(bands[0]!).toBeGreaterThan(0);
     }
   });
 
@@ -170,51 +204,29 @@ describe("(c) the band multipliers are monotone non-increasing in lambda", () =>
     for (let i = 1; i < LAMBDA_GRID.length; i += 1) {
       const before = buildCustomModel(LAMBDA_GRID[i - 1]!, null).priority;
       const after = buildCustomModel(LAMBDA_GRID[i]!, null).priority;
-      for (const clause of [1, 2]) {
+      expect(after.length).toBe(9);
+      for (let clause = 0; clause < after.length; clause += 1) {
         expect(Number(after[clause]!.multiply_by)).toBeLessThanOrEqual(Number(before[clause]!.multiply_by));
       }
     }
   });
 
-  // Review round 1, recordable N1: the grid pins 7 literal lambdas while the bisection evaluates arbitrary
-  // ones, so sample each interval's midpoint as well - a band that dips between grid points is a real bug.
-  it("both falling bands stay monotone non-increasing across the grid's interval midpoints", () => {
-    const sampled = [...LAMBDA_GRID];
-    for (let i = 1; i < LAMBDA_GRID.length; i += 1) sampled.push((LAMBDA_GRID[i - 1]! + LAMBDA_GRID[i]!) / 2);
-    sampled.sort((a, b) => a - b);
-    expect(sampled).toEqual([0, 0.125, 0.25, 0.375, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8]);
-    for (let i = 1; i < sampled.length; i += 1) {
-      const previous = scenicBandMultipliers(sampled[i - 1]!);
-      const current = scenicBandMultipliers(sampled[i]!);
-      expect(current.high).toBe(1);
-      expect(current.mid).toBeLessThanOrEqual(previous.mid);
-      expect(current.low).toBeLessThanOrEqual(previous.low);
-    }
-  });
-
-  it("the low band is never zero, because a dull road is penalised and not excluded", () => {
-    for (const lambda of LAMBDA_GRID) expect(scenicBandMultipliers(lambda).low).toBeGreaterThan(0);
-  });
-
   for (const row of PLAN_MULTIPLIERS) {
-    it(`matches the plan's multipliers at lambda ${row.lambda}`, () => {
+    it(`matches the hand-evaluated multipliers at lambda ${row.lambda}`, () => {
       const priority = buildCustomModel(row.lambda, null).priority;
-      expect(priority[0]!.multiply_by).toBe(row.high);
-      expect(priority[1]!.multiply_by).toBe(row.mid);
-      expect(priority[2]!.multiply_by).toBe(row.low);
+      expect(priority[0]!.multiply_by).toBe(row.minor);
+      expect(priority.slice(1).map((clause) => clause.multiply_by)).toEqual(row.bands);
     });
   }
 
-  // The same four rows as exact doubles, so a rounding change to formatMultiplier cannot hide a maths change.
-  it("matches 1/(1+0.5*lambda) and 1/(1+lambda) as doubles at lambda 0, 1, 2 and 8", () => {
-    expect(scenicBandMultipliers(0).mid).toBeCloseTo(1, 12);
-    expect(scenicBandMultipliers(0).low).toBeCloseTo(1, 12);
-    expect(scenicBandMultipliers(1).mid).toBeCloseTo(0.6666666666666666, 12);
-    expect(scenicBandMultipliers(1).low).toBeCloseTo(0.5, 12);
-    expect(scenicBandMultipliers(2).mid).toBeCloseTo(0.5, 12);
-    expect(scenicBandMultipliers(2).low).toBeCloseTo(0.3333333333333333, 12);
-    expect(scenicBandMultipliers(8).mid).toBeCloseTo(0.2, 12);
-    expect(scenicBandMultipliers(8).low).toBeCloseTo(0.1111111111111111, 12);
+  // The same rows as exact doubles, so a rounding change to formatMultiplier cannot hide a maths change.
+  it("matches 1/(1+2l), 1/(1+l(7-s)/7) and 1/(1+l) as doubles at lambda 1, 2 and 8", () => {
+    expect(bandMultiplier(MINOR_SLOPE, 1)).toBeCloseTo(1 / 3, 12);
+    expect(bandMultiplier(bandSlope(6), 1)).toBeCloseTo(0.875, 12);
+    expect(bandMultiplier(bandSlope(0), 2)).toBeCloseTo(1 / 3, 12);
+    expect(bandMultiplier(bandSlope(4), 2)).toBeCloseTo(7 / 13, 12);
+    expect(bandMultiplier(MINOR_SLOPE, 8)).toBeCloseTo(1 / 17, 12);
+    expect(bandMultiplier(bandSlope(0), 8)).toBeCloseTo(1 / 9, 12);
   });
 });
 
@@ -251,8 +263,8 @@ describe("(d) lambda outside the bisection bracket throws and is never clamped",
   });
 
   it("accepts both ends of the bracket", () => {
-    expect(buildCustomModel(0, null).priority[2]!.multiply_by).toBe("1");
-    expect(buildCustomModel(8, null).priority[2]!.multiply_by).toBe("0.111111");
+    expect(buildCustomModel(0, null).priority[8]!.multiply_by).toBe("1");
+    expect(buildCustomModel(8, null).priority[8]!.multiply_by).toBe("0.111111");
   });
 });
 
