@@ -69,6 +69,9 @@ ALGORITHM = "a recording whose algorithm is not its file's is refused, naming th
 FIRST_TENTH = "a route 1 ms over the fastest prints +0.1 min, and 6_001 ms over prints +0.2"
 
 PINS = "PlanWaypoints.decisionPoints(table: row.table, path: row.path)"
+ENDS = "AppleMapsDirections(source: arguments.origin, destination: arguments.destination,"
+ORDER = "waypoints: waypoints).url()"
+IN_ORDER = "every row's URL runs from the trip's origin to its destination, its waypoints in route order"
 
 MUTATIONS = [
     # 1. The rule inverted - the red-first arm of acceptance 2: T1 [0.0, 7.1], T4 [0.0, 9.1, 10.5].
@@ -137,6 +140,10 @@ MUTATIONS = [
     # 27. rv1 R3: the first tenth of a minute printed as +0.0 - no recorded row is within 6 s of the fastest.
     ("the first tenth of a minute rounded to zero", ROW, CEIL,
      "milliseconds <= 6_000 ? 0 : (milliseconds + 5_999) / 6_000", [FIRST_TENTH]),
+    # 28-29. rv2 M2 and M3: the URL's ends swapped and its pins reversed - the 16 menu tests before rv2 passed on each.
+    ("the row URL's source and destination swapped", CMD, ENDS,
+     "AppleMapsDirections(source: arguments.destination, destination: arguments.origin,", [IN_ORDER]),
+    ("the row URL's waypoints reversed", CMD, ORDER, "waypoints: waypoints.reversed()).url()", [IN_ORDER]),
 ]
 
 # `(name, path, old, new, witness)`: anything but MISSED fails the run.
@@ -157,6 +164,6 @@ EQUIVALENT = [
 ]
 
 # Literal floors: the real counts. Adding a mutation means editing this number in the same diff.
-MIN_MUTATIONS = 27
+MIN_MUTATIONS = 29
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 2

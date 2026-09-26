@@ -148,13 +148,23 @@ struct MenuCLITests {
         #expect(throws: PlanFailure.self) { try MenuCommand.run(arguments) }
     }
 
-    /// The `waypoint` pins of a printed `URL <index> waypoints=<n> <url>` line.
-    static func stops(_ line: String) -> [Coordinate] {
+    /// A `lat,lon` text - a trip literal or a URL query value - as a coordinate.
+    static func coordinate(_ text: String) -> Coordinate? {
+        let pair = text.split(separator: ",").compactMap { Double($0) }
+        return pair.count == 2 ? Coordinate(latitude: pair[0], longitude: pair[1]) : nil
+    }
+
+    /// The `name` pins (`source`, `destination`, `waypoint`) of a printed `URL <index> waypoints=<n> <url>` line.
+    static func pins(_ line: String, _ name: String) -> [Coordinate] {
         let url = line.split(separator: " ").last.map(String.init) ?? ""
-        return (URLComponents(string: url)?.queryItems ?? []).filter { $0.name == "waypoint" }.compactMap {
-            let pair = ($0.value ?? "").split(separator: ",").compactMap { Double($0) }
-            return pair.count == 2 ? Coordinate(latitude: pair[0], longitude: pair[1]) : nil
-        }
+        return (URLComponents(string: url)?.queryItems ?? []).filter { $0.name == name }
+            .compactMap { coordinate($0.value ?? "") }
+    }
+
+    static func stops(_ line: String) -> [Coordinate] { pins(line, "waypoint") }
+
+    static func fiveDecimals(_ c: Coordinate) -> String {
+        "\(ScenicPlan.fixed(c.latitude, 5)),\(ScenicPlan.fixed(c.longitude, 5))"
     }
 
     /// rv1 B1: a URL built from another row's route passed every test above. The Latigo row is found by the
@@ -204,6 +214,32 @@ struct MenuCLITests {
                 Issue.record("\(name) with its algorithm changed was replayed")
             } catch let failure as PlanFailure {
                 #expect("\(failure)".contains(named), "\(failure)")
+            }
+        }
+    }
+
+    /// rv2 M2/M3: a URL whose source and destination were swapped, or whose waypoints were reversed, passed
+    /// every test above. For EVERY row on both trips, parsed from the printed URL: `source` is the trip's
+    /// origin literal and `destination` its destination literal (to 5 dp), and each waypoint's nearest vertex
+    /// along that row's recorded path strictly increases - the pins are in route order.
+    @Test("every row's URL runs from the trip's origin to its destination, its waypoints in route order")
+    func everyURLRunsItsRowInOrder() throws {
+        for trip in Self.trips {
+            let arguments = try Self.arguments(trip)
+            let rows = try MenuCommand.menu(arguments).rows
+            let urls = try MenuCommand.run(arguments).filter { $0.hasPrefix("URL ") }
+            let origin = try #require(Self.coordinate(trip.1)), destination = try #require(Self.coordinate(trip.2))
+            #expect(urls.count == rows.count && rows.count >= 3, "\(trip.0)")
+            for (index, url) in zip(rows.indices, urls) {
+                #expect(Self.pins(url, "source").map(Self.fiveDecimals) == [Self.fiveDecimals(origin)], "\(url)")
+                #expect(Self.pins(url, "destination").map(Self.fiveDecimals) == [Self.fiveDecimals(destination)],
+                        "\(url)")
+                let path = rows[index].path.coordinates
+                let along = Self.stops(url).map { stop in
+                    path.indices.min { Geo.distanceMeters(stop, path[$0]) < Geo.distanceMeters(stop, path[$1]) } ?? -1
+                }
+                #expect(along.count >= 2, "\(trip.0) row \(index): \(along.count) waypoints")
+                #expect(zip(along, along.dropFirst()).allSatisfy { $0 < $1 }, "\(trip.0) row \(index): \(along)")
             }
         }
     }
