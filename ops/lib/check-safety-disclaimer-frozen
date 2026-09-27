@@ -125,6 +125,7 @@ FROZEN_SCREEN_BODY=(
   '.background(DesignTokens.bg)'
   '.task { resolveBasemap() }'
   '.onChange(of: selectedDrive) { resolveBasemap() }'
+  '.onChange(of: menuRow) { resolveBasemap() }'
   '.onChange(of: colorScheme) { resolveBasemap() }'
   '.sheet(isPresented: $isShowingDisclaimer) {'
   'SafetyDisclaimer(onAccept: {'
@@ -151,7 +152,7 @@ FROZEN_CHIPS=(
 )
 FROZEN_SHEET_DETAILS=(
   'private var sheetDetails: some View {'
-  'DriveDetails(drive: selectedDrive, caption: DriveCopy.mapCaption(for: selectedDrive, style: style))'
+  'DriveDetails(drive: selectedDrive, roads: roadList, caption: DriveCopy.mapCaption(for: selectedDrive, style: style))'
   '}'
 )
 FROZEN_CONDITIONS=(
