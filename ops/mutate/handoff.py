@@ -79,14 +79,15 @@ ERR = SRC_DIR / "HandoffError.swift"
 MENU = SRC_DIR / "DriveMenu.swift"
 MENU_ROW = SRC_DIR / "DriveMenuRow.swift"
 # T-0246 round 1 (rv1-t0246 B1): the paste for a selected chip. A SUBJECT because `restore` puts back only
-# subjects - a mutant in any other file would stay in the tree after the run.
+# subjects - a mutant in any other file would stay in the tree after the run. NOT in SUBJECT_MODULES: the
+# P-PROC-06 allowlist rules HandoffDrive.swift a module that computes no number, and the gate refuses a
+# module that is both allowlisted and declared (a routing mutant here is not numeric coverage).
 DRIVE = SRC_DIR / "HandoffDrive.swift"
 SUBJECTS = [SRC, ERR, MENU, MENU_ROW, DRIVE]
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
 SUBJECT_MODULES = ("Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift",
-                   "Sources/Handoff/DriveMenu.swift", "Sources/Handoff/DriveMenuRow.swift",
-                   "Sources/Handoff/HandoffDrive.swift")
+                   "Sources/Handoff/DriveMenu.swift", "Sources/Handoff/DriveMenuRow.swift")
 
 TEST_DIR = ROOT / "Tests" / "HandoffTests"
 # GLOBBED, not listed. The hardcoded list was three files; the suite has since split to six, and a reviewer
