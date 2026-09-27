@@ -9,7 +9,7 @@ lease_expires_at: 2026-09-27T11:55:42Z
 worktree: .worktrees/T-0242
 branch: task/T-0242
 exclusive: [scenic-index]
-touches: [services/etl/etl/region/, services/etl/tests/test_region_build.py, services/etl/tests/fixtures/, ops/etl-region]
+touches: [services/etl/regionbuild/, services/etl/tests/test_region_build.py, services/etl/tests/fixtures/, ops/etl-region]
 pins_affected: []
 reviewer: null
 depends_on: [T-0208, T-0209]
@@ -29,3 +29,68 @@ is filed as its own task).
 - 2026-09-26T00:55:31Z filed by agent/claude-opus-5 (orchestrator) after PR #129 merged. The work dir was moved from .worktrees/T-0208/services/etl/work/ to the main checkout's services/etl/work/t0208/ (89 entries, 372 MB) before the worktree was removed.
 - 2026-09-26T23:55:08Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0208 and T-0209 merged; the pipeline scripts are preserved at the main checkout's services/etl/work/t0208/.
 - 2026-09-26T23:55:42Z claimed by agent/claude-opus-5; lease until 2026-09-27T11:55:42Z
+- 2026-09-27T00:04:00Z RULED by agent/claude-opus-5 (owner), before any code. Read: every file in the main
+  checkout's services/etl/work/t0208/, its log-*.md, T-0208's done Log (stages at 17:26, 21:29, 21:59),
+  etl/assemble.py, region_reference.py, waydoc.py, tagwriter.py, tests/test_seam_one_score.py.
+  (R1) EACH SCRIPT'S ROLE. SHIPPED STAGES - they wrote something la-tagged.osm.pbf is made of, and each
+  becomes one stage of the committed driver:
+    pass1c.sh (the form that finished pass 1: WSL-native store, a tile list, resume by file presence;
+      pass1.sh and pass1b.sh are its two earlier forms, identical per tile, superseded - the per-tile body
+      is committed once) -> stage `docs`;
+    pass2_reference.py -> `reference`; pass2.sh -> `score`; pass3_merge.py -> `merge`;
+    run_stage.sh (the launcher: its cases toxml / tag / topbf / readback+check4 / sha are one-line osmium,
+      tagwriter and scenecheck calls) -> the stages `toxml`, `tag`, `topbf`, `check`, `sha`, and its
+      docker run line -> ops/etl-region's docker mode; run_reference.sh is the same launcher for one stage;
+    the extract of 17:26 (osmium tags-filter for the region motorway set; osmium extract -c per config of
+      the tile grid) was typed at the prompt, not scripted -> stages `motorways` and `tiles`;
+    windows.sh + windows_top.py (cut the three windows out of the tagged PBF, rank them with
+      scenecheck.top, write canyon_top25.json / grid_top25.json and the seam re-measure) -> stage `windows`,
+      which writes into the work store and never into tests/fixtures (a re-record is a human's commit).
+  THE TILE PLAN, NOT ITS HISTORY: make_tiles.py, make_splits.py, make_quarters.py and order_tiles.py wrote
+  the osmium configs of three rounds of re-cutting. What shipped is their END STATE: 152 tiles - the 27
+  whole tiles of done.txt, t16b and t25b, and 30 tiles quartered (tilelist.txt's 125 plus done.txt's 27, the
+  PASS1C END 152 docs line). Committed as data: the 152 names, and ONE bbox function of the name
+  (t<row><col>[a|b][q0-3]) using make_tiles/make_splits/make_quarters' own formulas and rounding, checked
+  equal to every bbox in the preserved tiles-r*/tiles-s*/tiles-q*.json before the rebuild uses it.
+  SCRATCH HELPERS THAT BUILT NOTHING SHIPPED - named, left out: handover_top.py, handover_ties.py and
+  handover_run.py (the 8/10 hand-over tables and the tie count, printed into T-0208's Log; handover_run.py
+  only bound a git-archive copy of etl while a mutant ran); ceiling.py (a measurement over the read-back);
+  count_missing.py (a recount of lost stdout); probe_seam.py, seam_raw.py (R1b's measurement); r2_red_green.py
+  (a red/green demo). NOT IN THE ACCEPTANCE'S LIST AND LEFT OUT, recorded rather than hidden: sample.sh,
+  make_tie.py and make_seam_fixture.py recorded COMMITTED FIXTURES (window_readback_sample.osm.xml,
+  grid_tie_top25.json, seam_window_a/b.json), not the artifact.
+  (R2) THE LAYOUT DISAGREES WITH THE BRIEF, TWICE. (a) `services/etl/etl/region/` cannot be a package:
+  etl/region.py exists (the bbox/recorded-counts module; tests/test_region.py and test_dem_tiles.py do
+  `from etl import region`), and a directory of the same name would shadow it. (b) Any new module under
+  services/etl/etl/ is P-PROC-06's (MODULE_ROOTS services/etl/etl, recursive) and needs a population or an
+  allowlist entry - both live in ops/lib/, which T-0246 holds in a sibling worktree this session. These
+  modules compute no score: they run osmium, `python -m etl.waydoc`, `python -m etl.assemble --reference`
+  and `python -m etl.tagwriter`, and move rows by way_id. RULED: the package is services/etl/regionbuild/,
+  a sibling of etl/ (imported as `regionbuild`, run as `python3 -m regionbuild` from services/etl), and
+  `touches:` is amended from services/etl/etl/region/ to services/etl/regionbuild/ in this commit. The one
+  piece of logic with a count in it - first-tile-wins over the scored rows and seam_differ - is bound by
+  the test below and refuses the build (exit 3) when a seam way disagrees, where pass3_merge.py only printed.
+  One role per file, each <= 300 lines: tiles.py (the plan), layout.py (the work-store paths), osm.py (the
+  osmium stages), sweep.py (N tiles at a time, resume by file presence), docs.py, reference.py, scoring.py,
+  merge.py, windows.py, cli.py, __main__.py.
+  (R3) ONE ENTRY POINT, ops/etl-region (100755): `ops/etl-region [--local] <stage> [options]`. Default mode
+  runs the stage INSIDE the ETL image (`docker run --rm scenic-etl:latest python3 -m regionbuild ...`, repo
+  at /repo, work store at /work) - T-0208's stages all ran in the image, and so does this rebuild, through
+  WSL. `--local` runs `python -m regionbuild` on the host, for the test.
+  (R4) THE TEST, tests/test_region_build.py: the two-tile fixture is T-0208's own seam pair,
+  tests/fixtures/seam_window_a.json and seam_window_b.json, unmodified (way documents, pass 1's output, that
+  share three byte-identical ways incl. 1533792498 and 399301293 and differ in population). It runs
+  `bash ops/etl-region --local` through reference -> score -> merge -> tag, and asserts EXACT equality: every
+  shared way's score in both tiles' scored tables, and its one row in the merged table, equal
+  `assemble.assemble(doc, reference)` against the region reference over both documents; the tag stage's
+  tags equal `tagwriter.tags_for_row` of that row. osmium and GDAL are not on the Linux test box, so the
+  motorways/tiles/docs/toxml/topbf stages are proved by the rebuild, not by the test. RED BY NAME when the
+  score stage drops `--reference`.
+  (R5) THE REBUILD. The WORK STORE is WSL-native ext4 (/home/phineas/t0242, mounted at /work): T-0208
+  measured ten tiles over the 9p mount completing NOTHING in nine minutes. Its inputs are copies: the clip
+  from the MAIN checkout's services/etl/work/la/la-filtered.osm.pbf (read, never written) and
+  services/etl/inputs. The OUTPUT is copied to the MAIN checkout's services/etl/work/t0242/ (never under
+  .worktrees/): la-tagged.osm.pbf, la-reference.json and the stage logs. The shipped
+  services/etl/work/la/la-tagged.osm.pbf is read-only. T-0208's intermediate store /home/phineas/t0208 is
+  intact (docs, scored, reference, merged table) and is read only to localise a differing digest.
+  The box is now 12 cores / 15 GB (T-0208 had 16 / 30), so `--jobs 8`.
