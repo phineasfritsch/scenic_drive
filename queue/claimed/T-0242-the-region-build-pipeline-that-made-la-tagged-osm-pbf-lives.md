@@ -144,3 +144,26 @@ is filed as its own task).
   topbf check in one chain, `--jobs 6` (8 on 15 GB for docs is untested memory; T-0208 ran 9 on 30 GB; the
   tiles are independent, so the job count changes no number). The inputs re-check against inputs.sha256
   runs first in the chain.
+- 2026-09-27T04:01:07Z DOCS AND THE REFERENCE LAND, quoted from the store's logs/docs.log and logs/reference.log.
+  DOCS (pass 1, `--jobs 6`, 150 tiles run + the two kept), 141m7s real:
+      `DOCS END 152 docs of 152 tiles, 0 failed `
+      `STAGE docs exit=0 7970s`
+  the largest last: `TILE t54 WAYDOC ways=7830 refused=0 not_a_road=150 ... elapsed=675s`. Summed over the 150
+  TILE lines, `SUM150 ways=573840 refused=0 not_a_road=5982`, plus t04 (2 ways) and t07q0 (554) = 574,396
+  ways - T-0208's `REFERENCE docs=152 ways=574396`.
+  THE DOCS AGAINST T-0208's: every rebuilt document differs from T-0208's store in its BYTES, and in exactly
+  two strings. `work/t0242/docdiff.py` on t04 and t07q0 localised it: `/meta/inputs` new `/work/inputs` old
+  `/w/services/etl/inputs` (or `/fast/inputs`), and `/meta/motorways` new `/work/la-motorways.osm.xml` old
+  `work/la-motorways.osm.xml` (or `/fast/...`) - waydoc records the paths it was given, and T-0208 mounted its
+  store at /w and /fast where ops/etl-region mounts /work. RULED: a path in meta is not a way's value.
+  `work/t0242/cmpdocs.py docs` drops those two meta keys and compares the rest by `==` over all 152:
+      `CMPDOCS docs files=152 byte_equal=0 equal_but_meta_paths=152 differ=0 path_keys_differing=inputs,motorways`
+  REFERENCE (23m31s real; 1333s against T-0208's 458s on 16 cores):
+      `REFERENCE docs=152 ways=574396 unique=540793 curvature=540793 elevation_gain=540793 furniture=540793 relief=540793 sinuosity=519764`
+      `REFERENCE sha256 68863987ca325a42913d2534f1fbcc2d8a2292467125e93606425197ae2aa059  bytes 31385367  1333s`
+  - the digest and size T-0208's Log quotes at 21:59. That digest is region_reference.dump's content digest
+  (the value it returns), not the file's; the FILE was compared too, `compare.sh file la-reference.json`:
+      `CMP la-reference.json equal new=31385367 old=31385367`
+      `SHA new 5cde1a01f6e8f8b9faf90d5c8a49ffd039e7a56c49f1765b4df864861a561aea`
+      `SHA old 5cde1a01f6e8f8b9faf90d5c8a49ffd039e7a56c49f1765b4df864861a561aea`
+  The meta paths do not reach the reference: it is built from the documents' raw values only.
