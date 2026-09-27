@@ -112,3 +112,18 @@ is filed as its own task).
   - T-0208's own no-reference numbers for the fixture (0.6634/0.6683, 0.5693/0.5826). Restored with
   `git checkout -- regionbuild/scoring.py`, purged, python-sleep 1.1 s, GREEN: `6 passed in 77.29s`, and
   `-rs` printed no skip line.
+- 2026-09-27T00:49:30Z THE REBUILD, STAGE BY STAGE AS IT LANDS. Work store /home/phineas/t0242 (WSL ext4),
+  every stage `SCENIC_REGION_WORK=/home/phineas/t0242 bash ops/etl-region <stage>` from the worktree in WSL,
+  i.e. `docker run --rm scenic-etl:latest python3 -m regionbuild --work /work <stage>` (image
+  sha256:00d22593fa72..., `osmium version 1.16.0` / `libosmium version 2.20.0`), log in the store's logs/.
+  INPUTS: the clip copied from the main checkout's services/etl/work/la/la-filtered.osm.pbf, sha256
+  b87d2462dadca7c373c9ac1d969a3e803219f682a97429a6e8b488d916fd087d, 35,962,835 B; services/etl/inputs'
+  four 3dep tifs, worldcover-n33w120.tif, the two byways geojsons and manifest.yaml (california-osm.pbf is
+  not read by these stages). The shipped artifact, re-hashed in the main checkout before anything ran:
+  `648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39`.
+  MOTORWAYS (6 s): `MOTORWAYS ways=19511 nodes=75897 xml_bytes=22086577` - T-0208's 17:26 line was
+  `Number of ways: 19511` / `Number of nodes: 75897`, work/la-motorways.osm.xml 22,086,577 B.
+  TILES, FIRST ATTEMPT: `osmium extract -c /work/configs/tiles-00.json ... died with <Signals.SIGKILL: 9>`
+  after 5m00s - twelve complete_ways extracts in one config on this box's 15 GB (T-0208 ran twelve per
+  config on 30 GB; sixty was OOM there). EXTRACTS_PER_CONFIG 12 -> 4 in tiles.py; the extract of a tile
+  does not depend on which config holds it.

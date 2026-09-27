@@ -22,8 +22,9 @@ GRIDS = {"la": (-119.0, 33.7, -117.85, 34.45, 10, 6)}
 # region -> the (dlon, dlat) LITERALS make_splits.py and make_quarters.py cut halves and quarters with.
 STEPS = {"la": (0.115, 0.125)}
 PLACES = 6
-# osmium holds every extract's buffers under complete_ways: sixty in one config was OOM-killed (T-0208).
-EXTRACTS_PER_CONFIG = 12
+# osmium holds every extract's id sets under complete_ways: sixty in one config was OOM-killed on 30 GB
+# (T-0208), and twelve on this box's 15 GB (T-0242, SIGKILL after 5 min). Four at a time.
+EXTRACTS_PER_CONFIG = 4
 
 LA_WHOLE = ("t04 t05 t11 t14 t20 t21 t22 t23 t30 t31 t32 t33 t40 t41 t42 t45 t46 t47 t48 t49 "
             "t50 t51 t52 t53 t54 t55 t56 t57 t58 t59 t16b t25b").split()
