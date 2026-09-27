@@ -127,3 +127,20 @@ is filed as its own task).
   after 5m00s - twelve complete_ways extracts in one config on this box's 15 GB (T-0208 ran twelve per
   config on 30 GB; sixty was OOM there). EXTRACTS_PER_CONFIG 12 -> 4 in tiles.py; the extract of a tile
   does not depend on which config holds it.
+- 2026-09-27T01:14:06Z THE REBUILD, RESUMED by agent/claude-opus-5 (owner) after a session limit; the store kept
+  every stage output, the stage logs are in its logs/ and are quoted here from there.
+  TILES, SECOND ATTEMPT (EXTRACTS_PER_CONFIG 4), logs/tiles.log in the store, 18m20.8s real:
+      `TILES tiles=152 configs=38 ways=580388 empty=0`
+      `STAGE tiles exit=0 1050s`
+  THE TILES AGAINST T-0208's OWN CUT: every one of the 152 tile PBFs `cmp`-equal to the file of the same name
+  in T-0208's store /home/phineas/t0208/tiles (read only):
+      `TILECMP pbf=152 equal=152 differ=0`
+  so the plan's bboxes, the config split and osmium 1.16.0 reproduce pass 1's input byte for byte.
+  DOCS, FIRST ATTEMPT: two tiles landed before the previous session was stopped by its limit (~18:00 local):
+      `TILE t04 WAYDOC ways=2 refused=0 not_a_road=2 byways=865 byways_no_route_key=793 elapsed=27s`
+      `TILE t07q0 WAYDOC ways=554 refused=0 not_a_road=8 byways=865 byways_no_route_key=793 elapsed=51s`
+  the two documents are kept (resume by file presence); eight XMLs of the killed workers were left in tiles/ and
+  are rewritten by `osmium cat --overwrite`. RESUMED 2026-09-27T01:13Z: docs reference score merge toxml tag
+  topbf check in one chain, `--jobs 6` (8 on 15 GB for docs is untested memory; T-0208 ran 9 on 30 GB; the
+  tiles are independent, so the job count changes no number). The inputs re-check against inputs.sha256
+  runs first in the chain.
