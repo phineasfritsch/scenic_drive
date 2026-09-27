@@ -94,3 +94,21 @@ is filed as its own task).
   services/etl/work/la/la-tagged.osm.pbf is read-only. T-0208's intermediate store /home/phineas/t0208 is
   intact (docs, scored, reference, merged table) and is read only to localise a differing digest.
   The box is now 12 cores / 15 GB (T-0208 had 16 / 30), so `--jobs 8`.
+- 2026-09-27T00:26:24Z THE PLAN, THE PACKAGE AND THE TEST, measured. Commit a6807e4: services/etl/regionbuild/
+  (__init__ 7, __main__ 7, cli 94, docs 40, layout 92, merge 85, osm 76, reference 75, scoring 44, sweep 63,
+  tiles 103, windows 118 lines) and ops/etl-region (30 lines, 100755 in the index).
+  THE TILE PLAN against T-0208's preserved configs (`python work/t0242/verify_plan.py`, main checkout):
+      `PLAN tiles=152 done=27 tilelist=125 union=152 plan_equals_union=True`
+      `BBOX plan tiles compared=152 equal=152 differ=0 unrecorded=0`
+  every bbox of the committed plan equals the one in tiles-r*/tiles-s*/tiles-q*.json that osmium cut.
+  THE TEST, tests/test_region_build.py (187 lines), `python -m pytest tests/test_region_build.py -o addopts=`
+  with every __pycache__ purged: `6 passed in 50.51s`.
+  RED BY NAME: the mutant `scoring.py` calling `etl.assemble --input <doc> --out <out>` with `--reference
+  <reference>` dropped (the entry point skipping the region reference), __pycache__ purged, 1.1 s python-sleep:
+      `FAILED tests/test_region_build.py::test_the_entry_point_scores_every_shared_way_once_against_the_region_reference`
+      `AssertionError: ops/etl-region gave a way in two tiles two scores: {399301293: (0.5692721901434575,
+       0.5825606046676137), 1533792498: (0.6634176673434955, 0.6682691386682246)}`
+      `3 failed, 3 passed` (the merge and tag tests fail after it: merge exits 3 on the disagreement)
+  - T-0208's own no-reference numbers for the fixture (0.6634/0.6683, 0.5693/0.5826). Restored with
+  `git checkout -- regionbuild/scoring.py`, purged, python-sleep 1.1 s, GREEN: `6 passed in 77.29s`, and
+  `-rs` printed no skip line.
