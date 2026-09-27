@@ -32,7 +32,8 @@ SUBJECTS = (MENU, ROW, ARGS, CMD, READER)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "Menu" / "RouteMenuTests.swift",
-              ROOT / "Tests" / "ScenicPlanCLITests" / "MenuCLITests.swift")
+              ROOT / "Tests" / "ScenicPlanCLITests" / "MenuCLITests.swift",
+              ROOT / "Tests" / "ScenicPlanCLITests" / "WholeMenuCLITests.swift")
 
 FRONTIER = "if route.funMeters >= best + Self.funStepMeters {"
 STEP = "public static let funStepMeters = 2_000.0"
@@ -74,6 +75,9 @@ ORDER = "waypoints: waypoints).url()"
 IN_ORDER = "every row's URL runs from the trip's origin to its destination, its waypoints in route order"
 EXACT_URL = ("every row prints exactly AppleMapsDirections over its own decision points, and waypoints= "
              "counts its pins")
+NUMBERED = "lines.append(row.line(index))"
+WHOLE = ("ops/plan --menu prints exactly its recomputation from the recorded rows under no flag and --max 20, "
+         "15, 10, and ROW n is followed by URL n")
 
 MUTATIONS = [
     # 1. The rule inverted - the red-first arm of acceptance 2: T1 [0.0, 7.1], T4 [0.0, 9.1, 10.5].
@@ -152,6 +156,13 @@ MUTATIONS = [
     # test before rv3 passed on it.
     ("the row URL's last waypoint dropped", CMD, ORDER, "waypoints: Array(waypoints.dropLast())).url()",
      [EXACT_URL]),
+    # 31-32. rv4-t0239 (T-0245): every menu test before T-0245 passed on each. X2 hands every row off on row 0's
+    # pins only under a --max below the cap, which no URL test ran; X1 numbers the ROW lines from 1, and no
+    # test read a ROW line's number.
+    ("rv4 X2: the URLs built from row 0's route when --max is below the cap", CMD, PINS,
+     "PlanWaypoints.decisionPoints(table: (arguments.maxMinutes < RouteMenu.capMinutes ? menu.rows[0] : row)"
+     ".table, path: (arguments.maxMinutes < RouteMenu.capMinutes ? menu.rows[0] : row).path)", [WHOLE]),
+    ("rv4 X1: the ROW lines numbered index + 1", CMD, NUMBERED, "lines.append(row.line(index + 1))", [WHOLE]),
 ]
 
 # `(name, path, old, new, witness)`: anything but MISSED fails the run.
@@ -172,6 +183,6 @@ EQUIVALENT = [
 ]
 
 # Literal floors: the real counts. Adding a mutation means editing this number in the same diff.
-MIN_MUTATIONS = 30
+MIN_MUTATIONS = 32
 MIN_EQUIVALENT = 2
-MIN_TEST_FILES = 2
+MIN_TEST_FILES = 3
