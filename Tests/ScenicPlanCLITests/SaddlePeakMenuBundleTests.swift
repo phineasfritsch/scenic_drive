@@ -151,6 +151,20 @@ struct SaddlePeakMenuBundleTests {
         #expect(try HandoffDrive.saddlePeak.url(row: nil) == (try HandoffDrive.saddlePeak.url()))
     }
 
+    @Test("the paste for each selected row is that row's printed URL, then its roads, the line and the timing")
+    func clipboardPayloadForEachSelectedRowIsTheCLIURL() throws {
+        let menu = try Self.menu()
+        let printed = try Self.printed().filter { $0.hasPrefix("URL ") }.map { String($0.split(separator: " ").last!) }
+        #expect(printed.count == menu.rows.count)
+        let (straightLine, timing) = ("the straight line", HandoffDrive.saddlePeak.timingSentence)
+        for (index, url) in printed.enumerated() {
+            let roads = menu.rows[index].roadList
+            let pasted = HandoffDrive.saddlePeak.clipboardPayload(row: menu.row(selected: index), roadList: roads,
+                                                                   straightLine: straightLine, timing: timing)
+            #expect(pasted == [url, roads, straightLine, timing].joined(separator: "\n"), "row \(index)")
+        }
+    }
+
     @Test("the selected row draws alone with the menu's box; the others are the muted lines")
     func selectedAndMutedGeoJSON() throws {
         let menu = try Self.menu()

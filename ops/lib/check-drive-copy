@@ -4,18 +4,11 @@
 # has NO TEST BUNDLE (apps/ios/Packages/ScenicApp/Package.swift says so in its own words) and there is no
 # Apple toolchain on the authoring box, so nothing else in this repository can read a line of it.
 #
-# WHY IT EXISTS. The pre-review mutant pass on PR #121 (.artifacts/signoffs/copy-four-mutant-pass.md) ran
-# four one-token mutations of the shipping views and every gate stayed green - `linux-core`, `ios-compile`
-# and `check-safety-disclaimer` all exit 0 while the app ships the WRONG DRIVE:
-#
-#   M1a  HandoffFailureCard.clipboardText  drive.clipboardPayload( -> HandoffDrive.skyline.clipboardPayload(
-#        The LA card copies the Bay Area link, above the LA roads and the LA miles. The Linux suite calls
-#        clipboardPayload on a drive the TEST chooses, so it cannot see which drive the CARD passes.
-#   M1c  SkylineHandoff.directions(for:)   drive.directions -> HandoffDrive.skyline.directions
-#        The button opens Skyline while the card copies LA - T-0202's defect, in the other direction.
-#   M3a/M3b were closed by moving the words into `Sources/Handoff` (HandoffDrive.timingSentence /
-#        .failureTimingSentence, bound by Tests/HandoffTests/HandoffDriveTimingSentenceTests.swift). Rows
-#        4 and 5 below are what stops them walking back into this target as a fresh literal.
+# WHY IT EXISTS. The pre-review mutant pass on PR #121 (.artifacts/signoffs/copy-four-mutant-pass.md) ran four
+# one-token mutations of the shipping views and every gate stayed green while the app shipped the WRONG DRIVE:
+# M1a (the card pastes HandoffDrive.skyline.clipboardPayload() and M1c (the handoff opens .skyline.directions)
+# are refused by (i) and (ii) below, each with its why. M3a/M3b were closed by moving the words into
+# `Sources/Handoff` (HandoffDriveTimingSentenceTests); (iv) stops them walking back as a fresh literal.
 #
 # WHAT IT DECIDES, and it refuses to pretend it decides more:
 #
@@ -48,7 +41,7 @@
 #
 #   bash ops/lib/check-drive-copy                 # the tracked tree
 #   bash ops/lib/check-drive-copy --sources DIR --app-tree DIR   # a throwaway copy
-#   bash ops/lib/check-drive-copy --prove-red     # seven mutations, each refused by name
+#   bash ops/lib/check-drive-copy --prove-red     # every row below refused by name, and an emptied tree
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -122,6 +115,10 @@ require_tracked() {
     "whatever the spelling." \
     "${why[@]}"
 }
+require_line() {  # WHOLE LINE, fail closed: needle, the one "path:line" allowed, why, then the files (T-0246)
+  local needle="$1" expected="$2" why="$3" f got; shift 3
+  got="$(for f in "$@"; do code_of "$f" | awk -v f="$f" -v n="$needle" 'index($0, n) { print f ":" $0 }'; done)"
+  [[ "$got" == "$expected" ]] || fail "a line carrying $needle is not the whitelisted whole line; found: ${got:-none}" "Whitelist, whole line: $expected" "$why"; }
 
 run_check() {
   local sources="$1" require_tracked="$2" app_tree="$3"
@@ -208,11 +205,13 @@ run_check() {
     "bound to ops/plan --menu by SaddlePeakMenuBundleTests; nil opens T-0236's URL under another chip (M5a)." -- "${app_files[@]}"
   require_tracked "row: selectedRow," "selected menu row" "$screen(2)" "The button and the failure card are each" \
     "handed the SELECTED row; a fixed one opens or pastes a row the chips do not show (M5b)." -- "${app_files[@]}"
+  require_line "row(selected:" "$screen:        menu?.row(selected: menuRow)" \
+    "selectedRow reads the CHIP; row(selected: nil) opens the default under every chip (rv1-t0246 MC)." "${app_files[@]}"
   echo "drive-copy: over the $an .swift file(s) under $app_tree -"
   echo "  clipboardPayload( at $card(1), every occurrence spelled drive.clipboardPayload(;"
   echo "  .directions at $handoff(1), every occurrence spelled drive.directions;"
   echo "  the drive cases .saddlePeak, .skyline and .santaMonicaMountains each at $cases and nowhere else;"
-  echo "  .timingSentence at $facts(1) $card(1), .failureTimingSentence at $card(1); drive.url(row: row) at $handoff(1), row: selectedRow, at $screen(2)."
+  echo "  .timingSentence at $facts(1) $card(1), .failureTimingSentence at $card(1); drive.url(row: row) at $handoff(1), row: selectedRow, at $screen(2), and row(selected: on one whole line, menu?.row(selected: menuRow) at $screen."
   echo "  Not checked here: rendering, what the sentences say (Tests/HandoffTests), taps, Dynamic Type."
 }
 
@@ -229,6 +228,7 @@ rows=(
   "the home screen stops rendering the shipping sentence|FS/DriveFacts.swift|s/Text(drive\.timingSentence)/Text(localNote)/|timingSentence occurs outside its tracked set"
   "M5a the handoff drops the selected menu row|FS/SkylineHandoff.swift|s/drive\.url(row: row)/drive.url(row: nil)/|drive.url(row: row) occurs outside its tracked set"
   "M5b the button is handed a fixed menu row|FS/ScenicHomeScreen.swift|0,/row: selectedRow,/s//row: menu?.rows.first,/|row: selectedRow, occurs outside its tracked set"
+  "MC selectedRow reads no chip|FS/ScenicHomeScreen.swift|s/menu?\.row(selected: menuRow)/menu?.row(selected: nil)/|row(selected: is not the whitelisted whole line"
 )
 
 prove_red() {

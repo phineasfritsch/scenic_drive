@@ -78,11 +78,15 @@ ERR = SRC_DIR / "HandoffError.swift"
 # and prints its good-road km in integer tenths; DriveMenu picks the selected row and draws the others muted.
 MENU = SRC_DIR / "DriveMenu.swift"
 MENU_ROW = SRC_DIR / "DriveMenuRow.swift"
-SUBJECTS = [SRC, ERR, MENU, MENU_ROW]
+# T-0246 round 1 (rv1-t0246 B1): the paste for a selected chip. A SUBJECT because `restore` puts back only
+# subjects - a mutant in any other file would stay in the tree after the run.
+DRIVE = SRC_DIR / "HandoffDrive.swift"
+SUBJECTS = [SRC, ERR, MENU, MENU_ROW, DRIVE]
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
 SUBJECT_MODULES = ("Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift",
-                   "Sources/Handoff/DriveMenu.swift", "Sources/Handoff/DriveMenuRow.swift")
+                   "Sources/Handoff/DriveMenu.swift", "Sources/Handoff/DriveMenuRow.swift",
+                   "Sources/Handoff/HandoffDrive.swift")
 
 TEST_DIR = ROOT / "Tests" / "HandoffTests"
 # GLOBBED, not listed. The hardcoded list was three files; the suite has since split to six, and a reviewer
@@ -96,7 +100,7 @@ TESTS = sorted(TEST_DIR.glob("*.swift"))
 SCRATCH = ".build/mutate-handoff"
 
 # Floors. Each one is the population below which this harness is not measuring the module it names.
-MIN_MUTATIONS = 36
+MIN_MUTATIONS = 46
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 3
 
@@ -334,6 +338,11 @@ MUTATIONS = [
     ("the muted lines are the selected row instead of the others",
      [(MENU, "        return collection(of: rows.indices.filter { $0 != chosen }.map { rows[$0] })",
        "        return collection(of: rows.indices.filter { $0 == chosen }.map { rows[$0] })")]),
+
+    # rv1-t0246 B1: killed by SaddlePeakMenuBundleTests.clipboardPayloadForEachSelectedRowIsTheCLIURL.
+    ("MA the paste for a selected chip carries the drive's own URL, not the row's",
+     [(DRIVE, "        Self.payload(mapsURL: try? url(row: row),",
+       "        Self.payload(mapsURL: try? url(),")]),
 ]
 
 # Mutations that provably CANNOT change behaviour, and must therefore be MISSED.
