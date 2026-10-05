@@ -71,3 +71,20 @@ task is the root-package half: the header and the provider protocol.
   testOneClientSendsTheSameIDFromEveryOrigin; M2 send a fixed literal id -> exit 1 KILLED by
   testSendsTheInjectedProvidersIDLowercasedAsTheWholeHeaderSet; M3 move the nil guard after body validation ->
   exit 1 KILLED by testNoInstallIDIsRefusedBeforeTheOriginIsJudged. 0 survivors.
+- 2026-10-05T17:22:40Z FINAL PRE-REVIEW by agent/claude-opus-5 (owner): `git fetch origin` + merge origin/main (80b5f4e, T-0261 PR #149)
+  -> merged head 0e4fda0. R5 (ruled after the merge, amending R4): T-0261 added pins/PINS.yaml rows P-PRIV-05 and
+  P-COST-01; both are `anchor: api` rows binding Worker vitest tests BY NAME through ops/lib/run-named-tests.py
+  (planPrivacy/loopShape; quota-before-upstream). This task touches no Worker code and neither row names a Swift test,
+  so both rows hold unchanged; binding PlanClientDeviceTests by name to P-PRIV-05 needs a Swift tier in
+  run-named-tests.py and is left open, not done here. ACCEPTANCE on the merged head:
+  (1) whole-header-set equality - `swift test --scratch-path .build/t0260 --filter ScenicAPIClient` -> exit 0,
+  "Executed 43 tests, with 0 failures (0 unexpected)": PlanClientDeviceTests.testSendsTheInjectedProvidersIDLowercasedAsTheWholeHeaderSet,
+  .testOneClientSendsTheSameIDFromEveryOrigin, PlanClientRequestTests.testSendsExactlyTheBodyT0248Ruled,
+  .testDepartsAtIsSentAsAUTCInstantInWholeSeconds and URLSessionPlanTransportTests.testURLSessionCarriesTheWholeRequestAndReturnsTheWholeReply
+  compare the whole PlanHTTPRequest, headers exactly {content-type, x-scenic-device}.
+  (2) no provider -> typed refusal, zero requests - testRefusesAPlanWithNoInstallIDProviderAndSendsNothing and
+  testNoInstallIDIsRefusedBeforeTheOriginIsJudged pass (RED by name above).
+  Gates: `python ops/lib/check-mutate-population.py` -> "P-PROC-06: every added module is covered or allowlisted;
+  the floor of 55 holds", exit 0; `bash ops/queue-check` -> "QUEUE OK (253 tasks)", exit 0. wc -l: Sources/ScenicAPIClient/PlanClient.swift 58; Sources/ScenicAPIClient/InstallIDProvider.swift 12; Sources/ScenicAPIClient/PlanRefusal.swift 15; Tests/ScenicAPIClientTests/PlanClientDeviceTests.swift 55; Tests/ScenicAPIClientTests/FixedInstallID.swift 13; Tests/ScenicAPIClientTests/PlanWire.swift 60; Tests/ScenicAPIClientTests/PlanClientRequestTests.swift 126; Tests/ScenicAPIClientTests/URLSessionPlanTransportTests.swift 27; 
+  all under the 300 cap; `ops/lib/check-line-cap` (whole-tree walk) had not finished on this contended box at
+  this entry - CI is its run of record.
