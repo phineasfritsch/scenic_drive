@@ -104,6 +104,9 @@
       "test/isochroneCost.test.ts": [
         "ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > KILL=1 is 503 before the body is read: zero router requests and no reservation",
         "ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > the surprise allowance and one monthly call are reserved before the one router request"
+      ],
+      "test/killSwitchRoutes.test.ts": [
+        "ROUTES kill switch over every upstream route (P-COST-01) > every upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests, quota state empty"
       ]
     }
   },

@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-06T05:38:34Z
 worktree: .worktrees/T-0264
 branch: task/T-0264
 exclusive: []
-touches: [ops/lib/named-tests.json, pins/PINS.yaml]
+touches: [ops/lib/named-tests.json, pins/PINS.yaml, services/api/test/killSwitchRoutes.test.ts]
 pins_affected: [P-COST-01, P-COST-04, P-PRIV-05]
 reviewer: null
 depends_on: [T-0261, T-0262]
@@ -129,3 +129,28 @@ table'; T-0261 bound /plan and /loop; /isochrone shipped after it and is unbound
   `"/loop": ...` carries bare double quotes inside its double-quoted scalar); this task did not introduce it, its
   appended sentences carry no double quote or backslash, and CI's ops/check-pins is the run of record. Ready for
   review by an agent other than agent/claude-opus-5.
+- 2026-10-05T20:07:51Z rv1-t0264 FAIL (PR #153, head d16e381) closed by agent/claude-opus-5.
+  RULINGS: B1 (P-COST-01 fail-open) is a CLASS - every shipped-route KILL test read only env.KILL, and the KV loop
+  in productionDeps.test.ts covered only /plan and /loop - so the fix is ONE test over every upstream key of ROUTES,
+  not a third KV case. It lives in a NEW file, services/api/test/killSwitchRoutes.test.ts (80 lines), not in
+  productionDeps.test.ts (255 lines, near the 300 cap); touches widened by this entry to add that file. The upstream
+  list is DERIVED from ROUTES (every key outside the whitelist /__health, /__version, /__ro) and asserted equal to
+  the literal ["/plan", "/loop", "/isochrone"]; a new key defaults to upstream, so it is killed by the loop or it
+  fails the equality. Each route goes through the shipped ROUTES entry with deps from env and its valid body, killed
+  by env KILL=1 and separately by KV KILL_SWITCH KILL=1; after every call router requests == [] and quota state == {}
+  (cumulative, full equality), and the six answers equal [source, path, {status: 503, json: {error:
+  "planning_paused"}}] by full equality. A recording global fetch logs every URL before answering, so a router
+  request of any shape is counted. Bound by name under P-COST-01 in ops/lib/named-tests.json; P-COST-01 prose
+  gets one APPENDED dated sentence (21 -> 22, the NOT ASSERTED 'nothing iterates ROUTES' clause retired).
+  B2: origin/main (a41eded, incl. PR #151's Sources/ScenicAPIClient changes) merged as 8ed8d2e;
+  `git merge-base --is-ancestor origin/main HEAD` -> ANCESTOR_OK.
+  RED, then green (named runner, P-COST-01):
+    M-rv1 src/isochrone.ts `if (await killSwitch(env))` -> `if (await killSwitch({ KILL: env.KILL }))`:
+      RED test/killSwitchRoutes.test.ts :: ROUTES kill switch over every upstream route (P-COST-01) > every
+      upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests,
+      quota state empty: FAILED   NAMED P-COST-01 passed=21/22 exit=1   (reviewer: 21/21 exit 0 without it)
+    M-4th src/index.ts adds `"/surprise": (req, env) => handleIsochrone(req, { KILL: env.KILL },
+      isochroneDepsFromEnv(env)),`: the same test FAILED by name, NAMED P-COST-01 passed=21/22 exit=1
+    restored (git checkout of each src file): NAMED P-COST-01 passed=22/22 exit=0
+  On the merged head 8ed8d2e plus this change: NAMED P-COST-01 passed=22/22 exit=0; npx vitest run exit=0,
+  `Test Files  25 passed (25)` `Tests  304 passed (304)` (303 + the one new test).
