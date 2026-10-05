@@ -7,7 +7,9 @@ fixture's degrees x 1e7. Tests/PlaceStoreTests/PlaceStoreSearchTests types the s
 from __future__ import annotations
 
 import json
+import math
 import pathlib
+import re
 import sqlite3
 
 import pytest
@@ -119,20 +121,81 @@ def test_an_extract_without_places_writes_none(tmp_path):
     assert counts == [0, 0, 0]
 
 
-@pytest.mark.parametrize("bad, message", [
-    ({"osm_type": "x"}, "osm_type"),
-    ({"osm_id": 0}, "osm_id"),
-    ({"name": 7}, "name"),
-    ({"cls": ""}, "cls"),
-    ({"lat": 91.0}, "range"),
-])
-def test_load_places_refuses_a_malformed_place(tmp_path, bad, message):
-    place = {"osm_type": "n", "osm_id": 1, "cls": "cafe", "name": "x", "lat": 34.0, "lon": -118.0}
-    place.update(bad)
+# One malformed place, one field at a time. Each numeric bound is probed just outside on BOTH sides (the next
+# representable double, which geom.to_e7 rounds back INTO the places CHECK range, so only _row can refuse it,
+# and a value one e7 step out), each field with every JSON kind it must not accept. MISSING drops the key.
+# The refusal is _row's own, naming the extract: segid.place_id's later osm_type refusal does not name it.
+MISSING = object()
+BASE_PLACE = {"osm_type": "n", "osm_id": 1, "cls": "cafe", "name": "x", "lat": 34.0, "lon": -118.0}
+BASE_ROW = (5173841154655956702, "n", 1, "cafe", "x", -1180000000, 340000000)
+OSM_ID_MAX = 2**63 - 1
+
+
+def _out(bound, direction):
+    return math.nextafter(bound, direction * math.inf)
+
+
+def _refused(field, value, message, case):
+    return pytest.param({field: value}, message, id=f"{field}-{case}")
+
+
+REFUSED = [
+    pytest.param(None, "object", id="place-null"),
+    pytest.param([], "object", id="place-array"),
+    pytest.param("cafe", "object", id="place-string"),
+    *[_refused("osm_type", v, "osm_type", c) for v, c in [
+        ("x", "x"), ("N", "upper"), ("", "empty"), ("node", "word"), (None, "null"), (1, "int"), (MISSING, "missing")]],
+    *[_refused("osm_id", v, "osm_id", c) for v, c in [
+        (0, "zero"), (-1, "negative"), (OSM_ID_MAX + 1, "above-int64"), (True, "bool"), (1.0, "float"),
+        ("1", "str"), (None, "null"), (MISSING, "missing")]],
+    *[_refused("cls", v, "cls", c) for v, c in [
+        ("", "empty"), (None, "null"), (7, "int"), (True, "bool"), (["cafe"], "array"), (MISSING, "missing")]],
+    *[_refused("name", v, "name", c) for v, c in [(7, "int"), (1.5, "float"), (True, "bool"), (["x"], "array")]],
+    *[_refused(axis, v, "range", c) for axis, bound in (("lat", 90.0), ("lon", 180.0)) for v, c in [
+        (_out(-bound, -1), "below-by-one-double"), (-bound - 1e-6, "below-by-1e-6"),
+        (_out(bound, 1), "above-by-one-double"), (bound + 1e-6, "above-by-1e-6"),
+        (10**400, "huge-int"), (math.nan, "nan"), (math.inf, "inf"), (-math.inf, "minus-inf")]],
+    *[_refused(axis, v, f"{axis} must be a number", c) for axis in ("lat", "lon") for v, c in [
+        (None, "null"), ("34.0", "str"), (True, "true"), (False, "false"), ([34.0], "array"), (MISSING, "missing")]],
+]
+
+
+def _write(tmp_path, places):
     path = tmp_path / "extract.json"
-    path.write_text(json.dumps({"region": "r", "ways": [], "places": [place]}), encoding="utf-8")
-    with pytest.raises(ValueError, match=message):
+    path.write_text(json.dumps({"region": "r", "ways": [], "places": places}), encoding="utf-8")
+    return path
+
+
+def _place(bad):
+    if not isinstance(bad, dict):
+        return bad
+    place = dict(BASE_PLACE, **bad)
+    return {k: v for k, v in place.items() if v is not MISSING}
+
+
+@pytest.mark.parametrize("bad, message", REFUSED)
+def test_load_places_refuses_a_malformed_place(tmp_path, bad, message):
+    path = _write(tmp_path, [_place(bad)])
+    with pytest.raises(ValueError, match=f"^{re.escape(str(path))}: .*{message}"):
         load_places(path)
+
+
+@pytest.mark.parametrize("good, row", [
+    pytest.param({}, BASE_ROW, id="base"),
+    pytest.param({"lat": -90.0}, BASE_ROW[:6] + (-900000000,), id="lat-exactly-minus-90"),
+    pytest.param({"lat": 90.0}, BASE_ROW[:6] + (900000000,), id="lat-exactly-90"),
+    pytest.param({"lon": -180.0}, BASE_ROW[:5] + (-1800000000, 340000000), id="lon-exactly-minus-180"),
+    pytest.param({"lon": 180.0}, BASE_ROW[:5] + (1800000000, 340000000), id="lon-exactly-180"),
+    pytest.param({"lat": 34, "lon": -118}, BASE_ROW, id="integer-degrees"),
+    pytest.param({"osm_type": "w"}, (5743642779482680521, "w") + BASE_ROW[2:], id="osm_type-w"),
+    pytest.param({"osm_type": "r"}, (3515391016931964866, "r") + BASE_ROW[2:], id="osm_type-r"),
+    pytest.param({"osm_id": OSM_ID_MAX}, (3900070058368652169, "n", OSM_ID_MAX) + BASE_ROW[3:], id="osm_id-int64-max"),
+    pytest.param({"cls": "c"}, BASE_ROW[:3] + ("c",) + BASE_ROW[4:], id="cls-one-char"),
+    pytest.param({"name": None}, BASE_ROW[:4] + (None,) + BASE_ROW[5:], id="name-null"),
+    pytest.param({"name": MISSING}, BASE_ROW[:4] + (None,) + BASE_ROW[5:], id="name-missing"),
+])
+def test_load_places_accepts_a_place_at_every_bound(tmp_path, good, row):
+    assert load_places(_write(tmp_path, [_place(good)])) == [row]
 
 
 def test_load_places_refuses_a_duplicate(tmp_path):

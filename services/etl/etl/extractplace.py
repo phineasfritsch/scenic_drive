@@ -14,6 +14,9 @@ import json
 from . import geom
 from .segid import place_id
 
+# places.osm_id is a SQLite INTEGER, a signed 64-bit value; a larger id cannot be stored.
+OSM_ID_MAX = 2**63 - 1
+
 
 def load_places(path) -> list:
     """(place_id, osm_type, osm_id, cls, name, lon_e7, lat_e7) rows, sorted by place_id. Refuses rather than
@@ -40,7 +43,7 @@ def _row(raw, path: str) -> tuple:
     if osm_type not in ("n", "w", "r"):
         raise ValueError(f"{path}: osm_type must be n, w or r, got {osm_type!r}")
     osm_id = raw.get("osm_id")
-    if not isinstance(osm_id, int) or isinstance(osm_id, bool) or osm_id <= 0:
+    if not isinstance(osm_id, int) or isinstance(osm_id, bool) or not 0 < osm_id <= OSM_ID_MAX:
         raise ValueError(f"{path}: osm_id must be a positive integer, got {osm_id!r}")
     cls = raw.get("cls")
     if not isinstance(cls, str) or not cls:
@@ -48,7 +51,16 @@ def _row(raw, path: str) -> tuple:
     name = raw.get("name")
     if name is not None and not isinstance(name, str):
         raise ValueError(f"{path}: place {osm_type}/{osm_id}: name must be a string or null, got {name!r}")
-    lat, lon = float(raw["lat"]), float(raw["lon"])
+    lat, lon = _degrees(raw, "lat", path), _degrees(raw, "lon", path)
     if not -90.0 <= lat <= 90.0 or not -180.0 <= lon <= 180.0:
         raise ValueError(f"{path}: place {osm_type}/{osm_id}: out of range: lat {lat}, lon {lon}")
     return (place_id(osm_type, osm_id), osm_type, osm_id, cls, name, geom.to_e7(lon), geom.to_e7(lat))
+
+
+def _degrees(raw: dict, key: str, path: str):
+    """The JSON number itself, unconverted: float() of a huge JSON integer raises OverflowError, while the
+    range comparison in _row orders an int against a float exactly."""
+    value = raw.get(key)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ValueError(f"{path}: {key} must be a number, got {value!r}")
+    return value
