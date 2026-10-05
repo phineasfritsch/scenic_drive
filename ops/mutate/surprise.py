@@ -12,11 +12,11 @@ the rows it touched, never the whole table (owner ruling). The floor still check
 The population is ops/mutate/surprise_mutations.py and the runner ops/mutate/surprise_run.py; this file is the
 CLI, the floors and the proof arms - menu.py's three-file shape, under CLAUDE.md's 300-line cap.
 
-The nine subjects and the harness's own three files are compared with `git show HEAD:` before the first
-build, and the subjects again afterwards: a mutation report is a claim about a COMMIT. The three test files are
+The twelve subjects and the harness's own three files are compared with `git show HEAD:` before the first
+build, and the subjects again afterwards: a mutation report is a claim about a COMMIT. The five test files are
 not guarded, so a red-then-green demonstration can run against a suite with a test removed.
 
-`--prove-vacuity` replaces the three test files with empty suites and requires EVERY mutation to report MISSED -
+`--prove-vacuity` replaces the five test files with empty suites and requires EVERY mutation to report MISSED -
 not merely "not caught", which a harness broken in the compile-only direction satisfies. `--prove-floor`
 shows the floor refusing on seven arms and staying quiet on the real population; it builds nothing.
 """
@@ -38,7 +38,10 @@ SUBJECT_MODULES = ("Sources/ScenicKit/Surprise/Surprise.swift", "Sources/ScenicK
                    "Sources/ScenicKit/Surprise/SurpriseCategory.swift", "Sources/ScenicKit/Surprise/SurpriseReach.swift",
                    "Sources/ScenicKit/Surprise/SurpriseHistory.swift",
                    "Sources/ScenicKit/Surprise/SurpriseFeedback.swift", "Sources/ScenicKit/Surprise/SurpriseContext.swift",
-                   "Sources/ScenicKit/Surprise/SurpriseReason.swift", "Sources/ScenicKit/Surprise/SurprisePick.swift")
+                   "Sources/ScenicKit/Surprise/SurpriseReason.swift", "Sources/ScenicKit/Surprise/SurprisePick.swift",
+                   "Sources/ScenicKit/Surprise/SurpriseIsochrone.swift",
+                   "Sources/ScenicKit/Surprise/SurpriseIsochroneBucket.swift",
+                   "Sources/ScenicKit/Surprise/SurpriseIsochronePolygon.swift")
 
 from surprise_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)
@@ -144,7 +147,7 @@ def main(argv) -> int:
     eq = None
     try:
         if prove:
-            sys.stdout.write("PROVING NON-VACUITY: the three test files replaced by empty suites; every mutation "
+            sys.stdout.write("PROVING NON-VACUITY: the five test files replaced by empty suites; every mutation "
                              "must report MISSED.\n")
             for t in TESTS:
                 t.write_text(empty_suite(t), encoding="utf-8", newline="\n")
