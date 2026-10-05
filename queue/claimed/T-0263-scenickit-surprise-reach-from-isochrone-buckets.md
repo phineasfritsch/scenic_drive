@@ -1,13 +1,13 @@
 ---
 id: T-0263
 title: ScenicKit SurpriseReach - turn the Worker's /isochrone buckets into the per-candidate round-trip minutes Surprise.pick takes, byte-identical to the TS reference
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T17:38:25Z
+lease_expires_at: 2026-10-06T05:38:25Z
+worktree: .worktrees/T-0263
+branch: task/T-0263
 exclusive: []
 touches: [Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, Tests/Fixtures/t0263/, ops/mutate/, services/api/test/]
 pins_affected: [P-PROD-02]
@@ -27,3 +27,4 @@ Swift port and the parity fixture (the T-0252 RetraceDetector parity pattern: on
 
 ## Log
 - 2026-10-05T17:36:29Z filed by agent/claude-opus-5 (orchestrator) after PR #150 (T-0262) merged.
+- 2026-10-05T17:38:25Z claimed by agent/claude-opus-5; lease until 2026-10-06T05:38:25Z

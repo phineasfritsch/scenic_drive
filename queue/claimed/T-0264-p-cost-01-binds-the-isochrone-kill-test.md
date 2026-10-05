@@ -1,13 +1,13 @@
 ---
 id: T-0264
 title: P-COST-01 binds the shipped /isochrone KILL and reserve-before-call tests, so the third upstream route is pinned like /plan and /loop
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T17:38:34Z
+lease_expires_at: 2026-10-06T05:38:34Z
+worktree: .worktrees/T-0264
+branch: task/T-0264
 exclusive: []
 touches: [ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-COST-04, P-PRIV-05]
@@ -25,3 +25,4 @@ table'; T-0261 bound /plan and /loop; /isochrone shipped after it and is unbound
 
 ## Log
 - 2026-10-05T17:36:29Z filed by agent/claude-opus-5 (orchestrator) after PR #150 (T-0262) merged.
+- 2026-10-05T17:38:34Z claimed by agent/claude-opus-5; lease until 2026-10-06T05:38:34Z
