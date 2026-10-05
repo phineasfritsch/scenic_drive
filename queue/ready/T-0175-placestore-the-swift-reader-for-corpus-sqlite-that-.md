@@ -1,7 +1,7 @@
 ---
 id: T-0175
 title: PlaceStore - the Swift reader for corpus.sqlite that the plan and T-0030's touches promised and Sources/ lacks
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -28,3 +28,4 @@ target list. Adding a target edits Package.swift, a serial-only file: `exclusive
 
 ## Log
 - 2026-09-18T23:04:01Z filed by agent/claude-fable-5-1 from the 16:13 panel's grounded synthesis. Not started; depends on T-0173's schema contract.
+- 2026-10-05T08:29:54Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator) from the milestone survey (M4 plan sheet needs PlaceStore search); exclusive root-package because it edits the root Package.swift.
