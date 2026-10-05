@@ -7,8 +7,16 @@ import UIKit
 /// accessibility element of its own, so neither `isHittable` nor a frame comparison can see it; what it leaves is a
 /// field of one colour where the text was. Text on its ground leaves glyph and anti-aliasing pixels. The edge
 /// `inset` is skipped so that a cover whose bounds land on a fractional pixel cannot pass on its blended border.
+///
+/// A pixel counts as ink only when some channel differs from the dominant colour by MORE than `tolerance` levels:
+/// the screenshot is converted to 8-bit sRGB and a flat field comes back with conversion noise of a level or two.
+/// Exact equality read that noise as ink - mutant m3's opaque red overlay over the credit passed (run 37298802427)
+/// and m2's invisible conditions line scored 0.0096 against a 0.01 floor (run 37298568886) - ruling R15.
 struct PixelInk {
-    /// The share of the inset image's pixels whose RGBA differs from the dominant RGBA, 0...1.
+    /// Channel levels (of 255) a pixel must differ from the dominant colour by to count as ink.
+    static let tolerance = 48
+
+    /// The share of the inset image's pixels that are ink (see `tolerance`), 0...1.
     let offDominantFraction: Double
 
     /// The relative luminance (Rec. 709) of the dominant colour, 0...1, or -1 when the image could not be read.
@@ -49,10 +57,19 @@ struct PixelInk {
         }
         let total = (width - 2 * inset) * (height - 2 * inset)
         let dominant = counts.max { $0.value < $1.value } ?? (key: 0, value: total)
-        let red = Double((dominant.key >> 24) & 0xFF) / 255
-        let green = Double((dominant.key >> 16) & 0xFF) / 255
-        let blue = Double((dominant.key >> 8) & 0xFF) / 255
-        self.init(fraction: Double(total - dominant.value) / Double(total),
+        let channels = [Int((dominant.key >> 24) & 0xFF), Int((dominant.key >> 16) & 0xFF), Int((dominant.key >> 8) & 0xFF)]
+        var ink = 0
+        for (rgba, count) in counts {
+            let far = [Int((rgba >> 24) & 0xFF), Int((rgba >> 16) & 0xFF), Int((rgba >> 8) & 0xFF)]
+                .enumerated().contains { abs($0.element - channels[$0.offset]) > Self.tolerance }
+            if far {
+                ink += count
+            }
+        }
+        let red = Double(channels[0]) / 255
+        let green = Double(channels[1]) / 255
+        let blue = Double(channels[2]) / 255
+        self.init(fraction: Double(ink) / Double(total),
                   luminance: 0.2126 * red + 0.7152 * green + 0.0722 * blue,
                   size: "\(width)x\(height)")
     }
