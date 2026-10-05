@@ -30,7 +30,7 @@ describe("operational routes", () => {
   });
 
   it("every route is enumerable (kill-switch pin will iterate ROUTES, not a hand list)", () => {
-    expect(Object.keys(ROUTES).sort()).toEqual(["/__health", "/__ro", "/__version"]);
+    expect(Object.keys(ROUTES).sort()).toEqual(["/__health", "/__ro", "/__version", "/plan"]);
     expect(typeof worker.fetch).toBe("function");
   });
 });
