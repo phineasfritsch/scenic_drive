@@ -64,12 +64,12 @@ export const MUTATIONS = [
   m("planner-no-round-trip", "loopPlanner.ts", "algorithm: \"round_trip\",", ""),
   m("planner-any-loop-clean", "loopPlanner.ts", "a.scan !== null && isAcceptable(a.scan.fraction)", "a.scan !== null"),
   m("planner-url-no-waypoints", "loopPlanner.ts", "appleMapsUrl(start, start, waypoints)", "appleMapsUrl(start, start, [])"),
-  m("loop-kill-late", "loop.ts", "if (killed(env)) return json", "if (false) return json"),
+  m("loop-kill-late", "loop.ts", "if (paused) return json", "if (false) return json"),
   m("loop-plan-budget", "loop.ts", ", LOOP_UPSTREAM_COST);", ");"),
   m("loop-quota-503", "loop.ts", "resets_at: verdict.resetsAt }, 429)", "resets_at: verdict.resetsAt }, 503)"),
   m("loop-seed-epoch", "loop.ts", "dayKey(deps.upstream.now())", "dayKey(new Date(0))"),
   m("upstream-cap-12", "upstream.ts", "if (spent > budget) {", "if (spent > PLAN_UPSTREAM_COST) {"),
-  m("upstream-reserve-12", "upstream.ts", "reserve(args.userId, budget, now);", "reserve(args.userId, PLAN_UPSTREAM_COST, now);"),
+  m("upstream-reserve-12", "upstream.ts", "reserve(args.userId, budget, now, kind, args.tier);", "reserve(args.userId, PLAN_UPSTREAM_COST, now, kind, args.tier);"),
 ];
 
 export const EQUIVALENT = [
@@ -81,8 +81,8 @@ export const EQUIVALENT = [
   { id: "planner-model-gate", file: "src/loopPlanner.ts", find: "if (problem !== null) throw new RouteError",
     witness: "the model is buildCustomModel(LOOP_LAMBDA, closures), which never names road_access or surface (customModel.ts "
       + "property 1), so rejectCustomModel returns null for every model this module can build. Defence in depth for P-SAFE-01." },
-  { id: "loop-killed-again", file: "src/loop.ts", find: "killed: () => killed(env) || deps.upstream.killed()",
-    witness: "handleLoop already returned 503 when killed(env); env cannot change within one request, so the re-check inside "
+  { id: "loop-killed-again", file: "src/loop.ts", find: "killed: () => paused || deps.upstream.killed()",
+    witness: "handleLoop already returned 503 when paused (killSwitch(env), read once); env cannot change within one request, so the re-check inside "
       + "guardedPlan sees false either way. It exists for the shape /plan has; the KILL tests pin the first check." },
 ];
 

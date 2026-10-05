@@ -18,13 +18,14 @@
  * `fetchImpl` is injectable so tests can COUNT calls. A test that asserts "no upstream call happened" by
  * checking a log is asserting about a log; this one is asserting about the call.
  */
-import { checkQuota, killSwitchTripped, PLAN_UPSTREAM_COST, type QuotaVerdict, type Tier } from "./quota";
+import { checkQuota, killSwitchTripped, PLAN_UPSTREAM_COST, type QuotaKind, type QuotaVerdict, type Tier } from "./quota";
 
 export interface Counters {
-  /** Plans this user has started today, and upstream calls made this month, across everyone. */
-  read(userId: string, now: Date): Promise<{ plansUsedToday: number; monthlyUpstreamCalls: number }>;
-  /** Record that a plan is starting. Called BEFORE the upstream work, not after. */
-  reserve(userId: string, upstreamCalls: number, now: Date): Promise<void>;
+  /** Reservations of `kind` this user has made today, and upstream calls made this month, across everyone. */
+  read(userId: string, now: Date, kind: QuotaKind): Promise<{ plansUsedToday: number; monthlyUpstreamCalls: number }>;
+  /** Record that a plan is starting. Called BEFORE the upstream work, not after. An implementation that can lose a
+   *  race between read and reserve re-checks here and throws UpstreamPaused rather than going over. */
+  reserve(userId: string, upstreamCalls: number, now: Date, kind: QuotaKind, tier: Tier): Promise<void>;
 }
 
 export interface UpstreamDeps {
@@ -58,7 +59,7 @@ export class PlanBudgetExceeded extends Error {
  */
 export async function guardedPlan<T>(
   deps: UpstreamDeps,
-  args: { userId: string; tier: Tier },
+  args: { userId: string; tier: Tier; kind?: QuotaKind },
   body: (call: GuardedFetch) => Promise<T>,
   budget: number = PLAN_UPSTREAM_COST,
 ): Promise<T> {
@@ -68,13 +69,14 @@ export async function guardedPlan<T>(
     throw new UpstreamPaused({ ok: false, reason: "upstream_paused", monthlyCalls: -1 });
   }
 
-  const { plansUsedToday, monthlyUpstreamCalls } = await deps.counters.read(args.userId, now);
-  const verdict = checkQuota({ tier: args.tier, plansUsedToday, monthlyUpstreamCalls, now });
+  const kind = args.kind ?? "plan";
+  const { plansUsedToday, monthlyUpstreamCalls } = await deps.counters.read(args.userId, now, kind);
+  const verdict = checkQuota({ tier: args.tier, kind, plansUsedToday, monthlyUpstreamCalls, now });
   if (!verdict.ok) throw new UpstreamPaused(verdict);
 
   // Reserve BEFORE any call. If the plan then fails, we have over-counted by one plan, which is the safe
   // direction to be wrong in: it costs the user one plan of allowance, not us an unbounded bill.
-  await deps.counters.reserve(args.userId, budget, now);
+  await deps.counters.reserve(args.userId, budget, now, kind, args.tier);
 
   let spent = 0;
   const call: GuardedFetch = (url, init) => {
