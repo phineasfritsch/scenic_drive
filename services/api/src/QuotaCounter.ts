@@ -1,7 +1,7 @@
 /**
  * The quota counters' storage (T-0256 R1): one Durable Object class, addressed two ways.
  *
- *   idFromName("device:<install uuid>")  the DAILY record {day, plan, loop} for one device. A new UTC day replaces
+ *   idFromName("device:<install uuid>")  the DAILY record {day, plan, loop, surprise?} for one device. A new UTC day replaces
  *                                        it in place, so nothing accumulates per day.
  *   idFromName("global")                 the MONTHLY record {month, calls} - upstream calls across everyone.
  *
@@ -20,6 +20,8 @@ interface DailyRecord {
   day: string;
   plan: number;
   loop: number;
+  /** Absent until the day's first surprise reach (T-0262 R4): a record written before T-0262 counts none. */
+  surprise?: number;
 }
 
 interface MonthlyRecord {
@@ -27,11 +29,16 @@ interface MonthlyRecord {
   calls: number;
 }
 
+/** `kind`'s count in a record: the stored value, or 0 when the key is absent (only "surprise" ever is). */
+function used(record: DailyRecord, kind: QuotaKind): number {
+  return kind in record ? (record[kind] as number) : 0;
+}
+
 export class QuotaCounter extends DurableObject {
   /** Reservations of `kind` this device has made on `day` (UTC). */
   async readDaily(day: string, kind: QuotaKind): Promise<number> {
     const stored = await this.ctx.storage.get<DailyRecord>(DAILY_RECORD);
-    return stored?.day === day ? stored[kind] : 0;
+    return stored?.day === day ? used(stored, kind) : 0;
   }
 
   /** One more `kind` on `day` if that stays within `limit`; false, and nothing written, if it would not. */
@@ -39,8 +46,8 @@ export class QuotaCounter extends DurableObject {
     return this.ctx.storage.transaction(async (txn) => {
       const stored = await txn.get<DailyRecord>(DAILY_RECORD);
       const record: DailyRecord = stored?.day === day ? stored : { day, plan: 0, loop: 0 };
-      if (!(record[kind] < limit)) return false;
-      await txn.put(DAILY_RECORD, { ...record, [kind]: record[kind] + 1 });
+      if (!(used(record, kind) < limit)) return false;
+      await txn.put(DAILY_RECORD, { ...record, [kind]: used(record, kind) + 1 });
       return true;
     });
   }

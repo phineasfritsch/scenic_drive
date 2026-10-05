@@ -18,7 +18,8 @@ final class URLSessionPlanTransportTests: XCTestCase {
         let body = #"{"budget_minutes":25,"destination":{"place":"1234567890123"},"origin":{"lat":34.02,"lon":-118.49}}"#
         XCTAssertEqual(seen.requests, [PlanHTTPRequest(
             url: URL(string: "https://scenic-api.test/plan")!, method: "POST",
-            headers: ["content-type": "application/json"], body: Data(body.utf8))])
+            headers: ["content-type": "application/json", "x-scenic-device": PlanWire.deviceHeader],
+            body: Data(body.utf8))])
         XCTAssertEqual(seen.timeouts, [12])
         // 502 is .noRoute only with the no_route body: status and body bytes both came back through URLSession.
         XCTAssertEqual(PlanWire.error(outcome), .noRoute)
