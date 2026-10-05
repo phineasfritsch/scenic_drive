@@ -92,6 +92,8 @@ describe("POST /plan request shape (R1)", () => {
     await refused({ ...base, destination: { place: "a b" } });
     await refused({ ...base, destination: { place: "x".repeat(129) } });
     await refused({ ...base, destination: { place: 7 } });
+    // 128 characters is a place id the corpus might hold: it passes the shape and is unknown, not malformed.
+    expect((await refused({ ...base, destination: { place: "x".repeat(128) } }, 404)).error).toBe("unknown_place");
   });
 
   it("an unknown place is 404 with zero upstream calls and no reservation", async () => {

@@ -68,8 +68,15 @@ describe("POST /plan over the t0221 santa-monica-topanga recording (R3)", () => 
     expect(body.route).toEqual({ coordinates: chosen.points.coordinates, distance_m: chosen.distance });
     expect(body.eta_is_estimate).toBe(true);
     expect(body.hazards).toEqual([]);
-    expect(body.waypoints.map((w) => `waypoint=${w.lat.toFixed(5)},${w.lon.toFixed(5)}`))
-      .toEqual(OPS_PLAN_URL.split("&").filter((part) => part.startsWith("waypoint=")));
+    // Each waypoint is one of the recorded route's own points, and the URL literal's pin is it at 5 dp.
+    const pins = OPS_PLAN_URL.split("&").filter((part) => part.startsWith("waypoint="))
+      .map((part) => part.slice("waypoint=".length).split(",").map(Number));
+    expect(body.waypoints).toHaveLength(pins.length);
+    body.waypoints.forEach((w, i) => {
+      expect(chosen.points.coordinates.some(([lon, lat]) => lon === w.lon && lat === w.lat)).toBe(true);
+      expect(Math.abs(w.lat - pins[i]![0]!)).toBeLessThanOrEqual(0.0000051);
+      expect(Math.abs(w.lon - pins[i]![1]!)).toBeLessThanOrEqual(0.0000051);
+    });
   });
 
   it("the response carries exactly the ruled fields (R8)", async () => {

@@ -104,3 +104,13 @@ live route. This is the first endpoint the app needs (M3 exit). /loop /surprise 
   appleMaps(4) lambdaSearch(9) planCeiling(9 of 10) planCost(10) planPrivacy(14) planRecorded(3). The one new pass,
   planCeiling "asks the router for the surface and road_access details", passed VACUOUSLY over an empty h.sent; it
   now also asserts h.sent has length 7 (red against the stub by construction).
+- 2026-10-05T05:59:18Z GREEN (agent/claude-opus-5): src/plan.ts (handler), planRequest.ts, lambdaSearch.ts, scenicPlanner.ts,
+  routePath.ts, planWaypoints.ts, appleMaps.ts, hazards.ts, latLon.ts; ROUTES["/plan"] wired fail-closed.
+  `cd services/api && npx vitest run`: Test Files 13 passed (13), Tests 176 passed (176) - the 49 red-first tests now
+  green, routes.test.ts's ROUTES list now names /plan. planRecorded's URL assertion is EXACT string equality to the
+  05:30:08Z ops/plan line. Boundary assertions added for the population (ceiling-inclusive lambda 7.75, zero-budget
+  usedBudget at 999 s, a 128-char place id is 404 not 400). `npx tsc --noEmit` in this worktree stops at TS2688
+  (cannot find @cloudflare/workers-types/2023-07-01) before reading any file: tsconfig's types path vs the installed
+  workers-types, not this task's; vitest is the gate. Population: test/mutate/planMutants.mjs, 43 mutants over 8
+  subjects, MIN_MUTATIONS = 43, 2 EQUIVALENT entries with witnesses; --prove-floor refused on all 4 arms
+  (empty / 42 / hazards.ts unmutated / a new subject) and stayed quiet on the real table, exit 0.

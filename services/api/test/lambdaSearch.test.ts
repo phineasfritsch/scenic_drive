@@ -52,6 +52,7 @@ describe("searchLambda - the LambdaSearch port", () => {
     expect((await run(1000, 600, () => 1300)).outcome.usedBudget).toBe(true);
     expect((await run(1000, 600, () => 1299.999)).outcome.usedBudget).toBe(false);
     expect((await run(1000, 0, () => 1000)).outcome.usedBudget).toBe(true);
+    expect((await run(1000, 0, () => 999)).outcome.usedBudget).toBe(true);
   });
 
   it("refuses a non-positive or non-finite fastest, a negative budget, and a nonsense duration", async () => {

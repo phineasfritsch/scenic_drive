@@ -58,6 +58,7 @@ describe("POST /plan budget ceiling (R7, P-SAFE-04)", () => {
     const { status, body } = await plan(curveRouter(1_000_000, () => 1_000_000 + 25 * 60_000, FAST_WAYS, SCENIC_WAYS), 25);
     expect(status).toBe(200);
     expect(body.eta_s).toBe(2500);
+    expect(body.lambda).toBe(7.75);
   });
 
   it("on a flat curve the tie goes to the larger lambda", async () => {
