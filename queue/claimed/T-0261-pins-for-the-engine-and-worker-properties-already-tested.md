@@ -31,3 +31,60 @@ read. Anchor on test names and shipping symbols, never comments (CLAUDE.md).
 ## Log
 - 2026-10-05T14:46:01Z filed by agent/claude-opus-5 (orchestrator) after PR #144 (T-0253) merged.
 - 2026-10-05T14:47:50Z claimed by agent/claude-opus-5; lease until 2026-10-06T02:47:50Z
+- 2026-10-05T14:59:15Z RULINGS before code (agent/claude-opus-5, owner).
+  R1 WHERE THE ROWS RUN - acceptance bullet 3 vs reality. CI's pins-source-only job is plain ubuntu-latest with
+     no Swift toolchain and no `npm ci` (.github/workflows/linux-core.yml), and .github/ is not in this task's
+     touches. An assertion that runs vitest or `swift test` cannot be green there, so these six rows are NOT
+     `anchor: source`: they run in the `core` job's full `bash ops/check-pins`, which has swift 6.1, node 22 and
+     services/api deps installed and has already built the root package in `ops/test`. Anchors: `api` for the
+     five rows whose tests drive the Worker's shipped handlers (P-SAFE-01, P-SAFE-04, P-PRIV-05, P-COST-01,
+     P-COST-04) and `artifact` for P-PROD-02 (the built ScenicKit test binary over Surprise.pick). The run of
+     record is therefore the `core` job's check-pins step, not pins-source-only; `--source-only` skips them by
+     design. Each assertion is also run directly on this box and quoted.
+  R2 STATEMENTS are the plan Pins-table wording verbatim. Where the plan row says more than the existing tests
+     prove, the unproved clauses are NAMED in why_no_test_catches_it as not asserted by this row (no new tests:
+     this task registers what is already tested): P-SAFE-01's profile-JSON half (car_scenic_base.json's
+     private/unpaved/track zero-gates - test_profiles_static.py has no test of them); P-PRIV-05's server-column
+     grep, learned-speed Codable and H3-5 clauses; P-COST-01's "every route in the router table" holds only for
+     the two upstream routes that exist (/plan, /loop), each by its own test - nothing iterates ROUTES; P-COST-04's
+     road-trip 12 (no road-trip endpoint) and "<= 2 in flight" (tested for /plan as one-in-flight only).
+     P-COST-03's VPS half stays unregistered and is named out of scope in P-COST-01.
+  R3 RUNNER: ops/lib/run-named-tests.py <PIN-ID> reads its pin's names from ops/lib/named-tests.json (data,
+     100644) and runs only the files/suites that hold them. Vitest: `npx vitest run <files> --reporter=json
+     --outputFile=<tmp>` under services/api; a test's name is `<file> :: <describe> > ... > <it>` built from
+     assertionResults' ancestorTitles + title. Swift: `swift test --scratch-path $SCENIC_SWIFT_SCRATCH (default
+     .build, the path ops/test built in CI) --filter <suite regex> --xunit-output <tmp>/x.xml`, reading
+     x-swift-testing.xml (and x.xml); a test's name is `<classname>/<name>`, i.e. Module.Suite/function() - the
+     IDENTIFIER, not the display string. Every named test must appear at least once and every occurrence must be
+     passed. Red BY NAME: MISSING (not in the report), SKIPPED/TODO/PENDING, FAILED. Red without a name: an
+     unknown pin id, a pin with zero names, a missing/unparsable report. The reporter's exit status is not
+     trusted either way; only the parsed report decides. Prints `NAMED <pin> passed=N/M` and exits 1 unless N == M > 0.
+  R4 PER-PIN TEST LISTS (Worker paths under services/api/test; Swift under Tests/ScenicKitTests):
+     P-SAFE-01: customModel.test.ts (b) rejectCustomModel - top-level, nested else_if, areas property, object
+       KEY, any case; customModelGate.test.ts (f) - middle, key containing, ends a string, deep areas value,
+       upper-case middle; planPrivacy.test.ts R1 "refuses a request-supplied custom_model naming road_access";
+       planRecorded.test.ts "visits exactly the recorded lambdas ... no safety-gate name (P-SAFE-01)".
+     P-SAFE-04: planCeiling.test.ts "POST /plan budget ceiling (R7, P-SAFE-04)" - 120 random curves, every
+       overshoot -> no_route, exactly at the ceiling returned; lambdaSearch.test.ts no_feasible_lambda; Swift
+       LambdaSearchTests ceilingAlwaysHolds(), nonMonotoneRouterIsSafe(), ceilingIsNotApproximate(),
+       ceilingBoundaryIsExactToTheLastBit(), returnsMeasuredValues(); LambdaSearchSteeringTests (3);
+       LambdaSearchRefusalTests noFeasibleLambdaThrows(); PlanCeilingOverLATests everyPlanStaysUnderTheCeiling().
+     P-PRIV-05: planPrivacy.test.ts "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05)" (all 7);
+       loopShape.test.ts "the /loop body whitelist (R1, P-PRIV-05)" (5) and "the one request carries one point -
+       the 2 dp start".
+     P-COST-01: planCost.test.ts R4 (6) + shipped-route KILL; loopCost.test.ts R8 (5) + shipped-route KILL;
+       upstream.test.ts guardedUpstream "reserves BEFORE calling, not after", NO-call arms (daily, volume, manual
+       kill), guardedPlan "reserves before the plan body runs", "makes NO call at all when the plan is refused".
+     P-COST-04: planCost.test.ts R5 "7 upstream requests - at most 12 - one in flight"; loopCost.test.ts R5
+       "at most 3 upstream requests", "guardedPlan at LOOP_UPSTREAM_COST refuses a 4th request before fetch";
+       upstream.test.ts "refuses the call past the budget, and does not make it", "the reservation is an upper
+       bound on calls actually made"; quota.test.ts "a plan is priced in upstream calls, not in plans".
+     P-PROD-02: SurpriseRankTests reproducible(), distinct(), permutation(); SurpriseFeedbackTests wrongTime().
+       permutation() and wrongTime() are in the list because reproducible()/distinct() alone cannot see a pick
+       that ignores the DATE (it stays reproducible and distinct) - the oracle permutation binds (user, day).
+  R5 MUTANTS (one line each, shipping code, applied and reverted by hand, outputs quoted below):
+     P-SAFE-01 customModel.ts mentioned(): `includes(word)` -> `=== word`; P-SAFE-04 Worker lambdaSearch.ts
+     feasibility read from the scenic duration and Swift LambdaSearch.swift likewise; P-PRIV-05 planRequest.ts
+     atMostTwoDecimals toFixed(ORIGIN_DECIMALS) -> toFixed(3); P-COST-01 upstream.ts reserve deferred to a
+     microtask (lands after the first upstream call); P-COST-04 upstream.ts `spent > budget` -> `spent > budget + 1`;
+     P-PROD-02 Surprise.draw key drops the date. Plus, per runner: one named test renamed in its file.
