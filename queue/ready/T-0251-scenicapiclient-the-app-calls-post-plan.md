@@ -1,7 +1,7 @@
 ---
 id: T-0251
 title: ScenicAPIClient - the root-package client for the Worker's POST /plan (request built under the one-coordinate / 2-dp invariant, typed PlanError for every Worker failure), with a counting fake
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -25,3 +25,4 @@ Milestone survey 2026-10-04: M3/M4 need the app to call the Worker. Starts after
 
 ## Log
 - 2026-10-05T09:04:49Z filed by agent/claude-opus-5 (orchestrator) after PR #139 (T-0248) merged.
+- 2026-10-05T11:42:53Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0175 (PR #142) and T-0248 (PR #139) merged; package-swift lock free. Note from T-0175: the root Package.resolved is gitignored and GRDB is declared outside Windows only - copy that package-manifest shape.
