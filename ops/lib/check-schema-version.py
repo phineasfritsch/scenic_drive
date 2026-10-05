@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P-PROD-05's assertion: the corpus's schema_version and the Worker's are ONE value.
+"""P-PROD-05's assertion: the corpus's schema_version, the Worker's and PlaceStore's are ONE value.
 
     "${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/check-schema-version.py [--root DIR]
     "${PYTHON:-$(command -v python3 || command -v python)}" ops/lib/check-schema-version.py --prove-red
@@ -34,11 +34,15 @@ import tempfile
 
 CORPUS_FILE = "services/etl/etl/schema.py"
 WORKER_FILE = "services/api/src/index.ts"
+# The device's reader (T-0175). The plan's OTA row compares the downloaded corpus's schema_version against
+# THIS value, so it is the third party to the equality and is read as text like the other two.
+SWIFT_FILE = "Sources/PlaceStore/PlaceStore.swift"
 PINS_FILE = "pins/PINS.yaml"
 PIN_ID = "P-PROD-05"
 
 CORPUS_RE = re.compile(r"^SCHEMA_VERSION\s*=\s*(\d+)\s*(?:#.*)?$", re.M)
 WORKER_RE = re.compile(r"^export const SCHEMA_VERSION\s*=\s*(\d+)\s*;\s*(?://.*)?$", re.M)
+SWIFT_RE = re.compile(r"^\s*public static let schemaVersion: Int = (\d+)\s*(?://.*)?$", re.M)
 PIN_RE = re.compile(r"^-\s+id:\s*%s\s*$" % re.escape(PIN_ID), re.M)
 
 # Read from this file's own location, never from the caller's cwd: ops/lib/<this> -> repo root (T-0055).
@@ -66,24 +70,25 @@ def _one(pattern: re.Pattern, text: str, rel: str, shape: str) -> int:
     return int(found[0])
 
 
-def versions(root: pathlib.Path) -> tuple[int, int]:
+def versions(root: pathlib.Path) -> tuple[int, int, int]:
     corpus = _one(CORPUS_RE, _read(root, CORPUS_FILE), CORPUS_FILE, "SCHEMA_VERSION = <n>")
     worker = _one(WORKER_RE, _read(root, WORKER_FILE), WORKER_FILE, "export const SCHEMA_VERSION = <n>;")
-    return corpus, worker
+    swift = _one(SWIFT_RE, _read(root, SWIFT_FILE), SWIFT_FILE, "public static let schemaVersion: Int = <n>")
+    return corpus, worker, swift
 
 
 def check(root: pathlib.Path) -> int:
     if not PIN_RE.search(_read(root, PINS_FILE)):
         raise Refusal(f"{PINS_FILE} has no `- id: {PIN_ID}`: the only thing that runs this check is gone")
-    corpus, worker = versions(root)
-    if corpus != worker:
+    corpus, worker, swift = versions(root)
+    if not corpus == worker == swift:
         print(f"{PIN_ID}: schema_version disagrees - {CORPUS_FILE} says {corpus}, "
-              f"{WORKER_FILE} says {worker}.")
-        print("  A device downloads a corpus only when the two agree (plan, Runtime lifecycles / OTA).")
-        print("  Fix: bump both in one commit, and type the new value into "
+              f"{WORKER_FILE} says {worker}, {SWIFT_FILE} says {swift}.")
+        print("  A device downloads a corpus only when all three agree (plan, Runtime lifecycles / OTA).")
+        print("  Fix: bump all three in one commit, and type the new value into "
               "services/api/test/routes.test.ts.")
         return 1
-    print(f"{PIN_ID}: schema_version={corpus} in {CORPUS_FILE} and {WORKER_FILE}")
+    print(f"{PIN_ID}: schema_version={corpus} in {CORPUS_FILE}, {WORKER_FILE} and {SWIFT_FILE}")
     return 0
 
 
@@ -97,28 +102,33 @@ CASES = (
     ("control: the tree as committed", {}, 0),
     ("corpus bumped alone", {CORPUS_FILE: ("corpus", "SCHEMA_VERSION = 99")}, 1),
     ("Worker bumped alone", {WORKER_FILE: ("worker", "export const SCHEMA_VERSION = 99;")}, 1),
+    ("PlaceStore bumped alone", {SWIFT_FILE: ("swift", "    public static let schemaVersion: Int = 99")}, 1),
+    ("corpus and Worker bumped, PlaceStore not",
+     {CORPUS_FILE: ("corpus", "SCHEMA_VERSION = 99"),
+      WORKER_FILE: ("worker", "export const SCHEMA_VERSION = 99;")}, 1),
     (f"{PIN_ID} deleted from PINS.yaml", {PINS_FILE: ("pin", "- id: P-PROD-05-RETIRED")}, 2),
     ("corpus literal deleted", {CORPUS_FILE: ("corpus", "# SCHEMA_VERSION was here")}, 2),
     ("Worker literal deleted", {WORKER_FILE: ("worker", "// SCHEMA_VERSION was here")}, 2),
+    ("PlaceStore literal deleted", {SWIFT_FILE: ("swift", "    // schemaVersion was here")}, 2),
     ("corpus literal duplicated",
      {CORPUS_FILE: ("corpus", "SCHEMA_VERSION = 2\nSCHEMA_VERSION = 3")}, 2),
 )
-PATTERNS = {"corpus": CORPUS_RE, "worker": WORKER_RE, "pin": PIN_RE}
+PATTERNS = {"corpus": CORPUS_RE, "worker": WORKER_RE, "swift": SWIFT_RE, "pin": PIN_RE}
 
 
 def prove_red(root: pathlib.Path) -> int:
-    """Run the check against a throwaway copy of the three files, once per mutation.
+    """Run the check against a throwaway copy of the four files, once per mutation.
 
     A check that has never been seen red is untested (CLAUDE.md, Verification). These are the mutations that
     matter: each one is a way the two versions come apart, or a way this check stops being able to tell.
     """
     bad = 0
     print(f"{PIN_ID} --prove-red: {len(CASES)} cases against a copy of the tree at {root}")
-    print(f"  {'case':<38} {'expect':>6} {'got':>4}  verdict")
+    print(f"  {'case':<42} {'expect':>6} {'got':>4}  verdict")
     for name, edits, expected in CASES:
         with tempfile.TemporaryDirectory() as tmp:
             sandbox = pathlib.Path(tmp)
-            for rel in (CORPUS_FILE, WORKER_FILE, PINS_FILE):
+            for rel in (CORPUS_FILE, WORKER_FILE, SWIFT_FILE, PINS_FILE):
                 (sandbox / rel).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(root / rel, sandbox / rel)
             for rel, (kind, replacement) in edits.items():
@@ -131,7 +141,7 @@ def prove_red(root: pathlib.Path) -> int:
                 got = main(["--root", str(sandbox)])
         ok = got == expected
         bad += 0 if ok else 1
-        print(f"  {name:<38} {expected:>6} {got:>4}  {'ok' if ok else 'NOT DISCRIMINATING'}")
+        print(f"  {name:<42} {expected:>6} {got:>4}  {'ok' if ok else 'NOT DISCRIMINATING'}")
     if bad:
         print(f"{PIN_ID} --prove-red: {bad} case(s) did not behave as stated. The check is not a check.")
         return 1

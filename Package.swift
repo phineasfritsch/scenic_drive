@@ -15,6 +15,12 @@ let package = Package(
         // bisection and the SAME scoring the app runs (T-0182, ruling R1): a python re-implementation
         // would be a second bisection, and the one that would drift is the one holding the ceiling.
         .executable(name: "scenic-plan", targets: ["ScenicPlanCLI"]),
+        .library(name: "PlaceStore", targets: ["PlaceStore"]),
+    ],
+    // GRDB pinned EXACT (T-0175 R1): the device's corpus reader is not a place for a minor bump to arrive
+    // unannounced. 7.11.1's manifest is swift-tools 6.1, the CI image's toolchain.
+    dependencies: [
+        .package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1"),
     ],
     targets: [
         .target(
@@ -62,6 +68,29 @@ let package = Package(
             name: "HandoffTests",
             dependencies: ["Handoff", "ScenicKit"],
             path: "Tests/HandoffTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // The device's reader for corpus.sqlite. GRDB links the SYSTEM sqlite (libsqlite3-dev on Linux, which
+        // linux-core.yml installs). The Windows dev toolchain ships no sqlite3.h/.lib, so the dependency is
+        // platform-conditioned and every PlaceStore file is `#if canImport(GRDB)` - on Windows the target is
+        // empty and the test target prints one XCTSkip saying so (T-0175 R2). Linux CI runs the suite.
+        .target(
+            name: "PlaceStore",
+            dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift",
+                         condition: .when(platforms: [.linux, .macOS, .iOS])),
+            ],
+            path: "Sources/PlaceStore",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "PlaceStoreTests",
+            dependencies: [
+                "PlaceStore",
+                .product(name: "GRDB", package: "GRDB.swift",
+                         condition: .when(platforms: [.linux, .macOS, .iOS])),
+            ],
+            path: "Tests/PlaceStoreTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]
