@@ -39,6 +39,16 @@ final class PlaceStoreSearchTests: XCTestCase {
                        [Self.mulholland, Self.mulhollandDam, Self.mulhollandOverlook])
     }
 
+    /// A one-letter type-ahead ties bm25 exactly: "p" ties Neary's Pub and Saddle Peak Lodge (3 tokens, one
+    /// p-token each), "s" ties Neary's Pub, Mulholland Scenic Overlook and Saddle Peak Lodge. The tie-break is
+    /// ascending place_id (ruling R4): 5_174_890_... < 5_174_894_... < 5_739_051_....
+    func testSearchBreaksABM25TieByAscendingPlaceID() throws {
+        let store = try store()
+        XCTAssertEqual(try store.search(query: "p", limit: 10), [Self.nearys, Self.saddlePeak, Self.malibuCreek])
+        XCTAssertEqual(try store.search(query: "s", limit: 10),
+                       [Self.rockStore, Self.nearys, Self.mulhollandOverlook, Self.saddlePeak, Self.malibuCreek])
+    }
+
     func testSearchMatchesEveryTokenAsAPrefixForTypeAhead() throws {
         let store = try store()
         XCTAssertEqual(try store.search(query: "mulh", limit: 10),
