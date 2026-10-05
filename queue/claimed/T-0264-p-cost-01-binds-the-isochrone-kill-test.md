@@ -54,3 +54,58 @@ table'; T-0261 bound /plan and /loop; /isochrone shipped after it and is unbound
   and supersedes the old one, never by rewriting the dated sentence.
   R6 (acceptance "run-named-tests.py for the three pins exits 0"): the runner runs every bound file of a pin; it
   is run whole for each of the three pins after the mutants, on the merged head.
+- 2026-10-05T17:56:17Z RED then GREEN by name (driver .build-t0264/mutants.py, gitignored; each mutant applied to
+  services/api/src/isochrone.ts, run under the OLD table from HEAD f3baf0d and the NEW ops/lib/named-tests.json,
+  then restored). The OLD-table rows show the gap the Brief names (every mutant green 19/19, 7/7, 12/12); the
+  NEW-table rows are red by name; GREEN is the restored source. Verbatim:
+  ```
+  M1 KILL ignored on the shipped route - OLD table (HEAD)
+      P-COST-01 exit=0
+        NAMED P-COST-01 passed=19/19
+  M1 KILL ignored on the shipped route - NEW table
+      P-COST-01 exit=1
+          RED test/isochroneCost.test.ts :: ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > KILL=1 is 503 before the body is read: zero router requests and no reservation: FAILED - ['failed']
+        NAMED P-COST-01 passed=20/21
+  M2 reserve after the fetch - OLD table (HEAD)
+      P-COST-01 exit=0
+        NAMED P-COST-01 passed=19/19
+      P-COST-04 exit=0
+        NAMED P-COST-04 passed=7/7
+  M2 reserve after the fetch - NEW table
+      P-COST-01 exit=1
+          RED test/isochroneCost.test.ts :: ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > the surprise allowance and one monthly call are reserved before the one router request: FAILED - ['failed']
+        NAMED P-COST-01 passed=20/21
+      P-COST-04 exit=1
+          RED test/isochroneCost.test.ts :: ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > the surprise allowance and one monthly call are reserved before the one router request: FAILED - ['failed']
+        NAMED P-COST-04 passed=8/9
+  M3 a second, unguarded fetch - OLD table (HEAD)
+      P-COST-04 exit=0
+        NAMED P-COST-04 passed=7/7
+      P-COST-01 exit=0
+        NAMED P-COST-01 passed=19/19
+  M3 a second, unguarded fetch - NEW table
+      P-COST-04 exit=1
+          RED test/isochroneCost.test.ts :: ROUTES['/isochrone'] request count and the daily cache (R5, R6, P-COST-04) > the request count is exactly 1 per call and 0 on a cache hit: FAILED - ['failed']
+          RED test/isochroneCost.test.ts :: ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > the surprise allowance and one monthly call are reserved before the one router request: FAILED - ['failed']
+        NAMED P-COST-04 passed=7/9
+      P-COST-01 exit=1
+          RED test/isochroneCost.test.ts :: ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > the surprise allowance and one monthly call are reserved before the one router request: FAILED - ['failed']
+        NAMED P-COST-01 passed=20/21
+  M4 a 3-dp start accepted (rounded to 2 dp before the parse) - OLD table (HEAD)
+      P-PRIV-05 exit=0
+        NAMED P-PRIV-05 passed=12/12
+  M4 a 3-dp start accepted (rounded to 2 dp before the parse) - NEW table
+      P-PRIV-05 exit=1
+          RED test/isochroneShape.test.ts :: POST /isochrone takes one coordinate at 2 dp and nothing else (R1, P-PRIV-05) > every key at every level is whitelisted, the start is at most 2 dp and minutes is in [30, 240]: FAILED - ['failed']
+        NAMED P-PRIV-05 passed=12/13
+  GREEN - src restored, NEW table
+      P-COST-01 exit=0
+        NAMED P-COST-01 passed=21/21
+      P-COST-04 exit=0
+        NAMED P-COST-04 passed=9/9
+      P-PRIV-05 exit=0
+        NAMED P-PRIV-05 passed=13/13
+  DONE
+  ```
+  pins/PINS.yaml: one dated sentence APPENDED to each of P-COST-01, P-COST-04, P-PRIV-05 why_no_test_catches_it
+  (no earlier text changed) carrying the corrected counts 21 / 9 / 13 and these mutants.
