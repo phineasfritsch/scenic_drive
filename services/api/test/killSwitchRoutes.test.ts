@@ -1,7 +1,7 @@
 /**
  * T-0264 rv1 B1: the kill switch over EVERY upstream route of the shipped ROUTES table (P-COST-01). The route list is
  * derived from ROUTES itself - every key outside the OPERATIONAL whitelist - and must equal the UPSTREAM literal, so
- * a fourth route either joins this loop or fails the equality. Each route is killed by the env KILL and, separately,
+ * a fifth route either joins this loop or fails the equality. Each route is killed by the env KILL and, separately,
  * by the KV KILL_SWITCH key, through the deps the shipped wiring builds from env.
  */
 import { env } from "cloudflare:test";
@@ -11,15 +11,17 @@ import { fakeKv, fakeQuotaNamespace, type FakeQuota } from "./doFake";
 import { REACH_BODY } from "./isochroneHarness";
 import { LOOP_BODY } from "./loopHarness";
 import { NOW, SANTA_MONICA_TOPANGA_BODY } from "./planHarness";
+import { TRIP_BODY } from "./tripHarness";
 
 const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
 const OPERATIONAL_ROUTES = ["/__health", "/__version", "/__ro"] as const;
-const UPSTREAM_ROUTES = ["/plan", "/loop", "/isochrone"] as const;
+const UPSTREAM_ROUTES = ["/plan", "/loop", "/isochrone", "/trip"] as const;
 type UpstreamRoute = (typeof UPSTREAM_ROUTES)[number];
 const BODIES: Record<UpstreamRoute, unknown> = {
   "/plan": SANTA_MONICA_TOPANGA_BODY,
   "/loop": LOOP_BODY,
   "/isochrone": REACH_BODY,
+  "/trip": TRIP_BODY,
 };
 const SOURCES: [string, Record<string, unknown>][] = [
   ["env KILL=1", { KILL: "1" }],
