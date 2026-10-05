@@ -129,3 +129,23 @@ Milestone survey 2026-10-04: M3/M4 need the app to call the Worker. Starts after
   exit 0 (largest new file 169 lines); check-mutate-population exit 0 ("13 added by this branch ... every added module
   is covered or allowlisted; the floor of 46 holds"); queue-check exit 0 (QUEUE OK, 246 tasks); `npx vitest run
   test/planWire.test.ts` 12/12.
+- 2026-10-05T14:11:50Z ACCEPTANCE re-quoted on the MERGED head (agent/claude-opus-5): `git fetch origin` (main checkout) and `git merge
+  origin/main` at c8b2d1e (PR #146; main brought /loop, retrace, upstream budget param - /plan wire unchanged).
+  (1) RULED R1-R3 12:00:20Z before the RED commit f6cac97. Sources/ScenicAPIClient imports Foundation, ScenicKit and
+      FoundationNetworking behind canImport only. testSendsExactlyTheBodyT0248Ruled and
+      testDepartsAtIsSentAsAUTCInstantInWholeSeconds assert the whole PlanHTTPRequest by exact equality to a typed literal;
+      testRefusesAThreeDecimalLatitude / Longitude / TheT0221FourDecimalOrigin refuse with ZERO requests; a second
+      coordinate has no parameter to arrive through (destination is the Int64 place_id) and
+      testBodyCarriesOneCoordinateAndAnIntegerPlace holds the key whitelist at every level.
+  (2) R6 table: one test per status by name over the 11 Worker-recorded fixtures (200 x2, 400, 404 x2, 405, 422, 429, 502,
+      503 x2) plus literal rows for 500 x3, wrong-status codes, an undecodable 200 and no reply;
+      testEveryRecordedReplyHasATest holds the fixture directory to the tested set. `npx vitest run` on the merged tree:
+      Test Files 18 passed (18), Tests 221 passed (221) - planWire.test.ts holds the Worker to the fixture bytes.
+  (3) CountingPlanTransport counts one request per plan (testCountingFakeCountsOneRequestPerPlan: count 1, peak 1;
+      three plans through one fake: count 3, peak 1); RED by name at f6cac97 (31 tests, 30 failed). swift test count:
+      Windows `swift test --scratch-path .build/t0251 --filter ScenicAPIClientTests` -> Executed 31 tests, with 0
+      failures; CI image swift:6.1-noble@sha256:98ee3a84... same filter -> Executed 31 tests, with 0 failures.
+  Gates on the merged tree: check-line-cap exit 0 (172 Swift files, none over 300); check-mutate-population exit 0 (13
+  added, every added module covered or allowlisted, floor 46 holds); queue-check exit 0 (QUEUE OK, 250 tasks). Local
+  ops/check-pins --source-only was started on the pre-merge tree and had not finished; CI pins-source-only is the run of
+  record. The package-swift lock is NOT released here - the reviewer sign-off deletes queue/LOCKS/package-swift.lock.
