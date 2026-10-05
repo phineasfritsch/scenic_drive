@@ -63,4 +63,9 @@ public enum SaddlePeakRoute {
     /// recorded GraphHopper path over OpenStreetMap - the fixture's `details` carry an `osm_way_id` on every edge -
     /// so it is OpenStreetMap data whatever basemap it is drawn over (rv1-t0236 B1).
     public static let geometryCredit = "© OpenStreetMap contributors"
+
+    /// The trip's menu (T-0246): `ops/plan --menu` from Topanga village to Malibu Civic Center over the committed
+    /// recording, bundled by `ops/lib/make-menu-bundle.py`. Its lines are the same OSM-derived GraphHopper paths
+    /// as `geometryResource`, so `geometryCredit` credits them too.
+    public static let menuResource = "saddle-peak-menu"
 }

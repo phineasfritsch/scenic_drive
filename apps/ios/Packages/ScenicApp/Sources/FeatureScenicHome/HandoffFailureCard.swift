@@ -41,6 +41,10 @@ struct HandoffFailureCard: View {
     /// that the roads in this card and the kilometres under them cannot come from different drives.
     let drive: HandoffDrive
 
+    /// The selected menu row, if the drive has a menu (T-0246): the paste carries ITS URL, the one the button
+    /// tried to open, and `roadList` is its roads.
+    let row: DriveMenuRow?
+
     /// Try again. The owner's handoff, whatever the owner's handoff is today.
     let onRetry: () -> Void
 
@@ -69,7 +73,8 @@ struct HandoffFailureCard: View {
     /// drive's roads; that is the pre-review mutant pass's M1a, and `ops/lib/check-drive-copy` is what
     /// refuses it, because no test in this repository can see this file.
     var clipboardText: String {
-        drive.clipboardPayload(roadList: roadList,
+        drive.clipboardPayload(row: row,
+                               roadList: roadList,
                                straightLine: DriveFacts.straightLine(for: drive),
                                timing: drive.timingSentence)
     }

@@ -65,14 +65,15 @@ alive() {
 }
 for LOOK in light dark; do
   xcrun simctl ui "$UDID" appearance "$LOOK"
-  for DETENT in collapsed medium; do
-    LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT")
+  for SHOT in collapsed medium fastest; do
+    case "$SHOT" in fastest) DETENT=collapsed ROW=0 ;; *) DETENT=$SHOT ROW=default ;; esac
+    LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW")
     echo "$LAUNCHED"
     PID=${LAUNCHED##*: }
     case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac
     sleep "$SETTLE"
     alive "$PID" "${SETTLE}s after the $LOOK $DETENT launch"
-    xcrun simctl io "$UDID" screenshot --type=png "$SHOTS/home-$LOOK-$DETENT.png"
+    xcrun simctl io "$UDID" screenshot --type=png "$SHOTS/home-$LOOK-$SHOT.png"
     alive "$PID" "after the $LOOK $DETENT screenshot"
     xcrun simctl terminate "$UDID" "$BUNDLE"
   done
@@ -124,7 +125,7 @@ BUILD = f"      - name: {BUILD_STEP}\n        run: |\n"
 CAPTURE = f"      - name: {CAPTURE_STEP}\n        run: |\n"
 GUARD = '          test -d "$DEVELOPER_DIR" || { echo "ios-screenshot: $DEVELOPER_DIR is not on this image"; exit 1; }\n'
 TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
-LAUNCH = '              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT")\n'
+LAUNCH = '              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW")\n'
 ALIVE = '              alive "$PID" "${SETTLE}s after the $LOOK $DETENT launch"\n'
 LS = '          ls -l "$SHOTS"\n'
 

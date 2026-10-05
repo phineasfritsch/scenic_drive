@@ -85,6 +85,10 @@ enum DriveCopy {
     /// `DriveRoute` - so only its caption says a line is there, and says what it is. The loop and the
     /// Peninsula draw none and keep their sentences; the preamble's count moved from two drives to three
     /// because the old number became false.
+    ///
+    /// THE MENU (T-0246). The Saddle Peak line is now whichever chip is selected, drawn bold over the other rows
+    /// muted - 'Fastest' included, which IS the coast road - so its caption names no road and no choice: "the
+    /// route the engine chose over Saddle Peak instead of PCH" was false with 'Fastest' selected.
     static func mapCaption(for drive: HandoffDrive, style: MapStyle) -> String {
         let preamble = "Preview build."
         let onLosAngelesRoads: Bool
@@ -97,7 +101,7 @@ enum DriveCopy {
         switch drive {
         case .saddlePeak:
             let ground = onLosAngelesRoads ? ", over Los Angeles roads." : "; the map under it shows no roads yet."
-            return "\(preamble) The line is the route the engine chose over Saddle Peak instead of PCH\(ground)"
+            return "\(preamble) The bold line is the drive you picked; the faint ones are the other choices\(ground)"
         case .santaMonicaMountains, .skyline:
             return onLosAngelesRoads
                 ? "\(preamble) The map shows Los Angeles roads, but not this drive's line yet - tap below and it opens in Apple Maps."
