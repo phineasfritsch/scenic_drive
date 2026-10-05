@@ -1,13 +1,13 @@
 ---
 id: T-0265
 title: Sources/Telemetry - the plan's closed enum of 14 events, coarse payloads only (feature ids, H3-5 cell, durations), encoded by exact equality, never a coordinate
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T18:21:57Z
+lease_expires_at: 2026-10-06T06:21:57Z
+worktree: .worktrees/T-0265
+branch: task/T-0265
 exclusive: [package-swift]
 touches: [Package.swift, Sources/Telemetry/, Tests/TelemetryTests/, ops/mutate/, ops/lib/mutate-population-allowlist.json]
 pins_affected: [P-PRIV-05]
@@ -28,3 +28,4 @@ the sender is a later task.
 
 ## Log
 - 2026-10-05T18:19:47Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M5 telemetry).
+- 2026-10-05T18:21:57Z claimed by agent/claude-opus-5; lease until 2026-10-06T06:21:57Z
