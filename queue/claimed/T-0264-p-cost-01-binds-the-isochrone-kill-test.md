@@ -109,3 +109,23 @@ table'; T-0261 bound /plan and /loop; /isochrone shipped after it and is unbound
   ```
   pins/PINS.yaml: one dated sentence APPENDED to each of P-COST-01, P-COST-04, P-PRIV-05 why_no_test_catches_it
   (no earlier text changed) carrying the corrected counts 21 / 9 / 13 and these mutants.
+- 2026-10-05T18:11:53Z FINAL pre-review re-run of the whole acceptance block. `git fetch origin` + `git merge origin/main`:
+  "Already up to date" (origin/main = e923e39, this branch's base), so the merged head is 4f468a0. Re-quoted:
+  1. "ops/lib/named-tests.json binds T-0262's shipped-route tests ..." - DONE: P-COST-01 +2 (isochroneCost KILL
+     before the body; reserve before the one request), P-COST-04 +2 (1 request per call / 0 on a hit; the
+     reservation test, which holds ISOCHRONE_UPSTREAM_COST = 1), P-PRIV-05 +1 (isochroneShape 2 dp whitelist).
+     Counts 19 -> 21, 7 -> 9, 12 -> 13 corrected by one APPENDED dated sentence per row; no earlier text changed
+     (git diff of pins/PINS.yaml: 3 lines, each the old line plus a suffix).
+  2. "each new binding RED by a one-line mutant of src/isochrone.ts ... then green; run-named-tests.py for the
+     three pins exits 0" - DONE: M1-M4 above red by name under the new table (green under the old one), then on
+     the merged head 4f468a0:
+       NAMED P-COST-01 passed=21/21   run-named-tests P-COST-01 exit=0
+       NAMED P-COST-04 passed=9/9     run-named-tests P-COST-04 exit=0
+       NAMED P-PRIV-05 passed=13/13   run-named-tests P-PRIV-05 exit=0
+  Gates: `QUEUE OK (255 tasks)` queue-check exit=0; `P-PROC-06: ... 0 added by this branch ... the floor of 55
+  holds` check-mutate-population exit=0. check-line-cap: this PR touches no Swift; the local run did not finish
+  on this box (a `find` over Sources), CI is its run of record.
+  Noted, not this task's: PyYAML refuses pins/PINS.yaml already at e923e39 (line 213, and P-COST-01's T-0261 text
+  `"/loop": ...` carries bare double quotes inside its double-quoted scalar); this task did not introduce it, its
+  appended sentences carry no double quote or backslash, and CI's ops/check-pins is the run of record. Ready for
+  review by an agent other than agent/claude-opus-5.
