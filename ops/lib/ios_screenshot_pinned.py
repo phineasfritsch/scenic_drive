@@ -11,8 +11,9 @@ WORKFLOW = pathlib.Path(__file__).resolve().parents[2] / ".github/workflows/ios-
 PICK_STEP = "choose, create and boot the simulator"
 BUILD_STEP = "build for that simulator"
 CAPTURE_STEP = "install, launch, and screenshot light then dark"
+UITEST_STEP = "run the UI tests on that simulator"  # T-0180
 # A work step that can be skipped is a green run that did nothing: the check refuses `if:` on these BY NAME.
-UNSKIPPABLE = {PICK_STEP, BUILD_STEP, CAPTURE_STEP}
+UNSKIPPABLE = {PICK_STEP, BUILD_STEP, CAPTURE_STEP, UITEST_STEP}
 
 TOOLCHAIN_RUN = "xcodebuild -version\nxcrun simctl list runtimes\nxcrun simctl list devicetypes\n"
 PICK_RUN = r'''test -d "$DEVELOPER_DIR" || { echo "ios-screenshot: $DEVELOPER_DIR is not on this image"; exit 1; }
@@ -80,6 +81,23 @@ for LOOK in light dark; do
 done
 ls -l "$SHOTS"
 '''
+UITEST_RUN = r'''UDID=$(cat "$GITHUB_WORKSPACE/DerivedData/sim-udid")
+xcodebuild \
+  -project apps/ios/ScenicDrive.xcodeproj \
+  -scheme ScenicDrive \
+  -destination "platform=iOS Simulator,id=$UDID" \
+  -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \
+  -resultBundlePath "$GITHUB_WORKSPACE/DerivedData/ScenicDriveUITests.xcresult" \
+  -disableAutomaticPackageResolution \
+  -only-testing:ScenicDriveUITests \
+  CODE_SIGNING_ALLOWED=NO \
+  test | tee -a "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"
+'''
+RESULTS_RUN = r'''RESULT="$GITHUB_WORKSPACE/DerivedData/ScenicDriveUITests.xcresult"
+test -d "$RESULT" || { echo "ios-screenshot: no UI test result bundle - the UI tests never ran"; exit 0; }
+xcrun xcresulttool get test-results summary --path "$RESULT"
+xcrun xcresulttool get test-results tests --path "$RESULT"
+'''
 WHY_RUN = r'''tail -n 40 "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log" || true
 find ~/Library/Logs/DiagnosticReports -name 'ScenicDrive*' -print -exec head -c 4000 {} \; || true
 xcrun simctl spawn booted log show --last 5m --style compact --predicate 'process == "ScenicDrive"' | tail -n 60 || true
@@ -107,6 +125,11 @@ def expected(job_env):
                 {"name": "upload the screenshots", "uses": "actions/upload-artifact@v4",
                  "with": {"name": "ios-screenshots", "path": "DerivedData/screens/*.png", "retention-days": 7,
                           "if-no-files-found": "error"}},
+                {"name": UITEST_STEP, "run": UITEST_RUN},
+                {"name": "the UI test results by name", "if": "always()", "run": RESULTS_RUN},
+                {"name": "upload the UI test result bundle", "if": "always()", "uses": "actions/upload-artifact@v4",
+                 "with": {"name": "ios-uitests-xcresult", "path": "DerivedData/ScenicDriveUITests.xcresult",
+                          "retention-days": 7, "if-no-files-found": "warn"}},
                 {"name": "why it failed", "if": "failure()", "run": WHY_RUN},
             ],
         }},
@@ -128,6 +151,14 @@ TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
 LAUNCH = '              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW")\n'
 ALIVE = '              alive "$PID" "${SETTLE}s after the $LOOK $DETENT launch"\n'
 LS = '          ls -l "$SHOTS"\n'
+# T-0180: the UI test step's anchors, and two anchors widened until they occur once - the UI test step repeats the
+# build's `xcodebuild` and `-destination` lines, and an anchor that occurs twice is a hard failure of --prove-red.
+UITEST = f"      - name: {UITEST_STEP}\n        run: |\n"
+UITEE = 'test | tee -a "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
+BUILD_HEAD = BUILD + '          UDID=$(cat "$GITHUB_WORKSPACE/DerivedData/sim-udid")\n          xcodebuild \\\n'
+BUILD_DEST = ('            -destination "platform=iOS Simulator,id=$UDID" \\\n'
+              '            -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \\\n'
+              '            -disableAutomaticPackageResolution \\\n')
 
 
 def after(anchor, line):
@@ -142,7 +173,8 @@ MUTATIONS = [
     ("JOB-level permissions: write-all", JOB, "  simulator-screenshot:\n    permissions: write-all\n    runs-on: macos-15\n"),
     ("the shell default dropped", "defaults:\n  run:\n    shell: bash\n", "defaults:\n  run:\n    shell: sh\n"),
     ("STEP-level shell: sh on the capture step", CAPTURE, after(CAPTURE, "shell: sh")),
-    ("RUN-BODY: set +o pipefail above the build", "          xcodebuild \\\n", "          set +o pipefail\n          xcodebuild \\\n"),
+    ("RUN-BODY: set +o pipefail above the build", BUILD_HEAD,
+     BUILD_HEAD.replace("          xcodebuild", "          set +o pipefail\n          xcodebuild")),
     ("RUN-BODY: || true after the build pipeline", TEE, TEE.rstrip("\n") + " || true\n"),
     ("continue-on-error on the capture step", CAPTURE, after(CAPTURE, "continue-on-error: true")),
     ("continue-on-error on the job", JOB, "  simulator-screenshot:\n    continue-on-error: true\n    runs-on: macos-15\n"),
@@ -160,17 +192,27 @@ MUTATIONS = [
     ("a token handed to the capture step", CAPTURE, f"      - name: {CAPTURE_STEP}\n        env:\n          GH_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}\n        run: |\n"),
     ("the DEVELOPER_DIR existence guard deleted (a silent fall back to the image default)", GUARD, ""),
     ("a third-party action", "      - uses: actions/checkout@v4\n", "      - uses: actions/checkout@v4\n      - uses: someone/else@v1\n"),
-    ("upload-artifact unpinned", "        uses: actions/upload-artifact@v4\n", "        uses: actions/upload-artifact@main\n"),
+    ("upload-artifact unpinned", "      - name: upload the screenshots\n        uses: actions/upload-artifact@v4\n",
+     "      - name: upload the screenshots\n        uses: actions/upload-artifact@main\n"),
     ("a push step", LS, LS + "          git push origin HEAD\n"),
     ("a commit step", "      - name: upload the screenshots\n",
      "      - name: keep them\n        run: git add -f DerivedData/screens && git commit -m screens\n      - name: upload the screenshots\n"),
     ("CRASH UNSEEN: the liveness check after the settle deleted", ALIVE, ""),
     ("CRASH UNSEEN: || true after the launch", LAUNCH, LAUNCH.rstrip("\n") + " || true\n"),
     ("a hard-coded device instead of the one chosen from the image's own lists",
-     '            -destination "platform=iOS Simulator,id=$UDID" \\\n', "            -destination 'platform=iOS Simulator,name=iPhone 16' \\\n"),
+     BUILD_DEST, BUILD_DEST.replace('"platform=iOS Simulator,id=$UDID"', "'platform=iOS Simulator,name=iPhone 16'")),
     ("the runtime list no longer printed first", "          xcrun simctl list runtimes\n", ""),
     ("no settle before the capture (a black frame)", "          SETTLE=15\n", "          SETTLE=0\n"),
     ("an empty capture uploads green", "          if-no-files-found: error\n", "          if-no-files-found: ignore\n"),
+    ("SKIPPED UI TESTS: if: false on the UI test step", UITEST, after(UITEST, "if: false")),
+    ("continue-on-error on the UI test step", UITEST, after(UITEST, "continue-on-error: true")),
+    ("RUN-BODY: || true after the UI test pipeline", UITEE, UITEE.rstrip("\n") + " || true\n"),
+    ("the UI tests built and never run (build-for-testing)", UITEE, UITEE.replace("test |", "build-for-testing |", 1)),
+    ("the UI test bundle skipped instead of selected", "            -only-testing:ScenicDriveUITests \\\n",
+     "            -skip-testing:ScenicDriveUITests \\\n"),
+    ("the UI test result bundle uploaded only on a green run",
+     "      - name: upload the UI test result bundle\n        if: always()\n",
+     "      - name: upload the UI test result bundle\n"),
 ]
 # Legitimate spellings that must stay GREEN - a check that refuses them teaches people to stop running it.
 STILL_GREEN = [

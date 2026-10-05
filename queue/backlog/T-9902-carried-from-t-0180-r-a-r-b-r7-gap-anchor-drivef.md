@@ -1,0 +1,28 @@
+---
+id: T-9902
+title: Carried from T-0180 (R-a, R-b, R7 gap): anchor DriveFacts' rendered straight-line number to StraightLineDistance.skylineRouteWholeKilometers and the paste's timing line (HandoffFailureCard.clipboardText) - identifier-level source checks or UI tests - and assert home.conditions at the MEDIUM detent at the largest accessibility size
+state: backlog
+owner: null
+owner_session: null
+claimed_at: null
+lease_expires_at: null
+worktree: null
+branch: null
+exclusive: []
+touches: [apps/ios/ScenicDriveUITests/, ops/lib/, pins/PINS.yaml]
+pins_affected: []
+reviewer: null
+depends_on: [T-0180]
+verify: [ops/test, ops/check-pins]
+acceptance: []
+---
+## Brief
+
+(what, why, and the exact demonstration that proves it — including the red run)
+
+From T-0180's Log (ruling R9), the three items its first UI test bundle did not take:
+- R-a (carried from rv1-pr110): nothing anchors the rendered straight-line number to the pinned computation - DriveFacts interpolates StraightLineDistance.skylineRouteWholeKilometers, and a literal typed in its place passes every gate. Cheap anchor: an identifier-level source check that DriveFacts names that symbol (never a comment); or a UI test reading `home.distance` at the medium detent against the Linux value.
+- R-b (carried from rv1-pr110): the timing line riding along in the paste (HandoffFailureCard.clipboardText) is pinned nowhere - no test, check or pin names DriveFacts.timing / home.timing / clipboardText. A UI test needs the failure card on screen, which needs a fault-injection launch argument the app does not have.
+- R7 gap: SafetyGateUITests asserts home.conditions at the largest accessibility size at the COLLAPSED detent only; at medium the sheet may outgrow the screen. Measure first (a run's screenshot at -homeDetent medium with -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL), then write the predicate.
+
+## Log
