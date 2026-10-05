@@ -15,6 +15,13 @@ public enum HandoffError: Error, Equatable, Sendable {
     /// still plausible, and no longer the scenic one - the pinned waypoints ARE the scenic middle, so losing
     /// them loses the product. Choosing which stops matter is the planner's job, upstream of here.
     case tooManyWaypoints(count: Int, max: Int)
+
+    /// A menu row's printed URL that does not parse as an `https://maps.apple.com` URL (T-0246). Refused rather
+    /// than rebuilt: the row's URL is the CLI's, and a rebuilt one would be a second URL nothing compares.
+    case notAMapsURL(String)
+
+    /// A menu bundle that does not decode, or decodes to something the sheet cannot show (T-0246).
+    case notAMenu(String)
 }
 
 extension HandoffError: CustomStringConvertible {
@@ -25,6 +32,10 @@ extension HandoffError: CustomStringConvertible {
         case let .tooManyWaypoints(count, max):
             return "\(count) waypoints exceeds the \(max) this builder will pin; "
                 + "select decision points upstream rather than truncating here"
+        case let .notAMapsURL(text):
+            return "not an Apple Maps URL: \(text)"
+        case let .notAMenu(reason):
+            return "not a drive menu: \(reason)"
         }
     }
 }

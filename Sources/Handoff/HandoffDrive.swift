@@ -132,6 +132,27 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
     /// `HandoffError` distinguishes "too many waypoints" from "that is not a coordinate".
     public func url() throws -> URL { try directions.url() }
 
+    // MARK: - The menu (T-0246)
+
+    /// The bundled menu's name - `ops/lib/make-menu-bundle.py`'s output under `routeGeometrySubdirectory`, with
+    /// `menuExtension` - or `nil` for a drive with no menu, which keeps its one URL.
+    public var menuResource: String? {
+        switch self {
+        case .saddlePeak: return SaddlePeakRoute.menuResource
+        case .skyline, .santaMonicaMountains: return nil
+        }
+    }
+
+    /// The menu's file extension, as the script writes it.
+    public static let menuExtension = "json"
+
+    /// The URL the button opens: the selected menu row's own printed URL when a row is selected, else this
+    /// drive's `url()`. The one place the choice is made, so the button and the paste cannot disagree.
+    public func url(row: DriveMenuRow?) throws -> URL {
+        guard let row else { return try url() }
+        return try row.url()
+    }
+
     // MARK: - What each surface says about time
 
     /// Where the real number comes from, as one named clause: the promise the HOME surface makes.
@@ -186,8 +207,10 @@ public enum HandoffDrive: String, CaseIterable, Sendable {
     /// The caller passes the three sentences it renders (the feature target owns the words); the ORDER
     /// is decided here, in a Linux target with a test bundle, because the order is the property T-0202
     /// is about and an Apple-only target has nothing that can check it.
-    public func clipboardPayload(roadList: String, straightLine: String, timing: String) -> String {
-        Self.payload(mapsURL: try? url(),
+    /// `row` is the selected menu row, whose URL the button opened (T-0246); `nil` pastes the drive's own.
+    public func clipboardPayload(row: DriveMenuRow? = nil,
+                                 roadList: String, straightLine: String, timing: String) -> String {
+        Self.payload(mapsURL: try? url(row: row),
                      roadList: roadList,
                      straightLine: straightLine,
                      timing: timing)

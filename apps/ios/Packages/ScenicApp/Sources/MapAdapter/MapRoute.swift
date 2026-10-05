@@ -16,13 +16,17 @@ import SwiftUI
 /// `SaddlePeakGeometryTests` (Linux) refuses a file whose `bbox` is not its positions' extent. This type does no
 /// arithmetic on the line at all - it reads four numbers, and a file without them is not a route it will draw.
 public struct MapRoute: Equatable, Sendable {
-    /// The FeatureCollection with one LineString, exactly as bundled.
-    public let geoJSON: Data
+    /// The FeatureCollection with one LineString, exactly as bundled - or as `redrawn` swapped it in.
+    public private(set) var geoJSON: Data
     /// The line's extent, from the file's `bbox` ([west, south, east, north], RFC 7946 order).
-    public let west: Double
-    public let south: Double
-    public let east: Double
-    public let north: Double
+    public private(set) var west: Double
+    public private(set) var south: Double
+    public private(set) var east: Double
+    public private(set) var north: Double
+    /// A menu's other rows (T-0246), drawn UNDER the line and its casing in `mutedColor`; `nil` draws none. They
+    /// come from the same recording as the line, so the one data credit below covers every line this draws.
+    public private(set) var mutedGeoJSON: Data?
+    public private(set) var mutedColor: Color = .clear
     /// The `route` token, and the casing under it.
     public let lineColor: Color
     public let casingColor: Color
@@ -50,6 +54,25 @@ public struct MapRoute: Equatable, Sendable {
         self.north = box[3]
         self.lineColor = lineColor
         self.casingColor = casingColor
+    }
+
+    /// This route with `geoJSON`'s line and box in place of its own and `muted` under it (T-0246): a menu's
+    /// selected row and its other rows. The colours and the data credit stay - a copy, so the credit bound where
+    /// the route was made is the credit the footer reads. `nil` when `geoJSON` carries no four-number `bbox`.
+    public func redrawn(geoJSON: Data, muted: Data?, mutedColor: Color) -> MapRoute? {
+        guard let doc = try? JSONSerialization.jsonObject(with: geoJSON) as? [String: Any],
+              let box = doc["bbox"] as? [Double], box.count == 4, box.allSatisfy({ $0.isFinite }) else {
+            return nil
+        }
+        var copy = self
+        copy.geoJSON = geoJSON
+        copy.west = box[0]
+        copy.south = box[1]
+        copy.east = box[2]
+        copy.north = box[3]
+        copy.mutedGeoJSON = muted
+        copy.mutedColor = mutedColor
+        return copy
     }
 
     /// The bundled line called `name`, or `nil` when this build does not carry it.

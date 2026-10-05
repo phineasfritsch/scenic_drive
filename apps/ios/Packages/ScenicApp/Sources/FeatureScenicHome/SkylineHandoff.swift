@@ -60,8 +60,8 @@ public enum SkylineHandoff {
     /// Throwing rather than returning an optional keeps the reason: `HandoffError` distinguishes "too
     /// many waypoints" from "that is not a coordinate", and a screen that shows the user a useful
     /// message needs to know which.
-    public static func url(for drive: HandoffDrive) throws -> URL {
-        try directions(for: drive).url()
+    public static func url(for drive: HandoffDrive, row: DriveMenuRow?) throws -> URL {
+        try drive.url(row: row)
     }
 
     /// Hands the drive to Apple Maps.
@@ -85,8 +85,8 @@ public enum SkylineHandoff {
     /// The type keeps the name `SkylineHandoff` although it now hands over either drive: the check's
     /// anchors are that identifier and this file name, and `ops/` is outside this task's `touches:`.
     @MainActor
-    public static func open(_ drive: HandoffDrive) throws {
-        let destinationURL = try url(for: drive)
+    public static func open(_ drive: HandoffDrive, row: DriveMenuRow?) throws {
+        let destinationURL = try url(for: drive, row: row)
         UIApplication.shared.open(destinationURL, options: [:], completionHandler: nil)
     }
 }

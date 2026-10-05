@@ -11,11 +11,13 @@ import SwiftUI
 /// vertically, so every line wraps with Dynamic Type instead of truncating.
 struct DriveDetails: View {
     let drive: HandoffDrive
+    /// The roads the screen's selection drives - the selected menu row's (T-0246), else `DriveCopy.route(for:)`.
+    let roads: String
     let caption: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(DriveCopy.route(for: drive))
+            Text(roads)
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.fg)
                 .fixedSize(horizontal: false, vertical: true)

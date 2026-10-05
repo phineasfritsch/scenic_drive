@@ -59,6 +59,8 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
 
     static let sourceIdentifier = "scenic-route"
     static let lineIdentifier = "scenic-route-line"
+    static let mutedSourceIdentifier = "scenic-route-muted"
+    static let mutedIdentifier = "scenic-route-muted-line"
     static let casingIdentifier = "scenic-route-casing"
 
     /// The clear space a fit leaves between the line and each covered edge, and at the sides.
@@ -188,10 +190,14 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
             style.insertLayer(line, above: casing)
         }
 
+        let muted = installMuted(on: style, below: casing)
+
         let traits = mapView.traitCollection
         let lineColor = UIColor(route?.lineColor ?? .clear).resolvedColor(with: traits)
         let casingColor = UIColor(route?.casingColor ?? .clear).resolvedColor(with: traits)
-        for (layer, color, width) in [(casing, casingColor, MapRoute.lineWidth + 2 * MapRoute.casingWidth),
+        let mutedColor = UIColor(route?.mutedColor ?? .clear).resolvedColor(with: traits)
+        for (layer, color, width) in [(muted, mutedColor, MapRoute.lineWidth),
+                                      (casing, casingColor, MapRoute.lineWidth + 2 * MapRoute.casingWidth),
                                       (line, lineColor, MapRoute.lineWidth)] {
             layer.lineColor = NSExpression(forConstantValue: color)
             layer.lineWidth = NSExpression(forConstantValue: width)
@@ -199,5 +205,26 @@ public final class MapRouteCoordinator: NSObject, @preconcurrency MLNMapViewDele
             layer.lineCap = NSExpression(forConstantValue: "round")
         }
         paintedStyle = traits.userInterfaceStyle
+    }
+
+    /// A menu's other rows (T-0246): their own source and one line layer directly UNDER the casing, so the
+    /// selected line and its casing are painted over them wherever two rows share a road. A route without muted
+    /// rows sets the shape to `nil`: the layer stays and draws nothing, as the line's does.
+    private func installMuted(on style: MLNStyle, below casing: MLNLineStyleLayer) -> MLNLineStyleLayer {
+        let shape = route?.mutedGeoJSON.flatMap { try? MLNShape(data: $0, encoding: String.Encoding.utf8.rawValue) }
+        let source: MLNShapeSource
+        if let existing = style.source(withIdentifier: Self.mutedSourceIdentifier) as? MLNShapeSource {
+            existing.shape = shape
+            source = existing
+        } else {
+            source = MLNShapeSource(identifier: Self.mutedSourceIdentifier, shape: shape, options: nil)
+            style.addSource(source)
+        }
+        if let existing = style.layer(withIdentifier: Self.mutedIdentifier) as? MLNLineStyleLayer {
+            return existing
+        }
+        let layer = MLNLineStyleLayer(identifier: Self.mutedIdentifier, source: source)
+        style.insertLayer(layer, below: casing)
+        return layer
     }
 }
