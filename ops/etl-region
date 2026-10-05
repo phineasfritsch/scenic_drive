@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# The region build that makes <region>-tagged.osm.pbf, one stage per call (T-0242; T-0208's pipeline).
+#
+#   ops/etl-region <stage> [--jobs N] [--region la]      in the ETL image (docker), the default
+#   ops/etl-region --local <stage> --work DIR [...]      on the host: python -m regionbuild
+#
+# Stages, in order: motorways tiles docs reference score merge toxml tag topbf check; also sha, windows,
+# and all. See services/etl/regionbuild/cli.py.
+#
+# Docker mode mounts this checkout at /repo and the WORK STORE at /work. The store is $SCENIC_REGION_WORK on
+# the host; put the clip in it as <region>-filtered.osm.pbf and the region inputs (DEM, WorldCover, byways)
+# as inputs/. On the Windows box run it from WSL with the store on WSL-native ext4 - T-0208 measured the
+# 9p mount of C: completing nothing in nine minutes. The image is $SCENIC_ETL_IMAGE (scenic-etl:latest).
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [ "${1:-}" = "--local" ]; then
+  shift
+  cd "$ROOT/services/etl"
+  exec "${PYTHON:-$(command -v python3 || command -v python)}" -m regionbuild "$@"
+fi
+
+WORK="${SCENIC_REGION_WORK:?set SCENIC_REGION_WORK to the host work store}"
+IMAGE="${SCENIC_ETL_IMAGE:-scenic-etl:latest}"
+INPUTS=()
+if [ -d "$WORK/inputs" ]; then
+  INPUTS=(-e SCENIC_ETL_INPUTS=/work/inputs)
+fi
+exec docker run --rm -v "$ROOT:/repo" -v "$WORK:/work" -w /repo/services/etl "${INPUTS[@]}" \
+  "$IMAGE" python3 -m regionbuild --work /work "$@"
