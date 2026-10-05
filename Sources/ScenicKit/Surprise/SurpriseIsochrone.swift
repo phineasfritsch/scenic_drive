@@ -14,7 +14,8 @@ public struct SurpriseIsochrone: Sendable, Equatable, Decodable {
         self.buckets = buckets
     }
 
-    /// The response body, or PlanFailure.malformedResponse when it is not the shape T-0262 R7 rules (R4).
+    /// The response body, or PlanFailure.malformedResponse when it is not the shape T-0262 R7 rules (R4): a Polygon
+    /// of at least one ring, every ring - outer and hole - at least four positions, every position two numbers.
     public static func decode(_ body: Data) throws -> SurpriseIsochrone {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -27,6 +28,10 @@ public struct SurpriseIsochrone: Sendable, Equatable, Decodable {
         for bucket in reach.buckets {
             guard bucket.polygon.type == "Polygon" else {
                 throw PlanFailure.malformedResponse("an isochrone bucket is a \(bucket.polygon.type), not a Polygon")
+            }
+            guard !bucket.polygon.coordinates.isEmpty,
+                  bucket.polygon.coordinates.allSatisfy({ $0.count >= 4 }) else {
+                throw PlanFailure.malformedResponse("an isochrone polygon has no ring, or a ring short of four positions")
             }
             guard bucket.polygon.coordinates.allSatisfy({ ring in ring.allSatisfy { $0.count >= 2 } }) else {
                 throw PlanFailure.malformedResponse("an isochrone position carries fewer than two numbers")

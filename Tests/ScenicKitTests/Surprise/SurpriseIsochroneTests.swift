@@ -111,4 +111,64 @@ struct SurpriseIsochroneTests {
             }
         }
     }
+
+    /// rv1 B1's class: a defect at every structural position, each through the shipping decode, each refused as
+    /// PlanFailure.malformedResponse by name. R4 as amended: a polygon carries at least one ring, every ring (outer
+    /// and hole alike) at least four positions, every position at least two numbers - the Worker's own reader
+    /// (isochronePlanner.ts ring()) - and closure is not required, as that reader does not require it.
+    @Test("every structural defect is refused as malformedResponse: each bucket, each outer and hole ring, its first, middle and last position")
+    func everyStructuralDefectIsRefusedByName() throws {
+        let data = try SurpriseReachParityTests.data("isochrone.json")
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let buckets = try #require(json["buckets"] as? [[String: Any]])
+        func rings(_ b: Int) -> [Any] { (buckets[b]["polygon"] as! [String: Any])["coordinates"] as! [Any] }
+        func body(_ b: Int, _ edit: (inout [Any]) -> Void) throws -> Data {
+            var copy = buckets
+            var polygon = copy[b]["polygon"] as! [String: Any]
+            var coordinates = polygon["coordinates"] as! [Any]
+            edit(&coordinates)
+            polygon["coordinates"] = coordinates
+            copy[b]["polygon"] = polygon
+            var whole = json
+            whole["buckets"] = copy
+            return try JSONSerialization.data(withJSONObject: whole)
+        }
+        let badRings: [(String, ([Any]) -> Any)] = [("three positions", { Array($0.prefix(3)) }),
+                                                    ("no positions", { _ in [Any]() }), ("a number", { _ in 5 })]
+        let badPositions: [(String, Any)] = [("one number", [-118.3]), ("no numbers", [Any]()),
+                                             ("a string", ["-118.3", 34.1]), ("a number", -118.3), ("null", NSNull())]
+        var cells: [(String, Data)] = []
+        for b in buckets.indices {
+            cells.append(("bucket \(b) no rings", try body(b) { $0 = [] }))
+            for r in rings(b).indices {
+                let ring = rings(b)[r] as! [Any]
+                for (label, bad) in badRings {
+                    cells.append(("bucket \(b) ring \(r) \(label)", try body(b) { $0[r] = bad(ring) }))
+                }
+                for p in Set([0, ring.count / 2, ring.count - 1]).sorted() {
+                    for (label, bad) in badPositions {
+                        cells.append(("bucket \(b) ring \(r) position \(p) \(label)", try body(b) { coordinates in
+                            var edited = ring
+                            edited[p] = bad
+                            coordinates[r] = edited
+                        }))
+                    }
+                }
+            }
+        }
+        func refusedByName(_ body: Data) -> Bool {
+            do {
+                _ = try SurpriseIsochrone.decode(body)
+                return false
+            } catch PlanFailure.malformedResponse {
+                return true
+            } catch {
+                return false
+            }
+        }
+        #expect(buckets.indices.map { rings($0).count } == [1, 3, 2])
+        #expect(cells.count == 3 + 6 * 3 + 6 * 3 * 5)
+        #expect(try SurpriseIsochrone.decode(try body(1) { _ in }) == SurpriseIsochrone.decode(data))
+        #expect(cells.filter { !refusedByName($0.1) }.map(\.0) == [])
+    }
 }

@@ -18,6 +18,9 @@ value types. The driver is surprise.py and the runner surprise_run.py (menu's th
   * the T-0263 pre-review survivors (79-81): the first containing bucket trusted to be the smallest (killed by
     every bucket order), the shape checked on bucket one only (a defect in each bucket), and the budget read from
     the largest bucket (a dial that is not the last bucket's round trip).
+  * rv1's B1 and its class (82-94): every scope a decode check can narrow to - buckets, rings (outer vs hole),
+    positions (first, middle, last) - and the ring-size rule R4 now carries (a ring, four positions each); one
+    table through decode, a defect at every structural position, each refused as malformedResponse by name.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -75,6 +78,8 @@ SHAPE = "a body that is not T-0262's shape does not decode: a MultiPolygon, a on
 ORDERS = "every bucket order gives the recorded reach: the parity body's three buckets in all six orders"
 ANY_BUCKET = ("a defect in any bucket does not decode: a MultiPolygon, a one-number position, no round trip, in each "
               "of the parity body's three buckets")
+TABLE = ("every structural defect is refused as malformedResponse: each bucket, each outer and hole ring, its "
+         "first, middle and last position")
 DIAL = ("the reach's budget is the body's dial, not its largest bucket: dials 45, 100 and 240 over buckets ending "
         "at 90")
 CROSSING = "(xj - xi) * (point.latitude - yi) / (yj - yi) + xi"
@@ -225,6 +230,31 @@ MUTATIONS = [
     ("81 the budget read from the largest bucket", ISOCHRONE,
      "SurpriseReach(budgetMinutes: minutes, roundTripMinutes: roundTrips)",
      "SurpriseReach(budgetMinutes: buckets.last?.roundTripMinutes ?? minutes, roundTripMinutes: roundTrips)", [DIAL]),
+    ("82 rv1 B1: positions checked on the outer ring only", ISOCHRONE,
+     "guard bucket.polygon.coordinates.allSatisfy(", "guard bucket.polygon.coordinates.prefix(1).allSatisfy(", [TABLE]),
+    ("83 positions unchecked on the outer ring", ISOCHRONE, "guard bucket.polygon.coordinates.allSatisfy(",
+     "guard bucket.polygon.coordinates.dropFirst().allSatisfy(", [TABLE]),
+    ("84 positions unchecked on the last hole", ISOCHRONE, "guard bucket.polygon.coordinates.allSatisfy(",
+     "guard bucket.polygon.coordinates.dropLast().allSatisfy(", [TABLE]),
+    ("85 only each ring's first position checked", ISOCHRONE, "ring in ring.allSatisfy {",
+     "ring in ring.prefix(1).allSatisfy {", [TABLE]),
+    ("86 each ring's first position unchecked", ISOCHRONE, "ring in ring.allSatisfy {",
+     "ring in ring.dropFirst().allSatisfy {", [TABLE]),
+    ("87 each ring's last position unchecked", ISOCHRONE, "ring in ring.allSatisfy {",
+     "ring in ring.dropLast().allSatisfy {", [TABLE]),
+    ("88 ring size checked on the outer ring only", ISOCHRONE, "bucket.polygon.coordinates.allSatisfy({ $0.count >= 4 })",
+     "bucket.polygon.coordinates.prefix(1).allSatisfy({ $0.count >= 4 })", [TABLE]),
+    ("89 ring size unchecked on the outer ring", ISOCHRONE, "bucket.polygon.coordinates.allSatisfy({ $0.count >= 4 })",
+     "bucket.polygon.coordinates.dropFirst().allSatisfy({ $0.count >= 4 })", [TABLE]),
+    ("90 ring size unchecked on the last hole", ISOCHRONE, "bucket.polygon.coordinates.allSatisfy({ $0.count >= 4 })",
+     "bucket.polygon.coordinates.dropLast().allSatisfy({ $0.count >= 4 })", [TABLE]),
+    ("91 a three-position ring accepted", ISOCHRONE, "$0.count >= 4", "$0.count >= 3", [TABLE]),
+    ("92 a polygon with no ring accepted", ISOCHRONE, "guard !bucket.polygon.coordinates.isEmpty,",
+     "guard bucket.polygon.coordinates.count >= 0,", [TABLE]),
+    ("93 the first bucket's shape unchecked", ISOCHRONE, "for bucket in reach.buckets {",
+     "for bucket in reach.buckets.dropFirst() {", [TABLE, ANY_BUCKET]),
+    ("94 the last bucket's shape unchecked", ISOCHRONE, "for bucket in reach.buckets {",
+     "for bucket in reach.buckets.dropLast() {", [TABLE, ANY_BUCKET]),
 ]
 
 # Cannot change behaviour, so each must report MISSED; anything else is a FAILURE. `(name, path, old, new, witness)`.
@@ -238,6 +268,6 @@ EQUIVALENT = [
      "Array.isEmpty is defined as count == 0, and count is never negative"),
 ]
 
-MIN_MUTATIONS = 81
+MIN_MUTATIONS = 94
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 5
