@@ -4,6 +4,10 @@
     python ops/mutate/surprise.py
     python ops/mutate/surprise.py --prove-vacuity
     python ops/mutate/surprise.py --prove-floor
+    python ops/mutate/surprise.py --only 61,E1 [--prove-vacuity]
+
+`--only` runs just the entries whose leading id (the name up to its first space) is listed: a fix round re-runs
+the rows it touched, never the whole table (owner ruling). The floor still checks the WHOLE population first.
 
 The population is ops/mutate/surprise_mutations.py and the runner ops/mutate/surprise_run.py; this file is the
 CLI, the floors and the proof arms - menu.py's three-file shape, under CLAUDE.md's 300-line cap.
@@ -100,6 +104,17 @@ def prove_floor() -> int:
     return 0 if ok else 1
 
 
+def select(argv):
+    """(mutations, equivalents) to run: all of them, or the `--only` ids. None when `--only` matches nothing."""
+    if "--only" not in argv:
+        return list(MUTATIONS), list(EQUIVALENT)
+    i = argv.index("--only")
+    ids = set(argv[i + 1].split(",")) if i + 1 < len(argv) else set()
+    muts = [m for m in MUTATIONS if m[0].split(" ", 1)[0] in ids]
+    equiv = [e for e in EQUIVALENT if e[0].split(" ", 1)[0] in ids]
+    return (muts, equiv) if muts or equiv else None
+
+
 def main(argv) -> int:
     if "--prove-floor" in argv:
         return prove_floor()
@@ -108,6 +123,11 @@ def main(argv) -> int:
     if refusal is not None:
         sys.stdout.write("REFUSING TO RUN: %s\n" % refusal)
         return 2
+    picked = select(argv)
+    if picked is None:
+        sys.stdout.write("REFUSING TO RUN: --only names no entry of this population\n")
+        return 2
+    muts, equiv = picked
     sys.stdout.write("population  mutations=%d (floor %d)  equivalent=%d (floor %d)  subjects=%s  test "
                      "files=%d  filter=%s\n" % (len(MUTATIONS), MIN_MUTATIONS, len(EQUIVALENT), MIN_EQUIVALENT,
                                                 ", ".join(s.name for s in SUBJECTS), len(TESTS), FILTER))
@@ -136,12 +156,12 @@ def main(argv) -> int:
         if code != 0:
             sys.stdout.write("baseline is not green; refusing to call anything a caught mutation\n")
             return 2
-        r = run_all(pristine, MUTATIONS, True)
+        r = run_all(pristine, muts, True)
         if not prove:
             sys.stdout.write("\nEQUIVALENT - cannot change behaviour, so anything but MISSED is a FAILURE\n")
-            for name, _p, _o, _n, witness in EQUIVALENT:
+            for name, _p, _o, _n, witness in equiv:
                 sys.stdout.write("  witness     %s: %s\n" % (name, witness))
-            eq = run_all(pristine, EQUIVALENT, False)
+            eq = run_all(pristine, equiv, False)
     finally:
         for f, b in pristine.items():
             f.write_bytes(b)
@@ -154,22 +174,24 @@ def main(argv) -> int:
         return 2
     sys.stdout.write("\ncaught by the test that names it: %d of %d   (wrong killer %d, trapped %d, "
                      "compile-only %d, MISSED %d, skipped %d)\n"
-                     % (len(r["caught"]), len(MUTATIONS), len(r["wrong_killer"]), len(r["trapped"]),
+                     % (len(r["caught"]), len(muts), len(r["wrong_killer"]), len(r["trapped"]),
                         len(r["compile_only"]), len(r["missed"]), len(r["skipped"])))
     if prove:
-        ok = len(r["caught"]) == 0 and len(r["missed"]) == len(MUTATIONS)
+        ok = len(r["caught"]) == 0 and len(r["missed"]) == len(muts)
         sys.stdout.write("VACUITY PROOF %s: with the %d test file(s) emptied, caught=%d (need 0) and "
                          "MISSED=%d of %d\n" % ("OK" if ok else "FAILED", len(TESTS), len(r["caught"]),
-                                                len(r["missed"]), len(MUTATIONS)))
+                                                len(r["missed"]), len(muts)))
         return 0 if ok else 1
     eq_caught = len(eq["caught"]) + len(eq["wrong_killer"])
-    eq_ok = len(eq["missed"]) == len(EQUIVALENT)
+    eq_ok = len(eq["missed"]) == len(equiv)
     if not eq_ok:
         sys.stdout.write("EQUIVALENT ARM FAILED: %d of %d went MISSED as required\n"
-                         % (len(eq["missed"]), len(EQUIVALENT)))
-    ok = len(r["caught"]) == len(MUTATIONS) and eq_ok
-    sys.stdout.write("MUTATE %s  caught=%d/%d equivalent_caught=%d\n"
-                     % ("OK" if ok else "FAILED", len(r["caught"]), len(MUTATIONS), eq_caught))
+                         % (len(eq["missed"]), len(equiv)))
+    ok = len(r["caught"]) == len(muts) and eq_ok
+    sys.stdout.write("MUTATE %s  caught=%d/%d equivalent_caught=%d%s\n"
+                     % ("OK" if ok else "FAILED", len(r["caught"]), len(muts), eq_caught,
+                        "" if len(muts) == len(MUTATIONS) else "  (--only: %d of %d entries)"
+                        % (len(muts), len(MUTATIONS))))
     return 0 if ok else 1
 
 

@@ -11,6 +11,8 @@ value types. The driver is surprise.py and the runner surprise_run.py (menu's th
   * the eight value types' fields (46-55): the tests render a pick's PROPERTIES, so a swapped field is seen.
   * the pre-review survivors (58-60): the not-my-thing window from below, civil dusk read as sunset, and a
     too-far cut kept past its day - each boundary now pinned from both sides.
+  * rv1's survivor (61): a red flag closing a SPARED category; filter 7 now compares the whole red-flag
+    permutation to the oracle's scenario R, and the red-flag set to the calm set minus the three fire categories.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -44,7 +46,7 @@ F3 = "filter 3: the same category on the same corridor within 30 days is never p
 F4 = "filter 4: a blocklisted brand or chain is never picked; an unlisted local brand is"
 F5 = "filter 5: a place not open from arrival to arrival + dwell + 45 min is never picked unless exempt"
 F6 = "filter 6: an unlit unpaved viewpoint arriving after civil twilight is never picked"
-F7 = "filter 7: a red-flag day drops every park, trailhead and viewpoint"
+F7 = "filter 7: a red-flag day drops exactly park, trailhead and viewpoint - the oracle's red-flag permutation"
 F8 = "filter 8: an approach crossing private access is never picked"
 TOO_FAR = "not this - too far: the next pick is ojai-02 and no pick that day is 170 min or longer"
 NOT_MINE = "not this - not my thing: the next pick is ojai-02 and no beach for 30 days"
@@ -159,6 +161,8 @@ MUTATIONS = [
      "SolarEvents.compute(on: context.date, at: c.coordinate).sunset", [F6]),
     ("60 too far kept forever", SURPRISE, "f.reason == .tooFar && days(date, since: f.date) == 0",
      "f.reason == .tooFar && days(date, since: f.date) >= 0", [TOO_FAR]),
+    ("61 a red flag closes beaches too", CATEGORY, "case .park, .trailhead, .viewpoint: return true\n        case .beach,",
+     "case .park, .trailhead, .viewpoint, .beach: return true\n        case", [F7]),
 ]
 
 # Cannot change behaviour, so each must report MISSED; anything else is a FAILURE. `(name, path, old, new, witness)`.
@@ -172,6 +176,6 @@ EQUIVALENT = [
      "Array.isEmpty is defined as count == 0, and count is never negative"),
 ]
 
-MIN_MUTATIONS = 60
+MIN_MUTATIONS = 61
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 3

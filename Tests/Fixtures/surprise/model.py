@@ -184,6 +184,7 @@ def main():
     a = sequence(cands, BASE, {}, "driver-a", tally)
     c = sequence(cands, BASE, {}, "driver-c", tally)
     b = sequence(cands, B_CTX, B_HIST, "driver-b", tally)
+    r = sequence(cands, dict(BASE, redflag=True), {}, "driver-a")
     p0 = a[0]
     p0c = next(r for r in cands if r["id"] == p0)
     fb = {}
@@ -196,11 +197,14 @@ def main():
                           "roundtrip": p0c["roundtrip"], "reason": "wrongTime", "date": D0}]}, "driver-a")
     with open(HERE / "sequences.tsv", "w", encoding="utf-8", newline="\n") as f:
         f.write("# scenario\tseed\tid\n")
-        for name, seq in (("A", a), ("C", c), ("B", b)):
+        for name, seq in (("A", a), ("C", c), ("B", b), ("R", r)):
             for i, cid in enumerate(seq):
                 f.write("%s\t%d\t%s\n" % (name, i, cid))
     print("candidates=%d  eligible A=%d B=%d  distinct over seeds 0..99: A=%d" % (
         len(cands), len(a), len(b), len(set(a[:100]))))
+    print("R (red flag, driver-a): eligible=%d  fire picks=%d  A minus fire == R as a set: %s" % (
+        len(r), sum(1 for x in r if next(q for q in cands if q["id"] == x)["category"] in FIRE),
+        set(r) == {x for x in a if next(q for q in cands if q["id"] == x)["category"] not in FIRE}))
     print("A[0..5]=%s  C[0..5]=%s  B[0..3]=%s" % (a[:6], c[:6], b[:4]))
     print("P0=%s cat=%s rt=%d  next picks seed0: %s  wrongTime next day seed0=%s" % (
         p0, p0c["category"], p0c["roundtrip"], {k: v[0] for k, v in fb.items()}, wrong_next[0]))

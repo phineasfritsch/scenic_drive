@@ -66,14 +66,20 @@ struct SurpriseFilterTests {
         #expect(Set(try SurpriseFixture.ids()).contains("w-dark-late"))
     }
 
-    @Test("filter 7: a red-flag day drops every park, trailhead and viewpoint")
+    /// Two full equalities, not properties: the whole red-flag permutation equals the Python oracle's scenario R
+    /// (its own fire table), and the red-flag set equals the calm set minus EXACTLY the three fire categories -
+    /// so a red flag that also closes a beach, garden, cafe, museum or town is red here.
+    @Test("filter 7: a red-flag day drops exactly park, trailhead and viewpoint - the oracle's red-flag permutation")
     func redFlag() throws {
         let fire: Set<SurpriseCategory> = [.park, .trailhead, .viewpoint]
-        let flagged = try SurpriseFixture.ids(context: SurpriseFixture.context(redFlag: true))
+        let red = SurpriseFixture.context(redFlag: true)
+        let oracle = try SurpriseFixture.sequence("R")
+        #expect(oracle.count == 75)
+        #expect(try SurpriseFixture.ids(count: 75, context: red) == oracle)
         let calm = try SurpriseFixture.ids()
-        #expect(try flagged.allSatisfy { !fire.contains(try SurpriseFixture.category($0) ?? .town) })
-        #expect(try calm.filter { fire.contains(try SurpriseFixture.category($0) ?? .town) }.count >= 30)
-        #expect(Set(flagged).contains("w-hours-edge"))
+        let spared = Set(try calm.filter { !fire.contains(try SurpriseFixture.category($0) ?? .town) })
+        #expect(Set(try SurpriseFixture.ids(context: red)) == spared)
+        #expect(spared.count == 75 && Set(calm).count == 127)
     }
 
     @Test("filter 8: an approach crossing private access is never picked")
