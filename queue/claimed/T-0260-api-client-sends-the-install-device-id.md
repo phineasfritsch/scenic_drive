@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-06T04:33:17Z
 worktree: .worktrees/T-0260
 branch: task/T-0260
 exclusive: []
-touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/]
+touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/lib/mutate-population-allowlist.json, queue/]
 pins_affected: [P-COST-01, P-PRIV-05]
 reviewer: null
 depends_on: [T-0251, T-0256]
@@ -29,3 +29,45 @@ task is the root-package half: the header and the provider protocol.
 - 2026-10-05T14:31:22Z filed by agent/claude-opus-5 (orchestrator) from T-0256's stillOpen (e).
 - 2026-10-05T16:31:14Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): dependencies merged (T-0175 #142, T-0251 #148, T-0256 #147).
 - 2026-10-05T16:33:17Z claimed by agent/claude-opus-5; lease until 2026-10-06T04:33:17Z
+- 2026-10-05T16:44:39Z RULINGS by agent/claude-opus-5 (owner), before any code. Measured: the only request
+  builder in ScenicAPIClient is `PlanClient.plan` (one `PlanHTTPRequest(... headers: ["content-type": ...])`);
+  the only `PlanClient(` call site in the tree is Tests/ScenicAPIClientTests/PlanWire.swift:40 (apps/ and Sources/
+  have none). The Worker's contract (services/api/src/routerDeps.ts): `DEVICE_HEADER = "x-scenic-device"`,
+  `DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/` read after `.toLowerCase()`;
+  anything else is `device:unidentified`.
+  R1 (the provider). New `public protocol InstallIDProvider: Sendable { func installID() -> UUID }` in its own
+  file. It returns Foundation's `UUID`, not a String, so a malformed id cannot be represented; it takes NO
+  argument, so the client has nothing - no origin, no place - to derive it from (P-PRIV-05). The keychain-backed
+  conformer that generates the UUID once per install is the Apple package's (M6, per the Brief); this package
+  never generates an id - `PlanClient` only reads the provider. Not optional-returning: a keychain read that fails
+  is the M6 conformer's to handle; this package's "no id" is "no provider" (R3).
+  R2 (the header). `PlanClient.plan` adds exactly ONE header, `x-scenic-device: <uuid.uuidString.lowercased()>`
+  (Foundation's uuidString is UPPERCASE; the Worker lowercases too, but the acceptance asks the client to send the
+  lowercased form). The whole header set is then exactly {content-type, x-scenic-device}; no other identifying
+  header. Asserted by EXACT equality of the whole `PlanHTTPRequest` (url, method, headers, body) - the existing
+  T-0251 full-equality tests, including the URLSession stub test, gain the header in their expected literals.
+  "Generated once, never derived from location": two plans through one client from DIFFERENT origins carry the
+  same header byte-for-byte, equal to the provider's id.
+  R3 (no provider). `PlanClient.init(base:transport:installID:)` takes `(any InstallIDProvider)?` with NO default,
+  so omitting it is a compile error and nil must be written. A nil provider is refused when the request is built,
+  as the typed `PlanError.refusedOnDevice(.noInstallID)` (new `PlanRefusal` case) with ZERO transport calls -
+  the same shape as T-0251's other device refusals. Checked BEFORE the body is validated, so it is reached by
+  every plan; RED by name: `testRefusesAPlanWithNoInstallIDProviderAndSendsNothing`.
+  R4 (scope). `pins_affected: [P-COST-01, P-PRIV-05]` - neither id occurs under pins/ or ops/ (grep -rln, 0 files);
+  no pin is edited. The new Sources file needs a P-PROC-06 allowlist entry (a protocol, no code), so touches: gains
+  ops/lib/mutate-population-allowlist.json; queue/ for this file's own transition.
+- 2026-10-05T16:57:57Z RED then GREEN by agent/claude-opus-5 (owner). RED, with the API surface in place (PlanClient.init takes
+  installID:, PlanRefusal.noInstallID exists) and no behavior: `swift test --scratch-path .build/t0260 --filter
+  ScenicAPIClientTests` -> "Executed 43 tests, with 8 failures (0 unexpected)", exit 1; failing BY NAME:
+  PlanClientDeviceTests.testRefusesAPlanWithNoInstallIDProviderAndSendsNothing (got unexpectedResponse(status: 200),
+  count 1 != 0), .testNoInstallIDIsRefusedBeforeTheOriginIsJudged (got originMoreThanTwoDecimals),
+  .testSendsTheInjectedProvidersIDLowercasedAsTheWholeHeaderSet, .testOneClientSendsTheSameIDFromEveryOrigin,
+  PlanClientRequestTests.testSendsExactlyTheBodyT0248Ruled, .testDepartsAtIsSentAsAUTCInstantInWholeSeconds,
+  URLSessionPlanTransportTests.testURLSessionCarriesTheWholeRequestAndReturnsTheWholeReply (each: headers
+  ["content-type"] only vs the expected whole set with x-scenic-device). GREEN after PlanClient.plan's guard and
+  header: same command -> "Executed 43 tests, with 0 failures (0 unexpected)", exit 0.
+  Pre-review mutants (driver .build/t0260-mutants.py, filter PlanClientDeviceTests, source restored after each):
+  M1 drop .lowercased() -> exit 1 KILLED by testSendsTheInjectedProvidersIDLowercasedAsTheWholeHeaderSet and
+  testOneClientSendsTheSameIDFromEveryOrigin; M2 send a fixed literal id -> exit 1 KILLED by
+  testSendsTheInjectedProvidersIDLowercasedAsTheWholeHeaderSet; M3 move the nil guard after body validation ->
+  exit 1 KILLED by testNoInstallIDIsRefusedBeforeTheOriginIsJudged. 0 survivors.
