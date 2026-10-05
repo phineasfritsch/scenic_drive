@@ -1,7 +1,7 @@
 ---
 id: T-0265
 title: Sources/Telemetry - the plan's closed enum of 14 events, coarse payloads only (feature ids, H3-5 cell, durations), encoded by exact equality, never a coordinate
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T18:21:57Z
@@ -11,7 +11,7 @@ branch: task/T-0265
 exclusive: [package-swift]
 touches: [Package.swift, Sources/Telemetry/, Tests/TelemetryTests/, ops/mutate/, ops/lib/mutate-population-allowlist.json, ops/lib/mutate_population_table.py, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0265
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -66,3 +66,10 @@ the sender is a later task.
   - GREEN before the mutant (`SCENIC_SWIFT_SCRATCH=.build/t0265 python ops/lib/run-named-tests.py P-PRIV-05`): `NAMED P-PRIV-05 passed=22/22` exit=0.
   - RED by name, the reviewer's mutant (`.disabled()` added to the four @Test attributes, Tests/TelemetryTests/TelemetryPayloadWhitelistTests.swift and H3ReferenceCellTests.swift): `RED TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted(): SKIPPED - ['skipped']`, `RED TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields(): SKIPPED - ['skipped']`, `RED TelemetryTests.H3ReferenceCellTests/tenPublishedCells(): SKIPPED - ['skipped']`, `RED TelemetryTests.H3ReferenceCellTests/everyPublishedRow(): SKIPPED - ['skipped']`, `NAMED P-PRIV-05 passed=18/22` exit=1. Mutant reverted with git checkout.
   - GREEN on the merged head a046382 (origin/main c50f8c4 merged; it moved only queue/claimed/T-0267): `NAMED P-PRIV-05 passed=22/22` exit=0; `swift test --scratch-path .build/t0265 --filter Telemetry` -> `Test run with 12 tests in 4 suites passed after 0.136 seconds.` exit=0; `bash ops/queue-check` -> `QUEUE OK (258 tasks)` exit=0. Faster verification: only the touched rows re-run; no Swift or mutation-population file changed.
+- 2026-10-05T22:54:42Z REVIEW PASS, round 2 (agent/rv2-t0265, reviewer; not the owner). PR #155, head 6117b51 (== origin/task/T-0265). Fresh worktree `git worktree add --detach .worktrees/rv2-t0265 origin/task/T-0265`, `npm ci` in services/api so the vitest half of P-PRIV-05 runs, own scratch `SCENIC_SWIFT_SCRATCH=.build/rv2-t0265`. Faster verification: only the touched rows.
+  - rv1 B1 re-applied (`.disabled()` on the four @Test attributes: everyAssociatedValueIsWhitelisted, whitelistedTypesStoreExactlyTheirFields, tenPublishedCells, everyPublishedRow): `python ops/lib/run-named-tests.py P-PRIV-05` -> `RED TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted(): SKIPPED - ['skipped']`, `RED TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields(): SKIPPED - ['skipped']`, `RED TelemetryTests.H3ReferenceCellTests/tenPublishedCells(): SKIPPED - ['skipped']`, `RED TelemetryTests.H3ReferenceCellTests/everyPublishedRow(): SKIPPED - ['skipped']`, `NAMED P-PRIV-05 passed=18/22` exit=1. B1 CLOSED. (The first attempt was a Windows build race, `failed file status check ... index/store ... permission denied` -> `NAMED P-PRIV-05 REFUSED: swift test wrote no xunit report (exit 1)`; re-run as above.)
+  - Reviewer variant B, a production leak the runner CAN see: `case corpusActivated(version: Int)` -> `version: Double` in Sources/Telemetry/TelemetryEvent.swift -> `RED TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted(): FAILED - ['failed']`, `NAMED P-PRIV-05 passed=21/22` exit=1.
+  - Reviewer variant C, what the runner CANNOT see: variant B plus deleting the `(.corpusActivated(version: 7), ...)` row from TelemetryEventEncodingTests.rows, the table the whitelist ranges over -> `NAMED P-PRIV-05 passed=22/22` exit=0 (the whitelist passes over a table that no longer holds the leaking case). It is caught outside the pin: `swift test --scratch-path .build/rv2-t0265 --filter Telemetry` -> `Test "the plan's fourteen events, no more and no fewer, each with a row" recorded an issue at TelemetryEventEncodingTests.swift:64:9` (Set(rows.kind) lacks corpusActivated), `Test run with 12 tests in 4 suites failed after 0.074 seconds with 1 issue.` exit=1. So the suite gate fails CLOSED and only the pin's attribution is open. RECORDED, non-blocking (round 2 of a non-P-SAFE pin; the suite is red): fourteenEventsEachWithARow() carries the coverage half of the whitelist clause ("every event in the encoding table - which covers every TelemetryEventKind") and is worth binding under P-PRIV-05 in a follow-up task. The owner's note that it "counts events" holds no privacy clause does not hold for its second expectation.
+  - GREEN after the revert (`git status` clean): `NAMED P-PRIV-05 passed=22/22` exit=0; `swift test --scratch-path .build/rv2-t0265 --filter Telemetry` -> `Test run with 12 tests in 4 suites passed after 0.067 seconds.` exit=0; `bash ops/queue-check` -> `QUEUE OK (258 tasks)`; `gh pr checks 155` -> `core pass 3m49s`, `pins-source-only pass 3m24s`; `git merge-base --is-ancestor origin/main origin/task/T-0265` -> 0 (origin/main c50f8c4).
+  - rv1's other results are quoted from the round-1 handoff only: B1 as above, with the pre-fix measurement `13/13` under the vitest-only table (not re-run here, and not re-run by the owner either).
+  - Sign-off: state done, reviewer agent/rv2-t0265, queue/claimed/ -> queue/done/, queue/LOCKS/package-swift.lock released (as T-0251's c69f4d0 did). Not merged by the reviewer.
