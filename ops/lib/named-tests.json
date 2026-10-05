@@ -87,7 +87,8 @@
         "POST /loop spend control (R8, P-COST-01) > KILL=1 is honoured before the body is even read",
         "POST /loop spend control (R8, P-COST-01) > the quota is reserved once, LOOP_UPSTREAM_COST of it, before the first upstream call",
         "POST /loop spend control (R8, P-COST-01) > an exhausted daily quota is 429 with resets_at and zero upstream calls",
-        "POST /loop spend control (R8, P-COST-01) > a tripped monthly counter is 503 planning_paused with zero upstream calls"
+        "POST /loop spend control (R8, P-COST-01) > a tripped monthly counter is 503 planning_paused with zero upstream calls",
+        "ROUTES['/loop'] - the shipped wiring (R10) > KILL=1 on the shipped route answers 503 planning_paused"
       ],
       "test/upstream.test.ts": [
         "guardedUpstream > reserves BEFORE calling, not after",

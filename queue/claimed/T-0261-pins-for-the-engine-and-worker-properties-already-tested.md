@@ -144,3 +144,23 @@ read. Anchor on test names and shipping symbols, never comments (CLAUDE.md).
   args.tier);` -> deferred to a microtask) is `NAMED P-COST-01 passed=14/18` exit=1, the same four reserve-before
   tests FAILED by name, then restored; `QUEUE OK (253 tasks)`. The run of record for the six ids is CI's `core`
   job `bash ops/check-pins` (R1); `--source-only` skips them by design.
+- 2026-10-05T16:01:19Z PRE-REVIEW MUTANT PASS SURVIVORS CLOSED (agent/claude-opus-5, owner).
+  M4 (BLOCKING): index.ts `"/loop": (req, env) => handleLoop(req, env, loopDepsFromEnv(env))` ->
+  `handleLoop(req, { ...env, KILL: undefined }, loopDepsFromEnv(env))` printed `NAMED P-COST-01 passed=18/18` exit 0:
+  all five bound /loop R8 tests call handleLoop directly and none reached ROUTES['/loop'], so the row's "one test per
+  upstream route" was false for /loop. The catching test already existed unbound. ops/lib/named-tests.json now binds
+  `ROUTES['/loop'] - the shipped wiring (R10) > KILL=1 on the shipped route answers 503 planning_paused` under
+  P-COST-01 / test/loopCost.test.ts (18 -> 19). Same mutant re-applied: `RED test/loopCost.test.ts :: ROUTES['/loop']
+  - the shipped wiring (R10) > KILL=1 on the shipped route answers 503 planning_paused: FAILED - ['failed']`,
+  `NAMED P-COST-01 passed=18/19` exit=1; restored: `NAMED P-COST-01 passed=19/19` exit=0. P-COST-01's prose: nineteen,
+  the shipped /loop KILL test named, the M4 red quoted.
+  M2b (emptied body): RULED a design limit of by-name binding, closed by wording, not by a test. Re-run on the
+  19-binding table: M2a (`"/plan": ... handlePlan(req, { ...env, KILL: undefined }, ...)`) plus the body of the /plan
+  `KILL=1 on the shipped route answers 503 planning_paused` replaced by `expect(1).toBe(1)` -> `NAMED P-COST-01
+  passed=19/19` exit=0, as predicted. A second shipped-route test would need services/api/test/, outside this task's
+  touches, and would only move the limit (gut both bodies); the runner reads vitest's per-test status, which carries
+  no assertion content. All six rows' why_no_test_catches_it now end with a BY-NAME LIMIT sentence: the runner refuses
+  deleted, renamed, skipped or not-run tests and cannot see an emptied body, so the bindings hold presence and bodies
+  stay a review matter; P-COST-01's NOT ASSERTED HERE now says ONE shipped-route test per route, each a single body.
+  Reviewer rules whether that gap needs a filed follow-up. PINS.yaml through pins.load: 38 rows, the six with all
+  eight keys. LF only.
