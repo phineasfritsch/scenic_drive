@@ -2,26 +2,27 @@
  * POST /plan - one request from the app becomes one scenic route (T-0248).
  *
  * The order is the property (R4, P-COST-01):
- *   1. KILL=1 -> 503 planning_paused, before the body is read. Zero upstream calls, no reservation.
+ *   1. KILL=1 (env, or the KV switch when bound - killSwitch.ts) -> 503 planning_paused, before the body is read. Zero upstream calls, no reservation.
  *   2. The body against the whitelist (R1/R2, P-PRIV-05) -> 400. Not an upstream call; costs no plan.
  *   3. The destination place id -> its coordinate, or 404. Not an upstream call; costs no plan.
  *   4. guardedPlan: the quota is read and RESERVED before the first router request; every request goes through
  *      the `call` it hands out, which refuses a 13th (P-COST-04).
- * Deps are injected so the tests count real fetch invocations; ROUTES["/plan"] builds them from env and, with
- * no router / counters / corpus configured, answers 503 planning_unavailable with zero upstream calls.
+ * Deps are injected so the tests count real fetch invocations; ROUTES["/plan"] builds them from env (T-0256:
+ * routerDeps.ts + the D1 place resolver) and, with any binding missing, answers 503 planning_unavailable with zero
+ * upstream calls. A resolver that cannot answer is 503 planning_unavailable too - never a 404, never a call.
  */
+import { killSwitch, type KillEnv } from "./killSwitch";
 import type { LatLon } from "./latLon";
 import { BudgetError } from "./lambdaSearch";
+import { d1PlaceResolver } from "./placeResolver";
 import { parsePlanRequest } from "./planRequest";
 import type { Tier } from "./quota";
+import { routerDepsFromEnv, type RouterEnv } from "./routerDeps";
 import { RouteError } from "./routePath";
 import { PlanFailure, planScenic } from "./scenicPlanner";
 import { guardedPlan, PlanBudgetExceeded, UpstreamPaused, type UpstreamDeps } from "./upstream";
 
-export interface PlanEnv {
-  /** Manual override: "1" pauses all planning without a deploy. */
-  KILL?: string;
-}
+export type PlanEnv = KillEnv;
 
 export interface PlanDeps {
   upstream: UpstreamDeps;
@@ -39,11 +40,11 @@ const json = (body: unknown, status: number) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 
-export const killed = (env: PlanEnv) => env.KILL === "1";
-
-/** The production deps. None of the three exists in this Worker yet (R4), so this is null: fail closed. */
-export function planDepsFromEnv(_env: PlanEnv): PlanDeps | null {
-  return null;
+/** The production deps: real exactly when QUOTA, a routable ROUTER_URL, ROUTER_SECRET and DB are all bound. */
+export function planDepsFromEnv(env: PlanEnv & RouterEnv & { DB?: D1Database }): PlanDeps | null {
+  const router = routerDepsFromEnv(env);
+  if (router === null || !env.DB) return null;
+  return { ...router, resolvePlace: d1PlaceResolver(env.DB) };
 }
 
 function failure(error: unknown): Response {
@@ -65,7 +66,8 @@ function failure(error: unknown): Response {
 }
 
 export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | null): Promise<Response> {
-  if (killed(env)) return json({ error: "planning_paused" }, 503);
+  const paused = await killSwitch(env);
+  if (paused) return json({ error: "planning_paused" }, 503);
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
   let raw: unknown;
@@ -79,10 +81,15 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   if (deps === null) return json({ error: "planning_unavailable" }, 503);
 
   const { request } = parsed;
-  const destination = await deps.resolvePlace(request.destinationPlace);
+  let destination: LatLon | null;
+  try {
+    destination = await deps.resolvePlace(request.destinationPlace);
+  } catch {
+    return json({ error: "planning_unavailable" }, 503);
+  }
   if (destination === null) return json({ error: "unknown_place" }, 404);
 
-  const upstream: UpstreamDeps = { ...deps.upstream, killed: () => killed(env) || deps.upstream.killed() };
+  const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const plan = await guardedPlan(upstream, deps.identify(req), (call) =>
       planScenic(call, deps.routerBase, request.origin, destination, request.budgetMinutes * 60));

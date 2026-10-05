@@ -7,7 +7,14 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   // GIT_SHA / BUILT_AT are overridden at deploy time by ops/deploy (--var). "dev" means "not a real deploy".
-  "vars": { "GIT_SHA": "dev", "BUILT_AT": "dev" },
+  // ROUTER_URL: our GraphHopper. The shipped value is RFC 2606's reserved, non-routable .invalid, which
+  // routerDepsFromEnv counts as ABSENT (T-0256 R8): /plan and /loop answer 503 planning_unavailable until the owner
+  // sets the real URL here AND `wrangler secret put ROUTER_SECRET`. No secret value lives in this file.
+  "vars": { "GIT_SHA": "dev", "BUILT_AT": "dev", "ROUTER_URL": "https://router.invalid" },
+  // Per-device daily and global monthly quota counters (T-0256 R1). The KILL_SWITCH KV namespace is NOT bound
+  // here: creating it is the owner's step; the Worker reads it when bound and the KILL var always (R5).
+  "durable_objects": { "bindings": [{ "name": "QUOTA", "class_name": "QuotaCounter" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuotaCounter"] }],
   "d1_databases": [
     { "binding": "DB", "database_name": "scenic", "database_id": "5f475f94-9fd3-4902-9f6e-022c6db30544" }
   ]

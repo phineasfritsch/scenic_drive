@@ -21,7 +21,20 @@ export const KILL_SWITCH_THRESHOLD = 0.9;
 export const DAILY_PLAN_QUOTA = { anon: 3, free: 10, paid: 200 } as const;
 export const PLAN_UPSTREAM_COST = 12;
 
+/** Daily per-user LOOP budgets (T-0256 R4, plan table "Loop 1/day free, Unlimited paid"). Anon is not in the table
+ *  and gets the free figure; "Unlimited" is the paid PLAN cap BY REFERENCE - a counter needs a finite limit, and
+ *  the monthly ceiling is the real bound. Never a second literal of DAILY_PLAN_QUOTA's numbers. */
+export const DAILY_LOOP_QUOTA = { anon: 1, free: 1, paid: DAILY_PLAN_QUOTA.paid } as const;
+
 export type Tier = keyof typeof DAILY_PLAN_QUOTA;
+
+/** What a reservation is spent on (T-0256 R4): a loop has its own daily allowance and never spends a plan. */
+export type QuotaKind = "plan" | "loop";
+
+/** The daily allowance of `kind` for `tier`. */
+export function dailyQuota(kind: QuotaKind, tier: Tier): number {
+  return (kind === "loop" ? DAILY_LOOP_QUOTA : DAILY_PLAN_QUOTA)[tier];
+}
 
 export type QuotaVerdict =
   | { ok: true; tier: Tier; remaining: number }
@@ -74,11 +87,14 @@ export function killSwitchTripped(monthlyCalls: number): boolean {
  */
 export function checkQuota(args: {
   tier: Tier;
+  /** Which allowance `plansUsedToday` counts. A plan when absent. */
+  kind?: QuotaKind;
   plansUsedToday: number;
   monthlyUpstreamCalls: number;
   now: Date;
 }): QuotaVerdict {
   const { tier, plansUsedToday, monthlyUpstreamCalls, now } = args;
+  const kind = args.kind ?? "plan";
 
   // `tier` is typed, but it arrives from a D1 row, not from the compiler. An unrecognised value indexed
   // straight into DAILY_PLAN_QUOTA yielded `undefined`, `plansUsedToday >= undefined` is false, and the
@@ -98,7 +114,7 @@ export function checkQuota(args: {
     return { ok: false, reason: "upstream_paused", monthlyCalls: monthlyUpstreamCalls };
   }
 
-  const limit = DAILY_PLAN_QUOTA[tier];
+  const limit = dailyQuota(kind, tier);
   if (plansUsedToday >= limit) {
     return { ok: false, reason: "quota_exhausted", tier, resetsAt: nextReset(now) };
   }
