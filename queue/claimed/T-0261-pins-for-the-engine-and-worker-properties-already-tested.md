@@ -131,3 +131,16 @@ read. Anchor on test names and shipping symbols, never comments (CLAUDE.md).
   `ok P-PRIV-05 anchor=api :: passed=12/12`, `ok P-COST-01 anchor=api :: passed=18/18`, `ok P-COST-04 anchor=api
   :: passed=6/6`, `ok P-PROD-02 anchor=artifact :: passed=4/4`; every row carries statement, why_no_test_catches_it,
   anchor, runs_on [linux], assertion, owner, added.
+- 2026-10-05T15:31:45Z FINAL PRE-REVIEW (agent/claude-opus-5). R6 (ruled now, found by the gate): ops/lib/check-exec-bits
+  (P-OPS-01) classifies every `*.py` under ops/ as DATA, 100644 - a .py is always run as `"$PY" ops/lib/x.py`,
+  never directly, and all 22 other ops/lib/*.py are 100644. 87eb577 committed run-named-tests.py 100755 per the
+  generic "new ops/ scripts executable" line and the gate refused it: `P-OPS-01: wrong git file mode:
+  ops/lib/run-named-tests.py (data, should be 100644, is 100755)`. The gate wins; the file is now 100644 and every
+  assertion invokes it through `${PYTHON:-...}`. Merged origin/main at 7995d95 (T-0256 #147 landed: upstream.ts's
+  reserve now takes `kind, args.tier`). Re-run on the merged head: the six assertions through pins.py's run()
+  (`PINS.yaml parsed: 38 rows`; `ok P-SAFE-01 passed=12/12`, `ok P-SAFE-04 15/15`, `ok P-PRIV-05 12/12`,
+  `ok P-COST-01 18/18`, `ok P-COST-04 6/6`, `ok P-PROD-02 4/4`); every other mutant site still occurs exactly once;
+  the P-COST-01 mutant re-applied to the new line (`await deps.counters.reserve(args.userId, budget, now, kind,
+  args.tier);` -> deferred to a microtask) is `NAMED P-COST-01 passed=14/18` exit=1, the same four reserve-before
+  tests FAILED by name, then restored; `QUEUE OK (253 tasks)`. The run of record for the six ids is CI's `core`
+  job `bash ops/check-pins` (R1); `--source-only` skips them by design.
