@@ -207,3 +207,26 @@ is filed as its own task).
   so no osmium content comparison is needed and none is claimed. The output was copied per R5 to the MAIN
   checkout's services/etl/work/t0242/la-tagged.osm.pbf (re-hashed there: `648fc3db...3d39`) with
   la-reference.json and logs/; the shipped services/etl/work/la/la-tagged.osm.pbf was never written.
+- 2026-10-05T06:18:56Z THE MERGED-HEAD GATES, by agent/claude-opus-5 (owner). `git fetch origin` (main checkout) and
+  `git merge --no-edit origin/main` -> 6f2e5e5 (main brought only queue/backlog/T-0247-*.md);
+  `git merge-base --is-ancestor origin/main HEAD` exit 0; pushed; PR #138 opened.
+  ETL SUITE, every __pycache__ purged, `cd services/etl && python -m pytest tests -o addopts= -q -rs` (host):
+      `1341 passed in 144.73s (0:02:24)` - `-rs` printed no skip line: ZERO skipped.
+  QUEUE: `bash ops/queue-check` (host): `QUEUE OK (240 tasks)`, exit 0.
+  LINE CAP AND EXEC BITS: on the Windows host `bash ops/lib/check-line-cap` HUNG three times (a bash subshell fork
+  that never returned, more than 10 minutes each; other agents' copies of the same check hung on this box at the
+  same time). That is the box, not the tree, so the check was run bare in WSL against this worktree, with git
+  pointed at it (`GIT_DIR=.git/worktrees/T-0242 GIT_WORK_TREE=.worktrees/T-0242`; `git rev-parse HEAD` = 6f2e5e5):
+      `P-SRC-02: 134 Swift files tracked (Sources=50, Tests=57, apps/ios=27), none over 300 lines` exit 0
+      `P-OPS-01: 108 files, 23 required present, all modes correct` exit 0
+  The Python files this task adds were measured separately: the longest is test_region_build.py at 187 lines.
+  `bash ops/check-pins --source-only`: the host run was still inside its check-line-cap fork after 40 minutes and
+  was stopped, so there is NO bare host result. The WSL run (5m2s) read `failed=4 tier=linux source-only`, and
+  every one of the four is the WSL environment, not this tree:
+      P-SAFE-05 and P-SAFE-06 (`GUIDANCE GATE: no swiftc`): WSL has no Swift toolchain.
+      P-PROC-03 and P-PROC-04 (`git commit -q -m base --no-verify failed` in check-sweep.py's scratch repos):
+      the exported GIT_DIR sends the scratch repos' git calls to this worktree.
+  None of the four touches services/etl, ops/etl-region or the queue file. The same assertion set ran on CI on
+  the merged head 6f2e5e5, `gh pr checks 138`: `pins-source-only pass 1m11s` and `core pass 2m32s`. RECORDED
+  AS A GAP, not claimed: the bare host `check-pins --source-only` was not seen green in this session. The
+  reviewer should re-run it on a box where `bash` forks return.
