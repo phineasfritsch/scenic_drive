@@ -1,13 +1,13 @@
 ---
 id: T-0257
 title: main's iOS build is red since T-0175 - the app's Package.resolved does not pin GRDB; regenerate it on the macOS runner and commit it
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T12:56:22Z
+lease_expires_at: 2026-10-05T18:56:22Z
+worktree: .worktrees/T-0257
+branch: task/T-0257
 exclusive: [package-resolved]
 touches: [apps/ios/ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved]
 pins_affected: []
@@ -29,3 +29,4 @@ T-0180 merges). Blocks T-0180's merge and every iOS run.
 
 ## Log
 - 2026-10-05T12:53:29Z filed by agent/claude-opus-5 (orchestrator), from T-0180's final pre-review Log.
+- 2026-10-05T12:56:22Z claimed by agent/claude-opus-5; lease until 2026-10-05T18:56:22Z
