@@ -70,8 +70,8 @@ export const MUTATIONS = [
   m("planner-ceiling-plus", "scenicPlanner.ts", "fastestSeconds + budgetSeconds;", "fastestSeconds + budgetSeconds + 1;"),
   m("planner-overlap-inclusive", "scenicPlanner.ts", "!(shared < MAXIMUM_OVERLAP)", "!(shared <= MAXIMUM_OVERLAP)"),
   m("planner-no-way-ids", "scenicPlanner.ts", "\"osm_way_id\", ...HAZARD_DETAILS", "...HAZARD_DETAILS"),
-  m("plan-kill-true", "plan.ts", "env.KILL === \"1\"", "env.KILL === \"true\""),
-  m("plan-kill-late", "plan.ts", "if (killed(env)) return", "if (false) return"),
+  m("plan-kill-true", "killSwitch.ts", "if (env.KILL === \"1\") return true;", "if (env.KILL === \"true\") return true;"),
+  m("plan-kill-late", "plan.ts", "if (paused) return", "if (false) return"),
   m("plan-hours", "plan.ts", "request.budgetMinutes * 60", "request.budgetMinutes * 3600"),
   m("plan-quota-503", "plan.ts", "resets_at: verdict.resetsAt }, 429)", "resets_at: verdict.resetsAt }, 503)"),
 ];

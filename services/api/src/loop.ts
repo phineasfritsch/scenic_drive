@@ -1,16 +1,19 @@
 /**
  * POST /loop - "just drive 45 minutes and come back" (T-0252). The /plan order, held the same way (R8):
- *   1. KILL=1 -> 503 planning_paused, before the body is read. Zero upstream calls, no reservation.
+ *   1. KILL=1 (env, or the KV switch when bound - killSwitch.ts) -> 503 planning_paused, before the body is read. Zero upstream calls, no reservation.
  *   2. The body against the whitelist (R1, P-PRIV-05) -> 400. Costs nothing.
  *   3. guardedPlan with LOOP_UPSTREAM_COST: the quota is read and RESERVED before the first router request, and
  *      the `call` it hands out refuses a 4th (P-COST-04).
- * Deps are injected so the tests count real fetch invocations; ROUTES["/loop"] builds them from env and, with no
- * router / counters configured, answers 503 planning_unavailable with zero upstream calls.
+ * Deps are injected so the tests count real fetch invocations; ROUTES["/loop"] builds them from env (T-0256,
+ * routerDeps.ts) and, with any binding missing, answers 503 planning_unavailable with zero upstream calls. A loop
+ * spends the LOOP allowance (kind "loop", T-0256 R4), never a plan.
  */
+import { killSwitch } from "./killSwitch";
 import { parseLoopRequest } from "./loopRequest";
 import { LOOP_UPSTREAM_COST, LoopFailure, loopSeed, planLoop } from "./loopPlanner";
-import { killed, type PlanEnv } from "./plan";
+import type { PlanEnv } from "./plan";
 import { dayKey, type Tier } from "./quota";
+import { routerDepsFromEnv, type RouterEnv } from "./routerDeps";
 import { RouteError } from "./routePath";
 import { guardedPlan, PlanBudgetExceeded, UpstreamPaused, type UpstreamDeps } from "./upstream";
 
@@ -28,9 +31,9 @@ const json = (body: unknown, status: number) =>
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
 
-/** The production deps. Neither the router nor the counters exist in this Worker yet: fail closed. */
-export function loopDepsFromEnv(_env: PlanEnv): LoopDeps | null {
-  return null;
+/** The production deps: real exactly when QUOTA, a routable ROUTER_URL and ROUTER_SECRET are all bound. */
+export function loopDepsFromEnv(env: PlanEnv & RouterEnv): LoopDeps | null {
+  return routerDepsFromEnv(env);
 }
 
 function failure(error: unknown): Response {
@@ -49,7 +52,8 @@ function failure(error: unknown): Response {
 }
 
 export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | null): Promise<Response> {
-  if (killed(env)) return json({ error: "planning_paused" }, 503);
+  const paused = await killSwitch(env);
+  if (paused) return json({ error: "planning_paused" }, 503);
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
   let raw: unknown;
@@ -64,10 +68,10 @@ export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | nu
 
   const { request } = parsed;
   const who = deps.identify(req);
-  const upstream: UpstreamDeps = { ...deps.upstream, killed: () => killed(env) || deps.upstream.killed() };
+  const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const seed = loopSeed(who.userId, dayKey(deps.upstream.now()));
-    const loop = await guardedPlan(upstream, who, (call) =>
+    const loop = await guardedPlan(upstream, { ...who, kind: "loop" }, (call) =>
       planLoop(call, deps.routerBase, request.start, request.minutes, seed), LOOP_UPSTREAM_COST);
     return json(loop, 200);
   } catch (error) {
