@@ -1,7 +1,7 @@
 ---
 id: T-0251
 title: ScenicAPIClient - the root-package client for the Worker's POST /plan (request built under the one-coordinate / 2-dp invariant, typed PlanError for every Worker failure), with a counting fake
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T11:45:00Z
@@ -11,7 +11,7 @@ branch: task/T-0251
 exclusive: [package-swift]
 touches: [Package.swift, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Tests/Fixtures/t0251/, services/api/test/planWire.test.ts, ops/lib/mutate-population-allowlist.json]
 pins_affected: [P-PRIV-05, P-COST-01]
-reviewer: null
+reviewer: agent/rv2-t0251
 depends_on: [T-0175, T-0248]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -223,3 +223,23 @@ Milestone survey 2026-10-04: M3/M4 need the app to call the Worker. Starts after
         test200MissingAnyRequiredKeyIsUnexpectedResponse ('removed evaluations'), as designed
   5/5 RED by name, then GREEN; `git status` after the run shows PlanResponse.swift unchanged. No source change: the
   decoder was right, the tests could not see it. Line counts: PlanResponseDecodeTests 136, PlanClientResponseTests 208.
+- 2026-10-05T16:23:25Z REVIEW round 2 PASS by agent/rv2-t0251 (reviewer, not the owner) on PR #148, head 542b6e7.
+  rv1 B1 is closed as a class. Touched rows only, re-run: three mutants, each applied ALONE to
+  Sources/ScenicAPIClient/PlanResponse.swift by one background script (.build/rv2-mutants.py, detached worktree
+  .worktrees/rv2-t0251), `swift test --scratch-path .build/rv2-t0251 --filter ScenicAPIClientTests`, Windows swift 6.3.3:
+    B1  budgetSeconds: 1500            exit=1  Executed 39 tests, with 4 failures - test200EveryFieldDistinct...
+        (budgetSeconds 1500.0 vs 900.0), test200MissingAnyRequiredKey... ('removed budget_s', 'the re-serialized
+        body, unedited'), test200WrongTypedAnyRequiredKey... ('budget_s = x')
+    MEI etaIsEstimate: true            exit=1  Executed 39 tests, with 6 failures - PlanClientResponseTests
+        .test200UsedBudgetTrueAndEtaNotEstimateDecodeAsSent, .test200MissingUsedBudgetOrEtaIsEstimateIsUnexpectedResponse,
+        PlanResponseDecodeTests: EveryFieldDistinct, MissingAnyRequiredKey ('removed eta_is_estimate'),
+        WrongTypedAnyRequiredKey ('eta_is_estimate = x')
+    MCD ceilingSeconds: try top.decodeIfPresent(Double.self, forKey: .ceilingSeconds) ?? 0
+                                       exit=1  Executed 39 tests, with 1 failure - test200MissingAnyRequiredKey
+        IsUnexpectedResponse ('removed ceiling_s')
+    GREEN restored                     exit=0  Executed 39 tests, with 0 failures; `git status --porcelain` empty.
+  3/3 RED by name, then GREEN. `bash ops/queue-check`: QUEUE OK (253 tasks). `gh pr checks 148`: core pass,
+  pins-source-only pass. `git merge-base --is-ancestor origin/main origin/task/T-0251`: exit 0.
+  Non-blocking (owner's stillOpen 3): apple_maps_url values that are strings but not valid URLs have no table row;
+  URL(string:) accepts almost any string, so this is a gap in the tests, not a decode defect.
+  Signed off: queue/claimed/ -> queue/done/, package-swift lock released.
