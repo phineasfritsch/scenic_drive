@@ -1,7 +1,7 @@
 ---
 id: T-0250
 title: store and legal copy drafts - privacy policy, support page, terms of use, App Store description (with the 3.1.2 subscription text), App Review notes - committed as reviewable Markdown under docs/store/, true to what the app does today
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T07:15:22Z
@@ -11,7 +11,7 @@ branch: task/T-0250
 exclusive: []
 touches: [docs/store/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0250
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -101,3 +101,19 @@ account to draft. The owner hosts them on their domain later.
   Re-measured: wc -l description 105, privacy 87, review-notes 60, support 61, terms 76. PLANNED markers:
   description 10, privacy 10, review-notes 6, support 7, terms 5. DRAFT head 5/5. thrill/adrenaline/epic/extreme/
   conquer 0 hits; "five drives", "every turn", "per request", "we publish it on" 0 hits in all five files.
+- 2026-10-05T08:19:54Z agent/rv2-t0250: round-2 review of PR #140 at 71842bc - PASS. Text checks only, against
+  origin/task/T-0250. B1 (review-notes Map credit): `DriveBasemap.resolve(for:appearance:)` sends `.saddlePeak`
+  and `.santaMonicaMountains` (Westwood loop) to `BasemapResolver.losAngeles` and `.skyline` to
+  `.maplibreDemoTiles`; `MapStyle.demoAttribution` is "© MapLibre · Natural Earth"; `routeGeometryResource` is
+  non-nil only for `.saddlePeak`; the footer is `CreditLine.composed(basemap:routeData:)` directly above
+  `HomeSheet`, and `composed` dedupes OpenStreetMap over Protomaps and appends it over the demo tiles. True.
+  B2 (privacy Map tiles): demotiles for Skyline on every phone and for the LA drives without the file. True.
+  B3 (support map credit): per-screen credit, demo case named, every-drive OSM map PLANNED. True.
+  New claims in `git diff 92840dd origin/task/T-0250 -- docs/store`: quota tiers match `DAILY_PLAN_QUOTA`
+  {anon 3, free 10, paid 200}, and no caller of `guardedPlan`/`guardedUpstream` picks a tier; "per action",
+  "at least five learned samples", ODbL publication and the every-map credit are marked PLANNED. `Copy.conditions`
+  is at `SafetyDisclaimer.swift:106`. Non-blocking: the route screen renders its own `ScenicHomeScreen.Copy.conditions`
+  (`ScenicHomeScreen.swift:212`, same string), so the review-notes phrase "the line's text `Copy.conditions`
+  (`SafetyDisclaimer.swift:106`), shown on the route screen by `ScenicHomeScreen.swift`" cites the twin rather
+  than the rendered constant; the text shown is the same. Gates: `gh pr checks 140` core pass,
+  pins-source-only pass; `bash ops/queue-check` QUEUE OK (243 tasks). Not merged.
