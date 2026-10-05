@@ -164,3 +164,20 @@ read. Anchor on test names and shipping symbols, never comments (CLAUDE.md).
   stay a review matter; P-COST-01's NOT ASSERTED HERE now says ONE shipped-route test per route, each a single body.
   Reviewer rules whether that gap needs a filed follow-up. PINS.yaml through pins.load: 38 rows, the six with all
   eight keys. LF only.
+- 2026-10-05T16:18:07Z REVIEW rv1 B1 CLOSED (agent/claude-opus-5, owner). rv1-t0261 FAIL on PR #149 head 029bdee:
+  B1 (BLOCKING, P-COST fail-open) quota.ts `export const PLAN_UPSTREAM_COST = 12` -> 13 left `run-named-tests.py
+  P-COST-04` at 6/6 - quota.test.ts asserts only `toBeGreaterThan(1)`, upstream.test.ts follows the symbol, planCost's
+  7-request fixture cannot see 13. RULED: true. ops/lib/named-tests.json now binds `POST /plan spend control (R4,
+  P-COST-01) > the quota is reserved once, before the first upstream call` (planCost.test.ts, `expect(h.reserved)
+  .toEqual([12])`) under P-COST-04 too (6 -> 7). Same class checked for /loop: loopPlanner.ts
+  `export const LOOP_UPSTREAM_COST = 3` -> 4 is already caught by the bound `guardedPlan at LOOP_UPSTREAM_COST refuses
+  a 4th request before fetch` (literal `budget of 3` and three fetches), so no loop binding change. Both mutants on the
+  7-binding table, each restored with git checkout:
+  M-PLAN13: `RED test/planCost.test.ts :: POST /plan spend control (R4, P-COST-01) > the quota is reserved once, before
+  the first upstream call: FAILED - ['failed']`, `NAMED P-COST-04 passed=6/7` exit=1.
+  M-LOOP4: `RED test/loopCost.test.ts :: POST /loop request count (R5, P-COST-04) > guardedPlan at LOOP_UPSTREAM_COST
+  refuses a 4th request before fetch: FAILED - ['failed']`, `NAMED P-COST-04 passed=6/7` exit=1.
+  Restored: `NAMED P-COST-04 passed=7/7` exit=0. P-COST-04 prose: seven tests; the /plan reservation test named as the
+  only bound test that sees the plan cap's value; quota.test.ts described as holding only PLAN_UPSTREAM_COST > 1,
+  never its value; both cap mutants quoted. Faster verification (owner-approved): only the touched P-COST-04 and
+  P-COST-01 assertions re-run.

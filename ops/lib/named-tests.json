@@ -103,7 +103,8 @@
   "P-COST-04": {
     "vitest": {
       "test/planCost.test.ts": [
-        "POST /plan request count (R5, P-COST-04) > one plan makes 7 upstream requests - at most 12 - one in flight at a time"
+        "POST /plan request count (R5, P-COST-04) > one plan makes 7 upstream requests - at most 12 - one in flight at a time",
+        "POST /plan spend control (R4, P-COST-01) > the quota is reserved once, before the first upstream call"
       ],
       "test/loopCost.test.ts": [
         "POST /loop request count (R5, P-COST-04) > a loop is at most 3 upstream requests: reseed, then areas on the retraced edges of the reseeded loop",
