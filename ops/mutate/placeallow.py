@@ -91,6 +91,7 @@ BOX = "bbox[0] <= p_lat <= bbox[1] and bbox[2] <= p_lon <= bbox[3]"
 KEY = "points.get((cls, name.casefold()), ())"
 DEDUPE_SIDE = '        if osm_type != "n" and any('
 SKIP_COUNT = '            counts["skipped_geometry"] += 1'
+MEMBER_TYPE = 'if m.get("type") == MEMBER_WAY and (m.get("role") or "") in OUTER_ROLES]'
 TYPE_TEST = "        if tags.get(row.key) == row.value and osm_type in row.types:"
 
 MUTATIONS = (
@@ -142,6 +143,8 @@ MUTATIONS = (
         ("dedupe gone", SUBJECT, DEDUPE_SIDE, "        if False and any("),
         ("dedupe drops the node, not the area", SUBJECT, DEDUPE_SIDE, '        if osm_type == "n" and any('),
         ("a geometry skip goes uncounted", SUBJECT, SKIP_COUNT, '            counts["skipped_geometry"] += 0'),
+        ("a node member counts as an outer way", SUBJECT, MEMBER_TYPE,
+         MEMBER_TYPE.replace('m.get("type") == MEMBER_WAY and ', "")),
     ]
 )
 
@@ -154,7 +157,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 68
+MIN_MUTATIONS = 69
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", str(TESTS)]
 
 

@@ -97,7 +97,7 @@
   <way id="902"><nd ref="1025"/><nd ref="1026"/><nd ref="1027"/><nd ref="1025"/></way>
   <way id="903"><nd ref="1028"/><nd ref="1029"/></way>
   <relation id="103"><member type="way" ref="901" role="outer"/><tag k="type" v="multipolygon"/><tag k="tourism" v="viewpoint"/><tag k="name" v="Vista Relation"/></relation>
-  <relation id="132"><member type="way" ref="901" role="outer"/><member type="way" ref="902" role="inner"/><member type="way" ref="903" role=""/><member type="node" ref="1091" role="label"/><tag k="type" v="multipolygon"/><tag k="natural" v="beach"/><tag k="name" v="Leo Carrillo Beach"/></relation>
+  <relation id="132"><member type="way" ref="901" role="outer"/><member type="way" ref="902" role="inner"/><member type="way" ref="903" role=""/><member type="node" ref="1091" role="outer"/><tag k="type" v="multipolygon"/><tag k="natural" v="beach"/><tag k="name" v="Leo Carrillo Beach"/></relation>
   <relation id="242"><member type="way" ref="99998" role="outer"/><tag k="type" v="multipolygon"/><tag k="natural" v="beach"/><tag k="name" v="Lost Beach"/></relation>
   <relation id="243"><member type="way" ref="902" role="inner"/><tag k="type" v="multipolygon"/><tag k="natural" v="beach"/><tag k="name" v="Hollow Beach"/></relation>
 </osm>
