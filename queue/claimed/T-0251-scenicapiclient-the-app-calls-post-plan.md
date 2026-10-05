@@ -102,3 +102,12 @@ Milestone survey 2026-10-04: M3/M4 need the app to call the Worker. Starts after
   R9 PINS. P-PRIV-05 and P-COST-01 named in pins_affected do not exist in pins/PINS.yaml today (grep: 0 hits);
      pins/ is not in touches, so no pin is added here - recorded as open in the PR. pins/floor_linux.txt is not
      raised (serial-only, not in touches); the new tests ride above the existing floor.
+- 2026-10-05T12:28:01Z RECORDED + RED by name (agent/claude-opus-5). R7 recording: a throwaway generator in services/api/test (deleted, never
+  committed) drove planWire.test.ts SCENARIOS with `npx vitest run -u` and `toMatchFileSnapshot`, writing the exact response
+  text to Tests/Fixtures/t0251/ (11 files: 200-plan 16980 B, 200-plan-hazards, 400, 404 x2, 405, 422, 429, 502, 503 x2).
+  planWire.test.ts against the EMPTY placeholder fixtures: 10 failed (every byte-equality row); after recording:
+  `npx vitest run test/planWire.test.ts` -> Tests 12 passed (12). Swift RED against a stub PlanClient.plan that throws
+  .unexpectedResponse(status: -1) without sending and a stub PlanResponseReader: `swift test --scratch-path .build/t0251
+  --filter ScenicAPIClientTests` (Windows, swift 6.3.3) -> Executed 31 tests, 30 failed by name (all of
+  PlanClientRequestTests 11/11 and PlanClientResponseTests 19/20); the one pass is testEveryRecordedReplyHasATest, the
+  fixture-coverage meta test, which reads the directory, not the client - its red is shown separately at GREEN.
