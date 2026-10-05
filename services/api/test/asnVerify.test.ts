@@ -23,6 +23,11 @@ const chains: Record<string, Chain> = {};
 
 const expired = (over: Partial<Parameters<typeof notification>[1]> = {}, chain = good) =>
   notification(chain, { type: "EXPIRED", signedDate: NOW, tx: TX, ...over });
+/** A DID_FAIL_TO_RENEW + GRACE_PERIOD notification - signed and with a valid transaction - carrying `renewal`. */
+const grace = async (renewal: string) => signJws({ notificationType: "DID_FAIL_TO_RENEW", subtype: "GRACE_PERIOD", signedDate: NOW,
+  data: { environment: "Production", bundleId: "com.phineasfritsch.scenicdrive", signedTransactionInfo: await signJws(TX, good),
+    signedRenewalInfo: renewal } }, good);
+const RENEWAL = { gracePeriodExpiresDate: NOW + 1000 };
 const parts = async () => (await expired()).split(".");
 /** The whole EXPIRED notification (data and nested transaction included) re-signed under an altered header, so a
  * header defect is the ONLY thing wrong with it. */
@@ -52,12 +57,13 @@ beforeAll(async () => {
     "leaf without the App Store OID": { now: NOW, leaf: { extensions: [] } },
     "intermediate without the WWDR OID": { now: NOW, intermediate: { extensions: [] } },
     "leaf signed by a key that is not the intermediate's": { now: NOW, leafSigner: signer },
-    "leaf naming another issuer": { now: NOW, leaf: { issuerName: "Someone Else" } },
+    "leaf naming another issuer of the same length": { now: NOW, leaf: { issuerName: "Test WWDR - G7" } },
     "leaf key on P-384": { now: NOW, leafCurve: "P-384" },
     "intermediate signed by a key that is not the root's": { now: NOW, intermediateSigner: await party("Test Root CA - G3", "P-384") },
     "root valid until 2051 (GeneralizedTime)": { now: NOW, root: { notAfter: Date.UTC(2051, 0, 1) } },
     "leaf valid until exactly now": { now: NOW, leaf: { notAfter: NOW } },
     "leaf valid from exactly now": { now: NOW, leaf: { notBefore: NOW } },
+    "a chain whose root and intermediate are P-256 (ecdsa-with-SHA256 certificates)": { now: NOW, caCurve: "P-256" },
   };
   for (const [name, spec] of Object.entries(specs)) chains[name] = await appleChain(spec);
 });
@@ -93,7 +99,8 @@ const DEFECTS: [string, () => Promise<unknown>, string?][] = [
     x5c: [b64(new Uint8Array([...Uint8Array.from(atob(good.x5c[0]!), (c) => c.charCodeAt(0)), 0])), ...good.x5c.slice(1)] })],
   ["leaf certificate cut by one byte", () => expired({}, { ...good,
     x5c: [b64(Uint8Array.from(atob(good.x5c[0]!), (c) => c.charCodeAt(0)).subarray(0, -1)), ...good.x5c.slice(1)] })],
-  ["leaf naming another issuer", () => expired({}, chains["leaf naming another issuer"]), "leaf naming another issuer"],
+  ["leaf naming another issuer of the same length", () => expired({}, chains["leaf naming another issuer of the same length"]),
+    "leaf naming another issuer of the same length"],
   ["leaf key on P-384 (no 64-byte ES256 signature)", () => expired({}, chains["leaf key on P-384"]), "leaf key on P-384"],
   ["missing x5c", () => withHeader({ x5c: undefined })],
   ["x5c of two certificates", () => withHeader({ x5c: good.x5c.slice(0, 2) })],
@@ -126,6 +133,11 @@ const DEFECTS: [string, () => Promise<unknown>, string?][] = [
   ["signedTransactionInfo from a self-made root that is not the trusted one", async () =>
     signJws({ notificationType: "EXPIRED", signedDate: NOW, data: { environment: "Production", bundleId: "com.phineasfritsch.scenicdrive",
       signedTransactionInfo: await signJws(TX, stranger) } }, good)],
+  ["signedRenewalInfo with a bad signature", async () => {
+    const r = (await signJws(RENEWAL, good)).split(".");
+    return grace(`${r[0]}.${r[1]}.${b64url(flip(r[2]!))}`);
+  }],
+  ["signedRenewalInfo from a self-made root that is not the trusted one", async () => grace(await signJws(RENEWAL, stranger))],
   ["transaction without originalTransactionId", () => expired({ tx: { productId: "scenic.pro.monthly" } })],
   ["transaction with an empty originalTransactionId", () => expired({ tx: { ...TX, originalTransactionId: "" } })],
   ["transaction without productId", () => expired({ tx: { originalTransactionId: "1000" } })],
@@ -155,7 +167,8 @@ describe("every signedPayload defect is 400 with zero state change (shipped hand
 });
 
 describe("the validity bounds are inclusive at the Worker's clock", () => {
-  it.each(["leaf valid until exactly now", "leaf valid from exactly now", "root valid until 2051 (GeneralizedTime)"])("%s is accepted and the row flips", async (name) => {
+  it.each(["leaf valid until exactly now", "leaf valid from exactly now", "root valid until 2051 (GeneralizedTime)",
+    "a chain whose root and intermediate are P-256 (ecdsa-with-SHA256 certificates)"])("%s is accepted and the row flips", async (name) => {
     expect(await postAsn(await expired({}, chains[name]), testDeps(chains[name]!.rootSha256))).toEqual({ status: 200, json: { received: true } });
     expect(await rows()).toEqual([row({ status: "inactive", notification_type: "EXPIRED", signed_date: NOW })]);
   });

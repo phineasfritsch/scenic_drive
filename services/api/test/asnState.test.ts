@@ -46,9 +46,10 @@ describe("activating types set the row active until the transaction's expiresDat
     expect(await rows()).toEqual([row({ signed_date: NOW })]);
   });
 
-  it("a transaction without appAccountToken is stored keyed on originalTransactionId alone", async () => {
+  it("a transaction without appAccountToken is stored keyed on originalTransactionId alone and no token reads it", async () => {
     expect(await send({ type: "SUBSCRIBED", tx: { originalTransactionId: "2000", productId: "p" } })).toEqual(OK);
     expect(await rows()).toEqual([row({ original_transaction_id: "2000", app_account_token: null, product_id: "p", signed_date: NOW })]);
+    expect(await getEntitlement(TOKEN)).toEqual({ status: 200, json: { status: "none", active_until: null } });
   });
 
   it("an upper-case appAccountToken is stored lowercased", async () => {

@@ -88,13 +88,15 @@ export interface ChainSpec {
   leafSigner?: Party;
   /** Sign the intermediate with this party instead of the root (same issuer name). */
   intermediateSigner?: Party;
+  /** Curve of the root and intermediate keys (default P-384, as Apple's); P-256 makes them sign with SHA-256. */
+  caCurve?: Curve;
 }
 
 const YEAR = 365 * 24 * 3600 * 1000;
 
 export async function appleChain(spec: ChainSpec): Promise<Chain> {
-  const root = await party("Test Root CA - G3", "P-384");
-  const intermediate = await party("Test WWDR - G6", "P-384");
+  const root = await party("Test Root CA - G3", spec.caCurve ?? "P-384");
+  const intermediate = await party("Test WWDR - G6", spec.caCurve ?? "P-384");
   const leaf = await party("Test Mac App Store and iTunes Store Receipt Signing", spec.leafCurve ?? "P-256");
   const span = { notBefore: spec.now - YEAR, notAfter: spec.now + YEAR };
   const rootDer = await certificate(root, root, { ...span, extensions: [], ...spec.root });

@@ -25,10 +25,10 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-asn");
 
-export const MIN_MUTATIONS = 64;
+export const MIN_MUTATIONS = 69;
 export const SUBJECTS = ["src/der.ts", "src/x509.ts", "src/appleJws.ts", "src/asnNotification.ts", "src/entitlementStore.ts",
   "src/asn.ts"];
-const TESTS = ["test/asnVerify.test.ts", "test/asnState.test.ts"];
+const TESTS = ["test/asnVerify.test.ts", "test/asnState.test.ts", "test/asnRootPin.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 const VALID = "!(cert.notBefore <= now && now <= cert.notAfter)";
@@ -40,6 +40,8 @@ export const MUTATIONS = [
   m("der-generalized-refused", "der.ts", "tlv.tag === 0x18 ?", "false ?"),
   m("x509-sha384-as-256", "x509.ts", "[OID_ECDSA_SHA384]: \"SHA-384\"", "[OID_ECDSA_SHA384]: \"SHA-256\""),
   m("x509-issuer-unchecked", "x509.ts", " || !sameBytes(child.issuer, parent.subject)", ""),
+  m("x509-sha256-as-384", "x509.ts", "[OID_ECDSA_SHA256]: \"SHA-256\"", "[OID_ECDSA_SHA256]: \"SHA-384\""),
+  m("x509-same-bytes-length-only", "x509.ts", "for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;", ""),
   m("x509-p384-size", "x509.ts", "{ name: \"P-384\", size: 48 }", "{ name: \"P-384\", size: 32 }"),
   m("x509-extension-oid-lost", "x509.ts", "extensions.push(oidText(expectTag(children(expectTag(ext, 0x30))[0], 0x06).value));",
     "extensions.push(\"0\");"),
@@ -81,6 +83,8 @@ export const MUTATIONS = [
   m("asn-grace-uses-expires", "asnNotification.ts", "activeUntil = epochMs(renewal.gracePeriodExpiresDate, \"gracePeriodExpiresDate\");",
     "activeUntil = epochMs(expiresDate, \"expiresDate\");"),
   m("asn-inactive-keeps-until", "asnNotification.ts", "} else if (status === \"active\" && expiresDate !== undefined) {", "} else if (expiresDate !== undefined) {"),
+  m("asn-renewal-unverified", "asnNotification.ts", "const renewal = await verifyAppleJws(signedRenewalInfo, policy);",
+    "if (typeof signedRenewalInfo !== \"string\") bad(\"no renewal\"); const renewal = JSON.parse(atob(signedRenewalInfo.split(\".\")[1]!.replace(/-/g, \"+\").replace(/_/g, \"/\"))) as Record<string, unknown>;"),
   m("asn-token-case-kept", "asnNotification.ts", "appAccountToken.toLowerCase()", "appAccountToken"),
   m("asn-negative-epoch-ok", "asnNotification.ts", " || value < 0)", ")"),
   m("asn-empty-otid-ok", "asnNotification.ts", " || originalTransactionId.length === 0", ""),
@@ -88,11 +92,14 @@ export const MUTATIONS = [
   m("store-unguarded", "entitlementStore.ts", " WHERE excluded.signed_date > entitlements.signed_date", ""),
   m("store-status-kept", "entitlementStore.ts", "status = excluded.status,", ""),
   m("store-until-kept", "entitlementStore.ts", "active_until = excluded.active_until,", ""),
+  m("read-null-token-matches", "entitlementStore.ts", "WHERE app_account_token = ?1\"", "WHERE app_account_token = ?1 OR app_account_token IS NULL\""),
   m("read-until-inclusive", "entitlementStore.ts", "nowMs < r.active_until", "nowMs <= r.active_until"),
   m("read-earliest-end", "entitlementStore.ts", "Math.max(", "Math.min("),
   m("read-open-ignored", "entitlementStore.ts", "const open = live.some((r) => r.active_until === null);", "const open = false;"),
   m("read-none-is-inactive", "entitlementStore.ts", "return { status: \"none\", active_until: null };", "return { status: \"inactive\", active_until: null };"),
   m("asn-sandbox-truthy", "asn.ts", "allowSandbox: env.ASN_ALLOW_SANDBOX === \"1\",", "allowSandbox: !!env.ASN_ALLOW_SANDBOX,"),
+  m("asn-root-pin-from-env", "asn.ts", "rootSha256: APPLE_ROOT_CA_G3_SHA256,",
+    "rootSha256: (env as unknown as Record<string, string | undefined>).ASN_ROOT_SHA256 ?? APPLE_ROOT_CA_G3_SHA256,"),
   m("asn-clock-frozen", "asn.ts", "now: () => new Date(),", "now: () => new Date(0),"),
   m("asn-d1-error-acknowledged", "asn.ts", "} catch {\n    return json({ error: \"entitlement_unavailable\" }, 503);\n  }\n  return json({ received: true });",
     "} catch {\n    return json({ received: true });\n  }\n  return json({ received: true });"),
