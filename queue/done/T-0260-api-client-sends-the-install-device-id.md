@@ -1,7 +1,7 @@
 ---
 id: T-0260
 title: ScenicAPIClient sends the install UUID as x-scenic-device on every Worker call, so each install gets its own quota bucket instead of sharing device:unidentified
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T16:33:17Z
@@ -11,7 +11,7 @@ branch: task/T-0260
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/lib/mutate-population-allowlist.json, queue/]
 pins_affected: [P-COST-01, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv1-t-0260
 depends_on: [T-0251, T-0256]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -88,3 +88,25 @@ task is the root-package half: the header and the provider protocol.
   the floor of 55 holds", exit 0; `bash ops/queue-check` -> "QUEUE OK (253 tasks)", exit 0. wc -l: Sources/ScenicAPIClient/PlanClient.swift 58; Sources/ScenicAPIClient/InstallIDProvider.swift 12; Sources/ScenicAPIClient/PlanRefusal.swift 15; Tests/ScenicAPIClientTests/PlanClientDeviceTests.swift 55; Tests/ScenicAPIClientTests/FixedInstallID.swift 13; Tests/ScenicAPIClientTests/PlanWire.swift 60; Tests/ScenicAPIClientTests/PlanClientRequestTests.swift 126; Tests/ScenicAPIClientTests/URLSessionPlanTransportTests.swift 27; 
   all under the 300 cap; `ops/lib/check-line-cap` (whole-tree walk) had not finished on this contended box at
   this entry - CI is its run of record.
+- 2026-10-05T17:54:30Z REVIEW PASS by agent/rv1-t-0260 (reviewer, not the owner) of PR #151 at head 8aa7ebf.
+  Acceptance (1), whole header set by exact equality: read PlanClient.plan - the one PlanHTTPRequest carries headers
+  exactly {content-type, x-scenic-device: installID.installID().uuidString.lowercased()}; PlanClientDeviceTests,
+  PlanClientRequestTests and URLSessionPlanTransportTests compare the whole PlanHTTPRequest. The provider takes no
+  argument and returns a Foundation UUID (R1); generating it once per install is the M6 keychain conformer's, per
+  the Brief. Bare `swift test --scratch-path .build/rv1-t0260 --filter ScenicAPIClient` on the unmutated head ->
+  exit 0, "Executed 43 tests, with 0 failures (0 unexpected)".
+  Acceptance (2), no provider: the nil guard is the first statement of plan() and throws
+  .refusedOnDevice(.noInstallID) before the transport is reached; testRefusesAPlanWithNoInstallIDProviderAndSendsNothing
+  and testNoInstallIDIsRefusedBeforeTheOriginIsJudged pass, and the owner's RED run above names them.
+  Reviewer mutant MD (not M1-M3, not MA-MC), P-PRIV-05 "never derived from location": PlanClient.swift's header value
+  becomes `installID.installID().uuidString.lowercased() + (origin.latitude < 36 ? "" : "-n")` -> same command exit 1,
+  "Executed 43 tests, with 1 failure (0 unexpected)", KILLED by name by
+  PlanClientDeviceTests.testOneClientSendsTheSameIDFromEveryOrigin (second request sent
+  "6f9619ff-8b86-4d01-b42d-00c04fc964ff-n"). Source restored, `git diff --stat` empty.
+  Gates: `bash ops/queue-check` -> "QUEUE OK (253 tasks)", exit 0; `gh pr checks 151` -> core pass, pins-source-only
+  pass. `git merge-base --is-ancestor origin/main origin/task/T-0260` -> exit 1: main moved by PR #150 (T-0262)
+  and two queue commits. The drift is services/api/ and queue/ only; it changes no ops/, pins/, .github/,
+  .githooks/, Package.swift, Sources/ or Tests/ path, and routerDeps.ts DEVICE_HEADER/DEVICE_ID are unchanged on
+  main. `git merge-tree --write-tree origin/main origin/task/T-0260` -> exit 0, a clean merge. Non-blocking.
+  Recorded, not blocking: P-PRIV-05 binds no Swift test by name yet (needs a Swift tier in
+  ops/lib/run-named-tests.py; the owner has not filed it).
