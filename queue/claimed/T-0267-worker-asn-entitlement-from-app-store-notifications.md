@@ -1,13 +1,13 @@
 ---
 id: T-0267
 title: the Worker serves POST /asn - App Store Server Notifications V2, signature chain verified, entitlement row set active/inactive per notification type (P-STORE-02)
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T21:33:12Z
+lease_expires_at: 2026-10-06T09:33:12Z
+worktree: .worktrees/T-0267
+branch: task/T-0267
 exclusive: []
 touches: [services/api/]
 pins_affected: [P-STORE-02]
@@ -28,3 +28,4 @@ its own ES256 chain; production pins Apple's published root by fingerprint. Copy
 
 ## Log
 - 2026-10-05T21:29:18Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M6 /asn).
+- 2026-10-05T21:33:12Z claimed by agent/claude-opus-5; lease until 2026-10-06T09:33:12Z
