@@ -1,7 +1,7 @@
 ---
 id: T-0242
 title: the region build pipeline that made la-tagged.osm.pbf lives in the tree - pass1/pass2/pass3 and the window/tile drivers committed under services/etl with one entry point, a test through it, and a rebuild that reproduces sha256 648fc3db...3d39
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-26T23:55:42Z
@@ -11,7 +11,7 @@ branch: task/T-0242
 exclusive: [scenic-index]
 touches: [services/etl/regionbuild/, services/etl/tests/test_region_build.py, services/etl/tests/fixtures/, ops/etl-region]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-t0242
 depends_on: [T-0208, T-0209]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -230,3 +230,27 @@ is filed as its own task).
   the merged head 6f2e5e5, `gh pr checks 138`: `pins-source-only pass 1m11s` and `core pass 2m32s`. RECORDED
   AS A GAP, not claimed: the bare host `check-pins --source-only` was not seen green in this session. The
   reviewer should re-run it on a box where `bash` forks return.
+- 2026-10-05T07:02:10Z REVIEW PASS by agent/rv1-t0242 (reviewer, not owner) of PR #138 at 6a9089a
+  (= origin/task/T-0242; `git merge-base --is-ancestor origin/main origin/task/T-0242` exit 0).
+  REBUILT FILE, recomputed by the reviewer (git-bash sha256sum/stat/cmp, main checkout):
+      `648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39 *services/etl/work/t0242/la-tagged.osm.pbf`
+      `648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39 *services/etl/work/la/la-tagged.osm.pbf`
+      `45914107` both; `cmp` exit 0. The store copy /home/phineas/t0242/la-tagged.osm.pbf (owner root, written by
+  the container 2026-09-26 21:58 -0700) hashes the same. ENTRY POINT: work/t0242/chain.sh runs
+  `bash ops/etl-region "$stage"` from .worktrees/T-0242 per stage; chain.out ends `CHAIN check exit=0` /
+  `CHAIN END`; the last regionbuild/ops/etl-region commit (51e6114, 17:40 -0700) precedes the chain (18:14).
+  TEST THROUGH THE ENTRY POINT: test_region_build.py's `entry()` runs `bash ops/etl-region --local <stage>`.
+  R1: all 25 *.sh/*.py preserved in work/t0208/ are named in the Log.
+  REVIEWER MUTANTS (work/t0242/rv1_mutants.py, __pycache__ purged + 1.1 s around each, restored, tree clean):
+      M1 reference.ordered_docs drops the last tile doc: `FAILED ...::test_the_entry_point_scores_every_shared_way_once_against_the_region_reference` (2 failed, 4 passed)
+      M2 tiles.read_list skips one tile: `FAILED ...::test_the_entry_point_scores_every_shared_way_once_against_the_region_reference` (5 failed, 1 passed)
+      M3 LA_WHOLE loses t59: `FAILED ...::test_the_la_plan_is_152_tiles_that_partition_the_nonempty_grid_cells` (1 failed, 5 passed)
+      M4 merge keeps the LAST tile's row: SURVIVES (6 passed). Equivalent on the fixture (3 shared ways, full rows
+      equal) and on LA (work/t0242/rv1_seamrows.py over the store's 152 scored tiles:
+      `SEAMROWS files=152 ways=560304 seam_rows=14092 fullrow_differ=0`). RECORDABLE, not blocking.
+  GATES: ETL suite (host, __pycache__ purged, `-o addopts= -q -rs`): `1341 passed in 139.53s`, zero SKIP lines.
+  `bash ops/queue-check`: `QUEUE OK (242 tasks)` exit 0. check-line-cap: host hung (timeout 300 -> 124); WSL with
+  absolute GIT_DIR: `P-SRC-02: 134 Swift files tracked ... none over 300 lines` exit 0. `check-pins --source-only`:
+  host hung (`timeout 1200` -> 124, no output; the box holds a dozen other agents' stuck check forks); WSL-native clone at
+  6a9089a: `PINS ok=13 skipped=16 pending=1 expired=0 failed=2` - P-SAFE-05/06, both `no swiftc` (WSL has no
+  Swift). `gh pr checks 138`: `core pass 2m39s`, `pins-source-only pass 1m10s`.
