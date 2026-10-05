@@ -19,7 +19,7 @@ enum CorpusFixture {
     static let placesExtract = etl.appendingPathComponent("tests/fixtures/corpus_extract_places.json")
     /// One way and eight places, one per token category of T-0254 ruling R6 (PlaceStoreTokenClassTests).
     static let tokenClassesExtract = etl.appendingPathComponent("tests/fixtures/corpus_extract_token_classes.json")
-    static let builtAt ="2026-09-18T00:00:00Z"
+    static let builtAt = "2026-09-18T00:00:00Z"
 
     /// A fresh directory per call, so no test reads a file another test rewrote.
     static func scratch() throws -> URL {
