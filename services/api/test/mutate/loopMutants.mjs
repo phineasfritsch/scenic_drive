@@ -42,7 +42,7 @@ export const MUTATIONS = [
   m("retrace-half-share", "retrace.ts", "retraced += share;", "retraced += share / 2;"),
   m("retrace-no-samples", "retrace.ts", "retracedSamples.push(here);", ""),
   m("retrace-earth", "retrace.ts", "EARTH_RADIUS_METERS = 6_371_008.8;", "EARTH_RADIUS_METERS = 6_371_000;"),
-  m("retrace-bbox-first", "retrace.ts", "if (p.lat < minLat) minLat = p.lat;", ""),
+  m("retrace-zero-length", "retrace.ts", "if (!(Number.isFinite(length) && length > 0)) continue;", "if (!(Number.isFinite(length))) continue;"),
   m("request-min-5", "loopRequest.ts", "MIN_LOOP_MINUTES = 10;", "MIN_LOOP_MINUTES = 5;"),
   m("request-max-181", "loopRequest.ts", "MAX_LOOP_MINUTES = 180;", "MAX_LOOP_MINUTES = 181;"),
   m("request-any-key", "loopRequest.ts", "if (!allowed.includes(key)) return", "if (false) return"),
@@ -73,6 +73,11 @@ export const MUTATIONS = [
 ];
 
 export const EQUIVALENT = [
+  { id: "retrace-bbox-first", file: "src/retrace.ts", find: "if (p.lat < minLat) minLat = p.lat;",
+    witness: "the grid is an INDEX: with the cell at twice the radius every pair within 25 m lies in the 3x3 neighbourhood "
+      + "whatever the anchor, and the true haversine distance decides - so moving the anchor (and the mid-latitude of the "
+      + "longitude scale by a fraction of a degree) cannot change a verdict or a fraction. RetraceDetector.swift records "
+      + "the same: the bounding-box anchor is real but unpinned (T-0119 KNOWN_MISSED). Measured: MISSED in the first run." },
   { id: "planner-model-gate", file: "src/loopPlanner.ts", find: "if (problem !== null) throw new RouteError",
     witness: "the model is buildCustomModel(LOOP_LAMBDA, closures), which never names road_access or surface (customModel.ts "
       + "property 1), so rejectCustomModel returns null for every model this module can build. Defence in depth for P-SAFE-01." },

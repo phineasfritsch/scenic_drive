@@ -55,6 +55,14 @@ describe("the port's edges (R6)", () => {
       .toEqual([20, 20, 180, 2]);
   });
 
+  it("a duplicated coordinate is not a retrace (a zero-length segment plants no sample)", () => {
+    // RetraceDetectorTests.duplicatedCoordinateIsNotARetrace: bearing(a, a) is 0, so a planted sample would read
+    // as due north on a southbound road and every next sample within 25 m would score 180 degrees against it.
+    const road = Array.from({ length: 40 }, (_, i) => ({ lat: 34.0689 - i * 0.00045, lon: -118.4452 }));
+    road.splice(10, 0, { ...road[10]! });
+    expect(retraceFraction(road)).toBe(0);
+  });
+
   it("no fraction for nothing, or for a point that is not one", () => {
     expect(retraceFraction([{ lat: 34, lon: -118 }])).toBeNull();
     expect(retraceFraction([{ lat: 34, lon: -118 }, { lat: 34, lon: -118 }])).toBeNull();

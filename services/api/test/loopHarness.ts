@@ -76,6 +76,12 @@ export function outAndBack(meters: number): [number, number][] {
   return out.concat(out.slice().reverse().slice(1));
 }
 
+/** A `meters` dead-end spur west of the start, driven out and back, then the clean square: retrace ~1/6. */
+export function spurThenSquare(meters: number): [number, number][] {
+  const spur = line(begin, 270, 20, Math.round(meters / 20) + 1);
+  return spur.concat(spur.slice().reverse().slice(1), squareLoop().slice(1));
+}
+
 /** A GraphHopper body over [lat, lon] points, one road_class / osm_way_id run per segment. */
 export function loopPath(points: [number, number][], timeMs = 2_700_000): string {
   const coordinates = points.map(([lat, lon]) => [lon, lat]);

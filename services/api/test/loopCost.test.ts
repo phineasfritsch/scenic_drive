@@ -11,7 +11,7 @@ import { handleLoop } from "../src/loop";
 import { LOOP_UPSTREAM_COST, loopSeed, retracedAreas } from "../src/loopPlanner";
 import { retraceScan } from "../src/retrace";
 import { guardedPlan } from "../src/upstream";
-import { LOOP_BODY, loopHarness, loopPath, loopRequest, NOW, outAndBack, squareLoop, START } from "./loopHarness";
+import { LOOP_BODY, loopHarness, loopPath, loopRequest, NOW, outAndBack, spurThenSquare, squareLoop, START } from "./loopHarness";
 
 const SEED = loopSeed("device-1", "2026-10-05");
 const pts = (raw: [number, number][]) => raw.map(([lat, lon]) => ({ lat, lon }));
@@ -74,7 +74,7 @@ describe("POST /loop request count (R5, P-COST-04)", () => {
 
   it("a loop is at most 3 upstream requests: reseed, then areas on the retraced edges of the reseeded loop", async () => {
     const second = outAndBack(1500);
-    const h = loopHarness([loopPath(outAndBack(2000)), loopPath(second), loopPath(outAndBack(1000)), loopPath(squareLoop())]);
+    const h = loopHarness([loopPath(outAndBack(2000)), loopPath(second), loopPath(spurThenSquare(1000)), loopPath(squareLoop())]);
     const response = await handleLoop(loopRequest(LOOP_BODY), {}, h.deps);
     expect(h.sent).toHaveLength(3);
     expect(h.sent.map((s) => s.body["round_trip.seed"])).toEqual([SEED, (SEED + 1) >>> 0, (SEED + 1) >>> 0]);
@@ -87,7 +87,11 @@ describe("POST /loop request count (R5, P-COST-04)", () => {
     expect((ring[2]![1]! - ring[0]![1]!) * 111_132).toBeCloseTo(60, 6);
     expect(h.sent[2]!.body.custom_model).toEqual(JSON.parse(JSON.stringify(buildCustomModel(2, areas))));
     expect(response.status).toBe(422);
-    const fractions = [outAndBack(2000), second, outAndBack(1000)].map((p) => retraceScan(pts(p))!.fraction);
+    const fractions = [outAndBack(2000), second, spurThenSquare(1000)].map((p) => retraceScan(pts(p))!.fraction);
+    // The least retraced is reported, and it is the THIRD loop's - a reported max would differ.
+    expect(Math.min(...fractions)).toBe(fractions[2]);
+    expect(fractions[2]).toBeGreaterThan(0.15);
+    expect(fractions[2]).toBeLessThan(Math.max(...fractions));
     expect(await response.json()).toEqual({ error: "no_clean_loop", retrace_fraction: Math.min(...fractions) });
   });
 
