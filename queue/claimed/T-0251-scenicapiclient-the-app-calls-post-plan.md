@@ -189,3 +189,37 @@ Milestone survey 2026-10-04: M3/M4 need the app to call the Worker. Starts after
   queue-check exit 0 (QUEUE OK, 252 tasks); 300-line cap measured over git ls-files (Sources, Tests, apps/ios): 187
   files, none over 300 (ops/lib/check-line-cap did not finish in 13 min on the contended box and was stopped; CI's
   pins-source-only is the run of record for P-SRC-02 and the rest of check-pins).
+- 2026-10-05T15:54:14Z rv1 B1 CLOSED AS A CLASS (agent/claude-opus-5). rv1-t0251 FAIL on b16f72e: `budgetSeconds: 1500`
+  in PlanResponse.init(from:) left 35/35 green - both recorded 200s share budget_s 1500, lambda 7.75, evaluations 6,
+  and MB had been closed one field (used_budget/eta_is_estimate) at a time. Ruled: the hole is every decoded field
+  whose value the two recordings share, plus any required key read with decodeIfPresent/try? and a default. Closed in
+  the new Tests/ScenicAPIClientTests/PlanResponseDecodeTests.swift (136 lines), every plan through PlanClient.plan
+  over the counting fake (count == 1 asserted on each):
+  - test200EveryFieldDistinctFromTheRecordedPlansDecodesWhole: a literal 200 body carrying only the keys PlanResponse
+    reads (route.coordinates, route.distance_m, eta_s, fastest_eta_s, ceiling_s, budget_s 900, lambda 3.5,
+    evaluations 11, used_budget true, eta_is_estimate false, one hazard surface/dirt [0,2), one waypoint,
+    apple_maps_url), whole-PlanResponse equality to a typed literal.
+  - testTheDistinctBodySharesNoFieldWithARecordedPlan: holds that premise - for 200-plan and 200-plan-hazards,
+    decoded through the entry point, the list of the 13 PlanResponse fields equal to the literal's is [].
+  - test200MissingAnyRequiredKeyIsUnexpectedResponse: the body's key paths, enumerated from the parsed body, must equal
+    the typed 20-key table (route, route.coordinates, route.distance_m, eta_s, fastest_eta_s, ceiling_s, budget_s,
+    lambda, evaluations, used_budget, eta_is_estimate, hazards, hazards.0.{kind,value,from_index,to_index},
+    waypoints, waypoints.0.{lat,lon}, apple_maps_url); a control row decodes the re-serialized unedited body to the
+    literal; then each key removed in turn -> .unexpectedResponse(status: 200), the message naming the key.
+  - test200WrongTypedAnyRequiredKeyIsUnexpectedResponse: each of the 20 set to 7 (string keys) or "x" (all others),
+    plus evaluations = 11.5 and route.coordinates.0 = a 3-number point -> .unexpectedResponse(status: 200) by name.
+  RUN (.build/rv2-mutants.py, scratch: each mutant ALONE on PlanResponse.swift, restored after, one background
+  script; `swift test --scratch-path .build/t0251 --filter ScenicAPIClientTests`, Windows swift 6.3.3):
+    GREEN  ('39', '0')  Executed 39 tests, with 0 failures (Request 11, Response 23, Decode 4, URLSession 1)
+    B1  budgetSeconds: 1500   ('39', '4') failed: test200EveryFieldDistinct..., test200MissingAnyRequiredKey...,
+        test200WrongTypedAnyRequiredKey...; rows: 'budget_s = x', 'removed budget_s', 'the re-serialized body, unedited'
+    ML  lambda: 7.75          ('39', '4') same three tests; rows: 'lambda = x', 'removed lambda', 'the re-serialized...'
+    ME  evaluations: 6        ('39', '5') same three tests; rows: 'evaluations = 11.5', 'evaluations = x',
+        'removed evaluations', 'the re-serialized body, unedited'
+    MLD lambda: (try? top.decode(Double.self, forKey: .lambda)) ?? 3.5   ('39', '2') - the whole-equality test stays
+        green (the default IS the literal's value); caught by test200MissingAnyRequiredKey... ('removed lambda') and
+        test200WrongTypedAnyRequiredKey... ('lambda = x')
+    MED evaluations: try top.decodeIfPresent(Int.self, forKey: .evaluations) ?? 11   ('39', '1') - caught only by
+        test200MissingAnyRequiredKeyIsUnexpectedResponse ('removed evaluations'), as designed
+  5/5 RED by name, then GREEN; `git status` after the run shows PlanResponse.swift unchanged. No source change: the
+  decoder was right, the tests could not see it. Line counts: PlanResponseDecodeTests 136, PlanClientResponseTests 208.
