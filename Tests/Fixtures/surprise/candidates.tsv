@@ -1,0 +1,137 @@
+# id	name	category	corridor	brand	lat	lon	quality	approach	dwell	opens	closes	exempt	lit	unpaved	private	roundtrip	hook
+malibu-00	Malibu Park 1	park	pch	-	34.0019	-118.7998	51	37	30	-	-	1	0	0	0	40	Oak shade and a creek path - Malibu
+malibu-01	Malibu Trailhead 2	trailhead	pch	-	34.0299	-118.7798	88	90	45	-	-	1	0	0	0	69	A short climb to a long view - Malibu
+malibu-02	Malibu Overlook 3	viewpoint	pch	-	34.0059	-118.7598	64	72	60	-	-	1	0	1	0	98	The whole basin below you - Malibu
+malibu-03	Malibu Cove 4	beach	pch	-	34.0339	-118.7838	40	54	75	-	-	1	0	0	0	127	Tide pools at the end of a quiet road - Malibu
+malibu-04	Malibu Garden 5	garden	pch	-	34.0099	-118.7638	77	36	90	540	1110	0	0	0	0	156	Roses and a koi pond - Malibu
+malibu-05	Malibu Cafe 6	cafe	pch	-	34.0379	-118.7878	53	89	30	420	1140	0	0	0	0	44	Coffee at the top of a canyon road - Malibu
+malibu-06	Malibu Museum 7	museum	pch	-	34.0139	-118.7678	90	71	45	600	1080	0	0	0	0	73	A small museum worth the drive - Malibu
+malibu-07	Malibu Main Street 8	town	pch	-	34.0419	-118.7918	66	53	60	480	1260	0	0	0	0	102	An old main street to wander - Malibu
+malibu-08	Malibu Park 9	park	pch	-	34.0179	-118.7718	42	35	75	-	-	1	0	0	0	131	Oak shade and a creek path - Malibu
+malibu-09	Malibu Trailhead 10	trailhead	pch	-	34.0459	-118.7958	79	88	90	-	-	1	0	0	0	160	A short climb to a long view - Malibu
+topanga-00	Topanga Trailhead 1	trailhead	topanga	-	34.0894	-118.5972	55	70	30	-	-	1	0	0	0	48	A short climb to a long view - Topanga
+topanga-01	Topanga Overlook 2	viewpoint	topanga	-	34.1174	-118.6212	92	52	45	-	-	1	0	0	0	77	The whole basin below you - Topanga
+topanga-02	Topanga Cove 3	beach	topanga	-	34.0934	-118.6012	68	34	60	-	-	1	0	0	0	106	Tide pools at the end of a quiet road - Topanga
+topanga-03	Topanga Garden 4	garden	topanga	-	34.0694	-118.5812	44	87	75	540	1110	0	0	0	0	135	Roses and a koi pond - Topanga
+topanga-04	Topanga Cafe 5	cafe	topanga	Canyon Coffee Co.	34.0974	-118.6052	81	69	90	420	1140	0	0	0	0	164	Coffee at the top of a canyon road - Topanga
+topanga-05	Topanga Museum 6	museum	topanga	-	34.0734	-118.5852	57	51	30	600	1080	0	0	0	0	52	A small museum worth the drive - Topanga
+topanga-06	Topanga Main Street 7	town	topanga	-	34.1014	-118.6092	94	33	45	480	1260	0	0	0	0	81	An old main street to wander - Topanga
+topanga-07	Topanga Park 8	park	topanga	-	34.0774	-118.5892	70	86	60	-	-	1	0	0	0	110	Oak shade and a creek path - Topanga
+topanga-08	Topanga Trailhead 9	trailhead	topanga	-	34.1054	-118.6132	46	68	75	-	-	1	0	0	0	139	A short climb to a long view - Topanga
+topanga-09	Topanga Overlook 10	viewpoint	topanga	-	34.0814	-118.5932	83	50	90	-	-	1	0	0	0	168	The whole basin below you - Topanga
+mulholland-00	Mulholland Overlook 1	viewpoint	mulholland	-	34.1465	-118.517	59	32	30	-	-	1	0	1	0	56	The whole basin below you - Mulholland
+mulholland-01	Mulholland Cove 2	beach	mulholland	-	34.1225	-118.497	96	85	45	-	-	1	0	0	0	85	Tide pools at the end of a quiet road - Mulholland
+mulholland-02	Mulholland Garden 3	garden	mulholland	-	34.1505	-118.521	72	67	60	540	1110	0	0	0	0	114	Roses and a koi pond - Mulholland
+mulholland-03	Mulholland Cafe 4	cafe	mulholland	-	34.1265	-118.501	48	49	75	420	1140	0	0	0	0	143	Coffee at the top of a canyon road - Mulholland
+mulholland-04	Mulholland Museum 5	museum	mulholland	-	34.1545	-118.481	85	31	90	600	1080	0	0	0	0	172	A small museum worth the drive - Mulholland
+mulholland-05	Mulholland Main Street 6	town	mulholland	-	34.1305	-118.505	61	84	30	480	1260	0	0	0	0	60	An old main street to wander - Mulholland
+mulholland-06	Mulholland Park 7	park	mulholland	-	34.1065	-118.485	98	66	45	-	-	1	0	0	0	89	Oak shade and a creek path - Mulholland
+mulholland-07	Mulholland Trailhead 8	trailhead	mulholland	-	34.1345	-118.509	74	48	60	-	-	1	0	0	0	118	A short climb to a long view - Mulholland
+mulholland-08	Mulholland Overlook 9	viewpoint	mulholland	-	34.1105	-118.489	50	30	75	-	-	1	0	1	0	147	The whole basin below you - Mulholland
+mulholland-09	Mulholland Cove 10	beach	mulholland	-	34.1385	-118.513	87	83	90	-	-	1	0	0	0	176	Tide pools at the end of a quiet road - Mulholland
+griffith-00	Griffith Cove 1	beach	griffith	-	34.1206	-118.2862	63	65	30	-	-	1	0	0	0	64	Tide pools at the end of a quiet road - Griffith
+griffith-01	Griffith Garden 2	garden	griffith	-	34.1486	-118.3102	100	47	45	540	1110	0	0	0	0	93	Roses and a koi pond - Griffith
+griffith-02	Griffith Cafe 3	cafe	griffith	Canyon Coffee Co.	34.1246	-118.2902	76	100	60	420	1140	0	0	0	0	122	Coffee at the top of a canyon road - Griffith
+griffith-03	Griffith Museum 4	museum	griffith	-	34.1526	-118.3142	52	82	75	600	1080	0	0	0	0	151	A small museum worth the drive - Griffith
+griffith-04	Griffith Main Street 5	town	griffith	-	34.1286	-118.2942	89	64	90	480	1260	0	0	0	0	180	An old main street to wander - Griffith
+griffith-05	Griffith Park 6	park	griffith	-	34.1566	-118.2742	65	46	30	-	-	1	0	0	0	68	Oak shade and a creek path - Griffith
+griffith-06	Griffith Trailhead 7	trailhead	griffith	-	34.1326	-118.2982	41	99	45	-	-	1	0	0	0	97	A short climb to a long view - Griffith
+griffith-07	Griffith Overlook 8	viewpoint	griffith	-	34.1606	-118.2782	78	81	60	-	-	1	0	0	0	126	The whole basin below you - Griffith
+griffith-08	Griffith Cove 9	beach	griffith	-	34.1366	-118.3022	54	63	75	-	-	1	0	0	0	155	Tide pools at the end of a quiet road - Griffith
+griffith-09	Griffith Garden 10	garden	griffith	-	34.1126	-118.2822	91	45	90	540	1110	0	0	0	0	43	Roses and a koi pond - Griffith
+crest-00	Angeles Crest Garden 1	garden	acrest	-	34.264	-118.112	67	98	30	540	1110	0	0	0	0	72	Roses and a koi pond - Angeles Crest
+crest-01	Angeles Crest Cafe 2	cafe	acrest	-	34.24	-118.092	43	80	45	420	1140	0	0	0	0	101	Coffee at the top of a canyon road - Angeles Crest
+crest-02	Angeles Crest Museum 3	museum	acrest	-	34.268	-118.116	80	62	60	600	1080	0	0	0	0	130	A small museum worth the drive - Angeles Crest
+crest-03	Angeles Crest Main Street 4	town	acrest	-	34.244	-118.096	56	44	75	480	1260	0	0	0	0	159	An old main street to wander - Angeles Crest
+crest-04	Angeles Crest Park 5	park	acrest	-	34.272	-118.12	93	97	90	-	-	1	0	0	0	47	Oak shade and a creek path - Angeles Crest
+crest-05	Angeles Crest Trailhead 6	trailhead	acrest	-	34.248	-118.1	69	79	30	-	-	1	0	0	0	76	A short climb to a long view - Angeles Crest
+crest-06	Angeles Crest Overlook 7	viewpoint	acrest	-	34.276	-118.08	45	61	45	-	-	1	0	1	0	105	The whole basin below you - Angeles Crest
+crest-07	Angeles Crest Cove 8	beach	acrest	-	34.252	-118.104	82	43	60	-	-	1	0	0	0	134	Tide pools at the end of a quiet road - Angeles Crest
+crest-08	Angeles Crest Garden 9	garden	acrest	-	34.28	-118.084	58	96	75	540	1110	0	0	0	0	163	Roses and a koi pond - Angeles Crest
+crest-09	Angeles Crest Cafe 10	cafe	acrest	-	34.256	-118.108	95	78	90	420	1140	0	0	0	0	51	Coffee at the top of a canyon road - Angeles Crest
+pv-00	Palos Verdes Cafe 1	cafe	pv	Canyon Coffee Co.	33.769	-118.375	71	60	30	420	1140	0	0	0	0	80	Coffee at the top of a canyon road - Palos Verdes
+pv-01	Palos Verdes Museum 2	museum	pv	-	33.745	-118.399	47	42	45	600	1080	0	0	0	0	109	A small museum worth the drive - Palos Verdes
+pv-02	Palos Verdes Main Street 3	town	pv	-	33.721	-118.379	84	95	60	480	1260	0	0	0	0	138	An old main street to wander - Palos Verdes
+pv-03	Palos Verdes Park 4	park	pv	-	33.749	-118.403	60	77	75	-	-	1	0	0	0	167	Oak shade and a creek path - Palos Verdes
+pv-04	Palos Verdes Trailhead 5	trailhead	pv	-	33.725	-118.383	97	59	90	-	-	1	0	0	0	55	A short climb to a long view - Palos Verdes
+pv-05	Palos Verdes Overlook 6	viewpoint	pv	-	33.753	-118.407	73	41	30	-	-	1	0	0	0	84	The whole basin below you - Palos Verdes
+pv-06	Palos Verdes Cove 7	beach	pv	-	33.729	-118.387	49	94	45	-	-	1	0	0	0	113	Tide pools at the end of a quiet road - Palos Verdes
+pv-07	Palos Verdes Garden 8	garden	pv	-	33.757	-118.367	86	76	60	540	1110	0	0	0	0	142	Roses and a koi pond - Palos Verdes
+pv-08	Palos Verdes Cafe 9	cafe	pv	Canyon Coffee Co.	33.733	-118.391	62	58	75	420	1140	0	0	0	0	171	Coffee at the top of a canyon road - Palos Verdes
+pv-09	Palos Verdes Museum 10	museum	pv	-	33.761	-118.371	99	40	90	600	1080	0	0	0	0	59	A small museum worth the drive - Palos Verdes
+clarita-00	Santa Clarita Museum 1	museum	sclarita	-	34.3837	-118.5506	75	93	30	600	1080	0	0	0	0	88	A small museum worth the drive - Santa Clarita
+clarita-01	Santa Clarita Main Street 2	town	sclarita	-	34.4117	-118.5306	51	75	45	480	1260	0	0	0	0	117	An old main street to wander - Santa Clarita
+clarita-02	Santa Clarita Park 3	park	sclarita	-	34.3877	-118.5546	88	57	60	-	-	1	0	0	0	146	Oak shade and a creek path - Santa Clarita
+clarita-03	Santa Clarita Trailhead 4	trailhead	sclarita	-	34.4157	-118.5346	64	39	75	-	-	1	0	0	0	175	A short climb to a long view - Santa Clarita
+clarita-04	Santa Clarita Overlook 5	viewpoint	sclarita	-	34.3917	-118.5586	40	92	90	-	-	1	0	1	0	63	The whole basin below you - Santa Clarita
+clarita-05	Santa Clarita Cove 6	beach	sclarita	-	34.3677	-118.5386	77	74	30	-	-	1	0	0	0	92	Tide pools at the end of a quiet road - Santa Clarita
+clarita-06	Santa Clarita Garden 7	garden	sclarita	-	34.3957	-118.5626	53	56	45	540	1110	0	0	0	0	121	Roses and a koi pond - Santa Clarita
+clarita-07	Santa Clarita Cafe 8	cafe	sclarita	-	34.3717	-118.5426	90	38	60	420	1140	0	0	0	0	150	Coffee at the top of a canyon road - Santa Clarita
+clarita-08	Santa Clarita Museum 9	museum	sclarita	-	34.3997	-118.5226	66	91	75	600	1080	0	0	0	0	179	A small museum worth the drive - Santa Clarita
+clarita-09	Santa Clarita Main Street 10	town	sclarita	-	34.3757	-118.5466	42	73	90	480	1260	0	0	0	0	67	An old main street to wander - Santa Clarita
+ojai-00	Ojai Main Street 1	town	ojai	-	34.46	-119.2269	79	55	30	480	1260	0	0	0	0	96	An old main street to wander - Ojai
+ojai-01	Ojai Park 2	park	ojai	-	34.436	-119.2509	55	37	45	-	-	1	0	0	0	125	Oak shade and a creek path - Ojai
+ojai-02	Ojai Trailhead 3	trailhead	ojai	-	34.464	-119.2309	92	90	60	-	-	1	0	0	0	154	A short climb to a long view - Ojai
+ojai-03	Ojai Overlook 4	viewpoint	ojai	-	34.44	-119.2549	68	72	75	-	-	1	0	0	0	42	The whole basin below you - Ojai
+ojai-04	Ojai Cove 5	beach	ojai	-	34.468	-119.2349	44	54	90	-	-	1	0	0	0	71	Tide pools at the end of a quiet road - Ojai
+ojai-05	Ojai Garden 6	garden	ojai	-	34.444	-119.2589	81	36	30	540	1110	0	0	0	0	100	Roses and a koi pond - Ojai
+ojai-06	Ojai Cafe 7	cafe	ojai	Canyon Coffee Co.	34.472	-119.2389	57	89	45	420	1140	0	0	0	0	129	Coffee at the top of a canyon road - Ojai
+ojai-07	Ojai Museum 8	museum	ojai	-	34.448	-119.2629	94	71	60	600	1080	0	0	0	0	158	A small museum worth the drive - Ojai
+ojai-08	Ojai Main Street 9	town	ojai	-	34.424	-119.2429	70	53	75	480	1260	0	0	0	0	46	An old main street to wander - Ojai
+ojai-09	Ojai Park 10	park	ojai	-	34.452	-119.2229	46	35	90	-	-	1	0	0	0	75	Oak shade and a creek path - Ojai
+arroyo-00	Arroyo Seco Park 1	park	arroyo	-	34.1278	-118.1485	83	88	30	-	-	1	0	0	0	104	Oak shade and a creek path - Arroyo Seco
+arroyo-01	Arroyo Seco Trailhead 2	trailhead	arroyo	-	34.1558	-118.1285	59	70	45	-	-	1	0	0	0	133	A short climb to a long view - Arroyo Seco
+arroyo-02	Arroyo Seco Overlook 3	viewpoint	arroyo	-	34.1318	-118.1525	96	52	60	-	-	1	0	1	0	162	The whole basin below you - Arroyo Seco
+arroyo-03	Arroyo Seco Cove 4	beach	arroyo	-	34.1598	-118.1325	72	34	75	-	-	1	0	0	0	50	Tide pools at the end of a quiet road - Arroyo Seco
+arroyo-04	Arroyo Seco Garden 5	garden	arroyo	-	34.1358	-118.1565	48	87	90	540	1110	0	0	0	0	79	Roses and a koi pond - Arroyo Seco
+arroyo-05	Arroyo Seco Cafe 6	cafe	arroyo	-	34.1638	-118.1365	85	69	30	420	1140	0	0	0	0	108	Coffee at the top of a canyon road - Arroyo Seco
+arroyo-06	Arroyo Seco Museum 7	museum	arroyo	-	34.1398	-118.1605	61	51	45	600	1080	0	0	0	0	137	A small museum worth the drive - Arroyo Seco
+arroyo-07	Arroyo Seco Main Street 8	town	arroyo	-	34.1678	-118.1405	98	33	60	480	1260	0	0	0	0	166	An old main street to wander - Arroyo Seco
+arroyo-08	Arroyo Seco Park 9	park	arroyo	-	34.1438	-118.1645	74	86	75	-	-	1	0	0	0	54	Oak shade and a creek path - Arroyo Seco
+arroyo-09	Arroyo Seco Trailhead 10	trailhead	arroyo	-	34.1718	-118.1445	50	68	90	-	-	1	0	0	0	83	A short climb to a long view - Arroyo Seco
+lbc-00	Long Beach Trailhead 1	trailhead	lbc	-	33.7701	-118.1737	87	50	30	-	-	1	0	0	0	112	A short climb to a long view - Long Beach
+lbc-01	Long Beach Overlook 2	viewpoint	lbc	-	33.7461	-118.1977	63	32	45	-	-	1	0	0	0	141	The whole basin below you - Long Beach
+lbc-02	Long Beach Cove 3	beach	lbc	-	33.7741	-118.1777	100	85	60	-	-	1	0	0	0	170	Tide pools at the end of a quiet road - Long Beach
+lbc-03	Long Beach Garden 4	garden	lbc	-	33.7501	-118.2017	76	67	75	540	1110	0	0	0	0	58	Roses and a koi pond - Long Beach
+lbc-04	Long Beach Cafe 5	cafe	lbc	Canyon Coffee Co.	33.7781	-118.1817	52	49	90	420	1140	0	0	0	0	87	Coffee at the top of a canyon road - Long Beach
+lbc-05	Long Beach Museum 6	museum	lbc	-	33.7541	-118.2057	89	31	30	600	1080	0	0	0	0	116	A small museum worth the drive - Long Beach
+lbc-06	Long Beach Main Street 7	town	lbc	-	33.7821	-118.1857	65	84	45	480	1260	0	0	0	0	145	An old main street to wander - Long Beach
+lbc-07	Long Beach Park 8	park	lbc	-	33.7581	-118.2097	41	66	60	-	-	1	0	0	0	174	Oak shade and a creek path - Long Beach
+lbc-08	Long Beach Trailhead 9	trailhead	lbc	-	33.7861	-118.1897	78	48	75	-	-	1	0	0	0	62	A short climb to a long view - Long Beach
+lbc-09	Long Beach Overlook 10	viewpoint	lbc	-	33.7621	-118.2137	54	30	90	-	-	1	1	0	0	91	The whole basin below you - Long Beach
+simi-00	Simi Hills Overlook 1	viewpoint	simi	-	34.29	-118.7	91	83	30	-	-	1	0	1	0	120	The whole basin below you - Simi Hills
+simi-01	Simi Hills Cove 2	beach	simi	-	34.266	-118.68	67	65	45	-	-	1	0	0	0	149	Tide pools at the end of a quiet road - Simi Hills
+simi-02	Simi Hills Garden 3	garden	simi	-	34.294	-118.704	43	47	60	540	1110	0	0	0	0	178	Roses and a koi pond - Simi Hills
+simi-03	Simi Hills Cafe 4	cafe	simi	-	34.27	-118.684	80	100	75	420	1140	0	0	0	0	66	Coffee at the top of a canyon road - Simi Hills
+simi-04	Simi Hills Museum 5	museum	simi	-	34.246	-118.708	56	82	90	600	1080	0	0	0	0	95	A small museum worth the drive - Simi Hills
+simi-05	Simi Hills Main Street 6	town	simi	-	34.274	-118.688	93	64	30	480	1260	0	0	0	0	124	An old main street to wander - Simi Hills
+simi-06	Simi Hills Park 7	park	simi	-	34.25	-118.712	69	46	45	-	-	1	0	0	0	153	Oak shade and a creek path - Simi Hills
+simi-07	Simi Hills Trailhead 8	trailhead	simi	-	34.278	-118.692	45	99	60	-	-	1	0	0	0	41	A short climb to a long view - Simi Hills
+simi-08	Simi Hills Overlook 9	viewpoint	simi	-	34.254	-118.716	82	81	75	-	-	1	1	1	0	70	The whole basin below you - Simi Hills
+simi-09	Simi Hills Cove 10	beach	simi	-	34.282	-118.696	58	63	90	-	-	1	0	0	0	99	Tide pools at the end of a quiet road - Simi Hills
+sgc-00	San Gabriel Canyon Cove 1	beach	sgcanyon	-	34.208	-117.88	95	45	30	-	-	1	0	0	0	128	Tide pools at the end of a quiet road - San Gabriel Canyon
+sgc-01	San Gabriel Canyon Garden 2	garden	sgcanyon	-	34.236	-117.86	71	98	45	540	1110	0	0	0	0	157	Roses and a koi pond - San Gabriel Canyon
+sgc-02	San Gabriel Canyon Cafe 3	cafe	sgcanyon	Canyon Coffee Co.	34.212	-117.84	47	80	60	420	1140	0	0	0	0	45	Coffee at the top of a canyon road - San Gabriel Canyon
+sgc-03	San Gabriel Canyon Museum 4	museum	sgcanyon	-	34.24	-117.864	84	62	75	600	1080	0	0	0	0	74	A small museum worth the drive - San Gabriel Canyon
+sgc-04	San Gabriel Canyon Main Street 5	town	sgcanyon	-	34.216	-117.844	60	44	90	480	1260	0	0	0	0	103	An old main street to wander - San Gabriel Canyon
+sgc-05	San Gabriel Canyon Park 6	park	sgcanyon	-	34.244	-117.868	97	97	30	-	-	1	0	0	0	132	Oak shade and a creek path - San Gabriel Canyon
+sgc-06	San Gabriel Canyon Trailhead 7	trailhead	sgcanyon	-	34.22	-117.848	73	79	45	-	-	1	0	0	0	161	A short climb to a long view - San Gabriel Canyon
+sgc-07	San Gabriel Canyon Overlook 8	viewpoint	sgcanyon	-	34.196	-117.872	49	61	60	-	-	1	1	0	0	49	The whole basin below you - San Gabriel Canyon
+sgc-08	San Gabriel Canyon Cove 9	beach	sgcanyon	-	34.224	-117.852	86	43	75	-	-	1	0	0	0	78	Tide pools at the end of a quiet road - San Gabriel Canyon
+sgc-09	San Gabriel Canyon Garden 10	garden	sgcanyon	-	34.2	-117.876	62	96	90	540	1110	0	0	0	0	107	Roses and a koi pond - San Gabriel Canyon
+w-reach-over	Witness Reach Over	park	wreach	-	34.1	-118.4	70	60	60	-	-	1	0	0	0	181	A ruled witness
+w-reach-edge	Witness Reach Edge	park	wreach	-	34.1	-118.4	70	60	60	-	-	1	0	0	0	180	A ruled witness
+w-reach-none	Witness Outside Polygon	viewpoint	wreach	-	34.1	-118.4	70	60	60	-	-	1	0	0	0	-	A ruled witness
+w-brand-sbux	Witness Starbucks	cafe	wbrand	Starbucks	34.1	-118.4	70	60	60	420	1260	0	0	0	0	120	A ruled witness
+w-brand-innout	Witness In-N-Out	cafe	wbrand	In-N-Out Burger	34.1	-118.4	70	60	60	420	1260	0	0	0	0	120	A ruled witness
+w-hours-late	Witness Closes 1004	museum	whours	-	34.1	-118.4	70	60	60	600	1004	0	0	0	0	120	A ruled witness
+w-hours-edge	Witness Closes 1005	museum	whours	-	34.1	-118.4	70	60	60	600	1005	0	0	0	0	120	A ruled witness
+w-hours-open-edge	Witness Opens 900	cafe	whours	-	34.1	-118.4	70	60	60	900	1260	0	0	0	0	120	A ruled witness
+w-hours-opens	Witness Opens 901	cafe	whours	-	34.1	-118.4	70	60	60	901	1260	0	0	0	0	120	A ruled witness
+w-hours-none	Witness No Hours	cafe	whours	-	34.1	-118.4	70	60	60	-	-	0	0	0	0	120	A ruled witness
+w-private-1	Witness Private Gate	trailhead	wprivate	-	34.1	-118.4	70	60	60	-	-	1	0	0	1	120	A ruled witness
+w-private-2	Witness Ranch Road	viewpoint	wprivate	-	34.1	-118.4	70	60	60	-	-	1	1	0	1	120	A ruled witness
+w-dark-late	Witness Dark Dirt Overlook	viewpoint	wdark	-	34.1	-118.4	70	60	60	-	-	1	0	1	0	160	A ruled witness
+w-dark-lit	Witness Lit Dirt Overlook	viewpoint	wdark	-	34.1	-118.4	70	60	60	-	-	1	1	1	0	160	A ruled witness
+w-dark-paved	Witness Paved Overlook	viewpoint	wdark	-	34.1	-118.4	70	60	60	-	-	1	0	0	0	160	A ruled witness
+w-dark-early	Witness Early Dirt Overlook	viewpoint	wdark	-	34.1	-118.4	70	60	45	-	-	1	0	1	0	30	Sunset from a dirt turnout

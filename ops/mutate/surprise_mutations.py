@@ -1,0 +1,181 @@
+"""The mutation population for T-0253's Surprise selector: Sources/ScenicKit/Surprise/Surprise.swift and its eight
+value types. The driver is surprise.py and the runner surprise_run.py (menu's three-file shape).
+
+## What the acceptance names, and where each lives
+
+  * the EIGHT HARD FILTERS, each dropped and each boundary moved - entries 1-22 (R3);
+  * the four NOT-THIS reasons - 23-28 (R6);
+  * the RANKING - each of the four terms dropped, the novelty cap, the order (29-34) (R4);
+  * the SEED and the 20% EXPLORATION, P-PROD-02 - 35-42 (R5);
+  * the WHY - the golden-hour window, its clock (43-45) (R7);
+  * the eight value types' fields (46-55): the tests render a pick's PROPERTIES, so a swapped field is seen.
+  * the pre-review survivors (58-60): the not-my-thing window from below, civil dusk read as sunset, and a
+    too-far cut kept past its day - each boundary now pinned from both sides.
+  * rv1's survivor (61): a red flag closing a SPARED category; filter 7 now compares the whole red-flag
+    permutation to the oracle's scenario R, and the red-flag set to the calm set minus the three fire categories.
+
+`(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
+comment. `killers` are Swift Testing display names, every one of which must go red.
+"""
+from __future__ import annotations
+
+import pathlib
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+_DIR = ROOT / "Sources" / "ScenicKit" / "Surprise"
+SURPRISE = _DIR / "Surprise.swift"
+CANDIDATE = _DIR / "SurpriseCandidate.swift"
+CATEGORY = _DIR / "SurpriseCategory.swift"
+REACH = _DIR / "SurpriseReach.swift"
+HISTORY = _DIR / "SurpriseHistory.swift"
+FEEDBACK = _DIR / "SurpriseFeedback.swift"
+CONTEXT = _DIR / "SurpriseContext.swift"
+REASON = _DIR / "SurpriseReason.swift"
+PICK = _DIR / "SurprisePick.swift"
+SUBJECTS = (SURPRISE, CANDIDATE, CATEGORY, REACH, HISTORY, FEEDBACK, CONTEXT, REASON, PICK)
+MUTATED_FILES = SUBJECTS
+
+_TESTS = ROOT / "Tests" / "ScenicKitTests" / "Surprise"
+TEST_FILES = (_TESTS / "SurpriseFilterTests.swift", _TESTS / "SurpriseRankTests.swift",
+              _TESTS / "SurpriseFeedbackTests.swift")
+
+F1 = "filter 1: a place whose round trip exceeds the budget, or lies outside the reach, is never picked"
+F2 = "filter 2: a place shown within 90 days is never picked; 90 days ago it may return"
+F3 = "filter 3: the same category on the same corridor within 30 days is never picked"
+F4 = "filter 4: a blocklisted brand or chain is never picked; an unlisted local brand is"
+F5 = "filter 5: a place not open from arrival to arrival + dwell + 45 min is never picked unless exempt"
+F6 = "filter 6: an unlit unpaved viewpoint arriving after civil twilight is never picked"
+F7 = "filter 7: a red-flag day drops exactly park, trailhead and viewpoint - the oracle's red-flag permutation"
+F8 = "filter 8: an approach crossing private access is never picked"
+TOO_FAR = "not this - too far: the next pick is ojai-02 and no pick that day is 170 min or longer"
+NOT_MINE = "not this - not my thing: the next pick is ojai-02 and no beach for 30 days"
+BEEN = "not this - been there: the next pick is mulholland-09 and lbc-02 never returns, even a year on"
+WRONG = "not this - wrong time: the next pick is mulholland-09 today, and lbc-02 is back tomorrow"
+DISTINCT = "P-PROD-02: >= 90 of 100 consecutive seeds give distinct picks over the 127 eligible"
+PERM = "the whole pick permutation equals the oracle's: driver-a, driver-c and driver-b with history"
+WHY = "the WHY: three picks pinned whole - hook, round trip and the golden-hour line from Solar"
+NOTHING = "nothing reachable is nil: a 20 min budget, or no candidates; a 30 min budget reaches one"
+
+SHOWN = "$0.candidateId == c.id && days(date, since: $0.date) < shownDays"
+CORRIDOR = "$0.category == c.category && $0.corridor == c.corridor"
+OPEN = "return opens <= arrival && arrival + c.dwellMinutes + closingMarginMinutes <= closes"
+DARK = "if c.category == .viewpoint && !c.lit && c.unpaved && isAfterDusk(c, arrival: arrival, context: context) {"
+SCORE = "return c.quality + c.approachScore + novelty + minutes * 100 / max(budget, 1)"
+EXPLORE = "let index = h % 100 < explorePercent ? Int((h >> 32) % UInt64(remaining.count)) : 0"
+ORDER = "remaining.sort { a, b in a.score != b.score ? a.score > b.score : a.candidate.id < b.candidate.id }"
+WRONG_CASE = "case .wrongTime where f.candidateId == c.id && days(date, since: f.date) == 0: return false"
+KEY = '"\\(userId)|\\(pad(date.year, 4))-\\(pad(date.month, 2))-\\(pad(date.day, 2))|\\(step)"'
+
+MUTATIONS = [
+    ("1 the reach filter dropped", SURPRISE, "guard minutes <= budget else { return nil }", "", [F1]),
+    ("2 the reach made strict", SURPRISE, "guard minutes <= budget else", "guard minutes < budget else", [F1]),
+    ("3 the 90-day filter dropped", SURPRISE, SHOWN, SHOWN.replace("days(date, since: $0.date) < shownDays", "false"),
+     [F2]),
+    ("4 90 days -> 91", SURPRISE, "public static let shownDays = 90", "public static let shownDays = 91", [F2]),
+    ("5 90 days -> 89", SURPRISE, "public static let shownDays = 90", "public static let shownDays = 89", [F2]),
+    ("6 the category x corridor filter dropped", SURPRISE, CORRIDOR, "false && " + CORRIDOR, [F3]),
+    ("7 the corridor ignored", SURPRISE, CORRIDOR, "$0.category == c.category", [PERM]),
+    ("8 30 days -> 31", SURPRISE, "public static let categoryCorridorDays = 30",
+     "public static let categoryCorridorDays = 31", [F3]),
+    ("9 the brand filter dropped", SURPRISE, "if let brand = c.brand, blockedBrands.contains(brand) { return false }",
+     "", [F4]),
+    ("10 Starbucks off the blocklist", SURPRISE, '["Starbucks", ', "[", [F4]),
+    ("11 the hours filter dropped", SURPRISE, "if !c.hoursExempt && !isOpen(c, arrival: arrival) { return false }",
+     "", [F5]),
+    ("12 no category is hours-exempt", SURPRISE, "if !c.hoursExempt && !isOpen(", "if !isOpen(", [PERM]),
+    ("13 the closing margin 45 -> 46", SURPRISE, "public static let closingMarginMinutes = 45",
+     "public static let closingMarginMinutes = 46", [F5]),
+    ("14 closing made strict", SURPRISE, OPEN, OPEN.replace("<= closes", "< closes"), [F5]),
+    ("15 opening made strict", SURPRISE, OPEN, OPEN.replace("opens <= arrival", "opens < arrival"), [F5]),
+    ("16 unknown hours count as open", SURPRISE,
+     "guard let opens = c.opensMinute, let closes = c.closesMinute else { return false }",
+     "guard let opens = c.opensMinute, let closes = c.closesMinute else { return true }", [F5]),
+    ("17 the dark-viewpoint filter dropped", SURPRISE, DARK, DARK.replace("if c.category", "if false && c.category"),
+     [F6]),
+    ("18 lit viewpoints dropped too", SURPRISE, DARK, DARK.replace("!c.lit && ", ""), [F6]),
+    ("19 paved viewpoints dropped too", SURPRISE, DARK, DARK.replace("c.unpaved && ", ""), [F6]),
+    ("20 dusk read at departure, not arrival", SURPRISE, DARK,
+     DARK.replace("isAfterDusk(c, arrival: arrival,", "isAfterDusk(c, arrival: context.departureMinute,"), [F6]),
+    ("21 the red-flag filter dropped", SURPRISE, "if context.redFlag && c.category.closesOnRedFlag { return false }",
+     "", [F7]),
+    ("22 the private-approach filter dropped", SURPRISE, "if c.privateApproach { return false }", "", [F8]),
+    ("23 been there forgotten", SURPRISE, "case .beenThere where f.candidateId == c.id: return false",
+     "case .beenThere where false: return false", [BEEN]),
+    ("24 not my thing forgotten", SURPRISE, "case .notMyThing where f.category == c.category",
+     "case .notMyThing where false && f.category == c.category", [NOT_MINE]),
+    ("25 not my thing 30 days -> 31", SURPRISE, "public static let notMyThingDays = 30",
+     "public static let notMyThingDays = 31", [NOT_MINE]),
+    ("26 wrong time kept forever", SURPRISE, WRONG_CASE, WRONG_CASE.replace("== 0", ">= 0"), [WRONG]),
+    ("27 too far forgotten", SURPRISE, "budget = min(budget, f.roundTripMinutes - 1)", "budget = min(budget, budget)",
+     [TOO_FAR]),
+    ("28 too far keeps its own round trip", SURPRISE, "budget = min(budget, f.roundTripMinutes - 1)",
+     "budget = min(budget, f.roundTripMinutes)", [TOO_FAR]),
+    ("29 quality dropped", SURPRISE, SCORE, SCORE.replace("c.quality + ", ""), [PERM]),
+    ("30 approach-road score dropped", SURPRISE, SCORE, SCORE.replace("c.approachScore + ", ""), [PERM]),
+    ("31 novelty dropped", SURPRISE, SCORE, SCORE.replace("+ novelty ", ""), [PERM]),
+    ("32 time-fit dropped", SURPRISE, SCORE, SCORE.replace(" + minutes * 100 / max(budget, 1)", ""), [PERM]),
+    ("33 novelty uncapped", SURPRISE, "since.min().map { min(100, max(0, $0)) } ?? 100",
+     "since.min().map { max(0, $0) } ?? 100", [PERM]),
+    ("34 lowest score first", SURPRISE, ORDER, ORDER.replace("a.score > b.score", "a.score < b.score"), [PERM]),
+    ("35 exploration 20% -> 21%", SURPRISE, "public static let explorePercent: UInt64 = 20",
+     "public static let explorePercent: UInt64 = 21", [PERM]),
+    ("36 exploration 20% -> 19%", SURPRISE, "public static let explorePercent: UInt64 = 20",
+     "public static let explorePercent: UInt64 = 19", [PERM]),
+    ("37 exploration reads the low bits", SURPRISE, EXPLORE, EXPLORE.replace("(h >> 32)", "h"), [PERM]),
+    ("38 exploitation takes the worst", SURPRISE, EXPLORE, EXPLORE.replace(": 0", ": remaining.count - 1"), [PERM]),
+    ("39 a taken place stays in the list", SURPRISE, "taken = remaining.remove(at: index)",
+     "taken = remaining[index]", [DISTINCT]),
+    ("40 the seed ignored", SURPRISE, "let target = Int(seed % UInt64(remaining.count))", "let target = 0",
+     [DISTINCT]),
+    ("41 the user ignored by the draw", SURPRISE, KEY, KEY.replace("\\(userId)|", "|"), [PERM]),
+    ("42 the hash finaliser dropped", SURPRISE, "h = (h ^ (h >> 30)) &* 0xbf58_476d_1ce4_e5b9", "", [PERM]),
+    ("43 no golden hour ever", SURPRISE, "guard sunset >= start && sunset <= end else { return nil }",
+     "return nil", [WHY]),
+    ("44 the visit has no dwell", SURPRISE, "let end = instant(arrival + c.dwellMinutes, context: context)",
+     "let end = instant(arrival, context: context)", [WHY]),
+    ("45 the sunset clock offset backwards", SURPRISE, "((utcMinutes + context.utcOffsetMinutes) % 1440",
+     "((utcMinutes - context.utcOffsetMinutes) % 1440", [WHY]),
+    ("46 arrival is the whole round trip", SURPRISE, "context.departureMinute + roundTrip / 2",
+     "context.departureMinute + roundTrip", [F5]),
+    ("47 a red flag spares viewpoints", CATEGORY, "case .park, .trailhead, .viewpoint: return true",
+     "case .park, .trailhead: return true\n        case .viewpoint: return false", [F7]),
+    ("48 candidate lit always false", CANDIDATE, "self.lit = lit", "self.lit = false", [F6]),
+    ("49 candidate quality reads approach", CANDIDATE, "self.quality = quality", "self.quality = approachScore",
+     [PERM]),
+    ("50 reach budget fixed at 180", REACH, "self.budgetMinutes = budgetMinutes", "self.budgetMinutes = 180",
+     [NOTHING]),
+    ("51 shown corridor blanked", HISTORY, "self.corridor = corridor", "self.corridor = \"\"", [F3]),
+    ("52 history shown dropped", HISTORY, "self.shown = shown", "self.shown = []", [F2]),
+    ("53 feedback reason read as been there", FEEDBACK, "self.reason = reason", "self.reason = .beenThere",
+     [TOO_FAR]),
+    ("54 context red flag always false", CONTEXT, "self.redFlag = redFlag", "self.redFlag = false", [F7]),
+    ("55 context utc offset zero", CONTEXT, "self.utcOffsetMinutes = utcOffsetMinutes", "self.utcOffsetMinutes = 0",
+     [F6]),
+    ("56 reason round trip zero", REASON, "self.roundTripMinutes = roundTripMinutes", "self.roundTripMinutes = 0",
+     [WHY]),
+    ("57 pick name reads its id", PICK, "self.name = name", "self.name = candidateId", [WHY]),
+    ("58 not my thing 30 days -> 29", SURPRISE, "public static let notMyThingDays = 30",
+     "public static let notMyThingDays = 29", [NOT_MINE]),
+    ("59 dusk read from sunset", SURPRISE, "SolarEvents.compute(on: context.date, at: c.coordinate).civilDusk",
+     "SolarEvents.compute(on: context.date, at: c.coordinate).sunset", [F6]),
+    ("60 too far kept forever", SURPRISE, "f.reason == .tooFar && days(date, since: f.date) == 0",
+     "f.reason == .tooFar && days(date, since: f.date) >= 0", [TOO_FAR]),
+    ("61 a red flag closes beaches too", CATEGORY, "case .park, .trailhead, .viewpoint: return true\n        case .beach,",
+     "case .park, .trailhead, .viewpoint, .beach: return true\n        case", [F7]),
+]
+
+# Cannot change behaviour, so each must report MISSED; anything else is a FAILURE. `(name, path, old, new, witness)`.
+EQUIVALENT = [
+    ("E1 the first taken place seeded from the end", SURPRISE, "var taken = remaining[0]",
+     "var taken = remaining[remaining.count - 1]",
+     "`for step in 0...target` runs at least once (target >= 0) and assigns `taken` on every pass, so the "
+     "initial value is never read; the non-empty guard above keeps both subscripts in range"),
+    ("E2 the empty guard spelled as a count", SURPRISE, "guard !remaining.isEmpty else { return nil }",
+     "guard remaining.count > 0 else { return nil }",
+     "Array.isEmpty is defined as count == 0, and count is never negative"),
+]
+
+MIN_MUTATIONS = 61
+MIN_EQUIVALENT = 2
+MIN_TEST_FILES = 3
