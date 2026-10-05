@@ -6,7 +6,10 @@
  */
 import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
+import type { QuotaCounter } from "./QuotaCounter";
 import { readOnlyProblem } from "./ro";
+
+export { QuotaCounter } from "./QuotaCounter";
 
 export interface Env {
   DB: D1Database;
@@ -14,6 +17,10 @@ export interface Env {
   BUILT_AT: string;
   RO_TOKEN?: string; // secret: `wrangler secret put RO_TOKEN`
   KILL?: string; // "1" pauses /plan and /loop with zero upstream calls (P-COST-01)
+  KILL_SWITCH?: KVNamespace; // optional: its key KILL = "1" also pauses (T-0256 R5); not bound in wrangler.jsonc
+  QUOTA?: DurableObjectNamespace<QuotaCounter>; // per-device daily + global monthly counters (T-0256 R1)
+  ROUTER_URL?: string; // our GraphHopper; https://router.invalid (the shipped placeholder) counts as absent
+  ROUTER_SECRET?: string; // secret: `wrangler secret put ROUTER_SECRET`; sent as x-scenic-router-secret
 }
 
 type Handler = (req: Request, env: Env, url: URL) => Promise<Response>;
