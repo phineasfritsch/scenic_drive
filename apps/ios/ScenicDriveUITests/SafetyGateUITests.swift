@@ -27,9 +27,7 @@ final class SafetyGateUITests: XCTestCase {
         accept.tap()
         XCTAssertTrue(accept.waitForNonExistence(timeout: 10), "home.disclaimer.accept did not dismiss home.disclaimer")
         handoff.tap()
-        XCTAssertTrue(HomeLaunch.leftForeground(app, timeout: 15),
-                      "after the accept, the next tap did not leave for Apple Maps - the acknowledgement was not "
-                          + "recorded (home.disclaimer up again: \(HomeLaunch.element(app, "home.disclaimer").exists))")
+        assertTapWentThroughTheGate(app, after: "the accept")
 
         // Relaunch WITHOUT the reset: what the accept wrote is all the app has to go on.
         let relaunched = HomeLaunch.launch(reset: false)
@@ -37,9 +35,7 @@ final class SafetyGateUITests: XCTestCase {
         XCTAssertTrue(handoffAgain.waitForExistence(timeout: 20), "home.openInAppleMaps never appeared after relaunch")
         XCTAssertFalse(HomeLaunch.element(relaunched, "home.disclaimer").exists, "a sheet is up after relaunch")
         handoffAgain.tap()
-        XCTAssertTrue(HomeLaunch.leftForeground(relaunched, timeout: 15),
-                      "the acknowledgement did not survive the relaunch: the tap did not leave (home.disclaimer up: "
-                          + "\(HomeLaunch.element(relaunched, "home.disclaimer").exists))")
+        assertTapWentThroughTheGate(relaunched, after: "a relaunch without the reset")
     }
 
     /// Acceptance 2: at the largest accessibility size, collapsed, home.conditions is on screen, hittable and not
@@ -82,5 +78,27 @@ final class SafetyGateUITests: XCTestCase {
             XCTAssertGreaterThanOrEqual(accept.frame.width, 44, "home.disclaimer.accept is narrower than 44 pt: \(accept.frame)")
             XCTAssertGreaterThanOrEqual(accept.frame.height, 44, "home.disclaimer.accept is shorter than 44 pt: \(accept.frame)")
         }
+    }
+
+    /// The tap that follows an acknowledgement went THROUGH the gate (ruling R14): no disclaimer within 5 s - a build
+    /// that did not record the acknowledgement presents it again, which is the defect this test is named for - and no
+    /// failure card (`home.error`), so the handoff was handed its URL. Whether the simulator's Maps then takes the
+    /// foreground is recorded, never asserted: run 37295029521 saw the app stay in front 20 s after such a tap with
+    /// no sheet and the gate open, which is the simulator's URL routing, not the gate.
+    @MainActor
+    private func assertTapWentThroughTheGate(_ app: XCUIApplication, after what: String,
+                                             file: StaticString = #filePath, line: UInt = #line) {
+        let accept = HomeLaunch.element(app, "home.disclaimer.accept")
+        XCTAssertFalse(accept.waitForExistence(timeout: 5),
+                       "after \(what), the next tap on home.openInAppleMaps presented home.disclaimer again - the "
+                           + "acknowledgement was not recorded", file: file, line: line)
+        let left = HomeLaunch.leftForeground(app, timeout: 5)
+        if !left {
+            XCTAssertFalse(HomeLaunch.element(app, "home.error").exists,
+                           "after \(what), the handoff refused: home.error is on screen", file: file, line: line)
+        }
+        let maps = XCUIApplication(bundleIdentifier: "com.apple.Maps")
+        print("T-0180 handoff after \(what): app left the foreground \(left), app state \(app.state.rawValue), "
+              + "Maps state \(maps.state.rawValue)")
     }
 }
