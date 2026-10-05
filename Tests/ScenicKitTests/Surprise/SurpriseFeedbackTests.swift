@@ -20,6 +20,8 @@ struct SurpriseFeedbackTests {
         #expect(try SurpriseFixture.pick(seed: 0, history: history)?.candidateId == "ojai-02")
         let trips = try SurpriseFixture.roundTrips()
         #expect(try SurpriseFixture.ids(history: history).allSatisfy { (trips[$0] ?? 999) < 170 })
+        let tomorrow = SurpriseFixture.context(date: SurpriseFixture.june21)
+        #expect(Set(try SurpriseFixture.ids(history: history, context: tomorrow)).contains("lbc-02"))
     }
 
     @Test("not this - not my thing: the next pick is ojai-02 and no beach for 30 days")
@@ -27,6 +29,9 @@ struct SurpriseFeedbackTests {
         let history = Self.answered(.notMyThing)
         #expect(try SurpriseFixture.pick(seed: 0, history: history)?.candidateId == "ojai-02")
         #expect(try SurpriseFixture.ids(history: history).allSatisfy { try SurpriseFixture.category($0) != .beach })
+        let day29 = SurpriseFixture.context(date: CivilDate(year: 2026, month: 7, day: 19))
+        #expect(try SurpriseFixture.ids(history: history, context: day29)
+            .allSatisfy { try SurpriseFixture.category($0) != .beach })
         let monthLater = SurpriseFixture.context(date: CivilDate(year: 2026, month: 7, day: 20))
         #expect(try SurpriseFixture.ids(history: history, context: monthLater)
             .contains { try SurpriseFixture.category($0) == .beach })

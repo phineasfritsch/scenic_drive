@@ -9,6 +9,8 @@ value types. The driver is surprise.py and the runner surprise_run.py (menu's th
   * the SEED and the 20% EXPLORATION, P-PROD-02 - 35-42 (R5);
   * the WHY - the golden-hour window, its clock (43-45) (R7);
   * the eight value types' fields (46-55): the tests render a pick's PROPERTIES, so a swapped field is seen.
+  * the pre-review survivors (58-60): the not-my-thing window from below, civil dusk read as sunset, and a
+    too-far cut kept past its day - each boundary now pinned from both sides.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -151,6 +153,12 @@ MUTATIONS = [
     ("56 reason round trip zero", REASON, "self.roundTripMinutes = roundTripMinutes", "self.roundTripMinutes = 0",
      [WHY]),
     ("57 pick name reads its id", PICK, "self.name = name", "self.name = candidateId", [WHY]),
+    ("58 not my thing 30 days -> 29", SURPRISE, "public static let notMyThingDays = 30",
+     "public static let notMyThingDays = 29", [NOT_MINE]),
+    ("59 dusk read from sunset", SURPRISE, "SolarEvents.compute(on: context.date, at: c.coordinate).civilDusk",
+     "SolarEvents.compute(on: context.date, at: c.coordinate).sunset", [F6]),
+    ("60 too far kept forever", SURPRISE, "f.reason == .tooFar && days(date, since: f.date) == 0",
+     "f.reason == .tooFar && days(date, since: f.date) >= 0", [TOO_FAR]),
 ]
 
 # Cannot change behaviour, so each must report MISSED; anything else is a FAILURE. `(name, path, old, new, witness)`.
@@ -164,6 +172,6 @@ EQUIVALENT = [
      "Array.isEmpty is defined as count == 0, and count is never negative"),
 ]
 
-MIN_MUTATIONS = 57
+MIN_MUTATIONS = 60
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 3

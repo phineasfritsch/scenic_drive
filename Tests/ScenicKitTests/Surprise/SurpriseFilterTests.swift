@@ -62,6 +62,7 @@ struct SurpriseFilterTests {
         #expect(picked.contains("w-dark-lit"))
         #expect(picked.contains("w-dark-paved"))
         #expect(picked.contains("w-dark-early"))
+        #expect(picked.contains("malibu-02"))
         #expect(Set(try SurpriseFixture.ids()).contains("w-dark-late"))
     }
 
