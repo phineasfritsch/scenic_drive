@@ -68,8 +68,10 @@ def test_the_meta_key_is_required_so_a_corpus_cannot_ship_without_it():
 
 
 def test_adding_the_meta_key_did_not_move_schema_version():
-    """Ruling R2: a meta key is not DDL, so no device's corpus is invalidated over the air."""
-    assert schema.SCHEMA_VERSION == 2
+    """Ruling R2: a meta key is not DDL, so no device's corpus is invalidated over the air. Asserted on the
+    DDL itself (T-0254 R9): the version literal moved to 3 for places_fts, a DDL change, not for this key."""
+    assert surfacecoverage.META_KEY not in "\n".join(schema.DDL)
+    assert surfacecoverage.META_KEY in schema.REQUIRED_META_KEYS
 
 
 def test_the_check_refuses_residential_below_its_baseline_by_name(tmp_path, capsys):
