@@ -6,9 +6,9 @@ import XCTest
 /// shipping build with ONE meta edit, so a refusal here is the check, not a malformed fixture.
 final class PlaceStoreRefusalTests: XCTestCase {
     func testRefusesCorpusWithBumpedSchemaVersion() throws {
-        let corpus = try CorpusFixture.build(rewriting: "UPDATE meta SET value = '3' WHERE key = 'schema_version'")
+        let corpus = try CorpusFixture.build(rewriting: "UPDATE meta SET value = '4' WHERE key = 'schema_version'")
         XCTAssertThrowsError(try PlaceStore(path: corpus.path)) { error in
-            XCTAssertEqual(error as? PlaceStoreError, .schemaVersionMismatch(found: "3", expected: 2))
+            XCTAssertEqual(error as? PlaceStoreError, .schemaVersionMismatch(found: "4", expected: 3))
         }
     }
 

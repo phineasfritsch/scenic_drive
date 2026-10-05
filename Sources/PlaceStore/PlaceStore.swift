@@ -12,7 +12,7 @@ import GRDB
 public final class PlaceStore: Sendable {
     /// The corpus schema this reader parses. P-PROD-05 holds it equal to services/etl/etl/schema.py and
     /// services/api/src/index.ts; PlaceStoreReadTests holds it equal to a corpus the shipping builder made.
-    public static let schemaVersion: Int = 2
+    public static let schemaVersion: Int = 3
 
     /// `PRAGMA application_id` of every corpus: the ASCII bytes "SCNC" big-endian (schema.APPLICATION_ID).
     static let applicationID: Int = 0x5343_4E43
@@ -79,6 +79,25 @@ public final class PlaceStore: Sendable {
                 WHERE max_lon >= ? AND min_lon <= ? AND max_lat >= ? AND min_lat <= ?
                 ORDER BY id
                 """, arguments: [box.minLon, box.maxLon, box.minLat, box.maxLat])
+        }
+    }
+
+    /// Named places matching what the user typed, best first: bm25 over `places_fts`, place_id breaking ties
+    /// (T-0254 rulings R3-R6). Every token is a prefix; the user string is never FTS5 syntax
+    /// (`PlaceSearchQuery`). No token, or `limit <= 0`, is an empty answer with no SQL run.
+    public func search(query: String, limit: Int) throws -> [Place] {
+        guard limit > 0, let match = PlaceSearchQuery.match(for: query) else { return [] }
+        return try queue.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT p.place_id, p.osm_type, p.osm_id, p.cls, p.name, p.lon_e7, p.lat_e7
+                FROM places_fts JOIN places AS p ON p.place_id = places_fts.rowid
+                WHERE places_fts MATCH ?
+                ORDER BY bm25(places_fts), p.place_id
+                LIMIT ?
+                """, arguments: [match, limit]).map { row in
+                Place(placeID: row["place_id"], osmType: row["osm_type"], osmID: row["osm_id"], cls: row["cls"],
+                      name: row["name"], lonE7: row["lon_e7"], latE7: row["lat_e7"])
+            }
         }
     }
 

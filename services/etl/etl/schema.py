@@ -51,7 +51,7 @@ from .terms import (  # noqa: F401
     TERM_NAMES,
 )
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 # Deliberately NOT moved with SCHEMA_VERSION. The plan's OTA row makes them answer different questions -
 # `schema_version == PlaceStore.schemaVersion && min_app_build <= build` - the first "can this reader parse
 # this file", the second "is this app build allowed this file". No app build reads a corpus yet, so 1
@@ -185,16 +185,25 @@ DDL = (
   key   TEXT NOT NULL PRIMARY KEY,
   value TEXT NOT NULL
 ) WITHOUT ROWID""",
+    # 18  T-0254: typed-destination search. External content - the names live once, in places - keyed by
+    #     place_id; CorpusWriter.write_places fills it with the named rows (rule 5: no trigger does).
+    "CREATE VIRTUAL TABLE places_fts USING fts5(name, content='places', content_rowid='place_id', "
+    "tokenize='unicode61 remove_diacritics 2')",
 )
 
 # Derived from the DDL text, so a virtual table added without a licence entry cannot hide behind a shadow
 # name. rtree materialises <name>_node, <name>_rowid and <name>_parent.
-VIRTUAL_TABLES = tuple(re.findall(r"CREATE VIRTUAL TABLE (\w+) USING", "\n".join(DDL)))
-SHADOW_TABLES = frozenset(f"{v}_{s}" for v in VIRTUAL_TABLES for s in ("node", "rowid", "parent"))
+# Per module (T-0254 R2): fts5 writes _config/_data/_docsize/_idx, and _content too were the table ever made
+# contentful. A module with no entry here fails at import rather than leaking its shadows into ddl_sha256.
+VIRTUAL_MODULES = dict(re.findall(r"CREATE VIRTUAL TABLE (\w+) USING (\w+)", "\n".join(DDL)))
+VIRTUAL_TABLES = tuple(VIRTUAL_MODULES)
+SHADOW_SUFFIXES = {"rtree": ("node", "rowid", "parent"), "fts5": ("config", "content", "data", "docsize", "idx")}
+SHADOW_TABLES = frozenset(f"{v}_{s}" for v, m in VIRTUAL_MODULES.items() for s in SHADOW_SUFFIXES[m])
 
 # 8.2's split, as data. ODbL obligations attach to an identifiable SET OF TABLES rather than smearing across
 # the artifact; corpusverify proves the two halves can be dropped independently.
-ODBL_TABLES = ("osm_features", "segments", "segments_rtree", "terms_osm", "places", "places_rtree")
+ODBL_TABLES = ("osm_features", "segments", "segments_rtree", "terms_osm", "places", "places_rtree",
+               "places_fts")
 OWN_TABLES = ("terms_raster", "curated", "segment_alias", "id_collisions")
 BOTH_TABLES = ("meta", "term_defs")
 TABLE_LICENSES = {t: ODBL_LICENSE for t in ODBL_TABLES}

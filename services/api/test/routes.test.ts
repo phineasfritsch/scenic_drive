@@ -14,7 +14,7 @@ describe("operational routes", () => {
     // Typed out, never imported from src/. A wire pin that reads the same constant the handler reads
     // asserts nothing; this literal is the only thing that makes changing the number a deliberate act.
     // It moves with services/etl/etl/schema.py's SCHEMA_VERSION - see P-PROD-05.
-    expect(body.schema_version).toBe(2);
+    expect(body.schema_version).toBe(3);
   });
 
   it("/__health is ok with a reachable D1", async () => {
