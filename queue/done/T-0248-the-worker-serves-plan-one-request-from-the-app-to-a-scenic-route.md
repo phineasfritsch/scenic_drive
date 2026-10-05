@@ -1,7 +1,7 @@
 ---
 id: T-0248
 title: the Worker serves POST /plan - one request from the app becomes a fastest call plus the lambda budget search against the router, returning the scenic route, ETA vs fastest, hazards and the Apple Maps URL; quota first, kill switch honoured, privacy invariant held
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T05:09:51Z
@@ -11,7 +11,7 @@ branch: task/T-0248
 exclusive: []
 touches: [services/api/src/, services/api/test/]
 pins_affected: [P-COST-01, P-COST-04, P-PRIV-05, P-SAFE-04, P-SAFE-01]
-reviewer: null
+reviewer: agent/rv1-t-0248
 depends_on: [T-0244]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -145,3 +145,38 @@ live route. This is the first endpoint the app needs (M3 exit). /loop /surprise 
       every 200's eta_s <= fastest + budget recomputed in the test.
   (4) response keys exactly apple_maps_url budget_s ceiling_s eta_is_estimate eta_s evaluations fastest_eta_s hazards
       lambda route used_budget waypoints; <= 9 waypoints; vitest 179/179; population 43/43, floor 43 (R9).
+- 2026-10-05T07:54:44Z REVIEW PASS (agent/rv1-t-0248, reviewer; owner agent/claude-opus-5) at head 1f27bdb, PR #139.
+  Gates, bare, in .worktrees/rv1-T-0248 (detached at origin/task/T-0248): `cd services/api && npx vitest run`
+  "Test Files 14 passed (14)", "Tests 179 passed (179)" (= the 06:32:38Z quote); check-mutate-population.py
+  "P-PROC-06: 98 modules, 43 covered by 16 populations, 34 allowlisted, 0 added by this branch" exit 0; queue-check
+  "QUEUE OK (242 tasks)" exit 0; `gh pr checks 139` core pass, pins-source-only pass. GAP: local
+  ops/lib/check-line-cap and `ops/check-pins --source-only` did not finish in 15 min on this host (three other
+  worktrees' check-pins runs were hung beside them, the host hang T-0242 recorded); stopped, not quoted. CI's
+  pins-source-only on 1f27bdb stands for them; the PR touches no Swift and its largest file is planMutants.mjs, 176 lines.
+  `git merge-base --is-ancestor origin/main origin/task/T-0248` exit 1: main moved AFTER the 06:33Z push (PR #138 merged
+  07:10Z, then two queue commits for T-0250). The commits after base 677daa9 touch only services/etl, services/tiles,
+  ops/etl and queue/ (no ops/lib, no pins). `git merge-tree --write-tree origin/main origin/task/T-0248` exit 0: no conflict.
+  Acceptance re-read against the tree: (1) R1/R2 ruled 05:24:32Z before the 2fe8227 red commit; parsePlanRequest
+  is a per-level key whitelist, and planPrivacy drives handlePlan. (2) KILL before req.json(); guardedPlan reserves
+  before body(call); 7 calls, 13th refused before fetchImpl; the model is buildCustomModel(lambda, null) through
+  rejectCustomModel. (3) planRecorded's URL toBe the 05:30:08Z ops/plan literal, eta_s 1346.01. (4) response keys,
+  eta_is_estimate true, <= 9 waypoints, population 43 floor 43.
+  REVIEWER MUTANTS (my own, none in planMutants.mjs; .build/rv1/mut.mjs applies one exact site, runs vitest, restores):
+    rv1-reserve-after-call (upstream.ts: reserve moved after `await body(call)`, the quota decrement after the
+      upstream calls): CAUGHT, 4 failed incl. planCost "the quota is reserved once, before the first upstream call".
+    rv1-ceiling-from-scenic-lambda0 (lambdaSearch.ts: feasibility `duration <= seen[0].duration + budget`, the
+      ceiling measured from the scenic lambda-0 route's own ETA, not the fastest): CAUGHT, 4 failed incl. planCeiling
+      "never returns a route whose ETA exceeds fastest + budget, over 120 random curves".
+    rv1-ceiling-from-scenic-both (the same in the bisection step too): CAUGHT, the same 4.
+    rv1-three-dp-precision (planRequest.ts: `toPrecision(ORIGIN_DECIMALS + 3)`, which accepts 3 dp on a two-digit
+      latitude): CAUGHT by planPrivacy "refuses an origin latitude with more than 2 decimals".
+    rv1-place-comma (PLACE_ID admits ","): SURVIVED, ruled NOT fail-open. The shipped shape already admits a
+      coordinate spelled as a place id ("34.0195:-118.4912"). A probe test, run and then deleted, drove handlePlan:
+      that id and "34.01950_-118.49120" both give 404 with h.sent 0 and h.events 0. The comma spelling behaves the
+      same way. Nothing goes upstream and no quota is spent, so P-PRIV-05 holds because the resolver is a lookup.
+  RECORDABLE, not blocking: (a) the place-id charset admits coordinate spellings. The resolver that ships later
+  must stay a lookup and never parse an id into a point. (b) With duplicate JSON keys, a 4-dp value reaches the
+  Worker's parser and is dropped: last-wins gives 200 with only [-118.49, 34.02] sent upstream (same probe). (c)
+  main must be merged before or at merge time (no conflict today). (d) The author's still-open items stand:
+  planDepsFromEnv is null, so /plan answers 503 until DO counters, ROUTER_URL and a place table land; the Apple
+  Maps `source` is the 2-dp origin.
