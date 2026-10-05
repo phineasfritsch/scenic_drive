@@ -73,4 +73,42 @@ struct SurpriseIsochroneTests {
             #expect(throws: PlanFailure.self) { try SurpriseIsochrone.decode(Data(body.utf8)) }
         }
     }
+
+    @Test("a defect in any bucket does not decode: a MultiPolygon, a one-number position, no round trip, in each of the parity body's three buckets")
+    func aDefectInAnyBucketDoesNotDecode() throws {
+        let data = try SurpriseReachParityTests.data("isochrone.json")
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let buckets = try #require(json["buckets"] as? [[String: Any]])
+        #expect(buckets.count == 3)
+        func body(_ index: Int, _ defect: (inout [String: Any]) -> Void) throws -> Data {
+            var copy = buckets
+            defect(&copy[index])
+            var whole = json
+            whole["buckets"] = copy
+            return try JSONSerialization.data(withJSONObject: whole)
+        }
+        let defects: [(inout [String: Any]) -> Void] = [
+            { bucket in
+                var polygon = bucket["polygon"] as! [String: Any]
+                polygon["type"] = "MultiPolygon"
+                bucket["polygon"] = polygon
+            },
+            { bucket in
+                var polygon = bucket["polygon"] as! [String: Any]
+                var rings = polygon["coordinates"] as! [[Any]]
+                rings[0][1] = [(rings[0][1] as! [Any])[0]]
+                polygon["coordinates"] = rings
+                bucket["polygon"] = polygon
+            },
+            { bucket in bucket["round_trip_minutes"] = nil },
+        ]
+        #expect(try SurpriseIsochrone.decode(try body(0) { _ in }) == SurpriseIsochrone.decode(data))
+        for index in buckets.indices {
+            for (n, defect) in defects.enumerated() {
+                #expect(throws: PlanFailure.self, "defect \(n) in bucket \(index)") {
+                    try SurpriseIsochrone.decode(try body(index, defect))
+                }
+            }
+        }
+    }
 }

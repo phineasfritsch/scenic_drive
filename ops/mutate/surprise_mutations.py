@@ -15,6 +15,9 @@ value types. The driver is surprise.py and the runner surprise_run.py (menu's th
     permutation to the oracle's scenario R, and the red-flag set to the calm set minus the three fire categories.
   * T-0263's port of the /isochrone reach (62-78): SurpriseIsochrone and its two value types - the even-odd
     crossing, its IEEE expression order, holes, the smallest bucket, the decode shape, and the reach pick takes.
+  * the T-0263 pre-review survivors (79-81): the first containing bucket trusted to be the smallest (killed by
+    every bucket order), the shape checked on bucket one only (a defect in each bucket), and the budget read from
+    the largest bucket (a dial that is not the last bucket's round trip).
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -69,6 +72,11 @@ OUTSIDE = ("a candidate outside every isochrone bucket is never picked: the ten 
 INTO_WHY = ("the decoded reach is the dial and each smallest bucket's round trip, and those minutes reach "
             "SurpriseReason")
 SHAPE = "a body that is not T-0262's shape does not decode: a MultiPolygon, a one-number position, no round trip"
+ORDERS = "every bucket order gives the recorded reach: the parity body's three buckets in all six orders"
+ANY_BUCKET = ("a defect in any bucket does not decode: a MultiPolygon, a one-number position, no round trip, in each "
+              "of the parity body's three buckets")
+DIAL = ("the reach's budget is the body's dial, not its largest bucket: dials 45, 100 and 240 over buckets ending "
+        "at 90")
 CROSSING = "(xj - xi) * (point.latitude - yi) / (yj - yi) + xi"
 
 SHOWN = "$0.candidateId == c.id && days(date, since: $0.date) < shownDays"
@@ -209,6 +217,14 @@ MUTATIONS = [
     ("77 bucket round trip read as one way", BUCKET, "self.roundTripMinutes = roundTripMinutes",
      "self.roundTripMinutes = minutes", [SHAPE]),
     ("78 polygon rings dropped", POLYGON, "self.coordinates = coordinates", "self.coordinates = []", [SHAPE]),
+    ("79 the first containing bucket wins", ISOCHRONE,
+     "if best.map({ bucket.roundTripMinutes < $0 }) ?? true { best = bucket.roundTripMinutes }",
+     "if best == nil { best = bucket.roundTripMinutes }", [ORDERS]),
+    ("80 the shape checked on the first bucket only", ISOCHRONE, "for bucket in reach.buckets {",
+     "for bucket in reach.buckets.prefix(1) {", [ANY_BUCKET]),
+    ("81 the budget read from the largest bucket", ISOCHRONE,
+     "SurpriseReach(budgetMinutes: minutes, roundTripMinutes: roundTrips)",
+     "SurpriseReach(budgetMinutes: buckets.last?.roundTripMinutes ?? minutes, roundTripMinutes: roundTrips)", [DIAL]),
 ]
 
 # Cannot change behaviour, so each must report MISSED; anything else is a FAILURE. `(name, path, old, new, witness)`.
@@ -222,6 +238,6 @@ EQUIVALENT = [
      "Array.isEmpty is defined as count == 0, and count is never negative"),
 ]
 
-MIN_MUTATIONS = 78
+MIN_MUTATIONS = 81
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 5

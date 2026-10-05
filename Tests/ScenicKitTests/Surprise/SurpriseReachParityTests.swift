@@ -42,6 +42,65 @@ struct SurpriseReachParityTests {
         try JSONDecoder().decode(Points.self, from: try data("points.json")).points
     }
 
+    /// One candidate per shared point, its name as the id: what reach(for:) is handed on the device.
+    static func candidates() throws -> [SurpriseCandidate] {
+        try points().map { p in
+            SurpriseCandidate(id: p.name, name: p.name, hook: "", category: .viewpoint, corridor: "", brand: nil,
+                              coordinate: Coordinate(latitude: p.lat, longitude: p.lon), quality: 0, approachScore: 0,
+                              dwellMinutes: 0, opensMinute: nil, closesMinute: nil, hoursExempt: true, lit: true,
+                              unpaved: false, privateApproach: false)
+        }
+    }
+
+    /// The recorded answers as the map reach(for:) builds: a point outside every bucket is absent.
+    static func recorded() throws -> [String: Int] {
+        Dictionary(uniqueKeysWithValues: try points().compactMap { p in p.round_trip_minutes.map { (p.name, $0) } })
+    }
+
+    static func permutations<T>(_ items: [T]) -> [[T]] {
+        guard let first = items.first else { return [[]] }
+        return permutations(Array(items.dropFirst())).flatMap { rest in
+            (0...rest.count).map { i -> [T] in
+                var order = rest
+                order.insert(first, at: i)
+                return order
+            }
+        }
+    }
+
+    /// The fixture body with its dial (the top-level `minutes`, 90) replaced; the bucket minutes are 15/30/45.
+    static func body(dial: Int) throws -> Data {
+        let text = String(decoding: try data("isochrone.json"), as: UTF8.self)
+        let dialed = text.replacingOccurrences(of: #"{"minutes": 90, "buckets""#,
+                                               with: #"{"minutes": \#(dial), "buckets""#)
+        guard dialed != text || dial == 90 else { throw PlanFailure.malformedResponse("the fixture's dial moved") }
+        return Data(dialed.utf8)
+    }
+
+    @Test("every bucket order gives the recorded reach: the parity body's three buckets in all six orders")
+    func everyBucketOrderGivesTheRecord() throws {
+        let body = try SurpriseIsochrone.decode(try Self.data("isochrone.json"))
+        let candidates = try Self.candidates()
+        let orders = Self.permutations(body.buckets)
+        #expect(Set(orders.map { $0.map(\.roundTripMinutes) }).count == 6)
+        let expected = SurpriseReach(budgetMinutes: 90, roundTripMinutes: try Self.recorded())
+        for order in orders {
+            let reach = SurpriseIsochrone(minutes: body.minutes, buckets: order).reach(for: candidates)
+            #expect(reach == expected, "buckets \(order.map(\.roundTripMinutes))")
+        }
+    }
+
+    @Test("the reach's budget is the body's dial, not its largest bucket: dials 45, 100 and 240 over buckets ending at 90")
+    func theBudgetIsTheDial() throws {
+        #expect(try SurpriseIsochrone.decode(try Self.body(dial: 90)).buckets.last?.roundTripMinutes == 90)
+        let candidates = try Self.candidates()
+        let recorded = try Self.recorded()
+        for dial in [45, 100, 240] {
+            let reach = try SurpriseIsochrone.decode(try Self.body(dial: dial)).reach(for: candidates)
+            #expect(reach == SurpriseReach(budgetMinutes: dial, roundTripMinutes: recorded))
+        }
+    }
+
     @Test("the shared reach fixture carries at least 40 points over at least 3 buckets, a hole among them")
     func theFixtureIsBigEnough() throws {
         let reach = try SurpriseIsochrone.decode(try Self.data("isochrone.json"))

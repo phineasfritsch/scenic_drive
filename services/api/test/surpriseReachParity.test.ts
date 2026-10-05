@@ -34,4 +34,18 @@ describe("the shared reach fixture (T-0263 R5)", () => {
     const actual = points.map((p) => ({ name: p.name, minutes: roundTripMinutesAt(body.buckets, { lat: p.lat, lon: p.lon }) }));
     expect(actual).toEqual(points.map((p) => ({ name: p.name, minutes: p.round_trip_minutes })));
   });
+
+  it("every bucket order gives the recorded minutes: the three buckets in all six orders", () => {
+    const permutations = <T>(items: T[]): T[][] =>
+      items.length === 0
+        ? [[]]
+        : permutations(items.slice(1)).flatMap((rest) =>
+            Array.from({ length: rest.length + 1 }, (_, i) => [...rest.slice(0, i), items[0], ...rest.slice(i)]));
+    const orders = permutations(body.buckets);
+    expect(new Set(orders.map((o) => o.map((b) => b.round_trip_minutes).join(","))).size).toBe(6);
+    for (const order of orders) {
+      const actual = points.map((p) => ({ name: p.name, minutes: roundTripMinutesAt(order, { lat: p.lat, lon: p.lon }) }));
+      expect(actual).toEqual(points.map((p) => ({ name: p.name, minutes: p.round_trip_minutes })));
+    }
+  });
 });
