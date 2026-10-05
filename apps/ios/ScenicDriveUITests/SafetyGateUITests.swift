@@ -42,7 +42,7 @@ final class SafetyGateUITests: XCTestCase {
     /// covered, and home.disclaimer.accept is hittable and at least 44 x 44 pt. The size is SEEN to take: the
     /// conditions line is at least 1.5x as tall as at the default size (ruling R7).
     ///
-    /// KNOWN DEFECT, T-9903: run 37292916916 measured home.conditions at y 799.7-904.3 in an 874 pt window - the
+    /// KNOWN DEFECT, T-0259: run 37292916916 measured home.conditions at y 799.7-904.3 in an 874 pt window - the
     /// collapsed sheet outgrows the screen at this size, so the line and the handoff below it are off screen and
     /// the accept cannot be reached. Everything downstream of that is inside a STRICT expected failure: the test
     /// stays green while the defect is there, names it in the result bundle, and goes RED the day the layout is
@@ -62,7 +62,7 @@ final class SafetyGateUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(conditions.frame.height, standardHeight * 1.5,
                                     "the largest accessibility size did not take: home.conditions is "
                                         + "\(conditions.frame.height) pt tall, \(standardHeight) pt at the default size")
-        XCTExpectFailure("T-9903: at the largest accessibility size the collapsed home sheet outgrows the screen") {
+        XCTExpectFailure("T-0259: at the largest accessibility size the collapsed home sheet outgrows the screen") {
             UncoveredCheck(app: app).assertUncovered("home.conditions", ancestors: ["home.sheet"],
                                                      context: "largest accessibility size, collapsed")
 
