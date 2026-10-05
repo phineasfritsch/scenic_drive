@@ -24,8 +24,10 @@ WAYDOC = {"region": "la", "ways": [{"way_id": 1, "tags": {"highway": "residentia
 EXPECTED = [
     ("n", 101, "viewpoint", "Inspiration Point", 34.09, -118.61),
     ("n", 111, "peak", "Saddle Peak", 34.0756, -118.6544),
+    ("n", 113, "peak", "Castro Peak", 34.0861, -118.7856),
     ("n", 121, "waterfall", "Escondido Falls", 34.0333, -118.8667),
     ("n", 133, "beach", "Point Dume Beach", 34.001, -118.806),
+    ("n", 135, "beach", "Topanga State Beach", 34.31, -118.69),
     ("n", 141, "trailhead", "Backbone Trailhead", 34.08, -118.7),
     ("n", 161, "cafe", "Topanga Living Cafe", 34.09, -118.6),
     ("n", 191, "town", "Pasadena", 34.1478, -118.1445),
@@ -40,6 +42,7 @@ EXPECTED = [
     ("n", 239, "cafe", "Bean Coffee House", 34.16, -118.36),
     ("n", 240, "cafe", "Coffee Beanery", 34.17, -118.37),
     ("n", 251, "park", "Glenoaks Park", 34.175, -118.265),
+    ("n", 253, "park", "Sycamore Park", 34.195, -118.245),
     ("n", 255, "museum", "Autry", 34.905, -118.295),
     ("n", 257, "park", "Edge Park", 34.31, -118.39),
     ("n", 259, "park", "Near Park", 34.4100001, -118.39),
@@ -59,8 +62,8 @@ EXPECTED = [
     ("w", 270, "park", "East Park", 34.805, -118.395),
     ("r", 132, "beach", "Leo Carrillo Beach", 34.0366667, -118.9333333),
 ]
-COUNT_LINE = ("PLACES places=36 unnamed=2 refused_access=2 chain=1 skipped_geometry=3 deduped=3 "
-              "viewpoint=3 peak=1 waterfall=1 beach=3 trailhead=1 museum=3 cafe=5 garden=3 park=13 town=3")
+COUNT_LINE = ("PLACES places=39 unnamed=2 refused_access=4 chain=1 skipped_geometry=3 deduped=5 "
+              "viewpoint=3 peak=2 waterfall=1 beach=4 trailhead=1 museum=3 cafe=5 garden=3 park=14 town=3")
 
 
 def run_adapter(tmp_path, osm_xml, capsys=None):
@@ -118,6 +121,12 @@ def test_an_unnamed_feature_is_refused(built, osm_id):
     assert ("n", osm_id) not in keys(built[0])
 
 
+@pytest.mark.parametrize("osm_id,name", [(113, "Castro Peak"), (253, "Sycamore Park")],
+                         ids=["spaces-both-sides", "leading-tab-trailing-space"])
+def test_a_kept_name_is_emitted_stripped(built, osm_id, name):
+    assert [r[3] for r in rows(built[0]) if r[:2] == ("n", osm_id)] == [name]
+
+
 @pytest.mark.parametrize("osm_id", [211, 212, 213, 214],
                          ids=["natural=waterfall", "place=hamlet", "tourism=attraction", "leisure=nature_reserve"])
 def test_a_tag_outside_the_allowlist_is_refused(built, osm_id):
@@ -130,10 +139,13 @@ def test_the_first_matching_row_names_the_class(built, osm_id, cls):
     assert [r[2] for r in rows(built[0]) if r[:2] == ("n", osm_id)] == [cls]
 
 
-@pytest.mark.parametrize("osm_id,kept", [(231, False), (232, False), (233, True), (234, True)],
-                         ids=["access=private", "access=no", "access=yes", "access=customers"])
-def test_access_private_or_no_refuses_and_nothing_else_does(built, osm_id, kept):
-    assert (("n", osm_id) in keys(built[0])) is kept
+@pytest.mark.parametrize("osm_type,osm_id,kept", [
+    ("n", 231, False), ("n", 232, False), ("n", 233, True), ("n", 234, True), ("w", 235, False),
+    ("r", 236, False),
+], ids=["access=private", "access=no", "access=yes", "access=customers", "way-access=private",
+        "relation-access=no"])
+def test_access_private_or_no_refuses_and_nothing_else_does(built, osm_type, osm_id, kept):
+    assert ((osm_type, osm_id) in keys(built[0])) is kept
 
 
 # (brand, brand:wikidata, a measured LA spelling of the name) - restated by hand from the task Log.
@@ -206,13 +218,15 @@ def test_missing_geometry_is_skipped_never_guessed(built, osm_type, osm_id):
 
 
 @pytest.mark.parametrize("node,area,merged", [
-    (251, 252, True), (257, 258, True), (261, 262, True), (259, 260, False), (263, 264, False),
-    (267, 268, False), (269, 270, False), (255, 256, False),
+    (251, ("w", 252), True), (257, ("w", 258), True), (261, ("w", 262), True), (259, ("w", 260), False),
+    (263, ("w", 264), False), (267, ("w", 268), False), (269, ("w", 270), False), (255, ("w", 256), False),
+    (135, ("r", 136), True), (253, ("w", 254), True),
 ], ids=["inside-casefolded-name", "max-corner-inclusive", "min-corner-inclusive", "above-max-lat",
-        "below-min-lat", "west-of-min-lon", "east-of-max-lon", "same-name-other-class"])
+        "below-min-lat", "west-of-min-lon", "east-of-max-lon", "same-name-other-class", "relation-area",
+        "padded-node-name"])
 def test_a_node_inside_a_same_named_area_of_its_class_keeps_the_node(built, node, area, merged):
     assert ("n", node) in keys(built[0])
-    assert (("w", area) in keys(built[0])) is not merged
+    assert (area in keys(built[0])) is not merged
 
 
 def test_the_count_line_counts_every_removal(tmp_path, capsys):
@@ -231,9 +245,9 @@ def test_every_place_passes_load_places_and_reaches_the_corpus(built, tmp_path):
         fts = conn.execute("SELECT count(*) FROM places_fts").fetchone()[0]
     finally:
         conn.close()
-    assert per_cls == {"viewpoint": 3, "peak": 1, "waterfall": 1, "beach": 3, "trailhead": 1, "museum": 3,
-                       "cafe": 5, "garden": 3, "park": 13, "town": 3}
-    assert fts == 36
+    assert per_cls == {"viewpoint": 3, "peak": 2, "waterfall": 1, "beach": 4, "trailhead": 1, "museum": 3,
+                       "cafe": 5, "garden": 3, "park": 14, "town": 3}
+    assert fts == 39
 
 
 def test_no_places_osm_means_no_places_key(tmp_path):

@@ -2,8 +2,10 @@
 <osm version="0.6" generator="T-0266 fixture">
   <node id="101" lat="34.09" lon="-118.61"><tag k="tourism" v="viewpoint"/><tag k="name" v="Inspiration Point"/></node>
   <node id="111" lat="34.0756" lon="-118.6544"><tag k="natural" v="peak"/><tag k="name" v="Saddle Peak"/></node>
+  <node id="113" lat="34.0861" lon="-118.7856"><tag k="natural" v="peak"/><tag k="name" v="  Castro Peak  "/></node>
   <node id="121" lat="34.0333" lon="-118.8667"><tag k="waterway" v="waterfall"/><tag k="name" v="Escondido Falls"/></node>
   <node id="133" lat="34.001" lon="-118.806"><tag k="natural" v="beach"/><tag k="name" v="Point Dume Beach"/></node>
+  <node id="135" lat="34.31" lon="-118.69"><tag k="natural" v="beach"/><tag k="name" v="Topanga State Beach"/></node>
   <node id="141" lat="34.08" lon="-118.7"><tag k="highway" v="trailhead"/><tag k="name" v="Backbone Trailhead"/></node>
   <node id="161" lat="34.09" lon="-118.6"><tag k="amenity" v="cafe"/><tag k="name" v="Topanga Living Cafe"/></node>
   <node id="191" lat="34.1478" lon="-118.1445"><tag k="place" v="city"/><tag k="name" v="Pasadena"/></node>
@@ -27,6 +29,7 @@
   <node id="239" lat="34.16" lon="-118.36"><tag k="amenity" v="cafe"/><tag k="name" v="Bean Coffee House"/></node>
   <node id="240" lat="34.17" lon="-118.37"><tag k="amenity" v="cafe"/><tag k="name" v="Coffee Beanery"/></node>
   <node id="251" lat="34.175" lon="-118.265"><tag k="leisure" v="park"/><tag k="name" v="Glenoaks Park"/></node>
+  <node id="253" lat="34.195" lon="-118.245"><tag k="leisure" v="park"/><tag k="name" v="&#9;Sycamore Park "/></node>
   <node id="255" lat="34.905" lon="-118.295"><tag k="tourism" v="museum"/><tag k="name" v="Autry"/></node>
   <node id="257" lat="34.31" lon="-118.39"><tag k="leisure" v="park"/><tag k="name" v="Edge Park"/></node>
   <node id="259" lat="34.4100001" lon="-118.39"><tag k="leisure" v="park"/><tag k="name" v="Near Park"/></node>
@@ -59,6 +62,8 @@
   <node id="1052" lat="34.14" lon="-118.29"/>
   <node id="1061" lat="34.17" lon="-118.27"/>
   <node id="1062" lat="34.18" lon="-118.26"/>
+  <node id="1063" lat="34.19" lon="-118.25"/>
+  <node id="1064" lat="34.2" lon="-118.24"/>
   <node id="1071" lat="34.3" lon="-118.4"/>
   <node id="1072" lat="34.31" lon="-118.39"/>
   <node id="1073" lat="34.4" lon="-118.4"/>
@@ -75,6 +80,10 @@
   <node id="1084" lat="34.91" lon="-118.29"/>
   <node id="1091" lat="34.25" lon="-118.25"/>
   <node id="1092" lat="34.26" lon="-118.24"/>
+  <node id="1101" lat="34.3" lon="-118.7"/>
+  <node id="1102" lat="34.3" lon="-118.68"/>
+  <node id="1103" lat="34.32" lon="-118.68"/>
+  <node id="1104" lat="34.32" lon="-118.7"/>
   <way id="102"><nd ref="1001"/><nd ref="1002"/><nd ref="1003"/><nd ref="1004"/><nd ref="1001"/><tag k="tourism" v="viewpoint"/><tag k="name" v="Mulholland Scenic Overlook"/></way>
   <way id="112"><nd ref="1091"/><nd ref="1092"/><tag k="natural" v="peak"/><tag k="name" v="Peak Ridge"/></way>
   <way id="122"><nd ref="1091"/><nd ref="1092"/><tag k="waterway" v="waterfall"/><tag k="name" v="Fall Line"/></way>
@@ -83,9 +92,11 @@
   <way id="151"><nd ref="1031"/><nd ref="1032"/><nd ref="1033"/><tag k="tourism" v="museum"/><tag k="name" v="Getty Villa"/></way>
   <way id="171"><nd ref="1041"/><nd ref="1042"/><tag k="leisure" v="garden"/><tag k="name" v="Descanso Gardens"/></way>
   <way id="181"><nd ref="1051"/><nd ref="1052"/><tag k="leisure" v="park"/><tag k="name" v="Griffith Park"/></way>
+  <way id="235"><nd ref="1091"/><nd ref="1092"/><tag k="leisure" v="garden"/><tag k="access" v="private"/><tag k="name" v="Private Way Garden"/></way>
   <way id="194"><nd ref="1091"/><nd ref="1092"/><tag k="place" v="town"/><tag k="name" v="Malibu Area"/></way>
   <way id="241"><nd ref="1011"/><nd ref="99999"/><tag k="natural" v="beach"/><tag k="name" v="Ghost Beach"/></way>
   <way id="252"><nd ref="1061"/><nd ref="1062"/><tag k="leisure" v="park"/><tag k="name" v="Glenoaks park"/></way>
+  <way id="254"><nd ref="1063"/><nd ref="1064"/><tag k="leisure" v="park"/><tag k="name" v="Sycamore Park"/></way>
   <way id="256"><nd ref="1083"/><nd ref="1084"/><tag k="leisure" v="park"/><tag k="name" v="Autry"/></way>
   <way id="258"><nd ref="1071"/><nd ref="1072"/><tag k="leisure" v="park"/><tag k="name" v="Edge Park"/></way>
   <way id="260"><nd ref="1073"/><nd ref="1074"/><tag k="leisure" v="park"/><tag k="name" v="Near Park"/></way>
@@ -96,8 +107,11 @@
   <way id="901"><nd ref="1021"/><nd ref="1022"/><nd ref="1023"/><nd ref="1024"/><nd ref="1021"/></way>
   <way id="902"><nd ref="1025"/><nd ref="1026"/><nd ref="1027"/><nd ref="1025"/></way>
   <way id="903"><nd ref="1028"/><nd ref="1029"/></way>
+  <way id="904"><nd ref="1101"/><nd ref="1102"/><nd ref="1103"/><nd ref="1104"/><nd ref="1101"/></way>
   <relation id="103"><member type="way" ref="901" role="outer"/><tag k="type" v="multipolygon"/><tag k="tourism" v="viewpoint"/><tag k="name" v="Vista Relation"/></relation>
   <relation id="132"><member type="way" ref="901" role="outer"/><member type="way" ref="902" role="inner"/><member type="way" ref="903" role=""/><member type="node" ref="1091" role="outer"/><tag k="type" v="multipolygon"/><tag k="natural" v="beach"/><tag k="name" v="Leo Carrillo Beach"/></relation>
+  <relation id="136"><member type="way" ref="904" role="outer"/><tag k="type" v="multipolygon"/><tag k="natural" v="beach"/><tag k="name" v="TOPANGA STATE BEACH"/></relation>
   <relation id="242"><member type="way" ref="99998" role="outer"/><tag k="type" v="multipolygon"/><tag k="natural" v="beach"/><tag k="name" v="Lost Beach"/></relation>
   <relation id="243"><member type="way" ref="902" role="inner"/><tag k="type" v="multipolygon"/><tag k="natural" v="beach"/><tag k="name" v="Hollow Beach"/></relation>
+  <relation id="236"><member type="way" ref="903" role="outer"/><tag k="type" v="multipolygon"/><tag k="leisure" v="park"/><tag k="access" v="no"/><tag k="name" v="Closed Relation Park"/></relation>
 </osm>

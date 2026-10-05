@@ -78,6 +78,8 @@ CHAIN_ROWS = [
     '    Chain("Tastea", "Q122328236", "tastea"),\n',
 ]
 NAME_RULE = '    name = (tags.get(NAME_KEY) or "").strip()'
+NAME_RETURN = NAME_RULE + "\n    return name or None"
+ACCESS_GATE = "        if tags.get(ACCESS_KEY) in REFUSED_ACCESS:"
 UNNAMED = '        if name is None:\n            counts["unnamed"] += 1\n            continue'
 ACCESS = 'REFUSED_ACCESS = frozenset({"private", "no"})'
 QID_OR_BRAND = "        if qid == chain.wikidata or brand == chain.brand.casefold():"
@@ -142,6 +144,19 @@ MUTATIONS = (
         ("dedupe without casefolding", SUBJECT, KEY, "points.get((cls, name), ())"),
         ("dedupe gone", SUBJECT, DEDUPE_SIDE, "        if False and any("),
         ("dedupe drops the node, not the area", SUBJECT, DEDUPE_SIDE, '        if osm_type == "n" and any('),
+        ("dedupe skips relations", SUBJECT, DEDUPE_SIDE, '        if osm_type == "w" and any('),
+        ("dedupe skips ways", SUBJECT, DEDUPE_SIDE, '        if osm_type == "r" and any('),
+        ("a padded name emitted unstripped", SUBJECT, NAME_RETURN,
+         '    name = tags.get(NAME_KEY) or ""\n    return name if name.strip() else None'),
+        ("strip spaces only, not tabs", SUBJECT, NAME_RULE, '    name = (tags.get(NAME_KEY) or "").strip(" ")'),
+        ("strip the left only", SUBJECT, NAME_RULE, '    name = (tags.get(NAME_KEY) or "").lstrip()'),
+        ("strip the right only", SUBJECT, NAME_RULE, '    name = (tags.get(NAME_KEY) or "").rstrip()'),
+        ("access refuses nodes only", SUBJECT, ACCESS_GATE,
+         '        if osm_type == "n" and tags.get(ACCESS_KEY) in REFUSED_ACCESS:'),
+        ("access skips ways", SUBJECT, ACCESS_GATE,
+         '        if osm_type != "w" and tags.get(ACCESS_KEY) in REFUSED_ACCESS:'),
+        ("access skips relations", SUBJECT, ACCESS_GATE,
+         '        if osm_type != "r" and tags.get(ACCESS_KEY) in REFUSED_ACCESS:'),
         ("a geometry skip goes uncounted", SUBJECT, SKIP_COUNT, '            counts["skipped_geometry"] += 0'),
         ("a node member counts as an outer way", SUBJECT, MEMBER_TYPE,
          MEMBER_TYPE.replace('m.get("type") == MEMBER_WAY and ', "")),
@@ -152,12 +167,12 @@ EQUIVALENT = [
     ("dict.get's own default spelled out - `d.get(k)` IS `d.get(k, None)`", SUBJECT, BRAND,
      '    brand = (tags.get(BRAND_KEY, None) or "").casefold()'),
     ("membership of a set copy - `x in frozenset(s)` and `x in set(s)` are one relation", SUBJECT,
-     "        if tags.get(ACCESS_KEY) in REFUSED_ACCESS:",
+     ACCESS_GATE,
      "        if tags.get(ACCESS_KEY) in set(REFUSED_ACCESS):"),
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 69
+MIN_MUTATIONS = 78
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", str(TESTS)]
 
 
