@@ -41,7 +41,7 @@ shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_er
 SUBJECT_MODULES = ("Sources/Telemetry/H3CoordIJK.swift", "Sources/Telemetry/H3FaceProjection.swift",
                    "Sources/Telemetry/H3BaseCells.swift", "Sources/Telemetry/H3IndexBuilder.swift",
                    "Sources/Telemetry/H3Cell.swift", "Sources/Telemetry/CompletionPercent.swift",
-                   "Sources/Telemetry/TelemetryEvent.swift")
+                   "Sources/Telemetry/TelemetryDataPoint.swift", "Sources/Telemetry/TelemetryEvent.swift")
 
 from telemetry_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATIONS,
                                  MUTATED_FILES, ROOT, SUBJECTS, TEST_DIR)

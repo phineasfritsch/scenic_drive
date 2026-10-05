@@ -81,4 +81,22 @@ import Testing
         #expect(String(decoding: json, as: UTF8.self)
             == #"{"blobs":["plan_requested","scenic","850dab63fffffff"],"doubles":[25,0],"indexes":["plan_requested"]}"#)
     }
+
+    /// writeDataPoint's JSON rebuilt by hand from the EXPECTED point: every blob quoted in its slot (an empty
+    /// label or cell is still a "" slot - R2's fixed width) and every double written as its whole number.
+    static func json(_ point: TelemetryDataPoint) -> String {
+        let quoted: ([String]) -> String = { items in items.map { "\"" + $0 + "\"" }.joined(separator: ",") }
+        let numbers = point.doubles.map { String(Int($0)) }.joined(separator: ",")
+        return #"{"blobs":["# + quoted(point.blobs) + #"],"doubles":["# + numbers + #"],"indexes":["#
+            + quoted(point.indexes) + "]}"
+    }
+
+    @Test("every event serializes byte-for-byte with its empty blobs and zero doubles kept in place")
+    func everyDataPointJSON() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let got = try Self.rows.map { String(decoding: try encoder.encode($0.event.dataPoint), as: UTF8.self) }
+        #expect(got == Self.rows.map { Self.json($0.expected) })
+        #expect(got[3] == #"{"blobs":["preview_shown","",""],"doubles":[0,0],"indexes":["preview_shown"]}"#)
+    }
 }

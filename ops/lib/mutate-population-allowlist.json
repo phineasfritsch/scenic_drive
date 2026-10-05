@@ -62,7 +62,6 @@
     "Sources/Telemetry/PlanFeature.swift": "a closed four-case String enum (T-0265 R4) - cases and raw wire labels, no code; pinned by the whole-data-point equality in TelemetryEventEncodingTests",
     "Sources/Telemetry/PlanResultKind.swift": "a closed four-case String enum (T-0265 R4) - cases and raw wire labels, no code; pinned by the whole-data-point equality in TelemetryEventEncodingTests",
     "Sources/Telemetry/SurpriseNotThisReason.swift": "a closed three-case String enum with no free-form case (T-0265 R4) - cases and raw wire labels, no code; pinned by the whole-data-point equality in TelemetryEventEncodingTests",
-    "Sources/Telemetry/TelemetryDataPoint.swift": "three stored arrays and a memberwise init - the writeDataPoint object, no operator; its Encodable output is pinned byte-for-byte by TelemetryEventEncodingTests.dataPointJSON",
     "Sources/Telemetry/TelemetryEventKind.swift": "the closed list of the fourteen event kinds (T-0265 R1) - cases and raw wire names, no code; allCases.count == 14 and the event->kind map are pinned by TelemetryEventEncodingTests, and the map itself (TelemetryEvent.kind) is in the telemetry.py population"
   }
 }

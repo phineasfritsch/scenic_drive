@@ -3,11 +3,12 @@ telemetry_run.py - the straightline.py family shape, split under CLAUDE.md's 300
 
 ## The subjects
 
-Seven files compute something: the H3 port (H3CoordIJK, H3FaceProjection, H3BaseCells, H3IndexBuilder and
-the H3Cell entry point), CompletionPercent (floor and clamp) and TelemetryEvent (the encoder that writes the
+Eight files compute or serialize something: the H3 port (H3CoordIJK, H3FaceProjection, H3BaseCells, H3IndexBuilder and
+the H3Cell entry point), CompletionPercent (floor and clamp), TelemetryDataPoint (its Encodable output is
+the R2 fixed-width wire object) and TelemetryEvent (the encoder that writes the
 numbers and labels into a data point). They are the runner's `SUBJECT_MODULES`, and every one is edited by at
-least one entry below - the floor refuses a run where one is not. The seven closed label enums and the
-data-point struct compute nothing and sit in ops/lib/mutate-population-allowlist.json, one reason each.
+least one entry below - the floor refuses a run where one is not. The closed label enums and the kind list
+compute nothing and sit in ops/lib/mutate-population-allowlist.json, one reason each.
 
 ## Each entry, and what `killers` is for
 
@@ -30,8 +31,9 @@ BASE = SRC / "H3BaseCells.swift"
 BUILDER = SRC / "H3IndexBuilder.swift"
 CELL = SRC / "H3Cell.swift"
 PERCENT = SRC / "CompletionPercent.swift"
+POINT = SRC / "TelemetryDataPoint.swift"
 EVENT = SRC / "TelemetryEvent.swift"
-SUBJECTS = (COORD, FACE, BASE, BUILDER, CELL, PERCENT, EVENT)
+SUBJECTS = (COORD, FACE, BASE, BUILDER, CELL, PERCENT, POINT, EVENT)
 MUTATED_FILES = SUBJECTS
 
 TEST_DIR = ROOT / "Tests" / "TelemetryTests"
@@ -44,6 +46,8 @@ FOURTEEN = "the plan's fourteen events, no more and no fewer, each with a row"
 JSON = "the data point serializes to exactly writeDataPoint's three keys"
 WHITELIST = "no event case carries a type outside the P-PRIV-05 whitelist"
 PCT = "a fraction floors to a whole percent clamped into 0...100"
+EVERY_JSON = "every event serializes byte-for-byte with its empty blobs and zero doubles kept in place"
+FIELDS = "each whitelisted payload type stores exactly its pinned fields"
 
 MUTATIONS = [
     # H3CoordIJK - the hex grid arithmetic.
@@ -95,6 +99,35 @@ MUTATIONS = [
      "(fraction * 100).rounded(.down)", "(fraction * 100).rounded()", [PCT, ENCODE]),
     ("the percent is not clamped at 100", PERCENT,
      "Int(Swift.min(100, Swift.max(0, percent)))", "Int(Swift.max(0, percent))", [PCT]),
+    ("a whitelisted wrapper stores the raw Double fraction", PERCENT,
+     "    public init(fraction: Double) {\n",
+     "    public let fraction: Double\n\n    public init(fraction: Double) {\n        self.fraction = fraction\n",
+     [WHITELIST, FIELDS]),
+    # H3Cell - the whitelisted cell must not carry a coordinate beside its index.
+    ("the cell stores a latitude beside its index", CELL,
+     "    public let index: UInt64\n", "    public let index: UInt64\n    public let latitude: Double = 34.1\n",
+     [WHITELIST, FIELDS]),
+    # TelemetryDataPoint - R2's fixed width on the wire.
+    ("the empty blobs compacted out of the JSON", POINT,
+     "        self.doubles = doubles\n    }\n",
+     "        self.doubles = doubles\n    }\n\n"
+     "    private enum CodingKeys: String, CodingKey { case indexes, blobs, doubles }\n\n"
+     "    public func encode(to encoder: Encoder) throws {\n"
+     "        var box = encoder.container(keyedBy: CodingKeys.self)\n"
+     "        try box.encode(indexes, forKey: .indexes)\n"
+     "        try box.encode(blobs.filter { !$0.isEmpty }, forKey: .blobs)\n"
+     "        try box.encode(doubles, forKey: .doubles)\n    }\n",
+     [EVERY_JSON]),
+    ("the zero doubles compacted out of the JSON", POINT,
+     "        self.doubles = doubles\n    }\n",
+     "        self.doubles = doubles\n    }\n\n"
+     "    private enum CodingKeys: String, CodingKey { case indexes, blobs, doubles }\n\n"
+     "    public func encode(to encoder: Encoder) throws {\n"
+     "        var box = encoder.container(keyedBy: CodingKeys.self)\n"
+     "        try box.encode(indexes, forKey: .indexes)\n"
+     "        try box.encode(blobs, forKey: .blobs)\n"
+     "        try box.encode(doubles.filter { $0 != 0 }, forKey: .doubles)\n    }\n",
+     [EVERY_JSON]),
     # TelemetryEvent - the encoder and the closed list.
     ("the origin cell left out of plan_requested", EVENT,
      "cell = origin.hexString", "cell = \"\"", [ENCODE, JSON]),
@@ -119,6 +152,6 @@ EQUIVALENT = [
      "from each of three Int components, which is the identity. No input distinguishes the two spellings."),
 ]
 
-MIN_MUTATIONS = 26
+MIN_MUTATIONS = 30
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 4
