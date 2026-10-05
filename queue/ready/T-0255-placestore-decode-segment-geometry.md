@@ -1,7 +1,7 @@
 ---
 id: T-0255
 title: PlaceStore decodes the segment geometry BLOB into e7 vertices
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -23,3 +23,4 @@ Follow-up recorded in T-0175's Log (PR #142, review PASS): geometry is returned 
 
 ## Log
 - 2026-10-05T11:49:04Z filed by agent/claude-opus-5 (orchestrator) from T-0175's stillOpen list.
+- 2026-10-05T20:05:56Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0254 (PR #152) merged; PlaceStore free.
