@@ -9,7 +9,10 @@ segmentgeometry_run.py (surprise's three-file shape).
   * the LONGITUDE and LATITUDE bounds, each side moved by one and each side dropped, and each payload - 9-24 (R4);
   * the DECODE - byte offsets, shifts, the four-byte OR, vertex stride, loop range, field order - 25-36;
   * SegmentVertex's two stored fields - 37-38: the tests compare `[lonE7, latE7]` projections to Int32 literals,
-    never values built through the same init, so a swapped assignment is seen.
+    never values built through the same init, so a swapped assignment is seen;
+  * the BYTE COUNT class - 39-44 (review rv1-t0255 B1): the modulus moved to 4, 2 and 16, the remainder threshold,
+    and the minimum moved by one inside the guard. BYTE_TABLE holds every count 0..40, so every residue mod 8
+    appears at least five times and each row asserts the typed error or the whole decoded list.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names in SegmentVerticesTests, every one of which must go red.
@@ -37,6 +40,7 @@ PARTIAL = "refuses a byte count that is not whole vertices: 1, 7, 9, 15, 17, 23"
 TOO_FEW = "refuses fewer than two vertices: 0 bytes and 8 bytes"
 LON = "refuses a longitude one past either bound, and Int32.min/max, at the vertex that holds it"
 LAT = "refuses a latitude one past either bound, and Int32.min/max, at the vertex that holds it"
+BYTE_TABLE = "every byte count 0 through 40, every residue mod 8: the typed error or the whole decoded list"
 ORDER = "check order: byte count, then vertex count, then each vertex lon before lat, first offender wins"
 
 LON_GUARD = "lon >= -Self.maxLonE7 && lon <= Self.maxLonE7"
@@ -93,6 +97,18 @@ MUTATIONS = [
      "SegmentVertex(lonE7: lat, latE7: lon)", [MEASURED]),
     ("37 SegmentVertex.lonE7 stores latE7", VERTEX, "self.lonE7 = lonE7", "self.lonE7 = latE7", [MEASURED]),
     ("38 SegmentVertex.latE7 stores lonE7", VERTEX, "self.latE7 = latE7", "self.latE7 = lonE7", [MEASURED]),
+    ("39 byte-count modulus 4 (rv1 B1)", SEGMENT, "geometry.count % Self.vertexBytes == 0", "geometry.count % 4 == 0",
+     [BYTE_TABLE]),
+    ("40 byte-count modulus 2", SEGMENT, "geometry.count % Self.vertexBytes == 0", "geometry.count % 2 == 0",
+     [BYTE_TABLE]),
+    ("41 byte-count modulus 16", SEGMENT, "geometry.count % Self.vertexBytes == 0", "geometry.count % 16 == 0",
+     [BYTE_TABLE]),
+    ("42 byte-count remainder below 4 accepted", SEGMENT, "geometry.count % Self.vertexBytes == 0",
+     "geometry.count % Self.vertexBytes < 4", [BYTE_TABLE, PARTIAL]),
+    ("43 vertex-count guard minimum - 1", SEGMENT, "count >= Self.minimumVertices",
+     "count >= Self.minimumVertices - 1", [BYTE_TABLE, TOO_FEW]),
+    ("44 vertex-count guard minimum + 1", SEGMENT, "count >= Self.minimumVertices",
+     "count >= Self.minimumVertices + 1", [BYTE_TABLE, BOUNDS, TRUNC]),
 ]
 
 EQUIVALENT = [
@@ -101,9 +117,13 @@ EQUIVALENT = [
      "UInt32 -> Int32 truncatingIfNeeded keeps the low 32 bits, which are all 32: the identical bit pattern"),
     ("E2 reserveCapacity(0)", SEGMENT, "out.reserveCapacity(count)", "out.reserveCapacity(0)",
      "reserveCapacity is an allocation hint; append grows the array to the same elements either way"),
+    ("E3 vertex count rounds up", SEGMENT, "let count = geometry.count / Self.vertexBytes",
+     "let count = (geometry.count + Self.vertexBytes - 1) / Self.vertexBytes",
+     "the guard above it has already refused geometry.count % vertexBytes != 0, so ceil and floor of an exact "
+     "quotient are the same integer"),
 ]
 
 # The literal floors (CLAUDE.md, Verification): the population is exactly this size today.
-MIN_MUTATIONS = 38
-MIN_EQUIVALENT = 2
+MIN_MUTATIONS = 44
+MIN_EQUIVALENT = 3
 MIN_TEST_FILES = 1
