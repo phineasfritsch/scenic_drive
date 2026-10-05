@@ -1,0 +1,131 @@
+{
+  "P-SAFE-01": {
+    "vitest": {
+      "test/customModel.test.ts": [
+        "(b) rejectCustomModel refuses a request-supplied model that touches the safety gates > refuses road_access in a top-level condition",
+        "(b) rejectCustomModel refuses a request-supplied model that touches the safety gates > refuses road_access hidden in a nested else_if clause",
+        "(b) rejectCustomModel refuses a request-supplied model that touches the safety gates > refuses surface hidden in an areas feature property",
+        "(b) rejectCustomModel refuses a request-supplied model that touches the safety gates > refuses a forbidden encoded value used as an object KEY, not only as a value",
+        "(b) rejectCustomModel refuses a request-supplied model that touches the safety gates > refuses ROAD_ACCESS whatever its case"
+      ],
+      "test/customModelGate.test.ts": [
+        "(f) a forbidden token is refused wherever it sits inside a string or a key > refuses road_access in the MIDDLE of a condition, not only at its start",
+        "(f) a forbidden token is refused wherever it sits inside a string or a key > refuses a key that merely CONTAINS a forbidden token",
+        "(f) a forbidden token is refused wherever it sits inside a string or a key > refuses a forbidden token that only ENDS a string value",
+        "(f) a forbidden token is refused wherever it sits inside a string or a key > refuses a forbidden token mid-string inside an areas property value, several levels down",
+        "(f) a forbidden token is refused wherever it sits inside a string or a key > refuses an upper-case token in the MIDDLE of a condition"
+      ],
+      "test/planPrivacy.test.ts": [
+        "POST /plan request shape (R1) > refuses a request-supplied custom_model naming road_access, never forwarding it (P-SAFE-01)"
+      ],
+      "test/planRecorded.test.ts": [
+        "POST /plan over the t0221 santa-monica-topanga recording (R3) > visits exactly the recorded lambdas, each with buildCustomModel's model and no safety-gate name (P-SAFE-01)"
+      ]
+    }
+  },
+  "P-SAFE-04": {
+    "vitest": {
+      "test/planCeiling.test.ts": [
+        "POST /plan budget ceiling (R7, P-SAFE-04) > never returns a route whose ETA exceeds fastest + budget, over 120 random curves incl. non-monotone",
+        "POST /plan budget ceiling (R7, P-SAFE-04) > a router whose every scenic route overshoots answers no_route, never an over-ceiling route",
+        "POST /plan budget ceiling (R7, P-SAFE-04) > a scenic route exactly at the ceiling is returned (the ceiling is inclusive)"
+      ],
+      "test/lambdaSearch.test.ts": [
+        "searchLambda - the LambdaSearch port > with nothing feasible it refuses no_feasible_lambda rather than returning an overshoot",
+        "searchLambda - the LambdaSearch port > flags non-monotone curves and still returns only measured feasible lambdas"
+      ]
+    },
+    "swift": {
+      "filter": "ScenicKitTests\\.(LambdaSearchTests|LambdaSearchSteeringTests|LambdaSearchRefusalTests|PlanCeilingOverLATests)",
+      "tests": [
+        "ScenicKitTests.LambdaSearchTests/ceilingAlwaysHolds()",
+        "ScenicKitTests.LambdaSearchTests/nonMonotoneRouterIsSafe()",
+        "ScenicKitTests.LambdaSearchTests/ceilingIsNotApproximate()",
+        "ScenicKitTests.LambdaSearchTests/ceilingBoundaryIsExactToTheLastBit()",
+        "ScenicKitTests.LambdaSearchTests/returnsMeasuredValues()",
+        "ScenicKitTests.LambdaSearchSteeringTests/steersDownWhenTheSampleIsOverTheCeiling()",
+        "ScenicKitTests.LambdaSearchSteeringTests/steersDownWhenTheSampleIsOneBitOverTheCeiling()",
+        "ScenicKitTests.LambdaSearchSteeringTests/steersUpWhenTheSampleIsExactlyOnTheCeiling()",
+        "ScenicKitTests.LambdaSearchRefusalTests/noFeasibleLambdaThrows()",
+        "ScenicKitTests.PlanCeilingOverLATests/everyPlanStaysUnderTheCeiling()"
+      ]
+    }
+  },
+  "P-PRIV-05": {
+    "vitest": {
+      "test/planPrivacy.test.ts": [
+        "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05) > refuses an origin latitude with more than 2 decimals, with zero upstream calls",
+        "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05) > refuses an origin longitude with more than 2 decimals, with zero upstream calls",
+        "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05) > refuses a destination carried as a coordinate - a second coordinate",
+        "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05) > refuses a destination carrying a coordinate beside its place id",
+        "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05) > refuses a second coordinate under any key outside the whitelist",
+        "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05) > refuses an origin that is not a {lat, lon} pair of in-range numbers",
+        "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05) > accepts an origin at exactly 2 decimals, and sends upstream exactly that one coordinate"
+      ],
+      "test/loopShape.test.ts": [
+        "the /loop body whitelist (R1, P-PRIV-05) > accepts exactly {start:{lat,lon}, minutes}",
+        "the /loop body whitelist (R1, P-PRIV-05) > refuses a start with more than 2 decimals",
+        "the /loop body whitelist (R1, P-PRIV-05) > refuses any key it does not name, at every level",
+        "the /loop body whitelist (R1, P-PRIV-05) > a refused body is 400 with zero upstream calls",
+        "the /loop request (R1-R4) > the one request carries one point - the 2 dp start - and the lambda 2 model, exactly"
+      ]
+    }
+  },
+  "P-COST-01": {
+    "vitest": {
+      "test/planCost.test.ts": [
+        "POST /plan spend control (R4, P-COST-01) > KILL=1 returns 503 with zero upstream calls and no reservation",
+        "POST /plan spend control (R4, P-COST-01) > KILL=1 is honoured before the body is even read",
+        "POST /plan spend control (R4, P-COST-01) > KILL other than exactly 1 does not pause planning",
+        "POST /plan spend control (R4, P-COST-01) > the quota is reserved once, before the first upstream call",
+        "POST /plan spend control (R4, P-COST-01) > an exhausted daily quota is 429 with resets_at and zero upstream calls",
+        "POST /plan spend control (R4, P-COST-01) > a tripped monthly counter is 503 planning_paused with zero upstream calls",
+        "ROUTES['/plan'] - the shipped wiring (R4) > KILL=1 on the shipped route answers 503 planning_paused"
+      ],
+      "test/loopCost.test.ts": [
+        "POST /loop spend control (R8, P-COST-01) > KILL=1 returns 503 with zero upstream calls and no reservation",
+        "POST /loop spend control (R8, P-COST-01) > KILL=1 is honoured before the body is even read",
+        "POST /loop spend control (R8, P-COST-01) > the quota is reserved once, LOOP_UPSTREAM_COST of it, before the first upstream call",
+        "POST /loop spend control (R8, P-COST-01) > an exhausted daily quota is 429 with resets_at and zero upstream calls",
+        "POST /loop spend control (R8, P-COST-01) > a tripped monthly counter is 503 planning_paused with zero upstream calls"
+      ],
+      "test/upstream.test.ts": [
+        "guardedUpstream > reserves BEFORE calling, not after",
+        "guardedUpstream > makes NO upstream call when the daily quota is exhausted",
+        "guardedUpstream > makes NO upstream call when the kill switch has tripped on volume",
+        "guardedUpstream > makes NO upstream call when killed manually, before even reading counters",
+        "guardedPlan - the unit is a plan, not a call > reserves before the plan body runs, not before each call",
+        "guardedPlan - the unit is a plan, not a call > makes NO call at all when the plan is refused"
+      ]
+    }
+  },
+  "P-COST-04": {
+    "vitest": {
+      "test/planCost.test.ts": [
+        "POST /plan request count (R5, P-COST-04) > one plan makes 7 upstream requests - at most 12 - one in flight at a time"
+      ],
+      "test/loopCost.test.ts": [
+        "POST /loop request count (R5, P-COST-04) > a loop is at most 3 upstream requests: reseed, then areas on the retraced edges of the reseeded loop",
+        "POST /loop request count (R5, P-COST-04) > guardedPlan at LOOP_UPSTREAM_COST refuses a 4th request before fetch"
+      ],
+      "test/upstream.test.ts": [
+        "guardedPlan - the unit is a plan, not a call > refuses the call past the budget, and does not make it",
+        "guardedPlan - the unit is a plan, not a call > the reservation is an upper bound on calls actually made"
+      ],
+      "test/quota.test.ts": [
+        "the constant is a constant > a plan is priced in upstream calls, not in plans"
+      ]
+    }
+  },
+  "P-PROD-02": {
+    "swift": {
+      "filter": "ScenicKitTests\\.(SurpriseRankTests|SurpriseFeedbackTests)",
+      "tests": [
+        "ScenicKitTests.SurpriseRankTests/reproducible()",
+        "ScenicKitTests.SurpriseRankTests/distinct()",
+        "ScenicKitTests.SurpriseRankTests/permutation()",
+        "ScenicKitTests.SurpriseFeedbackTests/wrongTime()"
+      ]
+    }
+  }
+}
