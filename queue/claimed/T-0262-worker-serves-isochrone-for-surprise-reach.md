@@ -1,13 +1,13 @@
 ---
 id: T-0262
 title: the Worker serves POST /isochrone - the Surprise reach as nested time-bucket polygons from GraphHopper /isochrone, one coordinate at 2 dp, quota first, cached daily
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T15:08:50Z
+lease_expires_at: 2026-10-06T03:08:50Z
+worktree: .worktrees/T-0262
+branch: task/T-0262
 exclusive: []
 touches: [services/api/]
 pins_affected: [P-PRIV-05, P-COST-01, P-COST-04]
@@ -29,3 +29,4 @@ add an H3 dependency. No deploy, no Cloudflare resources.
 
 ## Log
 - 2026-10-05T15:07:03Z filed by agent/claude-opus-5 (orchestrator) after PR #147 (T-0256) merged.
+- 2026-10-05T15:08:50Z claimed by agent/claude-opus-5; lease until 2026-10-06T03:08:50Z
