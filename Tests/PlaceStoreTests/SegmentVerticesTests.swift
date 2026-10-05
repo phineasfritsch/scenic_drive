@@ -79,6 +79,45 @@ struct SegmentVerticesTests {
         }
     }
 
+    static func outcome(_ geometry: [UInt8]) -> Result<[[Int32]], SegmentGeometryError>? {
+        do {
+            return .success(try decoded(geometry))
+        } catch let error as SegmentGeometryError {
+            return .failure(error)
+        } catch {
+            return nil
+        }
+    }
+
+    static func cut(_ count: Int) -> Result<[[Int32]], SegmentGeometryError> {
+        .failure(.partialVertex(byteCount: count))
+    }
+
+    /// rv1-t0255 B1: every count 0..40 - each residue mod 8 five times over - so no modulus, threshold or minimum
+    /// other than the shipping one agrees with all 41 rows. Each row is a literal outcome, never recomputed.
+    @Test("every byte count 0 through 40, every residue mod 8: the typed error or the whole decoded list")
+    func everyByteCount() {
+        let full = Self.blob([[11, -12], [21, -22], [31, -32], [41, -42], [51, -52]])
+        let rows: [(Int, Result<[[Int32]], SegmentGeometryError>)] = [
+            (0, .failure(.tooFewVertices(count: 0))), (1, Self.cut(1)), (2, Self.cut(2)), (3, Self.cut(3)),
+            (4, Self.cut(4)), (5, Self.cut(5)), (6, Self.cut(6)), (7, Self.cut(7)),
+            (8, .failure(.tooFewVertices(count: 1))), (9, Self.cut(9)), (10, Self.cut(10)), (11, Self.cut(11)),
+            (12, Self.cut(12)), (13, Self.cut(13)), (14, Self.cut(14)), (15, Self.cut(15)),
+            (16, .success([[11, -12], [21, -22]])), (17, Self.cut(17)), (18, Self.cut(18)), (19, Self.cut(19)),
+            (20, Self.cut(20)), (21, Self.cut(21)), (22, Self.cut(22)), (23, Self.cut(23)),
+            (24, .success([[11, -12], [21, -22], [31, -32]])), (25, Self.cut(25)), (26, Self.cut(26)),
+            (27, Self.cut(27)), (28, Self.cut(28)), (29, Self.cut(29)), (30, Self.cut(30)), (31, Self.cut(31)),
+            (32, .success([[11, -12], [21, -22], [31, -32], [41, -42]])), (33, Self.cut(33)), (34, Self.cut(34)),
+            (35, Self.cut(35)), (36, Self.cut(36)), (37, Self.cut(37)), (38, Self.cut(38)), (39, Self.cut(39)),
+            (40, .success([[11, -12], [21, -22], [31, -32], [41, -42], [51, -52]])),
+        ]
+        #expect(full.count == 40)
+        #expect(rows.map { $0.0 } == Array(0...40))
+        for (count, expected) in rows {
+            #expect(Self.outcome(Array(full.prefix(count))) == expected, "byte count \(count)")
+        }
+    }
+
     @Test("refuses fewer than two vertices: 0 bytes and 8 bytes")
     func tooFewVertices() {
         #expect(Self.refusal([]) == .tooFewVertices(count: 0))
