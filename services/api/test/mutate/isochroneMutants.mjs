@@ -27,10 +27,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-isochrone");
 
-export const MIN_MUTATIONS = 57;
+export const MIN_MUTATIONS = 67;
 export const SUBJECTS = ["src/isochroneRequest.ts", "src/isochronePlanner.ts", "src/reachCache.ts", "src/surpriseReach.ts",
-  "src/isochrone.ts", "src/quota.ts", "src/QuotaCounter.ts"];
-const TESTS = ["test/isochroneCost.test.ts", "test/isochroneShape.test.ts", "test/quotaCounter.test.ts"];
+  "src/isochrone.ts", "src/quota.ts", "src/QuotaCounter.ts", "src/quotaCounters.ts"];
+const TESTS = ["test/isochroneCost.test.ts", "test/isochroneShape.test.ts", "test/quotaCounter.test.ts",
+  "test/isochroneVerdicts.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -94,6 +95,20 @@ export const MUTATIONS = [
   m("quota-surprise-is-plan", "quota.ts", "if (kind === \"surprise\") return DAILY_SURPRISE_QUOTA[tier];", ""),
   m("do-surprise-absent-one", "QuotaCounter.ts", "(record[kind] as number) : 0;", "(record[kind] as number) : 1;"),
   m("do-used-ignores-record", "QuotaCounter.ts", "return kind in record ?", "return false ?"),
+  // rv1-t0262 B1 and the class: every refusal guardedPlan / the QuotaCounter raises, remapped (isochroneVerdicts.test.ts).
+  m("iso-every-refusal-429", "isochrone.ts", "if (!verdict.ok && verdict.reason === \"quota_exhausted\") {", "if (!verdict.ok) {"),
+  m("iso-exhausted-is-paused", "isochrone.ts", "verdict.reason === \"quota_exhausted\") {", "verdict.reason === \"upstream_paused\") {"),
+  m("iso-invalid-429", "isochrone.ts", "verdict.reason === \"quota_exhausted\") {", "verdict.reason !== \"upstream_paused\") {"),
+  m("iso-paused-429", "isochrone.ts", "    return json({ error: \"planning_paused\" }, 503);", "    return json({ error: \"planning_paused\" }, 429);"),
+  m("iso-paused-renamed", "isochrone.ts", "    return json({ error: \"planning_paused\" }, 503);", "    return json({ error: \"upstream_paused\" }, 503);"),
+  m("iso-no-resets-at", "isochrone.ts", "json({ error: \"quota_exhausted\", resets_at: verdict.resetsAt }, 429)",
+    "json({ error: \"quota_exhausted\" }, 429)"),
+  m("iso-paused-rethrown", "isochrone.ts", "if (error instanceof UpstreamPaused) {", "if (false) {"),
+  m("qc-daily-refusal-paused", "quotaCounters.ts", "reason: \"quota_exhausted\", tier, resetsAt: nextReset(now) });",
+    "reason: \"upstream_paused\", monthlyCalls: -1 });"),
+  m("qc-monthly-refusal-exhausted", "quotaCounters.ts", "reason: \"upstream_paused\", monthlyCalls: -1 });",
+    "reason: \"quota_exhausted\", tier, resetsAt: nextReset(now) });"),
+  m("quota-invalid-is-exhausted", "quota.ts", "reason: \"invalid_state\", detail: `plansUsedToday", "reason: \"quota_exhausted\", detail: `plansUsedToday"),
 ];
 
 export const EQUIVALENT = [
