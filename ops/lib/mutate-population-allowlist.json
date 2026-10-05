@@ -56,6 +56,12 @@
     "Sources/ScenicKit/Plan/RouteSource.swift": "a protocol - two method signatures and a description; no body, no arithmetic",
     "Sources/ScenicKit/Plan/RecordedRouteSource.swift": "reads a recorded response off disk by file name and refuses a lambda it has not got; its one piece of formatting is delegated to LambdaCustomModel.multiplier, which ops/mutate/plan.py mutates",
     "Sources/ScenicPlanCLI/main.swift": "the CLI entry point: parse, call ScenicPlanner, print, choose an exit code; every number on the screen is computed in ScenicKit/Plan, which ops/mutate/plan.py covers",
-    "Sources/ScenicPlanCLI/PlanCommand.swift": "the run of ops/plan between the arguments and the terminal: it picks the RouteSource the flags named, calls ScenicPlanner.plan and joins the lines ScenicPlan.report produced; no operator in the file, and the budget it passes through is mutated as PlanArguments.swift"
+    "Sources/ScenicPlanCLI/PlanCommand.swift": "the run of ops/plan between the arguments and the terminal: it picks the RouteSource the flags named, calls ScenicPlanner.plan and joins the lines ScenicPlan.report produced; no operator in the file, and the budget it passes through is mutated as PlanArguments.swift",
+    "Sources/Telemetry/HandoffApp.swift": "a closed three-case String enum (T-0265 R4) - cases and raw wire labels, no code; each label is pinned by the whole-data-point equality in TelemetryEventEncodingTests",
+    "Sources/Telemetry/PaywallStep.swift": "a closed two-case String enum (T-0265 R1) - cases and raw values, no code; the two wire names it selects are pinned by the whole-data-point equality in TelemetryEventEncodingTests",
+    "Sources/Telemetry/PlanFeature.swift": "a closed four-case String enum (T-0265 R4) - cases and raw wire labels, no code; pinned by the whole-data-point equality in TelemetryEventEncodingTests",
+    "Sources/Telemetry/PlanResultKind.swift": "a closed four-case String enum (T-0265 R4) - cases and raw wire labels, no code; pinned by the whole-data-point equality in TelemetryEventEncodingTests",
+    "Sources/Telemetry/SurpriseNotThisReason.swift": "a closed three-case String enum with no free-form case (T-0265 R4) - cases and raw wire labels, no code; pinned by the whole-data-point equality in TelemetryEventEncodingTests",
+    "Sources/Telemetry/TelemetryEventKind.swift": "the closed list of the fourteen event kinds (T-0265 R1) - cases and raw wire names, no code; allCases.count == 14 and the event->kind map are pinned by TelemetryEventEncodingTests, and the map itself (TelemetryEvent.kind) is in the telemetry.py population"
   }
 }
