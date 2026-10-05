@@ -32,6 +32,7 @@ let package = Package(
         .executable(name: "scenic-plan", targets: ["ScenicPlanCLI"]),
         .library(name: "PlaceStore", targets: ["PlaceStore"]),
         .library(name: "ScenicAPIClient", targets: ["ScenicAPIClient"]),
+        .library(name: "Telemetry", targets: ["Telemetry"]),
     ],
     dependencies: grdbPackage,
     targets: [
@@ -108,6 +109,21 @@ let package = Package(
             name: "ScenicAPIClientTests",
             dependencies: ["ScenicAPIClient", "ScenicKit"],
             path: "Tests/ScenicAPIClientTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // The plan's closed enum of fourteen telemetry events (T-0265). Foundation only, and no dependency on
+        // ScenicKit: it never sees a Coordinate, only the H3 resolution-5 cell its own port of uber/h3 makes.
+        .target(
+            name: "Telemetry",
+            path: "Sources/Telemetry",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // Fixtures/ holds uber/h3's own rand05centers.txt, read from source by path (T-0265 R5), not a resource.
+        .testTarget(
+            name: "TelemetryTests",
+            dependencies: ["Telemetry"],
+            path: "Tests/TelemetryTests",
+            exclude: ["Fixtures"],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]

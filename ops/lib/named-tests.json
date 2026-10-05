@@ -72,6 +72,20 @@
       "test/isochroneShape.test.ts": [
         "POST /isochrone takes one coordinate at 2 dp and nothing else (R1, P-PRIV-05) > every key at every level is whitelisted, the start is at most 2 dp and minutes is in [30, 240]"
       ]
+    },
+    "swift": {
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)",
+      "tests": [
+        "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
+        "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
+        "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistRefusesADouble()",
+        "TelemetryTests.H3ReferenceCellTests/tenPublishedCells()",
+        "TelemetryTests.H3ReferenceCellTests/everyPublishedRow()",
+        "TelemetryTests.H3ReferenceCellTests/everyPentagonPoint()",
+        "TelemetryTests.TelemetryEventEncodingTests/everyEventEncodesExactly()",
+        "TelemetryTests.TelemetryEventEncodingTests/dataPointJSON()",
+        "TelemetryTests.TelemetryEventEncodingTests/everyDataPointJSON()"
+      ]
     }
   },
   "P-COST-01": {
