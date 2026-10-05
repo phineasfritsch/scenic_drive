@@ -1,13 +1,13 @@
 ---
 id: T-0255
 title: PlaceStore decodes the segment geometry BLOB into e7 vertices
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T20:07:17Z
+lease_expires_at: 2026-10-06T08:07:17Z
+worktree: .worktrees/T-0255
+branch: task/T-0255
 exclusive: []
 touches: [Sources/PlaceStore/, Tests/PlaceStoreTests/, ops/mutate/]
 pins_affected: []
@@ -24,3 +24,4 @@ Follow-up recorded in T-0175's Log (PR #142, review PASS): geometry is returned 
 ## Log
 - 2026-10-05T11:49:04Z filed by agent/claude-opus-5 (orchestrator) from T-0175's stillOpen list.
 - 2026-10-05T20:05:56Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0254 (PR #152) merged; PlaceStore free.
+- 2026-10-05T20:07:17Z claimed by agent/claude-opus-5; lease until 2026-10-06T08:07:17Z
