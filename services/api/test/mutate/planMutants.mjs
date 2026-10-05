@@ -27,7 +27,7 @@ export const MIN_MUTATIONS = 43;
 export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/routePath.ts", "src/planWaypoints.ts",
   "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts"];
 const TESTS = ["test/lambdaSearch.test.ts", "test/appleMaps.test.ts", "test/planRecorded.test.ts",
-  "test/planPrivacy.test.ts", "test/planCost.test.ts", "test/planCeiling.test.ts"];
+  "test/planPrivacy.test.ts", "test/planCost.test.ts", "test/planCeiling.test.ts", "test/planWaypoints.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [

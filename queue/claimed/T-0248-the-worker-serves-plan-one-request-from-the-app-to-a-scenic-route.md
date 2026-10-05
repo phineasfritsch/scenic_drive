@@ -114,3 +114,34 @@ live route. This is the first endpoint the app needs (M3 exit). /loop /surprise 
   workers-types, not this task's; vitest is the gate. Population: test/mutate/planMutants.mjs, 43 mutants over 8
   subjects, MIN_MUTATIONS = 43, 2 EQUIVALENT entries with witnesses; --prove-floor refused on all 4 arms
   (empty / 42 / hazards.ts unmutated / a new subject) and stayed quiet on the real table, exit 0.
+- 2026-10-05T06:32:38Z POPULATION (agent/claude-opus-5). Run 1, `node services/api/test/mutate/planMutants.mjs` at
+  0d50240: "population mutations=43 (floor 43) equivalent=2 subjects=8 tests=6", "baseline green tests=50",
+  "RESULT caught=41 missed=2 trap=0 of 43", exit 1 - SURVIVORS pins-closed-run (`index < run.to` -> `<=`) and
+  pins-merge-roads (merge ignoring road_class): the t0221 recording's nine longest road changes do not sit on those
+  boundaries. Closed by test/planWaypoints.test.ts (three synthetic five-point routes, decisionPoints by exact
+  equality), added to the driver's TESTS. Run 2 (the full population again, not only the two rows):
+  "population mutations=43 (floor 43) equivalent=2 subjects=8 tests=7", "baseline green tests=53",
+  pins-closed-run CAUGHT by "a run names the segment that STARTS at its first point (half-open [from, to))",
+  pins-merge-roads CAUGHT by "a change of road class alone, on the same way and score, is a decision point",
+  "RESULT caught=43 missed=0 trap=0 of 43", exit 0. `--prove-vacuity` (every test filtered out):
+  "RESULT caught=0 missed=43 trap=0 of 43", exit 0 - every mutant loads and nothing but a named failure counts.
+  EQUIVALENT (in the driver's table with witnesses, never run): planner-ceiling-guard, search-cap-floor.
+  Gates at this head: check-line-cap "P-SRC-02: 134 Swift files ... none over 300 lines" exit 0 (TS: largest new
+  file test/planHarness.ts 151 lines, src/routePath.ts 122); check-exec-bits "P-OPS-01: 107 files ... all modes
+  correct" exit 0; queue-check "QUEUE OK (242 tasks)" exit 0.
+- 2026-10-05T06:32:38Z ACCEPTANCE re-quoted (agent/claude-opus-5), `cd services/api && npx vitest run`: Test Files 14
+  passed (14), Tests 179 passed (179).
+  (1) RULED R1/R2 above; planPrivacy.test.ts refuses 3-dp/4-dp origins, a coordinate destination, a coordinate beside
+      the place id, waypoints/via/extra origin keys - each 400 with h.sent == [] and h.events == [].
+  (2) planCost.test.ts: KILL=1 -> 503 planning_paused, sent [] events [] (also before the body is read, and on the
+      shipped ROUTES route via SELF); events == ["reserve", then 7 x "fetch"], reserved [12]; 429 quota_exhausted
+      with zero calls; 7 requests <= 12, max in flight 1. planRecorded.test.ts: the 6 scenic models toEqual
+      [0,4,6,7,7.5,7.75].map(l => buildCustomModel(l, null)), none naming road_access/surface; a client
+      custom_model is refused 400 (planPrivacy).
+  (3) planRecorded.test.ts "Santa Monica -> Topanga +25 returns ops/plan's Apple Maps URL, ETA and route for the
+      recording": apple_maps_url toBe the 05:30:08Z ops/plan URL literal, eta_s toBe 1346.01 (= lambda-7.75.json
+      time / 1000, "22m26s"), fastest "20m14s", ceiling "45m14s", lambda 7.75, evaluations 6, route toEqual the
+      recorded lambda-7.75.json coordinates + distance. planCeiling.test.ts: 120 seeded curves incl. non-monotone,
+      every 200's eta_s <= fastest + budget recomputed in the test.
+  (4) response keys exactly apple_maps_url budget_s ceiling_s eta_is_estimate eta_s evaluations fastest_eta_s hazards
+      lambda route used_budget waypoints; <= 9 waypoints; vitest 179/179; population 43/43, floor 43 (R9).
