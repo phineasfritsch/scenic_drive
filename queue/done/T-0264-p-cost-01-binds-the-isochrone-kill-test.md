@@ -1,7 +1,7 @@
 ---
 id: T-0264
 title: P-COST-01 binds the shipped /isochrone KILL and reserve-before-call tests, so the third upstream route is pinned like /plan and /loop
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T17:38:34Z
@@ -11,7 +11,7 @@ branch: task/T-0264
 exclusive: []
 touches: [ops/lib/named-tests.json, pins/PINS.yaml, services/api/test/killSwitchRoutes.test.ts]
 pins_affected: [P-COST-01, P-COST-04, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t-0264
 depends_on: [T-0261, T-0262]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -154,3 +154,17 @@ table'; T-0261 bound /plan and /loop; /isochrone shipped after it and is unbound
     restored (git checkout of each src file): NAMED P-COST-01 passed=22/22 exit=0
   On the merged head 8ed8d2e plus this change: NAMED P-COST-01 passed=22/22 exit=0; npx vitest run exit=0,
   `Test Files  25 passed (25)` `Tests  304 passed (304)` (303 + the one new test).
+- 2026-10-05T20:31:56Z agent/rv2-t-0264 (REVIEWER round 2, PR #153, head 89ca82a; not the owner): PASS.
+  rv1-t0264 (head d16e381) FAIL findings: B1 P-COST-01 fail-open (isochrone.ts reading KILL only from env stayed
+  21/21 green) and B2 origin/main not an ancestor. Re-checked in a detached worktree at origin/task/T-0264 = 89ca82a.
+    rv1 mutant, src/isochrone.ts `if (await killSwitch({ KILL: env.KILL }))`: test/killSwitchRoutes.test.ts
+      FAILED by name, NAMED P-COST-01 passed=21/22 exit=1 (B1 now red).
+    own variant, src/loop.ts `const paused = await killSwitch({ KILL: env.KILL });` (/loop ignores the KV switch):
+      the same test FAILED by name, NAMED P-COST-01 passed=21/22 exit=1.
+    restored (git checkout of each src file, status clean): NAMED P-COST-01 passed=22/22 exit=0;
+      npx vitest run test/killSwitchRoutes.test.ts `Test Files  1 passed (1)` `Tests  1 passed (1)` exit=0.
+    bash ops/queue-check: QUEUE OK (256 tasks). git merge-base --is-ancestor origin/main origin/task/T-0264: exit 0
+      (origin/main 395326d; B2 closed).
+    gh pr checks 153: core pending, pins-source-only pending (reported pending, not passed; not waited on).
+  Owner stillOpen 2 (Log names 8ed8d2e, last merge 89ca82a brought only main's T-0255 queue rename) is queue/-only
+  drift: non-blocking. Full-suite vitest 304/304 and P-COST-04/P-PRIV-05 not re-run here (rows untouched by the fix).
