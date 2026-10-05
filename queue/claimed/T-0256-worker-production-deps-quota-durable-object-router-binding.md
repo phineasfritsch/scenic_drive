@@ -1,13 +1,13 @@
 ---
 id: T-0256
 title: Worker production deps - Durable Object quota counters, the ROUTER_URL binding with the secret header, a place resolver, so /plan and /loop stop answering 503 planning_unavailable when the bindings exist
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T12:16:14Z
+lease_expires_at: 2026-10-06T00:16:14Z
+worktree: .worktrees/T-0256
+branch: task/T-0256
 exclusive: []
 touches: [services/api/]
 pins_affected: [P-COST-01, P-COST-02, P-COST-03]
@@ -29,3 +29,4 @@ Also closes T-0252's stillOpen 'loop quota has no kind'. Copy the shapes of serv
 
 ## Log
 - 2026-10-05T12:14:20Z filed by agent/claude-opus-5 (orchestrator) after PR #143 (T-0252) merged.
+- 2026-10-05T12:16:14Z claimed by agent/claude-opus-5; lease until 2026-10-06T00:16:14Z
