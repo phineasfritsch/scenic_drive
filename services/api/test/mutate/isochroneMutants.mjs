@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-isochrone");
 
-export const MIN_MUTATIONS = 54;
+export const MIN_MUTATIONS = 53;
 export const SUBJECTS = ["src/isochroneRequest.ts", "src/isochronePlanner.ts", "src/reachCache.ts", "src/surpriseReach.ts",
   "src/isochrone.ts", "src/quota.ts", "src/QuotaCounter.ts"];
 const TESTS = ["test/isochroneCost.test.ts", "test/isochroneShape.test.ts", "test/quotaCounter.test.ts"];
@@ -66,7 +66,6 @@ export const MUTATIONS = [
   m("reach-one-way", "surpriseReach.ts", "return 2 * oneWayMinutes;", "return oneWayMinutes;"),
   m("reach-holes-ignored", "surpriseReach.ts", "|| holes.some((hole) => inRing(hole, point))) continue;", ") continue;"),
   m("reach-largest", "surpriseReach.ts", "bucket.round_trip_minutes < best", "bucket.round_trip_minutes > best"),
-  m("reach-ray-flip", "surpriseReach.ts", "point.lon < ((xj - xi)", "point.lon > ((xj - xi)"),
   m("reach-ray-vertex", "surpriseReach.ts", "yi > point.lat !== yj > point.lat", "yi >= point.lat !== yj > point.lat"),
   m("cache-key-no-day", "reachCache.ts", "|${dayKey(now)}|", "|"),
   m("cache-key-no-version", "reachCache.ts", "|${graphVersion}`", "`"),
@@ -91,7 +90,13 @@ export const MUTATIONS = [
   m("do-used-ignores-record", "QuotaCounter.ts", "return kind in record ?", "return false ?"),
 ];
 
-export const EQUIVALENT = [];
+export const EQUIVALENT = [
+  { id: "reach-ray-flip", file: "src/surpriseReach.ts", find: "point.lon < ((xj - xi)",
+    witness: "even-odd parity does not depend on the ray's direction: a ray cast west from a point crosses a closed ring's "
+      + "edges as many times mod 2 as a ray cast east (the two together cross every edge spanning the point's latitude, "
+      + "and a closed ring spans it an even number of times), so flipping the comparison flips no verdict off the "
+      + "boundary. Measured: MISSED in the first full run (T-0262 Log)." },
+];
 
 export function floorRefusal(mutations = MUTATIONS, subjects = SUBJECTS) {
   if (mutations.length < MIN_MUTATIONS) return `population ${mutations.length} is below the floor ${MIN_MUTATIONS}`;

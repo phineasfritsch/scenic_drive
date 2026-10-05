@@ -57,7 +57,7 @@ export const MUTATIONS = [
   m("counters-reserve-wrong-day", "quotaCounters.ts", "reserveDaily(dayKey(now), kind,", "reserveDaily(monthKey(now), kind,"),
   m("quota-loop-free-2", "quota.ts", "{ anon: 1, free: 1, paid", "{ anon: 1, free: 2, paid"),
   m("quota-loop-anon-2", "quota.ts", "{ anon: 1, free: 1, paid", "{ anon: 2, free: 1, paid"),
-  m("quota-loop-paid-201", "quota.ts", "paid: DAILY_PLAN_QUOTA.paid }", "paid: 201 }"),
+  m("quota-loop-paid-201", "quota.ts", "free: 1, paid: DAILY_PLAN_QUOTA.paid }", "free: 1, paid: 201 }"),
   m("quota-kind-table", "quota.ts", "(kind === \"loop\" ? DAILY_LOOP_QUOTA : DAILY_PLAN_QUOTA)[tier]", "DAILY_PLAN_QUOTA[tier]"),
   m("quota-check-ignores-kind", "quota.ts", "const kind = args.kind ?? \"plan\";", "const kind = \"plan\";"),
   m("upstream-read-plan-kind", "upstream.ts", "deps.counters.read(args.userId, now, kind)", "deps.counters.read(args.userId, now, \"plan\")"),

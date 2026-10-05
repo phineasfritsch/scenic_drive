@@ -79,7 +79,6 @@ describe("POST /isochrone takes one coordinate at 2 dp and nothing else (R1, P-P
       { start: START, minutes: 29 },
       { start: START, minutes: 241 },
       { start: START, minutes: "120" },
-      { start: START },
       [START],
     ];
     for (const body of refused) {
@@ -87,6 +86,8 @@ describe("POST /isochrone takes one coordinate at 2 dp and nothing else (R1, P-P
       expect(r.status).toBe(400);
       expect(r.json.error).toBe("invalid_request");
     }
+    const missing = await reach(reachEnv(quota), { start: START });
+    expect(missing).toEqual({ status: 400, json: { error: "invalid_request", detail: "the body needs minutes" } });
     expect(router.calls).toEqual([]);
     expect(quota.state()).toEqual({});
   });
