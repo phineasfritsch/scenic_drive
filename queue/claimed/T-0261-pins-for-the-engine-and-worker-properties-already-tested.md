@@ -88,3 +88,46 @@ read. Anchor on test names and shipping symbols, never comments (CLAUDE.md).
      atMostTwoDecimals toFixed(ORIGIN_DECIMALS) -> toFixed(3); P-COST-01 upstream.ts reserve deferred to a
      microtask (lands after the first upstream call); P-COST-04 upstream.ts `spent > budget` -> `spent > budget + 1`;
      P-PROD-02 Surprise.draw key drops the date. Plus, per runner: one named test renamed in its file.
+- 2026-10-05T15:22:59Z RED THEN GREEN (agent/claude-opus-5). Runner ops/lib/run-named-tests.py (166 lines, 100755)
+  + ops/lib/named-tests.json (100644), committed 87eb577. Local Swift runs used SCENIC_SWIFT_SCRATCH=.build/t0261.
+  Baseline before any mutant: `NAMED P-SAFE-01 passed=12/12`, `P-PRIV-05 12/12`, `P-COST-01 18/18`,
+  `P-COST-04 6/6`, `P-PROD-02 4/4`, `P-SAFE-04 15/15`, each exit=0.
+  MUTANTS (one line of shipping code each, applied by exact-once replacement, reverted with git checkout):
+  - P-SAFE-01 customModel.ts mentioned() `lowered.includes(word)` -> `lowered === word`:
+    `NAMED P-SAFE-01 passed=3/12` exit=1; RED by name: customModel (b) top-level / nested else_if / areas property
+    / ROAD_ACCESS case, customModelGate (f) all five. (The /plan R1 test stays green - the body whitelist refuses
+    a custom_model key before rejectCustomModel is reached; the recorded-lambda test too - the built model is clean.)
+  - P-PRIV-05 planRequest.ts atMostTwoDecimals `toFixed(ORIGIN_DECIMALS)` -> `toFixed(3)`: `passed=10/12` exit=1;
+    RED: planPrivacy `refuses an origin latitude with more than 2 decimals, with zero upstream calls`, loopShape
+    `refuses a start with more than 2 decimals`.
+  - P-COST-01 upstream.ts `await deps.counters.reserve(args.userId, budget, now);` ->
+    `void Promise.resolve().then(() => deps.counters.reserve(args.userId, budget, now));`: `passed=14/18` exit=1;
+    RED: planCost `the quota is reserved once, before the first upstream call`, loopCost `the quota is reserved
+    once, LOOP_UPSTREAM_COST of it, before the first upstream call`, upstream `reserves BEFORE calling, not after`,
+    `reserves before the plan body runs, not before each call`.
+  - P-COST-04 upstream.ts `spent > budget` -> `spent > budget + 1`: `passed=4/6` exit=1; RED: loopCost `guardedPlan
+    at LOOP_UPSTREAM_COST refuses a 4th request before fetch`, upstream `refuses the call past the budget, and does
+    not make it`.
+  - P-SAFE-04 (Worker) lambdaSearch.ts `if (duration <= ceiling && (` -> `if (duration <= duration + budget && (`:
+    `passed=11/15` exit=1; RED: planCeiling 120-curves and every-overshoot -> no_route, lambdaSearch
+    no_feasible_lambda and non-monotone. (Swift) LambdaSearch.swift `if d <= ceiling, best == nil` ->
+    `if d <= d + budget, best == nil`: `passed=7/15` exit=1; RED: LambdaSearchTests ceilingAlwaysHolds(),
+    nonMonotoneRouterIsSafe(), ceilingIsNotApproximate(), ceilingBoundaryIsExactToTheLastBit(), steering x2,
+    noFeasibleLambdaThrows(), PlanCeilingOverLATests/everyPlanStaysUnderTheCeiling().
+  - P-PROD-02 Surprise.draw key `"\(userId)|<date>|\(step)"` -> `"\(userId)|\(step)"`: `passed=2/4` exit=1; RED:
+    SurpriseRankTests/permutation(), SurpriseFeedbackTests/wrongTime(); reproducible() and distinct() GREEN under
+    the mutant, which is ruling R4's reason for binding the other two.
+  RENAMED / SKIPPED / EMPTY (each refused by name, each reverted):
+  - P-SAFE-01 `refuses road_access in a top-level condition` renamed: `passed=11/12` `RED ... MISSING - no test of
+    this name ran`. P-PRIV-05 origin-latitude test renamed: `11/12` MISSING. P-COST-01 `the quota is reserved once,
+    before the first upstream call` renamed: `17/18` MISSING; its KILL=1 test `it.skip`: `17/18` `SKIPPED -
+    ['skipped']`. P-COST-04 `refuses the call past the budget, and does not make it` renamed: `5/6` MISSING.
+    P-SAFE-04 `func everyPlanStaysUnderTheCeiling()` renamed: `14/15` MISSING. P-PROD-02 `func reproducible()`
+    renamed: `3/4` MISSING; its swift filter pointed at a suite that does not exist: `passed=0/4`, all four MISSING
+    (zero matched tests is red). Table emptied for a pin: `NAMED P-COST-04 REFUSED: P-COST-04 has no entry in
+    named-tests.json`; an unknown pin: `NAMED P-NOPE REFUSED`. All exit=1.
+  GREEN through ops/lib/pins.py's own run() over the appended PINS.yaml rows (PINS.yaml parsed: 38 rows):
+  `ok P-SAFE-01 anchor=api :: NAMED P-SAFE-01 passed=12/12`, `ok P-SAFE-04 anchor=api :: passed=15/15`,
+  `ok P-PRIV-05 anchor=api :: passed=12/12`, `ok P-COST-01 anchor=api :: passed=18/18`, `ok P-COST-04 anchor=api
+  :: passed=6/6`, `ok P-PROD-02 anchor=artifact :: passed=4/4`; every row carries statement, why_no_test_catches_it,
+  anchor, runs_on [linux], assertion, owner, added.
