@@ -1,0 +1,24 @@
+{
+ "region": "fixture-token-classes",
+ "ways": [
+  {
+   "access_ok": 1,
+   "cls": "secondary",
+   "highway": "secondary",
+   "id": 101,
+   "name": "Nicasio Valley Road",
+   "nodes": [[37.9, -122.6], [37.9000129, -122.5994303], [37.9000197, -122.5988607]],
+   "oneway": 0
+  }
+ ],
+ "places": [
+  {"osm_type": "n", "osm_id": 4001, "cls": "viewpoint", "name": "Étoile Overlook", "lat": 34.1001, "lon": -118.3001},
+  {"osm_type": "n", "osm_id": 4002, "cls": "viewpoint", "name": "ǅakovo Bridge", "lat": 34.1002, "lon": -118.3002},
+  {"osm_type": "n", "osm_id": 4003, "cls": "viewpoint", "name": "ʻIolani Lookout", "lat": 34.1003, "lon": -118.3003},
+  {"osm_type": "n", "osm_id": 4004, "cls": "restaurant", "name": "북창동 순두부", "lat": 34.0631, "lon": -118.3009},
+  {"osm_type": "n", "osm_id": 4005, "cls": "restaurant", "name": "Route 66 Diner", "lat": 34.1005, "lon": -118.3005},
+  {"osm_type": "n", "osm_id": 4006, "cls": "viewpoint", "name": "Gate Ⅻ Trailhead", "lat": 34.1006, "lon": -118.3006},
+  {"osm_type": "n", "osm_id": 4007, "cls": "viewpoint", "name": "Mile ½ Marker", "lat": 34.1007, "lon": -118.3007},
+  {"osm_type": "n", "osm_id": 4008, "cls": "viewpoint", "name": "Arch  Grove", "lat": 34.1008, "lon": -118.3008}
+ ]
+}
