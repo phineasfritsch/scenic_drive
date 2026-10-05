@@ -11,7 +11,8 @@ final class PlanClientRequestTests: XCTestCase {
 
     private func request(_ body: String) -> PlanHTTPRequest {
         PlanHTTPRequest(url: URL(string: "https://scenic-api.test/plan")!, method: "POST",
-                        headers: ["content-type": "application/json"], body: Data(body.utf8))
+                        headers: ["content-type": "application/json", "x-scenic-device": PlanWire.deviceHeader],
+                        body: Data(body.utf8))
     }
 
     func testSendsExactlyTheBodyT0248Ruled() async {
