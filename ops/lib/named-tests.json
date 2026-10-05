@@ -68,6 +68,9 @@
         "the /loop body whitelist (R1, P-PRIV-05) > refuses any key it does not name, at every level",
         "the /loop body whitelist (R1, P-PRIV-05) > a refused body is 400 with zero upstream calls",
         "the /loop request (R1-R4) > the one request carries one point - the 2 dp start - and the lambda 2 model, exactly"
+      ],
+      "test/isochroneShape.test.ts": [
+        "POST /isochrone takes one coordinate at 2 dp and nothing else (R1, P-PRIV-05) > every key at every level is whitelisted, the start is at most 2 dp and minutes is in [30, 240]"
       ]
     }
   },
@@ -97,6 +100,13 @@
         "guardedUpstream > makes NO upstream call when killed manually, before even reading counters",
         "guardedPlan - the unit is a plan, not a call > reserves before the plan body runs, not before each call",
         "guardedPlan - the unit is a plan, not a call > makes NO call at all when the plan is refused"
+      ],
+      "test/isochroneCost.test.ts": [
+        "ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > KILL=1 is 503 before the body is read: zero router requests and no reservation",
+        "ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > the surprise allowance and one monthly call are reserved before the one router request"
+      ],
+      "test/killSwitchRoutes.test.ts": [
+        "ROUTES kill switch over every upstream route (P-COST-01) > every upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests, quota state empty"
       ]
     }
   },
@@ -116,6 +126,10 @@
       ],
       "test/quota.test.ts": [
         "the constant is a constant > a plan is priced in upstream calls, not in plans"
+      ],
+      "test/isochroneCost.test.ts": [
+        "ROUTES['/isochrone'] request count and the daily cache (R5, R6, P-COST-04) > the request count is exactly 1 per call and 0 on a cache hit",
+        "ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > the surprise allowance and one monthly call are reserved before the one router request"
       ]
     }
   },
