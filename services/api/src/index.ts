@@ -4,6 +4,7 @@
  * Only operational routes exist yet. Every route is listed in ROUTES so tests can enumerate them
  * (pin P-COST-01 will later assert the kill switch covers every entry, not a hand-written list).
  */
+import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
 import { readOnlyProblem } from "./ro";
 
@@ -12,7 +13,7 @@ export interface Env {
   GIT_SHA: string;
   BUILT_AT: string;
   RO_TOKEN?: string; // secret: `wrangler secret put RO_TOKEN`
-  KILL?: string; // "1" pauses /plan with zero upstream calls (P-COST-01)
+  KILL?: string; // "1" pauses /plan and /loop with zero upstream calls (P-COST-01)
 }
 
 type Handler = (req: Request, env: Env, url: URL) => Promise<Response>;
@@ -72,6 +73,7 @@ export const ROUTES: Record<string, Handler> = {
   "/__version": version,
   "/__ro": ro,
   "/plan": (req, env) => handlePlan(req, env, planDepsFromEnv(env)),
+  "/loop": (req, env) => handleLoop(req, env, loopDepsFromEnv(env)),
 };
 
 export default {
