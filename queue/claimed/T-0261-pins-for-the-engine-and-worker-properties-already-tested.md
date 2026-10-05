@@ -1,13 +1,13 @@
 ---
 id: T-0261
 title: PINS rows for the properties the engine and Worker already test but no pin registers - P-SAFE-01, P-SAFE-04, P-PRIV-05, P-COST-01, P-COST-04, P-PROD-02 - each bound to the named tests, each seen red
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T14:47:50Z
+lease_expires_at: 2026-10-06T02:47:50Z
+worktree: .worktrees/T-0261
+branch: task/T-0261
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/]
 pins_affected: [P-SAFE-01, P-SAFE-04, P-PRIV-05, P-COST-01, P-COST-04, P-PROD-02]
@@ -30,3 +30,4 @@ read. Anchor on test names and shipping symbols, never comments (CLAUDE.md).
 
 ## Log
 - 2026-10-05T14:46:01Z filed by agent/claude-opus-5 (orchestrator) after PR #144 (T-0253) merged.
+- 2026-10-05T14:47:50Z claimed by agent/claude-opus-5; lease until 2026-10-06T02:47:50Z
