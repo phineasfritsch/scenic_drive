@@ -67,3 +67,13 @@ account to draft. The owner hosts them on their domain later.
   - tagline/positioning verbatim -> plan Context "Positioning"; description has 'Take the long way. Unwind.' and
     'calm adventure', no thrill words (grep over the five files: none of thrill/adrenaline/epic/extreme/conquer)
   - description body ~2.7k chars (limit 4000); subtitle 26 (limit 30); keywords 91 (limit 100)
+- 2026-10-05T07:42:39Z agent/claude-opus-5: PR #140 opened (base main). Acceptance re-run on d581c49 (contains
+  origin/main after `git fetch origin`; main had not moved):
+  - (1) `ls docs/store` -> app-store-description.md privacy.md review-notes.md support.md terms.md (5/5). PLANNED
+    markers per file: description 9, privacy 10, review-notes 5, support 6, terms 4. Each listed data claim is cited
+    inline (claim -> source table above).
+  - (2) description: 'Take the long way. Unwind.' x2, 'calm adventure' x2, '3.1.2' x1, '$29.99 per year' x1,
+    '7-day' x2; storefront "United States only"; thrill/adrenaline/epic/extreme/conquer: 0 hits in all five files.
+    review-notes covers the safety disclaimer, location (5 lines), paid features (PLANNED). `**DRAFT FOR THE OWNER.**`
+    heads 5/5 files.
+  - `bash ops/queue-check` -> QUEUE OK (243 tasks), exit 0.
