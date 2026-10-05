@@ -1,0 +1,25 @@
+{
+ "region": "fixture-places",
+ "ways": [
+  {
+   "access_ok": 1,
+   "cls": "secondary",
+   "highway": "secondary",
+   "id": 101,
+   "name": "Nicasio Valley Road",
+   "nodes": [[37.9, -122.6], [37.9000129, -122.5994303], [37.9000197, -122.5988607]],
+   "oneway": 0
+  }
+ ],
+ "places": [
+  {"osm_type": "n", "osm_id": 1001, "cls": "viewpoint", "name": "Mulholland", "lat": 34.1281, "lon": -118.4103},
+  {"osm_type": "n", "osm_id": 1002, "cls": "viewpoint", "name": "Mulholland Dam", "lat": 34.1257, "lon": -118.3256},
+  {"osm_type": "n", "osm_id": 1003, "cls": "viewpoint", "name": "Mulholland Scenic Overlook", "lat": 34.1308, "lon": -118.3694},
+  {"osm_type": "n", "osm_id": 1004, "cls": "cafe", "name": "Café Tropical", "lat": 34.0872, "lon": -118.2729},
+  {"osm_type": "n", "osm_id": 1005, "cls": "cafe", "name": "Rock Store", "lat": 34.1201, "lon": -118.7539},
+  {"osm_type": "w", "osm_id": 2001, "cls": "restaurant", "name": "Saddle Peak Lodge", "lat": 34.0959, "lon": -118.6597},
+  {"osm_type": "n", "osm_id": 1006, "cls": "viewpoint", "name": null, "lat": 34.0784, "lon": -118.6956},
+  {"osm_type": "n", "osm_id": 1007, "cls": "pub", "name": "Neary's Pub", "lat": 34.0195, "lon": -118.4912},
+  {"osm_type": "r", "osm_id": 3001, "cls": "park", "name": "Malibu Creek State Park", "lat": 34.0985, "lon": -118.7313}
+ ]
+}
