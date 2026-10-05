@@ -167,3 +167,43 @@ is filed as its own task).
       `SHA new 5cde1a01f6e8f8b9faf90d5c8a49ffd039e7a56c49f1765b4df864861a561aea`
       `SHA old 5cde1a01f6e8f8b9faf90d5c8a49ffd039e7a56c49f1765b4df864861a561aea`
   The meta paths do not reach the reference: it is built from the documents' raw values only.
+- 2026-10-05T04:50:18Z THE REST OF THE CHAIN LANDED, quoted by agent/claude-opus-5 (owner) after a second session
+  reset from the store's logs/ (copied to the MAIN checkout's services/etl/work/t0242/logs/). The chain's own
+  record, services/etl/work/t0242/chain.out: `CHAIN docs exit=0` ... `CHAIN score exit=0` / `CHAIN merge exit=0`
+  / `CHAIN toxml exit=0` / `CHAIN tag exit=0` / `CHAIN topbf exit=0` / `CHAIN check exit=0` / `CHAIN END` /
+  `exit=0`. Nothing was re-run.
+  SCORE (pass 2, 35m5s real), logs/score.log:
+      `PASS2 SWEEP END 152 scored of 152 docs`
+      `PASS2 TOTALS tiles_this_run=152 ways=574396 zero_class=20286 gated=106117 sinuosity_declined=21414 points_of_interest_absent=574396 null_score=0`
+      `STAGE score exit=0 1612s`
+  - T-0208's totals line (ways=574396 zero_class=20286 gated=106117 sinuosity_declined=21414
+  points_of_interest_absent=574396 null_score=0), every field equal.
+  MERGE (10m34s real), logs/merge.log:
+      `MERGE tiles=152 ways=560304 seam_ways=13946 seam_differ=0 refused=0 410s`
+      `MERGE ASSEMBLE ways=560304 zero_class=19511 gated=103989 sinuosity_declined=21297 points_of_interest_absent=560304 null_score=0`
+      `MERGE table_bytes=257804360 document_bytes=117`
+      `STAGE merge exit=0 402s`
+  - T-0208's `MERGE tiles=152 ways=560304 seam_ways=13946 seam_differ=0 refused=0` and its MERGE ASSEMBLE line,
+  every count equal; seam_differ=0 is the one-score-per-shared-way property over the whole region.
+  TOXML (1m58s real): `XML la-filtered.osm.xml bytes=577026283` / `STAGE toxml exit=0 20s`.
+  TAG (11m20s real): `WRITE ways=565874 scored=560304 refused=0 gated=103989 not_a_road=5570` /
+  `STAGE tag exit=0 625s` - T-0208's WRITE line, equal.
+  TOPBF (50s real), logs/topbf.log:
+      `RUN osmium cat /work/la-tagged.osm.xml -o /work/la-tagged.osm.pbf --overwrite`
+      `SHA256 648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39  bytes 45914107  la-tagged.osm.pbf`
+      `STAGE topbf exit=0 41s`
+  CHECK (2m47s real), logs/check.log, over an `osmium cat` read-back of the rebuilt PBF:
+      `XML la-readback.osm.xml bytes=901614531`
+      `CHECK4 null_score=0 gated_scored=0 malformed=0 scored=560304 refused=0 not_a_road=5570`
+      `STAGE check exit=0 154s`
+  - T-0208's CHECK4 line, equal.
+  THE DIGEST, RE-MEASURED INDEPENDENTLY of the stage's own print (sha256sum, stat and cmp in WSL, the rebuilt
+  file in the store against the SHIPPED artifact in the main checkout, read only):
+      `648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39  /home/phineas/t0242/la-tagged.osm.pbf`
+      `648fc3dbb80c8e845ff265ef7eda4a7b2f9434b89c0a1bdd671ce0b2dcff3d39  .../services/etl/work/la/la-tagged.osm.pbf`
+      `45914107 /home/phineas/t0242/la-tagged.osm.pbf` / `45914107 .../services/etl/work/la/la-tagged.osm.pbf`
+      `cmp` exit 0 (`CMP_EQUAL`)
+  RULED: the rebuild through ops/etl-region reproduces la-tagged.osm.pbf BYTE FOR BYTE. The digests are equal,
+  so no osmium content comparison is needed and none is claimed. The output was copied per R5 to the MAIN
+  checkout's services/etl/work/t0242/la-tagged.osm.pbf (re-hashed there: `648fc3db...3d39`) with
+  la-reference.json and logs/; the shipped services/etl/work/la/la-tagged.osm.pbf was never written.
