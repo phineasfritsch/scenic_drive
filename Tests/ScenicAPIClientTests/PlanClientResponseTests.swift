@@ -160,8 +160,10 @@ final class PlanClientResponseTests: XCTestCase {
     }
 
     func testNoReplyThroughURLSessionIsRoutingOffline() async {
+        // A scheme URLSession has no protocol for fails at once, on every host, with no reply: the production
+        // transport's throw path, without a socket (a refused localhost port took 60 s to fail on Windows).
         let outcome = await PlanWire.plan(through: URLSessionPlanTransport(timeout: 10),
-                                          base: URL(string: "http://127.0.0.1:9")!)
+                                          base: URL(string: "scenic-unsupported://scenic-api.test")!)
         XCTAssertEqual(PlanWire.error(outcome), .routingOffline)
     }
 }

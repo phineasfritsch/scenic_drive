@@ -111,3 +111,21 @@ Milestone survey 2026-10-04: M3/M4 need the app to call the Worker. Starts after
   --filter ScenicAPIClientTests` (Windows, swift 6.3.3) -> Executed 31 tests, 30 failed by name (all of
   PlanClientRequestTests 11/11 and PlanClientResponseTests 19/20); the one pass is testEveryRecordedReplyHasATest, the
   fixture-coverage meta test, which reads the directory, not the client - its red is shown separately at GREEN.
+- 2026-10-05T13:34:05Z GREEN (agent/claude-opus-5). PlanResponseReader (the R6 table) and PlanClient.plan (validate -> sortedKeys encode ->
+  ONE transport call -> read) implemented. Windows swift 6.3.3 `swift test --scratch-path .build/t0251 --filter
+  ScenicAPIClientTests`: Executed 31 tests, with 0 failures. CI image (WSL docker swift:6.1-noble@sha256:98ee3a84..., the
+  linux-core digest, apt libsqlite3-dev, a tar COPY of the worktree, own volume t0251-scratch, same filter): Executed 31
+  tests, with 0 failures (PlanClientRequestTests 11, PlanClientResponseTests 20). Two corrections after RED, both in
+  tests: the URLSession no-reply test used http://127.0.0.1:9, which took 60.03 s to fail on Windows - now a scheme
+  URLSession has no protocol for (fails in 0.2 s, no socket); testCountingFakeCountsEveryPlanThroughIt now also asserts
+  peakInFlight == 1. PRE-REVIEW MUTANT PASS (.build/mutants.py, scratch, full ScenicAPIClientTests per mutant), 9/9
+  CAUGHT by name: M0 an extra fixture 418-teapot.json -> testEveryRecordedReplyHasATest (the meta test seen red);
+  M1 atTwoDecimals *100 -> *1000 -> testRefusesAThreeDecimalLatitude/Longitude; M2 lat -90...90 -> -90..<90 ->
+  testTwoDecimalOriginsAtEveryEdgeAreSent; M3 budget 0... -> 1... -> testBudgetIsSentInsideZeroTo180AndRefusedOutside;
+  M4 503 planning_unavailable -> .planningPaused -> test503RecordedPlanningUnavailableIsRoutingOffline; M5 5xx fallback
+  500... -> 501... -> test500UncaughtNonJSONLiteralIsRoutingOffline; M6 drop `inFlight -= 1` ->
+  testCountingFakeCountsEveryPlanThroughIt; M7 route [lon,lat] read as [lat,lon] -> both 200 full-equality decodes;
+  M8 drop .sortedKeys -> testSendsExactlyTheBodyT0248Ruled, testDepartsAtIsSent... Gates on this tree: check-line-cap
+  exit 0 (largest new file 169 lines); check-mutate-population exit 0 ("13 added by this branch ... every added module
+  is covered or allowlisted; the floor of 46 holds"); queue-check exit 0 (QUEUE OK, 246 tasks); `npx vitest run
+  test/planWire.test.ts` 12/12.

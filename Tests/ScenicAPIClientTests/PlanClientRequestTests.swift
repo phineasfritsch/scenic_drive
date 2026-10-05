@@ -118,6 +118,8 @@ final class PlanClientRequestTests: XCTestCase {
             _ = await PlanWire.plan(through: fake)
         }
         let count = await fake.count
+        let peak = await fake.peakInFlight
         XCTAssertEqual(count, 3)
+        XCTAssertEqual(peak, 1)
     }
 }
