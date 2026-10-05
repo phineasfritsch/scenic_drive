@@ -1,7 +1,7 @@
 ---
 id: T-0252
 title: the Worker serves POST /loop - "just drive 45 minutes and come back": one round_trip request (lambda 2, seeded by user+date), the anti-retrace check ported from ScenicKit RetraceDetector, at most 2 retries, quota first, kill switch honoured
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T09:05:18Z
@@ -11,7 +11,7 @@ branch: task/T-0252
 exclusive: []
 touches: [services/api/src/, services/api/test/, Tests/ScenicKitTests/LoopRetraceParityTests.swift, Tests/Fixtures/t0252/]
 pins_affected: [P-COST-01, P-COST-04, P-PRIV-05, P-SAFE-01]
-reviewer: null
+reviewer: agent/rv1-t0252
 depends_on: [T-0248]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -48,3 +48,21 @@ Milestone survey 2026-10-04: M5 loop has the engine (ScenicKit Loop/RetraceDetec
   3. Response: "carries geometry, duration, the retrace fraction and the Apple Maps URL - equal to a recomputation" (loopShape.test.ts). **vitest: `Test Files 17 passed (17)`, `Tests 209 passed (209)`**, vitest_exit=0. Mutation population: `RESULT caught=41 missed=0 trap=0 of 41` (floor 41 literal, 3 EQUIVALENT with witnesses), prove-vacuity 0/41, prove-floor four arms REFUSED.
   Gates: `python ops/lib/check-mutate-population.py` -> "P-PROC-06: every added module is covered or allowlisted; the floor of 46 holds", exit 0. `bash ops/lib/check-line-cap` -> "P-SRC-02: 147 Swift files tracked ... none over 300 lines", exit 0 (it reads Swift only; the new TS files are 64-172 lines). `bash ops/queue-check` -> "QUEUE OK (246 tasks)", exit 0. `bash ops/check-pins --source-only` locally: still running after 37 minutes on the contended box (another worktree's pins.py has run since 02:36), no output yet - NOT claimed green locally. CI on PR #143 at c7f7392: `pins-source-only pass 1m10s`, `core pass 2m13s`.
   PR: https://github.com/phineasfritsch/scenic_drive/pull/143.
+- 2026-10-05T12:00:47Z **review PASS** (agent/rv1-t0252, not the owner) of PR #143 at d855e36 (== origin/task/T-0252), in a detached worktree.
+  Acceptance 1: R1-R10 logged at 09:09:06Z before code. `swift test --scratch-path .build/rv1-t0252-swift --filter LoopRetraceParityTests` -> "Test run with 2 tests in 1 suite passed", swift_exit=0. Both suites hold >= 5 non-zero loops at max_ulps 0; carriageways' 2-ulp allowance carries a witness both suites require. Only two loops are from recorded geometry, which R7 rules (there is no round_trip recording).
+  Acceptance 2-3: `npx vitest run` -> `Test Files 17 passed (17)`, `Tests 209 passed (209)`, vitest_exit=0. The counting-fake tests are named as the 10:46:49Z entry quotes.
+  Reviewer mutants on the shipping path (none are in loopMutants.mjs; vitest ran over loopCost/loopShape/retraceParity; every file was restored):
+  (A) the quota reserved after the first upstream fetch instead of before it, in upstream.ts: CAUGHT, 2 failed, including "the quota is reserved once, LOOP_UPSTREAM_COST of it, before the first upstream call".
+  (B) a 4th attempt (seed+2) after the areas attempt, at cost 3: CAUGHT, 2 failed, including "a loop is at most 3 upstream requests: reseed, then areas on the retraced edges of the reseeded loop".
+  (B2) the same 4th attempt with LOOP_UPSTREAM_COST=4: CAUGHT, 4 failed, including that test and "guardedPlan at LOOP_UPSTREAM_COST refuses a 4th request before fetch".
+  (C) MAX_RETRACE_FRACTION 0.15 -> 0.25 in the TS port only: CAUGHT, 2 failed, "the threshold is inclusive at 0.15" and the 3-request test. The shared fixture alone would not catch it, because no loop's fraction lies in (0.15, 0.25].
+  (D) a 3 dp start accepted by checking the rounded value (`atMostTwoDecimals(Math.round(value * 100) / 100)`): CAUGHT, 2 failed, "refuses a start with more than 2 decimals" and the handler's "a refused body is 400 with zero upstream calls".
+  Gates, run bare:
+  - `python ops/lib/check-mutate-population.py`: "every added module is covered or allowlisted; the floor of 46 holds", exit 0.
+  - `bash ops/lib/check-line-cap`: "P-SRC-02: 147 Swift files tracked ... none over 300 lines", exit 0. The TS files are 64-177 lines.
+  - `bash ops/queue-check`: "QUEUE OK (246 tasks)", exit 0.
+  - `gh pr checks 143`: core pass, pins-source-only pass.
+  - `bash ops/check-pins --source-only` locally: no output after 62 minutes on the contended box, so it is NOT claimed green locally. CI's pins-source-only passed at this same head.
+  - `git merge-base --is-ancestor origin/main origin/task/T-0252`: exit 0 at the start of the review. It is exit 1 at sign-off, because main later gained PR #142 (T-0175) and queue commits, none under services/api.
+  - The merge with main 9101a76 is clean (merge-tree exit 0). On that merged tree, check-mutate-population exits 0 (floor 46) and check-schema-version exits 0 (P-PROD-05, schema_version=2, index.ts included).
+  Recorded, not blocking: the response carries `seed`, which R9's list omits. The whole-response test pins it.
