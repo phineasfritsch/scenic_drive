@@ -9,4 +9,7 @@ public enum PlanRefusal: Error, Equatable, Sendable {
     case originMoreThanTwoDecimals
     /// The extra-time budget is outside the Worker's 0...180 minutes.
     case budgetOutOfRange
+    /// The client was built with no `InstallIDProvider`, so the request would lack `x-scenic-device` and land in the
+    /// Worker's shared `device:unidentified` quota bucket (T-0260 R3).
+    case noInstallID
 }

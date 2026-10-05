@@ -14,6 +14,10 @@ enum PlanWire {
     static let base = URL(string: "https://scenic-api.test")!
     /// Santa Monica, at 2 dp - the origin T-0248's recording was planned from.
     static let santaMonica = Coordinate(latitude: 34.02, longitude: -118.49)
+    /// The install every plan is made from unless a test says otherwise. Written UPPERCASE, as Foundation's
+    /// uuidString prints it; `deviceHeader` is the lowercased form the Worker's DEVICE_ID accepts (T-0260 R2).
+    static let install = FixedInstallID("6F9619FF-8B86-4D01-B42D-00C04FC964FF")
+    static let deviceHeader = "6f9619ff-8b86-4d01-b42d-00c04fc964ff"
 
     static func fixture(_ name: String) throws -> Data {
         try Data(contentsOf: directory.appendingPathComponent("\(name).json"))
@@ -26,18 +30,20 @@ enum PlanWire {
 
     /// One plan through a fresh counting fake that answers `reply`: the outcome, and the fake to count.
     static func plan(answering reply: PlanHTTPReply, from origin: Coordinate = santaMonica, to place: Int64 = 42,
-                     budgetMinutes: Int = 25, departsAt: Date? = nil)
+                     budgetMinutes: Int = 25, departsAt: Date? = nil,
+                     installID: (any InstallIDProvider)? = install)
         async -> (outcome: Result<PlanResponse, PlanError>, fake: CountingPlanTransport) {
         let fake = CountingPlanTransport(reply: reply)
         let outcome = await plan(through: fake, from: origin, to: place, budgetMinutes: budgetMinutes,
-                                 departsAt: departsAt)
+                                 departsAt: departsAt, installID: installID)
         return (outcome, fake)
     }
 
     static func plan(through transport: any PlanTransport, base: URL = base, from origin: Coordinate = santaMonica,
-                     to place: Int64 = 42, budgetMinutes: Int = 25, departsAt: Date? = nil)
+                     to place: Int64 = 42, budgetMinutes: Int = 25, departsAt: Date? = nil,
+                     installID: (any InstallIDProvider)? = install)
         async -> Result<PlanResponse, PlanError> {
-        let client = PlanClient(base: base, transport: transport)
+        let client = PlanClient(base: base, transport: transport, installID: installID)
         do {
             return .success(try await client.plan(from: origin, to: place, budgetMinutes: budgetMinutes,
                                                   departsAt: departsAt))
