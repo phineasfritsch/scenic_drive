@@ -1,13 +1,13 @@
 ---
 id: T-0268
 title: the Worker serves POST /trip - a multi-day road trip planned in at most 12 upstream requests, the RoadTrip day splitter ported to TS with a shared parity fixture, quota first, one coordinate at 2 dp
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T23:10:16Z
+lease_expires_at: 2026-10-06T11:10:16Z
+worktree: .worktrees/T-0268
+branch: task/T-0268
 exclusive: []
 touches: [services/api/, Tests/Fixtures/t0268/, Tests/ScenicKitTests/]
 pins_affected: [P-COST-01, P-COST-04, P-PRIV-05, P-SAFE-04]
@@ -27,3 +27,4 @@ T-0248/T-0252/T-0262 shapes (handlers, deps, QuotaCounter kinds, killSwitch, mut
 
 ## Log
 - 2026-10-05T23:08:38Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M3/M5 /trip).
+- 2026-10-05T23:10:16Z claimed by agent/claude-opus-5; lease until 2026-10-06T11:10:16Z
