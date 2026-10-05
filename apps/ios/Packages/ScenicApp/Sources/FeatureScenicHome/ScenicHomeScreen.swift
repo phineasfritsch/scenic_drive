@@ -39,6 +39,10 @@ import SwiftUI
 /// sheet at both detents, always. The guard itself is inside `GatedHandoffButton`; `ops/lib/check-safety-disclaimer`
 /// says what a source-level check can and cannot decide about it.
 public struct ScenicHomeScreen: View {
+    /// DEBUG only: `-resetLaunchState YES` empties the app's stored defaults before anything below reads them, so
+    /// every UI test starts from a fresh install (`LaunchStateReset`, T-0180 ruling R3). Declared first on purpose.
+    private let launchStateReset = LaunchStateReset.applied
+
     /// The basemap ACTUALLY on screen, named once so the tiles, the caption and the credit cannot drift apart.
     /// Resolved from `.task`/`.onChange`, never in `body`: `DriveBasemap.resolve` touches the file system.
     @State private var style = MapStyle.maplibreDemoTiles

@@ -5,7 +5,9 @@
 # screen - in light and dark, at both of its sheet detents (T-0237: `-homeDetent collapsed|medium`, a launch
 # argument) and collapsed again with the menu's 'Fastest' row selected (T-0246: `-menuRow 0`; every other shot passes
 # `-menuRow default`, which is no row, so the menu's own default row), as ONE artifact, `ios-screenshots`, so the app can be SEEN. It proves nothing about
-# signing or TestFlight (T-0009). The runner needs network: the demo style is remote. apps/ios/ScenicDrive/Tiles/
+# signing or TestFlight (T-0009). Then, on the same simulator, it runs the UI test bundle (T-0180:
+# SafetyGateUITests, HomeSurfaceUITests - P-SAFE-03's and P-ATTR-01's runtime half) and uploads its .xcresult as
+# `ios-uitests-xcresult`; a red UI test is a red run. The runner needs network: the demo style is remote. apps/ios/ScenicDrive/Tiles/
 # la.pmtiles is gitignored, so CI draws the MapLibre demo tiles and credits them as such - BasemapResolver's
 # fallback, not a defect.
 #
@@ -139,6 +141,43 @@ jobs:
           path: DerivedData/screens/*.png
           retention-days: 7
           if-no-files-found: error
+
+      # T-0180: the UI test bundle (apps/ios/ScenicDriveUITests), on the SAME booted simulator and DerivedData, and
+      # AFTER the screenshots are uploaded: a red test never costs the pictures, and the tests' own writes (an
+      # accepted disclaimer, the appearance) never reach a screenshot. Steps of this job, not a second job: a second
+      # job would repeat the pick-and-boot step verbatim, and the guardrail check's --prove-red refuses a mutation
+      # anchor that occurs twice. The log is APPENDED to the build's, so `why it failed` shows whichever ran last.
+      - name: run the UI tests on that simulator
+        run: |
+          UDID=$(cat "$GITHUB_WORKSPACE/DerivedData/sim-udid")
+          xcodebuild \
+            -project apps/ios/ScenicDrive.xcodeproj \
+            -scheme ScenicDrive \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath "$GITHUB_WORKSPACE/DerivedData" \
+            -resultBundlePath "$GITHUB_WORKSPACE/DerivedData/ScenicDriveUITests.xcresult" \
+            -disableAutomaticPackageResolution \
+            -only-testing:ScenicDriveUITests \
+            CODE_SIGNING_ALLOWED=NO \
+            test | tee -a "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"
+
+      # Every test by name with its result, red or green - the line a Log quotes.
+      - name: the UI test results by name
+        if: always()
+        run: |
+          RESULT="$GITHUB_WORKSPACE/DerivedData/ScenicDriveUITests.xcresult"
+          test -d "$RESULT" || { echo "ios-screenshot: no UI test result bundle - the UI tests never ran"; exit 0; }
+          xcrun xcresulttool get test-results summary --path "$RESULT"
+          xcrun xcresulttool get test-results tests --path "$RESULT"
+
+      - name: upload the UI test result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-uitests-xcresult
+          path: DerivedData/ScenicDriveUITests.xcresult
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: why it failed
         if: failure()

@@ -30,6 +30,17 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5A1C0E7F3B2D4A6C8E9F0B11"
+               BuildableName = "ScenicDriveUITests.xctest"
+               BlueprintName = "ScenicDriveUITests"
+               ReferencedContainer = "container:ScenicDrive.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

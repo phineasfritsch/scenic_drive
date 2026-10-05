@@ -28,6 +28,10 @@ PKG = os.path.join(ROOT, "apps", "ios", "Packages", "ScenicApp", "Package.swift"
 PLIST = os.path.join(ROOT, "apps", "ios", "ScenicDrive", "Info.plist")
 
 APP_TARGET = "ScenicDrive"
+# T-0180: the one UI test bundle, beside the app and nothing else - a WHITELIST of (name, product type).
+UITEST_TARGET = "ScenicDriveUITests"
+TARGETS = {APP_TARGET: "com.apple.product-type.application",
+           UITEST_TARGET: "com.apple.product-type.bundle.ui-testing"}
 FALLBACK_PRODUCT = "FeatureScenicHome"
 BUNDLE_ID = "com.phineasfritsch.scenicdrive"
 
@@ -148,13 +152,19 @@ check("objectVersion is 77", scalar(masked, "objectVersion") == "77",
 target_ids = id_list(proj_body, "targets")
 named = []
 app_target_id = None
+uitest_target_id = None
+typed = {}
 for tid in target_ids:
     tbody = body_at(masked, defs[tid])
     name = scalar(tbody, "name")
     named.append("%s (%s)" % (name, scalar(tbody, "productType")))
+    typed[name] = scalar(tbody, "productType")
     if name == APP_TARGET:
         app_target_id = tid
-check("exactly one target", len(target_ids) == 1, "; ".join(named) or "none")
+    if name == UITEST_TARGET:
+        uitest_target_id = tid
+check("exactly the app and its UI test bundle", len(target_ids) == 2 and typed == TARGETS,
+      "; ".join(named) or "none")
 check("the targets list names %s" % APP_TARGET, app_target_id is not None,
       "; ".join(named) or "none")
 
@@ -249,7 +259,8 @@ else:
 if os.path.exists(SCHEME):
     scheme = open(SCHEME, encoding="utf-8").read()
     bps = set(re.findall(r'BlueprintIdentifier = "([^"]+)"', scheme))
-    check("shared scheme points at the app target", bps == {app_target_id}, str(sorted(bps)))
+    check("shared scheme points at the app and its UI test bundle",
+          uitest_target_id is not None and bps == {app_target_id, uitest_target_id}, str(sorted(bps)))
 else:
     check("shared scheme exists", False, SCHEME)
 
