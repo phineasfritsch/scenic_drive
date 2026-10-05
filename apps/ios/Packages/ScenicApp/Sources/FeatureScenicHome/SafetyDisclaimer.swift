@@ -66,6 +66,10 @@ struct SafetyDisclaimer: View {
         .background(DesignTokens.bg)
         // The gate. Without this the sheet is advisory - a swipe down and the handoff is ungated.
         .interactiveDismissDisabled()
+        // A CONTAINER for accessibility (T-0180): the screen's `.accessibilityIdentifier("home.disclaimer")` lands on
+        // this one element instead of being stamped over every child - run 37292916916 found no
+        // `home.disclaimer.accept` on screen while the sheet was up, because the outer identifier replaced it.
+        .accessibilityElement(children: .contain)
     }
 
     /// The one way out.

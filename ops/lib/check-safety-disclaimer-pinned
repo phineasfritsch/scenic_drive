@@ -52,7 +52,7 @@ PINNED_FEATURE=(
   'HomeSheet.swift fda5e599a9c3b09203de6fc835e47cd3592cb91864518e9226d6e35204b9154e'
   'HomeSheetDetent.swift 8f6a8eeaec6829a1b415408db5ea34d787d657919fc0f363189eb34c0e39e63e'
   'LaunchStateReset.swift 9b6b487f2a2de25ce9b35126a337cd628479fb63f16f2ac4daa183fbd1e33321'
-  'SafetyDisclaimer.swift 7c33cdcf91aa074bf3916fda95c680e9e8d50ee131d5016f5912281a72384421'
+  'SafetyDisclaimer.swift 7acc8f07b16bccc866737d321445b67f1d0166b01c38619be642e69883c0fc00'
   'ScenicHomeScreen.swift d71b3438731a1e7e61beb0f815924cce6407875a6b68e982264dcd1c35a60898'
   'SkylineHandoff.swift ecf0b3344c6ba799d44b295395af45f7654a9298146e3591098678563cac3d65'
 )
