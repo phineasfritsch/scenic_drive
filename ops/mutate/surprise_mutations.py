@@ -13,6 +13,8 @@ value types. The driver is surprise.py and the runner surprise_run.py (menu's th
     too-far cut kept past its day - each boundary now pinned from both sides.
   * rv1's survivor (61): a red flag closing a SPARED category; filter 7 now compares the whole red-flag
     permutation to the oracle's scenario R, and the red-flag set to the calm set minus the three fire categories.
+  * T-0263's port of the /isochrone reach (62-78): SurpriseIsochrone and its two value types - the even-odd
+    crossing, its IEEE expression order, holes, the smallest bucket, the decode shape, and the reach pick takes.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -33,12 +35,17 @@ FEEDBACK = _DIR / "SurpriseFeedback.swift"
 CONTEXT = _DIR / "SurpriseContext.swift"
 REASON = _DIR / "SurpriseReason.swift"
 PICK = _DIR / "SurprisePick.swift"
-SUBJECTS = (SURPRISE, CANDIDATE, CATEGORY, REACH, HISTORY, FEEDBACK, CONTEXT, REASON, PICK)
+ISOCHRONE = _DIR / "SurpriseIsochrone.swift"
+BUCKET = _DIR / "SurpriseIsochroneBucket.swift"
+POLYGON = _DIR / "SurpriseIsochronePolygon.swift"
+SUBJECTS = (SURPRISE, CANDIDATE, CATEGORY, REACH, HISTORY, FEEDBACK, CONTEXT, REASON, PICK, ISOCHRONE, BUCKET,
+            POLYGON)
 MUTATED_FILES = SUBJECTS
 
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Surprise"
 TEST_FILES = (_TESTS / "SurpriseFilterTests.swift", _TESTS / "SurpriseRankTests.swift",
-              _TESTS / "SurpriseFeedbackTests.swift")
+              _TESTS / "SurpriseFeedbackTests.swift", _TESTS / "SurpriseReachParityTests.swift",
+              _TESTS / "SurpriseIsochroneTests.swift")
 
 F1 = "filter 1: a place whose round trip exceeds the budget, or lies outside the reach, is never picked"
 F2 = "filter 2: a place shown within 90 days is never picked; 90 days ago it may return"
@@ -56,6 +63,13 @@ DISTINCT = "P-PROD-02: >= 90 of 100 consecutive seeds give distinct picks over t
 PERM = "the whole pick permutation equals the oracle's: driver-a, driver-c and driver-b with history"
 WHY = "the WHY: three picks pinned whole - hook, round trip and the golden-hour line from Solar"
 NOTHING = "nothing reachable is nil: a 20 min budget, or no candidates; a 30 min budget reaches one"
+PARITY = "every shared point gets the TS reference's recorded round-trip minutes from the decoded body"
+OUTSIDE = ("a candidate outside every isochrone bucket is never picked: the ten ojai places, which T-0253's "
+           "reach picks")
+INTO_WHY = ("the decoded reach is the dial and each smallest bucket's round trip, and those minutes reach "
+            "SurpriseReason")
+SHAPE = "a body that is not T-0262's shape does not decode: a MultiPolygon, a one-number position, no round trip"
+CROSSING = "(xj - xi) * (point.latitude - yi) / (yj - yi) + xi"
 
 SHOWN = "$0.candidateId == c.id && days(date, since: $0.date) < shownDays"
 CORRIDOR = "$0.category == c.category && $0.corridor == c.corridor"
@@ -163,6 +177,38 @@ MUTATIONS = [
      "f.reason == .tooFar && days(date, since: f.date) >= 0", [TOO_FAR]),
     ("61 a red flag closes beaches too", CATEGORY, "case .park, .trailhead, .viewpoint: return true\n        case .beach,",
      "case .park, .trailhead, .viewpoint, .beach: return true\n        case", [F7]),
+    ("62 a crossing counts a vertex at the point's latitude", ISOCHRONE,
+     "if (yi > point.latitude) != (yj > point.latitude)", "if (yi >= point.latitude) != (yj >= point.latitude)",
+     [PARITY]),
+    ("63 a point on the crossing counts it", ISOCHRONE, "&& point.longitude < (xj - xi)",
+     "&& point.longitude <= (xj - xi)", [PARITY]),
+    ("64 the crossing's run reversed", ISOCHRONE, CROSSING, "(xi - xj) * (point.latitude - yi) / (yj - yi) + xi",
+     [PARITY]),
+    ("65 the crossing in the other IEEE order", ISOCHRONE, CROSSING,
+     "(xj - xi) * ((point.latitude - yi) / (yj - yi)) + xi", [PARITY]),
+    ("66 holes ignored", ISOCHRONE, "!rings.dropFirst().contains(where:",
+     "!rings.dropFirst(rings.count).contains(where:", [PARITY]),
+    ("67 the last ring read as the outer", ISOCHRONE, "guard let outer = rings.first,", "guard let outer = rings.last,",
+     [PARITY]),
+    ("68 the largest bucket wins", ISOCHRONE, "bucket.roundTripMinutes < $0", "bucket.roundTripMinutes > $0", [PARITY]),
+    ("69 the one-way minutes charged", ISOCHRONE, "{ best = bucket.roundTripMinutes }", "{ best = bucket.minutes }",
+     [PARITY]),
+    ("70 every ring starts inside", ISOCHRONE, "var inside = false", "var inside = true", [PARITY]),
+    ("71 every edge drawn from the last vertex", ISOCHRONE, "            j = i\n", "            j = ring.count - 1\n",
+     [PARITY]),
+    ("72 the budget halved to the one-way dial", ISOCHRONE,
+     "SurpriseReach(budgetMinutes: minutes, roundTripMinutes: roundTrips)",
+     "SurpriseReach(budgetMinutes: minutes / 2, roundTripMinutes: roundTrips)", [INTO_WHY]),
+    ("73 a place outside the reach charged the dial", ISOCHRONE,
+     "if let minutes = roundTripMinutes(at: candidate.coordinate) { roundTrips[candidate.id] = minutes }",
+     "roundTrips[candidate.id] = roundTripMinutes(at: candidate.coordinate) ?? self.minutes", [OUTSIDE, INTO_WHY]),
+    ("74 any polygon type accepted", ISOCHRONE, 'guard bucket.polygon.type == "Polygon" else',
+     "guard !bucket.polygon.type.isEmpty else", [SHAPE]),
+    ("75 a one-number position accepted", ISOCHRONE, "$0.count >= 2", "$0.count >= 1", [SHAPE]),
+    ("76 snake_case keys not converted", ISOCHRONE, ".convertFromSnakeCase", ".useDefaultKeys", [PARITY, SHAPE]),
+    ("77 bucket round trip read as one way", BUCKET, "self.roundTripMinutes = roundTripMinutes",
+     "self.roundTripMinutes = minutes", [SHAPE]),
+    ("78 polygon rings dropped", POLYGON, "self.coordinates = coordinates", "self.coordinates = []", [SHAPE]),
 ]
 
 # Cannot change behaviour, so each must report MISSED; anything else is a FAILURE. `(name, path, old, new, witness)`.
@@ -176,6 +222,6 @@ EQUIVALENT = [
      "Array.isEmpty is defined as count == 0, and count is never negative"),
 ]
 
-MIN_MUTATIONS = 61
+MIN_MUTATIONS = 78
 MIN_EQUIVALENT = 2
-MIN_TEST_FILES = 3
+MIN_TEST_FILES = 5
