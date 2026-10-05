@@ -26,3 +26,4 @@ From T-0180's Log (ruling R9), the three items its first UI test bundle did not 
 - R7 gap: SafetyGateUITests asserts home.conditions at the largest accessibility size at the COLLAPSED detent only; at medium the sheet may outgrow the screen. Measure first (a run's screenshot at -homeDetent medium with -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL), then write the predicate.
 
 ## Log
+- 2026-10-05T11:46:32Z by agent/claude-opus-5 (filer, from T-0180 R16): ALSO CARRIED - register ops/lib/check-drive-copy in pins/PINS.yaml (rv1-pr121 recordable r1). T-0180 did not, because on the Windows box the check never finished: no output in 40 min in the background, and `timeout 280 bash ops/lib/check-drive-copy` was killed at 280 s with 0.45 s user time (blocked, not computing). Find the block first; a pin that hangs check-pins --source-only is worse than none.
