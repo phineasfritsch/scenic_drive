@@ -1,0 +1,439 @@
+{
+ "body": "isochrone.json",
+ "points": [
+  {
+   "name": "p01",
+   "why": "inside the 15 square",
+   "lat": 34.09375,
+   "lon": -118.40625,
+   "round_trip_minutes": 30
+  },
+  {
+   "name": "p02",
+   "why": "inside the 15 square",
+   "lat": 34.078125,
+   "lon": -118.421875,
+   "round_trip_minutes": 30
+  },
+  {
+   "name": "p03",
+   "why": "inside the 15 square near its top-left corner",
+   "lat": 34.1171875,
+   "lon": -118.4296875,
+   "round_trip_minutes": 30
+  },
+  {
+   "name": "p04",
+   "why": "in the 15 AND in the 30's triangular hole: the smallest containing bucket wins",
+   "lat": 34.1171875,
+   "lon": -118.3828125,
+   "round_trip_minutes": 30
+  },
+  {
+   "name": "p05",
+   "why": "in the 30 outer ring, outside the 15",
+   "lat": 34.078125,
+   "lon": -118.46875,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "p06",
+   "why": "in the 30 near its slanted bottom and right edges",
+   "lat": 34.03125,
+   "lon": -118.34375,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "p07",
+   "why": "in the 30 above the 15; the ray meets the (12,10) vertex once",
+   "lat": 34.15625,
+   "lon": -118.453125,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "p08",
+   "why": "in the 30's square hole: the 45 holds it",
+   "lat": 34.078125,
+   "lon": -118.3515625,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "p09",
+   "why": "in the 30's triangular hole above the 15: the 45 holds it",
+   "lat": 34.1328125,
+   "lon": -118.375,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "p10",
+   "why": "in the 45 only",
+   "lat": 34.0625,
+   "lon": -118.28125,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "p11",
+   "why": "in the 45's hole and no other bucket",
+   "lat": 34.1875,
+   "lon": -118.2890625,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "p12",
+   "why": "east of every bucket",
+   "lat": 34.078125,
+   "lon": -118.1875,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "p13",
+   "why": "west of every bucket",
+   "lat": 34.0,
+   "lon": -118.578125,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "p14",
+   "why": "north of every bucket",
+   "lat": 34.3125,
+   "lon": -118.40625,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "p15",
+   "why": "south of every bucket",
+   "lat": 33.921875,
+   "lon": -118.40625,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "p16",
+   "why": "just west of the 45's slanted north-west edge",
+   "lat": 34.21875,
+   "lon": -118.484375,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "p17",
+   "why": "just inside the 45's slanted north-west edge, above the 30",
+   "lat": 34.21875,
+   "lon": -118.46875,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "p18",
+   "why": "west of the 30's slanted west edge, inside the 45",
+   "lat": 34.046875,
+   "lon": -118.5,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "p19",
+   "why": "north-east of the 30, inside the 45",
+   "lat": 34.1875,
+   "lon": -118.328125,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "e01",
+   "why": "on the 15's west edge: a left edge is in",
+   "lat": 34.09375,
+   "lon": -118.4375,
+   "round_trip_minutes": 30
+  },
+  {
+   "name": "e02",
+   "why": "on the 15's east edge: a right edge is out, the 30 holds it",
+   "lat": 34.09375,
+   "lon": -118.375,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "e03",
+   "why": "on the 15's south edge: a bottom edge is in",
+   "lat": 34.0625,
+   "lon": -118.40625,
+   "round_trip_minutes": 30
+  },
+  {
+   "name": "e04",
+   "why": "on the 15's north edge: a top edge is out, the 30 holds it",
+   "lat": 34.125,
+   "lon": -118.40625,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "v01",
+   "why": "the 15's south-west vertex is in",
+   "lat": 34.0625,
+   "lon": -118.4375,
+   "round_trip_minutes": 30
+  },
+  {
+   "name": "v02",
+   "why": "the 15's north-east vertex is out, and it is in the 30's triangular hole",
+   "lat": 34.125,
+   "lon": -118.375,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "v03",
+   "why": "the 15's north-west vertex is out",
+   "lat": 34.125,
+   "lon": -118.4375,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "v04",
+   "why": "the 15's south-east vertex is out",
+   "lat": 34.0625,
+   "lon": -118.375,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "v05",
+   "why": "the 30's lowest vertex is out",
+   "lat": 34.015625,
+   "lon": -118.328125,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "v06",
+   "why": "the 30's eastmost vertex is out",
+   "lat": 34.15625,
+   "lon": -118.3125,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "v07",
+   "why": "the 30's northmost vertex is out",
+   "lat": 34.203125,
+   "lon": -118.40625,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "v08",
+   "why": "the 30's westmost vertex is in: the east edge crosses the ray",
+   "lat": 34.140625,
+   "lon": -118.5,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "v09",
+   "why": "the 30's south-west vertex is in",
+   "lat": 34.03125,
+   "lon": -118.484375,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "h01",
+   "why": "on the square hole's west edge: in the hole, so out of the 30",
+   "lat": 34.078125,
+   "lon": -118.359375,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "h02",
+   "why": "on the square hole's east edge: not in the hole",
+   "lat": 34.078125,
+   "lon": -118.34375,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "h03",
+   "why": "on the square hole's south edge: in the hole",
+   "lat": 34.0625,
+   "lon": -118.3515625,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "h04",
+   "why": "on the square hole's north edge: not in the hole",
+   "lat": 34.09375,
+   "lon": -118.3515625,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "h05",
+   "why": "the square hole's south-west vertex: in the hole",
+   "lat": 34.0625,
+   "lon": -118.359375,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "h06",
+   "why": "the square hole's north-east vertex: not in the hole",
+   "lat": 34.09375,
+   "lon": -118.34375,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "h07",
+   "why": "just east of the 45 hole's slanted west edge (12.93 at this latitude): no bucket",
+   "lat": 34.1875,
+   "lon": -118.296875,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "h08",
+   "why": "just west of the 45 hole's slanted east edge (14.27 at this latitude): no bucket",
+   "lat": 34.1875,
+   "lon": -118.28125,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "o01",
+   "why": "the 45's south-west vertex is out",
+   "lat": 33.96875,
+   "lon": -118.53125,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "o02",
+   "why": "the 45's eastmost vertex is out",
+   "lat": 34.125,
+   "lon": -118.25,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "o03",
+   "why": "the 45's northmost vertex is out",
+   "lat": 34.25,
+   "lon": -118.296875,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "d01",
+   "why": "on the 45's slanted south edge where it is the east boundary: exact, out",
+   "lat": 33.9765625,
+   "lon": -118.3984375,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "d02",
+   "why": "on the 30's slanted south edge where it is the west boundary: exact, in",
+   "lat": 34.0234375,
+   "lon": -118.40625,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "d03",
+   "why": "on the 30's slanted east edge: exact, out of the 30",
+   "lat": 34.0859375,
+   "lon": -118.3203125,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "d04",
+   "why": "on the triangular hole's hypotenuse, its east boundary: not in the hole",
+   "lat": 34.140625,
+   "lon": -118.3671875,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "d05",
+   "why": "on the 45's slanted north-west edge, its west boundary: exact, in",
+   "lat": 34.1640625,
+   "lon": -118.5078125,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "d06",
+   "why": "on the 30's slanted east edge at an inexact coordinate: the reference's last ulp",
+   "lat": 34.046875,
+   "lon": -118.32465277777777,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "d07",
+   "why": "on the 45's slanted north-west edge at an inexact coordinate: the reference's last ulp",
+   "lat": 34.109375,
+   "lon": -118.53819444444444,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "d08",
+   "why": "on the 30's slanted west edge at an inexact coordinate: the reference's last ulp",
+   "lat": 34.078125,
+   "lon": -118.49107142857143,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "r01",
+   "why": "grid (3.60, 3.34): in the 30, west of the 15",
+   "lat": 34.0522,
+   "lon": -118.4437,
+   "round_trip_minutes": 60
+  },
+  {
+   "name": "r02",
+   "why": "grid (6.4, 6.4): in the 15",
+   "lat": 34.1,
+   "lon": -118.4,
+   "round_trip_minutes": 30
+  },
+  {
+   "name": "r03",
+   "why": "grid (12.8, 12.8): just west of the 45's hole (13..14), inside the 45",
+   "lat": 34.2,
+   "lon": -118.3,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "r08",
+   "why": "grid (13.44, 12.16): in the 45's hole and no other bucket",
+   "lat": 34.19,
+   "lon": -118.29,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "d09",
+   "why": "ON the 45 hole's south edge where (xj-xi)*(lat-yi)/(yj-yi) and (xj-xi)*((lat-yi)/(yj-yi)) round apart: the reference's order puts it in the hole",
+   "lat": 34.1706021,
+   "lon": -118.28708189213482,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "d10",
+   "why": "ON the 45 hole's north edge where the two orders round apart: the reference's order leaves it in the hole",
+   "lat": 34.2045883,
+   "lon": -118.28400671882846,
+   "round_trip_minutes": null
+  },
+  {
+   "name": "d11",
+   "why": "ON the 45 hole's west edge where the two orders round apart: the reference's order puts it outside the hole, inside the 45",
+   "lat": 34.1956847,
+   "lon": -118.29779144007567,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "r04",
+   "why": "grid (3.2, -0.64): below the 30, inside the 45",
+   "lat": 33.99,
+   "lon": -118.45,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "r05",
+   "why": "grid (8.32, 8.32): in the 30's triangular hole, above the 15",
+   "lat": 34.13,
+   "lon": -118.37,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "r06",
+   "why": "grid (0, 0): the origin, below the 30's west vertex, inside the 45",
+   "lat": 34.0,
+   "lon": -118.5,
+   "round_trip_minutes": 90
+  },
+  {
+   "name": "r07",
+   "why": "grid (16, 16): north-east of every bucket",
+   "lat": 34.25,
+   "lon": -118.25,
+   "round_trip_minutes": null
+  }
+ ]
+}
