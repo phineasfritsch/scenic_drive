@@ -1,13 +1,13 @@
 ---
 id: T-0252
 title: the Worker serves POST /loop - "just drive 45 minutes and come back": one round_trip request (lambda 2, seeded by user+date), the anti-retrace check ported from ScenicKit RetraceDetector, at most 2 retries, quota first, kill switch honoured
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T09:05:18Z
+lease_expires_at: 2026-10-05T19:05:18Z
+worktree: .worktrees/T-0252
+branch: task/T-0252
 exclusive: []
 touches: [services/api/src/, services/api/test/]
 pins_affected: [P-COST-01, P-COST-04, P-PRIV-05, P-SAFE-01]
@@ -25,3 +25,4 @@ Milestone survey 2026-10-04: M5 loop has the engine (ScenicKit Loop/RetraceDetec
 
 ## Log
 - 2026-10-05T09:04:49Z filed by agent/claude-opus-5 (orchestrator) after PR #139 (T-0248) merged.
+- 2026-10-05T09:05:18Z claimed by agent/claude-opus-5; lease until 2026-10-05T19:05:18Z
