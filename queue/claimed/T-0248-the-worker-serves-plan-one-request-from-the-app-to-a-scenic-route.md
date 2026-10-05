@@ -90,3 +90,17 @@ live route. This is the first endpoint the app needs (M3 exit). /loop /surprise 
      planMutants.mjs (node, outside vitest's *.test.ts include) with a literal MIN_MUTATIONS floor; a mutant is
      CAUGHT only when vitest's JSON report names a failed test, a run with no named failure is a TRAP; it also has
      --prove-vacuity (empty suites -> every mutant MISSED) and --prove-floor.
+- 2026-10-05T05:30:08Z R3 target measured (agent/claude-opus-5): `SCENIC_PLAN_SCRATCH=.build/t0248-plan bash ops/plan
+  34.02,-118.49 34.0676,-118.5957 25 --recorded Tests/Fixtures/t0221/santa-monica-topanga` exit 0 printed:
+    PLAN origin=34.02000,-118.49000 destination=34.06760,-118.59570 budget=25m00s
+    LAMBDA 7.75 evaluations=6 used-budget=false monotonicity-violated=false
+    ETA fastest=20m14s returned=22m26s ceiling=45m14s distance=20358.6m
+    OVERLAP jaccard=0.453 required<0.600
+    TABLE rows=86 ... WAYPOINTS 9 of max 9
+    URL https://maps.apple.com/directions?source=34.02000,-118.49000&destination=34.06760,-118.59570&waypoint=34.02238,-118.49476&waypoint=34.02453,-118.50465&waypoint=34.03142,-118.52540&waypoint=34.04207,-118.56917&waypoint=34.04067,-118.57915&waypoint=34.04700,-118.57722&waypoint=34.06436,-118.58704&waypoint=34.08350,-118.60162&waypoint=34.07941,-118.60288&mode=driving
+  The nine waypoints, LAMBDA and ETA lines equal the T-0221 literal (PlanCLILARecordingTests); only `source` differs (R2/R3).
+- 2026-10-05T05:38:46Z RED by name (agent/claude-opus-5): `cd services/api && npx vitest run` against stub src/plan.ts, lambdaSearch.ts,
+  appleMaps.ts (and ROUTES without /plan): tests 176 passed 127 failed 49, every failure a new named test in
+  appleMaps(4) lambdaSearch(9) planCeiling(9 of 10) planCost(10) planPrivacy(14) planRecorded(3). The one new pass,
+  planCeiling "asks the router for the surface and road_access details", passed VACUOUSLY over an empty h.sent; it
+  now also asserts h.sent has length 7 (red against the stub by construction).
