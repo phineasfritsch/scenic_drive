@@ -1,7 +1,7 @@
 ---
 id: T-0254
 title: PlaceStore places FTS5 table and search(query:limit:) for the plan sheet
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T16:33:29Z
@@ -11,7 +11,7 @@ branch: task/T-0254
 exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, Sources/PlaceStore/, Tests/PlaceStoreTests/, services/api/src/index.ts, services/api/test/routes.test.ts, ops/lib/check-schema-version.py, ops/lib/mutate-population-allowlist.json]
 pins_affected: [P-PROD-05]
-reviewer: null
+reviewer: agent/rv2-t0254
 depends_on: [T-0175]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -74,3 +74,10 @@ Follow-up recorded in T-0175's Log (PR #142, review PASS): the plan sheet needs 
     - KILLED name type check dropped (`if False:`): 4 failed, 71 passed - [name-int], [name-float], [name-bool], [name-array].
     - KILLED osm_type case-folded (`str(osm_type).lower() not in ...`): 1 failed, 74 passed - [osm_type-upper] (survived on the first run, before ruling (f) bound the message to the path).
     - `13 of 13 killed; restored head: 75 passed in 1.12s`, exit 0.
+- 2026-10-05T19:18:34Z REVIEW PASS (round 2), agent/rv2-t0254 (not the owner), PR #152 head e9586a6 (origin/task/T-0254), detached worktree .worktrees/rv2-t0254. Round 1 (rv1-t0254, head 6833d0c) FAIL on one finding: B1, the lon range bound dropped from `_row()`, left 1353 pytest green because the only range row was `({"lat": 91.0}, "range")`. The task handed rv2 no other rv1 results, and PR #152 has no review comments. Faster verification: only the touched test file was re-run, with pycache purged and a 1.1 s wait after every apply and restore.
+    - B1 re-applied (`if not -90.0 <= lat <= 90.0 or not -180.0 <= lon <= 180.0:` -> `if not -90.0 <= lat <= 90.0:`): exit 1, RED by name in 8 rows of test_load_places_refuses_a_malformed_place: [lon-below-by-one-double], [lon-below-by-1e-6], [lon-above-by-one-double], [lon-above-by-1e-6], [lon-huge-int], [lon-nan], [lon-inf], [lon-minus-inf]. That matches the owner's 8.
+    - rv2-a, a variant of my own (lat upper bound `<=` -> `<`): exit 1, RED by name in test_load_places_accepts_a_place_at_every_bound[lat-exactly-90].
+    - rv2-b, a variant of my own (`_degrees` accepts bool, with `or isinstance(value, bool)` dropped): exit 1, RED by name in test_load_places_refuses_a_malformed_place [lat-true], [lat-false], [lon-true], [lon-false].
+    - Restored head: tests/test_corpus_places.py exit 0. tests/test_corpus_places.py plus tests/test_corpus_schema.py gave 89 passed and exit 0, which matches the owner's 89.
+    - `git merge-base --is-ancestor origin/main origin/task/T-0254` exit 0, so origin/main is already contained. `bash ops/queue-check` printed `QUEUE OK (256 tasks)`. `gh pr checks 152`: core pass 3m53s, pins-source-only pass 1m42s.
+    - Carried open from the owner's Log, none of it blocking: the full 1353 ETL pytest was not re-run; extractplace.py stays on the P-PROC-06 allowlist with no ops/mutate population (ruled as validation, not computation); and the OSM POI join and the FTS5 prefix= measurement remain follow-up work.
