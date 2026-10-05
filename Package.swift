@@ -31,6 +31,7 @@ let package = Package(
         // would be a second bisection, and the one that would drift is the one holding the ceiling.
         .executable(name: "scenic-plan", targets: ["ScenicPlanCLI"]),
         .library(name: "PlaceStore", targets: ["PlaceStore"]),
+        .library(name: "ScenicAPIClient", targets: ["ScenicAPIClient"]),
     ],
     dependencies: grdbPackage,
     targets: [
@@ -92,6 +93,21 @@ let package = Package(
             name: "PlaceStoreTests",
             dependencies: ["PlaceStore"] + grdbProduct,
             path: "Tests/PlaceStoreTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // The app's client for the Worker's POST /plan (T-0251). Foundation + URLSession (FoundationNetworking
+        // behind `canImport` on Linux) and ScenicKit for Coordinate - nothing else. It sends ONE coordinate at
+        // 2 dp and refuses anything else on the device; every Worker failure arrives as a PlanError.
+        .target(
+            name: "ScenicAPIClient",
+            dependencies: ["ScenicKit"],
+            path: "Sources/ScenicAPIClient",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "ScenicAPIClientTests",
+            dependencies: ["ScenicAPIClient", "ScenicKit"],
+            path: "Tests/ScenicAPIClientTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]
