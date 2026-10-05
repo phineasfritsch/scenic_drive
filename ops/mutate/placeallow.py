@@ -17,7 +17,8 @@ THE CONTRACT is ops/mutate/extractadapter.py's, kept identically:
     anything runs, and the restore is verified afterwards: a mutation report is a claim about a COMMIT;
   * `MIN_MUTATIONS` EQUALS the shipped population, so deleting any one mutation refuses the run;
   * EQUIVALENT mutants cannot change behaviour, so a catch there is a FAILURE;
-  * `--prove-vacuity` empties the test file and requires EVERY mutation to report MISSED.
+  * `--prove-vacuity` empties the test files and requires EVERY mutation to report MISSED; `--only` runs a
+    named subset (a fix round re-runs the touched rows), the floor still counts the whole population.
 
 PYTHON SUBJECTS: every `__pycache__` under services/etl is purged before each run and the run sleeps past
 the filesystem's timestamp granularity (the whole-second mtime false green).
@@ -97,13 +98,8 @@ SKIP_COUNT = '            counts["skipped_geometry"] += 1'
 MEMBER_TYPE = 'if m.get("type") == MEMBER_WAY and (m.get("role") or "") in OUTER_ROLES]'
 TYPE_TEST = "        if tags.get(row.key) == row.value and osm_type in row.types:"
 GUARD = "    if not member_ways or any(w not in ways for w in member_ways):"
-GUARDED_READ = GUARD + "
-        return None
-    return [n for w in member_ways for n in ways[w]]"
-MEAN = MISSING + "
-        return None
-    lats = [nodes[n][0] for n in distinct]
-    lons = [nodes[n][1] for n in distinct]"
+GUARDED_READ = GUARD + "\n        return None\n    return [n for w in member_ways for n in ways[w]]"
+MEAN = MISSING + "\n        return None\n    lats = [nodes[n][0] for n in distinct]\n    lons = [nodes[n][1] for n in distinct]"
 REL_LOCATE = "            node_ids = relation_nodes(members, ways)"
 LOCATE_CALL = "        where = locate(node_ids or [], nodes)"
 
@@ -177,19 +173,16 @@ MUTATIONS = (
          GUARDED_READ.replace("any(", "all(").replace("ways[w]", "ways.get(w, ())")),
         ("the relation guard gone", SUBJECT, GUARD, "    if not member_ways:"),
         ("the relation guard gone, an absent way read as empty", SUBJECT, GUARDED_READ,
-         GUARDED_READ.replace(" or any(w not in ways for w in member_ways)", "").replace("ways[w]", "ways.get(w, ())")),
+         GUARDED_READ.replace(" or any(w not in ways for w in member_ways)", "")
+         .replace("ways[w]", "ways.get(w, ())")),
         ("a way is skipped only when EVERY node is absent", SUBJECT, MISSING, MISSING.replace("any(", "all(")),
         ("a partial way located from the nodes present", SUBJECT, MEAN,
          MEAN.replace("any(", "all(").replace("in distinct]", "in distinct if n in nodes]")),
         ("no distinct node is not a skip", SUBJECT, MISSING, "    if any(n not in nodes for n in distinct):"),
         ("a relation geometry skip goes uncounted", SUBJECT, REL_LOCATE,
-         REL_LOCATE + "
-            if node_ids is None:
-                continue"),
+         REL_LOCATE + "\n            if node_ids is None:\n                continue"),
         ("a way geometry skip goes uncounted", SUBJECT, LOCATE_CALL,
-         LOCATE_CALL + '
-        if where is None and osm_type == "w":
-            continue'),
+         LOCATE_CALL + '\n        if where is None and osm_type == "w":\n            continue'),
         ("an unlocatable relation handed to locate as None", SUBJECT, LOCATE_CALL,
          "        where = locate(node_ids, nodes)"),
     ]
@@ -211,7 +204,7 @@ EQUIVALENT = [
 KNOWN_MISSED = []
 
 MIN_MUTATIONS = 88
-harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", str(TESTS), str(GEOMETRY_TESTS)]
+harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
 def main(argv: list | None = None) -> int:
