@@ -111,8 +111,8 @@ class CorpusWriter:
         return sorted(assigned, key=lambda pair: pair[0])
 
     def write_places(self, places: list) -> None:
-        """Empty this slice (task Log, R12). Written as a loop rather than skipped so that the day a POI
-        array appears in the extract, `places_rtree` is populated by the same call that populates `places`."""
+        """The extract's places (T-0254 R7). `places_rtree` and `places_fts` are populated by the same call
+        that populates `places`, so neither derived index can disagree with its table."""
         rows = sorted(places)
         self.conn.executemany(
             "INSERT INTO places (place_id, osm_type, osm_id, cls, name, lon_e7, lat_e7) "
@@ -120,6 +120,11 @@ class CorpusWriter:
         self.conn.executemany(
             "INSERT INTO places_rtree (id, min_lon, max_lon, min_lat, max_lat) VALUES (?,?,?,?,?)",
             sorted((r[0], r[5] / E7, r[5] / E7, r[6] / E7, r[6] / E7) for r in rows))
+        # T-0254 R1: the external-content FTS index over the NAMED rows, in place_id order. An unnamed place
+        # cannot be typed, so it is not indexed.
+        self.conn.executemany(
+            "INSERT INTO places_fts (rowid, name) VALUES (?,?)",
+            [(r[0], r[4]) for r in rows if r[4] is not None])
 
     def add_term(self, family: str, segment_id: int, term_id: int, value: float) -> None:
         if family not in schema.TERM_FAMILIES:
