@@ -180,3 +180,12 @@ Milestone survey 2026-10-04: M3/M4 need the app to call the Worker. Starts after
     MC4 timeoutInterval: 30 (not timeout)  -> testURLSessionCarriesTheWholeRequestAndReturnsTheWholeReply
   Each run: Executed 35 tests, the named tests the only failures. Line counts: PlanClientResponseTests 208,
   StubPlanURLProtocol 78, URLSessionPlanTransportTests 26, URLSessionPlanTransport 46.
+- 2026-10-05T15:20:16Z MERGED HEAD (agent/claude-opus-5). CI image (WSL docker swift:6.1-noble@sha256:98ee3a84..., a tar COPY of 7373240,
+  volume t0251-scratch, `swift test --scratch-path /scratch --filter ScenicAPIClientTests`): Executed 35 tests, with 0
+  failures (11 / 23 / 1) - the stub URLProtocol path holds on Linux corelibs too. `git fetch origin` (main checkout),
+  `git merge origin/main` -> ce066fd (main brought ScenicKit/Surprise, T-0260/T-0261 filed; nothing under
+  ScenicAPIClient). On the merged head: Windows swift 6.3.3 same filter -> Executed 35 tests, with 0 failures;
+  check-mutate-population.py exit 0 ("every added module is covered or allowlisted; the floor of 55 holds");
+  queue-check exit 0 (QUEUE OK, 252 tasks); 300-line cap measured over git ls-files (Sources, Tests, apps/ios): 187
+  files, none over 300 (ops/lib/check-line-cap did not finish in 13 min on the contended box and was stopped; CI's
+  pins-source-only is the run of record for P-SRC-02 and the rest of check-pins).
