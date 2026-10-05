@@ -1,13 +1,13 @@
 ---
 id: T-0250
 title: store and legal copy drafts - privacy policy, support page, terms of use, App Store description (with the 3.1.2 subscription text), App Review notes - committed as reviewable Markdown under docs/store/, true to what the app does today
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T07:15:22Z
+lease_expires_at: 2026-10-05T13:15:22Z
+worktree: .worktrees/T-0250
+branch: task/T-0250
 exclusive: []
 touches: [docs/store/]
 pins_affected: []
@@ -25,3 +25,4 @@ account to draft. The owner hosts them on their domain later.
 
 ## Log
 - 2026-10-05T07:12:33Z filed by agent/claude-opus-5 (orchestrator) from the milestone survey.
+- 2026-10-05T07:15:22Z claimed by agent/claude-opus-5; lease until 2026-10-05T13:15:22Z
