@@ -5,6 +5,21 @@
 // This file is a SERIAL-ONLY resource for the agent fleet (see CLAUDE.md).
 import PackageDescription
 
+// GRDB, for PlaceStore - on every host EXCEPT Windows (T-0175 R2). The Windows dev toolchain ships no
+// sqlite3.h/.lib, and SwiftPM there cannot even CHECK OUT GRDB (its tree holds symlinks; measured: "unable to
+// create symlink Tests/CustomSQLite/GRDB: Permission denied"), which a `.when(platforms:)` condition does not
+// prevent - SwiftPM fetches every declared package. So on Windows the package is not declared at all, every
+// PlaceStore file is `#if canImport(GRDB)`, and PlaceStoreTests prints one XCTSkip saying why. Linux CI
+// (linux-core installs libsqlite3-dev) and Apple hosts build and run it. Pinned EXACT: the device's corpus
+// reader is not a place for a minor bump to arrive unannounced; 7.11.1's manifest is swift-tools 6.1.
+#if os(Windows)
+let grdbPackage: [Package.Dependency] = []
+let grdbProduct: [Target.Dependency] = []
+#else
+let grdbPackage: [Package.Dependency] = [.package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1")]
+let grdbProduct: [Target.Dependency] = [.product(name: "GRDB", package: "GRDB.swift")]
+#endif
+
 let package = Package(
     name: "ScenicDrive",
     platforms: [.iOS("18.4"), .macOS(.v14)],
@@ -15,7 +30,9 @@ let package = Package(
         // bisection and the SAME scoring the app runs (T-0182, ruling R1): a python re-implementation
         // would be a second bisection, and the one that would drift is the one holding the ceiling.
         .executable(name: "scenic-plan", targets: ["ScenicPlanCLI"]),
+        .library(name: "PlaceStore", targets: ["PlaceStore"]),
     ],
+    dependencies: grdbPackage,
     targets: [
         .target(
             name: "ScenicKit",
@@ -62,6 +79,19 @@ let package = Package(
             name: "HandoffTests",
             dependencies: ["Handoff", "ScenicKit"],
             path: "Tests/HandoffTests",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // The device's reader for corpus.sqlite, on GRDB over the SYSTEM sqlite (see grdbPackage above).
+        .target(
+            name: "PlaceStore",
+            dependencies: grdbProduct,
+            path: "Sources/PlaceStore",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        .testTarget(
+            name: "PlaceStoreTests",
+            dependencies: ["PlaceStore"] + grdbProduct,
+            path: "Tests/PlaceStoreTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
     ]
