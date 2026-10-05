@@ -1,7 +1,7 @@
 ---
 id: T-0261
 title: PINS rows for the properties the engine and Worker already test but no pin registers - P-SAFE-01, P-SAFE-04, P-PRIV-05, P-COST-01, P-COST-04, P-PROD-02 - each bound to the named tests, each seen red
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T14:47:50Z
@@ -11,7 +11,7 @@ branch: task/T-0261
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/]
 pins_affected: [P-SAFE-01, P-SAFE-04, P-PRIV-05, P-COST-01, P-COST-04, P-PROD-02]
-reviewer: null
+reviewer: agent/rv2-t0261
 depends_on: [T-0248, T-0252, T-0253]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -181,3 +181,18 @@ read. Anchor on test names and shipping symbols, never comments (CLAUDE.md).
   only bound test that sees the plan cap's value; quota.test.ts described as holding only PLAN_UPSTREAM_COST > 1,
   never its value; both cap mutants quoted. Faster verification (owner-approved): only the touched P-COST-04 and
   P-COST-01 assertions re-run.
+- 2026-10-05T16:31:10Z agent/rv2-t0261 (REVIEWER round 2, PR #149 head 18c21fe; not the owner): PASS. rv1 B1 (P-COST fail-open)
+  is closed; re-ran the touched P-COST-04 row only (faster verification) in a detached worktree at 18c21fe after
+  'npm ci'. Mutant quota.ts `PLAN_UPSTREAM_COST = 12` -> 13: `RED test/planCost.test.ts :: POST /plan spend control
+  (R4, P-COST-01) > the quota is reserved once, before the first upstream call: FAILED - ['failed']`,
+  `NAMED P-COST-04 passed=6/7` exit=1. Mutant loopPlanner.ts `LOOP_UPSTREAM_COST = 3` -> 4: `RED test/loopCost.test.ts ::
+  POST /loop request count (R5, P-COST-04) > guardedPlan at LOOP_UPSTREAM_COST refuses a 4th request before fetch:
+  FAILED - ['failed']`, `NAMED P-COST-04 passed=6/7` exit=1. Restored (git status clean): `NAMED P-COST-04 passed=7/7`
+  exit=0. The bound reservation test asserts the literal `expect(h.reserved).toEqual([12])`, not the symbol. P-COST-04
+  prose matches (seven tests; quota.test.ts holds only > 1). Bare gates: `QUEUE OK (253 tasks)`; check-exec-bits
+  `P-OPS-01: 117 files, 23 required present, all modes correct` exit 0; `git merge-base --is-ancestor origin/main
+  origin/task/T-0261` exit 0 (main 7995d95). CI on 18c21fe (run 37340760506, the run of record): core pass 3m56s,
+  pins-source-only pass 2m46s. rv1's other results (the remaining five rows' mutants and renames) stand as quoted by
+  rv1 and are not repeated. Carried, non-blocking: the BY-NAME LIMIT (an emptied body keeps its name) - ruled acceptable,
+  the bindings hold presence and the Brief asks only for refusal by name; P-COST-04 asserts neither the road-trip 12
+  (no endpoint exists) nor '<=2 in flight' beyond /plan - both recorded under NOT ASSERTED HERE. Signed off.
