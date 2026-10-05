@@ -9,6 +9,8 @@
  *   node services/api/test/mutate/quotaMutants.mjs                  run the population
  *   node services/api/test/mutate/quotaMutants.mjs --prove-vacuity  every mutant must report MISSED with no tests
  *   node services/api/test/mutate/quotaMutants.mjs --prove-floor    the floor refuses on its arms; runs no tests
+ *   ... --only=<id>,<id>                                             run only the named entries (a round re-runs
+ *                                                                    what it touched); an unknown id refuses
  *
  * WHAT COUNTS. CAUGHT only when vitest's JSON report names a FAILED test. A run that fails with no named
  * failure (a mutant that does not load) is a TRAP and does not count. An anchor that does not occur exactly
@@ -25,10 +27,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-quota");
 
-export const MIN_MUTATIONS = 49;
+export const MIN_MUTATIONS = 58;
 export const SUBJECTS = ["src/QuotaCounter.ts", "src/quotaCounters.ts", "src/quota.ts", "src/upstream.ts", "src/loop.ts",
   "src/plan.ts", "src/routerDeps.ts", "src/killSwitch.ts", "src/placeResolver.ts"];
-const TESTS = ["test/productionDeps.test.ts", "test/quotaCounter.test.ts", "test/planCost.test.ts", "test/loopCost.test.ts"];
+const TESTS = ["test/productionDeps.test.ts", "test/quotaCounter.test.ts", "test/planCost.test.ts", "test/loopCost.test.ts",
+  "test/placeBounds.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -82,6 +85,15 @@ export const MUTATIONS = [
   m("kill-env-yields-to-kv", "killSwitch.ts", "if (env.KILL === \"1\") return true;", "if (env.KILL === \"1\" && !env.KILL_SWITCH) return true;"),
   m("kill-key", "killSwitch.ts", "KILL_KEY = \"KILL\";", "KILL_KEY = \"kill\";"),
   m("place-lat-unbounded", "placeResolver.ts", "!(lat >= -90 && lat <= 90)", "!(lat >= -90)"),
+  m("place-lat-unbounded-lo", "placeResolver.ts", "!(lat >= -90 && lat <= 90)", "!(lat <= 90)"),
+  m("place-lon-unbounded-hi", "placeResolver.ts", "!(lon >= -180 && lon <= 180)", "!(lon >= -180)"),
+  m("place-lon-unbounded-lo", "placeResolver.ts", "!(lon >= -180 && lon <= 180)", "!(lon <= 180)"),
+  m("place-lat-lo-exclusive", "placeResolver.ts", "lat >= -90", "lat > -90"),
+  m("place-lat-hi-exclusive", "placeResolver.ts", "lat <= 90", "lat < 90"),
+  m("place-lon-lo-exclusive", "placeResolver.ts", "lon >= -180", "lon > -180"),
+  m("place-lon-hi-exclusive", "placeResolver.ts", "lon <= 180", "lon < 180"),
+  m("place-lat-any-type", "placeResolver.ts", "typeof lat !== \"number\" || ", ""),
+  m("place-lon-any-type", "placeResolver.ts", "typeof lon !== \"number\" || ", ""),
   m("place-missing-is-origin", "placeResolver.ts", "if (row === null) return null;", "if (row === null) return { lat: 0, lon: 0 };"),
   m("place-columns-swapped", "placeResolver.ts", "SELECT lat, lon FROM places", "SELECT lon AS lat, lat AS lon FROM places"),
 ];
@@ -153,9 +165,13 @@ function main(argv) {
   if (dirty.status !== 0 || dirty.stdout.trim() !== "") { console.log("REFUSING TO RUN: services/api/src is not clean"); return 2; }
 
   const prove = argv.includes("--prove-vacuity");
+  const only = argv.find((a) => a.startsWith("--only="))?.slice("--only=".length).split(",") ?? null;
+  const unknown = (only ?? []).filter((id) => !MUTATIONS.some((x) => x.id === id));
+  if (only !== null && (only.length === 0 || unknown.length > 0)) { console.log(`REFUSING: unknown --only id(s) ${unknown.join(",")}`); return 2; }
+  const run = only === null ? MUTATIONS : MUTATIONS.filter((x) => only.includes(x.id));
   const extra = prove ? ["-t", "^no test is named this$", "--passWithNoTests"] : [];
   console.log(`population mutations=${MUTATIONS.length} (floor ${MIN_MUTATIONS}) equivalent=${EQUIVALENT.length} `
-    + `subjects=${SUBJECTS.length} tests=${TESTS.length}${prove ? " PROVE-VACUITY" : ""}`);
+    + `subjects=${SUBJECTS.length} tests=${TESTS.length}${prove ? " PROVE-VACUITY" : ""}${only ? ` ONLY=${run.length}` : ""}`);
   if (!prove) {
     const base = vitest([], "baseline");
     if (base.status !== 0 || base.total === 0) { console.log(`REFUSING: the baseline is not green (${base.named.join("; ")})`); return 2; }
@@ -163,7 +179,7 @@ function main(argv) {
   }
 
   const tally = { CAUGHT: 0, MISSED: 0, TRAP: 0 };
-  for (const x of MUTATIONS) {
+  for (const x of run) {
     const path = join(API, x.file);
     const original = readFileSync(path, "utf8");
     let result;
@@ -177,9 +193,9 @@ function main(argv) {
     tally[v] += 1;
     console.log(`${v.padEnd(6)} ${x.id}${result.named.length ? ` by "${result.named[0]}"` : ""}`);
   }
-  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${MUTATIONS.length}`);
-  if (prove) return tally.MISSED === MUTATIONS.length ? 0 : 1;
-  return tally.CAUGHT === MUTATIONS.length ? 0 : 1;
+  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${run.length}`);
+  if (prove) return tally.MISSED === run.length ? 0 : 1;
+  return tally.CAUGHT === run.length ? 0 : 1;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main(process.argv.slice(2)));
