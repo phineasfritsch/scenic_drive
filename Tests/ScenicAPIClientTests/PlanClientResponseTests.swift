@@ -56,20 +56,52 @@ final class PlanClientResponseTests: XCTestCase {
     }
 
     func test200RecordedPlanWithHazardsDecodesWhole() async throws {
+        let decoded = try await recorded("200-plan-hazards").get()
+        XCTAssertEqual(decoded, Self.hazardsPlan(usedBudget: false, etaIsEstimate: true))
+    }
+
+    /// The 200-plan-hazards fixture's plan, whole, with its two flags as given.
+    private static func hazardsPlan(usedBudget: Bool, etaIsEstimate: Bool) -> PlanResponse {
         let route = [(34, -118.5), (34.005, -118.49), (34.01, -118.48), (34.015, -118.47), (34.02, -118.46),
                      (34.025, -118.45), (34.03, -118.44)].map { Coordinate(latitude: $0.0, longitude: $0.1) }
         let url = "https://maps.apple.com/directions?source=34.02000,-118.49000&destination=34.06760,-118.59570"
             + "&waypoint=34.00500,-118.49000&waypoint=34.01000,-118.48000&waypoint=34.01500,-118.47000"
             + "&waypoint=34.02000,-118.46000&waypoint=34.02500,-118.45000&mode=driving"
-        let expected = PlanResponse(
+        return PlanResponse(
             route: route, distanceMeters: 6000, etaSeconds: 1100, fastestEtaSeconds: 1000, ceilingSeconds: 2500,
-            budgetSeconds: 1500, lambda: 7.75, evaluations: 6, usedBudget: false, etaIsEstimate: true,
+            budgetSeconds: 1500, lambda: 7.75, evaluations: 6, usedBudget: usedBudget, etaIsEstimate: etaIsEstimate,
             hazards: [PlanHazard(kind: "surface", value: "gravel", fromIndex: 2, toIndex: 3),
                       PlanHazard(kind: "surface", value: "compacted", fromIndex: 4, toIndex: 6),
                       PlanHazard(kind: "road_access", value: "destination", fromIndex: 1, toIndex: 2)],
             waypoints: Array(route[1...5]), appleMapsURL: URL(string: url)!)
-        let decoded = try await recorded("200-plan-hazards").get()
-        XCTAssertEqual(decoded, expected)
+    }
+
+    /// The hazards fixture's text with `edit` applied, answered as a 200: the flags both recorded plans carry
+    /// (used_budget false, eta_is_estimate true) cannot tell a decoded flag from a hard-coded one on their own.
+    private func edited200(_ edit: (String) -> String) async throws -> Result<PlanResponse, PlanError> {
+        let text = try XCTUnwrap(String(data: try PlanWire.fixture("200-plan-hazards"), encoding: .utf8))
+        let changed = edit(text)
+        XCTAssertNotEqual(changed, text)
+        return await PlanWire.plan(answering: PlanHTTPReply(status: 200, body: Data(changed.utf8))).outcome
+    }
+
+    func test200UsedBudgetTrueAndEtaNotEstimateDecodeAsSent() async throws {
+        let decoded = try await edited200 {
+            $0.replacingOccurrences(of: #""used_budget":false"#, with: #""used_budget":true"#)
+                .replacingOccurrences(of: #""eta_is_estimate":true"#, with: #""eta_is_estimate":false"#)
+        }.get()
+        XCTAssertEqual(decoded, Self.hazardsPlan(usedBudget: true, etaIsEstimate: false))
+    }
+
+    func test200MissingUsedBudgetOrEtaIsEstimateIsUnexpectedResponse() async throws {
+        let noBudget = PlanWire.error(try await edited200 {
+            $0.replacingOccurrences(of: #""used_budget":false,"#, with: "")
+        })
+        XCTAssertEqual(noBudget, .unexpectedResponse(status: 200))
+        let noEstimate = PlanWire.error(try await edited200 {
+            $0.replacingOccurrences(of: #""eta_is_estimate":true,"#, with: "")
+        })
+        XCTAssertEqual(noEstimate, .unexpectedResponse(status: 200))
     }
 
     func test400RecordedInvalidRequestCarriesTheWorkersDetail() async throws {
@@ -144,6 +176,13 @@ final class PlanClientResponseTests: XCTestCase {
         XCTAssertEqual(paused, .unexpectedResponse(status: 400))
         let route = await literal(503, #"{"error":"no_route"}"#)
         XCTAssertEqual(route, .routingOffline)
+    }
+
+    func test502WithoutNoRouteIsRoutingOffline() async {
+        let gateway = await literal(502, "error code: 502")
+        XCTAssertEqual(gateway, .routingOffline)
+        let foreign = await literal(502, #"{"error":"planning_paused"}"#)
+        XCTAssertEqual(foreign, .routingOffline)
     }
 
     func test200ThatDoesNotDecodeIsUnexpectedResponse() async {

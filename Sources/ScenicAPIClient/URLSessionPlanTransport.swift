@@ -11,9 +11,13 @@ import FoundationNetworking
 /// arrived; any status, 5xx included, is returned for `PlanResponseReader` to map.
 public struct URLSessionPlanTransport: PlanTransport {
     public let timeout: TimeInterval
+    /// The session every request goes through: `.shared` in the app; a test hands in one whose configuration
+    /// registers a stub URLProtocol, so it reads the URLRequest this transport built (T-0251 pre-review MC).
+    public let session: URLSession
 
-    public init(timeout: TimeInterval = 30) {
+    public init(timeout: TimeInterval = 30, session: URLSession = .shared) {
         self.timeout = timeout
+        self.session = session
     }
 
     public func send(_ request: PlanHTTPRequest) async throws -> PlanHTTPReply {
@@ -25,7 +29,7 @@ public struct URLSessionPlanTransport: PlanTransport {
         urlRequest.httpBody = request.body
         let built = urlRequest
         return try await withCheckedThrowingContinuation { continuation in
-            let task = URLSession.shared.dataTask(with: built) { data, response, error in
+            let task = session.dataTask(with: built) { data, response, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return

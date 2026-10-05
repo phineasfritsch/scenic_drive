@@ -149,3 +149,34 @@ Milestone survey 2026-10-04: M3/M4 need the app to call the Worker. Starts after
   added, every added module covered or allowlisted, floor 46 holds); queue-check exit 0 (QUEUE OK, 250 tasks). Local
   ops/check-pins --source-only was started on the pre-merge tree and had not finished; CI pins-source-only is the run of
   record. The package-swift lock is NOT released here - the reviewer sign-off deletes queue/LOCKS/package-swift.lock.
+- 2026-10-05T14:53:16Z PRE-REVIEW SURVIVORS CLOSED (agent/claude-opus-5). The fable pass ran on e5ca131 and left three
+  survivors, each alone, `swift test --scratch-path .build/fm-t0251 --filter ScenicAPIClient` -> 31 tests, 0 failures:
+  MA PlanResponseReader `case (502, "no_route"?)` -> `case (502, _)`; MB PlanResponse `usedBudget:` decode -> `false`;
+  MC URLSessionPlanTransport `httpBody = request.body` -> `nil`. Ruled: all three are real holes, none equivalent.
+  MA: no test sent a 502 without the no_route body. MB: both recorded 200s carry used_budget false / eta_is_estimate
+  true, so a hard-coded flag decodes equal. MC: no test read what the PRODUCTION transport hands URLSession - every
+  request assertion ran through CountingPlanTransport. Closed on the entry point (PlanClient.plan):
+  - test502WithoutNoRouteIsRoutingOffline: 502 "error code: 502" and 502 {"error":"planning_paused"} -> .routingOffline.
+  - test200UsedBudgetTrueAndEtaNotEstimateDecodeAsSent: the 200-plan-hazards fixture text with used_budget true and
+    eta_is_estimate false, full equality to the whole PlanResponse; test200MissingUsedBudgetOrEtaIsEstimateIsUnexpected
+    Response: either key removed -> .unexpectedResponse(status: 200).
+  - URLSessionPlanTransport gains `session: URLSession = .shared` (production unchanged: the default is the session
+    it used). URLSessionPlanTransportTests.testURLSessionCarriesTheWholeRequestAndReturnsTheWholeReply drives
+    PlanClient over URLSessionPlanTransport(timeout: 12, session:) whose configuration registers StubPlanURLProtocol;
+    the stub captures the URLRequest URLSession was handed and the test asserts the WHOLE PlanHTTPRequest (url, method,
+    headers, body bytes) by exact equality to the T-0248 literal, the timeout == [12], and that the recorded
+    502-no-route reply comes back as .noRoute (status and body both crossed URLSession). Measured on first run: corelibs
+    hands header names on as "Content-Type"; the stub compares names lowercased (HTTP field names are case-insensitive;
+    uniqueKeysWithValues traps on two spellings of one name). On Darwin the body arrives as httpBodyStream; both read.
+  GREEN, Windows swift 6.3.3 `swift test --scratch-path .build/t0251 --filter ScenicAPIClientTests`: Executed 35 tests,
+  with 0 failures (Request 11, Response 23, URLSessionPlanTransport 1). RED by name, each mutant ALONE on this tree
+  (.build/rv-mutants.py, scratch, same command), 7/7 CAUGHT:
+    MA  502 any body -> noRoute            -> test502WithoutNoRouteIsRoutingOffline
+    MB  usedBudget: false                  -> test200UsedBudgetTrueAndEtaNotEstimateDecodeAsSent, test200Missing...
+    MB2 etaIsEstimate: true                -> test200UsedBudgetTrueAndEtaNotEstimateDecodeAsSent, test200Missing...
+    MC  httpBody = nil                     -> testURLSessionCarriesTheWholeRequestAndReturnsTheWholeReply
+    MC2 httpMethod = "GET"                 -> testURLSessionCarriesTheWholeRequestAndReturnsTheWholeReply
+    MC3 header loop sets nothing           -> testURLSessionCarriesTheWholeRequestAndReturnsTheWholeReply
+    MC4 timeoutInterval: 30 (not timeout)  -> testURLSessionCarriesTheWholeRequestAndReturnsTheWholeReply
+  Each run: Executed 35 tests, the named tests the only failures. Line counts: PlanClientResponseTests 208,
+  StubPlanURLProtocol 78, URLSessionPlanTransportTests 26, URLSessionPlanTransport 46.
