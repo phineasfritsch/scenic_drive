@@ -1,13 +1,13 @@
 ---
 id: T-0266
 title: the ETL extract emits a places array from an OSM allowlist (viewpoint, peak, beach, waterfall, trailhead, park, garden, museum, cafe, town), chain-blocklisted, so the corpus places table, its FTS5 index and the Surprise pool are no longer empty
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T21:00:41Z
+lease_expires_at: 2026-10-06T09:00:41Z
+worktree: .worktrees/T-0266
+branch: task/T-0266
 exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, services/etl/regions/la/, ops/mutate/, ops/lib/mutate-population-allowlist.json]
 pins_affected: [P-PROD-03, P-DATA-01]
@@ -29,3 +29,4 @@ chain-blocklisted'. This is the OSM-allowlist third only (no FSQ/Overture downlo
 
 ## Log
 - 2026-10-05T20:58:07Z filed by agent/claude-opus-5 (orchestrator) after PR #152 merged: the plan sheet's typed search and the Surprise pool have no rows.
+- 2026-10-05T21:00:41Z claimed by agent/claude-opus-5; lease until 2026-10-06T09:00:41Z
