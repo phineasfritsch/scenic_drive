@@ -60,6 +60,7 @@ export async function guardedPlan<T>(
   deps: UpstreamDeps,
   args: { userId: string; tier: Tier },
   body: (call: GuardedFetch) => Promise<T>,
+  budget: number = PLAN_UPSTREAM_COST,
 ): Promise<T> {
   const now = deps.now();
 
@@ -73,15 +74,15 @@ export async function guardedPlan<T>(
 
   // Reserve BEFORE any call. If the plan then fails, we have over-counted by one plan, which is the safe
   // direction to be wrong in: it costs the user one plan of allowance, not us an unbounded bill.
-  await deps.counters.reserve(args.userId, PLAN_UPSTREAM_COST, now);
+  await deps.counters.reserve(args.userId, budget, now);
 
   let spent = 0;
   const call: GuardedFetch = (url, init) => {
     spent += 1;
-    if (spent > PLAN_UPSTREAM_COST) {
+    if (spent > budget) {
       // Reject BEFORE fetchImpl, so the call never happens. P-COST-04 wants <= 12 requests per plan, and a
       // cap that fires after the request has already gone out is not a cap.
-      return Promise.reject(new PlanBudgetExceeded(PLAN_UPSTREAM_COST));
+      return Promise.reject(new PlanBudgetExceeded(budget));
     }
     return deps.fetchImpl(url, init);
   };
