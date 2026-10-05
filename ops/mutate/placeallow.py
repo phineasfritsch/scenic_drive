@@ -36,7 +36,8 @@ ROOT = harness.ROOT
 ETL = harness.ETL
 SUBJECT = ETL / "etl" / "placeallow.py"
 TESTS = ETL / "tests" / "test_placeallow.py"
-EMPTIED = (TESTS,)
+GEOMETRY_TESTS = ETL / "tests" / "test_placeallow_geometry.py"
+EMPTIED = (TESTS, GEOMETRY_TESTS)
 SUBJECTS = (SUBJECT,)
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
@@ -95,6 +96,16 @@ DEDUPE_SIDE = '        if osm_type != "n" and any('
 SKIP_COUNT = '            counts["skipped_geometry"] += 1'
 MEMBER_TYPE = 'if m.get("type") == MEMBER_WAY and (m.get("role") or "") in OUTER_ROLES]'
 TYPE_TEST = "        if tags.get(row.key) == row.value and osm_type in row.types:"
+GUARD = "    if not member_ways or any(w not in ways for w in member_ways):"
+GUARDED_READ = GUARD + "
+        return None
+    return [n for w in member_ways for n in ways[w]]"
+MEAN = MISSING + "
+        return None
+    lats = [nodes[n][0] for n in distinct]
+    lons = [nodes[n][1] for n in distinct]"
+REL_LOCATE = "            node_ids = relation_nodes(members, ways)"
+LOCATE_CALL = "        where = locate(node_ids or [], nodes)"
 
 MUTATIONS = (
     [("drop allowlist row %d" % i, SUBJECT, row, "") for i, row in enumerate(ALLOW_ROWS)]
@@ -160,6 +171,27 @@ MUTATIONS = (
         ("a geometry skip goes uncounted", SUBJECT, SKIP_COUNT, '            counts["skipped_geometry"] += 0'),
         ("a node member counts as an outer way", SUBJECT, MEMBER_TYPE,
          MEMBER_TYPE.replace('m.get("type") == MEMBER_WAY and ', "")),
+        ("B1 a relation is skipped only when EVERY member way is absent", SUBJECT, GUARD,
+         GUARD.replace("any(", "all(")),
+        ("B1b a partial relation located from the member ways present", SUBJECT, GUARDED_READ,
+         GUARDED_READ.replace("any(", "all(").replace("ways[w]", "ways.get(w, ())")),
+        ("the relation guard gone", SUBJECT, GUARD, "    if not member_ways:"),
+        ("the relation guard gone, an absent way read as empty", SUBJECT, GUARDED_READ,
+         GUARDED_READ.replace(" or any(w not in ways for w in member_ways)", "").replace("ways[w]", "ways.get(w, ())")),
+        ("a way is skipped only when EVERY node is absent", SUBJECT, MISSING, MISSING.replace("any(", "all(")),
+        ("a partial way located from the nodes present", SUBJECT, MEAN,
+         MEAN.replace("any(", "all(").replace("in distinct]", "in distinct if n in nodes]")),
+        ("no distinct node is not a skip", SUBJECT, MISSING, "    if any(n not in nodes for n in distinct):"),
+        ("a relation geometry skip goes uncounted", SUBJECT, REL_LOCATE,
+         REL_LOCATE + "
+            if node_ids is None:
+                continue"),
+        ("a way geometry skip goes uncounted", SUBJECT, LOCATE_CALL,
+         LOCATE_CALL + '
+        if where is None and osm_type == "w":
+            continue'),
+        ("an unlocatable relation handed to locate as None", SUBJECT, LOCATE_CALL,
+         "        where = locate(node_ids, nodes)"),
     ]
 )
 
@@ -169,20 +201,34 @@ EQUIVALENT = [
     ("membership of a set copy - `x in frozenset(s)` and `x in set(s)` are one relation", SUBJECT,
      ACCESS_GATE,
      "        if tags.get(ACCESS_KEY) in set(REFUSED_ACCESS):"),
+    ("`ways.get(w, ())` behind the guard - line `if not member_ways or any(w not in ways ...)` returns None "
+     "whenever a member way is absent, so the read below it only ever sees present keys", SUBJECT,
+     GUARDED_READ, GUARDED_READ.replace("ways[w]", "ways.get(w, ())")),
+    ("the empty-relation clause dropped - an empty member list yields [], and `locate([])` returns None by its "
+     "own `not distinct`, so select counts the same skip", SUBJECT, GUARD,
+     "    if any(w not in ways for w in member_ways):"),
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 78
-harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", str(TESTS)]
+MIN_MUTATIONS = 88
+harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", str(TESTS), str(GEOMETRY_TESTS)]
 
 
 def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ops/mutate/placeallow.py", description=__doc__.splitlines()[0])
     parser.add_argument("--prove-vacuity", action="store_true",
-                        help="empty the test file and require every mutation to be MISSED")
+                        help="empty the test files and require every mutation to be MISSED")
+    parser.add_argument("--only", action="append", default=[], metavar="SUBSTRING",
+                        help="run only the entries whose name contains SUBSTRING (repeatable); the floor still "
+                             "counts the whole population")
     args = parser.parse_args(argv)
     if len(MUTATIONS) < MIN_MUTATIONS:
         print("population is %d, floor is %d" % (len(MUTATIONS), MIN_MUTATIONS), file=sys.stderr)
+        return 1
+    mutations = [m for m in MUTATIONS if not args.only or any(o in m[0] for o in args.only)]
+    equivalent = [m for m in EQUIVALENT if not args.only or any(o in m[0] for o in args.only)]
+    if not mutations and not equivalent:
+        print("--only matched nothing", file=sys.stderr)
         return 1
     harness.assert_pristine(GUARDED)
     originals = {path: path.read_text(encoding="utf-8") for path in SUBJECTS + EMPTIED}
@@ -190,23 +236,23 @@ def main(argv: list | None = None) -> int:
     if args.prove_vacuity:
         for path in EMPTIED:
             path.write_text("", encoding="utf-8", newline="\n")
-        caught, missed, skipped = harness.arm(MUTATIONS, subjects, False, "VACUITY")
+        caught, missed, skipped = harness.arm(mutations, subjects, False, "VACUITY")
         harness.restore(originals)
         harness.assert_pristine(GUARDED)
-        ok = caught == 0 and skipped == 0 and missed == len(MUTATIONS)
+        ok = caught == 0 and skipped == 0 and missed == len(mutations)
         print("VACUITY %s" % ("PROVED" if ok else "FAILED"))
         return 0 if ok else 1
     code, failed = harness.run_tests()
     if code != 0 or failed:
         print("BASELINE is not green: exit %d, %s" % (code, failed), file=sys.stderr)
         return 1
-    print("BASELINE exit=0, %d mutations, floor %d" % (len(MUTATIONS), MIN_MUTATIONS))
-    caught, missed, skipped = harness.arm(MUTATIONS, subjects, True, "MUTATIONS")
-    eq_caught, _eq_missed, eq_skipped = harness.arm(EQUIVALENT, subjects, False, "EQUIVALENT")
+    print("BASELINE exit=0, %d mutations, floor %d" % (len(mutations), MIN_MUTATIONS))
+    caught, missed, skipped = harness.arm(mutations, subjects, True, "MUTATIONS")
+    eq_caught, _eq_missed, eq_skipped = harness.arm(equivalent, subjects, False, "EQUIVALENT")
     harness.assert_pristine(GUARDED)
-    ok = caught == len(MUTATIONS) and skipped == 0 and eq_caught == 0 and eq_skipped == 0 and not KNOWN_MISSED
+    ok = caught == len(mutations) and skipped == 0 and eq_caught == 0 and eq_skipped == 0 and not KNOWN_MISSED
     print("MUTATE %s  caught=%d/%d equivalent_caught=%d" % ("OK" if ok else "FAILED", caught,
-                                                            len(MUTATIONS), eq_caught))
+                                                            len(mutations), eq_caught))
     return 0 if ok else 1
 
 
