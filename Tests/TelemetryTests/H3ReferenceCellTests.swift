@@ -55,6 +55,33 @@ import Testing
         #expect(mismatches.isEmpty, "\(mismatches.count) of \(rows.count) differ; first: \(mismatches.prefix(5))")
     }
 
+    @Test("every point around the twelve res-5 pentagons encodes to uber/h3's own cell")
+    func everyPentagonPoint() throws {
+        let mismatches = try Self.mismatches(in: "pentagon05points.txt", expectedRows: 5184)
+        #expect(mismatches.isEmpty, "\(mismatches.count) differ; first: \(mismatches.prefix(5))")
+    }
+
+    /// Fixtures/pentagon05points.txt: rand05centers.txt never reaches the pentagon k-axis correction (T-0265,
+    /// measured by the mutation population), so 5184 points ring the twelve res-5 pentagons at 1-40 km, each
+    /// with the cell h3-py 4.1.2 (uber/h3 C v4.1.0) assigns it - Fixtures/make_pentagon05points.py.
+    static func mismatches(in file: String, expectedRows: Int) throws -> [String] {
+        let url = fixture.deletingLastPathComponent().appendingPathComponent(file)
+        let rows = try String(contentsOf: url, encoding: .utf8).split(separator: "\n")
+        var out = rows.count == expectedRows ? [] : ["\(rows.count) rows, expected \(expectedRows)"]
+        for line in rows {
+            let parts = line.split(separator: " ")
+            guard parts.count == 3, let latitude = Double(parts[1]), let longitude = Double(parts[2]) else {
+                out.append("unreadable row: \(line)")
+                continue
+            }
+            let got = H3Cell.containing(latitudeDegrees: latitude, longitudeDegrees: longitude)?.hexString ?? "nil"
+            if got != String(parts[0]) {
+                out.append("\(parts[0]) at \(latitude),\(longitude) encoded as \(got)")
+            }
+        }
+        return out
+    }
+
     @Test("a non-finite coordinate has no cell")
     func nonFiniteHasNoCell() {
         #expect(H3Cell.containing(latitudeDegrees: .nan, longitudeDegrees: 0) == nil)

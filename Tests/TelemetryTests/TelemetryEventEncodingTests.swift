@@ -6,10 +6,11 @@ import Testing
 /// data point (T-0265 R2). The table must cover every TelemetryEventKind, and `kindBySwitch` switches over
 /// TelemetryEvent with no `default`, so a fifteenth case does not compile here until it has a row.
 @Suite("TelemetryEvent encoding") struct TelemetryEventEncodingTests {
-    /// Two cells and their centers from uber/h3's rand05centers.txt (rows 1 and 2), so the expected blob is a
-    /// published cell id and not this module's own output.
-    static let origin = H3Cell.containing(latitudeDegrees: 67.194014, longitudeDegrees: 191.598258)!
-    static let otherOrigin = H3Cell.containing(latitudeDegrees: 87.372197, longitudeDegrees: 166.176925)!
+    /// Two published cells (rand05centers.txt rows 1 and 2) made from their INDEX, so this table measures
+    /// the encoder alone: the H3 port is H3ReferenceCellTests' subject, and a broken port must not crash or
+    /// redden this suite's static rows.
+    static let origin = H3Cell(index: 0x0850_DAB6_3FFF_FFFF)
+    static let otherOrigin = H3Cell(index: 0x0850_336B_7FFF_FFFF)
 
     static func point(_ name: String, _ label: String = "", _ cell: String = "", _ value1: Double = 0,
                       _ value2: Double = 0) -> TelemetryDataPoint {

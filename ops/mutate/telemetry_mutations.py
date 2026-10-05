@@ -38,6 +38,7 @@ TEST_DIR = ROOT / "Tests" / "TelemetryTests"
 
 REF_ALL = "every row of uber/h3 rand05centers.txt encodes to its published cell"
 REF_TEN = "ten published H3 reference cells encode by exact equality"
+PENT = "every point around the twelve res-5 pentagons encodes to uber/h3's own cell"
 ENCODE = "every event encodes to its whole Analytics Engine data point by exact equality"
 FOURTEEN = "the plan's fourteen events, no more and no fewer, each with a row"
 JSON = "the data point serializes to exactly writeDataPoint's three keys"
@@ -61,8 +62,8 @@ MUTATIONS = [
     ("digit: the unit vector read k-major instead of i-major", COORD,
      "return 4 * diff.i + 2 * diff.j + diff.k", "return 4 * diff.k + 2 * diff.j + diff.i", [REF_ALL, REF_TEN]),
     # H3FaceProjection - face choice and the gnomonic projection.
-    ("closest face: the comparison inverted, every point on face 0", FACE,
-     "if d < sqd {", "if d > sqd {", [REF_ALL, REF_TEN]),
+    ("closest face: face 19 never considered", FACE,
+     "for candidate in 0..<centerPoint.count {", "for candidate in 0..<centerPoint.count - 1 {", [REF_ALL]),
     ("Class III rotation applied at even resolutions", FACE,
      "if resolution % 2 == 1 {", "if resolution % 2 == 0 {", [REF_ALL, REF_TEN]),
     ("the projection is equidistant, not gnomonic", FACE,
@@ -84,7 +85,7 @@ MUTATIONS = [
     ("pentagon rotations treated as ordinary rotations", BUILDER,
      "digits = rotatePentagon60ccw(digits)", "digits = rotate60ccw(digits)", [REF_ALL]),
     ("a pentagon's leading k-axis digit never corrected", BUILDER,
-     "if leadingNonZeroDigit(digits) == kAxesDigit {", "if leadingNonZeroDigit(digits) == 7 {", [REF_ALL]),
+     "if leadingNonZeroDigit(digits) == kAxesDigit {", "if leadingNonZeroDigit(digits) == 7 {", [PENT]),
     # H3Cell - the entry point.
     ("degrees converted with the grad constant", CELL,
      "static let radiansPerDegree = 0.0174532925199432957692369076848861271111",
