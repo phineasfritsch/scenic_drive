@@ -26,13 +26,18 @@ export const PLAN_UPSTREAM_COST = 12;
  *  the monthly ceiling is the real bound. Never a second literal of DAILY_PLAN_QUOTA's numbers. */
 export const DAILY_LOOP_QUOTA = { anon: 1, free: 1, paid: DAILY_PLAN_QUOTA.paid } as const;
 
+/** Daily per-user SURPRISE reaches (T-0262 R4, plan table "Surprise me 3/day" free, "Unlimited" paid): anon gets the
+ *  free figure; "Unlimited" is the paid PLAN cap BY REFERENCE, as for loops. A cache hit spends none of it. */
+export const DAILY_SURPRISE_QUOTA = { anon: 3, free: 3, paid: DAILY_PLAN_QUOTA.paid } as const;
+
 export type Tier = keyof typeof DAILY_PLAN_QUOTA;
 
 /** What a reservation is spent on (T-0256 R4): a loop has its own daily allowance and never spends a plan. */
-export type QuotaKind = "plan" | "loop";
+export type QuotaKind = "plan" | "loop" | "surprise";
 
 /** The daily allowance of `kind` for `tier`. */
 export function dailyQuota(kind: QuotaKind, tier: Tier): number {
+  if (kind === "surprise") return DAILY_SURPRISE_QUOTA[tier];
   return (kind === "loop" ? DAILY_LOOP_QUOTA : DAILY_PLAN_QUOTA)[tier];
 }
 
