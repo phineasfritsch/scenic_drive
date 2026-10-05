@@ -36,11 +36,11 @@ const TESTS = ["test/productionDeps.test.ts", "test/quotaCounter.test.ts", "test
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
   m("do-daily-no-reset", "QuotaCounter.ts", "stored?.day === day ? stored : { day", "stored ? stored : { day"),
-  m("do-daily-inclusive", "QuotaCounter.ts", "if (!(record[kind] < limit)) return false;", "if (!(record[kind] <= limit)) return false;"),
-  m("do-daily-step-2", "QuotaCounter.ts", "[kind]: record[kind] + 1 }", "[kind]: record[kind] + 2 }"),
+  m("do-daily-inclusive", "QuotaCounter.ts", "if (!(used(record, kind) < limit)) return false;", "if (!(used(record, kind) <= limit)) return false;"),
+  m("do-daily-step-2", "QuotaCounter.ts", "[kind]: used(record, kind) + 1 }", "[kind]: used(record, kind) + 2 }"),
   m("do-daily-fresh-one", "QuotaCounter.ts", "{ day, plan: 0, loop: 0 }", "{ day, plan: 1, loop: 0 }"),
-  m("do-read-daily-stale", "QuotaCounter.ts", "return stored?.day === day ? stored[kind] : 0;", "return stored ? stored[kind] : 0;"),
-  m("do-read-daily-kind", "QuotaCounter.ts", "? stored[kind] : 0;", "? stored.plan : 0;"),
+  m("do-read-daily-stale", "QuotaCounter.ts", "return stored?.day === day ? used(stored, kind) : 0;", "return stored ? used(stored, kind) : 0;"),
+  m("do-read-daily-kind", "QuotaCounter.ts", "? used(stored, kind) : 0;", "? stored.plan : 0;"),
   m("do-read-monthly-stale", "QuotaCounter.ts", "return stored?.month === month ? stored.calls : 0;", "return stored ? stored.calls : 0;"),
   m("do-monthly-no-reset", "QuotaCounter.ts", "const current = stored?.month === month ? stored.calls : 0;", "const current = stored ? stored.calls : 0;"),
   m("do-monthly-add-one", "QuotaCounter.ts", "calls: current + calls }", "calls: current + 1 }"),
