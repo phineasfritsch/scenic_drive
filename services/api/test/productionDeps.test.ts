@@ -49,8 +49,9 @@ function fullEnv(over: Record<string, unknown> = {}): Env {
   return e as unknown as Env;
 }
 
-async function send(path: "/plan" | "/loop", e: Env, device: string | null = DEVICE, body?: unknown) {
-  const headers: Record<string, string> = { "content-type": "application/json" };
+async function send(path: "/plan" | "/loop", e: Env, device: string | null = DEVICE, body?: unknown,
+  extra: Record<string, string> = {}) {
+  const headers: Record<string, string> = { "content-type": "application/json", ...extra };
   if (device !== null) headers["x-scenic-device"] = device;
   const req = new Request(`https://scenic-api.test${path}`, {
     method: "POST", headers, body: JSON.stringify(body ?? (path === "/plan" ? SANTA_MONICA_TOPANGA_BODY : LOOP_BODY)),
@@ -127,6 +128,33 @@ describe("the shipped routes over the QuotaCounter DO (R1-R4)", () => {
       global: monthly("2026-10", 48),
     });
   });
+});
+
+describe("the tier is never read from the client (R3)", () => {
+  const claimsPaid = { "x-scenic-tier": "paid" };
+  const refused = { status: 429, json: { error: "quota_exhausted", resets_at: "2026-10-06T00:00:00.000Z" } };
+
+  it("a device sending x-scenic-tier: paid still gets the anon allowance: the 4th plan and the 2nd loop are 429", async () => {
+    for (let i = 0; i < 3; i += 1) expect((await send("/plan", fullEnv(), DEVICE, undefined, claimsPaid)).status).toBe(200);
+    expect((await send("/loop", fullEnv(), DEVICE, undefined, claimsPaid)).status).toBe(200);
+    const spent = { [`device:${DEVICE}`]: daily("2026-10-05", 3, 1), global: monthly("2026-10", 39) };
+    expect(quota.state()).toEqual(spent);
+    const calls = router.calls.length;
+    expect(await send("/plan", fullEnv(), DEVICE, undefined, claimsPaid)).toEqual(refused);
+    expect(await send("/loop", fullEnv(), DEVICE, undefined, claimsPaid)).toEqual(refused);
+    expect(quota.state()).toEqual(spent);
+    expect(router.calls).toHaveLength(calls);
+  });
+
+  for (const path of ["/plan", "/loop"] as const) {
+    it(`${path} with a tier field in the body is 400 with zero router requests and nothing reserved`, async () => {
+      const body = { ...(path === "/plan" ? SANTA_MONICA_TOPANGA_BODY : LOOP_BODY), tier: "paid" };
+      expect(await send(path, fullEnv(), DEVICE, body)).toEqual({ status: 400, json: {
+        error: "invalid_request", detail: `the body carries "tier", which ${path} does not accept` } });
+      expect(router.calls).toEqual([]);
+      expect(quota.state()).toEqual({});
+    });
+  }
 });
 
 describe("deps exist exactly when every binding does (R8)", () => {

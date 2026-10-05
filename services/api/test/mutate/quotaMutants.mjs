@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-quota");
 
-export const MIN_MUTATIONS = 48;
+export const MIN_MUTATIONS = 49;
 export const SUBJECTS = ["src/QuotaCounter.ts", "src/quotaCounters.ts", "src/quota.ts", "src/upstream.ts", "src/loop.ts",
   "src/plan.ts", "src/routerDeps.ts", "src/killSwitch.ts", "src/placeResolver.ts"];
 const TESTS = ["test/productionDeps.test.ts", "test/quotaCounter.test.ts", "test/planCost.test.ts", "test/loopCost.test.ts"];
@@ -74,6 +74,8 @@ export const MUTATIONS = [
   m("router-device-case", "routerDeps.ts", "(req.headers.get(DEVICE_HEADER) ?? \"\").toLowerCase()", "(req.headers.get(DEVICE_HEADER) ?? \"\")"),
   m("router-device-any", "routerDeps.ts", "DEVICE_ID.test(raw) ? raw", "raw.length > 0 ? raw"),
   m("router-tier-free", "routerDeps.ts", "tier: \"anon\" }", "tier: \"free\" }"),
+  m("router-tier-from-header", "routerDeps.ts", "UNIDENTIFIED_DEVICE, tier: \"anon\" };",
+    "UNIDENTIFIED_DEVICE, tier: ((t) => (t === \"free\" || t === \"paid\" ? t : \"anon\"))(req.headers.get(\"x-scenic-tier\")) };"),
   m("router-device-header", "routerDeps.ts", "DEVICE_HEADER = \"x-scenic-device\";", "DEVICE_HEADER = \"x-device\";"),
   m("kill-kv-ignored", "killSwitch.ts", "return (await env.KILL_SWITCH.get(KILL_KEY)) === \"1\";", "return false;"),
   m("kill-kv-fails-open", "killSwitch.ts", "} catch {\n    return true;", "} catch {\n    return false;"),
