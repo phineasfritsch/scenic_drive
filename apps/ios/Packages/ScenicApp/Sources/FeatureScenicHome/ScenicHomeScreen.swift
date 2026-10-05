@@ -63,6 +63,12 @@ public struct ScenicHomeScreen: View {
     /// Which drive is on screen. `@State`, not `@AppStorage`: a relaunch is back on the default, the owner's drive.
     @State private var selectedDrive = HandoffDrive.defaultDrive
 
+    /// The selected drive's menu (T-0246), or `nil` for a drive without one - resolved beside `route`.
+    @State private var menu: DriveMenu?
+
+    /// Which menu row is selected; `nil` is the menu's own default row. A launch argument can pick one.
+    @State private var menuRow = DriveMenuChips.rowAtLaunch
+
     /// How much of the drive the sheet shows. A launch argument can pick the first one (`HomeSheetDetent`).
     @State private var sheetDetent = HomeSheetDetent.atLaunch
 
@@ -108,6 +114,7 @@ public struct ScenicHomeScreen: View {
         // The three moments the answer can change, and the only three: first appearance, a new drive, light/dark.
         .task { resolveBasemap() }
         .onChange(of: selectedDrive) { resolveBasemap() }
+        .onChange(of: menuRow) { resolveBasemap() }
         .onChange(of: colorScheme) { resolveBasemap() }
         .sheet(isPresented: $isShowingDisclaimer) {
             SafetyDisclaimer(onAccept: {
@@ -121,7 +128,8 @@ public struct ScenicHomeScreen: View {
     /// Ask `DriveBasemap` which tiles this drive can have on this device, and keep the answer: the LA drives get the
     /// Protomaps basemap when `la.pmtiles` is on the phone and the demo tiles when it is not (see `DriveBasemap`).
     private func resolveBasemap() {
-        route = DriveRoute.resolve(for: selectedDrive)
+        menu = DriveRoute.menu(for: selectedDrive)
+        route = DriveRoute.resolve(for: selectedDrive, menu: menu, selected: menuRow)
         style = DriveBasemap.resolve(
             for: selectedDrive,
             appearance: colorScheme == .dark ? .dark : .light
@@ -136,6 +144,7 @@ public struct ScenicHomeScreen: View {
         GatedHandoffButton(
             isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,
             drive: selectedDrive,
+            row: selectedRow,
             onBlocked: { isShowingDisclaimer = true },
             onFailure: { handoffFailure = $0 }
         )
@@ -157,8 +166,19 @@ public struct ScenicHomeScreen: View {
             .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { chipBandBottom = $0 }
     }
 
-    /// The collapsed sheet: the drive's name and where it goes, a failure card if the handoff refused, the
-    /// conditions line, the button. Short, because it is the first thing anyone sees.
+    /// The selected menu row (T-0246), or `nil` for a drive without a menu: what the line, the button, the paste
+    /// and the road line all read.
+    private var selectedRow: DriveMenuRow? {
+        menu?.row(selected: menuRow)
+    }
+
+    /// The roads the selected row drives (the CLI's), or the drive's own road list when it has no menu.
+    private var roadList: String {
+        selectedRow?.roadList ?? DriveCopy.route(for: selectedDrive)
+    }
+
+    /// The collapsed sheet: the drive's name and where it goes, the menu's chips when it has one, a failure card
+    /// if the handoff refused, the conditions line, the button. Short, because it is the first thing anyone sees.
     @ViewBuilder
     private var sheetSummary: some View {
         Text(DriveCopy.title(for: selectedDrive))
@@ -169,10 +189,15 @@ public struct ScenicHomeScreen: View {
             .accessibilityAddTraits(.isHeader)
             .accessibilityIdentifier("home.title")
 
+        if let menu {
+            DriveMenuChips(menu: menu, selection: $menuRow)
+        }
+
         if let handoffFailure {
             HandoffFailureCard(message: handoffFailure,
-                               roadList: DriveCopy.route(for: selectedDrive),
+                               roadList: roadList,
                                drive: selectedDrive,
+                               row: selectedRow,
                                onRetry: { gatedHandoff.attempt() })
         }
 
@@ -184,7 +209,7 @@ public struct ScenicHomeScreen: View {
     /// What `medium` adds. The caption reads the resolved `style`: it says what is under the map, and on a device
     /// with no LA archive that is the demo basemap whichever drive is selected.
     private var sheetDetails: some View {
-        DriveDetails(drive: selectedDrive, caption: DriveCopy.mapCaption(for: selectedDrive, style: style))
+        DriveDetails(drive: selectedDrive, roads: roadList, caption: DriveCopy.mapCaption(for: selectedDrive, style: style))
     }
 
     /// The persistent conditions line - the plan's risk table, verbatim, as the mitigation for *sedan onto

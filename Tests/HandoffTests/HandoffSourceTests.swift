@@ -184,6 +184,14 @@ struct HandoffSourceTests {
         // separator and joined, a party the basemap already names skipped - `String`, `Set` and `Array`, no
         // number and no locale. This check went red on it and on `Set` by name before it went green.
         "CreditLine",
+        // `DriveMenu` / `DriveMenuRow` are T-0246's home-sheet menu: the rows `ops/plan --menu` printed, read from
+        // the bundle `ops/lib/make-menu-bundle.py` writes. They name `Decodable`/`CodingKey`/`CodingKeys` (the
+        // bundle's snake_case keys), `JSONDecoder` to read it and `JSONSerialization` to write each row's
+        // GeoJSON, with `Data` and `Any` for the bytes and the dictionary. JSON's number grammar is fixed by
+        // RFC 8259 - no locale reads or writes it - and the chip's one decimal is integer arithmetic, not
+        // `String(format:)`, which this check went red on by name before it went green.
+        "DriveMenu", "DriveMenuRow", "Decodable", "CodingKey", "CodingKeys", "JSONDecoder", "JSONSerialization",
+        "Data", "Any",
         // modules
         "Foundation", "ScenicKit",
         // ScenicKit

@@ -31,6 +31,9 @@ struct GatedHandoffButton: View {
     /// Nothing about the gate below depends on it - the guard runs first for every drive there is.
     let drive: HandoffDrive
 
+    /// The selected menu row (T-0246), or `nil` for a drive with no menu: the tap opens ITS printed URL.
+    let row: DriveMenuRow?
+
     /// Called on a tap that the gate stopped. The screen presents the disclaimer.
     let onBlocked: () -> Void
 
@@ -84,7 +87,7 @@ struct GatedHandoffButton: View {
             return
         }
         do {
-            try SkylineHandoff.open(drive)
+            try SkylineHandoff.open(drive, row: row)
             onFailure(nil)
         } catch {
             // `.public`: `HandoffError` carries a coordinate pair or a waypoint count, and the

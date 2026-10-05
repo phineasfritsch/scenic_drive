@@ -3,22 +3,12 @@
 # the shape of ops/lib/check-safety-disclaimer (P-SAFE-03) and for the same reason - `FeatureScenicHome`
 # has NO TEST BUNDLE (apps/ios/Packages/ScenicApp/Package.swift says so in its own words) and there is no
 # Apple toolchain on the authoring box, so nothing else in this repository can read a line of it.
-#
-# WHY IT EXISTS. The pre-review mutant pass on PR #121 (.artifacts/signoffs/copy-four-mutant-pass.md) ran
-# four one-token mutations of the shipping views and every gate stayed green - `linux-core`, `ios-compile`
-# and `check-safety-disclaimer` all exit 0 while the app ships the WRONG DRIVE:
-#
-#   M1a  HandoffFailureCard.clipboardText  drive.clipboardPayload( -> HandoffDrive.skyline.clipboardPayload(
-#        The LA card copies the Bay Area link, above the LA roads and the LA miles. The Linux suite calls
-#        clipboardPayload on a drive the TEST chooses, so it cannot see which drive the CARD passes.
-#   M1c  SkylineHandoff.directions(for:)   drive.directions -> HandoffDrive.skyline.directions
-#        The button opens Skyline while the card copies LA - T-0202's defect, in the other direction.
-#   M3a/M3b were closed by moving the words into `Sources/Handoff` (HandoffDrive.timingSentence /
-#        .failureTimingSentence, bound by Tests/HandoffTests/HandoffDriveTimingSentenceTests.swift). Rows
-#        4 and 5 below are what stops them walking back into this target as a fresh literal.
-#
+# WHY IT EXISTS. The pre-review mutant pass on PR #121 (.artifacts/signoffs/copy-four-mutant-pass.md) ran four
+# one-token mutations of the shipping views and every gate stayed green while the app shipped the WRONG DRIVE:
+# M1a (the card pastes HandoffDrive.skyline.clipboardPayload() and M1c (the handoff opens .skyline.directions)
+# are refused by (i) and (ii) below, each with its why. M3a/M3b were closed by moving the words into
+# `Sources/Handoff` (HandoffDriveTimingSentenceTests); (iv) stops them walking back as a fresh literal.
 # WHAT IT DECIDES, and it refuses to pretend it decides more:
-#
 #   (i)   every occurrence of `clipboardPayload(` under the app tree is at the one tracked site, AND every
 #         one of them is spelled `drive.clipboardPayload(` - the receiver is the selected drive
 #   (ii)  every occurrence of `.directions` under the app tree is at the one tracked site, AND every one is
@@ -29,7 +19,7 @@
 #   (iv)  the two timing sentences are RENDERED, not re-typed: `.timingSentence` at the two tracked sites
 #         and `.failureTimingSentence` at the one, so a literal typed back into this target (which no test
 #         can read) shows up as a count that moved
-#
+#   (v)   the map draws the CHIP's row: `DriveRoute.resolve(` and both `JSON(selected:` lines whole (rv2 B2)
 # EVERY ANCHOR IS A WHITELIST over an identifier: any other count in any file is refused, whatever the
 # spelling (CLAUDE.md - PR #101 bought four review rounds one blacklisted spelling at a time). The counts
 # are typed literals at the call site, not derived from what was just read, so a change that both adds an
@@ -37,7 +27,6 @@
 # the screen legitimately grows one more. Nothing here is anchored on a comment: `//` is stripped before
 # anything is counted, and so is every "..." string literal, so `identifier: "home.drive.skyline"` is not
 # read as a case reference.
-#
 # WHAT IT CANNOT SEE, so nobody reads more into a green than is there: whether either view renders at all,
 # what the sentences SAY (Tests/HandoffTests owns that: no digit, the two differ, the promise only on the
 # home surface), whether the copy button is reachable, Dynamic Type, the 44 pt target - an XCUITest owns
@@ -48,7 +37,7 @@
 #
 #   bash ops/lib/check-drive-copy                 # the tracked tree
 #   bash ops/lib/check-drive-copy --sources DIR --app-tree DIR   # a throwaway copy
-#   bash ops/lib/check-drive-copy --prove-red     # seven mutations, each refused by name
+#   bash ops/lib/check-drive-copy --prove-red     # every row below refused by name, and an emptied tree
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -122,6 +111,10 @@ require_tracked() {
     "whatever the spelling." \
     "${why[@]}"
 }
+require_line() {  # WHOLE LINE, fail closed: needle, the one "path:line" allowed, why, then the files (T-0246)
+  local needle="$1" expected="$2" why="$3" f got; shift 3
+  got="$(for f in "$@"; do code_of "$f" | awk -v f="$f" -v n="$needle" 'index($0, n) { print f ":" $0 }'; done)"
+  [[ "$got" == "$expected" ]] || fail "a line carrying $needle is not the whitelisted whole line; found: ${got:-none}" "Whitelist, whole line: $expected" "$why"; }
 
 run_check() {
   local sources="$1" require_tracked="$2" app_tree="$3"
@@ -131,20 +124,17 @@ run_check() {
   [[ -d "$app_tree" ]] || fail "no such directory: $app_tree" \
     "Every count is decided over the app tree; a missing tree is a refusal, never a pass."
 
-  local card="$sources/HandoffFailureCard.swift"
-  local handoff="$sources/SkylineHandoff.swift"
-  local facts="$sources/DriveFacts.swift"
-  local basemap="$sources/DriveBasemap.swift"
-  local words="$sources/DriveCopy.swift"
-  local picker="$sources/DriveSelector.swift"
+  local card="$sources/HandoffFailureCard.swift" handoff="$sources/SkylineHandoff.swift" facts="$sources/DriveFacts.swift"
+  local basemap="$sources/DriveBasemap.swift" words="$sources/DriveCopy.swift" route="$sources/DriveRoute.swift"
+  local picker="$sources/DriveSelector.swift" screen="$sources/ScenicHomeScreen.swift"
 
   local f
-  for f in "$card" "$handoff" "$facts" "$basemap" "$words" "$picker"; do
+  for f in "$card" "$handoff" "$facts" "$basemap" "$words" "$picker" "$screen" "$route"; do
     [[ -f "$f" ]] || fail "missing file: $f" \
       "Every tracked count below names this file; a tree without it is a check with no population."
   done
   if [[ "$require_tracked" -eq 1 ]]; then
-    for f in "$card" "$handoff" "$facts" "$basemap" "$words" "$picker"; do
+    for f in "$card" "$handoff" "$facts" "$basemap" "$words" "$picker" "$screen" "$route"; do
       [[ -n "$(git ls-files -- "$f")" ]] || fail "not tracked by git: $f" \
         "This is a property of the committed tree, not of somebody's working directory."
     done
@@ -204,12 +194,21 @@ run_check() {
     "The card's own sentence, from the same tested type: made equal to the home sentence it promises a" \
     "real time from an app that just refused to open (M3b)." \
     -- "${app_files[@]}"
-
+  require_tracked "drive.url(row: row)" "menu-row URL (T-0246)" "$handoff(1)" "The selected row's own printed URL," \
+    "bound to ops/plan --menu by SaddlePeakMenuBundleTests; nil opens T-0236's URL under another chip (M5a)." -- "${app_files[@]}"
+  require_tracked "row: selectedRow," "selected menu row" "$screen(2)" "The button and the failure card are each" \
+    "handed the SELECTED row; a fixed one opens or pastes a row the chips do not show (M5b)." -- "${app_files[@]}"
+  require_line "row(selected:" "$screen:        menu?.row(selected: menuRow)" \
+    "selectedRow reads the CHIP; row(selected: nil) opens the default under every chip (rv1-t0246 MC)." "${app_files[@]}"
+  require_line "DriveRoute.resolve(" "$screen:        route = DriveRoute.resolve(for: selectedDrive, menu: menu, selected: menuRow)" \
+    "The map draws the CHIP's row; selected: nil draws the default while chips and button follow the tap (rv2-t0246 B2)." "${app_files[@]}"
+  require_line "JSON(selected:" "$route:        return route?.redrawn(geoJSON: menu.geoJSON(selected: selected),"$'\n'"$route:                              muted: menu.mutedGeoJSON(selected: selected)," \
+    "resolve's own row reaches both map layers; nil there lights the default and mutes the chip's row (rv2-t0246 B2)." "${app_files[@]}"
   echo "drive-copy: over the $an .swift file(s) under $app_tree -"
   echo "  clipboardPayload( at $card(1), every occurrence spelled drive.clipboardPayload(;"
   echo "  .directions at $handoff(1), every occurrence spelled drive.directions;"
   echo "  the drive cases .saddlePeak, .skyline and .santaMonicaMountains each at $cases and nowhere else;"
-  echo "  .timingSentence at $facts(1) $card(1), .failureTimingSentence at $card(1)."
+  echo "  .timingSentence at $facts(1) $card(1), .failureTimingSentence at $card(1); drive.url(row: row) at $handoff(1), row: selectedRow, at $screen(2), and row(selected: on one whole line, menu?.row(selected: menuRow) at $screen; DriveRoute.resolve( and both JSON(selected: lines whole at $screen and $route."
   echo "  Not checked here: rendering, what the sentences say (Tests/HandoffTests), taps, Dynamic Type."
 }
 
@@ -224,6 +223,12 @@ rows=(
   "the card reads the THIRD case hard-coded (T-0236)|FS/HandoffFailureCard.swift|s/DriveFacts\.straightLine(for: drive)/DriveFacts.straightLine(for: .saddlePeak)/|drive case .saddlePeak occurs outside its tracked set"
   "the failure card grows its own timing literal again|FS/HandoffFailureCard.swift|s/Text(drive\.failureTimingSentence)/Text(localNote)/|failureTimingSentence occurs outside its tracked set"
   "the home screen stops rendering the shipping sentence|FS/DriveFacts.swift|s/Text(drive\.timingSentence)/Text(localNote)/|timingSentence occurs outside its tracked set"
+  "M5a the handoff drops the selected menu row|FS/SkylineHandoff.swift|s/drive\.url(row: row)/drive.url(row: nil)/|drive.url(row: row) occurs outside its tracked set"
+  "M5b the button is handed a fixed menu row|FS/ScenicHomeScreen.swift|0,/row: selectedRow,/s//row: menu?.rows.first,/|row: selectedRow, occurs outside its tracked set"
+  "MC selectedRow reads no chip|FS/ScenicHomeScreen.swift|s/menu?\.row(selected: menuRow)/menu?.row(selected: nil)/|row(selected: is not the whitelisted whole line"
+  "MX the map is resolved for no chip|FS/ScenicHomeScreen.swift|s/menu: menu, selected: menuRow)/menu: menu, selected: nil)/|DriveRoute.resolve( is not the whitelisted whole line"
+  "MX the map's lit layer draws no chip|FS/DriveRoute.swift|s/menu\.geoJSON(selected: selected)/menu.geoJSON(selected: nil)/|JSON(selected: is not the whitelisted whole line"
+  "MX the map's muted layer mutes no chip|FS/DriveRoute.swift|s/menu\.mutedGeoJSON(selected: selected)/menu.mutedGeoJSON(selected: nil)/|JSON(selected: is not the whitelisted whole line"
 )
 
 prove_red() {

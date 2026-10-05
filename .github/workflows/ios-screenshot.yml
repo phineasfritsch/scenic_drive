@@ -3,7 +3,8 @@
 # WHY IT EXISTS (T-0235): the owner has no Mac, and ios-compile.yml proves only that the tree builds. This job
 # boots an iOS 26 simulator, installs and launches the app, and uploads PNGs of its first screen - the home
 # screen - in light and dark, at both of its sheet detents (T-0237: `-homeDetent collapsed|medium`, a launch
-# argument), as ONE artifact, `ios-screenshots`, so the app can be SEEN. It proves nothing about
+# argument) and collapsed again with the menu's 'Fastest' row selected (T-0246: `-menuRow 0`; every other shot passes
+# `-menuRow default`, which is no row, so the menu's own default row), as ONE artifact, `ios-screenshots`, so the app can be SEEN. It proves nothing about
 # signing or TestFlight (T-0009). The runner needs network: the demo style is remote. apps/ios/ScenicDrive/Tiles/
 # la.pmtiles is gitignored, so CI draws the MapLibre demo tiles and credits them as such - BasemapResolver's
 # fallback, not a defect.
@@ -114,14 +115,15 @@ jobs:
           }
           for LOOK in light dark; do
             xcrun simctl ui "$UDID" appearance "$LOOK"
-            for DETENT in collapsed medium; do
-              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT")
+            for SHOT in collapsed medium fastest; do
+              case "$SHOT" in fastest) DETENT=collapsed ROW=0 ;; *) DETENT=$SHOT ROW=default ;; esac
+              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW")
               echo "$LAUNCHED"
               PID=${LAUNCHED##*: }
               case "$PID" in ''|*[!0-9]*) echo "ios-screenshot: simctl launch printed no pid: $LAUNCHED"; exit 1;; esac
               sleep "$SETTLE"
               alive "$PID" "${SETTLE}s after the $LOOK $DETENT launch"
-              xcrun simctl io "$UDID" screenshot --type=png "$SHOTS/home-$LOOK-$DETENT.png"
+              xcrun simctl io "$UDID" screenshot --type=png "$SHOTS/home-$LOOK-$SHOT.png"
               alive "$PID" "after the $LOOK $DETENT screenshot"
               xcrun simctl terminate "$UDID" "$BUNDLE"
             done
