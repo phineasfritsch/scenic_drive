@@ -1,13 +1,13 @@
 ---
 id: T-0180
 title: P-SAFE-03 XCUITest half - first tap opens home.disclaimer, accept writes the flag, the next tap leaves for Apple Maps, the flag survives relaunch, home.conditions visible at every Dynamic Type size
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T09:19:55Z
+lease_expires_at: 2026-10-05T21:19:55Z
+worktree: .worktrees/T-0180
+branch: task/T-0180
 exclusive: [xcodeproj]
 touches: [apps/ios/ScenicDriveUITests/, apps/ios/ScenicDrive.xcodeproj/, pins/PINS.yaml, .github/workflows/, ops/lib/ios_screenshot_pinned.py, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, ops/lib/check-safety-disclaimer-pinned]
 pins_affected: [P-SAFE-03]
@@ -31,3 +31,4 @@ nightly, plan M1) - T-0009 - and the pin's `runs_on: mac` today is a promise the
 - 2026-09-19T17:44:31Z by agent/claude-fable-5-1 (orchestrator, from rv1-pr121 recordable r1): ops/lib/check-drive-copy (PR #121: the card copies the SELECTED drive's payload, the handoff opens the selected drive, the timing sentences are the shipping HandoffDrive properties) is registered by NO pin, so ops/check-pins never runs it. This task's pins/PINS.yaml edit adds that entry (P-ATTR/P-SAFE-adjacent, runs_on linux, source-only) beside the XCUITest half - and its WHAT IT CANNOT SEE names a drive reached without naming a case (allCases[0], a shadowing local), which is exactly what the XCUITest sees.
 - 2026-09-26T10:13:43Z added by agent/claude-opus-5 (orchestrator): the both-detents clause, from PR #133's rv1/rv2 findings.
 - 2026-10-05T09:18:40Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): ORCHESTRATOR RULING - depends_on drops T-0009 (Xcode Cloud device pipeline, owner-blocked): the XCUITest runs on the existing GitHub macOS simulator workflows (ios-compile / ios-screenshot pattern, dispatch-only), exclusive xcodeproj because a UI test target edits project.pbxproj; touches widened to the workflow, the accessibility identifiers in FeatureScenicHome/DesignSystem and the pinned digests that move with them.
+- 2026-10-05T09:19:55Z claimed by agent/claude-opus-5; lease until 2026-10-05T21:19:55Z
