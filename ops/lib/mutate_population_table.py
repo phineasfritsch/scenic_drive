@@ -11,11 +11,16 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 DRIVERS = ("budget.py", "extractadapter.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
            "hazards.py", "menu.py", "normalise.py", "plan.py", "retrace.py", "roadtrip.py", "routescore.py",
            "scenic_tags.py",
-           "segmentscore.py", "straightline.py", "surfacecoverage.py")
+           "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
+    "Sources/ScenicKit/Surprise/Surprise.swift", "Sources/ScenicKit/Surprise/SurpriseCandidate.swift",
+    "Sources/ScenicKit/Surprise/SurpriseCategory.swift", "Sources/ScenicKit/Surprise/SurpriseReach.swift",
+    "Sources/ScenicKit/Surprise/SurpriseHistory.swift", "Sources/ScenicKit/Surprise/SurpriseFeedback.swift",
+    "Sources/ScenicKit/Surprise/SurpriseContext.swift", "Sources/ScenicKit/Surprise/SurpriseReason.swift",
+    "Sources/ScenicKit/Surprise/SurprisePick.swift",
     "services/etl/etl/accessrule.py", "services/etl/etl/extractadapter.py",
     "services/etl/etl/normalise.py", "services/etl/etl/proximity.py",
     "services/etl/etl/region_reference.py", "services/etl/etl/scenecheck.py",

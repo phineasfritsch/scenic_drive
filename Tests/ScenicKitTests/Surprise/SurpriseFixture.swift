@@ -46,7 +46,7 @@ enum SurpriseFixture {
     }
 
     /// Scenario B's history (R8): beach topanga-03 89 days, viewpoint malibu-02 90 days, cafe x griffith 29
-    /// days, museum x arroyo 30 days before 2026-06-21.
+    /// days, museum x arroyo 30 days, garden x ojai 200 days (novelty capped at 100) before 2026-06-21.
     static let historyB = SurpriseHistory(shown: [
         .init(candidateId: "topanga-03", category: .beach, corridor: "topanga",
               date: CivilDate(year: 2026, month: 3, day: 24)),
@@ -56,6 +56,8 @@ enum SurpriseFixture {
               date: CivilDate(year: 2026, month: 5, day: 23)),
         .init(candidateId: "arroyo-x", category: .museum, corridor: "arroyo",
               date: CivilDate(year: 2026, month: 5, day: 22)),
+        .init(candidateId: "ojai-x", category: .garden, corridor: "ojai",
+              date: CivilDate(year: 2025, month: 12, day: 3)),
     ])
     static let contextB = context(user: "driver-b", date: june21, depart: 600)
 

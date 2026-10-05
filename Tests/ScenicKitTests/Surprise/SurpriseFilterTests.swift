@@ -52,6 +52,7 @@ struct SurpriseFilterTests {
         #expect(!picked.contains("w-hours-opens"))
         #expect(!picked.contains("w-hours-none"))
         #expect(picked.contains("w-hours-edge"))
+        #expect(picked.contains("w-hours-open-edge"))
     }
 
     @Test("filter 6: an unlit unpaved viewpoint arriving after civil twilight is never picked")
@@ -79,6 +80,6 @@ struct SurpriseFilterTests {
         let picked = Set(try SurpriseFixture.ids())
         #expect(!picked.contains("w-private-1"))
         #expect(!picked.contains("w-private-2"))
-        #expect(picked.count == 126)
+        #expect(picked.count == 127)
     }
 }

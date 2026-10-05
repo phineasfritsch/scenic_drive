@@ -73,6 +73,7 @@ def rows():
     # 120 -> arrival 900; dwell 60 + 45 -> needs closes >= 1005.
     w("w-hours-late", "Witness Closes 1004", "museum", "whours", exempt=False, opens=600, closes=1004)
     w("w-hours-edge", "Witness Closes 1005", "museum", "whours", exempt=False, opens=600, closes=1005)
+    w("w-hours-open-edge", "Witness Opens 900", "cafe", "whours", exempt=False, opens=900, closes=1260)
     w("w-hours-opens", "Witness Opens 901", "cafe", "whours", exempt=False, opens=901, closes=1260)
     w("w-hours-none", "Witness No Hours", "cafe", "whours", exempt=False)
     w("w-private-1", "Witness Private Gate", "trailhead", "wprivate", private=True)
@@ -169,7 +170,8 @@ B_CTX = {"date": D1, "depart": 600, "budget": 150}
 B_HIST = {"shown": [{"id": "topanga-03", "category": "beach", "corridor": "topanga", "date": dt.date(2026, 3, 24)},
                     {"id": "malibu-02", "category": "viewpoint", "corridor": "pch", "date": dt.date(2026, 3, 23)},
                     {"id": "griffith-x", "category": "cafe", "corridor": "griffith", "date": dt.date(2026, 5, 23)},
-                    {"id": "arroyo-x", "category": "museum", "corridor": "arroyo", "date": dt.date(2026, 5, 22)}]}
+                    {"id": "arroyo-x", "category": "museum", "corridor": "arroyo", "date": dt.date(2026, 5, 22)},
+                    {"id": "ojai-x", "category": "garden", "corridor": "ojai", "date": dt.date(2025, 12, 3)}]}
 
 
 def main():
@@ -207,7 +209,7 @@ def main():
                                                             sum(tally.values())))
     absent = [w for w in ("w-reach-over", "w-reach-none", "w-brand-sbux", "w-brand-innout", "w-hours-late",
                           "w-hours-opens", "w-hours-none", "w-private-1", "w-private-2") if w in a]
-    present = [w for w in ("w-reach-edge", "w-hours-edge", "w-dark-late", "w-dark-early") if w in a]
+    present = [w for w in ("w-reach-edge", "w-hours-edge", "w-hours-open-edge", "w-dark-late", "w-dark-early") if w in a]
     print("A: witnesses wrongly present=%s  boundary witnesses present=%s" % (absent, present))
     print("B: topanga-03 in=%s malibu-02 in=%s cafe@griffith=%s museum@arroyo=%s" % (
         "topanga-03" in b, "malibu-02" in b, [x for x in b if x.startswith("griffith") and

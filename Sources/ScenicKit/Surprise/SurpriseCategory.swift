@@ -10,4 +10,12 @@ public enum SurpriseCategory: String, Sendable, Equatable, CaseIterable {
     case cafe
     case museum
     case town
+
+    /// R3 (7): a red-flag / fire-weather day closes these.
+    public var closesOnRedFlag: Bool {
+        switch self {
+        case .park, .trailhead, .viewpoint: return true
+        case .beach, .garden, .cafe, .museum, .town: return false
+        }
+    }
 }

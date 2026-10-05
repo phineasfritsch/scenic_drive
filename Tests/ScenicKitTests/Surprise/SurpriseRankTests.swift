@@ -17,9 +17,9 @@ struct SurpriseRankTests {
         }
     }
 
-    @Test("P-PROD-02: >= 90 of 100 consecutive seeds give distinct picks over the 126 eligible")
+    @Test("P-PROD-02: >= 90 of 100 consecutive seeds give distinct picks over the 127 eligible")
     func distinct() throws {
-        #expect(Set(try SurpriseFixture.ids()).count == 126)
+        #expect(Set(try SurpriseFixture.ids()).count == 127)
         #expect(Set(try SurpriseFixture.ids(count: 100)).count >= 90)
         #expect(Set(try SurpriseFixture.ids(from: 5_000, count: 100)).count >= 90)
     }
@@ -29,9 +29,9 @@ struct SurpriseRankTests {
         let a = try SurpriseFixture.sequence("A")
         let c = try SurpriseFixture.sequence("C")
         let b = try SurpriseFixture.sequence("B")
-        #expect(a.count == 126 && c.count == 126 && b.count == 96)
-        #expect(try SurpriseFixture.ids(count: 126) == a)
-        #expect(try SurpriseFixture.ids(count: 126, context: SurpriseFixture.context(user: "driver-c")) == c)
+        #expect(a.count == 127 && c.count == 127 && b.count == 96)
+        #expect(try SurpriseFixture.ids(count: 127) == a)
+        #expect(try SurpriseFixture.ids(count: 127, context: SurpriseFixture.context(user: "driver-c")) == c)
         #expect(try SurpriseFixture.ids(count: 96, budget: 150, history: SurpriseFixture.historyB,
                                         context: SurpriseFixture.contextB) == b)
         #expect(a != c)

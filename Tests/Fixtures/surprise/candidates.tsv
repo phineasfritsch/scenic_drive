@@ -126,6 +126,7 @@ w-brand-sbux	Witness Starbucks	cafe	wbrand	Starbucks	34.1	-118.4	70	60	60	420	12
 w-brand-innout	Witness In-N-Out	cafe	wbrand	In-N-Out Burger	34.1	-118.4	70	60	60	420	1260	0	0	0	0	120	A ruled witness
 w-hours-late	Witness Closes 1004	museum	whours	-	34.1	-118.4	70	60	60	600	1004	0	0	0	0	120	A ruled witness
 w-hours-edge	Witness Closes 1005	museum	whours	-	34.1	-118.4	70	60	60	600	1005	0	0	0	0	120	A ruled witness
+w-hours-open-edge	Witness Opens 900	cafe	whours	-	34.1	-118.4	70	60	60	900	1260	0	0	0	0	120	A ruled witness
 w-hours-opens	Witness Opens 901	cafe	whours	-	34.1	-118.4	70	60	60	901	1260	0	0	0	0	120	A ruled witness
 w-hours-none	Witness No Hours	cafe	whours	-	34.1	-118.4	70	60	60	-	-	0	0	0	0	120	A ruled witness
 w-private-1	Witness Private Gate	trailhead	wprivate	-	34.1	-118.4	70	60	60	-	-	1	0	0	1	120	A ruled witness
