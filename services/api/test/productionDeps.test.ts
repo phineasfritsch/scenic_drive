@@ -131,16 +131,16 @@ describe("the shipped routes over the QuotaCounter DO (R1-R4)", () => {
 
 describe("deps exist exactly when every binding does (R8)", () => {
   const missing: [string, Record<string, unknown>][] = [
-    ["QUOTA", { QUOTA: undefined }],
-    ["ROUTER_URL", { ROUTER_URL: undefined }],
-    ["ROUTER_SECRET", { ROUTER_SECRET: undefined }],
+    ["no QUOTA binding", { QUOTA: undefined }],
+    ["no ROUTER_URL", { ROUTER_URL: undefined }],
+    ["no ROUTER_SECRET", { ROUTER_SECRET: undefined }],
     ["an empty ROUTER_SECRET", { ROUTER_SECRET: "" }],
     ["the placeholder ROUTER_URL https://router.invalid", { ROUTER_URL: "https://router.invalid" }],
     ["an http: ROUTER_URL", { ROUTER_URL: "http://router.test" }],
   ];
   for (const path of ["/plan", "/loop"] as const) {
     for (const [name, over] of missing) {
-      it(`${path} without ${name} is 503 planning_unavailable with zero router requests`, async () => {
+      it(`${path} with ${name} is 503 planning_unavailable with zero router requests`, async () => {
         expect(await send(path, fullEnv(over))).toEqual({ status: 503, json: { error: "planning_unavailable" } });
         expect(router.calls).toEqual([]);
         expect(quota.state()).toEqual({});
