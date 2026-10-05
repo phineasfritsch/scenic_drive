@@ -1,13 +1,13 @@
 ---
 id: T-0253
 title: ScenicKit Surprise - the selector picks one reachable, open, safe, novel place and says why
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T09:38:03Z
+lease_expires_at: 2026-10-05T21:38:03Z
+worktree: .worktrees/T-0253
+branch: task/T-0253
 exclusive: []
 touches: [Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, Tests/Fixtures/surprise/, ops/mutate/]
 pins_affected: [P-PROD-02]
@@ -38,3 +38,4 @@ and eligible count the author quotes in the Log before writing that test.
 ## Log
 - 2026-10-05T09:36:52Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map: M5's Surprise
   engine is missing; filed as T-0253 by hand because ops/new-task allocated T-9902 (the T-0128 stray-ref bug).
+- 2026-10-05T09:38:03Z claimed by agent/claude-opus-5; lease until 2026-10-05T21:38:03Z
