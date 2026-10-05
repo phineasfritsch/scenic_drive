@@ -1,7 +1,7 @@
 ---
 id: T-0246
 title: the home sheet shows the menu - extra-minutes chips for the Saddle Peak trip (Fastest / +12 min / +17 min) from ops/plan --menu's rows, each redrawing the map line and handing its own route to Apple Maps
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-09-26T18:40:45Z
@@ -11,7 +11,7 @@ branch: task/T-0246
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/ScenicDrive/Routes/, Sources/Handoff/, Tests/HandoffTests/, ops/lib/make-route-geojson.py, ops/lib/make-menu-bundle.py, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-frozen, ops/lib/check-drive-copy, .github/workflows/ios-screenshot.yml, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift, apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift, ops/lib/check-safety-disclaimer-sheet, Tests/ScenicPlanCLITests/, ops/lib/ios_screenshot_pinned.py, ops/mutate/handoff.py]
 pins_affected: [P-ATTR-01, P-SAFE-03, P-SAFE-04]
-reviewer: null
+reviewer: agent/rv3-t0246
 depends_on: [T-0239]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -92,3 +92,9 @@ is the owner-seen reference for the numbers.
     - `GATE check-mutate-population exit=0 C:\Users\phineasf\AppData\Local\Programs\Python\Python310\python.exe | services/etl/etl/way_record.py / P-PROC-06: every added module is covered or allowlisted; the floor of 41 holds`
   - NOT RUN in that pass: `rest_and_gates.py` ended after the gates above and never printed its `rest_and_gates exit` line, so check-line-cap, check-exec-bits, queue-check and `ops/check-pins --source-only` were never run on 8560ed6. They are run on the round-3 merged head and quoted in the round-3 entry, not claimed here.
   - No Swift under apps/ changed; FeatureScenicHome digests untouched; no simulator run owed.
+- 2026-10-05T09:09:36Z ROUND-3 REVIEW PASS by agent/rv3-t0246 (reviewer; not owner, fixer, rv1 or rv2), PR #136 head 3f042382cc8f59ae7a359d8bcbb4e7268aa8fba9. Scope: rv2-t0246 B2 (MX) and the three new check-drive-copy rows only.
+  - MX replayed in a detached worktree at that head (selected: nil in the ScenicHomeScreen.swift DriveRoute.resolve( call and in both JSON(selected: lines of DriveRoute.swift), each guard run bare, in the background, read once: check-safety-disclaimer exit=1 naming DriveRoute.swift (sha256 fb8ce66f..., approved 5a64c9b7...) and ScenicHomeScreen.swift (sha256 1f3c1990..., approved d0f8489c...); check-drive-copy exit=1, "a line carrying DriveRoute.resolve( is not the whitelisted whole line", found ScenicHomeScreen.swift ... selected: nil).
+  - Each new row alone, check-drive-copy --sources/--app-tree over its own copy of apps/ios: resolve call selected: nil -> exit=1 naming the DriveRoute.resolve( whole line; geoJSON(selected: nil) -> exit=1 naming the JSON(selected: whole lines of DriveRoute.swift; mutedGeoJSON(selected: nil) -> exit=1, same. All three refused by name. Green: PR checks core and pins-source-only pass on this head.
+  - Plain: swift test at this head -> "Test run with 377 tests in 54 suites passed"; bash ops/queue-check -> QUEUE OK (242 tasks); gh pr checks 136 -> core pass, pins-source-only pass.
+  - RECORDABLE 1: this Log carried no round-2 ruling of B2 and no red-then-green for the three MX rows before this entry, and the round-3 gate quotes promised above (check-line-cap, check-exec-bits, queue-check, check-pins --source-only on the round-3 merged head) were never written. The reds above are the first recorded. Gap recorded, not bought as a round (round 3, no P-SAFE pin failing open).
+  - RECORDABLE 2: git merge-base --is-ancestor origin/main origin/task/T-0246 -> exit 1. main moved after the 3f04238 merge (PR #138 T-0242 region build, T-0250 queue commits: services/etl/regionbuild, ops/etl-region, queue files). No pins/ or ops/lib/ file changed, so the gate set this sign-off covers is the one on main. Merge origin/main before the PR merges.
