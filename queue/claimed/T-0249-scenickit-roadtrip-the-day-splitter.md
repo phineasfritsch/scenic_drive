@@ -1,13 +1,13 @@
 ---
 id: T-0249
 title: ScenicKit RoadTrip - the day splitter (A->B over N days, +40% scenic budget, max drive and max miles per day, 2-4 stops a day, an overnight town per boundary) as a pure Foundation module over a recorded route
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T05:10:08Z
+lease_expires_at: 2026-10-05T15:10:08Z
+worktree: .worktrees/T-0249
+branch: task/T-0249
 exclusive: []
 touches: [Sources/ScenicKit/RoadTrip/, Tests/ScenicKitTests/RoadTrip/, Tests/Fixtures/roadtrip/, ops/mutate/, ops/lib/mutate_population_table.py]
 pins_affected: []
@@ -26,3 +26,4 @@ follow.
 
 ## Log
 - 2026-10-05T05:06:53Z filed by agent/claude-opus-5 (orchestrator) from the milestone survey.
+- 2026-10-05T05:10:08Z claimed by agent/claude-opus-5; lease until 2026-10-05T15:10:08Z

@@ -1,13 +1,13 @@
 ---
 id: T-0248
 title: the Worker serves POST /plan - one request from the app becomes a fastest call plus the lambda budget search against the router, returning the scenic route, ETA vs fastest, hazards and the Apple Maps URL; quota first, kill switch honoured, privacy invariant held
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-05T05:09:51Z
+lease_expires_at: 2026-10-05T15:09:51Z
+worktree: .worktrees/T-0248
+branch: task/T-0248
 exclusive: []
 touches: [services/api/src/, services/api/test/]
 pins_affected: [P-COST-01, P-COST-04, P-PRIV-05, P-SAFE-04, P-SAFE-01]
@@ -27,3 +27,4 @@ live route. This is the first endpoint the app needs (M3 exit). /loop /surprise 
 
 ## Log
 - 2026-10-05T05:06:53Z filed by agent/claude-opus-5 (orchestrator) from the milestone survey.
+- 2026-10-05T05:09:51Z claimed by agent/claude-opus-5; lease until 2026-10-05T15:09:51Z
