@@ -39,7 +39,7 @@ adventure, then home.
 DRIVES TO START WITH
 Three hand-picked drives in Los Angeles and the San Francisco Bay Area: Saddle Peak from Topanga to Malibu, the
 Skyline loop from San Francisco, and the Westwood loop to the coast and back. Pick one, read the route, and open
-it in Apple Maps with every turn of the scenic stretch kept in place.
+it in Apple Maps with the scenic stretch pinned by waypoints.
 [`Sources/Handoff/HandoffDrive.swift`; `FeatureScenicHome/DriveCopy.swift`; `GatedHandoffButton.swift`]
 
 [PLANNED] YOUR DRIVE HOME, THE LONG WAY
@@ -60,16 +60,19 @@ Several days from A to B, split into days with a few stops each and a town for t
 
 HONEST ABOUT THE ROAD
 Scenic Drive suggests roads; it does not check them. Before your first drive it tells you what it doesn't know,
-and "Conditions change. Verify locally." stays on screen. [`SafetyDisclaimer.swift`; `ScenicHomeScreen.swift`]
+and "Conditions change. Verify locally." stays on screen. [`SafetyDisclaimer.swift`; `Copy.conditions` at `SafetyDisclaimer.swift:106`;
+`ScenicHomeScreen.swift`]
 [PLANNED] Arrival times are marked "estimate · no traffic data" until the app has learned your roads.
 [`CLAUDE.md`, Product invariants]
 
 PRIVATE BY DESIGN
 No account needed. Your location is not sent to us today. [PLANNED] When planning arrives, our server sees
-at most one rough location per request, never your exact position, and what the app learns about your roads
+at most one rough location per action, never your exact position, and what the app learns about your roads
 stays on your phone. [`CLAUDE.md`, Product invariants; plan Decisions, "ETA honesty"]
 
-Maps and road data © OpenStreetMap contributors · Protomaps. [`LICENSE-DATA`; `MapStyle.swift`]
+Maps and road data © OpenStreetMap contributors · Protomaps. [PLANNED as the credit on every map: today the
+SF Peninsula drive, and any drive on a phone without the Los Angeles map file, uses MapLibre's demonstration
+map, credited "© MapLibre · Natural Earth" - `DriveBasemap.swift`; `LICENSE-DATA`; `MapStyle.swift`]
 
 [PLANNED] SCENIC DRIVE PRO
 Free: plan and preview drives and open them in Apple Maps, a few each day.

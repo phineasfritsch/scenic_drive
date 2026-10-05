@@ -17,9 +17,9 @@ sheet appears. It cannot be swiped away; the only way on is "I understand". It s
 suggests roads but does not check them. After that, "Conditions change. Verify locally." stays on the route
 screen. We designed it this way on purpose: the app may route over small mountain roads, and we want drivers to
 know what it does not know. Accepting it is remembered on the device only.
-[`SafetyDisclaimer.swift`: `interactiveDismissDisabled()`, `Copy.title`, `Copy.accept`;
-`ScenicHomeScreen.swift`, `Copy.conditions` and key `safety.disclaimer.acknowledged.v1`; `CLAUDE.md`, Product
-invariants]
+[`SafetyDisclaimer.swift`: `interactiveDismissDisabled()`, `Copy.title`, `Copy.accept`, and the line's text
+`Copy.conditions` (`SafetyDisclaimer.swift:106`), shown on the route screen by `ScenicHomeScreen.swift`; key
+`safety.disclaimer.acknowledged.v1`; `CLAUDE.md`, Product invariants]
 
 **Location (Guideline 5.1.1).** This build does not ask for location permission at all. To try a drive: pick
 one of the drive chips at the top of the map (for example "Saddle Peak"), read the route in the sheet, and tap
@@ -40,13 +40,21 @@ a Restore Purchases row. Please use a Sandbox Apple Account to test it. [plan De
 **Turn-by-turn navigation - PLANNED.** Navigation uses location in the background while a drive is under way;
 a 30-second screen recording of a drive is attached. [plan M7, M8; Guideline 2.5.4]
 
-**Daily limits - PLANNED.** Each device can plan a few drives a day for free (the server allows 3 without an
-anonymous device, 10 on the free tier, 200 for Pro - which user lands on which of the first two tiers is not
-decided in code yet). If you hit a limit, the app says when it resets.
+**Daily limits - PLANNED.** Each device can plan a few drives a day for free. The server's table has three
+tiers - `anon` 3 plans a day, `free` 10, Pro 200 - and no code yet decides whether a device that does not pay
+is counted as `anon` or as `free`. If you hit a limit, the app says when it resets.
 [`services/api/src/quota.ts`, `DAILY_PLAN_QUOTA`; plan Runtime lifecycles, "Degraded states": `quotaExhausted`]
 
-**Map credit.** "© OpenStreetMap contributors · Protomaps" is shown on every map screen at every sheet height,
-as the data licenses require. [`CLAUDE.md`, Product invariants; `MapStyle.swift`, `protomapsAttribution`;
-`LICENSE-DATA`]
+**Map credit.** Every map screen shows a credit line at every sheet height, and it names the sources that
+screen draws: the basemap's own credit, plus OpenStreetMap when an OpenStreetMap route line is drawn. In this
+build: the Saddle Peak and Westwood drives use the Los Angeles map, credited "© OpenStreetMap contributors ·
+Protomaps", when its file is on the device; the SF Peninsula (Skyline) drive on every device, and any drive
+on a device without that file, uses MapLibre's demonstration map, credited "© MapLibre · Natural Earth". Only
+Saddle Peak draws a route line, and its credit line also names OpenStreetMap for it.
+[`ScenicHomeScreen.swift`, `CreditLine.composed(basemap:routeData:)`; `DriveBasemap.swift`,
+`resolve(for:appearance:)`; `HandoffDrive.routeGeometryResource`; `MapStyle.swift`, `protomapsAttribution`,
+`demoAttribution`; `CLAUDE.md`, Product invariants; `LICENSE-DATA`]
+**PLANNED:** the shipping app draws every drive on our own OpenStreetMap-based map, so every map screen reads
+"© OpenStreetMap contributors · Protomaps". [plan Decisions, "Tiles"]
 
 **Contact for review:** [owner name, phone, email - owner to set]

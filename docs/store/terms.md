@@ -15,7 +15,7 @@ road. [plan Context; `SafetyDisclaimer.swift`]
 The app suggests roads. It does not check them. Roads close, surfaces wash out, gates lock and the weather turns.
 Before and during every drive, follow posted signs, the law and your own judgement over anything the app shows.
 Conditions change. Verify locally. [`apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/SafetyDisclaimer.swift`,
-`Copy.body` and `Copy.conditions`]
+`Copy.body` and `Copy.conditions` (`SafetyDisclaimer.swift:106`)]
 
 You must accept the "Before you drive" notice before the app hands you a route, and the line "Conditions change.
 Verify locally." stays on the route screen. [`CLAUDE.md`, Product invariants: "The safety disclaimer gates the
@@ -29,7 +29,7 @@ responsible for how you drive.
 ## 4. Arrival times are estimates
 
 **PLANNED:** arrival times are labelled *estimate · no traffic data* until the app has learned enough about a
-road (five drives' worth of samples). The app does not use live traffic. [`CLAUDE.md`, Product invariants;
+road (at least five learned samples on that stretch). The app does not use live traffic. [`CLAUDE.md`, Product invariants;
 plan "Explicitly not building": live traffic is V1.1]
 
 ## 5. Subscription - PLANNED
@@ -56,9 +56,15 @@ paused for everyone if the service is under strain. [`services/api/src/quota.ts`
 
 ## 7. Map data
 
-Maps and road data © OpenStreetMap contributors, available under the Open Database License (ODbL). Basemap by
-Protomaps. The scenic road data derived from OpenStreetMap is itself offered under the ODbL; we publish it on
-request. [`LICENSE-DATA`; plan Decisions, "ODbL posture"; `MapStyle.swift`, `protomapsAttribution`]
+Maps and road data © OpenStreetMap contributors, available under the Open Database License (ODbL). Each map
+screen's credit line names the sources it draws: Protomaps for the Los Angeles map when its file is on the
+phone, and MapLibre's demonstration map (© MapLibre · Natural Earth) for the SF Peninsula drive in this
+preview. [`LICENSE-DATA`; `MapStyle.swift`, `protomapsAttribution`, `demoAttribution`; `DriveBasemap.swift`]
+
+**PLANNED - the plan's ODbL posture:** the scenic road data derived from OpenStreetMap is to be offered under
+the ODbL and published on request. No publication process exists yet. [plan Decisions, "ODbL posture"]
+**LAWYER NOTE:** confirm whether publishing on request meets the ODbL's share-alike and offer terms for a
+derived database, and what the offer must say.
 
 ## 8. Where the app is offered
 

@@ -77,3 +77,27 @@ account to draft. The owner hosts them on their domain later.
     review-notes covers the safety disclaimer, location (5 lines), paid features (PLANNED). `**DRAFT FOR THE OWNER.**`
     heads 5/5 files.
   - `bash ops/queue-check` -> QUEUE OK (243 tasks), exit 0.
+- 2026-10-05T08:05:46Z agent/claude-opus-5: round 2 on PR #140, review rv1-t0250. Ruling first: the reviewer is
+  right and the drafts were wrong. The credit shown is per drive and per basemap: DriveBasemap.resolve sends
+  .skyline to MapStyle.maplibreDemoTiles (credit MapStyle.demoAttribution, "© MapLibre · Natural Earth") on every
+  device; .saddlePeak and .santaMonicaMountains ask BasemapResolver.losAngeles (Protomaps credit with la.pmtiles,
+  demo tiles without); HandoffDrive.routeGeometryResource is nil for .skyline and .santaMonicaMountains, so only
+  Saddle Peak adds an OSM route credit; the footer is CreditLine.composed(basemap:routeData:) in
+  ScenicHomeScreen.swift. The CLAUDE.md invariant text is the target for the shipping map, not todays build.
+  Fixes:
+  - B1 review-notes Map credit: states todays per-drive credit (basemap credit + OSM when an OSM route line is
+    drawn), names the demo-tiles cases, cites CreditLine.composed / DriveBasemap.resolve / routeGeometryResource /
+    demoAttribution; the OSM+Protomaps-on-every-screen state is now PLANNED.
+  - B2 privacy Map tiles: demotiles is loaded for the SF Peninsula (Skyline) drive on every phone AND for the LA
+    drives without the LA file; cites DriveBasemap.resolve. Map data section names the demo credit.
+  - B3 support map-credit answer: truthful per-screen credit, demo-tiles case named, every-drive OSM map PLANNED.
+    terms 7 and the description credit line carry the same correction (description credit marked PLANNED).
+  - Recordables: (1) handoff "every turn kept" -> "the scenic stretch pinned by waypoints"; (2) "five drives
+    worth" -> "at least five learned samples on that stretch" (support, terms); (3) "per request" -> "per action";
+    (4) review-notes quota line reworded: table tiers anon 3 / free 10 / Pro 200, no code decides anon vs free;
+    (5) Copy.conditions cited at SafetyDisclaimer.swift:106 (review-notes had it in ScenicHomeScreen.swift;
+    description, terms); (6) terms 7 publish-on-request is now "PLANNED - the plans ODbL posture" with a LAWYER
+    NOTE on whether on-request meets the ODbL offer terms.
+  Re-measured: wc -l description 105, privacy 87, review-notes 60, support 61, terms 76. PLANNED markers:
+  description 10, privacy 10, review-notes 6, support 7, terms 5. DRAFT head 5/5. thrill/adrenaline/epic/extreme/
+  conquer 0 hits; "five drives", "every turn", "per request", "we publish it on" 0 hits in all five files.

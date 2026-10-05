@@ -26,12 +26,16 @@ every feature works with Location denied (typed address)]
 
 **Why does the arrival time say "estimate · no traffic data"?** - PLANNED
 The app does not use live traffic. It learns how a road usually flows from your own drives, on your phone, and
-drops the label after five drives' worth of samples. [`CLAUDE.md`, Product invariants; plan Decisions, "ETA
+drops the label once it has at least five learned samples on that stretch. [`CLAUDE.md`, Product invariants; plan Decisions, "ETA
 honesty"]
 
 **The map credit at the bottom - can I hide it?**
-No. The map is built from OpenStreetMap, and its credit stays visible on every map screen.
-[`CLAUDE.md`, Product invariants: attribution visible at every sheet detent; `LICENSE-DATA`]
+No. The credit line names the sources the map on screen is drawn from - the basemap's credit, plus
+OpenStreetMap when an OpenStreetMap route line is drawn - and it stays visible on every map screen. In this
+preview the SF Peninsula drive uses MapLibre's demonstration map, credited "© MapLibre · Natural Earth".
+[`ScenicHomeScreen.swift`, `CreditLine.composed(basemap:routeData:)`; `DriveBasemap.swift`; `CLAUDE.md`,
+Product invariants: attribution visible at every sheet detent; `LICENSE-DATA`]
+**PLANNED:** every drive is drawn on our own OpenStreetMap-based map. [plan Decisions, "Tiles"]
 
 **A road was closed, unpaved or gated.**
 Please email us with the road name and date. There is no in-app report button yet: we would only add one with

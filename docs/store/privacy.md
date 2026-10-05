@@ -63,9 +63,11 @@ StoreKit 2, `originalTransactionID` + `appAccountToken` in iCloud keychain, App 
   its fixed waypoints. It does not include your starting point; Apple Maps uses its own. What Apple Maps does
   is covered by Apple's privacy policy. [`Sources/Handoff/HandoffDrive.swift`, `AppleMapsDirections(source:
   nil, ...)`; `GatedHandoffButton.swift`, label "Open in Apple Maps"]
-- **Map tiles.** When the Los Angeles map file is not on your phone, the preview build loads a demonstration map
-  from `demotiles.maplibre.org`; that server sees an ordinary web request, including your IP address.
-  [`apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapStyle.swift`] **PLANNED:** the shipping app downloads its
+- **Map tiles.** The preview build loads a demonstration map from `demotiles.maplibre.org` for the SF Peninsula
+  (Skyline) drive on every phone, and for the Los Angeles drives when the Los Angeles map file is not on your
+  phone; that server sees an ordinary web request, including your IP address.
+  [`FeatureScenicHome/DriveBasemap.swift`, `resolve(for:appearance:)`: `.skyline` gets
+  `MapStyle.maplibreDemoTiles`; `apps/ios/Packages/ScenicApp/Sources/MapAdapter/MapStyle.swift`] **PLANNED:** the shipping app downloads its
   map once from our own storage and then works offline. [plan Decisions, "Tiles"; Runtime lifecycles, "First run"]
 
 ## Where this applies
@@ -75,7 +77,8 @@ Scenic Drive is offered in the United States only. [plan Decisions, "Launch scop
 ## Map data
 
 Maps and road data © OpenStreetMap contributors, available under the Open Database License. See
-`LICENSE-DATA` for every data source. [`LICENSE-DATA`]
+`LICENSE-DATA` for every data source. The preview's demonstration map is © MapLibre · Natural Earth.
+[`LICENSE-DATA`; `MapStyle.swift`, `demoAttribution`]
 
 ## Open for the owner and the lawyer
 
