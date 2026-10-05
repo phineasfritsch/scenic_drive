@@ -43,6 +43,33 @@ describe("ROUTES['/isochrone'] spend control (R4, R5, P-COST-01)", () => {
     expect(quota.state()).toEqual({});
   });
 
+  it("every method but POST is 405 POST only, a PUT carrying a valid body too: zero router requests, no reservation", async () => {
+    const e = reachEnv(quota);
+    for (const method of ["GET", "PUT", "PATCH", "DELETE"]) {
+      expect(await reach(e, REACH_BODY, DEVICE, method)).toEqual({ status: 405, json: { error: "POST only" } });
+    }
+    expect(router.calls).toEqual([]);
+    expect(quota.state()).toEqual({});
+  });
+
+  it("with no router configured a refused body is the whole 400 it is with one: the whitelist before the deps", async () => {
+    const refused: unknown[] = [
+      "{not json",
+      { ...REACH_BODY, end: START },
+      { start: { lat: 34.071, lon: -118.45 }, minutes: 120 },
+      { start: { lat: 34.07, lon: -118.451 }, minutes: 120 },
+      { start: START, minutes: 29 },
+    ];
+    for (const body of refused) {
+      const bound = await reach(reachEnv(quota), body);
+      expect([bound.status, bound.json.error]).toEqual([400, "invalid_request"]);
+      expect(await reach(reachEnv(quota, { ROUTER_URL: undefined }), body)).toEqual(bound);
+    }
+    expect(await reach(reachEnv(quota, { ROUTER_URL: undefined }))).toEqual({ status: 503, json: { error: "planning_unavailable" } });
+    expect(router.calls).toEqual([]);
+    expect(quota.state()).toEqual({});
+  });
+
   it("the surprise allowance and one monthly call are reserved before the one router request", async () => {
     const r = await reach(reachEnv(quota));
     expect(r.status).toBe(200);
@@ -102,7 +129,10 @@ describe("ROUTES['/isochrone'] request count and the daily cache (R5, R6, P-COST
     expect(hit).toEqual({ status: 200, json: expectedReach(125, 4) });
     expect(router.calls).toHaveLength(1);
     await reach(e, { start: START, minutes: 150 }, other(1));
-    await reach(e, { start: { lat: 34.08, lon: -118.45 }, minutes: 120 }, other(2));
+    const north = { lat: 34.08, lon: -118.45 };
+    const west = { lat: 34.07, lon: -118.46 };
+    expect(await reach(e, { start: north, minutes: 120 }, other(2))).toEqual({ status: 200, json: expectedReach(120, 4, north) });
+    expect(await reach(e, { start: west, minutes: 120 }, other(4))).toEqual({ status: 200, json: expectedReach(120, 4, west) });
     await reach(reachEnv(quota, { GRAPH_VERSION: `${graph}-rebuilt` }), REACH_BODY, other(3));
     vi.setSystemTime(new Date("2026-10-06T00:00:00Z"));
     await reach(e);
@@ -110,13 +140,14 @@ describe("ROUTES['/isochrone'] request count and the daily cache (R5, R6, P-COST
       wire("34.07", "-118.45", 3600, 4),
       wire("34.07", "-118.45", 4500, 5),
       wire("34.08", "-118.45", 3600, 4),
+      wire("34.07", "-118.46", 3600, 4),
       wire("34.07", "-118.45", 3600, 4),
       wire("34.07", "-118.45", 3600, 4),
     ]);
     await reach(e, { start: { lat: 34.08, lon: -118.45 }, minutes: 121 });
-    expect(router.calls).toHaveLength(6);
+    expect(router.calls).toHaveLength(7);
     await reach(e, { start: { lat: 34.08, lon: -118.45 }, minutes: 134 });
-    expect(router.calls).toHaveLength(6);
+    expect(router.calls).toHaveLength(7);
     expect([secondsToNextDay(NOW), secondsToNextDay(new Date("2026-10-05T23:59:59.500Z"))]).toEqual([43_200, 1]);
   });
 

@@ -70,12 +70,12 @@ export function reachEnv(quota: FakeQuota, over: Record<string, unknown> = {}): 
   return e as unknown as Env;
 }
 
-/** POST to the SHIPPED route: ROUTES["/isochrone"], deps from env. */
-export async function reach(e: Env, body: unknown = REACH_BODY, device: string | null = DEVICE) {
+/** POST (or `method`) to the SHIPPED route: ROUTES["/isochrone"], deps from env. A GET carries no body. */
+export async function reach(e: Env, body: unknown = REACH_BODY, device: string | null = DEVICE, method = "POST") {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (device !== null) headers["x-scenic-device"] = device;
   const req = new Request("https://scenic-api.test/isochrone", {
-    method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body),
+    method, headers, body: method === "GET" ? undefined : typeof body === "string" ? body : JSON.stringify(body),
   });
   const response = await ROUTES["/isochrone"]!(req, e, new URL(req.url));
   return { status: response.status, json: (await response.json()) as Record<string, unknown> };

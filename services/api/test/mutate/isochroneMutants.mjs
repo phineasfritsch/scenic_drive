@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-isochrone");
 
-export const MIN_MUTATIONS = 53;
+export const MIN_MUTATIONS = 57;
 export const SUBJECTS = ["src/isochroneRequest.ts", "src/isochronePlanner.ts", "src/reachCache.ts", "src/surpriseReach.ts",
   "src/isochrone.ts", "src/quota.ts", "src/QuotaCounter.ts"];
 const TESTS = ["test/isochroneCost.test.ts", "test/isochroneShape.test.ts", "test/quotaCounter.test.ts"];
@@ -62,6 +62,8 @@ export const MUTATIONS = [
   m("plan-ring-three", "isochronePlanner.ts", "value.length < 4) return null;", "value.length < 3) return null;"),
   m("plan-ring-infinite", "isochronePlanner.ts", "|| !Number.isFinite(lon) || !Number.isFinite(lat)) return null;", ") return null;"),
   m("plan-count-short", "isochronePlanner.ts", "if (byBucket.size !== count) throw", "if (false) throw"),
+  m("plan-not-json-plain-error", "isochronePlanner.ts", "throw new ReachError(\"the router answer is not JSON\");",
+    "throw new Error(\"the router answer is not JSON\");"),
   m("plan-minutes-from-zero", "isochronePlanner.ts", "const minutes = (i + 1) * BUCKET_MINUTES;", "const minutes = i * BUCKET_MINUTES;"),
   m("reach-one-way", "surpriseReach.ts", "return 2 * oneWayMinutes;", "return oneWayMinutes;"),
   m("reach-holes-ignored", "surpriseReach.ts", "|| holes.some((hole) => inRing(hole, point))) continue;", ") continue;"),
@@ -71,9 +73,13 @@ export const MUTATIONS = [
   m("cache-key-no-version", "reachCache.ts", "|${graphVersion}`", "`"),
   m("cache-key-no-limit", "reachCache.ts", "toFixed(2)}|${limit}|", "toFixed(2)}|"),
   m("cache-key-lat-1dp", "reachCache.ts", "return `${start.lat.toFixed(2)}", "return `${start.lat.toFixed(1)}"),
+  m("cache-key-lon-1dp", "reachCache.ts", "${start.lon.toFixed(2)}|${limit}|", "${start.lon.toFixed(1)}|${limit}|"),
   m("cache-ttl-zero", "reachCache.ts", "max-age=${secondsToNextDay(now)}", "max-age=0"),
   m("cache-ttl-units", "reachCache.ts", "now.getTime()) / 1000)", "now.getTime()) / 100)"),
   m("iso-kill-late", "isochrone.ts", "if (await killSwitch(env)) return json", "if (false) return json"),
+  m("iso-method-any", "isochrone.ts", "if (req.method !== \"POST\") return json({ error: \"POST only\" }, 405);", ""),
+  m("iso-deps-before-whitelist", "isochrone.ts", "let raw: unknown;",
+    "if (deps === null) return json({ error: \"planning_unavailable\" }, 503);\n  let raw: unknown;"),
   m("iso-kind-plan", "isochrone.ts", "kind: \"surprise\" }", "kind: \"plan\" }"),
   m("iso-plan-budget", "isochrone.ts", ", ISOCHRONE_UPSTREAM_COST);", ");"),
   m("iso-hit-ignored", "isochrone.ts", "if (cached !== null) return json", "if (false) return json"),

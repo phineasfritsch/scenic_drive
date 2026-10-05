@@ -43,11 +43,12 @@ describe("POST /isochrone answers the reach (R3, R7)", () => {
     expect(router.calls).toHaveLength(5);
   });
 
-  it("a router answer that is not 200, misses or repeats a bucket, or is not a Polygon is 502 no_route", async () => {
+  it("a router answer that is not 200, not JSON, misses or repeats a bucket, or is not a Polygon is 502 no_route", async () => {
     const good = isochroneAnswer(START.lat, START.lon, 4) as { polygons: { properties: { bucket: number }; geometry: unknown }[] };
     const last = (geometry: unknown) => ({ polygons: [...good.polygons.slice(1), { ...good.polygons[0]!, geometry }] });
     const bad: unknown[] = [
       new Response(JSON.stringify(good), { status: 500 }),
+      new Response("<html>not json</html>", { status: 200 }),
       new Response(JSON.stringify(good).replace(/\[-118\.[0-9]+,/, "[1e999,")),
       { polygons: good.polygons.slice(1) },
       { polygons: [...good.polygons, { ...good.polygons[1]! }] },
