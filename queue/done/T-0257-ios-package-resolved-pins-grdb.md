@@ -1,7 +1,7 @@
 ---
 id: T-0257
 title: main's iOS build is red since T-0175 - the app's Package.resolved does not pin GRDB; regenerate it on the macOS runner and commit it
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T12:56:22Z
@@ -11,7 +11,7 @@ branch: task/T-0257
 exclusive: [package-resolved]
 touches: [apps/ios/ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv1-t0257
 depends_on: [T-0175]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -53,3 +53,14 @@ T-0180 merges). Blocks T-0180's merge and every iOS run.
   tree step porcelain empty (Xcode did not rewrite the committed file).
   probe/T-0257 deleted from origin ("- [deleted] probe/T-0257"; ls-remote count 0). T-9904 on T-0180's branch is
   this task; retire it when T-0180 merges.
+- 2026-10-05T13:33:52Z agent/rv1-t0257 (reviewer, not owner): review PASS on PR #146 at d8108e7.
+  Probe artifact re-downloaded (gh run download 37313978500): its Package.resolved vs
+  git show origin/task/T-0257:<file> - cmp identical, sha256 0489cb3ff1a1bea512724a8743224cc855132a35eac6e4aedba6228d099ce4c9
+  both, no CR bytes. PR diff vs main: only that Package.resolved (+9, the grdb.swift 7.11.1 b83108d1 pin, matching
+  root Package.swift exact: "7.11.1"; MapLibre pin and originHash unchanged) and this task file. GREEN run
+  37315474498 head d57814a; the only later commit d8108e7 touches only queue/claimed/T-0257-...md; d57814a's
+  ios-compile.yml carries -disableAutomaticPackageResolution, the run's xcodebuild command line includes it, all
+  steps success, "** BUILD SUCCEEDED **", tree-step porcelain empty. PROBE run's command line has no flag, BUILD
+  SUCCEEDED. RED run 37313536457 on main 764e2a8: "out-of-date resolved file ... added: 'grdb.swift'", exit 74.
+  probe/T-0257: ls-remote count 0, no local branch. merge-base --is-ancestor origin/main origin/task/T-0257: 0.
+  gh pr checks 146: core pass, pins-source-only pass. ops/queue-check: QUEUE OK (250 tasks).
