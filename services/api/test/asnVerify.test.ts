@@ -91,6 +91,8 @@ const DEFECTS: [string, () => Promise<unknown>, string?][] = [
   ["intermediate signed by a key that is not the root's", () => expired({}, chains["intermediate signed by a key that is not the root's"]), "intermediate signed by a key that is not the root's"],
   ["leaf certificate with a trailing byte", () => expired({}, { ...good,
     x5c: [b64(new Uint8Array([...Uint8Array.from(atob(good.x5c[0]!), (c) => c.charCodeAt(0)), 0])), ...good.x5c.slice(1)] })],
+  ["leaf certificate cut by one byte", () => expired({}, { ...good,
+    x5c: [b64(Uint8Array.from(atob(good.x5c[0]!), (c) => c.charCodeAt(0)).subarray(0, -1)), ...good.x5c.slice(1)] })],
   ["leaf naming another issuer", () => expired({}, chains["leaf naming another issuer"]), "leaf naming another issuer"],
   ["leaf key on P-384 (no 64-byte ES256 signature)", () => expired({}, chains["leaf key on P-384"]), "leaf key on P-384"],
   ["missing x5c", () => withHeader({ x5c: undefined })],
