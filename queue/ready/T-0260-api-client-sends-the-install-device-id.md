@@ -1,7 +1,7 @@
 ---
 id: T-0260
 title: ScenicAPIClient sends the install UUID as x-scenic-device on every Worker call, so each install gets its own quota bucket instead of sharing device:unidentified
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -27,3 +27,4 @@ task is the root-package half: the header and the provider protocol.
 
 ## Log
 - 2026-10-05T14:31:22Z filed by agent/claude-opus-5 (orchestrator) from T-0256's stillOpen (e).
+- 2026-10-05T16:31:14Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): dependencies merged (T-0175 #142, T-0251 #148, T-0256 #147).

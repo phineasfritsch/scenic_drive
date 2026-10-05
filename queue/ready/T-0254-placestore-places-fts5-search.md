@@ -1,7 +1,7 @@
 ---
 id: T-0254
 title: PlaceStore places FTS5 table and search(query:limit:) for the plan sheet
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -23,3 +23,4 @@ Follow-up recorded in T-0175's Log (PR #142, review PASS): the plan sheet needs 
 
 ## Log
 - 2026-10-05T11:49:04Z filed by agent/claude-opus-5 (orchestrator) from T-0175's stillOpen list.
+- 2026-10-05T16:31:14Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): dependencies merged (T-0175 #142, T-0251 #148, T-0256 #147).
