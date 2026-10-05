@@ -9,9 +9,10 @@ every build of identical input, and P-DATA-01 says two builds of the same extrac
 one `datetime` in this module parses the argument; nothing here reads a clock.
 
 What this slice emits: `osm_features`, `segments` + `segments_rtree`, `term_defs`, `meta`, and
-`segment_alias` when `--previous` is given. `places`, `curated`, `terms_osm` and `terms_raster` are emitted
-EMPTY - the POI join, `regions/sfbay/curated.yaml` and the term producers are other tasks (see the task Log,
-rulings R3, R10, R12). Every one of those tables exists in the file with its indexes, so the reader on the
+`segment_alias` when `--previous` is given, and `places` + `places_rtree` + `places_fts` from the extract's
+optional `places` array (T-0254; empty when the extract has none - the POI join is another task). `curated`,
+`terms_osm` and `terms_raster` are emitted EMPTY - `regions/sfbay/curated.yaml` and the term producers are
+other tasks (see the task Log, rulings R3, R10). Every one of those tables exists in the file with its indexes, so the reader on the
 device sees a complete schema and zero rows rather than a missing table.
 """
 from __future__ import annotations
@@ -22,6 +23,7 @@ import sys
 
 from . import contentdigest, corpusmatch, schema, surfacecoverage
 from .corpuswriter import CorpusWriter
+from .extractplace import load_places
 from .extractway import load_extract
 from .segmenter import Segmenter
 
@@ -92,7 +94,7 @@ def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
     try:
         writer.write_features(ways)
         assigned = writer.write_segments(segments)
-        writer.write_places([])
+        writer.write_places(load_places(input_path))
         writer.write_term_defs()
         writer.write_curated(load_curated(curated_path))
 

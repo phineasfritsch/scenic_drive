@@ -14,6 +14,9 @@ enum CorpusFixture {
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     static let etl = root.appendingPathComponent("services/etl")
     static let extract = etl.appendingPathComponent("tests/fixtures/corpus_extract.json")
+    /// One way and nine places (T-0254 ruling R7): the extract's optional `places` array, read by the shipping
+    /// builder like the ways. The place rows are the literals PlaceStoreSearchTests types out.
+    static let placesExtract = etl.appendingPathComponent("tests/fixtures/corpus_extract_places.json")
     static let builtAt = "2026-09-18T00:00:00Z"
 
     /// A fresh directory per call, so no test reads a file another test rewrote.
@@ -25,7 +28,7 @@ enum CorpusFixture {
     }
 
     /// Runs the shipping builder. No interpreter, or a non-zero exit, is a test FAILURE - never a skip.
-    static func build() throws -> URL {
+    static func build(extract: URL = CorpusFixture.extract) throws -> URL {
         let out = try scratch().appendingPathComponent("corpus.sqlite")
         let python = ProcessInfo.processInfo.environment["PYTHON"] ?? "python3"
         let process = Process()

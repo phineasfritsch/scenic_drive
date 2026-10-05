@@ -36,6 +36,10 @@ DDL_SHA256_BY_VERSION = {
     #             osm_features.surface INTEGER CHECK (surface IN (-1,0,1)). One column, one hash, one bump.
     #             Version 1 stays listed: a version ever shipped is never removed from this table.
     2: "c7a0463730a03b61e5a1800415aac2d4c4a6dd5384416d690e45f2cf80e2e5c8",
+    # 3 (T-0254): statement 18, the places_fts FTS5 table (external content over places.name, unicode61
+    #             remove_diacritics 2). Its sqlite-written shadows (_config/_data/_docsize/_idx) are excluded
+    #             like rtree's.
+    3: "c096339712dcb8c0e3dea8816fef2765116aa31a3323e69bab2ade7bb9280e4c",
 }
 
 # FNV-1a 64 over way_id big-endian 8 bytes || bucket big-endian 4 bytes, masked to 63 bits.

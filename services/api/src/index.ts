@@ -35,7 +35,7 @@ const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =
 // a device downloads a corpus only when the two agree (plan, Runtime lifecycles / OTA), and there is no
 // compiler between a Python literal and this one. ops/lib/check-schema-version reads both and refuses on
 // disagreement; P-PROD-05 is what runs it. Bumping this alone is exactly the defect it guards.
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 async function dbUp(env: Env): Promise<boolean> {
   try {
