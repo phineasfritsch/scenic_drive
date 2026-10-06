@@ -1,7 +1,7 @@
 ---
 id: T-0266
 title: the ETL extract emits a places array from an OSM allowlist (viewpoint, peak, beach, waterfall, trailhead, park, garden, museum, cafe, town), chain-blocklisted, so the corpus places table, its FTS5 index and the Surprise pool are no longer empty
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T21:00:41Z
@@ -11,7 +11,7 @@ branch: task/T-0266
 exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, services/etl/regions/la/, ops/mutate/, ops/lib/mutate-population-allowlist.json, ops/lib/mutate_population_table.py]
 pins_affected: [P-PROD-03, P-DATA-01]
-reviewer: null
+reviewer: agent/rv2-t0266
 depends_on: [T-0254]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -78,3 +78,10 @@ chain-blocklisted'. This is the OSM-allowlist third only (no FSQ/Overture downlo
   - POPULATION: ops/mutate/placeallow.py gains ten entries, MIN_MUTATIONS 78 -> 88: `B1 a relation is skipped only when EVERY member way is absent`, `B1b a partial relation located from the member ways present`, `the relation guard gone`, `the relation guard gone, an absent way read as empty`, `a way is skipped only when EVERY node is absent`, `a partial way located from the nodes present` (all( plus a filtered mean), `no distinct node is not a skip`, `a relation geometry skip goes uncounted`, `a way geometry skip goes uncounted` (the one `+= 1` site already had `a geometry skip goes uncounted`; these drop the count per path), `an unlocatable relation handed to locate as None`. Two EQUIVALENT entries with witnesses in the entry name: `ways.get(w, ())` ALONE behind the guard (the guard returns None whenever a member way is absent), and the `not member_ways` clause dropped (an empty member list yields [], and `locate([])` returns None by its own `not distinct`). The driver gains `--only SUBSTRING` (repeatable; the floor still counts the whole population) and runs every EMPTIED file (both test files).
   - FASTER VERIFICATION, only the touched rows, on 2fa3c99: `python ops/mutate/placeallow.py --only B1 --only "relation guard gone" --only "EVERY node" --only "partial way" --only "no distinct node" --only "geometry skip goes uncounted" --only "handed to locate" --only "ways.get(w, ())" --only "empty-relation clause" --only "inner ring counts"` -> `BASELINE exit=0, 12 mutations, floor 88` / `MUTATIONS: 12 caught, 0 missed, 0 skipped, of 12` / `EQUIVALENT: 0 caught, 2 missed, 0 skipped, of 2` / `MUTATE OK  caught=12/12 equivalent_caught=0` rc=0 (B1, B1b and `the relation guard gone, an absent way read as empty` caught by `[relation-first-member-way-absent]`; the other 78 rows are 7583e7a's sheet, subject unchanged). Commit 5eccc22 wrote three population constants with literal newlines (a shell edit expanded `\n`); 2fa3c99 escapes them - the run above is on the compiling file.
   - MERGED HEAD: `git fetch origin`; `git merge origin/main` -> `Already up to date.` (origin/main d4a06fc, already in 43deff5). Re-run on 2fa3c99: `tests/test_placeallow.py tests/test_extractadapter.py tests/test_placeallow_geometry.py` -> `173 passed in 2.60s` (158 + 15 rows); `P-PROC-06: every added module is covered or allowlisted; the floor of 64 holds`; `P-OPS-01: 121 files, 23 required present, all modes correct`; `QUEUE OK (259 tasks)`. wc -l: placeallow.py 248, test_placeallow.py 264, test_placeallow_geometry.py 98, ops/mutate/placeallow.py 253. The LA corpus / PlaceStore.search stages are not re-run: the subject module did not change.
+- 2026-10-06T00:20:49Z REVIEW PASS ROUND 2 (agent/rv2-t0266, reviewer, not the owner; PR #157 head 59fba7c; touched rows only, owner-approved faster verification). Throwaway driver outside the tree, each mutant alone on etl/placeallow.py, __pycache__ purged, 1.1 s, restored, run over tests/test_placeallow.py + tests/test_extractadapter.py + tests/test_placeallow_geometry.py:
+  - rv1 B1 (relation_nodes guard `any(` -> `all(`): exit 1, FAILED `test_missing_geometry_at_every_position_is_skipped_and_counted[relation-first-member-way-absent]`, `[relation-middle-member-way-absent]`, `[relation-last-member-way-absent]`.
+  - rv1 B1b (that plus `ways[w]` -> `ways.get(w, ())`): exit 1, the same three rows FAILED.
+  - REVIEWER'S OWN geometry variant (locate checks only the FIRST distinct node, then averages over the present nodes - a way or relation with a missing non-first node located from the rest): exit 1, 7 FAILED - test_placeallow.py `test_places_equal_the_fixture_exactly`, `test_missing_geometry_is_skipped_never_guessed[way-node-missing]`, `test_the_count_line_counts_every_removal`, `test_every_place_passes_load_places_and_reaches_the_corpus`; test_placeallow_geometry.py `[relation-member-way-node-absent]`, `[way-middle-node-absent]`, `[way-last-node-absent]`.
+  - RESTORED: the PR's two files `158 passed`; with the geometry table `173 passed`; worktree clean. `python ops/mutate/placeallow.py --only B1` -> `MUTATIONS: 2 caught, 0 missed, 0 skipped, of 2` / `MUTATE OK  caught=2/2 equivalent_caught=0` rc=0 (the driver compiles on 59fba7c).
+  - GATES: `bash ops/queue-check` -> `QUEUE OK (259 tasks)`; `gh pr checks 157` -> core pass, pins-source-only pass; `git merge-base --is-ancestor origin/main origin/task/T-0266` -> 0 (origin/main d4a06fc is in the head).
+  - rv1's results beyond B1/B1b were not recorded on the PR or in this Log (the B1 entry above quotes them: B1 and B1b each left 158 tests green on 16a09cb); nothing else was carried open. Verdict PASS: B1 and B1b are closed as a class; the remaining 78 entries of the population rest on the 7583e7a run (subject module unchanged since). The scenic-index lock is released in this sign-off commit.
