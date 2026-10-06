@@ -23,6 +23,8 @@ const ROWS: Row[] = [
   row("config/v1 absent", fakeKv({}), {}, []),
   row("CONFIG throws", fakeKv({}, true), {}, ["record"]),
   row("not JSON", configKv("{"), {}, ["record"]),
+  row("empty text", configKv(""), {}, ["record"]),
+  row("whitespace-only text", configKv("  \n\t "), {}, ["record"]),
   row("JSON null", configKv("null"), {}, ["record"]),
   row("JSON array", configKv('[{"min_app_build":7}]'), {}, ["record"]),
   row("JSON string", configKv('"min_app_build"'), {}, ["record"]),
@@ -39,6 +41,8 @@ const ROWS: Row[] = [
   row("one invalid among valid", configKv(`{"min_app_build":${MAX + 1},"feature_loop":false,"supported_regions":["la"]}`),
     { feature_loop: false, supported_regions: ["la"] }, ["min_app_build"]),
 ];
+/** Every method a client can send; /config answers each one alike (R7: no request read, no method gate). */
+const METHODS = ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"];
 /** Rows whose KV pauses on its own, so killed and not-killed answer alike - the only rows allowed to ignore KILL. */
 const KV_PAUSES = ["every field at its high bound, KV pauses"];
 
@@ -66,10 +70,21 @@ describe("ROUTES['/config'] (T-0288)", () => {
     expect(paused.map((p) => JSON.parse(p.text).planning_paused)).toEqual([true, true]);
   });
 
-  it("any method answers the same body: the handler reads no request", async () => {
-    const e = { DB: undefined, GIT_SHA: "test", BUILT_AT: "test" } as never;
-    const req = new Request("https://scenic-api.test/config?min_app_build=9", { method: "POST", body: '{"planning_paused":true}' });
-    const response = await ROUTES["/config"]!(req, e, new URL(req.url));
-    expect(await response.text()).toEqual(expected({}, false, []).text);
+  it("every method x every KILL source answers the GET response whole: the handler reads no request", async () => {
+    const config = '{"min_app_build":7,"feature_trip":false}';
+    const got: [string, string, unknown][] = [];
+    for (const method of METHODS) {
+      for (const [kill, source] of KILLS) {
+        const e = { DB: undefined, GIT_SHA: "test", BUILT_AT: "test", ...source, CONFIG: configKv(config) } as never;
+        const body = method === "GET" || method === "HEAD" ? undefined : '{"planning_paused":false,"min_app_build":9}';
+        const req = new Request("https://scenic-api.test/config?min_app_build=9&planning_paused=false", { method, body });
+        const r = await ROUTES["/config"]!(req, e, new URL(req.url));
+        got.push([method, kill, { status: r.status, contentType: r.headers.get("content-type"),
+          cacheControl: r.headers.get("cache-control"), text: await r.text() }]);
+      }
+    }
+    expect(got).toEqual(METHODS.flatMap((method) => KILLS.map(([kill, , killed]) =>
+      [method, kill, expected({ min_app_build: 7, feature_trip: false }, killed, [])])));
+    expect(METHODS).toEqual(["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]);
   });
 });

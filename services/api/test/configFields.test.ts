@@ -33,6 +33,8 @@ const REFUSED: [string, string][] = [
   ...BOOL_REFUSED.map((raw): [string, string] => ["planning_paused", raw]),
   ...["[]", '["la","la"]', '["sf"]', '["LA"]', '[" la"]', '["la","sf"]', '["sf","la"]', '"la"', "[1]", "[null]", "null", "{}", '{"0":"la","length":1}']
     .map((raw): [string, string] => ["supported_regions", raw]),
+  // a compiled region's prefix, extension or substring is not that region: lax, la2, xla, l and the empty name.
+  ...['["lax"]', '["la2"]', '["xla"]', '["l"]', '[""]', '["la","lax"]'].map((raw): [string, string] => ["supported_regions", raw]),
   ...["feature_loop", "feature_trip", "feature_surprise"].flatMap((f) => BOOL_REFUSED.map((raw): [string, string] => [f, raw])),
 ];
 

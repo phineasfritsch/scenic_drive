@@ -101,3 +101,35 @@ only.
   P-COST-01 name was bound (pins/ and ops/lib/named-tests.json are outside touches); `npx tsc --noEmit` fails on this
   checkout BEFORE this change too (TS2688 cannot find @cloudflare/workers-types/2023-07-01 - seen on the stashed base);
   no wrangler KV binding (declared in Env only, R2); no deploy.
+- 2026-10-06T21:46:57Z agent/claude-opus-5 (owner): PRE-REVIEW SURVIVORS S1-S3 (fable stage, worktree fm-t0288 at
+  c53b1116) - all three BLOCKING, ruled as reported, no disagreement: S1 regions-prefix (isRegion loosened to a
+  startsWith - no REFUSED row was a prefix/extension of a compiled region), S2 empty-text-as-absent (no ROWS entry
+  stored a blank text; fakeKv serves "" as present), S3 method-unpause (the method test sent one POST; the T-0272 SITE
+  regex did not see `_req` - no word boundary inside `_req` - nor `.method`). Closed by CLASS, tests through
+  ROUTES['/config'], src untouched. POPULATION FIRST (RED): seven entries added - regions-prefix, regions-substring,
+  regions-truncated (supported starts with the given name), blank-as-absent (`text.trim() === ""`), empty-as-absent
+  (`!text`), route-method-unpause (the S3 line verbatim), route-options-empty (OPTIONS answers 204 empty);
+  MIN_MUTATIONS 59 -> 66 (literal), `--prove-floor` real population quiet. Run on the pre-fix tests with
+  `--only=<the seven>`: `baseline green tests=24`, MISSED regions-prefix, CAUGHT regions-substring (by the REFUSED
+  row " la"), MISSED regions-truncated, MISSED blank-as-absent, MISSED empty-as-absent, MISSED route-method-unpause,
+  MISSED route-options-empty, `RESULT caught=1 missed=6 trap=0 of 7`. FIX: configFields REFUSED gains
+  supported_regions ["lax"] ["la2"] ["xla"] ["l"] [""] ["la","lax"] (each x {no KILL, env KILL=1}); configRoutes ROWS
+  gain "empty text" configKv("") and "whitespace-only text" configKv("  \n\t ") -> defaults ["record"] under all five
+  KILL sources (the no-row-ignores-its-variant meta-test covers both); the one-POST method test is replaced by METHODS
+  [GET HEAD POST PUT DELETE OPTIONS PATCH] x KILLS, a non-default CONFIG and a hostile query/body, whole response
+  (status, content-type, cache-control, body text) by equality to expected(); requestReadSites SITE now reads
+  `\b_?(req|Request)\b` and the members .method .signal .referrer .clone .bodyUsed - the three `_req` lines of
+  index.ts (health, version, the /config route as CONFIG_ROUTE) are APPROVED by whole-line equality, so ANY edit of the
+  /config route line that names its request is a new site; a seen-red it() substitutes five method/signal/referrer/
+  clone reads into the /config line (the S3 line among them) and asserts each is found as exactly that new site and
+  the approved line gone. GREEN, `--only` on the seven plus route-method-gated and route-reads-request at 21:55:01Z:
+  `baseline green tests=25`, CAUGHT regions-prefix / regions-substring / regions-truncated by "every refused value
+  drops that field alone to its default and names it, under each KILL variant", CAUGHT blank-as-absent /
+  empty-as-absent by "every CONFIG row x every KILL source answers 200 with the whole expected response (KILL never
+  blocks /config)", CAUGHT route-method-unpause / route-options-empty / route-method-gated by "every method x every
+  KILL source answers the GET response whole: the handler reads no request", CAUGHT route-reads-request by "the request
+  sites under src are exactly the approved sites, file by file, line by line", `RESULT caught=9 missed=0 trap=0 of 9`;
+  `git status --porcelain -- src` empty. Not re-run: the 57 untouched entries (faster verification in rounds). The
+  non-blocking observations (unknown_keys vs field order in config_warnings; KILLS lacks "KV KILL_SWITCH bound, KILL
+  absent") are recorded, not closed. wc -l: test/configFields.test.ts 100, test/configRoutes.test.ts 90,
+  test/requestReadSites.test.ts 210, test/mutate/configMutants.mjs 217.

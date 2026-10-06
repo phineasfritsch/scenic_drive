@@ -1,7 +1,9 @@
 /**
  * T-0272 (rv1 BLOCKING): a WHITELIST of every source line under services/api/src that names the request - the
- * identifier req, the type Request - or reads a request member (.headers .url .json .text .formData .arrayBuffer
- * .blob .body .cf, URL, searchParams). The lines found are compared WHOLE (trimmed) to the approved sites below, per
+ * identifier req or _req, the type Request - or reads a request member (.headers .url .json .text .formData
+ * .arrayBuffer .blob .body .cf .method .signal .referrer .clone .bodyUsed, URL, searchParams). T-0288 S3: an unused
+ * _req is a site, so a handler that starts reading it changes an approved line. The lines found are compared WHOLE
+ * (trimmed) to the approved sites below, per
  * file, by full equality: a new site - a query-string fallback, a body read, another header name, a new file that
  * reads the request - is refused by its file and its line. FAIL-CLOSED (rv2): only lines that begin with two slashes
  * are skipped. A line that begins a block comment, closes one, or continues one is compared like code - a block
@@ -13,11 +15,12 @@
 import { describe, expect, it } from "vitest";
 
 const SRC = import.meta.glob("../src/**/*.ts", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
-const SITE = /\b(req|Request)\b|\.(headers|url|json|text|formData|arrayBuffer|blob|body|cf)\b|\bURL\b|searchParams/;
+const SITE = /\b_?(req|Request)\b|\.(headers|url|json|text|formData|arrayBuffer|blob|body|cf|method|signal|referrer|clone|bodyUsed)\b|\bURL\b|searchParams/;
 const LINE_COMMENT = /^\/\//;
 
 const POST_ONLY = 'if (req.method !== "POST") return json({ error: "POST only" }, 405);';
 const BODY_READ = "raw = await req.json();";
+const CONFIG_ROUTE = '"/config": (_req, env) => handleConfig(env),';
 const TIER_READ = 'const token = (req.headers.get(ACCOUNT_TOKEN_HEADER) ?? "").toLowerCase();';
 
 const APPROVED: Record<string, string[]> = {
@@ -61,6 +64,8 @@ const APPROVED: Record<string, string[]> = {
   ],
   "../src/index.ts": [
     "type Handler = (req: Request, env: Env, url: URL) => Promise<Response>;",
+    "const health: Handler = async (_req, env) => {",
+    "const version: Handler = async (_req, env) =>",
     "const ro: Handler = async (req, env) => {",
     POST_ONLY,
     'const token = req.headers.get("authorization")?.replace(/^Bearer\\s+/i, "") ?? "";',
@@ -75,6 +80,7 @@ const APPROVED: Record<string, string[]> = {
     '"/attest": (req, env) => handleAttest(req, attestDepsFromEnv(env)),',
     '"/attest/assert": (req, env) => handleAttestAssert(req, attestDepsFromEnv(env)),',
     '"/telemetry": (req, env) => handleTelemetry(req, env, telemetryDepsFromEnv(env)),',
+    CONFIG_ROUTE,
     "async fetch(req: Request, env: Env): Promise<Response> {",
     "const url = new URL(req.url);",
     "return handler(req, env, url);",
@@ -164,6 +170,22 @@ describe("every line under src that reads the request is an approved site (T-027
   it("src/config.ts reads no request: GET /config answers from env alone (T-0288 R7)", () => {
     expect(Object.keys(SRC)).toContain("../src/config.ts");
     expect(Object.keys(sites(SRC)).filter((f) => f === "../src/config.ts")).toEqual([]);
+  });
+
+  it("a method, signal or clone read through the unused _req of /config is refused by its line (T-0288 S3, seen red)", () => {
+    const index = SRC["../src/index.ts"]!;
+    const reads = [
+      '"/config": (_req, env) => handleConfig(_req.method === "DELETE" ? { ...env, KILL: undefined, KILL_SWITCH: undefined } : env),',
+      '"/config": (r, env) => handleConfig(r.method === "OPTIONS" ? { ...env, KILL: undefined } : env),',
+      '"/config": (r, env) => handleConfig(r.signal.aborted ? { ...env, KILL: undefined } : env),',
+      '"/config": (r, env) => handleConfig(r.referrer === "" ? env : { ...env, KILL: undefined }),',
+      '"/config": (r, env) => handleConfig(r.clone().bodyUsed ? env : env),',
+    ];
+    for (const read of reads) {
+      const mutated = { ...SRC, "../src/index.ts": index.replace(CONFIG_ROUTE, read) };
+      const found = sites(mutated)["../src/index.ts"]!;
+      expect([found.includes(CONFIG_ROUTE), found.filter((l) => !APPROVED["../src/index.ts"]!.includes(l))]).toEqual([false, [read]]);
+    }
   });
 
   it("a query, body or alternate-header read in the tier module is refused by its line (the guard seen red)", () => {

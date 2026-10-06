@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-config");
 
-export const MIN_MUTATIONS = 59;
+export const MIN_MUTATIONS = 66;
 export const SUBJECTS = ["src/config.ts", "src/index.ts"];
 const TESTS = ["test/configRoutes.test.ts", "test/configFields.test.ts", "test/routes.test.ts", "test/requestReadSites.test.ts",
   "test/killSwitchRoutes.test.ts"];
@@ -58,6 +58,12 @@ export const MUTATIONS = [
   m("regions-any-string", C, "v.every(isRegion)", "v.every((r) => typeof r === \"string\")"),
   m("regions-not-array", C, "Array.isArray(v) && v.length", "v.length"),
   m("regions-case-folded", C, "SUPPORTED_REGIONS.includes(r as string)", "SUPPORTED_REGIONS.includes(String(r).toLowerCase().trim())"),
+  m("regions-prefix", C, "SUPPORTED_REGIONS.includes(r as string)",
+    "typeof r === \"string\" && SUPPORTED_REGIONS.some((s) => r.startsWith(s))"),
+  m("regions-substring", C, "SUPPORTED_REGIONS.includes(r as string)",
+    "typeof r === \"string\" && SUPPORTED_REGIONS.some((s) => r.includes(s))"),
+  m("regions-truncated", C, "SUPPORTED_REGIONS.includes(r as string)",
+    "typeof r === \"string\" && SUPPORTED_REGIONS.some((s) => s.startsWith(r))"),
   m("regions-widened", C, "SUPPORTED_REGIONS: readonly string[] = [\"la\"];", "SUPPORTED_REGIONS: readonly string[] = [\"la\", \"sf\"];"),
   m("feature-loop-any", C, "  feature_loop: isBool,", "  feature_loop: (v) => v !== null,"),
   m("feature-trip-any", C, "  feature_trip: isBool,", "  feature_trip: (v) => v !== null,"),
@@ -75,6 +81,8 @@ export const MUTATIONS = [
   m("record-shape-silent", C, "Array.isArray(parsed)) {\n    warnings.push(\"record\");", "Array.isArray(parsed)) {"),
   m("throw-read-as-empty", C, "const text = await kv.get(CONFIG_KEY);", "const text = await kv.get(CONFIG_KEY).catch(() => \"{}\");"),
   m("absent-warns-record", C, "if (text === null) return null;", "if (text === null) throw new Error(\"absent\");"),
+  m("blank-as-absent", C, "if (text === null) return null;", "if (text === null || text.trim() === \"\") return null;"),
+  m("empty-as-absent", C, "if (text === null) return null;", "if (!text) return null;"),
   m("unknown-silent", C, "if (Object.keys(record).some((k) => !own(FIELDS, k))) warnings.push(\"unknown_keys\");", ""),
   m("unknown-proto-in", C, "!own(FIELDS, k)", "!(k in FIELDS)"),
   m("one-bad-drops-all", C, "else warnings.push(field);", "else { warnings.push(field); return {}; }"),
@@ -98,6 +106,10 @@ export const MUTATIONS = [
   m("route-kill-switch-blind", I, ROUTE, "\"/config\": (_req, env) => handleConfig({ ...env, KILL_SWITCH: undefined }),"),
   m("route-config-blind", I, ROUTE, "\"/config\": (_req, env) => handleConfig({ ...env, CONFIG: undefined }),"),
   m("route-reads-request", I, ROUTE, "\"/config\": (req, env) => handleConfig(req.headers.get(\"x-scenic-config\") === null ? env : env),"),
+  m("route-method-unpause", I, ROUTE, "\"/config\": (_req, env) => handleConfig(_req.method === \"DELETE\" "
+    + "? { ...env, KILL: undefined, KILL_SWITCH: undefined } : env),"),
+  m("route-options-empty", I, ROUTE,
+    "\"/config\": (_req, env) => (_req.method === \"OPTIONS\" ? Promise.resolve(new Response(null, { status: 204 })) : handleConfig(env)),"),
   m("route-method-gated", I, ROUTE,
     "\"/config\": (req, env) => (req.method === \"GET\" ? handleConfig(env) : Promise.resolve(new Response(null, { status: 405 }))),"),
 ];
