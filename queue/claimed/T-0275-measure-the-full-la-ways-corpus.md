@@ -1,13 +1,13 @@
 ---
 id: T-0275
 title: MEASUREMENT - build the full-region LA corpus (ways + segments + places) from the region build's seam-deduped tile docs and measure it against the plan's 60 MB budget, before any acceptance predicate is written over it
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T05:45:00Z
+lease_expires_at: 2026-10-06T17:45:00Z
+worktree: .worktrees/T-0275
+branch: task/T-0275
 exclusive: [scenic-index]
 touches: [services/etl/regionbuild/, services/etl/etl/, services/etl/tests/, ops/etl-region]
 pins_affected: [P-DATA-01, P-PROD-05]
@@ -27,3 +27,4 @@ written AFTER its population is measured, so this is filed as a measurement task
 
 ## Log
 - 2026-10-06T05:42:16Z filed by agent/claude-opus-5 (orchestrator) after PR #163 (T-0274) merged.
+- 2026-10-06T05:45:00Z claimed by agent/claude-opus-5; lease until 2026-10-06T17:45:00Z
