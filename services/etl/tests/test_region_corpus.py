@@ -130,6 +130,8 @@ def test_two_corpus_runs_have_one_content_digest(tmp_path):
 
 def test_a_seam_way_whose_coords_differ_refuses_and_writes_no_corpus(tmp_path):
     layout, tile_list = store(tmp_path / "work")
+    before = entry(layout, tile_list)
+    assert before.returncode == 0 and layout.corpus.exists(), before.stdout + before.stderr
     doc = json.loads(layout.doc_of("seam_window_b").read_text(encoding="utf-8"))
     row = next(row for row in doc["ways"] if int(row["way_id"]) == MULHOLLAND)
     row["coords"][0] = [row["coords"][0][0] + 0.001, row["coords"][0][1]]
