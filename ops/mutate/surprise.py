@@ -41,7 +41,10 @@ SUBJECT_MODULES = ("Sources/ScenicKit/Surprise/Surprise.swift", "Sources/ScenicK
                    "Sources/ScenicKit/Surprise/SurpriseReason.swift", "Sources/ScenicKit/Surprise/SurprisePick.swift",
                    "Sources/ScenicKit/Surprise/SurpriseIsochrone.swift",
                    "Sources/ScenicKit/Surprise/SurpriseIsochroneBucket.swift",
-                   "Sources/ScenicKit/Surprise/SurpriseIsochronePolygon.swift")
+                   "Sources/ScenicKit/Surprise/SurpriseIsochronePolygon.swift",
+                   "Sources/ScenicKit/Surprise/SurpriseOfflineReach.swift",
+                   "Sources/ScenicKit/Surprise/SurprisePlaceMapping.swift",
+                   "Sources/ScenicKit/Surprise/SurprisePlaceClass.swift")
 
 from surprise_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)
@@ -50,7 +53,8 @@ from surprise_run import FILTER, build, empty_suite, not_at_head, run_all, test
 TESTS = [t for t in TEST_FILES if t.exists()]
 HARNESS = (pathlib.Path(__file__).resolve(),
            pathlib.Path(__file__).resolve().parent / "surprise_mutations.py",
-           pathlib.Path(__file__).resolve().parent / "surprise_run.py")
+           pathlib.Path(__file__).resolve().parent / "surprise_run.py",
+           pathlib.Path(__file__).resolve().parent / "surprise_offline_mutations.py")
 
 
 def population_floor():

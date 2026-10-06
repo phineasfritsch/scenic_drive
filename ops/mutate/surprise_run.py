@@ -23,7 +23,7 @@ from surprise_mutations import ROOT
 SCRATCH = ".build/mutate-surprise"
 # The five suites every `killers` entry names, by their type names.
 FILTER = ("SurpriseFilterTests|SurpriseRankTests|SurpriseFeedbackTests|SurpriseReachParityTests|"
-          "SurpriseIsochroneTests")
+          "SurpriseIsochroneTests|SurpriseOfflineReachTests|SurprisePlaceMappingTests")
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
 

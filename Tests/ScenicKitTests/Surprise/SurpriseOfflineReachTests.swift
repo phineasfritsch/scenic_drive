@@ -43,6 +43,15 @@ struct SurpriseOfflineReachTests {
                                                           "56338661075490828": 173, "1": 0]))
     }
 
+    @Test("the reach is measured from the origin handed in, not from Westwood")
+    func theReachIsFromTheOriginHandedIn() throws {
+        let saddle = try #require(SurprisePlaceMapping.candidate(placeID: 8_789_912_370_140_821_739, cls: "peak",
+                                                                 name: "Saddle Peak", lonE7: -1_186_550_579,
+                                                                 latE7: 340_780_264))
+        #expect(SurpriseOfflineReach.reach(from: saddle.coordinate, to: [saddle], budgetMinutes: 120)
+                == SurpriseReach(budgetMinutes: 120, roundTripMinutes: ["8789912370140821739": 0]))
+    }
+
     @Test("the budget handed in is the budget handed out, and no candidate is dropped by the reach itself")
     func theBudgetPassesThrough() throws {
         let far = try #require(SurprisePlaceMapping.candidate(placeID: 56_338_661_075_490_828, cls: "viewpoint",

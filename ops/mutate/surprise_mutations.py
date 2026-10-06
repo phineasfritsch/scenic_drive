@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import pathlib
 
+import surprise_offline_mutations
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 _DIR = ROOT / "Sources" / "ScenicKit" / "Surprise"
@@ -45,13 +47,13 @@ ISOCHRONE = _DIR / "SurpriseIsochrone.swift"
 BUCKET = _DIR / "SurpriseIsochroneBucket.swift"
 POLYGON = _DIR / "SurpriseIsochronePolygon.swift"
 SUBJECTS = (SURPRISE, CANDIDATE, CATEGORY, REACH, HISTORY, FEEDBACK, CONTEXT, REASON, PICK, ISOCHRONE, BUCKET,
-            POLYGON)
+            POLYGON) + surprise_offline_mutations.SUBJECTS
 MUTATED_FILES = SUBJECTS
 
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Surprise"
 TEST_FILES = (_TESTS / "SurpriseFilterTests.swift", _TESTS / "SurpriseRankTests.swift",
               _TESTS / "SurpriseFeedbackTests.swift", _TESTS / "SurpriseReachParityTests.swift",
-              _TESTS / "SurpriseIsochroneTests.swift")
+              _TESTS / "SurpriseIsochroneTests.swift") + surprise_offline_mutations.TEST_FILES
 
 F1 = "filter 1: a place whose round trip exceeds the budget, or lies outside the reach, is never picked"
 F2 = "filter 2: a place shown within 90 days is never picked; 90 days ago it may return"
@@ -268,6 +270,9 @@ EQUIVALENT = [
      "Array.isEmpty is defined as count == 0, and count is never negative"),
 ]
 
-MIN_MUTATIONS = 94
+# T-0273's 29 entries (95-123) live in surprise_offline_mutations.py.
+MUTATIONS += surprise_offline_mutations.MUTATIONS
+
+MIN_MUTATIONS = 123
 MIN_EQUIVALENT = 2
-MIN_TEST_FILES = 5
+MIN_TEST_FILES = 7
