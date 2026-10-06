@@ -21,7 +21,7 @@ import sqlite3
 import subprocess
 import sys
 
-from etl import fallback, placeallow
+from etl import corpus, fallback, placeallow
 from regionbuild import cli, osm, places
 from regionbuild.layout import Layout
 
@@ -162,3 +162,14 @@ def test_a_region_with_no_bundle_is_refused_and_writes_nothing(tmp_path):
                                                   % sorted(places.BUNDLE)]
     assert not root.exists()
     assert not (layout.work / "sf-corpus-fallback.sqlite").exists()
+
+
+def test_a_fallback_over_its_budget_installs_nothing(tmp_path, monkeypatch, capsys):
+    layout = store(tmp_path)
+    shutil.copyfile(FIXTURE, layout.work / "la-places.osm.xml")
+    monkeypatch.setattr(fallback, "FALLBACK_BUDGET_BYTES", 1)
+    root = tmp_path / "checkout"
+    code = cli.main(["fallback", "--work", str(layout.work), "--region", "la", "--bundle-root", str(root)])
+    assert code == corpus.BUDGET_EXIT
+    assert stage_lines(capsys.readouterr().out, "BUNDLE") == []
+    assert not (root / BUNDLE).exists()
