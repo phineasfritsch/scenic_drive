@@ -1,13 +1,13 @@
 ---
 id: T-0283
 title: Surprise picks stop clustering at the edge of the time budget - the time-fit term peaks inside the dial (measured over the bundled LA corpus), and scenic classes outrank cafes when quality is unknown
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T21:12:21Z
+lease_expires_at: 2026-10-07T11:12:21Z
+worktree: .worktrees/T-0283
+branch: task/T-0283
 exclusive: []
 touches: [Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, Tests/Fixtures/surprise/, ops/mutate/]
 pins_affected: [P-PROD-02]
@@ -27,3 +27,4 @@ should land comfortably inside it. Product taste: memory owner-route-intent.
 
 ## Log
 - 2026-10-06T16:04:49Z filed by agent/claude-opus-5 (orchestrator) from T-0273's open item.
+- 2026-10-06T21:12:21Z claimed by agent/claude-opus-5; lease until 2026-10-07T11:12:21Z
