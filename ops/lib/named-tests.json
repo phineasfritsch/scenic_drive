@@ -900,6 +900,36 @@
         "closures and the prefix fill (N3, N4) > a set of <= 50 polygons is sent unchanged - the same object - and none is dropped",
         "closures and the prefix fill (N3, N4) > 51 ties at distance 0: the first 50 stored are kept",
         "the picker (N6) > dropped() is the most any one pick left out, not the sum or the last"
+      ],
+      "test/closuresNearestRetry.test.ts": [
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first attempt dirty, the reseed clean, empty: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first attempt dirty, the reseed clean, one closure: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first attempt dirty, the reseed clean, fifty: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first attempt dirty, the reseed clean, over 50, the start's ten stored last: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first attempt dirty, the reseed clean, a 51-way tie at distance 0: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first attempt dirty, the reseed clean, over 50, stale: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first two dirty, the retrace attempt clean, empty: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first two dirty, the retrace attempt clean, one closure: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first two dirty, the retrace attempt clean, fifty: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first two dirty, the retrace attempt clean, over 50, the start's ten stored last: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first two dirty, the retrace attempt clean, a 51-way tie at distance 0: every attempt's areas and the hazard equal the start's selection",
+        "a loop's reseed and retrace attempts carry the start's own nearest <= 50 (N5, P-SAFE-08) > /loop, first two dirty, the retrace attempt clean, over 50, stale: every attempt's areas and the hazard equal the start's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 20, empty: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 20, one closure: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 20, fifty: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 20, over 50: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 28, empty: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 28, one closure: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 28, fifty: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 28, over 50: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 36, empty: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 36, one closure: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 36, fifty: the search and every leg carry their own corridor's selection",
+        "a paid trip's day legs 3-5 each carry their own nearest <= 50, never the search's (N5, P-SAFE-08) > /trip, Z beside road vertex 36, over 50: the search and every leg carry their own corridor's selection",
+        "meta: every retry row is a function of its row > the loop's twelve rows expect twelve different (attempts, hazard) lists",
+        "meta: every retry row is a function of its row > over 50, the start's selection differs from the 50 nearest a corridor 1 degree south (every far closure first)",
+        "meta: every retry row is a function of its row > the trip: at each Z the four variants differ; the nine rows holding a closure are nine different lists",
+        "meta: every retry row is a function of its row > over 50, every Z row's last leg - and for each of legs 3, 4, 5 some row - differs from the search"
       ]
     }
   }

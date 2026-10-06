@@ -26,12 +26,13 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-closures");
 
-export const MIN_MUTATIONS = 129;
+export const MIN_MUTATIONS = 133;
 export const SUBJECTS = ["src/lcsFeed.ts", "src/closuresStore.ts", "src/closuresCron.ts", "src/index.ts", "src/routerDeps.ts",
   "src/reachCache.ts", "src/plan.ts", "src/scenicPlanner.ts", "src/loop.ts", "src/loopPlanner.ts", "src/trip.ts",
   "src/tripPlanner.ts", "src/isochrone.ts", "src/closuresNearest.ts"];
 const TESTS = ["test/closuresFeed.test.ts", "test/closuresCron.test.ts", "test/closuresRoutes.test.ts", "test/closuresDriven.test.ts",
-  "test/closuresNearest.test.ts", "test/closuresNearestPick.test.ts"];
+  "test/closuresNearest.test.ts", "test/closuresNearestPick.test.ts",
+  "test/closuresNearestRetry.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -170,6 +171,10 @@ export const MUTATIONS = [
   m("trip-legs-search-set", "tripPlanner.ts", "buildCustomModel(outcome.lambda, closuresFor(from, to))", "buildCustomModel(outcome.lambda, closures)"),
   m("loop-start-south", "loopPlanner.ts", "const feed = closuresFor(start, start);", "const feed = closuresFor(start, { lat: start.lat - 1, lon: start.lon });"),
   m("feed-cap-50", "lcsFeed.ts", "export function capClosures(closures: ActiveClosure[], cap = CLOSURES_STORED_MAX_POLYGONS)", "export function capClosures(closures: ActiveClosure[], cap = 50)"),
+  m("loop-reseed-other-corridor", "loopPlanner.ts", "current = await attempt(reseed, feed);", "current = await attempt(reseed, closuresFor(start, { lat: start.lat - 1, lon: start.lon }));"),
+  m("loop-retrace-other-corridor", "loopPlanner.ts", "attempt(reseed, mergeClosures(feed, areas))", "attempt(reseed, mergeClosures(closuresFor(start, { lat: start.lat - 1, lon: start.lon }), areas))"),
+  m("trip-legs-3plus-search-set", "tripPlanner.ts", "buildCustomModel(outcome.lambda, closuresFor(from, to))", "buildCustomModel(outcome.lambda, day.day > 2 ? closures : closuresFor(from, to))"),
+  m("trip-last-leg-search-set", "tripPlanner.ts", "buildCustomModel(outcome.lambda, closuresFor(from, to))", "buildCustomModel(outcome.lambda, day.day === days ? closures : closuresFor(from, to))"),
 ];
 
 export const EQUIVALENT = [

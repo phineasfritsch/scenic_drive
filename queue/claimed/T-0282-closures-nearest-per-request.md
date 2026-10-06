@@ -154,3 +154,23 @@ the ones that matter for that drive.
   OPEN for follow-up: the corridor is the straight segment, not the returned path (a detour can pass a dropped
     closure; the hazard says so but nothing re-checks the path); a loop's retrace squares are truncated whenever 50
     feed polygons are selected; the whole 129-entry population was not re-run (45 + 2 were).
+- 2026-10-06T17:09:04Z PRE-REVIEW SURVIVORS (S1 loop-reseed-other-corridor, S2 trip-legs-3plus-search-set), both ruled genuine and
+  fail-OPEN: each survived the 1503-test suite on 558f6e2. Ruled before code: S1 - closuresNearest.test.ts answers every
+  round_trip clean, so no /loop row reaches the reseed over 50 polygons; closuresDriven.test.ts reaches it only at
+  <= 50, where the corridor is irrelevant. S2 - the leg test's legs 3-5 selection EQUALS the search's (Z at Big Sur is
+  on the chord), so only legs 1-2 discriminate. Closed as CLASSES in test/closuresNearestRetry.test.ts (187 lines):
+  loop = attempt shape {first dirty + clean reseed, two dirty + clean retrace} x the six set variants through ROUTES,
+  every attempt's areas and the hazard by full equality (the retrace attempt's = mergeClosures(selection, the retrace
+  squares)); trip = Z beside road vertex {20, 28, 36} (middles of legs 3, 4, 5) x {empty, one, fifty, over 50} with 50
+  squares ON the road's first edge, through handleTrip with paid deps, the search and every leg (vertices measured
+  0/8/16/24/32/40) by full equality, a leg's expectation a function of its gap to Z vs its gap to the cluster (road
+  edges). Meta-tests: twelve loop rows twelve lists; per Z the four trip variants differ and the nine non-empty rows
+  are nine lists (first written as twelve-of-twelve and seen RED 10/12 - the three empty rows are alike by ruling);
+  over 50 every row's last leg and some row's legs 3, 4, 5 differ from the search. Population appended
+  (closuresMutants.mjs, floor 129 -> 133, the new file in TESTS): loop-reseed-other-corridor,
+  loop-retrace-other-corridor, trip-legs-3plus-search-set, trip-last-leg-search-set. RED by name:
+  `node test/mutate/closuresMutants.mjs --only=<the four>` "baseline green tests=738" ... "RESULT caught=4 missed=0
+  trap=0 of 4", each caught by an over-50 row; `--prove-floor` refuses its four arms, real population quiet. GREEN:
+  closuresNearestRetry.test.ts 28/28; the 28 names bound under P-SAFE-08 in ops/lib/named-tests.json,
+  `python ops/lib/run-named-tests.py P-SAFE-08` NAMED P-SAFE-08 passed=668/668; P-SAFE-08 prose APPENDED (dated),
+  read back through ops/lib/pins.py load() (41 pins). Faster verification: only the four new mutants were run.
