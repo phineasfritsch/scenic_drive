@@ -109,3 +109,56 @@ today, so the hook line is ruled from class (no curation prose yet - T-0183).
   - R10 POPULATION. SurpriseOfflineReach and SurprisePlaceMapping are numeric. Their entries live in a new data file
     ops/mutate/surprise_offline_mutations.py, appended to surprise_mutations.MUTATIONS (surprise_mutations.py is at
     273 lines); MIN_MUTATIONS rises to the literal new total and the run's FILTER gains the two new suites.
+- 2026-10-06T08:51:32Z BUILD, agent/claude-opus-5.
+  - SCENICKIT RED FIRST (05:11:27Z): the two suites written before any source; `swift build --build-tests` refused
+    them by name - `cannot find 'SurprisePlaceMapping' in scope`, `cannot find 'SurpriseOfflineReach' in scope`,
+    `cannot find 'SurprisePlaceClass' in scope`. GREEN after the three files: `Test run with 9 tests in 2 suites
+    passed` (10 class rows, 7 bound rows, 4 corridor-edge rows, 5 no-candidate rows, the reach by full equality, the
+    mapped Saddle Peak as Surprise.pick's whole SurprisePick). On the merged head e9fde98, with the origin test added:
+    `Test run with 10 tests in 2 suites passed` (Surprise offline reach, Surprise place mapping).
+  - POPULATION (R10): `python ops/mutate/surprise.py --only 95,...,123` on 9ab6a20: `caught by the test that names
+    it: 29 of 29 (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)` / `MUTATE OK caught=29/29`, rc=0,
+    e.g. `101 the reach reports the ruled budget, not the one handed in by: the budget handed in is the budget handed
+    out...`, `104 the reach measured from Westwood, not the origin handed in by: the reach is measured from the origin
+    handed in, not from Westwood`, `109 an empty name kept by: an unnamed row, an empty name and a class outside the
+    ten give no candidate`, `122 a label respelled by: the ten classes are ... with the ruled labels`. --prove-floor:
+    `FLOOR PROOF OK: 7 of 7 arms refused`. P-PROC-06: `every added module is covered or allowlisted; the floor of 67
+    holds`. The 94 earlier entries were not re-run (their subjects are unchanged).
+  - PLACESTORE: Tests/PlaceStoreTests/PlaceStorePlacesInBoxTests.swift (six Saddle Peak box rows by full equality,
+    the whole-world box = 1334 rows with the measured per-class counts, an ocean box = []) is Linux-only (Windows skips
+    PlaceStore, T-0175 R2); NOT seen run on this box - CI core runs it on the PR.
+  - P-SAFE-03 / P-ATTR-01 (R4): tracked tree on 95e54b7 `bash ops/lib/check-safety-disclaimer` exit 0 (35m27s): `...
+    isSafetyDisclaimerAcknowledged at .../GatedHandoffButton.swift(2) .../ScenicHomeScreen.swift(6) ... LAST 18 feature
+    file(s) and AttributionFooter.swift pinned`. `bash ops/lib/check-map-attribution` exit 0 (51m55s). PROVE-RED, the
+    touched rows only (owner round rule; a copy of the table holding them, .build/t0273/psafe-rows): `the
+    acknowledgement no longer passed to the button 1 yes`, `a second call site in the app shell 1 yes` (row 9's sed
+    re-anchored: since T-0271 the shell has no `ScenicHomeScreen()` and the row changed nothing), `a second button
+    beside the real one 1 yes` (now `constructed exactly twice`), `T-0273 the Surprise card opens Apple Maps itself 1
+    yes` (THE acceptance's mutant: `onOpenInMaps(candidate.coordinate)` -> `openURL(...)`, refused as `SurpriseCard.swift
+    content changed`), `T-0273 the shell hands the card its own opener 1 yes`. Rows 32 (the Surprise construction
+    passing true) and 33 (a file beside the card) were still running at this entry - see OPEN.
+  - P-STORE-01: `python ops/lib/check-store-links.py` exit 0; `--prove-red: 33/33 rows as required`.
+  - LINE CAP: check-line-cap REFUSED ScenicHomeScreen.swift at 318 lines; 1f3b5c1 moves the toggle to
+    FeatureScenicHome/SurpriseToggle.swift (297 lines) and re-approves its digest and the new file in -pinned. wc -l:
+    SurpriseCard 177, SurpriseDeck 57, SurpriseNotThis 55, SurpriseSlot 24, SurpriseToggle 34, GatedHandoffButton 117,
+    SkylineHandoff 97, SurpriseOfflineReach 37, SurprisePlaceMapping 39, check-safety-disclaimer 300,
+    check-safety-disclaimer-pinned 141, surprise_mutations.py 278, surprise_offline_mutations.py 83.
+  - iOS: ios-compile 37420304691 on 95e54b7 success (FeatureSurpriseMe and GRDB compiled into the app);
+    ios-screenshot 37421111076 on 95e54b7 success, 12 PNGs. LOOKED AT: surprise-light - the chip band holds Saddle Peak /
+    Westwood loop / SF Peninsula, an orange sparkles square (filled while open) and the gear; under it, inside the
+    same material, a white card: orange tree symbol + "Park", "Calas Park" (title), "Green space to stretch your
+    legs.", orange clock + "About 120 min round trip from Westwood" with the outlined badge "estimate · no traffic
+    data", the orange "Open in Apple Maps" bar, "Not this one?" and four 44 pt outlined buttons Too far / Not my thing /
+    Been there / Wrong time. No golden-hour line (the CI clock is ~06:00 UTC; sunset was outside the visit). The map,
+    the credit pill "(c) MapLibre · Natural Earth · (c) OpenStreetMap contributors" and the collapsed home sheet
+    (title, three menu chips, "Conditions change. Verify locally.", Open in Apple Maps) are all visible below the card.
+    surprise-dark - the same on the navy surface, orange lighter, text light. home-light-collapsed - the card closed:
+    the outline sparkles square beside the gear, the map as before. ios-compile 37432844878 on the merged head e9fde98
+    (SurpriseToggle split) success; no screenshot re-run for that move (the toggle's code is the same view).
+  - OBSERVED, recorded for a follow-up, not changed: with every quality equal, Surprise.pick's minutes/budget term
+    makes the pick the place nearest the 120-minute ceiling (Calas Park at exactly 120) - the far edge of reach, not a
+    calm nearby surprise. The selector (T-0253) is unchanged here; a tie-break or budget ruling is its own task.
+  - OPEN: P-SAFE-03 prove-red rows 32-33 and the final P-SAFE-03 / P-ATTR-01 runs on the merged head e9fde98 were still
+    running on this loaded box when this entry was written; the PlaceStore test is seen on CI only; the 8-row-tall card
+    at AX Dynamic Type sizes is not screenshotted and may push the map off screen; P-PROD-03 (pins_affected) does not
+    exist in pins/PINS.yaml; the -pinned echo's file count now sums both modules (18 = 16 + 3 - shown under one label).
