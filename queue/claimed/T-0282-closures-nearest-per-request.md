@@ -1,13 +1,13 @@
 ---
 id: T-0282
 title: closures nearest-first per request - KV keeps every active full closure (measured), and each driven request sends the <=50 polygons nearest its own corridor instead of a fixed global 50
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T15:36:12Z
+lease_expires_at: 2026-10-07T03:36:12Z
+worktree: .worktrees/T-0282
+branch: task/T-0282
 exclusive: []
 touches: [services/api/, Tests/Fixtures/t0276/, pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-SAFE-08, P-SAFE-01]
@@ -27,3 +27,4 @@ the ones that matter for that drive.
 
 ## Log
 - 2026-10-06T15:25:23Z filed by agent/claude-opus-5 (orchestrator) after PR #171 (T-0281) review PASS.
+- 2026-10-06T15:36:12Z claimed by agent/claude-opus-5; lease until 2026-10-07T03:36:12Z
