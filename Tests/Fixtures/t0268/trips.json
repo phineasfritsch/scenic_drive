@@ -1096,6 +1096,74 @@
      }
     ]
    }
+  },
+  {
+   "name": "one unit short of the even share is short: day 1 at cumulative x days = day x total - 1 takes the next edge",
+   "route": [
+    {
+     "start": [
+      0,
+      0
+     ],
+     "end": [
+      0,
+      0.5
+     ],
+     "seconds": 1999,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      0.5
+     ],
+     "end": [
+      0,
+      1
+     ],
+     "seconds": 1000,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      1
+     ],
+     "end": [
+      0,
+      1.5
+     ],
+     "seconds": 1000,
+     "meters": 1000
+    }
+   ],
+   "places": [],
+   "days": 2,
+   "max_drive_s": 100000,
+   "max_m": 100000,
+   "fastest_s": 3999,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 2,
+      "seconds": 2999,
+      "meters": 2000,
+      "stops": [],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 2,
+      "start_vertex": 2,
+      "end_vertex": 3,
+      "seconds": 1000,
+      "meters": 1000,
+      "stops": [],
+      "overnight": null
+     }
+    ]
+   }
   }
  ]
 }

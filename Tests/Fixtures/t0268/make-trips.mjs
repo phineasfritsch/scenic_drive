@@ -77,6 +77,13 @@ const synthetic = [
     places: [stop("Twin", 10, v(0.5))],
     days: 2, max_drive_s: 1_000, max_m: 100_000, fastest_s: 40,
     expected: { plan: [day(1, 0, 1, 20, 1_000, ["Twin"], "no_lodging"), day(2, 1, 3, 20, 1_000, [], null)] } },
+  { name: "one unit short of the even share is short: day 1 at cumulative x days = day x total - 1 takes the next edge",
+    // T-0268 pre-review survivor share-tie-lookahead (>= day x total - 1). Total 3_999 ms, 2 days: after the first
+    // edge 1_999 x 2 = 3_998 = 1 x 3_999 - 1 < 3_999, so day 1 drives on; after the second 2_999 x 2 >= 3_999 ends it.
+    route: [edge(v(0), v(0.5), 1_999, 1_000), edge(v(0.5), v(1), 1_000, 1_000), edge(v(1), v(1.5), 1_000, 1_000)],
+    places: [],
+    days: 2, max_drive_s: 100_000, max_m: 100_000, fastest_s: 3_999,
+    expected: { plan: [day(1, 0, 2, 2_999, 2_000, [], "no_lodging"), day(2, 2, 3, 1_000, 1_000, [], null)] } },
 ];
 
 const fixture = {

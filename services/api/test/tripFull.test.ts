@@ -75,6 +75,42 @@ describe("the ceiling per day and for the trip (R7)", () => {
     const r = await h.run();
     expect([r.status, r.json.eta_s, r.json.ceiling_s]).toEqual([200, 20_160, 20_160]);
   });
+
+  // A share that does NOT divide (T-0268 pre-review survivor day-ceiling-ceil): edge 0 takes 450_001 ms, so the route
+  // is 18_000_001 ms and days are 3_600_001 + 4 x 3_600_000. floor(20_160_000 x day / 18_000_001) = 4_032_000 and
+  // 4 x 4_031_999 (sum 20_159_996 <= 20_160_000); rounded UP they would be 4_032_001 + 4 x 4_032_000 = 20_160_001.
+  const UNEVEN = [450_001, ...Array<number>(EDGES - 1).fill(SCENIC_EDGE_MS)];
+  const unevenScenic = tripPath(ROAD, 0, { time: UNEVEN.map((ms, i) => [i, i + 1, ms]),
+    distance: UNEVEN.map((_, i) => [i, i + 1, EDGE_M]) }, 18_000_001);
+  const FLOORS = [4_032_000, 4_031_999, 4_031_999, 4_031_999, 4_031_999];
+
+  it("an uneven share floors each day ceiling: the whole answer, and the day ceilings sum to <= the trip ceiling", async () => {
+    const h = harness("paid", { scenic: unevenScenic });
+    const r = await h.run();
+    expect(r).toEqual({ status: 200,
+      json: expectedTrip({ days: 5, edgeMs: SCENIC_EDGE_MS, lambda: 7.75, full: true, edgesMs: UNEVEN }) });
+    const ceilings = (r.json.days as { ceiling_s: number }[]).map((d) => Math.round(d.ceiling_s * 1000));
+    expect([ceilings, ceilings.reduce((a, b) => a + b, 0) <= 20_160_000]).toEqual([FLOORS, true]);
+  });
+
+  it("an uneven share, each day at its floored ceiling plans; one millisecond more refuses with that floor", async () => {
+    const answered = [];
+    for (const [i, floor] of FLOORS.entries()) {
+      for (const ms of [floor, floor + 1]) {
+        const legMs = (leg: number, from: number, to: number) => (leg === i + 1 ? ms : (to - from) * SCENIC_EDGE_MS);
+        const r = await harness("paid", { scenic: unevenScenic, legMs }).run();
+        answered.push([i + 1, ms, r.status, r.json.error ?? null, r.json.detail ?? null]);
+      }
+    }
+    expect(answered).toEqual(FLOORS.flatMap((floor, i) => [[i + 1, floor, 200, null, null],
+      [i + 1, floor + 1, 422, "ceiling_breached", `day ${i + 1} leg takes ${floor + 1} ms against its ceiling of ${floor} ms`]]));
+  });
+
+  it("an uneven share, every leg at its floored ceiling: the trip ETA is the floors' sum, never past fastest + budget", async () => {
+    const h = harness("paid", { scenic: unevenScenic, legMs: (leg) => FLOORS[leg - 1]! });
+    const r = await h.run();
+    expect([r.status, r.json.eta_s, r.json.ceiling_s]).toEqual([200, 20_159.996, 20_160]);
+  });
 });
 
 describe("the cap (P-COST-04)", () => {

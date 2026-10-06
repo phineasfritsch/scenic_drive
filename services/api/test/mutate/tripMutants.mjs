@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 56;
+export const MIN_MUTATIONS = 58;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
   "test/killSwitchRoutes.test.ts"];
@@ -38,6 +38,7 @@ export const MUTATIONS = [
   m("split-earth", "roadTrip.ts", "EARTH_RADIUS_METERS = 6_371_008.8;", "EARTH_RADIUS_METERS = 6_370_000;"),
   m("split-budget-ceil", "roadTrip.ts", "Math.floor((fastestSeconds * percent) / 100)", "Math.ceil((fastestSeconds * percent) / 100)"),
   m("split-share-strict", "roadTrip.ts", "cumulative * limits.days >= day * total", "cumulative * limits.days > day * total"),
+  m("split-share-tie-lookahead", "roadTrip.ts", "cumulative * limits.days >= day * total)", "cumulative * limits.days >= day * total - 1)"),
   m("split-share-empty-day", "roadTrip.ts", "if (index > start && cumulative", "if (cumulative"),
   m("split-drive-exclusive", "roadTrip.ts", "seconds + edge.seconds > limits.maxDriveSeconds", "seconds + edge.seconds >= limits.maxDriveSeconds"),
   m("split-metres-exclusive", "roadTrip.ts", "meters + edge.meters > limits.maxMeters", "meters + edge.meters >= limits.maxMeters"),
@@ -73,6 +74,8 @@ export const MUTATIONS = [
   m("planner-leg-ceiling-exclusive", "tripPlanner.ts", "if (path.timeMs > ceiling)", "if (path.timeMs >= ceiling)"),
   m("planner-legs-always", "tripPlanner.ts", "    if (full) {\n", "    if (true) {\n"),
   m("planner-day-ceiling-fastest", "tripPlanner.ts", "dayCeilingMs(ceilingMs, day.seconds, totalMs)", "dayCeilingMs(fastestMs, day.seconds, totalMs)"),
+  m("planner-day-ceiling-ceil", "tripPlanner.ts", "(BigInt(ceilingMs) * BigInt(dayMs)) / BigInt(totalMs)",
+    "(BigInt(ceilingMs) * BigInt(dayMs) + BigInt(totalMs) - 1n) / BigInt(totalMs)"),
   m("planner-tile-no-start", "tripPlanner.ts", "if (run.from !== at || ", "if ("),
   m("planner-tile-empty-run", "tripPlanner.ts", "run.to <= run.from || ", ""),
   m("planner-tile-distance-edges", "tripPlanner.ts", "d.from !== run.from || d.to !== run.to", "false"),

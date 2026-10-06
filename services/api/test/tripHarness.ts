@@ -103,22 +103,25 @@ export function tripRequest(body: unknown, path = "/trip"): Request {
 /**
  * The ORACLE: the whole /trip answer recomputed from T-0268 R3-R7 over this road, independently of src/. Every edge
  * of the chosen path is `edgeMs`; day d ends at the first vertex k with k x days >= d x EDGES (the even share, R4 of
- * T-0249 - the limits never bind on this road); a day's ceiling is floor(ceiling x day / total) (R7).
+ * T-0249 - the limits never bind on this road); a day's ceiling is floor(ceiling x day / total) (R7). `edgesMs`, when
+ * given, replaces the uniform `edgeMs` edge by edge, and day d then ends at the first k with cum(k) x days >= d x total.
  */
 export function expectedTrip(o: { days: number; pct?: number; edgeMs: number; lambda: number; full: boolean;
-  legMs?: (leg: number, from: number, to: number) => number }) {
+  legMs?: (leg: number, from: number, to: number) => number; edgesMs?: number[] }) {
   const pct = o.pct ?? 40;
   const budgetMs = Math.floor((FASTEST_MS * pct) / 100);
   const ceilingMs = FASTEST_MS + budgetMs;
-  const totalMs = EDGES * o.edgeMs;
+  const edgeMs = o.edgesMs ?? Array<number>(EDGES).fill(o.edgeMs);
+  const cum = (k: number) => edgeMs.slice(0, k).reduce((sum, ms) => sum + ms, 0);
+  const totalMs = cum(EDGES);
   const at = (i: number) => ({ lat: ROAD[i]![1], lon: ROAD[i]![0] });
   const days = [];
   let start = 0;
   let legSumMs = 0;
   for (let d = 1; d <= o.days; d++) {
     let end = start + 1;
-    while (end * o.days < d * EDGES) end += 1;
-    const dayMs = (end - start) * o.edgeMs;
+    while (cum(end) * o.days < d * totalMs) end += 1;
+    const dayMs = cum(end) - cum(start);
     const legMs = o.legMs ? o.legMs(d, start, end) : (end - start) * SCENIC_EDGE_MS;
     legSumMs += legMs;
     days.push({

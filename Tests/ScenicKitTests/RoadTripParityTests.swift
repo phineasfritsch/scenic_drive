@@ -144,7 +144,7 @@ struct RoadTripParityTests {
     func theFixtureIsWhole() throws {
         let fixture = try Self.fixture()
         let counts: [Int] = [fixture.route.count, fixture.places.count, fixture.cases.count, fixture.synthetic.count]
-        #expect(counts == [21, 20, 9, 2])
+        #expect(counts == [21, 20, 9, 3])
         #expect(fixture.cases.contains { $0.expected.plan != nil })
         #expect(fixture.cases.contains { $0.expected.over_budget != nil })
         #expect(fixture.cases.contains { $0.expected.too_few_days != nil })

@@ -25,7 +25,7 @@ const places = placesOf(trips.places);
 
 describe("the shared road-trip fixture (T-0268 R6)", () => {
   it("carries the T-0249 route, its places and every outcome kind", () => {
-    expect([edges.length, places.length, trips.cases.length, trips.synthetic.length]).toEqual([21, 20, 9, 2]);
+    expect([edges.length, places.length, trips.cases.length, trips.synthetic.length]).toEqual([21, 20, 9, 3]);
     const kinds = trips.cases.map((c) => Object.keys(c.expected as object)[0]);
     expect([...new Set(kinds)].sort()).toEqual(["over_budget", "plan", "too_few_days"]);
   });
