@@ -1,13 +1,13 @@
 ---
 id: T-0280
 title: App Attest assertions renew a session without a new key, and /attest/challenge is rate-limited per device and globally
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T12:10:57Z
+lease_expires_at: 2026-10-07T00:10:57Z
+worktree: .worktrees/T-0280
+branch: task/T-0280
 exclusive: []
 touches: [services/api/]
 pins_affected: [P-COST-01]
@@ -25,3 +25,4 @@ and 'a rate limit on /attest/challenge'. Copy T-0278's store/verify shapes.
 
 ## Log
 - 2026-10-06T12:09:05Z filed by agent/claude-opus-5 (orchestrator) after PR #168 (T-0278) merged.
+- 2026-10-06T12:10:57Z claimed by agent/claude-opus-5; lease until 2026-10-07T00:10:57Z
