@@ -72,3 +72,32 @@ only.
   `every line of src/config.ts carrying a digit is an approved whole line`; requestReadSites `src/config.ts reads no
   request: GET /config answers from env alone (T-0288 R7)`. Green while red: the two pure meta-tests (tables cover
   every field; no row ignores the KILL variant bar KV_PAUSES) and killSwitchRoutes (/config added to OPERATIONAL_ROUTES).
+- 2026-10-06T21:15:29Z GREEN + POPULATION + FINAL GATES (agent/claude-opus-5). Code: src/config.ts (handleConfig(env), configAnswer,
+  FIELDS whitelist, DEFAULTS, readRecord, overlay, quotaDisplay via dailyQuota); index.ts `CONFIG?: KVNamespace` in Env
+  and ROUTES `"/config": (_req, env) => handleConfig(env)`; routes.test.ts gains /config in the enumeration and a
+  SELF.fetch GET /config by whole-response equality. After the red run the digit whitelist was corrected to the module
+  as written (the supported_regions line whole, plus `status: 200,` and the headers line - charset=utf-8 carries a
+  digit). POPULATION, once, at 017e282: `node services/api/test/mutate/configMutants.mjs` -> `population mutations=59
+  (floor 59) equivalent=1 subjects=2 tests=5`, `baseline green tests=24`, `RESULT caught=59 missed=0 trap=0 of 59`,
+  exit 0. Notable catchers: quota-retyped by `every line of src/config.ts carrying a digit is an approved whole line`;
+  route-reads-request by requestReadSites `the request sites under src are exactly the approved sites, file by file,
+  line by line`; route-method-gated by `any method answers the same body: the handler reads no request`;
+  paused-kv-false-unpauses, paused-kill-ignored, kill-blocks-config, route-kill-blind, route-kill-switch-blind all red.
+  `--prove-floor`: four arms REFUSED, real population quiet, exit 0. `--prove-vacuity --only=quota-retyped,route-reads-request`
+  -> `caught=0 missed=2`. EQUIVALENT field-own-to-in carries its witness. MERGED origin/main (git fetch origin; merge
+  -> 93e0dda9), then on the merged head: `cd services/api && npx vitest run` -> `Test Files  56 passed (56)`, `Tests  1707
+  passed (1707)`; `python ops/lib/run-named-tests.py P-COST-01` -> `NAMED P-COST-01 passed=26/26`;
+  `python ops/lib/check-mutate-population.py` -> `P-PROC-06: every added module is covered or allowlisted; the floor of 67
+  holds` (it reads Sources/ and services/etl/etl/ only - R9); `bash ops/queue-check` -> `QUEUE OK (280 tasks)`.
+  wc -l: src/config.ts 106, src/index.ts 120, test/configHarness.ts 66, test/configRoutes.test.ts 75, test/configFields.test.ts 98, test/routes.test.ts 72, test/requestReadSites.test.ts 188, test/killSwitchRoutes.test.ts 110, test/mutate/configMutants.mjs 205. ACCEPTANCE re-quoted: (1) closed JSON, keys min_app_build, planning_paused, supported_regions,
+  feature_loop/trip/surprise, quota (dailyQuota over tiers x plan/loop/surprise/trip, never retyped - digit whitelist),
+  config_warnings - MET (configRoutes cross product, configFields both tables, routes SELF.fetch); KV config/v1 overlay,
+  per-field whitelist at every bound, invalid field drops alone and is named - MET (configFields ACCEPTED/REFUSED x
+  {no KILL, env KILL=1}); KV unbound/absent -> defaults [], throws -> defaults ["record"] - MET; planning_paused more
+  restrictive only, KV false cannot unpause env KILL=1 or KV KILL_SWITCH - MET (cross product + named test). (2)
+  cache-control `public, max-age=300` - MET; no request read, requestReadSites APPROVED equal and a config.ts it() -
+  MET; KILL never blocks /config - MET (200 under all five KILL sources); ROUTES full equality with the cross product
+  and the no-row-ignores-its-variant meta-test - MET; TS population with literal floor 59 - MET. GAPS, recorded: no
+  P-COST-01 name was bound (pins/ and ops/lib/named-tests.json are outside touches); `npx tsc --noEmit` fails on this
+  checkout BEFORE this change too (TS2688 cannot find @cloudflare/workers-types/2023-07-01 - seen on the stashed base);
+  no wrangler KV binding (declared in Env only, R2); no deploy.
