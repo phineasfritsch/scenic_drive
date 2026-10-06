@@ -11,7 +11,8 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 DRIVERS = ("budget.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
            "hazards.py", "menu.py", "normalise.py", "placeallow.py", "plan.py", "retrace.py", "roadtrip.py", "routescore.py",
            "scenic_tags.py",
-           "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py", "telemetry.py")
+           "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
+           "telemetry.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
@@ -46,6 +47,7 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/RoadTrip/RoadTrip.swift", "Sources/ScenicKit/RoadTrip/RoadTripDay.swift",
     "Sources/ScenicKit/RoadTrip/RoadTripEdge.swift", "Sources/ScenicKit/RoadTrip/RoadTripLimits.swift",
     "Sources/ScenicKit/RoadTrip/RoadTripPlace.swift",
+    "Sources/PlaceStore/Segment.swift", "Sources/PlaceStore/SegmentVertex.swift",
     "Sources/Telemetry/H3CoordIJK.swift", "Sources/Telemetry/H3FaceProjection.swift",
     "Sources/Telemetry/H3BaseCells.swift", "Sources/Telemetry/H3IndexBuilder.swift",
     "Sources/Telemetry/H3Cell.swift", "Sources/Telemetry/CompletionPercent.swift",
