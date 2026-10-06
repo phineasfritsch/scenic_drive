@@ -224,3 +224,11 @@ resources.
   store-empty-never-stale by "/plan, a record 30 min + 1 ms old over no closures: 200 with closures_hazard stale,
   routed around the record's set"; `RESULT caught=3 missed=0 trap=0 of 3`. src/ unchanged (the defect was the
   missing rows).
+- 2026-10-06T12:23:33Z FINAL (rv2 B2 fix). `git fetch origin` (main checkout); origin/main bd5f8cf (T-0278 App Attest +
+  session JWT) merged LAST. Four conflicts, both sides kept: src/index.ts (the attest import beside runClosuresCron;
+  CLOSURES beside SESSION_JWT_SECRET / IDENTITY_HEADERS / APP_ATTEST_ALLOW_DEVELOP in Env), src/routerDeps.ts
+  (closures: after main`s identifyCaller identify), test/requestReadSites.test.ts (attest.ts and closuresCron.ts
+  entries), wrangler.jsonc (the cron triggers and main`s vars with IDENTITY_HEADERS "1"). Gates on the merged head:
+  `npx vitest run` Test Files 43 passed (43), Tests 1281 passed (1281); every closuresMutants anchor occurs exactly
+  once (95 checked, 0 stale); `python ops/lib/check-mutate-population.py` exit 0 (floor 67 holds); `bash
+  ops/queue-check` QUEUE OK (271 tasks). ops/test not run (orchestrator instruction).

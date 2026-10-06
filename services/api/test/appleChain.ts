@@ -19,7 +19,7 @@ export function tlv(tag: number, ...content: Uint8Array[]): Uint8Array {
   const len = n < 128 ? [n] : n < 256 ? [0x81, n] : [0x82, n >> 8, n & 0xff];
   return bytes([tag], len, body);
 }
-const seq = (...c: Uint8Array[]) => tlv(0x30, ...c);
+export const seq = (...c: Uint8Array[]) => tlv(0x30, ...c);
 function int(value: Uint8Array): Uint8Array {
   let v = value;
   while (v.length > 1 && v[0] === 0 && !(v[1]! & 0x80)) v = v.subarray(1);
@@ -56,12 +56,14 @@ export async function party(cn: string, curve: Curve): Promise<Party> {
   return { name: cn, curve, keys, spki: new Uint8Array((await crypto.subtle.exportKey("spki", keys.publicKey)) as ArrayBuffer) };
 }
 
-export interface CertSpec { notBefore: number; notAfter: number; extensions: string[]; issuerName?: string }
+export interface CertSpec { notBefore: number; notAfter: number; extensions: string[]; issuerName?: string;
+  /** extnValue content per extension OID (T-0278); absent, an encoded NULL. */
+  values?: Record<string, Uint8Array> }
 
 export async function certificate(subject: Party, issuer: Party, spec: CertSpec): Promise<Uint8Array> {
   const hash = issuer.curve === "P-384" ? "SHA-384" : "SHA-256";
   const alg = seq(oid(hash === "SHA-384" ? "1.2.840.10045.4.3.3" : "1.2.840.10045.4.3.2"));
-  const exts = spec.extensions.map((x) => seq(oid(x), tlv(0x04, new Uint8Array([0x05, 0x00]))));
+  const exts = spec.extensions.map((x) => seq(oid(x), tlv(0x04, spec.values?.[x] ?? new Uint8Array([0x05, 0x00]))));
   const tbs = seq(tlv(0xa0, int(new Uint8Array([2]))), int(crypto.getRandomValues(new Uint8Array(8))), alg,
     name(spec.issuerName ?? issuer.name), seq(time(spec.notBefore), time(spec.notAfter)), name(subject.name), subject.spki,
     tlv(0xa3, seq(...exts)));

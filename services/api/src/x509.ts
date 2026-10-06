@@ -29,6 +29,8 @@ export interface Certificate {
   spki: Uint8Array;
   curve: string;
   extensions: string[];
+  /** The extnValue content octets of each extension, index for index with `extensions` (T-0278 R2). */
+  extensionValues: Uint8Array[];
 }
 
 function bitString(value: Uint8Array): Uint8Array {
@@ -51,10 +53,12 @@ export function parseCertificate(der: Uint8Array): Certificate {
   const [keyType, curve] = children(expectTag(keyAlg, 0x30));
   if (oidText(expectTag(keyType, 0x06).value) !== OID_EC_PUBLIC_KEY) throw new DerError("not an EC public key");
   const extensions: string[] = [];
+  const extensionValues: Uint8Array[] = [];
   for (const field of fields.slice(i)) {
     if (field.tag !== 0xa3) continue;
     for (const ext of children(expectTag(children(field)[0], 0x30))) {
       extensions.push(oidText(expectTag(children(expectTag(ext, 0x30))[0], 0x06).value));
+      extensionValues.push(expectTag(children(expectTag(ext, 0x30)).at(-1), 0x04).value);
     }
   }
   return {
@@ -69,6 +73,7 @@ export function parseCertificate(der: Uint8Array): Certificate {
     spki: spki.raw,
     curve: oidText(expectTag(curve, 0x06).value),
     extensions,
+    extensionValues,
   };
 }
 
