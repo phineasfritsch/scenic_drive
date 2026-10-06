@@ -14,8 +14,9 @@ import { NOW, SANTA_MONICA_TOPANGA_BODY } from "./planHarness";
 import { TRIP_BODY } from "./tripHarness";
 
 const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
-// /asn and /entitlement read and write D1 only - no upstream call, nothing for the kill switch to save (T-0267 R11).
-const OPERATIONAL_ROUTES = ["/__health", "/__version", "/__ro", "/asn", "/entitlement"] as const;
+// /asn and /entitlement read and write D1 only - no upstream call, nothing for the kill switch to save (T-0267 R11);
+// so do /attest/challenge and /attest (T-0278 R7).
+const OPERATIONAL_ROUTES = ["/__health", "/__version", "/__ro", "/asn", "/entitlement", "/attest/challenge", "/attest"] as const;
 const UPSTREAM_ROUTES = ["/plan", "/loop", "/isochrone", "/trip"] as const;
 type UpstreamRoute = (typeof UPSTREAM_ROUTES)[number];
 const BODIES: Record<UpstreamRoute, unknown> = {
