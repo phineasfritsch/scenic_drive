@@ -96,7 +96,7 @@ pinned_shell() {
     grep -Fxq -e "$entry" <<<"$approved" || [[ "$entry" =~ $PINNED_SHELL_TILE ]] || bad+=("${entry#? }")
   done
   for entry in "${PINNED_SHELL_ENTRIES[@]}"; do
-    printf '%s\n' "${found[@]}" | grep -Fxq -e "$entry" || missing+=("${entry#? }")
+    grep -Fxq -e "$entry" <<<"$(printf '%s\n' "${found[@]}")" || missing+=("${entry#? }")
   done
   [[ "${#bad[@]}" -eq 0 && "${#missing[@]}" -eq 0 ]] || fail \
     "$PINNED_REASON: the app shell's file set is not the approved one: ${bad[*]:+added ${bad[*]}}${missing[*]:+ missing ${missing[*]}}." \

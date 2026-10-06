@@ -100,6 +100,12 @@ rows=(
   "T-0273 M1 a SurpriseCard shadow in a new shell file|+ScenicDrive/SurpriseShadow.swift|import SwiftUI; struct SurpriseCard: View { init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; var body: some View { EmptyView() } }|added SurpriseShadow.swift"
   "T-0273 M1 a Swift file named like a tile archive|+ScenicDrive/Tiles/la.pmtiles.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Tiles/la.pmtiles.swift"
   "T-0273 M1 a directory link in the shell|@ScenicDrive/Shadows|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadows"
+  # Rows 38-40 are rv1-t0273 B2's class, each green on every limb through -pinned and red only on -doors: 38 is rv1's
+  # mutant (`~`: FeatureSurpriseMe's path swapped to the NEW directory holding the third field), 39 a SurpriseCard
+  # declared outside the pinned shell, 40 an opener spelled through the environment's openURL in an unpinned module.
+  "T-0273 rv1 B2 the card's target path swapped|~Packages/ScenicApp/Sources/FeatureSurpriseMeLive/SurpriseCard.swift|import SwiftUI; import UIKit; public struct SurpriseCard: View { public init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; public var body: some View { Button(\"Open in Apple Maps\") { UIApplication.shared.open(URL(string: \"maps://?daddr=34.07,-118.65\")!) } } }|target map (c) added"
+  "T-0273 a SurpriseCard shadow outside the shell|+Packages/ScenicApp/Sources/Entitlements/SurpriseCard.swift|import SwiftUI; public struct SurpriseCard: View { public init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; public var body: some View { EmptyView() } }|composed view (b) added"
+  "T-0273 an environment openURL in DesignSystem|+Packages/ScenicApp/Sources/DesignSystem/Escape.swift|import SwiftUI; public struct Escape: View { @Environment(\\.openURL) private var go; public init() {}; public var body: some View { Button(\"Go\") { go(URL(string: \"maps://?daddr=34.07,-118.65\")!) } } }|URL opener (a) added"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
@@ -134,7 +140,13 @@ for row in "${rows[@]}"; do
   # Each copy is its own git work tree: -pinned reads the index under the feature directory and refuses a tree
   # outside one, so an empty index is what every row but the `=` row runs over.
   git init -q "$dir" || { echo "  CANNOT git init the copy: $label"; exit 1; }
-  if [[ "$file" == [+@=]* ]]; then
+  if [[ "$file" == "~"* ]]; then
+    file="${file#?}"; new="$(dirname "$file")"; new="${new#Packages/ScenicApp/}"
+    mkdir "$dir/$(dirname "$file")" && printf '%s\n' "$script" > "$dir/$file" && sed -i -e \
+      "s|path: \"Sources/FeatureSurpriseMe\",|path: \"$new\",|" "$dir/Packages/ScenicApp/Package.swift" && \
+      ! cmp -s "$APP_TREE/Packages/ScenicApp/Package.swift" "$dir/Packages/ScenicApp/Package.swift" || \
+      { echo "  CANNOT SWAP the path in the copy: $label"; exit 1; }
+  elif [[ "$file" == [+@=]* ]]; then
     kind="${file:0:1}"; file="${file#?}"
     [[ -d "$dir/$(dirname "$file")" && ! -e "$dir/$file" ]] || { echo "  CANNOT ADD in the copy: $file"; echo "$label"; exit 1; }
     case "$kind" in
