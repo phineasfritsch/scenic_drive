@@ -155,8 +155,13 @@ describe("the splitter's ceiling and day limits through ROUTES (R7)", () => {
     const exact = await send();
     quota = fakeQuotaNamespace();
     route({ scenic: scenicRuns(450_000, 450_000, 482_804) });
-    expect([exact.status, (exact.json.days as { distance_m: number }[])[0]!.distance_m, await send()]).toEqual([200, 482_803,
-      { status: 422, json: { error: "too_few_days", days: 5, max_drive_s: 21_600, max_distance_m: 482_803 } }]);
+    const over = await send();
+    quota = fakeQuotaNamespace();
+    route({ scenic: scenicRuns(450_000, 450_000, 482_803.5) });
+    const tooFew = { status: 422, json: { error: "too_few_days", days: 5, max_drive_s: 21_600, max_distance_m: 482_803 } };
+    // An edge's distance is rounded to the metre (R2): 482_803.5 m is 482_804, one metre over.
+    expect([exact.status, (exact.json.days as { distance_m: number }[])[0]!.distance_m, over, await send()])
+      .toEqual([200, 482_803, tooFew, tooFew]);
   });
 
   it("a day drives at most 6 h: 21_600_000 ms in one day plans; one millisecond more is 422 too_few_days", async () => {

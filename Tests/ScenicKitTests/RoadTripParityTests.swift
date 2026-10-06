@@ -131,7 +131,8 @@ struct RoadTripParityTests {
     @Test("the shared fixture carries the T-0249 route, its places and every outcome kind")
     func theFixtureIsWhole() throws {
         let fixture = try Self.fixture()
-        #expect([fixture.route.count, fixture.places.count, fixture.cases.count] == [21, 20, 9])
+        let counts: [Int] = [fixture.route.count, fixture.places.count, fixture.cases.count]
+        #expect(counts == [21, 20, 9])
         #expect(fixture.cases.contains { $0.expected.plan != nil })
         #expect(fixture.cases.contains { $0.expected.over_budget != nil })
         #expect(fixture.cases.contains { $0.expected.too_few_days != nil })
