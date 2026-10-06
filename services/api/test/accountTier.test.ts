@@ -104,7 +104,6 @@ beforeAll(async () => {
   quota = fakeQuotaNamespace();
   planOk = await send("/plan", {}, shippedEnv());
   loopOk = await send("/loop", {}, shippedEnv());
-  expect([planOk.status, loopOk.status]).toEqual([200, 200]);
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -142,6 +141,10 @@ const STATES: [string, EntitlementChange[], Record<string, string>, "paid" | "an
 ];
 
 describe("the tier is the entitlement of x-scenic-account-token, through the shipped ROUTES (R1-R3)", () => {
+  it("the paid states' reference answers are a plan and a loop served 200 to a fresh anon device", () => {
+    expect([planOk.status, loopOk.status, Object.keys(planOk.json as object).length > 0]).toEqual([200, 200, true]);
+  });
+
   it.each(STATES)("%s", async (_name, rows, headers, tier, reads) => {
     for (const r of rows) await applyEntitlement(env.DB, r);
     expect(await drive(headers)).toEqual(expected(tier, reads));

@@ -72,7 +72,10 @@ export function routerDepsFromEnv(env: RouterEnv): RouterDeps | null {
   return {
     upstream: { counters: countersFromNamespace(env.QUOTA), fetchImpl, now, killed: () => false },
     routerBase: base,
-    // The bucket is the install (R2); the allowance is the entitlement of x-scenic-account-token (T-0272 R1-R4).
-    identify: async (req) => ({ userId: deviceIdentity(req).userId, tier: await accountTier(req, env.DB, now().getTime()) }),
+    // The bucket is the install (R2); a live entitlement of x-scenic-account-token lifts anon to paid (T-0272 R1-R4).
+    identify: async (req) => {
+      const device = deviceIdentity(req);
+      return (await accountTier(req, env.DB, now().getTime())) === "paid" ? { ...device, tier: "paid" } : device;
+    },
   };
 }
