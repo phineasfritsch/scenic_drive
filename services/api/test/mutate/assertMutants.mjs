@@ -17,6 +17,8 @@
  * once is STALE and the run refuses before mutating anything. Pass condition: caught == MUTATIONS.length.
  * THE FLOOR is literal: MIN_MUTATIONS, and every SUBJECT is mutated by at least one entry. EQUIVALENT entries
  * carry a witness - the reason no test CAN tell them apart - and are never run.
+ * A SQL mutant keeps every ?N bound (D1 refuses a statement whose bindings do not match its parameters), so it is
+ * caught by its answer, never by a bind-count error (T-0278 S1's lesson).
  * The tree is checked clean (git status) before the first mutant and every file is restored in `finally`.
  */
 import { spawnSync } from "node:child_process";
@@ -50,14 +52,14 @@ export const MUTATIONS = [
   m("as-counter-high-byte-dropped", "appAssert.ts", "const counter = ((authData[33]! << 24) | ", "const counter = ("),
   m("as-counter-offset", "appAssert.ts", "(authData[34]! << 16) | (authData[35]! << 8) | authData[36]!)", "(authData[34]! << 16) | (authData[35]! << 8) | authData[32]!)"),
   m("store-device-limit-inclusive", "attestStore.ts", "WHERE bucket = ?1 AND slot = ?2), 0) < ?3", "WHERE bucket = ?1 AND slot = ?2), 0) <= ?3"),
-  m("store-device-limit-unchecked", "attestStore.ts", "WHERE COALESCE((SELECT issued FROM attest_challenge_counts WHERE bucket = ?1 AND slot = ?2), 0) < ?3\n  AND ", "WHERE "),
+  m("store-device-limit-unchecked", "attestStore.ts", "WHERE bucket = ?1 AND slot = ?2), 0) < ?3", "WHERE bucket = ?1 AND slot = ?2), 0) < ?3 + 1000000"),
   m("store-global-limit-inclusive", "attestStore.ts", "AND slot = ?4), 0) < ?5", "AND slot = ?4), 0) <= ?5"),
-  m("store-global-limit-unchecked", "attestStore.ts", "\n  AND COALESCE((SELECT issued FROM attest_challenge_counts WHERE bucket = '${GLOBAL_BUCKET}' AND slot = ?4), 0) < ?5", ""),
+  m("store-global-limit-unchecked", "attestStore.ts", "AND slot = ?4), 0) < ?5", "AND slot = ?4), 0) < ?5 + 1000000"),
   m("store-global-unguarded", "attestStore.ts", "SELECT '${GLOBAL_BUCKET}', ?1, 1 WHERE changes() = 1", "SELECT '${GLOBAL_BUCKET}', ?1, 1 WHERE 1"),
   m("store-insert-unguarded", "attestStore.ts", "SELECT ?1, ?2 WHERE changes() = 1\"", "SELECT ?1, ?2 WHERE 1\""),
-  m("store-prune-challenges-unguarded", "attestStore.ts", "\n  AND EXISTS (SELECT 1 FROM attest_challenges WHERE challenge = ?2)`;", "`;"),
+  m("store-prune-challenges-unguarded", "attestStore.ts", "FROM attest_challenges WHERE challenge = ?2)`;", "FROM attest_challenges WHERE challenge = ?2 OR 1)`;"),
   m("store-prune-challenges-live", "attestStore.ts", "DELETE FROM attest_challenges WHERE expires_at <= ?1", "DELETE FROM attest_challenges WHERE expires_at <= ?1 + 1"),
-  m("store-prune-counts-unguarded", "attestStore.ts", "\n  AND EXISTS (SELECT 1 FROM attest_challenges WHERE challenge = ?3)`;\n\n/**", "`;\n\n/**"),
+  m("store-prune-counts-unguarded", "attestStore.ts", "FROM attest_challenges WHERE challenge = ?3)`;", "FROM attest_challenges WHERE challenge = ?3 OR 1)`;"),
   m("store-prune-day-inclusive", "attestStore.ts", "AND slot < ?1)", "AND slot <= ?1)"),
   m("store-prune-hour-inclusive", "attestStore.ts", "AND slot < ?2)", "AND slot <= ?2)"),
   m("store-hour-unwindowed", "attestStore.ts", "const hour = Math.floor(nowMs / HOUR_MS) * HOUR_MS;", "const hour = nowMs;"),
@@ -69,7 +71,7 @@ export const MUTATIONS = [
   m("store-counter-ge", "attestStore.ts", "WHERE ?2 > COALESCE((SELECT sign_count", "WHERE ?2 >= COALESCE((SELECT sign_count"),
   m("store-counter-unguarded", "attestStore.ts", "WHERE ?2 > COALESCE((SELECT sign_count FROM attest_sign_counts WHERE key_id = ?1), 0)\n  AND EXISTS", "WHERE EXISTS"),
   m("store-commit-key-unchecked", "attestStore.ts", "\n  AND EXISTS (SELECT 1 FROM attested_keys WHERE key_id = ?1)", ""),
-  m("store-commit-challenge-unchecked", "attestStore.ts", "\n  AND EXISTS (SELECT 1 FROM attest_challenges WHERE challenge = ?3 AND expires_at > ?4)", ""),
+  m("store-commit-challenge-unchecked", "attestStore.ts", "AND EXISTS (SELECT 1 FROM attest_challenges WHERE challenge = ?3 AND expires_at > ?4)", "AND (?3 = ?3 OR ?4 = ?4)"),
   m("store-commit-expiry-inclusive", "attestStore.ts", "challenge = ?3 AND expires_at > ?4", "challenge = ?3 AND expires_at >= ?4"),
   m("store-commit-update-nothing", "attestStore.ts", "DO UPDATE SET sign_count = excluded.sign_count", "DO NOTHING"),
   m("store-commit-unchecked", "attestStore.ts", "return stored?.meta.changes === 1;", "return true;"),
