@@ -6,12 +6,14 @@
  *   4. The request's n events RESERVED in one QuotaCounter transaction (kind "telemetry", DAILY_TELEMETRY_QUOTA a
  *      device a UTC day) -> 429 quota_exhausted when it would cross the cap: the whole request, never a part.
  *   5. Only then each rebuilt point written with writeDataPoint.
- * Who is the install bucket of x-scenic-device (deviceIdentity) - no account lookup, no D1 read.
+ * Who is identifyCaller's bucket (T-0278 R6, T-0279 R12): the session JWT subject when SESSION_JWT_SECRET is set, else
+ * the install bucket of x-scenic-device (deviceIdentity). The tier is never read: every tier has the same cap.
  */
 import { killSwitch, type KillEnv } from "./killSwitch";
 import { DAILY_TELEMETRY_QUOTA, dayKey, nextReset } from "./quota";
 import type { QuotaCounter } from "./QuotaCounter";
 import { deviceIdentity } from "./routerDeps";
+import { AUTHORIZATION_HEADER, identifyCaller, type SessionEnv } from "./sessionIdentity";
 import { parseTelemetryBody } from "./telemetryPoint";
 
 export { MAX_TELEMETRY_EVENTS_PER_REQUEST } from "./telemetryPoint";
@@ -39,7 +41,7 @@ export function telemetryDepsFromEnv(env: TelemetryEnv): TelemetryDeps | null {
   return { dataset: env.TELEMETRY, quota: env.QUOTA, now: () => new Date() };
 }
 
-export async function handleTelemetry(req: Request, env: KillEnv, deps: TelemetryDeps | null): Promise<Response> {
+export async function handleTelemetry(req: Request, env: KillEnv & SessionEnv, deps: TelemetryDeps | null): Promise<Response> {
   if (await killSwitch(env)) return json({ error: "telemetry_paused" }, 503);
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
@@ -53,8 +55,8 @@ export async function handleTelemetry(req: Request, env: KillEnv, deps: Telemetr
   if (!parsed.ok) return json({ error: "invalid_request", detail: parsed.problem }, 400);
   if (deps === null) return json({ error: "telemetry_unavailable" }, 503);
 
-  const { userId } = deviceIdentity(req);
   const now = deps.now();
+  const { userId } = await identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now.getTime(), async () => deviceIdentity(req));
   const counter = deps.quota.get(deps.quota.idFromName(`device:${userId}`));
   let reserved: boolean;
   try {

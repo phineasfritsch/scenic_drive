@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-telemetry");
 
-export const MIN_MUTATIONS = 57;
+export const MIN_MUTATIONS = 58;
 export const SUBJECTS = ["src/telemetry.ts", "src/telemetryPoint.ts", "src/h3Res5.ts", "src/index.ts", "src/quota.ts",
   "src/QuotaCounter.ts"];
 const TESTS = ["test/telemetryCost.test.ts", "test/telemetryWhitelist.test.ts", "test/telemetryFixture.test.ts",
@@ -43,6 +43,8 @@ export const MUTATIONS = [
   m("reserve-plan-kind", T, "dayKey(now), \"telemetry\", DAILY", "dayKey(now), \"plan\", DAILY"),
   m("reserve-shared-bucket", T, "idFromName(`device:${userId}`)", "idFromName(\"device:shared\")"),
   m("refusal-ignored", T, "if (!reserved) return", "if (false) return"),
+  m("identity-bare-header", T, "await identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now.getTime(), async () => deviceIdentity(req));",
+    "deviceIdentity(req);"),
   m("resets-at-now", T, "resets_at: nextReset(now)", "resets_at: now.toISOString()"),
   m("write-raw-body", T, "for (const point of parsed.points) deps.dataset.writeDataPoint(point);",
     "for (const point of (raw as { events: unknown[] }).events) deps.dataset.writeDataPoint(point as never);"),

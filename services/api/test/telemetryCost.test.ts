@@ -75,6 +75,12 @@ describe("POST /telemetry spend control (T-0279 R5/R6, P-COST-01)", () => {
     });
   });
 
+  it("with SESSION_JWT_SECRET set, a caller with no Bearer spends the shared unidentified bucket, not its bare header (T-0278 R6)", async () => {
+    const rig = telemetryRig({ SESSION_JWT_SECRET: "s".repeat(64) });
+    expect(await post(rig.env, events(1))).toEqual({ status: 200, json: { written: 1 } });
+    expect(rig.quota.state()).toEqual({ "device:unidentified": { daily: { day: "2026-10-06", plan: 0, loop: 0, telemetry: 1 } } });
+  });
+
   it("an unbound TELEMETRY or QUOTA is 503 telemetry_unavailable with zero writes", async () => {
     for (const unbound of [{ TELEMETRY: undefined }, { QUOTA: undefined }]) {
       const rig = telemetryRig(unbound);
