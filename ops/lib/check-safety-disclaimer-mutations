@@ -43,8 +43,8 @@ rows=(
   "the on-device store key changed|$FS/ScenicHomeScreen.swift|s/safety.disclaimer.acknowledged.v1/whatever/|no @AppStorage"
   "the blocked tap no longer presents the disclaimer|$FS/ScenicHomeScreen.swift|s/onBlocked: { isShowingDisclaimer = true }/onBlocked: { }/|onBlocked"
   "the acknowledgement defaults to true|$FS/ScenicHomeScreen.swift|s/private var isSafetyDisclaimerAcknowledged = false/private var isSafetyDisclaimerAcknowledged = true/|does not default to false"
-  "a second call site in the app shell|ScenicDrive/ScenicDriveApp.swift|s/ScenicHomeScreen()/ScenicHomeScreen().onAppear { try? SkylineHandoff.open() }/|must be called exactly once"
-  "a second button beside the real one|$FS/ScenicHomeScreen.swift|s/^        conditions$/        conditions\n        GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, onBlocked: { }, onFailure: { _ in })/|constructed exactly once"
+  "a second call site in the app shell|ScenicDrive/ScenicDriveApp.swift|s/^import SwiftUI$/&\nlet bypass = { try? SkylineHandoff.open(.skyline, row: nil) }/|must be called exactly once"
+  "a second button beside the real one|$FS/ScenicHomeScreen.swift|s/^        conditions$/        conditions\n        GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, onBlocked: { }, onFailure: { _ in })/|constructed exactly twice"
   "the acknowledgement written outside the accept closure|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .onAppear { isSafetyDisclaimerAcknowledged = true }/;/^                isSafetyDisclaimerAcknowledged = true$/d|is written outside the accept closure"
   # Rows 12 and 13 are PR #101's finding B5 (agent/rv3-pr101) and the half of it rv3 named but did not
   # test. Both ADD a second writer BESIDE the real one and leave every earlier anchor satisfied - row 12
@@ -85,6 +85,35 @@ rows=(
   "rv4 a plain non-Swift file added|+$FS/notes.txt|Conditions change. Verify locally.|added notes.txt"
   "rv4 an empty subdirectory added|+$FS/Extras/|-|added Extras"
   "rv4 a symlink committed to the index|=$FS/Shadow.swift|../Shadows/Shadow.swift|committed as a symlink"
+  # Rows 30-33 are T-0273's Surprise card (R4): its Apple Maps tap reaches the home's gate through the shell and
+  # nothing else. Row 30 is the acceptance's mutant - the card opening a URL itself - refused by the card's pinned
+  # digest; 31 the shell handing the card its own opener (the frozen shell); 32 the second construction passing
+  # true (the identifier's tracked count); 33 a file added beside the card (the card's pinned file set).
+  "T-0273 the Surprise card opens Apple Maps itself|Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift|s/onOpenInMaps(candidate.coordinate)/openURL(URL(string: \"maps:?daddr=34.07,-118.65\")!)/|SurpriseCard.swift content changed"
+  "T-0273 the shell hands the card its own opener|ScenicDrive/ScenicDriveApp.swift|s/onOpenInMaps: open))/onOpenInMaps: { _ in }))/|the app shell ScenicDriveApp"
+  "T-0273 the Surprise construction passes true|$FS/ScenicHomeScreen.swift|/private func openSurprise/,/attempt()/s/isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged/isSafetyDisclaimerAcknowledged: true/|identifier isSafetyDisclaimerAcknowledged"
+  "T-0273 a file added beside the Surprise card|+Packages/ScenicApp/Sources/FeatureSurpriseMe/Shadow.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadow.swift"
+  # Rows 34-37 are T-0273's pre-review M1: a `struct SurpriseCard` declared in the APP SHELL shadows the imported card,
+  # so the frozen shell line builds a card whose tap opens Apple Maps itself. Every count, whitelist and frozen block
+  # is green on all four; each is red only because -pinned pins the shell's entries and ScenicDriveApp.swift's bytes.
+  "T-0273 M1 a SurpriseCard shadow appended to the shell|ScenicDrive/ScenicDriveApp.swift|\$a struct SurpriseCard: View { init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; var body: some View { Button(\"Open in Apple Maps\") { UIApplication.shared.open(URL(string: \"maps://?daddr=34.07,-118.65\")!) } } }|ScenicDriveApp.swift content changed"
+  "T-0273 M1 a SurpriseCard shadow in a new shell file|+ScenicDrive/SurpriseShadow.swift|import SwiftUI; struct SurpriseCard: View { init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; var body: some View { EmptyView() } }|added SurpriseShadow.swift"
+  "T-0273 M1 a Swift file named like a tile archive|+ScenicDrive/Tiles/la.pmtiles.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Tiles/la.pmtiles.swift"
+  "T-0273 M1 a directory link in the shell|@ScenicDrive/Shadows|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadows"
+  # Rows 38-40 are rv1-t0273 B2's class, each green on every limb through -pinned and red only on -doors: 38 is rv1's
+  # mutant (`~`: FeatureSurpriseMe's path swapped to the NEW directory holding the third field), 39 a SurpriseCard
+  # declared outside the pinned shell, 40 an opener spelled through the environment's openURL in an unpinned module.
+  "T-0273 rv1 B2 the card's target path swapped|~Packages/ScenicApp/Sources/FeatureSurpriseMeLive/SurpriseCard.swift|import SwiftUI; import UIKit; public struct SurpriseCard: View { public init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; public var body: some View { Button(\"Open in Apple Maps\") { UIApplication.shared.open(URL(string: \"maps://?daddr=34.07,-118.65\")!) } } }|target map (c) added"
+  "T-0273 a SurpriseCard shadow outside the shell|+Packages/ScenicApp/Sources/Entitlements/SurpriseCard.swift|import SwiftUI; public struct SurpriseCard: View { public init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; public var body: some View { EmptyView() } }|composed view (b) added"
+  "T-0273 an environment openURL in DesignSystem|+Packages/ScenicApp/Sources/DesignSystem/Escape.swift|import SwiftUI; public struct Escape: View { @Environment(\\.openURL) private var go; public init() {}; public var body: some View { Button(\"Go\") { go(URL(string: \"maps://?daddr=34.07,-118.65\")!) } } }|URL opener (a) added"
+  # Rows 41-43 are rv2-t0273 B1's class. 41 is rv2's two-file mutant: a NEW MapAdapter/MapTapHandoff.swift whose tap
+  # opens Apple Maps through `let go = scene.open` (UIWindowScene.open, unbound), wired by ONE line added to
+  # MapView.makeUIView (a fifth field `FILE@@SED` is that second file's edit); -doors' bare `open`/`windowScene`
+  # tokens refuse it first. 42 (one line added to an existing MapAdapter file) and 43 (a UI test file in a NEW
+  # directory, `^` making its parents) name no opener at all, and each is red only on -pinned's whole-app Swift pin.
+  "T-0273 rv2 B1 a map tap opens Maps via scene.open|+Packages/ScenicApp/Sources/MapAdapter/MapTapHandoff.swift|import UIKit; enum MapTapHandoff { @MainActor static func recognizer() -> UITapGestureRecognizer { UITapGestureRecognizer(target: Tap.shared, action: #selector(Tap.fire(_:))) } }; @MainActor final class Tap: NSObject { static let shared = Tap(); @objc func fire(_ sender: UITapGestureRecognizer) { guard let scene = sender.view?.window?.windowScene, let url = URL(string: \"maps://?daddr=34.07,-118.65\") else { return }; let go = scene.open; go(url, nil, nil) } }|Packages/ScenicApp/Sources/MapAdapter/MapView.swift@@s/^        mapView.delegate = context.coordinator$/&\n        mapView.addGestureRecognizer(MapTapHandoff.recognizer())/|URL opener (a) added: Packages/ScenicApp/Sources/MapAdapter/MapTapHandoff.swift"
+  "T-0273 rv2 a one-line edit to a MapAdapter file|Packages/ScenicApp/Sources/MapAdapter/MapView.swift|s/^        mapView.delegate = context.coordinator$/&\n        mapView.isRotateEnabled = false/|Packages/ScenicApp/Sources/MapAdapter/MapView.swift content changed"
+  "T-0273 rv2 a UI test file added in a new directory|^ScenicDriveUITests/EscapeUITests.swift|import XCTest; final class EscapeUITests: XCTestCase { func testNothing() { XCTAssertTrue(true) } }|added ScenicDriveUITests/EscapeUITests.swift"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
@@ -112,6 +141,7 @@ for row in "${rows[@]}"; do
   file="${rest%%|*}"; rest="${rest#*|}"
   script="${rest%%|*}"
   expect="${rest##*|}"
+  mid="${rest#*|}"; extra=""; [[ "$mid" == *"|"* ]] && extra="${mid%|*}"
 
   dir="$work/m$total"
   rm -rf "$dir"
@@ -119,11 +149,18 @@ for row in "${rows[@]}"; do
   # Each copy is its own git work tree: -pinned reads the index under the feature directory and refuses a tree
   # outside one, so an empty index is what every row but the `=` row runs over.
   git init -q "$dir" || { echo "  CANNOT git init the copy: $label"; exit 1; }
-  if [[ "$file" == [+@=]* ]]; then
+  if [[ "$file" == "~"* ]]; then
+    file="${file#?}"; new="$(dirname "$file")"; new="${new#Packages/ScenicApp/}"
+    mkdir "$dir/$(dirname "$file")" && printf '%s\n' "$script" > "$dir/$file" && sed -i -e \
+      "s|path: \"Sources/FeatureSurpriseMe\",|path: \"$new\",|" "$dir/Packages/ScenicApp/Package.swift" && \
+      ! cmp -s "$APP_TREE/Packages/ScenicApp/Package.swift" "$dir/Packages/ScenicApp/Package.swift" || \
+      { echo "  CANNOT SWAP the path in the copy: $label"; exit 1; }
+  elif [[ "$file" == [+@=^]* ]]; then
     kind="${file:0:1}"; file="${file#?}"
+    [[ "$kind" != "^" ]] || mkdir -p "$dir/$(dirname "$file")"
     [[ -d "$dir/$(dirname "$file")" && ! -e "$dir/$file" ]] || { echo "  CANNOT ADD in the copy: $file"; echo "$label"; exit 1; }
     case "$kind" in
-      +) if [[ "$file" == */ ]]; then mkdir "$dir/$file"; else printf '%s\n' "$script" > "$dir/$file"; fi ;;
+      +|^) if [[ "$file" == */ ]]; then mkdir "$dir/$file"; else printf '%s\n' "$script" > "$dir/$file"; fi ;;
       @) mkdir "$work/t$total" && printf '%s\n' "$script" > "$work/t$total/Shadow.swift" && \
            row_link "$work/t$total" "$dir/$file" || { echo "  CANNOT LINK in the copy: $label"; exit 1; } ;;
       =) blob="$(printf '%s' "$script" | git -C "$dir" hash-object -w --stdin)" && \
@@ -133,6 +170,11 @@ for row in "${rows[@]}"; do
     [[ -f "$dir/$file" ]] || { echo "  NO SUCH FILE in the copy: $file"; echo "$label"; exit 1; }
     sed -i -e "$script" "$dir/$file"
     cmp -s "$APP_TREE/$file" "$dir/$file" && { echo "  THE MUTATION CHANGED NOTHING: $label"; exit 1; }
+  fi
+  if [[ -n "$extra" ]]; then
+    efile="${extra%%@@*}"; [[ -f "$dir/$efile" ]] || { echo "  NO SUCH FILE in the copy: $efile"; echo "$label"; exit 1; }
+    sed -i -e "${extra#*@@}" "$dir/$efile"
+    cmp -s "$APP_TREE/$efile" "$dir/$efile" && { echo "  THE SECOND EDIT CHANGED NOTHING: $label"; exit 1; }
   fi
 
   out="$(bash "$CHECK" --sources "$dir/$FS" --app-tree "$dir" 2>&1)"

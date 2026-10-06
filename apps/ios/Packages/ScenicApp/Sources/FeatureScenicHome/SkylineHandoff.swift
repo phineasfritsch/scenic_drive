@@ -85,8 +85,13 @@ public enum SkylineHandoff {
     /// The type keeps the name `SkylineHandoff` although it now hands over either drive: the check's
     /// anchors are that identifier and this file name, and `ops/` is outside this task's `touches:`.
     @MainActor
-    public static func open(_ drive: HandoffDrive, row: DriveMenuRow?) throws {
-        let destinationURL = try url(for: drive, row: row)
+    public static func open(_ drive: HandoffDrive, row: DriveMenuRow?, place: Coordinate? = nil) throws {
+        let destinationURL: URL
+        if let place {
+            destinationURL = try AppleMapsDirections(destination: place).url()
+        } else {
+            destinationURL = try url(for: drive, row: row)
+        }
         UIApplication.shared.open(destinationURL, options: [:], completionHandler: nil)
     }
 }

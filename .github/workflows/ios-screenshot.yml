@@ -5,7 +5,7 @@
 # screen - in light and dark, at both of its sheet detents (T-0237: `-homeDetent collapsed|medium`, a launch
 # argument) and collapsed again with the menu's 'Fastest' row selected (T-0246: `-menuRow 0`; every other shot passes
 # `-menuRow default`, which is no row, so the menu's own default row), then Settings and the paywall (T-0271:
-# `-screen settings|paywall`, read only in a DEBUG build; every home shot passes `-screen home`), as ONE artifact,
+# `-screen settings|paywall|surprise`, read only in a DEBUG build; every home shot passes `-screen home`), as ONE artifact,
 # `ios-screenshots`, so the app can be SEEN. It proves nothing about
 # signing or TestFlight (T-0009). The runner needs network: the demo style is remote. apps/ios/ScenicDrive/Tiles/
 # la.pmtiles is gitignored, so CI draws the MapLibre demo tiles and credits them as such - BasemapResolver's
@@ -117,10 +117,10 @@ jobs:
           }
           for LOOK in light dark; do
             xcrun simctl ui "$UDID" appearance "$LOOK"
-            for SHOT in collapsed medium fastest settings paywall; do
+            for SHOT in collapsed medium fastest settings paywall surprise; do
               case "$SHOT" in
                 fastest) DETENT=collapsed ROW=0 SCREEN=home NAME=home-$LOOK-$SHOT ;;
-                settings|paywall) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
+                settings|paywall|surprise) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
                 *) DETENT=$SHOT ROW=default SCREEN=home NAME=home-$LOOK-$SHOT ;;
               esac
               LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN")

@@ -1,5 +1,6 @@
 import Entitlements
 import FeatureScenicHome
+import FeatureSurpriseMe
 import SwiftUI
 
 /// The app shell. It owns the scene and composes the features; it draws nothing of its own.
@@ -16,7 +17,7 @@ struct ScenicDriveApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ScenicHomeScreen(onSettings: { isShowingSettings = true })
+            ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })
                 .sheet(isPresented: $isShowingSettings) {
                     SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, onDone: { isShowingSettings = false })
                 }

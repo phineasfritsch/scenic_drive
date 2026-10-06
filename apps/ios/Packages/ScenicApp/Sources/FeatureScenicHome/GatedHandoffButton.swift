@@ -1,6 +1,7 @@
 import DesignSystem
 import Handoff
 import OSLog
+import ScenicKit
 import SwiftUI
 
 /// The one button that leaves the app, and the acknowledgement gate in front of it.
@@ -33,6 +34,9 @@ struct GatedHandoffButton: View {
 
     /// The selected menu row (T-0246), or `nil` for a drive with no menu: the tap opens ITS printed URL.
     let row: DriveMenuRow?
+
+    /// A Surprise place instead of the drive (T-0273 R4): the same guard, the same one call below.
+    var place: Coordinate? = nil
 
     /// Called on a tap that the gate stopped. The screen presents the disclaimer.
     let onBlocked: () -> Void
@@ -87,7 +91,7 @@ struct GatedHandoffButton: View {
             return
         }
         do {
-            try SkylineHandoff.open(drive, row: row)
+            try SkylineHandoff.open(drive, row: row, place: place)
             onFailure(nil)
         } catch {
             // `.public`: `HandoffError` carries a coordinate pair or a waypoint count, and the
