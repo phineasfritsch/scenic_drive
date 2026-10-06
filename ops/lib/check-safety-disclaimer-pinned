@@ -52,9 +52,10 @@ PINNED_FEATURE=(
   'HomeSheet.swift fda5e599a9c3b09203de6fc835e47cd3592cb91864518e9226d6e35204b9154e'
   'HomeSheetDetent.swift 8f6a8eeaec6829a1b415408db5ea34d787d657919fc0f363189eb34c0e39e63e'
   'SafetyDisclaimer.swift 7c33cdcf91aa074bf3916fda95c680e9e8d50ee131d5016f5912281a72384421'
-  'ScenicHomeScreen.swift c53e3db9a15e0796e6544a9354143069693d500a90ea29cc39e9e5247da9a207'
+  'ScenicHomeScreen.swift 66a5c03e9706998c1cb35675595116ae67d70554a714907f53e14ee7c6d4cc66'
   'SkylineHandoff.swift 43fa2c19ce81f0cb217cfd98f5da383465ac1bb87ae5d5ac4d97017f74eff70c'
   'SurpriseSlot.swift 2306572ab23e70b3050f3e6b41f3e91587b79fb8693eab0f8b4b896e234c124b'
+  'SurpriseToggle.swift 97d90de6d95a6d7f1e1f0b8cb99df6e46ac250d890fdbb182da4a956b3e4770a'
 )
 # T-0273: the Surprise card's module, pinned the same way (its file set and its bytes): the card holds the only
 # Apple Maps button outside FeatureScenicHome, and it must reach the home's gate and nothing else (R4).

@@ -160,8 +160,7 @@ public struct ScenicHomeScreen: View {
         )
     }
 
-    /// The Surprise card's Apple Maps tap: the SAME gate as the home's button - a second GatedHandoffButton with the
-    /// acknowledgement passed through, its refusal presenting the same disclaimer (T-0273 R4, P-SAFE-03).
+    /// The Surprise card's Apple Maps tap: the SAME gate, a second GatedHandoffButton (T-0273 R4, P-SAFE-03).
     private func openSurprise(_ place: Coordinate) {
         GatedHandoffButton(
             isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,
@@ -202,27 +201,7 @@ public struct ScenicHomeScreen: View {
     /// measured bottom is still the map's covered edge. 44 pt square, drawn like an unselected chip (`fg` on
     /// `surface`, a `border` hairline); the action is the shell's (`onSettings`).
     private var surpriseButton: some View {
-        Button {
-            surpriseFailure = nil
-            isShowingSurprise.toggle()
-        } label: {
-            Image(systemName: isShowingSurprise ? "sparkles.rectangle.stack.fill" : "sparkles")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(DesignTokens.primary)
-                .frame(width: 44, height: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(DesignTokens.surface)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(DesignTokens.border, lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Surprise me")
-        .accessibilityAddTraits(isShowingSurprise ? .isSelected : [])
-        .accessibilityIdentifier("home.surprise")
+        SurpriseToggle(isShowing: $isShowingSurprise, onToggle: { surpriseFailure = nil })
     }
 
     private var settingsButton: some View {
