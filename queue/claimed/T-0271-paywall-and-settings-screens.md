@@ -129,3 +129,39 @@ xcodeproj lock (T-0180).
     source and pinned, but StoreKit draws no buttons in its unavailable state, so no screenshot shows it; Settings'
     Restore row is on screen. The marketing header (symbol, name, tagline) is not drawn for the same reason. Legal
     & Attribution was not screenshotted (no launch argument reaches it).
+- 2026-10-06T04:01:14Z PRE-REVIEW SURVIVORS CLOSED, agent/claude-opus-5. The fable pass on b48f239 applied six
+  unwritten mutants to PaywallScreen/SettingsScreen; five survived (`check-store-links.py` green, exit 0). RULINGS,
+  before code: (S1) M1 (the inset draws `EmptyView()`, `policyLinks` left as dead code) and M5 (`about` ->
+  `EmptyView()` in Settings' List) are one class - the links' sites were approved, their MOUNTING was not, while
+  Restore's was; closed by runs, not needles: the paywall's chain run now continues `.safeAreaInset(edge: .bottom) {`
+  / `policyLinks` / `}`, and two new runs `List { / subscription / about / }` (Settings' sections) and the shell's
+  `.sheet(isPresented: $isShowingSettings) { / SETTINGS_MOUNT / }` (the same class at the shell's mount: a
+  `.hidden()` under SettingsScreen(...) was green too). Runs now compare NON-BLANK kept lines, so the existing
+  "blank line between the Settings sections" row stays green. (S2) M2 (`/* */` around the Terms link), M3
+  (`.environment(\.openURL, OpenURLAction { _ in .handled })`) and M4 (`.opacity(0)`) are one class - a change that
+  leaves every approved line verbatim but hides or disarms a control. The fix shape proposed (empty-approved-list
+  needles for `openURL`, `.opacity(`, `.hidden()`, `/*`) is a blacklist of spellings (CLAUDE.md, PR #101):
+  `.allowsHitTesting(false)` on a closing brace, `.disabled(true)`, `.scaleEffect(0)`, `.offset(...)` or a
+  `extension View` in a sixth file would each be the next round. Ruled instead: Sources/Entitlements is FROZEN - a
+  whitelist of content: the *.swift files there are exactly the five approved, and each file's non-blank kept lines
+  (CR stripped, trimmed, `//`-leading dropped, which takes `///` with it) hash to an approved sha256 in
+  store_links_pinned.FROZEN. Any code change there is refused until a reviewed commit re-approves the digest (the
+  P-SAFE-03 ScenicHomeScreen digest is the precedent). Re-indents, blank lines and comment edits stay green. (S3) No
+  Swift changed, so no ios-compile dispatch; the PNGs of runs 37400712681/37405158016 stand. Pin text updated:
+  29 mutants, 4 legitimate edits, CANNOT SEE now names only a modifier or extension OUTSIDE Sources/Entitlements.
+  - RED, with the new MUTATIONS rows in and the guard unchanged: `check-store-links --prove-red: 25/33 rows as
+    required (29 mutants refused by name, 4 legitimate edits green)`, exit 1 - MISSED by name: `M1 the paywall's
+    links unmounted (inset draws EmptyView)`, `M5 Settings' About section unmounted`, `M2 the Terms link inside a
+    /* */ comment`, `M3 the links' taps open nothing (openURL replaced)`, `M4 the paywall drawn at opacity 0`, `the
+    links made inert by a modifier on the HStack's closing brace`, `a view extension added to the module beside the
+    screens` (refused only as `import :`, not by its name), `the shell hides the Settings it mounts`.
+  - GREEN after the runs and FROZEN: shipped tree `P-STORE-01 source half: ... at exactly their approved sites,
+    mounted, in a frozen Entitlements module`, exit 0; `check-store-links --prove-red: 33/33 rows as required (29
+    mutants refused by name, 4 legitimate edits green)`, exit 0. M1 <- `the paywall's modifier chain: the run ...
+    occurs 0 time(s)`; M5 <- `Settings' sections: the run `List { / subscription / about / }` occurs 0 time(s)`;
+    M2, M3, M4 and the closing-brace row <- `the frozen Entitlements source: .../PaywallScreen.swift's non-blank kept
+    lines hash ..., approved e78e2079...`; the sixth file <- `the frozen Entitlements source: .../ViewTweaks.swift is
+    not an approved file`; the shell row <- `the shell's Settings sheet: the run ... occurs 0 time(s)`. Every earlier
+    row still RED by its own name; the four GREEN rows green (the new one: a `///` doc comment reworded).
+  - Measured: ops/lib/check-store-links.py 191 lines, ops/lib/store_links_pinned.py 179 lines (cap 300).
+    pins/PINS.yaml parses with ops/lib/pins.py's loader (40 pins, P-STORE-01 present).

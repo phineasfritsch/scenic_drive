@@ -9,14 +9,18 @@ WHAT IT DECIDES, over the Swift source - fail closed, whole-line WHITELISTS keye
 `restorePurchases`, `termsOfUseURL`, `privacyPolicyURL`, `AppStore.sync()`, `manageSubscriptionsSheet`, the screens'
 constructors, `onSettings` or `import Entitlements` is one of the approved (file, whole line) pairs in
 store_links_pinned.py, with multiplicity; every `import`, `accessibilityIdentifier`, `#` directive and
-`UserDefaults` line under Sources/Entitlements likewise; the store view's modifier chain and the DEBUG fence are
-runs of consecutive lines; and the in-app ODbL notice equals LICENSE-DATA's OpenStreetMap section line for line.
+`UserDefaults` line under Sources/Entitlements likewise; the store view's modifier chain with the inset that mounts
+the links, Settings' List of sections, the shell's Settings sheet and the DEBUG fence are runs of consecutive
+non-blank lines; Sources/Entitlements is frozen - exactly its five files, each matching an approved sha256 of its
+non-blank kept lines, so a modifier that hides or disarms a control, a `/* */` block or a view extension there is
+refused; and the in-app ODbL notice equals LICENSE-DATA's OpenStreetMap section line for line.
 
 WHAT IT CANNOT SEE, so nobody reads more into a green than is there: whether any of it RENDERS or is reachable by a
 tap (the XCUITest half, T-0180's, on the identifiers checked here); whether StoreKit loads products (no group exists
-in App Store Connect - ruling R3); whether the URLs resolve; `/* */` comments; a control without an identifier that
-names none of the needles; a modifier overloaded by an extension elsewhere in the module.
+in App Store Connect - ruling R3); whether the URLs resolve; a modifier or extension OUTSIDE Sources/Entitlements
+(DesignSystem, say) that changes what the frozen source draws.
 """
+import hashlib
 import pathlib
 import shutil
 import sys
@@ -61,10 +65,23 @@ def whitelist(needle, pop, approved, bad):
 def sequences(root, bad):
     for label, rel, run in pinned.SEQUENCES:
         path = root / rel
-        kept = kept_lines(path) if path.is_file() else []
+        kept = [line for line in kept_lines(path) if line] if path.is_file() else []
         hits = sum(kept[i:i + len(run)] == run for i in range(len(kept)))
         if hits != 1:
             bad.append(f"{label}: the run `{' / '.join(run)}` occurs {hits} time(s) in {rel}, expected exactly 1")
+
+
+def frozen(root, bad):
+    label = "the frozen Entitlements source"
+    have = sorted(p.relative_to(root).as_posix() for p in (root / pinned.ENT).rglob("*.swift"))
+    for rel in sorted(set(have) ^ set(pinned.FROZEN)):
+        bad.append(f"{label}: {rel} is {'not an approved file' if rel in have else 'missing'}")
+    for rel in sorted(set(have) & set(pinned.FROZEN)):
+        text = "\n".join(line for line in kept_lines(root / rel) if line)
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        if digest != pinned.FROZEN[rel]:
+            bad.append(f"{label}: {rel}'s non-blank kept lines hash {digest}, approved {pinned.FROZEN[rel]} - a reviewed "
+                       f"commit re-approves it in store_links_pinned.FROZEN")
 
 
 def notice(root, bad):
@@ -101,6 +118,7 @@ def run(root):
     for needle, approved in pinned.ENTITLEMENTS.items():
         whitelist(needle, ent, approved, bad)
     sequences(root, bad)
+    frozen(root, bad)
     notice(root, bad)
     return bad
 
@@ -165,7 +183,7 @@ def main(argv):
             print("  " + line)
         return 1
     print("P-STORE-01 source half: paywall and Settings links, Restore, SubscriptionStoreView and the ODbL notice "
-          "at exactly their approved sites")
+          "at exactly their approved sites, mounted, in a frozen Entitlements module")
     return 0
 
 
