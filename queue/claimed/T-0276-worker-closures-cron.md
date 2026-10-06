@@ -264,3 +264,7 @@ resources.
   `--only=store-shape-unchecked-on-empty` (baseline green tests=669) -> CAUGHT store-shape-unchecked-on-empty by
   "/plan, a geojson with no type over no closures: 200 with closures_hazard unavailable and no areas";
   `RESULT caught=1 missed=0 trap=0 of 1`. src/ unchanged (the defect was the rows).
+- 2026-10-06T13:40:48Z FINAL (rv3 B3 fix). `git fetch origin` (main checkout); origin/main bd5f8cf is already an ancestor of 3483d4a
+  (merge-base --is-ancestor), nothing to merge. Gates on that head: `npx vitest run` Test Files 43 passed (43), Tests
+  1388 passed (1388) (1281 + 107 rows); `python ops/lib/check-mutate-population.py` exit 0; `bash ops/queue-check` QUEUE OK
+  (271 tasks). ops/test not run (orchestrator instruction).
