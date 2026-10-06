@@ -121,3 +121,18 @@ should land comfortably inside it. Product taste: memory owner-route-intent.
   (timeFitPeakPercent 70, timeFitSlope 2), SurprisePlaceClass.priorQuality and the mapping reading it: "Test run with
   38 tests in 8 suites passed". SurpriseFilterTests.swift: git diff empty. Line counts: Surprise.swift 160,
   SurprisePlaceClass.swift 95, SurprisePlaceMapping.swift 36, SurpriseCorpusFitTests.swift 60, corpus_measure.py 144.
+- 2026-10-06T22:51:31Z POPULATION (acceptance 3, agent/claude-opus-5). ops/mutate/surprise_fit_mutations.py holds 17
+  entries (124-140) appended to MUTATIONS; 32 (time-fit dropped) and 106 (now: the mapping reads a flat 50 again, the
+  T-0273 rule) re-targeted to the new text; MIN_MUTATIONS 123 -> 140 (literal); surprise_run.FILTER gains
+  SurpriseCorpusFitTests; --prove-floor: "FLOOR PROOF OK: 7 of 7 arms refused and the control did not". The first
+  --only run REFUSED on a SyntaxError (a shell edit wrote a literal backslash-n into surprise_mutations.py line 57,
+  committed in 97f9b572; fixed in f93a7dcc). Then `python ops/mutate/surprise.py --only 32,106,124,...,140` (FASTER
+  VERIFICATION: only the touched rows): "caught by the test that names it: 17 of 19 (wrong killer 0, trapped 0,
+  compile-only 2, MISSED 0, skipped 0)". caught: 32, 106, 124 peak 65, 125 peak 75, 126 slope 3, 127 slope 1, 128
+  clamp dropped (by the corpus suite and the permutation), 129 signed distance, 130 T-0253's linear fit, 131 percent
+  rounded to nearest, 132 scenic tier 70, 133 middle tier 55, 134 cafe 30, 137 cafe promoted, 138 flat 75, 139 flat
+  25, 140 scenic tier at 25. COMPILE-ONLY 135 and 136: deleting `.garden` / `.peak` from the scenic case left the
+  switch non-exhaustive - a fact about Swift; re-written to MOVE the class into the middle case (one span over both
+  lines, TIERS), re-run below. 140 renamed "the scenic tier dropped to the cafe tier" (it never inverted the cafe).
+  P-PROD-02: `SCENIC_SWIFT_SCRATCH=.build-t0283/swift python ops/lib/run-named-tests.py P-PROD-02` ->
+  "NAMED P-PROD-02 passed=4/4" on 97f9b572's tree; its prose gets one dated sentence (f93a7dcc).

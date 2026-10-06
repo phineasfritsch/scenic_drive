@@ -26,6 +26,7 @@ SLOPE = "public static let timeFitSlope = 2"
 FIT = "max(0, 100 - timeFitSlope * abs(minutes * 100 / max(budget, 1) - timeFitPeakPercent))"
 SCENIC = "case .viewpoint, .peak, .waterfall, .beach, .trailhead, .garden: return 75"
 MIDDLE = "case .park, .museum, .town: return 50"
+TIERS = SCENIC + chr(10) + "        " + MIDDLE
 CAFE = "case .cafe: return 25"
 READ = "quality: placeClass.priorQuality,"
 
@@ -46,13 +47,14 @@ MUTATIONS = [
     ("132 the scenic tier lowered", PLACE_CLASS, SCENIC, SCENIC.replace("75", "70"), [CLASSES, CORPUS]),
     ("133 the middle tier raised", PLACE_CLASS, MIDDLE, MIDDLE.replace("50", "55"), [CLASSES, CELL, CORPUS]),
     ("134 the cafe tier raised", PLACE_CLASS, CAFE, CAFE.replace("25", "30"), [CLASSES, CORPUS]),
-    ("135 gardens demoted to the middle tier", PLACE_CLASS, SCENIC, SCENIC.replace(", .garden", ""),
-     [CLASSES, CORPUS]),
-    ("136 peaks demoted to the middle tier", PLACE_CLASS, SCENIC, SCENIC.replace(", .peak", ""), [CLASSES, CORPUS]),
+    ("135 gardens demoted to the middle tier", PLACE_CLASS, TIERS,
+     TIERS.replace(", .garden", "").replace(".town:", ".town, .garden:"), [CLASSES, CORPUS]),
+    ("136 peaks demoted to the middle tier", PLACE_CLASS, TIERS,
+     TIERS.replace(", .peak", "").replace(".town:", ".town, .peak:"), [CLASSES, CORPUS]),
     ("137 cafes promoted to the scenic tier", PLACE_CLASS, SCENIC, SCENIC.replace(".garden:", ".garden, .cafe:"),
      [CLASSES, CORPUS]),
     ("138 the mapping reads a flat scenic quality", MAPPING, READ, "quality: 75,", [CLASSES, CORPUS]),
     ("139 the mapping reads a flat cafe quality", MAPPING, READ, "quality: 25,", [CLASSES, CORPUS, INSIDE]),
-    ("140 the prior tiers inverted: cafe 75, scenery 25", PLACE_CLASS, SCENIC, SCENIC.replace("75", "25"),
+    ("140 the scenic tier dropped to the cafe tier", PLACE_CLASS, SCENIC, SCENIC.replace("75", "25"),
      [CLASSES, CORPUS, INSIDE]),
 ]
