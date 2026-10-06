@@ -1,7 +1,7 @@
 ---
 id: T-0273
 title: FeatureSurpriseMe - the Surprise card on the home screen, picking from the bundled fallback corpus with Surprise.pick, showing name, hook, round-trip estimate, golden-hour line and four 'not this' buttons, with Open in Apple Maps
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T04:52:41Z
@@ -11,7 +11,7 @@ branch: task/T-0273
 exclusive: [package-swift]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, Sources/PlaceStore/, Tests/PlaceStoreTests/, ops/mutate/, apps/ios/Packages/ScenicApp/Sources/FeatureSurpriseMe/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/ScenicDrive/, Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, .github/workflows/ios-screenshot.yml, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-PROD-02, P-PROD-03, P-ATTR-01, P-SAFE-03]
-reviewer: null
+reviewer: agent/rv3-t0273
 depends_on: [T-0270, T-0271, T-0263]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -253,3 +253,38 @@ today, so the hook line is ruled from class (no curation prose yet - T-0183).
     line-cap, store-links) was still running at this commit; NOT claimed green.
   - ios-compile dispatched on task/T-0273 (Swift bytes unchanged this round): run 37508494803, completed success.
   - wc -l: check-safety-disclaimer 300, -pinned 270, -mutations 197, -doors 140. Lease expired 18:52:41Z mid-round.
+- 2026-10-06T21:01:47Z rv3-t0273 review round 3 PASS (PR #166, head bf5ed06). agent/rv3-t0273, not the owner.
+  - Quoted. rv1-t0273 FAIL (head 96b9235): B1 P-OPS-03 (a printf piped into `grep -Fxq`), B2 P-SAFE-03 failing OPEN
+    (a SurpriseCard that opened Apple Maps past the pinned one). rv2-t0273 FAIL (head 99fc9c2): B1 P-SAFE-03 failing
+    OPEN - "the -doors opener list is still a list of SPELLINGS: `let go = scene.open; go(url, nil, nil)` in a NEW
+    MapAdapter/MapTapHandoff.swift, wired by one line in MapView.makeUIView, opens Apple Maps from a home-screen map
+    tap with no disclaimer, and check-safety-disclaimer stays green. MapAdapter is not content-pinned."
+  - Every run below is BARE `bash ops/lib/check-safety-disclaimer` on a detached worktree of bf5ed06, mutants STAGED
+    (tracked) and never committed, four in parallel (19:14Z-20:26Z on this loaded box):
+      head bf5ed06                                  EXIT 0  "... LAST all 38 app .swift by sha256."
+      rv2's mutant re-applied (MapTapHandoff.swift  EXIT 1  "URL opener (a) added: Packages/ScenicApp/Sources/MapAdapter/
+        + `mapView.addGestureRecognizer(...)` in            MapTapHandoff.swift|        let go = scene.open" (-doors)
+        MapView.makeUIView)
+      rv3 own: Entitlements/LaunchScreen.swift (an  EXIT 1  "the pinned render surface changed: Packages/ScenicApp/Sources/
+        EXISTING file, no pin before this round)            Entitlements/LaunchScreen.swift content changed (sha256
+        calls, in the release `#else` of atLaunch,          c448f116..., approved 5b0f19f1...)" - the content pin ALONE:
+        an appended `enum QuietExit` that opens a           the mutated file has no line -doors' opener token matches
+        maps:// URL through objc_getClass("UIApp" +         (grep: only the two pre-existing comment lines), so
+        "lication") + class_getMethodImplementation +       require_pinned_app_swift is the limb that refused it.
+        unsafeBitCast of Selector(("op" + "enURL:..."))
+      rv3 outside apps/ios: project.pbxproj gains a EXIT 0  NOT SEEN. The guard reads no pbxproj and nothing outside
+        PBXFileReference/PBXBuildFile/Sources-phase         apps/ios. Not compiled on iOS (no runner spent on a mutant);
+        entry for ../../tools/xcode-shell/                  the shadowing premise is this task's own M1 ruling. This is
+        SurpriseCard.swift (outside apps/ios), a            the pre-existing limit -pinned's header names ("a SwiftPM or
+        module-local `struct SurpriseCard: View` whose      Xcode setting that adds sources"), present on main before
+        button calls UIApplication.shared.open - the        T-0273, not introduced by this PR; RULED recordable, to be
+        frozen shell line builds it, ungated.               filed as its own P-SAFE task (pin project.pbxproj by digest).
+  - Guards bare on bf5ed06: check-pipe-consumers EXIT 0 ("135 scanned, 136 tracked, floor 42"); check-line-cap EXIT 0
+    ("241 Swift files tracked (Sources=109, Tests=94, apps/ios=38), none over 300 lines"); check-map-attribution EXIT 0;
+    check-store-links.py EXIT 0 ("P-STORE-01 source half: ..."). `bash ops/queue-check` bare: QUEUE OK (277 tasks).
+  - `gh pr checks 166`: core pass, pins-source-only pass (run 37515632152 on bf5ed06). ios-compile 37508494803 success
+    (owner's; this round's Swift bytes unchanged).
+  - Ancestry: origin/main 990bb84 is NOT an ancestor of bf5ed06 (main moved: T-0285 / PR #174 adds P-OPS-07, T-0287
+    filed); `git merge-tree --write-tree` merges clean. The owner merges origin/main last before the PR merges.
+  - Owner's rows 42/43 never completed (rows.out holds row 41 only); rv3's LaunchScreen mutant is the content pin seen
+    red by itself. Gap carried: check-map-attribution does not call require_pinned_app_swift (owner's (d), unfiled).
