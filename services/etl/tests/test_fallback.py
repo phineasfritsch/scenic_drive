@@ -117,6 +117,53 @@ def test_every_class_cap_holds_at_its_bound(tmp_path, capsys, cls, n, kept):
     assert query(out, f"SELECT cls, count(*) FROM places GROUP BY cls") == [(cls, kept)]
 
 
+def mixed_xml(tmp_path, cls, n):
+    """n tagged elements of `cls`, cycling through the OSM types its allowlist rows take, with the SAME osm_id
+    across types (n/1, w/1, r/1, n/2, ...) - so a rank that loses osm_type ties them. Each way and relation gets
+    its own untagged geometry (nodes 10000000+, member ways 20000000+); every name is distinct, so none dedupes."""
+    types = "".join(t for t in "nwr" if any(r.cls == cls and t in r.types for r in placeallow.ALLOWLIST))
+    key, value = NODE_TAG[cls]
+    nodes, ways, relations, elements = [], [], [], []
+    for k in range(n):
+        osm_type, osm_id = types[k % len(types)], k // len(types) + 1
+        tags = f'<tag k="{key}" v="{value}"/><tag k="name" v="Fixture {cls} {osm_type}{osm_id}"/>'
+        elements.append((osm_type, osm_id))
+        if osm_type == "n":
+            nodes.append(f'<node id="{osm_id}" lat="34.{k:04d}" lon="-118.{k:04d}">{tags}</node>')
+            continue
+        refs = [10000000 + 3 * k + j for j in range(3)]
+        nodes.extend(f'<node id="{ref}" lat="33.{k:04d}{j}" lon="-117.{k:04d}{j}"/>' for j, ref in enumerate(refs))
+        nds = "".join(f'<nd ref="{ref}"/>' for ref in refs)
+        if osm_type == "w":
+            ways.append(f'<way id="{osm_id}">{nds}{tags}</way>')
+        else:
+            ways.append(f'<way id="{20000000 + k}">{nds}</way>')
+            relations.append(f'<relation id="{osm_id}"><member type="way" ref="{20000000 + k}" role="outer"/>'
+                             f'<tag k="type" v="multipolygon"/>{tags}</relation>')
+    path = tmp_path / f"{cls}-mixed-{n}.osm.xml"
+    body = "".join(nodes + ways + relations)
+    path.write_text(f'<?xml version="1.0" encoding="UTF-8"?><osm version="0.6">{body}</osm>', encoding="utf-8")
+    return path, elements
+
+
+MULTI_TYPE = [(cls, cap) for cls, cap in RULED_CAPS
+              if len({t for r in placeallow.ALLOWLIST if r.cls == cls for t in r.types}) > 1]
+MIXED = [(cls, n, cap) for cls, cap in MULTI_TYPE for n in (cap + 1, 2 * cap)]
+
+
+@pytest.mark.parametrize("cls,n,cap", MIXED, ids=[f"{c}-mixed-{n}" for c, n, _cap in MIXED])
+def test_every_multi_type_class_cap_ranks_by_osm_type_and_id(tmp_path, capsys, cls, n, cap):
+    xml, elements = mixed_xml(tmp_path, cls, n)
+    want = sorted(elements, key=lambda e: place_id(*e))[:cap]
+    assert sorted(want) != sorted(sorted(elements, key=lambda e: place_id("n", e[1]))[:cap])
+    assert sorted(want) != sorted(sorted(elements, key=lambda e: e[1])[:cap])
+    code, out = run(tmp_path, xml)
+    assert code == 0
+    assert capsys.readouterr().out == count_lines(out, n, {cls: cap})
+    assert query(out, "SELECT osm_type, osm_id FROM places ORDER BY place_id") == want
+    assert query(out, "SELECT cls, count(*) FROM places GROUP BY cls") == [(cls, cap)]
+
+
 MALFORMED_BUILT_AT = ["2026-10-06", "2026-10-06T00:00:00", "2026-10-06 00:00:00Z", "2026-13-06T00:00:00Z", ""]
 
 

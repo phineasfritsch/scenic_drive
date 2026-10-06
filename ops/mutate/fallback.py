@@ -4,7 +4,8 @@
 WHY IT HAS ONE. `fallback.choose` decides which of placeallow's places the bundled fallback corpus carries -
 the only places a device has before its first download - so it SELECTS, and CLAUDE.md's Verification section
 and P-PROC-06 say it ships a population with a literal floor. Covered: every cap row raised, lowered and
-dropped; the cut's bounds; the rank (reversed, by osm_id, input order); the refusal of an unruled class; the
+dropped; the cut's bounds; the rank (reversed, by osm_id, input order, osm_type dropped, placeallow's
+order); the refusal of an unruled class; the
 kind stamp (here and in corpus.build's one new branch); the ceiling literal, its hand-off and its exit code; the
 command's stdout count line (kept per class, places=) and its exit 2 for a malformed --built-at.
 
@@ -75,6 +76,12 @@ MUTATIONS = (
         ("the rank by osm_id, not place_id", SUBJECT, RANK,
          '        ranked = sorted(by_class[cls], key=lambda p: p["osm_id"])'),
         ("the rank is input order", SUBJECT, RANK, "        ranked = list(by_class[cls])"),
+        ("the rank drops osm_type - every place ranked as a node", SUBJECT, RANK,
+         RANK.replace('place_id(p["osm_type"], ', 'place_id("n", ')),
+        ("the rank drops osm_type - every place ranked as a way", SUBJECT, RANK,
+         RANK.replace('place_id(p["osm_type"], ', 'place_id("w", ')),
+        ("the rank is placeallow's (osm_type, osm_id) order", SUBJECT, RANK,
+         '        ranked = sorted(by_class[cls], key=lambda p: ("nwr".index(p["osm_type"]), p["osm_id"]))'),
         ("an unruled class is dropped silently", SUBJECT, REFUSE, "            continue"),
         ("the kind stamp says full", SUBJECT, KIND_LINE, 'KIND = "full"'),
         ("the kind is not handed to corpus.build", SUBJECT, HANDOFF,
@@ -103,7 +110,7 @@ EQUIVALENT = [
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 48
+MIN_MUTATIONS = 51
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 
