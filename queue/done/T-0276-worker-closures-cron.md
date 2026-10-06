@@ -1,7 +1,7 @@
 ---
 id: T-0276
 title: the Worker's closures cron - Caltrans Lane Closure System (LCS) full closures for the LA district into KV as at most 50 polygons, a closures-version every route sends as areas and folds into its cache key; stale feed fails safe
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T07:59:18Z
@@ -11,7 +11,7 @@ branch: task/T-0276
 exclusive: []
 touches: [services/api/, Tests/Fixtures/t0276/]
 pins_affected: [P-SAFE-08, P-SAFE-01]
-reviewer: null
+reviewer: agent/rv4-t0276
 depends_on: [T-0256, T-0262, T-0268]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -268,3 +268,24 @@ resources.
   (merge-base --is-ancestor), nothing to merge. Gates on that head: `npx vitest run` Test Files 43 passed (43), Tests
   1388 passed (1388) (1281 + 107 rows); `python ops/lib/check-mutate-population.py` exit 0; `bash ops/queue-check` QUEUE OK
   (271 tasks). ops/test not run (orchestrator instruction).
+- 2026-10-06T13:54:32Z REVIEW round 4 (agent/rv4-t0276, not the owner): PASS, PR #167 head 0efe7bf. Prior rounds, quoted:
+  rv1 B1 "deleting `if (r.geojson === null) return null;` from record() left 736/736 green"; rv2 B2 "every unavailable
+  row and every stale row built its record over TWO_CLOSURES, none over EMPTY_CLOSURES" (version guard under
+  `features?.length !== 0`); rv3 B3 "`if (features?.length !== 0) buildCustomModel(...)` left 1281/1281 green". Touched
+  rows only, each a temporary edit in a detached worktree at 0efe7bf, run with `npx vitest run
+  test/closuresRoutes.test.ts`, restored after:
+  (1) rv3's B3 mutant re-applied verbatim: RED, 12 failed | 566 passed (578), e.g. "unavailable: no set, never silent
+  (R7) > /plan, a geojson with no type over no closures: 200 with closures_hazard unavailable and no areas" (also
+  type Polygon, type lower-case; x /plan /loop /trip /isochrone).
+  (2) the row "a geojson whose type is Polygon" made to ignore its set (`geo(() => ({ type: "Polygon", features: []
+  }))`): RED, 1 failed | 577 passed (578), "meta: every unavailable row is a function of its set > a geojson whose type
+  is Polygon: the record over two closures differs from the record over no closures".
+  (3) own variant, fetched_at's ISO_INSTANT check skipped when the geojson's features are empty: RED, 8 failed | 570
+  passed (578), e.g. "/plan, a fetched_at with an offset, not Z over no closures: 200 with closures_hazard unavailable
+  and no areas" and "/plan, a fetched_at that is not an instant over no closures: ...".
+  (3b) own variant, version's CLOSURES_VERSION check skipped on empty features: RED, 28 failed | 550 passed (578),
+  e.g. "/loop, a version of 15 hex over no closures: ...".
+  Restored tree: `npx vitest run` Test Files 43 passed (43), Tests 1388 passed (1388). `gh pr checks 167`: core pass,
+  pins-source-only pass; PR OPEN MERGEABLE, base main, headRefOid 0efe7bf. Ancestry: origin/main bd5f8cf is an
+  ancestor of origin/task/T-0276 (merge-base --is-ancestor). closuresMutants.mjs carries
+  store-shape-unchecked-on-empty. Nothing open.
