@@ -27,3 +27,38 @@ only.
 ## Log
 - 2026-10-06T20:22:31Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M6 remote config).
 - 2026-10-06T20:26:08Z claimed by agent/claude-opus-5; lease until 2026-10-07T06:26:08Z
+- 2026-10-06T20:33:14Z RULINGS (agent/claude-opus-5, before any code). R1 KEY SET, closed, in this order: `min_app_build`
+  (integer), `planning_paused` (boolean), `supported_regions` (string[]), `feature_loop`, `feature_trip`,
+  `feature_surprise` (booleans), `quota` ({anon,free,paid} x {plan,loop,surprise,trip}), `config_warnings` (string[]).
+  Flat, not nested: one whitelist table, one key per row. Compiled defaults: 1, false, ["la"], true, true, true.
+  `quota` is built by iterating the tiers of DAILY_PLAN_QUOTA and calling quota.ts's dailyQuota(kind, tier) - never a
+  literal; telemetry is excluded (not a user feature). quota is NOT overridable by KV (a `quota` key in KV is unknown).
+  R2 KV: optional binding `CONFIG` (Env), key `config/v1`, a JSON object. Declared in Env only, not bound in
+  wrangler.jsonc (the owner creates the namespace, as for KILL_SWITCH). R3 PER-FIELD WHITELIST, every bound:
+  min_app_build Number.isInteger and 1 <= n <= 2147483647 (Int32 max; 1e400 parses to Infinity and is refused);
+  planning_paused and the three features `typeof === "boolean"` exactly (no "1", 1, "true", null); supported_regions a
+  non-empty array of DISTINCT members of the compiled SUPPORTED_REGIONS ["la"] (KV can only narrow; the app must never
+  be offered a region with no graph). An invalid field drops to its default ALONE and its name is appended to
+  config_warnings in key order; any KV key outside the six is ignored and adds ONE `unknown_keys` (a closed vocabulary -
+  KV text is never echoed). KV unbound or key absent -> pure defaults, warnings []; KV throws, value not JSON, or JSON
+  not a plain object (null, array, string, number) -> pure defaults, warnings ["record"]. R4 MORE RESTRICTIVE ONLY:
+  planning_paused = killSwitch(env) OR (KV planning_paused === true). killSwitch is the T-0256 R5 function (env KILL=1,
+  KV KILL_SWITCH KILL=1, or a throwing KILL_SWITCH all pause), so a KV `false` cannot unpause an env KILL=1. A
+  throwing CONFIG does not pause: the planning routes never read CONFIG, and the KILL mirror is unaffected by it.
+  KV planning_paused:true is an app-side pause the Worker's routes do not enforce (they are guarded by KILL alone).
+  min_app_build's floor is its default 1 and the features default on, so KV can only raise/turn off those too.
+  R5 KILL NEVER BLOCKS /config: handleConfig(env) answers 200 under every KILL source; /config joins
+  killSwitchRoutes.test.ts's OPERATIONAL_ROUTES (it makes no upstream call). The 26 P-COST-01 names are unchanged;
+  pins/ and ops/lib/named-tests.json are outside touches: [services/api/], so no new name is bound - recorded, not
+  silently skipped. R6 CACHE: `cache-control: public, max-age=300` (ruled 300 s: the planning routes read KILL per
+  request, so a stale /config only delays the app's banner by <= 5 min; a transient `record` warning is cached as long).
+  R7 NO REQUEST READ: handleConfig takes env only; the ROUTES line is `(_req, env) => handleConfig(env)`, which the
+  requestReadSites SITE regex does not match (`_req` is one word), so APPROVED is unchanged and equality still holds;
+  an explicit it() asserts src/config.ts has no site. Any method answers the same body (reading the method would be a
+  request read). R8 TESTS through ROUTES['/config'], whole response (status, content-type, cache-control, body TEXT)
+  by equality to an expectation built from test literals and quota.ts's exported tables; cross product of CONFIG rows
+  x KILL sources with the meta-test that no row's expectation ignores the KILL variant (named exception: rows whose
+  KV sets planning_paused true); per-field accept/refuse table at every bound over {no KILL, env KILL}; a whole-line
+  WHITELIST of every src/config.ts line carrying a digit (so a retyped quota number is refused). R9 POPULATION:
+  services/api/test/mutate/configMutants.mjs (the telemetryMutants.mjs shape) over src/config.ts and src/index.ts with
+  a literal MIN_MUTATIONS; check-mutate-population.py reads Sources/ and services/etl/etl/ only, so the .mjs is it.
