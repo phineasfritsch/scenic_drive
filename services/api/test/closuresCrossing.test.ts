@@ -156,14 +156,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-export async function drive(r: Route, set: Feature[]) {
+let lastAnswer: Record<string, unknown> = {};
+export async function drive(r: Route, set: Feature[], body: unknown = BODIES[r]) {
   graph += 1;
   const shipped = { DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: fakeQuotaNamespace().ns, ROUTER_URL: "https://router.test",
     ROUTER_SECRET: "s", GRAPH_VERSION: `crossing-graph-${graph}`, CLOSURES: closuresAt(NOW, fc(set)).kv } as unknown as Env;
   const req = new Request(`https://scenic-api.test${r}`, { method: "POST",
-    headers: { "content-type": "application/json", "x-scenic-device": DEVICE }, body: JSON.stringify(BODIES[r]) });
+    headers: { "content-type": "application/json", "x-scenic-device": DEVICE }, body: JSON.stringify(body) });
   const response = await ROUTES[r]!(req, shipped, new URL(req.url));
   const json = (await response.json()) as { closures_hazard?: unknown; route?: { coordinates: unknown } };
+  lastAnswer = json as Record<string, unknown>;
   const modelled = sent.filter((b) => b.custom_model !== undefined);
   return { status: response.status, requests: modelled.length, areas: modelled.map((b) => (b.custom_model as { areas?: unknown }).areas),
     coordinates: json.route?.coordinates, hazard: json.closures_hazard };
@@ -245,4 +247,22 @@ describe("a re-requested path that fails its route's own guards is not shown; th
       expect(got).toEqual(row);
     });
   }
+});
+
+describe("the re-request is the request that returned the path, its closures swapped and nothing else (C5)", () => {
+  for (const r of ROUTE_NAMES) {
+    it(`${r}, the fixture, through path, router honours: the re-request's whole body is the first request's at the answer's lambda, areas swapped`, async () => {
+      router = "honours";
+      shape = "through";
+      await drive(r, STORED);
+      const modelled = sent.filter((b) => b.custom_model !== undefined);
+      const lambda = r === "/loop" ? 2 : (lastAnswer.lambda as number);
+      expect(modelled.at(-1)).toEqual({ ...modelled[0]!, custom_model: buildCustomModel(lambda, fc(swapOf(r)) as ClosureCollection) });
+    });
+  }
+  it("/trip preview, five days, crossing the dropped X: a preview makes no legs, so it reserves none - one re-request", async () => {
+    router = "honours";
+    shape = "through";
+    expect(await drive("/trip", STORED, { ...TRIP_BODY, days: 5 })).toEqual(expectedRow("/trip", "the fixture", "through", "honours"));
+  });
 });

@@ -65,6 +65,18 @@ describe("the picker: which polygons, which ids, one re-request (C2, C4, C5)", (
     await picker.returned([[-117, 35]], coords, O, O, null);
     expect(picker.crosses()).toEqual(["#2"]);
   });
+  it("outer ring only: a path between the outer ring and the hole crosses", async () => {
+    const holed = sq(-117, 35, "h", 0.01, [[[-117.005, 34.995], [-116.995, 34.995], [-116.995, 35.005], [-117.005, 35.005], [-117.005, 34.995]]]);
+    const picker = closurePicker(set([holed]));
+    await picker.returned([[-117.008, 35]], coords, O, O, null);
+    expect(picker.crosses()).toEqual(["h"]);
+  });
+  it("crosses() is in stored order across paths: a later path's earlier-stored closure comes first", async () => {
+    const picker = closurePicker(set(row(6)));
+    await picker.returned(through(row(6)[4]!), coords, O, O, null);
+    await picker.returned(through(row(6)[1]!), coords, O, O, null);
+    expect(picker.crosses()).toEqual(["e2", "e5"]);
+  });
   it("crossing only a SENT closure: no re-request, the closure named", async () => {
     const picker = closurePicker(set(row(3)));
     let retried = 0;

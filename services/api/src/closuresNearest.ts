@@ -135,18 +135,14 @@ export function closurePicker(set: ClosureCollection | null): ClosurePicker {
     returned: async (value, coordinates, from, to, retry) => {
       const first = crossed(coordinates(value));
       const sent = new Set(nearestClosures(set, from, to).closures?.features ?? []);
-      const unsent = [...first].some((at) => !sent.has(all[at]![0]!));
-      if (!unsent || retry === null) {
-        first.forEach((at) => left.add(at));
-        return value;
-      }
-      const swap = swappedClosures(set!, from, to, first);
-      if (swap.closures.features.every((f) => sent.has(f))) {
+      // C4: re-request only when the swap carries a crossed closure the request did not send - never a futile one.
+      const swap = first.size === 0 || retry === null ? null : swappedClosures(set!, from, to, first);
+      if (swap === null || swap.closures.features.every((f) => sent.has(f))) {
         first.forEach((at) => left.add(at));
         return value;
       }
       most = Math.max(most, swap.dropped);
-      const again = await retry(swap.closures);
+      const again = await retry!(swap.closures);
       const kept = again === null ? first : crossed(coordinates(again));
       kept.forEach((at) => left.add(at));
       return again === null ? value : again;

@@ -123,7 +123,6 @@ interface Attempt {
   path: RoutePath;
   scan: RetraceScan | null;
   seed: number;
-  areas: ClosureCollection | null;
 }
 
 const clean = (a: Attempt) => a.scan !== null && isAcceptable(a.scan.fraction);
@@ -133,9 +132,9 @@ export async function planLoop(call: GuardedFetch, routerBase: string, start: La
   const feed = closuresFor(start, start);
   const distance = roundTripDistance(minutes);
   const tried: Attempt[] = [];
-  const attempt = async (s: number, closures: ClosureCollection | null, areas: ClosureCollection | null = null) => {
+  const attempt = async (s: number, closures: ClosureCollection | null) => {
     const path = await roundTrip(call, routerBase, start, distance, s, closures);
-    const made = { path, scan: retraceScan(path.coordinates.map(([lon, lat]) => ({ lat, lon }))), seed: s, areas };
+    const made = { path, scan: retraceScan(path.coordinates.map(([lon, lat]) => ({ lat, lon }))), seed: s };
     tried.push(made);
     return made;
   };
@@ -146,7 +145,7 @@ export async function planLoop(call: GuardedFetch, routerBase: string, start: La
     current = await attempt(reseed, feed);
     if (!clean(current)) {
       const areas = retracedAreas(current.scan?.retraced ?? [], start);
-      if (areas !== null) current = await attempt(reseed, mergeClosures(feed, areas), areas);
+      if (areas !== null) current = await attempt(reseed, mergeClosures(feed, areas));
     }
   }
   if (!clean(current)) {
@@ -154,11 +153,12 @@ export async function planLoop(call: GuardedFetch, routerBase: string, start: La
     throw new LoopFailure(fractions.length === 0 ? null : Math.min(...fractions));
   }
 
-  // T-0286 C3-C5: the returned attempt against every stored closure; one re-request, inside LOOP_UPSTREAM_COST.
+  // T-0286 C3-C5: the returned attempt against every stored closure; one re-request (same seed, the swapped set),
+  // inside LOOP_UPSTREAM_COST - so never after the retrace attempt, which is always the third.
   const shown = current;
   current = await returned(shown, (a) => a.path.coordinates, start, start,
     tried.length + 1 <= LOOP_UPSTREAM_COST ? async (swapped) => {
-      const again = await attempt(shown.seed, shown.areas === null ? swapped : mergeClosures(swapped, shown.areas), shown.areas);
+      const again = await attempt(shown.seed, swapped);
       return clean(again) ? again : null;
     } : null);
   const chosen = current.path;
