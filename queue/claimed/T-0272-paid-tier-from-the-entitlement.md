@@ -69,3 +69,61 @@ caller is anon (T-0256 R3), so nothing paid is reachable through ROUTES. Plan: q
     and twenty-two P-COST-01 bindings must stay green; killSwitchRoutes is untouched.
   - **R9 population.** services/api/test/mutate/tierMutants.mjs (the vitest-driven form of quotaMutants.mjs, since
     check-mutate-population reads Sources/ and services/etl/etl/ only), literal MIN_MUTATIONS = its length.
+- 2026-10-06T04:18:01Z **RED first, then code, then green** (agent/claude-opus-5). Tests written before any src change:
+  test/accountTier.test.ts (new) and test/asnState.test.ts (REFUND_REVERSED leaves OTHERS; describe "REFUND_REVERSED
+  re-activates the row its REFUND deactivated (T-0272 R6)"). RED at 1e2ea5d + tests only: `npx vitest run
+  test/accountTier.test.ts test/asnState.test.ts` -> `Tests  16 failed | 54 passed (70)`, failing BY NAME: the
+  eleven entitlement states that read D1 or expect paid (an unknown token, an inactive (REFUND) row, an active row
+  with no end, the active token upper-cased, active until exactly now / now + 1 ms, in grace until exactly now /
+  now + 1 ms, one expired and one active transaction), both D1-failure tests (reads 0, expected 3), the three
+  REFUND_REVERSED route tests and two of the four REFUND_REVERSED table tests (the older and replay arms were already
+  inactive). Code (22fe1f5, a6eb580): src/accountTier.ts (new), routerDeps.ts identify async (deviceIdentity kept
+  whole and lifted to paid only on a live entitlement, so quotaMutants' router-tier rows stay observable), RouterEnv
+  gains DB, plan/loop/trip/isochrone await identify, asn.ts exports UUID, asnNotification.ts REACTIVATES.
+  GREEN: `npx vitest run` -> `Test Files  34 passed (34)`, `Tests  475 passed (475)` (now 476 with the reference test).
+  Population services/api/test/mutate/tierMutants.mjs, MIN_MUTATIONS = 18, 1 EQUIVALENT (tier-no-db-check, witness in
+  the file): full run at 22fe1f5 `RESULT caught=16 missed=0 trap=2 of 18` - the TRAPs plan/loop-identify-unawaited
+  failed beforeAll's reference assertion, which skipped all twenty tests and named none; the assertion moved into
+  the named test "the paid states' reference answers are a plan and a loop served 200 to a fresh anon device", and
+  `--only` of both: `RESULT caught=2 missed=0 trap=0 of 2`. After the identify rewire (a6eb580) the touched rows
+  re-ran: `--only` deps-tier-always-anon, deps-tier-without-db, deps-now-minus-1, deps-now-plus-1,
+  deps-bucket-is-token, tier-active-free -> `RESULT caught=6 missed=0 trap=0 of 6`. `--prove-vacuity` ->
+  `RESULT caught=0 missed=18 trap=0 of 18`; `--prove-floor` all four arms REFUSED, real population quiet.
+  **Found on main and fixed (in touches):** quotaMutants.mjs refused to run - `STALE quota-loop-free-2 / quota-loop-
+  anon-2 / quota-loop-paid-201: anchor occurs 2 times in src/quota.ts`, because T-0268's DAILY_TRIP_QUOTA repeats
+  DAILY_LOOP_QUOTA's `{ anon: 1, free: 1, paid: DAILY_PLAN_QUOTA.paid }` (quota.ts is unchanged here). The three
+  anchors now start at `DAILY_LOOP_QUOTA = `; they and every quota row over a file this task touched re-ran:
+  `RESULT caught=12 missed=0 trap=0 of 12` (incl. router-tier-free and router-tier-from-header). Every population's
+  anchors counted exactly once (`stale=0` over asn/isochrone/loop/plan/quota/tier/trip).
+- 2026-10-06T05:01:24Z **asn rows re-run; merged origin/main (e309799) at 5b113e8; acceptance re-quoted on the merged
+  head** (agent/claude-opus-5). asnMutants.mjs `--only` its 29 rows over asn.ts and asnNotification.ts (the two asn
+  files this task touched): `baseline green tests=112`, `RESULT caught=29 missed=0 trap=0 of 29`. main's delta since
+  the branch point touches no services/api path (T-0270 fallback corpus, T-0273/T-0274 filings).
+  On 5b113e8: `npx vitest run` -> `Test Files  34 passed (34)`, `Tests  476 passed (476)` (twice). RECORDED, not hidden:
+  under heavy box load (import 273 s) one run printed `Tests  1 failed | 475 passed (476)` and an earlier one
+  `Test Files 19 passed (19)`, `Tests 202 passed (202)`; neither named its test in the lines kept, the next two runs
+  were 476/476, and accountTier.test.ts' slowest test measures 160 ms against vitest's 5 s timeout - an unidentified
+  flake, left for the reviewer to watch in CI. `python ops/lib/run-named-tests.py P-STORE-02` -> `NAMED P-STORE-02
+  passed=61/61`; `... P-COST-01` -> `NAMED P-COST-01 passed=22/22`. `python ops/lib/check-mutate-population.py` ->
+  `P-PROC-06: every added module is covered or allowlisted; the floor of 67 holds`. `bash ops/queue-check` -> `QUEUE OK
+  (265 tasks)`. wc -l: accountTier.ts 19, routerDeps.ts 81, accountTier.test.ts 203, asnState.test.ts 229,
+  tierMutants.mjs 159, quotaMutants.mjs 202. `git grep` for console.log/info/warn/error/debug under services/api/src: none.
+  1. identify reads x-scenic-account-token and resolves the tier from the entitlements table (active and before
+     active_until -> paid; missing, malformed, unknown, inactive, expired at the boundary instant -> anon), never
+     from another client field (the token as authorization/x-scenic-account/x-account-token/cookie, plus
+     x-scenic-tier: paid, is anon with zero D1 reads); table test "the tier is the entitlement of
+     x-scenic-account-token, through the shipped ROUTES (R1-R3)" - fourteen states, each through ROUTES['/plan'],
+     ['/loop'], ['/trip'] with the whole answers, the whole quota state, the entitlement read count and every console
+     call by one equality; expiry and grace both at active_until == now (anon) and now + 1 ms (paid). MET.
+  2. D1 failure -> anon: "an entitlement read that throws at prepare leaves an active token anon", "an entitlement
+     read that rejects at all() leaves an active token anon" (whole answers equal the anon expectation, 3 reads);
+     never logged or echoed: console spied in every test (logged: [] inside each equality) and "no answer and no
+     console line carries the token, paid or failed". The bearer-token residual risk is RULED in R5. MET.
+  3. REFUND_REVERSED re-activates a row it deactivated, signedDate guard unchanged - asnState.test.ts "REFUND_REVERSED
+     re-activates the row its REFUND deactivated (T-0272 R6)" (four tests: the reactivation until expiresDate with GET
+     /entitlement active, the older arm, the replay arm, +1 ms lands) and accountTier.test.ts "REFUND_REVERSED restores
+     access through the shipped ROUTES (R6)" (three). killSwitchRoutes untouched and green (P-COST-01 22/22);
+     P-STORE-02 61/61. Population tierMutants.mjs, literal MIN_MUTATIONS = 18, caught 18 of 18 across the runs above,
+     1 EQUIVALENT with witness. MET.
+  NOT DONE (R8): no new name is bound in ops/lib/named-tests.json (outside touches: services/api/). A binding task
+  should add the accountTier.test.ts states and the REFUND_REVERSED tests to P-STORE-02 / a P-COST row.
