@@ -78,9 +78,9 @@ export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | nu
   try {
     const seed = loopSeed(who.userId, dayKey(deps.upstream.now()));
     const loop = await guardedPlan(upstream, { ...who, kind: "loop" }, (call) =>
-      planLoop(call, deps.routerBase, request.start, request.minutes, seed, picker.pick),
+      planLoop(call, deps.routerBase, request.start, request.minutes, seed, picker.pick, picker.returned),
       LOOP_UPSTREAM_COST);
-    return json(withClosuresHazard(loop, snapshot, picker.dropped()), 200);
+    return json(withClosuresHazard(loop, snapshot, picker.dropped(), picker.crosses()), 200);
   } catch (error) {
     return failure(error);
   }

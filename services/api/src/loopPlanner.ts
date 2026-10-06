@@ -9,7 +9,7 @@
  */
 import { appleMapsUrl } from "./appleMaps";
 import { mergeClosures } from "./closuresStore";
-import type { ClosuresFor } from "./closuresNearest";
+import type { ClosuresFor, PathGuard } from "./closuresNearest";
 import { buildCustomModel, rejectCustomModel, type ClosureCollection } from "./customModel";
 import type { LatLon } from "./latLon";
 import { decisionPoints } from "./planWaypoints";
@@ -123,18 +123,19 @@ interface Attempt {
   path: RoutePath;
   scan: RetraceScan | null;
   seed: number;
+  areas: ClosureCollection | null;
 }
 
 const clean = (a: Attempt) => a.scan !== null && isAcceptable(a.scan.fraction);
 
 export async function planLoop(call: GuardedFetch, routerBase: string, start: LatLon, minutes: number,
-  seed: number, closuresFor: ClosuresFor): Promise<LoopResult> {
+  seed: number, closuresFor: ClosuresFor, returned: PathGuard): Promise<LoopResult> {
   const feed = closuresFor(start, start);
   const distance = roundTripDistance(minutes);
   const tried: Attempt[] = [];
-  const attempt = async (s: number, closures: ClosureCollection | null) => {
+  const attempt = async (s: number, closures: ClosureCollection | null, areas: ClosureCollection | null = null) => {
     const path = await roundTrip(call, routerBase, start, distance, s, closures);
-    const made = { path, scan: retraceScan(path.coordinates.map(([lon, lat]) => ({ lat, lon }))), seed: s };
+    const made = { path, scan: retraceScan(path.coordinates.map(([lon, lat]) => ({ lat, lon }))), seed: s, areas };
     tried.push(made);
     return made;
   };
@@ -145,7 +146,7 @@ export async function planLoop(call: GuardedFetch, routerBase: string, start: La
     current = await attempt(reseed, feed);
     if (!clean(current)) {
       const areas = retracedAreas(current.scan?.retraced ?? [], start);
-      if (areas !== null) current = await attempt(reseed, mergeClosures(feed, areas));
+      if (areas !== null) current = await attempt(reseed, mergeClosures(feed, areas), areas);
     }
   }
   if (!clean(current)) {
@@ -153,6 +154,13 @@ export async function planLoop(call: GuardedFetch, routerBase: string, start: La
     throw new LoopFailure(fractions.length === 0 ? null : Math.min(...fractions));
   }
 
+  // T-0286 C3-C5: the returned attempt against every stored closure; one re-request, inside LOOP_UPSTREAM_COST.
+  const shown = current;
+  current = await returned(shown, (a) => a.path.coordinates, start, start,
+    tried.length + 1 <= LOOP_UPSTREAM_COST ? async (swapped) => {
+      const again = await attempt(shown.seed, shown.areas === null ? swapped : mergeClosures(swapped, shown.areas), shown.areas);
+      return clean(again) ? again : null;
+    } : null);
   const chosen = current.path;
   const waypoints = decisionPoints(chosen);
   return {

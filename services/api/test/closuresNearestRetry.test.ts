@@ -37,16 +37,20 @@ const far = (n: number) => Array.from({ length: n }, (_, i) => square(`far-${i +
 const on = () => Array.from({ length: 10 }, (_, k) => square(`on-${k + 1}`, S, 0.0005 + k * 0.00001));
 const tie = () => Array.from({ length: 51 }, (_, k) => square(`tie-${k + 1}`, S, 0.0005 + k * 0.00001));
 const fresh = (dropped: number) => ({ state: "fresh", version: TEST_VERSION, fetched_at: NOW.toISOString(), dropped });
-interface LoopVariant { name: string; set: Feature[]; at: Date; sent: Feature[] | null; hazard: unknown }
+interface LoopVariant { name: string; set: Feature[]; at: Date; sent: Feature[] | null; hazard: unknown;
+  /** T-0286 C6: the closures holding the start, which every synthetic loop leaves from - all sent, so named, not re-requested. */
+  crossed: string[] }
 const LOOP_VARIANTS: LoopVariant[] = [
-  { name: "empty", set: [], at: NOW, sent: null, hazard: undefined },
-  { name: "one closure", set: far(1), at: NOW, sent: far(1), hazard: undefined },
-  { name: "fifty", set: far(50), at: NOW, sent: far(50), hazard: undefined },
-  { name: "over 50, the start's ten stored last", set: [...far(50), ...on()], at: NOW, sent: [...far(40), ...on()], hazard: fresh(10) },
-  { name: "a 51-way tie at distance 0", set: tie(), at: NOW, sent: tie().slice(0, 50), hazard: fresh(1) },
+  { name: "empty", set: [], at: NOW, sent: null, hazard: undefined, crossed: [] },
+  { name: "one closure", set: far(1), at: NOW, sent: far(1), hazard: undefined, crossed: [] },
+  { name: "fifty", set: far(50), at: NOW, sent: far(50), hazard: undefined, crossed: [] },
+  { name: "over 50, the start's ten stored last", set: [...far(50), ...on()], at: NOW, sent: [...far(40), ...on()], hazard: fresh(10),
+    crossed: Array.from({ length: 10 }, (_, k) => `on-${k + 1}`) },
+  { name: "a 51-way tie at distance 0", set: tie(), at: NOW, sent: tie().slice(0, 50), hazard: fresh(1), crossed: Array.from({ length: 51 }, (_, k) => `tie-${k + 1}`) },
   { name: "over 50, stale", set: [...far(50), ...on()], at: STALE_AT, sent: [...far(40), ...on()],
-    hazard: { state: "stale", version: TEST_VERSION, fetched_at: STALE_AT.toISOString(), dropped: 10 } },
+    hazard: { state: "stale", version: TEST_VERSION, fetched_at: STALE_AT.toISOString(), dropped: 10 }, crossed: Array.from({ length: 10 }, (_, k) => `on-${k + 1}`) },
 ];
+const loopHazard = (v: LoopVariant) => (v.crossed.length > 0 ? { ...(v.hazard as object), crosses: v.crossed } : v.hazard);
 const DIRTY = outAndBack(4000);
 const RETRACE = retracedAreas(retraceScan(DIRTY.map(([lat, lon]) => ({ lat, lon })))!.retraced, S);
 /** The attempts a shape drives: first dirty then a clean reseed; or two dirty, then the clean retrace attempt. */
@@ -97,7 +101,7 @@ describe("a loop's reseed and retrace attempts carry the start's own nearest <= 
     for (const v of LOOP_VARIANTS) {
       it(`/loop, ${shape.name}, ${v.name}: every attempt's areas and the hazard equal the start's selection`, async () => {
         const r = await loop(v, shape);
-        expect([r.status, r.hazard, r.areas]).toEqual([200, v.hazard, loopExpected(shape, v)]);
+        expect([r.status, r.hazard, r.areas]).toEqual([200, loopHazard(v), loopExpected(shape, v)]);
       });
     }
   }
@@ -115,15 +119,19 @@ const ZS = [20, 28, 36];
 /** In road edges (the road is straight): a leg's gap to Z against its gap to c-1, the cluster square farthest from it. */
 const keepsZ = (a: number, b: number, z: number) => (z >= a && z <= b ? 0 : Math.min(Math.abs(a - z), Math.abs(b - z))) < a;
 interface TripVariant { name: string; set: (z: Feature) => Feature[]; search: (z: Feature) => Feature[] | null;
-  leg: (z: Feature, keeps: boolean) => Feature[] | null; dropped: number }
+  leg: (z: Feature, keeps: boolean) => Feature[] | null; dropped: number;
+  /** T-0286 C6: the C squares stored - ON the road's first edge, so crossed by the search and leg 1, all sent. */
+  crossed: number }
 const TRIP_VARIANTS: TripVariant[] = [
-  { name: "empty", set: () => [], search: () => null, leg: () => null, dropped: 0 },
-  { name: "one closure", set: (z) => [z], search: (z) => [z], leg: (z) => [z], dropped: 0 },
-  { name: "fifty", set: (z) => [...C.slice(0, 49), z], search: (z) => [...C.slice(0, 49), z], leg: (z) => [...C.slice(0, 49), z], dropped: 0 },
-  { name: "over 50", set: (z) => [...C, z], search: () => C, leg: (z, keeps) => (keeps ? [...C.slice(1), z] : C), dropped: 1 },
+  { name: "empty", set: () => [], search: () => null, leg: () => null, dropped: 0, crossed: 0 },
+  { name: "one closure", set: (z) => [z], search: (z) => [z], leg: (z) => [z], dropped: 0, crossed: 0 },
+  { name: "fifty", set: (z) => [...C.slice(0, 49), z], search: (z) => [...C.slice(0, 49), z], leg: (z) => [...C.slice(0, 49), z], dropped: 0,
+    crossed: 49 },
+  { name: "over 50", set: (z) => [...C, z], search: () => C, leg: (z, keeps) => (keeps ? [...C.slice(1), z] : C), dropped: 1, crossed: 50 },
 ];
 const tripExpected = (v: TripVariant, z: number) => ({
-  hazard: v.dropped === 0 ? undefined : { state: "fresh", version: TEST_VERSION, fetched_at: TRIP_NOW.toISOString(), dropped: v.dropped },
+  hazard: v.dropped === 0 && v.crossed === 0 ? undefined : { state: "fresh", version: TEST_VERSION, fetched_at: TRIP_NOW.toISOString(),
+    ...(v.dropped > 0 ? { dropped: v.dropped } : {}), ...(v.crossed > 0 ? { crosses: C.slice(0, v.crossed).map((f) => f.properties.lcs_index) } : {}) },
   search: areasOf(v.search(zAt(z))),
   legs: LEGS.map(([a, b]) => ({ vertices: [a, b], areas: areasOf(v.leg(zAt(z), keepsZ(a!, b!, z))) })),
 });

@@ -52,18 +52,28 @@ const CORRIDOR: Record<Path, [Pt, Pt]> = {
 const mid = (o: Pt, d: Pt): Pt => ({ lat: (o.lat + d.lat) / 2, lon: (o.lon + d.lon) / 2 });
 const fresh = (dropped: number) => ({ state: "fresh", version: TEST_VERSION, fetched_at: NOW.toISOString(), dropped });
 const STALE_AT = new Date(NOW.getTime() - MAX_AGE_MS - 1);
+const ON_NAMES = Array.from({ length: 10 }, (_, k) => `on-${k + 1}`);
+const TIE_NAMES = Array.from({ length: 51 }, (_, k) => `tie-${k + 1}`);
 
-interface Variant { name: string; set: (o: Pt, d: Pt) => Feature[]; at: Date; sent: (o: Pt, d: Pt) => Feature[] | null; hazard: unknown }
+interface Variant { name: string; set: (o: Pt, d: Pt) => Feature[]; at: Date; sent: (o: Pt, d: Pt) => Feature[] | null; hazard: unknown;
+  /** T-0286 C6: the closures ON the corridor - crossed by a synthetic path that runs on it (PATH_ON_CORRIDOR). */
+  onCorridor: string[] }
 const VARIANTS: Variant[] = [
-  { name: "empty", set: () => [], at: NOW, sent: () => null, hazard: undefined },
-  { name: "one closure", set: (o, d) => far(mid(o, d), 1), at: NOW, sent: (o, d) => far(mid(o, d), 1), hazard: undefined },
-  { name: "fifty", set: (o, d) => far(mid(o, d), 50), at: NOW, sent: (o, d) => far(mid(o, d), 50), hazard: undefined },
+  { name: "empty", set: () => [], at: NOW, sent: () => null, hazard: undefined, onCorridor: [] },
+  { name: "one closure", set: (o, d) => far(mid(o, d), 1), at: NOW, sent: (o, d) => far(mid(o, d), 1), hazard: undefined, onCorridor: [] },
+  { name: "fifty", set: (o, d) => far(mid(o, d), 50), at: NOW, sent: (o, d) => far(mid(o, d), 50), hazard: undefined, onCorridor: [] },
   { name: "over 50, the on-corridor ten stored last", set: (o, d) => [...far(mid(o, d), 50), ...on(o, d)], at: NOW,
-    sent: (o, d) => [...far(mid(o, d), 40), ...on(o, d)], hazard: fresh(10) },
-  { name: "a 51-way tie at distance 0", set: (o) => tie(o), at: NOW, sent: (o) => tie(o).slice(0, 50), hazard: fresh(1) },
+    sent: (o, d) => [...far(mid(o, d), 40), ...on(o, d)], hazard: fresh(10), onCorridor: ON_NAMES },
+  { name: "a 51-way tie at distance 0", set: (o) => tie(o), at: NOW, sent: (o) => tie(o).slice(0, 50), hazard: fresh(1), onCorridor: TIE_NAMES },
   { name: "over 50, stale", set: (o, d) => [...far(mid(o, d), 50), ...on(o, d)], at: STALE_AT, sent: (o, d) => [...far(mid(o, d), 40), ...on(o, d)],
-    hazard: { state: "stale", version: TEST_VERSION, fetched_at: STALE_AT.toISOString(), dropped: 10 } },
+    hazard: { state: "stale", version: TEST_VERSION, fetched_at: STALE_AT.toISOString(), dropped: 10 }, onCorridor: ON_NAMES },
 ];
+/** T-0286 C6: the synthetic loop (it starts at its corridor) and trip (ROAD is the straight corridor) paths run ON the
+ * corridor and cross every closure there - all of them sent, so no re-request - and the hazard names them; /plan's
+ * synthetic path does not. */
+const PATH_ON_CORRIDOR: Record<Path, boolean> = { "/plan": false, "/loop": true, "/trip": true };
+const hazardOf = (path: Path, v: Variant) =>
+  (PATH_ON_CORRIDOR[path] && v.onCorridor.length > 0 ? { ...(v.hazard as object), crosses: v.onCorridor } : v.hazard);
 const areasOf = (features: Feature[] | null) => (features === null ? undefined : buildCustomModel(0, fc(features) as ClosureCollection).areas);
 
 let sent: { url: string; body: Record<string, unknown> }[];
@@ -116,7 +126,7 @@ describe("each driven request carries the <= 50 closures nearest its own corrido
       it(`${path}, ${v.name}: every model's areas and the hazard equal the variant's selection`, async () => {
         const r = await send(path, v.set(o, d), v.at);
         const expected = areasOf(v.sent(o, d));
-        expect([r.status, r.hazard, r.areas.length > 0, r.areas]).toEqual([200, v.hazard, true, r.areas.map(() => expected)]);
+        expect([r.status, r.hazard, r.areas.length > 0, r.areas]).toEqual([200, hazardOf(path, v), true, r.areas.map(() => expected)]);
       });
     }
   }
@@ -184,7 +194,7 @@ describe("a paid trip's day legs each carry the closures nearest the leg (N5)", 
     const withBigSur = areasOf([...F.slice(0, 49), B]);
     const origin50 = areasOf(F);
     expect([response.status, body.closures_hazard, scenic])
-      .toEqual([200, { state: "fresh", version: TEST_VERSION, fetched_at: TRIP_NOW.toISOString(), dropped: 1 },
+      .toEqual([200, { state: "fresh", version: TEST_VERSION, fetched_at: TRIP_NOW.toISOString(), dropped: 1, crosses: ["big-sur"] },
         [...Array(6).fill(withBigSur), origin50, origin50, withBigSur, withBigSur, withBigSur]]);
   });
 });
