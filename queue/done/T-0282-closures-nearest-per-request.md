@@ -1,7 +1,7 @@
 ---
 id: T-0282
 title: closures nearest-first per request - KV keeps every active full closure (measured), and each driven request sends the <=50 polygons nearest its own corridor instead of a fixed global 50
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T15:36:12Z
@@ -11,7 +11,7 @@ branch: task/T-0282
 exclusive: []
 touches: [services/api/, Tests/Fixtures/t0276/, pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-SAFE-08, P-SAFE-01]
-reviewer: null
+reviewer: agent/rv1-t0282
 depends_on: [T-0276, T-0281]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -180,3 +180,24 @@ the ones that matter for that drive.
   `python ops/lib/check-mutate-population.py` "the floor of 67 holds"; NAMED P-SAFE-08 passed=668/668 (run before
   the merge; main's merge touched no services/api or named-tests file). wc -l: closuresNearestRetry.test.ts 187,
   closuresMutants.mjs 281. ops/test not run (orchestrator instruction).
+- 2026-10-06T17:27:25Z REVIEW PASS by agent/rv1-t0282 (not the owner) on ce157ed (== origin/task/T-0282), in a detached
+  worktree .worktrees/rv1-t0282 (npm ci; removed after). MEASUREMENT re-run by the reviewer: `python
+  Tests/Fixtures/t0276/nearest.py` printed the Log's 15:44:57Z lines byte for byte (active closures=163 polygons=173
+  record_bytes=56691 two_ring=10; worst case closures=1708 polygons=1785 record_bytes=582603; the five corridors'
+  kept/dropped/farthest_kept_m/nearest_dropped_m identical); `python Tests/Fixtures/t0276/oracle.py` rows=2808
+  full=1708 active=163 refused=0 kept=163 dropped=0 polygons=173 version=lcs-d7-f61d47351b56471d;
+  services/routing/config.yml has no areas/max/limit key (grep -niE "area|max|limit" matches only
+  datareader.file). GATES, bare: `npx vitest run` Test Files 51 passed (51), Tests 1531 passed (1531);
+  `python ops/lib/run-named-tests.py P-SAFE-08` NAMED P-SAFE-08 passed=668/668; `... P-SAFE-01` NAMED P-SAFE-01
+  passed=15/15; `python ops/lib/check-mutate-population.py` "the floor of 67 holds"; `bash ops/queue-check` QUEUE OK
+  (276 tasks); `gh pr checks 172` core pass, pins-source-only pass; `git merge-base --is-ancestor origin/main HEAD`
+  true. PINS.yaml diff: one line, the old line minus its closing quote is a prefix of the new one (pure dated
+  append). REVIEWER MUTANT (not in the population or the survivor lists), fail-open: tripPlanner.ts day leg
+  `closuresFor(from, to)` -> `closuresFor(from, from)` (each leg selects by its start point only, so a closure on a
+  leg's middle can be dropped for ones nearer the leg's start): RED by name, 3 failed | 1528 passed - "the search
+  and legs 3-5 carry Big Sur and the 49 nearest of the origin's 50; legs 1-2 the origin's 50", "/trip, Z beside
+  road vertex 20, over 50: the search and every leg carry their own corridor's selection", and the same for vertex
+  36, all bound under P-SAFE-08; restored with git checkout, worktree clean. Acceptance 1-3 MET as re-quoted at
+  16:37:58Z and 17:16:31Z. Carried open (not blocking, recorded by the owner): the corridor is the straight
+  segment, not the returned path; loop retrace squares truncated at 50 feed polygons; only the four new mutants
+  re-run this round; legs covered through handleTrip, not ROUTES.
