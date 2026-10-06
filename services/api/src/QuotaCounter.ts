@@ -24,6 +24,8 @@ interface DailyRecord {
   surprise?: number;
   /** Absent until the day's first road trip (T-0268 R5), as for surprise. */
   trip?: number;
+  /** Absent until the day's first telemetry event (T-0279 R5), as for surprise; counts events. */
+  telemetry?: number;
 }
 
 interface MonthlyRecord {
@@ -31,7 +33,7 @@ interface MonthlyRecord {
   calls: number;
 }
 
-/** `kind`'s count in a record: the stored value, or 0 when the key is absent (only "surprise" and "trip" ever are). */
+/** `kind`'s count in a record: the stored value, or 0 when the key is absent (surprise, trip and telemetry can be). */
 function used(record: DailyRecord, kind: QuotaKind): number {
   return kind in record ? (record[kind] as number) : 0;
 }
@@ -43,13 +45,14 @@ export class QuotaCounter extends DurableObject {
     return stored?.day === day ? used(stored, kind) : 0;
   }
 
-  /** One more `kind` on `day` if that stays within `limit`; false, and nothing written, if it would not. */
-  async reserveDaily(day: string, kind: QuotaKind, limit: number): Promise<boolean> {
+  /** `amount` more `kind` (one unless told: T-0279 R5 reserves a request's events at once) on `day` if that stays
+   *  within `limit`; false, and nothing written, if it would not. */
+  async reserveDaily(day: string, kind: QuotaKind, limit: number, amount = 1): Promise<boolean> {
     return this.ctx.storage.transaction(async (txn) => {
       const stored = await txn.get<DailyRecord>(DAILY_RECORD);
       const record: DailyRecord = stored?.day === day ? stored : { day, plan: 0, loop: 0 };
-      if (!(used(record, kind) < limit)) return false;
-      await txn.put(DAILY_RECORD, { ...record, [kind]: used(record, kind) + 1 });
+      if (!(used(record, kind) + amount <= limit)) return false;
+      await txn.put(DAILY_RECORD, { ...record, [kind]: used(record, kind) + amount });
       return true;
     });
   }

@@ -15,6 +15,9 @@
   // here: creating it is the owner's step; the Worker reads it when bound and the KILL var always (R5).
   "durable_objects": { "bindings": [{ "name": "QUOTA", "class_name": "QuotaCounter" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuotaCounter"] }],
+  // T-0279 R7: the telemetry data points. Declared only - Analytics Engine makes the dataset on its first write,
+  // which no test and no agent performs; tests inject a recording binding.
+  "analytics_engine_datasets": [{ "binding": "TELEMETRY", "dataset": "scenic_telemetry" }],
   "d1_databases": [
     { "binding": "DB", "database_name": "scenic", "database_id": "5f475f94-9fd3-4902-9f6e-022c6db30544" }
   ]

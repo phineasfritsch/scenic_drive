@@ -10,6 +10,7 @@ import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
 import type { QuotaCounter } from "./QuotaCounter";
 import { readOnlyProblem } from "./ro";
+import { handleTelemetry, telemetryDepsFromEnv } from "./telemetry";
 import { handleTrip, tripDepsFromEnv } from "./trip";
 
 export { QuotaCounter } from "./QuotaCounter";
@@ -25,6 +26,7 @@ export interface Env {
   ROUTER_URL?: string; // our GraphHopper; https://router.invalid (the shipped placeholder) counts as absent
   ROUTER_SECRET?: string; // secret: `wrangler secret put ROUTER_SECRET`; sent as x-scenic-router-secret
   ASN_ALLOW_SANDBOX?: string; // "1" applies App Store Sandbox notifications too (T-0267 R7); unset = production only
+  TELEMETRY?: AnalyticsEngineDataset; // T-0279: the Analytics Engine binding /telemetry writes to (declared, not created)
   GRAPH_VERSION?: string; // the routing graph's version, in the /isochrone cache key (T-0262 R6); unset = "unversioned"
 }
 
@@ -90,6 +92,7 @@ export const ROUTES: Record<string, Handler> = {
   "/trip": (req, env) => handleTrip(req, env, tripDepsFromEnv(env)),
   "/asn": (req, env) => handleAsn(req, asnDepsFromEnv(env)),
   "/entitlement": (req, env) => handleEntitlement(req, asnDepsFromEnv(env)),
+  "/telemetry": (req, env) => handleTelemetry(req, env, telemetryDepsFromEnv(env)),
 };
 
 export default {
