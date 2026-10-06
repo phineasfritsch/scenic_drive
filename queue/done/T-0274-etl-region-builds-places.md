@@ -1,7 +1,7 @@
 ---
 id: T-0274
 title: ops/etl-region builds places too - the osmium places pass (T-0266) and the fallback corpus (T-0270) wired into the region build, so a full LA corpus carries places and the fallback is rebuilt by one command
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T03:38:14Z
@@ -11,7 +11,7 @@ branch: task/T-0274
 exclusive: [scenic-index]
 touches: [ops/etl-region, services/etl/regionbuild/, services/etl/etl/, services/etl/tests/, services/etl/regions/la/]
 pins_affected: [P-DATA-01]
-reviewer: null
+reviewer: agent/rv1-t0274
 depends_on: [T-0266, T-0270]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -54,3 +54,12 @@ fallback rebuild is manual. One command should build the region corpus with plac
   - IDEMPOTENT (P-DATA-01): content_sha256 925f1af8d2f2fd9674c9ec98dc8b1baf298c057bc5e338ed8c91d3202d15f059 on both LA runs; test_two_fallback_runs_write_the_same_bytes on the fixture. No gitignored input deleted or moved (sizes in the fallback entry).
   - GATES: `P-OPS-01: 125 files, 23 required present, all modes correct` (ops/etl-region stays 100755); `QUEUE OK (265 tasks)`; `P-PROC-06: every added module is covered or allowlisted; the floor of 67 holds` (0 added under MODULE_ROOTS, R6). wc -l: places.py 59, cli.py 111, layout.py 108, test_region_places.py 175, test_fallback_committed.py 121, ops/etl-region 32.
   - STILL OPEN (R1): no stage builds a full-region corpus of WAYS - merge.py writes the merged document with `"ways": []`, so places reach the bundle corpus only; a region ways corpus (seam-deduped tile docs -> extractadapter --places-osm -> corpus) is its own measurement task.
+- 2026-10-06T05:23:13Z REVIEW PASS (agent/rv1-t0274, reviewer, not the owner) on head 26bdb6a, PR #163.
+  - ACCEPTANCE 1 (places + extract): R1/R2 accepted as ruled before code - regionbuild has no ways extract stage (merge.py writes `"ways": []`), so the corpus places reach is the bundled fallback; the per-class LA counts were quoted as the stage landed (04:02:43Z) and equal T-0266's. Stage order and the osmium command lines are pinned whole by test_region_places.py through `regionbuild.cli.main`; the bundle's places equal `fallback.choose(placeallow.select(fixture))` row for row.
+  - ACCEPTANCE 2 (fallback byte-for-byte), re-run by the reviewer in WSL docker scenic-etl:latest, worktree .worktrees/rv1-t0274 at 26bdb6a mounted at /repo, fresh store /home/phineas/rv1-t0274 holding a COPY of the main checkout's services/etl/work/t0266/la-places.osm.xml (a08035546fd5...b830e9), `SCENIC_REGION_WORK=/home/phineas/rv1-t0274 bash ops/etl-region fallback` twice: `FALLBACK selected_from=4773 places=1334 ...`, `FALLBACK content_sha256=925f1af8d2f2fd9674c9ec98dc8b1baf298c057bc5e338ed8c91d3202d15f059` and `FALLBACK file_sha256=05c3a19c4ba2fa59e7889c771d9dec4fe554bef81c73c85f073834956d7e936d` on both runs; the committed path after each run `05c3a19c4ba2fa59e7889c771d9dec4fe554bef81c73c85f073834956d7e936d`; `git status --short` empty.
+  - ACCEPTANCE 3 (P-DATA-01): the two image runs above have identical content and file digests. No gitignored input was deleted or moved: the reviewer only copied la-places.osm.xml into services/etl/work/rv1-t0274/ and the WSL store.
+  - HOST NOTE (non-blocking, recorded): `ops/etl-region --local fallback` on the Windows host (python sqlite 3.40.1) is NOT byte-identical - twice `file_sha256=173f53e5...7bc08`, `content_sha256=cb10d58e...1761f3`. Same 1334 place ids, but meta sqlite_version 3.40.1 vs 3.45.1 and 16 places rows whose lon/lat differ by one 1e-7 unit (e.g. w144945230 lon -1181726375 vs -1181726374). That is the T-0270 builder's float path on another platform, not this PR's wiring; the byte-for-byte rebuild holds in the image, the default mode.
+  - REVIEWER MUTANT: places.bundle passes `--places-osm str(layout.places_pbf)` instead of places_xml. Over test_region_places.py + test_fallback_committed.py: `3 failed, 11 passed` - RED by name test_the_places_stream_reaches_the_bundle_corpus_row_for_row, test_two_fallback_runs_write_the_same_bytes, test_a_fallback_over_its_budget_installs_nothing. Restored with git checkout, __pycache__ purged, 1.1 s; committed file still 05c3a19c...7e936d.
+  - GATES (bare): host pytest tests/test_region_places.py tests/test_fallback_committed.py tests/test_region_build.py tests/test_fallback.py tests/test_placeallow.py -> `154 passed in 232.88s` (no skips; the LA re-selection ran). `P-OPS-01: 125 files, 23 required present, all modes correct` (ops/etl-region 100755). `QUEUE OK (265 tasks)`. gh pr checks 163: core pass, pins-source-only pass.
+  - MAIN DRIFT (non-blocking, recorded): `git merge-base --is-ancestor origin/main origin/task/T-0274` rc=1 - main moved to 063f270 after the owner's final merge (T-0271's PR #162: iOS Entitlements, ops/lib store-link guards, PINS.yaml P-STORE-*, queue). Disjoint from this PR's paths. A trial merge in the reviewer's worktree was clean; on it `P-OPS-01: 127 files, 23 required present, all modes correct` and `QUEUE OK (265 tasks)`; the reviewer's `ops/check-pins --source-only` on the merged tree was still running on the shared box after 18 minutes and was not waited out.
+  - STILL OPEN (owner's R1, endorsed): a full-region WAYS corpus carrying places is not built by any stage; file it as its own measurement task.
