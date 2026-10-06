@@ -4,6 +4,7 @@
  * The router fake answers the n-th request with `answers[n]` (a GraphHopper body) and refuses a request it has
  * no answer for. Every fetch is COUNTED and every body kept, so a test asserts about the calls themselves.
  */
+import { FRESH_EMPTY } from "./closuresFake";
 import type { LoopDeps } from "../src/loop";
 import type { Counters } from "../src/upstream";
 
@@ -49,6 +50,7 @@ export function loopHarness(answers: string[],
     upstream: { counters, fetchImpl, now: () => NOW, killed: () => false },
     routerBase: ROUTER,
     identify: () => ({ userId: "device-1", tier: "free" }),
+    closures: async () => FRESH_EMPTY,
   };
   return { deps, sent, events, reserved };
 }

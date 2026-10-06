@@ -5,6 +5,7 @@
  * preview (anon) or the full itinerary (paid). The answers, the quota state, the entitlement reads and every
  * console line are compared WHOLE.
  */
+import { liveClosures } from "./closuresFake";
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import placesSql from "../migrations/0001_places.sql?raw";
@@ -36,7 +37,7 @@ let chain: Chain;
 
 function shippedEnv(db: D1Database = env.DB): Env {
   return { DB: db, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, ROUTER_URL: "https://router.test",
-    ROUTER_SECRET: "test-router-secret" } as unknown as Env;
+    ROUTER_SECRET: "test-router-secret", CLOSURES: liveClosures() } as unknown as Env;
 }
 
 async function send(path: Path, headers: Record<string, string>, e: Env): Promise<Answer> {

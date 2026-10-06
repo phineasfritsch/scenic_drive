@@ -4,9 +4,11 @@
  * upstream calls, when ANY of the QUOTA binding, a routable ROUTER_URL or the ROUTER_SECRET secret is missing.
  */
 import { accountTier } from "./accountTier";
+import { readClosures, type ClosureSnapshot } from "./closuresStore";
 import type { QuotaCounter } from "./QuotaCounter";
 import type { Tier } from "./quota";
 import { countersFromNamespace } from "./quotaCounters";
+import { AUTHORIZATION_HEADER, identifyCaller, type SessionEnv } from "./sessionIdentity";
 import type { UpstreamDeps } from "./upstream";
 
 /** Every request to our GraphHopper carries this, valued ROUTER_SECRET; the VPS refuses without it (P-COST-03). */
@@ -18,7 +20,7 @@ export const UNIDENTIFIED_DEVICE = "unidentified";
 
 const DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-export interface RouterEnv {
+export interface RouterEnv extends SessionEnv {
   QUOTA?: DurableObjectNamespace<QuotaCounter>;
   /** https://... of our GraphHopper; `/route` is appended. https://router.invalid is the shipped placeholder. */
   ROUTER_URL?: string;
@@ -26,6 +28,8 @@ export interface RouterEnv {
   ROUTER_SECRET?: string;
   /** The entitlements table the tier is read from (T-0272); absent, every caller is anon. */
   DB?: D1Database;
+  /** The closures the cron writes (T-0276 R6); the owner binds it. Absent, every route carries closures_hazard. */
+  CLOSURES?: KVNamespace;
 }
 
 export interface Identity {
@@ -37,6 +41,8 @@ export interface RouterDeps {
   upstream: UpstreamDeps;
   routerBase: string;
   identify(req: Request): Promise<Identity>;
+  /** The closures to route around, read once per request after the kill switch (T-0276 R7, R10). */
+  closures(): Promise<ClosureSnapshot>;
 }
 
 /** The router base, or null when ROUTER_URL is absent, not https, or under RFC 2606's reserved .invalid (R8). */
@@ -73,9 +79,11 @@ export function routerDepsFromEnv(env: RouterEnv): RouterDeps | null {
     upstream: { counters: countersFromNamespace(env.QUOTA), fetchImpl, now, killed: () => false },
     routerBase: base,
     // The bucket is the install (R2); a live entitlement of x-scenic-account-token lifts anon to paid (T-0272 R1-R4).
-    identify: async (req) => {
+    // T-0278 R6: a verified session JWT first; the header identity above only without the secret or under the flag.
+    identify: (req) => identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => {
       const device = deviceIdentity(req);
       return (await accountTier(req, env.DB, now().getTime())) === "paid" ? { ...device, tier: "paid" } : device;
-    },
+    }),
+    closures: () => readClosures(env.CLOSURES, now().getTime()),
   };
 }

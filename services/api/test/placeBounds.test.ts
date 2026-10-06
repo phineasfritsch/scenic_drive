@@ -5,6 +5,7 @@
  * Rows the shipped DDL can hold go through the real D1 table; null and NaN (which REAL NOT NULL refuses - asserted
  * below) and a numeric string come from a D1 stand-in that answers the row as given.
  */
+import { liveClosures } from "./closuresFake";
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import placesSql from "../migrations/0001_places.sql?raw";
@@ -73,7 +74,7 @@ function standIn(row: Row): D1Database {
 
 async function plan(place: string, db: D1Database) {
   const e = { DB: db, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, ROUTER_URL: "https://router.test",
-    ROUTER_SECRET: "test-router-secret" } as unknown as Env;
+    ROUTER_SECRET: "test-router-secret", CLOSURES: liveClosures() } as unknown as Env;
   const req = new Request("https://scenic-api.test/plan", {
     method: "POST", headers: { "content-type": "application/json", "x-scenic-device": DEVICE },
     body: JSON.stringify({ ...SANTA_MONICA_TOPANGA_BODY, destination: { place } }),

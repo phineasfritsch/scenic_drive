@@ -4,6 +4,7 @@
  * with the same detail, zero router requests and nothing reserved; an exact bound is ACCEPTED, and its first router
  * request carries the origin as sent. "Just outside" is the next double past each bound (Number.EPSILON steps).
  */
+import { liveClosures } from "./closuresFake";
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import placesSql from "../migrations/0001_places.sql?raw";
@@ -131,6 +132,7 @@ afterEach(() => {
 const shippedEnv = (): Env => ({
   DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, ROUTER_URL: "https://router.test",
   ROUTER_SECRET: "test-router-secret",
+  CLOSURES: liveClosures(),
 } as unknown as Env);
 
 /** JSON with Infinity spelled 1e999, which JSON.parse reads back as Infinity; NaN has no JSON spelling. */
