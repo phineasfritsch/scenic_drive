@@ -87,3 +87,21 @@ The T-0261/T-0269 pattern.
   why_no_test_catches_it gains one dated APPENDED sentence after its last word. Note: `yaml.safe_load` of
   pins/PINS.yaml fails at line 213 col 344 on HEAD 0cb8c82 too (pre-existing, not this task's line; ops/lib/pins.py
   parses it its own way).
+- 2026-10-06T14:49:32Z FINAL GATES on the merged head (git fetch origin; `git merge origin/main` -> "Already up to
+  date", origin/main 0cb8c82): `python ops/lib/run-named-tests.py P-SAFE-08` -> `NAMED P-SAFE-08 passed=599/599`,
+  exit=0 (run bare); `... P-SAFE-01` -> `NAMED P-SAFE-01 passed=15/15`, exit=0; `ops/queue-check` -> `QUEUE OK
+  (272 tasks)`, exit 0; `ops/lib/check-exec-bits` -> `P-OPS-01: 127 files, 23 required present, all modes
+  correct`, exit 0. NOT COMPLETED: `ops/check-pins --source-only` was started at ~14:31Z and had printed nothing
+  after 18 min (left running, not quoted as green); full `ops/test` and `ops/check-pins` (task verify:) not run in
+  this session - CI is their confirmation.
+  ACCEPTANCE, re-quoted:
+  1 P-SAFE-08 row - MET: pins/PINS.yaml P-SAFE-08, statement the plan's row, anchor api, runs_on [linux], asserted
+    by run-named-tests.py over the named closuresRoutes/closuresCron/closuresFeed (+ closuresDriven) tests: the
+    30-min boundary rows (fresh at exactly 30 min - M1 red; stale at +1 ms - M2 red), the unavailable cross-product
+    meta-test (M9 red, by the R4 test-file exception) and its 448 rows (M3 red), the every-driven-request-carries-
+    the-areas tests (M4/M5/M6 red), the cron active-window clock table (M7/M8 red); then green 599/599. WHAT IT
+    CANNOT SEE names /isochrone's missing areas (T-0276 R8), the 50-polygon cap dropping closures (121 of 163),
+    and the owner's unbound CLOSURES KV.
+  2 prose APPENDED with dates, never rewritten - MET: P-SAFE-01 gains one `APPENDED 2026-10-06 (T-0281)` sentence
+    after its final word (the diff's one removed line is that line, its old text a prefix of the new); P-SAFE-08 is
+    new. run-named-tests P-SAFE-08 exit 0, P-SAFE-01 exit 0 - MET (quoted above).
