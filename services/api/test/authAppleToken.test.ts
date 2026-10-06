@@ -41,11 +41,14 @@ const VARIANTS: [string, () => Promise<void>][] = [
 
 /** A valid token whose total length is exactly `length` (a pad claim sized to it); throws when none is found. */
 async function tokenOfLength(bearer: string, length: number): Promise<string> {
-  const base = (await signJws(HEADER, await identityClaims(bearer, { pad: "" }), K1.privateKey)).length;
-  const start = Math.max(0, Math.floor(((length - base) * 3) / 4) - 4);
-  for (let n = start; n < start + 12; n += 1) {
-    const t = await signJws(HEADER, await identityClaims(bearer, { pad: "x".repeat(n) }), K1.privateKey);
-    if (t.length === length) return t;
+  for (let spaces = 0; spaces < 4; spaces += 1) {
+    const header = `{"alg":"RS256",${" ".repeat(spaces)}"kid":"K1"}`;
+    const base = (await signJws(header, await identityClaims(bearer, { pad: "" }), K1.privateKey)).length;
+    const start = Math.max(0, Math.floor(((length - base) * 3) / 4) - 4);
+    for (let n = start; n < start + 12; n += 1) {
+      const t = await signJws(header, await identityClaims(bearer, { pad: "x".repeat(n) }), K1.privateKey);
+      if (t.length === length) return t;
+    }
   }
   throw new Error(`no token of length ${length}`);
 }

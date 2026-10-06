@@ -21,10 +21,25 @@ const BODY_READ = "raw = await req.json();";
 const TIER_READ = 'const token = (req.headers.get(ACCOUNT_TOKEN_HEADER) ?? "").toLowerCase();';
 
 const APPROVED: Record<string, string[]> = {
+  // T-0287 R10: the session JWT's ONE read in account.ts is caller()'s; the Apple exchange's response is not the request.
+  "../src/account.ts": [
+    "async function caller(req: Request, secret: string, nowMs: number): Promise<{ token: string; claims: SessionClaims } | null> {",
+    'const match = BEARER.exec(req.headers.get(AUTHORIZATION_HEADER) ?? "");',
+    "const body: unknown = await response.json();",
+    "export async function handleAuthApple(req: Request, deps: AccountDeps): Promise<Response> {",
+    POST_ONLY,
+    "const session = await caller(req, deps.secret, nowMs);",
+    "const raw: unknown = await req.json();",
+    "export async function handleDeleteAccount(req: Request, deps: AccountDeps): Promise<Response> {",
+    'if (req.method !== "DELETE") return json({ error: "DELETE only" }, 405);',
+    "const session = await caller(req, deps.secret, deps.now().getTime());",
+  ],
   "../src/accountTier.ts": [
     "export async function accountTier(req: Request, db: D1Database | undefined, nowMs: number): Promise<Tier> {",
     TIER_READ,
   ],
+  // T-0287: Apple's JWKS response, never the request.
+  "../src/appleJwks.ts": ["body = await response.json();"],
   "../src/appleMaps.ts": [
     "* The Apple Maps handoff URL - a port of Sources/Handoff/AppleMapsDirections.swift (T-0248 R7).",
     "* decimals here is not the two-decimal rule: this URL is the user handing their own route to Apple.",
@@ -75,6 +90,8 @@ const APPROVED: Record<string, string[]> = {
     '"/attest": (req, env) => handleAttest(req, attestDepsFromEnv(env)),',
     '"/attest/assert": (req, env) => handleAttestAssert(req, attestDepsFromEnv(env)),',
     '"/telemetry": (req, env) => handleTelemetry(req, env, telemetryDepsFromEnv(env)),',
+    '"/auth/apple": (req, env) => handleAuthApple(req, accountDepsFromEnv(env)),',
+    '"/account": (req, env) => handleDeleteAccount(req, accountDepsFromEnv(env)),',
     "async fetch(req: Request, env: Env): Promise<Response> {",
     "const url = new URL(req.url);",
     "return handler(req, env, url);",
