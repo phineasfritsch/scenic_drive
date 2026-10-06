@@ -93,6 +93,13 @@ rows=(
   "T-0273 the shell hands the card its own opener|ScenicDrive/ScenicDriveApp.swift|s/onOpenInMaps: open))/onOpenInMaps: { _ in }))/|the app shell ScenicDriveApp"
   "T-0273 the Surprise construction passes true|$FS/ScenicHomeScreen.swift|/private func openSurprise/,/attempt()/s/isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged/isSafetyDisclaimerAcknowledged: true/|identifier isSafetyDisclaimerAcknowledged"
   "T-0273 a file added beside the Surprise card|+Packages/ScenicApp/Sources/FeatureSurpriseMe/Shadow.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadow.swift"
+  # Rows 34-37 are T-0273's pre-review M1: a `struct SurpriseCard` declared in the APP SHELL shadows the imported card,
+  # so the frozen shell line builds a card whose tap opens Apple Maps itself. Every count, whitelist and frozen block
+  # is green on all four; each is red only because -pinned pins the shell's entries and ScenicDriveApp.swift's bytes.
+  "T-0273 M1 a SurpriseCard shadow appended to the shell|ScenicDrive/ScenicDriveApp.swift|\$a struct SurpriseCard: View { init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; var body: some View { Button(\"Open in Apple Maps\") { UIApplication.shared.open(URL(string: \"maps://?daddr=34.07,-118.65\")!) } } }|ScenicDriveApp.swift content changed"
+  "T-0273 M1 a SurpriseCard shadow in a new shell file|+ScenicDrive/SurpriseShadow.swift|import SwiftUI; struct SurpriseCard: View { init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; var body: some View { EmptyView() } }|added SurpriseShadow.swift"
+  "T-0273 M1 a Swift file named like a tile archive|+ScenicDrive/Tiles/la.pmtiles.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Tiles/la.pmtiles.swift"
+  "T-0273 M1 a directory link in the shell|@ScenicDrive/Shadows|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadows"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies

@@ -31,8 +31,8 @@
 #
 # WHAT IT CANNOT SEE: whether any of it RENDERS - visible, hittable and uncovered at BOTH detents is a runtime
 # property, T-0180's both-detents clause (main 558e154); a shadow or an overload declared OUTSIDE the pinned set -
-# the rest of DesignSystem, ScenicKit, MapAdapter, PlaceStore, the app shell ScenicDrive/ (whose ScenicDriveApp
-# block -frozen freezes, and no more), a SwiftPM or Xcode setting that adds sources - and the lexical spellings the
+# the rest of DesignSystem, ScenicKit, MapAdapter, PlaceStore (the app shell ScenicDrive/ IS pinned since T-0273's
+# M1: its entries and ScenicDriveApp.swift's bytes), a SwiftPM or Xcode setting that adds sources - and the spellings the
 # Swift readers do not parse (T-0243); what SwiftUI itself draws. It proves the bytes are the reviewed bytes; it
 # cannot prove the reviewed bytes are right, which is every other limb's job and the reviewer's.
 PINNED_REASON="the pinned render surface changed"
@@ -66,6 +66,55 @@ PINNED_SURPRISE=(
   'SurpriseNotThis.swift 05e8115a07c0e5864a311d10089155adf2937960c9edd3f38eec877a6c952bdd'
 )
 PINNED_FOOTER_DIGEST='8f07bec7abe9690183813b79af08d404add796088bf497781b560d7e4bc7c0b7'
+# T-0273 pre-review M1: THE APP SHELL, pinned as well. It composes the card, and a module-local type wins over an
+# imported one, so a `struct SurpriseCard` declared anywhere in the shell - appended below the frozen ScenicDriveApp
+# block, or in a new file (ScenicDrive/ is an Xcode 26 buildable folder: every source in it compiles) - is what the
+# frozen line `AnyView(SurpriseCard(failure: failure, onOpenInMaps: open))` builds, and its tap leaves ungated. So
+# ScenicDriveApp.swift is pinned by digest, and every entry under the shell is a WHITELIST of `type path` lines
+# (find's %y: f a regular file, d a directory; a link or junction is never approved) plus ONE shape, the owner's
+# ignored, never-committed tile archive: a regular file `Tiles/<name>.pmtiles` or `.pmtiles.json` (Tiles/.gitignore).
+PINNED_SHELL_REL="../../../../ScenicDrive"
+PINNED_SHELL_ENTRIES=(
+  'd Assets.xcassets' 'd Assets.xcassets/AppIcon.appiconset' 'd Assets.xcassets/LaunchBackground.colorset'
+  'd Corpus' 'd Routes' 'd Tiles'
+  'f Assets.xcassets/AppIcon.appiconset/AppIcon.png' 'f Assets.xcassets/AppIcon.appiconset/Contents.json'
+  'f Assets.xcassets/Contents.json' 'f Assets.xcassets/LaunchBackground.colorset/Contents.json'
+  'f Corpus/corpus-fallback.sqlite' 'f Info.plist' 'f Routes/saddle-peak-menu.json' 'f Routes/saddle-peak.geojson'
+  'f ScenicDriveApp.swift' 'f Tiles/.gitignore'
+)
+PINNED_SHELL_TILE='^f Tiles/[A-Za-z0-9_-][A-Za-z0-9._-]*\.pmtiles(\.json)?$'
+PINNED_SHELL_DIGEST='52556b14b83d334a141a827dce99a64d30369eb4d55a58cb31711f80d9d8fc3f'
+
+# pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
+pinned_shell() {
+  local dir="${1%/}" entry found=() bad=() missing=() approved
+  [[ -d "$dir" ]] || fail "$PINNED_REASON: no such directory: $dir" \
+    "The app shell ScenicDrive/ is pinned; a missing tree is a refusal, never a pass."
+  mapfile -t found < <(cd "$dir" && find . -mindepth 1 -printf '%y %P\n' | LC_ALL=C sort)
+  approved="$(printf '%s\n' "${PINNED_SHELL_ENTRIES[@]}")"
+  for entry in "${found[@]}"; do
+    grep -Fxq -e "$entry" <<<"$approved" || [[ "$entry" =~ $PINNED_SHELL_TILE ]] || bad+=("${entry#? }")
+  done
+  for entry in "${PINNED_SHELL_ENTRIES[@]}"; do
+    printf '%s\n' "${found[@]}" | grep -Fxq -e "$entry" || missing+=("${entry#? }")
+  done
+  [[ "${#bad[@]}" -eq 0 && "${#missing[@]}" -eq 0 ]] || fail \
+    "$PINNED_REASON: the app shell's file set is not the approved one: ${bad[*]:+added ${bad[*]}}${missing[*]:+ missing ${missing[*]}}." \
+    "Every entry under $dir is an approved regular file or directory, typed in ops/lib/check-safety-disclaimer-pinned," \
+    "or a Tiles/*.pmtiles archive. A new shell file can declare \`struct SurpriseCard\` and the frozen line then builds" \
+    "IT, whose Apple Maps tap skips the disclaimer (T-0273 M1); a link is never approved, even under an approved name."
+  local links
+  [[ "$(git -C "$dir" rev-parse --is-inside-work-tree 2>/dev/null)" == "true" ]] && \
+    links="$(git -C "$dir" ls-files -s -- . 2>/dev/null)" || fail \
+    "$PINNED_REASON: $dir is not inside a git work tree, so its index cannot be read." \
+    "The app shell refuses a mode-120000 (symlink) index entry, and an unread index is a refusal, never a pass."
+  links="$(printf '%s\n' "$links" | sed -n -e 's/^120000 [0-9a-f]* [0-9]*\t//p' | tr '\n' ' ')"
+  [[ -z "$links" ]] || fail "$PINNED_REASON: committed as a symlink ${links% } (git index mode 120000 under $dir)."
+  local got
+  got="$(pinned_digest "$dir/ScenicDriveApp.swift")"
+  [[ "$got" == "$PINNED_SHELL_DIGEST" ]] || \
+    PINNED_BAD+=("ScenicDriveApp.swift content changed (sha256 $got, approved $PINNED_SHELL_DIGEST)")
+}
 
 # pinned_digest FILE: sha256 of FILE with CRLF normalized to LF; "missing" when FILE is not a readable file.
 pinned_digest() {
@@ -130,12 +179,14 @@ require_pinned_surface() {
   PINNED_FILES=0
   pinned_module "$dir" "FeatureScenicHome" PINNED_FEATURE
   pinned_module "$dir/$PINNED_SURPRISE_REL" "FeatureSurpriseMe" PINNED_SURPRISE
+  pinned_shell "$dir/$PINNED_SHELL_REL"
   got="$(pinned_digest "$dir/$PINNED_FOOTER_REL")"
   [[ "$got" == "$PINNED_FOOTER_DIGEST" ]] || \
     PINNED_BAD+=("AttributionFooter.swift content changed (sha256 $got, approved $PINNED_FOOTER_DIGEST)")
   [[ "${#PINNED_BAD[@]}" -eq 0 ]] || fail "$PINNED_REASON: ${PINNED_BAD[0]}" "${PINNED_BAD[@]:1}" \
-    "Every byte of FeatureScenicHome, FeatureSurpriseMe and DesignSystem/AttributionFooter.swift is pinned (rv3-t0237" \
-    "B1-B3: a file-scope \`private struct Text\`, \`VStack\` or \`AttributionFooter\` outside every frozen block blanked" \
-    "the line, the sheet or the credit; T-0273: the card's Apple Maps tap). Approve an edit by typing its new digest" \
+    "Every byte of FeatureScenicHome, FeatureSurpriseMe, ScenicDriveApp.swift and DesignSystem/AttributionFooter.swift" \
+    "is pinned (rv3-t0237 B1-B3: a file-scope \`private struct Text\`, \`VStack\` or \`AttributionFooter\` outside every" \
+    "frozen block blanked the line, the sheet or the credit; T-0273: the card's Apple Maps tap, and M1's" \
+    "\`struct SurpriseCard\` shadow appended to the shell). Approve an edit by typing its new digest" \
     "in the same commit, deliberately."
 }

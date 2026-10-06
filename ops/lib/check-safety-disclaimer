@@ -275,7 +275,7 @@ run_check() {
   echo "  and a sheet bound to that flag on the screen; \`$ACK_IDENT = true\` written exactly once, at"
   echo "  line $ACK_WRITE_LINE, inside the SafetyDisclaimer(onAccept: { block opening at line $ACK_ACCEPT_LINE;"
   echo "  and by occurrence over the app tree, $ACK_IDENT at $ack_set, the key at $key_set."
-  echo "  Frozen whole (-frozen); LAST $PINNED_FILES feature file(s) and AttributionFooter.swift pinned by sha256 (-pinned)."
+  echo "  Frozen whole (-frozen); LAST $PINNED_FILES feature file(s), the app shell and AttributionFooter.swift pinned (-pinned)."
   echo "  Not checked here: rendering (T-0180), taps, whether that write RUNS, contrast, Dynamic Type, 44 pt."
 }
 
