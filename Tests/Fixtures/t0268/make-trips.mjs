@@ -57,10 +57,32 @@ const cases = [
   c("days 0 reach nothing", 0, 14_400, 321_869, 20_411, { too_few_days: { days: 0, reached_vertex: 0 } }),
 ];
 
+// SYNTHETIC routes for the rules the T-0249 route never reaches (T-0268 mutation run at 441c274: corridor 4_000,
+// share-empty-day, nearest-ties-high and day1-no-v0 were MISSED). Equator vertices 0.5 deg (~55.6 km) apart; expected
+// derived by hand from T-0249 R4/R5/R6.
+const edge = (a, b, seconds, meters) => ({ start: a, end: b, seconds, meters });
+const v = (lon) => [0, lon];
+const stop = (name, score, coordinate) => ({ name, kind: "stop", score, coordinate });
+const synthetic = [
+  { name: "uneven edges: day 2 starts past its share and still drives an edge; v0 belongs to day 1; 4.5 km is corridor",
+    // total 120 s, 3 days: day 1 takes 10 (30 < 120), then 100 (330 >= 120); day 2 starts at cumulative 110 (330 >=
+    // 240) but holds no edge yet, so it takes the last; day 3 has nothing left. Near V1 is ~4_503 m north of v1.
+    route: [edge(v(0), v(0.5), 10, 1_000), edge(v(0.5), v(1), 100, 1_000), edge(v(1), v(1.5), 10, 1_000)],
+    places: [stop("At Start", 50, v(0)), stop("Near V1", 40, [0.0405, 0.5])],
+    days: 3, max_drive_s: 1_000, max_m: 100_000, fastest_s: 120,
+    expected: { plan: [day(1, 0, 2, 110, 2_000, ["At Start", "Near V1"], "no_lodging"), day(2, 2, 3, 10, 1_000, [], null)] } },
+  { name: "a stop equidistant from two vertices is the lower vertex's: it stays on day 1",
+    // v1 and v2 are one point (a zero-length edge). Total 40 s, 2 days: day 1 ends after its first edge (40 >= 40).
+    route: [edge(v(0), v(0.5), 20, 1_000), edge(v(0.5), v(0.5), 10, 0), edge(v(0.5), v(1), 10, 1_000)],
+    places: [stop("Twin", 10, v(0.5))],
+    days: 2, max_drive_s: 1_000, max_m: 100_000, fastest_s: 40,
+    expected: { plan: [day(1, 0, 1, 20, 1_000, ["Twin"], "no_lodging"), day(2, 1, 3, 20, 1_000, [], null)] } },
+];
+
 const fixture = {
   source: "Tests/Fixtures/roadtrip/{route,places}.tsv (T-0249 R7); expected = T-0249 R8 by hand (T-0268 R6)",
   unit: "coordinates [lat, lon] degrees; seconds; metres",
-  route, places, cases,
+  route, places, cases, synthetic,
 };
 writeFileSync(join(HERE, "trips.json"), `${JSON.stringify(fixture, null, 1)}\n`);
-console.log(`trips.json: ${route.length} edges, ${places.length} places, ${cases.length} cases`);
+console.log(`trips.json: ${route.length} edges, ${places.length} places, ${cases.length} cases, ${synthetic.length} synthetic`);

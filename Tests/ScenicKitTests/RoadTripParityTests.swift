@@ -13,6 +13,18 @@ struct RoadTripParityTests {
         let route: [Edge]
         let places: [Place]
         let cases: [Case]
+        let synthetic: [Synthetic]
+    }
+
+    struct Synthetic: Decodable {
+        let name: String
+        let route: [Edge]
+        let places: [Place]
+        let days: Int
+        let max_drive_s: Int
+        let max_m: Int
+        let fastest_s: Int
+        let expected: Expected
     }
 
     struct Edge: Decodable {
@@ -131,24 +143,42 @@ struct RoadTripParityTests {
     @Test("the shared fixture carries the T-0249 route, its places and every outcome kind")
     func theFixtureIsWhole() throws {
         let fixture = try Self.fixture()
-        let counts: [Int] = [fixture.route.count, fixture.places.count, fixture.cases.count]
-        #expect(counts == [21, 20, 9])
+        let counts: [Int] = [fixture.route.count, fixture.places.count, fixture.cases.count, fixture.synthetic.count]
+        #expect(counts == [21, 20, 9, 2])
         #expect(fixture.cases.contains { $0.expected.plan != nil })
         #expect(fixture.cases.contains { $0.expected.over_budget != nil })
         #expect(fixture.cases.contains { $0.expected.too_few_days != nil })
     }
 
+    static func edges(_ route: [Edge]) -> [RoadTripEdge] {
+        route.map {
+            RoadTripEdge(start: coordinate($0.start), end: coordinate($0.end), seconds: $0.seconds, meters: $0.meters)
+        }
+    }
+
+    static func places(_ list: [Place]) -> [RoadTripPlace] {
+        list.map {
+            RoadTripPlace(name: $0.name, kind: RoadTripPlace.Kind(rawValue: $0.kind)!, score: $0.score,
+                          coordinate: coordinate($0.coordinate))
+        }
+    }
+
+    @Test("every synthetic case gives the recorded day plan, whole, from the Swift original")
+    func everySyntheticCaseMatches() throws {
+        for shared in try Self.fixture().synthetic {
+            let outcome = RoadTrip.plan(edges: Self.edges(shared.route), places: Self.places(shared.places),
+                                        fastestSeconds: shared.fastest_s,
+                                        limits: RoadTripLimits(days: shared.days, maxDriveSeconds: shared.max_drive_s,
+                                                               maxMeters: shared.max_m))
+            #expect(Self.render(outcome) == shared.expected, "\(shared.name)")
+        }
+    }
+
     @Test("every shared case gives the recorded day plan, whole, from the Swift original")
     func everyCaseMatches() throws {
         let fixture = try Self.fixture()
-        let edges = fixture.route.map {
-            RoadTripEdge(start: Self.coordinate($0.start), end: Self.coordinate($0.end), seconds: $0.seconds,
-                         meters: $0.meters)
-        }
-        let places = fixture.places.map {
-            RoadTripPlace(name: $0.name, kind: RoadTripPlace.Kind(rawValue: $0.kind)!, score: $0.score,
-                          coordinate: Self.coordinate($0.coordinate))
-        }
+        let edges = Self.edges(fixture.route)
+        let places = Self.places(fixture.places)
         for shared in fixture.cases {
             let outcome = RoadTrip.plan(edges: edges, places: places, fastestSeconds: shared.fastest_s,
                                         limits: RoadTripLimits(days: shared.days, maxDriveSeconds: shared.max_drive_s,

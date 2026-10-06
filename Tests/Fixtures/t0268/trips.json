@@ -925,5 +925,177 @@
     }
    }
   }
+ ],
+ "synthetic": [
+  {
+   "name": "uneven edges: day 2 starts past its share and still drives an edge; v0 belongs to day 1; 4.5 km is corridor",
+   "route": [
+    {
+     "start": [
+      0,
+      0
+     ],
+     "end": [
+      0,
+      0.5
+     ],
+     "seconds": 10,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      0.5
+     ],
+     "end": [
+      0,
+      1
+     ],
+     "seconds": 100,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      1
+     ],
+     "end": [
+      0,
+      1.5
+     ],
+     "seconds": 10,
+     "meters": 1000
+    }
+   ],
+   "places": [
+    {
+     "name": "At Start",
+     "kind": "stop",
+     "score": 50,
+     "coordinate": [
+      0,
+      0
+     ]
+    },
+    {
+     "name": "Near V1",
+     "kind": "stop",
+     "score": 40,
+     "coordinate": [
+      0.0405,
+      0.5
+     ]
+    }
+   ],
+   "days": 3,
+   "max_drive_s": 1000,
+   "max_m": 100000,
+   "fastest_s": 120,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 2,
+      "seconds": 110,
+      "meters": 2000,
+      "stops": [
+       "At Start",
+       "Near V1"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 2,
+      "start_vertex": 2,
+      "end_vertex": 3,
+      "seconds": 10,
+      "meters": 1000,
+      "stops": [],
+      "overnight": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "a stop equidistant from two vertices is the lower vertex's: it stays on day 1",
+   "route": [
+    {
+     "start": [
+      0,
+      0
+     ],
+     "end": [
+      0,
+      0.5
+     ],
+     "seconds": 20,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      0.5
+     ],
+     "end": [
+      0,
+      0.5
+     ],
+     "seconds": 10,
+     "meters": 0
+    },
+    {
+     "start": [
+      0,
+      0.5
+     ],
+     "end": [
+      0,
+      1
+     ],
+     "seconds": 10,
+     "meters": 1000
+    }
+   ],
+   "places": [
+    {
+     "name": "Twin",
+     "kind": "stop",
+     "score": 10,
+     "coordinate": [
+      0,
+      0.5
+     ]
+    }
+   ],
+   "days": 2,
+   "max_drive_s": 1000,
+   "max_m": 100000,
+   "fastest_s": 40,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 1,
+      "seconds": 20,
+      "meters": 1000,
+      "stops": [
+       "Twin"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 2,
+      "start_vertex": 1,
+      "end_vertex": 3,
+      "seconds": 20,
+      "meters": 1000,
+      "stops": [],
+      "overnight": null
+     }
+    ]
+   }
+  }
  ]
 }

@@ -16,12 +16,16 @@ interface SharedTrips {
 
 const trips = JSON.parse(tripsRaw) as SharedTrips;
 const at = ([lat, lon]: [number, number]) => ({ lat, lon });
-const edges: RoadTripEdge[] = trips.route.map((e) => ({ start: at(e.start), end: at(e.end), seconds: e.seconds, meters: e.meters }));
-const places: RoadTripPlace[] = trips.places.map((p) => ({ name: p.name, kind: p.kind, score: p.score, coordinate: at(p.coordinate) }));
+const edgesOf = (route: SharedTrips["route"]): RoadTripEdge[] =>
+  route.map((e) => ({ start: at(e.start), end: at(e.end), seconds: e.seconds, meters: e.meters }));
+const placesOf = (list: SharedTrips["places"]): RoadTripPlace[] =>
+  list.map((p) => ({ name: p.name, kind: p.kind, score: p.score, coordinate: at(p.coordinate) }));
+const edges = edgesOf(trips.route);
+const places = placesOf(trips.places);
 
 describe("the shared road-trip fixture (T-0268 R6)", () => {
   it("carries the T-0249 route, its places and every outcome kind", () => {
-    expect([edges.length, places.length, trips.cases.length]).toEqual([21, 20, 9]);
+    expect([edges.length, places.length, trips.cases.length, trips.synthetic.length]).toEqual([21, 20, 9, 2]);
     const kinds = trips.cases.map((c) => Object.keys(c.expected as object)[0]);
     expect([...new Set(kinds)].sort()).toEqual(["over_budget", "plan", "too_few_days"]);
   });
@@ -30,6 +34,12 @@ describe("the shared road-trip fixture (T-0268 R6)", () => {
     const actual = trips.cases.map((c) => [c.name, planRoadTrip(edges, places, c.fastest_s,
       { days: c.days, maxDriveSeconds: c.max_drive_s, maxMeters: c.max_m })]);
     expect(actual).toEqual(trips.cases.map((c) => [c.name, c.expected]));
+  });
+
+  it("every synthetic case gives the recorded day plan, whole, from the Worker's port", () => {
+    const actual = trips.synthetic.map((c) => [c.name, planRoadTrip(edgesOf(c.route), placesOf(c.places), c.fastest_s,
+      { days: c.days, maxDriveSeconds: c.max_drive_s, maxMeters: c.max_m })]);
+    expect(actual).toEqual(trips.synthetic.map((c) => [c.name, c.expected]));
   });
 
   it("the port's default percent is the plan's +40%: the A case without a percent is the A case", () => {

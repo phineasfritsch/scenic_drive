@@ -7,6 +7,7 @@
  *   node services/api/test/mutate/tripMutants.mjs                  run the population
  *   node services/api/test/mutate/tripMutants.mjs --prove-vacuity  every mutant must report MISSED with no tests
  *   node services/api/test/mutate/tripMutants.mjs --prove-floor    the floor refuses on its arms; runs no tests
+ *   node services/api/test/mutate/tripMutants.mjs --only a,b       run only the named mutations (a later round's re-run)
  *
  * WHAT COUNTS. CAUGHT only when vitest's JSON report names a FAILED test. A run that fails with no named
  * failure (a mutant that does not load) is a TRAP and does not count. An anchor that does not occur exactly
@@ -23,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 57;
+export const MIN_MUTATIONS = 56;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
   "test/killSwitchRoutes.test.ts"];
@@ -40,7 +41,6 @@ export const MUTATIONS = [
   m("split-share-empty-day", "roadTrip.ts", "if (index > start && cumulative", "if (cumulative"),
   m("split-drive-exclusive", "roadTrip.ts", "seconds + edge.seconds > limits.maxDriveSeconds", "seconds + edge.seconds >= limits.maxDriveSeconds"),
   m("split-metres-exclusive", "roadTrip.ts", "meters + edge.meters > limits.maxMeters", "meters + edge.meters >= limits.maxMeters"),
-  m("split-no-empty-day-stop", "roadTrip.ts", "if (index <= start) break;", ""),
   m("split-nearest-ties-high", "roadTrip.ts", "if (meters < bestMeters) {", "if (meters <= bestMeters) {"),
   m("split-day1-no-v0", "roadTrip.ts", "const first = start === 0 ? 0 : start + 1;", "const first = start + 1;"),
   m("split-boundary-to-next", "roadTrip.ts", "c.vertex >= first && c.vertex <= end", "c.vertex >= first && c.vertex < end"),
@@ -88,9 +88,13 @@ export const MUTATIONS = [
   m("trip-no-kill", "trip.ts", "  if (paused) return json({ error: \"planning_paused\" }, 503);\n  if (req.method", "  if (req.method"),
   m("trip-reserve-13", "trip.ts", "), TRIP_UPSTREAM_COST);", "), 13);"),
 ];
-];
 
 export const EQUIVALENT = [
+  { id: "split-no-empty-day-stop", file: "src/roadTrip.ts", find: "if (index <= start) break;",
+    witness: "a day takes no edge only when the edge at `index` breaks a limit (the share break needs index > start), and every "
+      + "later day meets that same edge with zero seconds and metres, so it takes none either: the pass appends empty spans "
+      + "ending at the same index, the last span's end is unchanged, and the outcome is the same too_few_days {days, reached}. "
+      + "MISSED in the full run at 441c274; the Swift original's guard exists so `spans.last` names a real day." },
   { id: "split-days-guard", file: "src/roadTrip.ts", find: "if (limits.days < 1) return",
     witness: "without the guard, days < 1 runs forwardPass's `for (day = 1; day <= days)` zero times, spans is [], reached is 0 "
       + "!= edges.length (non-empty here), and the very next line returns too_few_days {days, reached_vertex: 0} - the same "
@@ -174,8 +178,12 @@ function main(argv) {
     console.log(`baseline green tests=${base.total}`);
   }
 
+  const onlyAt = argv.indexOf("--only");
+  const only = onlyAt >= 0 ? new Set((argv[onlyAt + 1] ?? "").split(",")) : null;
+  const chosen = only ? MUTATIONS.filter((x) => only.has(x.id)) : MUTATIONS;
+  if (only && chosen.length !== only.size) { console.log("REFUSING: --only names an id that is not a mutation"); return 2; }
   const tally = { CAUGHT: 0, MISSED: 0, TRAP: 0 };
-  for (const x of MUTATIONS) {
+  for (const x of chosen) {
     const path = join(API, x.file);
     const original = readFileSync(path, "utf8");
     let result;
@@ -189,9 +197,9 @@ function main(argv) {
     tally[v] += 1;
     console.log(`${v.padEnd(6)} ${x.id}${result.named.length ? ` by "${result.named[0]}"` : ""}`);
   }
-  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${MUTATIONS.length}`);
-  if (prove) return tally.MISSED === MUTATIONS.length ? 0 : 1;
-  return tally.CAUGHT === MUTATIONS.length ? 0 : 1;
+  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${chosen.length}${only ? " (--only)" : ""}`);
+  if (prove) return tally.MISSED === chosen.length ? 0 : 1;
+  return tally.CAUGHT === chosen.length ? 0 : 1;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main(process.argv.slice(2)));
