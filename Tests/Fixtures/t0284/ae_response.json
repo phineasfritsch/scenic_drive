@@ -1,0 +1,34 @@
+{
+  "meta": [
+    {"name": "timestamp", "type": "DateTime"},
+    {"name": "index1", "type": "String"},
+    {"name": "blob1", "type": "String"},
+    {"name": "blob2", "type": "String"},
+    {"name": "double1", "type": "Float64"},
+    {"name": "double2", "type": "Float64"},
+    {"name": "_sample_interval", "type": "UInt32"}
+  ],
+  "data": [
+    {"timestamp": "2026-09-08 09:00:00", "index1": "plan_requested", "blob1": "plan_requested", "blob2": "scenic", "double1": 30, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-08 09:01:00", "index1": "plan_result", "blob1": "plan_result", "blob2": "routed", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-08 09:01:30", "index1": "preview_shown", "blob1": "preview_shown", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-08 09:03:00", "index1": "drive_started", "blob1": "drive_started", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-08 10:10:00", "index1": "drive_completed", "blob1": "drive_completed", "blob2": "", "double1": 92, "double2": 1, "_sample_interval": 1},
+    {"timestamp": "2026-09-08 10:11:00", "index1": "post_drive_answer", "blob1": "post_drive_answer", "blob2": "prettier", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-15 17:20:00", "index1": "plan_requested", "blob1": "plan_requested", "blob2": "loop", "double1": 45, "double2": 0, "_sample_interval": 3},
+    {"timestamp": "2026-09-15 17:21:00", "index1": "preview_shown", "blob1": "preview_shown", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 2},
+    {"timestamp": "2026-09-15 17:22:00", "index1": "handoff_tapped", "blob1": "handoff_tapped", "blob2": "waze", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-15 17:25:00", "index1": "drive_started", "blob1": "drive_started", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-15 18:30:00", "index1": "post_drive_answer", "blob1": "post_drive_answer", "blob2": "not_prettier", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-22 08:00:00", "index1": "plan_requested", "blob1": "plan_requested", "blob2": "surprise", "double1": 20, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-22 08:00:05", "index1": "surprise_shown", "blob1": "surprise_shown", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-22 08:01:00", "index1": "preview_shown", "blob1": "preview_shown", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-29 12:00:00", "index1": "plan_requested", "blob1": "plan_requested", "blob2": "road_trip", "double1": 180, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-29 12:00:10", "index1": "preview_shown", "blob1": "preview_shown", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-29 12:02:00", "index1": "drive_started", "blob1": "drive_started", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-29 13:40:00", "index1": "post_drive_answer", "blob1": "post_drive_answer", "blob2": "prettier", "double1": 0, "double2": 0, "_sample_interval": 2},
+    {"timestamp": "2026-10-05 21:00:00", "index1": "paywall_shown", "blob1": "paywall_shown", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 1}
+  ],
+  "rows": 19,
+  "rows_before_limit_at_least": 19
+}
