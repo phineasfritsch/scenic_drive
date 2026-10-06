@@ -10,6 +10,7 @@ import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
 import type { QuotaCounter } from "./QuotaCounter";
 import { readOnlyProblem } from "./ro";
+import { handleTrip, tripDepsFromEnv } from "./trip";
 
 export { QuotaCounter } from "./QuotaCounter";
 
@@ -18,7 +19,7 @@ export interface Env {
   GIT_SHA: string;
   BUILT_AT: string;
   RO_TOKEN?: string; // secret: `wrangler secret put RO_TOKEN`
-  KILL?: string; // "1" pauses /plan, /loop and /isochrone with zero upstream calls (P-COST-01)
+  KILL?: string; // "1" pauses /plan, /loop, /isochrone and /trip with zero upstream calls (P-COST-01)
   KILL_SWITCH?: KVNamespace; // optional: its key KILL = "1" also pauses (T-0256 R5); not bound in wrangler.jsonc
   QUOTA?: DurableObjectNamespace<QuotaCounter>; // per-device daily + global monthly counters (T-0256 R1)
   ROUTER_URL?: string; // our GraphHopper; https://router.invalid (the shipped placeholder) counts as absent
@@ -86,6 +87,7 @@ export const ROUTES: Record<string, Handler> = {
   "/plan": (req, env) => handlePlan(req, env, planDepsFromEnv(env)),
   "/loop": (req, env) => handleLoop(req, env, loopDepsFromEnv(env)),
   "/isochrone": (req, env) => handleIsochrone(req, env, isochroneDepsFromEnv(env)),
+  "/trip": (req, env) => handleTrip(req, env, tripDepsFromEnv(env)),
   "/asn": (req, env) => handleAsn(req, asnDepsFromEnv(env)),
   "/entitlement": (req, env) => handleEntitlement(req, asnDepsFromEnv(env)),
 };

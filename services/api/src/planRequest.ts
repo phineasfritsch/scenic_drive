@@ -12,7 +12,7 @@ import type { LatLon } from "./latLon";
 export const ORIGIN_DECIMALS = 2;
 export const MAX_BUDGET_MINUTES = 180;
 export const MAX_PLACE_ID_LENGTH = 128;
-const PLACE_ID = /^[A-Za-z0-9:._-]+$/;
+export const PLACE_ID = /^[A-Za-z0-9:._-]+$/;
 const INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?Z$/;
 
 const BODY_KEYS = ["origin", "destination", "budget_minutes", "departs_at"];
