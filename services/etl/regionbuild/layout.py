@@ -24,6 +24,22 @@ class Layout:
         return self._named("filtered.osm.pbf")
 
     @property
+    def source(self) -> pathlib.Path:
+        return self.work / ("%s.osm.pbf" % self.region)
+
+    @property
+    def places_pbf(self) -> pathlib.Path:
+        return self._named("places.osm.pbf")
+
+    @property
+    def places_xml(self) -> pathlib.Path:
+        return self._named("places.osm.xml")
+
+    @property
+    def fallback(self) -> pathlib.Path:
+        return self._named("corpus-fallback.sqlite")
+
+    @property
     def clip_xml(self) -> pathlib.Path:
         return self._named("filtered.osm.xml")
 
