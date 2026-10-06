@@ -1,13 +1,13 @@
 ---
 id: T-0289
 title: P-SAFE-03 fails OPEN through the Xcode project - pin project.pbxproj by digest, every root-package Swift file the app links, and make P-ATTR-01 call the whole-app content pin
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T21:12:14Z
+lease_expires_at: 2026-10-07T11:12:14Z
+worktree: .worktrees/T-0289
+branch: task/T-0289
 exclusive: []
 touches: [ops/lib/, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01]
@@ -28,3 +28,4 @@ Plus rv3 recordable 3: P-ATTR-01 does not call require_pinned_app_swift.
 
 ## Log
 - 2026-10-06T21:04:48Z filed by agent/claude-opus-5 (orchestrator) from rv3-t0273's recordable findings; urgent (P-SAFE fail-open).
+- 2026-10-06T21:12:14Z claimed by agent/claude-opus-5; lease until 2026-10-07T11:12:14Z
