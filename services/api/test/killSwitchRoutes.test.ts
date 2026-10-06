@@ -13,7 +13,8 @@ import { LOOP_BODY } from "./loopHarness";
 import { NOW, SANTA_MONICA_TOPANGA_BODY } from "./planHarness";
 
 const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
-const OPERATIONAL_ROUTES = ["/__health", "/__version", "/__ro"] as const;
+// /asn and /entitlement read and write D1 only - no upstream call, nothing for the kill switch to save (T-0267 R11).
+const OPERATIONAL_ROUTES = ["/__health", "/__version", "/__ro", "/asn", "/entitlement"] as const;
 const UPSTREAM_ROUTES = ["/plan", "/loop", "/isochrone"] as const;
 type UpstreamRoute = (typeof UPSTREAM_ROUTES)[number];
 const BODIES: Record<UpstreamRoute, unknown> = {
