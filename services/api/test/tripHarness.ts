@@ -49,6 +49,8 @@ export interface RouterOptions {
   legMs?: (leg: number, from: number, to: number) => number;
   /** The fastest path's per-edge ms (also the lambda-0 answer); FAST_EDGE_MS by default. */
   fastEdgeMs?: number;
+  /** The fastest path's own `time` (what fastest + budget is taken from); edges x its per-edge ms by default. */
+  fastestMs?: number;
   /** Called before each request is answered (to snapshot the quota at the first). */
   onFetch?: () => void;
 }
@@ -63,7 +65,7 @@ export function tripRouter(options: RouterOptions = {}) {
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
     sent.push({ url: String(input instanceof Request ? input.url : input), body });
     const points = body.points as unknown[];
-    const fast = tripPath(ROAD, options.fastEdgeMs ?? FAST_EDGE_MS);
+    const fast = tripPath(ROAD, options.fastEdgeMs ?? FAST_EDGE_MS, undefined, options.fastestMs);
     if (body.profile === "car_fast") return new Response(fast);
     if (JSON.stringify(points) === JSON.stringify(sent[0]!.body.points)) {
       scenic += 1;
@@ -107,10 +109,11 @@ export function tripRequest(body: unknown, path = "/trip"): Request {
  * given, replaces the uniform `edgeMs` edge by edge, and day d then ends at the first k with cum(k) x days >= d x total.
  */
 export function expectedTrip(o: { days: number; pct?: number; edgeMs: number; lambda: number; full: boolean;
-  legMs?: (leg: number, from: number, to: number) => number; edgesMs?: number[] }) {
+  legMs?: (leg: number, from: number, to: number) => number; edgesMs?: number[]; fastestMs?: number }) {
   const pct = o.pct ?? 40;
-  const budgetMs = Math.floor((FASTEST_MS * pct) / 100);
-  const ceilingMs = FASTEST_MS + budgetMs;
+  const fastestMs = o.fastestMs ?? FASTEST_MS;
+  const budgetMs = Math.floor((fastestMs * pct) / 100);
+  const ceilingMs = fastestMs + budgetMs;
   const edgeMs = o.edgesMs ?? Array<number>(EDGES).fill(o.edgeMs);
   const cum = (k: number) => edgeMs.slice(0, k).reduce((sum, ms) => sum + ms, 0);
   const totalMs = cum(EDGES);
@@ -136,7 +139,7 @@ export function expectedTrip(o: { days: number; pct?: number; edgeMs: number; la
   return {
     view: o.full ? "full" : "preview",
     route: { coordinates: ROAD, distance_m: EDGES * EDGE_M },
-    eta_s: eta / 1000, fastest_eta_s: FASTEST_MS / 1000, ceiling_s: ceilingMs / 1000, budget_s: budgetMs / 1000,
+    eta_s: eta / 1000, fastest_eta_s: fastestMs / 1000, ceiling_s: ceilingMs / 1000, budget_s: budgetMs / 1000,
     extra_budget_pct: pct, lambda: o.lambda, evaluations: 6, eta_is_estimate: true, places_searched: false, days,
   };
 }

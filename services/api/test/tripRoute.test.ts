@@ -173,3 +173,35 @@ describe("the splitter's ceiling and day limits through ROUTES (R7)", () => {
       { status: 422, json: { error: "too_few_days", days: 1, max_drive_s: 21_600, max_distance_m: 482_803 } }]);
   });
 });
+
+// P-SAFE-04 at EVERY bound (T-0268 rv1-t0268): the splitter re-checks the edge sum against the REQUESTED percent. The
+// fastest is 14_400_037 ms so fastest x pct / 100 has a remainder at 1, 10, 39 and 40 (the budget is its floor). The
+// chosen path's own time is the fastest (it fits at pct 0 too, and ties lambda 0, so 7.75 wins); its 40 RUNS are
+// floor(sum / 40) each, the first (sum mod 40) one millisecond longer: they sum to exactly fastest + budget, or one more.
+describe("the trip ceiling at every extra_budget_pct bound through ROUTES (P-SAFE-04)", () => {
+  const FASTEST = 14_400_037;
+  const PCTS = [0, 1, 10, 39, 40];
+  const runsTo = (sumMs: number) => Array.from({ length: EDGES }, (_, i) => Math.floor(sumMs / EDGES) + (i < sumMs % EDGES ? 1 : 0));
+  const scenicSumming = (sumMs: number) => tripPath(ROAD, 0, { time: runsTo(sumMs).map((ms, i) => [i, i + 1, ms]),
+    distance: runsTo(sumMs).map((_, i) => [i, i + 1, EDGE_M]) }, FASTEST);
+
+  it("an edge sum of exactly fastest + floor(fastest x pct / 100) plans (whole answer); one ms more is 422 (whole body)", async () => {
+    const answered = [];
+    for (const pct of PCTS) {
+      for (const over of [0, 1]) {
+        quota = fakeQuotaNamespace();
+        route({ fastestMs: FASTEST, scenic: scenicSumming(FASTEST + Math.floor((FASTEST * pct) / 100) + over) });
+        answered.push([pct, over, await send({ ...TRIP_BODY, extra_budget_pct: pct })]);
+      }
+    }
+    const ceilings = PCTS.map((pct) => FASTEST + Math.floor((FASTEST * pct) / 100));
+    expect([ceilings, PCTS.map((pct) => (FASTEST * pct) % 100), runsTo(ceilings[2]!).reduce((a, b) => a + b, 0)]).toEqual([
+      [14_400_037, 14_544_037, 15_840_040, 20_016_051, 20_160_051], [0, 37, 70, 43, 80], 15_840_040]);
+    expect(answered).toEqual(PCTS.flatMap((pct, i) => [
+      [pct, 0, { status: 200, json: expectedTrip({ days: 5, pct, edgeMs: 0, lambda: 7.75, full: false, fastestMs: FASTEST,
+        edgesMs: runsTo(ceilings[i]!) }) }],
+      [pct, 1, { status: 422, json: { error: "ceiling_breached",
+        detail: `the route takes ${ceilings[i]! + 1} ms against a ceiling of ${ceilings[i]} ms` } }],
+    ]));
+  });
+});

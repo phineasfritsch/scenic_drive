@@ -153,3 +153,37 @@ describe("a scenic body the splitter cannot read is 502 no_route, never partly s
     expect(answered).toEqual(CASES.map(([name, , detail]) => [name, { status: 502, json: { error: "no_route", detail } }]));
   });
 });
+
+// Per-day ceilings at EVERY extra_budget_pct bound (rv1-t0268), with NON-exact division: the fastest is 14_400_037 ms,
+// the chosen route 360_001 + 39 x 360_000 = 14_400_001 ms, days 2_880_001 + 4 x 2_880_000, and ceiling x day mod total
+// is non-zero for every pct and day (python, quoted in the Log). Each day's leg at its floor plans; one ms more refuses.
+describe("the per-day ceiling at every extra_budget_pct bound, non-exact shares (P-SAFE-04)", () => {
+  const FASTEST = 14_400_037;
+  const ROUTE = [360_001, ...Array<number>(EDGES - 1).fill(360_000)];
+  const routeBody = tripPath(ROAD, 0, { time: ROUTE.map((ms, i) => [i, i + 1, ms]), distance: ROUTE.map((_, i) => [i, i + 1, EDGE_M]) }, FASTEST);
+  const FLOORS: [number, number[]][] = [
+    [0, [2_880_008, 2_880_007, 2_880_007, 2_880_007, 2_880_007]],
+    [1, [2_908_808, 2_908_807, 2_908_807, 2_908_807, 2_908_807]],
+    [10, [3_168_008, 3_168_007, 3_168_007, 3_168_007, 3_168_007]],
+    [39, [4_003_211, 4_003_209, 4_003_209, 4_003_209, 4_003_209]],
+    [40, [4_032_011, 4_032_009, 4_032_009, 4_032_009, 4_032_009]],
+  ];
+
+  it("each day's leg at floor(ceiling x day / total) plans (whole answer); one ms more is 422 (whole body)", async () => {
+    const answered = [];
+    const expected = [];
+    for (const [pct, floors] of FLOORS) {
+      for (const [i, floor] of floors.entries()) {
+        for (const ms of [floor, floor + 1]) {
+          const legMs = (leg: number, from: number, to: number) => (leg === i + 1 ? ms : (to - from) * 360_000);
+          const r = await harness("paid", { fastestMs: FASTEST, scenic: routeBody, legMs }).run({ ...TRIP_BODY, extra_budget_pct: pct });
+          answered.push([pct, i + 1, ms, r]);
+          expected.push([pct, i + 1, ms, ms === floor
+            ? { status: 200, json: expectedTrip({ days: 5, pct, edgeMs: 0, lambda: 7.75, full: true, fastestMs: FASTEST, edgesMs: ROUTE, legMs }) }
+            : { status: 422, json: { error: "ceiling_breached", detail: `day ${i + 1} leg takes ${ms} ms against its ceiling of ${floor} ms` } }]);
+        }
+      }
+    }
+    expect(answered).toEqual(expected);
+  });
+});

@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 58;
+export const MIN_MUTATIONS = 64;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
   "test/killSwitchRoutes.test.ts"];
@@ -76,6 +76,14 @@ export const MUTATIONS = [
   m("planner-day-ceiling-fastest", "tripPlanner.ts", "dayCeilingMs(ceilingMs, day.seconds, totalMs)", "dayCeilingMs(fastestMs, day.seconds, totalMs)"),
   m("planner-day-ceiling-ceil", "tripPlanner.ts", "(BigInt(ceilingMs) * BigInt(dayMs)) / BigInt(totalMs)",
     "(BigInt(ceilingMs) * BigInt(dayMs) + BigInt(totalMs) - 1n) / BigInt(totalMs)"),
+  m("planner-split-pct-dropped", "tripPlanner.ts", "maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct);", "maxMeters: MAX_METERS_PER_DAY });"),
+  m("planner-split-pct-constant", "tripPlanner.ts", "maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct);", "maxMeters: MAX_METERS_PER_DAY }, 40);"),
+  m("planner-budget-pct-constant", "tripPlanner.ts", "budgetSeconds(fastestMs, extraBudgetPct);", "budgetSeconds(fastestMs, 10);"),
+  m("planner-budget-ceil", "tripPlanner.ts", "const budgetMs = budgetSeconds(fastestMs, extraBudgetPct);",
+    "const budgetMs = Math.ceil((fastestMs * extraBudgetPct) / 100);"),
+  m("planner-day-ceiling-float-ceil", "tripPlanner.ts", "return Number((BigInt(ceilingMs) * BigInt(dayMs)) / BigInt(totalMs));",
+    "return Math.ceil((ceilingMs * dayMs) / totalMs);"),
+  m("planner-day-check-trip-ceiling", "tripPlanner.ts", "if (path.timeMs > ceiling) {", "if (path.timeMs > ceilingMs) {"),
   m("planner-tile-no-start", "tripPlanner.ts", "if (run.from !== at || ", "if ("),
   m("planner-tile-empty-run", "tripPlanner.ts", "run.to <= run.from || ", ""),
   m("planner-tile-distance-edges", "tripPlanner.ts", "d.from !== run.from || d.to !== run.to", "false"),
