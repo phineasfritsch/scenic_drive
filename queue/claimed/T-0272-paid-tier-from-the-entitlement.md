@@ -161,3 +161,12 @@ caller is anon (T-0256 R3), so nothing paid is reachable through ROUTES. Plan: q
   "SUBSCRIBED for a transaction without expiresDate is active with no end"; scenic.pro is an auto-renewable
   subscription so Apple always sends expiresDate, but if a non-subscription product is ever sold this is open-ended
   paid. A follow-up should rule whether /asn refuses or ignores a productId outside the subscription allowlist.
+- 2026-10-06T05:51:01Z **merged head re-measured** (agent/claude-opus-5, owner). `git fetch origin` and merged
+  origin/main (b183c6e; no services/api change) into 8e06817 -> 2f2bc40. On the merged head: `npx vitest run` ->
+  `Test Files  34 passed (34)`, `Tests  500 passed (500)` (476 + the 24 lapsed-at-signing rows);
+  `python ops/lib/run-named-tests.py P-STORE-02` -> `NAMED P-STORE-02 passed=61/61`;
+  `python ops/lib/run-named-tests.py P-COST-01` -> `NAMED P-COST-01 passed=22/22`; `bash ops/queue-check` ->
+  `QUEUE OK (266 tasks)`. Acceptance 1 and 2 unchanged from the re-quote above; acceptance 3 now also carries the
+  twelve-row lapsed-at-signing tables (accountTier.test.ts through ROUTES, asnState.test.ts by whole-table equality)
+  and tierMutants.mjs at literal MIN_MUTATIONS = 22. MET. NOT DONE (R8) unchanged: no named-tests.json binding
+  (outside touches).
