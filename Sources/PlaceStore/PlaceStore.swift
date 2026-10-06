@@ -101,6 +101,22 @@ public final class PlaceStore: Sendable {
         }
     }
 
+    /// Every place whose R*Tree box INTERSECTS `box`, place_id ascending - the Surprise card's read of the whole
+    /// corpus (T-0273 R1). The same columns and row shape as `search`.
+    public func places(in box: BoundingBox) throws -> [Place] {
+        try queue.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT p.place_id, p.osm_type, p.osm_id, p.cls, p.name, p.lon_e7, p.lat_e7
+                FROM places_rtree AS r JOIN places AS p ON p.place_id = r.id
+                WHERE r.max_lon >= ? AND r.min_lon <= ? AND r.max_lat >= ? AND r.min_lat <= ?
+                ORDER BY p.place_id
+                """, arguments: [box.minLon, box.maxLon, box.minLat, box.maxLat]).map { row in
+                Place(placeID: row["place_id"], osmType: row["osm_type"], osmID: row["osm_id"], cls: row["cls"],
+                      name: row["name"], lonE7: row["lon_e7"], latE7: row["lat_e7"])
+            }
+        }
+    }
+
     private static func metaValue(_ db: Database, _ key: String) throws -> String {
         guard let value = try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = ?",
                                               arguments: [key]) else {

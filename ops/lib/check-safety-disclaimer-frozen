@@ -138,9 +138,15 @@ FROZEN_SCREEN_BODY=(
 )
 FROZEN_CHIPS=(
   'private var chips: some View {'
+  'VStack(spacing: 8) {'
   'HStack(spacing: 8) {'
   'DriveSelector(selection: $selectedDrive)'
+  'surpriseButton'
   'settingsButton'
+  '}'
+  'if isShowingSurprise {'
+  'surprise({ openSurprise($0) }, surpriseFailure)'
+  '}'
   '}'
   '.padding(6)'
   '.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))'
@@ -175,7 +181,7 @@ FROZEN_APP_SHELL=(
   ''
   'var body: some Scene {'
   'WindowGroup {'
-  'ScenicHomeScreen(onSettings: { isShowingSettings = true })'
+  'ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })'
   '.sheet(isPresented: $isShowingSettings) {'
   'SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, onDone: { isShowingSettings = false })'
   '}'
@@ -248,7 +254,7 @@ require_frozen_blocks() {
   local shell="$app_tree/ScenicDrive/ScenicDriveApp.swift"
   FROZEN_BAD=()
   frozen_block "$sheet" "HomeSheet's struct" FROZEN_HOME_SHEET "import SwiftUI"
-  frozen_block "$screen" "ScenicHomeScreen's body (the ZStack and its modifier chain)" FROZEN_SCREEN_BODY "public init(onSettings: @escaping () -> Void) { self.onSettings = onSettings }"
+  frozen_block "$screen" "ScenicHomeScreen's body (the ZStack and its modifier chain)" FROZEN_SCREEN_BODY "public init(onSettings: @escaping () -> Void, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surprise = surprise }"
   frozen_block "$screen" "ScenicHomeScreen's chips" FROZEN_CHIPS "}"
   frozen_block "$screen" "ScenicHomeScreen's sheetDetails" FROZEN_SHEET_DETAILS "}"
   frozen_block "$screen" "ScenicHomeScreen's conditions" FROZEN_CONDITIONS "}"

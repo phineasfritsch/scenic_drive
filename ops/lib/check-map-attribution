@@ -281,7 +281,7 @@ run_check() {
   print_credit_sites_verdict
   print_sheet_verdict
   echo "  Then HomeSheet, the screen's body, chips, sheetDetails, conditions and the app shell frozen whole; LAST"
-  echo "  $PINNED_FILES FeatureScenicHome file(s) and AttributionFooter.swift pinned by sha256 (-pinned)."
+  echo "  $PINNED_FILES feature file(s), the app shell and AttributionFooter.swift pinned by sha256 (-pinned)."
 }
 
 MUTATIONS="ops/lib/check-map-attribution-mutations"

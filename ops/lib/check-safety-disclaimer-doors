@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# P-SAFE-03, THE DOORS OUT OF THE APP (T-0273, rv1-t0273 B2). Sourced by ops/lib/check-safety-disclaimer and run
+# after -pinned, LAST; it uses the caller's `fail`.
+#
+# rv1-t0273 B2 left every limb green while the Surprise card's tap left for Apple Maps ungated: it changed the
+# FeatureSurpriseMe target's `path:` in apps/ios/Packages/ScenicApp/Package.swift to Sources/FeatureSurpriseMeLive
+# and put a NEW SurpriseCard.swift there whose button called UIApplication.shared.open(maps://...) itself. -pinned
+# pinned the bytes of Sources/FeatureSurpriseMe, a directory SwiftPM no longer built. The pre-review pass found the
+# same class through a shadow `struct SurpriseCard` in the shell (closed there by pinning the shell). A pinned
+# directory is only as good as the claim that it is what compiles, and a list of forbidden openers is a blacklist
+# (PR #101). So three WHITELISTS, by OCCURRENCE (exact multiset of `file|whole line`, CR stripped, only lines whose
+# trimmed text starts with `//` dropped - no lexer, nothing cut mid-line), over every regular *.swift file under
+# apps/ios, recursively:
+#   (a) THE OPENERS. Every line naming a way out of the app - UIApplication, NSWorkspace, openURL / OpenURLAction
+#       (`@Environment(\.openURL)` included), Link( and ShareLink, `.open(`, a Markdown `](` link, `.link`,
+#       AttributedString, SFSafariViewController, ASWebAuthenticationSession, UIActivityViewController, WKWebView,
+#       and the runtime's NSSelectorFromString / NSClassFromString / objc_msgSend / dlsym - is one of DOORS_OPENERS:
+#       SkylineHandoff's one open, the gate's one call to it, and the paywall / Settings / Legal store links.
+#       rv2-t0273 B1 (`let go = scene.open; go(url, nil, nil)`, UIWindowScene.open as an unbound method reference, in a
+#       new MapAdapter file) named none of those spellings, so the opener token is also a BARE IDENTIFIER: `open`,
+#       `windowScene`, `UIScene`, `UIWindowScene`, `perform` and `value(forKey` anywhere on a line - a reference, a
+#       parameter, a local or a string - and every such line is approved by whole line below, like the rest. This
+#       list is defence in depth; the class is closed by -pinned's require_pinned_app_swift (every app .swift byte).
+#   (b) THE COMPOSED VIEWS. Every line naming SurpriseCard, ScenicHomeScreen or SettingsScreen - the three views
+#       the shell composes - is one of DOORS_VIEWS: each declared once, at its own file, and named by the shell's
+#       one line. A second declaration, typealias, extension or overload anywhere under apps/ios is refused by name.
+#   (c) THE TARGET MAP. Every Package.swift line carrying `path:`, `name:`, `sources:`, `exclude:`, `resources:`,
+#       `targets:` or `publicHeadersPath:` is one of DOORS_PACKAGE, so the directory each target compiles is the
+#       directory -pinned pins; a renamed target (its default path moves with its name) is refused the same way.
+# And no entry under apps/ios is anything but a regular file or a directory: a link or junction is refused by name,
+# since find neither lists nor enters it while SwiftPM and Xcode compile through it (rv4-t0237).
+#
+# CHANGING ANY OF THESE LINES MEANS TYPING THE NEW LINE BELOW IN THE SAME COMMIT, with the reason in the Log.
+#
+# WHAT IT CANNOT SEE: Swift outside apps/ios that an Xcode project setting pulls in; an opener reached through a
+# name none of these spell (a dependency's own wrapper, a string assembled for a selector without the runtime
+# calls above); whether an approved line does what it says - every other limb's job, and the reviewer's.
+DOORS_REASON="a door out of the app is not at its approved site"
+DOORS_PACKAGE_REL="../../Package.swift"
+DOORS_OPENER_RE='UIApplication|NSWorkspace|[Oo]penURL|ShareLink|Link[[:space:]]*[(]|(^|[^A-Za-z0-9_])(open|windowScene|UIScene|UIWindowScene|perform)([^A-Za-z0-9_]|$)|value[(]forKey|[]][(]|[.]link([^A-Za-z0-9_]|$)|AttributedString|SFSafariViewController|ASWebAuthenticationSession|UIActivityViewController|WKWebView|NSSelectorFromString|NSClassFromString|objc_msgSend|dlsym'
+DOORS_VIEWS_RE='(^|[^A-Za-z0-9_])(SurpriseCard|ScenicHomeScreen|SettingsScreen)([^A-Za-z0-9_]|$)'
+DOORS_PACKAGE_RE='(^|[^A-Za-z0-9_])(path|name|sources|exclude|resources|targets|publicHeadersPath)[[:space:]]*:'
+
+S="Packages/ScenicApp/Sources"
+DOORS_OPENERS=(
+  "$S/Entitlements/LegalAttributionScreen.swift|"'                Link(destination: URL(string: "https://www.openstreetmap.org/copyright")!) {'
+  "$S/Entitlements/PaywallScreen.swift|"'            Link("Terms of Use", destination: StoreConstants.termsOfUseURL)'
+  "$S/Entitlements/PaywallScreen.swift|"'            Link("Privacy Policy", destination: StoreConstants.privacyPolicyURL)'
+  "$S/Entitlements/SettingsScreen.swift|"'            Link(destination: StoreConstants.termsOfUseURL) {'
+  "$S/Entitlements/SettingsScreen.swift|"'            Link(destination: StoreConstants.privacyPolicyURL) {'
+  "$S/FeatureScenicHome/GatedHandoffButton.swift|"'            try SkylineHandoff.open(drive, row: row, place: place)'
+  "$S/FeatureScenicHome/SkylineHandoff.swift|"'        UIApplication.shared.open(destinationURL, options: [:], completionHandler: nil)'
+  "$S/FeatureScenicHome/GatedHandoffButton.swift|"'        static let handoffFailed = "Couldn'"'"'t open Apple Maps. Try again."'
+  "$S/FeatureScenicHome/SkylineHandoff.swift|"'    public static func open(_ drive: HandoffDrive, row: DriveMenuRow?, place: Coordinate? = nil) throws {'
+  "$S/FeatureScenicHome/SurpriseSlot.swift|"'    public typealias Builder = @MainActor (_ open: @escaping @MainActor (Coordinate) -> Void,'
+  "$S/MapAdapter/MapRouteCoordinator.swift|"'            let open = mapView.bounds.height - padding.top - padding.bottom'
+  "$S/MapAdapter/MapRouteCoordinator.swift|"'            guard open > Self.margin else { return }'
+)
+DOORS_SHELL_LINE='            ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })'
+DOORS_OPENERS+=("ScenicDrive/ScenicDriveApp.swift|$DOORS_SHELL_LINE")
+DOORS_VIEWS=(
+  "$S/Entitlements/SettingsScreen.swift|"'public struct SettingsScreen: View {'
+  "$S/Entitlements/SettingsScreen.swift|"'                let text = SettingsScreen.describe(state)'
+  "$S/FeatureScenicHome/ScenicHomeScreen.swift|"'public struct ScenicHomeScreen: View {'
+  "$S/FeatureSurpriseMe/SurpriseCard.swift|"'public struct SurpriseCard: View {'
+  "ScenicDrive/ScenicDriveApp.swift|$DOORS_SHELL_LINE"
+  "ScenicDrive/ScenicDriveApp.swift|"'                    SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, onDone: { isShowingSettings = false })'
+)
+DOORS_PACKAGE=(
+  '    name: "ScenicApp",'
+  '        .library(name: "DesignSystem", targets: ["DesignSystem"]),'
+  '        .library(name: "MapAdapter", targets: ["MapAdapter"]),'
+  '        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe"]),'
+  '        .package(name: "ScenicDrive", path: "../../../.."),'
+  '    targets: ['
+  '            name: "DesignSystem",'
+  '            path: "Sources/DesignSystem",'
+  '            name: "MapAdapter",'
+  '                .product(name: "MapLibre", package: "maplibre-gl-native-distribution"),'
+  '            path: "Sources/MapAdapter",'
+  '            name: "FeatureScenicHome",'
+  '                .product(name: "ScenicKit", package: "ScenicDrive"),'
+  '                .product(name: "Handoff", package: "ScenicDrive"),'
+  '            path: "Sources/FeatureScenicHome",'
+  '            name: "Entitlements",'
+  '            path: "Sources/Entitlements",'
+  '            name: "FeatureSurpriseMe",'
+  '                .product(name: "ScenicKit", package: "ScenicDrive"),'
+  '                .product(name: "PlaceStore", package: "ScenicDrive"),'
+  '            path: "Sources/FeatureSurpriseMe",'
+)
+unset S
+
+# doors_lines REGEX ROOT FILE...: one `file|whole line` per line of each FILE that matches REGEX, the file relative
+# to ROOT, CR stripped, a line whose trimmed text starts with `//` dropped and nothing else. ENVIRON, not -v: awk
+# processes escapes in a -v value and would rewrite the pattern.
+doors_lines() {
+  local re="$1" root="$2" f
+  shift 2
+  for f in "$@"; do
+    DOORS_RE="$re" DOORS_REL="${f#"$root"/}" awk '{ sub(/\r$/, "") } /^[[:space:]]*\/\// { next }
+      $0 ~ ENVIRON["DOORS_RE"] { print ENVIRON["DOORS_REL"] "|" $0 }' "$f"
+  done
+}
+
+# doors_compare LABEL FOUND_TEXT APPROVED...: the found lines against the approved ones as MULTISETS, so a second
+# copy of an approved line is refused as surely as a new line. Prints one "added ..."/"missing ..." per difference.
+doors_compare() {
+  local label="$1" found="$2"
+  shift 2
+  LC_ALL=C diff <(printf '%s' "$found" | sed -e '/^$/d' | LC_ALL=C sort) \
+    <(printf '%s\n' "$@" | sed -e '/^$/d' | LC_ALL=C sort) | sed -n -e "s/^< /  $label added: /p" -e "s/^> /  $label missing: /p"
+}
+
+# require_closed_doors SOURCES APP_TREE: the entries under APP_TREE, then (c), (b) and (a); every difference at once.
+require_closed_doors() {
+  local sources="${1%/}" app_tree="${2%/}" package nonreg=() files=() diffs=""
+  package="$sources/$DOORS_PACKAGE_REL"
+  [[ -f "$package" ]] || fail "$DOORS_REASON: no such file: $package" \
+    "(c) reads the target map from the ScenicApp Package.swift; a missing manifest is a refusal, never a pass."
+  mapfile -t nonreg < <(find "$app_tree" -mindepth 1 ! -type d ! -type f | LC_ALL=C sort)
+  [[ "${#nonreg[@]}" -eq 0 ]] || fail "$DOORS_REASON: not a regular file or a directory under $app_tree: ${nonreg[*]}" \
+    "A link or junction is compiled through and never listed by find (rv4-t0237); none is approved under apps/ios."
+  mapfile -t files < <(app_swift_files "$app_tree")
+  [[ "${#files[@]}" -ge "$MIN_FILES" ]] || fail "$DOORS_REASON: only ${#files[@]} .swift file(s) under $app_tree." \
+    "A whitelist over a population nobody enumerated reads as 'no door anywhere'; an empty scan is a refusal."
+  diffs+="$(doors_compare "target map (c)" "$(doors_lines "$DOORS_PACKAGE_RE" "$sources/../.." "$package" \
+    | sed -e 's/^[^|]*|//')" "${DOORS_PACKAGE[@]}")"$'\n'
+  diffs+="$(doors_compare "composed view (b)" "$(doors_lines "$DOORS_VIEWS_RE" "$app_tree" "${files[@]}")" \
+    "${DOORS_VIEWS[@]}")"$'\n'
+  diffs+="$(doors_compare "URL opener (a)" "$(doors_lines "$DOORS_OPENER_RE" "$app_tree" "${files[@]}")" \
+    "${DOORS_OPENERS[@]}")"
+  diffs="$(printf '%s\n' "$diffs" | sed -e '/^$/d')"
+  [[ -z "$diffs" ]] || fail "$DOORS_REASON (over ${#files[@]} .swift file(s) under $app_tree and $package):" \
+    "$diffs" \
+    "Every line naming a URL opener, a view the shell composes, or a target's path/name/sources is a whole line typed" \
+    "in ops/lib/check-safety-disclaimer-doors (rv1-t0273 B2: Package.swift pointed FeatureSurpriseMe at a new" \
+    "directory whose SurpriseCard opened Apple Maps itself, past the pinned one). Approve a change by typing it there."
+  DOORS_FILES="${#files[@]}"
+}

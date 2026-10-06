@@ -32,7 +32,8 @@ let package = Package(
         // Entitlements rides in the product the app already links (T-0271): the shell gets the paywall and Settings
         // with no project.pbxproj edit. It is a target of this PRODUCT, not a dependency of the FeatureScenicHome
         // TARGET - the home never imports it; the shell composes the two.
-        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements"]),
+        // FeatureSurpriseMe rides the same product (T-0273): the shell composes the Surprise card into the home's slot.
+        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe"]),
     ],
     dependencies: [
         // The root package: ScenicKit (Coordinate and the scoring core) and Handoff
@@ -98,6 +99,19 @@ let package = Package(
             name: "Entitlements",
             dependencies: ["DesignSystem"],
             path: "Sources/Entitlements",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // The Surprise card (T-0273): the bundled corpus through PlaceStore, Surprise.pick over an offline reach. A
+        // feature target - DesignSystem, ScenicKit and PlaceStore only; it never imports FeatureScenicHome and never
+        // opens a URL: Apple Maps is the home's gated opener, handed in by the shell (P-SAFE-03).
+        .target(
+            name: "FeatureSurpriseMe",
+            dependencies: [
+                "DesignSystem",
+                .product(name: "ScenicKit", package: "ScenicDrive"),
+                .product(name: "PlaceStore", package: "ScenicDrive"),
+            ],
+            path: "Sources/FeatureSurpriseMe",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         // NO TEST TARGETS HERE, deliberately and temporarily.
