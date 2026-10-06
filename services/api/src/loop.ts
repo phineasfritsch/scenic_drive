@@ -12,8 +12,8 @@ import { killSwitch } from "./killSwitch";
 import { parseLoopRequest } from "./loopRequest";
 import { LOOP_UPSTREAM_COST, LoopFailure, loopSeed, planLoop } from "./loopPlanner";
 import type { PlanEnv } from "./plan";
-import { dayKey, type Tier } from "./quota";
-import { routerDepsFromEnv, type RouterEnv } from "./routerDeps";
+import { dayKey } from "./quota";
+import { routerDepsFromEnv, type Identity, type RouterEnv } from "./routerDeps";
 import { RouteError } from "./routePath";
 import { guardedPlan, PlanBudgetExceeded, UpstreamPaused, type UpstreamDeps } from "./upstream";
 
@@ -22,7 +22,7 @@ export interface LoopDeps {
   /** Our GraphHopper, e.g. https://routing.example - `/route` is appended. */
   routerBase: string;
   /** Who is looping: the quota and the seed. */
-  identify(req: Request): { userId: string; tier: Tier };
+  identify(req: Request): Identity | Promise<Identity>;
 }
 
 const json = (body: unknown, status: number) =>
@@ -67,7 +67,7 @@ export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | nu
   if (deps === null) return json({ error: "planning_unavailable" }, 503);
 
   const { request } = parsed;
-  const who = deps.identify(req);
+  const who = await deps.identify(req);
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const seed = loopSeed(who.userId, dayKey(deps.upstream.now()));

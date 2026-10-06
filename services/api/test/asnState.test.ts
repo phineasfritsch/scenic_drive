@@ -82,7 +82,7 @@ describe("DID_FAIL_TO_RENEW", () => {
 });
 
 const OTHERS = ["TEST", "DID_CHANGE_RENEWAL_PREF", "DID_CHANGE_RENEWAL_STATUS", "PRICE_INCREASE", "REFUND_DECLINED",
-  "REFUND_REVERSED", "RENEWAL_EXTENDED", "RENEWAL_EXTENSION", "CONSUMPTION_REQUEST", "ONE_TIME_CHARGE", "METADATA_UPDATE",
+  "RENEWAL_EXTENDED", "RENEWAL_EXTENSION", "CONSUMPTION_REQUEST", "ONE_TIME_CHARGE", "METADATA_UPDATE",
   "MIGRATION", "PRICE_CHANGE", "RESCIND_CONSENT", "EXTERNAL_PURCHASE_TOKEN"];
 
 describe("every other type is acknowledged 200 with no change", () => {
@@ -91,6 +91,51 @@ describe("every other type is acknowledged 200 with no change", () => {
     expect(await send({ type })).toEqual(OK);
     expect(await rows()).toEqual([row({})]);
   });
+});
+
+describe("REFUND_REVERSED re-activates the row its REFUND deactivated (T-0272 R6)", () => {
+  const reversed = (signedDate: number) => row({ status: "active", active_until: EXPIRES, notification_type: "REFUND_REVERSED",
+    signed_date: signedDate });
+
+  it("SUBSCRIBED, REFUND, REFUND_REVERSED -> active until the transaction's expiresDate", async () => {
+    await seedActive();
+    expect(await send({ type: "REFUND", signedDate: NOW - 30_000 })).toEqual(OK);
+    expect(await send({ type: "REFUND_REVERSED", tx: { ...TX, expiresDate: EXPIRES } })).toEqual(OK);
+    expect(await rows()).toEqual([reversed(NOW)]);
+    expect(await getEntitlement(TOKEN)).toEqual({ status: 200, json: { status: "active", active_until: EXPIRES } });
+  });
+
+  it("an older REFUND_REVERSED after a newer REFUND leaves the row inactive", async () => {
+    expect(await send({ type: "REFUND", signedDate: NOW })).toEqual(OK);
+    expect(await send({ type: "REFUND_REVERSED", signedDate: NOW - 1, tx: { ...TX, expiresDate: EXPIRES } })).toEqual(OK);
+    expect(await rows()).toEqual([row({ status: "inactive", notification_type: "REFUND", signed_date: NOW })]);
+  });
+
+  it("a REFUND_REVERSED with the stored signedDate (a replay) changes nothing", async () => {
+    expect(await send({ type: "REFUND", signedDate: NOW })).toEqual(OK);
+    expect(await send({ type: "REFUND_REVERSED", signedDate: NOW, tx: { ...TX, expiresDate: EXPIRES } })).toEqual(OK);
+    expect(await rows()).toEqual([row({ status: "inactive", notification_type: "REFUND", signed_date: NOW })]);
+  });
+
+  it("one millisecond newer than the stored REFUND lands", async () => {
+    expect(await send({ type: "REFUND", signedDate: NOW })).toEqual(OK);
+    expect(await send({ type: "REFUND_REVERSED", signedDate: NOW + 1, tx: { ...TX, expiresDate: EXPIRES } })).toEqual(OK);
+    expect(await rows()).toEqual([reversed(NOW + 1)]);
+  });
+});
+
+const LAPSED_AT_SIGNING: [string, number][] = ["SUBSCRIBED", "DID_RENEW", "OFFER_REDEEMED", "REFUND_REVERSED"]
+  .flatMap((type) => [-1, 0, 1].map((offset): [string, number] => [type, offset]));
+
+describe("an activation whose expiresDate had passed when Apple signed it lands active until that expiresDate (R6)", () => {
+  it.each(LAPSED_AT_SIGNING)("%s with expiresDate - signedDate = %d ms is stored with that end and reads inactive",
+    async (type, offset) => {
+      const signed = NOW - 1000;
+      if (type === "REFUND_REVERSED") expect(await send({ type: "REFUND", signedDate: NOW - 2000 })).toEqual(OK);
+      expect(await send({ type, signedDate: signed, tx: { ...TX, expiresDate: signed + offset } })).toEqual(OK);
+      expect(await rows()).toEqual([row({ active_until: signed + offset, notification_type: type, signed_date: signed })]);
+      expect(await getEntitlement(TOKEN)).toEqual({ status: 200, json: { status: "inactive", active_until: null } });
+    });
 });
 
 describe("replay and out-of-order delivery never regress state (R6)", () => {

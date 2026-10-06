@@ -3,6 +3,7 @@
  * and the caller's identity, built from env - or null, so the route answers 503 planning_unavailable with zero
  * upstream calls, when ANY of the QUOTA binding, a routable ROUTER_URL or the ROUTER_SECRET secret is missing.
  */
+import { accountTier } from "./accountTier";
 import type { QuotaCounter } from "./QuotaCounter";
 import type { Tier } from "./quota";
 import { countersFromNamespace } from "./quotaCounters";
@@ -23,12 +24,19 @@ export interface RouterEnv {
   ROUTER_URL?: string;
   /** secret: `wrangler secret put ROUTER_SECRET`. */
   ROUTER_SECRET?: string;
+  /** The entitlements table the tier is read from (T-0272); absent, every caller is anon. */
+  DB?: D1Database;
+}
+
+export interface Identity {
+  userId: string;
+  tier: Tier;
 }
 
 export interface RouterDeps {
   upstream: UpstreamDeps;
   routerBase: string;
-  identify(req: Request): { userId: string; tier: Tier };
+  identify(req: Request): Promise<Identity>;
 }
 
 /** The router base, or null when ROUTER_URL is absent, not https, or under RFC 2606's reserved .invalid (R8). */
@@ -60,9 +68,14 @@ export function routerDepsFromEnv(env: RouterEnv): RouterDeps | null {
     headers.set(ROUTER_SECRET_HEADER, secret);
     return fetch(url, { ...init, headers });
   };
+  const now = () => new Date();
   return {
-    upstream: { counters: countersFromNamespace(env.QUOTA), fetchImpl, now: () => new Date(), killed: () => false },
+    upstream: { counters: countersFromNamespace(env.QUOTA), fetchImpl, now, killed: () => false },
     routerBase: base,
-    identify: deviceIdentity,
+    // The bucket is the install (R2); a live entitlement of x-scenic-account-token lifts anon to paid (T-0272 R1-R4).
+    identify: async (req) => {
+      const device = deviceIdentity(req);
+      return (await accountTier(req, env.DB, now().getTime())) === "paid" ? { ...device, tier: "paid" } : device;
+    },
   };
 }
