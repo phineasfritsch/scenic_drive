@@ -1,13 +1,13 @@
 ---
 id: T-0269
 title: register P-STORE-02 (refund/expiry/revoke turn the entitlement off) over T-0267's /asn tests, and bind the Telemetry row-coverage test under P-PRIV-05
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T00:29:02Z
+lease_expires_at: 2026-10-06T12:29:02Z
+worktree: .worktrees/T-0269
+branch: task/T-0269
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-STORE-02, P-PRIV-05]
@@ -25,3 +25,4 @@ is unbound. Both are pins-only bindings over shipped tests (the T-0261/T-0264 pa
 
 ## Log
 - 2026-10-06T00:26:49Z filed by agent/claude-opus-5 (orchestrator) after PR #158 (T-0267) merged.
+- 2026-10-06T00:29:02Z claimed by agent/claude-opus-5; lease until 2026-10-06T12:29:02Z
