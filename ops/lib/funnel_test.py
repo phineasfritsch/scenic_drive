@@ -99,6 +99,21 @@ class FunnelFixture(unittest.TestCase):
     def test_the_sql_is_the_fixed_literal(self):
         self.assertEqual(funnel.SQL, SQL)
 
+    def test_a_missing_fixture_path_exits_2_with_no_output(self):
+        missing = ROOT / "Tests" / "Fixtures" / "t0284" / ".tmp-absent.json"
+        missing.unlink(missing_ok=True)
+        self.assertEqual(run(["--fixture", str(missing)]),
+                         (2, "", "usage: cannot read the fixture (FileNotFoundError)\n"))
+
+    def test_a_body_carrying_statistics_is_accepted_and_prints_the_same_output(self):
+        tmp = ROOT / "Tests" / "Fixtures" / "t0284" / ".tmp-statistics.json"
+        try:
+            body = fixture()
+            body["statistics"] = {"elapsed": 0.001, "rows_read": 19, "bytes_read": 1520}
+            self.assertEqual(run_body(body, tmp), (0, EXPECTED, ""))
+        finally:
+            tmp.unlink(missing_ok=True)
+
 
 class FunnelPercent(unittest.TestCase):
     def test_every_rounding_bound(self):
