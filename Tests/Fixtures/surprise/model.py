@@ -108,6 +108,10 @@ def days(today, then):
     return (today - then).days
 
 
+def time_fit(rt, budget):
+    return rt * 100 // max(budget, 1)
+
+
 def eligible(cands, ctx, hist):
     today = ctx["date"]
     budget = ctx["budget"]
@@ -146,7 +150,7 @@ def eligible(cands, ctx, hist):
             continue
         novel = [days(today, s["date"]) for s in hist.get("shown", []) if s["category"] == c["category"]]
         novelty = 100 if not novel else min(100, max(0, min(novel)))
-        score = c["quality"] + c["approach"] + novelty + rt * 100 // max(ctx["budget"], 1)
+        score = c["quality"] + c["approach"] + novelty + time_fit(rt, ctx["budget"])
         out.append((score, c))
     return out
 
