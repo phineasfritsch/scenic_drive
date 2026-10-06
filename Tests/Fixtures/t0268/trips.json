@@ -1,0 +1,1169 @@
+{
+ "source": "Tests/Fixtures/roadtrip/{route,places}.tsv (T-0249 R7); expected = T-0249 R8 by hand (T-0268 R6)",
+ "unit": "coordinates [lat, lon] degrees; seconds; metres",
+ "route": [
+  {
+   "from": "Santa Monica",
+   "to": "Malibu Pier",
+   "start": [
+    34.0195,
+    -118.4912
+   ],
+   "end": [
+    34.038,
+    -118.677
+   ],
+   "seconds": 1437,
+   "meters": 21557
+  },
+  {
+   "from": "Malibu Pier",
+   "to": "Leo Carrillo",
+   "start": [
+    34.038,
+    -118.677
+   ],
+   "end": [
+    34.0446,
+    -118.9343
+   ],
+   "seconds": 1977,
+   "meters": 29649
+  },
+  {
+   "from": "Leo Carrillo",
+   "to": "Point Mugu",
+   "start": [
+    34.0446,
+    -118.9343
+   ],
+   "end": [
+    34.0864,
+    -119.06
+   ],
+   "seconds": 1040,
+   "meters": 15596
+  },
+  {
+   "from": "Point Mugu",
+   "to": "Oxnard",
+   "start": [
+    34.0864,
+    -119.06
+   ],
+   "end": [
+    34.1975,
+    -119.1771
+   ],
+   "seconds": 820,
+   "meters": 20492
+  },
+  {
+   "from": "Oxnard",
+   "to": "Ventura",
+   "start": [
+    34.1975,
+    -119.1771
+   ],
+   "end": [
+    34.2746,
+    -119.229
+   ],
+   "seconds": 491,
+   "meters": 12264
+  },
+  {
+   "from": "Ventura",
+   "to": "Carpinteria",
+   "start": [
+    34.2746,
+    -119.229
+   ],
+   "end": [
+    34.3989,
+    -119.5185
+   ],
+   "seconds": 1498,
+   "meters": 37450
+  },
+  {
+   "from": "Carpinteria",
+   "to": "Santa Barbara",
+   "start": [
+    34.3989,
+    -119.5185
+   ],
+   "end": [
+    34.4208,
+    -119.6982
+   ],
+   "seconds": 833,
+   "meters": 20830
+  },
+  {
+   "from": "Santa Barbara",
+   "to": "Goleta",
+   "start": [
+    34.4208,
+    -119.6982
+   ],
+   "end": [
+    34.4358,
+    -119.8276
+   ],
+   "seconds": 599,
+   "meters": 14981
+  },
+  {
+   "from": "Goleta",
+   "to": "Gaviota",
+   "start": [
+    34.4358,
+    -119.8276
+   ],
+   "end": [
+    34.4717,
+    -120.2283
+   ],
+   "seconds": 1848,
+   "meters": 46195
+  },
+  {
+   "from": "Gaviota",
+   "to": "Buellton",
+   "start": [
+    34.4717,
+    -120.2283
+   ],
+   "end": [
+    34.6136,
+    -120.1927
+   ],
+   "seconds": 806,
+   "meters": 20140
+  },
+  {
+   "from": "Buellton",
+   "to": "Los Alamos",
+   "start": [
+    34.6136,
+    -120.1927
+   ],
+   "end": [
+    34.7444,
+    -120.2782
+   ],
+   "seconds": 826,
+   "meters": 20641
+  },
+  {
+   "from": "Los Alamos",
+   "to": "Santa Maria",
+   "start": [
+    34.7444,
+    -120.2782
+   ],
+   "end": [
+    34.953,
+    -120.4357
+   ],
+   "seconds": 1364,
+   "meters": 34109
+  },
+  {
+   "from": "Santa Maria",
+   "to": "Pismo Beach",
+   "start": [
+    34.953,
+    -120.4357
+   ],
+   "end": [
+    35.1428,
+    -120.6413
+   ],
+   "seconds": 1410,
+   "meters": 35260
+  },
+  {
+   "from": "Pismo Beach",
+   "to": "San Luis Obispo",
+   "start": [
+    35.1428,
+    -120.6413
+   ],
+   "end": [
+    35.2828,
+    -120.6596
+   ],
+   "seconds": 783,
+   "meters": 19570
+  },
+  {
+   "from": "San Luis Obispo",
+   "to": "Morro Bay",
+   "start": [
+    35.2828,
+    -120.6596
+   ],
+   "end": [
+    35.3658,
+    -120.8499
+   ],
+   "seconds": 979,
+   "meters": 24471
+  },
+  {
+   "from": "Morro Bay",
+   "to": "Cambria",
+   "start": [
+    35.3658,
+    -120.8499
+   ],
+   "end": [
+    35.5641,
+    -121.0807
+   ],
+   "seconds": 2713,
+   "meters": 37978
+  },
+  {
+   "from": "Cambria",
+   "to": "San Simeon",
+   "start": [
+    35.5641,
+    -121.0807
+   ],
+   "end": [
+    35.6436,
+    -121.1883
+   ],
+   "seconds": 1174,
+   "meters": 16431
+  },
+  {
+   "from": "San Simeon",
+   "to": "Ragged Point",
+   "start": [
+    35.6436,
+    -121.1883
+   ],
+   "end": [
+    35.7786,
+    -121.3283
+   ],
+   "seconds": 1752,
+   "meters": 24530
+  },
+  {
+   "from": "Ragged Point",
+   "to": "Gorda",
+   "start": [
+    35.7786,
+    -121.3283
+   ],
+   "end": [
+    35.9333,
+    -121.4672
+   ],
+   "seconds": 1900,
+   "meters": 26593
+  },
+  {
+   "from": "Gorda",
+   "to": "Lucia",
+   "start": [
+    35.9333,
+    -121.4672
+   ],
+   "end": [
+    36.0219,
+    -121.5466
+   ],
+   "seconds": 1087,
+   "meters": 15212
+  },
+  {
+   "from": "Lucia",
+   "to": "Big Sur",
+   "start": [
+    36.0219,
+    -121.5466
+   ],
+   "end": [
+    36.2704,
+    -121.8081
+   ],
+   "seconds": 3238,
+   "meters": 45326
+  }
+ ],
+ "places": [
+  {
+   "name": "Malibu Lagoon",
+   "kind": "stop",
+   "score": 80,
+   "coordinate": [
+    34.035,
+    -118.68
+   ]
+  },
+  {
+   "name": "El Matador Beach",
+   "kind": "stop",
+   "score": 99,
+   "coordinate": [
+    34.038,
+    -118.875
+   ]
+  },
+  {
+   "name": "Point Mugu Rock",
+   "kind": "stop",
+   "score": 70,
+   "coordinate": [
+    34.0855,
+    -119.062
+   ]
+  },
+  {
+   "name": "Ventura Pier",
+   "kind": "stop",
+   "score": 70,
+   "coordinate": [
+    34.276,
+    -119.233
+   ]
+  },
+  {
+   "name": "Carpinteria Bluffs",
+   "kind": "stop",
+   "score": 75,
+   "coordinate": [
+    34.392,
+    -119.51
+   ]
+  },
+  {
+   "name": "Stearns Wharf",
+   "kind": "stop",
+   "score": 85,
+   "coordinate": [
+    34.41,
+    -119.6855
+   ]
+  },
+  {
+   "name": "Gaviota Overlook",
+   "kind": "stop",
+   "score": 50,
+   "coordinate": [
+    34.48,
+    -120.22
+   ]
+  },
+  {
+   "name": "Solvang",
+   "kind": "stop",
+   "score": 65,
+   "coordinate": [
+    34.61,
+    -120.18
+   ]
+  },
+  {
+   "name": "Pismo Pier",
+   "kind": "stop",
+   "score": 72,
+   "coordinate": [
+    35.139,
+    -120.643
+   ]
+  },
+  {
+   "name": "Morro Rock",
+   "kind": "stop",
+   "score": 88,
+   "coordinate": [
+    35.371,
+    -120.864
+   ]
+  },
+  {
+   "name": "Moonstone Beach",
+   "kind": "stop",
+   "score": 77,
+   "coordinate": [
+    35.57,
+    -121.095
+   ]
+  },
+  {
+   "name": "Elephant Seal Vista",
+   "kind": "stop",
+   "score": 95,
+   "coordinate": [
+    35.658,
+    -121.2
+   ]
+  },
+  {
+   "name": "Limekiln Falls",
+   "kind": "stop",
+   "score": 90,
+   "coordinate": [
+    36.01,
+    -121.518
+   ]
+  },
+  {
+   "name": "Summerland Inn",
+   "kind": "lodging",
+   "score": 0,
+   "coordinate": [
+    34.3989,
+    -119.6755
+   ]
+  },
+  {
+   "name": "Goleta Inn",
+   "kind": "lodging",
+   "score": 0,
+   "coordinate": [
+    34.4358,
+    -119.8276
+   ]
+  },
+  {
+   "name": "Buellton Motel",
+   "kind": "lodging",
+   "score": 0,
+   "coordinate": [
+    34.6136,
+    -120.1927
+   ]
+  },
+  {
+   "name": "Shell Beach Inn",
+   "kind": "lodging",
+   "score": 0,
+   "coordinate": [
+    35.156,
+    -120.672
+   ]
+  },
+  {
+   "name": "Cambria Pines Lodge",
+   "kind": "lodging",
+   "score": 0,
+   "coordinate": [
+    35.568,
+    -121.09
+   ]
+  },
+  {
+   "name": "San Simeon Motel",
+   "kind": "lodging",
+   "score": 0,
+   "coordinate": [
+    35.6436,
+    -121.1883
+   ]
+  },
+  {
+   "name": "Gorda Cabins",
+   "kind": "lodging",
+   "score": 0,
+   "coordinate": [
+    35.9333,
+    -121.4672
+   ]
+  }
+ ],
+ "cases": [
+  {
+   "name": "A: 3 days at 4 h and 200 mi",
+   "days": 3,
+   "max_drive_s": 14400,
+   "max_m": 321869,
+   "fastest_s": 20411,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 9,
+      "seconds": 10543,
+      "meters": 219014,
+      "stops": [
+       "Malibu Lagoon",
+       "Point Mugu Rock",
+       "Carpinteria Bluffs",
+       "Stearns Wharf"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 2,
+      "start_vertex": 9,
+      "end_vertex": 16,
+      "seconds": 8881,
+      "meters": 192169,
+      "stops": [
+       "Solvang",
+       "Pismo Pier",
+       "Morro Rock",
+       "Moonstone Beach"
+      ],
+      "overnight": {
+       "lodging": {
+        "name": "Cambria Pines Lodge",
+        "meters": 946
+       }
+      }
+     },
+     {
+      "day": 3,
+      "start_vertex": 16,
+      "end_vertex": 21,
+      "seconds": 9151,
+      "meters": 128092,
+      "stops": [
+       "Elephant Seal Vista",
+       "Limekiln Falls"
+      ],
+      "overnight": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "B: 4 days at 2.5 h and 100 mi, miles binding",
+   "days": 4,
+   "max_drive_s": 9000,
+   "max_m": 160934,
+   "fastest_s": 20411,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 6,
+      "seconds": 7263,
+      "meters": 137008,
+      "stops": [
+       "Malibu Lagoon",
+       "Point Mugu Rock",
+       "Ventura Pier",
+       "Carpinteria Bluffs"
+      ],
+      "overnight": {
+       "lodging": {
+        "name": "Summerland Inn",
+        "meters": 14405
+       }
+      }
+     },
+     {
+      "day": 2,
+      "start_vertex": 6,
+      "end_vertex": 12,
+      "seconds": 6276,
+      "meters": 156896,
+      "stops": [
+       "Stearns Wharf",
+       "Gaviota Overlook",
+       "Solvang"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 3,
+      "start_vertex": 12,
+      "end_vertex": 18,
+      "seconds": 8811,
+      "meters": 158240,
+      "stops": [
+       "Pismo Pier",
+       "Morro Rock",
+       "Moonstone Beach",
+       "Elephant Seal Vista"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 4,
+      "start_vertex": 18,
+      "end_vertex": 21,
+      "seconds": 6225,
+      "meters": 87131,
+      "stops": [
+       "Limekiln Falls"
+      ],
+      "overnight": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "C: 3 days at 2.5 h is too few, stopped at Lucia",
+   "days": 3,
+   "max_drive_s": 9000,
+   "max_m": 321869,
+   "fastest_s": 20411,
+   "expected": {
+    "too_few_days": {
+     "days": 3,
+     "reached_vertex": 20
+    }
+   }
+  },
+  {
+   "name": "budget: fastest 20_410 is over the ceiling 28_574",
+   "days": 3,
+   "max_drive_s": 14400,
+   "max_m": 321869,
+   "fastest_s": 20410,
+   "expected": {
+    "over_budget": {
+     "route_s": 28575,
+     "ceiling_s": 28574
+    }
+   }
+  },
+  {
+   "name": "metres inclusive: B at exactly 158_240 m is B",
+   "days": 4,
+   "max_drive_s": 9000,
+   "max_m": 158240,
+   "fastest_s": 20411,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 6,
+      "seconds": 7263,
+      "meters": 137008,
+      "stops": [
+       "Malibu Lagoon",
+       "Point Mugu Rock",
+       "Ventura Pier",
+       "Carpinteria Bluffs"
+      ],
+      "overnight": {
+       "lodging": {
+        "name": "Summerland Inn",
+        "meters": 14405
+       }
+      }
+     },
+     {
+      "day": 2,
+      "start_vertex": 6,
+      "end_vertex": 12,
+      "seconds": 6276,
+      "meters": 156896,
+      "stops": [
+       "Stearns Wharf",
+       "Gaviota Overlook",
+       "Solvang"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 3,
+      "start_vertex": 12,
+      "end_vertex": 18,
+      "seconds": 8811,
+      "meters": 158240,
+      "stops": [
+       "Pismo Pier",
+       "Morro Rock",
+       "Moonstone Beach",
+       "Elephant Seal Vista"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 4,
+      "start_vertex": 18,
+      "end_vertex": 21,
+      "seconds": 6225,
+      "meters": 87131,
+      "stops": [
+       "Limekiln Falls"
+      ],
+      "overnight": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "metres inclusive: 158_239 m ends day 3 at San Simeon",
+   "days": 4,
+   "max_drive_s": 9000,
+   "max_m": 158239,
+   "fastest_s": 20411,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 6,
+      "seconds": 7263,
+      "meters": 137008,
+      "stops": [
+       "Malibu Lagoon",
+       "Point Mugu Rock",
+       "Ventura Pier",
+       "Carpinteria Bluffs"
+      ],
+      "overnight": {
+       "lodging": {
+        "name": "Summerland Inn",
+        "meters": 14405
+       }
+      }
+     },
+     {
+      "day": 2,
+      "start_vertex": 6,
+      "end_vertex": 12,
+      "seconds": 6276,
+      "meters": 156896,
+      "stops": [
+       "Stearns Wharf",
+       "Gaviota Overlook",
+       "Solvang"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 3,
+      "start_vertex": 12,
+      "end_vertex": 17,
+      "seconds": 7059,
+      "meters": 133710,
+      "stops": [
+       "Pismo Pier",
+       "Morro Rock",
+       "Moonstone Beach",
+       "Elephant Seal Vista"
+      ],
+      "overnight": {
+       "lodging": {
+        "name": "San Simeon Motel",
+        "meters": 0
+       }
+      }
+     },
+     {
+      "day": 4,
+      "start_vertex": 17,
+      "end_vertex": 21,
+      "seconds": 7977,
+      "meters": 111661,
+      "stops": [
+       "Limekiln Falls"
+      ],
+      "overnight": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "seconds inclusive: B at exactly 8_811 s is B",
+   "days": 4,
+   "max_drive_s": 8811,
+   "max_m": 160934,
+   "fastest_s": 20411,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 6,
+      "seconds": 7263,
+      "meters": 137008,
+      "stops": [
+       "Malibu Lagoon",
+       "Point Mugu Rock",
+       "Ventura Pier",
+       "Carpinteria Bluffs"
+      ],
+      "overnight": {
+       "lodging": {
+        "name": "Summerland Inn",
+        "meters": 14405
+       }
+      }
+     },
+     {
+      "day": 2,
+      "start_vertex": 6,
+      "end_vertex": 12,
+      "seconds": 6276,
+      "meters": 156896,
+      "stops": [
+       "Stearns Wharf",
+       "Gaviota Overlook",
+       "Solvang"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 3,
+      "start_vertex": 12,
+      "end_vertex": 18,
+      "seconds": 8811,
+      "meters": 158240,
+      "stops": [
+       "Pismo Pier",
+       "Morro Rock",
+       "Moonstone Beach",
+       "Elephant Seal Vista"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 4,
+      "start_vertex": 18,
+      "end_vertex": 21,
+      "seconds": 6225,
+      "meters": 87131,
+      "stops": [
+       "Limekiln Falls"
+      ],
+      "overnight": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "seconds inclusive: 8_810 s ends day 3 at San Simeon",
+   "days": 4,
+   "max_drive_s": 8810,
+   "max_m": 160934,
+   "fastest_s": 20411,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 6,
+      "seconds": 7263,
+      "meters": 137008,
+      "stops": [
+       "Malibu Lagoon",
+       "Point Mugu Rock",
+       "Ventura Pier",
+       "Carpinteria Bluffs"
+      ],
+      "overnight": {
+       "lodging": {
+        "name": "Summerland Inn",
+        "meters": 14405
+       }
+      }
+     },
+     {
+      "day": 2,
+      "start_vertex": 6,
+      "end_vertex": 12,
+      "seconds": 6276,
+      "meters": 156896,
+      "stops": [
+       "Stearns Wharf",
+       "Gaviota Overlook",
+       "Solvang"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 3,
+      "start_vertex": 12,
+      "end_vertex": 17,
+      "seconds": 7059,
+      "meters": 133710,
+      "stops": [
+       "Pismo Pier",
+       "Morro Rock",
+       "Moonstone Beach",
+       "Elephant Seal Vista"
+      ],
+      "overnight": {
+       "lodging": {
+        "name": "San Simeon Motel",
+        "meters": 0
+       }
+      }
+     },
+     {
+      "day": 4,
+      "start_vertex": 17,
+      "end_vertex": 21,
+      "seconds": 7977,
+      "meters": 111661,
+      "stops": [
+       "Limekiln Falls"
+      ],
+      "overnight": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "days 0 reach nothing",
+   "days": 0,
+   "max_drive_s": 14400,
+   "max_m": 321869,
+   "fastest_s": 20411,
+   "expected": {
+    "too_few_days": {
+     "days": 0,
+     "reached_vertex": 0
+    }
+   }
+  }
+ ],
+ "synthetic": [
+  {
+   "name": "uneven edges: day 2 starts past its share and still drives an edge; v0 belongs to day 1; 4.5 km is corridor",
+   "route": [
+    {
+     "start": [
+      0,
+      0
+     ],
+     "end": [
+      0,
+      0.5
+     ],
+     "seconds": 10,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      0.5
+     ],
+     "end": [
+      0,
+      1
+     ],
+     "seconds": 100,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      1
+     ],
+     "end": [
+      0,
+      1.5
+     ],
+     "seconds": 10,
+     "meters": 1000
+    }
+   ],
+   "places": [
+    {
+     "name": "At Start",
+     "kind": "stop",
+     "score": 50,
+     "coordinate": [
+      0,
+      0
+     ]
+    },
+    {
+     "name": "Near V1",
+     "kind": "stop",
+     "score": 40,
+     "coordinate": [
+      0.0405,
+      0.5
+     ]
+    }
+   ],
+   "days": 3,
+   "max_drive_s": 1000,
+   "max_m": 100000,
+   "fastest_s": 120,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 2,
+      "seconds": 110,
+      "meters": 2000,
+      "stops": [
+       "At Start",
+       "Near V1"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 2,
+      "start_vertex": 2,
+      "end_vertex": 3,
+      "seconds": 10,
+      "meters": 1000,
+      "stops": [],
+      "overnight": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "a stop equidistant from two vertices is the lower vertex's: it stays on day 1",
+   "route": [
+    {
+     "start": [
+      0,
+      0
+     ],
+     "end": [
+      0,
+      0.5
+     ],
+     "seconds": 20,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      0.5
+     ],
+     "end": [
+      0,
+      0.5
+     ],
+     "seconds": 10,
+     "meters": 0
+    },
+    {
+     "start": [
+      0,
+      0.5
+     ],
+     "end": [
+      0,
+      1
+     ],
+     "seconds": 10,
+     "meters": 1000
+    }
+   ],
+   "places": [
+    {
+     "name": "Twin",
+     "kind": "stop",
+     "score": 10,
+     "coordinate": [
+      0,
+      0.5
+     ]
+    }
+   ],
+   "days": 2,
+   "max_drive_s": 1000,
+   "max_m": 100000,
+   "fastest_s": 40,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 1,
+      "seconds": 20,
+      "meters": 1000,
+      "stops": [
+       "Twin"
+      ],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 2,
+      "start_vertex": 1,
+      "end_vertex": 3,
+      "seconds": 20,
+      "meters": 1000,
+      "stops": [],
+      "overnight": null
+     }
+    ]
+   }
+  },
+  {
+   "name": "one unit short of the even share is short: day 1 at cumulative x days = day x total - 1 takes the next edge",
+   "route": [
+    {
+     "start": [
+      0,
+      0
+     ],
+     "end": [
+      0,
+      0.5
+     ],
+     "seconds": 1999,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      0.5
+     ],
+     "end": [
+      0,
+      1
+     ],
+     "seconds": 1000,
+     "meters": 1000
+    },
+    {
+     "start": [
+      0,
+      1
+     ],
+     "end": [
+      0,
+      1.5
+     ],
+     "seconds": 1000,
+     "meters": 1000
+    }
+   ],
+   "places": [],
+   "days": 2,
+   "max_drive_s": 100000,
+   "max_m": 100000,
+   "fastest_s": 3999,
+   "expected": {
+    "plan": [
+     {
+      "day": 1,
+      "start_vertex": 0,
+      "end_vertex": 2,
+      "seconds": 2999,
+      "meters": 2000,
+      "stops": [],
+      "overnight": "no_lodging"
+     },
+     {
+      "day": 2,
+      "start_vertex": 2,
+      "end_vertex": 3,
+      "seconds": 1000,
+      "meters": 1000,
+      "stops": [],
+      "overnight": null
+     }
+    ]
+   }
+  }
+ ]
+}
