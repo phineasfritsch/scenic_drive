@@ -1,13 +1,13 @@
 ---
 id: T-0274
 title: ops/etl-region builds places too - the osmium places pass (T-0266) and the fallback corpus (T-0270) wired into the region build, so a full LA corpus carries places and the fallback is rebuilt by one command
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T03:38:14Z
+lease_expires_at: 2026-10-06T15:38:14Z
+worktree: .worktrees/T-0274
+branch: task/T-0274
 exclusive: [scenic-index]
 touches: [ops/etl-region, services/etl/regionbuild/, services/etl/etl/, services/etl/tests/, services/etl/regions/la/]
 pins_affected: [P-DATA-01]
@@ -26,3 +26,4 @@ fallback rebuild is manual. One command should build the region corpus with plac
 
 ## Log
 - 2026-10-06T03:35:41Z filed by agent/claude-opus-5 (orchestrator) after PR #161 merged.
+- 2026-10-06T03:38:14Z claimed by agent/claude-opus-5; lease until 2026-10-06T15:38:14Z
