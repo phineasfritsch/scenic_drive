@@ -125,3 +125,32 @@ the ones that matter for that drive.
   tie and stale rows of closuresNearest.test.ts RED). PINS.yaml P-SAFE-08 why_no_test_catches_it: one dated
   passage APPENDED at its end ("T-0282 (2026-10-06) SUPERSEDES the WHAT IT CANNOT SEE sentence above about the
   50-polygon cap: ..."), nothing before it rewritten; read back through ops/lib/pins.py load().
+- 2026-10-06T16:37:58Z FINAL (author rule): `git fetch origin` (main checkout) and merged origin/main (82f5d68, telemetry) as the
+  last step -> ba39eeb; `git merge-base --is-ancestor origin/main HEAD` true. Gates on the merged head:
+  `npx vitest run` Test Files 50 passed (50), Tests 1503 passed (1503); `python ops/lib/run-named-tests.py
+  P-SAFE-08` NAMED P-SAFE-08 passed=640/640; `... P-SAFE-01` NAMED P-SAFE-01 passed=15/15;
+  `python ops/lib/check-mutate-population.py` "P-PROC-06: every added module is covered or allowlisted; the floor
+  of 67 holds"; `bash ops/queue-check` QUEUE OK (275 tasks); every one of the 129 + 1 mutation anchors occurs exactly
+  once on the merged head. ops/test not run (orchestrator instruction). wc -l: closuresNearest.ts 115,
+  closuresStore.ts 101, lcsFeed.ts 191, closuresCron.ts 73, plan.ts 105, loop.ts 87, trip.ts 98, scenicPlanner.ts
+  122, loopPlanner.ts 170, tripPlanner.ts 186, closuresNearest.test.ts 190, closuresNearestPick.test.ts 129,
+  closuresMutants.mjs 276, closuresFeed.test.ts 203, closuresRoutes.test.ts 291, nearest.py 127 - all under 300.
+  ACCEPTANCE, re-quoted:
+  1 MEASURE FIRST - MET: 163 active Full closures, 173 polygons after buffering (10 two-gate), record 56691 bytes
+    (worst case on this feed 1785 polygons, 582603 bytes) vs KV's quoted "Value size | 25 MiB"; GraphHopper areas
+    limit configured in services/routing: none (config.yml keys quoted), the per-request bound is customModel's 50.
+    Stored cap (N1, 2000) and selection (N3-N4: distance to the origin->destination segment, prefix fill, stored
+    order tie-break) ruled in the Log at 15:49:21Z before code.
+  2 cron + per-request selection - MET: the cron stores every active closure up to 2000 polygons; /plan, /loop and
+    /trip's search and day legs each select their nearest <= 50 with a deterministic tie-break; the table test
+    through ROUTES (closuresNearest.test.ts: route x {empty, one, fifty, over 50 with the on-corridor ten stored
+    last, 51-way tie, over 50 stale}) holds every model's areas and the hazard by full equality - the on-corridor
+    ten are always sent while far ones are dropped; the closures-version (over the whole stored set) still keys
+    /isochrone's cache, the only cache (N7, closuresRoutes' cache test green); closures_hazard carries dropped
+    when > 0, fresh included. Legs through handleTrip with paid deps (no shipped identity reaches paid).
+  3 P-SAFE-08 - MET: the WHAT IT CANNOT SEE cap sentence superseded by an APPENDED dated passage; 41 new tests bound
+    by name (640 total), seen red by two one-line src mutants; mutation population appended with literal floor
+    129, rows over empty / one closure / > 50 with the cross-product meta-test.
+  OPEN for follow-up: the corridor is the straight segment, not the returned path (a detour can pass a dropped
+    closure; the hazard says so but nothing re-checks the path); a loop's retrace squares are truncated whenever 50
+    feed polygons are selected; the whole 129-entry population was not re-run (45 + 2 were).
