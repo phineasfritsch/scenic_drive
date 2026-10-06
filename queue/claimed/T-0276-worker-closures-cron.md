@@ -109,3 +109,22 @@ resources.
   are unchanged) + two approved feed-response sites in requestReadSites.test.ts by full equality: `npx vitest run`
   Test Files 39 passed (39), Tests 716 passed (716). tsc --noEmit cannot run in this checkout (TS2688
   @cloudflare/workers-types/2023-07-01 missing, not this change).
+- 2026-10-06T09:44:42Z MUTATION POPULATION services/api/test/mutate/closuresMutants.mjs (13 subjects: lcsFeed,
+  closuresStore, closuresCron, index, routerDeps, reachCache, plan, scenicPlanner, loop, loopPlanner, trip,
+  tripPlanner, isochrone; tests closuresFeed/Cron/Routes/Driven). Added test/closuresDriven.test.ts first (a loop's
+  reseed and retrace attempts keep the set, feed first, never 51; a paid trip's 5 legs carry it - 11 car_scenic
+  requests). Run 1 (84 entries, floor 60): `RESULT caught=80 missed=4 trap=0 of 84`, baseline green tests=140.
+  MISSED feed-end-refusal-first (no row had both positions bad) -> two rows added, the begin's reason named.
+  MISSED store-max-age-60: closuresRoutes.test.ts took its ages FROM the module's own CLOSURES_MAX_AGE_MS, so the
+  bound moved with the mutant (the CLAUDE.md "table compared to itself" defect) -> the test now holds the ruled
+  literal MAX_AGE_MS = 1_800_000 and adds a 45-min row. MISSED cron-any-ok (`!response.ok`): the only non-200 2xx
+  row was a 204 with no body -> a 203 carrying the whole feed added. MISSED feed-long-at-500 (`>` -> `>=`): differs
+  only at a chord of exactly 500.0 m; a search of 28572 8-decimal begin latitudes x 20 end offsets of a lat-only
+  chord near 500 m found NONE equal to 500.0 (`[]`), and the 499.9992 / 500.0003 m rows bracket the threshold
+  1.1 mm apart -> moved to EQUIVALENT with that witness. Floor set to the population, literal 83.
+  Re-run of the three changed (owner-approved faster verification): `--only=feed-end-refusal-first,store-max-age-60,
+  cron-any-ok` -> `RESULT caught=3 missed=0 trap=0 of 3` (baseline green tests=147). --prove-floor: all four arms
+  REFUSED, the real population quiet. NOT RUN: --prove-vacuity (83 runs; follow-up if the reviewer wants it).
+  wc -l: closuresCron.ts 72, closuresStore.ts 87, lcsFeed.ts 190, closuresCron.test.ts 112, closuresDriven.test.ts
+  58, closuresFake.ts 56, closuresFeed.test.ts 202, closuresRoutes.test.ts 174, closuresMutants.mjs 225 - all
+  under 300.

@@ -7,7 +7,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import placesSql from "../migrations/0001_places.sql?raw";
-import { CLOSURES_KEY, CLOSURES_MAX_AGE_MS } from "../src/closuresStore";
+import { CLOSURES_KEY } from "../src/closuresStore";
 import { buildCustomModel, rejectCustomModel, type ClosureCollection } from "../src/customModel";
 import { ROUTES, type Env } from "../src/index";
 import { LOOP_LAMBDA } from "../src/loopPlanner";
@@ -19,6 +19,8 @@ import { SANTA_MONICA_TOPANGA_BODY, syntheticPath } from "./planHarness";
 import { TRIP_BODY, tripRouter } from "./tripHarness";
 
 const NOW = new Date("2026-10-05T12:00:00Z");
+/** P-SAFE-08's 30 minutes, ruled (R7) - a literal, never the module's own MAX_AGE_MS. */
+const MAX_AGE_MS = 1_800_000;
 const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
 const AREAS = buildCustomModel(0, TWO_CLOSURES as ClosureCollection).areas;
 const IN_CLOSURES = { if: "in_closure_1 || in_closure_2", multiply_by: "0" };
@@ -82,7 +84,7 @@ const ROUTED: Path[] = ["/plan", "/loop", "/trip"];
 describe("a fresh set rides every driven request as areas (R7, R8)", () => {
   for (const path of ROUTED) {
     it(`${path}: 200 with no closures_hazard; every model carries the areas and the zero clause, gate-clean; no car_fast model`, async () => {
-      const r = await send(path, shipped(closuresAt(new Date(NOW.getTime() - CLOSURES_MAX_AGE_MS), TWO_CLOSURES).kv));
+      const r = await send(path, shipped(closuresAt(new Date(NOW.getTime() - MAX_AGE_MS), TWO_CLOSURES).kv));
       const m = models();
       expect([r.status, "closures_hazard" in r.json, m.length > 0, fastWithModel()]).toEqual([200, false, true, 0]);
       expect(m.map((x) => [x.areas, x.priority.at(-1), rejectCustomModel(x)])).toEqual(m.map(() => [AREAS, IN_CLOSURES, null]));
@@ -96,7 +98,7 @@ describe("a fresh set rides every driven request as areas (R7, R8)", () => {
 });
 
 describe("stale: the last good set, with the hazard (R7, P-SAFE-08)", () => {
-  const ages: [string, number][] = [["30 min + 1 ms old", CLOSURES_MAX_AGE_MS + 1], ["1 ms in the future", -1], ["a day old", 86_400_000]];
+  const ages: [string, number][] = [["30 min + 1 ms old", MAX_AGE_MS + 1], ["45 min old", 2_700_000], ["1 ms in the future", -1], ["a day old", 86_400_000]];
   for (const path of [...ROUTED, "/isochrone"] as Path[]) {
     for (const [name, age] of ages) {
       it(`${path}, a record ${name}: 200 with closures_hazard stale, routed around the record's set`, async () => {
@@ -163,10 +165,10 @@ describe("KILL first, the closures-version in the cache key (R9, R10)", () => {
     e.CLOSURES = closuresAt(NOW, undefined, "lcs-d7-00000000000000bb").kv;
     await send("/isochrone", e as unknown as Env);
     misses.push(sent.length);
-    e.CLOSURES = closuresKv({ [CLOSURES_KEY]: closuresRecord(new Date(NOW.getTime() - CLOSURES_MAX_AGE_MS - 1), undefined, "lcs-d7-00000000000000bb") }).kv;
+    e.CLOSURES = closuresKv({ [CLOSURES_KEY]: closuresRecord(new Date(NOW.getTime() - MAX_AGE_MS - 1), undefined, "lcs-d7-00000000000000bb") }).kv;
     const hit = await send("/isochrone", e as unknown as Env);
     misses.push(sent.length);
     expect([misses, hit.json.closures_hazard]).toEqual([[1, 2, 2],
-      { state: "stale", version: "lcs-d7-00000000000000bb", fetched_at: new Date(NOW.getTime() - CLOSURES_MAX_AGE_MS - 1).toISOString() }]);
+      { state: "stale", version: "lcs-d7-00000000000000bb", fetched_at: new Date(NOW.getTime() - MAX_AGE_MS - 1).toISOString() }]);
   });
 });

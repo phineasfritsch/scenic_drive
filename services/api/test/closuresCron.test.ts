@@ -76,6 +76,7 @@ describe("the closures cron through scheduled() (R6)", () => {
   const nothing: [string, () => Promise<Response>][] = [
     ["a 503", async () => new Response(feedRaw, { status: 503, headers: { "last-modified": LAST_MODIFIED } })],
     ["a 204", async () => new Response(null, { status: 204, headers: { "last-modified": LAST_MODIFIED } })],
+    ["a 203 carrying the whole feed", async () => new Response(feedRaw, { status: 203, headers: { "last-modified": LAST_MODIFIED } })],
     ["no Last-Modified", async () => new Response(feedRaw)],
     ["an unparseable Last-Modified", async () => new Response(feedRaw, { headers: { "last-modified": "yesterday-ish" } })],
     ["a body that is not JSON", async () => new Response("<html>", { headers: { "last-modified": LAST_MODIFIED } })],

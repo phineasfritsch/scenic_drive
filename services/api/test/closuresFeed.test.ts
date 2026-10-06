@@ -101,6 +101,10 @@ describe("one row, refused by name (R3)", () => {
     ["end lat just north of 34.9", variant([["location.end.endLatitude", "34.90000001"]]), "T-1", "position_outside_d7"],
     ["end lon just west of -119.5", variant([["location.end.endLongitude", "-119.50000001"]]), "T-1", "position_outside_d7"],
     ["begin lat just north of 34.9", variant([["location.begin.beginLatitude", "34.90000001"]]), "T-1", "position_outside_d7"],
+    ["begin junk AND end outside: the begin is named", variant([["location.begin.beginLongitude", "x"],
+      ["location.end.endLongitude", "0"]]), "T-1", "position_not_decimal"],
+    ["begin outside AND end junk: the begin is named", variant([["location.begin.beginLongitude", "0"],
+      ["location.end.endLongitude", "x"]]), "T-1", "position_outside_d7"],
   ];
   for (const [name, row, index, reason] of refusals) {
     it(`${name} is refused as ${reason}`, () => {
