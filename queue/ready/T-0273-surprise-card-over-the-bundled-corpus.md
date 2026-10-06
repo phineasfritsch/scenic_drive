@@ -1,7 +1,7 @@
 ---
 id: T-0273
 title: FeatureSurpriseMe - the Surprise card on the home screen, picking from the bundled fallback corpus with Surprise.pick, showing name, hook, round-trip estimate, golden-hour line and four 'not this' buttons, with Open in Apple Maps
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -28,3 +28,4 @@ today, so the hook line is ruled from class (no curation prose yet - T-0183).
 
 ## Log
 - 2026-10-06T03:35:41Z filed by agent/claude-opus-5 (orchestrator) after PR #161 (T-0270) merged; starts when T-0271 releases package-swift.
+- 2026-10-06T04:50:07Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0271 (#162) merged and released package-swift; copy its Entitlements-in-the-FeatureScenicHome-product shape and its frozen-block/digest updates.
