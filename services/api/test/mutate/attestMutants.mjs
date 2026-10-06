@@ -75,6 +75,10 @@ export const MUTATIONS = [
   m("store-replace-key", "attestStore.ts", "INSERT OR IGNORE INTO attested_keys", "INSERT OR REPLACE INTO attested_keys"),
   m("store-commit-unchecked", "attestStore.ts", "return inserted?.meta.changes === 1;", "return true;"),
   m("store-attested-at-plus-1", "attestStore.ts", "row.environment, nowMs, row.challenge)", "row.environment, nowMs + 1, row.challenge)"),
+  m("store-commit-without-exists", "attestStore.ts", "WHERE EXISTS (SELECT 1 FROM attest_challenges WHERE challenge = ?6 AND expires_at > ?5)",
+    "WHERE ?6 IS NOT NULL"),
+  m("store-commit-expiry-inclusive", "attestStore.ts", "AND expires_at > ?5)", "AND expires_at >= ?5)"),
+  m("store-commit-any-challenge", "attestStore.ts", "WHERE challenge = ?6 AND expires_at", "WHERE ?6 = ?6 AND expires_at"),
   m("attest-act-dropped", "attest.ts", "act === undefined ? { sub } : { sub, act }", "{ sub }"),
   m("attest-device-case-kept", "attest.ts", "const sub = device.toLowerCase();", "const sub = device;"),
   m("attest-extra-body-key", "attest.ts", "if (Object.keys(body).filter((k) => k !== \"appAccountToken\").sort().join() !== BODY_KEYS.join()) return INVALID();", ""),
@@ -89,6 +93,8 @@ export const MUTATIONS = [
   m("jwt-ttl-3601", "sessionJwt.ts", "SESSION_TTL_S = 3600;", "SESSION_TTL_S = 3601;"),
   m("jwt-min-secret-31", "sessionJwt.ts", "MIN_SECRET_LENGTH = 32;", "MIN_SECRET_LENGTH = 31;"),
   m("jwt-exp-inclusive", "sessionJwt.ts", "now < (exp as number)", "now <= (exp as number)"),
+  m("jwt-now-ceil", "sessionJwt.ts", "const now = Math.floor(nowMs / 1000);", "const now = Math.ceil(nowMs / 1000);"),
+  m("jwt-now-round", "sessionJwt.ts", "const now = Math.floor(nowMs / 1000);", "const now = Math.round(nowMs / 1000);"),
   m("jwt-iat-unchecked", "sessionJwt.ts", "(iat as number) <= now && ", ""),
   m("jwt-span-unchecked", "sessionJwt.ts", " || (exp as number) - (iat as number) !== SESSION_TTL_S", ""),
   m("jwt-header-unchecked", "sessionJwt.ts", " || parts[0] !== HEADER", ""),
@@ -121,14 +127,18 @@ export const EQUIVALENT = [
       + "than 87 bytes yields a short subarray and is refused by it; the rows 'authData cut to 86 / 54 bytes' pin the answer" },
   { id: "store-live-inclusive", file: "src/attestStore.ts", find: "AND expires_at > ?2\"",
     witness: "COMMIT_KEY re-checks `expires_at > ?5` inside the batch, so a challenge expiring at now that passed a widened read "
-      + "commits nothing and answers 400 - the read only saves the verification work; the expiry bound test pins the answer" },
+      + "commits nothing and answers 400 - the read only saves the verification work. That clause is not this entry's own "
+      + "witness: it is mutated by store-commit-expiry-inclusive and store-commit-without-exists, CAUGHT by the rows 'the batch "
+      + "sees the challenge expiring at now / 1 ms after now', which move the row between the read and the batch" },
   { id: "jwt-signature-length-unchecked", file: "src/sessionJwt.ts", find: " || signature.length !== 32",
     witness: "WebCrypto's HMAC verify compares the whole 32-byte SHA-256 MAC and answers false for a signature of any other "
       + "length, so the length check only refuses earlier; measured MISSED in the 2026-10-06 run, the row 'a signature cut "
       + "to 31 bytes' pins the unidentified answer" },
   { id: "attest-live-unchecked", file: "src/attest.ts", find: "if (!(await challengeIsLive(deps.db, challenge, nowMs))) return INVALID();",
-    witness: "the same: COMMIT_KEY's EXISTS over the live challenge is the authority, so an unknown or expired challenge is 400 "
-      + "with nothing written whether or not the early read refuses it" },
+    witness: "the same: COMMIT_KEY's EXISTS over the live challenge is the authority (mutated by store-commit-without-exists and "
+      + "store-commit-any-challenge, CAUGHT by 'a concurrent attestation consumes the challenge after the read'), so an unknown "
+      + "or expired challenge is 400 with nothing written whether or not the early read refuses it. The interleaved rows hook "
+      + "the read, so without it they would see no gap - a property of the instrument, not of the answer" },
 ];
 
 export function floorRefusal(mutations = MUTATIONS, subjects = SUBJECTS) {

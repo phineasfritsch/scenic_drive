@@ -131,6 +131,18 @@ describe("a Bearer that does not verify is the unidentified bucket, anon - no fa
     });
   }
 
+  it("1 ms past the second S, iat = S + 1 is still in the future (now is the clock floored, bound)", async () => {
+    vi.setSystemTime(NOW.getTime() + 1);
+    const jwt = await mintJwt(claims({ iat: S + 1, exp: S + 3601 }));
+    expect(await plan({ ...bearer(jwt), ...LEGACY_HEADERS }, WITH_SECRET)).toEqual(await today(null));
+  });
+
+  it("999 ms past the second S, exp = S + 1 is still valid: the sub's bucket (now is the clock floored, bound)", async () => {
+    vi.setSystemTime(NOW.getTime() + 999);
+    const jwt = await mintJwt(claims({ iat: S - 3599, exp: S + 1 }));
+    expect(await plan(bearer(jwt), WITH_SECRET)).toEqual(await today(DEVICE));
+  });
+
   it("a lower-case bearer scheme and a Basic credential are not a session", async () => {
     const jwt = await mintJwt(claims());
     expect([await plan({ authorization: `bearer ${jwt}`, ...LEGACY_HEADERS }, WITH_SECRET),

@@ -9,10 +9,11 @@ import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { APPLE_APP_ATTEST_ROOT_CA } from "../src/appAttest";
 import { attestDepsFromEnv } from "../src/attest";
+import { LIVE_CHALLENGE } from "../src/attestStore";
 import { ROUTES, type Env } from "../src/index";
 import { b64url } from "./appleChain";
 import {
-  AAGUID_DEVELOP, ACCOUNT, attestation, bodyOf, CHALLENGE, DEVICE, freshAttestTables, mintJwt, NOW, postAttest, seedChallenge,
+  AAGUID_DEVELOP, ACCOUNT, attestation, bodyOf, CHALLENGE, DEVICE, freshAttestTables, mintJwt, NOW, OTHER_CHALLENGE, postAttest, seedChallenge,
   SECRET, sha, tables, testDeps, type Attested,
 } from "./attestHarness";
 
@@ -123,6 +124,54 @@ describe("a verified attestation commits the key, consumes the challenge and ans
     expect({ answer: await postAttest(bodyOf(a), testDeps(a, { SESSION_JWT_SECRET: SECRET.slice(0, 31) })), tables: await tables() })
       .toEqual({ answer: UNAVAILABLE, tables: { challenges: [{ challenge: CHALLENGE, expires_at: NOW + 60_000 }], keys: [] } });
     expect((await postAttest(bodyOf(a), testDeps(a, { SESSION_JWT_SECRET: SECRET.slice(0, 32) }))).status).toBe(200);
+  });
+});
+
+/**
+ * env.DB, except that `between` runs after the shipped LIVE_CHALLENGE read has answered and before the commit batch:
+ * what a concurrent request does in that gap. Every statement still runs against the real D1.
+ */
+function interleaved(between: () => Promise<unknown>): D1Database {
+  const db = env.DB;
+  return {
+    prepare: (sql: string) => (sql !== LIVE_CHALLENGE ? db.prepare(sql) : {
+      bind: (...args: unknown[]) => ({ first: async () => { const row = await db.prepare(sql).bind(...args).first(); await between(); return row; } }),
+    }),
+    batch: (statements: D1PreparedStatement[]) => db.batch(statements),
+  } as unknown as D1Database;
+}
+
+describe("the commit batch is the authority: a challenge gone or expired after the live read commits nothing (R1)", () => {
+  const RIVAL = { key_id: "rival-key", device_id: DEVICE, public_key: "00", environment: "production", attested_at: NOW - 1 };
+  const rivalCommits = () => env.DB.batch([
+    env.DB.prepare("INSERT INTO attested_keys (key_id, device_id, public_key, environment, attested_at) VALUES (?1, ?2, ?3, ?4, ?5)")
+      .bind(RIVAL.key_id, RIVAL.device_id, RIVAL.public_key, RIVAL.environment, RIVAL.attested_at),
+    env.DB.prepare("DELETE FROM attest_challenges WHERE challenge = ?1").bind(CHALLENGE),
+  ]);
+  const expiresAt = (at: number) => () => env.DB.prepare("UPDATE attest_challenges SET expires_at = ?1 WHERE challenge = ?2").bind(at, CHALLENGE).run();
+
+  it("a concurrent attestation consumes the challenge after the read: 400, the rival key stands, another live challenge is untouched", async () => {
+    await seedChallenge(CHALLENGE, NOW + 60_000);
+    await seedChallenge(OTHER_CHALLENGE, NOW + 60_000);
+    const a = await attestation();
+    expect({ answer: await postAttest(bodyOf(a), { ...testDeps(a), db: interleaved(rivalCommits) }), tables: await tables() }).toEqual({
+      answer: REFUSED, tables: { challenges: [{ challenge: OTHER_CHALLENGE, expires_at: NOW + 60_000 }], keys: [RIVAL] },
+    });
+  });
+
+  it("the batch sees the challenge expiring at now: 400 and nothing written (bound)", async () => {
+    await seedChallenge(CHALLENGE, NOW + 60_000);
+    const a = await attestation();
+    expect({ answer: await postAttest(bodyOf(a), { ...testDeps(a), db: interleaved(expiresAt(NOW)) }), tables: await tables() })
+      .toEqual({ answer: REFUSED, tables: { challenges: [{ challenge: CHALLENGE, expires_at: NOW }], keys: [] } });
+  });
+
+  it("the batch sees the challenge expiring 1 ms after now: the key commits and the challenge is consumed (bound)", async () => {
+    await seedChallenge(CHALLENGE, NOW + 60_000);
+    const a = await attestation();
+    expect({ answer: await postAttest(bodyOf(a), { ...testDeps(a), db: interleaved(expiresAt(NOW + 1)) }), tables: await tables() }).toEqual({
+      answer: await granted({ iss: "scenic-api", sub: DEVICE, iat: S, exp: S + 3600 }), tables: { challenges: [], keys: [keyRow(a)] },
+    });
   });
 });
 
