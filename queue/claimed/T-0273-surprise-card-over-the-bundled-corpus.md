@@ -162,3 +162,34 @@ today, so the hook line is ruled from class (no curation prose yet - T-0183).
     running on this loaded box when this entry was written; the PlaceStore test is seen on CI only; the 8-row-tall card
     at AX Dynamic Type sizes is not screenshotted and may push the map off screen; P-PROD-03 (pins_affected) does not
     exist in pins/PINS.yaml; the -pinned echo's file count now sums both modules (18 = 16 + 3 - shown under one label).
+- 2026-10-06T11:48:03Z PRE-REVIEW M1 CLOSED BY WHITELIST (P-SAFE-03 failing OPEN). agent/claude-opus-5.
+  - THE SURVIVOR: `struct SurpriseCard: View { init<T>(failure: String?, onOpenInMaps: ...) {} ... UIApplication.shared.open(maps://...) }`
+    appended BELOW the frozen ScenicDriveApp block: a module-local type wins over FeatureSurpriseMe, so the frozen shell
+    line builds it and its tap leaves for Apple Maps with the disclaimer never shown. Green on every limb (the counts, the
+    identifier/key whitelists, -frozen bounded by the struct brace, -pinned covering only the two feature modules).
+  - THE CLASS, closed in 6bf0785: ops/lib/check-safety-disclaimer-pinned gains pinned_shell. Every entry under
+    apps/ios/ScenicDrive/ (find %y + path, no name filter, any depth) is a whitelist of 16 typed `f|d path` lines plus ONE
+    shape for the owner ignored archive (`f Tiles/<name>.pmtiles` or `.pmtiles.json`, regular file, no slash); a
+    link or junction is never approved; the index under the shell holds no mode-120000 entry; ScenicDriveApp.swift is
+    pinned by digest 52556b14b83d334a141a827dce99a64d30369eb4d55a58cb31711f80d9d8fc3f. Run by require_pinned_surface,
+    so both P-SAFE-03 and P-ATTR-01 carry it. Changing the shell now means typing its new digest, deliberately.
+  - TABLE ROWS 34-37 (ops/lib/check-safety-disclaimer-mutations): M1 appended to the shell (expects
+    `ScenicDriveApp.swift content changed`), M1 in a new shell file SurpriseShadow.swift (`added SurpriseShadow.swift`),
+    a .swift named like a tile archive Tiles/la.pmtiles.swift (`added Tiles/la.pmtiles.swift`), a directory link
+    Shadows in the shell (`added Shadows`).
+  - SEEN: `bash ops/lib/check-safety-disclaimer` on 6bf0785 EXIT=0, printing `LAST 19 feature file(s), the app shell and
+    AttributionFooter.swift pinned (-pinned).` pinned_shell sourced alone against the worktree shell: with an ignored
+    Tiles/la.pmtiles and Tiles/la.pmtiles.json present status=0 bad=0 (the main checkout carries la.pmtiles); clean
+    status=0 bad=0; a DIRECTORY Tiles/x.pmtiles refused `the app shell file set is not the approved one: added
+    Tiles/x.pmtiles.` Row 9 (a second call site in the app shell) re-run: `1 yes`.
+  - NOT SEEN, said plainly: rows 34-37 were dispatched as four single-row copies of the table (.build/t0273m1/mut1-4) and
+    had printed no row after 60+ minutes on this box (CPU at 96% from other sessions; one green P-SAFE-03 run alone took
+    ~45 min). check-map-attribution on 6bf0785 had not finished either. The reviewer should run
+    `bash ops/lib/check-safety-disclaimer --prove-red` (expects 37/37) and `bash ops/lib/check-map-attribution` on the
+    pushed head. No Swift under apps/ios changed in this commit, so no ios-compile was dispatched.
+  - FLAGGED, not closed: the PlaceStore read-only mutant (`configuration.readonly = true` removed). No test under
+    Tests/PlaceStoreTests asserts read-only and ops/mutate/ has no PlaceStore population; GRDB is excluded on Windows so it
+    cannot be run or seen red here. The line predates T-0273; ruled a gap to FILE as its own task unless the reviewer
+    rules R1 places(in:) makes it this PR's to anchor.
+  - wc -l: check-safety-disclaimer 300, check-safety-disclaimer-pinned 192, check-safety-disclaimer-mutations 170,
+    check-map-attribution 300.
