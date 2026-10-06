@@ -1,7 +1,7 @@
 ---
 id: T-0269
 title: register P-STORE-02 (refund/expiry/revoke turn the entitlement off) over T-0267's /asn tests, and bind the Telemetry row-coverage test under P-PRIV-05
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T00:29:02Z
@@ -11,7 +11,7 @@ branch: task/T-0269
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-STORE-02, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv1-t0269
 depends_on: [T-0261, T-0265, T-0267]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -50,3 +50,9 @@ is unbound. Both are pins-only bindings over shipped tests (the T-0261/T-0264 pa
   - acceptance 2 (P-PRIV-05): `python ops/lib/run-named-tests.py P-PRIV-05` -> `NAMED P-PRIV-05 passed=23/23` exit=0; its red (rv2 variant C, `passed=22/23` exit=1, fourteenEventsEachWithARow() FAILED by name) is quoted above; the prose change is one dated APPENDED sentence (`pure append: True`).
   - `bash ops/queue-check` -> `QUEUE OK (262 tasks)` exit=0; `bash ops/lib/check-exec-bits` -> `P-OPS-01: 124 files, 23 required present, all modes correct` exit=0.
   - NOT SEEN LOCALLY: `bash ops/check-pins --source-only` was started on 6e1d868 and printed nothing in about an hour on a box shared with T-0270/T-0271's container and check-pins runs; it is not claimed. CI's pins-source-only job is the record for it on this PR.
+- 2026-10-06T02:08:24Z REVIEW PASS (agent/rv1-t0269, reviewer; not the owner). PR #160 at 6b7b684, own worktree .worktrees/rv1-t0269 (`git worktree add --detach` at origin/task/T-0269), `npm ci` in services/api.
+  - acceptance 1 (P-STORE-02): read every bound test. asnState.test.ts's seven drive the shipped handleAsn (asnHarness postAsn, production deps from asnDepsFromEnv with only the test root fingerprint swapped) and read GET /entitlement through ROUTES['/entitlement']; each compares the WHOLE entitlements table (or the whole /entitlement answer) by equality - EXPIRED/REFUND/REVOKE/GRACE_PERIOD_EXPIRED seed an active row and require it inactive; R6 requires a stale SUBSCRIBED and an equal-signedDate REFUND to change nothing; R8 requires `inactive` after REFUND. asnVerify.test.ts's fifty-four seed a row and require 400 plus `rows()` equal to SEEDED; the self-made-root test goes through ROUTES['/asn']. The bindings assert the statement. `python ops/lib/run-named-tests.py P-STORE-02` -> `NAMED P-STORE-02 passed=61/61` exit=0.
+  - Reviewer's own fail-open mutant (a stale activation re-enables a deactivated entitlement - a binding no author mutant had reddened): src/entitlementStore.ts `WHERE excluded.signed_date > entitlements.signed_date` -> `WHERE excluded.signed_date > entitlements.signed_date OR excluded.status = 'active'` -> `RED test/asnState.test.ts :: replay and out-of-order delivery never regress state (R6) > an older SUBSCRIBED after a newer EXPIRED leaves the row inactive: FAILED - ['failed']`, `NAMED P-STORE-02 passed=60/61` exit=1; reverted with `git checkout --` (`git status --short -- services/api/src` empty).
+  - acceptance 2 (P-PRIV-05): fourteenEventsEachWithARow() asserts allCases.count == 14, the set of row kinds == allCases, and the row order agrees with kindBySwitch - the coverage half of the whitelist clause, as the appended prose says. `SCENIC_SWIFT_SCRATCH=.build/rv1-t0269 python ops/lib/run-named-tests.py P-PRIV-05` -> `NAMED P-PRIV-05 passed=23/23` exit=0. The P-PRIV-05 prose change is a pure append (script: the new line starts with the old line minus its closing quote, True); the only `-` lines in the PR's diff of pins/PINS.yaml and ops/lib/named-tests.json are that prose line and the former last swift entry's missing comma.
+  - Gates, bare: `bash ops/queue-check` -> `QUEUE OK (262 tasks)`; `bash ops/lib/check-exec-bits` -> `P-OPS-01: 124 files, 23 required present, all modes correct` exit=0; `git merge-base --is-ancestor origin/main origin/task/T-0269` -> 0 (origin/main e267244); `gh pr checks 160` -> core pass 4m6s, pins-source-only pass 3m35s.
+  - Recordable, not blocking: the unbound siblings `another app's bundleId changes nothing` (R7) and `the production deps pin exactly the measured SHA-256 of AppleRootCA-G3.cer` guard paths by which a notification not meant for this app could be applied; they sit outside P-STORE-02's statement and could be bound under a pin of their own. The BY-NAME LIMIT (an emptied test) and P-PRIV-05's NOT ASSERTED clauses stand as recorded.
