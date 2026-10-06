@@ -18,6 +18,9 @@ const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
 // so do /attest/challenge and /attest (T-0278 R7) and /attest/assert (T-0280 R6).
 const OPERATIONAL_ROUTES = ["/__health", "/__version", "/__ro", "/asn", "/entitlement", "/attest/challenge", "/attest", "/attest/assert"] as const;
 const UPSTREAM_ROUTES = ["/plan", "/loop", "/isochrone", "/trip"] as const;
+// /telemetry writes Analytics Engine, not the router: killed by its own ROUTES test below (T-0279 R8), and the ONLY
+// route excluded from the upstream derivation besides the operational ones.
+const TELEMETRY_ROUTE = "/telemetry";
 type UpstreamRoute = (typeof UPSTREAM_ROUTES)[number];
 const BODIES: Record<UpstreamRoute, unknown> = {
   "/plan": SANTA_MONICA_TOPANGA_BODY,
@@ -68,7 +71,7 @@ async function send(path: string, e: Env) {
 
 describe("ROUTES kill switch over every upstream route (P-COST-01)", () => {
   it("every upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests, quota state empty", async () => {
-    const upstream = Object.keys(ROUTES).filter((k) => !(OPERATIONAL_ROUTES as readonly string[]).includes(k));
+    const upstream = Object.keys(ROUTES).filter((k) => !(OPERATIONAL_ROUTES as readonly string[]).includes(k) && k !== TELEMETRY_ROUTE);
     expect(upstream).toEqual([...UPSTREAM_ROUTES]);
     const answered: [string, string, unknown][] = [];
     for (const [name, source] of SOURCES) {
@@ -80,5 +83,27 @@ describe("ROUTES kill switch over every upstream route (P-COST-01)", () => {
     }
     const paused = { status: 503, json: { error: "planning_paused" } };
     expect(answered).toEqual(SOURCES.flatMap(([name]) => UPSTREAM_ROUTES.map((path) => [name, path, paused])));
+  });
+});
+
+describe("ROUTES['/telemetry'] kill switch (T-0279 R8, P-COST-01)", () => {
+  it("ROUTES['/telemetry'] pauses on env KILL and on KV KILL_SWITCH: 503 telemetry_paused, zero Analytics Engine writes, quota state empty", async () => {
+    expect(Object.keys(ROUTES).filter((k) => k === TELEMETRY_ROUTE)).toEqual([TELEMETRY_ROUTE]);
+    const answered: [string, unknown][] = [];
+    for (const [name, source] of SOURCES) {
+      const writes: unknown[] = [];
+      const e = { ...killedEnv(source), TELEMETRY: { writeDataPoint: (p: unknown) => void writes.push(p) } } as unknown as Env;
+      const req = new Request(`https://scenic-api.test${TELEMETRY_ROUTE}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-scenic-device": DEVICE },
+        body: JSON.stringify({ events: [{ blobs: ["drive_started", "", ""], doubles: [0, 0], indexes: ["drive_started"] }] }),
+      });
+      const response = await ROUTES[TELEMETRY_ROUTE]!(req, e, new URL(req.url));
+      answered.push([name, { status: response.status, json: await response.json() }]);
+      expect(writes).toEqual([]);
+      expect(quota.state()).toEqual({});
+    }
+    const paused = { status: 503, json: { error: "telemetry_paused" } };
+    expect(answered).toEqual(SOURCES.map(([name]) => [name, paused]));
   });
 });

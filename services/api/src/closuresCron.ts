@@ -1,5 +1,6 @@
 /**
- * The closures cron (T-0276 R6): every 15 minutes, the Caltrans LCS D7 feed -> at most 50 polygons -> KV.
+ * The closures cron (T-0276 R6): every 15 minutes, the Caltrans LCS D7 feed -> at most CLOSURES_STORED_MAX_POLYGONS
+ * polygons (T-0282 N1; each request sends its own nearest 50) -> KV.
  *
  * Writes {version, fetched_at, geojson, stats} under CLOSURES_KEY, or NOTHING - the last good record stays and
  * ages into stale (closuresStore.ts) - when the binding is absent (no fetch either), the answer is not 200, has no

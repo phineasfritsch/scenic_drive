@@ -8,7 +8,7 @@ import type { ClosureCollection } from "../src/customModel";
 
 export const TEST_VERSION = "lcs-d7-00000000000000aa";
 export const EMPTY_CLOSURES: ClosureCollection = { type: "FeatureCollection", features: [] };
-export const FRESH_EMPTY: ClosureSnapshot = { version: TEST_VERSION, closures: EMPTY_CLOSURES, hazard: null };
+export const FRESH_EMPTY: ClosureSnapshot = { version: TEST_VERSION, closures: EMPTY_CLOSURES, hazard: null, fetchedAt: null };
 
 export interface ClosuresKv {
   kv: KVNamespace;

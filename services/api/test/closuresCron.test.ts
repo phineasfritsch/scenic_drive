@@ -18,7 +18,7 @@ const NOW = new Date("2026-10-06T08:06:12Z");
 const LAST_MODIFIED = "Tue, 06 Oct 2026 08:04:20 GMT";
 const RECORD = {
   version: EXPECTED.version, fetched_at: "2026-10-06T08:04:20.000Z", geojson: EXPECTED.cap.geojson,
-  stats: { rows: 2808, full: 1708, active: 163, refused: 0, kept: 42, dropped: 121 },
+  stats: { rows: 2808, full: 1708, active: 163, refused: 0, kept: 163, dropped: 0 },
 };
 
 let fetched: string[];

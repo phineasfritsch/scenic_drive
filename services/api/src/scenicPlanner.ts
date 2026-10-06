@@ -8,7 +8,8 @@
  *   1. the ceiling - the chosen route's own `time` <= fastest + budget, else nothing is returned;
  *   2. actually different - Jaccard over OSM way ids < 0.6, else the "scenic" route is the fastest one.
  */
-import { buildCustomModel, formatMultiplier, rejectCustomModel, type ClosureCollection } from "./customModel";
+import type { ClosuresFor } from "./closuresNearest";
+import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customModel";
 import { appleMapsUrl } from "./appleMaps";
 import { hazardsOf, HAZARD_DETAILS, type Hazard } from "./hazards";
 import { searchLambda } from "./lambdaSearch";
@@ -78,7 +79,8 @@ async function route(call: GuardedFetch, routerBase: string, origin: LatLon, des
 }
 
 export async function planScenic(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
-  budgetSeconds: number, closures: ClosureCollection | null): Promise<ScenicPlanResult> {
+  budgetSeconds: number, closuresFor: ClosuresFor): Promise<ScenicPlanResult> {
+  const closures = closuresFor(origin, destination);
   const fastest = await route(call, routerBase, origin, destination, FAST_PROFILE, undefined);
   const fastestSeconds = durationSeconds(fastest);
   const ceiling = fastestSeconds + budgetSeconds;
