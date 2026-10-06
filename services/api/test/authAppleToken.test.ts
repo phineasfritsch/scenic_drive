@@ -60,6 +60,18 @@ const token = async (bearer: string, over: Record<string, unknown> = {}, header:
 const claim = (name: string, over: Record<string, unknown>): Row => ({ name, keys: true, make: async (b) => body(await token(b, over)) });
 const head = (name: string, header: Record<string, unknown> | string): Row => ({ name, keys: false, make: async (b) => body(await token(b, {}, header)) });
 
+const CONTAINMENT: [string, (right: string, pad: string) => string][] = [
+  ["plus a trailing addition", (v, p) => v + p], ["plus a leading addition", (v, p) => p + v],
+  ["less its last character", (v) => v.slice(0, -1)], ["less its first character", (v) => v.slice(1)],
+];
+const EXACT_CLAIMS: [string, string, (bearer: string) => Promise<string>][] = [
+  ["iss", "x", async () => "https://appleid.apple.com"],
+  ["aud", ".x", async () => "com.phineasfritsch.scenicdrive"],
+  ["nonce", "0", (b) => sha256Hex(b)],
+];
+const CONTAINED: Row[] = EXACT_CLAIMS.flatMap(([key, pad, right]) => CONTAINMENT.map(([how, edit]): Row => ({
+  name: `${key} the right value ${how}`, keys: true, make: async (b) => body(await token(b, { [key]: edit(await right(b), pad) })) })));
+
 const DEFECTS: Row[] = [
   { name: "a body that is not JSON", keys: false, make: async () => "{" },
   { name: "a body that is an array", keys: false, make: async (b) => [await token(b)] },
@@ -117,6 +129,7 @@ const DEFECTS: Row[] = [
   { name: "nonce of another session", keys: true, make: async (b) => body(await token(b, { nonce: await sha256Hex(await sessionToken({}, S - 1)) })) },
   { name: "nonce in upper-case hex", keys: true, make: async (b) => body(await token(b, { nonce: (await sha256Hex(b)).toUpperCase() })) },
   claim("nonce the raw session token, unhashed", { nonce: "PLACEHOLDER" }),
+  ...CONTAINED,
   { name: "a payload that is not JSON", keys: true, make: async () => body(await signJws(HEADER, "{", K1.privateKey)) },
   { name: "a payload that is an array", keys: true, make: async () => body(await signJws(HEADER, "[]", K1.privateKey)) },
 ];
