@@ -138,3 +138,42 @@ only.
   (56)`, `Tests  1708 passed (1708)` (one earlier run on this head printed 41/523 passed with no failure - a partial
   run, re-run once, the 56/1708 line is the measurement); `bash ops/queue-check` -> `QUEUE OK (280 tasks)`. Survivors
   S1-S3 closed as above; ready for the review round.
+- 2026-10-06T22:59:31Z agent/claude-opus-5 (owner): rv1-t0288 FAIL (PR #177, head c53b111) B1 - fail-open: inserting
+  `if (url.pathname === "/config" && url.search !== "") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };` into
+  default.fetch left 1708/1708 green (env KILL=1, GET /config?x=1 answered planning_paused false): the tables drove
+  ROUTES['/config'] directly, and requestReadSites did not see a read through the derived `url`. RULINGS before code:
+  (B1-R1) the shipped entry point is the default export's fetch; the new table calls `worker.fetch(request, env)` with
+  fake env bindings, never ROUTES. (B1-R2) the Brief's variants include the path suffix `/config/`, which the router
+  answered 404; RULED: the router strips ONE trailing slash from a pathname longer than "/" before the ROUTES lookup, for
+  every route alike (a /plan/ reaches handlePlan and its own kill switch; `/config//` and `/configx` stay 404), so
+  `/config/` answers the bare GET's response. (B1-R3) "derived" is request METADATA - a name bound on a line reading
+  req.url/.headers/.method/.cf/.signal/.referrer, .searchParams, .pathname/.search/.hash, or naming an already-derived
+  name, to a fixpoint per file; bindings are const/let/var, destructurings and statement-start (re)assignments; block-
+  comment lines bind nothing. Body-parsed values are NOT derived (measured: seeding from body reads too grows the
+  approved set 85 -> 471 lines across 17 files; metadata-only 85 -> 106 across five) - each POST route's body read is
+  already its approved site. SITE also gains the members .pathname .search .hash.
+  CLOSED: test/configWorker.test.ts - 16 request variants (bare GET; HEAD; POST without and with a JSON body; PUT and
+  PATCH with a body; DELETE; OPTIONS; `?x=1`; `?planning_paused=false&kill=0&KILL=&unpause=1`; `/config?`; `/config/`;
+  `/config/?x=1`; hostile headers x-scenic-unpause/-debug/-kill/-device/-account-token, authorization, cookie; one
+  x-scenic-unpause header; every dimension at once) x the five KILL sources x the 19 CONFIG rows (moved verbatim to
+  test/configRows.ts, shared with configRoutes.test.ts), whole response (status, content-type, cache-control, body text)
+  by equality to expected() - 1520 worker calls; a planning_paused projection (never false through any variant under
+  any of the three pausing KILL sources, KV false beside them); and the meta-test: every variant's (method, url, sorted
+  headers, body text) differs from the bare GET's and from every other, and each dimension (all seven methods, a
+  query, `/config?`, `/config/`, an x-scenic-* header, a body) is present. requestReadSites: derived() fixpoint; APPROVED
+  gains the 21 derived lines it finds (index.ts: the RO_TOKEN check, the slash-stripping handler lookup, the 404 miss,
+  the cron's `(url) => fetch(url)`, two comment lines naming token; accountTier/asn: the token uses; routerDeps: the
+  raw use; telemetry: userId -> counter -> reserved); the seen-red it() inserts rv1's line and five siblings (handler +
+  url.port; `const p = url.port` then `p`; `const h = req.headers` then `h.has`; `const m = req.method` then `m`;
+  `const q = url.searchParams` then `q.size`) after the 404 line and asserts each is found as exactly its inserted
+  lines, and that the pre-rv1 guard (derive off) misses at least one line of every sibling.
+  SEEN RED, population (--only, floor 66 -> 70, configWorker.test.ts joins TESTS): `baseline green tests=29`; CAUGHT
+  fetch-derived-url-unpause (rv1's mutant), fetch-header-unpause (x-scenic-unpause), fetch-method-unpause
+  (OPTIONS/HEAD), fetch-trailing-slash-404 - each by "every request variant x every KILL source x every CONFIG row
+  answers the bare GET's whole expected response"; `RESULT caught=4 missed=0 trap=0 of 4`; `git status --porcelain --
+  src` empty. Not re-run: the 66 untouched entries (faster verification in rounds). THE GUARD ALONE (each mutant applied,
+  `npx vitest run test/requestReadSites.test.ts`, restored): fetch-derived-url-unpause, fetch-header-unpause and
+  fetch-method-unpause each exit=1 with "the request sites under src are exactly the approved sites, file by file, line
+  by line" FAILED by name. Full suite on a1c2d23b: `Test Files  57 passed (57)`, `Tests  1712 passed (1712)`. wc -l:
+  src/index.ts 120, test/configWorker.test.ts 95, test/configRows.ts 42, test/configRoutes.test.ts 56,
+  test/requestReadSites.test.ts 289, test/mutate/configMutants.mjs 224.
