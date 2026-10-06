@@ -1,13 +1,13 @@
 ---
 id: T-0273
 title: FeatureSurpriseMe - the Surprise card on the home screen, picking from the bundled fallback corpus with Surprise.pick, showing name, hook, round-trip estimate, golden-hour line and four 'not this' buttons, with Open in Apple Maps
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T04:52:41Z
+lease_expires_at: 2026-10-06T18:52:41Z
+worktree: .worktrees/T-0273
+branch: task/T-0273
 exclusive: [package-swift]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Sources/FeatureSurpriseMe/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/ScenicDrive/, Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, .github/workflows/ios-screenshot.yml, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-PROD-02, P-PROD-03, P-ATTR-01, P-SAFE-03]
@@ -29,3 +29,4 @@ today, so the hook line is ruled from class (no curation prose yet - T-0183).
 ## Log
 - 2026-10-06T03:35:41Z filed by agent/claude-opus-5 (orchestrator) after PR #161 (T-0270) merged; starts when T-0271 releases package-swift.
 - 2026-10-06T04:50:07Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0271 (#162) merged and released package-swift; copy its Entitlements-in-the-FeatureScenicHome-product shape and its frozen-block/digest updates.
+- 2026-10-06T04:52:41Z claimed by agent/claude-opus-5; lease until 2026-10-06T18:52:41Z
