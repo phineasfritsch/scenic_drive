@@ -1,7 +1,7 @@
 /**
  * The quota counters' storage (T-0256 R1): one Durable Object class, addressed two ways.
  *
- *   idFromName("device:<install uuid>")  the DAILY record {day, plan, loop, surprise?} for one device. A new UTC day replaces
+ *   idFromName("device:<install uuid>")  the DAILY record {day, plan, loop, surprise?, trip?} for one device. A new UTC day replaces
  *                                        it in place, so nothing accumulates per day.
  *   idFromName("global")                 the MONTHLY record {month, calls} - upstream calls across everyone.
  *
@@ -22,6 +22,8 @@ interface DailyRecord {
   loop: number;
   /** Absent until the day's first surprise reach (T-0262 R4): a record written before T-0262 counts none. */
   surprise?: number;
+  /** Absent until the day's first road trip (T-0268 R5), as for surprise. */
+  trip?: number;
 }
 
 interface MonthlyRecord {
@@ -29,7 +31,7 @@ interface MonthlyRecord {
   calls: number;
 }
 
-/** `kind`'s count in a record: the stored value, or 0 when the key is absent (only "surprise" ever is). */
+/** `kind`'s count in a record: the stored value, or 0 when the key is absent (only "surprise" and "trip" ever are). */
 function used(record: DailyRecord, kind: QuotaKind): number {
   return kind in record ? (record[kind] as number) : 0;
 }
