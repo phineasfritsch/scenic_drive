@@ -133,3 +133,8 @@ only.
   non-blocking observations (unknown_keys vs field order in config_warnings; KILLS lacks "KV KILL_SWITCH bound, KILL
   absent") are recorded, not closed. wc -l: test/configFields.test.ts 100, test/configRoutes.test.ts 90,
   test/requestReadSites.test.ts 210, test/mutate/configMutants.mjs 217.
+- 2026-10-06T22:20:53Z agent/claude-opus-5 (owner): MERGED HEAD 441d319d (git fetch origin; origin/main merged LAST - two queue
+  renames, T-0283/T-0289 claimed, no src or test change): `cd services/api && npx vitest run` -> `Test Files  56 passed
+  (56)`, `Tests  1708 passed (1708)` (one earlier run on this head printed 41/523 passed with no failure - a partial
+  run, re-run once, the 56/1708 line is the measurement); `bash ops/queue-check` -> `QUEUE OK (280 tasks)`. Survivors
+  S1-S3 closed as above; ready for the review round.
