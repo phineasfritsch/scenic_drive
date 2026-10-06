@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-telemetry");
 
-export const MIN_MUTATIONS = 61;
+export const MIN_MUTATIONS = 67;
 export const SUBJECTS = ["src/telemetry.ts", "src/telemetryPoint.ts", "src/h3Res5.ts", "src/index.ts", "src/quota.ts",
   "src/QuotaCounter.ts"];
 const TESTS = ["test/telemetryCost.test.ts", "test/telemetryWhitelist.test.ts", "test/telemetryFixture.test.ts",
@@ -92,6 +92,12 @@ export const MUTATIONS = [
   m("cell-tail-unchecked", H, "if (digit(index, r) !== 7) return false;", "if (digit(index, r) > 7) return false;"),
   m("cell-pentagon-117-dropped", H, "107, 117]", "107]"),
   m("cell-pentagon-58-dropped", H, "49, 58, 63,", "49, 63,"),
+  m("cell-res-mask-7", H, "& 15n) !== 5n) return false;", "& 7n) !== 5n) return false;"),
+  m("cell-reserved-mask-1", H, "& 7n) !== 0n) return false;", "& 1n) !== 0n) return false;"),
+  m("cell-base-below-128", H, "if (base > MAX_BASE_CELL) return false;", "if (base > 127) return false;"),
+  m("cell-base-mask-63", H, "(index >> 45n) & 127n", "(index >> 45n) & 63n"),
+  m("cell-tail-first-only", H, "for (let r = 6; r <= 15; r++)", "for (let r = 6; r <= 6; r++)"),
+  m("cell-digit-mask-3", H, "* 3)) & 7n);", "* 3)) & 3n);"),
   m("cell-pentagon-zero-stops", H, "if (d === 0) continue;", "if (d === 0) return true;"),
   m("cell-pentagon-unchecked", H, "return d !== 1;", "return true;"),
   m("quota-telemetry-arm-dropped", "quota.ts", "  if (kind === \"telemetry\") return DAILY_TELEMETRY_QUOTA;\n", ""),
@@ -106,6 +112,11 @@ export const EQUIVALENT = [
     witness: "the mode field is bits 59-62, but HEX15 admits only 15 hex digits, so bits 60-63 of every index that "
       + "reaches this line are 0: `& 15n` and `& 1n` give the same value for every input, and no test can tell a mask "
       + "change apart. The bit-63 (reserved) check was not written for the same reason." },
+  { id: "cell-mode-mask-3", file: "src/h3Res5.ts", find: "& 15n) !== 1n) return false;", replace: "& 3n) !== 1n) return false;",
+    witness: "`& 3n` reads bits 59-60 as the mode; bit 60 is the top bit of a 16th hex digit, which HEX15 refuses "
+      + "before this line, so it is 0 for every index that reaches it and `& 3n` equals `& 15n` on every input. The "
+      + "test still sends every mode 0..15 and the high reserved bit (16-digit strings for modes 2..15 and bit 63) "
+      + "and expects 400 by whole answer, so a HEX15 that admits a 16th digit (cell-16-digits) is caught." },
 ];
 
 export function floorRefusal(mutations = MUTATIONS, subjects = SUBJECTS) {

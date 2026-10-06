@@ -175,6 +175,30 @@ const REFUSED: [string, unknown][] = [
     [`pentagon base cell ${b}, first non-zero digit 1 after zeros`, plan(cell(b, [0, 0, 1, 0, 0]))]]),
 ];
 
+/** rv1 B1: EVERY field of the index the validator reads, EXHAUSTIVELY, each row the published CELL with one field changed. */
+const V = BigInt(`0x${CELL}`);
+const setField = (shift: number, width: number, x: number) => {
+  const at = BigInt(shift);
+  const s = ((V & ~(((1n << BigInt(width)) - 1n) << at)) | (BigInt(x) << at)).toString(16);
+  return s.length < 15 ? s.padStart(15, "0") : s;
+};
+const withDigits = (base: number, d: number[]) => cell(base, d, 7);
+const range = (n: number) => Array.from({ length: n }, (_, k) => k);
+/** [row, cell, accepted]: the expected verdict written from R4 here, never read from src. */
+const FIELDS: [string, string, boolean][] = [
+  ["high reserved bit 63 = 0", setField(63, 1, 0), true],
+  ["high reserved bit 63 = 1", setField(63, 1, 1), false],
+  ...range(16).map((x): [string, string, boolean] => [`mode ${x}`, setField(59, 4, x), x === 1]),
+  ...range(8).map((x): [string, string, boolean] => [`reserved bits 56-58 = ${x}`, setField(56, 3, x), x === 0]),
+  ...range(16).map((x): [string, string, boolean] => [`resolution ${x}`, setField(52, 4, x), x === 5]),
+  ...range(128).map((b): [string, string, boolean] => [`base cell ${b}, digits 6 5 3 3 0`, setField(45, 7, b), b <= 121]),
+  ...range(128).map((b): [string, string, boolean] =>
+    [`base cell ${b}, leading digit 1`, withDigits(b, [1, 0, 0, 0, 0]), b <= 121 && !PENTAGONS.includes(b)]),
+  ...range(15).flatMap((k) => range(8).map((x): [string, string, boolean] =>
+    [`digit ${k + 1} = ${x}`, setField((14 - k) * 3, 3, x), k < 5 ? x !== 7 : x === 7])),
+];
+const CELL_REFUSED = { status: 400, json: { error: "invalid_request", detail: "events[0] cell must be an H3 resolution-5 cell" } };
+
 describe("POST /telemetry whitelist through ROUTES['/telemetry'] (T-0279 R3/R4, P-PRIV-05)", () => {
   it("every ruled bound and closed-enum edge is accepted and written exactly", async () => {
     expect(cell(6, [6, 5, 3, 3, 0])).toBe(CELL);
@@ -186,6 +210,13 @@ describe("POST /telemetry whitelist through ROUTES['/telemetry'] (T-0279 R3/R4, 
       // Written in the device's own key order whatever the sender's: the rebuilt point, never the body's object.
       expect([name, rig.writes.map((w) => Object.keys(w as object))]).toEqual([name, events.map(() => ["blobs", "doubles", "indexes"])]);
     }
+    const accepted = FIELDS.filter(([, , ok]) => ok);
+    expect(accepted.length).toBe(1 + 1 + 1 + 1 + 122 + 110 + 5 * 7 + 10);
+    for (const [name, c] of accepted) {
+      const rig = telemetryRig();
+      const point = p("plan_requested", "scenic", c, 30);
+      expect([name, c, await post(rig.env, one(point)), rig.writes]).toStrictEqual([name, c, { status: 200, json: { written: 1 } }, [point]]);
+    }
   });
 
   it("every other body is 400 invalid_request with zero writes and no reservation", async () => {
@@ -194,6 +225,12 @@ describe("POST /telemetry whitelist through ROUTES['/telemetry'] (T-0279 R3/R4, 
       const answer = await post(rig.env, body);
       expect([name, answer.status, answer.json.error]).toEqual([name, 400, "invalid_request"]);
       expect([name, rig.writes, rig.quota.state()]).toEqual([name, [], {}]);
+    }
+    const refused = FIELDS.filter(([, , ok]) => !ok);
+    expect(refused.length).toBe(1 + 15 + 7 + 15 + 6 + 18 + 5 + 10 * 7);
+    for (const [name, c] of refused) {
+      const rig = telemetryRig();
+      expect([name, c, await post(rig.env, plan(c)), rig.writes, rig.quota.state()]).toStrictEqual([name, c, CELL_REFUSED, [], {}]);
     }
   });
 });
