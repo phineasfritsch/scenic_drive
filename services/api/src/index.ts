@@ -4,6 +4,7 @@
  * Only operational routes exist yet. Every route is listed in ROUTES so tests can enumerate them
  * (pin P-COST-01 will later assert the kill switch covers every entry, not a hand-written list).
  */
+import { asnDepsFromEnv, handleAsn, handleEntitlement } from "./asn";
 import { handleIsochrone, isochroneDepsFromEnv } from "./isochrone";
 import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
@@ -22,6 +23,7 @@ export interface Env {
   QUOTA?: DurableObjectNamespace<QuotaCounter>; // per-device daily + global monthly counters (T-0256 R1)
   ROUTER_URL?: string; // our GraphHopper; https://router.invalid (the shipped placeholder) counts as absent
   ROUTER_SECRET?: string; // secret: `wrangler secret put ROUTER_SECRET`; sent as x-scenic-router-secret
+  ASN_ALLOW_SANDBOX?: string; // "1" applies App Store Sandbox notifications too (T-0267 R7); unset = production only
   GRAPH_VERSION?: string; // the routing graph's version, in the /isochrone cache key (T-0262 R6); unset = "unversioned"
 }
 
@@ -84,6 +86,8 @@ export const ROUTES: Record<string, Handler> = {
   "/plan": (req, env) => handlePlan(req, env, planDepsFromEnv(env)),
   "/loop": (req, env) => handleLoop(req, env, loopDepsFromEnv(env)),
   "/isochrone": (req, env) => handleIsochrone(req, env, isochroneDepsFromEnv(env)),
+  "/asn": (req, env) => handleAsn(req, asnDepsFromEnv(env)),
+  "/entitlement": (req, env) => handleEntitlement(req, asnDepsFromEnv(env)),
 };
 
 export default {
