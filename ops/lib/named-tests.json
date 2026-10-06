@@ -56,6 +56,42 @@
       ]
     }
   },
+  "P-PRIV-04": {
+    "vitest": {
+      "test/accountDelete.test.ts": [
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > every table the migrations create is in the deletion whitelist: a new table without a delete fails here by name",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > every user row is gone and every other row is unchanged; both refresh tokens revoked",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > a session without the apple claim finds the user through the device's binding",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > a session whose device is unbound deletes the apple claim's other devices",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > deletion completes and says revoke_pending: no client secret: no revoke call",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > deletion completes and says revoke_pending: Apple refuses one revocation",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > a repeat is idempotent: 200, nothing left to delete, no Apple call",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > without a session JWT: 401, nothing deleted, no Apple call",
+        "the shipped ROUTES['/auth/apple'] and ROUTES['/account'] (R1, R9) > without SESSION_JWT_SECRET both are 503 auth_unavailable; without a Bearer both are 401",
+        "the shipped ROUTES['/auth/apple'] and ROUTES['/account'] (R1, R9) > the shipped /account deletes an unbound device's rows with no Apple call"
+      ],
+      "test/authAppleToken.test.ts": [
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: an unknown kid: no fallback to the only key",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: another key's signature under Apple's kid",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: alg none",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: iss over http",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: aud another bundle",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: exp = now (bound)",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: iat = now + 61 (bound)",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: iat = now - 601 (bound)",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: nonce of another session",
+        "every bound's accepted side binds the Apple sub and answers the session JWT (R5, R6) > accepted: exp = now + 1",
+        "every bound's accepted side binds the Apple sub and answers the session JWT (R5, R6) > accepted: iat = now + 60",
+        "every bound's accepted side binds the Apple sub and answers the session JWT (R5, R6) > accepted: iat = now - 600"
+      ],
+      "test/authAppleBind.test.ts": [
+        "the JWKS cache (R4) > an unknown kid in a set MIN_AGE old buys one refetch, which finds the rotated key",
+        "the JWKS cache (R4) > an unknown kid still absent after the one refetch is refused - no second fetch, no fallback key",
+        "the bind: exchange, refresh token, rebinding and the session JWT (R6) > with the client secret: the code is exchanged and the refresh token stored",
+        "the bind: exchange, refresh token, rebinding and the session JWT (R6) > act is carried from the session and apple added; the answer verifies through the shipped verifier"
+      ]
+    }
+  },
   "P-PRIV-05": {
     "vitest": {
       "test/planPrivacy.test.ts": [
