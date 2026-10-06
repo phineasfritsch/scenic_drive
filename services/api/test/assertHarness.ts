@@ -1,11 +1,10 @@
 /**
- * Shared plumbing for T-0280 (assertions and the /attest/challenge rate limit): migration 0004 on top of T-0278's
- * tables, all four tables read back whole, a test P-256 key seeded as an attested key, an App Attest assertion of the
- * test's own (CBOR {signature, authenticatorData}, a DER ECDSA signature over SHA256(authData || SHA256(challenge))),
- * a D1 whose named read runs a hook after it answers, and a caller of the shipped ROUTES. Not a test file.
+ * Shared plumbing for T-0280 (assertions and the /attest/challenge rate limit): all four tables read back whole, a
+ * test P-256 key seeded as an attested key, an App Attest assertion of the test's own (CBOR {signature,
+ * authenticatorData}, a DER ECDSA signature over SHA256(authData || SHA256(challenge))), a D1 whose named read runs a
+ * hook after it answers, and a caller of the shipped ROUTES. Not a test file.
  */
 import { env } from "cloudflare:test";
-import assertSql from "../migrations/0004_app_attest_assert.sql?raw";
 import { ROUTES, type Env } from "../src/index";
 import { b64 } from "./appleChain";
 import { APP_ID, cat, cbor, CHALLENGE, freshAttestTables, NOW, SECRET, sha, type W } from "./attestHarness";
@@ -18,12 +17,8 @@ export const DAY_SLOT = Math.floor(NOW / DAY) * DAY;
 const utf8 = (t: string) => new TextEncoder().encode(t);
 const hex = (b: Uint8Array) => Array.from(b, (x) => (x < 16 ? "0" : "") + x.toString(16)).join("");
 
-export async function freshAssertTables(): Promise<void> {
-  await freshAttestTables();
-  for (const statement of assertSql.split(";").map((s) => s.trim()).filter(Boolean)) await env.DB.prepare(statement).run();
-  await env.DB.prepare("DELETE FROM attest_sign_counts").run();
-  await env.DB.prepare("DELETE FROM attest_challenge_counts").run();
-}
+/** Migrations 0003 and 0004 applied, all four tables empty (attestHarness's freshAttestTables). */
+export const freshAssertTables = freshAttestTables;
 
 export async function allTables() {
   const all = async (sql: string) => (await env.DB.prepare(sql).all()).results;

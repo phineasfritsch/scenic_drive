@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ATTEST_CHALLENGES_PER_DAY, ATTEST_CHALLENGES_PER_DEVICE_HOUR } from "../src/attestStore";
-import { DEVICE, NOW } from "./attestHarness";
+import { DEVICE, NOW, seedChallenge } from "./attestHarness";
 import { allTables, DAY, DAY_SLOT, freshAssertTables, HOUR, HOUR_SLOT, post, route, seedRate } from "./assertHarness";
 
 const OTHER_DEVICE = "7a6b5c4d-3e2f-4a1b-9c8d-0123456789ab";
@@ -15,7 +15,7 @@ const LIMITED = { status: 429, json: { error: "challenge_rate_limited" } };
 
 const ask = (device?: string, e = {}) => route("/attest/challenge", e, post({}, device === undefined ? {} : { "x-scenic-device": device }));
 const issuedRow = (a: { json: Record<string, unknown> }, at = NOW) => ({ challenge: a.json.challenge, expires_at: at + 300_000 });
-const byChallenge = (rows: { challenge: unknown }[]) => rows.sort((a, b) => String(a.challenge).localeCompare(String(b.challenge)));
+const byChallenge = (rows: { challenge: unknown }[]) => rows.sort((a, b) => (String(a.challenge) < String(b.challenge) ? -1 : 1));
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -103,21 +103,25 @@ describe("the global daily ceiling through ROUTES['/attest/challenge'] (R5)", ()
     expect({ answer: await ask(DEVICE), tables: await allTables() }).toEqual({ answer: LIMITED, tables: before });
   });
 
-  it("a refused challenge prunes nothing: old slots stay until an issue", async () => {
+  it("a refused challenge prunes nothing: an expired challenge and old slots stay until an issue", async () => {
     await seedRate("global", DAY_SLOT, 10_000);
+    await seedChallenge("expired-at-now", NOW);
     await seedRate(`device:${DEVICE}`, HOUR_SLOT - HOUR, 3);
     await seedRate("global", DAY_SLOT - DAY, 5);
     const before = await allTables();
     expect({ answer: await ask(OTHER_DEVICE), tables: await allTables() }).toEqual({ answer: LIMITED, tables: before });
   });
 
-  it("an issue prunes older device slots and older days but keeps this hour's and this day's rows", async () => {
+  it("an issue prunes expired challenges, older device slots and older days but keeps the live and this hour's and day's rows", async () => {
+    await seedChallenge("expired-at-now", NOW);
+    await seedChallenge("live-for-1-ms", NOW + 1);
     await seedRate(`device:${OTHER_DEVICE}`, HOUR_SLOT - HOUR, 3);
     await seedRate(`device:${OTHER_DEVICE}`, HOUR_SLOT, 2);
     await seedRate("global", DAY_SLOT - DAY, 5);
     await seedRate("global", DAY_SLOT, 7);
     const a = await ask(DEVICE);
-    expect({ status: a.status, tables: await allTables() }).toEqual({ status: 200, tables: { challenges: [issuedRow(a)], keys: [], counts: [],
+    expect({ status: a.status, tables: await allTables() }).toEqual({ status: 200, tables: {
+      challenges: byChallenge([issuedRow(a), { challenge: "live-for-1-ms", expires_at: NOW + 1 }]), keys: [], counts: [],
       rates: [{ bucket: `device:${DEVICE}`, slot: HOUR_SLOT, issued: 1 }, { bucket: `device:${OTHER_DEVICE}`, slot: HOUR_SLOT, issued: 2 }, { bucket: "global", slot: DAY_SLOT, issued: 8 }] } });
   });
 

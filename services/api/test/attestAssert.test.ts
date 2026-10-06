@@ -93,7 +93,7 @@ describe("every assertion defect is 400 invalid_assertion with all four tables u
 });
 
 const live = (c: string) => ({ challenge: c, expires_at: NOW + 60_000 });
-const bothKeys = () => [keyRow(KEY, DEVICE), keyRow(FRESH, OTHER_DEVICE)].sort((a, b) => a.key_id.localeCompare(b.key_id));
+const bothKeys = () => [keyRow(KEY, DEVICE), keyRow(FRESH, OTHER_DEVICE)].sort((a, b) => (a.key_id < b.key_id ? -1 : 1));
 
 describe("a verified assertion stores its counter, consumes the challenge and answers the stored device's session (R2, R4)", () => {
   it("counter stored + 1: sign_count 6, the challenge consumed, sub the stored device, no act", async () => {
@@ -109,7 +109,7 @@ describe("a verified assertion stores its counter, consumes the challenge and an
       const answer = await assert(await assertBody(FRESH, { counter }));
       expect({ answer, counts: (await allTables()).counts }).toEqual({
         answer: await granted({ iss: "scenic-api", sub: OTHER_DEVICE, iat: S, exp: S + 3600 }),
-        counts: [{ key_id: FRESH.keyId, sign_count: counter }, { key_id: KEY.keyId, sign_count: 5 }].sort((a, b) => a.key_id.localeCompare(b.key_id)),
+        counts: [{ key_id: FRESH.keyId, sign_count: counter }, { key_id: KEY.keyId, sign_count: 5 }].sort((a, b) => (a.key_id < b.key_id ? -1 : 1)),
       });
     });
   }
@@ -122,7 +122,7 @@ describe("a verified assertion stores its counter, consumes the challenge and an
 
   it("an upper-case appAccountToken is lowercased into act", async () => {
     expect(await assert(await assertBody(KEY, {}, { appAccountToken: ACCOUNT.toUpperCase() })))
-      .toEqual(await granted({ iss: "scenic-api", sub: DEVICE, act: ACCOUNT, iat: S, exp: S + 3600 }));
+      .toEqual(await granted({ iss: "scenic-api", sub: DEVICE, iat: S, exp: S + 3600, act: ACCOUNT }));
   });
 
   it("a replay of an accepted assertion is refused and changes nothing (the challenge is consumed)", async () => {
