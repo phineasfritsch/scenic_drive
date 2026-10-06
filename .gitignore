@@ -46,6 +46,8 @@ services/routing/graph-cache/
 *.osm.pbf
 *.pmtiles
 corpus*.sqlite
+# T-0270 ruling F5: the ONE committed corpus - the bundled fallback; tests/test_fallback_committed.py guards its size.
+!apps/ios/ScenicDrive/Corpus/corpus-fallback.sqlite
 
 # Secrets — never in the repo, see CLAUDE.md
 .env
