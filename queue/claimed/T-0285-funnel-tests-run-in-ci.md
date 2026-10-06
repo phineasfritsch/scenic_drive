@@ -72,3 +72,17 @@ fable pass's X1/X2 (exit 2 for an unreadable fixture; the optional 'statistics' 
     - RED, MIN_MUTATIONS = 22 -> 21 in ops/mutate/funnel_mutations.py: exit=1 although the output ends `RESULT
       caught=22 missed=0 skipped=0 of 22` - refused on the printed `(floor 21)` against the pinned 22.
     - GREEN, pristine: exit=0 (ok).
+- 2026-10-06T17:57:31Z acceptance re-run on the merged head 70f4891 (git fetch origin; origin/main 443463e merged
+  LAST - it had moved during the run; main changed one line of pins/PINS.yaml, none of funnel*.py, pins.py or
+  linux-core.yml) (agent/claude-opus-5):
+  - (1) P-OPS-07's assertion, read through pins.py load() and run bare (`bash -o pipefail`): exit=0. PINS.yaml 42
+    rows, no duplicate id, 18 anchor source. RED rows above (funnel_math.py mutant, deleted test, skipped test,
+    lowered floor) were run on 2028c50, whose funnel files the merge did not change. CI's pins-source-only on the
+    PR is the run that proves the row executes in CI (R4); quoted below when it lands.
+  - (2) `python ops/lib/funnel_test.py` -> `Ran 13 tests in 0.202s`, `OK`; X1 and X2 each RED by its mutant, then
+    green (above).
+  - ops/queue-check `QUEUE OK (277 tasks)` exit=0; ops/lib/check-exec-bits `P-OPS-01: 133 files, 23 required
+    present, all modes correct` exit=0. wc -l: ops/lib/funnel_test.py 236, pins/PINS.yaml 386.
+  - NOT done locally: a full `ops/check-pins --source-only` started 17:23:21Z on 2028c50 was still inside P-SAFE-03
+    (check-safety-disclaimer under git-bash) after 27 minutes on this box, and the merge then changed its tree under
+    it; its result is not quoted. ops/test was not run (nothing it builds was touched).
