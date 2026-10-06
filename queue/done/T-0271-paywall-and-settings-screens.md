@@ -1,7 +1,7 @@
 ---
 id: T-0271
 title: Entitlements target - the paywall (SubscriptionStoreView with Terms of Use + Privacy links, Restore) and a Settings screen (subscription, Restore, Manage subscription, Terms, Privacy, Legal/Attribution) reachable from home; P-STORE-01 source half
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T00:42:18Z
@@ -11,7 +11,7 @@ branch: task/T-0271
 exclusive: [package-swift]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Sources/Entitlements/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/ScenicDrive/, .github/workflows/ios-screenshot.yml, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-STORE-01, P-ATTR-02]
-reviewer: null
+reviewer: agent/rv1-t0271
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -165,3 +165,36 @@ xcodeproj lock (T-0180).
     row still RED by its own name; the four GREEN rows green (the new one: a `///` doc comment reworded).
   - Measured: ops/lib/check-store-links.py 191 lines, ops/lib/store_links_pinned.py 179 lines (cap 300).
     pins/PINS.yaml parses with ops/lib/pins.py's loader (40 pins, P-STORE-01 present).
+- 2026-10-06T04:36:04Z REVIEW PASS, agent/rv1-t0271 (reviewer, not the owner), PR #162 head 1db5798.
+  - Gates run bare on a detached worktree of origin/task/T-0271: `python ops/lib/check-store-links.py` -> `P-STORE-01
+    source half: ... at exactly their approved sites, mounted, in a frozen Entitlements module`, exit 0; `--prove-red`
+    -> `33/33 rows as required (29 mutants refused by name, 4 legitimate edits green)`, exit 0;
+    check-ios-compile-guardrails.py -> `IOS-COMPILE-GUARDRAILS OK` for ios-compile.yml and ios-screenshot.yml, exit 0,
+    and `--prove-red` -> `PROVE-RED OK: 68 mutations red, 6 legitimate spellings green over 2 workflows, 0 unexpected
+    result(s)`; `bash ops/lib/check-line-cap` -> `P-SRC-02: 229 Swift files tracked (Sources=106, Tests=90,
+    apps/ios=33), none over 300 lines`, exit 0; `bash ops/queue-check` -> `QUEUE OK (265 tasks)`; `gh pr checks 162`
+    -> core pass, pins-source-only pass; `git merge-base --is-ancestor origin/main origin/task/T-0271` exit 0.
+  - Acceptance 1: no project.pbxproj in the diff (0 paths); Entitlements is a target of the FeatureScenicHome PRODUCT
+    only, depends on DesignSystem only, imports DesignSystem, StoreKit, SwiftUI; FeatureScenicHome imports no
+    Entitlements (home takes `onSettings`, the shell composes `.sheet` -> SettingsScreen -> PaywallScreen). No feature
+    target imports another (FeatureScenicHome: DesignSystem Foundation Handoff MapAdapter OSLog ScenicKit SwiftUI
+    UIKit, as on main). Acceptance 2: SubscriptionStoreView(groupID: StoreConstants.subscriptionGroupID) with
+    .subscriptionStoreControlStyle(.picker), .storeButton(.visible, for: .restorePurchases), Terms + Privacy `Link`s
+    in the bottom inset; Settings has status, Restore (`try await AppStore.sync()`), Manage
+    (`.manageSubscriptionsSheet`, ruling R5), Terms, Privacy, Legal & Attribution; every control carries an id.
+  - Screenshots LOOKED AT myself (ios-screenshot run 37405158016 on 9e8397e; Swift/workflows unchanged since, only a
+    corpus .sqlite arrived with the main merge; ios-compile 37409405941 green on b48f239). settings-light/-dark:
+    Status "Not subscribed", Scenic Drive Pro, Restore Purchases, Manage Subscription; About: Terms of Use, Privacy
+    Policy, Legal & Attribution (chevron); orange icons, fg text, cream/navy grounds. paywall-light/-dark: back chevron,
+    "Scenic Drive Pro", StoreKit's "Subscription Unavailable" (placeholder group id, R3), bottom band "Terms of Use
+    Privacy Policy" visible in both themes. Restore is NOT drawn on the paywall (StoreKit's unavailable state) - as the
+    Log declares; Restore is on screen in Settings. Cosmetic, declared: the unavailable placeholder draws on white /
+    system dark grey above the `bg` band. home-light-collapsed / home-dark-fastest: gear as a fourth chip in the same
+    band; the credit pill "(c) MapLibre - Natural Earth - (c) OpenStreetMap contributors" still drawn above the sheet.
+  - Reviewer's own mutant (not in the author's or the pre-review lists): `.allowsHitTesting(false)` appended after
+    `.accessibilityIdentifier("home.settings")` in ScenicHomeScreen.swift (the gear made inert, every pinned line
+    verbatim). check-store-links.py stays green (home is outside its FROZEN set), but P-SAFE-03's -pinned refuses it
+    by name: `the pinned render surface changed: ScenicHomeScreen.swift content changed (sha256 722552f9..., approved
+    f4d6aeb2...)`, exit 1; restored -> `GREEN pinned files=14`, exit 0. Caught, not blocking.
+  - Non-blocking, recorded: the frozen Entitlements digests mean every later Settings edit re-approves a sha256; the
+    FROZEN missing-file branch has no --prove-red row of its own; the XCUITest half stays T-0180's.
