@@ -1,5 +1,5 @@
 ---
-id: T-0276
+id: T-0277
 title: DECIDE how the full LA corpus fits the 60 MiB budget - measured 214126592 B, options from T-0275
 state: backlog
 owner: null
