@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-closures");
 
-export const MIN_MUTATIONS = 86;
+export const MIN_MUTATIONS = 91;
 export const SUBJECTS = ["src/lcsFeed.ts", "src/closuresStore.ts", "src/closuresCron.ts", "src/index.ts", "src/routerDeps.ts",
   "src/reachCache.ts", "src/plan.ts", "src/scenicPlanner.ts", "src/loop.ts", "src/loopPlanner.ts", "src/trip.ts",
   "src/tripPlanner.ts", "src/isochrone.ts"];
@@ -78,7 +78,12 @@ export const MUTATIONS = [
   m("store-unavailable-silent", "closuresStore.ts", "hazard: { state: \"unavailable\", version: NO_CLOSURES_VERSION, fetched_at: null },", "hazard: null,"),
   m("store-stale-silent", "closuresStore.ts", "hazard: fresh ? null :", "hazard: true ? null :"),
   m("store-geojson-unchecked", "closuresStore.ts", "buildCustomModel(LAMBDA_MIN, r.geojson as ClosureCollection);", ""),
-  m("store-version-loose", "closuresStore.ts", "/^lcs-d7-[0-9a-f]{16}$/", "/^lcs-d7-/"),
+  m("store-record-shape-unchecked", "closuresStore.ts", "if (r === null || typeof r !== \"object\") return null;", ""),
+  m("store-version-unchecked", "closuresStore.ts", "if (typeof r.version !== \"string\" || !CLOSURES_VERSION.test(r.version)) return null;", ""),
+  m("store-fetched-at-unchecked", "closuresStore.ts", "if (typeof r.fetched_at !== \"string\" || !ISO_INSTANT.test(r.fetched_at)) return null;", ""),
+  m("store-ms-unchecked", "closuresStore.ts", "if (!Number.isFinite(ms)) return null;", ""),
+  m("store-null-geojson-unchecked", "closuresStore.ts", "if (r.geojson === null) return null;", ""),
+  m("store-version-loose","closuresStore.ts", "/^lcs-d7-[0-9a-f]{16}$/", "/^lcs-d7-/"),
   m("store-instant-loose", "closuresStore.ts", "!ISO_INSTANT.test(r.fetched_at)", "false"),
   m("store-throw-is-fresh", "closuresStore.ts", "raw = await kv.get(CLOSURES_KEY);\n  } catch {\n    return UNAVAILABLE;",
     "raw = await kv.get(CLOSURES_KEY);\n  } catch {\n    return { version: NO_CLOSURES_VERSION, closures: null, hazard: null };"),

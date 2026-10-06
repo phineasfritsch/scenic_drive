@@ -11,7 +11,7 @@ import { CLOSURES_KEY } from "../src/closuresStore";
 import { buildCustomModel, rejectCustomModel, type ClosureCollection } from "../src/customModel";
 import { ROUTES, type Env } from "../src/index";
 import { LOOP_LAMBDA } from "../src/loopPlanner";
-import { closuresAt, closuresKv, closuresRecord, squareClosure, TEST_VERSION, TWO_CLOSURES, type ClosuresKv } from "./closuresFake";
+import { closuresAt, closuresKv, closuresRecord, EMPTY_CLOSURES, squareClosure, TEST_VERSION, TWO_CLOSURES, type ClosuresKv } from "./closuresFake";
 import { fakeQuotaNamespace } from "./doFake";
 import { isochroneRouter, REACH_BODY } from "./isochroneHarness";
 import { LOOP_BODY, loopPath, squareLoop } from "./loopHarness";
@@ -119,17 +119,46 @@ describe("stale: the last good set, with the hazard (R7, P-SAFE-08)", () => {
 describe("unavailable: no set, never silent (R7)", () => {
   const record = (over: Record<string, unknown>) => JSON.stringify({ version: TEST_VERSION, fetched_at: NOW.toISOString(), geojson: TWO_CLOSURES, ...over });
   const fiftyOne = { type: "FeatureCollection", features: Array.from({ length: 51 }, (_, i) => squareClosure(-118.6 + i * 0.01, 34.05)) };
+  const raw = (text: string) => () => closuresKv({ [CLOSURES_KEY]: text });
+  const bad = (field: string, value: unknown) => () => closuresKv({ [CLOSURES_KEY]: record({ [field]: value }) });
+  /** Every field record() reads x every shape that is not one: missing, null, wrong type, empty, off the format. */
+  const shapes: [string, unknown][] = [["missing", undefined], ["null", null], ["a number", 16], ["true", true],
+    ["an empty string", ""], ["an empty array", []], ["an empty object", {}]];
   const cases: [string, () => ClosuresKv | undefined][] = [
     ["no CLOSURES binding", () => undefined],
     ["a get that throws", () => closuresKv({}, true)],
     ["no record", () => closuresKv({})],
-    ["a record that is not JSON", () => closuresKv({ [CLOSURES_KEY]: "{" })],
-    ["a version off the pattern", () => closuresKv({ [CLOSURES_KEY]: record({ version: "lcs-d7-XYZ" }) })],
-    ["a fetched_at that is not an instant", () => closuresKv({ [CLOSURES_KEY]: record({ fetched_at: "2026-10-05 12:00" }) })],
-    ["no geojson", () => closuresKv({ [CLOSURES_KEY]: record({ geojson: undefined }) })],
-    ["51 polygons", () => closuresKv({ [CLOSURES_KEY]: record({ geojson: fiftyOne }) })],
-    ["a closure that is a Point", () => closuresKv({ [CLOSURES_KEY]: record({ geojson: { type: "FeatureCollection",
-      features: [{ type: "Feature", geometry: { type: "Point", coordinates: [-118.6, 34.05] } }] } }) })],
+    ["a record that is not JSON", raw("{")],
+    ["a record that is an empty string", raw("")],
+    ["a record that is JSON null", raw("null")],
+    ["a record that is a number", raw("7")],
+    ["a record that is a string", raw(JSON.stringify(record({})))],
+    ["a record that is an array", raw(`[${record({})}]`)],
+    ["a record that is an empty object", raw("{}")],
+    ...(["version", "fetched_at", "geojson"] as const).flatMap((field) =>
+      shapes.map(([name, value]): [string, () => ClosuresKv] => [`${field} ${name}`, bad(field, value)])),
+    ["a version off the pattern", bad("version", "lcs-d7-XYZ")],
+    ["a version of 15 hex", bad("version", "lcs-d7-00000000000000a")],
+    ["a version of 17 hex", bad("version", "lcs-d7-00000000000000aaa")],
+    ["a version in upper-case hex", bad("version", "lcs-d7-00000000000000AA")],
+    ["a version of another district", bad("version", "lcs-d4-00000000000000aa")],
+    ["a version with a trailing newline", bad("version", `${TEST_VERSION}\n`)],
+    ["a version wrapped in an array", bad("version", [TEST_VERSION])],
+    ["a fetched_at that is not an instant", bad("fetched_at", "2026-10-05 12:00")],
+    ["a fetched_at with an offset, not Z", bad("fetched_at", "2026-10-05T12:00:00+00:00")],
+    ["a fetched_at as epoch ms", bad("fetched_at", NOW.getTime())],
+    ["a fetched_at wrapped in an array", bad("fetched_at", [NOW.toISOString()])],
+    ["a fetched_at in month 13", bad("fetched_at", "2026-13-05T12:00:00Z")],
+    ["a fetched_at at hour 25", bad("fetched_at", "2026-10-05T25:00:00Z")],
+    ["a geojson that is a string", bad("geojson", JSON.stringify(TWO_CLOSURES))],
+    ["a geojson that is one Feature", bad("geojson", TWO_CLOSURES.features[0])],
+    ["a geojson with no features", bad("geojson", { type: "FeatureCollection" })],
+    ["a geojson whose features are an object", bad("geojson", { type: "FeatureCollection", features: {} })],
+    ["a geojson whose features are null", bad("geojson", { type: "FeatureCollection", features: null })],
+    ["a geojson with no type", bad("geojson", { features: TWO_CLOSURES.features })],
+    ["51 polygons", bad("geojson", fiftyOne)],
+    ["a closure that is a Point", bad("geojson", { type: "FeatureCollection",
+      features: [{ type: "Feature", geometry: { type: "Point", coordinates: [-118.6, 34.05] } }] })],
   ];
   for (const path of [...ROUTED, "/isochrone"] as Path[]) {
     for (const [name, make] of cases) {
@@ -137,6 +166,25 @@ describe("unavailable: no set, never silent (R7)", () => {
         const r = await send(path, shipped(make()?.kv));
         expect([r.status, r.json.closures_hazard, models().filter((x) => x.areas !== undefined).length])
           .toEqual([200, { state: "unavailable", version: "none", fetched_at: null }, 0]);
+      });
+    }
+  }
+});
+
+describe("read, by ruling: shapes the reader accepts are fresh, routed around exactly their set (R6, R7)", () => {
+  const cases: [string, string, unknown][] = [
+    ["a FeatureCollection with zero features (R6 writes it when nothing is active)", closuresRecord(NOW, EMPTY_CLOSURES), undefined],
+    ["an unknown extra key (the reader is not strict; stats rides already)", JSON.stringify({ version: TEST_VERSION,
+      fetched_at: NOW.toISOString(), geojson: TWO_CLOSURES, stats: { kept: 2 }, extra: true }), AREAS],
+    ["a version that is not sha256(geojson) (the version is a cache key, never a gate)", closuresRecord(NOW, TWO_CLOSURES,
+      "lcs-d7-ffffffffffffffff"), AREAS],
+  ];
+  for (const path of ROUTED) {
+    for (const [name, text, areas] of cases) {
+      it(`${path}, ${name}: 200, no closures_hazard, areas exactly the record's`, async () => {
+        const r = await send(path, shipped(closuresKv({ [CLOSURES_KEY]: text }).kv));
+        const m = models();
+        expect([r.status, r.json.closures_hazard, m.length > 0, m.map((x) => x.areas)]).toEqual([200, undefined, true, m.map(() => areas)]);
       });
     }
   }
