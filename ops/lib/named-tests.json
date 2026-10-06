@@ -76,6 +76,14 @@
       ],
       "test/isochroneShape.test.ts": [
         "POST /isochrone takes one coordinate at 2 dp and nothing else (R1, P-PRIV-05) > every key at every level is whitelisted, the start is at most 2 dp and minutes is in [30, 240]"
+      ],
+      "test/telemetryWhitelist.test.ts": [
+        "POST /telemetry whitelist through ROUTES['/telemetry'] (T-0279 R3/R4, P-PRIV-05) > every ruled bound and closed-enum edge is accepted and written exactly",
+        "POST /telemetry whitelist through ROUTES['/telemetry'] (T-0279 R3/R4, P-PRIV-05) > every other body is 400 invalid_request with zero writes and no reservation"
+      ],
+      "test/telemetryFixture.test.ts": [
+        "POST /telemetry over the Swift encoder's own JSON (T-0279 R10) > every fixture row is accepted alone and written to Analytics Engine as the identical {indexes, blobs, doubles}",
+        "POST /telemetry over the Swift encoder's own JSON (T-0279 R10) > every published res-5 cell of uber/h3 (rand05centers and the pentagon ring) is an accepted plan_requested cell"
       ]
     },
     "swift": {
@@ -126,7 +134,13 @@
         "ROUTES['/isochrone'] spend control (R4, R5, P-COST-01) > the surprise allowance and one monthly call are reserved before the one router request"
       ],
       "test/killSwitchRoutes.test.ts": [
-        "ROUTES kill switch over every upstream route (P-COST-01) > every upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests, quota state empty"
+        "ROUTES kill switch over every upstream route (P-COST-01) > every upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests, quota state empty",
+        "ROUTES['/telemetry'] kill switch (T-0279 R8, P-COST-01) > ROUTES['/telemetry'] pauses on env KILL and on KV KILL_SWITCH: 503 telemetry_paused, zero Analytics Engine writes, quota state empty"
+      ],
+      "test/telemetryCost.test.ts": [
+        "POST /telemetry spend control (T-0279 R5/R6, P-COST-01) > KILL=1 or the KV KILL_SWITCH key is 503 telemetry_paused before the body is read: zero writes, no reservation",
+        "POST /telemetry spend control (T-0279 R5/R6, P-COST-01) > the request's events are reserved in one transaction before the first Analytics Engine write",
+        "POST /telemetry spend control (T-0279 R5/R6, P-COST-01) > a request that would cross the cap is refused whole; one that lands on it is written"
       ]
     }
   },
