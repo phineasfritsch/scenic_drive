@@ -1,13 +1,13 @@
 ---
 id: T-0285
 title: the ops/funnel tests and mutation population run on every PR - a pin row (anchor source, runs_on linux) that runs ops/lib/funnel_test.py and ops/lib/funnel_mutate.py, seen red
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T17:11:12Z
+lease_expires_at: 2026-10-07T01:11:12Z
+worktree: .worktrees/T-0285
+branch: task/T-0285
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/funnel_test.py]
 pins_affected: [P-PRIV-05]
@@ -25,3 +25,4 @@ fable pass's X1/X2 (exit 2 for an unreadable fixture; the optional 'statistics' 
 
 ## Log
 - 2026-10-06T17:06:00Z filed by agent/claude-opus-5 (orchestrator) after PR #173 (T-0284) review PASS.
+- 2026-10-06T17:11:12Z claimed by agent/claude-opus-5; lease until 2026-10-07T01:11:12Z
