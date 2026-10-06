@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-config");
 
-export const MIN_MUTATIONS = 70;
+export const MIN_MUTATIONS = 73;
 export const SUBJECTS = ["src/config.ts", "src/index.ts"];
 const TESTS = ["test/configRoutes.test.ts", "test/configFields.test.ts", "test/routes.test.ts", "test/requestReadSites.test.ts",
   "test/killSwitchRoutes.test.ts", "test/configWorker.test.ts"];
@@ -118,6 +118,15 @@ export const MUTATIONS = [
   m("fetch-derived-url-unpause", I, URL_LINE, `${URL_LINE}\n    if (url.pathname === "/config" && url.search !== "") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
   m("fetch-header-unpause", I, URL_LINE, `${URL_LINE}\n    if (req.headers.has("x-scenic-unpause")) env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
   m("fetch-method-unpause", I, URL_LINE, `${URL_LINE}\n    if (req.method === "OPTIONS" || req.method === "HEAD") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
+  // T-0288 rv2 B1: the same unpause through spellings the text guard does not key on. The behaviour table sees them
+  // through its cookie and cf variants; the runtime read recorder sees the read itself (APPROVED_READS = ["url"]).
+  m("fetch-reflect-cf-unpause", I, URL_LINE, `${URL_LINE}
+    if (Reflect.get(arguments[0], "cf")?.country === "US") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
+  m("fetch-arguments-cookie-unpause", I, URL_LINE, `${URL_LINE}
+    if ((arguments[0] as Request).headers.get("cookie")?.includes("planning_paused=false")) env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
+  m("fetch-destructure-cf-unpause", I, URL_LINE, `${URL_LINE}
+    const { cf } = req as unknown as { cf?: { colo?: string } };
+    if (cf?.colo === "LAX") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
   m("fetch-trailing-slash-404", I, "ROUTES[url.pathname.length > 1 && url.pathname.endsWith(\"/\") ? url.pathname.slice(0, -1) : url.pathname]", "ROUTES[url.pathname]"),
 ];
 

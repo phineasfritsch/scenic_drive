@@ -177,3 +177,52 @@ only.
   by line" FAILED by name. Full suite on a1c2d23b: `Test Files  57 passed (57)`, `Tests  1712 passed (1712)`. wc -l:
   src/index.ts 120, test/configWorker.test.ts 95, test/configRows.ts 42, test/configRoutes.test.ts 56,
   test/requestReadSites.test.ts 289, test/mutate/configMutants.mjs 224.
+- 2026-10-06T23:40:44Z agent/claude-opus-5 (owner): rv2-t0288 FAIL (PR #177, head 6c69f722) B1 - fail-open, same class as
+  rv1: in default.fetch, after `const url = new URL(req.url);`, the line `if (Reflect.get(arguments[0], "cf")?.country ===
+  "US") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };` left 1712/1712 green (rv2's measurement); (a) VARIANTS
+  had no cf dimension, (b) requestReadSites keys on SPELLINGS (req / .cf / derived names), so Reflect.get(arguments[0],
+  "cf") is no site - a blacklist of spellings. RULINGS, before code:
+  (R1) THE WHITELIST FOR REQUEST READS ON /config IS THE RUNTIME READ RECORDER, not the text guard. The text guard reads
+  source and can only list spellings (req.x, derived names); `arguments[0]`, Reflect.get, destructuring, bracket keys,
+  `in`, Object.keys are each one more spelling, and chasing them is the blacklist CLAUDE.md forbids (PR #101). The
+  recorder sits on the OBJECT the shipped worker.fetch receives, so every read of it is seen whatever the source says:
+  test/recordReads.ts wraps the Request in a Proxy with get/has/ownKeys/getOwnPropertyDescriptor traps; methods are bound
+  to the real target (headers.get / clone / text keep working); objects read off it (headers, cf, body, signal) are
+  wrapped too and logged under the parent path ("cf.country", "headers.get"). The text guard is KEPT AS IS (it still
+  holds every other route's request sites); it is no longer what holds /config, and no spelling is added to it.
+  (R2) APPROVED_READS = ["url"], by measurement: the recorder over all 20 variants x 5 KILL sources x 19 CONFIG rows logs
+  exactly the one `new URL(req.url)` read; the /config handler is `(_req, env) => handleConfig(env)` and reads nothing.
+  Asserted by full equality of the whole [row, kill, variant, reads] table (1900 calls), so a read ADDED anywhere on the
+  /config path - cf, headers, method, body, signal, has:, ownKeys - is a named failure.
+  (R3) env: the response is already asserted by full equality to expected(overrides, killed, warnings) over every KILL
+  source, so a fresh env object that drops KILL/KILL_SWITCH is a behaviour failure; no env recorder is added (it would
+  hold reads of a binding bag the handler legitimately reads, not the request property this class is about).
+  (R4) P-COST-01's named-tests list is NOT extended. P-COST-01 is spend: KILL=1 -> zero upstream calls; /config makes no
+  upstream call and its planning_paused is a client mirror - a wrongly unpaused mirror still meets a 503 at /plan, /loop,
+  /isochrone (bound there). ops/lib/named-tests.json is also outside this task's touches (services/api/). The new tests
+  are held by the configMutants population (TESTS includes configWorker.test.ts; the three new entries are caught).
+  CLOSED: test/configWorker.test.ts - VARIANTS gains `cookie header alone`, `cf country US`, `cf colo LAX asn 13335`,
+  `cf empty object`, and `every dimension at once` now carries cf {country: US} (20 variants with the bare GET); the
+  meta-test's signature adds the request's cf, and its dimension list adds a cookie header and the exact cf set
+  (`{"colo":"LAX","asn":13335}`, `{"country":"US"}` x2, `{}`); new it() `the shipped worker.fetch reads exactly
+  APPROVED_READS off every request variant x KILL source x CONFIG row, any spelling`; new it() `the read recorder names
+  every probe spelling and keeps the request working (headers.get answers through it)` - Reflect.get cf -> [cf,
+  cf.country] "US", arguments[0] cookie -> [headers, headers.get] "planning_paused=false", destructured cf -> [cf,
+  cf.country], bracket method -> [method] "POST", "cf" in q -> [has:cf] true, by full equality.
+  SEEN RED, src/index.ts probes (each inserted after URL_LINE alone, `npx vitest run test/configWorker.test.ts`, json
+  reporter; .build/rv2probe.py, restored byte-equal, `git status --porcelain -- services/api/src` empty):
+    PROBE rv2 exact line: passed=2/5 - FAILED the behaviour table, the planning_paused projection, and `the shipped
+      worker.fetch reads exactly APPROVED_READS off every request variant x KILL source x CONFIG row, any spelling`
+    PROBE arguments cookie: passed=2/5 - the same three FAILED by name
+    PROBE destructure cf: passed=2/5 - the same three FAILED by name
+    PROBE read-only Reflect.get cf (no behaviour change), `void Reflect.get(arguments[0], "cf");`: passed=4/5 - FAILED
+      only `the shipped worker.fetch reads exactly APPROVED_READS ... any spelling` - the read itself is seen, with no
+      unpause to see.
+  POPULATION (--only, floor 70 -> 73): fetch-reflect-cf-unpause (rv2's exact line), fetch-arguments-cookie-unpause,
+  fetch-destructure-cf-unpause. `--prove-floor`: empty table, one short (72), a subject unmutated, a new subject - each
+  REFUSED; real population quiet. `population mutations=73 (floor 73) ... ONLY=3`, `baseline green tests=31`, CAUGHT
+  all three by "every request variant x every KILL source x every CONFIG row answers the bare GET's whole expected
+  response", `RESULT caught=3 missed=0 trap=0 of 3`. Not re-run: the 70 untouched entries (faster verification in rounds).
+  Full suite (pre-merge): `Test Files  57 passed (57)`, `Tests  1714 passed (1714)` (one earlier run under load printed
+  52 files / 1683 and no failure; re-run once, as ruled for load flakes). wc -l: src/index.ts 120 (untouched),
+  test/configWorker.test.ts 137, test/recordReads.ts 36, test/mutate/configMutants.mjs 233.
