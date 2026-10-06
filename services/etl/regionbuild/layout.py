@@ -40,6 +40,18 @@ class Layout:
         return self._named("corpus-fallback.sqlite")
 
     @property
+    def corpus_doc(self) -> pathlib.Path:
+        return self._named("corpus-doc.json")
+
+    @property
+    def corpus_extract(self) -> pathlib.Path:
+        return self._named("corpus-extract.json")
+
+    @property
+    def corpus(self) -> pathlib.Path:
+        return self._named("corpus.sqlite")
+
+    @property
     def clip_xml(self) -> pathlib.Path:
         return self._named("filtered.osm.xml")
 
