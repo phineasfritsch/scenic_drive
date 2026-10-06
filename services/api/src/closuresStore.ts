@@ -24,6 +24,8 @@ export interface ClosuresHazard {
   fetched_at: string | null;
   /** T-0282 N6: the most closures one driven request of the answer did not carry; present only when > 0. */
   dropped?: number;
+  /** T-0286 C6: the closures a returned path still crosses, by id, in stored order; present only when non-empty. */
+  crosses?: string[];
 }
 
 export interface ClosureSnapshot {
@@ -86,12 +88,13 @@ export async function readClosures(kv: Pick<KVNamespace, "get"> | undefined, now
   };
 }
 
-/** The 200 body, with closures_hazard when the snapshot is not fresh (R7) or a driven request left closures out (N6). */
+/** The 200 body, with closures_hazard when the snapshot is not fresh (R7), a driven request left closures out (N6)
+ * or a returned path still crosses a stored closure (T-0286 C6). */
 export function withClosuresHazard<T extends object>(answer: T, snapshot: ClosureSnapshot,
-  dropped = 0): T | (T & { closures_hazard: ClosuresHazard }) {
-  if (dropped === 0) return snapshot.hazard === null ? answer : { ...answer, closures_hazard: snapshot.hazard };
+  dropped = 0, crosses: readonly string[] = []): T | (T & { closures_hazard: ClosuresHazard }) {
+  if (dropped === 0 && crosses.length === 0) return snapshot.hazard === null ? answer : { ...answer, closures_hazard: snapshot.hazard };
   const hazard = snapshot.hazard ?? { state: "fresh" as const, version: snapshot.version, fetched_at: snapshot.fetchedAt };
-  return { ...answer, closures_hazard: { ...hazard, dropped } };
+  return { ...answer, closures_hazard: { ...hazard, ...(dropped > 0 ? { dropped } : {}), ...(crosses.length > 0 ? { crosses: [...crosses] } : {}) } };
 }
 
 /** The feed's polygons first, then `extra` (a loop's retrace squares), at most MAX_CLOSURE_POLYGONS (R8). */
