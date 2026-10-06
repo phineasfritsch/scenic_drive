@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-closures");
 
-export const MIN_MUTATIONS = 91;
+export const MIN_MUTATIONS = 94;
 export const SUBJECTS = ["src/lcsFeed.ts", "src/closuresStore.ts", "src/closuresCron.ts", "src/index.ts", "src/routerDeps.ts",
   "src/reachCache.ts", "src/plan.ts", "src/scenicPlanner.ts", "src/loop.ts", "src/loopPlanner.ts", "src/trip.ts",
   "src/tripPlanner.ts", "src/isochrone.ts"];
@@ -83,6 +83,12 @@ export const MUTATIONS = [
   m("store-fetched-at-unchecked", "closuresStore.ts", "if (typeof r.fetched_at !== \"string\" || !ISO_INSTANT.test(r.fetched_at)) return null;", ""),
   m("store-ms-unchecked", "closuresStore.ts", "if (!Number.isFinite(ms)) return null;", ""),
   m("store-null-geojson-unchecked", "closuresStore.ts", "if (r.geojson === null) return null;", ""),
+  m("store-version-unchecked-on-empty", "closuresStore.ts", "!CLOSURES_VERSION.test(r.version)) return null;",
+    "(!CLOSURES_VERSION.test(r.version) && (r.geojson as {features?: unknown[]} | null)?.features?.length !== 0)) return null;"),
+  m("store-fetched-at-unchecked-on-empty", "closuresStore.ts", "if (typeof r.fetched_at !== \"string\" || !ISO_INSTANT.test(r.fetched_at)) return null;",
+    "if ((typeof r.fetched_at !== \"string\" || !ISO_INSTANT.test(r.fetched_at)) && (r.geojson as {features?: unknown[]} | null)?.features?.length !== 0) return null;"),
+  m("store-empty-never-stale", "closuresStore.ts", "const fresh = age >= 0 && age <= CLOSURES_MAX_AGE_MS;",
+    "const fresh = r.geojson.features.length === 0 || (age >= 0 && age <= CLOSURES_MAX_AGE_MS);"),
   m("store-version-loose","closuresStore.ts", "/^lcs-d7-[0-9a-f]{16}$/", "/^lcs-d7-/"),
   m("store-instant-loose", "closuresStore.ts", "!ISO_INSTANT.test(r.fetched_at)", "false"),
   m("store-throw-is-fresh", "closuresStore.ts", "raw = await kv.get(CLOSURES_KEY);\n  } catch {\n    return UNAVAILABLE;",

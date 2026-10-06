@@ -206,3 +206,21 @@ resources.
   1e41953 merged LAST as dc7914a (queue/claimed/T-0279 only). Gates on the merged head: `npx vitest run` Test Files 40
   passed (40), Tests 917 passed (917); `python ops/lib/check-mutate-population.py` exit 0 (P-PROC-06 floor holds);
   `bash ops/queue-check` QUEUE OK (270 tasks). ops/test not run (orchestrator instruction).
+- 2026-10-06T12:09:40Z rv2 B2 (P-SAFE-08 fail-open) closed as a CLASS. Ruling: rv2 is right - every unavailable row
+  and every stale row built its record over TWO_CLOSURES, none over EMPTY_CLOSURES, the record R6 writes most often
+  (nothing active), so a guard skipped on an empty set (rv2: the version guard under `features?.length !== 0`) and
+  `fresh = features.length === 0 || in-window` left the routes table green; the second was caught only by the one
+  /isochrone cache test. test/closuresRoutes.test.ts: a SETS table {two closures -> AREAS, no closures -> undefined};
+  the stale table is ages x SETS x /plan /loop /trip /isochrone (4 x 2 x 4 = 32), full equality
+  `[status, closures_hazard, models present, areas per model]`; the unavailable table is its 52 rows x SETS x the
+  four routes (416), the base record carrying the set (raw rows that embed a record take it too). wc -l 230.
+  GREEN unmutated: `npx vitest run test/closuresRoutes.test.ts` Tests 471 passed (471) (247 + 224).
+  Population +3: store-version-unchecked-on-empty (rv2 B2, verbatim), store-fetched-at-unchecked-on-empty,
+  store-empty-never-stale; floor literal 91 -> 94. --prove-floor: four arms REFUSED at floor 94, real population
+  quiet. RED by name, new entries only: `--only=store-version-unchecked-on-empty,store-fetched-at-unchecked-on-empty,
+  store-empty-never-stale` (baseline green tests=562) -> CAUGHT store-version-unchecked-on-empty by "/plan, version
+  an empty string over no closures: 200 with closures_hazard unavailable and no areas"; CAUGHT
+  store-fetched-at-unchecked-on-empty by "/plan, a fetched_at that is not an instant over no closures: ..."; CAUGHT
+  store-empty-never-stale by "/plan, a record 30 min + 1 ms old over no closures: 200 with closures_hazard stale,
+  routed around the record's set"; `RESULT caught=3 missed=0 trap=0 of 3`. src/ unchanged (the defect was the
+  missing rows).

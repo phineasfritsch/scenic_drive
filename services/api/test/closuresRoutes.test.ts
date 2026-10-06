@@ -24,6 +24,9 @@ const MAX_AGE_MS = 1_800_000;
 const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
 const AREAS = buildCustomModel(0, TWO_CLOSURES as ClosureCollection).areas;
 const IN_CLOSURES = { if: "in_closure_1 || in_closure_2", multiply_by: "0" };
+/** The sets a record carries x the areas each rides as: R6 writes EMPTY whenever nothing is active, so every stale
+ * and every unavailable row runs over BOTH - a guard skipped on an empty set is a P-SAFE-08 fail-open (rv2 B2). */
+const SETS: [string, ClosureCollection, unknown][] = [["two closures", TWO_CLOSURES as ClosureCollection, AREAS], ["no closures", EMPTY_CLOSURES, undefined]];
 type Path = "/plan" | "/loop" | "/trip" | "/isochrone";
 const BODIES: Record<Path, unknown> = { "/plan": SANTA_MONICA_TOPANGA_BODY, "/loop": LOOP_BODY, "/trip": TRIP_BODY, "/isochrone": REACH_BODY };
 
@@ -101,12 +104,15 @@ describe("stale: the last good set, with the hazard (R7, P-SAFE-08)", () => {
   const ages: [string, number][] = [["30 min + 1 ms old", MAX_AGE_MS + 1], ["45 min old", 2_700_000], ["1 ms in the future", -1], ["a day old", 86_400_000]];
   for (const path of [...ROUTED, "/isochrone"] as Path[]) {
     for (const [name, age] of ages) {
-      it(`${path}, a record ${name}: 200 with closures_hazard stale, routed around the record's set`, async () => {
-        const at = new Date(NOW.getTime() - age);
-        const r = await send(path, shipped(closuresAt(at, TWO_CLOSURES).kv));
-        expect([r.status, r.json.closures_hazard]).toEqual([200, { state: "stale", version: TEST_VERSION, fetched_at: at.toISOString() }]);
-        expect(models().map((x) => x.areas)).toEqual(models().map(() => AREAS));
-      });
+      for (const [setName, set, areas] of SETS) {
+        it(`${path}, a record ${name} over ${setName}: 200 with closures_hazard stale, routed around the record's set`, async () => {
+          const at = new Date(NOW.getTime() - age);
+          const r = await send(path, shipped(closuresAt(at, set).kv));
+          const m = models();
+          expect([r.status, r.json.closures_hazard, m.length > 0, m.map((x) => x.areas)])
+            .toEqual([200, { state: "stale", version: TEST_VERSION, fetched_at: at.toISOString() }, path !== "/isochrone", m.map(() => areas)]);
+        });
+      }
     }
   }
 
@@ -117,26 +123,26 @@ describe("stale: the last good set, with the hazard (R7, P-SAFE-08)", () => {
 });
 
 describe("unavailable: no set, never silent (R7)", () => {
-  const record = (over: Record<string, unknown>) => JSON.stringify({ version: TEST_VERSION, fetched_at: NOW.toISOString(), geojson: TWO_CLOSURES, ...over });
+  const record = (set: unknown, over: Record<string, unknown>) => JSON.stringify({ version: TEST_VERSION, fetched_at: NOW.toISOString(), geojson: set, ...over });
   const fiftyOne = { type: "FeatureCollection", features: Array.from({ length: 51 }, (_, i) => squareClosure(-118.6 + i * 0.01, 34.05)) };
-  const raw = (text: string) => () => closuresKv({ [CLOSURES_KEY]: text });
-  const bad = (field: string, value: unknown) => () => closuresKv({ [CLOSURES_KEY]: record({ [field]: value }) });
+  const raw = (text: (set: unknown) => string) => (set: unknown) => closuresKv({ [CLOSURES_KEY]: text(set) });
+  const bad = (field: string, value: unknown) => (set: unknown) => closuresKv({ [CLOSURES_KEY]: record(set, { [field]: value }) });
   /** Every field record() reads x every shape that is not one: missing, null, wrong type, empty, off the format. */
   const shapes: [string, unknown][] = [["missing", undefined], ["null", null], ["a number", 16], ["true", true],
     ["an empty string", ""], ["an empty array", []], ["an empty object", {}]];
-  const cases: [string, () => ClosuresKv | undefined][] = [
+  const cases: [string, (set: unknown) => ClosuresKv | undefined][] = [
     ["no CLOSURES binding", () => undefined],
     ["a get that throws", () => closuresKv({}, true)],
     ["no record", () => closuresKv({})],
-    ["a record that is not JSON", raw("{")],
-    ["a record that is an empty string", raw("")],
-    ["a record that is JSON null", raw("null")],
-    ["a record that is a number", raw("7")],
-    ["a record that is a string", raw(JSON.stringify(record({})))],
-    ["a record that is an array", raw(`[${record({})}]`)],
-    ["a record that is an empty object", raw("{}")],
+    ["a record that is not JSON", raw(() => "{")],
+    ["a record that is an empty string", raw(() => "")],
+    ["a record that is JSON null", raw(() => "null")],
+    ["a record that is a number", raw(() => "7")],
+    ["a record that is a string", raw((set) => JSON.stringify(record(set, {})))],
+    ["a record that is an array", raw((set) => `[${record(set, {})}]`)],
+    ["a record that is an empty object", raw(() => "{}")],
     ...(["version", "fetched_at", "geojson"] as const).flatMap((field) =>
-      shapes.map(([name, value]): [string, () => ClosuresKv] => [`${field} ${name}`, bad(field, value)])),
+      shapes.map(([name, value]): [string, (set: unknown) => ClosuresKv] => [`${field} ${name}`, bad(field, value)])),
     ["a version off the pattern", bad("version", "lcs-d7-XYZ")],
     ["a version of 15 hex", bad("version", "lcs-d7-00000000000000a")],
     ["a version of 17 hex", bad("version", "lcs-d7-00000000000000aaa")],
@@ -162,11 +168,13 @@ describe("unavailable: no set, never silent (R7)", () => {
   ];
   for (const path of [...ROUTED, "/isochrone"] as Path[]) {
     for (const [name, make] of cases) {
-      it(`${path}, ${name}: 200 with closures_hazard unavailable and no areas`, async () => {
-        const r = await send(path, shipped(make()?.kv));
-        expect([r.status, r.json.closures_hazard, models().filter((x) => x.areas !== undefined).length])
-          .toEqual([200, { state: "unavailable", version: "none", fetched_at: null }, 0]);
-      });
+      for (const [setName, set] of SETS) {
+        it(`${path}, ${name} over ${setName}: 200 with closures_hazard unavailable and no areas`, async () => {
+          const r = await send(path, shipped(make(set)?.kv));
+          expect([r.status, r.json.closures_hazard, models().filter((x) => x.areas !== undefined).length])
+            .toEqual([200, { state: "unavailable", version: "none", fetched_at: null }, 0]);
+        });
+      }
     }
   }
 });
