@@ -5,6 +5,7 @@
  * (pin P-COST-01 will later assert the kill switch covers every entry, not a hand-written list).
  */
 import { asnDepsFromEnv, handleAsn, handleEntitlement } from "./asn";
+import { attestDepsFromEnv, handleAttest, handleAttestChallenge } from "./attest";
 import { handleIsochrone, isochroneDepsFromEnv } from "./isochrone";
 import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
@@ -25,6 +26,9 @@ export interface Env {
   ROUTER_URL?: string; // our GraphHopper; https://router.invalid (the shipped placeholder) counts as absent
   ROUTER_SECRET?: string; // secret: `wrangler secret put ROUTER_SECRET`; sent as x-scenic-router-secret
   ASN_ALLOW_SANDBOX?: string; // "1" applies App Store Sandbox notifications too (T-0267 R7); unset = production only
+  SESSION_JWT_SECRET?: string; // secret: `wrangler secret put SESSION_JWT_SECRET`; absent, /attest is 503 (T-0278 R7)
+  IDENTITY_HEADERS?: string; // "1" = the bare x-scenic-device / x-scenic-account-token migration window (T-0278 R6)
+  APP_ATTEST_ALLOW_DEVELOP?: string; // "1" accepts the appattestdevelop aaguid (T-0278 R4); unset = production only
   GRAPH_VERSION?: string; // the routing graph's version, in the /isochrone cache key (T-0262 R6); unset = "unversioned"
 }
 
@@ -90,6 +94,8 @@ export const ROUTES: Record<string, Handler> = {
   "/trip": (req, env) => handleTrip(req, env, tripDepsFromEnv(env)),
   "/asn": (req, env) => handleAsn(req, asnDepsFromEnv(env)),
   "/entitlement": (req, env) => handleEntitlement(req, asnDepsFromEnv(env)),
+  "/attest/challenge": (req, env) => handleAttestChallenge(req, attestDepsFromEnv(env)),
+  "/attest": (req, env) => handleAttest(req, attestDepsFromEnv(env)),
 };
 
 export default {

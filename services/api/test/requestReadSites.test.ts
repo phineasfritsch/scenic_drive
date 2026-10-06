@@ -7,7 +7,8 @@
  * are skipped. A line that begins a block comment, closes one, or continues one is compared like code - a block
  * comment can open or close in front of code on the same line - so the JSDoc lines that name a request word are
  * approved sites below, by full equality, like every other line.
- * The tier module's ONLY request read is the one ACCOUNT_TOKEN_HEADER line.
+ * The tier module's ONLY request read is the one ACCOUNT_TOKEN_HEADER line. T-0278: the session JWT is read at ONE
+ * site, routerDeps' identify, by AUTHORIZATION_HEADER; sessionIdentity.ts takes that string and reads no request.
  */
 import { describe, expect, it } from "vitest";
 
@@ -36,6 +37,13 @@ const APPROVED: Record<string, string[]> = {
     'if (req.method !== "GET") return json({ error: "GET only" }, 405);',
     TIER_READ,
   ],
+  "../src/attest.ts": [
+    "export async function handleAttestChallenge(req: Request, deps: AttestDeps): Promise<Response> {",
+    POST_ONLY,
+    "export async function handleAttest(req: Request, deps: AttestDeps): Promise<Response> {",
+    POST_ONLY,
+    "const raw: unknown = await req.json();",
+  ],
   "../src/customModel.ts": [
     "*      car_scenic_base.json on the server and are not restated here, because a per-request model that",
   ],
@@ -54,6 +62,8 @@ const APPROVED: Record<string, string[]> = {
     '"/trip": (req, env) => handleTrip(req, env, tripDepsFromEnv(env)),',
     '"/asn": (req, env) => handleAsn(req, asnDepsFromEnv(env)),',
     '"/entitlement": (req, env) => handleEntitlement(req, asnDepsFromEnv(env)),',
+    '"/attest/challenge": (req, env) => handleAttestChallenge(req, attestDepsFromEnv(env)),',
+    '"/attest": (req, env) => handleAttest(req, attestDepsFromEnv(env)),',
     "async fetch(req: Request, env: Env): Promise<Response> {",
     "const url = new URL(req.url);",
     "return handler(req, env, url);",
@@ -93,7 +103,7 @@ const APPROVED: Record<string, string[]> = {
     "export function deviceIdentity(req: Request): { userId: string; tier: Tier } {",
     'const raw = (req.headers.get(DEVICE_HEADER) ?? "").toLowerCase();',
     "const headers = new Headers(init?.headers);",
-    "identify: async (req) => {",
+    "identify: (req) => identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => {",
     "const device = deviceIdentity(req);",
     'return (await accountTier(req, env.DB, now().getTime())) === "paid" ? { ...device, tier: "paid" } : device;',
   ],

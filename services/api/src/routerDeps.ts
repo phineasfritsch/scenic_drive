@@ -7,6 +7,7 @@ import { accountTier } from "./accountTier";
 import type { QuotaCounter } from "./QuotaCounter";
 import type { Tier } from "./quota";
 import { countersFromNamespace } from "./quotaCounters";
+import { AUTHORIZATION_HEADER, identifyCaller, type SessionEnv } from "./sessionIdentity";
 import type { UpstreamDeps } from "./upstream";
 
 /** Every request to our GraphHopper carries this, valued ROUTER_SECRET; the VPS refuses without it (P-COST-03). */
@@ -18,7 +19,7 @@ export const UNIDENTIFIED_DEVICE = "unidentified";
 
 const DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-export interface RouterEnv {
+export interface RouterEnv extends SessionEnv {
   QUOTA?: DurableObjectNamespace<QuotaCounter>;
   /** https://... of our GraphHopper; `/route` is appended. https://router.invalid is the shipped placeholder. */
   ROUTER_URL?: string;
@@ -73,9 +74,10 @@ export function routerDepsFromEnv(env: RouterEnv): RouterDeps | null {
     upstream: { counters: countersFromNamespace(env.QUOTA), fetchImpl, now, killed: () => false },
     routerBase: base,
     // The bucket is the install (R2); a live entitlement of x-scenic-account-token lifts anon to paid (T-0272 R1-R4).
-    identify: async (req) => {
+    // T-0278 R6: a verified session JWT first; the header identity above only without the secret or under the flag.
+    identify: (req) => identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => {
       const device = deviceIdentity(req);
       return (await accountTier(req, env.DB, now().getTime())) === "paid" ? { ...device, tier: "paid" } : device;
-    },
+    }),
   };
 }
