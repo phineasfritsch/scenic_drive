@@ -34,7 +34,7 @@ function square(name: string, c: Pt, half = 0.0005): Feature {
     [c.lon - half, c.lat + half], [c.lon - half, c.lat - half]];
   return { type: "Feature", properties: { lcs_index: name }, geometry: { type: "Polygon", coordinates: [ring] } };
 }
-/** far(i): due south of the origin, 0.01 + 0.002 i degrees - every corridor here heads north of west, so i orders them. */
+/** far(i): due south of `c` (a corridor's midpoint), 0.01 + 0.002 i degrees - farther from the corridor with i. */
 const far = (o: Pt, n: number) => Array.from({ length: n }, (_, i) => square(`far-${i + 1}`, { lat: o.lat - 0.01 - (i + 1) * 0.002, lon: o.lon }));
 /** on(k): centred ON the straight corridor at k/11 of the way (a loop's corridor is its start: nested squares). */
 const on = (o: Pt, d: Pt) => Array.from({ length: 10 }, (_, k) => square(`on-${k + 1}`,
@@ -49,18 +49,19 @@ const CORRIDOR: Record<Path, [Pt, Pt]> = {
   "/loop": [LOOP_BODY.start, LOOP_BODY.start],
   "/trip": [ORIGIN, { lat: BIG_SUR.lat, lon: BIG_SUR.lon }],
 };
+const mid = (o: Pt, d: Pt): Pt => ({ lat: (o.lat + d.lat) / 2, lon: (o.lon + d.lon) / 2 });
 const fresh = (dropped: number) => ({ state: "fresh", version: TEST_VERSION, fetched_at: NOW.toISOString(), dropped });
 const STALE_AT = new Date(NOW.getTime() - MAX_AGE_MS - 1);
 
 interface Variant { name: string; set: (o: Pt, d: Pt) => Feature[]; at: Date; sent: (o: Pt, d: Pt) => Feature[] | null; hazard: unknown }
 const VARIANTS: Variant[] = [
   { name: "empty", set: () => [], at: NOW, sent: () => null, hazard: undefined },
-  { name: "one closure", set: (o) => far(o, 1), at: NOW, sent: (o) => far(o, 1), hazard: undefined },
-  { name: "fifty", set: (o) => far(o, 50), at: NOW, sent: (o) => far(o, 50), hazard: undefined },
-  { name: "over 50, the on-corridor ten stored last", set: (o, d) => [...far(o, 50), ...on(o, d)], at: NOW,
-    sent: (o, d) => [...far(o, 40), ...on(o, d)], hazard: fresh(10) },
+  { name: "one closure", set: (o, d) => far(mid(o, d), 1), at: NOW, sent: (o, d) => far(mid(o, d), 1), hazard: undefined },
+  { name: "fifty", set: (o, d) => far(mid(o, d), 50), at: NOW, sent: (o, d) => far(mid(o, d), 50), hazard: undefined },
+  { name: "over 50, the on-corridor ten stored last", set: (o, d) => [...far(mid(o, d), 50), ...on(o, d)], at: NOW,
+    sent: (o, d) => [...far(mid(o, d), 40), ...on(o, d)], hazard: fresh(10) },
   { name: "a 51-way tie at distance 0", set: (o) => tie(o), at: NOW, sent: (o) => tie(o).slice(0, 50), hazard: fresh(1) },
-  { name: "over 50, stale", set: (o, d) => [...far(o, 50), ...on(o, d)], at: STALE_AT, sent: (o, d) => [...far(o, 40), ...on(o, d)],
+  { name: "over 50, stale", set: (o, d) => [...far(mid(o, d), 50), ...on(o, d)], at: STALE_AT, sent: (o, d) => [...far(mid(o, d), 40), ...on(o, d)],
     hazard: { state: "stale", version: TEST_VERSION, fetched_at: STALE_AT.toISOString(), dropped: 10 } },
 ];
 const areasOf = (features: Feature[] | null) => (features === null ? undefined : buildCustomModel(0, fc(features) as ClosureCollection).areas);
@@ -143,14 +144,21 @@ describe("meta: every row is a function of its variant", () => {
 
 describe("the stored set's bound (N1, N2)", () => {
   it("/plan, 2000 polygons stored: fresh, the 50 nearest sent, 1950 dropped", async () => {
-    const [o] = CORRIDOR["/plan"];
-    const r = await send("/plan", far(o, 2000), NOW);
-    expect([r.status, r.hazard, r.areas]).toEqual([200, fresh(1950), r.areas.map(() => areasOf(far(o, 50)))]);
+    const m = mid(...CORRIDOR["/plan"]);
+    const r = await send("/plan", far(m, 2000), NOW);
+    expect([r.status, r.hazard, r.areas]).toEqual([200, fresh(1950), r.areas.map(() => areasOf(far(m, 50)))]);
   });
 
   it("/plan, 2001 polygons stored: unavailable, no areas, never silent", async () => {
-    const [o] = CORRIDOR["/plan"];
-    const r = await send("/plan", far(o, 2001), NOW);
+    const m = mid(...CORRIDOR["/plan"]);
+    const r = await send("/plan", far(m, 2001), NOW);
+    expect([r.status, r.hazard, r.areas]).toEqual([200, { state: "unavailable", version: "none", fetched_at: null }, r.areas.map(() => undefined)]);
+  });
+
+  it("/plan, 60 polygons stored, the 60th's ring not closed: unavailable - every feature is read, not the first 50", async () => {
+    const set = far(mid(...CORRIDOR["/plan"]), 60);
+    set[59]!.geometry.coordinates[0]!.pop();
+    const r = await send("/plan", set, NOW);
     expect([r.status, r.hazard, r.areas]).toEqual([200, { state: "unavailable", version: "none", fetched_at: null }, r.areas.map(() => undefined)]);
   });
 });
