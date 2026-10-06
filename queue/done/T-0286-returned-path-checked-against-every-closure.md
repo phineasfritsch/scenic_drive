@@ -1,7 +1,7 @@
 ---
 id: T-0286
 title: every returned route is checked against EVERY stored closure (not only the <=50 sent) - a path crossing a dropped closure is re-requested once with that closure swapped in, and if it still crosses, the answer carries a 'crosses closure' hazard instead of a silent route
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T17:35:53Z
@@ -11,7 +11,7 @@ branch: task/T-0286
 exclusive: []
 touches: [services/api/, Tests/Fixtures/t0276/, pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-SAFE-08, P-COST-04]
-reviewer: null
+reviewer: agent/rv1-t0286
 depends_on: [T-0282]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -174,3 +174,22 @@ closure (P-SAFE-08), and it is never silent.
     T-0282's 'nothing re-checks the returned path against the dropped set'; P-COST-04 binds 18 (27); both seen red by
     name; crossingMutants.mjs 59 mutations at the literal floor 59, 5 EQUIVALENT with witnesses, caught 59/59 across
     the whole run plus the re-run of its five survivors.
+- 2026-10-06T20:13:36Z REVIEW PASS (round 1) by agent/rv1-t0286 (not the owner) on 83fcdd6 == origin/task/T-0286, PR #175,
+  in a detached worktree (.worktrees/rv1-t0286, removed after). origin/main (990bb84) is an ancestor of HEAD. Gates run
+  bare: `npx vitest run` Test Files 54 passed (54), Tests 1696 passed (1696); `python ops/lib/run-named-tests.py
+  P-SAFE-08` NAMED P-SAFE-08 passed=833/833; `... P-SAFE-01` passed=15/15; `... P-COST-04` passed=27/27;
+  `python ops/lib/check-mutate-population.py` "P-PROC-06: every added module is covered or allowlisted; the floor of
+  67 holds"; `node services/api/test/mutate/crossingMutants.mjs --prove-floor` empty / one short / src/trip.ts
+  unmutated / src/newModule.ts all REFUSED, the real population quiet; `bash ops/queue-check` QUEUE OK (278 tasks);
+  `gh pr checks 175` core pass, pins-source-only pass. PINS.yaml: both changed P-SAFE-08 / P-COST-04 lines start with
+  the old text byte-for-byte; the 2026-10-06 passages are appended after it. Acceptance 1-3 read against src and the
+  tests: MET (closuresCrossing.test.ts SETS {empty, X alone, the fixture} x SHAPES {clear, vertex, edge, inside,
+  through} x ROUTERS, meta "no row ignores its variant").
+  REVIEWER MUTANT (fail-OPEN, not in the author's population or the pre-review list): src/closuresNearest.ts picker
+  crossed(), `features.some((f) => pathCrossesRing(...))` -> `features.every(...)`, so a multi-polygon closure counts
+  as crossed only when the path crosses every one of its polygons. RED by name: 1 failed / 1695 passed, test/
+  closuresCrossingGeometry.test.ts "dropped() counts the re-request's own left-out closures: a two-polygon crosser
+  displaces two" (bound under P-SAFE-08); restored by git checkout. NON-BLOCKING observation, same shape as the
+  pre-review pass's hole note: the multi-polygon closure, like the holed polygon, is caught only at the picker unit,
+  because the route-level rows use X, a single-polygon closure. A follow-up could add one ROUTES row each for a holed
+  polygon and a multi-polygon closure crossed on its second polygon. No blocking finding.
