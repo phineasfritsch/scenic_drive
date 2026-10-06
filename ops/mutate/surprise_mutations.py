@@ -54,7 +54,8 @@ MUTATED_FILES = SUBJECTS
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Surprise"
 TEST_FILES = (_TESTS / "SurpriseFilterTests.swift", _TESTS / "SurpriseRankTests.swift",
               _TESTS / "SurpriseFeedbackTests.swift", _TESTS / "SurpriseReachParityTests.swift",
-              _TESTS / "SurpriseIsochroneTests.swift") + surprise_offline_mutations.TEST_FILES \n    + surprise_fit_mutations.TEST_FILES
+              _TESTS / "SurpriseIsochroneTests.swift") + surprise_offline_mutations.TEST_FILES + \
+    surprise_fit_mutations.TEST_FILES
 
 F1 = "filter 1: a place whose round trip exceeds the budget, or lies outside the reach, is never picked"
 F2 = "filter 2: a place shown within 90 days is never picked; 90 days ago it may return"
