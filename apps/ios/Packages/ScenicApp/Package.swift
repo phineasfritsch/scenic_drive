@@ -29,7 +29,10 @@ let package = Package(
     products: [
         .library(name: "DesignSystem", targets: ["DesignSystem"]),
         .library(name: "MapAdapter", targets: ["MapAdapter"]),
-        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome"]),
+        // Entitlements rides in the product the app already links (T-0271): the shell gets the paywall and Settings
+        // with no project.pbxproj edit. It is a target of this PRODUCT, not a dependency of the FeatureScenicHome
+        // TARGET - the home never imports it; the shell composes the two.
+        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements"]),
     ],
     dependencies: [
         // The root package: ScenicKit (Coordinate and the scoring core) and Handoff
@@ -86,6 +89,15 @@ let package = Package(
                 .product(name: "Handoff", package: "ScenicDrive"),
             ],
             path: "Sources/FeatureScenicHome",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // The paywall, Settings and Legal & Attribution (T-0271, plan M6). StoreKit and SwiftUI are system frameworks;
+        // DesignSystem is its only package dependency, and no feature target may depend on it
+        // (ops/lib/check-store-links.py refuses `import Entitlements` anywhere but the app shell).
+        .target(
+            name: "Entitlements",
+            dependencies: ["DesignSystem"],
+            path: "Sources/Entitlements",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         // NO TEST TARGETS HERE, deliberately and temporarily.

@@ -78,7 +78,11 @@ public struct ScenicHomeScreen: View {
     @State private var chipBandBottom: CGFloat = 0
     @State private var creditBandTop: CGFloat = 0
 
-    public init() {}
+    /// The settings action (T-0271): a callback the app shell supplies, so this target never imports Entitlements -
+    /// feature targets never import each other (CLAUDE.md), and the shell is where Settings and the paywall compose.
+    private let onSettings: () -> Void
+
+    public init(onSettings: @escaping () -> Void) { self.onSettings = onSettings }
 
     public var body: some View {
         ZStack(alignment: .top) {
@@ -154,7 +158,10 @@ public struct ScenicHomeScreen: View {
     /// (`primary` or `surface`); the band under them is a material with a `border` hairline, so the row reads as one
     /// control over either basemap, in either appearance. Every chip is 44 pt tall (`DriveSelector`).
     private var chips: some View {
-        DriveSelector(selection: $selectedDrive)
+        HStack(spacing: 8) {
+            DriveSelector(selection: $selectedDrive)
+            settingsButton
+        }
             .padding(6)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
@@ -164,6 +171,29 @@ public struct ScenicHomeScreen: View {
             .padding(.horizontal, 12)
             .padding(.top, 4)
             .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { chipBandBottom = $0 }
+    }
+
+    /// Settings (T-0271): a gear at the trailing end of the chip band, inside the same material, so the band's
+    /// measured bottom is still the map's covered edge. 44 pt square, drawn like an unselected chip (`fg` on
+    /// `surface`, a `border` hairline); the action is the shell's (`onSettings`).
+    private var settingsButton: some View {
+        Button(action: onSettings) {
+            Image(systemName: "gearshape")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(DesignTokens.fg)
+                .frame(width: 44, height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(DesignTokens.surface)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(DesignTokens.border, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Settings")
+        .accessibilityIdentifier("home.settings")
     }
 
     /// The selected menu row (T-0246), or `nil` for a drive without a menu: what the line, the button, the paste

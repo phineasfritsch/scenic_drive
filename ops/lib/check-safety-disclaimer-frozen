@@ -138,7 +138,10 @@ FROZEN_SCREEN_BODY=(
 )
 FROZEN_CHIPS=(
   'private var chips: some View {'
+  'HStack(spacing: 8) {'
   'DriveSelector(selection: $selectedDrive)'
+  'settingsButton'
+  '}'
   '.padding(6)'
   '.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))'
   '.overlay('
@@ -168,9 +171,14 @@ FROZEN_CONDITIONS=(
 )
 FROZEN_APP_SHELL=(
   'struct ScenicDriveApp: App {'
+  '@State private var isShowingSettings = LaunchScreen.atLaunch != .home'
+  ''
   'var body: some Scene {'
   'WindowGroup {'
-  'ScenicHomeScreen()'
+  'ScenicHomeScreen(onSettings: { isShowingSettings = true })'
+  '.sheet(isPresented: $isShowingSettings) {'
+  'SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, onDone: { isShowingSettings = false })'
+  '}'
   '}'
   '}'
   '}'
@@ -240,7 +248,7 @@ require_frozen_blocks() {
   local shell="$app_tree/ScenicDrive/ScenicDriveApp.swift"
   FROZEN_BAD=()
   frozen_block "$sheet" "HomeSheet's struct" FROZEN_HOME_SHEET "import SwiftUI"
-  frozen_block "$screen" "ScenicHomeScreen's body (the ZStack and its modifier chain)" FROZEN_SCREEN_BODY "public init() {}"
+  frozen_block "$screen" "ScenicHomeScreen's body (the ZStack and its modifier chain)" FROZEN_SCREEN_BODY "public init(onSettings: @escaping () -> Void) { self.onSettings = onSettings }"
   frozen_block "$screen" "ScenicHomeScreen's chips" FROZEN_CHIPS "}"
   frozen_block "$screen" "ScenicHomeScreen's sheetDetails" FROZEN_SHEET_DETAILS "}"
   frozen_block "$screen" "ScenicHomeScreen's conditions" FROZEN_CONDITIONS "}"

@@ -40,6 +40,8 @@ SHEET_MOUNT=(
 SHEET_OPEN=("VStack(spacing: 0) {" "chips" "" "Spacer(minLength: 0)" "")
 SHEET_CLOSE=("}" "}" ".background(DesignTokens.bg)")
 SHEET_PRESENTATION='.sheet(isPresented: $isShowingDisclaimer) {'
+SHELL_REL="ScenicDrive/ScenicDriveApp.swift"
+SHELL_PRESENTATION='.sheet(isPresented: $isShowingSettings) {'
 SHEET_PRESENTERS=(".sheet(" ".fullScreenCover(" ".popover(" ".inspector(" "presentationDetents")
 
 # Every line of one file that can hold code, "<line number>\t<trimmed line>", trailing CR stripped.
@@ -112,11 +114,16 @@ require_sheet_mount() {
   for p in "${SHEET_PRESENTERS[@]}"; do
     mapfile -t seen < <(sheet_occurrences "$p" "$@")
     local want=""
-    [[ "$p" == ".sheet(" ]] && want="$SHEET_SCREEN_REL(1)"
+    [[ "$p" == ".sheet(" ]] && want="$SHEET_SCREEN_REL(1) $SHELL_REL(1)"
     [[ "${seen[*]}" == "$want" ]] || sites+=("$p at ${seen[*]:-none}, tracked ${want:-nowhere}")
   done
   line="$(sheet_code_lines "$screen" | cut -f2- | grep -c -F -x -e "$SHEET_PRESENTATION" || true)"
   [[ "$line" -eq 1 ]] || sites+=("the approved line \`$SHEET_PRESENTATION\` occurs $line time(s) in $screen, expected 1")
+  # T-0271: the shell's one sheet is Settings, opened by the user from the gear (its content is the frozen shell
+  # block, -frozen). Approved by WHOLE line like the disclaimer's, so a second sheet in the shell is refused.
+  local shell="${screen%/Packages/*}/$SHELL_REL"
+  line="$(sheet_code_lines "$shell" | cut -f2- | grep -c -F -x -e "$SHELL_PRESENTATION" || true)"
+  [[ "$line" -eq 1 ]] || sites+=("the approved line \`$SHELL_PRESENTATION\` occurs $line time(s) in $shell, expected 1")
   [[ "${#sites[@]}" -eq 0 ]] || fail "a presentation over the map outside its approved site:" \
     "${sites[@]}" \
     "Every presentation in the app tree is the one safety-disclaimer sheet (P-SAFE-03). A drive card presented as" \
