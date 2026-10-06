@@ -31,8 +31,8 @@
 #
 # WHAT IT CANNOT SEE: whether any of it RENDERS - visible, hittable and uncovered at BOTH detents is a runtime
 # property, T-0180's both-detents clause (main 558e154); a shadow or an overload declared OUTSIDE the pinned set -
-# the rest of DesignSystem, ScenicKit, MapAdapter, PlaceStore (the app shell ScenicDrive/ IS pinned since T-0273's
-# M1: its entries and ScenicDriveApp.swift's bytes), a SwiftPM or Xcode setting that adds sources - and the spellings the
+# ScenicKit, PlaceStore and Swift outside apps/ios (every *.swift under apps/ios IS pinned since rv2-t0273 B1, by
+# require_pinned_app_swift below; the app shell's entries and bytes since T-0273's M1), a SwiftPM or Xcode setting that adds sources - and the spellings the
 # Swift readers do not parse (T-0243); what SwiftUI itself draws. It proves the bytes are the reviewed bytes; it
 # cannot prove the reviewed bytes are right, which is every other limb's job and the reviewer's.
 PINNED_REASON="the pinned render surface changed"
@@ -189,4 +189,82 @@ require_pinned_surface() {
     "frozen block blanked the line, the sheet or the credit; T-0273: the card's Apple Maps tap, and M1's" \
     "\`struct SurpriseCard\` shadow appended to the shell). Approve an edit by typing its new digest" \
     "in the same commit, deliberately."
+}
+
+# T-0273 rv2-t0273 B1: EVERY Swift file under apps/ios, pinned by name and by content. rv2 opened Apple Maps from a
+# home-screen map tap with no disclaimer through an unbound method reference (`let go = scene.open`) in a NEW file
+# MapAdapter/MapTapHandoff.swift, wired by one line in MapView.makeUIView - a module no limb pinned. Pinning one more
+# module would buy the next round one module at a time, so the population is the whole app: every entry under the
+# app tree named *.swift (any case, any depth, any kind) is exactly one of the paths below and a REGULAR FILE, and
+# each hashes to its approved digest (CRLF normalized, as pinned_digest). A Swift file added, removed, renamed or
+# changed ANYWHERE under apps/ios - a feature module, MapAdapter, the shell, a test - is refused by name until its
+# line below is typed again in the same commit, with the reason in the task's Log. Run LAST, after -doors.
+PINNED_APP_SWIFT=(
+  'Packages/ScenicApp/Package.swift e9b3e1a82f759a1962bd83d0a888f0d5b0e90ee23b90c4b5b510f94cd7d35b5d'
+  'Packages/ScenicApp/Sources/DesignSystem/AttributionFooter.swift 8f07bec7abe9690183813b79af08d404add796088bf497781b560d7e4bc7c0b7'
+  'Packages/ScenicApp/Sources/DesignSystem/Clipboard.swift 190ab3a7c0091a8c769bd297e4f0a55c61633e190d4752232f0bed2376c98716'
+  'Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift 8a39ca69f0094fa24d7e034449dd4fcab880be0fa895bf71a5c6a51ecc1fef39'
+  'Packages/ScenicApp/Sources/Entitlements/LaunchScreen.swift 5b0f19f1cc1cc3d54fdab7cfcac59c50c0057ce07375c2b8158441458d82dc8a'
+  'Packages/ScenicApp/Sources/Entitlements/LegalAttributionScreen.swift bed642cf5b89f16bcbfbaf9818019a141b6952d7fe9d8868a0e02223a9064af0'
+  'Packages/ScenicApp/Sources/Entitlements/PaywallScreen.swift bd6dd2f6c937ac422b7c2f0d60a60dd2ceadb2a16b0293c397433be538968bee'
+  'Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift 62b2ae4c3797fc960e0ff1e8bcbf7caf35052b427320fd867a40a70d4fd1bc1c'
+  'Packages/ScenicApp/Sources/Entitlements/StoreConstants.swift aed28404d9bbd4b8b9bdeb9c1d430bc574be182686b53661cc70991365457d54'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/DriveBasemap.swift 2bd28e278bcff56eee61f86b2c4504cc0a8dabfe9497f421952da1b1bb8505be'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/DriveCopy.swift 3a35deca6bb63815dacb5975c0c7e5846774d74a5f08dbda8bad8449de09c08e'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/DriveDetails.swift 9bf22e384eff9fb8910de7e7263298e88394d3af298833b2c9bb325ca3990530'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/DriveFacts.swift bdd9511bac9d73e4d3abc3fccacb68e7153bba2742155f4248558259f5ce1ae9'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/DriveMenuChips.swift d5f9c2015b1b9d7095d2c864f0b750cfa6ce1a16b2ddf1334a28ecc7ce0adf57'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/DriveRoute.swift 5a64c9b70b228ae194d6ceb67eb7bcabe016f33daaa253561378659bf0a94cd8'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/DriveSelector.swift ce63eea4128a64116e5f8daff2692225e12efe297d8d1a80eb9ed614306ce21e'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/GatedHandoffButton.swift ec13a5c9ea4d3e4ad28e699c08b26807687e94b2fdd67549b5ccbc9008a38139'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/HandoffFailureCard.swift 94f62ec7d65e7c97b65c77bee5c128b63125b48f8998e0365b1aa73ccef4cb14'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/HomeSheet.swift fda5e599a9c3b09203de6fc835e47cd3592cb91864518e9226d6e35204b9154e'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/HomeSheetDetent.swift 8f6a8eeaec6829a1b415408db5ea34d787d657919fc0f363189eb34c0e39e63e'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/SafetyDisclaimer.swift 7c33cdcf91aa074bf3916fda95c680e9e8d50ee131d5016f5912281a72384421'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift 66a5c03e9706998c1cb35675595116ae67d70554a714907f53e14ee7c6d4cc66'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/SkylineHandoff.swift 43fa2c19ce81f0cb217cfd98f5da383465ac1bb87ae5d5ac4d97017f74eff70c'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/SurpriseSlot.swift 2306572ab23e70b3050f3e6b41f3e91587b79fb8693eab0f8b4b896e234c124b'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/SurpriseToggle.swift 97d90de6d95a6d7f1e1f0b8cb99df6e46ac250d890fdbb182da4a956b3e4770a'
+  'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift e1fc22021c5776d52449a9f74f7086a0c369b871695e162a9806804b06bbfe01'
+  'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseDeck.swift 627ec4d1511f75c3d19f0d74d8cedd1df439a66d200f4a8004999bfed6cd44ee'
+  'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseNotThis.swift 05e8115a07c0e5864a311d10089155adf2937960c9edd3f38eec877a6c952bdd'
+  'Packages/ScenicApp/Sources/MapAdapter/BasemapResolver.swift ad9f029ba5dacebc10676e6c4eaf176923eb663de48c388da70240404054f572'
+  'Packages/ScenicApp/Sources/MapAdapter/MapAppearance.swift f22a1cfb07f38b83f105c749a743de0613827d8987a4fcbc1039041aff854c6b'
+  'Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift 139d705f30cf85ed1afa387add72e3e9684e50dee46c3eee79706ec49083e458'
+  'Packages/ScenicApp/Sources/MapAdapter/MapRouteCoordinator.swift e8233c08cd1d414bb737a7db8ec1934df9b9505813702a5469646e615678b036'
+  'Packages/ScenicApp/Sources/MapAdapter/MapStyle.swift 4f79d0cd4c0f21e50378774ba23a1726e9dee9f02a899b41dd2daaec22debd1d'
+  'Packages/ScenicApp/Sources/MapAdapter/MapView.swift 42c3624599b8bea841f7cdeaa563c26aa1d98d8dbeb996c4614b001f339942df'
+  'Packages/ScenicApp/Sources/MapAdapter/ScenicDarkStyle.swift 5f08312050cf1bd768acd3ad009c179ac948f755f17cc42eb9b68e8743ea766e'
+  'Packages/ScenicApp/Sources/MapAdapter/ScenicLightStyle.swift 19be80686c3e924dbb0c2e5822fb3ab4d873a32857eb931264533f72b86669c8'
+  'Packages/ScenicApp/Sources/MapAdapter/ScenicStyleDocument.swift 56c6a71c06dde0b415ac1619def6b672833c965886b476f08fd79028824114db'
+  'ScenicDrive/ScenicDriveApp.swift 52556b14b83d334a141a827dce99a64d30369eb4d55a58cb31711f80d9d8fc3f'
+)
+
+# require_pinned_app_swift APP_TREE: the app tree's Swift file set against PINNED_APP_SWIFT, then every digest.
+require_pinned_app_swift() {
+  local tree="${1%/}" found=() nonreg=() approved=() spec bad=() got added missing
+  [[ -d "$tree" ]] || fail "$PINNED_REASON: no such directory: $tree" \
+    "Every Swift file under the app tree is pinned; a missing tree is a refusal, never a pass."
+  mapfile -t found < <(cd "$tree" && find . -mindepth 1 -iname '*.swift' | sed -e 's|^\./||' | LC_ALL=C sort)
+  mapfile -t nonreg < <(cd "$tree" && find . -mindepth 1 -iname '*.swift' ! -type f | sed -e 's|^\./||' | LC_ALL=C sort)
+  for spec in "${PINNED_APP_SWIFT[@]}"; do approved+=("${spec%% *}"); done
+  added="$(LC_ALL=C comm -23 <(printf '%s\n' "${found[@]}") <(printf '%s\n' "${approved[@]}" | LC_ALL=C sort) \
+    | sed -e '/^$/d' | tr '\n' ' ')"
+  missing="$(LC_ALL=C comm -13 <(printf '%s\n' "${found[@]}") <(printf '%s\n' "${approved[@]}" | LC_ALL=C sort) \
+    | sed -e '/^$/d' | tr '\n' ' ')"
+  [[ -z "$added" ]] || bad+=("added ${added% }")
+  [[ -z "$missing" ]] || bad+=("missing ${missing% }")
+  [[ "${#nonreg[@]}" -eq 0 ]] || bad+=("not a regular file ${nonreg[*]}")
+  [[ "${#bad[@]}" -eq 0 ]] || fail "$PINNED_REASON: the app's Swift file set is not the approved one: ${bad[*]}." \
+    "Found ${#found[@]} *.swift entr(ies) under $tree; approved ${#approved[@]}, typed in ops/lib/check-safety-disclaimer-pinned." \
+    "A new Swift file in any module can open a URL through a spelling no opener list names (rv2-t0273 B1:" \
+    "\`let go = scene.open\` in a new MapAdapter file). Approve an added, removed or renamed file there."
+  for spec in "${PINNED_APP_SWIFT[@]}"; do
+    got="$(pinned_digest "$tree/${spec%% *}")"
+    [[ "$got" == "${spec##* }" ]] || bad+=("${spec%% *} content changed (sha256 $got, approved ${spec##* })")
+  done
+  [[ "${#bad[@]}" -eq 0 ]] || fail "$PINNED_REASON: ${bad[0]}" "${bad[@]:1}" \
+    "Every byte of every Swift file under $tree is pinned (rv2-t0273 B1). Approve an edit by typing its new digest" \
+    "in ops/lib/check-safety-disclaimer-pinned in the same commit, deliberately - \`sed -e 's/\r\$//' FILE | sha256sum\`."
+  PINNED_APP_FILES="${#found[@]}"
 }

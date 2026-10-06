@@ -106,6 +106,14 @@ rows=(
   "T-0273 rv1 B2 the card's target path swapped|~Packages/ScenicApp/Sources/FeatureSurpriseMeLive/SurpriseCard.swift|import SwiftUI; import UIKit; public struct SurpriseCard: View { public init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; public var body: some View { Button(\"Open in Apple Maps\") { UIApplication.shared.open(URL(string: \"maps://?daddr=34.07,-118.65\")!) } } }|target map (c) added"
   "T-0273 a SurpriseCard shadow outside the shell|+Packages/ScenicApp/Sources/Entitlements/SurpriseCard.swift|import SwiftUI; public struct SurpriseCard: View { public init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; public var body: some View { EmptyView() } }|composed view (b) added"
   "T-0273 an environment openURL in DesignSystem|+Packages/ScenicApp/Sources/DesignSystem/Escape.swift|import SwiftUI; public struct Escape: View { @Environment(\\.openURL) private var go; public init() {}; public var body: some View { Button(\"Go\") { go(URL(string: \"maps://?daddr=34.07,-118.65\")!) } } }|URL opener (a) added"
+  # Rows 41-43 are rv2-t0273 B1's class. 41 is rv2's two-file mutant: a NEW MapAdapter/MapTapHandoff.swift whose tap
+  # opens Apple Maps through `let go = scene.open` (UIWindowScene.open, unbound), wired by ONE line added to
+  # MapView.makeUIView (a fifth field `FILE@@SED` is that second file's edit); -doors' bare `open`/`windowScene`
+  # tokens refuse it first. 42 (one line added to an existing MapAdapter file) and 43 (a UI test file in a NEW
+  # directory, `^` making its parents) name no opener at all, and each is red only on -pinned's whole-app Swift pin.
+  "T-0273 rv2 B1 a map tap opens Maps via scene.open|+Packages/ScenicApp/Sources/MapAdapter/MapTapHandoff.swift|import UIKit; enum MapTapHandoff { @MainActor static func recognizer() -> UITapGestureRecognizer { UITapGestureRecognizer(target: Tap.shared, action: #selector(Tap.fire(_:))) } }; @MainActor final class Tap: NSObject { static let shared = Tap(); @objc func fire(_ sender: UITapGestureRecognizer) { guard let scene = sender.view?.window?.windowScene, let url = URL(string: \"maps://?daddr=34.07,-118.65\") else { return }; let go = scene.open; go(url, nil, nil) } }|Packages/ScenicApp/Sources/MapAdapter/MapView.swift@@s/^        mapView.delegate = context.coordinator$/&\n        mapView.addGestureRecognizer(MapTapHandoff.recognizer())/|URL opener (a) added: Packages/ScenicApp/Sources/MapAdapter/MapTapHandoff.swift"
+  "T-0273 rv2 a one-line edit to a MapAdapter file|Packages/ScenicApp/Sources/MapAdapter/MapView.swift|s/^        mapView.delegate = context.coordinator$/&\n        mapView.isRotateEnabled = false/|Packages/ScenicApp/Sources/MapAdapter/MapView.swift content changed"
+  "T-0273 rv2 a UI test file added in a new directory|^ScenicDriveUITests/EscapeUITests.swift|import XCTest; final class EscapeUITests: XCTestCase { func testNothing() { XCTAssertTrue(true) } }|added ScenicDriveUITests/EscapeUITests.swift"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
@@ -133,6 +141,7 @@ for row in "${rows[@]}"; do
   file="${rest%%|*}"; rest="${rest#*|}"
   script="${rest%%|*}"
   expect="${rest##*|}"
+  mid="${rest#*|}"; extra=""; [[ "$mid" == *"|"* ]] && extra="${mid%|*}"
 
   dir="$work/m$total"
   rm -rf "$dir"
@@ -146,11 +155,12 @@ for row in "${rows[@]}"; do
       "s|path: \"Sources/FeatureSurpriseMe\",|path: \"$new\",|" "$dir/Packages/ScenicApp/Package.swift" && \
       ! cmp -s "$APP_TREE/Packages/ScenicApp/Package.swift" "$dir/Packages/ScenicApp/Package.swift" || \
       { echo "  CANNOT SWAP the path in the copy: $label"; exit 1; }
-  elif [[ "$file" == [+@=]* ]]; then
+  elif [[ "$file" == [+@=^]* ]]; then
     kind="${file:0:1}"; file="${file#?}"
+    [[ "$kind" != "^" ]] || mkdir -p "$dir/$(dirname "$file")"
     [[ -d "$dir/$(dirname "$file")" && ! -e "$dir/$file" ]] || { echo "  CANNOT ADD in the copy: $file"; echo "$label"; exit 1; }
     case "$kind" in
-      +) if [[ "$file" == */ ]]; then mkdir "$dir/$file"; else printf '%s\n' "$script" > "$dir/$file"; fi ;;
+      +|^) if [[ "$file" == */ ]]; then mkdir "$dir/$file"; else printf '%s\n' "$script" > "$dir/$file"; fi ;;
       @) mkdir "$work/t$total" && printf '%s\n' "$script" > "$work/t$total/Shadow.swift" && \
            row_link "$work/t$total" "$dir/$file" || { echo "  CANNOT LINK in the copy: $label"; exit 1; } ;;
       =) blob="$(printf '%s' "$script" | git -C "$dir" hash-object -w --stdin)" && \
@@ -160,6 +170,11 @@ for row in "${rows[@]}"; do
     [[ -f "$dir/$file" ]] || { echo "  NO SUCH FILE in the copy: $file"; echo "$label"; exit 1; }
     sed -i -e "$script" "$dir/$file"
     cmp -s "$APP_TREE/$file" "$dir/$file" && { echo "  THE MUTATION CHANGED NOTHING: $label"; exit 1; }
+  fi
+  if [[ -n "$extra" ]]; then
+    efile="${extra%%@@*}"; [[ -f "$dir/$efile" ]] || { echo "  NO SUCH FILE in the copy: $efile"; echo "$label"; exit 1; }
+    sed -i -e "${extra#*@@}" "$dir/$efile"
+    cmp -s "$APP_TREE/$efile" "$dir/$efile" && { echo "  THE SECOND EDIT CHANGED NOTHING: $label"; exit 1; }
   fi
 
   out="$(bash "$CHECK" --sources "$dir/$FS" --app-tree "$dir" 2>&1)"

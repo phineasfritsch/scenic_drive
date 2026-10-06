@@ -16,6 +16,11 @@
 #       AttributedString, SFSafariViewController, ASWebAuthenticationSession, UIActivityViewController, WKWebView,
 #       and the runtime's NSSelectorFromString / NSClassFromString / objc_msgSend / dlsym - is one of DOORS_OPENERS:
 #       SkylineHandoff's one open, the gate's one call to it, and the paywall / Settings / Legal store links.
+#       rv2-t0273 B1 (`let go = scene.open; go(url, nil, nil)`, UIWindowScene.open as an unbound method reference, in a
+#       new MapAdapter file) named none of those spellings, so the opener token is also a BARE IDENTIFIER: `open`,
+#       `windowScene`, `UIScene`, `UIWindowScene`, `perform` and `value(forKey` anywhere on a line - a reference, a
+#       parameter, a local or a string - and every such line is approved by whole line below, like the rest. This
+#       list is defence in depth; the class is closed by -pinned's require_pinned_app_swift (every app .swift byte).
 #   (b) THE COMPOSED VIEWS. Every line naming SurpriseCard, ScenicHomeScreen or SettingsScreen - the three views
 #       the shell composes - is one of DOORS_VIEWS: each declared once, at its own file, and named by the shell's
 #       one line. A second declaration, typealias, extension or overload anywhere under apps/ios is refused by name.
@@ -32,7 +37,7 @@
 # calls above); whether an approved line does what it says - every other limb's job, and the reviewer's.
 DOORS_REASON="a door out of the app is not at its approved site"
 DOORS_PACKAGE_REL="../../Package.swift"
-DOORS_OPENER_RE='UIApplication|NSWorkspace|[Oo]penURL|ShareLink|Link[[:space:]]*[(]|[.]open[[:space:]]*[(]|[]][(]|[.]link([^A-Za-z0-9_]|$)|AttributedString|SFSafariViewController|ASWebAuthenticationSession|UIActivityViewController|WKWebView|NSSelectorFromString|NSClassFromString|objc_msgSend|dlsym'
+DOORS_OPENER_RE='UIApplication|NSWorkspace|[Oo]penURL|ShareLink|Link[[:space:]]*[(]|(^|[^A-Za-z0-9_])(open|windowScene|UIScene|UIWindowScene|perform)([^A-Za-z0-9_]|$)|value[(]forKey|[]][(]|[.]link([^A-Za-z0-9_]|$)|AttributedString|SFSafariViewController|ASWebAuthenticationSession|UIActivityViewController|WKWebView|NSSelectorFromString|NSClassFromString|objc_msgSend|dlsym'
 DOORS_VIEWS_RE='(^|[^A-Za-z0-9_])(SurpriseCard|ScenicHomeScreen|SettingsScreen)([^A-Za-z0-9_]|$)'
 DOORS_PACKAGE_RE='(^|[^A-Za-z0-9_])(path|name|sources|exclude|resources|targets|publicHeadersPath)[[:space:]]*:'
 
@@ -45,8 +50,14 @@ DOORS_OPENERS=(
   "$S/Entitlements/SettingsScreen.swift|"'            Link(destination: StoreConstants.privacyPolicyURL) {'
   "$S/FeatureScenicHome/GatedHandoffButton.swift|"'            try SkylineHandoff.open(drive, row: row, place: place)'
   "$S/FeatureScenicHome/SkylineHandoff.swift|"'        UIApplication.shared.open(destinationURL, options: [:], completionHandler: nil)'
+  "$S/FeatureScenicHome/GatedHandoffButton.swift|"'        static let handoffFailed = "Couldn'"'"'t open Apple Maps. Try again."'
+  "$S/FeatureScenicHome/SkylineHandoff.swift|"'    public static func open(_ drive: HandoffDrive, row: DriveMenuRow?, place: Coordinate? = nil) throws {'
+  "$S/FeatureScenicHome/SurpriseSlot.swift|"'    public typealias Builder = @MainActor (_ open: @escaping @MainActor (Coordinate) -> Void,'
+  "$S/MapAdapter/MapRouteCoordinator.swift|"'            let open = mapView.bounds.height - padding.top - padding.bottom'
+  "$S/MapAdapter/MapRouteCoordinator.swift|"'            guard open > Self.margin else { return }'
 )
 DOORS_SHELL_LINE='            ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })'
+DOORS_OPENERS+=("ScenicDrive/ScenicDriveApp.swift|$DOORS_SHELL_LINE")
 DOORS_VIEWS=(
   "$S/Entitlements/SettingsScreen.swift|"'public struct SettingsScreen: View {'
   "$S/Entitlements/SettingsScreen.swift|"'                let text = SettingsScreen.describe(state)'

@@ -261,7 +261,7 @@ run_check() {
     "the same store without naming the identifier once, and the whitelist above cannot see it." \
     -- "${app_files[@]}"
   require_frozen_blocks "$sources" "$app_tree"
-  require_pinned_surface "$sources"; require_closed_doors "$sources" "$app_tree"
+  require_pinned_surface "$sources"; require_closed_doors "$sources" "$app_tree"; require_pinned_app_swift "$app_tree"
   echo "P-SAFE-03: $n Swift file(s) under $sources; SafetyDisclaimer declared once in its own file;"
   echo "  home.disclaimer + home.conditions in ScenicHomeScreen.swift, home.disclaimer.accept in"
   echo "  SafetyDisclaimer.swift, the persistent line present, @AppStorage(\"$STORAGE_KEY\")"
@@ -275,7 +275,7 @@ run_check() {
   echo "  and a sheet bound to that flag on the screen; \`$ACK_IDENT = true\` written exactly once, at"
   echo "  line $ACK_WRITE_LINE, inside the SafetyDisclaimer(onAccept: { block opening at line $ACK_ACCEPT_LINE;"
   echo "  and by occurrence over the app tree, $ACK_IDENT at $ack_set, the key at $key_set."
-  echo "  Frozen (-frozen); $PINNED_FILES feature file(s), shell, footer pinned (-pinned); LAST doors over $DOORS_FILES .swift (-doors)."
+  echo "  Frozen (-frozen); $PINNED_FILES feature file(s), shell, footer pinned (-pinned); doors over $DOORS_FILES .swift (-doors); LAST all $PINNED_APP_FILES app .swift by sha256."
   echo "  Not checked here: rendering (T-0180), taps, whether that write RUNS, contrast, Dynamic Type, 44 pt."
 }
 
