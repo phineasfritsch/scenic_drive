@@ -200,3 +200,9 @@ resources.
   ..."; CAUGHT store-ms-unchecked by "/plan, a fetched_at in month 13: ..."; CAUGHT store-geojson-unchecked by
   "/plan, geojson missing: ..."; CAUGHT store-version-loose, store-instant-loose; `RESULT caught=8 missed=0 trap=0 of
   8`. src/closuresStore.ts unchanged (the guard rv1 deleted was already there; the defect was the missing row).
+- 2026-10-06T11:35:01Z FINAL (rv1 B1 fix). CORRECTION to the 11:28:04Z entry: the unavailable table grows 9 -> 52 rows
+  (+44 new, the "no geojson" row renamed "geojson missing"), x4 paths = 208 tests, not 50 / 200; the suite delta is
+  43 x 4 + 9 ruled = 181 (736 -> 917), which is how it was caught. `git fetch origin` (main checkout); origin/main
+  1e41953 merged LAST as dc7914a (queue/claimed/T-0279 only). Gates on the merged head: `npx vitest run` Test Files 40
+  passed (40), Tests 917 passed (917); `python ops/lib/check-mutate-population.py` exit 0 (P-PROC-06 floor holds);
+  `bash ops/queue-check` QUEUE OK (270 tasks). ops/test not run (orchestrator instruction).
