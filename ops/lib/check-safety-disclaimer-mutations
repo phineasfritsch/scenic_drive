@@ -114,6 +114,16 @@ rows=(
   "T-0273 rv2 B1 a map tap opens Maps via scene.open|+Packages/ScenicApp/Sources/MapAdapter/MapTapHandoff.swift|import UIKit; enum MapTapHandoff { @MainActor static func recognizer() -> UITapGestureRecognizer { UITapGestureRecognizer(target: Tap.shared, action: #selector(Tap.fire(_:))) } }; @MainActor final class Tap: NSObject { static let shared = Tap(); @objc func fire(_ sender: UITapGestureRecognizer) { guard let scene = sender.view?.window?.windowScene, let url = URL(string: \"maps://?daddr=34.07,-118.65\") else { return }; let go = scene.open; go(url, nil, nil) } }|Packages/ScenicApp/Sources/MapAdapter/MapView.swift@@s/^        mapView.delegate = context.coordinator$/&\n        mapView.addGestureRecognizer(MapTapHandoff.recognizer())/|URL opener (a) added: Packages/ScenicApp/Sources/MapAdapter/MapTapHandoff.swift"
   "T-0273 rv2 a one-line edit to a MapAdapter file|Packages/ScenicApp/Sources/MapAdapter/MapView.swift|s/^        mapView.delegate = context.coordinator$/&\n        mapView.isRotateEnabled = false/|Packages/ScenicApp/Sources/MapAdapter/MapView.swift content changed"
   "T-0273 rv2 a UI test file added in a new directory|^ScenicDriveUITests/EscapeUITests.swift|import XCTest; final class EscapeUITests: XCTestCase { func testNothing() { XCTAssertTrue(true) } }|added ScenicDriveUITests/EscapeUITests.swift"
+  # Rows 44-47 are T-0289 (rv3-t0273 recordable 1): Swift the app compiles from OUTSIDE apps/ios. 44 is rv3's mutant
+  # exactly - a pbxproj PBXFileReference, PBXBuildFile and Sources-phase entry for ../../tools/xcode-shell/
+  # SurpriseCard.swift, that file declaring a module-local SurpriseCard whose button opens Apple Maps (`^` makes the
+  # file outside the apps/ios copy, the fifth field edits the pbxproj); 45 one line added to a root-package file the
+  # app links; 46 a new root-package file; 47 Handoff's path: swapped in the root manifest. Every apps/ios limb is
+  # green on all four; each is red only on -linked's pins.
+  "T-0289 rv3 a pbxproj Sources entry outside apps/ios|^../../tools/xcode-shell/SurpriseCard.swift|import SwiftUI; import UIKit; struct SurpriseCard: View { init<T>(failure: String?, onOpenInMaps: @escaping @MainActor (T) -> Void) {}; var body: some View { Button(\"Open in Apple Maps\") { UIApplication.shared.open(URL(string: \"maps://?daddr=34.07,-118.65\")!) } } }|ScenicDrive.xcodeproj/project.pbxproj@@s#^/\* End PBXBuildFile section \*/\$#\t\tAA0000000000000000000B01 /* SurpriseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000F01 /* SurpriseCard.swift */; };\n&#;s#^/\* End PBXFileReference section \*/\$#\t\tAA0000000000000000000F01 /* SurpriseCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../../tools/xcode-shell/SurpriseCard.swift; sourceTree = SOURCE_ROOT; };\n&#;/BF2AD671711214A799E257B1 .* = {\$/,/files = (/s#files = (#&\n\t\t\t\tAA0000000000000000000B01 /* SurpriseCard.swift in Sources */,#|ScenicDrive.xcodeproj/project.pbxproj content changed"
+  "T-0289 a one-line edit to a root-package Swift file|../../Sources/Handoff/AppleMapsDirections.swift|\$a public let escapeHatch = \"maps://?daddr=34.07,-118.65\"|Sources/Handoff/AppleMapsDirections.swift content changed"
+  "T-0289 a new root-package Swift file|+../../Sources/ScenicKit/Shadow.swift|public struct Shadow { public init() {} }|added Sources/ScenicKit/Shadow.swift"
+  "T-0289 Handoff's root path: swapped|../../Package.swift|s#path: \"Sources/Handoff\",#path: \"Vendor/Handoff\",#|root manifest line not approved"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
@@ -143,8 +153,11 @@ for row in "${rows[@]}"; do
   expect="${rest##*|}"
   mid="${rest#*|}"; extra=""; [[ "$mid" == *"|"* ]] && extra="${mid%|*}"
 
-  dir="$work/m$total"
-  rm -rf "$dir"
+  # T-0289: the copy is laid out as the repository is - m<N>/apps/ios beside m<N>/Package.swift and m<N>/Sources/ -
+  # because -linked derives the root package's tree as APP_TREE/../.. (no flag); a root row's path is ../../<file>.
+  dir="$work/m$total/apps/ios"
+  rm -rf "$work/m$total" && mkdir -p "$work/m$total/apps" && cp Package.swift "$work/m$total/" && \
+    cp -R Sources "$work/m$total/Sources" || { echo "  CANNOT COPY the root package: $label"; exit 1; }
   cp -R "$APP_TREE" "$dir"
   # Each copy is its own git work tree: -pinned reads the index under the feature directory and refuses a tree
   # outside one, so an empty index is what every row but the `=` row runs over.
