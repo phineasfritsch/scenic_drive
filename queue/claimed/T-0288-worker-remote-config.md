@@ -62,3 +62,13 @@ only.
   WHITELIST of every src/config.ts line carrying a digit (so a retyped quota number is refused). R9 POPULATION:
   services/api/test/mutate/configMutants.mjs (the telemetryMutants.mjs shape) over src/config.ts and src/index.ts with
   a literal MIN_MUTATIONS; check-mutate-population.py reads Sources/ and services/etl/etl/ only, so the .mjs is it.
+- 2026-10-06T20:37:57Z RED FIRST, by name, before src/config.ts exists: `npx vitest run test/configRoutes.test.ts test/configFields.test.ts
+  test/requestReadSites.test.ts test/killSwitchRoutes.test.ts` -> `Test Files  3 failed | 1 passed (4)`,
+  `Tests  8 failed | 8 passed (16)`; FAILED by name: configRoutes `ROUTES has a /config entry`, `every CONFIG row x
+  every KILL source answers 200 with the whole expected response (KILL never blocks /config)`, `a KV planning_paused
+  false cannot unpause an env KILL=1 or a KV KILL_SWITCH KILL=1`, `any method answers the same body: the handler reads
+  no request`; configFields `every accepted value at its bound is answered, with no warning, under each KILL
+  variant`, `every refused value drops that field alone to its default and names it, under each KILL variant`,
+  `every line of src/config.ts carrying a digit is an approved whole line`; requestReadSites `src/config.ts reads no
+  request: GET /config answers from env alone (T-0288 R7)`. Green while red: the two pure meta-tests (tables cover
+  every field; no row ignores the KILL variant bar KV_PAUSES) and killSwitchRoutes (/config added to OPERATIONAL_ROUTES).

@@ -161,6 +161,11 @@ describe("every line under src that reads the request is an approved site (T-027
     expect(tier.filter((l) => l !== APPROVED["../src/accountTier.ts"]![0])).toEqual([TIER_READ]);
   });
 
+  it("src/config.ts reads no request: GET /config answers from env alone (T-0288 R7)", () => {
+    expect(Object.keys(SRC)).toContain("../src/config.ts");
+    expect(Object.keys(sites(SRC)).filter((f) => f === "../src/config.ts")).toEqual([]);
+  });
+
   it("a query, body or alternate-header read in the tier module is refused by its line (the guard seen red)", () => {
     const tier = SRC["../src/accountTier.ts"]!;
     const reads = [
