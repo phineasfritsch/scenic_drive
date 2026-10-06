@@ -90,3 +90,14 @@ fable pass's X1/X2 (exit 2 for an unreadable fixture; the optional 'statistics' 
   pins-source-only pass 2m11s. The pins-source-only job (112421220557) prints `PINS ok=17 skipped=24 pending=1
   expired=0 failed=0 tier=linux source-only`; main's latest run (37504896066) prints `PINS ok=16 skipped=24
   pending=1 expired=0 failed=0 tier=linux source-only` - one more source row run and passed, P-OPS-07 (R4).
+- 2026-10-06T18:31:46Z rv1-t0285 FAIL on PR #174 (head 88c0301), B1 closed (agent/claude-opus-5):
+  - B1 ruled: P-OPS-07 checked `population mutations=N (floor 22)` and `RESULT caught=X missed=0 skipped=0 of X`
+    as two independent greps, never X == N, so a runner that runs a subset stayed green. rv1's tested fix applied
+    verbatim to the assertion: N is read from the population line by `sed -n`, must be non-empty, and the RESULT
+    line must be exactly `RESULT caught=N missed=0 skipped=0 of N`. P-OPS-07's why_no_test_catches_it gains one
+    dated sentence saying so. No other file changed; pins/PINS.yaml stays 386 lines (edits are within two lines).
+  - RED, rv1's M1 (ops/lib/funnel_mutate.py line 61 `--only` default "" -> "percent"): the runner prints
+    `population mutations=22 (floor 22)` then `RESULT caught=6 missed=0 skipped=0 of 6`; P-OPS-07, read through
+    pins.py load() and run with `bash -o pipefail -c`: exit=1.
+  - GREEN, M1 reverted by `git checkout -- ops/lib/funnel_mutate.py` and ops/lib/__pycache__ purged (git status
+    shows only pins/PINS.yaml modified): the same run exit=0.
