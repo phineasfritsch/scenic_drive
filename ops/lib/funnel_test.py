@@ -27,16 +27,16 @@ WINDOW = "FUNNEL scenic_telemetry, window: the last 28 days before the query (ti
 
 # plan 1+3+1+1 = 6; preview 1+2+1+1 = 5 (5/6 = 83.33); drive 1+1+1 = 3 (3/5 = 60.0); answer 1+1+2 = 4
 # (4/3 = 133.33); prettier 1+2 = 3 of 4 (75.0); other events: plan_result, drive_completed, handoff_tapped,
-# surprise_shown, paywall_shown = 5; weight 6+5+3+4+5 = 23 over 19 rows.
+# surprise_shown, paywall_shown = 1+1+2+1+1 = 6 (handoff_tapped weighs 2); weight 6+5+3+4+6 = 24 over 19 rows.
 EXPECTED = "\n".join([
     WINDOW,
-    "rows 19, sampled weight 23, first 2026-09-08 09:00:00, last 2026-10-05 21:00:00",
+    "rows 19, sampled weight 24, first 2026-09-08 09:00:00, last 2026-10-05 21:00:00",
     "plan_requested" + " " * 11 + "6",
     "preview_shown" + " " * 12 + "5" + "   83.3% of plan_requested",
     "drive_started" + " " * 12 + "3" + "   60.0% of preview_shown",
     "post_drive_answer" + " " * 8 + "4" + "  133.3% of drive_started",
     "prettier share" + " " * 7 + "75.0% (prettier 3, not_prettier 1)",
-    "other events" + " " * 13 + "5",
+    "other events" + " " * 13 + "6",
     "W1 return" + " " * 11 + NO_KEY,
     "W4 return" + " " * 11 + NO_KEY,
 ]) + "\n"
@@ -158,6 +158,8 @@ class FunnelRefusals(unittest.TestCase):
             "a weight sent as a boolean": row(0, _sample_interval=True),
             "a double sent as a string": row(0, double1="30"),
             "a double sent as a boolean": row(0, double2=False),
+            "a double that is NaN": row(0, double1=float("nan")),
+            "a double that is Infinity": row(0, double2=float("inf")),
             "a blob that is not a string": row(2, blob2=0),
             "a timestamp in another format": row(0, timestamp="2026-09-08T09:00:00Z"),
             "a timestamp that is not a string": row(0, timestamp=1757322000),

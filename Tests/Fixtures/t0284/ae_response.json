@@ -17,7 +17,7 @@
     {"timestamp": "2026-09-08 10:11:00", "index1": "post_drive_answer", "blob1": "post_drive_answer", "blob2": "prettier", "double1": 0, "double2": 0, "_sample_interval": 1},
     {"timestamp": "2026-09-15 17:20:00", "index1": "plan_requested", "blob1": "plan_requested", "blob2": "loop", "double1": 45, "double2": 0, "_sample_interval": 3},
     {"timestamp": "2026-09-15 17:21:00", "index1": "preview_shown", "blob1": "preview_shown", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 2},
-    {"timestamp": "2026-09-15 17:22:00", "index1": "handoff_tapped", "blob1": "handoff_tapped", "blob2": "waze", "double1": 0, "double2": 0, "_sample_interval": 1},
+    {"timestamp": "2026-09-15 17:22:00", "index1": "handoff_tapped", "blob1": "handoff_tapped", "blob2": "waze", "double1": 0, "double2": 0, "_sample_interval": 2},
     {"timestamp": "2026-09-15 17:25:00", "index1": "drive_started", "blob1": "drive_started", "blob2": "", "double1": 0, "double2": 0, "_sample_interval": 1},
     {"timestamp": "2026-09-15 18:30:00", "index1": "post_drive_answer", "blob1": "post_drive_answer", "blob2": "not_prettier", "double1": 0, "double2": 0, "_sample_interval": 1},
     {"timestamp": "2026-09-22 08:00:00", "index1": "plan_requested", "blob1": "plan_requested", "blob2": "surprise", "double1": 20, "double2": 0, "_sample_interval": 1},
