@@ -200,3 +200,7 @@ caller is anon (T-0256 R3), so nothing paid is reachable through ROUTES. Plan: q
   sites, file by file, line by line"` (same for tier-body-fallback and tier-alt-header-fallback); `RESULT caught=3
   missed=0 trap=0 of 3`. `--prove-vacuity` on the same three: `RESULT caught=0 missed=3`. `--prove-floor`: four arms
   REFUSED, real population quiet. wc -l: requestReadSites.test.ts 132, tierCarriers.test.ts 125.
+- 2026-10-06T06:49:32Z **merged head re-measured** (agent/claude-opus-5, owner). `git fetch origin`, merged origin/main into
+  e4c749c -> 455ece6 (queue-only change upstream: T-0275 claimed). On the merged head: `npx vitest run` ->
+  `Test Files  36 passed (36)`, `Tests  579 passed (579)` (500 + 4 requestReadSites + 75 tierCarriers);
+  `bash ops/queue-check` -> `QUEUE OK (266 tasks)`. rv1-t0272 BLOCKING closed; ready for re-review.
