@@ -26,3 +26,49 @@ fable pass's X1/X2 (exit 2 for an unreadable fixture; the optional 'statistics' 
 ## Log
 - 2026-10-06T17:06:00Z filed by agent/claude-opus-5 (orchestrator) after PR #173 (T-0284) review PASS.
 - 2026-10-06T17:11:12Z claimed by agent/claude-opus-5; lease until 2026-10-07T01:11:12Z
+- 2026-10-06T17:15:07Z rulings, before any code (agent/claude-opus-5):
+  - R1 (id): the row is P-OPS-07 (P-OPS-04 is unused/retired and 07 is the next free OPS number), anchor source,
+    runs_on [linux, mac]. pins_affected names P-PRIV-05, but that row is anchor api - CI's pins-source-only SKIPS
+    it, so extending it would not put the funnel in the cheap gate the acceptance names. P-PRIV-05 is not edited;
+    the funnel reader's blob3 refusal (the H3-cell half of that row's statement) is bound by P-OPS-07 through
+    FunnelRefusals.
+  - R2 (shape): the assertion is inline in pins/PINS.yaml - touches names no new script. It binds the test COUNT
+    as a literal (`Ran 13 tests in ...s`) and a bare `OK` line, so a deleted test (count) and a skipped test
+    (`OK (skipped=1)` is not `OK`) both fail it, not only a failing one. The population is bound through the
+    runner's own printed lines: `population mutations=N (floor 22)` with the floor typed into the pin (lowering
+    MIN_MUTATIONS in ops/mutate/funnel_mutations.py changes the printed floor and goes red), `RESULT caught=N
+    missed=0 skipped=0 of N` (backreference: every entry caught), and `--prove-floor` exit 0. CRs are stripped
+    (Windows python stdout); here-strings, not pipes into grep -q, so pipefail cannot race a SIGPIPE.
+  - R3 (X1/X2): two tests in FunnelFixture, full equality on (exit, stdout, stderr): a missing --fixture path ->
+    (2, "", "usage: cannot read the fixture (FileNotFoundError)\n"); the fixture plus a ClickHouse-style
+    `statistics` object -> (0, EXPECTED, ""). The fixture carries no `statistics` key (measured: keys data, meta,
+    rows, rows_before_limit_at_least), which is why X2 survived. Each is shown RED by its mutant of
+    ops/lib/funnel.py before it is shown green. Registering X1/X2 as entries of ops/mutate/funnel_mutations.py is
+    OUTSIDE touches (pins/PINS.yaml, ops/lib/funnel_test.py) and is recorded as still open, not done.
+  - R4 (CI evidence): pins-source-only runs `bash ops/check-pins --source-only` without --verbose and
+    .github/workflows is outside touches, so the CI proof that the row ran is the job's `PINS ok=N` line on this
+    PR against main's, N one higher. Locally `python3` resolves to the WindowsApps stub, so local runs set
+    PYTHON=python, as every existing python row needs.
+- 2026-10-06T17:20:36Z red then green (agent/claude-opus-5). Driver: a throwaway script that rewrites one anchor
+  (asserted to occur exactly once), purges __pycache__, sleeps 1.1 s, runs, and restores the file byte-identical
+  in a finally; `git status --short` afterwards lists only the three touched files.
+  - X1 RED 17:17:04Z, mutant ops/lib/funnel.py fixture-OSError branch `return EXIT_USAGE` ->
+    `return EXIT_RESPONSE_REFUSED`: FunnelFixture.test_a_missing_fixture_path_exits_2_with_no_output exit=1,
+    `AssertionError: Tuples differ: (4, '', 'usage: cannot read the fixture (FileNotFoundError)\n') != (2, '',
+    'usage: cannot read the fixture (FileNotFoundError)\n')`, `FAILED (failures=1)`.
+  - X2 RED, mutant `TOP_OPTIONAL = {"rows_before_limit_at_least", "statistics"}` -> `TOP_OPTIONAL =
+    {"rows_before_limit_at_least"}`: FunnelFixture.test_a_body_carrying_statistics_is_accepted_and_prints_the_same_output
+    exit=1, `Tuples differ: (4, '', "RESPONSE_REFUSED: top-level keys [76 chars]]\n") != (0, "FUNNEL
+    scenic_telemetry, window: the [666 chars], '')`, `FAILED (failures=1)`.
+  - X1 and X2 GREEN on the pristine reader: each `Ran 1 test ... OK` exit=0; whole file `Ran 13 tests in 0.141s`, `OK`.
+  - P-OPS-07 appended to pins/PINS.yaml (now 386 lines, 42 rows; ops/lib/funnel_test.py now 236 lines). Its
+    assertion, read through ops/lib/pins.py load() and run as pins.py runs it (`bash -o pipefail -c`), 17:18:05Z-17:20:24Z:
+    - RED, mutant ops/lib/funnel_math.py `if den == 0:` -> `if den == 1:` (one line): exit=1, output ends
+      `ZeroDivisionError: integer division or modulo by zero` / `Ran 13 tests in 0.099s` / `FAILED (errors=2)`.
+    - RED, deleted test (FunnelFixture.test_the_sql_is_the_fixed_literal removed, not a killer of any population
+      entry, so funnel_mutate.py alone stays green): exit=1, output ends `Ran 12 tests in 0.104s` / `OK` - refused
+      on the count alone.
+    - RED, the same test decorated @unittest.skip: exit=1, output ends `Ran 13 tests in 0.141s` / `OK (skipped=1)`.
+    - RED, MIN_MUTATIONS = 22 -> 21 in ops/mutate/funnel_mutations.py: exit=1 although the output ends `RESULT
+      caught=22 missed=0 skipped=0 of 22` - refused on the printed `(floor 21)` against the pinned 22.
+    - GREEN, pristine: exit=0 (ok).
