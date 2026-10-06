@@ -8,7 +8,8 @@
  * the splitter refuses a route over fastest + budget, each day's ceiling is its share of that, and a full leg over
  * its day's ceiling refuses the whole trip. No stop or lodging source exists on the server yet (R4): places = [].
  */
-import { buildCustomModel, formatMultiplier, rejectCustomModel, type ClosureCollection } from "./customModel";
+import type { ClosuresFor } from "./closuresNearest";
+import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customModel";
 import { searchLambda } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
 import { budgetSeconds, planRoadTrip, type RoadTripEdge } from "./roadTrip";
@@ -121,7 +122,8 @@ function dayCeilingMs(ceilingMs: number, dayMs: number, totalMs: number): number
 }
 
 export async function planTrip(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
-  days: number, extraBudgetPct: number, full: boolean, closures: ClosureCollection | null): Promise<TripResult> {
+  days: number, extraBudgetPct: number, full: boolean, closuresFor: ClosuresFor): Promise<TripResult> {
+  const closures = closuresFor(origin, destination);
   const fastest = await route(call, routerBase, origin, destination, FAST_PROFILE, undefined);
   const fastestMs = fastest.timeMs;
   const budgetMs = budgetSeconds(fastestMs, extraBudgetPct);
@@ -146,7 +148,6 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
 
   const totalMs = edges.reduce((sum, e) => sum + e.seconds, 0);
   const vertices = [edges[0]!.start, ...edges.map((e) => e.end)];
-  const model = buildCustomModel(outcome.lambda, closures);
   const result: TripDayResult[] = [];
   let etaMs = totalMs;
   if (full) etaMs = 0;
@@ -154,7 +155,8 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
     const ceiling = dayCeilingMs(ceilingMs, day.seconds, totalMs);
     let leg: TripDayResult["leg"] = null;
     if (full) {
-      const path = await route(call, routerBase, vertices[day.start_vertex]!, vertices[day.end_vertex]!, SCENIC_PROFILE, model);
+      const [from, to] = [vertices[day.start_vertex]!, vertices[day.end_vertex]!];
+      const path = await route(call, routerBase, from, to, SCENIC_PROFILE, buildCustomModel(outcome.lambda, closuresFor(from, to)));
       if (path.timeMs > ceiling) {
         throw new TripFailure("ceiling_breached", `day ${day.day} leg takes ${path.timeMs} ms against its ceiling of ${ceiling} ms`);
       }

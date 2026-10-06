@@ -12,7 +12,7 @@ import { squareClosure, TEST_VERSION, TWO_CLOSURES } from "./closuresFake";
 import { LOOP_BODY, loopHarness, loopPath, loopRequest, outAndBack, squareLoop } from "./loopHarness";
 import { BIG_SUR, NOW, ROUTER, TRIP_BODY, tripCounters, tripRequest, tripRouter } from "./tripHarness";
 
-const fresh = (closures: unknown): ClosureSnapshot => ({ version: TEST_VERSION, closures: closures as ClosureCollection, hazard: null });
+const fresh = (closures: unknown): ClosureSnapshot => ({ version: TEST_VERSION, closures: closures as ClosureCollection, hazard: null, fetchedAt: null });
 const AREAS = buildCustomModel(0, TWO_CLOSURES as ClosureCollection).areas!;
 const FIFTY = { type: "FeatureCollection", features: Array.from({ length: MAX_CLOSURE_POLYGONS }, (_, i) => squareClosure(-118.9 + i * 0.001, 34.3)) };
 

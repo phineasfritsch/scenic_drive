@@ -9,6 +9,7 @@
  */
 import { appleMapsUrl } from "./appleMaps";
 import { mergeClosures } from "./closuresStore";
+import type { ClosuresFor } from "./closuresNearest";
 import { buildCustomModel, rejectCustomModel, type ClosureCollection } from "./customModel";
 import type { LatLon } from "./latLon";
 import { decisionPoints } from "./planWaypoints";
@@ -127,7 +128,8 @@ interface Attempt {
 const clean = (a: Attempt) => a.scan !== null && isAcceptable(a.scan.fraction);
 
 export async function planLoop(call: GuardedFetch, routerBase: string, start: LatLon, minutes: number,
-  seed: number, feed: ClosureCollection | null): Promise<LoopResult> {
+  seed: number, closuresFor: ClosuresFor): Promise<LoopResult> {
+  const feed = closuresFor(start, start);
   const distance = roundTripDistance(minutes);
   const tried: Attempt[] = [];
   const attempt = async (s: number, closures: ClosureCollection | null) => {

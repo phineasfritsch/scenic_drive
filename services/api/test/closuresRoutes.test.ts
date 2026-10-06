@@ -169,8 +169,9 @@ describe("unavailable: no set, never silent (R7)", () => {
   const point = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-118.6, 34.05] } };
   const square = squareClosure(-118.7, 34.05);
   const openRing = { ...square, geometry: { type: "Polygon", coordinates: [square.geometry.coordinates[0]!.slice(0, -1)] } };
-  const fill51 = (set: ClosureCollection) =>
-    [...set.features, ...Array.from({ length: 51 - set.features.length }, (_, i) => squareClosure(-118.6 + i * 0.01, 34.2))];
+  /** T-0282 N2: the stored bound is 2000 polygons (was 50), so the over-bound shape is 2001. */
+  const fill2001 = (set: ClosureCollection) =>
+    [...set.features, ...Array.from({ length: 2001 - set.features.length }, (_, i) => squareClosure(-118.6 + i * 0.0001, 34.2))];
   /** Every field record() reads x every shape that is not one: missing, null, wrong type, empty, off the format. */
   const shapes: [string, unknown][] = [["missing", undefined], ["null", null], ["a number", 16], ["true", true],
     ["an empty string", ""], ["an empty array", []], ["an empty object", {}]];
@@ -220,7 +221,7 @@ describe("unavailable: no set, never silent (R7)", () => {
     ["a geojson whose features are null (the set's under closures)", geo((set) => ({ ...fc(set, null), closures: set.features }))],
     ["a Point closure beside the set's", geo((set) => fc(set, [...set.features, point]))],
     ["an unclosed ring beside the set's", geo((set) => fc(set, [...set.features, openRing]))],
-    ["51 polygons, the set's first", geo((set) => fc(set, fill51(set)))],
+    ["2001 polygons, the set's first", geo((set) => fc(set, fill2001(set)))],
   ];
   for (const path of [...ROUTED, "/isochrone"] as Path[]) {
     for (const [name, row] of cases) {
