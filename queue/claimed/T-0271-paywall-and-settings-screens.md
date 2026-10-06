@@ -1,13 +1,13 @@
 ---
 id: T-0271
 title: Entitlements target - the paywall (SubscriptionStoreView with Terms of Use + Privacy links, Restore) and a Settings screen (subscription, Restore, Manage subscription, Terms, Privacy, Legal/Attribution) reachable from home; P-STORE-01 source half
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T00:42:18Z
+lease_expires_at: 2026-10-06T12:42:18Z
+worktree: .worktrees/T-0271
+branch: task/T-0271
 exclusive: [package-swift]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Sources/Entitlements/, apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/, apps/ios/Packages/ScenicApp/Sources/DesignSystem/, apps/ios/ScenicDrive/, .github/workflows/ios-screenshot.yml, ops/lib/, pins/PINS.yaml]
 pins_affected: [P-STORE-01, P-ATTR-02]
@@ -30,3 +30,4 @@ xcodeproj lock (T-0180).
 
 ## Log
 - 2026-10-06T00:40:41Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M6 paywall/settings).
+- 2026-10-06T00:42:18Z claimed by agent/claude-opus-5; lease until 2026-10-06T12:42:18Z
