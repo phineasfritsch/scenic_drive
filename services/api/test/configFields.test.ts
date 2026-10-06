@@ -82,8 +82,10 @@ const DIGIT_LINES = [
   "export const CONFIG_MAX_AGE_S = 300;",
   "export const MAX_APP_BUILD = 2_147_483_647;",
   "min_app_build: (v) => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= MAX_APP_BUILD,",
-  "Array.isArray(v) && v.length >= 1 && new Set(v).size === v.length &&",
+  "supported_regions: (v) => Array.isArray(v) && v.length >= 1 && new Set(v).size === v.length &&",
   "min_app_build: 1,",
+  "status: 200,",
+  'headers: { "content-type": "application/json; charset=utf-8", "cache-control": `public, max-age=${CONFIG_MAX_AGE_S}` },',
 ];
 
 describe("src/config.ts numerals are a whitelist (T-0288 R1: quota numbers are read from quota.ts, never retyped)", () => {

@@ -1,6 +1,7 @@
 import { SELF, env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import worker, { ROUTES } from "../src/index";
+import { expected } from "./configHarness";
 
 const url = (p: string) => `https://scenic-api.test${p}`;
 
@@ -23,6 +24,13 @@ describe("operational routes", () => {
     expect(await r.json()).toMatchObject({ ok: true, db: "up" });
   });
 
+  it("GET /config through the shipped fetch answers the compiled defaults, cacheable (T-0288)", async () => {
+    const r = await SELF.fetch(url("/config"));
+    const want = expected({}, false, []);
+    expect({ status: r.status, contentType: r.headers.get("content-type"), cacheControl: r.headers.get("cache-control"), text: await r.text() })
+      .toEqual(want);
+  });
+
   it("unknown paths are 404 and never cached", async () => {
     const r = await SELF.fetch(url("/nope"));
     expect(r.status).toBe(404);
@@ -30,7 +38,7 @@ describe("operational routes", () => {
   });
 
   it("every route is enumerable (kill-switch pin will iterate ROUTES, not a hand list)", () => {
-    expect(Object.keys(ROUTES).sort()).toEqual(["/__health", "/__ro", "/__version", "/asn", "/attest", "/attest/assert", "/attest/challenge", "/entitlement", "/isochrone", "/loop", "/plan", "/telemetry", "/trip"]);
+    expect(Object.keys(ROUTES).sort()).toEqual(["/__health", "/__ro", "/__version", "/asn", "/attest", "/attest/assert", "/attest/challenge", "/config", "/entitlement", "/isochrone", "/loop", "/plan", "/telemetry", "/trip"]);
     expect(typeof worker.fetch).toBe("function");
   });
 });
