@@ -3,14 +3,17 @@
  * identifier req, the type Request - or reads a request member (.headers .url .json .text .formData .arrayBuffer
  * .blob .body .cf, URL, searchParams). The lines found are compared WHOLE (trimmed) to the approved sites below, per
  * file, by full equality: a new site - a query-string fallback, a body read, another header name, a new file that
- * reads the request - is refused by its file and its line. Only comment lines (leading //, /*, * or * /) are skipped.
+ * reads the request - is refused by its file and its line. FAIL-CLOSED (rv2): only lines that begin with two slashes
+ * are skipped. A line that begins a block comment, closes one, or continues one is compared like code - a block
+ * comment can open or close in front of code on the same line - so the JSDoc lines that name a request word are
+ * approved sites below, by full equality, like every other line.
  * The tier module's ONLY request read is the one ACCOUNT_TOKEN_HEADER line.
  */
 import { describe, expect, it } from "vitest";
 
 const SRC = import.meta.glob("../src/**/*.ts", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 const SITE = /\b(req|Request)\b|\.(headers|url|json|text|formData|arrayBuffer|blob|body|cf)\b|\bURL\b|searchParams/;
-const COMMENT = /^(\/\/|\/\*|\*\/|\* |\*$)/;
+const LINE_COMMENT = /^\/\//;
 
 const POST_ONLY = 'if (req.method !== "POST") return json({ error: "POST only" }, 405);';
 const BODY_READ = "raw = await req.json();";
@@ -21,6 +24,10 @@ const APPROVED: Record<string, string[]> = {
     "export async function accountTier(req: Request, db: D1Database | undefined, nowMs: number): Promise<Tier> {",
     TIER_READ,
   ],
+  "../src/appleMaps.ts": [
+    "* The Apple Maps handoff URL - a port of Sources/Handoff/AppleMapsDirections.swift (T-0248 R7).",
+    "* decimals here is not the two-decimal rule: this URL is the user handing their own route to Apple.",
+  ],
   "../src/asn.ts": [
     "export async function handleAsn(req: Request, deps: AsnDeps): Promise<Response> {",
     POST_ONLY,
@@ -28,6 +35,12 @@ const APPROVED: Record<string, string[]> = {
     "export async function handleEntitlement(req: Request, deps: AsnDeps): Promise<Response> {",
     'if (req.method !== "GET") return json({ error: "GET only" }, 405);',
     TIER_READ,
+  ],
+  "../src/customModel.ts": [
+    "*      car_scenic_base.json on the server and are not restated here, because a per-request model that",
+  ],
+  "../src/hazards.ts": [
+    "* car_scenic_base.json and keep those edges off the route; what can still be on it - a compacted shoulder the",
   ],
   "../src/index.ts": [
     "type Handler = (req: Request, env: Env, url: URL) => Promise<Response>;",
@@ -68,6 +81,11 @@ const APPROVED: Record<string, string[]> = {
     "const plan = await guardedPlan(upstream, await deps.identify(req), (call) =>",
   ],
   "../src/reachCache.ts": ["return hit ? ((await hit.json()) as ReachBucket[]) : null;"],
+  "../src/retrace.ts": ["* (Tests/Fixtures/t0252/loops.json) holds the TS fraction and the Swift fraction to the same IEEE-754 bits."],
+  "../src/ro.ts": ["* Mirrored in ops/lib/ro_grammar.py. Both run every case in ops/lib/ro_cases.json and both assert their"],
+  "../src/roadTrip.ts": [
+    "* the Worker feeds it milliseconds and whole metres. Held to the Swift original by Tests/Fixtures/t0268/trips.json.",
+  ],
   "../src/routerDeps.ts": [
     "identify(req: Request): Promise<Identity>;",
     "let url: URL;",
@@ -90,11 +108,11 @@ const APPROVED: Record<string, string[]> = {
   "../src/upstream.ts": ["return guardedPlan(deps, { userId: args.userId, tier: args.tier }, (call) => call(args.url, args.init));"],
 };
 
-/** Every non-comment line of every src file that names the request or reads a request member, trimmed, in order. */
+/** Every line (bar a //-leading one) of every src file that names the request or reads a request member, trimmed, in order. */
 function sites(src: Record<string, string>): Record<string, string[]> {
   const found: Record<string, string[]> = {};
   for (const [file, text] of Object.entries(src).sort(([a], [b]) => a.localeCompare(b))) {
-    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => !COMMENT.test(l) && SITE.test(l));
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => !LINE_COMMENT.test(l) && SITE.test(l));
     if (lines.length > 0) found[file] = lines;
   }
   return found;
@@ -121,6 +139,11 @@ describe("every line under src that reads the request is an approved site (T-027
       ".toLowerCase();\n  const q = new URL(req.url).searchParams.get(\"account_token\");",
       ".toLowerCase();\n  const b = await req.clone().json();",
       ".toLowerCase();\n  const h = req.headers.get(\"x-account-token\");",
+      ".toLowerCase();\n  /* x */ const h = req.headers.get(\"x-account-token\");",
+      ".toLowerCase();\n  */ const h = req.headers.get(\"x-account-token\");",
+      ".toLowerCase();\n  * const h = req.headers.get(\"x-account-token\");",
+      ".toLowerCase();\n  const h = req.headers.get(\"x-account-token\"); /* fallback */",
+      ".toLowerCase();\n  /* v1 */ { const alt = req.headers.get(ACCOUNT_TOKEN_HEADER.replace(\"account\",\"purchase\")); }",
     ];
     for (const read of reads) {
       const mutated = { ...SRC, "../src/accountTier.ts": tier.replace(".toLowerCase();", read) };

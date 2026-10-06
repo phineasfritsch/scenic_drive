@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-tier");
 
-export const MIN_MUTATIONS = 25;
+export const MIN_MUTATIONS = 26;
 export const SUBJECTS = ["src/accountTier.ts", "src/routerDeps.ts", "src/asnNotification.ts", "src/plan.ts", "src/loop.ts",
   "src/trip.ts", "src/isochrone.ts"];
 const TESTS = ["test/accountTier.test.ts", "test/asnState.test.ts", "test/isochroneCost.test.ts", "test/tierCarriers.test.ts",
@@ -48,6 +48,9 @@ export const MUTATIONS = [
     "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? (req.bodyUsed ? null : (await req.clone().json().catch(() => ({}))).account_token) ?? \"\")"),
   m("tier-alt-header-fallback", "accountTier.ts", "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? \"\")",
     "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? req.headers.get(\"x-scenic-account-token-v2\") ?? \"\")"),
+  m("tier-blockcomment-fallback", "accountTier.ts", "Promise<Tier> {\n",
+    "Promise<Tier> {\n  /* v1 */ { const alt = req.headers.get(ACCOUNT_TOKEN_HEADER.replace(\"account\",\"purchase\")); "
+    + "if (alt) return accountTier(new Request(req.url, { headers: { [ACCOUNT_TOKEN_HEADER]: alt } }), db, nowMs); }\n"),
   m("deps-tier-always-anon", "routerDeps.ts", "=== \"paid\" ? { ...device, tier: \"paid\" } : device;", "=== \"paid\" ? device : device;"),
   m("deps-tier-without-db", "routerDeps.ts", "accountTier(req, env.DB,", "accountTier(req, undefined,"),
   m("deps-now-minus-1", "routerDeps.ts", "env.DB, now().getTime())", "env.DB, now().getTime() - 1)"),
