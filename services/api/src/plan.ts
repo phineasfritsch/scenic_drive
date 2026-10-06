@@ -11,6 +11,7 @@
  * routerDeps.ts + the D1 place resolver) and, with any binding missing, answers 503 planning_unavailable with zero
  * upstream calls. A resolver that cannot answer is 503 planning_unavailable too - never a 404, never a call.
  */
+import { closurePicker } from "./closuresNearest";
 import { withClosuresHazard, type ClosureSnapshot } from "./closuresStore";
 import { killSwitch, type KillEnv } from "./killSwitch";
 import type { LatLon } from "./latLon";
@@ -92,11 +93,12 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   if (destination === null) return json({ error: "unknown_place" }, 404);
 
   const snapshot = await deps.closures();
+  const picker = closurePicker(snapshot.closures);
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const plan = await guardedPlan(upstream, await deps.identify(req), (call) =>
-      planScenic(call, deps.routerBase, request.origin, destination, request.budgetMinutes * 60, snapshot.closures));
-    return json(withClosuresHazard(plan, snapshot), 200);
+      planScenic(call, deps.routerBase, request.origin, destination, request.budgetMinutes * 60, picker.pick));
+    return json(withClosuresHazard(plan, snapshot, picker.dropped()), 200);
   } catch (error) {
     return failure(error);
   }

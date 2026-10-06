@@ -3,11 +3,12 @@
  *
  * Rulings R1-R5 in queue/.../T-0276: ONLY typeOfClosure "Full" (R1), active now under the union of 10-97 and the
  * scheduled window minus cancelled (10-22) and picked up (10-98) (R2), every field read refused by name per row
- * (R3), buffered on a literal local plane (R4) and capped at MAX_CLOSURE_POLYGONS in a ruled order (R5). The feed
+ * (R3), buffered on a literal local plane (R4) and capped at CLOSURES_STORED_MAX_POLYGONS (T-0282 N1) in a ruled order (R5). The feed
  * carries no road geometry - only a begin and an end point - so a short closure is one rectangle around its chord
  * and a long one is two gate squares that stop travel THROUGH it without walling off the streets its chord crosses.
  */
-import { MAX_CLOSURE_POLYGONS, type ClosureCollection, type ClosurePolygon } from "./customModel";
+import { CLOSURES_STORED_MAX_POLYGONS } from "./closuresStore";
+import type { ClosureCollection, ClosurePolygon } from "./customModel";
 
 export const LCS_D7_FEED = "https://cwwp2.dot.ca.gov/data/d7/lcs/lcsStatusD07.json";
 export const FULL_CLOSURE = "Full";
@@ -172,12 +173,12 @@ export function parseLcsFeed(data: unknown[], nowS: number): LcsParse {
 }
 
 /** Greedy fill in cap order: a closure's rings stay whole; one that does not fit is dropped and counted (R5). */
-export function capClosures(closures: ActiveClosure[]): CappedClosures {
+export function capClosures(closures: ActiveClosure[], cap = CLOSURES_STORED_MAX_POLYGONS): CappedClosures {
   const features: ClosurePolygon[] = [];
   let kept = 0;
   let dropped = 0;
   for (const closure of closures) {
-    if (features.length + closure.rings.length > MAX_CLOSURE_POLYGONS) {
+    if (features.length + closure.rings.length > cap) {
       dropped += 1;
       continue;
     }

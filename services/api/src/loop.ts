@@ -8,6 +8,7 @@
  * routerDeps.ts) and, with any binding missing, answers 503 planning_unavailable with zero upstream calls. A loop
  * spends the LOOP allowance (kind "loop", T-0256 R4), never a plan.
  */
+import { closurePicker } from "./closuresNearest";
 import { withClosuresHazard, type ClosureSnapshot } from "./closuresStore";
 import { killSwitch } from "./killSwitch";
 import { parseLoopRequest } from "./loopRequest";
@@ -72,13 +73,14 @@ export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | nu
   const { request } = parsed;
   const who = await deps.identify(req);
   const snapshot = await deps.closures();
+  const picker = closurePicker(snapshot.closures);
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const seed = loopSeed(who.userId, dayKey(deps.upstream.now()));
     const loop = await guardedPlan(upstream, { ...who, kind: "loop" }, (call) =>
-      planLoop(call, deps.routerBase, request.start, request.minutes, seed, snapshot.closures),
+      planLoop(call, deps.routerBase, request.start, request.minutes, seed, picker.pick),
       LOOP_UPSTREAM_COST);
-    return json(withClosuresHazard(loop, snapshot), 200);
+    return json(withClosuresHazard(loop, snapshot, picker.dropped()), 200);
   } catch (error) {
     return failure(error);
   }
