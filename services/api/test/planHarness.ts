@@ -6,6 +6,7 @@
  * custom model it CARRIES, compared whole to buildCustomModel(lambda, null), so a request whose model is not
  * buildCustomModel's finds no recording and the plan fails (P-SAFE-01 seen at the wire, not in the builder).
  */
+import { FRESH_EMPTY } from "./closuresFake";
 import { buildCustomModel } from "../src/customModel";
 import type { PlanDeps } from "../src/plan";
 import type { Counters } from "../src/upstream";
@@ -101,6 +102,7 @@ export function harness(
     routerBase: ROUTER,
     resolvePlace: async (id) => PLACES[id] ?? null,
     identify: () => ({ userId: "device-1", tier: "free" }),
+    closures: async () => FRESH_EMPTY,
   };
   return { deps, sent, events, reserved, maxInFlight: () => peak };
 }

@@ -3,6 +3,7 @@
  * resolver, the router behind the global fetch). The shipped identity is anon (T-0256 R3), so this route serves the
  * PREVIEW (R5). Every router request is counted; the quota is read at the first one.
  */
+import { liveClosures } from "./closuresFake";
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import placesSql from "../migrations/0001_places.sql?raw";
@@ -47,7 +48,7 @@ afterEach(() => {
 
 function shippedEnv(over: Record<string, unknown> = {}): Env {
   const e: Record<string, unknown> = { DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns,
-    ROUTER_URL: "https://router.test", ROUTER_SECRET: "test-router-secret", ...over };
+    ROUTER_URL: "https://router.test", ROUTER_SECRET: "test-router-secret", CLOSURES: liveClosures(), ...over };
   for (const [key, value] of Object.entries(e)) if (value === undefined) delete e[key];
   return e as unknown as Env;
 }

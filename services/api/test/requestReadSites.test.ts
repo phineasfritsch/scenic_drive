@@ -44,6 +44,11 @@ const APPROVED: Record<string, string[]> = {
     POST_ONLY,
     "const raw: unknown = await req.json();",
   ],
+  // T-0276: the closures cron reads the Caltrans FEED's response, never the request; the feed URL ends in .json.
+  "../src/closuresCron.ts": [
+    'const lastModified = Date.parse(response.headers.get("last-modified") ?? "");',
+    "feed = await response.json();",
+  ],
   "../src/customModel.ts": [
     "*      car_scenic_base.json on the server and are not restated here, because a per-request model that",
   ],
@@ -75,6 +80,7 @@ const APPROVED: Record<string, string[]> = {
     'const buckets = await guardedPlan(deps.upstream, { ...(await deps.identify(req)), kind: "surprise" }, (call) =>',
   ],
   "../src/isochronePlanner.ts": ["answer = await response.json();"],
+  "../src/lcsFeed.ts": ['export const LCS_D7_FEED = "https://cwwp2.dot.ca.gov/data/d7/lcs/lcsStatusD07.json";'],
   "../src/loop.ts": [
     "identify(req: Request): Identity | Promise<Identity>;",
     "export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | null): Promise<Response> {",
