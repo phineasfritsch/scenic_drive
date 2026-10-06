@@ -1,13 +1,13 @@
 ---
 id: T-0279
 title: the Worker serves POST /telemetry - accepts exactly the T-0265 TelemetryEvent wire data points (14 events, coarse payloads), refuses anything else, writes them to Workers Analytics Engine; never a coordinate, never more than an H3-5 cell
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T10:49:05Z
+lease_expires_at: 2026-10-06T22:49:05Z
+worktree: .worktrees/T-0279
+branch: task/T-0279
 exclusive: []
 touches: [services/api/, Tests/Fixtures/t0279/, Tests/TelemetryTests/]
 pins_affected: [P-PRIV-05, P-COST-01]
@@ -26,3 +26,4 @@ T-0265 (PR #155) shipped the device encoder; nothing receives it. P-PRIV-05: H3-
 
 ## Log
 - 2026-10-06T10:46:25Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M5 telemetry).
+- 2026-10-06T10:49:05Z claimed by agent/claude-opus-5; lease until 2026-10-06T22:49:05Z
