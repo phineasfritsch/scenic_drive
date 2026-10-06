@@ -75,6 +75,10 @@ public struct ScenicHomeScreen: View {
     /// The chip band's bottom edge and the credit band's top edge, in window points - the two edges `MapView`
     /// converts into its own. Zero until measured, and the map then treats nothing as covered. The map's own height
     /// is NOT measured here: SwiftUI reports the safe-area height for a view that ignores the safe area.
+    @State private var isShowingSurprise = SurpriseSlot.atLaunch
+
+    @State private var surpriseFailure: String?
+
     @State private var chipBandBottom: CGFloat = 0
     @State private var creditBandTop: CGFloat = 0
 
@@ -82,7 +86,9 @@ public struct ScenicHomeScreen: View {
     /// feature targets never import each other (CLAUDE.md), and the shell is where Settings and the paywall compose.
     private let onSettings: () -> Void
 
-    public init(onSettings: @escaping () -> Void) { self.onSettings = onSettings }
+    private let surprise: SurpriseSlot.Builder
+
+    public init(onSettings: @escaping () -> Void, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surprise = surprise }
 
     public var body: some View {
         ZStack(alignment: .top) {
@@ -154,13 +160,32 @@ public struct ScenicHomeScreen: View {
         )
     }
 
+    /// The Surprise card's Apple Maps tap: the SAME gate as the home's button - a second GatedHandoffButton with the
+    /// acknowledgement passed through, its refusal presenting the same disclaimer (T-0273 R4, P-SAFE-03).
+    private func openSurprise(_ place: Coordinate) {
+        GatedHandoffButton(
+            isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged,
+            drive: selectedDrive,
+            row: nil,
+            place: place,
+            onBlocked: { isShowingDisclaimer = true },
+            onFailure: { surpriseFailure = $0 }
+        ).attempt()
+    }
+
     /// The three drives, floating over the map below the status bar. Each chip carries its own opaque ground
     /// (`primary` or `surface`); the band under them is a material with a `border` hairline, so the row reads as one
     /// control over either basemap, in either appearance. Every chip is 44 pt tall (`DriveSelector`).
     private var chips: some View {
-        HStack(spacing: 8) {
-            DriveSelector(selection: $selectedDrive)
-            settingsButton
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                DriveSelector(selection: $selectedDrive)
+                surpriseButton
+                settingsButton
+            }
+            if isShowingSurprise {
+                surprise({ openSurprise($0) }, surpriseFailure)
+            }
         }
             .padding(6)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -176,6 +201,30 @@ public struct ScenicHomeScreen: View {
     /// Settings (T-0271): a gear at the trailing end of the chip band, inside the same material, so the band's
     /// measured bottom is still the map's covered edge. 44 pt square, drawn like an unselected chip (`fg` on
     /// `surface`, a `border` hairline); the action is the shell's (`onSettings`).
+    private var surpriseButton: some View {
+        Button {
+            surpriseFailure = nil
+            isShowingSurprise.toggle()
+        } label: {
+            Image(systemName: isShowingSurprise ? "sparkles.rectangle.stack.fill" : "sparkles")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(DesignTokens.primary)
+                .frame(width: 44, height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(DesignTokens.surface)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(DesignTokens.border, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Surprise me")
+        .accessibilityAddTraits(isShowingSurprise ? .isSelected : [])
+        .accessibilityIdentifier("home.surprise")
+    }
+
     private var settingsButton: some View {
         Button(action: onSettings) {
             Image(systemName: "gearshape")

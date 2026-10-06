@@ -208,8 +208,8 @@ run_check() {
   # the real one, which is exactly the shape that passed before PR #101's review (finding B3).
   local built=()
   mapfile -t built < <(occurrences_by_file "GatedHandoffButton(" "$gated" "${app_files[@]}")
-  if [[ "${#built[@]}" -ne 1 || "${built[0]}" != "$screen(1)" ]]; then
-    fail "GatedHandoffButton( must be constructed exactly once, in $screen; found: ${built[*]:-none}" \
+  if [[ "${#built[@]}" -ne 1 || "${built[0]}" != "$screen(2)" ]]; then
+    fail "GatedHandoffButton( must be constructed exactly twice (gatedHandoff, openSurprise), in $screen; found: ${built[*]:-none}" \
       "Counted by occurrence over all $an .swift file(s) under $app_tree. Every other way onto the map's" \
       "one button would bypass the guard inside it."
   fi
@@ -251,7 +251,7 @@ run_check() {
   # ----------------------------------------- (v) WHO CAN REACH THE FLAG AT ALL: whitelists, by occurrence
   # PR #101's B5. After (iv), because rows 3, 5 and 10 move these counts as a side effect and each proves a
   # DIFFERENT refusal by name; the counts are typed literals in scan path order (T-0153 rulings R4-B, R4-E).
-  local ack_set="$gated(2) $screen(4)" key_set="$screen(1)"
+  local ack_set="$gated(2) $screen(6)" key_set="$screen(1)"
   require_tracked_occurrences "$ACK_IDENT" "identifier" "$app_tree" "$ack_set" \
     "Those six: on the screen the @AppStorage declaration, the argument label and the value of the" \
     "pass-through, the write in the accept closure; in the button the property and the guard's read." \
@@ -269,7 +269,7 @@ run_check() {
   echo "  at line $store_line with \`$ack_decl\` under it;"
   echo "  over the $an .swift file(s) under $app_tree, SkylineHandoff.open( called once"
   echo "  (GatedHandoffButton.swift line $call_line), dominated by the guard at line $guard_line;"
-  echo "  GatedHandoffButton( constructed once, in ScenicHomeScreen.swift, passing $ACK_IDENT"
+  echo "  GatedHandoffButton( constructed twice, in ScenicHomeScreen.swift, passing $ACK_IDENT"
   echo "  through with no \`: true\` in its argument list; the blocked tap is wired - onBlocked() at line"
   echo "  $blocked_line before the return at line $ret_line, \`onBlocked: { isShowingDisclaimer = true }\`"
   echo "  and a sheet bound to that flag on the screen; \`$ACK_IDENT = true\` written exactly once, at"

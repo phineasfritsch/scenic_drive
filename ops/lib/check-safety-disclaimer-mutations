@@ -43,8 +43,8 @@ rows=(
   "the on-device store key changed|$FS/ScenicHomeScreen.swift|s/safety.disclaimer.acknowledged.v1/whatever/|no @AppStorage"
   "the blocked tap no longer presents the disclaimer|$FS/ScenicHomeScreen.swift|s/onBlocked: { isShowingDisclaimer = true }/onBlocked: { }/|onBlocked"
   "the acknowledgement defaults to true|$FS/ScenicHomeScreen.swift|s/private var isSafetyDisclaimerAcknowledged = false/private var isSafetyDisclaimerAcknowledged = true/|does not default to false"
-  "a second call site in the app shell|ScenicDrive/ScenicDriveApp.swift|s/ScenicHomeScreen()/ScenicHomeScreen().onAppear { try? SkylineHandoff.open() }/|must be called exactly once"
-  "a second button beside the real one|$FS/ScenicHomeScreen.swift|s/^        conditions$/        conditions\n        GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, onBlocked: { }, onFailure: { _ in })/|constructed exactly once"
+  "a second call site in the app shell|ScenicDrive/ScenicDriveApp.swift|s/^import SwiftUI$/&\nlet bypass = { try? SkylineHandoff.open(.skyline, row: nil) }/|must be called exactly once"
+  "a second button beside the real one|$FS/ScenicHomeScreen.swift|s/^        conditions$/        conditions\n        GatedHandoffButton(isSafetyDisclaimerAcknowledged: true, onBlocked: { }, onFailure: { _ in })/|constructed exactly twice"
   "the acknowledgement written outside the accept closure|$FS/ScenicHomeScreen.swift|s/^        .background(DesignTokens.bg)$/&\n        .onAppear { isSafetyDisclaimerAcknowledged = true }/;/^                isSafetyDisclaimerAcknowledged = true$/d|is written outside the accept closure"
   # Rows 12 and 13 are PR #101's finding B5 (agent/rv3-pr101) and the half of it rv3 named but did not
   # test. Both ADD a second writer BESIDE the real one and leave every earlier anchor satisfied - row 12
@@ -85,6 +85,14 @@ rows=(
   "rv4 a plain non-Swift file added|+$FS/notes.txt|Conditions change. Verify locally.|added notes.txt"
   "rv4 an empty subdirectory added|+$FS/Extras/|-|added Extras"
   "rv4 a symlink committed to the index|=$FS/Shadow.swift|../Shadows/Shadow.swift|committed as a symlink"
+  # Rows 30-33 are T-0273's Surprise card (R4): its Apple Maps tap reaches the home's gate through the shell and
+  # nothing else. Row 30 is the acceptance's mutant - the card opening a URL itself - refused by the card's pinned
+  # digest; 31 the shell handing the card its own opener (the frozen shell); 32 the second construction passing
+  # true (the identifier's tracked count); 33 a file added beside the card (the card's pinned file set).
+  "T-0273 the Surprise card opens Apple Maps itself|Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift|s/onOpenInMaps(candidate.coordinate)/openURL(URL(string: \"maps:?daddr=34.07,-118.65\")!)/|SurpriseCard.swift content changed"
+  "T-0273 the shell hands the card its own opener|ScenicDrive/ScenicDriveApp.swift|s/onOpenInMaps: open))/onOpenInMaps: { _ in }))/|the app shell ScenicDriveApp"
+  "T-0273 the Surprise construction passes true|$FS/ScenicHomeScreen.swift|/private func openSurprise/,/attempt()/s/isSafetyDisclaimerAcknowledged: isSafetyDisclaimerAcknowledged/isSafetyDisclaimerAcknowledged: true/|identifier isSafetyDisclaimerAcknowledged"
+  "T-0273 a file added beside the Surprise card|+Packages/ScenicApp/Sources/FeatureSurpriseMe/Shadow.swift|struct Text: View { init<S>(_ content: S) {}; var body: some View { EmptyView() } }|added Shadow.swift"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies

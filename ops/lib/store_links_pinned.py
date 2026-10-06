@@ -53,9 +53,9 @@ APP_WIDE = {
     "import Entitlements": [(SHELL, "import Entitlements")],
     "onSettings": [
         (HOME, "private let onSettings: () -> Void"),
-        (HOME, "public init(onSettings: @escaping () -> Void) { self.onSettings = onSettings }"),
+        (HOME, "public init(onSettings: @escaping () -> Void, surprise: @escaping SurpriseSlot.Builder) { self.onSettings = onSettings; self.surprise = surprise }"),
         (HOME, "Button(action: onSettings) {"),
-        (SHELL, "ScenicHomeScreen(onSettings: { isShowingSettings = true })"),
+        (SHELL, "ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })"),
     ],
     "settingsButton": [(HOME, "settingsButton"), (HOME, "private var settingsButton: some View {")],
     '"home.settings"': [(HOME, '.accessibilityIdentifier("home.settings")')],
@@ -135,8 +135,9 @@ MUTATIONS = [
     ("the -screen read compiled into release", LS, "#if DEBUG\n", "#if true\n", "#"),
     ("the app's ODbL notice edited", LG, "are themselves offered under the ODbL", "are themselves offered under a licence",
      "ODbL notice"),
-    ("the shell drops the home's settings action", SHELL, "ScenicHomeScreen(onSettings: { isShowingSettings = true })",
-     "ScenicHomeScreen(onSettings: {})", "onSettings"),
+    ("the shell drops the home's settings action", SHELL,
+     "ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })",
+     "ScenicHomeScreen(onSettings: {}, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })", "onSettings"),
     ("the settings button no longer mounted in the chip band", HOME, "            settingsButton\n", "", "settingsButton"),
     ("a second paywall surface with no links", f"{ENT}/QuickPaywall.swift", None,
      "import StoreKit\nimport SwiftUI\n\nstruct QuickPaywall: View {\n    var body: some View {\n"

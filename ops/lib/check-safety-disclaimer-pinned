@@ -47,13 +47,22 @@ PINNED_FEATURE=(
   'DriveFacts.swift bdd9511bac9d73e4d3abc3fccacb68e7153bba2742155f4248558259f5ce1ae9'
   'DriveRoute.swift 5a64c9b70b228ae194d6ceb67eb7bcabe016f33daaa253561378659bf0a94cd8'
   'DriveSelector.swift ce63eea4128a64116e5f8daff2692225e12efe297d8d1a80eb9ed614306ce21e'
-  'GatedHandoffButton.swift cdf4c35c3847d1a2df4eb5384838020ca42bf6bbc6f353ef3005710da66f252d'
+  'GatedHandoffButton.swift ec13a5c9ea4d3e4ad28e699c08b26807687e94b2fdd67549b5ccbc9008a38139'
   'HandoffFailureCard.swift 94f62ec7d65e7c97b65c77bee5c128b63125b48f8998e0365b1aa73ccef4cb14'
   'HomeSheet.swift fda5e599a9c3b09203de6fc835e47cd3592cb91864518e9226d6e35204b9154e'
   'HomeSheetDetent.swift 8f6a8eeaec6829a1b415408db5ea34d787d657919fc0f363189eb34c0e39e63e'
   'SafetyDisclaimer.swift 7c33cdcf91aa074bf3916fda95c680e9e8d50ee131d5016f5912281a72384421'
-  'ScenicHomeScreen.swift f4d6aeb268a2d873dae7c0805a295badf7f08fcc15008b3d3dec6514ed0dcb6c'
-  'SkylineHandoff.swift ecf0b3344c6ba799d44b295395af45f7654a9298146e3591098678563cac3d65'
+  'ScenicHomeScreen.swift c53e3db9a15e0796e6544a9354143069693d500a90ea29cc39e9e5247da9a207'
+  'SkylineHandoff.swift 43fa2c19ce81f0cb217cfd98f5da383465ac1bb87ae5d5ac4d97017f74eff70c'
+  'SurpriseSlot.swift 2306572ab23e70b3050f3e6b41f3e91587b79fb8693eab0f8b4b896e234c124b'
+)
+# T-0273: the Surprise card's module, pinned the same way (its file set and its bytes): the card holds the only
+# Apple Maps button outside FeatureScenicHome, and it must reach the home's gate and nothing else (R4).
+PINNED_SURPRISE_REL="../FeatureSurpriseMe"
+PINNED_SURPRISE=(
+  'SurpriseCard.swift e1fc22021c5776d52449a9f74f7086a0c369b871695e162a9806804b06bbfe01'
+  'SurpriseDeck.swift 627ec4d1511f75c3d19f0d74d8cedd1df439a66d200f4a8004999bfed6cd44ee'
+  'SurpriseNotThis.swift 05e8115a07c0e5864a311d10089155adf2937960c9edd3f38eec877a6c952bdd'
 )
 PINNED_FOOTER_DIGEST='8f07bec7abe9690183813b79af08d404add796088bf497781b560d7e4bc7c0b7'
 
@@ -63,18 +72,20 @@ pinned_digest() {
   sed -e 's/\r$//' "$1" | sha256sum | cut -c1-64
 }
 
-# require_pinned_surface FEATURE_DIR: the file set, then every digest, or `fail` naming each break at once.
-require_pinned_surface() {
-  local dir="${1%/}"
+# pinned_module DIR LABEL SPECS_ARRAY_NAME: one module's file set, its index and every digest; set errors `fail` at
+# once, digest mismatches are appended to PINNED_BAD. Run for FeatureScenicHome and (T-0273) FeatureSurpriseMe.
+pinned_module() {
+  local dir="${1%/}" label="$2"
+  local -n specs="$3"
   [[ -d "$dir" ]] || fail "$PINNED_REASON: no such directory: $dir" \
-    "The pinned set is FeatureScenicHome and its footer; a missing tree is a refusal, never a pass."
+    "The pinned set is $label; a missing tree is a refusal, never a pass."
 
   # Every entry, NO name filter (a filter runs before the whitelist and hides what it does not match), no link
   # followed or entered: the link itself is an entry, and (ii) refuses it by name.
   local found=() nonreg=() approved=() spec
   mapfile -t found < <(cd "$dir" && find . -mindepth 1 | sed -e 's|^\./||' | LC_ALL=C sort)
   mapfile -t nonreg < <(cd "$dir" && find . -mindepth 1 ! -type f | sed -e 's|^\./||' | LC_ALL=C sort)
-  for spec in "${PINNED_FEATURE[@]}"; do approved+=("${spec%% *}"); done
+  for spec in "${specs[@]}"; do approved+=("${spec%% *}"); done
   local added missing
   added="$(LC_ALL=C comm -23 <(printf '%s\n' "${found[@]}") <(printf '%s\n' "${approved[@]}" | LC_ALL=C sort) \
     | sed -e '/^$/d' | tr '\n' ' ')"
@@ -85,7 +96,7 @@ require_pinned_surface() {
   [[ -z "$missing" ]] || set_errs+=("missing ${missing% }")
   [[ "${#nonreg[@]}" -eq 0 ]] || set_errs+=("not a regular file ${nonreg[*]}")
   [[ "${#set_errs[@]}" -eq 0 ]] || fail \
-    "$PINNED_REASON: FeatureScenicHome's file set is not the approved one: ${set_errs[*]}." \
+    "$PINNED_REASON: $label's file set is not the approved one: ${set_errs[*]}." \
     "Found ${#found[@]} entr(ies) under $dir; approved ${#approved[@]} regular files, typed in ops/lib/check-safety-disclaimer-pinned." \
     "A new file in the module can declare \`struct Text\`, \`VStack\` or \`AttributionFooter\` and every frozen line" \
     "then calls IT (rv3-t0237 R1); a directory link holding one is compiled and never listed (rv4-t0237). Any" \
@@ -102,18 +113,28 @@ require_pinned_surface() {
   [[ -z "$links" ]] || fail "$PINNED_REASON: committed as a symlink ${links% } (git index mode 120000 under $dir)." \
     "A committed link can reach sources outside the pinned set; only regular files are approved (rv4-t0237)."
 
-  local bad=() name want got
-  for spec in "${PINNED_FEATURE[@]}"; do
+  local name want got
+  for spec in "${specs[@]}"; do
     name="${spec%% *}"; want="${spec##* }"
     got="$(pinned_digest "$dir/$name")"
-    [[ "$got" == "$want" ]] || bad+=("$name content changed (sha256 $got, approved $want)")
+    [[ "$got" == "$want" ]] || PINNED_BAD+=("$name content changed (sha256 $got, approved $want)")
   done
+  PINNED_FILES=$((PINNED_FILES + ${#found[@]}))
+}
+
+# require_pinned_surface FEATURE_DIR: both modules' file sets, then every digest, or `fail` naming each break at once.
+require_pinned_surface() {
+  local dir="${1%/}" got
+  PINNED_BAD=()
+  PINNED_FILES=0
+  pinned_module "$dir" "FeatureScenicHome" PINNED_FEATURE
+  pinned_module "$dir/$PINNED_SURPRISE_REL" "FeatureSurpriseMe" PINNED_SURPRISE
   got="$(pinned_digest "$dir/$PINNED_FOOTER_REL")"
   [[ "$got" == "$PINNED_FOOTER_DIGEST" ]] || \
-    bad+=("AttributionFooter.swift content changed (sha256 $got, approved $PINNED_FOOTER_DIGEST)")
-  [[ "${#bad[@]}" -eq 0 ]] || fail "$PINNED_REASON: ${bad[0]}" "${bad[@]:1}" \
-    "Every byte of FeatureScenicHome and of DesignSystem/AttributionFooter.swift is pinned (rv3-t0237 B1-B3: a" \
-    "file-scope \`private struct Text\`, \`VStack\` or \`AttributionFooter\` outside every frozen block blanked the" \
-    "line, the sheet or the credit). Approve an edit by typing its new digest in the same commit, deliberately."
-  PINNED_FILES="${#found[@]}"
+    PINNED_BAD+=("AttributionFooter.swift content changed (sha256 $got, approved $PINNED_FOOTER_DIGEST)")
+  [[ "${#PINNED_BAD[@]}" -eq 0 ]] || fail "$PINNED_REASON: ${PINNED_BAD[0]}" "${PINNED_BAD[@]:1}" \
+    "Every byte of FeatureScenicHome, FeatureSurpriseMe and DesignSystem/AttributionFooter.swift is pinned (rv3-t0237" \
+    "B1-B3: a file-scope \`private struct Text\`, \`VStack\` or \`AttributionFooter\` outside every frozen block blanked" \
+    "the line, the sheet or the credit; T-0273: the card's Apple Maps tap). Approve an edit by typing its new digest" \
+    "in the same commit, deliberately."
 }

@@ -65,10 +65,10 @@ alive() {
 }
 for LOOK in light dark; do
   xcrun simctl ui "$UDID" appearance "$LOOK"
-  for SHOT in collapsed medium fastest settings paywall; do
+  for SHOT in collapsed medium fastest settings paywall surprise; do
     case "$SHOT" in
       fastest) DETENT=collapsed ROW=0 SCREEN=home NAME=home-$LOOK-$SHOT ;;
-      settings|paywall) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
+      settings|paywall|surprise) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
       *) DETENT=$SHOT ROW=default SCREEN=home NAME=home-$LOOK-$SHOT ;;
     esac
     LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN")
@@ -132,7 +132,7 @@ TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
 LAUNCH = ('              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW"'
           ' -screen "$SCREEN")\n')
 ALIVE = '              alive "$PID" "${SETTLE}s after the $LOOK $SHOT launch"\n'
-SHOTS_LIST = "            for SHOT in collapsed medium fastest settings paywall; do\n"
+SHOTS_LIST = "            for SHOT in collapsed medium fastest settings paywall surprise; do\n"
 LS = '          ls -l "$SHOTS"\n'
 
 
