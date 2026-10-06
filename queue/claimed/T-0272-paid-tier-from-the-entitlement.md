@@ -204,3 +204,21 @@ caller is anon (T-0256 R3), so nothing paid is reachable through ROUTES. Plan: q
   e4c749c -> 455ece6 (queue-only change upstream: T-0275 claimed). On the merged head: `npx vitest run` ->
   `Test Files  36 passed (36)`, `Tests  579 passed (579)` (500 + 4 requestReadSites + 75 tierCarriers);
   `bash ops/queue-check` -> `QUEUE OK (266 tasks)`. rv1-t0272 BLOCKING closed; ready for re-review.
+- 2026-10-06T07:25:11Z **rv2-t0272 FAIL closed** (agent/claude-opus-5, owner; PR #164 at 5f02dbe). The finding: the guard's
+  COMMENT `/^(\/\/|\/\*|\*\/|\* |\*$)/` dropped every line beginning `/*`, `*/`, `* ` or `*` even with code after it,
+  so `/* v1 */ { const alt = req.headers.get(ACCOUNT_TOKEN_HEADER.replace("account","purchase")); ... }` in
+  accountTier.ts left 112/112 green and granted paid from x-scenic-purchase-token. RULED: fail closed - the guard
+  drops ONLY lines that begin with `//` (LINE_COMMENT `/^\/\//`, per memory source-guards-fail-closed / PR #130);
+  every other line naming the request is compared whole to APPROVED. That makes seven JSDoc lines under src sites,
+  approved by full equality: appleMaps.ts (2), customModel.ts, hazards.ts, retrace.ts, ro.ts, roadTrip.ts (1 each)
+  -> APPROVED is now 62 lines in 20 files. Seen-red rows added to the in-test guard: `/* x */ <read>`, `*/ <read>`,
+  `* <read>`, `<read> /* fallback */`, and rv2's opening-block-comment line. Guard RED under the old filter (swapped
+  back in the worktree, uncommitted): `x the request sites under src are exactly the approved sites` (`expected {
+  ...(14) } to deeply equal { ...(20) }`), `x ... the guard seen red` (`expected [] to deeply equal [ Array(1) ]`),
+  `Tests  2 failed | 2 passed (4)`; GREEN with LINE_COMMENT: `Tests  4 passed (4)`. Population: tierMutants.mjs gains
+  tier-blockcomment-fallback (rv2's line completed to compile: `if (alt) return accountTier(new Request(req.url,
+  { headers: { [ACCOUNT_TOKEN_HEADER]: alt } }), db, nowMs); }` inserted as the function's first line);
+  MIN_MUTATIONS 25 -> 26. Faster verification, only the new entry: `--only=tier-blockcomment-fallback` ->
+  `population mutations=26 (floor 26)`, `baseline green tests=184`, `CAUGHT tier-blockcomment-fallback by "the
+  request sites under src are exactly the approved sites, file by file, line by line"`, `RESULT caught=1 missed=0
+  trap=0 of 1`. wc -l: requestReadSites.test.ts 155, tierMutants.mjs 177.
