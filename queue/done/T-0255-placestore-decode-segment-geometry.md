@@ -1,7 +1,7 @@
 ---
 id: T-0255
 title: PlaceStore decodes the segment geometry BLOB into e7 vertices
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-05T20:07:17Z
@@ -11,7 +11,7 @@ branch: task/T-0255
 exclusive: []
 touches: [Sources/PlaceStore/, Tests/PlaceStoreTests/, ops/mutate/, ops/lib/mutate_population_table.py, ops/lib/mutate-population-allowlist.json]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0255
 depends_on: [T-0175]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -59,3 +59,9 @@ Follow-up recorded in T-0175's Log (PR #142, review PASS): geometry is returned 
   - `--only 39,40,41,42,43,44,E3` at 8575c95: pristine md5s == HEAD; 39 and 40 caught ONLY by the new test by name; 41-44 caught by it and the other named killers; E3 MISSED as required; `caught by the test that names it: 6 of 6`, `MUTATE OK  caught=6/6 equivalent_caught=0`.
   - Same ids `--prove-vacuity`: `VACUITY PROOF OK: with the 1 test file(s) emptied, caught=0 (need 0) and MISSED=6 of 6`. `--prove-floor`: `FLOOR PROOF OK: 7 of 7 arms refused and the control did not`. Faster-verification ruling: the untouched entries 1-38, E1, E2 were not re-run.
   - LAST: `git fetch origin`, merged origin/main as 3186b3a (Telemetry H3/events; conflict in ops/lib/mutate_population_table.py resolved keeping both sides: segmentgeometry.py and telemetry.py in DRIVERS, both module sets in COVERED_FLOOR). On 3186b3a: `swift test --scratch-path .build/t0255 --filter SegmentVertices` `Test run with 10 tests in 1 suite passed`; `python ops/lib/check-mutate-population.py` exit 0, `155 modules, 72 covered by 20 populations, 62 allowlisted, 2 added by this branch`, `the floor of 65 holds`. Measured: SegmentVerticesTests.swift 161, segmentgeometry_mutations.py 129, mutate_population_table.py 55. The corpus test is untouched (no CI-image run this round).
+- 2026-10-06T00:20:23Z REVIEW ROUND 2 PASS by agent/rv2-t0255 (not the owner), PR #156 at 4a71f68 (== origin/task/T-0255), detached worktree .worktrees/rv2-t0255. Touched rows only (faster-verification ruling).
+  - rv1 B1 re-applied through the driver, `python ops/mutate/segmentgeometry.py --only 39`: pristine md5s == HEAD, `BASELINE --filter SegmentVerticesTests exit=0`, `caught 39 byte-count modulus 4 (rv1 B1) by: every byte count 0 through 40, every residue mod 8: the typed error or the whole decoded list`, `MUTATE OK  caught=1/1`. RED by name; closed.
+  - Reviewer's own unwritten threshold mutant, by hand in Segment.swift: `guard geometry.count % Self.vertexBytes == 0 || geometry.count > 32` (a partial vertex accepted above four whole ones; no trap, 33..39 bytes decode as four vertices). `swift test --scratch-path .build/rv2-t0255 --filter SegmentVertices` exit=1: only `every byte count 0 through 40, every residue mod 8: ...` failed, `with 7 issues` (byte count 33..39, e.g. `success([[11, -12], [21, -22], [31, -32], [41, -42]]) == failure(partialVertex(byteCount: 33))`); the old PARTIAL row set (1, 7, 9, 15, 17, 23) stayed green, as rv1 predicted. RED by name.
+  - Restored with `git checkout`; Segment.swift md5 823810547c1fe2255a41e5f8a8194680 (== HEAD); same command exit=0, `Test run with 10 tests in 1 suite passed`.
+  - `bash ops/queue-check` bare: exit 0, `QUEUE OK (259 tasks)`. `git merge-base --is-ancestor origin/main origin/task/T-0255`: exit 0 (main d4a06fc is an ancestor). `gh pr checks 156`: core pass 3m58s, pins-source-only pass 2m48s; PR MERGEABLE, base main.
+  - rv1 (round 1, a0e56de) recorded one blocking finding, B1 (above); nothing else of rv1's was open. Owner's round-1 results stand as logged (6/6 caught, vacuity 6/6 MISSED, floor proof 7/7). Not re-run here: entries 1-38, E1-E3, the corpus oracle in the CI image, the full line-cap scan (CI pins-source-only passed on 4a71f68). Signed off; queue/claimed/ -> queue/done/.
