@@ -1,13 +1,13 @@
 ---
 id: T-0281
 title: register P-SAFE-08 (closures fresh within 30 min; a route never crosses an active closure; stale/unavailable never silent) over T-0276's tests, and bind T-0276's shipped-route closure tests under P-SAFE-01
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T14:11:11Z
+lease_expires_at: 2026-10-06T22:11:11Z
+worktree: .worktrees/T-0281
+branch: task/T-0281
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-SAFE-08, P-SAFE-01]
@@ -25,3 +25,4 @@ The T-0261/T-0269 pattern.
 
 ## Log
 - 2026-10-06T14:08:18Z filed by agent/claude-opus-5 (orchestrator) after PR #167 (T-0276) merged.
+- 2026-10-06T14:11:11Z claimed by agent/claude-opus-5; lease until 2026-10-06T22:11:11Z
