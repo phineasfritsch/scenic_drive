@@ -14,7 +14,8 @@
     windows    the three LA windows cut out of the artifact and ranked (T-0208's fixtures, into the store)
     places     the allowlist osmium pass over the unfiltered clip <region>.osm.pbf (T-0266), see places.py
     fallback   the places corpus the app bundles, into the store and to its bundle path (T-0270)
-    all        motorways through fallback, stopping at the first stage that does not exit 0
+    corpus     the FULL corpus from the tile documents, first tile wins, measured (T-0275), see fullcorpus.py
+    all        motorways through corpus, stopping at the first stage that does not exit 0
 
 ops/etl-region is the entry point: it runs this inside the ETL image, or with --local on the host.
 """
@@ -26,12 +27,12 @@ import os
 import sys
 import time
 
-from . import docs, merge, osm, places, reference, scoring, tiles, windows
+from . import docs, fullcorpus, merge, osm, places, reference, scoring, tiles, windows
 from .layout import Layout
 from .sweep import count_line, python_module
 
 ALL = ("motorways", "tiles", "docs", "reference", "score", "merge", "toxml", "tag", "topbf", "check",
-       "places", "fallback")
+       "places", "fallback", "corpus")
 STAGES = ALL + ("sha", "windows", "all")
 # The places stages read the clip whole: no tile plan, so a region without one reaches its own refusal.
 PLANLESS = ("places", "fallback")
@@ -70,6 +71,7 @@ HANDLERS = {
     "windows": windows.run,
     "places": places.osmium_pass,
     "fallback": places.bundle,
+    "corpus": fullcorpus.run,
 }
 
 
