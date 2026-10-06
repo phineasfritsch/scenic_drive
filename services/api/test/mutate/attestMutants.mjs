@@ -93,7 +93,6 @@ export const MUTATIONS = [
   m("jwt-span-unchecked", "sessionJwt.ts", " || (exp as number) - (iat as number) !== SESSION_TTL_S", ""),
   m("jwt-header-unchecked", "sessionJwt.ts", " || parts[0] !== HEADER", ""),
   m("jwt-signature-unchecked", "sessionJwt.ts", "if (!(await crypto.subtle.verify(", "if (false && !(await crypto.subtle.verify("),
-  m("jwt-signature-length-unchecked", "sessionJwt.ts", " || signature.length !== 32", ""),
   m("jwt-extra-claims", "sessionJwt.ts", "keys.join() !== CLAIMS.join() || ", ""),
   m("jwt-iss-unchecked", "sessionJwt.ts", " || claims.iss !== SESSION_ISSUER", ""),
   m("jwt-sub-any-string", "sessionJwt.ts", "if (typeof sub !== \"string\" || !UUID.test(sub)) return null;", "if (typeof sub !== \"string\") return null;"),
@@ -123,6 +122,10 @@ export const EQUIVALENT = [
   { id: "store-live-inclusive", file: "src/attestStore.ts", find: "AND expires_at > ?2\"",
     witness: "COMMIT_KEY re-checks `expires_at > ?5` inside the batch, so a challenge expiring at now that passed a widened read "
       + "commits nothing and answers 400 - the read only saves the verification work; the expiry bound test pins the answer" },
+  { id: "jwt-signature-length-unchecked", file: "src/sessionJwt.ts", find: " || signature.length !== 32",
+    witness: "WebCrypto's HMAC verify compares the whole 32-byte SHA-256 MAC and answers false for a signature of any other "
+      + "length, so the length check only refuses earlier; measured MISSED in the 2026-10-06 run, the row 'a signature cut "
+      + "to 31 bytes' pins the unidentified answer" },
   { id: "attest-live-unchecked", file: "src/attest.ts", find: "if (!(await challengeIsLive(deps.db, challenge, nowMs))) return INVALID();",
     witness: "the same: COMMIT_KEY's EXISTS over the live challenge is the authority, so an unknown or expired challenge is 400 "
       + "with nothing written whether or not the early read refuses it" },
