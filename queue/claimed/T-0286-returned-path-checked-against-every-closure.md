@@ -144,3 +144,33 @@ closure (P-SAFE-08), and it is never silent.
   P-COST-04` NAMED P-COST-04 passed=25/27 (the two five-day search rows). PINS.yaml: one dated passage APPENDED to the
   end of P-SAFE-08's and of P-COST-04's why_no_test_catches_it, the earlier text byte-identical; read back through
   ops/lib/pins.py load().
+- 2026-10-06T19:34:44Z FINAL (author rule): `git fetch origin` (main checkout) and merged origin/main as the last step ->
+  0c72435 (no services/api change from main); `git merge-base --is-ancestor origin/main HEAD` true. Gates on the merged
+  head: `npx vitest run` Test Files 54 passed (54), Tests 1696 passed (1696); `python ops/lib/run-named-tests.py
+  P-SAFE-08` NAMED P-SAFE-08 passed=833/833; `... P-SAFE-01` NAMED P-SAFE-01 passed=15/15; `... P-COST-04` NAMED
+  P-COST-04 passed=27/27; `python ops/lib/check-mutate-population.py` "P-PROC-06: every added module is covered or
+  allowlisted; the floor of 67 holds"; `bash ops/queue-check` QUEUE OK (278 tasks); every anchor and EQUIVALENT anchor
+  of crossingMutants.mjs and closuresMutants.mjs occurs exactly once on the merged head. ops/test not run
+  (orchestrator instruction). wc -l: closuresCrossing.ts 53, closuresNearest.ts 180, closuresStore.ts 104,
+  scenicPlanner.ts 135, loopPlanner.ts 178, tripPlanner.ts 208, plan.ts 105, loop.ts 87, trip.ts 98,
+  closuresCrossing.test.ts 268, closuresCrossingTrip.test.ts 135, closuresCrossingGeometry.test.ts 150,
+  closuresNearest.test.ts 200, closuresNearestRetry.test.ts 195, crossingMutants.mjs 209, closuresMutants.mjs 281 -
+  all under 300.
+  ACCEPTANCE, re-quoted:
+  1 path checked + one re-request inside the caps - MET: after the /plan chosen route, the /loop returned attempt and
+    /trip's chosen route and each day leg, the Worker tests the returned points.coordinates against EVERY stored
+    closure polygon (closuresCrossing.ts, C1: vertex-in-polygon plus closed segment-edge meeting, ruled at 17:48:16Z);
+    a crossing of a closure not sent triggers ONE re-request with the crossers swapped in for the farthest sent (C4,
+    <= 50; never a futile one, C4a), counted inside 12 / 3 / 12 by each planner's own call count with the legs still
+    owed reserved (C5) - a request over the cap is not made (closuresCrossingTrip.test.ts: 12 requests at most, the
+    five-day rows make none; the loop's third-attempt row makes no 4th).
+  2 hazard, never silent; tests through ROUTES as cross-product tables - MET: a crossing that survives the re-request,
+    or whose re-request the cap forbids (or whose re-request fails the route's guards), is named in
+    closures_hazard {state, version, fetched_at, dropped?, crosses: [lcs ids]} on a 200; closuresCrossing.test.ts drives
+    ROUTES over the T-0276 fixture (X its farthest isolated single-polygon closure, dropped) as route x set {empty, X
+    alone, the fixture (> 50)} x shape {clear, vertex, edge, inside, through} x router {honours, ignores}, by full
+    equality, with meta-tests that no row ignores its set or its shape.
+  3 bound + population - MET: P-SAFE-08 binds 165 new names (833 in all) with an APPENDED dated passage retiring
+    T-0282's 'nothing re-checks the returned path against the dropped set'; P-COST-04 binds 18 (27); both seen red by
+    name; crossingMutants.mjs 59 mutations at the literal floor 59, 5 EQUIVALENT with witnesses, caught 59/59 across
+    the whole run plus the re-run of its five survivors.
