@@ -1,7 +1,7 @@
 ---
 id: T-0272
 title: the Worker's quota tier comes from the entitlement - an active /asn entitlement for the request's appAccountToken makes the caller paid (plan 200/day, full /trip itinerary), everything else stays anon; REFUND_REVERSED restores access
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T03:31:08Z
@@ -11,7 +11,7 @@ branch: task/T-0272
 exclusive: []
 touches: [services/api/]
 pins_affected: [P-COST-01, P-STORE-02]
-reviewer: null
+reviewer: agent/rv3-t0272
 depends_on: [T-0267, T-0268]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -222,3 +222,29 @@ caller is anon (T-0256 R3), so nothing paid is reachable through ROUTES. Plan: q
   `population mutations=26 (floor 26)`, `baseline green tests=184`, `CAUGHT tier-blockcomment-fallback by "the
   request sites under src are exactly the approved sites, file by file, line by line"`, `RESULT caught=1 missed=0
   trap=0 of 1`. wc -l: requestReadSites.test.ts 155, tierMutants.mjs 177.
+- 2026-10-06T07:41:11Z **rv3-t0272 PASS** (agent/rv3-t0272, reviewer round 3, not the owner; PR #164 at 25d15ec).
+  History: rv1-t0272 FAIL at 04e548d (a `new URL(req.url).searchParams.get("account_token")` fallback in
+  accountTier.ts left the suite green; the other-client-field row was a blacklist of header spellings); rv2-t0272
+  FAIL at 5f02dbe (the guard's COMMENT filter dropped any line beginning `/*`, `*/`, `* ` or `*` even with code after
+  it; rv2's one-line `/* v1 */ { const alt = req.headers.get(...) ... }` left 112/112 green and granted paid from
+  x-scenic-purchase-token). Round 3, touched rows only, review worktree `.worktrees/rv3-t0272` at
+  origin/task/T-0272 == 25d15ec, `npm ci`, each mutant inserted after accountTier's signature line, full
+  `npx vitest run`, file restored (byte-equal check true):
+  - rv2's line, completed to compile (`... if (alt) return accountTier(new Request(req.url, { headers:
+    { [ACCOUNT_TOKEN_HEADER]: alt } }), db, nowMs); }`) -> RED: `Tests 3 failed | 576 passed (579)`, by name
+    "the request sites under src are exactly the approved sites, file by file, line by line", "the tier module
+    reads the request once: the ACCOUNT_TOKEN_HEADER line", "a query, body or alternate-header read in the tier
+    module is refused by its line (the guard seen red)".
+  - reviewer's own, a `*`-leading continuation line inside a multi-line expression (`const purchased = 1` /
+    `* Number(Boolean(req.headers.get(ACCOUNT_TOKEN_HEADER.replace("account", "purchase"))));` /
+    `if (purchased) return "paid";`) -> RED: `Tests 3 failed | 576 passed (579)`, the same three names.
+  - reviewer's own, a template literal (`` const via = `${req.headers.get(ACCOUNT_TOKEN_HEADER.replace("account",
+    "purchase")) ?? ""}`; `` / `if (via) return "paid";`) -> RED: the same three names, 3 failed | 576 passed.
+  RECORDED (not blocking): in all three the only catcher is the source-layer whitelist; no behavioral test fails
+  (576 green), so a read that names no SITE token on any line (e.g. `arguments[0]["head" + "ers"]`) is outside what
+  a lexical guard can see (inferred from SITE, not run). Adversarial obfuscation, recorded, not ruled a fail.
+  Green: `npx vitest run test/requestReadSites.test.ts test/accountTier.test.ts test/tierCarriers.test.ts` ->
+  `Test Files 3 passed (3)`, `Tests 112 passed (112)`. wc -l: requestReadSites.test.ts 155, tierMutants.mjs 177.
+  `bash ops/queue-check` (bare) -> `QUEUE OK (266 tasks)`, exit 0. `gh pr checks 164` -> core pass 4m12s,
+  pins-source-only pass 1m47s. Ancestry: `git merge-base --is-ancestor origin/main origin/task/T-0272` -> true
+  (origin/main 8bf2709). Verdict PASS; queue/claimed/ -> queue/done/. Not merged by the reviewer.
