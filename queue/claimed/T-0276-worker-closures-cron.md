@@ -128,3 +128,25 @@ resources.
   wc -l: closuresCron.ts 72, closuresStore.ts 87, lcsFeed.ts 190, closuresCron.test.ts 112, closuresDriven.test.ts
   58, closuresFake.ts 56, closuresFeed.test.ts 202, closuresRoutes.test.ts 174, closuresMutants.mjs 225 - all
   under 300.
+- 2026-10-06T09:59:36Z FINAL (author rule): `git fetch origin` (main checkout) and merged origin/main (6e81a38) as
+  the last step -> 63188b7; `git merge-base --is-ancestor origin/main HEAD` true. Gates on the merged head:
+  `npx vitest run` Test Files 40 passed (40), Tests 726 passed (726); `python ops/lib/check-mutate-population.py`
+  exit 0 ("every added module is covered or allowlisted; the floor of 67 holds"); `bash ops/queue-check` QUEUE OK
+  (269 tasks). ops/test not run (orchestrator instruction).
+  ACCEPTANCE, re-quoted:
+  1 MEASURE FIRST - MET: URL, docs/terms links and fetch time quoted 08:18:21Z; one response recorded verbatim
+    (lcsStatusD07.json, 8553200 bytes, sha256 48e1586ed290b085c10815a4f574cb0652ec189a8ccf091ca55a9ce1376ee7f3);
+    Full vs Lane, geometry kinds and active windows counted before any predicate.
+  2 scheduled() cron - MET: wrangler.jsonc triggers {crons: ["*/15 * * * *"]} (held by test); only Full closures
+    active now; each buffered per R4; <= 50 in R5's ruled cap order; {version, fetched_at, geojson} (+ stats) to KV
+    key closures/lcs-d7; the parse held WHOLE to the independent oracle over the recorded fixture; every field the
+    parse reads refused by name per row; ranges and windows tabled at every bound (the 500 m chord bracketed
+    499.9992 / 500.0003, exact 500.0 EQUIVALENT with witness); no secret, no 511 key.
+  3 routes - MET for /plan, /loop, /trip (areas on every driven request, gate-clean through rejectCustomModel);
+    /isochrone PARTIAL by ruling R8: closures-version in its cache key and the hazard in its body, but NO areas -
+    GraphHopper's GET /isochrone has no body for a custom model (Brief vs reality). Fail-safe through ROUTES: stale
+    (> 30 min, or future) routes with the last good set + closures_hazard; unavailable routes without + hazard;
+    KILL=1 makes zero closures reads; mutation population closuresMutants.mjs, literal floor 83.
+  OPEN for follow-up tasks: /isochrone areas; P-SAFE-08 as a PINS.yaml row (pins/ outside touches:); nearest-first
+  per request (today the cap drops 121 of 163 active Full closures); the 30 m buffer measured against the LA graph;
+  --prove-vacuity not run; https://dot.ca.gov/conditions-of-use read by the owner; creating and binding CLOSURES.
