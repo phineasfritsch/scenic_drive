@@ -104,6 +104,38 @@ describe("the closures cron through scheduled() (R6)", () => {
   });
 });
 
+/** NOW is epoch 1791273972; LAST_MODIFIED is 1791273860. The parse judges R2 at floor(the cron's now), never at the feed's age. */
+const windowRow = (start: number, end: number) => {
+  const r = row("w", "-118.4");
+  r.lcs.closure.closureTimestamp = { closureStartEpoch: String(start), closureEndEpoch: String(end), isClosureEndIndefinite: "false" };
+  return r;
+};
+const clock: [string, string, number, number, number][] = [
+  ["a window opening between Last-Modified and now", "2026-10-06T08:06:12Z", 1791273900, 1791277000, 1],
+  ["a window ending between Last-Modified and now", "2026-10-06T08:06:12Z", 1791273000, 1791273900, 0],
+  ["a window opening at now's second", "2026-10-06T08:06:12Z", 1791273972, 1791277000, 1],
+  ["a window opening one second after now", "2026-10-06T08:06:12Z", 1791273973, 1791277000, 0],
+  ["a window ending at now's second", "2026-10-06T08:06:12Z", 1791273000, 1791273972, 1],
+  ["a window ending one second before now", "2026-10-06T08:06:12Z", 1791273000, 1791273971, 0],
+  ["a window ending at now's second, now at .500", "2026-10-06T08:06:12.500Z", 1791273000, 1791273972, 1],
+  ["a window ending at now's second, now at .999", "2026-10-06T08:06:12.999Z", 1791273000, 1791273972, 1],
+  ["a window opening at now's second, now at .500", "2026-10-06T08:06:12.500Z", 1791273972, 1791277000, 1],
+  ["a window opening one second after now, now at .500", "2026-10-06T08:06:12.500Z", 1791273973, 1791277000, 0],
+];
+
+describe("the cron's clock through scheduled(): R2 at floor(now in seconds) (R6)", () => {
+  for (const [name, at, start, end, active] of clock) {
+    it(`${name} (${at}, ${start}..${end}) is ${active ? "active" : "not active"}`, async () => {
+      vi.setSystemTime(new Date(at));
+      const k = closuresKv({});
+      answer = feedOf([windowRow(start, end)]);
+      await tick(k.kv);
+      expect(k.puts.map(([, value]) => JSON.parse(value).stats))
+        .toEqual([{ rows: 1, full: 1, active, refused: 0, kept: active, dropped: 0 }]);
+    });
+  }
+});
+
 describe("the trigger (R6)", () => {
   it("wrangler.jsonc runs the cron every 15 minutes and binds no CLOSURES namespace", () => {
     const config = JSON.parse(wranglerRaw.split("\n").filter((line) => !line.trim().startsWith("//")).join("\n"));

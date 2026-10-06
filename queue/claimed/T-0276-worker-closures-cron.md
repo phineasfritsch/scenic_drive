@@ -150,3 +150,17 @@ resources.
   OPEN for follow-up tasks: /isochrone areas; P-SAFE-08 as a PINS.yaml row (pins/ outside touches:); nearest-first
   per request (today the cap drops 121 of 163 active Full closures); the 30 m buffer measured against the LA graph;
   --prove-vacuity not run; https://dot.ca.gov/conditions-of-use read by the owner; creating and binding CLOSURES.
+- 2026-10-06T10:37:58Z PRE-REVIEW SURVIVORS (2, BLOCKING) closed, both on the cron's clock line
+  `parseLcsFeed(data, Math.floor(nowMs / 1000))`: S1 cron-now-is-last-modified (R2 judged at the feed's
+  Last-Modified) and S2 cron-now-ceil both survived 726 tests because every clock was a whole second and no row's
+  window started or ended between Last-Modified and now. CLASS closed: test/closuresCron.test.ts gains a 10-row
+  table through scheduled() ("the cron's clock"), full equality on stats, at every bound - a window opening/ending
+  between Last-Modified (1791273860) and now (1791273972); opening at now's second and one after; ending at now's
+  second and one before; now at .500 and .999 with end == floor(now), start == floor(now), start == floor(now)+1.
+  Population +3 (cron-now-is-last-modified, cron-now-ceil, cron-now-round), floor literal 83 -> 86.
+  GREEN unmutated: `npx vitest run test/closuresCron.test.ts` 27 passed. RED by name (faster verification):
+  `--only=cron-now-ms-as-s,cron-now-is-last-modified,cron-now-ceil,cron-now-round` -> CAUGHT cron-now-is-last-modified
+  by "a window opening between Last-Modified and now (...1791273900..1791277000) is active"; CAUGHT cron-now-ceil and
+  cron-now-round by "a window ending at now's second, now at .500 (...1791273000..1791273972) is active"; CAUGHT
+  cron-now-ms-as-s; `RESULT caught=4 missed=0 trap=0 of 4` (baseline green tests=157). --prove-floor: all four arms
+  REFUSED at floor 86, real population quiet. wc -l: closuresCron.test.ts 144, closuresMutants.mjs 228.

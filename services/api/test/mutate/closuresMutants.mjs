@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-closures");
 
-export const MIN_MUTATIONS = 83;
+export const MIN_MUTATIONS = 86;
 export const SUBJECTS = ["src/lcsFeed.ts", "src/closuresStore.ts", "src/closuresCron.ts", "src/index.ts", "src/routerDeps.ts",
   "src/reachCache.ts", "src/plan.ts", "src/scenicPlanner.ts", "src/loop.ts", "src/loopPlanner.ts", "src/trip.ts",
   "src/tripPlanner.ts", "src/isochrone.ts"];
@@ -95,6 +95,9 @@ export const MUTATIONS = [
   m("cron-empty-data-written", "closuresCron.ts", "if (!Array.isArray(data) || data.length === 0)", "if (!Array.isArray(data))"),
   m("cron-no-last-modified-ok", "closuresCron.ts", "if (!Number.isFinite(lastModified)) return { written: false, reason: \"no_last_modified\" };", ""),
   m("cron-now-ms-as-s", "closuresCron.ts", "Math.floor(nowMs / 1000)", "nowMs"),
+  m("cron-now-is-last-modified", "closuresCron.ts", "parseLcsFeed(data, Math.floor(nowMs / 1000))", "parseLcsFeed(data, Math.floor(lastModified / 1000))"),
+  m("cron-now-ceil", "closuresCron.ts", "Math.floor(nowMs / 1000)", "Math.ceil(nowMs / 1000)"),
+  m("cron-now-round", "closuresCron.ts", "Math.floor(nowMs / 1000)", "Math.round(nowMs / 1000)"),
   m("index-cron-unbound", "index.ts", "kv: env.CLOSURES,", "kv: undefined,"),
   m("deps-closures-unbound", "routerDeps.ts", "readClosures(env.CLOSURES, now().getTime())", "readClosures(undefined, now().getTime())"),
   m("deps-closures-clock-plus-1", "routerDeps.ts", "readClosures(env.CLOSURES, now().getTime())", "readClosures(env.CLOSURES, now().getTime() + 1)"),
