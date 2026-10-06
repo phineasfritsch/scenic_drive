@@ -5,6 +5,7 @@
  * (pin P-COST-01 will later assert the kill switch covers every entry, not a hand-written list).
  */
 import { asnDepsFromEnv, handleAsn, handleEntitlement } from "./asn";
+import { runClosuresCron } from "./closuresCron";
 import { handleIsochrone, isochroneDepsFromEnv } from "./isochrone";
 import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
@@ -25,6 +26,7 @@ export interface Env {
   ROUTER_URL?: string; // our GraphHopper; https://router.invalid (the shipped placeholder) counts as absent
   ROUTER_SECRET?: string; // secret: `wrangler secret put ROUTER_SECRET`; sent as x-scenic-router-secret
   ASN_ALLOW_SANDBOX?: string; // "1" applies App Store Sandbox notifications too (T-0267 R7); unset = production only
+  CLOSURES?: KVNamespace; // the closures cron writes it, every planning route reads it (T-0276); not bound in wrangler.jsonc
   GRAPH_VERSION?: string; // the routing graph's version, in the /isochrone cache key (T-0262 R6); unset = "unversioned"
 }
 
@@ -98,5 +100,8 @@ export default {
     const handler = ROUTES[url.pathname];
     if (!handler) return json({ error: "not found" }, 404);
     return handler(req, env, url);
+  },
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runClosuresCron({ fetchImpl: (url) => fetch(url), kv: env.CLOSURES, now: () => new Date() }));
   },
 } satisfies ExportedHandler<Env>;

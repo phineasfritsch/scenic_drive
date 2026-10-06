@@ -8,6 +8,7 @@
  * routerDeps.ts) and, with any binding missing, answers 503 planning_unavailable with zero upstream calls. A loop
  * spends the LOOP allowance (kind "loop", T-0256 R4), never a plan.
  */
+import { withClosuresHazard, type ClosureSnapshot } from "./closuresStore";
 import { killSwitch } from "./killSwitch";
 import { parseLoopRequest } from "./loopRequest";
 import { LOOP_UPSTREAM_COST, LoopFailure, loopSeed, planLoop } from "./loopPlanner";
@@ -23,6 +24,8 @@ export interface LoopDeps {
   routerBase: string;
   /** Who is looping: the quota and the seed. */
   identify(req: Request): Identity | Promise<Identity>;
+  /** The closures every driven request routes around, read once after the kill switch (T-0276). */
+  closures(): Promise<ClosureSnapshot>;
 }
 
 const json = (body: unknown, status: number) =>
@@ -68,12 +71,14 @@ export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | nu
 
   const { request } = parsed;
   const who = await deps.identify(req);
+  const snapshot = await deps.closures();
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const seed = loopSeed(who.userId, dayKey(deps.upstream.now()));
     const loop = await guardedPlan(upstream, { ...who, kind: "loop" }, (call) =>
-      planLoop(call, deps.routerBase, request.start, request.minutes, seed), LOOP_UPSTREAM_COST);
-    return json(loop, 200);
+      planLoop(call, deps.routerBase, request.start, request.minutes, seed, snapshot.closures),
+      LOOP_UPSTREAM_COST);
+    return json(withClosuresHazard(loop, snapshot), 200);
   } catch (error) {
     return failure(error);
   }

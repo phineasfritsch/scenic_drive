@@ -6,6 +6,7 @@
  * `{polygons: [Feature {properties: {bucket}, geometry: Polygon}], info}`, nested squares around the asked point, listed
  * in REVERSE bucket order so a reader trusting array order is wrong.
  */
+import { liveClosures } from "./closuresFake";
 import { env } from "cloudflare:test";
 import { ROUTES, type Env } from "../src/index";
 import type { FakeQuota } from "./doFake";
@@ -64,7 +65,7 @@ export function freshGraph(): string {
 export function reachEnv(quota: FakeQuota, over: Record<string, unknown> = {}): Env {
   const e: Record<string, unknown> = {
     DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, ROUTER_URL: "https://router.test",
-    ROUTER_SECRET: SECRET, GRAPH_VERSION: freshGraph(), ...over,
+    ROUTER_SECRET: SECRET, GRAPH_VERSION: freshGraph(), CLOSURES: liveClosures(), ...over,
   };
   for (const [key, value] of Object.entries(e)) if (value === undefined) delete e[key];
   return e as unknown as Env;

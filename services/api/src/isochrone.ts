@@ -7,6 +7,7 @@
  *      call are RESERVED before the one GraphHopper /isochrone request (P-COST-01, P-COST-04).
  * ROUTES["/isochrone"] builds the deps from env; with any router binding missing it answers 503 planning_unavailable.
  */
+import { withClosuresHazard } from "./closuresStore";
 import { killSwitch, type KillEnv } from "./killSwitch";
 import { oneWayLimit, parseReachRequest } from "./isochroneRequest";
 import { ISOCHRONE_UPSTREAM_COST, planReach, ReachError } from "./isochronePlanner";
@@ -70,15 +71,16 @@ export async function handleIsochrone(req: Request, env: KillEnv, deps: Isochron
   const { start, minutes } = parsed.request;
   const limit = oneWayLimit(minutes);
   const now = deps.upstream.now();
-  const key = reachCacheKey(start, limit, now, deps.graphVersion);
+  const snapshot = await deps.closures();
+  const key = reachCacheKey(start, limit, now, deps.graphVersion, snapshot.version);
   const cached = await deps.cache.get(key).catch(() => null);
-  if (cached !== null) return json({ minutes, buckets: cached }, 200);
+  if (cached !== null) return json(withClosuresHazard({ minutes, buckets: cached }, snapshot), 200);
 
   try {
     const buckets = await guardedPlan(deps.upstream, { ...(await deps.identify(req)), kind: "surprise" }, (call) =>
       planReach(call, deps.routerBase, start, limit), ISOCHRONE_UPSTREAM_COST);
     await deps.cache.put(key, buckets, now).catch(() => undefined);
-    return json({ minutes, buckets }, 200);
+    return json(withClosuresHazard({ minutes, buckets }, snapshot), 200);
   } catch (error) {
     return failure(error);
   }

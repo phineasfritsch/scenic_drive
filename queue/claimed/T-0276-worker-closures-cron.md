@@ -94,3 +94,18 @@ resources.
   R10 KILL: the kill switch is read before the closures KV; KILL=1 makes zero closures reads (counted).
   R11 P-SAFE-08 is not a PINS.yaml row and pins/ is outside touches: - its by-name binding is a follow-up. No 511
   key, no secret, no resource.
+- 2026-10-06T08:45:18Z ORACLE: `python Tests/Fixtures/t0276/oracle.py` (independent Python, R1-R6) -> rows=2808
+  full=1708 active=163 refused=0 kept=42 dropped=121 polygons=50 version=lcs-d7-e3526af4d59aaad9 at now_s
+  1791273972 (the response's Date). So today the cap drops 121 of 163 active Full closures (R5's order keeps every
+  10-97 one that fits): nearest-first per request would need KV to hold > 50 polygons - a follow-up, ruled out here.
+  RED FIRST by name, before the routes and index were wired (`npx vitest run test/closuresFeed.test.ts
+  test/closuresCron.test.ts test/closuresRoutes.test.ts`): 73 failed, among them "writes the oracle's record under
+  closures/lcs-d7, once, from one fetch of the D7 feed" (TypeError: default.scheduled is not a function), "wrangler.jsonc
+  runs the cron every 15 minutes and binds no CLOSURES namespace", "/plan: 200 with no closures_hazard; every model
+  carries the areas and the zero clause, gate-clean; no car_fast model", "/trip, a record 30 min + 1 ms old: 200 with
+  closures_hazard stale, routed around the record's set" (expected [200, undefined] to equal [200, {state: stale}]).
+  GREEN after wiring + harness deps (every hand-built deps gains closures: FRESH_EMPTY; every shipped-ROUTES env
+  gains CLOSURES: liveClosures(), a record fetched at the fake clock's now - the fresh empty set, so earlier bodies
+  are unchanged) + two approved feed-response sites in requestReadSites.test.ts by full equality: `npx vitest run`
+  Test Files 39 passed (39), Tests 716 passed (716). tsc --noEmit cannot run in this checkout (TS2688
+  @cloudflare/workers-types/2023-07-01 missing, not this change).

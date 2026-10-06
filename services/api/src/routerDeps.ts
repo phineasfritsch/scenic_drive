@@ -4,6 +4,7 @@
  * upstream calls, when ANY of the QUOTA binding, a routable ROUTER_URL or the ROUTER_SECRET secret is missing.
  */
 import { accountTier } from "./accountTier";
+import { readClosures, type ClosureSnapshot } from "./closuresStore";
 import type { QuotaCounter } from "./QuotaCounter";
 import type { Tier } from "./quota";
 import { countersFromNamespace } from "./quotaCounters";
@@ -26,6 +27,8 @@ export interface RouterEnv {
   ROUTER_SECRET?: string;
   /** The entitlements table the tier is read from (T-0272); absent, every caller is anon. */
   DB?: D1Database;
+  /** The closures the cron writes (T-0276 R6); the owner binds it. Absent, every route carries closures_hazard. */
+  CLOSURES?: KVNamespace;
 }
 
 export interface Identity {
@@ -37,6 +40,8 @@ export interface RouterDeps {
   upstream: UpstreamDeps;
   routerBase: string;
   identify(req: Request): Promise<Identity>;
+  /** The closures to route around, read once per request after the kill switch (T-0276 R7, R10). */
+  closures(): Promise<ClosureSnapshot>;
 }
 
 /** The router base, or null when ROUTER_URL is absent, not https, or under RFC 2606's reserved .invalid (R8). */
@@ -77,5 +82,6 @@ export function routerDepsFromEnv(env: RouterEnv): RouterDeps | null {
       const device = deviceIdentity(req);
       return (await accountTier(req, env.DB, now().getTime())) === "paid" ? { ...device, tier: "paid" } : device;
     },
+    closures: () => readClosures(env.CLOSURES, now().getTime()),
   };
 }
