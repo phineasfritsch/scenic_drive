@@ -124,6 +124,20 @@ describe("REFUND_REVERSED re-activates the row its REFUND deactivated (T-0272 R6
   });
 });
 
+const LAPSED_AT_SIGNING: [string, number][] = ["SUBSCRIBED", "DID_RENEW", "OFFER_REDEEMED", "REFUND_REVERSED"]
+  .flatMap((type) => [-1, 0, 1].map((offset): [string, number] => [type, offset]));
+
+describe("an activation whose expiresDate had passed when Apple signed it lands active until that expiresDate (R6)", () => {
+  it.each(LAPSED_AT_SIGNING)("%s with expiresDate - signedDate = %d ms is stored with that end and reads inactive",
+    async (type, offset) => {
+      const signed = NOW - 1000;
+      if (type === "REFUND_REVERSED") expect(await send({ type: "REFUND", signedDate: NOW - 2000 })).toEqual(OK);
+      expect(await send({ type, signedDate: signed, tx: { ...TX, expiresDate: signed + offset } })).toEqual(OK);
+      expect(await rows()).toEqual([row({ active_until: signed + offset, notification_type: type, signed_date: signed })]);
+      expect(await getEntitlement(TOKEN)).toEqual({ status: 200, json: { status: "inactive", active_until: null } });
+    });
+});
+
 describe("replay and out-of-order delivery never regress state (R6)", () => {
   it("an older SUBSCRIBED after a newer EXPIRED leaves the row inactive", async () => {
     expect(await send({ type: "EXPIRED", signedDate: NOW })).toEqual(OK);

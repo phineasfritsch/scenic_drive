@@ -127,3 +127,37 @@ caller is anon (T-0256 R3), so nothing paid is reachable through ROUTES. Plan: q
      1 EQUIVALENT with witness. MET.
   NOT DONE (R8): no new name is bound in ops/lib/named-tests.json (outside touches: services/api/). A binding task
   should add the accountTier.test.ts states and the REFUND_REVERSED tests to P-STORE-02 / a P-COST row.
+- 2026-10-06T05:40:42Z **pre-review survivor closed** (agent/claude-opus-5, owner). The pre-review mutant pass at
+  a9ab981 found ONE survivor (BLOCKING, fail-OPEN): M4 "reversal-of-lapsed-row-open-ended" - in entitlementChange,
+  `activeUntil = REACTIVATES.includes(type) && epochMs(expiresDate, ...) <= signedDate ? null : epochMs(...)` stores a
+  REFUND_REVERSED whose expiresDate had already passed at signing with active_until NULL (open-ended paid). R6 rules
+  that case in prose ("lands active but reads inactive (anon) at R3") and no test drove expiresDate <= signedDate.
+  RULED: the CLASS is "an activating notification whose transaction lapsed at or before signing lands open-ended",
+  and it covers ACTIVATES (SUBSCRIBED, DID_RENEW, OFFER_REDEEMED) as well as REFUND_REVERSED, at every bound
+  expiresDate - signedDate in {-1, 0, +1} ms (all three before now). Closed by:
+  - accountTier.test.ts "an activation whose expiresDate had passed when Apple signed it stays anon through the
+    shipped ROUTES (R6)" - twelve rows (4 types x 3 offsets), signedDate T - 1000, a REFUND at T - 2000 first for
+    REFUND_REVERSED; each drives ROUTES['/plan'], ['/loop'], ['/trip'] and equals expected("anon", 3) whole.
+  - asnState.test.ts "an activation whose expiresDate had passed when Apple signed it lands active until that
+    expiresDate (R6)" - the same twelve rows; the whole entitlements table equals one active row with active_until =
+    signedDate + offset, and GET /entitlement answers {status: inactive, active_until: null}.
+  - tierMutants.mjs: four entries (asn-reversal-lapsed-open-ended = the survivor verbatim,
+    asn-activation-lapsed-open-ended, asn-lapsed-before-signing-open-ended (`<`, killed only at -1),
+    asn-lapsed-1ms-after-signing-open-ended (killed only at +1)); literal MIN_MUTATIONS 18 -> 22.
+  GREEN on real code: `npx vitest run test/accountTier.test.ts test/asnState.test.ts -t "expiresDate had passed"` ->
+  `Tests  24 passed | 71 skipped (95)`. RED by name (faster verification - only the touched rows):
+  `node services/api/test/mutate/tierMutants.mjs --only=asn-reversal-lapsed-open-ended,asn-activation-lapsed-open-ended,
+  asn-lapsed-before-signing-open-ended,asn-lapsed-1ms-after-signing-open-ended,asn-reversal-no-expiry` ->
+  `baseline green tests=105`; `CAUGHT asn-reversal-no-expiry by "a REFUND_REVERSED whose expiresDate is exactly now
+  leaves the caller anon; now + 1 ms is paid"`; `CAUGHT asn-reversal-lapsed-open-ended by "REFUND_REVERSED with
+  expiresDate - signedDate = -1 ms, both before now, leaves the caller anon"`; `CAUGHT asn-activation-lapsed-open-ended
+  by "SUBSCRIBED with expiresDate - signedDate = -1 ms, ..."`; `CAUGHT asn-lapsed-before-signing-open-ended by
+  "SUBSCRIBED with expiresDate - signedDate = -1 ms, ..."`; `CAUGHT asn-lapsed-1ms-after-signing-open-ended by
+  "SUBSCRIBED with expiresDate - signedDate = 1 ms, ..."`; `RESULT caught=5 missed=0 trap=0 of 5`, exit 0.
+  `--prove-floor`: four arms REFUSED (0, 21 below 22, isochrone unmutated, new subject), real population quiet.
+  wc -l: accountTier.test.ts 216, asnState.test.ts 243, tierMutants.mjs 167.
+  RECORDED, NOT CHANGED (outside T-0272's acceptance): an ACTIVATES notification for a transaction with NO
+  expiresDate (a non-subscription product) lands active_until NULL in shipped T-0267 code, pinned by asnState.test.ts
+  "SUBSCRIBED for a transaction without expiresDate is active with no end"; scenic.pro is an auto-renewable
+  subscription so Apple always sends expiresDate, but if a non-subscription product is ever sold this is open-ended
+  paid. A follow-up should rule whether /asn refuses or ignores a productId outside the subscription allowlist.

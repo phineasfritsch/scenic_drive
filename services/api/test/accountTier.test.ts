@@ -201,3 +201,16 @@ describe("REFUND_REVERSED restores access through the shipped ROUTES (R6)", () =
     expect(await drive({ [HEADER]: TOKEN })).toEqual(expected("paid", 3));
   });
 });
+
+/** Every activating type, its transaction's expiresDate one ms before, at, and one ms after Apple's signedDate. */
+const LAPSED_AT_SIGNING: [string, number][] = ["SUBSCRIBED", "DID_RENEW", "OFFER_REDEEMED", "REFUND_REVERSED"]
+  .flatMap((type) => [-1, 0, 1].map((offset): [string, number] => [type, offset]));
+
+describe("an activation whose expiresDate had passed when Apple signed it stays anon through the shipped ROUTES (R6)", () => {
+  it.each(LAPSED_AT_SIGNING)("%s with expiresDate - signedDate = %d ms, both before now, leaves the caller anon",
+    async (type, offset) => {
+      if (type === "REFUND_REVERSED") await notify("REFUND", T - 2000);
+      await notify(type, T - 1000, { ...TX, expiresDate: T - 1000 + offset });
+      expect(await drive({ [HEADER]: TOKEN })).toEqual(expected("anon", 3));
+    });
+});

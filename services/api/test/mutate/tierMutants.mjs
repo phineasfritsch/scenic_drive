@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-tier");
 
-export const MIN_MUTATIONS = 18;
+export const MIN_MUTATIONS = 22;
 export const SUBJECTS = ["src/accountTier.ts", "src/routerDeps.ts", "src/asnNotification.ts", "src/plan.ts", "src/loop.ts",
   "src/trip.ts", "src/isochrone.ts"];
 const TESTS = ["test/accountTier.test.ts", "test/asnState.test.ts", "test/isochroneCost.test.ts"];
@@ -50,6 +50,14 @@ export const MUTATIONS = [
   m("asn-reversal-dropped", "asnNotification.ts", "REACTIVATES = [\"REFUND_REVERSED\"];", "REACTIVATES = [];"),
   m("asn-reversal-no-expiry", "asnNotification.ts", "} else if (status === \"active\" && expiresDate !== undefined) {",
     "} else if (status === \"active\" && expiresDate !== undefined && !REACTIVATES.includes(type)) {"),
+  m("asn-reversal-lapsed-open-ended", "asnNotification.ts", "activeUntil = epochMs(expiresDate, \"expiresDate\");",
+    "activeUntil = REACTIVATES.includes(type) && epochMs(expiresDate, \"expiresDate\") <= signedDate ? null : epochMs(expiresDate, \"expiresDate\");"),
+  m("asn-activation-lapsed-open-ended", "asnNotification.ts", "activeUntil = epochMs(expiresDate, \"expiresDate\");",
+    "activeUntil = ACTIVATES.includes(type) && epochMs(expiresDate, \"expiresDate\") <= signedDate ? null : epochMs(expiresDate, \"expiresDate\");"),
+  m("asn-lapsed-before-signing-open-ended", "asnNotification.ts", "activeUntil = epochMs(expiresDate, \"expiresDate\");",
+    "activeUntil = epochMs(expiresDate, \"expiresDate\") < signedDate ? null : epochMs(expiresDate, \"expiresDate\");"),
+  m("asn-lapsed-1ms-after-signing-open-ended", "asnNotification.ts", "activeUntil = epochMs(expiresDate, \"expiresDate\");",
+    "activeUntil = epochMs(expiresDate, \"expiresDate\") === signedDate + 1 ? null : epochMs(expiresDate, \"expiresDate\");"),
   m("plan-identify-unawaited", "plan.ts", "guardedPlan(upstream, await deps.identify(req),", "guardedPlan(upstream, deps.identify(req),"),
   m("loop-identify-unawaited", "loop.ts", "const who = await deps.identify(req);", "const who = deps.identify(req);"),
   m("trip-identify-unawaited", "trip.ts", "const who = await deps.identify(req);", "const who = deps.identify(req);"),
