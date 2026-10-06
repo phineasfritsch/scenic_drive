@@ -88,3 +88,59 @@ closure (P-SAFE-08), and it is never silent.
   rewrites are re-anchored on the code they name.
   C9 earlier tests: a T-0282 row whose synthetic path lies on a stored closure the request did not send now
   re-requests and/or reports crosses BY THIS RULING; each such row is listed here when the suite shows it.
+- 2026-10-06T19:22:39Z RULINGS, ADDENDUM (found while writing the tests; nothing above rewritten). C1's "axis-aligned" is
+  wrong: the fixture's squares are buffered along each closure's road and rotated (one ring of 5 positions each, as
+  measured); nothing turns on it - the shapes are built from each ring's own positions. C4a futile swap: when every
+  crossed closure that fits is already sent (e.g. a 51-way tie at distance 0, all 51 crossed), the swap equals the sent
+  set; no request is made and the crossings are named. Equivalently, the re-request is made iff the swap carries a
+  feature the request did not send (by C4 only a crosser can be new), which also covers "only sent closures crossed".
+  C5a loop: the retrace attempt is always the third of LOOP_UPSTREAM_COST 3, so its re-request is always capped; a loop
+  re-request therefore never carries retrace squares - same seed, the swapped set alone.
+  C9 earlier tests changed BY RULING (expectations extended, nothing removed): closuresNearest.test.ts - the /loop and
+  /trip rows of "over 50, the on-corridor ten stored last", "a 51-way tie at distance 0" and "over 50, stale" (the
+  synthetic loop leaves from its corridor and the trip's ROAD IS its corridor, so they cross the on-corridor ten / the
+  51 ties - all sent or a futile swap, so no re-request; the hazard now carries crosses) and "the search and legs 3-5
+  carry Big Sur..." (ROAD ends inside the big-sur square: crosses ["big-sur"]); closuresNearestRetry.test.ts - the six
+  /loop rows over those three variants, and the six /trip "Z beside road vertex k, fifty / over 50" rows (the C squares
+  sit ON the road's first edge: crosses c-1..c-49 / c-1..c-50). The /plan rows are unchanged (its synthetic path
+  crosses none). Every changed row is still held by full equality.
+- 2026-10-06T19:22:39Z RED FIRST by name (new tests over the pre-change src/: `git stash push -- services/api/src`, run, pop;
+  closuresCrossing.ts was untracked so the predicate was present): `npx vitest run` over closuresCrossing,
+  closuresCrossingTrip, closuresCrossingGeometry, closuresNearest, closuresNearestRetry -> Tests 85 failed | 122 passed
+  (207): closuresCrossing.test.ts 43 (every crossing row over X alone and the fixture, e.g. "/loop, the fixture, vertex
+  path, router ignores: requests, areas, the returned path and the hazard equal the row's"), closuresCrossingTrip 12,
+  closuresCrossingGeometry 11 (every picker/swap test, e.g. "crossing a dropped closure: one re-request carrying it; a
+  clear answer replaces the path and names nothing"), closuresNearest 7 and closuresNearestRetry 12 (the C9 rows).
+  Green before the change by design: the empty and clear rows, the meta-tests, the predicate cases.
+  CODE: src/closuresCrossing.ts (C1, new); closuresNearest.ts rank() extracted unchanged, swappedClosures (C4), picker
+  `returned` (C2-C5, C4a) and `crosses()` (C6); closuresStore withClosuresHazard(answer, snapshot, dropped, crosses)
+  (C6); scenicPlanner / loopPlanner / tripPlanner take the guard, count their own calls, and re-request inside the caps
+  with their own guards (C5, C5a); plan/loop/trip pass picker.returned and picker.crosses(). GREEN: `npx vitest run`
+  Test Files 54 passed (54), Tests 1684 passed (1684) (a39956a); after the second batch (futile rule in code, loop
+  simplified, re-request body / preview-reserve / first-leg / leg-ceiling rows) the crossing files 15 + 213 passed.
+- 2026-10-06T19:22:39Z MUTATION POPULATION: services/api/test/mutate/crossingMutants.mjs (new; closuresMutants.mjs is at 281
+  lines), subjects closuresCrossing, closuresNearest, closuresStore, plan, loop, trip, scenicPlanner, loopPlanner,
+  tripPlanner. Run once, whole: `node services/api/test/mutate/crossingMutants.mjs` -> baseline green tests=229,
+  RESULT caught=54 missed=6 trap=0 of 60. MISSED: cx-o1-off and cx-o2-off (every one-point-on-edge case sat on the
+  bottom edge, which the crossing number already calls inside) -> rows "starting on / ending on the top edge's
+  interior"; cx-within-x-min-open (masked by the other edge's check) -> "ending at the top-left vertex from the
+  north-east"; cx-within-x-only -> "collinear on a vertical edge's line, past its end"; cx-ring-closing-edge (the
+  square's closing edge is its left side, inside by crossing number) -> "the ring's CLOSING edge is an edge: a ring
+  from the top-right corner"; cx-inside-flip -> EQUIVALENT with its witness (left and right crossing parities agree off
+  the boundary; on it segmentsMeet decides). Re-run of the five: `--only=cx-o1-off,cx-o2-off,cx-within-x-min-open,
+  cx-within-x-only,cx-ring-closing-edge` -> baseline green tests=234, RESULT caught=5 missed=0 trap=0 of 5. Population
+  59, MIN_MUTATIONS 59 (literal); EQUIVALENT 5, each with its witness (cx-inside-flip, cx-o3-alone-off,
+  cx-o4-alone-off, plan-cap-ignored, pk-empty-crossers-swapped). --prove-floor: "population 0 is below the floor",
+  "population 58 ...", "subject src/trip.ts has no mutation", "subject src/newModule.ts has no mutation" all REFUSED,
+  the real population quiet. closuresMutants.mjs: 13 entries re-anchored on the code they name (plan/loop/trip
+  -no-closures, -whole-set, -no-hazard, -dropped-unreported; store-dropped-ignored); `--only=<those 13>` -> baseline
+  green tests=738, RESULT caught=13 missed=0 trap=0 of 13; every anchor of both files occurs exactly once.
+- 2026-10-06T19:22:39Z BOUND (ops/lib/named-tests.json from the vitest JSON report of the three new files): P-SAFE-08
+  668 -> 833 (closuresCrossing.test.ts 110, closuresCrossingTrip.test.ts 15, closuresCrossingGeometry.test.ts 40);
+  P-COST-04 9 -> 27 (closuresCrossingTrip.test.ts 15 and the loop's 3 cap rows). RED by name, each one-line src mutant
+  restored by git checkout: closuresNearest futile test -> `false`: `python ops/lib/run-named-tests.py P-SAFE-08` NAMED
+  P-SAFE-08 passed=816/833 (e.g. "crossing only a SENT closure: no re-request, the closure named", "a futile swap (51
+  crossers, the 50 nearest already sent) makes no request; all 51 named"); tripPlanner search reserve dropped: `...
+  P-COST-04` NAMED P-COST-04 passed=25/27 (the two five-day search rows). PINS.yaml: one dated passage APPENDED to the
+  end of P-SAFE-08's and of P-COST-04's why_no_test_catches_it, the earlier text byte-identical; read back through
+  ops/lib/pins.py load().

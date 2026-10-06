@@ -32,6 +32,10 @@ const CASES: [string, number[][], boolean][] = [
   ["crossing only on the third of three segments", [[-3, 0.5], [-2, 0.5], [-1, 0.5], [2, 0.6]], true],
   ["ending on the ring's closing edge", [[-1, 0.5], [0, 0.5]], true],
   ["a far path", [[5, 5], [6, 6], [7, 5]], false],
+  ["starting on the top edge's interior (the crossing number calls it outside)", [[0.5, 1], [0.5, 2]], true],
+  ["ending on the top edge's interior", [[0.5, 2], [0.5, 1]], true],
+  ["ending at the top-left vertex from the north-east", [[1, 2], [0, 1]], true],
+  ["collinear on a vertical edge's line, past its end", [[1, 2], [1, 3]], false],
 ];
 
 describe("the closed segment-polygon intersection (C1)", () => {
@@ -40,6 +44,9 @@ describe("the closed segment-polygon intersection (C1)", () => {
       expect(pathCrossesRing(path, SQUARE)).toEqual(crosses);
     });
   }
+  it("the ring's CLOSING edge is an edge: a ring from the top-right corner, a path ending on its right side", () => {
+    expect(pathCrossesRing([[2, 0.5], [1, 0.5]], [[1, 1], [0, 1], [0, 0], [1, 0], [1, 1]])).toEqual(true);
+  });
   it("meta: both verdicts occur, and every case is a different path", () => {
     expect([CASES.some((c) => c[2]), CASES.some((c) => !c[2]), new Set(CASES.map((c) => JSON.stringify(c[1]))).size]).toEqual([true, true, CASES.length]);
   });

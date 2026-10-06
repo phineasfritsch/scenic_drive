@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-crossing");
 
-export const MIN_MUTATIONS = 60;
+export const MIN_MUTATIONS = 59;
 export const SUBJECTS = ["src/closuresCrossing.ts", "src/closuresNearest.ts", "src/closuresStore.ts", "src/plan.ts", "src/loop.ts",
   "src/trip.ts", "src/scenicPlanner.ts", "src/loopPlanner.ts", "src/tripPlanner.ts"];
 const TESTS = ["test/closuresCrossing.test.ts", "test/closuresCrossingTrip.test.ts", "test/closuresCrossingGeometry.test.ts",
@@ -43,7 +43,6 @@ export const MUTATIONS = [
   m("cx-sign-no-zero", "closuresCrossing.ts", "x > 0 ? 1 : x < 0 ? -1 : 0", "x > 0 ? 1 : -1"),
   m("cx-orient-plus", "closuresCrossing.ts", "(a[0]! - o[0]!) * (b[1]! - o[1]!) - (a[1]! - o[1]!)", "(a[0]! - o[0]!) * (b[1]! - o[1]!) + (a[1]! - o[1]!)"),
   m("cx-inside-off", "closuresCrossing.ts", "if (path.some((p) => insideRing(p, ring))) return true;", ""),
-  m("cx-inside-flip", "closuresCrossing.ts", "p[0]! < a[0]! + ", "p[0]! > a[0]! + "),
   m("cx-ring-closing-edge", "closuresCrossing.ts", "i + 1 < ring.length; i += 1) {\n      if (segmentsMeet", "i + 2 < ring.length; i += 1) {\n      if (segmentsMeet"),
   m("cx-first-segment-only", "closuresCrossing.ts", "const last = Math.max(1, path.length - 1);", "const last = 1;"),
   m("cx-last-segment-dropped", "closuresCrossing.ts", "Math.max(1, path.length - 1)", "Math.max(1, path.length - 2)"),
@@ -96,6 +95,11 @@ export const MUTATIONS = [
 ];
 
 export const EQUIVALENT = [
+  { id: "cx-inside-flip", file: "src/closuresCrossing.ts", find: "p[0]! < a[0]! + ",
+    witness: "Counting the ring's crossings to the LEFT of p instead of the right: a horizontal line meets a closed ring an "
+      + "even number of times, so the two parities agree for every p off the boundary; on the boundary they may differ, and "
+      + "there segmentsMeet decides (every boundary point is on an edge), so pathCrossesRing's verdict is unchanged. Seen "
+      + "MISSED by the whole population on 2026-10-06, as the witness says." },
   { id: "cx-o3-alone-off", file: "src/closuresCrossing.ts", find: " || (o3 === 0 && within(c, a, b))",
     witness: "In a CLOSED ring (buildCustomModel refuses an unclosed one, so the store never holds one) every position is the "
       + "start c of one edge and the end d of the edge before it; a ring position lying on a path segment is therefore also "
