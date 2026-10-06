@@ -110,7 +110,7 @@ export const ROUTES: Record<string, Handler> = {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    const handler = ROUTES[url.pathname];
+    const handler = ROUTES[url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname];
     if (!handler) return json({ error: "not found" }, 404);
     return handler(req, env, url);
   },

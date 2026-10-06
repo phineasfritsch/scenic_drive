@@ -23,10 +23,10 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-config");
 
-export const MIN_MUTATIONS = 66;
+export const MIN_MUTATIONS = 70;
 export const SUBJECTS = ["src/config.ts", "src/index.ts"];
 const TESTS = ["test/configRoutes.test.ts", "test/configFields.test.ts", "test/routes.test.ts", "test/requestReadSites.test.ts",
-  "test/killSwitchRoutes.test.ts"];
+  "test/killSwitchRoutes.test.ts", "test/configWorker.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 const C = "config.ts";
@@ -34,6 +34,7 @@ const I = "index.ts";
 const ROUTE = "\"/config\": (_req, env) => handleConfig(env),";
 const PAUSED = "killed || merged.planning_paused === true";
 const MERGE = "const merged = { ...DEFAULTS, ...overlay(await readRecord(env.CONFIG, warnings), warnings) };\n  const killed = await killSwitch(env);";
+const URL_LINE = "const url = new URL(req.url);";
 const KINDS = "[\"plan\", \"loop\", \"surprise\", \"trip\"]";
 export const MUTATIONS = [
   m("key-v2", C, "CONFIG_KEY = \"config/v1\";", "CONFIG_KEY = \"config/v2\";"),
@@ -112,6 +113,12 @@ export const MUTATIONS = [
     "\"/config\": (_req, env) => (_req.method === \"OPTIONS\" ? Promise.resolve(new Response(null, { status: 204 })) : handleConfig(env)),"),
   m("route-method-gated", I, ROUTE,
     "\"/config\": (req, env) => (req.method === \"GET\" ? handleConfig(env) : Promise.resolve(new Response(null, { status: 405 }))),"),
+  // T-0288 rv1 B1: unpauses in the SHIPPED worker.fetch gated on a request property (the table drives worker.fetch over
+  // request variants; the requestReadSites derived-name guard refuses the line).
+  m("fetch-derived-url-unpause", I, URL_LINE, `${URL_LINE}\n    if (url.pathname === "/config" && url.search !== "") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
+  m("fetch-header-unpause", I, URL_LINE, `${URL_LINE}\n    if (req.headers.has("x-scenic-unpause")) env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
+  m("fetch-method-unpause", I, URL_LINE, `${URL_LINE}\n    if (req.method === "OPTIONS" || req.method === "HEAD") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
+  m("fetch-trailing-slash-404", I, "ROUTES[url.pathname.length > 1 && url.pathname.endsWith(\"/\") ? url.pathname.slice(0, -1) : url.pathname]", "ROUTES[url.pathname]"),
 ];
 
 export const EQUIVALENT = [

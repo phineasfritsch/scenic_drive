@@ -11,34 +11,58 @@
  * approved sites below, by full equality, like every other line.
  * The tier module's ONLY request read is the one ACCOUNT_TOKEN_HEADER line. T-0278: the session JWT is read at ONE
  * site, routerDeps' identify, by AUTHORIZATION_HEADER; sessionIdentity.ts takes that string and reads no request.
+ * T-0288 rv1 B1: a read THROUGH A VALUE DERIVED FROM THE REQUEST is a site too. A name bound (const/let/var, a
+ * destructuring, or a statement-start reassignment) on a line that reads the request's url, headers, method, cf,
+ * signal or referrer, its searchParams, pathname, search or hash - or that names an already-derived name - is
+ * derived, to a fixpoint per file, and every line naming a derived name is a site compared whole like the rest: an
+ * edit that gates on url, handler, token, raw or userId (or a new name taken from them) changes the approved lines.
+ * NOT derived: values parsed from the BODY (the body read itself is the approved site of each POST route).
  */
 import { describe, expect, it } from "vitest";
 
 const SRC = import.meta.glob("../src/**/*.ts", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
-const SITE = /\b_?(req|Request)\b|\.(headers|url|json|text|formData|arrayBuffer|blob|body|cf|method|signal|referrer|clone|bodyUsed)\b|\bURL\b|searchParams/;
+const SITE = /\b_?(req|Request)\b|\.(headers|url|json|text|formData|arrayBuffer|blob|body|cf|method|signal|referrer|clone|bodyUsed|pathname|search|hash)\b|\bURL\b|searchParams/;
 const LINE_COMMENT = /^\/\//;
+/** A line that derives a value from the request's metadata (never its body). */
+const DERIVE = /\b_?req\.(url|headers|method|cf|signal|referrer)\b|\.searchParams\b|\.(pathname|search|hash)\b/;
+/** The names a line binds: const/let/var X, a destructuring, or a statement-start (re)assignment X = / X.y = . */
+const BOUND = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)|\b(?:const|let|var)\s*[{[]([^}\]]*)[}\]]|^([A-Za-z_$][\w$]*)(?:\.[\w$]+|\[[^\]]*\])*\s*=(?![=>])/g;
+const BLOCK_COMMENT = /^(\*|\/\*)/;
+const named = (n: string) => new RegExp(`(^|[^\\w$])${n.replace(/\$/g, "\\$")}([^\\w$]|$)`);
 
 const POST_ONLY = 'if (req.method !== "POST") return json({ error: "POST only" }, 405);';
 const BODY_READ = "raw = await req.json();";
 const CONFIG_ROUTE = '"/config": (_req, env) => handleConfig(env),';
+const TIER_SIGNATURE = "export async function accountTier(req: Request, db: D1Database | undefined, nowMs: number): Promise<Tier> {";
+const URL_LINE = "const url = new URL(req.url);";
+const HANDLER_MISS = 'if (!handler) return json({ error: "not found" }, 404);';
 const TIER_READ = 'const token = (req.headers.get(ACCOUNT_TOKEN_HEADER) ?? "").toLowerCase();';
 
 const APPROVED: Record<string, string[]> = {
   "../src/accountTier.ts": [
-    "export async function accountTier(req: Request, db: D1Database | undefined, nowMs: number): Promise<Tier> {",
+    "* The caller's quota tier (T-0272 R1-R5): paid exactly when the purchase id in x-scenic-account-token has a live",
+    "* anon: no header, a malformed one (no D1 read), an unknown token, an inactive or expired row, and ANY failure of",
+    "* the read (fails closed on cost). Nothing here logs: the token is a bearer secret until App Attest + JWT (R5).",
+    TIER_SIGNATURE,
     TIER_READ,
+    'if (db === undefined || !UUID.test(token)) return "anon";',
+    'return (await readEntitlement(db, token, nowMs)).status === "active" ? "paid" : "anon";',
   ],
   "../src/appleMaps.ts": [
     "* The Apple Maps handoff URL - a port of Sources/Handoff/AppleMapsDirections.swift (T-0248 R7).",
     "* decimals here is not the two-decimal rule: this URL is the user handing their own route to Apple.",
   ],
   "../src/asn.ts": [
+    "* written. /entitlement answers the state for the purchase id the device names in x-scenic-account-token (R8).",
+    'export const ACCOUNT_TOKEN_HEADER = "x-scenic-account-token";',
     "export async function handleAsn(req: Request, deps: AsnDeps): Promise<Response> {",
     POST_ONLY,
     "body = await req.json();",
     "export async function handleEntitlement(req: Request, deps: AsnDeps): Promise<Response> {",
     'if (req.method !== "GET") return json({ error: "GET only" }, 405);',
     TIER_READ,
+    'if (!UUID.test(token)) return json({ error: "invalid_request" }, 400);',
+    "return json(await readEntitlement(deps.db, token, deps.now().getTime()));",
   ],
   "../src/attest.ts": [
     "export async function handleAttestChallenge(req: Request, deps: AttestDeps): Promise<Response> {",
@@ -63,12 +87,15 @@ const APPROVED: Record<string, string[]> = {
     "* car_scenic_base.json and keep those edges off the route; what can still be on it - a compacted shoulder the",
   ],
   "../src/index.ts": [
+    'IDENTITY_HEADERS?: string; // "1" = the bare x-scenic-device / x-scenic-account-token migration window (T-0278 R6)',
     "type Handler = (req: Request, env: Env, url: URL) => Promise<Response>;",
     "const health: Handler = async (_req, env) => {",
     "const version: Handler = async (_req, env) =>",
+    "/** Read-only SQL for ops/prod-read. Bearer token + grammar allowlist; never more than 200 rows. */",
     "const ro: Handler = async (req, env) => {",
     POST_ONLY,
     'const token = req.headers.get("authorization")?.replace(/^Bearer\\s+/i, "") ?? "";',
+    'if (!env.RO_TOKEN || token.length === 0 || token !== env.RO_TOKEN) return json({ error: "unauthorized" }, 401);',
     'sql = String(((await req.json()) as { sql?: unknown }).sql ?? "");',
     '"/plan": (req, env) => handlePlan(req, env, planDepsFromEnv(env)),',
     '"/loop": (req, env) => handleLoop(req, env, loopDepsFromEnv(env)),',
@@ -82,8 +109,11 @@ const APPROVED: Record<string, string[]> = {
     '"/telemetry": (req, env) => handleTelemetry(req, env, telemetryDepsFromEnv(env)),',
     CONFIG_ROUTE,
     "async fetch(req: Request, env: Env): Promise<Response> {",
-    "const url = new URL(req.url);",
+    URL_LINE,
+    'const handler = ROUTES[url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname];',
+    HANDLER_MISS,
     "return handler(req, env, url);",
+    "ctx.waitUntil(runClosuresCron({ fetchImpl: (url) => fetch(url), kv: env.CLOSURES, now: () => new Date() }));",
   ],
   "../src/isochrone.ts": [
     "export async function handleIsochrone(req: Request, env: KillEnv, deps: IsochroneDeps | null): Promise<Response> {",
@@ -120,6 +150,7 @@ const APPROVED: Record<string, string[]> = {
     "url = new URL(value);",
     "export function deviceIdentity(req: Request): { userId: string; tier: Tier } {",
     'const raw = (req.headers.get(DEVICE_HEADER) ?? "").toLowerCase();',
+    'return { userId: DEVICE_ID.test(raw) ? raw : UNIDENTIFIED_DEVICE, tier: "anon" };',
     "const headers = new Headers(init?.headers);",
     "identify: (req) => identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => {",
     "const device = deviceIdentity(req);",
@@ -133,20 +164,46 @@ const APPROVED: Record<string, string[]> = {
     "const who = await deps.identify(req);",
   ],
   "../src/telemetry.ts": [
+    "*   2. The body against the whitelist (telemetryPoint.ts, P-PRIV-05) -> 400. Nothing reserved, nothing written.",
     "export async function handleTelemetry(req: Request, env: KillEnv & SessionEnv, deps: TelemetryDeps | null): Promise<Response> {",
     POST_ONLY,
     BODY_READ,
     "const { userId } = await identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now.getTime(), async () => deviceIdentity(req));",
+    "const counter = deps.quota.get(deps.quota.idFromName(`device:${userId}`));",
+    "let reserved: boolean;",
+    'reserved = await counter.reserveDaily(dayKey(now), "telemetry", DAILY_TELEMETRY_QUOTA, parsed.points.length);',
+    'if (!reserved) return json({ error: "quota_exhausted", resets_at: nextReset(now) }, 429);',
   ],
   "../src/tripPlanner.ts": ["const path = decodeRoutePath(await response.text());"],
   "../src/upstream.ts": ["return guardedPlan(deps, { userId: args.userId, tier: args.tier }, (call) => call(args.url, args.init));"],
 };
 
-/** Every line (bar a //-leading one) of every src file that names the request or reads a request member, trimmed, in order. */
-function sites(src: Record<string, string>): Record<string, string[]> {
+/** The names `line` binds. */
+function bound(line: string): string[] {
+  const out: string[] = [];
+  for (const m of line.matchAll(BOUND)) out.push(...[m[1], m[3]].filter((n): n is string => !!n), ...(m[2]?.match(/[A-Za-z_$][\w$]*/g) ?? []));
+  return out;
+}
+
+/** The names derived from the request in one file's lines, to a fixpoint. */
+function derived(lines: string[]): string[] {
+  const names = new Set<string>();
+  for (let size = -1; size !== names.size;) {
+    size = names.size;
+    const words = [...names].map(named);
+    for (const l of lines) if (!BLOCK_COMMENT.test(l) && (DERIVE.test(l) || words.some((w) => w.test(l)))) bound(l).forEach((n) => names.add(n));
+  }
+  return [...names];
+}
+
+/** Every line (bar a //-leading one) of every src file that names the request, reads a request member or names a value
+ * derived from the request, trimmed, in order. `derive: false` is the pre-rv1 guard, kept only to show it blind. */
+function sites(src: Record<string, string>, derive = true): Record<string, string[]> {
   const found: Record<string, string[]> = {};
   for (const [file, text] of Object.entries(src).sort(([a], [b]) => a.localeCompare(b))) {
-    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => !LINE_COMMENT.test(l) && SITE.test(l));
+    const code = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => !LINE_COMMENT.test(l));
+    const words = derive ? derived(code).map(named) : [];
+    const lines = code.filter((l) => SITE.test(l) || words.some((w) => w.test(l)));
     if (lines.length > 0) found[file] = lines;
   }
   return found;
@@ -164,7 +221,8 @@ describe("every line under src that reads the request is an approved site (T-027
 
   it("the tier module reads the request once: the ACCOUNT_TOKEN_HEADER line", () => {
     const tier = sites(SRC)["../src/accountTier.ts"] ?? [];
-    expect(tier.filter((l) => l !== APPROVED["../src/accountTier.ts"]![0])).toEqual([TIER_READ]);
+    expect(tier.filter((l) => /\breq\b/.test(l))).toEqual([TIER_SIGNATURE, TIER_READ]);
+    expect(derived(SRC["../src/accountTier.ts"]!.split(/\r?\n/).map((l) => l.trim()))).toEqual(["token"]);
   });
 
   it("src/config.ts reads no request: GET /config answers from env alone (T-0288 R7)", () => {
@@ -186,6 +244,27 @@ describe("every line under src that reads the request is an approved site (T-027
       const found = sites(mutated)["../src/index.ts"]!;
       expect([found.includes(CONFIG_ROUTE), found.filter((l) => !APPROVED["../src/index.ts"]!.includes(l))]).toEqual([false, [read]]);
     }
+  });
+
+  it("a read through a value derived from the request in worker.fetch is refused by its line (T-0288 rv1 B1, seen red)", () => {
+    const index = SRC["../src/index.ts"]!;
+    const rv1 = 'if (url.pathname === "/config" && url.search !== "") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };';
+    const reads: [string, string[]][] = [
+      ["rv1-derived-url", [rv1]],
+      ["derived-handler-port", ['if (handler === ROUTES["/config"] && url.port === "") env = { ...env, KILL: undefined };']],
+      ["derived-port-name", ["const p = url.port;", 'if (p === "") env = { ...env, KILL: undefined };']],
+      ["derived-headers-obj", ["const h = req.headers;", 'if (h.has("x-scenic-unpause")) env = { ...env, KILL: undefined };']],
+      ["derived-method", ["const m = req.method;", 'if (m === "OPTIONS") env = { ...env, KILL: undefined };']],
+      ["derived-search-params", ["const q = url.searchParams;", "if (q.size > 0) env = { ...env, KILL_SWITCH: undefined };"]],
+    ];
+    const got = reads.map(([name, lines]) => {
+      const mutated = { ...SRC, "../src/index.ts": index.replace(HANDLER_MISS, [HANDLER_MISS, ...lines].join("\n    ")) };
+      const extra = (s: Record<string, string[]>) => s["../src/index.ts"]!.filter((l) => !APPROVED["../src/index.ts"]!.includes(l));
+      return [name, extra(sites(mutated)), extra(sites(mutated, false)).length < lines.length || name === "rv1-derived-url"];
+    });
+    expect(got).toEqual(reads.map(([name, lines]) => [name, lines, true]));
+    expect(sites(SRC, false)["../src/index.ts"]!.includes(HANDLER_MISS)).toBe(false);
+    expect(index.split(HANDLER_MISS).length).toBe(2);
   });
 
   it("a query, body or alternate-header read in the tier module is refused by its line (the guard seen red)", () => {
