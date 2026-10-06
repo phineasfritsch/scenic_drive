@@ -12,7 +12,7 @@ export const AUTHORIZATION_HEADER = "authorization";
 /** The bucket every caller without a valid identity shares; equal to routerDeps' UNIDENTIFIED_DEVICE. */
 export const UNIDENTIFIED_SESSION = "unidentified";
 
-const BEARER = /^Bearer ([A-Za-z0-9_.-]+)$/;
+export const BEARER = /^Bearer ([A-Za-z0-9_.-]+)$/;
 
 export interface SessionEnv {
   DB?: D1Database;
