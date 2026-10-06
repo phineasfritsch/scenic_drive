@@ -40,10 +40,11 @@ struct SurpriseRankTests {
     @Test("the WHY: three picks pinned whole - hook, round trip and the golden-hour line from Solar")
     func reasons() throws {
         #expect(SurpriseFixture.render(try SurpriseFixture.pick(seed: 0))
-            == "lbc-02 | Long Beach Cove 3 | Tide pools at the end of a quiet road - Long Beach | 170 min | "
+            == "sgc-05 | San Gabriel Canyon Park 6 | Oak shade and a creek path - San Gabriel Canyon | 132 min | "
             + "no golden hour")
         #expect(SurpriseFixture.render(try SurpriseFixture.pick(seed: 3))
-            == "ojai-02 | Ojai Trailhead 3 | A short climb to a long view - Ojai | 154 min | no golden hour")
+            == "pv-02 | Palos Verdes Main Street 3 | An old main street to wander - Palos Verdes | 138 min | "
+            + "no golden hour")
         let evening = SurpriseFixture.context(depart: 1170)
         let early = try SurpriseFixture.ids(context: evening).firstIndex(of: "w-dark-early")
         #expect(SurpriseFixture.render(try SurpriseFixture.pick(seed: UInt64(early ?? 0), context: evening))

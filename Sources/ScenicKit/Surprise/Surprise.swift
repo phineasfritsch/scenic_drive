@@ -8,6 +8,9 @@ public enum Surprise {
     public static let notMyThingDays = 30
     public static let closingMarginMinutes = 45
     public static let explorePercent: UInt64 = 20
+    /// T-0283 R1: the time-fit is 100 at this percentage of the dial and falls timeFitSlope a point either side.
+    public static let timeFitPeakPercent = 70
+    public static let timeFitSlope = 2
     public static let blockedBrands: Set<String> = ["Starbucks", "McDonald's", "In-N-Out Burger", "Denny's",
                                                     "7-Eleven", "Chevron", "Walmart", "Target"]
 
@@ -112,12 +115,18 @@ public enum Surprise {
         return instant(arrival, context: context) > dusk
     }
 
-    /// R4: quality + approach-road score + novelty + time-fit.
+    /// R4: quality + approach-road score + novelty + time-fit (T-0283 R1).
     static func score(_ c: SurpriseCandidate, minutes: Int, budget: Int, history: SurpriseHistory,
                       date: CivilDate) -> Int {
         let since = history.shown.filter { $0.category == c.category }.map { days(date, since: $0.date) }
         let novelty = since.min().map { min(100, max(0, $0)) } ?? 100
-        return c.quality + c.approachScore + novelty + minutes * 100 / max(budget, 1)
+        return c.quality + c.approachScore + novelty + timeFit(minutes: minutes, budget: budget)
+    }
+
+    /// T-0283 R1: 100 at 70% of the dial (the dial's budget, not a lowered one), 2 less a point either side, never
+    /// below 0 - a Surprise lands comfortably inside the time you have, not at its edge.
+    static func timeFit(minutes: Int, budget: Int) -> Int {
+        max(0, 100 - timeFitSlope * abs(minutes * 100 / max(budget, 1) - timeFitPeakPercent))
     }
 
     /// R5: splitmix64-finalised FNV-1a-64 over "<userId>|<YYYY-MM-DD>|<step>" - the same on every platform.

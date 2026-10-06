@@ -61,6 +61,16 @@ public enum SurprisePlaceClass: String, Sendable, Equatable, CaseIterable {
         }
     }
 
+    /// T-0283 R2: the quality a place carries while the corpus has no notability signal (T-0270 open item 2): scenery
+    /// first, a cafe last - the owner's taste, the stand-in for an unknown quality only.
+    public var priorQuality: Int {
+        switch self {
+        case .viewpoint, .peak, .waterfall, .beach, .trailhead, .garden: return 75
+        case .park, .museum, .town: return 50
+        case .cafe: return 25
+        }
+    }
+
     /// Minutes spent there, the window the opening-hours and golden-hour rules read.
     public var dwellMinutes: Int {
         switch self {

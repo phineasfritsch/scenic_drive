@@ -87,3 +87,37 @@ should land comfortably inside it. Product taste: memory owner-route-intent.
   floor is raised to the new count, literal.
   R6 SCOPE. P-PROD-02's prose gets a dated sentence appended (pins/PINS.yaml added to touches for that line only); no
   card or app code changes (the deck already calls SurprisePlaceMapping.candidate).
+- 2026-10-06T21:35:00Z RED then GREEN (agent/claude-opus-5). Oracle first: model.py time_fit = R1 (FIT_PEAK 70,
+  FIT_SLOPE 2) and sequences.tsv regenerated - model.py prints P0=sgc-05 cat=park rt=132, next picks seed0
+  {tooFar, notMyThing, beenThere, wrongTime} all griffith-02, wrongTime next day seed0=sgc-05, A[0..5]=['sgc-05',
+  'griffith-02', 'malibu-04', 'pv-02', 'simi-00', 'griffith-07'], distinct over seeds 0..99 A=100, witnesses wrongly
+  present=[]. corpus_measure.py --write: corpus.tsv 1334 rows + corpus_sequences.tsv 374 picks, no ULP refusal.
+  RE-MEASURED with R1+R2 (acceptance 2), corpus_measure.py, quoted whole:
+    dial= 30 eligible=  74 picks= 74 distinct= 74  rt/budget min=0.07 p25=0.37 median=0.77 p75=0.90 max=1.00
+              bins [0,.2) [.2,.4) [.4,.6) [.6,.8) [.8,1]: [11, 10, 9, 12, 32]  at-exactly-budget=5  seed0=Kenter Fire Trail trailhead 22 min
+              classes: park 24, garden 17, museum 12, viewpoint 9, trailhead 4, town 4, cafe 4
+    dial= 60 eligible= 263 picks=100 distinct=100  rt/budget min=0.05 p25=0.62 median=0.68 p75=0.77 max=0.98
+              bins [0,.2) [.2,.4) [.4,.6) [.6,.8) [.8,1]: [3, 2, 15, 59, 21]  at-exactly-budget=0  seed0=Castle Rock Beach beach 43 min
+              classes: park 22, viewpoint 21, trailhead 14, museum 12, garden 11, peak 11, beach 5, cafe 2, waterfall 1, town 1
+    dial= 90 eligible= 465 picks=100 distinct=100  rt/budget min=0.03 p25=0.62 median=0.70 p75=0.73 max=0.97
+              bins [0,.2) [.2,.4) [.4,.6) [.6,.8) [.8,1]: [2, 5, 8, 80, 5]  at-exactly-budget=0  seed0=Van Nuys Airport Public Observation Area viewpoint 63 min
+              classes: garden 33, peak 17, viewpoint 16, park 12, beach 7, trailhead 5, museum 5, cafe 4, waterfall 1
+    dial=120 eligible= 695 picks=100 distinct=100  rt/budget min=0.17 p25=0.62 median=0.71 p75=0.79 max=0.97
+              bins [0,.2) [.2,.4) [.4,.6) [.6,.8) [.8,1]: [1, 6, 16, 55, 22]  at-exactly-budget=0  seed0=Tongva Peak peak 84 min
+              classes: peak 24, garden 17, park 13, trailhead 13, viewpoint 12, beach 12, museum 4, town 3, cafe 2
+  Last fifth of the dial 77/81/81 -> 21/5/22; medians 0.88/0.92/0.97 -> 0.68/0.70/0.71; none at exactly the dial at
+  60/90/120 (was 8/4/3); scenic classes at 120 52 -> 78, cafes 4 -> 2; seed 0 at 120 Calas Park (park, 120 min) ->
+  Tongva Peak (peak, 84 min). Dial 30 unchanged as a distribution (all 74 eligible run, R0), its order changes.
+  The defect test's bounds are written from this measurement: at 120, none at exactly 120, <= 25 in [0.8, 1] (22),
+  median in [0.6, 0.8] (0.71), >= 70 scenic (78), <= 5 cafes (2), >= 90 distinct (100).
+  RED by name, swift test --scratch-path .build-t0283/swift --filter Surprise with the tests and oracle changed and
+  Sources/ScenicKit untouched: FAILED "every corpus class maps to its ruled candidate, field for field (R3)" (7
+  issues: the seven classes whose prior is not 50), "the WHY: three picks pinned whole - hook, round trip and the
+  golden-hour line from Solar", "not this - too far: ...", "not this - been there: ...", "not this - wrong time: ...",
+  "the whole pick permutation equals the oracle's: driver-a, driver-c and driver-b with history", "the card's picks
+  for seeds 0..99 at dials 30, 60, 90 and 120 equal the oracle's, by full equality" (4 issues, every dial) and "at a
+  120-min dial the picks for seeds 0..99 land inside the dial, not at its edge, and mostly scenery" (4 issues);
+  every filter test and P-PROD-02's reproducible() and distinct() green. GREEN after Surprise.timeFit
+  (timeFitPeakPercent 70, timeFitSlope 2), SurprisePlaceClass.priorQuality and the mapping reading it: "Test run with
+  38 tests in 8 suites passed". SurpriseFilterTests.swift: git diff empty. Line counts: Surprise.swift 160,
+  SurprisePlaceClass.swift 95, SurprisePlaceMapping.swift 36, SurpriseCorpusFitTests.swift 60, corpus_measure.py 144.

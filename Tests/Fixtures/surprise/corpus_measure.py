@@ -2,6 +2,7 @@
 """T-0283: where Surprise's picks land over the bundled LA corpus, read-only.
 
     python Tests/Fixtures/surprise/corpus_measure.py            # the shipped rule (model.py's oracle)
+    python Tests/Fixtures/surprise/corpus_measure.py --write    # ... and rewrites corpus.tsv + corpus_sequences.tsv
     python Tests/Fixtures/surprise/corpus_measure.py --before   # T-0253's rule: time-fit = minutes * 100 / budget
 
 Every named place in apps/ios/ScenicDrive/Corpus/corpus-fallback.sqlite goes through the ruled mapping (T-0273 R3,
@@ -19,7 +20,8 @@ import sys
 
 import model
 
-ROOT = pathlib.Path(__file__).resolve().parents[3]
+HERE = pathlib.Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
 CORPUS = ROOT / "apps" / "ios" / "ScenicDrive" / "Corpus" / "corpus-fallback.sqlite"
 ORIGIN = (34.0689, -118.4452)
 RADIUS = 6_371_008.8
@@ -29,8 +31,8 @@ DWELL = {"viewpoint": 20, "cafe": 30, "peak": 45, "park": 45, "waterfall": 60, "
          "garden": 60, "town": 60, "museum": 90}
 HOURS = {"museum": (600, 1020), "cafe": (420, 1080), "garden": (540, 1020)}
 # T-0283 R2: the class prior, the quality a place carries while the corpus has no notability signal.
-PRIOR = {"viewpoint": 70, "peak": 70, "waterfall": 70, "beach": 70, "trailhead": 70, "garden": 70,
-         "park": 55, "museum": 55, "town": 55, "cafe": 40}
+PRIOR = {"viewpoint": 75, "peak": 75, "waterfall": 75, "beach": 75, "trailhead": 75, "garden": 75,
+         "park": 50, "museum": 50, "town": 50, "cafe": 25}
 DIALS = (30, 60, 90, 120)
 DATE = dt.date(2026, 10, 6)
 DEPART = 600
@@ -52,8 +54,17 @@ def corpus_rows():
         con.close()
 
 
+def unrounded(lat, lon):
+    return 2 * haversine(ORIGIN[0], ORIGIN[1], lat, lon) * 1.4 / 750.0
+
+
 def round_trip(lat, lon):
-    return math.ceil(2 * haversine(ORIGIN[0], ORIGIN[1], lat, lon) * 1.4 / 750.0)
+    return math.ceil(unrounded(lat, lon))
+
+
+def trunc_div(a, b):
+    q = abs(a) // b
+    return q if a >= 0 else -q
 
 
 def candidates(prior=True):
@@ -64,7 +75,8 @@ def candidates(prior=True):
         lat, lon = lat_e7 / 10_000_000, lon_e7 / 10_000_000
         opens, closes = HOURS.get(cls, (None, None))
         out.append({"id": str(pid), "cls": cls, "name": name, "category": CATEGORY[cls],
-                    "corridor": "%d:%d" % (int(lat_e7 / 1_000_000), int(lon_e7 / 1_000_000)), "brand": None,
+                    "corridor": "%d:%d" % (trunc_div(lat_e7, 1_000_000), trunc_div(lon_e7, 1_000_000)),
+                    "brand": None,
                     "quality": PRIOR[cls] if prior else 50, "approach": 0, "dwell": DWELL[cls], "opens": opens,
                     "closes": closes, "exempt": opens is None, "lit": False, "unpaved": False, "private": False,
                     "roundtrip": round_trip(lat, lon)})
@@ -91,6 +103,30 @@ def measure(cands, dial):
     print("          classes: %s" % ", ".join("%s %d" % kv for kv in sorted(mix.items(), key=lambda kv: -kv[1])))
 
 
+def write_fixtures(cands):
+    """`--write`: corpus.tsv (the rows the Swift suite maps itself) and corpus_sequences.tsv (the oracle's picks)."""
+    rows = corpus_rows()
+    for pid, _cls, name, lon_e7, lat_e7 in rows:
+        if name is None or "\t" in name or "\n" in name:
+            raise SystemExit("REFUSED: place %d has a name the TSV cannot carry" % pid)
+        frac = unrounded(lat_e7 / 10_000_000, lon_e7 / 10_000_000) % 1
+        if min(frac, 1 - frac) < 1e-6:
+            raise SystemExit("REFUSED: place %d's round trip is within 1e-6 of a whole minute" % pid)
+    with open(HERE / "corpus.tsv", "w", encoding="utf-8", newline="\n") as f:
+        f.write("# place_id\tcls\tname\tlon_e7\tlat_e7\n")
+        for row in rows:
+            f.write("%d\t%s\t%s\t%d\t%d\n" % row)
+    with open(HERE / "corpus_sequences.tsv", "w", encoding="utf-8", newline="\n") as f:
+        f.write("# dial\tseed\tid\n")
+        for dial in DIALS:
+            seq = model.sequence(cands, {"date": DATE, "depart": DEPART, "budget": dial}, {}, USER)
+            for i, cid in enumerate(seq[:100]):
+                f.write("%d\t%d\t%s\n" % (dial, i, cid))
+    print("wrote corpus.tsv (%d rows) and corpus_sequences.tsv" % len(rows))
+
+
+
+
 def main():
     before = "--before" in sys.argv
     if before:
@@ -100,6 +136,8 @@ def main():
                                                               DATE.isoformat(), DEPART))
     for dial in DIALS:
         measure(cands, dial)
+    if "--write" in sys.argv and not before:
+        write_fixtures(cands)
 
 
 if __name__ == "__main__":

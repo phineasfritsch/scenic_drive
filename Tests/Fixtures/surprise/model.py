@@ -108,8 +108,12 @@ def days(today, then):
     return (today - then).days
 
 
+# T-0283 R1: the time-fit peaks at 70% of the dial (100), falls 2 a percentage point, never below 0.
+FIT_PEAK, FIT_SLOPE = 70, 2
+
+
 def time_fit(rt, budget):
-    return rt * 100 // max(budget, 1)
+    return max(0, 100 - FIT_SLOPE * abs(rt * 100 // max(budget, 1) - FIT_PEAK))
 
 
 def eligible(cands, ctx, hist):
