@@ -18,6 +18,7 @@ import sqlite3
 import pytest
 
 from etl import contentdigest, corpus, fallback, placeallow, schema
+from regionbuild import places
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 COMMITTED = ROOT / "apps" / "ios" / "ScenicDrive" / "Corpus" / "corpus-fallback.sqlite"
@@ -112,3 +113,9 @@ def test_a_reselection_from_the_measured_la_input_is_the_committed_file(conn):
     places, _counts = placeallow.select(found[0])
     chosen = sorted((p["cls"], p["osm_type"], p["osm_id"]) for p in fallback.choose(places))
     assert chosen == kept_rows(conn)
+
+
+def test_the_region_build_is_the_rebuild_of_the_committed_fallback(conn):
+    path, built_at = places.BUNDLE["la"]
+    assert places.REPO / path == COMMITTED
+    assert (meta(conn)["built_at"], meta(conn)["region"]) == (built_at, "la")

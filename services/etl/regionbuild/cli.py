@@ -12,7 +12,9 @@
     sha        the sha256 and size of <region>-tagged.osm.pbf
     check      osmium read-back of the artifact and python -m etl.scenecheck over it (CHECK4)
     windows    the three LA windows cut out of the artifact and ranked (T-0208's fixtures, into the store)
-    all        motorways through check, stopping at the first stage that does not exit 0
+    places     the allowlist osmium pass over the unfiltered clip <region>.osm.pbf (T-0266), see places.py
+    fallback   the places corpus the app bundles, into the store and to its bundle path (T-0270)
+    all        motorways through fallback, stopping at the first stage that does not exit 0
 
 ops/etl-region is the entry point: it runs this inside the ETL image, or with --local on the host.
 """
@@ -24,12 +26,15 @@ import os
 import sys
 import time
 
-from . import docs, merge, osm, reference, scoring, tiles, windows
+from . import docs, merge, osm, places, reference, scoring, tiles, windows
 from .layout import Layout
 from .sweep import count_line, python_module
 
-ALL = ("motorways", "tiles", "docs", "reference", "score", "merge", "toxml", "tag", "topbf", "check")
+ALL = ("motorways", "tiles", "docs", "reference", "score", "merge", "toxml", "tag", "topbf", "check",
+       "places", "fallback")
 STAGES = ALL + ("sha", "windows", "all")
+# The places stages read the clip whole: no tile plan, so a region without one reaches its own refusal.
+PLANLESS = ("places", "fallback")
 WORK_ENV = "SCENIC_REGION_WORK"
 
 
@@ -63,6 +68,8 @@ HANDLERS = {
     "sha": lambda layout, names, jobs: osm.sha(layout.tagged),
     "check": check,
     "windows": windows.run,
+    "places": places.osmium_pass,
+    "fallback": places.bundle,
 }
 
 
@@ -74,6 +81,8 @@ def parser() -> argparse.ArgumentParser:
     out.add_argument("--region", default="la", help="the region whose tile plan is built (default la)")
     out.add_argument("--jobs", type=int, default=8, help="tiles at a time in docs/score, pool size elsewhere")
     out.add_argument("--tile-list", default=None, help="a file of tile names to build instead of the plan")
+    out.add_argument("--bundle-root", default=None,
+                     help="where fallback resolves the bundle path (default the checkout, /repo in the image)")
     return out
 
 
@@ -83,11 +92,19 @@ def main(argv: list | None = None) -> int:
         print("regionbuild: no work store - pass --work or set $%s" % WORK_ENV, file=sys.stderr)
         return 2
     layout = Layout(pathlib.Path(args.work), args.region)
-    names = tiles.read_list(args.tile_list) if args.tile_list else tiles.plan(args.region)
+    if args.tile_list:
+        names = tiles.read_list(args.tile_list)
+    elif args.stage in PLANLESS:
+        names = []
+    else:
+        names = tiles.plan(args.region)
     for stage in (ALL if args.stage == "all" else (args.stage,)):
         begun = time.monotonic()
         print("STAGE %s start tiles=%d work=%s" % (stage, len(names), layout.work), flush=True)
-        code = HANDLERS[stage](layout, names, args.jobs)
+        if stage == "fallback":
+            code = places.bundle(layout, names, args.jobs, args.bundle_root)
+        else:
+            code = HANDLERS[stage](layout, names, args.jobs)
         print("STAGE %s exit=%d %.0fs" % (stage, code, time.monotonic() - begun), flush=True)
         if code != 0:
             return code
