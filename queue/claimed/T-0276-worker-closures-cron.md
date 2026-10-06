@@ -168,3 +168,35 @@ resources.
   (`git merge-base --is-ancestor origin/main HEAD` true; nothing to merge). Gates on that head: `npx vitest run` Test
   Files 40 passed (40), Tests 736 passed (736); `python ops/lib/check-mutate-population.py` exit 0; `bash
   ops/queue-check` QUEUE OK (269 tasks). ops/test not run (orchestrator instruction).
+- 2026-10-06T11:28:04Z rv1-t0276 B1 (P-SAFE-08 fail-open) CLOSED as a CLASS. rv1: deleting `if (r.geojson === null) return
+  null;` from record() left 736/736 green - a fresh {version, fetched_at: now, geojson: null} passed every check,
+  buildCustomModel accepts null, and /plan /loop /trip routed with no areas and no closures_hazard. RULINGS, per
+  field record() reads (the record, version, fetched_at, geojson) x shape: missing, null, a number, true, "", [],
+  {} are each UNAVAILABLE for every field; the record itself as "", JSON null, a number, a string, an array, {} is
+  UNAVAILABLE; version off CLOSURES_VERSION (15 hex, 17 hex, upper-case hex, another district, a trailing newline,
+  wrapped in an array) UNAVAILABLE; fetched_at not ISO_INSTANT (a space form, a +00:00 offset, epoch ms, wrapped in an
+  array) or not a date (month 13, hour 25) UNAVAILABLE; geojson a string, one Feature, a FeatureCollection with no
+  features / features {} / features null / no type, 51 polygons, a Point UNAVAILABLE. ACCEPTED by ruling (a new
+  table "read, by ruling", fresh: 200, no hazard, areas exactly the record's): a FeatureCollection with ZERO features
+  - R6 writes it when nothing is active (the cron refuses only an empty FEED `data`, not an empty active set), so
+  refusing it would turn every quiet night into a hazard; an unknown extra key - the reader is not strict, `stats`
+  already rides beside the three fields and an extra key changes nothing routed; a version that is not
+  sha256(geojson) - the version is the /isochrone cache key (R9), never a gate: the areas come from geojson itself,
+  so a mismatch cannot route through a closure, and refusing it would DROP an honoured set for an unavailable one
+  (TEST_VERSION lcs-d7-00000000000000aa already is such a record in every fresh row).
+  test/closuresRoutes.test.ts: the unavailable table through ROUTES (/plan /loop /trip /isochrone) grows 9 -> 50
+  rows (x4 paths = 200 tests), each `[status, closures_hazard, models with areas]` toEqual `[200, {state:
+  "unavailable", version: "none", fetched_at: null}, 0]`; the ruled table 3 rows x /plan /loop /trip, toEqual
+  `[200, undefined, true, the record's areas per model]`. wc -l 222. GREEN unmutated: `npx vitest run
+  test/closuresRoutes.test.ts` Tests 247 passed (247).
+  Population +5, one per guard line deleted (store-record-shape-unchecked, store-version-unchecked,
+  store-fetched-at-unchecked, store-ms-unchecked, store-null-geojson-unchecked = rv1's); floor literal 86 -> 91.
+  --prove-floor: four arms REFUSED at floor 91, real population quiet. RED by name (faster verification):
+  `--only=store-null-geojson-unchecked,store-record-shape-unchecked,store-version-unchecked,store-fetched-at-unchecked,
+  store-ms-unchecked,store-geojson-unchecked,store-version-loose,store-instant-loose` (baseline green tests=338) ->
+  CAUGHT store-null-geojson-unchecked by "/plan, geojson null: 200 with closures_hazard unavailable and no areas";
+  CAUGHT store-record-shape-unchecked by "/plan, a record that is JSON null: ..."; CAUGHT store-version-unchecked by
+  "/plan, version missing: ..."; CAUGHT store-fetched-at-unchecked by "/plan, a fetched_at that is not an instant:
+  ..."; CAUGHT store-ms-unchecked by "/plan, a fetched_at in month 13: ..."; CAUGHT store-geojson-unchecked by
+  "/plan, geojson missing: ..."; CAUGHT store-version-loose, store-instant-loose; `RESULT caught=8 missed=0 trap=0 of
+  8`. src/closuresStore.ts unchanged (the guard rv1 deleted was already there; the defect was the missing row).
