@@ -5,7 +5,7 @@
  * (pin P-COST-01 will later assert the kill switch covers every entry, not a hand-written list).
  */
 import { asnDepsFromEnv, handleAsn, handleEntitlement } from "./asn";
-import { attestDepsFromEnv, handleAttest, handleAttestChallenge } from "./attest";
+import { attestDepsFromEnv, handleAttest, handleAttestAssert, handleAttestChallenge } from "./attest";
 import { runClosuresCron } from "./closuresCron";
 import { handleIsochrone, isochroneDepsFromEnv } from "./isochrone";
 import { handleLoop, loopDepsFromEnv } from "./loop";
@@ -98,6 +98,7 @@ export const ROUTES: Record<string, Handler> = {
   "/entitlement": (req, env) => handleEntitlement(req, asnDepsFromEnv(env)),
   "/attest/challenge": (req, env) => handleAttestChallenge(req, attestDepsFromEnv(env)),
   "/attest": (req, env) => handleAttest(req, attestDepsFromEnv(env)),
+  "/attest/assert": (req, env) => handleAttestAssert(req, attestDepsFromEnv(env)),
 };
 
 export default {

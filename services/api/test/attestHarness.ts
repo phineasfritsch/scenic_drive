@@ -1,11 +1,12 @@
 /**
  * Shared App Attest test plumbing (T-0278): a CBOR writer, a test-generated App Attest chain and attestation object
  * (the root is self-made, so production's pinned Apple root never trusts it; tests hand its DER and fingerprint to
- * the verifier in place of the pin - the ONLY replacement in the deps), the shipped migration, both tables read
+ * the verifier in place of the pin - the ONLY replacement in the deps), the shipped migrations (0003, and T-0280's 0004), both tables read
  * back whole, and an HS256 signer of the test's own for the session JWT oracle. Not a test file.
  */
 import { env } from "cloudflare:test";
 import attestSql from "../migrations/0003_app_attest.sql?raw";
+import assertSql from "../migrations/0004_app_attest_assert.sql?raw";
 import { attestDepsFromEnv, handleAttest, type AttestDeps } from "../src/attest";
 import type { Env } from "../src/index";
 import { b64, b64url, certificate, party, seq, tlv, type CertSpec } from "./appleChain";
@@ -113,9 +114,10 @@ export async function attestation(spec: AttestSpec = {}): Promise<Attested> {
 }
 
 export async function freshAttestTables(): Promise<void> {
-  for (const statement of attestSql.split(";").map((s) => s.trim()).filter(Boolean)) await env.DB.prepare(statement).run();
-  await env.DB.prepare("DELETE FROM attest_challenges").run();
-  await env.DB.prepare("DELETE FROM attested_keys").run();
+  for (const sql of [attestSql, assertSql]) {
+    for (const statement of sql.split(";").map((s) => s.trim()).filter(Boolean)) await env.DB.prepare(statement).run();
+  }
+  for (const table of ["attest_challenges", "attested_keys", "attest_sign_counts", "attest_challenge_counts"]) await env.DB.prepare(`DELETE FROM ${table}`).run();
 }
 
 export async function seedChallenge(challenge: string, expiresAt: number): Promise<void> {
