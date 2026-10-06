@@ -35,6 +35,8 @@
 # require_pinned_app_swift below; the app shell's entries and bytes since T-0273's M1), a SwiftPM or Xcode setting that adds sources - and the spellings the
 # Swift readers do not parse (T-0243); what SwiftUI itself draws. It proves the bytes are the reviewed bytes; it
 # cannot prove the reviewed bytes are right, which is every other limb's job and the reviewer's.
+[[ -f ops/lib/check-safety-disclaimer-linked ]] || { echo "P-SAFE-03: ops/lib/check-safety-disclaimer-linked is missing."; exit 1; }
+. ops/lib/check-safety-disclaimer-linked
 PINNED_REASON="the pinned render surface changed"
 PINNED_FOOTER_REL="../DesignSystem/AttributionFooter.swift"
 
@@ -267,4 +269,5 @@ require_pinned_app_swift() {
     "Every byte of every Swift file under $tree is pinned (rv2-t0273 B1). Approve an edit by typing its new digest" \
     "in ops/lib/check-safety-disclaimer-pinned in the same commit, deliberately - \`sed -e 's/\r\$//' FILE | sha256sum\`."
   PINNED_APP_FILES="${#found[@]}"
+  require_pinned_linked "$tree"  # T-0289: pbxproj, apps/ios beyond Swift, the root package - LAST
 }

@@ -275,7 +275,7 @@ run_check() {
   echo "  and a sheet bound to that flag on the screen; \`$ACK_IDENT = true\` written exactly once, at"
   echo "  line $ACK_WRITE_LINE, inside the SafetyDisclaimer(onAccept: { block opening at line $ACK_ACCEPT_LINE;"
   echo "  and by occurrence over the app tree, $ACK_IDENT at $ack_set, the key at $key_set."
-  echo "  Frozen (-frozen); $PINNED_FILES feature file(s), shell, footer pinned (-pinned); doors over $DOORS_FILES .swift (-doors); LAST all $PINNED_APP_FILES app .swift by sha256."
+  echo "  Frozen (-frozen); $PINNED_FILES feature file(s), shell, footer pinned (-pinned); doors over $DOORS_FILES .swift (-doors); LAST all $PINNED_APP_FILES app .swift, then $LINKED_FILES root + pbxproj file(s) (-linked)."
   echo "  Not checked here: rendering (T-0180), taps, whether that write RUNS, contrast, Dynamic Type, 44 pt."
 }
 
