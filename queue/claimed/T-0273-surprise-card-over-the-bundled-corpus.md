@@ -227,3 +227,29 @@ today, so the hook line is ruled from class (no curation prose yet - T-0183).
     tree; typed, then the doors limb alone green over 38 files.
   - ios-compile dispatched on f4864cd: run 37478980100, conclusion success.
   - wc -l: check-safety-disclaimer 300, -pinned 192, -mutations 182, -doors 129.
+- 2026-10-06T18:56:40Z rv2-t0273 B1 FIX ROUND (PR #166 head 99fc9c2). agent/claude-opus-5.
+  - RULING. rv2's mutant (`let go = scene.open; go(url, nil, nil)` in a NEW MapAdapter/MapTapHandoff.swift, wired by
+    one line in MapView.makeUIView) is a spelling the -doors opener list did not name, in a module no limb pinned.
+    Ending the class, not the spelling: -pinned gains require_pinned_app_swift, run LAST (after -doors), which pins
+    EVERY *.swift entry under apps/ios (`find -iname '*.swift'`, any depth/kind; non-regular refused) by an exact
+    file list and per-file sha256, CRLF normalized - PINNED_APP_SWIFT, 38 files today: Package.swift, every ScenicApp
+    module (DesignSystem, Entitlements, FeatureScenicHome, FeatureSurpriseMe, MapAdapter), ScenicDriveApp.swift; no
+    UI-test Swift exists yet, and one added is refused by name. -doors stays as defence in depth with the bare
+    identifiers open, windowScene, UIScene, UIWindowScene, perform and value(forKey added to its opener token; the 6
+    lines they newly match on the tree are approved whole (SkylineHandoff's declaration, the gate's failure string,
+    SurpriseSlot's `_ open:` parameter, MapRouteCoordinator's two `open` locals, the shell's line). P-SAFE-03's prose
+    APPENDED (dated): every Swift edit under apps/ios now re-approves its digest in PINNED_APP_SWIFT. The mutation
+    driver gains `^` (add a file, making its parent directories) and an optional fifth field `FILE@@SED` (a second
+    file's edit) for rv2's two-file row. P-ATTR-01 does not call the new limb (scope: P-SAFE-03); filed as a gap.
+  - GREEN on the real tree (f2f6129's guard and Swift bytes; main's merge 6798924 touched neither apps/ios nor
+    ops/lib): `bash ops/lib/check-safety-disclaimer` exit 0, last line "doors over 38 .swift (-doors); LAST all 38
+    app .swift by sha256." (real 47m43s on this loaded box).
+  - PROVE-RED, touched rows only (owner-approved), from a copy of the table holding rows 41-43 (.build-t0273-rows/):
+      T-0273 rv2 B1 a map tap opens Maps via scene.open    1        yes  ("URL opener (a) added: ...MapTapHandoff.swift")
+    Rows 42 (one line added to MapAdapter/MapView.swift, expects "MapView.swift content changed") and 43 (a UI test
+    file in a new ScenicDriveUITests/, expects "added ScenicDriveUITests/EscapeUITests.swift") were STILL RUNNING at
+    this commit (each row ~25-45 min here); NOT claimed. Rows 1-40 untouched and not re-run.
+  - The guard battery bare on the merged head 6798924 (safety-disclaimer, map-attribution, pipe-consumers,
+    line-cap, store-links) was still running at this commit; NOT claimed green.
+  - ios-compile dispatched on task/T-0273 (Swift bytes unchanged this round): run 37508494803, completed success.
+  - wc -l: check-safety-disclaimer 300, -pinned 270, -mutations 197, -doors 140. Lease expired 18:52:41Z mid-round.
