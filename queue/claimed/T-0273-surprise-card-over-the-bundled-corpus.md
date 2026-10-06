@@ -193,3 +193,37 @@ today, so the hook line is ruled from class (no curation prose yet - T-0183).
     rules R1 places(in:) makes it this PR's to anchor.
   - wc -l: check-safety-disclaimer 300, check-safety-disclaimer-pinned 192, check-safety-disclaimer-mutations 170,
     check-map-attribution 300.
+- 2026-10-06T15:01:02Z rv1-t0273 FAIL (PR #166, head 96b9235) answered by agent/claude-opus-5 (owner), commit f4864cd.
+  - B1 (P-OPS-03) CLOSED as rv1 said: check-safety-disclaimer-pinned's missing-entry probe no longer pipes printf into
+    `grep -Fxq`; it reads a here-string, the same shape as the added-entry probe above it.
+  - B2 (P-SAFE-03 failing OPEN) CLOSED BY CLASS, not by the one spelling: new ops/lib/check-safety-disclaimer-doors,
+    sourced by the check and run LAST (after -pinned, so rows 1-37 keep their refusals). Three whitelists, each the
+    exact MULTISET of `file|whole line` (CR stripped, only `//`-leading lines dropped, no lexer) over every regular
+    *.swift under apps/ios, recursively: (a) every line naming UIApplication, NSWorkspace, openURL/OpenURLAction,
+    Link(, ShareLink, `.open(`, a Markdown `](`, `.link`, AttributedString, SFSafariViewController,
+    ASWebAuthenticationSession, UIActivityViewController, WKWebView, NSSelectorFromString, NSClassFromString,
+    objc_msgSend or dlsym is one of 7 typed sites (SkylineHandoff's UIApplication open, the gate's one
+    SkylineHandoff.open, the five paywall/Settings/Legal Links); (b) every line naming SurpriseCard, ScenicHomeScreen
+    or SettingsScreen (the views the shell composes) is one of 6 (each declaration in its own file, SettingsScreen's
+    describe call, the shell's two lines) - a second declaration, typealias, extension or overload anywhere is
+    refused; (c) every Package.swift line carrying path:/name:/sources:/exclude:/resources:/targets:/publicHeadersPath:
+    is one of 21 typed lines, so a target's path (or a renamed target's default path) cannot leave the pinned
+    directory. Any non-regular, non-directory entry under apps/ios (a link or junction) is refused by name.
+    Measured population before typing: 38 .swift files, 0 links under apps/ios, the 7/6/21 lines above.
+  - RULED: the shell-shadow row is placed OUTSIDE the shell (Sources/Entitlements/SurpriseCard.swift). Inside the
+    shell -pinned refuses first (rows 34-35, unchanged), so a shell row could not show -doors red; (b) is what
+    catches the same declaration anywhere else under apps/ios.
+  - PROVE-RED, touched rows only (owner-approved faster verification), from single-row copies of the table under
+    .build-doors/, each a full check run against a mutated copy of apps/ios:
+      T-0273 rv1 B2 the card's target path swapped         1        yes   (`~` row: Package.swift's
+        FeatureSurpriseMe path -> Sources/FeatureSurpriseMeLive holding a SurpriseCard that calls
+        UIApplication.shared.open(maps://...); refused naming "target map (c) added")
+      T-0273 a SurpriseCard shadow outside the shell       1        yes   ("composed view (b) added")
+      T-0273 an environment openURL in DesignSystem        1        yes   (@Environment(\.openURL) in a new
+        DesignSystem file; "URL opener (a) added")
+    Each row: prove-red: 1/1 mutations refused by name. Rows 1-37 untouched and not re-run.
+  - Tracked tree before the `targets: [` line was typed: every limb through -pinned green (B1's here-string
+    included), -doors refused `target map (c) added: targets: [` - the untyped array opener, seen red on the real
+    tree; typed, then the doors limb alone green over 38 files.
+  - ios-compile dispatched on f4864cd: run 37478980100, conclusion success.
+  - wc -l: check-safety-disclaimer 300, -pinned 192, -mutations 182, -doors 129.
