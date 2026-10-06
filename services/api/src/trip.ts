@@ -9,6 +9,7 @@
  * Free and anon get the PREVIEW, paid the FULL itinerary with one leg a day (R5, the plan's feature table). Deps
  * are injected so the tests count real fetch invocations; ROUTES["/trip"] builds them from env exactly as /plan does.
  */
+import { withClosuresHazard } from "./closuresStore";
 import { killSwitch } from "./killSwitch";
 import type { LatLon } from "./latLon";
 import { BudgetError } from "./lambdaSearch";
@@ -82,12 +83,13 @@ export async function handleTrip(req: Request, env: PlanEnv, deps: TripDeps | nu
   if (destination === null) return json({ error: "unknown_place" }, 404);
 
   const who = await deps.identify(req);
+  const snapshot = await deps.closures();
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const trip = await guardedPlan(upstream, { ...who, kind: "trip" }, (call) =>
       planTrip(call, deps.routerBase, request.origin, destination, request.days, request.extraBudgetPct,
-        who.tier === "paid"), TRIP_UPSTREAM_COST);
-    return json(trip, 200);
+        who.tier === "paid", snapshot.closures), TRIP_UPSTREAM_COST);
+    return json(withClosuresHazard(trip, snapshot), 200);
   } catch (error) {
     return failure(error, request.days);
   }

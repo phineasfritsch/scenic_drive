@@ -8,6 +8,7 @@
  * retraced road - 3 requests, LOOP_UPSTREAM_COST, which the guarded `call` enforces (P-COST-04).
  */
 import { appleMapsUrl } from "./appleMaps";
+import { mergeClosures } from "./closuresStore";
 import { buildCustomModel, rejectCustomModel, type ClosureCollection } from "./customModel";
 import type { LatLon } from "./latLon";
 import { decisionPoints } from "./planWaypoints";
@@ -126,7 +127,7 @@ interface Attempt {
 const clean = (a: Attempt) => a.scan !== null && isAcceptable(a.scan.fraction);
 
 export async function planLoop(call: GuardedFetch, routerBase: string, start: LatLon, minutes: number,
-  seed: number): Promise<LoopResult> {
+  seed: number, feed: ClosureCollection | null): Promise<LoopResult> {
   const distance = roundTripDistance(minutes);
   const tried: Attempt[] = [];
   const attempt = async (s: number, closures: ClosureCollection | null) => {
@@ -136,13 +137,13 @@ export async function planLoop(call: GuardedFetch, routerBase: string, start: La
     return made;
   };
 
-  let current = await attempt(seed, null);
+  let current = await attempt(seed, feed);
   if (!clean(current)) {
     const reseed = (seed + 1) >>> 0;
-    current = await attempt(reseed, null);
+    current = await attempt(reseed, feed);
     if (!clean(current)) {
       const areas = retracedAreas(current.scan?.retraced ?? [], start);
-      if (areas !== null) current = await attempt(reseed, areas);
+      if (areas !== null) current = await attempt(reseed, mergeClosures(feed, areas));
     }
   }
   if (!clean(current)) {

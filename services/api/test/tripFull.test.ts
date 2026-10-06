@@ -3,6 +3,7 @@
  * identity reaches the paid tier until /attest (T-0256 R3). paid = the FULL itinerary: one car_scenic leg per day at
  * the winning lambda, 1 + 6 + days <= 12 requests; free = the preview. Every fetch is counted against the reserve.
  */
+import { FRESH_EMPTY } from "./closuresFake";
 import { describe, expect, it } from "vitest";
 import { buildCustomModel } from "../src/customModel";
 import type { Tier } from "../src/quota";
@@ -22,6 +23,7 @@ function harness(tier: Tier, options: RouterOptions = {}) {
     routerBase: ROUTER,
     resolvePlace: async (id) => (id === BIG_SUR.id ? { lat: BIG_SUR.lat, lon: BIG_SUR.lon } : null),
     identify: () => ({ userId: "device-1", tier }),
+    closures: async () => FRESH_EMPTY,
   };
   const run = async (body: unknown = TRIP_BODY) => {
     const response = await handleTrip(tripRequest(body), {}, deps);

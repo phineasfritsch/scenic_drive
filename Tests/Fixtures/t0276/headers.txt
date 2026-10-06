@@ -1,0 +1,11 @@
+HTTP/1.1 200 OK
+Server: nginx/1.14.1
+Date: Tue, 06 Oct 2026 08:06:12 GMT
+Content-Type: application/json
+Content-Length: 8553200
+Last-Modified: Tue, 06 Oct 2026 08:04:20 GMT
+Connection: keep-alive
+ETag: "6ac4ab84-8282f0"
+Access-Control-Allow-Origin: *
+Accept-Ranges: bytes
+
