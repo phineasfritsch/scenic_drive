@@ -90,8 +90,8 @@ export async function handleTrip(req: Request, env: PlanEnv, deps: TripDeps | nu
   try {
     const trip = await guardedPlan(upstream, { ...who, kind: "trip" }, (call) =>
       planTrip(call, deps.routerBase, request.origin, destination, request.days, request.extraBudgetPct,
-        who.tier === "paid", picker.pick), TRIP_UPSTREAM_COST);
-    return json(withClosuresHazard(trip, snapshot, picker.dropped()), 200);
+        who.tier === "paid", picker.pick, picker.returned), TRIP_UPSTREAM_COST);
+    return json(withClosuresHazard(trip, snapshot, picker.dropped(), picker.crosses()), 200);
   } catch (error) {
     return failure(error, request.days);
   }
