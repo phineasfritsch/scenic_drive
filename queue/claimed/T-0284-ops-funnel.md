@@ -1,13 +1,13 @@
 ---
 id: T-0284
 title: ops/funnel prints the plan -> preview -> drive -> answer funnel and W1/W4 return from Analytics Engine telemetry rows (offline over a recorded fixture; live via the AE SQL API when the owner supplies a read token)
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T16:12:52Z
+lease_expires_at: 2026-10-07T02:12:52Z
+worktree: .worktrees/T-0284
+branch: task/T-0284
 exclusive: []
 touches: [ops/funnel, ops/lib/, Tests/Fixtures/t0284/, ops/mutate/]
 pins_affected: [P-PRIV-05]
@@ -26,3 +26,4 @@ nothing reads. Success metric from the plan: W1/W4 return and the post-drive 'pr
 
 ## Log
 - 2026-10-06T16:11:39Z filed by agent/claude-opus-5 (orchestrator) after PR #169 (T-0279) merged.
+- 2026-10-06T16:12:52Z claimed by agent/claude-opus-5; lease until 2026-10-07T02:12:52Z
