@@ -81,7 +81,7 @@ export async function handleTrip(req: Request, env: PlanEnv, deps: TripDeps | nu
   }
   if (destination === null) return json({ error: "unknown_place" }, 404);
 
-  const who = deps.identify(req);
+  const who = await deps.identify(req);
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const trip = await guardedPlan(upstream, { ...who, kind: "trip" }, (call) =>

@@ -16,8 +16,7 @@ import type { LatLon } from "./latLon";
 import { BudgetError } from "./lambdaSearch";
 import { d1PlaceResolver } from "./placeResolver";
 import { parsePlanRequest } from "./planRequest";
-import type { Tier } from "./quota";
-import { routerDepsFromEnv, type RouterEnv } from "./routerDeps";
+import { routerDepsFromEnv, type Identity, type RouterEnv } from "./routerDeps";
 import { RouteError } from "./routePath";
 import { PlanFailure, planScenic } from "./scenicPlanner";
 import { guardedPlan, PlanBudgetExceeded, UpstreamPaused, type UpstreamDeps } from "./upstream";
@@ -31,7 +30,7 @@ export interface PlanDeps {
   /** A corpus place id -> its coordinate, or null when the corpus does not know it. */
   resolvePlace(id: string): Promise<LatLon | null>;
   /** Who is planning, for the quota. Until /attest lands every caller is whatever this says. */
-  identify(req: Request): { userId: string; tier: Tier };
+  identify(req: Request): Identity | Promise<Identity>;
 }
 
 const json = (body: unknown, status: number) =>
@@ -91,7 +90,7 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
 
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
-    const plan = await guardedPlan(upstream, deps.identify(req), (call) =>
+    const plan = await guardedPlan(upstream, await deps.identify(req), (call) =>
       planScenic(call, deps.routerBase, request.origin, destination, request.budgetMinutes * 60));
     return json(plan, 200);
   } catch (error) {

@@ -75,7 +75,7 @@ export async function handleIsochrone(req: Request, env: KillEnv, deps: Isochron
   if (cached !== null) return json({ minutes, buckets: cached }, 200);
 
   try {
-    const buckets = await guardedPlan(deps.upstream, { ...deps.identify(req), kind: "surprise" }, (call) =>
+    const buckets = await guardedPlan(deps.upstream, { ...(await deps.identify(req)), kind: "surprise" }, (call) =>
       planReach(call, deps.routerBase, start, limit), ISOCHRONE_UPSTREAM_COST);
     await deps.cache.put(key, buckets, now).catch(() => undefined);
     return json({ minutes, buckets }, 200);

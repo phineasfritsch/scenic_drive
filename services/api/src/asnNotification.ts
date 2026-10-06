@@ -9,6 +9,8 @@ import { JwsRejected, verifyAppleJws, type JwsTrust } from "./appleJws";
 export const APP_BUNDLE_ID = "com.phineasfritsch.scenicdrive";
 
 export const ACTIVATES = ["SUBSCRIBED", "DID_RENEW", "OFFER_REDEEMED"];
+/** Apple reversed a refund it granted (T-0272 R6): the row its REFUND deactivated is active again, until expiresDate. */
+export const REACTIVATES = ["REFUND_REVERSED"];
 export const DEACTIVATES = ["EXPIRED", "REFUND", "REVOKE", "GRACE_PERIOD_EXPIRED"];
 
 export interface EntitlementChange {
@@ -43,7 +45,7 @@ export async function entitlementChange(payload: Record<string, unknown>, policy
   const subtype = typeof payload.subtype === "string" ? payload.subtype : null;
   const signedDate = epochMs(payload.signedDate, "signedDate");
   const grace = type === "DID_FAIL_TO_RENEW" && subtype === "GRACE_PERIOD";
-  const status = ACTIVATES.includes(type) || grace ? "active" : DEACTIVATES.includes(type) ? "inactive" : null;
+  const status = ACTIVATES.includes(type) || REACTIVATES.includes(type) || grace ? "active" : DEACTIVATES.includes(type) ? "inactive" : null;
   if (status === null) return null;
 
   const data = payload.data;
