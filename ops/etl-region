@@ -4,10 +4,11 @@
 #   ops/etl-region <stage> [--jobs N] [--region la]      in the ETL image (docker), the default
 #   ops/etl-region --local <stage> --work DIR [...]      on the host: python -m regionbuild
 #
-# Stages, in order: motorways tiles docs reference score merge toxml tag topbf check places fallback; also
+# Stages, in order: motorways tiles docs reference score merge toxml tag topbf check places fallback corpus; also
 # sha, windows, and all. See services/etl/regionbuild/cli.py. `places` reads the UNFILTERED clip, put in the
 # store as <region>.osm.pbf; `fallback` rebuilds the bundled apps/ios/ScenicDrive/Corpus/corpus-fallback.sqlite
-# (LA) from that places stream - `ops/etl-region places` then `ops/etl-region fallback` (T-0274).
+# (LA) from that places stream - `ops/etl-region places` then `ops/etl-region fallback` (T-0274). `corpus` builds
+# the FULL <region>-corpus.sqlite from the tile docs and the places stream and measures it (T-0275).
 #
 # Docker mode mounts this checkout at /repo and the WORK STORE at /work. The store is $SCENIC_REGION_WORK on
 # the host; put the clip in it as <region>-filtered.osm.pbf and the region inputs (DEM, WorldCover, byways)

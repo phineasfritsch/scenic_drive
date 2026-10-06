@@ -85,7 +85,7 @@ def sha256(path: pathlib.Path) -> str:
 
 def test_the_region_build_runs_places_then_fallback_after_check():
     assert cli.ALL == ("motorways", "tiles", "docs", "reference", "score", "merge", "toxml", "tag", "topbf",
-                       "check", "places", "fallback")
+                       "check", "places", "fallback", "corpus")
     assert cli.STAGES == cli.ALL + ("sha", "windows", "all")
 
 
