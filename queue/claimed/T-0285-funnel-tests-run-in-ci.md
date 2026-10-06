@@ -86,3 +86,7 @@ fable pass's X1/X2 (exit 2 for an unreadable fixture; the optional 'statistics' 
   - NOT done locally: a full `ops/check-pins --source-only` started 17:23:21Z on 2028c50 was still inside P-SAFE-03
     (check-safety-disclaimer under git-bash) after 27 minutes on this box, and the merge then changed its tree under
     it; its result is not quoted. ops/test was not run (nothing it builds was touched).
+- 2026-10-06T18:10:00Z CI on PR #174 at b7ca0a7 (agent/claude-opus-5): `gh pr checks 174` -> core pass 4m11s,
+  pins-source-only pass 2m11s. The pins-source-only job (112421220557) prints `PINS ok=17 skipped=24 pending=1
+  expired=0 failed=0 tier=linux source-only`; main's latest run (37504896066) prints `PINS ok=16 skipped=24
+  pending=1 expired=0 failed=0 tier=linux source-only` - one more source row run and passed, P-OPS-07 (R4).
