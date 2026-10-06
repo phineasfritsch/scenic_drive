@@ -29,6 +29,39 @@ function cell(base: number, digits: number[], tail = 7, mode = 1n, reserved = 0n
 const CELL = "850dab63fffffff";
 const plan = (c: string) => one(p("plan_requested", "scenic", c, 30));
 
+// R3/R4 written out literally here, never read from src, so a mutant that edits the shipped table cannot edit the
+// rows with it. One accepted point per wire name; the closed label enums; the slots R3 rules "exactly +0".
+const BASE: Record<string, Point> = {
+  plan_requested: p("plan_requested", "scenic", CELL, 30), plan_result: p("plan_result", "routed"),
+  preview_shown: p("preview_shown"), handoff_tapped: p("handoff_tapped", "waze"), drive_started: p("drive_started"),
+  drive_completed: p("drive_completed", "", "", 50, 10), drive_abandoned: p("drive_abandoned", "", "", 50),
+  post_drive_answer: p("post_drive_answer", "prettier"), surprise_shown: p("surprise_shown"),
+  surprise_not_this: p("surprise_not_this", "too_far"), surprise_take_me_there: p("surprise_take_me_there"),
+  surprise_arrived: p("surprise_arrived"), corpus_activated: p("corpus_activated", "", "", 7),
+  paywall_shown: p("paywall_shown"), paywall_converted: p("paywall_converted"),
+};
+const LABELS: Record<string, string[]> = {
+  plan_requested: ["scenic", "loop", "surprise", "road_trip"],
+  plan_result: ["routed", "no_alternative", "quota_exceeded", "failed"],
+  handoff_tapped: ["apple_maps", "google_maps", "waze"],
+  post_drive_answer: ["prettier", "not_prettier"],
+  surprise_not_this: ["too_far", "been_there", "not_my_thing"],
+};
+const UNUSED_SLOTS: [string, 0 | 1][] = [
+  ...Object.keys(BASE).filter((n) => !["plan_requested", "drive_completed", "drive_abandoned", "corpus_activated"].includes(n))
+    .flatMap((n): [string, 0 | 1][] => [[n, 0], [n, 1]]),
+  ["plan_requested", 1], ["drive_abandoned", 1], ["corpus_activated", 1],
+];
+const PENTAGONS = [4, 14, 24, 38, 49, 58, 63, 72, 83, 97, 107, 117];
+const HEXAGONS = Array.from({ length: 122 }, (_, b) => b).filter((b) => !PENTAGONS.includes(b));
+const withLabel = (name: string, label: string): Point => ({ ...BASE[name]!, blobs: [name, label, BASE[name]!.blobs[2]] });
+const withSlot = (name: string, slot: 0 | 1, v: number): Point =>
+  ({ ...BASE[name]!, doubles: slot === 0 ? [v, BASE[name]!.doubles[1]] : [BASE[name]!.doubles[0], v] });
+/** Every non-empty proper prefix of every closed-enum member that is not itself a member (S2). */
+const PREFIXES: [string, string][] = Object.entries(LABELS).flatMap(([name, labels]) =>
+  [...new Set(labels.flatMap((l) => Array.from({ length: l.length - 1 }, (_, k) => l.slice(0, k + 1))))]
+    .filter((x) => !labels.includes(x)).map((x): [string, string] => [name, x]));
+
 const ACCEPTED: [string, unknown][] = [
   ["the cell built from fields equals the published cell", plan(cell(6, [6, 5, 3, 3, 0]))],
   ["base cell 0, all digits 0", plan(cell(0, [0, 0, 0, 0, 0]))],
@@ -43,6 +76,10 @@ const ACCEPTED: [string, unknown][] = [
   ["corpus_activated 0", one(p("corpus_activated", "", "", 0))],
   ["corpus_activated 2147483647", one(p("corpus_activated", "", "", 2147483647))],
   ["20 events, the per-request maximum", { events: Array.from({ length: 20 }, () => p("drive_started")) }],
+  ...Object.entries(BASE).map(([n, point]): [string, unknown] => [`the base point of ${n}`, one(point)]),
+  ...Object.entries(LABELS).flatMap(([n, labels]) => labels.map((l): [string, unknown] => [`${n} label ${l}`, one(withLabel(n, l))])),
+  ...HEXAGONS.map((b): [string, unknown] => [`hexagon base cell ${b}, leading digit 1`, plan(cell(b, [1, 0, 0, 0, 0]))]),
+  ...PENTAGONS.map((b): [string, unknown] => [`pentagon base cell ${b}, all digits 0`, plan(cell(b, [0, 0, 0, 0, 0]))]),
 ];
 
 const REFUSED: [string, unknown][] = [
@@ -129,6 +166,13 @@ const REFUSED: [string, unknown][] = [
   ["a percent of -0", raw(p("drive_abandoned"), "[0,-0]")],
   ["a double past Number.MAX_VALUE", raw(p("drive_started"), "[1e999,0]")],
   ["a body that is not JSON", "{not json"],
+  // S1: every unused slot at -1 and +1, on every event that has one
+  ...UNUSED_SLOTS.flatMap(([n, slot]) => [-1, 1].map((v): [string, unknown] => [`${n} unused v${slot + 1} = ${v}`, one(withSlot(n, slot, v))])),
+  // S2: a non-empty proper prefix of a closed-enum member
+  ...PREFIXES.map(([n, x]): [string, unknown] => [`${n} label ${JSON.stringify(x)}, a proper prefix`, one(withLabel(n, x))]),
+  // S3: the k-axis rule on each of the twelve pentagons, leading and after zeros
+  ...PENTAGONS.flatMap((b): [string, unknown][] => [[`pentagon base cell ${b}, leading digit 1`, plan(cell(b, [1, 0, 0, 0, 0]))],
+    [`pentagon base cell ${b}, first non-zero digit 1 after zeros`, plan(cell(b, [0, 0, 1, 0, 0]))]]),
 ];
 
 describe("POST /telemetry whitelist through ROUTES['/telemetry'] (T-0279 R3/R4, P-PRIV-05)", () => {

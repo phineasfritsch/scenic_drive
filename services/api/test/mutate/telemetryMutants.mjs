@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-telemetry");
 
-export const MIN_MUTATIONS = 58;
+export const MIN_MUTATIONS = 61;
 export const SUBJECTS = ["src/telemetry.ts", "src/telemetryPoint.ts", "src/h3Res5.ts", "src/index.ts", "src/quota.ts",
   "src/QuotaCounter.ts"];
 const TESTS = ["test/telemetryCost.test.ts", "test/telemetryWhitelist.test.ts", "test/telemetryFixture.test.ts",
@@ -68,6 +68,9 @@ export const MUTATIONS = [
   m("minus-zero-allowed", P, "!Object.is(value, -0) && ", ""),
   m("fractions-allowed", P, "Number.isInteger(value)", "Number.isFinite(value)"),
   m("range-min-minus-1", P, "value >= min &&", "value >= min - 1 &&"),
+  m("unused-min-minus-1", P, "const UNUSED: Range = [0, 0];", "const UNUSED: Range = [-1, 0];"),
+  m("label-prefix-accepted", P, "if (!rule.labels.includes(label)) return",
+    "if (!(rule.labels.includes(label) || (label.length > 0 && rule.labels.some((l) => l.startsWith(label))))) return"),
   m("range-max-plus-1", P, "value <= max;", "value <= max + 1;"),
   m("budget-1441", P, "[[0, 1440], UNUSED]", "[[0, 1441], UNUSED]"),
   m("percent-101", P, "const PERCENT: Range = [0, 100];", "const PERCENT: Range = [0, 101];"),
@@ -88,6 +91,7 @@ export const MUTATIONS = [
   m("cell-digit-5-unchecked", H, "r <= 5; r++) if (digit(index, r) > 6)", "r <= 4; r++) if (digit(index, r) > 6)"),
   m("cell-tail-unchecked", H, "if (digit(index, r) !== 7) return false;", "if (digit(index, r) > 7) return false;"),
   m("cell-pentagon-117-dropped", H, "107, 117]", "107]"),
+  m("cell-pentagon-58-dropped", H, "49, 58, 63,", "49, 63,"),
   m("cell-pentagon-zero-stops", H, "if (d === 0) continue;", "if (d === 0) return true;"),
   m("cell-pentagon-unchecked", H, "return d !== 1;", "return true;"),
   m("quota-telemetry-arm-dropped", "quota.ts", "  if (kind === \"telemetry\") return DAILY_TELEMETRY_QUOTA;\n", ""),
