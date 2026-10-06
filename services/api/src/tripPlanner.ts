@@ -8,7 +8,7 @@
  * the splitter refuses a route over fastest + budget, each day's ceiling is its share of that, and a full leg over
  * its day's ceiling refuses the whole trip. No stop or lodging source exists on the server yet (R4): places = [].
  */
-import type { ClosuresFor } from "./closuresNearest";
+import type { ClosuresFor, PathGuard } from "./closuresNearest";
 import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customModel";
 import { searchLambda } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
@@ -122,44 +122,66 @@ function dayCeilingMs(ceilingMs: number, dayMs: number, totalMs: number): number
 }
 
 export async function planTrip(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
-  days: number, extraBudgetPct: number, full: boolean, closuresFor: ClosuresFor): Promise<TripResult> {
+  days: number, extraBudgetPct: number, full: boolean, closuresFor: ClosuresFor, returned: PathGuard): Promise<TripResult> {
+  let used = 0;
+  const counted: GuardedFetch = (url, init) => {
+    used += 1;
+    return call(url, init);
+  };
   const closures = closuresFor(origin, destination);
-  const fastest = await route(call, routerBase, origin, destination, FAST_PROFILE, undefined);
+  const fastest = await route(counted, routerBase, origin, destination, FAST_PROFILE, undefined);
   const fastestMs = fastest.timeMs;
   const budgetMs = budgetSeconds(fastestMs, extraBudgetPct);
   const ceilingMs = fastestMs + budgetMs;
   const measured = new Map<string, RoutePath>();
   const outcome = await searchLambda(fastestMs / 1000, budgetMs / 1000, async (lambda) => {
-    const path = await route(call, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(lambda, closures));
+    const path = await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(lambda, closures));
     measured.set(formatMultiplier(lambda), path);
     return durationSeconds(path);
   }, MAX_EVALUATIONS);
-  const chosen = measured.get(formatMultiplier(outcome.lambda));
-  if (!chosen) throw new TripFailure("no_recorded_lambda", `no route was measured at lambda ${outcome.lambda}`);
+  const measuredChosen = measured.get(formatMultiplier(outcome.lambda));
+  if (!measuredChosen) throw new TripFailure("no_recorded_lambda", `no route was measured at lambda ${outcome.lambda}`);
 
-  const edges = edgesOf(chosen);
-  const split = planRoadTrip(edges, [], fastestMs,
-    { days, maxDriveSeconds: MAX_DRIVE_MS_PER_DAY, maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct);
-  if ("over_budget" in split) {
+  const splitOf = (path: RoutePath) => {
+    const pathEdges = edgesOf(path);
+    return { path, edges: pathEdges, split: planRoadTrip(pathEdges, [], fastestMs,
+      { days, maxDriveSeconds: MAX_DRIVE_MS_PER_DAY, maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct) };
+  };
+  const first = splitOf(measuredChosen);
+  if ("over_budget" in first.split) {
     throw new TripFailure("ceiling_breached",
-      `the route takes ${split.over_budget.route_s} ms against a ceiling of ${split.over_budget.ceiling_s} ms`);
+      `the route takes ${first.split.over_budget.route_s} ms against a ceiling of ${first.split.over_budget.ceiling_s} ms`);
   }
-  if ("too_few_days" in split) throw new TripFailure("too_few_days", `the route needs more than ${days} days`);
+  if ("too_few_days" in first.split) throw new TripFailure("too_few_days", `the route needs more than ${days} days`);
+  // T-0286 C3-C5: the chosen route against every stored closure; the full view reserves `days` legs inside the cap.
+  const shown = await returned(first, (s) => s.path.coordinates, origin, destination,
+    used + 1 + (full ? days : 0) <= TRIP_UPSTREAM_COST ? async (swapped) => {
+      const again = splitOf(await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(outcome.lambda, swapped)));
+      return "plan" in again.split ? again : null;
+    } : null);
+  const { path: chosen, edges, split } = shown;
+  if (!("plan" in split)) throw new TripFailure("too_few_days", `the route needs more than ${days} days`);
 
   const totalMs = edges.reduce((sum, e) => sum + e.seconds, 0);
   const vertices = [edges[0]!.start, ...edges.map((e) => e.end)];
   const result: TripDayResult[] = [];
   let etaMs = totalMs;
   if (full) etaMs = 0;
-  for (const day of split.plan) {
+  for (const [index, day] of split.plan.entries()) {
     const ceiling = dayCeilingMs(ceilingMs, day.seconds, totalMs);
     let leg: TripDayResult["leg"] = null;
     if (full) {
       const [from, to] = [vertices[day.start_vertex]!, vertices[day.end_vertex]!];
-      const path = await route(call, routerBase, from, to, SCENIC_PROFILE, buildCustomModel(outcome.lambda, closuresFor(from, to)));
-      if (path.timeMs > ceiling) {
-        throw new TripFailure("ceiling_breached", `day ${day.day} leg takes ${path.timeMs} ms against its ceiling of ${ceiling} ms`);
+      const legPath = await route(counted, routerBase, from, to, SCENIC_PROFILE, buildCustomModel(outcome.lambda, closuresFor(from, to)));
+      if (legPath.timeMs > ceiling) {
+        throw new TripFailure("ceiling_breached", `day ${day.day} leg takes ${legPath.timeMs} ms against its ceiling of ${ceiling} ms`);
       }
+      // T-0286 C3-C5: each leg against every stored closure; it reserves the legs after it inside the cap.
+      const path = await returned(legPath, (p) => p.coordinates, from, to,
+        used + 1 + (split.plan.length - index - 1) <= TRIP_UPSTREAM_COST ? async (swapped) => {
+          const again = await route(counted, routerBase, from, to, SCENIC_PROFILE, buildCustomModel(outcome.lambda, swapped));
+          return again.timeMs > ceiling ? null : again;
+        } : null);
       etaMs += path.timeMs;
       leg = { coordinates: path.coordinates, eta_s: path.timeMs / 1000, distance_m: path.distanceM };
     }

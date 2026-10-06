@@ -8,13 +8,14 @@
  *   1. the ceiling - the chosen route's own `time` <= fastest + budget, else nothing is returned;
  *   2. actually different - Jaccard over OSM way ids < 0.6, else the "scenic" route is the fastest one.
  */
-import type { ClosuresFor } from "./closuresNearest";
+import type { ClosuresFor, PathGuard } from "./closuresNearest";
 import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customModel";
 import { appleMapsUrl } from "./appleMaps";
 import { hazardsOf, HAZARD_DETAILS, type Hazard } from "./hazards";
 import { searchLambda } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
 import { decisionPoints } from "./planWaypoints";
+import { PLAN_UPSTREAM_COST } from "./quota";
 import { decodeRoutePath, durationSeconds, MAXIMUM_OVERLAP, overlap, RouteError, wayIds, type RoutePath } from "./routePath";
 import type { GuardedFetch } from "./upstream";
 
@@ -79,30 +80,42 @@ async function route(call: GuardedFetch, routerBase: string, origin: LatLon, des
 }
 
 export async function planScenic(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
-  budgetSeconds: number, closuresFor: ClosuresFor): Promise<ScenicPlanResult> {
+  budgetSeconds: number, closuresFor: ClosuresFor, returned: PathGuard): Promise<ScenicPlanResult> {
+  let used = 0;
+  const counted: GuardedFetch = (url, init) => {
+    used += 1;
+    return call(url, init);
+  };
   const closures = closuresFor(origin, destination);
-  const fastest = await route(call, routerBase, origin, destination, FAST_PROFILE, undefined);
+  const fastest = await route(counted, routerBase, origin, destination, FAST_PROFILE, undefined);
   const fastestSeconds = durationSeconds(fastest);
   const ceiling = fastestSeconds + budgetSeconds;
 
   const measured = new Map<string, RoutePath>();
   const outcome = await searchLambda(fastestSeconds, budgetSeconds, async (lambda) => {
-    const path = await route(call, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(lambda, closures));
+    const path = await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(lambda, closures));
     measured.set(formatMultiplier(lambda), path);
     return durationSeconds(path);
   }, MAX_EVALUATIONS);
 
-  const chosen = measured.get(formatMultiplier(outcome.lambda));
-  if (!chosen) throw new PlanFailure("no_recorded_lambda", `no route was measured at lambda ${outcome.lambda}`);
+  const measuredChosen = measured.get(formatMultiplier(outcome.lambda));
+  if (!measuredChosen) throw new PlanFailure("no_recorded_lambda", `no route was measured at lambda ${outcome.lambda}`);
 
-  const eta = durationSeconds(chosen);
-  if (!(eta <= ceiling)) {
-    throw new PlanFailure("ceiling_breached", `the chosen route takes ${eta} s against a ceiling of ${ceiling} s`);
+  const firstEta = durationSeconds(measuredChosen);
+  if (!(firstEta <= ceiling)) {
+    throw new PlanFailure("ceiling_breached", `the chosen route takes ${firstEta} s against a ceiling of ${ceiling} s`);
   }
-  const shared = overlap(wayIds(chosen), wayIds(fastest));
+  const shared = overlap(wayIds(measuredChosen), wayIds(fastest));
   if (!(shared < MAXIMUM_OVERLAP)) {
     throw new PlanFailure("no_scenic_alternative", `the scenic route shares ${shared} of its ways with the fastest`);
   }
+  // T-0286 C3-C5: the chosen route against every stored closure; one re-request, inside PLAN_UPSTREAM_COST.
+  const chosen = await returned(measuredChosen, (p) => p.coordinates, origin, destination,
+    used + 1 <= PLAN_UPSTREAM_COST ? async (swapped) => {
+      const again = await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(outcome.lambda, swapped));
+      return durationSeconds(again) <= ceiling && overlap(wayIds(again), wayIds(fastest)) < MAXIMUM_OVERLAP ? again : null;
+    } : null);
+  const eta = durationSeconds(chosen);
 
   const waypoints = decisionPoints(chosen);
   return {

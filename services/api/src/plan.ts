@@ -97,8 +97,8 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
   try {
     const plan = await guardedPlan(upstream, await deps.identify(req), (call) =>
-      planScenic(call, deps.routerBase, request.origin, destination, request.budgetMinutes * 60, picker.pick));
-    return json(withClosuresHazard(plan, snapshot, picker.dropped()), 200);
+      planScenic(call, deps.routerBase, request.origin, destination, request.budgetMinutes * 60, picker.pick, picker.returned));
+    return json(withClosuresHazard(plan, snapshot, picker.dropped(), picker.crosses()), 200);
   } catch (error) {
     return failure(error);
   }
