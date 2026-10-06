@@ -1,7 +1,7 @@
 ---
 id: T-0284
 title: ops/funnel prints the plan -> preview -> drive -> answer funnel and W1/W4 return from Analytics Engine telemetry rows (offline over a recorded fixture; live via the AE SQL API when the owner supplies a read token)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T16:12:52Z
@@ -11,7 +11,7 @@ branch: task/T-0284
 exclusive: []
 touches: [ops/funnel, ops/lib/, Tests/Fixtures/t0284/, ops/mutate/]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv1-t0284
 depends_on: [T-0265, T-0279]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -48,3 +48,10 @@ nothing reads. Success metric from the plan: W1/W4 return and the post-drive 'pr
   - (3) `git ls-files -s ops/funnel` -> 100755; `bash ops/lib/check-exec-bits` -> `P-OPS-01: 133 files, 23 required present, all modes correct` exit 0. Population of record: `python ops/lib/funnel_mutate.py` -> `population mutations=22 (floor 22)`, `baseline green killers=5`, `RESULT caught=22 missed=0 skipped=0 of 22` exit 0; `--prove-floor` exit 0 (above).
   - Gates: `python ops/lib/check-mutate-population.py` -> `P-PROC-06: every added module is covered or allowlisted; the floor of 67 holds` exit 0 (it does not see ops/lib, R7); `bash ops/queue-check` -> `QUEUE OK (275 tasks)` exit 0. Not run, per the orchestrator: `bash ops/test`.
   - Remaining gap (R7): nothing in ops/test, ops/check-pins or CI runs ops/lib/funnel_test.py or the population; binding them needs pins/PINS.yaml or a workflow, outside this task's touches - to be filed as its own task.
+- 2026-10-06T17:01:22Z REVIEW PASS (agent/rv1-t0284, reviewer, not the owner) on 9eebf36 = origin/task/T-0284, PR #173:
+  - (1) `python ops/lib/funnel_test.py` -> `Ran 11 tests ... OK` exit 0. `bash ops/funnel --fixture Tests/Fixtures/t0284/ae_response.json` exit 0 prints the ten-line block EXPECTED pins. Checked by hand from the fixture's 19 rows: post_drive_answer = 1 (09-08) + 1 (09-15, not_prettier) + 2 (09-29, weight 2) = 4, so 4/3 drive_started = 133.3%; other events = plan_result 1 + drive_completed 1 + handoff_tapped 2 + surprise_shown 1 + paywall_shown 1 = 6, sampled weight 6+5+3+4+6 = 24. R1 confirmed in source: services/api/src/telemetryPoint.ts returns `{ blobs: [name, label, cell], doubles: [v1, v2], indexes: [name] }` and src/telemetry.ts writes `parsed.points` only; userId feeds the quota bucket. The dataset name `scenic_telemetry` matches services/api/wrangler config; STEP_LABELS for plan_requested equals TELEMETRY_WIRE's labels.
+  - (2) the SQL selects no blob3; FunnelLive pins the url, headers and body; no argv credential option; exit 3/5 by test.
+  - (3) `git ls-files -s ops/funnel` 100755; `bash ops/lib/check-exec-bits` -> `P-OPS-01: 133 files, 23 required present, all modes correct` exit 0; `python ops/lib/funnel_mutate.py` -> `population mutations=22 (floor 22)`, `baseline green killers=5`, `RESULT caught=22 missed=0 skipped=0 of 22` exit 0.
+  - Reviewer's own mutant: ops/lib/funnel.py _row() `set(r) != set(COLUMNS)` -> `not set(COLUMNS) <= set(r)` (a row carrying blob3, the H3 cell, accepted; P-PRIV-05): exit 1, `FAIL: test_every_fault_is_refused_with_exit_4_and_no_output (__main__.FunnelRefusals)`, `FAILED (failures=1)`. KILLED; restored and back to `OK`.
+  - Gates, bare: `python ops/lib/check-mutate-population.py` -> `P-PROC-06: every added module is covered or allowlisted; the floor of 67 holds` exit 0; `bash ops/queue-check` -> `QUEUE OK (275 tasks)` exit 0; `gh pr checks 173` -> core pass, pins-source-only pass. Ancestry: `git rev-list --count HEAD..origin/main` = 0.
+  - Recorded, not blocking: R7's gap (nothing in ops/test, check-pins or CI runs funnel_test.py or the population) goes in its own task; the unreadable-fixture exit 2 and the optional `statistics` key are not bound by a test (pre-review extra mutants X1, X2 survived); the refusal table has no row for `rows` sent as a boolean, a non-dict meta entry, or a non-dict row.
