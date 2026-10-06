@@ -73,6 +73,7 @@ const REFUSED: [string, unknown][] = [
   ["two blobs", one({ ...p("drive_started"), blobs: ["drive_started", ""] })],
   ["four blobs", one({ ...p("drive_started"), blobs: ["drive_started", "", "", ""] })],
   ["a numeric blob", one({ ...p("drive_started"), blobs: ["drive_started", 0, ""] })],
+  ["a cell that is a one-element array (it stringifies to a valid cell)", one({ ...p("plan_requested", "scenic", CELL, 30), blobs: ["plan_requested", "scenic", [CELL]] })],
   ["a label on a label-less event", one(p("preview_shown", "x"))],
   ["a long label", one(p("plan_result", "a".repeat(4096)))],
   ["a feature outside the closed enum", one(p("plan_requested", "Scenic", CELL, 30))],

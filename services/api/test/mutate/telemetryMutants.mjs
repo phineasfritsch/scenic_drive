@@ -40,7 +40,7 @@ export const MUTATIONS = [
   m("unavailable-ignored", T, "if (!env.TELEMETRY || !env.QUOTA) return null;", "if (!env.QUOTA) return null;"),
   m("write-before-reserve", T, "  let reserved: boolean;", "  for (const point of parsed.points) deps.dataset.writeDataPoint(point);\n  let reserved: boolean;"),
   m("reserve-one-not-n", T, "DAILY_TELEMETRY_QUOTA, parsed.points.length)", "DAILY_TELEMETRY_QUOTA)"),
-  m("reserve-plan-kind", T, "\"telemetry\", DAILY_TELEMETRY_QUOTA", "\"plan\", DAILY_TELEMETRY_QUOTA"),
+  m("reserve-plan-kind", T, "dayKey(now), \"telemetry\", DAILY", "dayKey(now), \"plan\", DAILY"),
   m("reserve-shared-bucket", T, "idFromName(`device:${userId}`)", "idFromName(\"device:shared\")"),
   m("refusal-ignored", T, "if (!reserved) return", "if (false) return"),
   m("resets-at-now", T, "resets_at: nextReset(now)", "resets_at: now.toISOString()"),
