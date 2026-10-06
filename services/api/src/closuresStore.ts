@@ -11,27 +11,33 @@ import { buildCustomModel, LAMBDA_MIN, MAX_CLOSURE_POLYGONS, type ClosureCollect
 
 export const CLOSURES_KEY = "closures/lcs-d7";
 export const CLOSURES_MAX_AGE_MS = 30 * 60 * 1000;
+/** T-0282 N1: the record holds every active closure up to this many polygons; each request sends <= 50 of them. */
+export const CLOSURES_STORED_MAX_POLYGONS = 2000;
 /** The version of "no set": the cache key of an unavailable read. */
 export const NO_CLOSURES_VERSION = "none";
 export const CLOSURES_VERSION = /^lcs-d7-[0-9a-f]{16}$/;
 const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
 
 export interface ClosuresHazard {
-  state: "stale" | "unavailable";
+  state: "fresh" | "stale" | "unavailable";
   version: string;
   fetched_at: string | null;
+  /** T-0282 N6: the most closures one driven request of the answer did not carry; present only when > 0. */
+  dropped?: number;
 }
 
 export interface ClosureSnapshot {
   version: string;
   closures: ClosureCollection | null;
   hazard: ClosuresHazard | null;
+  fetchedAt: string | null;
 }
 
 const UNAVAILABLE: ClosureSnapshot = {
   version: NO_CLOSURES_VERSION,
   closures: null,
   hazard: { state: "unavailable", version: NO_CLOSURES_VERSION, fetched_at: null },
+  fetchedAt: null,
 };
 
 function record(raw: string): { version: string; fetchedAt: string; ms: number; geojson: ClosureCollection } | null {
@@ -47,12 +53,16 @@ function record(raw: string): { version: string; fetchedAt: string; ms: number; 
   if (typeof r.fetched_at !== "string" || !ISO_INSTANT.test(r.fetched_at)) return null;
   const ms = Date.parse(r.fetched_at);
   if (!Number.isFinite(ms)) return null;
+  const g = r.geojson as { type?: unknown; features?: unknown } | null;
+  if (g === null || typeof g !== "object" || g.type !== "FeatureCollection" || !Array.isArray(g.features)) return null;
+  if (g.features.length > CLOSURES_STORED_MAX_POLYGONS) return null;
   try {
-    buildCustomModel(LAMBDA_MIN, r.geojson as ClosureCollection);
+    for (let at = 0; at === 0 || at < g.features.length; at += MAX_CLOSURE_POLYGONS) {
+      buildCustomModel(LAMBDA_MIN, { type: "FeatureCollection", features: g.features.slice(at, at + MAX_CLOSURE_POLYGONS) });
+    }
   } catch {
     return null;
   }
-  if (r.geojson === null) return null;
   return { version: r.version, fetchedAt: r.fetched_at, ms, geojson: r.geojson as ClosureCollection };
 }
 
@@ -72,12 +82,16 @@ export async function readClosures(kv: Pick<KVNamespace, "get"> | undefined, now
     version: r.version,
     closures: r.geojson,
     hazard: fresh ? null : { state: "stale", version: r.version, fetched_at: r.fetchedAt },
+    fetchedAt: r.fetchedAt,
   };
 }
 
-/** The 200 body, with closures_hazard when the snapshot is not fresh (R7). */
-export function withClosuresHazard<T extends object>(answer: T, snapshot: ClosureSnapshot): T | (T & { closures_hazard: ClosuresHazard }) {
-  return snapshot.hazard === null ? answer : { ...answer, closures_hazard: snapshot.hazard };
+/** The 200 body, with closures_hazard when the snapshot is not fresh (R7) or a driven request left closures out (N6). */
+export function withClosuresHazard<T extends object>(answer: T, snapshot: ClosureSnapshot,
+  dropped = 0): T | (T & { closures_hazard: ClosuresHazard }) {
+  if (dropped === 0) return snapshot.hazard === null ? answer : { ...answer, closures_hazard: snapshot.hazard };
+  const hazard = snapshot.hazard ?? { state: "fresh" as const, version: snapshot.version, fetched_at: snapshot.fetchedAt };
+  return { ...answer, closures_hazard: { ...hazard, dropped } };
 }
 
 /** The feed's polygons first, then `extra` (a loop's retrace squares), at most MAX_CLOSURE_POLYGONS (R8). */

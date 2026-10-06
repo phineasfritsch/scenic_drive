@@ -19,7 +19,7 @@ M_LAT = 110946.0
 M_LON = 91961.0
 LON = (-119.5, -117.6)
 LAT = (33.7, 34.9)
-CAP = 50
+CAP = 2000  # T-0282 N1: the stored cap; each request sends its own nearest 50
 RANK = ["Conventional Hwy", "Mainline", "HOV", "Collector", "Connector", "HOV Connector", "On Ramp", "Off Ramp",
         "Rest Area"]
 EPOCH = re.compile(r"[0-9]{1,10}")

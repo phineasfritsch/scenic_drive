@@ -57,11 +57,11 @@ describe("the recorded D7 response (R1-R6)", () => {
     expect({ now_s: EXPECTED.now_s, parse, cap, version: await closuresVersion(cap.geojson) }).toEqual(EXPECTED);
   });
 
-  it("holds the measured counts: 2808 rows, 1708 Full, 163 active, 0 refused, 42 kept in 50 polygons, 121 dropped", () => {
+  it("holds the measured counts: 2808 rows, 1708 Full, 163 active, 0 refused, 163 kept in 173 polygons, 0 dropped", () => {
     const parse = parseLcsFeed(FEED, EXPECTED.now_s);
     const cap = capClosures(parse.closures);
     expect([parse.rows, parse.full, parse.active, parse.refused.length, cap.kept, cap.geojson.features.length, cap.dropped])
-      .toEqual([2808, 1708, 163, 0, 42, 50, 121]);
+      .toEqual([2808, 1708, 163, 0, 163, 173, 0]);
   });
 });
 
@@ -171,20 +171,21 @@ describe("the bounds a row is ACCEPTED at (R2-R4)", () => {
   });
 });
 
-describe("the cap (R5)", () => {
+describe("the cap (R5; T-0282 N1 stores 2000)", () => {
   const one = (index: string, rings = 1, over: Partial<ActiveClosure> = {}): ActiveClosure =>
     ({ index, confirmed: false, facility: "On Ramp", rings: Array.from({ length: rings }, () => [[0, 0], [1, 0], [1, 1], [0, 0]]), ...over });
-  const ids = (n: number, rings = 1) => Array.from({ length: n }, (_, i) => one(`c${String(i).padStart(3, "0")}`, rings));
+  const ids = (n: number, rings = 1) => Array.from({ length: n }, (_, i) => one(`c${String(i).padStart(4, "0")}`, rings));
 
-  it("50 single polygons are all kept; a 51st is dropped and counted", () => {
-    expect([capClosures(ids(50)).kept, capClosures(ids(50)).dropped, capClosures(ids(50)).geojson.features.length]).toEqual([50, 0, 50]);
-    expect([capClosures(ids(51)).kept, capClosures(ids(51)).dropped, capClosures(ids(51)).geojson.features.length]).toEqual([50, 1, 50]);
+  it("2000 single polygons are all kept; a 2001st is dropped and counted", () => {
+    const [at, over] = [capClosures(ids(2000)), capClosures(ids(2001))];
+    expect([at.kept, at.dropped, at.geojson.features.length, over.kept, over.dropped, over.geojson.features.length])
+      .toEqual([2000, 0, 2000, 2000, 1, 2000]);
   });
 
-  it("greedy: at 49, a two-gate closure is dropped whole and the next single still fits", () => {
-    const capped = capClosures([...ids(49), one("gate", 2), one("last")]);
-    expect([capped.kept, capped.dropped, capped.geojson.features.map((f) => f.properties!.lcs_index).slice(48)])
-      .toEqual([50, 1, ["c048", "last"]]);
+  it("greedy: at 1999, a two-gate closure is dropped whole and the next single still fits", () => {
+    const capped = capClosures([...ids(1999), one("gate", 2), one("last")]);
+    expect([capped.kept, capped.dropped, capped.geojson.features.map((f) => f.properties!.lcs_index).slice(1998)])
+      .toEqual([2000, 1, ["c1998", "last"]]);
   });
 
   it("each feature is the closure's ring, tagged with its index, whole", () => {
