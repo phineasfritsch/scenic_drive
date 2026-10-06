@@ -1,13 +1,13 @@
 ---
 id: T-0288
 title: the Worker serves GET /config - typed remote config (feature flags, quota display numbers, min app build, kill-switch mirror, supported regions) from KV with compiled-in defaults; any bad or missing KV value falls back to defaults, never to an unsafe value
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T20:26:08Z
+lease_expires_at: 2026-10-07T06:26:08Z
+worktree: .worktrees/T-0288
+branch: task/T-0288
 exclusive: []
 touches: [services/api/]
 pins_affected: [P-COST-01]
@@ -26,3 +26,4 @@ only.
 
 ## Log
 - 2026-10-06T20:22:31Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M6 remote config).
+- 2026-10-06T20:26:08Z claimed by agent/claude-opus-5; lease until 2026-10-07T06:26:08Z
