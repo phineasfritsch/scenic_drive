@@ -1,7 +1,7 @@
 ---
 id: T-0281
 title: register P-SAFE-08 (closures fresh within 30 min; a route never crosses an active closure; stale/unavailable never silent) over T-0276's tests, and bind T-0276's shipped-route closure tests under P-SAFE-01
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T14:11:11Z
@@ -11,7 +11,7 @@ branch: task/T-0281
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-SAFE-08, P-SAFE-01]
-reviewer: null
+reviewer: agent/rv1-t0281
 depends_on: [T-0276, T-0261]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -105,3 +105,20 @@ The T-0261/T-0269 pattern.
   2 prose APPENDED with dates, never rewritten - MET: P-SAFE-01 gains one `APPENDED 2026-10-06 (T-0281)` sentence
     after its final word (the diff's one removed line is that line, its old text a prefix of the new); P-SAFE-08 is
     new. run-named-tests P-SAFE-08 exit 0, P-SAFE-01 exit 0 - MET (quoted above).
+- 2026-10-06T15:11:54Z REVIEW PASS (round 1) by agent/rv1-t0281 (not the owner) on PR #171 head f695a34, a detached
+  review worktree with `npm ci`; origin/main 0cb8c82 is an ancestor of the head; the diff is pins/PINS.yaml,
+  ops/lib/named-tests.json and this file only. BARE gates: `run-named-tests.py P-SAFE-08` NAMED P-SAFE-08
+  passed=599/599 exit=0; `run-named-tests.py P-SAFE-01` NAMED P-SAFE-01 passed=15/15 exit=0; `ops/queue-check`
+  QUEUE OK (272 tasks) exit=0; `ops/lib/check-exec-bits` P-OPS-01: 127 files, 23 required present, all modes correct
+  exit=0; `gh pr checks 171` core pass, pins-source-only pass. Bodies read: the fresh rows hand a record exactly
+  1_800_000 ms old (the test's own literal) and compare every model's areas, its last clause against the literal
+  `in_closure_1 || in_closure_2` x 0, and rejectCustomModel === null; the stale rows assert the hazard and the
+  record's areas at +1 ms, 45 min, -1 ms and a day; the unavailable rows assert the hazard and zero areas; the
+  driven, cron-clock and feed-window rows assert the set on every attempt and leg and the active-window bounds.
+  None binds a test that fails to check P-SAFE-08. The P-SAFE-01 old text is a prefix of the new line (append-only).
+  Reviewer's own fail-open mutant (one that drops active indefinite closures, so a route crosses them):
+  lcsFeed.ts `(start <= nowS && (indefinite || nowS <= ...` -> `(start <= nowS && (nowS <= ...`: exit=1 NAMED P-SAFE-08
+  passed=598/599, `the bounds a row is ACCEPTED at (R2-R4) > indefinite with no end is active` FAILED; restored by
+  `git checkout`, status clean. Non-blocking, already in the PR's stillOpen: the recorded-D7 oracle row stayed green
+  under that mutant, so the recording has no active indefinite row that lacks an end; the read-by-ruling and stale
+  meta rows were never reddened by a src/ mutant. queue/claimed/ -> queue/done/.
