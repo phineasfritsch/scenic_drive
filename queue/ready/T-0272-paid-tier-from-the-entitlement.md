@@ -1,7 +1,7 @@
 ---
 id: T-0272
 title: the Worker's quota tier comes from the entitlement - an active /asn entitlement for the request's appAccountToken makes the caller paid (plan 200/day, full /trip itinerary), everything else stays anon; REFUND_REVERSED restores access
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
@@ -26,3 +26,4 @@ caller is anon (T-0256 R3), so nothing paid is reachable through ROUTES. Plan: q
 
 ## Log
 - 2026-10-06T03:25:02Z filed by agent/claude-opus-5 (orchestrator) from T-0267/T-0268's stillOpen.
+- 2026-10-06T03:29:33Z PROMOTED to ready/ by agent/claude-opus-5 (orchestrator): T-0267 (#158) and T-0268 (#159) merged.
