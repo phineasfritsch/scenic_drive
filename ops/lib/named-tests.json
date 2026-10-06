@@ -84,7 +84,8 @@
         "TelemetryTests.H3ReferenceCellTests/everyPentagonPoint()",
         "TelemetryTests.TelemetryEventEncodingTests/everyEventEncodesExactly()",
         "TelemetryTests.TelemetryEventEncodingTests/dataPointJSON()",
-        "TelemetryTests.TelemetryEventEncodingTests/everyDataPointJSON()"
+        "TelemetryTests.TelemetryEventEncodingTests/everyDataPointJSON()",
+        "TelemetryTests.TelemetryEventEncodingTests/fourteenEventsEachWithARow()"
       ]
     }
   },
@@ -155,6 +156,75 @@
         "ScenicKitTests.SurpriseRankTests/distinct()",
         "ScenicKitTests.SurpriseRankTests/permutation()",
         "ScenicKitTests.SurpriseFeedbackTests/wrongTime()"
+      ]
+    }
+  },
+  "P-STORE-02": {
+    "vitest": {
+      "test/asnState.test.ts": [
+        "deactivating types set the row inactive > EXPIRED -> inactive",
+        "deactivating types set the row inactive > REFUND -> inactive",
+        "deactivating types set the row inactive > REVOKE -> inactive",
+        "deactivating types set the row inactive > GRACE_PERIOD_EXPIRED -> inactive",
+        "replay and out-of-order delivery never regress state (R6) > an older SUBSCRIBED after a newer EXPIRED leaves the row inactive",
+        "replay and out-of-order delivery never regress state (R6) > a notification with the stored signedDate (a replay) changes nothing",
+        "GET /entitlement through the shipped ROUTES (R8) > after REFUND the token is inactive"
+      ],
+      "test/asnVerify.test.ts": [
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > bad signature",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > a signature by a key that is not the leaf's",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > a chain to a self-made root that is not the trusted one",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > expired leaf",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > leaf not yet valid",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > expired intermediate",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > intermediate not yet valid",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > expired root",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > root not yet valid",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > leaf without the App Store OID",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > intermediate without the WWDR OID",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > leaf signed by a key that is not the intermediate's",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > intermediate signed by a key that is not the root's",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > leaf certificate with a trailing byte",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > leaf certificate cut by one byte",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > leaf naming another issuer of the same length",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > leaf key on P-384 (no 64-byte ES256 signature)",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > missing x5c",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > x5c of two certificates",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > x5c of four certificates",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > x5c entry that is not base64",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > x5c entry that is not a certificate",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > alg none",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > alg none with an empty signature",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > alg HS256",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > alg ES384",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > alg absent",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > truncated JWS: two parts",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > truncated JWS: one part",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > truncated JWS: signature cut to 63 bytes",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > truncated JWS: payload cut in half",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > empty string",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > signedPayload not a string",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > payload not JSON",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > payload a JSON array",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > no notificationType",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > signedDate not a number",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > no data",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > environment neither Production nor Sandbox",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > signedTransactionInfo missing",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > signedTransactionInfo with a bad signature",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > signedTransactionInfo from a self-made root that is not the trusted one",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > signedRenewalInfo with a bad signature",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > signedRenewalInfo from a self-made root that is not the trusted one",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > transaction without originalTransactionId",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > transaction with an empty originalTransactionId",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > transaction without productId",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > SUBSCRIBED with an expiresDate that is not epoch ms",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > GRACE_PERIOD without signedRenewalInfo",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > GRACE_PERIOD without gracePeriodExpiresDate",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > GRACE_PERIOD with a negative gracePeriodExpiresDate",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > a body that is not JSON is 400 with zero state change",
+        "every signedPayload defect is 400 with zero state change (shipped handleAsn) > a body without signedPayload is 400 with zero state change",
+        "the shipped ROUTES['/asn'] pins Apple's root > a chain valid in every respect but its self-made root is 400 through ROUTES with zero state change"
       ]
     }
   }
