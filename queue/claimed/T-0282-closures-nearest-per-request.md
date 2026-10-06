@@ -174,3 +174,9 @@ the ones that matter for that drive.
   closuresNearestRetry.test.ts 28/28; the 28 names bound under P-SAFE-08 in ops/lib/named-tests.json,
   `python ops/lib/run-named-tests.py P-SAFE-08` NAMED P-SAFE-08 passed=668/668; P-SAFE-08 prose APPENDED (dated),
   read back through ops/lib/pins.py load() (41 pins). Faster verification: only the four new mutants were run.
+- 2026-10-06T17:16:31Z FINAL for the survivor round: `git fetch origin` and merged origin/main (14ce1e7, T-0284 funnel) as the last
+  step -> 4b5a3a5; `git merge-base --is-ancestor origin/main HEAD` true. On the merged head: `npx vitest run` Test
+  Files 51 passed (51), Tests 1531 passed (1531); `bash ops/queue-check` QUEUE OK (276 tasks);
+  `python ops/lib/check-mutate-population.py` "the floor of 67 holds"; NAMED P-SAFE-08 passed=668/668 (run before
+  the merge; main's merge touched no services/api or named-tests file). wc -l: closuresNearestRetry.test.ts 187,
+  closuresMutants.mjs 281. ops/test not run (orchestrator instruction).
