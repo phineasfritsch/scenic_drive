@@ -13,11 +13,11 @@ import {
 
 const REFUSED = { status: 400, json: { error: "invalid_identity_token" } };
 const HEADER = { alg: "RS256", kid: "K1" };
-let K1: TestKey, OUTSIDER: TestKey, SMALL: TestKey, RS512: TestKey, ENC: TestKey;
+let K1: TestKey, OUTSIDER: TestKey, SMALL: TestKey, RS512: TestKey, ENC: TestKey, EC: TestKey;
 
 beforeAll(async () => {
-  [K1, OUTSIDER, SMALL, RS512, ENC] = await Promise.all([rsaKey("K1"), rsaKey("K1"), rsaKey("SMALL", 1024),
-    rsaKey("K3", 2048, { alg: "RS512" }), rsaKey("K4", 2048, { use: "enc" })]);
+  [K1, OUTSIDER, SMALL, RS512, ENC, EC] = await Promise.all([rsaKey("K1"), rsaKey("K1"), rsaKey("SMALL", 1024),
+    rsaKey("K3", 2048, { alg: "RS512" }), rsaKey("K4", 2048, { use: "enc" }), rsaKey("K5", 2048, { kty: "EC" })]);
 });
 
 beforeEach(async () => {
@@ -92,6 +92,7 @@ const DEFECTS: Row[] = [
   { name: "a 1024-bit key Apple's set lists is not usable", keys: true, make: async (b) => body(await token(b, {}, { alg: "RS256", kid: "SMALL" }, SMALL.privateKey)) },
   { name: "a key listed with alg RS512 is not usable", keys: true, make: async (b) => body(await token(b, {}, { alg: "RS256", kid: "K3" }, RS512.privateKey)) },
   { name: "a key listed with use enc is not usable", keys: true, make: async (b) => body(await token(b, {}, { alg: "RS256", kid: "K4" }, ENC.privateKey)) },
+  { name: "a key listed with kty EC is not usable", keys: true, make: async (b) => body(await token(b, {}, { alg: "RS256", kid: "K5" }, EC.privateKey)) },
   claim("iss over http", { iss: "http://appleid.apple.com" }),
   claim("iss with a trailing slash", { iss: "https://appleid.apple.com/" }),
   claim("iss missing", { iss: undefined }),
@@ -106,6 +107,7 @@ const DEFECTS: Row[] = [
   claim("iat = now - 601 (bound)", { iat: S - 601 }),
   claim("iat missing", { iat: undefined }),
   claim("iat null", { iat: null }),
+  claim("iat a numeric string", { iat: String(S) }),
   claim("sub missing", { sub: undefined }),
   claim("sub empty", { sub: "" }),
   claim("sub of 65 characters (bound)", { sub: "1".repeat(65) }),
@@ -124,7 +126,7 @@ async function refusal(row: Row, seed: () => Promise<void>) {
   await seed();
   const before = await allTables();
   const bearer = await sessionToken();
-  const apple = fakeAppleFetch([K1, SMALL, RS512, ENC]);
+  const apple = fakeAppleFetch([K1, SMALL, RS512, ENC, EC]);
   let made = await row.make(bearer);
   if (row.name === "nonce the raw session token, unhashed") made = body(await token(bearer, { nonce: bearer }));
   const answer = await postApple(siwaDeps(apple.fetchImpl), made, bearer);

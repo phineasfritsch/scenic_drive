@@ -14,16 +14,16 @@ export const BIND_APPLE = `INSERT INTO apple_accounts (device_id, apple_sub, ref
 const USER_SUBS = "SELECT apple_sub FROM apple_accounts WHERE device_id = ?1 UNION SELECT ?2 WHERE ?2 IS NOT NULL";
 const USER_DEVICES = `SELECT ?1 AS device UNION SELECT device_id FROM apple_accounts WHERE apple_sub IN (${USER_SUBS})`;
 
+/** Every binding of the user's subs - the device's own binding among them, its sub being one of USER_SUBS. */
 export const USER_BINDINGS = `SELECT device_id, apple_sub, refresh_token FROM apple_accounts
-  WHERE device_id IN (SELECT device FROM (${USER_DEVICES})) OR apple_sub IN (${USER_SUBS}) ORDER BY device_id`;
+  WHERE apple_sub IN (${USER_SUBS}) ORDER BY device_id`;
 export const DELETE_SIGN_COUNTS = `DELETE FROM attest_sign_counts WHERE key_id IN
   (SELECT key_id FROM attested_keys WHERE device_id IN (SELECT device FROM (${USER_DEVICES})))`;
 export const DELETE_KEYS = `DELETE FROM attested_keys WHERE device_id IN (SELECT device FROM (${USER_DEVICES}))`;
 export const DELETE_CHALLENGE_COUNTS = `DELETE FROM attest_challenge_counts WHERE bucket IN
   (SELECT 'device:' || device FROM (${USER_DEVICES}))`;
 export const DELETE_ENTITLEMENTS = "DELETE FROM entitlements WHERE app_account_token = ?1";
-export const DELETE_BINDINGS = `DELETE FROM apple_accounts
-  WHERE device_id IN (SELECT device FROM (${USER_DEVICES})) OR apple_sub IN (${USER_SUBS})`;
+export const DELETE_BINDINGS = `DELETE FROM apple_accounts WHERE apple_sub IN (${USER_SUBS})`;
 
 export interface AppleBinding {
   deviceId: string;

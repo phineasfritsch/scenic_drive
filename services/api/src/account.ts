@@ -9,7 +9,7 @@
  */
 import { bindApple, deleteUser, userBindings, type AccountUser } from "./accountStore";
 import { appleClient, clientSecret, type AppleClient } from "./appleClient";
-import { IDENTITY_TOKEN_MAX_LENGTH, IdentityRejected, sessionNonce, verifyIdentityToken } from "./appleIdentity";
+import { IdentityRejected, sessionNonce, verifyIdentityToken } from "./appleIdentity";
 import { AppleUnavailable, appleKey, emptyJwksCache, type JwksCache } from "./appleJwks";
 import { AUTHORIZATION_HEADER, BEARER } from "./sessionIdentity";
 import { sessionSecret, signSession, verifySession, type SessionClaims } from "./sessionJwt";
@@ -93,7 +93,7 @@ export async function handleAuthApple(req: Request, deps: AccountDeps): Promise<
   }
   const { identityToken, authorizationCode } = body;
   if (Object.keys(body).sort().join() !== BODY_KEYS.join()) return INVALID();
-  if (typeof identityToken !== "string" || identityToken.length > IDENTITY_TOKEN_MAX_LENGTH
+  if (typeof identityToken !== "string"
     || typeof authorizationCode !== "string" || !AUTHORIZATION_CODE.test(authorizationCode)) return INVALID();
 
   let appleSub: string;

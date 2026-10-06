@@ -81,8 +81,13 @@ describe("the JWKS cache (R4)", () => {
     expect({ got: r.got, calls: r.calls, accounts: r.accounts }).toEqual({ got: REFUSED, calls: [keysCall], accounts: [] });
   });
 
-  it("a kid listed twice is dropped: refused", async () => {
-    const r = await signIn({ served: [K1, { ...K2, jwk: { ...K2.jwk, kid: "K1" } }] });
+  it("a key listed without use is usable", async () => {
+    const r = await signIn({ served: [{ ...K1, jwk: { ...K1.jwk, use: undefined } }] });
+    expect({ got: r.got, calls: r.calls }).toEqual({ got: await grantedSession({ apple: APPLE_USER }), calls: [keysCall] });
+  });
+
+  it("a kid listed twice is dropped, even when its last listing is the signer's: refused", async () => {
+    const r = await signIn({ served: [{ ...K2, jwk: { ...K2.jwk, kid: "K1" } }, K1] });
     expect({ got: r.got, calls: r.calls, accounts: r.accounts }).toEqual({ got: REFUSED, calls: [keysCall], accounts: [] });
   });
 
@@ -115,7 +120,7 @@ describe("the bind: exchange, refresh token, rebinding and the session JWT (R6)"
   });
 
   const EXCHANGE_FAILS: [string, FakeApple][] = [
-    ["the exchange answers 400", { exchange: () => jsonResponse({ error: "invalid_grant" }, 400) }],
+    ["the exchange answers 400, even carrying a refresh_token", { exchange: () => jsonResponse({ error: "invalid_grant", refresh_token: "r.bad" }, 400) }],
     ["the exchange throws", { exchange: () => { throw new Error("offline"); } }],
     ["a 200 without a refresh_token", { exchange: () => jsonResponse({ access_token: "a" }) }],
     ["a 200 whose refresh_token is not a string", { exchange: () => jsonResponse({ refresh_token: 7 }) }],
