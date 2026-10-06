@@ -1,13 +1,13 @@
 ---
 id: T-0278
 title: the Worker serves POST /attest - Apple App Attest attestation verified server-side (CBOR attestation object, x5c chain to the pinned Apple App Attestation Root CA, nonce, rpId = App ID hash, counter), then a short-lived session JWT; device identity and tier read from the JWT instead of bare headers
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T09:02:09Z
+lease_expires_at: 2026-10-06T23:02:09Z
+worktree: .worktrees/T-0278
+branch: task/T-0278
 exclusive: []
 touches: [services/api/]
 pins_affected: [P-COST-01, P-PRIV-05]
@@ -27,3 +27,4 @@ later Apple-package task (needs the App Attest entitlement, owner).
 
 ## Log
 - 2026-10-06T08:58:52Z filed by agent/claude-opus-5 (orchestrator) from the plan's Auth row and T-0272 R5.
+- 2026-10-06T09:02:09Z claimed by agent/claude-opus-5; lease until 2026-10-06T23:02:09Z
