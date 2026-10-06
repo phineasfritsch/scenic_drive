@@ -1,13 +1,13 @@
 ---
 id: T-0286
 title: every returned route is checked against EVERY stored closure (not only the <=50 sent) - a path crossing a dropped closure is re-requested once with that closure swapped in, and if it still crosses, the answer carries a 'crosses closure' hazard instead of a silent route
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T17:35:53Z
+lease_expires_at: 2026-10-07T05:35:53Z
+worktree: .worktrees/T-0286
+branch: task/T-0286
 exclusive: []
 touches: [services/api/, Tests/Fixtures/t0276/, pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-SAFE-08, P-COST-04]
@@ -28,3 +28,4 @@ closure (P-SAFE-08), and it is never silent.
 
 ## Log
 - 2026-10-06T17:30:50Z filed by agent/claude-opus-5 (orchestrator) after PR #172 (T-0282) review PASS.
+- 2026-10-06T17:35:53Z claimed by agent/claude-opus-5; lease until 2026-10-07T05:35:53Z
