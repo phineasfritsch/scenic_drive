@@ -24,7 +24,11 @@ public struct PaywallScreen: View {
         .safeAreaInset(edge: .bottom) {
             policyLinks
         }
-        .background(DesignTokens.bg)
+        // The store view draws its own ground (white / system grey) and its own close button. The ground is `bg`,
+        // so the store and the links band are one surface (the first screenshot run showed two); the close button
+        // is hidden because the paywall is pushed inside Settings, whose back button already leaves it.
+        .containerBackground(DesignTokens.bg, for: .subscriptionStore)
+        .storeButton(.hidden, for: .cancellation)
         .navigationTitle("Scenic Drive Pro")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("paywall.store")
