@@ -26,9 +26,9 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-siwa");
 
-export const MIN_MUTATIONS = 80;
+export const MIN_MUTATIONS = 113;
 export const SUBJECTS = ["src/appleJwks.ts", "src/appleIdentity.ts", "src/accountStore.ts", "src/account.ts", "src/appleClient.ts", "src/sessionJwt.ts"];
-const TESTS = ["test/authAppleToken.test.ts", "test/authAppleBind.test.ts", "test/accountDelete.test.ts", "test/requestReadSites.test.ts", "test/routes.test.ts"];
+const TESTS = ["test/authAppleToken.test.ts", "test/authAppleFields.test.ts", "test/authAppleBind.test.ts", "test/accountDelete.test.ts", "test/requestReadSites.test.ts", "test/routes.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -84,6 +84,18 @@ export const MUTATIONS = [
   m("id-nonce-contained", "appleIdentity.ts", "nonce !== expectedNonce", "typeof nonce !== \"string\" || !expectedNonce.includes(nonce)"),
   m("id-nonce-over-payload", "appleIdentity.ts", "utf8(sessionToken)", "utf8(sessionToken.split(\".\")[1]!)"),
   m("id-nonce-raw", "appleIdentity.ts", "return Array.from(digest, (b) => b.toString(16).padStart(2, \"0\")).join(\"\");", "return sessionToken;"),
+  m("id-alg-prefix", "appleIdentity.ts", "header.alg !== \"RS256\"", "typeof header.alg !== \"string\" || !header.alg.startsWith(\"RS256\")"),
+  m("id-typ-typeof-string", "appleIdentity.ts", "\"typ\" in header && header.typ", "typeof header.typ === \"string\" && header.typ"),
+  m("id-typ-case-folded", "appleIdentity.ts", "header.typ !== \"JWT\"", "String(header.typ).toUpperCase() !== \"JWT\""),
+  m("id-kid-case-folded", "appleIdentity.ts", "keyFor(kid as string)", "keyFor((kid as string).toUpperCase())"),
+  m("id-header-extra-null", "appleIdentity.ts", "HEADER_KEYS.includes(k))", "HEADER_KEYS.includes(k) || header[k] === null)"),
+  m("id-iss-case-folded", "appleIdentity.ts", "if (iss !== APPLE_ISSUER)", "if (String(iss).toLowerCase() !== APPLE_ISSUER)"),
+  m("id-aud-case-folded", "appleIdentity.ts", "if (aud !== APP_BUNDLE_ID)", "if (typeof aud !== \"string\" || aud.toLowerCase() !== APP_BUNDLE_ID)"),
+  m("id-nonce-stringified", "appleIdentity.ts", "if (nonce !== expectedNonce)", "if (String(nonce) !== expectedNonce)"),
+  m("id-sub-array-stringified", "appleIdentity.ts", "typeof sub !== \"string\" || !APPLE_SUB.test(sub)", "(typeof sub !== \"string\" && !Array.isArray(sub)) || !APPLE_SUB.test(String(sub))"),
+  m("id-exp-array-unwrapped", "appleIdentity.ts", "!Number.isSafeInteger(exp) ||", "!Number.isSafeInteger(Array.isArray(exp) ? exp[0] : exp) ||"),
+  m("id-iat-array-unwrapped", "appleIdentity.ts", "|| !Number.isSafeInteger(iat)", "|| !Number.isSafeInteger(Array.isArray(iat) ? iat[0] : iat)"),
+  m("id-claims-null-refused", "appleIdentity.ts", "const { iss, aud, exp, iat, sub, nonce } = claims;", "const { iss, aud, exp, iat, sub, nonce } = claims;\n  if (Object.values(claims).some((v) => v === null)) reject(\"a claim is null\");"),
   m("store-bind-replaces-token", "accountStore.ts", "refresh_token = COALESCE(excluded.refresh_token,\n  CASE WHEN apple_accounts.apple_sub = excluded.apple_sub THEN apple_accounts.refresh_token END),", "refresh_token = excluded.refresh_token,"),
   m("store-bind-keeps-any-token", "accountStore.ts", "CASE WHEN apple_accounts.apple_sub = excluded.apple_sub THEN apple_accounts.refresh_token END", "apple_accounts.refresh_token"),
   m("store-bind-keeps-sub", "accountStore.ts", "apple_sub = excluded.apple_sub, bound_at", "apple_sub = apple_accounts.apple_sub, bound_at"),

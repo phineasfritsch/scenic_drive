@@ -89,6 +89,19 @@
         "the JWKS cache (R4) > an unknown kid still absent after the one refetch is refused - no second fetch, no fallback key",
         "the bind: exchange, refresh token, rebinding and the session JWT (R6) > with the client secret: the code is exchanged and the refresh token stored",
         "the bind: exchange, refresh token, rebinding and the session JWT (R6) > act is carried from the session and apple added; the answer verifies through the shipped verifier"
+      ],
+      "test/authAppleFields.test.ts": [
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header alg: plus a suffix",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header typ: null",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header typ: a number",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header extra: null",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload nonce: an array holding it",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > accepted: payload extra: null",
+        "the field x variant table is whole (meta) > the header fields are appleIdentity.ts's HEADER_KEYS and the claims its destructured reads, each plus an extra key",
+        "the field x variant table is whole (meta) > every field meets every variant: a row, or a named no-op whose variant hands back the right value",
+        "the field x variant table is whole (meta) > every row's value differs from its field's right value",
+        "the field x variant table is whole (meta) > every variant but the value-free ones is a function of the right value",
+        "the field x variant table is whole (meta) > every ACCEPTED name is a row, and the refused rows are the rest"
       ]
     }
   },
