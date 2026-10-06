@@ -136,3 +136,22 @@ should land comfortably inside it. Product taste: memory owner-route-intent.
   lines, TIERS), re-run below. 140 renamed "the scenic tier dropped to the cafe tier" (it never inverted the cafe).
   P-PROD-02: `SCENIC_SWIFT_SCRATCH=.build-t0283/swift python ops/lib/run-named-tests.py P-PROD-02` ->
   "NAMED P-PROD-02 passed=4/4" on 97f9b572's tree; its prose gets one dated sentence (f93a7dcc).
+- 2026-10-06T23:01:27Z `python ops/mutate/surprise.py --only 135,136` on 963332fe: "caught by the test that names it: 2
+  of 2 (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)", "MUTATE OK caught=2/2". With the 17 of
+  19 above, every touched row (32, 106, 124-140) is caught by the test that names it; the full 140-row table was not
+  re-run (owner ruling: fix rounds re-run only touched rows), its floor proof is OK at 140.
+  ACCEPTANCE, re-quoted at the final pre-review commit (agent/claude-opus-5):
+  1. MEASURE FIRST - DONE before any weight changed (21:18:36Z entry): T-0253's rule over the 1334-place corpus,
+     seeds 0..99 at 30/60/90/120: last fifth of the dial 32/77/81/81, medians 0.77/0.88/0.92/0.97, at exactly the
+     dial 5/8/4/3, seed 0 at 120 Calas Park (park) 120 min; class mix quoted per dial.
+  2. RULED (R1 timeFit peak 70% slope 2 clamp 0; R2 prior 75 viewpoint/peak/waterfall/beach/trailhead/garden, 50
+     park/museum/town, 25 cafe) and RE-MEASURED (21:35:00Z entry); re-run now, corpus_measure.py at 120: "rt/budget
+     min=0.17 p25=0.62 median=0.71 p75=0.79 max=0.97", "bins [1, 6, 16, 55, 22] at-exactly-budget=0 seed0=Tongva
+     Peak peak 84 min". Oracle and Swift agree by full equality on the whole permutation: SurpriseRankTests
+     permutation() (driver-a/c/b over the regenerated sequences.tsv) and SurpriseCorpusFitTests (the card's chain
+     over the corpus, 74 + 3 x 100 picks) - swift test --filter Surprise "Test run with 38 tests in 8 suites passed".
+  3. P-PROD-02 "NAMED P-PROD-02 passed=4/4"; distinct() green and the corpus suite's >= 90 distinct at 120 (100);
+     SurpriseFilterTests.swift identical to origin/main (git diff --quiet: FILTER-UNCHANGED-VS-MAIN); population
+     17 new entries, floor 140 literal, every touched row caught.
+  Lengths: Surprise.swift 160, surprise_fit_mutations.py 60, surprise_mutations.py 282 (cap 300).
+  NEXT: git fetch origin, merge origin/main, swift test --filter Surprise and ops/queue-check on the merged head, push.
