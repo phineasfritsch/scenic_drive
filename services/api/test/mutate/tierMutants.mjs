@@ -26,10 +26,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-tier");
 
-export const MIN_MUTATIONS = 22;
+export const MIN_MUTATIONS = 25;
 export const SUBJECTS = ["src/accountTier.ts", "src/routerDeps.ts", "src/asnNotification.ts", "src/plan.ts", "src/loop.ts",
   "src/trip.ts", "src/isochrone.ts"];
-const TESTS = ["test/accountTier.test.ts", "test/asnState.test.ts", "test/isochroneCost.test.ts"];
+const TESTS = ["test/accountTier.test.ts", "test/asnState.test.ts", "test/isochroneCost.test.ts", "test/tierCarriers.test.ts",
+  "test/requestReadSites.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -41,6 +42,12 @@ export const MUTATIONS = [
   m("tier-from-device-header", "accountTier.ts", "req.headers.get(ACCOUNT_TOKEN_HEADER)", "req.headers.get(\"x-scenic-device\")"),
   m("tier-from-another-header", "accountTier.ts", "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? \"\")",
     "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? req.headers.get(\"x-account-token\") ?? \"\")"),
+  m("tier-query-fallback", "accountTier.ts", "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? \"\")",
+    "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? new URL(req.url).searchParams.get(\"account_token\") ?? \"\")"),
+  m("tier-body-fallback", "accountTier.ts", "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? \"\")",
+    "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? (req.bodyUsed ? null : (await req.clone().json().catch(() => ({}))).account_token) ?? \"\")"),
+  m("tier-alt-header-fallback", "accountTier.ts", "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? \"\")",
+    "(req.headers.get(ACCOUNT_TOKEN_HEADER) ?? req.headers.get(\"x-scenic-account-token-v2\") ?? \"\")"),
   m("deps-tier-always-anon", "routerDeps.ts", "=== \"paid\" ? { ...device, tier: \"paid\" } : device;", "=== \"paid\" ? device : device;"),
   m("deps-tier-without-db", "routerDeps.ts", "accountTier(req, env.DB,", "accountTier(req, undefined,"),
   m("deps-now-minus-1", "routerDeps.ts", "env.DB, now().getTime())", "env.DB, now().getTime() - 1)"),

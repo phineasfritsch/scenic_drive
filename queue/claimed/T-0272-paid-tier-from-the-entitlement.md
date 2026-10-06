@@ -170,3 +170,33 @@ caller is anon (T-0256 R3), so nothing paid is reachable through ROUTES. Plan: q
   twelve-row lapsed-at-signing tables (accountTier.test.ts through ROUTES, asnState.test.ts by whole-table equality)
   and tierMutants.mjs at literal MIN_MUTATIONS = 22. MET. NOT DONE (R8) unchanged: no named-tests.json binding
   (outside touches).
+- 2026-10-06T06:37:59Z **rv1-t0272 FAIL closed** (agent/claude-opus-5, owner; PR #164 at 04e548d). The finding:
+  accountTier.ts falling back to `new URL(req.url).searchParams.get("account_token")` left the suite green, because
+  the "every other client field" row is a BLACKLIST of five header spellings and always sends the bare path.
+  RULED: the class is "the tier read from any carrier but the one header"; closed two ways, neither a list of bad
+  spellings. (1) WHITELIST source guard `services/api/test/requestReadSites.test.ts`: every non-comment line under
+  `src/**/*.ts` (import.meta.glob, so a new file is seen) that names `req` or `Request` or reads a request member
+  (.headers .url .json .text .formData .arrayBuffer .blob .body .cf, URL, searchParams) is collected trimmed and
+  compared by full equality, file by file, to the APPROVED sites (55 lines in 14 files); any new site fails naming
+  its file and line. A second test pins that accountTier.ts's only request read is the ACCOUNT_TOKEN_HEADER line; a
+  third shows the guard red in-test for a query, a body and an alternate-header read. Skipped lines are comment
+  lines only (leading `//`, `/*`, `*/`, `* `) - so stripping comments cannot move it. (2) Behaviour table
+  `services/api/test/tierCarriers.test.ts` through ROUTES["/plan"], device at the anon plan limit, an active
+  entitlement for TOKEN: the token under 13 query names (each, and all at once), a URL fragment, a path suffix
+  `/plan/<token>`, a path parameter `;account_token=`, and 42 generated header names (13 stems x {"", "x-",
+  "x-scenic-"} plus six more, less the real header and x-scenic-device; each, and all at once), and every carrier at
+  once - each answers EXACTLY the no-token drive (answer 429, quota state, entitlement reads 0, console lines) by
+  full equality; the real header answers planOk 200 with 1 read. Body fields: /plan's key whitelist refuses an
+  unknown key, so the 13 body names each answer the whole `{400, invalid_request, "the body carries \"<name>\",
+  which /plan does not accept"}` with the quota untouched and 0 reads.
+  rv1's mutant RED by name: against the OLD suite `accountTier.test.ts` alone it is `total=33 failed=0` (the
+  finding reproduced); against `tierCarriers.test.ts` `failed=3 ['query ?account_token=', 'every query name at
+  once', 'every carrier at once']`; the alt-header mutant `failed=3 ['header x-scenic-account-token-v2', 'every
+  header name at once', 'every carrier at once']`. Population: tierMutants.mjs gains tier-query-fallback,
+  tier-body-fallback (reads `req.clone().json()` when the body is unused - unreachable on /plan, so only the guard
+  can see it), tier-alt-header-fallback; MIN_MUTATIONS 22 -> 25; TESTS += the two new files. Faster verification,
+  only the new entries: `--only=tier-query-fallback,tier-body-fallback,tier-alt-header-fallback` ->
+  `baseline green tests=184`; `CAUGHT tier-query-fallback by "the request sites under src are exactly the approved
+  sites, file by file, line by line"` (same for tier-body-fallback and tier-alt-header-fallback); `RESULT caught=3
+  missed=0 trap=0 of 3`. `--prove-vacuity` on the same three: `RESULT caught=0 missed=3`. `--prove-floor`: four arms
+  REFUSED, real population quiet. wc -l: requestReadSites.test.ts 132, tierCarriers.test.ts 125.
