@@ -81,3 +81,51 @@ xcodeproj lock (T-0180).
     `-screen settings|paywall` (read under `#if DEBUG` in Entitlements; a release build ignores it), and every home
     shot passes `-screen home`. ios_screenshot_pinned.py's CAPTURE_RUN and its LAUNCH/ALIVE anchors move with it,
     plus one mutant: the `-screen` argument dropped.
+- 2026-10-06T03:01:08Z BUILD, agent/claude-opus-5.
+  - GUARD RED FIRST (2026-10-06T01:04:01Z), with the five Entitlements files written and the home and shell NOT yet
+    changed: `python ops/lib/check-store-links.py` -> `P-STORE-01 (ops/lib/check-store-links.py): 11 refusal(s)`,
+    exit 1, each by needle, e.g. `onSettings: the approved line is missing from .../ScenicHomeScreen.swift:
+    \`public init(onSettings: @escaping () -> Void) { self.onSettings = onSettings }\``, `import Entitlements: the
+    approved line is missing from apps/ios/ScenicDrive/ScenicDriveApp.swift`, `settingsButton: ...`,
+    `"home.settings": ...`, `SettingsScreen(: ...`, `LaunchScreen.atLaunch: ...`. Then GREEN after the home and
+    shell: `P-STORE-01 source half: paywall and Settings links, Restore, SubscriptionStoreView and the ODbL notice at
+    exactly their approved sites`, exit 0.
+  - --prove-red: `check-store-links --prove-red: 24/24 rows as required (21 mutants refused by name, 3 legitimate
+    edits green)`, exit 0. The acceptance's three named mutants, each RED by name: `the paywall's Terms of Use link
+    removed <- termsOfUseURL: the approved line is missing from .../PaywallScreen.swift`, `restore hidden on the
+    paywall <- restorePurchases: ...`, `the paywall without SubscriptionStoreView <- SubscriptionStoreView: ...`;
+    plus Privacy removed (both screens), Terms removed from Settings, restore dropped, restore moved onto the links
+    (`the paywall's modifier chain: ... occurs 0 time(s)`), AppStore.sync() replaced, Manage removed, Settings not
+    opening the paywall, an identifier removed, the Terms URL retargeted, a literal URL on the paywall, a feature
+    target importing Entitlements, Entitlements importing UIKit, `#if true` for the -screen read, the ODbL notice
+    edited, the shell dropping onSettings, the gear unmounted, a second paywall file. Linux-only, so run locally
+    (no mutant branches, per the dispatch).
+  - ios-screenshot guard: `IOS-COMPILE-GUARDRAILS OK` for both workflows; `PROVE-RED OK: 68 mutations red, 6
+    legitimate spellings green over 2 workflows, 0 unexpected result(s)` (two new rows: `-screen` dropped, the
+    settings/paywall shots dropped).
+  - P-SAFE-03 / P-ATTR-01 moved deliberately (ruling R2): the frozen shell and chips lists and the body's ABOVE
+    anchor (-frozen); ScenicHomeScreen.swift's approved sha256 typed in (-pinned, now f4d6aeb2...dcb6c); and
+    check-map-attribution-sheet's (h4) presentation whitelist gains the shell's ONE whole line
+    `.sheet(isPresented: $isShowingSettings) {` (first run refused it: `.sheet( at .../ScenicHomeScreen.swift(1)
+    ScenicDrive/ScenicDriveApp.swift(1), tracked .../ScenicHomeScreen.swift(1)` - Settings is a user-opened modal,
+    not a drive card; its content is the frozen shell block). `bash ops/lib/check-safety-disclaimer` exit 0 (32 min
+    wall on this loaded box). check-pbxproj-graph: `28 assertions, 0 failed`.
+  - ios-compile run 37400712681 on 4b178ae: success, first try. ios-screenshot run 37402525626 on 4b178ae: success;
+    iOS 26.2, iPhone 17, `** BUILD SUCCEEDED **`, ten `Wrote screenshot to:` lines (home x3, settings, paywall, per
+    appearance). LOOKED AT: settings-light - cream `bg`, large "Settings", Done at top right; Subscription section on
+    white `surface`: Status "Not subscribed", Scenic Drive Pro, Restore Purchases, Manage Subscription; About:
+    Terms of Use, Privacy Policy, Legal & Attribution with a chevron; orange SF Symbols, row text dark `fg`, never
+    orange. settings-dark - the same on navy with `surface` cards. paywall-light/dark - pushed from Settings (back
+    chevron, title "Scenic Drive Pro"), StoreKit's own "Subscription Unavailable / The subscription is unavailable
+    in the current storefront." (the placeholder group id, ruling R3), and our bottom band "Terms of Use  Privacy
+    Policy". In that run StoreKit also drew its own close X and painted its ground white / system grey under a
+    `bg` band; 9e8397e hid the X (`.storeButton(.hidden, for: .cancellation)`) and set
+    `.containerBackground(DesignTokens.bg, for: .subscriptionStore)`. ios-screenshot run 37405158016 on 9e8397e:
+    success; the X is gone; the unavailable placeholder STILL draws on white - containerBackground does not reach
+    StoreKit's unavailable state. Left as is and recorded: it only shows when there are no products.
+    home-light-collapsed - the gear sits as a fourth 44 pt square at the trailing end of the chip band, inside the
+    same material; "Westwood loop" now wraps to two lines; route, credit pill, sheet and conditions line unchanged.
+  - NOT SEEN, said plainly: the paywall's Restore button. `.storeButton(.visible, for: .restorePurchases)` is in the
+    source and pinned, but StoreKit draws no buttons in its unavailable state, so no screenshot shows it; Settings'
+    Restore row is on screen. The marketing header (symbol, name, tagline) is not drawn for the same reason. Legal
+    & Attribution was not screenshotted (no launch argument reaches it).
