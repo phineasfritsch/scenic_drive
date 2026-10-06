@@ -26,7 +26,8 @@ const AREAS = buildCustomModel(0, TWO_CLOSURES as ClosureCollection).areas;
 const IN_CLOSURES = { if: "in_closure_1 || in_closure_2", multiply_by: "0" };
 /** The sets a record carries x the areas each rides as: R6 writes EMPTY whenever nothing is active, so every stale
  * and every unavailable row runs over BOTH - a guard skipped on an empty set is a P-SAFE-08 fail-open (rv2 B2). */
-const SETS: [string, ClosureCollection, unknown][] = [["two closures", TWO_CLOSURES as ClosureCollection, AREAS], ["no closures", EMPTY_CLOSURES, undefined]];
+const TWO = TWO_CLOSURES as ClosureCollection;
+const SETS: [string, ClosureCollection, unknown][] = [["two closures", TWO, AREAS], ["no closures", EMPTY_CLOSURES, undefined]];
 type Path = "/plan" | "/loop" | "/trip" | "/isochrone";
 const BODIES: Record<Path, unknown> = { "/plan": SANTA_MONICA_TOPANGA_BODY, "/loop": LOOP_BODY, "/trip": TRIP_BODY, "/isochrone": REACH_BODY };
 
@@ -100,21 +101,52 @@ describe("a fresh set rides every driven request as areas (R7, R8)", () => {
   });
 });
 
+/** A table text read as the record it is, or kept as text when it is not JSON. */
+const asRecord = (text: string | undefined): unknown => {
+  if (text === undefined) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
+/** META (rv3 B3): a row that ignores the set it is handed runs one set twice and lets a guard skipped on that set
+ * stay green. Every row's record over TWO differs, deep, from its record over EMPTY - or the row fails here by name.
+ * `holdsNoSet` is the closed list of rows that hand the reader no record that could carry a set; each must not. */
+function everyRowIsAFunctionOfItsSet(table: string, rows: [string, (set: ClosureCollection) => unknown][], holdsNoSet: string[] = []) {
+  describe(`meta: every ${table} row is a function of its set`, () => {
+    it("every row named as holding no set is a row of the table", () => {
+      expect(holdsNoSet.filter((name) => !rows.some(([row]) => row === name))).toEqual([]);
+    });
+    for (const [name, row] of rows) {
+      const none = holdsNoSet.includes(name);
+      it(`${name}: the record over two closures ${none ? "equals" : "differs from"} the record over no closures`, () => {
+        if (none) expect(row(TWO)).toEqual(row(EMPTY_CLOSURES));
+        else expect(row(TWO)).not.toEqual(row(EMPTY_CLOSURES));
+      });
+    }
+  });
+}
+
 describe("stale: the last good set, with the hazard (R7, P-SAFE-08)", () => {
   const ages: [string, number][] = [["30 min + 1 ms old", MAX_AGE_MS + 1], ["45 min old", 2_700_000], ["1 ms in the future", -1], ["a day old", 86_400_000]];
+  /** One row per age: the record it writes over a set - the table and its meta-test call the same function. */
+  const rows = ages.map(([name, age]): [string, number, (set: ClosureCollection) => string] =>
+    [name, age, (set) => closuresRecord(new Date(NOW.getTime() - age), set)]);
   for (const path of [...ROUTED, "/isochrone"] as Path[]) {
-    for (const [name, age] of ages) {
+    for (const [name, age, row] of rows) {
       for (const [setName, set, areas] of SETS) {
         it(`${path}, a record ${name} over ${setName}: 200 with closures_hazard stale, routed around the record's set`, async () => {
-          const at = new Date(NOW.getTime() - age);
-          const r = await send(path, shipped(closuresAt(at, set).kv));
+          const r = await send(path, shipped(closuresKv({ [CLOSURES_KEY]: row(set) }).kv));
           const m = models();
-          expect([r.status, r.json.closures_hazard, m.length > 0, m.map((x) => x.areas)])
-            .toEqual([200, { state: "stale", version: TEST_VERSION, fetched_at: at.toISOString() }, path !== "/isochrone", m.map(() => areas)]);
+          expect([r.status, r.json.closures_hazard, m.length > 0, m.map((x) => x.areas)]).toEqual([200,
+            { state: "stale", version: TEST_VERSION, fetched_at: new Date(NOW.getTime() - age).toISOString() }, path !== "/isochrone", m.map(() => areas)]);
         });
       }
     }
   }
+  everyRowIsAFunctionOfItsSet("stale", rows.map(([name, , row]) => [name, (set) => asRecord(row(set))]));
 
   it("a record exactly 0 ms old is fresh", async () => {
     const r = await send("/plan", shipped(closuresAt(NOW, TWO_CLOSURES).kv));
@@ -123,26 +155,39 @@ describe("stale: the last good set, with the hazard (R7, P-SAFE-08)", () => {
 });
 
 describe("unavailable: no set, never silent (R7)", () => {
-  const record = (set: unknown, over: Record<string, unknown>) => JSON.stringify({ version: TEST_VERSION, fetched_at: NOW.toISOString(), geojson: set, ...over });
-  const fiftyOne = { type: "FeatureCollection", features: Array.from({ length: 51 }, (_, i) => squareClosure(-118.6 + i * 0.01, 34.05)) };
-  const raw = (text: (set: unknown) => string) => (set: unknown) => closuresKv({ [CLOSURES_KEY]: text(set) });
-  const bad = (field: string, value: unknown) => (set: unknown) => closuresKv({ [CLOSURES_KEY]: record(set, { [field]: value }) });
+  /** What one row puts in front of the reader: no binding, a get that throws, or the namespace's values. */
+  type Store = "unbound" | "throws" | Record<string, string>;
+  type Row = [string, (set: ClosureCollection) => Store];
+  const kvOf = (s: Store) => (s === "unbound" ? undefined : s === "throws" ? closuresKv({}, true).kv : closuresKv(s).kv);
+  const handed = (s: Store) => asRecord(typeof s === "string" ? undefined : s[CLOSURES_KEY]);
+  const text = (t: (set: ClosureCollection) => string) => (set: ClosureCollection): Store => ({ [CLOSURES_KEY]: t(set) });
+  const record = (geojson: unknown, over: Record<string, unknown> = {}) =>
+    JSON.stringify({ version: TEST_VERSION, fetched_at: NOW.toISOString(), geojson, ...over });
+  const bad = (field: "version" | "fetched_at", value: unknown) => text((set) => record(set, { [field]: value }));
+  const geo = (value: (set: ClosureCollection) => unknown) => text((set) => record(value(set)));
+  const fc = (set: ClosureCollection, features: unknown) => ({ type: set.type, features });
+  const point = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-118.6, 34.05] } };
+  const square = squareClosure(-118.7, 34.05);
+  const openRing = { ...square, geometry: { type: "Polygon", coordinates: [square.geometry.coordinates[0]!.slice(0, -1)] } };
+  const fill51 = (set: ClosureCollection) =>
+    [...set.features, ...Array.from({ length: 51 - set.features.length }, (_, i) => squareClosure(-118.6 + i * 0.01, 34.2))];
   /** Every field record() reads x every shape that is not one: missing, null, wrong type, empty, off the format. */
   const shapes: [string, unknown][] = [["missing", undefined], ["null", null], ["a number", 16], ["true", true],
     ["an empty string", ""], ["an empty array", []], ["an empty object", {}]];
-  const cases: [string, (set: unknown) => ClosuresKv | undefined][] = [
-    ["no CLOSURES binding", () => undefined],
-    ["a get that throws", () => closuresKv({}, true)],
-    ["no record", () => closuresKv({})],
-    ["a record that is not JSON", raw(() => "{")],
-    ["a record that is an empty string", raw(() => "")],
-    ["a record that is JSON null", raw(() => "null")],
-    ["a record that is a number", raw(() => "7")],
-    ["a record that is a string", raw((set) => JSON.stringify(record(set, {})))],
-    ["a record that is an array", raw((set) => `[${record(set, {})}]`)],
-    ["a record that is an empty object", raw(() => "{}")],
-    ...(["version", "fetched_at", "geojson"] as const).flatMap((field) =>
-      shapes.map(([name, value]): [string, (set: unknown) => ClosuresKv] => [`${field} ${name}`, bad(field, value)])),
+  const HOLDS_NO_SET = ["no CLOSURES binding", "a get that throws", "no record", "a record that is an empty string",
+    "a record that is JSON null", "a record that is an empty object"];
+  const cases: Row[] = [
+    ["no CLOSURES binding", () => "unbound"],
+    ["a get that throws", () => "throws"],
+    ["no record", () => ({})],
+    ["a record that is an empty string", text(() => "")],
+    ["a record that is JSON null", text(() => "null")],
+    ["a record that is an empty object", text(() => "{}")],
+    ["a record that is not JSON (the set's record, cut short)", text((set) => record(set).slice(0, -1))],
+    ["a record that is a number (the set's feature count)", text((set) => String(set.features.length))],
+    ["a record that is a string", text((set) => JSON.stringify(record(set)))],
+    ["a record that is an array", text((set) => `[${record(set)}]`)],
+    ...(["version", "fetched_at"] as const).flatMap((field) => shapes.map(([name, value]): Row => [`${field} ${name}`, bad(field, value)])),
     ["a version off the pattern", bad("version", "lcs-d7-XYZ")],
     ["a version of 15 hex", bad("version", "lcs-d7-00000000000000a")],
     ["a version of 17 hex", bad("version", "lcs-d7-00000000000000aaa")],
@@ -156,46 +201,61 @@ describe("unavailable: no set, never silent (R7)", () => {
     ["a fetched_at wrapped in an array", bad("fetched_at", [NOW.toISOString()])],
     ["a fetched_at in month 13", bad("fetched_at", "2026-13-05T12:00:00Z")],
     ["a fetched_at at hour 25", bad("fetched_at", "2026-10-05T25:00:00Z")],
-    ["a geojson that is a string", bad("geojson", JSON.stringify(TWO_CLOSURES))],
-    ["a geojson that is one Feature", bad("geojson", TWO_CLOSURES.features[0])],
-    ["a geojson with no features", bad("geojson", { type: "FeatureCollection" })],
-    ["a geojson whose features are an object", bad("geojson", { type: "FeatureCollection", features: {} })],
-    ["a geojson whose features are null", bad("geojson", { type: "FeatureCollection", features: null })],
-    ["a geojson with no type", bad("geojson", { features: TWO_CLOSURES.features })],
-    ["51 polygons", bad("geojson", fiftyOne)],
-    ["a closure that is a Point", bad("geojson", { type: "FeatureCollection",
-      features: [{ type: "Feature", geometry: { type: "Point", coordinates: [-118.6, 34.05] } }] })],
+    ["a geojson missing (the set under closures)", text((set) => record(undefined, { closures: set }))],
+    ["a geojson null (the set under closures)", text((set) => record(null, { closures: set }))],
+    ["a geojson that is a number (the set's feature count)", geo((set) => set.features.length)],
+    ["a geojson that is a boolean (whether the set has features)", geo((set) => set.features.length > 0)],
+    ["a geojson that is a string (the set's closures named; empty over none)", geo((set) => set.features.map((_, i) => `c${i}`).join(","))],
+    ["a geojson that is the set as JSON text", geo((set) => JSON.stringify(set))],
+    ["a geojson that is an array (the set's features)", geo((set) => set.features)],
+    ["a geojson that is the set wrapped in an array", geo((set) => [set])],
+    ["a geojson that is an object (the set's features by index; empty over none)", geo((set) => Object.fromEntries(set.features.entries()))],
+    ["a geojson that is one Feature (of the set's geometries)", geo((set) => ({ type: "Feature", properties: {},
+      geometry: { type: "GeometryCollection", geometries: set.features.map((f) => f.geometry) } }))],
+    ["a geojson with no type", geo((set) => ({ features: set.features }))],
+    ["a geojson whose type is Polygon", geo((set) => ({ ...set, type: "Polygon" }))],
+    ["a geojson whose type is lower-case", geo((set) => ({ ...set, type: "featurecollection" }))],
+    ["a geojson with no features (the set's under feature)", geo((set) => ({ type: set.type, feature: set.features }))],
+    ["a geojson whose features are an object (the set's by index)", geo((set) => fc(set, Object.fromEntries(set.features.entries())))],
+    ["a geojson whose features are null (the set's under closures)", geo((set) => ({ ...fc(set, null), closures: set.features }))],
+    ["a Point closure beside the set's", geo((set) => fc(set, [...set.features, point]))],
+    ["an unclosed ring beside the set's", geo((set) => fc(set, [...set.features, openRing]))],
+    ["51 polygons, the set's first", geo((set) => fc(set, fill51(set)))],
   ];
   for (const path of [...ROUTED, "/isochrone"] as Path[]) {
-    for (const [name, make] of cases) {
+    for (const [name, row] of cases) {
       for (const [setName, set] of SETS) {
         it(`${path}, ${name} over ${setName}: 200 with closures_hazard unavailable and no areas`, async () => {
-          const r = await send(path, shipped(make(set)?.kv));
+          const r = await send(path, shipped(kvOf(row(set))));
           expect([r.status, r.json.closures_hazard, models().filter((x) => x.areas !== undefined).length])
             .toEqual([200, { state: "unavailable", version: "none", fetched_at: null }, 0]);
         });
       }
     }
   }
+  everyRowIsAFunctionOfItsSet("unavailable", cases.map(([name, row]) => [name, (set) => handed(row(set))]), HOLDS_NO_SET);
 });
 
 describe("read, by ruling: shapes the reader accepts are fresh, routed around exactly their set (R6, R7)", () => {
-  const cases: [string, string, unknown][] = [
-    ["a FeatureCollection with zero features (R6 writes it when nothing is active)", closuresRecord(NOW, EMPTY_CLOSURES), undefined],
-    ["an unknown extra key (the reader is not strict; stats rides already)", JSON.stringify({ version: TEST_VERSION,
-      fetched_at: NOW.toISOString(), geojson: TWO_CLOSURES, stats: { kept: 2 }, extra: true }), AREAS],
-    ["a version that is not sha256(geojson) (the version is a cache key, never a gate)", closuresRecord(NOW, TWO_CLOSURES,
-      "lcs-d7-ffffffffffffffff"), AREAS],
+  const cases: [string, (set: ClosureCollection) => string][] = [
+    ["the record R6 writes (zero features when nothing is active)", (set) => closuresRecord(NOW, set)],
+    ["an unknown extra key (the reader is not strict; stats rides already)", (set) => JSON.stringify({ version: TEST_VERSION,
+      fetched_at: NOW.toISOString(), geojson: set, stats: { kept: 2 }, extra: true })],
+    ["a version that is not sha256(geojson) (the version is a cache key, never a gate)", (set) => closuresRecord(NOW, set,
+      "lcs-d7-ffffffffffffffff")],
   ];
   for (const path of ROUTED) {
-    for (const [name, text, areas] of cases) {
-      it(`${path}, ${name}: 200, no closures_hazard, areas exactly the record's`, async () => {
-        const r = await send(path, shipped(closuresKv({ [CLOSURES_KEY]: text }).kv));
-        const m = models();
-        expect([r.status, r.json.closures_hazard, m.length > 0, m.map((x) => x.areas)]).toEqual([200, undefined, true, m.map(() => areas)]);
-      });
+    for (const [name, row] of cases) {
+      for (const [setName, set, areas] of SETS) {
+        it(`${path}, ${name} over ${setName}: 200, no closures_hazard, areas exactly the record's`, async () => {
+          const r = await send(path, shipped(closuresKv({ [CLOSURES_KEY]: row(set) }).kv));
+          const m = models();
+          expect([r.status, r.json.closures_hazard, m.length > 0, m.map((x) => x.areas)]).toEqual([200, undefined, true, m.map(() => areas)]);
+        });
+      }
     }
   }
+  everyRowIsAFunctionOfItsSet("read, by ruling", cases.map(([name, row]) => [name, (set) => asRecord(row(set))]));
 });
 
 describe("KILL first, the closures-version in the cache key (R9, R10)", () => {

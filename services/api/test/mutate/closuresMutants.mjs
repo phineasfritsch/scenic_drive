@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-closures");
 
-export const MIN_MUTATIONS = 94;
+export const MIN_MUTATIONS = 95;
 export const SUBJECTS = ["src/lcsFeed.ts", "src/closuresStore.ts", "src/closuresCron.ts", "src/index.ts", "src/routerDeps.ts",
   "src/reachCache.ts", "src/plan.ts", "src/scenicPlanner.ts", "src/loop.ts", "src/loopPlanner.ts", "src/trip.ts",
   "src/tripPlanner.ts", "src/isochrone.ts"];
@@ -87,6 +87,8 @@ export const MUTATIONS = [
     "(!CLOSURES_VERSION.test(r.version) && (r.geojson as {features?: unknown[]} | null)?.features?.length !== 0)) return null;"),
   m("store-fetched-at-unchecked-on-empty", "closuresStore.ts", "if (typeof r.fetched_at !== \"string\" || !ISO_INSTANT.test(r.fetched_at)) return null;",
     "if ((typeof r.fetched_at !== \"string\" || !ISO_INSTANT.test(r.fetched_at)) && (r.geojson as {features?: unknown[]} | null)?.features?.length !== 0) return null;"),
+  m("store-shape-unchecked-on-empty", "closuresStore.ts", "buildCustomModel(LAMBDA_MIN, r.geojson as ClosureCollection);",
+    "if ((r.geojson as {features?: unknown[]} | null)?.features?.length !== 0) buildCustomModel(LAMBDA_MIN, r.geojson as ClosureCollection);"),
   m("store-empty-never-stale", "closuresStore.ts", "const fresh = age >= 0 && age <= CLOSURES_MAX_AGE_MS;",
     "const fresh = r.geojson.features.length === 0 || (age >= 0 && age <= CLOSURES_MAX_AGE_MS);"),
   m("store-version-loose","closuresStore.ts", "/^lcs-d7-[0-9a-f]{16}$/", "/^lcs-d7-/"),

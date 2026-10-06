@@ -232,3 +232,35 @@ resources.
   `npx vitest run` Test Files 43 passed (43), Tests 1281 passed (1281); every closuresMutants anchor occurs exactly
   once (95 checked, 0 stale); `python ops/lib/check-mutate-population.py` exit 0 (floor 67 holds); `bash
   ops/queue-check` QUEUE OK (271 tasks). ops/test not run (orchestrator instruction).
+- 2026-10-06T13:29:37Z rv3 B3 (P-SAFE-08 fail-open, the B2 class) closed MECHANICALLY. Ruling: rv3 is right - the
+  geojson rows of the unavailable table hard-coded their geojson and ignored the SETS loop, so no geojson-shape row
+  ever had zero features, and `if (features?.length !== 0) buildCustomModel(...)` left 1281/1281 green. The defect
+  is a row that ignores its set; the fix makes that row fail by name. test/closuresRoutes.test.ts: every row of the
+  unavailable table is now row(set) -> what the reader is handed (`"unbound"` | `"throws"` | the namespace's
+  values); every geojson row mutates the set's own FeatureCollection (type dropped - rv3 witness {features: []}
+  over no closures; type Polygon - rv3 witness {type: "Polygon", features: []}; type lower-case; features under
+  another key; features {} keyed by index; features null beside the set's; a Point and an unclosed ring beside the
+  set's; 51 polygons, the set's first) and every whole-value geojson shape is derived from the set (its feature
+  count, whether it has features, its closures named - "" over none, its features by index - {} over none, its
+  features array, the set as text, the set in an array, a Feature of its geometries, missing and null with the set
+  under closures). Record rows likewise (not JSON = the set's record cut short; a number = the set's count).
+  META-TEST everyRowIsAFunctionOfItsSet(table, rows, holdsNoSet), one `it` per row: the record over TWO_CLOSURES
+  must differ (not.toEqual, deep) from the record over EMPTY_CLOSURES; holdsNoSet is the closed list of rows that
+  hand the reader no set-bearing record (no binding, a get that throws, no record, "", "null", "{}") and each of
+  those must be EQUAL over the two sets, and every name in it must be a row. Applied to the stale table (rows now
+  [name, age, row(set)] - the table and its meta call the same function) and the read-by-ruling table (now
+  row(set) x SETS; "zero features" is the R6 record over no closures). Counts: unavailable 56 rows x 2 sets x 4
+  routes = 448 + 57 meta; stale 32 + 5 meta; ruled 3 x 2 x 3 = 18 + 4 meta. wc -l closuresRoutes.test.ts 290,
+  closuresMutants.mjs 241. GREEN: `npx vitest run test/closuresRoutes.test.ts` Tests 578 passed (578).
+  META RED (temporary edits, restored, then 578 green): rv3's old set-free row `geo(() => ({type: "FeatureCollection",
+  features: null}))` -> FAIL "a geojson whose features are null (the set's under closures): the record over two
+  closures differs from the record over no closures"; "a record that is JSON null" made to carry the set -> FAIL
+  "...: the record over two closures equals the record over no closures"; the stale row made set-free -> FAIL x4
+  "30 min + 1 ms old / 45 min old / 1 ms in the future / a day old: ... differs ..."; the ruled R6 row made set-free
+  -> FAIL "the record R6 writes (zero features when nothing is active): ... differs ...". `-t meta` red runs:
+  6 failed | 60 passed, 4 failed | 62 passed, 1 failed | 65 passed.
+  Population +1: store-shape-unchecked-on-empty (rv3 B3, verbatim); floor literal 94 -> 95. --prove-floor: four arms
+  REFUSED at floor 95, real population quiet. RED by name, the new entry only (faster verification):
+  `--only=store-shape-unchecked-on-empty` (baseline green tests=669) -> CAUGHT store-shape-unchecked-on-empty by
+  "/plan, a geojson with no type over no closures: 200 with closures_hazard unavailable and no areas";
+  `RESULT caught=1 missed=0 trap=0 of 1`. src/ unchanged (the defect was the rows).
