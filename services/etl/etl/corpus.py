@@ -74,7 +74,7 @@ def load_curated(path) -> list:
 
 
 def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
-          corpus_version=None, region=None, budget_bytes: int = CORPUS_BUDGET_BYTES) -> dict:
+          corpus_version=None, region=None, budget_bytes: int = CORPUS_BUDGET_BYTES, kind=None) -> dict:
     """Build one corpus. Returns the report `main` prints; raises on any refusal.
 
     `budget_bytes` defaults to the one literal above and exists as a parameter so the refusal is provable
@@ -131,6 +131,9 @@ def build(input_path, out_path, built_at: str, previous=None, curated_path=None,
         # ways (their RAW surface tag), and the check re-reads this value rather than recounting anything.
         writer.set_meta(surfacecoverage.META_KEY, surfacecoverage.encode(surfacecoverage.coverage(ways)))
         writer.set_meta("previous_content_sha256", previous_digest)
+        # T-0270 ruling F4: a full corpus writes NO kind key; the bundled fallback writes 'fallback'.
+        if kind is not None:
+            writer.set_meta("kind", kind)
         writer.write_counts({
             "closed_ways": sum(1 for w in ways if w.is_closed),
             "changed_ways": changed_ways,
