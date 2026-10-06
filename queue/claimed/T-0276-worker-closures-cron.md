@@ -1,13 +1,13 @@
 ---
 id: T-0276
 title: the Worker's closures cron - Caltrans Lane Closure System (LCS) full closures for the LA district into KV as at most 50 polygons, a closures-version every route sends as areas and folds into its cache key; stale feed fails safe
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T07:59:18Z
+lease_expires_at: 2026-10-06T19:59:18Z
+worktree: .worktrees/T-0276
+branch: task/T-0276
 exclusive: []
 touches: [services/api/, Tests/Fixtures/t0276/]
 pins_affected: [P-SAFE-08, P-SAFE-01]
@@ -29,3 +29,4 @@ resources.
 
 ## Log
 - 2026-10-06T07:52:07Z filed by agent/claude-opus-5 (orchestrator) from the plan's lifecycle table (closures).
+- 2026-10-06T07:59:18Z claimed by agent/claude-opus-5; lease until 2026-10-06T19:59:18Z
