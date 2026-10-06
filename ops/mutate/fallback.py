@@ -5,7 +5,8 @@ WHY IT HAS ONE. `fallback.choose` decides which of placeallow's places the bundl
 the only places a device has before its first download - so it SELECTS, and CLAUDE.md's Verification section
 and P-PROC-06 say it ships a population with a literal floor. Covered: every cap row raised, lowered and
 dropped; the cut's bounds; the rank (reversed, by osm_id, input order); the refusal of an unruled class; the
-kind stamp (here and in corpus.build's one new branch); the ceiling literal, its hand-off and its exit code.
+kind stamp (here and in corpus.build's one new branch); the ceiling literal, its hand-off and its exit code; the
+command's stdout count line (kept per class, places=) and its exit 2 for a malformed --built-at.
 
 THE CONTRACT is ops/mutate/extractadapter.py's, kept identically: `(name, file, old, new)` entries whose `old`
 must appear VERBATIM or the run FAILS; a catch requires a NAMED TEST to fail; subjects, emptied tests and this
@@ -52,6 +53,15 @@ KIND_LINE = 'KIND = "fallback"'
 EXIT = "        return corpus.BUDGET_EXIT"
 CORPUS_KIND = '        if kind is not None:\n            writer.set_meta("kind", kind)'
 REGION = "        report = corpus.build(extract, out_path, built_at, region=region,"
+KEPT = '    report["kept"] = {cls: sum(1 for p in chosen if p["cls"] == cls) for cls, _cap in CAPS}'
+BUILT_AT_GUARD = (
+    "    try:\n"
+    "        corpus.compact_built_at(args.built_at)\n"
+    "    except ValueError:\n"
+    "        print(f\"--built-at must be YYYY-MM-DDTHH:MM:SSZ, got {args.built_at!r}\", file=sys.stderr)\n"
+    "        return 2\n")
+PLACES_SUM = 'sum(report["kept"].values())'
+CAPS_ORDER = "    for cls, cap in CAPS:"
 
 MUTATIONS = (
     [("cap %s raised by one" % c, SUBJECT, row(c, n), row(c, n + 1)) for c, n in CAP_ROWS]
@@ -76,6 +86,9 @@ MUTATIONS = (
         ("corpus.build never writes the kind", CORPUS, CORPUS_KIND, "        pass"),
         ("corpus.build stamps every corpus", CORPUS, CORPUS_KIND,
          '        writer.set_meta("kind", kind or "full")'),
+        ("the kept count is over the uncapped selection", SUBJECT, KEPT, KEPT.replace("in chosen", "in places")),
+        ("a malformed --built-at is not refused with exit 2", SUBJECT, BUILT_AT_GUARD, ""),
+        ("places= prints the class count, not the place count", SUBJECT, PLACES_SUM, 'len(report["kept"])'),
     ]
 )
 
@@ -83,10 +96,14 @@ EQUIVALENT = [
     ("the region not passed to corpus.build - the extract fallback.build writes carries the same `region`, and "
      "corpus.build reads `region or extract_region`", SUBJECT, REGION,
      "        report = corpus.build(extract, out_path, built_at,"),
+    ("choose walks CAPS in sorted order, not the ruled order - corpuswriter.write_places inserts "
+     "`rows = sorted(places)` (by place_id), and build counts `kept` from CAPS itself, so the order choose "
+     "appends classes in reaches neither the file nor the count line", SUBJECT, CAPS_ORDER,
+     "    for cls, cap in sorted(CAPS):"),
 ]
 KNOWN_MISSED = []
 
-MIN_MUTATIONS = 45
+MIN_MUTATIONS = 48
 harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str(path) for path in EMPTIED]
 
 

@@ -7,6 +7,7 @@ per-class cap, one below, on and one above it, over streams this file writes (ta
 """
 from __future__ import annotations
 
+import collections
 import hashlib
 import pathlib
 import sqlite3
@@ -36,9 +37,9 @@ NODE_TAG = {"viewpoint": ("tourism", "viewpoint"), "peak": ("natural", "peak"),
             "cafe": ("amenity", "cafe")}
 
 
-def run(tmp_path, osm_xml, name="fallback.sqlite", capsys=None):
+def run(tmp_path, osm_xml, name="fallback.sqlite", built_at=BUILT_AT):
     out = tmp_path / name
-    code = fallback.main(["--places-osm", str(osm_xml), "--out", str(out), "--built-at", BUILT_AT,
+    code = fallback.main(["--places-osm", str(osm_xml), "--out", str(out), "--built-at", built_at,
                           "--region", "la"])
     return code, out
 
@@ -53,6 +54,17 @@ def query(path, sql):
 
 def meta(path):
     return dict(query(path, "SELECT key, value FROM meta"))
+
+
+def count_lines(out, selected_from, kept):
+    """The command's whole stdout, recomputed from the file it wrote: the kept count per class in the ruled
+    table's order (0 for a class with none), their sum, the file's size against the ruled literal, and both
+    digests (content_sha256 as meta stores it, file_sha256 over the bytes)."""
+    per_class = " ".join(f"{cls}={kept.get(cls, 0)}" for cls, _cap in RULED_CAPS)
+    return (f"FALLBACK selected_from={selected_from} places={sum(kept.values())} {per_class}\n"
+            f"FALLBACK bytes={out.stat().st_size} budget=1048576\n"
+            f"FALLBACK content_sha256={meta(out)['content_sha256']}\n"
+            f"FALLBACK file_sha256={hashlib.sha256(out.read_bytes()).hexdigest()}\n")
 
 
 def nodes_xml(tmp_path, cls, n):
@@ -77,9 +89,12 @@ def test_the_ceiling_is_the_ruled_literal():
     assert fallback.FALLBACK_BUDGET_BYTES == 1048576
 
 
-def test_the_selection_over_the_allowlist_fixture_is_exact(tmp_path):
+def test_the_selection_over_the_allowlist_fixture_is_exact(tmp_path, capsys):
     code, out = run(tmp_path, ALLOWLIST_XML)
     assert code == 0
+    printed = capsys.readouterr()
+    assert printed.out == count_lines(out, 39, collections.Counter(cls for _t, _i, cls, *_rest in EXPECTED))
+    assert printed.err == ""
     got = query(out, "SELECT place_id, osm_type, osm_id, cls, name, lon_e7, lat_e7 FROM places ORDER BY place_id")
     want = sorted((place_id(t, i), t, i, cls, name, geom.to_e7(lon), geom.to_e7(lat))
                   for t, i, cls, name, lat, lon in EXPECTED)
@@ -91,14 +106,29 @@ BOUNDS = [(cls, n, min(n, cap)) for cls, cap in RULED_CAPS for n in (cap - 1, ca
 
 
 @pytest.mark.parametrize("cls,n,kept", BOUNDS, ids=[f"{c}-{n}" for c, n, _k in BOUNDS])
-def test_every_class_cap_holds_at_its_bound(tmp_path, cls, n, kept):
+def test_every_class_cap_holds_at_its_bound(tmp_path, capsys, cls, n, kept):
     code, out = run(tmp_path, nodes_xml(tmp_path, cls, n))
     assert code == 0
+    assert capsys.readouterr().out == count_lines(out, n, {cls: kept})
     got = [r[0] for r in query(out, "SELECT osm_id FROM places ORDER BY place_id")]
     want = sorted(range(1, n + 1), key=lambda i: place_id("n", i))[:kept]
     assert got == want
     assert len(got) == kept
     assert query(out, f"SELECT cls, count(*) FROM places GROUP BY cls") == [(cls, kept)]
+
+
+MALFORMED_BUILT_AT = ["2026-10-06", "2026-10-06T00:00:00", "2026-10-06 00:00:00Z", "2026-13-06T00:00:00Z", ""]
+
+
+@pytest.mark.parametrize("built_at", MALFORMED_BUILT_AT)
+def test_a_malformed_built_at_exits_2_and_writes_nothing(tmp_path, capsys, built_at):
+    code, out = run(tmp_path, ALLOWLIST_XML, built_at=built_at)
+    assert code == 2
+    printed = capsys.readouterr()
+    assert printed.out == ""
+    assert printed.err == f"--built-at must be YYYY-MM-DDTHH:MM:SSZ, got {built_at!r}\n"
+    assert not out.exists()
+    assert sorted(p.name for p in tmp_path.iterdir()) == []
 
 
 def test_a_class_outside_the_table_is_refused():
