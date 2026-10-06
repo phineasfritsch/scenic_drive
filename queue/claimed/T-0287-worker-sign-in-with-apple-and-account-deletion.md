@@ -1,13 +1,13 @@
 ---
 id: T-0287
 title: the Worker serves POST /auth/apple (Sign in with Apple identity token verified against Apple's JWKS) and DELETE /account (every user_id row gone, Apple token revoked) - P-PRIV-04's server half
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T19:00:09Z
+lease_expires_at: 2026-10-07T07:00:09Z
+worktree: .worktrees/T-0287
+branch: task/T-0287
 exclusive: []
 touches: [services/api/, pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-PRIV-04, P-PRIV-05]
@@ -27,3 +27,4 @@ Apple-package task (needs the SIWA entitlement, owner). No deploy.
 
 ## Log
 - 2026-10-06T18:55:41Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M6 SIWA + deletion).
+- 2026-10-06T19:00:09Z claimed by agent/claude-opus-5; lease until 2026-10-07T07:00:09Z
