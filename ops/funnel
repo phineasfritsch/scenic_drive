@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# ops/funnel (--fixture <file> | --live)
+#
+# plan -> preview -> drive -> answer, prettier share and W1/W4 return from the Analytics Engine dataset T-0279
+# writes. A WRAPPER and nothing else: every decision is in ops/lib/funnel.py. --live reads ACCOUNT_ID and
+# AE_READ_TOKEN from the environment only. Exits: 0 printed, 2 usage, 3 credentials absent, 4 response
+# refused, 5 HTTP failed.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec "${PYTHON:-$(command -v python3 || command -v python)}" "$here/ops/lib/funnel.py" "$@"
