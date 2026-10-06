@@ -16,8 +16,8 @@ export interface ReachCache {
   put(key: string, buckets: ReachBucket[], now: Date): Promise<void>;
 }
 
-export function reachCacheKey(start: LatLon, limit: number, now: Date, graphVersion: string): string {
-  return `${start.lat.toFixed(2)},${start.lon.toFixed(2)}|${limit}|${dayKey(now)}|${graphVersion}`;
+export function reachCacheKey(start: LatLon, limit: number, now: Date, graphVersion: string, closuresVersion: string): string {
+  return `${start.lat.toFixed(2)},${start.lon.toFixed(2)}|${limit}|${dayKey(now)}|${graphVersion}|${closuresVersion}`;
 }
 
 /** Seconds from `now` to the next UTC midnight, at least 1. */

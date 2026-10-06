@@ -8,7 +8,7 @@
  * the splitter refuses a route over fastest + budget, each day's ceiling is its share of that, and a full leg over
  * its day's ceiling refuses the whole trip. No stop or lodging source exists on the server yet (R4): places = [].
  */
-import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customModel";
+import { buildCustomModel, formatMultiplier, rejectCustomModel, type ClosureCollection } from "./customModel";
 import { searchLambda } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
 import { budgetSeconds, planRoadTrip, type RoadTripEdge } from "./roadTrip";
@@ -121,14 +121,14 @@ function dayCeilingMs(ceilingMs: number, dayMs: number, totalMs: number): number
 }
 
 export async function planTrip(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
-  days: number, extraBudgetPct: number, full: boolean): Promise<TripResult> {
+  days: number, extraBudgetPct: number, full: boolean, closures: ClosureCollection | null): Promise<TripResult> {
   const fastest = await route(call, routerBase, origin, destination, FAST_PROFILE, undefined);
   const fastestMs = fastest.timeMs;
   const budgetMs = budgetSeconds(fastestMs, extraBudgetPct);
   const ceilingMs = fastestMs + budgetMs;
   const measured = new Map<string, RoutePath>();
   const outcome = await searchLambda(fastestMs / 1000, budgetMs / 1000, async (lambda) => {
-    const path = await route(call, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(lambda, null));
+    const path = await route(call, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(lambda, closures));
     measured.set(formatMultiplier(lambda), path);
     return durationSeconds(path);
   }, MAX_EVALUATIONS);
@@ -146,7 +146,7 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
 
   const totalMs = edges.reduce((sum, e) => sum + e.seconds, 0);
   const vertices = [edges[0]!.start, ...edges.map((e) => e.end)];
-  const model = buildCustomModel(outcome.lambda, null);
+  const model = buildCustomModel(outcome.lambda, closures);
   const result: TripDayResult[] = [];
   let etaMs = totalMs;
   if (full) etaMs = 0;

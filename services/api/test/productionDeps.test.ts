@@ -3,6 +3,7 @@
  * (an in-memory DurableObjectState per instance, R9), the D1 place table from the shipped migration, and a
  * recording router standing in for the global fetch. Counter state is asserted WHOLE after every call.
  */
+import { liveClosures } from "./closuresFake";
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import placesSql from "../migrations/0001_places.sql?raw";
@@ -43,7 +44,7 @@ afterEach(() => {
 function fullEnv(over: Record<string, unknown> = {}): Env {
   const e: Record<string, unknown> = {
     DB: env.DB, GIT_SHA: "test", BUILT_AT: "test",
-    QUOTA: quota.ns, ROUTER_URL: "https://router.test", ROUTER_SECRET: SECRET, ...over,
+    QUOTA: quota.ns, ROUTER_URL: "https://router.test", ROUTER_SECRET: SECRET, CLOSURES: liveClosures(), ...over,
   };
   for (const [key, value] of Object.entries(e)) if (value === undefined) delete e[key];
   return e as unknown as Env;

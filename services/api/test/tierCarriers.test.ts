@@ -4,6 +4,7 @@
  * name in a generated list - answers EXACTLY what no token answers (full equality: the answer, the quota state, the
  * entitlement reads, every console line). The device is at the anon plan limit, so anon is 429 and paid is 200.
  */
+import { liveClosures } from "./closuresFake";
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import placesSql from "../migrations/0001_places.sql?raw";
@@ -45,7 +46,7 @@ async function drive(c: Carrier) {
   let reads = 0;
   const db = { prepare(sql: string) { if (sql === ENTITLEMENTS_FOR_TOKEN) reads += 1; return env.DB.prepare(sql); } };
   const e = { DB: db, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, ROUTER_URL: "https://router.test",
-    ROUTER_SECRET: "test-router-secret" } as unknown as Env;
+    ROUTER_SECRET: "test-router-secret", CLOSURES: liveClosures() } as unknown as Env;
   vi.stubGlobal("fetch", recordingRouter(SANTA_MONICA_TOPANGA, loopPath(squareLoop())).fetchImpl);
   const req = new Request(c.url ?? BASE, { method: "POST", body: JSON.stringify(c.body ?? SANTA_MONICA_TOPANGA_BODY),
     headers: { "content-type": "application/json", "x-scenic-device": DEVICE, ...c.headers } });
@@ -78,7 +79,7 @@ beforeAll(async () => {
   const req = new Request(BASE, { method: "POST", body: JSON.stringify(SANTA_MONICA_TOPANGA_BODY),
     headers: { "content-type": "application/json" } });
   const fresh = await ROUTES["/plan"]!(req, { DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns,
-    ROUTER_URL: "https://router.test", ROUTER_SECRET: "test-router-secret" } as unknown as Env, new URL(req.url));
+    ROUTER_URL: "https://router.test", ROUTER_SECRET: "test-router-secret", CLOSURES: liveClosures() } as unknown as Env, new URL(req.url));
   planOk = { status: fresh.status, json: await fresh.json() };
   vi.unstubAllGlobals();
   vi.useRealTimers();
