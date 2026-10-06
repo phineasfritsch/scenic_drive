@@ -9,7 +9,7 @@ import { applyEntitlement, readEntitlement } from "./entitlementStore";
 
 /** The device's appAccountToken: the random purchase id the app keeps in iCloud Keychain (R8). */
 export const ACCOUNT_TOKEN_HEADER = "x-scenic-account-token";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export interface AsnEnv {
   DB: D1Database;
