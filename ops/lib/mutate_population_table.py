@@ -9,7 +9,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
 DRIVERS = ("budget.py", "extractadapter.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
-           "hazards.py", "menu.py", "normalise.py", "plan.py", "retrace.py", "roadtrip.py", "routescore.py",
+           "hazards.py", "menu.py", "normalise.py", "placeallow.py", "plan.py", "retrace.py", "roadtrip.py", "routescore.py",
            "scenic_tags.py",
            "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py", "telemetry.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
@@ -22,7 +22,7 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Surprise/SurpriseContext.swift", "Sources/ScenicKit/Surprise/SurpriseReason.swift",
     "Sources/ScenicKit/Surprise/SurprisePick.swift",
     "services/etl/etl/accessrule.py", "services/etl/etl/extractadapter.py",
-    "services/etl/etl/normalise.py", "services/etl/etl/proximity.py",
+    "services/etl/etl/normalise.py", "services/etl/etl/placeallow.py", "services/etl/etl/proximity.py",
     "services/etl/etl/region_reference.py", "services/etl/etl/scenecheck.py",
     "services/etl/etl/sinuosity.py",
     "services/etl/etl/snap.py", "services/etl/etl/surfacecoverage.py", "services/etl/etl/tagwriter.py",
