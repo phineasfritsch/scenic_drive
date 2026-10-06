@@ -1,13 +1,13 @@
 ---
 id: T-0270
 title: the bundled tiny fallback corpus - an ETL target that writes a size-capped LA places-only corpus the app ships in its bundle, so Surprise and the plan sheet are never empty before the first-run download
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-06T00:35:18Z
+lease_expires_at: 2026-10-06T12:35:18Z
+worktree: .worktrees/T-0270
+branch: task/T-0270
 exclusive: [scenic-index]
 touches: [services/etl/etl/, services/etl/tests/, ops/, apps/ios/ScenicDrive/Corpus/, .gitignore, Tests/PlaceStoreTests/, ops/mutate/, ops/lib/mutate-population-allowlist.json, ops/lib/mutate_population_table.py]
 pins_affected: [P-PROD-05, P-DATA-03, P-ATTR-02]
@@ -28,3 +28,4 @@ ODbL: the file is a Derivative Database of OSM; LICENSE-DATA / NOTICE already co
 
 ## Log
 - 2026-10-06T00:33:34Z filed by agent/claude-opus-5 (orchestrator) after PR #157 (T-0266) merged.
+- 2026-10-06T00:35:18Z claimed by agent/claude-opus-5; lease until 2026-10-06T12:35:18Z
