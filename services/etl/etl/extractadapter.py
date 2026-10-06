@@ -41,6 +41,7 @@ import sys
 from .accessrule import access_refused
 from .surface import SURFACE_PAVED, SURFACE_UNKNOWN, SURFACE_UNPAVED, surface_state
 from .tagfilter import WAY_CLASSES
+from . import placeallow
 
 HIGHWAY_KEY = "highway"
 NAME_KEY = "name"
@@ -49,6 +50,7 @@ ONEWAY_KEY = "oneway"
 JUNCTION_KEY = "junction"
 REGION_KEY = "region"
 META_KEY = "meta"
+PLACES_KEY = "places"
 
 # The reporting classes, inverted once. Derived from `tagfilter`, never a second literal list: a class
 # added there is adapted the same day, and a class removed there stops being adapted the same day.
@@ -189,14 +191,23 @@ def main(argv: list | None = None) -> int:
     parser.add_argument("--input", required=True, help="a document written by `python -m etl.waydoc`")
     parser.add_argument("--out", required=True, help="the JSON extract `python -m etl.corpus` reads")
     parser.add_argument("--region", default=None, help="default: the document's own region")
+    parser.add_argument("--places-osm", default=None,
+                        help="OSM XML filtered by `python -m etl.placeallow --expressions`; adds `places`")
     args = parser.parse_args(argv)
 
     with open(args.input, "r", encoding="utf-8") as handle:
         doc = json.load(handle)
     document, counts = adapt_document(doc, region=args.region)
+    place_counts = None
+    if args.places_osm is not None:
+        # T-0266 R1: the places array `extractplace.load_places` reads, from the allowlist. Absent flag,
+        # absent key - every extract built without it is byte-identical to before.
+        document[PLACES_KEY], place_counts = placeallow.select(args.places_osm)
     pathlib.Path(args.out).write_text(json.dumps(document, separators=(",", ":")) + "\n",
                                       encoding="utf-8", newline="\n")
     print(count_line(counts))
+    if place_counts is not None:
+        print(placeallow.count_line(place_counts))
     return 0
 
 
