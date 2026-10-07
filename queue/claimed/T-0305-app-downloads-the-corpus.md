@@ -31,3 +31,60 @@ PMTiles download is a later task. The R2 manifest is not published yet (owner de
 ## Log
 - 2026-10-07T19:09:58Z filed by agent/claude-opus-5 (orchestrator) from T-0300 O11 and the milestone gap map (M4).
 - 2026-10-07T19:10:12Z claimed by agent/claude-opus-5; lease until 2026-10-08T15:10:12Z
+- 2026-10-07T19:14:04Z MEASURED, then RULINGS before any test (agent/claude-opus-5, owner). Read: CLAUDE.md, queue/done/T-0300
+  (O1 the manifest's five keys and nothing else, O4 slots, O5 CorpusFetcher, O7 openForLaunch, O11), T-0294 (R1 PlanAdapter
+  the only apps/ios importer of ScenicAPIClient, R7 `plan.base.url`, the rv1 B1 full-height ruling), T-0290, T-0303, both
+  Package.swift files, ScenicDriveApp.swift, SurpriseDeck.swift and PlanPlaceSearch.swift (each opens `corpus-fallback`
+  from Bundle.main in a static lazy), ops/lib/check-safety-disclaimer-{pinned,doors,linked-digests.txt},
+  ops/lib/check-map-attribution-sheet, ops/mutate/corpusota*.py. MEASURED: the manifest carries no URL (O1); stage()
+  deletes the staging file BEFORE every fetch, so a resume cannot live in the staging file; the shell imports no root
+  module; PINNED_APP_SWIFT pins every apps/ios .swift by digest, PINNED_SURPRISE pins SurpriseDeck.swift a second time,
+  PINNED_SHELL_DIGEST pins the shell, DOORS_PACKAGE pins the app manifest's name/path/product lines, and every `.sheet(`
+  in the app tree is a whole-line approval in check-map-attribution-sheet (today Settings' and the plan sheet's).
+  - R1 MANIFEST URL. UserDefaults `corpus.manifest.url` (a `-corpus.manifest.url https://...` launch argument sets it),
+    the same seam as T-0294 R7's `plan.base.url`. Absent or not https: no request is ever made, no sheet is shown, and
+    the bundled fallback stays the corpus (T-0270). The CORPUS file's URL is not in the manifest (O1 froze five keys),
+    so it is RULED here: the manifest's sibling `corpus-<version>.sqlite` (`URLSessionCorpusFetcher.corpusURL(for:)`).
+    The owner's R2 publish must lay files out that way - recorded as STILL OPEN, not assumed published.
+  - R2 URLSESSION OWNER. ScenicAPIClient, beside URLSessionPlanTransport; FoundationNetworking behind `canImport`, so it
+    builds and its tests run on Linux and this box. Root Package.swift (lock held): ScenicAPIClient and its test target
+    gain the PlaceStore dependency (CorpusFetcher, CorpusManifest). No path line changes (ROOT_PATH_LINES untouched).
+  - R3 FETCHER. `URLSessionCorpusFetcher` conforms to CorpusFetcher and streams through a URLSessionDataDelegate into a
+    RESUME file `<staging dir>/corpus-<sha256>.part` (keyed by the manifest's hash, so one corpus never resumes into
+    another's bytes; stage() removes only the staging file, so the part survives a failed attempt). Only when exactly
+    `manifest.bytes` have arrived is the part renamed to `destination`. Resume table: no part or 0 bytes - no Range
+    header, 200 expected; partial n (0 < n < bytes) - `Range: bytes=n-`, a 206 appends, a 200 (Range ignored) rewrites
+    from byte 0; complete-but-unverified (n == bytes) - NO request, renamed, and stage()'s verify decides; n > bytes -
+    deleted, fresh. Typed `CorpusFetchError`: `.status(Int)` for any other status (part deleted: the server's state is
+    unknown), `.shortBody(received:expected:)` (part KEPT: that is a resumable drop), `.longBody(expected:)` (part
+    deleted), `.transport(code:)` a dropped connection (part KEPT). None of them leaves a `destination` (staging) file.
+    Progress is a `@Sendable (Int, Int) -> Void` of (bytes on disk, manifest.bytes).
+  - R4 WIRING WITHOUT A FEATURE IMPORTING ScenicAPIClient. The shell imports no root module and features may not import
+    ScenicAPIClient, so the live side is PlanAdapter (already the ONLY apps/ios importer of ScenicAPIClient; a second
+    adapter would widen T-0294 R1's whitelist): it gains PlaceStore and `LiveCorpus` (Application Support directory,
+    the GRDB-validating `CorpusUpdater(directory:drives:)`, manifest fetch, `CorpusUpdater.decide`, `stage`). PlaceStore
+    gains `LaunchCorpus` (+ the value `CorpusLaunch`): `LaunchCorpus.open(updater:fallback:)` runs
+    `openForLaunch(isColdLaunch: true)`, then chooses the active corpus when the file exists, else the fallback, and
+    records the choice; SurpriseDeck and PlanPlaceSearch ask `LaunchCorpus.url(fallback:)` instead of the bundle alone.
+    The shell's `init()` calls `LiveCorpus.launch()` - before any body, so before either feature's static store opens.
+  - R5 SHEET. `CorpusDownloadSheet` lives in Entitlements (DesignSystem only; plain values and closures, no PlaceStore -
+    it sits beside Settings, whose toggle it shares). The shell presents it FULL HEIGHT (no presentationDetents, the
+    T-0294 rv1 B1 ruling) through ONE new approved whole line `.sheet(isPresented: $isShowingCorpusDownload) {` in
+    check-map-attribution-sheet, beside Settings' and the plan's - a typed approval, never a widened pattern. It is shown
+    on launch only when a manifest URL is configured and no downloaded corpus is active; it shows progress; "Not now"
+    closes it and the download carries on - Surprise Me and search keep reading the fallback, nothing waits on it; the
+    new corpus is used from the next cold launch (O7), and the sheet says so.
+  - R6 WI-FI ONLY. UserDefaults `corpus.wifi.only`, absent = true; a Settings toggle on the same key (@AppStorage).
+    `URLSessionCorpusFetcher.configuration(wifiOnly:)` sets `allowsCellularAccess = !wifiOnly`; tested on Linux.
+  - R7 TESTS. URLSessionCorpusFetcherTests over a scripted StubCorpusURLProtocol (response, data chunks, a failure,
+    finish), every request and the whole directory compared by full equality. CorpusLaunchTests (PlaceStoreTests,
+    Foundation only): the cross product active {absent, present} x pending {none, good, bad} x fallback {nil, URL},
+    12 rows, each row's expected `CorpusLaunch` computed from the row and compared by full equality with what
+    `LaunchCorpus.open` returns AND what `LaunchCorpus.url(fallback:)` answers after it. The acceptance's four states:
+    no download (absent, none), pending (good), activated (present, none), rejected (bad).
+  - R8 POPULATION. ops/mutate/corpusfetch.py (+ _mutations, _run) over URLSessionCorpusFetcher.swift,
+    CorpusDownloadDelegate.swift and LaunchCorpus.swift with a literal floor; DRIVERS and COVERED_FLOOR gain it; the
+    declaration-only CorpusFetchError and CorpusLaunch go to the allowlist with one reason each.
+  - R9 PINS. apps/ios digests are in check-safety-disclaimer-pinned (PINNED_APP_SWIFT, PINNED_SURPRISE,
+    PINNED_SHELL_DIGEST) and its app-manifest lines in -doors DOORS_PACKAGE; Sources/ rows in
+    check-safety-disclaimer-linked-digests.txt. Every one is re-typed in the commit that changes its file.
