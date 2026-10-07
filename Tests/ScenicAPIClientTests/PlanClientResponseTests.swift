@@ -185,6 +185,48 @@ final class PlanClientResponseTests: XCTestCase {
         XCTAssertEqual(route, .routingOffline)
     }
 
+    /// rv1-t0293 B2: the reader's whole (status, code) table, typed. Every other reply answers `fallback(status)`.
+    private static let mapped: [String] = [
+        "400 invalid_request", "404 unknown_place", "422 no_scenic_alternative", "422 region_unsupported",
+        "429 quota_exhausted", "500 ceiling_breached", "500 no_recorded_lambda", "502 no_route", "503 planning_paused",
+        "503 planning_unavailable",
+    ]
+    private static let mappedStatuses = [400, 404, 422, 429, 500, 502, 503]
+    /// No code the reader maps: a foreign code, no `error` field, a body that is not JSON, no body at all.
+    private static let foreignBodies = [#"{"error":"something_else"}"#, #"{"detail":"no error field"}"#,
+                                        "<html>not json</html>", ""]
+
+    private static func fallback(_ status: Int) -> PlanError {
+        (500...599).contains(status) ? .routingOffline : .unexpectedResponse(status: status)
+    }
+
+    func testEveryMappedStatusWithAForeignCodeOrNoBodyIsTheFallback() async {
+        XCTAssertEqual(Set(Self.mapped.map { Int($0.prefix(3))! }), Set(Self.mappedStatuses))
+        var answered: [String] = []
+        var expected: [String] = []
+        for status in Self.mappedStatuses {
+            for body in Self.foreignBodies {
+                answered.append("\(status) \(body) -> \(String(describing: await literal(status, body)))")
+                expected.append("\(status) \(body) -> \(String(describing: Optional(Self.fallback(status))))")
+            }
+        }
+        XCTAssertEqual(answered, expected)
+    }
+
+    /// Every status 100...599 with every mapped code and a foreign one: exactly the typed rows leave the fallback,
+    /// except 503 planning_unavailable, whose case IS the 5xx fallback (routingOffline).
+    func testOnlyTheTypedStatusCodePairsLeaveTheFallback() async {
+        let codes = Set(Self.mapped.map { String($0.dropFirst(4)) }).union(["something_else"]).sorted()
+        var left: [String] = []
+        for status in 100...599 {
+            for code in codes {
+                let body = #"{"error":"\#(code)","detail":"d","resets_at":"2026-10-06T00:00:00.000Z"}"#
+                if await literal(status, body) != Self.fallback(status) { left.append("\(status) \(code)") }
+            }
+        }
+        XCTAssertEqual(left, Self.mapped.filter { $0 != "503 planning_unavailable" })
+    }
+
     func test502WithoutNoRouteIsRoutingOffline() async {
         let gateway = await literal(502, "error code: 502")
         XCTAssertEqual(gateway, .routingOffline)

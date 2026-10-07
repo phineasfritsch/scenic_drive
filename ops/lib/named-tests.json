@@ -216,6 +216,10 @@
         "the served-region gate on every planning route (T-0293, P-COST-01) > a coordinate just outside any edge or corner of either served box is 422 region_unsupported on every route, before any quota touch, with zero router requests",
         "the served-region gate on every planning route (T-0293, P-COST-01) > a coordinate on any exact edge or corner of either served box passes the gate on every route: the spent quota answers 429 whole, with zero router requests",
         "the served-region gate on every planning route (T-0293, P-COST-01) > a coordinate one ulp past an edge is the whitelist's 400, never the gate's 422: 0.01 is the gate's granularity"
+      ],
+      "test/regionGateOrder.test.ts": [
+        "the region gate precedes every precondition after it (T-0293 rv1 B1, R5, P-COST-01) > no row ignores its precondition: inside the region each row changes the route's answer on exactly its typed routes",
+        "the region gate precedes every precondition after it (T-0293 rv1 B1, R5, P-COST-01) > an out-of-region coordinate is 422 region_unsupported whole under every precondition on every route, with zero D1 reads, zero KV reads, zero router requests and an untouched quota"
       ]
     }
   },

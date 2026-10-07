@@ -24,10 +24,10 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-region");
 
-export const MIN_MUTATIONS = 40;
+export const MIN_MUTATIONS = 52;
 export const SUBJECTS = ["src/servedRegion.ts", "src/plan.ts", "src/loop.ts", "src/trip.ts", "src/isochrone.ts",
   "src/waitlist.ts", "src/index.ts", "migrations/0006_waitlist.sql"];
-const TESTS = ["test/regionGate.test.ts", "test/waitlist.test.ts", "test/migrationColumns.test.ts", "test/planWire.test.ts",
+const TESTS = ["test/regionGate.test.ts", "test/regionGateOrder.test.ts", "test/waitlist.test.ts", "test/migrationColumns.test.ts", "test/planWire.test.ts",
   "test/routes.test.ts", "test/killSwitchRoutes.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: file.startsWith("migrations/") ? file : `src/${file}`, find, replace });
@@ -35,6 +35,14 @@ const S = "servedRegion.ts";
 const W = "waitlist.ts";
 const MIG = "migrations/0006_waitlist.sql";
 const gate = (field) => `  if (!inServedRegion(request.${field})) return json({ error: "region_unsupported" }, 422);\n`;
+const DEPS = "  if (deps === null) return json({ error: \"planning_unavailable\" }, 503);\n";
+const RESOLVE = "\n  let destination: LatLon | null;\n  try {\n    destination = await deps.resolvePlace(request.destinationPlace);\n"
+  + "  } catch {\n    return json({ error: \"planning_unavailable\" }, 503);\n  }\n"
+  + "  if (destination === null) return json({ error: \"unknown_place\" }, 404);\n";
+const WHO = "\n  const who = await deps.identify(req);\n";
+const SNAPSHOT = "\n  const snapshot = await deps.closures();\n";
+/** The gate moved from above `deps === null` to below DEPS + `after`: the precondition then runs first. */
+const below = (id, file, field, after) => m(id, file, gate(field) + DEPS + after, DEPS + after + gate(field));
 export const MUTATIONS = [
   m("lat-min-dropped", S, "point.lat >= box.min_lat && ", ""),
   m("lat-max-dropped", S, "point.lat <= box.max_lat && ", ""),
@@ -78,6 +86,20 @@ export const MUTATIONS = [
   m("answer-echoes-cell", W, "json({ waitlisted: true }, 200)", "json({ waitlisted: true, cell: parsed.cell }, 200)"),
   m("migration-address-column", MIG, "  count INTEGER", "  address TEXT,\n  count INTEGER"),
   m("migration-device-column", MIG, "  count INTEGER", "  device_id TEXT,\n  count INTEGER"),
+  // rv1-t0293 B1: the gate moved below each precondition that follows it, on every route it follows on.
+  below("plan-gate-below-deps", "plan.ts", "origin", ""),
+  below("loop-gate-below-deps", "loop.ts", "start", ""),
+  below("trip-gate-below-deps", "trip.ts", "origin", ""),
+  below("isochrone-gate-below-deps", "isochrone.ts", "start", ""),
+  below("plan-gate-below-resolve", "plan.ts", "origin", RESOLVE),
+  below("trip-gate-below-resolve", "trip.ts", "origin", RESOLVE),
+  below("loop-gate-below-identify", "loop.ts", "start", WHO),
+  below("trip-gate-below-identify", "trip.ts", "origin", RESOLVE + WHO),
+  below("plan-gate-below-closures", "plan.ts", "origin", RESOLVE + SNAPSHOT),
+  below("loop-gate-below-closures", "loop.ts", "start", WHO + "  const snapshot = await deps.closures();\n"),
+  below("trip-gate-below-closures", "trip.ts", "origin", RESOLVE + WHO + "  const snapshot = await deps.closures();\n"),
+  below("isochrone-gate-below-closures", "isochrone.ts", "start", "\n  const { start, minutes } = request;\n"
+    + "  const limit = oneWayLimit(minutes);\n  const now = deps.upstream.now();\n  const snapshot = await deps.closures();\n"),
 ];
 
 export const EQUIVALENT = [
