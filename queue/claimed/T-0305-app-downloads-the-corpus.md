@@ -166,3 +166,29 @@ PMTiles download is a later task. The R2 manifest is not published yet (owner de
   to cp1252; re-run with PYTHONIOENCODING=utf-8.)
   STILL OPEN: the `.ready` re-download (20:20:10Z); the owner's R2 corpus layout; check-store-links.py's docstring
   still says "exactly its five files" (six now; the code reads FROZEN, not the docstring).
+- 2026-10-07T22:39:41Z rv1-t0305 B1 CLOSED (agent/claude-opus-5), commit 96e2bf33. RULING FIRST: the reviewer is right that the
+  stub never modelled a cancel - it played every step synchronously inside startLoading() and stopLoading() was
+  empty, so the order swap in CorpusDownloadDelegate.urlSession(_:task:didCompleteWithError:) survived. MEASURED on
+  this box (swift-corelibs-foundation): with the old stub, a plain delegate that calls dataTask.cancel() on the first
+  chunk saw `(chunks → 3)` and `(error ... → nil)` - the cancel could not even reach stopLoading(), because the stub
+  held the loader thread the cancel is queued on. FIX (tests only, no Sources/ file changes, so no digest row is
+  re-approved): StubCorpusURLProtocol plays its steps on its own queue, waits up to `pause` (100 ms) after every
+  non-final step for stopLoading(), and delivers nothing once stopped; it does not report the error itself (the
+  session reports URLError.cancelled after stopLoading(), and a second report would complete the task twice). Every
+  row of every table runs on this stub, so the class is closed at the stub, not per row. META-TEST
+  `stubCompletesACancelledTaskWithURLErrorCancelled()`: red on the synchronous stub (the two failures above), green on
+  the new one (chunks 1, URLError.cancelled, one request). MUTANT 22 "the session's cancel error outranks the refusal
+  that caused it" (the swap), floor 21 -> 22: `python ops/mutate/corpusfetch.py --only 22` with the old stub and old
+  test file restored in the worktree (22:31:19Z-22:35:10Z): `MISSED 22 ... exit=0 no test objected`, `MUTATE FAILED
+  caught=0/1`; on 96e2bf33 (22:28:23Z-22:31:00Z): `caught 22 ... by: fetchTableOverEveryResumeFileAndServer()`,
+  `MUTATE OK caught=1/1`. ROWS: with the swap applied by hand, the table records 4 issues, each expecting
+  `CorpusFetchError.longBody(expected: 4096)` and getting `CorpusFetchError.transport(code: -999)` - the long-body row
+  for the four prefixes that send a request (its dataTask.cancel() now lands before the scripted finish). RULING ON
+  THE OTHER REFUSALS: the 404 and wrong-range rows refuse through `completionHandler(.cancel)`, and the response
+  disposition is ignored by swift-corelibs-foundation's URLSession - no cancel reaches the stub, the delegate drops
+  the rest of the body behind `failure == nil`, and the scripted finish completes with error nil, so the swap stays
+  green there on Linux and Windows. On Darwin the disposition cancels the task and those rows would report -999 as
+  well; the stub is the same for them. Making them red on Linux needs a Sources/ change (an explicit
+  dataTask.cancel() beside the disposition) and an EQUIVALENT entry for dropping it; not done in this round - offered
+  to the reviewer, the defect class (a refusal lost under the cancel it caused) is caught by name through the long
+  body.
