@@ -46,11 +46,17 @@ struct SurprisePlaceMappingTests {
             hook: "A small main street to wander."),
     ]
 
+    /// T-0283 R2: the class prior a mapped place carries as its quality, typed here a second time on purpose.
+    static let prior: [String: Int] = ["viewpoint": 75, "peak": 75, "waterfall": 75, "beach": 75,
+                                       "trailhead": 75, "garden": 75, "park": 50, "museum": 50,
+                                       "town": 50, "cafe": 25]
+
     static func expected(_ row: Row, id: String = "8789912370140821739", name: String = "Saddle Peak",
                          corridor: String = "340:-1186", latitude: Double = 34.0780264,
                          longitude: Double = -118.6550579) -> SurpriseCandidate {
         SurpriseCandidate(id: id, name: name, hook: row.hook, category: row.category, corridor: corridor, brand: nil,
-                          coordinate: Coordinate(latitude: latitude, longitude: longitude), quality: 50,
+                          coordinate: Coordinate(latitude: latitude, longitude: longitude),
+                          quality: prior[row.cls] ?? -1,
                           approachScore: 0, dwellMinutes: row.dwell, opensMinute: row.opens,
                           closesMinute: row.closes, hoursExempt: row.opens == nil, lit: false, unpaved: false,
                           privateApproach: false)

@@ -108,6 +108,14 @@ def days(today, then):
     return (today - then).days
 
 
+# T-0283 R1: the time-fit peaks at 70% of the dial (100), falls 2 a percentage point, never below 0.
+FIT_PEAK, FIT_SLOPE = 70, 2
+
+
+def time_fit(rt, budget):
+    return max(0, 100 - FIT_SLOPE * abs(rt * 100 // max(budget, 1) - FIT_PEAK))
+
+
 def eligible(cands, ctx, hist):
     today = ctx["date"]
     budget = ctx["budget"]
@@ -146,7 +154,7 @@ def eligible(cands, ctx, hist):
             continue
         novel = [days(today, s["date"]) for s in hist.get("shown", []) if s["category"] == c["category"]]
         novelty = 100 if not novel else min(100, max(0, min(novel)))
-        score = c["quality"] + c["approach"] + novelty + rt * 100 // max(ctx["budget"], 1)
+        score = c["quality"] + c["approach"] + novelty + time_fit(rt, ctx["budget"])
         out.append((score, c))
     return out
 

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import pathlib
 
+import surprise_fit_mutations
 import surprise_offline_mutations
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -53,7 +54,8 @@ MUTATED_FILES = SUBJECTS
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Surprise"
 TEST_FILES = (_TESTS / "SurpriseFilterTests.swift", _TESTS / "SurpriseRankTests.swift",
               _TESTS / "SurpriseFeedbackTests.swift", _TESTS / "SurpriseReachParityTests.swift",
-              _TESTS / "SurpriseIsochroneTests.swift") + surprise_offline_mutations.TEST_FILES
+              _TESTS / "SurpriseIsochroneTests.swift") + surprise_offline_mutations.TEST_FILES + \
+    surprise_fit_mutations.TEST_FILES
 
 F1 = "filter 1: a place whose round trip exceeds the budget, or lies outside the reach, is never picked"
 F2 = "filter 2: a place shown within 90 days is never picked; 90 days ago it may return"
@@ -63,10 +65,10 @@ F5 = "filter 5: a place not open from arrival to arrival + dwell + 45 min is nev
 F6 = "filter 6: an unlit unpaved viewpoint arriving after civil twilight is never picked"
 F7 = "filter 7: a red-flag day drops exactly park, trailhead and viewpoint - the oracle's red-flag permutation"
 F8 = "filter 8: an approach crossing private access is never picked"
-TOO_FAR = "not this - too far: the next pick is ojai-02 and no pick that day is 170 min or longer"
-NOT_MINE = "not this - not my thing: the next pick is ojai-02 and no beach for 30 days"
-BEEN = "not this - been there: the next pick is mulholland-09 and lbc-02 never returns, even a year on"
-WRONG = "not this - wrong time: the next pick is mulholland-09 today, and lbc-02 is back tomorrow"
+TOO_FAR = "not this - too far: the next pick is griffith-02 and no pick that day is 132 min or longer"
+NOT_MINE = "not this - not my thing: the next pick is griffith-02 and no park for 30 days"
+BEEN = "not this - been there: the next pick is griffith-02 and sgc-05 never returns, even a year on"
+WRONG = "not this - wrong time: the next pick is griffith-02 today, and sgc-05 is back tomorrow"
 DISTINCT = "P-PROD-02: >= 90 of 100 consecutive seeds give distinct picks over the 127 eligible"
 PERM = "the whole pick permutation equals the oracle's: driver-a, driver-c and driver-b with history"
 WHY = "the WHY: three picks pinned whole - hook, round trip and the golden-hour line from Solar"
@@ -90,7 +92,7 @@ SHOWN = "$0.candidateId == c.id && days(date, since: $0.date) < shownDays"
 CORRIDOR = "$0.category == c.category && $0.corridor == c.corridor"
 OPEN = "return opens <= arrival && arrival + c.dwellMinutes + closingMarginMinutes <= closes"
 DARK = "if c.category == .viewpoint && !c.lit && c.unpaved && isAfterDusk(c, arrival: arrival, context: context) {"
-SCORE = "return c.quality + c.approachScore + novelty + minutes * 100 / max(budget, 1)"
+SCORE = "return c.quality + c.approachScore + novelty + timeFit(minutes: minutes, budget: budget)"
 EXPLORE = "let index = h % 100 < explorePercent ? Int((h >> 32) % UInt64(remaining.count)) : 0"
 ORDER = "remaining.sort { a, b in a.score != b.score ? a.score > b.score : a.candidate.id < b.candidate.id }"
 WRONG_CASE = "case .wrongTime where f.candidateId == c.id && days(date, since: f.date) == 0: return false"
@@ -143,7 +145,7 @@ MUTATIONS = [
     ("29 quality dropped", SURPRISE, SCORE, SCORE.replace("c.quality + ", ""), [PERM]),
     ("30 approach-road score dropped", SURPRISE, SCORE, SCORE.replace("c.approachScore + ", ""), [PERM]),
     ("31 novelty dropped", SURPRISE, SCORE, SCORE.replace("+ novelty ", ""), [PERM]),
-    ("32 time-fit dropped", SURPRISE, SCORE, SCORE.replace(" + minutes * 100 / max(budget, 1)", ""), [PERM]),
+    ("32 time-fit dropped", SURPRISE, SCORE, SCORE.replace(" + timeFit(minutes: minutes, budget: budget)", ""), [PERM]),
     ("33 novelty uncapped", SURPRISE, "since.min().map { min(100, max(0, $0)) } ?? 100",
      "since.min().map { max(0, $0) } ?? 100", [PERM]),
     ("34 lowest score first", SURPRISE, ORDER, ORDER.replace("a.score > b.score", "a.score < b.score"), [PERM]),
@@ -272,7 +274,9 @@ EQUIVALENT = [
 
 # T-0273's 29 entries (95-123) live in surprise_offline_mutations.py.
 MUTATIONS += surprise_offline_mutations.MUTATIONS
+# T-0283's 17 entries (124-140) live in surprise_fit_mutations.py.
+MUTATIONS += surprise_fit_mutations.MUTATIONS
 
-MIN_MUTATIONS = 123
+MIN_MUTATIONS = 140
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 7
