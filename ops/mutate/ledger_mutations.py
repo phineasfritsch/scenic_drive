@@ -8,7 +8,8 @@ ledger_run.py (savedlist's three-file shape).
   * THE READER (12-18): the 429 body, 401, recorded false, a bad row skipped, February, April, day zero;
   * THE MERGE (19-25): nil normalized, the earliest day kept, an unknown id kept, newest first, the tie by id,
     the feedback dropped, the ledger's day ignored;
-  * THE PRE-REVIEW SURVIVORS (26-28): MISSED before their tests landed (T-0307 Log), CAUGHT after.
+  * THE PRE-REVIEW SURVIVORS (26-28): MISSED before their tests landed (T-0307 Log), CAUGHT after;
+  * THE DEDUPE KEY (29-32): the merge keyed by anything but the place id - category, corridor, both, day.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -38,6 +39,9 @@ NOSESSION = "Without a session nothing is sent"
 REFUSED = "A place id or cell the Worker would refuse is refused on the device and nothing is sent"
 MERGED = "The merged history is exactly the expected one, whatever the ledger's order"
 NINETY = "A ledger place shown 89 days ago is never picked; 90 days ago it is picked again"
+# The merge's dedupe: both lines name the key, so a mutant swaps it in both.
+KEY = ("if let held = latest[entry.candidateId], Surprise.days(entry.date, since: held.date) <= 0 { return }\n"
+       "            latest[entry.candidateId] = entry")
 
 MUTATIONS = [
     ("1 an empty token is a session", CLIENT,
@@ -91,6 +95,13 @@ MUTATIONS = [
      [GET]),
     ("27 the first date separator unchecked", READER, "b[4] == 45, ", "", [UNREADABLE]),
     ("28 a day tie handed to the ledger", MERGE, "<= 0 { return }", "< 0 { return }", [MERGED]),
+    # 29-32: the pre-review pass's survivor M2 closed by class - every key that is not the place id.
+    ("29 the merge keyed by category", MERGE, KEY, KEY.replace("entry.candidateId", "entry.category.rawValue"),
+     [MERGED]),
+    ("30 the merge keyed by corridor", MERGE, KEY, KEY.replace("entry.candidateId", "entry.corridor"), [MERGED]),
+    ("31 the merge keyed by category and corridor", MERGE, KEY,
+     KEY.replace("entry.candidateId", 'entry.category.rawValue + "/" + entry.corridor'), [MERGED]),
+    ("32 the merge keyed by day", MERGE, KEY, KEY.replace("entry.candidateId", '"\\(entry.date)"'), [MERGED]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -101,6 +112,6 @@ EQUIVALENT = [
      "entry is refused by the next clause either way"),
 ]
 
-MIN_MUTATIONS = 28
+MIN_MUTATIONS = 32
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 2
