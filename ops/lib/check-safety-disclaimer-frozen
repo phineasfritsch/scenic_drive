@@ -192,6 +192,7 @@ FROZEN_APP_SHELL=(
   'PlanSheetScreen(planner: LivePlanner.make(), onClose: { isPlanning = false })'
   '}'
   '}'
+  '.environment(\.surpriseLedger, LiveSurpriseLedger.make())'
   '}'
   '}'
   '}'

@@ -31,6 +31,7 @@ struct ScenicDriveApp: App {
                             PlanSheetScreen(planner: LivePlanner.make(), onClose: { isPlanning = false })
                         }
                 }
+                .environment(\.surpriseLedger, LiveSurpriseLedger.make())
         }
     }
 }
