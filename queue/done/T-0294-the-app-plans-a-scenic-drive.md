@@ -1,7 +1,7 @@
 ---
 id: T-0294
 title: The app plans a scenic drive - typed destination from the corpus search, extra-minutes, Plan calls the Worker through ScenicAPIClient, and the preview shows the route, ETA vs fastest, the hazard strip and one copy line per PlanError
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T11:14:19Z
@@ -11,7 +11,7 @@ branch: task/T-0294
 exclusive: [package-swift]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/ScenicDriveApp.swift, Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/lib/, pins/PINS.yaml, ops/mutate/]
 pins_affected: [P-SAFE-03, P-PRIV-06, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv2-t0294
 depends_on: [T-0251, T-0254, T-0289]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -214,3 +214,27 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
     row-32 and merge commits, which touch no Swift): `gh run list --branch task/T-0294` -> "completed success
     ios-compile ... 37652193587 2m45s", "completed success ios-screenshot ... 37652201363 12m45s". linux-core on
     PR #187 at 5f5ce915: run 37649039410 "completed success" (the round-1 red was 37644981957).
+- 2026-10-07T17:34:05Z agent/rv2-t0294 (reviewer, round 2 of PR #187, head 825be7a7): PASS.
+  - B1/B2: `git diff origin/main -- ops/lib/check-map-attribution-sheet` adds one whole-line approval,
+    SHELL_PLAN_PRESENTATION='.sheet(isPresented: $isPlanning) {', checked count 1 in a loop with Settings' line,
+    and moves the shell's `.sheet(` count from 1 to 2. The two dead SHELL_PRESENTATION reassignments are gone.
+    `grep -n presentationDetents` over FeaturePlanSheet/PlanSheetScreen.swift exits 1, so there is no partial detent.
+    One-row runs (copied apps/ios + git init, then `check-map-attribution --app-tree`): shipped "attr exit=0".
+    H6b with the row's own sed gives "exit=1" and "presentationDetents at
+    Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift(1), tracked nowhere". Reviewer mutant RV2a puts
+    `.presentationDetents([.medium])` on PlanSheetScreen( at the shell call site and gives "exit=1" and
+    "presentationDetents at ScenicDrive/ScenicDriveApp.swift(1), tracked nowhere". RV2b adds a third shell
+    `.sheet(isPresented: $isPlanning) { EmptyView() }` and gives "exit=1", "P-ATTR-01: a presentation over the map
+    outside its approved site".
+  - B3: `python ops/mutate/plansheet.py --only 31` (MY1) gives "caught 31 latitude rounded up (rv1-t0294 B3, MY1)
+    by: the origin is each axis to the nearest hundredth, half away from zero, on every sign" and "MUTATE OK
+    caught=1/1". Reviewer mutant RV2-R changes the latitude to `.rounded(.toNearestOrEven)`. swift test
+    --filter PlanSheetTests gives exit=1 with two issues on that test, at rows 0.125 (sent 0.12, want 0.13) and
+    -0.125 (sent -0.12, want -0.13). The tree was restored clean and the baseline is "10 tests in 1 suite passed".
+  - CI: `gh pr checks 187` gives "core pass 4m3s" and "pins-source-only pass 2m0s". ios-compile 37657894366 and
+    ios-screenshot 37657898492 were dispatched by the reviewer on task/T-0294 and both show "825be7a7 completed
+    success". linux-core 37656578783 shows "825be7a7 completed success". `bash ops/queue-check` gives
+    "QUEUE OK (293 tasks)". Ancestry, checked last: HEAD == origin/task/T-0294 == 825be7a7, and origin/main e43d7465
+    is an ancestor.
+  - Recordable: the full 32-entry plansheet population has still not been run in one pass (owner-approved
+    `--only` subsets).
