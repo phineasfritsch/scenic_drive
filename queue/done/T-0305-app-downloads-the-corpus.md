@@ -1,7 +1,7 @@
 ---
 id: T-0305
 title: The app downloads and activates the places corpus - a URLSession CorpusFetcher, a first-run download sheet (resumable, Wi-Fi-only by default, progress), and openForLaunch on every cold launch, with the bundled fallback until a download lands
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T19:10:12Z
@@ -11,7 +11,7 @@ branch: task/T-0305
 exclusive: [package-swift]
 touches: [Package.swift, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/PlaceStore/, Tests/PlaceStoreTests/, apps/ios/Packages/ScenicApp/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PROD-05, P-ATTR-01, P-SAFE-03]
-reviewer: null
+reviewer: agent/rv2-t-0305
 depends_on: [T-0300, T-0294, T-0303]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -192,3 +192,19 @@ PMTiles download is a later task. The R2 manifest is not published yet (owner de
   dataTask.cancel() beside the disposition) and an EQUIVALENT entry for dropping it; not done in this round - offered
   to the reviewer, the defect class (a refusal lost under the cancel it caused) is caught by name through the long
   body.
+
+- 2026-10-07T23:22:45Z agent/rv2-t-0305 - REVIEW round 2 PASS on PR #195 head ee6c2182 (origin/main 3c8b6106 is an
+  ancestor). rv1 B1 re-applied: `python ops/mutate/corpusfetch.py --only 22` -> "caught 22 the session's cancel
+  error outranks the refusal that caused it by: fetchTableOverEveryResumeFileAndServer()", MUTATE OK caught=1/1,
+  pristine md5 == HEAD. Own mutants on the delegate (unwritten, applied by hand, restored): A
+  `failure = .longBody(expected: expected)` -> `.shortBody(received: onDisk, expected: expected)` - RED by name,
+  fetchTableOverEveryResumeFileAndServer() 4 issues (got shortBody(4096,4096) with part 4096 bytes kept, expected
+  longBody(4096) with part nil); B `guard failure == nil, let handle` -> `guard let handle` - RED by name, same test,
+  1 issue. Pristine swift test URLSessionCorpusFetcherTests|CorpusLaunchTests: 7 tests in 2 suites passed.
+  check-safety-disclaimer rc=0, check-safety-disclaimer-linked rc=0, queue-check QUEUE OK (298 tasks). gh pr checks
+  195: core pass 4m29s, pins-source-only pass 2m58s. On ee6c2182: linux-core success; ios-compile and ios-screenshot
+  dispatched by this review (runs 37700336681, 37700340742), both success. Recorded, not blocking: the 404 and
+  wrong-range refusal rows cannot see the disposition cancel on swift-corelibs-foundation, so swap 22 is caught only
+  through the long-body rows off Darwin; the defect class is caught by name and the app ships on Darwin. Recorded
+  carry-overs from the owner: the .ready re-download, the owner's R2 corpus layout, and the check-store-links.py
+  docstring saying five frozen files (six; code reads FROZEN).
