@@ -118,6 +118,10 @@
         "the identity-token verifier is pinned (T-0287 rv3 B1, P-PRIV-04) > the identity-token verifier is exactly the approved bytes",
         "the identity-token verifier is pinned (T-0287 rv3 B1, P-PRIV-04) > every line naming a token field, the issuer, the bundle id, the nonce or the key lookup is an approved site, file by file",
         "the identity-token verifier is pinned (T-0287 rv3 B1, P-PRIV-04) > every src module the verifier and its key lookup import is pinned"
+      ],
+      "test/ledgerIdentity.test.ts": [
+        "/ledger's user is the session sub by behaviour (T-0304 R4) > no combination ignores the sub: every combination's expected answers and table differ between the two subs",
+        "/ledger's user is the session sub by behaviour (T-0304 R4) > an apple or act claim and an x-scenic-device header beside a valid Bearer change nothing: GET, POST, GET answer the sub's rows and leave the sub's table, full equality"
       ]
     }
   },
@@ -244,6 +248,13 @@
       ],
       "test/ledger.test.ts": [
         "GET and POST /ledger hold exactly the caller's Surprise places for 90 days (T-0302 R1-R5) > KILL=1 and the KV KILL_SWITCH do not pause /ledger: D1 only, zero router requests, no quota reservation (R7)"
+      ],
+      "test/ledgerCap.test.ts": [
+        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > no row ignores the writer: every row's expected answer or table differs between the two writers",
+        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > at cap-2, cap-1 and cap rows held and across the UTC midnight, the write answers 200 or 429 ledger_daily_cap and leaves exactly the expected table, for each writer",
+        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > no row ignores the stale owner: every row's expected table differs between the writer's own stale row and the other's",
+        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > every refused row and every recorded row runs with the stale row owned by the writer and by the other user",
+        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > the answer turns on D1's admission row alone: only admitted exactly 1 records, every other batch result shape is 429"
       ]
     }
   },
