@@ -149,6 +149,9 @@
       "test/telemetryFixture.test.ts": [
         "POST /telemetry over the Swift encoder's own JSON (T-0279 R10) > every fixture row is accepted alone and written to Analytics Engine as the identical {indexes, blobs, doubles}",
         "POST /telemetry over the Swift encoder's own JSON (T-0279 R10) > every published res-5 cell of uber/h3 (rand05centers and the pentagon ring) is an accepted plan_requested cell"
+      ],
+      "test/migrationColumns.test.ts": [
+        "the D1 schema the shipped migrations build (T-0293 R10) > no column of any table the shipped migrations create names home, address, breadcrumb, trail or speed (P-PRIV-05)"
       ]
     },
     "swift": {
@@ -204,10 +207,26 @@
         "ROUTES kill switch over every upstream route (P-COST-01) > every upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests, quota state empty",
         "ROUTES['/telemetry'] kill switch (T-0279 R8, P-COST-01) > ROUTES['/telemetry'] pauses on env KILL and on KV KILL_SWITCH: 503 telemetry_paused, zero Analytics Engine writes, quota state empty"
       ],
+      "test/sharedEnvWorker.test.ts": [
+        "the shared-env worker after an authenticated sweep (T-0292, P-COST-01) > the authenticated sweep sends every ROUTES path a valid, an invalid and an authenticated request on one env per KILL source, and no request throws",
+        "the shared-env worker after an authenticated sweep (T-0292, P-COST-01) > after the sweep, every upstream route and /telemetry on the shared env answers the whole paused response under every killing source, and is served under every other",
+        "handlers get a frozen env (T-0292 R1, P-COST-01) > a handler that deletes, assigns or redefines env.KILL through worker.fetch throws TypeError, and the next POST /plan on the same env object is 503 planning_paused"
+      ],
       "test/telemetryCost.test.ts": [
         "POST /telemetry spend control (T-0279 R5/R6, P-COST-01) > KILL=1 or the KV KILL_SWITCH key is 503 telemetry_paused before the body is read: zero writes, no reservation",
         "POST /telemetry spend control (T-0279 R5/R6, P-COST-01) > the request's events are reserved in one transaction before the first Analytics Engine write",
         "POST /telemetry spend control (T-0279 R5/R6, P-COST-01) > a request that would cross the cap is refused whole; one that lands on it is written"
+      ],
+      "test/regionGate.test.ts": [
+        "the served-region gate on every planning route (T-0293, P-COST-01) > the gate's bounds are the la and sfbay region.json bboxes, typed out here",
+        "the served-region gate on every planning route (T-0293, P-COST-01) > every row is a function of the route: four distinct bodies, each the route's reference body with only its coordinate replaced",
+        "the served-region gate on every planning route (T-0293, P-COST-01) > a coordinate just outside any edge or corner of either served box is 422 region_unsupported on every route, before any quota touch, with zero router requests",
+        "the served-region gate on every planning route (T-0293, P-COST-01) > a coordinate on any exact edge or corner of either served box passes the gate on every route: the spent quota answers 429 whole, with zero router requests",
+        "the served-region gate on every planning route (T-0293, P-COST-01) > a coordinate one ulp past an edge is the whitelist's 400, never the gate's 422: 0.01 is the gate's granularity"
+      ],
+      "test/regionGateOrder.test.ts": [
+        "the region gate precedes every precondition after it (T-0293 rv1 B1, R5, P-COST-01) > no row ignores its precondition: inside the region each row changes the route's answer on exactly its typed routes",
+        "the region gate precedes every precondition after it (T-0293 rv1 B1, R5, P-COST-01) > an out-of-region coordinate is 422 region_unsupported whole under every precondition on every route, with zero D1 reads, zero KV reads, zero router requests and an untouched quota"
       ]
     }
   },
@@ -1190,6 +1209,21 @@
         "a paid trip re-requests the search and its legs only inside TRIP_UPSTREAM_COST (T-0286 C5, P-COST-04, P-SAFE-08) > /trip paid, the last leg's re-request over its day ceiling: not shown; the crossing leg returned, X named",
         "meta: no trip cap row ignores its variant (T-0286) > for each crossing, the four day counts expect four different answers; for each day count, the three crossings differ",
         "meta: no trip cap row ignores its variant (T-0286) > the cap is reached, never passed: the most requests any row expects is 12"
+      ]
+    }
+  },
+  "P-PRIV-06": {
+    "vitest": {
+      "test/waitlist.test.ts": [
+        "POST /waitlist counts a coarse cell and nothing else (T-0293 R8, P-PRIV-06) > the two variants differ, so no row can pass by ignoring the table it runs over",
+        "POST /waitlist counts a coarse cell and nothing else (T-0293 R8, P-PRIV-06) > a valid cell is 200 waitlisted and adds one to that cell's row, dated by the UTC day only, over both variants",
+        "POST /waitlist counts a coarse cell and nothing else (T-0293 R8, P-PRIV-06) > every other body is 400 invalid_request with its detail, and the table is the variant's own, over both variants",
+        "POST /waitlist counts a coarse cell and nothing else (T-0293 R8, P-PRIV-06) > a method other than POST is 405 and writes nothing",
+        "POST /waitlist counts a coarse cell and nothing else (T-0293 R8, P-PRIV-06) > no D1 binding, or a D1 whose write throws, is 503 waitlist_unavailable",
+        "POST /waitlist counts a coarse cell and nothing else (T-0293 R8, P-PRIV-06) > is kill-switch-exempt and quota-exempt by ruling: KILL=1 and a KV KILL still count the cell, with no quota touch"
+      ],
+      "test/migrationColumns.test.ts": [
+        "the D1 schema the shipped migrations build (T-0293 R10) > the waitlist table is exactly (cell, count, updated_at): no column can hold a person (P-PRIV-06)"
       ]
     }
   }
