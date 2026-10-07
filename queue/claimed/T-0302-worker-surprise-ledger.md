@@ -1,13 +1,13 @@
 ---
 id: T-0302
 title: Worker /ledger - a signed-in device records which Surprise places it was shown (place id + H3-5 cell + UTC day) and reads back its last 90 days, so the 90-day no-repeat survives reinstall; nothing finer than H3-5 is ever stored
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T15:53:34Z
+lease_expires_at: 2026-10-08T05:53:34Z
+worktree: .worktrees/T-0302
+branch: task/T-0302
 exclusive: []
 touches: [services/api/src/, services/api/test/, services/api/migrations/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-PRIV-04, P-PRIV-05, P-COST-01]
@@ -29,3 +29,4 @@ server never holds a coordinate or anything finer than an H3-5 cell (plan, Telem
 
 ## Log
 - 2026-10-07T15:50:09Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M6 ledger).
+- 2026-10-07T15:53:34Z claimed by agent/claude-opus-5; lease until 2026-10-08T05:53:34Z
