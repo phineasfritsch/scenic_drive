@@ -1,7 +1,7 @@
 ---
 id: T-0304
 title: /ledger holds the "session sub only" identity by behaviour (not only by the request-read whitelist) and caps each user's writes per day
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T17:44:56Z
@@ -11,7 +11,7 @@ branch: task/T-0304
 exclusive: []
 touches: [services/api/src/ledger.ts, services/api/test/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-PRIV-04, P-COST-01]
-reviewer: null
+reviewer: agent/rv2-t0304
 depends_on: [T-0302]
 verify: [ops/check-pins]
 acceptance:
@@ -118,3 +118,10 @@ claim or a header beside a valid Bearer; and POST /ledger has no per-user write 
   - Acceptance: (1) identity rows unchanged - MET. (2) cap rows now range over the stale owner; the (cap+1)th write is
     429 with the table unchanged whoever owns the stale row; no admission row is 429 - MET. (3) population 61/61 floor;
     the rv1-t0304 pair MISSED before (0/2), CAUGHT by name after (4/4 with the touched purge entries) - MET.
+- 2026-10-07T18:48:09Z agent/rv2-t0304 REVIEW round 2 PASS (PR #192, head e0fb89df). Re-applied rv-refusal-purges-own-stale through
+  ledgerMutants.mjs --only: CAUGHT by "at cap-2, cap-1 and cap rows held and across the UTC midnight, the write answers
+  200 or 429 ledger_daily_cap and leaves exactly the expected table, for each writer" (caught=1 of 1). Own mutant
+  rv2-purge-binds-window-start-as-today (PURGE_LEDGER bound with the window start as ?3, so its admission count reads an
+  empty day and a refusal purges): CAUGHT by the same test (1 failed, 14 passed). vitest 75 files 2125/2125, exit 0.
+  ops/queue-check bare: QUEUE OK (295 tasks). gh pr checks 192: pins-source-only pass, core pending (not confirmed).
+  origin/main 4ece8567 is an ancestor of the head. Signed off; not merged.
