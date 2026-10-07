@@ -49,3 +49,7 @@ PINS.yaml were outside T-0297's touches. rv2-t0296 recordable (PR #185): P-PRIV-
   minus the closing quote; no earlier sentence rewritten. 'NAMED P-PRIV-06 passed=11/11', exit 0. Note, not in
   touches: pins/PINS.yaml does not load under strict yaml.safe_load at line 213 col 344 on HEAD 542eca4a as well
   (pre-existing; not this change).
+- 2026-10-07T13:57:43Z agent/claude-opus-5 (owner). Merged origin/main (2855305f; queue files and T-0295/T-0300 only, none of
+  this task's touches). On the merged head: 'NAMED P-COST-01 passed=37/37' exit 0; 'NAMED P-PRIV-06 passed=11/11'
+  exit 0; ops/queue-check 'QUEUE OK (291 tasks)' exit 0. Acceptance 1 (binding 37/37, red by name then green) and
+  acceptance 2 (two append-only sentences) met as recorded above.
