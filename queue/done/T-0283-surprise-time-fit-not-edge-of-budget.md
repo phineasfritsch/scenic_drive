@@ -1,7 +1,7 @@
 ---
 id: T-0283
 title: Surprise picks stop clustering at the edge of the time budget - the time-fit term peaks inside the dial (measured over the bundled LA corpus), and scenic classes outrank cafes when quality is unknown
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T21:12:21Z
@@ -11,7 +11,7 @@ branch: task/T-0283
 exclusive: []
 touches: [Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, Tests/Fixtures/surprise/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PROD-02]
-reviewer: null
+reviewer: agent/rv1-t-0283
 depends_on: [T-0253, T-0273]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -155,3 +155,22 @@ should land comfortably inside it. Product taste: memory owner-route-intent.
      17 new entries, floor 140 literal, every touched row caught.
   Lengths: Surprise.swift 160, surprise_fit_mutations.py 60, surprise_mutations.py 282 (cap 300).
   NEXT: git fetch origin, merge origin/main, swift test --filter Surprise and ops/queue-check on the merged head, push.
+- 2026-10-07T00:05:29Z REVIEW PASS (round 1) by agent/rv1-t-0283 (reviewer, not the owner), PR #178 at 5fd66b26 in a
+  detached worktree. Ancestry: origin/main (d4726989) is an ancestor of the head after `git fetch origin`. BARE
+  `swift test --scratch-path .build/rv1-T-0283 --filter Surprise`: "Test run with 38 tests in 8 suites passed".
+  `bash ops/queue-check`: "QUEUE OK (280 tasks)". `gh pr checks 178`: core pass, pins-source-only pass.
+  Acceptance 1: `corpus_measure.py --before` re-run reproduces the quoted dial=120 line (median 0.97, bins
+  [2, 5, 5, 7, 81], at-exactly-budget=3, seed0=Calas Park park 120 min). Acceptance 2: `corpus_measure.py` re-run
+  reproduces dial=120 (median 0.71, bins [1, 6, 16, 55, 22], at-exactly-budget=0, seed0=Tongva Peak peak 84 min);
+  `corpus_measure.py --write` and `model.py` regenerated corpus.tsv, corpus_sequences.tsv, candidates.tsv and
+  sequences.tsv byte-identical (git status clean); the corpus suite compares the card's chain (mapping, offline reach,
+  Surprise.pick) to the oracle by full equality per dial; the oracle carries its own PRIOR table and time_fit.
+  Acceptance 3: SurpriseFilterTests.swift identical to origin/main; P-PROD-02's four bound names unchanged and green
+  in the suite run; surprise_fit_mutations.py 124-140 with MIN_MUTATIONS 140 literal. No remaining reference to the
+  removed SurprisePlaceMapping.quality anywhere in the tree (Swift or Python). Line caps: max 282 (surprise_mutations.py).
+  REVIEWER MUTANT (unwritten, not in the table or the pre-review pass): Surprise.timeFit clamp floor
+  `max(0, 100 - ...)` -> `max(1, 100 - ...)` (a place at or under 20% of the dial scores 1, not 0, re-ordering the
+  explore draw's index). KILLED by name: "the card's picks for seeds 0..99 at dials 30, 60, 90 and 120 equal the
+  oracle's, by full equality" failed with 3 issues (dial 30, dial 60, dial 90; dial 120 unchanged), exit 1. Restored
+  (git status on Sources clean). Not blocking: the pre-review pass's M1 note (time-fit on the lowered tooFar budget is
+  killed only by SurpriseFeedbackTests tooFar, no table row) stands as a recordable gap.
