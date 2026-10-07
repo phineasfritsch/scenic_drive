@@ -18,6 +18,11 @@
 #   (3) THE ROOT PACKAGE. The root Package.swift, and every non-directory entry under Sources/ (any extension, any
 #       depth - ScenicKit, Handoff, PlaceStore, ScenicAPIClient, Telemetry and ScenicPlanCLI), exactly
 #       PINNED_ROOT_SOURCES, each a REGULAR FILE at its approved digest.
+#   (4) THE ROOT DIRECTORY'S OWN FILES. Every non-directory entry at the top of the root tree is NAMED in
+#       ROOT_TOP_FILES (fm-t0289 M1: SwiftPM, and Xcode through it, builds Package@swift-6.swift over Package.swift
+#       on a 6.x toolchain, so a sibling manifest moved Handoff to an unpinned Vendor/ past (1) and (3)).
+#       Package.resolved is named: ops/test's Linux `swift test` writes it, and a package the app links by path
+#       never resolves from its own - the app's is PINNED_APP_OTHER's.
 # The root tree is DERIVED, APP_TREE/../.. (apps/ios -> the repository top): no flag or variable can point it at a
 # copy on a real run; the mutation table lays its copies out as m<N>/apps/ios beside m<N>/Sources.
 #
@@ -43,6 +48,9 @@ ROOT_PATH_LINES=(
   'path: "Sources/Telemetry",'
   'path: "Tests/TelemetryTests",'
 )
+
+# Every non-directory name allowed at the top of the root tree, in C sort order (none is required but Package.swift).
+ROOT_TOP_FILES=(.git .gitattributes .gitignore CLAUDE.md LICENSE-DATA Package.resolved Package.swift README.md)
 
 # path digest - every non-Swift entry under apps/ios, in C sort order.
 PINNED_APP_OTHER=(
@@ -197,9 +205,9 @@ linked_compare() {
   done
 }
 
-# require_pinned_linked APP_TREE: (1), then (2) and (3)'s file sets, then every digest. Sets LINKED_FILES.
+# require_pinned_linked APP_TREE: (1), then (2), (3) and (4)'s file sets, then every digest. Sets LINKED_FILES.
 require_pinned_linked() {
-  local tree="${1%/}" root spec line names=() lines=() approved=() nonreg=() tmp
+  local tree="${1%/}" root spec line names=() lines=() approved=() nonreg=() tmp added
   root="$tree/../.."
   [[ -d "$tree" && -f "$root/Package.swift" && -d "$root/Sources" ]] || fail \
     "$LINKED_REASON: no root package (Package.swift and Sources/) at $root, two levels above $tree." \
@@ -227,13 +235,17 @@ require_pinned_linked() {
   names=(); for spec in "${PINNED_ROOT_SOURCES[@]}"; do names+=("${spec%% *}"); done
   LINKED_FILES="${#names[@]}"
   linked_set "root:" "$tmp" "${names[@]}"
+  (cd "$root" && find . -mindepth 1 -maxdepth 1 ! -type d | sed -e 's|^\./||' | LC_ALL=C sort) > "$tmp"
+  added="$(LC_ALL=C comm -23 "$tmp" <(printf '%s\n' "${ROOT_TOP_FILES[@]}" | LC_ALL=C sort) | tr '\n' ' ')"
+  [[ -z "$added" ]] || LINKED_BAD+=("root top: added ${added% }")
   rm -f "$tmp"
   mapfile -t -O "${#nonreg[@]}" nonreg < <(cd "$root" && find Package.swift Sources ! -type d ! -type f)
   [[ "${#nonreg[@]}" -eq 0 ]] || LINKED_BAD+=("not a regular file ${nonreg[*]}")
   [[ "${#LINKED_BAD[@]}" -eq 0 ]] || fail "$LINKED_REASON: ${LINKED_BAD[*]}." \
     "Approved: ${#PINNED_APP_OTHER[@]} non-Swift file(s) under $tree, the root Package.swift and every entry under" \
-    "Sources/, typed in ops/lib/check-safety-disclaimer-linked (rv3-t0273: a pbxproj entry compiled a SurpriseCard" \
-    "from outside apps/ios). Approve an added, removed or renamed file there."
+    "Sources/, and the root's top-level file names in ROOT_TOP_FILES, typed in ops/lib/check-safety-disclaimer-linked" \
+    "(rv3-t0273: a pbxproj entry compiled a SurpriseCard from outside apps/ios; fm-t0289 M1: a Package@swift-6.swift" \
+    "beside Package.swift moved a target off Sources/). Approve an added, removed or renamed file there."
   linked_compare "$tree" "${PINNED_APP_OTHER[@]}"
   linked_compare "$root" "${PINNED_ROOT_SOURCES[@]}"
   [[ "${#LINKED_BAD[@]}" -eq 0 ]] || fail "$LINKED_REASON: ${LINKED_BAD[0]}" "${LINKED_BAD[@]:1}" \

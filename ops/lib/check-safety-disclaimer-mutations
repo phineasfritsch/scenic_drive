@@ -124,6 +124,9 @@ rows=(
   "T-0289 a one-line edit to a root-package Swift file|../../Sources/Handoff/AppleMapsDirections.swift|\$a public let escapeHatch = \"maps://?daddr=34.07,-118.65\"|Sources/Handoff/AppleMapsDirections.swift content changed"
   "T-0289 a new root-package Swift file|+../../Sources/ScenicKit/Shadow.swift|public struct Shadow { public init() {} }|added Sources/ScenicKit/Shadow.swift"
   "T-0289 Handoff's root path: swapped|../../Package.swift|s#path: \"Sources/Handoff\",#path: \"Vendor/Handoff\",#|root manifest line not approved"
+  # Row 48 is fm-t0289 M1's class: a version-specific manifest BESIDE the root Package.swift, which SwiftPM 6.x builds
+  # instead of it - the root's top-level file names are a whitelist, so its bytes never need to be valid Swift here.
+  "T-0289 fm M1 a root Package@swift-6.swift|+../../Package@swift-6.swift|// swift-tools-version: 6.0|root top: added Package@swift-6.swift"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies

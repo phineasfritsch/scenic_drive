@@ -98,3 +98,31 @@ Plus rv3 recordable 3: P-ATTR-01 does not call require_pinned_app_swift.
     prune ./.git at the app tree's top only (-path ./.git -prune): no checkout has apps/ios/.git (a worktree's .git is
     at the repo top) and Xcode's buildable folder is ScenicDrive/, so the prune admits nothing the app compiles.
     Rows 44-46 must be RE-RUN on this commit; the fast probe (no .git in its copies) already names each of them.
+- 2026-10-07T03:04:52Z PRE-REVIEW SURVIVOR M1 CLOSED (fm-t0289, BLOCKING). agent/claude-opus-5 (owner).
+  - RULING. M1: a root Package@swift-6.swift (the root manifest with Handoff's `path:` swapped to Vendor/Handoff, the
+    swift-tools-version 6.0 header kept) plus Vendor/Handoff/ with an EscapeHatch.swift, Package.swift and Sources/
+    untouched - the full check exited 0 in 1093 s; `swift package dump-package` (6.3.3) in that copy reports Handoff at
+    "Vendor/Handoff". -linked read exactly $root/Package.swift and listed exactly `find Package.swift Sources`, so no
+    sibling at the root was ever seen. CLASS: a file the toolchain reads at the TOP of the root package that is not
+    Package.swift. Closed by WHITELIST, not by a Package@swift-* spelling: -linked (4) lists every non-directory entry
+    at $root's top (`find . -mindepth 1 -maxdepth 1 ! -type d`) and refuses each name not in ROOT_TOP_FILES as
+    `root top: added NAME`. Names only, no digests: CLAUDE.md/README.md are not build inputs. Missing names are not
+    refused (the table's m<N>/ copies hold only Package.swift; Package.swift's presence is already required).
+  - MEASURED before typing the list: the top-level non-directory entries of all 99 checkouts on this box (main + every
+    .worktrees/*/ holding a Package.swift) are exactly .git (98, a file in a worktree), .gitattributes, .gitignore,
+    CLAUDE.md, LICENSE-DATA, Package.swift, README.md (99 each). Package.resolved is ADDED to the list though no
+    checkout here holds one: .gitignore ignores /Package.resolved because on Linux `swift test` (ops/test, before
+    ops/check-pins in linux-core.yml) writes it, and the root package is only ever a path dependency of the app, whose
+    resolution is the xcodeproj workspace's Package.resolved (PINNED_APP_OTHER). Not in the class: top-level
+    DIRECTORIES (.build*, .worktrees, .pytest_cache in CI; a Vendor/ is compiled only if the digest-pinned manifest
+    names it) and a root .swiftpm/ (its configuration is read only when the root package is the root of resolution,
+    never for the app's build). apps/ios/Packages/ScenicApp/Package@swift-6.swift is already refused by -pinned.
+  - RED on HEAD 78b2aee (.build-t0289-rows/quick-m1.sh old - sources -pinned, then HEAD's -linked over it, calling
+    require_pinned_linked on a table-layout copy): real tree GREEN files=110; copy GREEN; M1 exact GREEN exit 0; row-48
+    shape GREEN exit 0; Package@swift-6.0.swift GREEN exit 0 - M1 reproduced, fail OPEN.
+  - GREEN on the fix (same probe, worktree -linked): real tree and unmutated copy GREEN files=110 exit 0; M1 exact ->
+    "the pinned linked trees changed: root top: added Package@swift-6.swift." exit 1; row-48 shape -> same, exit 1;
+    Package@swift-6.0.swift -> "root top: added Package@swift-6.0.swift." exit 1.
+  - NEW ROW 48 (-mutations): `+../../Package@swift-6.swift` expecting "root top: added Package@swift-6.swift". The full
+    check over row 48 (one-row table copy) and over M1 exact (the verifier's driver, M1 only) are running in the
+    background at this commit, NOT claimed here. -linked 255 lines, -mutations 213.
