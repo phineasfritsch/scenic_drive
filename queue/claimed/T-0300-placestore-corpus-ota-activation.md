@@ -1,13 +1,13 @@
 ---
 id: T-0300
 title: PlaceStore decides and stages a corpus OTA update - manifest gate (schema_version, min_app_build), sha256 + byte-count verify into a staging file, atomic rename, activation only at the next cold launch and never while a drive holds the store
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T13:55:10Z
+lease_expires_at: 2026-10-08T03:55:10Z
+worktree: .worktrees/T-0300
+branch: task/T-0300
 exclusive: []
 touches: [Sources/PlaceStore/, Tests/PlaceStoreTests/, Tests/Fixtures/, ops/mutate/, ops/lib/check-safety-disclaimer-linked, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-PROD-05]
@@ -31,3 +31,4 @@ are later tasks. Swift is native on this box (memory swift-native-on-windows-box
 
 ## Log
 - 2026-10-07T13:53:57Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M4 first-run download / OTA).
+- 2026-10-07T13:55:10Z claimed by agent/claude-opus-5; lease until 2026-10-08T03:55:10Z
