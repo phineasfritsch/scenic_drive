@@ -8,7 +8,8 @@ corpusota.py and the runner corpusota_run.py (saveddrive's three-file shape).
   * the DECISION - the schema gate, the build gate, up-to-date - entries 1-6 (O2);
   * the MANIFEST - the key set, every value bound, the field a type error names - 7-13 (O1);
   * the VERIFY - byte count, hash, staging cleanup, the slot a pass lands in - 14-17 (O6);
-  * the ACTIVATION - warm, drive, validator, undo, cleanup, interrupted-swap recovery - 18-23, and the recovery against the drive hold and the undo - 40-41 (O7);
+  * the ACTIVATION - warm, drive, validator, undo, cleanup, interrupted-swap recovery - 18-23,
+    and that recovery's place after the drive hold and before the undo's hadActive - 40-41 (O7);
   * the SHA-256 - a round constant, padding, the length field, a rotation, the state carry, the chunked file read,
     the hex padding - 24-30 (O6);
   * the SLOTS - the pending path, the dev-box replace, remove, exists - 31-34 (O4); only the Windows branch of
