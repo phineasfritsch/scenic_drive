@@ -34,7 +34,10 @@ public struct PlanSheet: Equatable, Sendable {
     /// The user picked a search result for the field being searched.
     public mutating func choose(_ place: PlanPlace) {
         guard case .searching(let field, _) = state else { return }
-        destination = place
+        switch field {
+        case .destination: destination = place
+        case .start: start = place
+        }
         settle()
     }
 
@@ -47,19 +50,19 @@ public struct PlanSheet: Equatable, Sendable {
     /// The extra-time control. Ignored while a plan is in flight.
     public mutating func setBudget(_ minutes: Int) {
         if case .planning = state { return }
-        budgetMinutes = minutes
+        budgetMinutes = min(max(minutes, 0), Self.maxBudgetMinutes)
     }
 
     /// THE GATE. A ticket only with the disclaimer accepted, a start and a destination, from chosen, preview or
     /// failed; otherwise nil and nothing changes.
     public mutating func startPlanning() -> PlanTicket? {
-        guard let start, let destination else { return nil }
+        guard disclaimerAccepted, let start, let destination else { return nil }
         switch state {
         case .chosen, .preview, .failed: break
         case .idle, .searching, .planning: return nil
         }
         issued += 1
-        let ticket = PlanTicket(serial: issued, origin: start.coordinate, place: destination.id,
+        let ticket = PlanTicket(serial: issued, origin: Self.twoDecimals(start.coordinate), place: destination.id,
                                 budgetMinutes: budgetMinutes)
         state = .planning(ticket)
         return ticket
@@ -67,10 +70,18 @@ public struct PlanSheet: Equatable, Sendable {
 
     /// The planner's answer for `ticket`. Applied only to the ticket in flight; any other is dropped.
     public mutating func finish(_ ticket: PlanTicket, with outcome: PlanOutcome) {
+        guard case .planning(let inFlight) = state, inFlight == ticket else { return }
         switch outcome {
         case .preview(let preview): state = .preview(ticket, preview)
         case .failure(let failure): state = .failed(ticket, failure)
         }
+    }
+
+    /// The start as it may leave the device: each axis to the nearest hundredth (R4). PlanRequestBody refuses rather
+    /// than rounds, so the rounding is the caller's - here.
+    static func twoDecimals(_ coordinate: Coordinate) -> Coordinate {
+        Coordinate(latitude: (coordinate.latitude * 100).rounded() / 100,
+                   longitude: (coordinate.longitude * 100).rounded() / 100)
     }
 
     private mutating func settle() {

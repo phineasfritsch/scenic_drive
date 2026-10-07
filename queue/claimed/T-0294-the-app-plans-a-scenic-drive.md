@@ -92,3 +92,24 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
     three entries shown MISSED against the stub-era suite subset, CAUGHT by name after.
   - R9 VERDICT. The local full P-SAFE-03 guard takes ~72 min here (T-0295): CI core + pins-source-only decide it;
     ios-compile and ios-screenshot decide the Apple half. Only touched digests are re-approved, each in this diff.
+- 2026-10-07T13:08:55Z RED FIRST, by name. agent/claude-opus-5 (owner).
+  - R10 NAME CLASH (ruled on contact): ScenicKit already has `PlanFailure` (Sources/ScenicKit/Plan/PlanFailure.swift,
+    the CLI/engine's refusal enum). R1's payload-free mirror is named `PlanSheetFailure`; every ruling above that
+    says PlanFailure for the sheet's enum means PlanSheetFailure. PlanFailureCopy / PlanFailureAction keep their names.
+  - Committed at 29a604c7 against stubs that compile and are wrong (gate ignores the disclaimer, origin unrounded, a
+    pick always fills the destination, budget unclamped, a stale reply lands, every copy row empty). Run:
+    `swift test --scratch-path .build/t0294 --filter "PlanSheetTests|PlanFailureCopyTests|PlanSheetGateTests"` ->
+    "Test run with 17 tests in 3 suites failed ... with 54 issues", exit 1. Red by name (issue counts):
+    P-SAFE-03 from first launch no plan request before acceptance (2); P-PRIV-06 typed start leaves as ONE coordinate
+    at 2 dp (2); first launch: no ticket until the disclaimer is accepted (2); the ticket is the typed start at 2 dp
+    ... whole (2); choosing fills the field being searched (2); no ticket from idle, searching or planning (2); a
+    reply lands only on the ticket in flight (1); the extra time is clamped to 0...180 at every bound (12); every
+    PlanSheetFailure has its one copy line and one action (13); copy lines are calm (13); the table covers all
+    thirteen PlanError cases (1); a 200 reaches the sheet as the preview (1); Worker failures and a dead network
+    reach the sheet as failed (1). Green from the start, as they test code the stubs did not touch: the PlanError
+    mapping (13 cases), the ETA line, the button words, the failure-table count.
+  - Two harness facts met on the way, fixed in the tests: Swift Testing's #require/#expect cannot take a mutating
+    call (`startPlanning()` hoisted into a let), and an untyped tuple-literal `arguments:` table of PlanError cases
+    pinned one swift-frontend for 15+ minutes on this box (now typed `[(PlanError, PlanSheetFailure)]`).
+  - ios-compile and ios-screenshot are workflow_dispatch only: dispatched on task/T-0294 (runs 37626118143,
+    37626129739).
