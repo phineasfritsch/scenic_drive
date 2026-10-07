@@ -69,3 +69,18 @@ untracked .DS_Store on a Mac is a false red. Memory faster-verification-in-round
      guard run, and T-0289 measured single late rows at 8944-9317 s. Ruled: "before" is the table's own per-row
      expected names (unchanged; only row 49 is added) with T-0289's per-row evidence; the after run of each table runs
      ONCE, in the background, and must print every row `yes` and N/N.
+- 2026-10-07T10:06:52Z RESULTS (acceptance 1-3), quoted from the run logs.
+  AFTER, alone, on 4579d661 (same tracer): safety rc=0 wall=2121.6s -> rc=0 wall=273.9s; map rc=0 wall=2060.4s -> rc=0 wall=214.2s;
+  each guard's stdout byte-identical to its baseline (15 and 28 lines - every count, line number and file
+  total the green summaries print). Slowest limbs after: require_pinned_app_swift (incl. -linked) and
+  require_pinned_surface, ~70-110 s each; -lib's counters and require_sheet_mount now 2-17 s.
+  .DS_Store relief, -linked alone over a table-shaped copy (m/apps/ios a git repo, core.excludesFile empty): (a) an
+  untracked, unignored Packages/ScenicApp/.DS_Store -> `P-SAFE-03: the pinned linked trees changed: apps/ios: added
+  Packages/ScenicApp/.DS_Store.`; (b) the same file ignored (info/exclude) -> PASS rc=0; (c) that ignored name TRACKED
+  -> refused, same line; (d) an ignored file of another name (zz.log) -> `... apps/ios: added Packages/ScenicApp/zz.log.`
+  PROVE-RED, both tables run ONCE, concurrently, in the background on 4579d661 (R4): check-safety-disclaimer
+  36 rows `yes`, 0 `no`, 0 UNREFUSED/UNNAMED; summary `NOT FINISHED at this commit` . check-map-attribution 39 `yes`, 0 `no`,
+  0 UNREFUSED/UNNAMED; summary `NOT FINISHED at this commit` . Every row prints the reason its table encodes, unchanged but row 49.
+  MERGED origin/main (0436f71b; -linked auto-merged with T-0290's 13 PlaceStore digests): bare
+  check-safety-disclaimer rc=0 wall=624.9s; bare check-map-attribution rc=0 wall=752.9s (both while the two tables and the gates ran - not
+  alone). QUEUE OK (287 tasks); `bash ops/check-pins --source-only`: not finished.
