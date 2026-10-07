@@ -107,7 +107,7 @@ export const MUTATIONS = [
   m("cap-inclusive", L, "AND day = ?3) < ?4", "AND day = ?3) <= ?4"),
   m("cap-counts-every-day", L, "WHERE user_id = ?1 AND day = ?3) < ?4", "WHERE user_id = ?1) < ?4"),
   m("cap-counts-every-user", L, "FROM surprise_ledger WHERE user_id = ?1 AND day = ?3) < ?4", "FROM surprise_ledger WHERE day = ?3) < ?4"),
-  m("cap-refuses-held", L, " OR EXISTS (SELECT 1 FROM surprise_ledger WHERE user_id = ?1 AND place_id = ?2 AND day = ?3)", ""),
+  m("cap-refuses-held", L, "OR EXISTS (SELECT 1 FROM surprise_ledger WHERE user_id = ?1 AND place_id = ?2 AND day = ?3))", "OR 0)"),
   m("cap-held-any-user", L, "WHERE user_id = ?1 AND place_id = ?2 AND day = ?3", "WHERE place_id = ?2 AND day = ?3"),
   m("cap-held-any-day", L, "AND place_id = ?2 AND day = ?3))", "AND place_id = ?2))"),
   m("cap-refusal-answers-200", L, "json({ error: \"ledger_daily_cap\" }, 429)", "json({ recorded: true }, 200)"),
