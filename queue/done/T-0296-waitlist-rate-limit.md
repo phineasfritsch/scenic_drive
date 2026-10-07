@@ -1,7 +1,7 @@
 ---
 id: T-0296
 title: POST /waitlist counts one device once per cell per day - a rate limit so anyone cannot inflate a cell's count
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T09:30:08Z
@@ -11,7 +11,7 @@ branch: task/T-0296
 exclusive: []
 touches: [services/api/src/waitlist.ts, services/api/test/, services/api/migrations/, ops/lib/named-tests.json, pins/PINS.yaml, queue/]
 pins_affected: [P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0296
 depends_on: [T-0293]
 verify: [ops/check-pins]
 acceptance:
@@ -130,3 +130,24 @@ must stay free of personal data (memory user-lives-in-la; plan Launch scope).
     dedupe sequence (now 18 steps) over {empty, holding} x {session-only, legacy-headers}, both tables whole after
     every step - MET. 3 Population entries MISSED before and CAUGHT by name after - MET, now including
     legacy-identity-constant and malformed-bearer-falls-to-header (floor 68). All else as at 4a985fb3.
+- 2026-10-07T12:00:24Z agent/rv2-t0296 (REVIEWER round 2, not the owner) - PASS on PR #185 head 0259ee5f.
+  - rv1 B1 closed: rv1's mutant re-applied through the driver, `node test/mutate/regionMutants.mjs
+    --only=legacy-identity-constant` -> population mutations=68 (floor 68), baseline green tests=43, CAUGHT
+    legacy-identity-constant by "same device same cell same day counts once; a second device, a second cell and the
+    next day count again - every step's tables whole, over both variants"; RESULT caught=1 missed=0 trap=0 of 1.
+  - Reviewer's own mutant on the legacy path (unwritten, careless `?? ""`): src/waitlist.ts
+    `identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env,` -> `identifyCaller(req.headers.get(AUTHORIZATION_HEADER)
+    ?? "", env,` (no Bearer becomes an empty Bearer, so the legacy header is never consulted). vitest
+    waitlistDedupe + waitlist: 2 failed | 8 passed, FAILED by name the sequence test above and "the dedupe table holds
+    no device id and no cell, only 64-hex tags and the UTC day". Restored; git diff empty.
+  - Merge 53f03298 three-way over ops/lib/named-tests.json (flattened leaves, base/ours/main/head): P-COST-01
+    33/33/36/36, P-PRIV-05 31/33/31/33, P-PRIV-06 7/11/7/11; nothing either side added was lost, nothing either
+    side removed came back, no leaf outside the union. PINS.yaml diff vs origin/main touches only the P-PRIV-05 and
+    P-PRIV-06 why_no_test_catches_it strings.
+  - Full vitest on 0259ee5f: Test Files 71 passed (71), Tests 2108 passed (2108), exit 0.
+  - `bash ops/queue-check` (bare) -> QUEUE OK (288 tasks). `gh pr checks 185` -> core pass 5m41s, pins-source-only
+    pass 2m20s (core runs P-PRIV-05's Swift half that this Windows box reports MISSING).
+  - RECORDABLE (not blocking): P-PRIV-06's T-0296 prose in pins/PINS.yaml still says "a thirteen-step sequence" with
+    "a bare header with the secret set" counted as unidentified; the sequence is now 18 steps over two identity
+    modes. Prose only - the bindings are by test name and unchanged.
+  - Ancestry: origin/main is an ancestor of origin/task/T-0296 (checked last, before this commit).
