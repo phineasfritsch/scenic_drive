@@ -20,6 +20,10 @@ public struct PlanSheetScreen: View {
     @AppStorage("safety.disclaimer.acknowledged.v1") private var safetyNoteRead = false
     @State private var sheet = PlanSheet(disclaimerAccepted: false)
     @State private var query = ""
+    /// The Saved list, shown in place of the plan form - in-sheet content, not a presentation (T-0306 R1).
+    @State private var showingSaved = false
+    @State private var saved = SavedList()
+    @State private var saveLine: String?
 
     public init(planner: any RoutePlanning, onClose: @escaping () -> Void) {
         self.planner = planner
@@ -35,6 +39,10 @@ public struct PlanSheetScreen: View {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Close", action: onClose)
                     }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(showingSaved ? "Plan" : "Saved") { showingSaved.toggle() }
+                            .accessibilityIdentifier("plan.savedTab")
+                    }
                 }
         }
         .onAppear { sheet.setDisclaimerAccepted(safetyNoteRead) }
@@ -42,6 +50,14 @@ public struct PlanSheetScreen: View {
     }
 
     @ViewBuilder private var content: some View {
+        if showingSaved {
+            SavedDrivesList(list: $saved, onReplay: replay)
+        } else {
+            planContent
+        }
+    }
+
+    @ViewBuilder private var planContent: some View {
         switch sheet.state {
         case .idle, .chosen:
             form
@@ -50,8 +66,9 @@ public struct PlanSheetScreen: View {
         case .planning:
             ProgressView("Finding a calmer way there")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .preview(_, let preview):
-            PlanPreviewCard(preview: preview, destination: sheet.destination?.name ?? "",
+        case .preview(let ticket, let preview):
+            PlanPreviewCard(preview: preview, destination: sheet.destination?.name ?? "", saveLine: saveLine,
+                            onSave: { save(preview, budgetMinutes: ticket.budgetMinutes) },
                             onChangePlace: { searchFor(.destination) })
         case .failed(_, let failure):
             PlanFailureCard(copy: PlanFailureCopy.of(failure), onAction: act)
@@ -104,6 +121,27 @@ public struct PlanSheetScreen: View {
     /// The view's whole plan path: the gate's ticket, or nothing; then the planner's outcome for that ticket.
     private func planDrive() {
         guard let ticket = sheet.startPlanning() else { return }
+        run(ticket)
+    }
+
+    /// A saved drive replayed (T-0306 R3): through the same gate, as one plan, then the same planner path.
+    private func replay(_ drive: SavedReplay) {
+        showingSaved = false
+        guard let ticket = sheet.replay(drive) else { return }
+        run(ticket)
+    }
+
+    /// Keeps the previewed route on this device (T-0306 R2); nothing is sent anywhere.
+    private func save(_ preview: PlanPreview, budgetMinutes: Int) {
+        let name = String((sheet.destination?.name ?? "Saved drive").prefix(SavedList.maxNameLength))
+        let draft = SavedDraft.of(preview, budgetMinutes: budgetMinutes, name: name,
+                                  createdAt: Int64(Date().timeIntervalSince1970))
+        let kept = draft.map { SavedDriveShelf.save($0) } ?? false
+        saveLine = kept ? "Saved to your drives." : "This drive could not be saved."
+    }
+
+    private func run(_ ticket: PlanTicket) {
+        saveLine = nil
         let planner = self.planner
         Task { @MainActor in
             let outcome = await planner.plan(ticket)

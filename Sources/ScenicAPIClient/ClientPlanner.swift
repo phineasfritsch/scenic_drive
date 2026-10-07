@@ -29,6 +29,6 @@ public struct ClientPlanner: RoutePlanning {
                     fastestEtaSeconds: response.fastestEtaSeconds, etaIsEstimate: response.etaIsEstimate,
                     hazards: response.hazards.map {
                         PlanHazardRun(kind: $0.kind, value: $0.value, fromIndex: $0.fromIndex, toIndex: $0.toIndex)
-                    })
+                    }, waypoints: response.waypoints, lambda: response.lambda)
     }
 }
