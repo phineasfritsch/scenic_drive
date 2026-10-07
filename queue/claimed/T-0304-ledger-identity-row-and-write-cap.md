@@ -76,3 +76,15 @@ claim or a header beside a valid Bearer; and POST /ledger has no per-user write 
     was refused by the driver's STALE check and re-anchored before any run counted.
   - Named tests: P-PRIV-04 binds ledgerIdentity's two (53), P-COST-01 ledgerCap's two (40); PINS.yaml text appended
     inside the existing double-quoted fields; `check-pins-yaml.py`: `PINS-YAML ok pins=44 fields=355`.
+- 2026-10-07T18:07:12Z GATES, agent/claude-opus-5, each run bare. origin/main merged twice (63e8f670, then 4ece8567: T-0294's
+  Sources/, apps/ios and ops/ only - nothing under services/api, pins/ or named-tests.json, so the Worker gates
+  below hold on the merged head f6c76bdf).
+  - `npx vitest run` (services/api): `Test Files  75 passed (75)`, `Tests  2122 passed (2122)`, exit 0.
+  - `run-named-tests.py`: `NAMED P-PRIV-04 passed=53/53` and `NAMED P-COST-01 passed=40/40`, both exit 0.
+  - `check-pins-yaml.py`: `PINS-YAML ok pins=44 fields=355`. `ops/queue-check`: `QUEUE OK (295 tasks)`.
+  - Acceptance: (1) identity rows by full equality through worker.fetch, rv-user-is-apple-claim and
+    get-scoped-by-legacy-device-header CAUGHT by name by ledgerIdentity (plus the act and POST variants) - MET.
+    (2) cap ruled (R1, 200 = DAILY_SURPRISE_QUOTA.paid), the (cap+1)th write 429 with the table unchanged, range rows
+    at cap-2/cap-1/cap held and both sides of 00:00:00.000Z - MET. (3) population MISSED before (0/19) and CAUGHT
+    by name after (25/25); PINS.yaml text inside the double-quoted fields, strict check ok - MET.
+  - Line counts: ledger.ts 122, ledgerCap.test.ts 99, ledgerIdentity.test.ts 79, ledgerMutants.mjs 217.
