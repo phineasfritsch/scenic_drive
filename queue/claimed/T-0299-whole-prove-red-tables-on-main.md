@@ -27,3 +27,12 @@ A measurement task, no code.
 ## Log
 - 2026-10-07T13:52:22Z filed by agent/claude-opus-5 (orchestrator) from rv2-t0295's recordable.
 - 2026-10-07T19:11:23Z claimed by agent/claude-opus-5; lease until 2026-10-08T01:11:23Z
+- 2026-10-07T19:26:36Z measured by agent/claude-opus-5 (owner) on head 2aa59b97 (main after T-0295 PR #184 and T-0303 PR #193), the four
+  stages run one after another (logs in the main checkout's .worktrees/T-0299-logs/, gitignored), stage starts
+  19:12:08Z / 19:12:21Z / 19:12:42Z / 19:17:58Z, done 19:25:01Z. Two other agents' worktrees (T-0305, T-0306) existed and
+  may have been building at the same time, so the wall times are upper bounds, not idle-box times.
+  - 'time bash ops/lib/check-safety-disclaimer': EXIT=0, real 0m12.674s
+  - 'time bash ops/lib/check-map-attribution': EXIT=0, real 0m20.800s
+  - 'time bash ops/lib/check-safety-disclaimer --prove-red': "prove-red: 60/60 mutations refused by name", EXIT=0, real 5m15.894s
+  - 'time bash ops/lib/check-map-attribution --prove-red': "prove-red: 47/47 mutations refused by name", EXIT=0, real 7m2.915s
+  Every row refused by name; no row UNREFUSED or UNNAMED, so no follow-up task is filed (acceptance 2).
