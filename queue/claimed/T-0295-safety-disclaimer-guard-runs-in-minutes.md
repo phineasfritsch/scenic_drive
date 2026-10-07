@@ -104,3 +104,25 @@ untracked .DS_Store on a Mac is a false red. Memory faster-verification-in-round
 - 2026-10-07T11:35:14Z MERGED origin/main (63c8fdac, from 521a3feb; -linked auto-merged with two ScenicAPIClient digests,
   line 227 unchanged). On the merged head, run bare and concurrently: check-safety-disclaimer rc=0 wall=527s;
   check-map-attribution rc=0 wall=529s; queue-check `QUEUE OK (288 tasks)` rc=0. Pushed 63c8fdac.
+- 2026-10-07T13:05:46Z rv1-t0295 B1 (PR #184 @ 5906c2c9) MB66 SURVIVED the map table, closed by a row. MB66 drops
+  `&& index(line, "\\") == 0` from sheet_occurrences' awk (-sheet line 66): no row had a `//`-leading line holding a
+  backslash that names a needle. New map row (table 200 -> 203 lines, 45 -> 46 rows) `B1 rv1-t0295 a HomeSheet( in a
+  string interpolation` ADDS FeatureScenicHome/DriveOverlayNote.swift, three lines: a `Text("""` opener, the line
+  `//\(String(describing: HomeSheet(detent: $d, ...)))` (code: an interpolation inside the multi-line string), `""")`.
+  RULED vs the Brief: "approve the file in the pinned set" is not available to a row - -pinned's set is typed in
+  ops/lib/check-safety-disclaimer-pinned, outside the apps/ios copy a row mutates - and not needed: a row passes only
+  on a non-zero exit WHOSE OUTPUT NAMES the expected reason, so the file-set refusal cannot stand in for (h). The
+  MB66 run below shows the file-set line as the ONLY refusal, i.e. (h) is the limb MB66 silences.
+  RUN (one-row copy of the table, .worktrees/scratch/map-b1-row; MB66 sed-applied to -sheet, then restored clean):
+  SHIPPED 12:53:06Z `B1 rv1-t0295 a HomeSheet( in a string interpolation 1      yes` - `prove-red: 1/1 mutations refused by name`.
+  MB66    12:56:15Z `B1 rv1-t0295 a HomeSheet( in a string interpolation 1      no` - `UNREFUSED or UNNAMED. Expected a
+  non-zero exit naming: HomeSheet( occurs outside its tracked set`, output only `P-ATTR-01: the pinned render surface
+  changed: FeatureScenicHome's file set is not the approved one: added DriveOverlayNote.swift.` - `prove-red: 0/1`.
+  SIBLING: the safety -lib batched reader (code_counts) has no backslash rule - it cuts `//` to end of line
+  (`sub(/\/\/.*/, "", s)`), unchanged from the per-file code_of it replaced - so no sibling row. The one other
+  `index(line, "\\")` reader on the safety side, -sheet's summary_code_lines (line 61), is untouched by T-0295.
+  AUTHOR stillOpen 1 (full prove-red counts), from the background logs as they stand: check-map-attribution
+  `prove-red: 45/45 mutations refused by name` (map-red.log, finished, 45 `yes` 0 `no` 0 UNREFUSED; -sheet and the
+  table unchanged since that run). check-safety-disclaimer: rows 1-49 printed, 49 `yes` 0 `no` 0 UNREFUSED, then
+  `line 266: unexpected EOF` - 05999ae1 rewrote the table under the running bash - so NO summary line; rows 50-52
+  were run one-row each (11:21:44Z entry), and the new map row one-row above. No full table was re-run (box contended).

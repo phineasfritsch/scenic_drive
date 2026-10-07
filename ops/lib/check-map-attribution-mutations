@@ -125,6 +125,9 @@ rows=(
   "L2 rv4 a plain non-Swift file added|+$FS/notes.txt|a note beside the sources|added notes.txt"
   "L3 rv4 an empty subdirectory added|+$FS/Extras/|-|added Extras"
   "L4 rv4 a symlink committed to the index|=$FS/Shadow.swift|../Shadows/Shadow.swift|committed as a symlink"
+  # B1 rv1-t0295 (MB66): a `//`-leading line holding a backslash is CODE - here an interpolation inside a multi-line
+  # string mounts a HomeSheet - so sheet_occurrences must count it. Dropping the backslash test is red only here.
+  "B1 rv1-t0295 a HomeSheet( in a string interpolation|+$FS/DriveOverlayNote.swift|struct DriveOverlayNote: View { @State var d = HomeSheetDetent.collapsed; var body: some View { Text(\"\"\""$'\n'"//\(String(describing: HomeSheet(detent: \$d, summary: { Text(\"x\") }, details: { Text(\"y\") })))"$'\n'"\"\"\") } }|HomeSheet( occurs outside its tracked set"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
