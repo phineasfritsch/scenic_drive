@@ -1,7 +1,7 @@
 ---
 id: T-0302
 title: Worker /ledger - a signed-in device records which Surprise places it was shown (place id + H3-5 cell + UTC day) and reads back its last 90 days, so the 90-day no-repeat survives reinstall; nothing finer than H3-5 is ever stored
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T15:53:34Z
@@ -11,7 +11,7 @@ branch: task/T-0302
 exclusive: []
 touches: [services/api/src/, services/api/test/, services/api/migrations/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-PRIV-04, P-PRIV-05, P-COST-01]
-reviewer: null
+reviewer: agent/rv1-t0302
 depends_on: [T-0287, T-0278]
 verify: [ops/check-pins]
 acceptance:
@@ -132,3 +132,43 @@ server never holds a coordinate or anything finer than an H3-5 cell (plan, Telem
   wc -l: src/ledger.ts 107, test/ledger.test.ts 172, test/ledgerHarness.ts 91, test/ledgerWindow.test.ts 59,
   test/mutate/ledgerMutants.mjs 192 (all under 300). NOT CLOSED: no per-user write cap (R9 note); the client half
   (the Keychain install id, the app calling /ledger) is M6 Apple-package work, not this task.
+- 2026-10-07T17:33:04Z REVIEW PASS (round 1), agent/rv1-t0302 (not the owner), PR #191 at 99c82b54 (= origin/task/T-0302;
+  `git merge-base --is-ancestor origin/main origin/task/T-0302` exit 0). Acceptance, line by line:
+  1. RULE FIRST: the 16:27:38Z entry rules R1 identity (sub only; 503 auth_unavailable, 401), R2 row shape (0008, day
+     only, no coordinate), R4/R5 window and retention, R7 the /waitlist-style exemption and R8 DELETE /account; it comes
+     before fc19b4dc, the first src/ and migrations/ change. Met.
+  2. ledger.test.ts: 32 whole-body refusals x 2 callers with the table compared whole; the access table runs through
+     worker.fetch per caller and is compared by full equality to the model; the meta-test `no row ignores the caller`
+     is there. Met.
+  3. ledgerWindow.test.ts: 90 days returned and kept, 91 not returned and deleted for both users on the next write, at
+     23:59:59.999Z / 00:00:00.000Z on each side of two midnights. Met.
+  4. migrationColumns asserts the surprise_ledger columns exactly. accountDelete TABLES names surprise_ledger.
+     /ledger appears in routes, killSwitchRoutes, sharedEnvWorker, sweepRequests, requestReadSites and the
+     configAnswerPath digest. The PINS.yaml additions sit inside existing quoted values. Met.
+  5. ledgerMutants.mjs has 40 entries against a literal floor of 40, and the MISSED-then-CAUGHT trio is quoted in the
+     16:59:57Z entry. Met.
+  Gates, each run bare on the review worktree at 99c82b54:
+  - `npx vitest run`: `Tests  2 failed | 2116 passed (2118)`. Both failures are authAppleFields.test.ts timeouts at
+    5000 ms on the contended box; this PR does not touch that file. Re-run alone: `Tests  232 passed (232)`.
+  - `run-named-tests.py`: `NAMED P-PRIV-04 passed=51/51` and `NAMED P-COST-01 passed=38/38`, both exit 0.
+    `NAMED P-PRIV-05 passed=36/37` exit 1. The one red is the GRDB-gated `noColumnNamesAPlaceOrATrail(): MISSING`,
+    which cannot build on the Windows box (T-0175 R2); CI's core job runs it.
+  - `check-pins-yaml.py`: `PINS-YAML ok pins=44 fields=355`. `ops/queue-check`: `QUEUE OK (293 tasks)`.
+  - `gh pr checks 191`: core pass, pins-source-only pass.
+  Reviewer mutants (not in the population; run over the ledger, ledgerWindow, accountDelete, requestReadSites,
+  reflectionSites, migrationColumns, routes and killSwitchRoutes tests; source restored, `git status` clean afterwards):
+  - rv-user-is-apple-claim. caller returns `claims?.apple ?? claims?.sub`, so a signed-in user's rows would be keyed by
+    the Apple sub, which DELETE_LEDGER's device list never matches. CAUGHT by requestReadSites.test.ts "every line
+    under src that reads the request is an approved site ... file by file, line by line" (44 passed / 1 failed).
+  - rv-raw-secret-no-min-length. ledgerDepsFromEnv uses `env.SESSION_JWT_SECRET ?? null` instead of sessionSecret.
+    CAUGHT by ledger.test.ts "no verified session is 401 and no usable secret is 503, for GET and POST, with the table
+    unchanged" (44 passed / 1 failed).
+  Recorded, not blocking:
+  (a) R1's "sub only" is held behaviourally against the bare header, but only structurally against an `apple` or `act`
+      claim and against a valid Bearer sent with x-scenic-device. No row signs a session that carries an apple claim,
+      and no row sends a Bearer together with the legacy header. Both rv-user-is-apple-claim and the pre-review's
+      get-scoped-by-legacy-device-header are caught only by the requestReadSites line whitelist. A cheap follow-up: a
+      row signing {sub: USER_A, apple: ...} plus x-scenic-device: USER_B that must answer USER_A's rows.
+  (b) POST /ledger has no per-user write cap; the author records this as NOT CLOSED. It should be filed as its own task.
+  (c) ORDER BY place_id is text order ("101" sorts before "99"), and the model uses the same order. That is consistent;
+      the client must not assume numeric order.
