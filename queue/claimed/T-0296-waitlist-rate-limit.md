@@ -81,3 +81,18 @@ must stay free of personal data (memory user-lives-in-la; plan Launch scope).
     `same device same cell same day counts once; ...`, the secret entries by `without a usable SESSION_JWT_SECRET ...`,
     the 0007 column entries by `the waitlist dedupe table is exactly (tag, day) ...`.
   - Bound by name: P-PRIV-05 + the DDL test and the dedupe-table test (32 tests); P-PRIV-06 + the four waitlistDedupe tests (11).
+- 2026-10-07T10:31:05Z FINAL GATES on 56309f23 (git fetch origin; merge origin/main afa0dd15: "Already up to date"):
+  - `npx vitest run` -> Tests 1 failed | 2101 passed (2102), 278 s on the contended box: the one failure is
+    configAnswerPath.test.ts `loading the shipped worker leaves every global ...` "Test timed out in 5000ms"; alone
+    it is 3 passed (3), and the run before the merge (61 s) passed it - load, not this diff.
+  - `run-named-tests.py P-PRIV-06` -> NAMED P-PRIV-06 passed=11/11; `P-COST-01` -> NAMED P-COST-01 passed=33/33.
+  - `run-named-tests.py P-PRIV-05` -> REFUSED: swift test wrote no xunit report (PlaceStore's GRDB does not build on
+    this Windows box - the row's recorded limit; CI's Linux core job runs it). Its vitest half through the runner's own
+    vitest_results/verdicts: 20/20 passed, the two new T-0296 names among them.
+  - `ops/queue-check` -> QUEUE OK (287 tasks).
+  - ACCEPTANCE re-quoted:
+    1. RULE FIRST - R1-R7 above (09:38:35Z), before any code; the DDL test extended (migrationColumns, P-PRIV-05). MET.
+    2. Through worker.fetch, same device same cell same UTC day once, second device again, next day again - the
+       thirteen-step full-equality table over two variants, both tables whole after every step. MET.
+    3. Population entries for the dedupe key (tag-ignores-device/-cell/-day) and the day boundary (day-one-ms-early/
+       -late, purge-*): MISSED before (bar tag-ignores-device, CAUGHT before by the edited T-0293 test) and CAUGHT by name after. MET.
