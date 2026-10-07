@@ -27,3 +27,25 @@ PINS.yaml were outside T-0297's touches. rv2-t0296 recordable (PR #185): P-PRIV-
 ## Log
 - 2026-10-07T13:45:30Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0297 and rv2-t0296 recordables.
 - 2026-10-07T13:46:52Z claimed by agent/claude-opus-5; lease until 2026-10-07T21:46:52Z
+- 2026-10-07T13:54:03Z agent/claude-opus-5 (owner). RULING (brief vs reality): the orchestrator expected the new T-0297 name to FAIL
+  under attest-real-binding-kill-get-patched; it does not - T-0297's own Log records that entry CAUGHT by the sweep
+  test, and the new test is a witness of fetch-kill-switch-shared-binding (T-0297 Log: the JSON reports list it among
+  that mutant's failures). Both were applied by hand (find/replace read from configMutants.mjs MUTATIONS by id,
+  exactly one occurrence asserted) and src restored with git checkout --. (1) ops/lib/named-tests.json P-COST-01
+  test/sharedEnvWorker.test.ts gains the exact full name 'the kill read is not reachable through a shared binding
+  (T-0297, P-COST-01) > a handler that assigns env.KILL_SWITCH.get = async () => null on its first call through
+  worker.fetch does not unpause any later request: every upstream route and /telemetry on the shared env answers the
+  whole paused response under every KV killing source'. RED: attest-real-binding-kill-get-patched on src/attest.ts:
+  'RED test/sharedEnvWorker.test.ts :: the shared-env worker after an authenticated sweep (T-0292, P-COST-01) > the
+  authenticated sweep sends every ROUTES path ... and no request throws: FAILED', 'NAMED P-COST-01 passed=36/37',
+  exit 1; fetch-kill-switch-shared-binding on src/index.ts: 'RED test/sharedEnvWorker.test.ts :: the kill read is
+  not reachable through a shared binding (T-0297, P-COST-01) > a handler that assigns env.KILL_SWITCH.get = ...:
+  FAILED', 'NAMED P-COST-01 passed=36/37', exit 1. Green after restore: 'NAMED P-COST-01 passed=37/37', exit 0.
+  (2) pins/PINS.yaml: one dated sentence appended at the END of the P-COST-01 why_no_test_catches_it string (new
+  binding, THIRTY-SEVEN, both reds) and one T-0298 correction sentence appended at the END of P-PRIV-06's (EIGHTEEN
+  steps - STEPS in waitlistDedupe.test.ts counted, 18 rows - over {empty, holding} x {session-only, legacy-headers};
+  a bare legacy header with the secret set counts only under IDENTITY_HEADERS=1 with no Bearer). Pure append checked
+  by script: git diff -U0 has exactly 2 removed and 2 added lines, each added line starts with its removed line
+  minus the closing quote; no earlier sentence rewritten. 'NAMED P-PRIV-06 passed=11/11', exit 0. Note, not in
+  touches: pins/PINS.yaml does not load under strict yaml.safe_load at line 213 col 344 on HEAD 542eca4a as well
+  (pre-existing; not this change).
