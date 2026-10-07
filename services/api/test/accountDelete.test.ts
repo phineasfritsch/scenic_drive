@@ -27,6 +27,7 @@ const TABLES: Record<string, ((row: R, user: User) => boolean) | string> = {
   apple_accounts: (r, u) => u.devices.includes(r.device_id as string),
   waitlist: "no user column: (cell, count, updated_at), an H3-5 cell's count and the UTC day it last moved",
   waitlist_seen: "no user column: (tag, day), a tag is HMAC under a never-stored daily key of device and cell, purged at the next UTC day (T-0296 R4)",
+  surprise_ledger: (r, u) => u.devices.includes(r.user_id as string),
 };
 
 async function seed(): Promise<void> {
@@ -39,6 +40,8 @@ async function seed(): Promise<void> {
     ('t2', ?2, 'Production', 'p', 'active', NULL, 'SUBSCRIBED', NULL, 1), ('t3', NULL, 'Sandbox', 'p', 'inactive', NULL, 'EXPIRED', NULL, 1)`, ACCOUNT, OTHER_ACCOUNT);
   await run("INSERT INTO places VALUES ('p1', 34.1, -118.5)");
   await run("INSERT INTO attest_challenges VALUES ('c1', ?1)", NOW + 1000);
+  await run(`INSERT INTO surprise_ledger VALUES (?1, '101', '85283473fffffff', '2026-10-05'), (?2, '101', '85283473fffffff', '2026-10-05'),
+    (?2, '202', '850dab63fffffff', '2026-10-04'), (?3, '101', '850dab63fffffff', '2026-10-05')`, DEVICE, SECOND_DEVICE, OTHER_DEVICE);
 }
 
 function userOf(pre: Record<string, unknown[]>, devices: string[], act: string | null): User {
