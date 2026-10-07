@@ -33,7 +33,7 @@ import Testing
                                               shown("malibu-00", .park, day(6, 10))], feedback: feedback)),
         Row(name: "ledger overlapping device", device: device,
             ledger: [.init(candidateId: "malibu-00", date: day(6, 15)), .init(candidateId: "malibu-01", date: day(4, 20)),
-                     .init(candidateId: "malibu-02", date: day(3, 30)), .init(candidateId: "nowhere-9", date: day(6, 1))],
+                     .init(candidateId: "malibu-02", date: day(3, 30)), .init(candidateId: "nowhere-9", date: day(6, 19))],
             expected: SurpriseHistory(shown: [shown("malibu-02", .viewpoint, day(3, 30)),
                                               shown("malibu-01", .trailhead, day(5, 1)),
                                               shown("malibu-00", .park, day(6, 15))], feedback: feedback)),
