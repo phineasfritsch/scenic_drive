@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-08T07:14:19Z
 worktree: .worktrees/T-0294
 branch: task/T-0294
 exclusive: [package-swift]
-touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/ScenicDriveApp.swift, Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/, pins/PINS.yaml, ops/mutate/]
+touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/ScenicDriveApp.swift, Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/lib/, pins/PINS.yaml, ops/mutate/]
 pins_affected: [P-SAFE-03, P-PRIV-06, P-ATTR-01]
 reviewer: null
 depends_on: [T-0251, T-0254, T-0289]
@@ -32,3 +32,63 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
 ## Log
 - 2026-10-07T03:23:40Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M4 plan sheet); claim after T-0289 merges.
 - 2026-10-07T11:14:19Z claimed by agent/claude-opus-5; lease until 2026-10-08T07:14:19Z
+- 2026-10-07T11:32:20Z MEASURE, then RULINGS before code. agent/claude-opus-5 (owner).
+  - MEASURED. `grep -rln 'PlanClient|ScenicAPIClient' apps Sources --include=*.swift` outside Sources/ScenicAPIClient:
+    0 files - the phone never plans. The shell links ONE product, FeatureScenicHome, whose target list carries
+    Entitlements (T-0271) and FeatureSurpriseMe (T-0273), so a new module rides that product with no pbxproj edit.
+    P-SAFE-03 / P-ATTR-01 content pins over apps/ios today: -pinned PINNED_APP_SWIFT (37 lines: every apps/ios .swift
+    incl. ScenicApp/Package.swift, 38 .swift on disk = 37 + ScenicDriveApp.swift under PINNED_SHELL_DIGEST),
+    PINNED_FEATURE / PINNED_SURPRISE module sets; -frozen FROZEN_APP_SHELL (the shell's struct, line for line); -doors
+    DOORS_PACKAGE (every name:/path:/targets: line of the ScenicApp manifest), DOORS_VIEWS, DOORS_OPENERS (the bare
+    identifiers open/perform/... anywhere under apps/ios); -linked PINNED_ROOT_SOURCES (120 Sources/ entries);
+    check-safety-disclaimer key_set (the store key `safety.disclaimer.acknowledged.v1` once, in ScenicHomeScreen);
+    check-store-links (the shell's ScenicHomeScreen/Settings lines and the Settings sheet run); check-map-attribution
+    FOOTER_SET (one `AttributionFooter(` in ScenicHomeScreen), the OpenStreetMap literal whitelist and limb (g)'s
+    word `credit` whitelist. Each is a whole-line or digest whitelist: every apps/ios line this task adds that one
+    of them reads is typed into it in the same diff.
+  - R1 SEAM. PlanError lives in ScenicAPIClient, which depends on ScenicKit, so ScenicKit cannot name it. ScenicKit
+    gets `PlanFailure` - the thirteen PlanError cases one for one, payload-free, CaseIterable - the copy table,
+    the `RoutePlanning` protocol and the `PlanSheet` state machine. ScenicAPIClient gets `PlanError.failure` (an
+    exhaustive switch) and `ClientPlanner`, the RoutePlanning conformer over PlanClient. The protocol lives in
+    ScenicKit rather than in the feature: a feature-owned protocol makes the adapter import the feature, and the
+    Linux gate test could not reach it. touches: widened by Sources/ScenicAPIClient/ and Tests/ScenicAPIClientTests/
+    in this commit - the P-SAFE-03 test needs CountingPlanTransport, which ScenicKitTests cannot import.
+    Apple side: a feature target FeaturePlanSheet (DesignSystem, ScenicKit, PlaceStore - CLAUDE.md's list) and an
+    adapter target PlanAdapter, the ONLY apps/ios importer of ScenicAPIClient (as MapAdapter is of MapLibre), which
+    builds the live planner. Both ride the FeatureScenicHome product; the shell imports both and composes them,
+    as it does Entitlements. No project.pbxproj edit.
+  - R2 STATES. idle -> searching(field, query) -> chosen(destination) -> planning(ticket) -> preview(ticket,
+    PlanPreview) | failed(ticket, PlanFailure). `field` is destination or start (R4). `startPlanning()` is THE gate
+    the view calls: it returns a ticket only from chosen/failed/preview with a start, a budget in 0...180 and the
+    disclaimer accepted; otherwise nil and the state is unchanged. `finish(ticket, outcome)` applies only to the
+    ticket in flight (a stale reply is dropped).
+  - R3 DISCLAIMER (P-SAFE-03). One writer stays one writer: the plan feature READS the home's store key (key_set
+    gains one read-only occurrence, under its own identifier - ack_set's identifier is not used), feeds it to
+    PlanSheet(disclaimerAccepted:), and never writes it. Before acceptance the sheet says the safety note comes
+    first and the Plan button is not offered. Presenting the home's disclaimer from the plan sheet needs
+    FeatureScenicHome's frozen surface reopened - a follow-up, not this diff.
+  - R4 ORIGIN (P-PRIV-06). No CoreLocation anywhere in this diff. The start is a typed corpus place, chosen through
+    the same FTS5 search (the location-denied path is the only path today); the ticket carries its coordinate
+    rounded to 2 dp; PlanRequestBody's guard is unchanged and still refuses anything else. Test: the bytes the
+    counting transport received EQUAL the JSON recomputed from the place (full-equality oracle).
+  - R5 COPY. Payload-free copy: quotaExhausted's resetsAt is UTC midnight (17:00 in LA in summer), so the plan's
+    "back at midnight" would be false for the owner; the line names no clock. The plan's handoff-of-last-route,
+    cached plans, waitlist and rejoin banner have no store or screen yet, so each row's ONE action is one the app
+    can do today: surpriseMe, tryAgain, chooseAnotherPlace, changeStart, close. Calm, specific, no exclamation marks.
+  - R6 PREVIEW. The route is drawn as a SwiftUI path, not a second MapLibre surface (a second `MapView(` is a
+    P-ATTR-01 surface-whitelist change and a second basemap resolve - out of scope). The AttributionFooter sits in
+    the preview's bottom inset at every detent, its text `PlanPreview.attribution` - a ScenicKit constant, because
+    apps/ios may hold one OpenStreetMap literal only, and no apps/ios line names the word limb (g) tracks. FOOTER_SET
+    gains the preview file; the basemap-resolve count moves to SURFACE_SET (same value today, one per map surface).
+    ETA vs fastest from the response; the "estimate · no traffic data" badge shows whenever eta_is_estimate is true -
+    always, today: the server always says so and the device has no learned-sample store yet. Hazard strip: one row
+    per hazard run. Apple Maps from the preview (a new door) and departs-at (Brief) are out of scope.
+  - R7 LIVE PLANNER. No deployed Worker URL is in the tree (wrangler.jsonc has no route) and no keychain
+    InstallIDProvider exists (plan M6). PlanAdapter reads the base URL from UserDefaults `plan.base.url` (a launch
+    argument sets it); with none, its planner answers routingOffline with zero requests. The install id is generated
+    once and kept in UserDefaults until M6 moves it to the keychain.
+  - R8 RED FIRST by name: the state-machine and copy-table tests are committed against stubs that compile and are
+    wrong, run red, then the code. Population ops/mutate/plansheet.py (+_mutations, _run) with a literal floor;
+    three entries shown MISSED against the stub-era suite subset, CAUGHT by name after.
+  - R9 VERDICT. The local full P-SAFE-03 guard takes ~72 min here (T-0295): CI core + pins-source-only decide it;
+    ios-compile and ios-screenshot decide the Apple half. Only touched digests are re-approved, each in this diff.
