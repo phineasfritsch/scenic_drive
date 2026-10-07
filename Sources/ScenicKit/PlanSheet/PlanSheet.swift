@@ -68,6 +68,17 @@ public struct PlanSheet: Equatable, Sendable {
         return ticket
     }
 
+    /// A saved drive replayed (T-0306 R3): its start, its destination place and its budget become the sheet's, and
+    /// the ticket - or nil - is THE GATE's, `startPlanning()`. Ignored while a plan is in flight.
+    public mutating func replay(_ saved: SavedReplay) -> PlanTicket? {
+        if case .planning = state { return nil }
+        start = PlanPlace(id: 0, name: "Your saved start", coordinate: saved.start)
+        destination = saved.destination
+        budgetMinutes = min(max(saved.budgetMinutes, 0), Self.maxBudgetMinutes)
+        state = .chosen(saved.destination)
+        return startPlanning()
+    }
+
     /// The planner's answer for `ticket`. Applied only to the ticket in flight; any other is dropped.
     public mutating func finish(_ ticket: PlanTicket, with outcome: PlanOutcome) {
         guard case .planning(let inFlight) = state, inFlight == ticket else { return }

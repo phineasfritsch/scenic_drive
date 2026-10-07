@@ -15,14 +15,21 @@ public struct PlanPreview: Equatable, Sendable {
     public let fastestEtaSeconds: Double
     public let etaIsEstimate: Bool
     public let hazards: [PlanHazardRun]
+    /// The scenic decision points the Worker routed through, as it sent them (T-0306 R2). Kept on the device by a
+    /// save; never sent back (R3).
+    public let waypoints: [Coordinate]
+    /// The scenic weight the Worker settled on, as it sent it (T-0306 R2).
+    public let lambda: Double
 
     public init(route: [Coordinate], etaSeconds: Double, fastestEtaSeconds: Double, etaIsEstimate: Bool,
-                hazards: [PlanHazardRun]) {
+                hazards: [PlanHazardRun], waypoints: [Coordinate] = [], lambda: Double = 0) {
         self.route = route
         self.etaSeconds = etaSeconds
         self.fastestEtaSeconds = fastestEtaSeconds
         self.etaIsEstimate = etaIsEstimate
         self.hazards = hazards
+        self.waypoints = waypoints
+        self.lambda = lambda
     }
 
     /// Whether the badge is drawn: whenever the ETA is an estimate.

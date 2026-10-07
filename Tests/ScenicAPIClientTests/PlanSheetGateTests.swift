@@ -106,7 +106,7 @@ struct PlanSheetGateTests {
                                    hazards: direct.hazards.map {
                                        PlanHazardRun(kind: $0.kind, value: $0.value, fromIndex: $0.fromIndex,
                                                      toIndex: $0.toIndex)
-                                   })
+                                   }, waypoints: direct.waypoints, lambda: direct.lambda)
         #expect(!expected.hazards.isEmpty)
         #expect(expected.hazards.map { [$0.fromIndex, $0.toIndex] } == direct.hazards.map { [$0.fromIndex, $0.toIndex] })
         guard case .preview(_, let shown) = sheet.state else {

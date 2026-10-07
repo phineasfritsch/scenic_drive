@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-08T15:10:14Z
 worktree: .worktrees/T-0306
 branch: task/T-0306
 exclusive: []
-touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/PlaceStore/, Tests/PlaceStoreTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
+touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/PlaceStore/, Tests/PlaceStoreTests/, Sources/ScenicAPIClient/ClientPlanner.swift, Tests/ScenicAPIClientTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-ATTR-01, P-SAFE-03]
 reviewer: null
 depends_on: [T-0290, T-0294, T-0303]
@@ -71,3 +71,7 @@ is +31 not +25, say so." T-0290 shipped the store; T-0294 the plan sheet and pre
     needsReplan with its own copy line and issues nothing. Rows are kept newest first (createdAt desc, id desc).
   - R5 PROOF: tests first, run RED by name; population ops/mutate/savedlist.py (+_mutations, _run) with a literal
     floor; digests re-approved for every touched Sources/ and apps/ios file; ios-compile + ios-screenshot dispatched.
+  - R6 TOUCHES WIDENED (ruled on contact, the pre-commit hook refused): R2 hop (a) is ClientPlanner.preview, so
+    `Sources/ScenicAPIClient/ClientPlanner.swift` and `Tests/ScenicAPIClientTests/` join touches; the existing
+    PlanSheetGateTests "a 200 reaches the sheet as the preview of exactly that response" now expects the waypoints
+    and lambda too (its full-equality oracle, widened by the two new fields).
