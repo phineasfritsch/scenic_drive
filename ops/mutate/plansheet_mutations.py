@@ -135,9 +135,9 @@ MUTATIONS = [
     ("31 latitude rounded up (rv1-t0294 B3, MY1)", SHEET,
      "Coordinate(latitude: (coordinate.latitude * 100).rounded() / 100,",
      "Coordinate(latitude: (coordinate.latitude * 100).rounded(.up) / 100,", [ROUNDING]),
-    ("32 longitude rounded up (MY1's sibling)", SHEET,
+    ("32 longitude rounded down (MY1's longitude sibling)", SHEET,
      "longitude: (coordinate.longitude * 100).rounded() / 100)",
-     "longitude: (coordinate.longitude * 100).rounded(.up) / 100)", [ROUNDING]),
+     "longitude: (coordinate.longitude * 100).rounded(.down) / 100)", [ROUNDING]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
