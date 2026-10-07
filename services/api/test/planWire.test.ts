@@ -18,6 +18,7 @@ import unknownPlace404 from "../../../Tests/Fixtures/t0251/404-unknown-place.jso
 import notFound404 from "../../../Tests/Fixtures/t0251/404-not-found.json?raw";
 import postOnly405 from "../../../Tests/Fixtures/t0251/405-post-only.json?raw";
 import noScenic422 from "../../../Tests/Fixtures/t0251/422-no-scenic-alternative.json?raw";
+import region422 from "../../../Tests/Fixtures/t0251/422-region-unsupported.json?raw";
 import quota429 from "../../../Tests/Fixtures/t0251/429-quota-exhausted.json?raw";
 import noRoute502 from "../../../Tests/Fixtures/t0251/502-no-route.json?raw";
 import paused503 from "../../../Tests/Fixtures/t0251/503-planning-paused.json?raw";
@@ -54,6 +55,9 @@ export const SCENARIOS: Record<string, () => Promise<{ status: number; text: str
   "422-no-scenic-alternative": async () =>
     recorded(await handlePlan(planRequest(SANTA_MONICA_TOPANGA_BODY), {},
       harness(curveRouter(1_000_000, () => 1_100_000, FAST_WAYS, [1, 2, 3])).deps)),
+  "422-region-unsupported": async () =>
+    recorded(await handlePlan(planRequest({ ...SANTA_MONICA_TOPANGA_BODY, origin: { lat: 40.71, lon: -74.01 } }), {},
+      harness(SANTA_MONICA_TOPANGA).deps)),
   "429-quota-exhausted": async () =>
     recorded(await handlePlan(planRequest(SANTA_MONICA_TOPANGA_BODY), {},
       harness(SANTA_MONICA_TOPANGA, { plansUsedToday: 10 }).deps)),
@@ -74,6 +78,7 @@ const FIXTURES: Record<string, string> = {
   "404-not-found": notFound404,
   "405-post-only": postOnly405,
   "422-no-scenic-alternative": noScenic422,
+  "422-region-unsupported": region422,
   "429-quota-exhausted": quota429,
   "502-no-route": noRoute502,
   "503-planning-paused": paused503,

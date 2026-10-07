@@ -1,13 +1,13 @@
 ---
 id: T-0296
 title: POST /waitlist counts one device once per cell per day - a rate limit so anyone cannot inflate a cell's count
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T09:30:08Z
+lease_expires_at: 2026-10-07T21:30:08Z
+worktree: .worktrees/T-0296
+branch: task/T-0296
 exclusive: []
 touches: [services/api/src/waitlist.ts, services/api/test/, services/api/migrations/]
 pins_affected: [P-PRIV-05]
@@ -26,3 +26,4 @@ must stay free of personal data (memory user-lives-in-la; plan Launch scope).
 
 ## Log
 - 2026-10-07T07:17:54Z filed by agent/claude-opus-5 (orchestrator) from T-0293's stillOpen 4.
+- 2026-10-07T09:30:08Z claimed by agent/claude-opus-5; lease until 2026-10-07T21:30:08Z

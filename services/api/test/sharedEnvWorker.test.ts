@@ -15,12 +15,13 @@ import { expected, KILLS } from "./configHarness";
 import { ROWS } from "./configRows";
 import { fakeKv, fakeQuotaNamespace, type FakeQuota } from "./doFake";
 import { changed, snapshot } from "./intrinsicsSnapshot";
+import { freshAllTables } from "./siwaHarness";
 import { DEVICE, get, NO_CREDENTIAL, REQUESTS, shuffled, signature, type Auth } from "./sweepRequests";
 
 const SECRET = "t0292-shared-env-session-secret-0123456789abcdef";
 const RO_TOKEN = "t0292-shared-env-ro-token";
 const OPERATIONAL = ["/__health", "/__version", "/__ro", "/asn", "/entitlement", "/attest/challenge", "/attest", "/attest/assert",
-  "/auth/apple", "/account", "/config"];
+  "/auth/apple", "/account", "/config", "/waitlist"];
 const KILLABLE = ["/plan", "/loop", "/isochrone", "/trip", "/telemetry"];
 const PAUSED: Record<string, unknown> = {
   "/plan": { status: 503, json: { error: "planning_paused" } },
@@ -46,6 +47,7 @@ const RIGS: Rig[] = KILLS.map(rig);
 /** R2: each source's worker is its own module instance - its own isolate - so a first-call patch fires on each one. */
 const ISOLATES: (typeof worker)[] = [];
 beforeAll(async () => {
+  await freshAllTables(); // the rig D1 holds every migrated table, waitlist (T-0293) among them
   for (const _ of RIGS) {
     vi.resetModules();
     ISOLATES.push((await import("../src/index")).default);

@@ -159,7 +159,12 @@ describe("ROUTES['/trip'] at every bound (R1)", () => {
     expect(quota.state()).toEqual({});
   });
 
+  // T-0293 R14: the whitelist's two corner rows parse (the parseTripRequest table above) but lie outside the served
+  // region, so the shipped route answers them 422 region_unsupported with no router request (regionGate.test.ts).
+  const REGION_REFUSED = ["lat 90 and lon 180", "lat -90 and lon -180"];
+
   it("every exact bound is accepted through the shipped route: 200, and the first router request carries that origin", async () => {
+    expect(ACCEPTED.map(([name]) => name).filter((name) => REGION_REFUSED.includes(name))).toEqual(REGION_REFUSED);
     const answered = [];
     for (const [name, body] of ACCEPTED) {
       quota = fakeQuotaNamespace();
@@ -170,6 +175,7 @@ describe("ROUTES['/trip'] at every bound (R1)", () => {
     }
     expect(answered).toEqual(ACCEPTED.map(([name, , parsed]) => {
       const { origin, days, extraBudgetPct } = parsed.request;
+      if (REGION_REFUSED.includes(name)) return [name, 422, undefined, undefined, undefined];
       return [name, 200, [[origin.lon, origin.lat], [BIG_SUR.lon, BIG_SUR.lat]], days, extraBudgetPct];
     }));
   });

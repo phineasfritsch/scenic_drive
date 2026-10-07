@@ -29,6 +29,8 @@ export const TELEMETRY_EVENT = { blobs: ["drive_started", "", ""], doubles: [0, 
 const ATTEST = { keyId: "a2V5", attestation: "YXR0", challenge: "Y2hh", device: DEVICE };
 const ASSERT = { keyId: "a2V5", assertion: "YXNz", challenge: "Y2hh" };
 const APPLE = { identityToken: "e30.e30.sig", authorizationCode: "c0de" };
+/** One H3 resolution-5 cell (the configSweep representative T-0293 shipped); its upper-case spelling is refused. */
+export const WAITLIST_CELL = "85283473fffffff";
 
 export type Representatives = { valid: () => Request; invalid: () => Request; authenticated: (a: Auth) => Request };
 
@@ -63,6 +65,9 @@ export const REQUESTS: Record<string, Representatives> = {
   "/account": { valid: () => new Request(`${B}/account`, { method: "DELETE", headers: { "x-scenic-device": DEVICE, ...bearer("e30.e30.sig") } }),
     invalid: () => post("/account", {}, bearer("e30.e30.sig")),
     authenticated: (a) => new Request(`${B}/account`, { method: "DELETE", headers: { "x-scenic-device": DEVICE, ...bearer(a.session) } }) },
+
+  "/waitlist": { valid: () => post("/waitlist", { cell: WAITLIST_CELL }), invalid: () => post("/waitlist", { cell: WAITLIST_CELL.toUpperCase() }),
+    authenticated: (a) => post("/waitlist", { cell: WAITLIST_CELL }, bearer(a.session)) },
 };
 
 /** The routes whose authenticated representative is their valid one (they take no credential). */

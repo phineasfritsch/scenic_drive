@@ -18,6 +18,7 @@ import { planDepsFromEnv, type PlanDeps, type PlanEnv } from "./plan";
 import type { RouterEnv } from "./routerDeps";
 import { RouteError } from "./routePath";
 import { parseTripRequest } from "./tripRequest";
+import { inServedRegion } from "./servedRegion";
 import { MAX_DRIVE_MS_PER_DAY, MAX_METERS_PER_DAY, planTrip, TRIP_UPSTREAM_COST, TripFailure } from "./tripPlanner";
 import { guardedPlan, PlanBudgetExceeded, UpstreamPaused, type UpstreamDeps } from "./upstream";
 
@@ -72,9 +73,10 @@ export async function handleTrip(req: Request, env: PlanEnv, deps: TripDeps | nu
   }
   const parsed = parseTripRequest(raw);
   if (!parsed.ok) return json({ error: "invalid_request", detail: parsed.problem }, 400);
+  const { request } = parsed;
+  if (!inServedRegion(request.origin)) return json({ error: "region_unsupported" }, 422);
   if (deps === null) return json({ error: "planning_unavailable" }, 503);
 
-  const { request } = parsed;
   let destination: LatLon | null;
   try {
     destination = await deps.resolvePlace(request.destinationPlace);
