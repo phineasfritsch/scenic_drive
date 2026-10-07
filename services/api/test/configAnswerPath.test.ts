@@ -14,6 +14,7 @@
  * shipped worker, and requires the snapshot unchanged.
  */
 import { describe, expect, it } from "vitest";
+import { changed, snapshot } from "./intrinsicsSnapshot";
 
 const FILES = import.meta.glob(["../src/index.ts", "../src/config.ts", "../src/killSwitch.ts", "../src/quota.ts"],
   { query: "?raw", import: "default", eager: true }) as Record<string, string>;
@@ -28,45 +29,6 @@ const ANSWER_PATH: Record<string, string> = {
 async function sha256(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text.replace(/\r\n/g, "\n")));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-type Shot = Map<string, unknown[]>;
-
-/** Measured: the ONE descriptor workerd answers with a fresh array on every lookup; it is compared by its JSON. */
-const BY_VALUE = new Set(["globalThis.navigator.languages"]);
-
-/** globalThis's own properties, theirs, and their prototype's: every descriptor by identity, every [[Prototype]]. */
-function snapshot(): Shot {
-  const shot: Shot = new Map();
-  const seen = new Set<object>();
-  const visit = (o: object, path: string, depth: number) => {
-    if (seen.has(o)) return;
-    seen.add(o);
-    shot.set(`${path} [[Prototype]]`, [Object.getPrototypeOf(o)]);
-    for (const key of Reflect.ownKeys(o)) {
-      const d = Object.getOwnPropertyDescriptor(o, key);
-      if (d === undefined) continue;
-      const at = `${path}.${String(key)}`;
-      if (BY_VALUE.has(at)) {
-        shot.set(at, [JSON.stringify(d.value), d.get, d.set, d.writable, d.enumerable, d.configurable]);
-        continue;
-      }
-      shot.set(at, [d.value, d.get, d.set, d.writable, d.enumerable, d.configurable]);
-      const v = d.value as unknown;
-      if (depth < 2 && v !== null && (typeof v === "object" || typeof v === "function")) visit(v as object, at, depth + 1);
-    }
-  };
-  visit(globalThis, "globalThis", 0);
-  return shot;
-}
-
-function changed(before: Shot, after: Shot): string[] {
-  const keys = new Set([...before.keys(), ...after.keys()]);
-  return [...keys].filter((k) => {
-    const a = before.get(k);
-    const b = after.get(k);
-    return a === undefined || b === undefined || a.length !== b.length || a.some((x, i) => !Object.is(x, b[i]));
-  }).sort();
 }
 
 describe("the GET /config answer path (T-0288 rv3 B1)", () => {

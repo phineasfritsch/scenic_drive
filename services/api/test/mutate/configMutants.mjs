@@ -23,11 +23,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-config");
 
-export const MIN_MUTATIONS = 75;
+export const MIN_MUTATIONS = 77;
 export const SUBJECTS = ["src/config.ts", "src/index.ts"];
 const TESTS = ["test/configRoutes.test.ts", "test/configFields.test.ts", "test/routes.test.ts", "test/requestReadSites.test.ts",
   "test/killSwitchRoutes.test.ts", "test/configWorker.test.ts", "test/configAnswerPath.test.ts",
-  "test/reflectionSites.test.ts"];
+  "test/reflectionSites.test.ts", "test/configSweep.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 const C = "config.ts";
@@ -37,6 +37,8 @@ const PAUSED = "killed || merged.planning_paused === true";
 const MERGE = "const merged = { ...DEFAULTS, ...overlay(await readRecord(env.CONFIG, warnings), warnings) };\n  const killed = await killSwitch(env);";
 const URL_LINE = "const url = new URL(req.url);";
 const PLAN_ANCHOR = "import { killSwitch, type KillEnv } from \"./killSwitch\";";
+const PLAN_HANDLER = "export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | null): Promise<Response> {";
+const TELEMETRY_HANDLER = "export async function handleTelemetry(req: Request, env: KillEnv & SessionEnv, deps: TelemetryDeps | null): Promise<Response> {";
 const KINDS = "[\"plan\", \"loop\", \"surprise\", \"trip\"]";
 export const MUTATIONS = [
   m("key-v2", C, "CONFIG_KEY = \"config/v1\";", "CONFIG_KEY = \"config/v2\";"),
@@ -142,6 +144,17 @@ let FLAG = false;
 SP.endsWith = function (this: string, s: string) { if (this === "/config/") FLAG = true; return EW.call(this, s); };
 const JS = JSON.stringify;
 JSON.stringify = ((v: any, ...r: any[]) => JS(FLAG && v && v.config_warnings ? { ...v, planning_paused: false } : v, ...r)) as typeof JSON.stringify;`),
+  // T-0288 rv4 B1: rv4's exact patch - REQUEST-time, in an unpinned module: the first POST /plan replaces JSON.stringify
+  // so every later /config body says planning_paused false under KILL. The post-sweep table (oracle built with the
+  // JSON.stringify captured before src loads) and the post-sweep intrinsics snapshot (configSweep.test.ts) refuse it.
+  m("plan-request-time-stringify-unpause", "plan.ts", PLAN_HANDLER, `let unpaused = false;
+${PLAN_HANDLER}
+  if (!unpaused) { unpaused = true; const JS = JSON.stringify; JSON.stringify = ((v: any, ...r: any[]) => JS(v && typeof v === "object" && "planning_paused" in v ? { ...v, planning_paused: false } : v, ...r)) as typeof JSON.stringify; }`),
+  // Its sibling: an nth-call patch (the 11th /telemetry call - the first of the sweep's SECOND pass, one pass makes 10)
+  // of Response.prototype.text by a computed spelling, rewriting a /config body's planning_paused to false.
+  m("telemetry-request-time-nth-text-unpause", "telemetry.ts", TELEMETRY_HANDLER, `let nth = 0;
+${TELEMETRY_HANDLER}
+  if (++nth === 11) { const RP = (Response as any)["proto" + "type"]; const T = RP.text; RP.text = async function (this: Response) { const t: string = await T.call(this); return t.includes('"config_warnings"') ? t.replace('"planning_paused":true', '"planning_paused":false') : t; }; }`),
   m("fetch-trailing-slash-404", I, "ROUTES[url.pathname.length > 1 && url.pathname.endsWith(\"/\") ? url.pathname.slice(0, -1) : url.pathname]", "ROUTES[url.pathname]"),
 ];
 

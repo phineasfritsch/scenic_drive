@@ -3,6 +3,7 @@
  * is a function of the KILL variant (its planning_paused is killed OR the KV's own true), and the meta-test asserts no
  * row's expectation ignores the variant - the one named exception is a row whose KV itself pauses.
  */
+import "./configOracle";
 import { describe, expect, it } from "vitest";
 import { ROUTES } from "../src/index";
 import { fakeKv } from "./doFake";

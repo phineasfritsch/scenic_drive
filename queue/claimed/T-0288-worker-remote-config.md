@@ -295,3 +295,55 @@ only.
   suite on it: `Test Files  59 passed (59)`, `Tests  1720 passed (1720)`, EXIT 0. `run-named-tests.py P-COST-01`: NAMED
   P-COST-01 passed=26/26. ops/queue-check: QUEUE OK (280 tasks). wc -l: test/configAnswerPath.test.ts 100,
   test/reflectionSites.test.ts 67, test/configWorker.test.ts 167, test/mutate/configMutants.mjs 248; src untouched.
+- 2026-10-07T01:17:06Z agent/claude-opus-5 (owner): rv4-t0288 FAIL (PR #177, head 73bf8037) B1 - a REQUEST-time patch in an
+  unpinned module: plan.ts gains a module `let unpaused = false` and, first line of handlePlan, a one-time replacement of
+  JSON.stringify that rewrites any object carrying planning_paused to false. GET /config, POST /plan, GET /config through
+  worker.fetch with KILL=1 gave [true, 503, false] with 1720/1720 green. RULINGS, before code:
+  (R10) R7 IS CORRECTED (R7's entry above is left as written). R7 said the rest of src "runs on the /config path only as
+  index.ts's imports, at module load ... no function of theirs runs while /config is answered". False: every handler
+  runs at REQUEST time in the same isolate that answers /config, so any module reachable from ROUTES can change shared
+  runtime state on its first or nth request, after the load-time snapshot was taken, and every later /config answer
+  carries it. The closure is therefore a SWEEP: test/configSweep.test.ts sends every ROUTES path (REQUESTS' keys must
+  equal ROUTES' keys - a new route without representatives fails) a well-formed and a refused request under every KILL
+  source (5, both states), in a seeded order (mulberry32, seeds 0x7288 and 0x2887), TWICE (2 x 14 x 2 x 5 = 280 calls),
+  so one-shot and nth-call patches fire; then, on that same worker, `after the sweep, every CONFIG row x every KILL
+  source answers the whole expected response through worker.fetch` (ROWS x KILLS, full equality, plus the killed
+  planning_paused projection read with the captured JSON.parse), and `after the sweep, every global, intrinsic and
+  prototype equals its snapshot from before src loaded`. "Well-formed" is the request shape each route accepts (the
+  plan/loop/isochrone/trip harness bodies; signedPayload; keyId/attestation/challenge/device; events), not an
+  authenticated success: the env carries no bindings. Residual: a patch gated on a path only an authenticated or
+  bound-env request reaches is reached by the snapshot only if it fires, and the sweep does not fire it.
+  (R11) THE ORACLE NO LONGER USES LIVE INTRINSICS. test/configOracle.ts captures JSON.stringify and JSON.parse (STRINGIFY,
+  PARSE) and the intrinsics snapshot (BASELINE) when it is evaluated; configHarness.ts, configSweep.test.ts,
+  configWorker.test.ts and configRoutes.test.ts import it FIRST, so ESM evaluates it before ../src/index. expected()
+  builds its text with STRINGIFY, so a src patch of JSON.stringify rewrites the answer and not the expectation (rv4's
+  point c: the old expected() used live JSON.stringify and was rewritten with the answer).
+  (R12) ONE SNAPSHOT POPULATION. snapshot()/changed() moved unchanged from configAnswerPath.test.ts to
+  test/intrinsicsSnapshot.ts; the load check and the post-sweep check call the same function, both asserting > 1000
+  entries. MEASURED GAP, fixed: the sibling mutant (Response.prototype.text patched on the 11th /telemetry call) FAILED
+  the post-sweep table but PASSED the post-sweep snapshot - workerd defines its API classes (Response, Request, Headers,
+  URL...) on the global scope's PROTOTYPE, which the walk never expanded, so rv3's load snapshot never covered those
+  prototypes either. snapshot() now walks breadth first, treats every object on globalThis's prototype chain as a
+  global scope (depth 0), and resolves a global scope's accessor against globalThis. Measured noise from the wider walk,
+  each ruled by name: `globalThis.[[Prototype]].PerformanceObserver.supportedEntryTypes` answers fresh per lookup (joins
+  navigator.languages in BY_VALUE, now compared by the JSON of the value, getter resolved); RUNNER =
+  [`globalThis.__vitest_worker__.`, `globalThis.Symbol($$jest-matchers-object).`] - vitest's own per-test bookkeeping,
+  nothing src runs on - is dropped by changed().
+  (R13) P-COST-01's named-tests list stays as R4 ruled.
+  SEEN RED (configMutants.mjs --only, vitest json report per mutant, src restored, `git status --porcelain --
+  services/api/src` empty):
+    plan-request-time-stringify-unpause (rv4's exact patch): passed=39/41 FAILED ["after the sweep, every CONFIG row x
+      every KILL source answers the whole expected response through worker.fetch", "after the sweep, every global,
+      intrinsic and prototype equals its snapshot from before src loaded"]
+    telemetry-request-time-nth-text-unpause (sibling; fires only on the sweep's SECOND pass - one pass makes 10
+      /telemetry calls): passed=38/41 FAILED [the post-sweep table, the post-sweep snapshot, and "the request sites
+      under src are exactly the approved sites, file by file, line by line"]; before R12's walk fix it was 39/41 with
+      the snapshot GREEN - that is the gap R12 records.
+  GREEN: configSweep + configAnswerPath 7/7 (the load check and its meta-test on the wider walk included).
+  POPULATION (--only, floor 75 -> 77; TESTS += configSweep.test.ts): `population mutations=77 (floor 77) equivalent=1
+  subjects=2 tests=9 ONLY=2`, `baseline green tests=41`, CAUGHT both by "after the sweep, every CONFIG row x every KILL
+  source answers the whole expected response through worker.fetch", `RESULT caught=2 missed=0 trap=0 of 2`.
+  --prove-floor: empty, 76, a subject unmutated, a new subject - each REFUSED; real population quiet. Not re-run: the
+  75 untouched entries (faster verification in rounds). wc -l: test/configSweep.test.ts 128, test/configOracle.ts 13,
+  test/intrinsicsSnapshot.ts 66, test/configAnswerPath.test.ts 62, test/configHarness.ts 67, test/configWorker.test.ts
+  168, test/configRoutes.test.ts 57, test/mutate/configMutants.mjs 261; src untouched.

@@ -4,6 +4,7 @@
  * KILL source and every CONFIG row answers the whole expected response, the one bare GET /config answers, by full
  * equality: no request property can unpause /config. The meta-test holds that no variant ignores its variant.
  */
+import { PARSE } from "./configOracle";
 import { describe, expect, it } from "vitest";
 import worker, { type Env } from "../src/index";
 import { configKv, expected, KILLS } from "./configHarness";
@@ -114,7 +115,7 @@ describe("GET /config through the shipped worker.fetch over request variants (T-
     const config = configKv('{"planning_paused":false}');
     const paused: [string, string, unknown][] = [];
     for (const [kill, source, killed] of KILLS) if (killed) for (const x of ALL) {
-      paused.push([kill, x.name, JSON.parse((await viaWorker(x, { ...source, CONFIG: config })).text).planning_paused]);
+      paused.push([kill, x.name, PARSE((await viaWorker(x, { ...source, CONFIG: config })).text).planning_paused]);
     }
     expect(paused).toEqual(KILLS.filter(([, , killed]) => killed).flatMap(([kill]) => ALL.map((x) => [kill, x.name, true])));
     expect(paused.length).toBe(3 * ALL.length);

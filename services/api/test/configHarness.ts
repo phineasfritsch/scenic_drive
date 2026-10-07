@@ -2,6 +2,7 @@
  * T-0288: the GET /config harness. The expectation is built HERE, from test literals and quota.ts's exported tables -
  * never from src/config.ts - and compared to the shipped ROUTES['/config'] answer by whole-response equality.
  */
+import { STRINGIFY } from "./configOracle";
 import { ROUTES, type Env } from "../src/index";
 import { DAILY_LOOP_QUOTA, DAILY_PLAN_QUOTA, DAILY_SURPRISE_QUOTA, DAILY_TRIP_QUOTA } from "../src/quota";
 import { fakeKv } from "./doFake";
@@ -46,7 +47,7 @@ export function expected(overrides: Record<string, unknown>, killed: boolean, wa
     quota: QUOTA,
     config_warnings: warnings,
   };
-  return { status: 200, contentType: CONTENT_TYPE, cacheControl: CACHE_CONTROL, text: JSON.stringify(body) };
+  return { status: 200, contentType: CONTENT_TYPE, cacheControl: CACHE_CONTROL, text: STRINGIFY(body) };
 }
 
 /** A CONFIG KV holding `text` at config/v1 (a raw JSON text, so 1e400 and non-JSON can be stored). */
