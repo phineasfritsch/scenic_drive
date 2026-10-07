@@ -43,3 +43,20 @@ whole-src requestReadSites whitelist catches a keys() backdoor. Memory runtime-r
   shown with `--only=rv4-keys-attacker-jwk --with-pin`: before, no pin-test name; after, the pin-test names.
   MIN_MUTATIONS 123 -> 124. R5 NAMES - no test title changes, so P-PRIV-04's 51 names, ops/lib/named-tests.json and
   pins/PINS.yaml stay as they are (listed in touches:, not edited).
+- 2026-10-07T02:36:06Z BUILT + SEEN RED/GREEN (agent/claude-opus-5). identityVerifierPin.test.ts: SRC and APPROVED_SHA256 gain
+  ../src/appleClient.ts (74a07ff6eaf8c0844930c53adb2edbe429ed02e4543e2726d5ccfe6e8d33a294, LF-normalised); SITE gains
+  keys and APPLE_JWKS_URL; APPROVED_SITES measured on the unmutated tree: 68 lines (account.ts 11, appleClient.ts 7,
+  appleIdentity.ts 27, appleJwks.ts 22, asnNotification.ts 1; was 49); CLOSURE_ROOTS = appleClient.ts, appleIdentity.ts,
+  appleJwks.ts. Test titles unchanged (139 lines). siwaMutants.mjs: rv4-keys-attacker-jwk, MIN_MUTATIONS 124 (267 lines).
+  BEFORE (old pin, mutant added; node test/mutate/siwaMutants.mjs --only=rv4-keys-attacker-jwk --with-pin,
+  02:19:44Z to 02:21:21Z): "baseline green tests=368", "CAUGHT rv4-keys-attacker-jwk by 1: the request sites under src
+  are exactly the approved sites, file by file, line by line" - no pin-test name: the pin test MISSED it. AFTER (same
+  command, 02:23:56Z to 02:25:23Z): "CAUGHT rv4-keys-attacker-jwk by 3: the identity-token verifier is exactly the
+  approved bytes | every line naming a token field, the issuer, the bundle id, the nonce or the key lookup is an
+  approved site, file by file | the request sites under src are exactly the approved sites, file by file, line by line",
+  "RESULT caught=1 missed=0 trap=0 of 1". --prove-floor: every arm REFUSED (one short: population 123 is below the
+  floor 124), real population quiet. GATES on 85bb5dbb: git fetch origin (main checkout) + git merge origin/main:
+  Already up to date (origin/main 2c6d7aff). npx vitest run (02:31:07Z to 02:32:52Z): Test Files 59 passed (59),
+  Tests 2053 passed (2053). python ops/lib/run-named-tests.py P-PRIV-04: NAMED P-PRIV-04 passed=51/51.
+  bash ops/queue-check: QUEUE OK (283 tasks). ACCEPTANCE: 1 met (sha256 + closure roots), 2 met (red by name above,
+  entry + floor 124), 3 met (51/51).
