@@ -126,3 +126,19 @@ Plus rv3 recordable 3: P-ATTR-01 does not call require_pinned_app_swift.
   - NEW ROW 48 (-mutations): `+../../Package@swift-6.swift` expecting "root top: added Package@swift-6.swift". The full
     check over row 48 (one-row table copy) and over M1 exact (the verifier's driver, M1 only) are running in the
     background at this commit, NOT claimed here. -linked 255 lines, -mutations 213.
+- 2026-10-07T03:39:43Z FULL CHECK on 0a76262, then origin/main merged and three digests re-approved. agent/claude-opus-5.
+  - Row 48 alone (one-row table copy of -mutations, `bash ops/lib/check-safety-disclaimer` per row): "T-0289 fm M1 a
+    root Package@swift-6.swift  1  yes", "prove-red: 1/1 mutations refused by name". M1 EXACT (the verifier's driver,
+    M1 only, on this worktree): "exit=1 :: 4356s", "P-SAFE-03: the pinned linked trees changed: root top: added
+    Package@swift-6.swift." - the survivor is refused by name through the full check.
+  - Limb probe, remaining rows at 0a76262: a second spelling Package@swift-6.1.swift (git-bash `ln -s` copies, so a
+    file) -> "root top: added Package@swift-6.1.swift." exit 1; Package.resolved + README.md + .gitignore at the top ->
+    GREEN exit 0 (the allowance); a bare Vendor/ directory -> GREEN exit 0 (directories are not in the class).
+  - `git fetch origin` + `git merge origin/main` (2ce3707): merged clean as ccac2d4. It carries T-0283 (PR merged to
+    main), which edited three root-package files the app links: Sources/ScenicKit/Surprise/Surprise.swift,
+    SurprisePlaceClass.swift, SurprisePlaceMapping.swift (M only; no file added or removed under Sources/ or apps/ios).
+    RE-APPROVED in PINNED_ROOT_SOURCES per the duty this task introduces - reason: T-0283's surprise time-fit change,
+    reviewed and merged on main - new digests (`sed -e 's/\r$//' FILE | sha256sum`) 076653bf..., 4667871e...,
+    d3f25728.... On the merged head: limb probe over the real tree "GREEN files=110" exit 0; `bash ops/queue-check`
+    QUEUE OK (285 tasks). The bare full check was NOT re-run on the merged head (4356 s per run on this box; owner-
+    approved faster verification - the merge touched only the three re-approved digests).
