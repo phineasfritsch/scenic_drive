@@ -6,8 +6,15 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker, { type Env } from "../src/index";
+import { signSession } from "../src/sessionJwt";
 import waitlistSql from "../migrations/0006_waitlist.sql?raw";
+import seenSql from "../migrations/0007_waitlist_seen.sql?raw";
 import { fakeKv, fakeQuotaNamespace, type FakeQuota } from "./doFake";
+
+// T-0296: the route counts one device once per cell per day and needs the session secret, so each send carries a session.
+const SECRET = "t0296-waitlist-test-secret-0123456789abcdef";
+const DEVICE_A = "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f";
+const DEVICE_B = "6f5e4d3c-2b1a-4f0e-9d8c-7b6a5f4e3d2c";
 
 // Published uber/h3 resolution-5 cells (the telemetry fixtures' and the h3 docs' own).
 const CELL = "85283473fffffff";
@@ -31,8 +38,11 @@ beforeEach(async () => {
     routerRequests.push(String(input));
     return new Response("{}", { status: 500 });
   });
-  for (const statement of waitlistSql.split(";").map((s) => s.trim()).filter(Boolean)) await env.DB.prepare(statement).run();
+  for (const sql of [waitlistSql, seenSql]) {
+    for (const statement of sql.split(";").map((s) => s.trim()).filter(Boolean)) await env.DB.prepare(statement).run();
+  }
   await env.DB.prepare("DELETE FROM waitlist").run();
+  await env.DB.prepare("DELETE FROM waitlist_seen").run();
 });
 
 afterEach(() => {
@@ -42,6 +52,7 @@ afterEach(() => {
 
 async function seed(rows: Row[]): Promise<void> {
   await env.DB.prepare("DELETE FROM waitlist").run();
+  await env.DB.prepare("DELETE FROM waitlist_seen").run();
   for (const r of rows) {
     await env.DB.prepare("INSERT INTO waitlist (cell, count, updated_at) VALUES (?1, ?2, ?3)").bind(r.cell, r.count, r.updated_at).run();
   }
@@ -52,11 +63,12 @@ async function table(): Promise<Row[]> {
 }
 
 const shippedEnv = (extra: Record<string, unknown> = {}) =>
-  ({ DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, ...extra }) as unknown as Env;
+  ({ DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, SESSION_JWT_SECRET: SECRET, ...extra }) as unknown as Env;
 
-async function send(body: string | null, method = "POST", e: Env = shippedEnv()) {
+async function send(body: string | null, method = "POST", e: Env = shippedEnv(), device = DEVICE_A) {
+  const bearer = `Bearer ${(await signSession(SECRET, { sub: device }, NOW.getTime())).token}`;
   const req = new Request("https://scenic-api.test/waitlist", {
-    method, headers: { "content-type": "application/json" }, body: method === "GET" ? undefined : body,
+    method, headers: { "content-type": "application/json", authorization: bearer }, body: method === "GET" ? undefined : body,
   });
   const response = await worker.fetch(req, e);
   return { status: response.status, json: (await response.json()) as unknown };
@@ -98,7 +110,7 @@ describe("POST /waitlist counts a coarse cell and nothing else (T-0293 R8, P-PRI
     for (const [name, rows] of Object.entries(VARIANTS)) {
       await seed(rows);
       const first = await send(JSON.stringify({ cell: CELL }));
-      const second = await send(JSON.stringify({ cell: CELL }));
+      const second = await send(JSON.stringify({ cell: CELL }), "POST", shippedEnv(), DEVICE_B);
       answered.push([name, first, second, await table()]);
     }
     const ok = { status: 200, json: { waitlisted: true } };
@@ -143,8 +155,8 @@ describe("POST /waitlist counts a coarse cell and nothing else (T-0293 R8, P-PRI
 
   it("is kill-switch-exempt and quota-exempt by ruling: KILL=1 and a KV KILL still count the cell, with no quota touch", async () => {
     const answered: unknown[] = [];
-    for (const kill of [{ KILL: "1" }, { KILL_SWITCH: fakeKv({ KILL: "1" }) }]) {
-      answered.push(await send(JSON.stringify({ cell: OTHER }), "POST", shippedEnv(kill)));
+    for (const [kill, device] of [[{ KILL: "1" }, DEVICE_A], [{ KILL_SWITCH: fakeKv({ KILL: "1" }) }, DEVICE_B]] as const) {
+      answered.push(await send(JSON.stringify({ cell: OTHER }), "POST", shippedEnv(kill), device));
     }
     expect({ answered, table: await table(), quota: quota.state(), routerRequests }).toEqual({
       answered: [{ status: 200, json: { waitlisted: true } }, { status: 200, json: { waitlisted: true } }],

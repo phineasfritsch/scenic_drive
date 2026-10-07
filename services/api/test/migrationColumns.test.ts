@@ -36,4 +36,8 @@ describe("the D1 schema the shipped migrations build (T-0293 R10)", () => {
   it("the waitlist table is exactly (cell, count, updated_at): no column can hold a person (P-PRIV-06)", async () => {
     expect((await columns()).waitlist).toEqual(["cell", "count", "updated_at"]);
   });
+
+  it("the waitlist dedupe table is exactly (tag, day): no column can hold a device, a cell or an instant (T-0296, P-PRIV-05)", async () => {
+    expect((await columns()).waitlist_seen).toEqual(["tag", "day"]);
+  });
 });
