@@ -71,3 +71,22 @@ conflicts there. Moving the tables to data keeps the guard small and makes diges
   T-0295's/T-0294's full-table logs as the before.
   R5 PINS.yaml: P-SAFE-03's and P-ATTR-01's statements say re-approval goes "in ops/lib/check-safety-disclaimer-linked";
   they now name -linked-digests.txt (text only; quoted values kept double-quoted, check-pins-yaml.py run).
+- 2026-10-07T18:22:50Z RESULTS (owner). Commit 83b14697 pushed early; this entry's commit adds row 60 and PINS.yaml.
+  TABLES IDENTICAL: the four arrays sourced from 4ece8567's -linked and the four tables linked_load reads from the
+  data file dump byte-identical (`cmp` silent, 17488 bytes; 12 / 8 / 13 / 144 rows). `wc -l`: -linked 307 -> 172,
+  -mutations 241 -> 262, -linked-digests.txt 181 (data; 100644 in the index, -linked and -mutations stay 100755).
+  R4 CORRECTION: the map table holds 47 rows, not the 46 R4 said (H6b landed with T-0294); measured below.
+  RULING ADDED: R2's reader has a SIXTH branch, `section [X] duplicated` (a header repeated); it gets its own row 60
+  rather than being dropped, so every branch the reader has is seen red.
+  PROVE-RED, ONE-ROW (copies of the table filtered by label, .artifacts/t0303/filter.py; run from the worktree):
+  18:07:50Z-18:08:39Z new rows 53-59: each `1 yes` - `prove-red: 7/7 mutations refused by name`.
+  18:08:39Z-18:10:07Z existing rows 44-52 (T-0289 x5, T-0295 x4, the rows that exercise the tables): each `1 yes`
+  - `prove-red: 9/9 mutations refused by name`. Their expected substrings are byte-unchanged by this diff (`git diff
+  4ece8567 -- ...-mutations | grep -c '^-  "'` = 0), so the same names as T-0295's `prove-red: 52/52`.
+  18:15:53Z-18:16:01Z row 60 `T-0303 a section header repeated 1 yes` - `prove-red: 1/1 mutations refused by name`.
+  WHOLE TABLES (once each, background): `bash ops/lib/check-safety-disclaimer --prove-red` 18:16:15Z-18:20:28Z
+  `prove-red: 60/60 mutations refused by name` rc=0 (60 `yes`, 0 UNREFUSED); `bash
+  ops/lib/check-map-attribution-mutations` 18:07:50Z-18:10:18Z `prove-red: 47/47 mutations refused by name` rc=0.
+  BARE GUARDS (unmerged head, main unmoved since 4ece8567): check-map-attribution 18:16:15Z-18:16:24Z rc=0;
+  check-safety-disclaimer 18:22:35Z-18:22:44Z rc=0, `... LAST all 48 app .swift, then 144 root + pbxproj file(s)
+  (-linked).` Re-run on the merged head before the push.

