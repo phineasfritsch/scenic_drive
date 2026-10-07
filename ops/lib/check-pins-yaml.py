@@ -9,6 +9,8 @@ ops/lib/pins.py reads PINS.yaml line by line, so a value that is not valid YAML 
   exit 1  the file does not load - the line and column the loader names are printed;
           or it loads to something other than a non-empty list of mappings;
           or the pin ids it yields differ from the ids ops/lib/pins.py yields (the two readers disagree).
+          or any field of any pin differs between the two readers, value AND type (a plain value cut at
+          ' #', an unquoted date yaml reads as datetime.date) - every such pin+field is printed.
   exit 2  cannot tell: PyYAML is not importable or the file is missing.
   exit 0  `PINS-YAML ok pins=N path=...`.
 """
@@ -68,8 +70,36 @@ def main(argv):
                 print(f"  item {i}: yaml={a!r} pins.py={b!r}")
                 break
         return 1
-    print(f"PINS-YAML ok pins={len(data)} path={path}")
+    reader = pins_reader().load(path)
+    bad = []
+    for ypin, rpin in zip(data, reader):
+        pid = rpin.get("id")
+        for key in sorted(set(ypin) | set(rpin), key=str):
+            if key not in ypin or key not in rpin:
+                bad.append(f"  {pid} {key}: present only in {'yaml.safe_load' if key in ypin else 'ops/lib/pins.py'}")
+            elif not same(ypin[key], rpin[key]):
+                bad.append(f"  {pid} {key}: yaml={describe(ypin[key])} pins.py={describe(rpin[key])}")
+    if bad:
+        print(f"PINS-YAML FAIL: {path}: {len(bad)} field(s) where yaml.safe_load and ops/lib/pins.py read different values:")
+        print("\n".join(bad))
+        return 1
+    print(f"PINS-YAML ok pins={len(data)} fields={sum(len(p) for p in data)} path={path}")
     return 0
+
+
+def same(a, b):
+    """Full equality including type: yaml's True/1.0/date never equals pins.py's 1/'1.0'/'2026-10-07'."""
+    if type(a) is not type(b):
+        return False
+    if isinstance(a, list):
+        return len(a) == len(b) and all(same(x, y) for x, y in zip(a, b))
+    return a == b
+
+
+def describe(v):
+    if isinstance(v, str):
+        return f"str({len(v)} chars) {v[:60]!r}{'...' if len(v) > 60 else ''}"
+    return f"{type(v).__name__} {v!r}"[:120]
 
 
 if __name__ == "__main__":

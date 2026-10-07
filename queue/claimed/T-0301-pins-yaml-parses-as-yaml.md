@@ -63,3 +63,27 @@ never-edit-dated-record-output).
   -> `CANNOT TELL ... is missing` exit=2; trailing `- id: P-X-01 # trailing` -> `item 44: yaml='P-X-01'
   pins.py='P-X-01 # trailing'` exit=1.
   GREEN after the fix: `PINS-YAML ok pins=44` exit=0; strict safe_load prints `safe_load ok`.
+- 2026-10-07T15:03:19Z agent/claude-opus-5 - rv1-t0301 FAIL (PR #189, head 74b7dea6) fixes: B1 + the RECORDABLE.
+  RULING 4 (Brief vs reality, B1): the Brief said the check ships 100755; ops/lib/check-exec-bits (P-OPS-01) holds
+  every ops/lib/*.py at 100644 because each is invoked as an interpreter argument, and CI already runs
+  `python3 ops/lib/check-pins-yaml.py`. The repo rule wins: `git update-index --chmod=-x ops/lib/check-pins-yaml.py`
+  -> `100644 ... ops/lib/check-pins-yaml.py`; `bash ops/lib/check-exec-bits` -> `P-OPS-01: 141 files, 23 required
+  present, all modes correct` exit=0.
+  RULING 5 (RECORDABLE, same class): comparing only pin ids let yaml.safe_load cut two plain values at ` #`. The check
+  now compares EVERY field of EVERY pin, value and type, between yaml.safe_load and ops/lib/pins.py `load`, and prints
+  each differing pin+field. Seen RED on head 74b7dea6's PINS.yaml (.artifacts/t0301/PINS.r1.yaml) by name, exit=1:
+    PINS-YAML FAIL: ...: 45 field(s) where yaml.safe_load and ops/lib/pins.py read different values:
+      P-OPS-02 why_no_test_catches_it: yaml=str(95 chars) ... pins.py=str(602 chars) ...
+      P-PROC-05 statement: yaml=str(98 chars) ... pins.py=str(240 chars) ...
+      P-SRC-01 added: yaml=date datetime.date(2026, 9, 7) pins.py=str(10 chars) '2026-09-07'   (and 42 more `added`)
+  RULING 6 (the stronger check's other finding): all 43 `added: YYYY-MM-DD` values are plain, so yaml.safe_load reads
+  datetime.date where pins.py reads str. Fixed the same way - quoted as "YYYY-MM-DD", characters unchanged - so a YAML
+  consumer reads the same string pins.py does. No other key differs (355 fields compared).
+  FIX (.artifacts/t0301/requote2.py, gitignored; requotes lines 37 and 245 plus every plain `added:` date with `\` and
+  `"` escaped, proves each value against pins.py before and after and against yaml.safe_load of the whole file):
+    line 37 pin P-OPS-02 why_no_test_catches_it: equal (602 chars)
+    line 245 pin P-PROC-05 statement: equal (240 chars)
+    changed lines=45 (named=2 added-dates=43) mismatches=0
+    pins.py records before=44 after=44: equal
+  `git diff --stat` pins/PINS.yaml | 90 (45 lines changed, nothing else).
+  GREEN: `PINS-YAML ok pins=44 fields=355` exit=0. ops/lib/check-pins-yaml.py: 106 lines.
