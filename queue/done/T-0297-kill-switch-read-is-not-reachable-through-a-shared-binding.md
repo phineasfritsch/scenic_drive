@@ -1,7 +1,7 @@
 ---
 id: T-0297
 title: The kill decision cannot be bent by a handler writing to a shared binding object - KILL_SWITCH is read through a per-request wrapper, and a handler that patches a binding method is refused or harmless
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T12:09:52Z
@@ -11,7 +11,7 @@ branch: task/T-0297
 exclusive: []
 touches: [services/api/src/, services/api/test/]
 pins_affected: [P-COST-01]
-reviewer: null
+reviewer: agent/rv1-t0297
 depends_on: [T-0292]
 verify: [ops/check-pins]
 acceptance:
@@ -101,3 +101,34 @@ DETECT it for KILL_SWITCH; this task REFUSES it.
   answers the whole PAUSED body with zero router requests, zero writes and quota {} - full equality; RED on a7005872,
   green now. (3) population entry attest-real-binding-kill-get-patched: MISSED before (12:40 entry), CAUGHT by name now.
   STILL OPEN: the new test is not bound in ops/lib/named-tests.json / PINS.yaml P-COST-01 (outside touches; R6).
+- 2026-10-07T13:34:58Z agent/rv1-t0297 (reviewer, not the owner): REVIEW PASS, PR #186 at befde8be.
+  Worktree .worktrees/rv1-t0297 (detached, origin/task/T-0297), npm ci. `git merge-base --is-ancestor origin/main
+  origin/task/T-0297`: exit 0 (origin/main a7005872). `gh pr checks 186`: core pass, pins-source-only pass.
+  `cd services/api && npx vitest run`: `Test Files  71 passed (71)`, `Tests  2109 passed (2109)`, exit 0.
+  `python ops/lib/run-named-tests.py P-COST-01`: `NAMED P-COST-01 passed=36/36`. `bash ops/queue-check`:
+  `QUEUE OK (288 tasks)`. Touched files LF only; wc -l index.ts 129, killSwitch.ts 79, sharedEnvWorker.test.ts 288,
+  doFake.ts 121, configMutants.mjs 289.
+  Acceptance (1) RULE FIRST: the 12:17:19Z R1-R6 entry rules what the kill read reads and the capture/reader design.
+  (2) the T-0297 sharedEnvWorker test drives worker.fetch on one shared env per KV killing source and full-equals
+  the handler's refused writes, the landed writes and every KILLABLE route's PAUSED body (0 router hosts, 0 writes,
+  quota {}); green on befde8be. (3) population: `configMutants.mjs --only=attest-real-binding-kill-get-patched,
+  fetch-kill-switch-shared-binding,kill-reader-reads-binding-live`: `population mutations=84 (floor 84)`, `baseline
+  green tests=48`, all three CAUGHT (attest-real-binding-kill-get-patched by "the authenticated sweep ... and no
+  request throws"), `RESULT caught=3 missed=0 trap=0 of 3`, exit 0. MISSED-before reproduced: with a7005872's
+  index.ts, killSwitch.ts, doFake.ts and the four touched tests checked out and the entry applied to attest.ts,
+  the 10-file TESTS list read `total=47 failed=0` both unmutated and mutated.
+  Reviewer mutants (not in the population; killSwitch.ts's ANSWER_PATH hash re-approved in the same change each time):
+  rv-reader-instance-unfrozen (`return Object.freeze(reader);` -> `return reader;`) CAUGHT by the T-0297 test by
+  name; rv-capture-not-cached (drop `CAPTURED.set(binding, read);`) CAUGHT by the T-0297 test by name alone;
+  rv-reader-prototype-unfrozen (drop `Object.freeze(KillSwitchReader.prototype);`) CAUGHT by "every src line naming
+  a reflection or indirection identifier is an approved site, by full equality per file" and by the T-0297 test.
+  Restored, status clean after each.
+  RECORDABLE (not blocking): (a) the T-0297 test is not bound in named-tests.json / PINS.yaml P-COST-01 (R6; file a
+  follow-up). (b) The capture assumes workerd gives every request in an isolate the same binding object. If a fresh
+  binding object arrived per request, a KVNamespace.prototype.get write made earlier through env.CONFIG or
+  env.CLOSURES would be captured at the next first sight. Making that write takes reflection that the reflectionSites
+  whitelist refuses, so it is deliberate sabotage. (c) QuotaCounter's DO env holds the raw binding; that path is not
+  a handler path. (d) Under load, configAnswerPath's `loading the shipped worker leaves every global ...` hit its
+  5000 ms limit once in a reviewer mutant run (the owner saw the same thing). That run was redone alone.
+  (e) requestReadSites.test.ts is 340 lines, over the 300-line cap; it was already over the cap on main, and this
+  PR changes one line in place.
