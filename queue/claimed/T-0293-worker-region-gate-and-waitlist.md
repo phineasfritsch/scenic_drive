@@ -100,3 +100,22 @@ action, never more than 2 decimal places; the waitlist stores a coarse cell coun
   coordinate just outside any edge or corner ...", keys-superset by "every other body is 400 ...",
   migration-device-column by "the waitlist table is exactly (cell, count, updated_at) ...". MISSED BEFORE: those
   four under --prove-vacuity (no test runs): RESULT caught=0 missed=4 of 4.
+- 2026-10-07T06:09:23Z MERGED origin/main (2ce37073, PR #177 /config) as 9306ad26. Conflicts in routes.test.ts and killSwitchRoutes.test.ts
+  resolved to carry both /config and /waitlist. configSweep's REQUESTS gains /waitlist (valid: a res-5 cell; invalid:
+  the same cell uppercased). configAnswerPath's whole-file digest for src/index.ts moves to cdda2094... in the same
+  commit because index.ts gained the /waitlist ROUTES line. R14 (a disagreement found on the merged head):
+  tripRequest.test.ts "every exact bound is accepted through the shipped route" sent the whitelist corners (90, 180)
+  and (-90, -180) and expected 200. Those corners still PARSE (the parseTripRequest table is unchanged), but they lie
+  outside the served region, so through the shipped route those two rows now expect 422 with no router request.
+  REGION_REFUSED names them, and an assertion holds those names to rows of ACCEPTED.
+- 2026-10-07T06:09:23Z GATES ON THE MERGED HEAD 9306ad26: npx vitest run (services/api): Test Files 68 passed (68), Tests 2095 passed
+  (2095), and 68 equals the number of test/*.test.ts files on disk. swift test --scratch-path .build/t0293-swift --filter
+  ScenicAPIClientTests: Executed 44 tests, with 0 failures, exit 0. run-named-tests: NAMED P-COST-01 passed=31/31,
+  NAMED P-PRIV-05 passed=28/28, NAMED P-PRIV-06 passed=7/7, each exit 0. check-mutate-population.py: "every added
+  module is covered or allowlisted; the floor of 67 holds" exit 0. ops/queue-check: QUEUE OK (285 tasks) exit 0.
+  NOT COMPLETED HERE: bash ops/lib/check-line-cap had run for over 100 minutes without finishing, and bash
+  ops/check-pins --source-only and the region population re-run on the merged head printed nothing in about 30 minutes.
+  The box was at 99% CPU from another session's headless-chrome render, and every bash fork crawled. Substitute
+  measurement: the same population (git ls-files of Sources/Tests/apps/ios **/*.swift) is 242 files and none is over 300
+  lines, measured with python. Touched files: PlanClientResponseTests.swift 215, regionMutants.mjs 191, tripRequest.test.ts
+  182, regionGate.test.ts 178, waitlist.test.ts 154. CI is the confirmation for these three.
