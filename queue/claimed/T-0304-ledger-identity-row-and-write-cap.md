@@ -1,13 +1,13 @@
 ---
 id: T-0304
 title: /ledger holds the "session sub only" identity by behaviour (not only by the request-read whitelist) and caps each user's writes per day
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T17:44:56Z
+lease_expires_at: 2026-10-08T05:44:56Z
+worktree: .worktrees/T-0304
+branch: task/T-0304
 exclusive: []
 touches: [services/api/src/ledger.ts, services/api/test/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-PRIV-04, P-COST-01]
@@ -26,3 +26,4 @@ claim or a header beside a valid Bearer; and POST /ledger has no per-user write 
 
 ## Log
 - 2026-10-07T17:44:38Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0302's recordables.
+- 2026-10-07T17:44:56Z claimed by agent/claude-opus-5; lease until 2026-10-08T05:44:56Z
