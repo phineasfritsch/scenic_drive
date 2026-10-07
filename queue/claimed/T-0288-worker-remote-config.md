@@ -226,3 +226,72 @@ only.
   Full suite (pre-merge): `Test Files  57 passed (57)`, `Tests  1714 passed (1714)` (one earlier run under load printed
   52 files / 1683 and no failure; re-run once, as ruled for load flakes). wc -l: src/index.ts 120 (untouched),
   test/configWorker.test.ts 137, test/recordReads.ts 36, test/mutate/configMutants.mjs 233.
+- 2026-10-07T00:28:46Z agent/claude-opus-5 (owner): rv3-t0288 FAIL (PR #177, head 91dc02e3) B1 - a request read through a
+  NATIVE prototype getter (`Object.getOwnPropertyDescriptor(Object.getPrototypeOf(arguments[0]), "cf")?.get?.call(
+  arguments[0])`, gated on country "CA", inserted after URL_LINE) left 1714/1714 green: the recorder's Proxy fails the
+  native brand check (thrown, swallowed), the table has no CA row, the text guard keys on no identifier in the line.
+  RULINGS (stop the spelling race; close the class structurally):
+  (R5) Part 1 needs no code change, ruled by reading index.ts and config.ts: handleConfig(env: ConfigEnv) takes env
+  only and reads no request; ROUTES' entry is `"/config": (_req, env) => handleConfig(env),` and default.fetch hands
+  every handler the runtime's env unchanged. What rv3 exploited is that index.ts's bytes could change unseen - the
+  dispatcher was already minimal; part 2 now freezes it.
+  (R6) CONTENT PIN (T-0273's pattern: whole-file sha256, CRLF normalized), test/configAnswerPath.test.ts `the /config
+  answer path is exactly the approved bytes` over index.ts (the dispatcher: default.fetch, ROUTES, Env), config.ts
+  (the body), killSwitch.ts (planning_paused's source), quota.ts (the quota display's source). config.ts imports only
+  killSwitch and quota; those two import nothing - the closure is complete. The hashes are of 91dc02e3's bytes (no src
+  file changed this round). Any edit to the four, any spelling, fails by name; re-approving is a visible ANSWER_PATH
+  change in the same diff.
+  (R7) WHY THE REST OF src CANNOT CHANGE THE /config ANSWER (not pinned: pinning all 55 modules would make every
+  unrelated Worker PR re-approve a hash, and a hash nobody reads is a rubber stamp). The rest of src runs on the /config
+  path only as index.ts's imports, at module load, with no request in hand; no function of theirs runs while /config
+  is answered (ROUTES' /config entry calls handleConfig alone). So it can reach the answer only by changing shared
+  runtime state the pinned code uses: a mutable export of config/killSwitch/quota, an intrinsic or a global. Exports:
+  ESM bindings are read-only to importers; config's DEFAULTS/FIELDS/SUPPORTED_REGIONS and quota's tables are objects
+  a module could mutate at load, but with no request at load such a mutation is unconditional and the behaviour table
+  (configHarness keeps its OWN literal DEFAULTS) answers it; quota tables are also the enforced quotas, held by their
+  own tests. Intrinsics/globals: closed by BEHAVIOUR, spelling-independent - `loading the shipped worker leaves every
+  global, intrinsic and prototype the /config answer runs on untouched` snapshots globalThis's own properties, theirs
+  and their prototypes' (descriptor value/get/set/flags by identity, every [[Prototype]]; 1000+ entries), imports
+  ../src/index, and requires zero change. Measured: one descriptor workerd answers fresh per lookup
+  (navigator.languages) is compared by JSON (BY_VALUE). Meta-test: a computed-spelling patch
+  (`String["proto" + "type"].endsWith = ...`) is named exactly, and restoring it empties the diff. Residual, recorded:
+  the snapshot is depth 2 (a global's prototype's own members) and taken at load; a patch deeper than that, or one a
+  load-time timer applies later, is not seen - R8 names the identifiers such code would need.
+  (R8) WHITELIST, test/reflectionSites.test.ts: every src line (only //-leading lines skipped; block-comment lines
+  compared like code) naming arguments, Reflect, getPrototypeOf, setPrototypeOf, getOwnPropertyDescriptor(s),
+  defineProperty/ies, Proxy, __proto__, eval, Function, globalThis, self, constructor or prototype must equal an
+  approved (file, whole trimmed line). Measured first (.build/t0288measure.py, 91dc02e3): 14 sites in 12 files - three
+  `Object.prototype.hasOwnProperty.call(` lines (config, quota, telemetryPoint), ten class `constructor(` lines and
+  customModel's JSDoc line naming the constructor, ro.ts's `--self-test` JSDoc line (self). self and constructor are
+  added to rv3's list as the two remaining spellings of the global object / Function. Defence in depth: R6 and R7 are
+  the closures; this one names the site.
+  (R9) Part 4, configWorker.test.ts `a request whose cf and headers answer every key with a sentinel answers the bare
+  GET's whole expected response`: the request (a Proxy over the real one) answers cf and headers with SENTINEL - a
+  callable Proxy whose every key is itself, Symbol.toPrimitive "1", `in` true - through worker.fetch, ROWS x KILLS x
+  {bare GET, every dimension at once}, by full equality; its meta-line checks the sentinel answers "1" for
+  cf.country, cf.asn.x and headers.get(...). A strict-equality gate (`=== "CA"`) no finite value satisfies is R6/R8's.
+  SEEN RED (.build/t0288rv3probe.py; each probe applied alone, vitest json over configAnswerPath, reflectionSites,
+  configWorker, requestReadSites; restored, `src clean after restore: True`):
+    PROBE rv3 exact line (index.ts): passed=16/18 FAILED ["the /config answer path is exactly the approved bytes",
+      "every src line naming a reflection or indirection identifier is an approved site, by full equality per file"]
+    PROBE read-only Reflect probe (plan.ts, `void Reflect.ownKeys({});`): passed=17/18 FAILED ["every src line naming a
+      reflection or indirection identifier is an approved site, by full equality per file"]
+    PROBE load-time intrinsic patch, computed spelling (plan.ts; String.prototype.endsWith + JSON.stringify, gated on a
+      min_app_build no row has, so the behaviour table stays green): passed=16/18 FAILED ["loading the shipped worker
+      leaves every global, intrinsic and prototype the /config answer runs on untouched", "every src line naming a
+      reflection or indirection identifier is an approved site, by full equality per file"] (the second only by the
+      probe's `as "prototype"` cast)
+    PROBE loose cf gate (index.ts, `cf?.unpause == 1`): passed=12/18 FAILED [content pin, APPROVED_READS, the sentinel
+      row by name, and the three requestReadSites tests]
+  GREEN: the three files 11/11 before the probes.
+  POPULATION (--only, floor 73 -> 75; TESTS += configAnswerPath, reflectionSites): fetch-proto-getter-cf-unpause (rv3's
+  exact line), plan-load-intrinsic-patch-unpause (its sibling outside the pinned files, computed spelling). --prove-floor:
+  empty, 74, a subject unmutated, a new subject - each REFUSED; real population quiet. `population mutations=75 (floor
+  75) equivalent=1 subjects=2 tests=8 ONLY=2`, `baseline green tests=37`, CAUGHT fetch-proto-getter-cf-unpause by "the
+  /config answer path is exactly the approved bytes", CAUGHT plan-load-intrinsic-patch-unpause by "loading the shipped
+  worker leaves every global, intrinsic and prototype the /config answer runs on untouched", `RESULT caught=2 missed=0
+  trap=0 of 2`. Not re-run: the 73 untouched entries (faster verification in rounds).
+  MERGED HEAD: git fetch origin; origin/main d4726989 is already an ancestor of 985ba7b7 (nothing to merge). Full
+  suite on it: `Test Files  59 passed (59)`, `Tests  1720 passed (1720)`, EXIT 0. `run-named-tests.py P-COST-01`: NAMED
+  P-COST-01 passed=26/26. ops/queue-check: QUEUE OK (280 tasks). wc -l: test/configAnswerPath.test.ts 100,
+  test/reflectionSites.test.ts 67, test/configWorker.test.ts 167, test/mutate/configMutants.mjs 248; src untouched.
