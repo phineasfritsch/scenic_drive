@@ -31,6 +31,8 @@ const ASSERT = { keyId: "a2V5", assertion: "YXNz", challenge: "Y2hh" };
 const APPLE = { identityToken: "e30.e30.sig", authorizationCode: "c0de" };
 /** One H3 resolution-5 cell (the configSweep representative T-0293 shipped); its upper-case spelling is refused. */
 export const WAITLIST_CELL = "85283473fffffff";
+/** One accepted /ledger entry (T-0302): a corpus place id and that cell. */
+export const LEDGER_ENTRY = { place_id: "101", cell: WAITLIST_CELL };
 
 export type Representatives = { valid: () => Request; invalid: () => Request; authenticated: (a: Auth) => Request };
 
@@ -68,6 +70,9 @@ export const REQUESTS: Record<string, Representatives> = {
 
   "/waitlist": { valid: () => post("/waitlist", { cell: WAITLIST_CELL }), invalid: () => post("/waitlist", { cell: WAITLIST_CELL.toUpperCase() }),
     authenticated: (a) => post("/waitlist", { cell: WAITLIST_CELL }, bearer(a.session)) },
+  "/ledger": { valid: () => post("/ledger", LEDGER_ENTRY, bearer("e30.e30.sig")),
+    invalid: () => new Request(`${B}/ledger`, { method: "PUT", headers: JSON_HEADERS, body: STRINGIFY(LEDGER_ENTRY) }),
+    authenticated: (a) => post("/ledger", LEDGER_ENTRY, bearer(a.session)) },
 };
 
 /** The routes whose authenticated representative is their valid one (they take no credential). */

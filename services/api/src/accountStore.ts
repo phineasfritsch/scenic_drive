@@ -23,6 +23,8 @@ export const DELETE_KEYS = `DELETE FROM attested_keys WHERE device_id IN (SELECT
 export const DELETE_CHALLENGE_COUNTS = `DELETE FROM attest_challenge_counts WHERE bucket IN
   (SELECT 'device:' || device FROM (${USER_DEVICES}))`;
 export const DELETE_ENTITLEMENTS = "DELETE FROM entitlements WHERE app_account_token = ?1";
+/** T-0302 R8: every Surprise ledger row of every one of the user's devices. */
+export const DELETE_LEDGER = `DELETE FROM surprise_ledger WHERE user_id IN (SELECT device FROM (${USER_DEVICES}))`;
 export const DELETE_BINDINGS = `DELETE FROM apple_accounts WHERE apple_sub IN (${USER_SUBS})`;
 
 export interface AppleBinding {
@@ -56,6 +58,7 @@ export async function deleteUser(db: D1Database, user: AccountUser): Promise<voi
     db.prepare(DELETE_KEYS).bind(user.deviceId, user.appleSub),
     db.prepare(DELETE_CHALLENGE_COUNTS).bind(user.deviceId, user.appleSub),
     db.prepare(DELETE_ENTITLEMENTS).bind(user.accountToken),
+    db.prepare(DELETE_LEDGER).bind(user.deviceId, user.appleSub),
     db.prepare(DELETE_BINDINGS).bind(user.deviceId, user.appleSub),
   ]);
 }

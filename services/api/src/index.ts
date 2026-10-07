@@ -13,6 +13,7 @@ import { runClosuresCron } from "./closuresCron";
 import { handleConfig } from "./config";
 import { handleIsochrone, isochroneDepsFromEnv } from "./isochrone";
 import { killSwitchReader, type KillSwitchRead } from "./killSwitch";
+import { handleLedger, ledgerDepsFromEnv } from "./ledger";
 import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
 import type { QuotaCounter } from "./QuotaCounter";
@@ -114,6 +115,7 @@ export const ROUTES: Record<string, Handler> = {
   "/auth/apple": (req, env) => handleAuthApple(req, accountDepsFromEnv(env)),
   "/account": (req, env) => handleDeleteAccount(req, accountDepsFromEnv(env)),
   "/waitlist": (req, env) => handleWaitlist(req, waitlistDepsFromEnv(env)),
+  "/ledger": (req, env) => handleLedger(req, ledgerDepsFromEnv(env)),
 };
 
 export default {
