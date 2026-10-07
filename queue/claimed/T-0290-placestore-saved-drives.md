@@ -1,13 +1,13 @@
 ---
 id: T-0290
 title: PlaceStore saves drives on the device - a GRDB user store with migrations, and saved drives re-resolve against a new corpus or say they need a re-plan
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T01:29:55Z
+lease_expires_at: 2026-10-07T15:29:55Z
+worktree: .worktrees/T-0290
+branch: task/T-0290
 exclusive: []
 touches: [Sources/PlaceStore/, Tests/PlaceStoreTests/, ops/mutate/, pins/PINS.yaml, ops/lib/named-tests.json]
 pins_affected: [P-PRIV-05]
@@ -32,3 +32,4 @@ the replay call are later tasks. Linux-only target: Foundation + GRDB, never Cor
 
 ## Log
 - 2026-10-07T01:27:54Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M6 saved drives).
+- 2026-10-07T01:29:55Z claimed by agent/claude-opus-5; lease until 2026-10-07T15:29:55Z
