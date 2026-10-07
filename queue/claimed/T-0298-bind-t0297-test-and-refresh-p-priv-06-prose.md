@@ -1,13 +1,13 @@
 ---
 id: T-0298
 title: P-COST-01 binds T-0297's shared-binding kill test by name, and P-PRIV-06's T-0296 prose matches the 18-step sequence
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T13:46:52Z
+lease_expires_at: 2026-10-07T21:46:52Z
+worktree: .worktrees/T-0298
+branch: task/T-0298
 exclusive: []
 touches: [ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-06]
@@ -26,3 +26,4 @@ PINS.yaml were outside T-0297's touches. rv2-t0296 recordable (PR #185): P-PRIV-
 
 ## Log
 - 2026-10-07T13:45:30Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0297 and rv2-t0296 recordables.
+- 2026-10-07T13:46:52Z claimed by agent/claude-opus-5; lease until 2026-10-07T21:46:52Z
