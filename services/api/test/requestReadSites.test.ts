@@ -217,9 +217,14 @@ const APPROVED: Record<string, string[]> = {
   ],
   "../src/tripPlanner.ts": ["const path = decodeRoutePath(await response.text());"],
   "../src/waitlist.ts": [
+    // T-0296 R1: the waitlist dedupe is bound to identifyCaller's bucket, the quota's and /telemetry's identity.
+    "identify(req: Request): Promise<string>;",
+    "identify: async (req) =>",
+    "(await identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => deviceIdentity(req))).userId,",
     "export async function handleWaitlist(req: Request, deps: WaitlistDeps): Promise<Response> {",
     POST_ONLY,
     BODY_READ,
+    "const tag = await dedupeTag(deps.secret, await deps.identify(req), parsed.cell, day);",
   ],
   "../src/upstream.ts": ["return guardedPlan(deps, { userId: args.userId, tier: args.tier }, (call) => call(args.url, args.init));"],
 };
