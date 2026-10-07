@@ -130,3 +130,39 @@ PMTiles download is a later task. The R2 manifest is not published yet (owner de
     again, and a second tap re-downloads the same corpus into the pending slot (decide still sees the old active
     version until the next cold launch). Harmless to correctness (stage verifies), wasteful on data. The R1 R2 layout
     (`corpus-<version>.sqlite` beside the manifest) is the owner's publish, not yet live.
+- 2026-10-07T21:04:21Z P-STORE-01 CAUGHT IN CI, then FINAL ACCEPTANCE on dd369be7 (agent/claude-opus-5). PR #195's
+  first CI run (37681583465) failed `pins-source-only`: `P-STORE-01 (ops/lib/check-store-links.py): 11 refusal(s)` -
+  the frozen Entitlements module gained CorpusDownloadSheet.swift and SettingsScreen.swift changed, and the earlier
+  sessions never ran that guard. Locally the same 11 (`the frozen Entitlements source: ...CorpusDownloadSheet.swift is
+  not an approved file`, `Settings' sections: the run ... occurs 0 time(s)`, 9 unapproved whole lines). Fixed in
+  dd369be7 by whole-line approval in ops/lib/store_links_pinned.py (no pattern widened): the shell's
+  `_isShowingCorpusDownload = State(initialValue: LaunchScreen.atLaunch == .home && corpus.offersDownload)`, the
+  sheet's two imports and four identifiers, `settings.corpusWifiOnly`, Settings' List run with the Offline places
+  section, two FROZEN digests. `python ops/lib/check-store-links.py` rc=0; `--prove-red`: `33/33 rows as required (29
+  mutants refused by name, 4 legitimate edits green)` rc=0. CI on dd369be7 (run 37684229313): `core pass 5m54s`,
+  `pins-source-only pass 1m37s`. origin/main fetched at 21:04Z: nothing new since the 2ef434f4 merge (d15a878b).
+  1. MEASURE then RULE FIRST: the 19:14:04Z entry, R1-R10, before the 19:29:44Z red.
+  2. FETCHER: `swift test --scratch-path .build/t0305 --filter "ScenicAPIClientTests|PlaceStoreTests"` on dd369be7:
+     `Test run with 46 tests in 11 suites passed after 4.685 seconds`; the fetch table (35 rows: 200 exact, non-200,
+     short, dropped, long, wrong range, over resume file none/0/partial/complete/over-long) red first by name at
+     19:29:44Z.
+  3. LAUNCH CHOICE: CorpusLaunchTests' 12-row cross product (no download / pending good / activated / rejected x
+     fallback) in the same run, red first by name.
+  4. SHEET + P-ATTR-01: full height through one typed whole-line approval, seen red two ways and green (20:20:10Z);
+     `bash ops/lib/check-map-attribution` rc=0; `bash ops/lib/check-safety-disclaimer` rc=0 (`LAST all 50 app .swift,
+     then 149 root + pbxproj file(s) (-linked)`). ios-compile 37678975779 and ios-screenshot 37678980449 green on
+     d15a878b; `git diff --stat d15a878b HEAD -- apps/ Package.swift Sources/ Tests/` is empty, so the app and package
+     trees they built are this head's.
+  5. DIGESTS + POPULATION: P-SAFE-03 above re-approves every Sources/ and app row; `python
+     ops/lib/check-mutate-population.py`: `P-PROC-06: every added module is covered or allowlisted; the floor of 83
+     holds` rc=0; corpusfetch 21/21 caught by name + E1 MISSED, entries 1, 13, 18 MISSED with the suites emptied and
+     CAUGHT by name with them (20:20:10Z entry).
+  Gates: `bash ops/lib/check-line-cap`: `P-SRC-02: 317 Swift files tracked ..., none over 300 lines`; `python
+  ops/lib/check-pins-yaml.py`: `PINS-YAML ok pins=44 fields=355`; `bash ops/queue-check`: `QUEUE OK (297 tasks)`;
+  `ops/check-pins --source-only`: `PINS ok=17 skipped=26 pending=1 expired=0 failed=0`. Full `ops/check-pins` on this
+  box: `PINS ok=31 skipped=0 pending=3 expired=0 failed=10 tier=linux` - nine `NAMED ... REFUSED:
+  services/api/node_modules is missing` (no `npm ci` in this worktree) and P-DATA-03 `No module named 'pytest'`; none
+  of those ten reads a file this task touches, and CI core ran them green. (Its first run crashed printing a `→`
+  to cp1252; re-run with PYTHONIOENCODING=utf-8.)
+  STILL OPEN: the `.ready` re-download (20:20:10Z); the owner's R2 corpus layout; check-store-links.py's docstring
+  still says "exactly its five files" (six now; the code reads FROZEN, not the docstring).
