@@ -10,7 +10,9 @@ savedlist.py, runner savedlist_run.py (plansheet's three-file shape).
   * THE CONVERSION (19-23, 28-30): truncation and flooring for rounding, the ends dropped, lambda unrounded, the
     scale, the unplaced id, lambda dropped at the PlaceStore hop, the waypoints dropped by ClientPlanner;
   * THE ROW AND THE GATE (24-27): the re-plan note never shown, a rename losing its name, a replay while one is in
-    flight, the budget unclamped.
+    flight, the budget unclamped;
+  * THE PRE-REVIEW SURVIVORS (31-35): a start from the end, a half-way tie, scalars counted, a rename clearing the
+    re-plan flag, a delete by position.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -53,6 +55,9 @@ CLAMP = "a replay's budget is clamped to 0...180 at every bound, and a start off
 DRAFT = "PlanResponse -> preview -> SavedDraft by full equality: >5 dp rounded once, 5 dp kept, the ends, empty"
 STORED = "5-dp points become unplaced segments in order, the whole drive and its integers equal"
 REFUSED = "more than 5 dp is refused by field, never rounded a second time"
+RENAME_EVERY = ("a rename changes only the name of the row it names, at every position: the re-plan flag, "
+                "the ends, the budget and the replay kept")
+DELETE_EVERY = "a confirmed delete removes exactly the confirmed drive, at every position"
 
 SORT = "self.rows = rows.sorted { ($0.createdAt, $0.id) > ($1.createdAt, $1.id) }"
 RANGE = "guard (1...Self.maxNameLength).contains(name.count) else { return nil }"
@@ -119,6 +124,11 @@ MUTATIONS = [
      [DRAFT]),
     ("33 the name cap counted in scalars", LIST, "contains(name.count)", "contains(name.unicodeScalars.count)",
      [RENAME]),
+    # 34-35: the second pre-review pass's two survivors (T-0306 Log), each MISSED before its test landed.
+    ("34 a rename clears the re-plan flag", ROW, "createdAt: createdAt, needsReplan: needsReplan,",
+     "createdAt: createdAt, needsReplan: false,", [RENAME_EVERY]),
+    ("35 delete by position, not by id", LIST, "rows.removeAll { $0.id == id }", "rows.removeFirst()",
+     [DELETE_EVERY]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -129,6 +139,6 @@ EQUIVALENT = [
      "route.first and route.last are non-nil exactly when route is non-empty, so the added clause decides nothing"),
 ]
 
-MIN_MUTATIONS = 33
+MIN_MUTATIONS = 35
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 4
