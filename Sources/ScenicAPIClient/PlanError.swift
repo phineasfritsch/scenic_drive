@@ -1,4 +1,5 @@
 import Foundation
+import ScenicKit
 
 /// Every way a plan can fail, as the app sees it - the plan's closed `PlanError` enum (plan :146), widened by
 /// exactly the cases the shipped Worker's responses need (T-0251 R6). `PlanResponseReader` holds the mapping
@@ -29,4 +30,23 @@ public enum PlanError: Error, Equatable, Sendable {
     case refusedOnDevice(PlanRefusal)
     /// Any reply the table does not name: a client/server disagreement about the protocol, not a user state.
     case unexpectedResponse(status: Int)
+
+    /// The plan sheet's payload-free case for this error (T-0294 R1): one for one, by an exhaustive switch.
+    public var failure: PlanSheetFailure {
+        switch self {
+        case .quotaExhausted: return .quotaExhausted
+        case .planningPaused: return .planningPaused
+        case .routingOffline: return .routingOffline
+        case .noRoute: return .noRoute
+        case .regionUnsupported: return .regionUnsupported
+        case .attestUnsupported: return .attestUnsupported
+        case .offlineDuringDrive: return .offlineDuringDrive
+        case .noScenicAlternative: return .noScenicAlternative
+        case .unknownPlace: return .unknownPlace
+        case .planRefused: return .planRefused
+        case .invalidRequest: return .invalidRequest
+        case .refusedOnDevice: return .refusedOnDevice
+        case .unexpectedResponse: return .unexpectedResponse
+        }
+    }
 }

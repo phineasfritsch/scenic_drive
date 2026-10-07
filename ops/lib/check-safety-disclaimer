@@ -251,7 +251,7 @@ run_check() {
   # ----------------------------------------- (v) WHO CAN REACH THE FLAG AT ALL: whitelists, by occurrence
   # PR #101's B5. After (iv), because rows 3, 5 and 10 move these counts as a side effect and each proves a
   # DIFFERENT refusal by name; the counts are typed literals in scan path order (T-0153 rulings R4-B, R4-E).
-  local ack_set="$gated(2) $screen(6)" key_set="$screen(1)"
+  local ack_set="$gated(2) $screen(6)" key_set="${sources%/*}/FeaturePlanSheet/PlanSheetScreen.swift(1) $screen(1)"
   require_tracked_occurrences "$ACK_IDENT" "identifier" "$app_tree" "$ack_set" \
     "Those six: on the screen the @AppStorage declaration, the argument label and the value of the" \
     "pass-through, the write in the accept closure; in the button the property and the guard's read." \

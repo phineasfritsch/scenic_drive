@@ -1,0 +1,125 @@
+@testable import ScenicKit
+import Testing
+
+/// T-0294 acceptance 2-4: the plan sheet's state machine (R2), its gate (R3) and its origin (R4), through the
+/// shipping symbols the view calls - `search`, `choose`, `setBudget`, `startPlanning`, `finish`.
+@Suite("PlanSheetTests")
+struct PlanSheetTests {
+    static let topanga = PlanPlace(id: 42, name: "Topanga Lookout",
+                                   coordinate: Coordinate(latitude: 34.09312, longitude: -118.60071))
+    static let santaMonica = PlanPlace(id: 7, name: "Santa Monica Pier",
+                                       coordinate: Coordinate(latitude: 34.00862, longitude: -118.49853))
+    static let preview = PlanPreview(route: [Coordinate(latitude: 34.01, longitude: -118.5)], etaSeconds: 3120,
+                                     fastestEtaSeconds: 2280, etaIsEstimate: true, hazards: [])
+
+    /// A sheet with both ends chosen, the way the view gets there: search a field, pick a result.
+    static func ready(accepted: Bool) -> PlanSheet {
+        var sheet = PlanSheet(disclaimerAccepted: accepted)
+        sheet.search("santa", for: .start)
+        sheet.choose(santaMonica)
+        sheet.search("topanga", for: .destination)
+        sheet.choose(topanga)
+        return sheet
+    }
+
+    @Test("first launch: no ticket until the disclaimer is accepted, then one")
+    func gateBeforeAcceptance() {
+        var sheet = Self.ready(accepted: false)
+        #expect(sheet.state == .chosen(Self.topanga))
+        let issued1 = sheet.startPlanning()
+        #expect(issued1 == nil)
+        #expect(sheet.state == .chosen(Self.topanga))
+        sheet.setDisclaimerAccepted(true)
+        let ticket = sheet.startPlanning()
+        #expect(ticket != nil)
+        #expect(sheet.state == ticket.map { .planning($0) })
+    }
+
+    @Test("the ticket is the typed start at 2 dp, the destination's id and the budget, whole")
+    func ticketWhole() {
+        var sheet = Self.ready(accepted: true)
+        sheet.setBudget(45)
+        let ticket = sheet.startPlanning()
+        #expect(ticket == PlanTicket(serial: 1, origin: Coordinate(latitude: 34.01, longitude: -118.5), place: 42,
+                                     budgetMinutes: 45))
+        #expect(sheet.start == Self.santaMonica && sheet.destination == Self.topanga)
+    }
+
+    @Test("choosing fills the field being searched and keeps the other")
+    func chooseFillsItsField() {
+        var sheet = Self.ready(accepted: true)
+        let pier = PlanPlace(id: 9, name: "Malibu Pier", coordinate: Coordinate(latitude: 34.0379, longitude: -118.677))
+        sheet.search("malibu", for: .start)
+        #expect(sheet.state == .searching(.start, "malibu"))
+        sheet.choose(pier)
+        #expect(sheet.start == pier && sheet.destination == Self.topanga && sheet.state == .chosen(Self.topanga))
+        sheet.search("", for: .destination)
+        sheet.endSearch()
+        #expect(sheet.state == .chosen(Self.topanga))
+    }
+
+    @Test("no ticket from idle, searching or planning, nor without a start")
+    func noTicketOutsideChosen() {
+        var empty = PlanSheet(disclaimerAccepted: true)
+        let issued2 = empty.startPlanning()
+        #expect(issued2 == nil && empty.state == .idle)
+        var noStart = PlanSheet(disclaimerAccepted: true)
+        noStart.search("topanga", for: .destination)
+        noStart.choose(Self.topanga)
+        let issued3 = noStart.startPlanning()
+        #expect(issued3 == nil && noStart.state == .chosen(Self.topanga))
+        var sheet = Self.ready(accepted: true)
+        sheet.search("x", for: .destination)
+        let issued4 = sheet.startPlanning()
+        #expect(issued4 == nil && sheet.state == .searching(.destination, "x"))
+        sheet.endSearch()
+        let first = sheet.startPlanning()
+        #expect(first != nil)
+        let issued5 = sheet.startPlanning()
+        #expect(issued5 == nil)
+        sheet.search("y", for: .destination)
+        #expect(sheet.state == first.map { .planning($0) })
+    }
+
+    @Test("a reply lands only on the ticket in flight; a stale one is dropped")
+    func staleReplyDropped() throws {
+        var sheet = Self.ready(accepted: true)
+        let issued6 = sheet.startPlanning()
+        let first = try #require(issued6)
+        sheet.finish(first, with: .failure(.routingOffline))
+        #expect(sheet.state == .failed(first, .routingOffline))
+        let issued7 = sheet.startPlanning()
+        let second = try #require(issued7)
+        #expect(second.serial == 2)
+        sheet.finish(first, with: .preview(Self.preview))
+        #expect(sheet.state == .planning(second))
+        sheet.finish(second, with: .preview(Self.preview))
+        #expect(sheet.state == .preview(second, Self.preview))
+        let issued8 = sheet.startPlanning()
+        let third = try #require(issued8)
+        #expect(third.serial == 3)
+    }
+
+    static let budgetRows: [(Int, Int)] = [
+        (Int.min, 0), (-1, 0), (0, 0), (1, 1), (179, 179), (180, 180), (181, 180), (Int.max, 180),
+    ]
+
+    @Test("the extra time is clamped to 0...180 at every bound", arguments: budgetRows)
+    func budgetBounds(minutes: Int, kept: Int) {
+        var sheet = Self.ready(accepted: true)
+        sheet.setBudget(minutes)
+        #expect(sheet.budgetMinutes == kept)
+        let issued9 = sheet.startPlanning()
+        #expect(issued9?.budgetMinutes == kept)
+    }
+
+    @Test("the preview's ETA line against the fastest, rounded, never negative")
+    func etaLine() {
+        #expect(Self.preview.etaLine == "52 min · 14 min longer than the fastest way")
+        let same = PlanPreview(route: [], etaSeconds: 1229, fastestEtaSeconds: 1213.65, etaIsEstimate: false, hazards: [])
+        #expect(same.etaLine == "20 min · about as quick as the fastest way")
+        let quicker = PlanPreview(route: [], etaSeconds: 1000, fastestEtaSeconds: 1300, etaIsEstimate: true, hazards: [])
+        #expect(quicker.extraMinutes == 0 && quicker.etaLine == "17 min · about as quick as the fastest way")
+        #expect(Self.preview.showsEstimateBadge && !same.showsEstimateBadge)
+    }
+}

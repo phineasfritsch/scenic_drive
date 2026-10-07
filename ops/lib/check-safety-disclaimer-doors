@@ -70,7 +70,7 @@ DOORS_PACKAGE=(
   '    name: "ScenicApp",'
   '        .library(name: "DesignSystem", targets: ["DesignSystem"]),'
   '        .library(name: "MapAdapter", targets: ["MapAdapter"]),'
-  '        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe"]),'
+  '        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe", "FeaturePlanSheet", "PlanAdapter"]),'
   '        .package(name: "ScenicDrive", path: "../../../.."),'
   '    targets: ['
   '            name: "DesignSystem",'
@@ -88,6 +88,14 @@ DOORS_PACKAGE=(
   '                .product(name: "ScenicKit", package: "ScenicDrive"),'
   '                .product(name: "PlaceStore", package: "ScenicDrive"),'
   '            path: "Sources/FeatureSurpriseMe",'
+  '            name: "FeaturePlanSheet",'
+  '                .product(name: "ScenicKit", package: "ScenicDrive"),'
+  '                .product(name: "PlaceStore", package: "ScenicDrive"),'
+  '            path: "Sources/FeaturePlanSheet",'
+  '            name: "PlanAdapter",'
+  '                .product(name: "ScenicKit", package: "ScenicDrive"),'
+  '                .product(name: "ScenicAPIClient", package: "ScenicDrive"),'
+  '            path: "Sources/PlanAdapter",'
 )
 unset S
 
