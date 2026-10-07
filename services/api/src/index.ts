@@ -3,6 +3,7 @@
  *
  * Only operational routes exist yet. Every route is listed in ROUTES so tests can enumerate them
  * (pin P-COST-01 will later assert the kill switch covers every entry, not a hand-written list).
+ * T-0292 R1: default.fetch passes a frozen per-call copy of env; a write to that copy throws and never reaches a later call.
  */
 import { accountDepsFromEnv, handleAuthApple, handleDeleteAccount } from "./account";
 import { asnDepsFromEnv, handleAsn, handleEntitlement } from "./asn";
@@ -116,7 +117,7 @@ export default {
     const url = new URL(req.url);
     const handler = ROUTES[url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname];
     if (!handler) return json({ error: "not found" }, 404);
-    return handler(req, env, url);
+    return handler(req, Object.freeze({ ...env }), url);
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runClosuresCron({ fetchImpl: (url) => fetch(url), kv: env.CLOSURES, now: () => new Date() }));

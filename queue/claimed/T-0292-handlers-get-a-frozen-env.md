@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-07T20:07:28Z
 worktree: .worktrees/T-0292
 branch: task/T-0292
 exclusive: []
-touches: [services/api/src/index.ts, services/api/test/]
+touches: [services/api/src/index.ts, services/api/test/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01]
 reviewer: null
 depends_on: [T-0288]
@@ -29,3 +29,47 @@ runtime-read-recorder.
 ## Log
 - 2026-10-07T02:08:18Z filed by agent/claude-opus-5 (orchestrator) from rv5-t0288's recordable on PR #177.
 - 2026-10-07T08:07:28Z claimed by agent/claude-opus-5; lease until 2026-10-07T20:07:28Z
+- 2026-10-07T08:16:50Z agent/claude-opus-5 (owner): RULINGS, before code (plan, Brief, code and reality):
+  (R1) FREEZE: default.fetch hands every handler `Object.freeze({ ...env })` - a per-request frozen COPY, not the
+  binding object frozen once. The binding object belongs to the platform (and in the tests to the harness, which swaps
+  a CONFIG binding between rows); a copy leaves it untouched. src is ES modules (strict), so a handler's `delete
+  env.KILL` or `env.KILL = "0"` throws TypeError; nothing it does to its copy reaches the next request, whose copy is
+  made from the untouched binding object. SHALLOW: the binding objects themselves (KILL_SWITCH, CONFIG, CLOSURES, DB,
+  QUOTA, TELEMETRY) are shared and not frozen - a handler assigning `env.KILL_SWITCH.get` is NOT closed here (freezing
+  workerd's binding wrappers is a production change no test here can run). Recorded as residual R-A for a follow-up.
+  (R2) SHARED-ENV WORKER: the new test file test/sharedEnvWorker.test.ts builds ONE env object per KILL source (the 5
+  of configHarness.KILLS), once, with bound fakes - D1 (cloudflare:test env.DB), KV (CLOSURES empty, CONFIG, the
+  source's KILL_SWITCH), Analytics Engine (a per-source writeDataPoint recorder), the router (a per-source ROUTER_URL
+  host on the stubbed global fetch), QUOTA (a per-source fakeQuotaNamespace), SESSION_JWT_SECRET and RO_TOKEN - and
+  every request of the sweep and of both tables goes through worker.fetch with that same object. workerd hands one env
+  per isolate; one object per source models five deployments, each with its own isolate.
+  (R3) AUTHENTICATED SWEEP: the representatives move from configSweep.test.ts to a harness (test/sweepRequests.ts) so
+  both sweeps share ONE table keyed by ROUTES (fail closed). Kinds are valid, invalid and authenticated: authenticated
+  carries `authorization: Bearer <session JWT signed with the shared secret>` (planning routes, /telemetry, /entitlement,
+  /auth/apple, /account, /attest/*) or `Bearer <RO_TOKEN>` (/__ro); /__health, /__version, /config take no credential
+  and repeat their valid request. Two seeded passes as in T-0288 R10. The sweep FAILS on any rejected worker.fetch (a
+  handler that writes to its frozen env throws - that is how a write becomes red by name), and records every outcome.
+  (R4) P-COST-01 TABLE on the shared envs after the sweep: every upstream route and /telemetry, authenticated, under
+  every KILL source. A killed source's row is the WHOLE paused response (status + body, full equality); an unkilled
+  source's row is the literal "served" - its answer depends on the router fake and quota state the sweep consumed, and
+  what this pin holds is the kill decision. Rows are functions of the source (meta-test: the killed and unkilled
+  expectations differ). Plus, per killed source over the WHOLE run (sweep + table): zero requests to its router host,
+  zero Analytics Engine writes, quota state {} - full equality.
+  (R5) /config TABLE on the same envs after the sweep: ROWS x KILLS; the harness assigns the row's CONFIG binding onto
+  the shared object between rows (a binding change, as a deploy makes) and restores it; expectation from configHarness
+  (the pre-load STRINGIFY oracle), full equality; plus the intrinsics snapshot vs BASELINE, and each shared env's own
+  properties after the run equal to before (KILL still "1").
+  (R6) FREEZE TEST by name through worker.fetch: a hostile handler is installed under a test-only ROUTES key for the
+  test's duration (ROUTES is the shipped dispatch table; installing into it exercises the shipped default.fetch),
+  tries delete / assign / defineProperty of env.KILL on the KILL=1 env, records each as threw-TypeError, then POST
+  /plan on the same env object is 503 planning_paused. RED before R1.
+  (R7) POPULATION (configMutants.mjs, floor 77 -> 79, TESTS += sharedEnvWorker.test.ts): attest.ts attestDepsFromEnv
+  deletes env.KILL on its first call (an operational route, never killed, so the delete runs under KILL=1 and unpauses
+  every later request of a shared env); telemetry.ts, after identifyCaller, only when the caller is AUTHENTICATED
+  (SESSION_JWT_SECRET bound and a verified session), replaces JSON.stringify once to write planning_paused false.
+  Each is shown MISSED under the pre-change tests, then CAUGHT by name.
+  (R8) touches += ops/lib/named-tests.json, pins/PINS.yaml: pins_affected is P-COST-01, and an unbound test can be
+  deleted silently; the freeze test and the shared-env kill table are bound into P-COST-01 by name.
+  (R9) T-0293 (PR #182, open) adds /waitlist to ROUTES and edits configSweep/killSwitchRoutes: on the final merge the
+  shared REQUESTS table gains /waitlist's representatives (it fails closed on ROUTES' keys), and the operational list
+  in the new kill table follows killSwitchRoutes'.
