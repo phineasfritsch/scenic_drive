@@ -1,13 +1,13 @@
 ---
 id: T-0291
 title: The identity-token content pin covers the JWKS fetch - appleClient.ts keys() decides which keys are trusted, so it joins the pinned verifier files
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T02:11:47Z
+lease_expires_at: 2026-10-07T10:11:47Z
+worktree: .worktrees/T-0291
+branch: task/T-0291
 exclusive: []
 touches: [services/api/test/identityVerifierPin.test.ts, services/api/test/mutate/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-PRIV-04]
@@ -27,3 +27,4 @@ whole-src requestReadSites whitelist catches a keys() backdoor. Memory runtime-r
 
 ## Log
 - 2026-10-07T01:50:18Z filed by agent/claude-opus-5 (orchestrator) from rv4-t0287's recordable on PR #176.
+- 2026-10-07T02:11:47Z claimed by agent/claude-opus-5; lease until 2026-10-07T10:11:47Z
