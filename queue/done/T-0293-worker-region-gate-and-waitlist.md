@@ -1,7 +1,7 @@
 ---
 id: T-0293
 title: The Worker refuses a plan outside the served region with 422 region_unsupported before any quota or upstream call, the app reads it as PlanError.regionUnsupported, and POST /waitlist counts interest per coarse cell with no personal data
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T03:14:58Z
@@ -11,7 +11,7 @@ branch: task/T-0293
 exclusive: []
 touches: [services/api/src/, services/api/test/, services/api/migrations/, Tests/Fixtures/t0251/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/, ops/lib/named-tests.json, ops/lib/check-safety-disclaimer-linked, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-05, P-PRIV-06]
-reviewer: null
+reviewer: agent/rv3-t0293
 depends_on: [T-0248, T-0251]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -147,3 +147,24 @@ action, never more than 2 decimal places; the waitlist stores a coarse cell coun
   GRDB-gated UserStorePrivacyTests, MISSING on the Windows box by T-0175 R2 - red, never vacuous; CI core runs it),
   "NAMED P-PRIV-06 passed=7/7"; "QUEUE OK (287 tasks)". The full P-SAFE-03 guard was not run locally (~72 min on this
   box, T-0295); CI core and pins-source-only on the pushed head are the verdict for the two re-approved digests.
+- 2026-10-07T09:17:13Z review round 3 PASS (agent/rv3-t0293, reviewer; not the owner), on a1ea6e7f in a detached worktree.
+  rv2-t0293 FAILED on process only: CI red (P-SAFE-03 and P-ATTR-01 "pinned linked trees changed" for
+  Sources/ScenicAPIClient/PlanError.swift and PlanResponseReader.swift), the branch behind main with a pins/PINS.yaml
+  conflict, and no dated round-2 Log entry; rv2 found rv1 B1 (regionGateOrder.test.ts, 12 mutants caught) and rv1 B2
+  (the Swift foreign-code tables) closed. Round 3, touched rows only:
+  (a) git diff origin/main...origin/task/T-0293 -- ops/lib/check-safety-disclaimer-linked is exactly the two
+  ScenicAPIClient lines; recomputed with sed 's/\r$//' FILE | sha256sum | cut -c1-64: PlanError.swift
+  e1d581056046efce3df0e201f56d7318f9dbf2cb5f5d60c5747b211a8c71744a, PlanResponseReader.swift
+  5d676b05e82e46a4fc544ba271724e9eeb11698f60243e7c735b4aec3962247b - both equal the approved lines.
+  (b) PINS.yaml P-PRIV-05 carries both clauses (T-0290's device store, then T-0293's migrationColumns.test.ts) and says
+  THIRTY; ops/lib/named-tests.json P-PRIV-05 holds 18 vitest names (planPrivacy 7, loopShape 5, isochroneShape 1,
+  telemetryWhitelist 2, telemetryFixture 2, migrationColumns 1) plus 12 swift tests = 30.
+  (c) gh pr checks 182 on a1ea6e7f: "core pass 5m53s", "pins-source-only pass 2m20s".
+  (d) rv1 B2 mutant re-applied, PlanResponseReader.swift `case (422, "region_unsupported"?)` -> `case (422, _)`;
+  swift test --scratch-path .build/rv3-t0293 --filter ScenicAPIClientTests exit 1, FAILED by name:
+  PlanClientResponseTests.testEveryMappedStatusWithAForeignCodeOrNoBodyIsTheFallback and
+  PlanClientResponseTests.testOnlyTheTypedStatusCodePairsLeaveTheFallback; restored (digest back to 5d676b05...).
+  (e) bash ops/queue-check: "QUEUE OK (287 tasks)". (f) git merge-base --is-ancestor origin/main (92e3fc8b)
+  origin/task/T-0293: exit 0.
+  RECORDABLE (not blocking): the round-2 Log entry above says "29 names + filter"; the table holds 30 test names
+  (18 vitest + 12 swift), which is the THIRTY the pin states.
