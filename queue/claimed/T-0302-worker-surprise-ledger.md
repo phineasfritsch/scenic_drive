@@ -107,3 +107,28 @@ server never holds a coordinate or anything finer than an H3-5 cell (plan, Telem
   refusals; ledgerWindow bounds) -> 25 vitest + 12 swift = 37; P-COST-01 +1 (ledger KILL exemption) -> 38; P-PRIV-04 no
   new name (the bound accountDelete tests now cover surprise_ledger). PINS.yaml: one appended dated sentence per row, no
   double quote; `python ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=44 fields=355`.
+- 2026-10-07T17:07:21Z ACCEPTANCE RE-RUN on c3c3af47 after `git fetch origin` + `git merge origin/main` (Already up to
+  date; origin/main = e43d7465), agent/claude-opus-5:
+  1. RULE FIRST: the 16:27:38Z entry rules identity (R1, sub only, 401/503), row shape (R2, 0008, day only, no
+     coordinate), the window and retention (R4, R5), the quota/kill-switch exemption (R7, as T-0293 R8) and DELETE
+     /account (R8, P-PRIV-04) before any src/ or migration change (fc19b4dc came after it).
+  2. POST/GET table: ledger.test.ts - whole-body whitelist (32 refusal rows x 2 callers, table whole), corpus place id
+     bounds 1 and 9223372036854775807 accepted, 2^63 refused, one row per (user, place, day), GET by full equality to the
+     model, rows as functions of the caller with the meta-test `no row ignores the caller` - all through worker.fetch.
+  3. Range table: ledgerWindow.test.ts - exactly 90 days returned and kept, 91 not returned and deleted on the next
+     write (for both users), at 2026-10-04T23:59:59.999Z / 2026-10-05T00:00:00.000Z / 2026-10-05T23:59:59.999Z /
+     2026-10-06T00:00:00.000Z.
+  4. P-PRIV-05 DDL test extended (seen red: ledger-address-column and ledger-lat-column, 16:59:57Z entry); P-PRIV-04
+     deletion test extended (seen red: account-ledger-delete-dropped); /ledger in routes, killSwitchRoutes,
+     sharedEnvWorker, sweepRequests, requestReadSites and the configAnswerPath index.ts digest; PINS.yaml added values
+     are inside existing double-quoted strings.
+  5. Population 40 >= floor 40, 40/40 CAUGHT; three MISSED before and CAUGHT by name after (16:59:57Z entry).
+  Gates: `npx vitest run` -> `Test Files  73 passed (73)`, `Tests  2118 passed (2118)`, exit=0.
+  `run-named-tests.py P-PRIV-04` -> `NAMED P-PRIV-04 passed=51/51` exit=0; `P-COST-01` -> `passed=38/38` exit=0;
+  `P-PRIV-05` -> `passed=36/37` exit=1, the one RED `PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail():
+  MISSING` - GRDB-gated, does not build on the Windows box (T-0175 R2, recorded in the P-PRIV-05 row since T-0290); every
+  vitest binding of the row, the five new ones among them, passed; CI's Linux core job runs it.
+  `check-pins-yaml.py` -> `PINS-YAML ok pins=44 fields=355`; `ops/queue-check` -> `QUEUE OK (293 tasks)`.
+  wc -l: src/ledger.ts 107, test/ledger.test.ts 172, test/ledgerHarness.ts 91, test/ledgerWindow.test.ts 59,
+  test/mutate/ledgerMutants.mjs 192 (all under 300). NOT CLOSED: no per-user write cap (R9 note); the client half
+  (the Keychain install id, the app calling /ledger) is M6 Apple-package work, not this task.
