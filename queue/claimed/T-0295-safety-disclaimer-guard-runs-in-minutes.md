@@ -1,13 +1,13 @@
 ---
 id: T-0295
 title: The P-SAFE-03 / P-ATTR-01 guards run in minutes on the Windows box, and the linked-tree pin lists tracked files so a Finder .DS_Store is not a false red
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T06:54:20Z
+lease_expires_at: 2026-10-07T20:54:20Z
+worktree: .worktrees/T-0295
+branch: task/T-0295
 exclusive: []
 touches: [ops/lib/check-safety-disclaimer, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-linked, ops/lib/check-map-attribution, ops/lib/check-map-attribution-mutations, ops/lib/check-safety-disclaimer-mutations]
 pins_affected: [P-SAFE-03, P-ATTR-01]
@@ -27,3 +27,4 @@ untracked .DS_Store on a Mac is a false red. Memory faster-verification-in-round
 
 ## Log
 - 2026-10-07T06:46:49Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0289's recordables on PR #179.
+- 2026-10-07T06:54:20Z claimed by agent/claude-opus-5; lease until 2026-10-07T20:54:20Z
