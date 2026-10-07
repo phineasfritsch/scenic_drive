@@ -90,3 +90,22 @@ conflicts there. Moving the tables to data keeps the guard small and makes diges
   BARE GUARDS (unmerged head, main unmoved since 4ece8567): check-map-attribution 18:16:15Z-18:16:24Z rc=0;
   check-safety-disclaimer 18:22:35Z-18:22:44Z rc=0, `... LAST all 48 app .swift, then 144 root + pbxproj file(s)
   (-linked).` Re-run on the merged head before the push.
+- 2026-10-07T18:35:30Z FINAL ACCEPTANCE BLOCK (owner, head 6972d74f; `git fetch origin` + `git merge origin/main`:
+  main still at 4ece8567, merge a no-op, so this IS the merged head).
+  1 MEASURE: -linked was 307 lines at 4ece8567; tables 14 + 1 + 15 + 146 lines (12 / 8 / 13 / 144 rows) - entry
+    18:04:35Z.
+  2 DATA + READER: ops/lib/check-safety-disclaimer-linked-digests.txt 100644, sections [ROOT_PATH_LINES]
+    [ROOT_TOP_FILES] [PINNED_APP_OTHER] [PINNED_ROOT_SOURCES]; linked_load refuses missing file / unknown section /
+    duplicated path / malformed row / empty section / repeated section by name - rows 53-57 and 60 each `1 yes`.
+    `wc -l ops/lib/check-safety-disclaimer-linked` = 172 (< 300), re-measured on this head.
+  3 SAME REFUSAL SET: rows 44-52 `prove-red: 9/9` one-row, expectations byte-unchanged; whole tables `prove-red:
+    60/60` and `prove-red: 47/47`. Bare guards on this head: check-safety-disclaimer 18:34:44Z-18:34:50Z rc=0,
+    check-map-attribution 18:34:50Z-18:34:58Z rc=0.
+  4 DATA FILE PINNED AGAINST THE TREE: row 58 (a digest edited in the data only) `1 yes` naming
+    `Sources/Handoff/AppleMapsDirections.swift content changed`; row 59 (a path row deleted in the data only)
+    `1 yes` naming `root: added Sources/ScenicKit/Geo/Geo.swift`. ROOT_TOP_FILES stays an allowance (R3).
+  GATES: `bash ops/queue-check` `QUEUE OK (295 tasks)` rc=0; `bash ops/check-pins --source-only` 18:23:24Z-18:29:08Z
+  `PINS ok=17 skipped=26 pending=1 expired=0 failed=0 tier=linux source-only` rc=0; `python
+  ops/lib/check-pins-yaml.py` `PINS-YAML ok pins=44 fields=355` rc=0.
+  OPEN: the claimed -> review transition (ops/review with a reviewer who is not agent/claude-opus-5) is the
+  orchestrator's; this session did not pick a reviewer.
