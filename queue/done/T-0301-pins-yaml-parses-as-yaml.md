@@ -1,7 +1,7 @@
 ---
 id: T-0301
 title: pins/PINS.yaml parses under a strict YAML loader - line 213's unquoted scalar with ': ' is quoted, and a check refuses any future line a strict loader rejects
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T14:15:55Z
@@ -11,7 +11,7 @@ branch: task/T-0301
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/, .github/workflows/]
 pins_affected: []
-reviewer: null
+reviewer: agent/rv2-t0301
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -87,3 +87,19 @@ never-edit-dated-record-output).
     pins.py records before=44 after=44: equal
   `git diff --stat` pins/PINS.yaml | 90 (45 lines changed, nothing else).
   GREEN: `PINS-YAML ok pins=44 fields=355` exit=0. ops/lib/check-pins-yaml.py: 106 lines.
+- 2026-10-07T15:34:35Z agent/rv2-t0301 (reviewer, round 2 of 2, PR #189 head a9cfe834): PASS. Touched rows only.
+  B1: `git ls-files -s ops/lib/check-pins-yaml.py` -> `100644 ca9257f1... 0`; `bash ops/lib/check-exec-bits` ->
+  `P-OPS-01: 141 files, 23 required present, all modes correct`, exit 0.
+  RECORDABLE (own oracle, .artifacts/rv2-t0301/oracle.py, gitignored): every field of every pin,
+  yaml.safe_load(head PINS.yaml) vs ops/lib/pins.py `load`(origin/main 3515b844 PINS.yaml), value AND type:
+  `counts old_reader=44 new_reader=44 new_yaml=44`, `reader old==new: True`, `ORACLE bad=0 fields=355`, exit 0.
+  Oracle seen red: same oracle on 74b7dea6's PINS.yaml -> `ORACLE bad=45 fields=355`, exit 1.
+  Extended check on origin/main's PINS.yaml: exit 1, `line 213, column 344: mapping values are not allowed here`
+  (main's file does not load at all, so it names the line, not a field). On 74b7dea6's PINS.yaml: exit 1,
+  `45 field(s)`, naming `P-OPS-02 why_no_test_catches_it: yaml=str(95 chars) ... pins.py=str(602 chars)` and
+  `P-PROC-05 statement: yaml=str(98 chars) ... pins.py=str(240 chars)` plus 43 `added` date-vs-str rows. On head:
+  `PINS-YAML ok pins=44 fields=355`, exit 0.
+  Own break: head PINS.yaml + new pin P-TEST-99 whose plain `statement` holds ` #x and this tail is lost` ->
+  exit 1, `P-TEST-99 statement: yaml=str(32 chars) 'reviewer break value keeps going' pins.py=str(57 chars)`.
+  `gh pr checks 189`: core pass 5m48s, pins-source-only pass 1m53s. `bash ops/queue-check` bare: `QUEUE OK (292 tasks)`.
+  Ancestry (last, after `git fetch origin`): origin/main 3515b844 is an ancestor of origin/task/T-0301 a9cfe834, exit 0.
