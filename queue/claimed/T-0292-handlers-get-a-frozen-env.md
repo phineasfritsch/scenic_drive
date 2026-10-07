@@ -1,13 +1,13 @@
 ---
 id: T-0292
 title: Handlers get a frozen env and the kill-switch tables run on a shared-env worker after an authenticated sweep - request-time shared-state patches cannot unpause anything
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T08:07:28Z
+lease_expires_at: 2026-10-07T20:07:28Z
+worktree: .worktrees/T-0292
+branch: task/T-0292
 exclusive: []
 touches: [services/api/src/index.ts, services/api/test/]
 pins_affected: [P-COST-01]
@@ -28,3 +28,4 @@ runtime-read-recorder.
 
 ## Log
 - 2026-10-07T02:08:18Z filed by agent/claude-opus-5 (orchestrator) from rv5-t0288's recordable on PR #177.
+- 2026-10-07T08:07:28Z claimed by agent/claude-opus-5; lease until 2026-10-07T20:07:28Z

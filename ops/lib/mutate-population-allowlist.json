@@ -62,6 +62,12 @@
     "Sources/Telemetry/PlanFeature.swift": "a closed four-case String enum (T-0265 R4) - cases and raw wire labels, no code; pinned by the whole-data-point equality in TelemetryEventEncodingTests",
     "Sources/Telemetry/PlanResultKind.swift": "a closed four-case String enum (T-0265 R4) - cases and raw wire labels, no code; pinned by the whole-data-point equality in TelemetryEventEncodingTests",
     "Sources/Telemetry/SurpriseNotThisReason.swift": "a closed three-case String enum with no free-form case (T-0265 R4) - cases and raw wire labels, no code; pinned by the whole-data-point equality in TelemetryEventEncodingTests",
-    "Sources/Telemetry/TelemetryEventKind.swift": "the closed list of the fourteen event kinds (T-0265 R1) - cases and raw wire names, no code; allCases.count == 14 and the event->kind map are pinned by TelemetryEventEncodingTests, and the map itself (TelemetryEvent.kind) is in the telemetry.py population"
+    "Sources/Telemetry/TelemetryEventKind.swift": "the closed list of the fourteen event kinds (T-0265 R1) - cases and raw wire names, no code; allCases.count == 14 and the event->kind map are pinned by TelemetryEventEncodingTests, and the map itself (TelemetryEvent.kind) is in the telemetry.py population",
+    "Sources/PlaceStore/SavedSegment.swift": "two stored fields (an Int64 id and a SavedMidpoint) and a memberwise init - no operator; compared by full equality inside every SavedDrive in SavedDriveResolverTests and SavedDriveStoreTests (T-0290 R8)",
+    "Sources/PlaceStore/SavedDriveError.swift": "a three-case error enum over SavedDriveField - no operator; thrown by FiveDecimals.fixedPoint, which the saveddrive population mutates, and every case asserted by exact equality in SavedDriveBoundsTests (T-0290 R8)",
+    "Sources/PlaceStore/SavedDriveField.swift": "a three-case enum naming the refused field - no code; its labels are mutated in the saveddrive population (entries 10, 16) and asserted in SavedDriveBoundsTests (T-0290 R8)",
+    "Sources/PlaceStore/SavedDriveCorpus.swift": "a two-method protocol PlaceStore conforms to with its existing reads - no code; the rule over it is SavedDriveResolver, which the saveddrive population mutates (T-0290 R8)",
+    "Sources/PlaceStore/UserStoreError.swift": "a three-case error enum with associated values - no operator; each case asserted by exact equality in SavedDriveStoreTests and UserStoreMigrationTests (T-0290 R8)",
+    "Sources/PlaceStore/UserStoreMigrations.swift": "the user store's DDL as two named GRDB migrations - SQL text, no Swift arithmetic; its columns are pinned by full equality in UserStorePrivacyTests (P-PRIV-05) and its upgrade by UserStoreMigrationTests (T-0290 R8)"
   }
 }

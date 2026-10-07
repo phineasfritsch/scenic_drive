@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-07T17:14:58Z
 worktree: .worktrees/T-0293
 branch: task/T-0293
 exclusive: []
-touches: [services/api/src/, services/api/test/, services/api/migrations/, Tests/Fixtures/t0251/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/, ops/lib/named-tests.json, pins/PINS.yaml]
+touches: [services/api/src/, services/api/test/, services/api/migrations/, Tests/Fixtures/t0251/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/, ops/lib/named-tests.json, ops/lib/check-safety-disclaimer-linked, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-05, P-PRIV-06]
 reviewer: null
 depends_on: [T-0248, T-0251]
@@ -119,3 +119,31 @@ action, never more than 2 decimal places; the waitlist stores a coarse cell coun
   measurement: the same population (git ls-files of Sources/Tests/apps/ios **/*.swift) is 242 files and none is over 300
   lines, measured with python. Touched files: PlanClientResponseTests.swift 215, regionMutants.mjs 191, tripRequest.test.ts
   182, regionGate.test.ts 178, waitlist.test.ts 154. CI is the confirmation for these three.
+- 2026-10-07T08:32:17Z round 2 (agent/claude-opus-5, owner; the fix agent's edits to this file and to
+  ops/lib/check-safety-disclaimer-linked were refused by the permission classifier, so the orchestrator-owner records
+  them). RULINGS: R15 rv1 B1 closed by class - test/regionGateOrder.test.ts runs 9 preconditions (deps null per missing
+  binding ROUTER_URL / ROUTER_SECRET / QUOTA / DB, an unknown place id, a D1 whose prepare throws, an account token,
+  a bound CLOSURES, a spent quota) x the 4 planning routes through worker.fetch with an out-of-region (35.63, -120.69):
+  every row 422 {error: region_unsupported} whole, zero D1 reads, zero KV reads, zero router requests, quota untouched;
+  a meta-test runs each row in-region and requires it to change the answer on exactly its typed routes. R16 rv1 B2 closed
+  by class - PlanClientResponseTests gains every mapped status x {foreign code, no error field, non-JSON, empty} ->
+  the fallback by full equality, and every status 100...599 x every mapped code + a foreign one, where only the typed
+  (status, code) pairs leave the fallback. R17 touches widened by ops/lib/check-safety-disclaimer-linked: T-0289
+  (PR #179) pins every Sources/ file; this PR's two ScenicAPIClient edits re-approve exactly their two lines -
+  PlanError.swift a36d3fee... -> e1d581056046efce3df0e201f56d7318f9dbf2cb5f5d60c5747b211a8c71744a and
+  PlanResponseReader.swift 6773d37d... -> 5d676b05e82e46a4fc544ba271724e9eeb11698f60243e7c735b4aec3962247b
+  (sed 's/\r$//' FILE | sha256sum, as pinned_digest computes them), on the file as merged from origin/main (which
+  carries T-0290's 13 PlaceStore lines). R18 merged origin/main (T-0290, T-0292/T-0295 queue commits); the one
+  conflict, pins/PINS.yaml P-PRIV-05 why_no_test_catches_it, keeps both appended clauses (T-0290's device store, then
+  this task's Worker D1 columns) and the bound count becomes THIRTY (named-tests.json P-PRIV-05: 29 names + filter).
+  SEEN: regionMutants --only the 12 gate-order entries: before the new test joined TESTS caught=0 missed=12; after,
+  caught=12 by name ("an out-of-region coordinate is 422 region_unsupported whole under every precondition..."); floor
+  40 -> 52, --prove-floor refuses every arm. The Swift mutant case (422, _) fails both new tests by name. Pre-merge head
+  e71d6cea: vitest 69 files 2097/2097; swift test --filter ScenicAPIClientTests 46/0; P-COST-01 33/33, P-PRIV-05 28/28,
+  P-PRIV-06 7/7; queue-check OK. Merged-head results follow in the next entry.
+- 2026-10-07T08:44:44Z merged-head gates (agent/claude-opus-5, owner), on the merge of origin/main with R15-R18 applied: vitest
+  "Test Files 69 passed (69)", "Tests 2097 passed (2097)"; swift test --filter ScenicAPIClientTests "Executed 46 tests,
+  with 0 failures"; run-named-tests "NAMED P-COST-01 passed=33/33", "NAMED P-PRIV-05 passed=29/30" (the one is T-0290's
+  GRDB-gated UserStorePrivacyTests, MISSING on the Windows box by T-0175 R2 - red, never vacuous; CI core runs it),
+  "NAMED P-PRIV-06 passed=7/7"; "QUEUE OK (287 tasks)". The full P-SAFE-03 guard was not run locally (~72 min on this
+  box, T-0295); CI core and pins-source-only on the pushed head are the verdict for the two re-approved digests.

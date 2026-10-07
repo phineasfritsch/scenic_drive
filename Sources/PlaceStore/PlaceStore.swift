@@ -9,7 +9,7 @@ import GRDB
 /// == `schemaVersion`, the plan's OTA row), and finished (`meta.build_complete` == "1", written last by
 /// CorpusWriter.finalize). Nothing here computes a number: geometry is returned as the stored bytes and box
 /// queries pass degrees straight into SQL (T-0175 rulings R3, R5).
-public final class PlaceStore: Sendable {
+public final class PlaceStore: SavedDriveCorpus, Sendable {
     /// The corpus schema this reader parses. P-PROD-05 holds it equal to services/etl/etl/schema.py and
     /// services/api/src/index.ts; PlaceStoreReadTests holds it equal to a corpus the shipping builder made.
     public static let schemaVersion: Int = 3
