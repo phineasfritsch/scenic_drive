@@ -24,10 +24,10 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-region");
 
-export const MIN_MUTATIONS = 52;
+export const MIN_MUTATIONS = 68;
 export const SUBJECTS = ["src/servedRegion.ts", "src/plan.ts", "src/loop.ts", "src/trip.ts", "src/isochrone.ts",
-  "src/waitlist.ts", "src/index.ts", "migrations/0006_waitlist.sql"];
-const TESTS = ["test/regionGate.test.ts", "test/regionGateOrder.test.ts", "test/waitlist.test.ts", "test/migrationColumns.test.ts", "test/planWire.test.ts",
+  "src/waitlist.ts", "src/index.ts", "migrations/0006_waitlist.sql", "migrations/0007_waitlist_seen.sql"];
+const TESTS = ["test/regionGate.test.ts", "test/regionGateOrder.test.ts", "test/waitlist.test.ts", "test/waitlistDedupe.test.ts", "test/migrationColumns.test.ts", "test/planWire.test.ts",
   "test/routes.test.ts", "test/killSwitchRoutes.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: file.startsWith("migrations/") ? file : `src/${file}`, find, replace });
@@ -100,6 +100,29 @@ export const MUTATIONS = [
   below("trip-gate-below-closures", "trip.ts", "origin", RESOLVE + WHO + "  const snapshot = await deps.closures();\n"),
   below("isochrone-gate-below-closures", "isochrone.ts", "start", "\n  const { start, minutes } = request;\n"
     + "  const limit = oneWayLimit(minutes);\n  const now = deps.upstream.now();\n  const snapshot = await deps.closures();\n"),
+  // T-0296: the dedupe key (who, cell, the day in the key), the day boundary, the purge, the fail-closed secret, the
+  // identity the key is bound to, and the dedupe table's columns.
+  m("tag-ignores-device", W, "`${who}\\n${cell}`", "`\\n${cell}`"),
+  m("tag-ignores-cell", W, "`${who}\\n${cell}`", "`${who}\\n`"),
+  m("tag-ignores-day", W, "DEDUPE_KEY_PREFIX + day", "DEDUPE_KEY_PREFIX"),
+  m("day-one-ms-early", W, "const day = deps.now().toISOString()", "const day = new Date(deps.now().getTime() - 1).toISOString()"),
+  m("day-one-ms-late", W, "const day = deps.now().toISOString()", "const day = new Date(deps.now().getTime() + 1).toISOString()"),
+  m("purge-dropped", W, "    await deps.db.prepare(PURGE_SEEN).bind(day).run();\n", ""),
+  m("purge-inverted", W, "WHERE day <> ?1", "WHERE day = ?1"),
+  m("seen-ignored", W, "if (seen.meta.changes === 1) ", ""),
+  m("secret-absent-unlimited", W, "  if (deps.secret === null) return json({ error: \"waitlist_unavailable\" }, 503);\n", ""),
+  m("secret-length-unchecked", W, "secret: sessionSecret(env.SESSION_JWT_SECRET),", "secret: env.SESSION_JWT_SECRET ?? null,"),
+  m("identity-constant", W, "async () => deviceIdentity(req))).userId,", "async () => deviceIdentity(req))) && \"unidentified\","),
+  m("identity-header-only", W,
+    "(await identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => deviceIdentity(req))).userId",
+    "deviceIdentity(req).userId"),
+  // rv1 B1: the legacy identity source (x-scenic-device under IDENTITY_HEADERS "1", no Bearer) and a malformed Bearer
+  // falling through to it.
+  m("legacy-identity-constant", W, "async () => deviceIdentity(req)", "async () => ({ userId: \"unidentified\", tier: \"anon\" as const })"),
+  m("malformed-bearer-falls-to-header", W, "identifyCaller(req.headers.get(AUTHORIZATION_HEADER),",
+    "identifyCaller(/^Bearer [A-Za-z0-9_.-]+$/.test(req.headers.get(AUTHORIZATION_HEADER) ?? \"\") ? req.headers.get(AUTHORIZATION_HEADER) : null,"),
+  m("seen-device-column", "migrations/0007_waitlist_seen.sql", "  day TEXT", "  device_id TEXT,\n  day TEXT"),
+  m("seen-cell-column", "migrations/0007_waitlist_seen.sql", "  day TEXT", "  cell TEXT,\n  day TEXT"),
 ];
 
 export const EQUIVALENT = [
