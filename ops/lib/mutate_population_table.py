@@ -9,7 +9,8 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
 DRIVERS = ("budget.py", "corpusota.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
-           "hazards.py", "menu.py", "normalise.py", "placeallow.py", "plan.py", "retrace.py", "roadtrip.py", "routescore.py", "saveddrive.py",
+           "hazards.py", "menu.py", "normalise.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py", "roadtrip.py", "routescore.py",
+           "saveddrive.py",
            "scenic_tags.py",
            "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
            "telemetry.py")
@@ -25,6 +26,8 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Surprise/SurpriseHistory.swift", "Sources/ScenicKit/Surprise/SurpriseFeedback.swift",
     "Sources/ScenicKit/Surprise/SurpriseContext.swift", "Sources/ScenicKit/Surprise/SurpriseReason.swift",
     "Sources/ScenicKit/Surprise/SurprisePick.swift",
+    "Sources/ScenicKit/PlanSheet/PlanSheet.swift", "Sources/ScenicKit/PlanSheet/PlanFailureCopy.swift",
+    "Sources/ScenicAPIClient/ClientPlanner.swift",
     "services/etl/etl/accessrule.py", "services/etl/etl/extractadapter.py", "services/etl/etl/fallback.py",
     "services/etl/etl/normalise.py", "services/etl/etl/placeallow.py", "services/etl/etl/proximity.py",
     "services/etl/etl/region_reference.py", "services/etl/etl/scenecheck.py",

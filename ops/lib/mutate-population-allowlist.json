@@ -1,6 +1,10 @@
 {
   "_": "P-PROC-06's allowlist: modules that compute no number reaching score, route or tags, so CLAUDE.md's 'a new numeric module ships its mutation population' does not apply. ONE REASON PER ENTRY, read from the module. ops/lib/check-mutate-population.py refuses an empty reason, an entry for a module a population also covers, and an entry naming a file that does not exist. It cannot tell numeric from non-numeric - that is a reading, recorded in T-0186's Log and re-read by a reviewer on every widening of this file.",
   "modules": {
+    "Sources/ScenicKit/PlanSheet/PlanField.swift": "a two-case enum naming which search field is open (T-0294); no code",
+    "Sources/ScenicKit/PlanSheet/PlanOutcome.swift": "a two-case enum carrying a preview or a failure (T-0294); no code",
+    "Sources/ScenicKit/PlanSheet/PlanSheetState.swift": "the plan sheet's six-case state enum (T-0294); its transitions are PlanSheet.swift's, which plansheet.py mutates",
+    "Sources/ScenicKit/PlanSheet/RoutePlanning.swift": "a one-method protocol declaration (T-0294); no code",
     "services/etl/etl/__init__.py": "empty package marker; no code",
     "services/etl/etl/byway_source.py": "parses the two byway pulls into the entry shape byways.match consumes; shapes records, computes nothing",
     "services/etl/etl/checkbounds.py": "compares a built extract's meta.json with region.json and never builds; its numbers gate a build, they reach no score, route or tag",

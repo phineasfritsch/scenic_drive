@@ -1,13 +1,13 @@
 ---
 id: T-0303
 title: The P-SAFE-03 -linked digest tables move out of the guard script into a data file, so every Swift PR edits data and the guard stays under the 300-line cap
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T18:00:54Z
+lease_expires_at: 2026-10-08T08:00:54Z
+worktree: .worktrees/T-0303
+branch: task/T-0303
 exclusive: []
 touches: [ops/lib/check-safety-disclaimer-linked, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/check-safety-disclaimer-mutations, ops/lib/check-map-attribution-mutations, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01]
@@ -28,3 +28,4 @@ conflicts there. Moving the tables to data keeps the guard small and makes diges
 
 ## Log
 - 2026-10-07T17:44:38Z filed by agent/claude-opus-5 (orchestrator) during T-0294's merge with main.
+- 2026-10-07T18:00:54Z claimed by agent/claude-opus-5; lease until 2026-10-08T08:00:54Z
