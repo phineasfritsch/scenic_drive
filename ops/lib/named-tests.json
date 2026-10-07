@@ -214,7 +214,8 @@
       "test/sharedEnvWorker.test.ts": [
         "the shared-env worker after an authenticated sweep (T-0292, P-COST-01) > the authenticated sweep sends every ROUTES path a valid, an invalid and an authenticated request on one env per KILL source, and no request throws",
         "the shared-env worker after an authenticated sweep (T-0292, P-COST-01) > after the sweep, every upstream route and /telemetry on the shared env answers the whole paused response under every killing source, and is served under every other",
-        "handlers get a frozen env (T-0292 R1, P-COST-01) > a handler that deletes, assigns or redefines env.KILL through worker.fetch throws TypeError, and the next POST /plan on the same env object is 503 planning_paused"
+        "handlers get a frozen env (T-0292 R1, P-COST-01) > a handler that deletes, assigns or redefines env.KILL through worker.fetch throws TypeError, and the next POST /plan on the same env object is 503 planning_paused",
+        "the kill read is not reachable through a shared binding (T-0297, P-COST-01) > a handler that assigns env.KILL_SWITCH.get = async () => null on its first call through worker.fetch does not unpause any later request: every upstream route and /telemetry on the shared env answers the whole paused response under every KV killing source"
       ],
       "test/telemetryCost.test.ts": [
         "POST /telemetry spend control (T-0279 R5/R6, P-COST-01) > KILL=1 or the KV KILL_SWITCH key is 503 telemetry_paused before the body is read: zero writes, no reservation",
