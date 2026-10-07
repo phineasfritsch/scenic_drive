@@ -4,6 +4,7 @@
  * Only operational routes exist yet. Every route is listed in ROUTES so tests can enumerate them
  * (pin P-COST-01 will later assert the kill switch covers every entry, not a hand-written list).
  * T-0292 R1: default.fetch passes a frozen per-call copy of env; a write to that copy throws and never reaches a later call.
+ * T-0297: in that copy KILL_SWITCH is a fresh frozen reader over the binding's get as first seen, never the shared binding.
  */
 import { accountDepsFromEnv, handleAuthApple, handleDeleteAccount } from "./account";
 import { asnDepsFromEnv, handleAsn, handleEntitlement } from "./asn";
@@ -11,6 +12,7 @@ import { attestDepsFromEnv, handleAttest, handleAttestAssert, handleAttestChalle
 import { runClosuresCron } from "./closuresCron";
 import { handleConfig } from "./config";
 import { handleIsochrone, isochroneDepsFromEnv } from "./isochrone";
+import { killSwitchReader, type KillSwitchRead } from "./killSwitch";
 import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
 import type { QuotaCounter } from "./QuotaCounter";
@@ -27,7 +29,7 @@ export interface Env {
   BUILT_AT: string;
   RO_TOKEN?: string; // secret: `wrangler secret put RO_TOKEN`
   KILL?: string; // "1" pauses /plan, /loop, /isochrone and /trip with zero upstream calls (P-COST-01)
-  KILL_SWITCH?: KVNamespace; // optional: its key KILL = "1" also pauses (T-0256 R5); not bound in wrangler.jsonc
+  KILL_SWITCH?: KillSwitchRead; // a KVNamespace; optional: its key KILL = "1" also pauses (T-0256 R5); not bound in wrangler.jsonc
   QUOTA?: DurableObjectNamespace<QuotaCounter>; // per-device daily + global monthly counters (T-0256 R1)
   ROUTER_URL?: string; // our GraphHopper; https://router.invalid (the shipped placeholder) counts as absent
   ROUTER_SECRET?: string; // secret: `wrangler secret put ROUTER_SECRET`; sent as x-scenic-router-secret
@@ -119,7 +121,7 @@ export default {
     const url = new URL(req.url);
     const handler = ROUTES[url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname];
     if (!handler) return json({ error: "not found" }, 404);
-    return handler(req, Object.freeze({ ...env }), url);
+    return handler(req, Object.freeze({ ...env, KILL_SWITCH: killSwitchReader(env.KILL_SWITCH) }), url);
   },
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(runClosuresCron({ fetchImpl: (url) => fetch(url), kv: env.CLOSURES, now: () => new Date() }));

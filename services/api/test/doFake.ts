@@ -98,12 +98,24 @@ export function recordingRouter(plan: Recording, loop: string, onFetch: () => vo
   return { calls, fetchImpl };
 }
 
-/** A KV namespace that answers `get` from a table, or throws when told to. */
+/**
+ * A KV namespace that answers `get` from a table, or throws when told to. T-0297 R4: shaped like workerd's binding -
+ * `get` is a PROTOTYPE method (the object has no own `get` key) over private state, so a call with a foreign `this`
+ * throws TypeError the way workerd's brand check does, and an own-property write shadows the prototype.
+ */
+export class FakeKvNamespace {
+  readonly #values: Record<string, string>;
+  readonly #fail: boolean;
+  constructor(values: Record<string, string>, fail: boolean) {
+    this.#values = values;
+    this.#fail = fail;
+  }
+  async get(key: string): Promise<string | null> {
+    if (this.#fail) throw new Error("kv unavailable");
+    return this.#values[key] ?? null;
+  }
+}
+
 export function fakeKv(values: Record<string, string>, fail = false): KVNamespace {
-  return {
-    get: async (key: string) => {
-      if (fail) throw new Error("kv unavailable");
-      return values[key] ?? null;
-    },
-  } as unknown as KVNamespace;
+  return new FakeKvNamespace(values, fail) as unknown as KVNamespace;
 }
