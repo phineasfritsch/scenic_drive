@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-08T15:10:12Z
 worktree: .worktrees/T-0305
 branch: task/T-0305
 exclusive: [package-swift]
-touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/PlaceStore/, Tests/PlaceStoreTests/, apps/ios/Packages/ScenicApp/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
+touches: [Package.swift, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/PlaceStore/, Tests/PlaceStoreTests/, apps/ios/Packages/ScenicApp/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PROD-05, P-ATTR-01, P-SAFE-03]
 reviewer: null
 depends_on: [T-0300, T-0294, T-0303]
@@ -88,3 +88,13 @@ PMTiles download is a later task. The R2 manifest is not published yet (owner de
   - R9 PINS. apps/ios digests are in check-safety-disclaimer-pinned (PINNED_APP_SWIFT, PINNED_SURPRISE,
     PINNED_SHELL_DIGEST) and its app-manifest lines in -doors DOORS_PACKAGE; Sources/ rows in
     check-safety-disclaimer-linked-digests.txt. Every one is re-typed in the commit that changes its file.
+  - R10 TOUCHES. The root Package.swift was missing from `touches:` although `exclusive: [package-swift]` holds its
+    lock and R2 edits it; added (the pre-commit hook refused the red commit for it).
+- 2026-10-07T19:29:44Z RED FIRST by name (agent/claude-opus-5), native swift 6.3.3, `swift test --scratch-path
+  .build/t0305 --filter "URLSessionCorpusFetcherTests|CorpusLaunchTests"` against a fetcher whose `fetch` and
+  `fetchManifest` throw `.status(0)` and a `LaunchCorpus.open` that never chooses the active slot:
+  `Test run with 6 tests in 2 suites failed after 0.639 seconds with 57 issues` -
+  `fetchTableOverEveryResumeFileAndServer() failed ... with 35 issues` (every one of the 35 rows),
+  `launchChoosesTheActivatedCorpusElseTheFallback() failed ... with 16 issues` (the 8 rows with a corpus active
+  after launch, launch and url(fallback:) each), `manifestFetchReturnsTheBodyOrATypedError() failed ... with 6
+  issues`; the two meta-tests and `wifiOnlyRefusesCellularAndTheNamesAreRuled()` passed (no fetcher body involved).
