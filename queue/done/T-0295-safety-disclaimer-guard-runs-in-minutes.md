@@ -1,7 +1,7 @@
 ---
 id: T-0295
 title: The P-SAFE-03 / P-ATTR-01 guards run in minutes on the Windows box, and the linked-tree pin lists tracked files so a Finder .DS_Store is not a false red
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T06:54:20Z
@@ -11,7 +11,7 @@ branch: task/T-0295
 exclusive: []
 touches: [ops/lib/check-safety-disclaimer, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-safety-disclaimer-linked, ops/lib/check-map-attribution, ops/lib/check-map-attribution-mutations, ops/lib/check-safety-disclaimer-mutations, ops/lib/check-safety-disclaimer-lib, ops/lib/check-safety-disclaimer-doors, ops/lib/check-map-attribution-sheet, .gitignore]
 pins_affected: [P-SAFE-03, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv2-t0295
 depends_on: [T-0289]
 verify: [ops/check-pins]
 acceptance:
@@ -126,3 +126,26 @@ untracked .DS_Store on a Mac is a false red. Memory faster-verification-in-round
   table unchanged since that run). check-safety-disclaimer: rows 1-49 printed, 49 `yes` 0 `no` 0 UNREFUSED, then
   `line 266: unexpected EOF` - 05999ae1 rewrote the table under the running bash - so NO summary line; rows 50-52
   were run one-row each (11:21:44Z entry), and the new map row one-row above. No full table was re-run (box contended).
+- 2026-10-07T13:38:31Z agent/rv2-t0295 (REVIEWER, round 2 of 2, PR #184, head 5019dd37): PASS. Worktree
+  .worktrees/rv2-t0295 detached at origin/task/T-0295 == 5019dd37; one-row copy of the map table (header + the new
+  row only), run once in the background to one log (box contended; touched rows only, per faster-verification).
+  rv1-t0295 B1 (MB66) is CLOSED:
+  - shipped 13:26:04Z: `B1 rv1-t0295 a HomeSheet( in a string interpolation 1 yes`, `prove-red: 1/1 mutations
+    refused by name`.
+  - MB66 (-sheet line 66 -> `if (substr(line, 1, 2) == "//") next`) 13:28:56Z: `... 1 no`, `UNREFUSED or UNNAMED`,
+    the only refusal printed is -pinned's `added DriveOverlayNote.swift`; `prove-red: 0/1`. -sheet restored clean.
+    The author's ruling holds: a row cannot reach the pinned set (typed under ops/lib, outside the mutated copy) and
+    need not, since the row passes only on the (h) refusal's name.
+  - Own mutant MJ (-sheet line 68, sheet_occurrences END loop `for (j = 1;` -> `for (j = 2;`, the first file's
+    count never printed) 13:32:12Z: `... 1 yes`, `prove-red: 1/1` - KILLED by name by the new row. -sheet restored.
+  - Sibling ruling checked: -lib code_counts cuts `//` to end of line (`sub(/\/\/.*/, "", s)`), no backslash rule,
+    so no sibling row is owed on the safety side.
+  queue-check bare: `QUEUE OK (288 tasks)` rc=0. `gh pr checks 184`: core pass 4m35s, pins-source-only pass 2m21s.
+  The merge 5019dd37 vs 8734e649 touches only ops/lib/named-tests.json and pins/PINS.yaml under ops/apps/pins.
+  RECORDABLE (round 2 of 2, not P-SAFE fail-open; the PR merges with the gap recorded): (1) the bare guards were not
+  re-run on the merged head 5019dd37 (last bare: 527 s / 529 s on 63c8fdac, 536 s / 542 s in rv1; the merge touches
+  no check-* script and no apps/ios file); (2) no single complete full-table summary line exists for either table
+  after T-0295's last row additions - check-safety-disclaimer rows 1-49 yes in one run (killed at row 50 by a
+  mid-run rewrite) plus rows 50-52 one-row; check-map-attribution 45/45 whole plus the 46th row one-row (and here).
+  Proposed follow-up: one task that runs both prove-red tables whole on main once the box is idle and quotes both
+  summary lines (`prove-red: 52/52`, `prove-red: 46/46`) plus the two bare guards' times.
