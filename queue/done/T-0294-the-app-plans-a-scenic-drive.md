@@ -245,3 +245,20 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
   'bash ops/lib/check-map-attribution' rc=0 (both bare), 'check-mutate-population' "the floor of 80 holds". RULING:
   -linked is now 307 lines, over the 300 cap, because each Sources/ file is one digest line; filed T-0303 to move
   the digest tables into a data file (harness gap recorded, not fixed in this product PR).
+- 2026-10-07T17:53:07Z merge re-review PASS by agent/rv3-t0294 (reviewer, not owner) on head 2881dc2c, merge-touched
+  rows only. (a) 'git diff origin/main HEAD -- ops/lib/' is exactly this task's own ops/lib diff (merge-base e43d7465 ..
+  c07722af): -linked +14/-1 digest lines only (ClientPlanner, PlanError, 12 PlanSheet), mutate_population_table.py
+  DRIVERS + COVERED_FLOOR, allowlist.json and named-tests.json hunks byte-identical; no guard logic changed. DRIVERS is
+  the exact union: corpusota.py (main) and plansheet.py (this task) both present, nothing dropped (re-wrap only). Every
+  line T-0300 added to -linked is present whole-line in HEAD. Digests recomputed (sed 's/\r$//' | sha256sum) and found
+  whole-line: T-0300 side CorpusUpdater 8e77a9d3.., SHA256 ee73ce66.., PlaceStore d6e4e605..; T-0294 side
+  ClientPlanner ea276ec7.., PlanError 732b35e9.., PlanSheet 8bad3444.. - all OK; 'bash ops/lib/check-safety-disclaimer-linked'
+  rc=0. (b) 'gh pr checks 187': core pass 5m55s, pins-source-only pass 2m25s, run 37661406709 headSha 2881dc2c success.
+  (c) 'bash ops/queue-check': QUEUE OK (293 tasks), rc=0. 307-line cap: ACCEPTED as a recorded harness gap - the growth is
+  digest data lines only, the guard's code is unchanged, and T-0303 is filed on main (bed574b5, queue/ready/).
+  (d) 'git merge-base --is-ancestor origin/main origin/task/T-0294' rc=1: main moved AFTER the owner's merge by two
+  queue-only commits (bed574b5 files T-0303/T-0304, 63e8f670 claims T-0304) - adds of
+  queue/ready/T-0303-linked-digest-table-is-data.md and queue/claimed/T-0304-ledger-identity-row-and-write-cap.md, no
+  gate file. 'git merge-tree --write-tree origin/main HEAD' rc=0 (tree 4417b9cb), its diff vs HEAD is exactly those two
+  adds. Not a gate-set change, so not blocking this sign-off; RECORDABLE: merge origin/main (clean, queue-only) before
+  the PR merges.
