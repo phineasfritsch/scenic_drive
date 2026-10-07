@@ -98,3 +98,31 @@ is +31 not +25, say so." T-0290 shipped the store; T-0294 the plan sheet and pre
   tested), 32 `.rounded(.toNearestOrEven)` (no exact tie in the DRAFT table: measured 34.000005 * 1e5 == 3400000.5 and
   -118.000005 * 1e5 == -11800000.5 exactly in binary64), 33 `name.unicodeScalars.count` (the 60-character row is
   ASCII). Run --only 31,32,33 at this commit, then the test rows, then again.
+- 2026-10-07T20:39:10Z RESULTS, as each stage landed. agent/claude-opus-5 (owner).
+  - MISSED BEFORE (8982439c, `python ops/mutate/savedlist.py --only 31,32,33`): `MISSED 31 a missing start replayed
+    from the end exit=0`, `MISSED 32 a half-way tie rounded to even exit=0`, `MISSED 33 the name cap counted in
+    scalars exit=0`; `MUTATE FAILED caught=0/3`.
+  - Test rows (f906a387): NOENDS now ranges over {both, start, end} missing; DRAFT gains the exact-tie row
+    (34.000005, -118.000005, 34.000025, -118.000025 -> 34.00001, -118.00001, 34.00003, -118.00003); RENAME gains 59
+    "a" + "e\u{301}" (60 characters, 61 scalars) kept and its + "b" refused.
+  - CAUGHT AFTER (f906a387, same command): `caught 31 ... by: a drive missing either saved end cannot be replayed and
+    is shown as needing a re-plan`, `caught 32 ... by: PlanResponse -> preview -> SavedDraft by full equality: >5 dp
+    rounded once, 5 dp kept, the ends, empty`, `caught 33 ... by: a rename commits the trimmed name of 1...60
+    characters and nothing else`; `MUTATE OK caught=3/3`.
+  - FULL RUN (f906a387, all 33 + E1): `caught by the test that names it: 32 of 33 (wrong killer 0, trapped 0,
+    compile-only 0, MISSED 1, skipped 0)`, `MISSED 9 a needs-replan drive replayed exit=0`, E1 MISSED as required.
+    Ruled: a fourth survivor - replay(3)'s canyon had no place within reach of its end, so the transitions table
+    refused it for reach, never for needsReplan. Fixed (93d404df): `canyonEnd` (id 43) AT the canyon's saved end joins
+    the table's places. `--only 9`: `caught=1/1`, `MUTATE OK`. The full population at 93d404df: 33 of 33 by name
+    (32 at f906a387 whose subjects are unchanged since, + 9 re-run - memory faster-verification-in-rounds).
+  - `--prove-vacuity --only 9,31,32,33`: `VACUITY PROOF OK: ... caught=0 (need 0) and MISSED=4 of 4`.
+    `--prove-floor`: `FLOOR PROOF OK: 7 of 7 arms refused and the control did not` - the "SavedDraft.swift unmutated"
+    arm had been refused by the COUNT (27 + 3 < floor), not by the unmutated subject; now padded back to the whole
+    count with non-SavedDraft entries, it refuses with `no MUTATIONS entry edits SavedDraft.swift`.
+  - GREEN: `swift test --scratch-path .build/t0306 --filter SavedListTests|SavedReplayTests|SavedDraftTests|
+    SavedDriveUnresolvedTests|PlanSheetGateTests|PlanSheetTests`: `Test run with 33 tests in 6 suites passed`.
+  - iOS (app sources unchanged since 82cbfe27): ios-compile 37679241204 success, ios-screenshot 37679245297 success on
+    6fcdba2f; re-dispatched on the final merged head.
+  - RULED, NOT DONE: P-PRIV-05's run-named-tests row is NOT widened to bind SavedListTests/neverAnAddress() - it
+    could not be seen red here (that row's vitest half needs services/api/node_modules, absent on this box) and an
+    unseen binding is untested; the test and mutant 24's catch hold it. "+31 not +25, say so" stays unshipped (R3).
