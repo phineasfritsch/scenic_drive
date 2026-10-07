@@ -87,7 +87,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -98,7 +98,9 @@
         "TelemetryTests.TelemetryEventEncodingTests/everyEventEncodesExactly()",
         "TelemetryTests.TelemetryEventEncodingTests/dataPointJSON()",
         "TelemetryTests.TelemetryEventEncodingTests/everyDataPointJSON()",
-        "TelemetryTests.TelemetryEventEncodingTests/fourteenEventsEachWithARow()"
+        "TelemetryTests.TelemetryEventEncodingTests/fourteenEventsEachWithARow()",
+        "PlaceStoreTests.SavedDriveFieldsTests/noFieldCarriesMoreThanFiveDecimals()",
+        "PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail()"
       ]
     }
   },
