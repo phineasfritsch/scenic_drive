@@ -1,7 +1,7 @@
 ---
 id: T-0298
 title: P-COST-01 binds T-0297's shared-binding kill test by name, and P-PRIV-06's T-0296 prose matches the 18-step sequence
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T13:46:52Z
@@ -11,7 +11,7 @@ branch: task/T-0298
 exclusive: []
 touches: [ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-06]
-reviewer: null
+reviewer: agent/rv1-t0298
 depends_on: [T-0296, T-0297]
 verify: [ops/check-pins]
 acceptance:
@@ -53,3 +53,17 @@ PINS.yaml were outside T-0297's touches. rv2-t0296 recordable (PR #185): P-PRIV-
   this task's touches). On the merged head: 'NAMED P-COST-01 passed=37/37' exit 0; 'NAMED P-PRIV-06 passed=11/11'
   exit 0; ops/queue-check 'QUEUE OK (291 tasks)' exit 0. Acceptance 1 (binding 37/37, red by name then green) and
   acceptance 2 (two append-only sentences) met as recorded above.
+- 2026-10-07T14:02:41Z agent/rv1-t0298 (reviewer). PASS on 77b5e5ea (PR #188). git diff origin/main...origin/task/T-0298
+  -- pins/PINS.yaml is 2 removed / 2 added lines; each added line starts with its removed line minus the closing quote,
+  so only text appended at the end of P-PRIV-06 and P-COST-01 (no earlier dated sentence changed). The named-tests.json
+  name occurs verbatim once in services/api/test/sharedEnvWorker.test.ts (describe line 217 + it line 237). Reapplied
+  configMutants.mjs attest-real-binding-kill-get-patched to src/attest.ts (exactly 1 match): 'RED
+  test/sharedEnvWorker.test.ts :: the shared-env worker after an authenticated sweep (T-0292, P-COST-01) > the
+  authenticated sweep sends every ROUTES path ... and no request throws: F', 'NAMED P-COST-01 passed=36/37' exit 1. The
+  sweep test is the witness, not the new test, as the owner ruled. Sibling fetch-kill-switch-shared-binding on
+  src/index.ts (1 match): 'RED ... the kill read is not reachable through a shared binding (T-0297, P-COST-01) > ...',
+  passed=36/37 exit 1, so the new binding has a red of its own. Restored with git checkout --: 'NAMED P-COST-01
+  passed=37/37' exit 0; 'NAMED P-PRIV-06 passed=11/11' exit 0. The P-PRIV-06 correction matches the file: STEPS
+  (waitlistDedupe.test.ts 68-87) has 18 rows; MODES session-only / legacy-headers (IDENTITY_HEADERS '1'). bash
+  ops/queue-check 'QUEUE OK (291 tasks)' exit 0. origin/main 24f202cc is an ancestor of the head; PR base main. gh pr
+  checks: pins-source-only pass, core pending at review time.
