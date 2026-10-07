@@ -13,6 +13,7 @@ import { oneWayLimit, parseReachRequest } from "./isochroneRequest";
 import { ISOCHRONE_UPSTREAM_COST, planReach, ReachError } from "./isochronePlanner";
 import { cacheApiReachCache, reachCacheKey, UNVERSIONED_GRAPH, type ReachCache } from "./reachCache";
 import { routerDepsFromEnv, type RouterDeps, type RouterEnv } from "./routerDeps";
+import { inServedRegion } from "./servedRegion";
 import { guardedPlan, PlanBudgetExceeded, UpstreamPaused } from "./upstream";
 
 export interface IsochroneDeps extends RouterDeps {
@@ -66,9 +67,11 @@ export async function handleIsochrone(req: Request, env: KillEnv, deps: Isochron
   }
   const parsed = parseReachRequest(raw);
   if (!parsed.ok) return json({ error: "invalid_request", detail: parsed.problem }, 400);
+  const { request } = parsed;
+  if (!inServedRegion(request.start)) return json({ error: "region_unsupported" }, 422);
   if (deps === null) return json({ error: "planning_unavailable" }, 503);
 
-  const { start, minutes } = parsed.request;
+  const { start, minutes } = request;
   const limit = oneWayLimit(minutes);
   const now = deps.upstream.now();
   const snapshot = await deps.closures();

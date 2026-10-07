@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-07T17:14:58Z
 worktree: .worktrees/T-0293
 branch: task/T-0293
 exclusive: []
-touches: [services/api/src/, services/api/test/, services/api/migrations/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/, ops/lib/named-tests.json, pins/PINS.yaml]
+touches: [services/api/src/, services/api/test/, services/api/migrations/, Tests/Fixtures/t0251/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-05, P-PRIV-06]
 reviewer: null
 depends_on: [T-0248, T-0251]

@@ -92,6 +92,7 @@ const APPROVED: Record<string, string[]> = {
     '"/telemetry": (req, env) => handleTelemetry(req, env, telemetryDepsFromEnv(env)),',
     '"/auth/apple": (req, env) => handleAuthApple(req, accountDepsFromEnv(env)),',
     '"/account": (req, env) => handleDeleteAccount(req, accountDepsFromEnv(env)),',
+    '"/waitlist": (req, env) => handleWaitlist(req, waitlistDepsFromEnv(env)),',
     "async fetch(req: Request, env: Env): Promise<Response> {",
     "const url = new URL(req.url);",
     "return handler(req, env, url);",
@@ -143,6 +144,11 @@ const APPROVED: Record<string, string[]> = {
     BODY_READ,
     "const who = await deps.identify(req);",
   ],
+  // T-0293 R2: the served region is the region files themselves, bundled at build time; the request is never read.
+  "../src/servedRegion.ts": [
+    'import la from "../../etl/regions/la/region.json";',
+    'import sfbay from "../../etl/regions/sfbay/region.json";',
+  ],
   "../src/telemetry.ts": [
     "export async function handleTelemetry(req: Request, env: KillEnv & SessionEnv, deps: TelemetryDeps | null): Promise<Response> {",
     POST_ONLY,
@@ -150,6 +156,11 @@ const APPROVED: Record<string, string[]> = {
     "const { userId } = await identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now.getTime(), async () => deviceIdentity(req));",
   ],
   "../src/tripPlanner.ts": ["const path = decodeRoutePath(await response.text());"],
+  "../src/waitlist.ts": [
+    "export async function handleWaitlist(req: Request, deps: WaitlistDeps): Promise<Response> {",
+    POST_ONLY,
+    BODY_READ,
+  ],
   "../src/upstream.ts": ["return guardedPlan(deps, { userId: args.userId, tier: args.tier }, (call) => call(args.url, args.init));"],
 };
 

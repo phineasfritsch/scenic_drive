@@ -10,7 +10,7 @@ final class PlanClientResponseTests: XCTestCase {
     /// Every fixture a test below reads. `testEveryRecordedReplyHasATest` holds it to the directory listing.
     static let covered: Set<String> = [
         "200-plan", "200-plan-hazards", "400-invalid-request", "404-unknown-place", "404-not-found",
-        "405-post-only", "422-no-scenic-alternative", "429-quota-exhausted", "502-no-route",
+        "405-post-only", "422-no-scenic-alternative", "422-region-unsupported", "429-quota-exhausted", "502-no-route",
         "503-planning-paused", "503-planning-unavailable",
     ]
 
@@ -129,6 +129,11 @@ final class PlanClientResponseTests: XCTestCase {
         XCTAssertEqual(error, .noScenicAlternative)
     }
 
+    func test422RecordedRegionUnsupportedIsRegionUnsupported() async throws {
+        let error = PlanWire.error(try await recorded("422-region-unsupported"))
+        XCTAssertEqual(error, .regionUnsupported)
+    }
+
     func test429RecordedQuotaExhaustedCarriesResetsAt() async throws {
         let error = PlanWire.error(try await recorded("429-quota-exhausted"))
         XCTAssertEqual(error, .quotaExhausted(resetsAt: Date(timeIntervalSince1970: 1_791_244_800)))   // 2026-10-06T00:00Z
@@ -174,6 +179,8 @@ final class PlanClientResponseTests: XCTestCase {
     func testAKnownCodeAtAnotherStatusIsNotTrusted() async {
         let paused = await literal(400, #"{"error":"planning_paused"}"#)
         XCTAssertEqual(paused, .unexpectedResponse(status: 400))
+        let region = await literal(400, #"{"error":"region_unsupported"}"#)
+        XCTAssertEqual(region, .unexpectedResponse(status: 400))
         let route = await literal(503, #"{"error":"no_route"}"#)
         XCTAssertEqual(route, .routingOffline)
     }

@@ -25,6 +25,8 @@ enum PlanResponseReader {
             return .unknownPlace
         case (422, "no_scenic_alternative"?):
             return .noScenicAlternative
+        case (422, "region_unsupported"?):
+            return .regionUnsupported
         case (429, "quota_exhausted"?):
             guard let text = body?.resetsAt, let resetsAt = instant(text) else {
                 return .unexpectedResponse(status: status)

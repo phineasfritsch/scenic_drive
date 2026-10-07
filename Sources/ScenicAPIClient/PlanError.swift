@@ -12,9 +12,10 @@ public enum PlanError: Error, Equatable, Sendable {
     case routingOffline
     /// 502 `no_route`: no route within the ceiling, or the router refused.
     case noRoute
-    /// Plan cases no current Worker response produces (no /attest, no region gate, no drive yet).
-    case attestUnsupported
+    /// 422 `region_unsupported`: the origin is outside every served region's bbox (T-0293, servedRegion.ts).
     case regionUnsupported
+    /// Plan cases no current Worker response produces (no /attest refusal, no drive yet).
+    case attestUnsupported
     case offlineDuringDrive
     /// 422 `no_scenic_alternative`: the best scenic route is the fastest route under another name.
     case noScenicAlternative
