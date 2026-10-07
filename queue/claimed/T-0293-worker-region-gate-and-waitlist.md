@@ -1,13 +1,13 @@
 ---
 id: T-0293
 title: The Worker refuses a plan outside the served region with 422 region_unsupported before any quota or upstream call, the app reads it as PlanError.regionUnsupported, and POST /waitlist counts interest per coarse cell with no personal data
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T03:14:58Z
+lease_expires_at: 2026-10-07T17:14:58Z
+worktree: .worktrees/T-0293
+branch: task/T-0293
 exclusive: []
 touches: [services/api/src/, services/api/test/, services/api/migrations/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-05, P-PRIV-06]
@@ -30,3 +30,4 @@ action, never more than 2 decimal places; the waitlist stores a coarse cell coun
 
 ## Log
 - 2026-10-07T03:11:48Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M6 region waitlist).
+- 2026-10-07T03:14:58Z claimed by agent/claude-opus-5; lease until 2026-10-07T17:14:58Z
