@@ -3,7 +3,7 @@ import PlaceStore
 import Testing
 
 /// T-0305 R7: the corpus the app's searches open after a cold launch - the activated download when one exists, else
-/// the bundled fallback - through the shipping `LaunchCorpus.open(updater:fallback:)` and `LaunchCorpus.url(fallback:)`.
+/// the bundled fallback - through the shipping `LaunchCorpus.choose(updater:fallback:)` and `LaunchCorpus.url(fallback:)`.
 ///
 /// One table over the cross product active {absent, present} x pending {none, good, bad} x fallback {nil, a URL}:
 /// the acceptance's four states are rows of it - no download (absent, none), pending (good), activated (present,
@@ -58,7 +58,7 @@ struct CorpusLaunchTests {
             let updater = CorpusUpdater(directory: directory, drives: DriveSessionLock(), validate: { url in
                 if try Data(contentsOf: url) == Self.bad { throw CocoaError(.fileReadCorruptFile) }
             })
-            let launch = LaunchCorpus.open(updater: updater, fallback: row.fallback)
+            let launch = LaunchCorpus.choose(updater: updater, fallback: row.fallback)
             let asked = LaunchCorpus.url(fallback: Self.askedWith)
             let want = Self.expected(row, in: slots)
             #expect(launch == want.launch, "\(row)")

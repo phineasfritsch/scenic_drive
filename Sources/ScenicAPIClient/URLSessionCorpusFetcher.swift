@@ -49,11 +49,66 @@ public struct URLSessionCorpusFetcher: CorpusFetcher {
 
     /// The manifest's bytes; a reply other than 200 is `CorpusFetchError.status`.
     public func fetchManifest() async throws -> Data {
-        throw CorpusFetchError.status(0)
+        let session = session(delegate: nil)
+        defer { session.finishTasksAndInvalidate() }
+        let request = URLRequest(url: manifestURL, timeoutInterval: timeout)
+        return try await withCheckedThrowingContinuation { continuation in
+            session.dataTask(with: request) { data, response, error in
+                if let error {
+                    continuation.resume(throwing: CorpusFetchError.transport(code: (error as? URLError)?.code.rawValue ?? -1))
+                    return
+                }
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                guard status == 200 else {
+                    continuation.resume(throwing: CorpusFetchError.status(status))
+                    return
+                }
+                continuation.resume(returning: data ?? Data())
+            }.resume()
+        }
     }
 
+    /// Writes the corpus `manifest` names to `destination` (R3): resumes from the resume file when one holds part of
+    /// it, sends no request when it holds all of it, and renames it to `destination` only at exactly
+    /// `manifest.bytes`. A thrown `CorpusFetchError` leaves no file at `destination`.
     public func fetch(_ manifest: CorpusManifest, to destination: URL) async throws {
-        throw CorpusFetchError.status(0)
+        let files = FileManager()
+        let part = resumeFile(for: manifest, beside: destination)
+        try? files.removeItem(at: destination)
+        var have = ((try? files.attributesOfItem(atPath: part.path))?[.size] as? NSNumber)?.intValue ?? 0
+        if have > manifest.bytes {
+            try? files.removeItem(at: part)
+            have = 0
+        }
+        if have < manifest.bytes {
+            if !files.fileExists(atPath: part.path) {
+                guard files.createFile(atPath: part.path, contents: nil) else {
+                    throw CorpusFetchError.transport(code: URLError.Code.cannotCreateFile.rawValue)
+                }
+            }
+            var request = URLRequest(url: corpusURL(for: manifest), timeoutInterval: timeout)
+            if have > 0 {
+                request.setValue("bytes=\(have)-", forHTTPHeaderField: "Range")
+            }
+            let delegate = CorpusDownloadDelegate(file: part, offset: have, expected: manifest.bytes,
+                                                  onProgress: onProgress)
+            let session = session(delegate: delegate)
+            defer { session.finishTasksAndInvalidate() }
+            do {
+                have = try await delegate.run(request, in: session)
+            } catch let error as CorpusFetchError {
+                switch error {
+                case .status, .longBody: try? files.removeItem(at: part)
+                case .shortBody, .transport: break
+                }
+                throw error
+            }
+            guard have == manifest.bytes else {
+                throw CorpusFetchError.shortBody(received: have, expected: manifest.bytes)
+            }
+        }
+        try files.moveItem(at: part, to: destination)
+        onProgress(have, manifest.bytes)
     }
 
     func session(delegate: (any URLSessionDelegate)?) -> URLSession {

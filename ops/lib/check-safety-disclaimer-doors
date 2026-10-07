@@ -65,6 +65,8 @@ DOORS_VIEWS=(
   "$S/FeatureSurpriseMe/SurpriseCard.swift|"'public struct SurpriseCard: View {'
   "ScenicDrive/ScenicDriveApp.swift|$DOORS_SHELL_LINE"
   "ScenicDrive/ScenicDriveApp.swift|"'                    SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, onDone: { isShowingSettings = false })'
+  "$S/Entitlements/SettingsScreen.swift|"'    @AppStorage(SettingsScreen.corpusWifiOnlyKey) private var corpusWifiOnly = true'
+  "ScenicDrive/ScenicDriveApp.swift|"'        let corpus = LiveCorpus.launch(wifiOnlyKey: SettingsScreen.corpusWifiOnlyKey)'
 )
 DOORS_PACKAGE=(
   '    name: "ScenicApp",'
@@ -95,6 +97,7 @@ DOORS_PACKAGE=(
   '            name: "PlanAdapter",'
   '                .product(name: "ScenicKit", package: "ScenicDrive"),'
   '                .product(name: "ScenicAPIClient", package: "ScenicDrive"),'
+  '                .product(name: "PlaceStore", package: "ScenicDrive"),'
   '            path: "Sources/PlanAdapter",'
 )
 unset S

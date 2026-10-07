@@ -11,8 +11,8 @@ enum PlanPlaceSearch {
     /// Read on first use and kept, as the Surprise card's deck is.
     static let store: PlaceStore? = {
         let bundle = Bundle.main
-        guard let url = bundle.url(forResource: corpusName, withExtension: "sqlite")
-                ?? bundle.url(forResource: corpusName, withExtension: "sqlite", subdirectory: "Corpus") else { return nil }
+        guard let url = LaunchCorpus.url(fallback: bundle.url(forResource: corpusName, withExtension: "sqlite")
+                ?? bundle.url(forResource: corpusName, withExtension: "sqlite", subdirectory: "Corpus")) else { return nil }
         return try? PlaceStore(path: url.path)
     }()
 
