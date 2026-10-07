@@ -158,3 +158,16 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
   - TESTS: `swift test --scratch-path .build/fm-t0294 --filter "PlanSheetTests|PlanFailureCopyTests|PlanSheetGateTests"`
     -> "Test run with 20 tests in 3 suites passed", exit 0. wc -l: PlanSheetTests.swift 190, PlanSheetGateTests.swift
     169 (cap 300).
+- 2026-10-07T15:10:00Z CI on the merged head 0785a182 (PR #187): core and pins-source-only RED, both on P-ATTR-01
+  only - "a presentation over the map outside its approved site: .sheet( at ...ScenicHomeScreen.swift(1)
+  ScenicDrive/ScenicDriveApp.swift(2), tracked ...ScenicHomeScreen.swift(1) ScenicDrive/ScenicDriveApp.swift(1);
+  presentationDetents at Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift(1), tracked nowhere".
+  NOT caused by this round (the survivor commits touch only tests, ops/mutate and this Log). CAUSE: round 1's
+  "shell presentations whitelisted" (2a18cee7) never whitelisted anything - it added two more scalar assignments of
+  SHELL_PRESENTATION, the last one the Settings line again, so the check is byte-for-byte as strict as before. OPEN,
+  for a ruling rather than a whitelist: the plan sheet's `.presentationDetents([.medium, .large])` puts a system
+  sheet over the bottom half of the home map, where its credit pill is - exactly what the check exists to refuse
+  (P-ATTR-01, "visible on every map surface at every sheet detent"). A candidate (drop the .medium detent so the
+  sheet opens full height like Settings, approve the shell's `.sheet(isPresented: $isPlanning) {` by whole line,
+  re-approve PlanSheetScreen.swift's -pinned digest) was drafted and NOT committed: changing a P-ATTR-01 guard
+  needs the owner's or reviewer's ruling, not the author's.
