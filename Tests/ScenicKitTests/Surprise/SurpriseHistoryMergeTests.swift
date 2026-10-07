@@ -41,6 +41,13 @@ import Testing
             ledger: [.init(candidateId: "malibu-01", date: day(6, 19)), .init(candidateId: "malibu-00", date: day(6, 19))],
             expected: SurpriseHistory(shown: [shown("malibu-00", .park, day(6, 19)),
                                               shown("malibu-01", .trailhead, day(6, 19))], feedback: feedback)),
+        // A day tie keeps the DEVICE entry, whose corridor here is not the candidate's (an older corpus).
+        Row(name: "ledger tying device",
+            device: SurpriseHistory(shown: [.init(candidateId: "malibu-00", category: .park, corridor: "inland",
+                                                  date: day(6, 10))], feedback: feedback),
+            ledger: [.init(candidateId: "malibu-00", date: day(6, 10))],
+            expected: SurpriseHistory(shown: [.init(candidateId: "malibu-00", category: .park, corridor: "inland",
+                                                    date: day(6, 10))], feedback: feedback)),
     ]
 
     @Test("The merged history is exactly the expected one, whatever the ledger's order",

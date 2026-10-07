@@ -45,7 +45,8 @@ import Testing
         let rows = [LedgerRow(placeId: "42", cell: Self.cellA, day: CivilDate(year: 2026, month: 12, day: 31)),
                     LedgerRow(placeId: "9223372036854775807", cell: Self.cellB,
                               day: CivilDate(year: 2026, month: 1, day: 1)),
-                    LedgerRow(placeId: "7", cell: Self.cellA, day: CivilDate(year: 2024, month: 2, day: 29))]
+                    LedgerRow(placeId: "7", cell: Self.cellA, day: CivilDate(year: 2024, month: 2, day: 29)),
+                    LedgerRow(placeId: "8", cell: Self.cellB, day: CivilDate(year: 2000, month: 2, day: 29))]
         let fake = Self.reply(200, "{\"places\":[" + rows.map(Self.wire).joined(separator: ",") + "]}")
         let outcome = await Self.client(fake).read()
         #expect(await fake.requests == [PlanHTTPRequest(url: Self.ledgerURL, method: "GET",
@@ -58,6 +59,8 @@ import Testing
         #"{"places":[{"place_id":"1","cell":"85283473fffffff","day":"2026-13-01"}]}"#,
         #"{"places":[{"place_id":"1","cell":"85283473fffffff","day":"2026-00-10"}]}"#,
         #"{"places":[{"place_id":"1","cell":"85283473fffffff","day":"2026-02-29"}]}"#,
+        #"{"places":[{"place_id":"1","cell":"85283473fffffff","day":"2100-02-29"}]}"#,
+        #"{"places":[{"place_id":"1","cell":"85283473fffffff","day":"2026x10-01"}]}"#,
         #"{"places":[{"place_id":"1","cell":"85283473fffffff","day":"2026-04-31"}]}"#,
         #"{"places":[{"place_id":"1","cell":"85283473fffffff","day":"2026-10-00"}]}"#,
         #"{"places":[{"place_id":"1","cell":"85283473fffffff","day":"2026-1-011"}]}"#,
