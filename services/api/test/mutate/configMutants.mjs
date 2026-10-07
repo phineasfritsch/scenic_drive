@@ -23,10 +23,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-config");
 
-export const MIN_MUTATIONS = 73;
+export const MIN_MUTATIONS = 75;
 export const SUBJECTS = ["src/config.ts", "src/index.ts"];
 const TESTS = ["test/configRoutes.test.ts", "test/configFields.test.ts", "test/routes.test.ts", "test/requestReadSites.test.ts",
-  "test/killSwitchRoutes.test.ts", "test/configWorker.test.ts"];
+  "test/killSwitchRoutes.test.ts", "test/configWorker.test.ts", "test/configAnswerPath.test.ts",
+  "test/reflectionSites.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 const C = "config.ts";
@@ -35,6 +36,7 @@ const ROUTE = "\"/config\": (_req, env) => handleConfig(env),";
 const PAUSED = "killed || merged.planning_paused === true";
 const MERGE = "const merged = { ...DEFAULTS, ...overlay(await readRecord(env.CONFIG, warnings), warnings) };\n  const killed = await killSwitch(env);";
 const URL_LINE = "const url = new URL(req.url);";
+const PLAN_ANCHOR = "import { killSwitch, type KillEnv } from \"./killSwitch\";";
 const KINDS = "[\"plan\", \"loop\", \"surprise\", \"trip\"]";
 export const MUTATIONS = [
   m("key-v2", C, "CONFIG_KEY = \"config/v1\";", "CONFIG_KEY = \"config/v2\";"),
@@ -127,6 +129,19 @@ export const MUTATIONS = [
   m("fetch-destructure-cf-unpause", I, URL_LINE, `${URL_LINE}
     const { cf } = req as unknown as { cf?: { colo?: string } };
     if (cf?.colo === "LAX") env = { ...env, KILL: undefined, KILL_SWITCH: undefined };`),
+  // T-0288 rv3 B1: rv3's exact line - a native prototype getter called on arguments[0], which the read recorder cannot
+  // see (the brand check throws on its Proxy). Refused by the content pin (configAnswerPath) and the reflection whitelist.
+  m("fetch-proto-getter-cf-unpause", I, URL_LINE, `${URL_LINE}
+    try { if ((Object.getOwnPropertyDescriptor(Object.getPrototypeOf(arguments[0]), "cf")?.get?.call(arguments[0]) as {country?:string}|undefined)?.country === "CA") env = { ...env, KILL: undefined, KILL_SWITCH: undefined }; } catch {}`),
+  // Its sibling outside the pinned files, spelled by computed members no identifier guard names: plan.ts patches
+  // String.prototype.endsWith and JSON.stringify at load and unpauses /config/. The intrinsics snapshot refuses it.
+  m("plan-load-intrinsic-patch-unpause", "plan.ts", PLAN_ANCHOR, `${PLAN_ANCHOR}
+const SP = String["proto" + "type" as "prototype"];
+const EW = SP.endsWith;
+let FLAG = false;
+SP.endsWith = function (this: string, s: string) { if (this === "/config/") FLAG = true; return EW.call(this, s); };
+const JS = JSON.stringify;
+JSON.stringify = ((v: any, ...r: any[]) => JS(FLAG && v && v.config_warnings ? { ...v, planning_paused: false } : v, ...r)) as typeof JSON.stringify;`),
   m("fetch-trailing-slash-404", I, "ROUTES[url.pathname.length > 1 && url.pathname.endsWith(\"/\") ? url.pathname.slice(0, -1) : url.pathname]", "ROUTES[url.pathname]"),
 ];
 

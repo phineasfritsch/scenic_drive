@@ -52,10 +52,29 @@ const ALL = [BARE, ...VARIANTS];
 const request = (x: Variant) => new Request(`${BASE}${x.path}`, x.init as RequestInit);
 const envOf = (extra: Record<string, unknown>) => ({ DB: undefined, GIT_SHA: "test", BUILT_AT: "test", ...extra }) as unknown as Env;
 
-async function viaWorker(x: Variant, extra: Record<string, unknown>) {
-  const r = await worker.fetch(request(x), envOf(extra));
+async function viaWorker(x: Variant | Request, extra: Record<string, unknown>) {
+  const r = await worker.fetch(x instanceof Request ? x : request(x), envOf(extra));
   return { status: r.status, contentType: r.headers.get("content-type"), cacheControl: r.headers.get("cache-control"), text: await r.text() };
 }
+
+/** rv3 B1 (part 4): a value that satisfies every loose gate - truthy, "1" as a primitive, callable, any key is itself. */
+const SENTINEL: unknown = new Proxy(function () {}, {
+  get: (_t, k) => (k === Symbol.toPrimitive ? () => "1" : k === "then" ? undefined : SENTINEL),
+  apply: () => SENTINEL,
+  has: () => true,
+});
+/** The request of `x` with its cf and its headers replaced by SENTINEL; every other member is the real request's. */
+const sentinelRequest = (x: Variant): Request => {
+  const real = request(x);
+  return new Proxy(real, {
+    get: (t, k) => {
+      if (k === "cf" || k === "headers") return SENTINEL;
+      const value: unknown = Reflect.get(t, k);
+      return typeof value === "function" ? value.bind(t) : value;
+    },
+    has: () => true,
+  });
+};
 
 /** rv2 B1 - the runtime whitelist: the ONE read the router makes off a /config request. Ruled by measurement. */
 const APPROVED_READS = ["url"];
@@ -105,6 +124,17 @@ describe("GET /config through the shipped worker.fetch over request variants (T-
     const got: [string, string, string, ReadLog][] = [];
     for (const r of ROWS) for (const [kill, source] of KILLS) for (const x of ALL) got.push([r.name, kill, x.name, await readsVia(x, { ...source, CONFIG: r.config })]);
     expect(got).toEqual(ROWS.flatMap((r) => KILLS.flatMap(([kill]) => ALL.map((x) => [r.name, kill, x.name, APPROVED_READS]))));
+  });
+
+  it("a request whose cf and headers answer every key with a sentinel answers the bare GET's whole expected response", async () => {
+    const got: [string, string, string, unknown][] = [];
+    for (const r of ROWS) for (const [kill, source] of KILLS) for (const x of [BARE, ALL[ALL.length - 1]]) {
+      got.push([r.name, kill, x.name, await viaWorker(sentinelRequest(x), { ...source, CONFIG: r.config })]);
+    }
+    expect(got).toEqual(ROWS.flatMap((r) => KILLS.flatMap(([kill, , killed]) =>
+      [BARE, ALL[ALL.length - 1]].map((x) => [r.name, kill, x.name, expected(r.overrides, killed, r.warnings)]))));
+    const q = sentinelRequest(BARE) as unknown as { cf: { country: unknown; asn: { x: unknown } }; headers: { get(k: string): unknown } };
+    expect([`${q.cf.country}`, `${q.cf.asn.x}`, `${q.headers.get("x-scenic-unpause")}`, "cf" in q, Boolean(q.cf)]).toEqual(["1", "1", "1", true, true]);
   });
 
   it("the read recorder names every probe spelling and keeps the request working (headers.get answers through it)", () => {
