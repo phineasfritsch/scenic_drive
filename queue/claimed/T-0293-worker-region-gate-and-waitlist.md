@@ -78,3 +78,25 @@ action, never more than 2 decimal places; the waitlist stores a coarse cell coun
     state {} (the fake creates an instance on first touch, so a READ shows too). Accepted rows: the device's daily
     record seeded past every tier's limit, answer compared whole to 429 quota_exhausted - the gate passed, the quota
     answered, zero router requests.
+- 2026-10-07T04:12:22Z RED FIRST, BY NAME (before src/servedRegion.ts, src/waitlist.ts and the Swift case existed; migration 0006 written
+  first so the waitlist file loads). vitest over the eight touched files: Tests 9 failed | 44 passed (53) - FAILED
+  by name: regionGate "a coordinate just outside any edge or corner ... is 422 region_unsupported ..."; waitlist's
+  five ("a valid cell is 200 waitlisted ...", "every other body is 400 ...", "a method other than POST is 405 ...",
+  "no D1 binding is 503 ...", "is kill-switch-exempt and quota-exempt ..."); planWire "422-region-unsupported: ...";
+  routes "every route is enumerable ..."; requestReadSites "the request sites under src are exactly ...". Swift
+  (swift test --filter ScenicAPIClientTests): Executed 44 tests, with 1 failure - test422RecordedRegionUnsupported
+  IsRegionUnsupported: unexpectedResponse(status: 422) is not equal to regionUnsupported. DDL test seen RED: `address
+  TEXT` added to migrations/0006_waitlist.sql -> both migrationColumns tests FAILED by name (2 failed); restored,
+  2 passed. GREEN after code: the eight files 53/53; Swift 44 tests, 0 failures. requestReadSites approves the two
+  region.json import lines of servedRegion.ts (".json" is a request-member spelling in its regex) and waitlist.ts's
+  three request lines.
+- 2026-10-07T04:12:22Z MUTATION POPULATION services/api/test/mutate/regionMutants.mjs (R12), MIN_MUTATIONS = 40, eight subjects,
+  --prove-floor: all four arms REFUSED, real population quiet. First run: RESULT caught=39 missed=1 trap=0 of 40 -
+  MISSED db-missing-ignored: without the guard an unbound DB throws inside the write's try and the catch answers
+  the same 503, so it moved to EQUIVALENT with that witness; its replacement write-failure-answers-200 was MISSED
+  (no row reached the catch), the 503 test gained a D1 whose write throws (renamed "no D1 binding, or a D1 whose
+  write throws, is 503 waitlist_unavailable"), then CAUGHT by that name. The other 39 CAUGHT by name, e.g.
+  lat-max-strict by "a coordinate on any exact edge or corner ... passes the gate ...", lon-min-dropped by "a
+  coordinate just outside any edge or corner ...", keys-superset by "every other body is 400 ...",
+  migration-device-column by "the waitlist table is exactly (cell, count, updated_at) ...". MISSED BEFORE: those
+  four under --prove-vacuity (no test runs): RESULT caught=0 missed=4 of 4.

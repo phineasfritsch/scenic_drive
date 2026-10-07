@@ -133,9 +133,12 @@ describe("POST /waitlist counts a coarse cell and nothing else (T-0293 R8, P-PRI
     expect(answered).toEqual([["empty", no, no, 0], ["holding", no, no, 2]]);
   });
 
-  it("no D1 binding is 503 waitlist_unavailable", async () => {
-    expect(await send(JSON.stringify({ cell: CELL }), "POST", shippedEnv({ DB: undefined })))
-      .toEqual({ status: 503, json: { error: "waitlist_unavailable" } });
+  it("no D1 binding, or a D1 whose write throws, is 503 waitlist_unavailable", async () => {
+    const throwing = { prepare: () => ({ bind: () => ({ run: async () => { throw new Error("d1 down"); } }) }) };
+    const answered = [await send(JSON.stringify({ cell: CELL }), "POST", shippedEnv({ DB: undefined })),
+      await send(JSON.stringify({ cell: CELL }), "POST", shippedEnv({ DB: throwing }))];
+    const unavailable = { status: 503, json: { error: "waitlist_unavailable" } };
+    expect(answered).toEqual([unavailable, unavailable]);
   });
 
   it("is kill-switch-exempt and quota-exempt by ruling: KILL=1 and a KV KILL still count the cell, with no quota touch", async () => {
