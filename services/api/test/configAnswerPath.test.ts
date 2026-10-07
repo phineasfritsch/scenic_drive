@@ -21,7 +21,7 @@ const FILES = import.meta.glob(["../src/index.ts", "../src/config.ts", "../src/k
 
 const ANSWER_PATH: Record<string, string> = {
   "../src/config.ts": "d10ed3d7229dc875ae9e8f45ec19d3e9715f2bf71a3e50f8cc077825078bea71",
-  "../src/index.ts": "87e36362576c4b7ef487675ab069309d1036b65c65352b1e456d07cfa51bf273",
+  "../src/index.ts": "fe1d4e74961a6b977cfde631eca532aa62ca2241a938897c756d61e2506b1ab1",
   "../src/killSwitch.ts": "434d34cb4c3770a3a5eedb019ab61b0f801777ae6c4ef742b565001490eec7a4",
   "../src/quota.ts": "779793e26a0e7928b379813c4691ba0861600d35a95a3336acb23aa879a72174",
 };

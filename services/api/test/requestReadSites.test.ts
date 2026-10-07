@@ -39,6 +39,37 @@ const HANDLER_MISS = 'if (!handler) return json({ error: "not found" }, 404);';
 const TIER_READ = 'const token = (req.headers.get(ACCOUNT_TOKEN_HEADER) ?? "").toLowerCase();';
 
 const APPROVED: Record<string, string[]> = {
+  // T-0287 R10: the session JWT's ONE read in account.ts is caller()'s; the Apple exchange's response is not the request.
+  // T-0288 merge of T-0287: the rv1 B1 derivation follows match -> claims (session.claims) -> sub, act, signed, user ->
+  // bindings -> binding through both handlers; every line naming one is the session the Authorization header carried.
+  "../src/account.ts": [
+    "* APPLE_CLIENT_SECRET, binds the Apple sub to the session's device and answers the session JWT re-signed with apple",
+    "* of the user, then deletes every user row of every D1 table in one batch and answers {deleted, revoke_pending} (R7).",
+    "/** Owner secret: the pre-signed Sign in with Apple client-secret JWT; absent, no exchange and revoke_pending. */",
+    "async function caller(req: Request, secret: string, nowMs: number): Promise<{ token: string; claims: SessionClaims } | null> {",
+    'const match = BEARER.exec(req.headers.get(AUTHORIZATION_HEADER) ?? "");',
+    "if (match === null) return null;",
+    "const claims = await verifySession(secret, match[1]!, nowMs);",
+    "return claims === null ? null : { token: match[1]!, claims };",
+    "const body: unknown = await response.json();",
+    "export async function handleAuthApple(req: Request, deps: AccountDeps): Promise<Response> {",
+    POST_ONLY,
+    "const session = await caller(req, deps.secret, nowMs);",
+    "const raw: unknown = await req.json();",
+    "await bindApple(deps.db, session.claims.sub, appleSub, refreshToken, nowMs);",
+    "const { sub, act } = session.claims;",
+    "const signed = await signSession(deps.secret, act === undefined ? { sub, apple: appleSub } : { sub, act, apple: appleSub }, nowMs);",
+    "return json({ token: signed.token, expires_at: new Date(signed.expiresAtMs).toISOString() });",
+    "export async function handleDeleteAccount(req: Request, deps: AccountDeps): Promise<Response> {",
+    'if (req.method !== "DELETE") return json({ error: "DELETE only" }, 405);',
+    "const session = await caller(req, deps.secret, deps.now().getTime());",
+    "const user: AccountUser = { deviceId: session.claims.sub, appleSub: session.claims.apple ?? null, accountToken: session.claims.act ?? null };",
+    "let bindings;",
+    "bindings = await userBindings(deps.db, user);",
+    "for (const binding of bindings) {",
+    "if (secret === null || binding.refreshToken === null || !(await revoked(deps, secret, binding.refreshToken))) pending = true;",
+    "await deleteUser(deps.db, user);",
+  ],
   "../src/accountTier.ts": [
     "* The caller's quota tier (T-0272 R1-R5): paid exactly when the purchase id in x-scenic-account-token has a live",
     "* anon: no header, a malformed one (no D1 read), an unknown token, an inactive or expired row, and ANY failure of",
@@ -48,6 +79,8 @@ const APPROVED: Record<string, string[]> = {
     'if (db === undefined || !UUID.test(token)) return "anon";',
     'return (await readEntitlement(db, token, nowMs)).status === "active" ? "paid" : "anon";',
   ],
+  // T-0287: Apple's JWKS response, never the request.
+  "../src/appleJwks.ts": ["body = await response.json();"],
   "../src/appleMaps.ts": [
     "* The Apple Maps handoff URL - a port of Sources/Handoff/AppleMapsDirections.swift (T-0248 R7).",
     "* decimals here is not the two-decimal rule: this URL is the user handing their own route to Apple.",
@@ -108,6 +141,8 @@ const APPROVED: Record<string, string[]> = {
     '"/attest/assert": (req, env) => handleAttestAssert(req, attestDepsFromEnv(env)),',
     '"/telemetry": (req, env) => handleTelemetry(req, env, telemetryDepsFromEnv(env)),',
     CONFIG_ROUTE,
+    '"/auth/apple": (req, env) => handleAuthApple(req, accountDepsFromEnv(env)),',
+    '"/account": (req, env) => handleDeleteAccount(req, accountDepsFromEnv(env)),',
     "async fetch(req: Request, env: Env): Promise<Response> {",
     URL_LINE,
     'const handler = ROUTES[url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname];',

@@ -41,6 +41,10 @@ const REQUESTS: Record<string, [() => Request, () => Request]> = {
   "/attest/assert": [() => post("/attest/assert", { keyId: "a2V5", assertion: "YXNz", challenge: "Y2hh" }), () => get("/attest/assert")],
   "/telemetry": [() => post("/telemetry", { events: [] }), () => get("/telemetry")],
   "/config": [() => get("/config"), () => post("/config", { planning_paused: false })],
+  "/auth/apple": [() => post("/auth/apple", { identityToken: "e30.e30.sig", authorizationCode: "c0de" }, { authorization: "Bearer e30.e30.sig" }),
+    () => get("/auth/apple", { authorization: "Bearer e30.e30.sig" })],
+  "/account": [() => new Request(`${B}/account`, { method: "DELETE", headers: { "x-scenic-device": DEVICE, authorization: "Bearer e30.e30.sig" } }),
+    () => post("/account", {}, { authorization: "Bearer e30.e30.sig" })],
 };
 const KINDS = ["valid", "invalid"] as const;
 

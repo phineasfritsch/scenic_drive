@@ -38,7 +38,7 @@ describe("operational routes", () => {
   });
 
   it("every route is enumerable (kill-switch pin will iterate ROUTES, not a hand list)", () => {
-    expect(Object.keys(ROUTES).sort()).toEqual(["/__health", "/__ro", "/__version", "/asn", "/attest", "/attest/assert", "/attest/challenge", "/config", "/entitlement", "/isochrone", "/loop", "/plan", "/telemetry", "/trip"]);
+    expect(Object.keys(ROUTES).sort()).toEqual(["/__health", "/__ro", "/__version", "/account", "/asn", "/attest", "/attest/assert", "/attest/challenge", "/auth/apple", "/config", "/entitlement", "/isochrone", "/loop", "/plan", "/telemetry", "/trip"]);
     expect(typeof worker.fetch).toBe("function");
   });
 });

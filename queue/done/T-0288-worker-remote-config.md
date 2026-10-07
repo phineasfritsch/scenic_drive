@@ -379,3 +379,32 @@ only.
   still mirrors the server; it belongs to P-COST-01, not to this mirror). Proposed follow-up: "T-xxxx: a structural
   close for request-time shared-state patches - freeze env per request (or hand handlers a frozen copy) and run the
   P-COST-01 + /config tables on a shared-env worker after an authenticated sweep with bound fakes".
+- 2026-10-07T02:27:23Z agent/claude-opus-5 (owner): MERGE of origin/main 2e4f0a88 (PR #176, T-0287: POST /auth/apple,
+  DELETE /account) into the signed-off head dd515e89, then origin/main 2c6d7aff (queue-only: T-0292 filed, T-0291
+  claimed; no gate, test or pin change). Four textual conflicts resolved as a union, each checked against BOTH parents:
+  index.ts (vs dd515e89 the ONLY change is T-0287's account import line, the APPLE_CLIENT_SECRET Env field and the two
+  ROUTES lines "/auth/apple" and "/account"; vs 2e4f0a88 the only change is this task's handleConfig import, CONFIG Env
+  field, "/config" ROUTES line and trailing-slash dispatch), killSwitchRoutes OPERATIONAL_ROUTES (both sets + /config),
+  requestReadSites APPROVED index.ts lines (both route lines), routes.test.ts key list (all 16 keys).
+  vitest on the union, the guard files only (configAnswerPath, configSweep, requestReadSites, reflectionSites): 3 failed
+  by name, all T-0288 guards tripping on main's new code. Re-approvals, none weakened:
+  (1) configAnswerPath "the /config answer path is exactly the approved bytes": index.ts sha256 87e36362...bf273 ->
+      fe1d4e74961a6b977cfde631eca532aa62ca2241a938897c756d61e2506b1ab1 (the diff above); config.ts, killSwitch.ts,
+      quota.ts hashes unchanged.
+  (2) configSweep "the sweep sends every ROUTES path ...": REQUESTS gains "/auth/apple" (valid: POST with Bearer and
+      {identityToken, authorizationCode}; invalid: GET) and "/account" (valid: DELETE with Bearer; invalid: POST {}).
+      GAP RECORDED: the sweep's shared binding-less env has no SESSION_JWT_SECRET, so both T-0287 routes stop at their
+      503 secret gate, as the /attest rows do; a bound-env sweep is T-0292's (frozen env) territory and T-0291's (JWKS).
+  (3) requestReadSites "the request sites under src are exactly the approved sites": account.ts list replaced by the
+      26 whole lines the rv1 B1 derivation finds, in file order - match -> claims (named via session.claims) -> sub,
+      act, signed, user -> bindings -> binding; three of them are block-comment lines naming signed (pre-signed),
+      session/sub and user. Every one is the session the Authorization header carried, the route's purpose. appleJwks.ts
+      needed no change (its one site, the JWKS response read, was already approved by main).
+  configAnswerPath "loading the shipped worker leaves every global ... untouched" did NOT fail here - green in the guard
+  run and in the full run - so nothing was approved by name in intrinsicsSnapshot. Read of the T-0287 modules' load-time
+  code: account.ts builds PRODUCTION_JWKS = emptyJwksCache() (a module-local object), the rest are const strings,
+  regexes and arrow functions; TextEncoder/TextDecoder/crypto.subtle are called only inside functions. No global,
+  intrinsic or prototype is written at load.
+  GATES on the merged tree: vitest (services/api, full) `Test Files  65 passed (65)`, `Tests  2081 passed (2081)`,
+  exit 0 (reflectionSites included); `python ops/lib/run-named-tests.py P-COST-01` -> `NAMED P-COST-01 passed=26/26`;
+  `python ops/lib/run-named-tests.py P-PRIV-04` -> `NAMED P-PRIV-04 passed=51/51`.

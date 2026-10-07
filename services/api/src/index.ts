@@ -4,6 +4,7 @@
  * Only operational routes exist yet. Every route is listed in ROUTES so tests can enumerate them
  * (pin P-COST-01 will later assert the kill switch covers every entry, not a hand-written list).
  */
+import { accountDepsFromEnv, handleAuthApple, handleDeleteAccount } from "./account";
 import { asnDepsFromEnv, handleAsn, handleEntitlement } from "./asn";
 import { attestDepsFromEnv, handleAttest, handleAttestAssert, handleAttestChallenge } from "./attest";
 import { runClosuresCron } from "./closuresCron";
@@ -35,6 +36,7 @@ export interface Env {
   APP_ATTEST_ALLOW_DEVELOP?: string; // "1" accepts the appattestdevelop aaguid (T-0278 R4); unset = production only
   CONFIG?: KVNamespace; // T-0288: the remote config record config/v1 /config overlays on its defaults; not bound in wrangler.jsonc
   TELEMETRY?: AnalyticsEngineDataset; // T-0279: the Analytics Engine binding /telemetry writes to (declared, not created)
+  APPLE_CLIENT_SECRET?: string; // owner secret (T-0287 R6): the pre-signed Sign in with Apple client-secret JWT; absent, revoke_pending
   GRAPH_VERSION?: string; // the routing graph's version, in the /isochrone cache key (T-0262 R6); unset = "unversioned"
 }
 
@@ -105,6 +107,8 @@ export const ROUTES: Record<string, Handler> = {
   "/attest/assert": (req, env) => handleAttestAssert(req, attestDepsFromEnv(env)),
   "/telemetry": (req, env) => handleTelemetry(req, env, telemetryDepsFromEnv(env)),
   "/config": (_req, env) => handleConfig(env),
+  "/auth/apple": (req, env) => handleAuthApple(req, accountDepsFromEnv(env)),
+  "/account": (req, env) => handleDeleteAccount(req, accountDepsFromEnv(env)),
 };
 
 export default {

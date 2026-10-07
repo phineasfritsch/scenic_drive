@@ -1,9 +1,11 @@
 /**
  * The session JWT /attest issues (T-0278 R5): HS256 through WebCrypto HMAC, keyed by the SESSION_JWT_SECRET secret.
- * The header is one fixed string; the claims are exactly {iss, sub, iat, exp} and an optional act; a token is valid
+ * The header is one fixed string; the claims are exactly {iss, sub, iat, exp} and an optional act and apple (T-0287 R6:
+ * the Sign in with Apple user id, APPLE_SUB); a token is valid
  * iff its signature verifies, iat <= now < exp in whole seconds and exp - iat == SESSION_TTL_S. Anything else is
  * null - the caller fails closed.
  */
+import { APPLE_SUB } from "./appleIdentity";
 import { UUID } from "./asn";
 
 export const SESSION_TTL_S = 3600;
@@ -30,6 +32,8 @@ export interface SessionClaims {
   sub: string;
   /** The appAccountToken whose entitlement is the session's tier. */
   act?: string;
+  /** The Sign in with Apple user id bound to the device (T-0287 R6). */
+  apple?: string;
 }
 
 /** The secret, or null when absent or shorter than MIN_SECRET_LENGTH. */
@@ -43,7 +47,8 @@ function hmacKey(secret: string): Promise<CryptoKey> {
 
 export async function signSession(secret: string, claims: SessionClaims, nowMs: number): Promise<{ token: string; expiresAtMs: number }> {
   const iat = Math.floor(nowMs / 1000);
-  const body = { iss: SESSION_ISSUER, sub: claims.sub, iat, exp: iat + SESSION_TTL_S, ...(claims.act ? { act: claims.act } : {}) };
+  const body = { iss: SESSION_ISSUER, sub: claims.sub, iat, exp: iat + SESSION_TTL_S, ...(claims.act ? { act: claims.act } : {}),
+    ...(claims.apple ? { apple: claims.apple } : {}) };
   const signing = `${HEADER}.${b64url(utf8(JSON.stringify(body)))}`;
   const signature = new Uint8Array(await crypto.subtle.sign("HMAC", await hmacKey(secret), utf8(signing)));
   return { token: `${signing}.${b64url(signature)}`, expiresAtMs: (iat + SESSION_TTL_S) * 1000 };
@@ -65,13 +70,14 @@ export async function verifySession(secret: string, token: string, nowMs: number
   } catch {
     return null;
   }
-  const keys = Object.keys(claims).filter((k) => k !== "act").sort();
+  const keys = Object.keys(claims).filter((k) => k !== "act" && k !== "apple").sort();
   if (keys.join() !== CLAIMS.join() || claims.iss !== SESSION_ISSUER) return null;
-  const { sub, iat, exp, act } = claims;
+  const { sub, iat, exp, act, apple } = claims;
   if (typeof sub !== "string" || !UUID.test(sub)) return null;
   if (!Number.isSafeInteger(iat) || !Number.isSafeInteger(exp) || (exp as number) - (iat as number) !== SESSION_TTL_S) return null;
   const now = Math.floor(nowMs / 1000);
   if (!((iat as number) <= now && now < (exp as number))) return null;
   if ("act" in claims && (typeof act !== "string" || !UUID.test(act))) return null;
-  return typeof act === "string" ? { sub, act } : { sub };
+  if ("apple" in claims && (typeof apple !== "string" || !APPLE_SUB.test(apple))) return null;
+  return { sub, ...(typeof act === "string" ? { act } : {}), ...(typeof apple === "string" ? { apple } : {}) };
 }
