@@ -12,7 +12,7 @@
   runs_on: [linux, mac]
   assertion: "! grep -rEn '^\\s*(@testable\\s+)?import\\s+(CoreLocation|MapKit|UIKit|SwiftUI|MapLibre|Ferrostar)' Sources/"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-SRC-02
   statement: No Swift source file exceeds 300 lines
@@ -21,7 +21,7 @@
   runs_on: [linux, mac]
   assertion: "bash ops/lib/check-line-cap"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-OPS-01
   statement: Every script in ops/ and .githooks/ is committed with the executable bit (git mode 100755); data files are not
@@ -30,16 +30,16 @@
   runs_on: [linux, mac]
   assertion: "bash ops/lib/check-exec-bits"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-OPS-02
   statement: A failing test run names the tests that failed - every failure the counter counts, --list-failures names, and an unreadable report fails closed on both paths
-  why_no_test_catches_it: The suite stays green while the runner is blind, so nothing goes red when the naming breaks. PR #14 printed `TESTS linux=85/76 failed=3` with no names and cost a debugging round of re-running every tier by hand in a container; the first fix for that was itself incomplete - --list-failures walked only <testcase> elements, so a summary-only <testsuite failures="1">, which is exactly what `swift test --xunit-output` writes into .artifacts/spm-junit.xml today, counted as a failure and named nothing (reviewer-18). A runner that hides which test broke is the fleet's central failure mode wearing a hat.
+  why_no_test_catches_it: "The suite stays green while the runner is blind, so nothing goes red when the naming breaks. PR #14 printed `TESTS linux=85/76 failed=3` with no names and cost a debugging round of re-running every tier by hand in a container; the first fix for that was itself incomplete - --list-failures walked only <testcase> elements, so a summary-only <testsuite failures=\"1\">, which is exactly what `swift test --xunit-output` writes into .artifacts/spm-junit.xml today, counted as a failure and named nothing (reviewer-18). A runner that hides which test broke is the fleet's central failure mode wearing a hat."
   anchor: artifact
   runs_on: [linux, mac]
   assertion: "bash ops/lib/check-failure-naming"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-GIT-01
   statement: .gitattributes normalizes every text file to LF
@@ -48,7 +48,7 @@
   runs_on: [linux, mac]
   assertion: "grep -qE '^\\* text=auto eol=lf' .gitattributes"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-DATA-02
   statement: Root package declares iOS 18.4 as the platform floor (unified maps.apple.com waypoint URLs need it)
@@ -57,7 +57,7 @@
   runs_on: [linux, mac]
   assertion: "grep -q 'iOS(\"18.4\")' Package.swift"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-TEST-01
   statement: Test-count floors exist, are integers, and the Linux floor is at least 3
@@ -66,7 +66,7 @@
   runs_on: [linux, mac]
   assertion: "grep -qE '^[0-9]+$' pins/floor_linux.txt && grep -qE '^[0-9]+$' pins/floor_ios.txt && test \"$(cat pins/floor_linux.txt)\" -ge 3"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-PROC-01
   statement: No task reaches done/ without a reviewer who is not its owner
@@ -75,7 +75,7 @@
   runs_on: [linux, mac]
   assertion: "bash ops/queue-check >/dev/null"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-PROC-03
   statement: ops/queue-sweep never returns a task to ready/ while it names a branch, and refuses outright where git cannot answer
@@ -84,7 +84,7 @@
   runs_on: [linux, mac]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-sweep.py"
   owner: agent/claude-opus-5
-  added: 2026-09-16
+  added: "2026-09-16"
 
 - id: P-PROC-04
   statement: The seven sweeper cases are discriminating - each variant of queue.py breaks exactly the cases named against it
@@ -93,7 +93,7 @@
   runs_on: [linux, mac]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-sweep.py --variants"
   owner: agent/claude-opus-5
-  added: 2026-09-16
+  added: "2026-09-16"
 
 - id: P-PROC-02
   statement: A task file round-trips through ops/lib/queue.py - parse() reads back exactly what dump() wrote - and no front-matter value can declare a second key
@@ -102,7 +102,7 @@
   runs_on: [linux, mac]
   assertion: "bash ops/lib/check-queue-roundtrip"
   owner: agent/claude-opus-5
-  added: 2026-09-08
+  added: "2026-09-08"
 
 - id: P-ATTR-02
   statement: LICENSE-DATA exists and credits OpenStreetMap contributors under ODbL
@@ -111,7 +111,7 @@
   runs_on: [linux, mac]
   assertion: "test -f LICENSE-DATA && grep -q 'OpenStreetMap contributors' LICENSE-DATA && grep -qi 'ODbL' LICENSE-DATA"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-PROD-01
   statement: Motorway/trunk/private/unpaved ways score exactly 0.0 in the ETL, the router profile and ScenicKit.Gates (one fixture set through all three)
@@ -121,7 +121,7 @@
   assertion: TODO
   pending: T-0012
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-COST-02
   statement: MAX_MONTHLY_UPSTREAM_CALLS is a compile-time constant in the Worker equal to the value pinned here
@@ -130,7 +130,7 @@
   runs_on: [linux]
   assertion: "v=\"$(sed -n '/^- id: P-COST-02/,/^- id: /p' pins/PINS.yaml | sed -n 's/^  value: *//p' | tr -d '[:space:]')\"; test -n \"$v\" && test \"$(grep -oE '^export const MAX_MONTHLY_UPSTREAM_CALLS = [0-9_]+' services/api/src/quota.ts | grep -oE '[0-9_]+$' | tr -d _)\" = \"$v\" && ! grep -rqE 'MAX_MONTHLY_UPSTREAM_CALLS[[:space:]]*=[[:space:]]*[^0-9[:space:]]' services/api/src"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
   value: 250000
 
 - id: P-SAFE-03
@@ -140,7 +140,7 @@
   runs_on: [linux, mac]
   assertion: "bash ops/lib/check-safety-disclaimer"
   owner: agent/claude-opus-5
-  added: 2026-09-18
+  added: "2026-09-18"
 
 - id: P-SAFE-05
   statement: Sunrise, sunset and civil twilight for 35 site-days (21N to 65N) match the US Naval Observatory within 90 s, and the fixtures come from USNO rather than from our own output
@@ -149,7 +149,7 @@
   runs_on: [linux, mac]
   assertion: "grep -q 'Naval Observatory' Tests/Fixtures/solar/oracle.json && test $(grep -c 'SolarFixture(name:' Tests/ScenicKitTests/SolarFixtures.swift) -ge 20 && swift test --filter SolarFixtureTests 2>&1 | grep -E 'Test run with [1-9][0-9]* tests?( in [0-9]+ suites?)? passed' >/dev/null"
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-SAFE-06
   statement: A GraphHopper sign that nothing maps fails the build - GuidanceMapping.maneuver(for:) has no catch-all clause
@@ -158,7 +158,7 @@
   runs_on: [linux, mac]
   assertion: "bash ops/lib/check-guidance-gate"
   owner: agent/claude-opus-5
-  added: 2026-09-15
+  added: "2026-09-15"
 
 - id: P-ROUTE-01
   statement: The pinned GraphHopper image's version equals GuidanceSign.sourceRelease, the release the sign table was transcribed from
@@ -168,7 +168,7 @@
   assertion: TODO
   pending: T-0135
   owner: agent/claude-opus-5
-  added: 2026-09-15
+  added: "2026-09-15"
 
 - id: P-HUMAN-01
   statement: Human gate 1 - the developer drives 5 of their own commute routes; at least 4 beat the freeway and none is a rat-run
@@ -179,7 +179,7 @@
   expires_days: 30
   pending: T-0013
   owner: agent/claude-opus-5
-  added: 2026-09-07
+  added: "2026-09-07"
 
 - id: P-SEC-01
   statement: The pre-commit secret scan refuses a staged secret at every size, including files larger than a pipe buffer
@@ -188,7 +188,7 @@
   runs_on: [linux, mac]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-secret-scan.py"
   owner: agent/claude-opus-5
-  added: 2026-09-16
+  added: "2026-09-16"
 
 - id: P-OPS-03
   statement: No gate pipes a producer into an early-exiting grep that the scan recognises - the recognised spellings are listed below, the unrecognised ones in the scan's own header
@@ -197,7 +197,7 @@
   runs_on: [linux, mac]
   assertion: "bash ops/lib/check-pipe-consumers"
   owner: agent/claude-opus-5
-  added: 2026-09-16
+  added: "2026-09-16"
 
 - id: P-GIT-03
   statement: The merge-gate cases are discriminating - each variant of the hook breaks exactly the set of cases named against it, and no other
@@ -206,16 +206,16 @@
   runs_on: [linux, mac]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-touches-merge.py --variants"
   owner: agent/claude-opus-5
-  added: 2026-09-16
+  added: "2026-09-16"
 
 - id: P-GIT-02
   statement: The pre-commit touches gate applies to the author's own changes on a merge, not to every file the merge stages
-  why_no_test_catches_it: Nothing exercises the hook during a merge. The gate looks correct reading it, and is correct on an ordinary commit; only a real merge shows that `git merge` stages the whole other side and the gate refuses all of it. Measured on task/T-0097 - a merge of origin/main resolving ONE conflict in a file that IS in touches: was refused with 41 paths, every one a file main changed and the branch did not. That very likely produced the stacked-branch tower T-0113 measured and could not explain: if merging main into a task branch is blocked, the only way to get current is to branch off another task branch.
+  why_no_test_catches_it: "Nothing exercises the hook during a merge. The gate looks correct reading it, and is correct on an ordinary commit; only a real merge shows that `git merge` stages the whole other side and the gate refuses all of it. Measured on task/T-0097 - a merge of origin/main resolving ONE conflict in a file that IS in touches: was refused with 41 paths, every one a file main changed and the branch did not. That very likely produced the stacked-branch tower T-0113 measured and could not explain: if merging main into a task branch is blocked, the only way to get current is to branch off another task branch."
   anchor: process
   runs_on: [linux, mac]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-touches-merge.py"
   owner: agent/claude-opus-5
-  added: 2026-09-08
+  added: "2026-09-08"
 
 - id: P-OPS-05
   statement: ops/sane's documented exit-code precedence is the order its checks actually run in - the EXIT_ORDER array and the fail() call sites agree
@@ -224,7 +224,7 @@
   runs_on: [linux, mac]
   assertion: "bash ops/lib/check-sane-exit-order"
   owner: agent/claude-opus-5
-  added: 2026-09-18
+  added: "2026-09-18"
 
 - id: P-GIT-04
   statement: The pre-commit hook refuses a commit whose staged content differs from the working tree, and reads the touches list from the task file as staged
@@ -239,16 +239,16 @@
   runs_on: [linux, mac]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-ios-compile-guardrails.py"
   owner: agent/claude-opus-5
-  added: 2026-09-18
+  added: "2026-09-18"
 
 - id: P-PROC-05
-  statement: The mutation population for the ETL geometry terms is populated on every one of the six classes PR #94's review rounds found - ops/mutate/geometry.py refuses a population that has lost a whole class even when its COUNT is still at the floor
+  statement: "The mutation population for the ETL geometry terms is populated on every one of the six classes PR #94's review rounds found - ops/mutate/geometry.py refuses a population that has lost a whole class even when its COUNT is still at the floor"
   why_no_test_catches_it: "A mutation population is a list of tuples in a file, and the only thing that ever reads it is the harness nobody runs on a schedule. The pass condition of a mutation run - every mutation was killed by the test that names it - is satisfied by an EMPTY list: 0 of 0, exit 0, the cleanest sheet the runner can print, which is why budget.py grew MIN_MUTATIONS. A COUNT is not enough here and that is the whole reason this pin exists. PR #94 (T-0161) went FOUR review rounds on one shape - the fixture's geometry population is degenerate on axis X, so a mutant restricted to a subset of the segment-pair matrix survives with nothing red - refiled each round with a new X: the way's first segment only, then a polyline replaced by its chord, then the pair of segments interior to BOTH polylines, and a fifth axis (a banded window, abs(i - j) <= 1, the shape a monotone sweep's pruning has) recorded in agent/rv4-pr94's PASS entry rather than bought as a round. Every one of those rounds had a population that was complete by its own count and empty on the next axis. So REQUIRED_CLASSES in ops/mutate/geometry_mutations.py is a literal list of six class names, every one of which must be populated, and MIN_MUTATIONS = 12 and MIN_EQUIVALENT = 4 are the exact lengths of the two lists rather than slack bounds. The assertion is --prove-floor, which costs no pytest run: it empties the population, then deletes one entry, then TRADES the last class for copies of a surviving one so the count still reads 12 - the arm no count can pass - and finally requires the real population to be accepted. Seen red three ways before it was seen green, on 2026-09-19 with the banded-subset entry deleted: the plain sweep exits 2 with 'POPULATION FLOOR: no mutation left in class banded-subset - that whole axis is unmeasured', this assertion exits 1 with 'FLOOR PROOF FAILED ... real -> accepted=False', and with the entry restored but its two killers not yet written the sweep exits 1 with the mutant listed under CAUGHT, BUT NOT BY THE TEST THAT NAMES IT. A FOURTH refusal arm was bought by agent/rv1-pr107 on PR #107, and it is the same defect one axis further in: an entry whose killers list is EMPTY read as a catch, because red_by_name([], failed) is [] and the sweep asks len(red) != len(killers), which is 0 == 0. Emptying the banded-subset entry's two killer names left the plain sweep at exit 0 with the clean two-line verdict and this assertion at exit 0 as well, while that mutant applied, moved its fingerprint and turned three tests red - the sixth class measured by nothing, on a sheet that read clean. population_ok now refuses such an entry BY NAME before any pytest runs, and --prove-floor's fourth arm empties one entry's killers with the count still at 12 and all six classes still populated, which is the arm neither the count arm nor the class arm can see. Seen red before green on 2026-09-19 in exactly that state: the plain sweep exits 2 with 'POPULATION FLOOR: keep only the segment pairs with abs(i - j) <= 1 - rv4-pr94's sixth class names no killer - a mutation nobody is required to catch is not a measurement', and this assertion exits 1 with 'FLOOR PROOF FAILED ... real -> accepted=False'."
   anchor: process
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/mutate/geometry.py --prove-floor"
   owner: agent/claude-opus-5
-  added: 2026-09-19
+  added: "2026-09-19"
 
 - id: P-PROD-05
   statement: The corpus, Worker and device-reader schema_version are one value - services/etl/etl/schema.py SCHEMA_VERSION == services/api/src/index.ts SCHEMA_VERSION == Sources/PlaceStore/PlaceStore.swift PlaceStore.schemaVersion (T-0175), with the Worker's value pinned on the wire by services/api/test/routes.test.ts
@@ -257,7 +257,7 @@
   runs_on: [linux]
   assertion: "P=\"${PYTHON:-$(command -v python3 || command -v python)}\" && \"$P\" ops/lib/check-schema-version.py && \"$P\" ops/lib/run-named-tests.py P-PROD-05"
   owner: agent/claude-opus-5
-  added: 2026-09-18
+  added: "2026-09-18"
 
 - id: P-PROC-06
   statement: A module added under services/etl/etl/ or Sources/ ships a mutation population under ops/mutate/ - every population declares its subjects in SUBJECT_MODULES, and a module that has a population never loses it silently
@@ -266,7 +266,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-mutate-population.py"
   owner: agent/claude-opus-5
-  added: 2026-09-19
+  added: "2026-09-19"
 
 - id: P-DATA-03
   statement: The PMTiles artifact AND the corpus.sqlite the app ships each carry meta.region equal to the active region and a built_at under 30 days old - the tiles half decided by the checker the build recipe itself runs, the corpus half by the shipping provenance check over corpora the shipping builder really built
@@ -275,7 +275,7 @@
   runs_on: [linux]
   assertion: "P=\"${PYTHON:-$(command -v python3 || command -v python)}\" && \"$P\" ops/lib/check-pmtiles-provenance.py && \"$P\" ops/lib/check-corpus-provenance.py"
   owner: agent/claude-opus-5
-  added: 2026-09-19
+  added: "2026-09-19"
 
 - id: P-ATTR-01
   statement: The basemap credit on the home screen is the plan's string for the Protomaps tiles and MapLibre's own for the demo tiles, both declared verbatim, it comes from the SAME RESOLVED style the map is mounted with rather than from a literal at the call site, the LA basemap is mounted on a surface at all, every map surface in the app is one of the mount sites typed into the check, and the footer is never hidden from accessibility
@@ -284,7 +284,7 @@
   runs_on: [linux]
   assertion: "bash ops/lib/check-map-attribution"
   owner: agent/claude-opus-5
-  added: 2026-09-19
+  added: "2026-09-19"
 
 - id: P-DATA-04
   statement: Every corpus records surface coverage per highway class in meta.surface_coverage, and etl.surfacecoverage refuses a class whose known fraction has fallen below the literal baseline measured from the LA canyon window - green over the committed real table, exit 1 naming the class over the committed below-baseline one, and exit 1 naming the classes it cannot judge over a corpus corpus.build really built whose table carries none of them at a judgeable size
@@ -293,7 +293,7 @@
   runs_on: [linux]
   assertion: "(cd services/etl && P=\"${PYTHON:-$(command -v python3 || command -v python)}\" && T=$(mktemp -d) && \"$P\" -m etl.surfacecoverage --table tests/fixtures/surface_coverage_la_window.json >/dev/null && ! \"$P\" -m etl.surfacecoverage --table tests/fixtures/surface_coverage_below_baseline.json >/dev/null 2>&1 && \"$P\" -m etl.corpus --input tests/fixtures/corpus_extract.json --out \"$T/c.sqlite\" --built-at 2026-01-01T00:00:00Z >/dev/null && ! \"$P\" -m etl.surfacecoverage --corpus \"$T/c.sqlite\" >/dev/null 2>\"$T/err\" && grep -q 'SURFACE REFUSED class residential' \"$T/err\"; rc=$?; rm -rf \"$T\"; exit $rc)"
   owner: agent/claude-opus-5
-  added: 2026-09-19
+  added: "2026-09-19"
 
 - id: P-SAFE-01
   statement: Profile base JSON has the private/unpaved/track zero-gates; Worker rejects request models touching `road_access`/`surface`
@@ -302,7 +302,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-SAFE-01"
   owner: agent/claude-opus-5
-  added: 2026-10-05
+  added: "2026-10-05"
 
 - id: P-SAFE-04
   statement: Budget ceiling - returned ETA <= fastest + budget. Always.
@@ -311,7 +311,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-SAFE-04"
   owner: agent/claude-opus-5
-  added: 2026-10-05
+  added: "2026-10-05"
 
 - id: P-PRIV-04
   statement: Account deletion <= 3 taps, all `user_id` rows gone, `/auth/revoke` called
@@ -320,7 +320,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-PRIV-04"
   owner: agent/claude-opus-5
-  added: 2026-10-06
+  added: "2026-10-06"
 
 - id: P-PRIV-05
   statement: No server column `/home|address|breadcrumb|trail|speed/`; no body >1 coordinate or >2 dp; learned speeds have no `Codable` conformance; telemetry cells are H3-5
@@ -329,7 +329,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-PRIV-05"
   owner: agent/claude-opus-5
-  added: 2026-10-05
+  added: "2026-10-05"
 
 - id: P-PRIV-06
   statement: POST /waitlist stores a coarse H3-5 cell count, never a person - table waitlist is exactly (cell, count, updated_at)
@@ -338,16 +338,16 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-PRIV-06"
   owner: agent/claude-opus-5
-  added: 2026-10-07
+  added: "2026-10-07"
 
 - id: P-COST-01
   statement: Quota decrement precedes every VPS call; `KILL=1` → 0 upstream for every route in the router table
-  why_no_test_catches_it: "The order is the property and only a test can see it - every handler still returns a route if the reservation moves after the upstream call - and ops/test counts a total, so a deleted, renamed or skipped ordering test reads green. This row binds nineteen tests BY NAME: /plan R4 (KILL=1 -> 503 with zero upstream calls, KILL before the body is read, reserved once before the first call, exhausted daily and tripped monthly -> zero calls) and the shipped ROUTES['/plan'] KILL test; the same five for /loop (R8) and the shipped ROUTES['/loop'] KILL test; and guardedUpstream/guardedPlan's reserve-before-call and no-call arms in upstream.test.ts. Seen RED on 2026-10-05 by the one-line mutant upstream.ts `await deps.counters.reserve(...)` -> `void Promise.resolve().then(() => deps.counters.reserve(...))`, which lands the reservation after the first upstream call (passed=14/18, four reserve-before tests FAILED by name); by renaming `the quota is reserved once, before the first upstream call` (17/18, MISSING) and by it.skip on the /plan KILL test (17/18, SKIPPED); then green 18/18. The shipped /loop KILL test was the nineteenth, bound after the pre-review mutant pass (M4) found the route unwatched by name: index.ts `"/loop": (req, env) => handleLoop(req, env, ...)` -> `handleLoop(req, { ...env, KILL: undefined }, ...)` printed passed=18/18 exit 0 with eighteen bound, since all five /loop R8 tests call handleLoop directly; bound, the same mutant is passed=18/19 exit 1 with `ROUTES['/loop'] - the shipped wiring (R10) > KILL=1 on the shipped route answers 503 planning_paused` FAILED by name, then green 19/19. NOT ASSERTED HERE: 'every route in the router table' is held by ONE shipped-route test per upstream route (/plan, /loop - the only two today), each a single body (see BY-NAME LIMIT); nothing iterates ROUTES, so a third upstream route ships unpinned until its KILL test is added to ops/lib/named-tests.json. OUT OF SCOPE: P-COST-03's VPS half (the routing box refuses requests without the Worker secret; a direct probe gets 403/timeout) stays unregistered - it is an ops/sane probe of a live host, not a test this runner can name. BY-NAME LIMIT (pre-review mutant pass M2b, 2026-10-05): the runner refuses a named test that is deleted, renamed, skipped or not run, and it cannot see an EMPTIED one - a body gutted to `expect(1).toBe(1)` keeps its name and passes - so these bindings hold the tests' presence, and their bodies stay a review matter. T-0264 (2026-10-05): /isochrone, the third upstream route in the router table (shipped by T-0262 after this row was written), is now bound - isochroneCost.test.ts `KILL=1 is 503 before the body is read: zero router requests and no reservation` and `the surprise allowance and one monthly call are reserved before the one router request`, both driving the shipped ROUTES['/isochrone'] through SELF.fetch; the row binds TWENTY-ONE tests (this supersedes the nineteen above), and the NOT ASSERTED clause's one shipped-route KILL test per upstream route now covers three: /plan, /loop, /isochrone. Seen RED on 2026-10-05 by one-line mutants of src/isochrone.ts, each passed=19/19 exit 0 under the nineteen-test table and red by name under the new one: `if (await killSwitch(env))` -> `if (false && (await killSwitch(env)))` (passed=20/21, the KILL test FAILED); the guardedPlan statement rewritten as one line running planReach over deps.upstream.fetchImpl first and guardedPlan after (20/21, the reserve-before test FAILED); a second, unguarded planReach chained after the guarded one (20/21, the reserve-before test FAILED); then green 21/21. Still NOT ASSERTED for /isochrone: its exhausted-daily (429) and tripped-monthly (503) arms are tested (isochroneCost.test.ts, isochroneVerdicts.test.ts) but not bound by name here. T-0264 rv1 B1 (2026-10-05): the single shipped-route KILL test per route read only env.KILL, so the mutant src/isochrone.ts `if (await killSwitch(env))` -> `if (await killSwitch({ KILL: env.KILL }))`, which makes ROUTES['/isochrone'] ignore the KV KILL_SWITCH key, printed passed=21/21 exit 0; the row now binds TWENTY-TWO tests (this supersedes the twenty-one above) - the twenty-second, killSwitchRoutes.test.ts `every upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests, quota state empty`, derives the upstream routes from ROUTES itself (every key outside the operational whitelist /__health, /__version, /__ro), asserts them equal to the literal /plan, /loop, /isochrone, and kills each through the shipped ROUTES entry by the env KILL and by the KV KILL_SWITCH key, asserting 503 planning_paused, zero router requests and quota state {} by full equality. This retires the NOT ASSERTED clause that nothing iterates ROUTES: a fourth route joins the loop or fails the equality. Seen RED on 2026-10-05: the reviewer mutant above (passed=21/22 exit 1, the new test FAILED by name) and an index.ts fourth route `/surprise` wired to handleIsochrone with only env.KILL (21/22, FAILED by name); then green 22/22. T-0279 (2026-10-06): /telemetry writes Analytics Engine, not the router, and has its own KILL and reserve-before-write tests, bound here: killSwitchRoutes.test.ts `ROUTES['/telemetry'] pauses on env KILL and on KV KILL_SWITCH: 503 telemetry_paused, zero Analytics Engine writes, quota state empty` (the upstream derivation excludes exactly that one asserted route) and telemetryCost.test.ts's KILL-before-the-body, reserved-before-the-first-write and refused-whole tests. The row binds TWENTY-SIX tests (this supersedes the twenty-two above). Seen RED on 2026-10-06 by the mutant src/telemetry.ts `if (await killSwitch(env)) return` -> `if (false && (await killSwitch(env))) return` (passed=24/26 exit 1, both KILL tests FAILED by name); then green 26/26. T-0293 (2026-10-07): the served-region gate - every planning route answers 422 region_unsupported for a coordinate outside the la and sfbay region.json bboxes BEFORE any quota touch and with zero router requests - is bound: regionGate.test.ts, five tests through the shipped worker.fetch over every edge and corner of both boxes per route (just outside at the 0.01 lattice refused with quota state {} and no router request; every exact edge and corner passed to the spent quota, 429 whole). The row binds 31 tests (this supersedes the twenty-six above). Seen RED by name by services/api/test/mutate/regionMutants.mjs (40 mutants, every half-bound, strictness, box and per-route gate), quoted in T-0293's Log. T-0292 (2026-10-07): workerd hands ONE env object to every request in an isolate, so a handler that deletes or assigns env.KILL unpauses every later request; default.fetch now hands each handler Object.freeze({ ...env }), a frozen per-call copy. Bound here: sharedEnvWorker.test.ts `a handler that deletes, assigns or redefines env.KILL through worker.fetch throws TypeError, and the next POST /plan on the same env object is 503 planning_paused`, its `the authenticated sweep sends every ROUTES path a valid, an invalid and an authenticated request on one env per KILL source, and no request throws` (one env object and one module instance per KILL source, bound fakes for D1, KV, Analytics Engine, the router and QUOTA, session-JWT and RO-token requests, two seeded passes) and `after the sweep, every upstream route and /telemetry on the shared env answers the whole paused response under every killing source, and is served under every other` (plus zero router requests, zero writes and quota {} per killed source over the whole run). The row binds TWENTY-NINE tests (this supersedes the twenty-six above). Seen RED on 2026-10-07: the freeze test FAILED by name on the pre-change index.ts (`delete: no throw`); the population entry attest.ts attestDepsFromEnv deleting env.KILL on its first call is CAUGHT by the sweep test by name; then green 29/29. NOT CLOSED: the freeze is shallow - a handler writing to a shared binding object (env.KILL_SWITCH.get) is not refused here. T-0292 merge of origin/main (2026-10-07): T-0293's sentence above says 31, but its ops/lib/named-tests.json entry binds 33 - regionGate.test.ts's five and regionGateOrder.test.ts's two (`no row ignores its precondition: inside the region each row changes the route's answer on exactly its typed routes` and `an out-of-region coordinate is 422 region_unsupported whole under every precondition on every route, with zero D1 reads, zero KV reads, zero router requests and an untouched quota`, added by T-0293 rv1 B1); with T-0292's three sharedEnvWorker.test.ts tests the merged row binds THIRTY-SIX tests (this supersedes the 31 and the twenty-nine above). /waitlist (T-0293) is OPERATIONAL in the shared-env sweep - D1 only, no router, kill-switch and quota exempt by T-0293 R8 - so the sweep's killable derivation stays exactly /plan, /loop, /isochrone, /trip, /telemetry; it is swept valid, invalid and authenticated on every KILL source with its table in the rig's D1. Green 36/36 on the merged head (T-0292 Log, 2026-10-07). T-0298 (2026-10-07): T-0297 (PR #186) took the kill read out of reach of a shared binding - default.fetch hands each handler KILL_SWITCH as killSwitchReader(env.KILL_SWITCH) inside the frozen per-call copy, so the write the T-0292 NOT CLOSED clause above names (env.KILL_SWITCH.get) no longer reaches the read - and its test is now bound here: sharedEnvWorker.test.ts `a handler that assigns env.KILL_SWITCH.get = async () => null on its first call through worker.fetch does not unpause any later request: every upstream route and /telemetry on the shared env answers the whole paused response under every KV killing source`. The row binds THIRTY-SEVEN tests (this supersedes the thirty-six above). Seen RED on 2026-10-07: with configMutants.mjs's fetch-kill-switch-shared-binding applied to src/index.ts (the handler gets the raw binding) the new test FAILED by name, passed=36/37; with attest-real-binding-kill-get-patched applied to src/attest.ts the sweep test `the authenticated sweep sends every ROUTES path a valid, an invalid and an authenticated request on one env per KILL source, and no request throws` FAILED by name (the frozen copy refuses the write; the new test is not that mutant's witness), passed=36/37; then green 37/37 (T-0298 Log)."
+  why_no_test_catches_it: "The order is the property and only a test can see it - every handler still returns a route if the reservation moves after the upstream call - and ops/test counts a total, so a deleted, renamed or skipped ordering test reads green. This row binds nineteen tests BY NAME: /plan R4 (KILL=1 -> 503 with zero upstream calls, KILL before the body is read, reserved once before the first call, exhausted daily and tripped monthly -> zero calls) and the shipped ROUTES['/plan'] KILL test; the same five for /loop (R8) and the shipped ROUTES['/loop'] KILL test; and guardedUpstream/guardedPlan's reserve-before-call and no-call arms in upstream.test.ts. Seen RED on 2026-10-05 by the one-line mutant upstream.ts `await deps.counters.reserve(...)` -> `void Promise.resolve().then(() => deps.counters.reserve(...))`, which lands the reservation after the first upstream call (passed=14/18, four reserve-before tests FAILED by name); by renaming `the quota is reserved once, before the first upstream call` (17/18, MISSING) and by it.skip on the /plan KILL test (17/18, SKIPPED); then green 18/18. The shipped /loop KILL test was the nineteenth, bound after the pre-review mutant pass (M4) found the route unwatched by name: index.ts `\"/loop\": (req, env) => handleLoop(req, env, ...)` -> `handleLoop(req, { ...env, KILL: undefined }, ...)` printed passed=18/18 exit 0 with eighteen bound, since all five /loop R8 tests call handleLoop directly; bound, the same mutant is passed=18/19 exit 1 with `ROUTES['/loop'] - the shipped wiring (R10) > KILL=1 on the shipped route answers 503 planning_paused` FAILED by name, then green 19/19. NOT ASSERTED HERE: 'every route in the router table' is held by ONE shipped-route test per upstream route (/plan, /loop - the only two today), each a single body (see BY-NAME LIMIT); nothing iterates ROUTES, so a third upstream route ships unpinned until its KILL test is added to ops/lib/named-tests.json. OUT OF SCOPE: P-COST-03's VPS half (the routing box refuses requests without the Worker secret; a direct probe gets 403/timeout) stays unregistered - it is an ops/sane probe of a live host, not a test this runner can name. BY-NAME LIMIT (pre-review mutant pass M2b, 2026-10-05): the runner refuses a named test that is deleted, renamed, skipped or not run, and it cannot see an EMPTIED one - a body gutted to `expect(1).toBe(1)` keeps its name and passes - so these bindings hold the tests' presence, and their bodies stay a review matter. T-0264 (2026-10-05): /isochrone, the third upstream route in the router table (shipped by T-0262 after this row was written), is now bound - isochroneCost.test.ts `KILL=1 is 503 before the body is read: zero router requests and no reservation` and `the surprise allowance and one monthly call are reserved before the one router request`, both driving the shipped ROUTES['/isochrone'] through SELF.fetch; the row binds TWENTY-ONE tests (this supersedes the nineteen above), and the NOT ASSERTED clause's one shipped-route KILL test per upstream route now covers three: /plan, /loop, /isochrone. Seen RED on 2026-10-05 by one-line mutants of src/isochrone.ts, each passed=19/19 exit 0 under the nineteen-test table and red by name under the new one: `if (await killSwitch(env))` -> `if (false && (await killSwitch(env)))` (passed=20/21, the KILL test FAILED); the guardedPlan statement rewritten as one line running planReach over deps.upstream.fetchImpl first and guardedPlan after (20/21, the reserve-before test FAILED); a second, unguarded planReach chained after the guarded one (20/21, the reserve-before test FAILED); then green 21/21. Still NOT ASSERTED for /isochrone: its exhausted-daily (429) and tripped-monthly (503) arms are tested (isochroneCost.test.ts, isochroneVerdicts.test.ts) but not bound by name here. T-0264 rv1 B1 (2026-10-05): the single shipped-route KILL test per route read only env.KILL, so the mutant src/isochrone.ts `if (await killSwitch(env))` -> `if (await killSwitch({ KILL: env.KILL }))`, which makes ROUTES['/isochrone'] ignore the KV KILL_SWITCH key, printed passed=21/21 exit 0; the row now binds TWENTY-TWO tests (this supersedes the twenty-one above) - the twenty-second, killSwitchRoutes.test.ts `every upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests, quota state empty`, derives the upstream routes from ROUTES itself (every key outside the operational whitelist /__health, /__version, /__ro), asserts them equal to the literal /plan, /loop, /isochrone, and kills each through the shipped ROUTES entry by the env KILL and by the KV KILL_SWITCH key, asserting 503 planning_paused, zero router requests and quota state {} by full equality. This retires the NOT ASSERTED clause that nothing iterates ROUTES: a fourth route joins the loop or fails the equality. Seen RED on 2026-10-05: the reviewer mutant above (passed=21/22 exit 1, the new test FAILED by name) and an index.ts fourth route `/surprise` wired to handleIsochrone with only env.KILL (21/22, FAILED by name); then green 22/22. T-0279 (2026-10-06): /telemetry writes Analytics Engine, not the router, and has its own KILL and reserve-before-write tests, bound here: killSwitchRoutes.test.ts `ROUTES['/telemetry'] pauses on env KILL and on KV KILL_SWITCH: 503 telemetry_paused, zero Analytics Engine writes, quota state empty` (the upstream derivation excludes exactly that one asserted route) and telemetryCost.test.ts's KILL-before-the-body, reserved-before-the-first-write and refused-whole tests. The row binds TWENTY-SIX tests (this supersedes the twenty-two above). Seen RED on 2026-10-06 by the mutant src/telemetry.ts `if (await killSwitch(env)) return` -> `if (false && (await killSwitch(env))) return` (passed=24/26 exit 1, both KILL tests FAILED by name); then green 26/26. T-0293 (2026-10-07): the served-region gate - every planning route answers 422 region_unsupported for a coordinate outside the la and sfbay region.json bboxes BEFORE any quota touch and with zero router requests - is bound: regionGate.test.ts, five tests through the shipped worker.fetch over every edge and corner of both boxes per route (just outside at the 0.01 lattice refused with quota state {} and no router request; every exact edge and corner passed to the spent quota, 429 whole). The row binds 31 tests (this supersedes the twenty-six above). Seen RED by name by services/api/test/mutate/regionMutants.mjs (40 mutants, every half-bound, strictness, box and per-route gate), quoted in T-0293's Log. T-0292 (2026-10-07): workerd hands ONE env object to every request in an isolate, so a handler that deletes or assigns env.KILL unpauses every later request; default.fetch now hands each handler Object.freeze({ ...env }), a frozen per-call copy. Bound here: sharedEnvWorker.test.ts `a handler that deletes, assigns or redefines env.KILL through worker.fetch throws TypeError, and the next POST /plan on the same env object is 503 planning_paused`, its `the authenticated sweep sends every ROUTES path a valid, an invalid and an authenticated request on one env per KILL source, and no request throws` (one env object and one module instance per KILL source, bound fakes for D1, KV, Analytics Engine, the router and QUOTA, session-JWT and RO-token requests, two seeded passes) and `after the sweep, every upstream route and /telemetry on the shared env answers the whole paused response under every killing source, and is served under every other` (plus zero router requests, zero writes and quota {} per killed source over the whole run). The row binds TWENTY-NINE tests (this supersedes the twenty-six above). Seen RED on 2026-10-07: the freeze test FAILED by name on the pre-change index.ts (`delete: no throw`); the population entry attest.ts attestDepsFromEnv deleting env.KILL on its first call is CAUGHT by the sweep test by name; then green 29/29. NOT CLOSED: the freeze is shallow - a handler writing to a shared binding object (env.KILL_SWITCH.get) is not refused here. T-0292 merge of origin/main (2026-10-07): T-0293's sentence above says 31, but its ops/lib/named-tests.json entry binds 33 - regionGate.test.ts's five and regionGateOrder.test.ts's two (`no row ignores its precondition: inside the region each row changes the route's answer on exactly its typed routes` and `an out-of-region coordinate is 422 region_unsupported whole under every precondition on every route, with zero D1 reads, zero KV reads, zero router requests and an untouched quota`, added by T-0293 rv1 B1); with T-0292's three sharedEnvWorker.test.ts tests the merged row binds THIRTY-SIX tests (this supersedes the 31 and the twenty-nine above). /waitlist (T-0293) is OPERATIONAL in the shared-env sweep - D1 only, no router, kill-switch and quota exempt by T-0293 R8 - so the sweep's killable derivation stays exactly /plan, /loop, /isochrone, /trip, /telemetry; it is swept valid, invalid and authenticated on every KILL source with its table in the rig's D1. Green 36/36 on the merged head (T-0292 Log, 2026-10-07). T-0298 (2026-10-07): T-0297 (PR #186) took the kill read out of reach of a shared binding - default.fetch hands each handler KILL_SWITCH as killSwitchReader(env.KILL_SWITCH) inside the frozen per-call copy, so the write the T-0292 NOT CLOSED clause above names (env.KILL_SWITCH.get) no longer reaches the read - and its test is now bound here: sharedEnvWorker.test.ts `a handler that assigns env.KILL_SWITCH.get = async () => null on its first call through worker.fetch does not unpause any later request: every upstream route and /telemetry on the shared env answers the whole paused response under every KV killing source`. The row binds THIRTY-SEVEN tests (this supersedes the thirty-six above). Seen RED on 2026-10-07: with configMutants.mjs's fetch-kill-switch-shared-binding applied to src/index.ts (the handler gets the raw binding) the new test FAILED by name, passed=36/37; with attest-real-binding-kill-get-patched applied to src/attest.ts the sweep test `the authenticated sweep sends every ROUTES path a valid, an invalid and an authenticated request on one env per KILL source, and no request throws` FAILED by name (the frozen copy refuses the write; the new test is not that mutant's witness), passed=36/37; then green 37/37 (T-0298 Log)."
   anchor: api
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-COST-01"
   owner: agent/claude-opus-5
-  added: 2026-10-05
+  added: "2026-10-05"
 
 - id: P-COST-04
   statement: Requests per plan ≤12/3/12; ≤2 in flight per plan
@@ -356,7 +356,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-COST-04"
   owner: agent/claude-opus-5
-  added: 2026-10-05
+  added: "2026-10-05"
 
 - id: P-PROD-02
   statement: Surprise reproducible per (user, day, seed); ≥90% distinct
@@ -365,7 +365,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-PROD-02"
   owner: agent/claude-opus-5
-  added: 2026-10-05
+  added: "2026-10-05"
 
 - id: P-STORE-01
   statement: Terms of Use and Privacy Policy links in Settings AND on the paywall; the paywall is SubscriptionStoreView with Restore visible; Settings has Restore (AppStore.sync()) and Manage subscription; the in-app ODbL notice is LICENSE-DATA's - the SOURCE half, at exactly the approved sites
@@ -374,7 +374,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-store-links.py"
   owner: agent/claude-opus-5
-  added: 2026-10-06
+  added: "2026-10-06"
 
 - id: P-STORE-02
   statement: "`/asn` sets entitlement inactive on EXPIRED/REFUND/REVOKE"
@@ -383,7 +383,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-STORE-02"
   owner: agent/claude-opus-5
-  added: 2026-10-06
+  added: "2026-10-06"
 
 - id: P-SAFE-08
   statement: "Closure cron freshness <= 30 min in prod; route never crosses an active closure polygon"
@@ -392,7 +392,7 @@
   runs_on: [linux]
   assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-SAFE-08"
   owner: agent/claude-opus-5
-  added: 2026-10-06
+  added: "2026-10-06"
 
 - id: P-OPS-07
   statement: ops/funnel's printed output and refusals are pinned - ops/lib/funnel_test.py runs all 13 tests green with none skipped, and ops/lib/funnel_mutate.py catches every entry of a population at or above its literal floor of 22
@@ -401,4 +401,4 @@
   runs_on: [linux, mac]
   assertion: "py=\"${PYTHON:-$(command -v python3 || command -v python)}\"; { t=\"$(\"$py\" ops/lib/funnel_test.py 2>&1 | tr -d '\\r')\" && grep -qxE 'Ran 13 tests in [0-9.]+s' <<<\"$t\" && grep -qx 'OK' <<<\"$t\" && m=\"$(\"$py\" ops/lib/funnel_mutate.py | tr -d '\\r')\" && n=\"$(sed -n 's/^population mutations=\\([0-9][0-9]*\\) (floor 22)$/\\1/p' <<<\"$m\")\" && [ -n \"$n\" ] && grep -qx \"RESULT caught=$n missed=0 skipped=0 of $n\" <<<\"$m\" && \"$py\" ops/lib/funnel_mutate.py --prove-floor >/dev/null; } || { printf '%s\\n' \"${t:-}\" \"${m:-}\" | tail -n 8; false; }"
   owner: agent/claude-opus-5
-  added: 2026-10-06
+  added: "2026-10-06"
