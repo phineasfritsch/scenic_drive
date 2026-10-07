@@ -20,6 +20,11 @@ public struct SettingsScreen: View {
     @State private var isRestoring = false
     @State private var status = "Checking…"
     @State private var restoreNote: String?
+    /// T-0305 R6: the places download uses Wi-Fi only unless this is off; absent = on. PlanAdapter's LiveCorpus reads
+    /// the same key, handed to it by the shell as `SettingsScreen.corpusWifiOnlyKey`.
+    @AppStorage(SettingsScreen.corpusWifiOnlyKey) private var corpusWifiOnly = true
+
+    public static let corpusWifiOnlyKey = "corpus.wifi.only"
 
     public init(opensPaywall: Bool, onDone: @escaping () -> Void) {
         self.onDone = onDone
@@ -30,6 +35,11 @@ public struct SettingsScreen: View {
         NavigationStack {
             List {
                 subscription
+                Section("Offline places") {
+                    Toggle("Download on Wi-Fi only", isOn: $corpusWifiOnly)
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("settings.corpusWifiOnly")
+                }
                 about
             }
             .scrollContentBackground(.hidden)

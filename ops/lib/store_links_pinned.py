@@ -11,6 +11,7 @@ ST = f"{ENT}/SettingsScreen.swift"
 SC = f"{ENT}/StoreConstants.swift"
 LG = f"{ENT}/LegalAttributionScreen.swift"
 LS = f"{ENT}/LaunchScreen.swift"
+CD = f"{ENT}/CorpusDownloadSheet.swift"
 HOME = "apps/ios/Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift"
 SHELL = "apps/ios/ScenicDrive/ScenicDriveApp.swift"
 
@@ -49,6 +50,7 @@ APP_WIDE = {
     "LaunchScreen.atLaunch": [
         (SHELL, "@State private var isShowingSettings = LaunchScreen.atLaunch != .home"),
         (SHELL, SETTINGS_MOUNT),
+        (SHELL, "_isShowingCorpusDownload = State(initialValue: LaunchScreen.atLaunch == .home && corpus.offersDownload)"),
     ],
     "import Entitlements": [(SHELL, "import Entitlements")],
     "onSettings": [
@@ -64,12 +66,14 @@ APP_WIDE = {
 # Over every *.swift under Sources/Entitlements only.
 ENTITLEMENTS = {
     "import ": [(f, "import " + m) for f, mods in ((PW, "DesignSystem StoreKit SwiftUI"), (ST, "DesignSystem StoreKit SwiftUI"),
-                                                   (LG, "DesignSystem SwiftUI"), (SC, "SwiftUI"), (LS, "SwiftUI"))
+                                                   (LG, "DesignSystem SwiftUI"), (SC, "SwiftUI"), (LS, "SwiftUI"),
+                                                   (CD, "DesignSystem SwiftUI"))
                 for m in mods.split()],
     "accessibilityIdentifier": [(f, f'.accessibilityIdentifier("{i}")') for f, ids in (
         (PW, "paywall.store paywall.terms paywall.privacy"),
         (ST, "settings.done settings.status settings.paywall settings.restore settings.restoreNote settings.manage "
-             "settings.terms settings.privacy settings.legal"),
+             "settings.terms settings.privacy settings.legal settings.corpusWifiOnly"),
+        (CD, "corpus.status corpus.progress corpus.download corpus.later"),
         (LG, "legal.odbl legal.copyright")) for i in ids.split()],
     "#": [(LS, "#if DEBUG"), (LS, "#else"), (LS, "#endif")],
     "UserDefaults": [(LS, DEBUG_READ)],
@@ -81,7 +85,9 @@ ENTITLEMENTS = {
 SEQUENCES = [
     ("the paywall's modifier chain", PW, [STORE_VIEW, "marketing", "}", ".subscriptionStoreControlStyle(.picker)", RESTORE,
                                           ".safeAreaInset(edge: .bottom) {", "policyLinks", "}"]),
-    ("Settings' sections", ST, ["List {", "subscription", "about", "}"]),
+    ("Settings' sections", ST, ["List {", "subscription", 'Section("Offline places") {',
+                                'Toggle("Download on Wi-Fi only", isOn: $corpusWifiOnly)', ".frame(minHeight: 44)",
+                                '.accessibilityIdentifier("settings.corpusWifiOnly")', "}", "about", "}"]),
     ("the shell's Settings sheet", SHELL, [".sheet(isPresented: $isShowingSettings) {", SETTINGS_MOUNT, "}"]),
     ("the DEBUG fence around -screen", LS, ["#if DEBUG", DEBUG_READ, "#else", "return .home", "#endif"]),
 ]
@@ -93,8 +99,9 @@ FROZEN = {
     LS: "d500a4c892eb06ebdefcf662007619af9be05af88f26b0738283c6d3facfe8ae",
     LG: "b72965b1635d4d8b109a0f966e6cfe8fd1f1fe9d7bdf4bd9bac2148f081e30a6",
     PW: "e78e20791f1efff31dccd0aff4fa610eea1406a401c13c10e009a26afa708fa9",
-    ST: "b93b2f16ada660e8d28c7508859d2944886d87a71059bdb6b27290f9d3dd769c",
+    ST: "c87db23ae2b0404310d6a51fca7f97eaf8ec5f64dd870005618edda82a151357",
     SC: "6da6ddadc509df44f9a9dadec770e0c3a84738af14715eeb6cee9c221bf63706",
+    CD: "7e63f62eb351c5b45c5bed74cf5a63beff43e9b697747c01973e40eefe060906",
 }
 
 # The in-app ODbL notice: LICENSE-DATA's section under this heading, one Swift string element per line, exactly.

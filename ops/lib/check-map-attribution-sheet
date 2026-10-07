@@ -46,6 +46,9 @@ SHELL_PRESENTATION='.sheet(isPresented: $isShowingSettings) {'
 # T-0294 (rv1-t0294 B1 ruling): the plan sheet, presented full height as Settings is - no presentationDetents line
 # anywhere, so no partial sheet ever covers the home's credit. Approved by WHOLE line, count 1, beside Settings'.
 SHELL_PLAN_PRESENTATION='.sheet(isPresented: $isPlanning) {'
+# T-0305 R5: the places download sheet, presented full height as Settings and the plan sheet are - no
+# presentationDetents line anywhere. Approved by WHOLE line, count 1, beside theirs.
+SHELL_CORPUS_PRESENTATION='.sheet(isPresented: $isShowingCorpusDownload) {'
 SHEET_PRESENTERS=(".sheet(" ".fullScreenCover(" ".popover(" ".inspector(" "presentationDetents")
 
 # Every line of one file that can hold code, "<line number>\t<trimmed line>", trailing CR stripped.
@@ -120,16 +123,16 @@ require_sheet_mount() {
   for p in "${SHEET_PRESENTERS[@]}"; do
     mapfile -t seen < <(sheet_occurrences "$p" "$@")
     local want=""
-    [[ "$p" == ".sheet(" ]] && want="$SHEET_SCREEN_REL(1) $SHELL_REL(2)"
+    [[ "$p" == ".sheet(" ]] && want="$SHEET_SCREEN_REL(1) $SHELL_REL(3)"
     [[ "${seen[*]}" == "$want" ]] || sites+=("$p at ${seen[*]:-none}, tracked ${want:-nowhere}")
   done
   line="$(sheet_code_lines "$screen" | cut -f2- | grep -c -F -x -e "$SHEET_PRESENTATION" || true)"
   [[ "$line" -eq 1 ]] || sites+=("the approved line \`$SHEET_PRESENTATION\` occurs $line time(s) in $screen, expected 1")
   # T-0271: the shell's sheets are Settings, opened by the user from the gear (its content is the frozen shell
-  # block, -frozen), and T-0294's plan sheet, full height. Each approved by WHOLE line like the disclaimer's, once,
-  # so with `.sheet(` counted at exactly two in the shell a third sheet there is refused.
+  # block, -frozen), T-0294's plan sheet and T-0305's places download, full height. Each approved by WHOLE line like
+  # the disclaimer's, once, so with `.sheet(` counted at exactly three in the shell a fourth sheet there is refused.
   local shell="${screen%/Packages/*}/$SHELL_REL" approved
-  for approved in "$SHELL_PRESENTATION" "$SHELL_PLAN_PRESENTATION"; do
+  for approved in "$SHELL_PRESENTATION" "$SHELL_PLAN_PRESENTATION" "$SHELL_CORPUS_PRESENTATION"; do
     line="$(sheet_code_lines "$shell" | cut -f2- | grep -c -F -x -e "$approved" || true)"
     [[ "$line" -eq 1 ]] || sites+=("the approved line \`$approved\` occurs $line time(s) in $shell, expected 1")
   done

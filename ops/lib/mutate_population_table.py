@@ -8,7 +8,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
-DRIVERS = ("budget.py", "corpusota.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
+DRIVERS = ("budget.py", "corpusfetch.py", "corpusota.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
            "hazards.py", "menu.py", "normalise.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py", "roadtrip.py", "routescore.py",
            "saveddrive.py", "savedlist.py",
            "scenic_tags.py",
@@ -18,6 +18,8 @@ PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declar
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
+    "Sources/ScenicAPIClient/URLSessionCorpusFetcher.swift", "Sources/ScenicAPIClient/CorpusDownloadDelegate.swift",
+    "Sources/PlaceStore/LaunchCorpus.swift",
     "Sources/PlaceStore/CorpusManifest.swift", "Sources/PlaceStore/CorpusUpdater.swift",
     "Sources/PlaceStore/CorpusSlots.swift", "Sources/PlaceStore/SHA256.swift",
     "Sources/PlaceStore/DriveSessionLock.swift", "Sources/PlaceStore/DriveSessionToken.swift",
