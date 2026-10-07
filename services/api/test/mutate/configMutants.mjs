@@ -23,11 +23,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-config");
 
-export const MIN_MUTATIONS = 77;
+export const MIN_MUTATIONS = 81;
 export const SUBJECTS = ["src/config.ts", "src/index.ts"];
 const TESTS = ["test/configRoutes.test.ts", "test/configFields.test.ts", "test/routes.test.ts", "test/requestReadSites.test.ts",
   "test/killSwitchRoutes.test.ts", "test/configWorker.test.ts", "test/configAnswerPath.test.ts",
-  "test/reflectionSites.test.ts", "test/configSweep.test.ts"];
+  "test/reflectionSites.test.ts", "test/configSweep.test.ts", "test/sharedEnvWorker.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 const C = "config.ts";
@@ -40,6 +40,9 @@ const PLAN_ANCHOR = "import { killSwitch, type KillEnv } from \"./killSwitch\";"
 const PLAN_HANDLER = "export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | null): Promise<Response> {";
 const TELEMETRY_HANDLER = "export async function handleTelemetry(req: Request, env: KillEnv & SessionEnv, deps: TelemetryDeps | null): Promise<Response> {";
 const KINDS = "[\"plan\", \"loop\", \"surprise\", \"trip\"]";
+const ATTEST_DEPS = "export function attestDepsFromEnv(env: AttestEnv): AttestDeps {";
+const FROZEN = "return handler(req, Object.freeze({ ...env }), url);";
+const SESSION_VERIFIED = "  if (claims === null) return { userId: UNIDENTIFIED_SESSION, tier: \"anon\" };";
 export const MUTATIONS = [
   m("key-v2", C, "CONFIG_KEY = \"config/v1\";", "CONFIG_KEY = \"config/v2\";"),
   m("max-age-60", C, "CONFIG_MAX_AGE_S = 300;", "CONFIG_MAX_AGE_S = 60;"),
@@ -155,6 +158,20 @@ ${PLAN_HANDLER}
   m("telemetry-request-time-nth-text-unpause", "telemetry.ts", TELEMETRY_HANDLER, `let nth = 0;
 ${TELEMETRY_HANDLER}
   if (++nth === 11) { const RP = (Response as any)["proto" + "type"]; const T = RP.text; RP.text = async function (this: Response) { const t: string = await T.call(this); return t.includes('"config_warnings"') ? t.replace('"planning_paused":true', '"planning_paused":false') : t; }; }`),
+  // T-0292 R7: a handler that deletes env.KILL on its first call - in an operational route's deps builder, which runs
+  // under KILL=1 - so on a shared env every later request is unpaused. The shared-env sweep refuses it: the frozen env
+  // turns the delete into a TypeError the sweep names.
+  m("attest-first-call-deletes-kill", "attest.ts", ATTEST_DEPS, `let attestCalls = 0;
+${ATTEST_DEPS}
+  if (attestCalls++ === 0) delete (env as { KILL?: string }).KILL;`),
+  // Its sibling gated on an AUTHENTICATED caller (a verified session JWT): identifyCaller replaces JSON.stringify once,
+  // writing planning_paused false into every later /config body. Only the authenticated shared-env sweep makes it fire.
+  m("session-authenticated-stringify-unpause", "sessionIdentity.ts", SESSION_VERIFIED, `${SESSION_VERIFIED}
+  if (!(JSON.stringify as unknown as { t?: 1 }).t) { const JS = JSON.stringify; JSON.stringify = Object.assign(((v: any, ...r: any[]) => JS(v && typeof v === "object" && "planning_paused" in v ? { ...v, planning_paused: false } : v, ...r)) as typeof JSON.stringify, { t: 1 }); }`),
+  // T-0292 R1: the frozen per-request copy. Handing handlers the shared binding object, or an unfrozen copy (a write
+  // then succeeds silently on the copy), is refused by the freeze test by name.
+  m("fetch-env-shared", I, FROZEN, "return handler(req, env, url);"),
+  m("fetch-env-copy-unfrozen", I, FROZEN, "return handler(req, { ...env }, url);"),
   m("fetch-trailing-slash-404", I, "ROUTES[url.pathname.length > 1 && url.pathname.endsWith(\"/\") ? url.pathname.slice(0, -1) : url.pathname]", "ROUTES[url.pathname]"),
 ];
 
