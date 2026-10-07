@@ -1,4 +1,3 @@
-#if canImport(GRDB)
 /// A query box in WGS-84 degrees, matched against `segments_rtree` by INTERSECTION.
 ///
 /// Degrees, not e7 integers, because that is what the R*Tree stores (corpuswriter.py writes `min_lon / E7`);
@@ -16,4 +15,3 @@ public struct BoundingBox: Equatable, Sendable {
         self.maxLat = maxLat
     }
 }
-#endif

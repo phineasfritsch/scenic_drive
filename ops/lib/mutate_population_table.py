@@ -9,7 +9,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
 DRIVERS = ("budget.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
-           "hazards.py", "menu.py", "normalise.py", "placeallow.py", "plan.py", "retrace.py", "roadtrip.py", "routescore.py",
+           "hazards.py", "menu.py", "normalise.py", "placeallow.py", "plan.py", "retrace.py", "roadtrip.py", "routescore.py", "saveddrive.py",
            "scenic_tags.py",
            "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
            "telemetry.py")
@@ -48,6 +48,8 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/RoadTrip/RoadTripEdge.swift", "Sources/ScenicKit/RoadTrip/RoadTripLimits.swift",
     "Sources/ScenicKit/RoadTrip/RoadTripPlace.swift",
     "Sources/PlaceStore/Segment.swift", "Sources/PlaceStore/SegmentVertex.swift",
+    "Sources/PlaceStore/FiveDecimals.swift", "Sources/PlaceStore/SavedMidpoint.swift",
+    "Sources/PlaceStore/SavedDrive.swift", "Sources/PlaceStore/SavedDriveResolver.swift",
     "Sources/Telemetry/H3CoordIJK.swift", "Sources/Telemetry/H3FaceProjection.swift",
     "Sources/Telemetry/H3BaseCells.swift", "Sources/Telemetry/H3IndexBuilder.swift",
     "Sources/Telemetry/H3Cell.swift", "Sources/Telemetry/CompletionPercent.swift",
