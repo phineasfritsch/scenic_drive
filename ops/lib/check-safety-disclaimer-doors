@@ -64,7 +64,7 @@ DOORS_VIEWS=(
   "$S/FeatureScenicHome/ScenicHomeScreen.swift|"'public struct ScenicHomeScreen: View {'
   "$S/FeatureSurpriseMe/SurpriseCard.swift|"'public struct SurpriseCard: View {'
   "ScenicDrive/ScenicDriveApp.swift|$DOORS_SHELL_LINE"
-  "ScenicDrive/ScenicDriveApp.swift|"'                    SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, onDone: { isShowingSettings = false })'
+  "ScenicDrive/ScenicDriveApp.swift|"'                    SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, onDone: { isShowingSettings = false })'
   "$S/Entitlements/SettingsScreen.swift|"'    @AppStorage(SettingsScreen.corpusWifiOnlyKey) private var corpusWifiOnly = true'
   "ScenicDrive/ScenicDriveApp.swift|"'        let corpus = LiveCorpus.launch(wifiOnlyKey: SettingsScreen.corpusWifiOnlyKey)'
 )

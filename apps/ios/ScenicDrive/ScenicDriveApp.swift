@@ -27,14 +27,14 @@ struct ScenicDriveApp: App {
     init() {
         let corpus = LiveCorpus.launch(wifiOnlyKey: SettingsScreen.corpusWifiOnlyKey)
         _corpus = State(initialValue: corpus)
-        _isShowingCorpusDownload = State(initialValue: LaunchScreen.atLaunch == .home && corpus.offersDownload)
+        _isShowingCorpusDownload = State(initialValue: LaunchScreen.atLaunch == .home && corpus.offersDownload && VehicleSetting.isChosen)
     }
 
     var body: some Scene {
         WindowGroup {
             ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })
                 .sheet(isPresented: $isShowingSettings) {
-                    SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, onDone: { isShowingSettings = false })
+                    SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, onDone: { isShowingSettings = false })
                 }
                 .overlay(alignment: .topLeading) {
                     PlanDriveButton(action: { isPlanning = true })

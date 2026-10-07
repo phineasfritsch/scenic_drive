@@ -14,6 +14,8 @@ import SwiftUI
 /// on `surface` and the only `primary` is on the SF Symbols beside it - an accent, never text (DesignTokens' note).
 public struct SettingsScreen: View {
     private let onDone: () -> Void
+    /// T-0309 R4: the vehicle onboarding stored, by name, handed in by the shell (this target has no ScenicKit).
+    private let vehicle: String
 
     @State private var isShowingPaywall: Bool
     @State private var isShowingManage = false
@@ -26,8 +28,9 @@ public struct SettingsScreen: View {
 
     public static let corpusWifiOnlyKey = "corpus.wifi.only"
 
-    public init(opensPaywall: Bool, onDone: @escaping () -> Void) {
+    public init(opensPaywall: Bool, vehicle: String, onDone: @escaping () -> Void) {
         self.onDone = onDone
+        self.vehicle = vehicle
         _isShowingPaywall = State(initialValue: opensPaywall)
     }
 
@@ -35,6 +38,15 @@ public struct SettingsScreen: View {
         NavigationStack {
             List {
                 subscription
+                Section {
+                    LabeledContent("Vehicle", value: vehicle)
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("settings.vehicle")
+                } header: {
+                    Text("Vehicle")
+                } footer: {
+                    Text("Only a standard car for now. Other vehicles need road limits the map does not have yet.")
+                }
                 Section("Offline places") {
                     Toggle("Download on Wi-Fi only", isOn: $corpusWifiOnly)
                         .frame(minHeight: 44)

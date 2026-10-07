@@ -29,3 +29,42 @@ disclaimer)"; Settings lists vehicle. Neither exists in the code today (grep: no
 ## Log
 - 2026-10-07T23:30:36Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M4 vehicle + onboarding).
 - 2026-10-07T23:30:45Z claimed by agent/claude-opus-5; lease until 2026-10-08T19:30:45Z
+- 2026-10-07T23:34:20Z MEASURE, then RULINGS before code. agent/claude-opus-5 (owner).
+  - MEASURED. The gate today: `ScenicHomeScreen` owns `@AppStorage("safety.disclaimer.acknowledged.v1") private var
+    isSafetyDisclaimerAcknowledged` (the key once; check-safety-disclaimer key_set = PlanSheetScreen.swift(1) +
+    ScenicHomeScreen.swift(1), ack_set = GatedHandoffButton(2) + ScenicHomeScreen(6)); the ONE write is
+    `isSafetyDisclaimerAcknowledged = true` inside `SafetyDisclaimer(onAccept: {` in the home's `.sheet(isPresented:
+    $isShowingDisclaimer)`, which opens only from a blocked handoff tap (`onBlocked`). The plan sheet READS the key and
+    feeds `PlanSheet(disclaimerAccepted:)`; `PlanSheet.startPlanning()` returns nil while it is false. There is no
+    first-launch presentation: a user who never taps the handoff never sees the disclaimer. ScenicHomeScreen.swift is
+    297 lines (3 under the cap). `grep -n -i vehicle services/api/src/plan.ts` = 0 lines: the Worker's /plan body
+    whitelist has no vehicle field. `grep -rn VehicleProfile Sources apps` = 0. Entitlements depends on DesignSystem
+    only; the shell imports features only (no ScenicKit); Package.swift is serial-only and not in touches.
+  - R1 GATE UNTOUCHED. Onboarding is the EXISTING disclaimer sheet grown a first step, not a second writer:
+    `SafetyDisclaimer` runs the ScenicKit `Onboarding` machine (vehicle -> disclaimer -> done) and calls the same
+    `onAccept` only when the machine reports `disclaimerAccepted`; the write stays the one line inside
+    `SafetyDisclaimer(onAccept: {`, key_set is unchanged, and the plan gate reads the same key. The home gains ONE
+    line: a `.task` that raises `isShowingDisclaimer` on launch when the key is false or no vehicle is stored (ack_set
+    ScenicHomeScreen 6 -> 7, typed in the guard). The sheet keeps `interactiveDismissDisabled()`; no new
+    presentation over the map, so P-ATTR-01's surface/presentation whitelist does not move.
+  - R2 ON DEVICE. VehicleProfile does NOT go on the wire in this task (plan.ts has no vehicle field; widening the
+    Worker is out of scope). It is stored on device under `VehicleProfile.storageKey` and shown in Settings; the
+    wire field is a follow-up (stillOpen), never a Worker edit here.
+  - R3 TYPES. ScenicKit `VehicleProfile` (closed, CaseIterable: standard, lowClearance, motorcycle, trailer, rv;
+    `isEnabled` only for .standard; every other case carries a calm `disabledReason`; `stored(_:)` maps an absent,
+    unknown or disabled raw value to .standard). `OnboardingStep` and `OnboardingEvent` (choose, next, back, skip,
+    accept) and `Onboarding` (step, vehicle, disclaimerAccepted). The disclaimer cannot be skipped: skip from the
+    vehicle step goes to the disclaimer with the vehicle unchanged; skip, back, next or choose never set
+    `disclaimerAccepted`; only `accept` on the disclaimer step does. A disabled vehicle is refused (state unchanged).
+  - R4 LAYERING. Settings (Entitlements, no ScenicKit) takes `vehicle: String`; the shell passes
+    `VehicleSetting.name`, a public FeatureScenicHome enum over ScenicKit (the shell already imports that module).
+    The shell's launch corpus offer additionally waits for `VehicleSetting.isChosen`, so the corpus sheet and the
+    onboarding sheet are never raised in the same frame (only one sheet presents; the other would be dropped and
+    leave `isShowingDisclaimer` stuck true). A fresh install is offered places on its second launch - recorded gap.
+  - R5 P-SAFE-03 TEST. ScenicAPIClientTests (CountingPlanTransport) is outside touches; the test lives in
+    ScenicKitTests with a counting `RoutePlanning` conformer, driving first launch through `Onboarding` event by event
+    and, at every prefix, building `PlanSheet(disclaimerAccepted: onboarding.disclaimerAccepted)`, calling the
+    shipping gate `startPlanning()` and the planner on any ticket: count 0 before accept, 1 after (non-vacuous).
+  - R6 RED FIRST by name: the tests are committed against stubs that compile and are wrong; population
+    ops/mutate/onboarding.py (+_mutations, _run) with a literal floor; three entries shown MISSED with the killer
+    suite emptied (--prove-vacuity) and CAUGHT by name after.

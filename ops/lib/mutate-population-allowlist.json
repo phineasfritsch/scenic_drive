@@ -7,6 +7,8 @@
     "Sources/ScenicKit/PlanSheet/PlanOutcome.swift": "a two-case enum carrying a preview or a failure (T-0294); no code",
     "Sources/ScenicKit/PlanSheet/PlanSheetState.swift": "the plan sheet's six-case state enum (T-0294); its transitions are PlanSheet.swift's, which plansheet.py mutates",
     "Sources/ScenicKit/PlanSheet/RoutePlanning.swift": "a one-method protocol declaration (T-0294); no code",
+    "Sources/ScenicKit/Vehicle/OnboardingEvent.swift": "a five-case event enum (T-0309); no code - its handling is Onboarding.swift's, which onboarding.py mutates",
+    "Sources/ScenicKit/Vehicle/OnboardingStep.swift": "a three-case step enum (T-0309); no code - its transitions are Onboarding.swift's, which onboarding.py mutates",
     "Sources/ScenicKit/Saved/SavedEdit.swift": "a two-case enum naming a rename or a delete for the user store (T-0306); no code",
     "Sources/ScenicKit/Saved/SavedListState.swift": "the Saved list's six-case state enum (T-0306); its transitions are SavedList.swift's, which savedlist.py mutates",
     "services/etl/etl/__init__.py": "empty package marker; no code",
