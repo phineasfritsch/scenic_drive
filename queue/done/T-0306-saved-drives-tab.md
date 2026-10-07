@@ -1,7 +1,7 @@
 ---
 id: T-0306
 title: Saved drives in the app - save from the route preview, a Saved list (newest first, rename, delete), "needs a re-plan" shown honestly, and replay as one plan with the saved waypoints at today's time
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T19:10:14Z
@@ -11,7 +11,7 @@ branch: task/T-0306
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/PlaceStore/, Tests/PlaceStoreTests/, Sources/ScenicAPIClient/ClientPlanner.swift, Tests/ScenicAPIClientTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-ATTR-01, P-SAFE-03]
-reviewer: null
+reviewer: agent/rv1-t-0306
 depends_on: [T-0290, T-0294, T-0303]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -151,3 +151,21 @@ is +31 not +25, say so." T-0290 shipped the store; T-0294 the plan sheet and pre
     SavedDriveUnresolvedTests`: `Test run with 18 tests in 4 suites passed`. No Sources/ or apps/ios file changed,
     so no digest row moves; the other 33 mutants' subjects and killers are unchanged (memory
     faster-verification-in-rounds: only the touched rows re-run).
+- 2026-10-07T22:10:24Z REVIEW PASS by agent/rv1-t-0306 (reviewer, not the owner) on head 394eb9f7, PR #196.
+  ACCEPTANCE: R1-R6 ruled at 19:15:04Z before code; R3 keeps the Worker whitelist (replay = one /plan, start at 2 dp,
+  destination{place}, saved budget, through PlanSheet.replay -> startPlanning). FeaturePlanSheet imports only
+  DesignSystem, ScenicKit, PlaceStore, SwiftUI, Foundation; no pbxproj or Package.swift in the diff; the Saved list
+  is in-sheet content, no new presentation; AttributionFooter unchanged (P-ATTR-01 guard exit 0).
+  REVIEWER MUTANTS (not in the population, each RED by name):
+  - R1 drop `state = .chosen(saved.destination)` in PlanSheet.replay: RED - "P-SAFE-03: a replay is one ticket
+    through the sheet's gate - the start at 2 dp, the place, the budget", "P-SAFE-03: no ticket from a replay before
+    the disclaimer is accepted; the drive waits, chosen", "a replay's budget is clamped to 0...180 at every bound, and
+    a start off 2 dp leaves at 2 dp"; 10 issues.
+  - R2 `current.distance < distance` -> `<=` in SavedReplay.nearest: RED - "the nearest place wins, distance east-west
+    scaled by the latitude, a tie to the lower id, none from none" (SavedReplayTests.swift:45, id 9 instead of 4).
+  BARE: swift test (Saved*Tests + PlanSheetGateTests) `25 tests in 5 suites passed`; check-safety-disclaimer exit 0;
+  check-map-attribution exit 0; check-mutate-population exit 0; check-line-cap exit 0 (none over 300);
+  check-pins-yaml ok pins=44; queue-check QUEUE OK (297 tasks); gh pr checks core + pins-source-only pass;
+  ios-compile + ios-screenshot dispatched on 394eb9f7, both completed success; origin/main is an ancestor of head.
+  RECORDED, not blocking: P-PRIV-05's named-tests row does not bind SavedListTests/neverAnAddress() (owner's open
+  item); "+31 not +25, say so" not shipped (no ETA in the T-0290 shape, ruled R3).
