@@ -48,6 +48,14 @@ import Testing
             ledger: [.init(candidateId: "malibu-00", date: day(6, 10))],
             expected: SurpriseHistory(shown: [.init(candidateId: "malibu-00", category: .park, corridor: "inland",
                                                     date: day(6, 10))], feedback: feedback)),
+        // Three parks, two on the pch corridor, two on 06-10: a key other than the place id collapses some of them.
+        Row(name: "one category, corridor and day, different places", device: device,
+            ledger: [.init(candidateId: "malibu-08", date: day(6, 10)), .init(candidateId: "topanga-07", date: day(3, 30))],
+            expected: SurpriseHistory(shown: [.init(candidateId: "topanga-07", category: .park, corridor: "topanga",
+                                                    date: day(3, 30)),
+                                              shown("malibu-01", .trailhead, day(5, 1)),
+                                              shown("malibu-00", .park, day(6, 10)),
+                                              shown("malibu-08", .park, day(6, 10))], feedback: feedback)),
     ]
 
     @Test("The merged history is exactly the expected one, whatever the ledger's order",
