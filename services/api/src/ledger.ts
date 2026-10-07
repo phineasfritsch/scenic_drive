@@ -5,9 +5,12 @@
  * H3 resolution-5 cell and the UTC day; never a coordinate, never an instant finer than a day (R2, P-PRIV-05).
  * POST takes exactly {place_id, cell}, deletes every user's rows older than the window and records one row per
  * (user, place, day) (R3, R4). GET answers the caller's rows of the last 90 UTC days, newest day first (R5). D1 only:
- * outside the quota and the kill switch by ruling, as /waitlist (R7).
+ * outside the quota and the kill switch by ruling, as /waitlist (R7). T-0304: a POST is admitted only while the caller
+ * holds fewer than LEDGER_DAILY_CAP rows dated today or already holds this place today; otherwise 429 and nothing is
+ * written. The admission, the purge and the insert are one D1 batch, each guarded by the same predicate (R2, R3).
  */
 import { isResolution5Cell } from "./h3Res5";
+import { DAILY_SURPRISE_QUOTA } from "./quota";
 import { AUTHORIZATION_HEADER, BEARER } from "./sessionIdentity";
 import { sessionSecret, verifySession } from "./sessionJwt";
 
@@ -18,9 +21,17 @@ export const MAX_PLACE_ID = 9223372036854775807n;
 const PLACE_ID = /^[1-9][0-9]{0,18}$/;
 const BODY_KEYS = ["cell", "place_id"];
 const DAY_MS = 86_400_000;
+/** T-0304 R1: the most rows one user adds per UTC day - the paid Surprise allowance BY REFERENCE, never a literal. */
+export const LEDGER_DAILY_CAP = DAILY_SURPRISE_QUOTA.paid;
 
-export const PURGE_LEDGER = "DELETE FROM surprise_ledger WHERE day < ?1";
-export const INSERT_LEDGER = "INSERT INTO surprise_ledger (user_id, place_id, cell, day) VALUES (?1, ?2, ?3, ?4) "
+/** ?1 user, ?2 place, ?3 today, ?4 the cap: under the cap today, or this place already held today (T-0304 R2). */
+const ADMITTED = "((SELECT count(*) FROM surprise_ledger WHERE user_id = ?1 AND day = ?3) < ?4 "
+  + "OR EXISTS (SELECT 1 FROM surprise_ledger WHERE user_id = ?1 AND place_id = ?2 AND day = ?3))";
+export const ADMIT_LEDGER = `SELECT ${ADMITTED} AS admitted`;
+/** ?5 the window's first day. */
+export const PURGE_LEDGER = `DELETE FROM surprise_ledger WHERE day < ?5 AND ${ADMITTED}`;
+/** ?6 the cell; WHERE also settles SQLite's INSERT ... SELECT ... ON CONFLICT parse. */
+export const INSERT_LEDGER = `INSERT INTO surprise_ledger (user_id, place_id, cell, day) SELECT ?1, ?2, ?6, ?3 WHERE ${ADMITTED} `
   + "ON CONFLICT (user_id, place_id, day) DO NOTHING";
 export const READ_LEDGER = "SELECT place_id, cell, day FROM surprise_ledger WHERE user_id = ?1 AND day >= ?2 "
   + "ORDER BY day DESC, place_id ASC";
@@ -94,14 +105,18 @@ export async function handleLedger(req: Request, deps: LedgerDeps): Promise<Resp
   }
   const parsed = parseEntry(raw);
   if ("problem" in parsed) return json({ error: "invalid_request", detail: parsed.problem }, 400);
+  const today = now.toISOString().slice(0, 10);
+  let admitted: unknown;
   try {
     const db = deps.db as D1Database;
-    await db.batch([
-      db.prepare(PURGE_LEDGER).bind(first),
-      db.prepare(INSERT_LEDGER).bind(user, parsed.placeId, parsed.cell, now.toISOString().slice(0, 10)),
+    const [admit] = await db.batch<{ admitted: number }>([
+      db.prepare(ADMIT_LEDGER).bind(user, parsed.placeId, today, LEDGER_DAILY_CAP),
+      db.prepare(PURGE_LEDGER).bind(user, parsed.placeId, today, LEDGER_DAILY_CAP, first),
+      db.prepare(INSERT_LEDGER).bind(user, parsed.placeId, today, LEDGER_DAILY_CAP, first, parsed.cell),
     ]);
+    admitted = admit?.results[0]?.admitted;
   } catch {
     return UNAVAILABLE();
   }
-  return json({ recorded: true }, 200);
+  return admitted === 1 ? json({ recorded: true }, 200) : json({ error: "ledger_daily_cap" }, 429);
 }

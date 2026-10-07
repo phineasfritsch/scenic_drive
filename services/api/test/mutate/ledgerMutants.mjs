@@ -3,8 +3,8 @@
  * Mutation population for GET and POST /ledger (T-0302): every validation branch of the body (src/ledger.ts parseEntry),
  * the session gate, the window bound on the read and on the purge, the user scoping of the read, the write and the
  * purge, the idempotent insert, the wiring in ROUTES (src/index.ts), the deletion in DELETE /account
- * (src/accountStore.ts) and the table's columns and keys (migrations/0008_surprise_ledger.sql). The regionMutants.mjs
- * shape.
+ * (src/accountStore.ts) and the table's columns and keys (migrations/0008_surprise_ledger.sql); T-0304: the session sub
+ * as the only identity, by behaviour, and the per-user daily write cap. The regionMutants.mjs shape.
  *
  *   node services/api/test/mutate/ledgerMutants.mjs                  run the population
  *   node services/api/test/mutate/ledgerMutants.mjs --prove-vacuity  every mutant must report MISSED with no tests
@@ -27,10 +27,10 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-ledger");
 
-export const MIN_MUTATIONS = 40;
+export const MIN_MUTATIONS = 59;
 export const SUBJECTS = ["src/ledger.ts", "src/index.ts", "src/accountStore.ts", "migrations/0008_surprise_ledger.sql"];
 const TESTS = ["test/ledger.test.ts", "test/ledgerWindow.test.ts", "test/migrationColumns.test.ts", "test/accountDelete.test.ts",
-  "test/routes.test.ts", "test/killSwitchRoutes.test.ts"];
+  "test/routes.test.ts", "test/killSwitchRoutes.test.ts", "test/ledgerIdentity.test.ts", "test/ledgerCap.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: file.startsWith("migrations/") ? file : `src/${file}`, find, replace });
 const L = "ledger.ts";
@@ -64,18 +64,18 @@ export const MUTATIONS = [
   m("window-89", L, "LEDGER_WINDOW_DAYS = 90", "LEDGER_WINDOW_DAYS = 89"),
   m("window-91", L, "LEDGER_WINDOW_DAYS = 90", "LEDGER_WINDOW_DAYS = 91"),
   m("read-bound-strict", L, "AND day >= ?2", "AND day > ?2"),
-  m("purge-bound-inclusive", L, "WHERE day < ?1", "WHERE day <= ?1"),
-  m("purge-dropped", L, "      db.prepare(PURGE_LEDGER).bind(first),\n", ""),
-  m("written-day-is-first", L, "parsed.cell, now.toISOString().slice(0, 10))", "parsed.cell, first)"),
+  m("purge-bound-inclusive", L, "WHERE day < ?5", "WHERE day <= ?5"),
+  m("purge-dropped", L, "      db.prepare(PURGE_LEDGER).bind(user, parsed.placeId, today, LEDGER_DAILY_CAP, first),\n", ""),
+  m("written-day-is-first", L, "SELECT ?1, ?2, ?6, ?3 WHERE", "SELECT ?1, ?2, ?6, ?5 WHERE"),
   m("order-ascending", L, "ORDER BY day DESC", "ORDER BY day ASC"),
   m("insert-replaces", L, "DO NOTHING", "DO UPDATE SET cell = excluded.cell"),
   // R1, R4, R5: the user scoping of the read, the write and the purge.
   m("read-ignores-user", L, "WHERE user_id = ?1 AND day >= ?2", "WHERE ?1 IS NOT NULL AND day >= ?2"),
-  m("write-other-user", L, ".bind(user, parsed.placeId,", ".bind(\"unidentified\", parsed.placeId,"),
-  m("purge-caller-only", L, "db.prepare(PURGE_LEDGER).bind(first),", "db.prepare(PURGE_LEDGER + \" AND user_id = ?2\").bind(first, user),"),
+  m("write-other-user", L, "SELECT ?1, ?2, ?6, ?3 WHERE", "SELECT 'unidentified', ?2, ?6, ?3 WHERE"),
+  m("purge-caller-only", L, "WHERE day < ?5 AND", "WHERE day < ?5 AND user_id = ?1 AND"),
   // D1 failures answer 503, never a success.
-  m("write-failure-answers-200", L, "  } catch {\n    return UNAVAILABLE();\n  }\n  return json({ recorded: true }, 200);",
-    "  } catch {\n    return json({ recorded: true }, 200);\n  }\n  return json({ recorded: true }, 200);"),
+  m("write-failure-answers-200", L, "  } catch {\n    return UNAVAILABLE();\n  }\n  return admitted === 1",
+    "  } catch {\n    return json({ recorded: true }, 200);\n  }\n  return admitted === 1"),
   m("read-failure-answers-empty", L, "  } catch {\n    return UNAVAILABLE();\n  }\n}\n", "  } catch {\n    return json({ places: [] }, 200);\n  }\n}\n"),
   // R7: the wiring, outside the kill switch.
   m("route-unwired", "index.ts", ROUTE, ""),
@@ -90,6 +90,31 @@ export const MUTATIONS = [
   m("ledger-lat-column", MIG, LAST_COLUMN, `${LAST_COLUMN}  lat REAL,\n`),
   m("ledger-key-without-day", MIG, "PRIMARY KEY (user_id, place_id, day)", "PRIMARY KEY (user_id, place_id)"),
   m("ledger-unique-across-users", MIG, "PRIMARY KEY (user_id, place_id, day)", "PRIMARY KEY (user_id, place_id, day),\n  UNIQUE (place_id, day)"),
+  // T-0304 R4: the user is the session sub, by behaviour (rv1-t0302 recordable a; MISSED by the T-0302 TESTS).
+  m("rv-user-is-apple-claim", L, "((await verifySession(secret, match[1]!, nowMs))?.sub ?? null)",
+    "(((c) => c?.apple ?? c?.sub ?? null)(await verifySession(secret, match[1]!, nowMs)))"),
+  m("rv-user-is-act-claim", L, "((await verifySession(secret, match[1]!, nowMs))?.sub ?? null)",
+    "(((c) => c?.act ?? c?.sub ?? null)(await verifySession(secret, match[1]!, nowMs)))"),
+  m("get-scoped-by-legacy-device-header", L, "return readLedger(deps.db, user, first);",
+    "return readLedger(deps.db, req.headers.get(\"x-scenic-device\") ?? user, first);"),
+  m("post-scoped-by-legacy-device-header", L, "const user = await caller(req, deps.secret, now.getTime());",
+    "const user = await caller(req, deps.secret, now.getTime()).then((u) => u && (req.headers.get(\"x-scenic-device\") ?? u));"),
+  // T-0304 R1-R3: the daily write cap, its every bound and branch.
+  m("cap-unbounded", L, "LEDGER_DAILY_CAP = DAILY_SURPRISE_QUOTA.paid;", "LEDGER_DAILY_CAP = Number.MAX_SAFE_INTEGER;"),
+  m("cap-plus-one", L, "LEDGER_DAILY_CAP = DAILY_SURPRISE_QUOTA.paid;", "LEDGER_DAILY_CAP = DAILY_SURPRISE_QUOTA.paid + 1;"),
+  m("cap-minus-one", L, "LEDGER_DAILY_CAP = DAILY_SURPRISE_QUOTA.paid;", "LEDGER_DAILY_CAP = DAILY_SURPRISE_QUOTA.paid - 1;"),
+  m("cap-free-tier", L, "LEDGER_DAILY_CAP = DAILY_SURPRISE_QUOTA.paid;", "LEDGER_DAILY_CAP = DAILY_SURPRISE_QUOTA.free;"),
+  m("cap-inclusive", L, "AND day = ?3) < ?4", "AND day = ?3) <= ?4"),
+  m("cap-counts-every-day", L, "WHERE user_id = ?1 AND day = ?3) < ?4", "WHERE user_id = ?1) < ?4"),
+  m("cap-counts-every-user", L, "FROM surprise_ledger WHERE user_id = ?1 AND day = ?3) < ?4", "FROM surprise_ledger WHERE day = ?3) < ?4"),
+  m("cap-refuses-held", L, " OR EXISTS (SELECT 1 FROM surprise_ledger WHERE user_id = ?1 AND place_id = ?2 AND day = ?3)", ""),
+  m("cap-held-any-user", L, "WHERE user_id = ?1 AND place_id = ?2 AND day = ?3", "WHERE place_id = ?2 AND day = ?3"),
+  m("cap-held-any-day", L, "AND place_id = ?2 AND day = ?3))", "AND place_id = ?2))"),
+  m("cap-refusal-answers-200", L, "json({ error: \"ledger_daily_cap\" }, 429)", "json({ recorded: true }, 200)"),
+  m("cap-admission-ignored", L, "return admitted === 1 ?", "return true ?"),
+  m("cap-purge-unguarded", L, "WHERE day < ?5 AND ${ADMITTED}`", "WHERE day < ?5`"),
+  m("cap-insert-unguarded", L, "SELECT ?1, ?2, ?6, ?3 WHERE ${ADMITTED} `", "SELECT ?1, ?2, ?6, ?3 WHERE true `"),
+  m("cap-today-is-first", L, ".bind(user, parsed.placeId, today, LEDGER_DAILY_CAP),", ".bind(user, parsed.placeId, first, LEDGER_DAILY_CAP),"),
 ];
 
 export const EQUIVALENT = [];
