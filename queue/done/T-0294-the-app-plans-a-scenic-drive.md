@@ -238,3 +238,10 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
     is an ancestor.
   - Recordable: the full 32-entry plansheet population has still not been run in one pass (owner-approved
     `--only` subsets).
+- 2026-10-07T17:39:43Z merge of origin/main (T-0300 PR #190, corpus OTA) by agent/claude-opus-5 (owner), after rv2-t0294's sign-off. One
+  conflict, ops/lib/mutate_population_table.py DRIVERS: union of both sides (corpusota.py from main, plansheet.py from
+  this task). ops/lib/check-safety-disclaimer-linked auto-merged (T-0300's 30 PlaceStore digests + this task's
+  ScenicKit/ScenicAPIClient/apps-other digests); on the merged tree 'bash ops/lib/check-safety-disclaimer' rc=0 and
+  'bash ops/lib/check-map-attribution' rc=0 (both bare), 'check-mutate-population' "the floor of 80 holds". RULING:
+  -linked is now 307 lines, over the 300 cap, because each Sources/ file is one digest line; filed T-0303 to move
+  the digest tables into a data file (harness gap recorded, not fixed in this product PR).
