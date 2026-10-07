@@ -98,3 +98,35 @@ PMTiles download is a later task. The R2 manifest is not published yet (owner de
   `launchChoosesTheActivatedCorpusElseTheFallback() failed ... with 16 issues` (the 8 rows with a corpus active
   after launch, launch and url(fallback:) each), `manifestFetchReturnsTheBodyOrATypedError() failed ... with 6
   issues`; the two meta-tests and `wifiOnlyRefusesCellularAndTheNamesAreRuled()` passed (no fetcher body involved).
+- 2026-10-07T20:20:10Z GREEN, POPULATION, GUARDS RED THEN GREEN, iOS CI (agent/claude-opus-5). The GREEN lines below
+  were measured at 19:31:23Z/19:36:18Z on 879e2d05 (the logs' mtimes; this session lost their Log entry and records
+  them now, quoting the saved logs, not memory). origin/main (2ef434f4, T-0299 queue files only) merged as d15a878b
+  before the population ran; the three subjects are byte-identical between 879e2d05, 8ae23e3c and d15a878b.
+  - GREEN on 879e2d05: `--filter "URLSessionCorpusFetcherTests|CorpusLaunchTests"`: `Test run with 6 tests in 2
+    suites passed after 0.430 seconds`; `--filter "ScenicAPIClientTests|PlaceStoreTests"`: `Test run with 46 tests
+    in 11 suites passed after 3.103 seconds`.
+  - VACUITY on d15a878b (ended 20:06:20Z): `python ops/mutate/corpusfetch.py --only 1,13,18 --prove-vacuity`:
+    `MISSED 1 the Range header asks one byte late exit=0 no test objected`, `MISSED 13 a 206 is accepted when no
+    Range was sent ...`, `MISSED 18 the active slot is chosen without existing ...`, `VACUITY PROOF OK: with the 2
+    test file(s) emptied, caught=0 (need 0) and MISSED=3 of 3`, rc=0.
+  - FULL RUN on d15a878b (ended 20:11:23Z): `python ops/mutate/corpusfetch.py`: `population mutations=21 (floor 21)
+    equivalent=1 (floor 1) subjects=URLSessionCorpusFetcher.swift, CorpusDownloadDelegate.swift, LaunchCorpus.swift
+    test files=2`; the same three CAUGHT BY NAME: `caught 1 the Range header asks one byte late by:
+    fetchTableOverEveryResumeFileAndServer()`, `caught 13 a 206 is accepted when no Range was sent by:
+    fetchTableOverEveryResumeFileAndServer()`, `caught 18 the active slot is chosen without existing by:
+    launchChoosesTheActivatedCorpusElseTheFallback()`; `caught by the test that names it: 21 of 21 (wrong killer 0,
+    trapped 0, compile-only 0, MISSED 0, skipped 0)`, E1 `MISSED ... no test objected` as required, `MUTATE OK
+    caught=21/21 equivalent_caught=0`, rc=0. `--prove-floor`: `FLOOR PROOF OK: 7 of 7 arms refused and the control
+    did not`, rc=0.
+  - P-ATTR-01 SHEET APPROVAL, red then green (bare `bash ops/lib/check-map-attribution`, restored by git checkout):
+    the approved whole line altered to `$isShowingCorpusDownloadX` - rc=1, `the approved line
+    \`.sheet(isPresented: $isShowingCorpusDownloadX) {\` occurs 0 time(s) in
+    apps/ios/ScenicDrive/ScenicDriveApp.swift, expected 1`; the shell's corpus sheet given
+    `.presentationDetents([.medium])` - rc=1, `presentationDetents at ScenicDrive/ScenicDriveApp.swift(1), tracked
+    nowhere`; restored - rc=0.
+  - iOS CI on the merged head d15a878b: ios-compile run 37678975779 `completed success` (2m46s), ios-screenshot run
+    37678980449 `completed success` (13m35s). (Also green on 879e2d05: 37676066334, 37676071207.)
+  - STILL OPEN (not an acceptance line; recorded, not fixed): after `.ready` the sheet's Download button is enabled
+    again, and a second tap re-downloads the same corpus into the pending slot (decide still sees the old active
+    version until the next cold launch). Harmless to correctness (stage verifies), wasteful on data. The R1 R2 layout
+    (`corpus-<version>.sqlite` beside the manifest) is the owner's publish, not yet live.
