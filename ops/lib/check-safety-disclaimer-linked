@@ -27,195 +27,59 @@
 # copy on a real run; the mutation table lays its copies out as m<N>/apps/ios beside m<N>/Sources.
 #
 # FROM T-0289 ON, ANY EDIT TO A FILE UNDER Sources/, TO THE ROOT Package.swift OR TO ANY NON-SWIFT FILE UNDER apps/ios
-# RE-APPROVES ITS LINE BELOW IN THE SAME COMMIT, with the reason in the task's Log - `sed -e 's/\r$//' FILE |
-# sha256sum`. Fail-closed by design: on a Mac whose Xcode wrote xcuserdata/ or .swiftpm/ under apps/ios this refuses
-# (an xcuserdata scheme's pre-action runs shell). NOT SEEN: remote package code (MapLibre, GRDB - Package.resolved
-# pins the revision, not the bytes), and what any of it does at run time.
+# RE-APPROVES ITS ROW IN LINKED_DATA IN THE SAME COMMIT, with the reason in the task's Log - `sed -e 's/\r$//' FILE |
+# sha256sum`. Since T-0303 the four tables are DATA there (the guard stays under the 300-line cap, a digest edit is a
+# data edit); each row is bound to the tree both ways by the checks below, so a data-only edit is refused by name.
+# Fail-closed by design: on a Mac whose Xcode wrote xcuserdata/ or .swiftpm/ under apps/ios this refuses (an
+# xcuserdata scheme's pre-action runs shell). NOT SEEN: remote package code (MapLibre, GRDB - Package.resolved pins
+# the revision, not the bytes), and what any of it does at run time.
 LINKED_REASON="the pinned linked trees changed"
 LINKED_TILES_RE='^ScenicDrive/Tiles/[^/]+\.pmtiles(\.json)?$'
+LINKED_DATA="ops/lib/check-safety-disclaimer-linked-digests.txt"
+LINKED_SECTIONS=(ROOT_PATH_LINES ROOT_TOP_FILES PINNED_APP_OTHER PINNED_ROOT_SOURCES)
+LINKED_ROW_DIGEST='^[^[:space:]]+ [0-9a-f]{64}$'
+LINKED_ROW_NAME='^[^[:space:]/]+$'
+LINKED_ROW_LINE='^[^[:space:]](.*[^[:space:]])?$'
+LINKED_ROW_PATHS='path:|sources:'
 
-ROOT_PATH_LINES=(
-  'path: "Sources/ScenicKit",'
-  'path: "Tests/ScenicKitTests",'
-  'path: "Sources/Handoff",'
-  'path: "Sources/ScenicPlanCLI",'
-  'path: "Tests/ScenicPlanCLITests",'
-  'path: "Tests/HandoffTests",'
-  'path: "Sources/PlaceStore",'
-  'path: "Tests/PlaceStoreTests",'
-  'path: "Sources/ScenicAPIClient",'
-  'path: "Tests/ScenicAPIClientTests",'
-  'path: "Sources/Telemetry",'
-  'path: "Tests/TelemetryTests",'
-)
-
-# Every non-directory name allowed at the top of the root tree, in C sort order (none is required but Package.swift).
-ROOT_TOP_FILES=(.git .gitattributes .gitignore CLAUDE.md LICENSE-DATA Package.resolved Package.swift README.md)
-
-# path digest - every non-Swift entry under apps/ios, in C sort order.
-PINNED_APP_OTHER=(
-  'ScenicDrive.xcodeproj/project.pbxproj 8a8df89b9196769f6fa81090dbef38446ad20b3b04bc2693009c7d27d9a2de40'
-  'ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved 0489cb3ff1a1bea512724a8743224cc855132a35eac6e4aedba6228d099ce4c9'
-  'ScenicDrive.xcodeproj/xcshareddata/xcschemes/ScenicDrive.xcscheme 2ebee75a0b00fb2278b994bf782772faf52b272e2f4ade09098c259aa0fdabb9'
-  'ScenicDrive/Assets.xcassets/AppIcon.appiconset/AppIcon.png ff42be0b620b33d8ff0f91bed97e842fedbc519995ce5ec2cff38ff219ce4992'
-  'ScenicDrive/Assets.xcassets/AppIcon.appiconset/Contents.json 3725fefca1cc2f15dcff52b03b7db47884c8141e5be1d4e559367b76117f8c48'
-  'ScenicDrive/Assets.xcassets/Contents.json 0fd49ba3c3585c709678e0046a821c3c60685ec7063720d30d3a3448be3a208b'
-  'ScenicDrive/Assets.xcassets/LaunchBackground.colorset/Contents.json 021bdadcd503172b2fb2b7f5e0a2dd8644f4368d8c4d2c7af406bf82ffa02211'
-  'ScenicDrive/Corpus/corpus-fallback.sqlite 196127ae9092d2134861d10486e57e3dd218f5141d1e3f00c84673f858baa1fb'
-  'ScenicDrive/Info.plist 2bc60bf636f50b112310f18cd81ffeb3d4bce2bed4b959e78191a7de37bfe2bb'
-  'ScenicDrive/Routes/saddle-peak-menu.json 8eab5a4e20a570a1cf26a4ed58d97647e3354b3a8dfc8d9083540dcc3fa8f5b0'
-  'ScenicDrive/Routes/saddle-peak.geojson c945cbe8da3c3a96f77ea08b7eda93a931bc680af21bd966fbad2237553051db'
-  'ScenicDrive/Tiles/.gitignore ad6789b05f3f5f371e6ac8c6061f261350c77b9d482f11579764a974dccd3059'
-  'ci_scripts/ci_post_clone.sh 6a9bfa273ef52af2360b388a0f232b2e529c77eacb146c28adc0db1da9cd14b0'
-)
-
-# path digest - the root manifest and every entry under Sources/, in C sort order.
-PINNED_ROOT_SOURCES=(
-  'Package.swift 337787a49068615a6993414f8d881f753307f6ad55efc52f4d1fde440cb633b2'
-  'Sources/Handoff/AppleMapsDirections.swift 46de5183d388839c4862f3e9b57c422a144673b11549d3bb83c041c310041cb7'
-  'Sources/Handoff/CreditLine.swift f1a9f2d803a2633e476ece3a8406ee3559a1ee064c7e3f7b9f8bd8712fc7c12b'
-  'Sources/Handoff/DriveMenu.swift 65eca40b9bfb359897b51a618ac4de3d7668ed5c0a3e785669b45356b8aa039e'
-  'Sources/Handoff/DriveMenuRow.swift f7a0aa1cca83449ff6e2ae2b784a076355451db22e1d2c255de0949d60b7b975'
-  'Sources/Handoff/HandoffDrive.swift db374369494bd04bd8b7386f7413877d2f528786294cb929dfe1864645740fbf'
-  'Sources/Handoff/HandoffError.swift 8fcee9b6e4c19da07143f69a599dc9ba7dc65e52f787e4b255bd15ab96a8e922'
-  'Sources/Handoff/SaddlePeakRoute.swift 974c5c830a82e3d16cce4682c55b236bfd96edb710257b2f069bafb5726f278f'
-  'Sources/Handoff/SantaMonicaMountainsRoute.swift 8fa1193e1cd4afe3bb8477ab45ef684e625a797448e89e9a2cf8462a1b27c187'
-  'Sources/Handoff/SkylineRoute.swift 26d8e0e7fe285431cd2ff6c371f062cd05ec09635023f7d134f2c298e0994adb'
-  'Sources/Handoff/StraightLineDistance.swift 010bb4f84293ac4c40e86b5776fb959626d318fd4379e6ba8d08958c210075cc'
-  'Sources/PlaceStore/BoundingBox.swift 357e8e9fc5560f78ab50210dd2c3ae8e3cf01720b29c18694544b9d1378cac61'
-  'Sources/PlaceStore/CorpusActivation.swift 515325d9fd369477f662ce820b2996b9cca05753f7dac263f6cd8e572df09ad8'
-  'Sources/PlaceStore/CorpusFetcher.swift 35e812107f2db286e51b2b06c808f6ef2225acd22ab50a22867097ae119b8871'
-  'Sources/PlaceStore/CorpusManifest.swift 8af8d04ba00a7b030b365758a6516b8ec5ce850c86f7ae4ce277373f1599377b'
-  'Sources/PlaceStore/CorpusMeta.swift 6476ab59846b5f0176fbcedc13721b2ec4c86b6d4ad776b9e463cb22a6dec2af'
-  'Sources/PlaceStore/CorpusSlots.swift 421402989535fbaba7ebeb865378db6bb92657d4a7f298b37f7c424e090076f6'
-  'Sources/PlaceStore/CorpusUpdateDecision.swift d68eaebddade3d94e9c10b5242586018c803c476e3f4e77e084d83338424095d'
-  'Sources/PlaceStore/CorpusUpdateError.swift 166aac71789b272f18c89a5938b8c8dc1def108634f94a137f5bdbbca45f2c79'
-  'Sources/PlaceStore/CorpusUpdater.swift 8e77a9d39283afb2475f7138a21ea856fdd5a1bca1a8a6946fa03716b9456ea8'
-  'Sources/PlaceStore/DriveSessionLock.swift bd65c11962a824a56302496d8f2299894c1e9bd13d567a7ed44c5e8610486379'
-  'Sources/PlaceStore/DriveSessionToken.swift 084dab54e19fe961b4b3711265d362cf73ba5c3ae49743a6a7e22838d69b8fbc'
-  'Sources/PlaceStore/FiveDecimals.swift 2967cf988407a6173ac4aad8bfae4992c5e20f579bd16af16fa3eb26c015e56e'
-  'Sources/PlaceStore/Place.swift 2c51377de430a2509781bd612657c39237cfd44cc4c3c721194ebae98f2110af'
-  'Sources/PlaceStore/PlaceSearchQuery.swift d0d948fa6c59d1981a346a1b63f8724471382b455037128f606fe1fe209f5831'
-  'Sources/PlaceStore/PlaceStore.swift d6e4e6057a51fff1d3bcc2b102e99754909438e73bc36bfa0043c296c3bc9d43'
-  'Sources/PlaceStore/PlaceStoreError.swift b713b7bf69124035910d620e1634cd353fdb9c683d51c24e461ab70b57eadee0'
-  'Sources/PlaceStore/SavedDrive.swift 9aa89c500532c837e9350a9f6a0c8108f445d3d15df887f64f66aebc94603a70'
-  'Sources/PlaceStore/SavedDriveCorpus.swift 498ff32c8fd6c3520b1f174a59e9277bf3f085e963bd96272e77dcb5e0759e74'
-  'Sources/PlaceStore/SavedDriveError.swift 55d69d5106772e094a51835934650a30779e0b394ef8f3c209bb2299a603440a'
-  'Sources/PlaceStore/SavedDriveField.swift ce3dcfaad6cf0194c7bc5fc4d8d3adebe941a9a033f754f6be05861e34d041c7'
-  'Sources/PlaceStore/SavedDriveResolver.swift b0839cb83914da2241499377e62f1a5ece4ca780b8f3a0ca4b51d5e7ebfcbf52'
-  'Sources/PlaceStore/SavedDriveStore.swift f35a307ae881baac59c4b248389c52761a39fa3552a85d746607df57613f54fa'
-  'Sources/PlaceStore/SavedMidpoint.swift 134be48ca90d179a05837f313ad4a30736bae7ffafbcdeae9379a765918379d2'
-  'Sources/PlaceStore/SavedSegment.swift 5c8ea6e6f6d55119319b5a93f27d799f74f8abe65aa380ed75ef6fd67ccbc52d'
-  'Sources/PlaceStore/Segment.swift a1b34e29770f77a3fbab57c4ab3a1fd242308316530e4f6cb0ba4f7a72ce15f2'
-  'Sources/PlaceStore/SegmentGeometryError.swift 91810f296f0b254d5014f2bf621d9a36f39e6bc01f340ca01dc1b27e39d8c145'
-  'Sources/PlaceStore/SegmentVertex.swift 5003547db472ff04f32ce1ab9749cabf91395817c54554c284330228c2f1d46a'
-  'Sources/PlaceStore/SHA256.swift ee73ce66efe4ea52ef8ff63883cb70ee10a552898b4b6f0d48b951f0185c5ceb'
-  'Sources/PlaceStore/UserStoreError.swift 9096261e792ced162051f2d14836c084ef98b189ebed12d233e65a13fe0c2f66'
-  'Sources/PlaceStore/UserStoreMigrations.swift ae253dc373fa75e0647c3d2954f29c06b9b884a76825398281cf88cf42dfc2ff'
-  'Sources/ScenicAPIClient/ClientPlanner.swift ea276ec7bfc32d4d013e770a270bd6023c012d3fc799cfe1d8117717fa9a22d7'
-  'Sources/ScenicAPIClient/CountingPlanTransport.swift 8f4edccb3b0ad0f212e61dd3887b0a3bcc3338dbaf7020ac940b0255f78563fc'
-  'Sources/ScenicAPIClient/InstallIDProvider.swift 237fe764ad6393adeca37b39ee30d4a96192be229bd705827cd9250139dc327c'
-  'Sources/ScenicAPIClient/PlanClient.swift c6c8cad3e1a62f2ef39f19bbdb21d8b69801e52721d1fb52b43255adf1914bd7'
-  'Sources/ScenicAPIClient/PlanError.swift 732b35e9b218f6d527b9e80b58ef24c1e9e72ba62df9fc10dea35512c7e54ddd'
-  'Sources/ScenicAPIClient/PlanFailureBody.swift 644ead82a4165c2bca07d43cbe8420d8d1d58f4767c511cb42d2e8a360bf43b7'
-  'Sources/ScenicAPIClient/PlanHTTPReply.swift 2735ebf1df801d8a4bc953a642c23c09ec785ba07eaa24bc992c7d8b941a0480'
-  'Sources/ScenicAPIClient/PlanHTTPRequest.swift f178ab26eefd20974927c10ad212496a62c38cd09c0bc7c5fd7bc7ce391fcd2b'
-  'Sources/ScenicAPIClient/PlanHazard.swift 2e663d3cd51421de13804c7680d0a7dd02837fb3c990f09fcc316acd11e765dd'
-  'Sources/ScenicAPIClient/PlanRefusal.swift 72fcb824cc999c468032a193be8370ea1903fbe98e38b4947b94cb71776c4ca9'
-  'Sources/ScenicAPIClient/PlanRequestBody.swift 7eef64e31ce4b2636515db4060984ecf5abcc812e0e982ad89310be3b5153fd0'
-  'Sources/ScenicAPIClient/PlanResponse.swift 8150aa4ac8171e5fe0bb74cf66570f9d3519a881bf4eecaf9fc8b20311d7845e'
-  'Sources/ScenicAPIClient/PlanResponseReader.swift 5d676b05e82e46a4fc544ba271724e9eeb11698f60243e7c735b4aec3962247b'
-  'Sources/ScenicAPIClient/PlanTransport.swift d4a3e32b609e8502bc93cb2524995ca218b599dee1720f6788fe1cc2e972f6ba'
-  'Sources/ScenicAPIClient/URLSessionPlanTransport.swift bba7ee38873ae54e9dac5628b45812452a5c4f9afb74a54b8655a1cffb9721cf'
-  'Sources/ScenicKit/Budget/BudgetError.swift be4f116f60df1565ed083128d7cd40e0ba5a665c9cc2ec2d47b2bb83c0cb8429'
-  'Sources/ScenicKit/Budget/BudgetOutcome.swift 55d27d3b04d9c159fcd6dbd80592f8a8b7dbbb83ecbb5ae73b5ba981c1cfe43a'
-  'Sources/ScenicKit/Budget/LambdaSearch.swift 5d662fac573abaa7bf634690036a9c0d2e757f9c527dd23ec669baaa94f0b5dd'
-  'Sources/ScenicKit/Gates/ConsideredTags.swift def5ede4363e54979f8ba1344453dbe28c5f4b2a6eb697897c21e907031a863d'
-  'Sources/ScenicKit/Gates/GateDecision.swift 8e5a4f1935c217c3dab3ea2653a99e9f832a910942a4b225c2547df4b4a072df'
-  'Sources/ScenicKit/Gates/GateReason.swift 31c08b9383f2902a2f13e3cecefb9be066813446e9aa4496f8d1fe1263eec7a0'
-  'Sources/ScenicKit/Gates/Gates.swift 0fc6237cdad3e326930874ad71daa3968edd82540fa37bcf8381a9d864956e1c'
-  'Sources/ScenicKit/Geo/Geo.swift 76521b5305e0a70a673a8284154818fa2782d34993fc95eb636484f04dc14f72'
-  'Sources/ScenicKit/Guidance/GuidanceManeuver.swift 24ebe5fc53a7a79fc10945580e1d59b69fd7e1a2850503d99e54f001dc292857'
-  'Sources/ScenicKit/Guidance/GuidanceMapping.swift 24f1678f0a1bf826fa567622e1821f32a61adfb68cbccf1279ff960742727488'
-  'Sources/ScenicKit/Guidance/GuidanceSign.swift b0110539916720b492c7b415966dd99559d707335629c2dfabce17a66b2c134b'
-  'Sources/ScenicKit/Hazards/HazardFlag.swift a6cf15b443b054252ac7544ae904a7a0bfcddb213721f46e43fa133a2112ec63'
-  'Sources/ScenicKit/Hazards/HazardStrip.swift b9024039b403df06389df8c1603cdb74b0cecadb7c87f5cbafd752fa37ef6b3e'
-  'Sources/ScenicKit/Loop/RetraceDetector.swift 107cfc0535d1e3094515912178b6362cabe5ac478201cec536c86940141b8b33'
-  'Sources/ScenicKit/Menu/MenuRow.swift 3b91f60a00a8f4771798ee76966ef7d12324afd8ece23dc009ba1fb8ae7a5736'
-  'Sources/ScenicKit/Menu/RecordedAlternatives.swift 93c5fed1d505c4bab54a3cdb00381c62eed2c85d201f25e0a2fbe3b0a8aebe0b'
-  'Sources/ScenicKit/Menu/RouteMenu.swift 4816e6e122ad9f31ee8676bdb08c5b6ccee3d43b6116093d5c13c4511cd2265f'
-  'Sources/ScenicKit/Model/CivilDate.swift 5e360334a33b41610e3b199cfdf575af4e19103cf394eda6b0260925e32fde0c'
-  'Sources/ScenicKit/Model/Coordinate.swift 6a7ccbacef4b52de6332143ba74fae860eccc66ab20a47217f64a385b60cb057'
-  'Sources/ScenicKit/Plan/LambdaCustomModel.swift b6f539c7ca4d3f33f5f10d725c625da443ca10524a7b3e13296b32ecf636995a'
-  'Sources/ScenicKit/Plan/PlanFailure.swift 4d645f1e98db294bcdb8fa4921f45147896c46901d6cecb7d7d1e4f89dc17211'
-  'Sources/ScenicKit/Plan/PlanTable.swift 00536582c5cdfb43c7b259e939e0f5b1fae6e8c86e26bdfbd9fe54360ee252c5'
-  'Sources/ScenicKit/Plan/PlanWaypoints.swift f39d099f6fe48f32c3132afb3df5899c6dbc787fa6db2750377df92b2672e66b'
-  'Sources/ScenicKit/Plan/RecordedRouteSource.swift 990308a8000e7e2a7c07b366b0af945173d7156ed68860cbdf3adb056670e2d7'
-  'Sources/ScenicKit/Plan/RouteDifference.swift f745872bb21d5718bcb3c1ba380b5da522f37f6051cbed00170527574d117f07'
-  'Sources/ScenicKit/Plan/RoutePath.swift 575810129b9abe00ee715ed79ee8e34c8e28b7dcb22ee4dafde618259800f1d5'
-  'Sources/ScenicKit/Plan/RouteSource.swift c00c39b08b7a2ba26f1bfb95295990990168e68542b8cb2efdb35aa44589956e'
-  'Sources/ScenicKit/Plan/ScenicPlan.swift f84b5f5822640342a82e1c20b07f8b1998ef5b9c5e10fcaa0f4ba6b03ee117b5'
-  'Sources/ScenicKit/Plan/ScenicPlanner.swift 052bd8b575a47bebbedea09e3b75fa780f9e2caf59faccfc7c55cae0d13a3f1a'
-  'Sources/ScenicKit/PlanSheet/PlanFailureAction.swift e115a2a8dfec436539ce07bf3587df55491c31abc8d887461fb86edc601e6d27'
-  'Sources/ScenicKit/PlanSheet/PlanFailureCopy.swift f945d43820c83f136ae75f7e7cf0afac6b73f4bc5e3cbcfadd966319affd48b9'
-  'Sources/ScenicKit/PlanSheet/PlanField.swift 6d0967090ef2f2801b1070d315023b52195c25db3dde9d8cf4eaae17fa1f34f3'
-  'Sources/ScenicKit/PlanSheet/PlanHazardRun.swift 3b38d7136cf25c4aebd07a045b2b5f9658a051f6fe722f9b93f5a1345c0d74d1'
-  'Sources/ScenicKit/PlanSheet/PlanOutcome.swift d1a32e779002ba82705a956be9081c0438568f4b40bcff6703093a49a4717ef4'
-  'Sources/ScenicKit/PlanSheet/PlanPlace.swift dc332c877ce04241f81a67cf472eabd38090b0d83f6894419d276244672e7dbb'
-  'Sources/ScenicKit/PlanSheet/PlanPreview.swift 8b6495fc4ea8b95552f5096e10bc247d4033802c39140ce812017d2925587174'
-  'Sources/ScenicKit/PlanSheet/PlanSheet.swift 8bad344474d5f9595b9becdddb91101833d0aa176d099b5d3cea2a707897fb26'
-  'Sources/ScenicKit/PlanSheet/PlanSheetFailure.swift 491e52a5e48427af6e8e01f70c5ec4aa2627be46cd0587a2c481b92e24413bbe'
-  'Sources/ScenicKit/PlanSheet/PlanSheetState.swift 035da728981180427b155351fd53c8156276bb90088760cb52080be49807ad8f'
-  'Sources/ScenicKit/PlanSheet/PlanTicket.swift e2e4962ced6299bfc5149fce31f4744302bcd527f7448c08bb040992716f41c2'
-  'Sources/ScenicKit/PlanSheet/RoutePlanning.swift ba86261006b723a49ccdb740824157ab2724b42199d316967b3b020a606fc4ee'
-  'Sources/ScenicKit/RoadTrip/RoadTrip.swift 71cb91863621a1f5bcbb92fbf70e9d85ae43bb522da43b22e96fa49a3c826cea'
-  'Sources/ScenicKit/RoadTrip/RoadTripDay.swift f2c8a64dfc6ea88af852b668020c5ada8f926c0b5aed22ca7018c85570cc6004'
-  'Sources/ScenicKit/RoadTrip/RoadTripEdge.swift fe0cb450436d54d9662a6ad31163038fe5cbe2451d8044e9fabdbf01600b992f'
-  'Sources/ScenicKit/RoadTrip/RoadTripLimits.swift 6301a6fd36889172a06a7c7496eec4d07e69343f4f17e0c9a0dd29ea1e3b6858'
-  'Sources/ScenicKit/RoadTrip/RoadTripPlace.swift a70c77c38589a53f0ed8d932ffa4f2c7f114d8f6d5b32e57d2010794ee11f1a4'
-  'Sources/ScenicKit/Scoring/BywayTier.swift 40028e587ce81885efa84b6003eda7592b34deeb186f29c201cc406ea974d597'
-  'Sources/ScenicKit/Scoring/RouteScore.swift 24d90c2482ae78ccc7f6f8d580af1a271e896a7a6b3ec2609cb0c5254dcc3530'
-  'Sources/ScenicKit/Scoring/ScoredEdge.swift d5a659aeedf2cf14627840c83a578e7586d8008411e6d30943b99e82cad7f1f5'
-  'Sources/ScenicKit/Scoring/SegmentScore.swift 42cc8f0f31cd86eb51355b5fb09904819a6a10c94a95d0fc0daa2ecfb7bfdee0'
-  'Sources/ScenicKit/Scoring/SegmentTerms.swift c0344c27f52f36838001593c861f9cbedf6bb97ae2b46f25e2aabdb588d5b75c'
-  'Sources/ScenicKit/Solar/SolarEvents.swift 326d2ad38672f7f39cb3b7035e8531fcb0622d833a8259f00db0af9429fd2adc'
-  'Sources/ScenicKit/Solar/SolarMath.swift 4132a9addb818eaf55e45c67eda6d7336a7dbf340244f9dbe343d3f64aef8162'
-  'Sources/ScenicKit/Surprise/Surprise.swift 076653bf5f208ef4f86e0c51f9f1ca23fc7b67cd5d8a957afb09060e98f98c17'
-  'Sources/ScenicKit/Surprise/SurpriseCandidate.swift fbed7f04d05e5cc6f0d0f00378c8a5c31117ccf506e9073965d5823570ba1c91'
-  'Sources/ScenicKit/Surprise/SurpriseCategory.swift e6c3ce6459120b9e9f4101bd9b962fa6510170fd400a1c213903e912518dd223'
-  'Sources/ScenicKit/Surprise/SurpriseContext.swift 8d9d7da9c023402f720df56898e84df6ab6abbb929b3b4a079b622f0a53f552a'
-  'Sources/ScenicKit/Surprise/SurpriseFeedback.swift f0fcfc72f3eac245e0a6e403370abbe9e43f42ac479b20399e766856d4d598d2'
-  'Sources/ScenicKit/Surprise/SurpriseHistory.swift 021ffe98f030f3a7bc5ba9cc296123891667278aa9a1c4d7b0d8ac052357db0a'
-  'Sources/ScenicKit/Surprise/SurpriseIsochrone.swift 1eefbd0bd81b27a373514496ba051b5773bfa8d2ca2d4feb95240bcd1e662fe3'
-  'Sources/ScenicKit/Surprise/SurpriseIsochroneBucket.swift 407d21d8cbaee08471f97d4ae530db19892dc70bc005cc4f29c4cd1ae8706b2d'
-  'Sources/ScenicKit/Surprise/SurpriseIsochronePolygon.swift f9d6253002c4fdce3e7922f61c36761870642744caef980080fa7bbec032316b'
-  'Sources/ScenicKit/Surprise/SurpriseOfflineReach.swift 5fdd24b0b90b4d56cecb25951435e829c46a09c8b8255e160b6d4c4f6f6d3145'
-  'Sources/ScenicKit/Surprise/SurprisePick.swift 38c7f5527b1e26ce6178960346573304f68e480a74a527f59be2d2b113ee6ba3'
-  'Sources/ScenicKit/Surprise/SurprisePlaceClass.swift 4667871e89ab866116595a88b3310d43383b8c604de9c7bfb40ae69076377289'
-  'Sources/ScenicKit/Surprise/SurprisePlaceMapping.swift d3f2572812a59d03a56fb10972d9aea601d0fed902a41cf807cf2d88f76b5c72'
-  'Sources/ScenicKit/Surprise/SurpriseReach.swift 4bef1760b3cbd5a3442678f5b3c50f4d5157a1bea48db6dfee9a8ff13412b6e3'
-  'Sources/ScenicKit/Surprise/SurpriseReason.swift b090cdd6d2a5c723e2024947259e44fe68d8e000c06dfc5f701523d0f32a35db'
-  'Sources/ScenicPlanCLI/GraphHopperRouteSource.swift d8d99a0244a63684e8c624eb7430defa63d696d28ec5223995bf3f129cf7c1b6'
-  'Sources/ScenicPlanCLI/MenuArguments.swift 457f9b2db0459fe1237db28609deae946ef253ba0d7b2fe67f97aba589235f0d'
-  'Sources/ScenicPlanCLI/MenuCommand.swift f81f80e2d1898e339abf94f892a4ef3b8a81c2aff50f353b306abc2f632b8d6b'
-  'Sources/ScenicPlanCLI/PlanArguments.swift 4524cca02b35c2135685b4e3d7dc7fbd156f196419aca2702b818f2ba6141761'
-  'Sources/ScenicPlanCLI/PlanCommand.swift e3203eeb75d426281e6699ea5eb9f4c8abaceadd245fc756fbcd3d6dad18bd7f'
-  'Sources/ScenicPlanCLI/main.swift b83829e5b33d231743d120c42a2f07835d89f864a70ea858c3c5ba2d544575f9'
-  'Sources/Telemetry/CompletionPercent.swift 9e247561a7cd6a34d0e6b8f986ba1009e9d413b9392b02c945ec2d14d719796d'
-  'Sources/Telemetry/H3BaseCells.swift 236993c6008d392494c2ba6a49bd368cd3dec912f7db9ea0354118cbd021afef'
-  'Sources/Telemetry/H3Cell.swift 2a94c144e1f9c15c17f2d9783f56fb2529191ad39543c2139eb14b2dff2daeb4'
-  'Sources/Telemetry/H3CoordIJK.swift 335ae7d8a319d106cc2f75bae8036bf5bb3a6f85d957f35c1f56e823f401e568'
-  'Sources/Telemetry/H3FaceProjection.swift 3b00965aba143f15f28d7774c4243513f1f9bf2246a07f001138f26eb409bf70'
-  'Sources/Telemetry/H3IndexBuilder.swift 0b8346079f48c8994335a3113e03668fd3039d9976d2caf57dbc7831d3fe034e'
-  'Sources/Telemetry/HandoffApp.swift 8ca75f89b3e7917a61a226346ee3498e1a1e205955bd0f277edc9193471daf74'
-  'Sources/Telemetry/PaywallStep.swift f60819cc5b6b3e4d554cd95a537efa07090d9294360b09f463279dd246c339e8'
-  'Sources/Telemetry/PlanFeature.swift 3f6232c7b498daa48ebc2755aca07286d1205a23b8765c119aa1915b9edcae82'
-  'Sources/Telemetry/PlanResultKind.swift f55151572b48e2e7b3beb65422504404905285f348f261529ad00f99a72cca20'
-  'Sources/Telemetry/SurpriseNotThisReason.swift 32ed090a84fc12b15fabbb4a0699a55c9089b12f560244ffe43bb6a493e2babe'
-  'Sources/Telemetry/TelemetryDataPoint.swift 084219255bf1e7fec1b43da8d580e92f5ef65ce6ffa62bf5a49805d26b208011'
-  'Sources/Telemetry/TelemetryEvent.swift 7793a4ca0049bacc4eb77be8425eaa8a83fad883bd4a236b6c4af352a98c4d79'
-  'Sources/Telemetry/TelemetryEventKind.swift 4750873195e13cfc582e416809b9cfcd0f04cef9d61db1982f00753589f2f7be'
-)
+# linked_load: LINKED_DATA into the four tables, fail-closed (T-0303). Every line is a `[NAME]` header - NAME one of
+# LINKED_SECTIONS, each once - or a row of the section above it in that section's shape: `PATH SHA256` for
+# PINNED_APP_OTHER and PINNED_ROOT_SOURCES, one name for ROOT_TOP_FILES, a whole trimmed manifest line naming path: or
+# sources: for ROOT_PATH_LINES. No key twice in a section, no section empty. A missing file, an unknown section, a
+# duplicated path, a malformed row or an empty section each refuse by name; no line is skipped.
+linked_load() {
+  local line sec="" n=0 key s ok ref bad=()
+  local -A seen=() keys=()
+  ROOT_PATH_LINES=(); ROOT_TOP_FILES=(); PINNED_APP_OTHER=(); PINNED_ROOT_SOURCES=()
+  [[ -f "$LINKED_DATA" ]] || fail "$LINKED_REASON: the approved tables file $LINKED_DATA is missing." \
+    "The linked trees' approvals are data there (T-0303); no file is a refusal, never an empty approval."
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    n=$((n + 1)); line="${line%$'\r'}"
+    if [[ "$line" == "["*"]" ]]; then
+      sec="${line:1:${#line}-2}"; ok=0
+      for s in "${LINKED_SECTIONS[@]}"; do [[ "$s" == "$sec" ]] && ok=1; done
+      if [[ "$ok" -eq 0 ]]; then bad+=("unknown section [$sec] at line $n"); sec="?"
+      elif [[ -n "${seen["$sec"]+x}" ]]; then bad+=("section [$sec] duplicated at line $n"); fi
+      seen["$sec"]=1; continue
+    fi
+    case "$sec" in
+      PINNED_APP_OTHER|PINNED_ROOT_SOURCES) key="${line%% *}"; [[ "$line" =~ $LINKED_ROW_DIGEST ]] ;;
+      ROOT_TOP_FILES) key="$line"; [[ "$line" =~ $LINKED_ROW_NAME ]] ;;
+      ROOT_PATH_LINES) key="$line"; [[ "$line" =~ $LINKED_ROW_LINE && "$line" =~ $LINKED_ROW_PATHS ]] ;;
+      *) false ;;
+    esac || { bad+=("malformed row in [${sec:-no section}] at line $n: $line"); continue; }
+    [[ -z "${keys["$sec $key"]+x}" ]] || { bad+=("duplicated path in [$sec] at line $n: $key"); continue; }
+    keys["$sec $key"]=1
+    case "$sec" in
+      ROOT_PATH_LINES) ROOT_PATH_LINES+=("$line") ;; ROOT_TOP_FILES) ROOT_TOP_FILES+=("$line") ;;
+      PINNED_APP_OTHER) PINNED_APP_OTHER+=("$line") ;; *) PINNED_ROOT_SOURCES+=("$line") ;;
+    esac
+  done < "$LINKED_DATA"
+  for s in "${LINKED_SECTIONS[@]}"; do ref="$s[@]"; set -- "${!ref}"; [[ "$#" -gt 0 ]] || bad+=("empty section [$s]"); done
+  [[ "${#bad[@]}" -eq 0 ]] || fail "$LINKED_REASON: ${bad[0]}" "${bad[@]:1}" \
+    "$LINKED_DATA holds the four approved tables (T-0303): a [NAME] header per table, each once, then its rows one" \
+    "per line, each key once. A table that cannot be read whole is a refusal, never a partial approval."
+}
 
 # linked_set LABEL FOUND_FILE APPROVED_NAME...: appends `LABEL added ...` / `LABEL missing ...` to LINKED_BAD.
 linked_set() {
@@ -257,6 +121,7 @@ linked_unfinder() {
 # require_pinned_linked APP_TREE: (1), then (2), (3) and (4)'s file sets, then every digest. Sets LINKED_FILES.
 require_pinned_linked() {
   local tree="${1%/}" root spec line names=() lines=() approved=() nonreg=() tmp added
+  linked_load
   root="$tree/../.."
   [[ -d "$tree" && -f "$root/Package.swift" && -d "$root/Sources" ]] || fail \
     "$LINKED_REASON: no root package (Package.swift and Sources/) at $root, two levels above $tree." \
@@ -272,8 +137,8 @@ require_pinned_linked() {
   done
   [[ "${#approved[@]}" -eq 0 ]] || LINKED_BAD+=("root manifest lines missing: ${approved[*]}")
   [[ "${#LINKED_BAD[@]}" -eq 0 ]] || fail "$LINKED_REASON: ${LINKED_BAD[0]}" "${LINKED_BAD[@]:1}" \
-    "Every root Package.swift line naming a path: or sources: is typed in ROOT_PATH_LINES" \
-    "(ops/lib/check-safety-disclaimer-linked): a target path moved off Sources/ compiles bytes no pin has read."
+    "Every root Package.swift line naming a path: or sources: is typed in [ROOT_PATH_LINES] of" \
+    "$LINKED_DATA: a target path moved off Sources/ compiles bytes no pin has read."
   tmp="$(mktemp)"
   (cd "$tree" && find . -mindepth 1 -path ./.git -prune -o ! -type d ! -iname '*.swift' -print | sed -e 's|^\./||' | grep -Ev "$LINKED_TILES_RE" \
     | LC_ALL=C sort) > "$tmp"
@@ -295,7 +160,7 @@ require_pinned_linked() {
   [[ "${#nonreg[@]}" -eq 0 ]] || LINKED_BAD+=("not a regular file ${nonreg[*]}")
   [[ "${#LINKED_BAD[@]}" -eq 0 ]] || fail "$LINKED_REASON: ${LINKED_BAD[*]}." \
     "Approved: ${#PINNED_APP_OTHER[@]} non-Swift file(s) under $tree, the root Package.swift and every entry under" \
-    "Sources/, and the root's top-level file names in ROOT_TOP_FILES, typed in ops/lib/check-safety-disclaimer-linked" \
+    "Sources/, and the root's top-level file names in ROOT_TOP_FILES, typed in $LINKED_DATA" \
     "(rv3-t0273: a pbxproj entry compiled a SurpriseCard from outside apps/ios; fm-t0289 M1: a Package@swift-6.swift" \
     "beside Package.swift moved a target off Sources/). Approve an added, removed or renamed file there."
   linked_compare "$tree" "${PINNED_APP_OTHER[@]}"
@@ -303,5 +168,5 @@ require_pinned_linked() {
   [[ "${#LINKED_BAD[@]}" -eq 0 ]] || fail "$LINKED_REASON: ${LINKED_BAD[0]}" "${LINKED_BAD[@]:1}" \
     "Every byte the app build reads outside PINNED_APP_SWIFT - project.pbxproj, the scheme, ci_post_clone.sh, the" \
     "root Package.swift, Sources/ - is pinned (rv3-t0273). Approve an edit by typing its new digest in" \
-    "ops/lib/check-safety-disclaimer-linked in the same commit, deliberately - \`sed -e 's/\r\$//' FILE | sha256sum\`."
+    "$LINKED_DATA in the same commit, deliberately - \`sed -e 's/\r\$//' FILE | sha256sum\`."
 }

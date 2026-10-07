@@ -29,3 +29,45 @@ conflicts there. Moving the tables to data keeps the guard small and makes diges
 ## Log
 - 2026-10-07T17:44:38Z filed by agent/claude-opus-5 (orchestrator) during T-0294's merge with main.
 - 2026-10-07T18:00:54Z claimed by agent/claude-opus-5; lease until 2026-10-08T08:00:54Z
+- 2026-10-07T18:04:35Z MEASURE + RULINGS (owner, before any code; branch at 4ece8567 = main).
+  MEASURED: `wc -l ops/lib/check-safety-disclaimer-linked` = 307. Tables: ROOT_PATH_LINES lines 37-50 (12 rows, 14
+  lines with its delimiters), ROOT_TOP_FILES line 53 (one line, 8 names), PINNED_APP_OTHER lines 56-70 (13 rows, 15
+  lines), PINNED_ROOT_SOURCES lines 73-218 (144 rows = Package.swift + the 143 *.swift under Sources/, 146 lines).
+  176 of the 307 lines are table.
+  R1 FORMAT. ops/lib/check-safety-disclaimer-linked-digests.txt, 100644 (ops/lib/check-exec-bits: *.txt is data).
+  Every line is either a header `[NAME]` or a row of the section above it; NAME is one of the four table names
+  (the identifiers the script already uses, so a grep for PINNED_ROOT_SOURCES finds the data). Row shapes:
+  PINNED_APP_OTHER / PINNED_ROOT_SOURCES `PATH SHA256` (PATH no whitespace, 64 lowercase hex); ROOT_TOP_FILES one
+  name per row (no whitespace, no `/`); ROOT_PATH_LINES the trimmed manifest line, no leading/trailing whitespace,
+  containing `path:` or `sources:`. No comments, no blank lines - anything else is a malformed row (a CR at line end
+  is dropped, as pinned_digest does, so a CRLF checkout reads the same). Row order is free (C sort kept by hand).
+  R2 FAIL-CLOSED READER `linked_load`, called first inside require_pinned_linked (fail is defined by then; sourcing
+  stays side-effect free). Each refuses by name under LINKED_REASON: `approved tables file ... is missing`,
+  `unknown section [X]`, `section [X] duplicated`, `duplicated path in [X]: KEY` (key = PATH for the digest
+  sections, the whole row otherwise), `malformed row in [X]` (a row before any header names `[no section]`),
+  `empty section [X]` (covers an absent header too). The path is fixed, `ops/lib/...` relative to the repository
+  top every caller already cd's to (the same anchor -pinned's `. ops/lib/check-safety-disclaimer-linked` uses) -
+  no flag or variable can point it elsewhere.
+  R3 HOW THE DATA FILE IS PINNED. Not by its own sha256 typed in -linked: that digest would be retyped by the same
+  hand in the same commit as every data edit, a table compared to itself (CLAUDE.md, PR #109), and it would put a
+  one-line conflict back into -linked on every parallel Swift PR - the thing this task removes. The data file is
+  pinned AGAINST THE TREE, both ways, by the checks that already run: a digest row edited without the tree is
+  `PATH content changed`; a digest row deleted is `root: added PATH` / `apps/ios: added PATH`; one added is
+  `... missing PATH`; a ROOT_PATH_LINES row edited/added/deleted is `root manifest line not approved` / `root
+  manifest lines missing`; the structure itself is R2. Two new prove-red rows show the first two (D6, D7). The one
+  row class NOT bound both ways is ROOT_TOP_FILES, an ALLOWANCE since T-0289 (fm M1: "none is required but
+  Package.swift" - .git is a directory in the main checkout, Package.resolved exists only after ops/test, and every
+  mutation copy holds only Package.swift + Sources/); a name added there alone passes exactly as an edit to the
+  array did. Unchanged strength, ruled, not widened. Review covers the file as it covered the array: it sits in
+  ops/lib beside the script, and this commit names it in P-SAFE-03's statement as where re-approval goes.
+  R4 PROVE-RED. check-safety-disclaimer-mutations gains a `%` row kind: the row runs the REAL entry point (bash
+  ops/lib/check-safety-disclaimer) from a repository copy m<N>/ (ops/ copied beside apps/ios, Package.swift and
+  Sources/, m<N> git-initialised so the check's own cd to the top lands there) with the copy's data file edited
+  by the sed script (`rm` deletes it). Rows D1-D5 are R2's five branches, D6 a digest edited in data only, D7 a
+  path row deleted in data only. Every other row runs unchanged from the real top, as before. The map table is not
+  edited: none of its rows reach -linked (each refuses on an earlier limb, and its copies hold no root package);
+  it is run whole once to show the same 46/46 refusal set. Table expectations for rows 44-52 are byte-unchanged
+  by this diff, so "same name before and after" is shown by the after-run against unchanged substrings, with
+  T-0295's/T-0294's full-table logs as the before.
+  R5 PINS.yaml: P-SAFE-03's and P-ATTR-01's statements say re-approval goes "in ops/lib/check-safety-disclaimer-linked";
+  they now name -linked-digests.txt (text only; quoted values kept double-quoted, check-pins-yaml.py run).

