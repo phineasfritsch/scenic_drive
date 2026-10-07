@@ -88,3 +88,25 @@ claim or a header beside a valid Bearer; and POST /ledger has no per-user write 
     at cap-2/cap-1/cap held and both sides of 00:00:00.000Z - MET. (3) population MISSED before (0/19) and CAUGHT
     by name after (25/25); PINS.yaml text inside the double-quoted fields, strict check ok - MET.
   - Line counts: ledger.ts 122, ledgerCap.test.ts 99, ledgerIdentity.test.ts 79, ledgerMutants.mjs 217.
+- 2026-10-07T18:38:42Z rv1-t0304 FAIL (PR #192, head 9899e514) closed, agent/claude-opus-5. RULINGS before code.
+  - B1 (R2: a refusal writes nothing, no purge). Every REFUSED row seeded only the OTHER user's stale row, so a purge
+    of the writer's own expired rows on refusal survived. Ruled: ledgerCap's rows are functions of (writer, stale
+    owner), the stale owner ranging over {writer, other} in EVERY row, REFUSED and RECORDED; full-table equality as
+    before; meta-tests: no row ignores the writer, no row ignores the stale owner, and both owners occur under both
+    answers.
+  - S1 (stillOpen: D1 returning no admission row). Ruled: the answer turns on the batch's first result alone; 200
+    only when `admitted` is exactly the number 1; no batch result, an empty admission result, a row without
+    `admitted`, null, 0, "1", true or 2 is 429 ledger_daily_cap (fail closed, never 200 and never 503 - the batch
+    returned, so it is not a D1 failure). One row per shape through worker.fetch over a D1 stub; full equality.
+  - Population: rv-refusal-purges-own-stale (`WHERE day < ?5 AND ${ADMITTED}` -> `... AND (user_id = ?1 OR
+    ${ADMITTED})`) and rv-no-admission-row-admits (`admit?.results[0]?.admitted` -> `... ?? 1`); MIN_MUTATIONS
+    59 -> 61.
+  - BEFORE (old tests): `--only=rv-refusal-purges-own-stale,rv-no-admission-row-admits`: `baseline green
+    tests=40`, `MISSED rv-refusal-purges-own-stale`, `MISSED rv-no-admission-row-admits`, `RESULT caught=0 missed=2
+    trap=0 of 2`.
+  - AFTER: `--only=` the two plus the touched purge entries cap-purge-unguarded, purge-caller-only: `baseline green
+    tests=43`, `RESULT caught=4 missed=0 trap=0 of 4`; rv-refusal-purges-own-stale CAUGHT by "at cap-2, cap-1 and
+    cap rows held ..."; rv-no-admission-row-admits CAUGHT by "the answer turns on D1's admission row alone: only
+    admitted exactly 1 records, every other batch result shape is 429". `--prove-floor`: real population quiet.
+  - Named tests: the three new ledgerCap tests bound to P-COST-01. Line counts: ledgerCap.test.ts 142,
+    ledgerMutants.mjs 220.

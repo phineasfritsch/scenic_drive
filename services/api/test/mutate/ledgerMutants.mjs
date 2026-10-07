@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-ledger");
 
-export const MIN_MUTATIONS = 59;
+export const MIN_MUTATIONS = 61;
 export const SUBJECTS = ["src/ledger.ts", "src/index.ts", "src/accountStore.ts", "migrations/0008_surprise_ledger.sql"];
 const TESTS = ["test/ledger.test.ts", "test/ledgerWindow.test.ts", "test/migrationColumns.test.ts", "test/accountDelete.test.ts",
   "test/routes.test.ts", "test/killSwitchRoutes.test.ts", "test/ledgerIdentity.test.ts", "test/ledgerCap.test.ts"];
@@ -115,6 +115,9 @@ export const MUTATIONS = [
   m("cap-purge-unguarded", L, "WHERE day < ?5 AND ${ADMITTED}`", "WHERE day < ?5`"),
   m("cap-insert-unguarded", L, "SELECT ?1, ?2, ?6, ?3 WHERE ${ADMITTED} `", "SELECT ?1, ?2, ?6, ?3 WHERE true `"),
   m("cap-today-is-first", L, ".bind(user, parsed.placeId, today, LEDGER_DAILY_CAP),", ".bind(user, parsed.placeId, first, LEDGER_DAILY_CAP),"),
+  // rv1-t0304: a refusal purges nothing of the writer's own; an admission row D1 does not return admits nothing.
+  m("rv-refusal-purges-own-stale", L, "WHERE day < ?5 AND ${ADMITTED}`", "WHERE day < ?5 AND (user_id = ?1 OR ${ADMITTED})`"),
+  m("rv-no-admission-row-admits", L, "admitted = admit?.results[0]?.admitted;", "admitted = admit?.results[0]?.admitted ?? 1;"),
 ];
 
 export const EQUIVALENT = [];

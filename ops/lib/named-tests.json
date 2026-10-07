@@ -251,7 +251,10 @@
       ],
       "test/ledgerCap.test.ts": [
         "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > no row ignores the writer: every row's expected answer or table differs between the two writers",
-        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > at cap-2, cap-1 and cap rows held and across the UTC midnight, the write answers 200 or 429 ledger_daily_cap and leaves exactly the expected table, for each writer"
+        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > at cap-2, cap-1 and cap rows held and across the UTC midnight, the write answers 200 or 429 ledger_daily_cap and leaves exactly the expected table, for each writer",
+        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > no row ignores the stale owner: every row's expected table differs between the writer's own stale row and the other's",
+        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > every refused row and every recorded row runs with the stale row owned by the writer and by the other user",
+        "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > the answer turns on D1's admission row alone: only admitted exactly 1 records, every other batch result shape is 429"
       ]
     }
   },
