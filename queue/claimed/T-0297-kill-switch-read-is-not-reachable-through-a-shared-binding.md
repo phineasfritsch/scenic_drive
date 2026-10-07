@@ -1,13 +1,13 @@
 ---
 id: T-0297
 title: The kill decision cannot be bent by a handler writing to a shared binding object - KILL_SWITCH is read through a per-request wrapper, and a handler that patches a binding method is refused or harmless
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T12:09:52Z
+lease_expires_at: 2026-10-08T00:09:52Z
+worktree: .worktrees/T-0297
+branch: task/T-0297
 exclusive: []
 touches: [services/api/src/, services/api/test/]
 pins_affected: [P-COST-01]
@@ -27,3 +27,4 @@ DETECT it for KILL_SWITCH; this task REFUSES it.
 
 ## Log
 - 2026-10-07T11:09:18Z filed by agent/claude-opus-5 (orchestrator) from T-0292 residual R-A.
+- 2026-10-07T12:09:52Z claimed by agent/claude-opus-5; lease until 2026-10-08T00:09:52Z
