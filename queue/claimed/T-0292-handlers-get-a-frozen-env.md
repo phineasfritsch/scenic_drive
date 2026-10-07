@@ -112,3 +112,33 @@ runtime-read-recorder.
   source (5), bound fakes D1/KV/AE/router/QUOTA, authenticated sweep, then the P-COST-01 kill table and the /config table
   on those same objects, full equality - 6/6 green, bound into P-COST-01. (3) population: attest-first-call-deletes-kill
   and session-authenticated-stringify-unpause MISSED before, CAUGHT by name after (quoted above); floor 81.
+- 2026-10-07T10:33:47Z agent/claude-opus-5 (owner): rv1-t0292 B1 (FAIL on 83b7993f: branch behind main; T-0293 merged
+  /waitlist). RULINGS before the code: (a) /waitlist is OPERATIONAL in sharedEnvWorker.test.ts - it reads D1 only,
+  calls no router and is outside the kill switch and the quota by T-0293 R8 (src/waitlist.ts; killSwitchRoutes.test.ts
+  on main already lists it operational), so KILLABLE stays exactly /plan, /loop, /isochrone, /trip, /telemetry and the
+  `killable == KILLABLE` equality holds on the merged ROUTES. (b) configSweep.test.ts keeps this PR's shape (REQUESTS
+  live in sweepRequests.ts); main's inline /waitlist pair moves there as valid `{cell: "85283473fffffff"}`, invalid
+  its upper-case spelling, and authenticated the valid body with the session bearer (the route ignores credentials,
+  but it is not on NO_CREDENTIAL, whose equality test compares only the three routes whose authenticated request IS
+  their valid one). (c) the rig's D1 is testEnv.DB, which held no tables: beforeAll now runs siwaHarness
+  freshAllTables, so the waitlist table (migrations/0006) is there and the sweep's /waitlist valid and authenticated
+  requests write a count instead of answering 503 waitlist_unavailable. (d) index.ts's approved hash in
+  configAnswerPath.test.ts is re-approved on the merged bytes: d61c2a29...25cb (sha256 of the merged src/index.ts,
+  127 lines). (e) P-COST-01's count: T-0293's sentence says 31, but main's ops/lib/named-tests.json binds 33 (its
+  regionGateOrder.test.ts two, added in T-0293 rv1 B1, were not counted in the prose); the merged row binds 36 = 33 +
+  this task's three, recorded as a merge sentence in PINS.yaml (this task's 29/29 sentence is a dated record and
+  stays). MERGE: origin/main afa0dd15 merged at 4be2a06d; conflicts were pins/PINS.yaml (P-COST-01),
+  configAnswerPath.test.ts (index.ts hash) and configSweep.test.ts (REQUESTS), all three resolved as above.
+  ACCEPTANCE RE-RUN ON THE MERGED HEAD 4be2a06d: `cd services/api && npx vitest run`: `Test Files 70 passed (70)`,
+  `Tests 2103 passed (2103)`, exit 0. `python ops/lib/run-named-tests.py P-COST-01`: `NAMED P-COST-01 passed=36/36`,
+  exit 0. Touched mutants, `node test/mutate/configMutants.mjs --only=fetch-env-shared,fetch-env-copy-unfrozen,
+  attest-first-call-deletes-kill,session-authenticated-stringify-unpause`: `population mutations=81 (floor 81)
+  equivalent=1 subjects=2 tests=10 ONLY=4`, `baseline green tests=47`, `CAUGHT attest-first-call-deletes-kill by "the
+  authenticated sweep sends every ROUTES path a valid, an invalid and an authenticated request on one env per KILL
+  source, and no request throws"`, `CAUGHT session-authenticated-stringify-unpause by "after the sweep, every CONFIG row
+  x every KILL source answers the whole expected /config response on the shared env"`, `CAUGHT fetch-env-shared` and
+  `CAUGHT fetch-env-copy-unfrozen` both by "the /config answer path is exactly the approved bytes", `RESULT caught=4
+  missed=0 trap=0 of 4`. (1) frozen env, (2) one env per KILL source with the authenticated sweep and both tables by
+  full equality, now over 17 ROUTES keys, and (3) both population entries CAUGHT by name - all three hold on the merged
+  head. wc -l: src/index.ts 127, test/sharedEnvWorker.test.ts 215, test/sweepRequests.ts 99, test/configSweep.test.ts
+  78, test/configAnswerPath.test.ts 62.
