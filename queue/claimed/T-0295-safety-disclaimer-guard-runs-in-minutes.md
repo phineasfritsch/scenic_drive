@@ -101,3 +101,6 @@ untracked .DS_Store on a Mac is a false red. Memory faster-verification-in-round
   M3b  (`*/.DS_Store` -> `*.DS_Store`)          row 51 `0 no` UNREFUSED, 0/1 rc=1 1012s.
   M3c  (`check-ignore --no-index --stdin -z`)  row 52 `0 no` UNREFUSED, 0/1 rc=1 1010s.
   Each new row: the guard refuses it by name on the shipped script, and the mutant it targets lets it through (rc=0).
+- 2026-10-07T11:35:14Z MERGED origin/main (63c8fdac, from 521a3feb; -linked auto-merged with two ScenicAPIClient digests,
+  line 227 unchanged). On the merged head, run bare and concurrently: check-safety-disclaimer rc=0 wall=527s;
+  check-map-attribution rc=0 wall=529s; queue-check `QUEUE OK (288 tasks)` rc=0. Pushed 63c8fdac.
