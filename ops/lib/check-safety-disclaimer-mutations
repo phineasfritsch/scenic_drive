@@ -127,6 +127,7 @@ rows=(
   # Row 48 is fm-t0289 M1's class: a version-specific manifest BESIDE the root Package.swift, which SwiftPM 6.x builds
   # instead of it - the root's top-level file names are a whitelist, so its bytes never need to be valid Swift here.
   "T-0289 fm M1 a root Package@swift-6.swift|+../../Package@swift-6.swift|// swift-tools-version: 6.0|root top: added Package@swift-6.swift"
+  "T-0295 an untracked, unignored Finder .DS_Store|+Packages/ScenicApp/.DS_Store|Bud1|apps/ios: added Packages/ScenicApp/.DS_Store"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
@@ -143,6 +144,7 @@ row_link() {
 # Not `local` and not inside a function: the EXIT trap fires after a function's frame is gone, and a local
 # here left the trap reading an unbound variable under `set -u` - printed after the table, temp tree kept.
 work="$(mktemp -d)"
+: > "$work/no-excludes"
 trap 'rm -rf "$work"' EXIT
 
 pass=0
@@ -165,6 +167,9 @@ for row in "${rows[@]}"; do
   # Each copy is its own git work tree: -pinned reads the index under the feature directory and refuses a tree
   # outside one, so an empty index is what every row but the `=` row runs over.
   git init -q "$dir" || { echo "  CANNOT git init the copy: $label"; exit 1; }
+  # T-0295: the copy's ignore rules are its own files only - never this box's global excludes - so a row's .DS_Store
+  # is unignored on every box and -linked's one relief (an IGNORED .DS_Store) cannot turn the row green.
+  git -C "$dir" config core.excludesFile "$work/no-excludes" || { echo "  CANNOT config the copy: $label"; exit 1; }
   if [[ "$file" == "~"* ]]; then
     file="${file#?}"; new="$(dirname "$file")"; new="${new#Packages/ScenicApp/}"
     mkdir "$dir/$(dirname "$file")" && printf '%s\n' "$script" > "$dir/$file" && sed -i -e \

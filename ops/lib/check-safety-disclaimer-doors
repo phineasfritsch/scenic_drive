@@ -95,12 +95,12 @@ unset S
 # to ROOT, CR stripped, a line whose trimmed text starts with `//` dropped and nothing else. ENVIRON, not -v: awk
 # processes escapes in a -v value and would rewrite the pattern.
 doors_lines() {
-  local re="$1" root="$2" f
+  local re="$1" root="$2"
   shift 2
-  for f in "$@"; do
-    DOORS_RE="$re" DOORS_REL="${f#"$root"/}" awk '{ sub(/\r$/, "") } /^[[:space:]]*\/\// { next }
-      $0 ~ ENVIRON["DOORS_RE"] { print ENVIRON["DOORS_REL"] "|" $0 }' "$f"
-  done
+  [[ $# -gt 0 ]] || return 0  # T-0295: one awk over every file (it was one per file), lines in argument order
+  DOORS_RE="$re" DOORS_ROOT="$root/" awk '{ sub(/\r$/, "") } /^[[:space:]]*\/\// { next }
+    $0 ~ ENVIRON["DOORS_RE"] { r = ENVIRON["DOORS_ROOT"]; f = FILENAME
+      print (index(f, r) == 1 ? substr(f, length(r) + 1) : f) "|" $0 }' "$@"
 }
 
 # doors_compare LABEL FOUND_TEXT APPROVED...: the found lines against the approved ones as MULTISETS, so a second

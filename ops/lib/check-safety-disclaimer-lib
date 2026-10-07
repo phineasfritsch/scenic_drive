@@ -30,15 +30,28 @@ code_of() {
   sed -e 's/\r$//' -e 's|//.*||' "$1"
 }
 
-count_in() {
-  local pattern="$1" file="$2"
-  code_of "$file" | grep -c -E -e "$pattern" || true
+# code_counts MODE OUT NEEDLE FILE...: ONE awk over every FILE (T-0295: three forks per file per needle cost ~6 s a
+# file on the loaded Windows box), each line read exactly as code_of reads it - trailing CR, then `//` to end of line,
+# dropped. MODE: lines = lines holding the fixed string (grep -c -F), re = lines matching the ERE (grep -c -E), occ =
+# occurrences (the needle read as awk -v reads it, as count_occurrences_in did). OUT, in argument order: n = every count, f = each FILE with a non-zero count, else `FILE(COUNT)` for
+# each non-zero. A FILE named twice is read twice, so its total is divided back (the per-file loop printed it twice).
+code_counts() {
+  local mode="$1" out="$2" needle="$3"
+  shift 3
+  [[ $# -gt 0 ]] || return 0
+  CC_MODE="$mode" CC_OUT="$out" CC_NEEDLE="$needle" awk -v occ="$needle" '
+    BEGIN { m = ENVIRON["CC_MODE"]; o = ENVIRON["CC_OUT"]; nd = (m == "occ") ? occ : ENVIRON["CC_NEEDLE"]; for (i = 1; i < ARGC; i++) k[ARGV[i]]++ }
+    { s = $0; sub(/\r$/, "", s); sub(/\/\/.*/, "", s)
+      if (m == "re") { if (s ~ nd) c[FILENAME]++ }
+      else if (m == "lines") { if (nd == "" || index(s, nd) > 0) c[FILENAME]++ }
+      else while ((i = index(s, nd)) > 0) { c[FILENAME]++; s = substr(s, i + length(nd)) } }
+    END { for (i = 1; i < ARGC; i++) { f = ARGV[i]; n = c[f] / k[f]
+      if (o == "n") print n + 0; else if (n > 0) print (o == "f" ? f : f "(" n ")") } }' "$@"
 }
 
-count_fixed_in() {
-  local needle="$1" file="$2"
-  code_of "$file" | grep -c -F -e "$needle" || true
-}
+count_in() { code_counts re n "$1" "$2"; }
+
+count_fixed_in() { code_counts lines n "$1" "$2"; }
 
 # The feature sources' population, fail-closed. The four named files FIRST, so a tree missing the
 # disclaimer is refused by the name of the file it is missing rather than by a count that says nothing
@@ -57,7 +70,9 @@ require_feature_files() {
   [[ "$n" -ge "$min" ]] || fail "only $n .swift file(s) under $sources (expected >= $min)." \
     "An emptied or truncated feature target must not read as a gated handoff."
   [[ "$require_tracked" -eq 1 ]] || return 0
+  local listed=$'\n'"$(git ls-files -- "$@")"$'\n'
   for f in "$@"; do
+    [[ "$listed" == *$'\n'"$f"$'\n'* ]] && continue  # one ls-files for all; a name it printed back is tracked
     tracked="$(git ls-files -- "$f")"
     [[ -n "$tracked" ]] || fail "not tracked by git: $f" \
       "The pin is a property of the committed tree, not of somebody's working directory."
@@ -82,24 +97,18 @@ app_swift_files() {
 # actually saw - "found: a(1) b(2)" - instead of only failing a count. Occurrences, not files, since
 # PR #101's finding B3: a second construction beside the real one is in the same file as the real one.
 occurrences_by_file() {
-  local needle="$1" skip="$2" f c
+  local needle="$1" skip="$2" f keep=()
   shift 2
-  for f in "$@"; do
-    [[ "$f" == "$skip" ]] && continue
-    c="$(count_fixed_in "$needle" "$f")"
-    [[ "$c" -eq 0 ]] || printf '%s(%s)\n' "$f" "$c"
-  done
+  for f in "$@"; do [[ "$f" == "$skip" ]] || keep+=("$f"); done
+  code_counts lines c "$needle" "${keep[@]}"
 }
 
 # The same over an extended regex, naming only the files: which of them declare the type.
 files_matching() {
-  local pattern="$1" skip="$2" f c
+  local pattern="$1" skip="$2" f keep=()
   shift 2
-  for f in "$@"; do
-    [[ "$f" == "$skip" ]] && continue
-    c="$(count_in "$pattern" "$f")"
-    [[ "$c" -eq 0 ]] || printf '%s\n' "$f"
-  done
+  for f in "$@"; do [[ "$f" == "$skip" ]] || keep+=("$f"); done
+  code_counts re f "$pattern" "${keep[@]}"
 }
 
 # The @AppStorage default (PR #101's finding B1). Prints "<line of the @AppStorage key> <0|1>", where the
@@ -193,20 +202,13 @@ require_ack_write() {
 # one line carrying two, and a whitelist built on line counts cannot see a second writer appended to a line
 # that is already anchored. index()/substr(), not a word boundary, so a longer identifier CONTAINING the
 # needle also counts and is refused - fail-closed, the direction every reading here leans.
-count_occurrences_in() {
-  code_of "$2" | awk -v needle="$1" '
-    { s = $0; while ((i = index(s, needle)) > 0) { n++; s = substr(s, i + length(needle)) } }
-    END { print n + 0 }'
-}
+count_occurrences_in() { code_counts occ n "$1" "$2"; }
 
 # One "path(count)" per line over the given files, by occurrence - the shape occurrences_by_file prints.
 occurrences_with_multiplicity() {
-  local needle="$1" f c
+  local needle="$1"
   shift
-  for f in "$@"; do
-    c="$(count_occurrences_in "$needle" "$f")"
-    [[ "$c" -eq 0 ]] || printf '%s(%s)\n' "$f" "$c"
-  done
+  code_counts occ c "$needle" "$@"
 }
 
 # A WHITELIST over a needle's occurrences in the app tree (PR #101's finding B5, agent/rv3-pr101).
