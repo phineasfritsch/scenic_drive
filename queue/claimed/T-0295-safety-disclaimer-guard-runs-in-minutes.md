@@ -84,3 +84,20 @@ untracked .DS_Store on a Mac is a false red. Memory faster-verification-in-round
   MERGED origin/main (0436f71b; -linked auto-merged with T-0290's 13 PlaceStore digests): bare
   check-safety-disclaimer rc=0 wall=624.9s; bare check-map-attribution rc=0 wall=752.9s (both while the two tables and the gates ran - not
   alone). QUEUE OK (287 tasks); `bash ops/check-pins --source-only`: not finished.
+- 2026-10-07T11:21:44Z PRE-REVIEW M3 SURVIVED (BLOCKING), closed by class. M3 replaced linked_unfinder's basename filter
+  (`-linked` line 227) with `ds=("${all[@]}")` - every ignored entry dropped, acceptance 3 as filed - and the bare guard
+  went rc=0 over an ignored xcuserdata scheme with a `curl ... sh` pre-action (shipped: rc=1 `apps/ios: added
+  ScenicDrive.xcodeproj/xcuserdata/...`). No row could see it: row 49's .DS_Store is UNignored. Ruled: the class is
+  the relief widened past an UNTRACKED, IGNORED, exactly-`.DS_Store` entry - three axes, one row each. New row kind
+  `!RULE!PATH[!add]` in -mutations: writes PATH and the copy's OWN rule into its .git/info/exclude (an added .gitignore
+  would be refused as an added entry - the wrong reason), proves the premise with `git check-ignore` (and, for `!add`,
+  `ls-files --error-unmatch` + `check-ignore --no-index` matched + plain `check-ignore` silent) or the table exits.
+  Row 50 = M3's defect tree (`xcuserdata/`); row 51 an ignored `Packages/ScenicApp/Shadow.DS_Store` (`*.DS_Store`);
+  row 52 a TRACKED, ignored `Packages/ScenicApp/.DS_Store`. -linked unchanged; table 218 -> 241 lines.
+  RUN (faster-verification-in-rounds: only the touched rows), six one-row tables concurrent, each its own git toplevel
+  of 05999ae1's ops/ apps/ios Package.swift Sources (.build-t0295m/run.sh), mutants sed-applied and diffed:
+  SHIPPED  row 50 `1 yes` 1/1 rc=0 959s; row 51 `1 yes` 1/1 rc=0 968s; row 52 `1 yes` 1/1 rc=0 977s.
+  M3   (`ds=("${all[@]}")`)                    row 50 `0 no` UNREFUSED, full green summary, 0/1 rc=1 1007s.
+  M3b  (`*/.DS_Store` -> `*.DS_Store`)          row 51 `0 no` UNREFUSED, 0/1 rc=1 1012s.
+  M3c  (`check-ignore --no-index --stdin -z`)  row 52 `0 no` UNREFUSED, 0/1 rc=1 1010s.
+  Each new row: the guard refuses it by name on the shipped script, and the mutant it targets lets it through (rc=0).
