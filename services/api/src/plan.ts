@@ -4,6 +4,7 @@
  * The order is the property (R4, P-COST-01):
  *   1. KILL=1 (env, or the KV switch when bound - killSwitch.ts) -> 503 planning_paused, before the body is read. Zero upstream calls, no reservation.
  *   2. The body against the whitelist (R1/R2, P-PRIV-05) -> 400. Not an upstream call; costs no plan.
+ *   2b. The origin outside the served region (servedRegion.ts, T-0293) -> 422 region_unsupported. Costs nothing.
  *   3. The destination place id -> its coordinate, or 404. Not an upstream call; costs no plan.
  *   4. guardedPlan: the quota is read and RESERVED before the first router request; every request goes through
  *      the `call` it hands out, which refuses a 13th (P-COST-04).
@@ -21,6 +22,7 @@ import { parsePlanRequest } from "./planRequest";
 import { routerDepsFromEnv, type Identity, type RouterEnv } from "./routerDeps";
 import { RouteError } from "./routePath";
 import { PlanFailure, planScenic } from "./scenicPlanner";
+import { inServedRegion } from "./servedRegion";
 import { guardedPlan, PlanBudgetExceeded, UpstreamPaused, type UpstreamDeps } from "./upstream";
 
 export type PlanEnv = KillEnv;
@@ -81,9 +83,10 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   }
   const parsed = parsePlanRequest(raw);
   if (!parsed.ok) return json({ error: "invalid_request", detail: parsed.problem }, 400);
+  const { request } = parsed;
+  if (!inServedRegion(request.origin)) return json({ error: "region_unsupported" }, 422);
   if (deps === null) return json({ error: "planning_unavailable" }, 503);
 
-  const { request } = parsed;
   let destination: LatLon | null;
   try {
     destination = await deps.resolvePlace(request.destinationPlace);

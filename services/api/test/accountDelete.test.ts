@@ -25,6 +25,7 @@ const TABLES: Record<string, ((row: R, user: User) => boolean) | string> = {
   attest_sign_counts: (r, u) => u.keys.includes(r.key_id as string),
   attest_challenge_counts: (r, u) => u.devices.map((d) => `device:${d}`).includes(r.bucket as string),
   apple_accounts: (r, u) => u.devices.includes(r.device_id as string),
+  waitlist: "no user column: (cell, count, updated_at), an H3-5 cell's count and the UTC day it last moved",
 };
 
 async function seed(): Promise<void> {

@@ -45,6 +45,7 @@ const REQUESTS: Record<string, [() => Request, () => Request]> = {
     () => get("/auth/apple", { authorization: "Bearer e30.e30.sig" })],
   "/account": [() => new Request(`${B}/account`, { method: "DELETE", headers: { "x-scenic-device": DEVICE, authorization: "Bearer e30.e30.sig" } }),
     () => post("/account", {}, { authorization: "Bearer e30.e30.sig" })],
+  "/waitlist": [() => post("/waitlist", { cell: "85283473fffffff" }), () => post("/waitlist", { cell: "85283473FFFFFFF" })],
 };
 const KINDS = ["valid", "invalid"] as const;
 

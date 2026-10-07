@@ -17,6 +17,7 @@ import type { PlanEnv } from "./plan";
 import { dayKey } from "./quota";
 import { routerDepsFromEnv, type Identity, type RouterEnv } from "./routerDeps";
 import { RouteError } from "./routePath";
+import { inServedRegion } from "./servedRegion";
 import { guardedPlan, PlanBudgetExceeded, UpstreamPaused, type UpstreamDeps } from "./upstream";
 
 export interface LoopDeps {
@@ -68,9 +69,10 @@ export async function handleLoop(req: Request, env: PlanEnv, deps: LoopDeps | nu
   }
   const parsed = parseLoopRequest(raw);
   if (!parsed.ok) return json({ error: "invalid_request", detail: parsed.problem }, 400);
+  const { request } = parsed;
+  if (!inServedRegion(request.start)) return json({ error: "region_unsupported" }, 422);
   if (deps === null) return json({ error: "planning_unavailable" }, 503);
 
-  const { request } = parsed;
   const who = await deps.identify(req);
   const snapshot = await deps.closures();
   const picker = closurePicker(snapshot.closures);

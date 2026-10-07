@@ -143,6 +143,7 @@ const APPROVED: Record<string, string[]> = {
     CONFIG_ROUTE,
     '"/auth/apple": (req, env) => handleAuthApple(req, accountDepsFromEnv(env)),',
     '"/account": (req, env) => handleDeleteAccount(req, accountDepsFromEnv(env)),',
+    '"/waitlist": (req, env) => handleWaitlist(req, waitlistDepsFromEnv(env)),',
     "async fetch(req: Request, env: Env): Promise<Response> {",
     URL_LINE,
     'const handler = ROUTES[url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname];',
@@ -198,6 +199,11 @@ const APPROVED: Record<string, string[]> = {
     BODY_READ,
     "const who = await deps.identify(req);",
   ],
+  // T-0293 R2: the served region is the region files themselves, bundled at build time; the request is never read.
+  "../src/servedRegion.ts": [
+    'import la from "../../etl/regions/la/region.json";',
+    'import sfbay from "../../etl/regions/sfbay/region.json";',
+  ],
   "../src/telemetry.ts": [
     "*   2. The body against the whitelist (telemetryPoint.ts, P-PRIV-05) -> 400. Nothing reserved, nothing written.",
     "export async function handleTelemetry(req: Request, env: KillEnv & SessionEnv, deps: TelemetryDeps | null): Promise<Response> {",
@@ -210,6 +216,11 @@ const APPROVED: Record<string, string[]> = {
     'if (!reserved) return json({ error: "quota_exhausted", resets_at: nextReset(now) }, 429);',
   ],
   "../src/tripPlanner.ts": ["const path = decodeRoutePath(await response.text());"],
+  "../src/waitlist.ts": [
+    "export async function handleWaitlist(req: Request, deps: WaitlistDeps): Promise<Response> {",
+    POST_ONLY,
+    BODY_READ,
+  ],
   "../src/upstream.ts": ["return guardedPlan(deps, { userId: args.userId, tier: args.tier }, (call) => call(args.url, args.init));"],
 };
 

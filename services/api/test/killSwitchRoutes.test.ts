@@ -16,9 +16,10 @@ import { TRIP_BODY } from "./tripHarness";
 const DEVICE = "0f8b6d5e-1a2b-4c3d-8e9f-0123456789ab";
 // /asn and /entitlement read and write D1 only - no upstream call, nothing for the kill switch to save (T-0267 R11);
 // so do /attest/challenge and /attest (T-0278 R7) and /attest/assert (T-0280 R6); /auth/apple and /account call Apple and D1,
-// never the router, and deletion is never paused (T-0287 R9); /config reads KV only (T-0288 R5).
+// never the router, and deletion is never paused (T-0287 R9); /config reads KV only (T-0288 R5); /waitlist counts a
+// cell in D1 and calls nothing (T-0293 R8).
 const OPERATIONAL_ROUTES = ["/__health", "/__version", "/__ro", "/asn", "/entitlement", "/attest/challenge", "/attest", "/attest/assert",
-  "/auth/apple", "/account", "/config"] as const;
+  "/auth/apple", "/account", "/config", "/waitlist"] as const;
 const UPSTREAM_ROUTES = ["/plan", "/loop", "/isochrone", "/trip"] as const;
 // /telemetry writes Analytics Engine, not the router: killed by its own ROUTES test below (T-0279 R8), and the ONLY
 // route excluded from the upstream derivation besides the operational ones.

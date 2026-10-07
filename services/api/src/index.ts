@@ -16,6 +16,7 @@ import type { QuotaCounter } from "./QuotaCounter";
 import { readOnlyProblem } from "./ro";
 import { handleTelemetry, telemetryDepsFromEnv } from "./telemetry";
 import { handleTrip, tripDepsFromEnv } from "./trip";
+import { handleWaitlist, waitlistDepsFromEnv } from "./waitlist";
 
 export { QuotaCounter } from "./QuotaCounter";
 
@@ -109,6 +110,7 @@ export const ROUTES: Record<string, Handler> = {
   "/config": (_req, env) => handleConfig(env),
   "/auth/apple": (req, env) => handleAuthApple(req, accountDepsFromEnv(env)),
   "/account": (req, env) => handleDeleteAccount(req, accountDepsFromEnv(env)),
+  "/waitlist": (req, env) => handleWaitlist(req, waitlistDepsFromEnv(env)),
 };
 
 export default {
