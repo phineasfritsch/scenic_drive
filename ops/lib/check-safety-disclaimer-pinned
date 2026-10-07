@@ -85,7 +85,7 @@ PINNED_SHELL_ENTRIES=(
   'f ScenicDriveApp.swift' 'f Tiles/.gitignore'
 )
 PINNED_SHELL_TILE='^f Tiles/[A-Za-z0-9_-][A-Za-z0-9._-]*\.pmtiles(\.json)?$'
-PINNED_SHELL_DIGEST='52556b14b83d334a141a827dce99a64d30369eb4d55a58cb31711f80d9d8fc3f'
+PINNED_SHELL_DIGEST='e2661eb657ae227c21ad4297c30a05c002996495aa2329a3617ff13d6c9296ab'
 
 # pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
 pinned_shell() {
@@ -221,7 +221,7 @@ require_pinned_surface() {
 # changed ANYWHERE under apps/ios - a feature module, MapAdapter, the shell, a test - is refused by name until its
 # line below is typed again in the same commit, with the reason in the task's Log. Run LAST, after -doors.
 PINNED_APP_SWIFT=(
-  'Packages/ScenicApp/Package.swift e9b3e1a82f759a1962bd83d0a888f0d5b0e90ee23b90c4b5b510f94cd7d35b5d'
+  'Packages/ScenicApp/Package.swift 6386979cb39898c4b52013ca363ae9e3bd665c1d51881f96d6f763363e894ab2'
   'Packages/ScenicApp/Sources/DesignSystem/AttributionFooter.swift 8f07bec7abe9690183813b79af08d404add796088bf497781b560d7e4bc7c0b7'
   'Packages/ScenicApp/Sources/DesignSystem/Clipboard.swift 190ab3a7c0091a8c769bd297e4f0a55c61633e190d4752232f0bed2376c98716'
   'Packages/ScenicApp/Sources/DesignSystem/DesignTokens.swift 8a39ca69f0094fa24d7e034449dd4fcab880be0fa895bf71a5c6a51ecc1fef39'
@@ -230,6 +230,13 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/Entitlements/PaywallScreen.swift bd6dd2f6c937ac422b7c2f0d60a60dd2ceadb2a16b0293c397433be538968bee'
   'Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift 62b2ae4c3797fc960e0ff1e8bcbf7caf35052b427320fd867a40a70d4fd1bc1c'
   'Packages/ScenicApp/Sources/Entitlements/StoreConstants.swift aed28404d9bbd4b8b9bdeb9c1d430bc574be182686b53661cc70991365457d54'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanDriveButton.swift 02c414343501daf24443067f59c592a61966a0766fa87ca50fd5c3ff86ba7049'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanFailureCard.swift 17498cb1611be2e8281b4faf1406599aeb5496da0fe94c8a3c5e781a94479c6c'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPlaceList.swift d2042f7f87e5878a0ee44923ae774697d65eeb05ede54289a61cd6ec726ac4e7'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPlaceSearch.swift 1aad90d982178b7c7a2ee3f271327fa3047ae736987a33c22f7f1ec37bd57881'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift d6698284f9b15ce9053c7a902d7d95fbcb2e7432c210aaa49b4204b592df9038'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRouteShape.swift 080f53442d11034a4bed4c5dbda1daef4903104c6a0d8346326d80737be2fd43'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift 84f7d7302500ac1cf3aa1eca93ceec0d9fb6a08c5c9a2c3c6e1598c4809887be'
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveBasemap.swift 2bd28e278bcff56eee61f86b2c4504cc0a8dabfe9497f421952da1b1bb8505be'
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveCopy.swift 3a35deca6bb63815dacb5975c0c7e5846774d74a5f08dbda8bad8449de09c08e'
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveDetails.swift 9bf22e384eff9fb8910de7e7263298e88394d3af298833b2c9bb325ca3990530'
@@ -258,7 +265,10 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/MapAdapter/ScenicDarkStyle.swift 5f08312050cf1bd768acd3ad009c179ac948f755f17cc42eb9b68e8743ea766e'
   'Packages/ScenicApp/Sources/MapAdapter/ScenicLightStyle.swift 19be80686c3e924dbb0c2e5822fb3ab4d873a32857eb931264533f72b86669c8'
   'Packages/ScenicApp/Sources/MapAdapter/ScenicStyleDocument.swift 56c6a71c06dde0b415ac1619def6b672833c965886b476f08fd79028824114db'
-  'ScenicDrive/ScenicDriveApp.swift 52556b14b83d334a141a827dce99a64d30369eb4d55a58cb31711f80d9d8fc3f'
+  'Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift 5af119b8ce567142531ae15bfc659942a6c29fbd1e98a2666b9640d18d15b715'
+  'Packages/ScenicApp/Sources/PlanAdapter/StoredInstallID.swift ce1e2c9c4259f00d4cf58a1298e720f7a34b9585d6716c2b55f08944f0c34bd4'
+  'Packages/ScenicApp/Sources/PlanAdapter/UnreachablePlanner.swift 6ee10bda9ca24fe44518093d2a3920b24a1654c2d1ad5a75a6d9b3cc05619590'
+  'ScenicDrive/ScenicDriveApp.swift e2661eb657ae227c21ad4297c30a05c002996495aa2329a3617ff13d6c9296ab'
 )
 
 # require_pinned_app_swift APP_TREE: the app tree's Swift file set against PINNED_APP_SWIFT, then every digest.

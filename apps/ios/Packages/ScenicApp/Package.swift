@@ -33,7 +33,9 @@ let package = Package(
         // with no project.pbxproj edit. It is a target of this PRODUCT, not a dependency of the FeatureScenicHome
         // TARGET - the home never imports it; the shell composes the two.
         // FeatureSurpriseMe rides the same product (T-0273): the shell composes the Surprise card into the home's slot.
-        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe"]),
+        // FeaturePlanSheet and PlanAdapter ride it too (T-0294 R1): the shell composes the plan sheet over the home
+        // and hands it the live planner, still with no project.pbxproj edit.
+        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe", "FeaturePlanSheet", "PlanAdapter"]),
     ],
     dependencies: [
         // The root package: ScenicKit (Coordinate and the scoring core) and Handoff
@@ -112,6 +114,30 @@ let package = Package(
                 .product(name: "PlaceStore", package: "ScenicDrive"),
             ],
             path: "Sources/FeatureSurpriseMe",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // The plan sheet (T-0294): search, extra minutes, Plan, the preview and the failure copy. A feature target -
+        // DesignSystem, ScenicKit and PlaceStore only; it plans through ScenicKit's RoutePlanning and never imports
+        // ScenicAPIClient, PlanAdapter or another feature.
+        .target(
+            name: "FeaturePlanSheet",
+            dependencies: [
+                "DesignSystem",
+                .product(name: "ScenicKit", package: "ScenicDrive"),
+                .product(name: "PlaceStore", package: "ScenicDrive"),
+            ],
+            path: "Sources/FeaturePlanSheet",
+            swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // THE ONLY IMPORTER OF ScenicAPIClient UNDER apps/ios (T-0294 R1), as MapAdapter is of MapLibre: it builds
+        // the live planner the shell hands the plan sheet.
+        .target(
+            name: "PlanAdapter",
+            dependencies: [
+                .product(name: "ScenicKit", package: "ScenicDrive"),
+                .product(name: "ScenicAPIClient", package: "ScenicDrive"),
+            ],
+            path: "Sources/PlanAdapter",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         // NO TEST TARGETS HERE, deliberately and temporarily.
