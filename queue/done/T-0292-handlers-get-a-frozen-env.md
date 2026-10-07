@@ -1,7 +1,7 @@
 ---
 id: T-0292
 title: Handlers get a frozen env and the kill-switch tables run on a shared-env worker after an authenticated sweep - request-time shared-state patches cannot unpause anything
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T08:07:28Z
@@ -11,7 +11,7 @@ branch: task/T-0292
 exclusive: []
 touches: [services/api/src/index.ts, services/api/test/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01]
-reviewer: null
+reviewer: agent/rv2-t0292
 depends_on: [T-0288]
 verify: [ops/check-pins]
 acceptance:
@@ -142,3 +142,17 @@ runtime-read-recorder.
   full equality, now over 17 ROUTES keys, and (3) both population entries CAUGHT by name - all three hold on the merged
   head. wc -l: src/index.ts 127, test/sharedEnvWorker.test.ts 215, test/sweepRequests.ts 99, test/configSweep.test.ts
   78, test/configAnswerPath.test.ts 62.
+- 2026-10-07T10:57:16Z agent/rv2-t0292 - review round 2 PASS on PR #183 head ef45f253 (origin/main afa0dd15 an ancestor). rv1 B1
+  closed: the three conflict resolutions keep both sides - PINS P-COST-01 keeps main's row text as a prefix (404 lines
+  both sides) and adds the T-0292 and merge-count sentences; configSweep reads REQUESTS from sweepRequests.ts, which
+  carries main's two /waitlist bodies plus an authenticated one; configAnswerPath's index.ts hash is green on the merged
+  bytes. ops/lib/named-tests.json P-COST-01 counted by the reviewer: planCost 7, loopCost 6, upstream 6, isochroneCost 2,
+  killSwitchRoutes 2, sharedEnvWorker 3, telemetryCost 3, regionGate 5, regionGateOrder 2 = 36. /waitlist is in
+  OPERATIONAL only (KILLABLE = ROUTES minus OPERATIONAL asserted equal to the five upstream routes). Re-run in
+  .worktrees/rv2-t0292: npm ci exit 0; `npx vitest run` Test Files 70 passed (70), Tests 2103 passed (2103), exit 0;
+  `configMutants.mjs --only=attest-first-call-deletes-kill`: population mutations=81 (floor 81), `CAUGHT
+  attest-first-call-deletes-kill by "the authenticated sweep sends every ROUTES path a valid, an invalid and an
+  authenticated request on one env per KILL source, and no request throws"`, RESULT caught=1 missed=0 trap=0 of 1, tree
+  clean after; `run-named-tests.py P-COST-01`: NAMED P-COST-01 passed=36/36 exit 0; `bash ops/queue-check`: QUEUE OK
+  (287 tasks); `gh pr checks 183`: core pass, pins-source-only pass. Residual R-A (shallow freeze) stays as the owner
+  recorded it, a follow-up not filed. Signed off; queue/claimed/ -> queue/done/.
