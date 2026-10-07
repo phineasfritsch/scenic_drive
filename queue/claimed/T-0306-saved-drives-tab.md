@@ -126,3 +126,28 @@ is +31 not +25, say so." T-0290 shipped the store; T-0294 the plan sheet and pre
   - RULED, NOT DONE: P-PRIV-05's run-named-tests row is NOT widened to bind SavedListTests/neverAnAddress() - it
     could not be seen red here (that row's vitest half needs services/api/node_modules, absent on this box) and an
     unseen binding is untested; the test and mutant 24's catch hold it. "+31 not +25, say so" stays unshipped (R3).
+- 2026-10-07T21:27:18Z PRE-REVIEW PASS 2: TWO SURVIVORS (BLOCKING), closed by class. agent/claude-opus-5 (owner).
+  - RULED: M2 (SavedRow.renamed with `needsReplan: false`) survived because every rename row renamed id 1 only, a
+    row whose flag is already false; the class is "a rename changes a field other than the name, on a row the
+    table never renames". M3 (SavedList.confirmDelete with `rows.removeFirst()`) survived because the only
+    confirmDelete row confirmed id 2, which sits at index 0, so by-position and by-id agree; the class is "delete
+    identity at a position the table never confirms". Both closed by making the rows functions of the id over
+    EVERY position of `sorted` (first, middle, last), the expected rows written out field by field - never
+    derived from the row under test - and a meta-assert that the table's ids are exactly `sorted`'s.
+  - MISSED BEFORE (0babcda2, `python ops/mutate/savedlist.py --only 34,35`): `MISSED 35 delete by position, not by
+    id exit=0 no test objected`; `caught by the test that names it: 0 of 2 (... MISSED 2 ...)`;
+    `MUTATE FAILED caught=0/2`.
+  - Tests (1c59551b): `renameEveryRow` renames mulholland, the needs-replan canyon and topanga in turn, asserts
+    the whole list by full equality, then replays the renamed id - canyon (3) stays refused into .needsReplan,
+    topanga yields the same SavedReplay as before the rename. `deleteEveryRow` confirms ids 2, 3, 1 and asserts
+    each surviving list written out.
+  - CAUGHT AFTER (1c59551b, same command): `caught 34 a rename clears the re-plan flag by: a rename changes only
+    the name, at every position: the re-plan flag, ends, budget and replay kept`, `caught 35 delete by position,
+    not by id by: a confirmed delete removes exactly the confirmed drive, at every position`; `MUTATE OK
+    caught=2/2`. Population 35 + E1, MIN_MUTATIONS 35.
+  - `--prove-vacuity --only 34,35`: `VACUITY PROOF OK: with the 4 test file(s) emptied, caught=0 (need 0) and
+    MISSED=2 of 2`. `--prove-floor`: `FLOOR PROOF OK: 7 of 7 arms refused and the control did not`.
+  - GREEN: `swift test --scratch-path .build/fm-t-0306 --filter SavedListTests|SavedReplayTests|SavedDraftTests|
+    SavedDriveUnresolvedTests`: `Test run with 18 tests in 4 suites passed`. No Sources/ or apps/ios file changed,
+    so no digest row moves; the other 33 mutants' subjects and killers are unchanged (memory
+    faster-verification-in-rounds: only the touched rows re-run).
