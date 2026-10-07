@@ -11,6 +11,9 @@
  *   node services/api/test/mutate/siwaMutants.mjs --prove-vacuity  every mutant must report MISSED with no tests
  *   node services/api/test/mutate/siwaMutants.mjs --prove-floor    the floor refuses on its arms; runs no tests
  *   ... --only=<id>,<id>                                            run only the named entries; an unknown id refuses
+ *   ... --with-pin                                                  also run identityVerifierPin.test.ts (T-0287 rv3): the
+ *       content pin fails on ANY edit of the verifier, so the population runs without it and every mutant must be
+ *       caught by behaviour; --with-pin shows a mutant red by the pin too
  *
  * WHAT COUNTS. CAUGHT only when vitest's JSON report names a FAILED test. A run that fails with no named failure is a
  * TRAP and does not count. An anchor that does not occur exactly once is STALE and the run refuses before mutating
@@ -26,9 +29,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-siwa");
 
-export const MIN_MUTATIONS = 121;
+export const MIN_MUTATIONS = 123;
 export const SUBJECTS = ["src/appleJwks.ts", "src/appleIdentity.ts", "src/accountStore.ts", "src/account.ts", "src/appleClient.ts", "src/sessionJwt.ts"];
 const TESTS = ["test/authAppleToken.test.ts", "test/authAppleFields.test.ts", "test/authAppleBind.test.ts", "test/accountDelete.test.ts", "test/requestReadSites.test.ts", "test/routes.test.ts"];
+const PIN_TEST = "test/identityVerifierPin.test.ts";
+let runTests = TESTS;
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -104,6 +109,8 @@ export const MUTATIONS = [
   m("id-iss-lowercased", "appleIdentity.ts", "iss !== APPLE_ISSUER", "typeof iss !== \"string\" || iss.toLowerCase() !== APPLE_ISSUER"),
   m("id-aud-zero-width-stripped", "appleIdentity.ts", "aud !== APP_BUNDLE_ID", "typeof aud !== \"string\" || aud.replace(/[\\u200b-\\u200d\\u2060]/g, \"\") !== APP_BUNDLE_ID"),
   m("id-nonce-nul-truncated", "appleIdentity.ts", "nonce !== expectedNonce", "typeof nonce !== \"string\" || nonce.split(\"\\0\")[0] !== expectedNonce"),
+  m("rv3-aud-regex-dot", "appleIdentity.ts", "if (aud !== APP_BUNDLE_ID)", "if (typeof aud !== \"string\" || !new RegExp(\"^\" + APP_BUNDLE_ID + \"$\").test(aud))"),
+  m("rv3-iss-regex-dot", "appleIdentity.ts", "if (iss !== APPLE_ISSUER)", "if (typeof iss !== \"string\" || !new RegExp(\"^\" + APPLE_ISSUER + \"$\").test(iss))"),
   m("store-bind-replaces-token", "accountStore.ts", "refresh_token = COALESCE(excluded.refresh_token,\n  CASE WHEN apple_accounts.apple_sub = excluded.apple_sub THEN apple_accounts.refresh_token END),", "refresh_token = excluded.refresh_token,"),
   m("store-bind-keeps-any-token", "accountStore.ts", "CASE WHEN apple_accounts.apple_sub = excluded.apple_sub THEN apple_accounts.refresh_token END", "apple_accounts.refresh_token"),
   m("store-bind-keeps-sub", "accountStore.ts", "apple_sub = excluded.apple_sub, bound_at", "apple_sub = apple_accounts.apple_sub, bound_at"),
@@ -170,7 +177,7 @@ function vitest(extra, tag) {
   const report = join(OUT, `${tag}.json`);
   writeFileSync(report, "");
   const bin = join(API, "node_modules", "vitest", "vitest.mjs");
-  const run = spawnSync(process.execPath, [bin, "run", ...TESTS, "--reporter=json", `--outputFile=${report}`, ...extra],
+  const run = spawnSync(process.execPath, [bin, "run", ...runTests, "--reporter=json", `--outputFile=${report}`, ...extra],
     { cwd: API, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   let named = [];
   let total = 0;
@@ -216,13 +223,14 @@ function main(argv) {
   if (dirty.status !== 0 || dirty.stdout.trim() !== "") { console.log("REFUSING TO RUN: services/api/src is not clean"); return 2; }
 
   const prove = argv.includes("--prove-vacuity");
+  if (argv.includes("--with-pin")) runTests = [...TESTS, PIN_TEST];
   const only = argv.find((a) => a.startsWith("--only="))?.slice("--only=".length).split(",") ?? null;
   const unknown = (only ?? []).filter((id) => !MUTATIONS.some((x) => x.id === id));
   if (only !== null && (only.length === 0 || unknown.length > 0)) { console.log(`REFUSING: unknown --only id(s) ${unknown.join(",")}`); return 2; }
   const run = only === null ? MUTATIONS : MUTATIONS.filter((x) => only.includes(x.id));
   const extra = prove ? ["-t", "^no test is named this$", "--passWithNoTests"] : [];
   console.log(`population mutations=${MUTATIONS.length} (floor ${MIN_MUTATIONS}) equivalent=${EQUIVALENT.length} `
-    + `subjects=${SUBJECTS.length} tests=${TESTS.length}${prove ? " PROVE-VACUITY" : ""}${only ? ` ONLY=${run.length}` : ""}`);
+    + `subjects=${SUBJECTS.length} tests=${runTests.length}${prove ? " PROVE-VACUITY" : ""}${only ? ` ONLY=${run.length}` : ""}`);
   if (!prove) {
     const base = vitest([], "baseline");
     if (base.status !== 0 || base.total === 0) { console.log(`REFUSING: the baseline is not green (${base.named.join("; ")})`); return 2; }
@@ -242,7 +250,7 @@ function main(argv) {
     }
     const v = verdict(result);
     tally[v] += 1;
-    console.log(`${v.padEnd(6)} ${x.id}${result.named.length ? ` by "${result.named[0]}"` : ""}`);
+    console.log(`${v.padEnd(6)} ${x.id}${result.named.length ? ` by ${result.named.length}: "${result.named.join("\" | \"")}"` : ""}`);
   }
   console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${run.length}`);
   if (prove) return tally.MISSED === run.length ? 0 : 1;

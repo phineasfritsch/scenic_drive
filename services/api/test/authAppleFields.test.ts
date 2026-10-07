@@ -6,7 +6,9 @@
  * take it for the right value; the rest are type defects. A row is refused with every table WHOLE and the Apple calls
  * WHOLE over both table seeds, unless ACCEPTED names it with a reason - then it binds the sub it carries, tables WHOLE.
  * The field lists are checked against the verifier's own HEADER_KEYS and its destructured claims, every field x variant
- * is a row or a named no-op, and every field x operation is a row or a named no-op.
+ * is a row or a named no-op, and every field x operation is a row or a named no-op. rv3 B1: an unescaped anchored
+ * RegExp built from the right value is an operation too; its variant keeps the length and swaps the first metacharacter.
+ * The verifier's bytes are pinned whole in identityVerifierPin.test.ts - this table is the behaviour, not the fence.
  */
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -46,17 +48,18 @@ const SEEDS: [string, () => Promise<void>][] = [
 ];
 
 type Right = string | number;
-interface Field { part: "header" | "payload"; name: string; right: (bearer: string) => Promise<Right>; integer?: true }
+/** metachar: the right value carries a regex metacharacter, so an unescaped RegExp of it matches more than itself. */
+interface Field { part: "header" | "payload"; name: string; right: (bearer: string) => Promise<Right>; integer?: true; metachar?: true }
 const constant = (v: Right) => async () => v;
 const FIELDS: Field[] = [
   { part: "header", name: "alg", right: constant("RS256") },
   { part: "header", name: "kid", right: constant("K1") },
   { part: "header", name: "typ", right: constant("JWT") },
   { part: "header", name: "extra", right: constant("value") },
-  { part: "payload", name: "iss", right: constant(ISSUER) },
-  { part: "payload", name: "aud", right: constant(BUNDLE) },
+  { part: "payload", name: "iss", right: constant(ISSUER), metachar: true },
+  { part: "payload", name: "aud", right: constant(BUNDLE), metachar: true },
   { part: "payload", name: "nonce", right: (bearer) => sha256Hex(bearer) },
-  { part: "payload", name: "sub", right: constant(APPLE_USER) },
+  { part: "payload", name: "sub", right: constant(APPLE_USER), metachar: true },
   { part: "payload", name: "exp", right: constant(S + 600), integer: true },
   { part: "payload", name: "iat", right: constant(S), integer: true },
   { part: "payload", name: "extra", right: constant("value") },
@@ -64,6 +67,15 @@ const FIELDS: Field[] = [
 
 /** rv2 B1: the closed list of loosenings a compare can apply before it compares, each as the lax compare it makes. */
 const isText = (g: unknown): g is string => typeof g === "string";
+const METACHAR = /[.*+?^${}()|[\]\\]/;
+const unescaped = (r: Right) => {
+  try {
+    return new RegExp(`^${r}$`);
+  } catch {
+    return null;
+  }
+};
+const REGEX_WILDCARD = "regex wildcard (unescaped .)";
 const OPERATIONS = {
   "loose equality (==)": (g: unknown, r: Right) => (g as Right) == r,
   "Number() coercion": (g: unknown, r: Right) => typeof r === "number" && Number(g) === r,
@@ -73,6 +85,7 @@ const OPERATIONS = {
   "case fold": (g: unknown, r: Right) => isText(g) && g.toLowerCase() === String(r).toLowerCase(),
   "substring match": (g: unknown, r: Right) => isText(g) && g !== "" && (g.includes(String(r)) || String(r).includes(g)),
   "NUL-terminated read": (g: unknown, r: Right) => isText(g) && g.split("\0")[0] === String(r),
+  [REGEX_WILDCARD]: (g: unknown, r: Right) => isText(g) && (unescaped(r)?.test(g) ?? false),
 };
 type Operation = keyof typeof OPERATIONS;
 /** A loosening no row can carry: JSON.parse yields only primitives, arrays and plain objects (the ruling test below). */
@@ -82,6 +95,9 @@ const swapCase = (s: string) => (s === s.toUpperCase() ? s.toLowerCase() : s.toU
 const pad = (before: string, after: string) => (r: Right) => `${before}${r}${after}`;
 const numberText = (f: (n: number) => string) => (r: Right) => (typeof r === "number" ? f(r) : r);
 const zeroWidthInside = (r: Right) => [...String(r)].map((c, i, all) => (i === Math.ceil(all.length / 2) ? `​${c}` : c)).join("");
+/** rv3 B1: the same length with the first regex metacharacter swapped; a value with none is handed back (a named no-op). */
+const metacharSwapped = (r: Right) => (typeof r === "string" && METACHAR.test(r) ? r.replace(METACHAR, "x") : r);
+const METACHAR_SWAPPED = "a regex metacharacter swapped";
 const fullwidth = (r: Right) => String(r).replace(/[!-~]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0));
 const VARIANTS: [string, (right: Right) => unknown, Operation | "a type defect"][] = [
   ["plus a suffix", (r) => (typeof r === "string" ? `${r}x` : `${r}0`), "substring match"],
@@ -100,6 +116,7 @@ const VARIANTS: [string, (right: Right) => unknown, Operation | "a type defect"]
   ["a zero-width space inside", zeroWidthInside, "zero-width strip"],
   ["in fullwidth form", fullwidth, "normalize('NFKC')"],
   ["an embedded NUL before a tail", pad("", "\u0000tail"), "NUL-terminated read"],
+  [METACHAR_SWAPPED, metacharSwapped, REGEX_WILDCARD],
   ["null", () => null, "a type defect"],
   ["a number", (r) => (typeof r === "string" ? r.length : r + 0.5), "a type defect"],
   ["a boolean", () => true, "a type defect"],
@@ -112,14 +129,15 @@ const VALUE_FREE = ["null", "a boolean", "an empty string", "missing"];
 const NAME = (f: Field, variant: string) => `${f.part} ${f.name}: ${variant}`;
 const NUMBER_FORMS = VARIANTS.filter(([, , op]) => op === "Number() coercion").map(([v]) => v);
 /** field x variant pairs that are no row, with the reason: the variant would hand the verifier the right value. */
-const NOT_APPLICABLE: [string, string][] = FIELDS.flatMap((f): [string, string][] => (f.integer
-  ? [[NAME(f, "in changed case"), "an integer's digits have no case"]]
-  : NUMBER_FORMS.map((v): [string, string] => [NAME(f, v), "a string field has no number form: the variant is the right value"])));
+const NOT_APPLICABLE: [string, string][] = FIELDS.flatMap((f): [string, string][] => [...(f.integer
+  ? [[NAME(f, "in changed case"), "an integer's digits have no case"] as [string, string]]
+  : NUMBER_FORMS.map((v): [string, string] => [NAME(f, v), "a string field has no number form: the variant is the right value"])),
+  ...(f.metachar ? [] : [[NAME(f, METACHAR_SWAPPED), "no regex metacharacter in the right value: the variant is the right value"] as [string, string]])]);
 /** Rows that bind, with the reason; every other row is refused. */
 const ACCEPTED: [string, string][] = [
   ["header typ: missing", "typ is optional (R5)"],
   ["header extra: missing", "no extra key is the valid header itself"],
-  ...["plus a suffix", "behind a prefix", "less its last character", "in changed case", "a prefix of it"].map((v): [string, string] =>
+  ...["plus a suffix", "behind a prefix", "less its last character", "in changed case", "a prefix of it", METACHAR_SWAPPED].map((v): [string, string] =>
     [`payload sub: ${v}`, "another well-formed Apple user id binds as itself (APPLE_SUB)"]),
   ...VARIANTS.map(([v]) => `payload extra: ${v}`).filter((n) => !NOT_APPLICABLE.some(([na]) => na === n))
     .map((n): [string, string] => [n, "a claim the verifier does not read is allowed (R5)"]),
@@ -210,7 +228,7 @@ describe("the field x variant table is whole (meta)", () => {
       }
     }
     const want = Object.fromEntries(FIELDS.flatMap((f) => (Object.keys(OPERATIONS) as Operation[]).map((op) =>
-      [NAME(f, op), op === (f.integer ? "case fold" : "Number() coercion") ? "no-op" : "rows"])));
+      [NAME(f, op), op === (f.integer ? "case fold" : "Number() coercion") || (op === REGEX_WILDCARD && !f.metachar) ? "no-op" : "rows"])));
     expect(seen).toEqual(want);
   });
 

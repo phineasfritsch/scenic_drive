@@ -110,7 +110,14 @@
         "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload aud: a zero-width space inside",
         "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload nonce: an embedded NUL before a tail",
         "the field x variant table is whole (meta) > every field meets every operation: rows its lax compare takes for the right value, or a named no-op",
-        "the field x variant table is whole (meta) > a String object (new String(r)) is no row: JSON hands back the primitive String(r), the right value or its numeric string"
+        "the field x variant table is whole (meta) > a String object (new String(r)) is no row: JSON hands back the primitive String(r), the right value or its numeric string",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload iss: a regex metacharacter swapped",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload aud: a regex metacharacter swapped"
+      ],
+      "test/identityVerifierPin.test.ts": [
+        "the identity-token verifier is pinned (T-0287 rv3 B1, P-PRIV-04) > the identity-token verifier is exactly the approved bytes",
+        "the identity-token verifier is pinned (T-0287 rv3 B1, P-PRIV-04) > every line naming a token field, the issuer, the bundle id, the nonce or the key lookup is an approved site, file by file",
+        "the identity-token verifier is pinned (T-0287 rv3 B1, P-PRIV-04) > every src module the verifier and its key lookup import is pinned"
       ]
     }
   },
