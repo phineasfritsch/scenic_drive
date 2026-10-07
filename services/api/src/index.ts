@@ -8,6 +8,7 @@ import { accountDepsFromEnv, handleAuthApple, handleDeleteAccount } from "./acco
 import { asnDepsFromEnv, handleAsn, handleEntitlement } from "./asn";
 import { attestDepsFromEnv, handleAttest, handleAttestAssert, handleAttestChallenge } from "./attest";
 import { runClosuresCron } from "./closuresCron";
+import { handleConfig } from "./config";
 import { handleIsochrone, isochroneDepsFromEnv } from "./isochrone";
 import { handleLoop, loopDepsFromEnv } from "./loop";
 import { handlePlan, planDepsFromEnv } from "./plan";
@@ -34,6 +35,7 @@ export interface Env {
   SESSION_JWT_SECRET?: string; // secret: `wrangler secret put SESSION_JWT_SECRET`; absent, /attest is 503 (T-0278 R7)
   IDENTITY_HEADERS?: string; // "1" = the bare x-scenic-device / x-scenic-account-token migration window (T-0278 R6)
   APP_ATTEST_ALLOW_DEVELOP?: string; // "1" accepts the appattestdevelop aaguid (T-0278 R4); unset = production only
+  CONFIG?: KVNamespace; // T-0288: the remote config record config/v1 /config overlays on its defaults; not bound in wrangler.jsonc
   TELEMETRY?: AnalyticsEngineDataset; // T-0279: the Analytics Engine binding /telemetry writes to (declared, not created)
   APPLE_CLIENT_SECRET?: string; // owner secret (T-0287 R6): the pre-signed Sign in with Apple client-secret JWT; absent, revoke_pending
   GRAPH_VERSION?: string; // the routing graph's version, in the /isochrone cache key (T-0262 R6); unset = "unversioned"
@@ -105,6 +107,7 @@ export const ROUTES: Record<string, Handler> = {
   "/attest": (req, env) => handleAttest(req, attestDepsFromEnv(env)),
   "/attest/assert": (req, env) => handleAttestAssert(req, attestDepsFromEnv(env)),
   "/telemetry": (req, env) => handleTelemetry(req, env, telemetryDepsFromEnv(env)),
+  "/config": (_req, env) => handleConfig(env),
   "/auth/apple": (req, env) => handleAuthApple(req, accountDepsFromEnv(env)),
   "/account": (req, env) => handleDeleteAccount(req, accountDepsFromEnv(env)),
   "/waitlist": (req, env) => handleWaitlist(req, waitlistDepsFromEnv(env)),
@@ -113,7 +116,7 @@ export const ROUTES: Record<string, Handler> = {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    const handler = ROUTES[url.pathname];
+    const handler = ROUTES[url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname];
     if (!handler) return json({ error: "not found" }, 404);
     return handler(req, env, url);
   },
