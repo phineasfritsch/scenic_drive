@@ -213,3 +213,76 @@ describe("handlers get a frozen env (T-0292 R1, P-COST-01)", () => {
     expect([after, (shared as { KILL?: string }).KILL]).toEqual([PAUSED["/plan"], "1"]);
   });
 });
+
+describe("the kill read is not reachable through a shared binding (T-0297, P-COST-01)", () => {
+  type Kv = Record<string, unknown>;
+  /** One fresh real-shaped binding per KV killing source (get on the prototype), so a landed write stays in this test. */
+  const KV_SOURCES: [string, () => KVNamespace][] = [
+    ["KV KILL_SWITCH KILL=1", () => fakeKv({ KILL: "1" })],
+    ["KV KILL_SWITCH throws", () => fakeKv({}, true)],
+  ];
+  const patch = async () => null;
+  // What the handler holds (its env.KILL_SWITCH): every write is REFUSED.
+  const REFUSED: [string, (k: Kv) => void][] = [
+    ["assign env.KILL_SWITCH.get", (k) => void (k.get = patch)],
+    ["defineProperty env.KILL_SWITCH get", (k) => void Object.defineProperty(k, "get", { value: patch })],
+    ["assign the inherited get", (k) => void ((Object.getPrototypeOf(k) as Kv).get = patch)],
+  ];
+  // The shared binding object itself and its class (no handler holds them; the test does): every write LANDS, harmlessly.
+  const LANDED: [string, (raw: Kv) => void][] = [
+    ["assign the shared binding's own get", (raw) => void (raw.get = patch)],
+    ["assign the binding class's prototype get", (raw) => void ((Object.getPrototypeOf(raw) as Kv).get = patch)],
+  ];
+
+  it("a handler that assigns env.KILL_SWITCH.get = async () => null on its first call through worker.fetch does not unpause any later request: every upstream route and /telemetry on the shared env answers the whole paused response under every KV killing source", async () => {
+    expect(KV_SOURCES.map(([name]) => name)).toEqual(KILLS.filter(([, s]) => "KILL_SWITCH" in s).map(([name]) => name));
+    const HOSTILE = "/__t0297_hostile";
+    const a = await credentials();
+    const got: unknown[] = [];
+    const live: unknown[] = [];
+    for (const [i, [name, make]] of KV_SOURCES.entries()) {
+      const raw = make() as unknown as Kv;
+      const proto = Object.getPrototypeOf(raw) as Kv;
+      const genuine = proto.get;
+      const r = rig([name, { KILL_SWITCH: raw }, true], 20 + i);
+      const tried: string[] = [];
+      let calls = 0;
+      ROUTES[HOSTILE] = async (_req, e) => {
+        if (calls++ === 0) {
+          const held = (e as unknown as { KILL_SWITCH: Kv }).KILL_SWITCH;
+          for (const [what, act] of REFUSED) {
+            try {
+              act(held);
+              tried.push(`${what}: no throw`);
+            } catch (x) {
+              tried.push(`${what}: ${(x as Error).name}`);
+            }
+          }
+          for (const [what, act] of LANDED) {
+            act(raw);
+            tried.push(`${what}: landed`);
+          }
+        }
+        return new Response(null, { status: 204 });
+      };
+      try {
+        const first = (await worker.fetch(get(HOSTILE), r.env)).status;
+        const second = (await worker.fetch(get(HOSTILE), r.env)).status;
+        live.push([name, await (raw.get as (k: string) => Promise<string | null>)("KILL")]);
+        const rows: unknown[] = [];
+        await withRouter(async () => {
+          for (const path of KILLABLE) rows.push([path, await answer(REQUESTS[path]!.authenticated(a), r.env)]);
+        });
+        got.push([name, first, second, tried, rows, hosts.filter((h) => h === r.host).length, r.writes.length, r.quota.state()]);
+      } finally {
+        proto.get = genuine;
+        delete ROUTES[HOSTILE];
+      }
+    }
+    expect(got).toEqual(KV_SOURCES.map(([name]) => [name, 204, 204,
+      [...REFUSED.map(([what]) => `${what}: TypeError`), ...LANDED.map(([what]) => `${what}: landed`)],
+      KILLABLE.map((path) => [path, PAUSED[path]]), 0, 0, {}]));
+    // Meta: the landed patch is live on the shared binding - a kill read through it would answer null and unpause.
+    expect(live).toEqual(KV_SOURCES.map(([name]) => [name, null]));
+  });
+});

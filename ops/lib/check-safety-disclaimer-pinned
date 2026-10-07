@@ -89,16 +89,18 @@ PINNED_SHELL_DIGEST='e2661eb657ae227c21ad4297c30a05c002996495aa2329a3617ff13d6c9
 
 # pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
 pinned_shell() {
-  local dir="${1%/}" entry found=() bad=() missing=() approved
+  local dir="${1%/}" entry found=() bad=() missing=()
   [[ -d "$dir" ]] || fail "$PINNED_REASON: no such directory: $dir" \
     "The app shell ScenicDrive/ is pinned; a missing tree is a refusal, never a pass."
   mapfile -t found < <(cd "$dir" && find . -mindepth 1 -printf '%y %P\n' | LC_ALL=C sort)
-  approved="$(printf '%s\n' "${PINNED_SHELL_ENTRIES[@]}")"
+  local -A is_approved=() is_found=()  # whole-line set membership, no grep fork per entry (T-0295)
+  for entry in "${PINNED_SHELL_ENTRIES[@]}"; do is_approved["$entry"]=1; done
+  for entry in "${found[@]}"; do is_found["$entry"]=1; done
   for entry in "${found[@]}"; do
-    grep -Fxq -e "$entry" <<<"$approved" || [[ "$entry" =~ $PINNED_SHELL_TILE ]] || bad+=("${entry#? }")
+    [[ -n "${is_approved["$entry"]+x}" ]] || [[ "$entry" =~ $PINNED_SHELL_TILE ]] || bad+=("${entry#? }")
   done
   for entry in "${PINNED_SHELL_ENTRIES[@]}"; do
-    grep -Fxq -e "$entry" <<<"$(printf '%s\n' "${found[@]}")" || missing+=("${entry#? }")
+    [[ -n "${is_found["$entry"]+x}" ]] || missing+=("${entry#? }")
   done
   [[ "${#bad[@]}" -eq 0 && "${#missing[@]}" -eq 0 ]] || fail \
     "$PINNED_REASON: the app shell's file set is not the approved one: ${bad[*]:+added ${bad[*]}}${missing[*]:+ missing ${missing[*]}}." \
@@ -123,6 +125,21 @@ pinned_digest() {
   [[ -f "$1" && -r "$1" ]] || { echo "missing"; return 0; }
   sed -e 's/\r$//' "$1" | sha256sum | cut -c1-64
 }
+
+# pinned_raw BASE NAME...: PINNED_RAW[NAME] = sha256 of NAME's RAW bytes under BASE, from ONE sha256sum for all of them
+# (T-0295: a sed|sha256sum|cut per file cost minutes on the loaded box). A raw digest is only ever a FAST PATH: a name
+# whose raw digest is not its approved one, or that sha256sum could not read or printed escaped, is re-hashed through
+# pinned_digest before it is judged - so a CRLF checkout of approved bytes passes and nothing else does (the shape
+# linked_compare carried since T-0289). Keyed by the name sha256sum prints, never by position.
+pinned_raw() {
+  local base="$1" line
+  shift
+  PINNED_RAW=()
+  while IFS= read -r line; do
+    [[ "$line" =~ ^([0-9a-f]{64})\ [\ *](.+)$ ]] && PINNED_RAW["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
+  done < <(cd "$base" && sha256sum -- "$@" 2>/dev/null)
+}
+declare -gA PINNED_RAW=()
 
 # pinned_module DIR LABEL SPECS_ARRAY_NAME: one module's file set, its index and every digest; set errors `fail` at
 # once, digest mismatches are appended to PINNED_BAD. Run for FeatureScenicHome and (T-0273) FeatureSurpriseMe.
@@ -166,8 +183,10 @@ pinned_module() {
     "A committed link can reach sources outside the pinned set; only regular files are approved (rv4-t0237)."
 
   local name want got
+  pinned_raw "$dir" "${approved[@]}"
   for spec in "${specs[@]}"; do
     name="${spec%% *}"; want="${spec##* }"
+    [[ "${PINNED_RAW["$name"]-}" == "$want" ]] && continue
     got="$(pinned_digest "$dir/$name")"
     [[ "$got" == "$want" ]] || PINNED_BAD+=("$name content changed (sha256 $got, approved $want)")
   done
@@ -271,7 +290,9 @@ require_pinned_app_swift() {
     "Found ${#found[@]} *.swift entr(ies) under $tree; approved ${#approved[@]}, typed in ops/lib/check-safety-disclaimer-pinned." \
     "A new Swift file in any module can open a URL through a spelling no opener list names (rv2-t0273 B1:" \
     "\`let go = scene.open\` in a new MapAdapter file). Approve an added, removed or renamed file there."
+  pinned_raw "$tree" "${approved[@]}"
   for spec in "${PINNED_APP_SWIFT[@]}"; do
+    [[ "${PINNED_RAW["${spec%% *}"]-}" == "${spec##* }" ]] && continue
     got="$(pinned_digest "$tree/${spec%% *}")"
     [[ "$got" == "${spec##* }" ]] || bad+=("${spec%% *} content changed (sha256 $got, approved ${spec##* })")
   done

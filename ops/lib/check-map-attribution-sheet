@@ -59,14 +59,16 @@ sheet_code_lines() {
 
 # "<path under the tree>(<count>)" for each file with at least one occurrence, by OCCURRENCE, whole lines.
 sheet_occurrences() {
-  local needle="$1" f c
+  local needle="$1"
   shift
-  for f in "$@"; do
-    c="$(sheet_code_lines "$f" | awk -v needle="$needle" '
-      { s = $0; sub(/^[0-9]+\t/, "", s); while ((i = index(s, needle)) > 0) { n++; s = substr(s, i + length(needle)) } }
-      END { print n + 0 }')"
-    [[ "$c" -eq 0 ]] || printf '%s(%s)\n' "${f#"$APP_TREE"/}" "$c"
-  done
+  [[ $# -gt 0 ]] || return 0  # T-0295: one awk over every file, each line read as sheet_code_lines reads it
+  SO_ROOT="$APP_TREE/" awk -v needle="$needle" '
+    BEGIN { r = ENVIRON["SO_ROOT"]; for (j = 1; j < ARGC; j++) k[ARGV[j]]++ }
+    { line = $0; sub(/\r$/, "", line); sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line)
+      if (substr(line, 1, 2) == "//" && index(line, "\\") == 0) next
+      while ((i = index(line, needle)) > 0) { c[FILENAME]++; line = substr(line, i + length(needle)) } }
+    END { for (j = 1; j < ARGC; j++) { f = ARGV[j]; n = c[f] / k[f]
+      if (n > 0) print (index(f, r) == 1 ? substr(f, length(r) + 1) : f) "(" n ")" } }' "$@"
 }
 
 require_sheet_mount() {

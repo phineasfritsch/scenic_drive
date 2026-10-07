@@ -43,7 +43,7 @@
 #
 #   bash ops/lib/check-safety-disclaimer                 # the tracked tree
 #   bash ops/lib/check-safety-disclaimer --sources DIR [--app-tree DIR]  # copies of FeatureScenicHome [, apps/ios]
-#   bash ops/lib/check-safety-disclaimer --prove-red     # twenty-five mutations, each refused by name
+#   bash ops/lib/check-safety-disclaimer --prove-red     # every row of -mutations, each refused by name
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 

@@ -221,12 +221,27 @@ linked_set() {
 # not the approved one is re-hashed through pinned_digest (CRLF normalized to LF) before it is refused, so a CRLF
 # checkout of approved bytes passes and nothing else does.
 linked_compare() {
-  local base="$1" raw=() specs=("${@:2}") i
-  mapfile -t raw < <(cd "$base" && sha256sum -- "${specs[@]%% *}" | cut -c1-64)
+  local base="$1" specs=("${@:2}") i
+  pinned_raw "$base" "${specs[@]%% *}"
   for i in "${!specs[@]}"; do
-    [[ "${raw[$i]:-}" == "${specs[$i]##* }" ]] && continue
+    [[ "${PINNED_RAW["${specs[$i]%% *}"]-}" == "${specs[$i]##* }" ]] && continue
     [[ "$(pinned_digest "$base/${specs[$i]%% *}")" == "${specs[$i]##* }" ]] || LINKED_BAD+=("${specs[$i]%% *} content changed")
   done
+}
+
+# linked_unfinder DIR LIST: T-0295's ONE relief. Drops from the file LIST (names relative to DIR) each entry whose
+# basename is exactly `.DS_Store` AND that `git -C DIR check-ignore` reports ignored (the repository's .gitignore, or the
+# Mac's global excludes). The population stays every entry on disk, ignored ones included - an ignored xcuserdata scheme
+# runs shell at build time and a self-ignoring .gitignore can hide a Sources/ file SwiftPM compiles - so an unignored,
+# a tracked, or a differently named Finder file is refused by name as before, and so is every entry outside a work tree.
+linked_unfinder() {
+  local dir="$1" list="$2" all=() ds=() e
+  mapfile -t all < "$list"
+  for e in "${all[@]}"; do [[ "$e" == .DS_Store || "$e" == */.DS_Store ]] && ds+=("$e"); done
+  [[ "${#ds[@]}" -gt 0 ]] || return 0
+  local -A ign=()
+  while IFS= read -r -d "" e; do ign["$e"]=1; done < <(printf '%s\0' "${ds[@]}" | git -C "$dir" check-ignore --stdin -z 2>/dev/null)
+  for e in "${all[@]}"; do [[ -n "${ign["$e"]+x}" ]] || printf '%s\n' "$e"; done > "$list"
 }
 
 # require_pinned_linked APP_TREE: (1), then (2), (3) and (4)'s file sets, then every digest. Sets LINKED_FILES.
@@ -252,14 +267,17 @@ require_pinned_linked() {
   tmp="$(mktemp)"
   (cd "$tree" && find . -mindepth 1 -path ./.git -prune -o ! -type d ! -iname '*.swift' -print | sed -e 's|^\./||' | grep -Ev "$LINKED_TILES_RE" \
     | LC_ALL=C sort) > "$tmp"
+  linked_unfinder "$tree" "$tmp"
   names=(); for spec in "${PINNED_APP_OTHER[@]}"; do names+=("${spec%% *}"); done
   linked_set "apps/ios:" "$tmp" "${names[@]}"
   mapfile -t nonreg < <(cd "$tree" && find . -mindepth 1 -path ./.git -prune -o ! -type d ! -type f ! -iname '*.swift' -print | sed -e 's|^\./||')
   (cd "$root" && find Package.swift Sources ! -type d | LC_ALL=C sort) > "$tmp"
+  linked_unfinder "$root" "$tmp"
   names=(); for spec in "${PINNED_ROOT_SOURCES[@]}"; do names+=("${spec%% *}"); done
   LINKED_FILES="${#names[@]}"
   linked_set "root:" "$tmp" "${names[@]}"
   (cd "$root" && find . -mindepth 1 -maxdepth 1 ! -type d | sed -e 's|^\./||' | LC_ALL=C sort) > "$tmp"
+  linked_unfinder "$root" "$tmp"
   added="$(LC_ALL=C comm -23 "$tmp" <(printf '%s\n' "${ROOT_TOP_FILES[@]}" | LC_ALL=C sort) | tr '\n' ' ')"
   [[ -z "$added" ]] || LINKED_BAD+=("root top: added ${added% }")
   rm -f "$tmp"
