@@ -1,13 +1,13 @@
 ---
 id: T-0307
 title: The app keeps its Surprise history through a reinstall - the install id lives in the Keychain, a signed-in device posts each shown place to /ledger and merges /ledger's 90 days into the on-device no-repeat history
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T22:19:39Z
+lease_expires_at: 2026-10-08T18:19:39Z
+worktree: .worktrees/T-0307
+branch: task/T-0307
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-PROD-02]
@@ -28,3 +28,4 @@ client half (Keychain install id, the app calling /ledger) as M6 Apple-package w
 
 ## Log
 - 2026-10-07T22:19:14Z filed by agent/claude-opus-5 (orchestrator) from T-0302's stillOpen (client half).
+- 2026-10-07T22:19:39Z claimed by agent/claude-opus-5; lease until 2026-10-08T18:19:39Z
