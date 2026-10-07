@@ -117,6 +117,20 @@ MUTATIONS = [
     ("37 release releases nothing", LOCK, "held -= 1", "held -= 0", [AO, AF, HOLD]),
     ("38 a second end releases again", TOKEN, "let first = !ended", "let first = true", [HOLD]),
     ("39 deinit keeps the hold", TOKEN, "    deinit {\n        end()\n    }", "    deinit {}", [AO, AF]),
+    ("40 an interrupted swap is restored under a held drive", UPDATER,
+     "        guard !drives.isHeld else {\n            return slots.exists(slots.pending) ? .deferredDriveHeld : .noPending\n"
+     "        }\n        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
+     "        }\n",
+     "        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
+     "        }\n        guard !drives.isHeld else {\n            return slots.exists(slots.pending) ? .deferredDriveHeld : .noPending\n"
+     "        }\n", [AO]),
+    ("41 hadActive read before the interrupted swap is restored", UPDATER,
+     "        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
+     "        }\n        guard slots.exists(slots.pending) else {\n            return .noPending\n        }\n"
+     "        let hadActive = slots.exists(slots.active)\n",
+     "        let hadActive = slots.exists(slots.active)\n"
+     "        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
+     "        }\n        guard slots.exists(slots.pending) else {\n            return .noPending\n        }\n", [AO]),
 ]
 
 EQUIVALENT = [
@@ -127,6 +141,6 @@ EQUIVALENT = [
      "throws, which no fake can induce without a fault-injecting file system"),
 ]
 
-MIN_MUTATIONS = 39
+MIN_MUTATIONS = 41
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 4
