@@ -65,3 +65,36 @@ Plus rv3 recordable 3: P-ATTR-01 does not call require_pinned_app_swift.
     scheme's pre-action runs shell). Not seen: remote package code (MapLibre, GRDB - Package.resolved pins the
     revision only), Swift reached by an absolute path outside the repo through a future pbxproj (the pbxproj is
     pinned, so that needs an approved digest first), and anything the -frozen/-doors readers cannot parse.
+- 2026-10-06T22:47:52Z RED, then the limb. agent/claude-opus-5 (owner).
+  - RED FIRST, by name (R5): rows 44-47 committed at 95838c1 before any limb; each run alone from a one-row copy of
+    the table in a detached worktree of 95838c1 (unchanged guard), four in parallel, finished 15:36 local:
+      T-0289 rv3 a pbxproj Sources entry outside apps/ios  0        no
+      T-0289 a one-line edit to a root-package Swift file  0        no
+      T-0289 a new root-package Swift file                 0        no
+      T-0289 Handoff's root path: swapped                  0        no
+    each table printed `prove-red: 0/1 mutations refused by name` with the guard's full green summary ("... LAST all
+    38 app .swift by sha256.") over the mutated copy - fail OPEN on all four, rv3-t0273 recordable 1 reproduced.
+  - THE LIMB at a15f7d1: ops/lib/check-safety-disclaimer-linked (R1-R4), 13 non-Swift apps/ios files, the root
+    Package.swift + 109 Sources files (110), 12 root path: lines. Digests are compared from ONE raw sha256sum per tree,
+    a raw mismatch re-hashed through pinned_digest before refusal: a fork per file (pinned_digest x123) did not finish
+    in 10 min on this box with the red rows running; a `grep -l $'\r'` CR pre-scan was dropped after it flagged every
+    file under msys. check-safety-disclaimer stays at 300 lines (summary echo edited in place), check-map-attribution
+    300 (the call shares line 278 with require_pinned_surface), -pinned 273, -mutations 210, -linked 243.
+  - FAST PROBE of the limb alone (.build-t0289-rows/quick.sh, sourcing -pinned and calling require_pinned_linked):
+    real tree GREEN files=110; unmutated table-layout copy GREEN; pbxproj entry -> "ScenicDrive.xcodeproj/
+    project.pbxproj content changed"; root edit -> "Sources/Handoff/AppleMapsDirections.swift content changed"; root
+    add -> "root: added Sources/ScenicKit/Shadow.swift."; path swap -> "root manifest line not approved: path:
+    \"Vendor/Handoff\","; ScenicDrive/Escape.m -> "apps/ios: added ScenicDrive/Escape.m."; Tiles/la.pmtiles GREEN
+    (the allowance); CRLF copies of CreditLine.swift and Info.plist GREEN (pinned_digest fallback); a tree with no
+    root package two levels up -> "no root package (Package.swift and Sources/) at ...". All exit codes as expected.
+  - `git fetch origin` + `git merge origin/main` at 22:47Z: Already up to date (origin/main d472698).
+- 2026-10-07T00:06:04Z GREEN RUNS on a15f7d1 (merged head; origin/main unchanged), and a fix they forced. agent/claude-opus-5.
+  - `bash ops/lib/check-safety-disclaimer` BARE: exit 0, last limb line "... doors over 38 .swift (-doors); LAST all 38
+    app .swift, then 110 root + pbxproj file(s) (-linked)." `bash ops/lib/check-map-attribution` bare: STILL RUNNING
+    at this commit, NOT claimed. `bash ops/queue-check`: QUEUE OK (280 tasks).
+  - New rows on a15f7d1, one-row table copies in parallel: 47 (path swap) 1 yes, 1/1. 44 and 45: exit 1 but UNNAMED -
+    refused by "apps/ios: added .git/HEAD .git/config ..." because the table `git init`s each apps/ios copy and the
+    new non-Swift file set saw that .git/. Row 46 still running, NOT claimed. FIX (this commit): both non-Swift finds
+    prune ./.git at the app tree's top only (-path ./.git -prune): no checkout has apps/ios/.git (a worktree's .git is
+    at the repo top) and Xcode's buildable folder is ScenicDrive/, so the prune admits nothing the app compiles.
+    Rows 44-46 must be RE-RUN on this commit; the fast probe (no .git in its copies) already names each of them.

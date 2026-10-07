@@ -218,11 +218,11 @@ require_pinned_linked() {
     "Every root Package.swift line naming a path: or sources: is typed in ROOT_PATH_LINES" \
     "(ops/lib/check-safety-disclaimer-linked): a target path moved off Sources/ compiles bytes no pin has read."
   tmp="$(mktemp)"
-  (cd "$tree" && find . -mindepth 1 ! -type d ! -iname '*.swift' | sed -e 's|^\./||' | grep -Ev "$LINKED_TILES_RE" \
+  (cd "$tree" && find . -mindepth 1 -path ./.git -prune -o ! -type d ! -iname '*.swift' -print | sed -e 's|^\./||' | grep -Ev "$LINKED_TILES_RE" \
     | LC_ALL=C sort) > "$tmp"
   names=(); for spec in "${PINNED_APP_OTHER[@]}"; do names+=("${spec%% *}"); done
   linked_set "apps/ios:" "$tmp" "${names[@]}"
-  mapfile -t nonreg < <(cd "$tree" && find . -mindepth 1 ! -type d ! -type f ! -iname '*.swift' | sed -e 's|^\./||')
+  mapfile -t nonreg < <(cd "$tree" && find . -mindepth 1 -path ./.git -prune -o ! -type d ! -type f ! -iname '*.swift' -print | sed -e 's|^\./||')
   (cd "$root" && find Package.swift Sources ! -type d | LC_ALL=C sort) > "$tmp"
   names=(); for spec in "${PINNED_ROOT_SOURCES[@]}"; do names+=("${spec%% *}"); done
   LINKED_FILES="${#names[@]}"
