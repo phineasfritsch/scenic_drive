@@ -1,7 +1,7 @@
 ---
 id: T-0303
 title: The P-SAFE-03 -linked digest tables move out of the guard script into a data file, so every Swift PR edits data and the guard stays under the 300-line cap
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T18:00:54Z
@@ -11,7 +11,7 @@ branch: task/T-0303
 exclusive: []
 touches: [ops/lib/check-safety-disclaimer-linked, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/check-safety-disclaimer-mutations, ops/lib/check-map-attribution-mutations, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv1-t0303
 depends_on: [T-0294, T-0300]
 verify: [ops/check-pins]
 acceptance:
@@ -109,3 +109,27 @@ conflicts there. Moving the tables to data keeps the guard small and makes diges
   ops/lib/check-pins-yaml.py` `PINS-YAML ok pins=44 fields=355` rc=0.
   OPEN: the claimed -> review transition (ops/review with a reviewer who is not agent/claude-opus-5) is the
   orchestrator's; this session did not pick a reviewer.
+- 2026-10-07T18:56:17Z REVIEW PASS by agent/rv1-t0303 (not the owner), head 0bf1f589 = origin/task/T-0303; origin/main
+  4ece8567 is an ancestor (merge-base --is-ancestor true). Worktree .worktrees/rv1-t0303, detached at the head.
+  1 MEASURE: ruled in the 18:04:35Z entry before code; re-measured `wc -l` -linked 172, -mutations 262 (both < 300).
+  2 DATA + READER + TABLES IDENTICAL: the four arrays sourced from origin/main's -linked, dumped as `[NAME]` + rows,
+    are byte-identical to ops/lib/check-safety-disclaimer-linked-digests.txt (`cmp` silent; 181 lines; 12 / 8 / 13 /
+    144 rows), and the dump of what linked_load reads from it is the same bytes - same paths, same digests, same
+    approved lines. Data file 100644, no CR; -linked and -mutations 100755. linked_load is the first statement of
+    require_pinned_linked, the only consumer of the tables (-pinned sources -linked and calls it last).
+  PROVE-RED one-row (filtered copy of -mutations, .artifacts/rv1-t0303, background) 18:50:15Z-18:51:38Z: new rows
+    53-60 + T-0289 `a one-line edit to a root-package Swift file` + T-0295 M3 `an ignored Shadow.DS_Store` + two data
+    mutants of mine, every row `1 yes`: `prove-red: 12/12 mutations refused by name`. DM1 (a digest row before any
+    header) refused `malformed row in [no section] at line 1`; DM2 (a ROOT_PATH_LINES row duplicated) refused
+    `duplicated path in [ROOT_PATH_LINES]`.
+  READER MUTANTS (guard edited, same table, restored by git checkout, tree clean after): A, the duplicated-key
+    refusal deleted -> `prove-red: 10/12` (row `a digest row duplicated` and DM2 UNNAMED - killed); B, `*) false`
+    -> `*) true` for rows outside a known section -> `prove-red: 11/12` (DM1 UNNAMED, exit 1 on `key: unbound
+    variable` - killed, fails closed).
+  BARE GUARDS on the head: check-safety-disclaimer 18:55:38Z-18:55:49Z rc=0 (`... LAST all 48 app .swift, then 144
+    root + pbxproj file(s) (-linked).`); check-map-attribution 18:55:50Z-18:56:08Z rc=0. `bash ops/queue-check`
+    `QUEUE OK (295 tasks)` rc=0; `python ops/lib/check-pins-yaml.py` `PINS-YAML ok pins=44 fields=355` rc=0;
+    `gh pr checks 193`: core pass, pins-source-only pass.
+  RECORDED, NOT BLOCKING: (a) the shipped table has no row for `[no section]` (mutant B survives rows 1-60; DM1 kills
+    it) - fails closed either way, since a stray row lands in PINNED_ROOT_SOURCES and must match a file and digest;
+    (b) ROOT_TOP_FILES stays a one-way allowance, R3's ruled pre-existing gap.
