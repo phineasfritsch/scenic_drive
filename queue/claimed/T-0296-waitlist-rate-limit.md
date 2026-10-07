@@ -59,3 +59,25 @@ must stay free of personal data (memory user-lives-in-la; plan Launch scope).
     migrationColumns.test.ts gains `waitlist_seen is exactly (tag, day)` for P-PRIV-05's DDL clause.
   - R7 touches widened by ruling to ops/lib/named-tests.json and pins/PINS.yaml: binding the new tests BY NAME under
     P-PRIV-05 / P-PRIV-06 is the only way the acceptance's "P-PRIV-05 DDL test extended" is enforced.
+- 2026-10-07T10:11:42Z RED, GREEN, POPULATION (commit e3097fd9; vitest from services/api):
+  - RED 1 (before 0007 existed): `npx vitest run test/migrationColumns.test.ts` -> Tests 1 failed | 2 passed (3);
+    FAILED `the waitlist dedupe table is exactly (tag, day): no column can hold a device, a cell or an instant (T-0296, P-PRIV-05)`.
+  - RED 2 (0007 present, T-0293's handler): `npx vitest run test/waitlistDedupe.test.ts` -> Tests 3 failed | 1 passed (4);
+    FAILED `same device same cell same day counts once; ...`, `the dedupe table holds no device id and no cell, ...`,
+    `without a usable SESSION_JWT_SECRET the route fails closed: ...` (the fourth, the variants-differ meta test, is pure).
+  - Found on the way: the fail-closed test first passed `undefined` into a defaulted parameter, so the "unbound" row
+    sent the real secret (the full run showed 200 where 503 was ruled); the row now uses an explicit null sentinel.
+    requestReadSites.test.ts (the whitelist of request readers) refused the new identify/tag lines by name and now
+    approves exactly those four lines; accountDelete.test.ts TABLES gains waitlist_seen (R5).
+  - GREEN: the five touched files 34/34 passed.
+  - POPULATION regionMutants.mjs (MIN_MUTATIONS 52 -> 66, SUBJECTS + migrations/0007_waitlist_seen.sql, TESTS +
+    waitlistDedupe.test.ts), `--only=` the fourteen T-0296 ids:
+    BEFORE (waitlistDedupe.test.ts moved aside, migrationColumns.test.ts at 4d19c994): `RESULT caught=3 missed=11 trap=0 of 14`
+    - MISSED tag-ignores-cell, tag-ignores-day, day-one-ms-early, day-one-ms-late, purge-dropped, purge-inverted,
+      seen-ignored, secret-absent-unlimited, secret-length-unchecked, seen-device-column, seen-cell-column; CAUGHT
+      tag-ignores-device, identity-constant, identity-header-only by the T-0293 test `a valid cell is 200 waitlisted ...`
+      (its second send now comes from a second device, so a key that ignores who undercounts there).
+    AFTER: `RESULT caught=14 missed=0 trap=0 of 14` - the dedupe key and day-boundary entries CAUGHT by
+    `same device same cell same day counts once; ...`, the secret entries by `without a usable SESSION_JWT_SECRET ...`,
+    the 0007 column entries by `the waitlist dedupe table is exactly (tag, day) ...`.
+  - Bound by name: P-PRIV-05 + the DDL test and the dedupe-table test (32 tests); P-PRIV-06 + the four waitlistDedupe tests (11).

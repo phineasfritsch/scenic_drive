@@ -151,7 +151,11 @@
         "POST /telemetry over the Swift encoder's own JSON (T-0279 R10) > every published res-5 cell of uber/h3 (rand05centers and the pentagon ring) is an accepted plan_requested cell"
       ],
       "test/migrationColumns.test.ts": [
-        "the D1 schema the shipped migrations build (T-0293 R10) > no column of any table the shipped migrations create names home, address, breadcrumb, trail or speed (P-PRIV-05)"
+        "the D1 schema the shipped migrations build (T-0293 R10) > no column of any table the shipped migrations create names home, address, breadcrumb, trail or speed (P-PRIV-05)",
+        "the D1 schema the shipped migrations build (T-0293 R10) > the waitlist dedupe table is exactly (tag, day): no column can hold a device, a cell or an instant (T-0296, P-PRIV-05)"
+      ],
+      "test/waitlistDedupe.test.ts": [
+        "POST /waitlist counts one device once per cell per UTC day (T-0296) > the dedupe table holds no device id and no cell, only 64-hex tags and the UTC day"
       ]
     },
     "swift": {
@@ -1219,6 +1223,12 @@
       ],
       "test/migrationColumns.test.ts": [
         "the D1 schema the shipped migrations build (T-0293 R10) > the waitlist table is exactly (cell, count, updated_at): no column can hold a person (P-PRIV-06)"
+      ],
+      "test/waitlistDedupe.test.ts": [
+        "POST /waitlist counts one device once per cell per UTC day (T-0296) > the variants' expected traces differ, so no row can pass by ignoring the tables it runs over",
+        "POST /waitlist counts one device once per cell per UTC day (T-0296) > same device same cell same day counts once; a second device, a second cell and the next day count again - every step's tables whole, over both variants",
+        "POST /waitlist counts one device once per cell per UTC day (T-0296) > the dedupe table holds no device id and no cell, only 64-hex tags and the UTC day",
+        "POST /waitlist counts one device once per cell per UTC day (T-0296) > without a usable SESSION_JWT_SECRET the route fails closed: unbound, empty or 31 chars is 503 and writes nothing; 32 chars counts"
       ]
     }
   }
