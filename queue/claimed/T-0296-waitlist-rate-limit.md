@@ -117,3 +117,16 @@ must stay free of personal data (memory user-lives-in-la; plan Launch scope).
     malformed-bearer-falls-to-header.
     AFTER `--only=` those two + identity-constant, identity-header-only: `RESULT caught=4 missed=0 trap=0 of 4` - the two
     new ones CAUGHT by `same device same cell same day counts once; ...`.
+- 2026-10-07T11:41:44Z rv1 FINAL GATES on 53f03298 (git fetch origin; merge origin/main bringing T-0292 PR #183 -
+  sweepRequests.ts, sharedEnvWorker.test.ts, P-COST-01 at 36, configAnswerPath's index.ts hash; auto-merged, no
+  conflict in PINS.yaml or named-tests.json; `git merge-base --is-ancestor origin/main HEAD` -> ANCESTOR):
+  - `npx vitest run` -> Test Files 71 passed (71), Tests 2108 passed (2108), exit 0.
+  - `run-named-tests.py P-COST-01` -> NAMED P-COST-01 passed=36/36; `P-PRIV-06` -> NAMED P-PRIV-06 passed=11/11.
+  - `run-named-tests.py P-PRIV-05` -> NAMED P-PRIV-05 passed=31/32: the one RED is the swift half
+    PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail() MISSING - expected on this Windows box
+    (PlaceStore's GRDB does not build here; CI's Linux core job runs it); every vitest name passed.
+  - `ops/queue-check` -> QUEUE OK (288 tasks).
+  - ACCEPTANCE re-quoted: 1 RULE FIRST - MET (R1-R7; rv1 B1 ruled above before the fix). 2 Through worker.fetch, the
+    dedupe sequence (now 18 steps) over {empty, holding} x {session-only, legacy-headers}, both tables whole after
+    every step - MET. 3 Population entries MISSED before and CAUGHT by name after - MET, now including
+    legacy-identity-constant and malformed-bearer-falls-to-header (floor 68). All else as at 4a985fb3.
