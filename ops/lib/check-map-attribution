@@ -275,13 +275,13 @@ run_check() {
   # ------------------------------------------------------------------ (h) THE CREDIT ABOVE THE SHEET
   require_sheet_mount "$screen" -- "${files[@]}"
   require_frozen_blocks "$APP_TREE/$FEATURE_REL" "$APP_TREE"
-  require_pinned_surface "$APP_TREE/$FEATURE_REL"
+  require_pinned_surface "$APP_TREE/$FEATURE_REL"; require_pinned_app_swift "$APP_TREE"  # T-0289: the whole-app pin
 
   print_verdict "$an" "$pline" "$dline" "$FOOTER_ARG" "$recv" "$FOOTER_ROUTE"
   print_credit_sites_verdict
   print_sheet_verdict
   echo "  Then HomeSheet, the screen's body, chips, sheetDetails, conditions and the app shell frozen whole; LAST"
-  echo "  $PINNED_FILES feature file(s), the app shell and AttributionFooter.swift pinned by sha256 (-pinned)."
+  echo "  $PINNED_FILES feature file(s), the app shell and AttributionFooter.swift pinned by sha256 (-pinned); every app .swift, pbxproj and root Sources (-linked)."
 }
 
 MUTATIONS="ops/lib/check-map-attribution-mutations"
