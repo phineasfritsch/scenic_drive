@@ -8,7 +8,7 @@ corpusota.py and the runner corpusota_run.py (saveddrive's three-file shape).
   * the DECISION - the schema gate, the build gate, up-to-date - entries 1-6 (O2);
   * the MANIFEST - the key set, every value bound, the field a type error names - 7-13 (O1);
   * the VERIFY - byte count, hash, staging cleanup, the slot a pass lands in - 14-17 (O6);
-  * the ACTIVATION - warm, drive, validator, undo, cleanup, interrupted-swap recovery - 18-23 (O7);
+  * the ACTIVATION - warm, drive, validator, undo, cleanup, interrupted-swap recovery - 18-23, and the recovery against the drive hold and the undo - 40-41 (O7);
   * the SHA-256 - a round constant, padding, the length field, a rotation, the state carry, the chunked file read,
     the hex padding - 24-30 (O6);
   * the SLOTS - the pending path, the dev-box replace, remove, exists - 31-34 (O4); only the Windows branch of
@@ -44,8 +44,7 @@ DA = "decisionTableVariantA()"
 DB = "decisionTableVariantB()"
 VA = "verifyTablePayloadA()"
 VB = "verifyTablePayloadB()"
-AO = "activationTableOverAnOldCorpus()"
-AF = "activationTableOnFirstInstall()"
+ACT = "activationTableOverEverySlotState()"
 HOLD = "aDriveTokenIsHeldUntilItsLastEndOrDeinit()"
 DIGEST = "digestsEqualHashlib()"
 FILE = "aFileHashedInChunksEqualsHashlib()"
@@ -85,18 +84,18 @@ MUTATIONS = [
      "            throw error", [VA, VB]),
     ("17 a verified download renamed over active", UPDATER, "try slots.replace(slots.pending, with: staging)",
      "try slots.replace(slots.active, with: staging)", [VA, VB]),
-    ("18 a warm resume swaps", UPDATER, "guard isColdLaunch else {", "guard isColdLaunch || true else {", [AO, AF]),
+    ("18 a warm resume swaps", UPDATER, "guard isColdLaunch else {", "guard isColdLaunch || true else {", [ACT]),
     ("19 a held drive does not defer", UPDATER, "guard !drives.isHeld else {",
-     "guard !drives.isHeld || true else {", [AO, AF]),
-    ("20 the swapped-in corpus is not validated", UPDATER, "            try validate(slots.active)\n", "", [AO, AF]),
+     "guard !drives.isHeld || true else {", [ACT]),
+    ("20 the swapped-in corpus is not validated", UPDATER, "            try validate(slots.active)\n", "", [ACT]),
     ("21 a refused swap is not undone", UPDATER,
      "                try? slots.replace(slots.active, with: slots.previous)\n            } else if",
-     "            } else if", [AO]),
+     "            } else if", [ACT]),
     ("22 the undo slot is kept after a good swap", UPDATER, "        slots.remove(slots.previous)\n        return .activated",
-     "        return .activated", [AO]),
+     "        return .activated", [ACT]),
     ("23 an interrupted swap is not restored", UPDATER,
      "        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
-     "        }\n", "", [AO]),
+     "        }\n", "", [ACT]),
     ("24 a round constant off by one", SHA, "0x428a_2f98", "0x428a_2f99", [DIGEST]),
     ("25 the padding marker byte is 0x01", SHA, "tail.append(0x80)", "tail.append(0x01)", [DIGEST]),
     ("26 the length field in bytes, not bits", SHA, "UInt64(count) &* 8", "UInt64(count)", [DIGEST]),
@@ -111,26 +110,26 @@ MUTATIONS = [
      "        if files.fileExists(atPath: destination.path) {\n            try files.removeItem(at: destination)\n"
      "        }\n", "", [VA, VB]),
     ("33 remove removes nothing", SLOTS, "try? FileManager().removeItem(at: url)", "_ = url", [VA, VB]),
-    ("34 every slot exists", SLOTS, "FileManager().fileExists(atPath: url.path)", "true", [AO, AF]),
-    ("35 one token is not a hold", LOCK, "return held > 0", "return held > 1", [AO, AF, HOLD]),
-    ("36 hold takes nothing", LOCK, "held += 1", "held += 0", [AO, AF, HOLD]),
-    ("37 release releases nothing", LOCK, "held -= 1", "held -= 0", [AO, AF, HOLD]),
+    ("34 every slot exists", SLOTS, "FileManager().fileExists(atPath: url.path)", "true", [ACT]),
+    ("35 one token is not a hold", LOCK, "return held > 0", "return held > 1", [ACT, HOLD]),
+    ("36 hold takes nothing", LOCK, "held += 1", "held += 0", [ACT, HOLD]),
+    ("37 release releases nothing", LOCK, "held -= 1", "held -= 0", [ACT, HOLD]),
     ("38 a second end releases again", TOKEN, "let first = !ended", "let first = true", [HOLD]),
-    ("39 deinit keeps the hold", TOKEN, "    deinit {\n        end()\n    }", "    deinit {}", [AO, AF]),
+    ("39 deinit keeps the hold", TOKEN, "    deinit {\n        end()\n    }", "    deinit {}", [ACT]),
     ("40 an interrupted swap is restored under a held drive", UPDATER,
      "        guard !drives.isHeld else {\n            return slots.exists(slots.pending) ? .deferredDriveHeld : .noPending\n"
      "        }\n        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
      "        }\n",
      "        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
      "        }\n        guard !drives.isHeld else {\n            return slots.exists(slots.pending) ? .deferredDriveHeld : .noPending\n"
-     "        }\n", [AO]),
+     "        }\n", [ACT]),
     ("41 hadActive read before the interrupted swap is restored", UPDATER,
      "        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
      "        }\n        guard slots.exists(slots.pending) else {\n            return .noPending\n        }\n"
      "        let hadActive = slots.exists(slots.active)\n",
      "        let hadActive = slots.exists(slots.active)\n"
      "        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
-     "        }\n        guard slots.exists(slots.pending) else {\n            return .noPending\n        }\n", [AO]),
+     "        }\n        guard slots.exists(slots.pending) else {\n            return .noPending\n        }\n", [ACT]),
 ]
 
 EQUIVALENT = [

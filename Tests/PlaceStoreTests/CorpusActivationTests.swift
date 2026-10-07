@@ -4,23 +4,45 @@ import Testing
 
 /// Activation through the shipped entry point, `CorpusUpdater.openForLaunch(isColdLaunch:)` (T-0300 O7), with a
 /// validator that accepts a file starting "GOOD" - the PlaceStore gate itself is CorpusOpenForLaunchStoreTests,
-/// GRDB-only. Rows are functions of the active-corpus variant (an old corpus, or a first install with none); each
-/// compares the whole outcome and the whole corpus directory afterwards.
+/// GRDB-only. The table is the CROSS PRODUCT of every slot state the two-rename swap can leave - active
+/// present/absent x previous present/absent x pending none/good/bad - with every drive state and both launch kinds
+/// (rv1-t0300 B1/B2: a hand-picked list never crossed a held drive with an interrupted swap, nor had the crash state
+/// {active absent, previous old}). Each row's expected outcome and directory is `expected(_:)` of its inputs, and the
+/// run compares the whole outcome and the whole corpus directory afterwards.
 struct CorpusActivationTests {
-    struct Row {
-        let name: String
-        let cold: Bool
-        /// "none", "held" (a token alive during the call), "ended" (`end()` before it), "dropped" (deinit before it).
-        let drive: String
-        let before: CorpusSlotState
-        let outcome: CorpusActivation
-        let after: CorpusSlotState
+    enum Pending: String, CaseIterable { case none, good, bad }
+    /// held: a token alive during the call; ended: `end()` before it; dropped: released by deinit before it.
+    enum Drive: String, CaseIterable { case none, held, ended, dropped }
+
+    struct Row: Hashable {
+        var active: Bool
+        var previous: Bool
+        var pending: Pending
+        var drive: Drive
+        var cold: Bool
+
+        var name: String {
+            "active \(active ? "present" : "absent"), previous \(previous ? "present" : "absent"), pending "
+                + "\(pending.rawValue), drive \(drive.rawValue), \(cold ? "cold" : "warm") launch"
+        }
+
+        var before: CorpusSlotState {
+            let staged: Data?
+            switch pending {
+            case .none: staged = nil
+            case .good: staged = CorpusActivationTests.good
+            case .bad: staged = CorpusActivationTests.bad
+            }
+            return CorpusSlotState(active: active ? CorpusActivationTests.inActive : nil, pending: staged,
+                                   previous: previous ? CorpusActivationTests.inPrevious : nil)
+        }
     }
 
-    static let old = Data("GOOD corpus v1".utf8)
+    /// Distinct bytes per slot, so a rename between any two slots changes the directory a row reads back.
+    static let inActive = Data("GOOD corpus in the active slot".utf8)
+    static let inPrevious = Data("GOOD corpus in the previous slot".utf8)
     static let good = Data("GOOD corpus v2".utf8)
     static let bad = Data("BAD corpus v2".utf8)
-    static let halfSwapped = Data("GOOD corpus, swap interrupted".utf8)
 
     static let validate: @Sendable (URL) throws -> Void = { url in
         guard try Data(contentsOf: url).starts(with: Data("GOOD".utf8)) else {
@@ -28,90 +50,108 @@ struct CorpusActivationTests {
         }
     }
 
-    static func rows(_ old: Data?) -> [Row] {
-        let staged = CorpusSlotState(active: old, pending: good)
-        func row(_ name: String, cold: Bool, drive: String = "none", before: CorpusSlotState = staged,
-                 _ outcome: CorpusActivation, _ after: CorpusSlotState) -> Row {
-            Row(name: name, cold: cold, drive: drive, before: before, outcome: outcome, after: after)
+    static let rows: [Row] = {
+        var rows: [Row] = []
+        for active in [true, false] {
+            for previous in [true, false] {
+                for pending in Pending.allCases {
+                    for drive in Drive.allCases {
+                        for cold in [true, false] {
+                            rows.append(Row(active: active, previous: previous, pending: pending, drive: drive,
+                                            cold: cold))
+                        }
+                    }
+                }
+            }
         }
-        return [
-            row("cold launch, no drive, a good pending: swapped in", cold: true, .activated,
-                CorpusSlotState(active: good)),
-            row("warm resume: the old corpus kept, pending kept", cold: false, .deferredWarmLaunch, staged),
-            row("cold launch while a drive token is held: old kept, pending kept", cold: true, drive: "held",
-                .deferredDriveHeld, staged),
-            row("warm resume while a drive token is held: old kept", cold: false, drive: "held",
-                .deferredWarmLaunch, staged),
-            row("cold launch after the token was ended: swapped in", cold: true, drive: "ended", .activated,
-                CorpusSlotState(active: good)),
-            row("cold launch after the token was released by deinit: swapped in", cold: true, drive: "dropped",
-                .activated, CorpusSlotState(active: good)),
-            row("cold launch, the pending file fails validation: swap undone, old kept, pending gone", cold: true,
-                before: CorpusSlotState(active: old, pending: bad), .rejected, CorpusSlotState(active: old)),
-            row("cold launch, no pending: nothing to do", cold: true, before: CorpusSlotState(active: old),
-                .noPending, CorpusSlotState(active: old)),
-            row("warm resume, no pending: nothing to do", cold: false, before: CorpusSlotState(active: old),
-                .noPending, CorpusSlotState(active: old)),
-            row("an interrupted swap left the old corpus in previous, cold: it is restored", cold: true,
-                before: CorpusSlotState(active: halfSwapped, previous: old),
-                .noPending, CorpusSlotState(active: old ?? halfSwapped)),
-            row("an interrupted swap on a warm resume: nothing touched", cold: false,
-                before: CorpusSlotState(active: halfSwapped, previous: old),
-                .noPending, CorpusSlotState(active: halfSwapped, previous: old)),
-            row("an interrupted swap and a pending, cold: restored, then the pending swapped in", cold: true,
-                before: CorpusSlotState(active: halfSwapped, pending: good, previous: old), .activated,
-                CorpusSlotState(active: good)),
-        ]
+        return rows
+    }()
+
+    /// The specification, as a function of the row. A warm launch and a held drive touch nothing - not even an
+    /// interrupted swap's previous slot (B1). Otherwise the previous slot is the corpus that was active before an
+    /// interrupted swap and is restored first, so the corpus kept on no pending or a refused one is previous ?? active
+    /// (B2: with active absent and previous present, a refused pending leaves previous's bytes active).
+    static func expected(_ row: Row) -> (CorpusActivation, CorpusSlotState) {
+        let before = row.before
+        let staged = row.pending != .none
+        guard row.cold else { return (staged ? .deferredWarmLaunch : .noPending, before) }
+        guard row.drive != .held else { return (staged ? .deferredDriveHeld : .noPending, before) }
+        let kept = before.previous ?? before.active
+        switch row.pending {
+        case .none: return (.noPending, CorpusSlotState(active: kept))
+        case .good: return (.activated, CorpusSlotState(active: good))
+        case .bad: return (.rejected, CorpusSlotState(active: kept))
+        }
     }
 
-    static func run(_ old: Data?) throws {
-        for row in rows(old) {
+    @Test func activationTableOverEverySlotState() throws {
+        for row in Self.rows {
             let slots = try CorpusSlotState.scratch()
             try row.before.write(to: slots)
             let drives = DriveSessionLock()
-            let updater = CorpusUpdater(directory: slots.directory, drives: drives, validate: validate)
+            let updater = CorpusUpdater(directory: slots.directory, drives: drives, validate: Self.validate)
             var token: DriveSessionToken?
             switch row.drive {
-            case "held": token = drives.hold()
-            case "ended": drives.hold().end()
-            case "dropped": _ = drives.hold()
-            default: break
+            case .held: token = drives.hold()
+            case .ended: drives.hold().end()
+            case .dropped: _ = drives.hold()
+            case .none: break
             }
-            #expect(updater.openForLaunch(isColdLaunch: row.cold) == row.outcome, "\(row.name)")
-            #expect(CorpusSlotState(reading: slots) == row.after, "\(row.name)")
+            let (outcome, after) = Self.expected(row)
+            #expect(updater.openForLaunch(isColdLaunch: row.cold) == outcome, "\(row.name)")
+            #expect(CorpusSlotState(reading: slots) == after, "\(row.name)")
             token?.end()
         }
     }
 
-    @Test func activationTableOverAnOldCorpus() throws {
-        try Self.run(Self.old)
+    /// The flips of one input that leave a row's expectation unchanged, stated apart from `expected(_:)`: active is
+    /// irrelevant on a touching launch when a good pending replaces it or previous is restored over it; previous is
+    /// irrelevant on a touching launch only when a good pending replaces both; the drive only on a warm launch or when
+    /// the directory holds nothing to move; the launch kind only when nothing is staged and nothing would move.
+    static func ignores(_ row: Row, _ dimension: String) -> Bool {
+        let touching = row.cold && row.drive != .held
+        let nothingToMove = !row.previous && row.pending == .none
+        switch dimension {
+        case "active": return touching && (row.pending == .good || row.previous)
+        case "previous": return touching && row.pending == .good
+        case "pending": return false
+        case "held": return !row.cold || nothingToMove
+        case "cold": return row.pending == .none && (row.drive == .held || !row.previous)
+        default: return false
+        }
     }
 
-    @Test func activationTableOnFirstInstall() throws {
-        try Self.run(nil)
-    }
-
-    /// Rows whose expected directory is the same under both variants, by construction: every one swaps the good
-    /// pending file in, after which only it remains.
-    static let variantFree: Set<String> = [
-        "cold launch, no drive, a good pending: swapped in",
-        "cold launch after the token was ended: swapped in",
-        "cold launch after the token was released by deinit: swapped in",
-        "an interrupted swap and a pending, cold: restored, then the pending swapped in",
-    ]
-
-    @Test func noActivationRowIgnoresItsVariant() {
-        let x = Self.rows(Self.old)
-        let y = Self.rows(nil)
-        #expect(x.map(\.name) == y.map(\.name))
-        #expect(x.count == 12)
-        for (r, s) in zip(x, y) {
-            #expect(r.before != s.before, "\(r.name): the same starting directory under both variants")
-            if !Self.variantFree.contains(r.name) {
-                #expect(r.after != s.after, "\(r.name): the same expected directory under both variants")
+    @Test func noActivationRowIgnoresADimension() {
+        let rows = Self.rows
+        #expect(rows.count == 2 * 2 * 3 * 4 * 2)
+        #expect(Set(rows).count == rows.count)
+        #expect(Set(rows.map(\.before)).count == 2 * 2 * 3)
+        func same(_ a: Row, _ b: Row) -> Bool { Self.expected(a) == Self.expected(b) }
+        for row in rows {
+            var flip = row
+            flip.active.toggle()
+            #expect(same(row, flip) == Self.ignores(row, "active"), "\(row.name): active")
+            flip = row
+            flip.previous.toggle()
+            #expect(same(row, flip) == Self.ignores(row, "previous"), "\(row.name): previous")
+            for other in Pending.allCases where other != row.pending {
+                flip = row
+                flip.pending = other
+                #expect(same(row, flip) == Self.ignores(row, "pending"), "\(row.name): pending \(other)")
+            }
+            flip = row
+            flip.cold.toggle()
+            #expect(same(row, flip) == Self.ignores(row, "cold"), "\(row.name): cold")
+            if row.drive == .held || row.drive == .none {
+                flip = row
+                flip.drive = row.drive == .held ? .none : .held
+                #expect(same(row, flip) == Self.ignores(row, "held"), "\(row.name): held")
+            } else {
+                flip = row
+                flip.drive = .none
+                #expect(same(row, flip), "\(row.name): a released token is no drive")
             }
         }
-        #expect(Self.variantFree.isSubset(of: Set(x.map(\.name))))
     }
 
     @Test func aDriveTokenIsHeldUntilItsLastEndOrDeinit() {

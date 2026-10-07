@@ -3,7 +3,7 @@ import PlaceStore
 
 /// The bytes in every slot of one corpus directory (T-0300 O4), nil where no file is. The stage and activation
 /// tables compare a WHOLE directory to the state a row expects, so a slot nobody looked at cannot hide a write.
-struct CorpusSlotState: Equatable, CustomStringConvertible {
+struct CorpusSlotState: Hashable, CustomStringConvertible {
     var active: Data?
     var pending: Data?
     var previous: Data?
