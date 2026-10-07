@@ -56,6 +56,71 @@
       ]
     }
   },
+  "P-PRIV-04": {
+    "vitest": {
+      "test/accountDelete.test.ts": [
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > every table the migrations create is in the deletion whitelist: a new table without a delete fails here by name",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > every user row is gone and every other row is unchanged; both refresh tokens revoked",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > a session without the apple claim finds the user through the device's binding",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > a session whose device is unbound deletes the apple claim's other devices",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > deletion completes and says revoke_pending: no client secret: no revoke call",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > deletion completes and says revoke_pending: Apple refuses one revocation",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > a repeat is idempotent: 200, nothing left to delete, no Apple call",
+        "DELETE /account deletes every user row of every D1 table (R7, P-PRIV-04) > without a session JWT: 401, nothing deleted, no Apple call",
+        "the shipped ROUTES['/auth/apple'] and ROUTES['/account'] (R1, R9) > without SESSION_JWT_SECRET both are 503 auth_unavailable; without a Bearer both are 401",
+        "the shipped ROUTES['/auth/apple'] and ROUTES['/account'] (R1, R9) > the shipped /account deletes an unbound device's rows with no Apple call"
+      ],
+      "test/authAppleToken.test.ts": [
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: an unknown kid: no fallback to the only key",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: another key's signature under Apple's kid",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: alg none",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: iss over http",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: aud another bundle",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: exp = now (bound)",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: iat = now + 61 (bound)",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: iat = now - 601 (bound)",
+        "every identity-token defect is refused with zero state change (R2, R5, P-PRIV-04) > refused: nonce of another session",
+        "every bound's accepted side binds the Apple sub and answers the session JWT (R5, R6) > accepted: exp = now + 1",
+        "every bound's accepted side binds the Apple sub and answers the session JWT (R5, R6) > accepted: iat = now + 60",
+        "every bound's accepted side binds the Apple sub and answers the session JWT (R5, R6) > accepted: iat = now - 600"
+      ],
+      "test/authAppleBind.test.ts": [
+        "the JWKS cache (R4) > an unknown kid in a set MIN_AGE old buys one refetch, which finds the rotated key",
+        "the JWKS cache (R4) > an unknown kid still absent after the one refetch is refused - no second fetch, no fallback key",
+        "the bind: exchange, refresh token, rebinding and the session JWT (R6) > with the client secret: the code is exchanged and the refresh token stored",
+        "the bind: exchange, refresh token, rebinding and the session JWT (R6) > act is carried from the session and apple added; the answer verifies through the shipped verifier"
+      ],
+      "test/authAppleFields.test.ts": [
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header alg: plus a suffix",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header typ: null",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header typ: a number",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header extra: null",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload nonce: an array holding it",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > accepted: payload extra: null",
+        "the field x variant table is whole (meta) > the header fields are appleIdentity.ts's HEADER_KEYS and the claims its destructured reads, each plus an extra key",
+        "the field x variant table is whole (meta) > every field meets every variant: a row, or a named no-op whose variant hands back the right value",
+        "the field x variant table is whole (meta) > every row's value differs from its field's right value",
+        "the field x variant table is whole (meta) > every variant but the value-free ones is a function of the right value",
+        "the field x variant table is whole (meta) > every ACCEPTED name is a row, and the refused rows are the rest",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header kid: a leading space",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header typ: a leading space",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload iss: a leading space",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload nonce: a leading space",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload iss: in fullwidth form",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload aud: a zero-width space inside",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload nonce: an embedded NUL before a tail",
+        "the field x variant table is whole (meta) > every field meets every operation: rows its lax compare takes for the right value, or a named no-op",
+        "the field x variant table is whole (meta) > a String object (new String(r)) is no row: JSON hands back the primitive String(r), the right value or its numeric string",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload iss: a regex metacharacter swapped",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload aud: a regex metacharacter swapped"
+      ],
+      "test/identityVerifierPin.test.ts": [
+        "the identity-token verifier is pinned (T-0287 rv3 B1, P-PRIV-04) > the identity-token verifier is exactly the approved bytes",
+        "the identity-token verifier is pinned (T-0287 rv3 B1, P-PRIV-04) > every line naming a token field, the issuer, the bundle id, the nonce or the key lookup is an approved site, file by file",
+        "the identity-token verifier is pinned (T-0287 rv3 B1, P-PRIV-04) > every src module the verifier and its key lookup import is pinned"
+      ]
+    }
+  },
   "P-PRIV-05": {
     "vitest": {
       "test/planPrivacy.test.ts": [
