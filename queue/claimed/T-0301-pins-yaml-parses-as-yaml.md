@@ -1,13 +1,13 @@
 ---
 id: T-0301
 title: pins/PINS.yaml parses under a strict YAML loader - line 213's unquoted scalar with ': ' is quoted, and a check refuses any future line a strict loader rejects
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T14:15:55Z
+lease_expires_at: 2026-10-07T22:15:55Z
+worktree: .worktrees/T-0301
+branch: task/T-0301
 exclusive: []
 touches: [pins/PINS.yaml, ops/lib/, .github/workflows/]
 pins_affected: []
@@ -28,3 +28,4 @@ never-edit-dated-record-output).
 
 ## Log
 - 2026-10-07T14:14:05Z filed by agent/claude-opus-5 (orchestrator) from repeated agent reports (T-0287 r2, T-0298).
+- 2026-10-07T14:15:55Z claimed by agent/claude-opus-5; lease until 2026-10-07T22:15:55Z
