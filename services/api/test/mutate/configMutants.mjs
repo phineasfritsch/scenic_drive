@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-config");
 
-export const MIN_MUTATIONS = 81;
+export const MIN_MUTATIONS = 84;
 export const SUBJECTS = ["src/config.ts", "src/index.ts"];
 const TESTS = ["test/configRoutes.test.ts", "test/configFields.test.ts", "test/routes.test.ts", "test/requestReadSites.test.ts",
   "test/killSwitchRoutes.test.ts", "test/configWorker.test.ts", "test/configAnswerPath.test.ts",
@@ -41,7 +41,7 @@ const PLAN_HANDLER = "export async function handlePlan(req: Request, env: PlanEn
 const TELEMETRY_HANDLER = "export async function handleTelemetry(req: Request, env: KillEnv & SessionEnv, deps: TelemetryDeps | null): Promise<Response> {";
 const KINDS = "[\"plan\", \"loop\", \"surprise\", \"trip\"]";
 const ATTEST_DEPS = "export function attestDepsFromEnv(env: AttestEnv): AttestDeps {";
-const FROZEN = "return handler(req, Object.freeze({ ...env }), url);";
+const FROZEN = "return handler(req, Object.freeze({ ...env, KILL_SWITCH: killSwitchReader(env.KILL_SWITCH) }), url);";
 const SESSION_VERIFIED = "  if (claims === null) return { userId: UNIDENTIFIED_SESSION, tier: \"anon\" };";
 export const MUTATIONS = [
   m("key-v2", C, "CONFIG_KEY = \"config/v1\";", "CONFIG_KEY = \"config/v2\";"),
@@ -171,7 +171,18 @@ ${ATTEST_DEPS}
   // T-0292 R1: the frozen per-request copy. Handing handlers the shared binding object, or an unfrozen copy (a write
   // then succeeds silently on the copy), is refused by the freeze test by name.
   m("fetch-env-shared", I, FROZEN, "return handler(req, env, url);"),
+  // T-0297 R3: handing the handler the shared binding (the pre-T-0297 copy), or a reader that reads the binding's get
+  // live instead of the capture, lets a landed write to the shared binding unpause - refused by the T-0297 test by name.
+  m("fetch-kill-switch-shared-binding", I, FROZEN, "return handler(req, Object.freeze({ ...env }), url);"),
+  m("kill-reader-reads-binding-live", "killSwitch.ts", "return binding.get.bind(binding);", "return (key) => binding.get(key);"),
   m("fetch-env-copy-unfrozen", I, FROZEN, "return handler(req, { ...env }, url);"),
+  // T-0297 R5: a handler patch aimed at a REAL binding - get inherited from the prototype, no own `get` key - assigns
+  // KILL_SWITCH.get on its first call. The plain-object fakes never fired it (MISSED before); on the faithful rig the
+  // handler holds a frozen KillSwitchReader, the write throws TypeError, and the shared-env sweep names it.
+  m("attest-real-binding-kill-get-patched", "attest.ts", ATTEST_DEPS, `let attestKillPatched = false;
+${ATTEST_DEPS}
+  const kv = (env as { KILL_SWITCH?: { get: unknown } }).KILL_SWITCH;
+  if (kv && !attestKillPatched && !Object.keys(kv).includes("get")) { attestKillPatched = true; kv.get = async () => null; }`),
   m("fetch-trailing-slash-404", I, "ROUTES[url.pathname.length > 1 && url.pathname.endsWith(\"/\") ? url.pathname.slice(0, -1) : url.pathname]", "ROUTES[url.pathname]"),
 ];
 
