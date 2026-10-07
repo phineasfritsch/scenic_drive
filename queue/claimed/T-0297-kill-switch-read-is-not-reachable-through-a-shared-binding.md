@@ -72,3 +72,32 @@ DETECT it for KILL_SWITCH; this task REFUSES it.
   source` - for both KV sources the three handler writes read `no throw` (expected TypeError) and every KILLABLE row was
   served (/plan 404, /loop 502, /isochrone 502, /trip 404, /telemetry 200; expected 503 planning_paused /
   telemetry_paused). The other six shared-env tests passed on the faithful rig.
+- 2026-10-07T13:03:39Z agent/claude-opus-5 (owner): FIX + FINAL GATES on 54eacd87 (`git fetch origin`; origin/main
+  a7005872 merged: already up to date). Code: killSwitch.ts KillSwitchRead, KillSwitchReader (frozen instance, frozen
+  class prototype, private #read), killSwitchReader (WeakMap capture of the binding's get, bound, at first sight; a
+  binding whose get cannot be bound reads as a throw, which pauses); index.ts default.fetch `Object.freeze({ ...env,
+  KILL_SWITCH: killSwitchReader(env.KILL_SWITCH) })`. Re-approved in the same diff: configAnswerPath ANSWER_PATH
+  (index.ts f332884a..., killSwitch.ts 2f29ee35...), requestReadSites APPROVED (the default.fetch line),
+  reflectionSites APPROVED (`Object.freeze(KillSwitchReader.prototype);`, the one reflection line).
+  A first full run on the contended box (288 s) timed out one test at 5000 ms (configAnswerPath `loading the shipped
+  worker leaves every global ...`, a dynamic import under load; it passed in the 4-file run and in the rerun below).
+  `cd services/api && npx vitest run`: `Test Files  71 passed (71)`, `Tests  2109 passed (2109)`, exit 0.
+  `node test/mutate/configMutants.mjs --only=attest-real-binding-kill-get-patched,fetch-kill-switch-shared-binding,
+  kill-reader-reads-binding-live`: `population mutations=84 (floor 84) ... ONLY=3`, `baseline green tests=48`,
+  `CAUGHT fetch-kill-switch-shared-binding by "the /config answer path is exactly the approved bytes"`,
+  `CAUGHT kill-reader-reads-binding-live by "the /config answer path is exactly the approved bytes"`, `CAUGHT
+  attest-real-binding-kill-get-patched by "the authenticated sweep sends every ROUTES path a valid, an invalid and an
+  authenticated request on one env per KILL source, and no request throws"`, `RESULT caught=3 missed=0 trap=0 of 3`,
+  exit 0. The JSON reports also list the new T-0297 test among the failures of BOTH defence mutants (the content pin
+  is not their only witness). `--prove-floor`: empty, one short (83), a subject unmutated, a new subject - all REFUSED;
+  real population quiet; exit 0. `python ops/lib/run-named-tests.py P-COST-01`: `NAMED P-COST-01 passed=36/36`, exit 0.
+  `bash ops/queue-check`: `QUEUE OK (288 tasks)`. wc -l: src/index.ts 129, src/killSwitch.ts 79,
+  test/sharedEnvWorker.test.ts 288, test/doFake.ts 121, test/mutate/configMutants.mjs 289.
+  ACCEPTANCE RE-QUOTED: (1) RULE FIRST - the 12:17:19Z entry (R1-R6) precedes every code change. (2) through
+  worker.fetch on one shared env per KV killing source (KILL=1 and throws): `the kill read is not reachable through a
+  shared binding (T-0297, P-COST-01) > a handler that assigns env.KILL_SWITCH.get = async () => null on its first call
+  ...` - the handler's three writes (assign, defineProperty, the inherited get) throw TypeError, two writes landing on
+  the shared binding and its class are live (meta: the raw binding answers null) and harmless, and every KILLABLE route
+  answers the whole PAUSED body with zero router requests, zero writes and quota {} - full equality; RED on a7005872,
+  green now. (3) population entry attest-real-binding-kill-get-patched: MISSED before (12:40 entry), CAUGHT by name now.
+  STILL OPEN: the new test is not bound in ops/lib/named-tests.json / PINS.yaml P-COST-01 (outside touches; R6).
