@@ -99,3 +99,16 @@ runtime-read-recorder.
   approved bytes". Floor 77 -> 81; TESTS += test/sharedEnvWorker.test.ts.
   RESIDUAL R-A (R1, not closed): the freeze is shallow; a write to a shared binding object (env.KILL_SWITCH.get = ...)
   reaches later requests. Proposed follow-up, not filed by this task.
+- 2026-10-07T09:19:39Z agent/claude-opus-5 (owner): FINAL GATES on 63b79328 (origin/main 92e3fc8b fetched and merged:
+  already up to date; PR #182 still OPEN, so no /waitlist in ROUTES yet - R9 stands for whoever merges second).
+  `cd services/api && npx vitest run`: `Test Files 66 passed (66)`, `Tests 2087 passed (2087)`, exit 0.
+  `python ops/lib/run-named-tests.py P-COST-01`: `NAMED P-COST-01 passed=29/29`, exit 0. `bash ops/queue-check`:
+  `QUEUE OK (287 tasks)`. `ops/check-pins --source-only` did not finish inside 300 s on the contended box (killed, no
+  verdict); CI's pins-source-only is the record. wc -l: src/index.ts 125, test/sharedEnvWorker.test.ts 213,
+  test/sweepRequests.ts 94, test/configSweep.test.ts 78, test/mutate/configMutants.mjs 278.
+  ACCEPTANCE RE-QUOTED: (1) frozen env - default.fetch `Object.freeze({ ...env })`; `handlers get a frozen env (T-0292
+  R1, P-COST-01) > a handler that deletes, assigns or redefines env.KILL through worker.fetch throws TypeError, and the
+  next POST /plan on the same env object is 503 planning_paused` red before, green after. (2) one env object per KILL
+  source (5), bound fakes D1/KV/AE/router/QUOTA, authenticated sweep, then the P-COST-01 kill table and the /config table
+  on those same objects, full equality - 6/6 green, bound into P-COST-01. (3) population: attest-first-call-deletes-kill
+  and session-authenticated-stringify-unpause MISSED before, CAUGHT by name after (quoted above); floor 81.
