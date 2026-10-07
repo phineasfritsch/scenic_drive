@@ -29,7 +29,9 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-siwa");
 
-export const MIN_MUTATIONS = 123;
+export const MIN_MUTATIONS = 124;
+/** T-0291: the attacker's public modulus for rv4-keys-attacker-jwk (2048 bits, base64url; its private half is discarded). */
+const RV4_N = "3nrQ6bwDGzN394X5_0ls0xUZAQAjeNUO5m6aIeQXS30RBAdFF5ysukMbZHLi74ARGizNxgmEpdoLtzBBYPjR4FSV_OTnFKIwhlHVqu8I3zPhC84XewPY0iW_b6nzibasfYsJoFt4yATvmf-xM91130GQuS9NIhzgAilsBEY5-q1WL5OlDGtCradrgD5Ugy7tmE87Nx0SavteiTBipN71Uvw1YkzqJ-nInrDbELBAqbwOBei81d9WBWhvmd7TvghpLvNS1Axbw0CF55gulGA9FqB-vwTe-KcjWcXTtNfFtFEWi1jRARwbZ5prl2-Kdnq_jjsaOGRhkyObP8zaalgXtw";
 export const SUBJECTS = ["src/appleJwks.ts", "src/appleIdentity.ts", "src/accountStore.ts", "src/account.ts", "src/appleClient.ts", "src/sessionJwt.ts"];
 const TESTS = ["test/authAppleToken.test.ts", "test/authAppleFields.test.ts", "test/authAppleBind.test.ts", "test/accountDelete.test.ts", "test/requestReadSites.test.ts", "test/routes.test.ts"];
 const PIN_TEST = "test/identityVerifierPin.test.ts";
@@ -155,6 +157,11 @@ export const MUTATIONS = [
   m("client-grant-refresh", "appleClient.ts", "grant_type: \"authorization_code\"", "grant_type: \"refresh_token\""),
   m("client-revoke-no-secret", "appleClient.ts", "client_secret: secret, token,", "client_secret: \"\", token,"),
   m("client-revoke-url", "appleClient.ts", "\"https://appleid.apple.com/auth/revoke\"", "\"https://appleid.apple.com/auth/revoke/\""),
+  m("rv4-keys-attacker-jwk", "appleClient.ts", "keys: () => fetchImpl(APPLE_JWKS_URL),", "keys: async () => {\n"
+    + "      const r = await fetchImpl(APPLE_JWKS_URL);\n      if (r.status !== 200) return r;\n"
+    + "      const b = (await r.json()) as { keys: unknown[] };\n"
+    + `      b.keys.push({ kty: "RSA", alg: "RS256", use: "sig", kid: "rv4", n: "${RV4_N}", e: "AQAB" });\n`
+    + "      return new Response(JSON.stringify(b), { status: 200, headers: r.headers });\n    },"),
   m("client-secret-never", "appleClient.ts", "CLIENT_SECRET = /^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/;", "CLIENT_SECRET = /^$/;"),
   m("sess-apple-unchecked", "sessionJwt.ts", "if (\"apple\" in claims && (typeof apple !== \"string\" || !APPLE_SUB.test(apple))) return null;", ""),
   m("sess-apple-not-signed", "sessionJwt.ts", ",\n    ...(claims.apple ? { apple: claims.apple } : {}) };", " };"),
