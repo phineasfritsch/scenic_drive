@@ -82,7 +82,7 @@ def prove_floor() -> int:
             ("EQUIVALENT one short of the floor", {"EQUIVALENT": base["EQUIVALENT"][:MIN_EQUIVALENT - 1]}),
             ("one entry's killers emptied", {"MUTATIONS": killers_gone}),
             ("SavedMidpoint.swift unmutated, count padded back",
-             {"MUTATIONS": [m for m in MUTATIONS if m[1] != SUBJECTS[1]] + MUTATIONS[:7]}),
+             {"MUTATIONS": [m for m in MUTATIONS if m[1] != SUBJECTS[1]] + [m for m in MUTATIONS if m[1] != SUBJECTS[1]][:7]}),
             ("one test file missing", {"TESTS": base["TESTS"][:MIN_TEST_FILES - 1]})]
     g = globals()
     refused = 0

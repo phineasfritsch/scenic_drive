@@ -73,7 +73,7 @@ struct SavedDriveStoreTests {
     func refusesACorpus() throws {
         let path = try Self.freshPath()
         try DatabaseQueue(path: path).write { db in
-            try db.execute(sql: "CREATE TABLE segments (segment_id INTEGER); PRAGMA application_id = 1396919491")
+            try db.execute(sql: "CREATE TABLE segments (segment_id INTEGER); PRAGMA application_id = \(0x5343_4E43)")
         }
         let before = try Data(contentsOf: URL(fileURLWithPath: path))
         #expect(throws: UserStoreError.notAUserStore(applicationID: 0x5343_4E43)) { try SavedDriveStore(path: path) }
