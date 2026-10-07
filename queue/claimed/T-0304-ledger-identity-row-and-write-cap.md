@@ -51,3 +51,28 @@ claim or a header beside a valid Bearer; and POST /ledger has no per-user write 
     with the new test file added: rv-user-is-apple-claim, rv-user-is-act-claim, get-scoped-by-legacy-device-header,
     post-scoped-by-legacy-device-header, and the cap's every bound and branch. T-0302 anchors that the new SQL moves
     are re-anchored to the same intent. MIN_MUTATIONS rises to the new count.
+- 2026-10-07T17:59:45Z RED then GREEN, population, agent/claude-opus-5.
+  - RED before any src change: `npx vitest run test/ledgerIdentity.test.ts test/ledgerCap.test.ts` printed
+    `Tests  1 failed | 3 passed (4)`, exit=1 - FAILED by name: ledgerCap.test.ts `at cap-2, cap-1 and cap rows held
+    and across the UTC midnight, the write answers 200 or 429 ledger_daily_cap and leaves exactly the expected table,
+    for each writer` (every 429 row answered 200). ledgerIdentity.test.ts is green before code, as it should be: the
+    shipped handler already keys by the sub; its red is the population's (below), the behaviour that was only
+    held by the requestReadSites whitelist.
+  - GREEN after src/ledger.ts (LEDGER_DAILY_CAP, ADMIT/PURGE/INSERT under one ADMITTED predicate, one batch):
+    ledgerIdentity, ledgerCap, ledger, ledgerWindow, requestReadSites, accountDelete: `Tests  33 passed (33)`.
+    requestReadSites' APPROVED lines for ledger.ts are unchanged (no new request read).
+  - Population (ledgerMutants.mjs, 59 entries, floor 59; `--prove-floor`: four arms REFUSED, real population quiet).
+    BEFORE, `--only=<19 new ids> --tests=<the T-0302 TESTS list>`: `baseline green tests=36`, every one MISSED,
+    `RESULT caught=0 missed=19 trap=0 of 19`. AFTER, default TESTS (+ ledgerIdentity, ledgerCap), the 19 new ids
+    plus the six re-anchored T-0302 entries (purge-bound-inclusive, purge-dropped, written-day-is-first,
+    write-other-user, purge-caller-only, write-failure-answers-200): `baseline green tests=40`,
+    `RESULT caught=25 missed=0 trap=0 of 25`. CAUGHT by name: rv-user-is-apple-claim, rv-user-is-act-claim,
+    get-scoped-by-legacy-device-header, post-scoped-by-legacy-device-header by ledgerIdentity `an apple or act claim
+    and an x-scenic-device header beside a valid Bearer change nothing: ...`; cap-unbounded, cap-plus-one,
+    cap-minus-one, cap-free-tier, cap-inclusive, cap-counts-every-day, cap-counts-every-user, cap-refuses-held,
+    cap-held-any-user, cap-held-any-day, cap-refusal-answers-200, cap-admission-ignored, cap-purge-unguarded,
+    cap-insert-unguarded, cap-today-is-first by ledgerCap `at cap-2, cap-1 and cap rows held ...`; the six
+    re-anchored ones by ledger.test.ts as before. One stale anchor (cap-refuses-held spanned the + concatenation)
+    was refused by the driver's STALE check and re-anchored before any run counted.
+  - Named tests: P-PRIV-04 binds ledgerIdentity's two (53), P-COST-01 ledgerCap's two (40); PINS.yaml text appended
+    inside the existing double-quoted fields; `check-pins-yaml.py`: `PINS-YAML ok pins=44 fields=355`.
