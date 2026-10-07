@@ -114,9 +114,12 @@ struct SavedListTests {
     @Test("a rename commits the trimmed name of 1...60 characters and nothing else")
     func renameBounds() {
         let sixty = String(repeating: "a", count: 60)
+        // 60 characters of 61 unicode scalars: the last is "e" + U+0301, one Character. The cap counts characters.
+        let accented = String(repeating: "a", count: 59) + "e\u{301}"
         let rows: [(String, SavedEdit?)] = [
             ("", nil), ("   ", nil), ("\n\t", nil), ("a", .rename(1, "a")), (" a ", .rename(1, "a")),
             (sixty, .rename(1, sixty)), ("  " + sixty + "  ", .rename(1, sixty)), (sixty + "b", nil),
+            (accented, .rename(1, accented)), (accented + "b", nil),
         ]
         for (typed, want) in rows {
             var list = SavedList(rows: Self.sorted, state: .renaming(1, typed))
@@ -138,13 +141,18 @@ struct SavedListTests {
                 == "The roads on this drive have changed since you saved it. Plan it fresh from the plan sheet.")
     }
 
-    @Test("a drive with no saved ends cannot be replayed and is shown as needing a re-plan")
+    @Test("a drive missing either saved end cannot be replayed and is shown as needing a re-plan")
     func noEnds() {
-        let bare = SavedRow(id: 9, name: "Bare", createdAt: 5, needsReplan: false, start: nil, end: nil,
-                            budgetMinutes: 15)
-        var list = SavedList(rows: [bare], state: .list)
-        #expect(list.replay(9, near: Self.places) == nil)
-        #expect(list == SavedList(rows: [bare], state: .needsReplan(9)))
+        let rows: [(String, Coordinate?, Coordinate?)] = [
+            ("both", nil, nil), ("start", nil, Self.topanga.end), ("end", Self.topanga.start, nil),
+        ]
+        for (label, s, e) in rows {
+            let bare = SavedRow(id: 9, name: "Bare", createdAt: 5, needsReplan: false, start: s, end: e,
+                                budgetMinutes: 15)
+            var list = SavedList(rows: [bare], state: .list)
+            #expect(list.replay(9, near: Self.places) == nil, "\(label) missing")
+            #expect(list == SavedList(rows: [bare], state: .needsReplan(9)), "\(label) missing")
+        }
     }
 
     @Test("P-PRIV-05: the Saved list never shows an address - a row holds no address and draws only its name and detail")

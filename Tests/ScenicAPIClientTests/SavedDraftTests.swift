@@ -34,6 +34,10 @@ struct SavedDraftTests {
          response(route: [c(34.1, -118.2)], waypoints: [], lambda: 0),
          SavedDraft(name: "El Matador", points: [c(34.1, -118.2), c(34.1, -118.2)], lambda: 0, budgetMinutes: 45,
                     createdAt: 1_760_000_000)),
+        ("a half-way tie at the sixth decimal (exact in binary64) rounds away from zero on either sign",
+         response(route: [c(34.000005, -118.000005), c(34.000025, -118.000025)], waypoints: [], lambda: 1),
+         SavedDraft(name: "El Matador", points: [c(34.00001, -118.00001), c(34.00003, -118.00003)], lambda: 1,
+                    budgetMinutes: 45, createdAt: 1_760_000_000)),
         ("an empty route is nothing to save", response(route: [], waypoints: [c(34.1, -118.2)], lambda: 2), nil),
     ]
 
