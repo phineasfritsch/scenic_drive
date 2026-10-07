@@ -129,3 +129,32 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
     "a presentation over the map outside its approved site" (the shell's new overlay and plan sheet) - the two shell
     lines are typed into check-map-attribution-sheet's whitelist in this commit. ios-compile 37626118143 and
     ios-screenshot 37626129739 green on the branch.
+- 2026-10-07T14:48:23Z PRE-REVIEW SURVIVORS M1 and M3b closed by CLASS. agent/claude-opus-5 (owner).
+  - FOUND (pre-review mutant pass on 06f2980d, filter as above: baseline 17/17, each survivor 17/17 exit 0):
+    M1 "the retry path skips the disclaimer" - `guard disclaimerAccepted` moved into the .chosen/.preview arm, so a
+    ticket from .failed was issued with acceptance withdrawn (P-SAFE-03 open on one path); M3b "the extra-time
+    control moves while a plan is in flight" - setBudget's `.planning` early return dropped. No test withdrew
+    acceptance after a first plan, none called setBudget between startPlanning() and finish().
+  - RULED (no Sources/ change: PlanSheet.swift already holds both properties, so no digest is re-approved). The
+    classes, not the two spellings: (1) the gate refuses on EVERY launch state, not only the first launch; (3) every
+    input is frozen while a ticket is in flight. New tests:
+    PlanSheetTests "the gate holds on every path: acceptance withdrawn, no ticket from chosen, failed or preview"
+    (arguments chosen/failed/preview; each row reached with acceptance on, its state recomputed per row by
+    expectedState(path); withdrawn -> nil and state unchanged; re-accepted -> serial 1 or 2, so a refusal spends no
+    serial); PlanSheetTests "inputs are frozen while a plan is in flight: the budget, a search, a pick" (setBudget at
+    Int.min, -1, 0, 44, 46, 90, 180, Int.max in flight -> 45 and .planning(ticket); search/choose/endSearch in flight
+    -> no change; landed preview's ticket and sheet both 45; after landing setBudget(90) moves and the next ticket
+    carries 90); PlanSheetGateTests "P-SAFE-03: after a failure or a preview, no request once acceptance is
+    withdrawn, through the planner" (counting transport: 429 path stays at 1 and .failed unchanged; 200 path stays
+    at 1 and .preview unchanged; re-accept -> 2).
+  - POPULATION rows 28 (M1 verbatim), 29 (its sibling: a re-plan from a preview skips the disclaimer), 30 (M3b
+    verbatim); MIN_MUTATIONS 27 -> 30. Committed at c755c323 BEFORE the killers:
+    `python ops/mutate/plansheet.py --only 28,29,30` -> "MISSED 28 ... MISSED 29 ... MISSED 30 ... no test objected",
+    "MUTATE FAILED caught=0/3", exit 1. Killers committed at c5de11d3, same command -> "caught 28 the retry path
+    skips the disclaimer by: the gate holds on every path ... | P-SAFE-03: after a failure or a preview ...",
+    "caught 29 ... by: (the same two)", "caught 30 the budget moves while a plan is in flight by: inputs are frozen
+    while a plan is in flight ...", "MUTATE OK caught=3/3", exit 0. --prove-floor: "FLOOR PROOF OK: 7 of 7 arms
+    refused and the control did not". check-mutate-population.py: "the floor of 74 holds", exit 0.
+  - TESTS: `swift test --scratch-path .build/fm-t0294 --filter "PlanSheetTests|PlanFailureCopyTests|PlanSheetGateTests"`
+    -> "Test run with 20 tests in 3 suites passed", exit 0. wc -l: PlanSheetTests.swift 190, PlanSheetGateTests.swift
+    169 (cap 300).
