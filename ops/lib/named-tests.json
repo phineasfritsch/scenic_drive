@@ -290,6 +290,16 @@
       ]
     }
   },
+  "P-PROD-05": {
+    "swift": {
+      "filter": "PlaceStoreTests\\.CorpusUpdateDecisionTests",
+      "tests": [
+        "PlaceStoreTests.CorpusUpdateDecisionTests/decisionTableVariantA()",
+        "PlaceStoreTests.CorpusUpdateDecisionTests/decisionTableVariantB()",
+        "PlaceStoreTests.CorpusUpdateDecisionTests/noRowIgnoresItsVariant()"
+      ]
+    }
+  },
   "P-STORE-02": {
     "vitest": {
       "test/asnState.test.ts": [
