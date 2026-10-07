@@ -39,6 +39,10 @@ jobs:
         run: |
           python3 -c "import yaml" || { sudo apt-get update -q; sudo apt-get install -y -q --no-install-recommends python3-yaml; }
           python3 -c "import yaml; print('PyYAML ' + yaml.__version__)"
+      # ops/lib/pins.py reads PINS.yaml line by line, so a value only a real YAML loader rejects went unnoticed
+      # (T-0301: lines 213 and 345). This loads it with yaml.safe_load and names the line it rejects.
+      - name: PINS.yaml parses as YAML
+        run: python3 ops/lib/check-pins-yaml.py
       - name: check-pins --source-only
         run: bash ops/check-pins --source-only
 
