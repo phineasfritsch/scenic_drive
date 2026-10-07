@@ -1,7 +1,7 @@
 ---
 id: T-0289
 title: P-SAFE-03 fails OPEN through the Xcode project - pin project.pbxproj by digest, every root-package Swift file the app links, and make P-ATTR-01 call the whole-app content pin
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T21:12:14Z
@@ -11,7 +11,7 @@ branch: task/T-0289
 exclusive: []
 touches: [ops/lib/, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv1-t-0289
 depends_on: [T-0273]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -142,3 +142,31 @@ Plus rv3 recordable 3: P-ATTR-01 does not call require_pinned_app_swift.
     d3f25728.... On the merged head: limb probe over the real tree "GREEN files=110" exit 0; `bash ops/queue-check`
     QUEUE OK (285 tasks). The bare full check was NOT re-run on the merged head (4356 s per run on this box; owner-
     approved faster verification - the merge touched only the three re-approved digests).
+- 2026-10-07T06:37:18Z REVIEW PASS - PR #179 signed off at ca47469 (merge base origin/main 2ce3707, an ancestor). agent/rv1-t-0289 (reviewer, not the owner).
+  - Acceptance 1: -linked whitelists project.pbxproj and every non-Swift file under apps/ios, the root Package.swift and
+    every entry under Sources/ by exact path + sha256 (CRLF-normalised), every root path:/sources: line typed, and the
+    root's top-level file names (ROOT_TOP_FILES). Read in full; met.
+  - Acceptance 2, full guard, one-row table copies on ca47469, run in parallel on the loaded box: row 44 "T-0289 rv3 a
+    pbxproj Sources entry outside apps/ios  1  yes", row 45 "a one-line edit to a root-package Swift file  1  yes", row
+    46 "a new root-package Swift file  1  yes", row 48 "fm M1 a root Package@swift-6.swift  1  yes" - each "prove-red:
+    1/1 mutations refused by name" (8944-9139 s each). This closes the owner's open item: 44-46 were never seen named
+    through the full table after the .git prune.
+  - Acceptance 3: check-map-attribution sources -pinned and calls require_pinned_app_swift (line 278). Seen RED: a
+    table-layout copy (m/Package.swift, m/Sources, m/apps/ios with git init) with one line appended to
+    Sources/Handoff/AppleMapsDirections.swift, `bash ops/lib/check-map-attribution --app-tree m/apps/ios`: exit=1 ::
+    8060s, "P-ATTR-01: the pinned linked trees changed: Sources/Handoff/AppleMapsDirections.swift content changed".
+    PINS.yaml: both changed lines checked as old-text prefixes of the new, so the prose is APPENDED, dated 2026-10-06,
+    naming the re-approval duty.
+  - Reviewer mutant (not in the owner's or verifier's lists): a root manifest edit that moves a target and touches
+    no `path:` line - `for t in package.targets where t.name == "Handoff" { t.path = "Vendor/Handoff" }` appended to
+    the root Package.swift. Witness: `swift package dump-package` (6.3.3) reports Handoff at path "Vendor/Handoff"
+    while every `path:` line stays the same, so limb (1) cannot see it. Full guard as a one-row table: "rv1 manifest
+    retargets Handoff with no path: line  1  yes", "prove-red: 1/1" - refused by name, "Package.swift content
+    changed". Limb (3)'s digest is what holds it. KILLED.
+  - BARE on ca47469: `bash ops/lib/check-safety-disclaimer` exit=0 :: 9072s, "... LAST all 38 app .swift, then 110
+    root + pbxproj file(s) (-linked)."; `bash ops/lib/check-map-attribution` exit=0 :: 9317s (the owner's unclaimed
+    green, now seen); `bash ops/queue-check` QUEUE OK (285 tasks); `gh pr checks 179`: core pass, pins-source-only
+    pass.
+  - Recordable, not blocking: -linked enumerates the working tree rather than the index, so an untracked .DS_Store
+    (macOS Finder) under apps/ios, Sources/ or at the root top fails it closed on a Mac. That is the same fail-closed
+    trade the header states for xcuserdata/.
