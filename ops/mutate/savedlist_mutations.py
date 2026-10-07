@@ -42,6 +42,7 @@ TRANSITIONS = "every state x every event lands whole: the moves as written, ever
 NEWEST = "rows are kept newest first, a tie broken by the higher id first"
 RENAME = "a rename commits the trimmed name of 1...60 characters and nothing else"
 COPY = "a refused replay has its own calm copy line"
+NOENDS = "a drive missing either saved end cannot be replayed and is shown as needing a re-plan"
 PRIV = ("P-PRIV-05: the Saved list never shows an address - a row holds no address and draws only its name and "
         "detail")
 REACH = "the destination is found within 0.01 degrees on each axis, every bound inclusive, nothing past it"
@@ -111,6 +112,13 @@ MUTATIONS = [
     ("29 lambda dropped at the store hop", DRIVE, "segments: segments, lambda: lambda,", "segments: segments, lambda: 0,",
      [STORED, REFUSED]),
     ("30 the waypoints dropped", PLANNER, "waypoints: response.waypoints,", "waypoints: [],", [DRAFT]),
+    # 31-33: the pre-review pass's three unwritten mutants (T-0306 Log), each MISSED before its test row landed.
+    ("31 a missing start replayed from the end", LIST, "let start = row.start, let end = row.end",
+     "let start = row.start ?? row.end, let end = row.end", [NOENDS]),
+    ("32 a half-way tie rounded to even", DRAFT_SRC, ROUND, "(value * scale).rounded(.toNearestOrEven) / scale",
+     [DRAFT]),
+    ("33 the name cap counted in scalars", LIST, "contains(name.count)", "contains(name.unicodeScalars.count)",
+     [RENAME]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -121,6 +129,6 @@ EQUIVALENT = [
      "route.first and route.last are non-nil exactly when route is non-empty, so the added clause decides nothing"),
 ]
 
-MIN_MUTATIONS = 30
+MIN_MUTATIONS = 33
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 4

@@ -75,3 +75,26 @@ is +31 not +25, say so." T-0290 shipped the store; T-0294 the plan sheet and pre
     `Sources/ScenicAPIClient/ClientPlanner.swift` and `Tests/ScenicAPIClientTests/` join touches; the existing
     PlanSheetGateTests "a 200 reaches the sheet as the preview of exactly that response" now expects the waypoints
     and lambda too (its full-equality oracle, widened by the two new fields).
+- 2026-10-07T20:06:04Z RESUMED (session restart) by agent/claude-opus-5 (owner). RULED: the tests and the code landed
+  together in 2c8e45af and no RED was recorded then, so RED is shown now against STUBS of every shipping symbol the
+  tests bind to (SavedList's eleven writes, SavedRow.detail, SavedDraft.of + fiveDecimals, SavedReplay.nearest,
+  PlanSheet.replay, SavedDrive.unresolved's segments, SavedSegment.unplaced, ClientPlanner's two new fields), stubs
+  applied by a throwaway script under .build/ and restored (git status Sources clean after). `swift test --scratch-path
+  .build/t0306 --filter SavedListTests|SavedReplayTests|SavedDraftTests|SavedDriveUnresolvedTests|PlanSheetGateTests`:
+  `Test run with 23 tests in 5 suites failed ... with 64 issues`, exit 1, RED by name (14): every state x every
+  event lands whole; rows are kept newest first, a tie broken by the higher id first; a rename commits the trimmed
+  name of 1...60 characters and nothing else; a refused replay has its own calm copy line; a drive with no saved ends
+  cannot be replayed and is shown as needing a re-plan; P-PRIV-05: the Saved list never shows an address...; the
+  destination is found within 0.01 degrees on each axis...; the nearest place wins...; P-SAFE-03: a replay is one
+  ticket through the sheet's gate...; P-SAFE-03: no ticket from a replay before the disclaimer is accepted...; a
+  replay's budget is clamped to 0...180 at every bound...; PlanResponse -> preview -> SavedDraft by full equality...;
+  5-dp points become unplaced segments in order...; a 200 reaches the sheet as the preview of exactly that response.
+  Stayed green under the stubs, and why: "a saved point rounded once is not moved by rounding it again" (an
+  idempotence property - an identity stub satisfies it; the DRAFT table is the rounding's killer), "more than 5 dp is
+  refused by field" (T-0290's FiveDecimals gate, not stubbed), "no points is a drive with no segments" (the
+  segments-[] stub coincides with the right answer for no points), and the five pre-existing PlanSheetGateTests.
+  PRE-REVIEW MUTANT PASS (acceptance 5, "three entries MISSED before and CAUGHT by name after"): three unwritten
+  mutants added as entries 31-33, floor 30 -> 33 - 31 `let start = row.start ?? row.end` (only the both-nil row is
+  tested), 32 `.rounded(.toNearestOrEven)` (no exact tie in the DRAFT table: measured 34.000005 * 1e5 == 3400000.5 and
+  -118.000005 * 1e5 == -11800000.5 exactly in binary64), 33 `name.unicodeScalars.count` (the 60-character row is
+  ASCII). Run --only 31,32,33 at this commit, then the test rows, then again.
