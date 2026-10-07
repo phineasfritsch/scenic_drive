@@ -11,7 +11,9 @@ plansheet_run.py (surprise's three-file shape).
   * THE COPY TABLE (15-18): a line, an action, a button's words, the case order the table is compared in;
   * THE PREVIEW (19-21): extra minutes below zero, truncation for rounding, the badge always on;
   * THE VALUE TYPES AND MAPPINGS (22-27): a ticket field, a place's coordinate, a hazard run's end, ClientPlanner's
-    ETAs and hazard ends, one PlanError arm.
+    ETAs and hazard ends, one PlanError arm;
+  * THE GATE ON EVERY PATH AND THE IN-FLIGHT FREEZE (28-30, pre-review survivors M1 and M3b): the disclaimer
+    checked on only some launch states (failed, preview skip it), the budget moving while a plan is in flight.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -54,8 +56,14 @@ ORDER = "the table covers all thirteen PlanError cases, in PlanError's order"
 TITLES = "every action has its button words"
 PREVIEWED = "a 200 reaches the sheet as the preview of exactly that response"
 MAPPED = "every PlanError reaches the sheet as its own PlanSheetFailure"
+PATHS = "the gate holds on every path: acceptance withdrawn, no ticket from chosen, failed or preview"
+REPLAN = "P-SAFE-03: after a failure or a preview, no request once acceptance is withdrawn, through the planner"
+FROZEN = "inputs are frozen while a plan is in flight: the budget, a search, a pick"
 
 STATE_ARMS = "        case .chosen, .preview, .failed: break\n        case .idle, .searching, .planning: return nil"
+GATE_HEAD = ("        guard disclaimerAccepted, let start, let destination else { return nil }\n        switch state {\n"
+             "        case .chosen, .preview, .failed: break")
+BUDGET_FREEZE = "        if case .planning = state { return }\n        budgetMinutes = min("
 
 MUTATIONS = [
     ("1 the gate ignores the disclaimer", SHEET,
@@ -113,6 +121,16 @@ MUTATIONS = [
      "fromIndex: $0.toIndex, toIndex: $0.fromIndex)", [PREVIEWED]),
     ("27 noRoute read as offline", ERROR, "case .noRoute: return .noRoute", "case .noRoute: return .routingOffline",
      [MAPPED]),
+    ("28 the retry path skips the disclaimer", SHEET, GATE_HEAD,
+     "        guard let start, let destination else { return nil }\n        switch state {\n"
+     "        case .chosen, .preview: guard disclaimerAccepted else { return nil }\n        case .failed: break",
+     [PATHS, REPLAN]),
+    ("29 a re-plan from a preview skips the disclaimer", SHEET, GATE_HEAD,
+     "        guard let start, let destination else { return nil }\n        switch state {\n"
+     "        case .chosen, .failed: guard disclaimerAccepted else { return nil }\n        case .preview: break",
+     [PATHS, REPLAN]),
+    ("30 the budget moves while a plan is in flight", SHEET, BUDGET_FREEZE, "        budgetMinutes = min(",
+     [FROZEN]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -121,6 +139,6 @@ EQUIVALENT = [
      "extra is extraMinutes, which is max(0, ...): it is never below zero, so == 0 and <= 0 agree on every input"),
 ]
 
-MIN_MUTATIONS = 27
+MIN_MUTATIONS = 30
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 3
