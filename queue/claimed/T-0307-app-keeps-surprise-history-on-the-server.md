@@ -78,3 +78,50 @@ client half (Keychain install id, the app calling /ledger) as M6 Apple-package w
   - R7 reproducibility (P-PROD-02): merged() is a pure function of its inputs and is independent of the ledger's
     order; the table over {no session, empty ledger, ledger overlapping device, ledger only} compares the whole
     merged history AND the whole pick to a hand-built expectation by full equality.
+- 2026-10-07T23:06:37Z RED then GREEN, guards, agent/claude-opus-5:
+  - R3 CORRECTION (ruled before the client code, recorded here): the device's cell check is h3Res5.ts's FIRST test
+    only, HEX15 (fifteen lowercase hex); isResolution5Cell's mode, resolution, base-cell and digit tests stay the
+    Worker's, and a cell failing them comes back `.invalidRequest` - so R3's "never sends what the Worker would 400"
+    holds for the place id and for the cell's shape, not for every H3 bit. The cell's producer is the follow-up's
+    Telemetry.H3Cell (R6), which emits only valid res-5 cells.
+  - RED first, by name: LedgerClientTests.swift + SurpriseHistoryMergeTests.swift written against stub bodies
+    (LedgerClient answering .noSession, merged() returning the device history). `swift test --filter
+    "LedgerClientTests|SurpriseHistoryMergeTests"` exit 1, 9 of 10 red by name: POST /ledger is exactly the
+    bearer... (6 issues), GET /ledger is exactly the bearer... (2), A GET body that is not {places...} is
+    unreadable (24), Every Worker answer is one typed outcome... never a retry (36), No reply at all is offline (3),
+    A place id or cell the Worker would refuse is refused on the device (16), The merged history is exactly the
+    expected one (6), The pick over the merged history is the pick over the expected history (2), A ledger place
+    shown 89 days ago is never picked (1); `Without a session nothing is sent` was green on the stub (it answered
+    .noSession by construction). `Test run with 10 tests in 2 suites failed ... with 96 issues.`
+  - GREEN: LedgerEntry, LedgerReplyReader, LedgerClient, SurpriseHistoryMerge -> `Test run with 10 tests in 2
+    suites passed`. Apple: StoredInstallID (Keychain, R1), NoLedgerSession, LiveSurpriseLedger (PlanAdapter),
+    SurpriseLedgerKey (FeatureSurpriseMe environment), SurpriseCard reads it in `.task`, ScenicDriveApp sets
+    `.environment(\.surpriseLedger, LiveSurpriseLedger.make())` - the frozen shell line (DOORS_SHELL_LINE) untouched.
+  - DIGESTS re-approved, each a file this task changed or added: -linked-digests.txt + 9 rows (6 Ledger*.swift,
+    SurpriseHistoryMerge/LedgerPlace/LedgerSource); -pinned PINNED_SURPRISE (SurpriseCard changed,
+    SurpriseLedgerKey added), PINNED_APP_SWIFT (SurpriseCard, SurpriseLedgerKey, StoredInstallID, NoLedgerSession,
+    LiveSurpriseLedger, ScenicDriveApp), PINNED_SHELL_DIGEST (ScenicDriveApp); -frozen FROZEN_APP_SHELL gains the one
+    `.environment(...)` line. Seen red first: `P-SAFE-03: a frozen render block changed: ... found
+    .environment(\.surpriseLedger, LiveSurpriseLedger.make())`, then `FeatureSurpriseMe's file set is not the
+    approved one: added SurpriseLedgerKey.swift`, then `ScenicDriveApp.swift content changed`; after:
+    check-safety-disclaimer exit=0, check-map-attribution exit=0.
+  - POPULATION ops/mutate/ledger{,_mutations,_run}.py (28 entries, floor 28; 1 EQUIVALENT with witness; 2 test
+    files), registered in mutate_population_table.py DRIVERS + COVERED_FLOOR. Pre-review pass, three unwritten
+    mutants run at 5b303043 before their tests: `MISSED 26 the 400-year leap rule dropped`, `MISSED 27 the first
+    date separator unchecked`, `MISSED 28 a day tie handed to the ledger` (caught=0/3). Tests added at 71fef75b
+    (2000-02-29 parsed; 2100-02-29 and 2026x10-01 unreadable; a day tie keeps the device entry).
+  - named-tests.json: P-PROD-02 runs SurpriseHistoryMergeTests (mergedHistory, pickReproducible, ninetyDays);
+    P-PRIV-05 runs LedgerClientTests postRequest, getRequestAndRows, refusedOnDevice.
+- 2026-10-07T23:16:10Z POPULATION and iOS CI, agent/claude-opus-5:
+  - Full run at 71fef75b (`python ops/mutate/ledger.py`, scratch .build/mledger in the main checkout):
+    `caught by the test that names it: 27 of 28 (wrong killer 0, trapped 0, compile-only 0, MISSED 1, skipped 0)`;
+    the one survivor `MISSED 21 an unknown id kept`: the unknown ledger id was dated 06-01, so mapped onto the first
+    candidate (malibu-00) it lost to malibu-00's 06-15 and changed nothing. The row now dates nowhere-9 06-19, after
+    every kept day; `--only 21` at the fix commit: `caught 21 an unknown id kept by: The merged history is exactly
+    the expected one...`, `MUTATE OK caught=1/1`. E1 MISSED as an equivalent must be. So 26-28 MISSED before
+    (5b303043) and CAUGHT after (71fef75b), each by the test it names: `caught 26 ... by: GET /ledger is exactly
+    the bearer...`, `caught 27 ... by: A GET body that is not {places...} is unreadable`, `caught 28 ... by: The
+    merged history is exactly the expected one...`.
+  - `run-named-tests.py P-PROD-02`: `NAMED P-PROD-02 passed=7/7`.
+  - iOS on 5b303043 (the app files are unchanged since): ios-compile run 37698263738 `completed success` (4m7s),
+    ios-screenshot run 37698268012 `completed success` (13m28s).
