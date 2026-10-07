@@ -1,13 +1,13 @@
 ---
 id: T-0309
 title: First-run onboarding asks for the vehicle (only "standard car" enabled) and shows the safety disclaimer; VehicleProfile lives in ScenicKit and rides every plan request; Settings shows the vehicle
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T23:30:45Z
+lease_expires_at: 2026-10-08T19:30:45Z
+worktree: .worktrees/T-0309
+branch: task/T-0309
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01]
@@ -28,3 +28,4 @@ disclaimer)"; Settings lists vehicle. Neither exists in the code today (grep: no
 
 ## Log
 - 2026-10-07T23:30:36Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M4 vehicle + onboarding).
+- 2026-10-07T23:30:45Z claimed by agent/claude-opus-5; lease until 2026-10-08T19:30:45Z
