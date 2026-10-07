@@ -51,6 +51,35 @@ struct PlanSheetGateTests {
         }
     }
 
+    @Test("P-SAFE-03: after a failure or a preview, no request once acceptance is withdrawn, through the planner")
+    func noRequestOnReplanAfterWithdrawal() async throws {
+        let quota = CountingPlanTransport(reply: try PlanWire.recordedReply("429-quota-exhausted"))
+        var failed = Self.ready(accepted: true)
+        await Self.drive(&failed, Self.planner(quota))
+        #expect(await quota.count == 1)
+        let failedState = failed.state
+        guard case .failed(_, .quotaExhausted) = failedState else {
+            Issue.record("429 left the sheet at \(failedState)")
+            return
+        }
+        failed.setDisclaimerAccepted(false)
+        await Self.drive(&failed, Self.planner(quota))
+        #expect(await quota.count == 1)
+        #expect(failed.state == failedState)
+        let ok = CountingPlanTransport(reply: try PlanWire.recordedReply("200-plan"))
+        var shown = Self.ready(accepted: true)
+        await Self.drive(&shown, Self.planner(ok))
+        #expect(await ok.count == 1)
+        let shownState = shown.state
+        shown.setDisclaimerAccepted(false)
+        await Self.drive(&shown, Self.planner(ok))
+        #expect(await ok.count == 1)
+        #expect(shown.state == shownState)
+        shown.setDisclaimerAccepted(true)
+        await Self.drive(&shown, Self.planner(ok))
+        #expect(await ok.count == 2)
+    }
+
     @Test("P-PRIV-06: a typed start leaves as ONE coordinate at 2 dp, the body equal to its recomputation")
     func typedStartBodyWhole() async throws {
         let transport = CountingPlanTransport(reply: try PlanWire.recordedReply("200-plan"))

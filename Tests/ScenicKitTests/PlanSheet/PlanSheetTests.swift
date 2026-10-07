@@ -100,6 +100,71 @@ struct PlanSheetTests {
         #expect(third.serial == 3)
     }
 
+    /// The three states a plan can be launched from. Each row is reached with acceptance ON, then acceptance is
+    /// withdrawn: the gate must refuse on every path, not only on the first launch (P-SAFE-03, class 1).
+    static let launchPaths = ["chosen", "failed", "preview"]
+
+    /// The sheet at `path`, reached the way the view gets there.
+    static func reach(_ path: String) -> PlanSheet {
+        var sheet = ready(accepted: true)
+        guard path != "chosen", let ticket = sheet.startPlanning() else { return sheet }
+        sheet.finish(ticket, with: path == "failed" ? .failure(.routingOffline) : .preview(preview))
+        return sheet
+    }
+
+    /// The state `reach(path)` must be in, recomputed per row, so no row silently tests another row's state.
+    static func expectedState(_ path: String) -> PlanSheetState {
+        let first = PlanTicket(serial: 1, origin: Coordinate(latitude: 34.01, longitude: -118.5), place: 42,
+                               budgetMinutes: 30)
+        switch path {
+        case "failed": return .failed(first, .routingOffline)
+        case "preview": return .preview(first, preview)
+        default: return .chosen(topanga)
+        }
+    }
+
+    @Test("the gate holds on every path: acceptance withdrawn, no ticket from chosen, failed or preview",
+          arguments: launchPaths)
+    func gateOnEveryPath(path: String) {
+        var sheet = Self.reach(path)
+        #expect(sheet.state == Self.expectedState(path))
+        sheet.setDisclaimerAccepted(false)
+        let refused = sheet.startPlanning()
+        #expect(refused == nil)
+        #expect(sheet.state == Self.expectedState(path))
+        sheet.setDisclaimerAccepted(true)
+        let issued = sheet.startPlanning()
+        #expect(issued?.serial == (path == "chosen" ? 1 : 2))
+        #expect(sheet.state == issued.map { .planning($0) })
+    }
+
+    @Test("inputs are frozen while a plan is in flight: the budget, a search, a pick")
+    func inputsFrozenInFlight() throws {
+        var sheet = Self.ready(accepted: true)
+        sheet.setBudget(45)
+        let issued = sheet.startPlanning()
+        let ticket = try #require(issued)
+        #expect(ticket.budgetMinutes == 45)
+        for minutes in [Int.min, -1, 0, 44, 46, 90, PlanSheet.maxBudgetMinutes, Int.max] {
+            sheet.setBudget(minutes)
+            #expect(sheet.budgetMinutes == 45)
+            #expect(sheet.state == .planning(ticket))
+        }
+        let pier = PlanPlace(id: 9, name: "Malibu Pier", coordinate: Coordinate(latitude: 34.0379, longitude: -118.677))
+        sheet.search("malibu", for: .start)
+        sheet.choose(pier)
+        sheet.endSearch()
+        #expect(sheet.state == .planning(ticket))
+        #expect(sheet.start == Self.santaMonica && sheet.destination == Self.topanga)
+        sheet.finish(ticket, with: .preview(Self.preview))
+        #expect(sheet.state == .preview(ticket, Self.preview))
+        #expect(sheet.budgetMinutes == ticket.budgetMinutes)
+        sheet.setBudget(90)
+        #expect(sheet.budgetMinutes == 90)
+        let next = sheet.startPlanning()
+        #expect(next?.budgetMinutes == 90)
+    }
+
     static let budgetRows: [(Int, Int)] = [
         (Int.min, 0), (-1, 0), (0, 0), (1, 1), (179, 179), (180, 180), (181, 180), (Int.max, 180),
     ]
