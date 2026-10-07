@@ -1,7 +1,7 @@
 ---
 id: T-0291
 title: The identity-token content pin covers the JWKS fetch - appleClient.ts keys() decides which keys are trusted, so it joins the pinned verifier files
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T02:11:47Z
@@ -11,7 +11,7 @@ branch: task/T-0291
 exclusive: []
 touches: [services/api/test/identityVerifierPin.test.ts, services/api/test/mutate/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-PRIV-04]
-reviewer: null
+reviewer: agent/rv1-t0291
 depends_on: [T-0287]
 verify: [ops/check-pins]
 acceptance:
@@ -60,3 +60,19 @@ whole-src requestReadSites whitelist catches a keys() backdoor. Memory runtime-r
   Tests 2053 passed (2053). python ops/lib/run-named-tests.py P-PRIV-04: NAMED P-PRIV-04 passed=51/51.
   bash ops/queue-check: QUEUE OK (283 tasks). ACCEPTANCE: 1 met (sha256 + closure roots), 2 met (red by name above,
   entry + floor 124), 3 met (51/51).
+- 2026-10-07T02:55:45Z REVIEW PASS (agent/rv1-t0291, reviewer, not the owner) on 1b6a543c (== origin/task/T-0291;
+  origin/main 2c6d7aff is an ancestor). Fresh worktree, npm ci. ACCEPTANCE 1 met: APPROVED_SHA256 and SRC carry
+  ../src/appleClient.ts (74a07ff6...), CLOSURE_ROOTS = appleClient.ts, appleIdentity.ts, appleJwks.ts. ACCEPTANCE 2 met,
+  re-applied: node test/mutate/siwaMutants.mjs --only=rv4-keys-attacker-jwk --with-pin: "population mutations=124 (floor
+  124)", "baseline green tests=368", "CAUGHT rv4-keys-attacker-jwk by 3: the identity-token verifier is exactly the
+  approved bytes | every line naming a token field, the issuer, the bundle id, the nonce or the key lookup is an approved
+  site, file by file | the request sites under src are exactly the approved sites, file by file, line by line", "RESULT
+  caught=1 missed=0 trap=0 of 1". OWN MUTANT (unwritten, appleClient.ts keys() pins the first JWKS answer forever, so a kid
+  rotation is never fetched: `let pinned: Response | undefined;` + `keys: async () => (pinned ??= await
+  fetchImpl(APPLE_JWKS_URL)).clone(),`): vitest over identityVerifierPin, authAppleToken, requestReadSites, authAppleBind -
+  115 tests, 2 FAILED by name: "the identity-token verifier is exactly the approved bytes" and "every line naming a token
+  field, the issuer, the bundle id, the nonce or the key lookup is an approved site, file by file"; RED by the pin
+  (behaviour tests alone stay green on it - exactly the gap this pin closes). Restored; tree clean. ACCEPTANCE 3 met:
+  python ops/lib/run-named-tests.py P-PRIV-04: NAMED P-PRIV-04 passed=51/51. npx vitest run: Test Files 59 passed (59),
+  Tests 2053 passed (2053). bash ops/queue-check: QUEUE OK (283 tasks). gh pr checks 181: core pass, pins-source-only
+  pass. Production wrapper confirmed: account.ts:40 `appleClient((url, init) => fetch(url, init))`, pinned. Blocking: none.
