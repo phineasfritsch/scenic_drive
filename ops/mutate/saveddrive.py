@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Mutation harness for T-0290's saved drives: the five-decimal gate (Sources/PlaceStore/FiveDecimals.swift), the
 two values whose public initialisers run it (SavedMidpoint.swift, SavedDrive.swift) and the re-resolve rule
-(SavedDriveResolver.swift).
+(SavedDriveResolver.swift), plus the user store's gate ordering (SavedDriveStore.swift, entry 34, whose killer
+is GRDB-gated: run it where GRDB builds; elsewhere the driver refuses it rather than report a vacuous MISSED).
 
     python ops/mutate/saveddrive.py
     python ops/mutate/saveddrive.py --prove-vacuity
@@ -14,11 +15,11 @@ the rows it touched, never the whole table (owner ruling). The floor still check
 The population is ops/mutate/saveddrive_mutations.py and the runner ops/mutate/saveddrive_run.py; this file is the
 CLI, the floors and the proof arms - segmentgeometry.py's three-file shape.
 
-The four subjects and the harness's own three files are compared with `git show HEAD:` before the first build,
+The five subjects and the harness's own three files are compared with `git show HEAD:` before the first build,
 and the subjects again afterwards: a mutation report is a claim about a COMMIT. The test files are not guarded, so
 a red-then-green demonstration can run against a suite with a test removed.
 
-`--prove-vacuity` replaces the three test files with empty suites and requires EVERY mutation to report MISSED -
+`--prove-vacuity` replaces the five test files with empty suites and requires EVERY mutation to report MISSED -
 not merely "not caught", which a harness broken in the compile-only direction satisfies. `--prove-floor` shows the
 floor refusing on seven arms and staying quiet on the real population; it builds nothing.
 """
@@ -38,11 +39,12 @@ shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_er
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
 SUBJECT_MODULES = ("Sources/PlaceStore/FiveDecimals.swift", "Sources/PlaceStore/SavedMidpoint.swift",
-                   "Sources/PlaceStore/SavedDrive.swift", "Sources/PlaceStore/SavedDriveResolver.swift")
+                   "Sources/PlaceStore/SavedDrive.swift", "Sources/PlaceStore/SavedDriveResolver.swift",
+                   "Sources/PlaceStore/SavedDriveStore.swift")
 
 from saveddrive_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)
-from saveddrive_run import FILTER, build, empty_suite, not_at_head, run_all, test
+from saveddrive_run import FILTER, build, empty_suite, not_at_head, passing_test_names, run_all, test
 
 TESTS = [t for t in TEST_FILES if t.exists()]
 HARNESS = (pathlib.Path(__file__).resolve(),
@@ -151,10 +153,15 @@ def main(argv) -> int:
         if build() != 0 and build() != 0:
             sys.stdout.write("baseline does not build; nothing below would mean anything\n")
             return 2
-        code, _txt = test()
+        code, txt = test()
         sys.stdout.write("BASELINE    --filter %-40s exit=%d\n" % (FILTER, code))
         if code != 0:
             sys.stdout.write("baseline is not green; refusing to call anything a caught mutation\n")
+            return 2
+        unrun = [] if prove else sorted({k for m in muts for k in m[4]} - passing_test_names(txt))
+        if unrun:
+            sys.stdout.write("REFUSING: these killers did not pass in the baseline, so they never ran on this "
+                             "toolchain and could catch nothing: %s\n" % " | ".join(unrun))
             return 2
         r = run_all(pristine, muts, True)
         if not prove:

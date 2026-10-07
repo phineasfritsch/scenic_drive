@@ -21,10 +21,12 @@ from saveddrive_mutations import ROOT
 
 # Under .build/, which .gitignore excludes, and its own scratch path because this box is shared.
 SCRATCH = ".build/mutate-saveddrive"
-# The three suites every `killers` entry names, by module and type name. None is GRDB-gated (T-0290 R5), so
-# they run on every toolchain, this Windows box included.
-FILTER = "PlaceStoreTests\\.(SavedDriveBoundsTests|SavedDriveResolverTests|SavedDriveFieldsTests)"
+# The four suites every `killers` entry names, by module and type name. The first three run on every toolchain;
+# UserStoreMigrationTests is GRDB-gated and runs only where GRDB builds (see `passing_test_names`).
+FILTER = ("PlaceStoreTests\\.(SavedDriveBoundsTests|SavedDriveResolverTests|SavedDriveFieldsTests"
+          "|UserStoreMigrationTests)")
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
+PASS_LINE = re.compile(r'Test\s+"([^"]*)"\s+passed')
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
 
 
@@ -36,6 +38,12 @@ def failing_test_names(txt: str) -> list:
         if name not in seen:
             seen.append(name)
     return seen
+
+
+def passing_test_names(txt: str) -> set:
+    """Display names the baseline ran green. A killer absent here never ran (a GRDB suite on a toolchain
+    without GRDB), so it cannot catch anything and its entry is refused, never reported MISSED."""
+    return set(PASS_LINE.findall(txt))
 
 
 def empty_suite(path: pathlib.Path) -> str:

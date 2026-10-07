@@ -6,7 +6,8 @@ import Testing
 
 /// The user store's migrations (T-0290 R2): a file written by the earlier migration set upgrades in place with
 /// every row preserved by full equality; a file recording a migration this build does not know is refused and
-/// left byte for byte as it was (byte equality implies sha256 before == after).
+/// left byte for byte as it was (byte equality implies sha256 before == after) at every applied prefix
+/// (UserStoreRefusalTable).
 @Suite("UserStore migrations")
 struct UserStoreMigrationTests {
     @Test("a v1-only store upgrades in place: every row preserved by full equality, needsReplan false")
@@ -38,26 +39,32 @@ struct UserStoreMigrationTests {
         #expect(applied == ["v1-saved-drives", "v2-needs-replan"])
     }
 
-    @Test("a store recording an unknown migration is refused with its sorted identifiers and not modified")
-    func refusesUnknownMigrations() throws {
-        let path = try CorpusFixture.scratch().appendingPathComponent("user.sqlite").path
-        let saved = try SavedDriveStore(path: path).save(try SavedDrive(name: "a", segments: [], lambda: 1,
-                                                                         budgetMinutes: 5, createdAt: 9))
-        #expect(saved.id == 1)
-        let queue = try DatabaseQueue(path: path)
-        try queue.write { db in
-            try db.execute(sql: """
-                INSERT INTO grdb_migrations (identifier) VALUES ('v4-later'), ('v3-from-the-future')
-                """)
+    @Test("every refusal row over every applied prefix: its typed error, the file byte for byte unchanged, no sidecar")
+    func refusalTable() throws {
+        for row in UserStoreRefusalTable.rows {
+            let path = try CorpusFixture.scratch().appendingPathComponent("user.sqlite").path
+            #expect(try row.build(at: path) == (row.applied + row.unknown).sorted(), "\(row.name): the fixture")
+            let before = try Data(contentsOf: URL(fileURLWithPath: path))
+            #expect(throws: row.expected, "\(row.name)") { try SavedDriveStore(path: path) }
+            #expect(try Data(contentsOf: URL(fileURLWithPath: path)) == before, "\(row.name): bytes")
+            let directory = (path as NSString).deletingLastPathComponent
+            #expect(try FileManager.default.contentsOfDirectory(atPath: directory) == ["user.sqlite"],
+                    "\(row.name): sidecars")
         }
-        try queue.close()
-        let before = try Data(contentsOf: URL(fileURLWithPath: path))
-        #expect(throws: UserStoreError.unknownMigrations(["v3-from-the-future", "v4-later"])) {
-            try SavedDriveStore(path: path)
+    }
+
+    @Test("the refusal table is the whole cross product: every prefix from none to all, every refusal")
+    func refusalTableIsTheCrossProduct() {
+        let rows = UserStoreRefusalTable.rows
+        let identifiers = UserStoreMigrations.identifiers
+        let refusals = UserStoreRefusalTable.Refusal.allCases
+        #expect(rows.count == (identifiers.count + 1) * refusals.count)
+        for count in 0...identifiers.count {
+            #expect(rows.filter { $0.applied == Array(identifiers.prefix(count)) }.map(\.refusal) == refusals,
+                    "prefix \(count)")
         }
-        #expect(try Data(contentsOf: URL(fileURLWithPath: path)) == before)
-        let sidecars = try FileManager.default.contentsOfDirectory(atPath: (path as NSString).deletingLastPathComponent)
-        #expect(sidecars == ["user.sqlite"])
+        let expected = refusals.map { "\(UserStoreRefusalTable(applied: [], refusal: $0).expected)" }
+        #expect(Set(expected).count == refusals.count, "no two refusals expect the same error")
     }
 }
 #endif

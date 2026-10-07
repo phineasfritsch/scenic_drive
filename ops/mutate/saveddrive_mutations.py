@@ -1,6 +1,7 @@
 """The mutation population for T-0290's saved drives: the five-decimal gate (Sources/PlaceStore/FiveDecimals.swift),
 the two values whose public initialisers run it (SavedMidpoint.swift, SavedDrive.swift) and the re-resolve rule
-(SavedDriveResolver.swift). The driver is saveddrive.py and the runner saveddrive_run.py (segmentgeometry's
+(SavedDriveResolver.swift), and the store's gate ordering
+(SavedDriveStore.swift, GRDB only). The driver is saveddrive.py and the runner saveddrive_run.py (segmentgeometry's
 three-file shape).
 
 ## What the acceptance names, and where each lives
@@ -11,11 +12,14 @@ three-file shape).
     (R3, R4a, R7);
   * the RE-RESOLVE rule - the 25 m radius from both sides, the presence check, the flag in both directions, nearest
     and the tie-break, the search box and its 1/cos(lat) widening, the corpus scale and the haversine terms -
-    20-33 (R5).
+    20-33 (R5);
+  * the STORE GATE - the read-only inspection before the migrator writes - 34 (R1, R2). Its killer is a GRDB
+    suite, so it runs only where GRDB builds (Linux, the swift:6.1-noble image); the driver refuses an entry
+    whose killer did not pass in the baseline, so on this Windows box it is REFUSED, never a vacuous MISSED.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
-comment. `killers` are Swift Testing display names in SavedDriveBoundsTests, SavedDriveResolverTests and
-SavedDriveFieldsTests, every one of which must go red. EQUIVALENT entries are `(name, path, old, new, witness)` and
+comment. `killers` are Swift Testing display names in SavedDriveBoundsTests, SavedDriveResolverTests,
+SavedDriveFieldsTests and UserStoreMigrationTests, every one of which must go red. EQUIVALENT entries are `(name, path, old, new, witness)` and
 must all report MISSED.
 """
 from __future__ import annotations
@@ -29,12 +33,14 @@ GATE = _DIR / "FiveDecimals.swift"
 MIDPOINT = _DIR / "SavedMidpoint.swift"
 DRIVE = _DIR / "SavedDrive.swift"
 RESOLVER = _DIR / "SavedDriveResolver.swift"
-SUBJECTS = (GATE, MIDPOINT, DRIVE, RESOLVER)
+STORE = _DIR / "SavedDriveStore.swift"
+SUBJECTS = (GATE, MIDPOINT, DRIVE, RESOLVER, STORE)
 MUTATED_FILES = SUBJECTS
 
 _TESTS = ROOT / "Tests" / "PlaceStoreTests"
 TEST_FILES = (_TESTS / "SavedDriveBoundsTests.swift", _TESTS / "SavedDriveResolverTests.swift",
-              _TESTS / "SavedDriveFieldsTests.swift")
+              _TESTS / "SavedDriveFieldsTests.swift", _TESTS / "UserStoreMigrationTests.swift",
+              _TESTS / "UserStoreRefusalTable.swift")
 
 LAT = "latitude: both exact bounds accepted, nextafter outward out of range, nextafter inward not 5 dp"
 LON = "longitude: both exact bounds accepted, nextafter outward out of range, nextafter inward not 5 dp"
@@ -44,11 +50,15 @@ LAMBDA = "lambda: [0, 1000] exact bounds accepted, nextafter outward out of rang
 DEG = "the degree accessors return exactly the accepted Doubles"
 TABLE = "every re-resolve row over both drives: the whole returned drive equals the row's expected drive"
 FIELDS = "no field of a populated SavedDrive carries more than 5 dp: every leaf is Int, Int64, String or Bool"
+REFUSAL = "every refusal row over every applied prefix: its typed error, the file byte for byte unchanged, no sidecar"
 
 DECIMALS = "guard scaled / scale == value else"
 PRESENT = "if try corpus.segment(id: saved.segmentID) != nil {"
 TIE = "meters > current.meters || (meters == current.meters && id > current.id)"
 HAVERSINE = "+ cos(lat1 * radians) * cos(lat2 * radians) * sin(dLon / 2) * sin(dLon / 2)"
+INSPECT = "        if FileManager.default.fileExists(atPath: path) {\n            try Self.inspect(path: path)\n        }\n"
+MIGRATE = ("        let queue = try DatabaseQueue(path: path)\n"
+           "        try UserStoreMigrations.migrator().migrate(queue)\n")
 
 MUTATIONS = [
     ("1 finite check dropped", GATE, "guard value.isFinite else { throw SavedDriveError.notFinite(field) }", "",
@@ -108,6 +118,8 @@ MUTATIONS = [
     ("32 dLat reads longitudes", RESOLVER, "let dLat = (lat2 - lat1) * radians", "let dLat = (lon2 - lon1) * radians",
      [TABLE]),
     ("33 haversine drops the cos(lat) factor", RESOLVER, HAVERSINE, "+ sin(dLon / 2) * sin(dLon / 2)", [TABLE]),
+    ("34 inspection after the migrator: a refused file is written first", STORE, INSPECT + MIGRATE,
+     MIGRATE + INSPECT, [REFUSAL]),
 ]
 
 EQUIVALENT = [
@@ -119,6 +131,6 @@ EQUIVALENT = [
      "a box under 1 km across, where sqrt(a) is below 1e-4"),
 ]
 
-MIN_MUTATIONS = 33
+MIN_MUTATIONS = 34
 MIN_EQUIVALENT = 2
-MIN_TEST_FILES = 3
+MIN_TEST_FILES = 5

@@ -68,7 +68,6 @@
     "Sources/PlaceStore/SavedDriveField.swift": "a three-case enum naming the refused field - no code; its labels are mutated in the saveddrive population (entries 10, 16) and asserted in SavedDriveBoundsTests (T-0290 R8)",
     "Sources/PlaceStore/SavedDriveCorpus.swift": "a two-method protocol PlaceStore conforms to with its existing reads - no code; the rule over it is SavedDriveResolver, which the saveddrive population mutates (T-0290 R8)",
     "Sources/PlaceStore/UserStoreError.swift": "a three-case error enum with associated values - no operator; each case asserted by exact equality in SavedDriveStoreTests and UserStoreMigrationTests (T-0290 R8)",
-    "Sources/PlaceStore/SavedDriveStore.swift": "the user-store reader/writer: SQL inserts, reads and two equality refusals (application_id, unknown migration identifiers) - no arithmetic; it stores the e5 integers SavedMidpoint and SavedDrive computed and calls SavedDriveResolver, both in the saveddrive population. Bound by full equality in SavedDriveStoreTests and UserStoreMigrationTests on the GRDB suite (T-0290 R8)",
     "Sources/PlaceStore/UserStoreMigrations.swift": "the user store's DDL as two named GRDB migrations - SQL text, no Swift arithmetic; its columns are pinned by full equality in UserStorePrivacyTests (P-PRIV-05) and its upgrade by UserStoreMigrationTests (T-0290 R8)"
   }
 }
