@@ -408,3 +408,24 @@ only.
   GATES on the merged tree: vitest (services/api, full) `Test Files  65 passed (65)`, `Tests  2081 passed (2081)`,
   exit 0 (reflectionSites included); `python ops/lib/run-named-tests.py P-COST-01` -> `NAMED P-COST-01 passed=26/26`;
   `python ops/lib/run-named-tests.py P-PRIV-04` -> `NAMED P-PRIV-04 passed=51/51`.
+- 2026-10-07T03:10:59Z merge re-review PASS by agent/rv6-t0288 (reviewer, not the owner) on PR #177 head 3506b629.
+  Scope: the main-merge only (89133766 merging 2e4f0a88 / T-0287, then 3506b629 merging 2c6d7aff, queue-only:
+  `git diff --stat 89133766 3506b629` == `git diff --stat 2e4f0a88 2c6d7aff`, two queue files). Fresh detached worktree
+  at origin/task/T-0288, `npm ci`.
+  Merge-touched rows, `git diff dd515e89 HEAD` and `git diff 2e4f0a88 HEAD` read side by side:
+  index.ts is the exact union (T-0287 account import, APPLE_CLIENT_SECRET Env field, "/auth/apple" and "/account" ROUTES
+  lines, plus T-0288's config import, CONFIG field, "/config" route and trailing-slash lookup); killSwitchRoutes
+  OPERATIONAL_ROUTES and the routes.test.ts key list are unions with no entry dropped; configAnswerPath changes only the
+  index.ts hash (config/killSwitch/quota hashes unchanged), and the test is green so the hash is index.ts's bytes;
+  configSweep only ADDS /auth/apple and /account rows (the keys-equal-ROUTES check, the valid!=invalid meta-test and the
+  CALLS count stay); requestReadSites only ADDS lines (26 for account.ts, all on the session the Authorization header
+  carried; appleJwks.ts's one line came from main) - no row removed, no regex or tolerance widened in any guard.
+  Probes: rv4's mutant `node services/api/test/mutate/configMutants.mjs --only=plan-request-time-stringify-unpause` ->
+  `CAUGHT plan-request-time-stringify-unpause by "after the sweep, every CONFIG row x every KILL source answers the whole
+  expected response through worker.fetch"`, `RESULT caught=1 missed=0 trap=0 of 1`. Unwritten probe on a derived
+  account.ts line (`if (match === null) return null;` -> `... || match[1]!.length > 9999) return null;`) ->
+  requestReadSites `the request sites under src are exactly the approved sites` FAILED (1 failed | 9 passed); reverted,
+  tree clean.
+  Gates: vitest (services/api, full) `Test Files  65 passed (65)`, `Tests  2081 passed (2081)`, exit 0; bare
+  `bash ops/queue-check` -> `QUEUE OK (283 tasks)`; `git merge-base --is-ancestor origin/main origin/task/T-0288` -> 0
+  (origin/main 2c6d7aff). The rv5 sign-off at dd515e89 stands on the merged head. Not merged by the reviewer.
