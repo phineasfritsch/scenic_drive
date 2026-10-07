@@ -1,13 +1,13 @@
 ---
 id: T-0305
 title: The app downloads and activates the places corpus - a URLSession CorpusFetcher, a first-run download sheet (resumable, Wi-Fi-only by default, progress), and openForLaunch on every cold launch, with the bundled fallback until a download lands
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T19:10:12Z
+lease_expires_at: 2026-10-08T15:10:12Z
+worktree: .worktrees/T-0305
+branch: task/T-0305
 exclusive: [package-swift]
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/PlaceStore/, Tests/PlaceStoreTests/, apps/ios/Packages/ScenicApp/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PROD-05, P-ATTR-01, P-SAFE-03]
@@ -30,3 +30,4 @@ PMTiles download is a later task. The R2 manifest is not published yet (owner de
 
 ## Log
 - 2026-10-07T19:09:58Z filed by agent/claude-opus-5 (orchestrator) from T-0300 O11 and the milestone gap map (M4).
+- 2026-10-07T19:10:12Z claimed by agent/claude-opus-5; lease until 2026-10-08T15:10:12Z

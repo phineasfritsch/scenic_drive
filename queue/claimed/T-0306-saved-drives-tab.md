@@ -1,13 +1,13 @@
 ---
 id: T-0306
 title: Saved drives in the app - save from the route preview, a Saved list (newest first, rename, delete), "needs a re-plan" shown honestly, and replay as one plan with the saved waypoints at today's time
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T19:10:14Z
+lease_expires_at: 2026-10-08T15:10:14Z
+worktree: .worktrees/T-0306
+branch: task/T-0306
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/PlaceStore/, Tests/PlaceStoreTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-ATTR-01, P-SAFE-03]
@@ -29,3 +29,4 @@ is +31 not +25, say so." T-0290 shipped the store; T-0294 the plan sheet and pre
 
 ## Log
 - 2026-10-07T19:09:58Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M6 saved drives UI).
+- 2026-10-07T19:10:14Z claimed by agent/claude-opus-5; lease until 2026-10-08T15:10:14Z
