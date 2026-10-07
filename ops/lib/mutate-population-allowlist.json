@@ -1,6 +1,8 @@
 {
   "_": "P-PROC-06's allowlist: modules that compute no number reaching score, route or tags, so CLAUDE.md's 'a new numeric module ships its mutation population' does not apply. ONE REASON PER ENTRY, read from the module. ops/lib/check-mutate-population.py refuses an empty reason, an entry for a module a population also covers, and an entry naming a file that does not exist. It cannot tell numeric from non-numeric - that is a reading, recorded in T-0186's Log and re-read by a reviewer on every widening of this file.",
   "modules": {
+    "Sources/PlaceStore/CorpusLaunch.swift": "a two-field value LaunchCorpus.choose returns (T-0305); no code - the choice is LaunchCorpus.swift's, which corpusfetch.py mutates",
+    "Sources/ScenicAPIClient/CorpusFetchError.swift": "a four-case error enum (T-0305); no code - which case is thrown and what it deletes is URLSessionCorpusFetcher's and CorpusDownloadDelegate's, which corpusfetch.py mutates",
     "Sources/ScenicKit/PlanSheet/PlanField.swift": "a two-case enum naming which search field is open (T-0294); no code",
     "Sources/ScenicKit/PlanSheet/PlanOutcome.swift": "a two-case enum carrying a preview or a failure (T-0294); no code",
     "Sources/ScenicKit/PlanSheet/PlanSheetState.swift": "the plan sheet's six-case state enum (T-0294); its transitions are PlanSheet.swift's, which plansheet.py mutates",

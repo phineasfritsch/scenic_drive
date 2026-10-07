@@ -69,8 +69,11 @@ struct URLSessionCorpusFetcherTests {
             case .short: return [head, .data(payload.subdata(in: at..<(size - 10))), .finish]
             case .drop: return [head, .data(payload.subdata(in: at..<(at + 100))), .fail(.networkConnectionLost)]
             case .long: return [head] + chunks + [.data(Data([0])), .finish]
-            case .wrongRange: return [.respond(206, ["Content-Range": "bytes 7-\(size - 1)/\(size)"]),
-                                      .data(payload.subdata(in: 7..<size)), .finish]
+            case .wrongRange:
+                // No Range sent: a 206 from byte 0. A Range sent: a 206 from a byte that is not the one asked for.
+                let from = at == 0 ? 0 : 7
+                return [.respond(206, ["Content-Range": "bytes \(from)-\(size - 1)/\(size)"]),
+                        .data(payload.subdata(in: from..<size)), .finish]
             }
         }
     }
