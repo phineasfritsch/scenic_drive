@@ -171,3 +171,46 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
   sheet opens full height like Settings, approve the shell's `.sheet(isPresented: $isPlanning) {` by whole line,
   re-approve PlanSheetScreen.swift's -pinned digest) was drafted and NOT committed: changing a P-ATTR-01 guard
   needs the owner's or reviewer's ruling, not the author's.
+- 2026-10-07T16:53:25Z rv1-t0294 FAIL (PR #187, head 0785a182) closed: B1, B2, B3. agent/claude-opus-5 (owner).
+  - RULED (orchestrator ruling on B1, recorded here as given): the plan sheet is presented full height exactly as
+    Settings is - no `presentationDetents` line at all - because a partial sheet over the map would hide the
+    home's attribution (P-ATTR-01, "visible on every map surface at every sheet detent"). The shell's
+    `.sheet(isPresented: $isPlanning) {` gets a typed approval in check-map-attribution-sheet beside Settings'
+    (whole line, count 1; `.sheet(` in the shell counted at exactly 2), NOT a widened pattern; `presentationDetents`
+    stays approved nowhere. B2: the two dead SHELL_PRESENTATION reassignments of 2a18cee7 reverted. B3: an 8-row
+    2-dp table through startPlanning. All landed at 5f5ce915 (pushed; ce62b64a was already on the remote).
+  - B1 PROVE-RED one-row (H6b, the row's own sed and expected string, copied apps/ios + git init, exactly as
+    check-map-attribution-mutations runs a sed row): the mutant gains `.presentationDetents([.medium, .large])`
+    before `.onAppear` in PlanSheetScreen.swift -> "mutant exit=1 named=yes", "P-ATTR-01: a presentation over the
+    map outside its approved site: presentationDetents at
+    Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift(1), tracked nowhere" -> "H6b REFUSED BY
+    NAME". Shipped tree: `bash ops/lib/check-map-attribution` -> "attr exit=0". Whole table
+    `bash ops/lib/check-map-attribution-mutations` -> "H6b rv1-t0294 B1 the plan sheet at a medium detent 1 yes",
+    "prove-red: 47/47 mutations refused by name", exit 0. `bash ops/check-pins --source-only` -> "PINS ok=17
+    skipped=26 pending=1 expired=0 failed=0 tier=linux source-only", exit 0 (the re-approved PlanSheetScreen.swift
+    digest 84f7d730... in check-safety-disclaimer-pinned holds; no Sources/ file changed this round).
+  - B3 EXPECTED VALUES recomputed independently (Python Decimal of the double x*100, ROUND_HALF_UP, /100): every
+    row of originRoundingTable matches - e.g. 34.0012 -> 34.0 (x100 3400.12), 34.005 -> 34.01 (x100
+    3400.5000000000005), 0.125 -> 0.13 (x100 12.5 exact), -118.005 -> -118.01 (x100 -11800.5), -0.125 -> -0.13.
+  - B3 POPULATION, MISSED before / CAUGHT after, `python ops/mutate/plansheet.py --only 31,32`. "Before" is a
+    throwaway detached commit = the branch with the table removed (never pushed). FIRST before-run disagreed with
+    the plan: row 32 as longitude `.rounded(.up)` was "WRONG KILLER ... red were [the ticket is the typed start at
+    2 dp ..., the gate holds on every path ..., P-PRIV-06 ...]" - at -118.49853 the magnitude fraction is above
+    one half, so .up gives -118.49 against -118.50 and three old tests already objected; only row 31 (MY1) was
+    "MISSED ... no test objected". RULED: the longitude sibling the old fixture could not see is `.rounded(.down)`
+    (-118.49853 -> -118.50 either way); row 32 changed to it at 64e13755, floor unchanged at 32. Re-run before
+    (10cbeb10, throwaway): "MISSED 31 latitude rounded up (rv1-t0294 B3, MY1) exit=0 no test objected", "MISSED 32
+    longitude rounded down (MY1's longitude sibling) exit=0 no test objected", "MUTATE FAILED caught=0/2", exit 1.
+    After (64e13755): "caught 31 ... by: the origin is each axis to the nearest hundredth, half away from zero, on
+    every sign", "caught 32 ... by: (the same)", "MUTATE OK caught=2/2", exit 0.
+  - MERGED HEAD 24bbde73 (origin/main e43d7465 merged; main brought linux-core.yml, check-pins-yaml.py, PINS.yaml
+    and queue files only - no Swift, no app tree): `swift test --scratch-path .build/fm-t0294 --filter
+    "PlanSheetTests|PlanFailureCopyTests|PlanSheetGateTests"` -> "Test run with 21 tests in 3 suites passed",
+    exit 0. `python ops/lib/check-pins-yaml.py` -> "PINS-YAML ok pins=44 fields=355". `python
+    ops/lib/check-mutate-population.py` -> "the floor of 74 holds", exit 0. `ops/queue-check` -> "QUEUE OK (293
+    tasks)". wc -l: PlanSheetTests.swift 219, PlanSheetScreen.swift 113, check-map-attribution-sheet 147,
+    check-map-attribution-mutations 204, plansheet_mutations.py 151 (cap 300).
+  - iOS: ios-compile 37652193587 and ios-screenshot 37652201363 dispatched on task/T-0294 (at 5f5ce915, before the
+    row-32 and merge commits, which touch no Swift): `gh run list --branch task/T-0294` -> "completed success
+    ios-compile ... 37652193587 2m45s", "completed success ios-screenshot ... 37652201363 12m45s". linux-core on
+    PR #187 at 5f5ce915: run 37649039410 "completed success" (the round-1 red was 37644981957).
