@@ -59,6 +59,7 @@ MAPPED = "every PlanError reaches the sheet as its own PlanSheetFailure"
 PATHS = "the gate holds on every path: acceptance withdrawn, no ticket from chosen, failed or preview"
 REPLAN = "P-SAFE-03: after a failure or a preview, no request once acceptance is withdrawn, through the planner"
 FROZEN = "inputs are frozen while a plan is in flight: the budget, a search, a pick"
+ROUNDING = "the origin is each axis to the nearest hundredth, half away from zero, on every sign"
 
 STATE_ARMS = "        case .chosen, .preview, .failed: break\n        case .idle, .searching, .planning: return nil"
 GATE_HEAD = ("        guard disclaimerAccepted, let start, let destination else { return nil }\n        switch state {\n"
@@ -131,6 +132,12 @@ MUTATIONS = [
      [PATHS, REPLAN]),
     ("30 the budget moves while a plan is in flight", SHEET, BUDGET_FREEZE, "        budgetMinutes = min(",
      [FROZEN]),
+    ("31 latitude rounded up (rv1-t0294 B3, MY1)", SHEET,
+     "Coordinate(latitude: (coordinate.latitude * 100).rounded() / 100,",
+     "Coordinate(latitude: (coordinate.latitude * 100).rounded(.up) / 100,", [ROUNDING]),
+    ("32 longitude rounded up (MY1's sibling)", SHEET,
+     "longitude: (coordinate.longitude * 100).rounded() / 100)",
+     "longitude: (coordinate.longitude * 100).rounded(.up) / 100)", [ROUNDING]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -139,6 +146,6 @@ EQUIVALENT = [
      "extra is extraMinutes, which is max(0, ...): it is never below zero, so == 0 and <= 0 agree on every input"),
 ]
 
-MIN_MUTATIONS = 30
+MIN_MUTATIONS = 32
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 3

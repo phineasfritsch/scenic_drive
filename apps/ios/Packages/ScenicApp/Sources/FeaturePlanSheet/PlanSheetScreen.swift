@@ -9,6 +9,9 @@ import SwiftUI
 /// on this device there is no ticket, so the planner is never called (P-SAFE-03, R3). The sheet READS the home's
 /// acknowledgement and never writes it - the home's disclaimer stays the one place it is given. The start is a
 /// typed place (R4): this module asks for no location at all.
+///
+/// Presented full height, as Settings is, with no detent: a partial sheet over the map would cover its credit
+/// (P-ATTR-01).
 public struct PlanSheetScreen: View {
     private let planner: any RoutePlanning
     private let onClose: () -> Void
@@ -34,7 +37,6 @@ public struct PlanSheetScreen: View {
                     }
                 }
         }
-        .presentationDetents([.medium, .large])
         .onAppear { sheet.setDisclaimerAccepted(safetyNoteRead) }
         .onChange(of: safetyNoteRead) { _, accepted in sheet.setDisclaimerAccepted(accepted) }
     }

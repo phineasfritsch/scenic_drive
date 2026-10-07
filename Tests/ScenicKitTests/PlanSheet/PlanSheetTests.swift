@@ -45,6 +45,35 @@ struct PlanSheetTests {
         #expect(sheet.start == Self.santaMonica && sheet.destination == Self.topanga)
     }
 
+    /// rv1-t0294 B3: each axis to the nearest hundredth, half away from zero, on both signs. Every expected value
+    /// was computed outside Swift (Python's Decimal of the double `x * 100`, ROUND_HALF_UP, over 100) and typed in.
+    /// A fraction below, at and above one half on each axis and each sign, so `.rounded(.up)`, `.down`,
+    /// `.towardZero` and `.toNearestOrEven` on either axis each change at least one row.
+    @Test("the origin is each axis to the nearest hundredth, half away from zero, on every sign")
+    func originRoundingTable() {
+        let rows: [(typed: Coordinate, sent: Coordinate)] = [
+            (Coordinate(latitude: 34.0012, longitude: -118.4912), Coordinate(latitude: 34.0, longitude: -118.49)),
+            (Coordinate(latitude: 34.005, longitude: -118.005), Coordinate(latitude: 34.01, longitude: -118.01)),
+            (Coordinate(latitude: 0.125, longitude: -0.125), Coordinate(latitude: 0.13, longitude: -0.13)),
+            (Coordinate(latitude: 34.0051, longitude: -118.0051), Coordinate(latitude: 34.01, longitude: -118.01)),
+            (Coordinate(latitude: -33.8612, longitude: 151.2012), Coordinate(latitude: -33.86, longitude: 151.2)),
+            (Coordinate(latitude: -33.8688, longitude: 151.2093), Coordinate(latitude: -33.87, longitude: 151.21)),
+            (Coordinate(latitude: -34.005, longitude: 118.005), Coordinate(latitude: -34.01, longitude: 118.01)),
+            (Coordinate(latitude: -0.125, longitude: 0.125), Coordinate(latitude: -0.13, longitude: 0.13)),
+        ]
+        for row in rows {
+            var sheet = PlanSheet(disclaimerAccepted: true)
+            sheet.search("start", for: .start)
+            sheet.choose(PlanPlace(id: 3, name: "Typed start", coordinate: row.typed))
+            sheet.search("topanga", for: .destination)
+            sheet.choose(Self.topanga)
+            sheet.setBudget(30)
+            let ticket = sheet.startPlanning()
+            #expect(ticket == PlanTicket(serial: 1, origin: row.sent, place: 42, budgetMinutes: 30),
+                    "typed \(row.typed)")
+        }
+    }
+
     @Test("choosing fills the field being searched and keeps the other")
     func chooseFillsItsField() {
         var sheet = Self.ready(accepted: true)
