@@ -96,3 +96,24 @@ must stay free of personal data (memory user-lives-in-la; plan Launch scope).
        thirteen-step full-equality table over two variants, both tables whole after every step. MET.
     3. Population entries for the dedupe key (tag-ignores-device/-cell/-day) and the day boundary (day-one-ms-early/
        -late, purge-*): MISSED before (bar tag-ignores-device, CAUGHT before by the edited T-0293 test) and CAUGHT by name after. MET.
+- 2026-10-07T11:24:33Z rv1-t0296 FAIL (PR #185 at 4a985fb3) B1 - ruled and closed by class:
+  - RULING: B1 stands. identifyCaller returns a bucket from three sources - the session sub, the legacy x-scenic-device
+    header (secret set, IDENTITY_HEADERS "1", no Bearer) and the shared unidentified bucket - and the sequence table ran
+    only with IDENTITY_HEADERS unset, so the legacy source was never a variant. No disagreement with R1: the fix is test-only.
+  - FIX (waitlistDedupe.test.ts, test names unchanged so the P-PRIV-06 bindings hold): the sequence is now the cross
+    product {empty, holding} x {session-only, legacy-headers}; each step's bucket is bucket(mode, who) and every expected
+    row is computed from it. Five steps added on 2026-10-06 (18 total): a malformed Bearer beside a C header
+    (unidentified in both modes; a repeat), C header no Bearer (C under the flag, unidentified without), C again (repeat),
+    D header (counts under the flag), C at the other cell, a C header with a valid Bearer for A at the other cell (A's
+    bucket; a header bucket would be a repeat under the flag). The meta-test now asserts the four traces pairwise
+    distinct and that the steps whose bucket the mode moves are exactly the header-only steps (4). The no-device-id test
+    runs every step in both modes and forbids DEVICE_C/DEVICE_D too.
+  - RED: the oracle's bucket made mode-blind (`return UNIDENTIFIED;` for header steps) -> 3 failed | 1 passed (4), the
+    meta-test among them; restored -> the four touched files 20/20 passed.
+  - POPULATION regionMutants.mjs MIN_MUTATIONS 66 -> 68: legacy-identity-constant (rv1's mutant: the deviceIdentity
+    fallback replaced by a constant unidentified) and malformed-bearer-falls-to-header (sibling: a Bearer that fails the
+    BEARER shape is passed to identifyCaller as absent, so under the flag it falls through to the header).
+    BEFORE (test at 4a985fb3): `RESULT caught=0 missed=2 trap=0 of 2` - MISSED legacy-identity-constant, MISSED
+    malformed-bearer-falls-to-header.
+    AFTER `--only=` those two + identity-constant, identity-header-only: `RESULT caught=4 missed=0 trap=0 of 4` - the two
+    new ones CAUGHT by `same device same cell same day counts once; ...`.

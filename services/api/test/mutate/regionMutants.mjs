@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-region");
 
-export const MIN_MUTATIONS = 66;
+export const MIN_MUTATIONS = 68;
 export const SUBJECTS = ["src/servedRegion.ts", "src/plan.ts", "src/loop.ts", "src/trip.ts", "src/isochrone.ts",
   "src/waitlist.ts", "src/index.ts", "migrations/0006_waitlist.sql", "migrations/0007_waitlist_seen.sql"];
 const TESTS = ["test/regionGate.test.ts", "test/regionGateOrder.test.ts", "test/waitlist.test.ts", "test/waitlistDedupe.test.ts", "test/migrationColumns.test.ts", "test/planWire.test.ts",
@@ -116,6 +116,11 @@ export const MUTATIONS = [
   m("identity-header-only", W,
     "(await identifyCaller(req.headers.get(AUTHORIZATION_HEADER), env, now().getTime(), async () => deviceIdentity(req))).userId",
     "deviceIdentity(req).userId"),
+  // rv1 B1: the legacy identity source (x-scenic-device under IDENTITY_HEADERS "1", no Bearer) and a malformed Bearer
+  // falling through to it.
+  m("legacy-identity-constant", W, "async () => deviceIdentity(req)", "async () => ({ userId: \"unidentified\", tier: \"anon\" as const })"),
+  m("malformed-bearer-falls-to-header", W, "identifyCaller(req.headers.get(AUTHORIZATION_HEADER),",
+    "identifyCaller(/^Bearer [A-Za-z0-9_.-]+$/.test(req.headers.get(AUTHORIZATION_HEADER) ?? \"\") ? req.headers.get(AUTHORIZATION_HEADER) : null,"),
   m("seen-device-column", "migrations/0007_waitlist_seen.sql", "  day TEXT", "  device_id TEXT,\n  day TEXT"),
   m("seen-cell-column", "migrations/0007_waitlist_seen.sql", "  day TEXT", "  cell TEXT,\n  day TEXT"),
 ];
