@@ -211,6 +211,11 @@
         "ROUTES kill switch over every upstream route (P-COST-01) > every upstream key of ROUTES pauses on env KILL and on KV KILL_SWITCH: 503 planning_paused, zero router requests, quota state empty",
         "ROUTES['/telemetry'] kill switch (T-0279 R8, P-COST-01) > ROUTES['/telemetry'] pauses on env KILL and on KV KILL_SWITCH: 503 telemetry_paused, zero Analytics Engine writes, quota state empty"
       ],
+      "test/sharedEnvWorker.test.ts": [
+        "the shared-env worker after an authenticated sweep (T-0292, P-COST-01) > the authenticated sweep sends every ROUTES path a valid, an invalid and an authenticated request on one env per KILL source, and no request throws",
+        "the shared-env worker after an authenticated sweep (T-0292, P-COST-01) > after the sweep, every upstream route and /telemetry on the shared env answers the whole paused response under every killing source, and is served under every other",
+        "handlers get a frozen env (T-0292 R1, P-COST-01) > a handler that deletes, assigns or redefines env.KILL through worker.fetch throws TypeError, and the next POST /plan on the same env object is 503 planning_paused"
+      ],
       "test/telemetryCost.test.ts": [
         "POST /telemetry spend control (T-0279 R5/R6, P-COST-01) > KILL=1 or the KV KILL_SWITCH key is 503 telemetry_paused before the body is read: zero writes, no reservation",
         "POST /telemetry spend control (T-0279 R5/R6, P-COST-01) > the request's events are reserved in one transaction before the first Analytics Engine write",

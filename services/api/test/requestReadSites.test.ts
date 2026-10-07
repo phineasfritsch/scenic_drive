@@ -148,7 +148,7 @@ const APPROVED: Record<string, string[]> = {
     URL_LINE,
     'const handler = ROUTES[url.pathname.length > 1 && url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname];',
     HANDLER_MISS,
-    "return handler(req, env, url);",
+    "return handler(req, Object.freeze({ ...env }), url);",
     "ctx.waitUntil(runClosuresCron({ fetchImpl: (url) => fetch(url), kv: env.CLOSURES, now: () => new Date() }));",
   ],
   "../src/isochrone.ts": [
