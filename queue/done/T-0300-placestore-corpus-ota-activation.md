@@ -1,7 +1,7 @@
 ---
 id: T-0300
 title: PlaceStore decides and stages a corpus OTA update - manifest gate (schema_version, min_app_build), sha256 + byte-count verify into a staging file, atomic rename, activation only at the next cold launch and never while a drive holds the store
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T13:55:10Z
@@ -11,7 +11,7 @@ branch: task/T-0300
 exclusive: []
 touches: [Sources/PlaceStore/, Tests/PlaceStoreTests/, Tests/Fixtures/, ops/mutate/, ops/lib/check-safety-disclaimer-linked, ops/lib/named-tests.json, ops/lib/mutate_population_table.py, ops/lib/mutate-population-allowlist.json, pins/PINS.yaml]
 pins_affected: [P-PROD-05]
-reviewer: null
+reviewer: agent/rv2-t0300
 depends_on: [T-0175, T-0270]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -63,3 +63,11 @@ are later tasks. Swift is native on this box (memory swift-native-on-windows-box
   - META-TEST SEEN RED (commit ad403993, `expected(_:)`'s held-drive guard deleted by hand, then `git checkout` - `git diff --stat Tests/` empty): `noActivationRowIgnoresADimension() failed ... with 36 issues`, `activationTableOverEverySlotState() failed ... with 18 issues`; restored: 3 tests passed.
   - CAUGHT BY NAME AFTER (f39222b1; every entry whose killer was renamed from activationTableOverAnOldCorpus()/OnFirstInstall(), plus 40 and 41; owner ruling faster-verification-in-rounds): `python ops/mutate/corpusota.py --only 18,19,20,21,22,23,34,35,36,37,39,40,41`: each `caught ... by: activationTableOverEverySlotState()` (35-37 also by aDriveTokenIsHeldUntilItsLastEndOrDeinit()), incl. `caught 40 an interrupted swap is restored under a held drive` and `caught 41 hadActive read before the interrupted swap is restored`; `MUTATE OK caught=13/13 equivalent_caught=0 (--only: 13 of 41 entries)`, rc=0. Entries 1-17, 24-33, 38 and E1 are untouched (their files and killers unchanged).
   - ON THE MERGED HEAD 8ea182f1 (origin/main e43d7465 merged: T-0301 PINS.yaml strict check, T-0302 filed; no conflict): `swift test --scratch-path .build/t0300 --filter PlaceStoreTests`: `Test run with 33 tests in 8 suites passed` (was 34: the two activation tables became one); `SCENIC_SWIFT_SCRATCH=.build/t0300 python ops/lib/run-named-tests.py P-PROD-05`: `NAMED P-PROD-05 passed=3/3`; `python3 ops/lib/check-pins-yaml.py`: `PINS-YAML ok pins=44 fields=355`; `python ops/lib/check-mutate-population.py`: `P-PROC-06: every added module is covered or allowlisted; the floor of 77 holds`; `bash ops/lib/check-line-cap`: `P-SRC-02: 281 Swift files tracked ... none over 300 lines` (CorpusActivationTests.swift 169); `bash ops/queue-check`: `QUEUE OK (293 tasks)`. P-SAFE-03 not re-run: no Sources/ or apps/ios file changed this round.
+- 2026-10-07T17:28:04Z REVIEW ROUND 2: PASS (agent/rv2-t0300, reviewer; not the owner). Reviewed head b4922035 in a detached worktree (.worktrees/rv2-t0300 at origin/task/T-0300).
+  - rv1 B1 and B2 RE-APPLIED (population entries 40 and 41 are the rv1 diffs verbatim): `python ops/mutate/corpusota.py --only 40,41`: `caught 40 an interrupted swap is restored under a held drive by: activationTableOverEverySlotState()`, `caught 41 hadActive read before the interrupted swap is restored by: activationTableOverEverySlotState()`, `MUTATE OK caught=2/2 equivalent_caught=0 (--only: 2 of 41 entries)`, rc=0; all six subjects pristine == HEAD.
+  - REVIEWER MUTANT R1 (unwritten, openForLaunch ordering: the interrupted-swap restore moved BELOW the pending guard, so a crash-left previous slot is never restored when nothing is pending): `swift test --scratch-path .build/rv2-t0300 --filter PlaceStoreTests\.CorpusActivationTests` rc=1, `activationTableOverEverySlotState() failed ... with 6 issues` (e.g. active "GOOD corpus in the active slot" previous "GOOD corpus in the previous slot" vs expected active "GOOD corpus in the previous slot" previous -); the other two tests passed. Caught by name; source restored with git checkout.
+  - `swift test --scratch-path .build/rv2-t0300 --filter PlaceStoreTests`: `Test run with 33 tests in 8 suites passed`, rc=0.
+  - `bash ops/queue-check` (bare): `QUEUE OK (293 tasks)`.
+  - `gh pr checks 190`: `core pass 5m6s`, `pins-source-only pass 3m19s` - core ran the GRDB-gated store tests and the Linux rename(2) branch green.
+  - Ancestry: origin/main e43d7465 is an ancestor of origin/task/T-0300 b4922035 (`git merge-base --is-ancestor` rc=0).
+  - Open, recorded not blocking: E1 stays EQUIVALENT (a throwing rename needs a fault-injecting file system); P-SAFE-03 not re-run since round 1 because no Sources/ or apps/ios file changed this round.
