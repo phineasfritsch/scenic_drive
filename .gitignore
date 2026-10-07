@@ -11,6 +11,9 @@
 xcuserdata/
 DerivedData/
 .artifacts/
+# Finder metadata. Ignored so ops/lib/check-safety-disclaimer-linked's one relief applies on every Mac (T-0295); an
+# unignored or tracked .DS_Store is still refused there by name.
+.DS_Store
 
 # Task worktrees. `git worktree add .worktrees/T-0007 -b task/T-0007` puts every task's checkout
 # inside the repo instead of a sibling directory nothing here references. Ignored so that ~70
