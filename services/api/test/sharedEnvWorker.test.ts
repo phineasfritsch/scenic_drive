@@ -8,7 +8,7 @@
  */
 import { BASELINE, PARSE, STRINGIFY } from "./configOracle";
 import { env as testEnv } from "cloudflare:test";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import worker, { ROUTES, type Env } from "../src/index";
 import { signSession } from "../src/sessionJwt";
 import { expected, KILLS } from "./configHarness";
@@ -43,6 +43,15 @@ const rig = ([name, source, killed]: (typeof KILLS)[number], i: number): Rig => 
   return { name, killed, env, quota, writes, host };
 };
 const RIGS: Rig[] = KILLS.map(rig);
+/** R2: each source's worker is its own module instance - its own isolate - so a first-call patch fires on each one. */
+const ISOLATES: (typeof worker)[] = [];
+beforeAll(async () => {
+  for (const _ of RIGS) {
+    vi.resetModules();
+    ISOLATES.push((await import("../src/index")).default);
+  }
+});
+const isolate = (r: Rig) => ISOLATES[RIGS.indexOf(r)]!;
 const BEFORE = RIGS.map((r) => ({ ...r.env }) as Record<string, unknown>);
 const hosts: string[] = [];
 
@@ -65,8 +74,8 @@ async function credentials(): Promise<Auth> {
   return auth;
 }
 
-async function answer(req: Request, env: Env) {
-  const r = await worker.fetch(req, env);
+async function answer(req: Request, env: Env, w: typeof worker = worker) {
+  const r = await w.fetch(req, env);
   const text = await r.text();
   let json: unknown = text;
   try {
@@ -95,7 +104,7 @@ describe("the shared-env worker after an authenticated sweep (T-0292, P-COST-01)
           const r = REQUESTS[c.path]!;
           const req = c.kind === "authenticated" ? r.authenticated(a) : r[c.kind]();
           try {
-            await (await worker.fetch(req, RIGS[c.rig]!.env)).arrayBuffer();
+            await (await ISOLATES[c.rig]!.fetch(req, RIGS[c.rig]!.env)).arrayBuffer();
             done.push(`${label(c)} answered`);
           } catch (e) {
             done.push(`${label(c)} threw ${(e as Error).name}: ${(e as Error).message}`);
@@ -106,6 +115,7 @@ describe("the shared-env worker after an authenticated sweep (T-0292, P-COST-01)
     });
     expect(outcomes.map((d) => [...d].sort())).toEqual(PASSES.map(() => CALLS.map((c) => `${label(c)} answered`).sort()));
     expect(CALLS.length).toBe(Object.keys(ROUTES).length * KINDS.length * KILLS.length);
+    expect([new Set(ISOLATES).size, ISOLATES.includes(worker)]).toEqual([RIGS.length, false]);
   });
 
   it("after the sweep, every upstream route and /telemetry on the shared env answers the whole paused response under every killing source, and is served under every other", async () => {
@@ -116,7 +126,7 @@ describe("the shared-env worker after an authenticated sweep (T-0292, P-COST-01)
     await withRouter(async () => {
       for (const r of RIGS) {
         for (const path of KILLABLE) {
-          const body = await answer(REQUESTS[path]!.authenticated(a), r.env);
+          const body = await answer(REQUESTS[path]!.authenticated(a), r.env, isolate(r));
           got.push([r.name, path, r.killed || STRINGIFY(body) === STRINGIFY(PAUSED[path]) ? body : "served"]);
         }
       }
@@ -141,7 +151,7 @@ describe("the shared-env worker after an authenticated sweep (T-0292, P-COST-01)
         const bound = e.CONFIG;
         e.CONFIG = row.config;
         try {
-          const res = await worker.fetch(get("/config"), r.env);
+          const res = await isolate(r).fetch(get("/config"), r.env);
           got.push([row.name, r.name, { status: res.status, contentType: res.headers.get("content-type"),
             cacheControl: res.headers.get("cache-control"), text: await res.text() }]);
         } finally {

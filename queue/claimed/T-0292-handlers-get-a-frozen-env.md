@@ -73,3 +73,29 @@ runtime-read-recorder.
   (R9) T-0293 (PR #182, open) adds /waitlist to ROUTES and edits configSweep/killSwitchRoutes: on the final merge the
   shared REQUESTS table gains /waitlist's representatives (it fails closed on ROUTES' keys), and the operational list
   in the new kill table follows killSwitchRoutes'.
+- 2026-10-07T09:00:27Z agent/claude-opus-5 (owner): RED, CODE, GREEN, POPULATION.
+  RED FIRST (tests only, index.ts unchanged): `npx vitest run test/sharedEnvWorker.test.ts test/configSweep.test.ts`
+  `Tests 1 failed | 9 passed (10)`, exit 1 - FAILED by name `handlers get a frozen env (T-0292 R1, P-COST-01) > a handler
+  that deletes, assigns or redefines env.KILL through worker.fetch throws TypeError, and the next POST /plan on the same
+  env object is 503 planning_paused` (received `delete: no throw`, ...). The sweep, both tables and the snapshot were
+  green on the unmutated tree (the sweep found no throwing request with bound fakes).
+  MISSED BEFORE (configMutants.mjs, pre-change TESTS list of 9 files, pre-change index.ts): `--only=attest-first-call-
+  deletes-kill`: `baseline green tests=41`, `MISSED attest-first-call-deletes-kill`; `--only=session-authenticated-
+  stringify-unpause`: `baseline green tests=41`, `MISSED session-authenticated-stringify-unpause`. (A first spelling gated
+  in telemetry.ts on `userId` was CAUGHT by requestReadSites - userId is a request-derived name - so the authenticated
+  entry gates inside identifyCaller after verifySession, on `claims`, which no request read derives.)
+  CODE: index.ts default.fetch `return handler(req, Object.freeze({ ...env }), url);` plus one header line; the
+  configAnswerPath content pin re-approves index.ts (a19976c5...) and requestReadSites re-approves the one changed site.
+  RULING R2 AMENDED: the first --only run after the code had the attest entry MISSED - all five sources ran on ONE module
+  instance, so the mutant's single first call landed on a source without KILL, where deleting an absent property of a
+  frozen object is a silent no-op. workerd gives each deployment its own isolate, so each KILL source now gets its own
+  module instance (vi.resetModules + dynamic import of src/index, asserted 5 distinct and none the static one).
+  CAUGHT AFTER: `population mutations=81 (floor 81) equivalent=1 subjects=2 tests=10 ONLY=2`, `baseline green tests=47`,
+  `CAUGHT attest-first-call-deletes-kill by "the authenticated sweep sends every ROUTES path a valid, an invalid and an
+  authenticated request on one env per KILL source, and no request throws"`, `CAUGHT session-authenticated-stringify-
+  unpause by "after the sweep, every CONFIG row x every KILL source answers the whole expected /config response on the
+  shared env"`, `RESULT caught=2 missed=0 trap=0 of 2`. Index entries (before the isolate change, src unchanged since):
+  `CAUGHT fetch-env-shared` and `CAUGHT fetch-env-copy-unfrozen`, both by "the /config answer path is exactly the
+  approved bytes". Floor 77 -> 81; TESTS += test/sharedEnvWorker.test.ts.
+  RESIDUAL R-A (R1, not closed): the freeze is shallow; a write to a shared binding object (env.KILL_SWITCH.get = ...)
+  reaches later requests. Proposed follow-up, not filed by this task.
