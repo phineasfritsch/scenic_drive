@@ -40,4 +40,8 @@ describe("the D1 schema the shipped migrations build (T-0293 R10)", () => {
   it("the waitlist dedupe table is exactly (tag, day): no column can hold a device, a cell or an instant (T-0296, P-PRIV-05)", async () => {
     expect((await columns()).waitlist_seen).toEqual(["tag", "day"]);
   });
+
+  it("the surprise ledger table is exactly (user_id, place_id, cell, day): no coordinate, no instant finer than a day (T-0302 R9, P-PRIV-05)", async () => {
+    expect((await columns()).surprise_ledger).toEqual(["user_id", "place_id", "cell", "day"]);
+  });
 });

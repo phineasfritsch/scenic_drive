@@ -21,7 +21,7 @@ import { DEVICE, get, NO_CREDENTIAL, REQUESTS, shuffled, signature, type Auth } 
 const SECRET = "t0292-shared-env-session-secret-0123456789abcdef";
 const RO_TOKEN = "t0292-shared-env-ro-token";
 const OPERATIONAL = ["/__health", "/__version", "/__ro", "/asn", "/entitlement", "/attest/challenge", "/attest", "/attest/assert",
-  "/auth/apple", "/account", "/config", "/waitlist"];
+  "/auth/apple", "/account", "/config", "/waitlist", "/ledger"];
 const KILLABLE = ["/plan", "/loop", "/isochrone", "/trip", "/telemetry"];
 const PAUSED: Record<string, unknown> = {
   "/plan": { status: 503, json: { error: "planning_paused" } },

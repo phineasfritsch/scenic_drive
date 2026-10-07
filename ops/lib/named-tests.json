@@ -152,10 +152,19 @@
       ],
       "test/migrationColumns.test.ts": [
         "the D1 schema the shipped migrations build (T-0293 R10) > no column of any table the shipped migrations create names home, address, breadcrumb, trail or speed (P-PRIV-05)",
-        "the D1 schema the shipped migrations build (T-0293 R10) > the waitlist dedupe table is exactly (tag, day): no column can hold a device, a cell or an instant (T-0296, P-PRIV-05)"
+        "the D1 schema the shipped migrations build (T-0293 R10) > the waitlist dedupe table is exactly (tag, day): no column can hold a device, a cell or an instant (T-0296, P-PRIV-05)",
+        "the D1 schema the shipped migrations build (T-0293 R10) > the surprise ledger table is exactly (user_id, place_id, cell, day): no coordinate, no instant finer than a day (T-0302 R9, P-PRIV-05)"
       ],
       "test/waitlistDedupe.test.ts": [
         "POST /waitlist counts one device once per cell per UTC day (T-0296) > the dedupe table holds no device id and no cell, only 64-hex tags and the UTC day"
+      ],
+      "test/ledger.test.ts": [
+        "GET and POST /ledger hold exactly the caller's Surprise places for 90 days (T-0302 R1-R5) > no row ignores the caller: every row's expected answers or table differ between the two callers",
+        "GET and POST /ledger hold exactly the caller's Surprise places for 90 days (T-0302 R1-R5) > every row through worker.fetch answers the model's answers and leaves the model's whole table, for each caller",
+        "GET and POST /ledger hold exactly the caller's Surprise places for 90 days (T-0302 R1-R5) > every other POST body is 400 invalid_request with its detail and the table unchanged, for each caller"
+      ],
+      "test/ledgerWindow.test.ts": [
+        "the /ledger 90-day window (T-0302 R4, R5) > 90 days is returned and kept, 91 is not returned and is deleted on the next write, on each side of each midnight"
       ]
     },
     "swift": {
@@ -232,6 +241,9 @@
       "test/regionGateOrder.test.ts": [
         "the region gate precedes every precondition after it (T-0293 rv1 B1, R5, P-COST-01) > no row ignores its precondition: inside the region each row changes the route's answer on exactly its typed routes",
         "the region gate precedes every precondition after it (T-0293 rv1 B1, R5, P-COST-01) > an out-of-region coordinate is 422 region_unsupported whole under every precondition on every route, with zero D1 reads, zero KV reads, zero router requests and an untouched quota"
+      ],
+      "test/ledger.test.ts": [
+        "GET and POST /ledger hold exactly the caller's Surprise places for 90 days (T-0302 R1-R5) > KILL=1 and the KV KILL_SWITCH do not pause /ledger: D1 only, zero router requests, no quota reservation (R7)"
       ]
     }
   },
