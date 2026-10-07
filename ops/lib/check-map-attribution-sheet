@@ -42,6 +42,8 @@ SHEET_CLOSE=("}" "}" ".background(DesignTokens.bg)")
 SHEET_PRESENTATION='.sheet(isPresented: $isShowingDisclaimer) {'
 SHELL_REL="ScenicDrive/ScenicDriveApp.swift"
 SHELL_PRESENTATION='.sheet(isPresented: $isShowingSettings) {'
+SHELL_PRESENTATION='.overlay(alignment: .topLeading) {'
+SHELL_PRESENTATION='.sheet(isPresented: $isShowingSettings) {'
 SHEET_PRESENTERS=(".sheet(" ".fullScreenCover(" ".popover(" ".inspector(" "presentationDetents")
 
 # Every line of one file that can hold code, "<line number>\t<trimmed line>", trailing CR stripped.

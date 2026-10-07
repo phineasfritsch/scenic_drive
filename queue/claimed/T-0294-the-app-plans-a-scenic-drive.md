@@ -113,3 +113,19 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
     pinned one swift-frontend for 15+ minutes on this box (now typed `[(PlanError, PlanSheetFailure)]`).
   - ios-compile and ios-screenshot are workflow_dispatch only: dispatched on task/T-0294 (runs 37626118143,
     37626129739).
+- 2026-10-07T14:17:04Z GREEN, population, merged head. agent/claude-opus-5 (owner).
+  - GREEN at df205586: the same filter -> "Test run with 17 tests in 3 suites passed", exit 0; on the merged head
+    06f2980d (origin/main a7005872 merged, no Swift change from main) again 17/17, exit 0.
+  - POPULATION ops/mutate/plansheet.py: 27 entries (MIN_MUTATIONS 27), 1 EQUIVALENT (E1, witness in the file).
+    --prove-floor: "FLOOR PROOF OK: 7 of 7 arms refused and the control did not". Entries 1, 5, 13 with the three
+    test files emptied (--prove-vacuity --only 1,5,13): MISSED 3 of 3, "VACUITY PROOF OK"; with them (--only
+    1,5,13): "caught 1 the gate ignores the disclaimer by: first launch: no ticket until the disclaimer is accepted,
+    then one | P-SAFE-03 ...", "caught 5 the origin unrounded by: P-SAFE-03 ...", "caught 13 a stale reply lands by:
+    a reply lands only on the ticket in flight; a stale one is dropped" - "MUTATE OK caught=3/3". The full 27-entry
+    run is NOT done here (each mutant is a ScenicKit rebuild on a box shared with other sessions); owner-approved
+    faster verification, recorded as open.
+  - GATES on the merged head: check-mutate-population exit 0 after PlanError.swift left SUBJECT_MODULES (it is
+    already allowlisted; entry 27 still mutates it); CI round 1 (PR #187) refused P-PROC-06 for that and P-ATTR-01
+    "a presentation over the map outside its approved site" (the shell's new overlay and plan sheet) - the two shell
+    lines are typed into check-map-attribution-sheet's whitelist in this commit. ios-compile 37626118143 and
+    ios-screenshot 37626129739 green on the branch.
