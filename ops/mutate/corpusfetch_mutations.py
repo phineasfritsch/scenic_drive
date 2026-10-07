@@ -7,7 +7,8 @@ corpusfetch_run.py (corpusota's three-file shape).
 
   * the RESUME - the Range header, the over-long and complete resume files - 1-3 (R3);
   * the ERRORS - which error deletes the resume file, a short body, a long body, a 206 at the wrong byte or with no
-    Range, a dropped connection's code, the manifest's status and code - 4-6, 12-16 (R3);
+    Range, a dropped connection's code, the manifest's status and code, a refusal reported under the cancel it
+    caused - 4-6, 12-16, 22 (R3);
   * the NAMES - the corpus URL, the resume file's key, Wi-Fi only - 7-9 (R1, R3, R6);
   * the LAUNCH CHOICE - cold launch, the existence test, the record, the fallback - 17-21 (R4).
 
@@ -86,6 +87,13 @@ MUTATIONS = [
     ("20 a feature's ask ignores the record", LAUNCH, "return downloaded ?? fallback", "return fallback", [CHOICE]),
     ("21 no corpus active and the fallback dropped", LAUNCH, "corpus: chosen ?? fallback)", "corpus: chosen)",
      [CHOICE]),
+    ("22 the session's cancel error outranks the refusal that caused it", DELEGATE,
+     "        if let failure {\n            continuation?.resume(throwing: failure)\n        } else if let error {\n"
+     "            continuation?.resume(throwing: CorpusFetchError.transport(code: " + _URLERR + "\n        } else {\n",
+     "        if let error {\n"
+     "            continuation?.resume(throwing: CorpusFetchError.transport(code: " + _URLERR + "\n"
+     "        } else if let failure {\n            continuation?.resume(throwing: failure)\n        } else {\n",
+     [FETCH]),
 ]
 
 EQUIVALENT = [
@@ -95,6 +103,6 @@ EQUIVALENT = [
      "on every failure, so no table row - and no production path - reaches fetch with a destination present"),
 ]
 
-MIN_MUTATIONS = 21
+MIN_MUTATIONS = 22
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 2

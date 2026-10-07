@@ -173,4 +173,49 @@ struct URLSessionCorpusFetcherTests {
             #expect(StubCorpusURLProtocol.requests() == [StubCorpusURLProtocol.Seen(url: Self.manifestURL, range: nil)])
         }
     }
+
+    /// Records what a plain URLSession reports to a delegate that cancels its task on the first body chunk.
+    final class CancelOnFirstData: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+        private let lock = NSLock()
+        private var chunks = 0
+        private var continuation: CheckedContinuation<(Int, (any Error)?), Never>?
+
+        func run(_ request: URLRequest, in session: URLSession) async -> (Int, (any Error)?) {
+            await withCheckedContinuation { continuation in
+                lock.lock(); self.continuation = continuation; lock.unlock()
+                session.dataTask(with: request).resume()
+            }
+        }
+
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            lock.lock(); chunks += 1; lock.unlock()
+            dataTask.cancel()
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
+            lock.lock()
+            let continuation = self.continuation
+            self.continuation = nil
+            let seen = chunks
+            lock.unlock()
+            continuation?.resume(returning: (seen, error))
+        }
+    }
+
+    /// The stub models cancellation as URLSession does: a task cancelled mid-body gets no further chunk and no clean
+    /// finish, and completes with URLError.cancelled (-999).
+    @Test func stubCompletesACancelledTaskWithURLErrorCancelled() async {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubCorpusURLProtocol.self]
+        let delegate = CancelOnFirstData()
+        let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+        StubCorpusURLProtocol.reset { _ in
+            [.respond(200, [:]), .data(Data([1])), .data(Data([2])), .data(Data([3])), .finish]
+        }
+        let (chunks, error) = await delegate.run(URLRequest(url: Self.corpusURL), in: session)
+        #expect(chunks == 1)
+        #expect((error as? URLError)?.code == .cancelled)
+        #expect(StubCorpusURLProtocol.requests() == [StubCorpusURLProtocol.Seen(url: Self.corpusURL, range: nil)])
+    }
 }
