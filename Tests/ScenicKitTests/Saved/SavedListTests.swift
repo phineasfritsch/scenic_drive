@@ -18,7 +18,9 @@ struct SavedListTests {
     /// Newest first.
     static let sorted = [mulholland, canyon, topanga]
     static let matador = PlanPlace(id: 42, name: "El Matador", coordinate: Coordinate(latitude: 34.04, longitude: -118.685))
-    static let places = [matador]
+    /// A place AT the needs-replan canyon's saved end, so replay(3) is refused for needsReplan alone - not for reach.
+    static let canyonEnd = PlanPlace(id: 43, name: "Canyon end", coordinate: Coordinate(latitude: 34.25, longitude: -118.35))
+    static let places = [matador, canyonEnd]
 
     enum Event: Equatable {
         case load, beginRename(Int64), editName, commitRename, askDelete(Int64), confirmDelete, cancel, replay(Int64)

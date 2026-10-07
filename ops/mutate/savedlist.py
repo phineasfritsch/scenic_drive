@@ -65,13 +65,16 @@ def prove_floor() -> int:
     base = {"MUTATIONS": list(MUTATIONS), "EQUIVALENT": list(EQUIVALENT), "TESTS": list(TESTS),
             "MIN_MUTATIONS": MIN_MUTATIONS}
     killers_gone = [(n, p, o, w, [] if i == 0 else k) for i, (n, p, o, w, k) in enumerate(MUTATIONS)]
+    # Padded back to the WHOLE count, so the arm can only be refused for the unmutated subject, never the floor.
+    no_draft = [m for m in MUTATIONS if m[1] != SUBJECTS[1]]
+    no_draft += [m for m in MUTATIONS if m[1] != SUBJECTS[1]][:len(MUTATIONS) - len(no_draft)]
     arms = [("MUTATIONS emptied", {"MUTATIONS": []}),
             ("MUTATIONS one short of the floor", {"MUTATIONS": base["MUTATIONS"][:MIN_MUTATIONS - 1]}),
             ("the floor raised to %d" % (MIN_MUTATIONS + 1), {"MIN_MUTATIONS": MIN_MUTATIONS + 1}),
             ("EQUIVALENT one short of the floor", {"EQUIVALENT": base["EQUIVALENT"][:MIN_EQUIVALENT - 1]}),
             ("one entry's killers emptied", {"MUTATIONS": killers_gone}),
             ("SavedDraft.swift unmutated, count padded back",
-             {"MUTATIONS": [m for m in MUTATIONS if m[1] != SUBJECTS[1]] + MUTATIONS[:3]}),
+             {"MUTATIONS": no_draft}),
             ("a test file missing", {"TESTS": base["TESTS"][:1]})]
     g = globals()
     refused = 0
