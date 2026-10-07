@@ -101,7 +101,16 @@
         "the field x variant table is whole (meta) > every field meets every variant: a row, or a named no-op whose variant hands back the right value",
         "the field x variant table is whole (meta) > every row's value differs from its field's right value",
         "the field x variant table is whole (meta) > every variant but the value-free ones is a function of the right value",
-        "the field x variant table is whole (meta) > every ACCEPTED name is a row, and the refused rows are the rest"
+        "the field x variant table is whole (meta) > every ACCEPTED name is a row, and the refused rows are the rest",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header kid: a leading space",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: header typ: a leading space",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload iss: a leading space",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload nonce: a leading space",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload iss: in fullwidth form",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload aud: a zero-width space inside",
+        "every identity-token field x every variant through the shipped ROUTES['/auth/apple'] (R5, P-PRIV-04) > refused: payload nonce: an embedded NUL before a tail",
+        "the field x variant table is whole (meta) > every field meets every operation: rows its lax compare takes for the right value, or a named no-op",
+        "the field x variant table is whole (meta) > a String object (new String(r)) is no row: JSON hands back the primitive String(r), the right value or its numeric string"
       ]
     }
   },

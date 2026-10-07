@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-siwa");
 
-export const MIN_MUTATIONS = 113;
+export const MIN_MUTATIONS = 121;
 export const SUBJECTS = ["src/appleJwks.ts", "src/appleIdentity.ts", "src/accountStore.ts", "src/account.ts", "src/appleClient.ts", "src/sessionJwt.ts"];
 const TESTS = ["test/authAppleToken.test.ts", "test/authAppleFields.test.ts", "test/authAppleBind.test.ts", "test/accountDelete.test.ts", "test/requestReadSites.test.ts", "test/routes.test.ts"];
 
@@ -96,6 +96,14 @@ export const MUTATIONS = [
   m("id-exp-array-unwrapped", "appleIdentity.ts", "!Number.isSafeInteger(exp) ||", "!Number.isSafeInteger(Array.isArray(exp) ? exp[0] : exp) ||"),
   m("id-iat-array-unwrapped", "appleIdentity.ts", "|| !Number.isSafeInteger(iat)", "|| !Number.isSafeInteger(Array.isArray(iat) ? iat[0] : iat)"),
   m("id-claims-null-refused", "appleIdentity.ts", "const { iss, aud, exp, iat, sub, nonce } = claims;", "const { iss, aud, exp, iat, sub, nonce } = claims;\n  if (Object.values(claims).some((v) => v === null)) reject(\"a claim is null\");"),
+  m("rv2-kid-trimmed", "appleIdentity.ts", "keyFor(kid as string)", "keyFor((kid as string).trim())"),
+  m("rv2-iss-trimmed", "appleIdentity.ts", "iss !== APPLE_ISSUER", "typeof iss !== \"string\" || iss.trim() !== APPLE_ISSUER"),
+  m("rv2-nonce-trimmed", "appleIdentity.ts", "nonce !== expectedNonce", "typeof nonce !== \"string\" || nonce.trim() !== expectedNonce"),
+  m("rv2-typ-trimmed", "appleIdentity.ts", "\"typ\" in header && header.typ !== \"JWT\"", "\"typ\" in header && (typeof header.typ !== \"string\" || header.typ.trim() !== \"JWT\")"),
+  m("id-iss-nfkc", "appleIdentity.ts", "iss !== APPLE_ISSUER", "typeof iss !== \"string\" || iss.normalize(\"NFKC\") !== APPLE_ISSUER"),
+  m("id-iss-lowercased", "appleIdentity.ts", "iss !== APPLE_ISSUER", "typeof iss !== \"string\" || iss.toLowerCase() !== APPLE_ISSUER"),
+  m("id-aud-zero-width-stripped", "appleIdentity.ts", "aud !== APP_BUNDLE_ID", "typeof aud !== \"string\" || aud.replace(/[\\u200b-\\u200d\\u2060]/g, \"\") !== APP_BUNDLE_ID"),
+  m("id-nonce-nul-truncated", "appleIdentity.ts", "nonce !== expectedNonce", "typeof nonce !== \"string\" || nonce.split(\"\\0\")[0] !== expectedNonce"),
   m("store-bind-replaces-token", "accountStore.ts", "refresh_token = COALESCE(excluded.refresh_token,\n  CASE WHEN apple_accounts.apple_sub = excluded.apple_sub THEN apple_accounts.refresh_token END),", "refresh_token = excluded.refresh_token,"),
   m("store-bind-keeps-any-token", "accountStore.ts", "CASE WHEN apple_accounts.apple_sub = excluded.apple_sub THEN apple_accounts.refresh_token END", "apple_accounts.refresh_token"),
   m("store-bind-keeps-sub", "accountStore.ts", "apple_sub = excluded.apple_sub, bound_at", "apple_sub = apple_accounts.apple_sub, bound_at"),
