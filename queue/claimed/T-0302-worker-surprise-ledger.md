@@ -83,3 +83,27 @@ server never holds a coordinate or anything finer than an H3-5 cell (plan, Telem
   configAnswerPath, requestReadSites and reflectionSites printed `Test Files  11 passed (11)` `Tests  59 passed (59)`,
   exit=0. A first full run timed out 14 tests at 5000 ms on the contended box (authApple*, regionGateOrder, waitlist*,
   one ledger table); the ledger seed now applies only 0008 in one batch and the three table tests take 60 s.
+- 2026-10-07T16:59:57Z MUTATION POPULATION, agent/claude-opus-5. services/api/test/mutate/ledgerMutants.mjs: 40 entries,
+  MIN_MUTATIONS = 40 literal, SUBJECTS src/ledger.ts, src/index.ts, src/accountStore.ts, migrations/0008_surprise_ledger.sql;
+  14 body-validation branches, 5 gate entries, 8 window/day/order/idempotence entries, 3 user-scoping entries (read,
+  write, purge), 2 D1-failure entries, 2 ROUTES entries, 2 deletion entries, 4 column/key entries; EQUIVALENT = [].
+  `--prove-floor`: empty table, one short, a subject unmutated and a new subject each REFUSED; the real population quiet;
+  exit=0. Added `--tests=` (run against named test files instead of TESTS) for the before half.
+  BEFORE (src at fc19b4dc, `--only=read-ignores-user,window-91,place-max-dropped
+  --tests=test/routes.test.ts,test/killSwitchRoutes.test.ts,test/sharedEnvWorker.test.ts,test/configSweep.test.ts` - the
+  route-enumerating tests, which send /ledger requests but hold none of its semantics): `baseline green tests=21`,
+  `MISSED place-max-dropped`, `MISSED window-91`, `MISSED read-ignores-user`, `RESULT caught=0 missed=3 trap=0 of 3`.
+  AFTER (full TESTS): `baseline green tests=36`; `CAUGHT place-max-dropped by "every other POST body is 400
+  invalid_request with its detail and the table unchanged, for each caller"`, `CAUGHT window-91 by "every row through
+  worker.fetch answers the model's answers and leaves the model's whole table, for each caller"`, `CAUGHT
+  read-ignores-user by "every row through worker.fetch answers ..."`; account-ledger-delete-dropped CAUGHT by "every user
+  row is gone and every other row is unchanged; both refresh tokens revoked" (P-PRIV-04 seen red with the ledger delete
+  removed); `RESULT caught=40 missed=0 trap=0 of 40`, exit=0. The two column mutants were first caught by accountDelete's
+  positional seed insert, so they were re-run against migrationColumns.test.ts alone (P-PRIV-05 seen red with a forbidden
+  column): `CAUGHT ledger-address-column by "no column of any table the shipped migrations create names home, address,
+  breadcrumb, trail or speed (P-PRIV-05)"`, `CAUGHT ledger-lat-column by "the surprise ledger table is exactly (user_id,
+  place_id, cell, day): ..."`, `RESULT caught=2 missed=0 trap=0 of 2`.
+  Bindings: ops/lib/named-tests.json P-PRIV-05 +5 (migrationColumns ledger columns; ledger.test.ts meta, access table,
+  refusals; ledgerWindow bounds) -> 25 vitest + 12 swift = 37; P-COST-01 +1 (ledger KILL exemption) -> 38; P-PRIV-04 no
+  new name (the bound accountDelete tests now cover surprise_ledger). PINS.yaml: one appended dated sentence per row, no
+  double quote; `python ops/lib/check-pins-yaml.py` -> `PINS-YAML ok pins=44 fields=355`.
