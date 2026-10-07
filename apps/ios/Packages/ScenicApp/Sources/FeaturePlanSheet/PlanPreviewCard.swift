@@ -7,6 +7,9 @@ import SwiftUI
 struct PlanPreviewCard: View {
     let preview: PlanPreview
     let destination: String
+    /// After Save: what happened, in one line; nil until then, and the Save button is offered (T-0306).
+    let saveLine: String?
+    let onSave: () -> Void
     let onChangePlace: () -> Void
 
     var body: some View {
@@ -38,6 +41,15 @@ struct PlanPreviewCard: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(DesignTokens.fg)
                     .accessibilityIdentifier("plan.conditions")
+                if let saveLine {
+                    Text(saveLine)
+                        .font(.subheadline)
+                        .foregroundStyle(DesignTokens.fgMuted)
+                        .accessibilityIdentifier("plan.saved")
+                } else {
+                    Button("Save this drive", action: onSave)
+                        .accessibilityIdentifier("plan.save")
+                }
                 Button("Choose another place", action: onChangePlace)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

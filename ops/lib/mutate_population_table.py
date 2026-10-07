@@ -10,7 +10,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 # it is classified here (ruling R3).
 DRIVERS = ("budget.py", "corpusfetch.py", "corpusota.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
            "hazards.py", "menu.py", "normalise.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py", "roadtrip.py", "routescore.py",
-           "saveddrive.py",
+           "saveddrive.py", "savedlist.py",
            "scenic_tags.py",
            "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
            "telemetry.py")
@@ -30,6 +30,8 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Surprise/SurprisePick.swift",
     "Sources/ScenicKit/PlanSheet/PlanSheet.swift", "Sources/ScenicKit/PlanSheet/PlanFailureCopy.swift",
     "Sources/ScenicAPIClient/ClientPlanner.swift",
+    "Sources/ScenicKit/Saved/SavedList.swift", "Sources/ScenicKit/Saved/SavedDraft.swift",
+    "Sources/ScenicKit/Saved/SavedReplay.swift", "Sources/ScenicKit/Saved/SavedRow.swift",
     "services/etl/etl/accessrule.py", "services/etl/etl/extractadapter.py", "services/etl/etl/fallback.py",
     "services/etl/etl/normalise.py", "services/etl/etl/placeallow.py", "services/etl/etl/proximity.py",
     "services/etl/etl/region_reference.py", "services/etl/etl/scenecheck.py",

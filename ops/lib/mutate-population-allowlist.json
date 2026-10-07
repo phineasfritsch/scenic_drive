@@ -7,6 +7,8 @@
     "Sources/ScenicKit/PlanSheet/PlanOutcome.swift": "a two-case enum carrying a preview or a failure (T-0294); no code",
     "Sources/ScenicKit/PlanSheet/PlanSheetState.swift": "the plan sheet's six-case state enum (T-0294); its transitions are PlanSheet.swift's, which plansheet.py mutates",
     "Sources/ScenicKit/PlanSheet/RoutePlanning.swift": "a one-method protocol declaration (T-0294); no code",
+    "Sources/ScenicKit/Saved/SavedEdit.swift": "a two-case enum naming a rename or a delete for the user store (T-0306); no code",
+    "Sources/ScenicKit/Saved/SavedListState.swift": "the Saved list's six-case state enum (T-0306); its transitions are SavedList.swift's, which savedlist.py mutates",
     "services/etl/etl/__init__.py": "empty package marker; no code",
     "services/etl/etl/byway_source.py": "parses the two byway pulls into the entry shape byways.match consumes; shapes records, computes nothing",
     "services/etl/etl/checkbounds.py": "compares a built extract's meta.json with region.json and never builds; its numbers gate a build, they reach no score, route or tag",

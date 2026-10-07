@@ -43,4 +43,16 @@ public struct SavedDrive: Equatable, Sendable {
     }
 
     public var lambda: Double { FiveDecimals.degrees(lambdaE5) }
+
+    /// A saved drive from a SavedDraft's points, already at 5 dp (T-0306 R2): every segment `SavedSegment.unplaced`
+    /// until the resolver runs. Refuses, through FiveDecimals, a value with more than 5 dp - it never rounds.
+    public static func unresolved(name: String, points: [(latitude: Double, longitude: Double)], lambda: Double,
+                                  budgetMinutes: Int, createdAt: Int64) throws -> SavedDrive {
+        let segments = try points.map {
+            SavedSegment(segmentID: SavedSegment.unplaced,
+                         midpoint: try SavedMidpoint(latitude: $0.latitude, longitude: $0.longitude))
+        }
+        return try SavedDrive(name: name, segments: segments, lambda: lambda, budgetMinutes: budgetMinutes,
+                              createdAt: createdAt)
+    }
 }
