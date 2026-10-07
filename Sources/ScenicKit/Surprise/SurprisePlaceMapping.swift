@@ -3,9 +3,6 @@ import Foundation
 /// A corpus place row -> the selector's candidate (T-0273 R3). Takes the row's columns as primitives, because
 /// ScenicKit never imports PlaceStore; the Surprise card hands each `Place` field straight through.
 public enum SurprisePlaceMapping {
-    /// Every place's quality: the corpus carries no notability signal yet (T-0270 open item 2).
-    public static let quality = 50
-
     /// No approach data exists offline.
     public static let approachScore = 0
 
@@ -25,7 +22,7 @@ public enum SurprisePlaceMapping {
             corridor: "\(latE7 / corridorCellE7):\(lonE7 / corridorCellE7)",
             brand: nil,
             coordinate: Coordinate(latitude: Double(latE7) / 10_000_000, longitude: Double(lonE7) / 10_000_000),
-            quality: quality,
+            quality: placeClass.priorQuality,
             approachScore: approachScore,
             dwellMinutes: placeClass.dwellMinutes,
             opensMinute: hours?.opens,
