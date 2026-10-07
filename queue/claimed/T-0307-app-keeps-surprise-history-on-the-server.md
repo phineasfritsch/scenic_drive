@@ -125,3 +125,28 @@ client half (Keychain install id, the app calling /ledger) as M6 Apple-package w
   - `run-named-tests.py P-PROD-02`: `NAMED P-PROD-02 passed=7/7`.
   - iOS on 5b303043 (the app files are unchanged since): ios-compile run 37698263738 `completed success` (4m7s),
     ios-screenshot run 37698268012 `completed success` (13m28s).
+- 2026-10-07T23:27:22Z ACCEPTANCE re-run on the pre-review head (origin/main 3c8b6106 merged: `Already up to date`;
+  PR #195 / T-0305 still OPEN - whichever lands second merges the other's digest, frozen-shell, SurpriseDeck and
+  ScenicDriveApp rows, keeping both sides), agent/claude-opus-5:
+  1. MEASURE then RULE FIRST: the 22:25:28Z entry (a)-(e), R1-R7, committed alone at f7539647 before any code;
+     R3's cell clause corrected at 23:06:37Z.
+  2. LedgerClient: `swift test --filter "ScenicAPIClientTests|ScenicKitTests\.Surprise"` -> `Test run with 57
+     tests in 12 suites passed` + XCTest `Executed 46 tests, with 0 failures`; POST/GET by full equality to a
+     recomputation (postRequest x3, getRequestAndRows), 18-row answer table (200/400/401/405/429 x2/503/other),
+     one request per call, offline after one, zero without a session or for a refused entry.
+  3. Merge: SurpriseHistoryMergeTests over {no session, empty ledger, ledger overlapping device, ledger only,
+     ledger tying device}, whole history + whole 60-seed pick by full equality; ninetyDays (89 excluded, 90
+     picked). `run-named-tests.py P-PROD-02` -> `NAMED P-PROD-02 passed=7/7`.
+  4. Digests: check-safety-disclaimer exit=0, check-map-attribution exit=0; ios-compile and ios-screenshot green
+     on 5b303043 (the app tree since: unchanged); population 28/28 caught with 21's fix, 26-28 MISSED -> CAUGHT;
+     check-mutate-population `every added module is covered or allowlisted; the floor of 88 holds` (five
+     code-free types allowlisted with reasons); check-line-cap `none over 300 lines`; check-pins-yaml `PINS-YAML
+     ok pins=44`; queue-check `QUEUE OK (298 tasks)`.
+  - `ops/check-pins --source-only`: ok=16 failed=1 - P-SAFE-05 SolarFixtureTests, whose assertion runs `swift test`
+    with the default scratch path inside the worktree (the long-path index-store failure); the same suite with a
+    short scratch path: `Test run with 6 tests in 1 suite passed`. Untouched by this task.
+  - NOT DONE (stillOpen, to be filed): the app POSTs no shown place yet - it needs (i) a session client (attest /
+    Sign in with Apple) to replace NoLedgerSession, (ii) the card to record each shown place in the device history
+    (today `shown` is never appended - measured (c)), and (iii) PlanAdapter -> Telemetry for H3Cell, a
+    Package.swift edit under T-0305's lock. The Keychain move and the GET merge ship; with no session the shipped
+    app makes no ledger request.
