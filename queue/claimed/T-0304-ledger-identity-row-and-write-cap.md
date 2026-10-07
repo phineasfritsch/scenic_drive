@@ -110,3 +110,11 @@ claim or a header beside a valid Bearer; and POST /ledger has no per-user write 
     admitted exactly 1 records, every other batch result shape is 429". `--prove-floor`: real population quiet.
   - Named tests: the three new ledgerCap tests bound to P-COST-01. Line counts: ledgerCap.test.ts 142,
     ledgerMutants.mjs 220.
+- 2026-10-07T18:40:09Z GATES on 704c66e5, agent/claude-opus-5, each run bare. `git fetch origin` + merge origin/main: `Already up
+  to date` (origin/main 4ece8567 is already an ancestor).
+  - `npx vitest run` (services/api): `Test Files  75 passed (75)`, `Tests  2125 passed (2125)`, exit 0.
+  - `run-named-tests.py`: `NAMED P-PRIV-04 passed=53/53` and `NAMED P-COST-01 passed=43/43`, both exit 0.
+  - `check-pins-yaml.py`: `PINS-YAML ok pins=44 fields=355`. `ops/queue-check`: `QUEUE OK (295 tasks)`.
+  - Acceptance: (1) identity rows unchanged - MET. (2) cap rows now range over the stale owner; the (cap+1)th write is
+    429 with the table unchanged whoever owns the stale row; no admission row is 429 - MET. (3) population 61/61 floor;
+    the rv1-t0304 pair MISSED before (0/2), CAUGHT by name after (4/4 with the touched purge entries) - MET.
