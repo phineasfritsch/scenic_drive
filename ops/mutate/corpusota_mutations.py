@@ -98,7 +98,7 @@ MUTATIONS = [
      "        if slots.exists(slots.previous) {\n            try? slots.replace(slots.active, with: slots.previous)\n"
      "        }\n", "", [AO]),
     ("24 a round constant off by one", SHA, "0x428a_2f98", "0x428a_2f99", [DIGEST]),
-    ("25 padding to 55 mod 64", SHA, "while tail.count % 64 != 56 {", "while tail.count % 64 != 55 {", [DIGEST]),
+    ("25 the padding marker byte is 0x01", SHA, "tail.append(0x80)", "tail.append(0x01)", [DIGEST]),
     ("26 the length field in bytes, not bits", SHA, "UInt64(count) &* 8", "UInt64(count)", [DIGEST]),
     ("27 sigma0 rotates by 8", SHA, "Self.rotr(w[i - 15], 7)", "Self.rotr(w[i - 15], 8)", [DIGEST]),
     ("28 the last state word not carried", SHA, "state[7] &+= h", "state[7] = h", [DIGEST]),
