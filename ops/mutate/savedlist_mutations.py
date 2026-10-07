@@ -55,8 +55,7 @@ CLAMP = "a replay's budget is clamped to 0...180 at every bound, and a start off
 DRAFT = "PlanResponse -> preview -> SavedDraft by full equality: >5 dp rounded once, 5 dp kept, the ends, empty"
 STORED = "5-dp points become unplaced segments in order, the whole drive and its integers equal"
 REFUSED = "more than 5 dp is refused by field, never rounded a second time"
-RENAME_EVERY = ("a rename changes only the name of the row it names, at every position: the re-plan flag, "
-                "the ends, the budget and the replay kept")
+RENAME_EVERY = "a rename changes only the name, at every position: the re-plan flag, ends, budget and replay kept"
 DELETE_EVERY = "a confirmed delete removes exactly the confirmed drive, at every position"
 
 SORT = "self.rows = rows.sorted { ($0.createdAt, $0.id) > ($1.createdAt, $1.id) }"

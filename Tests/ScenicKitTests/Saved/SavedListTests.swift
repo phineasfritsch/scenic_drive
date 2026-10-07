@@ -137,6 +137,50 @@ struct SavedListTests {
         }
     }
 
+    /// Rows are functions of the renamed id: each of the three positions, the needs-replan canyon among them, with
+    /// the whole expected row written out field by field - never derived from the row under test.
+    @Test("a rename changes only the name, at every position: the re-plan flag, ends, budget and replay kept")
+    func renameEveryRow() {
+        let renamed: [Int64: SavedRow] = [
+            2: SavedRow(id: 2, name: "Ridge", createdAt: 3_000, needsReplan: false,
+                        start: Coordinate(latitude: 34.13, longitude: -118.4),
+                        end: Coordinate(latitude: 34.5, longitude: -118.9), budgetMinutes: 45),
+            3: SavedRow(id: 3, name: "Ridge", createdAt: 2_000, needsReplan: true,
+                        start: Coordinate(latitude: 34.2, longitude: -118.3),
+                        end: Coordinate(latitude: 34.25, longitude: -118.35), budgetMinutes: 60),
+            1: SavedRow(id: 1, name: "Ridge", createdAt: 1_000, needsReplan: false,
+                        start: Coordinate(latitude: 34.09312, longitude: -118.60071),
+                        end: Coordinate(latitude: 34.04078, longitude: -118.68511), budgetMinutes: 30),
+        ]
+        let rows: [(Int64, [SavedRow], SavedListState, SavedReplay?)] = [
+            (2, [renamed[2]!, Self.canyon, Self.topanga], .needsReplan(2), nil),
+            (3, [Self.mulholland, renamed[3]!, Self.topanga], .needsReplan(3), nil),
+            (1, [Self.mulholland, Self.canyon, renamed[1]!], .replaying(1), Self.replayTopanga),
+        ]
+        #expect(rows.map(\.0) == Self.sorted.map(\.id))
+        for (id, wantRows, wantState, wantReplay) in rows {
+            var list = SavedList(rows: Self.sorted, state: .renaming(id, "  Ridge "))
+            #expect(list.commitRename() == .rename(id, "Ridge"), "\(id)")
+            #expect(list == SavedList(rows: wantRows, state: .list), "\(id)")
+            #expect(list.replay(id, near: Self.places) == wantReplay, "\(id)")
+            #expect(list == SavedList(rows: wantRows, state: wantState), "\(id)")
+        }
+    }
+
+    /// Rows are functions of the confirmed id: first, middle and last position, each surviving list written out.
+    @Test("a confirmed delete removes exactly the confirmed drive, at every position")
+    func deleteEveryRow() {
+        let rows: [(Int64, [SavedRow])] = [
+            (2, [Self.canyon, Self.topanga]), (3, [Self.mulholland, Self.topanga]), (1, [Self.mulholland, Self.canyon]),
+        ]
+        #expect(rows.map(\.0) == Self.sorted.map(\.id))
+        for (id, wantRows) in rows {
+            var list = SavedList(rows: Self.sorted, state: .confirmDelete(id))
+            #expect(list.confirmDelete() == .delete(id), "\(id)")
+            #expect(list == SavedList(rows: wantRows, state: .list), "\(id)")
+        }
+    }
+
     @Test("a refused replay has its own calm copy line")
     func needsReplanCopy() {
         #expect(SavedList.needsReplanLine
