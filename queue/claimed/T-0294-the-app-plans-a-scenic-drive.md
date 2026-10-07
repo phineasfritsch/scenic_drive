@@ -1,13 +1,13 @@
 ---
 id: T-0294
 title: The app plans a scenic drive - typed destination from the corpus search, extra-minutes, Plan calls the Worker through ScenicAPIClient, and the preview shows the route, ETA vs fastest, the hazard strip and one copy line per PlanError
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T11:14:19Z
+lease_expires_at: 2026-10-08T07:14:19Z
+worktree: .worktrees/T-0294
+branch: task/T-0294
 exclusive: [package-swift]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/ScenicDriveApp.swift, Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/, pins/PINS.yaml, ops/mutate/]
 pins_affected: [P-SAFE-03, P-PRIV-06, P-ATTR-01]
@@ -31,3 +31,4 @@ search is the corpus FTS5 only (PlaceStore T-0254); typed street addresses are a
 
 ## Log
 - 2026-10-07T03:23:40Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M4 plan sheet); claim after T-0289 merges.
+- 2026-10-07T11:14:19Z claimed by agent/claude-opus-5; lease until 2026-10-08T07:14:19Z
