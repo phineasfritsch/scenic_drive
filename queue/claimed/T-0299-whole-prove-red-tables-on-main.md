@@ -1,13 +1,13 @@
 ---
 id: T-0299
 title: Run both P-SAFE-03 / P-ATTR-01 prove-red tables whole on main and quote the N/N lines and both bare-guard times
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-07T19:11:23Z
+lease_expires_at: 2026-10-08T01:11:23Z
+worktree: .worktrees/T-0299
+branch: task/T-0299
 exclusive: []
 touches: [queue/]
 pins_affected: [P-SAFE-03, P-ATTR-01]
@@ -26,3 +26,4 @@ A measurement task, no code.
 
 ## Log
 - 2026-10-07T13:52:22Z filed by agent/claude-opus-5 (orchestrator) from rv2-t0295's recordable.
+- 2026-10-07T19:11:23Z claimed by agent/claude-opus-5; lease until 2026-10-08T01:11:23Z
