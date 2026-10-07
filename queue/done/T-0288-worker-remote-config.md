@@ -1,7 +1,7 @@
 ---
 id: T-0288
 title: the Worker serves GET /config - typed remote config (feature flags, quota display numbers, min app build, kill-switch mirror, supported regions) from KV with compiled-in defaults; any bad or missing KV value falls back to defaults, never to an unsafe value
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-06T20:26:08Z
@@ -11,7 +11,7 @@ branch: task/T-0288
 exclusive: []
 touches: [services/api/]
 pins_affected: [P-COST-01]
-reviewer: null
+reviewer: agent/rv5-t0288
 depends_on: [T-0256]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -347,3 +347,35 @@ only.
   75 untouched entries (faster verification in rounds). wc -l: test/configSweep.test.ts 128, test/configOracle.ts 13,
   test/intrinsicsSnapshot.ts 66, test/configAnswerPath.test.ts 62, test/configHarness.ts 67, test/configWorker.test.ts
   168, test/configRoutes.test.ts 57, test/mutate/configMutants.mjs 261; src untouched.
+- 2026-10-07T01:41:20Z agent/rv5-t0288 (reviewer, round 5; not the owner): review PASS - PR #177 at head d9bedad7
+  (origin/task/T-0288), worktree rv5-t0288 (detached; npm ci).
+  rv4 quoted: "B1 a request-time patch in an unpinned module changes /config under KILL: in src/plan.ts a module
+  let unpaused=false and, first line of handlePlan, a one-time JSON.stringify replacement that rewrites any object with
+  planning_paused to false. Sequence GET /config, POST /plan, GET /config through worker.fetch with KILL=1 gives
+  [true, 503, false]; suite 1720/1720 green."
+  RV4 MUTANT RED BY NAME: `node services/api/test/mutate/configMutants.mjs --only=plan-request-time-stringify-unpause`:
+  `population mutations=77 (floor 77) equivalent=1 subjects=2 tests=9 ONLY=1`, `baseline green tests=41`, `RESULT
+  caught=1 missed=0 trap=0 of 1`; the json report names exactly two failures, both configSweep.test.ts: "after the
+  sweep, every CONFIG row x every KILL source answers the whole expected response through worker.fetch" AND "after the
+  sweep, every global, intrinsic and prototype equals its snapshot from before src loaded". src restored.
+  OWN ATTEMPT (threat model ii, the class the snapshot cannot see): plan.ts imports ROUTES from ./index and, on its
+  first handlePlan call, replaces ROUTES["/config"] with a wrapper that calls the original with KILL and KILL_SWITCH
+  stripped from env - shared module state, not a global or intrinsic. vitest on configSweep + configWorker +
+  configAnswerPath: 13 tests, 1 failed, by name: "after the sweep, every CONFIG row x every KILL source answers the
+  whole expected response through worker.fetch" (the snapshot stays green, as expected - the post-sweep table is the
+  backstop). CAUGHT. src restored (`git status --short` shows no src path).
+  UNMUTATED CODE: config.ts read whole - KV can only add pause (killed || merged.planning_paused === true), a throwing
+  KILL_SWITCH pauses, JSON.parse failure and non-object records fall to defaults with "record", __proto__ in a record
+  is an own key and lands in unknown_keys; no defect found.
+  GATES ON d9bedad7: vitest (services/api, full) `Test Files 60 passed (60)`, `Tests 1724 passed (1724)`, exit 0;
+  `bash ops/queue-check` bare: `QUEUE OK (280 tasks)`; `gh pr checks 177` once: core pass, pins-source-only pass.
+  ANCESTRY: a29efb64 (PR #178 merge) is an ancestor of HEAD. origin/main has since moved one commit, 0d0f240a, which
+  adds only queue/ready/T-0290-placestore-saved-drives.md (no gate, test or pin changes).
+  RECORDABLE (not blocking under the coordinator threat model; proposed follow-up task): the post-sweep checks only
+  see a patch that FIRES inside the sweep. A deliberate patch gated outside it - on an authenticated or bound-env path
+  (owner residual R10), on the third or later pass, on a clock or random draw - evades the post-sweep table and
+  snapshot. Also, the sweep builds a fresh env per call, while workerd hands one env object to every request in an
+  isolate, so a handler that mutates env (e.g. deletes env.KILL) is not exercised (that unpauses /plan too, so /config
+  still mirrors the server; it belongs to P-COST-01, not to this mirror). Proposed follow-up: "T-xxxx: a structural
+  close for request-time shared-state patches - freeze env per request (or hand handlers a frozen copy) and run the
+  P-COST-01 + /config tables on a shared-env worker after an authenticated sweep with bound fakes".
