@@ -9,16 +9,22 @@ import Security
 ///
 /// T-0294 R7 kept it in UserDefaults `plan.install.id`; a valid value there is moved into the Keychain once and the
 /// defaults key removed. If the Keychain refuses the write, the id is kept in UserDefaults instead, so it stays the
-/// same id on every launch - never a fresh one.
+/// same id on every launch - never a fresh one. A fresh id is minted and stored only when the Keychain answers that
+/// no item exists (`errSecItemNotFound`) or holds one that is not a UUID; any other read failure (for example
+/// `errSecInteractionNotAllowed` before the first unlock) reuses the UserDefaults copy, or, with none, answers a
+/// fresh id for this call that is stored nowhere, so the Keychain's id is read again on the next call.
 struct StoredInstallID: InstallIDProvider {
     static let key = "plan.install.id"
     static let service = "scenic.install"
     static let account = "install-id"
 
     func installID() -> UUID {
-        if let id = Self.keychainID() { return id }
+        let (status, stored) = Self.keychainID()
+        if let stored { return stored }
         let defaults = UserDefaults.standard
-        let id = defaults.string(forKey: Self.key).flatMap(UUID.init(uuidString:)) ?? UUID()
+        let kept = defaults.string(forKey: Self.key).flatMap(UUID.init(uuidString:))
+        guard status == errSecItemNotFound || status == errSecSuccess else { return kept ?? UUID() }
+        let id = kept ?? UUID()
         if Self.storeInKeychain(id) {
             defaults.removeObject(forKey: Self.key)
         } else {
@@ -35,14 +41,16 @@ struct StoredInstallID: InstallIDProvider {
          kSecAttrSynchronizable as String: false]
     }
 
-    static func keychainID() -> UUID? {
+    /// The read's status and the stored id - nil unless the status is `errSecSuccess` and the item holds a UUID.
+    static func keychainID() -> (status: OSStatus, id: UUID?) {
         var query = itemQuery()
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var found: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &found) == errSecSuccess, let data = found as? Data,
-              let text = String(data: data, encoding: .utf8) else { return nil }
-        return UUID(uuidString: text)
+        let status = SecItemCopyMatching(query as CFDictionary, &found)
+        guard status == errSecSuccess, let data = found as? Data,
+              let text = String(data: data, encoding: .utf8) else { return (status, nil) }
+        return (status, UUID(uuidString: text))
     }
 
     static func storeInKeychain(_ id: UUID) -> Bool {

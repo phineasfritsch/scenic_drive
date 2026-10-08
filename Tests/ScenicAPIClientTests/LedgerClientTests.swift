@@ -141,4 +141,64 @@ import Testing
         #expect(await Self.client(fake).record(placeId: placeId, cell: cell) == .refusedOnDevice, "\(placeId) \(cell)")
         #expect(await fake.count == 0)
     }
+
+    /// Both bounds of both classes and their outside neighbours ('/' 47, '0' 48, '9' 57, ':' 58, '`' 96, 'a' 97,
+    /// 'f' 102, 'g' 103) and uppercase ('@' 64, 'A', 'F', 'G' 71), each put at every one of the 15 positions of a
+    /// valid cell. Whether the cell is sent is a function of the character alone.
+    static let cellCharacters: [(Character, Bool)] = [
+        ("/", false), ("0", true), ("9", true), (":", false), ("`", false), ("a", true), ("f", true), ("g", false),
+        ("@", false), ("A", false), ("F", false), ("G", false),
+    ]
+    static let cellCases: [(String, Bool)] = (0..<15).flatMap { position in
+        cellCharacters.map { character, admitted in
+            var cell = Array(cellA)
+            cell[position] = character
+            return (String(cell), admitted)
+        }
+    }
+
+    @Test("Every cell position admits exactly 0-9 and a-f, at both bounds of each class", arguments: cellCases)
+    func cellCharacterClass(_ cell: String, _ admitted: Bool) async {
+        let fake = Self.reply(200, #"{"recorded":true}"#)
+        let outcome = await Self.client(fake).record(placeId: "5", cell: cell)
+        #expect(outcome == (admitted ? .recorded : .refusedOnDevice), "\(cell)")
+        #expect(await fake.count == (admitted ? 1 : 0), "\(cell)")
+    }
+
+    /// Every position of a valid day given each character just outside its class: at the two separators the
+    /// neighbours of '-' (',' 44, '.' 46), digits at both bounds and other punctuation; at the eight digit positions
+    /// the neighbours of 0-9 ('/' 47, ':' 58), '-', a letter and a space.
+    static let dayRefusals: [String] = (0..<10).flatMap { position -> [String] in
+        let swaps: [Character] = position == 4 || position == 7
+            ? [",", ".", "/", "0", "9", ":", "x", " "] : ["/", ":", "-", "x", " "]
+        return swaps.map { character in
+            var day = Array("2026-10-01")
+            day[position] = character
+            return String(day)
+        }
+    }
+
+    static func dayBody(_ day: String) -> String {
+        #"{"places":[{"place_id":"1","cell":"85283473fffffff","day":"\#(day)"}]}"#
+    }
+
+    @Test("Every day separator and digit position refuses its out-of-class neighbours", arguments: dayRefusals)
+    func dayCharacterClass(_ day: String) async {
+        let fake = Self.reply(200, Self.dayBody(day))
+        #expect(await Self.client(fake).read() == .unreadable, "\(day)")
+        #expect(await fake.count == 1)
+    }
+
+    /// '0' at every digit position and '9' at every digit position that can hold one in a real day (not the month's
+    /// or the day's tens).
+    @Test("A day with 0 or 9 at each digit position that can hold one is read as that day", arguments: [
+        ("0000-01-01", 0, 1, 1), ("9999-12-31", 9999, 12, 31), ("2026-09-19", 2026, 9, 19),
+        ("2026-10-10", 2026, 10, 10),
+    ])
+    func dayDigitBounds(_ day: String, _ year: Int, _ month: Int, _ date: Int) async {
+        let fake = Self.reply(200, Self.dayBody(day))
+        let row = LedgerRow(placeId: "1", cell: Self.cellA, day: CivilDate(year: year, month: month, day: date))
+        #expect(await Self.client(fake).read() == .places([row]), "\(day)")
+        #expect(await fake.count == 1)
+    }
 }

@@ -274,7 +274,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift 5af119b8ce567142531ae15bfc659942a6c29fbd1e98a2666b9640d18d15b715'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift a11fe42723f1a0799385b77885b41a87ae70ac88d574ab79a114ebe1694b964e'
   'Packages/ScenicApp/Sources/PlanAdapter/NoLedgerSession.swift f35b515a35d72b1c94b8b0b3f82457d696254a053cbbefd42212adf655dceac9'
-  'Packages/ScenicApp/Sources/PlanAdapter/StoredInstallID.swift 5cab434e37073cb4e082df5d8178556bcf3b3c416e20a5b3d48fba446e02f47a'
+  'Packages/ScenicApp/Sources/PlanAdapter/StoredInstallID.swift 960bbfed690308e3688f45c4a1707bcd2f716f0bd83cf596d5b8d403dd259b9f'
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachablePlanner.swift 6ee10bda9ca24fe44518093d2a3920b24a1654c2d1ad5a75a6d9b3cc05619590'
   'ScenicDrive/ScenicDriveApp.swift 6be4dca9a2be2f13c8eb5982bd38a82ee141af4b30be8f829e0ba7e1722a65f9'
 )
