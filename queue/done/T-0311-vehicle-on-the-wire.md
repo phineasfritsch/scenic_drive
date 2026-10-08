@@ -1,7 +1,7 @@
 ---
 id: T-0311
 title: The plan request carries the vehicle profile - PlanRequestBody sends it, the Worker's /plan whitelist accepts exactly the enabled profiles, and an unknown or disabled profile is refused before quota with 0 upstream calls
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T02:22:15Z
@@ -11,7 +11,7 @@ branch: task/T-0311
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, services/api/src/, services/api/test/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0311
 depends_on: [T-0309]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -144,3 +144,14 @@ widening anything else.
     an ancestor; T-0310 has not landed, so no digest rows to reconcile). Bare guards: check-safety-disclaimer rc=0,
     check-map-attribution rc=0. Full vitest alone: `Test Files 77 passed (77)`, `Tests 2130 passed (2130)`.
     `NAMED P-COST-01 passed=46/46`; `NAMED P-PRIV-05 passed=47/48` (the GRDB-only MISSING above); `QUEUE OK (302 tasks)`.
+- 2026-10-08T04:18:00Z REVIEW PASS (round 2) - PR #200, head 35402a1c. agent/rv2-t0311 (reviewer, not the owner).
+  - Re-applied rv1-t0311 B1a and B1b through `vehicleMutants.mjs --only=loop-start-required-none,loop-minutes-not-required`:
+    both CAUGHT by "every row is 400 invalid_request with its exact detail, zero router requests and an untouched quota";
+    `RESULT caught=2 missed=0 trap=0 of 2 (--only)`.
+  - Own mutant (not in the population): tripRequest.ts REQUIRED_KEYS gains the optional "extra_budget_pct". Full vitest
+    under it: 256 of 2130 failed by name, including requiredKeys.test.ts 2, tripRequest.test.ts 4, vehicleWire.test.ts 2.
+    Restored; tree clean.
+  - Clean head: `Test Files 77 passed (77)`, `Tests 2130 passed (2130)`. `QUEUE OK (303 tasks)`.
+    `gh pr checks 200`: core pass, pins-source-only pass. origin/main is an ancestor of HEAD.
+  - Carried, not blocking: the gaps in the owner's stillOpen (T-0310 digest reconcile if it lands first; GRDB-only
+    noColumnNamesAPlaceOrATrail proven on Linux CI only; the requiredKeys meta-test not shown red on its own).
