@@ -130,12 +130,13 @@ let package = Package(
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         // THE ONLY IMPORTER OF ScenicAPIClient UNDER apps/ios (T-0294 R1), as MapAdapter is of MapLibre: it builds
-        // the live planner the shell hands the plan sheet.
+        // the live planner the shell hands the plan sheet, and (T-0305 R4) the corpus download and launch activation.
         .target(
             name: "PlanAdapter",
             dependencies: [
                 .product(name: "ScenicKit", package: "ScenicDrive"),
                 .product(name: "ScenicAPIClient", package: "ScenicDrive"),
+                .product(name: "PlaceStore", package: "ScenicDrive"),
             ],
             path: "Sources/PlanAdapter",
             swiftSettings: [.swiftLanguageMode(.v6)]

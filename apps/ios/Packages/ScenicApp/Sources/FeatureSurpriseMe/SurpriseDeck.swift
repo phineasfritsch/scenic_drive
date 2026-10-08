@@ -20,8 +20,8 @@ struct SurpriseDeck: Sendable {
     static let bundled: SurpriseDeck? = load(bundle: .main)
 
     static func load(bundle: Bundle) -> SurpriseDeck? {
-        guard let url = bundle.url(forResource: corpusName, withExtension: "sqlite")
-                ?? bundle.url(forResource: corpusName, withExtension: "sqlite", subdirectory: "Corpus"),
+        guard let url = LaunchCorpus.url(fallback: bundle.url(forResource: corpusName, withExtension: "sqlite")
+                ?? bundle.url(forResource: corpusName, withExtension: "sqlite", subdirectory: "Corpus")),
               let store = try? PlaceStore(path: url.path),
               let places = try? store.places(in: everywhere) else { return nil }
         var candidates: [SurpriseCandidate] = []

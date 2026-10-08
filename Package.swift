@@ -98,16 +98,17 @@ let package = Package(
         ),
         // The app's client for the Worker's POST /plan (T-0251). Foundation + URLSession (FoundationNetworking
         // behind `canImport` on Linux) and ScenicKit for Coordinate - nothing else. It sends ONE coordinate at
-        // 2 dp and refuses anything else on the device; every Worker failure arrives as a PlanError.
+        // 2 dp and refuses anything else on the device; every Worker failure arrives as a PlanError. PlaceStore for the
+        // corpus download's CorpusFetcher seam (T-0305 R2): URLSessionCorpusFetcher lives beside the plan transport.
         .target(
             name: "ScenicAPIClient",
-            dependencies: ["ScenicKit"],
+            dependencies: ["ScenicKit", "PlaceStore"],
             path: "Sources/ScenicAPIClient",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(
             name: "ScenicAPIClientTests",
-            dependencies: ["ScenicAPIClient", "ScenicKit"],
+            dependencies: ["ScenicAPIClient", "ScenicKit", "PlaceStore"],
             path: "Tests/ScenicAPIClientTests",
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
