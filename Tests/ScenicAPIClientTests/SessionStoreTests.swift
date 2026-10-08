@@ -26,6 +26,8 @@ import Testing
         StepRow(label: "just over the margin",
                 stored: .valid(SessionRecord(keyId: AttestWire.oldKey, token: AttestWire.oldToken, expiresAt: justOver)),
                 unspent: .use(AttestWire.oldToken), spent: .use(AttestWire.oldToken)),
+        StepRow(label: "exactly the margin", stored: .valid(AttestWire.stored(60)),
+                unspent: .renew(keyId: AttestWire.oldKey), spent: .none),
         StepRow(label: "inside the margin", stored: .valid(AttestWire.stored(59)),
                 unspent: .renew(keyId: AttestWire.oldKey), spent: .none),
         StepRow(label: "expired", stored: .valid(AttestWire.stored(-1)), unspent: .renew(keyId: AttestWire.oldKey),

@@ -49,6 +49,8 @@ import Testing
             challenge: .unreadable, session: .session(token: AttestWire.newToken, expiresAt: AttestWire.expires)),
         Row(status: 200, body: "{\"challenge\":\"\(tooShort)\",\"expires_at\":\"2026-10-08T02:05:00.000Z\"}",
             challenge: .unreadable, session: .unreadable),
+        Row(status: 200, body: "{\"challenge\":\"\(AttestWire.challenge)a\",\"expires_at\":\"2026-10-08T02:05:00.000Z\"}",
+            challenge: .unreadable, session: .unreadable),
         Row(status: 200, body: "{\"challenge\":\"\(plusSign)\",\"expires_at\":\"2026-10-08T02:05:00.000Z\"}",
             challenge: .unreadable, session: .unreadable),
         Row(status: 200, body: "{\"challenge\":\"\(AttestWire.challenge)\"}", challenge: .unreadable, session: .unreadable),

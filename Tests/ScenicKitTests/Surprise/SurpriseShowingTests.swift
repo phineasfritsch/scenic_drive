@@ -35,6 +35,8 @@ import Testing
     static let rows: [Row] = [
         Row(label: "an empty history", history: SurpriseHistory(),
             expected: SurpriseHistory(shown: [shown(a, today)])),
+        Row(label: "shown yesterday", history: SurpriseHistory(shown: [shown(a, yesterday)]),
+            expected: SurpriseHistory(shown: [shown(a, yesterday), shown(a, today)])),
         Row(label: "already shown today", history: SurpriseHistory(shown: [shown(b, today), shown(a, today)]),
             expected: nil),
         Row(label: "another place today, with feedback",
