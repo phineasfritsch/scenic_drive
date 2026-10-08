@@ -145,3 +145,28 @@ relaunch forgets the 90-day no-repeat when there is no session; and the card's b
     GRDB-gated, absent on Windows as T-0290 R7 predicted; green in the image above and in CI's core job.
     SurpriseShownRecordFieldsTests/noFieldIsACoordinate() passed by name.
   - iOS CI dispatched on 512f5b05: ios-compile 37734303277, ios-screenshot 37734306221.
+- 2026-10-08T06:20:00Z ACCEPTANCE RE-RUN on the merged head e119fb0c (git fetch origin + merge of origin/main
+  681c9a13 - main added queue/ready/T-0314 only; no conflict), agent/claude-opus-5:
+  1. RULE FIRST: the 05:07:46Z entry (measurements a-g, R1-R11) committed alone at 4e115de2 before any code. Table
+     surprise_shown(place_id, category, corridor, day) beside saved_drive, no coordinate (R1); "UTC day" ruled as the
+     card's civil day number (R2); 90 days pruned on write at oldestKept = today - 89 (R3); Start over keeps shown -
+     T-0310 R7 stands, the owner is asked to confirm (R4).
+  2. The split: ScenicKit SurpriseCardHistory, the card's only history state; SurpriseCardHistoryTests' table (4
+     starting states x 5 operations, whole value by full equality) + meta-test, and `Recording the place on the card
+     never moves the pick; recording into the basis would` (pick over basis unchanged after showing, pick over the
+     recorded history different).
+  3. Store round-trip by full equality, the v1+v2 -> v3 first-launch upgrade with the saved drive whole, the
+     in-memory union (restoring) - SurpriseShownStoreTests green in the swift:6.1 image; P-PRIV-05 DDL test extended
+     and seen red with `cell` (above); P-PROD-02 `passed=7/7`; population 16/18/19/20 MISSED before, CAUGHT by name
+     after.
+  4. On e119fb0c: `swift test --filter "ScenicKitTests\.Surprise|PlaceStoreTests|ScenicAPIClientTests"` -> `Test
+     run with 131 tests in 32 suites passed` + XCTest `Executed 47 tests, with 1 test skipped and 0 failures`;
+     check-safety-disclaimer exit=0, check-map-attribution exit=0, check-store-links exit=0; check-mutate-population
+     `every added module is covered or allowlisted; the floor of 104 holds`; check-line-cap `388 Swift files tracked
+     (Sources=185, Tests=143, apps/ios=60), none over 300 lines`; check-pins-yaml `PINS-YAML ok pins=44 fields=355`;
+     queue-check `QUEUE OK (305 tasks)`. iOS CI on 512f5b05 (the app tree since: unchanged): ios-compile 37734303277
+     `completed success` (3m6s), ios-screenshot 37734306221 `completed success` (12m13s).
+  - NOT DONE (stillOpen): (i) OWNER CONFIRM R4 - Start over keeps shown places (in memory, on disk and in the
+    ledger); (ii) R7 - "not this" feedback is not persisted, so a relaunch forgets a 30-day not-my-thing; (iii) the
+    file name "user.sqlite" is typed twice (SavedDriveShelf, SurpriseShownLog) - two feature targets cannot share a
+    constant without a PlaceStore edit; a drift would split the user store silently.
