@@ -170,3 +170,42 @@ fixture. Measured 2026-10-08: ops/ has plan, score-review and etl-* but no route
   over 300 lines` (RouteAutopsyGoldenTests.swift 181); check-pins-yaml `PINS-YAML ok pins=48 fields=387`;
   check-mutate-population `P-PROC-06: every added module is covered or allowlisted; the floor of 144 holds`;
   check-exec-bits `P-OPS-01: 191 files, 23 required present, all modes correct`; queue-check `QUEUE OK (320 tasks)`.
+- 2026-10-08T19:44:40Z agent/claude-opus-5 (owner) - RULING on rv1-t0327 FAIL (PR #213, head b23cee48), before code.
+  All three survivors are real and one class: "the report re-derives or defaults a value ScenicKit owns". Each
+  is closed by taking the value from ScenicKit and by a full-equality check over an input population that holds
+  the case the mutant needs (an unscored stretch, a step exactly on the ceiling, refused terms).
+  B1 (unscored rows enter RouteScore as 0.0): REAL, because PlanTable.Row.scenicScore is `Int?`. The only
+  fixture has `unscored=0.0m`, so nothing could tell `?? 0` apart. Closed by a recorded variant built at test
+  time. The seven westwood-malibu recordings are copied byte for byte, and in lambda-3.25.json one literal
+  `[13, 21, 4], ` is deleted from the scenic_score details, which leaves points 13..21 without a score (the test
+  requires that the literal occurred exactly once). The ROUTESCORE line printed for the variant must equal, in
+  full, a line the test rebuilds: the plan comes from ScenicPlanner over the variant, RouteScore is taken over
+  rows with metres > 0 and a score, and unscored is the sum of the metres of the rest. Meta checks: unscored > 0,
+  and the line built with `?? 0` differs from the expected one.
+  B2 (FITS `<=` -> `<`): REAL. The report re-derived feasibility. Ruled: the report takes FITS from
+  LambdaSearch's own comparison, not from a new shared predicate. LambdaSearch.swift's `if d <= ceiling, best
+  == nil ...` and `if d <= ceiling {` are anchored verbatim by ops/mutate/budget_boundaries.py and
+  budget_mutations.py (nine entries), and rewriting them to call a predicate would void those populations. So
+  AutopsyReport.fits asks a two-evaluation LambdaSearch(fastest: plan.fastestDuration, budget: plan.budget).
+  Lambda 0 measures 0 s, which is always feasible. The first midpoint (4) measures the step. The step fits
+  exactly when the winner is that midpoint: line 77's `d <= ceiling`, where an exact tie in duration goes to the
+  larger lambda, so a 0-s step also counts. LambdaSearch.ceiling and ScenicPlan.ceiling are the same expression
+  (`fastest + budget`). A throw prints `unmeasured`, never a default. The table, driven through
+  AutopsyReport.lines() with real plan steps replaced: exactly ceiling -> yes, ceiling.nextUp -> no,
+  ceiling.nextDown -> yes, 0 -> yes, fastestDuration -> yes, ceiling + 1 -> no (literal expectations).
+  B3 (refused terms print `?? 0`): REAL. AutopsyTerms.decode does no range check. Closed by a table of terms
+  built from SegmentScore's refusals: every unit term at 1.5, -0.5, 1.0.nextUp and 0.0.nextDown; tunnelMeters
+  -1; metersToNearestMotorway -1. The scored bounds are the same table's other half: every unit term at exactly
+  0 and exactly 1, tunnelMeters 0, motorway 0. The cases are dealt round robin over the route's distinct way
+  ids, in as many runs as needed. In every run, every row's M, E and SCORE cells must equal the expected cells
+  in full: `invalid` three times for a refusal, SegmentScore.axes/score for a scored case, and `-` for a way
+  with no terms. Meta checks: each refusal case decodes to terms that SegmentScore.score refuses, and each
+  scored case to terms it scores (this also catches a JSON round trip that loses a nextUp). NaN and infinity
+  cannot be written in JSON, and AutopsyTerms.decode refuses a non-number. Ruled outside the file format.
+  RECORDABLE (SCORE never checked): termsRowsCarryGateAndAxes now checks c[6] against SegmentScore.score(for:)
+  over the decoded terms.
+  Population: the B1, B2 and B3 entries (B2 re-spelled as "the report re-derives FITS with <" against the new
+  call). The old `>` inversion entry moves to the new anchor (`outcome.lambda != 0` -> `== 0`). The new suite
+  RouteAutopsyBoundaryTests joins FILTER and TEST_FILES. Floors 18 -> 21 mutants and 2 -> 3 test files.
+  MISSED at b23cee48 is the reviewer's run (8/8 green, exit 0). CAUGHT by name now is `--only` below.
+  AutopsyReport.swift changes, so its digest row is re-approved. LambdaSearch.swift does not change.
