@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 86;
+export const MIN_MUTATIONS = 87;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts", "src/tripPlaces.ts",
   "migrations/0009_trip_places.sql"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
@@ -50,6 +50,7 @@ export const MUTATIONS = [
   m("split-all-stops", "roadTrip.ts", "ranked.slice(0, MAX_STOPS_PER_DAY)", "ranked"),
   m("split-rank-order", "roadTrip.ts", "    .sort((a, b) => (a.vertex !== b.vertex ? a.vertex - b.vertex : byName(a.place.name, b.place.name)))\n", ""),
   m("split-overnight-farthest", "roadTrip.ts", "best.meters < meters ||", "best.meters > meters ||"),
+  m("split-overnight-radius-exclusive", "roadTrip.ts", "if (!(meters <= OVERNIGHT_RADIUS_METERS)) continue;", "if (!(meters < OVERNIGHT_RADIUS_METERS)) continue;"),
   m("split-overnight-floor", "roadTrip.ts", "Math.round(best.meters)", "Math.floor(best.meters)"),
   m("split-over-budget-inclusive", "roadTrip.ts", "if (total > ceiling) return", "if (total >= ceiling) return"),
   m("split-last-day-night", "roadTrip.ts", "overnight: index === spans.length - 1 ? null :", "overnight: index === spans.length ? null :"),

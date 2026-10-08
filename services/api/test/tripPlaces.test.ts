@@ -62,6 +62,33 @@ interface Row { id: string; name: string; kind: "stop" | "lodging"; score: numbe
 const at = (id: string, name: string, kind: Row["kind"], score: number, v: number, northM = 0): Row =>
   ({ id, name, kind, score, lat: ROAD[v]![1] + northM / M_PER_DEG, lon: ROAD[v]![0] });
 
+/** The splitter's haversine typed out (Geo.distanceMeters on EARTH_M), the oracle the radius rows are solved on. */
+const rad = (deg: number) => (deg * Math.PI) / 180;
+function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
+  const h = Math.sin(rad(b.lat - a.lat) / 2) * Math.sin(rad(b.lat - a.lat) / 2)
+    + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lon - a.lon) / 2) * Math.sin(rad(b.lon - a.lon) / 2);
+  return 2 * EARTH_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+const F64 = new Float64Array(1);
+const I64 = new BigInt64Array(F64.buffer);
+/** The adjacent double to non-zero x, one step away from zero (dir 1) or toward it (dir -1). */
+const ulp = (x: number, dir: 1 | -1) => { F64[0] = x; I64[0] += BigInt(dir); return F64[0]; };
+/** A point exactly OVERNIGHT_RADIUS (15 km) from boundary vertex v by the haversine, and the next latitude farther
+ *  out. 15 km due north is not representable (14999.999999999427, then 15000.000000000218), so the longitude steps
+ *  east 1e-7 degrees at a time until one latitude lands on 15_000 itself. */
+function onRadius(v: number, sign: 1 | -1): { lat: number; lon: number; past: number } {
+  const b = { lat: ROAD[v]![1], lon: ROAD[v]![0] };
+  for (let j = 1; j <= 20_000; j++) {
+    const lon = b.lon + j * 1e-7;
+    const d = (lat: number) => haversine({ lat, lon }, b);
+    let lat = b.lat + (sign * 15_000) / M_PER_DEG;
+    while (d(lat) > 15_000) lat = ulp(lat, (-sign) as 1 | -1);
+    while (d(ulp(lat, sign)) <= 15_000) lat = ulp(lat, sign);
+    if (d(lat) === 15_000) return { lat, lon, past: ulp(lat, sign) };
+  }
+  throw new Error(`no double lies exactly 15 km from vertex ${v}`);
+}
+
 type Night = { kind: "lodging"; name: string; meters: number } | { kind: "no_lodging" } | { kind: "not_searched" };
 const NONE: Night = { kind: "no_lodging" };
 const inn = (name: string, meters: number): Night => ({ kind: "lodging", name, meters });
@@ -144,6 +171,20 @@ describe("worker.fetch /trip names overnight towns and corridor stops from trip_
     const answers = Object.values(LODGING).flatMap((l) => Object.values(CORRIDOR).map((c) => JSON.stringify(expected(l.nights, c.stops))));
     expect(new Set(answers).size).toBe(9);
   });
+
+  for (const [side, sign] of [["north", 1], ["south", -1]] as const) {
+    const points = BOUNDARY.map((v) => onRadius(v, sign));
+    const row = (on: boolean) => BOUNDARY.map((v, i) => ({ id: `l-r${v}`, name: `Radius Inn ${v}`, kind: "lodging" as const,
+      score: 0, lat: on ? points[i]!.lat : points[i]!.past, lon: points[i]!.lon }));
+    it(`a lodging exactly on the 15 km radius (${side}, every boundary) is the night at 15000 m: the whole answer`, async () => {
+      await load(row(true));
+      expect(await send()).toEqual({ status: 200, json: expected(BOUNDARY.map((v) => inn(`Radius Inn ${v}`, 15_000)), CORRIDOR.zero.stops) });
+    });
+    it(`a lodging one latitude step past the 15 km radius (${side}, every boundary) is no_lodging: the whole answer`, async () => {
+      await load(row(false));
+      expect(await send()).toEqual({ status: 200, json: expected([NONE, NONE, NONE, NONE], CORRIDOR.zero.stops) });
+    });
+  }
 
   it("an empty corpus is searched and says no lodging on every night, honestly", async () => {
     expect(await send()).toEqual({ status: 200, json: expected([NONE, NONE, NONE, NONE], CORRIDOR.zero.stops) });
