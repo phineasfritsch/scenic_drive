@@ -251,6 +251,10 @@ MUTATIONS = [
      [R_PREVIEW]),
     ("74 offline asks, through the sender", SESSION, OFFLINE_OLD, "        if !isOnline { mode = .rejoining }",
      [R_OFFLINE]),
+    ("75 no token falls back to a fresh plan from the fix", REROUTER,
+     "guard let token = request.planToken else { throw RerouteUnavailable() }",
+     "guard let token = request.planToken else {\n            return Self.reply(of: try await client.plan("
+     "from: request.origin, to: place, budgetMinutes: budgetMinutes))\n        }", [R_TOKEN]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -268,7 +272,7 @@ EQUIVALENT = [
      "self?.arrived(ticket: self?.controller.inFlight ?? ticket, reply: reply)", "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device or simulator run can observe it (T-0321 R10). What bounds it: the adapter line it edits is a one-line forward to DriveController, whose half is CAUGHT above (C_REPLY, entry 34)"),
 ]
 
-MIN_MUTATIONS = 74
+MIN_MUTATIONS = 75
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
      "online: true, planToken: preview.continuation?.token)", "online: true)",
