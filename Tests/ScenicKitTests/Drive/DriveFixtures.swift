@@ -35,22 +35,51 @@ enum DriveFixtures {
 
     /// A latitude whose probe distance is EXACTLY `meters`, searched among the floats next to meters/k.
     static func latitude(measuring meters: Double) -> Double? {
-        var down = meters / DriveLine.metersPerDegree, up = down
+        exact(meters, near: meters / DriveLine.metersPerDegree, probeDistance)
+    }
+
+    /// The smallest latitude above `latitude(measuring: meters)` whose probe distance exceeds `meters`.
+    static func latitude(above meters: Double) -> Double? {
+        latitude(measuring: meters).flatMap { above(meters, from: $0, probeDistance) }
+    }
+
+    /// The NORTH-SOUTH probe (rv1-t0317 R2): one segment north along longitude 0 from latitude 34, where a metre
+    /// east is cos(34 deg) of a metre north in degrees. A fix at (34, longitude) projects onto the segment's start.
+    static let northStart = Coordinate(latitude: 34, longitude: 0)
+    static let northEnd = Coordinate(latitude: 34.01, longitude: 0)
+
+    static func eastDistance(_ longitude: Double) -> Double {
+        DriveLine([northStart, northEnd])!.distanceMeters(from: Coordinate(latitude: 34, longitude: longitude))
+    }
+
+    /// Degrees of longitude per metre east at latitude 34, computed here and NOT by DriveLine.
+    static let eastDegreesPerMeter = 1 / (cos(34 * Double.pi / 180) * Geo.earthRadiusMeters * Double.pi / 180)
+
+    /// A longitude whose east distance is EXACTLY `meters`, searched next to the independent guess.
+    static func longitude(measuring meters: Double) -> Double? {
+        exact(meters, near: meters * eastDegreesPerMeter, eastDistance)
+    }
+
+    static func longitude(above meters: Double) -> Double? {
+        longitude(measuring: meters).flatMap { above(meters, from: $0, eastDistance) }
+    }
+
+    private static func exact(_ meters: Double, near guess: Double, _ measure: (Double) -> Double) -> Double? {
+        var down = guess, up = guess
         for _ in 0..<256 {
-            if probeDistance(down) == meters { return down }
-            if probeDistance(up) == meters { return up }
+            if measure(down) == meters { return down }
+            if measure(up) == meters { return up }
             down = down.nextDown
             up = up.nextUp
         }
         return nil
     }
 
-    /// The smallest latitude above `latitude(measuring: meters)` whose probe distance exceeds `meters`.
-    static func latitude(above meters: Double) -> Double? {
-        guard var y = latitude(measuring: meters) else { return nil }
+    private static func above(_ meters: Double, from start: Double, _ measure: (Double) -> Double) -> Double? {
+        var y = start
         for _ in 0..<256 {
             y = y.nextUp
-            if probeDistance(y) > meters { return y }
+            if measure(y) > meters { return y }
         }
         return nil
     }

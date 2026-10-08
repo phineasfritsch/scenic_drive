@@ -1301,8 +1301,10 @@
       "filter": "ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests)",
       "tests": [
         "ScenicKitTests.DriveSessionTests/awayThresholdIsExact()",
+        "ScenicKitTests.DriveSessionTests/eastThresholdAtLatitude34()",
         "ScenicKitTests.DriveSessionTests/dwellBoundIsExact()",
         "ScenicKitTests.DriveSessionTests/reroutingAsksOnce()",
+        "ScenicKitTests.DriveSessionTests/lostConnectionWhileReroutingRejoins()",
         "ScenicKitTests.DriveSessionTests/offlineRejoinsWithZeroRequests()",
         "ScenicKitTests.DriveSessionTests/backOnlineAsksOnce()",
         "ScenicKitTests.DriveSessionTests/backOnlineWhileGuidingAsksNothing()",
@@ -1312,6 +1314,7 @@
         "ScenicKitTests.DriveRerouteTests/offlineThenOnlineCarriesRemainingPins()",
         "ScenicKitTests.DriveRerouteTests/noRowIgnoresItsVariant()",
         "ScenicKitTests.DriveRerouteTests/arrivalReplacesLineKeepsLambda()",
+        "ScenicKitTests.DriveRerouteTests/landedRerouteRestartsTheDwell()",
         "ScenicKitTests.DriveRerouteTests/unusableArrivalRejoins()",
         "ScenicKitTests.DriveRerouteTests/pinsMustBeVerticesInOrder()",
         "ScenicKitTests.DriveRerouteTests/loopClosingLegDoesNotJumpProgress()"
@@ -1326,7 +1329,7 @@
         "ScenicKitTests.DriveMotionGateTests/minimalBeforeAnyFix()",
         "ScenicKitTests.DriveMotionGateTests/eachFixSetsTheSurface()",
         "ScenicKitTests.DriveMotionGateTests/gateHoldsInEveryMode()",
-        "ScenicKitTests.DriveMotionGateTests/unusableFixKeepsSurface()"
+        "ScenicKitTests.DriveMotionGateTests/unusableFixIsMinimal()"
       ]
     }
   }

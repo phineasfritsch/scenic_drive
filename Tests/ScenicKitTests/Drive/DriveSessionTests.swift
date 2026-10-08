@@ -41,6 +41,32 @@ struct DriveSessionTests {
         #expect(left.mode == .rerouting)
     }
 
+    @Test("P-NAV-01: against a north-south segment at latitude 34, 50 m east is on, the next distance up is away, 42 m east is on")
+    func eastThresholdAtLatitude34() throws {
+        let at = try #require(DriveFixtures.longitude(measuring: DriveSession.awayThresholdMeters))
+        let above = try #require(DriveFixtures.longitude(above: DriveSession.awayThresholdMeters))
+        let guess = DriveSession.awayThresholdMeters * DriveFixtures.eastDegreesPerMeter
+        #expect(abs(at - guess) <= 256 * guess.ulp)
+        #expect(DriveFixtures.eastDistance(at) == 50)
+        #expect(DriveFixtures.eastDistance(above) > 50)
+        let start = DriveFixtures.northStart, end = DriveFixtures.northEnd
+        func north() -> DriveSession { DriveSession(line: [start, end], waypoints: [], lambda: Self.lambda, online: true)! }
+        // 42 m east: a missing cosine measures it 42 / cos(34 deg) ~ 50.7 m, away.
+        for east in [at, 42 * DriveFixtures.eastDegreesPerMeter] {
+            var held = north()
+            let fix = Coordinate(latitude: 34, longitude: east)
+            let asked = (0...60).map { held.observe(Self.fix(fix, Double($0))) }
+            #expect(asked.allSatisfy { $0 == nil }, "east \(east)")
+            #expect(held.mode == .guiding)
+        }
+        let beyond = Coordinate(latitude: 34, longitude: above)
+        var left = north()
+        let seen = [0.0, (5.0).nextDown, 5.0].map { left.observe(Self.fix(beyond, $0)) }
+        #expect(seen == [nil, nil, RerouteRequest(origin: beyond, remainingWaypoints: [], firstRemainingWaypoint: 0,
+                                                  destination: end, lambda: Self.lambda)])
+        #expect(left.mode == .rerouting)
+    }
+
     @Test("P-NAV-01: off-route needs 5 s away exactly; one ulp less is not; an on-line fix restarts the dwell")
     func dwellBoundIsExact() {
         #expect(DriveSession.offRouteDwellSeconds == 5)
@@ -58,10 +84,29 @@ struct DriveSessionTests {
     func reroutingAsksOnce() {
         var s = Self.session()
         let asked = (0...60).map { s.observe(Self.fix(Self.away, Double($0))) }
-        let edges = [s.connectivity(online: true), s.connectivity(online: false), s.connectivity(online: true)]
         #expect(asked[5] == Self.request(from: Self.away))
         #expect(asked.compactMap { $0 } == [Self.request(from: Self.away)])
-        #expect(edges == [nil, nil, nil])
+        #expect(s.connectivity(online: true) == nil)
+        #expect(s.mode == .rerouting)
+    }
+
+    @Test("P-NAV-01: connectivity lost while a reroute is out is rejoin mode; the next online edge asks exactly once")
+    func lostConnectionWhileReroutingRejoins() {
+        var guiding = Self.session()
+        _ = guiding.observe(Self.fix(Self.onLine, 0))
+        #expect(guiding.connectivity(online: false) == nil)
+        #expect(guiding.mode == .guiding)
+        var s = Self.session()
+        let asked = (0...5).map { s.observe(Self.fix(Self.away, Double($0))) }
+        #expect(asked.compactMap { $0 } == [Self.request(from: Self.away)])
+        #expect(s.connectivity(online: false) == nil)
+        #expect(s.mode == .rejoining)
+        let quiet = (6...30).map { s.observe(Self.fix(Self.away, Double($0))) } + [s.connectivity(online: false)]
+        #expect(quiet.allSatisfy { $0 == nil })
+        #expect(s.mode == .rejoining)
+        let latest = Coordinate(latitude: 0.004, longitude: 0.001)
+        _ = s.observe(Self.fix(latest, 31))
+        #expect([s.connectivity(online: true), s.connectivity(online: true)] == [Self.request(from: latest), nil])
         #expect(s.mode == .rerouting)
     }
 
@@ -89,7 +134,7 @@ struct DriveSessionTests {
         #expect(s.connectivity(online: false) == nil)
         #expect(s.connectivity(online: true) == Self.request(from: latest))
         #expect(s.mode == .rerouting)
-        let after = [s.connectivity(online: true), s.connectivity(online: false), s.connectivity(online: true)]
+        let after = [s.connectivity(online: true)]
             + (12...40).map { s.observe(Self.fix(Self.away, Double($0))) }
         #expect(after.allSatisfy { $0 == nil })
     }

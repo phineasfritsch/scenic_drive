@@ -67,15 +67,28 @@ struct DriveMotionGateTests {
         }
     }
 
-    @Test("P-SAFE-09: an unusable fix leaves the surface where it was")
-    func unusableFixKeepsSurface() {
-        let nowhere = Coordinate(latitude: .nan, longitude: 0)
-        var s = Self.session()
-        _ = s.observe(DriveFixtures.fix(Self.onLine, at: 0, speed: 20))
-        _ = s.observe(DriveFixtures.fix(nowhere, at: 1, speed: 0))
-        #expect(s.surface == .minimal)
-        _ = s.observe(DriveFixtures.fix(Self.onLine, at: 2, speed: 0))
-        _ = s.observe(DriveFixtures.fix(nowhere, at: 3, speed: 20))
-        #expect(s.surface == .full)
+    /// Every way a fix is unusable, each one ulp past its bound or not a number.
+    static let unusable: [(Coordinate, Double)] = [
+        (Coordinate(latitude: .nan, longitude: 0), 1), (Coordinate(latitude: 0, longitude: .infinity), 1),
+        (Coordinate(latitude: (90.0).nextUp, longitude: 0), 1), (Coordinate(latitude: 0, longitude: (-180.0).nextDown), 1),
+        (onLine, .nan), (onLine, .infinity),
+    ]
+
+    @Test("P-SAFE-09: an unusable fix is an unknown speed - the minimal surface, whatever it carries or followed")
+    func unusableFixIsMinimal() {
+        // Rows: the surface before it (a known 0 m/s or 20 m/s fix) x every unusable kind x the speed it carries.
+        for before in [0.0, 20] {
+            for (point, time) in Self.unusable {
+                for carried in [0.0, 4.5, 20, Double.nan] {
+                    var s = Self.session()
+                    _ = s.observe(DriveFixtures.fix(Self.onLine, at: 0, speed: before))
+                    #expect(s.surface == DriveSurface(speedMetersPerSecond: before))
+                    let mode = s.mode
+                    #expect(s.observe(DriveFixtures.fix(point, at: time, speed: carried)) == nil)
+                    #expect(s.surface == .minimal, "before \(before) carried \(carried) at \(point) t \(time)")
+                    #expect(s.mode == mode)
+                }
+            }
+        }
     }
 }

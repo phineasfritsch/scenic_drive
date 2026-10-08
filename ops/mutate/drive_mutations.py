@@ -3,10 +3,11 @@ contents, the online/offline request counts and the motion gate. Driver drive.py
 (tripsheet's three-file shape).
 
   * THE GATE (1-6): each half of the speed predicate, the bound's literal, the surface before a fix, the surface
-    set by an unusable fix;
-  * OFF-ROUTE (7-10, 26-28): the 50 m comparison, the 5 s comparison, the dwell restart, asking again while a
-    reroute is out, the fix's position and time checks;
-  * ONLINE AND OFFLINE (11-13, 19-20): offline asking, the online edge, guiding asking, the rejoin, the failure;
+    an unusable fix leaves (6, R4 of round 2);
+  * OFF-ROUTE (7-10, 26-30): the 50 m comparison, the 5 s comparison, the dwell restart, asking again while a
+    reroute is out, the fix's position and time checks, the dwell kept across a landed reroute, the cosine;
+  * ONLINE AND OFFLINE (11-13, 19-20, 31): offline asking, the online edge, guiding asking, the rejoin, the
+    failure, the lost edge while a reroute is out;
   * THE REQUEST (14-18, 21-25): a pin counted passed one segment early, the lambda dropped in the value and in the
     session, an arrival taken while guiding, a bad arrival kept, a non-finite lambda, a loop's closing leg, the
     projection's sign, a repeated pin, a one-point line.
@@ -50,12 +51,14 @@ SPEED = "P-SAFE-09: above 4.5 m/s, or at an unknown speed, the drive shows only 
 BEFORE = "P-SAFE-09: before the first fix the drive shows the minimal surface"
 EACH = "P-SAFE-09: each fix sets the surface by itself - no hysteresis is ruled"
 MODES = "P-SAFE-09: the bound is the same off the line, offline in rejoin mode and while a reroute is out"
-KEEPS = "P-SAFE-09: an unusable fix leaves the surface where it was"
+MINIMAL = "P-SAFE-09: an unusable fix is an unknown speed - the minimal surface, whatever it carries or followed"
 RESTART = "P-NAV-01: a landed reroute restarts the dwell - the first fix away from the new line waits 5 s again"
+EAST = ("P-NAV-01: against a north-south segment at latitude 34, 50 m east is on, the next distance up is away, "
+        "42 m east is on")
+LOST = "P-NAV-01: connectivity lost while a reroute is out is rejoin mode; the next online edge asks exactly once"
 
 GATE_OLD = "speed >= 0 && speed <= Self.motionGateMetersPerSecond"
-SURFACE_SET = "surface = DriveSurface(speedMetersPerSecond: fix.speedMetersPerSecond)"
-USABLE = "guard fix.isUsable else { return nil }"
+USABLE = "guard fix.isUsable else {\n            surface = .minimal\n            return nil\n        }"
 OFFLINE_OLD = "        guard isOnline else {\n            mode = .rejoining\n            return nil\n        }"
 BAD_OLD = "            mode = .rejoining\n            return false\n        }\n        line = next"
 
@@ -70,8 +73,7 @@ MUTATIONS = [
      [SPEED, EACH, MODES]),
     ("5 the full surface before any fix", SESSION, "var surface: DriveSurface = .minimal",
      "var surface: DriveSurface = .full", [BEFORE]),
-    ("6 an unusable fix sets the surface", SESSION, USABLE + "\n        " + SURFACE_SET,
-     SURFACE_SET + "\n        " + USABLE, [KEEPS]),
+    ("6 an unusable fix keeps the surface", SESSION, USABLE, "guard fix.isUsable else { return nil }", [MINIMAL]),
     ("7 exactly 50 m is away", SESSION, "fix.coordinate) <= Self.awayThresholdMeters",
      "fix.coordinate) < Self.awayThresholdMeters", [THRESHOLD]),
     ("8 exactly 5 s is not off-route", SESSION, "fix.timestamp - since >= Self.offRouteDwellSeconds",
@@ -113,6 +115,10 @@ MUTATIONS = [
      [INIT]),
     ("29 a landed reroute keeps the dwell", SESSION, "        progressSegment = 0\n        awaySince = nil\n",
      "        progressSegment = 0\n", [RESTART]),
+    ("30 the cosine dropped", LINE, "let scale = cos(point.latitude * Double.pi / 180) * Self.metersPerDegree",
+     "let scale = Self.metersPerDegree", [EAST]),
+    ("31 the lost edge keeps rerouting", SESSION, "        if !online, mode == .rerouting { mode = .rejoining }\n",
+     "", [LOST]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -122,6 +128,6 @@ EQUIVALENT = [
      "never negative and never NaN; > 0 and != 0 agree on every value it can take"),
 ]
 
-MIN_MUTATIONS = 28
+MIN_MUTATIONS = 31
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 3

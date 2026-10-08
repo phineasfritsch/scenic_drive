@@ -105,6 +105,22 @@ struct DriveRerouteTests {
         #expect(next == Self.expected(b, passed: 2, from: off, lambda: a.lambda))
     }
 
+    @Test("P-NAV-01: a landed reroute restarts the dwell - the first fix away from the new line waits 5 s again")
+    func landedRerouteRestartsTheDwell() {
+        let a = Self.variantA, b = Self.variantB
+        var s = Self.session(a)
+        let offA = DriveFixtures.away(from: DriveFixtures.on(a.line, segment: 0))
+        #expect(s.observe(DriveFixtures.fix(DriveFixtures.on(a.line, segment: 0), at: 0)) == nil)
+        #expect(s.observe(DriveFixtures.fix(offA, at: 1)) == nil)
+        #expect(s.observe(DriveFixtures.fix(offA, at: 6)) == Self.expected(a, passed: 0, from: offA))
+        let landed = s.rerouteArrived(line: b.line, waypoints: b.pins)
+        #expect(landed)
+        let offB = DriveFixtures.away(from: DriveFixtures.on(b.line, segment: 0))
+        let seen = [7, (12.0).nextDown, 12].map { s.observe(DriveFixtures.fix(offB, at: $0)) }
+        #expect(seen == [nil, nil, Self.expected(b, passed: 0, from: offB, lambda: a.lambda)])
+        #expect(s.mode == .rerouting)
+    }
+
     @Test("P-NAV-01: an unusable reroute reply is a failure - rejoin mode, line and pins kept")
     func unusableArrivalRejoins() {
         let a = Self.variantA, b = Self.variantB

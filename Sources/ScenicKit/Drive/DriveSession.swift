@@ -8,8 +8,10 @@ import Foundation
 ///   * AWAY is a fix more than 50 m from the planned line; OFF-ROUTE is away continuously for at least 5 s (R3).
 ///   * Off-route online asks for the rest of THIS drive once - the pins not yet passed, the same lambda (R4) - and
 ///     asks nothing more until the reroute lands or fails. Off-route offline is rejoin mode with zero requests,
-///     and the offline-to-online edge in rejoin mode asks exactly once (R5).
-///   * The surface is `.minimal` above 4.5 m/s or at an unknown speed, and before the first fix (R6).
+///     and the offline-to-online edge in rejoin mode asks exactly once (R5). Losing the connection while a
+///     reroute is out is rejoin mode too: that reroute is lost with it.
+///   * The surface is `.minimal` above 4.5 m/s or at an unknown speed, before the first fix, and after an
+///     unusable fix (its speed is as unknown as its position) (R6).
 public struct DriveSession: Sendable, Equatable {
     /// A fix further than this from the line is away; exactly this far is on it.
     public static let awayThresholdMeters: Double = 50
@@ -39,9 +41,13 @@ public struct DriveSession: Sendable, Equatable {
         self.isOnline = online
     }
 
-    /// One location fix. Returns the reroute to send, or nil. An unusable fix changes nothing.
+    /// One location fix. Returns the reroute to send, or nil. An unusable fix asks nothing and changes nothing but
+    /// the surface, which goes minimal: unknown is moving.
     public mutating func observe(_ fix: DriveFix) -> RerouteRequest? {
-        guard fix.isUsable else { return nil }
+        guard fix.isUsable else {
+            surface = .minimal
+            return nil
+        }
         surface = DriveSurface(speedMetersPerSecond: fix.speedMetersPerSecond)
         latest = fix
         if line.distanceMeters(from: fix.coordinate) <= Self.awayThresholdMeters {
@@ -63,10 +69,12 @@ public struct DriveSession: Sendable, Equatable {
         return request(from: fix.coordinate)
     }
 
-    /// A reachability change. The offline-to-online edge in rejoin mode is the one that asks.
+    /// A reachability change. The offline-to-online edge in rejoin mode is the one that asks; the online-to-offline
+    /// edge while a reroute is out loses that reroute, which is rejoin mode.
     public mutating func connectivity(online: Bool) -> RerouteRequest? {
         let wasOnline = isOnline
         isOnline = online
+        if !online, mode == .rerouting { mode = .rejoining }
         guard online, !wasOnline, mode == .rejoining, let latest else { return nil }
         mode = .rerouting
         return request(from: latest.coordinate)
