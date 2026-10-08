@@ -77,3 +77,41 @@ widening anything else.
     killer suite emptied (--prove-vacuity) and CAUGHT by name after.
   - R9 NAMED TESTS. The new Worker tests are bound by name under P-COST-01 and P-PRIV-05 in named-tests.json, the
     Swift test under P-PRIV-05; PINS.yaml text grows only where it counts bound tests.
+- 2026-10-08T03:05:27Z BUILT. agent/claude-opus-5 (owner).
+  - RED FIRST, committed (c1bdfbf4: the tests, with compile-only Swift stubs - a defaulted `vehicle:` parameter that
+    is ignored and an unused `.vehicleNotEnabled`). `npx vitest run test/vehicleWire.test.ts`: `x an absent vehicle
+    and "standard" observe the same answer on every route, and that answer spent the quota and called the router`,
+    `x every disabled and unknown vehicle is 400 invalid_request whole on every route, with zero router requests and
+    an untouched quota`, `x no row ignores its route: ...`, `Tests 3 failed (3)`. `swift test --filter
+    ScenicAPIClientTests\.(PlanVehicleWireTests|PlanClientRequestTests|PlanSheetGateTests)`: `x "a plan that names no
+    vehicle is sent as standard"`, `x "every profile: an enabled one is sent as its raw value, ..."` (3 issues),
+    `x "P-PRIV-06: a typed start leaves as ONE coordinate at 2 dp, the body equal to its recomputation"`,
+    testSendsExactlyTheBodyT0248Ruled and testDepartsAtIsSentAsAUTCInstantInWholeSeconds failed.
+  - GREEN (cf840780): src/vehicle.ts (ENABLED_VEHICLE_PROFILES, vehicleProblem) read LAST by the three parsers;
+    loopRequest.ts's keysProblem gained a required list (its whitelist had been all-required). Four more body
+    literals gained `"vehicle":"standard"` (PlanClientDeviceTests x2, URLSessionPlanTransportTests, the key-set
+    test). Digests re-approved for PlanClient.swift, PlanRefusal.swift, PlanRequestBody.swift.
+  - POPULATION. Worker services/api/test/mutate/vehicleMutants.mjs (floor 15, 1 EQUIVALENT with witness, 4
+    subjects): `--prove-floor` 4 of 4 arms refused, control quiet; `--prove-vacuity` `RESULT caught=0 missed=15
+    trap=0 of 15`; with the test `RESULT caught=15 missed=0 trap=0 of 15`, each CAUGHT by name. Swift: plansheet
+    entries 33-37 + E2 (floors 37/2/4): `--only 33,34,35,36,37 --prove-vacuity` `VACUITY PROOF OK ... MISSED=5 of
+    5`; `--only 33,34,35,36,37,E2` `caught by the test that names it: 5 of 5`, `MISSED E2 the encoder writes
+    standard for the profile`, `MUTATE OK caught=5/5`. R8 AMENDED: plansheet.py's SUBJECT_MODULES is NOT widened -
+    check-mutate-population refused it (`PlanClient.swift` / `PlanRequestBody.swift` `is allowlisted as computing
+    no number AND is mutated by a population`); the allowlist is outside touches and its reasons stand (no number
+    is computed), so the two files are mutated as the harness's own SUBJECTS only. `P-PROC-06: every added module
+    is covered or allowlisted; the floor of 93 holds`.
+  - ACCEPTANCE at 0a0e8fc6 (origin/main fetched: `Already up to date`, T-0310 not yet merged): `npx vitest run`
+    `Test Files 76 passed (76)`, `Tests 2128 passed (2128)`; `swift test --filter ScenicAPIClientTests` `Executed 46
+    tests, with 0 failures` and `Test run with 27 tests in 5 suites passed`; `run-named-tests.py P-COST-01` `NAMED
+    P-COST-01 passed=46/46`; `run-named-tests.py P-PRIV-05` `NAMED P-PRIV-05 passed=45/46`, the one RED being
+    `PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail(): MISSING` - that file is `#if
+    canImport(GRDB)` and GRDB does not build on this Windows box; all six T-0311 bindings ran green; CI (Linux) is
+    the proof of that row. `bash ops/lib/check-safety-disclaimer` rc=0, `bash ops/lib/check-map-attribution` rc=0,
+    `check-pins-yaml.py` `PINS-YAML ok pins=44 fields=355`, `ops/queue-check` `QUEUE OK (302 tasks)`. Sizes:
+    vehicle.ts 18, planRequest.ts 112, loopRequest.ts 69, tripRequest.ts 99, vehicleWire.test.ts 143,
+    vehicleMutants.mjs 145, PlanRequestBody.swift 75, PlanClient.swift 60, PlanVehicleWireTests.swift 67.
+  - GAPS (stillOpen): the app always sends `.standard` - PlanTicket/ClientPlanner do not carry the stored profile
+    (ScenicKit outside touches); VehicleProfile.swift's doc comment still says the /plan body has no vehicle field
+    (ScenicKit outside touches); /isochrone has no vehicle key (R1); the R2 compat window must be re-ruled by the
+    task that enables a second profile.
