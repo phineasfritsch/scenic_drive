@@ -1,13 +1,13 @@
 ---
 id: T-0315
 title: The app sends its paid-tier identity (x-scenic-account-token from the StoreKit entitlement, per T-0272) on plan, loop and trip requests, so a subscriber gets the full itinerary and per-day handoff, and a non-subscriber keeps the free preview
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T09:35:56Z
+lease_expires_at: 2026-10-08T17:35:56Z
+worktree: .worktrees/T-0315
+branch: task/T-0315
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-STORE-02, P-COST-01]
@@ -27,3 +27,4 @@ unlimited plans and navigation.
 
 ## Log
 - 2026-10-08T06:32:40Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0313's recordable 1.
+- 2026-10-08T09:35:56Z claimed by agent/claude-opus-5; lease until 2026-10-08T17:35:56Z
