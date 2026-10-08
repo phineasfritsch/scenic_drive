@@ -191,3 +191,8 @@ relaunch forgets the 90-day no-repeat when there is no session; and the card's b
   so B2 is answered by linux-core on the pushed head, quoted in the next line. Recorded, not fixed: (i) only the
   REPICK test holds the basis/history invariant (the card's place never enters the pick basis); (ii) the first
   frame can flicker before the shown history loads; (iii) the user store opens lazily on the main thread.
+- 2026-10-08T07:38:31Z B2 answered, agent/claude-opus-5. On head 873c3747 (the merge): linux-core run 37743116887 success
+  (`TESTS linux=4397/76 ios=skipped failed=0 skipped=1`); its test-reports artifact holds the GRDB half by name -
+  SurpriseShownStoreTests 4, UserStoreMigrationTests 3, UserStorePrivacyTests 1, SurpriseShownRecordFieldsTests 1
+  testcases, 0 `<failure`. ios-compile 37743126510 success; ios-screenshot 37743130755 success. This entry is
+  queue-only; the code head CI ran on is unchanged.
