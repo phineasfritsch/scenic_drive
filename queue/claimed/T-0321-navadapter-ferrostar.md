@@ -123,3 +123,18 @@ mode) and Live Activity are separate follow-ups; Live Activity needs the xcodepr
   a different hash). ios-compile runs with -disableAutomaticPackageResolution, so a wrong file fails the build; the
   probe method is the fallback. The package-local Package.resolved SwiftPM wrote is NOT committed: Xcode ignores a
   local package's file, and two would disagree.
+- 2026-10-08T13:20:42Z iOS CI on f70b834f (dispatch, --ref task/T-0321), FIRST RUN, no iteration: ios-compile run 37778711745
+  success - "** BUILD SUCCEEDED **"; NavAdapter compiled for arm64 and x86_64 ("Compiling DriveNavigator.swift,
+  FerrostarDecisionsOff.swift (in target 'NavAdapter' from project 'ScenicApp')", likewise its other four files),
+  FerrostarCore and FerrostarCoreFFI built from the 0.57.0 checkout, no warning naming a NavAdapter file; built with
+  -disableAutomaticPackageResolution against the committed Package.resolved, and the "what the build wrote" step
+  printed an empty `git status --porcelain` (the file was accepted unchanged). ios-screenshot run 37778716359
+  success (the app still launches and the existing shots are taken; no drive shot - R6, T-0322).
+  POPULATION (ops/mutate/drive.py, floors 49 / 4 / 5 test files): `--only 32..49,E2,E3,E4` -> "caught by the test
+  that names it: 18 of 18 (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)", E2/E3/E4 MISSED as
+  their arm requires, "MUTATE OK caught=18/18", exit 0. `--prove-vacuity` over 32..49 -> "VACUITY PROOF OK: with the
+  5 test file(s) emptied, caught=0 (need 0) and MISSED=18 of 18", exit 0 - every new mutant MISSED before the new
+  tests and CAUGHT by name after. Entry 41 (an online report cancels the reroute) is caught only because
+  lostEdgeCancels gained an online-report row (NWPathMonitor repeats updates while online). Allowlisted, no code:
+  DriveCommand, RerouteReply, RerouteSending. check-mutate-population: "every added module is covered or
+  allowlisted; the floor of 128 holds". Filed T-0322 (backlog) for the drive screen (R6).
