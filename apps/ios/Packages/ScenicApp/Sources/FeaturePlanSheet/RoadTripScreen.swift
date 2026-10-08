@@ -11,6 +11,12 @@ struct RoadTripScreen: View {
     let dayLinks: ([Coordinate]) -> [URL]
     @State private var query = ""
 
+    init(trip: Binding<TripSheet>, planner: any TripPlanning, dayLinks: @escaping ([Coordinate]) -> [URL]) {
+        _trip = trip
+        self.planner = planner
+        self.dayLinks = dayLinks
+    }
+
     var body: some View {
         switch trip.state {
         case .idle, .chosen:
