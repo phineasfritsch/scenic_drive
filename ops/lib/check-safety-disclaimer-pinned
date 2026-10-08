@@ -58,6 +58,7 @@ PINNED_FEATURE=(
   'SkylineHandoff.swift 43fa2c19ce81f0cb217cfd98f5da383465ac1bb87ae5d5ac4d97017f74eff70c'
   'SurpriseSlot.swift 2306572ab23e70b3050f3e6b41f3e91587b79fb8693eab0f8b4b896e234c124b'
   'SurpriseToggle.swift 97d90de6d95a6d7f1e1f0b8cb99df6e46ac250d890fdbb182da4a956b3e4770a'
+  'TripDayLinks.swift cc961d2922aceec20add2fb38d595824b295d1644593991f3036fd6d36bfd87c'
   'VehicleChoice.swift c9cd0a246e5bccd47027bbe5ec011237639c3ebabaa826c0ca302f4ebb03f8be'
   'VehicleSetting.swift ac15565ddd461878ec68a61837fad6a1400b7e9d5e299b344ff3bac924b4240e'
 )
@@ -88,7 +89,7 @@ PINNED_SHELL_ENTRIES=(
   'f ScenicDriveApp.swift' 'f Tiles/.gitignore'
 )
 PINNED_SHELL_TILE='^f Tiles/[A-Za-z0-9_-][A-Za-z0-9._-]*\.pmtiles(\.json)?$'
-PINNED_SHELL_DIGEST='2bd334e573042e2031af1414385fccb6d8d0a7bcc0f94cb249d4660764b53a76'
+PINNED_SHELL_DIGEST='1440dbe8273a0535860719c0b84752ed38ad6014166e867dc99c6b00e885e003'
 
 # pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
 pinned_shell() {
@@ -240,9 +241,11 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPlaceSearch.swift c2b0b9618bc66e10b152892ef0cfce47d0bbf84f1baab03663e25be34abc1827'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift 4ac407cc11a34d70fb8cdec79803897c8bc0d3678d97c0766d6487fcde9abe05'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanRouteShape.swift 080f53442d11034a4bed4c5dbda1daef4903104c6a0d8346326d80737be2fd43'
-  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift a9c44b43adb661c4ecceef9a46cc77d004153c2a4c5a76e9a6552c09edefe327'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanSheetScreen.swift 8a8dd17997a22dc81728848fd79bc5aa0c2e98567d8585e5c14e7b7e0f7ab407'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/RoadTripScreen.swift eef8b0a758bedb3df8994ee81f2020aef70fa231d8d066165e4484b91d6f3589'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDriveShelf.swift 82a2353dcc57db12623abf2157abd9b0ac07778ef2127ab60739ba14a6e2ba81'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/SavedDrivesList.swift e77a72cacd6278fdd9e88ef32ec105afeb3397a80832a3e36fd2f425e374e571'
+  'Packages/ScenicApp/Sources/FeaturePlanSheet/TripItineraryCard.swift 466e7b203ca18ff0255575f42c6fdd114b7870517d32247e9c9133bd38fd59cc'
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveBasemap.swift 2bd28e278bcff56eee61f86b2c4504cc0a8dabfe9497f421952da1b1bb8505be'
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveCopy.swift 3a35deca6bb63815dacb5975c0c7e5846774d74a5f08dbda8bad8449de09c08e'
   'Packages/ScenicApp/Sources/FeatureScenicHome/DriveDetails.swift 9bf22e384eff9fb8910de7e7263298e88394d3af298833b2c9bb325ca3990530'
@@ -259,6 +262,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/FeatureScenicHome/SkylineHandoff.swift 43fa2c19ce81f0cb217cfd98f5da383465ac1bb87ae5d5ac4d97017f74eff70c'
   'Packages/ScenicApp/Sources/FeatureScenicHome/SurpriseSlot.swift 2306572ab23e70b3050f3e6b41f3e91587b79fb8693eab0f8b4b896e234c124b'
   'Packages/ScenicApp/Sources/FeatureScenicHome/SurpriseToggle.swift 97d90de6d95a6d7f1e1f0b8cb99df6e46ac250d890fdbb182da4a956b3e4770a'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/TripDayLinks.swift cc961d2922aceec20add2fb38d595824b295d1644593991f3036fd6d36bfd87c'
   'Packages/ScenicApp/Sources/FeatureScenicHome/VehicleChoice.swift c9cd0a246e5bccd47027bbe5ec011237639c3ebabaa826c0ca302f4ebb03f8be'
   'Packages/ScenicApp/Sources/FeatureScenicHome/VehicleSetting.swift ac15565ddd461878ec68a61837fad6a1400b7e9d5e299b344ff3bac924b4240e'
   'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift cde00150d92e7c2a557ca7c35615e4ee3d0874e9acb77fefee2b210bd0f93906'
@@ -280,9 +284,11 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/PlanAdapter/LiveCorpus.swift c4886df4516558e45172300dceb481d9134cd0176ace05fbc00e49317f55ead3'
   'Packages/ScenicApp/Sources/PlanAdapter/LivePlanner.swift 5af119b8ce567142531ae15bfc659942a6c29fbd1e98a2666b9640d18d15b715'
   'Packages/ScenicApp/Sources/PlanAdapter/LiveSurpriseLedger.swift da2784e6a18a05797511d785c596aaea28ef66015d3ac1a115af9b0330e2b578'
+  'Packages/ScenicApp/Sources/PlanAdapter/LiveTripPlanner.swift cd09ff579ef2b8d26b48841982026c8e79340b5612326a570d8d75deb167c3bf'
   'Packages/ScenicApp/Sources/PlanAdapter/StoredInstallID.swift 53a06ebf0a3f02ab2bedcabd679e8fb3edf2709a29e8615594e27376ea371707'
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachablePlanner.swift 6ee10bda9ca24fe44518093d2a3920b24a1654c2d1ad5a75a6d9b3cc05619590'
-  'ScenicDrive/ScenicDriveApp.swift 2bd334e573042e2031af1414385fccb6d8d0a7bcc0f94cb249d4660764b53a76'
+  'Packages/ScenicApp/Sources/PlanAdapter/UnreachableTripPlanner.swift c0c49b6357956563edd27ea798b33ec5722d7e3d82361e88a7ae37447634ec6b'
+  'ScenicDrive/ScenicDriveApp.swift 1440dbe8273a0535860719c0b84752ed38ad6014166e867dc99c6b00e885e003'
 )
 
 # require_pinned_app_swift APP_TREE: the app tree's Swift file set against PINNED_APP_SWIFT, then every digest.

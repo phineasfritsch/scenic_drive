@@ -39,7 +39,7 @@ struct ScenicDriveApp: App {
                 .overlay(alignment: .topLeading) {
                     PlanDriveButton(action: { isPlanning = true })
                         .sheet(isPresented: $isPlanning) {
-                            PlanSheetScreen(planner: LivePlanner.make(), onClose: { isPlanning = false })
+                            PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, onClose: { isPlanning = false })
                         }
                 }
                 .sheet(isPresented: $isShowingCorpusDownload) {
