@@ -17,13 +17,16 @@ public struct RerouteRequest: Sendable, Equatable {
     public let destination: Coordinate
     /// The plan's lambda, unchanged.
     public let lambda: Double
+    /// T-0328 R1: the token of the plan the driver is on; nil when the Worker remembered nothing - then no request.
+    public let planToken: String?
 
     public init(origin: Coordinate, remainingWaypoints: [Coordinate], firstRemainingWaypoint: Int,
-                destination: Coordinate, lambda: Double) {
+                destination: Coordinate, lambda: Double, planToken: String? = nil) {
         self.origin = origin
         self.remainingWaypoints = remainingWaypoints
         self.firstRemainingWaypoint = firstRemainingWaypoint
         self.destination = destination
         self.lambda = lambda
+        self.planToken = planToken
     }
 }

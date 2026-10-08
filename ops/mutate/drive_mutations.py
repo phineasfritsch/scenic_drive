@@ -31,7 +31,14 @@ CONTROLLER = _KIT / "DriveController.swift"
 LEG = _KIT / "DriveLeg.swift"
 UNAVAILABLE = _KIT / "RerouteUnavailable.swift"
 DISPLAY = _KIT / "DriveDisplay.swift"
-SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST, CONTROLLER, LEG, UNAVAILABLE, DISPLAY)
+# T-0328: the plan token's way through the app - the reply value, the preview, the sender, the preview's mapping.
+REPLY = _KIT / "RerouteReply.swift"
+PREVIEW = ROOT / "Sources" / "ScenicKit" / "PlanSheet" / "PlanPreview.swift"
+CONTINUATION = ROOT / "Sources" / "ScenicKit" / "PlanSheet" / "PlanContinuation.swift"
+REROUTER = ROOT / "Sources" / "ScenicAPIClient" / "PlanRerouter.swift"
+PLANNER = ROOT / "Sources" / "ScenicAPIClient" / "ClientPlanner.swift"
+SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST, CONTROLLER, LEG, UNAVAILABLE, DISPLAY, REPLY, PREVIEW, CONTINUATION,
+            REROUTER, PLANNER)
 # NavAdapter (T-0321 R10) is mutated only by EQUIVALENT entries: apps/ios is not compiled on Linux, so those
 # mutants are MISSED here by construction and only a device run observes them.
 NAVIGATOR = ROOT / "apps" / "ios" / "Packages" / "ScenicApp" / "Sources" / "NavAdapter" / "DriveNavigator.swift"
@@ -40,7 +47,8 @@ MUTATED_FILES = SUBJECTS + (NAVIGATOR,)
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Drive"
 TEST_FILES = (_TESTS / "DriveSessionTests.swift", _TESTS / "DriveRerouteTests.swift",
               _TESTS / "DriveMotionGateTests.swift", _TESTS / "DriveControllerTests.swift",
-              _TESTS / "DriveLegTests.swift", _TESTS / "DriveDisplayTests.swift")
+              _TESTS / "DriveLegTests.swift", _TESTS / "DriveDisplayTests.swift",
+              ROOT / "Tests" / "ScenicAPIClientTests" / "DriveReplanTests.swift", _TESTS / "DriveTokenTakeTests.swift")
 
 C_FIX = "T-0321: every fix reaches the session whole; off-route online is one send under ticket 1"
 C_LOST = "T-0321: losing the connection with a reroute out cancels its ticket; with none out it cancels nothing"
@@ -56,6 +64,16 @@ D_TABLE = "P-SAFE-09: the drive screen shows the typed display for every surface
 D_LARGE = "P-SAFE-09: moving shows only the one large action - 60 pt, no details - in every mode"
 D_SESSION = ("P-SAFE-09: the session's display is the table's row for its own surface and mode, before and "
              "after fixes")
+
+R_TOKEN = "T-0328: token x first pin - the one 2-dp request and the taken answer, whole; no token, no request"
+R_DRAWN = "T-0328: the answer DriveController takes is the Worker's line, pins and token, and the map draws it"
+R_LATE = ("T-0328: the offline edge mid-flight cancels; the late answer is dropped by ticket and its token never "
+          "taken")
+R_OFFLINE = "T-0328: offline, an off-route drive sends nothing - zero commands, zero requests"
+T_TAKE = ("T-0328: an answer's line, pins and token are taken together or none, whole, and the next "
+          "request agrees")
+R_PREVIEW = ("T-0328: the preview keeps /plan's token with the ticket's place and budget, only when sent, never "
+             "saved")
 
 THRESHOLD = "P-NAV-01: 50 m exactly is on the line; the smallest distance above 50 m is away"
 DWELL = "P-NAV-01: off-route needs 5 s away exactly; one ulp less is not; an on-line fix restarts the dwell"
@@ -114,8 +132,8 @@ MUTATIONS = [
     ("14 a pin passed one segment early", SESSION, "pinVertices.firstIndex { $0 > progressSegment }",
      "pinVertices.firstIndex { $0 >= progressSegment }", [REMAINING, OFFLINE_REMAINING]),
     ("15 the value drops the lambda", REQUEST, "self.lambda = lambda", "self.lambda = 0.5", [REMAINING]),
-    ("16 the session sends a fixed lambda", SESSION, "destination: line.destination, lambda: lambda)",
-     "destination: line.destination, lambda: 0.5)", [REMAINING]),
+    ("16 the session sends a fixed lambda", SESSION, "destination: line.destination, lambda: lambda,",
+     "destination: line.destination, lambda: 0.5,", [REMAINING]),
     ("17 an arrival taken while guiding", SESSION, "guard mode == .rerouting else { return false }",
      "guard mode != .rejoining else { return false }", [ARRIVAL]),
     ("18 a bad arrival keeps rerouting", SESSION, BAD_OLD,
@@ -190,13 +208,75 @@ MUTATIONS = [
     ("54 guiding carries a status", DISPLAY, "case .guiding: status = nil",
      'case .guiding: status = "Finding a new way"', [D_TABLE, D_SESSION]),
     ("55 the session's display ignores its surface", DISPLAY,
-     "self.init(surface: session.surface, mode: session.mode)", "self.init(surface: .full, mode: session.mode)",
+     "self.init(surface: session.surface, mode: session.mode,", "self.init(surface: .full, mode: session.mode,",
      [D_SESSION]),
     ("56 the session's display ignores its mode", DISPLAY,
-     "self.init(surface: session.surface, mode: session.mode)", "self.init(surface: session.surface, mode: .guiding)",
+     "self.init(surface: session.surface, mode: session.mode,", "self.init(surface: session.surface, mode: .guiding,",
      [D_SESSION]),
     ("57 the large action's literal", DISPLAY, "public static let largeActionHeight = 60.0",
      "public static let largeActionHeight = 44.0", [D_TABLE, D_LARGE, D_SESSION]),
+    # T-0328: the app reroutes through the plan token (DriveReplanTests).
+    ("58 the request drops the plan's token", SESSION, "lambda: lambda,\n" + " " * 30 + "planToken: planToken)",
+     "lambda: lambda,\n" + " " * 30 + "planToken: nil)", [R_TOKEN, R_DRAWN, R_LATE]),
+    ("59 a taken answer keeps the old token", SESSION,
+     "        pinVertices = vertices\n        self.planToken = planToken", "        pinVertices = vertices",
+     [R_TOKEN, R_LATE]),
+    ("60 the session starts with no token", SESSION,
+     "        self.isOnline = online\n        self.planToken = planToken", "        self.isOnline = online",
+     [R_TOKEN, R_DRAWN, R_LATE]),
+    ("61 the controller drops the answer's token", CONTROLLER, "planToken: reply.planToken)", "planToken: nil)",
+     [R_TOKEN, R_LATE]),
+    ("62 the reply value drops its token", REPLY, "self.planToken = planToken", "self.planToken = nil",
+     [R_TOKEN, R_LATE]),
+    ("63 the request value drops its token", REQUEST, "self.planToken = planToken", "self.planToken = nil",
+     [R_TOKEN]),
+    ("64 the sender asks without a token", REROUTER,
+     "guard let token = request.planToken else { throw RerouteUnavailable() }",
+     'let token = request.planToken ?? "00000000-0000-4000-8000-000000000000"', [R_TOKEN]),
+    ("65 the sender asks with a fixed budget", REROUTER, "budgetMinutes: budgetMinutes)\n        return Self.reply",
+     "budgetMinutes: 30)\n        return Self.reply", [R_TOKEN, R_LATE]),
+    ("66 the sender's answer drops a vertex", REROUTER, "RerouteReply(line: response.route,",
+     "RerouteReply(line: Array(response.route.dropFirst()),", [R_TOKEN, R_DRAWN]),
+    ("67 the sender's answer drops its token", REROUTER, "planToken: response.planToken)", "planToken: nil)",
+     [R_TOKEN, R_DRAWN]),
+    ("68 the preview drops the token", PLANNER, "continuation: response.planToken.map {",
+     "continuation: Optional<String>.none.map {", [R_PREVIEW]),
+    ("69 the preview keeps a fixed budget", PLANNER,
+     "PlanContinuation(token: $0, place: place, budgetMinutes: budgetMinutes)",
+     "PlanContinuation(token: $0, place: place, budgetMinutes: 30)", [R_PREVIEW]),
+    ("70 the planner hands the preview no place", PLANNER, "place: ticket.place, budgetMinutes: ticket.budgetMinutes))",
+     "place: 0, budgetMinutes: ticket.budgetMinutes))", [R_PREVIEW]),
+    ("71 the continuation drops its place", CONTINUATION, "self.place = place", "self.place = 0", [R_PREVIEW]),
+    ("72 the display draws the plan's line", DISPLAY, "line: session.line.coordinates)", "line: [])",
+     [R_DRAWN, D_SESSION]),
+    ("73 the preview drops its continuation", PREVIEW, "self.continuation = continuation", "self.continuation = nil",
+     [R_PREVIEW]),
+    ("74 offline asks, through the sender", SESSION, OFFLINE_OLD, "        if !isOnline { mode = .rejoining }",
+     [R_OFFLINE]),
+    ("75 no token falls back to a fresh plan from the fix", REROUTER,
+     "guard let token = request.planToken else { throw RerouteUnavailable() }",
+     "guard let token = request.planToken else {\n            return Self.reply(of: try await client.plan("
+     "from: request.origin, to: place, budgetMinutes: budgetMinutes))\n        }", [R_TOKEN]),
+    # rv1-t0328: line, pins and token are taken together or none (DriveTokenTakeTests), at every take/refuse site.
+    ("76 an answer with no token keeps the old token", SESSION,
+     "        self.planToken = planToken\n        progressSegment = 0",
+     "        self.planToken = planToken ?? self.planToken\n        progressSegment = 0", [T_TAKE]),
+    ("77 a malformed answer's token is taken past the mode guard", SESSION,
+     "        guard mode == .rerouting else { return false }\n",
+     "        guard mode == .rerouting else { return false }; self.planToken = planToken\n", [T_TAKE]),
+    ("78 a malformed answer's token is taken as it is refused", SESSION,
+     "            mode = .rejoining\n            return false",
+     "            mode = .rejoining\n            self.planToken = planToken\n            return false", [T_TAKE]),
+    ("79 an answer's token is taken while not rerouting", SESSION,
+     "guard mode == .rerouting else { return false }",
+     "guard mode == .rerouting else { self.planToken = planToken; return false }", [T_TAKE]),
+    ("80 a stale ticket's answer reaches the session", CONTROLLER,
+     "        guard ticket == inFlight else { return false }\n        inFlight = nil\n        return session",
+     "        guard ticket == inFlight else {\n            return session.rerouteArrived(line: reply.line, "
+     "waypoints: reply.waypoints, planToken: reply.planToken)\n        }\n        inFlight = nil\n        return session",
+     [C_REPLY, T_TAKE]),
+    ("81 the controller keeps the old token for an untokened answer", CONTROLLER, "planToken: reply.planToken)",
+     "planToken: reply.planToken ?? session.planToken)", [T_TAKE]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -214,6 +294,14 @@ EQUIVALENT = [
      "self?.arrived(ticket: self?.controller.inFlight ?? ticket, reply: reply)", "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device or simulator run can observe it (T-0321 R10). What bounds it: the adapter line it edits is a one-line forward to DriveController, whose half is CAUGHT above (C_REPLY, entry 34)"),
 ]
 
-MIN_MUTATIONS = 57
-MIN_EQUIVALENT = 4
-MIN_TEST_FILES = 6
+MIN_MUTATIONS = 81
+EQUIVALENT.append(
+    ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
+     "online: true, planToken: preview.continuation?.token)", "online: true)",
+     "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in "
+     "behaviour; only a device or simulator run can observe it (T-0328 R1). What bounds it: the adapter line it edits "
+     "hands DriveSession the preview's token, whose session half is CAUGHT above (entry 60) and whose preview half is "
+     "CAUGHT above (entries 68-71, 73)"))
+
+MIN_EQUIVALENT = 5
+MIN_TEST_FILES = 8

@@ -17,18 +17,22 @@ public struct ClientPlanner: RoutePlanning {
         do {
             let response = try await client.plan(from: ticket.origin, to: ticket.place,
                                                  budgetMinutes: ticket.budgetMinutes)
-            return .preview(Self.preview(of: response))
+            return .preview(Self.preview(of: response, place: ticket.place, budgetMinutes: ticket.budgetMinutes))
         } catch {
             return .failure(error.failure)
         }
     }
 
-    /// The preview's view of a Worker 200: the line, both ETAs, the estimate flag and every hazard run, in order.
-    public static func preview(of response: PlanResponse) -> PlanPreview {
+    /// The preview's view of a Worker 200: the line, both ETAs, the estimate flag and every hazard run, in order, and
+    /// (T-0328 R1) the plan's continuation - its token with the ticket's place and budget - exactly when it has one.
+    public static func preview(of response: PlanResponse, place: Int64, budgetMinutes: Int) -> PlanPreview {
         PlanPreview(route: response.route, etaSeconds: response.etaSeconds,
                     fastestEtaSeconds: response.fastestEtaSeconds, etaIsEstimate: response.etaIsEstimate,
                     hazards: response.hazards.map {
                         PlanHazardRun(kind: $0.kind, value: $0.value, fromIndex: $0.fromIndex, toIndex: $0.toIndex)
-                    }, waypoints: response.waypoints, lambda: response.lambda)
+                    }, waypoints: response.waypoints, lambda: response.lambda,
+                    continuation: response.planToken.map {
+                        PlanContinuation(token: $0, place: place, budgetMinutes: budgetMinutes)
+                    })
     }
 }
