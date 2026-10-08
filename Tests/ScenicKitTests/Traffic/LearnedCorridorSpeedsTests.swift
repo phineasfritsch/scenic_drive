@@ -11,6 +11,10 @@ import Testing
     /// Monday 2026-10-05 08:00:00Z, hour of the week 8.
     static let monday8 = Date(timeIntervalSince1970: 1_791_187_200)
     static let hour8 = HourOfWeek(8)!
+    static let hour9 = HourOfWeek(9)!
+    /// The learner's zone, each departure moved by its offset so the local wall clock is the same in every zone:
+    /// UTC, UTC-7 (local Sunday 23:00 is Monday 06:00Z) and UTC+5:30 (a zone off the whole hour).
+    static let zones = [utc, TimeZone(secondsFromGMT: -7 * 3600)!, TimeZone(secondsFromGMT: 5 * 3600 + 1800)!]
 
     static func taught(_ times: Int, _ cell: CorridorCell, _ hour: HourOfWeek, actual: Double, freeFlow: Double,
                        into speeds: inout LearnedCorridorSpeeds) {
@@ -21,20 +25,27 @@ import Testing
     }
 
     /// P-SAFE-07: the badge is on through 4 samples and off at 5 exactly, crossed with the route's other edge
-    /// learned or not - the row's answer is a function of both.
+    /// learned or not, and with both cells also taught 0, 1 or 5 times at hour 9, which no edge enters - the
+    /// count is per (cell, hour) slot (R7), so the row's answer is a function of the first two and never the third.
     @Test("the estimate badge: on at 0 and 4 samples, off at 5 and 6, and on whenever another edge is unlearned")
     func badgeAtFiveSamples() {
-        for otherLearned in [true, false] {
-            for (n, edgeA, estimate) in [(0, 60.0, true), (4, 60.0, true), (5, 120.0, false), (6, 120.0, false)] {
-                var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
-                Self.taught(n, Self.cellA, Self.hour8, actual: 120, freeFlow: 60, into: &speeds)
-                Self.taught(otherLearned ? 5 : 4, Self.cellB, Self.hour8, actual: 100, freeFlow: 75, into: &speeds)
-                let edges = [CorridorEdge(cell: Self.cellA, freeFlowSeconds: 60),
-                             CorridorEdge(cell: Self.cellB, freeFlowSeconds: 1)]
-                // edge B: 1 s at ratio 0.75 is 4/3 s - entered within hour 8 either way.
-                let edgeB = otherLearned ? 1.0 / 0.75 : 1.0
-                let expected = RetimedRoute(edgeSeconds: [edgeA, edgeB], isEstimate: estimate || !otherLearned)
-                #expect(speeds.retime(edges, departsAt: Self.monday8) == expected, "n=\(n) other=\(otherLearned)")
+        for otherHourSamples in [0, 1, 5] {
+            for otherLearned in [true, false] {
+                for (n, edgeA, estimate) in [(0, 60.0, true), (4, 60.0, true), (5, 120.0, false), (6, 120.0, false)] {
+                    var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
+                    Self.taught(n, Self.cellA, Self.hour8, actual: 120, freeFlow: 60, into: &speeds)
+                    Self.taught(otherLearned ? 5 : 4, Self.cellB, Self.hour8, actual: 100, freeFlow: 75, into: &speeds)
+                    // Decoys at hour 9, each cell at the other's ratio.
+                    Self.taught(otherHourSamples, Self.cellA, Self.hour9, actual: 100, freeFlow: 75, into: &speeds)
+                    Self.taught(otherHourSamples, Self.cellB, Self.hour9, actual: 120, freeFlow: 60, into: &speeds)
+                    let edges = [CorridorEdge(cell: Self.cellA, freeFlowSeconds: 60),
+                                 CorridorEdge(cell: Self.cellB, freeFlowSeconds: 1)]
+                    // edge B: 1 s at ratio 0.75 is 4/3 s - entered within hour 8 either way.
+                    let edgeB = otherLearned ? 1.0 / 0.75 : 1.0
+                    let expected = RetimedRoute(edgeSeconds: [edgeA, edgeB], isEstimate: estimate || !otherLearned)
+                    #expect(speeds.retime(edges, departsAt: Self.monday8) == expected,
+                            "n=\(n) other=\(otherLearned) hour9=\(otherHourSamples)")
+                }
             }
         }
     }
@@ -97,21 +108,28 @@ import Testing
 
     /// R6: each edge reads the hour it is ENTERED, after the earlier edges' re-timed seconds; Sunday 23 wraps to
     /// Monday 0. Departing 23:58:30, free-flow would enter edge B at 23:59:30 (hour 167, decoy ratio 0.5) while
-    /// the re-timed 120 s enter it at 00:00:30 Monday (hour 0, ratio 0.75).
+    /// the re-timed 120 s enter it at 00:00:30 Monday (hour 0, ratio 0.75). R5: the hour is read in the learner's
+    /// zone - every row is crossed with Self.zones, the departure moved by the zone's offset, so the expected answer
+    /// is the same local-time answer in each.
     @Test("departsAt: an edge entered after Sunday 23:59 reads Monday 00:00's ratio, and the hour shifts the ratio")
     func hourBoundaryMidRoute() {
-        var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
-        let sunday23 = HourOfWeek(167)!, monday0 = HourOfWeek(0)!
-        Self.taught(5, Self.cellA, sunday23, actual: 120, freeFlow: 60, into: &speeds)
-        Self.taught(5, Self.cellB, sunday23, actual: 120, freeFlow: 60, into: &speeds)
-        Self.taught(5, Self.cellB, monday0, actual: 100, freeFlow: 75, into: &speeds)
-        let edges = [CorridorEdge(cell: Self.cellA, freeFlowSeconds: 60),
-                     CorridorEdge(cell: Self.cellB, freeFlowSeconds: 60)]
-        let departs = Date(timeIntervalSince1970: 1_791_763_110)
-        #expect(speeds.retime(edges, departsAt: departs) == RetimedRoute(edgeSeconds: [120, 80], isEstimate: false))
-        #expect(speeds.retime(edges, departsAt: departs).etaSeconds == 200)
-        // The same edge A one week-hour earlier (Sunday 22:58:30) is unlearned: free-flow and the badge.
-        #expect(speeds.retime(Array(edges.prefix(1)), departsAt: departs.addingTimeInterval(-3600))
-                == RetimedRoute(edgeSeconds: [60], isEstimate: true))
+        for zone in Self.zones {
+            var speeds = LearnedCorridorSpeeds(timeZone: zone)
+            let sunday23 = HourOfWeek(167)!, monday0 = HourOfWeek(0)!
+            Self.taught(5, Self.cellA, sunday23, actual: 120, freeFlow: 60, into: &speeds)
+            Self.taught(5, Self.cellB, sunday23, actual: 120, freeFlow: 60, into: &speeds)
+            Self.taught(5, Self.cellB, monday0, actual: 100, freeFlow: 75, into: &speeds)
+            let edges = [CorridorEdge(cell: Self.cellA, freeFlowSeconds: 60),
+                         CorridorEdge(cell: Self.cellB, freeFlowSeconds: 60)]
+            // Local Sunday 23:58:30 in `zone`.
+            let departs = Date(timeIntervalSince1970: 1_791_763_110 - Double(zone.secondsFromGMT()))
+            let zoneName = "zone \(zone.secondsFromGMT())"
+            #expect(speeds.retime(edges, departsAt: departs) == RetimedRoute(edgeSeconds: [120, 80], isEstimate: false),
+                    "\(zoneName)")
+            #expect(speeds.retime(edges, departsAt: departs).etaSeconds == 200, "\(zoneName)")
+            // The same edge A one week-hour earlier (local Sunday 22:58:30) is unlearned: free-flow and the badge.
+            #expect(speeds.retime(Array(edges.prefix(1)), departsAt: departs.addingTimeInterval(-3600))
+                    == RetimedRoute(edgeSeconds: [60], isEstimate: true), "\(zoneName)")
+        }
     }
 }
