@@ -142,3 +142,24 @@ first, so the adapter is a thin shell. Calm, minimal-distraction driving UI (mem
   next edge's request would answer the wrong request. Digest rows re-approved for every changed Sources file.
   Verification per memory faster-verification-in-rounds: the three suites, `--only 6,29,30,31` (and the vacuity arm
   over the new entries), the plain gates.
+- 2026-10-08T10:43:28Z ROUND 2 GREEN, quoted on merged head f5c04c22 (origin/main d908849b merged - queue moves only;
+  T-0314 has not landed, so DRIVERS/COVERED_FLOOR and the digest table needed no union).
+  MISSED BEFORE (B1): population entry 29 committed alone at 0ebd8ea1, whose five subjects are byte-identical to
+  9910652c (`pristine ... == HEAD` x5): `python ops/mutate/drive.py --only 29` -> `MISSED 29 a landed reroute keeps
+  the dwell exit=0 no test objected`, `MUTATE FAILED caught=0/1`. R2's mutant was not MISSED at 9910652c (the
+  reviewer: caught by the loop test only); R4's and R5's entries revert code that did not exist there.
+  CAUGHT AFTER at 1b052aa4: `--only 6,29,30,31` -> caught 6 by unusableFixIsMinimal's name, 29 by
+  landedRerouteRestartsTheDwell's, 30 by the loop test AND eastThresholdAtLatitude34's, 31 by
+  lostConnectionWhileReroutingRejoins's; `caught by the test that names it: 4 of 4 (wrong killer 0, trapped 0,
+  compile-only 0, MISSED 0, skipped 0)`, `MUTATE OK caught=4/4`. `--prove-floor` -> `FLOOR PROOF OK: 7 of 7`
+  (floor now MIN_MUTATIONS = 31). The vacuity arm over the new entries was NOT run this round (the line above
+  promised it): entry 29's MISSED at 0ebd8ea1 is the live-suite version of that proof; 30 and 31 were not shown
+  MISSED anywhere.
+  Suites on f5c04c22: `swift test --filter "DriveSessionTests|DriveRerouteTests|DriveMotionGateTests"` -> `Test run
+  with 23 tests in 3 suites passed` (exit 0; 20 before, +3 new, unusableFixKeepsSurface renamed
+  unusableFixIsMinimal). `NAMED P-NAV-01 passed=18/18`, `NAMED P-SAFE-09 passed=5/5`.
+  Digest: DriveSession.swift re-approved fcf84ec8 -> 806ef8e4 (the only changed Sources file); bare `bash
+  ops/lib/check-safety-disclaimer` exit 0 (`209 root + pbxproj file(s) (-linked)`). check-mutate-population exit 0
+  (`the floor of 119 holds`), check-pins-yaml exit 0 (`PINS-YAML ok pins=46 fields=371`), queue-check exit 0
+  (`QUEUE OK (309 tasks)`). Line cap: DriveSession 111, DriveSessionTests 190, DriveRerouteTests 172,
+  DriveMotionGateTests 94, DriveFixtures 86.
