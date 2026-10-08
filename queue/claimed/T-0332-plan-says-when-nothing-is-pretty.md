@@ -1,13 +1,13 @@
 ---
 id: T-0332
 title: /plan is honest when nothing pretty is reachable - the Worker scores the chosen route with RouteScore (parity with ScenicKit's, threshold 0.45) and answers a typed honest failure ("not much pretty within N minutes of this drive") with the +40 and all-back-roads offers, instead of presenting a dull route as scenic
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T20:54:45Z
+lease_expires_at: 2026-10-09T06:54:45Z
+worktree: .worktrees/T-0332
+branch: task/T-0332
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-PROD-01, P-SAFE-04]
@@ -34,3 +34,4 @@ whether the +40 / all-back-roads offers are one more request each (budget ceilin
 
 ## Log
 - 2026-10-08T19:42:35Z filed by agent/claude-opus-5 (orchestrator) from T-0327's stillOpen finding.
+- 2026-10-08T20:54:45Z claimed by agent/claude-opus-5; lease until 2026-10-09T06:54:45Z
