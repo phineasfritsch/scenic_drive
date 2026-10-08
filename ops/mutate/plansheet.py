@@ -30,7 +30,8 @@ SUBJECT_MODULES = ("Sources/ScenicKit/PlanSheet/PlanSheet.swift", "Sources/Sceni
                    "Sources/ScenicKit/PlanSheet/PlanFailureAction.swift",
                    "Sources/ScenicKit/PlanSheet/PlanSheetFailure.swift", "Sources/ScenicKit/PlanSheet/PlanPreview.swift",
                    "Sources/ScenicKit/PlanSheet/PlanTicket.swift", "Sources/ScenicKit/PlanSheet/PlanPlace.swift",
-                   "Sources/ScenicKit/PlanSheet/PlanHazardRun.swift", "Sources/ScenicAPIClient/ClientPlanner.swift")
+                   "Sources/ScenicKit/PlanSheet/PlanHazardRun.swift", "Sources/ScenicAPIClient/ClientPlanner.swift",
+                   "Sources/ScenicAPIClient/PlanRequestBody.swift", "Sources/ScenicAPIClient/PlanClient.swift")
 
 from plansheet_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)
