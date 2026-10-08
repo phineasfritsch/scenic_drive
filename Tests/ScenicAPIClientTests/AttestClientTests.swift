@@ -16,9 +16,9 @@ import Testing
         switch call {
         case .challenge: return await client.challenge()
         case .attest: return await client.attest(keyId: AttestWire.newKey, attestation: AttestWire.attestation,
-                                                 challenge: AttestWire.challenge)
+                                                 challenge: AttestWire.challenge, account: nil)
         case .renew: return await client.renew(keyId: AttestWire.oldKey, assertion: AttestWire.assertion,
-                                               challenge: AttestWire.challenge)
+                                               challenge: AttestWire.challenge, account: nil)
         }
     }
 

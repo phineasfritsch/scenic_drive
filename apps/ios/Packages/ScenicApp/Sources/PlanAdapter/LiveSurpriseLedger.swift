@@ -15,11 +15,9 @@ public enum LiveSurpriseLedger {
     static func build() -> (any SurpriseLedgerSource)? {
         guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return nil }
-        let transport = URLSessionPlanTransport()
-        let session = SessionStore(client: AttestClient(base: base, transport: transport, device: StoredInstallID()),
-                                   attester: DeviceAppAttester(), storage: KeychainSessionStorage(),
-                                   now: { Date() })
-        return LedgerSurpriseSource(client: LedgerClient(base: base, transport: transport, session: session),
+        guard let session = LiveSession.store else { return nil }
+        return LedgerSurpriseSource(client: LedgerClient(base: base, transport: URLSessionPlanTransport(),
+                                                         session: session),
                                     cellOf: { place in
                                         H3Cell.containing(latitudeDegrees: place.latitude,
                                                           longitudeDegrees: place.longitude)?.hexString

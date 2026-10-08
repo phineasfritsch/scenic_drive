@@ -1,8 +1,9 @@
 /**
  * Who is calling, once App Attest exists (T-0278 R6). Without SESSION_JWT_SECRET: today's identify, unchanged
  * (`legacy`). With it: a Bearer session JWT that verifies is the identity - sub the bucket, act's live entitlement
- * the tier - and the bare headers are ignored; a Bearer that does not verify is the shared unidentified bucket, anon
- * (fail closed, no fallthrough); no Bearer reaches `legacy` only while the migration flag IDENTITY_HEADERS is "1".
+ * the tier - and the bare headers are ignored. A Bearer that does not verify reads exactly as no Bearer (T-0322 B1):
+ * `legacy` while the migration flag IDENTITY_HEADERS is "1", else the shared unidentified bucket, anon - so a forged
+ * Bearer beside the headers yields only what the headers alone yield, and a stale session never lowers a subscriber.
  */
 import { readEntitlement } from "./entitlementStore";
 import type { Tier } from "./quota";
@@ -40,9 +41,8 @@ export async function identifyCaller(bearer: string | null, env: SessionEnv, now
   legacy: () => Promise<CallerIdentity>): Promise<CallerIdentity> {
   const secret = sessionSecret(env.SESSION_JWT_SECRET);
   if (secret === null) return legacy();
-  if (bearer === null) return env.IDENTITY_HEADERS === "1" ? legacy() : { userId: UNIDENTIFIED_SESSION, tier: "anon" };
-  const match = BEARER.exec(bearer);
+  const match = bearer === null ? null : BEARER.exec(bearer);
   const claims = match ? await verifySession(secret, match[1]!, nowMs) : null;
-  if (claims === null) return { userId: UNIDENTIFIED_SESSION, tier: "anon" };
+  if (claims === null) return env.IDENTITY_HEADERS === "1" ? legacy() : { userId: UNIDENTIFIED_SESSION, tier: "anon" };
   return { userId: claims.sub, tier: claims.act === undefined ? "anon" : await entitledTier(env.DB, claims.act, nowMs) };
 }

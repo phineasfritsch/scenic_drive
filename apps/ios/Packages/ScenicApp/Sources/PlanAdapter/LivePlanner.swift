@@ -16,6 +16,7 @@ public enum LivePlanner {
               base.scheme == "https" else { return UnreachablePlanner() }
         return ClientPlanner(client: PlanClient(base: base, transport: URLSessionPlanTransport(),
                                                 installID: StoredInstallID(),
-                                                accountToken: StoreKitAccountToken()))
+                                                accountToken: StoreKitAccountToken(),
+                                                session: LiveSession.store))
     }
 }

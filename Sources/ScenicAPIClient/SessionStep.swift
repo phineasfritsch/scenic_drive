@@ -17,8 +17,8 @@ public enum SessionStep: Equatable, Sendable {
     /// Seconds a token must still have to be used: a request in flight never carries one that expires on the way.
     public static let margin: TimeInterval = 60
 
-    public static func next(stored: KeychainRead<SessionRecord>, now: Date, spent: Bool) -> SessionStep {
-        if case .valid(let record) = stored, record.expiresAt.timeIntervalSince(now) > margin {
+    public static func next(stored: KeychainRead<SessionRecord>, now: Date, spent: Bool, act: String?) -> SessionStep {
+        if case .valid(let record) = stored, record.expiresAt.timeIntervalSince(now) > margin, record.act == act {
             return .use(record.token)
         }
         if spent { return .none }

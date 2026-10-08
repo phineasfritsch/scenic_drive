@@ -52,6 +52,27 @@ if rawArguments.first == "--menu" {
     }
 }
 
+// `ops/route-autopsy <O> <D> <B> --recorded <dir> [--terms f] [--fixture d]` prints a plan's per-edge
+// GATE/M/E terms, its lambda trace and its RouteScore terms (T-0327): AutopsyCommand.run, with main.swift's
+// exit codes. A malformed terms file or a refused fixture directory is an argument problem: exit 2.
+if rawArguments.first == "--autopsy" {
+    do {
+        let autopsyArguments = try AutopsyArguments.parse(Array(rawArguments.dropFirst()))
+        for line in try AutopsyCommand.run(autopsyArguments) { print(line) }
+        exit(0)
+    } catch let failure as PlanArguments.Failure {
+        fail("ops/route-autopsy: \(failure)\n\(AutopsyArguments.usage)", 2)
+    } catch let failure as AutopsyTerms.Failure {
+        fail("ops/route-autopsy: \(failure)", 2)
+    } catch let failure as AutopsyFixture.Failure {
+        fail("ops/route-autopsy: \(failure)", 2)
+    } catch let failure as PlanFailure {
+        fail("ops/route-autopsy REFUSED: \(failure)", 3)
+    } catch {
+        fail("ops/route-autopsy: \(error)", 4)
+    }
+}
+
 let arguments: PlanArguments
 do {
     arguments = try PlanArguments.parse(rawArguments)

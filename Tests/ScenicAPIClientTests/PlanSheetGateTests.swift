@@ -32,7 +32,7 @@ struct PlanSheetGateTests {
     static func planner(_ transport: CountingPlanTransport, install: Bool = true) -> ClientPlanner {
         ClientPlanner(client: PlanClient(base: PlanWire.base, transport: transport,
                                          installID: install ? PlanWire.install : nil,
-                                         accountToken: nil))
+                                         accountToken: nil, session: nil))
     }
 
     @Test("P-SAFE-03: from first launch no plan request is made before the disclaimer is accepted")
@@ -100,7 +100,7 @@ struct PlanSheetGateTests {
         var sheet = Self.ready(accepted: true)
         await Self.drive(&sheet, Self.planner(CountingPlanTransport(reply: reply)))
         let direct = try await PlanClient(base: PlanWire.base, transport: CountingPlanTransport(reply: reply),
-                                          installID: PlanWire.install, accountToken: nil)
+                                          installID: PlanWire.install, accountToken: nil, session: nil)
             .plan(from: Coordinate(latitude: 34.01, longitude: -118.5), to: 42, budgetMinutes: 30)
         let expected = PlanPreview(route: direct.route, etaSeconds: direct.etaSeconds,
                                    fastestEtaSeconds: direct.fastestEtaSeconds, etaIsEstimate: direct.etaIsEstimate,
