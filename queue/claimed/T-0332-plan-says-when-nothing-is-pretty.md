@@ -120,4 +120,22 @@ whether the +40 / all-back-roads offers are one more request each (budget ceilin
   back-roads route CAUGHT ("a dull back-roads route is not offered" + 2); M4 an unscored route is not a failure
   CAUGHT ("isHonestFailure: an unscorable route (null) is" + 2); M5 episode bound `>= 800 - tol` -> `> 800` CAUGHT
   ("scoreEdges: 0.9 over exactly 800 m is an episode" + 1). 5/5.
-
+- 2026-10-08T22:29:09Z RULED R11 (agent/claude-opus-5, owner): check-mutate-population went red on the merged head ("1 added by this
+  branch": Sources/ScenicAPIClient/NothingPrettyOffer.swift). It refuses and never computes, like PlanRequestBody's
+  entry: allowlisted in ops/lib/mutate-population-allowlist.json with its reason and the test that holds each bound.
+  Then: "P-PROC-06: 300 modules, 164 covered by 37 populations, 115 allowlisted, 1 added by this branch", exit 0.
+- 2026-10-08T22:29:09Z ACCEPTANCE re-run on the merged head 3d7ae2fc (origin/main 97c16431, PR #213 T-0327 merged in; digest conflict
+  resolved as main's rows plus T-0332's six re-approved Sources rows and the NothingPrettyOffer row):
+  - A1/A2/A3/A4/A5 Worker: `npx vitest run` planHonest, routeScoreParity, routeScoreBounds, planReroute, planWire,
+    planCeiling, planCost, closuresCrossing, reflectionSites, requestReadSites, planWaypoints, planPrivacy,
+    planRecorded: "Test Files 13 passed (13) / Tests 259 passed (259)". The full suite, run alone on this box, lost 2 files
+    to "Timeout starting cloudflare-pool runner" and failed waitlistDedupe on a 5 s timeout (green alone, "4 passed").
+  - A1/A6 Swift: `swift test --filter "RouteScoreParityTests|PlanFailureCopyTests|PlanSheetGateTests|
+    NothingPrettyReaderTests|PlanClientResponseTests|RouteScore"`: "Test run with 40 tests in 6 suites passed", XCTest
+    "Executed 30 tests, with 0 failures".
+  - A7: ios-compile run 37849806195 success, ios-screenshot run 37849812676 success (both on 478a9cf7; no apps/ios
+    file changes, PlanSheetFailure gained a case the app reads only through PlanFailureCopy.of). check-safety-disclaimer
+    exit 0, check-line-cap "508 Swift files tracked ... none over 300 lines" exit 0, check-pins-yaml "PINS-YAML ok
+    pins=48" exit 0, queue-check "QUEUE OK (325 tasks)" exit 0, check-mutate-population exit 0 (R11). named-tests.json
+    P-SAFE-04 binds the A3 test and the R3 fail-closed test by name. P-PROD-01 untouched (R8).
+  - Follow-ups filed: T-0334 (the sheet acts on the two offers), T-0335 (trip / loop / isochrone honest failure).
