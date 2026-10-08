@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where the drive session stands with respect to the planned line (T-0317 R5).
-public enum DriveMode: Sendable, Equatable {
+public enum DriveMode: Sendable, Equatable, CaseIterable {
     /// On the planned line, or away for less than the dwell.
     case guiding
     /// Off-route while online: one reroute request is out; nothing more is asked until it lands or fails.

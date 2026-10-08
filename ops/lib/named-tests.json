@@ -428,6 +428,17 @@
         "every signedPayload defect is 400 with zero state change (shipped handleAsn) > a body without signedPayload is 400 with zero state change",
         "the shipped ROUTES['/asn'] pins Apple's root > a chain valid in every respect but its self-made root is 400 through ROUTES with zero state change"
       ]
+    },
+    "swift": {
+      "filter": "ScenicAPIClientTests\\.(AccountTokenHeaderTests|AccountTokenCandidateTests)",
+      "tests": [
+        "ScenicAPIClientTests.AccountTokenHeaderTests/planRequest(_:)",
+        "ScenicAPIClientTests.AccountTokenHeaderTests/tripRequest(_:_:)",
+        "ScenicAPIClientTests.AccountTokenHeaderTests/loopRequest(_:)",
+        "ScenicAPIClientTests.AccountTokenHeaderTests/refusalReadsNothing()",
+        "ScenicAPIClientTests.AccountTokenHeaderTests/rowsFollowThePurchase()",
+        "ScenicAPIClientTests.AccountTokenCandidateTests/latest(_:)"
+      ]
     }
   },
   "P-SAFE-08": {
@@ -1345,13 +1356,17 @@
   },
   "P-SAFE-09": {
     "swift": {
-      "filter": "ScenicKitTests\\.DriveMotionGateTests",
+      "filter": "ScenicKitTests\\.(DriveMotionGateTests|DriveDisplayTests)",
       "tests": [
         "ScenicKitTests.DriveMotionGateTests/surfaceAtEverySpeedBound()",
         "ScenicKitTests.DriveMotionGateTests/minimalBeforeAnyFix()",
         "ScenicKitTests.DriveMotionGateTests/eachFixSetsTheSurface()",
         "ScenicKitTests.DriveMotionGateTests/gateHoldsInEveryMode()",
-        "ScenicKitTests.DriveMotionGateTests/unusableFixIsMinimal()"
+        "ScenicKitTests.DriveMotionGateTests/unusableFixIsMinimal()",
+        "ScenicKitTests.DriveDisplayTests/everySurfaceAndMode()",
+        "ScenicKitTests.DriveDisplayTests/tableIsTheCrossProduct()",
+        "ScenicKitTests.DriveDisplayTests/minimalIsTheOneLargeAction()",
+        "ScenicKitTests.DriveDisplayTests/sessionDisplayFollowsTheSession()"
       ]
     }
   },
