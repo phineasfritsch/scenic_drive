@@ -54,8 +54,8 @@ DAY_CLASS = "(48...57).contains($0) } }"
 
 MUTATIONS = [
     ("1 an empty token is a session", CLIENT,
-     "guard let token = session.sessionToken(), !token.isEmpty else { return nil }",
-     "guard let token = session.sessionToken() else { return nil }", [NOSESSION]),
+     "guard let token = await session.sessionToken(), !token.isEmpty else { return nil }",
+     "guard let token = await session.sessionToken() else { return nil }", [NOSESSION]),
     ("2 the bearer prefix lost", CLIENT, '"Bearer \\(token)",', '"\\(token)",', [POST]),
     ("3 GET sends a body", CLIENT, "body: Data()), isRead: true)", 'body: Data("{}".utf8)), isRead: true)', [GET]),
     ("4 the device refusal skipped", CLIENT,
