@@ -29,19 +29,27 @@ public struct PlanSheetScreen: View {
     @State private var trip = TripSheet(disclaimerAccepted: false)
     private let tripPlanner: any TripPlanning
     private let dayLinks: ([Coordinate]) -> [URL]
+    /// The loop, shown in place of the plan form - in-sheet content, not a presentation (T-0314 R3).
+    @State private var showingLoop = false
+    @State private var loop = LoopSheet(disclaimerAccepted: false)
+    private let loopPlanner: any LoopPlanning
+    private let loopLink: (Coordinate, [Coordinate]) -> URL?
 
     public init(planner: any RoutePlanning, tripPlanner: any TripPlanning,
-                dayLinks: @escaping ([Coordinate]) -> [URL], onClose: @escaping () -> Void) {
+                dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
+                loopLink: @escaping (Coordinate, [Coordinate]) -> URL?, onClose: @escaping () -> Void) {
         self.planner = planner
         self.tripPlanner = tripPlanner
         self.dayLinks = dayLinks
+        self.loopPlanner = loopPlanner
+        self.loopLink = loopLink
         self.onClose = onClose
     }
 
     public var body: some View {
         NavigationStack {
             content
-                .navigationTitle(showingTrip ? "Plan a road trip" : "Plan a drive")
+                .navigationTitle(showingLoop ? "Just drive a loop" : showingTrip ? "Plan a road trip" : "Plan a drive")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -51,6 +59,7 @@ public struct PlanSheetScreen: View {
                         Button(showingSaved ? "Plan" : "Saved") {
                             showingSaved.toggle()
                             showingTrip = false
+                            showingLoop = false
                         }
                         .accessibilityIdentifier("plan.savedTab")
                     }
@@ -58,23 +67,36 @@ public struct PlanSheetScreen: View {
                         Button(showingTrip ? "Plan a drive" : "Plan a road trip") {
                             showingTrip.toggle()
                             showingSaved = false
+                            showingLoop = false
                         }
                         .accessibilityIdentifier("plan.tripTab")
+                    }
+                    ToolbarItem(placement: .bottomBar) {
+                        Button(showingLoop ? "Plan a drive" : "Just drive a loop") {
+                            showingLoop.toggle()
+                            showingSaved = false
+                            showingTrip = false
+                        }
+                        .accessibilityIdentifier("plan.loopTab")
                     }
                 }
         }
         .onAppear {
             sheet.setDisclaimerAccepted(safetyNoteRead)
             trip.setDisclaimerAccepted(safetyNoteRead)
+            loop.setDisclaimerAccepted(safetyNoteRead)
         }
         .onChange(of: safetyNoteRead) { _, accepted in
             sheet.setDisclaimerAccepted(accepted)
             trip.setDisclaimerAccepted(accepted)
+            loop.setDisclaimerAccepted(accepted)
         }
     }
 
     @ViewBuilder private var content: some View {
-        if showingTrip {
+        if showingLoop {
+            LoopScreen(loop: $loop, planner: loopPlanner, mapsURL: loopLink)
+        } else if showingTrip {
             RoadTripScreen(trip: $trip, planner: tripPlanner, dayLinks: dayLinks)
         } else if showingSaved {
             SavedDrivesList(list: $saved, onReplay: replay)

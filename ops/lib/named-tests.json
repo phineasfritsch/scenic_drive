@@ -178,6 +178,10 @@
       "test/requiredKeys.test.ts": [
         "every required key and every unnamed key at each level of /plan, /loop and /trip (T-0311 rv1 B1, P-PRIV-05) > every row is 400 invalid_request with its exact detail, zero router requests and an untouched quota",
         "every required key and every unnamed key at each level of /plan, /loop and /trip (T-0311 rv1 B1, P-PRIV-05) > no row ignores its key: undoing each row's edit gives the reference body the Worker accepts, and each missing key answers differently"
+      ],
+      "test/tripPlaces.test.ts": [
+        "the places read takes nothing from the request (T-0316 R3, P-PRIV-05) > a trip's D1 statements are the destination lookup and one unbound trip_places read; router bodies carry no place",
+        "the trip_places table (migrations/0009_trip_places.sql, T-0316 R1) > its columns are exactly (id, name, kind, score, lat, lon): no device, no instant (P-PRIV-05)"
       ]
     },
     "swift": {
@@ -277,6 +281,9 @@
         "the plan request carries the vehicle profile (T-0311, P-COST-01, P-PRIV-05) > an absent vehicle and \"standard\" observe the same answer on every route, and that answer spent the quota and called the router",
         "the plan request carries the vehicle profile (T-0311, P-COST-01, P-PRIV-05) > every disabled and unknown vehicle is 400 invalid_request whole on every route, with zero router requests and an untouched quota",
         "the plan request carries the vehicle profile (T-0311, P-COST-01, P-PRIV-05) > no row ignores its route: with vehicle \"standard\" each row's body observes the route's baseline, and each row answers every route differently"
+      ],
+      "test/tripPlaces.test.ts": [
+        "the places read takes nothing from the request (T-0316 R3, P-PRIV-05) > KILL=1 is 503 with zero router requests and no D1 statement at all (P-COST-01)"
       ]
     }
   },

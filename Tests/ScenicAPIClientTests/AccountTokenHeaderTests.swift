@@ -47,6 +47,7 @@ struct AccountTokenHeaderTests {
 
     static let planBody =
         #"{"budget_minutes":25,"destination":{"place":"42"},"origin":{"lat":34.02,"lon":-118.49},"vehicle":"standard"}"#
+    static let loopBody = #"{"minutes":45,"start":{"lat":34.02,"lon":-118.49},"vehicle":"standard"}"#
     static let tripBody =
         #"{"days":2,"destination":{"place":"42"},"extra_budget_pct":40,"origin":{"lat":34.02,"lon":-118.49},"vehicle":"standard"}"#
 
@@ -72,6 +73,17 @@ struct AccountTokenHeaderTests {
         #expect(await fake.requests == [expected])
     }
 
+    @Test("every loop request carries exactly the device and the account token, and the loop is the Worker's",
+          arguments: Purchase.allCases)
+    func loopRequest(_ purchase: Purchase) async {
+        let fake = CountingPlanTransport(reply: LoopWire.reply(200, LoopWire.squareBody))
+        let outcome = await LoopWire.loop(through: fake, account: Self.provider(purchase))
+        #expect(outcome == .success(LoopWire.response()))
+        let expected = PlanHTTPRequest(url: URL(string: "https://scenic-api.test/loop")!, method: "POST",
+                                       headers: Self.headers(purchase), body: Data(Self.loopBody.utf8))
+        #expect(await fake.requests == [expected])
+    }
+
     @Test("a request refused on the device reads no account token and sends nothing")
     func refusalReadsNothing() async {
         let token = FixedAccountToken(Self.liveToken)
@@ -79,7 +91,9 @@ struct AccountTokenHeaderTests {
         let trip = await TripWire.trip(through: fake, days: 0, account: token)
         let plan = await PlanWire.plan(through: fake, from: Coordinate(latitude: 34.021, longitude: -118.49),
                                        account: token)
+        let loop = await LoopWire.loop(through: fake, minutes: 0, account: token)
         #expect(trip == .failure(.refusedOnDevice(.daysOutOfRange)))
+        #expect(loop == .failure(.refusedOnDevice(.minutesOutOfRange)))
         #expect(PlanWire.error(plan) == .refusedOnDevice(.originMoreThanTwoDecimals))
         #expect(await fake.count == 0)
         #expect(await token.reads == 0)

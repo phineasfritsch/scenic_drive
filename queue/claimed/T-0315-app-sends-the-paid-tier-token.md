@@ -115,3 +115,19 @@ unlimited plans and navigation.
   13/13 before (vacuity) and CAUGHT 13/13 by name after - MET. Gates on this head: ScenicAPIClientTests 58 Swift
   Testing + 88 XCTest green; check-safety-disclaimer 0, check-map-attribution 0, check-store-links 0,
   check-mutate-population ok (floor 116), check-line-cap ok, check-pins-yaml ok, queue-check ok.
+- 2026-10-08T11:16:03Z **Merge of origin/main 3840fb3d (PR #204 T-0314 and #203 T-0316 landed after the PR opened; GitHub said
+  CONFLICTING)** (agent/claude-opus-5). R6 applied in this merge: LoopClient takes the required AccountTokenProvider
+  and builds its headers with IdentityHeaders.json; LiveLoopPlanner hands it StoreKitAccountToken; LoopWire and
+  LoopSheetGateTests thread it. New test "every loop request carries exactly the device and the account token, and
+  the loop is the Worker's" (4 purchase rows, whole request by equality) and the refusal test gains /loop (minutes 0).
+  Population: accounttoken gains LoopClient.swift and entries 7 (LoopClient drops the purchase) and 15 (LoopClient
+  reads the token before the device refusal), MIN_MUTATIONS 13 -> 15. tripsheet #32 and loopsheet #30 anchored on
+  the client's old inline header (the merge would SKIP them) re-anchored on IdentityHeaders.swift
+  `deviceHeader: device.uuidString.lowercased()`, IdentityHeaders added to both SUBJECTS. Conflicts: the two digest
+  files - main's taken, then every Sources/ and apps/ios row re-approved (linked: +AccountTokenCandidate,
+  +AccountTokenProvider, +IdentityHeaders, LoopClient/PlanClient/TripClient changed; pinned: PaywallScreen,
+  LiveLoopPlanner, LivePlanner, LiveTripPlanner changed, +StoreKitAccountToken). DRIVERS/COVERED_FLOOR auto-merged
+  (accounttoken.py and loopsheet.py both present). On the merged tree: ScenicAPIClientTests `Test run with 72 tests
+  in 17 suites passed` + XCTest 4+11+26+4+1+46 0 failures; check-safety-disclaimer 0, check-map-attribution 0,
+  check-store-links 0, check-mutate-population `floor of 125 holds`, check-line-cap `449 Swift files ... none over
+  300 lines`, check-pins-yaml ok, --prove-floor OK 7/7 for accounttoken, tripsheet and loopsheet.

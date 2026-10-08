@@ -1,11 +1,12 @@
 """The mutation population for T-0315: the one header set of every plan-family request (Sources/ScenicAPIClient/
 IdentityHeaders.swift), the pick of the purchase token the app sends (AccountTokenCandidate.swift), and the two
-call sites that attach it (PlanClient.swift, TripClient.swift). Driver accounttoken.py, runner accounttoken_run.py
+call sites that attach it (PlanClient.swift, TripClient.swift,
+LoopClient.swift). Driver accounttoken.py, runner accounttoken_run.py
 (ledger's three-file shape).
 
   * THE HEADER SET (1-4, 12): the token never set, sent uppercase, misnamed, sent under the device header, and the
     device header dropped when a token is held;
-  * THE CALL SITES (5-6, 13-14): each client dropping the purchase, and each reading the token before the device
+  * THE CALL SITES (5-7, 13-15): each client dropping the purchase, and each reading the token before the device
     refusal (a refused request must read nothing);
   * THE PICK (8-11): the earliest purchase winning, equal instants keeping the first listed or the lesser token,
     and a later-or-equal purchase replacing the held one (order-dependent).
@@ -24,7 +25,8 @@ IDENTITY = _API / "IdentityHeaders.swift"
 CANDIDATE = _API / "AccountTokenCandidate.swift"
 PLANCLIENT = _API / "PlanClient.swift"
 TRIPCLIENT = _API / "TripClient.swift"
-SUBJECTS = (IDENTITY, CANDIDATE, PLANCLIENT, TRIPCLIENT)
+LOOPCLIENT = _API / "LoopClient.swift"
+SUBJECTS = (IDENTITY, CANDIDATE, PLANCLIENT, TRIPCLIENT, LOOPCLIENT)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicAPIClientTests" / "AccountTokenHeaderTests.swift",
@@ -32,6 +34,7 @@ TEST_FILES = (ROOT / "Tests" / "ScenicAPIClientTests" / "AccountTokenHeaderTests
 
 PLAN = "every plan request carries exactly the device and the purchase's account token"
 TRIP = "every trip request carries exactly the device and the account token, and the itinerary is the Worker's"
+LOOP = "every loop request carries exactly the device and the account token, and the loop is the Worker's"
 REFUSAL = "a request refused on the device reads no account token and sends nothing"
 LATEST = "the latest purchase's token is the one sent, live or expired, in every StoreKit order"
 
@@ -51,6 +54,7 @@ MUTATIONS = [
      SET_TOKEN.replace("headers[accountHeader]", "headers[deviceHeader]"), [PLAN, TRIP]),
     ("5 PlanClient drops the purchase", PLANCLIENT, ATTACH, "account: nil),", [PLAN]),
     ("6 TripClient drops the purchase", TRIPCLIENT, ATTACH, "account: nil),", [TRIP]),
+    ("7 LoopClient drops the purchase", LOOPCLIENT, ATTACH, "account: nil),", [LOOP]),
     ("8 the earliest purchase wins", CANDIDATE, LATER, LATER.replace(" > ", " < "), [LATEST]),
     ("9 equal instants keep the first listed", CANDIDATE, TIE, "if false {", [LATEST]),
     ("10 equal instants keep the lesser token", CANDIDATE, TIE,
@@ -63,6 +67,8 @@ MUTATIONS = [
      "_ = await accountToken?.accountToken()\n        " + NO_INSTALL, [REFUSAL]),
     ("14 TripClient reads the token before the device refusal", TRIPCLIENT, NO_INSTALL,
      "_ = await accountToken?.accountToken()\n        " + NO_INSTALL, [REFUSAL]),
+    ("15 LoopClient reads the token before the device refusal", LOOPCLIENT, NO_INSTALL,
+     "_ = await accountToken?.accountToken()\n        " + NO_INSTALL, [REFUSAL]),
 ]
 
 EQUIVALENT = [
@@ -72,6 +78,6 @@ EQUIVALENT = [
      "follows compares the same two instants, is false, and assigns nothing: `continue` changes no outcome"),
 ]
 
-MIN_MUTATIONS = 13
+MIN_MUTATIONS = 15
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 2
