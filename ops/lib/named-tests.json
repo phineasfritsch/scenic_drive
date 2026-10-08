@@ -1295,5 +1295,39 @@
         "POST /waitlist counts one device once per cell per UTC day (T-0296) > without a usable SESSION_JWT_SECRET the route fails closed: unbound, empty or 31 chars is 503 and writes nothing; 32 chars counts"
       ]
     }
+  },
+  "P-NAV-01": {
+    "swift": {
+      "filter": "ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests)",
+      "tests": [
+        "ScenicKitTests.DriveSessionTests/awayThresholdIsExact()",
+        "ScenicKitTests.DriveSessionTests/dwellBoundIsExact()",
+        "ScenicKitTests.DriveSessionTests/reroutingAsksOnce()",
+        "ScenicKitTests.DriveSessionTests/offlineRejoinsWithZeroRequests()",
+        "ScenicKitTests.DriveSessionTests/backOnlineAsksOnce()",
+        "ScenicKitTests.DriveSessionTests/backOnlineWhileGuidingAsksNothing()",
+        "ScenicKitTests.DriveSessionTests/failedRerouteRejoins()",
+        "ScenicKitTests.DriveSessionTests/unusableFixIsIgnored()",
+        "ScenicKitTests.DriveRerouteTests/rerouteCarriesRemainingPinsAndLambda()",
+        "ScenicKitTests.DriveRerouteTests/offlineThenOnlineCarriesRemainingPins()",
+        "ScenicKitTests.DriveRerouteTests/noRowIgnoresItsVariant()",
+        "ScenicKitTests.DriveRerouteTests/arrivalReplacesLineKeepsLambda()",
+        "ScenicKitTests.DriveRerouteTests/unusableArrivalRejoins()",
+        "ScenicKitTests.DriveRerouteTests/pinsMustBeVerticesInOrder()",
+        "ScenicKitTests.DriveRerouteTests/loopClosingLegDoesNotJumpProgress()"
+      ]
+    }
+  },
+  "P-SAFE-09": {
+    "swift": {
+      "filter": "ScenicKitTests\\.DriveMotionGateTests",
+      "tests": [
+        "ScenicKitTests.DriveMotionGateTests/surfaceAtEverySpeedBound()",
+        "ScenicKitTests.DriveMotionGateTests/minimalBeforeAnyFix()",
+        "ScenicKitTests.DriveMotionGateTests/eachFixSetsTheSurface()",
+        "ScenicKitTests.DriveMotionGateTests/gateHoldsInEveryMode()",
+        "ScenicKitTests.DriveMotionGateTests/unusableFixKeepsSurface()"
+      ]
+    }
   }
 }
