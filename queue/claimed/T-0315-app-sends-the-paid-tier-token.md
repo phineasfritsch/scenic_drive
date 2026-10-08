@@ -74,7 +74,7 @@ unlimited plans and navigation.
   - **R7 population.** New ops/mutate/accounttoken{,_mutations,_run}.py over IdentityHeaders.swift and
     AccountTokenCandidate.swift (+ the two call sites in PlanClient/TripClient); MISSED by --prove-vacuity, CAUGHT by
     name after. DRIVERS and COVERED_FLOOR gain it. Digests re-approved for every Sources/ + apps/ios file touched.
-- 2026-10-08T10:05:00Z **RED by name, then GREEN** (agent/claude-opus-5). With IdentityHeaders.json ignoring
+- 2026-10-08T09:50:48Z **RED by name, then GREEN** (agent/claude-opus-5). With IdentityHeaders.json ignoring
   `account` and AccountTokenCandidate.latest returning nil (the API in place, the clients wired), `swift test
   --filter "AccountTokenHeaderTests|AccountTokenCandidateTests"`: RED - "every plan request carries exactly the
   device and the purchase's account token" (2 of 4 cases: live, expired), "every trip request carries exactly the
@@ -90,3 +90,18 @@ unlimited plans and navigation.
   PaywallScreen, LivePlanner, LiveTripPlanner (changed) and StoreKitAccountToken (added); linked-digests rows for
   PlanClient, TripClient (changed) and AccountTokenCandidate, AccountTokenProvider, IdentityHeaders (added). Bare
   guards: check-safety-disclaimer exit 0, check-map-attribution exit 0, check-store-links exit 0.
+- 2026-10-08T10:34:39Z **Population, CI** (agent/claude-opus-5) at 662aa929. `swift test --filter
+  ScenicAPIClientTests`: `Test run with 58 tests in 14 suites passed` + XCTest 4+11+26+4+46, 0 failures.
+  `python ops/mutate/accounttoken.py`: `caught by the test that names it: 13 of 13 (wrong killer 0, trapped 0,
+  compile-only 0, MISSED 0, skipped 0)`, `MUTATE OK caught=13/13 equivalent_caught=0` (E1 MISSED as required).
+  CAUGHT by name: 1-4, 12 by "every plan request carries exactly the device and the purchase's account token" and
+  "every trip request carries exactly the device and the account token, and the itinerary is the Worker's"; 5 by
+  the plan row, 6 by the trip row; 8-11 by "the latest purchase's token is the one sent, live or expired, in every
+  StoreKit order"; 13, 14 by "a request refused on the device reads no account token and sends nothing".
+  MISSED before: `--prove-vacuity` (both test files emptied): `caught by the test that names it: 0 of 13 ...
+  MISSED 13`, `VACUITY PROOF OK: with the 2 test file(s) emptied, caught=0 (need 0) and MISSED=13 of 13`.
+  `--prove-floor`: `FLOOR PROOF OK: 7 of 7 arms refused and the control did not`. check-mutate-population first
+  refused AccountTokenProvider.swift (a protocol); allowlisted with its reason -> `every added module is covered or
+  allowlisted; the floor of 116 holds`. ios-compile run 37760671707 success, ios-screenshot run 37760729288
+  success (both at 662aa929). Pins: P-STORE-02 and P-COST-01 unchanged - services/api is untouched; P-STORE-02's
+  "NOT ASSERTED HERE: the app's side" stands (the new suites are not bound by name in run-named-tests).
