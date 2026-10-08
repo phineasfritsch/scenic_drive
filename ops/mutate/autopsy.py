@@ -5,6 +5,7 @@ TracingRouteSource.swift).
     python ops/mutate/autopsy.py
     python ops/mutate/autopsy.py --prove-vacuity
     python ops/mutate/autopsy.py --prove-floor
+    python ops/mutate/autopsy.py --only "<entry name>" [--only ...]
 
 The population is ops/mutate/autopsy_mutations.py and the runner ops/mutate/autopsy_run.py; this file is
 the CLI, the floors and the proof arms - menu.py's three-file shape, under CLAUDE.md's 300-line cap.
@@ -108,6 +109,14 @@ def main(argv) -> int:
     if refusal is not None:
         sys.stdout.write("REFUSING TO RUN: %s\n" % refusal)
         return 2
+    # `--only NAME` (repeatable): run just the named entries - the floor above still judges the whole file.
+    only = [argv[i + 1] for i, a in enumerate(argv[:-1]) if a == "--only"]
+    unknown = [n for n in only if n not in {e[0] for e in MUTATIONS + EQUIVALENT}]
+    if unknown:
+        sys.stdout.write("REFUSING: --only names no entry: %s\n" % ", ".join(unknown))
+        return 2
+    population = [m for m in MUTATIONS if not only or m[0] in only]
+    equivalent = [e for e in EQUIVALENT if not only or e[0] in only]
     sys.stdout.write("population  mutations=%d (floor %d)  equivalent=%d (floor %d)  subjects=%s  test "
                      "files=%d  filter=%s\n" % (len(MUTATIONS), MIN_MUTATIONS, len(EQUIVALENT), MIN_EQUIVALENT,
                                                 ", ".join(s.name for s in SUBJECTS), len(TESTS), FILTER))
@@ -136,12 +145,12 @@ def main(argv) -> int:
         if code != 0:
             sys.stdout.write("baseline is not green; refusing to call anything a caught mutation\n")
             return 2
-        r = run_all(pristine, MUTATIONS, True)
+        r = run_all(pristine, population, True)
         if not prove:
             sys.stdout.write("\nEQUIVALENT - cannot change behaviour, so anything but MISSED is a FAILURE\n")
-            for name, _p, _o, _n, witness in EQUIVALENT:
+            for name, _p, _o, _n, witness in equivalent:
                 sys.stdout.write("  witness     %s: %s\n" % (name, witness))
-            eq = run_all(pristine, EQUIVALENT, False)
+            eq = run_all(pristine, equivalent, False)
     finally:
         for f, b in pristine.items():
             f.write_bytes(b)
@@ -154,22 +163,22 @@ def main(argv) -> int:
         return 2
     sys.stdout.write("\ncaught by the test that names it: %d of %d   (wrong killer %d, trapped %d, "
                      "compile-only %d, MISSED %d, skipped %d)\n"
-                     % (len(r["caught"]), len(MUTATIONS), len(r["wrong_killer"]), len(r["trapped"]),
+                     % (len(r["caught"]), len(population), len(r["wrong_killer"]), len(r["trapped"]),
                         len(r["compile_only"]), len(r["missed"]), len(r["skipped"])))
     if prove:
-        ok = len(r["caught"]) == 0 and len(r["missed"]) == len(MUTATIONS)
+        ok = len(r["caught"]) == 0 and len(r["missed"]) == len(population)
         sys.stdout.write("VACUITY PROOF %s: with the %d test file(s) emptied, caught=%d (need 0) and "
                          "MISSED=%d of %d\n" % ("OK" if ok else "FAILED", len(TESTS), len(r["caught"]),
-                                                len(r["missed"]), len(MUTATIONS)))
+                                                len(r["missed"]), len(population)))
         return 0 if ok else 1
     eq_caught = len(eq["caught"]) + len(eq["wrong_killer"])
-    eq_ok = len(eq["missed"]) == len(EQUIVALENT)
+    eq_ok = len(eq["missed"]) == len(equivalent)
     if not eq_ok:
         sys.stdout.write("EQUIVALENT ARM FAILED: %d of %d went MISSED as required\n"
-                         % (len(eq["missed"]), len(EQUIVALENT)))
-    ok = len(r["caught"]) == len(MUTATIONS) and eq_ok
+                         % (len(eq["missed"]), len(equivalent)))
+    ok = len(r["caught"]) == len(population) and eq_ok
     sys.stdout.write("MUTATE %s  caught=%d/%d equivalent_caught=%d\n"
-                     % ("OK" if ok else "FAILED", len(r["caught"]), len(MUTATIONS), eq_caught))
+                     % ("OK" if ok else "FAILED", len(r["caught"]), len(population), eq_caught))
     return 0 if ok else 1
 
 

@@ -17,7 +17,7 @@ ops/mutate/segmentscore.py, and T-0327 kept its anchors verbatim (Log R3).
 and FAILS. No anchor is a comment. `killers` are display names of tests that MUST go red; other tests going
 red as well is allowed, a named killer staying green is WRONG KILLER and fails the run.
 
-## The one EQUIVALENT entry, and its witness
+## The EQUIVALENT entries, and their witnesses (each entry carries its own)
 
 `index < widths.count` against `index <= widths.count - 1` over `Int`: `widths` is a non-empty literal, so
 `widths.count - 1` cannot overflow, and for integers `a < b` holds exactly when `a <= b - 1`. No input to
@@ -46,6 +46,7 @@ GOLDEN = "the autopsy of westwood-malibu equals its golden, every line"
 TRACE = "every trace step is a lambda the search measured, at the raw time of its recording"
 TERMS_ROWS = "each way in the terms file prints its gate, M, E and score from ScenicKit"
 DASHES = "a way the terms file does not carry prints dashes, never a default"
+GATE_REASONS = "the GATE column is Gates.decide over each way's tags, for every GateReason and a freeway"
 WRITES = "--fixture writes the traced recordings, the terms, fixture.json and an autopsy that replays"
 REFUSES = "--fixture refuses outside Tests/, over an existing directory, and without --recorded"
 
@@ -94,6 +95,11 @@ MUTATIONS = [
     ("--fixture accepted with a live router", ARGS,
      "if fixture != nil, case .http = plan.router {", "if fixture == nil, case .http = plan.router {",
      [REFUSES]),
+    ("the gate computed by a private copy of one rule, not Gates.decide", REPORT,
+     "switch Gates.decide(way.tags) {\n        case .allowed: gate = \"allowed\"\n"
+     "        case let .refused(reason): gate = \"refused:\\(reason.rawValue)\"\n        }",
+     "gate = way.tags[\"access\"] == \"private\" ? \"refused:noAccess\" : \"allowed\"",
+     [GATE_REASONS]),
 ]
 
 EQUIVALENT = [
@@ -102,9 +108,16 @@ EQUIVALENT = [
      "index <= widths.count - 1 ? pad(cell, widths[index]) : cell",
      "widths is a non-empty literal, so count - 1 cannot overflow, and over Int a < b holds exactly when "
      "a <= b - 1: no row can tell the two apart"),
+    ("the trace drops a lambda requested twice in a row", TRACER,
+     "steps.append(Step(lambda: lambda, duration: path.duration))",
+     "if steps.last?.lambda != lambda { steps.append(Step(lambda: lambda, duration: path.duration)) }",
+     "ScenicPlanner's only caller of the traced source is LambdaSearch: it evaluates 0 first, then only "
+     "mid = lo + (hi - lo) / 2 while hi - lo > lambdaTolerance, so mid lies strictly inside (lo, hi); lo and hi "
+     "are always 0, maxLambda or an earlier sample, and the previous request is one of them, so no run asks "
+     "for the same lambda twice in a row and this guard never skips an append"),
 ]
 
 # Literal floors: the population as written above. Lowering one is a reviewed edit, never a quiet one.
-MIN_MUTATIONS = 17
-MIN_EQUIVALENT = 1
+MIN_MUTATIONS = 18
+MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 2
