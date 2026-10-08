@@ -25,13 +25,19 @@ import Testing
                           PinRow(label: "first pin last", segment: 2, first: 2, lon: "-118.67"),
                           PinRow(label: "first pin past last", segment: 3, first: 3, lon: "-118.66")]
     static let tokens: [String?] = [planToken, nil]
+    /// Where the away fix sits: off the 0.01-degree grid (PlanClient must round it), or ON it, 0.01 deg north at the
+    /// row's 2-dp longitude - a fix PlanRequestBody.validated() passes as it is, so with no token a sender that asked
+    /// anything at all (a fresh origin-to-place /plan, R5) would reach the wire instead of refusing before it.
+    static let grids = [false, true]
 
     static func midpoint(_ segment: Int) -> Coordinate {
         Coordinate(latitude: 34.05, longitude: -118.70 + Double(segment) * 0.01 + 0.005)
     }
 
-    static func away(_ segment: Int) -> Coordinate {
-        Coordinate(latitude: 34.052, longitude: midpoint(segment).longitude + 0.001)
+    static func away(_ segment: Int, onGrid: Bool = false) -> Coordinate {
+        let lon = midpoint(segment).longitude + 0.001
+        return onGrid ? Coordinate(latitude: 34.06, longitude: (lon * 100).rounded() / 100)
+            : Coordinate(latitude: 34.052, longitude: lon)
     }
 
     static func fix(_ point: Coordinate, _ t: Double) -> DriveFix {
@@ -52,9 +58,9 @@ import Testing
     }
 
     /// The one request a reroute may make, recomputed: sorted keys, the origin at 2 dp as typed here.
-    static func wire(lon: String, first: Int, token: String) -> PlanHTTPRequest {
+    static func wire(lat: String = "34.05", lon: String, first: Int, token: String) -> PlanHTTPRequest {
         let body = "{\"budget_minutes\":25,\"destination\":{\"place\":\"42\"},"
-            + "\"origin\":{\"lat\":34.05,\"lon\":\(lon)},"
+            + "\"origin\":{\"lat\":\(lat),\"lon\":\(lon)},"
             + "\"reroute\":{\"first_pin\":\(first),\"token\":\"\(token)\"},\"vehicle\":\"standard\"}"
         return PlanHTTPRequest(url: PlanWire.base.appendingPathComponent("plan"), method: "POST",
                                headers: ["content-type": "application/json", "x-scenic-device": PlanWire.deviceHeader],
@@ -71,8 +77,8 @@ import Testing
         let mode: DriveMode
     }
 
-    static func expected(_ row: PinRow, _ token: String?) -> Expected {
-        let request = RerouteRequest(origin: away(row.segment), remainingWaypoints: Array(pins[row.first...]),
+    static func expected(_ row: PinRow, _ token: String?, onGrid: Bool = false) -> Expected {
+        let request = RerouteRequest(origin: away(row.segment, onGrid: onGrid), remainingWaypoints: Array(pins[row.first...]),
                                      firstRemainingWaypoint: row.first, destination: line[5], lambda: 7.75,
                                      planToken: token)
         guard let token else {
@@ -80,7 +86,8 @@ import Testing
                             token: nil, mode: .rejoining)
         }
         return Expected(commands: [.send(request, ticket: 1)],
-                        requests: [wire(lon: row.lon, first: row.first, token: token)],
+                        requests: [wire(lat: onGrid ? "34.06" : "34.05", lon: row.lon, first: row.first,
+                                        token: token)],
                         line: answerLine, waypoints: answerPins, token: answerToken, mode: .guiding)
     }
 
@@ -102,12 +109,12 @@ import Testing
     }
 
     /// One row through the shipping chain: on the line at `row.segment`, then away for the 5 s dwell.
-    static func run(_ row: PinRow, _ token: String?) async -> Expected {
+    static func run(_ row: PinRow, _ token: String?, onGrid: Bool = false) async -> Expected {
         let transport = CountingPlanTransport(reply: reply())
         var controller = DriveController(session: DriveSession(line: line, waypoints: pins, lambda: 7.75, online: true,
                                                                planToken: token)!)
         var commands = controller.observe(fix(midpoint(row.segment), 0))
-        for t in 1...6 { commands += controller.observe(fix(away(row.segment), Double(t))) }
+        for t in 1...6 { commands += controller.observe(fix(away(row.segment, onGrid: onGrid), Double(t))) }
         await carryOut(commands, &controller, rerouter(transport))
         let session = controller.session
         return Expected(commands: commands, requests: await transport.requests, line: session.line.coordinates,
@@ -118,21 +125,29 @@ import Testing
     func tokenByFirstPin() async {
         for row in Self.pinRows {
             for token in Self.tokens {
-                let got = await Self.run(row, token)
-                #expect(got == Self.expected(row, token), "\(row.label), token \(token ?? "nil")")
+                for onGrid in Self.grids {
+                    let got = await Self.run(row, token, onGrid: onGrid)
+                    #expect(got == Self.expected(row, token, onGrid: onGrid),
+                            "\(row.label), token \(token ?? "nil"), on grid \(onGrid)")
+                }
             }
         }
     }
 
     @Test("T-0328: no row ignores its variant - every pin row and every token row expects something different")
     func noRowIgnoresItsVariant() {
-        let all = Self.pinRows.flatMap { row in Self.tokens.map { Self.expected(row, $0) } }
+        let all = Self.pinRows.flatMap { row in
+            Self.tokens.flatMap { token in Self.grids.map { Self.expected(row, token, onGrid: $0) } }
+        }
         for (i, a) in all.enumerated() {
             for b in all[(i + 1)...] { #expect(a != b) }
         }
         for row in Self.pinRows {
-            #expect(Self.expected(row, Self.planToken).requests.count == 1)
-            #expect(Self.expected(row, nil).requests.isEmpty)
+            #expect(Self.away(row.segment, onGrid: true) == Coordinate(latitude: 34.06, longitude: Double(row.lon)!))
+            for onGrid in Self.grids {
+                #expect(Self.expected(row, Self.planToken, onGrid: onGrid).requests.count == 1)
+                #expect(Self.expected(row, nil, onGrid: onGrid).requests.isEmpty)
+            }
         }
     }
 
