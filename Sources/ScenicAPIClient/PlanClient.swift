@@ -22,7 +22,8 @@ public struct PlanClient: Sendable {
 
     /// Plans `origin` -> the corpus place `place` with `budgetMinutes` of extra time.
     public func plan(from origin: Coordinate, to place: Int64, budgetMinutes: Int,
-                     departsAt: Date? = nil) async throws(PlanError) -> PlanResponse {
+                     departsAt: Date? = nil, vehicle: VehicleProfile = .standard)
+        async throws(PlanError) -> PlanResponse {
         // No install id, no request: without x-scenic-device the Worker bills the shared unidentified bucket.
         guard let installID else { throw .refusedOnDevice(.noInstallID) }
         let body: PlanRequestBody
