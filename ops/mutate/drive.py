@@ -28,7 +28,8 @@ shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_er
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
 SUBJECT_MODULES = ("Sources/ScenicKit/Drive/DriveSession.swift", "Sources/ScenicKit/Drive/DriveLine.swift",
                    "Sources/ScenicKit/Drive/DriveSurface.swift", "Sources/ScenicKit/Drive/DriveFix.swift",
-                   "Sources/ScenicKit/Drive/RerouteRequest.swift")
+                   "Sources/ScenicKit/Drive/RerouteRequest.swift", "Sources/ScenicKit/Drive/DriveController.swift",
+                   "Sources/ScenicKit/Drive/DriveLeg.swift", "Sources/ScenicKit/Drive/RerouteUnavailable.swift")
 
 from drive_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)

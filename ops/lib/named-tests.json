@@ -1306,7 +1306,7 @@
   },
   "P-NAV-01": {
     "swift": {
-      "filter": "ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests)",
+      "filter": "ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests|DriveControllerTests|DriveLegTests)",
       "tests": [
         "ScenicKitTests.DriveSessionTests/awayThresholdIsExact()",
         "ScenicKitTests.DriveSessionTests/eastThresholdAtLatitude34()",
@@ -1325,7 +1325,17 @@
         "ScenicKitTests.DriveRerouteTests/landedRerouteRestartsTheDwell()",
         "ScenicKitTests.DriveRerouteTests/unusableArrivalRejoins()",
         "ScenicKitTests.DriveRerouteTests/pinsMustBeVerticesInOrder()",
-        "ScenicKitTests.DriveRerouteTests/loopClosingLegDoesNotJumpProgress()"
+        "ScenicKitTests.DriveRerouteTests/loopClosingLegDoesNotJumpProgress()",
+        "ScenicKitTests.DriveControllerTests/everyFixReachesTheSession()",
+        "ScenicKitTests.DriveControllerTests/lostEdgeCancels()",
+        "ScenicKitTests.DriveControllerTests/lateReplyDropped()",
+        "ScenicKitTests.DriveControllerTests/lateFailureDropped()",
+        "ScenicKitTests.DriveControllerTests/answerWithNothingInFlight()",
+        "ScenicKitTests.DriveControllerTests/senderUntilWireFails()",
+        "ScenicKitTests.DriveLegTests/innerPinsCut()",
+        "ScenicKitTests.DriveLegTests/endPinsCutNothing()",
+        "ScenicKitTests.DriveLegTests/rerouteLegs()",
+        "ScenicKitTests.DriveLegTests/legLength()"
       ]
     }
   },

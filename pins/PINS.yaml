@@ -421,6 +421,15 @@
   owner: agent/claude-opus-5
   added: "2026-10-08"
 
+- id: P-NAV-02
+  statement: "NavAdapter is the only importer of Ferrostar (CLAUDE.md): no line outside its source directory names Ferrostar except the two approved manifest lines, the FerrostarCore product is NavAdapter's dependency, and NavAdapter imports FerrostarCore"
+  why_no_test_catches_it: "An `import FerrostarCore` in a feature target or in ScenicKit compiles on macOS (the product is in the package graph) and no Linux test can see apps/ios at all; ops/test only counts. The assertion is ops/lib/check-ferrostar-imports.py, a WHITELIST of whole lines over every .swift under apps/ios, Sources and Tests and the root manifest - any spelling of an import (attributed, scoped, split over two lines) names the module on some line and is refused by name - plus the manifest's target for the product line and a non-empty adapter (T-0321; red arms in its Log). What it cannot see: compilation (ios-compile.yml) and a module reached through a re-export."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/check-ferrostar-imports.py"
+  owner: agent/claude-opus-5
+  added: "2026-10-08"
+
 - id: P-SAFE-09
   statement: "The plan's P-SAFE-06 row (that id in this file holds the guidance gate) - the motion gate: above 4.5 m/s, at an unknown speed, and before the first fix the drive surface is minimal (the one large action and voice); at 4.5 m/s exactly and below it is full"
   why_no_test_catches_it: "DriveSurface's predicate is one line, `speed >= 0 && speed <= 4.5`, and every edit of it compiles: a bound of 4.6 shows the full screen to a car doing 4.55 m/s, dropping `speed >= 0` shows the full screen at CoreLocation's -1 (invalid speed, which is how a moving car with a poor fix reports), and a session that starts at .full shows every control until the first fix lands. No functional test elsewhere reads the surface, and ops/test only counts. The assertion runs DriveMotionGateTests by NAME through ops/lib/run-named-tests.py - a full-equality table over 0, -0.0, the least nonzero, 4.5 and both its float neighbours, the greatest finite, both infinities, -1 and NaN, through the session's own observe(_:) - and ops/mutate/drive.py holds the mutations (T-0317). What it cannot see: whether the SwiftUI drive screen reads `surface` (an XCUITest, M7) and whether a crawl near 4.5 m/s flickers (no hysteresis is ruled; device iterations decide)."
