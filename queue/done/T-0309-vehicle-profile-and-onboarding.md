@@ -144,3 +144,21 @@ disclaimer)"; Settings lists vehicle. Neither exists in the code today (grep: no
   shell; -frozen auto-merged both frozen lines). On the merged tree: check-safety-disclaimer rc=0, check-map-attribution
   rc=0, check-store-links rc=0, check-mutate-population "floor of 93 holds", check-pins-yaml ok, and swift test over the
   onboarding, ledger and plan-sheet suites green (quoted below in the commit's CI).
+- 2026-10-08T02:14:35Z merge re-review PASS by agent/rv2-t0309 (not the owner; rows the merge touched only; rv1-t0309 signed off before the merge).
+  On 20e7f6fa, the merge of origin/main 5c918435 (T-0307 PR #197), in a detached worktree from origin/task/T-0309:
+  (a) DRIVERS holds ledger.py and onboarding.py; HEAD's .py name set is exactly the union of ab9447ff and 5c918435,
+  nothing dropped. (b) Recomputed with sed 's/\r$//' FILE | sha256sum: ScenicDriveApp.swift 2bd334e5... ==
+  PINNED_SHELL_DIGEST and its PINNED_APP_SWIFT row; SurpriseCard d63e1a27..., VehicleChoice c9cd0a24...,
+  VehicleSetting ac15565d..., SurpriseLedgerKey f4400e16..., StoredInstallID 960bbfed... each == its row.
+  (c) ScenicDriveApp.swift (LF) keeps `.environment(\.surpriseLedger, LiveSurpriseLedger.make())` from T-0307 and
+  T-0309's `&& VehicleSetting.isChosen` and `vehicle: VehicleSetting.name`; -frozen FROZEN_APP_SHELL lists all three,
+  and FROZEN_SCREEN_BODY keeps the `!VehicleSetting.isChosen` disclaimer .task line. (d) Bare check-safety-disclaimer
+  rc=0, bare check-map-attribution rc=0. (e) gh pr checks 198: core pass 6m9s, pins-source-only pass 2m3s; on
+  20e7f6fa linux-core 37715363878, ios-compile 37715359855 and ios-screenshot 37715363573 all success.
+  (f) Bare ops/queue-check rc=0, QUEUE OK (301 tasks).
+  (g) on 20e7f6fa was rc=1: main moved to b47f40bb with queue-only commits 68e688c1 and b47f40bb. The owner merged
+  them as 8dd8955e. `git diff 20e7f6fa 8dd8955e --stat` touches only queue/LOCKS/package-swift.lock,
+  queue/backlog/T-0311-vehicle-on-the-wire.md and the T-0310 task file (3 files, +38/-6), so (a)-(e) carry over.
+  On 8dd8955e: bare ops/queue-check rc=0, QUEUE OK (302 tasks); LAST, after git fetch origin,
+  `git merge-base --is-ancestor origin/main origin/task/T-0309` rc=0 (origin/main b47f40bb).
+  Recorded, not blocking: none.
