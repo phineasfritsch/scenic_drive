@@ -7,6 +7,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { KEY_FOR_ASSERTION } from "../src/attestStore";
+import { malformedTokens } from "./accountTokenShapes";
 import { b64 } from "./appleChain";
 import { ACCOUNT, CHALLENGE, DEVICE, mintJwt, NOW, OTHER_CHALLENGE, seedChallenge, type W } from "./attestHarness";
 import { allTables, assertion, freshAssertTables, interleaved, keyRow, post, route, seedKey, setCount, testKey, type AssertSpec, type TestKey } from "./assertHarness";
@@ -74,6 +75,7 @@ const ROWS: [string, () => Promise<unknown>][] = [
   ["body: keyId of 31 bytes", () => assertBody(KEY, {}, { keyId: b64(new Uint8Array(31)) })],
   ["body: a challenge of 42 characters", () => assertBody(KEY, {}, { challenge: CHALLENGE.slice(1) })],
   ["body: appAccountToken not a UUID", () => assertBody(KEY, {}, { appAccountToken: "not-a-uuid" })],
+  ...malformedTokens(ACCOUNT).map(([name, value]): [string, () => Promise<unknown>] => [`body: ${name}`, () => assertBody(KEY, {}, { appAccountToken: value })]),
   ["body: the assertion not base64", () => assertBody(KEY, {}, { assertion: "!!!!" })],
   ["body: not JSON", async () => "{"],
 ];

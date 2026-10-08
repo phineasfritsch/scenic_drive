@@ -24,20 +24,27 @@ public struct AttestClient: Sendable {
     }
 
     /// POST /attest {attestation, challenge, device, keyId}: a new key's attestation -> a session.
-    public func attest(keyId: String, attestation: String, challenge: String) async -> AttestOutcome {
-        let body = Self.body(["attestation": attestation, "challenge": challenge, "device": deviceID, "keyId": keyId])
+    public func attest(keyId: String, attestation: String, challenge: String, account: UUID?) async -> AttestOutcome {
+        let body = Self.body(Self.naming(account, in: ["attestation": attestation, "challenge": challenge,
+                                                       "device": deviceID, "keyId": keyId]))
         return await send(PlanHTTPRequest(url: base.appendingPathComponent("attest"), method: "POST",
                                           headers: ["content-type": "application/json"], body: body), call: .session)
     }
 
     /// POST /attest/assert {assertion, challenge, keyId}: an attested key's assertion -> a renewed session.
-    public func renew(keyId: String, assertion: String, challenge: String) async -> AttestOutcome {
-        let body = Self.body(["assertion": assertion, "challenge": challenge, "keyId": keyId])
+    public func renew(keyId: String, assertion: String, challenge: String, account: UUID?) async -> AttestOutcome {
+        let body = Self.body(Self.naming(account, in: ["assertion": assertion, "challenge": challenge, "keyId": keyId]))
         return await send(PlanHTTPRequest(url: base.appendingPathComponent("attest/assert"), method: "POST",
                                           headers: ["content-type": "application/json"], body: body), call: .session)
     }
 
     private var deviceID: String { device.installID().uuidString.lowercased() }
+
+    /// T-0322 R1: the purchase the session should carry as `act`, lowercased, exactly when the device holds one.
+    static func naming(_ account: UUID?, in fields: [String: String]) -> [String: String] {
+        guard let account else { return fields }
+        return fields.merging(["appAccountToken": account.uuidString.lowercased()]) { kept, _ in kept }
+    }
 
     /// Sorted keys, slashes as they are: every value is a base64 or base64url string, a UUID or a challenge.
     static func body(_ fields: [String: String]) -> Data {

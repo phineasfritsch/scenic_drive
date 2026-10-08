@@ -22,10 +22,11 @@ import Testing
     /// and the response if one came back.
     static func send(_ request: RerouteRequest, token: String = token, budget: Int = 25,
                      installID: (any InstallIDProvider)? = PlanWire.install, account: (any AccountTokenProvider)? = nil,
+                     session: (any PlanSessionProvider)? = nil,
                      reply: PlanHTTPReply? = nil)
         async throws -> (requests: [PlanHTTPRequest], refusal: PlanRefusal?, response: PlanResponse?) {
         let fake = CountingPlanTransport(reply: try reply ?? PlanWire.recordedReply("200-plan"))
-        let client = PlanClient(base: PlanWire.base, transport: fake, installID: installID, accountToken: account)
+        let client = PlanClient(base: PlanWire.base, transport: fake, installID: installID, accountToken: account, session: session)
         var refusal: PlanRefusal?
         var response: PlanResponse?
         do {

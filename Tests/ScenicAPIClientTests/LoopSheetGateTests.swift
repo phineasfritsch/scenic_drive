@@ -21,7 +21,7 @@ struct LoopSheetGateTests {
     static func drive(_ sheet: inout LoopSheet, _ transport: CountingPlanTransport) async {
         guard let ticket = sheet.startPlanning() else { return }
         let planner = ClientLoopPlanner(client: LoopClient(base: LoopWire.base, transport: transport,
-                                                           installID: PlanWire.install, accountToken: nil))
+                                                           installID: PlanWire.install, accountToken: nil, session: nil))
         sheet.finish(ticket, with: await planner.plan(ticket))
     }
 
