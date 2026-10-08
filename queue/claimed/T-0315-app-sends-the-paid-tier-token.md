@@ -105,3 +105,13 @@ unlimited plans and navigation.
   allowlisted; the floor of 116 holds`. ios-compile run 37760671707 success, ios-screenshot run 37760729288
   success (both at 662aa929). Pins: P-STORE-02 and P-COST-01 unchanged - services/api is untouched; P-STORE-02's
   "NOT ASSERTED HERE: the app's side" stands (the new suites are not bound by name in run-named-tests).
+- 2026-10-08T10:45:23Z **Acceptance re-run at 7a01dbb2** (agent/claude-opus-5; origin/main fetched, nothing new to merge -
+  HEAD..origin/main empty, LoopClient not on main). (1) MEASURE then RULE FIRST - MET (09:40:13Z entry, M1-M2,
+  R1-R7). (2) every request client attaches the identity by one shared function - PlanClient and TripClient via
+  IdentityHeaders.json; table by full equality over {noProvider, noPurchase, live, expired} x {preview, full}; the
+  session axis RULED (R1: no Bearer on these requests, `authorization` absent from every whole-request row); trip
+  preview vs full is the Worker's (R5) - MET for the clients on main; LoopClient NOT on main (PR #204), R6.
+  (3) ios-compile 37760671707 success, ios-screenshot 37760729288 success; digests re-approved; population MISSED
+  13/13 before (vacuity) and CAUGHT 13/13 by name after - MET. Gates on this head: ScenicAPIClientTests 58 Swift
+  Testing + 88 XCTest green; check-safety-disclaimer 0, check-map-attribution 0, check-store-links 0,
+  check-mutate-population ok (floor 116), check-line-cap ok, check-pins-yaml ok, queue-check ok.
