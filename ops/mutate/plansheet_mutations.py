@@ -14,6 +14,9 @@ plansheet_run.py (surprise's three-file shape).
     ETAs and hazard ends, one PlanError arm;
   * THE GATE ON EVERY PATH AND THE IN-FLIGHT FREEZE (28-30, pre-review survivors M1 and M3b): the disclaimer
     checked on only some launch states (failed, preview skip it), the budget moving while a plan is in flight.
+  * THE REROUTE ON THE WIRE (38-48, T-0319 R9): the device's 2-dp rounding of the fix dropped, truncated or bypassed,
+    each bound of first_pin and of the token grammar widened, the first_pin key renamed, the pin index shifted, the
+    token sent in another spelling.
   * THE VEHICLE ON THE WIRE (33-37, T-0311 R8): PlanRequestBody's enabled-profile guard dropped or answering the
     wrong refusal, the wire key renamed, and PlanClient sending a fixed profile or defaulting to a disabled one.
 
@@ -45,7 +48,8 @@ MUTATED_FILES = SUBJECTS
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "PlanSheet" / "PlanSheetTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "PlanSheet" / "PlanFailureCopyTests.swift",
               ROOT / "Tests" / "ScenicAPIClientTests" / "PlanSheetGateTests.swift",
-              ROOT / "Tests" / "ScenicAPIClientTests" / "PlanVehicleWireTests.swift")
+              ROOT / "Tests" / "ScenicAPIClientTests" / "PlanVehicleWireTests.swift",
+              ROOT / "Tests" / "ScenicAPIClientTests" / "PlanRerouteWireTests.swift")
 
 GATE = "first launch: no ticket until the disclaimer is accepted, then one"
 SAFE = "P-SAFE-03: from first launch no plan request is made before the disclaimer is accepted"
@@ -58,6 +62,9 @@ BOUNDS = "the extra time is clamped to 0...180 at every bound"
 ETA = "the preview's ETA line against the fastest, rounded, never negative"
 ROWS = "every PlanSheetFailure has its one copy line and one action"
 ORDER = "the table covers all thirteen PlanError cases, in PlanError's order"
+WHOLE_R = "a reroute leaves as ONE 2-dp origin, the place, the budget and {token, first_pin}, whole"
+ROUND_R = "the reroute origin is rounded on the device at every bound"
+REFUSE_R = "a reroute is refused on the device with zero requests"
 TITLES = "every action has its button words"
 PREVIEWED = "a 200 reaches the sheet as the preview of exactly that response"
 MAPPED = "every PlanError reaches the sheet as its own PlanSheetFailure"
@@ -157,6 +164,28 @@ MUTATIONS = [
      "departsAt: departsAt, vehicle: .standard) {", [EVERY_PROFILE]),
     ("37 the client defaults to a disabled vehicle", CLIENT, "vehicle: VehicleProfile = .standard)",
      "vehicle: VehicleProfile = .rv)", [DEFAULT_PROFILE, PRIV]),
+    ("38 the reroute latitude leaves unrounded", CLIENT,
+     "Coordinate(latitude: (request.origin.latitude * 100).rounded() / 100,",
+     "Coordinate(latitude: request.origin.latitude,", [WHOLE_R, ROUND_R, REFUSE_R]),
+    ("39 the reroute longitude truncated toward minus infinity", CLIENT,
+     "longitude: (request.origin.longitude * 100).rounded() / 100)",
+     "longitude: (request.origin.longitude * 100).rounded(.down) / 100)", [ROUND_R]),
+    ("40 the reroute validates the raw fix", CLIENT, "validatedReroute(origin: origin,",
+     "validatedReroute(origin: request.origin,", [WHOLE_R, ROUND_R, REFUSE_R]),
+    ("41 first pin 10 sent", BODY, "guard (0...maxFirstPin).contains(firstPin)",
+     "guard (0...maxFirstPin + 1).contains(firstPin)", [REFUSE_R]),
+    ("42 first pin -1 sent", BODY, "guard (0...maxFirstPin).contains(firstPin)",
+     "guard (-1...maxFirstPin).contains(firstPin)", [REFUSE_R]),
+    ("43 a 37-character token sent", BODY, "guard scalars.count == 36 else", "guard scalars.count >= 36 else", [REFUSE_R]),
+    ("44 an uppercase token sent", BODY, '("a"..."f").contains(scalar)',
+     '("a"..."f").contains(scalar) || ("A"..."F").contains(scalar)', [REFUSE_R]),
+    ("45 the hyphens not checked", BODY, 'guard hyphen ? scalar == "-" : hex', 'guard hyphen ? true : hex', [REFUSE_R]),
+    ("46 the first_pin key renamed", BODY, 'case firstPin = "first_pin"', 'case firstPin = "firstPin"',
+     [WHOLE_R, ROUND_R, REFUSE_R]),
+    ("47 the pin index shifted", CLIENT, "firstPin: request.firstRemainingWaypoint) {",
+     "firstPin: request.firstRemainingWaypoint + 1) {", [WHOLE_R, ROUND_R, REFUSE_R]),
+    ("48 the token sent in another spelling", BODY, "try reroute.encode(rerouteToken, forKey: .token)",
+     "try reroute.encode(rerouteToken.uppercased(), forKey: .token)", [WHOLE_R, ROUND_R, REFUSE_R]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -169,6 +198,6 @@ EQUIVALENT = [
      "only enabled case, so every encoded body's vehicle IS .standard and the two lines write the same bytes"),
 ]
 
-MIN_MUTATIONS = 37
+MIN_MUTATIONS = 48
 MIN_EQUIVALENT = 2
-MIN_TEST_FILES = 4
+MIN_TEST_FILES = 5

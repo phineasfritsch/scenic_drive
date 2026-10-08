@@ -20,10 +20,13 @@ public struct PlanResponse: Equatable, Sendable {
     public let hazards: [PlanHazard]
     public let waypoints: [Coordinate]
     public let appleMapsURL: URL
+    /// T-0319 R6: the token the Worker remembered this plan's pins and lambda under; nil when it remembered nothing.
+    public let planToken: String?
 
     public init(route: [Coordinate], distanceMeters: Double, etaSeconds: Double, fastestEtaSeconds: Double,
                 ceilingSeconds: Double, budgetSeconds: Double, lambda: Double, evaluations: Int, usedBudget: Bool,
-                etaIsEstimate: Bool, hazards: [PlanHazard], waypoints: [Coordinate], appleMapsURL: URL) {
+                etaIsEstimate: Bool, hazards: [PlanHazard], waypoints: [Coordinate], appleMapsURL: URL,
+                planToken: String? = nil) {
         self.route = route
         self.distanceMeters = distanceMeters
         self.etaSeconds = etaSeconds
@@ -37,6 +40,7 @@ public struct PlanResponse: Equatable, Sendable {
         self.hazards = hazards
         self.waypoints = waypoints
         self.appleMapsURL = appleMapsURL
+        self.planToken = planToken
     }
 }
 
@@ -51,6 +55,7 @@ extension PlanResponse: Decodable {
         case usedBudget = "used_budget"
         case etaIsEstimate = "eta_is_estimate"
         case appleMapsURL = "apple_maps_url"
+        case planToken = "plan_token"
     }
 
     public init(from decoder: Decoder) throws {
@@ -89,7 +94,8 @@ extension PlanResponse: Decodable {
             etaIsEstimate: try top.decode(Bool.self, forKey: .etaIsEstimate),
             hazards: try top.decode([PlanHazard].self, forKey: .hazards),
             waypoints: waypoints,
-            appleMapsURL: url
+            appleMapsURL: url,
+            planToken: try top.decodeIfPresent(String.self, forKey: .planToken)
         )
     }
 }

@@ -23,12 +23,15 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-plan");
 
-export const MIN_MUTATIONS = 43;
+export const MIN_MUTATIONS = 60;
 export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/routePath.ts", "src/planWaypoints.ts",
-  "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts"];
+  "src/appleMaps.ts", "src/hazards.ts", "src/scenicPlanner.ts", "src/plan.ts",
+  "src/planToken.ts", "src/reroutePlanner.ts"];
 const TESTS = ["test/lambdaSearch.test.ts", "test/appleMaps.test.ts", "test/planRecorded.test.ts",
-  "test/planPrivacy.test.ts", "test/planCost.test.ts", "test/planCeiling.test.ts", "test/planWaypoints.test.ts"];
+  "test/planPrivacy.test.ts", "test/planCost.test.ts", "test/planCeiling.test.ts", "test/planWaypoints.test.ts",
+  "test/planReroute.test.ts", "test/closuresCrossing.test.ts"];
 
+const NL = String.fromCharCode(10);
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
   m("search-ceiling-strict", "lambdaSearch.ts", "if (duration <= ceiling && (best", "if (duration < ceiling && (best"),
@@ -66,7 +69,7 @@ export const MUTATIONS = [
   m("hazard-case", "hazards.ts", "run.value.toLowerCase()", "run.value"),
   m("hazard-access-yes", "hazards.ts", "[\"yes\", \"missing\"]", "[\"missing\"]"),
   m("planner-seven-scenic", "scenicPlanner.ts", "MAX_EVALUATIONS = 6;", "MAX_EVALUATIONS = 7;"),
-  m("planner-other-model", "scenicPlanner.ts", "SCENIC_PROFILE, buildCustomModel(lambda, null)", "SCENIC_PROFILE, buildCustomModel(Math.min(8, lambda + 0.25), null)"),
+  m("planner-other-model", "scenicPlanner.ts", "SCENIC_PROFILE, buildCustomModel(lambda, closures)", "SCENIC_PROFILE, buildCustomModel(Math.min(8, lambda + 0.25), closures)"),
   m("planner-ceiling-plus", "scenicPlanner.ts", "fastestSeconds + budgetSeconds;", "fastestSeconds + budgetSeconds + 1;"),
   m("planner-overlap-inclusive", "scenicPlanner.ts", "!(shared < MAXIMUM_OVERLAP)", "!(shared <= MAXIMUM_OVERLAP)"),
   m("planner-no-way-ids", "scenicPlanner.ts", "\"osm_way_id\", ...HAZARD_DETAILS", "...HAZARD_DETAILS"),
@@ -74,10 +77,30 @@ export const MUTATIONS = [
   m("plan-kill-late", "plan.ts", "if (paused) return", "if (false) return"),
   m("plan-hours", "plan.ts", "request.budgetMinutes * 60", "request.budgetMinutes * 3600"),
   m("plan-quota-503", "plan.ts", "resets_at: verdict.resetsAt }, 429)", "resets_at: verdict.resetsAt }, 503)"),
+  m("token-pin-upper", "planRequest.ts", "pin > MAX_WAYPOINTS)", "pin > MAX_WAYPOINTS + 1)"),
+  m("token-pin-lower", "planRequest.ts", "pin < 0 ||", "pin < -1 ||"),
+  m("token-pin-fraction", "planRequest.ts", "!Number.isInteger(pin) ||", ""),
+  m("token-grammar-case", "planToken.ts", "[0-9a-f]{12}$/;", "[0-9a-f]{12}$/i;"),
+  m("token-grammar-long", "planToken.ts", "[0-9a-f]{12}$/;", "[0-9a-f]{12,13}$/;"),
+  m("token-ttl-day", "planToken.ts", "PLAN_TOKEN_TTL_SECONDS = 43_200;", "PLAN_TOKEN_TTL_SECONDS = 86_400;"),
+  m("token-failed-write-named", "planToken.ts", "        return null;" + NL + "      }" + NL + "      return token;", "        return token;" + NL + "      }" + NL + "      return token;"),
+  m("token-lambda-range", "planToken.ts", "raw.lambda > LAMBDA_MAX) return null;", "raw.lambda > LAMBDA_MAX + 1) return null;"),
+  m("reroute-foreign-device", "plan.ts", "recalled.device === who.userId &&", "true &&"),
+  m("reroute-other-place", "plan.ts", "recalled.place === request.destinationPlace &&", "true &&"),
+  m("reroute-pin-count", "plan.ts", "reroute.firstPin <= recalled.pins.length", "reroute.firstPin < recalled.pins.length"),
+  m("reroute-pin-skipped", "plan.ts", "usable.pins.slice(reroute.firstPin)", "usable.pins.slice(reroute.firstPin + 1)"),
+  m("reroute-token-dropped", "plan.ts", "plan_token: token }", "plan_token: null }"),
+  m("reroute-ceiling-plus", "reroutePlanner.ts", "if (!(durationSeconds(measured) <= ceiling)) return null;", "if (!(durationSeconds(measured) <= ceiling + 1)) return null;"),
+  m("reroute-other-lambda", "reroutePlanner.ts", "SCENIC_PROFILE, buildCustomModel(lambda, closures));", "SCENIC_PROFILE, buildCustomModel(Math.min(8, lambda + 0.25), closures));"),
+  m("reroute-evaluations", "reroutePlanner.ts", "evaluations: 1,", "evaluations: 2,"),
+  m("reroute-used-strict", "reroutePlanner.ts", "eta >= fastestSeconds + MIN_BUDGET_USE * budgetSeconds", "eta > fastestSeconds + budgetSeconds"),
+  m("reroute-retry-over-ceiling", "reroutePlanner.ts", "return durationSeconds(again) <= ceiling ? again : null;", "return again;"),
+  m("reroute-retry-ceiling-strict", "reroutePlanner.ts", "<= ceiling ? again : null;", "< ceiling ? again : null;"),
+  m("reroute-first-closures-dropped", "reroutePlanner.ts", "SCENIC_PROFILE, buildCustomModel(lambda, closures));", "SCENIC_PROFILE, buildCustomModel(lambda, null));"),
 ];
 
 export const EQUIVALENT = [
-  { id: "planner-ceiling-guard", file: "src/scenicPlanner.ts", find: "if (!(eta <= ceiling))",
+  { id: "planner-ceiling-guard", file: "src/scenicPlanner.ts", find: "if (!(firstEta <= ceiling))",
     witness: "chosen is the measured route at outcome.lambda, and searchLambda returns only a measured duration <= the "
       + "same ceiling; bisection lambdas are distinct at formatMultiplier's 6 dp, so no second route shares the key. "
       + "Defence in depth - searchLambda's own ceiling mutants (search-ceiling-strict etc.) are the observable ones." },
@@ -134,6 +157,9 @@ function main(argv) {
     return arms.every(([, r]) => r !== null) && real === null ? 0 : 1;
   }
 
+  const only = argv.find((a) => a.startsWith("--only="))?.slice(7).split(",") ?? null;
+  const without = argv.find((a) => a.startsWith("--without="))?.slice(10) ?? null;
+  if (without !== null) TESTS.splice(TESTS.indexOf(without), TESTS.includes(without) ? 1 : 0);
   const refusal = floorRefusal();
   if (refusal) { console.log(`REFUSING TO RUN: ${refusal}`); return 2; }
   for (const x of [...MUTATIONS, ...EQUIVALENT]) {
@@ -154,7 +180,9 @@ function main(argv) {
   }
 
   const tally = { CAUGHT: 0, MISSED: 0, TRAP: 0 };
-  for (const x of MUTATIONS) {
+  const run = only === null ? MUTATIONS : MUTATIONS.filter((x) => only.includes(x.id));
+  if (only !== null && run.length !== only.length) { console.log(`REFUSING: --only names an id not in MUTATIONS`); return 2; }
+  for (const x of run) {
     const path = join(API, x.file);
     const original = readFileSync(path, "utf8");
     let result;
@@ -168,9 +196,10 @@ function main(argv) {
     tally[v] += 1;
     console.log(`${v.padEnd(6)} ${x.id}${result.named.length ? ` by "${result.named[0]}"` : ""}`);
   }
-  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${MUTATIONS.length}`);
-  if (prove) return tally.MISSED === MUTATIONS.length ? 0 : 1;
-  return tally.CAUGHT === MUTATIONS.length ? 0 : 1;
+  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${run.length}`
+    + `${without === null ? "" : ` without ${without}`}`);
+  if (prove) return tally.MISSED === run.length ? 0 : 1;
+  return tally.CAUGHT === run.length ? 0 : 1;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main(process.argv.slice(2)));
