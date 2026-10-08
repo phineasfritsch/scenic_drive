@@ -157,3 +157,23 @@ a measurement task first).
   PR #209 opened; CI on its first run (7152aea3): core pass, pins-source-only pass.
   OWNER DEPLOY STEP (R3): `wrangler kv namespace create PLANS` and bind it as PLANS; until then every answer's
   plan_token is null and every reroute is the fresh plan.
+- 2026-10-08T15:23:40Z FIX ROUND 1 RULINGS (rv1-t0319 FAIL, PR #209 at fb7d041f), before any code:
+  B1 (reroute re-request over the ceiling returned) and B2 (closures never sent on the reroute's first car_scenic
+  request) are one CLASS: the reroute path was outside closuresCrossing's cross product. Closed by making the reroute
+  a fourth entry of ROUTE_NAMES ("/plan reroute": handler ROUTES["/plan"], PLANS bound to a KV holding a usable
+  token for the request's device and place, BASE 1 car_scenic request before any re-request), so every row the
+  other paths have - set x shape x router, the re-request-is-the-request row - is generated for it, and a path added
+  to ROUTE_NAMES cannot skip them. The guard rows become a function of the path list: every path whose handler is
+  /plan gets "the re-request over the ceiling", "one second over the ceiling" and "exactly at the ceiling (returned,
+  the ceiling is inclusive)". RULING on the review's "re-request null": the retry answers null only through its own
+  ceiling guard (reroutePlanner has no other null arm), so the over/one-over rows ARE the null rows; a router error
+  on the re-request propagates the same way on every path and has no reroute branch. One whole-list row: a reroute
+  under X alone sends exactly [car_fast origin->destination, car_scenic origin->pins->destination carrying
+  buildCustomModel(lambda, X)] - full equality of every request body.
+  Population: planMutants.mjs TESTS += closuresCrossing.test.ts; entries reroute-retry-over-ceiling (B1),
+  reroute-first-closures-dropped (B2) and reroute-retry-ceiling-strict (`<= ceiling ? again` -> `< ceiling ? again`),
+  each run --only MISSED against fb7d041f's tests, then CAUGHT by name.
+  P-PRIV-04 (recordable): a sweep needs PLANS keys a deletion can enumerate (device-prefixed keys, so recall must
+  rebuild the key from the caller), list()+delete() on the KV interface, and an edit to src/account.ts, whose whole
+  bytes are SHA-pinned by identityVerifierPin.test.ts - well over 40 lines and a second gate re-approval. RULED: the
+  12 h TTL (PLAN_TOKEN_TTL_SECONDS) plus the privacy notice is this task's policy; the sweep is filed as T-0326.
