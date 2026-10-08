@@ -225,7 +225,7 @@ MUTATIONS = [
     ("61 the controller drops the answer's token", CONTROLLER, "planToken: reply.planToken)", "planToken: nil)",
      [R_TOKEN, R_LATE]),
     ("62 the reply value drops its token", REPLY, "self.planToken = planToken", "self.planToken = nil",
-     [R_TOKEN, R_DRAWN]),
+     [R_TOKEN, R_LATE]),
     ("63 the request value drops its token", REQUEST, "self.planToken = planToken", "self.planToken = nil",
      [R_TOKEN]),
     ("64 the sender asks without a token", REROUTER,

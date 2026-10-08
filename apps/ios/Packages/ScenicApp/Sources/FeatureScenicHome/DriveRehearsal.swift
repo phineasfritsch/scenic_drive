@@ -6,9 +6,9 @@ import ScenicKit
 /// written nowhere (LaunchScreen's pattern); `LaunchScreen(rawValue: "drive")` is nil, so Settings stays closed.
 /// It lives here because the shell may carry no `#` directive (ops/lib/check-safety-disclaimer-frozen).
 ///
-/// T-0328 R8: the rehearsal REROUTES. Its planned line runs 0.003 deg north of the road the simulated location drives,
-/// so the fixes are off-route after DriveSession's 5 s dwell; the rehearsal is then its own reroute sender and answers
-/// at once with the road itself, which the drive map draws in place of the planned line.
+/// T-0328 R8: the rehearsal REROUTES. Its planned line runs straight, 0.003 deg north of the road the simulated
+/// location drives, so the fixes are off-route after DriveSession's 5 s dwell; the rehearsal is then its own reroute
+/// sender and answers at once with the road itself, which the drive map draws in place of the planned line.
 public struct DriveRehearsal: RerouteSending {
     /// A short stretch of Mulholland Highway in the Santa Monica Mountains. The workflow's simulated location
     /// (`simctl location start`) moves along these same four points, so the fixes are on THIS line.
@@ -19,8 +19,11 @@ public struct DriveRehearsal: RerouteSending {
         Coordinate(latitude: 34.0830, longitude: -118.6050),
     ]
 
-    /// The rehearsal's planned line: the road shifted 0.003 deg north (~333 m, beyond the 50 m threshold).
-    static let planned = line.map { Coordinate(latitude: $0.latitude + 0.003, longitude: $0.longitude) }
+    /// The rehearsal's planned line: ONE straight segment from the road's first point to its last, shifted 0.003 deg
+    /// north (~333 m, beyond the 50 m threshold) - so the shot tells it from the road's three kinked segments.
+    static let planned = [line[0], line[line.count - 1]].map {
+        Coordinate(latitude: $0.latitude + 0.003, longitude: $0.longitude)
+    }
 
     /// The preview to drive at launch, or nil: always nil outside DEBUG.
     public static var atLaunch: PlanPreview? {

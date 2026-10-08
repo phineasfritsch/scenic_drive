@@ -213,6 +213,9 @@ import Testing
                 continue
             }
             #expect(got == want, "token \(token ?? "nil")")
+            // Read back field by field against literals too: `want` is built by the same inits it checks.
+            let kept = got.continuation.map { [$0.token, String($0.place), String($0.budgetMinutes)] }
+            #expect(kept == token.map { [$0, "42", "25"] }, "token \(token ?? "nil")")
             let bare = PlanPreview(route: want.route, etaSeconds: 900, fastestEtaSeconds: 800, etaIsEstimate: true,
                                    hazards: [], waypoints: want.waypoints, lambda: 7.75)
             #expect(SavedDraft.of(want, budgetMinutes: 25, name: "x", createdAt: 1)
