@@ -71,22 +71,27 @@ function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: numbe
 }
 const F64 = new Float64Array(1);
 const I64 = new BigInt64Array(F64.buffer);
-/** The adjacent double to non-zero x, one step away from zero (dir 1) or toward it (dir -1). */
-const ulp = (x: number, dir: 1 | -1) => { F64[0] = x; I64[0] += BigInt(dir); return F64[0]; };
-/** A point exactly OVERNIGHT_RADIUS (15 km) from boundary vertex v by the haversine, and the next latitude farther
- *  out. 15 km due north is not representable (14999.999999999427, then 15000.000000000218), so the longitude steps
- *  east 1e-7 degrees at a time until one latitude lands on 15_000 itself. */
-function onRadius(v: number, sign: 1 | -1): { lat: number; lon: number; past: number } {
+/** A positive double's bits, and back: adjacent latitudes are adjacent integers. */
+const bits = (x: number) => { F64[0] = x; return I64[0]!; };
+const double = (n: bigint) => { I64[0] = n; return F64[0]!; };
+/** A point exactly `meters` from road vertex v by the haversine (15_000: OVERNIGHT_RADIUS, 5_000: CORRIDOR), and the
+ *  next latitude farther out. 15 km due north is not representable (14999.999999999427, then 15000.000000000218), so
+ *  the longitude steps east 1e-7 degrees at a time until one latitude lands on `meters` itself. Per longitude, the
+ *  last latitude within `meters` (and the first past it) is bisected over the doubles' bits. */
+function onDistance(v: number, sign: 1 | -1, meters: number): { lat: number; lon: number; past: number } {
   const b = { lat: ROAD[v]![1], lon: ROAD[v]![0] };
   for (let j = 1; j <= 20_000; j++) {
     const lon = b.lon + j * 1e-7;
     const d = (lat: number) => haversine({ lat, lon }, b);
-    let lat = b.lat + (sign * 15_000) / M_PER_DEG;
-    while (d(lat) > 15_000) lat = ulp(lat, (-sign) as 1 | -1);
-    while (d(ulp(lat, sign)) <= 15_000) lat = ulp(lat, sign);
-    if (d(lat) === 15_000) return { lat, lon, past: ulp(lat, sign) };
+    let inside = bits(b.lat), outside = bits(b.lat + (sign * 2 * meters) / M_PER_DEG);
+    while (inside - outside > 1n || outside - inside > 1n) {
+      const mid = (inside + outside) / 2n;
+      if (d(double(mid)) <= meters) inside = mid; else outside = mid;
+    }
+    const lat = double(inside);
+    if (d(lat) === meters) return { lat, lon, past: double(outside) };
   }
-  throw new Error(`no double lies exactly 15 km from vertex ${v}`);
+  throw new Error(`no double lies exactly ${meters} m from vertex ${v}`);
 }
 
 type Night = { kind: "lodging"; name: string; meters: number } | { kind: "no_lodging" } | { kind: "not_searched" };
@@ -173,7 +178,7 @@ describe("worker.fetch /trip names overnight towns and corridor stops from trip_
   });
 
   for (const [side, sign] of [["north", 1], ["south", -1]] as const) {
-    const points = BOUNDARY.map((v) => onRadius(v, sign));
+    const points = BOUNDARY.map((v) => onDistance(v, sign, 15_000));
     const row = (on: boolean) => BOUNDARY.map((v, i) => ({ id: `l-r${v}`, name: `Radius Inn ${v}`, kind: "lodging" as const,
       score: 0, lat: on ? points[i]!.lat : points[i]!.past, lon: points[i]!.lon }));
     it(`a lodging exactly on the 15 km radius (${side}, every boundary) is the night at 15000 m: the whole answer`, async () => {
@@ -183,6 +188,33 @@ describe("worker.fetch /trip names overnight towns and corridor stops from trip_
     it(`a lodging one latitude step past the 15 km radius (${side}, every boundary) is no_lodging: the whole answer`, async () => {
       await load(row(false));
       expect(await send()).toEqual({ status: 200, json: expected([NONE, NONE, NONE, NONE], CORRIDOR.zero.stops) });
+    });
+
+    /** Stops exactly CORRIDOR_METERS (5 km) off each boundary vertex: inside the 15 km lodging radius, never a night. */
+    const near = BOUNDARY.map((v) => onDistance(v, sign, 5_000));
+    const stops = (on: boolean) => BOUNDARY.map((v, i) => ({ id: `s-c${v}`, name: `Corridor Stop ${v}`, kind: "stop" as const,
+      score: 0, lat: on ? near[i]!.lat : near[i]!.past, lon: near[i]!.lon }));
+    it(`the 5 km corridor points (${side}) have their boundary vertex as nearest, at exactly 5000 m`, () => {
+      const nearest = (p: { lat: number; lon: number }) => ROAD.map(([lon, lat]) => haversine(p, { lat, lon }))
+        .reduce((best, m, i) => (m < best.m ? { i, m } : best), { i: -1, m: Infinity });
+      expect(stops(true).map(nearest)).toEqual(BOUNDARY.map((i) => ({ i, m: 5_000 })));
+    });
+    it(`a stop exactly 5 km from its nearest vertex (${side}, every boundary) is that day's stop and no night: the whole answer`, async () => {
+      await load(stops(true));
+      expect(await send()).toEqual({ status: 200, json: expected([NONE, NONE, NONE, NONE],
+        [...BOUNDARY.map((v) => [`Corridor Stop ${v}`]), []]) });
+    });
+    it(`a stop one latitude step past 5 km (${side}, every boundary) is no stop and no night: the whole answer`, async () => {
+      await load(stops(false));
+      expect(await send()).toEqual({ status: 200, json: expected([NONE, NONE, NONE, NONE], CORRIDOR.zero.stops) });
+    });
+  }
+
+  for (const order of ["reverse name order", "name order"] as const) {
+    it(`two lodgings at one spot near boundary 16, inserted in ${order}: the earlier name is the night (whole answer)`, async () => {
+      const pair = [at("l-zephyr", "Zephyr Inn", "lodging", 0, 16, 2_000), at("l-alder", "Alder Inn", "lodging", 0, 16, 2_000)];
+      await load(order === "name order" ? pair.reverse() : pair);
+      expect(await send()).toEqual({ status: 200, json: expected([NONE, inn("Alder Inn", 2_000), NONE, NONE], CORRIDOR.zero.stops) });
     });
   }
 
@@ -233,7 +265,14 @@ describe("the trip_places table (migrations/0009_trip_places.sql, T-0316 R1)", (
     ["kind hotel", { kind: "hotel" }, false], ["kind Lodging", { kind: "Lodging" }, false], ["kind null", { kind: null }, false],
     ["score 1.5", { score: 1.5 }, false], ["score text", { score: "high" }, false], ["score null", { score: null }, false],
     ["name empty", { name: "" }, false], ["name null", { name: null }, false],
+    // One blob row per text column of the valid row: its own value's non-empty UTF-8 bytes, stored by TEXT affinity
+    // unchanged, refused.
+    ...Object.entries(ok).filter(([, v]) => typeof v === "string")
+      .map(([col, v]): [string, Record<string, unknown>, boolean] => [`${col} blob`, { [col]: new TextEncoder().encode(v as string) }, false]),
   ];
+  it("the blob rows cover every text column of the valid row: name and kind", () => {
+    expect(CASES.filter(([n]) => n.endsWith(" blob")).map(([n]) => n)).toEqual(["name blob", "kind blob"]);
+  });
   for (const [name, over, accepted] of CASES) {
     it(`${name} is ${accepted ? "accepted" : "refused"}`, async () => {
       const r = { ...ok, ...over };

@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 87;
+export const MIN_MUTATIONS = 91;
 export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts", "src/tripPlaces.ts",
   "migrations/0009_trip_places.sql"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
@@ -124,6 +124,12 @@ export const MUTATIONS = [
   m("places-query-bound", "tripPlaces.ts", "db.prepare(TRIP_PLACES_QUERY).all", "db.prepare(TRIP_PLACES_QUERY).bind().all"),
   m("places-read-before-kill", "trip.ts", "  const paused = await killSwitch(env);\n",
     "  await deps?.tripPlaces().catch(() => null);\n  const paused = await killSwitch(env);\n"),
+  // T-0316 review round 1 (B1, B2, B3, R-c).
+  m("split-corridor-exclusive", "roadTrip.ts", "if (bestMeters <= CORRIDOR_METERS)", "if (bestMeters < CORRIDOR_METERS)"),
+  m("split-overnight-tie-late-name", "roadTrip.ts", "best.meters === meters && best.name < lodging.name",
+    "best.meters === meters && best.name > lodging.name"),
+  { id: "table-name-any-type", file: "migrations/0009_trip_places.sql", find: "CHECK (typeof(name) = 'text' AND ", replace: "CHECK (" },
+  m("split-lodging-from-any-kind", "roadTrip.ts", "const lodgings = places.filter((p) => p.kind === \"lodging\");", "const lodgings = places;"),
 ];
 
 export const EQUIVALENT = [
