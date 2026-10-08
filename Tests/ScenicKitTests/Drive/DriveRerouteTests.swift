@@ -49,6 +49,12 @@ struct DriveRerouteTests {
                 var s = Self.session(v)
                 let (asked, off) = Self.drive(&s, line: v.line, through: row.segment)
                 #expect(asked == Self.expected(v, passed: passed, from: off), "segment \(row.segment)")
+                // Field by field as well: both sides of `==` go through RerouteRequest.init, which could drop a field.
+                #expect(asked?.origin == off)
+                #expect(asked?.remainingWaypoints == Array(v.pins[passed...]))
+                #expect(asked?.firstRemainingWaypoint == passed)
+                #expect(asked?.destination == v.line[v.line.count - 1])
+                #expect(asked?.lambda == v.lambda)
                 #expect(s.mode == .rerouting)
             }
         }

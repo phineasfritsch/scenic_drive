@@ -8,7 +8,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
-DRIVERS = ("budget.py", "corpusfetch.py", "corpusota.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
+DRIVERS = ("budget.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
            "hazards.py", "ledger.py", "menu.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py",
            "roadtrip.py", "routescore.py",
            "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py",
@@ -49,6 +49,9 @@ COVERED_FLOOR = (
     "services/etl/etl/snap.py", "services/etl/etl/surfacecoverage.py", "services/etl/etl/tagwriter.py",
     "Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift",
     "Sources/Handoff/StraightLineDistance.swift",
+    "Sources/ScenicKit/Drive/DriveSession.swift", "Sources/ScenicKit/Drive/DriveLine.swift",
+    "Sources/ScenicKit/Drive/DriveSurface.swift", "Sources/ScenicKit/Drive/DriveFix.swift",
+    "Sources/ScenicKit/Drive/RerouteRequest.swift",
     "Sources/ScenicKit/TripSheet/TripSheet.swift", "Sources/ScenicKit/TripSheet/TripFailure.swift",
     "Sources/ScenicAPIClient/TripRequestBody.swift", "Sources/ScenicAPIClient/TripReplyReader.swift",
     "Sources/ScenicAPIClient/TripError.swift", "Sources/ScenicAPIClient/TripClient.swift",
