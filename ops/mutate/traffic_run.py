@@ -1,5 +1,5 @@
-"""The mutant runner for ops/mutate/drive.py (T-0317): surprise_run.py's machinery with this population's
-scratch path and filter; ops/lib/check-mutate-population.py reads the whole `drive*.py` family as one driver's
+"""The mutant runner for ops/mutate/traffic.py (T-0320): surprise_run.py's machinery with this population's
+scratch path and filter; ops/lib/check-mutate-population.py reads the whole `traffic*.py` family as one driver's
 code, and this file has no `__main__` block. A catch is a NAMED test recording an issue, and the name must be one
 the entry names; a trap, a compile failure, a stale anchor and a catch by another test do not count.
 """
@@ -13,12 +13,12 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.dont_write_bytecode = True
 
-from drive_mutations import ROOT
+from traffic_mutations import ROOT
 
 # Under .build/, which .gitignore excludes, and its own scratch path because this box is shared.
-SCRATCH = ".build/mutate-drive"
+SCRATCH = ".build/mt"
 # The suites every `killers` entry names, by their type names.
-FILTER = "DriveSessionTests|DriveRerouteTests|DriveMotionGateTests|DriveControllerTests|DriveLegTests"
+FILTER = "LearnedCorridorSpeedsTests|HourOfWeekTests|LearnedSpeedsPrivacyTests"
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
 

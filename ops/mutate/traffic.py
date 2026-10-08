@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Mutation harness for T-0317's drive session (Sources/ScenicKit/Drive): off-route, reroute, rejoin, motion gate.
+"""Mutation harness for T-0320's corridor learner (Sources/ScenicKit/Traffic/*.swift).
 
-    python ops/mutate/drive.py
-    python ops/mutate/drive.py --prove-vacuity
-    python ops/mutate/drive.py --prove-floor
-    python ops/mutate/drive.py --only 1,5,13 [--prove-vacuity]
+    python ops/mutate/traffic.py
+    python ops/mutate/traffic.py --prove-vacuity
+    python ops/mutate/traffic.py --prove-floor
+    python ops/mutate/traffic.py --only 1,5,13 [--prove-vacuity]
 
 `--only` runs just the entries whose leading id is listed; the floor still checks the WHOLE population first.
-The population is ops/mutate/drive_mutations.py and the runner ops/mutate/drive_run.py; this file is the
+The population is ops/mutate/traffic_mutations.py and the runner ops/mutate/traffic_run.py; this file is the
 CLI, the floors and the proof arms - surprise.py's three-file shape. The subjects and the harness's own files are
 compared with `git show HEAD:` before the first build: a mutation report is a claim about a COMMIT.
 `--prove-vacuity` replaces the three test files with empty suites and requires EVERY mutation to report MISSED.
@@ -26,19 +26,19 @@ sys.dont_write_bytecode = True
 shutil.rmtree(pathlib.Path(__file__).resolve().parent / "__pycache__", ignore_errors=True)
 
 # What this population covers, repo-relative, for ops/lib/check-mutate-population.py (P-PROC-06).
-SUBJECT_MODULES = ("Sources/ScenicKit/Drive/DriveSession.swift", "Sources/ScenicKit/Drive/DriveLine.swift",
-                   "Sources/ScenicKit/Drive/DriveSurface.swift", "Sources/ScenicKit/Drive/DriveFix.swift",
-                   "Sources/ScenicKit/Drive/RerouteRequest.swift", "Sources/ScenicKit/Drive/DriveController.swift",
-                   "Sources/ScenicKit/Drive/DriveLeg.swift", "Sources/ScenicKit/Drive/RerouteUnavailable.swift")
+SUBJECT_MODULES = ("Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift", "Sources/ScenicKit/Traffic/HourOfWeek.swift",
+                   "Sources/ScenicKit/Traffic/CorridorRatio.swift", "Sources/ScenicKit/Traffic/RetimedRoute.swift",
+                   "Sources/ScenicKit/Traffic/CorridorSlot.swift", "Sources/ScenicKit/Traffic/CorridorCell.swift",
+                   "Sources/ScenicKit/Traffic/CorridorEdge.swift")
 
-from drive_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
+from traffic_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)
-from drive_run import FILTER, build, empty_suite, not_at_head, run_all, test
+from traffic_run import FILTER, build, empty_suite, not_at_head, run_all, test
 
 TESTS = [t for t in TEST_FILES if t.exists()]
 HARNESS = (pathlib.Path(__file__).resolve(),
-           pathlib.Path(__file__).resolve().parent / "drive_mutations.py",
-           pathlib.Path(__file__).resolve().parent / "drive_run.py")
+           pathlib.Path(__file__).resolve().parent / "traffic_mutations.py",
+           pathlib.Path(__file__).resolve().parent / "traffic_run.py")
 
 
 def population_floor():
@@ -67,16 +67,13 @@ def prove_floor() -> int:
     base = {"MUTATIONS": list(MUTATIONS), "EQUIVALENT": list(EQUIVALENT), "TESTS": list(TESTS),
             "MIN_MUTATIONS": MIN_MUTATIONS}
     killers_gone = [(n, p, o, w, [] if i == 0 else k) for i, (n, p, o, w, k) in enumerate(MUTATIONS)]
-    # Padded back to the WHOLE count, so the arm can only be refused for the unmutated subject, never the floor.
-    no_draft = [m for m in MUTATIONS if m[1] != SUBJECTS[1]]
-    no_draft += [m for m in MUTATIONS if m[1] != SUBJECTS[1]][:len(MUTATIONS) - len(no_draft)]
     arms = [("MUTATIONS emptied", {"MUTATIONS": []}),
             ("MUTATIONS one short of the floor", {"MUTATIONS": base["MUTATIONS"][:MIN_MUTATIONS - 1]}),
             ("the floor raised to %d" % (MIN_MUTATIONS + 1), {"MIN_MUTATIONS": MIN_MUTATIONS + 1}),
             ("EQUIVALENT one short of the floor", {"EQUIVALENT": base["EQUIVALENT"][:MIN_EQUIVALENT - 1]}),
             ("one entry's killers emptied", {"MUTATIONS": killers_gone}),
-            ("DriveLine.swift unmutated, count padded back",
-             {"MUTATIONS": no_draft}),
+            ("HourOfWeek.swift unmutated, count padded back",
+             {"MUTATIONS": [m for m in MUTATIONS if m[1] != SUBJECTS[1]] + MUTATIONS[:4]}),
             ("a test file missing", {"TESTS": base["TESTS"][:1]})]
     g = globals()
     refused = 0

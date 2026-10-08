@@ -1,13 +1,13 @@
 ---
 id: T-0323
 title: P-STORE-02 asserts the app's side of the paid tier - the AccountToken suites bound by name, and a whitelist guard that confines the x-scenic-account-token identifier to IdentityHeaders so a fourth client cannot inline it
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T15:27:38Z
+lease_expires_at: 2026-10-08T23:27:38Z
+worktree: .worktrees/T-0323
+branch: task/T-0323
 exclusive: []
 touches: [ops/lib/, ops/check-pins, pins/PINS.yaml, Tests/ScenicAPIClientTests/]
 pins_affected: [P-STORE-02]
@@ -25,3 +25,4 @@ rv1-t0315 recordables R1, R2 and R4 (PR #206).
 
 ## Log
 - 2026-10-08T12:24:40Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0315's recordables R1, R2, R4.
+- 2026-10-08T15:27:38Z claimed by agent/claude-opus-5; lease until 2026-10-08T23:27:38Z
