@@ -1,7 +1,7 @@
 ---
 id: T-0309
 title: First-run onboarding asks for the vehicle (only "standard car" enabled) and shows the safety disclaimer; VehicleProfile lives in ScenicKit and rides every plan request; Settings shows the vehicle
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T23:30:45Z
@@ -11,7 +11,7 @@ branch: task/T-0309
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv1-t0309
 depends_on: [T-0294, T-0271]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -105,3 +105,34 @@ disclaimer)"; Settings lists vehicle. Neither exists in the code today (grep: no
   lines in ops/lib/store_links_pinned.py and re-approved ST's digest. `check-store-links.py` rc=0; `--prove-red:
   33/33 rows as required (29 mutants refused by name, 4 legitimate edits green)`; `ops/check-pins --source-only`:
   `PINS ok=17 skipped=26 pending=1 expired=0 failed=0`.
+- 2026-10-08T01:46:46Z REVIEW PASS (PR #198, head bf4345bb, worktree .worktrees/rv1-t0309 detached). agent/rv1-t0309
+  (reviewer, not the owner).
+  - ACCEPTANCE. Imports: the new lines are `import ScenicKit` (SafetyDisclaimer, VehicleChoice, VehicleSetting),
+    `import DesignSystem`/`SwiftUI` (VehicleChoice), `import Foundation` (VehicleSetting), `import Testing` in the
+    tests. The ScenicKit Vehicle files import nothing; the shell's and Entitlements' imports are unchanged. No
+    pbxproj, Package.swift or Package.resolved in the diff. The disclaimer gate is unchanged in behaviour.
+    `isSafetyDisclaimerAcknowledged = true` is still written once, at line 132, inside `SafetyDisclaimer(onAccept: {`.
+    The accept button calls onAccept only after `Onboarding` reports disclaimerAccepted. PlanSheetScreen still
+    reads the same key. The sheet keeps `interactiveDismissDisabled()`, and the only presentation is still
+    `.sheet(isPresented: $isShowingDisclaimer) {`, so P-ATTR-01's surfaces do not move. ScenicHomeScreen.swift is
+    298 lines.
+  - BARE RUNS. `swift test --filter 'OnboardingTransitionTests|VehicleProfileTests|OnboardingPlanGateTests|
+    PlanSheetTests'`: `Test run with 18 tests in 4 suites passed`. Results: check-safety-disclaimer rc=0,
+    check-map-attribution rc=0, check-mutate-population rc=0 (`every added module is covered or allowlisted; the
+    floor of 89 holds`), check-line-cap rc=0 (`none over 300 lines`), check-pins-yaml rc=0, check-store-links
+    rc=0, queue-check `QUEUE OK (301 tasks)`, `ops/check-pins --source-only`: `PINS ok=17 skipped=26 pending=1
+    expired=0 failed=0`. `gh pr checks 198`: core pass, pins-source-only pass. On bf4345bb, ios-compile
+    37710684159 and ios-screenshot 37710688856 both succeeded. `git merge-base --is-ancestor origin/main
+    origin/task/T-0309` rc=0.
+  - REVIEWER MUTANTS (not in the population, not the pre-review M1-M3). RA, Onboarding.swift: `(.disclaimer,
+    .skip)` moves to `step = .done` without accepting. Three tests go RED by name: `transition table: send(event)
+    from each state equals the row's whole expected value`, `skipping or backing out never marks the disclaimer
+    accepted` and `first launch through onboarding: zero plan requests before accept, one after` (`8 tests in 3
+    suites failed ... with 24 issues`). RB, ScenicHomeScreen.swift: the launch `.task` changes `||` to `&&`, so a
+    user who has a stored vehicle but no acknowledgement is not shown onboarding. check-safety-disclaimer goes RED,
+    rc=1: `P-SAFE-03: a frozen render block changed: ScenicHomeScreen's body ... line 28 of 39`. Both files were
+    restored with git checkout, and the worktree status is clean.
+  - RECORDED, not blocking. The Worker follow-up from acceptance 1 (a vehicle field for the /plan whitelist and
+    PlanRequestBody) is still unfiled, because queue/ was outside the touches; the orchestrator files it. The
+    corpus offer now comes on the second launch, and the `-screen` debug double sheet remains, both as the Log
+    records (R4).
