@@ -11,8 +11,13 @@ public struct SurpriseCard: View {
     private let failure: String?
     private let onOpenInMaps: @MainActor (Coordinate) -> Void
 
+    /// The device's history: every place shown (T-0310 R7) and every "not this".
     @State private var history = SurpriseHistory()
+    /// What the pick is made from: it moves only on "not this" and "start over", so recording the shown place
+    /// never re-picks.
+    @State private var basis = SurpriseHistory()
     @State private var ledgerPlaces: [SurpriseLedgerPlace]?
+    @State private var ledgerRead = false
     @Environment(\.surpriseLedger) private var ledger
     @State private var now = Date()
 
@@ -39,12 +44,32 @@ public struct SurpriseCard: View {
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("surprise.card")
-        .task { ledgerPlaces = await ledger?.ledgerPlaces() }
+        .task {
+            ledgerPlaces = await ledger?.ledgerPlaces()
+            ledgerRead = true
+        }
+        .task(id: shownID) { await recordShown(shownID) }
     }
 
     /// The device's history united with the ledger's 90 days (T-0307 R5); nil places - no session - leave it be.
     private func merged(_ deck: SurpriseDeck) -> SurpriseHistory {
-        SurpriseHistoryMerge.merged(device: history, ledger: ledgerPlaces, candidates: deck.candidates)
+        SurpriseHistoryMerge.merged(device: basis, ledger: ledgerPlaces, candidates: deck.candidates)
+    }
+
+    /// The place on the card once the ledger has answered (or there is none to ask); nil before.
+    private var shownID: String? {
+        guard ledgerRead, let deck = SurpriseDeck.bundled else { return nil }
+        return deck.pick(history: merged(deck), at: now)?.candidateId
+    }
+
+    /// The shown place goes into the device history once a day and, with a session, to the ledger with the
+    /// place's own cell (T-0310 R7, P-PRIV-05).
+    private func recordShown(_ id: String?) async {
+        guard let id, let deck = SurpriseDeck.bundled, let candidate = deck.byID[id],
+              let next = SurpriseShowing.recording(candidate, on: SurpriseDeck.context(at: now).date, in: history)
+        else { return }
+        history = next
+        await ledger?.recordShown(candidate)
     }
 
     private func content(pick: SurprisePick, candidate: SurpriseCandidate,
@@ -144,7 +169,10 @@ public struct SurpriseCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("surprise.empty")
             if !history.feedback.isEmpty {
-                Button(Copy.startOver) { history = SurpriseHistory() }
+                Button(Copy.startOver) {
+                    history = SurpriseHistory(shown: history.shown)
+                    basis = history
+                }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(DesignTokens.fg)
                     .frame(minHeight: 44)
@@ -159,6 +187,7 @@ public struct SurpriseCard: View {
                                         roundTripMinutes: pick.reason.roundTripMinutes,
                                         date: SurpriseDeck.context(at: now).date, reason: reason)
         history = SurpriseHistory(shown: history.shown, feedback: history.feedback + [feedback])
+        basis = history
     }
 
     static func symbol(_ placeClass: SurprisePlaceClass) -> String {

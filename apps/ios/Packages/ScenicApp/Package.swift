@@ -131,12 +131,14 @@ let package = Package(
         ),
         // THE ONLY IMPORTER OF ScenicAPIClient UNDER apps/ios (T-0294 R1), as MapAdapter is of MapLibre: it builds
         // the live planner the shell hands the plan sheet, and (T-0305 R4) the corpus download and launch activation.
+        // Telemetry (T-0310): H3Cell, the resolution-5 cell of each shown Surprise PLACE it posts to /ledger.
         .target(
             name: "PlanAdapter",
             dependencies: [
                 .product(name: "ScenicKit", package: "ScenicDrive"),
                 .product(name: "ScenicAPIClient", package: "ScenicDrive"),
                 .product(name: "PlaceStore", package: "ScenicDrive"),
+                .product(name: "Telemetry", package: "ScenicDrive"),
             ],
             path: "Sources/PlanAdapter",
             swiftSettings: [.swiftLanguageMode(.v6)]

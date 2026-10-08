@@ -165,6 +165,26 @@ import Testing
         #expect(await fake.count == (admitted ? 1 : 0), "\(cell)")
     }
 
+    /// The place id's digit class at both bounds ('0' 48, '9' 57) and just outside ('/' 47, ':' 58), each put at
+    /// every one of the 19 positions of a valid id; '0' is refused at the first position alone (no leading zero).
+    static let placeIdCharacters: [(Character, Bool)] = [("/", false), ("0", true), ("9", true), (":", false)]
+    static let placeIdCases: [(String, Bool)] = (0..<19).flatMap { position in
+        placeIdCharacters.map { character, admitted in
+            var id = Array("1111111111111111111")
+            id[position] = character
+            return (String(id), admitted && !(position == 0 && character == "0"))
+        }
+    }
+
+    @Test("Every place id position admits exactly 0-9 at both bounds, and a leading 0 nowhere",
+          arguments: placeIdCases)
+    func placeIdCharacterClass(_ placeId: String, _ admitted: Bool) async {
+        let fake = Self.reply(200, #"{"recorded":true}"#)
+        let outcome = await Self.client(fake).record(placeId: placeId, cell: Self.cellA)
+        #expect(outcome == (admitted ? .recorded : .refusedOnDevice), "\(placeId)")
+        #expect(await fake.count == (admitted ? 1 : 0), "\(placeId)")
+    }
+
     /// Every position of a valid day given each character just outside its class: at the two separators the
     /// neighbours of '-' (',' 44, '.' 46), digits at both bounds and other punctuation; at the eight digit positions
     /// the neighbours of 0-9 ('/' 47, ':' 58), '-', a letter and a space.

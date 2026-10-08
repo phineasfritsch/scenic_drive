@@ -43,6 +43,7 @@ MERGED = "The merged history is exactly the expected one, whatever the ledger's 
 CELLCLASS = "Every cell position admits exactly 0-9 and a-f, at both bounds of each class"
 DAYCLASS = "Every day separator and digit position refuses its out-of-class neighbours"
 DAYREAD = "A day with 0 or 9 at each digit position that can hold one is read as that day"
+PLACECLASS = "Every place id position admits exactly 0-9 at both bounds, and a leading 0 nowhere"
 NINETY = "A ledger place shown 89 days ago is never picked; 90 days ago it is picked again"
 # The merge's dedupe: both lines name the key, so a mutant swaps it in both.
 KEY = ("if let held = latest[entry.candidateId], Surprise.days(entry.date, since: held.date) <= 0 { return }\n"
@@ -51,11 +52,12 @@ KEY = ("if let held = latest[entry.candidateId], Surprise.days(entry.date, since
 # The cell's two classes and the day's digit class, each anchored on its whole expression.
 CELL_CLASSES = "(48...57).contains($0) || (97...102).contains($0)"
 DAY_CLASS = "(48...57).contains($0) } }"
+PLACE_CLASS = "digits.allSatisfy({ (48...57).contains($0) })"
 
 MUTATIONS = [
     ("1 an empty token is a session", CLIENT,
-     "guard let token = session.sessionToken(), !token.isEmpty else { return nil }",
-     "guard let token = session.sessionToken() else { return nil }", [NOSESSION]),
+     "guard let token = await session.sessionToken(), !token.isEmpty else { return nil }",
+     "guard let token = await session.sessionToken() else { return nil }", [NOSESSION]),
     ("2 the bearer prefix lost", CLIENT, '"Bearer \\(token)",', '"\\(token)",', [POST]),
     ("3 GET sends a body", CLIENT, "body: Data()), isRead: true)", 'body: Data("{}".utf8)), isRead: true)', [GET]),
     ("4 the device refusal skipped", CLIENT,
@@ -126,6 +128,11 @@ MUTATIONS = [
      [CELLCLASS]),
     ("43 the day's digit class refuses 0", READER, DAY_CLASS, DAY_CLASS.replace("48", "49"), [DAYREAD]),
     ("44 the day's digit class refuses 9", READER, DAY_CLASS, DAY_CLASS.replace("57", "56"), [DAYREAD]),
+    # 45-46: T-0310 rv1 B1's class - the place id's digit class at both bounds (its outside neighbours: E2, E3).
+    ("45 the place id's digit class refuses 0", ENTRY, PLACE_CLASS, PLACE_CLASS.replace("(48...57)", "(49...57)"),
+     [PLACECLASS]),
+    ("46 the place id's digit class refuses 9", ENTRY, PLACE_CLASS, PLACE_CLASS.replace("(48...57)", "(48..<57)"),
+     [PLACECLASS]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -134,8 +141,16 @@ EQUIVALENT = [
      "(1...20).contains(digits.count)",
      "a 20-digit decimal with no leading zero is at least 10^19 > Int64.max, so Int64(placeId) is nil and the "
      "entry is refused by the next clause either way"),
+    ("E2 the place id's digit class admits a slash", ENTRY, PLACE_CLASS,
+     PLACE_CLASS.replace("(48...57)", "(47...57)"),
+     "Int64(String) parses an optional sign then decimal digits only, so a place id holding '/' is nil there and "
+     "the entry is refused by the next clause either way"),
+    ("E3 the place id's digit class admits a colon", ENTRY, PLACE_CLASS,
+     PLACE_CLASS.replace("(48...57)", "(48...58)"),
+     "Int64(String) parses an optional sign then decimal digits only, so a place id holding ':' is nil there and "
+     "the entry is refused by the next clause either way"),
 ]
 
-MIN_MUTATIONS = 44
-MIN_EQUIVALENT = 1
+MIN_MUTATIONS = 46
+MIN_EQUIVALENT = 3
 MIN_TEST_FILES = 2
