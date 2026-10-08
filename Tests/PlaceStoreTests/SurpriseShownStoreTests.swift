@@ -24,9 +24,10 @@ struct SurpriseShownStoreTests {
         let first = [Self.record("b", 20_733), Self.record("a", 20_733, category: "park"), Self.record("c", 20_700)]
         let expected = [Self.record("c", 20_700), Self.record("a", 20_733, category: "park"), Self.record("b", 20_733)]
         #expect(try store.record(first, keepingFrom: 20_644) == expected)
-        #expect(try store.record([Self.record("a", 20_733), Self.record("a", 20_734)], keepingFrom: 20_644)
-                == expected + [Self.record("a", 20_734)], "the same place the same day is not a second row")
-        #expect(try SurpriseShownStore(path: path).list() == expected + [Self.record("a", 20_734)])
+        let second: [SurpriseShownRecord] = expected + [Self.record("a", 20_734)]
+        #expect(try store.record([Self.record("a", 20_733), Self.record("a", 20_734)], keepingFrom: 20_644) == second,
+                "the same place the same day is not a second row")
+        #expect(try SurpriseShownStore(path: path).list() == second)
     }
 
     @Test("a write prunes every day before keepingFrom and keeps keepingFrom itself; a read prunes nothing")

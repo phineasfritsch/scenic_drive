@@ -57,7 +57,8 @@ import Testing
                 offenders.append("\(n) -> \(d.year)-\(d.month)-\(d.day)")
             }
         }
-        #expect(last - first == 801 * 365 + 195 - 1, "801 years of days, 195 of them leap years")
+        let span: Int = 801 * 365 + 195 - 1
+        #expect(last - first == span, "801 years of days, 195 of them leap years")
         #expect(offenders == [])
     }
 
