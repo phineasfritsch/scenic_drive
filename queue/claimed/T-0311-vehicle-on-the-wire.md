@@ -140,3 +140,7 @@ widening anything else.
     `run-named-tests.py P-PRIV-05`: `NAMED P-PRIV-05 passed=47/48`, the one RED the GRDB-only
     `noColumnNamesAPlaceOrATrail(): MISSING` as before (Linux CI is its proof). `check-pins-yaml.py`
     `PINS-YAML ok pins=44 fields=355`. Sizes: requiredKeys.test.ts 148, vehicleMutants.mjs 175.
+  - PRE-PUSH on 1b8ff879: `git fetch origin` + `git merge origin/main` -> `Already up to date` (origin/main 9e0c69be,
+    an ancestor; T-0310 has not landed, so no digest rows to reconcile). Bare guards: check-safety-disclaimer rc=0,
+    check-map-attribution rc=0. Full vitest alone: `Test Files 77 passed (77)`, `Tests 2130 passed (2130)`.
+    `NAMED P-COST-01 passed=46/46`; `NAMED P-PRIV-05 passed=47/48` (the GRDB-only MISSING above); `QUEUE OK (302 tasks)`.
