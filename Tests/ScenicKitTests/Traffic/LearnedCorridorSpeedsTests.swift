@@ -1,0 +1,166 @@
+import Foundation
+import Testing
+@testable import ScenicKit
+
+/// T-0320: the on-device corridor learner through its two shipping calls, record and retime, each answer compared
+/// WHOLE (the whole slot table, the whole RetimedRoute) to a value written out per row.
+@Suite("learned corridor speeds (T-0320)") struct LearnedCorridorSpeedsTests {
+    static let utc = TimeZone(secondsFromGMT: 0)!
+    static let cellA = CorridorCell(index: 0x0882_8308_2bff_ffff)
+    static let cellB = CorridorCell(index: 0x0882_8308_2dff_ffff)
+    /// Monday 2026-10-05 08:00:00Z, hour of the week 8.
+    static let monday8 = Date(timeIntervalSince1970: 1_791_187_200)
+    static let hour8 = HourOfWeek(8)!
+    static let hour9 = HourOfWeek(9)!
+    /// The learner's zone, each departure moved by its offset so the local wall clock is the same in every zone:
+    /// UTC, UTC-7 (local Sunday 23:00 is Monday 06:00Z) and UTC+5:30 (a zone off the whole hour).
+    static let zones = [utc, TimeZone(secondsFromGMT: -7 * 3600)!, TimeZone(secondsFromGMT: 5 * 3600 + 1800)!]
+
+    static func taught(_ times: Int, _ cell: CorridorCell, _ hour: HourOfWeek, actual: Double, freeFlow: Double,
+                       into speeds: inout LearnedCorridorSpeeds) {
+        for _ in 0..<times {
+            let accepted = speeds.record(cell: cell, hourOfWeek: hour, actualSeconds: actual, freeFlowSeconds: freeFlow)
+            #expect(accepted)
+        }
+    }
+
+    /// P-SAFE-07: the badge is on through 4 samples and off at 5 exactly, crossed with the route's other edge
+    /// learned or not, and with both cells also taught 0, 1 or 5 times at hour 9, which no edge enters - the
+    /// count is per (cell, hour) slot (R7), so the row's answer is a function of the first two and never the third.
+    @Test("the estimate badge: on at 0 and 4 samples, off at 5 and 6, and on whenever another edge is unlearned")
+    func badgeAtFiveSamples() {
+        for otherHourSamples in [0, 1, 5] {
+            for otherLearned in [true, false] {
+                for (n, edgeA, estimate) in [(0, 60.0, true), (4, 60.0, true), (5, 120.0, false), (6, 120.0, false)] {
+                    var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
+                    Self.taught(n, Self.cellA, Self.hour8, actual: 120, freeFlow: 60, into: &speeds)
+                    Self.taught(otherLearned ? 5 : 4, Self.cellB, Self.hour8, actual: 100, freeFlow: 75, into: &speeds)
+                    // Decoys at hour 9, each cell at the other's ratio.
+                    Self.taught(otherHourSamples, Self.cellA, Self.hour9, actual: 100, freeFlow: 75, into: &speeds)
+                    Self.taught(otherHourSamples, Self.cellB, Self.hour9, actual: 120, freeFlow: 60, into: &speeds)
+                    let edges = [CorridorEdge(cell: Self.cellA, freeFlowSeconds: 60),
+                                 CorridorEdge(cell: Self.cellB, freeFlowSeconds: 1)]
+                    // edge B: 1 s at ratio 0.75 is 4/3 s - entered within hour 8 either way.
+                    let edgeB = otherLearned ? 1.0 / 0.75 : 1.0
+                    let expected = RetimedRoute(edgeSeconds: [edgeA, edgeB], isEstimate: estimate || !otherLearned)
+                    #expect(speeds.retime(edges, departsAt: Self.monday8) == expected,
+                            "n=\(n) other=\(otherLearned) hour9=\(otherHourSamples)")
+                }
+            }
+        }
+    }
+
+    @Test("an empty route is an estimate with no edges")
+    func emptyRouteIsAnEstimate() {
+        var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
+        Self.taught(5, Self.cellA, Self.hour8, actual: 120, freeFlow: 60, into: &speeds)
+        #expect(speeds.retime([], departsAt: Self.monday8) == RetimedRoute(edgeSeconds: [], isEstimate: true))
+    }
+
+    enum Side: CaseIterable { case inRange, below, above }
+
+    /// R2 + R3: alpha 0.25, the first sample seeds, and each observation is clamped to [0.3, 1.0] BEFORE the EWMA -
+    /// over the cross product {first in range, below 0.3, above 1.0} x {second in range, below, above}, the whole
+    /// slot table after each record. rv1-t0320 B1: the stored ratio clamped AFTER the EWMA instead differs exactly
+    /// when the second observation is out of range and the first is not clamped onto that same bound (the Log's
+    /// ruling: a convex combination of two in-range values never needs the clamp) - the meta-check holds every row
+    /// to that partition.
+    @Test("the EWMA: the first sample seeds the ratio, the second moves it by alpha 0.25")
+    func ewmaFirstAndSecondUpdate() {
+        // actualSeconds against free-flow 60: first 0.5 / 0.1 / 2.0, second 0.75 / 0.01 / 60.
+        let firstActual: [Side: Double] = [.inRange: 120, .below: 600, .above: 30]
+        let secondActual: [Side: Double] = [.inRange: 80, .below: 6000, .above: 1]
+        func clamp(_ x: Double) -> Double { min(1.0, max(0.3, x)) }
+        func side(_ x: Double) -> Side { x < 0.3 ? .below : x > 1.0 ? .above : .inRange }
+        let slot = CorridorSlot(cell: Self.cellA, hour: Self.hour8)
+        var expectedBySides: [[Side]: Double] = [:]
+        for s1 in Side.allCases {
+            for s2 in Side.allCases {
+                let o1 = 60 / firstActual[s1]!, o2 = 60 / secondActual[s2]!
+                let row = "first \(s1) \(o1) second \(s2) \(o2)"
+                #expect(side(o1) == s1 && side(o2) == s2, "\(row)")
+                let expected = 0.75 * clamp(o1) + 0.25 * clamp(o2)
+                let clampAfterEWMA = clamp(0.75 * clamp(o1) + 0.25 * o2)
+                #expect((expected != clampAfterEWMA) == (s2 != .inRange && s1 != s2), "\(row)")
+                expectedBySides[[s1, s2]] = expected
+                var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
+                let first = speeds.record(cell: Self.cellA, hourOfWeek: Self.hour8, actualSeconds: firstActual[s1]!,
+                                          freeFlowSeconds: 60)
+                #expect(first, "\(row)")
+                #expect(speeds.slots == [slot: CorridorRatio(ratio: clamp(o1), samples: 1)], "\(row)")
+                let second = speeds.record(cell: Self.cellA, hourOfWeek: Self.hour8,
+                                           actualSeconds: secondActual[s2]!, freeFlowSeconds: 60)
+                #expect(second, "\(row)")
+                #expect(speeds.slots == [slot: CorridorRatio(ratio: expected, samples: 2)], "\(row)")
+            }
+        }
+        // The reviewer's witnesses, against literals: 0.5 then 60 -> 0.625 (the mutant 1.0); 1.0 then 0.01 -> 0.825
+        // (the mutant 0.7525); and the in-range pair 0.5 then 0.75 -> 0.5625.
+        #expect(expectedBySides[[.inRange, .above]] == 0.625)
+        #expect(abs(expectedBySides[[.above, .below]]! - 0.825) < 1e-12)
+        #expect(expectedBySides[[.inRange, .inRange]] == 0.5625)
+    }
+
+    /// R2: each observation clamped to [0.3, 1.0], both bounds with their neighbours on either side.
+    @Test("the ratio clamp at 0.3 and 1.0, one ulp either side of each bound")
+    func ratioClampBounds() {
+        let rows: [(observed: Double, kept: Double)] = [
+            (0.3.nextDown, 0.3), (0.3, 0.3), (0.3.nextUp, 0.3.nextUp),
+            (1.0.nextDown, 1.0.nextDown), (1.0, 1.0), (1.0.nextUp, 1.0),
+            (Double.leastNonzeroMagnitude, 0.3), (Double.greatestFiniteMagnitude, 1.0)]
+        for row in rows {
+            var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
+            let accepted = speeds.record(cell: Self.cellA, hourOfWeek: Self.hour8, actualSeconds: 1,
+                                         freeFlowSeconds: row.observed)
+            #expect(accepted, "observed \(row.observed)")
+            #expect(speeds.slots == [CorridorSlot(cell: Self.cellA, hour: Self.hour8):
+                                        CorridorRatio(ratio: row.kept, samples: 1)], "observed \(row.observed)")
+        }
+    }
+
+    /// R4: every bad value in either position, over an empty and a holding store - refused, the store unchanged.
+    @Test("NaN, infinite, zero and negative times are refused and change nothing")
+    func badTimesRefused() {
+        let bad: [Double] = [.nan, .infinity, -.infinity, 0, -0.0, -1, -Double.leastNonzeroMagnitude]
+        var holding = LearnedCorridorSpeeds(timeZone: Self.utc)
+        Self.taught(3, Self.cellA, Self.hour8, actual: 120, freeFlow: 60, into: &holding)
+        for before in [LearnedCorridorSpeeds(timeZone: Self.utc), holding] {
+            for value in bad {
+                for (actual, freeFlow) in [(value, 60.0), (60.0, value), (value, value)] {
+                    var speeds = before
+                    let accepted = speeds.record(cell: Self.cellA, hourOfWeek: Self.hour8, actualSeconds: actual,
+                                                 freeFlowSeconds: freeFlow)
+                    #expect(!accepted, "actual \(actual) freeFlow \(freeFlow)")
+                    #expect(speeds == before, "actual \(actual) freeFlow \(freeFlow)")
+                }
+            }
+        }
+    }
+
+    /// R6: each edge reads the hour it is ENTERED, after the earlier edges' re-timed seconds; Sunday 23 wraps to
+    /// Monday 0. Departing 23:58:30, free-flow would enter edge B at 23:59:30 (hour 167, decoy ratio 0.5) while
+    /// the re-timed 120 s enter it at 00:00:30 Monday (hour 0, ratio 0.75). R5: the hour is read in the learner's
+    /// zone - every row is crossed with Self.zones, the departure moved by the zone's offset, so the expected answer
+    /// is the same local-time answer in each.
+    @Test("departsAt: an edge entered after Sunday 23:59 reads Monday 00:00's ratio, and the hour shifts the ratio")
+    func hourBoundaryMidRoute() {
+        for zone in Self.zones {
+            var speeds = LearnedCorridorSpeeds(timeZone: zone)
+            let sunday23 = HourOfWeek(167)!, monday0 = HourOfWeek(0)!
+            Self.taught(5, Self.cellA, sunday23, actual: 120, freeFlow: 60, into: &speeds)
+            Self.taught(5, Self.cellB, sunday23, actual: 120, freeFlow: 60, into: &speeds)
+            Self.taught(5, Self.cellB, monday0, actual: 100, freeFlow: 75, into: &speeds)
+            let edges = [CorridorEdge(cell: Self.cellA, freeFlowSeconds: 60),
+                         CorridorEdge(cell: Self.cellB, freeFlowSeconds: 60)]
+            // Local Sunday 23:58:30 in `zone`.
+            let departs = Date(timeIntervalSince1970: 1_791_763_110 - Double(zone.secondsFromGMT()))
+            let zoneName = "zone \(zone.secondsFromGMT())"
+            #expect(speeds.retime(edges, departsAt: departs) == RetimedRoute(edgeSeconds: [120, 80], isEstimate: false),
+                    "\(zoneName)")
+            #expect(speeds.retime(edges, departsAt: departs).etaSeconds == 200, "\(zoneName)")
+            // The same edge A one week-hour earlier (local Sunday 22:58:30) is unlearned: free-flow and the badge.
+            #expect(speeds.retime(Array(edges.prefix(1)), departsAt: departs.addingTimeInterval(-3600))
+                    == RetimedRoute(edgeSeconds: [60], isEstimate: true), "\(zoneName)")
+        }
+    }
+}

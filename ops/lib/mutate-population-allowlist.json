@@ -6,6 +6,7 @@
     "Sources/ScenicKit/PlanSheet/PlanField.swift": "a two-case enum naming which search field is open (T-0294); no code",
     "Sources/ScenicKit/PlanSheet/PlanOutcome.swift": "a two-case enum carrying a preview or a failure (T-0294); no code",
     "Sources/ScenicKit/PlanSheet/PlanSheetState.swift": "the plan sheet's six-case state enum (T-0294); its transitions are PlanSheet.swift's, which plansheet.py mutates",
+    "Sources/ScenicKit/Traffic/TrafficProvider.swift": "a one-method protocol declaration (T-0320); no code - the re-timing is LearnedCorridorSpeeds.swift's, which traffic.py mutates",
     "Sources/ScenicKit/PlanSheet/RoutePlanning.swift": "a one-method protocol declaration (T-0294); no code",
     "Sources/ScenicKit/Vehicle/OnboardingEvent.swift": "a five-case event enum (T-0309); no code - its handling is Onboarding.swift's, which onboarding.py mutates",
     "Sources/ScenicKit/Vehicle/OnboardingStep.swift": "a three-case step enum (T-0309); no code - its transitions are Onboarding.swift's, which onboarding.py mutates",

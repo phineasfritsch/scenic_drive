@@ -185,7 +185,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)|ScenicKitTests\\.LearnedSpeedsPrivacyTests",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -206,7 +206,8 @@
         "ScenicAPIClientTests.SurpriseLedgerWriteTests/showings(_:)",
         "ScenicAPIClientTests.PlanVehicleWireTests/wireValuesAreTheWorkerTable()",
         "ScenicAPIClientTests.PlanVehicleWireTests/everyProfileWhole()",
-        "ScenicAPIClientTests.PlanVehicleWireTests/defaultIsStandard()"
+        "ScenicAPIClientTests.PlanVehicleWireTests/defaultIsStandard()",
+        "ScenicKitTests.LearnedSpeedsPrivacyTests/noLearnedTypeIsCodable()"
       ]
     }
   },
@@ -1347,6 +1348,21 @@
         "ScenicKitTests.DriveMotionGateTests/eachFixSetsTheSurface()",
         "ScenicKitTests.DriveMotionGateTests/gateHoldsInEveryMode()",
         "ScenicKitTests.DriveMotionGateTests/unusableFixIsMinimal()"
+      ]
+    }
+  },
+  "P-SAFE-07": {
+    "swift": {
+      "filter": "ScenicKitTests\\.(LearnedCorridorSpeedsTests|HourOfWeekTests)",
+      "tests": [
+        "ScenicKitTests.LearnedCorridorSpeedsTests/badgeAtFiveSamples()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/emptyRouteIsAnEstimate()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/ewmaFirstAndSecondUpdate()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/ratioClampBounds()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/badTimesRefused()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/hourBoundaryMidRoute()",
+        "ScenicKitTests.HourOfWeekTests/initBounds()",
+        "ScenicKitTests.HourOfWeekTests/wrapAndZone()"
       ]
     }
   }
