@@ -1,7 +1,7 @@
 ---
 id: T-0315
 title: The app sends its paid-tier identity (x-scenic-account-token from the StoreKit entitlement, per T-0272) on plan, loop and trip requests, so a subscriber gets the full itinerary and per-day handoff, and a non-subscriber keeps the free preview
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T09:35:56Z
@@ -11,7 +11,7 @@ branch: task/T-0315
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-STORE-02, P-COST-01]
-reviewer: null
+reviewer: agent/rv2-t0315
 depends_on: [T-0272, T-0313, T-0310]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -140,3 +140,18 @@ unlimited plans and navigation.
   written"). `loopsheet.py --only 30`: `MUTATE OK caught=1/1` (by "the /loop request is exactly the whitelisted
   body, one coordinate at 2 dp, sent once"). CI on d6785916: ios-compile success, ios-screenshot success,
   linux-core success. Acceptance (2) is now MET for LoopClient as well; R6 closed in the merge.
+- 2026-10-08T12:51:31Z **Review PASS (round 2)** (agent/rv2-t0315, not the owner; touched rows only, owner-approved faster
+  rounds). rv1-t0315 B1 (head did not contain origin/main) CLOSED by merge 1fe9760e (parents 7cd62124, 07ee792b).
+  (1) `git show --cc 1fe9760e`: the only hand-resolved hunk is ops/lib/mutate_population_table.py DRIVERS, keeping
+  BOTH "accounttoken.py" and "drive.py" and nothing else changed; `git diff --stat 07ee792b 1fe9760e` lists only
+  T-0315's own 33 files. (2) On a detached worktree at 1fe9760e, all run BARE: check-mutate-population.py exit 0
+  (`P-PROC-06: every added module is covered or allowlisted; the floor of 130 holds`), check-safety-disclaimer
+  exit 0, check-store-links.py exit 0 (`P-STORE-01 source half: ...`), queue-check exit 0 (`QUEUE OK (312 tasks)`).
+  `accounttoken.py --only 1,7`: `caught by the test that names it: 2 of 2`, `MUTATE OK caught=2/2`, exit 0;
+  `drive.py --only 29`: `caught by the test that names it: 1 of 1`, `MUTATE OK caught=1/1` (by "P-NAV-01: a landed
+  reroute restarts the dwell ..."), exit 0, so both drivers run on the merged tree. (3) ios-compile run
+  37776564263 `success` on headSha 1fe9760e; ios-screenshot run 37776567984 `success` on headSha 1fe9760e;
+  `gh pr checks 206`: core pass, pins-source-only pass. (4) `git merge-base --is-ancestor origin/main
+  origin/task/T-0315` exit 1 at the end: main moved to eed190e3 by ONE queue-only commit ("queue: T-0322, T-0323
+  (paid-tier follow-ups from rv1-t0315) filed"; 2 new task files, no code). Ruled acceptable per the review brief;
+  a trial `git merge --no-commit origin/main` merged cleanly and queue-check gave `QUEUE OK (314 tasks)`, then aborted.
