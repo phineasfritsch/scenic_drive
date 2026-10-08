@@ -90,6 +90,23 @@ import Testing
         #expect(await transport.requests == row.requests)
     }
 
+    @Test("A GET /ledger 401 drops the session: the next POST carries the renewed token")
+    func readUnauthorized() async {
+        let transport = ScriptedTransport(["POST /attest/challenge": [AttestWire.challengeReply],
+                                           "POST /attest/assert": [AttestWire.sessionReply],
+                                           "POST /ledger": [Self.recorded], "GET /ledger": [Self.unauthorized]])
+        let session = SessionStore(client: AttestWire.client(transport), attester: FakeAttester(isSupported: true),
+                                   storage: MemorySessionStorage(Self.live), now: { AttestWire.now })
+        let cells = Self.cells
+        let source = LedgerSurpriseSource(client: LedgerClient(base: AttestWire.base, transport: transport,
+                                                               session: session), cellOf: { cells[$0] })
+        #expect(await source.ledgerPlaces() == nil)
+        await source.recordShown(Self.a)
+        #expect(await transport.requests == [AttestWire.ledgerGet(AttestWire.oldToken), AttestWire.challengeRequest(),
+                                             AttestWire.renewRequest(AttestWire.oldKey)]
+                + Self.posts(AttestWire.newToken, [Self.a]))
+    }
+
     @Test("The ledger's rows become the card's ledger places, in the Worker's order; any other answer is nil")
     func ledgerPlaces() async {
         let body = "{\"places\":[{\"place_id\":\"7654321\",\"cell\":\"850dab63fffffff\",\"day\":\"2026-10-06\"},"

@@ -59,6 +59,11 @@ enum AttestWire {
                         body: Data("{\"cell\":\"\(cell)\",\"place_id\":\"\(placeId)\"}".utf8))
     }
 
+    static func ledgerGet(_ token: String) -> PlanHTTPRequest {
+        PlanHTTPRequest(url: URL(string: "https://scenic-api.test/ledger")!, method: "GET",
+                        headers: ["authorization": "Bearer \(token)"], body: Data())
+    }
+
     /// A stored session for `oldKey`, expiring `seconds` after `now`.
     static func stored(_ seconds: TimeInterval) -> SessionRecord {
         SessionRecord(keyId: oldKey, token: oldToken, expiresAt: now.addingTimeInterval(seconds))

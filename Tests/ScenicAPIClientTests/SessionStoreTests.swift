@@ -58,6 +58,7 @@ import Testing
                                                 "POST /attest": [AttestWire.sessionReply],
                                                 "POST /attest/assert": [AttestWire.sessionReply]]
     static let rejected = AttestWire.reply(400, "{\"error\":\"invalid_assertion\"}")
+    static let unauthorized = AttestWire.reply(401, "{\"error\":\"unauthorized\"}")
 
     static let flows: [FlowRow] = [
         FlowRow(label: "a live token is used and nothing is sent", stored: .valid(AttestWire.stored(1800)),
@@ -93,6 +94,17 @@ import Testing
                 replies: ["POST /attest/challenge": [AttestWire.challengeReply], "POST /attest/assert": [rejected]],
                 token: nil, requests: [AttestWire.challengeRequest(), AttestWire.renewRequest(AttestWire.oldKey)],
                 writes: [], removes: 1),
+        FlowRow(label: "a 401 challenge is the launch's one try", stored: .absent, supported: true,
+                replies: ["POST /attest/challenge": [unauthorized]], token: nil,
+                requests: [AttestWire.challengeRequest()], writes: [], removes: 0),
+        FlowRow(label: "a 401 attestation is the launch's one try", stored: .absent, supported: true,
+                replies: ["POST /attest/challenge": [AttestWire.challengeReply], "POST /attest": [unauthorized]],
+                token: nil, requests: [AttestWire.challengeRequest(), AttestWire.attestRequest()], writes: [], removes: 0),
+        FlowRow(label: "a 401 assertion is the launch's one try and keeps the key", stored: .valid(AttestWire.stored(-1)),
+                supported: true,
+                replies: ["POST /attest/challenge": [AttestWire.challengeReply], "POST /attest/assert": [unauthorized]],
+                token: nil, requests: [AttestWire.challengeRequest(), AttestWire.renewRequest(AttestWire.oldKey)],
+                writes: [], removes: 0),
         FlowRow(label: "offline is the launch's one try", stored: .absent, supported: true, replies: [:], token: nil,
                 requests: [AttestWire.challengeRequest()], writes: [], removes: 0),
     ]

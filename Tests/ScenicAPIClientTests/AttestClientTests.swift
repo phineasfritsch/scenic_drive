@@ -82,6 +82,39 @@ import Testing
         }
     }
 
+    /// attest.ts CHALLENGE at every bound of every class: 0 9 A Z a z - _ admitted; each neighbour just outside a
+    /// class ('/' 47, ':' 58, '@' 64, '[' 91, '`' 96, '{' 123, ',' 44, '.' 46, '^' 94) and '+' refused - each put at
+    /// every one of the 43 positions of a valid challenge, so whether it is read is a function of the character alone.
+    static let challengeCharacters: [(Character, Bool)] = [
+        ("0", true), ("9", true), ("A", true), ("Z", true), ("a", true), ("z", true), ("-", true), ("_", true),
+        ("/", false), (":", false), ("@", false), ("[", false), ("`", false), ("{", false), (",", false),
+        (".", false), ("^", false), ("+", false),
+    ]
+
+    static func challengeReply(_ challenge: String) -> PlanHTTPReply {
+        AttestWire.reply(200, "{\"challenge\":\"\(challenge)\",\"expires_at\":\"2026-10-08T02:05:00.000Z\"}")
+    }
+
+    @Test("Every challenge position admits exactly 0-9, A-Z, a-z, '-' and '_', at both bounds of each class",
+          arguments: challengeCharacters)
+    func challengeClass(_ character: Character, _ admitted: Bool) async {
+        for position in 0..<43 {
+            var characters = Array(AttestWire.challenge)
+            characters[position] = character
+            let text = String(characters)
+            let fake = CountingPlanTransport(reply: Self.challengeReply(text))
+            #expect(await AttestWire.client(fake).challenge() == (admitted ? .challenge(text) : .unreadable), "\(text)")
+            #expect(await fake.count == 1, "\(text)")
+        }
+    }
+
+    @Test("A challenge is read at exactly 43 characters", arguments: [0, 1, 42, 43, 44, 86])
+    func challengeLength(_ length: Int) async {
+        let text = String(String(repeating: "az", count: 43).prefix(length))
+        let fake = CountingPlanTransport(reply: Self.challengeReply(text))
+        #expect(await AttestWire.client(fake).challenge() == (length == 43 ? .challenge(text) : .unreadable))
+    }
+
     @Test("No reply at all is offline, after exactly one request")
     func offline() async {
         for c in Call.allCases {
