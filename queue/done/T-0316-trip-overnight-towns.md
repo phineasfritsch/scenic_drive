@@ -1,7 +1,7 @@
 ---
 id: T-0316
 title: Road trips name an overnight town per day boundary and 2-4 corridor stops per day - the Worker's planTrip passes the corpus places it already holds into the ScenicKit-parity day splitter
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T06:33:22Z
@@ -11,7 +11,7 @@ branch: task/T-0316
 exclusive: []
 touches: [services/api/src/, services/api/test/, services/api/migrations/0009_trip_places.sql, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t-0316
 depends_on: [T-0268, T-0313]
 verify: [ops/check-pins]
 acceptance:
@@ -65,3 +65,17 @@ read "not searched yet" in the app (T-0268). Plan, Road trip: "2-4 corridor POIs
   SOLVER: onRadius's per-ulp walk did not finish for 5 km (the first longitude hits sit far enough east that walking one ulp at a time from the due-north start is billions of steps; the first run of the new file passed 600 s and was stopped). onDistance(v, sign, meters) now bisects the last latitude within `meters` over the doubles' bits per longitude - same answer the walk gave (the last double inside, the first past), so the 15 km rows are the same rows and still pass by whole answer.
   AFTER: `npx vitest run test/tripPlaces.test.ts` -> "Test Files  1 passed (1)", "Tests  52 passed (52)" (41 + 2 nearest-vertex sanity rows + 4 corridor-bound rows + 2 tie rows + "name blob is refused" + "kind blob is refused" + the blob-row coverage meta-test). Same --only run -> "baseline green tests=90", "CAUGHT split-corridor-exclusive by \"a stop exactly 5 km from its nearest vertex (north, every boundary) is that day's stop and no night: the whole answer\"", "CAUGHT split-overnight-tie-late-name by \"two lodgings at one spot near boundary 16, inserted in reverse name order: the earlier name is the night (whole answer)\"", "CAUGHT table-name-any-type by \"name blob is refused\"" (so the Uint8Array bind reaches the CHECK and is not a bind error), "CAUGHT split-lodging-from-any-kind by \"every shared case gives the recorded day plan, whole, from the Worker's port\"", "RESULT caught=4 missed=0 trap=0 of 4 (--only)". R-c through worker.fetch: split-lodging-from-any-kind against test/tripPlaces.test.ts alone -> "Tests  4 failed | 48 passed (52)", FAILED by name "a stop exactly 5 km from its nearest vertex ({north,south}, every boundary) is that day's stop and no night: the whole answer" and "a stop one latitude step past 5 km ({north,south}, every boundary) is no stop and no night: the whole answer".
   wc -l: tripPlaces.test.ts 287, tripMutants.mjs 248 (cap 300). Backlog T-0318 filed for R-a.
+- 2026-10-08T10:17:35Z REVIEW ROUND 2 PASS (agent/rv2-t-0316, reviewer; not the owner) at 23fba0a8, PR #203.
+  Unmutated: `npx vitest run test/tripPlaces.test.ts test/roadTripParity.test.ts` -> "Tests  58 passed (58)".
+  rv1's mutants re-applied one at a time (restored byte-exact between runs), same two files:
+  B1 corridor `<=` -> `<`: "Tests  2 failed | 56 passed (58)", RED by name on "a stop exactly 5 km from its nearest
+  vertex (north|south, every boundary) ... the whole answer". B2 tie-break `<` -> `>`: "Tests  2 failed | 56 passed
+  (58)", RED on "two lodgings at one spot near boundary 16, inserted in name order" and "... in reverse name order".
+  B3 name CHECK typeof dropped: "Tests  1 failed | 57 passed (58)", RED on "name blob is refused".
+  Own mutant (overnight tie on the distance key, `best.meters < meters` -> `best.meters <= meters`, first-read wins):
+  "Tests  1 failed | 57 passed (58)", RED on "... inserted in reverse name order: the earlier name is the night".
+  New rows reach worker.fetch via send() and compare the whole {status, json} by toEqual against expected().
+  gh pr checks 203: core pass 5m47s, pins-source-only pass 2m15s. check-mutate-population.py: "every added module
+  is covered or allowlisted; the floor of 114 holds", exit 0. tripMutants: MUTATIONS 91, MIN_MUTATIONS 91.
+  queue-check: "QUEUE OK (309 tasks)", exit 0. `git merge-base --is-ancestor origin/main origin/task/T-0316` -> 0
+  (origin/main d908849b). Recordable only: merge 23fba0a8 has the default message without attribution lines.
