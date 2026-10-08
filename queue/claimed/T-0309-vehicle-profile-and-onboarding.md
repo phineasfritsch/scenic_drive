@@ -68,3 +68,34 @@ disclaimer)"; Settings lists vehicle. Neither exists in the code today (grep: no
   - R6 RED FIRST by name: the tests are committed against stubs that compile and are wrong; population
     ops/mutate/onboarding.py (+_mutations, _run) with a literal floor; three entries shown MISSED with the killer
     suite emptied (--prove-vacuity) and CAUGHT by name after.
+- 2026-10-08T00:15:00Z BUILT. agent/claude-opus-5 (owner).
+  - RED FIRST (deviation: the stubs were run, not committed - VehicleProfile.isEnabled `true`, disabledReason
+    `nil`, Onboarding.send setting `disclaimerAccepted = true` on every event). `swift test --filter
+    ScenicKitTests\.(OnboardingTransitionTests|VehicleProfileTests|OnboardingPlanGateTests)` against them:
+    `× "accept marks the disclaimer accepted only from the disclaimer step"`, `× "stored: absent, unknown and
+    disabled raw values read back as standard"`, `× "first launch through onboarding: zero plan requests before
+    accept, one after"`, `× "only standard is enabled; every other case is present with its reason, whole"`,
+    `× "transition table: send(event) from each state equals the row's whole expected value"`, `× "skipping or
+    backing out never marks the disclaimer accepted"`; `Test run with 8 tests in 3 suites failed ... with 75
+    issues`. GREEN with the bodies, PlanSheetTests alongside: `Test run with 18 tests in 4 suites passed`.
+  - GUARDS. First run refused by name: ack_set (`ScenicHomeScreen.swift(7)` vs 6), frozen FROZEN_SCREEN_BODY line
+    28 and FROZEN_APP_SHELL line 10, then the FeatureScenicHome file set (`added VehicleChoice.swift
+    VehicleSetting.swift`). Retyped as whole lines: ack_set 6 -> 7 with its reason line; the `.task` line in
+    FROZEN_SCREEN_BODY; the corpus and Settings lines in FROZEN_APP_SHELL and DOORS_VIEWS; digests re-approved in
+    -pinned (PINNED_FEATURE +2, PINNED_APP_SWIFT +2 and SafetyDisclaimer/ScenicHomeScreen/SettingsScreen/shell,
+    PINNED_SHELL_DIGEST) and in check-safety-disclaimer-linked-digests.txt (+4 Sources/ScenicKit/Vehicle rows).
+    Then `check-safety-disclaimer rc=0` (`isSafetyDisclaimerAcknowledged = true written exactly once, at line 132,
+    inside the SafetyDisclaimer(onAccept: { block`; key_set unchanged) and `check-map-attribution rc=0`;
+    `check-safety-disclaimer-mutations`: `prove-red: 60/60 mutations refused by name`.
+  - POPULATION ops/mutate/onboarding.py (floor 15 mutations, 1 EQUIVALENT, 3 test files; DRIVERS and COVERED_FLOOR
+    typed; OnboardingStep/OnboardingEvent allowlisted as no-code enums). `--prove-floor`: `7 of 7 arms refused and
+    the control did not`. Full run at 3bea21ca: `caught by the test that names it: 15 of 15 (wrong killer 0,
+    trapped 0, compile-only 0, MISSED 0, skipped 0)`, `MISSED E1 choose skips an equal vehicle`, `MUTATE OK
+    caught=15/15 equivalent_caught=0`. MISSED-then-CAUGHT: `--only 2,4,11 --prove-vacuity` (killer suites
+    emptied): `MISSED 2 skip on the disclaimer accepts`, `MISSED 4 accept finishes without recording`, `MISSED 11
+    stored reads back a disabled case`, `VACUITY PROOF OK ... MISSED=3 of 3`; with the suites: all three `caught`.
+  - iOS CI at 3bea21ca: ios-compile run 37704762964 `success`; ios-screenshot run 37704766118 `success`.
+  - GAPS (stillOpen): VehicleProfile is not on the wire (plan.ts has no vehicle field) - a follow-up for the
+    Worker whitelist + PlanRequestBody; a fresh install is offered the places download on its second launch (R4);
+    under a `-screen` debug launch the Settings sheet and the onboarding sheet are raised together and one is
+    dropped (release builds launch to home); nothing here has been rendered or tapped (XCUITest, T-0180).
