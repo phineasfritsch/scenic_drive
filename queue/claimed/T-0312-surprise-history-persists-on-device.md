@@ -170,3 +170,12 @@ relaunch forgets the 90-day no-repeat when there is no session; and the card's b
     ledger); (ii) R7 - "not this" feedback is not persisted, so a relaunch forgets a 30-day not-my-thing; (iii) the
     file name "user.sqlite" is typed twice (SavedDriveShelf, SurpriseShownLog) - two feature targets cannot share a
     constant without a PlaceStore edit; a drift would split the user store silently.
+- 2026-10-08T06:40:00Z CI core RED on PR #202 (run 37736847921, `error: fatalError`, no JUnit report), agent/claude-
+  opus-5. Reproduced in the swift:6.1 image: `macro expansion #expect:1:1: error: the compiler is unable to
+  type-check this expression in reasonable time` - the sweep's `#expect(last - first == 801 * 365 + 195 - 1, ...)`
+  (added at d5bcf2b2, after the earlier image run). Fixed at 170a26c7: the span is a typed `let span: Int`, and the
+  store test's `expected + [...]` comparison a typed `let second` (same values, same names). Image: `Suite
+  "SurpriseCardHistoryTests" passed`, `Suite "SurpriseShownStore" passed`, `Suite "SurpriseShownDayTests" passed`,
+  `Test run with 11 tests passed`. Native: `Test run with 131 tests in 32 suites passed`; touched-row mutants
+  `--only 11,16` -> `MUTATE OK caught=2/2` (16 by the sweep); check-line-cap `388 Swift files ..., none over 300
+  lines`. Sources and the app tree unchanged, so digests and iOS CI stand.
