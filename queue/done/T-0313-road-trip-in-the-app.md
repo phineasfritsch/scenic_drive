@@ -1,7 +1,7 @@
 ---
 id: T-0313
 title: Road trip in the app - a TripClient for POST /trip, a road-trip sheet (destination, days, daily limits), a day-by-day itinerary preview, and per-day "Open in Apple Maps" with that day's pinned waypoints
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T04:26:07Z
@@ -11,7 +11,7 @@ branch: task/T-0313
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv1-t0313
 depends_on: [T-0268, T-0249, T-0294, T-0311]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -179,3 +179,34 @@ owner-route-intent).
   StraightLineDistance). Approved there by name with what it names (Coordinate, Geo, AppleMapsDirections, Array,
   Double, URL - all already listed). `swift test --filter HandoffSourceTests|TripDayHandoffTests`: `Test run with
   8 tests in 2 suites passed`. No Sources byte changed, so no digest, population or iOS run is affected.
+- 2026-10-08T06:24:02Z REVIEW PASS (round 1) on PR #201 head cc6b5842. agent/rv1-t0313 (reviewer, not the owner).
+  ACCEPTANCE line by line: (1) R1-R7 dated 04:30:49Z before any code; R8 ruled on contact. (2) TripClient body by
+  full equality to PlanHTTPRequest; the 21-row outcome table through TripClient.trip, each at fake.count == 1;
+  offline is routingOffline after one attempt. (3) TripSheet 6 x 10 table compared whole; P-SAFE-03 at transport
+  count 0 through ClientTripPlanner. (4) TripDayHandoff.urls by full equality to AppleMapsDirections(...).url(),
+  split rule R6. (5) The trip is in-sheet content of the full-height plan sheet, with no new presentation and no map
+  surface; `bash ops/lib/check-map-attribution` rc=0.
+  IMPORTS: the new Sources files import only Foundation and ScenicKit; FeaturePlanSheet's new files import
+  DesignSystem, ScenicKit and SwiftUI; ScenicAPIClient is imported only under PlanAdapter; TripDayLinks sits in
+  FeatureScenicHome, which already depends on Handoff. No Package.swift, Package.resolved, pbxproj or xcstrings in
+  the diff.
+  REVIEWER MUTANTS (not in ops/mutate/tripsheet_mutations.py), filter
+  TripSheetTests|TripClientRequestTests|TripClientOutcomeTests|TripSheetGateTests|TripDayHandoffTests|HandoffSourceTests,
+  baseline `Test run with 24 tests in 6 suites passed`:
+  MA CAUGHT: TripSheet.twoDecimals latitude `.rounded()` -> `.rounded(.towardZero)`. `failed ... with 32 issues`,
+  RED by name: "P-PRIV-05: the ticket carries the start cut to 2 dp on each axis, and the chosen days and percent",
+  "P-SAFE-03: no trip ticket before the disclaimer is accepted, one after", "a preview reaches the sheet as exactly
+  its itinerary: no path, so no per-day handoff", "every state x every event lands whole".
+  MB CAUGHT: ClientTripPlanner.itinerary `etaIsEstimate: response.etaIsEstimate` -> `etaIsEstimate: false` (the
+  estimate badge hidden). `failed ... with 2 issues`, RED by name: "a full answer carries each day's leg as its
+  path", "a preview reaches the sheet as exactly its itinerary: no path, so no per-day handoff".
+  Worktree clean after each restore.
+  GATES on cc6b5842: check-safety-disclaimer rc=0; check-map-attribution rc=0; check-store-links.py rc=0;
+  check-mutate-population.py rc=0 (floor of 112 holds); check-line-cap rc=0 (407 Swift files, none over 300);
+  check-pins-yaml.py rc=0; queue-check QUEUE OK (305 tasks); `gh pr checks 201` core pass, pins-source-only pass;
+  ios-compile 37735699588 success and ios-screenshot 37735702660 success on cc6b5842 (dispatched by the reviewer);
+  `git merge-base --is-ancestor origin/main origin/task/T-0313` exit 0 (main 681c9a13).
+  RECORDED, not blocking: the app sends no x-scenic-account-token, so the per-day handoff cannot be reached yet
+  (owner's stillOpen, follow-up task); PlanSheetScreen's `TripSheet(disclaimerAccepted: false)` seed and its
+  onAppear/onChange wiring are held by the sha256 pin (-pinned), not by a test that names them. That is the same
+  class as the drive sheet's existing wiring.
