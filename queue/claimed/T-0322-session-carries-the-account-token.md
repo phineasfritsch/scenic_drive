@@ -28,3 +28,60 @@ no `act` because the app attests without one.
 ## Log
 - 2026-10-08T12:24:40Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0315's recordable R3.
 - 2026-10-08T15:57:13Z claimed by agent/claude-opus-5; lease until 2026-10-09T01:57:13Z
+- 2026-10-08T16:03:18Z MEASURE then RULE (agent/claude-opus-5, before any code), on 487cae1f.
+  MEASURED:
+  - M1 the Worker already issues `act` (T-0278 R5, T-0280): services/api/src/attest.ts handleAttest (lines 89-95, 118)
+    and handleAttestAssert (133-138, 162) admit one optional body key `appAccountToken` beside the fixed keys, lowercase
+    it, refuse a non-UUID as 400, and sign it as `act` with NO entitlement read - a live, an expired and an unknown
+    token all become `act`. No Worker source change is needed for the session to carry the purchase.
+  - M2 identifyCaller (sessionIdentity.ts 39-47), the tier of /plan, /trip, /loop (routerDeps.ts 83-85): no
+    SESSION_JWT_SECRET -> legacy (the bare headers), whatever Bearer is sent; secret set and the Bearer verifies -> sub
+    is the bucket and the tier is act's live entitlement, the x-scenic-account-token header IGNORED; a Bearer that does
+    not verify -> the unidentified bucket, anon; no Bearer -> legacy only while IDENTITY_HEADERS is "1".
+  - M3 the app today: AttestClient's bodies are {attestation, challenge, device, keyId} and {assertion, challenge,
+    keyId} - no appAccountToken, so every session issued has no act; SessionStore's one consumer is LedgerClient
+    (LiveSurpriseLedger.swift:19 builds the launch's one store); IdentityHeaders sends content-type, x-scenic-device and
+    x-scenic-account-token and never `authorization` (T-0315 R1). The paid tier reaches the Worker only via the header.
+  - M4 the consequence of M2 that orders the switch-over: a Bearer whose act is not the device's current purchase (a
+    session issued before the purchase, or one without act) reads ANON even with the live header beside it. "Send the
+    Bearer once you hold one" would downgrade every subscriber whose session predates the purchase - flag on or off.
+  - M5 logging: no print/os_log/NSLog/Logger in Sources/ScenicAPIClient or PlanAdapter, no console.* in attest.ts,
+    sessionIdentity.ts, sessionJwt.ts (grep, 0 lines each).
+  RULED:
+  - R1 POST /attest and /attest/assert carry `appAccountToken` = the AccountTokenProvider's token, lowercased, exactly
+    when the device holds one - live or expired alike (the client never decides a tier; the Worker reads the
+    entitlement on every request); no token -> no key (never null, never ""). Sorted keys, so it is the body's first.
+  - R2 the Keychain record remembers the act it was issued for: SessionRecord gains `act` (wire key "act", omitted when
+    nil). Every record written before this change reads back byte-identical as act nil - no forced re-attest.
+  - R3 a session is used only when it is live AND its act equals the device's current token (nil == nil). Otherwise it
+    is renewed by assertion carrying the current token (R1). A PURCHASE AFTER ISSUE: the first request after StoreKit's
+    token changes finds act != token and renews with the new act; T-0310 R3's one-acquisition-per-launch budget becomes
+    one acquisition per token value per launch, so a purchase mid-launch gets its own one try and nothing can loop (the
+    value changes only on a purchase). A spent budget for the current value means no session for that value.
+  - R4 /plan, /trip, /loop send `authorization: Bearer <jwt>` exactly when R3 yields a session for the token the same
+    request names in its header; otherwise no Bearer (never a stale one, so M4 cannot fire). The x-scenic-account-token
+    header STAYS beside the Bearer for the whole migration window: with SESSION_JWT_SECRET unset the Worker reads only
+    the header (M2), so dropping it would lower the tier in that step. Removing it is post-closure follow-up work.
+  - R5 the switch-over order (tier of a live subscriber; "hdr" = x-scenic-account-token, "B(act)" = Bearer whose act
+    is the device's token):
+    | step | Worker | app sends | Worker reads | tier |
+    | 0 before this PR | any | hdr | hdr (legacy) | paid while flag "1" |
+    | 1 this PR, secret unset | flag any | hdr + B(act) | hdr (legacy) | paid |
+    | 2 this PR, secret set, flag "1" | | hdr + B(act) | B(act) | paid |
+    | 2' acquisition failed (offline, no App Attest, rate limit, spent) | flag "1" | hdr, no Bearer | hdr | paid |
+    | 2'' purchase newer than the session, renewal pending | flag "1" | renew first (R3), then hdr + B(act) | B(act) | paid |
+    | 3 IDENTITY_HEADERS closes (owner, NOT this PR) | flag unset | as 2 / 2' | B(act) / nothing | paid / 2' anon |
+    | any, subscription lapsed | any | as above | entitlement read | anon - the Worker decides |
+    No step this PR ships lowers a subscriber's tier. Step 3 lowers row 2' by design; its precondition (measure the
+    share of plan-family requests that arrive without a Bearer) is owner work outside this task, recorded here.
+  - R6 the Worker decides: Swift tables assert request BYTES only (full equality, every row a function of its
+    {session, purchase, attest server} variant); the Worker table drives /attest and /attest/assert over {no purchase,
+    live, expired} (claims and token by full equality to an independently minted JWT) and then /plan, /trip, /loop with
+    those sessions x {flag "1", unset}, each answer and quota state EQUAL to the paid or anon reference of its route.
+  - R7 act is never logged: no logging is added (M5); the Worker table records every console call and expects none.
+  - R8 one SessionStore per launch serves the ledger AND the three planners (new PlanAdapter `LiveSession`), so the
+    acquisition budget is one store's; the store holds the launch's StoreKitAccountToken so a ledger-driven
+    acquisition carries act too. New protocol PlanSessionProvider (allowlisted: a signature, no code).
+  - R9 populations: ops/mutate/session_mutations.py gains the R1-R4 entries (MISSED under --prove-vacuity, CAUGHT by
+    name after); accounttoken_mutations.py's call-site anchor moves with the code. P-STORE-02 binds the new Worker
+    test by name; P-PRIV-05 is unaffected (the attest bodies and the Bearer carry no coordinate) - recorded, not edited.
