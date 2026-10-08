@@ -102,3 +102,8 @@ rv1-t0324 recordable 4: DriveScreen always draws the preview's planned line.
   moved with the code (old text gained a trailing argument) and are still caught. RerouteReply.swift left the
   P-PROC-06 allowlist (it is a drive.py subject now); check-mutate-population: floor of 138 holds. Follow-up T-0330
   filed (R5's fresh-vs-continued marker; R6's ETA line).
+- 2026-10-08T18:43:20Z DRIVE SHOT after R8's amendment: ios-compile success (run 37823842530), ios-screenshot success (run
+  37823848647, 8ee0775d). drive-light and drive-dark both show a KINKED line - the road's own polyline, not the
+  planned single straight segment - no caption (guiding), and the footer `© MapLibre · Natural Earth · Route data ©
+  OpenStreetMap contributors` above the End drive action: the reroute was asked, answered by the rehearsal sender,
+  taken by DriveController under its ticket, and drawn from DriveDisplay.line. Attribution unchanged (P-ATTR-01).
