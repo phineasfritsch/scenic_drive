@@ -132,3 +132,16 @@ drive legs from DriveSession into record, and retime into the preview) is a foll
   "RED ...LearnedCorridorSpeedsTests/badgeAtFiveSamples(): MISSING - no test of this name ran", "NAMED P-SAFE-07
   passed=7/8" exit 1; restored. P-PRIV-05's swift list gains
   ScenicKitTests.LearnedSpeedsPrivacyTests/noLearnedTypeIsCodable() and its assertion runs the site guard first.
+- 2026-10-08T12:19:29Z ACCEPTANCE re-run on the merged head 42671b53 (origin/main ef4d937b..07ee792b merged, T-0317
+  in; named-tests.json conflict resolved as the union - main's P-NAV-01 and P-SAFE-09, this branch's P-PRIV-05 and
+  P-SAFE-07; the digest rows and DRIVERS/COVERED_FLOOR auto-merged with both sides kept).
+  1 MEASURE/RULE: the 10:48:29Z entry above, before any code.
+  2 `swift test --filter "LearnedCorridorSpeedsTests|HourOfWeekTests|LearnedSpeedsPrivacyTests"` exit 0, "Test run
+  with 9 tests in 3 suites passed"; `run-named-tests.py P-SAFE-07` exit 0, "NAMED P-SAFE-07 passed=8/8".
+  3 `check-learned-speeds-sites.py` exit 0, "ok - 13 sites, every one approved, in 5 files" (red: 11:21:43Z entry).
+  4 `bash ops/lib/check-safety-disclaimer` exit 0 ("232 root + pbxproj file(s)"); `check-mutate-population.py`
+  exit 0, "every added module is covered or allowlisted; the floor of 135 holds"; population 29/29 by name
+  (12:06:49Z entry). Also `check-line-cap` exit 0 ("463 Swift files ... none over 300 lines"), `check-pins-yaml.py`
+  exit 0 ("pins=47 fields=379"), `ops/queue-check` exit 0 ("QUEUE OK (312 tasks)").
+  OPEN (not this task's acceptance): the app wiring - an H3-8 cell for the caller, DriveSession legs into record,
+  retime's isEstimate into PlanPreview, `details=time` per edge from the Worker (R1, R10) - is the Brief's follow-up.
