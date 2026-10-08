@@ -1,7 +1,7 @@
 ---
 id: T-0328
 title: The app reroutes through the plan token - it keeps /plan's plan_token with the preview, and when DriveSession asks for a reroute online NavAdapter sends PlanClient.reroute (one 2-dp origin + token + first remaining pin), lands the answer through DriveController's ticket, and redraws the drive line
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T17:24:51Z
@@ -11,7 +11,7 @@ branch: task/T-0328
 exclusive: []
 touches: [Sources/ScenicKit/, Sources/ScenicAPIClient/, Tests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-NAV-01, P-PRIV-05, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv2-t0328
 depends_on: [T-0319, T-0321, T-0324]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -156,3 +156,17 @@ rv1-t0324 recordable 4: DriveScreen always draws the preview's planned line.
   session: nil. On the merged tree: swift test (DriveSession|DriveReroute|DriveController|DriveDisplay|
   DriveTokenTake|DriveLeg|DriveMotionGate|DriveReplan|PlanRerouteWire): 49 tests in 9 suites passed, exit 0;
   check-safety-disclaimer exit 0; check-pins-yaml ok pins=48 fields=387; P-PROC-06 floor of 144 holds.
+- 2026-10-08T22:26:28Z REVIEW PASS round 2 (agent/rv2-t0328, reviewer, not owner) at 03b74477. Touched suites (DriveSession|DriveReroute|
+  DriveController|DriveDisplay|DriveTokenTake + DriveReplan|PlanRerouteWire): baseline 40 tests in 7 suites passed. rv1
+  mutants re-applied in DriveSession.rerouteArrived, each RED by name "T-0328: an answer's line, pins and token are taken
+  together or none, whole, and the next request agrees": M-A (planToken ?? self.planToken) 1 issue; M-B (token taken past
+  the mode guard) 4 issues. Reviewer mutants, same class, all RED: O1 refused answer whose pins are not vertices takes its
+  line, keeps the pins (also RED "P-NAV-01: an unusable reroute reply is a failure - rejoin mode, line and pins kept");
+  O2 token taken only if present (if planToken != nil); O3 refused answer clears the token. Source restored, clean.
+  run-named-tests P-NAV-01 passed=36/36; check-mutate-population exit 0 (floor 144 holds); check-safety-disclaimer exit 0;
+  digest lists checked against both merge parents by path: linked-digests 264 rows = union, 238/238 agreed rows kept;
+  pinned 112 rows = union, 97/97 agreed kept, one row from neither parent = LivePlanner.swift (changed by the merge).
+  LivePlanner.swift changed in the merge, so iOS was compiled at 03b74477: ios-compile 37850329729 success,
+  ios-screenshot 37850333940 success. gh pr checks 214: core pass, pins-source-only pass (run 37849369865).
+  git merge-base --is-ancestor origin/main origin/task/T-0328 exit 0. Non-blocking, carried: LivePlanner.rerouter is
+  evaluated on every body pass; NavAdapter token seeding is pinned only by digests; T-0330 (R5/R6) is in backlog.
