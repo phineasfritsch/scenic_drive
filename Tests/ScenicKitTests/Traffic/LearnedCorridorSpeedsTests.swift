@@ -57,17 +57,48 @@ import Testing
         #expect(speeds.retime([], departsAt: Self.monday8) == RetimedRoute(edgeSeconds: [], isEstimate: true))
     }
 
-    /// R3: alpha 0.25; the first sample seeds the ratio, the second weighs 1/4.
+    enum Side: CaseIterable { case inRange, below, above }
+
+    /// R2 + R3: alpha 0.25, the first sample seeds, and each observation is clamped to [0.3, 1.0] BEFORE the EWMA -
+    /// over the cross product {first in range, below 0.3, above 1.0} x {second in range, below, above}, the whole
+    /// slot table after each record. rv1-t0320 B1: the stored ratio clamped AFTER the EWMA instead differs exactly
+    /// when the second observation is out of range and the first is not clamped onto that same bound (the Log's
+    /// ruling: a convex combination of two in-range values never needs the clamp) - the meta-check holds every row
+    /// to that partition.
     @Test("the EWMA: the first sample seeds the ratio, the second moves it by alpha 0.25")
     func ewmaFirstAndSecondUpdate() {
-        var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
+        // actualSeconds against free-flow 60: first 0.5 / 0.1 / 2.0, second 0.75 / 0.01 / 60.
+        let firstActual: [Side: Double] = [.inRange: 120, .below: 600, .above: 30]
+        let secondActual: [Side: Double] = [.inRange: 80, .below: 6000, .above: 1]
+        func clamp(_ x: Double) -> Double { min(1.0, max(0.3, x)) }
+        func side(_ x: Double) -> Side { x < 0.3 ? .below : x > 1.0 ? .above : .inRange }
         let slot = CorridorSlot(cell: Self.cellA, hour: Self.hour8)
-        let first = speeds.record(cell: Self.cellA, hourOfWeek: Self.hour8, actualSeconds: 120, freeFlowSeconds: 60)
-        #expect(first)
-        #expect(speeds.slots == [slot: CorridorRatio(ratio: 0.5, samples: 1)])
-        let second = speeds.record(cell: Self.cellA, hourOfWeek: Self.hour8, actualSeconds: 60, freeFlowSeconds: 60)
-        #expect(second)
-        #expect(speeds.slots == [slot: CorridorRatio(ratio: 0.625, samples: 2)])
+        var expectedBySides: [[Side]: Double] = [:]
+        for s1 in Side.allCases {
+            for s2 in Side.allCases {
+                let o1 = 60 / firstActual[s1]!, o2 = 60 / secondActual[s2]!
+                let row = "first \(s1) \(o1) second \(s2) \(o2)"
+                #expect(side(o1) == s1 && side(o2) == s2, "\(row)")
+                let expected = 0.75 * clamp(o1) + 0.25 * clamp(o2)
+                let clampAfterEWMA = clamp(0.75 * clamp(o1) + 0.25 * o2)
+                #expect((expected != clampAfterEWMA) == (s2 != .inRange && s1 != s2), "\(row)")
+                expectedBySides[[s1, s2]] = expected
+                var speeds = LearnedCorridorSpeeds(timeZone: Self.utc)
+                let first = speeds.record(cell: Self.cellA, hourOfWeek: Self.hour8, actualSeconds: firstActual[s1]!,
+                                          freeFlowSeconds: 60)
+                #expect(first, "\(row)")
+                #expect(speeds.slots == [slot: CorridorRatio(ratio: clamp(o1), samples: 1)], "\(row)")
+                let second = speeds.record(cell: Self.cellA, hourOfWeek: Self.hour8,
+                                           actualSeconds: secondActual[s2]!, freeFlowSeconds: 60)
+                #expect(second, "\(row)")
+                #expect(speeds.slots == [slot: CorridorRatio(ratio: expected, samples: 2)], "\(row)")
+            }
+        }
+        // The reviewer's witnesses, against literals: 0.5 then 60 -> 0.625 (the mutant 1.0); 1.0 then 0.01 -> 0.825
+        // (the mutant 0.7525); and the in-range pair 0.5 then 0.75 -> 0.5625.
+        #expect(expectedBySides[[.inRange, .above]] == 0.625)
+        #expect(abs(expectedBySides[[.above, .below]]! - 0.825) < 1e-12)
+        #expect(expectedBySides[[.inRange, .inRange]] == 0.5625)
     }
 
     /// R2: each observation clamped to [0.3, 1.0], both bounds with their neighbours on either side.
