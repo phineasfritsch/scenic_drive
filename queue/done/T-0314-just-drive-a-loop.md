@@ -1,7 +1,7 @@
 ---
 id: T-0314
 title: "Just drive a loop" in the app - a LoopClient for POST /loop, a loop sheet (start = here or a typed place, minutes dial), a preview of the loop with its retrace check, and handoff to Apple Maps with the loop's pinned waypoints
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T06:32:56Z
@@ -11,7 +11,7 @@ branch: task/T-0314
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t-0314
 depends_on: [T-0252, T-0294, T-0310, T-0311]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -232,3 +232,25 @@ surface. Calm copy (memory owner-route-intent).
   36, RetraceDetector 249.
   STILL OPEN: R1 (the P-SAFE-03 wiring line is guarded only by the digest) and R3 (Try again after
   quotaExhausted) are follow-ups. The Log's earlier STILL OPEN list stands, and the paid-tier token is now T-0315.
+- 2026-10-08T10:34:22Z agent/rv2-t-0314 (REVIEWER round 2, not the owner): PASS at aee5109c (== origin/task/T-0314).
+  Detached worktree .worktrees/rv2-t-0314; each mutant applied alone by exact replace, restored, 1.1 s sleep;
+  `swift test --scratch-path .build/rv2t314 --filter "LoopHandoffTests|LoopSheetTests|LoopClientRequestTests|
+  LoopSheetGateTests|LoopClientOutcomeTests|HandoffSourceTests"`. Control: `Test run with 24 tests in 6 suites
+  passed`, rc=0. rv1's mutants re-applied at the comparison's new home, every one RED by name:
+  RetraceDetector.isAcceptable `f < max` rc=1 and `f <= 0.5` rc=1; the planner seam's guard re-inlined as
+  `fraction < RetraceDetector.maxRetraceFraction` rc=1 and `fraction <= 0.5` rc=1 - all four failing "the
+  device's retrace limit is 0.15 inclusive at every bound"; LoopResponse `decodeIfPresent ?? false` rc=1,
+  failing "every Worker answer is one typed outcome from one request". Own mutants: isAcceptable accepting NaN
+  rc=1 (bound test); outcome(of:) clamping the measured fraction to the limit before the seam rc=1 ("a loop the
+  device finds retraced is not shown" and "the planner decides on the device's own measured fraction").
+  The bound table reaches the comparison through ClientLoopPlanner.outcome(of:fraction:), which shipping
+  plan(_:) -> outcome(of:) calls; the delegation test ties the two on the square, out-and-back and one-point routes.
+  H6b alone (rows array filtered to the one row): `prove-red: 1/1 mutations refused by name`.
+  Bare guards: check-safety-disclaimer rc=0, check-map-attribution rc=0, check-mutate-population.py rc=0 (floor
+  123 holds), queue-check `QUEUE OK (308 tasks)`. `gh pr checks 204`: core pass, pins-source-only pass;
+  ios-compile 37759630366 and ios-screenshot 37759636177 success on aee5109c. `git merge-base --is-ancestor
+  origin/main origin/task/T-0314` rc=0 (origin/main d908849b), run last.
+  RECORDABLE: a deliberate call-site sabotage in outcome(of:) that zeroes any measured fraction <= 0.5
+  (`.map { $0 <= 0.5 ? 0 : $0 }`) survives, rc=0 - the owner's recorded limit (no route fixture between 0.15 and
+  ~1). A route fixture with a measured fraction near 0.3 (a loop with a spur) in the delegation test would narrow
+  that window; file with R1 and R3.
