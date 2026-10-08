@@ -36,9 +36,15 @@ enum DriveBasemap {
         // Saddle Peak is inside the LA archive's box too (its line's bbox is -118.70856,34.03519 to
         // -118.59958,34.09435), so it asks the same resolver the loop does.
         case .saddlePeak, .santaMonicaMountains:
-            return BasemapResolver.losAngeles(appearance: appearance)
+            return planned(appearance: appearance)
         case .skyline:
             return .maplibreDemoTiles
         }
+    }
+
+    /// The drive screen's tiles (T-0324 R5): a planned route is in the LA region, so it asks the LA resolver - the one
+    /// `BasemapResolver.losAngeles(` call in the app, which the home's LA drives reach through here too.
+    static func planned(appearance: MapAppearance) -> MapStyle {
+        BasemapResolver.losAngeles(appearance: appearance)
     }
 }

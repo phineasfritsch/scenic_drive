@@ -55,6 +55,7 @@ COVERED_FLOOR = (
     "Sources/Handoff/AppleMapsDirections.swift", "Sources/Handoff/HandoffError.swift",
     "Sources/Handoff/StraightLineDistance.swift",
     "Sources/ScenicKit/Drive/DriveSession.swift", "Sources/ScenicKit/Drive/DriveLine.swift",
+    "Sources/ScenicKit/Drive/DriveDisplay.swift",
     "Sources/ScenicKit/Drive/DriveSurface.swift", "Sources/ScenicKit/Drive/DriveFix.swift",
     "Sources/ScenicKit/Drive/RerouteRequest.swift",
     "Sources/ScenicKit/TripSheet/TripSheet.swift", "Sources/ScenicKit/TripSheet/TripFailure.swift",

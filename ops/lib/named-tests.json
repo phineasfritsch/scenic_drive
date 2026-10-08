@@ -466,6 +466,17 @@
         "the session carries the purchase; the Worker decides the tier (T-0322) > /loop with another secret's act live, IDENTITY_HEADERS on=true, the live header beside it: the answer is the reference",
         "the session carries the purchase; the Worker decides the tier (T-0322) > /loop with another secret's act live, IDENTITY_HEADERS on=false, the live header beside it: the answer is the reference"
       ]
+    },
+    "swift": {
+      "filter": "ScenicAPIClientTests\\.(AccountTokenHeaderTests|AccountTokenCandidateTests)",
+      "tests": [
+        "ScenicAPIClientTests.AccountTokenHeaderTests/planRequest(_:)",
+        "ScenicAPIClientTests.AccountTokenHeaderTests/tripRequest(_:_:)",
+        "ScenicAPIClientTests.AccountTokenHeaderTests/loopRequest(_:)",
+        "ScenicAPIClientTests.AccountTokenHeaderTests/refusalReadsNothing()",
+        "ScenicAPIClientTests.AccountTokenHeaderTests/rowsFollowThePurchase()",
+        "ScenicAPIClientTests.AccountTokenCandidateTests/latest(_:)"
+      ]
     }
   },
   "P-SAFE-08": {
@@ -1383,13 +1394,17 @@
   },
   "P-SAFE-09": {
     "swift": {
-      "filter": "ScenicKitTests\\.DriveMotionGateTests",
+      "filter": "ScenicKitTests\\.(DriveMotionGateTests|DriveDisplayTests)",
       "tests": [
         "ScenicKitTests.DriveMotionGateTests/surfaceAtEverySpeedBound()",
         "ScenicKitTests.DriveMotionGateTests/minimalBeforeAnyFix()",
         "ScenicKitTests.DriveMotionGateTests/eachFixSetsTheSurface()",
         "ScenicKitTests.DriveMotionGateTests/gateHoldsInEveryMode()",
-        "ScenicKitTests.DriveMotionGateTests/unusableFixIsMinimal()"
+        "ScenicKitTests.DriveMotionGateTests/unusableFixIsMinimal()",
+        "ScenicKitTests.DriveDisplayTests/everySurfaceAndMode()",
+        "ScenicKitTests.DriveDisplayTests/tableIsTheCrossProduct()",
+        "ScenicKitTests.DriveDisplayTests/minimalIsTheOneLargeAction()",
+        "ScenicKitTests.DriveDisplayTests/sessionDisplayFollowsTheSession()"
       ]
     }
   },

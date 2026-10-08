@@ -99,7 +99,7 @@ PROTOMAPS_IDENT="protomapsLA"
 PROTOMAPS_SET="$FEATURE_REL/DriveCopy.swift(2) $ADAPTER_REL/MapAppearance.swift(2) $ADAPTER_REL/MapStyle.swift(6)"
 CREDIT_SET="$ADAPTER_REL/MapStyle.swift(1)"
 MOUNT_SET="$FEATURE_REL/DriveBasemap.swift(1)"
-FOOTER_SET="Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift(1) $FEATURE_REL/ScenicHomeScreen.swift(1)"
+FOOTER_SET="Packages/ScenicApp/Sources/FeaturePlanSheet/PlanPreviewCard.swift(1) $FEATURE_REL/DriveScreen.swift(1) $FEATURE_REL/ScenicHomeScreen.swift(1)"
 SURFACE_SET="$FEATURE_REL/ScenicHomeScreen.swift(1)"
 MAPVIEW_REL="$ADAPTER_REL/MapView.swift"
 MIN_FILES=8
@@ -267,7 +267,7 @@ run_check() {
   done
 
   # ------------------------------------------------------------------ (f) EVERY MAP SURFACE
-  require_map_mounts "$APP_TREE/$MAPVIEW_REL" "$MAPVIEW_REL" "$SURFACE_SET" -- "${files[@]}"
+  require_map_mounts "$APP_TREE/$MAPVIEW_REL" "$MAPVIEW_REL" "$MAP_SET" -- "${files[@]}"; require_drive_surface -- "${files[@]}"  # T-0324 R5
 
   # ------------------------------------------------------------------ (g) THE DRAWN LINE'S CREDIT, whole lines
   require_credit_sites -- "${files[@]}"
