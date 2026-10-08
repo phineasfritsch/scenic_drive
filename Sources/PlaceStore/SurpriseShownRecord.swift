@@ -7,13 +7,11 @@ public struct SurpriseShownRecord: Sendable, Equatable {
     public let category: String
     public let corridor: String
     public let day: Int
-    public let latitude: Double
 
     public init(placeID: String, category: String, corridor: String, day: Int) {
         self.placeID = placeID
         self.category = category
         self.corridor = corridor
         self.day = day
-        self.latitude = 0
     }
 }
