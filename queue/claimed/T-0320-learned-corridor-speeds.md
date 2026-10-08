@@ -1,13 +1,13 @@
 ---
 id: T-0320
 title: ScenicKit learns corridor speeds on the device - a TrafficProvider protocol and LearnedCorridorSpeeds (H3-8 cell x hour-of-week EWMA of actual/free-flow, clamped to [0.3, 1.0]) that re-times a route's per-edge times, with the estimate badge until a corridor has 5 learned samples (P-SAFE-07)
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T10:45:37Z
+lease_expires_at: 2026-10-08T18:45:37Z
+worktree: .worktrees/T-0320
+branch: task/T-0320
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-07, P-PRIV-05]
@@ -29,3 +29,4 @@ drive legs from DriveSession into record, and retime into the preview) is a foll
 
 ## Log
 - 2026-10-08T10:45:25Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M7 corridor learner).
+- 2026-10-08T10:45:37Z claimed by agent/claude-opus-5; lease until 2026-10-08T18:45:37Z
