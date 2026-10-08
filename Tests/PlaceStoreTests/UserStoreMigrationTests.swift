@@ -36,7 +36,7 @@ struct UserStoreMigrationTests {
         let applied = try DatabaseQueue(path: path).read { db in
             try String.fetchAll(db, sql: "SELECT identifier FROM grdb_migrations ORDER BY identifier")
         }
-        #expect(applied == ["v1-saved-drives", "v2-needs-replan"])
+        #expect(applied == ["v1-saved-drives", "v2-needs-replan", "v3-surprise-shown"])
     }
 
     @Test("every refusal row over every applied prefix: its typed error, the file byte for byte unchanged, no sidecar")

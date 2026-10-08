@@ -181,7 +181,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -195,6 +195,7 @@
         "TelemetryTests.TelemetryEventEncodingTests/fourteenEventsEachWithARow()",
         "PlaceStoreTests.SavedDriveFieldsTests/noFieldCarriesMoreThanFiveDecimals()",
         "PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail()",
+        "PlaceStoreTests.SurpriseShownRecordFieldsTests/noFieldIsACoordinate()",
         "ScenicAPIClientTests.LedgerClientTests/postRequest(_:_:)",
         "ScenicAPIClientTests.LedgerClientTests/getRequestAndRows()",
         "ScenicAPIClientTests.LedgerClientTests/refusedOnDevice(_:_:)",

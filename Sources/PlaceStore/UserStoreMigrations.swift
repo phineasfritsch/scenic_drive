@@ -12,8 +12,9 @@ enum UserStoreMigrations {
 
     static let savedDrives = "v1-saved-drives"
     static let needsReplan = "v2-needs-replan"
+    static let surpriseShown = "v3-surprise-shown"
     /// Every migration this build knows, in order. A file recording any other identifier is refused (R2).
-    static let identifiers = [savedDrives, needsReplan]
+    static let identifiers = [savedDrives, needsReplan, surpriseShown]
 
     static func migrator() -> DatabaseMigrator {
         var migrator = DatabaseMigrator()
@@ -41,6 +42,19 @@ enum UserStoreMigrations {
             try db.execute(sql: """
                 ALTER TABLE saved_drive
                 ADD COLUMN needs_replan INTEGER NOT NULL DEFAULT 0 CHECK (needs_replan IN (0, 1))
+                """)
+        }
+        // T-0312 R1: the device's Surprise history - a place, its category and corridor, and the civil day it was
+        // shown; one row per place per day. No coordinate, cell or time of day (P-PRIV-05).
+        migrator.registerMigration(surpriseShown) { db in
+            try db.execute(sql: """
+                CREATE TABLE surprise_shown (
+                    place_id TEXT NOT NULL CHECK (length(place_id) > 0),
+                    category TEXT NOT NULL,
+                    corridor TEXT NOT NULL,
+                    day INTEGER NOT NULL,
+                    PRIMARY KEY (place_id, day)
+                ) WITHOUT ROWID
                 """)
         }
         return migrator
