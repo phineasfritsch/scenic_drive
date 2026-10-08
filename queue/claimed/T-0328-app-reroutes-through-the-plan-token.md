@@ -122,3 +122,21 @@ rv1-t0324 recordable 4: DriveScreen always draws the preview's planned line.
   MUTATE OK caught=12/12, 75 caught by "T-0328: token x first pin - the one 2-dp request and the taken answer, whole;
   no token, no request". swift test --filter DriveReplanTests: 6 tests in 1 suite passed. No Sources/ or apps/ios file
   changed, so no digest row moved and ios-compile is not re-run; DriveReplanTests.swift 225 -> 240 lines.
+- 2026-10-08T20:25:00Z RULING on rv1-t0328 FAIL (owner, before code). The reviewer is right and the shipped code is right:
+  DriveSession.rerouteArrived takes line, pins and token in one block after both guards, so no Sources/ change and
+  no digest row moves. The tests are blind to a CLASS, "line, pins and token are taken together or none": every
+  session-level answer carried a token and every refused answer carried none, so M-A (a nil-token answer keeps the
+  old token: planToken ?? self.planToken) and M-B (a refused answer's token taken after the mode guard) both
+  survive (475/475 at 2f263349). Closed by class, not by mutant: a new suite DriveTokenTakeTests runs the shipping
+  entry point (DriveController, NavAdapter's call; the session directly only for the refusal the controller cannot
+  reach) over the cross product {answer token present, nil} x {taken, refused: line not a DriveLine, refused: pins
+  not vertices of it, refused: mode not rerouting (a late answer reaching the rejoining session), dropped: stale
+  ticket at the controller with the reconnect's ticket in flight} and compares (taken, line, waypoints, planToken,
+  mode) by full equality, then drives one uniform probe (offline, on the current line's segment 1, away for the
+  dwell, online) and compares the NEXT RerouteRequest whole - token and firstRemainingWaypoint included (plan pins
+  -> first 1, answer pins -> first 0, so a token paired with the wrong pins differs in both fields). Expected rows
+  are functions of the variant; the plan token is non-nil and differs from both answer variants, and a meta-check
+  holds that every taken row's expectation changes with the variant and every refused row's token equals neither
+  "take it" nor depends on it. Population: M-A, M-B and every other refusal-site variant (token taken inside the
+  malformed branch; before the mode guard; the controller forwarding a stale ticket) as entries 76-80, MISSED at
+  2f263349, CAUGHT by name now; MIN_MUTATIONS 75 -> 80; the new suite is a TEST_FILE and is bound under P-NAV-01.

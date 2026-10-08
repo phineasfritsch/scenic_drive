@@ -70,6 +70,8 @@ R_DRAWN = "T-0328: the answer DriveController takes is the Worker's line, pins a
 R_LATE = ("T-0328: the offline edge mid-flight cancels; the late answer is dropped by ticket and its token never "
           "taken")
 R_OFFLINE = "T-0328: offline, an off-route drive sends nothing - zero commands, zero requests"
+T_TAKE = ("T-0328: an answer's line, pins and token are taken together or none, whole, and the next "
+          "request agrees")
 R_PREVIEW = ("T-0328: the preview keeps /plan's token with the ticket's place and budget, only when sent, never "
              "saved")
 
@@ -255,6 +257,26 @@ MUTATIONS = [
      "guard let token = request.planToken else { throw RerouteUnavailable() }",
      "guard let token = request.planToken else {\n            return Self.reply(of: try await client.plan("
      "from: request.origin, to: place, budgetMinutes: budgetMinutes))\n        }", [R_TOKEN]),
+    # rv1-t0328: line, pins and token are taken together or none (DriveTokenTakeTests), at every take/refuse site.
+    ("76 an answer with no token keeps the old token", SESSION,
+     "        self.planToken = planToken\n        progressSegment = 0",
+     "        self.planToken = planToken ?? self.planToken\n        progressSegment = 0", [T_TAKE]),
+    ("77 a malformed answer's token is taken past the mode guard", SESSION,
+     "        guard mode == .rerouting else { return false }\n",
+     "        guard mode == .rerouting else { return false }; self.planToken = planToken\n", [T_TAKE]),
+    ("78 a malformed answer's token is taken as it is refused", SESSION,
+     "            mode = .rejoining\n            return false",
+     "            mode = .rejoining\n            self.planToken = planToken\n            return false", [T_TAKE]),
+    ("79 an answer's token is taken while not rerouting", SESSION,
+     "guard mode == .rerouting else { return false }",
+     "guard mode == .rerouting else { self.planToken = planToken; return false }", [T_TAKE]),
+    ("80 a stale ticket's answer reaches the session", CONTROLLER,
+     "        guard ticket == inFlight else { return false }\n        inFlight = nil\n        return session",
+     "        guard ticket == inFlight else {\n            return session.rerouteArrived(line: reply.line, "
+     "waypoints: reply.waypoints, planToken: reply.planToken)\n        }\n        inFlight = nil\n        return session",
+     [T_TAKE]),
+    ("81 the controller keeps the old token for an untokened answer", CONTROLLER, "planToken: reply.planToken)",
+     "planToken: reply.planToken ?? session.planToken)", [T_TAKE]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -272,7 +294,7 @@ EQUIVALENT = [
      "self?.arrived(ticket: self?.controller.inFlight ?? ticket, reply: reply)", "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device or simulator run can observe it (T-0321 R10). What bounds it: the adapter line it edits is a one-line forward to DriveController, whose half is CAUGHT above (C_REPLY, entry 34)"),
 ]
 
-MIN_MUTATIONS = 75
+MIN_MUTATIONS = 81
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
      "online: true, planToken: preview.continuation?.token)", "online: true)",
