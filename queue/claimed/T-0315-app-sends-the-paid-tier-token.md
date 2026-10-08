@@ -131,3 +131,12 @@ unlimited plans and navigation.
   in 17 suites passed` + XCTest 4+11+26+4+1+46 0 failures; check-safety-disclaimer 0, check-map-attribution 0,
   check-store-links 0, check-mutate-population `floor of 125 holds`, check-line-cap `449 Swift files ... none over
   300 lines`, check-pins-yaml ok, --prove-floor OK 7/7 for accounttoken, tripsheet and loopsheet.
+- 2026-10-08T11:40:21Z **Touched entries on the merged head d6785916** (agent/claude-opus-5; owner-approved faster rounds: only the
+  touched rows). `accounttoken.py --only 7,15`: `caught by the test that names it: 2 of 2`, `MUTATE OK caught=2/2`
+  (7 by "every loop request carries exactly the device and the account token, and the loop is the Worker's", 15 by
+  "a request refused on the device reads no account token and sends nothing"); MISSED before:
+  `--only 7,15 --prove-vacuity`: `VACUITY PROOF OK: ... caught=0 (need 0) and MISSED=2 of 2`. `tripsheet.py --only
+  32`: `MUTATE OK caught=1/1` (by "every bound: refused on the device with 0 requests, or sent once exactly as
+  written"). `loopsheet.py --only 30`: `MUTATE OK caught=1/1` (by "the /loop request is exactly the whitelisted
+  body, one coordinate at 2 dp, sent once"). CI on d6785916: ios-compile success, ios-screenshot success,
+  linux-core success. Acceptance (2) is now MET for LoopClient as well; R6 closed in the merge.
