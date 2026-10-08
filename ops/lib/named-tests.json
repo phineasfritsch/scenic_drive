@@ -172,7 +172,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)|ScenicAPIClientTests\\.LedgerClientTests",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests)",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -188,7 +188,8 @@
         "PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail()",
         "ScenicAPIClientTests.LedgerClientTests/postRequest(_:_:)",
         "ScenicAPIClientTests.LedgerClientTests/getRequestAndRows()",
-        "ScenicAPIClientTests.LedgerClientTests/refusedOnDevice(_:_:)"
+        "ScenicAPIClientTests.LedgerClientTests/refusedOnDevice(_:_:)",
+        "ScenicAPIClientTests.SurpriseLedgerWriteTests/showings(_:)"
       ]
     }
   },
