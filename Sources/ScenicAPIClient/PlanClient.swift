@@ -5,19 +5,23 @@ import ScenicKit
 ///
 /// The request carries ONE coordinate, already at 2 dp, and a corpus place id (R3); anything else is refused
 /// here with zero requests made, as is a plan from a client with no install id; every request carries
-/// `x-scenic-device`, the install id lowercased, and no other identifying header (T-0260). Every reply - and
-/// the absence of one - is a `PlanResponse` or a `PlanError` by the R6 table in `PlanResponseReader`.
+/// `x-scenic-device`, the install id lowercased (T-0260), plus the purchase's `x-scenic-account-token` when
+/// the device holds one - IdentityHeaders' one header set (T-0315 R1, R2). Every reply - and the absence of one -
+/// is a `PlanResponse` or a `PlanError` by the R6 table in `PlanResponseReader`.
 public struct PlanClient: Sendable {
     public let base: URL
     let transport: any PlanTransport
     let installID: (any InstallIDProvider)?
+    let accountToken: (any AccountTokenProvider)?
 
     /// `installID` has no default: a client without one must say so (`nil`), and every plan it makes is then
     /// refused on the device as `.noInstallID` (T-0260 R3).
-    public init(base: URL, transport: any PlanTransport, installID: (any InstallIDProvider)?) {
+    public init(base: URL, transport: any PlanTransport, installID: (any InstallIDProvider)?,
+                accountToken: (any AccountTokenProvider)?) {
         self.base = base
         self.transport = transport
         self.installID = installID
+        self.accountToken = accountToken
     }
 
     /// Plans `origin` -> the corpus place `place` with `budgetMinutes` of extra time, for `vehicle` (T-0311 R6:
@@ -41,8 +45,8 @@ public struct PlanClient: Sendable {
         guard let bytes = try? encoder.encode(body) else { throw .refusedOnDevice(.originOutOfRange) }
 
         let request = PlanHTTPRequest(url: base.appendingPathComponent("plan"), method: "POST",
-                                      headers: ["content-type": "application/json",
-                                                "x-scenic-device": installID.installID().uuidString.lowercased()],
+                                      headers: IdentityHeaders.json(device: installID.installID(),
+                                                                     account: await accountToken?.accountToken()),
                                       body: bytes)
         let reply: PlanHTTPReply
         do {

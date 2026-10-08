@@ -8,7 +8,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
-DRIVERS = ("budget.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
+DRIVERS = ("accounttoken.py", "budget.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
            "hazards.py", "ledger.py", "menu.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py",
            "roadtrip.py", "routescore.py",
            "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py",
@@ -23,6 +23,7 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Traffic/CorridorRatio.swift", "Sources/ScenicKit/Traffic/RetimedRoute.swift",
     "Sources/ScenicKit/Traffic/CorridorSlot.swift", "Sources/ScenicKit/Traffic/CorridorCell.swift",
     "Sources/ScenicKit/Traffic/CorridorEdge.swift",
+    "Sources/ScenicAPIClient/IdentityHeaders.swift", "Sources/ScenicAPIClient/AccountTokenCandidate.swift",
     "Sources/ScenicAPIClient/URLSessionCorpusFetcher.swift", "Sources/ScenicAPIClient/CorpusDownloadDelegate.swift",
     "Sources/PlaceStore/LaunchCorpus.swift",
     "Sources/PlaceStore/CorpusManifest.swift", "Sources/PlaceStore/CorpusUpdater.swift",

@@ -1,13 +1,13 @@
 ---
 id: T-0319
 title: The /plan reroute wire - carry a RerouteRequest (remaining pins + same lambda) without sending more than one 2-dp coordinate (plan token + first remaining pin index); the Worker half of T-0317 R2
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T12:53:20Z
+lease_expires_at: 2026-10-08T22:53:20Z
+worktree: .worktrees/T-0319
+branch: task/T-0319
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/]
 pins_affected: [P-NAV-01, P-PRIV-05]
@@ -31,3 +31,4 @@ a measurement task first).
 ## Log
 - 2026-10-08 filed by agent/claude-opus-5 (T-0317 R2) through ops/new-task; the allocator answered T-9902 (a stray
   ref outside origin/main holds T-9901), renumbered to T-0318, the next id after origin/main's T-0317.
+- 2026-10-08T12:53:20Z claimed by agent/claude-opus-5; lease until 2026-10-08T22:53:20Z
