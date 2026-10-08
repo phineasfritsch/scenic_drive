@@ -1,7 +1,7 @@
 ---
 id: T-0327
 title: ops/route-autopsy - one command dumps a bad drive's per-edge GATE / M / E terms and the lambda trace, so a reported rat-run or dull route becomes a pinned negative fixture before any weight changes (the plan's gate-failure playbook)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T17:16:10Z
@@ -11,7 +11,7 @@ branch: task/T-0327
 exclusive: []
 touches: [ops/route-autopsy, ops/lib/, Sources/ScenicPlanCLI/, Sources/ScenicKit/, Tests/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-PROD-01]
-reviewer: null
+reviewer: agent/rv2-t0327
 depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -238,3 +238,20 @@ fixture. Measured 2026-10-08: ops/ has plan, score-review and etl-* but no route
   `P-PROC-06: every added module is covered or allowlisted; the floor of 144 holds` (exit 0). check-line-cap:
   `P-SRC-02: 500 Swift files tracked ... none over 300 lines` (AutopsyReport.swift 104,
   RouteAutopsyGoldenTests.swift 185). queue-check: `QUEUE OK (322 tasks)`.
+- 2026-10-08T20:53:08Z REVIEW round 2 by agent/rv2-t0327 (not the owner): PASS at 233895ef (PR #213).
+  rv1's survivors re-applied in a detached worktree at origin/task/T-0327, one str.replace each with the file
+  restored after each run, `swift test --scratch-path .build/rv2t0327 --filter "RouteAutopsy|ScenicPlanCLITests"`.
+  Baseline: `Test run with 44 tests in 9 suites passed`. B1 (`if let score = Optional(row.scenicScore ?? 0) {`)
+  exit 1, RED by name: "an unscored stretch is left out of RouteScore and printed as unscored metres, never
+  scored 0". B2 adapted to the new call site (the `<=` now lives in LambdaSearch), the fits closure
+  `lambda == 0 ? 0 : duration` -> `duration.nextUp` (the strict-ceiling shift): exit 1, RED by name: "FITS is
+  LambdaSearch's verdict: exactly the ceiling fits, one ulp over does not, one under does". B3 (`let score =
+  SegmentScore.score(for: way.terms) ?? 0`) exit 1, RED by name: "terms SegmentScore refuses print invalid in M,
+  E and SCORE, never a number". Own mutant (unscored metres summed from the wrong column: `unscored +=
+  row.meters` -> `unscored += row.seconds`) exit 1, RED by name: the unscored-stretch test. Each run had 1 issue.
+  Gates: `gh pr checks 213` core pass (6m54s), pins-source-only pass (2m40s). check-mutate-population bare:
+  `P-PROC-06: every added module is covered or allowlisted; the floor of 144 holds` (exit 0). queue-check bare:
+  `QUEUE OK (322 tasks)`. `git merge-base --is-ancestor origin/main origin/task/T-0327` exit 1. The only
+  missing main commit is 82855e2f (queue: T-0333 filed, one file under queue/), so the drift is queue-only and
+  accepted.
+  Recordable, not blocking: AutopsyReport.fits's `unmeasured` branch (LambdaSearch throws) has no test.
