@@ -89,4 +89,29 @@ import Testing
             #expect(distinct.count == required, "\(oname): \(distinct.count) distinct")
         }
     }
+
+    static func pick(_ history: SurpriseHistory) -> String? {
+        let pool = [a, b, c, d]
+        return Surprise.pick(candidates: pool,
+                             reach: SurpriseReach(budgetMinutes: 120,
+                                                  roundTripMinutes: Dictionary(uniqueKeysWithValues: pool.map { ($0.id, 60) })),
+                             history: history,
+                             context: SurpriseContext(userId: "u", date: today, departureMinute: 600,
+                                                      utcOffsetMinutes: -420, redFlag: false),
+                             seed: 0)?.candidateId
+    }
+
+    @Test("Recording the place on the card never moves the pick; recording into the basis would")
+    func recordingNeverRepicks() {
+        var recorded = 0
+        for (vname, state) in Self.variants {
+            guard let id = Self.pick(state.basis), let place = [Self.a, Self.b, Self.c, Self.d].first(where: { $0.id == id }),
+                  let next = state.showing(place, on: Self.today) else { continue }
+            recorded += 1
+            #expect(next.basis == state.basis, "\(vname): the basis is untouched")
+            #expect(Self.pick(next.basis) == id, "\(vname): the card still shows \(id)")
+            #expect(Self.pick(next.history) != id, "\(vname): the history it recorded into would re-pick")
+        }
+        #expect(recorded >= 3, "the invariant ran over most starting states")
+    }
 }

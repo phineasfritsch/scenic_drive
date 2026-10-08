@@ -39,4 +39,43 @@ import Testing
         #expect(SurpriseShownDay.date(SurpriseShownDay.oldestKept(today: today)) == CivilDate(year: 2026, month: 7,
                                                                                                   day: 10))
     }
+
+    static func daysIn(_ year: Int, _ month: Int) -> Int {
+        let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+        return [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+    }
+
+    @Test("Every day from 1600 to 2400 is a valid calendar date that numbers back to itself")
+    func sweep() {
+        let first = SurpriseShownDay.number(CivilDate(year: 1600, month: 1, day: 1))
+        let last = SurpriseShownDay.number(CivilDate(year: 2400, month: 12, day: 31))
+        var offenders: [String] = []
+        for n in first...last {
+            let d = SurpriseShownDay.date(n)
+            let valid = (1...12).contains(d.month) && (1...Self.daysIn(d.year, d.month)).contains(d.day)
+            if !valid || SurpriseShownDay.number(d) != n, offenders.count < 3 {
+                offenders.append("\(n) -> \(d.year)-\(d.month)-\(d.day)")
+            }
+        }
+        #expect(last - first == 801 * 365 + 195 - 1, "801 years of days, 195 of them leap years")
+        #expect(offenders == [])
+    }
+
+    @Test("The pick blocks a place shown on the oldest kept day and not one shown the day before")
+    func retentionIsThePicksWindow() {
+        let today = CivilDate(year: 2026, month: 10, day: 7)
+        let a = SurpriseShowingTests.a
+        let oldest = SurpriseShownDay.oldestKept(today: today)
+        func pick(shownOn day: Int?) -> String? {
+            let shown = day.map { [SurpriseShowingTests.shown(a, SurpriseShownDay.date($0))] } ?? []
+            return Surprise.pick(candidates: [a], reach: SurpriseReach(budgetMinutes: 120, roundTripMinutes: [a.id: 60]),
+                                 history: SurpriseHistory(shown: shown),
+                                 context: SurpriseContext(userId: "u", date: today, departureMinute: 600,
+                                                          utcOffsetMinutes: -420, redFlag: false),
+                                 seed: 0)?.candidateId
+        }
+        #expect(pick(shownOn: nil) == a.id, "control: never shown, the place is picked")
+        #expect(pick(shownOn: oldest) == nil, "shown on the oldest kept day: still blocked")
+        #expect(pick(shownOn: oldest - 1) == a.id, "shown the day before: free again, so the store may prune it")
+    }
 }
