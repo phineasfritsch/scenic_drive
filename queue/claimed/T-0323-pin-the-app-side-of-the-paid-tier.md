@@ -67,3 +67,29 @@ rv1-t0315 recordables R1, R2 and R4 (PR #206).
   - R5 PINS.yaml. P-STORE-02's "NOT ASSERTED HERE: the app's side ... no Linux test can name it" clause is replaced
     by what is now asserted and what is not (StoreKit's own walk, the paywall UI); the assertion becomes the guard,
     its --prove-red, then run-named-tests P-STORE-02.
+- 2026-10-08T15:40:03Z BUILT (agent/claude-opus-5). ops/lib/check-account-token-sites.py (192 lines, data 100644,
+  APPROVED inline: IdentityHeaders.swift's two lines). R3's names, measured from `swift test --filter
+  'ScenicAPIClientTests\.(AccountTokenHeaderTests|AccountTokenCandidateTests)' --xunit-output` (6 tests in 2 suites
+  passed; x-swift-testing.xml): AccountTokenHeaderTests/planRequest(_:), tripRequest(_:_:), loopRequest(_:),
+  refusalReadsNothing(), rowsFollowThePurchase(); AccountTokenCandidateTests/latest(_:) - all six bound under
+  P-STORE-02 "swift" with filter `ScenicAPIClientTests\\.(AccountTokenHeaderTests|AccountTokenCandidateTests)`.
+  GUARD SEEN RED, THEN GREEN. Live on the worktree: Sources/ScenicAPIClient/WeatherClient.swift with
+  `let header = "x-scenic-" + "account-token"` -> `REFUSED  site not on the whitelist:
+  Sources/ScenicAPIClient/WeatherClient.swift: let header = "x-scenic-" + "account-token"`, `FAILED - 1 unapproved,
+  0 missing of 2 approved`, exit 1; removed -> `ok - 2 sites, every one approved, in 1 file(s)`, exit 0. --prove-red:
+  CONTROL unmodified copy exit=0, CONTROL a //-comment naming the header is not a site exit=0; red (exit=1, refused
+  by name) for all 8 rows - the header inlined in a new client file; split across a concatenation; in another case,
+  in the app; a new client writes IdentityHeaders.accountHeader; a code line with a trailing comment; a block comment
+  line fails closed; an approved line repeated; the approved constant changed - `PROVE-RED OK: 8 of 8 rows red by
+  name, controls green`. The prove-red itself seen red by two guard mutants, each restored: NAMES without
+  re.IGNORECASE -> `PROVE-RED FAILED: 6 of 8 rows red by name, controls NOT GREEN` (another-case and
+  accountHeader rows GREEN, NOT NAMED); the comment skip `line.lstrip().startswith("//")` -> `"//" in line` ->
+  `PROVE-RED FAILED: 7 of 8` (the trailing-comment row GREEN). Through the pin's assertion (bash of PINS.yaml's
+  P-STORE-02 assertion string): an inlined `forHTTPHeaderField: "x-scenic-account-token"` in WeatherClient.swift ->
+  REFUSED by name, ASSERTION EXIT=1; removed -> `ok`, `NAMED P-STORE-02 passed=67/67`, ASSERTION EXIT=0.
+  RUN-NAMED-TESTS SEEN RED, THEN GREEN (SCENIC_SWIFT_SCRATCH=.build/t323): green `NAMED P-STORE-02 passed=67/67`
+  (61 vitest + 6 swift). M1 refusalReadsNothing() renamed refusalReadsNothingRenamed() -> `RED
+  ScenicAPIClientTests.AccountTokenHeaderTests/refusalReadsNothing(): MISSING - no test of this name ran`,
+  `passed=66/67`, exit 1. M2 IdentityHeaders `account.uuidString.lowercased()` -> `account.uuidString` -> planRequest,
+  tripRequest, loopRequest `FAILED - ['failed']`, `passed=64/67`, exit 1 (and the guard: 1 unapproved, 1 missing).
+  Each restored by git checkout; then 67/67. check-pins-yaml: `PINS-YAML ok pins=48 fields=387`.
