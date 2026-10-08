@@ -94,3 +94,49 @@ surface. Calm copy (memory owner-route-intent).
   - R9 PROOF: tests first, RED by name against stubs; population ops/mutate/loopsheet.py (+_mutations, _run) with a
     literal floor over LoopSheet, LoopFailure, LoopRequestBody, LoopReplyReader, LoopError, LoopClient,
     LoopResponse, ClientLoopPlanner, LoopHandoff; digests re-approved; ios-compile + ios-screenshot on the head.
+- 2026-10-08T07:55:07Z RED then GREEN, code, guards, population, iOS CI. agent/claude-opus-5 (owner).
+  RED: tests and code were written together, so RED is shown against STUBS of every shipping symbol the tests bind
+  to (LoopSheet.startPlanning's gate, LoopSheet.clamp, LoopSheet.edit, LoopFailure.line, LoopRequestBody.validated,
+  LoopReplyReader.read/error, LoopError.failure, ClientLoopPlanner.outcome, LoopHandoff.directions), applied by a
+  throwaway script under .build/ and restored (Sources clean of edits after). `swift test --scratch-path
+  .build/t314 --filter LoopSheetTests|LoopClientRequestTests|LoopClientOutcomeTests|LoopSheetGateTests|
+  LoopHandoffTests`: `Test run with 17 tests in 5 suites failed ... with 139 issues`, exit 1, RED by name (16):
+  every state x every event lands whole; P-SAFE-03: no loop ticket before the disclaimer is accepted, one after;
+  the minutes dial is held to 10...180 at every bound, 45 by default; P-PRIV-05: the ticket carries the start cut
+  to 2 dp on each axis, and the dial's minutes; every loop failure has its own calm line; the /loop request is
+  exactly the whitelisted body, one coordinate at 2 dp, sent once; every bound: refused on the device with 0
+  requests, or sent once exactly as written; every Worker answer is one typed outcome from one request; an
+  unreachable Worker is routingOffline after exactly one attempt; every loop error is the sheet's failure of the
+  same name; P-SAFE-03: no loop request is made before the disclaimer is accepted; a clean loop reaches the sheet
+  as exactly its preview, with the device's retrace fraction; a loop the device finds retraced is not shown:
+  noCleanLoop; a spent day and a refused loop reach the sheet as their failures; one URL from the start back to
+  the start through the pins, in order; ten pins are refused, never cut to nine. Green under the stubs (1): the
+  request table's own coverage meta-test. GREEN after restore (+HandoffSourceTests, LoopHandoff approved on the
+  Handoff identifier whitelist): `Test run with 21 tests in 6 suites passed`, exit 0.
+  APP (107b0d52): LoopScreen + LoopPreviewCard in FeaturePlanSheet (in-sheet content behind a second bottom-bar
+  button "Just drive a loop", plan.loopTab); LiveLoopPlanner + UnreachableLoopPlanner in PlanAdapter; LoopLinks in
+  FeatureScenicHome; PlanSheetScreen's init takes loopPlanner + loopLink and the shell passes
+  `LiveLoopPlanner.make()` and `LoopLinks.url` (the frozen line re-typed in check-safety-disclaimer-frozen). The
+  door is ONE line approved in DOORS_OPENERS: `Link("Open the loop in Apple Maps", destination: link)` in
+  LoopPreviewCard.swift (-doors refused it by name first, and refused LoopScreen's `self.link = link` as a `.link`
+  opener - the closure was renamed mapsURL rather than approved). LoopLinks.swift approved into PINNED_FEATURE;
+  five new and two changed app/shell files and fifteen new Sources files re-approved by sha256 (PINNED_APP_SWIFT,
+  PINNED_SHELL_DIGEST, [PINNED_ROOT_SOURCES]); no existing row reordered.
+  GUARDS on 107b0d52: `bash ops/lib/check-safety-disclaimer` rc=0; `bash ops/lib/check-map-attribution` rc=0 (no
+  new presentation: the loop is in-sheet content of the full-height plan sheet, so P-ATTR-01's whitelist is
+  unchanged); `python ops/lib/check-store-links.py` rc=0; `bash ops/lib/check-line-cap` rc=0 (407 Swift files,
+  none over 300; PlanSheetScreen.swift 199 lines); `python ops/lib/check-mutate-population.py` rc=0 (floor of 121
+  holds; loopsheet.py in DRIVERS, its nine subjects in COVERED_FLOOR, six no-code modules allowlisted with
+  reasons); `python ops/lib/check-pins-yaml.py` rc=0 (PINS.yaml untouched); `bash ops/queue-check` QUEUE OK (307).
+  POPULATION at 107b0d52: `python ops/mutate/loopsheet.py --prove-floor` FLOOR PROOF OK 7 of 7; `python
+  ops/mutate/loopsheet.py` - `population mutations=53 (floor 53) equivalent=1 (floor 1)`, BASELINE exit=0,
+  `caught by the test that names it: 53 of 53 (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)`,
+  E1 MISSED as required, `MUTATE OK caught=53/53 equivalent_caught=0`, exit 0. MISSED BEFORE / CAUGHT AFTER by
+  name: `python ops/mutate/loopsheet.py --prove-vacuity --only 1,18,45` (the five test files replaced by empty
+  suites) - `MISSED 1 a ticket without the disclaimer`, `MISSED 18 the latitude bound dropped`, `MISSED 45 the
+  device's retrace check dropped`, `VACUITY PROOF OK ... MISSED=3 of 3`; in the full run `caught 1 ... by: P-SAFE-03:
+  no loop ticket before the disclaimer is accepted, one after | every state x every event lands whole | P-SAFE-03:
+  no loop request is made before the disclaimer is accepted`, `caught 18 ... by: every bound: refused on the device
+  with 0 requests, or sent once exactly as written`, `caught 45 ... by: a loop the device finds retraced is not
+  shown: noCleanLoop`.
+  iOS CI on 107b0d52: ios-compile run 37741764271 success (2m30s), ios-screenshot run 37741768505 success (12m18s).
