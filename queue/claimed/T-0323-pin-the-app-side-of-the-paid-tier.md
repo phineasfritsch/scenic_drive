@@ -133,3 +133,11 @@ rv1-t0315 recordables R1, R2 and R4 (PR #206).
   re-approved to 418a8d5618eb.../66 (the printed-line literal left at 67) -> `NAMED-TABLE P-STORE-02 ok - 66`,
   `NAMED P-STORE-02 passed=66/66`, ASSERTION EXIT=1 - the third literal is live on its own. named-tests.json
   restored by git checkout (diff --quiet RESTORED). `PINS-YAML ok pins=48 fields=387` exit 0.
+- 2026-10-08T16:28:20Z MERGED HEAD (agent/claude-opus-5). Fix committed as 735d6537 and pushed. `git fetch origin`;
+  `git merge origin/main` (T-0319's PR #209: PlanClient, PlanRequestBody, named-tests.json +4, the linked digests)
+  merged clean as 2a34e2d1; `merge-base --is-ancestor origin/main HEAD` exit 0. Re-run on the merged head: P-STORE-02's
+  assertion -> `ok - 2 sites, every one approved, in 1 file(s)`, `NAMED-TABLE P-STORE-02 ok - 67 distinct names,
+  sha256 c5af543b66fd` (T-0319's rows are under other pins; this entry's digest unchanged), ASSERTION EXIT=0;
+  run-named-tests.py alone `NAMED P-STORE-02 passed=67/67` exit 0; check-named-table --prove-red `PROVE-RED OK: 8 of
+  8 rows red by name, controls green`; check-account-token-sites --prove-red `PROVE-RED OK: 8 of 8 rows red by name,
+  controls green`; `PINS-YAML ok pins=48 fields=387`; `QUEUE OK (317 tasks)` exit 0.
