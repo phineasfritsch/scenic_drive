@@ -87,7 +87,7 @@ MUTATIONS = [
      "edge.freeFlowSeconds * learned.ratio", [BADGE, CROSS]),
     ("24 the ETA drops the last edge", ROUTE, "edgeSeconds.reduce(0, +)", "edgeSeconds.dropLast().reduce(0, +)",
      [CROSS]),
-    ("25 a slot keeps no hour", SLOT, "self.hour = hour", "self.hour = HourOfWeek(0)!", [EWMA, CROSS]),
+    ("25 a slot keeps no hour", SLOT, "self.hour = hour", "self.hour = HourOfWeek(0)!", [CROSS]),
     ("26 every cell the same", CELL, "self.index = index", "self.index = 0", [BADGE]),
     ("27 the free-flow time doubled", EDGE, "self.freeFlowSeconds = freeFlowSeconds",
      "self.freeFlowSeconds = freeFlowSeconds * 2", [BADGE, CROSS]),
