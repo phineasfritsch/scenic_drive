@@ -8,31 +8,35 @@ public struct SessionRecord: Equatable, Sendable {
     public let keyId: String
     public let token: String
     public let expiresAt: Date
+    public let act: String?
 
-    public init(keyId: String, token: String, expiresAt: Date) {
+    public init(keyId: String, token: String, expiresAt: Date, act: String? = nil) {
         self.keyId = keyId
         self.token = token
         self.expiresAt = expiresAt
+        self.act = act
     }
 
     private struct Wire: Codable {
+        let act: String?
         let expires_at: Int64
         let key_id: String
         let token: String
     }
 
     public init?(data: Data) {
-        guard let wire = try? JSONDecoder().decode(Wire.self, from: data), !wire.key_id.isEmpty, !wire.token.isEmpty
+        guard let wire = try? JSONDecoder().decode(Wire.self, from: data), !wire.key_id.isEmpty, !wire.token.isEmpty,
+              wire.act?.isEmpty != true
         else { return nil }
         self.init(keyId: wire.key_id, token: wire.token,
-                  expiresAt: Date(timeIntervalSince1970: TimeInterval(wire.expires_at)))
+                  expiresAt: Date(timeIntervalSince1970: TimeInterval(wire.expires_at)), act: wire.act)
         guard self.data == data else { return nil }
     }
 
     public var data: Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        let wire = Wire(expires_at: Int64(expiresAt.timeIntervalSince1970.rounded(.down)), key_id: keyId, token: token)
+        let wire = Wire(act: act, expires_at: Int64(expiresAt.timeIntervalSince1970.rounded(.down)), key_id: keyId, token: token)
         // Two strings and an integer: this encoder cannot throw on them.
         return (try? encoder.encode(wire)) ?? Data()
     }

@@ -6,22 +6,25 @@ import ScenicKit
 /// The request carries ONE coordinate, already at 2 dp, and a corpus place id (R3); anything else is refused
 /// here with zero requests made, as is a plan from a client with no install id; every request carries
 /// `x-scenic-device`, the install id lowercased (T-0260), plus the purchase's `x-scenic-account-token` when
-/// the device holds one - IdentityHeaders' one header set (T-0315 R1, R2). Every reply - and the absence of one -
+/// the device holds one, and the session whose act is that purchase as a Bearer when there is one - IdentityHeaders'
+/// one header set (T-0315 R1, R2; T-0322 R4). Every reply - and the absence of one -
 /// is a `PlanResponse` or a `PlanError` by the R6 table in `PlanResponseReader`.
 public struct PlanClient: Sendable {
     public let base: URL
     let transport: any PlanTransport
     let installID: (any InstallIDProvider)?
     let accountToken: (any AccountTokenProvider)?
+    let session: (any PlanSessionProvider)?
 
     /// `installID` has no default: a client without one must say so (`nil`), and every plan it makes is then
     /// refused on the device as `.noInstallID` (T-0260 R3).
     public init(base: URL, transport: any PlanTransport, installID: (any InstallIDProvider)?,
-                accountToken: (any AccountTokenProvider)?) {
+                accountToken: (any AccountTokenProvider)?, session: (any PlanSessionProvider)?) {
         self.base = base
         self.transport = transport
         self.installID = installID
         self.accountToken = accountToken
+        self.session = session
     }
 
     /// Plans `origin` -> the corpus place `place` with `budgetMinutes` of extra time, for `vehicle` (T-0311 R6:
@@ -67,9 +70,11 @@ public struct PlanClient: Sendable {
         // Only a non-finite Double can make this encoder throw, and validated() refused those as out of range.
         guard let bytes = try? encoder.encode(body) else { throw .refusedOnDevice(.originOutOfRange) }
 
+        let account = await accountToken?.accountToken()
+        let bearer = await session?.planSession(account: account)
         let request = PlanHTTPRequest(url: base.appendingPathComponent("plan"), method: "POST",
                                       headers: IdentityHeaders.json(device: installID.installID(),
-                                                                     account: await accountToken?.accountToken()),
+                                                                     account: account, bearer: bearer),
                                       body: bytes)
         let reply: PlanHTTPReply
         do {

@@ -39,8 +39,10 @@ REFUSAL = "a request refused on the device reads no account token and sends noth
 LATEST = "the latest purchase's token is the one sent, live or expired, in every StoreKit order"
 
 SET_TOKEN = "if let account { headers[accountHeader] = account.uuidString.lowercased() }"
-ATTACH = "account: await accountToken?.accountToken()),"
+ATTACH = "let account = await accountToken?.accountToken()"
 NO_INSTALL = "guard let installID else { throw .refusedOnDevice(.noInstallID) }"
+# plan() and reroute() both open with NO_INSTALL (T-0319); this tail makes the anchor plan()'s alone.
+PLAN_BODY = "\n        let body: PlanRequestBody"
 LATER = "if candidate.purchased > held.purchased { best = candidate; continue }"
 TIE = "if candidate.purchased == held.purchased, candidate.token!.uuidString > held.token!.uuidString {"
 
@@ -52,9 +54,9 @@ MUTATIONS = [
      'accountHeader = "x-scenic-account"', [PLAN, TRIP]),
     ("4 the token sent under the device header", IDENTITY, SET_TOKEN,
      SET_TOKEN.replace("headers[accountHeader]", "headers[deviceHeader]"), [PLAN, TRIP]),
-    ("5 PlanClient drops the purchase", PLANCLIENT, ATTACH, "account: nil),", [PLAN]),
-    ("6 TripClient drops the purchase", TRIPCLIENT, ATTACH, "account: nil),", [TRIP]),
-    ("7 LoopClient drops the purchase", LOOPCLIENT, ATTACH, "account: nil),", [LOOP]),
+    ("5 PlanClient drops the purchase", PLANCLIENT, ATTACH, "let account: UUID? = nil", [PLAN]),
+    ("6 TripClient drops the purchase", TRIPCLIENT, ATTACH, "let account: UUID? = nil", [TRIP]),
+    ("7 LoopClient drops the purchase", LOOPCLIENT, ATTACH, "let account: UUID? = nil", [LOOP]),
     ("8 the earliest purchase wins", CANDIDATE, LATER, LATER.replace(" > ", " < "), [LATEST]),
     ("9 equal instants keep the first listed", CANDIDATE, TIE, "if false {", [LATEST]),
     ("10 equal instants keep the lesser token", CANDIDATE, TIE,
@@ -63,8 +65,8 @@ MUTATIONS = [
      [LATEST]),
     ("12 the device header dropped when a token is held", IDENTITY, SET_TOKEN,
      "if let account { headers = [accountHeader: account.uuidString.lowercased()] }", [PLAN, TRIP]),
-    ("13 PlanClient reads the token before the device refusal", PLANCLIENT, NO_INSTALL,
-     "_ = await accountToken?.accountToken()\n        " + NO_INSTALL, [REFUSAL]),
+    ("13 PlanClient reads the token before the device refusal", PLANCLIENT, NO_INSTALL + PLAN_BODY,
+     "_ = await accountToken?.accountToken()\n        " + NO_INSTALL + PLAN_BODY, [REFUSAL]),
     ("14 TripClient reads the token before the device refusal", TRIPCLIENT, NO_INSTALL,
      "_ = await accountToken?.accountToken()\n        " + NO_INSTALL, [REFUSAL]),
     ("15 LoopClient reads the token before the device refusal", LOOPCLIENT, NO_INSTALL,

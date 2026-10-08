@@ -36,8 +36,8 @@ import Testing
 
     @Test("The session step over every stored state, spent and unspent", arguments: steps)
     func step(_ row: StepRow) {
-        #expect(SessionStep.next(stored: row.stored, now: AttestWire.now, spent: false) == row.unspent)
-        #expect(SessionStep.next(stored: row.stored, now: AttestWire.now, spent: true) == row.spent)
+        #expect(SessionStep.next(stored: row.stored, now: AttestWire.now, spent: false, act: nil) == row.unspent)
+        #expect(SessionStep.next(stored: row.stored, now: AttestWire.now, spent: true, act: nil) == row.spent)
     }
 
     struct FlowRow: Sendable, CustomTestStringConvertible {
@@ -114,7 +114,7 @@ import Testing
         let transport = ScriptedTransport(replies)
         let storage = MemorySessionStorage(stored)
         let store = SessionStore(client: AttestWire.client(transport), attester: FakeAttester(isSupported: supported),
-                                 storage: storage, now: { AttestWire.now })
+                                 storage: storage, account: nil, now: { AttestWire.now })
         return (store, transport, storage)
     }
 
