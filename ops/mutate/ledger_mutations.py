@@ -10,6 +10,8 @@ ledger_run.py (savedlist's three-file shape).
     the feedback dropped, the ledger's day ignored;
   * THE PRE-REVIEW SURVIVORS (26-28): MISSED before their tests landed (T-0307 Log), CAUGHT after;
   * THE DEDUPE KEY (29-32): the merge keyed by anything but the place id - category, corridor, both, day.
+  * THE CHARACTER CLASSES (33-44, review round 1 RV1/RV2): every bound of the cell's digit and lowercase classes,
+    the second date separator, and both bounds of the day's digit class.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -38,10 +40,17 @@ OFFLINE = "No reply at all is offline, after exactly one request"
 NOSESSION = "Without a session nothing is sent"
 REFUSED = "A place id or cell the Worker would refuse is refused on the device and nothing is sent"
 MERGED = "The merged history is exactly the expected one, whatever the ledger's order"
+CELLCLASS = "Every cell position admits exactly 0-9 and a-f, at both bounds of each class"
+DAYCLASS = "Every day separator and digit position refuses its out-of-class neighbours"
+DAYREAD = "A day with 0 or 9 at each digit position that can hold one is read as that day"
 NINETY = "A ledger place shown 89 days ago is never picked; 90 days ago it is picked again"
 # The merge's dedupe: both lines name the key, so a mutant swaps it in both.
 KEY = ("if let held = latest[entry.candidateId], Surprise.days(entry.date, since: held.date) <= 0 { return }\n"
        "            latest[entry.candidateId] = entry")
+
+# The cell's two classes and the day's digit class, each anchored on its whole expression.
+CELL_CLASSES = "(48...57).contains($0) || (97...102).contains($0)"
+DAY_CLASS = "(48...57).contains($0) } }"
 
 MUTATIONS = [
     ("1 an empty token is a session", CLIENT,
@@ -102,6 +111,21 @@ MUTATIONS = [
     ("31 the merge keyed by category and corridor", MERGE, KEY,
      KEY.replace("entry.candidateId", 'entry.category.rawValue + "/" + entry.corridor'), [MERGED]),
     ("32 the merge keyed by day", MERGE, KEY, KEY.replace("entry.candidateId", '"\\(entry.date)"'), [MERGED]),
+    # 33-44: review round 1 RV1/RV2 closed by class - every bound of every character-class check.
+    ("33 the cell's lowercase class admits g", ENTRY, CELL_CLASSES, CELL_CLASSES.replace("102", "103"), [CELLCLASS]),
+    ("34 the second date separator unchecked", READER, ", b[7] == 45", "", [DAYCLASS]),
+    ("35 the cell's digit class admits a colon", ENTRY, CELL_CLASSES, CELL_CLASSES.replace("57", "58"), [CELLCLASS]),
+    ("36 the cell's digit class admits a slash", ENTRY, CELL_CLASSES, CELL_CLASSES.replace("48", "47"), [CELLCLASS]),
+    ("37 the cell's lowercase class admits a backtick", ENTRY, CELL_CLASSES, CELL_CLASSES.replace("97", "96"),
+     [CELLCLASS]),
+    ("38 the day's digit class admits a colon", READER, DAY_CLASS, DAY_CLASS.replace("57", "58"), [DAYCLASS]),
+    ("39 the cell's digit class refuses 0", ENTRY, CELL_CLASSES, CELL_CLASSES.replace("48", "49"), [CELLCLASS]),
+    ("40 the cell's digit class refuses 9", ENTRY, CELL_CLASSES, CELL_CLASSES.replace("57", "56"), [CELLCLASS]),
+    ("41 the cell's lowercase class refuses a", ENTRY, CELL_CLASSES, CELL_CLASSES.replace("97", "98"), [CELLCLASS]),
+    ("42 the cell's lowercase class refuses f", ENTRY, CELL_CLASSES, CELL_CLASSES.replace("102", "101"),
+     [CELLCLASS]),
+    ("43 the day's digit class refuses 0", READER, DAY_CLASS, DAY_CLASS.replace("48", "49"), [DAYREAD]),
+    ("44 the day's digit class refuses 9", READER, DAY_CLASS, DAY_CLASS.replace("57", "56"), [DAYREAD]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -112,6 +136,6 @@ EQUIVALENT = [
      "entry is refused by the next clause either way"),
 ]
 
-MIN_MUTATIONS = 32
+MIN_MUTATIONS = 44
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 2
