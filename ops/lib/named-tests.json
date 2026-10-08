@@ -185,7 +185,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests|SurpriseShownRecordFieldsTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)|ScenicKitTests\\.LearnedSpeedsPrivacyTests",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -206,7 +206,8 @@
         "ScenicAPIClientTests.SurpriseLedgerWriteTests/showings(_:)",
         "ScenicAPIClientTests.PlanVehicleWireTests/wireValuesAreTheWorkerTable()",
         "ScenicAPIClientTests.PlanVehicleWireTests/everyProfileWhole()",
-        "ScenicAPIClientTests.PlanVehicleWireTests/defaultIsStandard()"
+        "ScenicAPIClientTests.PlanVehicleWireTests/defaultIsStandard()",
+        "ScenicKitTests.LearnedSpeedsPrivacyTests/noLearnedTypeIsCodable()"
       ]
     }
   },
@@ -1300,6 +1301,21 @@
         "POST /waitlist counts one device once per cell per UTC day (T-0296) > same device same cell same day counts once; a second device, a second cell and the next day count again - every step's tables whole, over both variants",
         "POST /waitlist counts one device once per cell per UTC day (T-0296) > the dedupe table holds no device id and no cell, only 64-hex tags and the UTC day",
         "POST /waitlist counts one device once per cell per UTC day (T-0296) > without a usable SESSION_JWT_SECRET the route fails closed: unbound, empty or 31 chars is 503 and writes nothing; 32 chars counts"
+      ]
+    }
+  },
+  "P-SAFE-07": {
+    "swift": {
+      "filter": "ScenicKitTests\\.(LearnedCorridorSpeedsTests|HourOfWeekTests)",
+      "tests": [
+        "ScenicKitTests.LearnedCorridorSpeedsTests/badgeAtFiveSamples()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/emptyRouteIsAnEstimate()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/ewmaFirstAndSecondUpdate()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/ratioClampBounds()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/badTimesRefused()",
+        "ScenicKitTests.LearnedCorridorSpeedsTests/hourBoundaryMidRoute()",
+        "ScenicKitTests.HourOfWeekTests/initBounds()",
+        "ScenicKitTests.HourOfWeekTests/wrapAndZone()"
       ]
     }
   }

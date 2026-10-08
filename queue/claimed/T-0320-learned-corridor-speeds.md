@@ -85,3 +85,28 @@ drive legs from DriveSession into record, and retime into the preview) is a foll
   free-flow times do not exist on the device yet (d), so that task also needs `details=time` from the Worker.
   R11 (pins). P-SAFE-07 gets a new PINS.yaml row bound by name (swift key) to the badge table test; P-PRIV-05's swift
   filter and tests widen to the Codable test, its assertion runs the guard first. Quoted strings (pins-yaml-strict).
+- 2026-10-08T11:21:43Z RED then GREEN (agent/claude-opus-5). Tests first, against the shipped API with stubbed
+  bodies (record `false`, retime free flow + isEstimate true, HourOfWeek.of `HourOfWeek(0 * day)!`):
+  `swift test --scratch-path .../.build/t320 --filter "LearnedCorridorSpeedsTests|HourOfWeekTests|LearnedSpeedsPrivacyTests"`
+  -> "Test run with 9 tests in 3 suites failed after 0.021 seconds with 123 issues"; FAILED by name: "the estimate
+  badge: on at 0 and 4 samples, off at 5 and 6, and on whenever another edge is unlearned" (72 issues), "an empty
+  route is an estimate with no edges", "the EWMA: the first sample seeds the ratio, the second moves it by alpha
+  0.25", "the ratio clamp at 0.3 and 1.0, one ulp either side of each bound", "NaN, infinite, zero and negative
+  times are refused and change nothing", "departsAt: an edge entered after Sunday 23:59 reads Monday 00:00's ratio,
+  and the hour shifts the ratio", "Sunday 23:00 is 167 and wraps to Monday 00:00 = 0; the zone decides the hour".
+  Passing against the stubs, by design: "HourOfWeek(_:) holds 0...167 ..." (the failable init is the type, not a
+  body) and "no learned-speed type is Encodable or Decodable" (seen red below). With the bodies (commit a146e897):
+  "Test run with 9 tests in 3 suites passed after 0.007 seconds."
+  SOURCE GUARD ops/lib/check-learned-speeds-sites.py: whitelist absent -> "REFUSING - the whitelist
+  check-learned-speeds-sites.txt is missing or empty" exit 2; whitelist written from --print-sites (13 sites, all in
+  Sources/ScenicKit/Traffic/, read line by line) -> "ok - 13 sites, every one approved, in 5 files" exit 0;
+  --prove-red -> "PROVE-RED OK: 8 of 8 rows red by name, control 0" (an extension declaring Codable, the
+  declaration gaining Encodable, CorridorRatio gaining Codable, ScenicAPIClient taking the learner, Telemetry
+  aliasing a slot, the app holding a RetimedRoute, a code line with a trailing comment, an approved line repeated).
+  LIVE TREE: `Codable` added to CorridorRatio's declaration -> guard "REFUSED site not on the whitelist: ...
+  public struct CorridorRatio: Equatable, Sendable, Codable {" + "approved site missing", exit 1, and the test
+  "no learned-speed type is Encodable or Decodable" recorded 2 issues (CorridorRatio is Encodable / Decodable);
+  restored -> guard ok exit 0.
+  DIGESTS: `bash ops/lib/check-safety-disclaimer` refused "root: added Sources/ScenicKit/Traffic/CorridorCell.swift
+  ... TrafficProvider.swift" until the eight rows were added to [PINNED_ROOT_SOURCES]; then exit 0 ("226 root +
+  pbxproj file(s) (-linked)").
