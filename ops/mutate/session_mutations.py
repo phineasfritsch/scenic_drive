@@ -13,6 +13,8 @@ the ledger write (LedgerSurpriseSource.swift, LedgerClient.swift's 401 hand-back
   * THE LEDGER WRITE (32-36): another coordinate's cell, the read's nil, the 401 kept, the category, the feedback;
   * THE PRE-REVIEW HOLD-BACKS (37-39): MISSED before their rows landed (T-0310 Log), CAUGHT after;
   * THE PRE-REVIEW SURVIVOR (40): a place with no cell posted - MISSED before the no-cell place d landed, CAUGHT after.
+  * REVIEW ROUND 1 (41-56): every bound of the challenge's classes and its length (B1); the read's 401 and a 401
+    assertion, over a real SessionStore (B2).
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -55,9 +57,13 @@ REJECTED = "A rejected token is dropped and renewed once per launch; another tok
 SHOWINGS = "Each shown place is in the device history once, and posted with its own cell as the session allows"
 PLACES = "The ledger's rows become the card's ledger places, in the Worker's order; any other answer is nil"
 RECORDING = "A shown place is appended once a day, its category and corridor its own"
+CHCLASS = "Every challenge position admits exactly 0-9, A-Z, a-z, '-' and '_', at both bounds of each class"
+CHLEN = "A challenge is read at exactly 43 characters"
+READ401 = "A GET /ledger 401 drops the session: the next POST carries the renewed token"
 
 SORTED = "encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]"
 MARGIN = "record.expiresAt.timeIntervalSince(now) > margin"
+CHALLENGE = "(48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0 == 45 || $0 == 95"
 
 MUTATIONS = [
     ("1 the challenge without its device header", CLIENT,
@@ -128,6 +134,39 @@ MUTATIONS = [
     ("40 a place with no cell posted under a stand-in", SOURCE,
      "guard let cell = cellOf(candidate.coordinate) else { return }",
      'let cell = cellOf(candidate.coordinate) ?? "85283473fffffff"', [SHOWINGS]),
+    # 41-54: review round 1 (rv1-t0310) B1 closed by class - every bound of the challenge's character classes.
+    ("41 the challenge's lowercase class refuses a", READER, CHALLENGE, CHALLENGE.replace("(97...122)", "(98...122)"),
+     [CHCLASS]),
+    ("42 the challenge's lowercase class refuses z", READER, CHALLENGE, CHALLENGE.replace("(97...122)", "(97..<122)"),
+     [CHCLASS]),
+    ("43 the challenge's digit class admits a slash", READER, CHALLENGE, CHALLENGE.replace("(48...57)", "(47...57)"),
+     [CHCLASS]),
+    ("44 the challenge's digit class admits a colon", READER, CHALLENGE, CHALLENGE.replace("(48...57)", "(48...58)"),
+     [CHCLASS]),
+    ("45 the challenge's uppercase class admits @", READER, CHALLENGE, CHALLENGE.replace("(65...90)", "(64...90)"),
+     [CHCLASS]),
+    ("46 the challenge's uppercase class admits [", READER, CHALLENGE, CHALLENGE.replace("(65...90)", "(65...91)"),
+     [CHCLASS]),
+    ("47 the challenge's lowercase class admits a backtick", READER, CHALLENGE,
+     CHALLENGE.replace("(97...122)", "(96...122)"), [CHCLASS]),
+    ("48 the challenge's lowercase class admits {", READER, CHALLENGE, CHALLENGE.replace("(97...122)", "(97...123)"),
+     [CHCLASS]),
+    ("49 the challenge's digit class refuses 0", READER, CHALLENGE, CHALLENGE.replace("(48...57)", "(49...57)"),
+     [CHCLASS]),
+    ("50 the challenge's digit class refuses 9", READER, CHALLENGE, CHALLENGE.replace("(48...57)", "(48..<57)"),
+     [CHCLASS]),
+    ("51 the challenge's uppercase class refuses A", READER, CHALLENGE, CHALLENGE.replace("(65...90)", "(66...90)"),
+     [CHCLASS]),
+    ("52 the challenge's uppercase class refuses Z", READER, CHALLENGE, CHALLENGE.replace("(65...90)", "(65..<90)"),
+     [CHCLASS]),
+    ("53 the challenge length a ceiling", READER, "bytes.count == 43", "bytes.count <= 43", [TABLE, CHLEN]),
+    ("54 the challenge's '_' refused", READER, "$0 == 45 || $0 == 95", "$0 == 45", [CHCLASS]),
+    # 55-56: rv1-t0310 B2 closed by class - every path that can receive a 401, over a real SessionStore.
+    ("55 the read's 401 kept", LEDGER,
+     "body: Data()), isRead: true)\n        return await settled(outcome, token: token)",
+     "body: Data()), isRead: true)\n        return outcome", [READ401]),
+    ("56 a 401 assertion forgets the key", STORE, "if outcome == .rejected {",
+     "if outcome == .rejected || outcome == .unexpected(401) {", [FLOW]),
 ]
 
 # (name, path, old, new, witness): cannot change behaviour, so anything but MISSED is a failure.
@@ -145,6 +184,6 @@ EQUIVALENT = [
      "next launch is a new store that reads the real Keychain"),
 ]
 
-MIN_MUTATIONS = 40
+MIN_MUTATIONS = 56
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 5
