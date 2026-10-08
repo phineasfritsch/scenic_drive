@@ -89,3 +89,23 @@ xcodeproj lock.
   [String] of each step; bound by name in P-SAFE-09's named-tests row. Mutation entries in ops/mutate/drive_mutations.py
   (DriveVoice and DriveSession.legEnd), MISSED with the suites emptied (--prove-vacuity --only) and CAUGHT by name after.
   R7 Live Activity stays out (needs a widget target and the xcodeproj lock - the Brief's follow-up).
+- 2026-10-08T22:39:28Z BUILT (agent/claude-opus-5). R8 (ruled while writing the scenario tests, before any run): a fix
+  more than 50 m from the current line is on no leg - `DriveSession.legEnd` is nil there (the session's own <= 50 m
+  rule, exact bound table-tested) - so the away dwell, still `.guiding` for up to 5 s, says no leg line either.
+  RED FIRST (DriveVoice stubbed: nil/[] answers, legEnd nil; `swift test --filter DriveVoiceTests`): "Test run with
+  10 tests in 1 suite failed after 0.022 seconds with 24 issues" - 8 recorded an issue by name; the two passing are the
+  table-only meta-tests (transitionTableIsTheCrossProduct, cueRowsAreFunctionsOfTheLeg), which read no code under test.
+  GREEN (real code, `--filter Drive`): "Test run with 81 tests in 21 suites passed"; `run-named-tests.py P-SAFE-09`:
+  "NAMED P-SAFE-09 passed=19/19". MUTATION (ops/mutate/drive_mutations.py entries 58-75 over DriveVoice and
+  DriveSession.legEnd; floor 57->75, equivalent 4->5 with E5 device-only, test files 6->7): `--only 58..75
+  --prove-vacuity` MISSED 17 of 18 and 67 compile-only (`approached = approached` is a Swift error) - 67 re-anchored to
+  `approached.formUnion([Int]())`, then `--only 67 --prove-vacuity` "VACUITY PROOF OK ... MISSED=1 of 1"; `--only 58..75`
+  "caught by the test that names it: 18 of 18 (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)
+  MUTATE OK". P-PRIV-02 RED/GREEN: Info.plist at d6b48cc0 -> "P-PRIV-02: Info.plist UIBackgroundModes is None, not
+  exactly ['audio', 'location']" exit 1; with the key -> exit 0; `--prove-red` "PROVE-RED OK: 13/13 refused by name"
+  (incl. a binary BUILT plist with an extra mode); ios-compile run 37848008751 (success) step "P-PRIV-02 on the built
+  plist": "UIBackgroundModes is exactly ['audio', 'location'] with the drive present, in the source plist and the
+  BUILT one". check-drive-voice.py: green "7 approved whole lines"; `--prove-red` "PROVE-RED OK: 6/6 refused by name".
+  ios-screenshot run 37848014042 (success): drive-light.png LOOKED AT - the minimal surface, one full-width "End drive"
+  action, the planned line and the attribution box; voice has no pixels. Digests re-approved: ScenicDrive/Info.plist,
+  DriveSession.swift, DriveVoice.swift (new row beside DriveSurface).
