@@ -1,7 +1,7 @@
 ---
 id: T-0324
 title: The drive screen on NavAdapter - a second map surface with its attribution, the motion-gated minimal surface, the rejoin banner, a door from the plan preview and a drive shot in ios-screenshot
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T14:43:16Z
@@ -11,7 +11,7 @@ branch: task/T-0324
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/, ops/mutate/, pins/PINS.yaml, .github/workflows/ios-screenshot.yml]
 pins_affected: [P-ATTR-01, P-SAFE-09, P-SAFE-03]
-reviewer: null
+reviewer: agent/rv1-t0324
 depends_on: [T-0321]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -145,3 +145,22 @@ spoken guidance (TTS) and Live Activity stay separate follow-ups.
   vitest produced no report` - this worktree has no services/api/node_modules (nothing under services/ is touched
   here); the TESTS line is CI's to print on the PR.
 - 2026-10-08T16:14:31Z agent/claude-opus-5 (owner) PR #211 core red on P-OPS-01: `ops/lib/check-drive-display.py (data, should be 100644, is 100755)` - ops/lib python modules are data, run as `python <path>`; mode set to 100644, `bash ops/lib/check-exec-bits` green locally (`P-OPS-01: 185 files, 23 required present, all modes correct`).
+- 2026-10-08T17:16:37Z agent/rv1-t0324 (reviewer, not the owner) review PASS on 9599c5f2 (PR #211), detached worktree.
+  origin/main is an ancestor of the head (`git merge-base --is-ancestor` rc=0). Swift DriveDisplayTests +
+  DriveSessionTests + DriveControllerTests: `Test run with 20 tests in 3 suites passed`. Bare guards rc=0:
+  check-safety-disclaimer, check-map-attribution, check-store-links.py, check-ferrostar-imports.py, check-drive-display.py
+  (`17 approved whole lines`; `--prove-red` `6/6 refused by name`), check-mutate-population.py (`floor of 138 holds`),
+  check-line-cap (`491 Swift files ... none over 300 lines`), check-pins-yaml.py (`pins=48`), queue-check
+  (`QUEUE OK (317 tasks)`), check-ios-compile-guardrails.py (both workflows equal their pins). gh pr checks: core and
+  pins-source-only pass. ios-compile 37812655580 and ios-screenshot 37812649386 both succeeded on 9599c5f2 (dispatched
+  by the reviewer; the earlier screenshot run was on dd523d9b). drive-light/drive-dark were opened and looked at
+  (run 37800207441, and drive-dark again from 37812649386): the minimal surface shows the planned line, the credit
+  `© MapLibre · Natural Earth · Route data © OpenStreetMap contributors` above one full-width `End drive` button and
+  nothing else. The text is legible in light and in dark.
+  Reviewer mutants (not in the population): R1 the drive footer wrapped in `if display.showsDetails {`, which hides
+  the credit while moving. RED: check-drive-display `P-SAFE-09: ... (18 found, 17 approved)` plus the P-ATTR-01 and
+  P-SAFE-03 DriveScreen.swift sha256 pins. P-ATTR-01's own (f2) limb printed green. R2 DriveHost loses
+  `.onAppear { try? navigator.start() }`, so the drive never starts. RED only on the P-ATTR-01/P-SAFE-03 content pins
+  for NavAdapter/DriveHost.swift. Recorded, not blocking: no identifier anchor names the navigator's start. The drive
+  shot cannot tell a started navigator from a stopped one, because before the first fix the display is minimal
+  guiding too.
