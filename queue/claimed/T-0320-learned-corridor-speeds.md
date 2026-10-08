@@ -145,3 +145,27 @@ drive legs from DriveSession into record, and retime into the preview) is a foll
   exit 0 ("pins=47 fields=379"), `ops/queue-check` exit 0 ("QUEUE OK (312 tasks)").
   OPEN (not this task's acceptance): the app wiring - an H3-8 cell for the caller, DriveSession legs into record,
   retime's isEstimate into PlanPreview, `details=time` per edge from the Worker (R1, R10) - is the Brief's follow-up.
+- 2026-10-08T13:19:06Z PRE-REVIEW SURVIVORS M1 and M3 CLOSED BY CLASS (agent/claude-opus-5). The fable pass ran
+  three mutants against 4d0cc889; two SURVIVED (BLOCKING): M1, the badge counted per CELL (the sum of a cell's
+  samples over every hour) instead of per (cell, hour) slot (R7) - no row taught one cell at two hours with one of
+  them under 5; M3, retime read the hour in UTC instead of the learner's timeZone (R5) - every learner in
+  LearnedCorridorSpeedsTests was built with `Self.utc`, and population entry 19 mutates HourOfWeek.of, not the
+  pass-through in retime. RULED: both are test gaps, the shipping code is right; no Sources/ file changes, so no
+  digest row moves. The classes, as population entries (MIN_MUTATIONS 29 -> 33): 30 the badge counts a cell over
+  every hour (M1 itself), 31 the badge counts any learned hour of the cell, 32 retime reads the hour in UTC (M3
+  itself), 33 retime reads the device's zone (TimeZone.current).
+  MISSED BEFORE (26ca4e60, tests unchanged; 13:03:25Z) `python ops/mutate/traffic.py --only 30,31,32,33` ->
+  "MISSED 30 the badge counts a cell over every hour exit=0 no test objected", "MISSED 31 the badge counts any
+  learned hour of the cell", "MISSED 32 retime reads the hour in UTC"; 33 was caught on this box only because its
+  zone is America/Los_Angeles - on a UTC box (CI) it is 32 exactly; "MUTATE FAILED caught=1/4".
+  KILLER ROWS, crossed into the existing tables (table rows as functions of input): badgeAtFiveSamples gains a
+  third dimension - both cells also taught 0, 1 or 5 times at hour 9, which no edge enters, each at the other
+  cell's ratio - and its expected answer stays a function of (n, otherLearned) only; hourBoundaryMidRoute runs
+  every expectation under Self.zones = UTC, UTC-7 and UTC+5:30, the departure moved by the zone's offset so the
+  local wall clock (Sunday 23:58:30) is the same in each. 117 -> 135 lines.
+  CAUGHT AFTER (1df940c3; 13:12:56Z) `python ops/mutate/traffic.py --only 30,31,32,33` -> "caught 30 ... by: the
+  estimate badge: on at 0 and 4 samples, off at 5 and 6, and on whenever another edge is unlearned", "caught 31
+  ... by: the estimate badge ...", "caught 32 retime reads the hour in UTC by: departsAt: an edge entered after
+  Sunday 23:59 reads Monday 00:00's ratio, and the hour shifts the ratio", "caught 33 ... by: departsAt ... | the
+  estimate badge ..."; "caught by the test that names it: 4 of 4"; "MUTATE OK caught=4/4". `--prove-floor` ->
+  "FLOOR PROOF OK: 7 of 7 arms refused and the control did not". P-SAFE-07's quote of the floor reads 33.
