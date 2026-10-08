@@ -46,6 +46,7 @@ struct ScenicDriveApp: App {
                     CorpusDownloadSheet(status: corpus.statusText, fraction: corpus.fraction, isWorking: corpus.isWorking,
                                         onDownload: { corpus.start() }, onLater: { isShowingCorpusDownload = false })
                 }
+                .environment(\.surpriseLedger, LiveSurpriseLedger.make())
         }
     }
 }
