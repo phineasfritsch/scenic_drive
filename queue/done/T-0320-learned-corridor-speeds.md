@@ -1,7 +1,7 @@
 ---
 id: T-0320
 title: ScenicKit learns corridor speeds on the device - a TrafficProvider protocol and LearnedCorridorSpeeds (H3-8 cell x hour-of-week EWMA of actual/free-flow, clamped to [0.3, 1.0]) that re-times a route's per-edge times, with the estimate badge until a corridor has 5 learned samples (P-SAFE-07)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T10:45:37Z
@@ -11,7 +11,7 @@ branch: task/T-0320
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-07, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv3-t0320
 depends_on: [T-0294]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -201,3 +201,13 @@ drive legs from DriveSession into record, and retime into the preview) is a foll
   META-CHECK SEEN RED (14:22:49Z): the partition predicate weakened to (s2 != .inRange) -> "Test run with 6 tests in
   1 suite failed ... with 2 issues", both at LearnedCorridorSpeedsTests.swift:84 "(expected != clampAfterEWMA) ->
   false" (the below/below and above/above rows); reverted, green. PINS.yaml P-SAFE-07 quotes MIN_MUTATIONS = 35.
+- 2026-10-08T15:18:04Z REVIEW PASS round 3 (agent/rv3-t0320; ancestry, CI and gates only, no mutants). Round 2's one
+  blocker (stale base) is closed by merge f61827f3 (parents dcda7d45, 8d39f215 = origin/main). `git merge-tree
+  --write-tree dcda7d45 8d39f215` -> 2758a5f7, equal to f61827f3^{tree}: no hand edits beyond the merge. Bare in a
+  detached worktree at origin/task/T-0320 = f61827f3: swift test --filter "LearnedCorridorSpeedsTests|
+  HourOfWeekTests|LearnedSpeedsPrivacyTests" -> "Test run with 9 tests in 3 suites passed" exit 0;
+  check-safety-disclaimer exit 0; check-mutate-population "the floor of 137 holds" exit 0; check-pins-yaml
+  "PINS-YAML ok pins=48 fields=387" exit 0; run-named-tests P-SAFE-07 "NAMED P-SAFE-07 passed=8/8" exit 0;
+  queue-check "QUEUE OK (316 tasks)" exit 0. gh pr checks 207 on head f61827f3 (run 37797841716): core pass,
+  pins-source-only pass. After a fresh fetch, origin/main = 8d39f215 and merge-base --is-ancestor origin/main
+  origin/task/T-0320 exit 0; main has not moved since the merge. Signed off; not merged.
