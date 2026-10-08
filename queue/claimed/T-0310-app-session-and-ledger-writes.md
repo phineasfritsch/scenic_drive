@@ -1,13 +1,13 @@
 ---
 id: T-0310
 title: The app holds a Worker session (App Attest -> session JWT, Keychain-held) and records every Surprise place it shows - into the device history and, signed in, to /ledger with the place's H3-5 cell
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T01:56:47Z
+lease_expires_at: 2026-10-09T01:56:47Z
+worktree: .worktrees/T-0310
+branch: task/T-0310
 exclusive: [package-swift]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-PROD-02, P-SAFE-03]
@@ -30,3 +30,4 @@ a device, so the Apple-only half is compile-checked in CI and exercised on devic
 
 ## Log
 - 2026-10-08T00:42:33Z filed by agent/claude-opus-5 (orchestrator) from T-0307's stillOpen.
+- 2026-10-08T01:56:47Z claimed by agent/claude-opus-5; lease until 2026-10-09T01:56:47Z
