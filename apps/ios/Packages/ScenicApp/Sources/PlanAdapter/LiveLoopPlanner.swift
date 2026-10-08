@@ -11,6 +11,7 @@ public enum LiveLoopPlanner {
               base.scheme == "https" else { return UnreachableLoopPlanner() }
         return ClientLoopPlanner(client: LoopClient(base: base, transport: URLSessionPlanTransport(),
                                                     installID: StoredInstallID(),
-                                                    accountToken: StoreKitAccountToken()))
+                                                    accountToken: StoreKitAccountToken(),
+                                                    session: LiveSession.store))
     }
 }

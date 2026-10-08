@@ -60,10 +60,11 @@ enum TripWire {
 
     static func trip(through transport: any PlanTransport, from origin: Coordinate = origin, to place: Int64 = 42,
                      days: Int = 2, extraBudgetPercent: Int = 40, vehicle: VehicleProfile = .standard,
-                     install: Bool = true, account: (any AccountTokenProvider)? = nil)
+                     install: Bool = true, account: (any AccountTokenProvider)? = nil,
+                     session: (any PlanSessionProvider)? = nil)
         async -> Result<TripResponse, TripError> {
         let client = TripClient(base: base, transport: transport, installID: install ? PlanWire.install : nil,
-                                accountToken: account)
+                                accountToken: account, session: session)
         do {
             return .success(try await client.trip(from: origin, to: place, days: days,
                                                   extraBudgetPercent: extraBudgetPercent, vehicle: vehicle))

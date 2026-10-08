@@ -11,6 +11,7 @@ public enum LiveTripPlanner {
               base.scheme == "https" else { return UnreachableTripPlanner() }
         return ClientTripPlanner(client: TripClient(base: base, transport: URLSessionPlanTransport(),
                                                     installID: StoredInstallID(),
-                                                    accountToken: StoreKitAccountToken()))
+                                                    accountToken: StoreKitAccountToken(),
+                                                    session: LiveSession.store))
     }
 }

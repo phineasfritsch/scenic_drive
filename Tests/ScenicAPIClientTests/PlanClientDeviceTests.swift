@@ -41,7 +41,7 @@ final class PlanClientDeviceTests: XCTestCase {
 
     func testOneClientSendsTheSameIDFromEveryOrigin() async {
         let fake = CountingPlanTransport(reply: ok)
-        let client = PlanClient(base: PlanWire.base, transport: fake, installID: PlanWire.install, accountToken: nil)
+        let client = PlanClient(base: PlanWire.base, transport: fake, installID: PlanWire.install, accountToken: nil, session: nil)
         for origin in [PlanWire.santaMonica, Coordinate(latitude: 37.77, longitude: -122.42)] {
             _ = try? await client.plan(from: origin, to: 42, budgetMinutes: 25)
         }

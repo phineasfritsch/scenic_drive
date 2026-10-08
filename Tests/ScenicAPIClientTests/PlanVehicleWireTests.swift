@@ -20,7 +20,7 @@ import Testing
     /// One plan of `profile`: the bodies the transport received, and the device refusal if the client made one.
     static func send(_ profile: VehicleProfile, budget: Int, place: Int64) async -> ([String], PlanRefusal?) {
         let fake = CountingPlanTransport(reply: PlanHTTPReply(status: 200, body: Data()))
-        let client = PlanClient(base: PlanWire.base, transport: fake, installID: PlanWire.install, accountToken: nil)
+        let client = PlanClient(base: PlanWire.base, transport: fake, installID: PlanWire.install, accountToken: nil, session: nil)
         var refusal: PlanRefusal?
         do {
             _ = try await client.plan(from: PlanWire.santaMonica, to: place, budgetMinutes: budget, vehicle: profile)
@@ -59,7 +59,7 @@ import Testing
     @Test("a plan that names no vehicle is sent as standard")
     func defaultIsStandard() async throws {
         let fake = CountingPlanTransport(reply: PlanHTTPReply(status: 200, body: Data()))
-        let client = PlanClient(base: PlanWire.base, transport: fake, installID: PlanWire.install, accountToken: nil)
+        let client = PlanClient(base: PlanWire.base, transport: fake, installID: PlanWire.install, accountToken: nil, session: nil)
         _ = try? await client.plan(from: PlanWire.santaMonica, to: 42, budgetMinutes: 25)
         let bodies = await fake.requests.map { String(decoding: $0.body, as: UTF8.self) }
         #expect(bodies == [Self.recomputed(budget: 25, place: 42, lat: "34.02", lon: "-118.49", vehicle: "standard")])

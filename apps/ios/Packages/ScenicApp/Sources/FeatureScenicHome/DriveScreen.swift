@@ -16,7 +16,8 @@ public struct DriveScreen: View {
 
     /// The basemap ACTUALLY on screen, named once so the tiles and the credit cannot drift apart (P-ATTR-01).
     @State private var style = MapStyle.maplibreDemoTiles
-    /// The planned line as the map draws it; its data credit joins the footer.
+    /// The drive's current line as the map draws it - the plan's, then each taken reroute's (T-0328 R4); its data
+    /// credit joins the footer.
     @State private var route: MapRoute?
     @State private var bannerBottom: CGFloat = 0
     @State private var creditBandTop: CGFloat = 0
@@ -60,6 +61,7 @@ public struct DriveScreen: View {
         .background(DesignTokens.bg)
         .task { resolveMap() }
         .onChange(of: colorScheme) { resolveMap() }
+        .onChange(of: display.line) { resolveMap() }
     }
 
     /// The full surface's status, as a sentence under the status bar. Nothing on the minimal surface.
@@ -122,9 +124,9 @@ public struct DriveScreen: View {
         .accessibilityIdentifier("drive.end")
     }
 
-    /// The LA basemap when the archive is on the phone, the demo tiles when it is not, and the planned line.
+    /// The LA basemap when the archive is on the phone, the demo tiles when it is not, and the line the drive is on.
     private func resolveMap() {
-        route = DriveMapLine.route(for: preview)
+        route = DriveMapLine.route(for: display.line)
         style = DriveBasemap.planned(appearance: colorScheme == .dark ? .dark : .light)
     }
 }

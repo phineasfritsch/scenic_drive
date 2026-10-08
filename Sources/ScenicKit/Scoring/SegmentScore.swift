@@ -107,6 +107,25 @@ public enum SegmentScore {
 
         if dullClasses.contains(t.highway) { return 0 }
 
+        let (m, e) = axes(for: t)
+
+        // pow(0, positive) is 0, which is what the geometric mean should say: a way with nothing going for
+        // it on one axis scores nothing, however good the other axis is. That is the whole point of using
+        // this mean rather than an arithmetic one.
+        var score = pow(m, driveExponent) * pow(e, sceneryExponent)
+
+        if t.tunnelMeters > tunnelThresholdMeters { score *= tunnelMultiplier }
+        if t.metersToNearestMotorway < motorwayProximityMeters { score *= motorwayProximityMultiplier }
+        if t.surface == nil, unsurveyedClasses.contains(t.highway) { score *= unsurveyedMultiplier }
+
+        return score
+    }
+
+    /// M and E for a way - how it drives and what it goes past - before the geometric mean, the soft
+    /// multipliers and the dull-class zero. `score(for:)` reads them from here and `ops/route-autopsy`
+    /// prints them, so the two axes exist once in the tree (T-0327 R3). Validation is `score(for:)`'s: a
+    /// caller that prints these checks that `score(for:)` is non-nil first.
+    public static func axes(for t: SegmentTerms) -> (drive: Double, scenery: Double) {
         let m = curvatureWeight * t.curvature
             + elevationGainWeight * t.elevationGain
             + speedFitWeight * t.speedFit
@@ -120,17 +139,7 @@ public enum SegmentScore {
             + quietRoadsideWeight * (1 - t.furniture)
         let bywayBonusEarned = bonus(for: t.bywayTier)
         if bywayBonusEarned > 0 { e = min(1, e + bywayBonusEarned) }
-
-        // pow(0, positive) is 0, which is what the geometric mean should say: a way with nothing going for
-        // it on one axis scores nothing, however good the other axis is. That is the whole point of using
-        // this mean rather than an arithmetic one.
-        var score = pow(m, driveExponent) * pow(e, sceneryExponent)
-
-        if t.tunnelMeters > tunnelThresholdMeters { score *= tunnelMultiplier }
-        if t.metersToNearestMotorway < motorwayProximityMeters { score *= motorwayProximityMultiplier }
-        if t.surface == nil, unsurveyedClasses.contains(t.highway) { score *= unsurveyedMultiplier }
-
-        return score
+        return (m, e)
     }
 
     /// Whether this way's missing `surface` tag should be told to the driver.

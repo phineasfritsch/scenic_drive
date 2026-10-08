@@ -1,13 +1,13 @@
 ---
 id: T-0331
 title: ops/mutate/session.py --prove-vacuity builds again - the Surprise history tests that reference SurpriseShowingTests are emptied with it (or stop referencing it), so the vacuity arm of the session population runs on main
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T22:28:47Z
+lease_expires_at: 2026-10-09T04:28:47Z
+worktree: .worktrees/T-0331
+branch: task/T-0331
 exclusive: []
 touches: [ops/mutate/, Tests/ScenicKitTests/Surprise/]
 pins_affected: [P-PROC-06]
@@ -27,3 +27,4 @@ SurpriseShowingTests, which the vacuity mode empties. A vacuity arm that cannot 
 
 ## Log
 - 2026-10-08T19:14:39Z filed by agent/claude-opus-5 (orchestrator) from T-0322's stillOpen 2; T-0330 is held by task/T-0328.
+- 2026-10-08T22:28:47Z claimed by agent/claude-opus-5; lease until 2026-10-09T04:28:47Z

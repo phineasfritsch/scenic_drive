@@ -29,10 +29,11 @@ public final class DriveNavigator: ObservableObject {
     private let decisions = FerrostarDecisionsOff()
     private var reroutes: [Int: Task<Void, Never>] = [:]
 
-    /// nil when the preview is not a drivable line with its pins on it (DriveSession's own check).
+    /// nil when the preview is not a drivable line with its pins on it (DriveSession's own check). The session starts
+    /// on the preview's plan token (T-0328 R1); `sender` is the shell's - PlanAdapter's PlanRerouter when it can ask.
     public init?(preview: PlanPreview, sender: any RerouteSending = RerouteUnavailable()) {
         guard let session = DriveSession(line: preview.route, waypoints: preview.waypoints, lambda: preview.lambda,
-                                         online: true) else { return nil }
+                                         online: true, planToken: preview.continuation?.token) else { return nil }
         controller = DriveController(session: session)
         voice = DriveVoice(session: session)
         mode = session.mode
