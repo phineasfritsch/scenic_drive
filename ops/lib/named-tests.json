@@ -1356,7 +1356,7 @@
   },
   "P-SAFE-09": {
     "swift": {
-      "filter": "ScenicKitTests\\.(DriveMotionGateTests|DriveDisplayTests)",
+      "filter": "ScenicKitTests\\.(DriveMotionGateTests|DriveDisplayTests|DriveVoiceTests)",
       "tests": [
         "ScenicKitTests.DriveMotionGateTests/surfaceAtEverySpeedBound()",
         "ScenicKitTests.DriveMotionGateTests/minimalBeforeAnyFix()",
@@ -1366,7 +1366,17 @@
         "ScenicKitTests.DriveDisplayTests/everySurfaceAndMode()",
         "ScenicKitTests.DriveDisplayTests/tableIsTheCrossProduct()",
         "ScenicKitTests.DriveDisplayTests/minimalIsTheOneLargeAction()",
-        "ScenicKitTests.DriveDisplayTests/sessionDisplayFollowsTheSession()"
+        "ScenicKitTests.DriveDisplayTests/sessionDisplayFollowsTheSession()",
+        "ScenicKitTests.DriveVoiceTests/everyTransition()",
+        "ScenicKitTests.DriveVoiceTests/transitionTableIsTheCrossProduct()",
+        "ScenicKitTests.DriveVoiceTests/cueAtEveryBound()",
+        "ScenicKitTests.DriveVoiceTests/cueRowsAreFunctionsOfTheLeg()",
+        "ScenicKitTests.DriveVoiceTests/legEndAlongTheLine()",
+        "ScenicKitTests.DriveVoiceTests/aDriveAlongTheLine()",
+        "ScenicKitTests.DriveVoiceTests/arrivalSupersedesTheApproach()",
+        "ScenicKitTests.DriveVoiceTests/quietOffTheRoute()",
+        "ScenicKitTests.DriveVoiceTests/legEndOnlyOnTheLine()",
+        "ScenicKitTests.DriveVoiceTests/offlineThenANewWay()"
       ]
     }
   },

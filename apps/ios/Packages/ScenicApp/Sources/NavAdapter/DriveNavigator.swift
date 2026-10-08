@@ -22,6 +22,7 @@ public final class DriveNavigator: ObservableObject {
     public let core: FerrostarCore
 
     private var controller: DriveController
+    private var voice: DriveVoice
     private let sender: any RerouteSending
     private let tap: DriveLocationTap
     private let connectivity = DriveConnectivity()
@@ -33,12 +34,13 @@ public final class DriveNavigator: ObservableObject {
         guard let session = DriveSession(line: preview.route, waypoints: preview.waypoints, lambda: preview.lambda,
                                          online: true) else { return nil }
         controller = DriveController(session: session)
+        voice = DriveVoice(session: session)
         mode = session.mode
         surface = session.surface
         display = DriveDisplay(session: session)
         self.sender = sender
         let tap = DriveLocationTap(inner: CoreLocationProvider(activityType: .automotiveNavigation,
-                                                               allowBackgroundLocationUpdates: false))
+                                                               allowBackgroundLocationUpdates: true))
         self.tap = tap
         let route = FerrostarDriveRoute.route(line: session.line.coordinates, legs: session.legs)
         core = FerrostarCore(routeProvider: .customProvider(PlannedRouteProvider(route: route)),
@@ -119,5 +121,12 @@ public final class DriveNavigator: ObservableObject {
         mode = controller.session.mode
         surface = controller.session.surface
         display = DriveDisplay(session: controller.session)
+        for text in voice.utterances(after: controller.session) { speak(text) }
+    }
+
+    /// One line ScenicKit's DriveVoice chose, spoken unchanged through Ferrostar's own observer (T-0329 R1).
+    private func speak(_ text: String) {
+        let instruction = SpokenInstruction(text: text, ssml: nil, triggerDistanceBeforeManeuver: 0, utteranceId: UUID())
+        core.spokenInstructionObserver.spokenInstructionTriggered(instruction)
     }
 }

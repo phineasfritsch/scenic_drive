@@ -31,7 +31,8 @@ CONTROLLER = _KIT / "DriveController.swift"
 LEG = _KIT / "DriveLeg.swift"
 UNAVAILABLE = _KIT / "RerouteUnavailable.swift"
 DISPLAY = _KIT / "DriveDisplay.swift"
-SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST, CONTROLLER, LEG, UNAVAILABLE, DISPLAY)
+VOICE = _KIT / "DriveVoice.swift"
+SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST, CONTROLLER, LEG, UNAVAILABLE, DISPLAY, VOICE)
 # NavAdapter (T-0321 R10) is mutated only by EQUIVALENT entries: apps/ios is not compiled on Linux, so those
 # mutants are MISSED here by construction and only a device run observes them.
 NAVIGATOR = ROOT / "apps" / "ios" / "Packages" / "ScenicApp" / "Sources" / "NavAdapter" / "DriveNavigator.swift"
@@ -40,7 +41,8 @@ MUTATED_FILES = SUBJECTS + (NAVIGATOR,)
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Drive"
 TEST_FILES = (_TESTS / "DriveSessionTests.swift", _TESTS / "DriveRerouteTests.swift",
               _TESTS / "DriveMotionGateTests.swift", _TESTS / "DriveControllerTests.swift",
-              _TESTS / "DriveLegTests.swift", _TESTS / "DriveDisplayTests.swift")
+              _TESTS / "DriveLegTests.swift", _TESTS / "DriveDisplayTests.swift",
+              _TESTS / "DriveVoiceTests.swift")
 
 C_FIX = "T-0321: every fix reaches the session whole; off-route online is one send under ticket 1"
 C_LOST = "T-0321: losing the connection with a reroute out cancels its ticket; with none out it cancels nothing"
@@ -56,6 +58,17 @@ D_TABLE = "P-SAFE-09: the drive screen shows the typed display for every surface
 D_LARGE = "P-SAFE-09: moving shows only the one large action - 60 pt, no details - in every mode"
 D_SESSION = ("P-SAFE-09: the session's display is the table's row for its own surface and mode, before and "
              "after fixes")
+
+V_TABLE = "P-SAFE-09: every mode change says the typed line or nothing, compared whole"
+V_CUE = "P-SAFE-09: the leg cue at every distance bound, on a pin's leg and on the last leg, compared whole"
+V_LEGEND = "P-SAFE-09: the leg end is the next pin past the progress, else the last vertex, measured along the line"
+V_DRIVE = ("P-SAFE-09: a drive says each leg's approach once, the destination's approach, then the arrival - "
+           "nothing else")
+V_ARRIVAL = "P-SAFE-09: arriving first says only the arrival, and nothing after it"
+V_QUIET = "P-SAFE-09: off the route the leg is quiet; leaving, failing and coming back each say their line once"
+V_OFFLINE = ("P-SAFE-09: offline says head back; the reconnect is quiet; a landed reroute is a new line with its own "
+             "cues")
+V_ONLINE = "P-SAFE-09: a fix exactly 50 m from the line is on a leg; the next distance above it is on none"
 
 THRESHOLD = "P-NAV-01: 50 m exactly is on the line; the smallest distance above 50 m is away"
 DWELL = "P-NAV-01: off-route needs 5 s away exactly; one ulp less is not; an on-line fix restarts the dwell"
@@ -197,6 +210,45 @@ MUTATIONS = [
      [D_SESSION]),
     ("57 the large action's literal", DISPLAY, "public static let largeActionHeight = 60.0",
      "public static let largeActionHeight = 44.0", [D_TABLE, D_LARGE, D_SESSION]),
+    # T-0329 R2/R3/R8: what the drive says and when (DriveVoice, DriveSession.legEnd).
+    ("58 the approach bound strict", VOICE, "guard meters <= approachMeters else", "guard meters < approachMeters else",
+     [V_CUE]),
+    ("59 the approach literal", VOICE, "public static let approachMeters = 400.0",
+     "public static let approachMeters = 401.0", [V_CUE]),
+    ("60 the arrival bound strict", VOICE, "if lastLeg, meters <= arrivalMeters", "if lastLeg, meters < arrivalMeters",
+     [V_CUE]),
+    ("61 the arrival on every leg", VOICE, "if lastLeg, meters <= arrivalMeters", "if meters <= arrivalMeters",
+     [V_CUE]),
+    ("62 the arrival literal", VOICE, "public static let arrivalMeters = 30.0", "public static let arrivalMeters = 31.0",
+     [V_CUE]),
+    ("63 every approach is a pin's", VOICE, "return lastLeg ? destinationLine : nextStopLine", "return nextStopLine",
+     [V_CUE, V_DRIVE, V_OFFLINE]),
+    ("64 the reconnect speaks", VOICE, "case (.rejoining, .rerouting): return nil",
+     'case (.rejoining, .rerouting): return "Finding a new way."', [V_TABLE, V_OFFLINE]),
+    ("65 the transition read backwards", VOICE, "Self.transition(from: mode, to: session.mode)",
+     "Self.transition(from: session.mode, to: mode)", [V_QUIET, V_OFFLINE]),
+    ("66 a leg spoken while rerouting", VOICE, "guard session.mode == .guiding, !arrived,", "guard !arrived,",
+     [V_QUIET]),
+    ("67 a landed reroute keeps the old cues", VOICE, "approached = []", "approached = approached", [V_OFFLINE]),
+    ("68 an approach repeated", VOICE, "} else if approached.insert(end.vertex).inserted {",
+     "} else if approached.insert(end.vertex).inserted || true {", [V_DRIVE, V_QUIET]),
+    ("69 speaking after the arrival", VOICE, "guard session.mode == .guiding, !arrived,",
+     "guard session.mode == .guiding,", [V_DRIVE, V_ARRIVAL]),
+    ("70 the leg's on-line bound strict", SESSION,
+     "line.distanceMeters(from: at) <= Self.awayThresholdMeters else { return nil }",
+     "line.distanceMeters(from: at) < Self.awayThresholdMeters else { return nil }", [V_ONLINE]),
+    ("71 a leg end while away", SESSION,
+     "guard let at = latest?.coordinate, line.distanceMeters(from: at) <= Self.awayThresholdMeters else",
+     "guard let at = latest?.coordinate else", [V_ONLINE, V_QUIET]),
+    ("72 the next pin skipped", SESSION, "pinVertices.first { $0 > progressSegment }",
+     "pinVertices.first { $0 > progressSegment + 1 }", [V_LEGEND]),
+    ("73 the segments to the leg end not summed", SESSION, "for vertex in (progressSegment + 1)..<end {",
+     "for vertex in (progressSegment + 1)..<(progressSegment + 1) {", [V_LEGEND]),
+    ("74 measured from the vertex behind", SESSION,
+     "var meters = Geo.distanceMeters(at, line.coordinates[progressSegment + 1])",
+     "var meters = Geo.distanceMeters(at, line.coordinates[progressSegment])", [V_LEGEND]),
+    ("75 the arrival never said", VOICE, "if lastLeg, meters <= arrivalMeters {",
+     "if lastLeg, meters <= arrivalMeters, meters > approachMeters {", [V_CUE, V_DRIVE, V_ARRIVAL]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -212,8 +264,11 @@ EQUIVALENT = [
     ("E4 (device-only) a late reply handed back under the ticket in flight", NAVIGATOR,
      "self?.arrived(ticket: ticket, reply: reply)",
      "self?.arrived(ticket: self?.controller.inFlight ?? ticket, reply: reply)", "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device or simulator run can observe it (T-0321 R10). What bounds it: the adapter line it edits is a one-line forward to DriveController, whose half is CAUGHT above (C_REPLY, entry 34)"),
+    ("E5 (device-only) the navigator never speaks", NAVIGATOR,
+     "for text in voice.utterances(after: controller.session) { speak(text) }", "_ = controller.session",
+     "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device run hears it (T-0329). What bounds it: ops/lib/check-drive-voice.py (P-SAFE-09's row) allows exactly this whole line and refuses its removal by name ('the navigator never asks DriveVoice'), and what DriveVoice returns is CAUGHT above (entries 58-75)"),
 ]
 
-MIN_MUTATIONS = 57
-MIN_EQUIVALENT = 4
-MIN_TEST_FILES = 6
+MIN_MUTATIONS = 75
+MIN_EQUIVALENT = 5
+MIN_TEST_FILES = 7
