@@ -1321,7 +1321,7 @@
   },
   "P-NAV-01": {
     "swift": {
-      "filter": "(ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests|DriveControllerTests|DriveLegTests)|ScenicAPIClientTests\\.DriveReplanTests)",
+      "filter": "(ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests|DriveControllerTests|DriveLegTests|DriveTokenTakeTests)|ScenicAPIClientTests\\.DriveReplanTests)",
       "tests": [
         "ScenicKitTests.DriveSessionTests/awayThresholdIsExact()",
         "ScenicKitTests.DriveSessionTests/eastThresholdAtLatitude34()",
@@ -1356,7 +1356,9 @@
         "ScenicAPIClientTests.DriveReplanTests/answerBecomesTheDrawnLine()",
         "ScenicAPIClientTests.DriveReplanTests/lateAnswerDroppedByTicket()",
         "ScenicAPIClientTests.DriveReplanTests/offlineSendsNothing()",
-        "ScenicAPIClientTests.DriveReplanTests/previewKeepsTheToken()"
+        "ScenicAPIClientTests.DriveReplanTests/previewKeepsTheToken()",
+        "ScenicKitTests.DriveTokenTakeTests/takenTogetherOrNone()",
+        "ScenicKitTests.DriveTokenTakeTests/noRowIgnoresItsTokenVariant()"
       ]
     }
   },

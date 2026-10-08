@@ -48,7 +48,7 @@ _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Drive"
 TEST_FILES = (_TESTS / "DriveSessionTests.swift", _TESTS / "DriveRerouteTests.swift",
               _TESTS / "DriveMotionGateTests.swift", _TESTS / "DriveControllerTests.swift",
               _TESTS / "DriveLegTests.swift", _TESTS / "DriveDisplayTests.swift",
-              ROOT / "Tests" / "ScenicAPIClientTests" / "DriveReplanTests.swift")
+              ROOT / "Tests" / "ScenicAPIClientTests" / "DriveReplanTests.swift", _TESTS / "DriveTokenTakeTests.swift")
 
 C_FIX = "T-0321: every fix reaches the session whole; off-route online is one send under ticket 1"
 C_LOST = "T-0321: losing the connection with a reroute out cancels its ticket; with none out it cancels nothing"
@@ -274,7 +274,7 @@ MUTATIONS = [
      "        guard ticket == inFlight else { return false }\n        inFlight = nil\n        return session",
      "        guard ticket == inFlight else {\n            return session.rerouteArrived(line: reply.line, "
      "waypoints: reply.waypoints, planToken: reply.planToken)\n        }\n        inFlight = nil\n        return session",
-     [T_TAKE]),
+     [C_REPLY, T_TAKE]),
     ("81 the controller keeps the old token for an untokened answer", CONTROLLER, "planToken: reply.planToken)",
      "planToken: reply.planToken ?? session.planToken)", [T_TAKE]),
 ]
@@ -304,4 +304,4 @@ EQUIVALENT.append(
      "CAUGHT above (entries 68-71, 73)"))
 
 MIN_EQUIVALENT = 5
-MIN_TEST_FILES = 7
+MIN_TEST_FILES = 8
