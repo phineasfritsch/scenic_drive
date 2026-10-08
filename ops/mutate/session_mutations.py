@@ -138,8 +138,7 @@ EQUIVALENT = [
      "neither, so the fallback after `try?` is never evaluated"),
     ("E2 the Keychain belief kept after a refused write", STORE,
      "if storage.write(record, as: KeychainWrite.replacing(over: keychain ?? .absent)) { keychain = .valid(record) }",
-     "_ = storage.write(record, as: KeychainWrite.replacing(over: keychain ?? .absent))
-        keychain = .valid(record)",
+     "_ = storage.write(record, as: KeychainWrite.replacing(over: keychain ?? .absent))\n        keychain = .valid(record)",
      "keep is reached only from a .renew or .attest step, which sets spent before its one challenge, and SessionStep "
      "answers .none for both once spent; keychain is read only by sessionToken's first-call guard (non-nil before any "
      "acquisition) and by keep and renew, so after keep writes it no path in the same store reads it again, and the "
