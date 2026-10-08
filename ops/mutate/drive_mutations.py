@@ -27,12 +27,30 @@ LINE = _KIT / "DriveLine.swift"
 SURFACE = _KIT / "DriveSurface.swift"
 FIX = _KIT / "DriveFix.swift"
 REQUEST = _KIT / "RerouteRequest.swift"
-SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST)
-MUTATED_FILES = SUBJECTS
+CONTROLLER = _KIT / "DriveController.swift"
+LEG = _KIT / "DriveLeg.swift"
+UNAVAILABLE = _KIT / "RerouteUnavailable.swift"
+SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST, CONTROLLER, LEG, UNAVAILABLE)
+# NavAdapter (T-0321 R10) is mutated only by EQUIVALENT entries: apps/ios is not compiled on Linux, so those
+# mutants are MISSED here by construction and only a device run observes them.
+NAVIGATOR = ROOT / "apps" / "ios" / "Packages" / "ScenicApp" / "Sources" / "NavAdapter" / "DriveNavigator.swift"
+MUTATED_FILES = SUBJECTS + (NAVIGATOR,)
 
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Drive"
 TEST_FILES = (_TESTS / "DriveSessionTests.swift", _TESTS / "DriveRerouteTests.swift",
-              _TESTS / "DriveMotionGateTests.swift")
+              _TESTS / "DriveMotionGateTests.swift", _TESTS / "DriveControllerTests.swift",
+              _TESTS / "DriveLegTests.swift")
+
+C_FIX = "T-0321: every fix reaches the session whole; off-route online is one send under ticket 1"
+C_LOST = "T-0321: losing the connection with a reroute out cancels its ticket; with none out it cancels nothing"
+C_REPLY = "T-0321: a late reply from before the drop is dropped; the reconnect's own reply is taken"
+C_FAIL = "T-0321: a late failure from before the drop is dropped; the reconnect's own failure is rejoin mode"
+C_IDLE = "T-0321: an answer with nothing in flight changes nothing, and a ticket is answered once"
+C_SENDER = "T-0321: until T-0319 the sender asks nothing and fails, so an online off-route drive rejoins"
+L_INNER = "T-0321: the legs cut the line at each inner pin, end at each pin, and the last arrives"
+L_END = "T-0321: no pin, or a pin on the first or last vertex, cuts nothing - no leg is a single point"
+L_REROUTE = "T-0321: a landed reroute's legs are cut at its own pins"
+L_LEN = "T-0321: a leg's length is the sum of Geo's distances between its consecutive vertices"
 
 THRESHOLD = "P-NAV-01: 50 m exactly is on the line; the smallest distance above 50 m is away"
 DWELL = "P-NAV-01: off-route needs 5 s away exactly; one ulp less is not; an on-line fix restarts the dwell"
@@ -119,6 +137,41 @@ MUTATIONS = [
      "let scale = Self.metersPerDegree", [EAST]),
     ("31 the lost edge keeps rerouting", SESSION, "        if !online, mode == .rerouting { mode = .rejoining }\n",
      "", [LOST]),
+    ("32 the lost edge cancels nothing", CONTROLLER, "            commands.append(.cancel(ticket: lost))\n", "",
+     [C_LOST, C_REPLY]),
+    ("33 the lost edge keeps the ticket", CONTROLLER, "            inFlight = nil\n            commands.append(",
+     "            commands.append(", [C_LOST]),
+    ("34 a late reply taken", CONTROLLER,
+     "        guard ticket == inFlight else { return false }\n        inFlight = nil\n        return session",
+     "        inFlight = nil\n        return session", [C_REPLY]),
+    ("35 a late failure taken", CONTROLLER,
+     "        guard ticket == inFlight else { return false }\n        inFlight = nil\n        session.rerouteFailed()",
+     "        inFlight = nil\n        session.rerouteFailed()", [C_FAIL, C_IDLE]),
+    ("36 an arrival keeps the ticket", CONTROLLER, "        inFlight = nil\n        return session.rerouteArrived",
+     "        return session.rerouteArrived", [C_REPLY]),
+    ("37 a failure keeps the ticket", CONTROLLER, "        inFlight = nil\n        session.rerouteFailed()",
+     "        session.rerouteFailed()", [C_FAIL]),
+    ("38 tickets are not new", CONTROLLER, "        lastTicket += 1\n", "", [C_FIX]),
+    ("39 a send leaves nothing in flight", CONTROLLER, "        inFlight = lastTicket\n", "", [C_FIX]),
+    ("40 a fix not forwarded to the session", CONTROLLER, "guard let request = session.observe(fix) else",
+     "guard let request = Optional<RerouteRequest>.none else", [C_FIX]),
+    ("41 an online report cancels too", CONTROLLER, "if !online, let lost = inFlight {",
+     "if let lost = inFlight {", [C_LOST]),
+    ("42 the sender until the wire answers", UNAVAILABLE, "        throw self\n",
+     "        return RerouteReply(line: [], waypoints: [])\n", [C_SENDER]),
+    ("43 a pin on the first vertex cuts", LEG, "where cut > 0 && cut < last", "where cut >= 0 && cut < last",
+     [L_END]),
+    ("44 a pin on the last vertex cuts", LEG, "where cut > 0 && cut < last", "where cut > 0 && cut <= last",
+     [L_END]),
+    ("45 every leg starts at the start", LEG, "            start = cut\n", "", [L_INNER]),
+    ("46 the last leg ends at a pin", LEG, "maneuver: GuidanceMapping.maneuver(for: .finish)",
+     "maneuver: GuidanceMapping.maneuver(for: .reachedVia)", [L_INNER, L_END]),
+    ("47 the legs ignore the pins", SESSION, "DriveLeg.split(line, at: pinVertices)", "DriveLeg.split(line, at: [])",
+     [L_INNER, L_REROUTE]),
+    ("48 a leg's length keeps the longest hop", LEG, "{ $0 + Geo.distanceMeters($1.0, $1.1) }",
+     "{ max($0, Geo.distanceMeters($1.0, $1.1)) }", [L_LEN]),
+    ("49 inner legs arrive", LEG, "maneuver: GuidanceMapping.maneuver(for: .reachedVia)))",
+     "maneuver: GuidanceMapping.maneuver(for: .finish)))", [L_INNER]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -126,8 +179,16 @@ EQUIVALENT = [
     ("E1 a zero-length segment by inequality", LINE, "let t = length2 > 0 ?", "let t = length2 != 0 ?",
      "length2 is dx*dx + dy*dy over finite metres (every vertex and fix is checked finite and in range), so it is "
      "never negative and never NaN; > 0 and != 0 agree on every value it can take"),
+    ("E2 (device-only) a fix not forwarded by the tap", NAVIGATOR,
+     "tap.onLocations = { [weak self] locations in self?.forward(locations) }",
+     "tap.onLocations = { _ in }", "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device or simulator run can observe it (T-0321 R10). What bounds it: the adapter line it edits is a one-line forward to DriveController, whose half is CAUGHT above (C_FIX, entry 40)"),
+    ("E3 (device-only) the cancel not carried out", NAVIGATOR, "reroutes.removeValue(forKey: ticket)?.cancel()",
+     "_ = reroutes.removeValue(forKey: ticket)", "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device or simulator run can observe it (T-0321 R10). What bounds it: the adapter line it edits is a one-line forward to DriveController, whose half is CAUGHT above (C_LOST, entries 32-33; a late answer is still dropped by ticket, entry 34)"),
+    ("E4 (device-only) a late reply handed back under the ticket in flight", NAVIGATOR,
+     "self?.arrived(ticket: ticket, reply: reply)",
+     "self?.arrived(ticket: self?.controller.inFlight ?? ticket, reply: reply)", "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device or simulator run can observe it (T-0321 R10). What bounds it: the adapter line it edits is a one-line forward to DriveController, whose half is CAUGHT above (C_REPLY, entry 34)"),
 ]
 
-MIN_MUTATIONS = 31
-MIN_EQUIVALENT = 1
-MIN_TEST_FILES = 3
+MIN_MUTATIONS = 49
+MIN_EQUIVALENT = 4
+MIN_TEST_FILES = 5
