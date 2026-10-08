@@ -115,3 +115,28 @@ widening anything else.
     (ScenicKit outside touches); VehicleProfile.swift's doc comment still says the /plan body has no vehicle field
     (ScenicKit outside touches); /isochrone has no vehicle key (R1); the R2 compat window must be re-ruled by the
     task that enables a second profile.
+- 2026-10-08T03:59:16Z FIX rv1-t0311 B1 (PR #200, head fc96ab01). agent/claude-opus-5 (owner).
+  - RULING: B1 is a gap of CLASS, not of /loop. Each of the three parsers has an allowed list and a required list
+    per level, and no test held the required lists by exact detail: /loop had none at any level; /plan had none;
+    /trip had two of six (tripRequest.test.ts "an origin without lon", "no destination"). Closed by one table for all
+    three routes through worker.fetch: services/api/test/requiredKeys.test.ts. Rows are a function of (route, level,
+    variant, key) over the variants one-key-missing, all-keys-missing and an unnamed key carrying a second
+    coordinate, with the required lists written as literals; expected = 400 invalid_request with the exact detail,
+    router 0, quota untouched, compared whole. Meta-test: undoing each row's edit gives the reference body, which the
+    Worker accepts (router called, quota spent); no row's body equals the reference; every one-key-missing row of a
+    route answers differently (plan 6, loop 4, trip 6).
+  - RULING: it is a whitelist test (the unnamed-key rows at every level are the P-PRIV-05 body whitelist), so both
+    tests are bound by name under P-PRIV-05 in named-tests.json; PINS.yaml's P-PRIV-05 row now counts 30 vitest.
+  - POPULATION: vehicleMutants.mjs gains `--only=a,b` (unknown id refused) and 17 entries, one per required key per
+    level per parser - B1a `loop-start-required-none` (the reviewer's `[]`), B1b `loop-minutes-not-required`, the
+    lat sibling `loop-start-lat-not-required`, plus loop-start-lon/start, plan-origin/destination/budget/origin-lat/
+    origin-lon/place, trip-origin/destination/days/origin-lat/origin-lon/place `-not-required`. MIN_MUTATIONS 15 -> 32.
+    BEFORE (killers = vehicleWire.test.ts only): `RESULT caught=0 missed=17 trap=0 of 17 (--only)`.
+    AFTER (killers + requiredKeys.test.ts): `RESULT caught=17 missed=0 trap=0 of 17 (--only)`, every one CAUGHT by
+    "every row is 400 invalid_request with its exact detail, zero router requests and an untouched quota".
+    `--prove-floor`: every arm REFUSED, real population quiet; `--only=nope` -> `REFUSING TO RUN: --only names no
+    entry nope`.
+  - `npx vitest run test/requiredKeys.test.ts test/vehicleWire.test.ts`: `Tests 5 passed (5)`.
+    `run-named-tests.py P-PRIV-05`: `NAMED P-PRIV-05 passed=47/48`, the one RED the GRDB-only
+    `noColumnNamesAPlaceOrATrail(): MISSING` as before (Linux CI is its proof). `check-pins-yaml.py`
+    `PINS-YAML ok pins=44 fields=355`. Sizes: requiredKeys.test.ts 148, vehicleMutants.mjs 175.

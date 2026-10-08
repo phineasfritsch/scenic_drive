@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
  * Mutation population for the vehicle key of /plan, /loop and /trip (T-0311 R8) - planMutants.mjs's shape: the
- * enabled-profile whitelist (src/vehicle.ts) and the three parsers that read it. Killer: test/vehicleWire.test.ts.
+ * enabled-profile whitelist (src/vehicle.ts) and the three parsers that read it. Killers: test/vehicleWire.test.ts and test/requiredKeys.test.ts.
  *
  *   node services/api/test/mutate/vehicleMutants.mjs                  run the population
  *   node services/api/test/mutate/vehicleMutants.mjs --prove-vacuity  every mutant must report MISSED with no tests
  *   node services/api/test/mutate/vehicleMutants.mjs --prove-floor    the floor refuses on its arms; runs no tests
+ *   node services/api/test/mutate/vehicleMutants.mjs --only=a,b       run only the named entries (a fix round)
  *
  * WHAT COUNTS. CAUGHT only when vitest's JSON report names a FAILED test. A run that fails with no named
  * failure (a mutant that does not load) is a TRAP and does not count. An anchor that does not occur exactly
@@ -22,13 +23,20 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-vehicle");
 
-export const MIN_MUTATIONS = 15;
+export const MIN_MUTATIONS = 32;
 export const SUBJECTS = ["src/vehicle.ts", "src/planRequest.ts", "src/loopRequest.ts", "src/tripRequest.ts"];
-const TESTS = ["test/vehicleWire.test.ts"];
+const TESTS = ["test/vehicleWire.test.ts", "test/requiredKeys.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 const CHECKED = "if (vehicle) return refuse(vehicle);";
 const MATCH = "ENABLED_VEHICLE_PROFILES.includes(value)) return null;";
+/** rv1-t0311 B1: each required key at each level of each parser, dropped from its required list one at a time. */
+const LOOP_START = 'keysProblem(start, START_KEYS, START_KEYS, "start")';
+const LOOP_TOP = 'REQUIRED_KEYS = ["start", "minutes"];';
+const PLAN_TOP = '["origin", "destination", "budget_minutes"], "the body"';
+const TRIP_TOP = 'REQUIRED_KEYS = ["origin", "destination", "days"];';
+const ORIGIN_LEVEL = 'keysProblem(origin, ORIGIN_KEYS, ORIGIN_KEYS, "origin")';
+const PLACE_LEVEL = 'keysProblem(destination, DESTINATION_KEYS, DESTINATION_KEYS, "destination")';
 export const MUTATIONS = [
   m("vehicle-enables-rv", "vehicle.ts", '= ["standard"];', '= ["standard", "rv"];'),
   m("vehicle-absent-refused", "vehicle.ts", "if (value === undefined) return null;", "if (value === null) return null;"),
@@ -45,6 +53,23 @@ export const MUTATIONS = [
   m("trip-vehicle-unchecked", "tripRequest.ts", CHECKED, "if (vehicle && false) return refuse(vehicle);"),
   m("trip-vehicle-key-dropped", "tripRequest.ts", '"extra_budget_pct", "vehicle"]', '"extra_budget_pct"]'),
   m("trip-vehicle-route", "tripRequest.ts", 'vehicleProblem(body.vehicle, "/trip")', 'vehicleProblem(body.vehicle, "/loop")'),
+  m("loop-start-required-none", "loopRequest.ts", LOOP_START, 'keysProblem(start, START_KEYS, [], "start")'),
+  m("loop-start-lat-not-required", "loopRequest.ts", LOOP_START, 'keysProblem(start, START_KEYS, ["lon"], "start")'),
+  m("loop-start-lon-not-required", "loopRequest.ts", LOOP_START, 'keysProblem(start, START_KEYS, ["lat"], "start")'),
+  m("loop-minutes-not-required", "loopRequest.ts", LOOP_TOP, 'REQUIRED_KEYS = ["start"];'),
+  m("loop-start-not-required", "loopRequest.ts", LOOP_TOP, 'REQUIRED_KEYS = ["minutes"];'),
+  m("plan-origin-not-required", "planRequest.ts", PLAN_TOP, '["destination", "budget_minutes"], "the body"'),
+  m("plan-destination-not-required", "planRequest.ts", PLAN_TOP, '["origin", "budget_minutes"], "the body"'),
+  m("plan-budget-not-required", "planRequest.ts", PLAN_TOP, '["origin", "destination"], "the body"'),
+  m("plan-origin-lat-not-required", "planRequest.ts", ORIGIN_LEVEL, 'keysProblem(origin, ORIGIN_KEYS, ["lon"], "origin")'),
+  m("plan-origin-lon-not-required", "planRequest.ts", ORIGIN_LEVEL, 'keysProblem(origin, ORIGIN_KEYS, ["lat"], "origin")'),
+  m("plan-place-not-required", "planRequest.ts", PLACE_LEVEL, 'keysProblem(destination, DESTINATION_KEYS, [], "destination")'),
+  m("trip-origin-not-required", "tripRequest.ts", TRIP_TOP, 'REQUIRED_KEYS = ["destination", "days"];'),
+  m("trip-destination-not-required", "tripRequest.ts", TRIP_TOP, 'REQUIRED_KEYS = ["origin", "days"];'),
+  m("trip-days-not-required", "tripRequest.ts", TRIP_TOP, 'REQUIRED_KEYS = ["origin", "destination"];'),
+  m("trip-origin-lat-not-required", "tripRequest.ts", ORIGIN_LEVEL, 'keysProblem(origin, ORIGIN_KEYS, ["lon"], "origin")'),
+  m("trip-origin-lon-not-required", "tripRequest.ts", ORIGIN_LEVEL, 'keysProblem(origin, ORIGIN_KEYS, ["lat"], "origin")'),
+  m("trip-place-not-required", "tripRequest.ts", PLACE_LEVEL, 'keysProblem(destination, DESTINATION_KEYS, [], "destination")'),
 ];
 
 export const EQUIVALENT = [
@@ -112,6 +137,11 @@ function main(argv) {
   const dirty = spawnSync("git", ["status", "--porcelain", "--", "src"], { cwd: API, encoding: "utf8" });
   if (dirty.status !== 0 || dirty.stdout.trim() !== "") { console.log("REFUSING TO RUN: services/api/src is not clean"); return 2; }
 
+  const onlyArg = argv.find((a) => a.startsWith("--only="));
+  const only = onlyArg ? onlyArg.slice("--only=".length).split(",") : null;
+  const unknown = (only ?? []).filter((id) => !MUTATIONS.some((x) => x.id === id));
+  if (unknown.length) { console.log(`REFUSING TO RUN: --only names no entry ${unknown.join(", ")}`); return 2; }
+  const chosen = only ? MUTATIONS.filter((x) => only.includes(x.id)) : MUTATIONS;
   const prove = argv.includes("--prove-vacuity");
   const extra = prove ? ["-t", "^no test is named this$", "--passWithNoTests"] : [];
   console.log(`population mutations=${MUTATIONS.length} (floor ${MIN_MUTATIONS}) equivalent=${EQUIVALENT.length} `
@@ -123,7 +153,7 @@ function main(argv) {
   }
 
   const tally = { CAUGHT: 0, MISSED: 0, TRAP: 0 };
-  for (const x of MUTATIONS) {
+  for (const x of chosen) {
     const path = join(API, x.file);
     const original = readFileSync(path, "utf8");
     let result;
@@ -137,9 +167,9 @@ function main(argv) {
     tally[v] += 1;
     console.log(`${v.padEnd(6)} ${x.id}${result.named.length ? ` by "${result.named[0]}"` : ""}`);
   }
-  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${MUTATIONS.length}`);
-  if (prove) return tally.MISSED === MUTATIONS.length ? 0 : 1;
-  return tally.CAUGHT === MUTATIONS.length ? 0 : 1;
+  console.log(`RESULT caught=${tally.CAUGHT} missed=${tally.MISSED} trap=${tally.TRAP} of ${chosen.length}${only ? " (--only)" : ""}`);
+  if (prove) return tally.MISSED === chosen.length ? 0 : 1;
+  return tally.CAUGHT === chosen.length ? 0 : 1;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exit(main(process.argv.slice(2)));
