@@ -99,3 +99,9 @@ disclaimer)"; Settings lists vehicle. Neither exists in the code today (grep: no
     Worker whitelist + PlanRequestBody; a fresh install is offered the places download on its second launch (R4);
     under a `-screen` debug launch the Settings sheet and the onboarding sheet are raised together and one is
     dropped (release builds launch to home); nothing here has been rendered or tapped (XCUITest, T-0180).
+- 2026-10-08T00:46:30Z CI ROUND (PR #198 at acec3c43): `core` and `pins-source-only` failed on `P-STORE-01
+  (ops/lib/check-store-links.py): 10 refusal(s)` - a whitelist I had not run (the shell's SettingsScreen( and
+  corpus lines, `settings.vehicle`, the Settings' sections run, the frozen SettingsScreen digest). Retyped whole
+  lines in ops/lib/store_links_pinned.py and re-approved ST's digest. `check-store-links.py` rc=0; `--prove-red:
+  33/33 rows as required (29 mutants refused by name, 4 legitimate edits green)`; `ops/check-pins --source-only`:
+  `PINS ok=17 skipped=26 pending=1 expired=0 failed=0`.
