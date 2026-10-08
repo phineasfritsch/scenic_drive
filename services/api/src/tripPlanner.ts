@@ -6,13 +6,15 @@
  * Every A->B request asks for the per-edge `time` (ms) and `distance` (m) runs; the chosen path's runs become the
  * splitter's edges (roadTrip.ts, fed milliseconds and whole metres). The ceiling is held per day and for the trip:
  * the splitter refuses a route over fastest + budget, each day's ceiling is its share of that, and a full leg over
- * its day's ceiling refuses the whole trip. No stop or lodging source exists on the server yet (R4): places = [].
+ * its day's ceiling refuses the whole trip.
+ * The places are the server's own trip_places rows (T-0316); null when the read failed, and then every night is
+ * "not_searched" and places_searched false - a search that did not happen is never reported as "no_lodging".
  */
 import type { ClosuresFor, PathGuard } from "./closuresNearest";
 import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customModel";
 import { searchLambda } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
-import { budgetSeconds, planRoadTrip, type RoadTripEdge } from "./roadTrip";
+import { budgetSeconds, planRoadTrip, type RoadTripEdge, type RoadTripOvernight, type RoadTripPlace } from "./roadTrip";
 import { decodeRoutePath, durationSeconds, RouteError, type RoutePath } from "./routePath";
 import { FAST_PROFILE, MAX_EVALUATIONS, SCENIC_PROFILE } from "./scenicPlanner";
 import type { GuardedFetch } from "./upstream";
@@ -34,6 +36,9 @@ export class TripFailure extends Error {
   }
 }
 
+/** A night: the nearest lodging in the radius, a search that found none, or no search (the read failed). */
+export type TripOvernight = { kind: "lodging"; name: string; meters: number } | { kind: "no_lodging" } | { kind: "not_searched" };
+
 export interface TripDayResult {
   day: number;
   start: LatLon;
@@ -42,7 +47,7 @@ export interface TripDayResult {
   distance_m: number;
   ceiling_s: number;
   stops: string[];
-  overnight: { kind: "not_searched" } | null;
+  overnight: TripOvernight | null;
   leg: { coordinates: [number, number][]; eta_s: number; distance_m: number } | null;
 }
 
@@ -57,7 +62,7 @@ export interface TripResult {
   lambda: number;
   evaluations: number;
   eta_is_estimate: true;
-  places_searched: false;
+  places_searched: boolean;
   days: TripDayResult[];
 }
 
@@ -122,7 +127,8 @@ function dayCeilingMs(ceilingMs: number, dayMs: number, totalMs: number): number
 }
 
 export async function planTrip(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
-  days: number, extraBudgetPct: number, full: boolean, closuresFor: ClosuresFor, returned: PathGuard): Promise<TripResult> {
+  days: number, extraBudgetPct: number, full: boolean, closuresFor: ClosuresFor, returned: PathGuard,
+  places: RoadTripPlace[] | null): Promise<TripResult> {
   let used = 0;
   const counted: GuardedFetch = (url, init) => {
     used += 1;
@@ -144,7 +150,7 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
 
   const splitOf = (path: RoutePath) => {
     const pathEdges = edgesOf(path);
-    return { path, edges: pathEdges, split: planRoadTrip(pathEdges, [], fastestMs,
+    return { path, edges: pathEdges, split: planRoadTrip(pathEdges, places ?? [], fastestMs,
       { days, maxDriveSeconds: MAX_DRIVE_MS_PER_DAY, maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct) };
   };
   const first = splitOf(measuredChosen);
@@ -164,6 +170,9 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
 
   const totalMs = edges.reduce((sum, e) => sum + e.seconds, 0);
   const vertices = [edges[0]!.start, ...edges.map((e) => e.end)];
+  const night = (o: RoadTripOvernight): TripOvernight | null => o === null ? null
+    : places === null ? { kind: "not_searched" } : o === "no_lodging" ? { kind: "no_lodging" }
+      : { kind: "lodging", name: o.lodging.name, meters: o.lodging.meters };
   const result: TripDayResult[] = [];
   let etaMs = totalMs;
   if (full) etaMs = 0;
@@ -188,7 +197,7 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
     result.push({
       day: day.day, start: vertices[day.start_vertex]!, end: vertices[day.end_vertex]!, drive_s: day.seconds / 1000,
       distance_m: day.meters, ceiling_s: ceiling / 1000, stops: day.stops,
-      overnight: day.overnight === null ? null : { kind: "not_searched" }, leg,
+      overnight: night(day.overnight), leg,
     });
   }
   return {
@@ -202,7 +211,7 @@ export async function planTrip(call: GuardedFetch, routerBase: string, origin: L
     lambda: outcome.lambda,
     evaluations: outcome.evaluations,
     eta_is_estimate: true,
-    places_searched: false,
+    places_searched: places !== null,
     days: result,
   };
 }

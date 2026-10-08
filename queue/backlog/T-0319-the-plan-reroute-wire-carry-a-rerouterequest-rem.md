@@ -1,5 +1,5 @@
 ---
-id: T-0318
+id: T-0319
 title: The /plan reroute wire - carry a RerouteRequest (remaining pins + same lambda) without sending more than one 2-dp coordinate (plan token + first remaining pin index); the Worker half of T-0317 R2
 state: backlog
 owner: null

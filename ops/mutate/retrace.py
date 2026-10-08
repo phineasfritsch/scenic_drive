@@ -248,8 +248,8 @@ MUTATIONS = [
     # fixture can close this - no geometry here yields a fraction of exactly 0.15 - so the subject now
     # exposes `isAcceptable(fraction:)` and the boundary is asserted on the predicate itself.
     ("accept only strictly below the threshold, so exactly 15 percent is refused", SRC,
-     "    static func isAcceptable(fraction f: Double) -> Bool {\n        f <= maxRetraceFraction\n    }",
-     "    static func isAcceptable(fraction f: Double) -> Bool {\n        f < maxRetraceFraction\n    }"),
+     "    public static func isAcceptable(fraction f: Double) -> Bool {\n        f <= maxRetraceFraction\n    }",
+     "    public static func isAcceptable(fraction f: Double) -> Bool {\n        f < maxRetraceFraction\n    }"),
 
     # The arity guard: `degenerateIsNil` asks about ONE point and about two IDENTICAL ones, which reaches
     # the zero-length guard, not this one. A two-point route goes from Optional(0.0)/acceptable to

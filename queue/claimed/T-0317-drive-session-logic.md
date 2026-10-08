@@ -163,3 +163,10 @@ first, so the adapter is a thin shell. Calm, minimal-distraction driving UI (mem
   (`the floor of 119 holds`), check-pins-yaml exit 0 (`PINS-YAML ok pins=46 fields=371`), queue-check exit 0
   (`QUEUE OK (309 tasks)`). Line cap: DriveSession 111, DriveSessionTests 190, DriveRerouteTests 172,
   DriveMotionGateTests 94, DriveFixtures 86.
+- 2026-10-08T10:52:53Z CI on f9001f5f went red: `PINS ... failed=1` - P-PROC-01 (`bash ops/queue-check`) on the PR
+  merge ref. Cause: main moved to 3840fb3d after the merge above (T-0314 PR #204 and T-0316 PR #203 landed), and
+  T-0316 filed its own queue/backlog/T-0318 (trip places read after quota) - two tasks with one id. RULED: this
+  branch's Worker-half task (filed above as T-0318) is renumbered T-0319 (git mv + its `id:` line; no ref on any
+  branch or in the queue holds T-0319); the dated entries above keep the id they were written with. Merged
+  origin/main 3840fb3d: DRIVERS / COVERED_FLOOR, named-tests.json, PINS.yaml and the digest table auto-merged as a
+  union of T-0314's rows and this branch's; the gates below re-run on that head.

@@ -24,6 +24,9 @@ function harness(tier: Tier, options: RouterOptions = {}) {
     resolvePlace: async (id) => (id === BIG_SUR.id ? { lat: BIG_SUR.lat, lon: BIG_SUR.lon } : null),
     identify: () => ({ userId: "device-1", tier }),
     closures: async () => FRESH_EMPTY,
+    tripPlaces: async () => {
+      throw new Error("this harness has no trip_places table");
+    },
   };
   const run = async (body: unknown = TRIP_BODY) => {
     const response = await handleTrip(tripRequest(body), {}, deps);
