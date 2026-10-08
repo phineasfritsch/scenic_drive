@@ -1,7 +1,7 @@
 /**
  * T-0278 R5, R6 through the SHIPPED ROUTES["/plan"]: with SESSION_JWT_SECRET set, a session JWT that verifies is
  * the identity (sub the bucket, act's live entitlement the tier) and the bare headers are ignored; a Bearer that
- * does not verify is the unidentified bucket, anon - at every bound of iat and exp and for every defect of the
+ * does not verify reads exactly as no Bearer (T-0322 B1) - at every bound of iat and exp and for every defect of the
  * header, claims and signature; no Bearer reaches the header identity only under IDENTITY_HEADERS=1; without the
  * secret the identity is today's, unchanged. Every bucket is seeded at the anon plan limit, so anon answers 429 and
  * paid answers 200. The oracle is today's header identity (secret unset) for the expected caller: the answer and
@@ -99,7 +99,7 @@ describe("a verified session JWT is the identity (R6)", () => {
   }
 });
 
-describe("a Bearer that does not verify is the unidentified bucket, anon - no fallthrough to the headers (R5, R6)", () => {
+describe("a Bearer that does not verify reads as no Bearer: the headers under IDENTITY_HEADERS=1, else unidentified anon (R5, R6, T-0322 B1)", () => {
   const head = (json: string) => b64url(json);
   const INVALID: [string, () => Promise<string>][] = [
     ["now = exp (bound)", () => mintJwt(claims({ iat: S - 3600, exp: S }))],
@@ -125,16 +125,20 @@ describe("a Bearer that does not verify is the unidentified bucket, anon - no fa
     ["claims an array", () => mintJwt(JSON.stringify([claims()]))],
     ["claims not JSON", () => mintJwt("{sub")],
   ];
+  /** No row ignores the flag: under "1" the headers' own identity (another device, paid), unset the unidentified bucket. */
   for (const [name, jwt] of INVALID) {
     it(name, async () => {
-      expect(await plan({ ...bearer(await jwt()), ...LEGACY_HEADERS }, WITH_SECRET)).toEqual(await today(null));
+      const token = await jwt();
+      expect([await plan({ ...bearer(token), ...LEGACY_HEADERS }, WITH_SECRET),
+        await plan({ ...bearer(token), ...LEGACY_HEADERS }, { ...WITH_SECRET, IDENTITY_HEADERS: undefined })])
+        .toEqual([await today(OTHER_DEVICE, PAID), await today(null)]);
     });
   }
 
   it("1 ms past the second S, iat = S + 1 is still in the future (now is the clock floored, bound)", async () => {
     vi.setSystemTime(NOW.getTime() + 1);
     const jwt = await mintJwt(claims({ iat: S + 1, exp: S + 3601 }));
-    expect(await plan({ ...bearer(jwt), ...LEGACY_HEADERS }, WITH_SECRET)).toEqual(await today(null));
+    expect(await plan({ ...bearer(jwt), ...LEGACY_HEADERS }, { ...WITH_SECRET, IDENTITY_HEADERS: undefined })).toEqual(await today(null));
   });
 
   it("999 ms past the second S, exp = S + 1 is still valid: the sub's bucket (now is the clock floored, bound)", async () => {
@@ -145,8 +149,12 @@ describe("a Bearer that does not verify is the unidentified bucket, anon - no fa
 
   it("a lower-case bearer scheme and a Basic credential are not a session", async () => {
     const jwt = await mintJwt(claims());
+    const off = { ...WITH_SECRET, IDENTITY_HEADERS: undefined };
     expect([await plan({ authorization: `bearer ${jwt}`, ...LEGACY_HEADERS }, WITH_SECRET),
-      await plan({ authorization: "Basic dXNlcjpwYXNz", ...LEGACY_HEADERS }, WITH_SECRET)]).toEqual([await today(null), await today(null)]);
+      await plan({ authorization: "Basic dXNlcjpwYXNz", ...LEGACY_HEADERS }, WITH_SECRET),
+      await plan({ authorization: `bearer ${jwt}`, ...LEGACY_HEADERS }, off),
+      await plan({ authorization: "Basic dXNlcjpwYXNz", ...LEGACY_HEADERS }, off)])
+      .toEqual([await today(OTHER_DEVICE, PAID), await today(OTHER_DEVICE, PAID), await today(null), await today(null)]);
   });
 });
 

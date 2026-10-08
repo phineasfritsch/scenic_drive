@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-attest");
 
-export const MIN_MUTATIONS = 84;
+export const MIN_MUTATIONS = 85;
 export const SUBJECTS = ["src/cbor.ts", "src/appAttest.ts", "src/x509.ts", "src/attestStore.ts", "src/attest.ts", "src/sessionJwt.ts",
   "src/sessionIdentity.ts", "src/routerDeps.ts"];
 const TESTS = ["test/attestVerify.test.ts", "test/attestAccept.test.ts", "test/sessionIdentity.test.ts", "test/requestReadSites.test.ts",
@@ -114,7 +114,11 @@ export const MUTATIONS = [
   m("jwt-sub-any-string", "sessionJwt.ts", "if (typeof sub !== \"string\" || !UUID.test(sub)) return null;", "if (typeof sub !== \"string\") return null;"),
   m("jwt-act-unchecked", "sessionJwt.ts", "if (\"act\" in claims && (typeof act !== \"string\" || !UUID.test(act))) return null;", ""),
   m("jwt-integer-unchecked", "sessionJwt.ts", "if (!Number.isSafeInteger(iat) || !Number.isSafeInteger(exp) || ", "if ("),
-  m("ident-fallthrough", "sessionIdentity.ts", "if (claims === null) return { userId: UNIDENTIFIED_SESSION, tier: \"anon\" };", "if (claims === null) return legacy();"),
+  // T-0322 B1: an unverifiable Bearer reads as no Bearer - legacy only under the flag (inverse), never anon ahead of it.
+  m("ident-fallthrough", "sessionIdentity.ts", "if (claims === null) return env.IDENTITY_HEADERS === \"1\" ? legacy() : { userId: UNIDENTIFIED_SESSION, tier: \"anon\" };",
+    "if (claims === null) return legacy();"),
+  m("ident-early-anon", "sessionIdentity.ts", "  if (claims === null) return env.IDENTITY_HEADERS",
+    "  if (bearer !== null && claims === null) return { userId: UNIDENTIFIED_SESSION, tier: \"anon\" };\n  if (claims === null) return env.IDENTITY_HEADERS"),
   m("ident-flag-ignored", "sessionIdentity.ts", "return env.IDENTITY_HEADERS === \"1\" ? legacy() : { userId: UNIDENTIFIED_SESSION, tier: \"anon\" };", "return legacy();"),
   m("ident-flag-any-value", "sessionIdentity.ts", "env.IDENTITY_HEADERS === \"1\"", "env.IDENTITY_HEADERS !== undefined"),
   m("ident-act-ignored", "sessionIdentity.ts", "tier: claims.act === undefined ? \"anon\" : await entitledTier(env.DB, claims.act, nowMs)", "tier: \"anon\""),

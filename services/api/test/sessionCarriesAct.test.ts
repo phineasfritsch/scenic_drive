@@ -2,10 +2,12 @@
  * T-0322 R1, R5, R6 through the SHIPPED routes: the session carries the purchase, and the Worker - never the client -
  * decides the tier. POST /attest and /attest/assert take the app's exact sorted-key body over {no purchase, live,
  * expired} and answer a session whose token EQUALS a JWT minted here from the ruled claims (act exactly when a token
- * was named; no entitlement is read to sign it). Those sessions then ride /plan, /trip and /loop - with the live
- * x-scenic-account-token header beside every one, as the app sends it in the migration window - under IDENTITY_HEADERS
- * "1" and unset, and every answer, quota state and console record EQUALS its route's paid or anon reference. The
- * device and the unidentified bucket sit at the anon limit, so anon is 429 and paid is routed.
+ * was named; no entitlement is read to sign it). Then /plan, /trip and /loop run the cross product of the Bearer
+ * (those sessions, an expired one, another secret's, another TTL's, a malformed one, none) x IDENTITY_HEADERS ("1",
+ * unset) x the x-scenic-account-token header (live, expired, absent), and every answer, quota state and console record
+ * EQUALS the reference `ruled` picks from the rule (T-0322 B1): a verified Bearer is its sub and its act's tier; any
+ * other Bearer reads exactly as none - the header path under "1", the unidentified bucket without. The device and the
+ * unidentified bucket sit at the anon limit, so anon is 429 and paid is routed.
  */
 import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
@@ -32,6 +34,9 @@ const CONSOLE = ["log", "info", "warn", "error", "debug"] as const;
 const ROUTE_NAMES = ["/plan", "/trip", "/loop"] as const;
 type RouteName = (typeof ROUTE_NAMES)[number];
 const BODIES: Record<RouteName, unknown> = { "/plan": SANTA_MONICA_TOPANGA_BODY, "/trip": TRIP_BODY, "/loop": LOOP_BODY };
+/** The x-scenic-account-token header beside the Bearer: the live purchase, the expired one, or none. */
+const HEADERS = { live: LIVE, expired: EXPIRED, absent: undefined } as const;
+type Header = keyof typeof HEADERS;
 
 let KEY: TestKey;
 let ATTESTED: Attested;
@@ -57,15 +62,16 @@ async function attestSession(p: Purchase, head = lead(p)) {
   return postAttest(body, testDeps(ATTESTED));
 }
 
-/** One request of `path` through the shipped ROUTES with the live header beside an optional Bearer. */
-async function drive(path: RouteName, bearer: string | null, flag: boolean, header: boolean) {
+/** One request of `path` through the shipped ROUTES with the `header` purchase beside an optional Bearer. */
+async function drive(path: RouteName, bearer: string | null, flag: boolean, header: Header) {
   quota = fakeQuotaNamespace();
   for (const who of [DEVICE, "unidentified"]) quota.seed(`device:${who}`, "daily", { day: "2026-10-06", plan: 3, loop: 1, trip: 1 });
   vi.stubGlobal("fetch", path === "/trip" ? tripRouter().fetchImpl : recordingRouter(SANTA_MONICA_TOPANGA, loopPath(squareLoop())).fetchImpl);
   const e = { DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: quota.ns, ROUTER_URL: "https://router.test",
     ROUTER_SECRET: "test-router-secret", CLOSURES: liveClosures(), SESSION_JWT_SECRET: SECRET, ...(flag ? { IDENTITY_HEADERS: "1" } : {}) };
+  const account = HEADERS[header];
   const headers: Record<string, string> = { "content-type": "application/json", "x-scenic-device": DEVICE,
-    ...(header ? { [HEADER]: LIVE } : {}), ...(bearer === null ? {} : { authorization: `Bearer ${bearer}` }) };
+    ...(account ? { [HEADER]: account } : {}), ...(bearer === null ? {} : { authorization: `Bearer ${bearer}` }) };
   const req = new Request(`https://scenic-api.test${path}`, { method: "POST", headers, body: JSON.stringify(BODIES[path]) });
   const response = await ROUTES[path]!(req, e as unknown as Env, new URL(req.url));
   return { answer: { status: response.status, json: await response.json() }, state: quota.state(), logged: spies.flatMap((s) => s.mock.calls) };
@@ -95,6 +101,23 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** Every Bearer the app can send or a caller can forge; the last five never verify. */
+const BEARERS = ["session act live", "session act expired", "session no act", "expired", "wrong secret", "wrong TTL",
+  "malformed", "absent"] as const;
+type Bearer = (typeof BEARERS)[number];
+const FLAGS = ["1", "unset"] as const;
+type Flag = (typeof FLAGS)[number];
+const HEADER_NAMES = Object.keys(HEADERS) as Header[];
+type Ruled = "paid" | "device anon" | "unidentified anon";
+
+/** The rule (T-0322 B1), from its text: a verified Bearer is the device and its act's tier; any other reads as none. */
+function ruled(bearer: Bearer, flag: Flag, header: Header): Ruled {
+  if (bearer === "session act live") return "paid";
+  if (bearer === "session act expired" || bearer === "session no act") return "device anon";
+  if (flag !== "1") return "unidentified anon";
+  return header === "live" ? "paid" : "device anon";
+}
+
 describe("the session carries the purchase; the Worker decides the tier (T-0322)", () => {
   it.each(Object.keys(PURCHASES) as Purchase[])("POST /attest and /attest/assert sign exactly the named purchase as act: %s", async (p) => {
     expect(await attestSession(p)).toEqual(await granted(p));
@@ -109,36 +132,47 @@ describe("the session carries the purchase; the Worker decides the tier (T-0322)
     expect(await assertSession("none", head)).toEqual(reference);
   });
 
-  type Held = "act live" | "act expired" | "no act" | "no session" | "another secret's act live";
-  const HELD: Held[] = ["act live", "act expired", "no act", "no session", "another secret's act live"];
-  const ROWS = ROUTE_NAMES.flatMap((path) => HELD.flatMap((held) => [true, false].map((flag) => [path, held, flag] as const)));
+  const ROWS = ROUTE_NAMES.flatMap((path) => BEARERS.flatMap((bearer) => FLAGS.flatMap((flag) =>
+    HEADER_NAMES.map((header) => [path, bearer, flag, header] as const))));
 
-  async function bearerOf(held: Held): Promise<string | null> {
-    if (held === "no session") return null;
-    if (held === "another secret's act live") return mintJwt(claims("live"), "another-secret-0123456789abcdefXYZ");
-    const p: Purchase = held === "act live" ? "live" : held === "act expired" ? "expired" : "none";
+  async function bearerOf(bearer: Bearer): Promise<string | null> {
+    if (bearer === "absent") return null;
+    if (bearer === "malformed") return "not-a-session";
+    if (bearer === "expired") return mintJwt({ ...claims("live"), iat: S - 3600, exp: S });
+    if (bearer === "wrong secret") return mintJwt(claims("live"), "another-secret-0123456789abcdefXYZ");
+    if (bearer === "wrong TTL") return mintJwt({ ...claims("live"), exp: S + 3601 });
+    const p: Purchase = bearer === "session act live" ? "live" : bearer === "session act expired" ? "expired" : "none";
     return ((await assertSession(p)).json as { token: string }).token;
   }
 
-  /** The reference each row must EQUAL - a function of (held, flag) only, never of the answer under test. */
-  async function reference(path: RouteName, held: Held, flag: boolean) {
-    const paid = held === "act live" || (held === "no session" && flag);
-    if (paid) return drive(path, null, true, true);
-    return held === "no session" || held === "another secret's act live" ? drive(path, null, false, false) : drive(path, null, true, false);
+  /** The reference each row must EQUAL - a function of `ruled` only, never of the answer under test. */
+  function reference(path: RouteName, r: Ruled) {
+    if (r === "paid") return drive(path, null, true, "live");
+    return r === "device anon" ? drive(path, null, true, "absent") : drive(path, null, false, "absent");
   }
 
+  it("no row ignores its variant: every value of every dimension changes some row's tier when it alone changes", () => {
+    const tier = (r: Ruled) => (r === "paid" ? "paid" : "anon");
+    const dims = [[...BEARERS], [...FLAGS], HEADER_NAMES] as const;
+    const rows = BEARERS.flatMap((b) => FLAGS.flatMap((f) => HEADER_NAMES.map((h) => [b, f, h] as [Bearer, Flag, Header])));
+    const at = (row: [Bearer, Flag, Header]) => tier(ruled(...row));
+    const silent = dims.flatMap((values, d) => values.filter((v) => !rows.some((row) => row[d] === v &&
+      values.some((w) => { const moved = [...row] as [Bearer, Flag, Header]; moved[d] = w as never; return at(moved) !== at(row); })))
+      .map((v) => `${d}:${v}`));
+    expect(silent).toEqual([]);
+  });
+
   it.each(ROUTE_NAMES)("%s: the references differ - paid is routed, anon is 429 - and log nothing", async (path) => {
-    const paid = await drive(path, null, true, true);
-    const anon = await drive(path, null, true, false);
+    const paid = await drive(path, null, true, "live");
+    const anon = await drive(path, null, true, "absent");
     expect(anon.answer.status).toBe(429);
     expect(paid.answer).not.toEqual(anon.answer);
     expect([paid.logged, anon.logged]).toEqual([[], []]);
   });
 
-  it.each(ROWS)("%s with %s, IDENTITY_HEADERS on=%s, the live header beside it: the answer is the reference", async (path, held, flag) => {
-    const bearer = await bearerOf(held);
-    const got = await drive(path, bearer, flag, true);
-    expect(got).toEqual(await reference(path, held, flag));
+  it.each(ROWS)("%s, Bearer %s, IDENTITY_HEADERS %s, header %s: the answer is the ruled reference", async (path, bearer, flag, header) => {
+    const got = await drive(path, await bearerOf(bearer), flag === "1", header);
+    expect(got).toEqual(await reference(path, ruled(bearer, flag, header)));
     expect(got.logged).toEqual([]);
   });
 });

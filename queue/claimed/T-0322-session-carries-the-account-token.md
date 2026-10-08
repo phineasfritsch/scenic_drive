@@ -171,3 +171,39 @@ no `act` because the app attests without one.
   their rows, multiline by "... a newline appended"); assert `RESULT caught=9 missed=0 trap=0 of 9`, the same rows
   under "body: ". Touched files: `Tests 221 passed (221)` (attestVerify, attestAssert, sessionCarriesAct,
   attestAccept; 179 + 42). No Sources/ or apps/ios change, so no digest row moves and no iOS re-trigger is owed.
+
+### 2026-10-08T19:17:23Z - review round 1 (rv1-t0322 FAIL, B1): rulings before code
+- B1 stands. At 91d67b28 `identifyCaller` answered `{unidentified, anon}` for a present Bearer that fails verification
+  BEFORE it read IDENTITY_HEADERS, so under flag "1" a live subscriber whose Bearer is expired, signed by a rotated
+  secret or of another SESSION_TTL_S read anon where the header alone reads paid (reviewer's witness: headerOnly 200,
+  withStale 429). R5 ("no step lowers a subscriber tier") was false for it.
+- RULING (a), orchestrator, REQUIRED: while IDENTITY_HEADERS is "1", a Bearer that fails verification falls back to
+  the header path (`legacy`) exactly as if no Bearer were sent; with the flag off it stays `{unidentified, anon}`. Not
+  a fail-open: a forged Bearer plus the header yields only what the header alone yields. Shape: no Bearer and an
+  unverifiable Bearer share ONE line - `claims` is null for both, and the flag decides once. R5 is restated: under
+  flag "1" an unverifiable Bearer reads exactly as no Bearer; under flag off it is anon, as no Bearer is.
+- Table (sessionCarriesAct): routes x {valid act live, valid act expired, valid no act, expired, wrong secret, wrong
+  TTL, malformed, absent} x {flag "1", off} x {header live, expired, absent}; each whole answer (status, json, quota
+  state, console) EQUALS the reference picked by a pure `ruled()` from the rule (valid: act live -> paid, else the
+  device bucket anon; otherwise flag "1" -> the header's tier in the device bucket, flag off -> unidentified anon);
+  a meta-test proves for every dimension and every value that some row's reference changes when that value alone
+  changes. The ruling's "valid-with-act" is split into act live / act expired (a superset).
+- Ripple, ruled: sessionIdentity.test.ts's INVALID rows ran only under flag "1" expecting unidentified; they now run
+  under both flags (flag "1": today's header identity of LEGACY_HEADERS; off: unidentified). waitlistDedupe's
+  `bucket()` treated a malformed Bearer as unidentified in legacy mode; it now follows the rule (the header's bucket
+  in legacy, unidentified without), and its step name says so. ledger.ts / account.ts read BEARER themselves and do
+  not call identifyCaller: unchanged.
+- Population (attestMutants.mjs): `ident-fallthrough` becomes the inverse (fallback also with flag off; must be
+  CAUGHT) and `ident-early-anon` restores the 91d67b28 line ahead of the shared one (MISSED at 91d67b28 by
+  construction - it IS that code and its tests asserted it - CAUGHT by name now). MIN_MUTATIONS 84 -> 85.
+- RULING (b), client, in scope (<= ~40 source lines): SessionStore.keep stores the session's expiry on the DEVICE's
+  clock - receipt time plus the token's own lifetime `exp - iat` read from its payload (SessionRecord.lifetime) - and
+  falls back to the server's expires_at only when the payload is not {iat, exp} integers with exp > iat. A device
+  clock any amount slow or fast then uses the session for exactly lifetime - margin seconds after receipt, so it
+  never rides a session the Worker considers expired (up to request latency, which the 60 s margin covers). Table at
+  the bounds (SessionSkewTests): device offsets {-7200, -3600, -61, -60, 0, +60, +61, +3600} x elapsed {3539, 3540,
+  3541} -> used iff elapsed < 3540, every write compared whole. Mutants 77-79 in session_mutations.py.
+- NOT in scope, recorded: after IDENTITY_HEADERS closes (step 3), a Bearer the Worker cannot verify (secret
+  rotation) still reads anon with no recovery inside the launch, because the plan family has no 401 path (the Worker
+  answers 200/429 as anon). Follow-up: the Worker would need to signal an unverifiable Bearer on the plan family
+  before step 3; filed as a note for the step-3 task, not built here.
