@@ -15,7 +15,7 @@ final class URLSessionPlanTransportTests: XCTestCase {
         let transport = URLSessionPlanTransport(timeout: 12, session: session)
         let outcome = await PlanWire.plan(through: transport, to: 1_234_567_890_123, budgetMinutes: 25)
         let seen = StubPlanURLProtocol.seen()
-        let body = #"{"budget_minutes":25,"destination":{"place":"1234567890123"},"origin":{"lat":34.02,"lon":-118.49}}"#
+        let body = #"{"budget_minutes":25,"destination":{"place":"1234567890123"},"origin":{"lat":34.02,"lon":-118.49},"vehicle":"standard"}"#
         XCTAssertEqual(seen.requests, [PlanHTTPRequest(
             url: URL(string: "https://scenic-api.test/plan")!, method: "POST",
             headers: ["content-type": "application/json", "x-scenic-device": PlanWire.deviceHeader],

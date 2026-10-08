@@ -20,14 +20,16 @@ public struct PlanClient: Sendable {
         self.installID = installID
     }
 
-    /// Plans `origin` -> the corpus place `place` with `budgetMinutes` of extra time.
+    /// Plans `origin` -> the corpus place `place` with `budgetMinutes` of extra time, for `vehicle` (T-0311 R6:
+    /// `.standard` unless named - the only profile the stored read can return today).
     public func plan(from origin: Coordinate, to place: Int64, budgetMinutes: Int,
-                     departsAt: Date? = nil) async throws(PlanError) -> PlanResponse {
+                     departsAt: Date? = nil, vehicle: VehicleProfile = .standard)
+        async throws(PlanError) -> PlanResponse {
         // No install id, no request: without x-scenic-device the Worker bills the shared unidentified bucket.
         guard let installID else { throw .refusedOnDevice(.noInstallID) }
         let body: PlanRequestBody
         switch PlanRequestBody.validated(origin: origin, place: place, budgetMinutes: budgetMinutes,
-                                         departsAt: departsAt) {
+                                         departsAt: departsAt, vehicle: vehicle) {
         case .failure(let refusal):
             throw .refusedOnDevice(refusal)
         case .success(let validated):

@@ -14,6 +14,8 @@ plansheet_run.py (surprise's three-file shape).
     ETAs and hazard ends, one PlanError arm;
   * THE GATE ON EVERY PATH AND THE IN-FLIGHT FREEZE (28-30, pre-review survivors M1 and M3b): the disclaimer
     checked on only some launch states (failed, preview skip it), the budget moving while a plan is in flight.
+  * THE VEHICLE ON THE WIRE (33-37, T-0311 R8): PlanRequestBody's enabled-profile guard dropped or answering the
+    wrong refusal, the wire key renamed, and PlanClient sending a fixed profile or defaulting to a disabled one.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -35,12 +37,15 @@ PLACE = _DIR / "PlanPlace.swift"
 HAZARD = _DIR / "PlanHazardRun.swift"
 PLANNER = ROOT / "Sources" / "ScenicAPIClient" / "ClientPlanner.swift"
 ERROR = ROOT / "Sources" / "ScenicAPIClient" / "PlanError.swift"
-SUBJECTS = (SHEET, COPY, ACTION, FAILURE, PREVIEW, TICKET, PLACE, HAZARD, PLANNER, ERROR)
+BODY = ROOT / "Sources" / "ScenicAPIClient" / "PlanRequestBody.swift"
+CLIENT = ROOT / "Sources" / "ScenicAPIClient" / "PlanClient.swift"
+SUBJECTS = (SHEET, COPY, ACTION, FAILURE, PREVIEW, TICKET, PLACE, HAZARD, PLANNER, ERROR, BODY, CLIENT)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "PlanSheet" / "PlanSheetTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "PlanSheet" / "PlanFailureCopyTests.swift",
-              ROOT / "Tests" / "ScenicAPIClientTests" / "PlanSheetGateTests.swift")
+              ROOT / "Tests" / "ScenicAPIClientTests" / "PlanSheetGateTests.swift",
+              ROOT / "Tests" / "ScenicAPIClientTests" / "PlanVehicleWireTests.swift")
 
 GATE = "first launch: no ticket until the disclaimer is accepted, then one"
 SAFE = "P-SAFE-03: from first launch no plan request is made before the disclaimer is accepted"
@@ -60,6 +65,9 @@ PATHS = "the gate holds on every path: acceptance withdrawn, no ticket from chos
 REPLAN = "P-SAFE-03: after a failure or a preview, no request once acceptance is withdrawn, through the planner"
 FROZEN = "inputs are frozen while a plan is in flight: the budget, a search, a pick"
 ROUNDING = "the origin is each axis to the nearest hundredth, half away from zero, on every sign"
+EVERY_PROFILE = ("every profile: an enabled one is sent as its raw value, the body equal to its recomputation; "
+                 "a disabled one is refused with zero requests")
+DEFAULT_PROFILE = "a plan that names no vehicle is sent as standard"
 
 STATE_ARMS = "        case .chosen, .preview, .failed: break\n        case .idle, .searching, .planning: return nil"
 GATE_HEAD = ("        guard disclaimerAccepted, let start, let destination else { return nil }\n        switch state {\n"
@@ -138,14 +146,29 @@ MUTATIONS = [
     ("32 longitude rounded down (MY1's longitude sibling)", SHEET,
      "longitude: (coordinate.longitude * 100).rounded() / 100)",
      "longitude: (coordinate.longitude * 100).rounded(.down) / 100)", [ROUNDING]),
+    ("33 a disabled vehicle is sent", BODY,
+     "        guard vehicle.isEnabled else { return .failure(.vehicleNotEnabled) }\n", "", [EVERY_PROFILE]),
+    ("34 a disabled vehicle answers the budget refusal", BODY, "return .failure(.vehicleNotEnabled)",
+     "return .failure(.budgetOutOfRange)", [EVERY_PROFILE]),
+    ("35 the wire key renamed", BODY, "case origin, destination, lat, lon, place, vehicle\n",
+     "case origin, destination, lat, lon, place\n        case vehicle = \"vehicle_profile\"\n",
+     [EVERY_PROFILE, DEFAULT_PROFILE, PRIV]),
+    ("36 the client sends standard whatever it is asked", CLIENT, "departsAt: departsAt, vehicle: vehicle) {",
+     "departsAt: departsAt, vehicle: .standard) {", [EVERY_PROFILE]),
+    ("37 the client defaults to a disabled vehicle", CLIENT, "vehicle: VehicleProfile = .standard)",
+     "vehicle: VehicleProfile = .rv)", [DEFAULT_PROFILE, PRIV]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
 EQUIVALENT = [
     ("E1 zero extra read as at most zero", PREVIEW, "return extra == 0", "return extra <= 0",
      "extra is extraMinutes, which is max(0, ...): it is never below zero, so == 0 and <= 0 agree on every input"),
+    ("E2 the encoder writes standard for the profile", BODY, "try top.encode(vehicle.rawValue, forKey: .vehicle)",
+     "try top.encode(VehicleProfile.standard.rawValue, forKey: .vehicle)",
+     "validated() is the only initializer path and refuses every profile whose isEnabled is false; .standard is the "
+     "only enabled case, so every encoded body's vehicle IS .standard and the two lines write the same bytes"),
 ]
 
-MIN_MUTATIONS = 32
-MIN_EQUIVALENT = 1
-MIN_TEST_FILES = 3
+MIN_MUTATIONS = 37
+MIN_EQUIVALENT = 2
+MIN_TEST_FILES = 4

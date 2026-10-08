@@ -12,4 +12,7 @@ public enum PlanRefusal: Error, Equatable, Sendable {
     /// The client was built with no `InstallIDProvider`, so the request would lack `x-scenic-device` and land in the
     /// Worker's shared `device:unidentified` quota bucket (T-0260 R3).
     case noInstallID
+    /// The vehicle profile is not one the app can plan for yet (`VehicleProfile.isEnabled` is false); the Worker
+    /// refuses every such value too (T-0311 R3, R6).
+    case vehicleNotEnabled
 }

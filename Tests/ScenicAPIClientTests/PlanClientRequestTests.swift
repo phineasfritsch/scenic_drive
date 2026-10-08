@@ -19,7 +19,7 @@ final class PlanClientRequestTests: XCTestCase {
         let (_, fake) = await PlanWire.plan(answering: ok, to: 1_234_567_890_123, budgetMinutes: 25)
         let sent = await fake.requests
         XCTAssertEqual(sent, [request(
-            #"{"budget_minutes":25,"destination":{"place":"1234567890123"},"origin":{"lat":34.02,"lon":-118.49}}"#)])
+            #"{"budget_minutes":25,"destination":{"place":"1234567890123"},"origin":{"lat":34.02,"lon":-118.49},"vehicle":"standard"}"#)])
     }
 
     func testDepartsAtIsSentAsAUTCInstantInWholeSeconds() async {
@@ -27,7 +27,7 @@ final class PlanClientRequestTests: XCTestCase {
         let (_, fake) = await PlanWire.plan(answering: ok, to: 7, budgetMinutes: 0, departsAt: departs)
         let sent = await fake.requests
         XCTAssertEqual(sent, [request(#"{"budget_minutes":0,"departs_at":"2026-10-05T16:30:00Z","#
-            + #""destination":{"place":"7"},"origin":{"lat":34.02,"lon":-118.49}}"#)])
+            + #""destination":{"place":"7"},"origin":{"lat":34.02,"lon":-118.49},"vehicle":"standard"}"#)])
     }
 
     func testBodyCarriesOneCoordinateAndAnIntegerPlace() async throws {
@@ -35,7 +35,7 @@ final class PlanClientRequestTests: XCTestCase {
         let first = await fake.requests.first
         let body = try XCTUnwrap(first?.body)
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
-        XCTAssertEqual(Set(json.keys), ["origin", "destination", "budget_minutes"])
+        XCTAssertEqual(Set(json.keys), ["origin", "destination", "budget_minutes", "vehicle"])
         let origin = try XCTUnwrap(json["origin"] as? [String: Any])
         XCTAssertEqual(Set(origin.keys), ["lat", "lon"])
         let destination = try XCTUnwrap(json["destination"] as? [String: Any])
