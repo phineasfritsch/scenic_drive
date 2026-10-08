@@ -1,7 +1,7 @@
 ---
 id: T-0310
 title: The app holds a Worker session (App Attest -> session JWT, Keychain-held) and records every Surprise place it shows - into the device history and, signed in, to /ledger with the place's H3-5 cell
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T01:56:47Z
@@ -11,7 +11,7 @@ branch: task/T-0310
 exclusive: [package-swift]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-PROD-02, P-SAFE-03]
-reviewer: null
+reviewer: agent/rv2-t0310
 depends_on: [T-0307, T-0278, T-0280]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -240,3 +240,23 @@ a device, so the Apple-only half is compile-checked in CI and exercised on devic
     `PINS-YAML ok pins=44`, queue-check `QUEUE OK (304 tasks)`, `run-named-tests P-PROD-02` -> `NAMED P-PROD-02
     passed=7/7`, `swift test --filter "...|Ledger|PlanVehicleWireTests"` -> `Test run with 30 tests in 7 suites
     passed`. ios-compile and ios-screenshot dispatched on the pushed head.
+
+- 2026-10-08T04:54:21Z agent/rv2-t0310 (REVIEWER round 2, PR #199, head 58f6e8e2, not the owner): PASS.
+  rv1-t0310 B1 re-applied as population entry 42 ('(97...122)' -> '(97..<122)') and B2 as entry 55 (the read's
+  `return await settled(outcome, token: token)` -> `return outcome`): `ops/mutate/session.py --only 42,55` ->
+  `MUTATE OK  caught=2/2 equivalent_caught=0`; 42 caught by "Every challenge position admits exactly 0-9, A-Z,
+  a-z, '-' and '_', at both bounds of each class" and "A challenge is read at exactly 43 characters"; 55 caught by
+  "A GET /ledger 401 drops the session: the next POST carries the renewed token". Own unwritten mutant on the 401
+  path: SessionStore.sessionRejected sets `current = .absent` (a 401 forgets the key, so the next call attests a new
+  key instead of asserting the old one) -> RED by name: the GET-401 row above (SurpriseLedgerWriteTests.swift:105),
+  "A rejected token is dropped and renewed once per launch; another token's rejection drops nothing"
+  (SessionStoreTests.swift:142, 143) and the "ledger 401" row of "Each shown place is in the device history
+  once..."; `Test run with 27 tests in 6 suites failed ... with 4 issues`; restored, tree clean. Unmutated:
+  `swift test --filter "SessionStoreTests|SurpriseLedgerWriteTests|KeychainDecisionTests|AttestClientTests|
+  SurpriseShowingTests|Ledger"` -> `Test run with 27 tests in 6 suites passed`. Bare guards: ops/lib/
+  check-safety-disclaimer rc=0 (P-SAFE-03 ... LAST all 59 app .swift, then 182 root + pbxproj file(s) (-linked)),
+  check-mutate-population rc=0 `the floor of 102 holds`; queue-check `QUEUE OK (304 tasks)`. CI on 58f6e8e2:
+  `gh pr checks 199` core pass, pins-source-only pass; linux-core 37728617168 success, ios-compile 37728613920
+  success, ios-screenshot 37728616771 success (headSha 58f6e8e2 for all three). Ancestry last: origin/main
+  934d5e68 is an ancestor of HEAD (merge-base --is-ancestor rc=0). queue/claimed/ -> queue/done/, package-swift
+  lock released.
