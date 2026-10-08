@@ -1,13 +1,13 @@
 ---
 id: T-0313
 title: Road trip in the app - a TripClient for POST /trip, a road-trip sheet (destination, days, daily limits), a day-by-day itinerary preview, and per-day "Open in Apple Maps" with that day's pinned waypoints
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T04:26:07Z
+lease_expires_at: 2026-10-09T04:26:07Z
+worktree: .worktrees/T-0313
+branch: task/T-0313
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01, P-PRIV-05]
@@ -30,3 +30,4 @@ owner-route-intent).
 
 ## Log
 - 2026-10-08T04:25:58Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M5 road trip UI).
+- 2026-10-08T04:26:07Z claimed by agent/claude-opus-5; lease until 2026-10-09T04:26:07Z
