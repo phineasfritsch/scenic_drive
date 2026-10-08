@@ -176,3 +176,41 @@ client half (Keychain install id, the app calling /ledger) as M6 Apple-package w
     "ScenicAPIClientTests|ScenicKitTests\.Surprise|PlaceStoreTests"` -> `Test run with 100 tests in 23 suites
     passed`; CI on 01f08c34: ios-compile 37706582493, ios-screenshot 37706585749, linux-core 37706583464, all
     `completed success`.
+- 2026-10-08T01:14:41Z REVIEW ROUND 1 (rv1-t0307 FAIL, PR #197 at faa191fb) closed by CLASS, agent/claude-opus-5:
+  - RULINGS first. RV1 (LedgerEntry cell `(97...102)` -> `(97...103)` survived): the only 'g' row was 14 characters,
+    so the length test refused it first; no 15-character cell held an out-of-class character, and no row put a
+    character at the 57/58 digit bound. Closed as the class "every bound of every character-class check of the
+    cell, at every position". RV2 (`, b[7] == 45` dropped in civilDate survived): no unreadable row had all-digit
+    fields with a bad character at index 7. Closed as the class "every separator position and every digit field
+    of the day given its out-of-class neighbours", plus the digit class's own bounds read back. The place id's
+    digit class needs no table of its own: `Int64(placeId) != nil` refuses every non-digit byte the class would
+    let through except a sign, which mutation 11 already kills.
+  - Population FIRST at 7cfca343: entries 33-44 (floor 32 -> 44) - cell lowercase 103/96/98/101, cell digit
+    58/47/49/56, the second date separator, day digit 58/49/56. `python ops/mutate/ledger.py --only
+    33,...,44` there: `MISSED 33 the cell's lowercase class admits g`, `MISSED 34 the second date separator
+    unchecked`, `MISSED 35 the cell's digit class admits a colon`, MISSED 36, 37, 38, 40; 39, 41-44 WRONG KILLER
+    (red in POST/GET/offline, not in the class tests that did not exist yet); `MUTATE FAILED caught=0/12`.
+  - Tests at a42aecbf (LedgerClientTests, 204 lines): "Every cell position admits exactly 0-9 and a-f, at both
+    bounds of each class" - 15 positions x {'/', '0', '9', ':', '`', 'a', 'f', 'g', '@', 'A', 'F', 'G'}, 180
+    rows, sent iff the character is admitted (record -> .recorded and one request, else .refusedOnDevice and
+    none); it holds the reviewer's killers ("85283473ffffffg", "85283473ffffff:"). "Every day separator and digit
+    position refuses its out-of-class neighbours" - each of the 10 positions of 2026-10-01: separators given
+    ',' '.' '/' '0' '9' ':' 'x' ' ', digits given '/' ':' '-' 'x' ' ' (56 rows; 2026-10x01's class, 2026-10001
+    and 2026-10901 among them), read() -> .unreadable after one request. "A day with 0 or 9 at each digit
+    position that can hold one is read as that day" - 0000-01-01, 9999-12-31, 2026-09-19, 2026-10-10 by full
+    equality to the row (a 9 cannot stand in the month's or the day's tens of a real day). `--only 33,...,44`
+    there: `caught 33 ... by: Every cell position admits exactly 0-9 and a-f, at both bounds of each class`,
+    `caught 34 ... by: Every day separator and digit position refuses its out-of-class neighbours`, 35-44 caught
+    by the test each names; `MUTATE OK caught=12/12`. Suites: `Test run with 13 tests in 2 suites passed`.
+  - Non-blocking, folded in: StoredInstallID.installID() minted a fresh UUID whenever the Keychain read failed
+    for ANY reason (errSecInteractionNotAllowed before the first unlock included) and then kept it. Now
+    keychainID() returns the read's OSStatus with the id; a fresh id is minted and stored only on
+    errSecItemNotFound (or errSecSuccess with an item that is not a UUID - the add then fails as a duplicate and
+    the id is kept in UserDefaults, stable as before). Any other status reuses the UserDefaults copy, or, with
+    none, answers a fresh id for this call that is stored nowhere - InstallIDProvider.installID() returns a
+    non-optional UUID (PlanClient, Linux), so "return the read failure" would change that protocol and its
+    callers; out of this round's scope, and the Keychain's id is read again on the next call. Not
+    Linux-testable (Security); covered by ios-compile. ops/lib/check-safety-disclaimer-pinned row re-approved:
+    StoredInstallID.swift 960bbfed690308e3688f45c4a1707bcd2f716f0bd83cf596d5b8d403dd259b9f. No Sources/ file
+    changed this round, so no row of check-safety-disclaimer-linked-digests.txt moves. Bare guards on a42aecbf:
+    ops/lib/check-safety-disclaimer rc=0, ops/lib/check-map-attribution rc=0.
