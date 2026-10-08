@@ -19,7 +19,8 @@ STORE_VIEW = "SubscriptionStoreView(groupID: StoreConstants.subscriptionGroupID)
 RESTORE = ".storeButton(.visible, for: .restorePurchases)"
 TERMS_DECL = 'public static let termsOfUseURL = URL(string: "https://github.com/phineasfritsch/scenic_drive/blob/main/docs/store/terms.md")!'
 PRIVACY_DECL = 'public static let privacyPolicyURL = URL(string: "https://github.com/phineasfritsch/scenic_drive/blob/main/docs/store/privacy.md")!'
-SETTINGS_MOUNT = "SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, onDone: { isShowingSettings = false })"
+SETTINGS_MOUNT = ("SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, "
+                  "onDone: { isShowingSettings = false })")
 DEBUG_READ = "return UserDefaults.standard.string(forKey: launchArgumentKey).flatMap(LaunchScreen.init(rawValue:)) ?? .home"
 
 # Over every *.swift under apps/ios.
@@ -50,7 +51,8 @@ APP_WIDE = {
     "LaunchScreen.atLaunch": [
         (SHELL, "@State private var isShowingSettings = LaunchScreen.atLaunch != .home"),
         (SHELL, SETTINGS_MOUNT),
-        (SHELL, "_isShowingCorpusDownload = State(initialValue: LaunchScreen.atLaunch == .home && corpus.offersDownload)"),
+        (SHELL, "_isShowingCorpusDownload = State(initialValue: LaunchScreen.atLaunch == .home && corpus.offersDownload "
+                "&& VehicleSetting.isChosen)"),
     ],
     "import Entitlements": [(SHELL, "import Entitlements")],
     "onSettings": [
@@ -72,7 +74,7 @@ ENTITLEMENTS = {
     "accessibilityIdentifier": [(f, f'.accessibilityIdentifier("{i}")') for f, ids in (
         (PW, "paywall.store paywall.terms paywall.privacy"),
         (ST, "settings.done settings.status settings.paywall settings.restore settings.restoreNote settings.manage "
-             "settings.terms settings.privacy settings.legal settings.corpusWifiOnly"),
+             "settings.terms settings.privacy settings.legal settings.corpusWifiOnly settings.vehicle"),
         (CD, "corpus.status corpus.progress corpus.download corpus.later"),
         (LG, "legal.odbl legal.copyright")) for i in ids.split()],
     "#": [(LS, "#if DEBUG"), (LS, "#else"), (LS, "#endif")],
@@ -85,7 +87,11 @@ ENTITLEMENTS = {
 SEQUENCES = [
     ("the paywall's modifier chain", PW, [STORE_VIEW, "marketing", "}", ".subscriptionStoreControlStyle(.picker)", RESTORE,
                                           ".safeAreaInset(edge: .bottom) {", "policyLinks", "}"]),
-    ("Settings' sections", ST, ["List {", "subscription", 'Section("Offline places") {',
+    ("Settings' sections", ST, ["List {", "subscription", "Section {", 'LabeledContent("Vehicle", value: vehicle)',
+                                ".frame(minHeight: 44)", '.accessibilityIdentifier("settings.vehicle")', "} header: {",
+                                'Text("Vehicle")', "} footer: {",
+                                'Text("Only a standard car for now. Other vehicles need road limits the map does not have yet.")',
+                                "}", 'Section("Offline places") {',
                                 'Toggle("Download on Wi-Fi only", isOn: $corpusWifiOnly)', ".frame(minHeight: 44)",
                                 '.accessibilityIdentifier("settings.corpusWifiOnly")', "}", "about", "}"]),
     ("the shell's Settings sheet", SHELL, [".sheet(isPresented: $isShowingSettings) {", SETTINGS_MOUNT, "}"]),
@@ -99,7 +105,7 @@ FROZEN = {
     LS: "d500a4c892eb06ebdefcf662007619af9be05af88f26b0738283c6d3facfe8ae",
     LG: "b72965b1635d4d8b109a0f966e6cfe8fd1f1fe9d7bdf4bd9bac2148f081e30a6",
     PW: "e78e20791f1efff31dccd0aff4fa610eea1406a401c13c10e009a26afa708fa9",
-    ST: "c87db23ae2b0404310d6a51fca7f97eaf8ec5f64dd870005618edda82a151357",
+    ST: "7a2fb5547c2aee2b158a2b1c2dde0b9d36d56a06c07601202cca84aab7e5e19b",
     SC: "6da6ddadc509df44f9a9dadec770e0c3a84738af14715eeb6cee9c221bf63706",
     CD: "7e63f62eb351c5b45c5bed74cf5a63beff43e9b697747c01973e40eefe060906",
 }

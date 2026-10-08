@@ -53,11 +53,13 @@ PINNED_FEATURE=(
   'HandoffFailureCard.swift 94f62ec7d65e7c97b65c77bee5c128b63125b48f8998e0365b1aa73ccef4cb14'
   'HomeSheet.swift fda5e599a9c3b09203de6fc835e47cd3592cb91864518e9226d6e35204b9154e'
   'HomeSheetDetent.swift 8f6a8eeaec6829a1b415408db5ea34d787d657919fc0f363189eb34c0e39e63e'
-  'SafetyDisclaimer.swift 7c33cdcf91aa074bf3916fda95c680e9e8d50ee131d5016f5912281a72384421'
-  'ScenicHomeScreen.swift 66a5c03e9706998c1cb35675595116ae67d70554a714907f53e14ee7c6d4cc66'
+  'SafetyDisclaimer.swift 669572d6d62e81ccfb31fc7c0c4dc7c2cdb892a3ddd127bd0e90a473bb1fa0ed'
+  'ScenicHomeScreen.swift 4f8a32cedd3f0324f63fde5b91ae194ec6e52026887ed5572323fe29b672d37f'
   'SkylineHandoff.swift 43fa2c19ce81f0cb217cfd98f5da383465ac1bb87ae5d5ac4d97017f74eff70c'
   'SurpriseSlot.swift 2306572ab23e70b3050f3e6b41f3e91587b79fb8693eab0f8b4b896e234c124b'
   'SurpriseToggle.swift 97d90de6d95a6d7f1e1f0b8cb99df6e46ac250d890fdbb182da4a956b3e4770a'
+  'VehicleChoice.swift c9cd0a246e5bccd47027bbe5ec011237639c3ebabaa826c0ca302f4ebb03f8be'
+  'VehicleSetting.swift ac15565ddd461878ec68a61837fad6a1400b7e9d5e299b344ff3bac924b4240e'
 )
 # T-0273: the Surprise card's module, pinned the same way (its file set and its bytes): the card holds the only
 # Apple Maps button outside FeatureScenicHome, and it must reach the home's gate and nothing else (R4).
@@ -86,7 +88,7 @@ PINNED_SHELL_ENTRIES=(
   'f ScenicDriveApp.swift' 'f Tiles/.gitignore'
 )
 PINNED_SHELL_TILE='^f Tiles/[A-Za-z0-9_-][A-Za-z0-9._-]*\.pmtiles(\.json)?$'
-PINNED_SHELL_DIGEST='6be4dca9a2be2f13c8eb5982bd38a82ee141af4b30be8f829e0ba7e1722a65f9'
+PINNED_SHELL_DIGEST='2bd334e573042e2031af1414385fccb6d8d0a7bcc0f94cb249d4660764b53a76'
 
 # pinned_shell DIR: the shell's entries against the whitelist, its index for links, ScenicDriveApp.swift's digest.
 pinned_shell() {
@@ -230,7 +232,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/Entitlements/LaunchScreen.swift 5b0f19f1cc1cc3d54fdab7cfcac59c50c0057ce07375c2b8158441458d82dc8a'
   'Packages/ScenicApp/Sources/Entitlements/LegalAttributionScreen.swift bed642cf5b89f16bcbfbaf9818019a141b6952d7fe9d8868a0e02223a9064af0'
   'Packages/ScenicApp/Sources/Entitlements/PaywallScreen.swift bd6dd2f6c937ac422b7c2f0d60a60dd2ceadb2a16b0293c397433be538968bee'
-  'Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift 77b36948eb9e125f9587aa783167554420d58087282774d3ea01888b83e2b861'
+  'Packages/ScenicApp/Sources/Entitlements/SettingsScreen.swift 91a03ed2f04e7163356b10d03b2c0643d933dd15c220e5bd29ac9b6b55c9cba0'
   'Packages/ScenicApp/Sources/Entitlements/StoreConstants.swift aed28404d9bbd4b8b9bdeb9c1d430bc574be182686b53661cc70991365457d54'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanDriveButton.swift 02c414343501daf24443067f59c592a61966a0766fa87ca50fd5c3ff86ba7049'
   'Packages/ScenicApp/Sources/FeaturePlanSheet/PlanFailureCard.swift 17498cb1611be2e8281b4faf1406599aeb5496da0fe94c8a3c5e781a94479c6c'
@@ -252,11 +254,13 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/FeatureScenicHome/HandoffFailureCard.swift 94f62ec7d65e7c97b65c77bee5c128b63125b48f8998e0365b1aa73ccef4cb14'
   'Packages/ScenicApp/Sources/FeatureScenicHome/HomeSheet.swift fda5e599a9c3b09203de6fc835e47cd3592cb91864518e9226d6e35204b9154e'
   'Packages/ScenicApp/Sources/FeatureScenicHome/HomeSheetDetent.swift 8f6a8eeaec6829a1b415408db5ea34d787d657919fc0f363189eb34c0e39e63e'
-  'Packages/ScenicApp/Sources/FeatureScenicHome/SafetyDisclaimer.swift 7c33cdcf91aa074bf3916fda95c680e9e8d50ee131d5016f5912281a72384421'
-  'Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift 66a5c03e9706998c1cb35675595116ae67d70554a714907f53e14ee7c6d4cc66'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/SafetyDisclaimer.swift 669572d6d62e81ccfb31fc7c0c4dc7c2cdb892a3ddd127bd0e90a473bb1fa0ed'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift 4f8a32cedd3f0324f63fde5b91ae194ec6e52026887ed5572323fe29b672d37f'
   'Packages/ScenicApp/Sources/FeatureScenicHome/SkylineHandoff.swift 43fa2c19ce81f0cb217cfd98f5da383465ac1bb87ae5d5ac4d97017f74eff70c'
   'Packages/ScenicApp/Sources/FeatureScenicHome/SurpriseSlot.swift 2306572ab23e70b3050f3e6b41f3e91587b79fb8693eab0f8b4b896e234c124b'
   'Packages/ScenicApp/Sources/FeatureScenicHome/SurpriseToggle.swift 97d90de6d95a6d7f1e1f0b8cb99df6e46ac250d890fdbb182da4a956b3e4770a'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/VehicleChoice.swift c9cd0a246e5bccd47027bbe5ec011237639c3ebabaa826c0ca302f4ebb03f8be'
+  'Packages/ScenicApp/Sources/FeatureScenicHome/VehicleSetting.swift ac15565ddd461878ec68a61837fad6a1400b7e9d5e299b344ff3bac924b4240e'
   'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift d63e1a27d0865f180e205f2ac6d2fbad3ff7f049dac1996cfe61f154e9b1b1e9'
   'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseDeck.swift fd057725794bf9cdaaba43ea0886fc2bbba4fd3c8bcbdf29efa138b918e37cbd'
   'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseLedgerKey.swift f4400e16c2f5d7b4b94cd8b52c94924921d3ce8bb964f4d3119625081a4efca2'
@@ -276,7 +280,7 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/PlanAdapter/NoLedgerSession.swift f35b515a35d72b1c94b8b0b3f82457d696254a053cbbefd42212adf655dceac9'
   'Packages/ScenicApp/Sources/PlanAdapter/StoredInstallID.swift 960bbfed690308e3688f45c4a1707bcd2f716f0bd83cf596d5b8d403dd259b9f'
   'Packages/ScenicApp/Sources/PlanAdapter/UnreachablePlanner.swift 6ee10bda9ca24fe44518093d2a3920b24a1654c2d1ad5a75a6d9b3cc05619590'
-  'ScenicDrive/ScenicDriveApp.swift 6be4dca9a2be2f13c8eb5982bd38a82ee141af4b30be8f829e0ba7e1722a65f9'
+  'ScenicDrive/ScenicDriveApp.swift 2bd334e573042e2031af1414385fccb6d8d0a7bcc0f94cb249d4660764b53a76'
 )
 
 # require_pinned_app_swift APP_TREE: the app tree's Swift file set against PINNED_APP_SWIFT, then every digest.

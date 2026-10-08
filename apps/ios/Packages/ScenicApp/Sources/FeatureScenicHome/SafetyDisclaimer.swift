@@ -1,4 +1,5 @@
 import DesignSystem
+import ScenicKit
 import SwiftUI
 
 /// The blocking safety disclaimer: what this app does not know about the roads it names.
@@ -31,7 +32,34 @@ struct SafetyDisclaimer: View {
     /// no storage of its own, so there is exactly one place the flag is written.
     let onAccept: () -> Void
 
+    /// T-0309 R1: first-run onboarding is this sheet grown a first step. The ScenicKit machine decides when the
+    /// disclaimer is accepted; `onAccept` runs only then, so the one stored flag keeps its one writer.
+    @State private var onboarding = Onboarding()
+    /// The vehicle, stored only together with the acceptance (R2: on the device, never on the wire yet).
+    @AppStorage(VehicleProfile.storageKey) private var storedVehicle = ""
+
     var body: some View {
+        Group {
+            if onboarding.step == .vehicle {
+                VehicleChoice(chosen: onboarding.vehicle, onChoose: { onboarding.send(.choose($0)) },
+                              onContinue: { onboarding.send(.next) })
+            } else {
+                disclaimer
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.top, 28)
+        .padding(.bottom, 20)
+        // `bg` rather than `surface`: this is a full sheet standing in for a screen, not a card floating
+        // on one, and `fg` states its contrast against `bg` (`DesignTokens`).
+        .background(DesignTokens.bg)
+        // The gate. Without this the sheet is advisory - a swipe down and the handoff is ungated.
+        .interactiveDismissDisabled()
+    }
+
+    /// The disclaimer step: what the app does not know, a way back to the vehicle, and the one way out.
+    private var disclaimer: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(Copy.title)
                 .font(.title2)
@@ -55,17 +83,24 @@ struct SafetyDisclaimer: View {
 
             Spacer(minLength: 0)
 
+            back
+
             accept
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.top, 28)
-        .padding(.bottom, 20)
-        // `bg` rather than `surface`: this is a full sheet standing in for a screen, not a card floating
-        // on one, and `fg` states its contrast against `bg` (`DesignTokens`).
-        .background(DesignTokens.bg)
-        // The gate. Without this the sheet is advisory - a swipe down and the handoff is ungated.
-        .interactiveDismissDisabled()
+    }
+
+    /// Back to the vehicle step. It records nothing.
+    private var back: some View {
+        Button {
+            onboarding.send(.back)
+        } label: {
+            Text(Copy.back)
+                .font(.body)
+                .foregroundStyle(DesignTokens.fg)
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("onboarding.disclaimer.back")
     }
 
     /// The one way out.
@@ -75,6 +110,9 @@ struct SafetyDisclaimer: View {
     /// stays a 44 pt target at the smallest Dynamic Type setting too.
     private var accept: some View {
         Button {
+            onboarding.send(.accept)
+            guard onboarding.disclaimerAccepted else { return }
+            storedVehicle = onboarding.vehicle.rawValue
             onAccept()
         } label: {
             Text(Copy.accept)
@@ -106,5 +144,7 @@ struct SafetyDisclaimer: View {
         static let conditions = "Conditions change. Verify locally."
 
         static let accept = "I understand"
+
+        static let back = "Back"
     }
 }
