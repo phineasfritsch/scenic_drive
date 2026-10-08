@@ -35,7 +35,7 @@ final class PlanClientRequestTests: XCTestCase {
         let first = await fake.requests.first
         let body = try XCTUnwrap(first?.body)
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
-        XCTAssertEqual(Set(json.keys), ["origin", "destination", "budget_minutes"])
+        XCTAssertEqual(Set(json.keys), ["origin", "destination", "budget_minutes", "vehicle"])
         let origin = try XCTUnwrap(json["origin"] as? [String: Any])
         XCTAssertEqual(Set(origin.keys), ["lat", "lon"])
         let destination = try XCTUnwrap(json["destination"] as? [String: Any])

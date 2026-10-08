@@ -7,6 +7,7 @@
  */
 import type { LatLon } from "./latLon";
 import { atMostTwoDecimals, MAX_PLACE_ID_LENGTH, ORIGIN_DECIMALS, PLACE_ID } from "./planRequest";
+import { vehicleProblem } from "./vehicle";
 
 export const MIN_TRIP_DAYS = 1;
 /** The plan prices a road trip at "12 per 5-day trip": 1 fastest + 6 searched + one leg a day (R3). */
@@ -14,7 +15,7 @@ export const MAX_TRIP_DAYS = 5;
 /** The plan's +40% scenic budget; the driver may lower the ceiling, never raise it (R1). */
 export const MAX_EXTRA_BUDGET_PCT = 40;
 
-const BODY_KEYS = ["origin", "destination", "days", "extra_budget_pct"];
+const BODY_KEYS = ["origin", "destination", "days", "extra_budget_pct", "vehicle"];
 const REQUIRED_KEYS = ["origin", "destination", "days"];
 const ORIGIN_KEYS = ["lat", "lon"];
 const DESTINATION_KEYS = ["place"];
@@ -87,6 +88,9 @@ export function parseTripRequest(body: unknown): ParsedTrip {
     if (!wholeIn(pct, 0, MAX_EXTRA_BUDGET_PCT)) return refuse(`extra_budget_pct must be a whole percent in [0, ${MAX_EXTRA_BUDGET_PCT}]`);
     extraBudgetPct = pct;
   }
+
+  const vehicle = vehicleProblem(body.vehicle, "/trip");
+  if (vehicle) return refuse(vehicle);
 
   return {
     ok: true,
