@@ -125,3 +125,28 @@ no `act` because the app attests without one.
     SessionRecord, SessionStep, SessionStore, TripClient; PlanSessionProvider added after PlanResponseReader (9 rows).
   - iOS CI on 754da4e2: ios-compile 37809049629 `completed success` (3m48s); ios-screenshot 37809056825 `completed
     success` (18m45s).
+- 2026-10-08T17:45:00Z FINAL, on the merged head (agent/claude-opus-5). `git fetch origin` + merge of origin/main
+  9e910336 (queue-only: T-0327 filed/claimed; no gate file moved) as 8a47cf6f, message amended with the attribution.
+  The bare disclaimer guard then refused LiveSession.swift ("Found 78 *.swift entr(ies) under apps/ios; approved 77"):
+  the -pinned app table is re-approved in the same diff (LiveLoopPlanner, LivePlanner, LiveSurpriseLedger,
+  LiveTripPlanner re-hashed; LiveSession added after LivePlanner). App Swift is byte-identical to 754da4e2, where both
+  iOS workflows passed; the merge and this commit touch no app source.
+  ACCEPTANCE, re-quoted:
+  1. "MEASURE then RULE FIRST ... a subscriber's tier is never lower during any step" - M1-M5 and R1-R9 in the
+     16:03:18Z entry, committed (628e1774) before any code; the switch-over table is R5.
+  2. "Full-equality request tables for attest/assert over {no purchase, live, expired} and for plan/trip/loop over
+     {session with act, session without act, no session}; the Worker's answer decides the tier, never the client" -
+     Swift: SessionAccountTests (attest/assert bodies x 3 purchases, whole request) and PlanBearerTests (3 routes x
+     {with act, without act, no session} x 3 purchases x {server answers, down}, 54 whole requests + the store's attest
+     requests, meta-test per dimension): `Test run with 87 tests in 20 suites passed`. Worker: sessionCarriesAct.test.ts
+     (tokens equal to minted JWTs; every route x 5 held sessions x flag equal to the paid or anon reference):
+     `Tests 216 passed (216)` with tierCarriers, sessionIdentity, attestAssert, attestAccept, identityVerifierPin.
+  3. "Digests re-approved; ios-compile + ios-screenshot pass; population entries MISSED before and CAUGHT by name
+     after" - digests: 9 [PINNED_ROOT_SOURCES] rows + 5 -pinned app rows; `bash ops/lib/check-safety-disclaimer`
+     exit 0; CI above; population 57-76 MISSED=20 of 20 before, caught by name after (19 + 75 rerun).
+  GATES (bare, merged head + this commit's tables): check-safety-disclaimer exit 0; check-store-links.py exit 0;
+  check-mutate-population.py exit 0 ("the floor of 137 holds"); check-line-cap exit 0 ("489 Swift files ... none over
+  300 lines"); check-pins-yaml.py exit 0 (pins=48); ops/queue-check exit 0 ("QUEUE OK (318 tasks)").
+  STILL OPEN (for the orchestrator to file; my touches exclude queue/backlog/): (a) session.py --prove-vacuity does not
+  build on main (R11); (b) before IDENTITY_HEADERS closes (R5 step 3), measure the share of plan-family requests that
+  arrive with no Bearer; after it closes, drop x-scenic-account-token from IdentityHeaders.
