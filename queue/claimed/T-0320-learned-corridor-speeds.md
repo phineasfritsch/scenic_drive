@@ -169,3 +169,21 @@ drive legs from DriveSession into record, and retime into the preview) is a foll
   Sunday 23:59 reads Monday 00:00's ratio, and the hour shifts the ratio", "caught 33 ... by: departsAt ... | the
   estimate badge ..."; "caught by the test that names it: 4 of 4"; "MUTATE OK caught=4/4". `--prove-floor` ->
   "FLOOR PROOF OK: 7 of 7 arms refused and the control did not". P-SAFE-07's quote of the floor reads 33.
+- 2026-10-08T13:59:36Z rv1-t0320 B1 RULED BEFORE CODE (agent/claude-opus-5). The reviewer's mutant - the
+  observation clamp removed and the clamp applied instead to the STORED ratio at both record sites (the seed and the
+  EWMA) - survives the 9 tests at ed247a66. R2 stands (each observation clamped BEFORE the EWMA); the shipping code is
+  right, this is a test gap; no Sources/ file changes, so no digest row moves. CLASS: ewmaFirstAndSecondUpdate becomes
+  the cross product {first observation in range, below 0.3, above 1.0} x {second in range, below, above}, each
+  row's whole slot table after each record compared to 0.75 * clamp(o1) + 0.25 * clamp(o2), clamp written in the
+  test from the literals 0.3 and 1.0. Population (MIN_MUTATIONS 33 -> 35): 34 the clamp after the EWMA at both
+  record sites (the reviewer's mutant), 35 the clamp after the EWMA only (the seed unclamped).
+  DISAGREEMENT RULED (the Brief's meta-check "no row's expected value is the same under clamp-after-EWMA"): it is
+  unsatisfiable for 5 of the 9 rows. With c1 = clamp(o1) in [0.3, 1.0] the mutant stores clamp(0.75 c1 + 0.25 o2).
+  If o2 is in range, a convex combination of two values in [0.3, 1.0] stays in it and the clamp is the identity:
+  equal (3 rows). If o2 is below 0.3 and c1 is 0.3, both store 0.3; symmetrically above with c1 = 1.0 (2 rows). So
+  the meta-check is a PARTITION over the input, computed per row from both functions: a row differs under
+  clamp-after-EWMA IFF its second observation is out of range AND its first is not clamped onto that same bound
+  (4 rows: in/below, in/above, below/above, above/below). Every row is a function of its input and none is ignored:
+  a row on the wrong side of the predicate fails the meta-check. The reviewer's witnesses are rows: in (120/60) then
+  above (1/60) -> 0.625, mutant 1.0; above (30/60, kept 1.0 = the witness's 60/60) then below (6000/60) -> 0.825,
+  mutant 0.7525.

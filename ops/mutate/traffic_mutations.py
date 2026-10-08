@@ -12,6 +12,8 @@ traffic.py, runner traffic_run.py (plansheet's three-file shape).
   * PRIVACY, P-PRIV-05 (28-29): a Codable conformance added to a learned-speed type.
   * PER SLOT AND IN THE LEARNER'S ZONE (30-33, T-0320 pre-review M1/M3): the badge counted over a cell's every
     hour or any learned hour of the cell, retime reading the hour in UTC or in the device's zone.
+  * THE CLAMP AFTER THE EWMA (34-35, rv1-t0320 B1): the observation left raw and the STORED ratio clamped instead,
+    at both record sites (the seed and the EWMA) or at the EWMA only.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -50,6 +52,16 @@ PRIVATE = "no learned-speed type is Encodable or Decodable"
 _CLAMP = "min(Self.ceilingRatio, max(Self.floorRatio, freeFlowSeconds / actualSeconds))"
 _EWMA = "(1 - Self.alpha) * prior.ratio + Self.alpha * observed"
 _RETIME_HOUR = "HourOfWeek.of(departsAt.addingTimeInterval(elapsed), in: timeZone)"
+_RECORD = "\n".join([
+    "        let observed = min(Self.ceilingRatio, max(Self.floorRatio, freeFlowSeconds / actualSeconds))",
+    "        let slot = CorridorSlot(cell: cell, hour: hourOfWeek)",
+    "        if let prior = slots[slot] {",
+    "            let ratio = (1 - Self.alpha) * prior.ratio + Self.alpha * observed",
+    "            slots[slot] = CorridorRatio(ratio: ratio, samples: prior.samples + 1)",
+    "        } else {",
+    "            slots[slot] = CorridorRatio(ratio: observed, samples: 1)"])
+_STORED_CLAMP = "min(Self.ceilingRatio, max(Self.floorRatio, %s))"
+_RAW = _RECORD.replace(_CLAMP, "freeFlowSeconds / actualSeconds")
 _GUARD = "guard actualSeconds.isFinite, freeFlowSeconds.isFinite, actualSeconds > 0, freeFlowSeconds > 0 else {"
 
 MUTATIONS = [
@@ -107,6 +119,12 @@ MUTATIONS = [
      _RETIME_HOUR.replace("in: timeZone", "in: TimeZone(secondsFromGMT: 0)!"), [CROSS]),
     ("33 retime reads the device's zone", LEARNER, _RETIME_HOUR,
      _RETIME_HOUR.replace("in: timeZone", "in: TimeZone.current"), [CROSS]),
+    ("34 the clamp after the EWMA at both record sites", LEARNER, _RECORD,
+     _RAW.replace("CorridorRatio(ratio: ratio,", "CorridorRatio(ratio: " + _STORED_CLAMP % "ratio" + ",")
+     .replace("CorridorRatio(ratio: observed,", "CorridorRatio(ratio: " + _STORED_CLAMP % "observed" + ","), [EWMA]),
+    ("35 the clamp after the EWMA only, the seed raw", LEARNER, _RECORD,
+     _RAW.replace("CorridorRatio(ratio: ratio,", "CorridorRatio(ratio: " + _STORED_CLAMP % "ratio" + ","),
+     [EWMA, CLAMP]),
 ]
 
 EQUIVALENT = [
@@ -116,6 +134,6 @@ EQUIVALENT = [
      "guard), so min-then-max and max-then-min clamp every value to the same number"),
 ]
 
-MIN_MUTATIONS = 33
+MIN_MUTATIONS = 35
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 3
