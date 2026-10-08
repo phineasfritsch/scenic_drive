@@ -130,7 +130,8 @@ struct PlanBearerTests {
 
     @Test("a request refused on the device acquires no session", arguments: Route.allCases)
     func refusalAcquiresNothing(_ route: Route) async {
-        let (session, attest) = Self.store(.withoutAct, .answers)
+        // Nothing stored and App Attest supported: ANY ask of this store, for any purchase, would attest a key.
+        let (session, attest, _) = SessionAccountTests.store(.absent)
         let fake = CountingPlanTransport(reply: PlanHTTPReply(status: 503, body: Data()))
         await Self.send(route, through: fake, account: FixedAccountToken(Purchase.live.uuid?.uuidString),
                         session: session, invalid: true)
