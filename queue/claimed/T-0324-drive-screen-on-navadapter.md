@@ -112,3 +112,35 @@ spoken guidance (TTS) and Live Activity stay separate follow-ups.
   ops/lib/check-drive-display.py (R7): green `17 approved whole lines`, `--prove-red` `PROVE-RED OK: 6/6 refused by
   name` (the screen, the shell, the host and the navigator each building their own display, the screen showing the
   details unconditionally, a new feature file naming DriveSurface).
+- 2026-10-08T15:58:00Z agent/claude-opus-5 (owner) iOS CI, the drive shot LOOKED AT, merge-main, and the acceptance
+  block re-run on the merged head 901db45a (origin/main e158ddbc merged clean: T-0320's Traffic, T-0323's claim).
+  CI on dd523d9b (the first dispatch on d43b67e6 was cancelled: DriveScreen lacked `import Handoff` for CreditLine,
+  and DriveMapLine's untyped nested literals were made explicit before any run read them): ios-compile 37800200376
+  success (4m10s); ios-screenshot 37800207441 success (17m26s). Downloaded and read drive-light.png and
+  drive-dark.png: the MINIMAL surface in both - the planned line drawn over the demo tiles (CI has no la.pmtiles), the
+  composed credit pill `© MapLibre · Natural Earth · Route data © OpenStreetMap contributors` bottom right above the
+  controls and fully visible in both themes, MapLibre's logo top left, the location arrow in the status bar (the
+  simulated 15 m/s fixes arriving), one `End drive` button full width and ~60 pt on the primary fill
+  (onPrimary text: white in light, dark in dark), no caption (guiding: the fixes are on the line), no ETA, badge or
+  conditions. 037506a8 after the shot changes DriveMapLine's spelling only (`let properties: [String: String] = [:]`,
+  the -doors `](` reader) and digests.
+  ACCEPTANCE, re-run here:
+  1 MEASURE then RULE FIRST: the 2026-10-08T14:47:38Z entry (R1-R8), written before any code.
+  2 pure ScenicKit, full-equality over every DriveSurface x DriveMode: DriveDisplayTests (4 names, in P-SAFE-09's
+    row) - `NAMED P-SAFE-09 passed=9/9`; full Linux suite `√ Test run with 666 tests in 123 suites passed`, XCTest
+    `Executed 47 tests, with 1 test skipped and 0 failures`; mutants 50-57 `MUTATE OK caught=8/8` (floor 49 -> 57);
+    the screen reads only the navigator's display: `python ops/lib/check-drive-display.py` -> `P-SAFE-09 (screen): 17
+    approved whole lines ...`, --prove-red 6/6; P-SAFE-09's "What it cannot see" first clause replaced by that.
+  3 attribution on the drive map: `bash ops/lib/check-map-attribution` rc=0 with `P-ATTR-01 (f2): the drive map
+    ...DriveScreen.swift - footer text: CreditLine.composed(basemap: style.attributionText, routeData:
+    route?.dataCredit), mounted from style and route, one DriveBasemap.planned(, nothing hidden.` (red quoted above).
+  4 ios-compile + ios-screenshot green with drive-light/drive-dark (above).
+  Bare guards on 901db45a, each rc=0: check-safety-disclaimer, check-map-attribution, check-store-links.py,
+  check-ferrostar-imports.py, check-drive-display.py, check-pbxproj-graph.py (`28 assertions, 0 failed`),
+  check-ios-compile-guardrails.py, check-mutate-population.py (`the floor of 138 holds`), check-line-cap (`490 Swift
+  files ... none over 300 lines`), check-pins-yaml.py (`pins=48`), queue-check (`QUEUE OK (316 tasks)`).
+  NOT DONE HERE, follow-ups the Brief already names as separate: spoken guidance (TTS) - the minimal surface's
+  "voice" half - and the Live Activity. No device has run a drive; the full surface (stopped) has no shot.
+  ops/test on this worktree: Swift `√ Test run with 666 tests in 123 suites passed`, then `FAIL: services/api exists but
+  vitest produced no report` - this worktree has no services/api/node_modules (nothing under services/ is touched
+  here); the TESTS line is CI's to print on the PR.
