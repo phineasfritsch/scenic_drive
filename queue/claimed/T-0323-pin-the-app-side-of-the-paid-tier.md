@@ -93,3 +93,11 @@ rv1-t0315 recordables R1, R2 and R4 (PR #206).
   `passed=66/67`, exit 1. M2 IdentityHeaders `account.uuidString.lowercased()` -> `account.uuidString` -> planRequest,
   tripRequest, loopRequest `FAILED - ['failed']`, `passed=64/67`, exit 1 (and the guard: 1 unapproved, 1 missing).
   Each restored by git checkout; then 67/67. check-pins-yaml: `PINS-YAML ok pins=48 fields=387`.
+- 2026-10-08T15:52:00Z FINAL PRE-REVIEW (agent/claude-opus-5). `git fetch origin`; `git merge origin/main`: Already up to
+  date (main at e158ddbc; `merge-base --is-ancestor origin/main HEAD` exit 0). ACCEPTANCE re-run on 2d3f290a:
+  (1) P-STORE-02 no longer says the app side is NOT ASSERTED (`grep -c "NOT ASSERTED HERE: the app's side"` 0); the
+  six AccountToken names bound in named-tests.json; `NAMED P-STORE-02 passed=67/67` exit 0, red by M1/M2 above.
+  (2) `P-STORE-02 account-token sites: ok - 2 sites, every one approved, in 1 file(s)` exit 0; `PROVE-RED OK: 8 of 8
+  rows red by name, controls green`. (3) R4 ruled above: StoreKitAccountToken stays digest-pinned. Gates:
+  `PINS-YAML ok pins=48 fields=387` exit 0; `QUEUE OK (316 tasks)` exit 0; `P-OPS-01: 185 files, 23 required
+  present, all modes correct` exit 0.
