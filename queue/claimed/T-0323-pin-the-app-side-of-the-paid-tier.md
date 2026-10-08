@@ -101,3 +101,35 @@ rv1-t0315 recordables R1, R2 and R4 (PR #206).
   rows red by name, controls green`. (3) R4 ruled above: StoreKitAccountToken stays digest-pinned. Gates:
   `PINS-YAML ok pins=48 fields=387` exit 0; `QUEUE OK (316 tasks)` exit 0; `P-OPS-01: 185 files, 23 required
   present, all modes correct` exit 0.
+- 2026-10-08T16:25:51Z FIX - PRE-REVIEW SURVIVOR M3b (agent/claude-opus-5). FINDING: AccountTokenCandidateTests
+  dropped from named-tests.json P-STORE-02 in both places (filter `ScenicAPIClientTests\.AccountTokenHeaderTests`,
+  the `latest(_:)` row removed) -> `NAMED P-STORE-02 passed=66/66` exit 0, and P-STORE-02's assertion passed, so
+  check-pins stayed green with the StoreKit-order oracle unbound. run-named-tests.py refuses only a zero-name entry;
+  the 67 and the two suites lived only in the pin's prose. RULING: option (a), and by CLASS - the class is "the gate's
+  own table edited" (a row dropped with or without its filter, replaced, repeated or added; the filter changed; a
+  file dropped), not only M3b's spelling. A count alone would not close it: run_pin counts rows, not distinct names,
+  so a row replaced by a repeat of planRequest keeps 67/67. CLOSED BY: ops/lib/check-named-table.py (183 lines, data
+  100644) holds P-STORE-02's whole entry to the sha256 of its canonical JSON (sort_keys, no whitespace) and to 67
+  DISTINCT names - both literals in the assertion, so any edit of the entry re-approves them in the same diff - and
+  the assertion also requires the runner's printed line to be exactly `NAMED P-STORE-02 passed=67/67`. Digest
+  measured: c5af543b66fddaa83383aa7ea350972e006831984f6e0799062067b680841147. NOT CHANGED (out of T-0323's scope,
+  same shape): P-SAFE-01/04/07/08/09, P-PRIV-04/06, P-COST-01/04, P-PROD-02/05, P-NAV-01 bind no count or digest;
+  recorded in P-STORE-02's prose for a follow-up task.
+  SEEN RED, THEN GREEN. --prove-red on the live entry: `CONTROL the entry as is: green`, `CONTROL keys reordered:
+  green`, and red by name for all eight rows - `a swift suite dropped with its filter (T-0323 M3b)` (count 66 != 67;
+  digest), `a vitest row dropped`, `a row replaced by a repeat of another` (duplicate name
+  ScenicAPIClientTests.AccountTokenHeaderTests/planRequest(_:)), `a row replaced by another name`, `the swift filter
+  changed alone`, `a row added` (count 68), `a whole vitest file dropped` (count 60), `the entry emptied` -
+  `PROVE-RED OK: 8 of 8 rows red by name, controls green`. The prove-red itself seen red by three guard mutants, each
+  restored (cmp RESTORED): G1 `sort_keys=True` -> `False` -> `CONTROL the entry as is: RED`, `PROVE-RED FAILED: 8 of
+  8 rows red by name, controls NOT GREEN`; G2 the duplicate append -> `pass` -> `GREEN a row replaced by a repeat of
+  another: NOT NAMED ['duplicate name']`, `7 of 8`; G3 `if len(seen) != want_count:` -> `if False:` -> four rows
+  NOT NAMED ['count'], `4 of 8`. Count literal: `check-named-table.py P-STORE-02 <sha> 66` -> `REFUSED count 67
+  distinct names != approved 66` exit 1. THROUGH THE PIN'S ASSERTION (bash of PINS.yaml's P-STORE-02 string via
+  yaml.safe_load, SCENIC_SWIFT_SCRATCH=.build/t323): green -> `ok - 2 sites`, `NAMED-TABLE P-STORE-02 ok - 67
+  distinct names, sha256 c5af543b66fd`, ASSERTION EXIT=0. M3b applied -> run-named-tests.py alone `NAMED P-STORE-02
+  passed=66/66` runner exit=0 (the survivor reproduced), assertion `REFUSED count 66 distinct names != approved 67`,
+  `REFUSED digest 418a8d5618eb... != approved c5af543b66fd...`, ASSERTION EXIT=1. M3b with the digest and count both
+  re-approved to 418a8d5618eb.../66 (the printed-line literal left at 67) -> `NAMED-TABLE P-STORE-02 ok - 66`,
+  `NAMED P-STORE-02 passed=66/66`, ASSERTION EXIT=1 - the third literal is live on its own. named-tests.json
+  restored by git checkout (diff --quiet RESTORED). `PINS-YAML ok pins=48 fields=387` exit 0.
