@@ -110,3 +110,25 @@ drive legs from DriveSession into record, and retime into the preview) is a foll
   DIGESTS: `bash ops/lib/check-safety-disclaimer` refused "root: added Sources/ScenicKit/Traffic/CorridorCell.swift
   ... TrafficProvider.swift" until the eight rows were added to [PINNED_ROOT_SOURCES]; then exit 0 ("226 root +
   pbxproj file(s) (-linked)").
+- 2026-10-08T12:06:49Z POPULATION and BINDINGS (agent/claude-opus-5). ops/mutate/traffic.py (traffic_mutations.py
+  MIN_MUTATIONS = 29, MIN_EQUIVALENT = 1; DRIVERS + COVERED_FLOOR gain it; TrafficProvider.swift allowlisted as a
+  one-method protocol). --prove-floor: "FLOOR PROOF OK: 7 of 7 arms refused and the control did not".
+  MISSED BEFORE: `python ops/mutate/traffic.py --prove-vacuity --only 1,5,9,10,13,28` (the three test files
+  replaced by empty suites) -> "MISSED 1 learned at 4 samples", "MISSED 5 alpha 0.3", "MISSED 9 the floor one ulp
+  lower", "MISSED 10 the ceiling one ulp higher", "MISSED 13 a zero actual time accepted", "MISSED 28 CorridorRatio
+  is Codable"; "VACUITY PROOF OK: with the 3 test file(s) emptied, caught=0 (need 0) and MISSED=6 of 6".
+  CAUGHT AFTER, by name: `python ops/mutate/traffic.py` -> "1 learned at 4 samples by: the estimate badge: on at 0
+  and 4 samples, off at 5 and 6, ..."; "5 alpha 0.3 by: the estimate badge ... | the EWMA: the first sample seeds
+  the ratio, the second moves it by alpha 0.25"; "9 the floor one ulp lower" and "10 the ceiling one ulp higher" by
+  "the ratio clamp at 0.3 and 1.0, one ulp either side of each bound"; "13 a zero actual time accepted by: NaN,
+  infinite, zero and negative times are refused and change nothing"; "28 CorridorRatio is Codable" and "29
+  RetimedRoute is Codable" by "no learned-speed type is Encodable or Decodable"; the EQUIVALENT E1 (the clamp
+  applied ceiling first) MISSED as required. That run printed "caught by the test that names it: 28 of 29 (wrong
+  killer 1 ...)": entry 25 (a slot keeps no hour) named the EWMA test too, which cannot see it - the EWMA test's
+  expected slot is built with the same mutated CorridorSlot init, so both sides lose the hour; only the departsAt
+  test was red. Ruled: entry 25 names that test alone (f3933863's successor commit); `--only 25` -> "MUTATE OK
+  caught=1/1". With the other 28 unchanged, the population stands at 29 of 29 caught by name.
+  BINDINGS: `run-named-tests.py P-SAFE-07` -> "NAMED P-SAFE-07 passed=8/8"; badgeAtFiveSamples() renamed ->
+  "RED ...LearnedCorridorSpeedsTests/badgeAtFiveSamples(): MISSING - no test of this name ran", "NAMED P-SAFE-07
+  passed=7/8" exit 1; restored. P-PRIV-05's swift list gains
+  ScenicKitTests.LearnedSpeedsPrivacyTests/noLearnedTypeIsCodable() and its assertion runs the site guard first.
