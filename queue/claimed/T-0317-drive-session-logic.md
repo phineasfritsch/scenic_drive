@@ -119,3 +119,26 @@ first, so the adapter is a thin shell. Calm, minimal-distraction driving UI (mem
   DriveMode.swift allowlisted (a three-case enum). check-mutate-population exit 0 (`the floor of 119 holds`),
   check-line-cap exit 0 (`426 Swift files ... none over 300 lines`; DriveSession 103, DriveRerouteTests 156,
   DriveSessionTests 145), queue-check exit 0 (`QUEUE OK (309 tasks)`).
+- 2026-10-08T10:13:14Z ROUND 2 (rv1-t0317 FAIL on PR #205, head 9910652c). Orchestrator rulings, recorded before code:
+  B1 (blocking): deleting `awaySince = nil` from rerouteArrived(line:waypoints:) survives all three suites - the
+  first fix after a landed reroute that is > 50 m from the NEW line reroutes again with zero dwell, breaking R3
+  (away continuously >= 5 s). RULED: the reviewer's repro becomes a P-NAV-01 test in DriveRerouteTests, bound in
+  ops/lib/named-tests.json; population entry 29 deletes the reset - MISSED at 9910652c, CAUGHT by that test's name
+  (--only). R2: a missing cosine in DriveLine.distanceMeters(from:toSegment:) (`let scale = Self.metersPerDegree`)
+  is caught only by the loop test, because every bound row offsets in latitude from an east-west line. RULED: bound
+  rows against a NORTH-SOUTH segment at latitude 34 - exactly 50 m east (on), the next distance up (away), and a
+  fix 42 m east, which the missing cosine measures as ~50.7 m (away); population entry 30 is that mutant, caught by
+  the new row's name. R4: an unusable fix with a valid speed above 4.5 left the surface at its previous value
+  (possibly .full), against R6 "unknown is moving". RULED: an unusable fix sets .minimal (the safe side of
+  P-SAFE-09); unusableFixKeepsSurface becomes unusableFixIsMinimal (a table over bad-fix kinds x carried speeds x
+  the surface before it); population entry 6 now REVERTS that (an unusable fix keeps the surface) and is CAUGHT.
+  R5: losing connectivity while a reroute is out stayed .rerouting until NavAdapter called rerouteFailed. RULED
+  session side (3 lines, under the 15-line bar): the online-to-offline edge while .rerouting enters .rejoining, so
+  the next offline-to-online edge asks exactly once from the latest fix (R5's per-edge count). reroutingAsksOnce and
+  backOnlineAsksOnce asserted the old stay-rerouting edge; they keep their counts over the edges that do not drop
+  the connection, and the new test lostConnectionWhileReroutingRejoins carries the drop. Population entry 31 deletes
+  the new line, caught by that name. OBLIGATION for NavAdapter (the Ferrostar half, not T-0318): on the lost edge it
+  cancels the in-flight reroute and drops its reply or failure - a stale rerouteArrived/rerouteFailed after the
+  next edge's request would answer the wrong request. Digest rows re-approved for every changed Sources file.
+  Verification per memory faster-verification-in-rounds: the three suites, `--only 6,29,30,31` (and the vacuity arm
+  over the new entries), the plain gates.

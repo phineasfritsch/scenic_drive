@@ -51,6 +51,7 @@ BEFORE = "P-SAFE-09: before the first fix the drive shows the minimal surface"
 EACH = "P-SAFE-09: each fix sets the surface by itself - no hysteresis is ruled"
 MODES = "P-SAFE-09: the bound is the same off the line, offline in rejoin mode and while a reroute is out"
 KEEPS = "P-SAFE-09: an unusable fix leaves the surface where it was"
+RESTART = "P-NAV-01: a landed reroute restarts the dwell - the first fix away from the new line waits 5 s again"
 
 GATE_OLD = "speed >= 0 && speed <= Self.motionGateMetersPerSecond"
 SURFACE_SET = "surface = DriveSurface(speedMetersPerSecond: fix.speedMetersPerSecond)"
@@ -110,6 +111,8 @@ MUTATIONS = [
     ("27 a non-finite time is a fix", FIX, " && timestamp.isFinite", "", [UNUSABLE]),
     ("28 a line vertex past the pole", LINE, "(-90...90).contains(c.latitude)", "(-90...90.5).contains(c.latitude)",
      [INIT]),
+    ("29 a landed reroute keeps the dwell", SESSION, "        progressSegment = 0\n        awaySince = nil\n",
+     "        progressSegment = 0\n", [RESTART]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
