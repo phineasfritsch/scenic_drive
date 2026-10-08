@@ -83,3 +83,22 @@ rv1-t0324 recordable 4: DriveScreen always draws the preview's planned line.
   subjects with entries MISSED at f98572c5's tests and CAUGHT by the new names. R10 GUARDS RE-APPROVED IN THE SAME
   DIFF: check-drive-display.py's whitelist (screen, host, shell lines), check-safety-disclaimer-frozen's
   FROZEN_APP_SHELL shell line, the -linked digest rows and -pinned's digests of the touched app files.
+- 2026-10-08T18:36:03Z RED then GREEN (owner). RED by name with the API in place and its wiring stubbed (token not carried, answer's
+  token not taken, PlanRerouter throwing at once, continuation nil, DriveDisplay(session:) drawing []): swift test
+  --filter DriveReplanTests|DriveDisplayTests|SavedDraftTests|Drive*Tests - FAILED tokenByFirstPin (3 issues, the
+  three token-present rows), answerBecomesTheDrawnLine (4), lateAnswerDroppedByTicket (2), previewKeepsTheToken (1),
+  sessionDisplayFollowsTheSession (6); noRowIgnoresItsVariant and offlineSendsNothing green (they hold today's
+  behaviour). GREEN after wiring: ScenicKitTests + ScenicAPIClientTests 475/475; NAMED P-NAV-01 passed=34/34.
+  ios-compile success (run 37820194624 at 258eb378; 37823842530 at 8ee0775d); ios-screenshot success (run
+  37820201191): the drive shot showed one kinked line and no caption - consistent with a taken reroute, but the
+  planned line was the road shifted north, the same shape, so the shot could not tell them apart. R8 AMENDED: the
+  rehearsal's planned line is ONE straight segment (first to last point, shifted 0.003 deg north), so a kinked
+  three-segment line in the shot is the reroute's. POPULATION: drive.py --only 16,55,56,58-74 at c96fde9f: 17/20
+  caught, entry 62 WRONG KILLER (the drawn-line test cannot see a reply token both sides drop; killers corrected to
+  token x first pin + late answer), 71 and 73 MISSED (previewKeepsTheToken compared against a want built by the
+  same inits - a mutant in PlanContinuation.init or PlanPreview.init moved both sides); the test now also reads the
+  continuation back field by field against literals; --only 62,71,73 at 8ee0775d: MUTATE OK caught=3/3.
+  --prove-vacuity --only 58-74: VACUITY PROOF OK, MISSED=17 of 17 with the 7 test files emptied. Anchors 16/55/56
+  moved with the code (old text gained a trailing argument) and are still caught. RerouteReply.swift left the
+  P-PROC-06 allowlist (it is a drive.py subject now); check-mutate-population: floor of 138 holds. Follow-up T-0330
+  filed (R5's fresh-vs-continued marker; R6's ETA line).
