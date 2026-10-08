@@ -1,13 +1,13 @@
 ---
 id: T-0321
 title: NavAdapter - the app's only Ferrostar importer, pinned to an exact version, drives turn-by-turn on the planned scenic route through a custom RouteProvider and calls ScenicKit DriveSession for every decision (off-route, reroute with remaining waypoints + same lambda, offline rejoin, motion gate)
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T11:51:00Z
+lease_expires_at: 2026-10-08T21:51:00Z
+worktree: .worktrees/T-0321
+branch: task/T-0321
 exclusive: [package-swift]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Package.resolved, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/, Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-NAV-01, P-SAFE-09, P-ATTR-01]
@@ -30,3 +30,4 @@ mode) and Live Activity are separate follow-ups; Live Activity needs the xcodepr
 
 ## Log
 - 2026-10-08T11:50:51Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M7 NavAdapter) and rv2-t0317's recordable 4.
+- 2026-10-08T11:51:00Z claimed by agent/claude-opus-5; lease until 2026-10-08T21:51:00Z
