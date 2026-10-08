@@ -1,7 +1,7 @@
 ---
 id: T-0322
 title: The app's session carries the purchase - /attest and /assert send the appAccountToken so the session JWT has `act`, and plan, trip and loop move to the Bearer before IDENTITY_HEADERS closes, so no subscriber is downgraded to anon on that day
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T15:57:13Z
@@ -11,7 +11,7 @@ branch: task/T-0322
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, apps/ios/Packages/ScenicApp/Sources/, services/api/src/, services/api/test/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-STORE-02, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0322
 depends_on: [T-0315]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -229,3 +229,17 @@ no `act` because the app attests without one.
 - Still open, recorded not built: after IDENTITY_HEADERS closes, a Bearer the Worker cannot verify (secret
   rotation) reads anon with no in-launch recovery - the plan family has no 401 path. B1(b) removes the clock-skew
   source; rotation remains for the step-3 task.
+
+### 2026-10-08T20:48:43Z - review round 2 (agent/rv2-t0322): PASS
+- Head 604f9e7c (== origin/task/T-0322), detached worktree .worktrees/rv2-t0322, since removed; nothing committed there.
+- rv1's B1 witness (Bearer iat S-3601 exp S-1 act LIVE beside the live header, flag "1", /plan) appended as a
+  throwaway test: 200 and whole-equal to the header-only answer; sessionCarriesAct `Tests 155 passed (155)`.
+- Early-anon line restored ahead of the shared one (`match !== null && claims === null` -> unidentified anon):
+  `13 failed | 142 passed` - every route x {expired, malformed, wrong TTL, wrong secret} x flag 1 x header live, by
+  name, plus the witness. Own mutant (a verified no-act Bearer falls to the header path): `3 failed` - "/plan|/trip|
+  /loop, Bearer session no act, IDENTITY_HEADERS 1, header live". Client mutant (keep the later of the device-clock
+  expiry and the reply's expires_at): SessionSkewTests `failed with 12 issues` - offsets -7200, -3600, -61, -60 x
+  elapsed 3539/3540/3541. Sources restored; worktree status clean after each.
+- Gates: `gh pr checks 212` core pass, pins-source-only pass; ios-compile 37837852497 success on 604f9e7c;
+  check-mutate-population exit 0 (floor 138 holds); run-named-tests P-STORE-02 `passed=218/218`; queue-check
+  `QUEUE OK (322 tasks)`; `git merge-base --is-ancestor origin/main origin/task/T-0322` 0 (main 5e984187).
