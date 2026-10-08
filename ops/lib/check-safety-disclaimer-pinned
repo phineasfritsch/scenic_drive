@@ -66,10 +66,11 @@ PINNED_FEATURE=(
 # Apple Maps button outside FeatureScenicHome, and it must reach the home's gate and nothing else (R4).
 PINNED_SURPRISE_REL="../FeatureSurpriseMe"
 PINNED_SURPRISE=(
-  'SurpriseCard.swift cde00150d92e7c2a557ca7c35615e4ee3d0874e9acb77fefee2b210bd0f93906'
+  'SurpriseCard.swift 52728002f79f146d2e3e7b1a3ecdfb1d72d48144105b4ae88c459781e02a3f40'
   'SurpriseDeck.swift fd057725794bf9cdaaba43ea0886fc2bbba4fd3c8bcbdf29efa138b918e37cbd'
   'SurpriseLedgerKey.swift f4400e16c2f5d7b4b94cd8b52c94924921d3ce8bb964f4d3119625081a4efca2'
   'SurpriseNotThis.swift 05e8115a07c0e5864a311d10089155adf2937960c9edd3f38eec877a6c952bdd'
+  'SurpriseShownLog.swift fedf97c79354fa82f9c83d08c5a6da3734c5dd0c91ff0e8368c3f79a4e45d489'
 )
 PINNED_FOOTER_DIGEST='8f07bec7abe9690183813b79af08d404add796088bf497781b560d7e4bc7c0b7'
 # T-0273 pre-review M1: THE APP SHELL, pinned as well. It composes the card, and a module-local type wins over an
@@ -265,10 +266,11 @@ PINNED_APP_SWIFT=(
   'Packages/ScenicApp/Sources/FeatureScenicHome/TripDayLinks.swift cc961d2922aceec20add2fb38d595824b295d1644593991f3036fd6d36bfd87c'
   'Packages/ScenicApp/Sources/FeatureScenicHome/VehicleChoice.swift c9cd0a246e5bccd47027bbe5ec011237639c3ebabaa826c0ca302f4ebb03f8be'
   'Packages/ScenicApp/Sources/FeatureScenicHome/VehicleSetting.swift ac15565ddd461878ec68a61837fad6a1400b7e9d5e299b344ff3bac924b4240e'
-  'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift cde00150d92e7c2a557ca7c35615e4ee3d0874e9acb77fefee2b210bd0f93906'
+  'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseCard.swift 52728002f79f146d2e3e7b1a3ecdfb1d72d48144105b4ae88c459781e02a3f40'
   'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseDeck.swift fd057725794bf9cdaaba43ea0886fc2bbba4fd3c8bcbdf29efa138b918e37cbd'
   'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseLedgerKey.swift f4400e16c2f5d7b4b94cd8b52c94924921d3ce8bb964f4d3119625081a4efca2'
   'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseNotThis.swift 05e8115a07c0e5864a311d10089155adf2937960c9edd3f38eec877a6c952bdd'
+  'Packages/ScenicApp/Sources/FeatureSurpriseMe/SurpriseShownLog.swift fedf97c79354fa82f9c83d08c5a6da3734c5dd0c91ff0e8368c3f79a4e45d489'
   'Packages/ScenicApp/Sources/MapAdapter/BasemapResolver.swift ad9f029ba5dacebc10676e6c4eaf176923eb663de48c388da70240404054f572'
   'Packages/ScenicApp/Sources/MapAdapter/MapAppearance.swift f22a1cfb07f38b83f105c749a743de0613827d8987a4fcbc1039041aff854c6b'
   'Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift 139d705f30cf85ed1afa387add72e3e9684e50dee46c3eee79706ec49083e458'

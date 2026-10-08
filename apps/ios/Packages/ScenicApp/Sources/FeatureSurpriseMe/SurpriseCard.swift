@@ -11,11 +11,9 @@ public struct SurpriseCard: View {
     private let failure: String?
     private let onOpenInMaps: @MainActor (Coordinate) -> Void
 
-    /// The device's history: every place shown (T-0310 R7) and every "not this".
-    @State private var history = SurpriseHistory()
-    /// What the pick is made from: it moves only on "not this" and "start over", so recording the shown place
-    /// never re-picks.
-    @State private var basis = SurpriseHistory()
+    /// The device's history (every place shown, T-0310 R7, and every "not this") and the basis the pick is made
+    /// from, which recording never moves (T-0312 R5).
+    @State private var state = SurpriseCardHistory()
     @State private var ledgerPlaces: [SurpriseLedgerPlace]?
     @State private var ledgerRead = false
     @Environment(\.surpriseLedger) private var ledger
@@ -45,6 +43,8 @@ public struct SurpriseCard: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("surprise.card")
         .task {
+            state = state.restoring(SurpriseShownLog.load())
+            SurpriseShownLog.save(state.history.shown, today: SurpriseDeck.context(at: now).date)
             ledgerPlaces = await ledger?.ledgerPlaces()
             ledgerRead = true
         }
@@ -53,7 +53,7 @@ public struct SurpriseCard: View {
 
     /// The device's history united with the ledger's 90 days (T-0307 R5); nil places - no session - leave it be.
     private func merged(_ deck: SurpriseDeck) -> SurpriseHistory {
-        SurpriseHistoryMerge.merged(device: basis, ledger: ledgerPlaces, candidates: deck.candidates)
+        SurpriseHistoryMerge.merged(device: state.basis, ledger: ledgerPlaces, candidates: deck.candidates)
     }
 
     /// The place on the card once the ledger has answered (or there is none to ask); nil before.
@@ -62,13 +62,15 @@ public struct SurpriseCard: View {
         return deck.pick(history: merged(deck), at: now)?.candidateId
     }
 
-    /// The shown place goes into the device history once a day and, with a session, to the ledger with the
-    /// place's own cell (T-0310 R7, P-PRIV-05).
+    /// The shown place goes into the device history once a day, to the user store (T-0312) and, with a session, to
+    /// the ledger with the place's own cell (T-0310 R7, P-PRIV-05).
     private func recordShown(_ id: String?) async {
+        let today = SurpriseDeck.context(at: now).date
         guard let id, let deck = SurpriseDeck.bundled, let candidate = deck.byID[id],
-              let next = SurpriseShowing.recording(candidate, on: SurpriseDeck.context(at: now).date, in: history)
+              let next = state.showing(candidate, on: today)
         else { return }
-        history = next
+        state = next
+        SurpriseShownLog.save(state.history.shown, today: today)
         await ledger?.recordShown(candidate)
     }
 
@@ -168,10 +170,9 @@ public struct SurpriseCard: View {
                 .foregroundStyle(DesignTokens.fg)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("surprise.empty")
-            if !history.feedback.isEmpty {
+            if !state.history.feedback.isEmpty {
                 Button(Copy.startOver) {
-                    history = SurpriseHistory(shown: history.shown)
-                    basis = history
+                    state = state.startingOver()
                 }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(DesignTokens.fg)
@@ -186,8 +187,7 @@ public struct SurpriseCard: View {
         let feedback = SurpriseFeedback(candidateId: candidate.id, category: candidate.category,
                                         roundTripMinutes: pick.reason.roundTripMinutes,
                                         date: SurpriseDeck.context(at: now).date, reason: reason)
-        history = SurpriseHistory(shown: history.shown, feedback: history.feedback + [feedback])
-        basis = history
+        state = state.declining(feedback)
     }
 
     static func symbol(_ placeClass: SurprisePlaceClass) -> String {

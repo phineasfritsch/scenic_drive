@@ -99,8 +99,9 @@ public final class SavedDriveStore: Sendable {
         }
     }
 
-    /// The read-only gate (R1, R2): nothing here can write, so a refused file is byte-for-byte untouched.
-    private static func inspect(path: String) throws {
+    /// The read-only gate (R1, R2): nothing here can write, so a refused file is byte-for-byte untouched. Shared by
+    /// SurpriseShownStore (T-0312 R8), which opens the same file.
+    static func inspect(path: String) throws {
         var configuration = Configuration()
         configuration.readonly = true
         let queue = try DatabaseQueue(path: path, configuration: configuration)
