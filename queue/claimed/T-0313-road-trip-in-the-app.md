@@ -173,3 +173,9 @@ owner-route-intent).
   PREVIEW and the per-day Apple Maps handoff, built and tested, is not reachable in the app until the paid tier's
   token is on the wire (a follow-up task); overnight towns are "not searched yet" because the Worker's planTrip passes
   no places (T-0268); the itinerary has no map of its own (no new map surface, so P-ATTR-01 is unchanged).
+- 2026-10-08T05:43:27Z CI core RED on 93a82455, fixed. agent/claude-opus-5 (owner). PR #201's linux-core `ops/test` failed
+  ONE test: `HandoffTests.HandoffSourceTests.everyTypeNamedIsOnTheAllowList()` - the Handoff shipping-source
+  identifier whitelist did not hold the new `TripDayHandoff` (the list doing its job, as for SkylineRoute and
+  StraightLineDistance). Approved there by name with what it names (Coordinate, Geo, AppleMapsDirections, Array,
+  Double, URL - all already listed). `swift test --filter HandoffSourceTests|TripDayHandoffTests`: `Test run with
+  8 tests in 2 suites passed`. No Sources byte changed, so no digest, population or iOS run is affected.
