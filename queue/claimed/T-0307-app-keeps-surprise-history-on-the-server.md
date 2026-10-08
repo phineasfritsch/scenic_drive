@@ -150,3 +150,20 @@ client half (Keychain install id, the app calling /ledger) as M6 Apple-package w
     (today `shown` is never appended - measured (c)), and (iii) PlanAdapter -> Telemetry for H3Cell, a
     Package.swift edit under T-0305's lock. The Keychain move and the GET merge ship; with no session the shipped
     app makes no ledger request.
+- 2026-10-08T00:08:09Z PRE-REVIEW SURVIVOR M2 closed by class, agent/claude-opus-5:
+  - M2 (BLOCKING): the merge deduped by category instead of place id survived 10/10 green - every MERGED row held at
+    most one place per category. Closed as the CLASS "the dedupe key is not the place id": population entries 29
+    category, 30 corridor, 31 category+corridor, 32 day (both lines of the key swapped; floor 28 -> 32), committed
+    at 1deebae2 BEFORE the test. `python ops/mutate/ledger.py --only 29,30,31,32` there:
+    `MISSED 29 the merge keyed by category exit=0 no test objected`; 30, 31, 32 already caught (30/32 by the pch
+    corridor and the 06-19 day the existing rows share; 31 by the tying row, whose device corridor is inland);
+    `MUTATE FAILED caught=3/4`.
+  - Test at d03f5d74: MERGED row "one category, corridor and day, different places" - device as before, ledger
+    malibu-08 (park, pch) 06-10 and topanga-07 (park, topanga) 03-30; the expected history keeps all four ids.
+    `--only 29,30,31,32` there: `caught 29 the merge keyed by category by: The merged history is exactly the
+    expected one, whatever the ledger's order | The pick over the merged history is the pick over the expected
+    history, seed for seed`, 30-32 caught by the same two; `MUTATE OK caught=4/4`. Suites
+    `LedgerClientTests|SurpriseHistoryMergeTests`: `Test run with 10 tests in 2 suites passed` (6 rows each).
+  - No Sources/ file changed, so no digest row moves. Reviewer notes, not mutants: LedgerClient.record has no
+    caller yet and LiveSurpriseLedger.make() wires NoLedgerSession, so read() is .noSession in production and
+    R5/R6 run only under test until a session client lands (the NOT DONE list above; T-0309).
