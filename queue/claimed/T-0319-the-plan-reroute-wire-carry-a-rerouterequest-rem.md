@@ -177,3 +177,23 @@ a measurement task first).
   rebuild the key from the caller), list()+delete() on the KV interface, and an edit to src/account.ts, whose whole
   bytes are SHA-pinned by identityVerifierPin.test.ts - well over 40 lines and a second gate re-approval. RULED: the
   12 h TTL (PLAN_TOKEN_TTL_SECONDS) plus the privacy notice is this task's policy; the sweep is filed as T-0326.
+- 2026-10-08T15:32:07Z FIX ROUND 1 LANDED. closuresCrossing.test.ts: "/plan reroute" is a fourth ROUTE_NAMES entry (HANDLER maps it
+  to ROUTES["/plan"], PLANS bound to a KV remembering TOKEN for DEVICE and la:topanga, BASE 1); the guard ROWS are
+  generated over PLAN_PATHS (every path whose handler is /plan): over the ceiling, one second over; a new describe
+  holds "exactly at the ceiling" (returned) for each; a whole-list row holds the reroute's upstream requests under
+  X alone. Rig state (sent, router, shape) resets in beforeEach. `wc -l test/closuresCrossing.test.ts` -> 300.
+  `npx vitest run test/closuresCrossing.test.ts` -> `Tests 150 passed (150)` (fb7d041f had 110 by count: 3 x 30 + 9 + 3 + 4 + 4).
+  RED at fb7d041f's tests (planMutants.mjs entries added, closuresCrossing.test.ts in TESTS, test unchanged):
+  `--only=reroute-retry-over-ceiling,reroute-retry-ceiling-strict,reroute-first-closures-dropped` ->
+  `MISSED` x3, `RESULT caught=0 missed=3 trap=0 of 3`.
+  GREEN with the new rows (one transient baseline refusal with no named failure on the loaded box; the nine-file
+  TESTS list alone -> `Tests 212 passed (212)`; re-run): `baseline green tests=212`;
+  `CAUGHT reroute-retry-over-ceiling by "/plan reroute, the re-request over the ceiling: the crossing path is
+  returned, crosses names X, one re-request made"`; `CAUGHT reroute-retry-ceiling-strict by "/plan reroute, the
+  re-request exactly at the ceiling: the clear path is returned, one re-request made"`; `CAUGHT
+  reroute-first-closures-dropped by "/plan reroute, X alone, clear path, router honours: requests, areas, the
+  returned path and the hazard equal the row's"`; `RESULT caught=3 missed=0 trap=0 of 3`. Population 60 -> 63.
+  NOT DONE: the new reroute rows are not added to P-SAFE-08's by-name list in named-tests.json (that would change the
+  row's bound count in PINS.yaml, outside touches); they are held by the population above.
+  P-PRIV-04 follow-up filed: queue/backlog/T-0326-account-deletion-sweeps-plan-tokens.md (T-0325 is the highest id
+  on main and every origin/task/* branch).

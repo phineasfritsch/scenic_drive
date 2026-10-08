@@ -21,6 +21,7 @@ import { LOOP_BODY, loopPath, outAndBack } from "./loopHarness";
 import { mergeClosures } from "../src/closuresStore";
 import { retracedAreas } from "../src/loopPlanner";
 import { retraceScan } from "../src/retrace";
+import { ROUTE_DETAILS } from "../src/scenicPlanner";
 import { SANTA_MONICA_TOPANGA_BODY, syntheticPath } from "./planHarness";
 import { BIG_SUR, FAST_EDGE_MS, ORIGIN, ROAD, TRIP_BODY, tripPath } from "./tripHarness";
 
@@ -36,16 +37,22 @@ type Feature = { type: "Feature"; properties: { lcs_index: string }; geometry: {
 const fc = (features: Feature[]) => ({ type: "FeatureCollection" as const, features });
 const STORED = (JSON.parse(expectedRaw) as { cap: { geojson: { features: Feature[] } } }).cap.geojson.features;
 
-export type Route = "/plan" | "/loop" | "/trip";
-export const ROUTE_NAMES: Route[] = ["/plan", "/loop", "/trip"];
-const BODIES: Record<Route, unknown> = { "/plan": SANTA_MONICA_TOPANGA_BODY, "/loop": LOOP_BODY, "/trip": { ...TRIP_BODY, days: 1 } };
+export type Route = "/plan" | "/loop" | "/trip" | "/plan reroute";
+export const ROUTE_NAMES: Route[] = ["/plan", "/loop", "/trip", "/plan reroute"];
+/** T-0319: a reroute is /plan carrying a usable token - ROUTES["/plan"] runs with PLANS remembering REMEMBERED. */
+const HANDLER: Record<Route, "/plan" | "/loop" | "/trip"> = { "/plan": "/plan", "/loop": "/loop", "/trip": "/trip", "/plan reroute": "/plan" };
+const TOKEN = "0f1e2d3c-4b5a-4968-8776-655443322110"; const REMEMBERED = { device: DEVICE, place: "la:topanga", pins: [{ lat: 34.03, lon: -118.52 }, { lat: 34.05, lon: -118.56 }], lambda: 7.75 };
+const plansKv = () => ({ get: async (k: string) => (k === `plan:${TOKEN}` ? JSON.stringify(REMEMBERED) : null), put: async () => {} });
+const BODIES: Record<Route, unknown> = { "/plan": SANTA_MONICA_TOPANGA_BODY, "/loop": LOOP_BODY, "/trip": { ...TRIP_BODY, days: 1 },
+  "/plan reroute": { ...SANTA_MONICA_TOPANGA_BODY, reroute: { token: TOKEN, first_pin: 0 } } };
 const CORRIDOR: Record<Route, [Pt, Pt]> = {
   "/plan": [SANTA_MONICA_TOPANGA_BODY.origin, { lat: 34.0676, lon: -118.5957 }],
+  "/plan reroute": [SANTA_MONICA_TOPANGA_BODY.origin, { lat: 34.0676, lon: -118.5957 }],
   "/loop": [LOOP_BODY.start, LOOP_BODY.start],
   "/trip": [ORIGIN, { lat: BIG_SUR.lat, lon: BIG_SUR.lon }],
 };
 /** Measured: the car_scenic requests an answer makes before any re-request (/plan's and /trip's lambda searches). */
-const BASE: Record<Route, number> = { "/plan": 6, "/loop": 1, "/trip": 6 };
+const BASE: Record<Route, number> = { "/plan": 6, "/loop": 1, "/trip": 6, "/plan reroute": 1 };
 
 // ---- X and the selections, recomputed here: R4's plane by literal, T-0282's bound selection, C4's swap by REMOVAL.
 const plane = (p: Pos) => [p[0]! * 91961, p[1]! * 110946] as const;
@@ -96,7 +103,9 @@ export function answer(coords: Pos[], totalMs: number): string {
   return JSON.stringify({ paths: [{ time: edgeMs * n, distance: 10_000 * n, points: { type: "LineString", coordinates: coords },
     details: { time: runs(() => edgeMs), distance: runs(() => 10_000), osm_way_id: runs((i) => 100 + i) } }] });
 }
-const SCENIC_MS: Record<Route, number> = { "/plan": 1_200_000, "/loop": 2_700_000, "/trip": 14_400_000 };
+const SCENIC_MS: Record<Route, number> = { "/plan": 1_200_000, "/loop": 2_700_000, "/trip": 14_400_000, "/plan reroute": 1_200_000 };
+const PLAN_CEILING_MS = 1_000_000 + SANTA_MONICA_TOPANGA_BODY.budget_minutes * 60_000; // the 1000 s fastest + the budget
+const PLAN_PATHS = ROUTE_NAMES.filter((r) => HANDLER[r] === "/plan");
 
 export type SetName = "empty" | "X alone" | "the fixture";
 export const SETS: SetName[] = ["empty", "X alone", "the fixture"];
@@ -134,7 +143,7 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
-  sent = [];
+  [sent, router, shape] = [[], "ignores", "clear"];
   script = [];
   reAnswer = null;
   vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -160,10 +169,11 @@ let lastAnswer: Record<string, unknown> = {};
 export async function drive(r: Route, set: Feature[], body: unknown = BODIES[r]) {
   graph += 1;
   const shipped = { DB: env.DB, GIT_SHA: "test", BUILT_AT: "test", QUOTA: fakeQuotaNamespace().ns, ROUTER_URL: "https://router.test",
-    ROUTER_SECRET: "s", GRAPH_VERSION: `crossing-graph-${graph}`, CLOSURES: closuresAt(NOW, fc(set)).kv } as unknown as Env;
+    ROUTER_SECRET: "s", GRAPH_VERSION: `crossing-graph-${graph}`, CLOSURES: closuresAt(NOW, fc(set)).kv,
+    ...(r === "/plan reroute" ? { PLANS: plansKv() } : {}) } as unknown as Env;
   const req = new Request(`https://scenic-api.test${r}`, { method: "POST",
     headers: { "content-type": "application/json", "x-scenic-device": DEVICE }, body: JSON.stringify(body) });
-  const response = await ROUTES[r]!(req, shipped, new URL(req.url));
+  const response = await ROUTES[HANDLER[r]]!(req, shipped, new URL(req.url));
   const json = (await response.json()) as { closures_hazard?: unknown; route?: { coordinates: unknown } };
   lastAnswer = json as Record<string, unknown>;
   const modelled = sent.filter((b) => b.custom_model !== undefined);
@@ -232,7 +242,9 @@ describe("the loop's cap: a re-request is the 2nd or 3rd attempt, never a 4th (C
 
 describe("a re-requested path that fails its route's own guards is not shown; the original's crossing is named (C5)", () => {
   const ROWS: [string, Route, (r: Route, x: Feature) => string][] = [
-    ["/plan, the re-request over the ceiling", "/plan", (r, x) => answer(shapeOf(x, "clear"), 99_000_000)],
+    ...PLAN_PATHS.flatMap((p): [string, Route, (r: Route, x: Feature) => string][] => [
+      [`${p}, the re-request over the ceiling`, p, (r, x) => answer(shapeOf(x, "clear"), 99_000_000)],
+      [`${p}, the re-request one second over the ceiling`, p, (r, x) => answer(shapeOf(x, "clear"), PLAN_CEILING_MS + 1000)]]),
     ["/plan, the re-request on the fastest route's ways", "/plan", () => syntheticPath(1_200_000, [1, 2, 3])],
     ["/loop, the re-request retraced", "/loop", () => loopPath(outAndBack(4000))],
     ["/trip, the re-request over the trip's ceiling", "/trip", (r, x) => answer(shapeOf(x, "clear"), 99_000_000)],
@@ -247,6 +259,26 @@ describe("a re-requested path that fails its route's own guards is not shown; th
       expect(got).toEqual(row);
     });
   }
+});
+
+describe("a re-request exactly at the ceiling is returned: the ceiling is inclusive (T-0319 rv1 B1)", () => {
+  for (const p of PLAN_PATHS) {
+    it(`${p}, the re-request exactly at the ceiling: the clear path is returned, one re-request made`, async () => {
+      [router, shape, reAnswer] = ["honours", "through", (r, x) => answer(shapeOf(x, "clear"), PLAN_CEILING_MS)];
+      expect(await drive(p, STORED)).toEqual(expectedRow(p, "the fixture", "through", "honours"));
+    });
+  }
+});
+
+describe("a reroute under a stored closure sends it on its first car_scenic request (T-0319 rv1 B2)", () => {
+  it("/plan reroute, X alone, clear path: the whole upstream request list is the fastest, then the pins at the remembered lambda carrying X", async () => {
+    await drive("/plan reroute", [xOf("/plan reroute")]);
+    const body = (points: number[][], profile: string, model?: unknown) => ({ points, profile, points_encoded: false,
+      instructions: false, "ch.disable": true, details: ROUTE_DETAILS, ...(model === undefined ? {} : { custom_model: model }) });
+    const [[o, d], ll] = [CORRIDOR["/plan reroute"], (p: Pt) => [p.lon, p.lat]];
+    expect(sent).toEqual([body([ll(o), ll(d)], "car_fast"), body([ll(o), ...REMEMBERED.pins.map(ll), ll(d)], "car_scenic",
+      buildCustomModel(REMEMBERED.lambda, fc([xOf("/plan reroute")]) as ClosureCollection))]);
+  });
 });
 
 describe("the re-request is the request that returned the path, its closures swapped and nothing else (C5)", () => {

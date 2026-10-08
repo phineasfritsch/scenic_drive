@@ -29,7 +29,7 @@ export const SUBJECTS = ["src/lambdaSearch.ts", "src/planRequest.ts", "src/route
   "src/planToken.ts", "src/reroutePlanner.ts"];
 const TESTS = ["test/lambdaSearch.test.ts", "test/appleMaps.test.ts", "test/planRecorded.test.ts",
   "test/planPrivacy.test.ts", "test/planCost.test.ts", "test/planCeiling.test.ts", "test/planWaypoints.test.ts",
-  "test/planReroute.test.ts"];
+  "test/planReroute.test.ts", "test/closuresCrossing.test.ts"];
 
 const NL = String.fromCharCode(10);
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
@@ -94,6 +94,9 @@ export const MUTATIONS = [
   m("reroute-other-lambda", "reroutePlanner.ts", "SCENIC_PROFILE, buildCustomModel(lambda, closures));", "SCENIC_PROFILE, buildCustomModel(Math.min(8, lambda + 0.25), closures));"),
   m("reroute-evaluations", "reroutePlanner.ts", "evaluations: 1,", "evaluations: 2,"),
   m("reroute-used-strict", "reroutePlanner.ts", "eta >= fastestSeconds + MIN_BUDGET_USE * budgetSeconds", "eta > fastestSeconds + budgetSeconds"),
+  m("reroute-retry-over-ceiling", "reroutePlanner.ts", "return durationSeconds(again) <= ceiling ? again : null;", "return again;"),
+  m("reroute-retry-ceiling-strict", "reroutePlanner.ts", "<= ceiling ? again : null;", "< ceiling ? again : null;"),
+  m("reroute-first-closures-dropped", "reroutePlanner.ts", "SCENIC_PROFILE, buildCustomModel(lambda, closures));", "SCENIC_PROFILE, buildCustomModel(lambda, null));"),
 ];
 
 export const EQUIVALENT = [
