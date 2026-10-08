@@ -24,10 +24,11 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-trip");
 
-export const MIN_MUTATIONS = 64;
-export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts"];
+export const MIN_MUTATIONS = 86;
+export const SUBJECTS = ["src/roadTrip.ts", "src/tripRequest.ts", "src/tripPlanner.ts", "src/trip.ts", "src/tripPlaces.ts",
+  "migrations/0009_trip_places.sql"];
 const TESTS = ["test/roadTripParity.test.ts", "test/tripRequest.test.ts", "test/tripRoute.test.ts", "test/tripFull.test.ts",
-  "test/killSwitchRoutes.test.ts"];
+  "test/killSwitchRoutes.test.ts", "test/tripPlaces.test.ts"];
 
 const m = (id, file, find, replace) => ({ id, file: `src/${file}`, find, replace });
 export const MUTATIONS = [
@@ -71,19 +72,19 @@ export const MUTATIONS = [
   m("planner-details-more", "tripPlanner.ts", "TRIP_DETAILS = [\"time\", \"distance\"];", "TRIP_DETAILS = [\"time\", \"distance\", \"road_class\"];"),
   m("planner-search-7", "tripPlanner.ts", "}, MAX_EVALUATIONS);", "}, MAX_EVALUATIONS + 1);"),
   m("planner-pct-ignored", "tripPlanner.ts", "budgetSeconds(fastestMs, extraBudgetPct);", "budgetSeconds(fastestMs);"),
-  m("planner-leg-ceiling-exclusive", "tripPlanner.ts", "if (path.timeMs > ceiling)", "if (path.timeMs >= ceiling)"),
+  m("planner-leg-ceiling-exclusive", "tripPlanner.ts", "if (legPath.timeMs > ceiling)", "if (legPath.timeMs >= ceiling)"),
   m("planner-legs-always", "tripPlanner.ts", "    if (full) {\n", "    if (true) {\n"),
   m("planner-day-ceiling-fastest", "tripPlanner.ts", "dayCeilingMs(ceilingMs, day.seconds, totalMs)", "dayCeilingMs(fastestMs, day.seconds, totalMs)"),
   m("planner-day-ceiling-ceil", "tripPlanner.ts", "(BigInt(ceilingMs) * BigInt(dayMs)) / BigInt(totalMs)",
     "(BigInt(ceilingMs) * BigInt(dayMs) + BigInt(totalMs) - 1n) / BigInt(totalMs)"),
-  m("planner-split-pct-dropped", "tripPlanner.ts", "maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct);", "maxMeters: MAX_METERS_PER_DAY });"),
-  m("planner-split-pct-constant", "tripPlanner.ts", "maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct);", "maxMeters: MAX_METERS_PER_DAY }, 40);"),
+  m("planner-split-pct-dropped", "tripPlanner.ts", "maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct) };", "maxMeters: MAX_METERS_PER_DAY }) };"),
+  m("planner-split-pct-constant", "tripPlanner.ts", "maxMeters: MAX_METERS_PER_DAY }, extraBudgetPct) };", "maxMeters: MAX_METERS_PER_DAY }, 40) };"),
   m("planner-budget-pct-constant", "tripPlanner.ts", "budgetSeconds(fastestMs, extraBudgetPct);", "budgetSeconds(fastestMs, 10);"),
   m("planner-budget-ceil", "tripPlanner.ts", "const budgetMs = budgetSeconds(fastestMs, extraBudgetPct);",
     "const budgetMs = Math.ceil((fastestMs * extraBudgetPct) / 100);"),
   m("planner-day-ceiling-float-ceil", "tripPlanner.ts", "return Number((BigInt(ceilingMs) * BigInt(dayMs)) / BigInt(totalMs));",
     "return Math.ceil((ceilingMs * dayMs) / totalMs);"),
-  m("planner-day-check-trip-ceiling", "tripPlanner.ts", "if (path.timeMs > ceiling) {", "if (path.timeMs > ceilingMs) {"),
+  m("planner-day-check-trip-ceiling", "tripPlanner.ts", "if (legPath.timeMs > ceiling) {", "if (legPath.timeMs > ceilingMs) {"),
   m("planner-tile-no-start", "tripPlanner.ts", "if (run.from !== at || ", "if ("),
   m("planner-tile-empty-run", "tripPlanner.ts", "run.to <= run.from || ", ""),
   m("planner-tile-distance-edges", "tripPlanner.ts", "d.from !== run.from || d.to !== run.to", "false"),
@@ -92,12 +93,36 @@ export const MUTATIONS = [
   m("planner-distance-floor", "tripPlanner.ts", "Math.round(distances[i]!.value as number)", "Math.floor(distances[i]!.value as number)"),
   m("planner-zero-time", "tripPlanner.ts", "if (edges.every((e) => e.seconds === 0))", "if (false)"),
   m("planner-runs-short", "tripPlanner.ts", "if (at !== last) throw", "if (at > last) throw"),
-  m("planner-night-always", "tripPlanner.ts", "overnight: day.overnight === null ? null : { kind: \"not_searched\" }", "overnight: { kind: \"not_searched\" }"),
+  m("planner-night-always", "tripPlanner.ts", "TripOvernight | null => o === null ? null\n", "TripOvernight | null => false ? null\n"),
   m("planner-full-eta-total", "tripPlanner.ts", "if (full) etaMs = 0;", ""),
   m("trip-kind-plan", "trip.ts", "{ ...who, kind: \"trip\" }", "{ ...who, kind: \"plan\" }"),
   m("trip-free-full", "trip.ts", "who.tier === \"paid\"", "who.tier !== \"anon\""),
   m("trip-no-kill", "trip.ts", "  if (paused) return json({ error: \"planning_paused\" }, 503);\n  if (req.method", "  if (req.method"),
   m("trip-reserve-13", "trip.ts", "), TRIP_UPSTREAM_COST);", "), 13);"),
+  // T-0316: the server's trip_places rows reach the splitter, and the wire tells searched from not searched.
+  m("places-dropped", "tripPlanner.ts", "planRoadTrip(pathEdges, places ?? [], fastestMs,", "planRoadTrip(pathEdges, [], fastestMs,"),
+  m("places-searched-always-false", "tripPlanner.ts", "places_searched: places !== null,", "places_searched: false,"),
+  m("places-searched-always-true", "tripPlanner.ts", "places_searched: places !== null,", "places_searched: true,"),
+  m("places-failure-claims-searched", "tripPlanner.ts", "places === null ? { kind: \"not_searched\" } : ", ""),
+  m("places-lodging-as-no-lodging", "tripPlanner.ts", "o === \"no_lodging\" ? { kind: \"no_lodging\" }", "true ? { kind: \"no_lodging\" }"),
+  m("places-lodging-meters-dropped", "tripPlanner.ts", "name: o.lodging.name, meters: o.lodging.meters }", "name: o.lodging.name, meters: 0 }"),
+  m("places-not-read", "trip.ts", "places = await deps.tripPlaces();", "places = [];"),
+  m("places-failure-rethrown", "trip.ts", "  } catch {\n    places = null;\n  }", "  } catch (e) {\n    throw e;\n  }"),
+  m("places-deps-empty", "trip.ts", "tripPlaces: d1TripPlaces(env.DB)", "tripPlaces: async () => []"),
+  m("places-query-lodging-only", "tripPlaces.ts", "lon FROM trip_places\";", "lon FROM trip_places WHERE kind = 'lodging'\";"),
+  m("places-lat-lon-swapped", "tripPlaces.ts", "coordinate: { lat: r.lat, lon: r.lon }", "coordinate: { lat: r.lon, lon: r.lat }"),
+  m("places-score-ignored", "tripPlaces.ts", "score: r.score,", "score: 0,"),
+  { id: "table-no-lat-low", file: "migrations/0009_trip_places.sql", find: "CHECK (lat >= -90 AND ", replace: "CHECK (" },
+  { id: "table-no-lat-high", file: "migrations/0009_trip_places.sql", find: " AND lat <= 90)", replace: ")" },
+  { id: "table-no-lon-low", file: "migrations/0009_trip_places.sql", find: "CHECK (lon >= -180 AND ", replace: "CHECK (" },
+  { id: "table-no-lon-high", file: "migrations/0009_trip_places.sql", find: " AND lon <= 180)", replace: ")" },
+  { id: "table-any-kind", file: "migrations/0009_trip_places.sql", find: " CHECK (kind IN ('stop', 'lodging'))", replace: "" },
+  { id: "table-any-score", file: "migrations/0009_trip_places.sql", find: " CHECK (typeof(score) = 'integer')", replace: "" },
+  { id: "table-empty-name", file: "migrations/0009_trip_places.sql", find: " AND length(name) >= 1", replace: "" },
+  { id: "table-extra-column", file: "migrations/0009_trip_places.sql", find: "  lon REAL NOT NULL", replace: "  device TEXT,\n  lon REAL NOT NULL" },
+  m("places-query-bound", "tripPlaces.ts", "db.prepare(TRIP_PLACES_QUERY).all", "db.prepare(TRIP_PLACES_QUERY).bind().all"),
+  m("places-read-before-kill", "trip.ts", "  const paused = await killSwitch(env);\n",
+    "  await deps?.tripPlaces().catch(() => null);\n  const paused = await killSwitch(env);\n"),
 ];
 
 export const EQUIVALENT = [
@@ -113,9 +138,9 @@ export const EQUIVALENT = [
   { id: "planner-model-gate", file: "src/tripPlanner.ts", find: "if (problem !== null) throw new RouteError",
     witness: "every model this module sends is buildCustomModel(lambda, null), which never names road_access or surface "
       + "(customModel.ts property 1), so rejectCustomModel returns null for each. Defence in depth for P-SAFE-01, as in loopPlanner." },
-  { id: "planner-no-recorded-lambda", file: "src/tripPlanner.ts", find: "if (!chosen) throw new TripFailure",
+  { id: "planner-no-recorded-lambda", file: "src/tripPlanner.ts", find: "if (!measuredChosen) throw new TripFailure",
     witness: "searchLambda only ever returns a lambda it passed to `measure`, and `measure` sets measured[formatMultiplier(lambda)] "
-      + "before it returns, so `chosen` is never undefined. scenicPlanner keeps the same guard (no_recorded_lambda)." },
+      + "before it returns, so `measuredChosen` is never undefined. scenicPlanner keeps the same guard (no_recorded_lambda)." },
   { id: "trip-killed-again", file: "src/trip.ts", find: "killed: () => paused || deps.upstream.killed()",
     witness: "handleTrip already returned 503 when paused (killSwitch(env), read once); env cannot change within one request, so "
       + "the re-check inside guardedPlan sees false either way. It exists for the /plan shape; the KILL tests pin the first check." },
