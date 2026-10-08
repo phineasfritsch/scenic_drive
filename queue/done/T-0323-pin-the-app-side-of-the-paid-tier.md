@@ -1,7 +1,7 @@
 ---
 id: T-0323
 title: P-STORE-02 asserts the app's side of the paid tier - the AccountToken suites bound by name, and a whitelist guard that confines the x-scenic-account-token identifier to IdentityHeaders so a fourth client cannot inline it
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T15:27:38Z
@@ -11,7 +11,7 @@ branch: task/T-0323
 exclusive: []
 touches: [ops/lib/, ops/check-pins, pins/PINS.yaml, Tests/ScenicAPIClientTests/]
 pins_affected: [P-STORE-02]
-reviewer: null
+reviewer: agent/rv2-t0323
 depends_on: [T-0315]
 verify: [ops/check-pins]
 acceptance:
@@ -142,3 +142,4 @@ rv1-t0315 recordables R1, R2 and R4 (PR #206).
   8 rows red by name, controls green`; check-account-token-sites --prove-red `PROVE-RED OK: 8 of 8 rows red by name,
   controls green`; `PINS-YAML ok pins=48 fields=387`; `QUEUE OK (317 tasks)` exit 0.
 - 2026-10-08T16:58:11Z agent/claude-opus-5 (owner) closed rv1-t0323 B1: the P-STORE-02 assertion's final `grep -qx` (refused by P-OPS-03, check-pipe-consumers) is now `grep -x ... >/dev/null`. Re-run: `bash ops/lib/check-pipe-consumers` -> "PIPE-CONSUMERS OK ... (186 scanned, 187 tracked, floor 42)" exit 0; check-pins-yaml "PINS-YAML ok pins=48 fields=387"; queue-check "QUEUE OK (317 tasks)". Only pins/PINS.yaml changed.
+- 2026-10-08T17:13:58Z agent/rv2-t0323 (reviewer, round 2) PASS on head 6d24933d. "git diff 6d24933d~1 6d24933d -- pins/PINS.yaml" is the one replacement (grep -qx -> grep -x ... >/dev/null; otherwise only this Log changed). Bare in a detached worktree at origin/task/T-0323: check-pipe-consumers "PIPE-CONSUMERS OK: no gate decides with producer | grep -q (186 scanned, 187 tracked, floor 42)" exit 0; check-pins-yaml "PINS-YAML ok pins=48 fields=387" exit 0; check-account-token-sites "ok - 2 sites, every one approved, in 1 file(s)" exit 0; queue-check "QUEUE OK (317 tasks)" exit 0. The P-STORE-02 assertion string from yaml.safe_load, run with bash after npm ci (exit 0): exit 0 (the first attempt hit a Windows swift index-store "permission denied" during the build and exited 1, so the runner refused it; the re-run on the same scratch path was green). Seen red: a scratch copy expecting "NAMED P-STORE-02 passed=66/67" exits 1 and prints the runner line "NAMED P-STORE-02 passed=67/67". CI: gh pr checks 210 shows core pass and pins-source-only pass, run 37812989636 headSha 6d24933d success. "git merge-base --is-ancestor origin/main origin/task/T-0323" exit 0 (main 487cae1f), no drift. rv1-t0323 recordables R1-R5 remain open; none is blocking.
