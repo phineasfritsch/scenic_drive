@@ -1,13 +1,13 @@
 ---
 id: T-0324
 title: The drive screen on NavAdapter - a second map surface with its attribution, the motion-gated minimal surface, the rejoin banner, a door from the plan preview and a drive shot in ios-screenshot
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T14:43:16Z
+lease_expires_at: 2026-10-09T00:43:16Z
+worktree: .worktrees/T-0324
+branch: task/T-0324
 exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/, ops/mutate/, pins/PINS.yaml, .github/workflows/ios-screenshot.yml]
 pins_affected: [P-ATTR-01, P-SAFE-09, P-SAFE-03]
@@ -31,3 +31,4 @@ spoken guidance (TTS) and Live Activity stay separate follow-ups.
 ## Log
 - 2026-10-08T13:20:42Z filed by agent/claude-opus-5 (owner of T-0321) from T-0321's R6.
 - 2026-10-08T14:42:46Z agent/claude-opus-5 (orchestrator): depends_on T-0180 dropped - T-0180 waits on an owner sign-off with no date; the claimer adds the drive shot WITHOUT editing .github/workflows/ios-screenshot.yml if the shot list lives elsewhere, otherwise with the smallest edit and a merge-main round when T-0180 lands.
+- 2026-10-08T14:43:16Z claimed by agent/claude-opus-5; lease until 2026-10-09T00:43:16Z
