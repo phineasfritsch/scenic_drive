@@ -96,3 +96,40 @@ owner-route-intent).
   - R7 PROOF: tests first, RED by name against stubs; population ops/mutate/tripsheet.py (+_mutations, _run) with a
     literal floor over TripSheet, TripReplyReader, TripRequestBody, ClientTripPlanner, TripDayHandoff; digests
     re-approved; ios-compile + ios-screenshot dispatched on the head.
+- 2026-10-08T04:58:01Z RED then GREEN, code, guards. agent/claude-opus-5 (owner).
+  RED: the tests and the code were written together, so RED is shown against STUBS of every shipping symbol the
+  tests bind to (TripSheet.startPlanning/setDays/setExtraPercent/edit/clamp, TripFailure.line,
+  TripRequestBody.validated, TripReplyReader.read/error, TripError.failure, TripClient's transport catch,
+  ClientTripPlanner.itinerary, TripDayHandoff.pins/parts), applied by a throwaway script under .build/ and restored
+  (git status Sources clean of edits after). `swift test --scratch-path .build/t313 --filter
+  TripSheetTests|TripClientRequestTests|TripClientOutcomeTests|TripSheetGateTests|TripDayHandoffTests`: `Test run
+  with 20 tests in 5 suites failed ... with 162 issues`, exit 1, RED by name (18): every state x every event lands
+  whole; P-SAFE-03: no trip ticket before the disclaimer is accepted, one after; days are held to 1...5 at every
+  bound; the extra-time percent is held to 0...40 at every bound; P-PRIV-05: the ticket carries the start cut to 2
+  dp...; every trip failure has its own calm line; the /trip request is exactly the whitelisted body, sent once;
+  every bound: refused on the device with 0 requests, or sent once exactly as written; every Worker answer is one
+  typed outcome from one request; an unreachable Worker is routingOffline after exactly one attempt; every trip
+  error is the sheet's failure of the same name; P-SAFE-03: no trip request is made before the disclaimer is
+  accepted; a preview reaches the sheet as exactly its itinerary...; a full answer carries each day's leg as its
+  path; a refused trip reaches the sheet as its failure; a pin at the first vertex at or past each 20 km, never the
+  ends; one long step past two multiples is one pin...; a day splits into URLs of at most nine waypoints, chained
+  end to start. Green under the stubs (2, neither binds a stubbed symbol's wrong answer): the table's own coverage
+  meta-test, and "a path of fewer than two points has no handoff" (the stub's [] is that row's right answer).
+  GREEN after restore: `Test run with 20 tests in 5 suites passed`, exit 0.
+  APP: RoadTripScreen + TripItineraryCard in FeaturePlanSheet (in-sheet content behind a bottom-bar "Plan a road
+  trip" button, accessibility id plan.tripTab), LiveTripPlanner + UnreachableTripPlanner in PlanAdapter,
+  TripDayLinks in FeatureScenicHome; PlanSheetScreen's init takes tripPlanner + dayLinks and the shell passes
+  `LiveTripPlanner.make()` and `TripDayLinks.urls` (its frozen line re-typed in check-safety-disclaimer-frozen).
+  - R8 (ruled on contact, -doors refused by name): the per-day handoff is a NEW door out of the app. It is ONE
+    `Link(Self.label(day: day.day, part: index + 1, of: links.count), destination: url)` line in
+    TripItineraryCard.swift, approved by whole line in DOORS_OPENERS (no @Environment openURL, no second spelling).
+    Its lock is TripSheet's gate: a TripItineraryCard is built only in the .itinerary state, which only a ticket
+    reaches, which startPlanning issues only after the home's disclaimer is accepted (tested: P-SAFE-03 rows above);
+    and it is drawn only for a day with a path, i.e. a full itinerary (R5). TripDayLinks.swift is approved into
+    FeatureScenicHome's pinned file set (-pinned PINNED_FEATURE); every new or changed apps/ios Swift file and every
+    new Sources/ file re-approved by sha256 (PINNED_APP_SWIFT, PINNED_SHELL_DIGEST, [PINNED_ROOT_SOURCES]).
+  GUARDS: `bash ops/lib/check-safety-disclaimer` rc=0; `bash ops/lib/check-map-attribution` rc=0 (no new
+  presentation; P-ATTR-01's whitelist unchanged - the itinerary is in-sheet content of the full-height plan sheet);
+  `python ops/lib/check-store-links.py` rc=0; `bash ops/lib/check-line-cap` rc=0 (382 Swift files, none over 300);
+  `python ops/mutate/tripsheet.py --prove-floor` FLOOR PROOF OK 7 of 7; `python ops/lib/check-mutate-population.py`
+  rc=0 (tripsheet.py in DRIVERS, its ten subjects in COVERED_FLOOR, seven no-code modules allowlisted with reasons).
