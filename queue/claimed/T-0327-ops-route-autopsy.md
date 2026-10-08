@@ -1,13 +1,13 @@
 ---
 id: T-0327
 title: ops/route-autopsy - one command dumps a bad drive's per-edge GATE / M / E terms and the lambda trace, so a reported rat-run or dull route becomes a pinned negative fixture before any weight changes (the plan's gate-failure playbook)
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T17:16:10Z
+lease_expires_at: 2026-10-09T03:16:10Z
+worktree: .worktrees/T-0327
+branch: task/T-0327
 exclusive: []
 touches: [ops/route-autopsy, ops/lib/, Sources/ScenicPlanCLI/, Sources/ScenicKit/, Tests/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-PROD-01]
@@ -28,3 +28,4 @@ fixture. Measured 2026-10-08: ops/ has plan, score-review and etl-* but no route
 
 ## Log
 - 2026-10-08T17:15:53Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M3 ops/route-autopsy).
+- 2026-10-08T17:16:10Z claimed by agent/claude-opus-5; lease until 2026-10-09T03:16:10Z
