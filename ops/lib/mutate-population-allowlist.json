@@ -105,6 +105,8 @@
     "Sources/PlaceStore/SavedDriveField.swift": "a three-case enum naming the refused field - no code; its labels are mutated in the saveddrive population (entries 10, 16) and asserted in SavedDriveBoundsTests (T-0290 R8)",
     "Sources/PlaceStore/SavedDriveCorpus.swift": "a two-method protocol PlaceStore conforms to with its existing reads - no code; the rule over it is SavedDriveResolver, which the saveddrive population mutates (T-0290 R8)",
     "Sources/PlaceStore/UserStoreError.swift": "a three-case error enum with associated values - no operator; each case asserted by exact equality in SavedDriveStoreTests and UserStoreMigrationTests (T-0290 R8)",
-    "Sources/PlaceStore/UserStoreMigrations.swift": "the user store's DDL as two named GRDB migrations - SQL text, no Swift arithmetic; its columns are pinned by full equality in UserStorePrivacyTests (P-PRIV-05) and its upgrade by UserStoreMigrationTests (T-0290 R8)"
+    "Sources/PlaceStore/UserStoreMigrations.swift": "the user store's DDL as two named GRDB migrations - SQL text, no Swift arithmetic; its columns are pinned by full equality in UserStorePrivacyTests (P-PRIV-05) and its upgrade by UserStoreMigrationTests (T-0290 R8)",
+    "Sources/PlaceStore/SurpriseShownRecord.swift": "four stored fields (String and Int) and a memberwise init - no operator; compared by full equality in SurpriseShownStoreTests and its field whitelist in SurpriseShownRecordFieldsTests (P-PRIV-05, T-0312 R10)",
+    "Sources/PlaceStore/SurpriseShownStore.swift": "a GRDB reader and writer of SQL text - INSERT OR IGNORE, the day < keepingFrom prune and an ordered SELECT; bound in the GRDB suite by SurpriseShownStoreTests (round-trip by full equality, the prune at keepingFrom - 1 / keepingFrom, the v2 upgrade), as SavedDriveStore is (T-0312 R10)"
   }
 }

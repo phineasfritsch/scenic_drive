@@ -26,10 +26,14 @@ struct UserStorePrivacyTests {
             names.filter { $0.contains(forbidden) || table.contains(forbidden) }.map { "\(table).\($0)" }
         }
         #expect(offending == [])
+        let coordinate = try Regex("lat|lon|coord|cell|geo|location|position").ignoresCase()
+        #expect((columns["surprise_shown"] ?? ["missing"]).filter { $0.contains(coordinate) } == [],
+                "T-0312 R9: the Surprise history holds no coordinate")
         #expect(columns == [
             "grdb_migrations": ["identifier"],
             "saved_drive": ["id", "name", "lambda_e5", "budget_minutes", "created_at", "needs_replan"],
             "saved_drive_segment": ["drive_id", "position", "segment_id", "mid_lat_e5", "mid_lon_e5"],
+            "surprise_shown": ["place_id", "category", "corridor", "day"],
         ])
     }
 }

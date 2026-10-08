@@ -1,13 +1,13 @@
 ---
 id: T-0316
 title: Road trips name an overnight town per day boundary and 2-4 corridor stops per day - the Worker's planTrip passes the corpus places it already holds into the ScenicKit-parity day splitter
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T06:33:22Z
+lease_expires_at: 2026-10-08T20:33:22Z
+worktree: .worktrees/T-0316
+branch: task/T-0316
 exclusive: []
 touches: [services/api/src/, services/api/test/, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-05]
@@ -27,3 +27,4 @@ read "not searched yet" in the app (T-0268). Plan, Road trip: "2-4 corridor POIs
 
 ## Log
 - 2026-10-08T06:32:40Z filed by agent/claude-opus-5 (orchestrator) from T-0313's stillOpen.
+- 2026-10-08T06:33:22Z claimed by agent/claude-opus-5; lease until 2026-10-08T20:33:22Z
