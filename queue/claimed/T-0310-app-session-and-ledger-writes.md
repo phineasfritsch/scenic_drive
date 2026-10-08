@@ -100,3 +100,69 @@ a device, so the Apple-only half is compile-checked in CI and exercised on devic
     DeviceAppAttester - -pinned PINNED_APP_SWIFT / PINNED_SURPRISE and the digest rows re-approved.
   - R11 population ops/mutate/session{,_mutations,_run}.py over AttestClient, AttestReplyReader, SessionStep,
     SessionStore, KeychainWrite, InstallIDDecision, LedgerSurpriseSource and SurpriseShowing, literal floor.
+- 2026-10-08T03:07:42Z RED, GREEN, POPULATION, DIGESTS, iOS CI and the ACCEPTANCE re-run, agent/claude-opus-5:
+  - RED first, by name, at f5089dc1 (the types as stubs: AttestClient answering .offline with no request, the
+    reader .unreadable, KeychainWrite .skip, InstallIDDecision (fresh, .skip), SessionRecord nil/empty, SessionStep
+    .none, SessionStore nil, LedgerSurpriseSource and SurpriseShowing doing nothing). `swift test --filter
+    "AttestClientTests|KeychainDecisionTests|SessionStoreTests|SurpriseLedgerWriteTests|SurpriseShowingTests|
+    LedgerClientTests"`: `Test run with 23 tests in 6 suites failed ... with 176 issues` - red: Each App Attest
+    request is exactly its URL... (1), Every Worker answer is one typed outcome... (114), No reply at all is
+    offline (3), An item that exists is replaced... (1), The install id's decision... (7), The session item is
+    exactly {expires_at, key_id, token}... (2), The session step over every stored state... (9), Each stored
+    state's token, requests and Keychain writes... (23), A rejected token is dropped and renewed once per launch...
+    (3), Each shown place is in the device history once... (7), The ledger's rows become the card's ledger
+    places... (1), A shown place is appended once a day... (3); green on the stub only `Any other item is
+    malformed` (the stub refused everything) and the unchanged LedgerClientTests.
+  - GREEN at 789fb8ce: `Test run with 23 tests in 6 suites passed`. Apple half (ios-compile only): PlanAdapter
+    KeychainItem (SecItemCopyMatching -> KeychainRead; .add SecItemAdd, .update SecItemUpdate, both
+    AfterFirstUnlockThisDeviceOnly), KeychainSessionStorage, DeviceAppAttester (DCAppAttestService, CryptoKit
+    SHA256 of the UTF-8 challenge), StoredInstallID through InstallIDDecision, LiveSurpriseLedger.make() one
+    SessionStore per launch (a static) and cellOf = H3Cell.containing(place)?.hexString; NoLedgerSession deleted;
+    SurpriseCard records the shown place after the ledger read (`.task(id: shownID)`), picks from `basis`.
+    apps/ios/Packages/ScenicApp/Package.swift: PlanAdapter + `.product(name: "Telemetry", package: "ScenicDrive")`.
+    LedgerClient: on .unauthorized `settled` hands the token back; still one request per call (T-0307 R4).
+  - PRE-REVIEW HOLD-BACKS: three rows kept out of the green commit, their mutants (37-39) run first at 93de679b:
+    `MISSED 37 the challenge length a floor`, `MISSED 38 the margin inclusive`, `MISSED 39 the same-day check
+    ignores the day` (`MUTATE FAILED caught=0/3`). Rows added at bceba6f6 (a 44-character challenge, a session
+    exactly 60 s from expiry, a place shown yesterday).
+  - POPULATION ops/mutate/session{,_mutations,_run}.py, 39 entries (floor 39), 1 EQUIVALENT with witness (E1 the
+    body's unreachable fallback), 5 test files; DRIVERS + COVERED_FLOOR (9 modules), 5 code-free types allowlisted
+    with reasons. Full run at bceba6f6: `caught by the test that names it: 39 of 39 (wrong killer 0, trapped 0,
+    compile-only 0, MISSED 0, skipped 0)`, `MISSED E1` as an equivalent must, `MUTATE OK caught=39/39`; 37-39
+    `caught ... by: Every Worker answer is one typed outcome...`, `by: The session step over every stored
+    state...`, `by: A shown place is appended once a day...`. --prove-floor: `FLOOR PROOF OK: 7 of 7 arms`.
+    ledger_mutations.py entry 1's anchor retyped for `await session.sessionToken()` (every ledger anchor present).
+  - DIGESTS at 35115eb9, each a file this task changed: -linked-digests.txt LedgerClient, LedgerSessionProvider,
+    SurpriseLedgerSource re-approved, 14 Sources rows added; -pinned SurpriseCard (PINNED_SURPRISE and
+    PINNED_APP_SWIFT), ScenicApp Package.swift, LiveSurpriseLedger, StoredInstallID re-approved, DeviceAppAttester,
+    KeychainItem, KeychainSessionStorage added, NoLedgerSession removed; -doors DOORS_PACKAGE gains the PlanAdapter
+    Telemetry line. Seen red first: `P-SAFE-03: the pinned render surface changed: SurpriseCard.swift content
+    changed (sha256 cde00150..., approved d63e1a27...)`, then `P-SAFE-03: a door out of the app is not at its
+    approved site` (the Telemetry line). named-tests.json P-PRIV-05 adds SurpriseLedgerWriteTests/showings(_:).
+  - iOS CI on bceba6f6 (the app tree since: unchanged but for the merge): ios-compile 37717695170 `completed
+    success` (2m54s), ios-screenshot 37717697965 `completed success` (14m13s).
+  - ACCEPTANCE re-run on the merged head 6865f0c2 (origin/main 9e0c69be merged - T-0309 PR #198 landed:
+    conflicts in -linked-digests (SurpriseShowing + the four Vehicle rows), -pinned (VehicleChoice/VehicleSetting +
+    this branch's SurpriseCard digest) and DRIVERS (onboarding.py + session.py), each kept both sides):
+    1. MEASURE then RULE FIRST: the 02:01:36Z entry (a)-(e), R1-R11, committed alone at 2a7fdeb0 before any code.
+    2. AttestClient + SessionStore: requests by full equality (AttestWire recomputation), a 19-row answer table x 3
+       calls, one request per call; SessionStep 8 states x {spent, unspent} incl. 60 s exact and nextUp; 11 store
+       flows + the once-per-launch 401 test; LiveSurpriseLedger's provider is SessionStore (NoLedgerSession gone).
+    3. SurpriseLedgerWriteTests over {no session, session, ledger 429, ledger 401}: the history [a, b, c] and the
+       whole request list by full equality (the 401 row: POST a, challenge, assert, POST b with the new token, c
+       nothing); the cell is the place's (the cell function answers only for the places' own coordinates).
+       `run-named-tests.py P-PROD-02` -> `NAMED P-PROD-02 passed=7/7`. P-PRIV-05's runner refuses here on
+       `services/api/node_modules is missing` (its vitest half); its Swift half is in the suite run below.
+    4. KeychainDecisionTests: KeychainWrite over {absent, valid, malformed, read failure} = [add, update, update,
+       skip]; InstallIDDecision 4 states x {defaults, none}; the session item's exact bytes and 12 malformed items.
+    5. On 6865f0c2: `swift test --filter "ScenicAPIClientTests|ScenicKitTests\.Surprise|TelemetryTests"` -> `Test
+       run with 92 tests in 23 suites passed` + XCTest `Executed 46 tests, with 0 failures`; check-safety-disclaimer
+       exit=0 (P-SAFE-03 unchanged: no gate file touched), check-map-attribution exit=0, check-store-links exit=0,
+       check-mutate-population `every added module is covered or allowlisted; the floor of 102 holds`,
+       check-line-cap `378 Swift files tracked ..., none over 300 lines`, check-pins-yaml `PINS-YAML ok pins=44`,
+       queue-check `QUEUE OK (302 tasks)`.
+  - NOT DONE (stillOpen, to be filed): (i) the app target has no App Attest entitlement
+    (com.apple.developer.devicecheck.appattest-environment - a project/entitlements edit under the xcodeproj lock,
+    and the owner's Team ID), so on a device attestKey fails and the session stays absent until it lands; the
+    simulator is unsupported by design (zero requests); (ii) the device history is in memory (R9) - persisting it
+    across launches; (iii) no appAccountToken is sent (StoreKit tier binding).
