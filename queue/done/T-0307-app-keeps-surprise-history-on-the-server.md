@@ -1,7 +1,7 @@
 ---
 id: T-0307
 title: The app keeps its Surprise history through a reinstall - the install id lives in the Keychain, a signed-in device posts each shown place to /ledger and merges /ledger's 90 days into the on-device no-repeat history
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-07T22:19:39Z
@@ -11,7 +11,7 @@ branch: task/T-0307
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PRIV-05, P-PROD-02]
-reviewer: null
+reviewer: agent/rv2-t0307
 depends_on: [T-0302, T-0304, T-0294, T-0273]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -214,3 +214,25 @@ client half (Keychain install id, the app calling /ledger) as M6 Apple-package w
     StoredInstallID.swift 960bbfed690308e3688f45c4a1707bcd2f716f0bd83cf596d5b8d403dd259b9f. No Sources/ file
     changed this round, so no row of check-safety-disclaimer-linked-digests.txt moves. Bare guards on a42aecbf:
     ops/lib/check-safety-disclaimer rc=0, ops/lib/check-map-attribution rc=0.
+- 2026-10-08T01:40:48Z REVIEW ROUND 2 PASS, agent/rv2-t0307 (PR #197 at 82a6e8f4, detached worktree .worktrees/rv2-t0307):
+  - Mutants, each applied alone and restored, `swift test --filter "LedgerClientTests|SurpriseHistoryMergeTests"`:
+    - RV1 LedgerEntry.swift `(97...102)` -> `(97...103)`: RED, "Every cell position admits exactly 0-9 and a-f,
+      at both bounds of each class" (180 cases failed; e.g. cell "8g283473fffffff" admitted -> false, got .recorded).
+    - RV2 LedgerReplyReader.civilDate `, b[7] == 45` dropped: RED, "Every day separator and digit position refuses
+      its out-of-class neighbours" (56 cases failed; e.g. day "2026-10.01" read, expected .unreadable).
+    - OWN LedgerReplyReader.civilDate `b[4] == 45` -> `b[4] <= 45`: RED, same day-separator test (e.g. "2026,10-01"
+      and "2026 10-01" read, expected .unreadable).
+    - Note: the driver restored each file with `mv` (old mtime), so the RV2 and OWN builds kept RV1's stale
+      LedgerEntry object and the cell test also failed there. Each mutant's own RED is in a test that only it can
+      turn red. After `touch` of both files the suites are `Test run with 13 tests in 2 suites passed`.
+  - Merge kept both sides: ScenicDriveApp.swift = main's corpus sheet lines + this branch's
+    `.environment(\.surpriseLedger, LiveSurpriseLedger.make())`, also in FROZEN_APP_SHELL of
+    check-safety-disclaimer-frozen. sha256 recomputed by me: 6be4dca9a2be2f13c8eb5982bd38a82ee141af4b30be8f829e0ba7e1722a65f9,
+    equal to PINNED_SHELL_DIGEST and the PINNED_APP_SWIFT row. StoredInstallID.swift sha256
+    960bbfed690308e3688f45c4a1707bcd2f716f0bd83cf596d5b8d403dd259b9f equals its row.
+  - Bare guards: ops/lib/check-safety-disclaimer rc=0; ops/lib/check-map-attribution rc=0; `QUEUE OK (301 tasks)`.
+  - CI: `gh pr checks 197` core pass, pins-source-only pass. `gh run list --branch task/T-0307` on 82a6e8f4:
+    ios-screenshot 37712810748 success, ios-compile 37712807302 success, linux-core 37712806165 success.
+  - Recordable, not blocking: StoredInstallID with a Keychain item that is not a UUID never replaces it
+    (SecItemAdd answers errSecDuplicateItem), so the id lives in UserDefaults from then on; stable, but it does not
+    survive a reinstall. The owner's ruling on "return the read failure" (non-optional InstallIDProvider) is accepted.
