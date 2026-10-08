@@ -108,6 +108,9 @@
     "Sources/PlaceStore/UserStoreMigrations.swift": "the user store's DDL as two named GRDB migrations - SQL text, no Swift arithmetic; its columns are pinned by full equality in UserStorePrivacyTests (P-PRIV-05) and its upgrade by UserStoreMigrationTests (T-0290 R8)",
     "Sources/PlaceStore/SurpriseShownRecord.swift": "four stored fields (String and Int) and a memberwise init - no operator; compared by full equality in SurpriseShownStoreTests and its field whitelist in SurpriseShownRecordFieldsTests (P-PRIV-05, T-0312 R10)",
     "Sources/PlaceStore/SurpriseShownStore.swift": "a GRDB reader and writer of SQL text - INSERT OR IGNORE, the day < keepingFrom prune and an ordered SELECT; bound in the GRDB suite by SurpriseShownStoreTests (round-trip by full equality, the prune at keepingFrom - 1 / keepingFrom, the v2 upgrade), as SavedDriveStore is (T-0312 R10)",
+    "Sources/ScenicKit/Drive/DriveCommand.swift": "a two-case enum of what DriveController tells NavAdapter (T-0321) - no code; every command is built by DriveController.swift, which drive.py mutates (entries 32-41), and asserted whole in DriveControllerTests",
+    "Sources/ScenicKit/Drive/RerouteReply.swift": "a two-field value type with a memberwise init (T-0321) - no operator; its fields are read by DriveController.rerouteArrived, which drive.py mutates (34, 36), and asserted in DriveControllerTests",
+    "Sources/ScenicKit/Drive/RerouteSending.swift": "a one-requirement protocol (T-0321) - no code; its one conformer, RerouteUnavailable, is a drive.py subject (entry 42)",
     "Sources/ScenicKit/Drive/DriveMode.swift": "the drive session's three-case mode enum (T-0317); no code - its transitions are DriveSession.swift's, which drive.py mutates"
   }
 }

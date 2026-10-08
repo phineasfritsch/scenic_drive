@@ -59,6 +59,10 @@ struct DriveControllerTests {
 
     @Test("T-0321: losing the connection with a reroute out cancels its ticket; with none out it cancels nothing")
     func lostEdgeCancels() {
+        var still = Self.leaving()
+        let repeated = still.connectivity(online: true)
+        #expect(repeated == [])
+        #expect(still == Self.leaving())
         var c = Self.leaving()
         let r3 = c.connectivity(online: false)
         #expect(r3 == [.cancel(ticket: 1)])
