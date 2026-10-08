@@ -28,6 +28,7 @@ const TABLES: Record<string, ((row: R, user: User) => boolean) | string> = {
   waitlist: "no user column: (cell, count, updated_at), an H3-5 cell's count and the UTC day it last moved",
   waitlist_seen: "no user column: (tag, day), a tag is HMAC under a never-stored daily key of device and cell, purged at the next UTC day (T-0296 R4)",
   surprise_ledger: (r, u) => u.devices.includes(r.user_id as string),
+  trip_places: "no user column: (id, name, kind, score, lat, lon), a corpus stop or lodging the server answers to anyone (T-0316)",
 };
 
 async function seed(): Promise<void> {
