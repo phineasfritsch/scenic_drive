@@ -109,3 +109,14 @@ xcodeproj lock.
   ios-screenshot run 37848014042 (success): drive-light.png LOOKED AT - the minimal surface, one full-width "End drive"
   action, the planned line and the attribution box; voice has no pixels. Digests re-approved: ScenicDrive/Info.plist,
   DriveSession.swift, DriveVoice.swift (new row beside DriveSurface).
+- 2026-10-08T23:27:49Z MERGED origin/main (309de74c, T-0328's drive rows) - drive_mutations.py union: T-0328's 58-81
+  kept, T-0329's renumbered 82-99 (same anchors, same killers), device-only E5 -> E6; floors 99 / 6 / 9 test files;
+  digests recomputed on the merged tree. On the merged head: `swift test --filter Drive` "89 tests in 23 suites passed";
+  "NAMED P-SAFE-09 passed=19/19"; check-mutate-population, check-pins-yaml, check-background-modes, check-pbxproj-graph,
+  check-drive-voice, check-drive-display, check-ferrostar-imports, check-store-links, check-line-cap, queue-check exit 0.
+  PR #216's linux-core went RED on two gates the worktree run had not covered: P-SAFE-03/P-ATTR-01 (DriveNavigator.swift
+  pinned in ops/lib/check-safety-disclaimer-pinned - digest re-approved: 3ac4d247...) and P-OPS-06 (ios-compile.yml is
+  pinned whole in check-ios-compile-guardrails.py - the "P-PRIV-02 on the built plist" step added to the pinned
+  structure and to UNSKIPPABLE). After the fix: check-safety-disclaimer exit 0, check-map-attribution exit 0,
+  check-ios-compile-guardrails exit 0 and `--prove-red` "PROVE-RED OK: 69 mutations red". ios-compile 37856383059
+  success and ios-screenshot 37856393175 success on the merged head.
