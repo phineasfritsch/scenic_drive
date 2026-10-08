@@ -29,6 +29,9 @@ public struct PaywallScreen: View {
         // is hidden because the paywall is pushed inside Settings, whose back button already leaves it.
         .containerBackground(DesignTokens.bg, for: .subscriptionStore)
         .storeButton(.hidden, for: .cancellation)
+        // T-0315 R3: each purchase carries a fresh appAccountToken - the purchase id /asn keys its entitlement row
+        // by and the plan, trip and loop requests send as x-scenic-account-token. Renewals keep it.
+        .inAppPurchaseOptions { _ in [.appAccountToken(UUID())] }
         .navigationTitle("Scenic Drive Pro")
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("paywall.store")

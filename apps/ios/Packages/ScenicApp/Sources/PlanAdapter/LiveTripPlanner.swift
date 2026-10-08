@@ -10,6 +10,7 @@ public enum LiveTripPlanner {
         guard let text = UserDefaults.standard.string(forKey: LivePlanner.baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachableTripPlanner() }
         return ClientTripPlanner(client: TripClient(base: base, transport: URLSessionPlanTransport(),
-                                                    installID: StoredInstallID()))
+                                                    installID: StoredInstallID(),
+                                                    accountToken: StoreKitAccountToken()))
     }
 }
