@@ -8,6 +8,8 @@
  * is refused. A coordinate cannot ride in under a name nobody thought of, because there is no such name.
  */
 import type { LatLon } from "./latLon";
+import { PLAN_TOKEN } from "./planToken";
+import { MAX_WAYPOINTS } from "./planWaypoints";
 import { vehicleProblem } from "./vehicle";
 
 export const ORIGIN_DECIMALS = 2;
@@ -16,7 +18,8 @@ export const MAX_PLACE_ID_LENGTH = 128;
 export const PLACE_ID = /^[A-Za-z0-9:._-]+$/;
 const INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?Z$/;
 
-const BODY_KEYS = ["origin", "destination", "budget_minutes", "departs_at", "vehicle"];
+const BODY_KEYS = ["origin", "destination", "budget_minutes", "departs_at", "vehicle", "reroute"];
+const REROUTE_KEYS = ["token", "first_pin"];
 const ORIGIN_KEYS = ["lat", "lon"];
 const DESTINATION_KEYS = ["place"];
 
@@ -25,6 +28,8 @@ export interface PlanRequest {
   destinationPlace: string;
   budgetMinutes: number;
   departsAt: string | null;
+  /** T-0319 R2: the plan this request continues, and the index of its first pin not yet passed. */
+  reroute: { token: string; firstPin: number } | null;
 }
 
 export type Parsed = { ok: true; request: PlanRequest } | { ok: false; problem: string };
@@ -104,9 +109,23 @@ export function parsePlanRequest(body: unknown): Parsed {
   const vehicle = vehicleProblem(body.vehicle, "/plan");
   if (vehicle) return refuse(vehicle);
 
+  let reroute: PlanRequest["reroute"] = null;
+  if (body.reroute !== undefined) {
+    const fields = body.reroute;
+    if (!isRecord(fields)) return refuse("reroute must be {token, first_pin}");
+    const rerouteKeys = keysProblem(fields, REROUTE_KEYS, REROUTE_KEYS, "reroute");
+    if (rerouteKeys) return refuse(rerouteKeys);
+    if (typeof fields.token !== "string" || !PLAN_TOKEN.test(fields.token)) return refuse("reroute.token is not a plan token");
+    const pin = fields.first_pin;
+    if (typeof pin !== "number" || !Number.isInteger(pin) || pin < 0 || pin > MAX_WAYPOINTS) {
+      return refuse(`reroute.first_pin must be an integer in [0, ${MAX_WAYPOINTS}]`);
+    }
+    reroute = { token: fields.token, firstPin: pin };
+  }
+
   return {
     ok: true,
     request: { origin: { lat: origin.lat as number, lon: origin.lon as number }, destinationPlace: place,
-      budgetMinutes: minutes, departsAt },
+      budgetMinutes: minutes, departsAt, reroute },
   };
 }

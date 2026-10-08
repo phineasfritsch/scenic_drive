@@ -184,7 +184,7 @@ const APPROVED: Record<string, string[]> = {
     "export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | null): Promise<Response> {",
     POST_ONLY,
     BODY_READ,
-    "const plan = await guardedPlan(upstream, await deps.identify(req), (call) =>",
+    "const who = await deps.identify(req);",
   ],
   "../src/reachCache.ts": ["return hit ? ((await hit.json()) as ReachBucket[]) : null;"],
   "../src/retrace.ts": ["* (Tests/Fixtures/t0252/loops.json) holds the TS fraction and the Swift fraction to the same IEEE-754 bits."],

@@ -6,6 +6,7 @@
  *   2. The body against the whitelist (R1/R2, P-PRIV-05) -> 400. Not an upstream call; costs no plan.
  *   2b. The origin outside the served region (servedRegion.ts, T-0293) -> 422 region_unsupported. Costs nothing.
  *   3. The destination place id -> its coordinate, or 404. Not an upstream call; costs no plan.
+ *   3b. T-0319 R5: a `reroute` token is recalled from PLANS; an unusable one is simply the fresh plan below.
  *   4. guardedPlan: the quota is read and RESERVED before the first router request; every request goes through
  *      the `call` it hands out, which refuses a 13th (P-COST-04).
  * Deps are injected so the tests count real fetch invocations; ROUTES["/plan"] builds them from env (T-0256:
@@ -19,6 +20,8 @@ import type { LatLon } from "./latLon";
 import { BudgetError } from "./lambdaSearch";
 import { d1PlaceResolver } from "./placeResolver";
 import { parsePlanRequest } from "./planRequest";
+import { kvPlanTokens, type PlanTokenKv, type PlanTokens, type RememberedPlan } from "./planToken";
+import { planReroute } from "./reroutePlanner";
 import { routerDepsFromEnv, type Identity, type RouterEnv } from "./routerDeps";
 import { RouteError } from "./routePath";
 import { PlanFailure, planScenic } from "./scenicPlanner";
@@ -37,6 +40,8 @@ export interface PlanDeps {
   identify(req: Request): Identity | Promise<Identity>;
   /** The closures every driven request routes around, read once after the kill switch (T-0276). */
   closures(): Promise<ClosureSnapshot>;
+  /** T-0319 R3: where every answer is remembered under its plan_token; null (or absent) when PLANS is unbound. */
+  plans?: PlanTokens | null;
 }
 
 const json = (body: unknown, status: number) =>
@@ -46,10 +51,10 @@ const json = (body: unknown, status: number) =>
   });
 
 /** The production deps: real exactly when QUOTA, a routable ROUTER_URL, ROUTER_SECRET and DB are all bound. */
-export function planDepsFromEnv(env: PlanEnv & RouterEnv & { DB?: D1Database }): PlanDeps | null {
+export function planDepsFromEnv(env: PlanEnv & RouterEnv & { DB?: D1Database; PLANS?: PlanTokenKv }): PlanDeps | null {
   const router = routerDepsFromEnv(env);
   if (router === null || !env.DB) return null;
-  return { ...router, resolvePlace: d1PlaceResolver(env.DB) };
+  return { ...router, resolvePlace: d1PlaceResolver(env.DB), plans: env.PLANS ? kvPlanTokens(env.PLANS) : null };
 }
 
 function failure(error: unknown): Response {
@@ -98,10 +103,22 @@ export async function handlePlan(req: Request, env: PlanEnv, deps: PlanDeps | nu
   const snapshot = await deps.closures();
   const picker = closurePicker(snapshot.closures);
   const upstream: UpstreamDeps = { ...deps.upstream, killed: () => paused || deps.upstream.killed() };
+  const who = await deps.identify(req);
+  const plans = deps.plans ?? null;
+  const reroute = request.reroute;
+  const recalled = reroute && plans ? await plans.recall(reroute.token) : null;
+  const usable: RememberedPlan | null = recalled && reroute && recalled.device === who.userId &&
+    recalled.place === request.destinationPlace && reroute.firstPin <= recalled.pins.length ? recalled : null;
   try {
-    const plan = await guardedPlan(upstream, await deps.identify(req), (call) =>
-      planScenic(call, deps.routerBase, request.origin, destination, request.budgetMinutes * 60, picker.pick, picker.returned));
-    return json(withClosuresHazard(plan, snapshot, picker.dropped(), picker.crosses()), 200);
+    const plan = await guardedPlan(upstream, who, async (call) => {
+      const budget = request.budgetMinutes * 60;
+      const rest = usable && reroute ? await planReroute(call, deps.routerBase, request.origin, destination, budget,
+        usable.pins.slice(reroute.firstPin), usable.lambda, picker.pick, picker.returned) : null;
+      return rest ?? planScenic(call, deps.routerBase, request.origin, destination, budget, picker.pick, picker.returned);
+    });
+    const token = plans ? await plans.remember({ device: who.userId, place: request.destinationPlace,
+      pins: plan.waypoints, lambda: plan.lambda }) : null;
+    return json({ ...withClosuresHazard(plan, snapshot, picker.dropped(), picker.crosses()), plan_token: token }, 200);
   } catch (error) {
     return failure(error);
   }

@@ -10,19 +10,27 @@ import ScenicKit
 struct PlanRequestBody: Encodable {
     /// T-0248's MAX_BUDGET_MINUTES: the Worker refuses more, so the device does too.
     static let maxBudgetMinutes = 180
+    /// T-0319 R2: the Worker's MAX_WAYPOINTS, the largest reroute.first_pin it accepts.
+    static let maxFirstPin = 9
 
     let origin: Coordinate
     let place: Int64
     let budgetMinutes: Int
     let departsAt: Date?
     let vehicle: VehicleProfile
+    /// T-0319 R2: the plan this request continues and its first pin not yet passed; both nil on a fresh plan.
+    let rerouteToken: String?
+    let firstPin: Int?
 
-    private init(origin: Coordinate, place: Int64, budgetMinutes: Int, departsAt: Date?, vehicle: VehicleProfile) {
+    private init(origin: Coordinate, place: Int64, budgetMinutes: Int, departsAt: Date?, vehicle: VehicleProfile,
+                 rerouteToken: String? = nil, firstPin: Int? = nil) {
         self.origin = origin
         self.place = place
         self.budgetMinutes = budgetMinutes
         self.departsAt = departsAt
         self.vehicle = vehicle
+        self.rerouteToken = rerouteToken
+        self.firstPin = firstPin
     }
 
     /// The body, or why it may not be sent. Range first (a NaN or an infinity fails `contains`), then decimals.
@@ -38,6 +46,29 @@ struct PlanRequestBody: Encodable {
         guard vehicle.isEnabled else { return .failure(.vehicleNotEnabled) }
         return .success(PlanRequestBody(origin: origin, place: place, budgetMinutes: budgetMinutes,
                                         departsAt: departsAt, vehicle: vehicle))
+    }
+
+    /// A reroute body (T-0319 R9): the token in the Worker's PLAN_TOKEN spelling, the first pin in 0...maxFirstPin,
+    /// then every check a fresh plan makes. No departs_at: a reroute leaves now.
+    static func validatedReroute(origin: Coordinate, place: Int64, budgetMinutes: Int, vehicle: VehicleProfile,
+                                 token: String, firstPin: Int) -> Result<PlanRequestBody, PlanRefusal> {
+        guard isPlanToken(token) else { return .failure(.rerouteTokenMalformed) }
+        guard (0...maxFirstPin).contains(firstPin) else { return .failure(.firstPinOutOfRange) }
+        return validated(origin: origin, place: place, budgetMinutes: budgetMinutes, departsAt: nil, vehicle: vehicle)
+            .map { PlanRequestBody(origin: $0.origin, place: $0.place, budgetMinutes: $0.budgetMinutes, departsAt: nil,
+                                   vehicle: $0.vehicle, rerouteToken: token, firstPin: firstPin) }
+    }
+
+    /// planToken.ts's PLAN_TOKEN: 36 characters, hyphens at 8, 13, 18 and 23, lowercase hex everywhere else.
+    static func isPlanToken(_ token: String) -> Bool {
+        let scalars = Array(token.unicodeScalars)
+        guard scalars.count == 36 else { return false }
+        for (index, scalar) in scalars.enumerated() {
+            let hyphen = index == 8 || index == 13 || index == 18 || index == 23
+            let hex = ("0"..."9").contains(scalar) || ("a"..."f").contains(scalar)
+            guard hyphen ? scalar == "-" : hex else { return false }
+        }
+        return true
     }
 
     /// The double nearest some k/100 - the Swift twin of planRequest.ts's `Number(v.toFixed(2)) === v`.
@@ -57,6 +88,8 @@ struct PlanRequestBody: Encodable {
         case origin, destination, lat, lon, place, vehicle
         case budgetMinutes = "budget_minutes"
         case departsAt = "departs_at"
+        case reroute, token
+        case firstPin = "first_pin"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -71,5 +104,10 @@ struct PlanRequestBody: Encodable {
             try top.encode(Self.instant(departsAt), forKey: .departsAt)
         }
         try top.encode(vehicle.rawValue, forKey: .vehicle)
+        if let rerouteToken, let firstPin {
+            var reroute = top.nestedContainer(keyedBy: CodingKeys.self, forKey: .reroute)
+            try reroute.encode(rerouteToken, forKey: .token)
+            try reroute.encode(firstPin, forKey: .firstPin)
+        }
     }
 }
