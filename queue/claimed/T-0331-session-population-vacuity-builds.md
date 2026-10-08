@@ -47,3 +47,15 @@ SurpriseShowingTests, which the vacuity mode empties. A vacuity arm that cannot 
   SurpriseShownDayTests.swift (SurpriseShowingTests.a/.shown, lines 68/71); of the seven ScenicAPIClientTests
   suite names only SessionAccountTests occurs outside its own file, in PlanBearerTests and SessionSkewTests - all
   three emptied together, so that edge builds.
+- 2026-10-08T22:43:02Z MEASURE + RED (acceptance 1 and 3, red arm): at e3f05200 (main's tests, the refusal committed),
+  `SESSION_MUTATE_SCRATCH=<repo>/.build/t0331 python ops/mutate/session.py --prove-vacuity` -> exit=2:
+  `PROVING NON-VACUITY: the 8 test files replaced by empty suites; every mutation must report MISSED.`
+  `VACUITY REFUSED: with the 8 test file(s) emptied the tests do not build - a vacuity arm that cannot build proves
+  nothing; no mutation was run`
+  `build error: ...\Tests\ScenicKitTests\Surprise\SurpriseShownDayTests.swift:68:17: error: cannot find 'SurpriseShowingTests' in scope`
+  `build error: ...\SurpriseShownDayTests.swift:71:36: error: cannot find 'SurpriseShowingTests' in scope`
+  `build error: ...\SurpriseCardHistoryTests.swift:10:24: error: cannot find 'SurpriseShowingTests' in scope`
+  `build error: ...\SurpriseCardHistoryTests.swift:11:28 / 13:20 / 14:20: error: cannot find 'SurpriseShowingTests' in scope`
+  (the 12-line quote cap reached; lines 15, 16, 18 of SurpriseCardHistoryTests are the same reference). Exactly the
+  two files ruling (4) named. The quote also carried swiftc's caret lines (`|  `- error:`); build_report now keeps
+  only `<file>:<line>:<col>: error:` lines.

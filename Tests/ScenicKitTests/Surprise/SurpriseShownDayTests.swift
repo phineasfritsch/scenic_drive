@@ -65,10 +65,10 @@ import Testing
     @Test("The pick blocks a place shown on the oldest kept day and not one shown the day before")
     func retentionIsThePicksWindow() {
         let today = CivilDate(year: 2026, month: 10, day: 7)
-        let a = SurpriseShowingTests.a
+        let a = SurpriseShownFixture.a
         let oldest = SurpriseShownDay.oldestKept(today: today)
         func pick(shownOn day: Int?) -> String? {
-            let shown = day.map { [SurpriseShowingTests.shown(a, SurpriseShownDay.date($0))] } ?? []
+            let shown = day.map { [SurpriseShownFixture.shown(a, SurpriseShownDay.date($0))] } ?? []
             return Surprise.pick(candidates: [a], reach: SurpriseReach(budgetMinutes: 120, roundTripMinutes: [a.id: 60]),
                                  history: SurpriseHistory(shown: shown),
                                  context: SurpriseContext(userId: "u", date: today, departureMinute: 600,
