@@ -160,3 +160,6 @@ mode) and Live Activity are separate follow-ups; Live Activity needs the xcodepr
   0; check-safety-disclaimer 0; check-map-attribution 0; check-store-links 0; check-mutate-population 0 ("the floor
   of 130 holds"); check-line-cap "473 Swift files tracked ... none over 300 lines"; check-pins-yaml "ok pins=47";
   queue-check "QUEUE OK (315 tasks)".
+- 2026-10-08T13:50:09Z PR #208 linux-core RED on P-OPS-01: "check-ferrostar-imports.py (data, should be 100644, is 100755)" -
+  ops/lib's .py checks are invoked through the interpreter and committed 100644 (check-store-links.py is). The
+  12:40 entry's "100755" was wrong; the file is now 100644. P-NAV-02's assertion already runs it through $PYTHON.
