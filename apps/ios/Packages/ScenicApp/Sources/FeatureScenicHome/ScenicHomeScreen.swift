@@ -123,6 +123,7 @@ public struct ScenicHomeScreen: View {
         .background(DesignTokens.bg)
         // The three moments the answer can change, and the only three: first appearance, a new drive, light/dark.
         .task { resolveBasemap() }
+        .task { if !isSafetyDisclaimerAcknowledged || !VehicleSetting.isChosen { isShowingDisclaimer = true } }
         .onChange(of: selectedDrive) { resolveBasemap() }
         .onChange(of: menuRow) { resolveBasemap() }
         .onChange(of: colorScheme) { resolveBasemap() }

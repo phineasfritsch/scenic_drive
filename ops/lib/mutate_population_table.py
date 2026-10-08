@@ -9,7 +9,8 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
 DRIVERS = ("budget.py", "corpusfetch.py", "corpusota.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
-           "hazards.py", "ledger.py", "menu.py", "normalise.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py", "roadtrip.py", "routescore.py",
+           "hazards.py", "ledger.py", "menu.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py",
+           "roadtrip.py", "routescore.py",
            "saveddrive.py", "savedlist.py", "session.py",
            "scenic_tags.py",
            "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
@@ -29,6 +30,7 @@ COVERED_FLOOR = (
     "Sources/ScenicKit/Surprise/SurpriseContext.swift", "Sources/ScenicKit/Surprise/SurpriseReason.swift",
     "Sources/ScenicKit/Surprise/SurprisePick.swift",
     "Sources/ScenicKit/PlanSheet/PlanSheet.swift", "Sources/ScenicKit/PlanSheet/PlanFailureCopy.swift",
+    "Sources/ScenicKit/Vehicle/Onboarding.swift", "Sources/ScenicKit/Vehicle/VehicleProfile.swift",
     "Sources/ScenicAPIClient/ClientPlanner.swift",
     "Sources/ScenicKit/Saved/SavedList.swift", "Sources/ScenicKit/Saved/SavedDraft.swift",
     "Sources/ScenicKit/Saved/SavedReplay.swift", "Sources/ScenicKit/Saved/SavedRow.swift",

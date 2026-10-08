@@ -1,13 +1,13 @@
 ---
 id: T-0311
 title: The plan request carries the vehicle profile - PlanRequestBody sends it, the Worker's /plan whitelist accepts exactly the enabled profiles, and an unknown or disabled profile is refused before quota with 0 upstream calls
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T02:22:15Z
+lease_expires_at: 2026-10-08T16:22:15Z
+worktree: .worktrees/T-0311
+branch: task/T-0311
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, services/api/src/, services/api/test/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/named-tests.json, pins/PINS.yaml]
 pins_affected: [P-COST-01, P-PRIV-05]
@@ -27,3 +27,4 @@ widening anything else.
 
 ## Log
 - 2026-10-08T01:56:34Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0309's recordable.
+- 2026-10-08T02:22:15Z claimed by agent/claude-opus-5; lease until 2026-10-08T16:22:15Z
