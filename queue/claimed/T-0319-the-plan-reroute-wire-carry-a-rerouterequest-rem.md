@@ -129,3 +129,31 @@ a measurement task first).
     plan`; reroute-pin-count by `the first remaining pin may be the stored count ...`; reroute-pin-skipped and
     reroute-evaluations by `P-PRIV-05: a reroute sends upstream only ...`; reroute-ceiling-plus and
     reroute-used-strict by `the budget ceiling holds on a reroute`.
+- 2026-10-08T14:31:46Z SWIFT POPULATION (MIN_MUTATIONS 37 -> 48, MIN_TEST_FILES 4 -> 5): `plansheet.py --only 38..48`
+  with FILTER not yet naming PlanRerouteWireTests -> `caught 0 of 11 (MISSED 11)`; FILTER += PlanRerouteWireTests
+  (324b5ca9) -> `caught by the test that names it: 11 of 11 (wrong killer 0, trapped 0, compile-only 0, MISSED 0)`.
+- 2026-10-08T14:31:46Z MERGED origin/main (1f55e15d) LAST, into 7152aea3. T-0315 landed IdentityHeaders.swift and
+  PlanClient's accountToken: the merged `send` builds IdentityHeaders.json(device:account:), so reroute() carries
+  the same header set as plan(); PlanRerouteWireTests now builds PlanClient(..., accountToken:) and its whole-request
+  case adds a paid row (x-scenic-account-token lowercased). Digest conflict on PlanClient.swift resolved by
+  recomputing the four rows this branch owns. services/api is unchanged on main since 2f6e7579.
+  ACCEPTANCE RE-RUN ON THE MERGED HEAD:
+  1 ruling: 89b0f6b8 (Log R1-R11) precedes the first code commit ac239f38. PASS
+  2-7 Worker: `npx vitest run` the ten touched/enumerating files (planReroute, planRecorded, planPrivacy, planCost,
+    planCeiling, planWire, requestReadSites, configAnswerPath, killSwitchRoutes, sharedEnvWorker) -> `Test Files 10
+    passed (10) / Tests 78 passed (78)`. Whole suite: `Tests 1 failed | 2190 passed (2191)` - the one a 5015 ms
+    timeout in configAnswerPath (`loading the shipped worker leaves every global ...`) on the loaded box; alone ->
+    `Tests 3 passed (3)`. PASS
+  8 device: `swift test --filter ScenicAPIClientTests` -> `Test run with 76 tests in 18 suites passed`, XCTest
+    `Executed 46 tests, with 0 failures`. PASS
+  9 populations: Worker 18/18 CAUGHT (above), Swift 11/11 CAUGHT on the merged head (re-run after the merge). PASS
+  10 gates: bash ops/lib/check-safety-disclaimer exit 0; check-mutate-population `P-PROC-06: every added module is
+    covered or allowlisted; the floor of 130 holds`; check-line-cap `P-SRC-02: 460 Swift files ... none over 300
+    lines`; check-pins-yaml `PINS-YAML ok pins=46 fields=371`; queue-check `QUEUE OK (315 tasks)`;
+    run-named-tests P-PRIV-05 `passed=53/54` - the one red is PlaceStoreTests.UserStorePrivacyTests/
+    noColumnNamesAPlaceOrATrail `MISSING - no test of this name ran`, a PlaceStore test this branch does not touch
+    (git diff 2f6e7579..HEAD -- Tests/PlaceStoreTests Sources/PlaceStore is empty), also red before this branch's
+    first code commit. PASS for every reroute row.
+  PR #209 opened; CI on the first push: core pass, pins-source-only pass.
+  OWNER DEPLOY STEP (R3): `wrangler kv namespace create PLANS` and bind it as PLANS; until then every answer's
+  plan_token is null and every reroute is the fresh plan.
