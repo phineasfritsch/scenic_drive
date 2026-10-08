@@ -1304,6 +1304,43 @@
       ]
     }
   },
+  "P-NAV-01": {
+    "swift": {
+      "filter": "ScenicKitTests\\.(DriveSessionTests|DriveRerouteTests)",
+      "tests": [
+        "ScenicKitTests.DriveSessionTests/awayThresholdIsExact()",
+        "ScenicKitTests.DriveSessionTests/eastThresholdAtLatitude34()",
+        "ScenicKitTests.DriveSessionTests/dwellBoundIsExact()",
+        "ScenicKitTests.DriveSessionTests/reroutingAsksOnce()",
+        "ScenicKitTests.DriveSessionTests/lostConnectionWhileReroutingRejoins()",
+        "ScenicKitTests.DriveSessionTests/offlineRejoinsWithZeroRequests()",
+        "ScenicKitTests.DriveSessionTests/backOnlineAsksOnce()",
+        "ScenicKitTests.DriveSessionTests/backOnlineWhileGuidingAsksNothing()",
+        "ScenicKitTests.DriveSessionTests/failedRerouteRejoins()",
+        "ScenicKitTests.DriveSessionTests/unusableFixIsIgnored()",
+        "ScenicKitTests.DriveRerouteTests/rerouteCarriesRemainingPinsAndLambda()",
+        "ScenicKitTests.DriveRerouteTests/offlineThenOnlineCarriesRemainingPins()",
+        "ScenicKitTests.DriveRerouteTests/noRowIgnoresItsVariant()",
+        "ScenicKitTests.DriveRerouteTests/arrivalReplacesLineKeepsLambda()",
+        "ScenicKitTests.DriveRerouteTests/landedRerouteRestartsTheDwell()",
+        "ScenicKitTests.DriveRerouteTests/unusableArrivalRejoins()",
+        "ScenicKitTests.DriveRerouteTests/pinsMustBeVerticesInOrder()",
+        "ScenicKitTests.DriveRerouteTests/loopClosingLegDoesNotJumpProgress()"
+      ]
+    }
+  },
+  "P-SAFE-09": {
+    "swift": {
+      "filter": "ScenicKitTests\\.DriveMotionGateTests",
+      "tests": [
+        "ScenicKitTests.DriveMotionGateTests/surfaceAtEverySpeedBound()",
+        "ScenicKitTests.DriveMotionGateTests/minimalBeforeAnyFix()",
+        "ScenicKitTests.DriveMotionGateTests/eachFixSetsTheSurface()",
+        "ScenicKitTests.DriveMotionGateTests/gateHoldsInEveryMode()",
+        "ScenicKitTests.DriveMotionGateTests/unusableFixIsMinimal()"
+      ]
+    }
+  },
   "P-SAFE-07": {
     "swift": {
       "filter": "ScenicKitTests\\.(LearnedCorridorSpeedsTests|HourOfWeekTests)",

@@ -411,3 +411,21 @@
   assertion: "py=\"${PYTHON:-$(command -v python3 || command -v python)}\"; { t=\"$(\"$py\" ops/lib/funnel_test.py 2>&1 | tr -d '\\r')\" && grep -qxE 'Ran 13 tests in [0-9.]+s' <<<\"$t\" && grep -qx 'OK' <<<\"$t\" && m=\"$(\"$py\" ops/lib/funnel_mutate.py | tr -d '\\r')\" && n=\"$(sed -n 's/^population mutations=\\([0-9][0-9]*\\) (floor 22)$/\\1/p' <<<\"$m\")\" && [ -n \"$n\" ] && grep -qx \"RESULT caught=$n missed=0 skipped=0 of $n\" <<<\"$m\" && \"$py\" ops/lib/funnel_mutate.py --prove-floor >/dev/null; } || { printf '%s\\n' \"${t:-}\" \"${m:-}\" | tail -n 8; false; }"
   owner: agent/claude-opus-5
   added: "2026-10-06"
+
+- id: P-NAV-01
+  statement: "Off-route (more than 50 m from the planned line for at least 5 s) online asks for exactly the pinned waypoints not yet passed and the same lambda, once; offline it is rejoin mode with zero requests; the offline-to-online edge in rejoin mode asks once"
+  why_no_test_catches_it: "The plan's Navigation section says a reroute re-requests the SAME drive - the remaining pins and the same lambda, never a bare origin-to-destination - and that offline the driver is guided back to the planned line with no request. Every one of those is a one-token edit in DriveSession.swift or DriveLine.swift that compiles and leaves ops/test's total above its floor: `>` for `>=` on the pin index sends the driver back to a pin they just passed, a global nearest-segment search counts a loop's closing leg as progress and drops every pin (a bare O->D), dropping the online check makes offline drives spend requests, and a reroute that keeps asking while one is out multiplies them. ops/test counts tests, so deleting or renaming the suites that hold these is also green. The assertion runs the tests by NAME through ops/lib/run-named-tests.py (named-tests.json lists every test of DriveSessionTests and DriveRerouteTests), and ops/mutate/drive.py holds the mutations (T-0317). What it cannot see: the Worker half - /plan's whitelist carries neither pins nor lambda today, so the wire encoding of RerouteRequest is a separate task, and NavAdapter's forwarding of fixes is Apple-side and not yet written."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-NAV-01"
+  owner: agent/claude-opus-5
+  added: "2026-10-08"
+
+- id: P-SAFE-09
+  statement: "The plan's P-SAFE-06 row (that id in this file holds the guidance gate) - the motion gate: above 4.5 m/s, at an unknown speed, and before the first fix the drive surface is minimal (the one large action and voice); at 4.5 m/s exactly and below it is full"
+  why_no_test_catches_it: "DriveSurface's predicate is one line, `speed >= 0 && speed <= 4.5`, and every edit of it compiles: a bound of 4.6 shows the full screen to a car doing 4.55 m/s, dropping `speed >= 0` shows the full screen at CoreLocation's -1 (invalid speed, which is how a moving car with a poor fix reports), and a session that starts at .full shows every control until the first fix lands. No functional test elsewhere reads the surface, and ops/test only counts. The assertion runs DriveMotionGateTests by NAME through ops/lib/run-named-tests.py - a full-equality table over 0, -0.0, the least nonzero, 4.5 and both its float neighbours, the greatest finite, both infinities, -1 and NaN, through the session's own observe(_:) - and ops/mutate/drive.py holds the mutations (T-0317). What it cannot see: whether the SwiftUI drive screen reads `surface` (an XCUITest, M7) and whether a crawl near 4.5 m/s flickers (no hysteresis is ruled; device iterations decide)."
+  anchor: source
+  runs_on: [linux, mac]
+  assertion: "\"${PYTHON:-$(command -v python3 || command -v python)}\" ops/lib/run-named-tests.py P-SAFE-09"
+  owner: agent/claude-opus-5
+  added: "2026-10-08"
