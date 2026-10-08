@@ -1,7 +1,7 @@
 ---
 id: T-0312
 title: The device's Surprise history persists across launches (GRDB user store beside saved drives), so the 90-day no-repeat holds without a session; the card's basis/history split gets a test of its own
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T05:02:47Z
@@ -11,7 +11,7 @@ branch: task/T-0312
 exclusive: []
 touches: [Sources/PlaceStore/, Tests/PlaceStoreTests/, Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PROD-02, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0312
 depends_on: [T-0310, T-0290]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -196,3 +196,16 @@ relaunch forgets the 90-day no-repeat when there is no session; and the card's b
   SurpriseShownStoreTests 4, UserStoreMigrationTests 3, UserStorePrivacyTests 1, SurpriseShownRecordFieldsTests 1
   testcases, 0 `<failure`. ios-compile 37743126510 success; ios-screenshot 37743130755 success. This entry is
   queue-only; the code head CI ran on is unchanged.
+- 2026-10-08T07:45:22Z Review round 2 PASS, agent/rv2-t0312 (not the owner), head a5dfa6d7 (PR #202, MERGEABLE;
+  origin/main is an ancestor). B1 closed: DRIVERS in ops/lib/mutate_population_table.py is the exact union of both
+  parents ("session.py", "shownhistory.py", "tripsheet.py"); its diff against main is that line plus the two
+  COVERED_FLOOR entries. I recomputed with `sed 's/\r$//' | sha256sum` every digest row that differs from main (6)
+  and every row the merge commit added or rewrote (18); all 24 match. Run bare on the head: check-safety-disclaimer-linked,
+  -pinned, -doors and -frozen rc=0, check-store-links rc=0, check-mutate-population rc=0 ("the floor of 114 holds"),
+  queue-check "QUEUE OK (307 tasks)". B2 closed: on the current head, linux-core 37744732280 success
+  (`TESTS linux=4397/76 ios=skipped failed=0 skipped=1`), and `gh pr checks 202` shows core and pins-source-only
+  passing. That run's test-reports have the GRDB suites by name: SurpriseShownStoreTests 4, UserStoreMigrationTests 3,
+  UserStorePrivacyTests 1 and SurpriseShownRecordFieldsTests 1 testcases, 0 `<failure`. ios-compile 37743126510 and
+  ios-screenshot 37743130755 passed on 873c3747, and a5dfa6d7 changes only this queue file on top of it. The three
+  recordables (REPICK as the only basis/history test, the first-frame flicker, the lazy main-thread store open) are in
+  the 07:21:00Z entry and are not blocking.
