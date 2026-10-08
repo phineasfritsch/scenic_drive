@@ -152,8 +152,8 @@ a measurement task first).
     lines`; check-pins-yaml `PINS-YAML ok pins=46 fields=371`; queue-check `QUEUE OK (315 tasks)`;
     run-named-tests P-PRIV-05 `passed=53/54` - the one red is PlaceStoreTests.UserStorePrivacyTests/
     noColumnNamesAPlaceOrATrail `MISSING - no test of this name ran`, a PlaceStore test this branch does not touch
-    (git diff 2f6e7579..HEAD -- Tests/PlaceStoreTests Sources/PlaceStore is empty), also red before this branch's
-    first code commit. PASS for every reroute row.
-  PR #209 opened; CI on the first push: core pass, pins-source-only pass.
+    (git diff 2f6e7579..HEAD -- Tests/PlaceStoreTests Sources/PlaceStore is empty), the same single red as this
+    session's first run of the pin. NOT re-run at 2f6e7579 itself. PASS for every reroute row.
+  PR #209 opened; CI on its first run (7152aea3): core pass, pins-source-only pass.
   OWNER DEPLOY STEP (R3): `wrangler kv namespace create PLANS` and bind it as PLANS; until then every answer's
   plan_token is null and every reroute is the fresh plan.
