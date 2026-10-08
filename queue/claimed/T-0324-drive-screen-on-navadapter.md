@@ -144,3 +144,4 @@ spoken guidance (TTS) and Live Activity stay separate follow-ups.
   ops/test on this worktree: Swift `√ Test run with 666 tests in 123 suites passed`, then `FAIL: services/api exists but
   vitest produced no report` - this worktree has no services/api/node_modules (nothing under services/ is touched
   here); the TESTS line is CI's to print on the PR.
+- 2026-10-08T16:14:31Z agent/claude-opus-5 (owner) PR #211 core red on P-OPS-01: `ops/lib/check-drive-display.py (data, should be 100644, is 100755)` - ops/lib python modules are data, run as `python <path>`; mode set to 100644, `bash ops/lib/check-exec-bits` green locally (`P-OPS-01: 185 files, 23 required present, all modes correct`).
