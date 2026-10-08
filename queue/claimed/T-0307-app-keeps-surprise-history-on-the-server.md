@@ -167,3 +167,12 @@ client half (Keychain install id, the app calling /ledger) as M6 Apple-package w
   - No Sources/ file changed, so no digest row moves. Reviewer notes, not mutants: LedgerClient.record has no
     caller yet and LiveSurpriseLedger.make() wires NoLedgerSession, so read() is .noSession in production and
     R5/R6 run only under test until a session client lands (the NOT DONE list above; T-0309).
+  - origin/main merged at 01f08c34 (T-0305 landed): conflicts in ScenicDriveApp.swift, -frozen, -pinned and
+    mutate_population_table.py, each resolved keeping both sides - main's corpus-download sheet, then this task's
+    `.environment(\.surpriseLedger, ...)`; DRIVERS has corpusfetch.py and ledger.py; -pinned re-approved for the
+    merged SurpriseDeck.swift (fd057725...) and ScenicDriveApp.swift (6be4dca9..., shell digest and app row). On
+    the merged head: check-safety-disclaimer exit=0, check-map-attribution=0, check-line-cap=0, P-PROC-06 `the
+    floor of 91 holds`, `PINS-YAML ok pins=44`, `QUEUE OK (300 tasks)`; `swift test --filter
+    "ScenicAPIClientTests|ScenicKitTests\.Surprise|PlaceStoreTests"` -> `Test run with 100 tests in 23 suites
+    passed`; CI on 01f08c34: ios-compile 37706582493, ios-screenshot 37706585749, linux-core 37706583464, all
+    `completed success`.
