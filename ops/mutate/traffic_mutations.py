@@ -10,6 +10,8 @@ traffic.py, runner traffic_run.py (plansheet's three-file shape).
     HourOfWeek(_:) bounds, the slot keyed on a fixed hour;
   * RETIME AND THE VALUE TYPES (23-27): a ratio multiplied in, the ETA sum, a cell or a free-flow time not kept;
   * PRIVACY, P-PRIV-05 (28-29): a Codable conformance added to a learned-speed type.
+  * PER SLOT AND IN THE LEARNER'S ZONE (30-33, T-0320 pre-review M1/M3): the badge counted over a cell's every
+    hour or any learned hour of the cell, retime reading the hour in UTC or in the device's zone.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -47,6 +49,7 @@ PRIVATE = "no learned-speed type is Encodable or Decodable"
 
 _CLAMP = "min(Self.ceilingRatio, max(Self.floorRatio, freeFlowSeconds / actualSeconds))"
 _EWMA = "(1 - Self.alpha) * prior.ratio + Self.alpha * observed"
+_RETIME_HOUR = "HourOfWeek.of(departsAt.addingTimeInterval(elapsed), in: timeZone)"
 _GUARD = "guard actualSeconds.isFinite, freeFlowSeconds.isFinite, actualSeconds > 0, freeFlowSeconds > 0 else {"
 
 MUTATIONS = [
@@ -95,6 +98,15 @@ MUTATIONS = [
      "CorridorRatio: Equatable, Sendable, Codable {", [PRIVATE]),
     ("29 RetimedRoute is Codable", ROUTE, "RetimedRoute: Equatable, Sendable {",
      "RetimedRoute: Equatable, Sendable, Codable {", [PRIVATE]),
+    ("30 the badge counts a cell over every hour", LEARNER, "learned.samples >= Self.learnedSamples",
+     "slots.filter({ $0.key.cell == edge.cell }).reduce(0, { $0 + $1.value.samples }) >= Self.learnedSamples",
+     [BADGE]),
+    ("31 the badge counts any learned hour of the cell", LEARNER, "learned.samples >= Self.learnedSamples",
+     "slots.contains(where: { $0.key.cell == edge.cell && $0.value.samples >= Self.learnedSamples })", [BADGE]),
+    ("32 retime reads the hour in UTC", LEARNER, _RETIME_HOUR,
+     _RETIME_HOUR.replace("in: timeZone", "in: TimeZone(secondsFromGMT: 0)!"), [CROSS]),
+    ("33 retime reads the device's zone", LEARNER, _RETIME_HOUR,
+     _RETIME_HOUR.replace("in: timeZone", "in: TimeZone.current"), [CROSS]),
 ]
 
 EQUIVALENT = [
@@ -104,6 +116,6 @@ EQUIVALENT = [
      "guard), so min-then-max and max-then-min clamp every value to the same number"),
 ]
 
-MIN_MUTATIONS = 29
+MIN_MUTATIONS = 33
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 3
