@@ -183,3 +183,22 @@ a device, so the Apple-only half is compile-checked in CI and exercised on devic
     write in one launch is impossible by R4), so the orchestrator's suggested row would be vacuous. EQUIVALENT entry
     E2 with this witness. If R4's one-acquisition budget ever loosens, E2 stops being equivalent only once a row can
     see a second write in one launch - such a row makes E2 report CAUGHT, which fails the population: the alarm.
+- 2026-10-08T03:51:53Z agent/claude-opus-5 - M1 closed, M4 ruled equivalent; re-measured on 31ea87e6:
+  - Population at 72790676 + its one-line E2 fix (the test unchanged): `python ops/mutate/session.py --only 40,E2` ->
+    `MISSED        40 a place with no cell posted under a stand-in  exit=0  no test objected`, `MISSED  E2 ...`,
+    `MUTATE FAILED  caught=0/1 equivalent_caught=0  (--only: 1 of 40 entries)`.
+  - After 31ea87e6 (d = "31337", no cell, shown order [a, a, d, b, c]; history [a, d, b, c]; request lists
+    unchanged): `caught  40 a place with no cell posted under a stand-in  by: Each shown place is in the device
+    history once, and posted with its own cell as the session allows`, E2 `MISSED` (as an equivalent must),
+    `MUTATE OK  caught=1/1 equivalent_caught=0`. The other SHOWINGS-killed entries re-run on the changed table:
+    `--only 23,26,31,32,34,35` -> `MUTATE OK  caught=6/6 equivalent_caught=0`. Floors: MIN_MUTATIONS 40,
+    MIN_EQUIVALENT 2.
+  - `swift test --filter 'SessionStoreTests|SurpriseLedgerWriteTests|KeychainDecisionTests|AttestClientTests|
+    SurpriseShowingTests'` -> `Test run with 13 tests in 5 suites passed`; `--filter "ScenicAPIClientTests|
+    ScenicKitTests\.Surprise|TelemetryTests"` -> `Test run with 92 tests in 23 suites passed` + XCTest `Executed 46
+    tests, with 0 failures`; `run-named-tests.py P-PROD-02` -> `NAMED P-PROD-02 passed=7/7`.
+  - No Sources/ or apps/ios file changed (only the test, the population and this Log), so no digest row moves and
+    the iOS CI runs on bceba6f6 stand. Guards: check-safety-disclaimer exit=0, check-map-attribution exit=0,
+    check-store-links exit=0, check-mutate-population `the floor of 102 holds`, check-line-cap `378 Swift files
+    tracked ..., none over 300 lines`, check-pins-yaml `PINS-YAML ok pins=44`, queue-check `QUEUE OK (302 tasks)`.
+  - origin/main fetched: 9e0c69be, already an ancestor of the head - nothing to merge.
