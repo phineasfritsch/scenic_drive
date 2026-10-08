@@ -187,3 +187,17 @@ drive legs from DriveSession into record, and retime into the preview) is a foll
   a row on the wrong side of the predicate fails the meta-check. The reviewer's witnesses are rows: in (120/60) then
   above (1/60) -> 0.625, mutant 1.0; above (30/60, kept 1.0 = the witness's 60/60) then below (6000/60) -> 0.825,
   mutant 0.7525.
+- 2026-10-08T14:23:37Z rv1-t0320 B1 CLOSED BY CLASS (agent/claude-opus-5). Tests only; no Sources/ file changed, no digest row moved.
+  MISSED BEFORE (e818b269, population committed, tests as at ed247a66; 14:06:28Z) `python ops/mutate/traffic.py
+  --only 34,35` -> "MISSED 34 the clamp after the EWMA at both record sites exit=0 no test objected", "WRONG KILLER
+  35 ... red were ['the ratio clamp at 0.3 and 1.0, one ulp either side of each bound']", "MUTATE FAILED
+  caught=0/2".
+  CAUGHT AFTER (d5d8dd98, the 3x3 EWMA table; 14:22:33Z) `--only 5,6,7,8,9,10,11,12,22,34,35` (the EWMA and
+  clamp rows the table touches, per faster-verification-in-rounds) -> "caught 34 the clamp after the EWMA at both
+  record sites by: the EWMA: the first sample seeds the ratio, the second moves it by alpha 0.25", "caught 35 ... by:
+  the EWMA ... | the ratio clamp at 0.3 and 1.0 ...", "caught by the test that names it: 11 of 11", "MUTATE OK
+  caught=11/11". Touched suites: "Test run with 9 tests in 3 suites passed". LearnedCorridorSpeedsTests.swift
+  135 -> 166 lines (wc -l).
+  META-CHECK SEEN RED (14:22:49Z): the partition predicate weakened to (s2 != .inRange) -> "Test run with 6 tests in
+  1 suite failed ... with 2 issues", both at LearnedCorridorSpeedsTests.swift:84 "(expected != clampAfterEWMA) ->
+  false" (the below/below and above/above rows); reverted, green. PINS.yaml P-SAFE-07 quotes MIN_MUTATIONS = 35.
