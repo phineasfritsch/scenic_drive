@@ -26,3 +26,44 @@ rv1-t0315 recordables R1, R2 and R4 (PR #206).
 ## Log
 - 2026-10-08T12:24:40Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0315's recordables R1, R2, R4.
 - 2026-10-08T15:27:38Z claimed by agent/claude-opus-5; lease until 2026-10-08T23:27:38Z
+- 2026-10-08T15:31:07Z MEASURED then RULED (agent/claude-opus-5, before any code), at e158ddbc.
+  MEASUREMENT. `grep -rn -i "x-scenic-account-token" Sources apps/ios Tests`: 9 lines. CODE lines (not //-leading):
+  Sources/ScenicAPIClient/IdentityHeaders.swift:9 `public static let accountHeader = "x-scenic-account-token"`;
+  Tests/ScenicAPIClientTests/AccountTokenHeaderTests.swift:41, :44, :108, :109 (literals). COMMENT lines (/// or //):
+  IdentityHeaders.swift:4, Sources/ScenicAPIClient/PlanClient.swift:8, apps/ios/.../Entitlements/PaywallScreen.swift:33,
+  apps/ios/.../PlanAdapter/StoreKitAccountToken.swift:5. The identifier `accountHeader` (any case) in Sources/ and
+  apps/ios: IdentityHeaders.swift:9 and :13 (`if let account { headers[accountHeader] = ... }`) only. `account-token`
+  (any case) on a code line in Sources/ and apps/ios: IdentityHeaders.swift:9 only. Worker (services/api/src): one
+  code line, asn.ts:11 `export const ACCOUNT_TOKEN_HEADER = "x-scenic-account-token";`, plus comments in accountTier.ts,
+  asn.ts, index.ts, routerDeps.ts, sessionIdentity.ts.
+  - R1 SCOPE OF THE GUARD. It scans every *.swift under Sources/ and apps/ (as check-learned-speeds-sites.py), not
+    Tests/: a test MUST spell the header as its own literal - AccountTokenHeaderTests compares the whole request to
+    literals (memory full-equality-oracle), and ops/mutate/accounttoken_mutations.py's mutant 3 (the header
+    misnamed in IdentityHeaders) is caught only because the test does not read IdentityHeaders.accountHeader. A
+    test file sends no request, so a literal there is no fourth client. The Worker is OUT of scope: TypeScript, its
+    own ACCOUNT_TOKEN_HEADER, the reading side, bound by its own tier tests; recorded as not asserted by this guard.
+  - R2 WHAT THE GUARD READS, a WHITELIST OF SITES. Every line (trailing whitespace dropped) of every scanned file that
+    matches `account-token|accountheader` case-insensitively, skipping only lines whose first non-blank characters
+    are `//` (memory source-guards-fail-closed), must be one of the approved (file, whole line) pairs, as many times
+    as approved: exactly IdentityHeaders.swift's :9 and :13. Case-insensitive because HTTP header names are - an
+    `X-Scenic-Account-Token` sends the same header. `account-token` sees the split at the prefix
+    (`"x-scenic-" + "account-token"`), so that split is a prove-red row; `accountheader` sees a new client writing
+    `headers[IdentityHeaders.accountHeader]` beside the shared json(). An approved line that is gone is red too.
+    WHAT IT CANNOT SEE: a split INSIDE `account-token` (`"x-scenic-acc" + "ount-token"`), unicode escapes, a name
+    built at runtime, non-Swift files; a line inside `/* */` is read as code, so it can only fail closed.
+    Exit 0 ok, 1 refused by name, 2 fail-closed (root missing, no site at all).
+  - R3 THE NAMED TESTS. AccountTokenHeaderTests and AccountTokenCandidateTests, every @Test function, bound in
+    ops/lib/named-tests.json under P-STORE-02's new "swift" key beside its "vitest" one (run_pin runs both); names
+    are the Swift Testing identifiers the xunit report carries, quoted below once measured. P-STORE-02 stays anchor
+    api, runs_on [linux]: linux-core's core job has swift and node and runs the full check-pins.
+  - R4 rv1-t0315 R1, StoreKitAccountToken: STAYS DIGEST-PINNED (its PINNED_APP_SWIFT row in
+    ops/lib/check-safety-disclaimer-pinned), no Apple-side oracle in this task. Reason: its one decision - which
+    purchase's token - is AccountTokenCandidate.latest, Linux-tested by AccountTokenCandidateTests and now bound by
+    name; what remains is the Transaction.all walk and its verified + autoRenewable filter, which only StoreKitTest's
+    SKTestSession on a simulator with a .storekit configuration could exercise. No CI job runs any Apple test today
+    (ios-compile builds, ios-screenshot captures), and an Apple test target edits apps/ios's Package.swift and
+    project.pbxproj (serial-only, outside touches). The digest pin makes any edit to the walk a reviewed
+    re-approval; the gap is written into P-STORE-02's WHAT IT CANNOT SEE.
+  - R5 PINS.yaml. P-STORE-02's "NOT ASSERTED HERE: the app's side ... no Linux test can name it" clause is replaced
+    by what is now asserted and what is not (StoreKit's own walk, the paywall UI); the assertion becomes the guard,
+    its --prove-red, then run-named-tests P-STORE-02.
