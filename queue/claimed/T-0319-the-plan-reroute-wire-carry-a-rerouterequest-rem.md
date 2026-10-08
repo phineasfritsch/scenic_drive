@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-08T22:53:20Z
 worktree: .worktrees/T-0319
 branch: task/T-0319
 exclusive: []
-touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/plansheet_mutations.py, ops/lib/named-tests.json, ops/lib/check-safety-disclaimer-linked-digests.txt, Tests/Fixtures/t0251/, queue/]
+touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/plansheet_mutations.py, ops/mutate/plansheet_run.py, ops/lib/named-tests.json, ops/lib/check-safety-disclaimer-linked-digests.txt, Tests/Fixtures/t0251/, queue/]
 pins_affected: [P-NAV-01, P-PRIV-05]
 reviewer: null
 depends_on: [T-0317]

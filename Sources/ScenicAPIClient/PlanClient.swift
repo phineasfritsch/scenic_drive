@@ -35,6 +35,29 @@ public struct PlanClient: Sendable {
         case .success(let validated):
             body = validated
         }
+        return try await send(body, installID: installID)
+    }
+
+    /// T-0319 R9: the rest of THIS drive. The origin is rounded to 2 dp HERE, on the device - the fix is full
+    /// precision. remainingWaypoints, the destination coordinate and lambda stay on the device: the Worker
+    /// remembered them under `token`, and the request names only the token and `firstRemainingWaypoint`.
+    public func reroute(_ request: RerouteRequest, token: String, place: Int64, budgetMinutes: Int,
+                        vehicle: VehicleProfile = VehicleProfile.standard) async throws(PlanError) -> PlanResponse {
+        guard let installID else { throw .refusedOnDevice(.noInstallID) }
+        let origin = Coordinate(latitude: (request.origin.latitude * 100).rounded() / 100,
+                                longitude: (request.origin.longitude * 100).rounded() / 100)
+        switch PlanRequestBody.validatedReroute(origin: origin, place: place, budgetMinutes: budgetMinutes,
+                                                vehicle: vehicle, token: token,
+                                                firstPin: request.firstRemainingWaypoint) {
+        case .failure(let refusal):
+            throw .refusedOnDevice(refusal)
+        case .success(let body):
+            return try await send(body, installID: installID)
+        }
+    }
+
+    /// One validated body, encoded with sorted keys, as ONE request carrying x-scenic-device; the reply by R6.
+    private func send(_ body: PlanRequestBody, installID: any InstallIDProvider) async throws(PlanError) -> PlanResponse {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         // Only a non-finite Double can make this encoder throw, and validated() refused those as out of range.

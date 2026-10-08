@@ -15,4 +15,8 @@ public enum PlanRefusal: Error, Equatable, Sendable {
     /// The vehicle profile is not one the app can plan for yet (`VehicleProfile.isEnabled` is false); the Worker
     /// refuses every such value too (T-0311 R3, R6).
     case vehicleNotEnabled
+    /// T-0319 R9: a reroute's token is not the Worker's PLAN_TOKEN spelling (lowercase 8-4-4-4-12 hex).
+    case rerouteTokenMalformed
+    /// T-0319 R9: a reroute's first remaining pin is outside the Worker's 0...9.
+    case firstPinOutOfRange
 }

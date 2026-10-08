@@ -155,7 +155,8 @@ describe("POST /plan reroute ceiling and cost (T-0319 R7/R8, P-SAFE-04, P-COST-0
   it("the budget ceiling holds on a reroute", async () => {
     const at = rig(router(CEILING_MS), fakeKv(four));
     const exact = await send(at, body);
-    expect([exact.status, exact.body.eta_s, exact.body.lambda, exact.body.evaluations]).toEqual([200, CEILING_MS / 1000, 4, 1]);
+    expect([exact.status, exact.body.eta_s, exact.body.lambda, exact.body.evaluations, exact.body.used_budget])
+      .toEqual([200, CEILING_MS / 1000, 4, 1, true]);
     expect(at.sent.length).toBe(2);
 
     const over = rig(router(CEILING_MS + 1000), fakeKv(four));
