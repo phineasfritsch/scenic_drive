@@ -27,3 +27,73 @@ relaunch forgets the 90-day no-repeat when there is no session; and the card's b
 ## Log
 - 2026-10-08T04:02:40Z filed by agent/claude-opus-5 (orchestrator) from T-0310's stillOpen and rv1-t0310's recordables.
 - 2026-10-08T05:02:47Z claimed by agent/claude-opus-5; lease until 2026-10-09T01:02:47Z
+- 2026-10-08T05:07:46Z MEASURED, then RULED before any code, by agent/claude-opus-5 (owner). Read: SurpriseCard.swift,
+  SurpriseShowing.swift, SurpriseHistory.swift, Surprise.swift, CivilDate.swift, SurpriseDeck.swift, the root and
+  ScenicApp Package.swift, Sources/PlaceStore/{SavedDriveStore,UserStoreMigrations}.swift, Tests/PlaceStoreTests/
+  {UserStorePrivacyTests,UserStoreMigrationTests}.swift, queue/done/T-0310 (R7, R9, stillOpen ii), T-0290 (R1-R8),
+  ops/mutate/session*.py, ops/lib/mutate_population_table.py, the -linked digests and -pinned.
+  MEASURED: (a) the card holds `history` and `basis` as two @State SurpriseHistory values (SurpriseCard.swift lines
+  15-18); recording sets only `history` (line 71), "not this" and "Start over" set both (lines 173-174, 189-190), and
+  no code outside the view states the split - nothing tests it. (b) `SurpriseHistory.Shown.date` is the LOCAL civil
+  date: SurpriseDeck.context(at:) reads `Calendar.current` (SurpriseDeck.swift line 45-48). (c) Surprise.shownDays =
+  90 and the pick blocks a shown id while `days(date, since: shown.date) < shownDays` (Surprise.swift line 70): an
+  entry is read by the pick for days 0..89 after it and never again. (d) the user store is Application Support/
+  user.sqlite, opened by FeaturePlanSheet's SavedDriveShelf.store, migrations ["v1-saved-drives", "v2-needs-replan"];
+  FeatureSurpriseMe already depends on PlaceStore. (e) PlaceStore depends on GRDB only - it cannot import ScenicKit.
+  (f) SavedDriveStore's file gate `inspect(path:)` is `private static`. (g) no ops/ guard or test names `basis`.
+  RULINGS:
+  - R1 THE TABLE. Migration "v3-surprise-shown" (third in UserStoreMigrations.identifiers) creates `surprise_shown
+    (place_id TEXT NOT NULL CHECK (length(place_id) > 0), category TEXT NOT NULL, corridor TEXT NOT NULL, day INTEGER
+    NOT NULL, PRIMARY KEY (place_id, day)) WITHOUT ROWID` in user.sqlite beside saved_drive. No coordinate, cell,
+    position or time of day (P-PRIV-05). The primary key is SurpriseShowing's own same-day rule (one row per place per
+    day). PlaceStore's value is `SurpriseShownRecord {placeID: String, category: String, corridor: String, day: Int}`
+    (String and Int only - PlaceStore cannot see ScenicKit's SurpriseCategory, (e)).
+  - R2 DISAGREEMENT "UTC day": the in-memory entries are keyed by the LOCAL civil date (b), and the same-day rule and
+    the 90-day window compare those dates. Storing the UTC day of the instant would put an evening showing west of
+    Greenwich on tomorrow's key and break both. RULED: `day` is the civil date the card used, as whole days since
+    1970-01-01 of that calendar date (ScenicKit `SurpriseShownDay.number(_:)` / `.date(_:)`, a round-trip pair) -
+    a day with no zone and no time, which is what the acceptance's "UTC day" asks the column to be (no timestamp).
+  - R3 RETENTION 90 days, pruned on write. `SurpriseShownDay.oldestKept(today:)` = number(today) - (Surprise.
+    shownDays - 1): the oldest day the pick still reads (c). `SurpriseShownStore.record(_:keepingFrom:)` inserts
+    (INSERT OR IGNORE) and then deletes every row with day < keepingFrom, in one transaction, and returns list().
+    Reads never write. A table test binds the bound to the pick itself: an id shown on oldestKept is blocked by
+    Surprise.pick, one shown the day before is not.
+  - R4 START OVER: T-0310 R7 STANDS - Start over clears the feedback only; shown entries stay, in memory and on disk.
+    Reason it stands: the 90-day no-repeat is the product's novelty promise and Start over is offered only on the
+    empty card after "not this" answers; clearing shown would resurface yesterday's place and still not clear the
+    ledger's 90 days for a sessioned device, so the two halves would disagree. No concrete reason to change it was
+    found. The owner is asked to confirm (rv1-t0310 recordable 1) - recorded in stillOpen.
+  - R5 THE SPLIT, pure. ScenicKit `SurpriseCardHistory {history, basis}` is the card's whole state; the card holds
+    one @State of it. `showing(_:on:)` (SurpriseShowing.recording into history; basis unchanged; nil when already
+    shown that day), `declining(_:)` (feedback appended; basis = history), `startingOver()` (feedback cleared;
+    basis = history), `restoring(_:)` (the stored entries united into BOTH history and basis, de-duplicated by
+    (id, date), stored first in store order then the in-memory entries not already present; the in-memory
+    recordings never enter basis, so a restore never re-picks away from the place on the card). Table test over
+    initial variants {empty, stored only, feedback only, both} x the four operations, each row's whole value by
+    full equality to a recomputation, plus the invariant row: across every sequence, `showing` leaves basis
+    byte-equal and Surprise.pick over basis unchanged.
+  - R6 FIRST LAUNCH. The previous build kept nothing on disk (R9), so the first launch of this one finds an existing
+    v1+v2 user.sqlite (or none): v3 is added in place and every saved drive is preserved by full equality (GRDB
+    test). The in-memory state at that moment is whatever the card recorded before the store answered; restoring(_:)
+    unions it in (R5) and the card then writes the WHOLE history.shown with record(_:keepingFrom:) (idempotent by the
+    primary key), so nothing recorded before the read is lost. The card reads the store in its first .task BEFORE
+    ledgerRead is set, so in practice the in-memory set is empty at restore; the union is the rule anyway.
+  - R7 FEEDBACK is not persisted (the acceptance's table names shown entries only); a relaunch forgets "not this"
+    answers (30-day not-my-thing included). Recorded in stillOpen for the owner.
+  - R8 THE STORE `SurpriseShownStore(path:)` (GRDB, one type per file) shares SavedDriveStore's file gate -
+    `inspect(path:)` becomes internal, unchanged - and the migrator; its DatabaseQueue sets busyMode .timeout(5 s)
+    because SavedDriveShelf holds a second connection to the same file. The app's bridge FeatureSurpriseMe
+    `SurpriseShownLog` opens Application Support/user.sqlite lazily, maps records to Shown (an unknown category
+    row is dropped), and every failure (no store, a refused file, a busy write) is swallowed: the card keeps its
+    in-memory history - T-0310's behaviour, fail-safe for the pick.
+  - R9 P-PRIV-05: UserStorePrivacyTests' whole map gains surprise_shown [place_id, category, corridor, day] and a
+    second regex /lat|lon|coord|cell|geo|location|position/ over surprise_shown's columns; seen red in the swift:6.1
+    image with a forbidden column added to v3. Native: `SurpriseShownRecordFieldsTests/noFieldIsACoordinate()` - a
+    Mirror whitelist (labels exactly the four, leaves String or Int). Both bound in named-tests.json P-PRIV-05.
+    P-PROD-02: run-named-tests P-PROD-02 re-run; the pick is unchanged (only its history input is restored).
+  - R10 POPULATION ops/mutate/shownhistory{,_mutations,_run}.py (session.py's three-file shape) over
+    SurpriseCardHistory.swift and SurpriseShownDay.swift, native killers, literal floor; SurpriseShownRecord (no
+    code) and SurpriseShownStore (GRDB, bound by the GRDB suite, as SavedDriveStore) allowlisted. Three entries run
+    MISSED before their tests land, CAUGHT by name after.
+  - R11 DIGESTS: -linked-digests rows for every new/changed Sources file; -pinned PINNED_SURPRISE/PINNED_APP_SWIFT
+    for SurpriseCard and the new SurpriseShownLog, re-approved after being seen red.
