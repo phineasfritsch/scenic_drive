@@ -29,6 +29,9 @@ struct PlanFailureCopyTests {
         case .noScenicAlternative:
             return PlanFailureCopy(line: "The quickest way there is already the scenic one. Try another place.",
                                    action: .chooseAnotherPlace)
+        case .nothingPretty:
+            return PlanFailureCopy(line: "Not much pretty within reach of this drive. More time might find some.",
+                                   action: .chooseAnotherPlace)
         case .unknownPlace:
             return PlanFailureCopy(line: "That place isn't in our list anymore. Choose another one.",
                                    action: .chooseAnotherPlace)
@@ -52,14 +55,14 @@ struct PlanFailureCopyTests {
         }
     }
 
-    @Test("the table covers all thirteen PlanError cases, in PlanError's order")
+    @Test("the table covers all fourteen PlanError cases, in PlanError's order")
     func coversEveryCase() {
         #expect(PlanSheetFailure.allCases.map(\.rawValue) == [
             "quotaExhausted", "planningPaused", "routingOffline", "noRoute", "regionUnsupported", "attestUnsupported",
-            "offlineDuringDrive", "noScenicAlternative", "unknownPlace", "planRefused", "invalidRequest",
+            "offlineDuringDrive", "noScenicAlternative", "nothingPretty", "unknownPlace", "planRefused", "invalidRequest",
             "refusedOnDevice", "unexpectedResponse",
         ])
-        #expect(Set(PlanSheetFailure.allCases.map { PlanFailureCopy.of($0).line }).count == 13)
+        #expect(Set(PlanSheetFailure.allCases.map { PlanFailureCopy.of($0).line }).count == 14)
     }
 
     @Test("copy lines are calm: a full sentence, no exclamation mark")

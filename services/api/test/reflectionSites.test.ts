@@ -23,6 +23,7 @@ const APPROVED: Record<string, string[]> = {
     "* Assigned in the constructor rather than declared as a `public readonly` PARAMETER PROPERTY, which is",
     "constructor(reason: CustomModelRefusal, message: string) {",
   ],
+  "../src/honestFailure.ts": ["constructor(backRoadsEtaSeconds: number | null) {"],
   "../src/killSwitch.ts": ["Object.freeze(KillSwitchReader.prototype);"],
   "../src/lambdaSearch.ts": ["constructor(reason: BudgetRefusal, message: string) {"],
   "../src/loopPlanner.ts": ["constructor(fraction: number | null) {"],

@@ -187,7 +187,8 @@ final class PlanClientResponseTests: XCTestCase {
 
     /// rv1-t0293 B2: the reader's whole (status, code) table, typed. Every other reply answers `fallback(status)`.
     private static let mapped: [String] = [
-        "400 invalid_request", "404 unknown_place", "422 no_scenic_alternative", "422 region_unsupported",
+        "400 invalid_request", "404 unknown_place", "422 no_scenic_alternative", "422 nothing_pretty",
+        "422 region_unsupported",
         "429 quota_exhausted", "500 ceiling_breached", "500 no_recorded_lambda", "502 no_route", "503 planning_paused",
         "503 planning_unavailable",
     ]
@@ -220,7 +221,8 @@ final class PlanClientResponseTests: XCTestCase {
         var left: [String] = []
         for status in 100...599 {
             for code in codes {
-                let body = #"{"error":"\#(code)","detail":"d","resets_at":"2026-10-06T00:00:00.000Z"}"#
+                let body = #"{"error":"\#(code)","detail":"d","resets_at":"2026-10-06T00:00:00.000Z","#
+                    + #""budget_minutes":25,"more_time_minutes":65,"back_roads_eta_s":null}"#
                 if await literal(status, body) != Self.fallback(status) { left.append("\(status) \(code)") }
             }
         }

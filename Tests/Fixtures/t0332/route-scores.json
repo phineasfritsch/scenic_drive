@@ -1,0 +1,401 @@
+{
+ "threshold": 0.45,
+ "scores": [
+  {
+   "file": "t0182/plan-pair/fastest.json",
+   "value": 0.35824194456673425,
+   "mean": 0.29731832803080477,
+   "p90": 0.8,
+   "dudFraction": 0.578771459456102,
+   "episodeCount": 2,
+   "totalLength": 18224.015165189492
+  },
+  {
+   "file": "t0182/plan-pair/lambda-0.json",
+   "value": 0.35824194456673425,
+   "mean": 0.29731832803080477,
+   "p90": 0.8,
+   "dudFraction": 0.578771459456102,
+   "episodeCount": 2,
+   "totalLength": 18224.015165189492
+  },
+  {
+   "file": "t0182/plan-pair/lambda-4.json",
+   "value": 0.35824194456673425,
+   "mean": 0.29731832803080477,
+   "p90": 0.8,
+   "dudFraction": 0.578771459456102,
+   "episodeCount": 2,
+   "totalLength": 18224.015165189492
+  },
+  {
+   "file": "t0182/plan-pair/lambda-6.json",
+   "value": 0.6558262970392523,
+   "mean": 0.6409400686982275,
+   "p90": 0.7,
+   "dudFraction": 0.024918294531227573,
+   "episodeCount": 4,
+   "totalLength": 33068.8266134194
+  },
+  {
+   "file": "t0182/plan-pair/lambda-7.5.json",
+   "value": 0.6558262970392523,
+   "mean": 0.6409400686982275,
+   "p90": 0.7,
+   "dudFraction": 0.024918294531227573,
+   "episodeCount": 4,
+   "totalLength": 33068.8266134194
+  },
+  {
+   "file": "t0182/plan-pair/lambda-7.75.json",
+   "value": 0.6558262970392523,
+   "mean": 0.6409400686982275,
+   "p90": 0.7,
+   "dudFraction": 0.024918294531227573,
+   "episodeCount": 4,
+   "totalLength": 33068.8266134194
+  },
+  {
+   "file": "t0182/plan-pair/lambda-7.json",
+   "value": 0.6558262970392523,
+   "mean": 0.6409400686982275,
+   "p90": 0.7,
+   "dudFraction": 0.024918294531227573,
+   "episodeCount": 4,
+   "totalLength": 33068.8266134194
+  },
+  {
+   "file": "t0182/t0213-pair/fastest.json",
+   "value": 0.6597435800667766,
+   "mean": 0.6676395521803208,
+   "p90": 0.8,
+   "dudFraction": 0.05004545272055096,
+   "episodeCount": 2,
+   "totalLength": 8114.568086704045
+  },
+  {
+   "file": "t0182/t0213-pair/lambda-0.json",
+   "value": 0.6597435800667766,
+   "mean": 0.6676395521803208,
+   "p90": 0.8,
+   "dudFraction": 0.05004545272055096,
+   "episodeCount": 2,
+   "totalLength": 8114.568086704045
+  },
+  {
+   "file": "t0221/santa-monica-topanga/fastest.json",
+   "value": 0.44321187504263704,
+   "mean": 0.4057327170349596,
+   "p90": 0.8,
+   "dudFraction": 0.44596281230003587,
+   "episodeCount": 2,
+   "totalLength": 19299.542590207435
+  },
+  {
+   "file": "t0221/santa-monica-topanga/lambda-0.json",
+   "value": 0.44321187504263704,
+   "mean": 0.4057327170349596,
+   "p90": 0.8,
+   "dudFraction": 0.44596281230003587,
+   "episodeCount": 2,
+   "totalLength": 19299.542590207435
+  },
+  {
+   "file": "t0221/santa-monica-topanga/lambda-4.json",
+   "value": 0.49109741604450735,
+   "mean": 0.45477683850303247,
+   "p90": 0.8,
+   "dudFraction": 0.3229023581598584,
+   "episodeCount": 2,
+   "totalLength": 20358.29513808725
+  },
+  {
+   "file": "t0221/santa-monica-topanga/lambda-6.json",
+   "value": 0.49109741604450735,
+   "mean": 0.45477683850303247,
+   "p90": 0.8,
+   "dudFraction": 0.3229023581598584,
+   "episodeCount": 2,
+   "totalLength": 20358.29513808725
+  },
+  {
+   "file": "t0221/santa-monica-topanga/lambda-7.5.json",
+   "value": 0.49109741604450735,
+   "mean": 0.45477683850303247,
+   "p90": 0.8,
+   "dudFraction": 0.3229023581598584,
+   "episodeCount": 2,
+   "totalLength": 20358.29513808725
+  },
+  {
+   "file": "t0221/santa-monica-topanga/lambda-7.75.json",
+   "value": 0.49109741604450735,
+   "mean": 0.45477683850303247,
+   "p90": 0.8,
+   "dudFraction": 0.3229023581598584,
+   "episodeCount": 2,
+   "totalLength": 20358.29513808725
+  },
+  {
+   "file": "t0221/santa-monica-topanga/lambda-7.json",
+   "value": 0.49109741604450735,
+   "mean": 0.45477683850303247,
+   "p90": 0.8,
+   "dudFraction": 0.3229023581598584,
+   "episodeCount": 2,
+   "totalLength": 20358.29513808725
+  },
+  {
+   "file": "t0221/westwood-malibu/fastest.json",
+   "value": 0.12050821266906987,
+   "mean": 0.15909712157950961,
+   "p90": 0.5,
+   "dudFraction": 0.6663337351909059,
+   "episodeCount": 0,
+   "totalLength": 26776.061533185682
+  },
+  {
+   "file": "t0221/westwood-malibu/lambda-0.json",
+   "value": 0.0,
+   "mean": 0.02569714310606613,
+   "p90": 0.0,
+   "dudFraction": 0.9497144466553651,
+   "episodeCount": 0,
+   "totalLength": 31139.975443844287
+  },
+  {
+   "file": "t0221/westwood-malibu/lambda-2.json",
+   "value": 0.12050821266906987,
+   "mean": 0.15909712157950961,
+   "p90": 0.5,
+   "dudFraction": 0.6663337351909059,
+   "episodeCount": 0,
+   "totalLength": 26776.061533185682
+  },
+  {
+   "file": "t0221/westwood-malibu/lambda-3.25.json",
+   "value": 0.22555517731669944,
+   "mean": 0.250811843621157,
+   "p90": 0.6,
+   "dudFraction": 0.4995461923732985,
+   "episodeCount": 0,
+   "totalLength": 29214.378282500522
+  },
+  {
+   "file": "t0221/westwood-malibu/lambda-3.5.json",
+   "value": 0.6478636201297863,
+   "mean": 0.5979586998865847,
+   "p90": 0.8,
+   "dudFraction": 0.07274399868109667,
+   "episodeCount": 7,
+   "totalLength": 54739.597733512564
+  },
+  {
+   "file": "t0221/westwood-malibu/lambda-3.json",
+   "value": 0.12050821266906987,
+   "mean": 0.15909712157950961,
+   "p90": 0.5,
+   "dudFraction": 0.6663337351909059,
+   "episodeCount": 0,
+   "totalLength": 26776.061533185682
+  },
+  {
+   "file": "t0221/westwood-malibu/lambda-4.json",
+   "value": 0.6478636201297863,
+   "mean": 0.5979586998865847,
+   "p90": 0.8,
+   "dudFraction": 0.07274399868109667,
+   "episodeCount": 7,
+   "totalLength": 54739.597733512564
+  },
+  {
+   "file": "t0221/westwood-woodland-hills/fastest.json",
+   "value": 0.0,
+   "mean": 0.02868208397809157,
+   "p90": 0.0,
+   "dudFraction": 0.9322248590420986,
+   "episodeCount": 0,
+   "totalLength": 28057.52058182279
+  },
+  {
+   "file": "t0221/westwood-woodland-hills/lambda-0.json",
+   "value": 0.0,
+   "mean": 0.0265686376878523,
+   "p90": 0.0,
+   "dudFraction": 0.9376994935174472,
+   "episodeCount": 0,
+   "totalLength": 28482.68623239285
+  },
+  {
+   "file": "t0221/westwood-woodland-hills/lambda-4.json",
+   "value": 0.5472332769860156,
+   "mean": 0.5247565964413157,
+   "p90": 0.7,
+   "dudFraction": 0.06191565030293577,
+   "episodeCount": 2,
+   "totalLength": 30332.753227295663
+  },
+  {
+   "file": "t0221/westwood-woodland-hills/lambda-6.json",
+   "value": 0.5472332769860156,
+   "mean": 0.5247565964413157,
+   "p90": 0.7,
+   "dudFraction": 0.06191565030293577,
+   "episodeCount": 2,
+   "totalLength": 30332.753227295663
+  },
+  {
+   "file": "t0221/westwood-woodland-hills/lambda-7.5.json",
+   "value": 0.5472332769860156,
+   "mean": 0.5247565964413157,
+   "p90": 0.7,
+   "dudFraction": 0.06191565030293577,
+   "episodeCount": 2,
+   "totalLength": 30332.753227295663
+  },
+  {
+   "file": "t0221/westwood-woodland-hills/lambda-7.75.json",
+   "value": 0.5472332769860156,
+   "mean": 0.5247565964413157,
+   "p90": 0.7,
+   "dudFraction": 0.06191565030293577,
+   "episodeCount": 2,
+   "totalLength": 30332.753227295663
+  },
+  {
+   "file": "t0221/westwood-woodland-hills/lambda-7.json",
+   "value": 0.5472332769860156,
+   "mean": 0.5247565964413157,
+   "p90": 0.7,
+   "dudFraction": 0.06191565030293577,
+   "episodeCount": 2,
+   "totalLength": 30332.753227295663
+  },
+  {
+   "file": "t0239/topanga-malibu/alternatives-fastest.json",
+   "value": 0.35824194456673425,
+   "mean": 0.29731832803080477,
+   "p90": 0.8,
+   "dudFraction": 0.578771459456102,
+   "episodeCount": 2,
+   "totalLength": 18224.015165189492
+  },
+  {
+   "file": "t0239/topanga-malibu/alternatives-lambda-0.json",
+   "value": 0.35824194456673425,
+   "mean": 0.29731832803080477,
+   "p90": 0.8,
+   "dudFraction": 0.578771459456102,
+   "episodeCount": 2,
+   "totalLength": 18224.015165189492
+  },
+  {
+   "file": "t0239/topanga-malibu/alternatives-lambda-2.json",
+   "value": 0.35824194456673425,
+   "mean": 0.29731832803080477,
+   "p90": 0.8,
+   "dudFraction": 0.578771459456102,
+   "episodeCount": 2,
+   "totalLength": 18224.015165189492
+  },
+  {
+   "file": "t0239/topanga-malibu/alternatives-lambda-4.json",
+   "value": 0.35824194456673425,
+   "mean": 0.29731832803080477,
+   "p90": 0.8,
+   "dudFraction": 0.578771459456102,
+   "episodeCount": 2,
+   "totalLength": 18224.015165189492
+  },
+  {
+   "file": "t0239/topanga-malibu/alternatives-lambda-6.json",
+   "value": 0.6558262970392523,
+   "mean": 0.6409400686982275,
+   "p90": 0.7,
+   "dudFraction": 0.024918294531227573,
+   "episodeCount": 4,
+   "totalLength": 33068.8266134194
+  },
+  {
+   "file": "t0239/topanga-malibu/alternatives-lambda-8.json",
+   "value": 0.6558262970392523,
+   "mean": 0.6409400686982275,
+   "p90": 0.7,
+   "dudFraction": 0.024918294531227573,
+   "episodeCount": 4,
+   "totalLength": 33068.8266134194
+  },
+  {
+   "file": "t0239/topanga-malibu/fastest.json",
+   "value": 0.35824194456673425,
+   "mean": 0.29731832803080477,
+   "p90": 0.8,
+   "dudFraction": 0.578771459456102,
+   "episodeCount": 2,
+   "totalLength": 18224.015165189492
+  },
+  {
+   "file": "t0239/zuma-agoura/alternatives-fastest.json",
+   "value": 0.39946903429705954,
+   "mean": 0.453622829092692,
+   "p90": 0.6,
+   "dudFraction": 0.15136442105703735,
+   "episodeCount": 0,
+   "totalLength": 23231.363564824816
+  },
+  {
+   "file": "t0239/zuma-agoura/alternatives-lambda-0.json",
+   "value": 0.39946903429705954,
+   "mean": 0.453622829092692,
+   "p90": 0.6,
+   "dudFraction": 0.15136442105703735,
+   "episodeCount": 0,
+   "totalLength": 23231.363564824816
+  },
+  {
+   "file": "t0239/zuma-agoura/alternatives-lambda-2.json",
+   "value": 0.39946903429705954,
+   "mean": 0.453622829092692,
+   "p90": 0.6,
+   "dudFraction": 0.15136442105703735,
+   "episodeCount": 0,
+   "totalLength": 23231.363564824816
+  },
+  {
+   "file": "t0239/zuma-agoura/alternatives-lambda-4.json",
+   "value": 0.39946903429705954,
+   "mean": 0.453622829092692,
+   "p90": 0.6,
+   "dudFraction": 0.15136442105703735,
+   "episodeCount": 0,
+   "totalLength": 23231.363564824816
+  },
+  {
+   "file": "t0239/zuma-agoura/alternatives-lambda-6.json",
+   "value": 0.39946903429705954,
+   "mean": 0.453622829092692,
+   "p90": 0.6,
+   "dudFraction": 0.15136442105703735,
+   "episodeCount": 0,
+   "totalLength": 23231.363564824816
+  },
+  {
+   "file": "t0239/zuma-agoura/alternatives-lambda-8.json",
+   "value": 0.39946903429705954,
+   "mean": 0.453622829092692,
+   "p90": 0.6,
+   "dudFraction": 0.15136442105703735,
+   "episodeCount": 0,
+   "totalLength": 23231.363564824816
+  },
+  {
+   "file": "t0239/zuma-agoura/fastest.json",
+   "value": 0.39946903429705954,
+   "mean": 0.453622829092692,
+   "p90": 0.6,
+   "dudFraction": 0.15136442105703735,
+   "episodeCount": 0,
+   "totalLength": 23231.363564824816
+  }
+ ]
+}

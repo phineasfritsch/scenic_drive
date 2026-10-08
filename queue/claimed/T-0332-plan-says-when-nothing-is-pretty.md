@@ -16,7 +16,7 @@ depends_on: []
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "A1 PARITY: services/api/src/routeScore.ts ports Sources/ScenicKit/Scoring/RouteScore.swift (the same weights, thresholds and boundaryTolerance) over tableRows(path) (planWaypoints.ts, the PlanTable port): every row of positive metres with a scenic_score becomes an edge of score/10, unscored metres are left out. Tests/Fixtures/t0332/route-scores.json, written by Tests/Fixtures/t0332/oracle.py (an independent Python reading), holds value, mean, p90, dudFraction, episodeCount and totalLength for ALL 44 recorded router bodies under Tests/Fixtures carrying scenic_score (24 below 0.45, 20 at or above, R2). routeScoreParity.test.ts (through routeScoreOf, the function planScenic calls) and Swift RouteScoreParityTests (through RouteScore(edges: PlanTable(path:).scoredEdges)) each equal that file field for field to 1e-9, assert the 44-file / 24-20 split, and assert the golden lists exactly the fixture files that carry scenic_score (nothing skipped)."
-  - "A2 BOUNDS, one table, every row a whole-object equality to an independent recomputation: isHonestFailure (the predicate planScenic calls) is false at exactly 0.45 and true at the next double below; through scoreEdges (the function routeScoreOf calls) scores 0.25 / the next double above straddle dudThreshold, 0.6 / the next double above straddle episodeThreshold, an above-threshold run of exactly 800 m is an episode and the next double below 800 m is not, the 90th-percentile boundary on [9000 m @ 0.1, 1000 m @ 0.9] split k = 1..12 ways gives 0.1 every time; through routeScoreOf, no scenic_score detail or every scored row 0 m is null, and an encoded score of 11 or -1 makes the route null (RouteScore's isValid, as Swift) - never clamped."
+  - "A2 BOUNDS, one table, every row a whole-object equality to an independent recomputation: isHonestFailure (the predicate planScenic calls) is false at exactly 0.45 and true at the next double below; through scoreEdges (the function routeScoreOf calls) scores 0.25 / the next double above straddle dudThreshold, 0.6 / the next double above straddle episodeThreshold, an above-threshold run of exactly 800 m is an episode, 800 m less 4e-7 m still is (inside the 1e-9-of-route tolerance, R10) and 799.999 m is not, the 90th-percentile boundary on [9000 m @ 0.1, 1000 m @ 0.9] split k = 1..12 ways gives 0.1 every time; through routeScoreOf, no scenic_score detail or every scored row 0 m is null, and an encoded score of 11 or -1 makes the route null (RouteScore's isValid, as Swift) - never clamped."
   - "A3 POPULATION, MISSED then CAUGHT through handlePlan (the shipping entry point) on the recorded t0221 westwood-malibu pair at budget_minutes 25: on d6b48cc0 the answer is 200 with lambda 3.25 (RouteScore 0.226, R2 - quoted red by test name in the Log); after, it is 422 whose WHOLE body equals {error: nothing_pretty, budget_minutes: 25, more_time_minutes: 65, back_roads_eta_s: E}, E recomputed in the test from the body the router fake answers lambda 8 with (the recorded lambda-4 body: no lambda-8 recording exists for that pair, R5), with no plan_token remembered. The santa-monica-topanga pair (chosen route 0.491) still answers its whole previous 200 body (planWire's existing equality, unedited)."
   - "A4 OFFERS, a table through handlePlan: more_time_minutes is budget + 40 when that is <= MAX_BUDGET_MINUTES (budget 140 -> 180 exactly) and null when it is not (the next double above 140, and 180); back_roads_eta_s is the MAX_LAMBDA (8) route's own duration in seconds when that route's routeScoreOf is >= 0.45, null when it scores below 0.45, null when it has no score, null when the router refuses it; the back-roads request carries buildCustomModel(8, closures) compared whole; a refused plan's upstream calls stay <= PLAN_UPSTREAM_COST (worst case 1 + 6 + 1 + 1 = 9, counted) and the quota is reserved exactly once."
   - "A5 FAIL CLOSED: a chosen route with no scenic_score detail answers 422 nothing_pretty, never 200 (curveRouter's synthetic bodies gain a default scenic_score run so every pre-existing /plan test keeps its whole answer); a reroute (T-0319 planReroute) is exempt and keeps its whole previous answer (R6)."
@@ -96,3 +96,28 @@ whether the +40 / all-back-roads offers are one more request each (budget ceilin
   - R9 no ops/mutate population: CLAUDE.md requires one for a numeric module under services/etl/etl/ or Sources/; the
     Sources/ addition is PlanTable.scoredEdges (a filter + divide, held whole by A1's 44-file golden). The TS port is
     held by A1 + A2's bound table.
+- 2026-10-08T21:45:50Z RULED R10 (agent/claude-opus-5, owner): A2 as first written said "the next double below 800 m
+  is not an episode". RouteScore.swift's episode bound is `run >= 800 - total * 1e-9` on purpose (its own comment and
+  RouteScoreBoundaryTests), so the next double below 800 m IS an episode in both ports. A2 now names the tolerated
+  bound: 800 m and 800 m less 4e-7 m are episodes, 799.999 m is not. The acceptance changed, not the code.
+- 2026-10-08T21:45:50Z RED by name on d6b48cc0's src (the tests written first, `npx vitest run test/planHonest.test.ts
+  test/planReroute.test.ts`, before scenicPlanner/plan changed): 8 failed - "westwood-malibu +25 (RouteScore 0.226)
+  answers nothing_pretty with both offers, never a 200 route" received `{ status: 200, ... "lambda": 3.25, "eta_s":
+  1904.238, "fastest_eta_s": 1667.261, "plan_token": null ... }` (the population MISSED: the dull route sold as
+  scenic), and the six A4 rows plus the R3 fail-closed row each received 200. The reroute-exempt row and "a pretty
+  chosen route still answers 200" were green before and after (they guard against over-applying the refusal).
+- 2026-10-08T21:45:50Z GREEN: same files 19/19 after honestFailure.ts + the planScenic / plan.ts change (CAUGHT by name:
+  westwood-malibu +25 now 422 nothing_pretty, more 65, back_roads_eta_s = the lambda-8 answer's own time). The first
+  full suite run then failed 38: closuresCrossing's 35 synthetic answers carried no scenic_score (now honest failures
+  under R3 - given a per-edge score of 8, nothing else in the rows changed), reflectionSites (HonestFailure's
+  constructor added to its whitelist), requestReadSites (a comment of mine said `.json`; reworded) and
+  configAnswerPath's known 5 s timeout (environment; green re-run alone). A1/A2: routeScoreParity 3/3 and
+  routeScoreBounds 25/25 through vitest; Swift `swift test --filter
+  "RouteScoreParityTests|PlanFailureCopyTests|PlanSheetGateTests|NothingPrettyReaderTests|PlanClientResponseTests|RouteScore"`:
+  "Test run with 40 tests in 6 suites passed", XCTest "Executed 30 tests, with 0 failures".
+- 2026-10-08T21:45:50Z PRE-REVIEW MUTANTS (.artifacts/t0332/mutants.sh, each restored): M1 more_time `<=` -> `<`
+  CAUGHT ("budget 140 offers exactly 180"); M2 dud `<=` -> `<` CAUGHT ("scoreEdges: 0.25 is a dud"); M3 offer a dull
+  back-roads route CAUGHT ("a dull back-roads route is not offered" + 2); M4 an unscored route is not a failure
+  CAUGHT ("isHonestFailure: an unscorable route (null) is" + 2); M5 episode bound `>= 800 - tol` -> `> 800` CAUGHT
+  ("scoreEdges: 0.9 over exactly 800 m is an episode" + 1). 5/5.
+

@@ -25,6 +25,9 @@ enum PlanResponseReader {
             return .unknownPlace
         case (422, "no_scenic_alternative"?):
             return .noScenicAlternative
+        case (422, "nothing_pretty"?):
+            guard let offer = body?.nothingPretty else { return .unexpectedResponse(status: status) }
+            return .nothingPretty(offer)
         case (422, "region_unsupported"?):
             return .regionUnsupported
         case (429, "quota_exhausted"?):
