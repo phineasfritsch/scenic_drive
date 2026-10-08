@@ -202,3 +202,41 @@ a device, so the Apple-only half is compile-checked in CI and exercised on devic
     check-store-links exit=0, check-mutate-population `the floor of 102 holds`, check-line-cap `378 Swift files
     tracked ..., none over 300 lines`, check-pins-yaml `PINS-YAML ok pins=44`, queue-check `QUEUE OK (302 tasks)`.
   - origin/main fetched: 9e0c69be, already an ancestor of the head - nothing to merge.
+- 2026-10-08T04:28:54Z agent/claude-opus-5 - rv1-t0310 FAIL (PR #199, head 12876b97) B1 and B2 closed by class:
+  - Ruling: B1 is right - the fixture challenge holds no 'a' or 'z' and no row puts a character at a lowercase
+    bound, so `(97..<122)` survived; the class is every character-class check in AttestReplyReader and LedgerEntry.
+    LedgerEntry's cell class already had its every-bound table (T-0307 33-42); its place id digit class did not.
+    B2 is right - the only read test used FixedLedgerSession, whose `sessionRejected` is a no-op; the class is
+    every LedgerClient/AttestClient path that can receive a 401, driven over a real SessionStore. No Sources/ file
+    changes (tests, populations and this Log only), so no digest row moves.
+  - Population first (cd4efbec): session 41-56 (every bound of the challenge's three classes, '_', the length
+    ceiling, the read's 401, a 401 assertion forgetting the key), ledger 45-46 (the place id class at '0' and '9')
+    and EQUIVALENT E2-E3 (the place id class admitting '/' or ':' - Int64(String) refuses both on the next clause).
+    MIN_MUTATIONS 40 -> 56 (session), 44 -> 46 and MIN_EQUIVALENT 1 -> 3 (ledger).
+  - Before the tests, on cd4efbec: `python ops/mutate/session.py --only 41..56` -> `MISSED` 41 42 43 44 45 46 47 48
+    55 56 (`exit=0  no test objected`); 49-52 and 54 red only in FLOW/REJECTED/SHOWINGS and 53 only in TABLE (`WRONG
+    KILLER`: the fixture holds 0 9 A Z - _); `MUTATE FAILED  caught=0/16`. `python ops/mutate/ledger.py --only
+    45,46,E2,E3` -> 45, 46 `WRONG KILLER` (red only in the POST test), E2, E3 `MISSED`; `MUTATE FAILED  caught=0/2`.
+  - The rows (0bf8a893): AttestClientTests "Every challenge position admits exactly 0-9, A-Z, a-z, '-' and '_', at
+    both bounds of each class" (0 9 A Z a z - _ admitted, / : @ [ ` { , . ^ + refused, each at all 43 positions,
+    through AttestClient.challenge) and "A challenge is read at exactly 43 characters" (0 1 42 43 44 86);
+    LedgerClientTests "Every place id position admits exactly 0-9 at both bounds, and a leading 0 nowhere" (/ 0 9 :
+    at all 19 positions, through LedgerClient.record); SurpriseLedgerWriteTests "A GET /ledger 401 drops the
+    session: the next POST carries the renewed token" (real SessionStore; ledgerPlaces() == nil, then recordShown(a);
+    requests == [GET old, challenge, assert, POST new a] by full equality); SessionStoreTests flow rows "a 401
+    challenge / attestation is the launch's one try", "a 401 assertion is the launch's one try and keeps the key".
+  - After, on 0bf8a893: session `--only 41..56` -> every entry `caught` by its named test, `MUTATE OK
+    caught=16/16 equivalent_caught=0`; ledger `--only 45,46,E2,E3` -> 45, 46 `caught`, E2, E3 `MISSED` (as an
+    equivalent must), `MUTATE OK  caught=2/2 equivalent_caught=0`.
+  - `swift test --filter "SessionStoreTests|SurpriseLedgerWriteTests|KeychainDecisionTests|AttestClientTests|
+    SurpriseShowingTests|Ledger"` -> `Test run with 27 tests in 6 suites passed`. Lines: AttestClientTests 126,
+    LedgerClientTests 224, SessionStoreTests 145, SurpriseLedgerWriteTests 128, AttestWire 71.
+  - origin/main fetched (934d5e68: T-0311 merged as PR #200, T-0312/T-0313 filed) and merged LAST (bb5c763f). Two
+    conflicts: the linked digests (LedgerSessionProvider, LedgerSurpriseSource ours; PlanClient theirs - each row the
+    sha256 of the merged file) and named-tests P-PROD-02 (both sides' suites kept: SurpriseLedgerWriteTests and
+    PlanVehicleWireTests in the filter, showings and the three PlanVehicleWireTests in the list). On the merged head:
+    check-safety-disclaimer rc=0, check-map-attribution rc=0, check-store-links rc=0, check-mutate-population `the
+    floor of 102 holds`, check-line-cap `379 Swift files tracked ..., none over 300 lines`, check-pins-yaml
+    `PINS-YAML ok pins=44`, queue-check `QUEUE OK (304 tasks)`, `run-named-tests P-PROD-02` -> `NAMED P-PROD-02
+    passed=7/7`, `swift test --filter "...|Ledger|PlanVehicleWireTests"` -> `Test run with 30 tests in 7 suites
+    passed`. ios-compile and ios-screenshot dispatched on the pushed head.
