@@ -138,3 +138,25 @@ mode) and Live Activity are separate follow-ups; Live Activity needs the xcodepr
   lostEdgeCancels gained an online-report row (NWPathMonitor repeats updates while online). Allowlisted, no code:
   DriveCommand, RerouteReply, RerouteSending. check-mutate-population: "every added module is covered or
   allowlisted; the floor of 128 holds". Filed T-0322 (backlog) for the drive screen (R6).
+- 2026-10-08T13:22:26Z RENUMBERED after merging origin/main (9ffda37b): main had filed T-0322 (session carries the account token)
+  and T-0323 meanwhile, so the drive-screen follow-up this Log calls T-0322 (R6 and the entries after it) is
+  T-0324 (queue/backlog/T-0324-drive-screen-on-navadapter.md); the earlier entries stay as written. DriveNavigator's
+  comment names T-0324; its -pinned digest is re-approved.
+- 2026-10-08T13:39:40Z ACCEPTANCE RE-RUN on the merged head (origin/main merged at 9ffda37b, then the T-0324 renumber):
+  1 MEASURE/RULE: the 12:03:05Z entry (R1-R11), R8 amended before CI, the renumber entry above.
+  2 Package.swift: ferrostar `exact: "0.57.0"`, NavAdapter target, product FeatureScenicHome carries it; the Xcode
+    workspace Package.resolved committed (ferrostar 0.57.0 4e2d7f64, swiftui-dsl 0.25.0, swift-syntax 602.0.0, GRDB
+    and MapLibre unchanged) and accepted by -disableAutomaticPackageResolution. P-NAV-02 guard red (arms in the
+    12:40 entry) then green: check-ferrostar-imports.py exit 0.
+  3 NavAdapter forwards every tapped fix and every reachability report to DriveController and acts only on its
+    commands; the lost edge cancels the ticketed reroute and a late reply/failure is dropped (DriveControllerTests,
+    entries 32-41); offline and (until T-0319) online off-route is rejoin with zero requests (RerouteUnavailable,
+    entry 42). NOT DONE HERE, ruled R6 and filed as T-0324: the drive screen showing the minimal surface, and its
+    map's attribution - there is no drive map yet, so P-ATTR-01 is unchanged and green.
+  4 ios-compile 37778711745 + ios-screenshot 37778716359 success on f70b834f (no drive shot, R6); later commits
+    touch no Swift that CI compiles except a comment in DriveNavigator.swift and the merge; digests re-approved
+    (-pinned, -linked-digests, -doors); population 18/18 caught by name, vacuity 18/18 MISSED, E2-E4 device-only.
+  Gates on this head: drive + guidance suites "Test run with 49 tests in 6 suites passed"; check-ferrostar-imports
+  0; check-safety-disclaimer 0; check-map-attribution 0; check-store-links 0; check-mutate-population 0 ("the floor
+  of 130 holds"); check-line-cap "473 Swift files tracked ... none over 300 lines"; check-pins-yaml "ok pins=47";
+  queue-check "QUEUE OK (315 tasks)".

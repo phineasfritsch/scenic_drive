@@ -14,7 +14,7 @@ import ScenicKit
 /// dropped by the controller. Ferrostar's own deviation tracking is off and its delegate answers `.doNothing`.
 @MainActor
 public final class DriveNavigator: ObservableObject {
-    /// What the drive screen (T-0322) shows: the controller's mode and surface after the latest input.
+    /// What the drive screen (T-0324) shows: the controller's mode and surface after the latest input.
     @Published public private(set) var mode: DriveMode
     @Published public private(set) var surface: DriveSurface
     public let core: FerrostarCore
