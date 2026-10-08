@@ -89,7 +89,7 @@ struct PlanSheetGateTests {
         #expect(requests.count == 1)
         let sent = try JSONSerialization.jsonObject(with: try #require(requests.first).body) as? NSDictionary
         let expected: NSDictionary = ["origin": ["lat": 34.01, "lon": -118.5], "destination": ["place": "42"],
-                                      "budget_minutes": 45]
+                                      "budget_minutes": 45, "vehicle": "standard"]
         #expect(sent == expected)
     }
 

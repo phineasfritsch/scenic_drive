@@ -8,7 +8,7 @@ import XCTest
 /// provider sends nothing. Every assertion is on the whole recorded request, by exact equality.
 final class PlanClientDeviceTests: XCTestCase {
     private let ok = PlanHTTPReply(status: 200, body: Data())
-    private let body = #"{"budget_minutes":25,"destination":{"place":"42"},"origin":{"lat":34.02,"lon":-118.49}}"#
+    private let body = #"{"budget_minutes":25,"destination":{"place":"42"},"origin":{"lat":34.02,"lon":-118.49},"vehicle":"standard"}"#
 
     private func request(device: String, body: String) -> PlanHTTPRequest {
         PlanHTTPRequest(url: URL(string: "https://scenic-api.test/plan")!, method: "POST",
@@ -49,7 +49,7 @@ final class PlanClientDeviceTests: XCTestCase {
         XCTAssertEqual(sent, [
             request(device: PlanWire.deviceHeader, body: body),
             request(device: PlanWire.deviceHeader,
-                    body: #"{"budget_minutes":25,"destination":{"place":"42"},"origin":{"lat":37.77,"lon":-122.42}}"#),
+                    body: #"{"budget_minutes":25,"destination":{"place":"42"},"origin":{"lat":37.77,"lon":-122.42},"vehicle":"standard"}"#),
         ])
     }
 }

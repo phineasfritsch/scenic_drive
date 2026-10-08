@@ -6,6 +6,7 @@ import ScenicKit
 /// ONE coordinate - `origin` - and a destination that is the corpus `place_id` integer, so no parameter exists
 /// through which a second coordinate could ride. The origin must already be at 2 decimal places; this type
 /// refuses rather than rounds, so a caller that forgot to round is told instead of being made to look compliant.
+/// `vehicle` is the profile's raw value, always sent; a profile that is not enabled is refused here (T-0311 R6).
 struct PlanRequestBody: Encodable {
     /// T-0248's MAX_BUDGET_MINUTES: the Worker refuses more, so the device does too.
     static let maxBudgetMinutes = 180
@@ -14,17 +15,19 @@ struct PlanRequestBody: Encodable {
     let place: Int64
     let budgetMinutes: Int
     let departsAt: Date?
+    let vehicle: VehicleProfile
 
-    private init(origin: Coordinate, place: Int64, budgetMinutes: Int, departsAt: Date?) {
+    private init(origin: Coordinate, place: Int64, budgetMinutes: Int, departsAt: Date?, vehicle: VehicleProfile) {
         self.origin = origin
         self.place = place
         self.budgetMinutes = budgetMinutes
         self.departsAt = departsAt
+        self.vehicle = vehicle
     }
 
     /// The body, or why it may not be sent. Range first (a NaN or an infinity fails `contains`), then decimals.
     static func validated(origin: Coordinate, place: Int64, budgetMinutes: Int,
-                          departsAt: Date?) -> Result<PlanRequestBody, PlanRefusal> {
+                          departsAt: Date?, vehicle: VehicleProfile) -> Result<PlanRequestBody, PlanRefusal> {
         guard (-90.0...90.0).contains(origin.latitude), (-180.0...180.0).contains(origin.longitude) else {
             return .failure(.originOutOfRange)
         }
@@ -32,8 +35,9 @@ struct PlanRequestBody: Encodable {
             return .failure(.originMoreThanTwoDecimals)
         }
         guard (0...maxBudgetMinutes).contains(budgetMinutes) else { return .failure(.budgetOutOfRange) }
+        guard vehicle.isEnabled else { return .failure(.vehicleNotEnabled) }
         return .success(PlanRequestBody(origin: origin, place: place, budgetMinutes: budgetMinutes,
-                                        departsAt: departsAt))
+                                        departsAt: departsAt, vehicle: vehicle))
     }
 
     /// The double nearest some k/100 - the Swift twin of planRequest.ts's `Number(v.toFixed(2)) === v`.
@@ -50,7 +54,7 @@ struct PlanRequestBody: Encodable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case origin, destination, lat, lon, place
+        case origin, destination, lat, lon, place, vehicle
         case budgetMinutes = "budget_minutes"
         case departsAt = "departs_at"
     }
@@ -66,5 +70,6 @@ struct PlanRequestBody: Encodable {
         if let departsAt {
             try top.encode(Self.instant(departsAt), forKey: .departsAt)
         }
+        try top.encode(vehicle.rawValue, forKey: .vehicle)
     }
 }

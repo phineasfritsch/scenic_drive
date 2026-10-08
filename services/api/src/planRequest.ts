@@ -8,6 +8,7 @@
  * is refused. A coordinate cannot ride in under a name nobody thought of, because there is no such name.
  */
 import type { LatLon } from "./latLon";
+import { vehicleProblem } from "./vehicle";
 
 export const ORIGIN_DECIMALS = 2;
 export const MAX_BUDGET_MINUTES = 180;
@@ -15,7 +16,7 @@ export const MAX_PLACE_ID_LENGTH = 128;
 export const PLACE_ID = /^[A-Za-z0-9:._-]+$/;
 const INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?Z$/;
 
-const BODY_KEYS = ["origin", "destination", "budget_minutes", "departs_at"];
+const BODY_KEYS = ["origin", "destination", "budget_minutes", "departs_at", "vehicle"];
 const ORIGIN_KEYS = ["lat", "lon"];
 const DESTINATION_KEYS = ["place"];
 
@@ -99,6 +100,9 @@ export function parsePlanRequest(body: unknown): Parsed {
     if (problem) return refuse(problem);
     departsAt = body.departs_at as string;
   }
+
+  const vehicle = vehicleProblem(body.vehicle, "/plan");
+  if (vehicle) return refuse(vehicle);
 
   return {
     ok: true,
