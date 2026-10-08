@@ -229,7 +229,7 @@ MUTATIONS = [
      "Self.transition(from: session.mode, to: mode)", [V_QUIET, V_OFFLINE]),
     ("66 a leg spoken while rerouting", VOICE, "guard session.mode == .guiding, !arrived,", "guard !arrived,",
      [V_QUIET]),
-    ("67 a landed reroute keeps the old cues", VOICE, "approached = []", "approached = approached", [V_OFFLINE]),
+    ("67 a landed reroute keeps the old cues", VOICE, "approached = []", "approached.formUnion([Int]())", [V_OFFLINE]),
     ("68 an approach repeated", VOICE, "} else if approached.insert(end.vertex).inserted {",
      "} else if approached.insert(end.vertex).inserted || true {", [V_DRIVE, V_QUIET]),
     ("69 speaking after the arrival", VOICE, "guard session.mode == .guiding, !arrived,",
