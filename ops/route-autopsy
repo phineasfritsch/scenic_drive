@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# ops/route-autopsy <origin lat,lon> <destination lat,lon> <extra-minutes> (--recorded <dir> | --router <url>)
+#                   [--terms <ways.json>] [--fixture <Tests/Fixtures/negative/name>] [--max-evaluations N]
+#
+# The plan's gate-failure playbook: re-plan a bad drive with the shipping planner and print every edge's
+# gate verdict, M and E terms and score, the lambda trace and the RouteScore terms; --fixture writes the
+# plan as a pinned NEGATIVE fixture before any weight changes. This file is a WRAPPER and nothing else, as
+# ops/plan is: every decision lives in Sources/ScenicPlanCLI (AutopsyCommand), reached as
+# `scenic-plan --autopsy`. Arguments pass straight through.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ $# -eq 0 ]]; then
+  echo "usage: ops/route-autopsy <origin lat,lon> <destination lat,lon> <extra-minutes> (--recorded <dir> | --router <url>) [--terms <ways.json>] [--fixture <Tests/Fixtures/negative/name>] [--max-evaluations N]"
+  echo "example: ops/route-autopsy 34.0669,-118.4399 34.0356,-118.6894 25 --recorded Tests/Fixtures/t0221/westwood-malibu --terms Tests/Fixtures/t0327/westwood-malibu-terms.json"
+  exit 2
+fi
+
+# Its own scratch path, as ops/plan's: CLAUDE.md requires one per `swift build` on a shared box.
+scratch="${SCENIC_PLAN_SCRATCH:-$here/.build/plan}"
+
+# Build chatter to stderr so stdout carries the report and nothing else.
+swift build --scratch-path "$scratch" --product scenic-plan >&2
+
+bin="$(swift build --scratch-path "$scratch" --product scenic-plan --show-bin-path)"
+exe="$bin/scenic-plan"
+[[ -f "$exe" ]] || exe="$exe.exe"
+exec "$exe" --autopsy "$@"
