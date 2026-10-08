@@ -1,13 +1,13 @@
 ---
 id: T-0329
 title: Spoken guidance on the drive - the voice half of the >4.5 m/s minimal surface: each pinned-waypoint leg, the reroute and the rejoin state are spoken through the platform TTS, calm and sparse, with the audio background mode declared beside location
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T20:54:59Z
+lease_expires_at: 2026-10-09T06:54:59Z
+worktree: .worktrees/T-0329
+branch: task/T-0329
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-SAFE-09, P-PRIV-02]
@@ -28,3 +28,4 @@ xcodeproj lock.
 
 ## Log
 - 2026-10-08T17:21:59Z filed by agent/claude-opus-5 (orchestrator) from T-0324 stillOpen 1.
+- 2026-10-08T20:54:59Z claimed by agent/claude-opus-5; lease until 2026-10-09T06:54:59Z
