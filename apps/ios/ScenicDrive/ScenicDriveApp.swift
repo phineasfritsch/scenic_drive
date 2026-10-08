@@ -2,6 +2,7 @@ import Entitlements
 import FeaturePlanSheet
 import FeatureScenicHome
 import FeatureSurpriseMe
+import NavAdapter
 import PlanAdapter
 import SwiftUI
 
@@ -17,12 +18,16 @@ import SwiftUI
 ///
 /// T-0305: `init()` runs PlanAdapter's `LiveCorpus.launch` before any body, so a verified corpus download is activated
 /// before the Surprise card or the plan sheet opens a PlaceStore; the places download sheet is presented full height.
+///
+/// T-0324 R1/R4: the plan preview's door hands the shell a plan, and the window shows the drive - NavAdapter's
+/// DriveHost composed with FeatureScenicHome's DriveScreen - in place of the home until the drive is ended.
 @main
 struct ScenicDriveApp: App {
     @State private var isShowingSettings = LaunchScreen.atLaunch != .home
     @State private var isPlanning = false
     @State private var corpus: LiveCorpus
     @State private var isShowingCorpusDownload: Bool
+    @State private var drive = DriveRehearsal.atLaunch
 
     init() {
         let corpus = LiveCorpus.launch(wifiOnlyKey: SettingsScreen.corpusWifiOnlyKey)
@@ -32,21 +37,29 @@ struct ScenicDriveApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })
-                .sheet(isPresented: $isShowingSettings) {
-                    SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, onDone: { isShowingSettings = false })
-                }
-                .overlay(alignment: .topLeading) {
-                    PlanDriveButton(action: { isPlanning = true })
-                        .sheet(isPresented: $isPlanning) {
-                            PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, onClose: { isPlanning = false })
-                        }
-                }
-                .sheet(isPresented: $isShowingCorpusDownload) {
-                    CorpusDownloadSheet(status: corpus.statusText, fraction: corpus.fraction, isWorking: corpus.isWorking,
-                                        onDownload: { corpus.start() }, onLater: { isShowingCorpusDownload = false })
-                }
-                .environment(\.surpriseLedger, LiveSurpriseLedger.make())
+            if let drive, let host = DriveHost(preview: drive, content: { display in DriveScreen(preview: drive, display: display, onEnd: { self.drive = nil }) }) {
+                host
+            } else {
+                home
+            }
         }
+    }
+
+    private var home: some View {
+        ScenicHomeScreen(onSettings: { isShowingSettings = true }, surprise: { open, failure in AnyView(SurpriseCard(failure: failure, onOpenInMaps: open)) })
+            .sheet(isPresented: $isShowingSettings) {
+                SettingsScreen(opensPaywall: LaunchScreen.atLaunch == .paywall, vehicle: VehicleSetting.name, onDone: { isShowingSettings = false })
+            }
+            .overlay(alignment: .topLeading) {
+                PlanDriveButton(action: { isPlanning = true })
+                    .sheet(isPresented: $isPlanning) {
+                        PlanSheetScreen(planner: LivePlanner.make(), tripPlanner: LiveTripPlanner.make(), dayLinks: TripDayLinks.urls, loopPlanner: LiveLoopPlanner.make(), loopLink: LoopLinks.url, onDrive: { isPlanning = false; drive = $0 }, onClose: { isPlanning = false })
+                    }
+            }
+            .sheet(isPresented: $isShowingCorpusDownload) {
+                CorpusDownloadSheet(status: corpus.statusText, fraction: corpus.fraction, isWorking: corpus.isWorking,
+                                    onDownload: { corpus.start() }, onLater: { isShowingCorpusDownload = false })
+            }
+            .environment(\.surpriseLedger, LiveSurpriseLedger.make())
     }
 }

@@ -16,8 +16,10 @@
 # Typed, not derived: raised deliberately, in the same commit as the Swift, the day the credit's path grows a
 # line. `$0` below is Swift's closure argument, escaped so bash does not expand it.
 CREDIT_SITES=(
+  "Packages/ScenicApp/Sources/FeatureScenicHome/DriveMapLine.swift: return MapRoute(geoJSON: data, dataCredit: PlanPreview.attribution, lineColor: DesignTokens.route, casingColor: DesignTokens.surface)"
   "Packages/ScenicApp/Sources/FeatureScenicHome/DriveRoute.swift: guard let name = drive.routeGeometryResource, let credit = drive.routeGeometryCredit else {"
   "Packages/ScenicApp/Sources/FeatureScenicHome/DriveRoute.swift: dataCredit: credit,"
+  "Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift: AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))"
   "Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift: AttributionFooter(text: CreditLine.composed(basemap: style.attributionText, routeData: route?.dataCredit))"
   "Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift: public let dataCredit: String"
   "Packages/ScenicApp/Sources/MapAdapter/MapRoute.swift: public init?(geoJSON: Data, dataCredit: String, lineColor: Color, casingColor: Color) {"
@@ -84,4 +86,27 @@ print_credit_sites_verdict() {
   echo "  ($CREDIT_SITES_FOUND, read whole; only // lines dropped) is one of the ${#CREDIT_SITES[@]} approved whole lines, in order: the drive's"
   echo "  routeGeometryCredit bound in DriveRoute.resolve, forwarded unchanged by MapRoute.bundled, read by the footer."
   echo "  Not checked here: the VALUE of routeGeometryCredit (Sources/Handoff, the Linux tests own it)."
+}
+
+# T-0324 R5: THE DRIVE SURFACE, the second map surface. Limbs (d) and (e) read the home screen alone; a drive map
+# with a footer composed from a SECOND resolve, a literal, a route it never draws, or hidden from VoiceOver, would
+# pass them. So the same readers run over DriveScreen.swift: the footer is the ONE composed form, the map is mounted
+# from the same style and route bindings, nothing there is accessibilityHidden(true), and its tiles come from ONE
+# `DriveBasemap.planned(` call - a whitelist, so the home reaching for it too is refused by name.
+MAP_SET="Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift(1) Packages/ScenicApp/Sources/FeatureScenicHome/ScenicHomeScreen.swift(1)"
+DRIVE_SCREEN_REL="Packages/ScenicApp/Sources/FeatureScenicHome/DriveScreen.swift"
+require_drive_surface() {
+  [[ "${1:-}" == "--" ]] && shift
+  local drive="$APP_TREE/$DRIVE_SCREEN_REL" home=("$FOOTER_ARG" "$FOOTER_STYLE" "$FOOTER_ROUTE") mounted styles all_h ok_h
+  [[ -f "$drive" ]] || fail "missing file: $drive" "The drive screen is typed into MAP_SET; a tree without it is a refusal."
+  require_tracked_occurrences "DriveBasemap.planned(" "drive resolve call" "$DRIVE_SCREEN_REL(1)"     "ONE resolve on the drive screen, held in state: a second is a second answer, and the credit then names"     "tiles the renderer never got (mutant pass A5, now on the drive map)." -- "$@"
+  require_composed_footer "$drive"
+  mounted="$(count_fixed_in "styleURL: $FOOTER_STYLE.url" "$drive")"
+  styles="$(count_fixed_in "styleURL:" "$drive")"
+  [[ "$mounted" -eq 1 && "$styles" -eq 1 ]] || fail     "the drive map is not mounted with the value its footer reads: \`styleURL: $FOOTER_STYLE.url\` occurs $mounted"     "time(s) in $drive and \`styleURL:\` $styles time(s), expected 1 and 1. The tiles and the credit are one fact."
+  require_route_mount "$drive" "$FOOTER_ROUTE"
+  read -r all_h ok_h <<<"$(hidden_counts "$drive")"
+  [[ "$all_h" -eq "$ok_h" ]] || fail     "$drive hides something from accessibility: $all_h \`accessibilityHidden\` occurrence(s), $ok_h \`(false)\`."     "A WHITELIST, as at the home: the drive's credit is read by VoiceOver like everybody else's."
+  echo "P-ATTR-01 (f2): the drive map $DRIVE_SCREEN_REL - footer $FOOTER_ARG, mounted from $FOOTER_STYLE and $FOOTER_ROUTE, one DriveBasemap.planned(, nothing hidden."
+  FOOTER_ARG="${home[0]}" FOOTER_STYLE="${home[1]}" FOOTER_ROUTE="${home[2]}"
 }

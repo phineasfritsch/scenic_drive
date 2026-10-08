@@ -237,12 +237,13 @@ if os.path.exists(PLIST):
           re.search(r"<key>CFBundleIdentifier</key>\s*<string>\$\(PRODUCT_BUNDLE_IDENTIFIER\)</string>",
                     plist) is not None,
           "one literal, in the pbxproj: %s" % BUNDLE_ID)
-    # The panel's one-commit change: nothing under apps/ios reads the user's position, so the key is ABSENT.
-    # It returns - with P-PRIV-01's >= 30-char rule - alongside the first feature that asks for location.
+    # T-0324 R6: the key returns with the first feature that asks for location - NavAdapter's DriveNavigator, whose
+    # CoreLocationProvider gets no fix at all without it - under P-PRIV-01's >= 30-char rule. Absent is red.
     location_key = "NSLocationWhenInUseUsageDescription"
-    check("%s is absent because nothing asks for location" % location_key,
-          location_key not in plist,
-          "present" if location_key in plist else "absent")
+    purpose = re.search(r"<key>%s</key>\s*<string>([^<]*)</string>" % location_key, plist)
+    check("%s states its purpose in >= 30 characters" % location_key,
+          purpose is not None and len(purpose.group(1).strip()) >= 30,
+          repr(purpose.group(1)) if purpose else "absent")
 else:
     check("Info.plist exists", False, PLIST)
 

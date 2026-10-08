@@ -30,7 +30,8 @@ REQUEST = _KIT / "RerouteRequest.swift"
 CONTROLLER = _KIT / "DriveController.swift"
 LEG = _KIT / "DriveLeg.swift"
 UNAVAILABLE = _KIT / "RerouteUnavailable.swift"
-SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST, CONTROLLER, LEG, UNAVAILABLE)
+DISPLAY = _KIT / "DriveDisplay.swift"
+SUBJECTS = (SESSION, LINE, SURFACE, FIX, REQUEST, CONTROLLER, LEG, UNAVAILABLE, DISPLAY)
 # NavAdapter (T-0321 R10) is mutated only by EQUIVALENT entries: apps/ios is not compiled on Linux, so those
 # mutants are MISSED here by construction and only a device run observes them.
 NAVIGATOR = ROOT / "apps" / "ios" / "Packages" / "ScenicApp" / "Sources" / "NavAdapter" / "DriveNavigator.swift"
@@ -39,7 +40,7 @@ MUTATED_FILES = SUBJECTS + (NAVIGATOR,)
 _TESTS = ROOT / "Tests" / "ScenicKitTests" / "Drive"
 TEST_FILES = (_TESTS / "DriveSessionTests.swift", _TESTS / "DriveRerouteTests.swift",
               _TESTS / "DriveMotionGateTests.swift", _TESTS / "DriveControllerTests.swift",
-              _TESTS / "DriveLegTests.swift")
+              _TESTS / "DriveLegTests.swift", _TESTS / "DriveDisplayTests.swift")
 
 C_FIX = "T-0321: every fix reaches the session whole; off-route online is one send under ticket 1"
 C_LOST = "T-0321: losing the connection with a reroute out cancels its ticket; with none out it cancels nothing"
@@ -51,6 +52,10 @@ L_INNER = "T-0321: the legs cut the line at each inner pin, end at each pin, and
 L_END = "T-0321: no pin, or a pin on the first or last vertex, cuts nothing - no leg is a single point"
 L_REROUTE = "T-0321: a landed reroute's legs are cut at its own pins"
 L_LEN = "T-0321: a leg's length is the sum of Geo's distances between its consecutive vertices"
+D_TABLE = "P-SAFE-09: the drive screen shows the typed display for every surface and mode, compared whole"
+D_LARGE = "P-SAFE-09: moving shows only the one large action - 60 pt, no details - in every mode"
+D_SESSION = ("P-SAFE-09: the session's display is the table's row for its own surface and mode, before and "
+             "after fixes")
 
 THRESHOLD = "P-NAV-01: 50 m exactly is on the line; the smallest distance above 50 m is away"
 DWELL = "P-NAV-01: off-route needs 5 s away exactly; one ulp less is not; an on-line fix restarts the dwell"
@@ -172,6 +177,26 @@ MUTATIONS = [
      "{ max($0, Geo.distanceMeters($1.0, $1.1)) }", [L_LEN]),
     ("49 inner legs arrive", LEG, "maneuver: GuidanceMapping.maneuver(for: .reachedVia)))",
      "maneuver: GuidanceMapping.maneuver(for: .finish)))", [L_INNER]),
+    # T-0324 R8: what the drive screen shows (DriveDisplay).
+    ("50 the large action at the ordinary height", DISPLAY,
+     "actionMinHeight = moving ? Self.largeActionHeight : Self.actionHeight", "actionMinHeight = Self.actionHeight",
+     [D_TABLE, D_LARGE, D_SESSION]),
+    ("51 moving shows the details", DISPLAY, "showsDetails = !moving", "showsDetails = true",
+     [D_TABLE, D_LARGE, D_SESSION]),
+    ("52 the surfaces swapped", DISPLAY, "let moving = surface == .minimal", "let moving = surface == .full",
+     [D_TABLE, D_LARGE, D_SESSION]),
+    ("53 rerouting captioned as rejoining", DISPLAY, 'case .rerouting: status = moving ? "Finding a new way"',
+     'case .rerouting: status = moving ? "Head back to your route"', [D_TABLE, D_SESSION]),
+    ("54 guiding carries a status", DISPLAY, "case .guiding: status = nil",
+     'case .guiding: status = "Finding a new way"', [D_TABLE, D_SESSION]),
+    ("55 the session's display ignores its surface", DISPLAY,
+     "self.init(surface: session.surface, mode: session.mode)", "self.init(surface: .full, mode: session.mode)",
+     [D_SESSION]),
+    ("56 the session's display ignores its mode", DISPLAY,
+     "self.init(surface: session.surface, mode: session.mode)", "self.init(surface: session.surface, mode: .guiding)",
+     [D_SESSION]),
+    ("57 the large action's literal", DISPLAY, "public static let largeActionHeight = 60.0",
+     "public static let largeActionHeight = 44.0", [D_TABLE, D_LARGE, D_SESSION]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -189,6 +214,6 @@ EQUIVALENT = [
      "self?.arrived(ticket: self?.controller.inFlight ?? ticket, reply: reply)", "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device or simulator run can observe it (T-0321 R10). What bounds it: the adapter line it edits is a one-line forward to DriveController, whose half is CAUGHT above (C_REPLY, entry 34)"),
 ]
 
-MIN_MUTATIONS = 49
+MIN_MUTATIONS = 57
 MIN_EQUIVALENT = 4
-MIN_TEST_FILES = 5
+MIN_TEST_FILES = 6

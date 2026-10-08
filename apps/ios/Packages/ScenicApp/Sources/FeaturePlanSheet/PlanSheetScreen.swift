@@ -15,6 +15,8 @@ import SwiftUI
 public struct PlanSheetScreen: View {
     private let planner: any RoutePlanning
     private let onClose: () -> Void
+    /// The door to the drive (T-0324 R4): the shell takes the previewed plan and shows the drive in place of the home.
+    private let onDrive: (PlanPreview) -> Void
 
     /// The home's on-device acknowledgement, read only (R3).
     @AppStorage("safety.disclaimer.acknowledged.v1") private var safetyNoteRead = false
@@ -37,13 +39,15 @@ public struct PlanSheetScreen: View {
 
     public init(planner: any RoutePlanning, tripPlanner: any TripPlanning,
                 dayLinks: @escaping ([Coordinate]) -> [URL], loopPlanner: any LoopPlanning,
-                loopLink: @escaping (Coordinate, [Coordinate]) -> URL?, onClose: @escaping () -> Void) {
+                loopLink: @escaping (Coordinate, [Coordinate]) -> URL?, onDrive: @escaping (PlanPreview) -> Void,
+                onClose: @escaping () -> Void) {
         self.planner = planner
         self.tripPlanner = tripPlanner
         self.dayLinks = dayLinks
         self.loopPlanner = loopPlanner
         self.loopLink = loopLink
         self.onClose = onClose
+        self.onDrive = onDrive
     }
 
     public var body: some View {
@@ -117,7 +121,7 @@ public struct PlanSheetScreen: View {
         case .preview(let ticket, let preview):
             PlanPreviewCard(preview: preview, destination: sheet.destination?.name ?? "", saveLine: saveLine,
                             onSave: { save(preview, budgetMinutes: ticket.budgetMinutes) },
-                            onChangePlace: { searchFor(.destination) })
+                            onChangePlace: { searchFor(.destination) }, onDrive: { onDrive(preview) })
         case .failed(_, let failure):
             PlanFailureCard(copy: PlanFailureCopy.of(failure), onAction: act)
         }

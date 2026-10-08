@@ -11,6 +11,8 @@ struct PlanPreviewCard: View {
     let saveLine: String?
     let onSave: () -> Void
     let onChangePlace: () -> Void
+    /// Starts the drive on this preview (T-0324 R4).
+    let onDrive: () -> Void
 
     var body: some View {
         ScrollView {
@@ -50,6 +52,15 @@ struct PlanPreviewCard: View {
                     Button("Save this drive", action: onSave)
                         .accessibilityIdentifier("plan.save")
                 }
+                Button(action: onDrive) {
+                    Label("Start the drive", systemImage: "car.fill")
+                        .font(.headline)
+                        .foregroundStyle(DesignTokens.onPrimary)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(Capsule().fill(DesignTokens.primary))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("plan.drive")
                 Button("Choose another place", action: onChangePlace)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
