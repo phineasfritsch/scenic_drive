@@ -12,7 +12,9 @@ LoopHandoff.swift). Driver loopsheet.py, runner loopsheet_run.py (tripsheet's sh
     swapped, a long point, the waypoint cap each way, the waypoint axes, the error-to-failure map;
   * THE PREVIEW (45-49): the device's retrace check dropped or inverted, the server's fraction shown, the estimate
     badge hidden, the ticket's minutes not sent;
-  * THE HANDOFF (50-53): the loop ending at its last pin, no source, pins cut to nine, pins reversed.
+  * THE HANDOFF (50-53): the loop ending at its last pin, no source, pins cut to nine, pins reversed;
+  * THE BOUND AND THE BADGE (54-59, rv1-t0314): the planner's limit as `<`, as `<= 0.5`, NaN accepted, the
+    detector's own `<`; eta_is_estimate absent read as false, the badge always on.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -34,7 +36,8 @@ CLIENT = _API / "LoopClient.swift"
 PLANNER = _API / "ClientLoopPlanner.swift"
 RESPONSE = _API / "LoopResponse.swift"
 HANDOFF = ROOT / "Sources" / "Handoff" / "LoopHandoff.swift"
-SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, HANDOFF)
+DETECTOR = ROOT / "Sources" / "ScenicKit" / "Loop" / "RetraceDetector.swift"
+SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, HANDOFF, DETECTOR)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "LoopSheet" / "LoopSheetTests.swift",
@@ -59,6 +62,9 @@ RETRACED = "a loop the device finds retraced is not shown: noCleanLoop"
 FAILURES = "a spent day and a refused loop reach the sheet as their failures"
 URL = "one URL from the start back to the start through the pins, in order"
 TEN = "ten pins are refused, never cut to nine"
+BOUND = "the device's retrace limit is 0.15 inclusive at every bound"
+DELEGATES = "the planner decides on the device's own measured fraction"
+ESTIMATE = "a 200 saying eta_is_estimate false reaches the sheet as a preview without the badge"
 
 _CATCH = "            reply = try await transport.send(request)\n        } catch {\n            throw .routingOffline\n        }"
 _RETRY = ("            reply = try await transport.send(request)\n        } catch {\n"
@@ -68,8 +74,9 @@ _QUOTA = ("            guard let text = body?.resetsAt, let resetsAt = PlanRespo
           "                return .unexpectedResponse(status: status)\n            }")
 _PIN = ("waypoints.append(Coordinate(latitude: try pin.decode(Double.self, forKey: .lat),\n"
         "                                        longitude: try pin.decode(Double.self, forKey: .lon)))")
-_CHECK = ("guard let fraction = RetraceDetector.retraceFraction(response.route),\n"
-          "              fraction <= RetraceDetector.maxRetraceFraction else { return .failure(.noCleanLoop) }")
+_MEASURE = "outcome(of: response, fraction: RetraceDetector.retraceFraction(response.route))"
+_LIMIT = "RetraceDetector.isAcceptable(fraction: fraction) else"
+_ETA = "etaIsEstimate: try top.decode(Bool.self, forKey: .etaIsEstimate),"
 _DIRECTIONS = "AppleMapsDirections(source: start, destination: start, waypoints: waypoints)"
 
 MUTATIONS = [
@@ -165,10 +172,9 @@ MUTATIONS = [
      "case .noCleanLoop: return .noRoute", [MAPPING, FAILURES]),
     ("44 a spent day shown as paused", ERROR, "case .quotaExhausted: return .quotaExhausted",
      "case .quotaExhausted: return .planningPaused", [MAPPING, FAILURES]),
-    ("45 the device's retrace check dropped", PLANNER, _CHECK,
-     "let fraction = RetraceDetector.retraceFraction(response.route) ?? response.retraceFraction", [RETRACED]),
-    ("46 the retrace limit inverted", PLANNER, "fraction <= RetraceDetector.maxRetraceFraction",
-     "fraction >= RetraceDetector.maxRetraceFraction", [PREVIEW, RETRACED]),
+    ("45 the device's retrace check dropped", PLANNER, _MEASURE,
+     "outcome(of: response, fraction: response.retraceFraction)", [RETRACED, DELEGATES]),
+    ("46 the retrace limit inverted", PLANNER, _LIMIT, "!" + _LIMIT, [PREVIEW, RETRACED, BOUND]),
     ("47 the server's fraction shown", PLANNER, "retraceFraction: fraction,",
      "retraceFraction: response.retraceFraction,", [PREVIEW]),
     ("48 the estimate badge hidden", PLANNER, "etaIsEstimate: response.etaIsEstimate))", "etaIsEstimate: false))",
@@ -183,6 +189,14 @@ MUTATIONS = [
      "AppleMapsDirections(source: start, destination: start, waypoints: Array(waypoints.prefix(9)))", [TEN]),
     ("53 the pins reversed", HANDOFF, _DIRECTIONS,
      "AppleMapsDirections(source: start, destination: start, waypoints: waypoints.reversed())", [URL]),
+    ("54 the retrace limit exclusive", PLANNER, _LIMIT, "fraction < RetraceDetector.maxRetraceFraction else", [BOUND]),
+    ("55 the retrace limit loosened to 0.5", PLANNER, _LIMIT, "fraction <= 0.5 else", [BOUND]),
+    ("56 a NaN fraction accepted", PLANNER, _LIMIT, "!(fraction > RetraceDetector.maxRetraceFraction) else", [BOUND]),
+    ("57 eta_is_estimate absent read as false", RESPONSE, _ETA,
+     "etaIsEstimate: try top.decodeIfPresent(Bool.self, forKey: .etaIsEstimate) ?? false,", [OUTCOME]),
+    ("58 the estimate badge always on", RESPONSE, _ETA, "etaIsEstimate: true,", [OUTCOME, ESTIMATE]),
+    ("59 the detector's limit exclusive", DETECTOR, "        f <= maxRetraceFraction\n",
+     "        f < maxRetraceFraction\n", [BOUND]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -192,6 +206,6 @@ EQUIVALENT = [
      "the switch over LoopSheetState already names .preview and .failed; the other four are exactly what default covers"),
 ]
 
-MIN_MUTATIONS = 53
+MIN_MUTATIONS = 59
 MIN_EQUIVALENT = 1
 MIN_TEST_FILES = 5

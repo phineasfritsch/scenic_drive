@@ -178,3 +178,26 @@ surface. Calm copy (memory owner-route-intent).
   loop" secondary action is not built (SurpriseCard was T-0312's; now merged, a follow-up task); the app sends no
   x-scenic-account-token, so every loop is anon at one a day and paid "unlimited" is unreachable from the app; the
   preview has no map of its own (no new map surface, so P-ATTR-01 is unchanged).
+- 2026-10-08T09:05:31Z RULINGS on rv1-t0314 (FAIL at 675a4b95), before code. agent/claude-opus-5 (owner).
+  B1 ACCEPTED. ClientLoopPlanner.outcome(of:) re-implemented `fraction <= maxRetraceFraction` instead of going
+  through RetraceDetector's witnessed seam, and its only fixtures sit near 0 and near 1, so `<` and `<= 0.5` survive.
+  Fix: `RetraceDetector.isAcceptable(fraction:)` becomes public, and `ClientLoopPlanner.outcome(of:fraction:)` is the
+  fraction-level seam. `outcome(of:)`, which `plan(_:)` calls, delegates to it with the device's measured
+  `RetraceDetector.retraceFraction(response.route)`, and the seam decides through `isAcceptable(fraction:)`. Table
+  through the seam, compared whole to LoopOutcome: 0.15 -> preview, 0.15.nextDown -> preview, 0.15.nextUp ->
+  noCleanLoop, 0.3 -> noCleanLoop, NaN -> noCleanLoop (ruled: NaN fails `<=`, and a fraction nobody can compare is
+  not a clean loop), nil -> noCleanLoop. A binding row checks outcome(of:) == outcome(of:fraction: measured) on the
+  square, the out-and-back and the one-point body. Recorded limit: a rewrite of the one delegation line that inlines
+  its own threshold would be seen only at the fixtures; the delegation's single-token mutants (the server's fraction,
+  nil) are population rows.
+  B2 ACCEPTED. A 200 without eta_is_estimate decoded as false (decodeIfPresent ?? false survives), and no row ever
+  carried false. Fix: outcome-table rows "200 without eta_is_estimate -> unexpectedResponse(200)" and "200
+  eta_is_estimate false -> etaIsEstimate false", plus a planner test that the false answer reaches the sheet as a
+  preview with etaIsEstimate false. No source change: `decode` is already strict.
+  POPULATION: entries 54 `<` for `<=`, 55 limit `<= 0.5`, 56 NaN accepted (`!(f > max)`), 57 `decodeIfPresent ?? false`,
+  58 badge always on (`etaIsEstimate: true`), 59 RetraceDetector's own `<` (the seam the planner now ships through).
+  46 and 45 are re-anchored on the new seam text. MISSED at the old head is measured in a detached worktree at
+  675a4b95 with each mutant in its old-head spelling. CAUGHT by name now via `--only`. MIN_MUTATIONS is raised to match.
+  RECORDABLES: R2 ACCEPTED. The H6b row is re-anchored to the multi-line `.onAppear {` line and run alone. R1 (the
+  wiring line guarded only by the digest) and R3 (Try again after quotaExhausted) are RECORDED for follow-up, not
+  built here. R4 is already open in the Log above.

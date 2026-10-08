@@ -24,6 +24,9 @@ enum LoopWire {
 
     static let squareBody = "{\(squareRoute),\(squarePins),\(tail),\"closures_hazard\":{\"state\":\"fresh\"}}"
     static let outAndBackBody = #"{"route":{"coordinates":[[-118.49,34.02],[-118.49,34.05],[-118.49,34.02]],"distance_m":6700},"waypoints":[{"lat":34.05,"lon":-118.49}],"# + tail + "}"
+    static let noEstimateBody = squareBody.replacingOccurrences(of: #""eta_is_estimate":true,"#, with: "")
+    static let falseEstimateBody = squareBody.replacingOccurrences(of: #""eta_is_estimate":true"#,
+                                                                   with: #""eta_is_estimate":false"#)
     static let onePointBody = #"{"route":{"coordinates":[[-118.49,34.02]],"distance_m":0},"waypoints":[],"# + tail + "}"
 
     static func pinsBody(_ count: Int) -> String {
@@ -32,9 +35,9 @@ enum LoopWire {
     }
 
     static func response(route: [Coordinate] = square, distance: Double = 10_000,
-                         waypoints: [Coordinate] = pins) -> LoopResponse {
+                         waypoints: [Coordinate] = pins, estimate: Bool = true) -> LoopResponse {
         LoopResponse(route: route, distanceMeters: distance, durationSeconds: 2_700, retraceFraction: 0.02,
-                     minutes: 45, etaIsEstimate: true, waypoints: waypoints)
+                     minutes: 45, etaIsEstimate: estimate, waypoints: waypoints)
     }
 
     static func reply(_ status: Int, _ body: String) -> PlanHTTPReply {

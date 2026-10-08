@@ -20,8 +20,14 @@ public struct ClientLoopPlanner: LoopPlanning {
     }
 
     public static func outcome(of response: LoopResponse) -> LoopOutcome {
-        guard let fraction = RetraceDetector.retraceFraction(response.route),
-              fraction <= RetraceDetector.maxRetraceFraction else { return .failure(.noCleanLoop) }
+        outcome(of: response, fraction: RetraceDetector.retraceFraction(response.route))
+    }
+
+    /// The decision on a measured fraction (rv1-t0314 B1): no route fixture lands on 0.15, so the bound is reachable
+    /// only here, and the comparison is RetraceDetector's own witnessed `isAcceptable(fraction:)`, never a copy.
+    public static func outcome(of response: LoopResponse, fraction measured: Double?) -> LoopOutcome {
+        guard let fraction = measured,
+              RetraceDetector.isAcceptable(fraction: fraction) else { return .failure(.noCleanLoop) }
         return .preview(LoopPreview(path: response.route, waypoints: response.waypoints,
                                     durationSeconds: response.durationSeconds,
                                     distanceMeters: response.distanceMeters, retraceFraction: fraction,

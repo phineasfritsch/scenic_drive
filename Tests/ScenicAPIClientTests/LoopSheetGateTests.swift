@@ -75,6 +75,54 @@ struct LoopSheetGateTests {
         #expect(await Self.failure(after: LoopWire.onePointBody) == .noCleanLoop)
     }
 
+    /// rv1-t0314 B1: the bound itself, through the seam `outcome(of:)` delegates to (and `plan(_:)` runs), each
+    /// expected outcome built whole. No route fixture lands on 0.15, so the fraction is given, not measured.
+    static let bounds: [(String, Double?, Bool)] = [
+        ("exactly 0.15", RetraceDetector.maxRetraceFraction, true),
+        ("just under 0.15", RetraceDetector.maxRetraceFraction.nextDown, true),
+        ("just over 0.15", RetraceDetector.maxRetraceFraction.nextUp, false),
+        ("0.3", 0.3, false),
+        ("NaN", Double.nan, false),
+        ("unmeasurable", nil, false),
+    ]
+
+    @Test("the device's retrace limit is 0.15 inclusive at every bound", arguments: bounds.map(\.0))
+    func retraceBound(_ label: String) throws {
+        let row = try #require(Self.bounds.first { $0.0 == label })
+        let response = LoopWire.response()
+        let expected: LoopOutcome = row.2
+            ? .preview(LoopPreview(path: LoopWire.square, waypoints: LoopWire.pins, durationSeconds: 2_700,
+                                   distanceMeters: 10_000, retraceFraction: try #require(row.1),
+                                   etaIsEstimate: true))
+            : .failure(.noCleanLoop)
+        #expect(RetraceDetector.maxRetraceFraction == 0.15)
+        #expect(ClientLoopPlanner.outcome(of: response, fraction: row.1) == expected, "\(label)")
+    }
+
+    @Test("the planner decides on the device's own measured fraction")
+    func plannerDelegatesToSeam() {
+        for route in [LoopWire.square, LoopWire.outAndBack, [LoopWire.start]] {
+            let response = LoopWire.response(route: route)
+            #expect(ClientLoopPlanner.outcome(of: response)
+                    == ClientLoopPlanner.outcome(of: response, fraction: RetraceDetector.retraceFraction(route)))
+        }
+    }
+
+    @Test("a 200 saying eta_is_estimate false reaches the sheet as a preview without the badge")
+    func estimateFalseReachesSheet() async throws {
+        let transport = CountingPlanTransport(reply: LoopWire.reply(200, LoopWire.falseEstimateBody))
+        var sheet = Self.ready(accepted: true)
+        await Self.drive(&sheet, transport)
+        let measured = try #require(RetraceDetector.retraceFraction(LoopWire.square))
+        guard case .preview(_, let shown) = sheet.state else {
+            Issue.record("the sheet is \(sheet.state), not a preview")
+            return
+        }
+        #expect(shown == LoopPreview(path: LoopWire.square, waypoints: LoopWire.pins, durationSeconds: 2_700,
+                                     distanceMeters: 10_000, retraceFraction: measured, etaIsEstimate: false))
+        #expect(await transport.count == 1)
+    }
+
     @Test("a spent day and a refused loop reach the sheet as their failures")
     func failuresReachSheet() async {
         #expect(await Self.failure(after: #"{"error":"quota_exhausted","resets_at":"2026-10-09T00:00:00Z"}"#,

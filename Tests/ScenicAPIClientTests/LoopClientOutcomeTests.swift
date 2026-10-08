@@ -19,6 +19,8 @@ struct LoopClientOutcomeTests {
         ("200 nine waypoints", 200, LoopWire.pinsBody(9), .success(LoopWire.response(waypoints: ninePins))),
         ("200 ten waypoints", 200, LoopWire.pinsBody(10), .failure(.unexpectedResponse(status: 200))),
         ("200 not json", 200, "<html>", .failure(.unexpectedResponse(status: 200))),
+        ("200 without eta_is_estimate", 200, LoopWire.noEstimateBody, .failure(.unexpectedResponse(status: 200))),
+        ("200 eta_is_estimate false", 200, LoopWire.falseEstimateBody, .success(LoopWire.response(estimate: false))),
         ("200 a three-number point", 200, LoopWire.squareBody.replacingOccurrences(of: "[-118.49,34.04]",
                                                                                    with: "[-118.49,34.04,0]"),
          .failure(.unexpectedResponse(status: 200))),
