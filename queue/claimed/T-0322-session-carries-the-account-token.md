@@ -85,3 +85,43 @@ no `act` because the app attests without one.
   - R9 populations: ops/mutate/session_mutations.py gains the R1-R4 entries (MISSED under --prove-vacuity, CAUGHT by
     name after); accounttoken_mutations.py's call-site anchor moves with the code. P-STORE-02 binds the new Worker
     test by name; P-PRIV-05 is unaffected (the attest bodies and the Bearer carry no coordinate) - recorded, not edited.
+- 2026-10-08T17:19:37Z RED, GREEN, POPULATIONS (agent/claude-opus-5).
+  - RED FIRST BY NAME: the API skeleton (new parameters accepted and ignored: AttestClient account, SessionRecord act
+    off the wire, SessionStep act, SessionStore.planSession -> nil, IdentityHeaders bearer, the clients' session) with
+    SessionAccountTests + PlanBearerTests: `Test run with 10 tests in 2 suites failed` - FAILED by name: "attest and
+    assert carry exactly the purchase's token, live or expired, or none" (6 cases), "the session record keeps its act
+    on the wire, and an empty or null act is malformed" (3), "a live session is used only while its act is the
+    device's purchase" (9), "a session issued before the purchase renews once to carry it, then is used with no
+    request" (2), "the ledger's acquisition carries the store's purchase, and the plan family then uses that session"
+    (3), "a failed renewal for the purchase is that token's one try: ...", "every plan-family request names the
+    purchase and carries the Bearer exactly when its act is that purchase" (54). Green on the skeleton, by design:
+    the meta-test, "a session issued before the purchase is never sent" and "a request refused on the device acquires
+    no session" (guards against a regression the skeleton cannot make; each seen red below, entries 63/76 and 75).
+  - GREEN: `swift test --filter ScenicAPIClientTests` -> `Test run with 87 tests in 20 suites passed` (after the
+    eleventh test, "a purchase made after the launch's first acquisition gets its own one try", was added for entry 64).
+  - WORKER (no src change, M1): services/api/test/sessionCarriesAct.test.ts `Tests 36 passed (36)`; with tierCarriers,
+    sessionIdentity, attestAssert, attestAccept, identityVerifierPin, requestReadSites, reflectionSites, asnState:
+    `Test Files 9 passed (9)`, `Tests 287 passed (287)`. run-named-tests.py P-STORE-02 -> `NAMED P-STORE-02
+    passed=97/97` (61 + 36). Seen RED by name (one-off mutants of src/, each restored byte-for-byte, git status clean):
+    W1 assert drops act CAUGHT (8 FAILED: the act-live rows of /plan /trip /loop x flag, and the live/expired
+    attest-assert rows); W2 attest drops act CAUGHT (2: attest-assert live, expired); W3 a Bearer without act falls back
+    to the header CAUGHT (6: every "no act" row); W4 any act is paid CAUGHT (6: every "act expired" row); W5 the header
+    beside a verified Bearer is read CAUGHT (12: every "act expired" and "no act" row).
+  - SWIFT POPULATION (ops/mutate/session.py, entries 57-76, E3): CAUGHT AFTER, by name - `--only 57..76` caught 19/20
+    on 754da4e2 with 75 a WRONG KILLER (red only through the 54-row table: the refusal row held a session for no
+    purchase, so `planSession(account: nil)` made no request). Fixed in 17391247 (the refusal row asks an empty store
+    that any ask makes attest); `--only 75` -> `MUTATE OK caught=1/1`. MISSED BEFORE: session.py's machinery with ONLY
+    the two new test files emptied (every pre-T-0322 suite in the filter intact; driver .build/t322msg/before.py) ->
+    `VACUITY PROOF OK: with the 2 test file(s) emptied, caught=0 (need 0) and MISSED=20 of 20`. accounttoken.py
+    entries whose anchors moved: `--only 5,6,7,13` caught 5, 6, 13; 7 reported compile-only because I emptied test
+    files in this worktree while it built (my interference, not the mutant); `--only 7` rerun -> `MUTATE OK caught=1/1`.
+  - R10 (ruled while measuring): accounttoken entry 13's anchor `guard let installID ...` has occurred TWICE in
+    PlanClient since T-0319's reroute(), so on main it reports SKIP; the anchor now carries plan()'s next line
+    (PLAN_BODY) and is caught again. R11: session.py's full `--prove-vacuity` cannot build on main today -
+    Tests/ScenicKitTests/Surprise/SurpriseCardHistoryTests.swift and SurpriseShownDayTests.swift reference
+    SurpriseShowingTests, which the vacuity mode empties (`error: cannot find 'SurpriseShowingTests' in scope`). Not
+    this task's file set; filed as stillOpen for the orchestrator (my touches do not include queue/backlog/).
+  - DIGESTS: [PINNED_ROOT_SOURCES] rows re-approved in place for AttestClient, IdentityHeaders, LoopClient, PlanClient,
+    SessionRecord, SessionStep, SessionStore, TripClient; PlanSessionProvider added after PlanResponseReader (9 rows).
+  - iOS CI on 754da4e2: ios-compile 37809049629 `completed success` (3m48s); ios-screenshot 37809056825 `completed
+    success` (18m45s).
