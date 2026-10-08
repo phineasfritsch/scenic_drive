@@ -70,7 +70,9 @@ MUTATIONS = [
     ("17 the retention bound a day short", DAY, "(Surprise.shownDays - 1)", "Surprise.shownDays", [OLDEST, RETAIN]),
     ("18 the pick's window inclusive", PICK, BLOCK, BLOCK.replace("< shownDays", "<= shownDays"), [RETAIN]),
     ("19 the pick's window a day short", PICK, BLOCK, BLOCK.replace("< shownDays", "< shownDays - 1"), [RETAIN]),
-    ("20 the pick's shown block off", PICK, BLOCK, "false && " + BLOCK, [REPICK, RETAIN]),
+    # 20: REPICK stays green - a place shown today is also set aside by the 30-day category/corridor rule, so
+    # only RETAIN (one place, shown 89 days back) isolates the 90-day block.
+    ("20 the pick's shown block off", PICK, BLOCK, "false && " + BLOCK, [RETAIN]),
 ]
 
 # (name, path, old, new, witness): cannot change behaviour, so anything but MISSED is a failure.
