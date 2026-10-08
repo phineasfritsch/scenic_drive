@@ -1,7 +1,7 @@
 ---
 id: T-0321
 title: NavAdapter - the app's only Ferrostar importer, pinned to an exact version, drives turn-by-turn on the planned scenic route through a custom RouteProvider and calls ScenicKit DriveSession for every decision (off-route, reroute with remaining waypoints + same lambda, offline rejoin, motion gate)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T11:51:00Z
@@ -11,7 +11,7 @@ branch: task/T-0321
 exclusive: [package-swift, package-resolved]
 touches: [apps/ios/Packages/ScenicApp/Package.swift, apps/ios/Packages/ScenicApp/Package.resolved, apps/ios/ScenicDrive.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved, queue/LOCKS/, queue/backlog/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/Packages/ScenicApp/Tests/, apps/ios/ScenicDrive/, Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-NAV-01, P-SAFE-09, P-ATTR-01]
-reviewer: null
+reviewer: agent/rv1-t0321
 depends_on: [T-0317]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -163,3 +163,40 @@ mode) and Live Activity are separate follow-ups; Live Activity needs the xcodepr
 - 2026-10-08T13:50:09Z PR #208 linux-core RED on P-OPS-01: "check-ferrostar-imports.py (data, should be 100644, is 100755)" -
   ops/lib's .py checks are invoked through the interpreter and committed 100644 (check-store-links.py is). The
   12:40 entry's "100755" was wrong; the file is now 100644. P-NAV-02's assertion already runs it through $PYTHON.
+- 2026-10-08T14:32:14Z REVIEW PASS by agent/rv1-t0321 (reviewer, not the owner) on PR #208 head 518d4d99, in a detached
+  worktree .worktrees/rv1-t0321 (removed after).
+  Ferrostar, checked at the tag through gh api: tag 0.57.0 -> 80c7ebd6 (annotated); Package.resolved pins ferrostar
+  0.57.0 at revision 4e2d7f64; the manifest pins it with `exact: "0.57.0"` and uses only the FerrostarCore product, in
+  NavAdapter; LICENSE.txt at the tag is BSD-3-Clause text ("Copyright (c) 2023, Stadia Maps, Inc. ... Redistribution
+  and use in source and binary forms ..."), which is compatible; the tag's Package.swift declares `.iOS(.v16)` (16 <= 18.4).
+  Acceptance: 1 is met by the 12:03:05Z rulings R1-R11 and R8 as amended. 2 is met: exact pin, NavAdapter target, Xcode
+  workspace Package.resolved committed and accepted by -disableAutomaticPackageResolution, and the P-NAV-02 whitelist
+  guard seen red then green. 3 is met in the ScenicKit DriveController: the lost edge cancels the ticket and a late
+  reply or failure is dropped. The drive-screen surface and the drive-map attribution are ruled out by R6 and filed as
+  T-0324; no drive map exists, and P-ATTR-01 is green. 4: the shot is moved to T-0324 by R6, the digests are
+  re-approved, and the population is 18/18 caught by name, with E2-E4 device-only.
+  iOS CI on the CURRENT head was dispatched by the reviewer, because the author's runs were on f70b834f and the later
+  merge of main brought in T-0315's PlanAdapter Swift: ios-compile 37790459417 success and ios-screenshot 37790465060
+  success, both on 518d4d99. gh pr checks 208: core pass, pins-source-only pass.
+  BARE gates on 518d4d99: swift test --filter "DriveControllerTests|DriveLegTests|DriveSession|Guidance" -> "Test run
+  with 36 tests in 4 suites passed"; check-safety-disclaimer 0; check-map-attribution 0; check-store-links.py 0;
+  check-ferrostar-imports.py 0; check-mutate-population.py 0 ("the floor of 130 holds"); check-line-cap 0 ("473 Swift
+  files tracked ..., none over 300 lines"); check-pins-yaml.py 0 ("ok pins=47"); queue-check "QUEUE OK (315 tasks)".
+  REVIEWER MUTANTS (neither is in ops/mutate/drive_mutations.py; each restored, git status clean):
+  R-M1, DriveController.rerouteFailed, `guard ticket == inFlight` -> `guard inFlight != nil` (a late failure taken
+  while the reconnect's ticket is out; entry 35 deletes the guard, this weakens it): swift test --filter
+  DriveControllerTests exit 1, CAUGHT BY NAME by "T-0321: a late failure from before the drop is dropped; the
+  reconnect's own failure is rejoin mode" (DriveControllerTests.swift:96 `(r7 -> true) == false`, :97 whole-controller
+  equality, :99 `(r8 -> false) == true`); the other 5 tests passed.
+  R-M2, the CLAUDE.md MapLibre boundary through the new target: `import MapLibre` in NavAdapter/DriveNavigator.swift
+  plus `.product(name: "MapLibre", package: "maplibre-gl-native-distribution"),` in NavAdapter's dependencies:
+  check-safety-disclaimer exit 1, refused BY NAME under P-SAFE-03 ("target map (c) added: .product(name: \"MapLibre\",
+  ..."), and check-map-attribution exit 1 on DriveNavigator.swift's digest. check-ferrostar-imports exits 0 there,
+  which is correct because it is not a Ferrostar line.
+  RECORDABLE, NOT BLOCKING: (a) origin/main is not an ancestor of the head. Main gained 1efb5726 and 1f55e15d, which add
+  only queue/backlog/T-0325-learned-speeds-reach-the-eta.md (the renumbering this task caused) and change no gate file.
+  A trial merge is clean and queue-check on it says "QUEUE OK (316 tasks)". (b) P-NAV-02 skips every line inside
+  NavAdapter/, so an `import FerrostarMapLibreUI` there is refused only through its manifest product line. That covers
+  it, because the module cannot be imported without that line. (c) The Ferrostar guard does not see a re-export to a
+  feature target; its docstring says so, and that case is deliberate sabotage. (d) `ops/check-pins --help` runs every
+  pin (noted by the pre-review pass). Locks released: package-swift.lock and package-resolved.lock, both held by T-0321.
