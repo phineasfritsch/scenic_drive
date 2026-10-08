@@ -29,3 +29,57 @@ first, so the adapter is a thin shell. Calm, minimal-distraction driving UI (mem
 ## Log
 - 2026-10-08T07:53:18Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M7 navigation, logic half).
 - 2026-10-08T07:53:28Z claimed by agent/claude-opus-5; lease until 2026-10-09T03:53:28Z
+- 2026-10-08T07:57:21Z MEASURED, then RULED, before any code (author rule).
+  MEASURED. (m1) Plan `### Navigation on the scenic path (Ferrostar)` (plan line 132): "Off-route hook -> if online,
+  re-request `/plan` with the same lambda and the *remaining* pinned waypoints (never bare O->D); if **offline**,
+  Ferrostar keeps guiding to rejoin the planned line ("rejoin mode")." Plan pin table line 247: `P-SAFE-06 | Motion
+  gate >4.5 m/s | unit + UI | linux+mac`; line 272: `P-NAV-01 | Reroute request carries remaining pinned waypoints +
+  same lambda; offline -> no request | unit with fake location feed | mac`; screens line 318: "Drive (... >4.5 m/s one
+  >=60 pt button + voice; rejoin banner)"; lifecycles line 146: `offlineDuringDrive` -> rejoin mode banner.
+  (m2) pins/PINS.yaml: P-NAV-01 does NOT exist. P-SAFE-06 DOES exist and is a different property - "A GraphHopper
+  sign that nothing maps fails the build" (added 2026-09-15, assertion `bash ops/lib/check-guidance-gate`). P-SAFE-02
+  and P-SAFE-07 are free in PINS.yaml but reserved by the plan table (hazards at 3 layers; estimate badge).
+  (m3) services/api/src/planRequest.ts: BODY_KEYS = origin, destination, budget_minutes, departs_at, vehicle;
+  ORIGIN_KEYS = lat, lon (2 dp, refused otherwise); DESTINATION_KEYS = place (a corpus place id). Every key at every
+  level is whitelisted and anything else is 400. /plan today carries NO waypoints and NO lambda.
+  (m4) ScenicKit: Coordinate (Model/), Geo.distanceMeters (haversine), ScenicPlan.waypoints = PlanWaypoints
+  .decisionPoints, which returns VERTICES of the routed path (path.coordinates[i]), outcome.lambda. No Drive/ dir.
+  RULED.
+  R1 (P-SAFE-06 id clash). The acceptance's "P-SAFE-06" is the plan's motion-gate row; that id in PINS.yaml has
+  held the guidance catch-all gate since 2026-09-15 and is referenced by check-guidance-gate and closed tasks, so it is
+  NOT renamed or repurposed. The motion gate is pinned as NEW id P-SAFE-09 (02 and 07 are the plan's), its statement
+  saying it is the plan's P-SAFE-06 row. P-SAFE-06 itself is unchanged by this task. P-NAV-01 is added. Both bind
+  their tests by name through ops/lib/run-named-tests.py (named-tests.json), runs_on [linux, mac] (the plan's `mac`
+  for P-NAV-01 was because a fake location feed was assumed to need Ferrostar; the logic is ScenicKit here).
+  R2 (the Worker gap). /plan cannot carry waypoints or lambda (m3), and CLAUDE.md's invariant "never more than one
+  coordinate per user action, never more than 2 dp" forbids the naive encoding (N pinned waypoints = N coordinates
+  at full precision). The Worker is NOT widened here. ScenicKit emits a device-side RerouteRequest {origin = the
+  current fix, remainingWaypoints, firstRemainingWaypoint (index into the plan's pins), destination, lambda} -
+  full fidelity, so the wire half can choose an encoding that sends at most one 2-dp coordinate (e.g. a plan
+  token the Worker remembers + the index of the first remaining pin + lambda) without ScenicKit changing. The
+  Worker half is filed as its own task (backlog) by ops/new-task in this branch.
+  R3 (off-route). distance = least distance from the fix to the planned polyline, measured in a local
+  equirectangular frame around the fix (metres, R = Geo.earthRadiusMeters). AWAY iff distance > 50 m (50.0 is ON
+  the line). OFF-ROUTE iff away continuously for >= 5 s (fix.timestamp - firstAwayTimestamp >= 5; exactly 5.0 is
+  off, nextDown(5) is not). Any on-line fix resets the dwell. Bounds tabled at 50 (exact), the smallest float
+  distance above 50, dwell 5 and nextDown(5). A non-finite or out-of-range fix coordinate is ignored (no state
+  change) - fail closed: it can neither trigger a reroute nor clear one.
+  R4 (remaining waypoints). Progress = the segment index of the nearest segment among the CONTIGUOUS run of
+  within-50 m segments that starts at the first within-50 m segment at or after the current progress (forward
+  only, so a loop's closing leg next to its start cannot jump progress to the end). Updated only by on-line fixes.
+  A pinned waypoint at vertex v is passed iff progress >= v. Each waypoint must be a vertex of the line, matched
+  in order (PlanWaypoints guarantees it); otherwise the session is not constructed (failable init). The request's
+  waypoints are EXACTLY the not-passed ones, in order, and lambda is the plan's, compared by full equality.
+  R5 (online/offline). Off-route + online -> exactly one request, mode rerouting; further fixes and online edges
+  while rerouting ask for nothing. Off-route + offline -> mode rejoining, zero requests for any number of fixes.
+  Rejoining + an on-line fix -> guiding. Rejoining + offline->online edge -> exactly one request from the latest
+  fix. rerouteFailed -> rejoining (no automatic retry; the next request needs a new offline->online edge or a new
+  off-route episode). rerouteArrived(line, waypoints) replaces the line and pins (same lambda) and returns to
+  guiding; it is ignored unless rerouting.
+  R6 (motion gate). surface = .minimal (the one large action + voice) iff speed > 4.5 m/s; exactly 4.5 is .full.
+  A speed that is NaN, negative (CoreLocation's -1 = invalid) or infinite is .minimal (fail closed: unknown speed
+  is treated as moving). NO hysteresis is ruled: the plan names one bound, a dip below 4.5 shows the full surface
+  only when the car is crawling, and the release direction is a device-iteration (M7 TestFlight) question, not a
+  Linux one; the table covers 4.5, nextDown/nextUp(4.5), 0, -0.0, -1, +-inf, NaN, greatestFiniteMagnitude.
+  R7 (scope). One type per file under Sources/ScenicKit/Drive/; Foundation only; no Ferrostar types (NavAdapter is a
+  later task). Digest rows for every new Sources file; mutation population ops/mutate/drive*.py, DRIVERS + COVERED_FLOOR.
