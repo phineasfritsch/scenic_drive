@@ -150,3 +150,24 @@ no `act` because the app attests without one.
   STILL OPEN (for the orchestrator to file; my touches exclude queue/backlog/): (a) session.py --prove-vacuity does not
   build on main (R11); (b) before IDENTITY_HEADERS closes (R5 step 3), measure the share of plan-family requests that
   arrive with no Bearer; after it closes, drop x-scenic-account-token from IdentityHeaders.
+- 2026-10-08T18:43:08Z agent/claude-opus-5: PRE-REVIEW M3 (BLOCKING) closed by CLASS. The survivor: attest.ts line
+  95 / 138 with `UUID.test(act.slice(0, 36))` passed the whole Worker suite (2267/2267) - a 37-character
+  appAccountToken minted a session on both /attest and /attest/assert. RULED: the hole is not one bound but the
+  whole ruled shape at both call sites - the only rows were a 35-character token missing its FIRST char, "not-a-uuid",
+  null and upper case. CLASS = every bound of asn.ts's UUID after lowercasing: length 35/37 at either end (and 72),
+  each hyphen moved or replaced, one past each end of 0-9, a-f, A-F, trailing space/newline, empty, number, object.
+  FIX: services/api/test/accountTokenShapes.ts `malformedTokens(token)` - 20 rows, each a function of the one valid
+  token - run whole as defects in attestVerify.test.ts (POST /attest via postAttest, 400 invalid_attestation, tables
+  unchanged) and attestAssert.test.ts (shipped route, 400 invalid_assertion, all four tables unchanged);
+  `ADMITTED_TOKENS` (0-9/a-f and 0-9/A-F at both bounds) in sessionCarriesAct.test.ts: both routes' answers EQUAL a
+  JWT minted with act = the lower-case token. No src change - the routes were right; the tests did not pin them.
+  POPULATION: 9 entries per route, one per class member (tail, head, short-padded, hyphens-unplaced, before-0, past-9,
+  before-a, past-f, multiline `$`): attestMutants.mjs attest-act-* (floor 60 -> 84 = the population),
+  assertMutants.mjs assert-act-* (floor 40 -> 58). Both `--prove-floor` quiet on the real population.
+  BEFORE (the three test files stashed to branch head 22c9656d, --only the 18 ids): attest `RESULT caught=0 missed=9
+  trap=0 of 9`, assert `RESULT caught=0 missed=9 trap=0 of 9`. AFTER: attest `RESULT caught=9 missed=0 trap=0 of 9`
+  (tail by "appAccountToken of 37 characters: a hex digit appended", head by "... a hex digit prepended", short by
+  "... 35 characters: the last dropped", hyphens by "... first hyphen moved one place right", '/', ':', '`', 'g' by
+  their rows, multiline by "... a newline appended"); assert `RESULT caught=9 missed=0 trap=0 of 9`, the same rows
+  under "body: ". Touched files: `Tests 221 passed (221)` (attestVerify, attestAssert, sessionCarriesAct,
+  attestAccept; 179 + 42). No Sources/ or apps/ios change, so no digest row moves and no iOS re-trigger is owed.

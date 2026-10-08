@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-attest");
 
-export const MIN_MUTATIONS = 60;
+export const MIN_MUTATIONS = 84;
 export const SUBJECTS = ["src/cbor.ts", "src/appAttest.ts", "src/x509.ts", "src/attestStore.ts", "src/attest.ts", "src/sessionJwt.ts",
   "src/sessionIdentity.ts", "src/routerDeps.ts"];
 const TESTS = ["test/attestVerify.test.ts", "test/attestAccept.test.ts", "test/sessionIdentity.test.ts", "test/requestReadSites.test.ts",
@@ -83,6 +83,16 @@ export const MUTATIONS = [
   m("attest-device-case-kept", "attest.ts", "const sub = device.toLowerCase();", "const sub = device;"),
   m("attest-extra-body-key", "attest.ts", "if (Object.keys(body).filter((k) => k !== \"appAccountToken\").sort().join() !== BODY_KEYS.join()) return INVALID();", ""),
   m("attest-act-unvalidated", "attest.ts", " || (\"appAccountToken\" in body && (act === undefined || !UUID.test(act)))", ""),
+  // T-0322 pre-review M3, closed by class: every bound of the ruled shape at the /attest call site.
+  m("attest-act-tail-admitted", "attest.ts", "!UUID.test(act)))) return INVALID();", "!UUID.test(act.slice(0, 36))))) return INVALID();"),
+  m("attest-act-head-admitted", "attest.ts", "!UUID.test(act)))) return INVALID();", "!UUID.test(act.slice(-36))))) return INVALID();"),
+  m("attest-act-short-padded", "attest.ts", "!UUID.test(act)))) return INVALID();", "!UUID.test(act.padEnd(36, \"0\"))))) return INVALID();"),
+  m("attest-act-hyphens-unplaced", "attest.ts", "!UUID.test(act)))) return INVALID();", "!/^[0-9a-f-]{36}$/.test(act)))) return INVALID();"),
+  m("attest-act-before-0-admitted", "attest.ts", "!UUID.test(act)))) return INVALID();", "!/^[/-9a-f]{8}-[/-9a-f]{4}-[/-9a-f]{4}-[/-9a-f]{4}-[/-9a-f]{12}$/.test(act)))) return INVALID();"),
+  m("attest-act-past-9-admitted", "attest.ts", "!UUID.test(act)))) return INVALID();", "!/^[0-:a-f]{8}-[0-:a-f]{4}-[0-:a-f]{4}-[0-:a-f]{4}-[0-:a-f]{12}$/.test(act)))) return INVALID();"),
+  m("attest-act-before-a-admitted", "attest.ts", "!UUID.test(act)))) return INVALID();", "!/^[0-9`-f]{8}-[0-9`-f]{4}-[0-9`-f]{4}-[0-9`-f]{4}-[0-9`-f]{12}$/.test(act)))) return INVALID();"),
+  m("attest-act-past-f-admitted", "attest.ts", "!UUID.test(act)))) return INVALID();", "!/^[0-9a-g]{8}-[0-9a-g]{4}-[0-9a-g]{4}-[0-9a-g]{4}-[0-9a-g]{12}$/.test(act)))) return INVALID();"),
+  m("attest-act-multiline-admitted", "attest.ts", "!UUID.test(act)))) return INVALID();", "!new RegExp(UUID.source, \"m\").test(act)))) return INVALID();"),
   m("attest-expires-plus-1s", "attest.ts", "new Date(session.expiresAtMs).toISOString() });\n}\n\nexport async function handleAttestAssert", "new Date(session.expiresAtMs + 1000).toISOString() });\n}\n\nexport async function handleAttestAssert"),
   m("attest-challenge-expiry-now", "attest.ts", "new Date(nowMs + CHALLENGE_TTL_MS).toISOString()", "new Date(nowMs).toISOString()"),
   m("attest-challenge-16-bytes", "attest.ts", "crypto.getRandomValues(new Uint8Array(32))", "crypto.getRandomValues(new Uint8Array(16))"),

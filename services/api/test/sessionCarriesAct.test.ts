@@ -14,6 +14,7 @@ import { applyEntitlement } from "../src/entitlementStore";
 import { ROUTES, type Env } from "../src/index";
 import { freshTable } from "./asnHarness";
 import { assertion, freshAssertTables, post, route, seedKey, testKey, type TestKey } from "./assertHarness";
+import { ADMITTED_TOKENS } from "./accountTokenShapes";
 import { attestation, CHALLENGE, DEVICE, mintJwt, NOW, postAttest, SECRET, seedChallenge, testDeps, type Attested } from "./attestHarness";
 import { liveClosures } from "./closuresFake";
 import { fakeQuotaNamespace, recordingRouter, type FakeQuota } from "./doFake";
@@ -42,18 +43,17 @@ const claims = (p: Purchase) => ({ iss: "scenic-api", sub: DEVICE, iat: S, exp: 
 const granted = async (p: Purchase) => ({ status: 200, json: { token: await mintJwt(claims(p)), expires_at: "2026-10-06T13:00:00.000Z" } });
 /** The app's bodies, byte for byte: JSONEncoder's sorted keys put appAccountToken first (AttestClient, R1). */
 const lead = (p: Purchase) => (PURCHASES[p] ? `"appAccountToken":"${PURCHASES[p]}",` : "");
-
-async function assertSession(p: Purchase) {
+async function assertSession(p: Purchase, head = lead(p)) {
   await freshAssertTables();
   await seedKey(KEY, DEVICE, 5);
   await seedChallenge(CHALLENGE, NOW + 300_000);
-  return route("/attest/assert", {}, post(`{${lead(p)}"assertion":"${await assertion(KEY)}","challenge":"${CHALLENGE}","keyId":"${KEY.keyId}"}`));
+  return route("/attest/assert", {}, post(`{${head}"assertion":"${await assertion(KEY)}","challenge":"${CHALLENGE}","keyId":"${KEY.keyId}"}`));
 }
 
-async function attestSession(p: Purchase) {
+async function attestSession(p: Purchase, head = lead(p)) {
   await freshAssertTables();
   await seedChallenge(CHALLENGE, NOW + 300_000);
-  const body = `{${lead(p)}"attestation":"${ATTESTED.attestation}","challenge":"${CHALLENGE}","device":"${DEVICE}","keyId":"${ATTESTED.keyId}"}`;
+  const body = `{${head}"attestation":"${ATTESTED.attestation}","challenge":"${CHALLENGE}","device":"${DEVICE}","keyId":"${ATTESTED.keyId}"}`;
   return postAttest(body, testDeps(ATTESTED));
 }
 
@@ -100,6 +100,13 @@ describe("the session carries the purchase; the Worker decides the tier (T-0322)
     expect(await attestSession(p)).toEqual(await granted(p));
     expect(await assertSession(p)).toEqual(await granted(p));
     expect(spies.flatMap((s) => s.mock.calls)).toEqual([]);
+  });
+
+  it.each(ADMITTED_TOKENS)("POST /attest and /attest/assert admit an appAccountToken with %s and sign it lower-case as act", async (_, token) => {
+    const head = `"appAccountToken":"${token}",`;
+    const reference = { status: 200, json: { token: await mintJwt({ ...claims("none"), act: token.toLowerCase() }), expires_at: "2026-10-06T13:00:00.000Z" } };
+    expect(await attestSession("none", head)).toEqual(reference);
+    expect(await assertSession("none", head)).toEqual(reference);
   });
 
   type Held = "act live" | "act expired" | "no act" | "no session" | "another secret's act live";

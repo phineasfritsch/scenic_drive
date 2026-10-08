@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 const API = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OUT = resolve(API, "..", "..", ".build", "mutate-assert");
 
-export const MIN_MUTATIONS = 40;
+export const MIN_MUTATIONS = 58;
 export const SUBJECTS = ["src/appAssert.ts", "src/attestStore.ts", "src/attest.ts"];
 const TESTS = ["test/attestAssert.test.ts", "test/attestRate.test.ts", "test/attestAccept.test.ts", "test/attestVerify.test.ts",
   "test/requestReadSites.test.ts", "test/killSwitchRoutes.test.ts", "test/routes.test.ts"];
@@ -82,6 +82,16 @@ export const MUTATIONS = [
   m("attest-limited-status-503", "attest.ts", "json({ error: \"challenge_rate_limited\" }, 429)", "json({ error: \"challenge_rate_limited\" }, 503)"),
   m("assert-body-extra-allowed", "attest.ts", "if (Object.keys(body).filter((k) => k !== \"appAccountToken\").sort().join() !== ASSERT_KEYS.join()) return INVALID_ASSERTION();", ""),
   m("assert-token-unchecked", "attest.ts", "if (\"appAccountToken\" in body && (act === undefined || !UUID.test(act))) return INVALID_ASSERTION();", ""),
+  // T-0322 pre-review M3, closed by class: every bound of the ruled shape at the /attest/assert call site.
+  m("assert-act-tail-admitted", "attest.ts", "!UUID.test(act))) return INVALID_ASSERTION();", "!UUID.test(act.slice(0, 36)))) return INVALID_ASSERTION();"),
+  m("assert-act-head-admitted", "attest.ts", "!UUID.test(act))) return INVALID_ASSERTION();", "!UUID.test(act.slice(-36)))) return INVALID_ASSERTION();"),
+  m("assert-act-short-padded", "attest.ts", "!UUID.test(act))) return INVALID_ASSERTION();", "!UUID.test(act.padEnd(36, \"0\")))) return INVALID_ASSERTION();"),
+  m("assert-act-hyphens-unplaced", "attest.ts", "!UUID.test(act))) return INVALID_ASSERTION();", "!/^[0-9a-f-]{36}$/.test(act))) return INVALID_ASSERTION();"),
+  m("assert-act-before-0-admitted", "attest.ts", "!UUID.test(act))) return INVALID_ASSERTION();", "!/^[/-9a-f]{8}-[/-9a-f]{4}-[/-9a-f]{4}-[/-9a-f]{4}-[/-9a-f]{12}$/.test(act))) return INVALID_ASSERTION();"),
+  m("assert-act-past-9-admitted", "attest.ts", "!UUID.test(act))) return INVALID_ASSERTION();", "!/^[0-:a-f]{8}-[0-:a-f]{4}-[0-:a-f]{4}-[0-:a-f]{4}-[0-:a-f]{12}$/.test(act))) return INVALID_ASSERTION();"),
+  m("assert-act-before-a-admitted", "attest.ts", "!UUID.test(act))) return INVALID_ASSERTION();", "!/^[0-9`-f]{8}-[0-9`-f]{4}-[0-9`-f]{4}-[0-9`-f]{4}-[0-9`-f]{12}$/.test(act))) return INVALID_ASSERTION();"),
+  m("assert-act-past-f-admitted", "attest.ts", "!UUID.test(act))) return INVALID_ASSERTION();", "!/^[0-9a-g]{8}-[0-9a-g]{4}-[0-9a-g]{4}-[0-9a-g]{4}-[0-9a-g]{12}$/.test(act))) return INVALID_ASSERTION();"),
+  m("assert-act-multiline-admitted", "attest.ts", "!UUID.test(act))) return INVALID_ASSERTION();", "!new RegExp(UUID.source, \"m\").test(act))) return INVALID_ASSERTION();"),
   m("assert-commit-ignored", "attest.ts", "if (!(await commitAssertion(deps.db, keyId, counter, challenge, nowMs))) return INVALID_ASSERTION();",
     "await commitAssertion(deps.db, keyId, counter, challenge, nowMs);"),
   m("assert-sub-is-key", "attest.ts", "const sub = key.deviceId;", "const sub = keyId;"),
