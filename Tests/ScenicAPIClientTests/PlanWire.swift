@@ -41,9 +41,9 @@ enum PlanWire {
 
     static func plan(through transport: any PlanTransport, base: URL = base, from origin: Coordinate = santaMonica,
                      to place: Int64 = 42, budgetMinutes: Int = 25, departsAt: Date? = nil,
-                     installID: (any InstallIDProvider)? = install)
+                     installID: (any InstallIDProvider)? = install, account: (any AccountTokenProvider)? = nil)
         async -> Result<PlanResponse, PlanError> {
-        let client = PlanClient(base: base, transport: transport, installID: installID)
+        let client = PlanClient(base: base, transport: transport, installID: installID, accountToken: account)
         do {
             return .success(try await client.plan(from: origin, to: place, budgetMinutes: budgetMinutes,
                                                   departsAt: departsAt))
