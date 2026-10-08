@@ -1,7 +1,7 @@
 ---
 id: T-0319
 title: The /plan reroute wire - carry a RerouteRequest (remaining pins + same lambda) without sending more than one 2-dp coordinate (plan token + first remaining pin index); the Worker half of T-0317 R2
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T12:53:20Z
@@ -11,7 +11,7 @@ branch: task/T-0319
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/plansheet_mutations.py, ops/mutate/plansheet_run.py, ops/lib/named-tests.json, ops/lib/check-safety-disclaimer-linked-digests.txt, Tests/Fixtures/t0251/, queue/]
 pins_affected: [P-NAV-01, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0319
 depends_on: [T-0317]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -206,3 +206,20 @@ a measurement task first).
   allowlisted; the floor of 137 holds`; check-pins-yaml `PINS-YAML ok pins=48 fields=387`; queue-check `QUEUE OK
   (317 tasks)`; run-named-tests P-SAFE-08 `passed=833/833` (the preserved "/plan, the re-request over the ceiling"
   name still binds). Mutants: only the touched rows re-run (faster-verification rule): 3/3 CAUGHT above.
+- 2026-10-08T15:48:43Z REVIEW round 2 PASS by agent/rv2-t0319 (not the owner) at origin/task/T-0319 = f1c37f75, in a
+  detached worktree .worktrees/rv2-t0319. rv1 mutants re-applied through the population driver:
+  `node services/api/test/mutate/planMutants.mjs --only=reroute-retry-over-ceiling,reroute-first-closures-dropped`
+  -> `baseline green tests=212`; `CAUGHT reroute-retry-over-ceiling by "/plan reroute, the re-request over the
+  ceiling: the crossing path is returned, crosses names X, one re-request made"`; `CAUGHT
+  reroute-first-closures-dropped by "/plan reroute, X alone, clear path, router honours: requests, areas, the
+  returned path and the hazard equal the row's"`; `RESULT caught=2 missed=0 trap=0 of 2` (B1, B2 closed).
+  Own mutant C (outside the population): reroutePlanner.ts re-request `buildCustomModel(lambda, swapped))` ->
+  `buildCustomModel(lambda, closures))` -> closuresCrossing + planReroute RED by name, 12 failed, among them
+  "/plan reroute, the fixture, through path, router honours: the re-request's whole body is the first request's at
+  the answer's lambda, areas swapped" and "/plan reroute, the re-request exactly at the ceiling: the clear path is
+  returned, one re-request made"; restored, tree clean. `gh pr checks 209`: core pass 5m12s, pins-source-only pass
+  2m4s. check-mutate-population `P-PROC-06: every added module is covered or allowlisted; the floor of 137 holds`
+  exit 0; queue-check `QUEUE OK (317 tasks)` exit 0; closuresCrossing.test.ts 300 lines; `git merge-base
+  --is-ancestor origin/main origin/task/T-0319` exit 0 (main e158ddbc). Recordable: the new reroute rows are not in
+  P-SAFE-08's by-name list (held by the three population entries); P-PRIV-04 PLANS sweep is T-0326 (rows live up
+  to 43200 s after deletion); owner must create and bind the PLANS KV namespace.
