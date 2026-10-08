@@ -106,7 +106,8 @@ fixture. Measured 2026-10-08: ops/ has plan, score-review and etl-* but no route
   1 EQUIVALENT with witness, floors 17/1/2; `--prove-floor`: `FLOOR PROOF OK: 7 of 7 arms refused and the
   control did not`; `check-mutate-population.py`: `P-PROC-06: every added module is covered or allowlisted; the
   floor of 143 holds`.
-- 2026-10-08T18:40:00Z MUTATION RUNS at 2de50b0b (agent/claude-opus-5). `python ops/mutate/autopsy.py`: BASELINE
+- 2026-10-08T18:37:10Z MUTATION RUNS at 2de50b0b (agent/claude-opus-5; stamp corrected - this entry was first
+  committed with a guessed 18:40:00Z instead of `date -u`, a later time than its own commit). `python ops/mutate/autopsy.py`: BASELINE
   exit=0, `caught by the test that names it: 17 of 17 (wrong killer 0, trapped 0, compile-only 0, MISSED 0,
   skipped 0)`, the EQUIVALENT entry MISSED as required, `MUTATE OK caught=17/17 equivalent_caught=0`, exit 0.
   `--prove-vacuity`: `VACUITY PROOF OK: with the 2 test file(s) emptied, caught=0 (need 0) and MISSED=17 of 17`.
@@ -117,3 +118,24 @@ fixture. Measured 2026-10-08: ops/ has plan, score-review and etl-* but no route
   `old` anchor of segmentscore.py's MUTATIONS + EQUIVALENT found verbatim in the current files - `ANCHORS 66 of
   66 found verbatim (0 gone)` - so no entry would SKIP; the SegmentScore suites are green in the 84-test run
   above. A full segmentscore.py run is the reviewer's to buy if it wants one.
+- 2026-10-08T18:37:10Z MERGED origin/main (f98572c5: T-0323, T-0324 and queue moves; auto-merged, no conflict - the
+  digest table took main's rows and this branch's eight) as c6e7928a, merge message amended with the attribution
+  lines; pushed; PR #213. ACCEPTANCE RE-RUN ON THE MERGED HEAD:
+  1. MEASURE then RULE FIRST - the 17:20:41Z entry, committed alone (1464f661) before any code. It names what
+     ops/plan prints (no trace, no GATE/M/E), the plan id (R1: O/D/budget re-planned against a recorded router;
+     plan_token holds pins + lambda for 43_200 s, no edges; no server-side store) and the term source (R2: ScenicKit
+     over a --terms file; the graph carries only scenic_score/road_class/osm_way_id). MET.
+  2. Autopsy output + golden + --fixture: `swift test --filter "ScenicPlanCLITests|SegmentScore|RouteScore|Gates|
+     ScenicPlan"` -> `Test run with 138 tests in 23 suites passed` (includes the 7 RouteAutopsy tests: full-equality
+     golden over t0221/westwood-malibu, raw-recording trace, literal-weight M/E + gates, dashes, the fixture
+     written whole and replayed, the three refusals, usage). MET, with the terms file SYNTHETIC by R7.
+  3. Wrapper discipline: ops/route-autopsy execs `scenic-plan --autopsy "$@"`, usage + exit 2 on no args;
+     `check-exec-bits`: `P-OPS-01: 191 files, 23 required present, all modes correct`; golden seen red (one row)
+     then green (17:50:37Z entry); population `MUTATE OK caught=17/17`, `VACUITY PROOF OK`;
+     `check-mutate-population.py`: `P-PROC-06: every added module is covered or allowlisted; the floor of 144
+     holds`. MET.
+  GATES on c6e7928a, run bare: `bash ops/lib/check-safety-disclaimer` exit 0 (`LAST all 81 app .swift, then 248
+  root + pbxproj file(s) (-linked)`); `check-line-cap`: `P-SRC-02: 499 Swift files tracked ... none over 300
+  lines`; `check-pins-yaml.py`: `PINS-YAML ok pins=48 fields=387`; `ops/queue-check`: `QUEUE OK (320 tasks)`.
+  STILL OPEN (not claimed): the first real negative fixture and its replay test (R9); the ETL-to-terms converter;
+  P-PROD-01 stays TODO (three-implementation parity, pending T-0012); the issued-honest-failure finding.
