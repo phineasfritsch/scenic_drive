@@ -1,7 +1,7 @@
 ---
 id: T-0317
 title: The drive session's decisions live in ScenicKit and are Linux-tested - off-route detection, reroute request (remaining pinned waypoints + same lambda, never bare O->D), offline rejoin mode with zero requests, and the >4.5 m/s motion gate - ready for the Ferrostar adapter (M7)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T07:53:28Z
@@ -11,7 +11,7 @@ branch: task/T-0317
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-NAV-01, P-SAFE-06]
-reviewer: null
+reviewer: agent/rv2-t0317
 depends_on: [T-0294]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -170,3 +170,16 @@ first, so the adapter is a thin shell. Calm, minimal-distraction driving UI (mem
   branch or in the queue holds T-0319); the dated entries above keep the id they were written with. Merged
   origin/main 3840fb3d: DRIVERS / COVERED_FLOOR, named-tests.json, PINS.yaml and the digest table auto-merged as a
   union of T-0314's rows and this branch's; the gates below re-run on that head.
+- 2026-10-08T11:42:52Z REVIEW PASS (round 2) by agent/rv2-t0317 (not the owner) on PR #205, head 8b56dff6 ==
+  origin/task/T-0317. Fresh detached worktree, own scratch path. Baseline: `Test run with 23 tests in 3 suites
+  passed`. Five hand-applied mutants, each over the three suites, sources restored byte-for-byte after each:
+  B1 delete `awaySince = nil` in rerouteArrived -> CAUGHT by "a landed reroute restarts the dwell" only (1 issue);
+  R2 `let scale = Self.metersPerDegree` -> CAUGHT by the north-south latitude-34 test and the loop test (2 issues);
+  R4 drop the unusable-fix `surface = .minimal` -> CAUGHT by "an unusable fix is an unknown speed" (24 issues, the
+  before=full rows); own M4 observe's `<=` -> `<` -> CAUGHT by "50 m exactly is on the line" and the latitude-34
+  test; own M5 `!online, mode != .rejoining` (any offline edge rejoins) -> CAUGHT by "connectivity lost while a
+  reroute is out" (the guiding-stays-guiding row). Survivors: 0. `gh pr checks 205`: core pass, pins-source-only
+  pass. Bare: check-mutate-population.py exit 0 (`the floor of 128 holds`), queue-check exit 0 (`QUEUE OK (311
+  tasks)`), check-safety-disclaimer exit 0. LAST: `git merge-base --is-ancestor origin/main origin/task/T-0317`
+  (main 3840fb3d) exit 0. Recorded, not blocking: entries 30 and 31 were never run through `--prove-vacuity`;
+  T-0319's id reservation and the NavAdapter cancel-on-disconnect obligation stay with the orchestrator.
