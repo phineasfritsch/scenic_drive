@@ -1,0 +1,33 @@
+{
+  "source": "SYNTHETIC - hand-chosen terms for four way ids of the T-0221 westwood-malibu lambda-3.25 route, written by T-0327 to exercise ops/route-autopsy's join (one way carries access=private so a refusal is printed). NOT measured by the ETL; no LA way's real terms are in the tree.",
+  "ways": {
+    "909518997": {
+      "tags": {"highway": "tertiary", "surface": "asphalt"},
+      "terms": {"curvature": 0.40, "elevationGain": 0.30, "speedFit": 0.70, "sinuosity": 0.35,
+                "canopy": 0.25, "relief": 0.30, "impervious": 0.55, "pointsOfInterest": 0.10,
+                "water": 0.05, "furniture": 0.60, "bywayTier": "none", "tunnelMeters": 0,
+                "metersToNearestMotorway": null}
+    },
+    "399156621": {
+      "tags": {"highway": "secondary", "surface": "asphalt"},
+      "terms": {"curvature": 0.85, "elevationGain": 0.70, "speedFit": 0.60, "sinuosity": 0.80,
+                "canopy": 0.45, "relief": 0.80, "impervious": 0.05, "pointsOfInterest": 0.20,
+                "water": 0.10, "furniture": 0.10, "bywayTier": "eligible", "tunnelMeters": 0,
+                "metersToNearestMotorway": null}
+    },
+    "675540508": {
+      "tags": {"highway": "trunk", "surface": "asphalt"},
+      "terms": {"curvature": 0.10, "elevationGain": 0.05, "speedFit": 0.20, "sinuosity": 0.10,
+                "canopy": 0.05, "relief": 0.20, "impervious": 0.40, "pointsOfInterest": 0.15,
+                "water": 0.90, "furniture": 0.50, "bywayTier": "designated", "tunnelMeters": 0,
+                "metersToNearestMotorway": 0}
+    },
+    "1073769540": {
+      "tags": {"highway": "tertiary", "access": "private"},
+      "terms": {"curvature": 0.30, "elevationGain": 0.20, "speedFit": 0.50, "sinuosity": 0.25,
+                "canopy": 0.30, "relief": 0.25, "impervious": 0.35, "pointsOfInterest": 0.05,
+                "water": 0.00, "furniture": 0.40, "bywayTier": "none", "tunnelMeters": 0,
+                "metersToNearestMotorway": 120}
+    }
+  }
+}

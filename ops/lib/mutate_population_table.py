@@ -8,7 +8,7 @@ is read, and the gate's --prove-red runs its shipping entry point over them.
 
 # The WHITELIST of population drivers: any other ops/mutate/*.py with a `__main__` block is a refusal until
 # it is classified here (ruling R3).
-DRIVERS = ("accounttoken.py", "budget.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
+DRIVERS = ("accounttoken.py", "autopsy.py", "budget.py", "corpusfetch.py", "corpusota.py", "drive.py", "extractadapter.py", "fallback.py", "gates.py", "geometry.py", "guidance.py", "handoff.py",
            "hazards.py", "ledger.py", "menu.py", "normalise.py", "onboarding.py", "placeallow.py", "plan.py", "plansheet.py", "retrace.py",
            "roadtrip.py", "routescore.py",
            "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py",
@@ -19,6 +19,9 @@ PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declar
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
+    "Sources/ScenicPlanCLI/AutopsyReport.swift", "Sources/ScenicPlanCLI/AutopsyCommand.swift",
+    "Sources/ScenicPlanCLI/AutopsyFixture.swift", "Sources/ScenicPlanCLI/AutopsyTerms.swift",
+    "Sources/ScenicPlanCLI/AutopsyArguments.swift", "Sources/ScenicPlanCLI/TracingRouteSource.swift",
     "Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift", "Sources/ScenicKit/Traffic/HourOfWeek.swift",
     "Sources/ScenicKit/Traffic/CorridorRatio.swift", "Sources/ScenicKit/Traffic/RetimedRoute.swift",
     "Sources/ScenicKit/Traffic/CorridorSlot.swift", "Sources/ScenicKit/Traffic/CorridorCell.swift",
