@@ -201,3 +201,34 @@ surface. Calm copy (memory owner-route-intent).
   RECORDABLES: R2 ACCEPTED. The H6b row is re-anchored to the multi-line `.onAppear {` line and run alone. R1 (the
   wiring line guarded only by the digest) and R3 (Try again after quotaExhausted) are RECORDED for follow-up, not
   built here. R4 is already open in the Log above.
+- 2026-10-08T09:51:14Z rv1 FIXES LANDED (eb437d04, merged with origin/main as 5bc5420d). agent/claude-opus-5 (owner).
+  MISSED AT THE OLD HEAD: run in a detached worktree at 675a4b95 by .artifacts/t0314/oldhead.py, each entry's
+  old-head spelling applied alone and restored with 1.1 s after the restore, `swift test --scratch-path
+  .build/t314old --filter "LoopHandoffTests|LoopSheetTests|LoopClientRequestTests|LoopSheetGateTests|
+  LoopClientOutcomeTests|HandoffSourceTests"`: 54 `<` MISSED, 55 `<= 0.5` MISSED, 56 `!(f > max)` MISSED, 57
+  `decodeIfPresent ?? false` MISSED, 58 `etaIsEstimate: true,` MISSED, 59 the detector's `<` MISSED, each `Test run
+  with 21 tests in 6 suites passed`, rc=0. The script's first control printed rc=1 with no summary (a build that
+  overlapped this worktree's own build). Re-run alone: `Test run with 21 tests in 6 suites passed`, rc=0. Harness
+  control: `fraction > max` gave `Test run with 21 tests in 6 suites failed ... with 2 issues` ("a clean loop
+  reaches the sheet ..." and "a loop the device finds retraced ..."), so the mutants were really rebuilt.
+  CAUGHT BY NAME NOW: `python ops/mutate/loopsheet.py --only 45,46,54,55,56,57,58,59` on eb437d04 printed
+  `population mutations=59 (floor 59)`, BASELINE exit=0, 54/55/56/59 by "the device's retrace limit is 0.15
+  inclusive at every bound", 57 by "every Worker answer is one typed outcome from one request", 58 by that and "a
+  200 saying eta_is_estimate false reaches the sheet as a preview without the badge", 45 by "... the planner decides
+  on the device's own measured fraction" among others, 46 by the bound table among others; `caught by the test
+  that names it: 8 of 8 ... MISSED 0`, `MUTATE OK caught=8/8 (--only: 8 of 59 entries)`.
+  retrace.py: its isAcceptable entry follows the `public` keyword, and all 26 of 26 anchors occur in
+  RetraceDetector.swift.
+  H6b ALONE (.artifacts/t0314/one_row.py filtering the rows array): at the old anchor, `THE MUTATION CHANGED
+  NOTHING: H6b ...` rc=1. At the new `^        \.onAppear {$` anchor, `H6b ... 1 yes`, `prove-red: 1/1 mutations
+  refused by name`, rc=0.
+  DIGESTS re-approved: ClientLoopPlanner.swift f075c48e..., RetraceDetector.swift b7f9eb89.... The merge
+  brought only queue/ files (T-0315), so no digest row changed after it.
+  GATES ON 5bc5420d: `swift test --scratch-path .build/t314 --filter "ScenicAPIClientTests|LoopSheetTests|
+  TripSheetTests|PlanSheetTests|HandoffTests|RetraceDetectorTests|LoopRetraceParityTests"`: `Test run with 220
+  tests in 38 suites passed`, rc=0. check-safety-disclaimer rc=0, check-map-attribution rc=0,
+  check-store-links rc=0, check-mutate-population rc=0, check-line-cap rc=0 (`442 Swift files tracked ... none
+  over 300 lines`). `wc -l`: LoopSheetGateTests 132, LoopClientOutcomeTests 73, LoopWire 56, ClientLoopPlanner
+  36, RetraceDetector 249.
+  STILL OPEN: R1 (the P-SAFE-03 wiring line is guarded only by the digest) and R3 (Try again after
+  quotaExhausted) are follow-ups. The Log's earlier STILL OPEN list stands, and the paid-tier token is now T-0315.
