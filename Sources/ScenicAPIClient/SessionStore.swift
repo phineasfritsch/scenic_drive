@@ -89,7 +89,10 @@ public actor SessionStore: LedgerSessionProvider, PlanSessionProvider {
 
     private func keep(_ outcome: AttestOutcome, keyId: String, account: UUID?) -> String? {
         guard case .session(let token, let expiresAt) = outcome else { return nil }
-        let record = SessionRecord(keyId: keyId, token: token, expiresAt: expiresAt,
+        // The expiry on THIS device's clock - receipt plus the token's own lifetime - so a slow or fast clock never
+        // rides a session past the Worker's exp (T-0322 B1); the reply's instant only when the token carries none.
+        let expiry = SessionRecord.lifetime(of: token).map { now().addingTimeInterval($0) } ?? expiresAt
+        let record = SessionRecord(keyId: keyId, token: token, expiresAt: expiry,
                                    act: account?.uuidString.lowercased())
         if storage.write(record, as: KeychainWrite.replacing(over: keychain ?? .absent)) { keychain = .valid(record) }
         current = .valid(record)

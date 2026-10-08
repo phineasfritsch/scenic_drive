@@ -19,6 +19,8 @@ the ledger write (LedgerSurpriseSource.swift, LedgerClient.swift's 401 hand-back
     misnamed, dropped by the store), the record's act (forgotten, off the wire, an empty one, unread), the step's act
     test, the per-value budget, a stale session sent; the plan family's Bearer (never set, no scheme, the header
     dropped beside it, each client dropping the session or asking for no purchase, a refused request acquiring).
+  * T-0322 REVIEW ROUND 1, B1(b) (77-81): the expiry kept on the device's clock - the reply's instant kept instead,
+    exp equal to iat read, the base64 padding dropped, the url alphabet unread, the fallback guessing an hour.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -52,7 +54,7 @@ TESTS = ROOT / "Tests" / "ScenicAPIClientTests"
 TEST_FILES = (TESTS / "AttestClientTests.swift", TESTS / "KeychainDecisionTests.swift",
               TESTS / "SessionStoreTests.swift", TESTS / "SurpriseLedgerWriteTests.swift",
               ROOT / "Tests" / "ScenicKitTests" / "Surprise" / "SurpriseShowingTests.swift",
-              TESTS / "SessionAccountTests.swift", TESTS / "PlanBearerTests.swift")
+              TESTS / "SessionAccountTests.swift", TESTS / "PlanBearerTests.swift", TESTS / "SessionSkewTests.swift")
 
 REQ = "Each App Attest request is exactly its URL, its one header and its sorted-key body"
 TABLE = "Every Worker answer is one typed outcome after exactly one request - never a retry"
@@ -81,6 +83,9 @@ NOSTALE = ("a failed renewal for the purchase is that token's one try: never the
 ROWS = "every plan-family request names the purchase and carries the Bearer exactly when its act is that purchase"
 STALE = "a session issued before the purchase is never sent: the header alone rides until it is renewed"
 NOACQ = "a request refused on the device acquires no session"
+SKEW = "a session is kept on the device's clock and used for exactly lifetime - margin seconds after receipt"
+LIFE = "a token's lifetime is exactly exp - iat of its payload, at every bound"
+FALLBACK = "a token with no readable lifetime keeps the reply's expires_at"
 
 SORTED = "encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]"
 MARGIN = "record.expiresAt.timeIntervalSince(now) > margin"
@@ -230,6 +235,18 @@ MUTATIONS = [
      "case .challenge(let challenge) = await client.challenge() else {\n"
      "                if case .valid(let held) = current { return held.token }\n                return nil\n            }",
      [NOSTALE, ROWS, STALE]),
+    # 77-81: T-0322 review round 1, B1(b) - the session's expiry on the device's clock.
+    ("77 the reply's instant kept", STORE,
+     "let expiry = SessionRecord.lifetime(of: token).map { now().addingTimeInterval($0) } ?? expiresAt",
+     "let expiry = expiresAt", [SKEW]),
+    ("78 exp equal to iat read", RECORD, "claims.exp > claims.iat", "claims.exp >= claims.iat", [LIFE]),
+    ("79 the base64 padding dropped", RECORD,
+     'payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)', "_ = payload", [LIFE]),
+    ("80 the url alphabet unread", RECORD,
+     'var payload = parts[1].replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")',
+     "var payload = String(parts[1])", [LIFE]),
+    ("81 the fallback guesses an hour", STORE, "now().addingTimeInterval($0) } ?? expiresAt",
+     "now().addingTimeInterval($0) } ?? now().addingTimeInterval(3600)", [FALLBACK]),
 ]
 
 # (name, path, old, new, witness): cannot change behaviour, so anything but MISSED is a failure.
@@ -252,6 +269,6 @@ EQUIVALENT = [
      "takes only its keyId and the act ASKED FOR, and keep writes a new record - the dropped record's act is never read"),
 ]
 
-MIN_MUTATIONS = 76
+MIN_MUTATIONS = 81
 MIN_EQUIVALENT = 3
-MIN_TEST_FILES = 7
+MIN_TEST_FILES = 8

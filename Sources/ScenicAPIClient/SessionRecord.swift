@@ -17,6 +17,24 @@ public struct SessionRecord: Equatable, Sendable {
         self.act = act
     }
 
+    /// The token's own lifetime, `exp - iat` from its payload (T-0322 B1): the Worker's span, which no device clock
+    /// skews. nil unless the payload is base64url JSON with integer iat and exp, exp after iat.
+    public static func lifetime(of token: String) -> TimeInterval? {
+        let parts = token.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return nil }
+        var payload = parts[1].replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload), let claims = try? JSONDecoder().decode(Claims.self, from: data),
+              claims.exp > claims.iat
+        else { return nil }
+        return TimeInterval(claims.exp - claims.iat)
+    }
+
+    private struct Claims: Decodable {
+        let iat: Int64
+        let exp: Int64
+    }
+
     private struct Wire: Codable {
         let act: String?
         let expires_at: Int64
