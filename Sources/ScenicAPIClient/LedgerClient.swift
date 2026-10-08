@@ -20,7 +20,7 @@ public struct LedgerClient: Sendable {
 
     /// POST /ledger {cell, place_id}: the place `placeId`, in H3 resolution-5 cell `cell` (the PLACE's), was shown.
     public func record(placeId: String, cell: String) async -> LedgerOutcome {
-        guard let token = token() else { return .noSession }
+        guard let token = await token() else { return .noSession }
         guard let entry = LedgerEntry(placeId: placeId, cell: cell) else { return .refusedOnDevice }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -34,15 +34,15 @@ public struct LedgerClient: Sendable {
 
     /// GET /ledger: this session's places of the last 90 UTC days.
     public func read() async -> LedgerOutcome {
-        guard let token = token() else { return .noSession }
+        guard let token = await token() else { return .noSession }
         return await send(PlanHTTPRequest(url: url, method: "GET", headers: ["authorization": "Bearer \(token)"],
                                           body: Data()), isRead: true)
     }
 
     private var url: URL { base.appendingPathComponent("ledger") }
 
-    private func token() -> String? {
-        guard let token = session.sessionToken(), !token.isEmpty else { return nil }
+    private func token() async -> String? {
+        guard let token = await session.sessionToken(), !token.isEmpty else { return nil }
         return token
     }
 
