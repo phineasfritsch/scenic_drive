@@ -197,3 +197,12 @@ a measurement task first).
   row's bound count in PINS.yaml, outside touches); they are held by the population above.
   P-PRIV-04 follow-up filed: queue/backlog/T-0326-account-deletion-sweeps-plan-tokens.md (T-0325 is the highest id
   on main and every origin/task/* branch).
+- 2026-10-08T15:38:07Z MERGED origin/main (8d39f215) LAST into 0dbc8f09 (merge message amended to carry the attribution lines);
+  `git merge-base --is-ancestor origin/main HEAD` 0; main changed nothing under services/api. ON THE MERGED HEAD:
+  `npx vitest run` closuresCrossing, planReroute, planRecorded, planPrivacy, planCost, planCeiling, planWire,
+  requestReadSites, killSwitchRoutes, sharedEnvWorker, configAnswerPath -> `Tests 1 failed | 227 passed (228)`, the
+  one the 5021 ms configAnswerPath global-intrinsics timeout on the loaded box; alone -> `Tests 3 passed (3)`.
+  bash ops/lib/check-safety-disclaimer exit 0; check-mutate-population `P-PROC-06: every added module is covered or
+  allowlisted; the floor of 137 holds`; check-pins-yaml `PINS-YAML ok pins=48 fields=387`; queue-check `QUEUE OK
+  (317 tasks)`; run-named-tests P-SAFE-08 `passed=833/833` (the preserved "/plan, the re-request over the ceiling"
+  name still binds). Mutants: only the touched rows re-run (faster-verification rule): 3/3 CAUGHT above.
