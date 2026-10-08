@@ -1,13 +1,13 @@
 ---
 id: T-0312
 title: The device's Surprise history persists across launches (GRDB user store beside saved drives), so the 90-day no-repeat holds without a session; the card's basis/history split gets a test of its own
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T05:02:47Z
+lease_expires_at: 2026-10-09T01:02:47Z
+worktree: .worktrees/T-0312
+branch: task/T-0312
 exclusive: []
 touches: [Sources/PlaceStore/, Tests/PlaceStoreTests/, Sources/ScenicKit/Surprise/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-PROD-02, P-PRIV-05]
@@ -26,3 +26,4 @@ relaunch forgets the 90-day no-repeat when there is no session; and the card's b
 
 ## Log
 - 2026-10-08T04:02:40Z filed by agent/claude-opus-5 (orchestrator) from T-0310's stillOpen and rv1-t0310's recordables.
+- 2026-10-08T05:02:47Z claimed by agent/claude-opus-5; lease until 2026-10-09T01:02:47Z
