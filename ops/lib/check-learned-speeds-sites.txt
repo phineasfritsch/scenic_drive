@@ -1,0 +1,13 @@
+Sources/ScenicKit/Traffic/CorridorRatio.swift	public struct CorridorRatio: Equatable, Sendable {
+Sources/ScenicKit/Traffic/CorridorSlot.swift	public struct CorridorSlot: Hashable, Sendable {
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	            if let learned = slots[CorridorSlot(cell: edge.cell, hour: hour)], learned.samples >= Self.learnedSamples {
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	            slots[slot] = CorridorRatio(ratio: observed, samples: 1)
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	            slots[slot] = CorridorRatio(ratio: ratio, samples: prior.samples + 1)
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	        let slot = CorridorSlot(cell: cell, hour: hourOfWeek)
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	        return RetimedRoute(edgeSeconds: seconds, isEstimate: !everyEdgeLearned)
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	    public func retime(_ edges: [CorridorEdge], departsAt: Date) -> RetimedRoute {
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	    public private(set) var slots: [CorridorSlot: CorridorRatio] = [:]
+Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	public struct LearnedCorridorSpeeds: TrafficProvider, Equatable {
+Sources/ScenicKit/Traffic/RetimedRoute.swift	public struct RetimedRoute: Equatable, Sendable {
+Sources/ScenicKit/Traffic/TrafficProvider.swift	    func retime(_ edges: [CorridorEdge], departsAt: Date) -> RetimedRoute
+Sources/ScenicKit/Traffic/TrafficProvider.swift	public protocol TrafficProvider: Sendable {
