@@ -40,7 +40,8 @@ SUBJECTS = (REPORT, CMD, FIXTURE, TERMS, ARGS, TRACER)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicPlanCLITests" / "RouteAutopsyGoldenTests.swift",
-              ROOT / "Tests" / "ScenicPlanCLITests" / "RouteAutopsyFixtureTests.swift")
+              ROOT / "Tests" / "ScenicPlanCLITests" / "RouteAutopsyFixtureTests.swift",
+              ROOT / "Tests" / "ScenicPlanCLITests" / "RouteAutopsyBoundaryTests.swift")
 
 GOLDEN = "the autopsy of westwood-malibu equals its golden, every line"
 TRACE = "every trace step is a lambda the search measured, at the raw time of its recording"
@@ -49,11 +50,14 @@ DASHES = "a way the terms file does not carry prints dashes, never a default"
 GATE_REASONS = "the GATE column is Gates.decide over each way's tags, for every GateReason and a freeway"
 WRITES = "--fixture writes the traced recordings, the terms, fixture.json and an autopsy that replays"
 REFUSES = "--fixture refuses outside Tests/, over an existing directory, and without --recorded"
+UNSCORED = "an unscored stretch is left out of RouteScore and printed as unscored metres, never scored 0"
+FITS_CEILING = "FITS is LambdaSearch's verdict: exactly the ceiling fits, one ulp over does not, one under does"
+REFUSED_TERMS = "terms SegmentScore refuses print invalid in M, E and SCORE, never a number"
 
 MUTATIONS = [
     ("a step fits when it OVERSHOOTS the ceiling", REPORT,
-     '(step.duration <= plan.ceiling ? "yes" : "no")', '(step.duration > plan.ceiling ? "yes" : "no")',
-     [GOLDEN, TRACE]),
+     'return outcome.lambda != 0 ? "yes" : "no"', 'return outcome.lambda == 0 ? "yes" : "no"',
+     [GOLDEN, TRACE, FITS_CEILING]),
     ("the router's 0..10 score read as 0..100", REPORT,
      "static let encodedScoreScale = 10.0", "static let encodedScoreScale = 100.0", [GOLDEN]),
     ("M and E printed in each other's column", REPORT,
@@ -100,6 +104,15 @@ MUTATIONS = [
      "        case let .refused(reason): gate = \"refused:\\(reason.rawValue)\"\n        }",
      "gate = way.tags[\"access\"] == \"private\" ? \"refused:noAccess\" : \"allowed\"",
      [GATE_REASONS]),
+    # rv1 B1-B3 (PR #213): the report re-derives or defaults a value ScenicKit owns.
+    ("an unscored stretch scored as 0 (rv1 B1)", REPORT,
+     "if let score = row.scenicScore {", "if let score = Optional(row.scenicScore ?? 0) {", [UNSCORED]),
+    ("the report re-derives FITS with < (rv1 B2)", REPORT,
+     "+ Self.fits(step.duration, plan: plan))", '+ (step.duration < plan.ceiling ? "yes" : "no"))',
+     [FITS_CEILING]),
+    ("refused terms print a default score (rv1 B3)", REPORT,
+     'guard let score = SegmentScore.score(for: way.terms) else { return [gate, "invalid", "invalid", "invalid"] }',
+     "let score = SegmentScore.score(for: way.terms) ?? 0", [REFUSED_TERMS]),
 ]
 
 EQUIVALENT = [
@@ -118,6 +131,6 @@ EQUIVALENT = [
 ]
 
 # Literal floors: the population as written above. Lowering one is a reviewed edit, never a quiet one.
-MIN_MUTATIONS = 18
+MIN_MUTATIONS = 21
 MIN_EQUIVALENT = 2
-MIN_TEST_FILES = 2
+MIN_TEST_FILES = 3

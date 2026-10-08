@@ -27,7 +27,7 @@ struct AutopsyReport {
             lines.append(Self.pad("STEP", 6) + Self.pad(String(index + 1), 4)
                 + Self.pad(LambdaCustomModel.multiplier(step.lambda), 11)
                 + Self.pad(ScenicPlan.fixed(step.duration, 3), 13)
-                + (step.duration <= plan.ceiling ? "yes" : "no"))
+                + Self.fits(step.duration, plan: plan))
         }
         lines.append(routeScoreLine())
         let carried = plan.table.rows.filter { row in row.wayId.flatMap { terms?.ways[$0] } != nil }.count
@@ -43,6 +43,15 @@ struct AutopsyReport {
                 + [ScenicPlan.fixed(row.meters, 1), ScenicPlan.fixed(row.seconds, 1)]))
         }
         return lines
+    }
+
+    /// FITS for one traced step, from LambdaSearch's own feasibility comparison rather than a copy of it: a
+    /// two-evaluation search over this plan's fastest and budget whose lambda 0 measures 0 s (always feasible)
+    /// and whose first midpoint measures the step. The step fits exactly when that midpoint wins.
+    static func fits(_ duration: TimeInterval, plan: ScenicPlan) -> String {
+        guard let search = try? LambdaSearch(fastest: plan.fastestDuration, budget: plan.budget, maxEvaluations: 2),
+              let outcome = try? search.search({ lambda in lambda == 0 ? 0 : duration }) else { return "unmeasured" }
+        return outcome.lambda != 0 ? "yes" : "no"
     }
 
     /// GATE, M, E, score for one way: `-` four times when the terms file does not carry it, and `invalid`

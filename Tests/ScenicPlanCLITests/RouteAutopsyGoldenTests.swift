@@ -92,7 +92,10 @@ struct RouteAutopsyGoldenTests {
         let root = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let ways = try #require(root["ways"] as? [String: [String: Any]])
         #expect(ways.count == 4)
+        let decoded = try AutopsyTerms.load(Self.termsFile)
         for (id, way) in ways {
+            let terms = try #require(decoded.ways[Int(id) ?? -1]?.terms)
+            let score = SegmentScore.score(for: terms).map { ScenicPlan.fixed($0, 3) } ?? "invalid"
             let t = try #require(way["terms"] as? [String: Any])
             func n(_ key: String) -> Double { (t[key] as? Double) ?? .nan }
             let m = 0.45 * n("curvature") + 0.20 * n("elevationGain") + 0.20 * n("speedFit")
@@ -108,6 +111,7 @@ struct RouteAutopsyGoldenTests {
                 #expect(c[3] == (id == "1073769540" ? "refused:noAccess" : "allowed"), "\(row)")
                 #expect(c[4] == ScenicPlan.fixed(m, 3), "\(row)")
                 #expect(c[5] == ScenicPlan.fixed(e, 3), "\(row)")
+                #expect(c[6] == score, "\(row)")
             }
         }
     }
