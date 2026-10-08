@@ -207,3 +207,25 @@ no `act` because the app attests without one.
   rotation) still reads anon with no recovery inside the launch, because the plan family has no 401 path (the Worker
   answers 200/429 as anon). Follow-up: the Worker would need to signal an unverifiable Bearer on the plan family
   before step 3; filed as a note for the step-3 task, not built here.
+
+### 2026-10-08T19:55:51Z - review round 1 fixes landed (B1 a + b)
+- (a) Worker 25ef1f31: `identifyCaller` computes `claims` null for no Bearer AND for one that fails verification,
+  and one line decides: `if (claims === null) return env.IDENTITY_HEADERS === "1" ? legacy() : {unidentified, anon}`.
+  sessionCarriesAct: 153 tests (3 sign + ADMITTED rows + 1 meta + 3 references + 144 cross-product rows) green.
+  Seen RED by name (.build/t0322_red.py, src restored byte-equal): restoring the 91d67b28 early-anon line ahead of
+  the shared one failed 12/153 (every route x {expired, wrong secret, wrong TTL, malformed} x flag 1 x header live -
+  the reviewer's witness, now a row); the inverse (fallback also with the flag off) failed 15/153 (those Bearers and
+  no Bearer, flag unset, header live). attestMutants.mjs --only on the touched entries: `RESULT caught=4 missed=0
+  trap=0 of 4` (ident-fallthrough and ident-early-anon by "now = exp (bound)", ident-flag-ignored likewise,
+  ident-flag-any-value by "... IDENTITY_HEADERS unset or 0 ..."); --prove-floor quiet on the real population (85).
+  At 91d67b28 the early-anon line WAS the code and its tests asserted it (reviewer: 336/336 green) - MISSED there.
+- (b) client 092e8321: SessionRecord.lifetime + SessionStore.keep (+22/-1 source lines). SessionSkewTests: offsets
+  {-7200,-3600,-61,-60,0,60,61,3600} x elapsed {3539,3540,3541}, the lifetime table at every bound, the fallback
+  rows. `swift test --filter` the 6 session suites: `Test run with 27 tests in 6 suites passed`.
+  `python ops/mutate/session.py --only 77,78,79,80,81`: `MUTATE OK caught=5/5`, each by the test it names.
+- Digests re-approved for SessionRecord.swift and SessionStore.swift (gate seen red on both, then exit 0).
+- P-STORE-02: sessionCarriesAct's 36 bound names replaced by 151 (ADMITTED rows stay unbound, as before);
+  check-named-table approval 103 -> 218, digest 2e457a58...; PINS.yaml text records the round.
+- Still open, recorded not built: after IDENTITY_HEADERS closes, a Bearer the Worker cannot verify (secret
+  rotation) reads anon with no in-launch recovery - the plan family has no 401 path. B1(b) removes the clock-skew
+  source; rotation remains for the step-3 task.
