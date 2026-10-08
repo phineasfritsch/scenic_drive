@@ -37,7 +37,8 @@ PLANNER = _API / "ClientLoopPlanner.swift"
 RESPONSE = _API / "LoopResponse.swift"
 HANDOFF = ROOT / "Sources" / "Handoff" / "LoopHandoff.swift"
 DETECTOR = ROOT / "Sources" / "ScenicKit" / "Loop" / "RetraceDetector.swift"
-SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, HANDOFF, DETECTOR)
+IDENTITY = _API / "IdentityHeaders.swift"
+SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, HANDOFF, DETECTOR, IDENTITY)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "LoopSheet" / "LoopSheetTests.swift",
@@ -138,8 +139,8 @@ MUTATIONS = [
     ("28 a retry after a transport throw", CLIENT, _CATCH, _RETRY, [OFFLINE]),
     ("29 posted to /plan", CLIENT, 'base.appendingPathComponent("loop")', 'base.appendingPathComponent("plan")',
      [REQUEST, BOUNDS]),
-    ("30 the device header uppercased", CLIENT, '"x-scenic-device": installID.installID().uuidString.lowercased()],',
-     '"x-scenic-device": installID.installID().uuidString],', [REQUEST]),
+    ("30 the device header uppercased", IDENTITY, "deviceHeader: device.uuidString.lowercased()",
+     "deviceHeader: device.uuidString", [REQUEST]),
     ("31 no_clean_loop read as noRoute", READER, "            return .noCleanLoop", "            return .noRoute",
      [OUTCOME, FAILURES]),
     ("32 region_unsupported unread", READER,

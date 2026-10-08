@@ -23,7 +23,7 @@ struct TripSheetGateTests {
     static func drive(_ sheet: inout TripSheet, _ transport: CountingPlanTransport) async {
         guard let ticket = sheet.startPlanning() else { return }
         let planner = ClientTripPlanner(client: TripClient(base: TripWire.base, transport: transport,
-                                                           installID: PlanWire.install))
+                                                           installID: PlanWire.install, accountToken: nil))
         sheet.finish(ticket, with: await planner.plan(ticket))
     }
 

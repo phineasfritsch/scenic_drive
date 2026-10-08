@@ -104,7 +104,7 @@ SEQUENCES = [
 FROZEN = {
     LS: "d500a4c892eb06ebdefcf662007619af9be05af88f26b0738283c6d3facfe8ae",
     LG: "b72965b1635d4d8b109a0f966e6cfe8fd1f1fe9d7bdf4bd9bac2148f081e30a6",
-    PW: "e78e20791f1efff31dccd0aff4fa610eea1406a401c13c10e009a26afa708fa9",
+    PW: "333b33ed55630cb3ec5f0bf57c17b44bfdb334d1d33ea2b2d5057ab830579ba9",
     ST: "7a2fb5547c2aee2b158a2b1c2dde0b9d36d56a06c07601202cca84aab7e5e19b",
     SC: "6da6ddadc509df44f9a9dadec770e0c3a84738af14715eeb6cee9c221bf63706",
     CD: "7e63f62eb351c5b45c5bed74cf5a63beff43e9b697747c01973e40eefe060906",

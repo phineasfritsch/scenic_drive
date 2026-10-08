@@ -21,10 +21,11 @@ import Testing
     /// One reroute through a fresh counting fake answering the recorded 200: what reached it, the refusal if any,
     /// and the response if one came back.
     static func send(_ request: RerouteRequest, token: String = token, budget: Int = 25,
-                     installID: (any InstallIDProvider)? = PlanWire.install, reply: PlanHTTPReply? = nil)
+                     installID: (any InstallIDProvider)? = PlanWire.install, account: (any AccountTokenProvider)? = nil,
+                     reply: PlanHTTPReply? = nil)
         async throws -> (requests: [PlanHTTPRequest], refusal: PlanRefusal?, response: PlanResponse?) {
         let fake = CountingPlanTransport(reply: try reply ?? PlanWire.recordedReply("200-plan"))
-        let client = PlanClient(base: PlanWire.base, transport: fake, installID: installID)
+        let client = PlanClient(base: PlanWire.base, transport: fake, installID: installID, accountToken: account)
         var refusal: PlanRefusal?
         var response: PlanResponse?
         do {
@@ -36,12 +37,14 @@ import Testing
     }
 
     /// The request for these inputs, spelled out: sorted keys, the place as a string, the origin as typed here.
-    static func recomputed(lat: String, lon: String, first: Int, budget: Int = 25) -> PlanHTTPRequest {
+    static func recomputed(lat: String, lon: String, first: Int, budget: Int = 25,
+                           account: String? = nil) -> PlanHTTPRequest {
         let body = "{\"budget_minutes\":\(budget),\"destination\":{\"place\":\"42\"},"
             + "\"origin\":{\"lat\":\(lat),\"lon\":\(lon)},"
             + "\"reroute\":{\"first_pin\":\(first),\"token\":\"\(token)\"},\"vehicle\":\"standard\"}"
-        return PlanHTTPRequest(url: PlanWire.base.appendingPathComponent("plan"), method: "POST",
-                               headers: ["content-type": "application/json", "x-scenic-device": PlanWire.deviceHeader],
+        var headers = ["content-type": "application/json", "x-scenic-device": PlanWire.deviceHeader]
+        if let account { headers["x-scenic-account-token"] = account }
+        return PlanHTTPRequest(url: PlanWire.base.appendingPathComponent("plan"), method: "POST", headers: headers,
                                body: Data(body.utf8))
     }
 
@@ -50,6 +53,9 @@ import Testing
         let sent = try await Self.send(Self.reroute())
         #expect(sent.refusal == nil)
         #expect(sent.requests == [Self.recomputed(lat: "34.02", lon: "-118.5", first: 1)])
+        let paid = try await Self.send(Self.reroute(), account: FixedAccountToken("0A1B2C3D-4E5F-4061-8273-94A5B6C7D8E9"))
+        #expect(paid.requests == [Self.recomputed(lat: "34.02", lon: "-118.5", first: 1,
+                                                  account: "0a1b2c3d-4e5f-4061-8273-94a5b6c7d8e9")])
     }
 
     @Test("the reroute origin is rounded on the device at every bound")

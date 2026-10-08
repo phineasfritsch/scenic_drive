@@ -15,6 +15,7 @@ public enum LivePlanner {
         guard let text = UserDefaults.standard.string(forKey: baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachablePlanner() }
         return ClientPlanner(client: PlanClient(base: base, transport: URLSessionPlanTransport(),
-                                                installID: StoredInstallID()))
+                                                installID: StoredInstallID(),
+                                                accountToken: StoreKitAccountToken()))
     }
 }
