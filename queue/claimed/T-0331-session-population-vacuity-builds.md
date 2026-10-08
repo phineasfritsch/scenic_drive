@@ -28,3 +28,22 @@ SurpriseShowingTests, which the vacuity mode empties. A vacuity arm that cannot 
 ## Log
 - 2026-10-08T19:14:39Z filed by agent/claude-opus-5 (orchestrator) from T-0322's stillOpen 2; T-0330 is held by task/T-0328.
 - 2026-10-08T22:28:47Z claimed by agent/claude-opus-5; lease until 2026-10-09T04:28:47Z
+- 2026-10-08T22:33:27Z RULINGS (agent/claude-opus-5, owner), before any test edit:
+  (1) The driver is NOT shared: every population under ops/mutate/ carries its own `--prove-vacuity` arm in its own
+  `<name>.py`; ops/lib/check-mutate-population.py reads the populations but runs none. The refusal therefore lands in
+  session.py/session_run.py only; other Swift populations' arms are out of this task's `touches:` (stillOpen).
+  (2) session.py on main ALREADY returned 2 when the emptied baseline failed to build (`build() != 0 and build() != 0`
+  -> "baseline does not build"), so a non-building vacuity run was never counted as MISSED - but it said nothing about
+  vacuity and quoted no compiler error, so the defect was invisible to the reader. Acceptance 3 is met by naming it:
+  `VACUITY REFUSED: ... the tests do not build`, the compiler's `error:` lines quoted (session_run.build_report),
+  exit 2, no mutation run. Red = this tree's emptied set (the broken one, unchanged from main); green = after (3).
+  (3) Fix choice: move the shared fixture (today, yesterday, place, a, b, shown) out of SurpriseShowingTests into a
+  new non-emptied Tests/ScenicKitTests/Surprise/SurpriseShownFixture.swift, NOT widen session TEST_FILES - the two
+  dependents (SurpriseCardHistoryTests, SurpriseShownDayTests) are shownhistory's population, FILTER names neither,
+  and emptying them in session's arm would couple two populations. Values are byte-identical; no MUTATIONS entry
+  changes (all anchors are in Sources/).
+  (4) MEASURED by grep before the run: the only test files that name a symbol defined only in an emptied file are
+  SurpriseCardHistoryTests.swift (SurpriseShowingTests.today/.yesterday/.a/.b/.place/.shown, lines 10-18) and
+  SurpriseShownDayTests.swift (SurpriseShowingTests.a/.shown, lines 68/71); of the seven ScenicAPIClientTests
+  suite names only SessionAccountTests occurs outside its own file, in PlanBearerTests and SessionSkewTests - all
+  three emptied together, so that edge builds.

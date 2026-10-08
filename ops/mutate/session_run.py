@@ -58,10 +58,15 @@ def not_at_head(paths) -> list:
             if p.read_bytes().replace(b"\r\n", b"\n") != head_bytes(p)]
 
 
-def build() -> int:
+def build_report() -> tuple:
+    """(exit code, the compiler's `error:` lines) for one `swift build --build-tests`."""
     p = subprocess.run(["swift", "build", "--build-tests", "--scratch-path", SCRATCH],
                        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    return p.returncode
+    return p.returncode, [ln.strip() for ln in (p.stdout + p.stderr).splitlines() if " error: " in ln]
+
+
+def build() -> int:
+    return build_report()[0]
 
 
 def test() -> tuple:
