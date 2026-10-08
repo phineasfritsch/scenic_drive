@@ -1,13 +1,13 @@
 ---
 id: T-0314
 title: "Just drive a loop" in the app - a LoopClient for POST /loop, a loop sheet (start = here or a typed place, minutes dial), a preview of the loop with its retrace check, and handoff to Apple Maps with the loop's pinned waypoints
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T06:32:56Z
+lease_expires_at: 2026-10-09T06:32:56Z
+worktree: .worktrees/T-0314
+branch: task/T-0314
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, Sources/ScenicKit/, Tests/ScenicKitTests/, Sources/Handoff/, Tests/HandoffTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/ScenicDriveApp.swift, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-03, P-ATTR-01, P-PRIV-05]
@@ -28,3 +28,4 @@ surface. Calm copy (memory owner-route-intent).
 
 ## Log
 - 2026-10-08T05:02:38Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M5 loop UI).
+- 2026-10-08T06:32:56Z claimed by agent/claude-opus-5; lease until 2026-10-09T06:32:56Z

@@ -24,33 +24,59 @@ public struct PlanSheetScreen: View {
     @State private var showingSaved = false
     @State private var saved = SavedList()
     @State private var saveLine: String?
+    /// The road trip, shown in place of the plan form - in-sheet content, not a presentation (T-0313 R4).
+    @State private var showingTrip = false
+    @State private var trip = TripSheet(disclaimerAccepted: false)
+    private let tripPlanner: any TripPlanning
+    private let dayLinks: ([Coordinate]) -> [URL]
 
-    public init(planner: any RoutePlanning, onClose: @escaping () -> Void) {
+    public init(planner: any RoutePlanning, tripPlanner: any TripPlanning,
+                dayLinks: @escaping ([Coordinate]) -> [URL], onClose: @escaping () -> Void) {
         self.planner = planner
+        self.tripPlanner = tripPlanner
+        self.dayLinks = dayLinks
         self.onClose = onClose
     }
 
     public var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Plan a drive")
+                .navigationTitle(showingTrip ? "Plan a road trip" : "Plan a drive")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Close", action: onClose)
                     }
                     ToolbarItem(placement: .primaryAction) {
-                        Button(showingSaved ? "Plan" : "Saved") { showingSaved.toggle() }
-                            .accessibilityIdentifier("plan.savedTab")
+                        Button(showingSaved ? "Plan" : "Saved") {
+                            showingSaved.toggle()
+                            showingTrip = false
+                        }
+                        .accessibilityIdentifier("plan.savedTab")
+                    }
+                    ToolbarItem(placement: .bottomBar) {
+                        Button(showingTrip ? "Plan a drive" : "Plan a road trip") {
+                            showingTrip.toggle()
+                            showingSaved = false
+                        }
+                        .accessibilityIdentifier("plan.tripTab")
                     }
                 }
         }
-        .onAppear { sheet.setDisclaimerAccepted(safetyNoteRead) }
-        .onChange(of: safetyNoteRead) { _, accepted in sheet.setDisclaimerAccepted(accepted) }
+        .onAppear {
+            sheet.setDisclaimerAccepted(safetyNoteRead)
+            trip.setDisclaimerAccepted(safetyNoteRead)
+        }
+        .onChange(of: safetyNoteRead) { _, accepted in
+            sheet.setDisclaimerAccepted(accepted)
+            trip.setDisclaimerAccepted(accepted)
+        }
     }
 
     @ViewBuilder private var content: some View {
-        if showingSaved {
+        if showingTrip {
+            RoadTripScreen(trip: $trip, planner: tripPlanner, dayLinks: dayLinks)
+        } else if showingSaved {
             SavedDrivesList(list: $saved, onReplay: replay)
         } else {
             planContent

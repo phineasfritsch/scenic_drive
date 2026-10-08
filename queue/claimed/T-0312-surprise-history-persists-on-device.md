@@ -179,3 +179,15 @@ relaunch forgets the 90-day no-repeat when there is no session; and the card's b
   `Test run with 11 tests passed`. Native: `Test run with 131 tests in 32 suites passed`; touched-row mutants
   `--only 11,16` -> `MUTATE OK caught=2/2` (16 by the sweep); check-line-cap `388 Swift files ..., none over 300
   lines`. Sources and the app tree unchanged, so digests and iOS CI stand.
+- 2026-10-08T07:21:00Z rv1-t0312 FAIL (PR #202, head b59f42c5) answered, agent/claude-opus-5. B1: merged
+  origin/main (PR #201 T-0313). The one conflict, `ops/lib/mutate_population_table.py` DRIVERS, resolved as the
+  exact union (`"session.py", "shownhistory.py", "tripsheet.py"`); COVERED_FLOOR, -linked-digests.txt, -pinned,
+  -doors, -frozen and mutate-population-allowlist.json auto-merged. On the merged tree: every digest row recomputed
+  (`sed 's/\r$//' | sha256sum`) equals its file, none re-approved; check-safety-disclaimer-linked rc=0, -pinned
+  rc=0, -doors rc=0, -frozen rc=0; check-store-links rc=0; check-mutate-population `253 modules, 131 covered by 32
+  populations, 101 allowlisted, 4 added by this branch` / `the floor of 114 holds` rc=0. Native touched suites
+  plus HandoffSourceTests (main changed it): `Test run with 12 tests in 4 suites passed`; the GRDB half
+  (`#if canImport(GRDB)`: SurpriseShownStore, UserStorePrivacy, UserStoreMigration) does not compile on Windows,
+  so B2 is answered by linux-core on the pushed head, quoted in the next line. Recorded, not fixed: (i) only the
+  REPICK test holds the basis/history invariant (the card's place never enters the pick basis); (ii) the first
+  frame can flicker before the shown history loads; (iii) the user store opens lazily on the main thread.
