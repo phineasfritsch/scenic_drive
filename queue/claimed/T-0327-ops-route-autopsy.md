@@ -139,3 +139,34 @@ fixture. Measured 2026-10-08: ops/ has plan, score-review and etl-* but no route
   lines`; `check-pins-yaml.py`: `PINS-YAML ok pins=48 fields=387`; `ops/queue-check`: `QUEUE OK (320 tasks)`.
   STILL OPEN (not claimed): the first real negative fixture and its replay test (R9); the ETL-to-terms converter;
   P-PROD-01 stays TODO (three-implementation parity, pending T-0012); the issued-honest-failure finding.
+- 2026-10-08T19:17:05Z PRE-REVIEW SURVIVOR CLOSED BY CLASS (agent/claude-opus-5). The pre-review mutant pass found ONE
+  blocking survivor, class "the GATE verdict computed by the report's own copy of the rules instead of
+  ScenicKit.Gates": M1 replaced AutopsyReport.cells(for:)'s `switch Gates.decide(way.tags)` with a one-rule
+  `access == "private"` ternary and every test stayed green, because the synthetic terms file exercises one refusal
+  (1073769540, access=private) and termsRowsCarryGateAndAxes hard-codes that one id. The R2 ruling (GATE =
+  `Gates.decide(tags)`) was bound to one rule only. CLOSED: new test "the GATE column is Gates.decide over each
+  way's tags, for every GateReason and a freeway" (RouteAutopsyGoldenTests) gives every one of the route's 166 rows'
+  way ids one of nine tag sets round robin - one per GateReason (surface=gravel, highway=track, smoothness=bad,
+  motor_vehicle=no, barrier=gate+locked=yes, ford=yes, highway=service+service=driveway), a motorway and an
+  unlocked gate - through a terms file `AutopsyCommand.run(AutopsyArguments.parse(...))` reads, and requires the
+  whole printed GATE column to equal `Gates.decide` over each row's tags by full equality; it also requires the
+  table to span `GateReason.allCases` and each tag set to decide to its stated reason. The class is a population
+  entry, "the gate computed by a private copy of one rule, not Gates.decide" (M1 verbatim), killer the new test;
+  floors 17 -> 18 and 1 -> 2. `ops/mutate/autopsy.py` gained `--only NAME` (repeatable; the floor still judges the
+  whole file). M2c (TracingRouteSource.scenic skipping an append when `steps.last?.lambda == lambda`) is ruled
+  EQUIVALENT as an entry with its witness (LambdaSearch evaluates 0, then only mid strictly inside (lo, hi) with
+  lo/hi earlier samples, so no run repeats a lambda back to back), not prose here.
+  RED, at fb25e606 (population committed, test not yet written), 18:58:05Z: `--only` both new entries ->
+  `MISSED the gate computed by a private copy of one rule, not Gates.decide exit=0 no test objected`, the
+  EQUIVALENT `MISSED` as required, `MUTATE FAILED caught=0/1`. GREEN, at 5940bf44 (test committed), 19:07:03Z:
+  `--only` the two new names plus "a refused way printed as allowed" -> `caught by the test that names it: 2 of 2
+  (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)`, EQUIVALENT MISSED, `MUTATE OK caught=2/2
+  equivalent_caught=0`. `--prove-floor`: `FLOOR PROOF OK: 7 of 7 arms refused and the control did not`. Full
+  17-entry re-run not bought (owner's faster-verification rule: only touched rows re-run; no Sources/ file changed).
+  No Sources/ or apps/ios file changed, so no digest row moves. origin/main fetched: `Already up to date`
+  (f98572c5). GATES on 5940bf44, run bare: `swift test --filter "ScenicPlanCLITests|SegmentScore|RouteScore|Gates|
+  ScenicPlan"` -> `Test run with 139 tests in 23 suites passed`; check-safety-disclaimer exit 0 (`LAST all 81 app
+  .swift, then 248 root + pbxproj file(s) (-linked)`); check-line-cap `P-SRC-02: 499 Swift files tracked ... none
+  over 300 lines` (RouteAutopsyGoldenTests.swift 181); check-pins-yaml `PINS-YAML ok pins=48 fields=387`;
+  check-mutate-population `P-PROC-06: every added module is covered or allowlisted; the floor of 144 holds`;
+  check-exec-bits `P-OPS-01: 191 files, 23 required present, all modes correct`; queue-check `QUEUE OK (320 tasks)`.
