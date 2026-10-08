@@ -4,9 +4,12 @@ import Foundation
 public struct RerouteReply: Sendable, Equatable {
     public let line: [Coordinate]
     public let waypoints: [Coordinate]
+    /// T-0328 R3: the token the Worker remembered THIS answer under; nil when it remembered nothing.
+    public let planToken: String?
 
-    public init(line: [Coordinate], waypoints: [Coordinate]) {
+    public init(line: [Coordinate], waypoints: [Coordinate], planToken: String? = nil) {
         self.line = line
         self.waypoints = waypoints
+        self.planToken = planToken
     }
 }

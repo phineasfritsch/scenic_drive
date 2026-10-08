@@ -44,7 +44,7 @@ struct SavedDraftTests {
     @Test("PlanResponse -> preview -> SavedDraft by full equality: >5 dp rounded once, 5 dp kept, the ends, empty")
     func table() {
         for (label, response, want) in Self.rows {
-            let preview = ClientPlanner.preview(of: response)
+            let preview = ClientPlanner.preview(of: response, place: 42, budgetMinutes: 25)
             #expect(preview.waypoints == response.waypoints, "\(label)")
             #expect(preview.lambda == response.lambda, "\(label)")
             let got = SavedDraft.of(preview, budgetMinutes: 45, name: "El Matador", createdAt: 1_760_000_000)

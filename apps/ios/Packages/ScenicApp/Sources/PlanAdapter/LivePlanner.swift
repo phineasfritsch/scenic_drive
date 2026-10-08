@@ -14,8 +14,19 @@ public enum LivePlanner {
     public static func make() -> any RoutePlanning {
         guard let text = UserDefaults.standard.string(forKey: baseURLKey), let base = URL(string: text),
               base.scheme == "https" else { return UnreachablePlanner() }
-        return ClientPlanner(client: PlanClient(base: base, transport: URLSessionPlanTransport(),
-                                                installID: StoredInstallID(),
-                                                accountToken: StoreKitAccountToken()))
+        return ClientPlanner(client: client(base))
+    }
+
+    /// The drive's reroute sender (T-0328 R2): PlanRerouter on the same client, continuing `preview`'s plan; the sender
+    /// that asks nothing (RerouteUnavailable - the drive rejoins) without an https base or a plan token.
+    public static func rerouter(for preview: PlanPreview) -> any RerouteSending {
+        guard let text = UserDefaults.standard.string(forKey: baseURLKey), let base = URL(string: text),
+              base.scheme == "https", let continuation = preview.continuation else { return RerouteUnavailable() }
+        return PlanRerouter(client: client(base), place: continuation.place, budgetMinutes: continuation.budgetMinutes)
+    }
+
+    private static func client(_ base: URL) -> PlanClient {
+        PlanClient(base: base, transport: URLSessionPlanTransport(), installID: StoredInstallID(),
+                   accountToken: StoreKitAccountToken())
     }
 }
