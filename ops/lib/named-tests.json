@@ -169,10 +169,15 @@
       ],
       "test/ledgerWindow.test.ts": [
         "the /ledger 90-day window (T-0302 R4, R5) > 90 days is returned and kept, 91 is not returned and is deleted on the next write, on each side of each midnight"
+      ],
+      "test/vehicleWire.test.ts": [
+        "the plan request carries the vehicle profile (T-0311, P-COST-01, P-PRIV-05) > an absent vehicle and \"standard\" observe the same answer on every route, and that answer spent the quota and called the router",
+        "the plan request carries the vehicle profile (T-0311, P-COST-01, P-PRIV-05) > every disabled and unknown vehicle is 400 invalid_request whole on every route, with zero router requests and an untouched quota",
+        "the plan request carries the vehicle profile (T-0311, P-COST-01, P-PRIV-05) > no row ignores its route: with vehicle \"standard\" each row's body observes the route's baseline, and each row answers every route differently"
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)|ScenicAPIClientTests\\.LedgerClientTests",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)|ScenicAPIClientTests\\.(LedgerClientTests|PlanVehicleWireTests)",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -188,7 +193,10 @@
         "PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail()",
         "ScenicAPIClientTests.LedgerClientTests/postRequest(_:_:)",
         "ScenicAPIClientTests.LedgerClientTests/getRequestAndRows()",
-        "ScenicAPIClientTests.LedgerClientTests/refusedOnDevice(_:_:)"
+        "ScenicAPIClientTests.LedgerClientTests/refusedOnDevice(_:_:)",
+        "ScenicAPIClientTests.PlanVehicleWireTests/wireValuesAreTheWorkerTable()",
+        "ScenicAPIClientTests.PlanVehicleWireTests/everyProfileWhole()",
+        "ScenicAPIClientTests.PlanVehicleWireTests/defaultIsStandard()"
       ]
     }
   },
@@ -258,6 +266,11 @@
         "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > no row ignores the stale owner: every row's expected table differs between the writer's own stale row and the other's",
         "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > every refused row and every recorded row runs with the stale row owned by the writer and by the other user",
         "POST /ledger caps each user's rows per UTC day (T-0304 R1-R3) > the answer turns on D1's admission row alone: only admitted exactly 1 records, every other batch result shape is 429"
+      ],
+      "test/vehicleWire.test.ts": [
+        "the plan request carries the vehicle profile (T-0311, P-COST-01, P-PRIV-05) > an absent vehicle and \"standard\" observe the same answer on every route, and that answer spent the quota and called the router",
+        "the plan request carries the vehicle profile (T-0311, P-COST-01, P-PRIV-05) > every disabled and unknown vehicle is 400 invalid_request whole on every route, with zero router requests and an untouched quota",
+        "the plan request carries the vehicle profile (T-0311, P-COST-01, P-PRIV-05) > no row ignores its route: with vehicle \"standard\" each row's body observes the route's baseline, and each row answers every route differently"
       ]
     }
   },
