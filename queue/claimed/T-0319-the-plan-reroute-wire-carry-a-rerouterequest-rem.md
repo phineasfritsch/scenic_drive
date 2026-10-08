@@ -106,3 +106,26 @@ a measurement task first).
     touched files (28/28). run-named-tests P-PRIV-05: passed=53/54 - the one red is
     PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail `MISSING - no test of this name ran`, a Swift
     PlaceStore test this branch does not touch.
+- 2026-10-08T13:49:33Z RED FIRST (device): PlanClient.reroute first landed as a stub forwarding to plan() with the raw
+  fix (what a caller could do before this task) - `swift test --filter PlanRerouteWireTests` -> 4/4 failed by name
+  (a reroute leaves as ONE 2-dp origin ... whole; the reroute origin is rounded on the device at every bound; a
+  reroute is refused on the device with zero requests; plan_token decodes, and absent or null decodes nil). Real
+  sender: 4/4 green, and PlanClient|PlanResponse|PlanVehicle|PlanSheetGate|SavedDraft suites green (45 XCTest + 16
+  Swift Testing). Digest rows re-approved for PlanClient, PlanRequestBody, PlanResponse, PlanRefusal;
+  `bash ops/lib/check-safety-disclaimer` exit 0.
+  * R13 (ruled while running the population): services/api/test/mutate/planMutants.mjs was STALE at 2f6e7579 -
+    `planner-other-model` anchored `SCENIC_PROFILE, buildCustomModel(lambda, null)` (0 occurrences at base: the code
+    passes `closures`) and the EQUIVALENT `planner-ceiling-guard` anchored `if (!(eta <= ceiling))` (the code says
+    `firstEta`), so the population refused to run on main. Both re-anchored on code; the witness is unchanged.
+    The runner gains `--only=<ids>` and `--without=<test file>` so the new entries run alone, before and after.
+  * WORKER POPULATION (MIN_MUTATIONS 43 -> 60, SUBJECTS += src/planToken.ts, src/reroutePlanner.ts, TESTS +=
+    test/planReroute.test.ts): `--only=<the 17 new + planner-other-model> --without=test/planReroute.test.ts` ->
+    `RESULT caught=1 missed=17 trap=0 of 18` (the 1 is the re-anchored planner-other-model, by the ceiling sweep);
+    with the reroute tests -> `RESULT caught=18 missed=0 trap=0 of 18`, each by name: token-pin-upper/-lower/
+    -fraction, token-grammar-case/-long and reroute-other-lambda by `every bound of reroute.token and
+    reroute.first_pin`; token-ttl-day and reroute-token-dropped by `every answer remembers its pins and lambda under
+    plan_token for 43200 s`; token-failed-write-named by `an unbound store or a failed write ...`;
+    token-lambda-range, reroute-foreign-device, reroute-other-place by `an unusable token answers exactly the fresh
+    plan`; reroute-pin-count by `the first remaining pin may be the stored count ...`; reroute-pin-skipped and
+    reroute-evaluations by `P-PRIV-05: a reroute sends upstream only ...`; reroute-ceiling-plus and
+    reroute-used-strict by `the budget ceiling holds on a reroute`.
