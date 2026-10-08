@@ -1340,13 +1340,17 @@
   },
   "P-SAFE-09": {
     "swift": {
-      "filter": "ScenicKitTests\\.DriveMotionGateTests",
+      "filter": "ScenicKitTests\\.(DriveMotionGateTests|DriveDisplayTests)",
       "tests": [
         "ScenicKitTests.DriveMotionGateTests/surfaceAtEverySpeedBound()",
         "ScenicKitTests.DriveMotionGateTests/minimalBeforeAnyFix()",
         "ScenicKitTests.DriveMotionGateTests/eachFixSetsTheSurface()",
         "ScenicKitTests.DriveMotionGateTests/gateHoldsInEveryMode()",
-        "ScenicKitTests.DriveMotionGateTests/unusableFixIsMinimal()"
+        "ScenicKitTests.DriveMotionGateTests/unusableFixIsMinimal()",
+        "ScenicKitTests.DriveDisplayTests/everySurfaceAndMode()",
+        "ScenicKitTests.DriveDisplayTests/tableIsTheCrossProduct()",
+        "ScenicKitTests.DriveDisplayTests/minimalIsTheOneLargeAction()",
+        "ScenicKitTests.DriveDisplayTests/sessionDisplayFollowsTheSession()"
       ]
     }
   }

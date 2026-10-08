@@ -65,10 +65,13 @@ alive() {
 }
 for LOOK in light dark; do
   xcrun simctl ui "$UDID" appearance "$LOOK"
-  for SHOT in collapsed medium fastest settings paywall surprise; do
+  for SHOT in collapsed medium fastest settings paywall surprise drive; do
     case "$SHOT" in
       fastest) DETENT=collapsed ROW=0 SCREEN=home NAME=home-$LOOK-$SHOT ;;
       settings|paywall|surprise) DETENT=collapsed ROW=default SCREEN=$SHOT NAME=$SHOT-$LOOK ;;
+      drive) DETENT=collapsed ROW=default SCREEN=drive NAME=drive-$LOOK
+        xcrun simctl privacy "$UDID" grant location "$BUNDLE"
+        xcrun simctl location "$UDID" start --speed=15 34.0905,-118.6370 34.0880,-118.6250 34.0855,-118.6150 34.0830,-118.6050 ;;
       *) DETENT=$SHOT ROW=default SCREEN=home NAME=home-$LOOK-$SHOT ;;
     esac
     LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW" -screen "$SCREEN")
@@ -132,7 +135,7 @@ TEE = 'build | tee "$GITHUB_WORKSPACE/DerivedData/xcodebuild.log"\n'
 LAUNCH = ('              LAUNCHED=$(xcrun simctl launch "$UDID" "$BUNDLE" -homeDetent "$DETENT" -menuRow "$ROW"'
           ' -screen "$SCREEN")\n')
 ALIVE = '              alive "$PID" "${SETTLE}s after the $LOOK $SHOT launch"\n'
-SHOTS_LIST = "            for SHOT in collapsed medium fastest settings paywall surprise; do\n"
+SHOTS_LIST = "            for SHOT in collapsed medium fastest settings paywall surprise drive; do\n"
 LS = '          ls -l "$SHOTS"\n'
 
 
@@ -174,6 +177,8 @@ MUTATIONS = [
     ("CRASH UNSEEN: || true after the launch", LAUNCH, LAUNCH.rstrip("\n") + " || true\n"),
     ("T-0271: the -screen argument dropped (settings and paywall shots become home shots)", LAUNCH,
      LAUNCH.replace(' -screen "$SCREEN"', "")),
+    ("T-0324: the drive shot dropped", SHOTS_LIST,
+     "            for SHOT in collapsed medium fastest settings paywall surprise; do\n"),
     ("T-0271: the settings and paywall shots dropped", SHOTS_LIST,
      "            for SHOT in collapsed medium fastest; do\n"),
     ("a hard-coded device instead of the one chosen from the image's own lists",

@@ -1,7 +1,7 @@
 import Foundation
 
 /// How much of the drive screen a moving driver may see (T-0317 R6, P-SAFE-09 - the plan's P-SAFE-06 row).
-public enum DriveSurface: Sendable, Equatable {
+public enum DriveSurface: Sendable, Equatable, CaseIterable {
     /// Stopped or crawling: the whole drive screen.
     case full
     /// Moving: the one large action and voice, nothing else.

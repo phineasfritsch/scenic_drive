@@ -17,6 +17,8 @@ public final class DriveNavigator: ObservableObject {
     /// What the drive screen (T-0324) shows: the controller's mode and surface after the latest input.
     @Published public private(set) var mode: DriveMode
     @Published public private(set) var surface: DriveSurface
+    /// What the drive screen renders (T-0324 R2): ScenicKit's DriveDisplay for the session after the latest input.
+    @Published public private(set) var display: DriveDisplay
     public let core: FerrostarCore
 
     private var controller: DriveController
@@ -33,6 +35,7 @@ public final class DriveNavigator: ObservableObject {
         controller = DriveController(session: session)
         mode = session.mode
         surface = session.surface
+        display = DriveDisplay(session: session)
         self.sender = sender
         let tap = DriveLocationTap(inner: CoreLocationProvider(activityType: .automotiveNavigation,
                                                                allowBackgroundLocationUpdates: false))
@@ -115,5 +118,6 @@ public final class DriveNavigator: ObservableObject {
     private func publish() {
         mode = controller.session.mode
         surface = controller.session.surface
+        display = DriveDisplay(session: controller.session)
     }
 }
