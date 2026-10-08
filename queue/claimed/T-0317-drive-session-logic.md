@@ -1,13 +1,13 @@
 ---
 id: T-0317
 title: The drive session's decisions live in ScenicKit and are Linux-tested - off-route detection, reroute request (remaining pinned waypoints + same lambda, never bare O->D), offline rejoin mode with zero requests, and the >4.5 m/s motion gate - ready for the Ferrostar adapter (M7)
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T07:53:28Z
+lease_expires_at: 2026-10-09T03:53:28Z
+worktree: .worktrees/T-0317
+branch: task/T-0317
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-NAV-01, P-SAFE-06]
@@ -28,3 +28,4 @@ first, so the adapter is a thin shell. Calm, minimal-distraction driving UI (mem
 
 ## Log
 - 2026-10-08T07:53:18Z filed by agent/claude-opus-5 (orchestrator) from the milestone gap map (M7 navigation, logic half).
+- 2026-10-08T07:53:28Z claimed by agent/claude-opus-5; lease until 2026-10-09T03:53:28Z
