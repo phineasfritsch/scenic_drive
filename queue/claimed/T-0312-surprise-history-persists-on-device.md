@@ -97,3 +97,51 @@ relaunch forgets the 90-day no-repeat when there is no session; and the card's b
     MISSED before their tests land, CAUGHT by name after.
   - R11 DIGESTS: -linked-digests rows for every new/changed Sources file; -pinned PINNED_SURPRISE/PINNED_APP_SWIFT
     for SurpriseCard and the new SurpriseShownLog, re-approved after being seen red.
+- 2026-10-08T05:59:21Z RED, GREEN, GRDB, POPULATION and DIGESTS, agent/claude-opus-5:
+  - RED first, by name, at 1a151300 (SurpriseCardHistory's four operations answering nil/self, SurpriseShownDay
+    answering 0 and 1970-01-01, SurpriseShownRecord carrying a stub `latitude: Double`): `swift test --filter
+    "SurpriseCardHistoryTests|SurpriseShownDayTests|SurpriseShownRecordFieldsTests"` -> `Test run with 5 tests in 3
+    suites failed`; red: `A known calendar date is its hand-counted day number...` (9 of 10 rows), `Every operation
+    over every starting state is its recomputed history and basis, whole` (16 issues), `The oldest kept day on
+    2026-10-07 is 89 days back: 2026-07-10`, `a stored shown place is {placeID, category, corridor, day}, String and
+    Int leaves only - no coordinate` (the stub latitude); green only the meta-test `No operation's expectation
+    ignores the state it starts from` (it reads expectations, not the stubs).
+  - GREEN at 7216e222: the same filter `Test run with 5 tests in 3 suites passed`; `--filter "ScenicKitTests\.
+    Surprise|PlaceStoreTests"` -> `Test run with 85 tests in 23 suites passed` natively. Card: one @State
+    SurpriseCardHistory; the first .task restores SurpriseShownLog.load() and saves the union before the ledger read
+    (R6); recordShown saves history.shown after state.showing; Start over -> startingOver(), "not this" ->
+    declining(_:).
+  - GRDB in the CI image (swift:6.1-noble, "Swift version 6.1.3 (swift-6.1.3-RELEASE)", libsqlite3-dev as CI, a
+    tar copy - git never ran in WSL; .build/grdb.sh), filter `PlaceStoreTests\.(SurpriseShownStoreTests|
+    UserStorePrivacyTests|UserStoreMigrationTests|SurpriseShownRecordFieldsTests|SavedDriveStoreTests)`:
+    RED ARM (the copy's v3 DDL given `cell TEXT NOT NULL DEFAULT ""`): `Expectation failed: ((columns
+    ["surprise_shown"] ?? ["missing"]).filter { $0.contains(coordinate) } -> ["cell"]) == []` and the whole-map
+    expectation, `Test run with 14 tests failed ... with 2 issues`. GREEN (the tree as committed): `Suite
+    "SurpriseShownRecord fields" passed`, `Suite "UserStore privacy" passed`, `Suite "SurpriseShownStore" passed`
+    (round-trip, prune at keepingFrom - 1 / keepingFrom, the v1+v2 upgrade with the saved drive whole, the shared
+    gate), `Suite "UserStore migrations" passed` (refusal cross product now 4 prefixes), `Suite "SavedDriveStore"
+    passed`; 20 tests passed.
+  - POPULATION ops/mutate/shownhistory{,_mutations,_run}.py, 20 entries (floor 20), 1 EQUIVALENT with witness (E1
+    the era's zero), 2 test files. HOLD-BACKS at 7216e222 (before the sweep, the retention and the never-re-picks
+    rows existed): `MISSED 16 the century rule off by a day`, `MISSED 18 the pick's window inclusive`, `MISSED 19 the
+    pick's window a day short`, `MISSED 20 the pick's shown block off`, `MUTATE FAILED caught=0/4`. Rows added at
+    d5bcf2b2; full run there: 1-19 `caught` by name (16 `by: Every day from 1600 to 2400 is a valid calendar date
+    that numbers back to itself`, 18 and 19 `by: The pick blocks a place shown on the oldest kept day and not one
+    shown the day before`), `MISSED E1` as an equivalent must, and `WRONG KILLER 20` - it named the never-re-picks
+    test, which stays green because a place shown today is ALSO set aside by the 30-day category/corridor rule.
+    Ruled: entry 20 names the retention test alone (54f8cced); `--only 20` -> `caught 20 ... by: The pick blocks a
+    place shown on the oldest kept day...`, `MUTATE OK caught=1/1`. `--prove-floor` -> `FLOOR PROOF OK: 7 of 7
+    arms refused and the control did not`. Entry 1 (showing moves the basis) is caught by the never-re-picks test
+    and the table both.
+  - DIGESTS at 512f5b05, seen red first: `P-SAFE-03: the pinned render surface changed: FeatureSurpriseMe's file set
+    is not the approved one: added SurpriseShownLog.swift.`, then `P-SAFE-03: the pinned linked trees changed:
+    root: added Sources/PlaceStore/SurpriseShownRecord.swift Sources/PlaceStore/SurpriseShownStore.swift Sources/
+    ScenicKit/Surprise/SurpriseCardHistory.swift Sources/ScenicKit/Surprise/SurpriseShownDay.swift.` -pinned:
+    SurpriseCard (PINNED_SURPRISE and PINNED_APP_SWIFT) re-approved, SurpriseShownLog added to both;
+    -linked-digests: SavedDriveStore and UserStoreMigrations re-approved, four rows added. check-safety-disclaimer
+    exit=0.
+  - NAMED: `run-named-tests.py P-PROD-02` -> `NAMED P-PROD-02 passed=7/7`; P-PRIV-05 -> `NAMED P-PRIV-05
+    passed=49/50`, the one red `PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail(): MISSING` -
+    GRDB-gated, absent on Windows as T-0290 R7 predicted; green in the image above and in CI's core job.
+    SurpriseShownRecordFieldsTests/noFieldIsACoordinate() passed by name.
+  - iOS CI dispatched on 512f5b05: ios-compile 37734303277, ios-screenshot 37734306221.
