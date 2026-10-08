@@ -107,3 +107,18 @@ rv1-t0324 recordable 4: DriveScreen always draws the preview's planned line.
   planned single straight segment - no caption (guiding), and the footer `© MapLibre · Natural Earth · Route data ©
   OpenStreetMap contributors` above the End drive action: the reroute was asked, answered by the rehearsal sender,
   taken by DriveController under its ticket, and drawn from DriveDisplay.line. Attribution unchanged (P-ATTR-01).
+- 2026-10-08T19:42:18Z PRE-REVIEW SURVIVOR M3 CLOSED BY CLASS (owner). M3: PlanRerouter.reroute() with no token falls back to
+  a fresh origin-to-place /plan from the fix - SURVIVED because every nil-token row's away fix (lat 34.052) is off the
+  0.01-degree grid, so PlanRequestBody.validated() refused it on-device before any request left, the same zero
+  requests and .rejoining as the shipped refusal. Not equivalent: a fix exactly on the grid passes validated() and the
+  mutant sends one fresh /plan (R5) and lands its answer as the drive. The class is "with no token the sender reaches
+  the wire at all"; the row's power must not depend on the fix being unroundable. CLOSED: tokenByFirstPin's cross
+  product gains a grid variant (pin row x token x fix off/ON the 2-dp grid; on-grid = lat 34.06 at the row's 2-dp
+  longitude, > 1 km off the line): no token still expects requests == [], a token expects the one request with lat
+  34.06; noRowIgnoresItsVariant ranges over the new variant and pins the on-grid fix to Coordinate(34.06, row.lon)
+  literals. Population entry 75 "no token falls back to a fresh plan from the fix" (killer: token x first pin),
+  MIN_MUTATIONS 74 -> 75. drive.py --only 75 at e8b35251 (entry added, tests unchanged): MISSED 75, exit=0, no test
+  objected - MUTATE FAILED caught=0/1. At d37ff0b4 (grid variant): --only 58,59,60,61,62,63,64,65,66,67,74,75 -
+  MUTATE OK caught=12/12, 75 caught by "T-0328: token x first pin - the one 2-dp request and the taken answer, whole;
+  no token, no request". swift test --filter DriveReplanTests: 6 tests in 1 suite passed. No Sources/ or apps/ios file
+  changed, so no digest row moved and ios-compile is not re-run; DriveReplanTests.swift 225 -> 240 lines.
