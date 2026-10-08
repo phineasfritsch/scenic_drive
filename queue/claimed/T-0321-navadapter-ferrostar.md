@@ -115,3 +115,11 @@ mode) and Live Activity are separate follow-ups; Live Activity needs the xcodepr
   Digests: six NavAdapter rows and the manifest's new sha in -pinned; seven Sources rows in -linked-digests;
   -doors gains the NavAdapter target map rows and the product's new targets list. Bare guards: check-safety-disclaimer
   0, check-map-attribution 0, check-store-links.py 0. PINS.yaml gains P-NAV-02; check-pins-yaml "ok pins=47".
+- 2026-10-08T12:39:20Z R8 AMENDED by the owner before the first CI run: the pins are SwiftPM's own, not typed - `swift package resolve`
+  on apps/ios/Packages/ScenicApp (swift 6.3.3 native, --scratch-path .build/t321app) resolved ferrostar 0.57.0
+  (4e2d7f64), swiftui-dsl 0.25.0 (139e83d1), swift-syntax 602.0.0 (47992865), maplibre 6.31.0 (13e41ab3, unchanged); those
+  pin objects are merged verbatim into the Xcode workspace file beside its GRDB pin, Xcode's originHash 3bd20783...0cfe
+  kept (T-0257 measured it unmoved when a dependency was added; SwiftPM's own originHash is the manifest's sha256,
+  a different hash). ios-compile runs with -disableAutomaticPackageResolution, so a wrong file fails the build; the
+  probe method is the fallback. The package-local Package.resolved SwiftPM wrote is NOT committed: Xcode ignores a
+  local package's file, and two would disagree.

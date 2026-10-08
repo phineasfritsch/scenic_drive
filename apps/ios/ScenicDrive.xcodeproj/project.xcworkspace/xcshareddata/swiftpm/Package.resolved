@@ -2,6 +2,15 @@
   "originHash" : "3bd207832faeabe8357fd4f1c05693ce9a94a4d826f5006066339d1cc50f0cfe",
   "pins" : [
     {
+      "identity" : "ferrostar",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stadiamaps/ferrostar",
+      "state" : {
+        "revision" : "4e2d7f647952c0a4060efd584e6edfc6148092b9",
+        "version" : "0.57.0"
+      }
+    },
+    {
       "identity" : "grdb.swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/groue/GRDB.swift.git",
@@ -17,6 +26,24 @@
       "state" : {
         "revision" : "13e41ab3d77ff5113e7e5d4ee87803b1f81f5683",
         "version" : "6.31.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
+        "version" : "602.0.0"
+      }
+    },
+    {
+      "identity" : "swiftui-dsl",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/maplibre/swiftui-dsl",
+      "state" : {
+        "revision" : "139e83d1487f29b42a4f5db2458594170f0ff7e3",
+        "version" : "0.25.0"
       }
     }
   ],
