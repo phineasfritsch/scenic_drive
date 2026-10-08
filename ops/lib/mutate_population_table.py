@@ -14,11 +14,15 @@ DRIVERS = ("budget.py", "corpusfetch.py", "corpusota.py", "extractadapter.py", "
            "loopsheet.py", "saveddrive.py", "savedlist.py", "session.py", "shownhistory.py", "tripsheet.py",
            "scenic_tags.py",
            "segmentgeometry.py", "segmentscore.py", "straightline.py", "surfacecoverage.py", "surprise.py",
-           "telemetry.py")
+           "telemetry.py", "traffic.py")
 PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declares no subject of its own"}
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
+    "Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift", "Sources/ScenicKit/Traffic/HourOfWeek.swift",
+    "Sources/ScenicKit/Traffic/CorridorRatio.swift", "Sources/ScenicKit/Traffic/RetimedRoute.swift",
+    "Sources/ScenicKit/Traffic/CorridorSlot.swift", "Sources/ScenicKit/Traffic/CorridorCell.swift",
+    "Sources/ScenicKit/Traffic/CorridorEdge.swift",
     "Sources/ScenicAPIClient/URLSessionCorpusFetcher.swift", "Sources/ScenicAPIClient/CorpusDownloadDelegate.swift",
     "Sources/PlaceStore/LaunchCorpus.swift",
     "Sources/PlaceStore/CorpusManifest.swift", "Sources/PlaceStore/CorpusUpdater.swift",
