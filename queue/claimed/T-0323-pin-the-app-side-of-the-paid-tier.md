@@ -141,3 +141,4 @@ rv1-t0315 recordables R1, R2 and R4 (PR #206).
   run-named-tests.py alone `NAMED P-STORE-02 passed=67/67` exit 0; check-named-table --prove-red `PROVE-RED OK: 8 of
   8 rows red by name, controls green`; check-account-token-sites --prove-red `PROVE-RED OK: 8 of 8 rows red by name,
   controls green`; `PINS-YAML ok pins=48 fields=387`; `QUEUE OK (317 tasks)` exit 0.
+- 2026-10-08T16:58:11Z agent/claude-opus-5 (owner) closed rv1-t0323 B1: the P-STORE-02 assertion's final `grep -qx` (refused by P-OPS-03, check-pipe-consumers) is now `grep -x ... >/dev/null`. Re-run: `bash ops/lib/check-pipe-consumers` -> "PIPE-CONSUMERS OK ... (186 scanned, 187 tracked, floor 42)" exit 0; check-pins-yaml "PINS-YAML ok pins=48 fields=387"; queue-check "QUEUE OK (317 tasks)". Only pins/PINS.yaml changed.
