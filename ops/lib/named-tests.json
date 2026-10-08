@@ -172,7 +172,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)|ScenicAPIClientTests\\.LedgerClientTests",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -185,7 +185,10 @@
         "TelemetryTests.TelemetryEventEncodingTests/everyDataPointJSON()",
         "TelemetryTests.TelemetryEventEncodingTests/fourteenEventsEachWithARow()",
         "PlaceStoreTests.SavedDriveFieldsTests/noFieldCarriesMoreThanFiveDecimals()",
-        "PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail()"
+        "PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail()",
+        "ScenicAPIClientTests.LedgerClientTests/postRequest(_:_:)",
+        "ScenicAPIClientTests.LedgerClientTests/getRequestAndRows()",
+        "ScenicAPIClientTests.LedgerClientTests/refusedOnDevice(_:_:)"
       ]
     }
   },
@@ -305,12 +308,15 @@
   },
   "P-PROD-02": {
     "swift": {
-      "filter": "ScenicKitTests\\.(SurpriseRankTests|SurpriseFeedbackTests)",
+      "filter": "ScenicKitTests\\.(SurpriseRankTests|SurpriseFeedbackTests|SurpriseHistoryMergeTests)",
       "tests": [
         "ScenicKitTests.SurpriseRankTests/reproducible()",
         "ScenicKitTests.SurpriseRankTests/distinct()",
         "ScenicKitTests.SurpriseRankTests/permutation()",
-        "ScenicKitTests.SurpriseFeedbackTests/wrongTime()"
+        "ScenicKitTests.SurpriseFeedbackTests/wrongTime()",
+        "ScenicKitTests.SurpriseHistoryMergeTests/mergedHistory(_:)",
+        "ScenicKitTests.SurpriseHistoryMergeTests/pickReproducible(_:)",
+        "ScenicKitTests.SurpriseHistoryMergeTests/ninetyDays()"
       ]
     }
   },

@@ -136,3 +136,11 @@ disclaimer)"; Settings lists vehicle. Neither exists in the code today (grep: no
     PlanRequestBody) is still unfiled, because queue/ was outside the touches; the orchestrator files it. The
     corpus offer now comes on the second launch, and the `-screen` debug double sheet remains, both as the Log
     records (R4).
+- 2026-10-08T01:55:15Z merge of origin/main (T-0307 PR #197, Surprise ledger) by agent/claude-opus-5 (owner), after rv1-t0309's sign-off.
+  Conflicts: ops/lib/check-safety-disclaimer-pinned (PINNED_SHELL_DIGEST and the PINNED_APP_SWIFT rows) and
+  ops/lib/mutate_population_table.py (DRIVERS). Resolved as a union: DRIVERS holds ledger.py and onboarding.py; the
+  VehicleChoice/VehicleSetting rows kept; SurpriseCard.swift and ScenicDriveApp.swift re-approved at the merged files'
+  digests (sed 's/\r$//' | sha256sum): SurpriseCard d63e1a27..., ScenicDriveApp 2bd334e5... (both sides edited the
+  shell; -frozen auto-merged both frozen lines). On the merged tree: check-safety-disclaimer rc=0, check-map-attribution
+  rc=0, check-store-links rc=0, check-mutate-population "floor of 93 holds", check-pins-yaml ok, and swift test over the
+  onboarding, ledger and plan-sheet suites green (quoted below in the commit's CI).

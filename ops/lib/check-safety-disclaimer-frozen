@@ -205,6 +205,7 @@ FROZEN_APP_SHELL=(
   'CorpusDownloadSheet(status: corpus.statusText, fraction: corpus.fraction, isWorking: corpus.isWorking,'
   'onDownload: { corpus.start() }, onLater: { isShowingCorpusDownload = false })'
   '}'
+  '.environment(\.surpriseLedger, LiveSurpriseLedger.make())'
   '}'
   '}'
   '}'

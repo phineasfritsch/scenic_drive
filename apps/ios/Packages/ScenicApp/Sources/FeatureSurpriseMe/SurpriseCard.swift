@@ -12,6 +12,8 @@ public struct SurpriseCard: View {
     private let onOpenInMaps: @MainActor (Coordinate) -> Void
 
     @State private var history = SurpriseHistory()
+    @State private var ledgerPlaces: [SurpriseLedgerPlace]?
+    @Environment(\.surpriseLedger) private var ledger
     @State private var now = Date()
 
     public init(failure: String?, onOpenInMaps: @escaping @MainActor (Coordinate) -> Void) {
@@ -21,7 +23,7 @@ public struct SurpriseCard: View {
 
     public var body: some View {
         Group {
-            if let deck = SurpriseDeck.bundled, let pick = deck.pick(history: history, at: now),
+            if let deck = SurpriseDeck.bundled, let pick = deck.pick(history: merged(deck), at: now),
                let candidate = deck.byID[pick.candidateId], let placeClass = deck.classes[pick.candidateId] {
                 content(pick: pick, candidate: candidate, placeClass: placeClass)
             } else {
@@ -37,6 +39,12 @@ public struct SurpriseCard: View {
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("surprise.card")
+        .task { ledgerPlaces = await ledger?.ledgerPlaces() }
+    }
+
+    /// The device's history united with the ledger's 90 days (T-0307 R5); nil places - no session - leave it be.
+    private func merged(_ deck: SurpriseDeck) -> SurpriseHistory {
+        SurpriseHistoryMerge.merged(device: history, ledger: ledgerPlaces, candidates: deck.candidates)
     }
 
     private func content(pick: SurprisePick, candidate: SurpriseCandidate,
