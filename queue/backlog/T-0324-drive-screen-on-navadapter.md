@@ -12,7 +12,7 @@ exclusive: []
 touches: [apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, Sources/ScenicKit/, Tests/ScenicKitTests/, ops/lib/, ops/mutate/, pins/PINS.yaml, .github/workflows/ios-screenshot.yml]
 pins_affected: [P-ATTR-01, P-SAFE-09, P-SAFE-03]
 reviewer: null
-depends_on: [T-0321, T-0180]
+depends_on: [T-0321]
 verify: [ops/test, ops/check-pins]
 acceptance:
   - "MEASURE then RULE FIRST in a dated Log entry: where the drive screen lives (a feature target that never imports NavAdapter - the shell composes DriveNavigator's mode and surface into it), what the minimal surface holds (the one large action; how the rejoin state is conveyed there) and what the full surface adds, the door that starts a drive from the plan preview, and which check-map-attribution / check-safety-disclaimer rows a second MapView( surface raises"
@@ -30,3 +30,4 @@ spoken guidance (TTS) and Live Activity stay separate follow-ups.
 
 ## Log
 - 2026-10-08T13:20:42Z filed by agent/claude-opus-5 (owner of T-0321) from T-0321's R6.
+- 2026-10-08T14:42:46Z agent/claude-opus-5 (orchestrator): depends_on T-0180 dropped - T-0180 waits on an owner sign-off with no date; the claimer adds the drive shot WITHOUT editing .github/workflows/ios-screenshot.yml if the shot list lives elsewhere, otherwise with the smallest edit and a merge-main round when T-0180 lands.
