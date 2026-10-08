@@ -140,3 +140,41 @@ surface. Calm copy (memory owner-route-intent).
   with 0 requests, or sent once exactly as written`, `caught 45 ... by: a loop the device finds retraced is not
   shown: noCleanLoop`.
   iOS CI on 107b0d52: ios-compile run 37741764271 success (2m30s), ios-screenshot run 37741768505 success (12m18s).
+- 2026-10-08T08:01:35Z MERGE LAST, ACCEPTANCE re-quoted on the merged head. agent/claude-opus-5 (owner).
+  MERGE: `git fetch origin`, origin/main 9cf2b986 (T-0312 PR #202 merged) merged into 6087adc2; one conflict, the
+  DRIVERS line of ops/lib/mutate_population_table.py, resolved by union (loopsheet.py + main's shownhistory.py);
+  the digest table and -pinned auto-merged and a full recomputation over the merged tree changed no row (main's
+  SurpriseCard/SurpriseShownLog rows and this task's rows both stand). `git merge-base --is-ancestor origin/main
+  HEAD` exit 0.
+  ACCEPTANCE on 6087adc2:
+  1. MEASURE then RULE FIRST: the 06:36:13Z entry (R1-R9) precedes all code (commit 0f07fd20 carries only it): the
+     /loop wire (start at 2 dp, minutes 10...180, vehicle), the entry (in-sheet plan-sheet tab; the Surprise card's
+     secondary action ruled to a follow-up, T-0312 then in flight), composition without a Package.swift edit, the
+     tier (DAILY_LOOP_QUOTA anon/free 1; a 429 is a calm "today's loop" line, no retry).
+  2. LoopClient: body by full equality ("the /loop request is exactly the whitelisted body, one coordinate at 2 dp,
+     sent once" + every accepted bound row compares the whole PlanHTTPRequest); every Worker answer (200 incl.
+     malformed and the 9/10-waypoint bound, 400, 404, 405, 422 region_unsupported/no_clean_loop/other, 429 with and
+     without resets_at, 500, 502, 503 planning_paused/planning_unavailable, 504, 418) one typed outcome by a table of
+     22 rows through LoopClient.loop, each from exactly one request; offline = routingOffline after one attempt (no
+     retries; population 28 proves a retry is caught).
+  3. LoopSheet transition table (6 states x 9 events, compared whole); the dial at Int.min, -1, 0, 9, 10, 11, 45,
+     179, 180, 181, Int.max on the sheet and 9/10/180/181/Int.min/Int.max on the wire; P-SAFE-03 at transport count
+     0 before acceptance through ClientLoopPlanner + CountingPlanTransport ("P-SAFE-03: no loop request is made
+     before the disclaimer is accepted").
+  4. LoopHandoff.url by full equality to AppleMapsDirections(source: start, destination: start, waypoints:).url()
+     at 0, 1, 3, 9 pins (source == destination in the query), ten refused never truncated; the preview is in-sheet
+     content of the full-height plan sheet (no new presentation; check-map-attribution rc=0, P-ATTR-01 unchanged);
+     ios-compile + ios-screenshot success on 107b0d52 (above) and dispatched on 6087adc2 (ios-compile 37747096543,
+     ios-screenshot 37747100835; this Log commit changes only this file); digests re-approved; population 53/53 with
+     a literal floor, three MISSED before and CAUGHT by name after (entries 1, 18, 45, quoted above).
+  GATES on 6087adc2: `swift test --scratch-path .build/t314 --filter
+  ScenicAPIClientTests|LoopSheetTests|TripSheetTests|PlanSheetTests|HandoffTests` - `Test run with 199 tests in 36
+  suites passed`, exit 0; `bash ops/lib/check-safety-disclaimer` rc=0; `bash ops/lib/check-map-attribution` rc=0;
+  `python ops/lib/check-store-links.py` rc=0; `python ops/lib/check-mutate-population.py` rc=0 (floor of 123
+  holds); `bash ops/lib/check-line-cap` rc=0 (442 Swift files, none over 300); `python ops/lib/check-pins-yaml.py`
+  rc=0 (PINS.yaml untouched); `bash ops/queue-check` QUEUE OK (308 tasks).
+  STILL OPEN (recorded, not faked): "here" as a loop start is not built - the app asks for no location (no usage
+  string; T-0294 R4), so the start is a typed place (a location-permission task); the Surprise card's "Just drive a
+  loop" secondary action is not built (SurpriseCard was T-0312's; now merged, a follow-up task); the app sends no
+  x-scenic-account-token, so every loop is anon at one a day and paid "unlimited" is unreachable from the app; the
+  preview has no map of its own (no new map surface, so P-ATTR-01 is unchanged).
