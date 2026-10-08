@@ -99,6 +99,7 @@ DOORS_PACKAGE=(
   '                .product(name: "ScenicKit", package: "ScenicDrive"),'
   '                .product(name: "ScenicAPIClient", package: "ScenicDrive"),'
   '                .product(name: "PlaceStore", package: "ScenicDrive"),'
+  '                .product(name: "Telemetry", package: "ScenicDrive"),'
   '            path: "Sources/PlanAdapter",'
 )
 unset S

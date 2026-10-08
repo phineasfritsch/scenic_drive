@@ -181,7 +181,7 @@
       ]
     },
     "swift": {
-      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)|ScenicAPIClientTests\\.(LedgerClientTests|PlanVehicleWireTests)",
+      "filter": "TelemetryTests\\.(TelemetryPayloadWhitelistTests|H3ReferenceCellTests|TelemetryEventEncodingTests)|PlaceStoreTests\\.(SavedDriveFieldsTests|UserStorePrivacyTests)|ScenicAPIClientTests\\.(LedgerClientTests|SurpriseLedgerWriteTests|PlanVehicleWireTests)",
       "tests": [
         "TelemetryTests.TelemetryPayloadWhitelistTests/everyAssociatedValueIsWhitelisted()",
         "TelemetryTests.TelemetryPayloadWhitelistTests/whitelistedTypesStoreExactlyTheirFields()",
@@ -198,6 +198,7 @@
         "ScenicAPIClientTests.LedgerClientTests/postRequest(_:_:)",
         "ScenicAPIClientTests.LedgerClientTests/getRequestAndRows()",
         "ScenicAPIClientTests.LedgerClientTests/refusedOnDevice(_:_:)",
+        "ScenicAPIClientTests.SurpriseLedgerWriteTests/showings(_:)",
         "ScenicAPIClientTests.PlanVehicleWireTests/wireValuesAreTheWorkerTable()",
         "ScenicAPIClientTests.PlanVehicleWireTests/everyProfileWhole()",
         "ScenicAPIClientTests.PlanVehicleWireTests/defaultIsStandard()"

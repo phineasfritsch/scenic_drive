@@ -133,3 +133,43 @@ owner-route-intent).
   `python ops/lib/check-store-links.py` rc=0; `bash ops/lib/check-line-cap` rc=0 (382 Swift files, none over 300);
   `python ops/mutate/tripsheet.py --prove-floor` FLOOR PROOF OK 7 of 7; `python ops/lib/check-mutate-population.py`
   rc=0 (tripsheet.py in DRIVERS, its ten subjects in COVERED_FLOOR, seven no-code modules allowlisted with reasons).
+- 2026-10-08T05:32:55Z POPULATION, iOS CI, MERGE, ACCEPTANCE re-quoted. agent/claude-opus-5 (owner).
+  POPULATION at 8ca47770: `python ops/mutate/tripsheet.py` - `population mutations=43 (floor 43) equivalent=1
+  (floor 1)`, BASELINE exit=0, `caught by the test that names it: 43 of 43 (wrong killer 0, trapped 0, compile-only
+  0, MISSED 0, skipped 0)`, E1 MISSED as required, `MUTATE OK caught=43/43 equivalent_caught=0`, exit 0. MISSED
+  BEFORE / CAUGHT AFTER by name: `python ops/mutate/tripsheet.py --prove-vacuity --only 1,17,39` (the five test files
+  replaced by empty suites) - `MISSED 1 a ticket without the disclaimer`, `MISSED 17 the latitude bound dropped`,
+  `MISSED 39 the last vertex pinned`, `VACUITY PROOF OK ... MISSED=3 of 3`; then in the full run `caught 1 ... by:
+  P-SAFE-03: no trip ticket before the disclaimer is accepted, one after | ... | P-SAFE-03: no trip request is made
+  before the disclaimer is accepted`, `caught 17 ... by: every bound: refused on the device with 0 requests, or sent
+  once exactly as written`, `caught 39 ... by: a pin at the first vertex at or past each 20 km, never the ends | ...`.
+  iOS CI on a2258ba8 (the RoadTripScreen explicit init): ios-compile run 37730386019 success, ios-screenshot run
+  37730388941 success (8m42s); 8ca47770's ios-compile 37730148709 was also success.
+  MERGE: origin/main 681c9a13 (T-0310 PR #199 merged) merged LAST; conflicts in the digest table, -pinned and
+  mutate_population_table.py resolved by keeping both sides: main's digest files taken whole and this task's rows
+  re-typed by recomputation (only this task's eleven app/shell rows and seventeen Sources rows changed; no main row
+  needed re-approval), DRIVERS = main's session.py + this task's tripsheet.py.
+  ACCEPTANCE on the merged head:
+  1. MEASURE then RULE FIRST: the 04:30:49Z entry (R1-R7) precedes all code (commit 35dd4ffc carries only it).
+  2. TripClient: body by full equality ("the /trip request is exactly the whitelisted body, sent once" + every
+     accepted bound row compares the whole PlanHTTPRequest); every Worker answer one typed outcome by a table of 21
+     rows through TripClient.trip, each from exactly one request, plus offline = routingOffline after one attempt (no
+     retries; population 30 proves a retry is caught).
+  3. TripSheet transition table (6 states x 10 events, compared whole); P-SAFE-03 at count 0 before acceptance
+     through ClientTripPlanner + CountingPlanTransport ("P-SAFE-03: no trip request is made before the disclaimer is
+     accepted").
+  4. Per-day handoff: TripDayHandoff.urls by full equality to AppleMapsDirections(...).url() over hand-listed pins,
+     <= 9 waypoints, the split rule R6 (2, 11, 12, 21, 22-point days).
+  5. In-sheet content of the full-height plan sheet (no new presentation; check-map-attribution rc=0);
+     ios-compile + ios-screenshot success on a2258ba8 (the merged head's ios runs are dispatched with the PR);
+     digests re-approved; population 43/43 with a literal floor, three MISSED before and CAUGHT by name after.
+  GATES on the merged head: `swift test --scratch-path .build/t313 --filter
+  ScenicAPIClientTests|TripSheetTests|TripDayHandoffTests|PlanSheetTests` - `Test run with 73 tests in 15 suites
+  passed`; `bash ops/lib/check-safety-disclaimer` rc=0; `bash ops/lib/check-map-attribution` rc=0; `python
+  ops/lib/check-store-links.py` rc=0; `python ops/lib/check-mutate-population.py` rc=0 (floor of 112 holds); `bash
+  ops/lib/check-line-cap` rc=0 (407 Swift files, none over 300); `python ops/lib/check-pins-yaml.py` rc=0 (PINS.yaml
+  untouched); `bash ops/queue-check` QUEUE OK (305 tasks).
+  STILL OPEN (recorded, not faked): the app sends no x-scenic-account-token, so every trip it makes is the anon
+  PREVIEW and the per-day Apple Maps handoff, built and tested, is not reachable in the app until the paid tier's
+  token is on the wire (a follow-up task); overnight towns are "not searched yet" because the Worker's planTrip passes
+  no places (T-0268); the itinerary has no map of its own (no new map surface, so P-ATTR-01 is unchanged).

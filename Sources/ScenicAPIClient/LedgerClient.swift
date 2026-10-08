@@ -3,8 +3,9 @@ import Foundation
 /// The app's client for the Worker's GET and POST /ledger (T-0302, T-0307): the Surprise places a signed-in device
 /// was shown, kept 90 days by the server so the no-repeat survives a reinstall.
 ///
-/// One call, at most one request, one `LedgerOutcome` (R4) - nothing is retried, a 429 or a 401 included. No session
-/// token, or an entry the Worker would refuse, is answered on the device with ZERO requests (R2, R3). The request
+/// One call, at most one request, one `LedgerOutcome` (R4) - nothing is retried, a 429 or a 401 included; a 401 hands
+/// the token back to the session provider, which drops it (T-0310 R4). No session token, or an entry the Worker
+/// would refuse, is answered on the device with ZERO requests to /ledger (R2, R3). The request
 /// carries the session as `authorization: Bearer` and nothing else that identifies anyone: never `x-scenic-device`,
 /// the legacy header path T-0302 R1 refuses.
 public struct LedgerClient: Sendable {
@@ -20,30 +21,38 @@ public struct LedgerClient: Sendable {
 
     /// POST /ledger {cell, place_id}: the place `placeId`, in H3 resolution-5 cell `cell` (the PLACE's), was shown.
     public func record(placeId: String, cell: String) async -> LedgerOutcome {
-        guard let token = token() else { return .noSession }
+        guard let token = await token() else { return .noSession }
         guard let entry = LedgerEntry(placeId: placeId, cell: cell) else { return .refusedOnDevice }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         // Two ASCII strings: this encoder cannot throw on them.
         guard let body = try? encoder.encode(entry) else { return .refusedOnDevice }
-        return await send(PlanHTTPRequest(url: url, method: "POST",
+        let outcome = await send(PlanHTTPRequest(url: url, method: "POST",
                                           headers: ["authorization": "Bearer \(token)",
                                                     "content-type": "application/json"],
                                           body: body), isRead: false)
+        return await settled(outcome, token: token)
     }
 
     /// GET /ledger: this session's places of the last 90 UTC days.
     public func read() async -> LedgerOutcome {
-        guard let token = token() else { return .noSession }
-        return await send(PlanHTTPRequest(url: url, method: "GET", headers: ["authorization": "Bearer \(token)"],
+        guard let token = await token() else { return .noSession }
+        let outcome = await send(PlanHTTPRequest(url: url, method: "GET", headers: ["authorization": "Bearer \(token)"],
                                           body: Data()), isRead: true)
+        return await settled(outcome, token: token)
     }
 
     private var url: URL { base.appendingPathComponent("ledger") }
 
-    private func token() -> String? {
-        guard let token = session.sessionToken(), !token.isEmpty else { return nil }
+    private func token() async -> String? {
+        guard let token = await session.sessionToken(), !token.isEmpty else { return nil }
         return token
+    }
+
+    /// A 401 is the session's: the provider drops `token`. The outcome is handed back unchanged - never retried.
+    private func settled(_ outcome: LedgerOutcome, token: String) async -> LedgerOutcome {
+        if outcome == .unauthorized { await session.sessionRejected(token) }
+        return outcome
     }
 
     private func send(_ request: PlanHTTPRequest, isRead: Bool) async -> LedgerOutcome {
