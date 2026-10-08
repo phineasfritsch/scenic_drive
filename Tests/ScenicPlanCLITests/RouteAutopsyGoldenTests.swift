@@ -122,4 +122,60 @@ struct RouteAutopsyGoldenTests {
         let dashed = rows.filter { Array(Self.cells($0)[3...6]) == ["-", "-", "-", "-"] }
         #expect(dashed.count == 166 - 4)
     }
+
+    /// One tag set per `GateReason`, each the rule's own positive evidence, plus a freeway and an unlocked
+    /// gate that must stay allowed. The reason column is what `Gates.decide` is required to answer for it.
+    static let gateCases: [(reason: GateReason?, tags: [String: String])] = [
+        (.unpavedSurface, ["highway": "tertiary", "surface": "gravel"]),
+        (.track, ["highway": "track"]),
+        (.tooRough, ["highway": "tertiary", "smoothness": "bad"]),
+        (.noAccess, ["highway": "tertiary", "motor_vehicle": "no"]),
+        (.lockedBarrier, ["highway": "tertiary", "barrier": "gate", "locked": "yes"]),
+        (.ford, ["highway": "tertiary", "ford": "yes"]),
+        (.serviceWay, ["highway": "service", "service": "driveway"]),
+        (nil, ["highway": "motorway", "surface": "asphalt"]),
+        (nil, ["highway": "tertiary", "barrier": "gate"]),
+    ]
+
+    /// Every way of the westwood-malibu route given one `gateCases` tag set, round robin, through a terms
+    /// file `AutopsyCommand.run` reads; the whole printed GATE column must equal `Gates.decide` over each
+    /// row's tags, formatted - full equality, so a gate the report works out for itself cannot pass.
+    @Test("the GATE column is Gates.decide over each way's tags, for every GateReason and a freeway")
+    func gateColumnIsGatesDecideForEveryReason() throws {
+        #expect(Set(Self.gateCases.compactMap(\.reason)) == Set(GateReason.allCases))
+        for (reason, tags) in Self.gateCases {
+            #expect(Gates.decide(tags) == (reason.map { GateDecision.refused($0) } ?? .allowed), "\(tags)")
+        }
+        let wayRows = { (lines: [String]) -> [[String]] in
+            let header = lines.firstIndex { $0.hasPrefix("WAY ") } ?? lines.count
+            return lines[min(header + 1, lines.count)...].map(Self.cells).filter { $0.count == 9 }
+        }
+        var ids: [String] = []
+        for row in wayRows(try Self.run()) where !ids.contains(row[0]) { ids.append(row[0]) }
+        #expect(ids.count >= Self.gateCases.count)
+        var terms: [String: Any] = ["bywayTier": "none", "tunnelMeters": 0.0, "metersToNearestMotorway": NSNull()]
+        for name in AutopsyTerms.unitTermNames { terms[name] = 0.5 }
+        var tagsById: [String: [String: String]] = [:]
+        var ways: [String: Any] = [:]
+        for (index, id) in ids.enumerated() {
+            let tags = Self.gateCases[index % Self.gateCases.count].tags
+            tagsById[id] = tags
+            ways[id] = ["tags": tags, "terms": terms]
+        }
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("t0327-gates-\(UUID()).json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try JSONSerialization.data(withJSONObject: ["source": "T-0327 gate table", "ways": ways]).write(to: file)
+        var typed = Self.typed
+        typed[typed.count - 1] = file.path
+        let rows = wayRows(try AutopsyCommand.run(AutopsyArguments.parse(typed)))
+        #expect(rows.count == 166)
+        let expected = rows.map { row -> String in
+            switch Gates.decide(tagsById[row[0]] ?? [:]) {
+            case .allowed: return "allowed"
+            case let .refused(reason): return "refused:" + reason.rawValue
+            }
+        }
+        #expect(rows.map { $0[3] } == expected)
+        #expect(Set(expected) == Set(["allowed"] + GateReason.allCases.map { "refused:" + $0.rawValue }))
+    }
 }
