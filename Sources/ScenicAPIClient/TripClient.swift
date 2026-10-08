@@ -8,11 +8,14 @@ public struct TripClient: Sendable {
     public let base: URL
     let transport: any PlanTransport
     let installID: (any InstallIDProvider)?
+    let accountToken: (any AccountTokenProvider)?
 
-    public init(base: URL, transport: any PlanTransport, installID: (any InstallIDProvider)?) {
+    public init(base: URL, transport: any PlanTransport, installID: (any InstallIDProvider)?,
+                accountToken: (any AccountTokenProvider)?) {
         self.base = base
         self.transport = transport
         self.installID = installID
+        self.accountToken = accountToken
     }
 
     public func trip(from origin: Coordinate, to place: Int64, days: Int, extraBudgetPercent: Int,
@@ -31,8 +34,8 @@ public struct TripClient: Sendable {
         guard let bytes = try? encoder.encode(body) else { throw .refusedOnDevice(.originOutOfRange) }
 
         let request = PlanHTTPRequest(url: base.appendingPathComponent("trip"), method: "POST",
-                                      headers: ["content-type": "application/json",
-                                                "x-scenic-device": installID.installID().uuidString.lowercased()],
+                                      headers: IdentityHeaders.json(device: installID.installID(),
+                                                                     account: await accountToken?.accountToken()),
                                       body: bytes)
         let reply: PlanHTTPReply
         do {

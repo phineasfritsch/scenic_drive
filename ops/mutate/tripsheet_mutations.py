@@ -34,7 +34,8 @@ PLANNER = _API / "ClientTripPlanner.swift"
 RESPONSE = _API / "TripResponse.swift"
 DAY = _API / "TripResponseDay.swift"
 HANDOFF = ROOT / "Sources" / "Handoff" / "TripDayHandoff.swift"
-SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, DAY, HANDOFF)
+IDENTITY = _API / "IdentityHeaders.swift"
+SUBJECTS = (SHEET, FAILURE, BODY, READER, ERROR, CLIENT, PLANNER, RESPONSE, DAY, HANDOFF, IDENTITY)
 MUTATED_FILES = SUBJECTS
 
 TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "TripSheet" / "TripSheetTests.swift",
@@ -131,8 +132,8 @@ MUTATIONS = [
     ("30 a retry after a transport failure", CLIENT, RETRY_OLD, RETRY_NEW, [OFFLINE]),
     ("31 the request sent to /plan", CLIENT, 'base.appendingPathComponent("trip")',
      'base.appendingPathComponent("plan")', [WIRE, BOUNDS]),
-    ("32 the device header not lowercased", CLIENT, "installID.installID().uuidString.lowercased()",
-     "installID.installID().uuidString", [WIRE, BOUNDS]),
+    ("32 the device header not lowercased", IDENTITY, "deviceHeader: device.uuidString.lowercased()",
+     "deviceHeader: device.uuidString", [WIRE, BOUNDS]),
     ("33 a full day's path dropped", PLANNER, "path: $0.leg)", "path: nil)", [FULL]),
     ("34 the full flag lost", PLANNER, "TripItinerary(isFull: response.isFull,", "TripItinerary(isFull: false,",
      [FULL]),
