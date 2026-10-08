@@ -209,3 +209,32 @@ fixture. Measured 2026-10-08: ops/ has plan, score-review and etl-* but no route
   RouteAutopsyBoundaryTests joins FILTER and TEST_FILES. Floors 18 -> 21 mutants and 2 -> 3 test files.
   MISSED at b23cee48 is the reviewer's run (8/8 green, exit 0). CAUGHT by name now is `--only` below.
   AutopsyReport.swift changes, so its digest row is re-approved. LambdaSearch.swift does not change.
+- 2026-10-08T20:17:48Z agent/claude-opus-5 (owner) - rv1 B1-B3 CLOSED by class, at 9b25b098, merged as e11708ef.
+  Code: AutopsyReport.fits(_:plan:) returns "yes"/"no" from a two-evaluation LambdaSearch (the report has no
+  comparison of its own left), and STEP rows print it. LambdaSearch.swift is unchanged (the anchors of
+  budget_boundaries.py and budget_mutations.py are untouched). New suite Tests/ScenicPlanCLITests/
+  RouteAutopsyBoundaryTests.swift (159 lines) has three tests. "an unscored stretch is left out of RouteScore
+  and printed as unscored metres, never scored 0" runs a variant with points 13..21 unscored and checks
+  `printed ROUTESCORE == [expected]` in full, plus unscored > 0, expected != the `?? 0` line, and plan lambda
+  still 3.25. "FITS is LambdaSearch's verdict: exactly the ceiling fits, one ulp over does not, one under does"
+  uses the table ceiling/yes, nextUp/no, nextDown/yes, 0/yes, fastest/yes, ceiling+1/no. "terms SegmentScore
+  refuses print invalid in M, E and SCORE, never a number" has 42 refusal cases and 22 scored-bound cases, deals
+  them over the route's distinct way ids, and checks M/E/SCORE of all 166 rows by full equality in every run.
+  termsRowsCarryGateAndAxes now checks SCORE (c[6]) against SegmentScore.score(for:).
+  Population (ops/mutate/autopsy_mutations.py): +3 entries, floor 18 -> 21, MIN_TEST_FILES 2 -> 3. FILTER gains
+  RouteAutopsyBoundaryTests. The old `>` inversion entry is re-anchored on `return outcome.lambda != 0 ? "yes"
+  : "no"`. MISSED at b23cee48: the reviewer's rv1 run (each of B1/B2/B3 exit 0, `swift test --filter
+  RouteAutopsy` 8/8 green). CAUGHT now, `--only` the three rv1 entries plus the re-anchored inversion, at
+  9b25b098: `caught by the test that names it: 4 of 4 (wrong killer 0, trapped 0, compile-only 0, MISSED 0,
+  skipped 0)`, `MUTATE OK caught=4/4 equivalent_caught=0`. Each rv1 entry was caught by exactly its new test.
+  Full 21-entry re-run not bought (faster-verification rule: only touched rows).
+  Digest: ops/lib/check-safety-disclaimer-linked-digests.txt row for Sources/ScenicPlanCLI/AutopsyReport.swift
+  re-approved (sha256 fc6de6b9dea5fe91...).
+  origin/main fetched and merged as e11708ef (5e984187, queue-only drift: T-0332 filed). The merge message was
+  amended to carry the attribution lines.
+  GATES on e11708ef, run bare: `swift test --filter "RouteAutopsy|ScenicPlanCLITests|SegmentScore|RouteScore|
+  Gates|ScenicPlan|LambdaSearch"` -> `Test run with 179 tests in 28 suites passed`. check-safety-disclaimer
+  exit 0 (`LAST all 81 app .swift, then 248 root + pbxproj file(s) (-linked)`). check-mutate-population:
+  `P-PROC-06: every added module is covered or allowlisted; the floor of 144 holds` (exit 0). check-line-cap:
+  `P-SRC-02: 500 Swift files tracked ... none over 300 lines` (AutopsyReport.swift 104,
+  RouteAutopsyGoldenTests.swift 185). queue-check: `QUEUE OK (322 tasks)`.
