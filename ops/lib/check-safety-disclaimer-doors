@@ -74,7 +74,7 @@ DOORS_PACKAGE=(
   '    name: "ScenicApp",'
   '        .library(name: "DesignSystem", targets: ["DesignSystem"]),'
   '        .library(name: "MapAdapter", targets: ["MapAdapter"]),'
-  '        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe", "FeaturePlanSheet", "PlanAdapter"]),'
+  '        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe", "FeaturePlanSheet", "PlanAdapter", "NavAdapter"]),'
   '        .package(name: "ScenicDrive", path: "../../../.."),'
   '    targets: ['
   '            name: "DesignSystem",'
@@ -102,6 +102,10 @@ DOORS_PACKAGE=(
   '                .product(name: "PlaceStore", package: "ScenicDrive"),'
   '                .product(name: "Telemetry", package: "ScenicDrive"),'
   '            path: "Sources/PlanAdapter",'
+  '            name: "NavAdapter",'
+  '                .product(name: "ScenicKit", package: "ScenicDrive"),'
+  '                .product(name: "FerrostarCore", package: "ferrostar"),'
+  '            path: "Sources/NavAdapter",'
 )
 unset S
 

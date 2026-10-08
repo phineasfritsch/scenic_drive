@@ -103,6 +103,9 @@ public struct DriveSession: Sendable, Equatable {
         if mode == .rerouting { mode = .rejoining }
     }
 
+    /// The current line cut at its pins: the steps NavAdapter hands Ferrostar (T-0321 R4).
+    public var legs: [DriveLeg] { DriveLeg.split(line, at: pinVertices) }
+
     private func request(from origin: Coordinate) -> RerouteRequest {
         let passed = pinVertices.firstIndex { $0 > progressSegment } ?? pinVertices.count
         return RerouteRequest(origin: origin, remainingWaypoints: Array(waypoints[passed...]),

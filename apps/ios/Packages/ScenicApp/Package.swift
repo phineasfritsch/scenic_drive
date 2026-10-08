@@ -35,7 +35,7 @@ let package = Package(
         // FeatureSurpriseMe rides the same product (T-0273): the shell composes the Surprise card into the home's slot.
         // FeaturePlanSheet and PlanAdapter ride it too (T-0294 R1): the shell composes the plan sheet over the home
         // and hands it the live planner, still with no project.pbxproj edit.
-        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe", "FeaturePlanSheet", "PlanAdapter"]),
+        .library(name: "FeatureScenicHome", targets: ["FeatureScenicHome", "Entitlements", "FeatureSurpriseMe", "FeaturePlanSheet", "PlanAdapter", "NavAdapter"]),
     ],
     dependencies: [
         // The root package: ScenicKit (Coordinate and the scoring core) and Handoff
@@ -49,6 +49,11 @@ let package = Package(
         // A binary map renderer that floats to a new minor between a TestFlight build and the next
         // one is a style that renders differently on the phone than it did on the box that shipped it.
         .package(url: "https://github.com/maplibre/maplibre-gl-native-distribution", exact: "6.31.0"),
+        // Ferrostar (T-0321), EXACT like MapLibre. Measured before it was written: gh api
+        // repos/stadiamaps/ferrostar/releases -> 0.57.0 (2026-09-22) newest; its manifest declares iOS 16 (<= 18.4)
+        // and takes swiftui-dsl from 0.25.0, which takes MapLibre from 6.21.2 - our 6.31.0 satisfies it. Only the
+        // FerrostarCore product is used: the MapLibre UI product would be a second MapLibre importer.
+        .package(url: "https://github.com/stadiamaps/ferrostar", exact: "0.57.0"),
     ],
     targets: [
         // Tokens and the shared chrome. No dependencies at all, on purpose: everything may import
@@ -142,6 +147,19 @@ let package = Package(
             ],
             path: "Sources/PlanAdapter",
             swiftSettings: [.swiftLanguageMode(.v6)]
+        ),
+        // THE ONLY IMPORTER OF Ferrostar IN THE WHOLE TREE (CLAUDE.md; ops/lib/check-ferrostar-imports.py, P-NAV-02).
+        // A thin shell: every drive decision is ScenicKit's DriveController/DriveSession, tested on Linux. It rides
+        // the FeatureScenicHome product (T-0321 R7) so the app links it with no project.pbxproj edit. Swift 5 mode
+        // (R9): Ferrostar's records and core carry no Sendable annotations.
+        .target(
+            name: "NavAdapter",
+            dependencies: [
+                .product(name: "ScenicKit", package: "ScenicDrive"),
+                .product(name: "FerrostarCore", package: "ferrostar"),
+            ],
+            path: "Sources/NavAdapter",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         // NO TEST TARGETS HERE, deliberately and temporarily.
         //
