@@ -11,15 +11,9 @@ enum DriveMapLine {
         let lons = preview.route.map(\.longitude)
         guard preview.route.count >= 2, let south = lats.min(), let north = lats.max(),
               let west = lons.min(), let east = lons.max() else { return nil }
-        let doc: [String: Any] = [
-            "type": "FeatureCollection",
-            "bbox": [west, south, east, north],
-            "features": [[
-                "type": "Feature",
-                "properties": [String: String](),
-                "geometry": ["type": "LineString", "coordinates": preview.route.map { [$0.longitude, $0.latitude] }],
-            ]],
-        ]
+        let geometry: [String: Any] = ["type": "LineString", "coordinates": preview.route.map { [$0.longitude, $0.latitude] }]
+        let feature: [String: Any] = ["type": "Feature", "properties": [String: String](), "geometry": geometry]
+        let doc: [String: Any] = ["type": "FeatureCollection", "bbox": [west, south, east, north], "features": [feature]]
         guard let data = try? JSONSerialization.data(withJSONObject: doc) else { return nil }
         return MapRoute(geoJSON: data, dataCredit: PlanPreview.attribution, lineColor: DesignTokens.route, casingColor: DesignTokens.surface)
     }
