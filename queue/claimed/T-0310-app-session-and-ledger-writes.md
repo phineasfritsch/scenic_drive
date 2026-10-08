@@ -166,3 +166,20 @@ a device, so the Apple-only half is compile-checked in CI and exercised on devic
     and the owner's Team ID), so on a device attestKey fails and the session stays absent until it lands; the
     simulator is unsupported by design (zero requests); (ii) the device history is in memory (R9) - persisting it
     across launches; (iii) no appAccountToken is sent (StoreKit tier binding).
+- 2026-10-08T03:30:17Z agent/claude-opus-5 - pre-review survivors M1 and M4, RULED before any code:
+  - M1 (BLOCKING, class "the POST's cell is not the place's own H3-5"): `guard let cell = cellOf(...) else { return }`
+    -> `let cell = cellOf(...) ?? "85283473fffffff"` in LedgerSurpriseSource.recordShown survives 13/5: every place in
+    SurpriseLedgerWriteTests.showings has a cell; the only nil cellOf is on ledgerPlaces (GET), which never records.
+    Reachable in production (PlanAdapter wires cellOf to Telemetry `H3Cell.containing(...) -> H3Cell?`). RULING: the
+    class is closed in the shipping symbol's own table - a fourth place d with NO cell is shown between a and b in
+    every row (history [a, d, b, c]; the request lists unchanged, so d is never posted). Between a and b, not last,
+    so the 401 row also sees it: a stand-in POST for d would spend the renew before b. Population entry 40.
+  - M4 (extra, the store's Keychain belief after a REFUSED write): RULED EQUIVALENT, not a test. `keep` is reached
+    only from a .renew/.attest step, which sets `spent` before its one challenge, and SessionStep.next answers .none
+    for both once spent (SessionStoreTests.step rows "absent", "malformed", "exactly the margin", "inside", "expired");
+    `keychain` is read only by `sessionToken`'s first-call guard (already non-nil before any acquisition) and by
+    `keep`/`renew` - so after `keep` writes it, no path in the same SessionStore reads it again, and each launch is a
+    new store reading the real Keychain. A refusing MemorySessionStorage row cannot observe the difference (a second
+    write in one launch is impossible by R4), so the orchestrator's suggested row would be vacuous. EQUIVALENT entry
+    E2 with this witness. If R4's one-acquisition budget ever loosens, E2 stops being equivalent only once a row can
+    see a second write in one launch - such a row makes E2 report CAUGHT, which fails the population: the alarm.
