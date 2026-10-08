@@ -136,6 +136,10 @@
         "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05) > refuses an origin that is not a {lat, lon} pair of in-range numbers",
         "POST /plan privacy - one coordinate, two decimals (R2, P-PRIV-05) > accepts an origin at exactly 2 decimals, and sends upstream exactly that one coordinate"
       ],
+      "test/planReroute.test.ts": [
+        "POST /plan reroute wire (T-0319 R2, P-PRIV-05) > every bound of reroute.token and reroute.first_pin",
+        "POST /plan reroute wire (T-0319 R2, P-PRIV-05) > P-PRIV-05: a reroute sends upstream only the one 2-dp origin plus the pins the Worker remembered"
+      ],
       "test/loopShape.test.ts": [
         "the /loop body whitelist (R1, P-PRIV-05) > accepts exactly {start:{lat,lon}, minutes}",
         "the /loop body whitelist (R1, P-PRIV-05) > refuses a start with more than 2 decimals",

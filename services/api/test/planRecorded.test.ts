@@ -84,7 +84,7 @@ describe("POST /plan over the t0221 santa-monica-topanga recording (R3)", () => 
     const body = (await (await handlePlan(planRequest(SANTA_MONICA_TOPANGA_BODY), {}, h.deps)).json()) as object;
     expect(Object.keys(body).sort()).toEqual([
       "apple_maps_url", "budget_s", "ceiling_s", "eta_is_estimate", "eta_s", "evaluations", "fastest_eta_s",
-      "hazards", "lambda", "route", "used_budget", "waypoints",
+      "hazards", "lambda", "plan_token", "route", "used_budget", "waypoints",
     ]);
   });
 

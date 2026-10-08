@@ -9,7 +9,7 @@ lease_expires_at: 2026-10-08T22:53:20Z
 worktree: .worktrees/T-0319
 branch: task/T-0319
 exclusive: []
-touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/plansheet_mutations.py, ops/lib/named-tests.json, ops/lib/check-safety-disclaimer-linked-digests.txt, queue/]
+touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, ops/mutate/plansheet_mutations.py, ops/lib/named-tests.json, ops/lib/check-safety-disclaimer-linked-digests.txt, Tests/Fixtures/t0251/, queue/]
 pins_affected: [P-NAV-01, P-PRIV-05]
 reviewer: null
 depends_on: [T-0317]
@@ -90,3 +90,19 @@ a measurement task first).
     not re-bound here.
   * R11 populations: Worker mutants in planMutants.mjs (it gains `--only` to run the new ids alone); Swift mutants
     in plansheet_mutations.py, which already mutates PlanRequestBody and PlanClient.
+- 2026-10-08T13:19:02Z RED FIRST (Worker), with src/planToken.ts present but nothing wired: `npx vitest run
+  test/planReroute.test.ts` -> `Tests 8 failed | 1 passed (9)`, the eight by name (every bound of reroute.token and
+  reroute.first_pin; P-PRIV-05: a reroute sends upstream only ...; an unusable token answers exactly the fresh plan;
+  the first remaining pin may be the stored count ...; the budget ceiling holds on a reroute; a reroute reserves one
+  plan before its first upstream call; every answer remembers ... 43200 s; an unbound store or a failed write ...).
+  The one green before wiring is `the kill switch covers a reroute`: KILL is read before the body, so it is a
+  regression guard, not a new behaviour. GREEN after wiring plan.ts/planRequest.ts/reroutePlanner.ts: 9/9.
+  * R12 (ruled while wiring) every 200 now ends `"plan_token":null` with PLANS unbound, so the two recorded wire
+    fixtures Tests/Fixtures/t0251/200-plan(.json, -hazards.json) the Swift client decodes gain that one key
+    (touches += Tests/Fixtures/t0251/); planWire.test.ts reads them byte for byte. configAnswerPath's approved
+    index.ts sha256 is re-approved (5dbcb7fa.. -> 7b50d6d4..: the Env gains PLANS). requestReadSites' approved
+    plan.ts line is now `const who = await deps.identify(req);` (the same spelling loop/trip already use).
+  * Whole Worker suite after: `Tests 2191 passed` less the 3 above before their fix; after: all green on the four
+    touched files (28/28). run-named-tests P-PRIV-05: passed=53/54 - the one red is
+    PlaceStoreTests.UserStorePrivacyTests/noColumnNamesAPlaceOrATrail `MISSING - no test of this name ran`, a Swift
+    PlaceStore test this branch does not touch.
