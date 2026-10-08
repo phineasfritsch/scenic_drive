@@ -1,13 +1,13 @@
 ---
 id: T-0322
 title: The app's session carries the purchase - /attest and /assert send the appAccountToken so the session JWT has `act`, and plan, trip and loop move to the Bearer before IDENTITY_HEADERS closes, so no subscriber is downgraded to anon on that day
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-08T15:57:13Z
+lease_expires_at: 2026-10-09T01:57:13Z
+worktree: .worktrees/T-0322
+branch: task/T-0322
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Tests/ScenicAPIClientTests/, apps/ios/Packages/ScenicApp/Sources/, services/api/src/, services/api/test/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-STORE-02, P-PRIV-05]
@@ -27,3 +27,4 @@ no `act` because the app attests without one.
 
 ## Log
 - 2026-10-08T12:24:40Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0315's recordable R3.
+- 2026-10-08T15:57:13Z claimed by agent/claude-opus-5; lease until 2026-10-09T01:57:13Z

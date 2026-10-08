@@ -42,6 +42,7 @@ export interface Env {
   CONFIG?: KVNamespace; // T-0288: the remote config record config/v1 /config overlays on its defaults; not bound in wrangler.jsonc
   TELEMETRY?: AnalyticsEngineDataset; // T-0279: the Analytics Engine binding /telemetry writes to (declared, not created)
   APPLE_CLIENT_SECRET?: string; // owner secret (T-0287 R6): the pre-signed Sign in with Apple client-secret JWT; absent, revoke_pending
+  PLANS?: KVNamespace; // T-0319 R3: each /plan answer's pins + lambda under its plan_token for 43200 seconds; not bound in wrangler.jsonc
   GRAPH_VERSION?: string; // the routing graph's version, in the /isochrone cache key (T-0262 R6); unset = "unversioned"
 }
 

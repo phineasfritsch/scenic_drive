@@ -53,10 +53,11 @@ export interface ScenicPlanResult {
   apple_maps_url: string;
 }
 
-async function route(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
+/** One router request through `points` in order - origin, any pins, destination (T-0319 R7). */
+export async function route(call: GuardedFetch, routerBase: string, points: LatLon[],
   profile: string, model: unknown): Promise<RoutePath> {
   const body: Record<string, unknown> = {
-    points: [[origin.lon, origin.lat], [destination.lon, destination.lat]],
+    points: points.map((p) => [p.lon, p.lat]),
     profile,
     points_encoded: false,
     instructions: false,
@@ -87,13 +88,13 @@ export async function planScenic(call: GuardedFetch, routerBase: string, origin:
     return call(url, init);
   };
   const closures = closuresFor(origin, destination);
-  const fastest = await route(counted, routerBase, origin, destination, FAST_PROFILE, undefined);
+  const fastest = await route(counted, routerBase, [origin, destination], FAST_PROFILE, undefined);
   const fastestSeconds = durationSeconds(fastest);
   const ceiling = fastestSeconds + budgetSeconds;
 
   const measured = new Map<string, RoutePath>();
   const outcome = await searchLambda(fastestSeconds, budgetSeconds, async (lambda) => {
-    const path = await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(lambda, closures));
+    const path = await route(counted, routerBase, [origin, destination], SCENIC_PROFILE, buildCustomModel(lambda, closures));
     measured.set(formatMultiplier(lambda), path);
     return durationSeconds(path);
   }, MAX_EVALUATIONS);
@@ -112,7 +113,7 @@ export async function planScenic(call: GuardedFetch, routerBase: string, origin:
   // T-0286 C3-C5: the chosen route against every stored closure; one re-request, inside PLAN_UPSTREAM_COST.
   const chosen = await returned(measuredChosen, (p) => p.coordinates, origin, destination,
     used + 1 <= PLAN_UPSTREAM_COST ? async (swapped) => {
-      const again = await route(counted, routerBase, origin, destination, SCENIC_PROFILE, buildCustomModel(outcome.lambda, swapped));
+      const again = await route(counted, routerBase, [origin, destination], SCENIC_PROFILE, buildCustomModel(outcome.lambda, swapped));
       return durationSeconds(again) <= ceiling && overlap(wayIds(again), wayIds(fastest)) < MAXIMUM_OVERLAP ? again : null;
     } : null);
   const eta = durationSeconds(chosen);
