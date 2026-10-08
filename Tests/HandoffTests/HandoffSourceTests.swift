@@ -183,6 +183,9 @@ struct HandoffSourceTests {
         // `TripDayHandoff` is T-0313's per-day road-trip split (R6): pins every 20 km of a day's leg, parts of at
         // most nine waypoints. It names `Coordinate`, `Geo`, `AppleMapsDirections`, `Array`, `Double` and `URL`.
         "TripDayHandoff",
+        // `LoopHandoff` is T-0314's loop handoff (R8): one URL from the start back to the start through the loop's
+        // pins. It names `Coordinate`, `AppleMapsDirections` and `URL`.
+        "LoopHandoff",
         // `CreditLine` is T-0236's footer composition (rv1-t0236 B1): two credit strings split on the plan's
         // separator and joined, a party the basemap already names skipped - `String`, `Set` and `Array`, no
         // number and no locale. This check went red on it and on `Set` by name before it went green.

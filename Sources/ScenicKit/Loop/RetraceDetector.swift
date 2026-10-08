@@ -188,9 +188,9 @@ public enum RetraceDetector {
     /// fraction computed from a geometry lands on 0.15 exactly; the predicate has to be reachable on its own
     /// for the boundary to be testable at all.
     ///
-    /// Internal rather than public: `isAcceptableLoop` is still the whole API, and nothing outside this
-    /// module should be asking about a bare fraction.
-    static func isAcceptable(fraction f: Double) -> Bool {
+    /// Public since rv1-t0314 B1: ClientLoopPlanner decides on the device's measured fraction through this one
+    /// comparison instead of restating it, so the bound it ships is the bound witnessed here.
+    public static func isAcceptable(fraction f: Double) -> Bool {
         f <= maxRetraceFraction
     }
 
