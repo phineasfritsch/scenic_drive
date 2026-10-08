@@ -140,3 +140,19 @@ rv1-t0324 recordable 4: DriveScreen always draws the preview's planned line.
   "take it" nor depends on it. Population: M-A, M-B and every other refusal-site variant (token taken inside the
   malformed branch; before the mode guard; the controller forwarding a stale ticket) as entries 76-80, MISSED at
   2f263349, CAUGHT by name now; MIN_MUTATIONS 75 -> 80; the new suite is a TEST_FILE and is bound under P-NAV-01.
+- 2026-10-08T21:11:48Z rv1-t0328 CLOSED BY CLASS (owner). drive.py --only 76,77,78,79,80,81 at 7bcb452c (entries added, tests of
+  2f263349, DriveTokenTakeTests set aside): MISSED 76 (M-A), 77 (M-B), 78, 79, 81 - exit=0, no test objected;
+  80 (a stale ticket's answer reaching the session) was already red under C_REPLY "T-0321: a late reply from before
+  the drop is dropped; the reconnect's own reply is taken" (WRONG KILLER against the new name alone), so it is not
+  a survivor and now names both: MUTATE FAILED caught=0/6. At bebf15e3 (DriveTokenTakeTests, the eighth drive.py
+  test file, FILTER + MIN_TEST_FILES 7 -> 8): MUTATE OK caught=6/6, each by "T-0328: an answer's line, pins and
+  token are taken together or none, whole, and the next request agrees" (80 also by C_REPLY). MIN_MUTATIONS
+  75 -> 81. swift test --filter DriveTokenTakeTests: 2 tests in 1 suite passed. Bound under P-NAV-01
+  (takenTogetherOrNone, noRowIgnoresItsTokenVariant; filter gains DriveTokenTakeTests). No Sources/ or apps/ios
+  file changed, so no digest row moves; DriveTokenTakeTests.swift is 137 lines.
+- 2026-10-08T21:26:54Z MERGED origin/main (97c16431) as the last step. Conflicts ruled: LivePlanner keeps client(base) + rerouter and
+  the helper takes main's session: LiveSession.store; the digest lists are the union with conflicted rows
+  recomputed (every agreed row reproduced: 247/247 linked, 105/105 pinned); DriveReplanTests' PlanClient gains
+  session: nil. On the merged tree: swift test (DriveSession|DriveReroute|DriveController|DriveDisplay|
+  DriveTokenTake|DriveLeg|DriveMotionGate|DriveReplan|PlanRerouteWire): 49 tests in 9 suites passed, exit 0;
+  check-safety-disclaimer exit 0; check-pins-yaml ok pins=48 fields=387; P-PROC-06 floor of 144 holds.

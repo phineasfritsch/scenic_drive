@@ -73,6 +73,7 @@
     "Sources/ScenicAPIClient/KeychainRead.swift": "an enum of four cases (T-0310 R6) - no code; the decisions over it are KeychainWrite and InstallIDDecision, in ops/mutate/session.py",
     "Sources/ScenicAPIClient/SessionStorage.swift": "a protocol (T-0310 R5) - three method signatures, no code; the writes made through it are SessionStore's, mutated in ops/mutate/session.py",
     "Sources/ScenicAPIClient/LedgerRow.swift": "three stored fields (placeId, cell, day) and a memberwise init - no code; parsed rows are compared whole by LedgerClientTests.getRequestAndRows",
+    "Sources/ScenicAPIClient/PlanSessionProvider.swift": "a protocol (T-0322 R4) - one async method signature returning an optional token, no code; which token SessionStore hands out is mutated in ops/mutate/session.py (57-76) and bound by whole-request equality in PlanBearerTests",
     "Sources/ScenicAPIClient/LedgerSessionProvider.swift": "a protocol (T-0307 R2) - one method signature returning an optional token, no code; the no-session path is LedgerClient's, mutated in ops/mutate/ledger.py",
     "Sources/ScenicKit/Surprise/SurpriseLedgerPlace.swift": "two stored fields (candidateId, date) and a memberwise init - no code; the merge that reads them is SurpriseHistoryMerge, in ops/mutate/ledger.py",
     "Sources/ScenicKit/Surprise/SurpriseLedgerSource.swift": "a protocol (T-0307 R6) - one async method signature, no code; its only conformer is the Apple-only PlanAdapter LiveSurpriseLedger",

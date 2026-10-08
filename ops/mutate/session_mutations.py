@@ -15,6 +15,12 @@ the ledger write (LedgerSurpriseSource.swift, LedgerClient.swift's 401 hand-back
   * THE PRE-REVIEW SURVIVOR (40): a place with no cell posted - MISSED before the no-cell place d landed, CAUGHT after.
   * REVIEW ROUND 1 (41-56): every bound of the challenge's classes and its length (B1); the read's 401 and a 401
     assertion, over a real SessionStore (B2).
+  * T-0322, THE SESSION CARRIES THE PURCHASE (57-76): the attest/assert body's appAccountToken (never, uppercase,
+    misnamed, dropped by the store), the record's act (forgotten, off the wire, an empty one, unread), the step's act
+    test, the per-value budget, a stale session sent; the plan family's Bearer (never set, no scheme, the header
+    dropped beside it, each client dropping the session or asking for no purchase, a refused request acquiring).
+  * T-0322 REVIEW ROUND 1, B1(b) (77-81): the expiry kept on the device's clock - the reply's instant kept instead,
+    exp equal to iat read, the base64 padding dropped, the url alphabet unread, the fallback guessing an hour.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -36,13 +42,19 @@ STORE = API / "SessionStore.swift"
 SOURCE = API / "LedgerSurpriseSource.swift"
 LEDGER = API / "LedgerClient.swift"
 SHOWING = ROOT / "Sources" / "ScenicKit" / "Surprise" / "SurpriseShowing.swift"
-SUBJECTS = (CLIENT, READER, WRITE, INSTALL, RECORD, STEP, STORE, SOURCE, LEDGER, SHOWING)
+IDENTITY = API / "IdentityHeaders.swift"
+PLANCLIENT = API / "PlanClient.swift"
+TRIPCLIENT = API / "TripClient.swift"
+LOOPCLIENT = API / "LoopClient.swift"
+SUBJECTS = (CLIENT, READER, WRITE, INSTALL, RECORD, STEP, STORE, SOURCE, LEDGER, SHOWING, IDENTITY, PLANCLIENT,
+            TRIPCLIENT, LOOPCLIENT)
 MUTATED_FILES = SUBJECTS
 
 TESTS = ROOT / "Tests" / "ScenicAPIClientTests"
 TEST_FILES = (TESTS / "AttestClientTests.swift", TESTS / "KeychainDecisionTests.swift",
               TESTS / "SessionStoreTests.swift", TESTS / "SurpriseLedgerWriteTests.swift",
-              ROOT / "Tests" / "ScenicKitTests" / "Surprise" / "SurpriseShowingTests.swift")
+              ROOT / "Tests" / "ScenicKitTests" / "Surprise" / "SurpriseShowingTests.swift",
+              TESTS / "SessionAccountTests.swift", TESTS / "PlanBearerTests.swift", TESTS / "SessionSkewTests.swift")
 
 REQ = "Each App Attest request is exactly its URL, its one header and its sorted-key body"
 TABLE = "Every Worker answer is one typed outcome after exactly one request - never a retry"
@@ -60,6 +72,20 @@ RECORDING = "A shown place is appended once a day, its category and corridor its
 CHCLASS = "Every challenge position admits exactly 0-9, A-Z, a-z, '-' and '_', at both bounds of each class"
 CHLEN = "A challenge is read at exactly 43 characters"
 READ401 = "A GET /ledger 401 drops the session: the next POST carries the renewed token"
+BODY = "attest and assert carry exactly the purchase's token, live or expired, or none"
+WIRE = "the session record keeps its act on the wire, and an empty or null act is malformed"
+STEPACT = "a live session is used only while its act is the device's purchase"
+AFTER = "a session issued before the purchase renews once to carry it, then is used with no request"
+SPENTAFTER = "a purchase made after the launch's first acquisition gets its own one try"
+LEDGERACT = "the ledger's acquisition carries the store's purchase, and the plan family then uses that session"
+NOSTALE = ("a failed renewal for the purchase is that token's one try: never the stale session, which still serves its "
+           "own act")
+ROWS = "every plan-family request names the purchase and carries the Bearer exactly when its act is that purchase"
+STALE = "a session issued before the purchase is never sent: the header alone rides until it is renewed"
+NOACQ = "a request refused on the device acquires no session"
+SKEW = "a session is kept on the device's clock and used for exactly lifetime - margin seconds after receipt"
+LIFE = "a token's lifetime is exactly exp - iat of its payload, at every bound"
+FALLBACK = "a token with no readable lifetime keeps the reply's expires_at"
 
 SORTED = "encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]"
 MARGIN = "record.expiresAt.timeIntervalSince(now) > margin"
@@ -107,7 +133,7 @@ MUTATIONS = [
      "case .absent, .malformed, .failed: return .attest", [STEPS, FLOW]),
     ("25 a malformed item no session", STEP, "case .absent, .malformed: return .attest",
      "case .absent: return .attest\n        case .malformed: return .none", [STEPS, FLOW]),
-    ("26 the acquisition never spent", STORE, "            spent = true\n", "", [FLOW, REJECTED, SHOWINGS]),
+    ("26 the acquisition never spent", STORE, '            spent.insert(act ?? "")\n', "", [FLOW, REJECTED, SHOWINGS]),
     ("27 an unsupported attester asks anyway", STORE, "guard attester.isSupported, case .challenge",
      "guard case .challenge", [FLOW]),
     ("28 a rejected key kept", STORE, "            storage.remove()\n", "", [FLOW]),
@@ -115,7 +141,8 @@ MUTATIONS = [
     ("30 another token's rejection drops", STORE, "current, record.token == token else { return }",
      "current else { return }", [REJECTED]),
     ("31 a rejection ignored", STORE,
-     "current = .valid(SessionRecord(keyId: record.keyId, token: record.token, expiresAt: .distantPast))",
+     "current = .valid(SessionRecord(keyId: record.keyId, token: record.token, expiresAt: .distantPast,\n"
+     "                                       act: record.act))",
      "_ = record", [REJECTED, SHOWINGS]),
     ("32 another coordinate's cell", SOURCE, "cellOf(candidate.coordinate)",
      "cellOf(Coordinate(latitude: candidate.coordinate.latitude.rounded(), longitude: "
@@ -167,6 +194,59 @@ MUTATIONS = [
      "body: Data()), isRead: true)\n        return outcome", [READ401]),
     ("56 a 401 assertion forgets the key", STORE, "if outcome == .rejected {",
      "if outcome == .rejected || outcome == .unexpected(401) {", [FLOW]),
+    # 57-76: T-0322 - the session carries the purchase, and the plan family carries the session.
+    ("57 the body never names the purchase", CLIENT, "guard let account else { return fields }",
+     "guard let account, false else { return fields }", [BODY, AFTER, LEDGERACT, ROWS]),
+    ("58 the purchase sent uppercase", CLIENT, '["appAccountToken": account.uuidString.lowercased()]',
+     '["appAccountToken": account.uuidString]', [BODY]),
+    ("59 the body key misnamed", CLIENT, '["appAccountToken": account', '["accountToken": account', [BODY]),
+    ("60 the store attests without the purchase", STORE,
+     "challenge: challenge,\n                                          account: account)",
+     "challenge: challenge,\n                                          account: nil)", [LEDGERACT]),
+    ("61 the store renews without the purchase", STORE, "assertion: assertion, challenge: challenge, account: account)",
+     "assertion: assertion, challenge: challenge, account: nil)", [AFTER, ROWS, SPENTAFTER]),
+    ("62 the record forgets its act", STORE, "act: account?.uuidString.lowercased())", "act: nil)",
+     [AFTER, LEDGERACT]),
+    ("63 the step ignores the act", STEP, ", record.act == act {", " {", [STEPACT, AFTER, ROWS, STALE]),
+    ("64 one budget for every purchase", STORE, 'spent: spent.contains(act ?? "")', "spent: !spent.isEmpty",
+     [SPENTAFTER]),
+    ("65 the act off the wire", RECORD, "Wire(act: act, expires_at:", "Wire(act: nil, expires_at:", [WIRE]),
+    ("66 an empty act read", RECORD, "wire.act?.isEmpty != true", "true", [WIRE]),
+    ("67 the record read without its act", RECORD, ", act: wire.act)", ")", [WIRE]),
+    ("68 the Bearer never set", IDENTITY, 'if let bearer { headers[authorizationHeader] = "Bearer " + bearer }',
+     "_ = bearer", [ROWS]),
+    ("69 the Bearer without its scheme", IDENTITY, '"Bearer " + bearer', "bearer", [ROWS]),
+    ("70 the account header dropped beside a Bearer", IDENTITY, "if let account { headers[accountHeader]",
+     "if let account, bearer == nil { headers[accountHeader]", [ROWS]),
+    ("71 PlanClient drops the session", PLANCLIENT, "let bearer = await session?.planSession(account: account)",
+     "let bearer: String? = nil", [ROWS]),
+    ("72 TripClient drops the session", TRIPCLIENT, "let bearer = await session?.planSession(account: account)",
+     "let bearer: String? = nil", [ROWS]),
+    ("73 LoopClient drops the session", LOOPCLIENT, "let bearer = await session?.planSession(account: account)",
+     "let bearer: String? = nil", [ROWS]),
+    ("74 PlanClient asks for no purchase", PLANCLIENT, "planSession(account: account)", "planSession(account: nil)",
+     [ROWS]),
+    ("75 TripClient acquires before the device refusal", TRIPCLIENT,
+     "guard let installID else { throw .refusedOnDevice(.noInstallID) }",
+     "_ = await session?.planSession(account: nil)\n        guard let installID else { throw .refusedOnDevice(.noInstallID) }",
+     [NOACQ]),
+    ("76 a stale session sent when the renewal fails", STORE,
+     "case .challenge(let challenge) = await client.challenge() else { return nil }",
+     "case .challenge(let challenge) = await client.challenge() else {\n"
+     "                if case .valid(let held) = current { return held.token }\n                return nil\n            }",
+     [NOSTALE, ROWS, STALE]),
+    # 77-81: T-0322 review round 1, B1(b) - the session's expiry on the device's clock.
+    ("77 the reply's instant kept", STORE,
+     "let expiry = SessionRecord.lifetime(of: token).map { now().addingTimeInterval($0) } ?? expiresAt",
+     "let expiry = expiresAt", [SKEW]),
+    ("78 exp equal to iat read", RECORD, "claims.exp > claims.iat", "claims.exp >= claims.iat", [LIFE]),
+    ("79 the base64 padding dropped", RECORD,
+     'payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)', "_ = payload", [LIFE]),
+    ("80 the url alphabet unread", RECORD,
+     'var payload = parts[1].replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")',
+     "var payload = String(parts[1])", [LIFE]),
+    ("81 the fallback guesses an hour", STORE, "now().addingTimeInterval($0) } ?? expiresAt",
+     "now().addingTimeInterval($0) } ?? now().addingTimeInterval(3600)", [FALLBACK]),
 ]
 
 # (name, path, old, new, witness): cannot change behaviour, so anything but MISSED is a failure.
@@ -182,8 +262,13 @@ EQUIVALENT = [
      "answers .none for both once spent; keychain is read only by sessionToken's first-call guard (non-nil before any "
      "acquisition) and by keep and renew, so after keep writes it no path in the same store reads it again, and the "
      "next launch is a new store that reads the real Keychain"),
+    ("E3 a rejected session forgets its act", STORE,
+     "expiresAt: .distantPast,\n                                       act: record.act))",
+     "expiresAt: .distantPast,\n                                       act: nil))",
+     "the rejected record's expiry is .distantPast, so SessionStep never answers .use for it whatever its act; .renew "
+     "takes only its keyId and the act ASKED FOR, and keep writes a new record - the dropped record's act is never read"),
 ]
 
-MIN_MUTATIONS = 56
-MIN_EQUIVALENT = 2
-MIN_TEST_FILES = 5
+MIN_MUTATIONS = 81
+MIN_EQUIVALENT = 3
+MIN_TEST_FILES = 8

@@ -27,6 +27,6 @@ public enum LivePlanner {
 
     private static func client(_ base: URL) -> PlanClient {
         PlanClient(base: base, transport: URLSessionPlanTransport(), installID: StoredInstallID(),
-                   accountToken: StoreKitAccountToken())
+                   accountToken: StoreKitAccountToken(), session: LiveSession.store)
     }
 }

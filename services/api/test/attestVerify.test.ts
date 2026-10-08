@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AttestDeps } from "../src/attest";
 import type { Env } from "../src/index";
+import { malformedTokens } from "./accountTokenShapes";
 import { b64, seq, tlv } from "./appleChain";
 import {
   AAGUID_DEVELOP, AAGUID_PRODUCTION, ACCOUNT, attestation, bodyOf, cat, cbor, CHALLENGE, DEVICE, freshAttestTables, nonceExtension,
@@ -56,6 +57,7 @@ const ROWS: Row[] = [
   { name: "device a number", body: body({ device: 7 }) },
   { name: "appAccountToken malformed", body: body({ appAccountToken: ACCOUNT.slice(1) }) },
   { name: "appAccountToken null", body: body({ appAccountToken: null }) },
+  ...malformedTokens(ACCOUNT).map(([name, value]): Row => ({ name, body: body({ appAccountToken: value }) })),
   { name: "attestation not CBOR", body: body({ attestation: b64(new Uint8Array([0xff])) }) },
   { name: "a byte after the CBOR object", body: (a) => bodyOf(a, { attestation: b64(cat(bytes(a.attestation), [0])) }) },
   { name: "the object is an array", spec: { object: (p) => [p.authData] } },

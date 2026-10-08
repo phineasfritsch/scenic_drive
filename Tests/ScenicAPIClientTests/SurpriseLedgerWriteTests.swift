@@ -69,7 +69,7 @@ import Testing
                                            "GET /ledger": [AttestWire.reply(200, "{\"places\":[]}")]])
         let session = SessionStore(client: AttestWire.client(transport),
                                    attester: FakeAttester(isSupported: row.supported),
-                                   storage: MemorySessionStorage(row.stored), now: { AttestWire.now })
+                                   storage: MemorySessionStorage(row.stored), account: nil, now: { AttestWire.now })
         let cells = Self.cells
         return (LedgerSurpriseSource(client: LedgerClient(base: AttestWire.base, transport: transport, session: session),
                                      cellOf: { cells[$0] }), transport)
@@ -96,7 +96,7 @@ import Testing
                                            "POST /attest/assert": [AttestWire.sessionReply],
                                            "POST /ledger": [Self.recorded], "GET /ledger": [Self.unauthorized]])
         let session = SessionStore(client: AttestWire.client(transport), attester: FakeAttester(isSupported: true),
-                                   storage: MemorySessionStorage(Self.live), now: { AttestWire.now })
+                                   storage: MemorySessionStorage(Self.live), account: nil, now: { AttestWire.now })
         let cells = Self.cells
         let source = LedgerSurpriseSource(client: LedgerClient(base: AttestWire.base, transport: transport,
                                                                session: session), cellOf: { cells[$0] })

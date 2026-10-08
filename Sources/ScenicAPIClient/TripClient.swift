@@ -9,13 +9,15 @@ public struct TripClient: Sendable {
     let transport: any PlanTransport
     let installID: (any InstallIDProvider)?
     let accountToken: (any AccountTokenProvider)?
+    let session: (any PlanSessionProvider)?
 
     public init(base: URL, transport: any PlanTransport, installID: (any InstallIDProvider)?,
-                accountToken: (any AccountTokenProvider)?) {
+                accountToken: (any AccountTokenProvider)?, session: (any PlanSessionProvider)?) {
         self.base = base
         self.transport = transport
         self.installID = installID
         self.accountToken = accountToken
+        self.session = session
     }
 
     public func trip(from origin: Coordinate, to place: Int64, days: Int, extraBudgetPercent: Int,
@@ -33,9 +35,11 @@ public struct TripClient: Sendable {
         encoder.outputFormatting = [.sortedKeys]
         guard let bytes = try? encoder.encode(body) else { throw .refusedOnDevice(.originOutOfRange) }
 
+        let account = await accountToken?.accountToken()
+        let bearer = await session?.planSession(account: account)
         let request = PlanHTTPRequest(url: base.appendingPathComponent("trip"), method: "POST",
                                       headers: IdentityHeaders.json(device: installID.installID(),
-                                                                     account: await accountToken?.accountToken()),
+                                                                     account: account, bearer: bearer),
                                       body: bytes)
         let reply: PlanHTTPReply
         do {

@@ -93,7 +93,7 @@ import Testing
 
     static func rerouter(_ transport: CountingPlanTransport) -> PlanRerouter {
         PlanRerouter(client: PlanClient(base: PlanWire.base, transport: transport, installID: PlanWire.install,
-                                        accountToken: nil), place: 42, budgetMinutes: 25)
+                                        accountToken: nil, session: nil), place: 42, budgetMinutes: 25)
     }
 
     /// Carries out `commands` as DriveNavigator does: each send through the sender, its answer back under its ticket.

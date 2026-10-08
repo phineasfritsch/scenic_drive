@@ -46,9 +46,10 @@ enum LoopWire {
 
     static func loop(through transport: any PlanTransport, from start: Coordinate = start, minutes: Int = 45,
                      vehicle: VehicleProfile = .standard, install: Bool = true,
-                     account: (any AccountTokenProvider)? = nil) async -> Result<LoopResponse, LoopError> {
+                     account: (any AccountTokenProvider)? = nil,
+                     session: (any PlanSessionProvider)? = nil) async -> Result<LoopResponse, LoopError> {
         let client = LoopClient(base: base, transport: transport, installID: install ? PlanWire.install : nil,
-                                accountToken: account)
+                                accountToken: account, session: session)
         do {
             return .success(try await client.loop(from: start, minutes: minutes, vehicle: vehicle))
         } catch {

@@ -29,16 +29,15 @@ const BEARER_FOR: Partial<Record<Who, string>> = { A: DEVICE_A, B: DEVICE_B, "C+
 
 /**
  * Every identity source identifyCaller returns a bucket from: the session sub (both modes), the legacy x-scenic-device
- * header (only with IDENTITY_HEADERS "1" and no Bearer), and the shared unidentified bucket.
+ * header (only with IDENTITY_HEADERS "1" and no Bearer that verifies), and the shared unidentified bucket.
  */
 type Mode = "session-only" | "legacy-headers";
 const MODES: Record<Mode, Record<string, string>> = { "session-only": {}, "legacy-headers": { IDENTITY_HEADERS: "1" } };
 
-/** The ruled bucket (R1): a valid Bearer is its sub; any other Bearer is unidentified; no Bearer is the header in legacy. */
+/** The ruled bucket (R1, T-0322 B1): a valid Bearer is its sub; any other Bearer reads as none - the header in legacy. */
 function bucket(mode: Mode, who: Who): string {
   const sub = BEARER_FOR[who];
   if (sub !== undefined) return sub;
-  if (who === "bad-bearer" || who === "C+malformed") return UNIDENTIFIED;
   return mode === "legacy-headers" ? HEADER[who] ?? UNIDENTIFIED : UNIDENTIFIED;
 }
 
@@ -77,7 +76,7 @@ const STEPS: [string, string, Who, string][] = [
   ["A at the first instant of the next day", "2026-10-06T00:00:00.000Z", "A", CELL],
   ["A again that instant", "2026-10-06T00:00:00.000Z", "A", CELL],
   ["no bearer the next day", "2026-10-06T00:00:01.000Z", "none", CELL],
-  ["a malformed Bearer beside a C header: unidentified in both modes, never the header", "2026-10-06T00:00:02.000Z", "C+malformed", CELL],
+  ["a malformed Bearer beside a C header: C under the legacy flag, as with no Bearer; unidentified without it", "2026-10-06T00:00:02.000Z", "C+malformed", CELL],
   ["a C header, no Bearer: C under the legacy flag, unidentified without it", "2026-10-06T00:00:03.000Z", "C", CELL],
   ["the C header again", "2026-10-06T00:00:04.000Z", "C", CELL],
   ["a D header, no Bearer", "2026-10-06T00:00:05.000Z", "D", CELL],
@@ -165,10 +164,11 @@ describe("POST /waitlist counts one device once per cell per UTC day (T-0296)", 
     const traces = await Promise.all(CASES.map(async (c) => JSON.stringify(await expectedTrace(await c.make(), c.mode))));
     expect(CASES.length).toBe(4);
     expect(new Set(traces).size).toBe(CASES.length);
-    // the identity mode decides exactly the steps whose bucket it changes: every header-only step, nothing else
+    // the identity mode decides exactly the steps whose bucket it changes: every header step with no Bearer that
+    // verifies (none, or a malformed one - T-0322 B1), nothing else
     const moved = STEPS.filter(([, , who]) => bucket("session-only", who) !== bucket("legacy-headers", who)).map(([l]) => l);
-    expect(moved).toEqual(STEPS.filter(([, , who]) => who === "C" || who === "D").map(([l]) => l));
-    expect(moved.length).toBe(4);
+    expect(moved).toEqual(STEPS.filter(([, , who]) => who === "C" || who === "D" || who === "C+malformed").map(([l]) => l));
+    expect(moved.length).toBe(5);
   });
 
   it("same device same cell same day counts once; a second device, a second cell and the next day count again - every step's tables whole, over both variants", async () => {
