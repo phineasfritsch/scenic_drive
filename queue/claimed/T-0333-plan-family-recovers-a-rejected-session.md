@@ -75,3 +75,17 @@ wrong TTL, malformed} x {flag 1, closed} for the Worker answer, and for the clie
      ignored. The ledger's sessionRejected is unchanged (no re-grant).
   R5 The Brief's "e.g. 401 session_rejected" is ruled as exactly that literal. The Brief's client table {401 once,
      401 twice} is crossed with held {unspent, spent}, because the spent case is the one today's store cannot recover.
+- 2026-10-09T11:12:00Z R6 (ruled with the tests, before code): the second 401 hands its token back too (no re-grant -
+  R4 already spent it), so the launch's next action sends no known-rejected Bearer; the reply is still final.
+- 2026-10-09T11:12:00Z RED by name, before any src/ or Sources/ change (tests only in the tree):
+  `npx vitest run test/sessionCarriesAct.test.ts test/sessionIdentity.test.ts` -> `Tests  72 failed | 146 passed (218)`:
+  36 = sessionCarriesAct `<route>, Bearer <expired|wrong secret|wrong TTL|malformed>, IDENTITY_HEADERS unset, header
+  <live|expired|absent>: the answer is the ruled reference` (3 x 4 x 3); 12 = `<route>, Bearer <4>, IDENTITY_HEADERS
+  unset, EMPTY quota: a rejected Bearer reserves nothing (T-0333 R2)`; 24 = sessionIdentity's 22 INVALID rows, the
+  `1 ms past the second S` row and `a lower-case bearer scheme and a Basic credential are not a session`. Every flag-"1"
+  row passed (T-0322's fallback, unchanged). `swift test --filter PlanSessionRetryTests` -> `Test run with 2 tests in 1
+  suite failed ... with 16 issues`: `a 401 hands the session back, re-acquires once and resends the same bytes once;
+  never a third request` FAILED for exactly the 16 rows {plan, reroute, trip, loop} x {keychain, acquired} x
+  {rejectsOnce, rejectsAlways}; its 20 answers / noSession rows and the meta-test passed (today's behaviour). The
+  later `the resend carries the same purchase` test calls only shipped API but was written after the code; its red is
+  mutant 89.
