@@ -9,12 +9,16 @@ run over ZERO mutations. Each reads as something other than "you typed it wrong"
 The population is the DRIVERS whitelist of ops/lib/mutate_population_table.py (the same list P-PROC-06 already
 holds every runnable ops/mutate/*.py to) plus every services/api/test/mutate/*Mutants.mjs, each with a literal
 floor so a table emptied by a bad merge is a refusal and not `0 of 0`. Every driver is run, as the shipping
-command line, with `--only 999999` (names no entry), `--only 1-2x` (does not parse as an id or a range) and a
-well-formed RANGE of the driver's own ids, and must exit EXIT_ONLY_REFUSED (64) with a `REFUSING TO RUN: ` line.
+command line, with `--only 999999` (names no entry), `--only 1-2x` (does not parse as an id or a range) and
+well-formed RANGES of the driver's own ids, and must exit EXIT_ONLY_REFUSED (64) with a `REFUSING TO RUN: ` line.
 The ids come from the driver: the `999999` refusal prints the population it was handed as one `ONLY IDS: <json>`
-line, and the range is the two smallest all-digit ids `A-B` (a range expansion anywhere in the driver would
-select them), else the first `N-(N+1)` that no id contains (substring drivers, name-keyed ids, and the drivers
-with no `--only`, whose refusal lists no ids). A "names no entry" refusal with no `ONLY IDS` line fails.
+line. The ids split into two classes (T-0353). All-digit ids give the two smallest `A-B`, else the first
+`N-(N+1)` no id contains (also the only probe of a driver with no `--only`, whose refusal lists no ids). Any
+non-digit ids (mjs mutation names, substring-keyed names, plansheet-style E-ids) give `<x0>-<x1>` from the first
+consecutive listed pair no id equals or contains, or `<x>-<x>` for a lone one: a range expansion anywhere in a
+parser would select real entries with it. A non-digit population no pair can probe fails, and fewer name-range
+probes than NAME_RANGE_FLOOR (38, measured 2026-10-09) fails. A "names no entry" refusal with no `ONLY IDS` line
+fails.
 64 and not "non-zero": 2 is non-zero and is what a driver that reached its baseline gate returns, so "non-zero"
 would pass a driver that never looked at --only.
 The parsers themselves (ops/mutate/mutate_only.py, services/api/test/mutate/onlyIds.mjs) are also exercised in
@@ -22,7 +26,8 @@ process for the selections that must NOT refuse, so a parser that refuses everyt
 The tree's `git status` (untracked files included) is compared before and after: a driver that ignored the flag
 and began mutating is named. A probe killed at the timeout is reported with the files it left changed; they are
 NOT restored here.
-Exit 0 all refused; 1 a driver did not refuse as required; 2 this check could not run (floor, git, a parser control).
+Exit 0 all refused; 1 a driver did not refuse as required; 2 this check could not run (floor, git, a parser control,
+fewer name-range probes than NAME_RANGE_FLOOR).
 """
 from __future__ import annotations
 
@@ -44,7 +49,7 @@ PY_FLOOR = 38
 MJS_FLOOR = 17
 NAMES_NOTHING = ["--only", "999999"]
 PROBES = (NAMES_NOTHING, ["--only", "1-2x"])
-RANGE_PROBES = 1
+NAME_RANGE_FLOOR = 38
 NO_ONLY = "this driver has no --only"
 TIMEOUT_S = 120
 
@@ -88,17 +93,40 @@ def drivers() -> list:
     return [([sys.executable if k == "python" else k, str(f)], f.relative_to(ROOT).as_posix()) for k, f in py + mjs]
 
 
-def range_token(ids: list) -> str:
-    """A well-formed range over the driver's real ids: its two smallest all-digit ids, else the first N-(N+1)
-    that no id contains (so a substring driver cannot select an entry with it)."""
+def free(token: str, ids: list) -> bool:
+    """No id equals or contains the token, so even a substring driver selects nothing with it."""
+    return not any(token in i for i in ids)
+
+
+def name_range(ids: list) -> str | None:
+    """`<x0>-<x1>` over the driver's non-digit ids (names, E-ids), trying consecutive listed pairs until one no id
+    contains; one such id gives `<x>-<x>`. None when the driver lists no non-digit id. An `A-B` expansion whose
+    halves are both known ids selects entries with it; a correct parser refuses it as one unknown id."""
+    names = [i for i in ids if not re.fullmatch(r"[0-9]+", i)]
+    pairs = list(zip(names, names[1:])) or [(n, n) for n in names[:1]]
+    for a, b in pairs:
+        if free("%s-%s" % (a, b), ids):
+            return "%s-%s" % (a, b)
+    return None if not names else ""
+
+
+def range_tokens(ids: list) -> list:
+    """Well-formed ranges over the driver's real ids, as (kind, token). The digit class gives its two smallest
+    `A-B`; a driver without one gets the first N-(N+1) no id contains; a driver with any non-digit id also gets
+    name_range(). A non-digit population no pair can probe is ("name", "") - a failure, never a skip."""
     digits = sorted((i for i in ids if re.fullmatch(r"[0-9]+", i)), key=int)
-    first = ["%s-%s" % (digits[0], digits[1])] if len(digits) >= 2 else []
-    n = 1
-    while True:
-        for token in first + ["%d-%d" % (n, n + 1)]:
-            if not any(token in i for i in ids):
-                return token
-        first, n = [], n + 1
+    out = []
+    if len(digits) >= 2 and free("%s-%s" % (digits[0], digits[1]), ids):
+        out.append(("digit", "%s-%s" % (digits[0], digits[1])))
+    else:
+        n = 1
+        while not free("%d-%d" % (n, n + 1), ids):
+            n += 1
+        out.append(("n", "%d-%d" % (n, n + 1)))
+    name = name_range(ids)
+    if name is not None:
+        out.append(("name", name))
+    return out
 
 
 def probe_once(cmd: list, name: str, probe: list, before: str) -> tuple:
@@ -114,6 +142,17 @@ def probe_once(cmd: list, name: str, probe: list, before: str) -> tuple:
     return code, [l for l in out.replace("\r", "").split("\n") if l.strip()]
 
 
+def refused(cmd: list, name: str, probe: list, before: str) -> tuple:
+    """(exited EXIT_ONLY_REFUSED with a REFUSING TO RUN line, exit code, output lines)."""
+    code, lines = probe_once(cmd, name, probe, before)
+    return code == EXIT_ONLY_REFUSED and any(l.startswith("REFUSING TO RUN: ") for l in lines), code, lines
+
+
+def verdict(name: str, probe: list, code, lines: list) -> str:
+    return "%s %s: exit %s (need %d) - %s" % (name, " ".join(probe), code, EXIT_ONLY_REFUSED,
+                                              lines[-1][:120] if lines else "(no output)")
+
+
 def main() -> int:
     bad = parser_controls()
     if bad:
@@ -122,32 +161,43 @@ def main() -> int:
         return 2
     runs = drivers()
     before = status()
-    failed = []
+    failed, kinds = [], {"digit": 0, "name": 0, "n": 0}
     for cmd, name in runs:
         ids = []
-        for probe in list(PROBES) + [None] * RANGE_PROBES:
-            probe = probe or ["--only", range_token(ids)]
-            code, lines = probe_once(cmd, name, probe, before)
-            ok = code == EXIT_ONLY_REFUSED and any(l.startswith("REFUSING TO RUN: ") for l in lines)
+        for probe in PROBES:
+            ok, code, lines = refused(cmd, name, probe, before)
             if probe == NAMES_NOTHING:
                 listed = [l[len(mutate_only.IDS_LINE):] for l in lines if l.startswith(mutate_only.IDS_LINE + " ")]
                 ids = json.loads(listed[0]) if listed else []
                 if not listed and not any(NO_ONLY in l for l in lines):
                     ok, lines = False, lines + ["the refusal lists no %s line" % mutate_only.IDS_LINE]
             if not ok:
-                failed.append("%s %s: exit %s (need %d) - %s" % (name, " ".join(probe), code, EXIT_ONLY_REFUSED,
-                                                                 lines[-1][:120] if lines else "(no output)"))
+                failed.append(verdict(name, probe, code, lines))
+        for kind, token in range_tokens(ids):
+            kinds[kind] += 1
+            if not token:
+                failed.append("%s %s range: none of its consecutive id pairs forms a token free of every id"
+                              % (name, kind))
+                continue
+            ok, code, lines = refused(cmd, name, ["--only", token], before)
+            if not ok:
+                failed.append(verdict(name, ["--only", token], code, lines))
     after = status()
     for f in failed:
         print("NOT REFUSED: %s" % f)
+    short = kinds["name"] < NAME_RANGE_FLOOR
+    if short:
+        print("NAME-RANGE PROBES %d below floor %d: a driver's non-digit ids (names, E-ids) went unprobed"
+              % (kinds["name"], NAME_RANGE_FLOOR))
     if after != before:
         print("TREE CHANGED during the run - a driver mutated files:\n%s" % after)
         return 1
-    total = (len(PROBES) + RANGE_PROBES) * len(runs)
-    print("MUTATE-ONLY %s: %d of %d driver runs refused with exit %d (%d drivers x %d probes)"
-          % ("OK" if not failed else "FAILED", total - len(failed), total, EXIT_ONLY_REFUSED,
-             len(runs), len(PROBES) + RANGE_PROBES))
-    return 0 if not failed else 1
+    ranges = sum(kinds.values())
+    total = len(PROBES) * len(runs) + ranges
+    print("MUTATE-ONLY %s: %d of %d driver runs refused with exit %d (%d drivers, %d range probes: %d digit, "
+          "%d name, %d N-(N+1))" % ("OK" if not failed and not short else "FAILED", total - len(failed), total,
+                                   EXIT_ONLY_REFUSED, len(runs), ranges, kinds["digit"], kinds["name"], kinds["n"]))
+    return 1 if failed else 2 if short else 0
 
 
 if __name__ == "__main__":
