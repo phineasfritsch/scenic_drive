@@ -43,7 +43,7 @@ function fakeKv(rows: Record<string, string> = {}, fail: { get?: boolean; put?: 
   };
 }
 
-const stored = (record: unknown) => ({ [`plan:${TOKEN}`]: typeof record === "string" ? record : JSON.stringify(record) });
+const stored = (record: unknown, device = "device-1") => ({ [`plan:${device}:${TOKEN}`]: typeof record === "string" ? record : JSON.stringify(record) });
 
 function rig(router: Recording, kv: FakeKv | null) {
   const h = harness(router);
@@ -102,7 +102,7 @@ describe("POST /plan reroute wire (T-0319 R2, P-PRIV-05)", () => {
     const h = rig(SANTA_MONICA_TOPANGA, kv);
     const { status, body } = await send(h, pinned(1));
     expect(status).toBe(200);
-    expect(kv.reads).toEqual([`plan:${TOKEN}`]);
+    expect(kv.reads).toEqual([`plan:device-1:${TOKEN}`]);
     const through = [O, [PINS[1]!.lon, PINS[1]!.lat], [PINS[2]!.lon, PINS[2]!.lat], D];
     expect(h.sent).toEqual([
       { url: "https://router.test/route", body: routeBody([O, D], "car_fast") },
@@ -134,6 +134,17 @@ describe("POST /plan reroute wire (T-0319 R2, P-PRIV-05)", () => {
       expect([name, h.sent]).toEqual([name, plain.sent]);
       expect([name, kv === null ? 0 : kv.reads.length]).toEqual([name, kv === null ? 0 : 1]);
     }
+  });
+
+  it("a foreign device cannot read another device's token: its one read is its own key and it answers the fresh plan", async () => {
+    const foreign = { ...RECORD, device: "device-2" };
+    const plain = rig(SANTA_MONICA_TOPANGA, fakeKv(stored(foreign, "device-2")));
+    const fresh = await send(plain, SANTA_MONICA_TOPANGA_BODY);
+    const kv = fakeKv(stored(foreign, "device-2"));
+    const h = rig(SANTA_MONICA_TOPANGA, kv);
+    const answer = await send(h, pinned(1));
+    expect({ status: fresh.status, answer, sent: h.sent, reads: kv.reads })
+      .toEqual({ status: 200, answer: fresh, sent: plain.sent, reads: [`plan:device-1:${TOKEN}`] });
   });
 
   it("T-0332 R6: a reroute is exempt from the honest failure - a 0.226 route still answers 200", async () => {
@@ -204,7 +215,7 @@ describe("POST /plan remembers every answer (T-0319 R3/R6)", () => {
     const kv = fakeKv();
     const h = rig(SANTA_MONICA_TOPANGA, kv);
     const plain = await send(h, SANTA_MONICA_TOPANGA_BODY);
-    const remember = (answer: Record<string, unknown>) => ({ key: `plan:${MINTED(1)}`, options: { expirationTtl: 43_200 },
+    const remember = (answer: Record<string, unknown>) => ({ key: `plan:device-1:${MINTED(1)}`, options: { expirationTtl: 43_200 },
       value: JSON.stringify({ device: "device-1", place: "la:topanga", pins: answer.waypoints, lambda: answer.lambda }) });
     expect(plain.body.plan_token).toBe(MINTED(1));
     expect(kv.puts).toEqual([remember(plain.body)]);
