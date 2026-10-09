@@ -1,13 +1,13 @@
 ---
 id: T-0345
 title: A tiles (PMTiles) OTA manifest shape exists, and ops/sane --prod's exit 8 checks it against this checkout as it checks the corpus manifest
-state: ready
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T23:24:24Z
+lease_expires_at: 2026-10-10T05:24:24Z
+worktree: .worktrees/T-0345
+branch: task/T-0345
 exclusive: []
 touches: [ops/sane, ops/lib/, services/tiles/, pins/PINS.yaml]
 pins_affected: [P-OPS-08, P-DATA-03]
@@ -29,3 +29,4 @@ ops/lib/sane_prod.py and gains cases in ops/lib/check_sane_prod.py (local fake o
 
 ## Log
 - 2026-10-09T14:21:53Z filed by agent/claude-opus-5 from T-0344 R5 (tiles manifest out of scope there: no shape).
+- 2026-10-09T23:24:24Z claimed by agent/claude-opus-5; lease until 2026-10-10T05:24:24Z
