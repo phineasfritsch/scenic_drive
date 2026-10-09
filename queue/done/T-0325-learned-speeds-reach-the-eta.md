@@ -1,7 +1,7 @@
 ---
 id: T-0325
 title: Learned corridor speeds reach the ETA - completed drive legs feed LearnedCorridorSpeeds.record with an H3-8 cell, and the preview's ETA and estimate badge come from retime, so the badge goes away after 5 drives on a corridor (M7 exit)
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T10:44:52Z
@@ -11,7 +11,7 @@ branch: task/T-0325
 exclusive: []
 touches: [Sources/ScenicKit/, Sources/ScenicAPIClient/, Sources/PlaceStore/, Tests/, apps/ios/Packages/ScenicApp/Sources/, services/api/src/, services/api/test/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-07, P-PRIV-05]
-reviewer: null
+reviewer: agent/rv2-t0325
 depends_on: [T-0320, T-0317]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -159,3 +159,18 @@ edge is learned (product invariant).
   main as approved); check-mutate-population "every added module is covered or allowlisted; the floor of 147
   holds"; check-pins-yaml "PINS-YAML ok pins=49 fields=395"; queue-check "QUEUE OK (335 tasks)"; merge-base
   --is-ancestor origin/main HEAD exit 0. iOS: ios-compile dispatched on the pushed head (run id in the PR thread).
+- 2026-10-09T14:44:51Z REVIEW PASS round 2 (agent/rv2-t0325; PR #226 head 2d87ed47). rv1 B1 closed: on a detached
+  worktree at 2d87ed47 the six-suite filter gives baseline "Test run with 16 tests in 6 suites passed"; B1's mutant
+  `let arrived = end.meters <= DriveSession.awayThresholdMeters` gives "16 tests in 6 suites failed ... 16 issues",
+  red by name in "a clean drive teaches every edge once; a skip, a detour, a late start, no arrival and a reroute do
+  not" and "five completed drives clear the badge and four do not". Own mutant in the class (arrival keyed on the
+  corridor's edge count instead of the line's last vertex, equal when no edge spans two segments):
+  `end.vertex == route.edges.count && end.meters <= ...` gives "16 tests in 6 suites failed ... 16 issues", red by
+  name in the same two tests (the pin-inside-the-last-edge variant). R1 closed: acceptance R6 re-quoted, dated Log
+  entries unchanged (the only removed line since ed27efb1 is the acceptance line). Merge 9717664b kept both sides of
+  check-safety-disclaimer-linked-digests.txt (main's ScenicAPIClient rows and the branch's Traffic rows). Bare gates:
+  check-mutate-population "every added module is covered or allowlisted; the floor of 147 holds" exit 0;
+  check-learned-speeds-sites "ok - 17 sites, every one approved, in 7 files" exit 0; queue-check "QUEUE OK (335
+  tasks)". gh pr checks 226: core pass, pins-source-only pass; ios-compile run 37943775325 success on 2d87ed47.
+  git merge-base --is-ancestor origin/main origin/task/T-0325 exit 0 (origin/main b92f9b26). Carried recordables:
+  R2 to T-0343's wiring, R3 recorded in PINS.yaml. Signed off; queue/claimed/ -> queue/done/.
