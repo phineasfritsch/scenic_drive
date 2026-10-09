@@ -1,7 +1,7 @@
 ---
 id: T-0330
 title: A reroute answer says whether it continued the drive - /plan marks an answer built from a recalled plan_token apart from the fresh plan it falls back to, and the app rules on a fresh one; the drive screen's ETA line follows the line it draws
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T06:51:11Z
@@ -11,7 +11,7 @@ branch: task/T-0330
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-NAV-01]
-reviewer: null
+reviewer: agent/rv1-t0330
 depends_on: [T-0328]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -139,3 +139,17 @@ after a reroute is taken.
   check-safety-disclaimer-pinned). CI on c7a85406: linux-core success (core + pins-source-only pass), ios-compile success
   (run 37908636620), ios-screenshot success (run 37908640959); drive-light LOOKED AT: the kinked taken-reroute line,
   minimal surface, no caption, the full credit footer above End drive - as before.
+- 2026-10-09T10:32:18Z review PASS by agent/rv1-t0330 (PR #222, head 17a90c1c; origin/main is an ancestor).
+  Acceptance 1-5 hold; the rulings (b6fdc928) precede the first code commit (5c7aebbf). Bare on the head: vitest
+  planContinued + planRecorded 6/6; swift test --filter Drive|PlanReroute|PlanResponse|PlanPreview 105 tests
+  passed; check-safety-disclaimer 0, check-drive-display.py 0 (21 approved), check-line-cap 0 (526 files),
+  check-mutate-population.py 0, check-pins-yaml.py 0, queue-check OK; gh pr checks core + pins-source-only pass;
+  ios-compile success (37908636620) and ios-screenshot success (37908640959) on c7a85406 (17a90c1c is Log-only);
+  drive-light and drive-dark looked at: the drawn line, minimal surface, credit footer above End drive.
+  Reviewer mutants, neither in the population, both RED by name: (A) plan.ts `plan_token: token, continued }` ->
+  `plan_token: token, ...(continued ? { continued } : {}) }` CAUGHT by planRecorded "the response carries exactly
+  the ruled fields (R8)" and planContinued "every unusable token's answer is the fresh plan's body..." + its meta;
+  (B) PlanResponse.swift `decodeIfPresent(Bool.self, forKey: .continued) ?? false` -> `decode(Bool.self, forKey:
+  .continued)` CAUGHT by DriveContinuedReplanTests "T-0330 R3: continued true / false / absent / not a boolean"
+  (:62) and PlanResponseDecodeTests. Non-blocking: the drive screen's estimate badge stays preview.showsEstimateBadge
+  after a reroute (R4 rules it unchanged); the full-surface ETA line and note appear in no screenshot.
