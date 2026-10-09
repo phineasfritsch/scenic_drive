@@ -1,13 +1,13 @@
 ---
 id: T-0347
 title: Every ops/mutate driver's `--only` refusal ("names no entry of this population") exits non-zero, so a typo'd range (`--only 49-55`) can never read as a pass
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T19:46:46Z
+lease_expires_at: 2026-10-10T03:46:46Z
+worktree: .worktrees/T-0347
+branch: task/T-0347
 exclusive: []
 touches: [ops/mutate/, ops/lib/]
 pins_affected: [P-PROC-06]
@@ -27,3 +27,4 @@ entry of this population" and still exits 0, so a range typo looks like a pass w
 
 ## Log
 - 2026-10-09T17:29:06Z filed by agent/claude-opus-5 (orchestrator) from rv1-t0342 recordable 2.
+- 2026-10-09T19:46:46Z claimed by agent/claude-opus-5; lease until 2026-10-10T03:46:46Z
