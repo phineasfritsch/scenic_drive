@@ -69,3 +69,17 @@ q-green, but the anchor compares a table to itself), and the field-list half of 
        SANE-PROD refuse   meta: field upstream_calls has no row for ['negative']; field upstream_trip_at has no row for ['negative']; field schema_version has no row for ['negative']; field min_app_build has no row for ['negative']; field bytes has no row for ['negative']
     DRIVER 4/4 mutants red as required
   Each refused by the meta line with exit 2 and zero `SANE-PROD pass` lines - before any case ran.
+- 2026-10-09T20:55:07Z FIRST full run (19:53:02Z-20:55:07Z, 62 min on a loaded box) is NOT counted: I edited this
+  file and committed e1282696 while it ran, and the table's own never-mutates guard refused the two cases running at
+  those moments - `SANE-PROD FAIL x-upstream_trip_at-number: git status or HEAD changed across the run` and
+  `x-upstream_trip_at-negative` (same), each with the right exit 6 and quota FAIL row; 136 passed, rc=1. Re-run clean.
+- 2026-10-09T21:52:14Z GREEN on e1282696, tree untouched for the whole run (20:57:32Z-21:52:14Z), origin/main ==
+  b048be30 (fetched 20:56Z, nothing to merge): `bash ops/lib/check-sane-prod` rc=0, 138 `SANE-PROD pass` lines,
+  `SANE-PROD ok       138/138 cases passed (sane=ops/sane, fake=http://127.0.0.1:57269)`; the meta-check passed
+  (no refuse); the two rows above `SANE-PROD pass x-upstream_trip_at-number exit=6` and `...-negative exit=6`.
+  ACCEPTANCE re-quoted:
+  1 "sane_prod.py gains QUOTA_FIELDS ... quota() reads every key through it; the generator's quota field list is
+    compared to sane_prod.QUOTA_FIELDS ..., never to its own HEALTH fixture" - MET: QUOTA_FIELDS at sane_prod.py
+    line 23, quota()'s only key reads are the one unpack over it; meta_problems() has no HEALTH reference (R2).
+  2 "Both halves of the R10 meta-check seen red by name ... each refusing with exit 2 before any case runs; then the
+    full table green" - MET: mutants a/b/c (anchor) and d (coverage) above, exit 2, 0 pass lines; green 138/138.
