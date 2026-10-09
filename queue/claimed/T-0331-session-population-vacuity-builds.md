@@ -59,3 +59,19 @@ SurpriseShowingTests, which the vacuity mode empties. A vacuity arm that cannot 
   (the 12-line quote cap reached; lines 15, 16, 18 of SurpriseCardHistoryTests are the same reference). Exactly the
   two files ruling (4) named. The quote also carried swiftc's caret lines (`|  `- error:`); build_report now keeps
   only `<file>:<line>:<col>: error:` lines.
+- 2026-10-09T00:54:50Z GREEN at a022b7d9 (acceptance 2 and 3, green arm; runs finished 2026-10-08T23:35Z-23:38Z,
+  quoted from the saved stdout after a session restart):
+  `python ops/mutate/session.py --prove-vacuity` -> exit=0:
+  `PROVING NON-VACUITY: the 8 test files replaced by empty suites; every mutation must report MISSED.`
+  `BASELINE    --filter AttestClientTests|...|SessionSkewTests exit=0` (the emptied set BUILDS now - the refusal did not fire)
+  `caught by the test that names it: 0 of 81   (wrong killer 0, trapped 0, compile-only 0, MISSED 81, skipped 0)`
+  `VACUITY PROOF OK: with the 8 test file(s) emptied, caught=0 (need 0) and MISSED=81 of 81`
+  `python ops/mutate/session.py --only 35,36,39` (the three SurpriseShowing entries, the file whose fixture moved) -> exit=0:
+  `population  mutations=81 (floor 81)  equivalent=3 (floor 3) ... test files=8`
+  `caught by the test that names it: 3 of 3   (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)`
+  `MUTATE OK  caught=3/3 equivalent_caught=0  (--only: 3 of 81 entries)`
+  The three suites that share the fixture, `swift test --filter SurpriseShowingTests|SurpriseCardHistoryTests|SurpriseShownDayTests`:
+  `Test run with 8 tests in 3 suites passed` exit=0. No MUTATIONS/EQUIVALENT entry changed:
+  `git diff 53aa41fa -- ops/mutate/session_mutations.py` is empty (floors 81/3 unchanged). The full non-vacuity run is
+  replaced by --only over the entries whose test file moved, per the owner-approved faster-verification rule; every
+  anchor is in Sources/, which this branch does not touch.
