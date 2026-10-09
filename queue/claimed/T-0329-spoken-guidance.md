@@ -190,3 +190,30 @@ xcodeproj lock.
   pins=49 fields=395"; check-line-cap "514 Swift files ... none over 300 lines"; queue-check "QUEUE OK (326 tasks)".
   Apple CI on cb6516de: ios-compile 37873969017 success (2m25s), ios-screenshot 37873973057 success (8m56s); linux-core
   37873972570 success.
+- 2026-10-09T03:27:10Z rv2 RULING (agent/claude-opus-5), BEFORE any code. rv2-t0329 FAIL B1 at 4198d63c: RV2-D
+  (`if session.line != line {` -> `if session.line.destination != line.destination {` in DriveVoice.utterances)
+  survives 53/53. RULED a real defect, not equivalent: DriveSession.request(from:) sends `destination:
+  line.destination`, so every reroute that lands keeps the old destination, and under RV2-D neither `arrived` nor
+  `approached` resets on any real reroute. CLASS: the landed-reroute fixtures were not what the shipping request
+  produces - every one moved the destination, so the reset key was only ever exercised on lines whose destination
+  changed. The reviewer's RECORDABLE 3 (other partial keys) is the same class; the key a partial comparison can hide
+  behind is whichever part of the line the fixtures always change, so the fixture variants are crossed over WHICH part
+  changes. CLOSE BY CLASS (tests only, no Sources/ change, no digest row moves):
+  (1) landedRerouteSaysTheNewLine: the new line is a variant, never a shifted copy - "the start moved" (first vertex
+  0.002 N, the rest the old line's) and "the middle moved" (v1 and v3 0.0003 N, ~33 m; first vertex, pin v2 and
+  destination the old line's) - both 5 vertices with the pin at v2 so the old state's vertex numbers collide, both
+  ending at the old line's destination; crossed with the three cue states {pin approached, destination approached,
+  arrived} and online/offline = 12 rows, each [[String]] compared whole. After landing the driver comes back onto the
+  new line at 0.017, 0.037, 0.0398 and must hear [next], [destination], [arrived] again.
+  (2) META-CHECK bound to the shipping symbol: in every landed-reroute row (and offlineThenANewWay) the RerouteRequest
+  the session actually returned (observe online, connectivity offline) is captured and its `destination` must equal
+  the fixture's last vertex AND the old line's destination - so a fixture that moves the destination fails by name.
+  Each variant's shape is asserted too: start-moved differs from the old line only at index 0; middle-moved keeps
+  index 0 and the destination and differs somewhere between.
+  (3) offlineThenANewWay: `rerouted` becomes [away, short's destination] (it moved the destination), then the
+  destination's approach and the arrival on it.
+  Population: 105 "the line-change reset keyed on the destination" (RV2-D's text; killers the landed table and the
+  offline row) and 106 "the line-change reset keyed on the first vertex" (`session.line.coordinates[0] !=
+  line.coordinates[0]`; at 4198d63c every fixture moved the start too, so it is expected MISSED there; killer the
+  landed table, through its middle-moved rows only). Committed BEFORE the tests and run `--only 105,106`; floor
+  104 -> 106. DriveVoiceTests.swift stays under 300 lines, so FILTER and TEST_FILES do not change.

@@ -353,6 +353,11 @@ MUTATIONS = [
      "            approached = []\n", [V_LANDED]),
     ("104 legEnd as the crow flies", SESSION, "        return (end, meters)\n",
      "        return (end, Geo.distanceMeters(at, line.coordinates[end]))\n", [V_BENT]),
+    # rv2-t0329: a partial "is this a new line" key - a real reroute keeps the destination (DriveSession.request).
+    ("105 the line-change reset keyed on the destination", VOICE, "if session.line != line {",
+     "if session.line.destination != line.destination {", [V_LANDED, V_OFFLINE]),
+    ("106 the line-change reset keyed on the first vertex", VOICE, "if session.line != line {",
+     "if session.line.coordinates[0] != line.coordinates[0] {", [V_LANDED]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -373,7 +378,7 @@ EQUIVALENT = [
      "apps/ios is never compiled on Linux, so this mutant is MISSED here by construction - it is NOT equivalent in behaviour; only a device run hears it (T-0329). What bounds it: ops/lib/check-drive-voice.py (P-SAFE-09's row) allows exactly this whole line and refuses its removal by name ('the navigator never asks DriveVoice'), and what DriveVoice returns is CAUGHT above (entries 82-99)"),
 ]
 
-MIN_MUTATIONS = 104
+MIN_MUTATIONS = 106
 EQUIVALENT.append(
     ("E5 (device-only) the navigator's session starts without the preview's token", NAVIGATOR,
      "online: true, planToken: preview.continuation?.token)", "online: true)",
