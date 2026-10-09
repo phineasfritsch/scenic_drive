@@ -23,11 +23,13 @@ const plan = (device: string, n: number): [string, string] =>
   [`plan:${device}:${T(n)}`, JSON.stringify({ device, place: "la:topanga", pins: [{ lat: 34.03, lon: -118.52 }], lambda: 7.75 })];
 
 /** The user's devices' plans beside every neighbour a sweep must leave: another user, the unidentified bucket, the
- *  pre-T-0326 shape, a key past a token, an uppercase token, a device id extending DEVICE, another prefix. */
+ *  pre-T-0326 shape, keys past a token, an uppercase token, a device id extending DEVICE, another prefix. DEVICE's
+ *  prefix holds three keys no sweep may delete - more than a page - so a sweep that re-lists without the cursor
+ *  never reaches list_complete. */
 const HOLDING: Rows = Object.fromEntries([
   ...[1, 2, 3, 4, 5].map((n) => plan(DEVICE, n)), ...[6, 7, 8].map((n) => plan(SECOND_DEVICE, n)),
   ...[9, 10].map((n) => plan(OTHER_DEVICE, n)), plan("unidentified", 11), [`plan:${T(12)}`, "legacy"],
-  [`plan:${DEVICE}:${T(13)}:x`, "past"], [`plan:${DEVICE}:${T(14).toUpperCase()}`, "upper"], [`plan:${DEVICE}0:${T(15)}`, "extends"],
+  [`plan:${DEVICE}:${T(13)}:x`, "past"], [`plan:${DEVICE}:${T(16)}:y`, "past, a third neighbour: more than a page"], [`plan:${DEVICE}:${T(14).toUpperCase()}`, "upper"], [`plan:${DEVICE}0:${T(15)}`, "extends"],
   [`quota:${DEVICE}`, "other prefix"],
 ]);
 const STORES: Record<string, Rows> = { empty: {}, holding: HOLDING };
