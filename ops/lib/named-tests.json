@@ -1537,7 +1537,9 @@
         "ScenicKitTests.DriveVoiceTests/arrivalSupersedesTheApproach()",
         "ScenicKitTests.DriveVoiceTests/quietOffTheRoute()",
         "ScenicKitTests.DriveVoiceTests/legEndOnlyOnTheLine()",
-        "ScenicKitTests.DriveVoiceTests/offlineThenANewWay()"
+        "ScenicKitTests.DriveVoiceTests/offlineThenANewWay()",
+        "ScenicKitTests.DriveVoiceTests/roundTripRepeatsNothing()",
+        "ScenicKitTests.DriveVoiceTests/pinAtEveryVertex()"
       ]
     }
   },

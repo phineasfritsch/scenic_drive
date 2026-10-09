@@ -174,4 +174,40 @@ struct DriveVoiceTests {
         ])
         #expect(said == [[Self.destination], [], [Self.leftOffline], [], [Self.newWay], [Self.destination]])
     }
+
+    /// Each cue state the voice can be in before leaving: the longitude it is said at, what is said there, and the
+    /// longitude the driver comes back to, still inside that cue's bound. A pin at vertex 2.
+    static let cueStates: [(at: Double, said: String, back: Double)] = [
+        (0.017, next, 0.018), (0.037, destination, 0.038), (0.0398, arrived, 0.0399),
+    ]
+
+    @Test("P-SAFE-09: a mode round trip on the same line repeats no cue - after a pin's approach, the destination's, or the arrival, online or offline")
+    func roundTripRepeatsNothing() throws {
+        for state in Self.cueStates {
+            for online in [true, false] {
+                var session = try #require(
+                    DriveSession(line: Self.line, waypoints: [Self.line[2]], lambda: 0.5, online: online))
+                let away = Self.east(state.back, north: 0.002)
+                var steps: [(inout DriveSession) -> Void] = [Self.at(Self.east(state.at), 0), Self.at(away, 1),
+                                                             Self.at(away, 6)]
+                if online { steps.append { $0.rerouteFailed() } }
+                steps.append(Self.at(Self.east(state.back), 7))
+                let left: [[String]] = online ? [[Self.leftOnline], [Self.noNewWay]] : [[Self.leftOffline]]
+                #expect(Self.run(&session, steps) == [[state.said], []] + left + [[Self.back]],
+                        "\(state.said) online \(online)")
+            }
+        }
+    }
+
+    @Test("P-SAFE-09: with a pin at every interior vertex, or none, only the pin's leg says the next stop and only the last says the destination")
+    func pinAtEveryVertex() throws {
+        let last = Self.line.count - 1
+        for pin in [nil] + Array(1..<last) {
+            let waypoints = pin.map { [Self.line[$0]] } ?? []
+            var session = try #require(DriveSession(line: Self.line, waypoints: waypoints, lambda: 0.5, online: true))
+            let steps = (1...last).map { Self.at(Self.east(0.01 * Double($0) - 0.003), Double($0)) }
+            let expected: [[String]] = (1...last).map { $0 == pin ? [Self.next] : $0 == last ? [Self.destination] : [] }
+            #expect(Self.run(&session, steps) == expected, "pin \(String(describing: pin))")
+        }
+    }
 }
