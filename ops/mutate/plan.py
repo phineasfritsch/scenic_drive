@@ -246,15 +246,14 @@ def prove_floor() -> int:
 
 
 def main(argv) -> int:
+    import mutate_only  # ops/mutate/ is sys.path[0] for a driver run as a script
+    # A comma-separated list of name fragments. The whole table is one run of tens of minutes on this box, and a
+    # run that has to be abandoned halfway reports nothing at all; a slice reports its own verdicts and the Log
+    # carries both halves. A fragment that names no mutation refuses (exit 64) instead of running zero of them.
+    only = mutate_only.select_only(argv, [m[0] for m in MUTATIONS], substring=True)
+    selected = MUTATIONS if only is None else [m for m in MUTATIONS if m[0] in only]
     if "--prove-floor" in argv:
         return prove_floor()
-    selected = MUTATIONS
-    if "--only" in argv:
-        # A comma-separated list of name fragments. The whole table is one run of tens of minutes on this
-        # box, and a run that has to be abandoned halfway reports nothing at all; a slice reports its own
-        # verdicts and the Log carries both halves.
-        needles = argv[argv.index("--only") + 1].split(",")
-        selected = [m for m in MUTATIONS if any(n in m[0] for n in needles)]
     problem = floor_problem(MUTATIONS, SUBJECT_MODULES)
     if problem is not None:
         sys.stdout.write("REFUSING: %s\nA harness that examines nothing exits 0 and proves nothing.\n"
