@@ -1,13 +1,13 @@
 ---
 id: T-0343
 title: The app learns corridor speeds - NavAdapter feeds CorridorClock after every fix, the learner persists across launches in PlaceStore, and the preview shows RetimedPreview's ETA and badge (T-0325 R3/R4 follow-up, M7 exit)
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T17:35:13Z
+lease_expires_at: 2026-10-10T05:35:13Z
+worktree: .worktrees/T-0343
+branch: task/T-0343
 exclusive: []
 touches: [Sources/ScenicKit/, Sources/PlaceStore/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-07, P-PRIV-05]
@@ -34,3 +34,4 @@ GRDB-gated suites run only in CI linux-core. iOS screenshots looked at.
 
 ## Log
 - 2026-10-09T11:37:54Z filed by agent/claude-opus-5 (T-0325 owner) from T-0325 R3/R4/R7.
+- 2026-10-09T17:35:13Z claimed by agent/claude-opus-5; lease until 2026-10-10T05:35:13Z
