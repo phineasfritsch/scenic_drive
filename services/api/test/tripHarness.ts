@@ -56,6 +56,8 @@ export interface RouterOptions {
   fastEdgeMs?: number;
   /** The fastest path's own `time` (what fastest + budget is taken from); edges x its per-edge ms by default. */
   fastestMs?: number;
+  /** The lambda-0 car_scenic answer (the first scenic request); the fastest path, scored 8, by default. */
+  firstScenic?: string;
   /** Called before each request is answered (to snapshot the quota at the first). */
   onFetch?: () => void;
 }
@@ -74,7 +76,7 @@ export function tripRouter(options: RouterOptions = {}) {
     if (body.profile === "car_fast") return new Response(fast);
     if (JSON.stringify(points) === JSON.stringify(sent[0]!.body.points)) {
       scenic += 1;
-      return new Response(scenic === 1 ? fast : options.scenic ?? tripPath(ROAD, SCENIC_EDGE_MS));
+      return new Response(scenic === 1 ? options.firstScenic ?? fast : options.scenic ?? tripPath(ROAD, SCENIC_EDGE_MS));
     }
     const [a, b] = [vertex(points[0]), vertex(points[1])];
     legs += 1;

@@ -23,10 +23,10 @@ function scenic(score: number | null, points: [number, number][] = ROAD): string
   return tripPath(points, SCENIC_EDGE_MS, details);
 }
 
-function harness(tier: Tier, answer: string) {
+function harness(tier: Tier, answer: string, firstScenic?: string) {
   const events: string[] = [];
   const { counters } = tripCounters(events);
-  const router = tripRouter({ scenic: answer, onFetch: () => events.push("fetch") });
+  const router = tripRouter({ scenic: answer, firstScenic, onFetch: () => events.push("fetch") });
   const deps: TripDeps = {
     upstream: { counters, fetchImpl: router.fetchImpl, now: () => NOW, killed: () => false },
     routerBase: ROUTER,
@@ -37,14 +37,30 @@ function harness(tier: Tier, answer: string) {
       throw new Error("this harness has no trip_places table");
     },
   };
-  const run = async () => {
-    const response = await handleTrip(tripRequest(TRIP_BODY), {}, deps);
+  const run = async (body: unknown = TRIP_BODY) => {
+    const response = await handleTrip(tripRequest(body), {}, deps);
     return { status: response.status, json: (await response.json()) as Record<string, unknown>, requests: router.sent.length };
   };
   return { run };
 }
 
 const REFUSED = { status: 422, json: { error: "nothing_pretty", days: 5, extra_budget_pct: 40 }, requests: 7 };
+
+/** rv1 B1 by class: the refusal echoes the REQUEST's own days and extra_budget_pct, never the cap or a constant. The
+ *  lambda-0 answer is the fast road scored 2 too, so every budget from 0 to the cap reaches nothing_pretty. */
+const DULL_FAST = tripPath(ROAD, FAST_EDGE_MS, { time: runs(FAST_EDGE_MS), distance: runs(EDGE_M), scenic_score: runs(2) });
+const ECHO_ROWS = [0, 21, 39, 40].flatMap((pct) => [2, 5].flatMap((days) => (["free", "paid"] as Tier[]).map((tier) => ({ pct, days, tier }))));
+
+describe("POST /trip refusal echoes the request (T-0335 rv1 B1, P-SAFE-04)", () => {
+  it.each(ECHO_ROWS)("extra_budget_pct $pct, days $days, $tier: the whole 422 carries the request's own values", async ({ pct, days, tier }) => {
+    const got = await harness(tier, scenic(2), DULL_FAST).run({ ...TRIP_BODY, days, extra_budget_pct: pct });
+    expect(got).toEqual({ status: 422, json: { error: "nothing_pretty", days, extra_budget_pct: pct }, requests: 7 });
+  });
+
+  it("meta: the echo rows vary both values, so no constant can answer every row", () => {
+    expect([new Set(ECHO_ROWS.map((r) => r.pct)).size, new Set(ECHO_ROWS.map((r) => r.days)).size]).toEqual([4, 2]);
+  });
+});
 
 describe("POST /trip honest failure (T-0335 A1, P-SAFE-04)", () => {
   it("a preview trip whose chosen route scores 0.02 answers nothing_pretty, never a 200 trip", async () => {

@@ -41,10 +41,12 @@
       ],
       "test/tripHonest.test.ts": [
         "POST /trip honest failure (T-0335 A1, P-SAFE-04) > a preview trip whose chosen route scores 0.02 answers nothing_pretty, never a 200 trip",
-        "POST /trip honest failure (T-0335 A1, P-SAFE-04) > a full trip whose chosen route scores 0.02 is refused before any day leg is requested"
+        "POST /trip honest failure (T-0335 A1, P-SAFE-04) > a full trip whose chosen route scores 0.02 is refused before any day leg is requested",
+        "POST /trip refusal echoes the request (T-0335 rv1 B1, P-SAFE-04) > extra_budget_pct 39, days 2, 'free': the whole 422 carries the request's own values"
       ],
       "test/loopHonest.test.ts": [
-        "POST /loop honest failure (T-0335 A2, P-SAFE-04) > three dull loops answer nothing_pretty after exactly LOOP_UPSTREAM_COST requests, never a 200 loop"
+        "POST /loop honest failure (T-0335 A2, P-SAFE-04) > three dull loops answer nothing_pretty after exactly LOOP_UPSTREAM_COST requests, never a 200 loop",
+        "POST /loop seed ladder at the uint32 wrap (T-0335 rv1 B2, P-SAFE-04) > seed 4294967294, scores [ 2, 2, 2 ]: the whole answer and every router seed stay uint32"
       ],
       "test/lambdaSearch.test.ts": [
         "searchLambda - the LambdaSearch port > with nothing feasible it refuses no_feasible_lambda rather than returning an overshoot",

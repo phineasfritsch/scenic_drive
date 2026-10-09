@@ -82,6 +82,35 @@ describe("POST /loop honest failure (T-0335 A2, P-SAFE-04)", () => {
   });
 });
 
+/** rv1 B2 by class: every step of the seed ladder stays a uint32 at the wrap. The userIds are FNV-1a preimages
+ *  (.artifacts/t0335/preimage.mjs); the expected seeds are (S + i) modulo 2^32, not the source's `>>> 0`. */
+const WRAP_USERS = [{ seed: 0xfffffffe, user: "agO3ON" }, { seed: 0xffffffff, user: "v551St" }];
+const WRAP_ANSWERS = [[2, 8], [2, 2, 8], [2, 2, 2]];
+const WRAP_ROWS = WRAP_USERS.flatMap((u) => WRAP_ANSWERS.map((scores) => ({ ...u, scores })));
+
+async function runAs(user: string, answers: string[]) {
+  const h = loopHarness(answers);
+  const deps = { ...h.deps, identify: async (req: Request) => ({ ...(await h.deps.identify(req)), userId: user }) };
+  const response = await handleLoop(loopRequest(LOOP_BODY), {}, deps);
+  return { status: response.status, json: await response.json(), seeds: h.sent.map((s) => s.body["round_trip.seed"]) };
+}
+
+describe("POST /loop seed ladder at the uint32 wrap (T-0335 rv1 B2, P-SAFE-04)", () => {
+  it.each(WRAP_ROWS)("seed $seed, scores $scores: the whole answer and every router seed stay uint32", async ({ seed, user, scores }) => {
+    expect(fnv1a32(`${user}|2026-10-05`)).toBe(seed);
+    const answers = scores.map((s) => square(s));
+    const seeds = scores.map((_, i) => (seed + i) % 2 ** 32);
+    const last = scores.length - 1;
+    const json = scores[last] === 8 ? shipped(answers[last]!, scores.length, seeds[last]!) : NOTHING_PRETTY;
+    expect(await runAs(user, answers)).toEqual({ status: scores[last] === 8 ? 200 : 422, json, seeds });
+  });
+
+  it("meta: the rows reach both wraps - seed + 1 at 0xFFFFFFFF and seed + 2 at both", () => {
+    const wrapped = WRAP_ROWS.flatMap((r) => r.scores.map((_, i) => r.seed + i)).filter((s) => s >= 2 ** 32);
+    expect(wrapped).toEqual([2 ** 32, 2 ** 32, 2 ** 32, 2 ** 32, 2 ** 32 + 1, 2 ** 32, 2 ** 32 + 1]);
+  });
+});
+
 /** The closure re-request: X sits on squareLoop's east-going side, stored but not sent (50 tiny squares due south of
  *  the start are nearer the start -> start corridor), so the pretty first loop crosses it and buys ONE re-request at
  *  the same seed (2 <= 3), answered with the square mirrored west - clear of X - scored `again`. */
