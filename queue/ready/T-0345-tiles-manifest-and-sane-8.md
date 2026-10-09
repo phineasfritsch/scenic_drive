@@ -1,7 +1,7 @@
 ---
 id: T-0345
 title: A tiles (PMTiles) OTA manifest shape exists, and ops/sane --prod's exit 8 checks it against this checkout as it checks the corpus manifest
-state: backlog
+state: ready
 owner: null
 owner_session: null
 claimed_at: null
