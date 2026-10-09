@@ -1,7 +1,7 @@
 ---
 id: T-0335
 title: /trip, /loop and the isochrone planner are honest when nothing pretty is reachable - score the route they would ship with routeScore.ts (T-0332) and refuse below 0.45, or rule in the Log why a planner is exempt
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T04:41:42Z
@@ -11,7 +11,7 @@ branch: task/T-0335
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, ops/lib/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml]
 pins_affected: [P-SAFE-04]
-reviewer: null
+reviewer: agent/rv3-t0335
 depends_on: [T-0332]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -219,3 +219,18 @@ MISSED before / CAUGHT after by test name.
     module is covered or allowlisted; the floor of 144 holds" exit 0. `python ops/lib/check-pins-yaml.py`
     "PINS-YAML ok pins=49 fields=395" exit 0. `bash ops/queue-check` "QUEUE OK (328 tasks)" exit 0. Line counts:
     tripHonest 202, loopHonest 150, tripHarness 152, loopMutants.mjs 184, tripMutants.mjs 250 (all under 300).
+- 2026-10-09T07:22:57Z REVIEW PASS round 3 (agent/rv3-t0335, not the owner), PR #220 head 8867f314. Closes rv2-t0335's
+  one blocker (stale base). (1) Merge 8867f314 = 4e593819 + origin/main 564e6626. `git merge-tree --write-tree`
+  conflicts only in ops/lib/named-tests.json, and the merge tree differs from merge-tree's result only in that file
+  (just the conflict resolution, no other hand edits). Comparing named-tests by key (pin, runner, file, name):
+  parent1 1381 rows, parent2 1378, merge 1383, 0 missing from either parent, 0 in neither. P-SAFE-04 keeps
+  planBackRoads (T-0334) beside tripHonest/loopHonest. (2) Gates: `python ops/lib/check-pins-yaml.py`
+  "PINS-YAML ok pins=49 fields=395" exit 0; `bash ops/queue-check` "QUEUE OK (328 tasks)" exit 0.
+  `python ops/lib/run-named-tests.py P-SAFE-04` "NAMED P-SAFE-04 passed=24/24" exit 0, run in .worktrees/T-0335 (clean,
+  same HEAD). In a fresh rv3 worktree it twice failed the same way: swift crashed with "error: fatalError" while
+  compiling ScenicKit (first run: index-store "permission denied"), so the tests never ran and no test failed.
+  I take that as a local toolchain problem. The PR changes no Swift. Mutants (rv2's mut.py), vitest tripHonest+loopHonest: baseline 54/54.
+  X1 (422 echoes MAX_EXTRA_BUDGET_PCT) RED 12 failed; X2 (reroll seed+2 without >>>0) RED 4 failed, both
+  "seed 42949672xx ... every router seed stay uint32"; src restored. (3) `gh pr checks 220` core pass 5m39s,
+  pins-source-only pass 1m57s on head 8867f314; mergeStateStatus CLEAN. (4) After `git fetch origin`,
+  `git merge-base --is-ancestor origin/main origin/task/T-0335` exit 0 (origin/main 564e6626), so no drift.
