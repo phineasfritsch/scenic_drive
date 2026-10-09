@@ -120,7 +120,7 @@ import Testing
     @Test("plan_token decodes, and absent or null decodes nil")
     func planTokenDecodes() async throws {
         let recorded = String(decoding: try PlanWire.fixture("200-plan"), as: UTF8.self)
-        #expect(recorded.hasSuffix(",\"plan_token\":null}"))
+        #expect(recorded.hasSuffix(",\"plan_token\":null,\"continued\":false}"))
         let named = recorded.replacingOccurrences(of: "\"plan_token\":null", with: "\"plan_token\":\"\(Self.token)\"")
         let absent = recorded.replacingOccurrences(of: ",\"plan_token\":null", with: "")
         let cases: [(String, String?)] = [(recorded, nil), (named, Self.token), (absent, nil)]
