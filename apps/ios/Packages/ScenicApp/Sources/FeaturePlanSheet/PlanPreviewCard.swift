@@ -72,16 +72,19 @@ struct PlanPreviewCard: View {
     }
 
     @ViewBuilder private var hazardStrip: some View {
-        if preview.hazards.isEmpty {
-            Text("Nothing unpaved or restricted is flagged on this route.")
+        // T-0339: every word on the strip comes from HazardCopy's closed table - never a raw kind or value.
+        let lines = HazardCopy.lines(for: preview)
+        if lines.isEmpty {
+            Text(HazardCopy.noneFlagged)
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.fgMuted)
         } else {
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(Array(preview.hazards.enumerated()), id: \.offset) { _, run in
-                    Text("\(run.kind): \(run.value)")
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    Label(line, systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
                         .foregroundStyle(DesignTokens.fg)
+                        .labelStyle(.titleAndIcon)
                 }
             }
             .accessibilityIdentifier("plan.hazards")
