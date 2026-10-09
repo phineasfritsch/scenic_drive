@@ -17,6 +17,9 @@ verify: [ops/test, ops/check-pins]
 acceptance:
   - "MEASURE then RULE FIRST in a dated Log entry: how often a reroute token is unusable in practice (12 h TTL, device / place mismatch, PLANS unbound), what field marks a continued answer (a boolean on the 200 or the echoed first_pin) without a second coordinate or more than 2 dp, and whether the app takes a fresh answer or rejoins"
   - "The Worker's marker and the app's ruling on it are full-equality tested on both sides (recalled / expired / mismatched device / mismatched place / first_pin past the pins); the drive screen's ETA line is the taken answer's, Linux-tested through DriveDisplay or its successor"
+  - "R2/R3/R4 below are the rulings the tests bind: `continued` is one of exactly 14 keys on every /plan 200 (planRecorded's ruled list), a fresh answer mid-drive is TAKEN with DriveDisplay.freshNote on the full surface only, and the session's ETA is the preview's (seeded through ScenicKit's DriveSession(preview:online:), which NavAdapter calls) until a taken answer's replaces it"
+  - "Every new test is seen RED by name before its code lands, then bound by name in named-tests.json P-NAV-01; ops/mutate/drive.py and services/api/test/mutate/planMutants.mjs gain entries for the marker, the ruling and the ETA hand-off, each CAUGHT, with the floors raised"
+  - "Digests re-approved in ops/lib/check-safety-disclaimer-linked-digests.txt; check-drive-display.py's whitelist carries the screen's new lines; ios-compile and ios-screenshot succeed on the branch and the drive shots are looked at and described in the Log"
 ---
 ## Brief
 
@@ -28,3 +31,55 @@ after a reroute is taken.
 ## Log
 - 2026-10-08T18:25:31Z filed by agent/claude-opus-5 from T-0328 R5 and R6.
 - 2026-10-09T06:51:11Z claimed by agent/claude-opus-5; lease until 2026-10-09T16:51:11Z
+- 2026-10-09T06:54:54Z MEASURE then RULE (owner, before any code; tree at 564e6626).
+  R1 MEASURED. services/api/src/plan.ts has ONE 200 site and two bodies reach it, both ScenicPlanResult +
+  closures_hazard + plan_token with the same 13 keys (planRecorded.test.ts "the response carries exactly the ruled
+  fields"): planReroute's (reroutePlanner.ts) exactly when the token recalls AND recalled.device == the caller AND
+  recalled.place == the request's place AND first_pin <= the stored pin count AND the continuation fits fastest-from-
+  here + budget; planScenic's fresh plan on everything else - no reroute; deps.plans null (PLANS unbound); recall
+  null (unknown, expired past PLAN_TOKEN_TTL_SECONDS = 43200, KV read throws, unparseable or out-of-range record);
+  another device (structurally its own key, planKeyPrefix(caller)); another place; first_pin past the pins; and
+  planReroute null over the ceiling. HOW OFTEN IN PRACTICE: services/api/wrangler.jsonc binds no PLANS (its bindings
+  are QUOTA, TELEMETRY and DB; no kv_namespaces), so in production today every 200 carries plan_token null, the app
+  sends NO reroute (T-0328 R5) and the fresh fallback is reached zero times. Once bound: 12 h outlasts any one drive
+  (fastest hours + a 180-minute budget), so expiry needs a drive left open past 12 h; another device and another
+  place cannot come from the app (PlanRerouter sends the continuation's place; the key is the caller's device);
+  first_pin past the pins cannot (DriveSession sends passed <= waypoints.count, the pins the Worker stored). What is
+  left is KV's eventual consistency (a reroute read at another edge shortly after the put may miss - Cloudflare
+  documents up to 60 s) and the over-ceiling null (the rest of the pins no longer fits from where the driver is).
+  Neither can be counted with nothing bound, so the ruling must be right at any frequency. THE APP:
+  PlanRerouter.reply(of:) maps route, waypoints and plan_token only; DriveController/DriveSession take either body
+  alike. THE ETA LINE: DriveScreen renders `Text(preview.etaLine)` - the PlanPreview the drive started from, for the
+  whole drive; DriveDisplay has no ETA, and a taken answer's eta_s / fastest_eta_s are dropped at reply(of:).
+  R2 THE MARKER: every /plan 200 gains `continued` (a JSON boolean): true exactly when the body is planReroute's,
+  false on every fresh plan, a plain plan included. It carries no coordinate and no precision, and the request is
+  unchanged (still one 2-dp origin, P-PRIV-05). Rejected: echoing first_pin - a number the device already holds,
+  meaningless on a fresh plan whose pins restart, and a present-or-absent shape the key whitelist would have to
+  allow two ways. The ruled key list becomes 14.
+  R3 A FRESH ANSWER MID-DRIVE IS TAKEN, WITH A NOTE. The fresh answer is a scenic plan from where the driver is to
+  the same place under the same budget ceiling re-measured from here, its pins on its line: something to follow
+  now. Refusing it is rejoin mode while ONLINE, with no retry (DriveSession asks again only on the offline-to-online
+  edge) and a full-surface status that says "offline" (false), guiding back toward a line the Worker forgot or
+  could not finish inside the budget. Calm is a line to follow; honest is saying it is new. DriveDisplay gains
+  `note`: DriveDisplay.freshNote = "A new route from here - not the rest of your plan." on the FULL surface while the
+  current line is a fresh answer, nil on the minimal surface (P-SAFE-09: moving adds nothing) and nil once a
+  continued answer is taken. DriveVoice is unchanged ("Here is a new way." is true of both). A decoded 200 without
+  `continued` reads false (the note shows: fail toward saying more); a non-boolean refuses the decode (the reroute
+  fails: rejoin). T-0328 R5 is unchanged: no token, no request.
+  R4 THE ETA LINE IS THE CURRENT LINE'S. DriveSession carries etaSeconds / fastestEtaSeconds: the preview's at the
+  start through a new ScenicKit DriveSession(preview:online:) that NavAdapter calls (token, line, pins, lambda and
+  ETA seeded on Linux; T-0328's device-only seeding E5 becomes testable), then each taken answer's eta_s /
+  fastest_eta_s. DriveDisplay gains `etaLine`, built by PlanPreview.etaLine(etaSeconds:fastestEtaSeconds:) - the one
+  formatter, which PlanPreview.etaLine also calls - and DriveScreen renders display.etaLine. After a reroute it is the
+  answer's minutes from the reroute point; nothing counts it down live (Ferrostar step durations are 0, unchanged).
+  The estimate badge rule is unchanged: preview.showsEstimateBadge, which the server's always-true eta_is_estimate
+  keeps on (CLAUDE.md's 5-sample rule; the device has no learned samples yet).
+  R5 TAKEN TOGETHER OR NONE: line, pins, token, ETA and continued are taken by DriveSession.rerouteArrived together;
+  a refused or late answer changes none of them (DriveController's ticket, unchanged).
+  R6 TESTS: services/api/test/planContinued.test.ts through handlePlan - recalled rows (first_pin 0, 1, 3) EQUAL an
+  independent planReroute recomputation plus continued true; unusable rows (unknown or expired, unbound, read throws,
+  another device, another place, first_pin 4, over the ceiling) EQUAL the plain fresh plan with continued false; a
+  meta-test that every row's answer differs from its opposite. Swift: PlanResponse decode table (true / false /
+  absent / non-boolean); ScenicKit DriveContinuedTests through DriveController and DriveDisplay(session:) over
+  continued x surface vs literals, and the preview seeding; ScenicAPIClient DriveContinuedReplanTests through
+  PlanRerouter and a recording transport. All bound by name in P-NAV-01.
