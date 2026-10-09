@@ -1,7 +1,7 @@
 ---
 id: T-0351
 title: ops/lib/sane_prod.py names its quota fields once (QUOTA_FIELDS), quota() reads through it, and check_sane_prod's R10 meta-check compares the generated field list against that shipped symbol - both halves of R10 seen red
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T19:47:24Z
@@ -11,7 +11,7 @@ branch: task/T-0351
 exclusive: []
 touches: [ops/lib/sane_prod.py, ops/lib/check_sane_prod.py, ops/lib/check-sane-prod, queue/]
 pins_affected: [P-OPS-08]
-reviewer: null
+reviewer: agent/rv1-t-0351
 depends_on: [T-0344]
 verify: [ops/check-pins]
 acceptance:
@@ -83,3 +83,20 @@ q-green, but the anchor compares a table to itself), and the field-list half of 
     line 23, quota()'s only key reads are the one unpack over it; meta_problems() has no HEALTH reference (R2).
   2 "Both halves of the R10 meta-check seen red by name ... each refusing with exit 2 before any case runs; then the
     full table green" - MET: mutants a/b/c (anchor) and d (coverage) above, exit 2, 0 pass lines; green 138/138.
+- 2026-10-09T22:44:30Z REVIEW PASS by agent/rv1-t-0351 (not the owner) on 2fddff63 (PR #236). Read the diff: QUOTA_FIELDS
+  at sane_prod.py line 23, quota() reads the four keys by one unpack over it; meta_problems() compares set(QUOTA_KINDS)
+  to getattr(sane_prod, QUOTA_FIELDS, ()) only, no HEALTH comparison; wc -l 300 / 113. Reviewer mutants
+  (.build-rv1-t0351/drive.py, pycache purged, 1.1 s before a byte-checked restore, DRIVER 5/5 as expected):
+    m1a quota() reads upstream_trip_at by a literal h.get, QUOTA_FIELDS drops it: exit=2 pass_lines=0
+       SANE-PROD refuse   meta: quota fields [...4] != shipped QUOTA_FIELDS ['kill_switch', 'upstream_calls', 'upstream_month']
+    m1b quota() reads trip by a literal h.get of a key outside QUOTA_FIELDS (upstream_trip): exit=1
+       SANE-PROD FAIL     q-green: exit 6, want 0; row quota ['FAIL'], want [ok]
+    m1c quota() reads upstream_trip_at by a literal h.get, QUOTA_FIELDS unchanged: exit=0 (behaviourally
+       equivalent; "every key through QUOTA_FIELDS" is a source property no check holds - recordable)
+    m2a QUOTA_FIELDS gains upstream_limit the generator lacks: exit=2 pass_lines=0
+       SANE-PROD refuse   meta: quota fields [...4] != shipped QUOTA_FIELDS [..., 'upstream_limit', ...]
+    m2b the same with quota()'s unpack widened to five: exit=2 pass_lines=0, same meta line
+  Gates bare: check-exec-bits rc=0 (202 files); check-pins-yaml rc=0 (pins=50 fields=403); queue-check rc=0 (340);
+  check-sane-prod --only 6 quota cases rc=0 6/6 (full 138 not re-run: no ops/ or services/api change since the
+  owner's green e1282696, merge 2fddff63 brought none); gh pr checks: core pass, pins-source-only pass;
+  merge-base --is-ancestor origin/main origin/task/T-0351 rc=0.
