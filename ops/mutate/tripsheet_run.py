@@ -18,7 +18,8 @@ from tripsheet_mutations import ROOT
 # Under .build/, which .gitignore excludes, and its own scratch path because this box is shared.
 SCRATCH = ".build/mutate-tripsheet"
 # The suites every `killers` entry names, by their type names.
-FILTER = "TripSheetTests|TripClientRequestTests|TripClientOutcomeTests|TripSheetGateTests|TripDayHandoffTests"
+FILTER = ("TripSheetTests|TripClientRequestTests|TripClientOutcomeTests|TripSheetGateTests|TripDayHandoffTests"
+          "|TripNothingPrettyTests")
 # `Test "<display name>" recorded an issue`. ASCII only: the failure glyph mis-decodes on this console.
 FAIL_LINE = re.compile(r'Test\s+(?:"([^"]*)"|([A-Za-z_]\w*\(\)))\s+recorded an issue')
 

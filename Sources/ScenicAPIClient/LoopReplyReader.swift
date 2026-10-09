@@ -22,6 +22,9 @@ enum LoopReplyReader {
             return .regionUnsupported
         case (422, "no_clean_loop"?):
             return .noCleanLoop
+        case (422, "nothing_pretty"?):
+            guard let dull = body?.loopNothingPretty else { return .unexpectedResponse(status: status) }
+            return .nothingPretty(dull)
         case (429, "quota_exhausted"?):
             guard let text = body?.resetsAt, let resetsAt = PlanResponseReader.instant(text) else {
                 return .unexpectedResponse(status: status)

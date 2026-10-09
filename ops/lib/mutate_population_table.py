@@ -19,6 +19,7 @@ PROBES = {"geometry_probe.py": "a probe over geometry.py's population; it declar
 
 # The literal floor: every module a driver declares today. Losing one is a refusal (ruling R4 ii).
 COVERED_FLOOR = (
+    "Sources/ScenicAPIClient/TripNothingPretty.swift", "Sources/ScenicAPIClient/LoopNothingPretty.swift",
     "Sources/ScenicPlanCLI/AutopsyReport.swift", "Sources/ScenicPlanCLI/AutopsyCommand.swift",
     "Sources/ScenicPlanCLI/AutopsyFixture.swift", "Sources/ScenicPlanCLI/AutopsyTerms.swift",
     "Sources/ScenicPlanCLI/AutopsyArguments.swift", "Sources/ScenicPlanCLI/TracingRouteSource.swift",
