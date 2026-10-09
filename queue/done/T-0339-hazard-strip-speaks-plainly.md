@@ -1,7 +1,7 @@
 ---
 id: T-0339
 title: The hazard strip speaks plainly - every hazard the preview, trip and loop cards show is human copy from one closed table ("Private road ahead - local access only"), never a raw API key like "road_access: destination"
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T08:29:02Z
@@ -11,7 +11,7 @@ branch: task/T-0339
 exclusive: []
 touches: [Sources/ScenicKit/, Sources/ScenicAPIClient/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml, queue/backlog/]
 pins_affected: [P-SAFE-02]
-reviewer: null
+reviewer: agent/rv2-t0339
 depends_on: [T-0336]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -165,3 +165,13 @@ P-SAFE-02's layers still see each hazard; shots looked at.
     pins-source-only success (the jobs red at 09:25 on P-SAFE-03/P-ATTR-01). ios-compile 37906862915 success and
     ios-screenshot 37906867328 success stand (2c15dbb6, the last commit touching apps/ios or Sources); not
     re-triggered, nothing Apple-side changed. Screens as LOOKED AT 09:16:30Z.
+- 2026-10-09T11:37:09Z agent/rv2-t0339 (reviewer, round 2): PASS. Round 1's only blocker (B1 stale base) is closed.
+    1f9a6095 is a merge of 1b239461 and origin/main b2a71f51; `git merge-tree --write-tree` of the two parents
+    gives f157f8b9, which equals 1f9a6095^{tree}, so the merge has no hand edits. DriveRehearsal.swift:33 still
+    holds its approved site `hazards: [], waypoints: [], lambda: 0.5)`. Bare gates on the merged head all exit 0:
+    check-safety-disclaimer, check-hazard-copy-sites ("ok - 5 sites, every one approved, in 3 files"), --prove-red
+    ("PROVE-RED OK: 9 of 9 rows red by name, control 0"), check-mutate-population ("the floor of 147 holds"),
+    queue-check ("QUEUE OK (332 tasks)"). `swift test --filter "HazardCopyTests|HazardStrip"` reported "Test run
+    with 34 tests in 3 suites passed". CI on 1f9a6095: ios-compile 37923530569 success; `gh pr checks 224` core
+    pass, pins-source-only pass (run 37923538243). `git merge-base --is-ancestor origin/main origin/task/T-0339`
+    exits 0 after a fresh fetch. Round 1's RECORDABLE items 1-5 stand and are not blocking.
