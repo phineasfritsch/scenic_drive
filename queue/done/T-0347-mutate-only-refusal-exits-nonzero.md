@@ -1,7 +1,7 @@
 ---
 id: T-0347
 title: Every ops/mutate driver's `--only` refusal ("names no entry of this population") exits non-zero, so a typo'd range (`--only 49-55`) can never read as a pass
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T19:46:46Z
@@ -11,7 +11,7 @@ branch: task/T-0347
 exclusive: []
 touches: [ops/mutate/, ops/lib/, services/api/test/mutate/, pins/PINS.yaml]
 pins_affected: [P-PROC-06]
-reviewer: null
+reviewer: agent/rv2-t0347
 depends_on: []
 verify: [ops/check-pins]
 acceptance:
@@ -132,3 +132,19 @@ entry of this population" and still exits 0, so a range typo looks like a pass w
   (`every added module is covered or allowlisted; the floor of 147 holds`); check-exec-bits `P-OPS-01: 204 files,
   23 required present, all modes correct`; check-pins-yaml `PINS-YAML ok pins=50 fields=403`; `bash
   ops/queue-check` `QUEUE OK (343 tasks)`.
+- 2026-10-09T23:28:00Z REVIEW round 2 (last harness round) by agent/rv2-t0347 on 7895219e: PASS. rv1 B1 closed:
+  rv1 mutant C re-applied (range expansion at the top of plansheet.select(); select(['--only','49-55']) gave
+  49..55) -> at 2026-10-09T23:20:55Z `NOT REFUSED: ops/mutate/plansheet.py --only 1-2: exit 2 (need 64)` /
+  `MUTATE-ONLY FAILED: 164 of 165 driver runs refused with exit 64 (55 drivers x 3 probes)`, exit 1; restored
+  (__pycache__ purged, 1.1 s wait, sha256 6326cf32fe59428b, `git diff --quiet HEAD` true). Own mutant D, RECORDED
+  not blocking: a NAME-range expansion in the shared services/api/test/mutate/onlyIds.mjs (a token `A-B` whose
+  halves are both known ids selects ids[A..B]; onlyIds(['--only','tier-case-sensitive-tier-inactive-paid'], ...)
+  returned three ids) SURVIVES at 2026-10-09T23:22:33Z: `MUTATE-ONLY OK: 165 of 165`, exit 0 - the range probe for
+  name-keyed populations is `N-(N+1)`, never a range of two real ids, so R3 is enforced for numeric ids only. To
+  be filed as its own task (CLAUDE.md two-round rule; not a P-SAFE pin). Restored, sha256 86faf29317b6f795, tree
+  clean. Bare on the head: check-mutate-only `MUTATE-ONLY OK: 165 of 165 ...`, exit 0; check-exec-bits `P-OPS-01:
+  204 files, 23 required present, all modes correct`, exit 0; queue-check `QUEUE OK (343 tasks)`, exit 0. gh pr
+  checks 233: core pass (5m23s), pins-source-only pass (2m33s). Ancestry LAST: origin/main moved to 423517b5 during
+  the review (queue-only: T-0338 -> done, T-0345 claimed; 3 files under queue/), so `git merge-base --is-ancestor
+  origin/main origin/task/T-0347` exit 1; merge-tree clean and queue-check on a trial merge `QUEUE OK (343 tasks)`.
+  Merge origin/main (queue-only) before merging the PR.
