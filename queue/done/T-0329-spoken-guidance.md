@@ -1,7 +1,7 @@
 ---
 id: T-0329
 title: Spoken guidance on the drive - the voice half of the >4.5 m/s minimal surface: each pinned-waypoint leg, the reroute and the rejoin state are spoken through the platform TTS, calm and sparse, with the audio background mode declared beside location
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-08T20:54:59Z
@@ -11,7 +11,7 @@ branch: task/T-0329
 exclusive: []
 touches: [Sources/ScenicKit/, Tests/ScenicKitTests/, apps/ios/Packages/ScenicApp/Sources/, apps/ios/ScenicDrive/, ops/lib/, ops/mutate/, ops/lib/check-safety-disclaimer-linked-digests.txt, pins/PINS.yaml, .github/workflows/ios-compile.yml]
 pins_affected: [P-SAFE-09, P-PRIV-02]
-reviewer: null
+reviewer: agent/rv4-t0329
 depends_on: [T-0324]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -238,3 +238,12 @@ xcodeproj lock.
   0; check-mutate-population bare exit 0 ("P-PROC-06: every added module is covered or allowlisted; the floor of 144
   holds"); check-line-cap "514 Swift files ... none over 300 lines" exit 0; check-drive-voice exit 0 ("7 approved
   whole lines"); queue-check "QUEUE OK (326 tasks)".
+- 2026-10-09T05:04:37Z REVIEW PASS round 4 (agent/rv4-t0329, not the owner) on c58dbf6d. Merges carry no hand edits: merge-tree
+  --write-tree of each merge's parents equals its tree (2d29a499 e42dd393 EQUAL; c58dbf6d 35bd2228 EQUAL). BARE in a
+  detached worktree at origin/task/T-0329: "NAMED P-SAFE-09 passed=23/23" exit 0; check-mutate-population exit 0
+  ("the floor of 144 holds"); "PINS-YAML ok pins=49" exit 0; "QUEUE OK (326 tasks)" exit 0; drive.py --only
+  103,105,106 "MUTATE OK caught=3/3" (each caught by the P-SAFE-09 test that names it). CI: ios-compile 37884543287
+  success and ios-screenshot 37884547218 success, both on 2d29a499; diff 2d29a499..c58dbf6d touches only ops/lib/
+  named-tests.json, pins/PINS.yaml, queue/ and services/api (no Swift, no apps/ios). gh pr checks 216 on c58dbf6d:
+  core pass, pins-source-only pass. LAST: origin/main 9e9924d8 is not an ancestor, drift is queue-only (be7eb6ab,
+  9e9924d8: T-0335 ready/claimed, one queue file) - acceptable. Signed off; queue/claimed/ -> queue/done/.
