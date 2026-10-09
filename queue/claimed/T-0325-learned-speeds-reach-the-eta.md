@@ -82,3 +82,33 @@ edge is learned (product invariant).
   R5: the M7 exit is shown on the Linux path end to end (five drives clear the badge, four do not). R6: P-PRIV-05's
   whole-line whitelist grows by every new site and two identifiers. R7: this task is the device slice; the Worker
   pass-through and the app wiring with PlaceStore persistence are filed as follow-ups.
+- 2026-10-09T11:43:20Z RED then GREEN, GUARD, BINDINGS (agent/claude-opus-5; code commit 30462645).
+  Tests first against the shipped API with stubbed bodies (an early `return nil` / `return 0` / `return preview`
+  in CorridorCell.containing, CorridorRoute.init, CorridorClock.observe and RetimedPreview.of): `swift test --filter
+  ScenicKitTests\.(CorridorCellTests|CorridorRouteTests|CorridorClockTests|RetimedPreviewTests|LearnedSpeedsPrivacyTests)`
+  exit 1 with EIGHT FAILED by name - "every reference point's cell equals h3-py's latlng_to_cell at resolution 8,
+  and at 5 as Telemetry's", "latitude -90 and 90 and longitude -180 and 180 are cells; one ulp outside, NaN and
+  infinities are nil", "runs tile the route edge for edge into corridor edges; every bound of the tiling refused",
+  "a segment's edge is the last edge starting at or before it", "a clean drive teaches every edge once; a skip, a
+  detour, a late start, no arrival and a reroute do not", "a fix after arrival teaches nothing more, and observe
+  answers how many edges each fix taught", "the badge: on at 0 and 4 samples, off at 5 and 6, on with one edge
+  unlearned, and kept without runs", "five completed drives clear the badge and four do not" - while "the five
+  reference points are in five different cells" (a check of the h3-py table itself) and "no learned-speed type is
+  Encodable or Decodable" passed. Stubs removed: the same filter plus LearnedCorridorSpeedsTests|HourOfWeekTests
+  exit 0, all 18 passed. The ScenicKit copy of the uber/h3 port answers h3-py 4.1.2 at resolution 8 AND 5 on all
+  249 reference rows. P-PRIV-05: CorridorClock added to IDENTIFIERS; check-learned-speeds-sites.py exit 1 "FAILED -
+  4 unapproved, 0 missing of 13 approved" naming the four new lines (CorridorClock.swift x3, RetimedPreview.swift x1),
+  then approved: "ok - 17 sites, every one approved, in 7 files"; --prove-red "PROVE-RED OK: 10 of 10 rows red by
+  name, control 0" (two new rows: CorridorClock gains Codable, the app holds a corridor clock). Acceptance R6 named a
+  CorridorObservation type; the build needed none (observe records straight into the learner and answers a count), so
+  only CorridorClock joins the identifiers. LearnedSpeedsPrivacyTests casts CorridorClock as well. P-SAFE-07:
+  named-tests.json binds the 8 new tests (filter widened); `run-named-tests.py P-SAFE-07` "NAMED P-SAFE-07
+  passed=16/16". Digests: nine rows added or re-approved in check-safety-disclaimer-linked-digests.txt (CorridorCell
+  re-approved; CorridorClock, CorridorRoute, CorridorTimeRun, H3BaseCells, H3CoordIJK, H3FaceProjection,
+  H3IndexBuilder, RetimedPreview added); ops/lib/check-safety-disclaimer exit 0. Population: ops/mutate/traffic
+  grows by 27 entries (36-62) over the eight new subjects, MIN_MUTATIONS 35 -> 62, MIN_TEST_FILES 3 -> 7;
+  check-mutate-population "every added module is covered or allowlisted; the floor of 146 holds". check-line-cap
+  "530 Swift files tracked ... none over 300 lines" (largest new file: CorridorCellReference.swift, 255).
+  Follow-ups FILED (R7): T-0342 (the Worker passes details=time through /plan and reroute; ScenicAPIClient and
+  PlanPreview carry the runs) and T-0343 (the app feeds CorridorClock, persists the learner in PlaceStore, shows
+  RetimedPreview). Highest id in use before filing: T-0341 (queue/ and origin task/T-0333, task/T-0339).
