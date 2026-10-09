@@ -75,3 +75,12 @@ the offer is a promise the planner cannot keep, and this task closes with that m
     starts whose 45-minute loop at the day seed scores < 0.45, re-asked at 85, counting how many clear 0.45. That is a
     container run over the LA graph (services/routing/work/graph-cache holds only the Vermont slice) and, per
     CLAUDE.md, a measurement task, not an acceptance; left to the owner to file if the offer is still wanted.
+- 2026-10-09T22:10:31Z FINAL ACCEPTANCE on head 0f7af7f9 (git fetch origin + merge origin/main: "Already up to date"), PR #235:
+  - A1 the measurement quoted at 21:45:53Z above; no offer field, no app button.
+  - A2 `git diff --name-only origin/main...HEAD` -> `queue/claimed/T-0338-loop-nothing-pretty-offer.md` (only line).
+  - A3 `ops/queue-check` -> "QUEUE OK (340 tasks)" exit 0; `python ops/lib/check-pins-yaml.py` -> "PINS-YAML ok pins=50
+    fields=403" exit 0; `ops/lib/check-line-cap` -> "P-SRC-02: 553 Swift files tracked (Sources=269, Tests=197,
+    apps/ios=87), none over 300 lines" exit 0; `python ops/lib/check-mutate-population.py` -> "P-PROC-06: 320 modules, 181
+    covered by 38 populations, 118 allowlisted, 0 added by this branch ... the floor of 147 holds" exit 0;
+    `npx vitest run test/loopHonest.test.ts` -> "Test Files 1 passed (1) Tests 14 passed (14)". PR #235 checks: core
+    pass, pins-source-only pass.
