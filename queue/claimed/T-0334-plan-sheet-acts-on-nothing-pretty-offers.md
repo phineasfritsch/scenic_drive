@@ -87,3 +87,35 @@ once the failure carries them to the sheet. Apple files change: ios-compile and 
   - R7 PlanTicket gains `allBackRoads` (internal init unchanged in spirit: only the sheet issues tickets).
   - R8 no screenshot shows the plan sheet (MEASURED); ios-screenshot is still dispatched and its shots looked at for
     regressions, and a plan-sheet shot (a -screen launch value plus a SHOTS entry in .github/) is a follow-up.
+- 2026-10-09T04:50:29Z RED, then GREEN (agent/claude-opus-5, owner):
+  - Worker RED on f3d44ad5 + tests only: `npx vitest run test/planBackRoads.test.ts test/planHonest.test.ts` -> 16
+    failed | 8 passed: every planHonest whole-body row (no back_roads_budget_minutes), A1 'westwood-malibu +25 names
+    the whole minutes that cover the back-roads ETA' and its four bound rows, A2 'parsePlanRequest reads back_roads
+    absent as false and true as true, whole', A3 'westwood-malibu back roads at the offered 32 minutes is one lambda-8
+    plan inside the ceiling' and '... at 31 minutes is ceiling_breached, never an over-ceiling 200'. The A2 refusal
+    rows were green before and after (an unknown key was already 400; now only the literal true is accepted).
+  - Swift RED: `swift build --build-tests` on the new tests failed to compile - 'cannot find PlanOffer in scope',
+    'PlanSheetState has no member offered', 'PlanSheet has no member takeMoreTime / takeBackRoads', 'extra argument
+    backRoadsBudgetMinutes in call' (PlanSheetOfferTests, PlanOfferCopyTests, PlanOfferClientTests).
+  - GREEN on 890f6198: both TS files 24/24 (then 25/25 with the floor row); full Worker suite 2477 passed, the two
+    failures re-approved/re-run: reflectionSites (honestFailure.ts's constructor line re-approved: it now takes
+    fastestSeconds) and configAnswerPath (5 s timeout, green alone); root Swift `swift test` 718 tests in 136
+    suites passed, XCTest 0 failures (PlanClientResponseTests' typed-pair body gained back_roads_budget_minutes:null).
+  - PRE-REVIEW MUTANTS (.artifacts/t0334/mutants.py, each restored): M1 ceil->round KILLED ('a millisecond above 25
+    minutes asks 26'); M2 <=180 -> <180 KILLED ('exactly 180'); M3 back_roads any value KILLED ('back_roads false /
+    1 / true-string is 400'); M4 back_roads beside reroute accepted KILLED; M5 plan.ts drops allBackRoads KILLED (both
+    A3 rows); M6 floor at 0 dropped KILLED - first SURVIVED-by-construction (no row), so the row 'a back-roads route
+    a minute quicker than the fastest asks 0, never a negative budget' was added and kills it.
+  - plansheet.py: my first refactor moved THE GATE's guard into a helper with a range check, which broke the anchors
+    of entries 1-3 (and a duplicate guard would have let entry 1 survive). Restored as ONE private gate holding the
+    exact anchored lines for startPlanning, takeMoreTime and takeBackRoads (56f6d85c). `--prove-floor`: FLOOR PROOF
+    OK 7 of 7 arms; `--only 1,2,3,5`: MUTATE OK caught=4/4.
+  - iOS on 890f6198: ios-compile 37883619690 success (BUILD SUCCEEDED); ios-screenshot 37883623217 success, 14
+    shots downloaded and looked at (home medium shows the vehicle onboarding, drive shows the line, the attribution
+    and End drive; no crash). No shot is the plan sheet (R8); filed as T-0336 (ids checked over queue/ on main and
+    every origin/task/* branch: highest T-0335).
+  - Swift PRE-REVIEW MUTANTS on 56f6d85c, each restored: S1 whole-minute check dropped KILLED (A4 '32.5'); S2 budget
+    beside no ETA accepted KILLED (A4 'a budget beside no ETA'); S3 echo unchecked KILLED ('an offer that does not echo
+    the ticket's budget'); S4 takeBackRoads issues allBackRoads false KILLED ('all back roads is one fresh plan');
+    S5 back_roads key not encoded KILLED (A6 bytes whole); S6 takeMoreTime outside .offered KILLED ('an offer the
+    answer did not make issues nothing').
