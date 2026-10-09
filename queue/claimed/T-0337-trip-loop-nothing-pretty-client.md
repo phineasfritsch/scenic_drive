@@ -80,3 +80,20 @@ each field missing / mistyped refused, whole-copy equality for the new rows, the
   - R6 THE COPY (whole, the two new rows; owner-route-intent: calm, unhurried, never alarm, no "!"):
     TripFailure.nothingPretty: "Nothing on the way there was pretty enough to show. Try another place to head for."
     LoopFailure.nothingPretty: "No loop from here was pretty enough to show today. Try another start or another length."
+- 2026-10-09T08:11:44Z A4 RED FIRST on c74c4e21 (value types, cases, copy and tests; no reader arms), `swift test
+  --filter TripNothingPrettyTests|LoopNothingPrettyTests|TripSheetGateTests|LoopSheetGateTests|...` exit=1:
+  `Test "a dull trip's 422 nothing_pretty is read whole at every bound, refused otherwise" with 156 test cases failed
+  ... with 9 issues.` (exactly the 9 accepted rows: the refused rows already answered unexpectedResponse(422));
+  `Test "a dull loop's 422 nothing_pretty is read whole at every bound, refused otherwise" with 13 test cases failed
+  ... with 3 issues.`; `Test "a dull trip reaches the sheet as nothingPretty from one request" failed ... with 1 issue.`;
+  `Test "a dull loop reaches the sheet as nothingPretty from one request" failed ... with 1 issue.`; `Test run with 38
+  tests in 8 suites failed ... with 14 issues.` GREEN on 8a40d41e (the two arms): `Test run with 41 tests in 9 suites
+  passed` (+ NothingPrettyReaderTests 4 XCTests, 0 failures), exit=0.
+- 2026-10-09T08:11:44Z A5 MUTANTS on 8a40d41e: `python ops/mutate/tripsheet.py --only 44,...,53` -> `caught by the test
+  that names it: 10 of 10 (wrong killer 0, trapped 0, compile-only 0, MISSED 0, skipped 0)`, `MUTATE OK caught=10/10
+  (--only: 10 of 53 entries)`; `python ops/mutate/loopsheet.py --only 60,...,65` -> `6 of 6 (wrong killer 0, ...
+  MISSED 0)`, `MUTATE OK caught=6/6 (--only: 6 of 65 entries)`. Each entry's killers as named in the populations
+  (rows table for 44-51 / 60-63, sheet row for 44/60, mapping + copy + sheet for 52/64, copy for 53/65).
+- 2026-10-09T08:11:44Z A6 iOS CI on 8a40d41e: ios-compile 37901075343 success (3m15s); ios-screenshot 37901079042
+  success (11m46s). Bare gates on 8a40d41e: `P-SRC-02: 525 Swift files tracked ... none over 300 lines`; `PINS-YAML ok
+  pins=49 fields=395`; `QUEUE OK (329 tasks)`.
