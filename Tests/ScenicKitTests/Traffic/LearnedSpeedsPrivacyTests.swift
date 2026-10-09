@@ -11,6 +11,10 @@ import Testing
                                           ("CorridorRatio", CorridorRatio.self),
                                           ("RetimedRoute", RetimedRoute.self),
                                           ("CorridorClock", CorridorClock.self),
+                                          ("CorridorSlotRow", CorridorSlotRow.self),
+                                          ("[CorridorSlotRow]", [CorridorSlotRow].self),
+                                          ("CorridorLearner", CorridorLearner.self),
+                                          ("RetimingPlanner", RetimingPlanner.self),
                                           ("[CorridorSlot: CorridorRatio]", [CorridorSlot: CorridorRatio].self)]
         for (name, type) in types {
             #expect(!(type is Encodable.Type), "\(name) is Encodable")
