@@ -57,9 +57,11 @@ struct TripItineraryCard: View {
                 Text(PlanPreview.conditions)
                     .font(.footnote)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Change the trip", action: onChange)
-                    .accessibilityIdentifier("trip.change")
             }
+        }
+        .safeAreaInset(edge: .bottom) {
+            PlanCardExit("Change the trip", action: onChange)
+                .accessibilityIdentifier("trip.change")
         }
     }
 

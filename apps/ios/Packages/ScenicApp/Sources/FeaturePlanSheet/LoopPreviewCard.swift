@@ -43,9 +43,11 @@ struct LoopPreviewCard: View {
                 Text(PlanPreview.conditions)
                     .font(.footnote)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Change the loop", action: onChange)
-                    .accessibilityIdentifier("loop.change")
             }
+        }
+        .safeAreaInset(edge: .bottom) {
+            PlanCardExit("Change the loop", action: onChange)
+                .accessibilityIdentifier("loop.change")
         }
     }
 
