@@ -225,3 +225,18 @@ a whole-answer test.
     ['garbage-suffix']` rc=2 (no case ran), restored=True.
   Measured: ops/lib/check_sane_prod.py 300 lines (h() and m() share edited(); cap 300), ops/lib/sane_prod.py 115
   (unchanged). Case count 41 hand + 97 generated = 138 (P-OPS-08 why says 138).
+- 2026-10-09T18:21:23Z ACCEPTANCE re-run on the merged head 79e5741e (origin/main 3e9dd748: T-0342 landing in
+  services/api index.ts, quota.ts, quotaCounters.ts, scenicPlanner.ts, timeRuns.ts, tests, Sources/ScenicAPIClient;
+  T-0343 claim; T-0347 filing; merged without conflicts, merge message amended to name the content):
+  - A1 + A2: `bash ops/lib/check-sane-prod` -> 138 `SANE-PROD pass` rows (41 hand-written + 97 generated x-*,
+    incl. `x-sha256-over-long exit=8`, `x-upstream_trip_at-true exit=6`, `x-bytes-true exit=8`,
+    `x-upstream_month-garbage-suffix exit=6`, `x-kill_switch-false exit=0`, `x-upstream_calls-zero exit=0`,
+    `x-version-string exit=0`), then `SANE-PROD ok 138/138 cases passed` rc=0; the R10 meta-check passed (no refuse).
+    Also 138/138 rc=0 on the pre-merge commit 9ce59665.
+  - A3: round-2 mutants (A)-(E) as quoted at 2026-10-09T17:24:06Z; sane_prod.py and the generator unchanged since.
+  - A4: `SANE-EXIT-ORDER ok documented=2,7,3,6,9,8,4,10 code=2,7,3,6,9,8,4,10 calls=18` rc=0.
+  - A5: vitest healthQuota, sharedEnvWorker, configAnswerPath, routes, killSwitchRoutes on the merged services/api:
+    `Test Files 5 passed (5)`, `Tests 22 passed (22)`.
+  - A6: `PINS-YAML ok pins=50 fields=403`; `P-OPS-01: 202 files, 23 required present, all modes correct` rc=0;
+    `QUEUE OK (338 tasks)` rc=0. `ops/check-pins --source-only` was not re-run to completion here (it now runs the
+    138-case table, about 15-25 min on this Windows box); CI pins-source-only is the record for it.
