@@ -17,8 +17,8 @@ plansheet_run.py (surprise's three-file shape).
   * THE REROUTE ON THE WIRE (38-48, T-0319 R9): the device's 2-dp rounding of the fix dropped, truncated or bypassed,
     each bound of first_pin and of the token grammar widened, the first_pin key renamed, the pin index shifted, the
     token sent in another spelling.
-  * THE TIME RUNS (49-54, T-0342 R4): time_runs never read, the tiling check dropped, null read as absent, ms read
-    from another key, ClientPlanner or a retime dropping the runs;
+  * THE TIME RUNS (49-55, T-0342 R4/R8): time_runs never read, the tiling check dropped, null read as absent, ms
+    read from another key, ClientPlanner or a retime dropping the runs, a retime dropping the closures line;
   * THE VEHICLE ON THE WIRE (33-37, T-0311 R8): PlanRequestBody's enabled-profile guard dropped or answering the
     wrong refusal, the wire key renamed, and PlanClient sending a fixed profile or defaulting to a disabled one.
 
@@ -201,10 +201,11 @@ MUTATIONS = [
      "guard (try? top.decodeNil(forKey: .timeRuns)) == false else { return nil }", [DECODE_RUNS]),
     ("52 ms read from to", RESPONSE, "milliseconds: try run.decode(Int.self, forKey: .ms)",
      "milliseconds: try run.decode(Int.self, forKey: .to)", [DECODE_RUNS]),
-    ("53 ClientPlanner drops the runs", PLANNER, "}, timeRuns: response.timeRuns)", "}, timeRuns: nil)",
+    ("53 ClientPlanner drops the runs", PLANNER, ", timeRuns: response.timeRuns)", ", timeRuns: nil)",
      [PREVIEW_RUNS]),
-    ("54 a retime drops the runs", RETIMED, "continuation: preview.continuation, timeRuns: preview.timeRuns)",
-     "continuation: preview.continuation, timeRuns: nil)", [PREVIEW_RUNS]),
+    ("54 a retime drops the runs", RETIMED, "timeRuns: preview.timeRuns)", "timeRuns: nil)", [PREVIEW_RUNS]),
+    ("55 a retime drops the closures line", RETIMED, "closures: preview.closures,", "closures: .clear,",
+     [PREVIEW_RUNS]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -217,6 +218,6 @@ EQUIVALENT = [
      "only enabled case, so every encoded body's vehicle IS .standard and the two lines write the same bytes"),
 ]
 
-MIN_MUTATIONS = 54
+MIN_MUTATIONS = 55
 MIN_EQUIVALENT = 2
 MIN_TEST_FILES = 6

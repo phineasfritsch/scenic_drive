@@ -25,13 +25,17 @@ public struct PlanResponse: Equatable, Sendable {
     /// T-0330 R2/R3: true exactly when the Worker built this answer as the rest of the recalled drive; false on a fresh
     /// plan, and when the field is absent (fail toward saying more: the drive screen notes a new route).
     public let continued: Bool
+    /// T-0341 R3: the answer's closures_hazard, read fail-closed by ClosuresHazardReader; `.clear` when absent.
+    public let closuresHazard: ClosuresHazard
     /// T-0342 R4: the router's per-edge free-flow times over `route`, whole ms; nil when the Worker sent none.
     public let timeRuns: [CorridorTimeRun]?
 
     public init(route: [Coordinate], distanceMeters: Double, etaSeconds: Double, fastestEtaSeconds: Double,
                 ceilingSeconds: Double, budgetSeconds: Double, lambda: Double, evaluations: Int, usedBudget: Bool,
                 etaIsEstimate: Bool, hazards: [PlanHazard], waypoints: [Coordinate], appleMapsURL: URL,
-                planToken: String? = nil, continued: Bool = false, timeRuns: [CorridorTimeRun]? = nil) {
+                planToken: String? = nil, continued: Bool = false,
+                closuresHazard: ClosuresHazard = .clear, timeRuns: [CorridorTimeRun]? = nil) {
+        self.closuresHazard = closuresHazard
         self.route = route
         self.distanceMeters = distanceMeters
         self.etaSeconds = etaSeconds
@@ -63,6 +67,7 @@ extension PlanResponse: Decodable {
         case etaIsEstimate = "eta_is_estimate"
         case appleMapsURL = "apple_maps_url"
         case planToken = "plan_token"
+        case closuresHazard = "closures_hazard"
         case timeRuns = "time_runs"
     }
 
@@ -106,6 +111,7 @@ extension PlanResponse: Decodable {
             appleMapsURL: url,
             planToken: try top.decodeIfPresent(String.self, forKey: .planToken),
             continued: try top.decodeIfPresent(Bool.self, forKey: .continued) ?? false,
+            closuresHazard: ClosuresHazardReader.read(top, forKey: .closuresHazard),
             timeRuns: timeRuns
         )
     }

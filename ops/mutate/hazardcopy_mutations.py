@@ -9,6 +9,9 @@ hazardcopy.py, runner hazardcopy_run.py (tripsheet's shape).
     km rounded to whole, minutes rounded, the raw tag shown, the ford and gate warnings softened, the no-reopening
     clause lost;
   * THE FIXED LINES (19-20): the empty-strip line changed, the generic line a wire key.
+  * THE CLOSURE LINES (24-33, T-0341 R2): each line softened, dropped or reordered, a card left silent;
+  * THE READER (34-44, T-0341 R3, ScenicAPIClient/ClosuresHazardReader.swift): every fail-closed arm opened, a
+    field read by value, the reader unwired from PlanResponse.
 
 `(name, path, old, new, killers)`. `old` must occur verbatim or the run reports SKIP and fails; no anchor is a
 comment. `killers` are Swift Testing display names, every one of which must go red.
@@ -20,16 +23,22 @@ import pathlib
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 COPY = ROOT / "Sources" / "ScenicKit" / "Hazards" / "HazardCopy.swift"
-SUBJECTS = (COPY,)
-MUTATED_FILES = SUBJECTS
+READER = ROOT / "Sources" / "ScenicAPIClient" / "ClosuresHazardReader.swift"
+PLAN_RESPONSE = ROOT / "Sources" / "ScenicAPIClient" / "PlanResponse.swift"
+SUBJECTS = (COPY, READER)
+MUTATED_FILES = (COPY, READER, PLAN_RESPONSE)
 
-TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "Hazards" / "HazardCopyTests.swift",)
+TEST_FILES = (ROOT / "Tests" / "ScenicKitTests" / "Hazards" / "HazardCopyTests.swift",
+              ROOT / "Tests" / "ScenicAPIClientTests" / "ClosuresHazardTests.swift")
 
 ROW = "every Worker hazard row reads its ruled line, whole"
 UNKNOWN = "an unlisted value or kind reads a safe line, never the raw key"
 FLAG = "every hazard flag reads its ruled line, whole"
 STRIP = "the strip keeps one line per hazard, in order"
 WIRE = "no copy line is empty, and none spells a wire key"
+CLOSE = "every closure condition reads its ruled lines, whole, on every route card"
+SHAPE = "every Worker closures_hazard reads its ruled lines on the plan, trip and loop cards"
+UNREAD = "an unreadable closures_hazard reads the safest line on every card, never silence and never a refusal"
 
 MATCH = "if let line = runLines[run.kind]?[run.value] { return line }"
 GENERIC = '"Something on part of this route needs a closer look - check the road before you drive it"'
@@ -75,6 +84,50 @@ MUTATIONS = [
     ("21 the surface fallback spells a key", COPY, SURFACE, '"surface: unknown"', [WIRE, UNKNOWN]),
     ("22 the no-reopening clause lost", COPY, '?? ", no reopening time given"', '?? ""', [FLAG]),
     ("23 the gate warning softened", COPY, "it may be closed or locked", "it may be open", [FLAG]),
+    # T-0341: the closure lines (R2) and the reader (R3).
+    ("24 the crossing line softened", COPY, "expect the road to be blocked and check before you drive",
+     "it may still be open", [CLOSE, SHAPE, UNREAD]),
+    ("25 a crossing reads nothing", COPY, "closures.crosses ? [closureCrosses] : []", "[]", [CLOSE, SHAPE, UNREAD]),
+    ("26 a stale set reads nothing", COPY, "case .stale: lines.append(closuresStale)", "case .stale: break",
+     [CLOSE, SHAPE, UNREAD]),
+    ("27 an unavailable set reads stale", COPY, "case .unavailable: lines.append(closuresUnavailable)",
+     "case .unavailable: lines.append(closuresStale)", [CLOSE, SHAPE, UNREAD]),
+    ("28 a dropped closure reads nothing", COPY, "if closures.dropped { lines.append(closuresDropped) }", "",
+     [CLOSE, SHAPE, UNREAD]),
+    ("29 the dropped line first", COPY, "lines.append(closuresDropped)", "lines.insert(closuresDropped, at: 0)",
+     [CLOSE, SHAPE, UNREAD]),
+    ("30 the plan strip drops the closure lines", COPY, "closureLines(for: preview.closures) + preview.hazards",
+     "preview.hazards", [CLOSE, SHAPE, UNREAD]),
+    ("31 the plan strip puts the closure lines last", COPY,
+     "closureLines(for: preview.closures) + preview.hazards.map { line(for: $0) }",
+     "preview.hazards.map { line(for: $0) } + closureLines(for: preview.closures)", [CLOSE, SHAPE, UNREAD]),
+    ("32 the itinerary card silent", COPY, "closureLines(for: itinerary.closures)", "[]", [CLOSE, SHAPE, UNREAD]),
+    ("33 the loop card silent", COPY, "        closureLines(for: preview.closures)\n", "        []\n",
+     [CLOSE, SHAPE, UNREAD]),
+    ("34 an absent key reads unavailable", READER, "guard top.contains(key) else { return .clear }",
+     "guard top.contains(key) else { return ClosuresHazard(state: .unavailable) }", [SHAPE]),
+    ("35 a key that is not an object reads clear", READER, "return ClosuresHazard(state: .unavailable)\n",
+     "return .clear\n", [UNREAD]),
+    ("36 an unknown state reads fresh", READER, "default: return .unavailable", "default: return .fresh", [UNREAD]),
+    ("37 the state matched loosely", READER, "switch try? box.decode(String.self, forKey: .state) {",
+     "switch (try? box.decode(String.self, forKey: .state))?.lowercased().trimmingCharacters(in: .whitespaces) {",
+     [UNREAD]),
+    ("38 a stale set reads fresh", READER, 'case .some("stale"): return .stale', 'case .some("stale"): return .fresh',
+     [SHAPE, UNREAD]),
+    ("39 the version unchecked", READER, "guard (try? box.decode(String.self, forKey: .version)) != nil,\n              ",
+     "guard ", [UNREAD]),
+    ("40 the fetched_at unchecked", READER,
+     ",\n              (try? box.decode(String.self, forKey: .fetchedAt)) != nil else", " else", [UNREAD]),
+    ("41 a null fetched_at accepted", READER, "(try? box.decode(String.self, forKey: .fetchedAt)) != nil",
+     "((try? box.decode(String.self, forKey: .fetchedAt)) != nil || (try? box.decodeNil(forKey: .fetchedAt)) == true)",
+     [UNREAD]),
+    ("42 dropped read by its value", READER, "dropped: box.contains(.dropped)",
+     "dropped: ((try? box.decode(Int.self, forKey: .dropped)) ?? 0) > 0", [UNREAD]),
+    ("43 crosses read by its value", READER, "crosses: box.contains(.crosses)",
+     "crosses: !((try? box.decode([String].self, forKey: .crosses)) ?? []).isEmpty", [UNREAD]),
+    ("44 the reader never wired into the plan", PLAN_RESPONSE,
+     "closuresHazard: ClosuresHazardReader.read(top, forKey: .closuresHazard)", "closuresHazard: .clear",
+     [SHAPE, UNREAD]),
 ]
 
 # Cannot change behaviour, so anything but MISSED fails the run. (name, path, old, new, witness)
@@ -85,6 +138,6 @@ EQUIVALENT = [
      "the switch cases match distinct string literals, so at most one matches any kind and their order is moot"),
 ]
 
-MIN_MUTATIONS = 23
+MIN_MUTATIONS = 44
 MIN_EQUIVALENT = 1
-MIN_TEST_FILES = 1
+MIN_TEST_FILES = 2

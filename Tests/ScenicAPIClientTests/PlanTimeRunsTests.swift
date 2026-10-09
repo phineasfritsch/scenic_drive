@@ -30,7 +30,7 @@ import Testing
                             budgetSeconds: e.budgetSeconds, lambda: e.lambda, evaluations: e.evaluations,
                             usedBudget: e.usedBudget, etaIsEstimate: e.etaIsEstimate, hazards: e.hazards,
                             waypoints: e.waypoints, appleMapsURL: e.appleMapsURL, planToken: e.planToken,
-                            continued: e.continued, timeRuns: runs)
+                            continued: e.continued, closuresHazard: e.closuresHazard, timeRuns: runs)
     }
 
     static func run(_ from: Int, _ to: Int, _ ms: Int) -> CorridorTimeRun {
@@ -86,21 +86,32 @@ import Testing
         }
     }
 
+    /// The merge of T-0341 (closures) and T-0325 (retime): a retime keeps the closures line too, over both variants.
     @Test("a response's runs reach the preview whole, and a retime keeps them")
     func previewCarriesRuns() {
         let e = PlanResponseDecodeTests.expected
+        let closed = ClosuresHazard(state: .unavailable)
         for runs in [nil, [Self.run(0, 1, 61000), Self.run(1, 2, 59000)]] as [[CorridorTimeRun]?] {
-            let preview = ClientPlanner.preview(of: Self.expected(runs), place: 42, budgetMinutes: 25)
+            let r = Self.expected(runs)
+            let response = PlanResponse(route: r.route, distanceMeters: r.distanceMeters, etaSeconds: r.etaSeconds,
+                                        fastestEtaSeconds: r.fastestEtaSeconds, ceilingSeconds: r.ceilingSeconds,
+                                        budgetSeconds: r.budgetSeconds, lambda: r.lambda, evaluations: r.evaluations,
+                                        usedBudget: r.usedBudget, etaIsEstimate: r.etaIsEstimate, hazards: r.hazards,
+                                        waypoints: r.waypoints, appleMapsURL: r.appleMapsURL,
+                                        closuresHazard: closed, timeRuns: runs)
+            let preview = ClientPlanner.preview(of: response, place: 42, budgetMinutes: 25)
             let whole = PlanPreview(route: e.route, etaSeconds: e.etaSeconds, fastestEtaSeconds: e.fastestEtaSeconds,
                                     etaIsEstimate: e.etaIsEstimate,
                                     hazards: [PlanHazardRun(kind: "surface", value: "dirt", fromIndex: 0, toIndex: 2)],
-                                    waypoints: e.waypoints, lambda: e.lambda, continuation: nil, timeRuns: runs)
+                                    waypoints: e.waypoints, lambda: e.lambda, continuation: nil, closures: closed,
+                                    timeRuns: runs)
             #expect(preview == whole, "\(String(describing: runs))")
             let retimed = RetimedPreview.of(preview, timeRuns: runs ?? [], by: FreeFlow(), departsAt: Date(timeIntervalSince1970: 0))
             let free = runs.map { _ in 120.0 } ?? e.etaSeconds
             let again = PlanPreview(route: e.route, etaSeconds: free, fastestEtaSeconds: e.fastestEtaSeconds,
                                     etaIsEstimate: runs == nil ? e.etaIsEstimate : false, hazards: whole.hazards,
-                                    waypoints: e.waypoints, lambda: e.lambda, continuation: nil, timeRuns: runs)
+                                    waypoints: e.waypoints, lambda: e.lambda, continuation: nil, closures: closed,
+                                    timeRuns: runs)
             #expect(retimed == again, "\(String(describing: runs))")
         }
     }

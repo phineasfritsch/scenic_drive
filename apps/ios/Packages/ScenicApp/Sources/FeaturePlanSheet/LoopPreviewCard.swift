@@ -29,6 +29,11 @@ struct LoopPreviewCard: View {
                 Text(Self.retraceLine(preview.retraceFraction))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("loop.retrace")
+                ForEach(Array(HazardCopy.lines(for: preview).enumerated()), id: \.offset) { _, line in
+                    Label(line, systemImage: "exclamationmark.triangle.fill")
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("loop.closures")
+                }
             }
             Section {
                 if let link {

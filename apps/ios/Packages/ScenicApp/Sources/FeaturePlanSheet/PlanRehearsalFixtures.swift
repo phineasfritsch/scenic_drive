@@ -19,7 +19,7 @@ enum PlanRehearsalFixtures {
                                        coordinate: Coordinate(latitude: 34.0441745, longitude: -118.939262))
 
     /// Topanga over Saddle Peak to Zuma Beach: 55 min against the fastest 35, inside the default 30 min budget; an
-    /// estimate (the badge, P-SAFE-07) with one access run on the hazard strip.
+    /// estimate (the badge, P-SAFE-07) with a crossed closure and one access run on the hazard strip (T-0341).
     static let preview = PlanPreview(
         route: [
             Coordinate(latitude: 34.0897, longitude: -118.6030),
@@ -33,7 +33,8 @@ enum PlanRehearsalFixtures {
             Coordinate(latitude: 34.0189, longitude: -118.8274),
         ],
         etaSeconds: 3_300, fastestEtaSeconds: 2_100, etaIsEstimate: true,
-        hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 2, toIndex: 3)])
+        hazards: [PlanHazardRun(kind: "road_access", value: "destination", fromIndex: 2, toIndex: 3)],
+        closures: ClosuresHazard(state: .fresh, crosses: true))
 
     /// The "nothing pretty" answer that made both offers (T-0334): nothing within the 25 min asked for; try 65; or all
     /// back roads, about 60 min, which needs 32 extra minutes.
@@ -53,7 +54,8 @@ enum PlanRehearsalFixtures {
             Coordinate(latitude: 34.0897, longitude: -118.6030),
         ],
         waypoints: [Coordinate(latitude: 34.07, longitude: -118.65), Coordinate(latitude: 34.12, longitude: -118.65)],
-        durationSeconds: 3_480, distanceMeters: 52_000, retraceFraction: 0.04, etaIsEstimate: true)
+        durationSeconds: 3_480, distanceMeters: 52_000, retraceFraction: 0.04, etaIsEstimate: true,
+        closures: ClosuresHazard(state: .unavailable))
 
     /// Two days from Griffith Observatory to Leo Carrillo State Beach, 36% over the fastest (the 40% ceiling holds).
     static let itinerary = TripItinerary(
@@ -61,7 +63,7 @@ enum PlanRehearsalFixtures {
         days: [
             TripItineraryDay(day: 1, driveSeconds: 5_400, distanceMeters: 70_000, overnight: true, path: nil),
             TripItineraryDay(day: 2, driveSeconds: 3_600, distanceMeters: 50_000, overnight: false, path: nil),
-        ])
+        ], closures: ClosuresHazard(state: .stale))
 
     /// Three kept drives, one of them needing a re-plan.
     static let savedRows = [
