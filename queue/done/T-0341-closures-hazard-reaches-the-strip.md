@@ -1,7 +1,7 @@
 ---
 id: T-0341
 title: closures_hazard reaches the app - a stale or unavailable closures snapshot, a dropped closure or a crossed closure on a plan, trip or loop answer is told to the driver in calm copy, not silently decoded away
-state: claimed
+state: done
 owner: agent/claude-opus-5
 owner_session: null
 claimed_at: 2026-10-09T11:49:42Z
@@ -11,7 +11,7 @@ branch: task/T-0341
 exclusive: []
 touches: [Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/, apps/ios/Packages/ScenicApp/Sources/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/check-safety-disclaimer-pinned, ops/lib/check-hazard-copy-sites.txt, ops/lib/check-hazard-copy-sites.py, ops/lib/named-tests.json, ops/lib/mutate-population-allowlist.json, ops/mutate/, queue/]
 pins_affected: [P-SAFE-02, P-SAFE-03, P-SAFE-08]
-reviewer: null
+reviewer: agent/rv2-t0341
 depends_on: [T-0339]
 verify: [ops/test, ops/check-pins]
 acceptance:
@@ -167,3 +167,16 @@ fail-closed, one line per condition, whole-copy equality, shots looked at.
   tracked ... none over 300 lines"; check-mutate-population "every added module is covered or allowlisted; the
   floor of 147 holds". check-hazard-copy-sites.py is 202 lines. No Apple file changed in this round. ios-compile
   was re-triggered because the merge brought Sources changes; the run is quoted in the PR.
+- 2026-10-09T15:36:50Z REVIEW PASS (round 2) by agent/rv2-t0341 (not the owner). Round 1 (rv1-t0341) had one
+  blocker, a stale base after PR #226 (T-0325). It is closed by merge 2e051d6a (parents 42430816 + 58f33db0).
+  `git merge-tree --write-tree 42430816 58f33db0` = f4799c1b = the tree of 2e051d6a. Keyed by path,
+  check-safety-disclaimer-linked-digests.txt keeps every row of both parents (298 and 303 rows in, 306 merged, none
+  missing). Each differing digest is a file one side changed, and every Sources/Tests digest equals sha256 of its blob
+  at 2e051d6a. named-tests.json keeps all 14 keys of both parents with no entry lost. Bare on 2e051d6a:
+  check-safety-disclaimer exit 0; check-hazard-copy-sites "P-SAFE-03 hazard copy: ok - 12 sites, every one
+  approved, in 5 files" exit 0; check-mutate-population "the floor of 147 holds" exit 0; queue-check "QUEUE OK
+  (335 tasks)" exit 0. Running `swift test --filter "ClosuresHazardTests|HazardCopyTests"` gives "Test run with 8
+  tests in 2 suites passed", exit 0. CI on 2e051d6a: ios-compile run 37951302794 simulator-build success; PR #227
+  core pass and pins-source-only pass. origin/main moved to be0960a8 after the merge, so is-ancestor exits 1. That
+  drift is queue-only (A queue/backlog/T-0346-sheet-bottom-bar-hides-actions.md) and merges cleanly, which is
+  acceptable. No new mutants were run in this round (merge/CI/touched rows only).
