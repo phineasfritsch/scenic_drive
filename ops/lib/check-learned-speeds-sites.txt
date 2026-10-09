@@ -11,3 +11,7 @@ Sources/ScenicKit/Traffic/LearnedCorridorSpeeds.swift	public struct LearnedCorri
 Sources/ScenicKit/Traffic/RetimedRoute.swift	public struct RetimedRoute: Equatable, Sendable {
 Sources/ScenicKit/Traffic/TrafficProvider.swift	    func retime(_ edges: [CorridorEdge], departsAt: Date) -> RetimedRoute
 Sources/ScenicKit/Traffic/TrafficProvider.swift	public protocol TrafficProvider: Sendable {
+Sources/ScenicKit/Traffic/CorridorClock.swift	                                 into speeds: inout LearnedCorridorSpeeds) -> Int {
+Sources/ScenicKit/Traffic/CorridorClock.swift	    private func teach(_ index: Int, from start: Date, to stop: Date, into speeds: inout LearnedCorridorSpeeds) -> Bool {
+Sources/ScenicKit/Traffic/CorridorClock.swift	public struct CorridorClock: Sendable, Equatable {
+Sources/ScenicKit/Traffic/RetimedPreview.swift	    public static func of(_ preview: PlanPreview, timeRuns: [CorridorTimeRun], by provider: some TrafficProvider,

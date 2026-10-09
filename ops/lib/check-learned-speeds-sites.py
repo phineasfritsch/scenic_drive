@@ -36,7 +36,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 WHITELIST = pathlib.Path(__file__).resolve().parent / "check-learned-speeds-sites.txt"
 SCANNED = ("Sources", "apps")
 SKIP_DIRS = {".build", "DerivedData", ".swiftpm"}
-IDENTIFIERS = ("LearnedCorridorSpeeds", "CorridorSlot", "CorridorRatio", "RetimedRoute", "TrafficProvider")
+IDENTIFIERS = ("LearnedCorridorSpeeds", "CorridorSlot", "CorridorRatio", "RetimedRoute", "TrafficProvider", "CorridorClock")
 NAMES = re.compile(r"\b(?:%s)\b" % "|".join(IDENTIFIERS))
 
 
@@ -110,6 +110,10 @@ RED_ROWS = (
     ("a code line with a trailing comment", RATIO, None, "extension CorridorRatio: Encodable {} // fine\n"),
     ("an approved line repeated", LEARNER, None,
      "public struct LearnedCorridorSpeeds: TrafficProvider, Equatable {\n"),
+    ("CorridorClock gains Codable (T-0325)", "Sources/ScenicKit/Traffic/CorridorClock.swift",
+     "CorridorClock: Sendable, Equatable {", "CorridorClock: Sendable, Equatable, Codable {"),
+    ("the app holds a corridor clock (T-0325)", "apps/ios/Packages/ScenicApp/Sources/Probe/ClockProbe.swift", None,
+     "var probe: CorridorClock?\n"),
 )
 
 
