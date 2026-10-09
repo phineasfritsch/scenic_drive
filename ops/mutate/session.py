@@ -10,7 +10,8 @@
 The population is ops/mutate/session_mutations.py and the runner ops/mutate/session_run.py; this file is the
 CLI, the floors and the proof arms - ledger.py's three-file shape. The subjects and the harness's own files are
 compared with `git show HEAD:` before the first build: a mutation report is a claim about a COMMIT.
-`--prove-vacuity` replaces the five test files with empty suites and requires EVERY mutation to report MISSED.
+`--prove-vacuity` replaces the test files with empty suites and requires EVERY mutation to report MISSED; an
+emptied set that does not BUILD is refused (exit 2, the compiler's errors quoted), never counted as a vacuity pass.
 """
 from __future__ import annotations
 
@@ -34,7 +35,7 @@ SUBJECT_MODULES = ("Sources/ScenicAPIClient/AttestClient.swift", "Sources/Scenic
 
 from session_mutations import (EQUIVALENT, MIN_EQUIVALENT, MIN_MUTATIONS, MIN_TEST_FILES, MUTATED_FILES,
                             MUTATIONS, ROOT, SUBJECTS, TEST_FILES)
-from session_run import FILTER, build, empty_suite, not_at_head, run_all, test
+from session_run import FILTER, build_report, empty_suite, not_at_head, run_all, test
 
 TESTS = [t for t in TEST_FILES if t.exists()]
 HARNESS = (pathlib.Path(__file__).resolve(),
@@ -139,12 +140,19 @@ def main(argv) -> int:
     eq = None
     try:
         if prove:
-            sys.stdout.write("PROVING NON-VACUITY: the five test files replaced by empty suites; every mutation "
-                             "must report MISSED.\n")
+            sys.stdout.write("PROVING NON-VACUITY: the %d test files replaced by empty suites; every mutation "
+                             "must report MISSED.\n" % len(TESTS))
             for t in TESTS:
                 t.write_text(empty_suite(t), encoding="utf-8", newline="\n")
-        if build() != 0 and build() != 0:
-            sys.stdout.write("baseline does not build; nothing below would mean anything\n")
+        built, errors = build_report()
+        if built != 0:
+            built, errors = build_report()
+        if built != 0:
+            sys.stdout.write("VACUITY REFUSED: with the %d test file(s) emptied the tests do not build - a vacuity "
+                             "arm that cannot build proves nothing; no mutation was run\n" % len(TESTS) if prove
+                             else "baseline does not build; nothing below would mean anything\n")
+            for line in errors[:12]:
+                sys.stdout.write("  build error: %s\n" % line)
             return 2
         code, _txt = test()
         sys.stdout.write("BASELINE    --filter %-40s exit=%d\n" % (FILTER, code))
