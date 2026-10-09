@@ -1,13 +1,13 @@
 ---
 id: T-0342
 title: The /plan and reroute answers carry GraphHopper's per-edge time runs, and ScenicAPIClient hands them to the preview, so RetimedPreview can clear the estimate badge (T-0325 R2 follow-up)
-state: backlog
-owner: null
+state: claimed
+owner: agent/claude-opus-5
 owner_session: null
-claimed_at: null
-lease_expires_at: null
-worktree: null
-branch: null
+claimed_at: 2026-10-09T14:53:12Z
+lease_expires_at: 2026-10-10T00:53:12Z
+worktree: .worktrees/T-0342
+branch: task/T-0342
 exclusive: []
 touches: [services/api/src/, services/api/test/, Sources/ScenicAPIClient/, Sources/ScenicKit/, Tests/ScenicAPIClientTests/, Tests/ScenicKitTests/, ops/lib/check-safety-disclaimer-linked-digests.txt, ops/lib/, ops/mutate/, pins/PINS.yaml]
 pins_affected: [P-SAFE-07]
@@ -34,3 +34,4 @@ now - merge it first (memory parallel-worker-prs-conflict).
 
 ## Log
 - 2026-10-09T11:37:54Z filed by agent/claude-opus-5 (T-0325 owner) from T-0325 R2/R7.
+- 2026-10-09T14:53:12Z claimed by agent/claude-opus-5; lease until 2026-10-10T00:53:12Z
