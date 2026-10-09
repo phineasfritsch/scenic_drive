@@ -32,6 +32,8 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import mutate_only
+
 # No bytecode written or read: a population edited and restored inside one second would import from a .pyc
 # that still matches on mtime and size (straightline.py's measured T-0199 defect).
 sys.dont_write_bytecode = True
@@ -135,18 +137,18 @@ def report(r, chosen) -> None:
 
 
 def main(argv) -> int:
+    picked = mutate_only.select_only(argv, [str(i) for i in range(1, len(MUTATIONS) + 1)])
+    only = picked is not None
     if "--prove-floor" in argv:
         return prove_floor()
     prove = "--prove-vacuity" in argv
-    only = [a.split("=", 1)[1] for a in argv if a.startswith("--only=")]
     refusal = population_floor()
     if refusal is not None:
         sys.stdout.write("REFUSING TO RUN: %s\n" % refusal)
         return 2
     chosen = MUTATIONS
     if only:
-        picked = {int(i) for part in only for i in part.split(",")}
-        chosen = [m for i, m in enumerate(MUTATIONS, 1) if i in picked]
+        chosen = [m for i, m in enumerate(MUTATIONS, 1) if str(i) in picked]
         sys.stdout.write("PARTIAL RUN over %d of %d mutations (--only); never prints MUTATE OK and is never an\n"
                          "  acceptance command.\n" % (len(chosen), len(MUTATIONS)))
     sys.stdout.write("population  mutations=%d (floor %d)  equivalent=%d (floor %d)  subjects=%d  "

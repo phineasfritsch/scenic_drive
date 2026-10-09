@@ -31,6 +31,8 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import mutate_only
+
 import extractadapter as harness  # noqa: E402  the protocol: pristine guard, pycache purge, arm
 
 ROOT = harness.ROOT
@@ -208,7 +210,10 @@ harness.PYTEST = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"] + [str
 
 
 def main(argv: list | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ops/mutate/placeallow.py", description=__doc__.splitlines()[0])
+    only = mutate_only.select_only(sys.argv[1:] if argv is None else argv,
+                                   [m[0] for m in list(MUTATIONS) + list(EQUIVALENT)], substring=True,
+                                   split=False)
+    parser = argparse.ArgumentParser(allow_abbrev=False, prog="ops/mutate/placeallow.py", description=__doc__.splitlines()[0])
     parser.add_argument("--prove-vacuity", action="store_true",
                         help="empty the test files and require every mutation to be MISSED")
     parser.add_argument("--only", action="append", default=[], metavar="SUBSTRING",
@@ -218,11 +223,8 @@ def main(argv: list | None = None) -> int:
     if len(MUTATIONS) < MIN_MUTATIONS:
         print("population is %d, floor is %d" % (len(MUTATIONS), MIN_MUTATIONS), file=sys.stderr)
         return 1
-    mutations = [m for m in MUTATIONS if not args.only or any(o in m[0] for o in args.only)]
-    equivalent = [m for m in EQUIVALENT if not args.only or any(o in m[0] for o in args.only)]
-    if not mutations and not equivalent:
-        print("--only matched nothing", file=sys.stderr)
-        return 1
+    mutations = [m for m in MUTATIONS if only is None or m[0] in only]
+    equivalent = [m for m in EQUIVALENT if only is None or m[0] in only]
     harness.assert_pristine(GUARDED)
     originals = {path: path.read_text(encoding="utf-8") for path in SUBJECTS + EMPTIED}
     subjects = {path: originals[path] for path in SUBJECTS}
