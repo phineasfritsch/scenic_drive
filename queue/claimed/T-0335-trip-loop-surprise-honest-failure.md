@@ -80,3 +80,34 @@ MISSED before / CAUGHT after by test name.
     not claimed here; this PR touches no Apple file.
   - R6 P-SAFE-04: a refusal ships no route, so the ceiling is untouched; the new refusal rows are bound by name.
     No ops/mutate population: no new numeric module (routeScore.ts is T-0332's; the planners gain a comparison).
+- 2026-10-09T05:23:51Z RED by name on 9e9924d8's src (the two new files written first; `npx vitest run test/tripHonest.test.ts
+  test/loopHonest.test.ts` before any src change): "Tests 9 failed (9)", every row received status 200 - the
+  population MISSED, a dull route sold as scenic. /trip: "a preview trip whose chosen route scores 0.02 answers
+  nothing_pretty, never a 200 trip" received 200 lambda 7.75 after 7 requests; "a full trip whose chosen route scores
+  0.02 is refused before any day leg is requested" received 200 after 12 requests (7 + 5 legs); "every edge 5 (0.425,
+  ...) is refused; every edge 6 (0.51, ...)" and "a chosen route with no scenic_score detail is refused (T-0332 R3,
+  fail closed)" received 200. /loop: "a dull first loop re-rolls ..." received attempts 1 (the dull loop shipped);
+  "dull at seed and seed + 1 re-rolls seed + 2 ..." attempts 1; "three dull loops answer nothing_pretty ..." 200
+  attempts 1; "unscored loops are dull ...; every edge 5 (0.425) is dull; every edge 6 (0.51) ships" 200 attempts 1;
+  "retraced, then clean but dull, then retraced again answers nothing_pretty ..." 200 attempts 2.
+- 2026-10-09T05:23:51Z GREEN (0fdfa1a6): the same rows CAUGHT by name - 422 {error: nothing_pretty, days: 5, extra_budget_pct: 40}
+  after 7 requests (preview and full), 422 {error: nothing_pretty, minutes: 45} after exactly 3, the re-rolls 200
+  with attempts 2 / 3 and seeds S+1 / S+2. Two row pairs added for the closure re-request (R2/R3 score the route that
+  would SHIP): tripHonest "a pretty detour crossing a closure, re-requested to a dull road, is refused" / "a dull
+  detour crossing a closure, re-requested to a pretty road, ships the road (whole 200)"; loopHonest "a pretty loop
+  crossing a closure, re-requested to a dull clean loop, keeps the pretty loop and names the crossing" / "... to a
+  pretty clean loop, ships the re-request". The harness defaults (R4) and the custom-runs trip bodies (tripFull
+  uneven / routeBody, tripRoute scenicRuns / scenicSumming) gained PRETTY_RUNS (score 8); reflectionSites gained
+  LoopNothingPretty's constructor line. Full Worker suite, run alone: "Test Files 86 passed (86) / Tests 2492 passed
+  (2492)".
+- 2026-10-09T05:23:51Z PRE-REVIEW MUTANTS (.artifacts/t0335/mutants.py, each one-line, restored by git checkout; suites tripHonest,
+  loopHonest, tripRoute, tripFull): 7/7 CAUGHT. T1 trip scores first.path, not the route after the closure
+  re-request: RED "a dull detour crossing a closure, ..." + "a pretty detour crossing a closure, ...". T2 trip check
+  moved after the day legs: RED "a full trip whose chosen route scores 0.02 is refused before any day leg is
+  requested" + the fail-closed row. T3 TRIP_DETAILS without scenic_score: RED tripFull/tripRoute's whole-request rows
+  ("a 5-day trip is exactly 12 requests, ..." and "a 5-day trip: the whole answer, 7 router requests, ..."). L1 third
+  seed = seed + 1: RED 4 loopHonest rows. L2 loop never answers nothing_pretty: RED 3. L3 closure re-request accepts a
+  dull clean loop: RED "a pretty loop crossing a closure, re-requested to a dull clean loop, ...". L4 nothing_pretty
+  only when the LAST attempt was clean: RED "retraced, then clean but dull, then retraced again ...".
+- 2026-10-09T05:23:51Z A5: named-tests.json P-SAFE-04 binds the two tripHonest refusal rows and the three-dull loopHonest row by name.
+  Follow-up filed: T-0336 (the app reads /trip's and /loop's nothing_pretty, R5).
