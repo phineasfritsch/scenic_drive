@@ -11,6 +11,8 @@ public enum LaunchScreen: String, Sendable {
     case home
     case settings
     case paywall
+    /// T-0336: Settings opens and pushes Legal & Attribution (`-screen legal`).
+    case legal
 
     /// The launch argument's key: `-screen paywall`.
     static let launchArgumentKey = "screen"

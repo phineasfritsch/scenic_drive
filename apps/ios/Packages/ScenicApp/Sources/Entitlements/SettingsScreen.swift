@@ -18,6 +18,8 @@ public struct SettingsScreen: View {
     private let vehicle: String
 
     @State private var isShowingPaywall: Bool
+    /// T-0336: a DEBUG `-screen legal` launch opens on Legal & Attribution; home in every release build.
+    @State private var isShowingLegal = LaunchScreen.atLaunch == .legal
     @State private var isShowingManage = false
     @State private var isRestoring = false
     @State private var status = "Checking…"
@@ -66,6 +68,9 @@ public struct SettingsScreen: View {
             }
             .navigationDestination(isPresented: $isShowingPaywall) {
                 PaywallScreen()
+            }
+            .navigationDestination(isPresented: $isShowingLegal) {
+                LegalAttributionScreen()
             }
             .subscriptionStatusTask(for: StoreConstants.subscriptionGroupID) { state in
                 let text = SettingsScreen.describe(state)

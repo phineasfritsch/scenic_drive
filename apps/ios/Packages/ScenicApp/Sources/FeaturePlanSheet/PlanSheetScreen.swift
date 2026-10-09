@@ -48,6 +48,15 @@ public struct PlanSheetScreen: View {
         self.loopLink = loopLink
         self.onClose = onClose
         self.onDrive = onDrive
+        // T-0336: a DEBUG `-screen` rehearsal opens on its fixed state; nil in every release build.
+        if let rehearsal = PlanRehearsal.atLaunch {
+            _sheet = State(initialValue: rehearsal.sheet)
+            _loop = State(initialValue: rehearsal.loop)
+            _trip = State(initialValue: rehearsal.trip)
+            _showingLoop = State(initialValue: rehearsal.tab == .loop)
+            _showingTrip = State(initialValue: rehearsal.tab == .trip)
+            _showingSaved = State(initialValue: rehearsal.tab == .saved)
+        }
     }
 
     public var body: some View {
