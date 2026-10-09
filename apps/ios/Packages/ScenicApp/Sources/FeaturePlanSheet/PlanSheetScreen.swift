@@ -133,6 +133,12 @@ public struct PlanSheetScreen: View {
                             onChangePlace: { searchFor(.destination) }, onDrive: { onDrive(preview) })
         case .failed(_, let failure):
             PlanFailureCard(copy: PlanFailureCopy.of(failure), onAction: act)
+        case .offered(_, let offer):
+            // T-0334: each offer is ONE fresh plan through the gate, run down the same planner path.
+            PlanOfferCard(copy: PlanOfferCopy.of(offer),
+                          onMoreTime: { if let ticket = sheet.takeMoreTime() { run(ticket) } },
+                          onBackRoads: { if let ticket = sheet.takeBackRoads() { run(ticket) } },
+                          onAction: act)
         }
     }
 

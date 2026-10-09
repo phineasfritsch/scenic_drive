@@ -15,7 +15,7 @@ import { buildCustomModel, formatMultiplier, rejectCustomModel } from "./customM
 import { appleMapsUrl } from "./appleMaps";
 import { hazardsOf, HAZARD_DETAILS, type Hazard } from "./hazards";
 import { backRoadsEta, HonestFailure } from "./honestFailure";
-import { MAX_LAMBDA, searchLambda } from "./lambdaSearch";
+import { MAX_LAMBDA, MIN_BUDGET_USE, searchLambda } from "./lambdaSearch";
 import type { LatLon } from "./latLon";
 import { decisionPoints } from "./planWaypoints";
 import { PLAN_UPSTREAM_COST } from "./quota";
@@ -84,8 +84,14 @@ export async function route(call: GuardedFetch, routerBase: string, points: LatL
   return path;
 }
 
+/** The search's outcome shape for the one back-roads measurement: lambda MAX_LAMBDA, one evaluation. */
+function backRoadsOutcome(duration: number, fastest: number, budget: number) {
+  return { lambda: MAX_LAMBDA, evaluations: 1, usedBudget: budget === 0 || duration >= fastest + MIN_BUDGET_USE * budget };
+}
+
 export async function planScenic(call: GuardedFetch, routerBase: string, origin: LatLon, destination: LatLon,
-  budgetSeconds: number, closuresFor: ClosuresFor, returned: PathGuard): Promise<ScenicPlanResult> {
+  budgetSeconds: number, closuresFor: ClosuresFor, returned: PathGuard,
+  allBackRoads = false): Promise<ScenicPlanResult> {
   let used = 0;
   const counted: GuardedFetch = (url, init) => {
     used += 1;
@@ -97,11 +103,14 @@ export async function planScenic(call: GuardedFetch, routerBase: string, origin:
   const ceiling = fastestSeconds + budgetSeconds;
 
   const measured = new Map<string, RoutePath>();
-  const outcome = await searchLambda(fastestSeconds, budgetSeconds, async (lambda) => {
+  const measure = async (lambda: number) => {
     const path = await route(counted, routerBase, [origin, destination], SCENIC_PROFILE, buildCustomModel(lambda, closures));
     measured.set(formatMultiplier(lambda), path);
     return durationSeconds(path);
-  }, MAX_EVALUATIONS);
+  };
+  // T-0334 R2: "all back roads" is ONE request at MAX_LAMBDA, then every guard below - the ceiling first.
+  const outcome = allBackRoads ? backRoadsOutcome(await measure(MAX_LAMBDA), fastestSeconds, budgetSeconds)
+    : await searchLambda(fastestSeconds, budgetSeconds, measure, MAX_EVALUATIONS);
 
   const measuredChosen = measured.get(formatMultiplier(outcome.lambda));
   if (!measuredChosen) throw new PlanFailure("no_recorded_lambda", `no route was measured at lambda ${outcome.lambda}`);
@@ -123,7 +132,7 @@ export async function planScenic(call: GuardedFetch, routerBase: string, origin:
   if (isHonestFailure(routeScoreOf(chosen))) {
     throw new HonestFailure(await backRoadsEta(used + 1 <= PLAN_UPSTREAM_COST
       ? () => route(counted, routerBase, [origin, destination], SCENIC_PROFILE, buildCustomModel(MAX_LAMBDA, closures))
-      : null));
+      : null), fastestSeconds);
   }
   const eta = durationSeconds(chosen);
 

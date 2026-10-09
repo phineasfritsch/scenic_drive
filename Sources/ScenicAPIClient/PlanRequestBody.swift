@@ -21,9 +21,11 @@ struct PlanRequestBody: Encodable {
     /// T-0319 R2: the plan this request continues and its first pin not yet passed; both nil on a fresh plan.
     let rerouteToken: String?
     let firstPin: Int?
+    /// T-0334 R2: `back_roads: true` - plan the MAX_LAMBDA route alone; sent only when true, never with a reroute.
+    let backRoads: Bool
 
     private init(origin: Coordinate, place: Int64, budgetMinutes: Int, departsAt: Date?, vehicle: VehicleProfile,
-                 rerouteToken: String? = nil, firstPin: Int? = nil) {
+                 rerouteToken: String? = nil, firstPin: Int? = nil, backRoads: Bool = false) {
         self.origin = origin
         self.place = place
         self.budgetMinutes = budgetMinutes
@@ -31,11 +33,13 @@ struct PlanRequestBody: Encodable {
         self.vehicle = vehicle
         self.rerouteToken = rerouteToken
         self.firstPin = firstPin
+        self.backRoads = backRoads
     }
 
     /// The body, or why it may not be sent. Range first (a NaN or an infinity fails `contains`), then decimals.
     static func validated(origin: Coordinate, place: Int64, budgetMinutes: Int,
-                          departsAt: Date?, vehicle: VehicleProfile) -> Result<PlanRequestBody, PlanRefusal> {
+                          departsAt: Date?, vehicle: VehicleProfile,
+                          backRoads: Bool = false) -> Result<PlanRequestBody, PlanRefusal> {
         guard (-90.0...90.0).contains(origin.latitude), (-180.0...180.0).contains(origin.longitude) else {
             return .failure(.originOutOfRange)
         }
@@ -45,7 +49,7 @@ struct PlanRequestBody: Encodable {
         guard (0...maxBudgetMinutes).contains(budgetMinutes) else { return .failure(.budgetOutOfRange) }
         guard vehicle.isEnabled else { return .failure(.vehicleNotEnabled) }
         return .success(PlanRequestBody(origin: origin, place: place, budgetMinutes: budgetMinutes,
-                                        departsAt: departsAt, vehicle: vehicle))
+                                        departsAt: departsAt, vehicle: vehicle, backRoads: backRoads))
     }
 
     /// A reroute body (T-0319 R9): the token in the Worker's PLAN_TOKEN spelling, the first pin in 0...maxFirstPin,
@@ -90,6 +94,7 @@ struct PlanRequestBody: Encodable {
         case departsAt = "departs_at"
         case reroute, token
         case firstPin = "first_pin"
+        case backRoads = "back_roads"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -104,6 +109,9 @@ struct PlanRequestBody: Encodable {
             try top.encode(Self.instant(departsAt), forKey: .departsAt)
         }
         try top.encode(vehicle.rawValue, forKey: .vehicle)
+        if backRoads {
+            try top.encode(true, forKey: .backRoads)
+        }
         if let rerouteToken, let firstPin {
             var reroute = top.nestedContainer(keyedBy: CodingKeys.self, forKey: .reroute)
             try reroute.encode(rerouteToken, forKey: .token)
